@@ -44,6 +44,7 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     m_ui->rpmValidationByDefaultCheckBox->setChecked(MerSettings::rpmValidationByDefault());
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
+    m_ui->benchSyncWorkspaceCheckBox->setChecked(MerSettings::isSyncQmlLiveWorkspaceEnabled());
 }
 
 MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
@@ -55,6 +56,7 @@ void MerGeneralOptionsWidget::store()
 {
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
     MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
+    MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
 }
 
 QString MerGeneralOptionsWidget::searchKeywords() const

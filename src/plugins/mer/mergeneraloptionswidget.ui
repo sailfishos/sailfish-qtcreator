@@ -49,15 +49,32 @@
       <string>QmlLive</string>
      </property>
      <layout class="QFormLayout" name="formLayout">
-      <item row="0" column="0">
+      <item row="1" column="0">
        <widget class="QLabel" name="benchLocationLabel">
         <property name="text">
          <string>Bench location:</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
+      <item row="1" column="1">
        <widget class="Utils::PathChooser" name="benchLocationPathChooser" native="true"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="benchSyncWorkspaceLabel">
+        <property name="toolTip">
+         <string>Allow Qt Creator to automatically change QmlLive Bench's workspace to match active project settings.</string>
+        </property>
+        <property name="text">
+         <string>Control workspace:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="benchSyncWorkspaceCheckBox">
+        <property name="text">
+         <string> </string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

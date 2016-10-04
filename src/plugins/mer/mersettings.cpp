@@ -42,6 +42,7 @@ MerSettings *MerSettings::s_instance = 0;
 MerSettings::MerSettings(QObject *parent)
     : QObject(parent)
     , m_rpmValidationByDefault(true)
+    , m_syncQmlLiveWorkspaceEnabled(true)
 {
     Q_ASSERT(s_instance == 0);
     s_instance = this;
@@ -106,6 +107,25 @@ bool MerSettings::hasValidQmlLiveBenchLocation()
     Q_ASSERT(s_instance);
 
     return QFileInfo(s_instance->m_qmlLiveBenchLocation).isExecutable();
+}
+
+bool MerSettings::isSyncQmlLiveWorkspaceEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_syncQmlLiveWorkspaceEnabled;
+}
+
+void MerSettings::setSyncQmlLiveWorkspaceEnabled(bool enable)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_syncQmlLiveWorkspaceEnabled == enable)
+        return;
+
+    s_instance->m_syncQmlLiveWorkspaceEnabled = enable;
+
+    emit s_instance->syncQmlLiveWorkspaceEnabledChanged(s_instance->m_syncQmlLiveWorkspaceEnabled);
 }
 
 void MerSettings::read()

@@ -51,6 +51,7 @@ namespace {
 const char VALUE_SEPARATOR = ',';
 const char ADD_HOST_OPTION[] = "--addhost";
 const char PING_OPTION[] = "--ping";
+const char REMOTE_ONLY_OPTION[] = "--remoteonly";
 const char RM_HOST_OPTION[] = "--rmhost";
 }
 
@@ -65,6 +66,11 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
     onBenchLocationChanged();
     connect(MerSettings::instance(), &MerSettings::qmlLiveBenchLocationChanged,
             this, &MerQmlLiveBenchManager::onBenchLocationChanged);
+    connect(MerSettings::instance(), &MerSettings::syncQmlLiveWorkspaceEnabledChanged,
+        this, [this](bool enabled) {
+            if (enabled)
+                onStartupProjectChanged(SessionManager::startupProject());
+        });
 
     onDeviceListReplaced();
     connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
@@ -73,6 +79,10 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
             this, &MerQmlLiveBenchManager::onDeviceRemoved);
     connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
             this, &MerQmlLiveBenchManager::onDeviceListReplaced);
+
+    onStartupProjectChanged(SessionManager::startupProject());
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
+            this, &MerQmlLiveBenchManager::onStartupProjectChanged);
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::runControlStarted,
             this, &MerQmlLiveBenchManager::onRunControlStarted);
@@ -357,6 +367,21 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
         if (!currentDevices.contains(id))
             onDeviceRemoved(id);
     }
+}
+
+void MerQmlLiveBenchManager::onStartupProjectChanged(ProjectExplorer::Project *project)
+{
+    if (!project)
+        return;
+    if (!MerSettings::isSyncQmlLiveWorkspaceEnabled())
+        return;
+
+    const QString projectDir = project->projectDirectory().toString() ;
+
+    Command *openWorkspace = new Command;
+    openWorkspace->arguments = QStringList{QLatin1String(REMOTE_ONLY_OPTION), projectDir};
+
+    enqueueCommand(openWorkspace);
 }
 
 void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc)

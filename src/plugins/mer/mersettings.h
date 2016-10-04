@@ -44,9 +44,13 @@ public:
     static void setQmlLiveBenchLocation(const QString &location);
     static bool hasValidQmlLiveBenchLocation();
 
+    static bool isSyncQmlLiveWorkspaceEnabled();
+    static void setSyncQmlLiveWorkspaceEnabled(bool enable);
+
 signals:
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
+    void syncQmlLiveWorkspaceEnabledChanged(bool enabled);
 
 private:
     void read();
@@ -56,6 +60,7 @@ private:
     static MerSettings *s_instance;
     bool m_rpmValidationByDefault;
     QString m_qmlLiveBenchLocation;
+    bool m_syncQmlLiveWorkspaceEnabled;
 };
 
 } // Internal

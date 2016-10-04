@@ -35,6 +35,7 @@
 QT_FORWARD_DECLARE_CLASS(QProcess)
 
 namespace ProjectExplorer {
+    class Project;
     class RunControl;
 }
 
@@ -90,6 +91,7 @@ private slots:
     void onDeviceAdded(Core::Id id);
     void onDeviceRemoved(Core::Id id);
     void onDeviceListReplaced();
+    void onStartupProjectChanged(ProjectExplorer::Project *project);
     void onRunControlStarted(ProjectExplorer::RunControl *rc);
 
 private:

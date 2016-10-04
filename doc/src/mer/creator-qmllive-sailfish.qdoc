@@ -116,6 +116,9 @@
         \li \gui {Bench location} is the path to the QmlLive Bench application
             to work with.
 
+        \li \gui {Control workspace} allows Qt Creator to automatically change
+            QmlLive Bench's workspace to match the active project's directory.
+
     \endlist
 
     \target run settings
