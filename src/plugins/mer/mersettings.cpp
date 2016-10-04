@@ -41,6 +41,7 @@ MerSettings *MerSettings::s_instance = 0;
 
 MerSettings::MerSettings(QObject *parent)
     : QObject(parent)
+    , m_rpmValidationByDefault(true)
 {
     Q_ASSERT(s_instance == 0);
     s_instance = this;
