@@ -83,6 +83,7 @@ private:
     static QString qmlLiveHostName(const QString &merDeviceName, int port);
     void addHostsToBench(const QString &merDeviceName, const QString &address, const QSet<int> &ports);
     void removeHostsFromBench(const QString &merDeviceName, const QSet<int> &ports);
+    void letRunningBenchProbeHosts(const QString &merDeviceName, const QSet<int> &ports);
     void enqueueCommand(Command *command);
     void processCommandsQueue();
 

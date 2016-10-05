@@ -90,7 +90,9 @@
 
           \li \l {Running on Sailfish OS Devices}{Run your application}.
 
-          \li Connect your device in QmlLive Bench.
+              (Note that it may be necessary to connect the corresponding Host
+              in QmlLive Bench manually if the application takes too long to
+              start up.)
 
     \endlist
 

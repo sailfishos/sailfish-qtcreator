@@ -25,6 +25,7 @@
 #include <QCoreApplication>
 #include <QMessageBox>
 #include <QProcess>
+#include <QTimer>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -51,8 +52,12 @@ namespace {
 const char VALUE_SEPARATOR = ',';
 const char ADD_HOST_OPTION[] = "--addhost";
 const char PING_OPTION[] = "--ping";
+const char PROBE_HOST_OPTION[] = "--probehost";
 const char REMOTE_ONLY_OPTION[] = "--remoteonly";
 const char RM_HOST_OPTION[] = "--rmhost";
+
+const char APP_READY_PATTERN[] = "qmlliveruntime-sailfish initialized";
+const int PROBE_LATEST_MS = 2500;
 }
 
 MerQmlLiveBenchManager *MerQmlLiveBenchManager::m_instance = nullptr;
@@ -190,6 +195,25 @@ void MerQmlLiveBenchManager::removeHostsFromBench(const QString &merDeviceName, 
     QStringList arguments;
     foreach (int port, ports) {
         arguments.append(QLatin1String(RM_HOST_OPTION));
+        arguments.append(qmlLiveHostName(merDeviceName, port));
+    }
+
+    Command *command = new Command;
+    command->arguments = arguments;
+
+    enqueueCommand(command);
+}
+
+void MerQmlLiveBenchManager::letRunningBenchProbeHosts(const QString &merDeviceName, const QSet<int> &ports)
+{
+    QTC_ASSERT(!ports.isEmpty(), return);
+
+    if (!m_enabled)
+        return;
+
+    QStringList arguments;
+    foreach (int port, ports) {
+        arguments.append(QLatin1String(PROBE_HOST_OPTION));
         arguments.append(qmlLiveHostName(merDeviceName, port));
     }
 
@@ -393,6 +417,45 @@ void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc
         return;
 
     offerToStartBenchIfNotRunning();
+
+    // Remaining part is to call letRunningBenchProbeHosts() when app become ready
+
+    auto merDevice = rc->device().dynamicCast<const MerDevice>();
+    QTC_ASSERT(merDevice, return);
+
+    const QString merDeviceName = merDevice->displayName();
+    const QSet<int> ports = merDevice->qmlLivePortsSet();
+
+    if (ports.isEmpty()) {
+        qCWarning(Log::qmlLive) << "Not instructing QmlLive Bench to probe host with empty port list:"
+                                << merDeviceName;
+        return;
+    }
+
+    // Wait for APP_READY_PATTERN to appear in application output, signalizing
+    // qmlliveruntime-sailfish has been initialized. Do not wait longer than
+    // PROBE_LATEST_MS milliseconds.
+
+    QPointer<QObject> guard = new QObject(this);
+    auto probe = [this, guard, merDeviceName, ports] {
+        Q_ASSERT(guard);
+        delete guard;
+        letRunningBenchProbeHosts(merDeviceName, ports);
+    };
+
+    auto RunControl_appendMessage = static_cast<
+        void (RunControl::*)(RunControl *, const QString &, Utils::OutputFormat)
+        >(&RunControl::appendMessage);
+    connect(rc, RunControl_appendMessage, guard.data(), [probe](RunControl *rc, const QString &msg) {
+        Q_UNUSED(rc);
+        if (msg.contains(QLatin1String(APP_READY_PATTERN)))
+            probe();
+    });
+
+    QTimer::singleShot(PROBE_LATEST_MS, guard.data(), [probe] {
+        qCWarning(Log::qmlLive) << "Timeout waiting for application to become ready.";
+        probe();
+    });
 }
 
 } // Internal
