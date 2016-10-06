@@ -242,6 +242,7 @@ QList<Core::Id> MerEmulatorDevice::actionIds() const
 {
     QList<Core::Id> ids;
     ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
+    ids << Core::Id(Constants::MER_EMULATOR_STOP_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
     return ids;
 }
@@ -254,6 +255,8 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
         return tr("Regenerate SSH Keys");
     else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID)
         return tr("Start Emulator");
+    else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID)
+        return tr("Stop Emulator");
     return QString();
 }
 
@@ -268,6 +271,9 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
         m_connection->connectTo();
+        return;
+    } else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID) {
+        m_connection->disconnectFrom();
         return;
     }
 }

@@ -124,6 +124,7 @@ const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfigurat
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
+const char MER_EMULATOR_STOP_ACTION_ID[] = "Mer.MerEmulatorStopAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
 const char MER_HARDWARE_DEPLOYKEY_ACTION_ID[] = "Mer.MerHardwareDeployAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
