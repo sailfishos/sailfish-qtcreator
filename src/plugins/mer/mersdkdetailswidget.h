@@ -78,8 +78,6 @@ private slots:
 
 private:
     Ui::MerSdkDetailsWidget *m_ui;
-    QIcon m_invalidIcon;
-    QIcon m_warningIcon;
     bool m_updateConnection;
 };
 

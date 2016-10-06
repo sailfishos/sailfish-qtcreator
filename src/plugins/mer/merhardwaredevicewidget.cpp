@@ -27,6 +27,7 @@
 #include "merhardwaredevice.h"
 #include "mervirtualboxmanager.h"
 
+#include <coreplugin/coreicons.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
@@ -135,11 +136,11 @@ void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
 
 void MerHardwareDeviceWidget::initGui()
 {
-    m_ui->portsWarningLabel->setPixmap(QPixmap(QLatin1String(":/mer/images/warning.png")));
+    m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
-    m_ui->qmlLivePortsWarningLabel->setPixmap(QPixmap(QLatin1String(":/mer/images/warning.png")));
+    m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
