@@ -23,7 +23,10 @@
 #include "mervirtualboxmanager.h"
 
 #include "merconstants.h"
+#include "meremulatordevice.h"
+#include "merlogging.h"
 
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
@@ -32,7 +35,11 @@
 #include <QProcess>
 #include <QSettings>
 #include <QSize>
+#include <QTime>
 
+#include <algorithm>
+
+using namespace ProjectExplorer;
 using namespace Utils;
 
 const char VBOXMANAGE[] = "VBoxManage";
@@ -56,6 +63,12 @@ const char SETEXTRADATA[] = "setextradata";
 const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
 const char ENABLE_SYMLINKS[] = "VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1";
 const char YES_ARG[] = "1";
+const char MODIFYVM[] = "modifyvm";
+const char NATPF1[] = "--natpf1";
+const char DELETE[] = "delete";
+const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
+const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
+const char QML_LIVE_NATPF_RULE_TEMPLATE[] = "qmllive_%1,tcp,127.0.0.1,%2,,%2";
 
 namespace Mer {
 namespace Internal {
@@ -113,6 +126,16 @@ MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
 {
     m_instance = this;
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i)
+        onDeviceAdded(DeviceManager::instance()->deviceAt(i)->id());
+    connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
+            this, &MerVirtualBoxManager::onDeviceAdded);
+    connect(DeviceManager::instance(), &DeviceManager::deviceRemoved,
+            this, &MerVirtualBoxManager::onDeviceRemoved);
+    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
+            this, &MerVirtualBoxManager::onDeviceListReplaced);
 }
 
 MerVirtualBoxManager::~MerVirtualBoxManager()
@@ -337,6 +360,96 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
+void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, const QSet<int> &ports)
+{
+    qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
+
+    QTime timer;
+    timer.start();
+
+    for (int i = 1; i <= Constants::MAX_QML_LIVE_PORTS; ++i) {
+        QStringList arguments;
+        arguments.append(QLatin1String(MODIFYVM));
+        arguments.append(vmName);
+        arguments.append(QLatin1String(NATPF1));
+        arguments.append(QLatin1String(DELETE));
+        arguments.append(qmlLivePortsForwardingRuleName(i));
+
+        QProcess process;
+        process.start(vBoxManagePath(), arguments);
+        if (!process.waitForFinished())
+            qWarning() << "VBoxManage failed to" << MODIFYVM;
+    }
+
+    auto ports_ = ports.toList();
+    std::sort(ports_.begin(), ports_.end());
+
+    int i = 1;
+    foreach (int port, ports_) {
+        QStringList arguments;
+        arguments.append(QLatin1String(MODIFYVM));
+        arguments.append(vmName);
+        arguments.append(QLatin1String(NATPF1));
+        arguments.append(qmlLivePortsForwardingRule(i, port));
+
+        QProcess process;
+        process.start(vBoxManagePath(), arguments);
+        if (!process.waitForFinished())
+            qWarning() << "VBoxManage failed to" << MODIFYVM;
+
+        ++i;
+    }
+
+    qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
+}
+
+QString MerVirtualBoxManager::qmlLivePortsForwardingRuleName(int index)
+{
+    return QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(index);
+}
+
+QString MerVirtualBoxManager::qmlLivePortsForwardingRule(int index, int port)
+{
+    return QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(index).arg(port);
+}
+
+void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
+{
+    IDevice::ConstPtr device = DeviceManager::instance()->find(id);
+    auto merEmulator = device.dynamicCast<const MerEmulatorDevice>();
+    if (!merEmulator)
+        return;
+
+    QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
+    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsSet());
+}
+
+void MerVirtualBoxManager::onDeviceRemoved(Core::Id id)
+{
+    m_deviceQmlLivePortsCache.remove(id);
+}
+
+void MerVirtualBoxManager::onDeviceListReplaced()
+{
+    const auto oldCache = m_deviceQmlLivePortsCache;
+    m_deviceQmlLivePortsCache.clear();
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i) {
+        auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
+        if (!merEmulator)
+            continue;
+
+        const QSet<int> oldPorts = oldCache.value(merEmulator->id());
+        const QSet<int> nowPorts = merEmulator->qmlLivePortsSet();
+
+        if (nowPorts != oldPorts)
+            setUpQmlLivePortsForwarding(merEmulator->virtualMachine(), nowPorts);
+
+        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowPorts);
+    }
+}
+
 bool isVirtualMachineListed(const QString &vmName, const QString &output)
 {
     return output.indexOf(QRegExp(QString::fromLatin1("\\B\"%1\"\\B").arg(vmName))) != -1;
@@ -380,6 +493,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.sshPort = port;
             else if (rexp.cap(1).contains(QLatin1String("www")))
                 info.wwwPort = port;
+            else if (rexp.cap(1).contains(QLatin1String(QML_LIVE_NATPF_RULE_NAME_MATCH)))
+                info.qmlLivePorts << port;
             else
                 info.freePorts << port;
         } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {

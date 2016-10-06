@@ -23,6 +23,7 @@
 #include "meremulatordevicewidget.h"
 #include "ui_meremulatordevicewidget.h"
 
+#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
@@ -66,6 +67,12 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
 MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 {
     delete m_ui;
+}
+
+void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
+{
+    m_ui->qmlLivePortsLineEdit->setEnabled(vmOff);
+    m_ui->qmlLivePortsInfoLabel->setVisible(!vmOff);
 }
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
@@ -138,6 +145,11 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
+    m_ui->qmlLivePortsInfoLabel->setPixmap(Core::Icons::INFO.pixmap());
+    m_ui->qmlLivePortsInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop emulator to unlock this field for editing.")
+            + QLatin1String("</font>"));
     m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
@@ -181,6 +193,10 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();
     updateQmlLivePortsWarningLabel();
+
+    onVirtualMachineOffChanged(device->connection()->isVirtualMachineOff());
+    connect(device->connection(), &MerConnection::virtualMachineOffChanged,
+            this, &MerEmulatorDeviceWidget::onVirtualMachineOffChanged);
 }
 
 } // Internal

@@ -163,7 +163,9 @@
 
         \li \gui {QmlLive ports} is the list of TCP ports to reserve for use
             with QmlLive. For each configured port a unique Host in QmlLive
-            Bench will be created.
+            Bench will be created. If this is an emulator device, the
+            corresponding VirtualBox virtual machine will be configured to
+            enable port forwarding from \tt localhost.
 
     \endlist
 

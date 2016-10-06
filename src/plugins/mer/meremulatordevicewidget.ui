@@ -269,6 +269,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="qmlLivePortsInfoLabel">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="qmlLivePortsWarningLabel">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -304,7 +311,6 @@
   <zorder>macLabel</zorder>
   <zorder>macLabelEdit</zorder>
   <zorder></zorder>
-  <zorder>horizontalLayoutWidget</zorder>
   <zorder>qmlLivePortsLabel</zorder>
  </widget>
  <resources/>

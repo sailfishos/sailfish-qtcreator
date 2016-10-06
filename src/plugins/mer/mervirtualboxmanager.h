@@ -30,6 +30,12 @@
 #include <QString>
 #include <QStringList>
 
+#include <coreplugin/id.h>
+
+namespace Utils {
+    class PortList;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -45,6 +51,7 @@ public:
     quint16 sshPort;
     quint16 wwwPort;
     QList<quint16> freePorts;
+    QList<quint16> qmlLivePorts;
     QStringList macs;
     bool headless;
 };
@@ -69,10 +76,20 @@ public:
 
 private:
     MerVirtualBoxManager(QObject *parent = 0);
+    void setUpQmlLivePortsForwarding(const QString &vmName, const QSet<int> &ports);
+    QString qmlLivePortsForwardingRuleName(int index);
+    QString qmlLivePortsForwardingRule(int index, int port);
+
+private slots:
+    void onDeviceAdded(Core::Id id);
+    void onDeviceRemoved(Core::Id id);
+    void onDeviceListReplaced();
 
 private:
     static MerVirtualBoxManager *m_instance;
     friend class MerPlugin;
+
+    QHash<Core::Id, QSet<int>> m_deviceQmlLivePortsCache;
 };
 
 } // Internal
