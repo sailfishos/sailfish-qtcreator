@@ -31,6 +31,8 @@
 
 #include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
 #include <utils/hostosinfo.h>
@@ -41,6 +43,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -48,7 +51,8 @@ namespace Internal {
 namespace {
 const char QML_LIVE_ENABLED[] = "MerRunConfiguration.QmlLiveEnabled";
 const char QML_LIVE_IPC_PORT_KEY[] = "MerRunConfiguration.QmlLiveIpcPort";
-const char QML_LIVE_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveWorkspace";
+const char QML_LIVE_BENCH_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveBenchWorkspace";
+const char QML_LIVE_TARGET_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveTargetWorkspace";
 const char QML_LIVE_OPTIONS_KEY[] = "MerRunConfiguration.QmlLiveOptions";
 const char QML_LIVE_HELP_URL[] =
     "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
@@ -94,50 +98,14 @@ public:
 
         qmlLiveWidget->setToolWidget(toolWidget);
 
+        // Init QmlLive details widget
+
         auto qmlLiveDetailsWidget = new QWidget;
         m_qmlLiveDetailsUi = new Ui::MerRunConfigurationAspectQmlLiveDetailsWidget;
         m_qmlLiveDetailsUi->setupUi(qmlLiveDetailsWidget);
+        initQmlLiveDetailsUi();
 
-        m_qmlLiveDetailsUi->warningIconLabel->setPixmap(Core::Icons::WARNING.pixmap());
-        m_qmlLiveDetailsUi->configureButton->setText(ICore::msgShowOptionsDialog());
-        connect(m_qmlLiveDetailsUi->configureButton, &QAbstractButton::clicked,
-                [] { ICore::showOptionsDialog(Constants::MER_GENERAL_OPTIONS_ID); });
-        m_qmlLiveDetailsUi->warningWidget->setVisible(!MerSettings::hasValidQmlLiveBenchLocation());
-        connect(MerSettings::instance(), &MerSettings::qmlLiveBenchLocationChanged, this, [this]() {
-            m_qmlLiveDetailsUi->warningWidget->setVisible(!MerSettings::hasValidQmlLiveBenchLocation());
-        });
-
-        connect(m_qmlLiveDetailsUi->restoreDefaults, &QAbstractButton::clicked,
-                m_aspect, &MerRunConfigurationAspect::restoreQmlLiveDefaults);
-
-        m_qmlLiveDetailsUi->port->setValue(m_aspect->qmlLiveIpcPort());
-        void (QSpinBox::*QSpinBox_valueChanged)(int) = &QSpinBox::valueChanged;
-        connect(m_qmlLiveDetailsUi->port, QSpinBox_valueChanged,
-                m_aspect, &MerRunConfigurationAspect::setQmlLiveIpcPort);
-        connect(m_aspect, &MerRunConfigurationAspect::qmlLiveIpcPortChanged,
-                m_qmlLiveDetailsUi->port, &QSpinBox::setValue);
-
-        m_qmlLiveDetailsUi->workspace->setText(m_aspect->qmlLiveWorkspace());
-        connect(m_qmlLiveDetailsUi->workspace, &QLineEdit::textChanged,
-                m_aspect, &MerRunConfigurationAspect::setQmlLiveWorkspace);
-        connect(m_aspect, &MerRunConfigurationAspect::qmlLiveWorkspaceChanged,
-                m_qmlLiveDetailsUi->workspace, &QLineEdit::setText);
-
-        auto setupQmlLiveOption = [this](QCheckBox *checkBox, MerRunConfigurationAspect::QmlLiveOption option) {
-            checkBox->setChecked(m_aspect->qmlLiveOptions() & option);
-            connect(checkBox, &QCheckBox::stateChanged, [this, option](int state) {
-                if (state == Qt::Checked)
-                    m_aspect->setQmlLiveOptions(m_aspect->qmlLiveOptions() | option);
-                else
-                    m_aspect->setQmlLiveOptions(m_aspect->qmlLiveOptions() & ~option);
-            });
-            connect(m_aspect, &MerRunConfigurationAspect::qmlLiveOptionsChanged, [this, checkBox, option]() {
-                checkBox->setChecked(m_aspect->qmlLiveOptions() & option);
-            });
-        };
-        setupQmlLiveOption(m_qmlLiveDetailsUi->updateOnConnect, MerRunConfigurationAspect::UpdateOnConnect);
-        setupQmlLiveOption(m_qmlLiveDetailsUi->updatesAsOverlay, MerRunConfigurationAspect::UpdatesAsOverlay);
-        setupQmlLiveOption(m_qmlLiveDetailsUi->loadDummyData, MerRunConfigurationAspect::LoadDummyData);
+        // Finish
 
         qmlLiveWidget->setWidget(qmlLiveDetailsWidget);
         qmlLiveDetailsWidget->setEnabled(qmlLiveWidget->isChecked());
@@ -157,6 +125,88 @@ public:
     QString displayName() const override { return m_aspect->displayName(); }
 
 private:
+    void initQmlLiveDetailsUi()
+    {
+        // Init infoWidget
+
+        m_qmlLiveDetailsUi->noControlWorkspaceIconLabel->setPixmap(Core::Icons::INFO.pixmap());
+        m_qmlLiveDetailsUi->noBenchIconLabel->setPixmap(Core::Icons::WARNING.pixmap());
+        m_qmlLiveDetailsUi->configureButton->setText(ICore::msgShowOptionsDialog());
+        connect(m_qmlLiveDetailsUi->configureButton, &QAbstractButton::clicked,
+                [] { ICore::showOptionsDialog(Constants::MER_GENERAL_OPTIONS_ID); });
+        auto updateInfoWidgetVisibility = [this] {
+            const bool noBench = !MerSettings::hasValidQmlLiveBenchLocation();
+            m_qmlLiveDetailsUi->noBenchIconLabel->setVisible(noBench);
+            m_qmlLiveDetailsUi->noBenchLabel->setVisible(noBench);
+            const bool noControlWorkspace = !MerSettings::isSyncQmlLiveWorkspaceEnabled();
+            m_qmlLiveDetailsUi->noControlWorkspaceIconLabel->setVisible(noControlWorkspace);
+            m_qmlLiveDetailsUi->noControlWorkspaceLabel->setVisible(noControlWorkspace);
+            m_qmlLiveDetailsUi->infoWidget->setVisible(noBench || noControlWorkspace);
+        };
+        updateInfoWidgetVisibility();
+        connect(MerSettings::instance(), &MerSettings::qmlLiveBenchLocationChanged,
+                this, updateInfoWidgetVisibility);
+        connect(MerSettings::instance(), &MerSettings::syncQmlLiveWorkspaceEnabledChanged,
+                this, updateInfoWidgetVisibility);
+
+        connect(m_qmlLiveDetailsUi->restoreDefaults, &QAbstractButton::clicked,
+                m_aspect, &MerRunConfigurationAspect::restoreQmlLiveDefaults);
+
+        // Init port QSpinBox
+
+        m_qmlLiveDetailsUi->port->setValue(m_aspect->qmlLiveIpcPort());
+        void (QSpinBox::*QSpinBox_valueChanged)(int) = &QSpinBox::valueChanged;
+        connect(m_qmlLiveDetailsUi->port, QSpinBox_valueChanged,
+                m_aspect, &MerRunConfigurationAspect::setQmlLiveIpcPort);
+        connect(m_aspect, &MerRunConfigurationAspect::qmlLiveIpcPortChanged,
+                m_qmlLiveDetailsUi->port, &QSpinBox::setValue);
+
+        // Init benchWorkspace PathChooser
+
+        m_qmlLiveDetailsUi->benchWorkspace->setExpectedKind(PathChooser::ExistingDirectory);
+        m_qmlLiveDetailsUi->benchWorkspace->setBaseDirectory(m_aspect->defaultQmlLiveBenchWorkspace());
+        m_qmlLiveDetailsUi->benchWorkspace->setPath(m_aspect->qmlLiveBenchWorkspace());
+        auto updateQmlLiveBenchWorkspace = [this] {
+            m_aspect->setQmlLiveBenchWorkspace(m_qmlLiveDetailsUi->benchWorkspace->path());
+        };
+        connect(m_qmlLiveDetailsUi->benchWorkspace, &PathChooser::editingFinished,
+                this, updateQmlLiveBenchWorkspace);
+        connect(m_qmlLiveDetailsUi->benchWorkspace, &PathChooser::browsingFinished,
+                this, updateQmlLiveBenchWorkspace);
+        connect(m_aspect, &MerRunConfigurationAspect::qmlLiveBenchWorkspaceChanged,
+                m_qmlLiveDetailsUi->benchWorkspace, &PathChooser::setPath);
+        m_qmlLiveDetailsUi->benchWorkspace->setEnabled(MerSettings::isSyncQmlLiveWorkspaceEnabled());
+        connect(MerSettings::instance(), &MerSettings::syncQmlLiveWorkspaceEnabledChanged,
+                m_qmlLiveDetailsUi->benchWorkspace, &PathChooser::setEnabled);
+
+        // Init targetWorkspace QLineEdit
+
+        m_qmlLiveDetailsUi->targetWorkspace->setText(m_aspect->qmlLiveTargetWorkspace());
+        connect(m_qmlLiveDetailsUi->targetWorkspace, &QLineEdit::textChanged,
+                m_aspect, &MerRunConfigurationAspect::setQmlLiveTargetWorkspace);
+        connect(m_aspect, &MerRunConfigurationAspect::qmlLiveTargetWorkspaceChanged,
+                m_qmlLiveDetailsUi->targetWorkspace, &QLineEdit::setText);
+
+        // Init options QCheckBoxes
+
+        auto setupQmlLiveOption = [this](QCheckBox *checkBox, MerRunConfigurationAspect::QmlLiveOption option) {
+            checkBox->setChecked(m_aspect->qmlLiveOptions() & option);
+            connect(checkBox, &QCheckBox::stateChanged, [this, option](int state) {
+                if (state == Qt::Checked)
+                    m_aspect->setQmlLiveOptions(m_aspect->qmlLiveOptions() | option);
+                else
+                    m_aspect->setQmlLiveOptions(m_aspect->qmlLiveOptions() & ~option);
+            });
+            connect(m_aspect, &MerRunConfigurationAspect::qmlLiveOptionsChanged, [this, checkBox, option]() {
+                checkBox->setChecked(m_aspect->qmlLiveOptions() & option);
+            });
+        };
+        setupQmlLiveOption(m_qmlLiveDetailsUi->updateOnConnect, MerRunConfigurationAspect::UpdateOnConnect);
+        setupQmlLiveOption(m_qmlLiveDetailsUi->updatesAsOverlay, MerRunConfigurationAspect::UpdatesAsOverlay);
+        setupQmlLiveOption(m_qmlLiveDetailsUi->loadDummyData, MerRunConfigurationAspect::LoadDummyData);
+    }
+
+private:
     MerRunConfigurationAspect *m_aspect;
     Ui::MerRunConfigurationAspectQmlLiveDetailsWidget *m_qmlLiveDetailsUi;
 };
@@ -165,6 +215,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(ProjectExplorer::RunConfigu
     : ProjectExplorer::IRunConfigurationAspect(rc)
     , m_qmlLiveEnabled(false)
     , m_qmlLiveIpcPort(Constants::DEFAULT_QML_LIVE_PORT)
+    , m_qmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace())
     , m_qmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS)
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
@@ -182,11 +233,20 @@ ProjectExplorer::RunConfigWidget *MerRunConfigurationAspect::createConfiguration
     return new MerRunConfigWidget(this);
 }
 
+QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
+{
+    Project *project = runConfiguration()->target()->project();
+    QTC_ASSERT(project, return QString());
+    return project->projectDirectory().toString();
+}
+
 void MerRunConfigurationAspect::fromMap(const QVariantMap &map)
 {
     m_qmlLiveEnabled = map.value(QLatin1String(QML_LIVE_ENABLED), false).toBool();
     m_qmlLiveIpcPort = map.value(QLatin1String(QML_LIVE_IPC_PORT_KEY), Constants::DEFAULT_QML_LIVE_PORT).toInt();
-    m_qmlLiveWorkspace = map.value(QLatin1String(QML_LIVE_WORKSPACE_KEY), QString()).toString();
+    m_qmlLiveBenchWorkspace = map.value(QLatin1String(QML_LIVE_BENCH_WORKSPACE_KEY),
+                                        defaultQmlLiveBenchWorkspace()).toString();
+    m_qmlLiveTargetWorkspace = map.value(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), QString()).toString();
     m_qmlLiveOptions = static_cast<QmlLiveOption>(map.value(QLatin1String(QML_LIVE_OPTIONS_KEY),
                                                             static_cast<int>(DEFAULT_QML_LIVE_OPTIONS)).toInt());
 }
@@ -195,14 +255,16 @@ void MerRunConfigurationAspect::toMap(QVariantMap &map) const
 {
     map.insert(QLatin1String(QML_LIVE_ENABLED), m_qmlLiveEnabled);
     map.insert(QLatin1String(QML_LIVE_IPC_PORT_KEY), m_qmlLiveIpcPort);
-    map.insert(QLatin1String(QML_LIVE_WORKSPACE_KEY), m_qmlLiveWorkspace);
+    map.insert(QLatin1String(QML_LIVE_BENCH_WORKSPACE_KEY), m_qmlLiveBenchWorkspace);
+    map.insert(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), m_qmlLiveTargetWorkspace);
     map.insert(QLatin1String(QML_LIVE_OPTIONS_KEY), static_cast<int>(m_qmlLiveOptions));
 }
 
 void MerRunConfigurationAspect::restoreQmlLiveDefaults()
 {
     setQmlLiveIpcPort(Constants::DEFAULT_QML_LIVE_PORT);
-    setQmlLiveWorkspace(QString());
+    setQmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace());
+    setQmlLiveTargetWorkspace(QString());
     setQmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS);
 }
 
@@ -226,14 +288,24 @@ void MerRunConfigurationAspect::setQmlLiveIpcPort(int port)
     emit qmlLiveIpcPortChanged(m_qmlLiveIpcPort);
 }
 
-void MerRunConfigurationAspect::setQmlLiveWorkspace(const QString &workspace)
+void MerRunConfigurationAspect::setQmlLiveBenchWorkspace(const QString &benchWorkspace)
 {
-    if (m_qmlLiveWorkspace == workspace)
+    if (m_qmlLiveBenchWorkspace == benchWorkspace)
         return;
 
-    m_qmlLiveWorkspace = workspace;
+    m_qmlLiveBenchWorkspace = benchWorkspace;
 
-    emit qmlLiveWorkspaceChanged(m_qmlLiveWorkspace);
+    emit qmlLiveBenchWorkspaceChanged(m_qmlLiveBenchWorkspace);
+}
+
+void MerRunConfigurationAspect::setQmlLiveTargetWorkspace(const QString &targetWorkspace)
+{
+    if (m_qmlLiveTargetWorkspace == targetWorkspace)
+        return;
+
+    m_qmlLiveTargetWorkspace = targetWorkspace;
+
+    emit qmlLiveTargetWorkspaceChanged(m_qmlLiveTargetWorkspace);
 }
 
 void MerRunConfigurationAspect::setQmlLiveOptions(QmlLiveOptions options)

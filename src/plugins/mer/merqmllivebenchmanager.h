@@ -36,7 +36,9 @@ QT_FORWARD_DECLARE_CLASS(QProcess)
 
 namespace ProjectExplorer {
     class Project;
+    class RunConfiguration;
     class RunControl;
+    class Target;
 }
 
 namespace Utils {
@@ -93,6 +95,10 @@ private slots:
     void onDeviceRemoved(Core::Id id);
     void onDeviceListReplaced();
     void onStartupProjectChanged(ProjectExplorer::Project *project);
+    void onActiveTargetChanged(ProjectExplorer::Target *target);
+    void onActiveRunConfigurationChanged(ProjectExplorer::RunConfiguration *rc);
+    void onQmlLiveEnabledChanged(bool enabled);
+    void onQmlLiveBenchWorkspaceChanged(const QString &benchWorkspace);
     void onRunControlStarted(ProjectExplorer::RunControl *rc);
 
 private:
@@ -103,6 +109,11 @@ private:
     QHash<Core::Id, DeviceInfo *> m_deviceInfoCache;
     QQueue<Command *> m_commands;
     Command *m_currentCommand{};
+
+    QMetaObject::Connection m_activeTargetChangedConnection;
+    QMetaObject::Connection m_activeRunConfigurationChangedConnection;
+    QMetaObject::Connection m_qmlLiveEnabledChangedConnection;
+    QMetaObject::Connection m_qmlLiveBenchWorkspaceChangedConnection;
 };
 
 } // Internal

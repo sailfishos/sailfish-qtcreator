@@ -52,8 +52,11 @@ public:
 
     bool isQmlLiveEnabled() const { return m_qmlLiveEnabled; }
     int qmlLiveIpcPort() const { return m_qmlLiveIpcPort; }
-    QString qmlLiveWorkspace() const { return m_qmlLiveWorkspace; }
+    QString qmlLiveBenchWorkspace() const { return m_qmlLiveBenchWorkspace; }
+    QString qmlLiveTargetWorkspace() const { return m_qmlLiveTargetWorkspace; }
     QmlLiveOptions qmlLiveOptions() const { return m_qmlLiveOptions; }
+
+    QString defaultQmlLiveBenchWorkspace() const;
 
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
@@ -62,19 +65,22 @@ public slots:
     void restoreQmlLiveDefaults();
     void setQmlLiveEnabled(bool qmlLiveEnabled);
     void setQmlLiveIpcPort(int port);
-    void setQmlLiveWorkspace(const QString &workspace);
+    void setQmlLiveBenchWorkspace(const QString &benchWorkspace);
+    void setQmlLiveTargetWorkspace(const QString &targetWorkspace);
     void setQmlLiveOptions(QmlLiveOptions options);
 
 signals:
     void qmlLiveEnabledChanged(bool qmlLiveEnabled);
     void qmlLiveIpcPortChanged(int port);
-    void qmlLiveWorkspaceChanged(const QString &workspace);
+    void qmlLiveBenchWorkspaceChanged(const QString &benchWorkspace);
+    void qmlLiveTargetWorkspaceChanged(const QString &targetWorkspace);
     void qmlLiveOptionsChanged();
 
 private:
     bool m_qmlLiveEnabled;
     int m_qmlLiveIpcPort;
-    QString m_qmlLiveWorkspace;
+    QString m_qmlLiveBenchWorkspace;
+    QString m_qmlLiveTargetWorkspace;
     QmlLiveOptions m_qmlLiveOptions;
 };
 

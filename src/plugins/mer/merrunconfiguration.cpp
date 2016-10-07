@@ -125,9 +125,9 @@ Runnable MerRunConfiguration::runnable() const
                               QString::number(merAspect->qmlLiveIpcPort()));
         }
 
-        if (!merAspect->qmlLiveWorkspace().isEmpty()) {
+        if (!merAspect->qmlLiveTargetWorkspace().isEmpty()) {
             r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_WORKSPACE"),
-                              merAspect->qmlLiveWorkspace());
+                              merAspect->qmlLiveTargetWorkspace());
         }
 
         if (merAspect->qmlLiveOptions() & MerRunConfigurationAspect::UpdateOnConnect) {

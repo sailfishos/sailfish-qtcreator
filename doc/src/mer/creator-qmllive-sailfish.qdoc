@@ -119,7 +119,8 @@
             to work with.
 
         \li \gui {Control workspace} allows Qt Creator to automatically change
-            QmlLive Bench's workspace to match the active project's directory.
+            QmlLive Bench's workspace to match the \gui {Bench workspace} option
+            in the active run configuration (see below).
 
     \endlist
 
@@ -135,7 +136,11 @@
         \li \gui {Port} is the TCP port to listen on for connection from QmlLive
             bench. Defaults to 10234.
 
-        \li \gui {Workspace} is the path to the directory tree on device
+        \li \gui {Bench workspace} is the path to the directory tree on local
+            filesystem to be used as the workspace in QmlLive bench. Defaults to
+            project directory.
+
+        \li \gui {Target workspace} is the path to the directory tree on device
             to match the workspace in QmlLive bench. Defaults to application's
             shared data directory.
 
@@ -144,15 +149,15 @@
             only after the workspace documents are updated initially.
 
         \li \gui {Updates as overlay} allow to receive updates even with no
-            write permission to \gui {Workspace}. Updates will be stored
+            write permission to \gui {Target workspace}. Updates will be stored
             in a temporary directory and layered over the actual workspace using
             the \l
             {http://doc.qt.io/qt-5/qqmlabstracturlinterceptor.html}{QQmlAbstractUrlInterceptor}
             mechanism.
 
         \li \gui {Load dummy data} enables loading of dummy QML data - QML
-            documents located in the "dummydata" subdirectory of \gui
-            {Workspace} directory. These will be exposed as context properties
+            documents located in the "dummydata" subdirectory of \gui {Target
+            workspace} directory. These will be exposed as context properties
             using file name without extension as property name.
 
     \endlist

@@ -62,7 +62,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="benchSyncWorkspaceLabel">
         <property name="toolTip">
-         <string>Allow Qt Creator to automatically change QmlLive Bench's workspace to match active project settings.</string>
+         <string>Allow Qt Creator to automatically change QmlLive Bench's workspace to match the active run configuration.</string>
         </property>
         <property name="text">
          <string>Control workspace:</string>

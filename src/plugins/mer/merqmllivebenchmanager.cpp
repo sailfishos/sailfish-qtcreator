@@ -32,6 +32,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
@@ -292,7 +293,9 @@ void MerQmlLiveBenchManager::processCommandsQueue()
 void MerQmlLiveBenchManager::onBenchLocationChanged()
 {
     m_enabled = MerSettings::hasValidQmlLiveBenchLocation();
-    if (!m_enabled) {
+    if (m_enabled) {
+        onStartupProjectChanged(SessionManager::startupProject());
+    } else {
         qCWarning(Log::qmlLive) << "QmlLive Bench location invalid or not set. "
             "QmlLive Bench management will not work.";
     }
@@ -395,15 +398,83 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
 
 void MerQmlLiveBenchManager::onStartupProjectChanged(ProjectExplorer::Project *project)
 {
+    disconnect(m_activeTargetChangedConnection);
+    onActiveTargetChanged(nullptr);
+
     if (!project)
+        return;
+
+    onActiveTargetChanged(project->activeTarget());
+    m_activeTargetChangedConnection =
+        connect(project, &Project::activeTargetChanged,
+                this, &MerQmlLiveBenchManager::onActiveTargetChanged);
+}
+
+void MerQmlLiveBenchManager::onActiveTargetChanged(ProjectExplorer::Target *target)
+{
+    disconnect(m_activeRunConfigurationChangedConnection);
+    onActiveRunConfigurationChanged(nullptr);
+
+    if (!target)
+        return;
+
+    onActiveRunConfigurationChanged(target->activeRunConfiguration());
+    m_activeRunConfigurationChangedConnection =
+        connect(target, &Target::activeRunConfigurationChanged,
+                this, &MerQmlLiveBenchManager::onActiveRunConfigurationChanged);
+}
+
+void MerQmlLiveBenchManager::onActiveRunConfigurationChanged(ProjectExplorer::RunConfiguration *rc)
+{
+    disconnect(m_qmlLiveEnabledChangedConnection);
+    onQmlLiveEnabledChanged(false);
+
+    if (!rc)
+        return;
+    auto merAspect = rc->extraAspect<MerRunConfigurationAspect>();
+    if (!merAspect)
+        return;
+
+    onQmlLiveEnabledChanged(merAspect->isQmlLiveEnabled());
+    m_qmlLiveEnabledChangedConnection =
+        connect(merAspect, &MerRunConfigurationAspect::qmlLiveEnabledChanged,
+                this, &MerQmlLiveBenchManager::onQmlLiveEnabledChanged);
+}
+
+void MerQmlLiveBenchManager::onQmlLiveEnabledChanged(bool enabled)
+{
+    disconnect(m_qmlLiveBenchWorkspaceChangedConnection);
+    // Intentionally do not call onQmlLiveBenchWorkspaceChanged(QString{});
+
+    if (!enabled)
+        return;
+
+    Project *project = SessionManager::startupProject();
+    QTC_ASSERT(project, return);
+    Target *target = project->activeTarget();
+    QTC_ASSERT(target, return);
+    RunConfiguration *rc = target->activeRunConfiguration();
+    QTC_ASSERT(rc, return);
+    auto merAspect = rc->extraAspect<MerRunConfigurationAspect>();
+    QTC_ASSERT(merAspect, return);
+
+    onQmlLiveBenchWorkspaceChanged(merAspect->qmlLiveBenchWorkspace());
+    m_qmlLiveBenchWorkspaceChangedConnection =
+        connect(merAspect, &MerRunConfigurationAspect::qmlLiveBenchWorkspaceChanged,
+                this, &MerQmlLiveBenchManager::onQmlLiveBenchWorkspaceChanged);
+}
+
+void MerQmlLiveBenchManager::onQmlLiveBenchWorkspaceChanged(const QString &benchWorkspace)
+{
+    if (benchWorkspace.isEmpty() || !QFileInfo(benchWorkspace).isDir())
+        return;
+    if (!m_enabled)
         return;
     if (!MerSettings::isSyncQmlLiveWorkspaceEnabled())
         return;
 
-    const QString projectDir = project->projectDirectory().toString() ;
-
     Command *openWorkspace = new Command;
-    openWorkspace->arguments = QStringList{QLatin1String(REMOTE_ONLY_OPTION), projectDir};
+    openWorkspace->arguments = QStringList{QLatin1String(REMOTE_ONLY_OPTION), benchWorkspace};
 
     enqueueCommand(openWorkspace);
 }
