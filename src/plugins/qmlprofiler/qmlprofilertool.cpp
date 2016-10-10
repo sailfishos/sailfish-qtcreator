@@ -440,13 +440,11 @@ void QmlProfilerTool::setRecording(bool recording)
     d->m_recordButton->setChecked(recording);
 
     // manage timer
-    if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppRunning) {
-        if (recording) {
-            d->m_recordingTimer.start();
-            d->m_recordingElapsedTime.start();
-        } else {
-            d->m_recordingTimer.stop();
-        }
+    if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppRunning && recording) {
+        d->m_recordingTimer.start();
+        d->m_recordingElapsedTime.start();
+    } else {
+        d->m_recordingTimer.stop();
     }
 }
 
