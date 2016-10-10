@@ -32,6 +32,7 @@
 
 #include <debugger/analyzer/analyzermanager.h>
 #include <debugger/analyzer/analyzerruncontrol.h>
+#include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
@@ -157,6 +158,11 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
         Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
+        AnalyzerConnection connection;
+        connection.connParams =
+            DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
+        connection.analyzerHost = connection.connParams.host;
+        runControl->setConnection(connection);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         // TODO: handleProfilingFinished is private
