@@ -151,10 +151,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
                 = Debugger::createDebuggerRunControl(params, rc, errorMessage, mode);
         if (!runControl)
             return 0;
-        LinuxDeviceDebugSupport * const debugSupport =
-                new LinuxDeviceDebugSupport(rc, runControl);
-        // TODO: handleDebuggingFinished is private
-        connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
+        (void) new LinuxDeviceDebugSupport(runConfig, runControl);
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
         Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
@@ -163,10 +160,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
         connection.analyzerHost = connection.connParams.host;
         runControl->setConnection(connection);
-        RemoteLinuxAnalyzeSupport * const analyzeSupport =
-                new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
-        // TODO: handleProfilingFinished is private
-        connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
+        (void) new RemoteLinuxAnalyzeSupport(runConfig, runControl, mode);
         return runControl;
     } else {
         QTC_ASSERT(false, return 0);
