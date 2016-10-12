@@ -82,6 +82,7 @@ public:
 private:
     MerQmlLiveBenchManager(QObject *parent = nullptr);
 
+    static void warnBenchLocationNotSet();
     static QString qmlLiveHostName(const QString &merDeviceName, int port);
     void addHostsToBench(const QString &merDeviceName, const QString &address, const QSet<int> &ports);
     void removeHostsFromBench(const QString &merDeviceName, const QSet<int> &ports);

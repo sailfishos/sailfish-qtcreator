@@ -25,6 +25,7 @@
 #include <QCoreApplication>
 #include <QMessageBox>
 #include <QProcess>
+#include <QPushButton>
 #include <QTimer>
 
 #include <coreplugin/icore.h>
@@ -107,8 +108,10 @@ MerQmlLiveBenchManager *MerQmlLiveBenchManager::instance()
 
 void MerQmlLiveBenchManager::startBench()
 {
-    if (!instance()->m_enabled)
+    if (!instance()->m_enabled) {
+        warnBenchLocationNotSet();
         return;
+    }
 
     QStringList arguments;
     if (SessionManager::startupProject()) {
@@ -121,8 +124,10 @@ void MerQmlLiveBenchManager::startBench()
 
 void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
 {
-    if (!instance()->m_enabled)
+    if (!instance()->m_enabled) {
+        warnBenchLocationNotSet();
         return;
+    }
 
     auto showDialog = [] {
         QMessageBox *question = new QMessageBox{
@@ -150,6 +155,23 @@ void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
     };
 
     instance()->enqueueCommand(ping);
+}
+
+void MerQmlLiveBenchManager::warnBenchLocationNotSet()
+{
+    QMessageBox *warning = new QMessageBox{
+        QMessageBox::Warning,
+        tr("Cannot start QmlLive Bench"),
+        tr("Location of QmlLive Bench application is either not set or invalid"),
+        QMessageBox::Ok,
+        ICore::mainWindow()};
+    QAbstractButton *configure = warning->addButton(tr("Configure now..."), QMessageBox::AcceptRole);
+    connect(configure, &QAbstractButton::clicked,
+            [] { ICore::showOptionsDialog(Constants::MER_GENERAL_OPTIONS_ID); });
+    warning->setAttribute(Qt::WA_DeleteOnClose);
+    warning->setEscapeButton(QMessageBox::Ok);
+    warning->show();
+    warning->raise();
 }
 
 QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, int port)
