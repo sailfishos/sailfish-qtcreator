@@ -66,7 +66,7 @@ MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidg
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(10);
 
-    m_ui->connectionLabelEdit->setText(tr("Not connected"));
+    m_ui->connectionTestLabel->setText(tr("Not connected"));
 
     connect(m_ui->hostNameLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
@@ -147,21 +147,21 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
     sshParams.password = password();
 
-    m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(hostName()));
-    m_ui->connectionLabelEdit->setText(MerConnectionManager::testConnection(sshParams,
+    m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(hostName()));
+    m_ui->connectionTestLabel->setText(MerConnectionManager::testConnection(sshParams,
                 &m_connectionTestOk));
     if (!m_connectionTestOk)
         goto end;
 
-    m_ui->connectionLabelEdit->setText(tr("Detecting device properties..."));
+    m_ui->connectionTestLabel->setText(tr("Detecting device properties..."));
     m_architecture = detectArchitecture(sshParams, &m_connectionTestOk);
     m_deviceName = detectDeviceName(sshParams, &m_connectionTestOk);
     if (!m_connectionTestOk) {
-        m_ui->connectionLabelEdit->setText(tr("Could autodetect device properties"));
+        m_ui->connectionTestLabel->setText(tr("Could not autodetect device properties"));
         goto end;
     }
 
-    m_ui->connectionLabelEdit->setText(tr("Connected %1 device").arg(m_deviceName));
+    m_ui->connectionTestLabel->setText(tr("Connected %1 device").arg(m_deviceName));
 
 end:
     m_ui->testButton->setEnabled(true);
