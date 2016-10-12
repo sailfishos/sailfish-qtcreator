@@ -151,7 +151,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="connectionLabelEdit">
+        <widget class="QLabel" name="connectionTestLabel">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
            <horstretch>0</horstretch>
