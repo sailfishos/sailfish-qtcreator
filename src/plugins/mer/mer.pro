@@ -60,6 +60,9 @@ SOURCES += \
     merplugin.cpp \
     merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
+    merqmlrunconfiguration.cpp \
+    merqmlrunconfigurationfactory.cpp \
+    merqmlrunconfigurationwidget.cpp \
     merqtversion.cpp \
     merqtversionfactory.cpp \
     merrpminstaller.cpp \
@@ -121,6 +124,9 @@ HEADERS += \
     merplugin.h \
     merprojectlistener.h \
     merqmllivebenchmanager.h \
+    merqmlrunconfiguration.h \
+    merqmlrunconfigurationfactory.h \
+    merqmlrunconfigurationwidget.h \
     merqtversion.h \
     merqtversionfactory.h \
     merrpminstaller.h \
