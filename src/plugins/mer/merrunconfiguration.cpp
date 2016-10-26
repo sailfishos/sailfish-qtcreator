@@ -42,9 +42,6 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-static const char LIST_SEP[] = ":";
-static const char QMLLIVE_SAILFISH_PRELOAD[] = "/usr/lib/qmllive-sailfish/libsailfishapp-preload.so";
-
 MerRunConfiguration::MerRunConfiguration(Target *parent, Core::Id id,
                                          const QString &targetName)
     : RemoteLinuxRunConfiguration(parent, id, targetName)
@@ -118,36 +115,7 @@ Runnable MerRunConfiguration::runnable() const
     r.environment.appendOrSet(QLatin1String("QT_LOGGING_TO_CONSOLE"), QLatin1String("1"));
 
     auto merAspect = extraAspect<MerRunConfigurationAspect>();
-    if (merAspect->isQmlLiveEnabled()) {
-        r.environment.appendOrSet(QLatin1String("LD_PRELOAD"),
-                                  QLatin1String(QMLLIVE_SAILFISH_PRELOAD),
-                                  QLatin1String(LIST_SEP));
-
-        if (merAspect->qmlLiveIpcPort() > 0) {
-            r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_IPC_PORT"),
-                              QString::number(merAspect->qmlLiveIpcPort()));
-        }
-
-        if (!merAspect->qmlLiveTargetWorkspace().isEmpty()) {
-            r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_WORKSPACE"),
-                              merAspect->qmlLiveTargetWorkspace());
-        }
-
-        if (merAspect->qmlLiveOptions() & MerRunConfigurationAspect::UpdateOnConnect) {
-            r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_UPDATE_ON_CONNECT"),
-                              QLatin1String("1"));
-        }
-
-        if (!(merAspect->qmlLiveOptions() & MerRunConfigurationAspect::UpdatesAsOverlay)) {
-            r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_NO_UPDATES_AS_OVERLAY"),
-                              QLatin1String("1"));
-        }
-
-        if (merAspect->qmlLiveOptions() & MerRunConfigurationAspect::LoadDummyData) {
-            r.environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_LOAD_DUMMY_DATA"),
-                              QLatin1String("1"));
-        }
-    }
+    merAspect->applyTo(&r);
 
     return r;
 }
