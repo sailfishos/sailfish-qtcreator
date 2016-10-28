@@ -14,5 +14,6 @@
         <file>images/icon-s-sailfish-qtcreator-mask@2x.png</file>
         <file>images/sdk.png</file>
         <file>images/sdk@2x.png</file>
+        <file>Mer.mimetypes.xml</file>
     </qresource>
 </RCC>

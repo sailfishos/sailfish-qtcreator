@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<mime-info xmlns='http://www.freedesktop.org/standards/shared-mime-info'>
+    <mime-type type="application/vnd.jolla.sailfish.ambience-definition">
+        <comment>Sailfish OS ambience definition</comment>
+        <sub-class-of type="application/json"/>
+        <glob pattern="*.ambience"/>
+    </mime-type>
+    <mime-type type="application/vnd.jolla.sailfish.ambience-sounds-index">
+        <comment>Sound index file for Sailfish OS ambience</comment>
+        <sub-class-of type="application/json"/>
+        <glob pattern="sounds.index"/>
+    </mime-type>
+</mime-info>
