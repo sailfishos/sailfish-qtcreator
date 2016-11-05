@@ -55,10 +55,13 @@
 
     QmlLive Bench monitors documents under its Workspace directory notifying
     QmlLive Runtime of all changes to their contents, and controls the currently
-    displayed document. QmlLive Runtime instances may run directly on target
-    devices or inside emulators. Multiple QmlLive Runtime instances can be
-    managed by single QmlLive Bench; each instance is treated as a single
-    display Host by the bench.
+    displayed document. Start QmlLive Bench with extended support for Sailfish
+    OS application development using \gui {Tools > Mer > Start QmlLive Bench...}.
+
+    QmlLive Runtime instances may run directly on target devices or inside
+    emulators. Multiple QmlLive Runtime instances can be managed by single
+    QmlLive Bench; each instance is treated as a single display Host by the
+    bench.
 
     QmlLive Bench also embeds one local QmlLive Runtime directly in its
     application window. Its use in the context of Sailfish OS application
@@ -85,10 +88,7 @@
               {Enable receiving updates with Qt QmlLive} option in its \l
               {Specifying Run Settings for Sailfish OS Devices}{run settings}.
 
-          \li Start QmlLive Bench from \gui {Tools > Mer > Start QmlLive
-              Bench...}.
-
-          \li \l {Running on Sailfish OS Devices}{Run your application}.
+          \li Run your application \l {Running on Sailfish OS Devices}{as usually}.
 
               (Note that it may be necessary to connect the corresponding Host
               in QmlLive Bench manually if the application takes too long to
