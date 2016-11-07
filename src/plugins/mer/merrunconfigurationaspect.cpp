@@ -38,6 +38,7 @@
 #include <utils/hostosinfo.h>
 
 #include "merconstants.h"
+#include "merqmllivebenchmanager.h"
 #include "mersettings.h"
 #include "ui_merrunconfigurationaspectqmllivedetailswidget.h"
 
@@ -111,6 +112,10 @@ public:
         qmlLiveDetailsWidget->setEnabled(qmlLiveWidget->isChecked());
         connect(qmlLiveWidget, &Utils::DetailsWidget::checked,
                 qmlLiveDetailsWidget, &QWidget::setEnabled);
+        connect(qmlLiveWidget, &Utils::DetailsWidget::checked, [](bool checked) {
+            if (checked)
+                MerQmlLiveBenchManager::offerToStartBenchIfNotRunning();
+        });
 
         layout()->addWidget(qmlLiveWidget);
 
