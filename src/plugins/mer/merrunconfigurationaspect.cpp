@@ -55,8 +55,6 @@ const char QML_LIVE_IPC_PORT_KEY[] = "MerRunConfiguration.QmlLiveIpcPort";
 const char QML_LIVE_BENCH_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveBenchWorkspace";
 const char QML_LIVE_TARGET_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveTargetWorkspace";
 const char QML_LIVE_OPTIONS_KEY[] = "MerRunConfiguration.QmlLiveOptions";
-const char QML_LIVE_HELP_URL[] =
-    "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
 
 const MerRunConfigurationAspect::QmlLiveOptions DEFAULT_QML_LIVE_OPTIONS =
     MerRunConfigurationAspect::UpdatesAsOverlay;
@@ -93,7 +91,7 @@ public:
         // TODO Use better icon
         helpButton->setIcon(QIcon(QLatin1String(":/core/images/help.png")));
         connect(helpButton, &QAbstractButton::clicked, []() {
-            QDesktopServices::openUrl(QUrl(QLatin1String(QML_LIVE_HELP_URL)));
+            QDesktopServices::openUrl(QUrl(QLatin1String(Constants::QML_LIVE_HELP_URL)));
         });
         toolWidget->layout()->addWidget(helpButton);
 
