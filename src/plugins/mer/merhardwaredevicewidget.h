@@ -49,7 +49,7 @@ private slots:
     void handleQmlLivePortsChanged();
 
 private:
-    void updateDeviceFromUi();
+    void updateDeviceFromUi() override;
     void updatePortsWarningLabel();
     void updateQmlLivePortsWarningLabel();
     void initGui();
