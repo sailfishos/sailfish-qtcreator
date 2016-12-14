@@ -91,23 +91,15 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
 
     ProjectExplorer::KitManager::registerKitInformation(new QmakeKitInformation);
 
-<<<<<<< HEAD
-    IWizardFactory::registerFactoryCreator([]() {
-        QList<IWizardFactory *> result;
-        result << new SubdirsProjectWizard /*<< new GuiAppWizard << new LibraryWizard
-               << new TestWizard << new CustomWidgetWizard*/;
-        return result;
-=======
     IWizardFactory::registerFactoryCreator([] {
         return QList<IWizardFactory *> {
             new SubdirsProjectWizard,
-            new GuiAppWizard,
-            new LibraryWizard,
-            new TestWizard,
-            new CustomWidgetWizard,
-            new SimpleProjectWizard
+//            new GuiAppWizard,
+//            new LibraryWizard,
+//            new TestWizard,
+//            new CustomWidgetWizard,
+//            new SimpleProjectWizard
         };
->>>>>>> v4.1.0
     });
 
     addAutoReleasedObject(new CustomWizardMetaFactory<CustomQmakeProjectWizard>
