@@ -70,14 +70,9 @@ static QByteArray runGcc(const FileName &gcc, const QStringList &arguments, cons
     if (gcc.isEmpty() || !gcc.toFileInfo().isExecutable())
         return QByteArray();
 
-<<<<<<< HEAD
-    QProcess cpp;
-    QStringList environment(env);
-=======
     SynchronousProcess cpp;
     QStringList environment(env);
     Utils::Environment::setupEnglishOutput(&environment);
->>>>>>> v4.1.0
 
     cpp.setEnvironment(environment);
     cpp.setTimeoutS(10);
