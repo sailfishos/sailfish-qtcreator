@@ -707,27 +707,6 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> ExamplesListModel::roleNames() const
 {
-<<<<<<< HEAD
-    QHash<int, QByteArray> roleNames;
-    roleNames[Name] = "name";
-    roleNames[ProjectPath] = "projectPath";
-    roleNames[ImageUrl] = "imageUrl";
-    roleNames[Description] = "description";
-    roleNames[DocUrl] = "docUrl";
-    roleNames[FilesToOpen] = "filesToOpen";
-    roleNames[MainFile] = "mainFile";
-    roleNames[Tags] = "tags";
-    roleNames[Difficulty] = "difficulty";
-    roleNames[Type] = "type";
-    roleNames[HasSourceCode] = "hasSourceCode";
-    roleNames[Dependencies] = "dependencies";
-    roleNames[IsVideo] = "isVideo";
-    roleNames[VideoUrl] = "videoUrl";
-    roleNames[VideoLength] = "videoLength";
-    roleNames[Platforms] = "platforms";
-    roleNames[IsHighlighted] = "isHighlighted";
-    roleNames[PreferredFeatures] = "preferredFeatures";
-=======
     static QHash<int, QByteArray> roleNames{
         {Name, "name"},
         {ProjectPath, "projectPath"},
@@ -745,9 +724,9 @@ QHash<int, QByteArray> ExamplesListModel::roleNames() const
         {VideoUrl, "videoUrl"},
         {VideoLength, "videoLength"},
         {Platforms, "platforms"},
-        {IsHighlighted, "isHighlighted"}
+        {IsHighlighted, "isHighlighted"},
+        {PreferredFeatures, "preferredFeatures"}
     };
->>>>>>> v4.1.0
     return roleNames;
 }
 
