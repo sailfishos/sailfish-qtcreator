@@ -90,16 +90,14 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
 {
     if (!m_connection) {
         emit addOutput(tr("%1: Internal error.").arg(displayName()), ErrorMessageOutput);
-        fi.reportResult(false);
-        emit finished();
+        reportRunResult(fi, false);
         return;
     }
 
     if (m_connection->state() == MerConnection::Connected) {
         emit addOutput(tr("%1: The \"%2\" virtual machine is already running. Nothing to do.")
             .arg(displayName()).arg(m_connection->virtualMachine()), MessageOutput);
-        fi.reportResult(true);
-        emit finished();
+        reportRunResult(fi, true);
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
                 .arg(displayName()).arg(m_connection->virtualMachine()), MessageOutput);
@@ -143,14 +141,14 @@ void MerAbstractVmStartStep::setConnection(MerConnection *connection)
 
 void MerAbstractVmStartStep::onStateChanged()
 {
+    bool result = false;
     switch (m_connection->state()) {
     case MerConnection::Disconnected:
     case MerConnection::Error:
-        m_futureInterface->reportResult(false);
         break;
 
     case MerConnection::Connected:
-        m_futureInterface->reportResult(true);
+        result = true;
         break;
 
     default:
@@ -159,9 +157,9 @@ void MerAbstractVmStartStep::onStateChanged()
 
     m_connection->disconnect(this);
     m_connection = 0;
+    reportRunResult(*m_futureInterface, result);
     m_futureInterface = 0;
     delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-    emit finished();
 }
 
 void MerAbstractVmStartStep::checkForCancel()
@@ -169,10 +167,9 @@ void MerAbstractVmStartStep::checkForCancel()
     if (m_futureInterface->isCanceled()) {
         m_connection->disconnect(this);
         m_connection = 0;
-        m_futureInterface->reportResult(false);
-        m_futureInterface = 0;
         delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-        emit finished();
+        reportRunResult(*m_futureInterface, false);
+        m_futureInterface = 0;
     }
 }
 
