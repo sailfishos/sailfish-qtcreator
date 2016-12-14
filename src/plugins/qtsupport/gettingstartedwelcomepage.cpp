@@ -283,7 +283,6 @@ void ExamplesWelcomePage::openUrl(const QUrl &url)
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
-<<<<<<< HEAD
     QSettings *settings = Core::ICore::settings();
     CopyToLocationDialog d(Core::ICore::mainWindow());
     d.setSourcePath(projectDir);
@@ -291,47 +290,6 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                                          Core::DocumentManager::projectsDirectory()).toString());
 
     while (QDialog::Accepted == d.exec()) {
-=======
-    QDialog d(Core::ICore::mainWindow());
-    QGridLayout *lay = new QGridLayout(&d);
-    QLabel *descrLbl = new QLabel;
-    d.setWindowTitle(tr("Copy Project to writable Location?"));
-    descrLbl->setTextFormat(Qt::RichText);
-    descrLbl->setWordWrap(false);
-    const QString nativeProjectDir = QDir::toNativeSeparators(projectDir);
-    descrLbl->setText(QString::fromLatin1("<blockquote>%1</blockquote>").arg(nativeProjectDir));
-    descrLbl->setMinimumWidth(descrLbl->sizeHint().width());
-    descrLbl->setWordWrap(true);
-    descrLbl->setText(tr("<p>The project you are about to open is located in the "
-                         "write-protected location:</p><blockquote>%1</blockquote>"
-                         "<p>Please select a writable location below and click \"Copy Project and Open\" "
-                         "to open a modifiable copy of the project or click \"Keep Project and Open\" "
-                         "to open the project in location.</p><p><b>Note:</b> You will not "
-                         "be able to alter or compile your project in the current location.</p>")
-                      .arg(nativeProjectDir));
-    lay->addWidget(descrLbl, 0, 0, 1, 2);
-    QLabel *txt = new QLabel(tr("&Location:"));
-    PathChooser *chooser = new PathChooser;
-    txt->setBuddy(chooser);
-    chooser->setExpectedKind(PathChooser::ExistingDirectory);
-    chooser->setHistoryCompleter(QLatin1String("Qt.WritableExamplesDir.History"));
-    QSettings *settings = Core::ICore::settings();
-    chooser->setPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                     Core::DocumentManager::projectsDirectory()).toString());
-    lay->addWidget(txt, 1, 0);
-    lay->addWidget(chooser, 1, 1);
-    enum { Copy = QDialog::Accepted + 1, Keep = QDialog::Accepted + 2 };
-    QDialogButtonBox *bb = new QDialogButtonBox;
-    QPushButton *copyBtn = bb->addButton(tr("&Copy Project and Open"), QDialogButtonBox::AcceptRole);
-    connect(copyBtn, &QAbstractButton::released, &d, [&d] { d.done(Copy); });
-    copyBtn->setDefault(true);
-    QPushButton *keepBtn = bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
-    connect(keepBtn, &QAbstractButton::released, &d, [&d] { d.done(Keep); });
-    lay->addWidget(bb, 2, 0, 1, 2);
-    connect(chooser, &PathChooser::validChanged, copyBtn, &QWidget::setEnabled);
-    int code = d.exec();
-    if (code == Copy) {
->>>>>>> v4.1.0
         QString exampleDirName = proFileInfo.dir().dirName();
         QString destBaseDir = d.destinationPath();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
@@ -372,11 +330,6 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
 
         }
     }
-<<<<<<< HEAD
-=======
-    if (code == Keep)
-        return proFileInfo.absoluteFilePath();
->>>>>>> v4.1.0
     return QString();
 
 }
