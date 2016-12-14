@@ -30,6 +30,7 @@
 
 #include "../kit.h"
 #include "../kitinformation.h"
+#include "../runnables.h"
 
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -480,5 +481,7 @@ DeviceProcessSignalOperation::DeviceProcessSignalOperation()
 DeviceEnvironmentFetcher::DeviceEnvironmentFetcher()
 {
 }
+
+void *HostName::staticTypeId = &HostName::staticTypeId;
 
 } // namespace ProjectExplorer
