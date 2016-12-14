@@ -39,66 +39,23 @@ MerBuildStepFactory::MerBuildStepFactory(QObject *parent)
 {
 }
 
-QList<Core::Id> MerBuildStepFactory::availableCreationIds(BuildStepList *parent) const
+QList<BuildStepInfo> MerBuildStepFactory::availableSteps(BuildStepList *parent) const
 {
-    QList<Core::Id> ids;
     if (!qobject_cast<QmakeBuildConfiguration *>(parent->parent()))
-        return ids;
+        return {};
 
-    ids << MerSdkStartStep::stepId();
-
-    return ids;
-}
-
-QString MerBuildStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == MerSdkStartStep::stepId())
-        return MerSdkStartStep::displayName();
-
-    return QString();
-}
-
-bool MerBuildStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
-{
-    return availableCreationIds(parent).contains(id) && !parent->contains(id);
+    return {{ MerSdkStartStep::stepId(), MerSdkStartStep::displayName() }};
 }
 
 BuildStep *MerBuildStepFactory::create(BuildStepList *parent, Core::Id id)
 {
-    if (id == MerSdkStartStep::stepId())
-        return new MerSdkStartStep(parent);
-
-    return 0;
-}
-
-bool MerBuildStepFactory::canRestore(BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, idFromMap(map));
-}
-
-BuildStep *MerBuildStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
-{
-    QTC_ASSERT(canRestore(parent, map), return 0);
-    BuildStep * const step = create(parent, idFromMap(map));
-    if (!step->fromMap(map)) {
-        delete step;
-        return 0;
-    }
-    return step;
-}
-
-bool MerBuildStepFactory::canClone(BuildStepList *parent, BuildStep *product) const
-{
-    return canCreate(parent, product->id());
+    Q_UNUSED(id);
+    return new MerSdkStartStep(parent);
 }
 
 BuildStep *MerBuildStepFactory::clone(BuildStepList *parent, BuildStep *product)
 {
-    QTC_ASSERT(canClone(parent, product), return 0);
-    if (MerSdkStartStep * const other = qobject_cast<MerSdkStartStep *>(product))
-        return new MerSdkStartStep(parent, other);
-
-    return 0;
+    return new MerSdkStartStep(parent, qobject_cast<MerSdkStartStep *>(product));
 }
 
 } // namespace Internal
