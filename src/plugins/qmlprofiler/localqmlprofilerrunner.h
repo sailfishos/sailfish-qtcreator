@@ -23,17 +23,20 @@
 **
 ****************************************************************************/
 
-#ifndef LOCALQMLPROFILERRUNNER_H
-#define LOCALQMLPROFILERRUNNER_H
+#pragma once
 
 #include "qmlprofiler_global.h"
 #include <utils/environment.h>
+#include <utils/port.h>
 #include <projectexplorer/applicationlauncher.h>
 #include <projectexplorer/runnables.h>
 
+namespace Debugger {
+class AnalyzerRunControl;
+}
+
 namespace QmlProfiler {
 
-class QmlProfilerRunControl;
 class QMLPROFILER_EXPORT LocalQmlProfilerRunner : public QObject
 {
     Q_OBJECT
@@ -41,14 +44,14 @@ class QMLPROFILER_EXPORT LocalQmlProfilerRunner : public QObject
 public:
     struct Configuration {
         ProjectExplorer::StandardRunnable debuggee;
-        quint16 port;
+        Utils::Port port;
         QString socket;
     };
 
-    LocalQmlProfilerRunner(const Configuration &configuration, QmlProfilerRunControl *engine);
-    ~LocalQmlProfilerRunner();
+    LocalQmlProfilerRunner(const Configuration &configuration,
+                           Debugger::AnalyzerRunControl *runControl);
 
-    static quint16 findFreePort(QString &host);
+    static Utils::Port findFreePort(QString &host);
     static QString findFreeSocket();
 
 signals:
@@ -66,5 +69,3 @@ private:
 };
 
 } // namespace QmlProfiler
-
-#endif // LOCALQMLPROFILERRUNNER_H

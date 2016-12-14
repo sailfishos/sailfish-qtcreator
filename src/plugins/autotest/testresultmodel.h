@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTRESULTMODEL_H
-#define TESTRESULTMODEL_H
+#pragma once
 
 #include "testresult.h"
 
@@ -62,7 +61,7 @@ public:
     void removeCurrentTestMessage();
     void clearTestResults();
 
-    TestResult testResult(const QModelIndex &idx);
+    const TestResult *testResult(const QModelIndex &idx);
 
     int maxWidthOfFileName(const QFont &font);
     int maxWidthOfLineNumber(const QFont &font);
@@ -89,17 +88,16 @@ public:
     void toggleTestResultType(Result::Type type);
     void clearTestResults();
     bool hasResults();
-    TestResult testResult(const QModelIndex &index) const;
+    const TestResult *testResult(const QModelIndex &index) const;
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
 
 private:
+    bool acceptTestCaseResult(const QModelIndex &index) const;
     TestResultModel *m_sourceModel;
     QSet<Result::Type> m_enabled;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTRESULTMODEL_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CRUMBLEPATH_H
-#define CRUMBLEPATH_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -61,10 +60,8 @@ signals:
 protected:
     void resizeEvent(QResizeEvent *);
 
-private slots:
-    void emitElementClicked();
-
 private:
+    void emitElementClicked();
     void resizeButtons();
     void setBackgroundStyle();
 
@@ -73,5 +70,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // CRUMBLEPATH_H

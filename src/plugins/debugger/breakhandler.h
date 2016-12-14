@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_BREAKHANDLER_H
-#define DEBUGGER_BREAKHANDLER_H
+#pragma once
 
 #include "breakpoint.h"
 #include "debuggerprotocol.h"
@@ -34,15 +33,10 @@
 #include <QCoreApplication>
 #include <QPointer>
 
-//////////////////////////////////////////////////////////////////
-//
-// BreakHandler
-//
-//////////////////////////////////////////////////////////////////
-
 namespace Debugger {
 namespace Internal {
 
+class LocationItem;
 class BreakpointItem;
 class BreakHandler;
 class DebuggerCommand;
@@ -100,8 +94,8 @@ public:
     // obtained the BreakpointItem pointer.
     BreakpointPathUsage pathUsage() const;
     void setPathUsage(const BreakpointPathUsage &u);
-    QByteArray condition() const;
-    void setCondition(const QByteArray &condition);
+    QString condition() const;
+    void setCondition(const QString &condition);
     int ignoreCount() const;
     void setIgnoreCount(const int &count);
     int threadSpec() const;
@@ -163,7 +157,7 @@ inline uint qHash(const Debugger::Internal::Breakpoint &b) { return b.hash(); }
 
 typedef QList<Breakpoint> Breakpoints;
 
-class BreakHandler : public Utils::TreeModel
+class BreakHandler : public Utils::LeveledTreeModel<Utils::TreeItem, BreakpointItem, LocationItem>
 {
     Q_OBJECT
 
@@ -192,13 +186,6 @@ public:
     Breakpoint findBreakpointByIndex(const QModelIndex &index) const;
     Breakpoints findBreakpointsByIndex(const QList<QModelIndex> &list) const;
     void updateMarkers();
-
-    static QIcon breakpointIcon();
-    static QIcon disabledBreakpointIcon();
-    static QIcon pendingBreakpointIcon();
-    static QIcon emptyIcon();
-    static QIcon watchpointIcon();
-    static QIcon tracepointIcon();
 
     Breakpoint findBreakpointByFileAndLine(const QString &fileName,
         int lineNumber, bool useMarkerPosition = true);
@@ -235,5 +222,3 @@ private:
 } // namespace Debugger
 
 Q_DECLARE_METATYPE(Debugger::Internal::Breakpoint)
-
-#endif // DEBUGGER_BREAKHANDLER_H

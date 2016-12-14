@@ -62,11 +62,35 @@ void TimelineModelAggregator::addModel(TimelineModel *m)
 {
     Q_D(TimelineModelAggregator);
     d->modelList << m;
-    connect(m,SIGNAL(heightChanged()),this,SIGNAL(heightChanged()));
+    connect(m, &TimelineModel::heightChanged, this, &TimelineModelAggregator::heightChanged);
     if (d->notesModel)
         d->notesModel->addTimelineModel(m);
     emit modelsChanged();
     if (m->height() != 0)
+        emit heightChanged();
+}
+
+void TimelineModelAggregator::setModels(const QList<TimelineModel *> &models)
+{
+    Q_D(TimelineModelAggregator);
+    if (d->modelList == models)
+        return;
+
+    int prevHeight = height();
+    foreach (TimelineModel *m, d->modelList) {
+        disconnect(m, &TimelineModel::heightChanged, this, &TimelineModelAggregator::heightChanged);
+        if (d->notesModel)
+            d->notesModel->removeTimelineModel(m);
+    }
+
+    d->modelList = models;
+    foreach (TimelineModel *m, models) {
+        connect(m, &TimelineModel::heightChanged, this, &TimelineModelAggregator::heightChanged);
+        if (d->notesModel)
+            d->notesModel->addTimelineModel(m);
+    }
+    emit modelsChanged();
+    if (height() != prevHeight)
         emit heightChanged();
 }
 
@@ -199,7 +223,7 @@ QVariantMap TimelineModelAggregator::prevItem(int selectedModel, int selectedIte
     for (int i = 0; i < modelCount(); i++) {
         const TimelineModel *currentModel = model(i);
         if (selectedModel == i) {
-            itemIndexes[i] = (selectedItem == 0 ? currentModel->count() : selectedItem) - 1;
+            itemIndexes[i] = (selectedItem <= 0 ? currentModel->count() : selectedItem) - 1;
         } else {
             itemIndexes[i] = currentModel->lastIndex(time);
             if (itemIndexes[i] == -1)

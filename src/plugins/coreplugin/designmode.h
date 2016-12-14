@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DESIGNMODE_H
-#define DESIGNMODE_H
+#pragma once
 
 #include <coreplugin/imode.h>
 
@@ -69,7 +68,7 @@ private:
     void updateActions();
 
     void currentEditorChanged(IEditor *editor);
-    void updateContext(IMode *newMode, IMode *oldMode);
+    void updateContext(Id newMode, Id oldMode);
     void setActiveContext(const Context &context);
 
     DesignModePrivate *d;
@@ -77,5 +76,3 @@ private:
 };
 
 } // namespace Core
-
-#endif // DESIGNMODE_H

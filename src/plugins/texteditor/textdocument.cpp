@@ -260,6 +260,8 @@ TextDocument::TextDocument(Id id)
 
     if (id.isValid())
         setId(id);
+
+    setSuspendAllowed(true);
 }
 
 TextDocument::~TextDocument()
@@ -368,6 +370,11 @@ void TextDocument::setCompletionAssistProvider(CompletionAssistProvider *provide
 CompletionAssistProvider *TextDocument::completionAssistProvider() const
 {
     return d->m_completionAssistProvider;
+}
+
+QuickFixAssistProvider *TextDocument::quickFixAssistProvider() const
+{
+    return 0;
 }
 
 void TextDocument::applyFontSettings()

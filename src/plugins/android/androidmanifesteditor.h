@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDMANIFESTEDITOR_H
-#define ANDROIDMANIFESTEDITOR_H
+#pragma once
 
 #include "androidmanifestdocument.h"
 #include "androidmanifesteditorwidget.h"
@@ -58,10 +57,9 @@ public:
     int currentColumn() const override;
     void gotoLine(int line, int column = 0, bool centerLine = true)  override;
 
-private slots:
+private:
     void changeEditorPage(QAction *action);
 
-private:
     QString m_displayName;
     QToolBar *m_toolBar;
     QActionGroup *m_actionGroup;
@@ -69,5 +67,3 @@ private:
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDMANIFESTEDITOR_H

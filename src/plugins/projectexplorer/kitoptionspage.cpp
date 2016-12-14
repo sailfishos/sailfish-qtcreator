@@ -61,19 +61,18 @@ public:
     void updateState();
 
 public:
-    QTreeView *m_kitsView;
-    QPushButton *m_addButton;
-    QPushButton *m_cloneButton;
-    QPushButton *m_delButton;
-    QPushButton *m_makeDefaultButton;
+    QTreeView *m_kitsView = nullptr;
+    QPushButton *m_addButton = nullptr;
+    QPushButton *m_cloneButton = nullptr;
+    QPushButton *m_delButton = nullptr;
+    QPushButton *m_makeDefaultButton = nullptr;
 
-    KitModel *m_model;
-    QItemSelectionModel *m_selectionModel;
-    QWidget *m_currentWidget;
+    KitModel *m_model = nullptr;
+    QItemSelectionModel *m_selectionModel = nullptr;
+    QWidget *m_currentWidget = nullptr;
 };
 
 KitOptionsPageWidget::KitOptionsPageWidget()
-    : m_model(0), m_selectionModel(0), m_currentWidget(0)
 {
     m_kitsView = new QTreeView(this);
     m_kitsView->setUniformRowHeights(true);
@@ -152,6 +151,7 @@ void KitOptionsPageWidget::kitSelectionChanged()
         m_currentWidget->setVisible(true);
         m_kitsView->scrollTo(current);
     }
+
     updateState();
 }
 
@@ -263,7 +263,7 @@ void KitOptionsPage::finish()
 {
     if (m_widget) {
         delete m_widget;
-        m_widget = 0;
+        m_widget = nullptr;
     }
 }
 

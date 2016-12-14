@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef AVDDIALOG_H
-#define AVDDIALOG_H
+#pragma once
 
 #include "ui_addnewavddialog.h"
 
@@ -49,9 +48,8 @@ public:
     int sdcardSize() const;
     bool isValid() const;
 
-private slots:
-    void updateApiLevelComboBox();
 private:
+    void updateApiLevelComboBox();
     bool eventFilter(QObject *obj, QEvent *event);
 
     Ui::AddNewAVDDialog m_avdDialog;
@@ -62,5 +60,3 @@ private:
 };
 }
 }
-
-#endif // AVDDIALOG_H

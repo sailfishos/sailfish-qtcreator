@@ -59,7 +59,8 @@ using namespace TextEditor;
     \sa IAssistProposalWidget, IAssistModel
 */
 
-IAssistProposal::IAssistProposal()
+IAssistProposal::IAssistProposal(int basePosition)
+    : m_basePosition(basePosition)
 {}
 
 IAssistProposal::~IAssistProposal()
@@ -79,6 +80,11 @@ IAssistProposal::~IAssistProposal()
     Returns the position from which this proposal starts.
 */
 
+int IAssistProposal::basePosition() const
+{
+    return m_basePosition;
+}
+
 /*!
     \fn bool TextEditor::IAssistProposal::isCorrective() const
 
@@ -87,11 +93,21 @@ IAssistProposal::~IAssistProposal()
     is displayed.
 */
 
+bool IAssistProposal::isCorrective() const
+{
+    return false;
+}
+
 /*!
     \fn void TextEditor::IAssistProposal::makeCorrection(BaseTextEditor *editor)
 
     This allows a correction to be made in the case this is a corrective proposal.
 */
+
+void IAssistProposal::makeCorrection(TextEditorWidget *editorWidget)
+{
+    Q_UNUSED(editorWidget);
+}
 
 /*!
     \fn IAssistModel *TextEditor::IAssistProposal::model() const

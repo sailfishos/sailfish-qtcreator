@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDCONFIGURATIONS_H
-#define ANDROIDCONFIGURATIONS_H
+#pragma once
 
 #include "android_global.h"
 
@@ -225,7 +224,6 @@ public:
     static AndroidDeviceInfo showDeviceDialog(ProjectExplorer::Project *project, int apiLevel, const QString &abi, Options options);
     static void setDefaultDevice(ProjectExplorer::Project *project, const QString &abi, const QString &serialNumber); // serial number or avd name
     static QString defaultDevice(ProjectExplorer::Project *project, const QString &abi); // serial number or avd name
-public slots:
     static void clearDefaultDevices(ProjectExplorer::Project *project);
     static void registerNewToolChains();
     static void removeOldToolChains();
@@ -248,5 +246,3 @@ private:
 };
 
 } // namespace Android
-
-#endif // ANDROIDCONFIGURATIONS_H

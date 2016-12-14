@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSRUNCONFIGURATION_H
-#define QBSRUNCONFIGURATION_H
+#pragma once
 
 #include <projectexplorer/runnables.h>
 
@@ -86,11 +85,9 @@ signals:
 protected:
     QbsRunConfiguration(ProjectExplorer::Target *parent, QbsRunConfiguration *source);
 
-private slots:
+private:
     void installStepChanged();
     void installStepToBeRemoved(int pos);
-
-private:
     QString baseWorkingDirectory() const;
     QString defaultDisplayName();
     qbs::InstallOptions installOptions() const;
@@ -153,5 +150,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSRUNCONFIGURATION_H

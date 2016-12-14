@@ -23,34 +23,24 @@
 **
 ****************************************************************************/
 
-#ifndef BAREMETALDEBUGSUPPORT_H
-#define BAREMETALDEBUGSUPPORT_H
+#pragma once
 
 #include <QObject>
 #include <QPointer>
 
-#include <projectexplorer/devicesupport/idevice.h>
-
 namespace Debugger { class DebuggerRunControl; }
 
-namespace ProjectExplorer {
-class DeviceApplicationRunner;
-class IDevice;
-}
+namespace ProjectExplorer { class DeviceApplicationRunner; }
 
 namespace BareMetal {
 namespace Internal {
-
-class GdbServerProvider;
-class BareMetalRunConfiguration;
 
 class BareMetalDebugSupport : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit BareMetalDebugSupport(const ProjectExplorer::IDevice::ConstPtr device,
-                                   Debugger::DebuggerRunControl *runControl);
+    explicit BareMetalDebugSupport(Debugger::DebuggerRunControl *runControl);
     ~BareMetalDebugSupport();
 
 private slots:
@@ -76,11 +66,8 @@ private:
 
     ProjectExplorer::DeviceApplicationRunner *m_appRunner;
     const QPointer<Debugger::DebuggerRunControl> m_runControl;
-    const ProjectExplorer::IDevice::ConstPtr m_device;
     BareMetalDebugSupport::State m_state;
 };
 
 } // namespace Internal
 } // namespace BareMetal
-
-#endif // BAREMETALDEBUGSUPPORT_H

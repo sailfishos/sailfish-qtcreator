@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MAKESTEP_H
-#define MAKESTEP_H
+#pragma once
 
 #include "qmakeprojectmanager_global.h"
 
@@ -52,16 +51,14 @@ class MakeStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit MakeStepFactory(QObject *parent = 0);
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
-    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) const override;
-    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const override;
-    QString displayNameForId(Core::Id id) const override;
+    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
+    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
+    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
 };
+
 } //namespace Internal
 
 class QmakeProject;
@@ -87,6 +84,8 @@ public:
     void setClean(bool clean);
     bool isClean() const;
     QString makeCommand() const;
+
+    QString effectiveMakeCommand() const;
 
     QVariantMap toMap() const override;
 
@@ -118,7 +117,7 @@ public:
 
     QString displayName() const;
     QString summaryText() const;
-private slots:
+private:
     // User changes to our widgets
     void makeEdited();
     void makeArgumentsLineEdited();
@@ -126,7 +125,6 @@ private slots:
     void updateDetails();
     void userArgumentsChanged();
     void activeBuildConfigurationChanged();
-private:
     void setSummaryText(const QString &text);
 
     Internal::Ui::MakeStep *m_ui = nullptr;
@@ -137,5 +135,3 @@ private:
 };
 
 } // QmakeProjectManager
-
-#endif // MAKESTEP_H

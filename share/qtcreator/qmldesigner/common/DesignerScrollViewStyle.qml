@@ -28,9 +28,8 @@ import QtQuick.Controls 1.1
 import QtQuick.Controls.Styles 1.1
 
 ScrollViewStyle {
-    property color scrollbarColor: "#444444"
-    property color scrollbarBorderColor: "#333333"
-    property color scrollBarHandleColor: "#656565"
+    readonly property color scrollbarColor: creatorTheme.BackgroundColorDark
+    readonly property color scrollBarHandleColor: creatorTheme.QmlDesignerButtonColor
 
     padding {left: 0; top: 0; right: 0; bottom: 0}
 
@@ -38,15 +37,11 @@ ScrollViewStyle {
         height: 10
         width: 10
         color: scrollbarColor
-        border.width: 1
-        border.color: scrollbarBorderColor
     }
     handle: Item {
         implicitWidth: 10
         implicitHeight: 10
         Rectangle {
-            border.color: scrollbarBorderColor
-            border.width: 1
             anchors.fill: parent
             color: scrollBarHandleColor
         }

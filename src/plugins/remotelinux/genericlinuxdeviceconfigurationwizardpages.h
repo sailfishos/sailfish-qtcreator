@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GENERICLINUXDEVICECONFIGURATIONWIZARDPAGES_H
-#define GENERICLINUXDEVICECONFIGURATIONWIZARDPAGES_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -62,7 +61,7 @@ public:
     virtual QString defaultPassWord() const;
 
 private:
-    Q_SLOT void handleAuthTypeChanged();
+    void handleAuthTypeChanged();
 
     Internal::GenericLinuxDeviceConfigurationWizardSetupPagePrivate * const d;
 };
@@ -85,5 +84,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // GENERICLINUXDEVICECONFIGURATIONWIZARDPAGES_H

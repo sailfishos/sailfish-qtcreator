@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef LINUXDEVICETESTER_H
-#define LINUXDEVICETESTER_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -51,19 +50,16 @@ public:
 
     ProjectExplorer::DeviceUsedPortsGatherer *usedPortsGatherer() const;
 
-private slots:
+private:
     void handleConnected();
     void handleConnectionFailure();
     void handleProcessFinished(int exitStatus);
     void handlePortsGatheringError(const QString &message);
     void handlePortListReady();
 
-private:
     void setFinished(ProjectExplorer::DeviceTester::TestResult result);
 
     Internal::GenericLinuxDeviceTesterPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // LINUXDEVICETESTER_H

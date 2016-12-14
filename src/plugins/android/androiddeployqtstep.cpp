@@ -50,11 +50,13 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/synchronousprocess.h>
 
 #include <QInputDialog>
 #include <QMessageBox>
 
 
+using namespace ProjectExplorer;
 using namespace Android;
 using namespace Android::Internal;
 
@@ -72,60 +74,24 @@ AndroidDeployQtStepFactory::AndroidDeployQtStepFactory(QObject *parent)
 {
 }
 
-QList<Core::Id> AndroidDeployQtStepFactory::availableCreationIds(ProjectExplorer::BuildStepList *parent) const
+QList<BuildStepInfo> AndroidDeployQtStepFactory::availableSteps(BuildStepList *parent) const
 {
-    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        return QList<Core::Id>();
-    if (!AndroidManager::supportsAndroid(parent->target()))
-        return QList<Core::Id>();
-    if (parent->contains(AndroidDeployQtStep::Id))
-        return QList<Core::Id>();
-    return QList<Core::Id>() << AndroidDeployQtStep::Id;
-}
+    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY
+            || !AndroidManager::supportsAndroid(parent->target())
+            || parent->contains(AndroidDeployQtStep::Id))
+        return {};
 
-QString AndroidDeployQtStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == AndroidDeployQtStep::Id)
-        return tr("Deploy to Android device or emulator");
-    return QString();
-}
-
-bool AndroidDeployQtStepFactory::canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const
-{
-    return availableCreationIds(parent).contains(id);
+    return {{ AndroidDeployQtStep::Id, tr("Deploy to Android device or emulator") }};
 }
 
 ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::create(ProjectExplorer::BuildStepList *parent, Core::Id id)
 {
-    Q_ASSERT(canCreate(parent, id));
     Q_UNUSED(id);
     return new AndroidDeployQtStep(parent);
 }
 
-bool AndroidDeployQtStepFactory::canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
-}
-
-ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map)
-{
-    Q_ASSERT(canRestore(parent, map));
-    AndroidDeployQtStep * const step = new AndroidDeployQtStep(parent);
-    if (!step->fromMap(map)) {
-        delete step;
-        return 0;
-    }
-    return step;
-}
-
-bool AndroidDeployQtStepFactory::canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const
-{
-    return canCreate(parent, product->id());
-}
-
 ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product)
 {
-    Q_ASSERT(canClone(parent, product));
     return new AndroidDeployQtStep(parent, static_cast<AndroidDeployQtStep *>(product));
 }
 
@@ -354,7 +320,10 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
                    .arg(QDir::toNativeSeparators(m_command), args),
                    BuildStep::MessageOutput);
 
-    while (m_process->state() != QProcess::NotRunning && !m_process->waitForFinished(200)) {
+    while (!m_process->waitForFinished(200)) {
+        if (m_process->state() == QProcess::NotRunning)
+            break;
+
         if (fi.isCanceled()) {
             m_process->kill();
             m_process->waitForFinished();
@@ -417,8 +386,7 @@ void AndroidDeployQtStep::run(QFutureInterface<bool> &fi)
     if (!m_avdName.isEmpty()) {
         QString serialNumber = AndroidConfigurations::currentConfig().waitForAvd(m_avdName, fi);
         if (serialNumber.isEmpty()) {
-            fi.reportResult(false);
-            emit finished();
+            reportRunResult(fi, false);
             return;
         }
         m_serialNumber = serialNumber;
@@ -460,31 +428,17 @@ void AndroidDeployQtStep::run(QFutureInterface<bool> &fi)
                << QLatin1String("/system/") + m_libdir + QLatin1String("/libc.so")
                << QString::fromLatin1("%1/libc.so").arg(m_buildDirectory));
 
-    fi.reportResult(returnValue == Success ? true : false);
-    fi.reportFinished();
+    reportRunResult(fi, returnValue == Success);
 }
 
 void AndroidDeployQtStep::runCommand(const QString &program, const QStringList &arguments)
 {
-    QProcess buildProc;
+    Utils::SynchronousProcess buildProc;
+    buildProc.setTimeoutS(2 * 60);
     emit addOutput(tr("Package deploy: Running command \"%1 %2\".").arg(program).arg(arguments.join(QLatin1Char(' '))), BuildStep::MessageOutput);
-    buildProc.start(program, arguments);
-    if (!buildProc.waitForStarted()) {
-        emit addOutput(tr("Packaging error: Could not start command \"%1 %2\". Reason: %3")
-            .arg(program).arg(arguments.join(QLatin1Char(' '))).arg(buildProc.errorString()), BuildStep::ErrorMessageOutput);
-        return;
-    }
-    if (!buildProc.waitForFinished(2 * 60 * 1000)
-            || buildProc.error() != QProcess::UnknownError
-            || buildProc.exitCode() != 0) {
-        QString mainMessage = tr("Packaging error: Command \"%1 %2\" failed.")
-                .arg(program).arg(arguments.join(QLatin1Char(' ')));
-        if (buildProc.error() != QProcess::UnknownError)
-            mainMessage += QLatin1Char(' ') + tr("Reason: %1").arg(buildProc.errorString());
-        else
-            mainMessage += tr("Exit code: %1").arg(buildProc.exitCode());
-        emit addOutput(mainMessage, BuildStep::ErrorMessageOutput);
-    }
+    Utils::SynchronousProcessResponse response = buildProc.run(program, arguments);
+    if (response.result != Utils::SynchronousProcessResponse::Finished || response.exitCode != 0)
+        emit addOutput(response.exitMessage(program, 2 * 60), BuildStep::ErrorMessageOutput);
 }
 
 AndroidDeviceInfo AndroidDeployQtStep::deviceInfo() const

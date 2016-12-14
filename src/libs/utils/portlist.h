@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef PORTLIST_H
-#define PORTLIST_H
+#pragma once
 
 #include "utils_global.h"
+#include "port.h"
 
 QT_FORWARD_DECLARE_CLASS(QString)
 
@@ -41,12 +41,12 @@ public:
     PortList &operator=(const PortList &other);
     ~PortList();
 
-    void addPort(int port);
-    void addRange(int startPort, int endPort);
+    void addPort(Port port);
+    void addRange(Port startPort, Port endPort);
     bool hasMore() const;
-    bool contains(int port) const;
+    bool contains(Port port) const;
     int count() const;
-    int getNext();
+    Port getNext();
     QString toString() const;
 
     static PortList fromString(const QString &portsSpec);
@@ -57,5 +57,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // PORTLIST_H

@@ -38,6 +38,7 @@
 #include <QString>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <climits>
 #include <cstring>
@@ -112,6 +113,15 @@ public:
     SmallString(const char *string, size_type size)
         : SmallString(string, size, size)
     {
+    }
+
+    template<typename Type,
+             typename = typename std::enable_if<std::is_pointer<Type>::value>::type
+             >
+    SmallString(Type characterPointer) noexcept
+        : SmallString(characterPointer, std::strlen(characterPointer))
+    {
+        static_assert(!std::is_array<Type>::value, "Input type is array and not char pointer!");
     }
 
     SmallString(const QString &qString)
@@ -258,12 +268,12 @@ public:
 
     reverse_iterator rbegin() noexcept
     {
-        return reverse_iterator(end() - 1l);
+        return reverse_iterator(end() - static_cast<std::size_t>(1));
     }
 
     reverse_iterator rend() noexcept
     {
-        return reverse_iterator(begin() - 1l);
+        return reverse_iterator(begin() - static_cast<std::size_t>(1));
     }
 
     const_iterator begin() const noexcept

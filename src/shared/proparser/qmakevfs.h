@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEVFS_H
-#define QMAKEVFS_H
+#pragma once
 
 #include "qmake_global.h"
 
@@ -44,7 +43,7 @@ class QMAKE_EXPORT QMakeVfs
 public:
     QMakeVfs();
 
-    bool writeFile(const QString &fn, QIODevice::OpenMode mode, const QString &contents, QString *errStr);
+    bool writeFile(const QString &fn, QIODevice::OpenMode mode, bool exe, const QString &contents, QString *errStr);
     bool readFile(const QString &fn, QString *contents, QString *errStr);
     bool exists(const QString &fn);
 
@@ -65,5 +64,3 @@ private:
 };
 
 QT_END_NAMESPACE
-
-#endif // QMAKEVFS_H

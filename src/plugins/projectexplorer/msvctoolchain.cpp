@@ -61,6 +61,8 @@ static QString platformName(MsvcToolChain::Platform t)
     switch (t) {
     case MsvcToolChain::x86:
         return QLatin1String("x86");
+    case MsvcToolChain::amd64_x86:
+        return QLatin1String("amd64_x86");
     case MsvcToolChain::amd64:
         return QLatin1String("amd64");
     case MsvcToolChain::x86_amd64:
@@ -83,7 +85,8 @@ static bool hostSupportsPlatform(MsvcToolChain::Platform platform)
 {
     switch (Utils::HostOsInfo::hostArchitecture()) {
     case Utils::HostOsInfo::HostArchitectureAMD64:
-        if (platform == MsvcToolChain::amd64 || platform == MsvcToolChain::amd64_arm)
+        if (platform == MsvcToolChain::amd64 || platform == MsvcToolChain::amd64_arm
+            || platform == MsvcToolChain::amd64_x86)
             return true;
         // fall through (all x86 toolchains are also working on an amd64 host)
     case Utils::HostOsInfo::HostArchitectureX86:
@@ -107,6 +110,7 @@ static Abi findAbiOfMsvc(MsvcToolChain::Type type, MsvcToolChain::Platform platf
     switch (platform)
     {
     case MsvcToolChain::x86:
+    case MsvcToolChain::amd64_x86:
         wordWidth = 32;
         break;
     case MsvcToolChain::ia64:
@@ -233,7 +237,7 @@ QByteArray MsvcToolChain::msvcPredefinedMacros(const QStringList cxxflags,
         qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
         return predefinedMacros;
     }
-    QProcess cpp;
+    Utils::SynchronousProcess cpp;
     cpp.setEnvironment(env.toStringList());
     cpp.setWorkingDirectory(QDir::tempPath());
     QStringList arguments;
@@ -244,37 +248,22 @@ QByteArray MsvcToolChain::msvcPredefinedMacros(const QStringList cxxflags,
     }
 
     arguments << toProcess << QLatin1String("/EP") << QDir::toNativeSeparators(saver.fileName());
-    cpp.start(binary.toString(), arguments);
-    if (!cpp.waitForStarted()) {
-        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(binary.toUserOutput()),
-            qPrintable(cpp.errorString()));
+    Utils::SynchronousProcessResponse response = cpp.runBlocking(binary.toString(), arguments);
+    if (response.result != Utils::SynchronousProcessResponse::Finished ||
+            response.exitCode != 0)
         return predefinedMacros;
-    }
-    cpp.closeWriteChannel();
-    if (!cpp.waitForFinished()) {
-        Utils::SynchronousProcess::stopProcess(cpp);
-        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(binary.toUserOutput()));
-        return predefinedMacros;
-    }
-    if (cpp.exitStatus() != QProcess::NormalExit) {
-        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(binary.toUserOutput()));
-        return predefinedMacros;
-    }
 
-    const QList<QByteArray> output = cpp.readAllStandardOutput().split('\n');
-    foreach (const QByteArray& line, output) {
-        if (line.startsWith('V')) {
-            QList<QByteArray> split = line.split('=');
-            const QByteArray key = split.at(0).mid(1);
-            QByteArray value = split.at(1);
-            if (!value.isEmpty())
-                value.chop(1); //remove '\n'
-            predefinedMacros += "#define ";
-            predefinedMacros += key;
-            predefinedMacros += ' ';
-            predefinedMacros += value;
-            predefinedMacros += '\n';
-        }
+    const QStringList output = Utils::filtered(response.stdOut().split('\n'),
+                                               [](const QString &s) { return s.startsWith('V'); });
+    foreach (const QString& line, output) {
+        QStringList split = line.split('=');
+        const QString key = split.at(0).mid(1);
+        QString value = split.at(1);
+        predefinedMacros += "#define ";
+        predefinedMacros += key.toUtf8();
+        predefinedMacros += ' ';
+        predefinedMacros += value.toUtf8();
+        predefinedMacros += '\n';
     }
     if (debug)
         qDebug() << "msvcPredefinedMacros" << predefinedMacros;
@@ -340,14 +329,12 @@ Utils::Environment MsvcToolChain::readEnvironmentSetting(Utils::Environment& env
 MsvcToolChain::MsvcToolChain(const QString &name, const Abi &abi,
                              const QString &varsBat, const QString &varsBatArg, Detection d) :
     MsvcToolChain(Constants::MSVC_TOOLCHAIN_TYPEID, name, abi, varsBat, varsBatArg, d)
-{
-}
+{ }
 
 MsvcToolChain::MsvcToolChain(Core::Id typeId, const QString &name, const Abi &abi,
                              const QString &varsBat, const QString &varsBatArg,
-                              Detection d)
-    : AbstractMsvcToolChain(typeId, d, abi, varsBat)
-    , m_varsBatArg(varsBatArg)
+                             Detection d) : AbstractMsvcToolChain(typeId, d, abi, varsBat),
+    m_varsBatArg(varsBatArg)
 {
     Q_ASSERT(!name.isEmpty());
 
@@ -356,12 +343,10 @@ MsvcToolChain::MsvcToolChain(Core::Id typeId, const QString &name, const Abi &ab
 
 MsvcToolChain::MsvcToolChain(Core::Id typeId)
     : AbstractMsvcToolChain(typeId, ManualDetection)
-{
-}
+{ }
 
 MsvcToolChain::MsvcToolChain() : MsvcToolChain(Constants::MSVC_TOOLCHAIN_TYPEID)
-{
-}
+{ }
 
 QString MsvcToolChain::typeDisplayName() const
 {
@@ -444,10 +429,10 @@ ToolChain *MsvcToolChain::clone() const
 // call setFromMsvcToolChain().
 // --------------------------------------------------------------------------
 
-MsvcBasedToolChainConfigWidget::MsvcBasedToolChainConfigWidget(ToolChain *tc)
-    : ToolChainConfigWidget(tc)
-    , m_nameDisplayLabel(new QLabel(this))
-    , m_varsBatDisplayLabel(new QLabel(this))
+MsvcBasedToolChainConfigWidget::MsvcBasedToolChainConfigWidget(ToolChain *tc) :
+    ToolChainConfigWidget(tc),
+    m_nameDisplayLabel(new QLabel(this)),
+    m_varsBatDisplayLabel(new QLabel(this))
 {
     m_nameDisplayLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     m_mainLayout->addRow(m_nameDisplayLabel);
@@ -624,6 +609,8 @@ QString MsvcToolChainFactory::vcVarsBatFor(const QString &basePath, MsvcToolChai
         return basePath + QLatin1String("/bin/ia64/vcvars64.bat");
     if (toolchainName == QLatin1String("x86_ia64"))
         return basePath + QLatin1String("/bin/x86_ia64/vcvarsx86_ia64.bat");
+    if (toolchainName == QLatin1String("amd64_x86"))
+        return basePath + QLatin1String("/bin/amd64_x86/vcvarsamd64_x86.bat");
 
     return QString();
 }
@@ -634,8 +621,10 @@ static ToolChain *findOrCreateToolChain(const QList<ToolChain *> &alreadyKnown,
                                         ToolChain::Detection d = ToolChain::ManualDetection)
 {
     ToolChain *tc = Utils::findOrDefault(alreadyKnown,
-                                         [&varsBat, &varsBatArg](ToolChain *tc) -> bool {
+                                         [&varsBat, &varsBatArg, &abi](ToolChain *tc) -> bool {
                                               if (tc->typeId() != Constants::MSVC_TOOLCHAIN_TYPEID)
+                                                  return false;
+                                              if (tc->targetAbi() != abi)
                                                   return false;
                                               auto mtc = static_cast<MsvcToolChain *>(tc);
                                               return mtc->varsBat() == varsBat
@@ -798,7 +787,7 @@ QList<ToolChain *> MsvcToolChainFactory::autoDetect(const QList<ToolChain *> &al
             // x86_arm was put before amd64_arm as a workaround for auto detected windows phone
             // toolchains. As soon as windows phone builds support x64 cross builds, this change
             // can be reverted.
-            platforms << MsvcToolChain::x86
+            platforms << MsvcToolChain::x86 << MsvcToolChain::amd64_x86
                       << MsvcToolChain::amd64 << MsvcToolChain::x86_amd64
                       << MsvcToolChain::arm << MsvcToolChain::x86_arm << MsvcToolChain::amd64_arm
                       << MsvcToolChain::ia64 << MsvcToolChain::x86_ia64;
@@ -842,7 +831,7 @@ bool MsvcToolChainFactory::canRestore(const QVariantMap &data)
 template <class ToolChainType>
 ToolChainType *readFromMap(const QVariantMap &data)
 {
-    ToolChainType *result = new ToolChainType;
+    auto result = new ToolChainType;
     if (result->fromMap(data))
         return result;
     delete result;

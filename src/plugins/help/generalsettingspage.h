@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GENERALSETTINGSPAGE_H
-#define GENERALSETTINGSPAGE_H
+#pragma once
 
 #include "ui_generalsettingspage.h"
 #include <coreplugin/dialogs/ioptionspage.h>
@@ -50,20 +49,19 @@ public:
 signals:
     void fontChanged();
 
-private slots:
+private:
     void setCurrentPage();
     void setBlankPage();
     void setDefaultPage();
     void importBookmarks();
     void exportBookmarks();
 
-private:
-    void updateFontSize();
-    void updateFontStyle();
-    void updateFontFamily();
+    void updateFontSizeSelector();
+    void updateFontStyleSelector();
+    void updateFontFamilySelector();
+    void updateFont();
     int closestPointSizeIndex(int desiredPointSize) const;
 
-private:
     QFont m_font;
     QFontDatabase m_fontDatabase;
 
@@ -79,5 +77,3 @@ private:
 
     }   // Internal
 }   // Help
-
-#endif  // GENERALSETTINGSPAGE_H

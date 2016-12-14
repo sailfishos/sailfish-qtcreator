@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_INTERNAL_MEMORYVIEW_H
-#define DEBUGGER_INTERNAL_MEMORYVIEW_H
+#pragma once
 
 #include <QWidget>
 
@@ -41,11 +40,11 @@ class MemoryView : public QWidget
 public:
     explicit MemoryView(QWidget *binEditor, QWidget *parent = 0);
 
-    static void setBinEditorRange(QWidget *w, quint64 address, int range, int blockSize);
+    static void setBinEditorRange(QWidget *w, quint64 address, qint64 range, int blockSize);
     static void setBinEditorReadOnly(QWidget *w, bool readOnly);
     static void setBinEditorNewWindowRequestAllowed(QWidget *w, bool a);
     static void setBinEditorMarkup(QWidget *w, const QList<MemoryMarkup> &ml);
-    static void binEditorSetCursorPosition(QWidget *w, int p);
+    static void binEditorSetCursorPosition(QWidget *w, qint64 pos);
     static void binEditorUpdateContents(QWidget *w);
     static void binEditorAddData(QWidget *w, quint64 addr, const QByteArray &a);
 
@@ -64,21 +63,19 @@ class RegisterMemoryView : public MemoryView
 {
     Q_OBJECT
 public:
-    explicit RegisterMemoryView(QWidget *binEditor, quint64 addr, const QByteArray &regName,
+    explicit RegisterMemoryView(QWidget *binEditor, quint64 addr, const QString &regName,
                                 RegisterHandler *rh, QWidget *parent = 0);
 
-    static QList<MemoryMarkup> registerMarkup(quint64 a, const QByteArray &regName);
-    static QString title(const QByteArray &registerName, quint64 a = 0);
+    static QList<MemoryMarkup> registerMarkup(quint64 a, const QString &regName);
+    static QString title(const QString &registerName, quint64 a = 0);
 
 private:
-    void onRegisterChanged(const QByteArray &name, quint64 value);
+    void onRegisterChanged(const QString &name, quint64 value);
     void setRegisterAddress(quint64 v);
 
-    QByteArray m_registerName;
+    QString m_registerName;
     quint64 m_registerAddress;
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_INTERNAL_MEMORYVIEW_H

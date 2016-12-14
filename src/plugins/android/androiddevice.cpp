@@ -27,6 +27,7 @@
 #include "androidconstants.h"
 #include "androidsignaloperation.h"
 
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/runnables.h>
 
 #include <QCoreApplication>
@@ -98,9 +99,9 @@ IDevice::Ptr AndroidDevice::clone() const
     return IDevice::Ptr(new AndroidDevice(*this));
 }
 
-QString AndroidDevice::qmlProfilerHost() const
+Connection AndroidDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return QLatin1String("localhost");
+    return HostName("localhost");
 }
 
 } // namespace Internal

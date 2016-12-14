@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSOUTLINE_H
-#define QMLJSOUTLINE_H
+#pragma once
 
 #include "qmljseditor.h"
 
@@ -72,15 +71,13 @@ public:
     virtual void restoreSettings(const QVariantMap &map);
     virtual QVariantMap settings() const;
 
-private slots:
+private:
     void modelUpdated();
     void updateSelectionInTree(const QModelIndex &index);
     void updateSelectionInText(const QItemSelection &selection);
     void updateTextCursor(const QModelIndex &index);
     void focusEditor();
     void setShowBindings(bool showBindings);
-
-private:
     bool syncCursor();
 
 private:
@@ -104,5 +101,3 @@ public:
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSOUTLINE_H

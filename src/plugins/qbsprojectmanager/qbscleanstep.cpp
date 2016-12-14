@@ -100,18 +100,17 @@ void QbsCleanStep::run(QFutureInterface<bool> &fi)
     m_job = pro->clean(options);
 
     if (!m_job) {
-        m_fi->reportResult(false);
-        emit finished();
+        reportRunResult(*m_fi, false);
         return;
     }
 
     m_progressBase = 0;
 
-    connect(m_job, SIGNAL(finished(bool,qbs::AbstractJob*)), this, SLOT(cleaningDone(bool)));
-    connect(m_job, SIGNAL(taskStarted(QString,int,qbs::AbstractJob*)),
-            this, SLOT(handleTaskStarted(QString,int)));
-    connect(m_job, SIGNAL(taskProgress(int,qbs::AbstractJob*)),
-            this, SLOT(handleProgress(int)));
+    connect(m_job, &qbs::AbstractJob::finished, this, &QbsCleanStep::cleaningDone);
+    connect(m_job, &qbs::AbstractJob::taskStarted,
+            this, &QbsCleanStep::handleTaskStarted);
+    connect(m_job, &qbs::AbstractJob::taskProgress,
+            this, &QbsCleanStep::handleProgress);
 }
 
 ProjectExplorer::BuildStepConfigWidget *QbsCleanStep::createConfigWidget()
@@ -175,12 +174,10 @@ void QbsCleanStep::cleaningDone(bool success)
     }
 
     QTC_ASSERT(m_fi, return);
-    m_fi->reportResult(success);
+    reportRunResult(*m_fi, success);
     m_fi = 0; // do not delete, it is not ours
     m_job->deleteLater();
     m_job = 0;
-
-    emit finished();
 }
 
 void QbsCleanStep::handleTaskStarted(const QString &desciption, int max)
@@ -236,16 +233,20 @@ void QbsCleanStep::setMaxJobs(int jobcount)
 QbsCleanStepConfigWidget::QbsCleanStepConfigWidget(QbsCleanStep *step) :
     m_step(step)
 {
-    connect(m_step, SIGNAL(displayNameChanged()), this, SLOT(updateState()));
-    connect(m_step, SIGNAL(changed()), this, SLOT(updateState()));
+    connect(m_step, &ProjectExplorer::ProjectConfiguration::displayNameChanged,
+            this, &QbsCleanStepConfigWidget::updateState);
+    connect(m_step, &QbsCleanStep::changed,
+            this, &QbsCleanStepConfigWidget::updateState);
 
     setContentsMargins(0, 0, 0, 0);
 
     m_ui = new Ui::QbsCleanStepConfigWidget;
     m_ui->setupUi(this);
 
-    connect(m_ui->dryRunCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeDryRun(bool)));
-    connect(m_ui->keepGoingCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeKeepGoing(bool)));
+    connect(m_ui->dryRunCheckBox, &QAbstractButton::toggled,
+            this, &QbsCleanStepConfigWidget::changeDryRun);
+    connect(m_ui->keepGoingCheckBox, &QAbstractButton::toggled,
+            this, &QbsCleanStepConfigWidget::changeKeepGoing);
 
     updateState();
 }
@@ -303,62 +304,22 @@ QbsCleanStepFactory::QbsCleanStepFactory(QObject *parent) :
     ProjectExplorer::IBuildStepFactory(parent)
 { }
 
-QList<Core::Id> QbsCleanStepFactory::availableCreationIds(ProjectExplorer::BuildStepList *parent) const
+QList<ProjectExplorer::BuildStepInfo> QbsCleanStepFactory::availableSteps(ProjectExplorer::BuildStepList *parent) const
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN
             && qobject_cast<QbsBuildConfiguration *>(parent->parent()))
-        return QList<Core::Id>() << Core::Id(Constants::QBS_CLEANSTEP_ID);
-    return QList<Core::Id>();
-}
-
-QString QbsCleanStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == Core::Id(Constants::QBS_CLEANSTEP_ID))
-        return tr("Qbs Clean");
-    return QString();
-}
-
-bool QbsCleanStepFactory::canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const
-{
-    if (parent->id() != Core::Id(ProjectExplorer::Constants::BUILDSTEPS_CLEAN)
-            || !qobject_cast<QbsBuildConfiguration *>(parent->parent()))
-        return false;
-    return id == Core::Id(Constants::QBS_CLEANSTEP_ID);
+        return {{ Constants::QBS_CLEANSTEP_ID, tr("Qbs Clean") }};
+    return {};
 }
 
 ProjectExplorer::BuildStep *QbsCleanStepFactory::create(ProjectExplorer::BuildStepList *parent, Core::Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
+    Q_UNUSED(id);
     return new QbsCleanStep(parent);
-}
-
-bool QbsCleanStepFactory::canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
-}
-
-ProjectExplorer::BuildStep *QbsCleanStepFactory::restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-    QbsCleanStep *bs = new QbsCleanStep(parent);
-    if (!bs->fromMap(map)) {
-        delete bs;
-        return 0;
-    }
-    return bs;
-}
-
-bool QbsCleanStepFactory::canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const
-{
-    return canCreate(parent, product->id());
 }
 
 ProjectExplorer::BuildStep *QbsCleanStepFactory::clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product)
 {
-    if (!canClone(parent, product))
-        return 0;
     return new QbsCleanStep(parent, static_cast<QbsCleanStep *>(product));
 }
 

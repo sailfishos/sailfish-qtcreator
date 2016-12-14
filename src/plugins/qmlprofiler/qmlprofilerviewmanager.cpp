@@ -31,6 +31,7 @@
 #include "qmlprofilerstatemanager.h"
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerstatewidget.h"
+#include "flamegraphview.h"
 
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
@@ -53,7 +54,6 @@ public:
     QList<QmlProfilerEventsView *> eventsViews;
     QmlProfilerStateManager *profilerState;
     QmlProfilerModelManager *profilerModelManager;
-    QmlProfilerEventsViewFactory *eventsViewFactory;
 };
 
 QmlProfilerViewManager::QmlProfilerViewManager(QObject *parent,
@@ -65,8 +65,6 @@ QmlProfilerViewManager::QmlProfilerViewManager(QObject *parent,
     d->traceView = 0;
     d->profilerState = profilerState;
     d->profilerModelManager = modelManager;
-    d->eventsViewFactory =
-            ExtensionSystem::PluginManager::getObject<QmlProfilerEventsViewFactory>();
     createViews();
 }
 
@@ -91,14 +89,13 @@ void QmlProfilerViewManager::createViews()
 
     new QmlProfilerStateWidget(d->profilerState, d->profilerModelManager, d->traceView);
 
-    Utils::Perspective perspective;
-    perspective.setName(tr("QML Profiler"));
-    perspective.addOperation({Constants::QmlProfilerTimelineDockId, d->traceView, {},
-                              Perspective::SplitVertical});
+    auto perspective = new Utils::Perspective;
+    perspective->setName(tr("QML Profiler"));
+    perspective->addOperation({Constants::QmlProfilerTimelineDockId, d->traceView, {},
+                               Perspective::SplitVertical});
 
-    d->eventsViews << new QmlProfilerStatisticsView(0, d->profilerModelManager);
-    if (d->eventsViewFactory)
-        d->eventsViews.append(d->eventsViewFactory->create(0, d->profilerModelManager));
+    d->eventsViews << new QmlProfilerStatisticsView(d->profilerModelManager);
+    d->eventsViews << new FlameGraphView(d->profilerModelManager);
 
     foreach (QmlProfilerEventsView *view, d->eventsViews) {
         connect(view, &QmlProfilerEventsView::typeSelected,
@@ -112,10 +109,10 @@ void QmlProfilerViewManager::createViews()
         connect(view, &QmlProfilerEventsView::showFullRange,
                 this, [this](){restrictEventsToRange(-1, -1);});
         QByteArray dockId = view->objectName().toLatin1();
-        perspective.addOperation({dockId, view, Constants::QmlProfilerTimelineDockId, Perspective::AddToTab});
+        perspective->addOperation({dockId, view, Constants::QmlProfilerTimelineDockId, Perspective::AddToTab});
         new QmlProfilerStateWidget(d->profilerState, d->profilerModelManager, view);
     }
-    perspective.addOperation({Constants::QmlProfilerTimelineDockId, 0, {}, Perspective::Raise});
+    perspective->addOperation({Constants::QmlProfilerTimelineDockId, 0, {}, Perspective::Raise});
     Debugger::registerPerspective(Constants::QmlProfilerPerspectiveId, perspective);
 }
 
@@ -136,17 +133,12 @@ qint64 QmlProfilerViewManager::selectionEnd() const
 
 bool QmlProfilerViewManager::isEventsRestrictedToRange() const
 {
-    foreach (QmlProfilerEventsView *view, d->eventsViews) {
-        if (view->isRestrictedToRange())
-            return true;
-    }
-    return false;
+    return d->profilerModelManager->isRestrictedToRange();
 }
 
 void QmlProfilerViewManager::restrictEventsToRange(qint64 rangeStart, qint64 rangeEnd)
 {
-    foreach (QmlProfilerEventsView *view, d->eventsViews)
-        view->restrictToRange(rangeStart, rangeEnd);
+    d->profilerModelManager->restrictToRange(rangeStart, rangeEnd);
 }
 
 void QmlProfilerViewManager::raiseTimeline()

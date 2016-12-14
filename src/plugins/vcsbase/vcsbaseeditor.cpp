@@ -553,43 +553,35 @@ public:
     QComboBox *entriesComboBox();
 
     TextEditorWidget *q;
-    const VcsBaseEditorParameters *m_parameters;
+    const VcsBaseEditorParameters *m_parameters = nullptr;
 
     QString m_workingDirectory;
 
     QRegExp m_diffFilePattern;
     QRegExp m_logEntryPattern;
     QList<int> m_entrySections; // line number where this section starts
-    int m_cursorLine;
+    int m_cursorLine = -1;
+    int m_firstLineNumber = -1;
     QString m_annotateRevisionTextFormat;
     QString m_annotatePreviousRevisionTextFormat;
     QString m_copyRevisionTextFormat;
-    bool m_fileLogAnnotateEnabled;
-    VcsBaseEditorParameterWidget *m_configurationWidget;
-    bool m_mouseDragging;
+    VcsBaseEditorParameterWidget *m_configurationWidget = nullptr;
     QList<AbstractTextCursorHandler *> m_textCursorHandlers;
     QPointer<VcsCommand> m_command;
-    QObject *m_describeReceiver;
-    const char *m_describeSlot;
-    Utils::ProgressIndicator *m_progressIndicator;
+    QObject *m_describeReceiver = nullptr;
+    const char *m_describeSlot = nullptr;
+    Utils::ProgressIndicator *m_progressIndicator = nullptr;
+    bool m_fileLogAnnotateEnabled = false;
+    bool m_mouseDragging = false;
 
 private:
-    QComboBox *m_entriesComboBox;
+    QComboBox *m_entriesComboBox = nullptr;
 };
 
 VcsBaseEditorWidgetPrivate::VcsBaseEditorWidgetPrivate(VcsBaseEditorWidget *editorWidget)  :
     q(editorWidget),
-    m_parameters(0),
-    m_cursorLine(-1),
     m_annotateRevisionTextFormat(VcsBaseEditorWidget::tr("Annotate \"%1\"")),
-    m_copyRevisionTextFormat(VcsBaseEditorWidget::tr("Copy \"%1\"")),
-    m_fileLogAnnotateEnabled(false),
-    m_configurationWidget(0),
-    m_mouseDragging(false),
-    m_describeReceiver(0),
-    m_describeSlot(0),
-    m_progressIndicator(0),
-    m_entriesComboBox(0)
+    m_copyRevisionTextFormat(VcsBaseEditorWidget::tr("Copy \"%1\""))
 {
     m_textCursorHandlers.append(new ChangeTextCursorHandler(editorWidget));
     m_textCursorHandlers.append(new UrlTextCursorHandler(editorWidget));
@@ -688,6 +680,37 @@ QString VcsBaseEditorWidget::fileNameForLine(int line) const
 {
     Q_UNUSED(line);
     return source();
+}
+
+int VcsBaseEditorWidget::firstLineNumber() const
+{
+    return d->m_firstLineNumber;
+}
+
+void VcsBaseEditorWidget::setFirstLineNumber(int firstLineNumber)
+{
+    d->m_firstLineNumber = firstLineNumber;
+}
+
+QString VcsBaseEditorWidget::lineNumber(int blockNumber) const
+{
+    if (d->m_firstLineNumber > 0)
+        return QString::number(d->m_firstLineNumber + blockNumber);
+    return TextEditorWidget::lineNumber(blockNumber);
+}
+
+int VcsBaseEditorWidget::lineNumberDigits() const
+{
+    if (d->m_firstLineNumber <= 0)
+        return TextEditorWidget::lineNumberDigits();
+
+    int digits = 2;
+    int max = qMax(1, d->m_firstLineNumber + blockCount());
+    while (max >= 100) {
+        max /= 10;
+        ++digits;
+    }
+    return digits;
 }
 
 void VcsBaseEditorWidget::setDescribeSlot(QObject *describeReceiver, const char *describeSlot)
@@ -1199,10 +1222,15 @@ DiffChunk VcsBaseEditorWidget::diffChunk(QTextCursor cursor) const
 void VcsBaseEditorWidget::reportCommandFinished(bool ok, int exitCode, const QVariant &data)
 {
     Q_UNUSED(exitCode);
-    Q_UNUSED(data);
 
-    if (!ok)
+    hideProgressIndicator();
+    if (!ok) {
         textDocument()->setPlainText(tr("Failed to retrieve data."));
+    } else if (data.type() == QVariant::Int) {
+        const int line = data.toInt();
+        if (line >= 0)
+            gotoLine(line);
+    }
 }
 
 const VcsBaseEditorParameters *VcsBaseEditor::findType(const VcsBaseEditorParameters *array,
@@ -1385,11 +1413,10 @@ void VcsBaseEditorWidget::setCommand(VcsCommand *command)
         hideProgressIndicator();
     }
     d->m_command = command;
-    if (d->m_command) {
+    if (command) {
         d->m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Large);
         d->m_progressIndicator->attachToWidget(this);
-        connect(d->m_command.data(), &VcsCommand::finished,
-                this, &VcsBaseEditorWidget::hideProgressIndicator);
+        connect(command, &VcsCommand::finished, this, &VcsBaseEditorWidget::reportCommandFinished);
         QTimer::singleShot(100, this, &VcsBaseEditorWidget::showProgressIndicator);
     }
 }

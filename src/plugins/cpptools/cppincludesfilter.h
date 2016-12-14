@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPINCLUDESFILTER_H
-#define CPPINCLUDESFILTER_H
+#pragma once
 
 #include <coreplugin/locator/basefilefilter.h>
 
@@ -43,14 +42,11 @@ public:
     void prepareSearch(const QString &entry);
     void refresh(QFutureInterface<void> &future);
 
-private slots:
+private:
     void markOutdated();
 
-private:
     bool m_needsUpdate;
 };
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // CPPINCLUDESFILTER_H

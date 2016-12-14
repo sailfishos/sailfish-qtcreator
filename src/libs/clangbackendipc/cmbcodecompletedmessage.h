@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CODECOMPLETEDMESSAGE_H
-#define CLANGBACKEND_CODECOMPLETEDMESSAGE_H
+#pragma once
 
 #include "codecompletion.h"
 
@@ -51,9 +50,6 @@ public:
     quint64 ticketNumber() const;
 
 private:
-    quint32 &neededCorrectionAsInt();
-
-private:
     CodeCompletions codeCompletions_;
     quint64 ticketNumber_ = 0;
     CompletionCorrection neededCorrection_ = CompletionCorrection::NoCorrection;
@@ -68,5 +64,3 @@ void PrintTo(const CodeCompletedMessage &message, ::std::ostream* os);
 
 DECLARE_MESSAGE(CodeCompletedMessage)
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_CODECOMPLETEDMESSAGE_H

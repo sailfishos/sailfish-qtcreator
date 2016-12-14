@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPCODEMODELINSPECTORDIALOG_H
-#define CPPCODEMODELINSPECTORDIALOG_H
+#pragma once
 
 #include <cpptools/cppmodelmanager.h>
 
@@ -67,7 +66,7 @@ public:
     explicit CppCodeModelInspectorDialog(QWidget *parent = 0);
     ~CppCodeModelInspectorDialog();
 
-private slots:
+private:
     void onRefreshRequested();
 
     void onSnapshotFilterChanged(const QString &pattern);
@@ -81,7 +80,6 @@ private slots:
     void onWorkingCopyFilterChanged(const QString &pattern);
     void onWorkingCopyDocumentSelected(const QModelIndex &current, const QModelIndex &);
 
-private:
     void refresh();
 
     void clearDocumentData();
@@ -121,5 +119,3 @@ private:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPCODEMODELINSPECTORDIALOG_H

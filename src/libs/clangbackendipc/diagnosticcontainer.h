@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_DIAGNOSTICCONTAINER_H
-#define CLANGBACKEND_DIAGNOSTICCONTAINER_H
+#pragma once
 
 #include "sourcerangecontainer.h"
 #include "fixitcontainer.h"
@@ -63,9 +62,6 @@ public:
     const QVector<DiagnosticContainer> &children() const;
 
 private:
-    quint32 &severityAsInt();
-
-private:
     SourceLocationContainer location_;
     QVector<SourceRangeContainer> ranges_;
     Utf8String text_;
@@ -85,5 +81,3 @@ CMBIPC_EXPORT QDebug operator<<(QDebug debug, const DiagnosticContainer &contain
 void PrintTo(const DiagnosticContainer &container, ::std::ostream* os);
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_DIAGNOSTICCONTAINER_H

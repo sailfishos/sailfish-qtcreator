@@ -44,8 +44,10 @@
 #include <utils/hostosinfo.h>
 #include <utils/styledbar.h>
 #include <utils/stylehelper.h>
+#include <utils/proxyaction.h>
 #include <utils/qtcassert.h>
 #include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include <QDebug>
 
@@ -74,7 +76,7 @@ static const int buttonBorderWidth = 3;
 
 static int numberAreaWidth()
 {
-    return creatorTheme()->widgetStyle() == Theme::StyleDefault ? 19 : 15;
+    return creatorTheme()->flag(Theme::FlatToolBars) ? 15 : 19;
 }
 
 ////
@@ -140,17 +142,17 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_titleLabel->setContentsMargins(5, 0, 5, 0);
 
     m_clearAction = new QAction(this);
-    m_clearAction->setIcon(Icons::CLEAN_PANE.icon());
+    m_clearAction->setIcon(Icons::CLEAN.icon());
     m_clearAction->setText(tr("Clear"));
     connect(m_clearAction, &QAction::triggered, this, &OutputPaneManager::clearPage);
 
     m_nextAction = new QAction(this);
-    m_nextAction->setIcon(Icons::NEXT_TOOLBAR.icon());
+    m_nextAction->setIcon(Utils::Icons::NEXT.icon());
     m_nextAction->setText(tr("Next Item"));
     connect(m_nextAction, &QAction::triggered, this, &OutputPaneManager::slotNext);
 
     m_prevAction = new QAction(this);
-    m_prevAction->setIcon(Icons::PREV_TOOLBAR.icon());
+    m_prevAction->setIcon(Utils::Icons::PREV.icon());
     m_prevAction->setText(tr("Previous Item"));
     connect(m_prevAction, &QAction::triggered, this, &OutputPaneManager::slotPrev);
 
@@ -190,7 +192,7 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_buttonsWidget->setLayout(new QHBoxLayout);
     m_buttonsWidget->layout()->setContentsMargins(5,0,0,0);
     m_buttonsWidget->layout()->setSpacing(
-            creatorTheme()->widgetStyle() == Theme::StyleDefault ? 4 : 9);
+            creatorTheme()->flag(Theme::FlatToolBars) ? 9 : 4);
 }
 
 OutputPaneManager::~OutputPaneManager()
@@ -227,15 +229,18 @@ void OutputPaneManager::init()
 
     cmd = ActionManager::registerAction(m_clearAction, "Coreplugin.OutputPane.clear");
     m_clearButton->setDefaultAction(cmd->action());
+    m_clearButton->setIcon(Icons::CLEAN_TOOLBAR.icon());
     mpanes->addAction(cmd, "Coreplugin.OutputPane.ActionsGroup");
 
     cmd = ActionManager::registerAction(m_prevAction, "Coreplugin.OutputPane.previtem");
     cmd->setDefaultKeySequence(QKeySequence(tr("Shift+F6")));
-    m_prevToolButton->setDefaultAction(cmd->action());
+    m_prevToolButton->setDefaultAction(
+                ProxyAction::proxyActionWithIcon(cmd->action(), Utils::Icons::PREV_TOOLBAR.icon()));
     mpanes->addAction(cmd, "Coreplugin.OutputPane.ActionsGroup");
 
     cmd = ActionManager::registerAction(m_nextAction, "Coreplugin.OutputPane.nextitem");
-    m_nextToolButton->setDefaultAction(cmd->action());
+    m_nextToolButton->setDefaultAction(
+                ProxyAction::proxyActionWithIcon(cmd->action(), Utils::Icons::NEXT_TOOLBAR.icon()));
     cmd->setDefaultKeySequence(QKeySequence(tr("F6")));
     mpanes->addAction(cmd, "Coreplugin.OutputPane.ActionsGroup");
 
@@ -665,12 +670,6 @@ QSize OutputPaneToggleButton::sizeHint() const
 
 void OutputPaneToggleButton::paintEvent(QPaintEvent*)
 {
-    static const QImage panelButton(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_button.png")));
-    static const QImage panelButtonHover(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_button_hover.png")));
-    static const QImage panelButtonPressed(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_button_pressed.png")));
-    static const QImage panelButtonChecked(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_button_checked.png")));
-    static const QImage panelButtonCheckedHover(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_button_checked_hover.png")));
-
     const QFontMetrics fm = fontMetrics();
     const int baseLine = (height() - fm.height() + 1) / 2 + fm.ascent();
     const int numberWidth = fm.width(m_number);
@@ -681,17 +680,7 @@ void OutputPaneToggleButton::paintEvent(QPaintEvent*)
     styleOption.initFrom(this);
     const bool hovered = !HostOsInfo::isMacHost() && (styleOption.state & QStyle::State_MouseOver);
 
-    const QImage *image = 0;
-    if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
-        if (isDown())
-            image = &panelButtonPressed;
-        else if (isChecked())
-            image = hovered ? &panelButtonCheckedHover : &panelButtonChecked;
-        else
-            image = hovered ? &panelButtonHover : &panelButton;
-        if (image)
-            StyleHelper::drawCornerImage(*image, &p, rect(), numberAreaWidth(), buttonBorderWidth, buttonBorderWidth, buttonBorderWidth);
-    } else {
+    if (creatorTheme()->flag(Theme::FlatToolBars)) {
         Theme::Color c = Theme::BackgroundColorDark;
 
         if (hovered)
@@ -701,13 +690,42 @@ void OutputPaneToggleButton::paintEvent(QPaintEvent*)
 
         if (c != Theme::BackgroundColorDark)
             p.fillRect(rect(), creatorTheme()->color(c));
+    } else {
+        const QImage *image = 0;
+        if (isDown()) {
+            static const QImage pressed(
+                        StyleHelper::dpiSpecificImageFile(":/core/images/panel_button_pressed.png"));
+            image = &pressed;
+        } else if (isChecked()) {
+            if (hovered) {
+                static const QImage checkedHover(
+                            StyleHelper::dpiSpecificImageFile(":/core/images/panel_button_checked_hover.png"));
+                image = &checkedHover;
+            } else {
+                static const QImage checked(
+                            StyleHelper::dpiSpecificImageFile(":/core/images/panel_button_checked.png"));
+                image = &checked;
+            }
+        } else {
+            if (hovered) {
+                static const QImage hover(
+                            StyleHelper::dpiSpecificImageFile(":/core/images/panel_button_hover.png"));
+                image = &hover;
+            } else {
+                static const QImage button(
+                            StyleHelper::dpiSpecificImageFile(":/core/images/panel_button.png"));
+                image = &button;
+            }
+        }
+        if (image)
+            StyleHelper::drawCornerImage(*image, &p, rect(), numberAreaWidth(), buttonBorderWidth, buttonBorderWidth, buttonBorderWidth);
     }
 
     if (m_flashTimer->state() == QTimeLine::Running)
     {
         QColor c = creatorTheme()->color(Theme::OutputPaneButtonFlashColor);
         c.setAlpha (m_flashTimer->currentFrame());
-        QRect r = (creatorTheme()->widgetStyle() == Theme::StyleFlat)
+        QRect r = creatorTheme()->flag(Theme::FlatToolBars)
                   ? rect() : rect().adjusted(numberAreaWidth(), 1, -1, -1);
         p.fillRect(r, c);
     }
@@ -776,7 +794,7 @@ QSize OutputPaneManageButton::sizeHint() const
 void OutputPaneManageButton::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
-    if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
+    if (!creatorTheme()->flag(Theme::FlatToolBars)) {
         static const QImage button(StyleHelper::dpiSpecificImageFile(QStringLiteral(":/core/images/panel_manage_button.png")));
         StyleHelper::drawCornerImage(button, &p, rect(), buttonBorderWidth, buttonBorderWidth, buttonBorderWidth, buttonBorderWidth);
     }

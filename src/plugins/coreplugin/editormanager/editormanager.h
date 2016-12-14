@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EDITORMANAGER_H
-#define EDITORMANAGER_H
+#pragma once
 
 #include "../core_global.h"
 #include "../idocument.h"
@@ -73,13 +72,11 @@ class CORE_EXPORT EditorManagerPlaceHolder : public QWidget
 {
     Q_OBJECT
 public:
-    explicit EditorManagerPlaceHolder(IMode *mode, QWidget *parent = 0);
+    explicit EditorManagerPlaceHolder(QWidget *parent = 0);
     ~EditorManagerPlaceHolder();
 
-private:
-    void currentModeChanged(IMode *);
-
-    IMode *m_mode;
+protected:
+    void showEvent(QShowEvent *event) override;
 };
 
 class CORE_EXPORT EditorManager : public QObject
@@ -186,6 +183,7 @@ signals:
     void editorAboutToClose(Core::IEditor *editor);
     void editorsClosed(QList<Core::IEditor *> editors);
     void findOnFileSystemRequest(const QString &path);
+    void aboutToSave(IDocument *document);
 
 public slots:
     static void saveDocument();
@@ -210,5 +208,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Core::EditorManager::OpenEditorFlags)
-
-#endif // EDITORMANAGER_H

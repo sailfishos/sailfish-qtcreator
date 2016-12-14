@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILESYSTEMWATCHER_H
-#define FILESYSTEMWATCHER_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -67,20 +66,16 @@ public:
     bool watchesDirectory(const QString &file) const;
     QStringList directories() const;
 
-private slots:
-    void slotFileChanged(const QString &path);
-    void slotDirectoryChanged(const QString &path);
-
 signals:
     void fileChanged(const QString &path);
     void directoryChanged(const QString &path);
 
 private:
     void init();
+    void slotFileChanged(const QString &path);
+    void slotDirectoryChanged(const QString &path);
 
     FileSystemWatcherPrivate *d;
 };
 
 } // namespace Utils
-
-#endif // FILESYSTEMWATCHER_H

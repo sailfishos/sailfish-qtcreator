@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROFILEREADER_H
-#define PROFILEREADER_H
+#pragma once
 
 #include "qtsupport_global.h"
 
@@ -102,7 +101,7 @@ public:
 private:
     ProFileCacheManager(QObject *parent);
     ~ProFileCacheManager();
-    Q_SLOT void clear();
+    void clear();
     ProFileCache *m_cache;
     int m_refCount;
     QTimer m_timer;
@@ -113,5 +112,3 @@ private:
 };
 
 } // namespace QtSupport
-
-#endif // PROFILEREADER_H

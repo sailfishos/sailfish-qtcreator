@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef WINRTRUNCONTROL_H
-#define WINRTRUNCONTROL_H
+#pragma once
 
 #include "winrtdevice.h"
 
@@ -55,13 +54,12 @@ public:
     StopResult stop() override;
     bool isRunning() const override;
 
-private slots:
+private:
+    enum State { StartingState, StartedState, StoppedState };
+
     void onProcessStarted();
     void onProcessFinished();
     void onProcessError();
-
-private:
-    enum State { StartingState, StartedState, StoppedState };
     bool startWinRtRunner();
 
     WinRtRunConfiguration *m_runConfiguration;
@@ -72,5 +70,3 @@ private:
 
 } // namespace Internal
 } // namespace WinRt
-
-#endif // WINRTRUNCONTROL_H

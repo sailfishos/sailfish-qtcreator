@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CODECOMPLETION_H
-#define CLANGBACKEND_CODECOMPLETION_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 #include "codecompletionchunk.h"
@@ -105,10 +104,6 @@ public:
     const Utf8String &briefComment() const;
 
 private:
-    quint32 &completionKindAsInt();
-    quint32 &availabilityAsInt();
-
-private:
     Utf8String text_;
     Utf8String briefComment_;
     CodeCompletionChunks chunks_;
@@ -129,5 +124,3 @@ void PrintTo(const CodeCompletion &message, ::std::ostream* os);
 void PrintTo(CodeCompletion::Kind kind, ::std::ostream *os);
 void PrintTo(CodeCompletion::Availability availability, ::std::ostream *os);
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_CODECOMPLETION_H

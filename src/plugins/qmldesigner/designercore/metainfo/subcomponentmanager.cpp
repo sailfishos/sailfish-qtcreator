@@ -391,11 +391,8 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
             itemLibraryEntry.setRequiredImport(fixedQualifier);
         }
 
-
-        if (!model()->metaInfo().itemLibraryInfo()->containsEntry(itemLibraryEntry)) {
-
-            model()->metaInfo().itemLibraryInfo()->addEntry(itemLibraryEntry);
-        }
+        if (!model()->metaInfo().itemLibraryInfo()->containsEntry(itemLibraryEntry))
+            model()->metaInfo().itemLibraryInfo()->addEntries(QList<ItemLibraryEntry>() << itemLibraryEntry);
     }
 }
 
@@ -480,6 +477,8 @@ void SubComponentManager::update(const QUrl &filePath, const QList<Import> &impo
     for (int ii = i; ii < imports.size(); ++ii) {
         addImport(ii, imports.at(ii));
     }
+
+    m_watcher.addPath(newDir.absoluteFilePath());
 
     parseDirectories();
 }

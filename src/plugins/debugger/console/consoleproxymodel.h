@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_CONSOLEPROXYMODEL_H
-#define DEBUGGER_CONSOLEPROXYMODEL_H
+#pragma once
 
 #include "consoleitem.h"
 
@@ -40,7 +39,6 @@ class ConsoleProxyModel : public QSortFilterProxyModel
 public:
     explicit ConsoleProxyModel(QObject *parent);
 
-public slots:
     void setShowLogs(bool show);
     void setShowWarnings(bool show);
     void setShowErrors(bool show);
@@ -62,5 +60,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // DEBUGGER_CONSOLEPROXYMODEL_H

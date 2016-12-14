@@ -951,8 +951,10 @@ QList<ProjectAction> QmakePriFileNode::supportedActions(Node *node) const
 
     FileNode *fileNode = node->asFileNode();
     if ((fileNode && fileNode->fileType() != ProjectFileType)
-            || dynamic_cast<ResourceEditor::ResourceTopLevelNode *>(node))
+            || dynamic_cast<ResourceEditor::ResourceTopLevelNode *>(node)) {
         actions << Rename;
+        actions << DuplicateFile;
+    }
 
 
     Target *target = m_project->activeTarget();
@@ -1227,7 +1229,7 @@ QPair<ProFile *, QStringList> QmakePriFileNode::readProFile(const QString &file)
         QMakeVfs vfs;
         QtSupport::ProMessageHandler handler;
         QMakeParser parser(0, &vfs, &handler);
-        includeFile = parser.parsedProBlock(contents, file, 1);
+        includeFile = parser.parsedProBlock(QStringRef(&contents), file, 1);
     }
     return qMakePair(includeFile, lines);
 }
@@ -1262,7 +1264,8 @@ bool QmakePriFileNode::renameFile(const QString &oldName,
 
     // We need to re-parse here: The file has changed.
     QMakeParser parser(0, 0, 0);
-    includeFile = parser.parsedProBlock(lines.join(QLatin1Char('\n')),
+    QString contents = lines.join(QLatin1Char('\n'));
+    includeFile = parser.parsedProBlock(QStringRef(&contents),
                                         m_projectFilePath.toString(), 1, QMakeParser::FullGrammar);
     QTC_ASSERT(includeFile, return false); // The file should still be valid after what we did.
 
@@ -1436,6 +1439,9 @@ QString QmakePriFileNode::varNameForAdding(const QString &mimeType)
     if (mimeType == QLatin1String(ProjectExplorer::Constants::QML_MIMETYPE))
         return QLatin1String("DISTFILES");
 
+    if (mimeType == QLatin1String(ProjectExplorer::Constants::SCXML_MIMETYPE))
+        return QLatin1String("STATECHARTS");
+
     if (mimeType == QLatin1String(Constants::PROFILE_MIMETYPE))
         return QLatin1String("SUBDIRS");
 
@@ -1462,6 +1468,7 @@ QStringList QmakePriFileNode::varNamesForRemoving()
     vars << QLatin1String("DISTFILES");
     vars << QLatin1String("ICON");
     vars << QLatin1String("QMAKE_INFO_PLIST");
+    vars << QLatin1String("STATECHARTS");
     return vars;
 }
 

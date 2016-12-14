@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXENVIRONMENTASPECTWIDGET_H
-#define REMOTELINUXENVIRONMENTASPECTWIDGET_H
+#pragma once
 
 #include "remotelinuxenvironmentaspect.h"
 
@@ -46,16 +45,13 @@ public:
     RemoteLinuxEnvironmentAspect *aspect() const;
     QPushButton *fetchButton() const;
 
-private slots:
+private:
     void fetchEnvironment();
     void fetchEnvironmentFinished();
     void fetchEnvironmentError(const QString &error);
     void stopFetchEnvironment();
 
-private:
     Internal::RemoteLinuxEnvironmentReader *deviceEnvReader;
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXENVIRONMENTASPECTWIDGET_H

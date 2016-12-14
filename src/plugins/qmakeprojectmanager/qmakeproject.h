@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEPROJECT_H
-#define QMAKEPROJECT_H
+#pragma once
 
 #include "qmakeprojectmanager_global.h"
 #include "qmakeprojectmanager.h"
@@ -140,7 +139,7 @@ signals:
     void buildDirectoryInitialized();
     void proFilesEvaluated();
 
-public slots:
+public:
     void scheduleAsyncUpdate(QmakeProFileNode::AsyncUpdateDelay delay = QmakeProFileNode::ParseLater);
     void scheduleAsyncUpdateLater() { scheduleAsyncUpdate(); }
 
@@ -206,6 +205,3 @@ private:
 };
 
 } // namespace QmakeProjectManager
-
-
-#endif // QMAKEPROJECT_H

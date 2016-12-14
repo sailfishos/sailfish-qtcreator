@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMT_DIAGRAMCONTROLLER_H
-#define QMT_DIAGRAMCONTROLLER_H
+#pragma once
 
 #include "qmt/infrastructure/uid.h"
 
@@ -88,6 +87,7 @@ public:
     void setModelController(ModelController *modelController);
     UndoController *undoController() const { return m_undoController; }
     void setUndoController(UndoController *undoController);
+    QList<MDiagram *> allDiagrams() const { return m_allDiagrams; }
 
 private:
     MDiagram *findDiagram(const Uid &diagramKey) const;
@@ -164,11 +164,12 @@ private:
 
     void updateAllDiagramsList();
 
+    void verifyDiagramsIntegrity();
+    void verifyDiagramIntegrity(const MDiagram *diagram);
+
     ModelController *m_modelController;
     UndoController *m_undoController;
     QList<MDiagram *> m_allDiagrams;
 };
 
 } // namespace qmt
-
-#endif // DIAGRAMCONTROLLER_H

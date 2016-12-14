@@ -23,15 +23,17 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERRANGEMODEL_H
-#define QMLPROFILERRANGEMODEL_H
+#pragma once
 
 #include "qmlprofilertimelinemodel.h"
-#include <qmldebug/qmlprofilereventtypes.h>
-#include <qmldebug/qmlprofilereventlocation.h>
-#include <QVariantList>
 #include "qmlprofilerdatamodel.h"
+#include "qmlprofilereventtypes.h"
+#include "qmleventlocation.h"
+#include "qmlprofilerconstants.h"
+
+#include <QVariantList>
 #include <QColor>
+#include <QStack>
 
 namespace QmlProfiler {
 class QmlProfilerModelManager;
@@ -45,8 +47,8 @@ public:
 
     struct QmlRangeEventStartInstance {
         QmlRangeEventStartInstance() :
-                displayRowExpanded(QmlDebug::Constants::QML_MIN_LEVEL),
-                displayRowCollapsed(QmlDebug::Constants::QML_MIN_LEVEL),
+                displayRowExpanded(Constants::QML_MIN_LEVEL),
+                displayRowCollapsed(Constants::QML_MIN_LEVEL),
                 bindingLoopHead(-1) {}
 
         // not-expanded, per type
@@ -55,26 +57,25 @@ public:
         int bindingLoopHead;
     };
 
-    QmlProfilerRangeModel(QmlProfilerModelManager *manager, QmlDebug::RangeType range,
-                          QObject *parent = 0);
+    QmlProfilerRangeModel(QmlProfilerModelManager *manager, RangeType range, QObject *parent = 0);
 
-    Q_INVOKABLE int expandedRow(int index) const;
-    Q_INVOKABLE int collapsedRow(int index) const;
-    int bindingLoopDest(int index) const;
-    QColor color(int index) const;
+    Q_INVOKABLE int expandedRow(int index) const override;
+    Q_INVOKABLE int collapsedRow(int index) const override;
+    int bindingLoopDest(int index) const override;
+    QColor color(int index) const override;
 
-    QVariantList labels() const;
-    QVariantMap details(int index) const;
-    QVariantMap location(int index) const;
+    QVariantList labels() const override;
+    QVariantMap details(int index) const override;
+    QVariantMap location(int index) const override;
 
-    int typeId(int index) const;
-    int selectionIdForLocation(const QString &filename, int line, int column) const;
+    int typeId(int index) const override;
 
-    virtual QList<const Timeline::TimelineRenderPass *> supportedRenderPasses() const;
+    virtual QList<const Timeline::TimelineRenderPass *> supportedRenderPasses() const override;
 
 protected:
-    void loadData();
-    void clear();
+    void loadEvent(const QmlEvent &event, const QmlEventType &type) override;
+    void finalize() override;
+    void clear() override;
 
 private:
 
@@ -84,10 +85,9 @@ private:
     void findBindingLoops();
 
     QVector<QmlRangeEventStartInstance> m_data;
+    QStack<int> m_stack;
     QVector<int> m_expandedRowTypes;
 };
 
-}
-}
-
-#endif // QMLPROFILERRANGEMODEL_H
+} // namespace Internal
+} // namespace QmlProfiler

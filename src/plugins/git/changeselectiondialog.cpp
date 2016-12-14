@@ -33,6 +33,7 @@
 
 #include <utils/pathchooser.h>
 #include <utils/theme/theme.h>
+#include <vcsbase/vcscommand.h>
 
 #include <QProcess>
 #include <QFormLayout>
@@ -118,7 +119,7 @@ void ChangeSelectionDialog::selectCommitFromRecentHistory()
         return;
 
     QString commit = change();
-    int tilde = commit.indexOf(QLatin1Char('~'));
+    int tilde = commit.indexOf('~');
     if (tilde != -1)
         commit.truncate(tilde);
     LogChangeDialog dialog(false, this);
@@ -180,11 +181,11 @@ void ChangeSelectionDialog::setDetails(int exitCode)
         m_ui->detailsText->setPlainText(QString::fromUtf8(m_process->readAllStandardOutput()));
         palette.setColor(QPalette::Text, theme->color(Theme::TextColorNormal));
         m_ui->changeNumberEdit->setPalette(palette);
-        enableButtons(true);
     } else {
         m_ui->detailsText->setPlainText(tr("Error: Unknown reference"));
         palette.setColor(QPalette::Text, theme->color(Theme::TextColorError));
         m_ui->changeNumberEdit->setPalette(palette);
+        enableButtons(false);
     }
 }
 
@@ -212,24 +213,24 @@ void ChangeSelectionDialog::recalculateCompletion()
     if (workingDir == m_oldWorkingDir)
         return;
     m_oldWorkingDir = workingDir;
-
-    if (!workingDir.isEmpty()) {
-        GitClient *client = GitPlugin::client();
-        QStringList args;
-        args << QLatin1String("--format=%(refname:short)");
-        QString output;
-        if (client->synchronousForEachRefCmd(workingDir, args, &output)) {
-            m_changeModel->setStringList(output.split(QLatin1Char('\n')));
-            return;
-        }
-    }
     m_changeModel->setStringList(QStringList());
+
+    if (workingDir.isEmpty())
+        return;
+
+    GitClient *client = GitPlugin::client();
+    VcsBase::VcsCommand *command = client->asyncForEachRefCmd(
+                workingDir, { "--format=%(refname:short)" });
+    connect(this, &QObject::destroyed, command, &VcsBase::VcsCommand::abort);
+    connect(command, &VcsBase::VcsCommand::stdOutText, [this](const QString &output) {
+        m_changeModel->setStringList(output.split('\n'));
+    });
 }
 
 void ChangeSelectionDialog::recalculateDetails()
 {
     terminateProcess();
-    enableButtons(false);
+    enableButtons(true);
 
     const QString workingDir = workingDirectory();
     if (workingDir.isEmpty()) {
@@ -243,9 +244,6 @@ void ChangeSelectionDialog::recalculateDetails()
         return;
     }
 
-    QStringList args;
-    args << QLatin1String("show") << QLatin1String("--stat=80") << ref;
-
     m_process = new QProcess(this);
     m_process->setWorkingDirectory(workingDir);
     m_process->setProcessEnvironment(m_gitEnvironment);
@@ -253,7 +251,7 @@ void ChangeSelectionDialog::recalculateDetails()
     connect(m_process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
             this, &ChangeSelectionDialog::setDetails);
 
-    m_process->start(m_gitExecutable.toString(), args);
+    m_process->start(m_gitExecutable.toString(), { "show", "--stat=80", ref });
     m_process->closeWriteChannel();
     if (!m_process->waitForStarted())
         m_ui->detailsText->setPlainText(tr("Error: Could not start Git."));

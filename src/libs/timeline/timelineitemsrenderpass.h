@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEITEMSRENDERPASS_H
-#define TIMELINEITEMSRENDERPASS_H
+#pragma once
 
 #include "timelineabstractrenderer.h"
 #include "timelinerenderpass.h"
@@ -57,9 +56,24 @@ private:
 class OpaqueColoredPoint2DWithSize
 {
 public:
-    void set(float nx, float ny, float nw, float nh, float nid, uchar nr, uchar ng, uchar nb);
+    enum Direction {
+        InvalidDirection,
+        TopToBottom,
+        BottomToTop,
+        MaximumDirection
+    };
+
+    void set(float nx, float ny, float nw, float nh, float nid, uchar nr, uchar ng, uchar nb,
+             uchar d);
+
     float top() const;
-    void setTop(float top);
+    void update(float nr, float ny);
+    Direction direction() const;
+
+    void setBottomLeft(const OpaqueColoredPoint2DWithSize *master);
+    void setBottomRight(const OpaqueColoredPoint2DWithSize *master);
+    void setTopLeft(const OpaqueColoredPoint2DWithSize *master);
+    void setTopRight(const OpaqueColoredPoint2DWithSize *master);
 
     static const QSGGeometry::AttributeSet &attributes();
     static OpaqueColoredPoint2DWithSize *fromVertexData(QSGGeometry *geometry);
@@ -67,6 +81,12 @@ public:
 private:
     float x, y, w, h, id;
     unsigned char r, g, b, a;
+
+    void setCommon(const OpaqueColoredPoint2DWithSize *master);
+    void setLeft(const OpaqueColoredPoint2DWithSize *master);
+    void setRight(const OpaqueColoredPoint2DWithSize *master);
+    void setTop(const OpaqueColoredPoint2DWithSize *master);
+    void setBottom(const OpaqueColoredPoint2DWithSize *master);
 };
 
 class TIMELINE_EXPORT TimelineItemsRenderPass : public TimelineRenderPass
@@ -81,5 +101,3 @@ protected:
 };
 
 } // namespace Timeline
-
-#endif // TIMELINEITEMSRENDERPASS_H

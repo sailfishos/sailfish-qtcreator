@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILEFILTERITEMS_H
-#define FILEFILTERITEMS_H
+#pragma once
 
 #include "qmlprojectitem.h"
 
@@ -73,11 +72,10 @@ signals:
     void pathsChanged();
     void filesChanged(const QSet<QString> &added, const QSet<QString> &removed);
 
-private slots:
+private:
     void updateFileList();
     void updateFileListNow();
 
-private:
     QString absolutePath(const QString &path) const;
     QString absoluteDir() const;
 
@@ -172,5 +170,3 @@ public:
 };
 
 } // namespace QmlProjectManager
-
-#endif // FILEFILTERITEMS_HPROJECTITEM_H

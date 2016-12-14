@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef CPLUSPLUS_SYMBOLS_H
-#define CPLUSPLUS_SYMBOLS_H
+#pragma once
 
 #include "CPlusPlusForwardDeclarations.h"
 #include "Symbol.h"
@@ -299,6 +298,12 @@ public:
         InvokableMethod
     };
 
+    enum RefQualifier {
+        NoRefQualifier, // a function declared w/o & and && => *this may be lvalue or rvalue
+        LvalueRefQualifier, // a function declared with & => *this is lvalue
+        RvalueRefQualifier // a function declared with && => *this is rvalue
+    };
+
 public:
     Function(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
     Function(Clone *clone, Subst *subst, Function *original);
@@ -345,6 +350,9 @@ public:
     bool isPureVirtual() const;
     void setPureVirtual(bool isPureVirtual);
 
+    RefQualifier refQualifier() const;
+    void setRefQualifier(RefQualifier refQualifier);
+
     bool isSignatureEqualTo(const Function *other, Matcher *matcher = 0) const;
 
     bool isAmbiguous() const; // internal
@@ -385,6 +393,7 @@ private:
         unsigned _isVolatile: 1;
         unsigned _isAmbiguous: 1;
         unsigned _methodKey: 3;
+        unsigned _refQualifier: 2;
     };
     union {
         unsigned _flags;
@@ -911,6 +920,3 @@ private:
 };
 
 } // namespace CPlusPlus
-
-
-#endif // CPLUSPLUS_SYMBOLS_H

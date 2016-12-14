@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SYMBOLGROUPNODE_H
-#define SYMBOLGROUPNODE_H
+#pragma once
 
 #include "common.h"
 
@@ -46,17 +45,15 @@ class MemoryHandle;
 // Helper struct used for check results when recoding CDB char pointer output.
 struct DumpParameterRecodeResult
 {
-    DumpParameterRecodeResult() : buffer(0), size(0), recommendedFormat(0),isWide(false) {}
-
-    unsigned char *buffer;
-    size_t size;
-    int recommendedFormat;
-    bool isWide;
+    unsigned char *buffer = 0;
+    size_t size = 0;
+    std::string recommendedFormat;
+    bool isWide = false;
 };
 
 struct DumpParameters
 {
-    typedef std::map<std::string, int> FormatMap; // type or iname to format
+    typedef std::map<std::string, std::string> FormatMap; // type or iname to format
     enum DumpFlags
     {
         DumpHumanReadable = 0x1,
@@ -81,7 +78,7 @@ struct DumpParameters
                 const SymbolGroupValueContext &ctx,
                 ULONG64 address,
                 std::wstring *value, std::string *encoding) const;
-    int format(const std::string &type, const std::string &iname) const;
+    std::string format(const std::string &type, const std::string &iname) const;
 
     unsigned dumpFlags;
     FormatMap typeFormats;
@@ -432,5 +429,3 @@ private:
     const DumpParameters &m_parameters;
     unsigned m_lastDepth;
 };
-
-#endif // SYMBOLGROUPNODE_H

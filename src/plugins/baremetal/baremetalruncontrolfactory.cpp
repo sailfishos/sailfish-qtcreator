@@ -113,13 +113,11 @@ RunControl *BareMetalRunControlFactory::create(
     DebuggerStartParameters sp;
 
     if (const BuildConfiguration *bc = target->activeBuildConfiguration()) {
-        if (const BuildStepList *bsl = bc->stepList(BareMetalGdbCommandsDeployStep::stepId())) {
-            foreach (const BuildStep *bs, bsl->steps()) {
-                if (auto ds = qobject_cast<const BareMetalGdbCommandsDeployStep *>(bs)) {
-                    if (!sp.commandsAfterConnect.endsWith("\n"))
-                        sp.commandsAfterConnect.append("\n");
-                    sp.commandsAfterConnect.append(ds->gdbCommands().toLatin1());
-                }
+        if (BuildStepList *bsl = bc->stepList(BareMetalGdbCommandsDeployStep::stepId())) {
+            foreach (const BareMetalGdbCommandsDeployStep *bs, bsl->allOfType<BareMetalGdbCommandsDeployStep>()) {
+                if (!sp.commandsAfterConnect.endsWith("\n"))
+                    sp.commandsAfterConnect.append("\n");
+                sp.commandsAfterConnect.append(bs->gdbCommands());
             }
         }
     }
@@ -128,8 +126,8 @@ RunControl *BareMetalRunControlFactory::create(
     sp.inferior.commandLineArguments = rc->arguments();
     sp.symbolFile = bin;
     sp.startMode = AttachToRemoteServer;
-    sp.commandsAfterConnect = p->initCommands().toLatin1();
-    sp.commandsForReset = p->resetCommands().toLatin1();
+    sp.commandsAfterConnect = p->initCommands();
+    sp.commandsForReset = p->resetCommands();
     sp.remoteChannel = p->channel();
     sp.useContinueInsteadOfRun = true;
 
@@ -137,10 +135,8 @@ RunControl *BareMetalRunControlFactory::create(
         sp.remoteSetupNeeded = true;
 
     DebuggerRunControl *runControl = createDebuggerRunControl(sp, rc, errorMessage, mode);
-    if (runControl && sp.remoteSetupNeeded) {
-        const auto debugSupport = new BareMetalDebugSupport(dev, runControl);
-        Q_UNUSED(debugSupport);
-    }
+    if (runControl && sp.remoteSetupNeeded)
+        new BareMetalDebugSupport(runControl);
 
     return runControl;
 }

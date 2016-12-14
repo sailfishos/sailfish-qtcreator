@@ -23,6 +23,7 @@
 **
 ****************************************************************************/
 
+
 //
 //  W A R N I N G
 //  -------------
@@ -46,8 +47,7 @@
 //    qlalr --no-debug --no-lines --qt qmljs.g
 //
 
-#ifndef QMLJSPARSER_P_H
-#define QMLJSPARSER_P_H
+#pragma once
 
 #include "qmljsglobal_p.h"
 #include "qmljsgrammar_p.h"
@@ -231,12 +231,8 @@ protected:
 
 
 
-#define J_SCRIPT_REGEXPLITERAL_RULE1 87
+#define J_SCRIPT_REGEXPLITERAL_RULE1 88
 
-#define J_SCRIPT_REGEXPLITERAL_RULE2 88
+#define J_SCRIPT_REGEXPLITERAL_RULE2 89
 
 QT_QML_END_NAMESPACE
-
-
-
-#endif // QMLJSPARSER_P_H

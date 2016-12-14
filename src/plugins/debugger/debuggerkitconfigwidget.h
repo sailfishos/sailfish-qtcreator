@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERKITCONFIGWIDGET_H
-#define DEBUGGER_DEBUGGERKITCONFIGWIDGET_H
+#pragma once
 
 #include <coreplugin/dialogs/ioptionspage.h>
 #include <projectexplorer/kitconfigwidget.h>
@@ -69,7 +68,6 @@ private:
     void manageDebuggers();
     void currentDebuggerChanged(int idx);
 
-    int indexOf(const QVariant &id);
     QVariant currentId() const;
     void updateComboBox(const QVariant &id);
 
@@ -81,5 +79,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_DEBUGGERKITCONFIGWIDGET_H

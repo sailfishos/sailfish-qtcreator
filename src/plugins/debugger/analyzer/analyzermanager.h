@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANALYZERMANAGER_H
-#define ANALYZERMANAGER_H
+#pragma once
 
 #include "analyzerconstants.h"
 
@@ -131,13 +130,13 @@ private:
 
 // Register a tool for a given start mode.
 DEBUGGER_EXPORT void registerAction(Core::Id actionId, const ActionDescription &desc, QAction *startAction = 0);
-DEBUGGER_EXPORT void registerPerspective(const QByteArray &perspectiveId, const Utils::Perspective &perspective);
+DEBUGGER_EXPORT void registerPerspective(const QByteArray &perspectiveId, const Utils::Perspective *perspective);
 DEBUGGER_EXPORT void registerToolbar(const QByteArray &perspectiveId, const Utils::ToolbarDescription &desc);
 
 DEBUGGER_EXPORT void enableMainWindow(bool on);
+DEBUGGER_EXPORT QWidget *mainWindow();
 
 DEBUGGER_EXPORT void selectPerspective(const QByteArray &perspectiveId);
-DEBUGGER_EXPORT void runAction(Core::Id actionId);
 
 // Convenience functions.
 DEBUGGER_EXPORT void showStatusMessage(const QString &message, int timeoutMS = 10000);
@@ -150,5 +149,3 @@ DEBUGGER_EXPORT AnalyzerRunControl *createAnalyzerRunControl(
     ProjectExplorer::RunConfiguration *runConfiguration, Core::Id runMode);
 
 } // namespace Debugger
-
-#endif // ANALYZERMANAGER_H

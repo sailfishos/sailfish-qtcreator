@@ -32,7 +32,6 @@ HEADERS += \
     debuggerrunconfigurationaspect.h \
     debuggerruncontrol.h \
     debuggerstartparameters.h \
-    debuggerstringutils.h \
     debuggerkitconfigwidget.h \
     debuggerkitinformation.h \
     disassembleragent.h \
@@ -124,7 +123,8 @@ SOURCES += \
     localsandexpressionswindow.cpp \
     imageviewer.cpp \
     simplifytype.cpp \
-    unstartedappwatcherdialog.cpp
+    unstartedappwatcherdialog.cpp \
+    debuggericons.cpp
 
 RESOURCES += debugger.qrc
 

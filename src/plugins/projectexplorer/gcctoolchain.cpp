@@ -38,11 +38,11 @@
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/synchronousprocess.h>
 
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QFileInfo>
-#include <QProcess>
 #include <QScopedPointer>
 
 #include <QLineEdit>
@@ -70,43 +70,25 @@ static QByteArray runGcc(const FileName &gcc, const QStringList &arguments, cons
     if (gcc.isEmpty() || !gcc.toFileInfo().isExecutable())
         return QByteArray();
 
+<<<<<<< HEAD
     QProcess cpp;
     QStringList environment(env);
+=======
+    SynchronousProcess cpp;
+    QStringList environment(env);
+    Utils::Environment::setupEnglishOutput(&environment);
+>>>>>>> v4.1.0
 
     cpp.setEnvironment(environment);
-    cpp.start(gcc.toString(), arguments);
-    if (!cpp.waitForStarted()) {
-        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(gcc.toUserOutput()),
-            qPrintable(cpp.errorString()));
-        return QByteArray();
-    }
-    cpp.closeWriteChannel();
-    if (!cpp.waitForFinished(10000)) {
-        SynchronousProcess::stopProcess(cpp);
-        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(gcc.toUserOutput()));
-        return QByteArray();
-    }
-    if (cpp.exitStatus() != QProcess::NormalExit) {
-        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(gcc.toUserOutput()));
+    cpp.setTimeoutS(10);
+    SynchronousProcessResponse response =  cpp.runBlocking(gcc.toString(), arguments);
+    if (response.result != SynchronousProcessResponse::Finished ||
+            response.exitCode != 0) {
+        qWarning() << response.exitMessage(gcc.toString(), 10);
         return QByteArray();
     }
 
-    const QByteArray stdErr = SynchronousProcess::normalizeNewlines(
-                QString::fromLocal8Bit(cpp.readAllStandardError())).toLocal8Bit();
-    if (cpp.exitCode() != 0) {
-        qWarning().nospace()
-            << Q_FUNC_INFO << ": " << gcc.toUserOutput() << ' '
-            << arguments.join(QLatin1Char(' ')) << " returned exit code "
-            << cpp.exitCode() << ": " << stdErr;
-        return QByteArray();
-    }
-
-    QByteArray data = SynchronousProcess::normalizeNewlines(
-                QString::fromLocal8Bit(cpp.readAllStandardOutput())).toLocal8Bit();
-    if (!data.isEmpty() && !data.endsWith('\n'))
-        data.append('\n');
-    data.append(stdErr);
-    return data;
+    return response.allOutput().toUtf8();
 }
 
 static const QStringList gccPredefinedMacrosOptions()
@@ -253,16 +235,25 @@ void GccToolChain::setCompilerCommand(const FileName &path)
         return;
 
     m_compilerCommand = path;
+    toolChainUpdated();
 }
 
 void GccToolChain::setSupportedAbis(const QList<Abi> &m_abis)
 {
+    if (m_supportedAbis == m_abis)
+        return;
+
     m_supportedAbis = m_abis;
+    toolChainUpdated();
 }
 
 void GccToolChain::setOriginalTargetTriple(const QString &targetTriple)
 {
+    if (m_originalTargetTriple == targetTriple)
+        return;
+
     m_originalTargetTriple = targetTriple;
+    toolChainUpdated();
 }
 
 void GccToolChain::setMacroCache(const QStringList &allCxxflags, const QByteArray &macros) const
@@ -373,10 +364,6 @@ QByteArray GccToolChain::predefinedMacros(const QStringList &cxxflags) const
 {
     QStringList allCxxflags = m_platformCodeGenFlags + cxxflags;  // add only cxxflags is empty?
 
-    QByteArray macros = macroCache(allCxxflags);
-    if (!macros.isNull())
-        return macros;
-
     // Using a clean environment breaks ccache/distcc/etc.
     Environment env = Environment::systemEnvironment();
     addToEnvironment(env);
@@ -420,10 +407,15 @@ QByteArray GccToolChain::predefinedMacros(const QStringList &cxxflags) const
                 || a == QLatin1String("-fPIE") || a == QLatin1String("-fpie"))
             arguments << a;
     }
+
+    QByteArray macros = macroCache(arguments);
+    if (!macros.isNull())
+        return macros;
+
     macros = gccPredefinedMacros(m_compilerCommand, reinterpretOptions(arguments),
                                  env.toStringList());
 
-    setMacroCache(allCxxflags, macros);
+    setMacroCache(arguments, macros);
     return macros;
 }
 
@@ -454,9 +446,15 @@ ToolChain::CompilerFlags GccToolChain::compilerFlags(const QStringList &cxxflags
             } else if (std == "c++17" || std == "c++1z") {
                 flags |= StandardCxx17;
                 flags &= ~CompilerFlags(StandardCxx11 | StandardCxx14 | GnuExtensions);
-            } else if (std == "gnu++0x" || std == "gnu++11" || std== "gnu++1y") {
+            } else if (std == "gnu++0x" || std == "gnu++11") {
                 flags |= CompilerFlags(StandardCxx11 | GnuExtensions);
                 flags &= ~CompilerFlags(StandardCxx14 | StandardCxx17);
+            } else if (std== "gnu++14" || std == "gnu++1y") {
+                flags |= CompilerFlags(StandardCxx14 | GnuExtensions);
+                flags &= ~CompilerFlags(StandardCxx11 | StandardCxx17);
+            } else if (std== "gnu++17" || std == "gnu++1z") {
+                flags |= CompilerFlags(StandardCxx17 | GnuExtensions);
+                flags &= ~CompilerFlags(StandardCxx11 | StandardCxx14);
             } else if (std == "c89" || std == "c90"
                        || std == "iso9899:1990" || std == "iso9899:199409") {
                 flags &= ~CompilerFlags(StandardC99 | StandardC11);
@@ -733,7 +731,7 @@ bool GccToolChain::operator ==(const ToolChain &other) const
     if (!ToolChain::operator ==(other))
         return false;
 
-    const GccToolChain *gccTc = static_cast<const GccToolChain *>(&other);
+    auto gccTc = static_cast<const GccToolChain *>(&other);
     return m_compilerCommand == gccTc->m_compilerCommand && m_targetAbi == gccTc->m_targetAbi
             && m_platformCodeGenFlags == gccTc->m_platformCodeGenFlags
             && m_platformLinkerFlags == gccTc->m_platformLinkerFlags;
@@ -816,7 +814,7 @@ ToolChain *GccToolChainFactory::restore(const QVariantMap &data)
         return tc;
 
     delete tc;
-    return 0;
+    return nullptr;
 }
 
 GccToolChain *GccToolChainFactory::createToolChain(bool autoDetect)
@@ -882,8 +880,7 @@ QList<ToolChain *> GccToolChainFactory::autoDetectToolchains(const QString &comp
 GccToolChainConfigWidget::GccToolChainConfigWidget(GccToolChain *tc) :
     ToolChainConfigWidget(tc),
     m_compilerCommand(new PathChooser),
-    m_abiWidget(new AbiWidget),
-    m_isReadOnly(false)
+    m_abiWidget(new AbiWidget)
 {
     Q_ASSERT(tc);
 
@@ -919,7 +916,7 @@ void GccToolChainConfigWidget::applyImpl()
     if (toolChain()->isAutoDetected())
         return;
 
-    GccToolChain *tc = static_cast<GccToolChain *>(toolChain());
+    auto tc = static_cast<GccToolChain *>(toolChain());
     Q_ASSERT(tc);
     QString displayName = tc->displayName();
     tc->setCompilerCommand(m_compilerCommand->fileName());
@@ -936,7 +933,7 @@ void GccToolChainConfigWidget::setFromToolchain()
 {
     // subwidgets are not yet connected!
     bool blocked = blockSignals(true);
-    GccToolChain *tc = static_cast<GccToolChain *>(toolChain());
+    auto tc = static_cast<GccToolChain *>(toolChain());
     m_compilerCommand->setFileName(tc->compilerCommand());
     m_platformCodeGenFlagsLineEdit->setText(QtcProcess::joinArgs(tc->platformCodeGenFlags()));
     m_platformLinkerFlagsLineEdit->setText(QtcProcess::joinArgs(tc->platformLinkerFlags()));
@@ -948,7 +945,7 @@ void GccToolChainConfigWidget::setFromToolchain()
 
 bool GccToolChainConfigWidget::isDirtyImpl() const
 {
-    GccToolChain *tc = static_cast<GccToolChain *>(toolChain());
+    auto tc = static_cast<GccToolChain *>(toolChain());
     Q_ASSERT(tc);
     return m_compilerCommand->fileName() != tc->compilerCommand()
             || m_platformCodeGenFlagsLineEdit->text() != QtcProcess::joinArgs(tc->platformCodeGenFlags())
@@ -1314,8 +1311,7 @@ GccToolChain *LinuxIccToolChainFactory::createToolChain(bool autoDetect)
 }
 
 GccToolChain::WarningFlagAdder::WarningFlagAdder(const QString &flag, WarningFlags &flags) :
-    m_flags(flags),
-    m_triggered(false)
+    m_flags(flags)
 {
     if (!flag.startsWith(QLatin1String("-W"))) {
         m_triggered = true;

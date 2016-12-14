@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERRUNCONTROL_H
-#define QMLPROFILERRUNCONTROL_H
+#pragma once
 
 #include "qmlprofilerstatemanager.h"
 
@@ -46,21 +45,22 @@ public:
 
     void registerProfilerStateManager( QmlProfilerStateManager *profilerState );
 
-    void notifyRemoteSetupDone(quint16 port) override;
+    void notifyRemoteSetupDone(Utils::Port port) override;
     void start() override;
     StopResult stop() override;
     bool isRunning() const override;
     void cancelProcess();
     void notifyRemoteFinished() override;
-    void logApplicationMessage(const QString &msg, Utils::OutputFormat format) override;
+    void appendMessage(const QString &msg, Utils::OutputFormat format) override;
+    bool supportsReRunning() const override { return false; }
 
 signals:
-    void processRunning(quint16 port);
+    void processRunning(Utils::Port port);
 
 private:
     void wrongSetupMessageBox(const QString &errorMessage);
     void wrongSetupMessageBoxFinished(int);
-    void processIsRunning(quint16 port);
+    void processIsRunning(Utils::Port port);
     void profilerStateChanged();
 
     class QmlProfilerRunControlPrivate;
@@ -68,5 +68,3 @@ private:
 };
 
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERRUNCONTROL_H

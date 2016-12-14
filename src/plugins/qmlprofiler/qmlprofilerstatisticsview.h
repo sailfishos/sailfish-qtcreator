@@ -23,15 +23,14 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERSTATISTICSVIEW_H
-#define QMLPROFILERSTATISTICSVIEW_H
+#pragma once
 
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerstatisticsmodel.h"
 #include "qmlprofilerviewmanager.h"
 #include "qmlprofilereventsview.h"
+#include "qmlprofilereventtypes.h"
 
-#include <qmldebug/qmlprofilereventtypes.h>
 #include <debugger/analyzer/analyzermanager.h>
 #include <utils/itemviews.h>
 
@@ -76,13 +75,10 @@ class QmlProfilerStatisticsView : public QmlProfilerEventsView
 {
     Q_OBJECT
 public:
-    explicit QmlProfilerStatisticsView(QWidget *parent,
-                                       QmlProfilerModelManager *profilerModelManager);
+    explicit QmlProfilerStatisticsView(QmlProfilerModelManager *profilerModelManager,
+                                       QWidget *parent = nullptr);
     ~QmlProfilerStatisticsView();
-
     void clear() override;
-    void restrictToRange(qint64 rangeStart, qint64 rangeEnd) override;
-    bool isRestrictedToRange() const override;
 
 public slots:
     void selectByTypeId(int typeIndex) override;
@@ -111,20 +107,17 @@ public:
     ~QmlProfilerStatisticsMainView();
 
     void setFieldViewable(Fields field, bool show);
-    void setShowAnonymousEvents( bool showThem );
 
     QModelIndex selectedModelIndex() const;
     void copyTableToClipboard() const;
     void copyRowToClipboard() const;
 
-    static QString nameForType(QmlDebug::RangeType typeNumber);
+    static QString nameForType(RangeType typeNumber);
 
-    void getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd);
     int selectedTypeId() const;
 
     void setShowExtendedStatistics(bool);
     bool showExtendedStatistics() const;
-
 
 signals:
     void gotoSourceLocation(const QString &fileName, int lineNumber, int columnNumber);
@@ -167,7 +160,7 @@ public slots:
     void clear();
 
 private:
-    void rebuildTree(const QmlProfilerStatisticsParentsModel::QmlStatisticsRelativesMap &map);
+    void rebuildTree(const QmlProfilerStatisticsRelativesModel::QmlStatisticsRelativesMap &map);
     void updateHeader();
     QStandardItemModel *treeModel();
 
@@ -177,5 +170,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERSTATISTICSVIEW_H

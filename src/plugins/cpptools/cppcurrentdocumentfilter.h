@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPCURRENTDOCUMENTFILTER_H
-#define CPPCURRENTDOCUMENTFILTER_H
+#pragma once
 
 #include "searchsymbols.h"
 
@@ -51,12 +50,11 @@ public:
     void accept(Core::LocatorFilterEntry selection) const;
     void refresh(QFutureInterface<void> &future);
 
-private slots:
+private:
     void onDocumentUpdated(CPlusPlus::Document::Ptr doc);
     void onCurrentEditorChanged(Core::IEditor *currentEditor);
     void onEditorAboutToClose(Core::IEditor *currentEditor);
 
-private:
     QList<IndexItem::Ptr> itemsOfCurrentDocument();
 
     CppModelManager * m_modelManager;
@@ -69,5 +67,3 @@ private:
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // CPPCURRENTDOCUMENTFILTER_H

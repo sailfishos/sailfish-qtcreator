@@ -24,37 +24,9 @@
 ****************************************************************************/
 
 #include "iosanalyzesupport.h"
-
 #include "iosrunner.h"
-#include "iosmanager.h"
-#include "iosdevice.h"
 
-#include <debugger/debuggerplugin.h>
-#include <debugger/debuggerkitinformation.h>
-#include <debugger/debuggerruncontrol.h>
-#include <debugger/debuggerstartparameters.h>
-#include <debugger/debuggerrunconfigurationaspect.h>
-#include <debugger/analyzer/analyzermanager.h>
 #include <debugger/analyzer/analyzerruncontrol.h>
-#include <projectexplorer/toolchain.h>
-#include <projectexplorer/target.h>
-#include <projectexplorer/taskhub.h>
-#include <qtsupport/qtkitinformation.h>
-#include <utils/fileutils.h>
-#include <utils/outputformat.h>
-#include <utils/qtcprocess.h>
-
-#include <QDir>
-#include <QTcpServer>
-#include <QSettings>
-
-#include <stdio.h>
-#include <fcntl.h>
-#ifdef Q_OS_UNIX
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
 
 using namespace Debugger;
 using namespace ProjectExplorer;
@@ -97,13 +69,13 @@ void IosAnalyzeSupport::qmlServerReady()
     m_runControl->notifyRemoteSetupDone(m_qmlPort);
 }
 
-void IosAnalyzeSupport::handleServerPorts(int gdbServerPort, int qmlPort)
+void IosAnalyzeSupport::handleServerPorts(Utils::Port gdbServerPort, Utils::Port qmlPort)
 {
     Q_UNUSED(gdbServerPort);
     m_qmlPort = qmlPort;
 }
 
-void IosAnalyzeSupport::handleGotInferiorPid(qint64 pid, int qmlPort)
+void IosAnalyzeSupport::handleGotInferiorPid(qint64 pid, Utils::Port qmlPort)
 {
     Q_UNUSED(pid);
     m_qmlPort = qmlPort;
@@ -113,9 +85,9 @@ void IosAnalyzeSupport::handleRemoteProcessFinished(bool cleanEnd)
 {
     if (m_runControl) {
         if (!cleanEnd)
-            m_runControl->logApplicationMessage(tr("Run ended with error."), Utils::ErrorMessageFormat);
+            m_runControl->appendMessage(tr("Run ended with error."), Utils::ErrorMessageFormat);
         else
-            m_runControl->logApplicationMessage(tr("Run ended."), Utils::NormalMessageFormat);
+            m_runControl->appendMessage(tr("Run ended."), Utils::NormalMessageFormat);
         m_runControl->notifyRemoteFinished();
     }
 }
@@ -123,7 +95,7 @@ void IosAnalyzeSupport::handleRemoteProcessFinished(bool cleanEnd)
 void IosAnalyzeSupport::handleRemoteOutput(const QString &output)
 {
     if (m_runControl) {
-        m_runControl->logApplicationMessage(output, Utils::StdOutFormat);
+        m_runControl->appendMessage(output, Utils::StdOutFormat);
         m_outputParser.processOutput(output);
     }
 }
@@ -131,7 +103,7 @@ void IosAnalyzeSupport::handleRemoteOutput(const QString &output)
 void IosAnalyzeSupport::handleRemoteErrorOutput(const QString &output)
 {
     if (m_runControl)
-        m_runControl->logApplicationMessage(output, Utils::StdErrFormat);
+        m_runControl->appendMessage(output, Utils::StdErrFormat);
 }
 
 } // namespace Internal

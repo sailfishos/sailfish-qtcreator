@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJS_INTERPRETER_H
-#define QMLJS_INTERPRETER_H
+#pragma once
 
 #include <qmljs/qmljs_global.h>
 #include <qmljs/qmljsconstants.h>
@@ -721,8 +720,12 @@ public:
 
     // parses the contents of a qmltypes file and fills the newObjects map
     static void parseQmlTypeDescriptions(const QByteArray &contents,
-        BuiltinObjects *newObjects,
-        QList<ModuleApiInfo> *newModuleApis, QString *errorMessage, QString *warningMessage, const QString &fileName);
+                                         BuiltinObjects *newObjects,
+                                         QList<ModuleApiInfo> *newModuleApis,
+                                         QStringList *newDependencies,
+                                         QString *errorMessage,
+                                         QString *warningMessage,
+                                         const QString &fileName);
 };
 
 class QMLJS_EXPORT FakeMetaObjectWithOrigin
@@ -1130,5 +1133,3 @@ public:
 };
 
 } // namespace QmlJS
-
-#endif // QMLJS_INTERPRETER_H

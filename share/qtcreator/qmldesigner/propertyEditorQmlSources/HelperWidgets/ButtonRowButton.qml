@@ -65,31 +65,27 @@ Item {
         anchors.fill: parent
         RoundedPanel {
             roundLeft: isFirst() && buttonRowButton.roundLeftButton
-            roundRight: isLast()
 
             anchors.fill: parent
-            z: checked ? 1 : 0
-
-            gradient: Gradient {
-                GradientStop {color: '#444' ; position: 0}
-                GradientStop {color: '#333' ; position: 1}
-            }
+            visible: checked
+            color: creatorTheme.QmlDesignerBackgroundColorDarker
         }
 
         RoundedPanel {
             roundLeft: isFirst()
-            roundRight: isLast()
 
             anchors.fill: parent
-            z: !checked ? 1 : 0
+            visible: !checked
+            color: creatorTheme.QmlDesignerButtonColor
         }
     }
 
     Image {
         id: image
-        //source: iconSource
+        width: 16
+        height: 16
+        smooth: false
         anchors.centerIn: parent
-        anchors.leftMargin: leftPadding
     }
 
     ToolTipArea {

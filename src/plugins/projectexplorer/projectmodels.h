@@ -74,13 +74,11 @@ public:
 
     bool projectFilterEnabled();
     bool generatedFilesFilterEnabled();
+    void setProjectFilterEnabled(bool filter);
+    void setGeneratedFilesFilterEnabled(bool filter);
 
 signals:
     void renamed(const Utils::FileName &oldName, const Utils::FileName &newName);
-
-public slots:
-    void setProjectFilterEnabled(bool filter);
-    void setGeneratedFilesFilterEnabled(bool filter);
 
 private:
     void aboutToShowInSimpleTreeChanged(ProjectExplorer::FolderNode *node);
@@ -117,15 +115,15 @@ private:
     FolderNode *visibleFolderNode(FolderNode *node) const;
     bool filter(Node *node) const;
 
-    bool m_filterProjects;
-    bool m_filterGeneratedFiles;
+    bool m_filterProjects = false;
+    bool m_filterGeneratedFiles = true;
 
     SessionNode *m_rootNode;
     mutable QHash<FolderNode*, QList<Node*> > m_childNodes;
-    ProjectNode *m_startupProject;
+    ProjectNode *m_startupProject = nullptr;
 
-    FolderNode *m_parentFolderForChange;
-    Node *m_nodeForSortKeyChange;
+    FolderNode *m_parentFolderForChange = nullptr;
+    Node *m_nodeForSortKeyChange = nullptr;
 
     static const QLoggingCategory &logger();
 

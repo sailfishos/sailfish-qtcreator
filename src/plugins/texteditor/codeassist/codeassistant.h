@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CODEASSISTANT_H
-#define CODEASSISTANT_H
+#pragma once
 
 #include "assistenums.h"
 
@@ -48,7 +47,6 @@ public:
     ~CodeAssistant();
 
     void configure(TextEditorWidget *editorWidget);
-    void updateFromCompletionSettings(const TextEditor::CompletionSettings &settings);
 
     void process();
     void notifyChange();
@@ -65,5 +63,3 @@ private:
 };
 
 } //TextEditor
-
-#endif // CODEASSISTANT_H

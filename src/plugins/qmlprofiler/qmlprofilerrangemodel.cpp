@@ -27,6 +27,7 @@
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerdatamodel.h"
 #include "qmlprofilerbindingloopsrenderpass.h"
+
 #include "timeline/timelinenotesrenderpass.h"
 #include "timeline/timelineitemsrenderpass.h"
 #include "timeline/timelineselectionrenderpass.h"
@@ -38,16 +39,12 @@
 #include <QString>
 #include <QStack>
 
-#include <QDebug>
-
 namespace QmlProfiler {
 namespace Internal {
 
-
-QmlProfilerRangeModel::QmlProfilerRangeModel(QmlProfilerModelManager *manager,
-                                             QmlDebug::RangeType range, QObject *parent) :
-    QmlProfilerTimelineModel(manager, QmlDebug::MaximumMessage, range,
-                             QmlDebug::featureFromRangeType(range), parent)
+QmlProfilerRangeModel::QmlProfilerRangeModel(QmlProfilerModelManager *manager, RangeType range,
+                                             QObject *parent) :
+    QmlProfilerTimelineModel(manager, MaximumMessage, range, featureFromRangeType(range), parent)
 {
     m_expandedRowTypes << -1;
 }
@@ -57,55 +54,42 @@ void QmlProfilerRangeModel::clear()
     m_expandedRowTypes.clear();
     m_expandedRowTypes << -1;
     m_data.clear();
+    m_stack.clear();
     QmlProfilerTimelineModel::clear();
 }
 
 bool QmlProfilerRangeModel::supportsBindingLoops() const
 {
-    return rangeType() == QmlDebug::Binding || rangeType() == QmlDebug::HandlingSignal;
+    return rangeType() == Binding || rangeType() == HandlingSignal;
 }
 
-void QmlProfilerRangeModel::loadData()
+void QmlProfilerRangeModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
 {
-    QmlProfilerDataModel *simpleModel = modelManager()->qmlModel();
-    if (simpleModel->isEmpty())
-        return;
-
-    // collect events
-    const QVector<QmlProfilerDataModel::QmlEventData> &eventList = simpleModel->getEvents();
-    const QVector<QmlProfilerDataModel::QmlEventTypeData> &typesList = simpleModel->getEventTypes();
-    foreach (const QmlProfilerDataModel::QmlEventData &event, eventList) {
-        const QmlProfilerDataModel::QmlEventTypeData &type = typesList[event.typeIndex()];
-        if (!accepted(type))
-            continue;
-
-        // store starttime-based instance
-        m_data.insert(insert(event.startTime(), event.duration(), event.typeIndex()),
-                      QmlRangeEventStartInstance());
-        updateProgress(count(), eventList.count() * 5);
+    Q_UNUSED(type);
+    // store starttime-based instance
+    if (event.rangeStage() == RangeStart) {
+        int index = insertStart(event.timestamp(), event.typeIndex());
+        m_stack.append(index);
+        m_data.insert(index, QmlRangeEventStartInstance());
+    } else if (event.rangeStage() == RangeEnd) {
+        int index = m_stack.pop();
+        insertEnd(index, event.timestamp() - startTime(index));
     }
+}
 
-    updateProgress(1, 5);
-
+void QmlProfilerRangeModel::finalize()
+{
     // compute range nesting
     computeNesting();
-
-    updateProgress(2, 5);
 
     // compute nestingLevel - nonexpanded
     computeNestingContracted();
 
-    updateProgress(3, 5);
-
     // compute nestingLevel - expanded
     computeExpandedLevels();
 
-    updateProgress(4, 5);
-
     if (supportsBindingLoops())
         findBindingLoops();
-
-    updateProgress(1, 1);
 }
 
 void QmlProfilerRangeModel::computeNestingContracted()
@@ -113,7 +97,7 @@ void QmlProfilerRangeModel::computeNestingContracted()
     int i;
     int eventCount = count();
 
-    int nestingLevels = QmlDebug::Constants::QML_MIN_LEVEL;
+    int nestingLevels = Constants::QML_MIN_LEVEL;
     int collapsedRowCount = nestingLevels + 1;
     QVector<qint64> nestingEndTimes;
     nestingEndTimes.fill(0, nestingLevels + 1);
@@ -128,7 +112,7 @@ void QmlProfilerRangeModel::computeNestingContracted()
             if (nestingLevels == collapsedRowCount)
                 ++collapsedRowCount;
         } else {
-            while (nestingLevels > QmlDebug::Constants::QML_MIN_LEVEL &&
+            while (nestingLevels > Constants::QML_MIN_LEVEL &&
                    nestingEndTimes[nestingLevels-1] <= st)
                 nestingLevels--;
         }
@@ -205,13 +189,12 @@ QVariantList QmlProfilerRangeModel::labels() const
 {
     QVariantList result;
 
-    const QVector<QmlProfilerDataModel::QmlEventTypeData> &types =
-            modelManager()->qmlModel()->getEventTypes();
+    const QVector<QmlEventType> &types = modelManager()->qmlModel()->eventTypes();
     for (int i = 1; i < expandedRowCount(); i++) { // Ignore the -1 for the first row
         QVariantMap element;
         int typeId = m_expandedRowTypes[i];
-        element.insert(QLatin1String("displayName"), QVariant(types[typeId].displayName));
-        element.insert(QLatin1String("description"), QVariant(types[typeId].data));
+        element.insert(QLatin1String("displayName"), QVariant(types[typeId].displayName()));
+        element.insert(QLatin1String("description"), QVariant(types[typeId].data()));
         element.insert(QLatin1String("id"), QVariant(typeId));
         result << element;
     }
@@ -223,15 +206,14 @@ QVariantMap QmlProfilerRangeModel::details(int index) const
 {
     QVariantMap result;
     int id = selectionId(index);
-    const QVector<QmlProfilerDataModel::QmlEventTypeData> &types =
-            modelManager()->qmlModel()->getEventTypes();
+    const QVector<QmlEventType> &types = modelManager()->qmlModel()->eventTypes();
 
     result.insert(QStringLiteral("displayName"),
                   tr(QmlProfilerModelManager::featureName(mainFeature())));
     result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
 
-    result.insert(tr("Details"), types[id].data);
-    result.insert(tr("Location"), types[id].displayName);
+    result.insert(tr("Details"), types[id].data());
+    result.insert(tr("Location"), types[id].displayName());
     return result;
 }
 
@@ -243,22 +225,6 @@ QVariantMap QmlProfilerRangeModel::location(int index) const
 int QmlProfilerRangeModel::typeId(int index) const
 {
     return selectionId(index);
-}
-
-int QmlProfilerRangeModel::selectionIdForLocation(const QString &filename, int line, int column) const
-{
-    // if this is called from v8 view, we don't have the column number, it will be -1
-    const QVector<QmlProfilerDataModel::QmlEventTypeData> &types =
-            modelManager()->qmlModel()->getEventTypes();
-    for (int i = 1; i < expandedRowCount(); ++i) {
-        int typeId = m_expandedRowTypes[i];
-        const QmlProfilerDataModel::QmlEventTypeData &eventData = types[typeId];
-        if (eventData.location.filename == filename &&
-                eventData.location.line == line &&
-                (column == -1 || eventData.location.column == column))
-            return typeId;
-    }
-    return -1;
 }
 
 QList<const Timeline::TimelineRenderPass *> QmlProfilerRangeModel::supportedRenderPasses() const
@@ -276,5 +242,5 @@ QList<const Timeline::TimelineRenderPass *> QmlProfilerRangeModel::supportedRend
 
 }
 
-}
-}
+} // namespace Internal
+} // namespaec QmlProfiler

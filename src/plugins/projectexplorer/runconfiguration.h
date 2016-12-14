@@ -36,11 +36,8 @@
 #include <QPointer>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
-
-QT_BEGIN_NAMESPACE
-class QFormLayout;
-QT_END_NAMESPACE
 
 namespace Utils { class OutputFormatter; }
 
@@ -121,7 +118,10 @@ public:
 
     virtual IRunConfigurationAspect *create(RunConfiguration *runConfig) const = 0;
     virtual IRunConfigurationAspect *clone(RunConfiguration *runConfig) const;
-    virtual RunConfigWidget *createConfigurationWidget();
+
+    using RunConfigWidgetCreator = std::function<RunConfigWidget *()>;
+    void setRunConfigWidgetCreator(const RunConfigWidgetCreator &runConfigWidgetCreator);
+    RunConfigWidget *createConfigurationWidget() const;
 
     void setId(Core::Id id) { m_id = id; }
     void setDisplayName(const QString &displayName) { m_displayName = displayName; }
@@ -147,50 +147,50 @@ protected:
 private:
     Core::Id m_id;
     QString m_displayName;
-    bool m_useGlobalSettings;
-    RunConfiguration *m_runConfiguration;
-    ISettingsAspect *m_projectSettings; // Owned if present.
-    ISettingsAspect *m_globalSettings;  // Not owned.
-};
-
-class PROJECTEXPLORER_EXPORT ClonableConcept
-{
-public:
-    virtual ~ClonableConcept() = default;
-    virtual ClonableConcept *clone() const = 0;
-    virtual bool equals(const std::unique_ptr<ClonableConcept> &other) const = 0;
-    virtual void *typeId() const = 0;
-};
-
-template <class T>
-class ClonableModel : public ClonableConcept
-{
-public:
-    ClonableModel(const T &data) : m_data(data) { }
-    ~ClonableModel() Q_DECL_NOEXCEPT { } // gcc 4.7.3
-    ClonableConcept *clone() const override { return new ClonableModel(*this); }
-    void *typeId() const { return T::staticTypeId; }
-
-    bool equals(const std::unique_ptr<ClonableConcept> &other) const override
-    {
-        if (!other.get())
-            return false;
-        if (other->typeId() != typeId())
-            return false;
-        auto that = static_cast<const ClonableModel<T> *>(other.get());
-        return m_data == that->m_data;
-    }
-
-    T m_data;
+    bool m_useGlobalSettings = false;
+    RunConfiguration *m_runConfiguration = nullptr;
+    ISettingsAspect *m_projectSettings = nullptr; // Owned if present.
+    ISettingsAspect *m_globalSettings = nullptr;  // Not owned.
+    RunConfigWidgetCreator m_runConfigWidgetCreator;
 };
 
 class PROJECTEXPLORER_EXPORT Runnable
 {
+    struct Concept
+    {
+        virtual ~Concept() {}
+        virtual Concept *clone() const = 0;
+        virtual bool canReUseOutputPane(const std::unique_ptr<Concept> &other) const = 0;
+        virtual void *typeId() const = 0;
+    };
+
+    template <class T>
+    struct Model : public Concept
+    {
+        Model(const T &data) : m_data(data) {}
+
+        Concept *clone() const override { return new Model(*this); }
+
+        bool canReUseOutputPane(const std::unique_ptr<Concept> &other) const override
+        {
+            if (!other.get())
+                return false;
+            if (other->typeId() != typeId())
+                return false;
+            auto that = static_cast<const Model<T> *>(other.get());
+            return m_data == that->m_data;
+        }
+
+        void *typeId() const override { return T::staticTypeId; }
+
+        T m_data;
+    };
+
 public:
     Runnable() = default;
     Runnable(const Runnable &other) : d(other.d->clone()) { }
-    Runnable(Runnable &&other) /* MSVC 2013 doesn't want = default */ : d(std::move(other.d)) {}
-    template <class T> Runnable(const T &data) : d(new ClonableModel<T>(data)) {}
+    Runnable(Runnable &&other) : d(std::move(other.d)) {}
+    template <class T> Runnable(const T &data) : d(new Model<T>(data)) {}
 
     void operator=(Runnable other) { d = std::move(other.d); }
 
@@ -199,22 +199,38 @@ public:
     }
 
     template <class T> const T &as() const {
-        return static_cast<ClonableModel<T> *>(d.get())->m_data;
+        return static_cast<Model<T> *>(d.get())->m_data;
     }
 
-    bool operator==(const Runnable &other) const;
+    bool canReUseOutputPane(const Runnable &other) const;
 
 private:
-    std::unique_ptr<ClonableConcept> d;
+    std::unique_ptr<Concept> d;
 };
 
 class PROJECTEXPLORER_EXPORT Connection
 {
+    struct Concept
+    {
+        virtual ~Concept() {}
+        virtual Concept *clone() const = 0;
+        virtual void *typeId() const = 0;
+    };
+
+    template <class T>
+    struct Model : public Concept
+    {
+        Model(const T &data) : m_data(data) { }
+        Concept *clone() const override { return new Model(*this); }
+        void *typeId() const override { return T::staticTypeId; }
+        T m_data;
+    };
+
 public:
     Connection() = default;
     Connection(const Connection &other) : d(other.d->clone()) { }
     Connection(Connection &&other) /* MSVC 2013 doesn't want = default */ : d(std::move(other.d)) {}
-    template <class T> Connection(const T &data) : d(new ClonableModel<T>(data)) {}
+    template <class T> Connection(const T &data) : d(new Model<T>(data)) {}
 
     void operator=(Connection other) { d = std::move(other.d); }
 
@@ -223,11 +239,11 @@ public:
     }
 
     template <class T> const T &as() const {
-        return static_cast<ClonableModel<T> *>(d.get())->m_data;
+        return static_cast<Model<T> *>(d.get())->m_data;
     }
 
 private:
-    std::unique_ptr<ClonableConcept> d;
+    std::unique_ptr<Concept> d;
 };
 
 // Documentation inside.
@@ -246,7 +262,7 @@ public:
     // Pop up configuration dialog in case for example the executable is missing.
     enum ConfigurationState { Configured, UnConfigured, Waiting };
     // TODO rename function
-    virtual ConfigurationState ensureConfigured(QString *errorMessage = 0);
+    virtual ConfigurationState ensureConfigured(QString *errorMessage = nullptr);
 
     Target *target() const;
 
@@ -260,11 +276,11 @@ public:
 
     template <typename T> T *extraAspect() const
     {
-        QTC_ASSERT(m_aspectsInitialized, return 0);
+        QTC_ASSERT(m_aspectsInitialized, return nullptr);
         foreach (IRunConfigurationAspect *aspect, m_aspects)
             if (T *result = qobject_cast<T *>(aspect))
                 return result;
-        return 0;
+        return nullptr;
     }
 
     virtual Runnable runnable() const;
@@ -297,7 +313,7 @@ class PROJECTEXPLORER_EXPORT IRunConfigurationFactory : public QObject
     Q_OBJECT
 
 public:
-    explicit IRunConfigurationFactory(QObject *parent = 0);
+    explicit IRunConfigurationFactory(QObject *parent = nullptr);
 
     enum CreationMode {UserCreate, AutoCreate};
     virtual QList<Core::Id> availableCreationIds(Target *parent, CreationMode mode = UserCreate) const = 0;
@@ -326,7 +342,7 @@ class PROJECTEXPLORER_EXPORT IRunControlFactory : public QObject
 {
     Q_OBJECT
 public:
-    explicit IRunControlFactory(QObject *parent = 0);
+    explicit IRunControlFactory(QObject *parent = nullptr);
 
     virtual bool canRun(RunConfiguration *runConfiguration, Core::Id mode) const = 0;
     virtual RunControl *create(RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage) = 0;
@@ -359,7 +375,7 @@ public:
     ~RunControl() override;
     virtual void start() = 0;
 
-    virtual bool promptToStop(bool *optionalPrompt = 0) const;
+    virtual bool promptToStop(bool *optionalPrompt = nullptr) const;
     virtual StopResult stop() = 0;
     virtual bool isRunning() const = 0;
     virtual bool supportsReRunning() const { return true; }
@@ -388,13 +404,14 @@ public:
     const Connection &connection() const;
     void setConnection(const Connection &connection);
 
+    virtual void appendMessage(const QString &msg, Utils::OutputFormat format);
+
 public slots:
     void bringApplicationToForeground(qint64 pid);
-    void appendMessage(const QString &msg, Utils::OutputFormat format);
 
 signals:
-    void appendMessage(ProjectExplorer::RunControl *runControl,
-        const QString &msg, Utils::OutputFormat format);
+    void appendMessageRequested(ProjectExplorer::RunControl *runControl,
+                                const QString &msg, Utils::OutputFormat format);
     void started();
     void finished();
     void applicationProcessHandleChanged();
@@ -403,7 +420,7 @@ protected:
     bool showPromptToStopDialog(const QString &title, const QString &text,
                                 const QString &stopButtonText = QString(),
                                 const QString &cancelButtonText = QString(),
-                                bool *prompt = 0) const;
+                                bool *prompt = nullptr) const;
 
 private:
     void bringApplicationToForegroundInternal();
@@ -411,4 +428,3 @@ private:
 };
 
 } // namespace ProjectExplorer
-

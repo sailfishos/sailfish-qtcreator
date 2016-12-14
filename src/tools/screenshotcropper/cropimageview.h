@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CROPIMAGEVIEW_H
-#define CROPIMAGEVIEW_H
+#pragma once
 
 #include <QWidget>
 
@@ -40,7 +39,6 @@ public:
     void mouseMoveEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
 
-public slots:
     void setImage(const QImage &image);
     void setArea(const QRect &area);
 
@@ -51,5 +49,3 @@ private:
     QImage m_image;
     QRect m_area;
 };
-
-#endif // CROPIMAGEVIEW_H

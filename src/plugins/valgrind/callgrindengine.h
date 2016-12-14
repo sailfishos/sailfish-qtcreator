@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CALLGRINDENGINE_H
-#define CALLGRINDENGINE_H
+#pragma once
 
 #include <valgrind/valgrindengine.h>
 
@@ -39,20 +38,18 @@ class CallgrindRunControl : public ValgrindRunControl
     Q_OBJECT
 
 public:
-    CallgrindRunControl(ProjectExplorer::RunConfiguration *runConfiguration);
+    CallgrindRunControl(ProjectExplorer::RunConfiguration *runConfiguration, Core::Id runMode);
 
     void start() override;
 
     Valgrind::Callgrind::ParseData *takeParserData();
 
-    bool canPause() const override { return true; }
-
 public slots:
     /// controller actions
     void dump();
     void reset();
-    void pause() override;
-    void unpause() override;
+    void pause();
+    void unpause();
 
     /// marks the callgrind process as paused
     /// calls pause() and unpause() if there's an active run
@@ -79,5 +76,3 @@ private:
 
 } // namespace Internal
 } // namespace Valgrind
-
-#endif // CALLGRINDENGINE_H

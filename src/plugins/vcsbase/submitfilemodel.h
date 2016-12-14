@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SUBMITFILEMODEL_H
-#define SUBMITFILEMODEL_H
+#pragma once
 
 #include "vcsbase_global.h"
 
@@ -76,7 +75,8 @@ public:
         FileAdded,
         FileModified,
         FileDeleted,
-        FileRenamed
+        FileRenamed,
+        FileUnmerged
     };
 
     // Function that converts(qualifies) a QString/QVariant pair to FileStatusHint
@@ -94,5 +94,3 @@ private:
 };
 
 } // namespace VcsBase
-
-#endif // SUBMITFILEMODEL_H

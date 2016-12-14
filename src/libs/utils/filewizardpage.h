@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILEWIZARDPAGE_H
-#define FILEWIZARDPAGE_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -66,14 +65,11 @@ public slots:
     void setPath(const QString &path);
     void setFileName(const QString &name);
 
-private slots:
+private:
     void slotValidChanged();
     void slotActivated();
 
-private:
     FileWizardPagePrivate *d;
 };
 
 } // namespace Utils
-
-#endif // FILEWIZARDPAGE_H

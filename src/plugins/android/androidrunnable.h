@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDRUNNABLE_H
-#define ANDROIDRUNNABLE_H
+#pragma once
 
 #include "android_global.h"
 #include <projectexplorer/runnables.h>
@@ -56,5 +55,3 @@ inline bool operator==(const AndroidRunnable &r1, const AndroidRunnable &r2)
 }
 
 } // namespace Android
-
-#endif // ANDROIDRUNNABLE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGFIXITOPERATIONSEXTRACTOR_H
-#define CLANGFIXITOPERATIONSEXTRACTOR_H
+#pragma once
 
 #include <texteditor/quickfix.h>
 
@@ -43,8 +42,8 @@ private:
     void extractFromDiagnostic(const ClangBackEnd::DiagnosticContainer &diagnosticContainer,
                                const QString &filePath,
                                int line);
-    void appendFixitOperationsFromDiagnostic(const QString &filePath,
-                                            const ClangBackEnd::DiagnosticContainer &diagnosticContainer);
+    void appendFixitOperation(const QString &diagnosticText,
+                              const QVector<ClangBackEnd::FixItContainer> &fixits);
 
 private:
     const QVector<ClangBackEnd::DiagnosticContainer> &diagnosticContainers;
@@ -52,5 +51,3 @@ private:
 };
 
 } // namespace ClangCodeModel
-
-#endif // CLANGFIXITOPERATIONSEXTRACTOR_H

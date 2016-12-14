@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLASSVIEWPARSER_H
-#define CLASSVIEWPARSER_H
+#pragma once
 
 #include <QObject>
 
@@ -67,7 +66,7 @@ signals:
 
     void resetDataDone();
 
-public slots:
+public:
     void clearCacheAll();
 
     void clearCache();
@@ -86,12 +85,11 @@ public slots:
 
     void setFlatMode(bool flat);
 
-protected slots:
-    void onResetDataDone();
-
 protected:
     typedef QHash<QString, unsigned>::const_iterator CitCachedDocTreeRevision;
     typedef QHash<QString, QStringList>::const_iterator CitCachedPrjFileLists;
+
+    void onResetDataDone();
 
     void addProject(const ParserTreeItem::Ptr &item, const QStringList &fileList,
                     const QString &projectId = QString());
@@ -128,5 +126,3 @@ private:
 
 } // namespace Internal
 } // namespace ClassView
-
-#endif // CLASSVIEWPARSER_H

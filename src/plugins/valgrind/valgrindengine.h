@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef VALGRINDENGINE_H
-#define VALGRINDENGINE_H
+#pragma once
 
 #include <debugger/analyzer/analyzerruncontrol.h>
 #include <utils/environment.h>
@@ -49,6 +48,7 @@ public:
     void start() override;
     StopResult stop() override;
     bool isRunning() const override;
+    bool supportsReRunning() const override { return false; }
 
     QString executable() const;
 
@@ -77,5 +77,3 @@ private:
 
 } // namespace Internal
 } // namespace Valgrind
-
-#endif // VALGRINDENGINE_H

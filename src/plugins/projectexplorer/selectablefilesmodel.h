@@ -50,8 +50,8 @@ public:
     ~Tree();
 
     QString name;
-    Qt::CheckState checked;
-    bool isDir;
+    Qt::CheckState checked = Qt::Unchecked;
+    bool isDir = false;
     QList<Tree *> childDirectories;
     QList<Tree *> files;
     QList<Tree *> visibleFiles;
@@ -81,6 +81,13 @@ public:
                 return true;
         }
         return false;
+    }
+
+    bool operator == (const Glob &other) const
+    {
+        return (mode == other.mode)
+                && (matchString == other.matchString)
+                && (matchRegexp == other.matchRegexp);
     }
 };
 
@@ -124,7 +131,8 @@ private:
     void buildTreeFinished();
     QList<Glob> parseFilter(const QString &filter);
     Qt::CheckState applyFilter(const QModelIndex &index);
-    bool filter(Tree *t);
+    enum class FilterState { HIDDEN, SHOWN, CHECKED };
+    FilterState filter(Tree *t);
     void run(QFutureInterface<void> &fi);
     void collectFiles(Tree *root, Utils::FileNameList *result) const;
     void collectPaths(Tree *root, Utils::FileNameList *result) const;
@@ -182,7 +190,7 @@ private:
 
     void smartExpand(const QModelIndex &index);
 
-    SelectableFilesModel *m_model;
+    SelectableFilesModel *m_model = nullptr;
 
     Utils::PathChooser *m_baseDirChooser;
     QLabel *m_baseDirLabel;

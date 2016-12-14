@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJS_STATICANALYSIS_QMLJSSTATICANALYSISMESSAGE_H
-#define QMLJS_STATICANALYSIS_QMLJSSTATICANALYSISMESSAGE_H
+#pragma once
 
 #include "qmljs_global.h"
 #include "qmljsconstants.h"
@@ -89,6 +88,7 @@ enum Type
     HintExtraParentheses = 123,
     MaybeWarnEqualityTypeCoercion = 126,
     WarnConfusingExpressionStatement = 127,
+    StateCannotHaveChildItem = 128,
     HintDeclarationsShouldBeAtStartOfFunction = 201,
     HintOneStatementPerLine = 202,
     WarnImperativeCodeNotEditableInVisualDesigner = 203,
@@ -166,5 +166,3 @@ public:
 
 } // namespace StaticAnalysis
 } // namespace QmlJS
-
-#endif // QMLJS_STATICANALYSIS_QMLJSSTATICANALYSISMESSAGE_H

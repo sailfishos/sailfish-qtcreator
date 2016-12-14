@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef IOSTOOLHANDLER_H
-#define IOSTOOLHANDLER_H
+#pragma once
+
+#include <utils/port.h>
 
 #include <QObject>
 #include <QMap>
@@ -64,6 +65,8 @@ public:
                             const QString &deviceId, int timeout = 1000);
     void requestDeviceInfo(const QString &deviceId, int timeout = 1000);
     bool isRunning();
+    void stop();
+
 signals:
     void isTransferringApp(Ios::IosToolHandler *handler, const QString &bundlePath,
                            const QString &deviceId, int progress, int maxProgress,
@@ -73,7 +76,7 @@ signals:
     void didStartApp(Ios::IosToolHandler *handler, const QString &bundlePath,
                      const QString &deviceId, Ios::IosToolHandler::OpStatus status);
     void gotServerPorts(Ios::IosToolHandler *handler, const QString &bundlePath,
-                            const QString &deviceId, int gdbPort, int qmlPort);
+                            const QString &deviceId, Utils::Port gdbPort, Utils::Port qmlPort);
     void gotInferiorPid(Ios::IosToolHandler *handler, const QString &bundlePath,
                         const QString &deviceId, qint64 pid);
     void deviceInfo(Ios::IosToolHandler *handler, const QString &deviceId,
@@ -82,9 +85,7 @@ signals:
     void errorMsg(Ios::IosToolHandler *handler, const QString &msg);
     void toolExited(Ios::IosToolHandler *handler, int code);
     void finished(Ios::IosToolHandler *handler);
-public slots:
-    void stop();
-private slots:
+private:
     void subprocessError(QProcess::ProcessError error);
     void subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void subprocessHasData();
@@ -95,5 +96,3 @@ private:
 };
 
 } // namespace Ios
-
-#endif // IOSTOOLHANDLER_H

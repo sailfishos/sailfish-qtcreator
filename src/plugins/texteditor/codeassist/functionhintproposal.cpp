@@ -30,7 +30,7 @@
 using namespace TextEditor;
 
 FunctionHintProposal::FunctionHintProposal(int cursorPos, IFunctionHintProposalModel *model)
-    : m_basePosition(cursorPos)
+    : IAssistProposal(cursorPos)
     , m_model(model)
 {}
 
@@ -41,19 +41,6 @@ bool FunctionHintProposal::isFragile() const
 {
     return true;
 }
-
-int FunctionHintProposal::basePosition() const
-{
-    return m_basePosition;
-}
-
-bool FunctionHintProposal::isCorrective() const
-{
-    return false;
-}
-
-void FunctionHintProposal::makeCorrection(TextEditorWidget *)
-{}
 
 IAssistProposalModel *FunctionHintProposal::model() const
 {

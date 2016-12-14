@@ -128,6 +128,18 @@
 #define USE_TIMEZONE 0
 #endif
 
+#if QT_VERSION >= 0x050000
+#define USE_JSON 1
+#else
+#define USE_JSON 0
+#endif
+
+#if QT_VERSION > 0x050000
+#define USE_CXX11LIB 1
+#else
+#define USE_CXX11LIB 0
+#endif
+
 void dummyStatement(...) {}
 
 #if defined(__GNUC__) && defined(__STRICT_ANSI__)
@@ -168,7 +180,7 @@ void dummyStatement(...) {}
 #include <QStandardItemModel>
 #include <QTextCursor>
 #include <QTextDocument>
-# if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+# if USE_TIMEZONE
 #  include <QTimeZone>
 # endif
 #endif
@@ -185,13 +197,12 @@ void dummyStatement(...) {}
 #include <QXmlAttributes>
 
 #include <QHostAddress>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QJsonValue>
 #include <QNetworkRequest>
 
+#if USE_CXX11LIB
 #include <array>
 #include <unordered_map>
+#endif
 #include <complex>
 #include <deque>
 #include <iostream>
@@ -206,11 +217,17 @@ void dummyStatement(...) {}
 #include <string>
 #include <vector>
 
+#include <QMetaMethod>
 #include <stdarg.h>
 #include <stdint.h>
 
 #include "../simple/deep/deep/simple_test_app.h"
 
+#if USE_JSON
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#endif
 
 #if USE_BOOST
 #include <boost/optional.hpp>
@@ -239,6 +256,7 @@ void dummyStatement(...) {}
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#include <basetsd.h>
 #undef min
 #undef max
 #endif
@@ -279,7 +297,11 @@ void dummyStatement(...) {}
 QT_BEGIN_NAMESPACE
 uint qHash(const QMap<int, int> &) { return 0; }
 uint qHash(const double & f) { return int(f); }
+#ifdef Q_OS_WIN
+uint qHash(const QPointer<QObject> &p) { return PtrToUint(p.data()); }
+#else
 uint qHash(const QPointer<QObject> &p) { return (ulong)p.data(); }
+#endif
 QT_END_NAMESPACE
 
 
@@ -716,7 +738,7 @@ namespace qdatetime {
 
     void testQTimeZone()
     {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+#if USE_TIMEZONE
         QTimeZone zz;
         QTimeZone tz("UTC+05:00");
         BREAK_HERE;
@@ -1771,10 +1793,10 @@ namespace qobject {
         parent.setObjectName("A Parent");
         QObject child(&parent);
         child.setObjectName("A Child");
-        QObject::connect(&child, SIGNAL(destroyed()), &parent, SLOT(deleteLater()));
-        QObject::connect(&child, SIGNAL(destroyed()), &child, SLOT(deleteLater()));
-        QObject::disconnect(&child, SIGNAL(destroyed()), &parent, SLOT(deleteLater()));
-        QObject::disconnect(&child, SIGNAL(destroyed()), &child, SLOT(deleteLater()));
+        QObject::connect(&child, &QObject::destroyed, &parent, &QObject::deleteLater);
+        QObject::connect(&child, &QObject::destroyed, &child, &QObject::deleteLater);
+        QObject::disconnect(&child, &QObject::destroyed, &parent, &QObject::deleteLater);
+        QObject::disconnect(&child, &QObject::destroyed, &child, &QObject::deleteLater);
         child.setObjectName("A renamed Child");
         BREAK_HERE;
         // Check child "A renamed Child" QObject.
@@ -1821,6 +1843,9 @@ namespace qobject {
             Q_SIGNAL void sigFoo();
             Q_SIGNAL void sigBar(int);
 
+            enum Side { LeftSide, RightSide };
+            Q_ENUMS(Side)
+
         public:
             Ui *m_ui;
             QString m_myProp1;
@@ -1839,11 +1864,32 @@ namespace qobject {
         test.setObjectName("An object");
         QString s = test.myProp1();
         s += test.myProp2();
+        const QMetaObject *mo = test.metaObject();
+        QMetaMethod mm0;
+        const QMetaObject smo = test.staticMetaObject;
+        QMetaMethod mm = mo->method(0);
+        QByteArray mmname = mm.name();
+
+        QMetaEnum me0;
+        QMetaEnum me = mo->enumerator(0);
+
+        QMetaProperty mp0;
+        QMetaProperty mp = mo->property(0);
+
+        QMetaClassInfo mci0;
+        QMetaClassInfo mci = mo->classInfo(0);
+
+        int n = mo->methodCount();
+        QVector<QMetaMethod> v(n);
+        for (int i = 0; i < n; ++i)
+            v[i] = mo->method(i);
+
+
         BREAK_HERE;
         // Check s "HELLOWORLD" QString.
         // Check test  qobject::Names::Bar::TestObject.
         // Continue.
-        dummyStatement(&s);
+        dummyStatement(&s, &mm, &smo, &mo, &mmname, &mm0, &me, &me0, &mp, &mp0, &mci, &mci0);
     }
 
     void testQObject3()
@@ -1868,11 +1914,11 @@ namespace qobject {
         QObject ob1;
         ob1.setObjectName("Another Object");
 
-        QObject::connect(&ob, SIGNAL(destroyed()), &ob1, SLOT(deleteLater()));
-        QObject::connect(&ob1, SIGNAL(destroyed()), &ob, SLOT(deleteLater()));
+        QObject::connect(&ob, &QObject::destroyed, &ob1, &QObject::deleteLater);
+        QObject::connect(&ob1, &QObject::destroyed, &ob, &QObject::deleteLater);
         BREAK_HERE;
-        QObject::disconnect(&ob, SIGNAL(destroyed()), &ob1, SLOT(deleteLater()));
-        QObject::disconnect(&ob1, SIGNAL(destroyed()), &ob, SLOT(deleteLater()));
+        QObject::disconnect(&ob, &QObject::destroyed, &ob1, &QObject::deleteLater);
+        QObject::disconnect(&ob1, &QObject::destroyed, &ob, &QObject::deleteLater);
         dummyStatement(&ob, &ob1);
         #endif
     }
@@ -1909,7 +1955,6 @@ namespace qobject {
         Q_OBJECT
     public:
         Receiver() { setObjectName("Receiver"); }
-    public slots:
         void aSlot() {
             QObject *s = sender();
             if (s) {
@@ -1924,7 +1969,7 @@ namespace qobject {
     {
         Sender sender;
         Receiver receiver;
-        QObject::connect(&sender, SIGNAL(aSignal()), &receiver, SLOT(aSlot()));
+        QObject::connect(&sender, &Sender::aSignal, &receiver, &Receiver::aSlot);
         // Break here.
         // Single step through signal emission.
         sender.doEmit();
@@ -2594,6 +2639,7 @@ namespace stdarray {
 
     void testStdArray()
     {
+        #if USE_CXX11LIB
         std::array<int, 4> a = { { 1, 2, 3, 4} };
         std::array<QString, 4> b = { { "1", "2", "3", "4"} };
         BREAK_HERE;
@@ -2602,6 +2648,7 @@ namespace stdarray {
         // Check a <4 items> std::array<QString, 4u>.
         // Continue.
         dummyStatement(&a, &b);
+        #endif
     }
 
 } // namespace stdcomplex
@@ -2837,6 +2884,7 @@ namespace stdlist {
 
 namespace stdunorderedmap {
 
+#if USE_CXX11LIB
     void testStdUnorderedMapStringFoo()
     {
         // This is not supposed to work with the compiled dumpers.
@@ -3043,6 +3091,10 @@ namespace stdunorderedmap {
         testStdUnorderedMapIntString();
         testStdUnorderedMapStringPointer();
     }
+#else
+    void testStdUnorderedMap() {}
+
+#endif
 
 } // namespace stdunorderedmap
 
@@ -3258,10 +3310,12 @@ namespace stdmap {
 
     void testStdMultiSetInt()
     {
+#if USE_CXX11LIB
 #ifndef Q_CC_MSVC
         std::multiset<int> set = {1, 1, 2, 3, 3, 3};
         BREAK_HERE;
         dummyStatement(&set);
+#endif
 #endif
     }
 
@@ -3286,6 +3340,7 @@ namespace stdmap {
 
 namespace stdptr {
 
+#if USE_CXX11LIB
     void testStdUniquePtrInt()
     {
         std::unique_ptr<int> p(new int(32));
@@ -3329,6 +3384,9 @@ namespace stdptr {
         testStdSharedPtrInt();
         testStdSharedPtrFoo();
     }
+#else
+    void testStdPtr() {}
+#endif
 
 } // namespace stdptr
 
@@ -3337,15 +3395,17 @@ namespace lambda {
 
     void testLambda()
     {
+#if USE_CXX11LIB
         std::string x;
         auto f = [&] () -> const std::string & {
-                int z = x.size();
+                size_t z = x.size();
                 Q_UNUSED(z);
                 return x;
          };
         auto c = f();
         BREAK_HERE;
         dummyStatement(&x, &f, &c);
+#endif
     }
 
 } // namespace lambda
@@ -4493,6 +4553,7 @@ namespace qvariant {
 
     void testQVariant6()
     {
+#if QT_VERSION > 0x050000
         QList<int> list;
         list << 1 << 2 << 3;
         QVariant variant = qVariantFromValue(list);
@@ -4518,6 +4579,7 @@ namespace qvariant {
         // Check list.2 3 int.
         // Continue.
         dummyStatement(&list);
+#endif
     }
 
     void testQVariantList()
@@ -5241,8 +5303,10 @@ namespace basic {
     namespace ns {
         typedef unsigned long long vl;
         typedef vl verylong;
+#if USE_CXX11LIB
         using uvl = unsigned long long;
         using usingverylong = uvl;
+#endif
     }
 
     void testTypedef()
@@ -5264,6 +5328,7 @@ namespace basic {
 
     void testUsing()
     {
+#if USE_CXX11LIB
         using myType1 = quint32;
         using myType2 = unsigned int;
         myType1 t1 = 0;
@@ -5277,6 +5342,7 @@ namespace basic {
         // Check t2 0 basic::myType2.
         // Continue.
         dummyStatement(&j, &k, &t1, &t2);
+#endif
     }
 
     void testStruct()
@@ -5544,7 +5610,7 @@ namespace basic {
         QDateTime time = QDateTime::currentDateTime();
         const int N = 10000;
         QDateTime x = time;
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+#if USE_TIMEZONE
         QTimeZone tz("UTC+05:00");
         x.setTimeZone(tz);
 #endif
@@ -6016,6 +6082,7 @@ namespace qjson {
 
     void testQJson()
     {
+        #if USE_JSON
         QJsonObject obj {
             {"-1", -1},
             {"3", 3},
@@ -6042,6 +6109,7 @@ namespace qjson {
         // Check v -1 QJsonValue.
         // Check obj "foo" -1 QJsonValue.
         // Continue.
+        #endif
     }
 
 } // namespace json

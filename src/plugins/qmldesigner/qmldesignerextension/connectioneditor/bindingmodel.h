@@ -23,21 +23,16 @@
 **
 ****************************************************************************/
 
-#ifndef BINDINGMODEL_H
-#define BINDINGMODEL_H
+#pragma once
 
 #include <modelnode.h>
-#include <nodemetainfo.h>
 #include <bindingproperty.h>
+#include <variantproperty.h>
 
-#include <QStandardItem>
-#include <QStyledItemDelegate>
 #include <QStandardItemModel>
-#include <QComboBox>
 
 namespace QmlDesigner {
 
-class Model;
 namespace Internal {
 
 class ConnectionView;
@@ -47,6 +42,12 @@ class BindingModel : public QStandardItemModel
     Q_OBJECT
 
 public:
+    enum ColumnRoles {
+        TargetModelNodeRow = 0,
+        TargetPropertyNameRow = 1,
+        SourceModelNodeRow = 2,
+        SourcePropertyNameRow = 3
+    };
     BindingModel(ConnectionView *parent = 0);
     void bindingChanged(const BindingProperty &bindingProperty);
     void bindingRemoved(const BindingProperty &bindingProperty);
@@ -58,9 +59,9 @@ public:
     QStringList possibleSourceProperties(const BindingProperty &bindingProperty) const;
     void deleteBindindByRow(int rowNumber);
     void addBindingForCurrentNode();
+    void resetModel();
 
 protected:
-    void resetModel();
     void addBindingProperty(const BindingProperty &property);
     void updateBindingProperty(int rowNumber);
     void addModelNode(const ModelNode &modelNode);
@@ -81,42 +82,12 @@ private slots:
 private:
     QList<ModelNode> m_selectedModelNodes;
     ConnectionView *m_connectionView;
-    bool m_lock;
-    bool m_handleDataChanged;
+    bool m_lock = false;
+    bool m_handleDataChanged = false;
     QString m_exceptionError;
 
-};
-
-class BindingDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
-
-public:
-    BindingDelegate(QWidget *parent = 0);
-
-    virtual QWidget *createEditor(QWidget *parent,
-                                    const QStyleOptionViewItem &option,
-                                    const QModelIndex &index) const override;
-
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-
-private slots:
-    void emitCommitData(const QString &text);
-};
-
-class BindingComboBox : public QComboBox
-{
-    Q_OBJECT
-    Q_PROPERTY(QString text READ text WRITE setText USER true)
-public:
-    BindingComboBox(QWidget *parent = 0);
-
-    QString text() const;
-    void setText(const QString &text);
 };
 
 } // namespace Internal
 
 } // namespace QmlDesigner
-
-#endif // BINDINGMODEL_H

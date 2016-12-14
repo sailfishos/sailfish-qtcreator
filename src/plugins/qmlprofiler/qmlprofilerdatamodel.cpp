@@ -27,11 +27,14 @@
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilernotesmodel.h"
 #include "qmlprofilerdetailsrewriter.h"
+#include "qmlprofilereventtypes.h"
+#include "qmltypedevent.h"
 
-#include <qmldebug/qmlprofilereventtypes.h>
 #include <utils/qtcassert.h>
 #include <QUrl>
 #include <QDebug>
+#include <QStack>
+#include <QTemporaryFile>
 #include <algorithm>
 
 namespace QmlProfiler {
@@ -39,36 +42,38 @@ namespace QmlProfiler {
 class QmlProfilerDataModel::QmlProfilerDataModelPrivate
 {
 public:
-    QVector<QmlEventTypeData> eventTypes;
-    QVector<QmlEventData> eventList;
-    QVector<QmlEventNoteData> eventNotes;
-    QHash<QmlEventTypeData, int> eventTypeIds;
+    void rewriteType(int typeIndex);
+    int resolveStackTop();
+
+    QVector<QmlEventType> eventTypes;
 
     QmlProfilerModelManager *modelManager;
     int modelId;
     Internal::QmlProfilerDetailsRewriter *detailsRewriter;
+
+    QTemporaryFile file;
+    QDataStream eventStream;
 };
 
-QString getDisplayName(const QmlProfilerDataModel::QmlEventTypeData &event)
+QString getDisplayName(const QmlEventType &event)
 {
-    if (event.location.filename.isEmpty()) {
+    if (event.location().filename().isEmpty()) {
         return QmlProfilerDataModel::tr("<bytecode>");
     } else {
-        const QString filePath = QUrl(event.location.filename).path();
+        const QString filePath = QUrl(event.location().filename()).path();
         return filePath.mid(filePath.lastIndexOf(QLatin1Char('/')) + 1) + QLatin1Char(':') +
-                QString::number(event.location.line);
+                QString::number(event.location().line());
     }
 }
 
-QString getInitialDetails(const QmlProfilerDataModel::QmlEventTypeData &event)
+QString getInitialDetails(const QmlEventType &event)
 {
-    QString details;
+    QString details = event.data();
     // generate details string
-    if (!event.data.isEmpty()) {
-        details = event.data;
+    if (!details.isEmpty()) {
         details = details.replace(QLatin1Char('\n'),QLatin1Char(' ')).simplified();
         if (details.isEmpty()) {
-            if (event.rangeType == QmlDebug::Javascript)
+            if (event.rangeType() == Javascript)
                 details = QmlProfilerDataModel::tr("anonymous function");
         } else {
             QRegExp rewrite(QLatin1String("\\(function \\$(\\w+)\\(\\) \\{ (return |)(.+) \\}\\)"));
@@ -79,7 +84,7 @@ QString getInitialDetails(const QmlProfilerDataModel::QmlEventTypeData &event)
                     details.startsWith(QLatin1String("qrc:/")))
                 details = details.mid(details.lastIndexOf(QLatin1Char('/')) + 1);
         }
-    } else if (event.rangeType == QmlDebug::Painting) {
+    } else if (event.rangeType() == Painting) {
         // QtQuick1 animations always run in GUI thread.
         details = QmlProfilerDataModel::tr("GUI Thread");
     }
@@ -109,12 +114,9 @@ QmlProfilerDataModel::QmlProfilerDataModel(Utils::FileInProjectFinder *fileFinde
     connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::rewriteDetailsString,
             this, &QmlProfilerDataModel::detailsChanged);
     connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::eventDetailsChanged,
-            this, &QmlProfilerDataModel::detailsDone);
-    connect(this, &QmlProfilerDataModel::requestReload,
-            d->detailsRewriter, &QmlProfilerDetailsRewriter::reloadDocuments);
-
-    // The document loading is very expensive.
-    d->modelManager->setProxyCountWeight(d->modelId, 4);
+            this, &QmlProfilerDataModel::allTypesLoaded);
+    d->file.open();
+    d->eventStream.setDevice(&d->file);
 }
 
 QmlProfilerDataModel::~QmlProfilerDataModel()
@@ -124,188 +126,154 @@ QmlProfilerDataModel::~QmlProfilerDataModel()
     delete d;
 }
 
-const QVector<QmlProfilerDataModel::QmlEventData> &QmlProfilerDataModel::getEvents() const
-{
-    Q_D(const QmlProfilerDataModel);
-    return d->eventList;
-}
-
-const QVector<QmlProfilerDataModel::QmlEventTypeData> &QmlProfilerDataModel::getEventTypes() const
+const QVector<QmlEventType> &QmlProfilerDataModel::eventTypes() const
 {
     Q_D(const QmlProfilerDataModel);
     return d->eventTypes;
 }
 
-const QVector<QmlProfilerDataModel::QmlEventNoteData> &QmlProfilerDataModel::getEventNotes() const
-{
-    Q_D(const QmlProfilerDataModel);
-    return d->eventNotes;
-}
-
-void QmlProfilerDataModel::setData(qint64 traceStart, qint64 traceEnd,
-                                   const QVector<QmlProfilerDataModel::QmlEventTypeData> &types,
-                                   const QVector<QmlProfilerDataModel::QmlEventData> &events)
+void QmlProfilerDataModel::setEventTypes(const QVector<QmlEventType> &types)
 {
     Q_D(QmlProfilerDataModel);
-    d->modelManager->traceTime()->setTime(traceStart, traceEnd);
-    d->eventList = events;
     d->eventTypes = types;
-    for (int id = 0; id < types.count(); ++id)
-        d->eventTypeIds[types[id]] = id;
-    // Half the work is done. processData() will do the rest.
-    d->modelManager->modelProxyCountUpdated(d->modelId, 1, 2);
 }
 
-void QmlProfilerDataModel::setNoteData(const QVector<QmlProfilerDataModel::QmlEventNoteData> &notes)
+int QmlProfilerDataModel::addEventType(const QmlEventType &type)
 {
     Q_D(QmlProfilerDataModel);
-    d->eventNotes = notes;
+    int typeIndex = d->eventTypes.length();
+    d->eventTypes.append(type);
+    d->rewriteType(typeIndex);
+    return typeIndex;
 }
 
-int QmlProfilerDataModel::count() const
+void QmlProfilerDataModel::addEvent(const QmlEvent &event)
 {
-    Q_D(const QmlProfilerDataModel);
-    return d->eventList.count();
+    Q_D(QmlProfilerDataModel);
+    d->modelManager->dispatch(event, d->eventTypes[event.typeIndex()]);
+    d->eventStream << event;
 }
 
 void QmlProfilerDataModel::clear()
 {
     Q_D(QmlProfilerDataModel);
-    d->eventList.clear();
+    d->file.remove();
+    d->file.open();
+    d->eventStream.setDevice(&d->file);
     d->eventTypes.clear();
-    d->eventTypeIds.clear();
-    d->eventNotes.clear();
     d->detailsRewriter->clearRequests();
-    d->modelManager->modelProxyCountUpdated(d->modelId, 0, 1);
-    emit changed();
 }
 
 bool QmlProfilerDataModel::isEmpty() const
 {
     Q_D(const QmlProfilerDataModel);
-    return d->eventList.isEmpty();
+    return d->file.pos() == 0;
 }
 
-inline static bool operator<(const QmlProfilerDataModel::QmlEventData &t1,
-                             const QmlProfilerDataModel::QmlEventData &t2)
+void QmlProfilerDataModel::QmlProfilerDataModelPrivate::rewriteType(int typeIndex)
 {
-    return t1.startTime() < t2.startTime();
+    QmlEventType &type = eventTypes[typeIndex];
+    type.setDisplayName(getDisplayName(type));
+    type.setData(getInitialDetails(type));
+
+    // Only bindings and signal handlers need rewriting
+    if (type.rangeType() != Binding && type.rangeType() != HandlingSignal)
+        return;
+
+    // There is no point in looking for invalid locations
+    if (!type.location().isValid())
+        return;
+
+    detailsRewriter->requestDetailsForLocation(typeIndex, type.location());
 }
 
-inline static uint qHash(const QmlProfilerDataModel::QmlEventTypeData &type)
+static bool isStateful(const QmlEventType &type)
 {
-    return qHash(type.location.filename) ^
-            ((type.location.line & 0xfff) |             // 12 bits of line number
-            ((type.message << 12) & 0xf000) |           // 4 bits of message
-            ((type.location.column << 16) & 0xff0000) | // 8 bits of column
-            ((type.rangeType << 24) & 0xf000000) |      // 4 bits of rangeType
-            ((type.detailType << 28) & 0xf0000000));    // 4 bits of detailType
+    // Events of these types carry state that has to be taken into account when adding later events:
+    // PixmapCacheEvent: Total size of the cache and size of pixmap currently being loaded
+    // MemoryAllocation: Total size of the JS heap and the amount of it currently in use
+    const Message message = type.message();
+    return message == PixmapCacheEvent || message == MemoryAllocation;
 }
 
-inline static bool operator==(const QmlProfilerDataModel::QmlEventTypeData &type1,
-                              const QmlProfilerDataModel::QmlEventTypeData &type2)
-{
-    return type1.message == type2.message && type1.rangeType == type2.rangeType &&
-            type1.detailType == type2.detailType && type1.location.line == type2.location.line &&
-            type1.location.column == type2.location.column &&
-            // compare filename last as it's expensive.
-            type1.location.filename == type2.location.filename;
-}
-
-void QmlProfilerDataModel::processData()
-{
-    Q_D(QmlProfilerDataModel);
-    // post-processing
-
-    // sort events by start time, using above operator<
-    std::sort(d->eventList.begin(), d->eventList.end());
-
-    // rewrite strings
-    int n = d->eventTypes.count();
-    for (int i = 0; i < n; i++) {
-        QmlEventTypeData *event = &d->eventTypes[i];
-        event->displayName = getDisplayName(*event);
-        event->data = getInitialDetails(*event);
-
-        //
-        // request further details from files
-        //
-
-        if (event->rangeType != QmlDebug::Binding && event->rangeType != QmlDebug::HandlingSignal)
-            continue;
-
-        // This skips anonymous bindings in Qt4.8 (we don't have valid location data for them)
-        if (event->location.filename.isEmpty())
-            continue;
-
-        // Skip non-anonymous bindings from Qt4.8 (we already have correct details for them)
-        if (event->location.column == -1)
-            continue;
-
-        d->detailsRewriter->requestDetailsForLocation(i, event->location);
-        d->modelManager->modelProxyCountUpdated(d->modelId, i + n, n * 2);
-    }
-
-    // Allow changed() event only after documents have been reloaded to avoid
-    // unnecessary updates of child models.
-    emit requestReload();
-}
-
-void QmlProfilerDataModel::addQmlEvent(QmlDebug::Message message, QmlDebug::RangeType rangeType,
-                                            int detailType, qint64 startTime,
-                                            qint64 duration, const QString &data,
-                                            const QmlDebug::QmlEventLocation &location,
-                                            qint64 ndata1, qint64 ndata2, qint64 ndata3,
-                                            qint64 ndata4, qint64 ndata5)
-{
-    Q_D(QmlProfilerDataModel);
-    QString displayName;
-
-    QmlEventTypeData typeData(displayName, location, message, rangeType, detailType,
-                              message == QmlDebug::DebugMessage ? QString() : data);
-    QmlEventData eventData = (message == QmlDebug::DebugMessage) ?
-                QmlEventData(startTime, duration, -1, data) :
-                QmlEventData(startTime, duration, -1, ndata1, ndata2, ndata3, ndata4, ndata5);
-
-    QHash<QmlEventTypeData, int>::Iterator it = d->eventTypeIds.find(typeData);
-    if (it != d->eventTypeIds.end()) {
-        eventData.setTypeIndex(it.value());
-    } else {
-        eventData.setTypeIndex(d->eventTypes.size());
-        d->eventTypeIds[typeData] = eventData.typeIndex();
-        d->eventTypes.append(typeData);
-    }
-
-    d->eventList.append(eventData);
-
-    d->modelManager->modelProxyCountUpdated(d->modelId, startTime,
-                                            d->modelManager->traceTime()->duration() * 2);
-}
-
-qint64 QmlProfilerDataModel::lastTimeMark() const
+void QmlProfilerDataModel::replayEvents(qint64 rangeStart, qint64 rangeEnd,
+                                        QmlProfilerModelManager::EventLoader loader) const
 {
     Q_D(const QmlProfilerDataModel);
-    if (d->eventList.isEmpty())
-        return 0;
+    QStack<QmlEvent> stack;
+    QmlEvent event;
+    QFile file(d->file.fileName());
+    file.open(QIODevice::ReadOnly);
+    QDataStream stream(&file);
+    bool crossedRangeStart = false;
+    while (!stream.atEnd()) {
+        stream >> event;
+        if (stream.status() == QDataStream::ReadPastEnd)
+            break;
 
-    return d->eventList.last().startTime() + d->eventList.last().duration();
+        const QmlEventType &type = d->eventTypes[event.typeIndex()];
+        if (rangeStart != -1 && rangeEnd != -1) {
+            // Double-check if rangeStart has been crossed. Some versions of Qt send dirty data.
+            if (event.timestamp() < rangeStart && !crossedRangeStart) {
+                if (type.rangeType() != MaximumRangeType) {
+                    if (event.rangeStage() == RangeStart)
+                        stack.push(event);
+                    else if (event.rangeStage() == RangeEnd)
+                        stack.pop();
+                    continue;
+                } else if (isStateful(type)) {
+                    event.setTimestamp(rangeStart);
+                } else {
+                    continue;
+                }
+            } else {
+                if (!crossedRangeStart) {
+                    foreach (QmlEvent stashed, stack) {
+                        stashed.setTimestamp(rangeStart);
+                        loader(stashed, d->eventTypes[stashed.typeIndex()]);
+                    }
+                    stack.clear();
+                    crossedRangeStart = true;
+                }
+                if (event.timestamp() > rangeEnd) {
+                    if (type.rangeType() != MaximumRangeType) {
+                        if (event.rangeStage() == RangeEnd) {
+                            if (stack.isEmpty()) {
+                                QmlEvent endEvent(event);
+                                endEvent.setTimestamp(rangeEnd);
+                                loader(endEvent, d->eventTypes[event.typeIndex()]);
+                            } else {
+                                stack.pop();
+                            }
+                        } else if (event.rangeStage() == RangeStart) {
+                            stack.push(event);
+                        }
+                        continue;
+                    } else if (isStateful(type)) {
+                        event.setTimestamp(rangeEnd);
+                    } else {
+                        continue;
+                    }
+                }
+            }
+        }
+
+        loader(event, type);
+    }
+}
+
+void QmlProfilerDataModel::finalize()
+{
+    Q_D(QmlProfilerDataModel);
+    d->file.flush();
+    d->detailsRewriter->reloadDocuments();
 }
 
 void QmlProfilerDataModel::detailsChanged(int requestId, const QString &newString)
 {
     Q_D(QmlProfilerDataModel);
     QTC_ASSERT(requestId < d->eventTypes.count(), return);
-
-    QmlEventTypeData *event = &d->eventTypes[requestId];
-    event->data = newString;
+    d->eventTypes[requestId].setData(newString);
 }
 
-void QmlProfilerDataModel::detailsDone()
-{
-    Q_D(QmlProfilerDataModel);
-    emit changed();
-    d->modelManager->modelProxyCountUpdated(d->modelId, isEmpty() ? 0 : 1, 1);
-    d->modelManager->processingDone();
-}
-
-}
+} // namespace QmlProfiler

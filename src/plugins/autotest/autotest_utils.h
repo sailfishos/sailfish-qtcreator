@@ -23,10 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef AUTOTEST_UTILS_H
-#define AUTOTEST_UTILS_H
+#pragma once
 
-#include <QStringList>
+#include <cpptools/cppmodelmanager.h>
+#include <cpptools/projectpart.h>
+
+#include <QString>
 
 namespace Autotest {
 namespace Internal {
@@ -34,39 +36,20 @@ namespace Internal {
 class TestUtils
 {
 public:
-    static bool isGTestMacro(const QString &macro)
+    static QString getCMakeDisplayNameIfNecessary(const QString &filePath, const QString &proFile)
     {
-        static QStringList valid = {
-            QStringLiteral("TEST"), QStringLiteral("TEST_F"), QStringLiteral("TEST_P"),
-            QStringLiteral("TYPED_TEST"), QStringLiteral("TYPED_TEST_P")
-        };
-        return valid.contains(macro);
-    }
+        static const QString CMAKE_LISTS = QLatin1String("CMakeLists.txt");
+        if (!proFile.endsWith(CMAKE_LISTS))
+            return QString();
 
-    static bool isGTestParameterized(const QString &macro)
-    {
-        return macro == QStringLiteral("TEST_P") || macro == QStringLiteral("TYPED_TEST_P");
-    }
+        const QList<CppTools::ProjectPart::Ptr> &projectParts
+                = CppTools::CppModelManager::instance()->projectPart(filePath);
+        if (projectParts.size())
+            return projectParts.first()->displayName;
 
-    static bool isGTestTyped(const QString &macro)
-    {
-        return macro == QStringLiteral("TYPED_TEST") || macro == QStringLiteral("TYPED_TEST_P");
-    }
-
-    static bool isQTestMacro(const QByteArray &macro)
-    {
-        static QByteArrayList valid = {"QTEST_MAIN", "QTEST_APPLESS_MAIN", "QTEST_GUILESS_MAIN"};
-        return valid.contains(macro);
-    }
-
-    static bool isQuickTestMacro(const QByteArray &macro)
-    {
-        static const QByteArrayList valid = {"QUICK_TEST_MAIN", "QUICK_TEST_OPENGL_MAIN"};
-        return valid.contains(macro);
+        return QString();
     }
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // AUTOTEST_UTILS_H

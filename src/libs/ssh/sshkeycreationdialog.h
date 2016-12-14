@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SSHKEYCREATIONDIALOG_H
-#define SSHKEYCREATIONDIALOG_H
+#pragma once
 
 #include "ssh_global.h"
 
@@ -45,12 +44,10 @@ public:
     QString privateKeyFilePath() const;
     QString publicKeyFilePath() const;
 
-private slots:
+private:
     void keyTypeChanged();
     void generateKeys();
     void handleBrowseButtonClicked();
-
-private:
     void setPrivateKeyFile(const QString &filePath);
     void saveKeys();
     bool userForbidsOverwriting();
@@ -61,5 +58,3 @@ private:
 };
 
 } // namespace QSsh
-
-#endif  // SSHKEYCREATIONDIALOG_H

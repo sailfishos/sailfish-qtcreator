@@ -108,10 +108,9 @@ void openEditorAt(const ClangBackEnd::SourceLocationContainer &location)
                                       int(location.column() - 1));
 }
 
-void applyFixit(const ClangBackEnd::SourceLocationContainer &location,
-                const QVector<ClangBackEnd::FixItContainer> &fixits)
+void applyFixit(const QVector<ClangBackEnd::FixItContainer> &fixits)
 {
-    ClangCodeModel::ClangFixItOperation operation(location.filePath(), Utf8String(), fixits);
+    ClangCodeModel::ClangFixItOperation operation(Utf8String(), fixits);
 
     operation.perform();
 }
@@ -146,7 +145,7 @@ QWidget *createDiagnosticLabel(const ClangBackEnd::DiagnosticContainer &diagnost
     label->setTextFormat(Qt::RichText);
     QObject::connect(label, &QLabel::linkActivated, [location, fixits](const QString &action) {
         if (action == QLatin1String(LINK_ACTION_APPLY_FIX))
-            applyFixit(location, fixits);
+            applyFixit(fixits);
         else
             openEditorAt(location);
 
@@ -187,7 +186,7 @@ public:
 void addChildrenToLayout(const QString &mainFilePath,
                          const QVector<ClangBackEnd::DiagnosticContainer>::const_iterator first,
                          const QVector<ClangBackEnd::DiagnosticContainer>::const_iterator last,
-                         QBoxLayout &boxLayout)
+                         QLayout &boxLayout)
 {
     for (auto it = first; it != last; ++it)
         boxLayout.addWidget(createDiagnosticLabel(*it, mainFilePath, IndentDiagnostic));
@@ -195,7 +194,7 @@ void addChildrenToLayout(const QString &mainFilePath,
 
 void setupChildDiagnostics(const QString &mainFilePath,
                            const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
-                           QBoxLayout &boxLayout)
+                           QLayout &boxLayout)
 {
     if (diagnostics.size() <= 10) {
         addChildrenToLayout(mainFilePath, diagnostics.begin(), diagnostics.end(), boxLayout);
@@ -215,22 +214,13 @@ void setupChildDiagnostics(const QString &mainFilePath,
 namespace ClangCodeModel {
 namespace Internal {
 
-ClangDiagnosticToolTipWidget::ClangDiagnosticToolTipWidget(
-        const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
-        QWidget *parent)
-    : Utils::FakeToolTip(parent)
+void addToolTipToLayout(const ClangBackEnd::DiagnosticContainer &diagnostic, QLayout *target)
 {
-    auto *mainLayout = createLayout<QVBoxLayout>();
+    // Set up header and text row for main diagnostic
+    target->addWidget(new MainDiagnosticWidget(diagnostic));
 
-    foreach (const auto &diagnostic, diagnostics) {
-        // Set up header and text row for main diagnostic
-        mainLayout->addWidget(new MainDiagnosticWidget(diagnostic));
-
-        // Set up child rows for notes
-        setupChildDiagnostics(diagnostic.location().filePath(), diagnostic.children(), *mainLayout);
-    }
-
-    setLayout(mainLayout);
+    // Set up child rows for notes
+    setupChildDiagnostics(diagnostic.location().filePath(), diagnostic.children(), *target);
 }
 
 } // namespace Internal

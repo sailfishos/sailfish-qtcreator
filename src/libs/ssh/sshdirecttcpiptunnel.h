@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef  SSHDIRECTTCPIPTUNNEL_H
-#define  SSHDIRECTTCPIPTUNNEL_H
+#pragma once
 
 #include "ssh_global.h"
 
@@ -37,6 +36,7 @@ namespace Internal {
 class SshChannelManager;
 class SshDirectTcpIpTunnelPrivate;
 class SshSendFacility;
+class SshTcpIpTunnelPrivate;
 } // namespace Internal
 
 class QSSH_EXPORT SshDirectTcpIpTunnel : public QIODevice
@@ -44,6 +44,7 @@ class QSSH_EXPORT SshDirectTcpIpTunnel : public QIODevice
     Q_OBJECT
 
     friend class Internal::SshChannelManager;
+    friend class Internal::SshTcpIpTunnelPrivate;
 
 public:
     typedef QSharedPointer<SshDirectTcpIpTunnel> Ptr;
@@ -62,7 +63,6 @@ public:
 signals:
     void initialized();
     void error(const QString &reason);
-    void tunnelClosed();
 
 private:
     SshDirectTcpIpTunnel(quint32 channelId, const QString &originatingHost,
@@ -73,11 +73,7 @@ private:
     qint64 readData(char *data, qint64 maxlen);
     qint64 writeData(const char *data, qint64 len);
 
-    Q_SLOT void handleError(const QString &reason);
-
     Internal::SshDirectTcpIpTunnelPrivate * const d;
 };
 
 } // namespace QSsh
-
-#endif // SSHDIRECTTCPIPTUNNEL_H

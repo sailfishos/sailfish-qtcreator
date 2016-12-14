@@ -34,9 +34,9 @@ class Targets:
      DESKTOP_480_DEFAULT,
      SIMULATOR,
      EMBEDDED_LINUX,
-     DESKTOP_521_DEFAULT,
      DESKTOP_531_DEFAULT,
-     DESKTOP_541_GCC) = ALL_TARGETS
+     DESKTOP_541_GCC,
+     DESKTOP_561_DEFAULT) = ALL_TARGETS
 
     @staticmethod
     def desktopTargetClasses():
@@ -63,12 +63,12 @@ class Targets:
             return "Qt Simulator"
         elif target == Targets.EMBEDDED_LINUX:
             return "Embedded Linux"
-        elif target == Targets.DESKTOP_521_DEFAULT:
-            return "Desktop 521 default"
         elif target == Targets.DESKTOP_531_DEFAULT:
             return "Desktop 531 default"
         elif target == Targets.DESKTOP_541_GCC:
             return "Desktop 541 GCC"
+        elif target == Targets.DESKTOP_561_DEFAULT:
+            return "Desktop 561 default"
         else:
             return None
 
@@ -92,7 +92,7 @@ class Targets:
 
     @staticmethod
     def getDefaultKit():
-        return Targets.DESKTOP_521_DEFAULT
+        return Targets.DESKTOP_531_DEFAULT
 
 # this class holds some constants for easier usage inside the Projects view
 class ProjectSettings:
@@ -178,7 +178,7 @@ class Qt5Path:
 
     @staticmethod
     def getPaths(pathSpec):
-        qt5targets = [Targets.DESKTOP_521_DEFAULT, Targets.DESKTOP_531_DEFAULT]
+        qt5targets = [Targets.DESKTOP_531_DEFAULT, Targets.DESKTOP_561_DEFAULT]
         if platform.system() != 'Darwin':
             qt5targets.append(Targets.DESKTOP_541_GCC)
         if pathSpec == Qt5Path.DOCS:

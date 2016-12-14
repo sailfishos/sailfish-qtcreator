@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSBUILDCONFIGURATIONWIDGET_H
-#define QBSBUILDCONFIGURATIONWIDGET_H
+#pragma once
 
 #include <projectexplorer/namedwidget.h>
 
@@ -44,7 +43,7 @@ class QbsBuildConfigurationWidget : public ProjectExplorer::NamedWidget
 public:
     QbsBuildConfigurationWidget(Internal::QbsBuildConfiguration *bc);
 
-private slots:
+private:
     void buildDirEdited();
 
     // Changes triggered from creator
@@ -59,5 +58,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSBUILDCONFIGURATIONWIDGET_H

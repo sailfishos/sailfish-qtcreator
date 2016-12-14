@@ -23,12 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef ABSTRACTREMOTELINUXRUNSUPPORT_H
-#define ABSTRACTREMOTELINUXRUNSUPPORT_H
+#pragma once
 
 #include "remotelinux_export.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <utils/port.h>
 
 #include <QObject>
 
@@ -49,7 +49,7 @@ protected:
     enum State
     {
         Inactive,
-        GatheringPorts,
+        GatheringResources,
         StartingRunner,
         Running
     };
@@ -69,30 +69,32 @@ protected:
     virtual void handleAdapterSetupDone();
 
     void setFinished();
-    bool setPort(int &port);
+
+    void startPortsGathering();
+    Utils::Port findPort() const;
+
+    void createRemoteFifo();
+    QString fifo() const;
 
     const ProjectExplorer::IDevice::ConstPtr device() const;
     const ProjectExplorer::StandardRunnable &runnable() const;
 
     void reset();
 
-protected slots:
-    virtual void handleRemoteSetupRequested();
+protected:
+    virtual void handleRemoteSetupRequested() = 0;
     virtual void handleAppRunnerError(const QString &error) = 0;
     virtual void handleRemoteOutput(const QByteArray &output) = 0;
     virtual void handleRemoteErrorOutput(const QByteArray &output) = 0;
     virtual void handleAppRunnerFinished(bool success) = 0;
     virtual void handleProgressReport(const QString &progressOutput) = 0;
 
-private slots:
-    void handlePortsGathererError(const QString &message);
-    void handlePortListReady();
-
 private:
+    void handleResourcesError(const QString &message);
+    void handleResourcesAvailable();
+
     friend class Internal::AbstractRemoteLinuxRunSupportPrivate;
     Internal::AbstractRemoteLinuxRunSupportPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // ABSTRACTREMOTELINUXRUNSUPPORT_H

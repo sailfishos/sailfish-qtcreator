@@ -132,8 +132,7 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     if (!locale.isEmpty()) {
         QTranslator *qtr = new QTranslator(this);
         QTranslator *qhelptr = new QTranslator(this);
-        const QString &creatorTrPath = ICore::resourcePath()
-            + QLatin1String("/translations");
+        const QString &creatorTrPath = ICore::resourcePath() + "/translations";
         const QString &qtTrPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
         const QString &trFile = QLatin1String("assistant_") + locale;
         const QString &helpTrFile = QLatin1String("qt_help_") + locale;
@@ -150,25 +149,25 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     addAutoReleasedObject(new GeneralSettingsPage());
     addAutoReleasedObject(m_searchTaskHandler = new SearchTaskHandler);
 
-    m_centralWidget = new CentralWidget(modecontext);
-    connect(m_centralWidget, SIGNAL(sourceChanged(QUrl)), this,
-        SLOT(updateSideBarSource(QUrl)));
+    m_centralWidget = new CentralWidget(Context("Help.CentralHelpWidget"));
+    connect(m_centralWidget, &HelpWidget::sourceChanged, this,
+            &HelpPlugin::updateSideBarSource);
     connect(m_centralWidget, &CentralWidget::closeButtonClicked,
             &OpenPagesManager::instance(), &OpenPagesManager::closeCurrentPage);
 
     connect(LocalHelpManager::instance(), &LocalHelpManager::returnOnCloseChanged,
             m_centralWidget, &CentralWidget::updateCloseButton);
-    connect(HelpManager::instance(), SIGNAL(helpRequested(QUrl,Core::HelpManager::HelpViewerLocation)),
-            this, SLOT(handleHelpRequest(QUrl,Core::HelpManager::HelpViewerLocation)));
-    connect(m_searchTaskHandler, SIGNAL(search(QUrl)), this,
-            SLOT(showLinkInHelpMode(QUrl)));
+    connect(HelpManager::instance(), &HelpManager::helpRequested,
+            this, &HelpPlugin::handleHelpRequest);
+    connect(m_searchTaskHandler, &SearchTaskHandler::search, this,
+            &HelpPlugin::showLinkInHelpMode);
 
-    connect(m_filterSettingsPage, SIGNAL(filtersChanged()), this,
-        SLOT(setupHelpEngineIfNeeded()));
-    connect(HelpManager::instance(), SIGNAL(documentationChanged()), this,
-        SLOT(setupHelpEngineIfNeeded()));
-    connect(HelpManager::instance(), SIGNAL(collectionFileChanged()), this,
-        SLOT(setupHelpEngineIfNeeded()));
+    connect(m_filterSettingsPage, &FilterSettingsPage::filtersChanged, this,
+        &HelpPlugin::setupHelpEngineIfNeeded);
+    connect(HelpManager::instance(), &HelpManager::documentationChanged, this,
+        &HelpPlugin::setupHelpEngineIfNeeded);
+    connect(HelpManager::instance(), &HelpManager::collectionFileChanged, this,
+        &HelpPlugin::setupHelpEngineIfNeeded);
 
     connect(ToolTip::instance(), &ToolTip::shown, ICore::instance(), []() {
         ICore::addAdditionalContext(Context(kToolTipHelpContext), ICore::ContextPriority::High);
@@ -181,33 +180,33 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     QAction *action;
 
     // Add Contents, Index, and Context menu items
-    action = new QAction(QIcon::fromTheme(QLatin1String("help-contents")),
+    action = new QAction(QIcon::fromTheme("help-contents"),
         tr(Constants::SB_CONTENTS), this);
     cmd = ActionManager::registerAction(action, "Help.ContentsMenu");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
-    connect(action, SIGNAL(triggered()), this, SLOT(activateContents()));
+    connect(action, &QAction::triggered, this, &HelpPlugin::activateContents);
 
     action = new QAction(tr(Constants::SB_INDEX), this);
     cmd = ActionManager::registerAction(action, "Help.IndexMenu");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
-    connect(action, SIGNAL(triggered()), this, SLOT(activateIndex()));
+    connect(action, &QAction::triggered, this, &HelpPlugin::activateIndex);
 
     action = new QAction(tr("Context Help"), this);
     cmd = ActionManager::registerAction(action, Help::Constants::CONTEXT_HELP,
                                         Context(kToolTipHelpContext, Core::Constants::C_GLOBAL));
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     cmd->setDefaultKeySequence(QKeySequence(Qt::Key_F1));
-    connect(action, SIGNAL(triggered()), this, SLOT(showContextHelp()));
+    connect(action, &QAction::triggered, this, &HelpPlugin::showContextHelp);
 
     action = new QAction(tr("Technical Support"), this);
     cmd = ActionManager::registerAction(action, "Help.TechSupport");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
-    connect(action, SIGNAL(triggered()), this, SLOT(slotOpenSupportPage()));
+    connect(action, &QAction::triggered, this, &HelpPlugin::slotOpenSupportPage);
 
     action = new QAction(tr("Report Bug..."), this);
     cmd = ActionManager::registerAction(action, "Help.ReportBug");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
-    connect(action, SIGNAL(triggered()), this, SLOT(slotReportBug()));
+    connect(action, &QAction::triggered, this, &HelpPlugin::slotReportBug);
 
     if (ActionContainer *windowMenu = ActionManager::actionContainer(Core::Constants::M_WINDOW)) {
         // reuse EditorManager constants to avoid a second pair of menu actions
@@ -216,16 +215,16 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
         Command *ctrlTab = ActionManager::registerAction(action, Core::Constants::GOTOPREVINHISTORY,
             modecontext);
         windowMenu->addAction(ctrlTab, Core::Constants::G_WINDOW_NAVIGATE);
-        connect(action, SIGNAL(triggered()), &OpenPagesManager::instance(),
-            SLOT(gotoPreviousPage()));
+        connect(action, &QAction::triggered, &OpenPagesManager::instance(),
+            &OpenPagesManager::gotoPreviousPage);
 
         // Goto Next In History Action
         action = new QAction(this);
         Command *ctrlShiftTab = ActionManager::registerAction(action, Core::Constants::GOTONEXTINHISTORY,
             modecontext);
         windowMenu->addAction(ctrlShiftTab, Core::Constants::G_WINDOW_NAVIGATE);
-        connect(action, SIGNAL(triggered()), &OpenPagesManager::instance(),
-            SLOT(gotoNextPage()));
+        connect(action, &QAction::triggered, &OpenPagesManager::instance(),
+            &OpenPagesManager::gotoNextPage);
     }
 
     auto helpIndexFilter = new HelpIndexFilter();
@@ -237,12 +236,12 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
 
     RemoteHelpFilter *remoteHelpFilter = new RemoteHelpFilter();
     addAutoReleasedObject(remoteHelpFilter);
-    connect(remoteHelpFilter, SIGNAL(linkActivated(QUrl)), this,
-        SLOT(showLinkInHelpMode(QUrl)));
+    connect(remoteHelpFilter, &RemoteHelpFilter::linkActivated, this,
+        &HelpPlugin::showLinkInHelpMode);
 
-    QDesktopServices::setUrlHandler(QLatin1String("qthelp"), HelpManager::instance(), "handleHelpRequest");
-    connect(ModeManager::instance(), SIGNAL(currentModeChanged(Core::IMode*,Core::IMode*)),
-            this, SLOT(modeChanged(Core::IMode*,Core::IMode*)));
+    QDesktopServices::setUrlHandler("qthelp", HelpManager::instance(), "handleHelpRequest");
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
+            this, &HelpPlugin::modeChanged);
 
     m_mode = new HelpMode;
     m_mode->setWidget(m_centralWidget);
@@ -255,7 +254,7 @@ void HelpPlugin::extensionsInitialized()
 {
     QStringList filesToRegister;
     // we might need to register creators inbuild help
-    filesToRegister.append(ICore::documentationPath() + QLatin1String("/qtcreator.qch"));
+    filesToRegister.append(ICore::documentationPath() + "/qtcreator.qch");
     HelpManager::registerDocumentation(filesToRegister);
 }
 
@@ -274,7 +273,7 @@ void HelpPlugin::resetFilter()
 {
     const QString &filterInternal = QString::fromLatin1("Qt Creator %1.%2.%3")
         .arg(IDE_VERSION_MAJOR).arg(IDE_VERSION_MINOR).arg(IDE_VERSION_RELEASE);
-    QRegExp filterRegExp(QLatin1String("Qt Creator \\d*\\.\\d*\\.\\d*"));
+    QRegExp filterRegExp("Qt Creator \\d*\\.\\d*\\.\\d*");
 
     QHelpEngineCore *engine = &LocalHelpManager::helpEngine();
     const QStringList &filters = engine->customFilters();
@@ -310,22 +309,21 @@ void HelpPlugin::saveExternalWindowSettings()
         return;
     m_externalWindowState = m_externalWindow->geometry();
     QSettings *settings = ICore::settings();
-    settings->setValue(QLatin1String(kExternalWindowStateKey),
-                       qVariantFromValue(m_externalWindowState));
+    settings->setValue(kExternalWindowStateKey, qVariantFromValue(m_externalWindowState));
 }
 
 HelpWidget *HelpPlugin::createHelpWidget(const Context &context, HelpWidget::WidgetStyle style)
 {
     HelpWidget *widget = new HelpWidget(context, style);
 
-    connect(widget->currentViewer(), SIGNAL(loadFinished()),
-            this, SLOT(highlightSearchTermsInContextHelp()));
-    connect(widget, SIGNAL(openHelpMode(QUrl)),
-            this, SLOT(showLinkInHelpMode(QUrl)));
-    connect(widget, SIGNAL(closeButtonClicked()),
-            this, SLOT(slotHideRightPane()));
-    connect(widget, SIGNAL(aboutToClose()),
-            this, SLOT(saveExternalWindowSettings()));
+    connect(widget->currentViewer(), &HelpViewer::loadFinished,
+            this, &HelpPlugin::highlightSearchTermsInContextHelp);
+    connect(widget, &HelpWidget::openHelpMode,
+            this, &HelpPlugin::showLinkInHelpMode);
+    connect(widget, &HelpWidget::closeButtonClicked,
+            this, &HelpPlugin::slotHideRightPane);
+    connect(widget, &HelpWidget::aboutToClose,
+            this, &HelpPlugin::saveExternalWindowSettings);
 
     // force setup, as we might have never switched to full help mode
     // thus the help engine might still run without collection file setup
@@ -351,7 +349,7 @@ HelpViewer *HelpPlugin::externalHelpViewer()
                                         HelpWidget::ExternalWindow);
     if (m_externalWindowState.isNull()) {
         QSettings *settings = ICore::settings();
-        m_externalWindowState = settings->value(QLatin1String(kExternalWindowStateKey)).toRect();
+        m_externalWindowState = settings->value(kExternalWindowStateKey).toRect();
     }
     if (m_externalWindowState.isNull())
         m_externalWindow->resize(650, 700);
@@ -445,22 +443,13 @@ void HelpPlugin::slotHideRightPane()
     RightPaneWidget::instance()->setShown(false);
 }
 
-void HelpPlugin::modeChanged(IMode *mode, IMode *old)
+void HelpPlugin::modeChanged(Core::Id mode, Core::Id old)
 {
     Q_UNUSED(old)
-    if (mode == m_mode) {
+    if (mode == m_mode->id()) {
         qApp->setOverrideCursor(Qt::WaitCursor);
         doSetupIfNeeded();
         qApp->restoreOverrideCursor();
-    }
-}
-
-void HelpPlugin::updateSideBarSource()
-{
-    if (HelpViewer *viewer = m_centralWidget->currentViewer()) {
-        const QUrl &url = viewer->source();
-        if (url.isValid())
-            updateSideBarSource(url);
     }
 }
 
@@ -478,7 +467,7 @@ void HelpPlugin::updateSideBarSource(const QUrl &newUrl)
 void HelpPlugin::setupHelpEngineIfNeeded()
 {
     LocalHelpManager::setEngineNeedsUpdate();
-    if (ModeManager::currentMode() == m_mode
+    if (ModeManager::currentMode() == m_mode->id()
             || LocalHelpManager::contextHelpOption() == HelpManager::ExternalHelpAlways)
         LocalHelpManager::setupGuiHelpEngine();
 }
@@ -542,11 +531,11 @@ static QUrl findBestLink(const QMap<QString, QUrl> &links, QString *highlightId)
     QUrl source = links.constBegin().value();
     // workaround to show the latest Qt version
     int version = 0;
-    QRegExp exp(QLatin1String("(\\d+)"));
+    QRegExp exp("(\\d+)");
     foreach (const QUrl &link, links) {
         const QString &authority = link.authority();
-        if (authority.startsWith(QLatin1String("com.trolltech."))
-                || authority.startsWith(QLatin1String("org.qt-project."))) {
+        if (authority.startsWith("com.trolltech.")
+                || authority.startsWith("org.qt-project.")) {
             if (exp.indexIn(authority) >= 0) {
                 const int tmpVersion = exp.cap(1).toInt();
                 if (tmpVersion > version) {
@@ -602,13 +591,13 @@ void HelpPlugin::showContextHelp()
 void HelpPlugin::activateIndex()
 {
     activateHelpMode();
-    m_centralWidget->activateSideBarItem(QLatin1String(Constants::HELP_INDEX));
+    m_centralWidget->activateSideBarItem(Constants::HELP_INDEX);
 }
 
 void HelpPlugin::activateContents()
 {
     activateHelpMode();
-    m_centralWidget->activateSideBarItem(QLatin1String(Constants::HELP_CONTENTS));
+    m_centralWidget->activateSideBarItem(Constants::HELP_CONTENTS);
 }
 
 void HelpPlugin::highlightSearchTermsInContextHelp()
@@ -628,15 +617,15 @@ void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocat
 
     QString address = url.toString();
     if (!HelpManager::findFile(url).isValid()) {
-        if (address.startsWith(QLatin1String("qthelp://org.qt-project."))
-            || address.startsWith(QLatin1String("qthelp://com.nokia."))
-            || address.startsWith(QLatin1String("qthelp://com.trolltech."))) {
+        if (address.startsWith("qthelp://org.qt-project.")
+            || address.startsWith("qthelp://com.nokia.")
+            || address.startsWith("qthelp://com.trolltech.")) {
                 // local help not installed, resort to external web help
-                QString urlPrefix = QLatin1String("http://doc.qt.io/");
-                if (url.authority() == QLatin1String("org.qt-project.qtcreator"))
+                QString urlPrefix = "http://doc.qt.io/";
+                if (url.authority() == "org.qt-project.qtcreator")
                     urlPrefix.append(QString::fromLatin1("qtcreator"));
                 else
-                    urlPrefix.append(QLatin1String("latest"));
+                    urlPrefix.append("latest");
             address = urlPrefix + address.mid(address.lastIndexOf(QLatin1Char('/')));
         }
     }
@@ -650,12 +639,12 @@ void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocat
 
 void HelpPlugin::slotOpenSupportPage()
 {
-    showLinkInHelpMode(QUrl(QLatin1String("qthelp://org.qt-project.qtcreator/doc/technical-support.html")));
+    showLinkInHelpMode(QUrl("qthelp://org.qt-project.qtcreator/doc/technical-support.html"));
 }
 
 void HelpPlugin::slotReportBug()
 {
-    QDesktopServices::openUrl(QUrl(QLatin1String("https://bugreports.qt.io")));
+    QDesktopServices::openUrl(QUrl("https://bugreports.qt.io"));
 }
 
 void HelpPlugin::doSetupIfNeeded()

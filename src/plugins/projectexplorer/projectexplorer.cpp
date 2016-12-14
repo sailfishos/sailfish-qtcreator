@@ -27,6 +27,7 @@
 
 #include "buildsteplist.h"
 #include "configtaskhandler.h"
+#include "customexecutablerunconfiguration.h"
 #include "customwizard/customwizard.h"
 #include "deployablefile.h"
 #include "deployconfiguration.h"
@@ -169,19 +170,19 @@ namespace ProjectExplorer {
 static Target *activeTarget()
 {
     Project *project = ProjectTree::currentProject();
-    return project ? project->activeTarget() : 0;
+    return project ? project->activeTarget() : nullptr;
 }
 
 static BuildConfiguration *activeBuildConfiguration()
 {
     Target *target = activeTarget();
-    return target ? target->activeBuildConfiguration() : 0;
+    return target ? target->activeBuildConfiguration() : nullptr;
 }
 
 static Kit *currentKit()
 {
     Target *target = activeTarget();
-    return target ? target->kit() : 0;
+    return target ? target->kit() : nullptr;
 }
 
 class ProjectExplorerPluginPrivate : public QObject
@@ -189,8 +190,6 @@ class ProjectExplorerPluginPrivate : public QObject
     Q_DECLARE_TR_FUNCTIONS(ProjectExplorer::ProjectExplorerPlugin)
 
 public:
-    ProjectExplorerPluginPrivate();
-
     void deploy(QList<Project *>);
     int queue(QList<Project *>, QList<Id> stepIds);
     void updateContextMenuActions();
@@ -241,9 +240,7 @@ public:
     void determineSessionToRestoreAtStartup();
     void restoreSession();
     void loadSession(const QString &session);
-    void handleRunProject();
     void runProjectContextMenu();
-    void runProjectWithoutDeploy();
     void savePersistentSettings();
 
     void addNewFile();
@@ -255,6 +252,7 @@ public:
     void searchOnFileSystem();
     void showInGraphicalShell();
     void removeFile();
+    void duplicateFile();
     void deleteFile();
     void handleRenameFile();
     void handleSetStartupProject();
@@ -277,7 +275,7 @@ public:
 
     void slotUpdateRunActions();
 
-    void currentModeChanged(Core::IMode *mode, Core::IMode *oldMode);
+    void currentModeChanged(Core::Id mode, Core::Id oldMode);
 
     void updateWelcomePage();
 
@@ -322,6 +320,7 @@ public:
     QAction *m_addExistingDirectoryAction;
     QAction *m_addNewSubprojectAction;
     QAction *m_removeFileAction;
+    QAction *m_duplicateFileAction;
     QAction *m_removeProjectAction;
     QAction *m_deleteFileAction;
     QAction *m_renameFileAction;
@@ -348,38 +347,24 @@ public:
     QString m_lastOpenDirectory;
     QPointer<RunConfiguration> m_delayedRunConfiguration;
     QList<QPair<RunConfiguration *, Core::Id>> m_delayedRunConfigurationForRun;
-    bool m_shouldHaveRunConfiguration;
-    Core::Id m_runMode;
     QString m_projectFilterString;
     MiniProjectTargetSelector * m_targetSelector;
     ProjectExplorerSettings m_projectExplorerSettings;
+    bool m_shouldHaveRunConfiguration = false;
+    bool m_shuttingDown = false;
+    Core::Id m_runMode = Constants::NO_RUN_MODE;
     ProjectWelcomePage *m_welcomePage = nullptr;
-    IMode *m_projectsMode;
+    IMode *m_projectsMode = nullptr;
 
-    TaskHub *m_taskHub;
-    KitManager *m_kitManager;
-    ToolChainManager *m_toolChainManager;
-    bool m_shuttingDown;
+    TaskHub *m_taskHub = nullptr;
+    KitManager *m_kitManager = nullptr;
+    ToolChainManager *m_toolChainManager = nullptr;
     QStringList m_arguments;
-    QList<ProjectPanelFactory *> m_panelFactories;
 #ifdef WITH_JOURNALD
-    JournaldWatcher *m_journalWatcher;
+    JournaldWatcher *m_journalWatcher = nullptr;
 #endif
     QThreadPool m_threadPool;
 };
-
-ProjectExplorerPluginPrivate::ProjectExplorerPluginPrivate() :
-    m_shouldHaveRunConfiguration(false),
-    m_runMode(Constants::NO_RUN_MODE),
-    m_projectsMode(0),
-    m_kitManager(0),
-    m_toolChainManager(0),
-    m_shuttingDown(false)
-#ifdef WITH_JOURNALD
-    , m_journalWatcher(0)
-#endif
-{
-}
 
 class ProjectsMode : public IMode
 {
@@ -397,8 +382,8 @@ public:
     }
 };
 
-static ProjectExplorerPlugin *m_instance = 0;
-static ProjectExplorerPluginPrivate *dd = 0;
+static ProjectExplorerPlugin *m_instance = nullptr;
+static ProjectExplorerPluginPrivate *dd = nullptr;
 
 ProjectExplorerPlugin::ProjectExplorerPlugin()
 {
@@ -623,6 +608,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     addAutoReleasedObject(new CurrentProjectFind);
 
     addAutoReleasedObject(new LocalApplicationRunControlFactory);
+    addAutoReleasedObject(new CustomExecutableRunConfigurationFactory);
 
     addAutoReleasedObject(new ProjectFileWizardExtension);
 
@@ -698,8 +684,8 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
 
     ActionContainer *runMenu = ActionManager::createMenu(Constants::RUNMENUCONTEXTMENU);
     runMenu->setOnAllDisabledBehavior(ActionContainer::Hide);
-    QIcon runIcon = Utils::Icon::sideBarIcon(Icons::RUN, Icons::RUN_FLAT);
-    runIcon.addPixmap(Core::Icons::RUN_SMALL_TOOLBAR.pixmap());
+    const QIcon runSideBarIcon = Utils::Icon::sideBarIcon(Icons::RUN, Icons::RUN_FLAT);
+    const QIcon runIcon = Utils::Icon::combinedIcon({Core::Icons::RUN_SMALL.icon(), runSideBarIcon});
     runMenu->menu()->setIcon(runIcon);
     runMenu->menu()->setTitle(tr("Run"));
     msubProjectContextMenu->addMenu(runMenu, ProjectExplorer::Constants::G_PROJECT_RUN);
@@ -854,7 +840,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     msessionContextMenu->addAction(cmd, Constants::G_SESSION_REBUILD);
 
     // clean session
-    dd->m_cleanSessionAction = new QAction(Icons::CLEAN.icon(), tr("Clean All"), this);
+    dd->m_cleanSessionAction = new QAction(Core::Icons::CLEAN.icon(), tr("Clean All"), this);
     cmd = ActionManager::registerAction(dd->m_cleanSessionAction, Constants::CLEANSESSION);
     mbuild->addAction(cmd, Constants::G_BUILD_CLEAN);
     msessionContextMenu->addAction(cmd, Constants::G_SESSION_REBUILD);
@@ -897,7 +883,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     mbuild->addAction(cmd, Constants::G_BUILD_CLEAN);
 
     // cancel build action
-    dd->m_cancelBuildAction = new QAction(Core::Icons::STOP_SMALL_TOOLBAR.icon(), tr("Cancel Build"), this);
+    dd->m_cancelBuildAction = new QAction(Core::Icons::STOP_SMALL.icon(), tr("Cancel Build"), this);
     cmd = ActionManager::registerAction(dd->m_cancelBuildAction, Constants::CANCELBUILD);
     mbuild->addAction(cmd, Constants::G_BUILD_CANCEL);
 
@@ -1023,6 +1009,12 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd = ActionManager::registerAction(dd->m_removeFileAction, Constants::REMOVEFILE,
                        projecTreeContext);
     cmd->setDefaultKeySequence(QKeySequence::Delete);
+    mfileContextMenu->addAction(cmd, Constants::G_FILE_OTHER);
+
+    // duplicate file action
+    dd->m_duplicateFileAction = new QAction(tr("Duplicate File..."), this);
+    cmd = ActionManager::registerAction(dd->m_duplicateFileAction, Constants::DUPLICATEFILE,
+                       projecTreeContext);
     mfileContextMenu->addAction(cmd, Constants::G_FILE_OTHER);
 
     //: Remove project from parent profile (Project explorer view); will not physically delete any files.
@@ -1152,7 +1144,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
         dd->m_projectExplorerSettings.environmentId = QUuid::createUuid();
     int tmp = s->value(QLatin1String("ProjectExplorer/Settings/StopBeforeBuild"),
                             Utils::HostOsInfo::isWindowsHost() ? 1 : 0).toInt();
-    if (tmp < 0 || tmp > ProjectExplorerSettings::StopAll)
+    if (tmp < 0 || tmp > ProjectExplorerSettings::StopSameBuildDir)
         tmp = Utils::HostOsInfo::isWindowsHost() ? 1 : 0;
     dd->m_projectExplorerSettings.stopBeforeBuild = ProjectExplorerSettings::StopBeforeBuild(tmp);
 
@@ -1201,11 +1193,11 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     connect(dd->m_cleanSessionAction, &QAction::triggered,
             dd, &ProjectExplorerPluginPrivate::cleanSession);
     connect(dd->m_runAction, &QAction::triggered,
-            dd, &ProjectExplorerPluginPrivate::handleRunProject);
+            dd, [this]() { m_instance->runStartupProject(Constants::NORMAL_RUN_MODE); });
     connect(dd->m_runActionContextMenu, &QAction::triggered,
             dd, &ProjectExplorerPluginPrivate::runProjectContextMenu);
     connect(dd->m_runWithoutDeployAction, &QAction::triggered,
-            dd, &ProjectExplorerPluginPrivate::runProjectWithoutDeploy);
+            dd, [this]() { m_instance->runStartupProject(Constants::NORMAL_RUN_MODE, true); });
     connect(dd->m_cancelBuildAction, &QAction::triggered,
             dd, &ProjectExplorerPluginPrivate::cancelBuild);
     connect(dd->m_unloadAction, &QAction::triggered,
@@ -1234,6 +1226,8 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
             dd, &ProjectExplorerPluginPrivate::openTerminalHere);
     connect(dd->m_removeFileAction, &QAction::triggered,
             dd, &ProjectExplorerPluginPrivate::removeFile);
+    connect(dd->m_duplicateFileAction, &QAction::triggered,
+            dd, &ProjectExplorerPluginPrivate::duplicateFile);
     connect(dd->m_deleteFileAction, &QAction::triggered,
             dd, &ProjectExplorerPluginPrivate::deleteFile);
     connect(dd->m_renameFileAction, &QAction::triggered,
@@ -1482,7 +1476,7 @@ void ProjectExplorerPlugin::extensionsInitialized()
         OpenProjectResult result = ProjectExplorerPlugin::openProject(fileName);
         if (!result)
             showOpenProjectError(result);
-        return 0;
+        return nullptr;
     });
 
     Utils::MimeDatabase mdb;
@@ -1532,7 +1526,7 @@ ExtensionSystem::IPlugin::ShutdownFlag ProjectExplorerPlugin::aboutToShutdown()
     ProjectTree::aboutToShutDown();
     dd->m_proWindow->aboutToShutdown(); // disconnect from session
     SessionManager::closeAllProjects();
-    dd->m_projectsMode = 0;
+    dd->m_projectsMode = nullptr;
     dd->m_shuttingDown = true;
     // Attempt to synchronously shutdown all run controls.
     // If that fails, fall back to asynchronous shutdown (Debugger run controls
@@ -1569,8 +1563,7 @@ void ProjectExplorerPluginPrivate::showSessionManager()
 
     updateActions();
 
-    IMode *welcomeMode = ModeManager::mode(Core::Constants::MODE_WELCOME);
-    if (ModeManager::currentMode() == welcomeMode)
+    if (ModeManager::currentMode() == Core::Constants::MODE_WELCOME)
         updateWelcomePage();
 }
 
@@ -1778,11 +1771,11 @@ void ProjectExplorerPluginPrivate::updateWelcomePage()
     m_welcomePage->reloadWelcomeScreenData();
 }
 
-void ProjectExplorerPluginPrivate::currentModeChanged(IMode *mode, IMode *oldMode)
+void ProjectExplorerPluginPrivate::currentModeChanged(Id mode, Id oldMode)
 {
-    if (oldMode && oldMode->id() == Constants::MODE_SESSION)
+    if (oldMode == Constants::MODE_SESSION)
         ICore::saveSettings();
-    if (mode && mode->id() == Core::Constants::MODE_WELCOME)
+    if (mode == Core::Constants::MODE_WELCOME)
         updateWelcomePage();
 }
 
@@ -2010,14 +2003,14 @@ void ProjectExplorerPluginPrivate::buildQueueFinished(bool success)
         if (BuildManager::tasksAvailable())
             BuildManager::showTaskWindow();
     }
-    m_delayedRunConfiguration = 0;
+    m_delayedRunConfiguration = nullptr;
     m_shouldHaveRunConfiguration = false;
     m_runMode = Constants::NO_RUN_MODE;
 }
 
 void ProjectExplorerPluginPrivate::runConfigurationConfigurationFinished()
 {
-    RunConfiguration *rc = qobject_cast<RunConfiguration *>(sender());
+    auto rc = qobject_cast<RunConfiguration *>(sender());
     Core::Id runMode = Constants::NO_RUN_MODE;
     for (int i = 0; i < m_delayedRunConfigurationForRun.size(); ++i) {
         if (m_delayedRunConfigurationForRun.at(i).first == rc) {
@@ -2232,10 +2225,36 @@ int ProjectExplorerPluginPrivate::queue(QList<Project *> projects, QList<Id> ste
 
     if (m_projectExplorerSettings.stopBeforeBuild != ProjectExplorerSettings::StopNone
             && stepIds.contains(Constants::BUILDSTEPS_BUILD)) {
-        bool stopAll = (m_projectExplorerSettings.stopBeforeBuild == ProjectExplorerSettings::StopAll);
+        ProjectExplorerSettings::StopBeforeBuild stopCondition = m_projectExplorerSettings.stopBeforeBuild;
         const QList<RunControl *> toStop
-                = Utils::filtered(m_outputPane->allRunControls(), [&projects, stopAll](RunControl *rc) {
-                                      return rc->isRunning() && (stopAll || projects.contains(rc->project()));
+                = Utils::filtered(m_outputPane->allRunControls(), [&projects, stopCondition](RunControl *rc) -> bool {
+                                      if (!rc->isRunning())
+                                          return false;
+
+                                      switch (stopCondition) {
+                                      case ProjectExplorerSettings::StopNone:
+                                          return false;
+                                      case ProjectExplorerSettings::StopAll:
+                                          return true;
+                                      case ProjectExplorerSettings::StopSameProject:
+                                          return projects.contains(rc->project());
+                                      case ProjectExplorerSettings::StopSameBuildDir:
+                                          return Utils::contains(projects, [rc](Project *p) {
+                                              Target *t = p ? p->activeTarget() : nullptr;
+                                              BuildConfiguration *bc = t ? t->activeBuildConfiguration() : nullptr;
+                                              if (!bc)
+                                                  return false;
+                                              if (!rc->runnable().is<StandardRunnable>())
+                                                  return false;
+                                              if (!Utils::FileName::fromString(rc->runnable().as<StandardRunnable>().executable).isChildOf(bc->buildDirectory()))
+                                                  return false;
+                                              IDevice::ConstPtr device = rc->runnable().as<StandardRunnable>().device;
+                                              if (device.isNull())
+                                                  device = DeviceKitInformation::device(t->kit());
+                                              return !device.isNull() && device->type() == Core::Id(Constants::DESKTOP_DEVICE_TYPE);
+                                          });
+                                      }
+                                      return false; // Can't get here!
                                   });
 
         if (!toStop.isEmpty()) {
@@ -2281,7 +2300,7 @@ int ProjectExplorerPluginPrivate::queue(QList<Project *> projects, QList<Id> ste
         foreach (Project *pro, projects) {
             if (!pro || pro->needsConfiguration())
                 continue;
-            BuildStepList *bsl = 0;
+            BuildStepList *bsl = nullptr;
             if (id == Constants::BUILDSTEPS_DEPLOY
                 && pro->activeTarget()->activeDeployConfiguration())
                 bsl = pro->activeTarget()->activeDeployConfiguration()->stepList();
@@ -2423,24 +2442,14 @@ void ProjectExplorerPluginPrivate::cleanSession()
           QList<Id>() << Id(Constants::BUILDSTEPS_CLEAN));
 }
 
-void ProjectExplorerPluginPrivate::handleRunProject()
-{
-    m_instance->runStartupProject(Constants::NORMAL_RUN_MODE);
-}
-
-void ProjectExplorerPluginPrivate::runProjectWithoutDeploy()
-{
-    m_instance->runStartupProject(Constants::NORMAL_RUN_MODE, true);
-}
-
 void ProjectExplorerPluginPrivate::runProjectContextMenu()
 {
     Node *node = ProjectTree::currentNode();
-    ProjectNode *projectNode = node ? node->asProjectNode() : 0;
+    ProjectNode *projectNode = node ? node->asProjectNode() : nullptr;
     if (projectNode == ProjectTree::currentProject()->rootProjectNode() || !projectNode) {
         m_instance->runProject(ProjectTree::currentProject(), Constants::NORMAL_RUN_MODE);
     } else {
-        QAction *act = qobject_cast<QAction *>(sender());
+        auto act = qobject_cast<QAction *>(sender());
         if (!act)
             return;
         RunConfiguration *rc = act->data().value<RunConfiguration *>();
@@ -2502,11 +2511,11 @@ QPair<bool, QString> ProjectExplorerPluginPrivate::buildSettingsEnabledForSessio
     } else if (BuildManager::isBuilding()) {
         result.first = false;
         result.second = tr("A build is in progress.");
-    } else if (!hasBuildSettings(0)) {
+    } else if (!hasBuildSettings(nullptr)) {
         result.first = false;
         result.second = tr("Project has no build settings.");
     } else {
-        foreach (Project *project, SessionManager::projectOrder(0)) {
+        foreach (Project *project, SessionManager::projectOrder(nullptr)) {
             if (project
                     && project->activeTarget()
                     && project->activeTarget()->activeBuildConfiguration()
@@ -2622,7 +2631,7 @@ void ProjectExplorerPluginPrivate::projectDisplayNameChanged(Project *pro)
 
 void ProjectExplorerPluginPrivate::startupProjectChanged()
 {
-    static QPointer<Project> previousStartupProject = 0;
+    static QPointer<Project> previousStartupProject = nullptr;
     Project *project = SessionManager::startupProject();
     if (project == previousStartupProject)
         return;
@@ -2645,8 +2654,8 @@ void ProjectExplorerPluginPrivate::startupProjectChanged()
 
 void ProjectExplorerPluginPrivate::activeTargetChanged()
 {
-    static QPointer<Target> previousTarget = 0;
-    Target *target = 0;
+    static QPointer<Target> previousTarget = nullptr;
+    Target *target = nullptr;
     Project *startupProject = SessionManager::startupProject();
     if (startupProject)
         target = startupProject->activeTarget();
@@ -2669,8 +2678,8 @@ void ProjectExplorerPluginPrivate::activeTargetChanged()
 
 void ProjectExplorerPluginPrivate::activeRunConfigurationChanged()
 {
-    static QPointer<RunConfiguration> previousRunConfiguration = 0;
-    RunConfiguration *rc = 0;
+    static QPointer<RunConfiguration> previousRunConfiguration = nullptr;
+    RunConfiguration *rc = nullptr;
     Project *startupProject = SessionManager::startupProject();
     if (startupProject && startupProject->activeTarget())
         rc = startupProject->activeTarget()->activeRunConfiguration();
@@ -2727,10 +2736,10 @@ void ProjectExplorerPluginPrivate::updateDeployActions()
                     && !project->activeTarget()->activeBuildConfiguration()->isEnabled();
         };
 
-        if (Utils::anyOf(SessionManager::projectOrder(0), hasDisabledBuildConfiguration))
+        if (Utils::anyOf(SessionManager::projectOrder(nullptr), hasDisabledBuildConfiguration))
             enableDeploySessionAction = false;
     }
-    if (!hasProjects || !hasDeploySettings(0) || BuildManager::isBuilding())
+    if (!hasProjects || !hasDeploySettings(nullptr) || BuildManager::isBuilding())
         enableDeploySessionAction = false;
     m_deploySessionAction->setEnabled(enableDeploySessionAction);
 
@@ -2913,6 +2922,7 @@ void ProjectExplorerPluginPrivate::updateContextMenuActions()
     m_addNewSubprojectAction->setEnabled(false);
     m_removeProjectAction->setEnabled(false);
     m_removeFileAction->setEnabled(false);
+    m_duplicateFileAction->setEnabled(false);
     m_deleteFileAction->setEnabled(false);
     m_renameFileAction->setEnabled(false);
 
@@ -2922,6 +2932,7 @@ void ProjectExplorerPluginPrivate::updateContextMenuActions()
     m_addNewSubprojectAction->setVisible(true);
     m_removeProjectAction->setVisible(true);
     m_removeFileAction->setVisible(true);
+    m_duplicateFileAction->setVisible(false);
     m_deleteFileAction->setVisible(true);
     m_runActionContextMenu->setVisible(false);
 
@@ -2985,6 +2996,9 @@ void ProjectExplorerPluginPrivate::updateContextMenuActions()
 
             m_removeFileAction->setVisible(!enableDelete || enableRemove);
             m_renameFileAction->setEnabled(actions.contains(Rename));
+
+            m_duplicateFileAction->setVisible(actions.contains(DuplicateFile));
+            m_duplicateFileAction->setEnabled(actions.contains(DuplicateFile));
 
             EditorManager::populateOpenWithMenu(m_openWithMenu,
                                                 ProjectTree::currentNode()->filePath().toString());
@@ -3061,7 +3075,7 @@ void ProjectExplorerPluginPrivate::addNewSubproject()
 void ProjectExplorerPluginPrivate::handleAddExistingFiles()
 {
     Node *node = ProjectTree::currentNode();
-    FolderNode *folderNode = node ? node->asFolderNode() : 0;
+    FolderNode *folderNode = node ? node->asFolderNode() : nullptr;
 
     QTC_ASSERT(folderNode, return);
 
@@ -3076,7 +3090,7 @@ void ProjectExplorerPluginPrivate::handleAddExistingFiles()
 void ProjectExplorerPluginPrivate::addExistingDirectory()
 {
     Node *node = ProjectTree::currentNode();
-    FolderNode *folderNode = node ? node->asFolderNode() : 0;
+    FolderNode *folderNode = node ? node->asFolderNode() : nullptr;
 
     QTC_ASSERT(folderNode, return);
 
@@ -3186,6 +3200,37 @@ void ProjectExplorerPluginPrivate::removeFile()
     }
 }
 
+void ProjectExplorerPluginPrivate::duplicateFile()
+{
+    Node *currentNode = ProjectTree::currentNode();
+    QTC_ASSERT(currentNode && currentNode->nodeType() == FileNodeType, return);
+
+    FileNode *fileNode = currentNode->asFileNode();
+    QString filePath = currentNode->filePath().toString();
+    QFileInfo sourceFileInfo(filePath);
+    QString baseName = sourceFileInfo.baseName();
+
+    QString newFilePath = filePath;
+    int copyTokenIndex = filePath.lastIndexOf(baseName)+baseName.length();
+    newFilePath.insert(copyTokenIndex, tr("_copy"));
+
+    // Build a new file name till a non-existing file is not found.
+    uint counter = 0;
+    while (QFileInfo::exists(newFilePath)) {
+        newFilePath = filePath;
+        newFilePath.insert(copyTokenIndex, tr("_copy%1").arg(++counter));
+    }
+
+    // Create a copy and add the file to the parent folder node.
+    FolderNode *folderNode = fileNode->parentFolderNode();
+    Q_ASSERT(folderNode);
+    if (!(QFile::copy(filePath, newFilePath) && folderNode->addFiles(QStringList(newFilePath)))) {
+        QMessageBox::warning(ICore::mainWindow(), tr("Duplicating File Failed"),
+                             tr("Could not duplicate the file %1.")
+                             .arg(QDir::toNativeSeparators(filePath)));
+    }
+}
+
 void ProjectExplorerPluginPrivate::deleteFile()
 {
     Node *currentNode = ProjectTree::currentNode();
@@ -3227,7 +3272,7 @@ void ProjectExplorerPluginPrivate::handleRenameFile()
 {
     QWidget *focusWidget = QApplication::focusWidget();
     while (focusWidget) {
-        ProjectTreeWidget *treeWidget = qobject_cast<ProjectTreeWidget*>(focusWidget);
+        auto treeWidget = qobject_cast<ProjectTreeWidget*>(focusWidget);
         if (treeWidget) {
             treeWidget->editCurrentItem();
             return;

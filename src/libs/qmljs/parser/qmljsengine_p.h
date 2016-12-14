@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSENGINE_P_H
-#define QMLJSENGINE_P_H
+#pragma once
 
 //
 //  W A R N I N G
@@ -40,11 +39,11 @@
 #include "qmljsglobal_p.h"
 #include "qmljsastfwd_p.h"
 #include "qmljsmemorypool_p.h"
-#include <qmljs/qmljsconstants.h>
 
 #include <QString>
 #include <QSet>
 
+#include <qmljs/qmljsconstants.h>
 QT_QML_BEGIN_NAMESPACE
 
 namespace QmlJS {
@@ -95,8 +94,8 @@ public:
     Lexer *lexer() const;
     void setLexer(Lexer *lexer);
 
-    void setDirectives(Directives *directives);
     Directives *directives() const;
+    void setDirectives(Directives *directives);
 
     MemoryPool *pool();
 
@@ -111,5 +110,3 @@ double integerFromString(const char *buf, int size, int radix);
 } // end of namespace QmlJS
 
 QT_QML_END_NAMESPACE
-
-#endif // QMLJSENGINE_P_H

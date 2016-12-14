@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSRUNCONFIGURATION_H
-#define IOSRUNCONFIGURATION_H
+#pragma once
 
 #include "iosconstants.h"
 #include "iosconfigurations.h"
@@ -72,12 +71,12 @@ public:
 protected:
     IosRunConfiguration(ProjectExplorer::Target *parent, IosRunConfiguration *source);
 
-private slots:
-    void proFileUpdated(QmakeProjectManager::QmakeProFileNode *pro, bool success, bool parseInProgress);
-    void deviceChanges();
 signals:
     void localExecutableChanged();
+
 private:
+    void proFileUpdated(QmakeProjectManager::QmakeProFileNode *pro, bool success, bool parseInProgress);
+    void deviceChanges();
     void init();
     void enabledCheck();
     friend class IosRunConfigurationWidget;
@@ -93,5 +92,3 @@ private:
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSRUNCONFIGURATION_H

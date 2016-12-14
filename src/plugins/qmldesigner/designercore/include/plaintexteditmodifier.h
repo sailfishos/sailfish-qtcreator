@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLAINTEXTEDITMODIFIER_H
-#define PLAINTEXTEDITMODIFIER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "textmodifier.h"
@@ -70,6 +69,7 @@ public:
     virtual void reactivateChangeSignals();
 
     virtual bool renameId(const QString & /* oldId */, const QString & /* newId */) { return false; }
+    virtual bool moveToComponent(int /* nodeOffset */) { return false; }
 
 protected:
     QPlainTextEdit *plainTextEdit() const
@@ -104,5 +104,3 @@ public:
 };
 
 }
-
-#endif // PLAINTEXTEDITMODIFIER_H

@@ -42,6 +42,7 @@
 #include <utils/qtcassert.h>
 #include <utils/stylehelper.h>
 #include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include <QDebug>
 #include <QSettings>
@@ -63,9 +64,8 @@ static const int FINDBUTTON_SPACER_WIDTH = 20;
 namespace Core {
 namespace Internal {
 
-FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumentFind)
-    : m_plugin(plugin),
-      m_currentDocumentFind(currentDocumentFind),
+FindToolBar::FindToolBar(CurrentDocumentFind *currentDocumentFind)
+    : m_currentDocumentFind(currentDocumentFind),
       m_findCompleter(new QCompleter(this)),
       m_replaceCompleter(new QCompleter(this)),
       m_findIncrementalTimer(this),
@@ -91,8 +91,8 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     connect(m_ui.close, &QToolButton::clicked,
             this, &FindToolBar::hideAndResetFocus);
 
-    m_findCompleter->setModel(m_plugin->findCompletionModel());
-    m_replaceCompleter->setModel(m_plugin->replaceCompletionModel());
+    m_findCompleter->setModel(Find::findCompletionModel());
+    m_replaceCompleter->setModel(Find::replaceCompletionModel());
     m_ui.findEdit->setSpecialCompleter(m_findCompleter);
     m_ui.replaceEdit->setSpecialCompleter(m_replaceCompleter);
 
@@ -529,7 +529,7 @@ void FindToolBar::invokeFindStep()
     m_findStepTimer.stop();
     m_findIncrementalTimer.stop();
     if (m_currentDocumentFind->isEnabled()) {
-        m_plugin->updateFindCompletion(getFindText());
+        Find::updateFindCompletion(getFindText());
         IFindSupport::Result result =
             m_currentDocumentFind->findStep(getFindText(), effectiveFindFlags());
         indicateSearchState(result);
@@ -558,8 +558,8 @@ void FindToolBar::invokeReplace()
 {
     setFindFlag(FindBackward, false);
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace()) {
-        m_plugin->updateFindCompletion(getFindText());
-        m_plugin->updateReplaceCompletion(getReplaceText());
+        Find::updateFindCompletion(getFindText());
+        Find::updateReplaceCompletion(getReplaceText());
         m_currentDocumentFind->replace(getFindText(), getReplaceText(), effectiveFindFlags());
     }
 }
@@ -597,16 +597,16 @@ void FindToolBar::invokeGlobalReplacePrevious()
 void FindToolBar::invokeReplaceStep()
 {
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace()) {
-        m_plugin->updateFindCompletion(getFindText());
-        m_plugin->updateReplaceCompletion(getReplaceText());
+        Find::updateFindCompletion(getFindText());
+        Find::updateReplaceCompletion(getReplaceText());
         m_currentDocumentFind->replaceStep(getFindText(), getReplaceText(), effectiveFindFlags());
     }
 }
 
 void FindToolBar::invokeReplaceAll()
 {
-    m_plugin->updateFindCompletion(getFindText());
-    m_plugin->updateReplaceCompletion(getReplaceText());
+    Find::updateFindCompletion(getFindText());
+    Find::updateReplaceCompletion(getReplaceText());
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace())
         m_currentDocumentFind->replaceAll(getFindText(), getReplaceText(), effectiveFindFlags());
 }
@@ -963,9 +963,9 @@ void FindToolBar::setLightColoredIcon(bool lightColored)
         m_ui.findPreviousButton->setArrowType(Qt::LeftArrow);
         m_ui.close->setIcon(Icons::CLOSE_FOREGROUND.icon());
     } else {
-        m_ui.findNextButton->setIcon(Icons::NEXT_TOOLBAR.icon());
+        m_ui.findNextButton->setIcon(Utils::Icons::NEXT_TOOLBAR.icon());
         m_ui.findNextButton->setArrowType(Qt::NoArrow);
-        m_ui.findPreviousButton->setIcon(Icons::PREV_TOOLBAR.icon());
+        m_ui.findPreviousButton->setIcon(Utils::Icons::PREV_TOOLBAR.icon());
         m_ui.findPreviousButton->setArrowType(Qt::NoArrow);
         m_ui.close->setIcon(Icons::CLOSE_TOOLBAR.icon());
     }

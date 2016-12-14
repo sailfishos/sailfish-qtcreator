@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SUBVERSIONPLUGIN_H
-#define SUBVERSIONPLUGIN_H
+#pragma once
 
 #include "subversionsettings.h"
 
@@ -57,6 +56,11 @@ struct SubversionResponse
     QString stdErr;
     QString message;
 };
+
+const char FileAddedC[]      = "A";
+const char FileConflictedC[] = "C";
+const char FileDeletedC[]    = "D";
+const char FileModifiedC[]   = "M";
 
 class SubversionPlugin : public VcsBase::VcsBasePlugin
 {
@@ -181,5 +185,3 @@ private:
 
 } // namespace Subversion
 } // namespace Internal
-
-#endif // SUBVERSIONPLUGIN_H

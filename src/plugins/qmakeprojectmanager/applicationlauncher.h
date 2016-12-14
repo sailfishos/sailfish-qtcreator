@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef APPLICATIONLAUNCHER_H
-#define APPLICATIONLAUNCHER_H
+#pragma once
 
 #include <QObject>
 #include <QStringList>
@@ -56,7 +55,7 @@ signals:
     void appendOutput(const QString &error);
     void processExited(int exitCode);
 
-private slots:
+private:
     void processStopped();
 #ifdef Q_OS_WIN
     void readWinDebugOutput(const QString &output);
@@ -77,5 +76,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // APPLICATIONLAUNCHER_H

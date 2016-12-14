@@ -13,9 +13,8 @@
 #include <QMainWindow>
 #include <QMenu>
 
-#include <QtPlugin>
-
-using namespace %PluginName%::Internal;
+namespace %PluginName% {
+namespace Internal {
 
 %PluginName%Plugin::%PluginName%Plugin()
 {
@@ -44,7 +43,7 @@ bool %PluginName%Plugin::initialize(const QStringList &arguments, QString *error
     Core::Command *cmd = Core::ActionManager::registerAction(action, Constants::ACTION_ID,
                          Core::Context(Core::Constants::C_GLOBAL));
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Alt+Meta+A")));
-    connect(action, SIGNAL(triggered()), this, SLOT(triggerAction()));
+    connect(action, &QAction::triggered, this, &%PluginName%Plugin::triggerAction);
 
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MENU_ID);
     menu->menu()->setTitle(tr("%PluginName%"));
@@ -75,3 +74,6 @@ void %PluginName%Plugin::triggerAction()
                              tr("Action Triggered"),
                              tr("This is an action from %PluginName%."));
 }
+
+} // namespace Internal
+} // namespace %PluginName%

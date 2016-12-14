@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPLUSPLUS_ICONS_H
-#define CPLUSPLUS_ICONS_H
+#pragma once
 
 #include <cplusplus/CPlusPlusForwardDeclarations.h>
 
@@ -77,5 +76,3 @@ private:
 };
 
 } // namespace CPlusPlus
-
-#endif // CPLUSPLUS_ICONS_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEPARSER_H
-#define QMAKEPARSER_H
+#pragma once
 
 #include "qmake_global.h"
 #include "proitems.h"
@@ -84,7 +83,7 @@ public:
     enum SubGrammar { FullGrammar, TestGrammar, ValueGrammar };
     // fileName is expected to be absolute and cleanPath()ed.
     ProFile *parsedProFile(const QString &fileName, ParseFlags flags = ParseDefault);
-    ProFile *parsedProBlock(const QString &contents, const QString &name, int line = 0,
+    ProFile *parsedProBlock(const QStringRef &contents, const QString &name, int line = 0,
                             SubGrammar grammar = FullGrammar);
 
     void discardFileFromCache(const QString &fileName);
@@ -127,7 +126,7 @@ private:
     };
 
     bool read(ProFile *pro, ParseFlags flags);
-    void read(ProFile *pro, const QString &content, int line, SubGrammar grammar);
+    void read(ProFile *pro, const QStringRef &content, int line, SubGrammar grammar);
 
     ALWAYS_INLINE void putTok(ushort *&tokPtr, ushort tok);
     ALWAYS_INLINE void putBlockLen(ushort *&tokPtr, uint len);
@@ -138,7 +137,7 @@ private:
     ALWAYS_INLINE bool resolveVariable(ushort *xprPtr, int tlen, int needSep, ushort **ptr,
                                        ushort **buf, QString *xprBuff,
                                        ushort **tokPtr, QString *tokBuff,
-                                       const ushort *cur, const QString &in);
+                                       const ushort *cur, const QStringRef &in);
     void finalizeCond(ushort *&tokPtr, ushort *uc, ushort *ptr, int wordCount);
     void finalizeCall(ushort *&tokPtr, ushort *uc, ushort *ptr, int argc);
     void warnOperator(const char *msg);
@@ -226,5 +225,3 @@ Q_DECLARE_TYPEINFO(QMakeParser::Context, Q_PRIMITIVE_TYPE);
 #endif
 
 QT_END_NAMESPACE
-
-#endif // PROFILEPARSER_H

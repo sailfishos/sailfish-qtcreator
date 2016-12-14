@@ -49,7 +49,6 @@
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
-#include <QFileSystemWatcher>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QSet>
@@ -82,6 +81,9 @@ static QStringList toArguments(const CMakeConfig &config, const ProjectExplorer:
         case CMakeConfigItem::INTERNAL:
             a.append(QLatin1String(":INTERNAL="));
             break;
+        case CMakeConfigItem::STATIC:
+            a.append(QLatin1String(":STATIC="));
+            break;
         }
         a.append(i.expandedValue(k));
 
@@ -94,20 +96,14 @@ static QStringList toArguments(const CMakeConfig &config, const ProjectExplorer:
 // --------------------------------------------------------------------
 
 BuildDirManager::BuildDirManager(CMakeBuildConfiguration *bc) :
-    m_buildConfiguration(bc),
-    m_watcher(new QFileSystemWatcher(this))
+    m_buildConfiguration(bc)
 {
     QTC_ASSERT(bc, return);
     m_projectName = sourceDirectory().fileName();
 
     m_reparseTimer.setSingleShot(true);
-    m_reparseTimer.setInterval(5000);
+    m_reparseTimer.setInterval(2000);
     connect(&m_reparseTimer, &QTimer::timeout, this, &BuildDirManager::parse);
-
-    connect(m_watcher, &QFileSystemWatcher::fileChanged, this, [this]() {
-        if (!isParsing())
-            m_reparseTimer.start();
-    });
 }
 
 BuildDirManager::~BuildDirManager()
@@ -154,6 +150,18 @@ bool BuildDirManager::isParsing() const
     return false;
 }
 
+void BuildDirManager::cmakeFilesChanged()
+{
+    if (isParsing())
+        return;
+
+    const CMakeTool *tool = CMakeKitInformation::cmakeTool(m_buildConfiguration->target()->kit());
+    if (!tool->isAutoRun())
+        return;
+
+    m_reparseTimer.start();
+}
+
 void BuildDirManager::forceReparse()
 {
     if (m_buildConfiguration->target()->activeBuildConfiguration() != m_buildConfiguration)
@@ -177,13 +185,8 @@ void BuildDirManager::resetData()
     m_cmakeCache.clear();
     m_projectName.clear();
     m_buildTargets.clear();
-    m_watchedFiles.clear();
     qDeleteAll(m_files);
     m_files.clear();
-
-    const QStringList watchedFiles = m_watcher->files();
-    if (!watchedFiles.isEmpty())
-        m_watcher->removePaths(watchedFiles);
 }
 
 bool BuildDirManager::persistCMakeState()
@@ -220,8 +223,8 @@ void BuildDirManager::parse()
         return;
     }
 
-    const bool mustUpdate = m_watchedFiles.isEmpty()
-            || Utils::anyOf(m_watchedFiles, [&cbpFileFi](const Utils::FileName &f) {
+    const bool mustUpdate = m_cmakeFiles.isEmpty()
+            || Utils::anyOf(m_cmakeFiles, [&cbpFileFi](const Utils::FileName &f) {
                    return f.toFileInfo().lastModified() > cbpFileFi.lastModified();
                });
     if (mustUpdate) {
@@ -248,11 +251,6 @@ void BuildDirManager::clearCache()
     forceReparse();
 }
 
-bool BuildDirManager::isProjectFile(const Utils::FileName &fileName) const
-{
-    return m_watchedFiles.contains(fileName);
-}
-
 QString BuildDirManager::projectName() const
 {
     return m_projectName;
@@ -266,6 +264,11 @@ QList<CMakeBuildTarget> BuildDirManager::buildTargets() const
 QList<ProjectExplorer::FileNode *> BuildDirManager::files()
 {
     return m_files;
+}
+
+QSet<Utils::FileName> BuildDirManager::cmakeFiles()
+{
+    return m_cmakeFiles;
 }
 
 void BuildDirManager::clearFiles()
@@ -305,7 +308,7 @@ void BuildDirManager::stopProcess()
 
     if (m_cmakeProcess->state() == QProcess::Running) {
         m_cmakeProcess->terminate();
-        if (!m_cmakeProcess->waitForFinished(500))
+        if (!m_cmakeProcess->waitForFinished(500) && m_cmakeProcess->state() == QProcess::Running)
             m_cmakeProcess->kill();
     }
 
@@ -330,9 +333,10 @@ void BuildDirManager::cleanUpProcess()
 
     if (m_cmakeProcess->state() == QProcess::Running) {
         m_cmakeProcess->terminate();
-        if (!m_cmakeProcess->waitForFinished(500))
+        if (!m_cmakeProcess->waitForFinished(500) && m_cmakeProcess->state() == QProcess::Running)
             m_cmakeProcess->kill();
     }
+    m_cmakeProcess->waitForFinished();
     delete m_cmakeProcess;
     m_cmakeProcess = nullptr;
 
@@ -351,15 +355,19 @@ void BuildDirManager::extractData()
 
     m_projectName = sourceDirectory().fileName();
     m_files.append(new ProjectExplorer::FileNode(topCMake, ProjectExplorer::ProjectFileType, false));
-    m_watchedFiles.insert(topCMake);
+    // Do not insert topCMake into m_cmakeFiles: The project already watches that!
 
     // Find cbp file
     QString cbpFile = CMakeManager::findCbpFile(workDirectory().toString());
     if (cbpFile.isEmpty())
         return;
+    m_cmakeFiles.insert(Utils::FileName::fromString(cbpFile));
 
-    m_watcher->addPath(cbpFile);
-    m_watcher->addPath(workDirectory().toString() + QLatin1String("/CMakeCache.txt"));
+    // Add CMakeCache.txt file:
+    Utils::FileName cacheFile = workDirectory();
+    cacheFile.appendPath(QLatin1String("CMakeCache.txt"));
+    if (cacheFile.toFileInfo().exists())
+        m_cmakeFiles.insert(cacheFile);
 
     // setFolderName
     CMakeCbpParser cbpparser;
@@ -370,20 +378,16 @@ void BuildDirManager::extractData()
     m_projectName = cbpparser.projectName();
 
     m_files = cbpparser.fileList();
-    QSet<Utils::FileName> projectFiles;
     if (cbpparser.hasCMakeFiles()) {
         m_files.append(cbpparser.cmakeFileList());
         foreach (const ProjectExplorer::FileNode *node, cbpparser.cmakeFileList())
-            projectFiles.insert(node->filePath());
-    } else {
-        m_files.append(new ProjectExplorer::FileNode(topCMake, ProjectExplorer::ProjectFileType, false));
-        projectFiles.insert(topCMake);
+            m_cmakeFiles.insert(node->filePath());
     }
 
-    m_watchedFiles = projectFiles;
-    const QStringList toWatch
-            = Utils::transform(m_watchedFiles.toList(), [](const Utils::FileName &fn) { return fn.toString(); });
-    m_watcher->addPaths(toWatch);
+    // Make sure the top cmakelists.txt file is always listed:
+    if (!Utils::contains(m_files, [topCMake](ProjectExplorer::FileNode *fn) { return fn->filePath() == topCMake; })) {
+        m_files.append(new ProjectExplorer::FileNode(topCMake, ProjectExplorer::ProjectFileType, false));
+    }
 
     m_buildTargets = cbpparser.buildTargets();
 }

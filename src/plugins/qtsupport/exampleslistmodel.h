@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EXAMPLESLISTMODEL_H
-#define EXAMPLESLISTMODEL_H
+#pragma once
 
 #include <QAbstractListModel>
 #include <QSortFilterProxyModel>
@@ -212,11 +211,10 @@ signals:
     void searchStrings(const QStringList &arg);
     void exampleSetIndexChanged();
 
-private slots:
+private:
     void qtVersionManagerLoaded();
     void helpManagerInitialized();
 
-private:
     void exampleDataRequested() const;
     void tryToInitialize();
     void timerEvent(QTimerEvent *event);
@@ -237,7 +235,3 @@ private:
 
 } // namespace Internal
 } // namespace QtSupport
-
-#endif // EXAMPLESLISTMODEL_H
-
-

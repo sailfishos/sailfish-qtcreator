@@ -263,7 +263,6 @@ def selectFromFileDialog(fileName, waitForFile=False):
 # add Qt documentations from given paths
 # param which a list/tuple of the paths to the qch files to be added
 def addHelpDocumentation(which):
-    global sdkPath
     invokeMenuItem("Tools", "Options...")
     waitForObjectItem(":Options_QListView", "Help")
     clickItem(":Options_QListView", "Help", 14, 15, 0, Qt.LeftButton)
@@ -650,6 +649,11 @@ def getChildByClass(parent, classToSearchFor, occurrence=1):
 def getHelpViewer():
     try:
         return waitForObject(":Qt Creator_Help::Internal::HelpViewer", 3000)
+    except:
+        pass
+    try:
+        return waitForObject("{type='QWebEngineView' unnamed='1' "
+                             "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 1000)
     except:
         return waitForObject("{type='Help::Internal::TextBrowserHelpWidget' unnamed='1' "
                              "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 1000)

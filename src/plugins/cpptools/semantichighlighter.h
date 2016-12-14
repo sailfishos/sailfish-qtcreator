@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SEMANTICHIGHLIGHTER_H
-#define SEMANTICHIGHLIGHTER_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -57,7 +56,9 @@ public:
         MacroUse,
         FunctionUse,
         PseudoKeywordUse,
-        StringUse
+        StringUse,
+        FunctionDeclarationUse,
+        VirtualFunctionDeclarationUse,
     };
 
     typedef std::function<QFuture<TextEditor::HighlightingResult> ()> HighlightingRunner;
@@ -71,11 +72,10 @@ public:
 
     void run();
 
-private slots:
+private:
     void onHighlighterResultAvailable(int from, int to);
     void onHighlighterFinished();
 
-private:
     void connectWatcher();
     void disconnectWatcher();
 
@@ -92,5 +92,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // SEMANTICHIGHLIGHTER_H

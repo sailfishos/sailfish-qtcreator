@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSTOOLS_H
-#define QMLJSTOOLS_H
+#pragma once
 
 #include <coreplugin/id.h>
 #include <extensionsystem/iplugin.h>
@@ -59,23 +58,21 @@ public:
     ShutdownFlag aboutToShutdown();
     ModelManager *modelManager() { return m_modelManager; }
 
-private slots:
+private:
     void onTaskStarted(Core::Id type);
     void onAllTasksFinished(Core::Id type);
 
-#ifdef WITH_TESTS
-    void test_basic();
-#endif
-
-private:
     ModelManager *m_modelManager;
     QmlJSToolsSettings *m_settings;
     QAction *m_resetCodeModelAction;
 
     static QmlJSToolsPlugin *m_instance;
+
+#ifdef WITH_TESTS
+private slots:
+    void test_basic();
+#endif
 };
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // QMLJSTOOLS_H

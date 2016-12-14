@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef STOPMONITORINGHANDLER_H
-#define STOPMONITORINGHANDLER_H
+#pragma once
 
 #include <projectexplorer/itaskhandler.h>
 
@@ -34,14 +33,10 @@ namespace Internal {
 class StopMonitoringHandler : public ProjectExplorer::ITaskHandler
 {
 public:
-    StopMonitoringHandler() {}
-
-    bool canHandle(const ProjectExplorer::Task &) const;
-    void handle(const ProjectExplorer::Task &);
-    QAction *createAction(QObject *parent) const;
+    bool canHandle(const ProjectExplorer::Task &) const override;
+    void handle(const ProjectExplorer::Task &) override;
+    QAction *createAction(QObject *parent) const override;
 };
 
 } // namespace Internal
 } // namespace TaskList
-
-#endif // STOPMONITORINGHANDLER_H

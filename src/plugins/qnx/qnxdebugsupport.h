@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNX_INTERNAL_QNXDEBUGSUPPORT_H
-#define QNX_INTERNAL_QNXDEBUGSUPPORT_H
+#pragma once
 
 #include "qnxabstractrunsupport.h"
 
@@ -52,19 +51,19 @@ public slots:
     void handleDebuggingFinished();
 
 private slots:
-    void handleAdapterSetupRequested();
+    void handleAdapterSetupRequested() override;
 
-    void handleRemoteProcessStarted();
-    void handleRemoteProcessFinished(bool success);
-    void handleProgressReport(const QString &progressOutput);
-    void handleRemoteOutput(const QByteArray &output);
-    void handleError(const QString &error);
+    void handleRemoteProcessStarted() override;
+    void handleRemoteProcessFinished(bool success) override;
+    void handleProgressReport(const QString &progressOutput) override;
+    void handleRemoteOutput(const QByteArray &output) override;
+    void handleError(const QString &error) override;
 
     void printMissingWarning();
     void handleApplicationOutput(const QString &msg, Utils::OutputFormat outputFormat);
 
 private:
-    void startExecution();
+    void startExecution() override;
 
     QString processExecutable() const;
 
@@ -74,8 +73,8 @@ private:
     Slog2InfoRunner *m_slog2Info;
 
     Debugger::DebuggerRunControl *m_runControl;
-    int m_pdebugPort;
-    int m_qmlPort;
+    Utils::Port m_pdebugPort;
+    Utils::Port m_qmlPort;
 
     bool m_useCppDebugger;
     bool m_useQmlDebugger;
@@ -83,5 +82,3 @@ private:
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNX_INTERNAL_QNXDEBUGSUPPORT_H

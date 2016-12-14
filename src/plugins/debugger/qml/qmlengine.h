@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLENGINE_H
-#define QMLENGINE_H
+#pragma once
 
 #include <debugger/debuggerengine.h>
 
@@ -46,7 +45,7 @@ class QmlEngine : public DebuggerEngine
 public:
     explicit QmlEngine(const DebuggerRunParameters &runParameters,
                        DebuggerEngine *masterEngine = nullptr);
-    ~QmlEngine();
+    ~QmlEngine() override;
 
     void filterApplicationMessage(const QString &msg, int channel) const;
 
@@ -56,20 +55,19 @@ public:
 
     void expressionEvaluated(quint32 queryId, const QVariant &result);
 
-private slots:
+private:
     void disconnected();
     void errorMessageBoxFinished(int result);
     void updateCurrentContext();
 
-    void tryToConnect(quint16 port = 0);
-    void beginConnection(quint16 port = 0);
+    void tryToConnect(Utils::Port port = Utils::Port());
+    void beginConnection(Utils::Port port = Utils::Port());
     void connectionEstablished();
     void connectionStartupFailed();
     void appStartupFailed(const QString &errorMessage);
     void appendMessage(const QString &msg, Utils::OutputFormat);
 
-private:
-    void notifyEngineRemoteServerRunning(const QByteArray &, int pid) override;
+    void notifyEngineRemoteServerRunning(const QString &, int pid) override;
     void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result) override;
 
     void showMessage(const QString &msg, int channel = LogDebug,
@@ -123,9 +121,9 @@ private:
     void reloadFullStack() override {}
 
     void updateAll() override;
-    void updateItem(const QByteArray &iname) override;
-    void expandItem(const QByteArray &iname) override;
-    void selectWatchData(const QByteArray &iname) override;
+    void updateItem(const QString &iname) override;
+    void expandItem(const QString &iname) override;
+    void selectWatchData(const QString &iname) override;
     void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
 
     bool hasCapability(unsigned) const override;
@@ -138,7 +136,6 @@ private:
     void connectionErrorOccurred(QAbstractSocket::SocketError socketError);
     void connectionStateChanged(QAbstractSocket::SocketState socketState);
 
-    void clientStateChanged(QmlDebug::QmlDebugClient::State state);
     void checkConnectionState();
     void showConnectionStateMessage(const QString &message);
     bool isConnected() const;
@@ -152,5 +149,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // QMLENGINE_H

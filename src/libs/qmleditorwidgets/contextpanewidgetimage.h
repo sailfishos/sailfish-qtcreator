@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONTEXTPANEWIDGETIMAGE_H
-#define CONTEXTPANEWIDGETIMAGE_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include "contextpanewidget.h"
@@ -99,7 +98,6 @@ public:
     PreviewLabel *previewLabel() const;
     int zoom() { return m_zoom; }
 
-public slots:
     void onTogglePane();
     void onSliderMoved(int value);
 
@@ -131,7 +129,7 @@ signals:
     void removeProperty(const QString &);
     void removeAndChangeProperty(const QString &, const QString &, const QVariant &, bool removeFirst);
 
-public slots:
+public:
     void onStretchChanged();
     void onVerticalStretchChanged();
     void onHorizontalStretchChanged();
@@ -186,5 +184,3 @@ protected:
 
 
 } //QmlDesigner
-
-#endif // CONTEXTPANEWIDGETIMAGE_H

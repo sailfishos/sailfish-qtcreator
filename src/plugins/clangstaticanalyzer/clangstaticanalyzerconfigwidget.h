@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGSTATICANALYZERCONFIGWIDGET_H
-#define CLANGSTATICANALYZERCONFIGWIDGET_H
+#pragma once
 
 #include "clangstaticanalyzersettings.h"
 
@@ -35,6 +34,8 @@ namespace Internal {
 
 namespace Ui { class ClangStaticAnalyzerConfigWidget; }
 
+class ClangExecutableVersion;
+
 class ClangStaticAnalyzerConfigWidget : public QWidget
 {
     Q_OBJECT
@@ -44,6 +45,9 @@ public:
                                              QWidget *parent = 0);
     ~ClangStaticAnalyzerConfigWidget();
 
+    void updateDetectedVersionLabel(bool executableIsValid,
+                                    const ClangExecutableVersion &providedVersion);
+
 private:
     Ui::ClangStaticAnalyzerConfigWidget *m_ui;
     ClangStaticAnalyzerSettings *m_settings;
@@ -51,5 +55,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangStaticAnalyzer
-
-#endif // CLANGSTATICANALYZERCONFIGWIDGET_H

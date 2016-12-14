@@ -6,7 +6,7 @@ include(creator_dependency.pri)
 include(benchmark_dependency.pri)
 
 QT += core network testlib widgets
-CONFIG += console c++11 testcase object_parallel_to_source
+CONFIG += console testcase object_parallel_to_source
 CONFIG -= app_bundle
 
 OBJECTS_DIR = $$OUT_PWD/obj # workaround for qmake bug in object_parallel_to_source
@@ -16,7 +16,7 @@ osx:QMAKE_CXXFLAGS = -stdlib=libc++
 force_debug_info:QMAKE_CXXFLAGS += -fno-omit-frame-pointer
 
 DEFINES += \
-    QT_NO_CAST_FROM_ASCII \
+    QT_RESTRICTED_CAST_FROM_ASCII \
     UNIT_TESTS \
     DONT_CHECK_MESSAGE_COUNTER \
     TESTDATA_DIR=\"R\\\"xxx($$PWD/data)xxx\\\"\"
@@ -61,13 +61,13 @@ SOURCES += \
     utf8test.cpp \
     senddocumenttrackertest.cpp \
     cursortest.cpp \
-    highlightinginformationstest.cpp \
     skippedsourcerangestest.cpp \
     highlightingmarksreportertest.cpp \
     chunksreportedmonitor.cpp \
     unsavedfiletest.cpp \
     clangisdiagnosticrelatedtolocationtest.cpp \
 #    smallstringtest.cpp \
+    highlightingmarkstest.cpp \
     sizedarraytest.cpp \
     utf8positionfromlinecolumntest.cpp
 

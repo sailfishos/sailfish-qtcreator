@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CMBENDMESSAGE_H
-#define CMBENDMESSAGE_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 #include <ostream>
@@ -44,5 +43,3 @@ void PrintTo(const EndMessage &message, ::std::ostream* os);
 
 DECLARE_MESSAGE(EndMessage)
 }
-
-#endif // CMBENDMESSAGE_H

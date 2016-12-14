@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEABSTRACTRENDERER_H
-#define TIMELINEABSTRACTRENDERER_H
+#pragma once
 
 #include "timelinezoomcontrol.h"
 #include "timelinemodel.h"
@@ -75,7 +74,7 @@ signals:
     void selectionLockedChanged(bool locked);
     void selectedItemChanged(int itemIndex);
 
-public slots:
+public:
     void setSelectedItem(int itemIndex);
     void setSelectionLocked(bool locked);
 
@@ -93,6 +92,3 @@ protected:
 };
 
 } // namespace Timeline
-
-
-#endif // TIMELINEABSTRACTRENDERER_H

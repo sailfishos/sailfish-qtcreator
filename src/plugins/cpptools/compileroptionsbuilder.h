@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLS_COMPILEROPTIONSBUILDER_H
-#define CPPTOOLS_COMPILEROPTIONSBUILDER_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -47,8 +46,9 @@ public:
     // Add options based on project part
     virtual void addTargetTriple();
     virtual void enableExceptions();
-    void addHeaderPathOptions();
+    void addHeaderPathOptions(bool addAsNativePath = false);
     void addToolchainAndProjectDefines();
+    void addDefines(const QByteArray &defineDirectives);
     virtual void addLanguageOption(ProjectFile::Kind fileKind);
     virtual void addOptionsForLanguage(bool checkForBorlandExtensions = true);
 
@@ -71,5 +71,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPTOOLS_COMPILEROPTIONSBUILDER_H

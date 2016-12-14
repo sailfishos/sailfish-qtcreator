@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSQRCPARSER_H
-#define QMLJSQRCPARSER_H
+#pragma once
 #include "qmljs_global.h"
 
 #include <QMap>
@@ -84,4 +83,3 @@ private:
     Internal::QrcCachePrivate *d;
 };
 }
-#endif // QMLJSQRCPARSER_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SETTINGSSELECTORWIDGET_H
-#define SETTINGSSELECTORWIDGET_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -68,12 +67,11 @@ signals:
     void rename(int index, const QString &newName);
     void currentChanged(int index);
 
-private slots:
+private:
     void removeButtonClicked();
     void renameButtonClicked();
     void updateButtonState();
 
-private:
     QLabel *m_label;
     QComboBox *m_configurationCombo;
     QPushButton *m_addButton;
@@ -82,5 +80,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // SETTINGSSELECTORWIDGET_H

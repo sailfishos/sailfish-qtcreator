@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef THEME_H
-#define THEME_H
+#pragma once
 
 #include "../utils_global.h"
 
@@ -126,6 +125,52 @@ public:
         TreeViewArrowColorNormal,
         TreeViewArrowColorSelected,
 
+        /* Palette for QPalette */
+
+        PaletteWindow,
+        PaletteWindowText,
+        PaletteBase,
+        PaletteAlternateBase,
+        PaletteToolTipBase,
+        PaletteToolTipText,
+        PaletteText,
+        PaletteButton,
+        PaletteButtonText,
+        PaletteBrightText,
+        PaletteHighlight,
+        PaletteHighlightedText,
+        PaletteLink,
+        PaletteLinkVisited,
+
+        PaletteLight,
+        PaletteMidlight,
+        PaletteDark,
+        PaletteMid,
+        PaletteShadow,
+
+        PaletteWindowDisabled,
+        PaletteBackgroundDisabled,
+        PaletteWindowTextDisabled,
+        PaletteForegroundDisabled,
+        PaletteBaseDisabled,
+        PaletteAlternateBaseDisabled,
+        PaletteToolTipBaseDisabled,
+        PaletteToolTipTextDisabled,
+        PaletteTextDisabled,
+        PaletteButtonDisabled,
+        PaletteButtonTextDisabled,
+        PaletteBrightTextDisabled,
+        PaletteHighlightDisabled,
+        PaletteHighlightedTextDisabled,
+        PaletteLinkDisabled,
+        PaletteLinkVisitedDisabled,
+
+        PaletteLightDisabled,
+        PaletteMidlightDisabled,
+        PaletteDarkDisabled,
+        PaletteMidDisabled,
+        PaletteShadowDisabled,
+
         /* Icons */
 
         IconsBaseColor,
@@ -150,7 +195,7 @@ public:
         IconsModeEditActiveColor,
         IconsModeDesignActiveColor,
         IconsModeDebugActiveColor,
-        IconsModeProjetcsActiveColor,
+        IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
         IconsModeMerActiveColor,
@@ -217,6 +262,7 @@ public:
         VcsBase_FileModified_TextColor,
         VcsBase_FileDeleted_TextColor,
         VcsBase_FileRenamed_TextColor,
+        VcsBase_FileUnmerged_TextColor,
 
         /* Bookmarks Plugin */
         Bookmarks_TextMarkColor,
@@ -234,7 +280,11 @@ public:
 
         /* ClangCodeModel Plugin */
         ClangCodeModel_Error_TextMarkColor,
-        ClangCodeModel_Warning_TextMarkColor
+        ClangCodeModel_Warning_TextMarkColor,
+
+        /* QmlDesigner */
+        QmlDesigner_BackgroundColor,
+        QmlDesigner_HighlightColor
     };
 
     enum Gradient {
@@ -270,20 +320,18 @@ public:
         DrawSearchResultWidgetFrame,
         DrawIndicatorBranch,
         DrawToolBarHighlights,
+        DrawToolBarBorders,
         ComboBoxDrawTextShadow,
         DerivePaletteFromTheme,
         ApplyThemePaletteGlobally,
+        FlatToolBars,
         FlatSideBarIcons,
         FlatProjectsMode,
-        FlatMenuBar
+        FlatMenuBar,
+        ToolBarIconShadow,
+        WindowColorAsBase
     };
 
-    enum WidgetStyle {
-        StyleDefault,
-        StyleFlat
-    };
-
-    WidgetStyle widgetStyle() const;
     bool flag(Flag f) const;
     QColor color(Color role) const;
     QString imageFile(ImageFile imageFile, const QString &fallBack) const;
@@ -312,5 +360,3 @@ private:
 QTCREATOR_UTILS_EXPORT Theme *creatorTheme();
 
 } // namespace Utils
-
-#endif // THEME_H

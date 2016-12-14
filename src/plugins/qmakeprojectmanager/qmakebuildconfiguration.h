@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEBUILDCONFIGURATION_H
-#define QMAKEBUILDCONFIGURATION_H
+#pragma once
 
 #include "qmakeprojectmanager_global.h"
 
@@ -100,7 +99,6 @@ public:
 
     BuildType buildType() const override;
 
-public slots:
     void emitProFileEvaluateNeeded();
 
 signals:
@@ -109,7 +107,7 @@ signals:
     void qmakeBuildConfigurationChanged();
     void shadowBuildChanged();
 
-private slots:
+private:
     void kitChanged();
     void toolChainUpdated(ProjectExplorer::ToolChain *tc);
     void qtVersionsChanged(const QList<int> &, const QList<int> &, const QList<int> &changed);
@@ -170,15 +168,12 @@ public:
 protected:
     void configureBuildConfiguration(ProjectExplorer::Target *parent, QmakeBuildConfiguration *bc, const QmakeBuildInfo *info) const;
 
-private slots:
+private:
     void update();
 
-private:
     bool canHandle(const ProjectExplorer::Target *t) const;
     QmakeBuildInfo *createBuildInfo(const ProjectExplorer::Kit *k, const QString &projectPath,
                                     ProjectExplorer::BuildConfiguration::BuildType type) const;
 };
 
 } // namespace QmakeProjectManager
-
-#endif // QMAKEBUILDCONFIGURATION_H

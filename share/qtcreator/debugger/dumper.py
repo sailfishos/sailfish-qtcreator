@@ -30,6 +30,7 @@ import base64
 import re
 import time
 import json
+import inspect
 
 if sys.version_info[0] >= 3:
     xrange = range
@@ -93,16 +94,6 @@ WatchpointAtExpression, \
 BreakpointOnQmlSignalEmit, \
 BreakpointAtJavaScriptThrow, \
     = range(0, 14)
-
-# Display modes. Keep that synchronized with DebuggerDisplay in debuggerprotocol.h
-StopDisplay, \
-DisplayImageData, \
-DisplayUtf16String, \
-DisplayImageFile, \
-DisplayLatin1String, \
-DisplayUtf8String, \
-DisplayPlotData \
-    = range(7)
 
 
 def arrayForms():
@@ -353,6 +344,7 @@ class DumperBase:
         self.displayStringLimit = 100
 
         self.resetCaches()
+        self.resetStats()
 
         self.childrenPrefix = 'children=['
         self.childrenSuffix = '],'
@@ -372,7 +364,8 @@ class DumperBase:
         self.qqFormats = { "QVariant (QVariantMap)" : mapForms() }
 
         # This is a cache of all known dumpers.
-        self.qqDumpers = {}
+        self.qqDumpers = {}    # Direct type match
+        self.qqDumpersEx = {}  # Using regexp
 
         # This is a cache of all dumpers that support writing.
         self.qqEditable = {}
@@ -384,6 +377,35 @@ class DumperBase:
         # to not be QObject derived, it contains a 0 value.
         self.knownStaticMetaObjects = {}
 
+        self.counts = {}
+        self.pretimings = {}
+        self.timings = []
+
+    def resetStats(self):
+        # Timing collection
+        self.pretimings = {}
+        self.timings = []
+        pass
+
+    def dumpStats(self):
+        msg = [self.counts, self.timings]
+        self.resetStats()
+        return msg
+
+    def bump(self, key):
+        if key in self.counts:
+            self.counts[key] += 1
+        else:
+            self.counts[key] = 1
+
+    def preping(self, key):
+        import time
+        self.pretimings[key] = time.time()
+
+    def ping(self, key):
+        import time
+        elapsed = int(1000000 * (time.time() - self.pretimings[key]))
+        self.timings.append([key, elapsed])
 
     def putNewline(self):
         pass
@@ -536,23 +558,20 @@ class DumperBase:
             else:
                 encodingType = "utf8"
             childType = "char"
-            displayType = DisplayLatin1String
         elif charSize == 2:
             encodingType = "utf16"
             childType = "short"
-            displayType = DisplayUtf16String
         else:
             encodingType = "ucs4"
             childType = "int"
-            displayType = DisplayUtf16String
 
         self.putValue(mem, encodingType, elided=elided)
 
         if displayFormat == SeparateLatin1StringFormat \
-                or displayFormat == SeparateUtf8StringFormat:
-            self.putField("editformat", displayType)
+                or displayFormat == SeparateUtf8StringFormat \
+                or displayFormat == SeparateFormat:
             elided, shown = self.computeLimit(bytelen, 100000)
-            self.putField("editvalue", self.readMemory(data, shown))
+            self.putDisplay(encodingType + ':separate', self.readMemory(data, shown))
 
         if makeExpandable:
             self.putNumChild(size)
@@ -748,11 +767,15 @@ class DumperBase:
             with Children(self):
                 self.putFields(value, dumpBase)
 
+    def putMembersItem(self, value, sortorder = 10):
+        with SubItem(self, "[members]"):
+            self.put('sortgroup="%s"' % sortorder)
+            self.putPlainChildren(value)
+
     def isMapCompact(self, keyType, valueType):
         if self.currentItemFormat() == CompactMapFormat:
             return True
         return self.isSimpleType(keyType) and self.isSimpleType(valueType)
-
 
     def check(self, exp):
         if not exp:
@@ -934,13 +957,6 @@ class DumperBase:
         #    self.expandedINames, self.currentIName in self.expandedINames))
         return self.currentIName in self.expandedINames
 
-    def putPlainChildren(self, value):
-        self.putEmptyValue(-99)
-        self.putNumChild(1)
-        if self.currentIName in self.expandedINames:
-            with Children(self):
-               self.putFields(value)
-
     def putCStyleArray(self, value):
         arrayType = value.type.unqualified()
         innerType = value[0].type
@@ -1027,6 +1043,12 @@ class DumperBase:
                 dumper(self, value)
                 return True
 
+            for pattern in self.qqDumpersEx.keys():
+                dumper = self.qqDumpersEx[pattern]
+                if re.match(pattern, nsStrippedType):
+                    dumper(self, value)
+                    return True
+
         return False
 
     def putSimpleCharArray(self, base, size = None):
@@ -1071,7 +1093,7 @@ class DumperBase:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
             self.putValue(data, "latin1", elided=elided)
-            self.putDisplay(DisplayLatin1String, data)
+            self.putDisplay("latin1:separate", data)
             return True
 
         if displayFormat == Utf8StringFormat:
@@ -1084,7 +1106,7 @@ class DumperBase:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
             self.putValue(data, "utf8", elided=elided)
-            self.putDisplay(DisplayUtf8String, data)
+            self.putDisplay("utf8:separate", data)
             return True
 
         if displayFormat == Local8BitStringFormat:
@@ -1268,111 +1290,184 @@ class DumperBase:
             pass
 
 
-    def extractStaticMetaObjectHelper(self, typeobj):
-        """
-        Checks whether type has a Q_OBJECT macro.
-        Returns the staticMetaObject, or 0.
-        """
+    def extractMetaObjectPtr(self, objectPtr, typeobj):
+        """ objectPtr - address of *potential* instance of QObject derived class
+            typeobj - type of *objectPtr if known, None otherwise. """
 
-        if self.isSimpleType(typeobj):
+        def canBePointer(p):
+            if ptrSize == 4:
+                return p > 100000 and (p & 0x3 == 0)
+            else:
+                return p > 100000 and (p & 0x7 == 0) and (p < 0x7fffffffffff)
+
+        def couldBeQObject():
+            try:
+                (vtablePtr, dd) \
+                    = self.extractStruct('PP', objectPtr, 2 * ptrSize)
+            except:
+                self.bump("nostruct-1")
+                return False
+            if not canBePointer(vtablePtr):
+                self.bump("vtable")
+                return False
+            if not canBePointer(dd):
+                self.bump("d_d_ptr")
+                return False
+
+            try:
+                (dvtablePtr, qptr, parentPtr, childrenDPtr, flags) \
+                    = self.extractStruct('PPPPI', dd, 4 * ptrSize + 4)
+            except:
+                self.bump("nostruct-2")
+                return False
+            #warn("STRUCT DD: %s %s" % (self.currentIName, x))
+            if not canBePointer(dvtablePtr):
+                self.bump("dvtable")
+                #warn("DVT: 0x%x" % dvtablePtr)
+                return False
+            # Check d_ptr.d.q_ptr == objectPtr
+            if qptr != objectPtr:
+                #warn("QPTR: 0x%x 0x%x" % (qptr, objectPtr))
+                self.bump("q_ptr")
+                return False
+            if parentPtr and not canBePointer(parentPtr):
+                #warn("PAREN")
+                self.bump("parent")
+                return False
+            if not canBePointer(childrenDPtr):
+                #warn("CHILD")
+                self.bump("children")
+                return False
+            #if flags >= 0x80: # Only 7 flags are defined
+            #    warn("FLAGS: 0x%x %s" % (flags, self.currentIName))
+            #    self.bump("flags")
+            #    return False
+            #warn("OK")
+            #if dynMetaObjectPtr and not canBePointer(dynMetaObjectPtr):
+            #    self.bump("dynmo")
+            #    return False
+
+            self.bump("couldBeQObject")
+            return True
+
+        def extractMetaObjectPtrFromAddress():
+            return 0
+            # FIXME: Calling "works" but seems to impact memory contents(!)
+            # in relevant places. One symptom is that object name
+            # contents "vanishes" as the reported size of the string
+            # gets zeroed out(?).
+            # Try vtable, metaObject() is the first entry.
+            vtablePtr = self.extractPointer(objectPtr)
+            metaObjectFunc = self.extractPointer(vtablePtr)
+            cmd = "((void*(*)(void *))0x%x)(0x%x)" % (metaObjectFunc, objectPtr)
+            try:
+                #warn("MO CMD: %s" % cmd)
+                res = self.parseAndEvaluate(cmd)
+                #warn("MO RES: %s" % res)
+                self.bump("successfulMetaObjectCall")
+                return toInteger(res)
+            except:
+                self.bump("failedMetaObjectCall")
+                #warn("COULD NOT EXECUTE: %s" % cmd)
             return 0
 
-        typeName = str(typeobj)
-        isQObjectProper = typeName == self.qtNamespace() + "QObject"
-
-        if not isQObjectProper:
-            if self.directBaseClass(typeobj, 0) is None:
+        def extractStaticMetaObjectFromTypeHelper(typeobj):
+            if self.isSimpleType(typeobj):
                 return 0
 
-            # No templates for now.
-            if typeName.find('<') >= 0:
+            typeName = str(typeobj)
+            isQObjectProper = typeName == self.qtNamespace() + "QObject"
+
+            if not isQObjectProper:
+                if self.directBaseClass(typeobj, 0) is None:
+                    return 0
+
+                # No templates for now.
+                if typeName.find('<') >= 0:
+                    return 0
+
+            result = self.findStaticMetaObject(typeName)
+
+            # We need to distinguish Q_OBJECT from Q_GADGET:
+            # a Q_OBJECT SMO has a non-null superdata (unless it's QObject itself),
+            # a Q_GADGET SMO has a null superdata (hopefully)
+            if result and not isQObjectProper:
+                superdata = self.extractPointer(result)
+                if superdata == 0:
+                    # This looks like a Q_GADGET
+                    return 0
+
+            return result
+
+        def extractStaticMetaObjectPtrFromType(someTypeObj):
+            if someTypeObj is None:
                 return 0
+            someTypeName = str(someTypeObj)
+            self.bump('metaObjectFromType')
+            known = self.knownStaticMetaObjects.get(someTypeName, None)
+            if known is not None: # Is 0 or the static metaobject.
+                return known
 
-        result = self.findStaticMetaObject(typeName)
+            result = 0
+            #try:
+            result = extractStaticMetaObjectFromTypeHelper(someTypeObj)
+            #except RuntimeError as error:
+            #    warn("METAOBJECT EXTRACTION FAILED: %s" % error)
+            #except:
+            #    warn("METAOBJECT EXTRACTION FAILED FOR UNKNOWN REASON")
 
-        # We need to distinguish Q_OBJECT from Q_GADGET:
-        # a Q_OBJECT SMO has a non-null superdata (unless it's QObject itself),
-        # a Q_GADGET SMO has a null superdata (hopefully)
-        if result and not isQObjectProper:
-            superdata = self.extractPointer(result)
-            if toInteger(superdata) == 0:
-                # This looks like a Q_GADGET
-                return 0
+            if not result:
+                base = self.directBaseClass(someTypeObj, 0)
+                if base != someTypeObj: # sanity check
+                    result = extractStaticMetaObjectPtrFromType(base)
 
-        return result
+            self.knownStaticMetaObjects[someTypeName] = result
+            return result
 
-    def extractStaticMetaObject(self, typeobj):
-        """
-        Checks recursively whether a type derives from QObject.
-        """
+
         if not self.useFancy:
             return 0
+
+        ptrSize = self.ptrSize()
 
         typeName = str(typeobj)
         result = self.knownStaticMetaObjects.get(typeName, None)
         if result is not None: # Is 0 or the static metaobject.
+            self.bump("typecached")
+            #warn("CACHED RESULT: %s %s 0x%x" % (self.currentIName, typeName, result))
             return result
 
-        try:
-            result = self.extractStaticMetaObjectHelper(typeobj)
-        except RuntimeError as error:
-            warn("METAOBJECT EXTRACTION FAILED: %s" % error)
-            result = 0
-        except:
-            warn("METAOBJECT EXTRACTION FAILED FOR UNKNOWN REASON")
-            result = 0
+        if not couldBeQObject():
+            self.bump('cannotBeQObject')
+            #warn("DOES NOT LOOK LIKE A QOBJECT: %s" % self.currentIName)
+            return 0
 
-        if not result:
-            base = self.directBaseClass(typeobj, 0)
-            if base:
-                result = self.extractStaticMetaObject(base)
+        metaObjectPtr = 0
+        if not metaObjectPtr:
+            # measured: 3 ms (example had one level of inheritance)
+            self.preping("metaObjectType-" + self.currentIName)
+            metaObjectPtr = extractStaticMetaObjectPtrFromType(typeobj)
+            self.ping("metaObjectType-" + self.currentIName)
 
-        self.knownStaticMetaObjects[typeName] = result
-        return result
+        if not metaObjectPtr:
+            # measured: 200 ms (example had one level of inheritance)
+            self.preping("metaObjectCall-" + self.currentIName)
+            metaObjectPtr = extractMetaObjectPtrFromAddress()
+            self.ping("metaObjectCall-" + self.currentIName)
 
-    def staticQObjectMetaData(self, metaobject, offset1, offset2, step):
-        items = []
-        dd = metaobject["d"]
-        data = self.extractPointer(dd["data"])
-        sd = self.extractPointer(dd["stringdata"])
+        #if metaObjectPtr:
+        #    self.bump('foundMetaObject')
+        #    self.knownStaticMetaObjects[typeName] = metaObjectPtr
 
-        metaObjectVersion = self.extractInt(data)
-        itemCount = self.extractInt(data + offset1)
-        itemData = -offset2 if offset2 < 0 else self.extractInt(data + offset2)
+        return metaObjectPtr
 
-        if metaObjectVersion >= 7: # Qt 5.
-            byteArrayDataType = self.lookupType(self.qtNamespace() + "QByteArrayData")
-            byteArrayDataSize = byteArrayDataType.sizeof
-            for i in range(itemCount):
-                x = data + (itemData + step * i) * 4
-                literal = sd + self.extractInt(x) * byteArrayDataSize
-                ldata, lsize, lalloc = self.byteArrayDataHelper(literal)
-                items.append(self.extractBlob(ldata, lsize).toString())
-        else: # Qt 4.
-            for i in range(itemCount):
-                x = data + (itemData + step * i) * 4
-                ldata = sd + self.extractInt(x)
-                items.append(self.extractCString(ldata).decode("utf8"))
-
-        return items
-
-    def staticQObjectPropertyCount(self, metaobject):
-        return self.extractInt(self.extractPointer(metaobject["d"]["data"]) + 24)
-
-    def staticQObjectPropertyNames(self, metaobject):
-        return self.staticQObjectMetaData(metaobject, 24, 28, 3)
-
-    def staticQObjectMethodCount(self, metaobject):
-        return self.extractInt(self.extractPointer(metaobject["d"]["data"]) + 16)
-
-    def staticQObjectMethodNames(self, metaobject):
-        return self.staticQObjectMetaData(metaobject, 16, 20, 5)
-
-    def staticQObjectSignalCount(self, metaobject):
-        return self.extractInt(self.extractPointer(metaobject["d"]["data"]) + 52)
-
-    def staticQObjectSignalNames(self, metaobject):
-        return self.staticQObjectMetaData(metaobject, 52, -14, 5)
+    def extractStruct(self, pattern, base, size):
+        #warn("PATTERN: '%s'" % pattern)
+        pointerReplacement = 'Q' if self.ptrSize() == 8 else 'I'
+        pattern = pattern.replace('P', pointerReplacement)
+        mem = self.readRawMemory(base, size)
+        #warn("OUT: '%s'" % str(struct.unpack_from(pattern, mem)))
+        return struct.unpack_from(pattern, mem)
 
     def extractCString(self, addr):
         result = bytearray()
@@ -1411,95 +1506,386 @@ class DumperBase:
         for i in range(size):
             yield self.createValue(data + i * innerSize, innerType)
 
+    def putTypedPointer(self, name, addr, typeName):
+        """ Prints a typed pointer, expandable if the type can be resolved,
+            and without children otherwise """
+        with SubItem(self, name):
+            self.putAddress(addr)
+            self.putValue("@0x%x" % addr)
+            typeObj = self.lookupType(typeName)
+            if typeObj:
+                self.putType(typeObj)
+                self.putNumChild(1)
+                if self.isExpanded():
+                    with Children(self):
+                        self.putFields(self.createValue(addr, typeObj))
+            else:
+                self.putType(typeName)
+                self.putNumChild(0)
+
+    def putStructGuts(self, value):
+        self.putEmptyValue()
+        #metaObjectPtr = self.extractMetaObjectPtr(self.addressOf(value), value.type)
+        if self.showQObjectNames:
+            self.preping(self.currentIName)
+            metaObjectPtr = self.extractMetaObjectPtr(self.addressOf(value), value.type)
+            self.ping(self.currentIName)
+            if metaObjectPtr:
+                self.context = value
+                self.putQObjectNameValue(value)
+        #warn("STRUCT GUTS: %s  MO: 0x%x " % (self.currentIName, metaObjectPtr))
+        if self.isExpanded():
+            self.put('sortable="1"')
+            with Children(self, 1, childType=None):
+                self.putFields(value)
+                if not self.showQObjectNames:
+                    metaObjectPtr = self.extractMetaObjectPtr(self.addressOf(value), value.type)
+                if metaObjectPtr:
+                    self.putQObjectGuts(value, metaObjectPtr)
 
     # This is called is when a QObject derived class is expanded
-    def putQObjectGuts(self, qobject, smo):
+    def putQObjectGuts(self, qobject, metaObjectPtr):
+        self.putQObjectGutsHelper(qobject, self.addressOf(qobject), -1, metaObjectPtr, "QObject")
+
+
+    def metaString(self, metaObjectPtr, index, revision = 7):
+        #stringData = self.extractPointer(metaObjectPtr["d"]["stringdata"])
+        ptrSize = self.ptrSize()
+        stringdata = self.extractPointer(toInteger(metaObjectPtr) + ptrSize)
+        if revision >= 7: # Qt 5.
+            #byteArrayDataType = self.lookupQtType("QByteArrayData")
+            #byteArrayDataSize = byteArrayDataType.sizeof
+            byteArrayDataSize = 24 if ptrSize == 8 else 16
+            literal = stringdata + toInteger(index) * byteArrayDataSize
+            ldata, lsize, lalloc = self.byteArrayDataHelper(literal)
+            try:
+                return self.extractBlob(ldata, lsize).toString()
+            except:
+                return "<not available>"
+        else: # Qt 4.
+            ldata = stringdata + index
+            return self.extractCString(ldata).decode("utf8")
+
+    def putQMetaStuff(self, value, origType):
+        metaObjectPtr = value["mobj"]
+        if toInteger(metaObjectPtr):
+            handle = toInteger(value["handle"])
+            index = toInteger(metaObjectPtr["d"]["data"][handle])
+            name = self.metaString(metaObjectPtr, index)
+            self.putValue(name)
+            self.putNumChild(1)
+            if self.isExpanded():
+                with Children(self):
+                    self.putFields(value)
+                    self.putQObjectGutsHelper(0, 0, handle, toInteger(metaObjectPtr), origType)
+        else:
+            self.putEmptyValue()
+            if self.isExpanded():
+                with Children(self):
+                    self.putFields(value)
+
+    # basically all meta things go through this here.
+    # qobject and qobjectPtr are non-null  if coming from a real structure display
+    # qobject == 0, qobjectPtr != 0 is possible for builds without QObject debug info
+    #   if qobject == 0, properties and d-ptr cannot be shown.
+    # handle is what's store in QMetaMethod etc, pass -1 for QObject/QMetaObject itself
+    # metaObjectPtr needs to point to a valid QMetaObject.
+    def putQObjectGutsHelper(self, qobject, qobjectPtr, handle, metaObjectPtr, origType):
         intSize = self.intSize()
         ptrSize = self.ptrSize()
-        # dd = value["d_ptr"]["d"] is just behind the vtable.
-        dd = self.extractPointer(qobject, offset=ptrSize)
-        isQt5 = self.qtVersion() >= 0x50000
 
-        extraDataOffset = 5 * ptrSize + 8 if isQt5 else 6 * ptrSize + 8
-        extraData = self.extractPointer(dd + extraDataOffset)
-        #with SubItem(self, "[extradata]"):
-        #    self.putValue("0x%x" % toInteger(extraData))
+        def putt(name, value, typeName = ' '):
+            with SubItem(self, name):
+                self.putValue(value)
+                self.putType(typeName)
+                self.putNumChild(0)
 
-        # Parent and children.
-        try:
-            d_ptr = qobject["d_ptr"]["d"]
-            self.putSubItem("[parent]", d_ptr["parent"])
-            self.putSubItem("[children]", d_ptr["children"])
-        except:
-            pass
+        def extractSuperDataPtr(someMetaObjectPtr):
+            #return someMetaObjectPtr['d']['superdata']
+            return self.extractPointer(someMetaObjectPtr)
 
-        with SubItem(self, "[properties]"):
-            propertyCount = 0
-            usesVector = self.qtVersion() >= 0x50700
-            if self.isExpanded():
-                propertyNames = self.staticQObjectPropertyNames(smo)
-                propertyCount = len(propertyNames) # Doesn't include dynamic properties.
-                with Children(self):
-                    # Static properties.
-                    for i in range(propertyCount):
-                        name = propertyNames[i]
-                        self.putCallItem(str(name), qobject, "property", '"' + name + '"')
+        def extractDataPtr(someMetaObjectPtr):
+            # dataPtr = metaObjectPtr["d"]["data"]
+            return self.extractPointer(someMetaObjectPtr + 2 * ptrSize)
 
-                    # Dynamic properties.
-                    if extraData:
-                        byteArrayType = self.lookupQtType("QByteArray")
-                        variantType = self.lookupQtType("QVariant")
-                        names = self.listChildrenGenerator(extraData + ptrSize, byteArrayType)
-                        if usesVector:
-                            values = self.vectorChildrenGenerator(extraData + 2 * ptrSize, variantType)
-                        else:
-                            values = self.listChildrenGenerator(extraData + 2 * ptrSize, variantType)
-                        for (k, v) in zip(names, values):
-                            with SubItem(self, propertyCount):
-                                self.put('key="%s",' % self.encodeByteArray(k))
-                                self.put('keyencoded="latin1",')
-                                self.putItem(v)
-                                propertyCount += 1
-                self.putItemCount(propertyCount)
+        isQMetaObject = origType == "QMetaObject"
+        isQObject = origType == "QObject"
+
+        #warn("OBJECT GUTS: %s 0x%x " % (self.currentIName, metaObjectPtr))
+        dataPtr = extractDataPtr(metaObjectPtr)
+        #warn("DATA PTRS: %s 0x%x " % (self.currentIName, dataPtr))
+        (revision, classname,
+            classinfo, classinfo2,
+            methodCount, methods,
+            propertyCount, properties,
+            enumCount, enums,
+            constructorCount, constructors,
+            flags, signalCount) = self.extractStruct('IIIIIIIIIIIIII', dataPtr, 56)
+
+        largestStringIndex = -1
+        for i in range(methodCount):
+            t = self.extractStruct('IIIII', dataPtr + 56 + i * 20, 20)
+            if largestStringIndex < t[0]:
+                largestStringIndex = t[0]
+
+        extraData = 0
+        if qobjectPtr:
+            #isQt5 = self.qtVersion() >= 0x50000
+            #extraDataOffset = 5 * ptrSize + 8 if isQt5 else 6 * ptrSize + 8
+            # (QObjectData/QObjectPrivate) dd = value["d_ptr"]["d"] is just behind the vtable.
+            dd = self.extractPointer(qobjectPtr + ptrSize)
+            if self.qtVersion() >= 0x50000:
+                (dvtablePtr, qptr, parentPtr, childrenDPtr, flags, postedEvents, dynMetaObjectPtr,
+                    extraData, threadDataPtr, connectionListsPtr, sendersPtr, currentSenderPtr) \
+                        = self.extractStruct('PPPPIIPPPPPP', dd, 10 * ptrSize + 8)
             else:
-                # We need a handle to [x] for the user to expand the item
-                # before we know whether there are actual children. Counting
-                # them is too expensive.
+                (dvtablePtr, qptr, parentPtr, childrenDPtr, flags, postedEvents, dynMetaObjectPtr,
+                    extraData, threadDataPtr, connectionListsPtr, sendersPtr, currentSenderPtr) \
+                        = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+        if qobjectPtr:
+            qobjectType = self.lookupQtType("QObject")
+            badType = qobjectType is None
+            with SubItem(self, "[parent]"):
+                self.put('sortgroup="9"')
+                parentPtrType = self.voidPtrType() if badType else qobjectType.pointer()
+                self.putItem(self.createValue(dd + 2 * ptrSize, parentPtrType))
+            with SubItem(self, "[children]"):
+                self.put('sortgroup="8"')
+                base = self.extractPointer(dd + 3 * ptrSize) # It's a QList<QObject *>
+                begin = self.extractInt(base + 8)
+                end = self.extractInt(base + 12)
+                array = base + 16
+                if self.qtVersion() < 0x50000:
+                    array += ptrSize
+                self.check(begin >= 0 and end >= 0 and end <= 1000 * 1000 * 1000)
+                size = end - begin
+                self.check(size >= 0)
+                self.putItemCount(size)
+                if self.isExpanded():
+                    addrBase = array + begin * ptrSize
+                    with Children(self, size):
+                        for i in self.childRange():
+                            with SubItem(self, i):
+                                childPtr = self.extractPointer(addrBase + i * ptrSize)
+                                if badType:
+                                    # release build
+                                    childMetaObjectPtr = self.extractMetaObjectPtr(childPtr, None)
+                                    if childMetaObjectPtr:
+                                        # release build + live process
+                                        self.putNumChild(1)
+                                        self.putAddress(childPtr)
+                                        if self.isExpanded():
+                                            with Children(self):
+                                                self.putQObjectGutsHelper(0, childPtr, -1, childMetaObjectPtr, "QObject")
+                                    else:
+                                        # release build + core dump
+                                        self.putItem(self.createValue(addrBase + i * ptrSize, self.voidPtrType()))
+                                else:
+                                    # debug info
+                                    self.putItem(self.createValue(childPtr, qobjectType))
+
+        if isQMetaObject:
+            with SubItem(self, "[strings]"):
+                self.put('sortgroup="2"')
+                if largestStringIndex > 0:
+                    self.putSpecialValue("minimumitemcount", largestStringIndex)
+                    self.putNumChild(1)
+                    if self.isExpanded():
+                        with Children(self, largestStringIndex + 1):
+                            for i in self.childRange():
+                                with SubItem(self, i):
+                                    self.putValue(self.hexencode(self.metaString(metaObjectPtr, i)), "latin1")
+                                    self.putNumChild(0)
+                else:
+                    self.putValue(" ")
+                    self.putNumChild(0)
+
+        if isQMetaObject:
+            with SubItem(self, "[raw]"):
+                self.put('sortgroup="1"')
+                self.putEmptyValue()
                 self.putNumChild(1)
-                self.putSpecialValue("minimumitemcount", 0)
+                if self.isExpanded():
+                    with Children(self):
+                        putt("revision", revision)
+                        putt("classname", classname)
+                        putt("classinfo", classinfo)
+                        putt("methods", "%d %d" % (methodCount, methods))
+                        putt("properties", "%d %d" % (propertyCount, properties))
+                        putt("enums/sets", "%d %d" % (enumCount, enums))
+                        putt("constructors", "%d %d" % (constructorCount, constructors))
+                        putt("flags", flags)
+                        putt("signalCount", signalCount)
+                        for i in range(methodCount):
+                            t = self.extractStruct('IIIII', dataPtr + 56 + i * 20, 20)
+                            putt("method %d" % i, "%s %s %s %s %s" % t)
 
-        with SubItem(self, "[methods]"):
-            methodCount = self.staticQObjectMethodCount(smo)
-            self.putItemCount(methodCount)
-            if self.isExpanded():
-                methodNames = self.staticQObjectMethodNames(smo)
-                with Children(self):
-                    for i in range(methodCount):
-                        k = methodNames[i]
-                        with SubItem(self, k):
-                            self.putEmptyValue()
+        if isQObject:
+            with SubItem(self, "[extra]"):
+                self.put('sortgroup="1"')
+                self.putEmptyValue()
+                self.putNumChild(1)
+                if self.isExpanded():
+                    with Children(self):
+                        if extraData:
+                            self.putTypedPointer("[extraData]", extraData,
+                                                 self.qtNamespace() + "QObjectPrivate::ExtraData")
 
-        with SubItem(self, "[signals]"):
-            signalCount = self.staticQObjectSignalCount(smo)
-            self.putItemCount(signalCount)
-            if self.isExpanded():
-                signalNames = self.staticQObjectSignalNames(smo)
-                signalCount = len(signalNames)
-                with Children(self):
-                    for i in range(signalCount):
-                        k = signalNames[i]
-                        with SubItem(self, k):
-                            self.putEmptyValue()
-                    self.putQObjectConnections(qobject)
+                        if connectionListsPtr:
+                            self.putTypedPointer("[connectionLists]", connectionListsPtr,
+                                                 self.qtNamespace() + "QObjectConnectionListVector")
 
-    def putQObjectConnections(self, qobject):
+                        with SubItem(self, "[metaObject]"):
+                            self.putAddress(metaObjectPtr)
+                            self.putNumChild(1)
+                            if self.isExpanded():
+                                with Children(self):
+                                    self.putQObjectGutsHelper(0, 0, -1, metaObjectPtr, "QMetaObject")
+
+
+        if isQMetaObject or isQObject:
+            with SubItem(self, "[properties]"):
+                self.put('sortgroup="5"')
+                if self.isExpanded():
+                    usesVector = self.qtVersion() >= 0x50700
+                    dynamicPropertyCount = 0
+                    with Children(self):
+                        # Static properties.
+                        for i in range(propertyCount):
+                            t = self.extractStruct("III", dataPtr + properties * 4 + 12 * i, 12)
+                            name = self.metaString(metaObjectPtr, t[0])
+                            if qobject:
+                                self.putCallItem(name, qobject, "property", '"' + name + '"')
+                            else:
+                                putt(name, ' ')
+
+                        # Dynamic properties.
+                        if extraData:
+                            byteArrayType = self.lookupQtType("QByteArray")
+                            variantType = self.lookupQtType("QVariant")
+                            names = self.listChildrenGenerator(extraData + ptrSize, byteArrayType)
+                            if usesVector:
+                                values = self.vectorChildrenGenerator(extraData + 2 * ptrSize, variantType)
+                            else:
+                                values = self.listChildrenGenerator(extraData + 2 * ptrSize, variantType)
+                            for (k, v) in zip(names, values):
+                                with SubItem(self, propertyCount + dynamicPropertyCount):
+                                    self.put('key="%s",' % self.encodeByteArray(k))
+                                    self.put('keyencoded="latin1",')
+                                    self.putItem(v)
+                                    dynamicPropertyCount += 1
+                    self.putItemCount(propertyCount + dynamicPropertyCount)
+                else:
+                    # We need a handle to [x] for the user to expand the item
+                    # before we know whether there are actual children. Counting
+                    # them is too expensive.
+                    self.putSpecialValue("minimumitemcount", propertyCount)
+                    self.putNumChild(1)
+
+        superDataPtr = extractSuperDataPtr(metaObjectPtr)
+
+        globalOffset = 0
+        superDataIterator = superDataPtr
+        while superDataIterator:
+            sdata = extractDataPtr(superDataIterator)
+            globalOffset += self.extractInt(sdata + 16) # methodCount member
+            superDataIterator = extractSuperDataPtr(superDataIterator)
+
+        if isQMetaObject or isQObject:
+            with SubItem(self, "[methods]"):
+                self.put('sortgroup="3"')
+                self.putItemCount(methodCount)
+                if self.isExpanded():
+                    with Children(self):
+                        for i in range(methodCount):
+                            t = self.extractStruct("IIIII", dataPtr + 56 + 20 * i, 20)
+                            name = self.metaString(metaObjectPtr, t[0])
+                            with SubItem(self, i):
+                                self.putValue(name)
+                                self.putType(" ")
+                                self.putNumChild(1)
+                                isSignal = False
+                                flags = t[4]
+                                if flags == 0x06:
+                                    typ = "signal"
+                                    isSignal = True
+                                elif flags == 0x0a:
+                                    typ = "slot"
+                                elif flags == 0x0a:
+                                    typ = "invokable"
+                                else:
+                                    typ = "<unknown>"
+                                with Children(self):
+                                    putt("[nameindex]", t[0])
+                                    putt("[type]", typ)
+                                    putt("[argc]", t[1])
+                                    putt("[parameter]", t[2])
+                                    putt("[tag]", t[3])
+                                    putt("[flags]", t[4])
+                                    putt("[localindex]", str(i))
+                                    putt("[globalindex]", str(globalOffset + i))
+
+        if isQObject:
+            with SubItem(self, "[d]"):
+                self.put('sortgroup="15"')
+                try:
+                    qobjectPrivateType = self.lookupQtType("QObjectPrivate")
+                    self.putItem(qobject["d_ptr"]["d"].dereference().cast(qobjectPrivateType))
+                except:
+                    try:
+                        self.putItem(qobject["d_ptr"]["d"])
+                    except:
+                        self.putNumChild(0)
+                        self.putType(self.qtNamespace() + "QObjectData *")
+                        self.putSpecialValue("notaccessible")
+
+        if isQMetaObject:
+            with SubItem(self, "[superdata]"):
+                self.put('sortgroup="12"')
+                if superDataPtr:
+                    self.putType(self.qtNamespace() + "QMetaObject")
+                    self.putAddress(superDataPtr)
+                    self.putNumChild(1)
+                    if self.isExpanded():
+                        with Children(self):
+                            self.putQObjectGutsHelper(0, 0, -1, superDataPtr, "QMetaObject")
+                else:
+                    self.putType(self.qtNamespace() + "QMetaObject *")
+                    self.putValue("0x0")
+                    self.putNumChild(0)
+
+        if handle >= 0:
+            localIndex = int((handle - methods) / 5)
+            with SubItem(self, "[localindex]"):
+                self.put('sortgroup="12"')
+                self.putValue(localIndex)
+            with SubItem(self, "[globalindex]"):
+                self.put('sortgroup="11"')
+                self.putValue(globalOffset + localIndex)
+
+
+        #with SubItem(self, "[signals]"):
+        #    self.putItemCount(signalCount)
+        #    signalNames = metaData(52, -14, 5)
+        #    warn("NAMES: %s" % signalNames)
+        #    if self.isExpanded():
+        #        with Children(self):
+        #            putt("A", "b")
+        #            for i in range(signalCount):
+        #                k = signalNames[i]
+        #                with SubItem(self, k):
+        #                    self.putEmptyValue()
+        #            if dd:
+        #                self.putQObjectConnections(dd)
+
+    def putQObjectConnections(self, dd):
         with SubItem(self, "[connections]"):
             ptrSize = self.ptrSize()
             self.putNoType()
             ns = self.qtNamespace()
             privateTypeName = ns + "QObjectPrivate"
             privateType = self.lookupType(privateTypeName)
-            dd = qobject["d_ptr"]["d"]
             d_ptr = dd.cast(privateType.pointer()).dereference()
             connections = d_ptr["connectionLists"]
             if self.isNull(connections):
@@ -1589,8 +1975,8 @@ class DumperBase:
             enc = self.simpleEncoding(innerType)
             if enc:
                 self.putField("editencoding", enc)
-                self.putField("editvalue", self.readMemory(base, n * innerType.sizeof))
-                self.putField("editformat", DisplayPlotData)
+                self.putDisplay("plotdata:separate",
+                                self.readMemory(base, n * innerType.sizeof))
 
     def putPlotData(self, base, n, innerType, maxNumChild = 1000*1000):
         self.putPlotDataHelper(base, n, innerType, maxNumChild=maxNumChild)
@@ -1754,11 +2140,13 @@ class DumperBase:
 
     def registerDumper(self, funcname, function):
         try:
-            #warn("FUNCTION: %s " % funcname)
-            #funcname = function.func_name
             if funcname.startswith("qdump__"):
                 typename = funcname[7:]
-                self.qqDumpers[typename] = function
+                spec = inspect.getargspec(function)
+                if len(spec.args) == 2:
+                    self.qqDumpers[typename] = function
+                elif len(spec.args) == 3 and len(spec.defaults) == 1:
+                    self.qqDumpersEx[spec.defaults[0]] = function
                 self.qqFormats[typename] = self.qqFormats.get(typename, [])
             elif funcname.startswith("qform__"):
                 typename = funcname[7:]

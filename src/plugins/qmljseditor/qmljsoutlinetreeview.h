@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSOUTLINETREEVIEW_H
-#define QMLJSOUTLINETREEVIEW_H
+#pragma once
 
 #include <utils/navigationtreeview.h>
 
@@ -39,11 +38,9 @@ public:
 
     void contextMenuEvent(QContextMenuEvent *event);
 
-private slots:
+private:
     void collapseAllExceptRoot();
 };
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSOUTLINETREEVIEW_H

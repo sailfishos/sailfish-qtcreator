@@ -28,11 +28,9 @@
 namespace Beautifier {
 namespace Internal {
 
-Command::Command()
-    : m_processing(FileProcessing)
-    , m_pipeAddsNewline(false)
-    , m_returnsCRLF(false)
+bool Command::isValid() const
 {
+    return !m_executable.isEmpty();
 }
 
 QString Command::executable() const
@@ -84,7 +82,6 @@ void Command::setReturnsCRLF(bool returnsCRLF)
 {
     m_returnsCRLF = returnsCRLF;
 }
-
 
 } // namespace Internal
 } // namespace Beautifier

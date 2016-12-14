@@ -115,11 +115,7 @@ NamedWidget *QbsBuildConfiguration::createConfigWidget()
 
 QbsBuildStep *QbsBuildConfiguration::qbsStep() const
 {
-    foreach (BuildStep *bs, stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD)->steps()) {
-        if (QbsBuildStep *qbsBs = qobject_cast<QbsBuildStep *>(bs))
-            return qbsBs;
-    }
-    return 0;
+    return stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD)->firstOfType<QbsBuildStep>();
 }
 
 QVariantMap QbsBuildConfiguration::qbsConfiguration() const
@@ -313,12 +309,16 @@ QString QbsBuildConfiguration::equivalentCommandLine(const BuildStep *buildStep)
                                    << installRoot);
     }
 
+    const QString profileName = QbsManager::instance()->profileForKit(buildStep->target()->kit());
     if (buildConfig) {
-        Utils::QtcProcess::addArg(&commandLine, buildConfig->qbsConfiguration()
-                .value(QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY)).toString());
+        const QString buildVariant = buildConfig->qbsConfiguration()
+                .value(QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY)).toString();
+        const QString configName = profileName + QLatin1Char('-') + buildVariant;
+        Utils::QtcProcess::addArg(&commandLine, configName);
+        Utils::QtcProcess::addArg(&commandLine, QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY)
+                                  + QLatin1Char(':') + buildVariant);
     }
-    Utils::QtcProcess::addArg(&commandLine, QLatin1String("profile:")
-                              + QbsManager::instance()->profileForKit(buildStep->target()->kit()));
+    Utils::QtcProcess::addArg(&commandLine, QLatin1String("profile:") + profileName);
 
     return commandLine;
 }
@@ -398,7 +398,7 @@ static Utils::FileName defaultBuildDirectory(const QString &projectFilePath, con
                                              BuildConfiguration::BuildType buildType)
 {
     const QString projectName = QFileInfo(projectFilePath).completeBaseName();
-    ProjectMacroExpander expander(projectName, k, bcName, buildType);
+    ProjectMacroExpander expander(projectFilePath, projectName, k, bcName, buildType);
     QString projectDir = Project::projectDirectory(Utils::FileName::fromString(projectFilePath)).toString();
     QString buildPath = expander.expand(Core::DocumentManager::buildDirectory());
     return Utils::FileName::fromString(Utils::FileUtils::resolvePath(projectDir, buildPath));

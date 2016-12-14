@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSTYPEDESCRIPTIONREADER_H
-#define QMLJSTYPEDESCRIPTIONREADER_H
+#pragma once
 
 #include "qmljs_global.h"
 #include <qmljs/parser/qmljsastfwd_p.h>
@@ -59,13 +58,15 @@ public:
 
     bool operator()(
             QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *objects,
-            QList<ModuleApiInfo> *moduleApis);
+            QList<ModuleApiInfo> *moduleApis,
+            QStringList *dependencies);
     QString errorMessage() const;
     QString warningMessage() const;
 
 private:
     void readDocument(AST::UiProgram *ast);
     void readModule(AST::UiObjectDefinition *ast);
+    void readDependencies(AST::UiScriptBinding *ast);
     void readComponent(AST::UiObjectDefinition *ast);
     void readModuleApi(AST::UiObjectDefinition *ast);
     void readSignalOrMethod(AST::UiObjectDefinition *ast, bool isMethod, LanguageUtils::FakeMetaObject::Ptr fmo);
@@ -91,8 +92,7 @@ private:
     QString _warningMessage;
     QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *_objects;
     QList<ModuleApiInfo> *_moduleApis;
+    QStringList *_dependencies;
 };
 
 } // namespace QmlJS
-
-#endif // QMLJSTYPEDESCRIPTIONREADER_H

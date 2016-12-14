@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CRASHHANDLER_H
-#define CRASHHANDLER_H
+#pragma once
 
 #include <QObject>
 
@@ -44,7 +43,6 @@ public:
 
     void run();
 
-public slots:
     void onError(const QString &errorMessage);
     void onBacktraceChunk(const QString &chunk);
     void onBacktraceFinished(const QString &backtrace);
@@ -61,5 +59,3 @@ private:
 
     CrashHandlerPrivate *d;
 };
-
-#endif // CRASHHANDLER_H

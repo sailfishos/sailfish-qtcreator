@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CRASHHANDLERDIALOG_H
-#define CRASHHANDLERDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -53,13 +52,10 @@ public:
     void disableDebugAppButton();
     bool runDebuggerWhileBacktraceNotFinished();
 
-private slots:
+private:
     void copyToClipboardClicked();
     void close();
 
-private:
     CrashHandler *m_crashHandler;
     Ui::CrashHandlerDialog *m_ui;
 };
-
-#endif // CRASHHANDLERDIALOG_H

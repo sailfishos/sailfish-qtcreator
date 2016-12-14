@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CODECOMPLETIONCHUNK_H
-#define CLANGBACKEND_CODECOMPLETIONCHUNK_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 
@@ -79,9 +78,6 @@ public:
     bool isOptional() const;
 
 private:
-    quint8 &kindAsInt();
-
-private:
     Utf8String text_;
     Kind kind_ = Invalid;
     bool isOptional_ = false;
@@ -99,5 +95,3 @@ void PrintTo(const CodeCompletionChunk::Kind &kind, ::std::ostream* os);
 } // namespace ClangBackEnd
 
 Q_DECLARE_METATYPE(ClangBackEnd::CodeCompletionChunk)
-
-#endif // CLANGBACKEND_CODECOMPLETIONCHUNK_H

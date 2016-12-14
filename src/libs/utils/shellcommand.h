@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef UTILS_SHELLCOMMAND_H
-#define UTILS_SHELLCOMMAND_H
+#pragma once
 
 #include "utils_global.h"
+
+#include "synchronousprocess.h"
 
 #include <QObject>
 
@@ -44,13 +45,8 @@ class QFuture;
 QT_END_NAMESPACE
 
 namespace Utils {
-struct SynchronousProcessResponse;
-class ExitCodeInterpreter;
+
 class FileName;
-}
-
-namespace Utils {
-
 namespace Internal { class ShellCommandPrivate; }
 
 class QTCREATOR_UTILS_EXPORT ProgressParser
@@ -116,10 +112,10 @@ public:
     void setDisplayName(const QString &name);
 
     void addJob(const FileName &binary, const QStringList &arguments,
-                const QString &workingDirectory = QString(), ExitCodeInterpreter *interpreter = 0);
+                const QString &workingDirectory = QString(), const ExitCodeInterpreter &interpreter = defaultExitCodeInterpreter);
     void addJob(const FileName &binary, const QStringList &arguments, int timeoutS,
-                const QString &workingDirectory = QString(), ExitCodeInterpreter *interpreter = 0);
-    void execute();
+                const QString &workingDirectory = QString(), const ExitCodeInterpreter &interpreter = defaultExitCodeInterpreter);
+    void execute(); // Execute tasks asynchronously!
     void abort();
     bool lastExecutionSuccess() const;
     int lastExecutionExitCode() const;
@@ -144,16 +140,14 @@ public:
 
     void setOutputProxyFactory(const std::function<OutputProxy *()> &factory);
 
+    // This is called once per job in a thread.
+    // When called from the UI thread it will execute fully synchronously, so no signals will
+    // be triggered!
     virtual SynchronousProcessResponse runCommand(const FileName &binary, const QStringList &arguments,
                                                   int timeoutS,
                                                   const QString &workingDirectory = QString(),
-                                                  ExitCodeInterpreter *interpreter = 0);
-    // Make sure to not pass through the event loop at all:
-    virtual bool runFullySynchronous(const FileName &binary, const QStringList &arguments,
-                                     int timeoutS, QByteArray *outputData, QByteArray *errorData,
-                                     const QString &workingDirectory = QString());
+                                                  const ExitCodeInterpreter &interpreter = defaultExitCodeInterpreter);
 
-public slots:
     void cancel();
 
 signals:
@@ -171,13 +165,19 @@ protected:
 
 private:
     void run(QFutureInterface<void> &future);
+
+    // Run without a event loop in fully blocking mode. No signals will be delivered.
+    SynchronousProcessResponse runFullySynchronous(const FileName &binary, const QStringList &arguments,
+                                                   QSharedPointer<OutputProxy> proxy,
+                                                   int timeoutS, const QString &workingDirectory,
+                                                   const ExitCodeInterpreter &interpreter = defaultExitCodeInterpreter);
+    // Run with an event loop. Signals will be delivered.
     SynchronousProcessResponse runSynchronous(const FileName &binary, const QStringList &arguments,
+                                              QSharedPointer<OutputProxy> proxy,
                                               int timeoutS, const QString &workingDirectory,
-                                              ExitCodeInterpreter *interpreter = 0);
+                                              const ExitCodeInterpreter &interpreter = defaultExitCodeInterpreter);
 
     class Internal::ShellCommandPrivate *const d;
 };
 
 } // namespace Utils
-
-#endif // UTILS_SHELLCOMMAND_H

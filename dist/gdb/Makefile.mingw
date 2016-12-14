@@ -5,9 +5,15 @@ targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi
 staging=${broot}/staging
 pyversion=2.7
 pydir=${broot}/python
+<<<<<<< HEAD
 expatversion=2.0.1
 iconvversion=1.14
 version=7.5.1
+=======
+expatversion=2.1.1
+iconvversion=1.14
+version=7.11.1
+>>>>>>> v4.1.0
 targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
 packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
@@ -80,11 +86,19 @@ ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
 	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
+<<<<<<< HEAD
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
 	$(Q)cd ${source} && \
 	echo "Downloading expat..." && \
 	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
+=======
+${source}/expat-${expatversion}.tar.bz2: | makesourcedir checkwget
+	cd ${source} && \
+	echo "Downloading expat..." && \
+	wget -q http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.bz2/download && \
+	touch ${source}/expat-${expatversion}.tar.bz2
+>>>>>>> v4.1.0
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
 	$(Q)cd ${staging} && \
@@ -103,10 +117,15 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	./configure -prefix=${staging} --enable-static && \
 	${MAKE} && ${MAKE} install
 
+<<<<<<< HEAD
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
 	$(Q)cd ${staging} && \
+=======
+${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.bz2 | makestagingdir
+	cd ${staging} && \
+>>>>>>> v4.1.0
 	echo "Extracting expat..." && \
-	tar xf ${source}/expat-${expatversion}.tar.gz && \
+	tar xf ${source}/expat-${expatversion}.tar.bz2 && \
 	cd expat-${expatversion} && \
 	./configure -prefix=${staging} --enable-static && \
 	${MAKE} && ${MAKE} install

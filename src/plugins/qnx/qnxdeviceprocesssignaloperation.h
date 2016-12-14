@@ -23,13 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef QNXDEVICEPROCESSSIGNALOPERATION_H
-#define QNXDEVICEPROCESSSIGNALOPERATION_H
+#pragma once
 
 #include <remotelinux/remotelinuxsignaloperation.h>
 
 namespace Qnx {
-class QnxDeviceConfiguration;
+class QnxDevice;
 
 namespace Internal {
 
@@ -43,10 +42,8 @@ private:
     QString killProcessByNameCommandLine(const QString &filePath) const;
     QString interruptProcessByNameCommandLine(const QString &filePath) const;
 
-    friend class Qnx::QnxDeviceConfiguration;
+    friend class Qnx::QnxDevice;
 };
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNXDEVICEPROCESSSIGNALOPERATION_H

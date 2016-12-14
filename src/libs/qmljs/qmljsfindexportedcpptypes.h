@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJS_QMLJSFINDEXPORTEDCPPTYPES_H
-#define QMLJS_QMLJSFINDEXPORTEDCPPTYPES_H
+#pragma once
 
 #include "qmljs_global.h"
 #include <cplusplus/CppDocument.h>
@@ -42,7 +41,7 @@ public:
     FindExportedCppTypes(const CPlusPlus::Snapshot &snapshot);
 
     // document must have a valid source and ast for the duration of the call
-    void operator()(const CPlusPlus::Document::Ptr &document);
+    QStringList operator()(const CPlusPlus::Document::Ptr &document);
 
     QList<LanguageUtils::FakeMetaObject::ConstPtr> exportedTypes() const;
     QHash<QString, QString> contextProperties() const;
@@ -56,5 +55,3 @@ private:
 };
 
 } // namespace QmlJS
-
-#endif // QMLJS_QMLJSFINDEXPORTEDCPPTYPES_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSRUNCONTROL_H
-#define IOSRUNCONTROL_H
+#pragma once
 
 #include <projectexplorer/runconfiguration.h>
 
@@ -48,17 +47,14 @@ public:
     bool isRunning() const override;
     QString displayName() const override;
 
-private slots:
+private:
     void handleRemoteProcessFinished(bool cleanEnd);
     void handleRemoteOutput(const QString &output);
     void handleRemoteErrorOutput(const QString &output);
 
-private:
     IosRunner *const m_runner;
     bool m_running;
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSRUNCONTROL_H

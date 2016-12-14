@@ -23,14 +23,15 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_UNCRUSTIFYCONSTANTS_H
-#define BEAUTIFIER_UNCRUSTIFYCONSTANTS_H
+#pragma once
+
+#include <QtGlobal>
 
 namespace Beautifier {
 namespace Constants {
 namespace Uncrustify {
 
-const char DISPLAY_NAME[]          = "Uncrustify";
+const char DISPLAY_NAME[]          = QT_TRANSLATE_NOOP("Beautifier::Internal::Uncrustify::Uncrustify", "Uncrustify");
 const char ACTION_FORMATFILE[]     = "Uncrustify.FormatFile";
 const char ACTION_FORMATSELECTED[] = "Uncrustify.FormatSelectedText";
 const char MENU_ID[]               = "Uncrustify.Menu";
@@ -40,5 +41,3 @@ const char SETTINGS_NAME[]         = "uncrustify";
 } // namespace Uncrustify
 } // namespace Constants
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_UNCRUSTIFYCONSTANTS_H

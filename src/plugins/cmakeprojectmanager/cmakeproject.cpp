@@ -36,11 +36,13 @@
 #include "cmakeprojectmanager.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/documentmanager.h>
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/projectinfo.h>
 #include <cpptools/projectpartbuilder.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/buildtargetinfo.h>
+#include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/headerpath.h>
@@ -50,13 +52,13 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 #include <qtsupport/baseqtversion.h>
-#include <qtsupport/customexecutablerunconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include <cpptools/generatedcodemodelsupport.h>
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/projectinfo.h>
 #include <cpptools/projectpartbuilder.h>
+#include <qmljs/qmljsmodelmanagerinterface.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
@@ -65,6 +67,7 @@
 
 #include <QDir>
 #include <QFileSystemWatcher>
+#include <QSet>
 #include <QTemporaryDir>
 
 using namespace ProjectExplorer;
@@ -86,11 +89,13 @@ CMakeProject::CMakeProject(CMakeManager *manager, const FileName &fileName)
 {
     setId(Constants::CMAKEPROJECT_ID);
     setProjectManager(manager);
-    setDocument(new CMakeFile(fileName));
+    setDocument(new Internal::CMakeFile(this, fileName));
+
     setRootProjectNode(new CMakeProjectNode(fileName));
     setProjectContext(Core::Context(CMakeProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguages(Core::Context(ProjectExplorer::Constants::LANG_CXX));
 
+    Core::DocumentManager::addDocument(document());
     rootProjectNode()->setDisplayName(fileName.parentDir().fileName());
 
     connect(this, &CMakeProject::activeTargetChanged, this, &CMakeProject::handleActiveTargetChanged);
@@ -100,6 +105,7 @@ CMakeProject::~CMakeProject()
 {
     setRootProjectNode(nullptr);
     m_codeModelFuture.cancel();
+    qDeleteAll(m_watchedFiles);
     qDeleteAll(m_extraCompilers);
 }
 
@@ -215,6 +221,29 @@ void CMakeProject::parseCMakeOutput()
 
     rootProjectNode()->setDisplayName(bdm->projectName());
 
+    // Delete no longer necessary file watcher:
+    const QSet<Utils::FileName> currentWatched
+            = Utils::transform(m_watchedFiles, [](CMakeFile *cmf) { return cmf->filePath(); });
+    const QSet<Utils::FileName> toWatch = bdm->cmakeFiles();
+    QSet<Utils::FileName> toDelete = currentWatched;
+    toDelete.subtract(toWatch);
+    m_watchedFiles = Utils::filtered(m_watchedFiles, [&toDelete](Internal::CMakeFile *cmf) {
+            if (toDelete.contains(cmf->filePath())) {
+                delete cmf;
+                return false;
+            }
+            return true;
+        });
+
+    // Add new file watchers:
+    QSet<Utils::FileName> toAdd = toWatch;
+    toAdd.subtract(currentWatched);
+    foreach (const Utils::FileName &fn, toAdd) {
+        CMakeFile *cm = new CMakeFile(this, fn);
+        Core::DocumentManager::addDocument(cm);
+        m_watchedFiles.insert(cm);
+    }
+
     buildTree(static_cast<CMakeProjectNode *>(rootProjectNode()), bdm->files());
     bdm->clearFiles(); // Some of the FileNodes in files() were deleted!
 
@@ -241,15 +270,27 @@ void CMakeProject::parseCMakeOutput()
             activeQtVersion = CppTools::ProjectPart::Qt5;
     }
 
+    const Utils::FileName sysroot = ProjectExplorer::SysRootKitInformation::sysRoot(k);
+
     ppBuilder.setQtVersion(activeQtVersion);
 
     QHash<QString, QStringList> targetDataCache;
     foreach (const CMakeBuildTarget &cbt, buildTargets()) {
-        // This explicitly adds -I. to the include paths
-        QStringList includePaths = cbt.includeFiles;
+        // CMake shuffles the include paths that it reports via the CodeBlocks generator
+        // So remove the toolchain include paths, so that at least those end up in the correct
+        // place.
+        QStringList cxxflags = getCXXFlagsFor(cbt, targetDataCache);
+        QSet<QString> tcIncludes;
+        foreach (const HeaderPath &hp, tc->systemHeaderPaths(cxxflags, sysroot)) {
+            tcIncludes.insert(hp.path());
+        }
+        QStringList includePaths;
+        foreach (const QString &i, cbt.includeFiles) {
+            if (!tcIncludes.contains(i))
+                includePaths.append(i);
+        }
         includePaths += projectDirectory().toString();
         ppBuilder.setIncludePaths(includePaths);
-        QStringList cxxflags = getCXXFlagsFor(cbt, targetDataCache);
         ppBuilder.setCFlags(cxxflags);
         ppBuilder.setCxxFlags(cxxflags);
         ppBuilder.setDefines(cbt.defines);
@@ -264,10 +305,45 @@ void CMakeProject::parseCMakeOutput()
     pinfo.finish();
     m_codeModelFuture = modelmanager->updateProjectInfo(pinfo);
 
+    updateQmlJSCodeModel();
+
     emit displayNameChanged();
     emit fileListChanged();
 
     emit cmakeBc->emitBuildTypeChanged();
+}
+
+void CMakeProject::updateQmlJSCodeModel()
+{
+    QmlJS::ModelManagerInterface *modelManager = QmlJS::ModelManagerInterface::instance();
+    QTC_ASSERT(modelManager, return);
+
+    if (!activeTarget() || !activeTarget()->activeBuildConfiguration())
+        return;
+
+    QmlJS::ModelManagerInterface::ProjectInfo projectInfo =
+            modelManager->defaultProjectInfoForProject(this);
+
+    projectInfo.importPaths.clear();
+
+    QString cmakeImports;
+    CMakeBuildConfiguration *bc = qobject_cast<CMakeBuildConfiguration *>(activeTarget()->activeBuildConfiguration());
+    if (!bc)
+        return;
+
+    const QList<ConfigModel::DataItem> &cm = bc->completeCMakeConfiguration();
+    foreach (const ConfigModel::DataItem &di, cm) {
+        if (di.key.contains(QStringLiteral("QML_IMPORT_PATH"))) {
+            cmakeImports = di.value;
+            break;
+        }
+    }
+
+    foreach (const QString &cmakeImport, cmakeImports.split(QLatin1Char(';'))) {
+        projectInfo.importPaths.maybeInsert(FileName::fromString(cmakeImport),QmlJS::Dialect::Qml);
+    }
+
+    modelManager->updateProjectInfo(projectInfo, this);
 }
 
 bool CMakeProject::needsConfiguration() const
@@ -461,6 +537,15 @@ bool CMakeProject::setupTarget(Target *t)
     t->updateDefaultDeployConfigurations();
 
     return true;
+}
+
+void CMakeProject::handleCmakeFileChanged()
+{
+    if (Target *t = activeTarget()) {
+        if (auto bc = qobject_cast<CMakeBuildConfiguration *>(t->activeBuildConfiguration())) {
+            bc->cmakeFilesChanged();
+        }
+    }
 }
 
 void CMakeProject::handleActiveTargetChanged()

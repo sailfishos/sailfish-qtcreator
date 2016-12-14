@@ -270,7 +270,7 @@ static MemoryMarkupList
             const quint64 offset = it.key() - address;
             if (offset < size) {
                 ranges[offset] = ColorNumberToolTip(registerColorNumber,
-                           WatchTreeView::tr("Register <i>%1</i>").arg(QString::fromUtf8(it.value())));
+                           WatchTreeView::tr("Register <i>%1</i>").arg(it.value()));
             } else {
                 break; // Sorted.
             }
@@ -455,7 +455,7 @@ void WatchTreeView::keyPressEvent(QKeyEvent *ev)
     if (ev->key() == Qt::Key_Delete && m_type == WatchersType) {
         WatchHandler *handler = currentEngine()->watchHandler();
         foreach (const QModelIndex &idx, activeRows())
-            handler->removeItemByIName(idx.data(LocalsINameRole).toByteArray());
+            handler->removeItemByIName(idx.data(LocalsINameRole).toString());
     } else if (ev->key() == Qt::Key_Return
             && ev->modifiers() == Qt::ControlModifier
             && m_type == LocalsType) {
@@ -811,8 +811,10 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
                               || actSetWatchpointAtExpression.isEnabled());
 
     QAction actCopy(tr("Copy View Contents to Clipboard"), 0);
-    QAction actCopyValue(tr("Copy Value to Clipboard"), 0);
+    QAction actCopyValue(tr("Copy Current Value to Clipboard"), 0);
     actCopyValue.setEnabled(idx.isValid());
+    QAction actCopySelected(tr("Copy Selected Rows to Clipboard"), 0);
+    actCopySelected.setEnabled(selectionModel()->hasSelection());
 
     QAction actShowInEditor(tr("Open View Contents in Editor"), 0);
     actShowInEditor.setEnabled(actionsEnabled);
@@ -835,6 +837,7 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
     menu.addAction(&actCloseEditorToolTips);
     menu.addAction(&actCopy);
     menu.addAction(&actCopyValue);
+    menu.addAction(&actCopySelected);
     menu.addAction(&actShowInEditor);
     menu.addSeparator();
 
@@ -885,11 +888,14 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == &actWatchExpression) {
         watchExpression(exp, name);
     } else if (act == &actRemoveWatchExpression) {
-        handler->removeItemByIName(p.data(LocalsINameRole).toByteArray());
+        handler->removeItemByIName(p.data(LocalsINameRole).toString());
     } else if (act == &actRemoveAllWatchExpression) {
         handler->clearWatches();
     } else if (act == &actCopy) {
         QString contents = handler->editorContents();
+        copyToClipboard(contents);
+    } else if (act == &actCopySelected) {
+        QString contents = handler->editorContents(selectionModel()->selectedRows());
         copyToClipboard(contents);
     } else if (act == &actCopyValue) {
         copyToClipboard(mi1.data().toString());
@@ -952,7 +958,7 @@ void WatchTreeView::setModel(QAbstractItemModel *model)
 
 void WatchTreeView::rowActivated(const QModelIndex &index)
 {
-    currentEngine()->selectWatchData(index.data(LocalsINameRole).toByteArray());
+    currentEngine()->selectWatchData(index.data(LocalsINameRole).toString());
 }
 
 void WatchTreeView::handleItemIsExpanded(const QModelIndex &idx)
@@ -1003,7 +1009,7 @@ void WatchTreeView::doItemsLayout()
         m_sliderPosition = verticalScrollBar()->sliderPosition();
     Utils::BaseTreeView::doItemsLayout();
     if (m_sliderPosition)
-        QTimer::singleShot(0, this, SLOT(adjustSlider()));
+        QTimer::singleShot(0, this, &WatchTreeView::adjustSlider);
 }
 
 void WatchTreeView::adjustSlider()
@@ -1056,8 +1062,9 @@ public:
                 m_lineEdit, &Utils::FancyLineEdit::onEditingFinished);
         connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         connect(m_buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        connect(m_hint, SIGNAL(linkActivated(QString)),
-            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
+        connect(m_hint, &QLabel::linkActivated, [](const QString &link) {
+                Core::HelpManager::handleHelpRequest(link);
+        });
     }
 
     void setLabelText(const QString &text)

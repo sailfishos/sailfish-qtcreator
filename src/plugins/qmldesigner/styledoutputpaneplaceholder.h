@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef STYLEDOUTPUTPANEPLACEHOLDER_H
-#define STYLEDOUTPUTPANEPLACEHOLDER_H
+#pragma once
 
 #include <coreplugin/outputpane.h>
 
@@ -34,7 +33,7 @@ namespace Internal {
 class StyledOutputpanePlaceHolder : public Core::OutputPanePlaceHolder
 {
 public:
-    explicit StyledOutputpanePlaceHolder(Core::IMode *mode, QSplitter *parent = 0);
+    explicit StyledOutputpanePlaceHolder(Core::Id mode, QSplitter *parent = 0);
 
 protected:
     void childEvent(QChildEvent *event) override;;
@@ -45,5 +44,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlDesigner
-
-#endif // STYLEDOUTPUTPANEPLACEHOLDER_H

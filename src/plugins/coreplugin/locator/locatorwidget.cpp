@@ -43,6 +43,7 @@
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 #include <utils/stylehelper.h>
+#include <utils/utilsicons.h>
 
 #include <QColor>
 #include <QFileInfo>
@@ -73,9 +74,9 @@ public:
     {}
 
     void clear();
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     void addEntries(const QList<LocatorFilterEntry> &entries);
 
@@ -248,7 +249,7 @@ LocatorWidget::LocatorWidget(Locator *qop) :
     layout->setMargin(0);
     layout->addWidget(m_fileLineEdit);
 
-    setWindowIcon(Icons::ZOOM.icon());
+    setWindowIcon(Utils::Icons::ZOOM.icon());
     const QPixmap pixmap = Icons::MAGNIFIER.pixmap();
     m_fileLineEdit->setFiltering(true);
     m_fileLineEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
@@ -351,7 +352,17 @@ void LocatorWidget::updateFilterList()
 
 bool LocatorWidget::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == m_fileLineEdit && event->type() == QEvent::KeyPress) {
+    if (obj == m_fileLineEdit && event->type() == QEvent::ShortcutOverride) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+        switch (keyEvent->key()) {
+        case Qt::Key_P:
+        case Qt::Key_N:
+            if (keyEvent->modifiers() == Qt::KeyboardModifiers(Utils::HostOsInfo::controlModifier())) {
+                event->accept();
+                return true;
+            }
+        }
+    } else if (obj == m_fileLineEdit && event->type() == QEvent::KeyPress) {
         if (m_possibleToolTipRequest)
             m_possibleToolTipRequest = false;
         if (QToolTip::isVisible())
@@ -382,6 +393,17 @@ bool LocatorWidget::eventFilter(QObject *obj, QEvent *event)
         case Qt::Key_Alt:
             if (keyEvent->modifiers() == Qt::AltModifier) {
                 m_possibleToolTipRequest = true;
+                return true;
+            }
+            break;
+        case Qt::Key_P:
+        case Qt::Key_N:
+            if (keyEvent->modifiers() == Qt::KeyboardModifiers(Utils::HostOsInfo::controlModifier()))
+            {
+                if (keyEvent->key() == Qt::Key_P)
+                    m_completionList->previous();
+                else
+                    m_completionList->next();
                 return true;
             }
             break;
@@ -420,6 +442,7 @@ bool LocatorWidget::eventFilter(QObject *obj, QEvent *event)
                 QTimer::singleShot(0, this, &LocatorWidget::setFocusToCurrentMode);
                 return true;
             }
+            break;
         case Qt::Key_Alt:
             if (ke->modifiers() == Qt::AltModifier) {
                 event->accept();
