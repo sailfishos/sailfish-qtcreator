@@ -39,7 +39,7 @@ MerOptionsPage::MerOptionsPage(QObject *parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
-    setCategoryIcon(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(Constants::MER_OPTIONS_CATEGORY_ICON));
     setId(Core::Id(Constants::MER_OPTIONS_ID));
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_NAME));
 }
