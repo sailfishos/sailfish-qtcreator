@@ -36,6 +36,8 @@
 #include <projectexplorer/abstractprocessstep.h>
 #include <ssh/sshconnection.h>
 
+#include <QFutureWatcher>
+
 namespace Mer {
 namespace Internal {
 
@@ -131,6 +133,7 @@ private slots:
 
 private:
     ProjectExplorer::BuildStep *m_impl;
+    QFutureWatcher<bool> m_watcher;
 };
 
 class MerMb2RsyncDeployStep : public MerProcessStep
