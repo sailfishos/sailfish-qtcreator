@@ -240,5 +240,10 @@ ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
     return tc;
 }
 
+QSet<ToolChain::Language> MerToolChainFactory::supportedLanguages() const
+{
+    return { ProjectExplorer::ToolChain::Language::Cxx };
+}
+
 } // Internal
 } // Mer
