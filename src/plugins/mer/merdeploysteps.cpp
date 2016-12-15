@@ -283,8 +283,7 @@ void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
     if (!d) {
-        fi.reportResult(false);
-        emit finished();
+        reportRunResult(fi, false);
         return;
     }
 
@@ -344,12 +343,9 @@ void MerConnectionTestStep::finish(bool result)
     m_connection->disconnect(this);
     m_connection->deleteLater(), m_connection = 0;
 
-    m_futureInterface->reportResult(result);
-    m_futureInterface = 0;
-
     delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-
-    emit finished();
+    reportRunResult(*m_futureInterface, result);
+    m_futureInterface = 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -406,14 +402,14 @@ bool MerPrepareTargetStep::init(QList<const BuildStep *> &earlierSteps)
             this, &MerPrepareTargetStep::addTask);
     connect(m_impl, &BuildStep::addOutput,
             this, &MerPrepareTargetStep::addOutput);
-    connect(m_impl, &BuildStep::finished,
-            this, &MerPrepareTargetStep::onImplFinished);
 
     return true;
 }
 
 void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
 {
+    connect(&m_watcher, &QFutureWatcherBase::finished, this, &MerPrepareTargetStep::onImplFinished);
+    m_watcher.setFuture(fi.future());
     m_impl->run(fi);
 }
 
@@ -436,7 +432,6 @@ void MerPrepareTargetStep::onImplFinished()
 {
     m_impl->disconnect(this);
     m_impl->deleteLater(), m_impl = 0;
-    emit finished();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -795,8 +790,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to validate found in %1")).arg(packageFile));
         emit addOutput(message, ErrorMessageOutput);
-        fi.reportResult(false);
-        emit finished();
+        reportRunResult(fi, false);
         return;
     }
 
