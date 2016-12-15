@@ -36,7 +36,10 @@ SelectionRectangle::SelectionRectangle(LayerItem *layerItem)
     : m_controlShape(new QGraphicsRectItem(layerItem)),
     m_layerItem(layerItem)
 {
-    m_controlShape->setPen(QPen(Qt::black));
+    QPen pen(Qt::black);
+    pen.setJoinStyle(Qt::MiterJoin);
+    pen.setCosmetic(true);
+    m_controlShape->setPen(pen);
     m_controlShape->setBrush(QColor(128, 128, 128, 50));
 }
 

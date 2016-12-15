@@ -26,6 +26,7 @@
 #pragma once
 
 #include "clangtranslationunit.h"
+#include "unsavedfiles.h"
 
 #include <codecompletion.h>
 
@@ -39,7 +40,8 @@ class CodeCompleter
 {
 public:
     CodeCompleter() = default;
-    CodeCompleter(TranslationUnit translationUnit);
+    CodeCompleter(const TranslationUnit &translationUnit,
+                  const UnsavedFiles &unsavedFiles);
 
     CodeCompletions complete(uint line, uint column);
 
@@ -47,24 +49,20 @@ public:
 
 private:
     uint defaultOptions() const;
+    UnsavedFile &unsavedFile();
 
     void tryDotArrowCorrectionIfNoResults(ClangCodeCompleteResults &results,
                                           uint line,
                                           uint column);
 
-    ClangCodeCompleteResults complete(uint line,
-                                      uint column,
-                                      CXUnsavedFile *unsavedFiles,
-                                      unsigned unsavedFileCount);
+    ClangCodeCompleteResults completeHelper(uint line, uint column);
     ClangCodeCompleteResults completeWithArrowInsteadOfDot(uint line,
                                                            uint column,
                                                            uint dotPosition);
 
-    Utf8String filePath() const;
-    static void checkCodeCompleteResult(CXCodeCompleteResults *completeResults);
-
 private:
     TranslationUnit translationUnit;
+    UnsavedFiles unsavedFiles;
     CompletionCorrection neededCorrection_ = CompletionCorrection::NoCorrection;
 };
 

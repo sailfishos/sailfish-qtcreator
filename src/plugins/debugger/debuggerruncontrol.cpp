@@ -129,6 +129,10 @@ DebuggerRunControl::DebuggerRunControl(RunConfiguration *runConfig, DebuggerEngi
 DebuggerRunControl::~DebuggerRunControl()
 {
     disconnect();
+    if (m_outputProcessor) {
+        delete m_outputProcessor;
+        m_outputProcessor = 0;
+    }
     if (m_engine) {
         DebuggerEngine *engine = m_engine;
         m_engine = 0;
@@ -147,6 +151,32 @@ bool DebuggerRunControl::supportsReRunning() const
 {
     // QML and/or mixed are not prepared for it.
     return m_engine && !(m_engine->runParameters().languages & QmlLanguage);
+}
+
+static OutputFormat outputFormatForChannelType(int channel)
+{
+    switch (channel) {
+    case AppOutput: return StdOutFormatSameLine;
+    case AppError: return StdErrFormatSameLine;
+    case AppStuff: return DebugFormat;
+    default: return NumberOfFormats;
+    }
+}
+
+void DebuggerRunControl::handleApplicationOutput(const QString &msg, int channel)
+{
+    OutputFormat format = outputFormatForChannelType(channel);
+    QTC_ASSERT(format != NumberOfFormats, return);
+    if (m_outputProcessor) {
+        if (m_outputProcessor->logToAppOutputPane)
+            appendMessage(msg, format);
+        if (m_outputProcessor->process) {
+            m_outputProcessor->process(msg, channel == AppError ? OutputProcessor::StandardError
+                                                                : OutputProcessor::StandardOut);
+        }
+    } else {
+        appendMessage(msg, format);
+    }
 }
 
 void DebuggerRunControl::start()
@@ -277,6 +307,12 @@ DebuggerStartParameters &DebuggerRunControl::startParameters()
     return m_engine->runParameters();
 }
 
+void DebuggerRunControl::setOutputProcessor(OutputProcessor *processor)
+{
+    delete m_outputProcessor;
+    m_outputProcessor = processor;
+}
+
 void DebuggerRunControl::notifyInferiorIll()
 {
     m_engine->notifyInferiorIll();
@@ -354,11 +390,20 @@ static DebuggerRunControl *doCreate(DebuggerRunParameters rp, RunConfiguration *
     if (rp.symbolFile.isEmpty())
         rp.symbolFile = rp.inferior.executable;
 
+    rp.debugger = DebuggerKitInformation::runnable(kit);
+    const QByteArray envBinary = qgetenv("QTC_DEBUGGER_PATH");
+    if (!envBinary.isEmpty())
+        rp.debugger.executable = QString::fromLocal8Bit(envBinary);
+
     if (runConfig) {
         if (auto envAspect = runConfig->extraAspect<EnvironmentAspect>()) {
             rp.inferior.environment = envAspect->environment(); // Correct.
             rp.stubEnvironment = rp.inferior.environment; // FIXME: Wrong, but contains DYLD_IMAGE_SUFFIX
-            rp.debuggerEnvironment = rp.inferior.environment; // FIXME: Wrong, but contains DYLD_IMAGE_SUFFIX
+
+            // Copy over DYLD_IMAGE_SUFFIX etc
+            for (auto var : QStringList({"DYLD_IMAGE_SUFFIX", "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"}))
+                if (rp.inferior.environment.hasKey(var))
+                    rp.debugger.environment.set(var, rp.inferior.environment.value(var));
         }
         if (Project *project = runConfig->target()->project()) {
             rp.projectSourceDirectory = project->projectDirectory().toString();
@@ -370,8 +415,7 @@ static DebuggerRunControl *doCreate(DebuggerRunParameters rp, RunConfiguration *
         rp.inferior.environment.modify(EnvironmentKitInformation::environmentChanges(kit));
     }
 
-    if (ToolChain *tc = ToolChainKitInformation::toolChain(kit))
-        rp.toolChainAbi = tc->targetAbi();
+    rp.toolChainAbi = ToolChainKitInformation::targetAbi(kit);
 
     if (false) {
         const QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
@@ -384,8 +428,8 @@ static DebuggerRunControl *doCreate(DebuggerRunParameters rp, RunConfiguration *
         rp.nativeMixedEnabled = bool(nativeMixedOverride);
 
     rp.cppEngineType = DebuggerKitInformation::engineType(kit);
-    rp.sysRoot = SysRootKitInformation::sysRoot(kit).toString();
-    rp.debuggerCommand = DebuggerKitInformation::debuggerCommand(kit).toString();
+    if (rp.sysRoot.isEmpty())
+        rp.sysRoot = SysRootKitInformation::sysRoot(kit).toString();
     rp.device = DeviceKitInformation::device(kit);
 
     if (rp.displayName.isEmpty() && runConfig)
@@ -430,9 +474,13 @@ static DebuggerRunControl *doCreate(DebuggerRunParameters rp, RunConfiguration *
     if (rp.languages & CppLanguage) {
         const QList<Task> tasks = DebuggerKitInformation::validateDebugger(kit);
         if (!tasks.isEmpty()) {
-            foreach (const Task &t, tasks)
+            foreach (const Task &t, tasks) {
+                if (t.type == Task::Warning)
+                    continue;
                 errors->append(t.description);
-            return 0;
+            }
+            if (!errors->isEmpty())
+                return 0;
         }
     }
 

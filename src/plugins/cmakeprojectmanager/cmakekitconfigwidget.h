@@ -29,6 +29,7 @@
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
+class QDialog;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
@@ -98,8 +99,11 @@ public:
     QString toolTip() const override;
 
 private:
+    void changeGenerator();
+
     bool m_ignoreChange = false;
-    QComboBox *m_comboBox;
+    QLabel *m_label;
+    QPushButton *m_changeButton;
     CMakeTool *m_currentTool = nullptr;
 };
 

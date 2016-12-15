@@ -54,10 +54,14 @@ public:
     InfoBarEntry(Id _id, const QString &_infoText, GlobalSuppressionMode _globalSuppression = GlobalSuppressionDisabled);
     InfoBarEntry(const InfoBarEntry &other) { *this = other; }
 
-    typedef std::function<void()> CallBack;
+    using CallBack = std::function<void()>;
     void setCustomButtonInfo(const QString &_buttonText, CallBack callBack);
     void setCancelButtonInfo(CallBack callBack);
     void setCancelButtonInfo(const QString &_cancelButtonText, CallBack callBack);
+    void setShowDefaultCancelButton(bool yesno);
+
+    using DetailsWidgetCreator = std::function<QWidget*()>;
+    void setDetailsWidgetCreator(const DetailsWidgetCreator &creator);
 
 private:
     Id id;
@@ -67,6 +71,8 @@ private:
     QString cancelButtonText;
     CallBack m_cancelButtonCallBack;
     GlobalSuppressionMode globalSuppression;
+    DetailsWidgetCreator m_detailsWidgetCreator;
+    bool m_showDefaultCancelButton = true;
     friend class InfoBar;
     friend class InfoBarDisplay;
 };
@@ -84,12 +90,16 @@ public:
     void enableInfo(Id id);
     void clear();
     static void globallySuppressInfo(Id id);
+    static void globallyUnsuppressInfo(Id id);
     static void initializeGloballySuppressed();
     static void clearGloballySuppressed();
     static bool anyGloballySuppressed();
 
 signals:
     void changed();
+
+private:
+    static void writeGloballySuppressedToSettings();
 
 private:
     QList<InfoBarEntry> m_infoBarEntries;
@@ -113,9 +123,10 @@ private:
     void widgetDestroyed();
 
     QList<QWidget *> m_infoWidgets;
-    InfoBar *m_infoBar;
-    QBoxLayout *m_boxLayout;
-    int m_boxIndex;
+    InfoBar *m_infoBar = nullptr;
+    QBoxLayout *m_boxLayout = nullptr;
+    int m_boxIndex = 0;
+    bool m_isShowingDetailsWidget = false;
 };
 
 } // namespace Core

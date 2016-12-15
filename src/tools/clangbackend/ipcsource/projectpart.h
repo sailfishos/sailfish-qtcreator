@@ -25,11 +25,11 @@
 
 #pragma once
 
+#include "clangclock.h"
+
 #include <utf8string.h>
 
-#include <chrono>
 #include <memory>
-#include <vector>
 
 class Utf8StringVector;
 
@@ -37,8 +37,6 @@ namespace ClangBackEnd {
 
 class ProjectPartContainer;
 class ProjectPartData;
-
-using time_point = std::chrono::steady_clock::time_point;
 
 class ProjectPart
 {
@@ -57,16 +55,12 @@ public:
 
     void clear();
 
-    const Utf8String &projectPartId() const;
+    Utf8String projectPartId() const;
 
     void setArguments(const Utf8StringVector &arguments_);
+    const Utf8StringVector arguments() const;
 
-    const std::vector<const char*> &arguments() const;
-
-    int argumentCount() const;
-    const char *const *cxArguments() const;
-
-    const time_point &lastChangeTimePoint() const;
+    const TimePoint &lastChangeTimePoint() const;
 
 private:
     void updateLastChangeTimePoint();

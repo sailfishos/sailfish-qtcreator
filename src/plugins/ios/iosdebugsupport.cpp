@@ -143,8 +143,14 @@ RunControl *IosDebugSupport::createDebugRunControl(IosRunConfiguration *runConfi
                              ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
         }
     }
-    if (qmlDebug && !cppDebug) {
-        params.startMode = AttachToRemoteServer;
+
+    if (qmlDebug) {
+        QTcpServer server;
+        QTC_ASSERT(server.listen(QHostAddress::LocalHost)
+                   || server.listen(QHostAddress::LocalHostIPv6), return 0);
+        params.qmlServer.host = server.serverAddress().toString();
+        if (!cppDebug)
+            params.startMode = AttachToRemoteServer;
     }
 
     DebuggerRunControl *debuggerRunControl = createDebuggerRunControl(params, runConfig, errorMessage);
@@ -163,6 +169,8 @@ IosDebugSupport::IosDebugSupport(IosRunConfiguration *runConfig,
             m_runner, &IosRunner::start);
     connect(m_runControl, &RunControl::finished,
             m_runner, &IosRunner::stop);
+    connect(m_runControl, &DebuggerRunControl::stateChanged,
+            m_runner, &IosRunner::debuggerStateChanged);
 
     connect(m_runner, &IosRunner::gotServerPorts,
         this, &IosDebugSupport::handleServerPorts);

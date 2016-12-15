@@ -84,6 +84,8 @@ QmlInspectorAgent::QmlInspectorAgent(QmlEngine *engine, QmlDebugConnection *conn
     m_debugIdToIname.insert(WatchItem::InvalidId, "inspect");
     connect(action(ShowQmlObjectTree),
             &Utils::SavedAction::valueChanged, this, &QmlInspectorAgent::updateState);
+    connect(action(SortStructMembers), &Utils::SavedAction::valueChanged,
+            this, &QmlInspectorAgent::updateState);
     m_delayQueryTimer.setSingleShot(true);
     m_delayQueryTimer.setInterval(100);
     connect(&m_delayQueryTimer, &QTimer::timeout,
@@ -615,7 +617,6 @@ void QmlInspectorAgent::addWatchData(const ObjectReference &obj,
         objWatch->type = obj.className();
         objWatch->value = "object";
         objWatch->wantsChildren = true;
-        objWatch->setAllUnneeded();
 
         m_qmlEngine->watchHandler()->insertItem(objWatch);
         addObjectWatch(objWatch->id);
@@ -645,7 +646,6 @@ void QmlInspectorAgent::addWatchData(const ObjectReference &obj,
         propertiesWatch->id = objDebugId;
         propertiesWatch->value = "list";
         propertiesWatch->wantsChildren = true;
-        propertiesWatch->setAllUnneeded();
 
         foreach (const PropertyReference &property, obj.properties()) {
             const QString propertyName = property.name();
@@ -659,7 +659,6 @@ void QmlInspectorAgent::addWatchData(const ObjectReference &obj,
             propertyWatch->type = property.valueTypeName();
             propertyWatch->value = property.value().toString();
             propertyWatch->wantsChildren = false;
-            propertyWatch->setAllUnneeded();
             propertiesWatch->appendChild(propertyWatch);
         }
 
@@ -709,11 +708,6 @@ void QmlInspectorAgent::clearObjectTree()
     m_debugIdToIname.insert(WatchItem::InvalidId, "inspect");
     m_objectStack.clear();
     m_objectWatches.clear();
-}
-
-BaseToolsClient *QmlInspectorAgent::toolsClient() const
-{
-    return m_toolsClient;
 }
 
 void QmlInspectorAgent::clientStateChanged(QmlDebugClient::State state)
@@ -808,32 +802,32 @@ void QmlInspectorAgent::selectObjectsFromToolsClient(const QList<int> &debugIds)
 
 void QmlInspectorAgent::onSelectActionTriggered(bool checked)
 {
-    QTC_ASSERT(toolsClient(), return);
+    QTC_ASSERT(m_toolsClient, return);
     if (checked) {
-        toolsClient()->setDesignModeBehavior(true);
-        toolsClient()->changeToSelectTool();
+        m_toolsClient->setDesignModeBehavior(true);
+        m_toolsClient->changeToSelectTool();
         m_zoomAction->setChecked(false);
     } else {
-        toolsClient()->setDesignModeBehavior(false);
+        m_toolsClient->setDesignModeBehavior(false);
     }
 }
 
 void QmlInspectorAgent::onZoomActionTriggered(bool checked)
 {
-    QTC_ASSERT(toolsClient(), return);
+    QTC_ASSERT(m_toolsClient, return);
     if (checked) {
-        toolsClient()->setDesignModeBehavior(true);
-        toolsClient()->changeToZoomTool();
+        m_toolsClient->setDesignModeBehavior(true);
+        m_toolsClient->changeToZoomTool();
         m_selectAction->setChecked(false);
     } else {
-        toolsClient()->setDesignModeBehavior(false);
+        m_toolsClient->setDesignModeBehavior(false);
     }
 }
 
 void QmlInspectorAgent::onShowAppOnTopChanged(bool checked)
 {
-    QTC_ASSERT(toolsClient(), return);
-    toolsClient()->showAppOnTop(checked);
+    QTC_ASSERT(m_toolsClient, return);
+    m_toolsClient->showAppOnTop(checked);
 }
 
 void QmlInspectorAgent::setActiveEngineClient(BaseEngineDebugClient *client)

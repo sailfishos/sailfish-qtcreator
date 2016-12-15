@@ -46,7 +46,9 @@ public:
 
     DiffEditorController *controller() const;
 
-    QString makePatch(int fileIndex, int chunkIndex, bool revert, bool addPrefix = false) const;
+    QString makePatch(int fileIndex, int chunkIndex,
+                      bool revert, bool addPrefix = false,
+                      const QString &overriddenFileName = QString()) const;
 
     void setDiffFiles(const QList<FileData> &data, const QString &directory,
                       const QString &startupFile = QString());
@@ -68,7 +70,6 @@ public:
     QString fallbackSaveAsPath() const override;
     QString fallbackSaveAsFileName() const override;
 
-    bool isModified() const override { return false; }
     bool isSaveAsAllowed() const override { return true; }
     bool save(QString *errorString, const QString &fileName, bool autoSave) override;
     void reload();

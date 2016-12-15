@@ -25,17 +25,22 @@
 
 #include "threadshandler.h"
 
+#include "debuggeractions.h"
 #include "debuggercore.h"
+#include "debuggerengine.h"
 #include "debuggericons.h"
 #include "debuggerprotocol.h"
 #include "watchutils.h"
 
 #include <utils/algorithm.h>
+#include <utils/basetreeview.h>
 #include <utils/qtcassert.h>
+#include <utils/savedaction.h>
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QIcon>
+#include <QMenu>
 
 using namespace Utils;
 
@@ -225,7 +230,8 @@ public:
             represent the running threads in a QTreeView or ComboBox.
 */
 
-ThreadsHandler::ThreadsHandler()
+ThreadsHandler::ThreadsHandler(DebuggerEngine *engine)
+    : m_engine(engine)
 {
     m_resetLocationScheduled = false;
     setObjectName(QLatin1String("ThreadsModel"));
@@ -236,10 +242,32 @@ ThreadsHandler::ThreadsHandler()
     });
 }
 
+bool ThreadsHandler::setData(const QModelIndex &idx, const QVariant &data, int role)
+{
+    if (role == BaseTreeView::ItemActivatedRole) {
+        ThreadId id = ThreadId(idx.data(ThreadData::IdRole).toLongLong());
+        m_engine->selectThread(id);
+        return true;
+    }
+
+    if (role == BaseTreeView::ItemViewEventRole) {
+        ItemViewEvent ev = data.value<ItemViewEvent>();
+
+        if (ev.as<QContextMenuEvent>()) {
+            auto menu = new QMenu;
+            menu->addAction(action(SettingsDialog));
+            menu->popup(ev.globalPos());
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static ThreadItem *itemForThreadId(const ThreadsHandler *handler, ThreadId threadId)
 {
     const auto matcher = [threadId](ThreadItem *item) { return item->threadData.id == threadId; };
-    return handler->findFirstLevelItem(matcher);
+    return handler->findItemAtLevel<1>(matcher);
 }
 
 static int indexForThreadId(const ThreadsHandler *handler, ThreadId threadId)
@@ -337,7 +365,7 @@ void ThreadsHandler::setThreads(const Threads &threads)
 void ThreadsHandler::updateThreadBox()
 {
     QStringList list;
-    forFirstLevelItems([&list](ThreadItem *item) {
+    forItemsAtLevel<1>([&list](ThreadItem *item) {
         list.append(QString::fromLatin1("#%1 %2").arg(item->threadData.id.raw()).arg(item->threadData.name));
     });
     Internal::setThreadBoxContents(list, indexForThreadId(this, m_currentId));
@@ -358,7 +386,7 @@ void ThreadsHandler::removeAll()
 bool ThreadsHandler::notifyGroupExited(const QString &groupId)
 {
     QList<ThreadItem *> list;
-    forFirstLevelItems([&list, groupId](ThreadItem *item) {
+    forItemsAtLevel<1>([&list, groupId](ThreadItem *item) {
         if (item->threadData.groupId == groupId)
             list.append(item);
     });
@@ -385,7 +413,7 @@ void ThreadsHandler::notifyRunning(const QString &data)
 
 void ThreadsHandler::notifyAllRunning()
 {
-    forFirstLevelItems([](ThreadItem *item) { item->notifyRunning(); });
+    forItemsAtLevel<1>([](ThreadItem *item) { item->notifyRunning(); });
 }
 
 void ThreadsHandler::notifyRunning(ThreadId threadId)
@@ -410,7 +438,7 @@ void ThreadsHandler::notifyStopped(const QString &data)
 
 void ThreadsHandler::notifyAllStopped()
 {
-    forFirstLevelItems([](ThreadItem *item) { item->notifyStopped(); });
+    forItemsAtLevel<1>([](ThreadItem *item) { item->notifyStopped(); });
 }
 
 void ThreadsHandler::notifyStopped(ThreadId threadId)

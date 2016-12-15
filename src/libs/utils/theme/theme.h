@@ -149,9 +149,7 @@ public:
         PaletteShadow,
 
         PaletteWindowDisabled,
-        PaletteBackgroundDisabled,
         PaletteWindowTextDisabled,
-        PaletteForegroundDisabled,
         PaletteBaseDisabled,
         PaletteAlternateBaseDisabled,
         PaletteToolTipBaseDisabled,
@@ -256,6 +254,17 @@ public:
         Welcome_LinkColor,
         Welcome_HoverColor,
 
+        /* Timeline Library */
+        Timeline_TextColor,
+        Timeline_BackgroundColor1,
+        Timeline_BackgroundColor2,
+        Timeline_DividerColor,
+        Timeline_HighlightColor,
+        Timeline_PanelBackgroundColor,
+        Timeline_PanelHeaderColor,
+        Timeline_HandleColor,
+        Timeline_RangeColor,
+
         /* VcsBase Plugin */
         VcsBase_FileStatusUnknown_TextColor,
         VcsBase_FileAdded_TextColor,
@@ -289,18 +298,9 @@ public:
 
     enum Gradient {
         DetailsWidgetHeaderGradient,
-        Welcome_Button_GradientNormal,
-        Welcome_Button_GradientPressed
     };
 
     enum ImageFile {
-        ProjectExplorerHeader,
-        ProjectExplorerSource,
-        ProjectExplorerForm,
-        ProjectExplorerResource,
-        ProjectExplorerQML,
-        ProjectExplorerOtherFiles,
-        ProjectFileIcon,
         IconOverlayCSource,
         IconOverlayCppHeader,
         IconOverlayCppSource,
@@ -308,11 +308,7 @@ public:
         IconOverlayPrf,
         IconOverlayPro,
         StandardPixmapFileIcon,
-        StandardPixmapDirIcon,
-        BuildStepDisable,
-        BuildStepRemove,
-        BuildStepMoveDown,
-        BuildStepMoveUp
+        StandardPixmapDirIcon
     };
 
     enum Flag {
@@ -345,7 +341,7 @@ public:
     QString displayName() const;
     void setDisplayName(const QString &displayName);
 
-    QVariantHash values() const;
+    const QVariantMap &values() const;
 
     void readSettings(QSettings &settings);
 

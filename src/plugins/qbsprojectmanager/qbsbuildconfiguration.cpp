@@ -123,7 +123,7 @@ QVariantMap QbsBuildConfiguration::qbsConfiguration() const
     QVariantMap config;
     QbsBuildStep *qbsBs = qbsStep();
     if (qbsBs)
-        config = qbsBs->qbsConfiguration();
+        config = qbsBs->qbsConfiguration(QbsBuildStep::ExpandVariables);
     return config;
 }
 
@@ -134,7 +134,7 @@ Internal::QbsProject *QbsBuildConfiguration::project() const
 
 IOutputParser *QbsBuildConfiguration::createOutputParser() const
 {
-    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit());
+    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
     return tc ? tc->outputParser() : 0;
 }
 

@@ -33,30 +33,28 @@
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/texteditor.h>
 
+#include <utils/algorithm.h>
+
 namespace TextEditor {
 
 // --------------------------
 // Keywords
 // --------------------------
-Keywords::Keywords()
-{
-}
-
 // Note: variables and functions must be sorted
-Keywords::Keywords(const QStringList &variabels, const QStringList &functions, const QMap<QString, QStringList> &functionArgs)
-    : m_variables(variabels), m_functions(functions), m_functionArgs(functionArgs)
+Keywords::Keywords(const QStringList &variables, const QStringList &functions, const QMap<QString, QStringList> &functionArgs)
+    : m_variables(variables), m_functions(functions), m_functionArgs(functionArgs)
 {
 
 }
 
 bool Keywords::isVariable(const QString &word) const
 {
-    return qBinaryFind(m_variables, word) != m_variables.constEnd();
+    return std::binary_search(m_variables.constBegin(), m_variables.constEnd(), word);
 }
 
 bool Keywords::isFunction(const QString &word) const
 {
-    return qBinaryFind(m_functions, word) != m_functions.constEnd();
+    return std::binary_search(m_functions.constBegin(), m_functions.constEnd(), word);
 }
 
 QStringList Keywords::variables() const
@@ -82,9 +80,6 @@ KeywordsAssistProposalItem::KeywordsAssistProposalItem(bool isFunction)
     : m_isFunction(isFunction)
 {
 }
-
-KeywordsAssistProposalItem::~KeywordsAssistProposalItem() Q_DECL_NOEXCEPT
-{}
 
 bool KeywordsAssistProposalItem::prematurelyApplies(const QChar &c) const
 {
@@ -141,9 +136,6 @@ KeywordsFunctionHintModel::KeywordsFunctionHintModel(const QStringList &function
         : m_functionSymbols(functionSymbols)
 {}
 
-KeywordsFunctionHintModel::~KeywordsFunctionHintModel()
-{}
-
 void KeywordsFunctionHintModel::reset()
 {}
 
@@ -167,13 +159,10 @@ int KeywordsFunctionHintModel::activeArgument(const QString &prefix) const
 // KeywordsCompletionAssistProcessor
 // ---------------------------------
 KeywordsCompletionAssistProcessor::KeywordsCompletionAssistProcessor(Keywords keywords)
-    : m_startPosition(-1)
+    : m_snippetCollector(QString(), QIcon(":/texteditor/images/snippet.png"))
     , m_variableIcon(QLatin1String(":/codemodel/images/keyword.png"))
     , m_functionIcon(QLatin1String(":/codemodel/images/member.png"))
     , m_keywords(keywords)
-{}
-
-KeywordsCompletionAssistProcessor::~KeywordsCompletionAssistProcessor()
 {}
 
 IAssistProposal *KeywordsCompletionAssistProcessor::perform(const AssistInterface *interface)
@@ -181,10 +170,10 @@ IAssistProposal *KeywordsCompletionAssistProcessor::perform(const AssistInterfac
     m_interface.reset(interface);
 
     if (isInComment())
-        return 0;
+        return nullptr;
 
     if (interface->reason() == IdleEditor && !acceptsIdleEditor())
-        return 0;
+        return nullptr;
 
     if (m_startPosition == -1)
         m_startPosition = findStartOfName();
@@ -193,14 +182,12 @@ IAssistProposal *KeywordsCompletionAssistProcessor::perform(const AssistInterfac
     if (m_keywords.isFunction(m_word)
         && m_interface->characterAt(nextCharPos) == QLatin1Char('(')) {
         QStringList functionSymbols = m_keywords.argsForFunction(m_word);
-        IFunctionHintProposalModel *model =
-                new KeywordsFunctionHintModel(functionSymbols);
-        IAssistProposal *proposal = new FunctionHintProposal(m_startPosition, model);
-        return proposal;
+        IFunctionHintProposalModel *model = new KeywordsFunctionHintModel(functionSymbols);
+        return new FunctionHintProposal(m_startPosition, model);
     } else {
-        QList<AssistProposalItemInterface *> items;
-        addWordsToProposalList(&items, m_keywords.variables(), m_variableIcon);
-        addWordsToProposalList(&items, m_keywords.functions(), m_functionIcon);
+        QList<AssistProposalItemInterface *> items = m_snippetCollector.collect();
+        items.append(generateProposalList(m_keywords.variables(), m_variableIcon));
+        items.append(generateProposalList(m_keywords.variables(), m_variableIcon));
         return new GenericProposal(m_startPosition, items);
     }
 }
@@ -208,6 +195,11 @@ IAssistProposal *KeywordsCompletionAssistProcessor::perform(const AssistInterfac
 QChar KeywordsCompletionAssistProcessor::startOfCommentChar() const
 {
     return QLatin1Char('#');
+}
+
+void KeywordsCompletionAssistProcessor::setSnippetGroup(const QString &id)
+{
+    m_snippetCollector.setGroupId(id);
 }
 
 void KeywordsCompletionAssistProcessor::setKeywords(Keywords keywords)
@@ -218,7 +210,7 @@ void KeywordsCompletionAssistProcessor::setKeywords(Keywords keywords)
 bool KeywordsCompletionAssistProcessor::acceptsIdleEditor()
 {
     const int pos = m_interface->position();
-    QChar characterUnderCursor = m_interface->characterAt(pos);
+    const QChar characterUnderCursor = m_interface->characterAt(pos);
     if (!characterUnderCursor.isLetterOrNumber()) {
         m_startPosition = findStartOfName();
         if (pos - m_startPosition >= 3 && !isInComment())
@@ -240,7 +232,7 @@ int KeywordsCompletionAssistProcessor::findStartOfName(int pos)
         chr = m_interface->characterAt(--pos);
     } while (chr.isLetterOrNumber() || chr == QLatin1Char('_'));
 
-    int start = ++pos;
+    const int start = ++pos;
     m_word.clear();
     do {
         m_word += m_interface->characterAt(pos);
@@ -257,22 +249,18 @@ bool KeywordsCompletionAssistProcessor::isInComment() const
     tc.setPosition(m_interface->position());
     tc.movePosition(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
     const QString &lineBeginning = tc.selectedText();
-    if (lineBeginning.contains(startOfCommentChar()))
-        return true;
-    return false;
+    return lineBeginning.contains(startOfCommentChar());
 }
 
-void KeywordsCompletionAssistProcessor::addWordsToProposalList(QList<AssistProposalItemInterface *> *items, const QStringList &words, const QIcon &icon)
+QList<AssistProposalItemInterface *>
+KeywordsCompletionAssistProcessor::generateProposalList(const QStringList &words, const QIcon &icon)
 {
-    if (!items)
-        return;
-
-    for (int i = 0; i < words.count(); ++i) {
-        AssistProposalItem *item = new KeywordsAssistProposalItem(m_keywords.isFunction(words.at(i)));
-        item->setText(words.at(i));
+    return Utils::transform(words, [this, &icon](const QString &word) -> AssistProposalItemInterface * {
+        AssistProposalItem *item = new KeywordsAssistProposalItem(m_keywords.isFunction(word));
+        item->setText(word);
         item->setIcon(icon);
-        items->append(item);
-    }
+        return item;
+    });
 }
 
 } // namespace TextEditor

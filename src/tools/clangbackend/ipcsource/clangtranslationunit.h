@@ -25,110 +25,68 @@
 
 #pragma once
 
-#include <utf8stringvector.h>
+#include <clangbackendipc/codecompletion.h>
+
+#include <utf8string.h>
 
 #include <clang-c/Index.h>
-
-#include <QtGlobal>
-
-#include <chrono>
-#include <memory>
-#include <QSet>
 
 class Utf8String;
 
 namespace ClangBackEnd {
 
-class TranslationUnitData;
-class CodeCompleter;
-class UnsavedFile;
-class UnsavedFiles;
-class ProjectPart;
+class Cursor;
 class DiagnosticContainer;
 class DiagnosticSet;
-class FileContainer;
+class HighlightingMarkContainer;
 class HighlightingMarks;
-class TranslationUnits;
-class CommandLineArguments;
-class Cursor;
+class SkippedSourceRanges;
 class SourceLocation;
 class SourceRange;
-class SkippedSourceRanges;
-
-using time_point = std::chrono::steady_clock::time_point;
+class SourceRangeContainer;
+class TranslationUnitUpdateInput;
+class TranslationUnitUpdateResult;
+class UnsavedFiles;
 
 class TranslationUnit
 {
 public:
-    enum FileExistsCheck {
-        CheckIfFileExists,
-        DoNotCheckIfFileExists
+    struct CodeCompletionResult {
+        CodeCompletions completions;
+        CompletionCorrection correction;
     };
 
-    TranslationUnit() = default;
-    TranslationUnit(const Utf8String &filePath,
-                    const ProjectPart &projectPart,
-                    const Utf8StringVector &fileArguments,
-                    TranslationUnits &translationUnits,
-                    FileExistsCheck fileExistsCheck = CheckIfFileExists);
-    ~TranslationUnit();
-
-    TranslationUnit(const TranslationUnit &cxTranslationUnit);
-    TranslationUnit &operator=(const TranslationUnit &cxTranslationUnit);
-
-    TranslationUnit(TranslationUnit &&cxTranslationUnit);
-    TranslationUnit &operator=(TranslationUnit &&cxTranslationUnit);
+public:
+    TranslationUnit(const Utf8String &id,
+                    const Utf8String &filePath,
+                    CXIndex &cxIndex,
+                    CXTranslationUnit &cxTranslationUnit);
 
     bool isNull() const;
 
-    void setIsUsedByCurrentEditor(bool isUsedByCurrentEditor);
-    bool isUsedByCurrentEditor() const;
+    Utf8String id() const;
 
-    void setIsVisibleInEditor(bool isVisibleInEditor);
-    bool isVisibleInEditor() const;
+    Utf8String filePath() const;
+    CXIndex &cxIndex() const;
+    CXTranslationUnit &cxTranslationUnit() const;
 
-    void reset();
-    void reparse() const;
+    TranslationUnitUpdateResult update(const TranslationUnitUpdateInput &parseInput) const;
+    TranslationUnitUpdateResult parse(const TranslationUnitUpdateInput &parseInput) const;
+    TranslationUnitUpdateResult reparse(const TranslationUnitUpdateInput &parseInput) const;
 
-    bool isIntact() const;
+    CodeCompletionResult complete(UnsavedFiles &unsavedFiles, uint line, uint column) const;
 
-    CXIndex index() const;
-    CXTranslationUnit cxTranslationUnit() const;
-    CXTranslationUnit cxTranslationUnitWithoutReparsing() const;
-
-    UnsavedFile &unsavedFile() const;
-    CXUnsavedFile * cxUnsavedFiles() const;
-
-    uint unsavedFilesCount() const;
-
-    const Utf8String &filePath() const;
-    const Utf8String &projectPartId() const;
-    FileContainer fileContainer() const;
-    const ProjectPart &projectPart() const;
-
-    void setDocumentRevision(uint revision);
-    uint documentRevision() const;
-
-    const time_point &lastProjectPartChangeTimePoint() const;
-
-    bool isNeedingReparse() const;
-    bool hasNewDiagnostics() const;
-    bool hasNewHighlightingMarks() const;
+    void extractDiagnostics(DiagnosticContainer &firstHeaderErrorDiagnostic,
+                            QVector<DiagnosticContainer> &mainFileDiagnostics) const;
+    void extractDocumentAnnotations(DiagnosticContainer &firstHeaderErrorDiagnostic,
+                                    QVector<DiagnosticContainer> &mainFileDiagnostics,
+                                    QVector<HighlightingMarkContainer> &highlightingMarks,
+                                    QVector<SourceRangeContainer> &skippedSourceRanges) const;
 
     DiagnosticSet diagnostics() const;
-    QVector<DiagnosticContainer> mainFileDiagnostics() const;
 
-    const QSet<Utf8String> &dependedFilePaths() const;
-
-    void setDirtyIfProjectPartIsOutdated();
-    void setDirtyIfDependencyIsMet(const Utf8String &filePath);
-
-    CommandLineArguments commandLineArguments() const;
-
-    SourceLocation sourceLocationAtWithoutReparsing(uint line, uint column) const;
     SourceLocation sourceLocationAt(uint line, uint column) const;
     SourceLocation sourceLocationAt(const Utf8String &filePath, uint line, uint column) const;
-
     SourceRange sourceRange(uint fromLine, uint fromColumn, uint toLine, uint toColumn) const;
 
     Cursor cursorAt(uint line, uint column) const;
@@ -140,35 +98,11 @@ public:
 
     SkippedSourceRanges skippedSourceRanges() const;
 
-    static uint defaultOptions();
-
 private:
-    void setDirty();
-    void checkIfNull() const;
-    void checkIfFileExists() const;
-    void updateLastProjectPartChangeTimePoint() const;
-    void removeTranslationUnitIfProjectPartWasChanged() const;
-    bool projectPartIsOutdated() const;
-    bool isMainFileAndExistsOrIsOtherFile(const Utf8String &filePath) const;
-    void createTranslationUnitIfNeeded() const;
-    void checkParseErrorCode() const;
-    void checkReparseErrorCode() const;
-    void reparseTranslationUnit() const;
-    void reparseTranslationUnitIfFilesAreChanged() const;
-    bool parseWasSuccessful() const;
-    bool reparseWasSuccessful() const;
-    void updateIncludeFilePaths() const;
-    bool fileExists() const;
-    static void includeCallback(CXFile included_file,
-                                CXSourceLocation * /*inclusion_stack*/,
-                                unsigned /*include_len*/,
-                                CXClientData clientData);
-    UnsavedFiles &unsavedFiles() const;
-
-private:
-    mutable std::shared_ptr<TranslationUnitData> d;
+    const Utf8String m_id;
+    const Utf8String m_filePath;
+    CXIndex &m_cxIndex;
+    CXTranslationUnit &m_cxTranslationUnit;
 };
 
-bool operator==(const TranslationUnit &first, const TranslationUnit &second);
-void PrintTo(const TranslationUnit &translationUnit, ::std::ostream *os);
 } // namespace ClangBackEnd

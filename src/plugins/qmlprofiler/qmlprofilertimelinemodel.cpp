@@ -70,11 +70,6 @@ bool QmlProfilerTimelineModel::handlesTypeId(int typeIndex) const
     return accepted(modelManager()->qmlModel()->eventTypes().at(typeIndex));
 }
 
-void QmlProfilerTimelineModel::clear()
-{
-    TimelineModel::clear();
-}
-
 QmlProfilerModelManager *QmlProfilerTimelineModel::modelManager() const
 {
     return m_modelManager;
@@ -92,30 +87,22 @@ void QmlProfilerTimelineModel::announceFeatures(quint64 features)
 
 void QmlProfilerTimelineModel::dataChanged()
 {
-
     switch (m_modelManager->state()) {
     case QmlProfilerModelManager::Done:
-        emit emptyChanged();
+        emit contentChanged();
         break;
     case QmlProfilerModelManager::ClearingData:
         clear();
         break;
     default:
+        emit contentChanged();
         break;
     }
-
-    emit labelsChanged();
 }
 
 void QmlProfilerTimelineModel::onVisibleFeaturesChanged(quint64 features)
 {
     setHidden(!(features & (1ULL << m_mainFeature)));
-}
-
-int QmlProfilerTimelineModel::bindingLoopDest(int index) const
-{
-    Q_UNUSED(index);
-    return -1;
 }
 
 QVariantMap QmlProfilerTimelineModel::locationFromTypeId(int index) const

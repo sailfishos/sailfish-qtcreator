@@ -26,10 +26,10 @@
 #include "cmakebuildsettingswidget.h"
 
 #include "configmodel.h"
+#include "configmodelitemdelegate.h"
 #include "cmakeproject.h"
 #include "cmakebuildconfiguration.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/find/itemviewfind.h>
 #include <projectexplorer/projectexplorer.h>
@@ -39,6 +39,7 @@
 #include <utils/headerviewstretcher.h>
 #include <utils/pathchooser.h>
 #include <utils/itemviews.h>
+#include <utils/utilsicons.h>
 
 #include <QBoxLayout>
 #include <QCheckBox>
@@ -100,7 +101,7 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
 
     ++row;
     m_errorLabel = new QLabel;
-    m_errorLabel->setPixmap(Core::Icons::ERROR.pixmap());
+    m_errorLabel->setPixmap(Utils::Icons::ERROR.pixmap());
     m_errorLabel->setVisible(false);
     m_errorMessageLabel = new QLabel;
     m_errorMessageLabel->setVisible(false);
@@ -111,7 +112,7 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
 
     ++row;
     m_warningLabel = new QLabel;
-    m_warningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_warningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_warningLabel->setVisible(false);
     m_warningMessageLabel = new QLabel;
     m_warningMessageLabel->setVisible(false);
@@ -140,6 +141,7 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
     m_configView->setSelectionBehavior(QAbstractItemView::SelectItems);
     m_configView->setFrameShape(QFrame::NoFrame);
     m_configView->hideColumn(2); // Hide isAdvanced column
+    m_configView->setItemDelegate(new ConfigModelItemDelegate(m_configView));
     QFrame *findWrapper = Core::ItemViewFind::createSearchableWrapper(m_configView, Core::ItemViewFind::LightColored);
     findWrapper->setFrameStyle(QFrame::StyledPanel);
 

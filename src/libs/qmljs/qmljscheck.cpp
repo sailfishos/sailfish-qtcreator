@@ -489,6 +489,42 @@ private:
     bool _seenNonDeclarationStatement;
 };
 
+class IdsThatShouldNotBeUsedInDesigner  : public QStringList
+{
+public:
+    IdsThatShouldNotBeUsedInDesigner() : QStringList({ "top",
+                                                   "bottom",
+                                                   "left",
+                                                   "right",
+                                                   "width",
+                                                   "height",
+                                                   "x",
+                                                   "y",
+                                                   "opacity",
+                                                   "parent",
+                                                   "item",
+                                                   "flow",
+                                                   "color",
+                                                   "margin",
+                                                   "padding",
+                                                   "border",
+                                                   "font",
+                                                   "text",
+                                                   "source",
+                                                   "state",
+                                                   "visible",
+                                                   "focus",
+                                                   "data",
+                                                   "clip",
+                                                   "layer",
+                                                   "scale",
+                                                   "enabled",
+                                                   "anchors"})
+    {
+    }
+
+};
+
 class VisualAspectsPropertyBlackList : public QStringList
 {
 public:
@@ -513,29 +549,38 @@ public:
 class UnsupportedTypesByVisualDesigner : public QStringList
 {
 public:
-    UnsupportedTypesByVisualDesigner()
+    UnsupportedTypesByVisualDesigner() : QStringList({"Transform",
+                                                     "Timer",
+                                                     "Rotation",
+                                                     "Scale",
+                                                     "Translate",
+                                                     "Package",
+                                                     "Particles",
+                                                     "Dialog"})
     {
-        (*this) << QLatin1String("Transform") << QLatin1String("Timer")
-            << QLatin1String("Rotation") << QLatin1String("Scale")
-            << QLatin1String("Translate") << QLatin1String("Package")
-            << QLatin1String("Particles");
-    }
 
+    }
 };
 
 class UnsupportedTypesByQmlUi : public QStringList
 {
 public:
-    UnsupportedTypesByQmlUi()
+    UnsupportedTypesByQmlUi() : QStringList({"Binding",
+                                            "ShaderEffect",
+                                            "ShaderEffectSource",
+                                            "Component",
+                                            "Loader",
+                                            "Transition",
+                                            "PropertyAnimation",
+                                            "SequentialAnimation",
+                                            "PropertyAnimation",
+                                            "SequentialAnimation",
+                                            "ParallelAnimation",
+                                            "NumberAnimation",
+                                            "Drawer"})
     {
-        (*this) << UnsupportedTypesByVisualDesigner()
-                << QLatin1String("Binding") << QLatin1String("ShaderEffect")
-                << QLatin1String("ShaderEffectSource") << QLatin1String("Canvas")
-                << QLatin1String("Component") << QLatin1String("Loader") << QLatin1String("Transition")
-                << QLatin1String("PropertyAnimation") << QLatin1String("SequentialAnimation")
-                << QLatin1String("ParallelAnimation") << QLatin1String("NumberAnimation");
+        append(UnsupportedTypesByVisualDesigner());
     }
-
 };
 
 class UnsupportedRootObjectTypesByVisualDesigner : public QStringList
@@ -563,6 +608,7 @@ public:
 
 } // end of anonymous namespace
 
+Q_GLOBAL_STATIC(IdsThatShouldNotBeUsedInDesigner, idsThatShouldNotBeUsedInDesigner)
 Q_GLOBAL_STATIC(VisualAspectsPropertyBlackList, visualAspectsPropertyBlackList)
 Q_GLOBAL_STATIC(UnsupportedTypesByVisualDesigner, unsupportedTypesByVisualDesigner)
 Q_GLOBAL_STATIC(UnsupportedRootObjectTypesByVisualDesigner, unsupportedRootObjectTypesByVisualDesigner)
@@ -634,6 +680,7 @@ void Check::enableQmlDesignerChecks()
     enableMessage(WarnReferenceToParentItemNotSupportedByVisualDesigner);
     enableMessage(WarnAboutQtQuick1InsteadQtQuick2);
     enableMessage(ErrUnsupportedRootTypeInVisualDesigner);
+    enableMessage(ErrInvalidIdeInVisualDesigner);
     //## triggers too often ## check.enableMessage(StaticAnalysis::WarnUndefinedValueForVisualDesigner);
 }
 
@@ -645,6 +692,7 @@ void Check::disableQmlDesignerChecks()
     disableMessage(WarnUndefinedValueForVisualDesigner);
     disableMessage(WarnStatesOnlyInRootItemForVisualDesigner);
     disableMessage(ErrUnsupportedRootTypeInVisualDesigner);
+    disableMessage(ErrInvalidIdeInVisualDesigner);
 }
 
 void Check::enableQmlDesignerUiFileChecks()
@@ -821,6 +869,8 @@ void Check::visitQmlObject(Node *ast, UiQualifiedId *typeId,
     const QString typeName = getRightMostIdentifier(typeId)->name.toString();
 
     if (!m_typeStack.isEmpty() && m_typeStack.last() == QLatin1String("State")
+            && typeId->name.toString() != "AnchorChanges"
+            && typeId->name.toString() != "ParentChange"
             && typeId->name.toString() != "PropertyChanges"
             && typeId->name.toString() != "StateChangeScript")
         addMessage(StateCannotHaveChildItem, typeErrorLocation, typeName);
@@ -925,6 +975,10 @@ bool Check::visit(UiScriptBinding *ast)
         if (id.isEmpty() || (!id.at(0).isLower() && id.at(0) != QLatin1Char('_'))) {
             addMessage(ErrInvalidId, loc);
             return false;
+        }
+
+        if (idsThatShouldNotBeUsedInDesigner->contains(id)) {
+            addMessage(ErrInvalidIdeInVisualDesigner, loc);
         }
 
         if (m_idStack.top().contains(id)) {
@@ -1209,7 +1263,12 @@ bool Check::visit(BinaryExpression *ast)
 
 bool Check::visit(Block *ast)
 {
-    addMessage(ErrBlocksNotSupportedInQmlUi, locationFromRange(ast->firstSourceLocation(), ast->lastSourceLocation()));
+
+    bool isDirectInConnectionsScope =
+            (!m_typeStack.isEmpty() && m_typeStack.last() == QLatin1String("Connections"));
+
+    if (!isDirectInConnectionsScope)
+        addMessage(ErrBlocksNotSupportedInQmlUi, locationFromRange(ast->firstSourceLocation(), ast->lastSourceLocation()));
 
     if (Node *p = parent()) {
         if (!cast<UiScriptBinding *>(p)
@@ -1364,6 +1423,17 @@ static QString functionName(ExpressionNode *ast, SourceLocation *location)
         if (!fme->name.isEmpty()) {
             *location = fme->identifierToken;
             return fme->name.toString();
+        }
+    }
+    return QString();
+}
+
+static QString functionNamespace(ExpressionNode *ast)
+{
+   if (FieldMemberExpression *fme = cast<FieldMemberExpression *>(ast)) {
+        if (!fme->name.isEmpty()) {
+            SourceLocation location;
+            return functionName(fme->base, &location);
         }
     }
     return QString();
@@ -1553,12 +1623,18 @@ bool Check::visit(CallExpression *ast)
     SourceLocation location;
     const QString name = functionName(ast->base, &location);
 
+    const QString namespaceName = functionNamespace(ast->base);
+
     // We have to allow the qsTr function for translation.
-    bool isTranslationFunction = (name == QLatin1String("qsTr") || name == QLatin1String("qsTrId"));
+
+    const bool isTranslationFunction = (name == QLatin1String("qsTr") || name == QLatin1String("qsTrId"));
+    // We allow the Math. functions
+
+    const bool isMathFunction = namespaceName == "Math";
     // allow adding connections with the help of the qt quick designer ui
     bool isDirectInConnectionsScope =
             (!m_typeStack.isEmpty() && m_typeStack.last() == QLatin1String("Connections"));
-    if (!isTranslationFunction && !isDirectInConnectionsScope)
+    if (!isTranslationFunction && !isMathFunction && !isDirectInConnectionsScope)
         addMessage(ErrFunctionsNotSupportedInQmlUi, location);
 
     if (!name.isEmpty() && name.at(0).isUpper()

@@ -34,14 +34,20 @@
 
 
 #include <projectexplorer/kit.h>
+#include <projectexplorer/project.h>
 #include <projectexplorer/toolchain.h>
-#include <utils/environment.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakenodes.h>
 #include <coreplugin/messagebox.h>
 #include <coreplugin/icore.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <coreplugin/icore.h>
+
+#include <utils/algorithm.h>
+#include <utils/environment.h>
+#include <utils/hostosinfo.h>
 
 #include <QProcess>
 #include <QTemporaryDir>
@@ -53,8 +59,8 @@
 #include <QMessageBox>
 #include <QThread>
 
-static Q_LOGGING_CATEGORY(puppetStart, "puppet.start")
-static Q_LOGGING_CATEGORY(puppetBuild, "puppet.build")
+static Q_LOGGING_CATEGORY(puppetStart, "qtc.puppet.start")
+static Q_LOGGING_CATEGORY(puppetBuild, "qtc.puppet.build")
 
 namespace QmlDesigner {
 
@@ -119,14 +125,19 @@ bool PuppetCreator::useOnlyFallbackPuppet() const
 #endif
 }
 
-PuppetCreator::PuppetCreator(ProjectExplorer::Kit *kit, const QString &qtCreatorVersion, const Model *model)
+PuppetCreator::PuppetCreator(ProjectExplorer::Kit *kit,
+                             ProjectExplorer::Project *project,
+                             const QString &qtCreatorVersion,
+                             const Model *model)
+
     : m_qtCreatorVersion(qtCreatorVersion)
-      ,m_kit(kit)
-      ,m_availablePuppetType(FallbackPuppet)
-      ,m_model(model)
+    ,m_kit(kit)
+    ,m_availablePuppetType(FallbackPuppet)
+    ,m_model(model)
 #ifndef QMLDESIGNER_TEST
       ,m_designerSettings(QmlDesignerPlugin::instance()->settings())
 #endif
+    ,m_currentProject(project)
 {
 }
 
@@ -139,7 +150,11 @@ void PuppetCreator::createPuppetExecutableIfMissing()
     createQml2PuppetExecutableIfMissing();
 }
 
-QProcess *PuppetCreator::createPuppetProcess(const QString &puppetMode, const QString &socketToken, QObject *handlerObject, const char *outputSlot, const char *finishSlot) const
+QProcess *PuppetCreator::createPuppetProcess(const QString &puppetMode,
+                                             const QString &socketToken,
+                                             QObject *handlerObject,
+                                             const char *outputSlot,
+                                             const char *finishSlot) const
 {
     return puppetProcess(qml2PuppetPath(m_availablePuppetType),
                          qmlPuppetDirectory(m_availablePuppetType),
@@ -349,19 +364,25 @@ QString PuppetCreator::qml2PuppetPath(PuppetType puppetType) const
     return qmlPuppetDirectory(puppetType) + QStringLiteral("/qml2puppet") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
 }
 
+static void filterOutQtBaseImportPath(QStringList *stringList)
+{
+    Utils::erase(*stringList, [](const QString &string) {
+        QDir dir(string);
+        return dir.dirName() == "qml" && !dir.entryInfoList(QStringList("QtQuick.2"), QDir::Dirs).isEmpty();
+    });
+}
+
 QProcessEnvironment PuppetCreator::processEnvironment() const
 {
-#if defined(Q_OS_WIN)
-    static QLatin1String pathSep(";");
-#else
-    static QLatin1String pathSep(":");
-#endif
+    static const QString pathSep = Utils::HostOsInfo::pathListSeparator();
     Utils::Environment environment = Utils::Environment::systemEnvironment();
     if (!useOnlyFallbackPuppet())
         m_kit->addToEnvironment(environment);
     environment.set(QLatin1String("QML_BAD_GUI_RENDER_LOOP"), QLatin1String("true"));
     environment.set(QLatin1String("QML_USE_MOCKUPS"), QLatin1String("true"));
     environment.set(QLatin1String("QML_PUPPET_MODE"), QLatin1String("true"));
+    environment.set(QLatin1String("QML_DISABLE_DISK_CACHE"), QLatin1String("true"));
+    environment.set(QLatin1String("QT_AUTO_SCREEN_SCALE_FACTOR"), QLatin1String("1"));
 
 #ifndef QMLDESIGNER_TEST
     const QString controlsStyle = m_designerSettings.value(DesignerSettingsKey::
@@ -369,7 +390,7 @@ QProcessEnvironment PuppetCreator::processEnvironment() const
 #else
     const QString controlsStyle;
 #endif
-    if (!controlsStyle.isEmpty()) {
+    if (!controlsStyle.isEmpty() && controlsStyle != "Default") {
         environment.set(QLatin1String("QT_QUICK_CONTROLS_STYLE"), controlsStyle);
         environment.set(QLatin1String("QT_LABS_CONTROLS_STYLE"), controlsStyle);
     }
@@ -380,10 +401,28 @@ QProcessEnvironment PuppetCreator::processEnvironment() const
     }
 
     QStringList importPaths = m_model->importPaths();
+
+    /* For the fallback puppet we have to remove the path to the original qtbase plugins to avoid conflics */
     if (m_availablePuppetType == FallbackPuppet)
-        importPaths.append(QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath));
-    if (m_availablePuppetType != FallbackPuppet)
-        environment.appendOrSet("QML2_IMPORT_PATH", importPaths.join(pathSep), pathSep);
+        filterOutQtBaseImportPath(&importPaths);
+
+    if (m_currentProject) {
+        for (const QString &fileName : m_currentProject->files(ProjectExplorer::Project::SourceFiles)) {
+            QFileInfo fileInfo(fileName);
+            if (fileInfo.fileName() == "qtquickcontrols2.conf")
+                environment.appendOrSet("QT_QUICK_CONTROLS_CONF", fileName);
+        }
+        QmakeProjectManager::QmakeProject *qmakeProject = qobject_cast<QmakeProjectManager::QmakeProject *>(m_currentProject);
+        if (qmakeProject) {
+            QStringList designerImports = qmakeProject->rootProjectNode()->variableValue(QmakeProjectManager::QmlDesignerImportPathVar);
+            importPaths.append(designerImports);
+        }
+    }
+
+    if (m_availablePuppetType == FallbackPuppet)
+        importPaths.prepend(QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath));
+
+    environment.appendOrSet("QML2_IMPORT_PATH", importPaths.join(pathSep), pathSep);
 
     qCInfo(puppetStart) << Q_FUNC_INFO;
     qCInfo(puppetStart) << "Puppet qrc mapping" << m_qrcMapping;
@@ -398,7 +437,9 @@ QString PuppetCreator::buildCommand() const
     Utils::Environment environment = Utils::Environment::systemEnvironment();
     m_kit->addToEnvironment(environment);
 
-    ProjectExplorer::ToolChain *toolChain = ProjectExplorer::ToolChainKitInformation::toolChain(m_kit);
+    ProjectExplorer::ToolChain *toolChain
+            = ProjectExplorer::ToolChainKitInformation::toolChain(m_kit,
+                                                                  ProjectExplorer::ToolChain::Language::Cxx);
 
     if (toolChain)
         return toolChain->makeCommand(environment);

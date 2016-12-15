@@ -30,7 +30,6 @@
 #include "androidmanager.h"
 #include "androidqtsupport.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -45,6 +44,7 @@
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditor.h>
 #include <utils/algorithm.h>
+#include <utils/utilsicons.h>
 
 #include <QLineEdit>
 #include <QFileInfo>
@@ -67,6 +67,7 @@
 #include <QCheckBox>
 #include <QScrollArea>
 
+#include <algorithm>
 #include <limits>
 
 using namespace ProjectExplorer;
@@ -162,7 +163,7 @@ void AndroidManifestEditorWidget::initializePage()
         m_packageNameWarning->setVisible(false);
 
         m_packageNameWarningIcon = new QLabel;
-        m_packageNameWarningIcon->setPixmap(Core::Icons::WARNING.pixmap());
+        m_packageNameWarningIcon->setPixmap(Utils::Icons::WARNING.pixmap());
         m_packageNameWarningIcon->setVisible(false);
         m_packageNameWarningIcon->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
@@ -1337,7 +1338,8 @@ const QStringList &PermissionsModel::permissions()
 
 QModelIndex PermissionsModel::addPermission(const QString &permission)
 {
-    const int idx = qLowerBound(m_permissions, permission) - m_permissions.constBegin();
+    auto it = std::lower_bound(m_permissions.constBegin(), m_permissions.constEnd(), permission);
+    const int idx = it - m_permissions.constBegin();
     beginInsertRows(QModelIndex(), idx, idx);
     m_permissions.insert(idx, permission);
     endInsertRows();
@@ -1351,7 +1353,8 @@ bool PermissionsModel::updatePermission(const QModelIndex &index, const QString 
     if (m_permissions[index.row()] == permission)
         return false;
 
-    int newIndex = qLowerBound(m_permissions.constBegin(), m_permissions.constEnd(), permission) - m_permissions.constBegin();
+    auto it = std::lower_bound(m_permissions.constBegin(), m_permissions.constEnd(), permission);
+    const int newIndex = it - m_permissions.constBegin();
     if (newIndex == index.row() || newIndex == index.row() + 1) {
         m_permissions[index.row()] = permission;
         emit dataChanged(index, index);

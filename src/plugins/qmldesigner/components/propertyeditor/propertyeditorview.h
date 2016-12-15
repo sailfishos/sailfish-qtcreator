@@ -81,9 +81,16 @@ public:
 
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) override;
 
+    void nodeReparented(const ModelNode &node,
+                        const NodeAbstractProperty &newPropertyParent,
+                        const NodeAbstractProperty &oldPropertyParent,
+                        AbstractView::PropertyChangeFlags propertyChange) override;
+
 public slots:
     void changeValue(const QString &name);
     void changeExpression(const QString &name);
+    void exportPopertyAsAlias(const QString &name);
+    void removeAliasExport(const QString &name);
 
 protected:
     void timerEvent(QTimerEvent *event) override;

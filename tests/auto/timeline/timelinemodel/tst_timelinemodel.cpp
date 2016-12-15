@@ -31,12 +31,6 @@ static const int NumItems = 32;
 static const qint64 ItemDuration = 1 << 19;
 static const qint64 ItemSpacing = 1 << 20;
 
-class DummyModelPrivate : public Timeline::TimelineModel::TimelineModelPrivate {
-public:
-    DummyModelPrivate(int modelId) : Timeline::TimelineModel::TimelineModelPrivate(modelId)
-    {}
-};
-
 class DummyModel : public Timeline::TimelineModel
 {
     Q_OBJECT
@@ -86,7 +80,7 @@ private slots:
 };
 
 DummyModel::DummyModel(int modelId) :
-    Timeline::TimelineModel(*new DummyModelPrivate(modelId), 0)
+    Timeline::TimelineModel(modelId, 0)
 {
 }
 
@@ -268,7 +262,7 @@ void tst_TimelineModel::count()
     QCOMPARE(dummy.count(), 0);
     dummy.loadData();
     QCOMPARE(dummy.count(), NumItems);
-    QSignalSpy emptySpy(&dummy, SIGNAL(emptyChanged()));
+    QSignalSpy emptySpy(&dummy, SIGNAL(contentChanged()));
     dummy.clear();
     QCOMPARE(emptySpy.count(), 1);
     QCOMPARE(dummy.count(), 0);

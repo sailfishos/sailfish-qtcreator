@@ -301,7 +301,7 @@ public:
 
     void match(const CppQuickFixInterface &cppQuickFixInterface, QuickFixOperations &result)
     {
-        result.append(new AddIncludeForUndefinedIdentifierOp(cppQuickFixInterface, 0, m_include));
+        result << new AddIncludeForUndefinedIdentifierOp(cppQuickFixInterface, 0, m_include);
     }
 
 private:
@@ -766,6 +766,66 @@ void CppEditorPlugin::test_quickfix_data()
         "}\n"
         "\n"
         "void Something::setIt(const int *value)\n"
+        "{\n"
+        "    it = value;\n"
+        "}\n"
+    );
+
+    // Checks: No special treatment for reference to non const.
+    QTest::newRow("GenerateGetterSetter_referenceToNonConst")
+        << CppQuickFixFactoryPtr(new GenerateGetterSetter) << _(
+        "\n"
+        "class Something\n"
+        "{\n"
+        "    int &it@;\n"
+        "};\n"
+        ) << _(
+        "\n"
+        "class Something\n"
+        "{\n"
+        "    int &it;\n"
+        "\n"
+        "public:\n"
+        "    int &getIt() const;\n"
+        "    void setIt(const int &value);\n"
+        "};\n"
+        "\n"
+        "int &Something::getIt() const\n"
+        "{\n"
+        "    return it;\n"
+        "}\n"
+        "\n"
+        "void Something::setIt(const int &value)\n"
+        "{\n"
+        "    it = value;\n"
+        "}\n"
+    );
+
+    // Checks: No special treatment for reference to const.
+    QTest::newRow("GenerateGetterSetter_referenceToConst")
+        << CppQuickFixFactoryPtr(new GenerateGetterSetter) << _(
+        "\n"
+        "class Something\n"
+        "{\n"
+        "    const int &it@;\n"
+        "};\n"
+        ) << _(
+        "\n"
+        "class Something\n"
+        "{\n"
+        "    const int &it;\n"
+        "\n"
+        "public:\n"
+        "    const int &getIt() const;\n"
+        "    void setIt(const int &value);\n"
+        "};\n"
+        "\n"
+        "const int &Something::getIt() const\n"
+        "{\n"
+        "    return it;\n"
+        "}\n"
+        "\n"
+        "void Something::setIt(const int &value)\n"
         "{\n"
         "    it = value;\n"
         "}\n"
@@ -2668,6 +2728,56 @@ void CppEditorPlugin::test_quickfix_InsertDefFromDecl_unicodeIdentifier()
     QuickFixOperationTest(testDocuments, &factory);
 }
 
+void CppEditorPlugin::test_quickfix_InsertDefFromDecl_templateClass()
+{
+    QByteArray original =
+        "template<class T>\n"
+        "class Foo\n"
+        "{\n"
+        "    void fun@c();\n"
+        "};\n";
+    QByteArray expected =
+        "template<class T>\n"
+        "class Foo\n"
+        "{\n"
+        "    void fun@c();\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::func()\n" // Should really be Foo<T>::func()
+        "{\n"
+        "\n"
+        "}\n";
+
+    InsertDefFromDecl factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
+}
+
+void CppEditorPlugin::test_quickfix_InsertDefFromDecl_templateFunction()
+{
+    QByteArray original =
+        "class Foo\n"
+        "{\n"
+        "    template<class T>\n"
+        "    void fun@c();\n"
+        "};\n";
+    QByteArray expected =
+        "class Foo\n"
+        "{\n"
+        "    template<class T>\n"
+        "    void fun@c();\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::func()\n"
+        "{\n"
+        "\n"
+        "}\n";
+
+    InsertDefFromDecl factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
+}
+
 // Function for one of InsertDeclDef section cases
 void insertToSectionDeclFromDef(const QByteArray &section, int sectionIndex)
 {
@@ -2713,6 +2823,72 @@ void CppEditorPlugin::test_quickfix_InsertDeclFromDef()
     insertToSectionDeclFromDef("protected slots", 3);
     insertToSectionDeclFromDef("private", 4);
     insertToSectionDeclFromDef("private slots", 5);
+}
+
+void CppEditorPlugin::test_quickfix_InsertDeclFromDef_templateFuncTypename()
+{
+    QByteArray original =
+        "class Foo\n"
+        "{\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::fu@nc() {}\n";
+
+    QByteArray expected =
+        "class Foo\n"
+        "{\n"
+        "public:\n"
+        "    template<class T>\n"
+        "    void func();\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::fu@nc() {}\n";
+
+    InsertDeclFromDef factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory, {}, 0);
+}
+
+void CppEditorPlugin::test_quickfix_InsertDeclFromDef_templateFuncInt()
+{
+    QByteArray original =
+            "class Foo\n"
+            "{\n"
+            "};\n"
+            "\n"
+            "template<int N>\n"
+            "void Foo::fu@nc() {}\n";
+
+    QByteArray expected =
+            "class Foo\n"
+            "{\n"
+            "public:\n"
+            "    template<int N>\n"
+            "    void func();\n"
+            "};\n"
+            "\n"
+            "template<int N>\n"
+            "void Foo::fu@nc() {}\n";
+
+    InsertDeclFromDef factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory, {}, 0);
+}
+
+void CppEditorPlugin::test_quickfix_InsertDeclFromDef_notTriggeredForTemplateFunc()
+{
+    QByteArray contents =
+        "class Foo\n"
+        "{\n"
+        "    template<class T>\n"
+        "    void func();\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::fu@nc() {}\n";
+
+    InsertDeclFromDef factory;
+    QuickFixOperationTest(singleDocument(contents, ""), &factory);
 }
 
 void CppEditorPlugin::test_quickfix_AddIncludeForUndefinedIdentifier_data()
@@ -4028,11 +4204,11 @@ void CppEditorPlugin::test_quickfix_MoveFuncDefOutside_template()
         "class Foo { void fu@nc(); };\n"
         "\n"
         "template<class T>\n"
-        "void Foo<T>::func() {}\n";
+        "void Foo::func() {}\n"; // Should be Foo<T>::func
        ;
 
     MoveFuncDefOutside factory;
-    QuickFixOperationTest(singleDocument(original, expected), &factory, {}, 0, "QTCREATORBUG-16649");
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
 }
 
 /// Check: revert test_quickfix_MoveFuncDefOutside_MemberFuncToCpp()
@@ -4393,6 +4569,46 @@ void CppEditorPlugin::test_quickfix_MoveFuncDefToDecl_override()
         "    {\n"
         "        return 5;\n"
         "    }\n"
+        "};\n\n\n";
+
+    MoveFuncDefToDecl factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
+}
+
+void CppEditorPlugin::test_quickfix_MoveFuncDefToDecl_template()
+{
+    QByteArray original =
+        "template<class T>\n"
+        "class Foo { void func(); };\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo<T>::fu@nc() {}\n";
+
+    QByteArray expected =
+        "template<class T>\n"
+        "class Foo { void fu@nc() {} };\n\n\n";
+
+    MoveFuncDefToDecl factory;
+    QuickFixOperationTest(singleDocument(original, expected), &factory);
+}
+
+void CppEditorPlugin::test_quickfix_MoveFuncDefToDecl_templateFunction()
+{
+    QByteArray original =
+        "class Foo\n"
+        "{\n"
+        "    template<class T>\n"
+        "    void func();\n"
+        "};\n"
+        "\n"
+        "template<class T>\n"
+        "void Foo::fu@nc() {}\n";
+
+    QByteArray expected =
+        "class Foo\n"
+        "{\n"
+        "    template<class T>\n"
+        "    void func() {}\n"
         "};\n\n\n";
 
     MoveFuncDefToDecl factory;

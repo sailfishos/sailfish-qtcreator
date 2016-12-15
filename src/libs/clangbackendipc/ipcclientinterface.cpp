@@ -25,47 +25,11 @@
 
 #include "ipcclientinterface.h"
 
-#include "cmbcodecompletedmessage.h"
-#include "cmbechomessage.h"
-#include "messageenvelop.h"
-#include "projectpartsdonotexistmessage.h"
-#include "translationunitdoesnotexistmessage.h"
-#include "diagnosticschangedmessage.h"
-#include "highlightingchangedmessage.h"
-
-#include <QDebug>
-#include <QVariant>
-
 namespace ClangBackEnd {
 
-void IpcClientInterface::dispatch(const MessageEnvelop &messageEnvelop)
+IpcClientInterface::IpcClientInterface()
 {
-    switch (messageEnvelop.messageType()) {
-        case MessageType::AliveMessage:
-            alive();
-            break;
-        case MessageType::EchoMessage:
-            echo(messageEnvelop.message<EchoMessage>());
-            break;
-        case MessageType::CodeCompletedMessage:
-            codeCompleted(messageEnvelop.message<CodeCompletedMessage>());
-            break;
-        case MessageType::TranslationUnitDoesNotExistMessage:
-            translationUnitDoesNotExist(messageEnvelop.message<TranslationUnitDoesNotExistMessage>());
-            break;
-        case MessageType::ProjectPartsDoNotExistMessage:
-            projectPartsDoNotExist(messageEnvelop.message<ProjectPartsDoNotExistMessage>());
-            break;
-        case MessageType::DiagnosticsChangedMessage:
-            diagnosticsChanged(messageEnvelop.message<DiagnosticsChangedMessage>());
-            break;
-        case MessageType::HighlightingChangedMessage:
-            highlightingChanged(messageEnvelop.message<HighlightingChangedMessage>());
-            break;
-        default:
-            qWarning() << "Unknown IpcClientMessage";
-    }
+
 }
 
 } // namespace ClangBackEnd
-

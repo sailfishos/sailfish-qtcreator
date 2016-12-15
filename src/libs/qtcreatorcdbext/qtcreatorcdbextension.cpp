@@ -23,13 +23,18 @@
 **
 ****************************************************************************/
 
-#include "extensioncontext.h"
-#include "outputcallback.h"
 #include "eventcallback.h"
+#include "extensioncontext.h"
+#include "gdbmihelpers.h"
+#include "outputcallback.h"
+#include "stringutils.h"
 #include "symbolgroup.h"
 #include "symbolgroupvalue.h"
-#include "stringutils.h"
-#include "gdbmihelpers.h"
+
+#ifdef WITH_PYTHON
+#include <Python.h>
+#include "pystdoutredirect.h"
+#endif
 
 #include <cstdio>
 #include <sstream>
@@ -106,7 +111,8 @@ enum Command {
     CmdWidgetAt,
     CmdBreakPoints,
     CmdTest,
-    CmdSetParameter
+    CmdSetParameter,
+    CmdScript
 };
 
 static const CommandDescription commandDescriptions[] = {
@@ -172,7 +178,8 @@ static const CommandDescription commandDescriptions[] = {
 {"breakpoints","List breakpoints with modules","[-h] [-v]"},
 {"test","Testing command","-T type | -w watch-expression"},
 {"setparameter","Set parameter",
- "maxStringLength=value maxArraySize=value maxStackDepth=value stateNotification=1,0"}
+ "maxStringLength=value maxArraySize=value maxStackDepth=value stateNotification=1,0"},
+{"script", "Run Python command", "[-t token]"}
 };
 
 typedef std::vector<std::string> StringVector;
@@ -275,7 +282,7 @@ extern "C" HRESULT CALLBACK pid(CIDebugClient *client, PCSTR args)
 
     int token;
     commandTokens<StringList>(args, &token);
-    dprintf("Qt Creator CDB extension version 4.0 %d bit.\n",
+    dprintf("Qt Creator CDB extension version 4.2 %d bit.\n",
             sizeof(void *) * 8);
     if (const ULONG pid = currentProcessId(client))
         ExtensionContext::instance().report('R', token, 0, "pid", "%u", pid);
@@ -562,6 +569,36 @@ static std::string commandLocals(ExtensionCommandContext &commandExtCtx,PCSTR ar
         return watchesSymbolGroup->dump(iname, dumpContext, parameters.dumpParameters, errorMessage);
     else
         return symGroup->dump(iname, dumpContext, parameters.dumpParameters, errorMessage);
+}
+
+extern "C" HRESULT CALLBACK script(CIDebugClient *client, PCSTR argsIn)
+{
+    ExtensionCommandContext exc(client);
+    int token;
+#ifdef WITH_PYTHON
+    std::stringstream command;
+    for (std::string arg : commandTokens<StringList>(argsIn, &token))
+        command << arg << ' ';
+
+    PyObject *ptype      = NULL;
+    PyObject *pvalue     = NULL;
+    PyObject *ptraceback = NULL;
+    PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+    startCapturePyStdout();
+    const char result = (PyRun_SimpleString(command.str().c_str()) == 0) ? 'R' : 'N';
+    if (PyErr_Occurred())
+        PyErr_Print();
+    ExtensionContext::instance().reportLong(result, token, "script", getPyStdout().c_str());
+    endCapturePyStdout();
+    PyErr_Restore(ptype, pvalue, ptraceback);
+#else
+    commandTokens<StringList>(argsIn, &token);
+    ExtensionContext::instance().report('N', token, 0, "script",
+            "Python is not supported in this CDB extension.\n"
+            "You need to define PYTHON_INSTALL_DIR in your creator build environment "
+            "pointing to a Python 3.5 installation.");
+#endif
+    return S_OK;
 }
 
 extern "C" HRESULT CALLBACK locals(CIDebugClient *client, PCSTR args)
@@ -1054,7 +1091,7 @@ extern "C" HRESULT CALLBACK qmlstack(CIDebugClient *client, PCSTR argsIn)
 
     int token = 0;
     bool humanReadable = false;
-    ULONG64 jsExecutionContext = 0;
+    ULONG64 jsExecutionEngine = 0;
     std::string stackDump;
 
     do {
@@ -1064,16 +1101,16 @@ extern "C" HRESULT CALLBACK qmlstack(CIDebugClient *client, PCSTR argsIn)
              tokens.pop_front();
         }
         if (!tokens.empty()) {
-            if (!integerFromString(tokens.front(), &jsExecutionContext)) {
+            if (!integerFromString(tokens.front(), &jsExecutionEngine)) {
                 errorMessage = "Invalid address " + tokens.front();
                 break;
             }
             tokens.pop_front();
         }
         ExtensionCommandContext exc(client);
-        if (!jsExecutionContext) { // Try to find execution context unless it was given.
-            jsExecutionContext = ExtensionContext::instance().jsExecutionContext(exc, &errorMessage);
-            if (!jsExecutionContext)
+        if (!jsExecutionEngine) { // Try to find execution engine unless it was given.
+            jsExecutionEngine = ExtensionContext::instance().jsExecutionEngine(exc, &errorMessage);
+            if (!jsExecutionEngine)
                 break;
         }
         // call function to get stack trace. Call with exceptions handled right from
@@ -1081,7 +1118,7 @@ extern "C" HRESULT CALLBACK qmlstack(CIDebugClient *client, PCSTR argsIn)
         std::ostringstream callStr;
         const QtInfo &qtInfo = QtInfo::get(SymbolGroupValueContext(exc.dataSpaces(), exc.symbols()));
         callStr << qtInfo.prependQtModule("qt_v4StackTrace(", QtInfo::Qml) << std::showbase << std::hex
-                << jsExecutionContext << std::dec << std::noshowbase << ')';
+                << jsExecutionEngine << std::dec << std::noshowbase << ')';
         std::wstring wOutput;
         if (!ExtensionContext::instance().call(callStr.str(), ExtensionContext::CallWithExceptionsHandled, &wOutput, &errorMessage))
             break;

@@ -61,6 +61,7 @@
 #include <QToolTip>
 #include <QVariant>
 #include <QJsonArray>
+#include <QRegularExpression>
 
 using namespace Core;
 using namespace Utils;
@@ -125,7 +126,10 @@ void LldbEngine::runCommand(const DebuggerCommand &cmd)
     command.arg("token", tok);
     QString token = QString::number(tok);
     QString function = command.function + "(" + command.argsToPython() + ")";
-    showMessage(token + function + '\n', LogInput);
+    QString msg = token + function + '\n';
+    if (cmd.flags == LldbEngine::Silent)
+        msg.replace(QRegularExpression("\"environment\":.[^]]*."), "<environment suppressed>");
+    showMessage(msg, LogInput);
     m_commandForToken[currentToken()] = command;
     m_lldbProc.write("script theDumper." + function.toUtf8() + "\n");
 }
@@ -193,16 +197,16 @@ void LldbEngine::setupEngine()
 
     if (runParameters().useTerminal) {
         QTC_CHECK(false); // See above.
-        #ifdef Q_OS_WIN
+        if (HostOsInfo::isWindowsHost()) {
             // Windows up to xp needs a workaround for attaching to freshly started processes. see proc_stub_win
             if (QSysInfo::WindowsVersion >= QSysInfo::WV_VISTA)
                 m_stubProc.setMode(ConsoleProcess::Suspend);
             else
                 m_stubProc.setMode(ConsoleProcess::Debug);
-        #else
+        } else {
             m_stubProc.setMode(ConsoleProcess::Debug);
             m_stubProc.setSettings(ICore::settings());
-        #endif
+        }
 
         QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
         showMessage("TRYING TO START ADAPTER");
@@ -247,9 +251,8 @@ void LldbEngine::setupEngine()
 
 void LldbEngine::startLldb()
 {
-    m_lldbCmd = runParameters().debuggerCommand;
-    connect(&m_lldbProc, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &LldbEngine::handleLldbError);
+    QString lldbCmd = runParameters().debugger.executable;
+    connect(&m_lldbProc, &QProcess::errorOccurred, this, &LldbEngine::handleLldbError);
     connect(&m_lldbProc, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &LldbEngine::handleLldbFinished);
     connect(&m_lldbProc, &QProcess::readyReadStandardOutput,
@@ -260,17 +263,17 @@ void LldbEngine::startLldb()
     connect(this, &LldbEngine::outputReady,
             this, &LldbEngine::handleResponse, Qt::QueuedConnection);
 
-    showMessage("STARTING LLDB: " + m_lldbCmd);
-    m_lldbProc.setEnvironment(runParameters().debuggerEnvironment);
-    if (!runParameters().inferior.workingDirectory.isEmpty())
-        m_lldbProc.setWorkingDirectory(runParameters().inferior.workingDirectory);
+    showMessage("STARTING LLDB: " + lldbCmd);
+    m_lldbProc.setEnvironment(runParameters().debugger.environment);
+    if (QFileInfo(runParameters().debugger.workingDirectory).isDir())
+        m_lldbProc.setWorkingDirectory(runParameters().debugger.workingDirectory);
 
-    m_lldbProc.setCommand(m_lldbCmd, QString());
+    m_lldbProc.setCommand(lldbCmd, QString());
     m_lldbProc.start();
 
     if (!m_lldbProc.waitForStarted()) {
         const QString msg = tr("Unable to start LLDB \"%1\": %2")
-            .arg(m_lldbCmd, m_lldbProc.errorString());
+            .arg(lldbCmd, m_lldbProc.errorString());
         notifyEngineSetupFailed();
         showMessage("ADAPTER START FAILED");
         if (!msg.isEmpty())
@@ -295,24 +298,13 @@ void LldbEngine::startLldbStage2()
     m_lldbProc.write("script print(dir())\n");
     m_lldbProc.write("script theDumper = Dumper()\n"); // This triggers reportState("enginesetupok")
 
-    const QString commands = stringSetting(GdbStartupCommands);
+    const QString commands = expand(stringSetting(GdbStartupCommands));
     if (!commands.isEmpty())
-        m_lldbProc.write(commands.toLocal8Bit());
+        m_lldbProc.write(commands.toLocal8Bit() + '\n');
 }
 
 void LldbEngine::setupInferior()
 {
-    Environment sysEnv = Environment::systemEnvironment();
-    Environment runEnv = runParameters().inferior.environment;
-    foreach (const EnvironmentItem &item, sysEnv.diff(runEnv)) {
-        DebuggerCommand cmd("executeDebuggerCommand");
-        if (item.unset)
-            cmd.arg("command", "settings remove target.env-vars " + item.name);
-        else
-            cmd.arg("command", "settings set target.env-vars '" + item.name + '=' + item.value + '\'');
-        runCommand(cmd);
-    }
-
     const QString path = stringSetting(ExtraDumperFile);
     if (!path.isEmpty() && QFileInfo(path).isReadable()) {
         DebuggerCommand cmd("addDumperModule");
@@ -346,10 +338,12 @@ void LldbEngine::setupInferior()
     cmd2.arg("useterminal", rp.useTerminal);
     cmd2.arg("startmode", rp.startMode);
     cmd2.arg("nativemixed", isNativeMixedActive());
+    cmd2.arg("workingdirectory", rp.inferior.workingDirectory);
 
-    cmd2.arg("dyldimagesuffix", rp.inferior.environment.value("DYLD_IMAGE_SUFFIX"));
-    cmd2.arg("dyldframeworkpath", rp.inferior.environment.value("DYLD_LIBRARY_PATH"));
-    cmd2.arg("dyldlibrarypath", rp.inferior.environment.value("DYLD_FRAMEWORK_PATH"));
+    QJsonArray env;
+    foreach (const QString &item, rp.inferior.environment.toStringList())
+        env.append(toHex(item));
+    cmd2.arg("environment", env);
 
     QJsonArray processArgs;
     foreach (const QString &arg, args.toUnixArgs())
@@ -402,6 +396,8 @@ void LldbEngine::setupInferior()
             notifyInferiorSetupFailed();
         }
     };
+
+    cmd2.flags = LldbEngine::Silent;
     runCommand(cmd2);
 }
 
@@ -796,7 +792,7 @@ void LldbEngine::assignValueInDebugger(WatchItem *,
 
 void LldbEngine::doUpdateLocals(const UpdateParameters &params)
 {
-    watchHandler()->notifyUpdateStarted(params.partialVariables());
+    watchHandler()->notifyUpdateStarted(params);
 
     DebuggerCommand cmd("fetchVariables");
     watchHandler()->appendFormatRequests(&cmd);
@@ -814,7 +810,11 @@ void LldbEngine::doUpdateLocals(const UpdateParameters &params)
     cmd.arg("context", frame.context);
     cmd.arg("nativemixed", isNativeMixedActive());
 
+    cmd.arg("stringcutoff", action(MaximalStringLength)->value().toString());
+    cmd.arg("displaystringlimit", action(DisplayStringLimit)->value().toString());
+
     //cmd.arg("resultvarname", m_resultVarName);
+    cmd.arg("partialvar", params.partialVariable);
 
     m_lastDebuggableCommand = cmd;
     m_lastDebuggableCommand.arg("passexceptions", "1");
@@ -852,7 +852,7 @@ QString LldbEngine::errorMessage(QProcess::ProcessError error) const
             return tr("The LLDB process failed to start. Either the "
                 "invoked program \"%1\" is missing, or you may have insufficient "
                 "permissions to invoke the program.")
-                .arg(m_lldbCmd);
+                .arg(runParameters().debugger.executable);
         case QProcess::Crashed:
             return tr("The LLDB process crashed some time after starting "
                 "successfully.");
@@ -937,9 +937,10 @@ void LldbEngine::handleStateNotification(const GdbMi &reportedState)
         if (runParameters().continueAfterAttach)
             m_continueAtNextSpontaneousStop = true;
         notifyEngineRunAndInferiorRunOk();
-    } else if (newState == "enginerunandinferiorstopok")
+    } else if (newState == "enginerunandinferiorstopok") {
         notifyEngineRunAndInferiorStopOk();
-    else if (newState == "enginerunokandinferiorunrunnable")
+        continueInferior();
+    } else if (newState == "enginerunokandinferiorunrunnable")
         notifyEngineRunOkAndInferiorUnrunnable();
     else if (newState == "inferiorshutdownok")
         notifyInferiorShutdownOk();
@@ -976,6 +977,9 @@ void LldbEngine::handleLocationNotification(const GdbMi &reportedLocation)
 void LldbEngine::reloadRegisters()
 {
     if (!Internal::isRegistersWindowVisible())
+        return;
+
+    if (state() != InferiorStopOk && state() != InferiorUnrunnable)
         return;
 
     DebuggerCommand cmd("fetchRegisters");
@@ -1054,45 +1058,26 @@ void LldbEngine::fetchFullBacktrace()
     runCommand(cmd);
 }
 
-void LldbEngine::fetchMemory(MemoryAgent *agent, QObject *editorToken,
-        quint64 addr, quint64 length)
+void LldbEngine::fetchMemory(MemoryAgent *agent, quint64 addr, quint64 length)
 {
-    int id = m_memoryAgents.value(agent, -1);
-    if (id == -1) {
-        id = ++m_lastAgentId;
-        m_memoryAgents.insert(agent, id);
-    }
-    m_memoryAgentTokens.insert(id, editorToken);
-
     DebuggerCommand cmd("fetchMemory");
     cmd.arg("address", addr);
     cmd.arg("length", length);
-    cmd.callback = [this, id](const DebuggerResponse &response) {
+    cmd.callback = [this, agent](const DebuggerResponse &response) {
         qulonglong addr = response.data["address"].toAddress();
-        QPointer<MemoryAgent> agent = m_memoryAgents.key(id);
-        if (!agent.isNull()) {
-            QPointer<QObject> token = m_memoryAgentTokens.value(id);
-            QTC_ASSERT(!token.isNull(), return);
-            QByteArray ba = QByteArray::fromHex(response.data["contents"].data().toUtf8());
-            agent->addLazyData(token.data(), addr, ba);
-        }
+        QByteArray ba = QByteArray::fromHex(response.data["contents"].data().toUtf8());
+        agent->addData(addr, ba);
     };
     runCommand(cmd);
 }
 
-void LldbEngine::changeMemory(MemoryAgent *agent, QObject *editorToken,
-        quint64 addr, const QByteArray &data)
+void LldbEngine::changeMemory(MemoryAgent *agent, quint64 addr, const QByteArray &data)
 {
-    int id = m_memoryAgents.value(agent, -1);
-    if (id == -1) {
-        id = ++m_lastAgentId;
-        m_memoryAgents.insert(agent, id);
-        m_memoryAgentTokens.insert(id, editorToken);
-    }
+    Q_UNUSED(agent)
     DebuggerCommand cmd("writeMemory");
     cmd.arg("address", addr);
     cmd.arg("data", QString::fromUtf8(data.toHex()));
-    cmd.callback = [this, id](const DebuggerResponse &response) { Q_UNUSED(response); };
+    cmd.callback = [this](const DebuggerResponse &response) { Q_UNUSED(response); };
     runCommand(cmd);
 }
 

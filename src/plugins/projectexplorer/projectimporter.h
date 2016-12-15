@@ -27,6 +27,8 @@
 
 #include "projectexplorer_export.h"
 
+#include <coreplugin/id.h>
+
 #include <utils/fileutils.h>
 
 namespace ProjectExplorer {
@@ -37,7 +39,7 @@ class Project;
 class Target;
 
 // Documentation inside.
-class PROJECTEXPLORER_EXPORT ProjectImporter
+class PROJECTEXPLORER_EXPORT ProjectImporter : public QObject
 {
 public:
     ProjectImporter(const QString &path);
@@ -45,33 +47,75 @@ public:
 
     const QString projectFilePath() const { return m_projectPath; }
 
-    virtual QList<BuildInfo *> import(const Utils::FileName &importPath, bool silent = false) = 0;
-    virtual QStringList importCandidates(const Utils::FileName &projectFilePath) = 0;
-    virtual Target *preferredTarget(const QList<Target *> &possibleTargets) = 0;
+    virtual QList<BuildInfo *> import(const Utils::FileName &importPath, bool silent = false);
+    virtual QStringList importCandidates() = 0;
+    virtual Target *preferredTarget(const QList<Target *> &possibleTargets);
 
     bool isUpdating() const { return m_isUpdating; }
 
-    virtual void markTemporary(Kit *k);
-    virtual void makePermanent(Kit *k);
+    void makePersistent(Kit *k) const;
+    void cleanupKit(Kit *k) const;
 
-    // Additional cleanup that has to happen when kits are removed
-    virtual void cleanupKit(Kit *k);
+    bool isTemporaryKit(Kit *k) const;
 
-    void addProject(Kit *k);
-    void removeProject(Kit *k, const QString &path);
-
-    bool isTemporaryKit(Kit *k);
+    void addProject(Kit *k) const;
+    void removeProject(Kit *k) const;
 
 protected:
-    bool setIsUpdating(bool b) {
-        bool old = m_isUpdating;
-        m_isUpdating = b;
-        return old;
-    }
+    class UpdateGuard
+    {
+    public:
+        UpdateGuard(const ProjectImporter &i) : m_importer(i)
+        {
+            m_wasUpdating = m_importer.isUpdating();
+            m_importer.m_isUpdating = true;
+        }
+        ~UpdateGuard() { m_importer.m_isUpdating = m_wasUpdating; }
+
+    private:
+        const ProjectImporter &m_importer;
+        bool m_wasUpdating;
+    };
+
+    // importPath is an existing directory at this point!
+    virtual QList<void *> examineDirectory(const Utils::FileName &importPath) const = 0;
+    // will get one of the results from examineDirectory
+    virtual bool matchKit(void *directoryData, const Kit *k) const = 0;
+    // will get one of the results from examineDirectory
+    virtual Kit *createKit(void *directoryData) const = 0;
+    // will get one of the results from examineDirectory
+    virtual QList<BuildInfo *> buildInfoListForKit(const Kit *k, void *directoryData) const = 0;
+
+    virtual void deleteDirectoryData(void *directoryData) const = 0;
+
+    using KitSetupFunction = std::function<void(Kit *)>;
+    ProjectExplorer::Kit *createTemporaryKit(const KitSetupFunction &setup) const;
+
+    // Handle temporary additions to Kits (Qt Versions, ToolChains, etc.)
+    using CleanupFunction = std::function<void(Kit *, const QVariantList &)>;
+    using PersistFunction = std::function<void(Kit *, const QVariantList &)>;
+    void useTemporaryKitInformation(Core::Id id,
+                                    CleanupFunction cleanup, PersistFunction persist);
+    void addTemporaryData(Core::Id id, const QVariant &cleanupData, Kit *k) const;
+    // Does *any* kit feature the requested data yet?
+    bool hasKitWithTemporaryData(Core::Id id, const QVariant &data) const;
 
 private:
+    void markKitAsTemporary(Kit *k) const;
+    bool findTemporaryHandler(Core::Id id) const;
+
     const QString m_projectPath;
-    bool m_isUpdating = false;
+    mutable bool m_isUpdating = false;
+
+    class TemporaryInformationHandler {
+    public:
+        Core::Id id;
+        CleanupFunction cleanup;
+        PersistFunction persist;
+    };
+    QList<TemporaryInformationHandler> m_temporaryHandlers;
+
+    friend class UpdateGuard;
 };
 
 } // namespace ProjectExplorer

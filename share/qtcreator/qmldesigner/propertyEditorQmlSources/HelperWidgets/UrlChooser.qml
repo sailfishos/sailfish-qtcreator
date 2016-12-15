@@ -52,6 +52,13 @@ RowLayout {
     Controls.ComboBox {
         id: comboBox
 
+        ExtendedFunctionButton {
+            x: 2
+            anchors.verticalCenter: parent.verticalCenter
+            backendValue: urlChooser.backendValue
+            visible: urlChooser.enabled
+        }
+
         property bool isComplete: false
 
         function setCurrentText(text) {
@@ -85,16 +92,25 @@ RowLayout {
 
             setCurrentText(textValue)
         }
+        onAccepted: {
+            if (!comboBox.isComplete)
+                return;
 
-        onCurrentTextChanged: {
+            if (backendValue.value !== currentText)
+                backendValue.value = currentText;
+        }
+
+        onActivated: {
+            var cText = textAt(index)
+            print(cText)
             if (backendValue === undefined)
                 return;
 
             if (!comboBox.isComplete)
                 return;
 
-            if (backendValue.value !== currentText)
-                backendValue.value = currentText;
+            if (backendValue.value !== cText)
+                backendValue.value = cText;
         }
 
         Component.onCompleted: {
@@ -151,7 +167,8 @@ RowLayout {
             onClicked: {
                 darkPanel.opacity = 1
                 fileModel.openFileDialog()
-                backendValue.value = fileModel.fileName
+                if (fileModel.fileName != "")
+                    backendValue.value = fileModel.fileName
                 darkPanel.opacity = 0
             }
         }

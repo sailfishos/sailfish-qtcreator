@@ -37,8 +37,7 @@ def main():
     mainWindow = waitForObject(":Qt Creator_Core::Internal::MainWindow")
     test.verify(waitFor("sessionName in str(mainWindow.windowTitle)", 2000),
                 "Verifying window title contains created session name.")
-    if canTestEmbeddedQtQuick():
-        checkWelcomePage(sessionName, True)
+    checkWelcomePage(sessionName, True)
     for project in projects:
         openQmakeProject(project, Targets.DESKTOP_531_DEFAULT)
     progressBarWait(20000)
@@ -50,9 +49,8 @@ def main():
     switchSession("default")
     test.verify(waitFor("'Qt Creator' == str(mainWindow.windowTitle)", 2000),
                 "Verifying window title is set to default.")
-    if canTestEmbeddedQtQuick():
-        checkWelcomePage(sessionName, False)
-        switchViewTo(ViewConstants.EDIT)
+    checkWelcomePage(sessionName, False)
+    switchViewTo(ViewConstants.EDIT)
     checkNavigator(1, "Verifying that no more project is opened.")
     checkOpenDocuments(0, "Verifying whether all files have been closed.")
     switchSession(sessionName)
@@ -86,7 +84,7 @@ def prepareTestExamples():
 def switchSession(toSession):
     test.log("Switching to session '%s'" % toSession)
     invokeMenuItem("File", "Session Manager...")
-    clickItem(waitForObject("{name='sessionList' type='QListWidget' visible='1' "
+    clickItem(waitForObject("{name='sessionView' type='ProjectExplorer::Internal::SessionView' visible='1' "
                             "window=':Session Manager_ProjectExplorer::Internal::SessionDialog'}"),
                             toSession, 5, 5, 0, Qt.LeftButton)
     clickButton(waitForObject("{name='btSwitch' text='Switch to' type='QPushButton' visible='1' "

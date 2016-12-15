@@ -122,6 +122,8 @@ Utils::FileName BuildConfiguration::rawBuildDirectory() const
 
 void BuildConfiguration::setBuildDirectory(const Utils::FileName &dir)
 {
+    if (dir == m_buildDirectory)
+        return;
     m_buildDirectory = dir;
     emitBuildDirectoryChanged();
 }
@@ -173,8 +175,8 @@ bool BuildConfiguration::fromMap(const QVariantMap &map)
             qWarning() << "No data for build step list" << i << "found!";
             continue;
         }
-        auto list = new BuildStepList(this, data);
-        if (list->isNull()) {
+        auto list = new BuildStepList(this, Core::Id());
+        if (!list->fromMap(data)) {
             qWarning() << "Failed to restore build step list" << i;
             delete list;
             return false;
@@ -346,7 +348,7 @@ IBuildConfigurationFactory *IBuildConfigurationFactory::find(Target *parent, con
 }
 
 // setup
-IBuildConfigurationFactory *IBuildConfigurationFactory::find(Kit *k, const QString &projectPath)
+IBuildConfigurationFactory *IBuildConfigurationFactory::find(const Kit *k, const QString &projectPath)
 {
     QList<IBuildConfigurationFactory *> factories
             = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();

@@ -45,6 +45,7 @@ QtcPlugin {
         "clangbackendipcintegration.h",
         "clangcodemodelplugin.cpp",
         "clangcodemodelplugin.h",
+        "clangcodemodel.qrc",
         "clangcompletionassistinterface.cpp",
         "clangcompletionassistinterface.h",
         "clangcompletionassistprocessor.cpp",
@@ -86,6 +87,8 @@ QtcPlugin {
         "clangprojectsettingswidget.ui",
         "clangtextmark.cpp",
         "clangtextmark.h",
+        "clanguiheaderondiskmanager.cpp",
+        "clanguiheaderondiskmanager.h",
         "clangutils.cpp",
         "clangutils.h",
     ]

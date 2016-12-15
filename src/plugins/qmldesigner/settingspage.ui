@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>670</width>
-    <height>475</height>
+    <width>678</width>
+    <height>555</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -62,14 +62,14 @@
         <item row="0" column="0">
          <widget class="QLabel" name="canvasWidthLabel">
           <property name="text">
-           <string>Width</string>
+           <string>Width:</string>
           </property>
          </widget>
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="canvasHeightLabel">
           <property name="text">
-           <string>Height</string>
+           <string>Height:</string>
           </property>
          </widget>
         </item>
@@ -138,7 +138,7 @@
         <item row="1" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
-           <string>Controls 2 style</string>
+           <string>Controls 2 style:</string>
           </property>
          </widget>
         </item>
@@ -467,6 +467,31 @@
    <header location="global">utils/pathchooser.h</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>spinSnapMargin</tabstop>
+  <tabstop>spinItemSpacing</tabstop>
+  <tabstop>spinCanvasWidth</tabstop>
+  <tabstop>spinCanvasHeight</tabstop>
+  <tabstop>styleLineEdit</tabstop>
+  <tabstop>resetStyle</tabstop>
+  <tabstop>controls2StyleComboBox</tabstop>
+  <tabstop>useDefaultPuppetRadioButton</tabstop>
+  <tabstop>resetFallbackPuppetPathButton</tabstop>
+  <tabstop>useQtRelatedPuppetRadioButton</tabstop>
+  <tabstop>resetQmlPuppetBuildPathButton</tabstop>
+  <tabstop>alwaysSaveSubcomponentsCheckBox</tabstop>
+  <tabstop>designerWarningsCheckBox</tabstop>
+  <tabstop>designerWarningsInEditorCheckBox</tabstop>
+  <tabstop>designerWarningsUiQmlfiles</tabstop>
+  <tabstop>useQsTrFunctionRadioButton</tabstop>
+  <tabstop>useQsTrIdFunctionRadioButton</tabstop>
+  <tabstop>designerShowDebuggerCheckBox</tabstop>
+  <tabstop>showPropertyEditorWarningsCheckBox</tabstop>
+  <tabstop>forwardPuppetOutputComboBox</tabstop>
+  <tabstop>designerEnableDebuggerCheckBox</tabstop>
+  <tabstop>showWarnExceptionsCheckBox</tabstop>
+  <tabstop>debugPuppetComboBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

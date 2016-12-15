@@ -31,11 +31,13 @@
 #include "ui_qmakeprojectconfigwidget.h"
 
 #include <coreplugin/coreicons.h>
+#include <coreplugin/variablechooser.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/algorithm.h>
 #include <utils/detailswidget.h>
+#include <utils/utilsicons.h>
 
 using namespace QmakeProjectManager;
 using namespace QmakeProjectManager::Internal;
@@ -63,7 +65,7 @@ QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
 
     m_browseButton = m_ui->shadowBuildDirEdit->buttonAtIndex(0);
 
-    m_ui->warningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->warningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->shadowBuildDirEdit->setPromptDialogTitle(tr("Shadow Build Directory"));
     m_ui->shadowBuildDirEdit->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_ui->shadowBuildDirEdit->setHistoryCompleter(QLatin1String("Qmake.BuildDir.History"));
@@ -80,6 +82,9 @@ QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
     m_ui->inSourceBuildDirEdit->setFileName(bc->target()->project()->projectDirectory());
     m_ui->inSourceBuildDirEdit->setReadOnly(true);
     m_ui->inSourceBuildDirEdit->setEnabled(false);
+
+    auto chooser = new Core::VariableChooser(this);
+    chooser->addSupportedWidget(m_ui->shadowBuildDirEdit->lineEdit());
 
     m_ui->shadowBuildCheckBox->setChecked(isShadowBuild);
 

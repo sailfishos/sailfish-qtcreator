@@ -36,7 +36,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 
@@ -49,6 +48,7 @@
 #include <utils/tooltip/tooltip.h>
 #include <utils/treemodel.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QAbstractItemModel>
 #include <QApplication>
@@ -212,14 +212,14 @@ public:
 
 ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 {
-    const TreeModel *model = item->model();
-    QModelIndex idx = model->indexForItem(item);
+    const QAbstractItemModel *model = item->model();
+    QModelIndex idx = item->index();
     name = model->data(idx.sibling(idx.row(), 0), Qt::DisplayRole).toString();
     value = model->data(idx.sibling(idx.row(), 1), Qt::DisplayRole).toString();
     type = model->data(idx.sibling(idx.row(), 2), Qt::DisplayRole).toString();
     iname = model->data(idx.sibling(idx.row(), 0), LocalsINameRole).toString();
     valueColor = model->data(idx.sibling(idx.row(), 1), Qt::ForegroundRole).value<QColor>();
-    expandable = item->hasChildren();
+    expandable = model->hasChildren(idx);
     expression = model->data(idx.sibling(idx.row(), 0), Qt::EditRole).toString();
     foreach (TreeItem *child, item->children())
         appendChild(new ToolTipWatchItem(child));
@@ -231,7 +231,7 @@ ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 //
 /////////////////////////////////////////////////////////////////////////
 
-class ToolTipModel : public UniformTreeModel<ToolTipWatchItem>
+class ToolTipModel : public TreeModel<ToolTipWatchItem>
 {
 public:
     ToolTipModel()
@@ -270,7 +270,7 @@ public:
 
         WatchItem *it = m_engine->watchHandler()->findItem(iname);
         QTC_ASSERT(it, return);
-        it->fetchMore();
+        it->model()->fetchMore(it->index());
     }
 
     void restoreTreeModel(QXmlStreamReader &r);
@@ -508,7 +508,7 @@ DebuggerToolTipWidget::DebuggerToolTipWidget()
 
     auto copyButton = new QToolButton;
     copyButton->setToolTip(DebuggerToolTipManager::tr("Copy Contents to Clipboard"));
-    copyButton->setIcon(Core::Icons::COPY.icon());
+    copyButton->setIcon(Utils::Icons::COPY.icon());
 
     titleLabel = new DraggableLabel(this);
     titleLabel->setMinimumWidth(40); // Ensure a draggable area even if text is empty.
@@ -690,13 +690,6 @@ bool DebuggerToolTipContext::isSame(const DebuggerToolTipContext &other) const
         && scopeFromLine == other.scopeFromLine
         && scopeToLine == other.scopeToLine
         && filesMatch(fileName, other.fileName);
-}
-
-void DebuggerToolTipContext::appendFormatRequest(DebuggerCommand *cmd) const
-{
-    cmd->arg("expression", expression);
-    cmd->arg("fileName", fileName);
-    cmd->arg("iname", iname);
 }
 
 QString DebuggerToolTipContext::toolTip() const

@@ -76,7 +76,7 @@ void QmakeKitInformation::setup(Kit *k)
     if (spec.isEmpty())
         spec = version->mkspec();
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(k);
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
 
     if (!tc || (!tc->suggestedMkspecList().empty() && !tc->suggestedMkspecList().contains(spec))) {
         ToolChain *possibleTc = 0;
@@ -87,7 +87,8 @@ void QmakeKitInformation::setup(Kit *k)
                     break;
             }
         }
-        ToolChainKitInformation::setToolChain(k, possibleTc);
+        if (possibleTc)
+            ToolChainKitInformation::setToolChain(k, possibleTc);
     }
 }
 
@@ -142,7 +143,7 @@ FileName QmakeKitInformation::defaultMkspec(const Kit *k)
     if (!version) // No version, so no qmake
         return FileName();
 
-    return version->mkspecFor(ToolChainKitInformation::toolChain(k));
+    return version->mkspecFor(ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx));
 }
 
 } // namespace QmakeProjectManager

@@ -50,6 +50,7 @@ public:
     ~KitManagerConfigWidget() override;
 
     QString displayName() const;
+    QIcon icon() const;
 
     void apply();
     void discard();
@@ -75,6 +76,7 @@ signals:
 
 private:
     void setIcon();
+    void resetIcon();
     void setDisplayName();
     void setFileSystemFriendlyName();
     void workingCopyWasUpdated(ProjectExplorer::Kit *k);

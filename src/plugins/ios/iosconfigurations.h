@@ -45,6 +45,7 @@ class IosToolChainFactory : public ProjectExplorer::ToolChainFactory
     Q_OBJECT
 
 public:
+    QSet<ProjectExplorer::ToolChain::Language> supportedLanguages() const override;
     QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &existingToolChains) override;
 };
 
@@ -61,9 +62,6 @@ public:
     static Utils::FileName developerPath();
     static Utils::FileName lldbPath();
     static void updateAutomaticKitList();
-
-signals:
-    void updated();
 
 private:
     IosConfigurations(QObject *parent);

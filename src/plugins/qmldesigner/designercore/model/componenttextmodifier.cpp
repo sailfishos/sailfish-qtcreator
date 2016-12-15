@@ -26,6 +26,7 @@
 #include "componenttextmodifier.h"
 
 using namespace QmlDesigner;
+
 ComponentTextModifier::ComponentTextModifier(TextModifier *originalModifier, int componentStartOffset, int componentEndOffset, int rootStartOffset) :
         m_originalModifier(originalModifier),
         m_componentStartOffset(componentStartOffset),
@@ -54,7 +55,34 @@ void ComponentTextModifier::move(const MoveInfo &moveInfo)
 
 void ComponentTextModifier::indent(int offset, int length)
 {
-    m_originalModifier->indent(offset, length);
+    int componentStartLine = getLineInDocument(m_originalModifier->textDocument(), m_componentStartOffset);
+    int componentEndLine = getLineInDocument(m_originalModifier->textDocument(), m_componentEndOffset);
+
+    /* Do not indent lines that contain code of the component and the surrounding QML.
+     * example:
+     * delegate: Item { //startLine
+     * ...
+     * } // endLine
+     * Indenting such lines will change the offsets of the component.
+     */
+
+    --componentStartLine;
+    --componentEndLine;
+
+    int startLine = getLineInDocument(m_originalModifier->textDocument(), offset);
+    int endLine = getLineInDocument(m_originalModifier->textDocument(), offset + length);
+
+    if (startLine < componentStartLine)
+        startLine = componentStartLine;
+    if (endLine > componentEndLine)
+        endLine = componentEndLine;
+
+    indentLines(startLine, endLine);
+}
+
+void ComponentTextModifier::indentLines(int startLine, int endLine)
+{
+    m_originalModifier->indentLines(startLine, endLine);
 }
 
 int ComponentTextModifier::indentDepth() const
@@ -72,7 +100,7 @@ void ComponentTextModifier::flushGroup()
 {
     m_originalModifier->flushGroup();
 
-    uint textLength = m_originalModifier->text().length();
+    int textLength = m_originalModifier->text().length();
     m_componentEndOffset += (textLength - m_startLength);
     m_startLength = textLength;
 
@@ -82,7 +110,7 @@ void ComponentTextModifier::commitGroup()
 {
     m_originalModifier->commitGroup();
 
-    uint textLength = m_originalModifier->text().length();
+    int textLength = m_originalModifier->text().length();
     m_componentEndOffset += (textLength - m_startLength);
     m_startLength = textLength;
 }

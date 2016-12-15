@@ -34,7 +34,6 @@
 #include "testcodeparser.h"
 
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/itemviewfind.h>
 #include <coreplugin/icontext.h>
@@ -45,6 +44,7 @@
 #include <texteditor/texteditor.h>
 
 #include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -77,10 +77,7 @@ void ResultsTreeView::keyPressEvent(QKeyEvent *event)
 
 TestResultsPane::TestResultsPane(QObject *parent) :
     Core::IOutputPane(parent),
-    m_context(new Core::IContext(this)),
-    m_wasVisibleBefore(false),
-    m_autoScroll(false),
-    m_testRunning(false)
+    m_context(new Core::IContext(this))
 {
     m_outputWidget = new QWidget;
     QVBoxLayout *outputLayout = new QVBoxLayout;
@@ -146,7 +143,7 @@ TestResultsPane::TestResultsPane(QObject *parent) :
 void TestResultsPane::createToolButtons()
 {
     m_expandCollapse = new QToolButton(m_treeView);
-    m_expandCollapse->setIcon(Core::Icons::EXPAND_ALL_TOOLBAR.icon());
+    m_expandCollapse->setIcon(Utils::Icons::EXPAND_ALL_TOOLBAR.icon());
     m_expandCollapse->setToolTip(tr("Expand All"));
     m_expandCollapse->setCheckable(true);
     m_expandCollapse->setChecked(false);
@@ -158,13 +155,13 @@ void TestResultsPane::createToolButtons()
     });
 
     m_runAll = new QToolButton(m_treeView);
-    m_runAll->setIcon(Core::Icons::RUN_SMALL_TOOLBAR.icon());
+    m_runAll->setIcon(Utils::Icons::RUN_SMALL_TOOLBAR.icon());
     m_runAll->setToolTip(tr("Run All Tests"));
     m_runAll->setEnabled(false);
     connect(m_runAll, &QToolButton::clicked, this, &TestResultsPane::onRunAllTriggered);
 
     m_runSelected = new QToolButton(m_treeView);
-    Utils::Icon runSelectedIcon = Core::Icons::RUN_SMALL_TOOLBAR;
+    Utils::Icon runSelectedIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
     foreach (const Utils::IconMaskAndColor &maskAndColor, Icons::RUN_SELECTED_OVERLAY)
         runSelectedIcon.append(maskAndColor);
     m_runSelected->setIcon(runSelectedIcon.icon());
@@ -173,13 +170,13 @@ void TestResultsPane::createToolButtons()
     connect(m_runSelected, &QToolButton::clicked, this, &TestResultsPane::onRunSelectedTriggered);
 
     m_stopTestRun = new QToolButton(m_treeView);
-    m_stopTestRun->setIcon(Core::Icons::STOP_SMALL_TOOLBAR.icon());
+    m_stopTestRun->setIcon(Utils::Icons::STOP_SMALL_TOOLBAR.icon());
     m_stopTestRun->setToolTip(tr("Stop Test Run"));
     m_stopTestRun->setEnabled(false);
     connect(m_stopTestRun, &QToolButton::clicked, TestRunner::instance(), &TestRunner::requestStopTestRun);
 
     m_filterButton = new QToolButton(m_treeView);
-    m_filterButton->setIcon(Core::Icons::FILTER.icon());
+    m_filterButton->setIcon(Utils::Icons::FILTER.icon());
     m_filterButton->setToolTip(tr("Filter Test Results"));
     m_filterButton->setProperty("noArrow", true);
     m_filterButton->setAutoRaise(true);
@@ -211,8 +208,6 @@ void TestResultsPane::addTestResult(const TestResultPtr &result)
     m_atEnd = scrollBar ? scrollBar->value() == scrollBar->maximum() : true;
 
     m_model->addTestResult(result, m_expandCollapse->isChecked());
-    if (!m_treeView->isVisible())
-        popup(Core::IOutputPane::NoModeSwitch);
     setIconBadgeNumber(m_model->resultTypeCount(Result::Fail)
                        + m_model->resultTypeCount(Result::UnexpectedPass));
     flash();
@@ -441,32 +436,28 @@ void TestResultsPane::initializeFilterMenu()
 
 void TestResultsPane::updateSummaryLabel()
 {
-    QString labelText = QString::fromLatin1("<p>Test summary:&nbsp;&nbsp; %1 %2, %3 %4")
+    QString labelText = QString("<p>Test summary:&nbsp;&nbsp; %1 %2, %3 %4")
             .arg(QString::number(m_model->resultTypeCount(Result::Pass)), tr("passes"),
                  QString::number(m_model->resultTypeCount(Result::Fail)), tr("fails"));
     int count = m_model->resultTypeCount(Result::UnexpectedPass);
     if (count)
-        labelText.append(QString::fromLatin1(", %1 %2")
-                         .arg(QString::number(count), tr("unexpected passes")));
+        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("unexpected passes")));
     count = m_model->resultTypeCount(Result::ExpectedFail);
     if (count)
-        labelText.append(QString::fromLatin1(", %1 %2")
-                         .arg(QString::number(count), tr("expected fails")));
+        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("expected fails")));
     count = m_model->resultTypeCount(Result::MessageFatal);
     if (count)
-        labelText.append(QString::fromLatin1(", %1 %2")
-                         .arg(QString::number(count), tr("fatals")));
+        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("fatals")));
     count = m_model->resultTypeCount(Result::BlacklistedFail)
             + m_model->resultTypeCount(Result::BlacklistedPass);
     if (count)
-        labelText.append(QString::fromLatin1(", %1 %2")
-                         .arg(QString::number(count), tr("blacklisted")));
+        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("blacklisted")));
 
     count = m_model->disabledTests();
     if (count)
         labelText.append(tr(", %1 disabled").arg(count));
 
-    labelText.append(QLatin1String(".</p>"));
+    labelText.append(".</p>");
     m_summaryLabel->setText(labelText);
 }
 
@@ -505,6 +496,8 @@ void TestResultsPane::onTestRunFinished()
     m_model->removeCurrentTestMessage();
     disconnect(m_treeView->verticalScrollBar(), &QScrollBar::rangeChanged,
                this, &TestResultsPane::onScrollBarRangeChanged);
+    if (!m_treeView->isVisible())
+        popup(Core::IOutputPane::NoModeSwitch);
 }
 
 void TestResultsPane::onScrollBarRangeChanged(int, int max)
@@ -586,8 +579,8 @@ QString TestResultsPane::getWholeOutput(const QModelIndex &parent)
         QModelIndex current = m_model->index(row, 0, parent);
         const TestResult *result = m_model->testResult(current);
         QTC_ASSERT(result, continue);
-        output.append(TestResult::resultToString(result->result())).append(QLatin1Char('\t'));
-        output.append(result->outputString(true)).append(QLatin1Char('\n'));
+        output.append(TestResult::resultToString(result->result())).append('\t');
+        output.append(result->outputString(true)).append('\n');
         output.append(getWholeOutput(current));
     }
     return output;

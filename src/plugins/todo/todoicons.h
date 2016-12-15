@@ -34,10 +34,13 @@ namespace Internal {
 enum class IconType {
     Info,
     Error,
-    Warning
+    Warning,
+    Bug,
+    Todo
 };
 
 QIcon icon(IconType type);
+QIcon toolBarIcon(IconType type);
 
 } // namespace Internal
 } // namespace Todo

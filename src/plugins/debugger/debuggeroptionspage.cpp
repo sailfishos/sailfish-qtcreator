@@ -27,8 +27,6 @@
 #include "debuggeritemmanager.h"
 #include "debuggeritem.h"
 
-#include <coreplugin/coreicons.h>
-
 #include <projectexplorer/projectexplorerconstants.h>
 
 #include <utils/detailswidget.h>
@@ -65,8 +63,6 @@ public:
 
     QVariant data(int column, int role) const
     {
-        static const QIcon errorIcon = Core::Icons::ERROR.icon();
-
         switch (role) {
             case Qt::DisplayRole:
                 switch (column) {
@@ -74,19 +70,23 @@ public:
                 case 1: return m_item.command().toUserOutput();
                 case 2: return m_item.engineTypeName();
                 }
+                break;
 
-            case Qt::FontRole: {
-                QFont font;
-                font.setBold(m_changed);
-                return font;
-            }
-            case Qt::DecorationRole: {
-                if (column == 0 && !m_item.isGood())
-                    return errorIcon;
-            }
-            case Qt::ToolTipRole: {
+            case Qt::FontRole:
+                if (m_changed) {
+                    QFont font;
+                    font.setBold(true);
+                    return font;
+                }
+                break;
+
+            case Qt::DecorationRole:
+                if (column == 0)
+                    return m_item.decoration();
+                break;
+
+            case Qt::ToolTipRole:
                 return m_item.validityMessage();
-            }
         }
         return QVariant();
     }
@@ -99,7 +99,7 @@ public:
 // DebuggerItemModel
 // --------------------------------------------------------------------------
 
-class DebuggerItemModel : public LeveledTreeModel<TreeItem, StaticTreeItem, DebuggerTreeItem>
+class DebuggerItemModel : public TreeModel<TreeItem, StaticTreeItem, DebuggerTreeItem>
 {
     Q_DECLARE_TR_FUNCTIONS(Debugger::DebuggerOptionsPage)
 
@@ -139,7 +139,7 @@ void DebuggerItemModel::addDebugger(const DebuggerItem &item, bool changed)
 void DebuggerItemModel::updateDebugger(const DebuggerItem &item)
 {
     auto matcher = [item](DebuggerTreeItem *n) { return n->m_item.m_id == item.id(); };
-    DebuggerTreeItem *treeItem = findSecondLevelItem(matcher);
+    DebuggerTreeItem *treeItem = findItemAtLevel<2>(matcher);
     QTC_ASSERT(treeItem, return);
 
     TreeItem *parent = treeItem->parent();
@@ -178,7 +178,7 @@ void DebuggerItemModel::apply()
     foreach (const QVariant &id, m_removedItems)
         DebuggerItemManager::deregisterDebugger(id);
 
-    forSecondLevelItems([](DebuggerTreeItem *item) {
+    forItemsAtLevel<2>([](DebuggerTreeItem *item) {
         item->m_changed = false;
         DebuggerItemManager::updateOrAddDebugger(item->m_item);
     });
@@ -214,6 +214,7 @@ private:
     QLabel *m_cdbLabel;
     QLineEdit *m_versionLabel;
     PathChooser *m_binaryChooser;
+    PathChooser *m_workingDirectoryChooser;
     QLineEdit *m_abis;
     bool m_autodetected;
     DebuggerEngineType m_engineType;
@@ -231,7 +232,12 @@ DebuggerItemConfigWidget::DebuggerItemConfigWidget(DebuggerItemModel *model)
     m_binaryChooser = new PathChooser(this);
     m_binaryChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_binaryChooser->setMinimumWidth(400);
-    m_binaryChooser->setHistoryCompleter(QLatin1String("DebuggerPaths"));
+    m_binaryChooser->setHistoryCompleter("DebuggerPaths");
+
+    m_workingDirectoryChooser = new PathChooser(this);
+    m_workingDirectoryChooser->setExpectedKind(PathChooser::Directory);
+    m_workingDirectoryChooser->setMinimumWidth(400);
+    m_workingDirectoryChooser->setHistoryCompleter("DebuggerPaths");
 
     m_cdbLabel = new QLabel(this);
     m_cdbLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
@@ -252,9 +258,12 @@ DebuggerItemConfigWidget::DebuggerItemConfigWidget(DebuggerItemModel *model)
     formLayout->addRow(new QLabel(tr("Type:")), m_typeLineEdit);
     formLayout->addRow(new QLabel(tr("ABIs:")), m_abis);
     formLayout->addRow(new QLabel(tr("Version:")), m_versionLabel);
+    formLayout->addRow(new QLabel(tr("Working directory:")), m_workingDirectoryChooser);
 
     connect(m_binaryChooser, &PathChooser::pathChanged,
             this, &DebuggerItemConfigWidget::binaryPathHasChanged);
+    connect(m_workingDirectoryChooser, &PathChooser::pathChanged,
+            this, &DebuggerItemConfigWidget::store);
     connect(m_displayNameLineEdit, &QLineEdit::textChanged,
             this, &DebuggerItemConfigWidget::store);
 }
@@ -264,6 +273,7 @@ DebuggerItem DebuggerItemConfigWidget::item() const
     DebuggerItem item(m_id);
     item.setUnexpandedDisplayName(m_displayNameLineEdit->text());
     item.setCommand(m_binaryChooser->fileName());
+    item.setWorkingDirectory(m_workingDirectoryChooser->fileName());
     item.setAutoDetected(m_autodetected);
     QList<ProjectExplorer::Abi> abiList;
     foreach (const QString &a, m_abis->text().split(QRegExp(QLatin1String("[^A-Za-z0-9-_]+")))) {
@@ -304,6 +314,9 @@ void DebuggerItemConfigWidget::load(const DebuggerItem *item)
 
     m_binaryChooser->setReadOnly(item->isAutoDetected());
     m_binaryChooser->setFileName(item->command());
+
+    m_workingDirectoryChooser->setReadOnly(item->isAutoDetected());
+    m_workingDirectoryChooser->setFileName(item->workingDirectory());
 
     QString text;
     QString versionCommand;
@@ -487,7 +500,7 @@ DebuggerOptionsPage::DebuggerOptionsPage()
     setCategory(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
         ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
 }
 
 QWidget *DebuggerOptionsPage::widget()

@@ -40,6 +40,7 @@
 #define QTC_ASSERT_STRINGIFY(x) QTC_ASSERT_STRINGIFY_HELPER(x)
 #define QTC_ASSERT_STRING(cond) qDebug("SOFT ASSERT: \"" cond"\" in file " __FILE__ ", line " QTC_ASSERT_STRINGIFY(__LINE__))
 #define QTC_ASSERT(cond, action) if (cond) {} else { QTC_ASSERT_STRING(#cond); action; } do {} while (0)
+#define QTC_CHECK(cond) if (cond) {} else { QTC_ASSERT_STRING(#cond); } do {} while (0)
 
 namespace Debugger {
 namespace Internal {
@@ -248,9 +249,12 @@ void GdbMi::parseList(const QChar *&from, const QChar *to)
         }
         GdbMi child;
         child.parseResultOrValue(from, to);
-        if (child.isValid())
+        if (child.isValid()) {
             m_children.push_back(child);
-        skipCommas(from, to);
+            skipCommas(from, to);
+        } else {
+            ++from;
+        }
     }
 }
 
@@ -818,9 +822,9 @@ QString DebuggerCommand::argsToString() const
 
 DebuggerEncoding::DebuggerEncoding(const QString &data)
 {
-    const QStringList l = data.split(':');
+    const QVector<QStringRef> l = data.splitRef(QLatin1Char(':'));
 
-    const QString &t = l.at(0);
+    const QStringRef &t = l.at(0);
     if (t == "latin1") {
         type = HexEncodedLatin1;
         size = 1;

@@ -31,10 +31,7 @@
 
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
-#include <projectexplorer/toolchain.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcprocess.h>
 
@@ -53,12 +50,10 @@ LibraryDetailsController::LibraryDetailsController(
     m_proFile(proFile),
     m_libraryDetailsWidget(libraryDetails)
 {
+    m_creatorPlatform = CreatorLinux;
     switch (Utils::HostOsInfo::hostOs()) {
     case Utils::OsTypeMac:
         m_creatorPlatform = CreatorMac;
-        break;
-    case Utils::OsTypeLinux:
-        m_creatorPlatform = CreatorLinux;
         break;
     case Utils::OsTypeWindows:
         m_creatorPlatform = CreatorWindows;
@@ -67,27 +62,6 @@ LibraryDetailsController::LibraryDetailsController(
         break;
     }
 
-    if (!Utils::HostOsInfo::isLinuxHost()) {
-        // project for which we are going to insert the snippet
-        const Project *project = SessionManager::projectForFile(Utils::FileName::fromString(proFile));
-        if (project && project->activeTarget()) {
-            // if its tool chain is maemo behave the same as we would be on linux
-            ProjectExplorer::ToolChain *tc = ToolChainKitInformation::toolChain(project->activeTarget()->kit());
-            if (tc) {
-                switch (tc->targetAbi().os()) {
-                case Abi::WindowsOS:
-                    m_creatorPlatform = CreatorWindows;
-                    break;
-                case Abi::MacOS:
-                    m_creatorPlatform = CreatorMac;
-                    break;
-                default:
-                    m_creatorPlatform = CreatorLinux;
-                    break;
-                }
-            }
-        }
-    }
     setPlatformsVisible(true);
     setLinkageGroupVisible(true);
     setMacLibraryGroupVisible(true);
@@ -456,8 +430,12 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
                      const QString &targetRelativePath, const QString &pwd,
                      bool useSubfolders, bool addSuffix, bool generateLibPath)
 {
-    // it contains: $$[pwd]/
-    const QString libraryPathSnippet = QLatin1String("$$") + pwd + QLatin1Char('/');
+    const QDir targetRelativeDir(targetRelativePath);
+    QString libraryPathSnippet;
+    if (targetRelativeDir.isRelative()) {
+        // it contains: $$[pwd]/
+        libraryPathSnippet = QLatin1String("$$") + pwd + QLatin1Char('/');
+    }
 
     AddLibraryWizard::Platforms commonPlatforms = platforms;
     if (macLibraryType == AddLibraryWizard::FrameworkType) // we will generate a separate -F -framework line
@@ -522,10 +500,15 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
 
 static QString generateIncludePathSnippet(const QString &includeRelativePath)
 {
-    return QLatin1String("\nINCLUDEPATH += $$PWD/")
-            + smartQuote(includeRelativePath) + QLatin1Char('\n')
-            + QLatin1String("DEPENDPATH += $$PWD/")
-            + smartQuote(includeRelativePath) + QLatin1Char('\n');
+    const QDir includeRelativeDir(includeRelativePath);
+    QString includePathSnippet;
+    if (includeRelativeDir.isRelative()) {
+        includePathSnippet = QLatin1String("$$PWD/");
+    }
+    includePathSnippet += smartQuote(includeRelativePath) + QLatin1Char('\n');
+
+    return QLatin1String("\nINCLUDEPATH += ") + includePathSnippet
+            + QLatin1String("DEPENDPATH += ") + includePathSnippet;
 }
 
 static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platforms,
@@ -537,9 +520,13 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
     if (linkageType != AddLibraryWizard::StaticLinkage)
         return QString();
 
-    // it contains: PRE_TARGETDEPS += $$[pwd]/
-    const QString preTargetDepsSnippet = QLatin1String("PRE_TARGETDEPS += $$") +
-            pwd + QLatin1Char('/');
+    const QDir targetRelativeDir(targetRelativePath);
+
+    QString preTargetDepsSnippet = QLatin1String("PRE_TARGETDEPS += ");
+    if (targetRelativeDir.isRelative()) {
+        // it contains: PRE_TARGETDEPS += $$[pwd]/
+        preTargetDepsSnippet += QLatin1String("$$") + pwd + QLatin1Char('/');
+    }
 
     QString snippetMessage;
     QTextStream str(&snippetMessage);
@@ -611,9 +598,6 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
 {
     setLibraryComboBoxVisible(false);
     setLibraryPathChooserVisible(true);
-
-    libraryDetailsWidget()->libraryPathChooser
-            ->setHistoryCompleter(QLatin1String("Qmake.LibDir.History"));
 
     if (creatorPlatform() == CreatorWindows) {
         libraryDetailsWidget()->libraryPathChooser->setPromptDialogFilter(

@@ -35,6 +35,7 @@
 
 #include <QDir>
 #include <QTemporaryFile>
+#include <QTextCodec>
 
 enum { debug = 0 };
 
@@ -42,6 +43,7 @@ namespace ProjectExplorer {
 namespace Internal {
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId,
+                                             const Language &l,
                                              Detection d,
                                              const Abi &abi,
                                              const QString& vcvarsBat) : ToolChain(typeId, d),
@@ -53,6 +55,7 @@ AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId,
     Q_ASSERT(abi.binaryFormat() == Abi::PEFormat);
     Q_ASSERT(abi.osFlavor() != Abi::WindowsMSysFlavor);
     Q_ASSERT(!m_vcvarsBat.isEmpty());
+    setLanguage(l);
 }
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId, Detection d) :
@@ -93,11 +96,17 @@ ToolChain::CompilerFlags AbstractMsvcToolChain::compilerFlags(const QStringList 
     if (cxxflags.contains(QLatin1String("/Za")))
         flags &= ~MicrosoftExtensions;
 
-    if (m_abi.osFlavor() == Abi::WindowsMsvc2010Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2012Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2013Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2015Flavor)
-        flags |= StandardCxx11;
+    switch (m_abi.osFlavor()) {
+    case Abi::WindowsMsvc2010Flavor:
+    case Abi::WindowsMsvc2012Flavor: flags |= StandardCxx11;
+        break;
+    case Abi::WindowsMsvc2013Flavor:
+    case Abi::WindowsMsvc2015Flavor:
+    case Abi::WindowsMsvc2017Flavor: flags |= StandardCxx14;
+        break;
+    default:
+        break;
+    }
 
     return flags;
 }
@@ -201,7 +210,16 @@ Utils::FileName AbstractMsvcToolChain::compilerCommand() const
 {
     Utils::Environment env = Utils::Environment::systemEnvironment();
     addToEnvironment(env);
-    return env.searchInPath(QLatin1String("cl.exe"));
+
+    Utils::FileName clexe = env.searchInPath(QLatin1String("cl.exe"), QStringList(), [](const QString &name) {
+        QDir dir(QDir::cleanPath(QFileInfo(name).absolutePath() + QStringLiteral("/..")));
+        do {
+            if (QFile::exists(dir.absoluteFilePath(QStringLiteral("vcvarsall.bat"))))
+                return true;
+        } while (dir.cdUp() && !dir.isRoot());
+        return false;
+    });
+    return clexe;
 }
 
 IOutputParser *AbstractMsvcToolChain::outputParser() const
@@ -253,6 +271,7 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
         call += ' ';
         call += batchArgs.toLocal8Bit();
     }
+    saver.write("chcp 65001\r\n");
     saver.write(call + "\r\n");
     saver.write("@echo " + marker.toLocal8Bit() + "\r\n");
     saver.write("set\r\n");
@@ -273,12 +292,13 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
     if (cmdPath.isEmpty())
         cmdPath = env.searchInPath(QLatin1String("cmd.exe"));
     // Windows SDK setup scripts require command line switches for environment expansion.
-    QStringList cmdArguments;
-    cmdArguments << QLatin1String("/E:ON") << QLatin1String("/V:ON") <<  QLatin1String("/c");
+    QStringList cmdArguments({
+        QLatin1String("/E:ON"), QLatin1String("/V:ON"), QLatin1String("/c")});
     cmdArguments << QDir::toNativeSeparators(saver.fileName());
     if (debug)
         qDebug() << "readEnvironmentSetting: " << call << cmdPath << cmdArguments.join(' ')
                  << " Env: " << env.size();
+    run.setCodec(QTextCodec::codecForName("UTF-8"));
     Utils::SynchronousProcessResponse response = run.runBlocking(cmdPath.toString(), cmdArguments);
     if (response.result != Utils::SynchronousProcessResponse::Finished) {
         qWarning() << response.exitMessage(cmdPath.toString(), 10);

@@ -120,8 +120,7 @@ void PdbEngine::setupEngine()
     m_interpreter = runParameters().interpreter;
     QString bridge = ICore::resourcePath() + QLatin1String("/debugger/pdbbridge.py");
 
-    connect(&m_proc, static_cast<void(QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-        this, &PdbEngine::handlePdbError);
+    connect(&m_proc, &QProcess::errorOccurred, this, &PdbEngine::handlePdbError);
     connect(&m_proc, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
         this, &PdbEngine::handlePdbFinished);
     connect(&m_proc, &QProcess::readyReadStandardOutput,
@@ -140,7 +139,7 @@ void PdbEngine::setupEngine()
     QStringList args = { bridge, scriptFile.fileName() };
     args.append(Utils::QtcProcess::splitArgs(runParameters().inferior.workingDirectory));
     showMessage("STARTING " + m_interpreter + QLatin1Char(' ') + args.join(QLatin1Char(' ')));
-    m_proc.setEnvironment(runParameters().debuggerEnvironment.toStringList());
+    m_proc.setEnvironment(runParameters().debugger.environment.toStringList());
     m_proc.start(m_interpreter, args);
 
     if (!m_proc.waitForStarted()) {

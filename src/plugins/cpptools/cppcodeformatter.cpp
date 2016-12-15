@@ -683,11 +683,6 @@ CodeFormatter::State CodeFormatter::state(int belowTop) const
         return State();
 }
 
-const QVector<CodeFormatter::State> &CodeFormatter::newStatesThisLine() const
-{
-    return m_newStates;
-}
-
 int CodeFormatter::tokenIndex() const
 {
     return m_tokenIndex;
@@ -1071,6 +1066,7 @@ int CodeFormatter::tokenizeBlock(const QTextBlock &block, bool *endedJoined)
     features.qtEnabled = true;
     features.qtMocRunEnabled = true;
     features.qtKeywordsEnabled = true;
+    features.cxxEnabled = true;
     features.objCEnabled = true;
 
     SimpleLexer tokenize;

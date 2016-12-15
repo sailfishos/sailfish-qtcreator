@@ -81,11 +81,22 @@ public:
 
 class ConnectionDelegate : public ConnectionEditorDelegate
 {
+    Q_OBJECT
 public:
     ConnectionDelegate(QWidget *parent = 0);
     virtual QWidget *createEditor(QWidget *parent,
                                     const QStyleOptionViewItem &option,
                                     const QModelIndex &index) const override;
+};
+
+class BackendDelegate : public ConnectionEditorDelegate
+{
+    Q_OBJECT
+public:
+    BackendDelegate(QWidget *parent = 0);
+    virtual QWidget *createEditor(QWidget *parent,
+                                  const QStyleOptionViewItem &option,
+                                  const QModelIndex &index) const override;
 };
 
 } // namespace Internal

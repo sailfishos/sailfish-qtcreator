@@ -37,6 +37,7 @@ namespace Debugger {
 namespace Internal {
 
 class DebuggerEngine;
+class ModuleItem;
 
 //////////////////////////////////////////////////////////////////
 //
@@ -109,6 +110,8 @@ typedef QVector<Module> Modules;
 //
 //////////////////////////////////////////////////////////////////
 
+class ModulesModel;
+
 class ModulesHandler : public QObject
 {
     Q_OBJECT
@@ -128,8 +131,9 @@ public:
     Modules modules() const;
 
 private:
-    DebuggerEngine *m_engine;
-    Utils::TreeModel *m_model;
+    ModuleItem *moduleFromPath(const QString &modulePath) const;
+
+    ModulesModel *m_model;
     QSortFilterProxyModel *m_proxyModel;
 };
 

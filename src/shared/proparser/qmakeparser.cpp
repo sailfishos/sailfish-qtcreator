@@ -162,12 +162,18 @@ QMakeParser::QMakeParser(ProFileCache *cache, QMakeVfs *vfs, QMakeParserHandler 
 ProFile *QMakeParser::parsedProFile(const QString &fileName, ParseFlags flags)
 {
     ProFile *pro;
-    if ((flags & ParseUseCache) && m_cache) {
+    if ((flags & (ParseUseCache|ParseOnlyCached)) && m_cache) {
         ProFileCache::Entry *ent;
 #ifdef PROPARSER_THREAD_SAFE
         QMutexLocker locker(&m_cache->mutex);
 #endif
-        QHash<QString, ProFileCache::Entry>::Iterator it = m_cache->parsed_files.find(fileName);
+        QHash<QString, ProFileCache::Entry>::Iterator it;
+#ifdef PROEVALUATOR_DUAL_VFS
+        QString virtFileName = ((flags & ParseCumulative) ? '-' : '+') + fileName;
+        it = m_cache->parsed_files.find(virtFileName);
+        if (it == m_cache->parsed_files.end())
+#endif
+            it = m_cache->parsed_files.find(fileName);
         if (it != m_cache->parsed_files.end()) {
             ent = &*it;
 #ifdef PROPARSER_THREAD_SAFE
@@ -184,19 +190,28 @@ ProFile *QMakeParser::parsedProFile(const QString &fileName, ParseFlags flags)
 #endif
             if ((pro = ent->pro))
                 pro->ref();
-        } else {
-            ent = &m_cache->parsed_files[fileName];
+        } else if (!(flags & ParseOnlyCached)) {
+            QString contents;
+            QMakeVfs::VfsFlags vfsFlags =
+                    ((flags & ParseCumulative) ? QMakeVfs::VfsCumulative : QMakeVfs::VfsExact);
+            bool virt = false;
+#ifdef PROEVALUATOR_DUAL_VFS
+            virt = m_vfs->readVirtualFile(fileName, vfsFlags, &contents);
+            if (virt)
+                ent = &m_cache->parsed_files[virtFileName];
+            else
+#endif
+                ent = &m_cache->parsed_files[fileName];
 #ifdef PROPARSER_THREAD_SAFE
             ent->locker = new ProFileCache::Entry::Locker;
             locker.unlock();
 #endif
-            pro = new ProFile(fileName);
-            if (!read(pro, flags)) {
-                delete pro;
-                pro = 0;
-            } else {
+            if (virt || readFile(fileName, vfsFlags | QMakeVfs::VfsNoVirtual, flags, &contents)) {
+                pro = parsedProBlock(QStringRef(&contents), fileName, 1, FullGrammar);
                 pro->itemsRef()->squeeze();
                 pro->ref();
+            } else {
+                pro = 0;
             }
             ent->pro = pro;
 #ifdef PROPARSER_THREAD_SAFE
@@ -209,13 +224,19 @@ ProFile *QMakeParser::parsedProFile(const QString &fileName, ParseFlags flags)
                 ent->locker = 0;
             }
 #endif
-        }
-    } else {
-        pro = new ProFile(fileName);
-        if (!read(pro, flags)) {
-            delete pro;
+        } else {
             pro = 0;
         }
+    } else if (!(flags & ParseOnlyCached)) {
+        QString contents;
+        QMakeVfs::VfsFlags vfsFlags =
+                ((flags & ParseCumulative) ? QMakeVfs::VfsCumulative : QMakeVfs::VfsExact);
+        if (readFile(fileName, vfsFlags, flags, &contents))
+            pro = parsedProBlock(QStringRef(&contents), fileName, 1, FullGrammar);
+        else
+            pro = 0;
+    } else {
+        pro = 0;
     }
     return pro;
 }
@@ -234,17 +255,17 @@ void QMakeParser::discardFileFromCache(const QString &fileName)
         m_cache->discardFile(fileName);
 }
 
-bool QMakeParser::read(ProFile *pro, ParseFlags flags)
+bool QMakeParser::readFile(
+        const QString &fn, QMakeVfs::VfsFlags vfsFlags, ParseFlags flags, QString *contents)
 {
-    QString content;
     QString errStr;
-    if (!m_vfs->readFile(pro->fileName(), &content, &errStr)) {
-        if (m_handler && ((flags & ParseReportMissing) || m_vfs->exists(pro->fileName())))
+    QMakeVfs::ReadResult result = m_vfs->readFile(fn, vfsFlags, contents, &errStr);
+    if (result != QMakeVfs::ReadOk) {
+        if (m_handler && ((flags & ParseReportMissing) || result != QMakeVfs::ReadNotFound))
             m_handler->message(QMakeParserHandler::ParserIoError,
-                               fL1S("Cannot read %1: %2").arg(pro->fileName(), errStr));
+                               fL1S("Cannot read %1: %2").arg(fn, errStr));
         return false;
     }
-    read(pro, QStringRef(&content), 1, FullGrammar);
     return true;
 }
 

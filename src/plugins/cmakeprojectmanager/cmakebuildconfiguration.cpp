@@ -61,7 +61,8 @@ const char INITIAL_ARGUMENTS[] = "CMakeProjectManager.CMakeBuildConfiguration.In
 const char CONFIGURATION_KEY[] = "CMake.Configuration";
 
 CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent) :
-    BuildConfiguration(parent, Core::Id(Constants::CMAKE_BC_ID))
+    BuildConfiguration(parent, Core::Id(Constants::CMAKE_BC_ID)),
+    m_buildDirManager(new BuildDirManager(this))
 {
     ctor();
 }
@@ -69,11 +70,6 @@ CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent
 CMakeBuildConfiguration::~CMakeBuildConfiguration()
 {
     m_buildDirManager->deleteLater(); // Do not block while waiting for cmake...
-}
-
-void CMakeBuildConfiguration::cmakeFilesChanged()
-{
-    m_buildDirManager->cmakeFilesChanged();
 }
 
 bool CMakeBuildConfiguration::isEnabled() const
@@ -89,7 +85,8 @@ QString CMakeBuildConfiguration::disabledReason() const
 CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent,
                                                  CMakeBuildConfiguration *source) :
     BuildConfiguration(parent, source),
-    m_configuration(source->m_configuration)
+    m_configuration(source->m_configuration),
+    m_buildDirManager(new BuildDirManager(this))
 {
     ctor();
     cloneSteps(source);
@@ -142,7 +139,6 @@ void CMakeBuildConfiguration::ctor()
                                            target()->kit(),
                                            displayName(), BuildConfiguration::Unknown));
 
-    m_buildDirManager = new BuildDirManager(this);
     connect(m_buildDirManager, &BuildDirManager::dataAvailable,
             this, &CMakeBuildConfiguration::dataAvailable);
     connect(m_buildDirManager, &BuildDirManager::errorOccured,
@@ -156,17 +152,12 @@ void CMakeBuildConfiguration::ctor()
             m_buildDirManager, &BuildDirManager::forceReparse);
 
     connect(this, &CMakeBuildConfiguration::parsingStarted, project, &CMakeProject::handleParsingStarted);
-    connect(this, &CMakeBuildConfiguration::dataAvailable, project, &CMakeProject::parseCMakeOutput);
+    connect(this, &CMakeBuildConfiguration::dataAvailable, project, &CMakeProject::updateProjectData);
 }
 
 void CMakeBuildConfiguration::maybeForceReparse()
 {
     m_buildDirManager->maybeForceReparse();
-}
-
-BuildDirManager *CMakeBuildConfiguration::buildDirManager() const
-{
-    return m_buildDirManager;
 }
 
 bool CMakeBuildConfiguration::isParsing() const
@@ -182,6 +173,47 @@ void CMakeBuildConfiguration::resetData()
 bool CMakeBuildConfiguration::persistCMakeState()
 {
     return m_buildDirManager->persistCMakeState();
+}
+
+bool CMakeBuildConfiguration::updateCMakeStateBeforeBuild()
+{
+    return m_buildDirManager->updateCMakeStateBeforeBuild();
+}
+
+void CMakeBuildConfiguration::runCMake()
+{
+    if (!m_buildDirManager || m_buildDirManager->isParsing())
+        return;
+
+    m_buildDirManager->checkConfiguration();
+    m_buildDirManager->forceReparse();
+}
+
+void CMakeBuildConfiguration::clearCache()
+{
+    if (m_buildDirManager)
+        m_buildDirManager->clearCache();
+}
+
+QList<CMakeBuildTarget> CMakeBuildConfiguration::buildTargets() const
+{
+    if (!m_buildDirManager || m_buildDirManager->isParsing())
+        return QList<CMakeBuildTarget>();
+
+    return m_buildDirManager->buildTargets();
+}
+
+void CMakeBuildConfiguration::generateProjectTree(CMakeProjectNode *root) const
+{
+    if (!m_buildDirManager || m_buildDirManager->isParsing())
+        return;
+
+    return m_buildDirManager->generateProjectTree(root);
+}
+
+QSet<Core::Id> CMakeBuildConfiguration::updateCodeModel(CppTools::ProjectPartBuilder &ppBuilder)
+{
+    return m_buildDirManager->updateCodeModel(ppBuilder);
 }
 
 FileName CMakeBuildConfiguration::shadowBuildDirectory(const FileName &projectFilePath,
@@ -201,7 +233,7 @@ FileName CMakeBuildConfiguration::shadowBuildDirectory(const FileName &projectFi
 
 QList<ConfigModel::DataItem> CMakeBuildConfiguration::completeCMakeConfiguration() const
 {
-    if (!m_buildDirManager && m_buildDirManager->isParsing())
+    if (!m_buildDirManager || m_buildDirManager->isParsing())
         return QList<ConfigModel::DataItem>();
 
     if (m_completeConfigurationCache.isEmpty())
@@ -213,6 +245,7 @@ QList<ConfigModel::DataItem> CMakeBuildConfiguration::completeCMakeConfiguration
         j.key = QString::fromUtf8(i.key);
         j.value = QString::fromUtf8(i.value);
         j.description = QString::fromUtf8(i.documentation);
+        j.values = i.values;
 
         j.isAdvanced = i.isAdvanced || i.type == CMakeConfigItem::INTERNAL;
         switch (i.type) {
@@ -239,7 +272,7 @@ QList<ConfigModel::DataItem> CMakeBuildConfiguration::completeCMakeConfiguration
 
 void CMakeBuildConfiguration::setCurrentCMakeConfiguration(const QList<ConfigModel::DataItem> &items)
 {
-    if (m_buildDirManager->isParsing())
+    if (!m_buildDirManager || m_buildDirManager->isParsing())
         return;
 
     const CMakeConfig newConfig = Utils::transform(items, [](const ConfigModel::DataItem &i) {
@@ -248,6 +281,7 @@ void CMakeBuildConfiguration::setCurrentCMakeConfiguration(const QList<ConfigMod
         ni.value = i.value.toUtf8();
         ni.documentation = i.description.toUtf8();
         ni.isAdvanced = i.isAdvanced;
+        ni.values = i.values;
         switch (i.type) {
         case CMakeProjectManager::ConfigModel::DataItem::BOOLEAN:
             ni.type = CMakeConfigItem::BOOL;

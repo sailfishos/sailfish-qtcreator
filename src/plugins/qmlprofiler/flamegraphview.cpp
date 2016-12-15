@@ -24,10 +24,14 @@
 ****************************************************************************/
 
 #include "flamegraphview.h"
-#include "flamegraph.h"
 #include "qmlprofilerconstants.h"
 #include "qmlprofilertool.h"
 
+#include <flamegraph/flamegraph.h>
+#include <timeline/timelinetheme.h>
+#include <utils/theme/theme.h>
+
+#include <QQmlEngine>
 #include <QQmlContext>
 #include <QVBoxLayout>
 #include <QMenu>
@@ -39,18 +43,23 @@ FlameGraphView::FlameGraphView(QmlProfilerModelManager *manager, QWidget *parent
     QmlProfilerEventsView(parent), m_content(new QQuickWidget(this)),
     m_model(new FlameGraphModel(manager, this))
 {
-    setWindowTitle(QStringLiteral("Flamegraph"));
+    setWindowTitle(QStringLiteral("Flame Graph"));
+
+    // We cannot change this without breaking the settings.
     setObjectName(QStringLiteral("QmlProfilerFlamegraph"));
 
-    qmlRegisterType<FlameGraph>("FlameGraph", 1, 0, "FlameGraph");
-    qmlRegisterUncreatableType<FlameGraphModel>("FlameGraphModel", 1, 0, "FlameGraphModel",
+    qmlRegisterType<FlameGraph::FlameGraph>("FlameGraph", 1, 0, "FlameGraph");
+    qmlRegisterUncreatableType<FlameGraphModel>("QmlProfilerFlameGraphModel", 1, 0,
+                                                "QmlProfilerFlameGraphModel",
                                                 QLatin1String("use the context property"));
     qmlRegisterUncreatableType<QAbstractItemModel>("AbstractItemModel", 1, 0, "AbstractItemModel",
                                                    QLatin1String("only for Qt 5.4"));
 
+    Timeline::TimelineTheme::setupTheme(m_content->engine());
+
     m_content->rootContext()->setContextProperty(QStringLiteral("flameGraphModel"), m_model);
-    m_content->setSource(QUrl(QStringLiteral("qrc:/qmlprofiler/FlameGraphView.qml")));
-    m_content->setClearColor(QColor(0xdc, 0xdc, 0xdc));
+    m_content->setSource(QUrl(QStringLiteral("qrc:/qmlprofiler/QmlProfilerFlameGraphView.qml")));
+    m_content->setClearColor(Utils::creatorTheme()->color(Utils::Theme::Timeline_BackgroundColor1));
 
     m_content->setResizeMode(QQuickWidget::SizeRootObjectToView);
     m_content->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);

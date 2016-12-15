@@ -62,6 +62,13 @@ QnxToolChain::QnxToolChain(ToolChain::Detection d)
     : GccToolChain(Constants::QNX_TOOLCHAIN_ID, d)
 { }
 
+QnxToolChain::QnxToolChain(Language l, ToolChain::Detection d)
+    : QnxToolChain(d)
+{
+    setLanguage(l);
+}
+
+
 QString QnxToolChain::typeDisplayName() const
 {
     return QnxToolChainFactory::tr("QCC");
@@ -153,6 +160,11 @@ QnxToolChainFactory::QnxToolChainFactory()
     setDisplayName(tr("QCC"));
 }
 
+QSet<ToolChain::Language> QnxToolChainFactory::supportedLanguages() const
+{
+    return { ProjectExplorer::ToolChain::Language::Cxx };
+}
+
 bool QnxToolChainFactory::canRestore(const QVariantMap &data)
 {
     return typeIdFromMap(data) == Constants::QNX_TOOLCHAIN_ID;
@@ -173,9 +185,9 @@ bool QnxToolChainFactory::canCreate()
     return true;
 }
 
-ToolChain *QnxToolChainFactory::create()
+ToolChain *QnxToolChainFactory::create(ToolChain::Language l)
 {
-    return new QnxToolChain(ToolChain::ManualDetection);
+    return new QnxToolChain(l, ToolChain::ManualDetection);
 }
 
 //---------------------------------------------------------------------------------

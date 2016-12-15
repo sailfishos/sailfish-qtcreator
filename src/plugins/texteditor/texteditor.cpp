@@ -91,6 +91,7 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QGridLayout>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMessageBox>
@@ -111,9 +112,6 @@
 #include <QTimeLine>
 #include <QTimer>
 #include <QToolBar>
-#include <QVBoxLayout>
-
-//#define DO_FOO
 
 /*!
     \namespace TextEditor
@@ -727,14 +725,6 @@ void TextEditorWidgetPrivate::ctor(const QSharedPointer<TextDocument> &doc)
     QObject::connect(q, &QPlainTextEdit::selectionChanged,
                      this, &TextEditorWidgetPrivate::slotSelectionChanged);
 
-//     (void) new QShortcut(tr("CTRL+L"), this, SLOT(centerCursor()), 0, Qt::WidgetShortcut);
-//     (void) new QShortcut(tr("F9"), this, SLOT(slotToggleMark()), 0, Qt::WidgetShortcut);
-//     (void) new QShortcut(tr("F11"), this, SLOT(slotToggleBlockVisible()));
-
-#ifdef DO_FOO
-    (void) new QShortcut(TextEditorWidget::tr("CTRL+D"), this, SLOT(doFoo()));
-#endif
-
     // parentheses matcher
     m_formatRange = true;
     m_parenthesesMatchingTimer.setSingleShot(true);
@@ -867,7 +857,7 @@ void TextEditorWidgetPrivate::print(QPrinter *printer)
          srcBlock = srcBlock.next(), dstBlock = dstBlock.next()) {
 
 
-        QList<QTextLayout::FormatRange> formatList = srcBlock.layout()->additionalFormats();
+        QVector<QTextLayout::FormatRange> formatList = srcBlock.layout()->formats();
         if (backgroundIsDark) {
             // adjust syntax highlighting colors for better contrast
             for (int i = formatList.count() - 1; i >= 0; --i) {
@@ -885,7 +875,7 @@ void TextEditorWidgetPrivate::print(QPrinter *printer)
             }
         }
 
-        dstBlock.layout()->setAdditionalFormats(formatList);
+        dstBlock.layout()->setFormats(formatList);
     }
 
     QAbstractTextDocumentLayout *layout = doc->documentLayout();
@@ -1355,6 +1345,15 @@ bool TextEditorWidget::selectBlockDown()
     setTextCursor(Convenience::flippedCursor(cursor));
     d->_q_matchParentheses();
     return true;
+}
+
+void TextEditorWidget::selectWordUnderCursor()
+{
+    QTextCursor tc = textCursor();
+    if (tc.hasSelection())
+        return;
+    tc.select(QTextCursor::WordUnderCursor);
+    setTextCursor(tc);
 }
 
 void TextEditorWidget::copyLineUp()
@@ -5113,7 +5112,7 @@ void TextEditorWidget::extraAreaMouseEvent(QMouseEvent *e)
                     if (data->marks().isEmpty()) {
                         ToolTip::hide();
                     } else {
-                        auto layout = new QVBoxLayout;
+                        auto layout = new QGridLayout;
                         layout->setContentsMargins(0, 0, 0, 0);
                         layout->setSpacing(2);
                         foreach (TextMark *mark, data->marks())
@@ -6721,8 +6720,10 @@ void TextEditorWidget::circularPaste()
         circularClipBoard->toLastCollect();
     }
 
-    if (circularClipBoard->size() > 1)
-        return invokeAssist(QuickFix, d->m_clipboardAssistProvider.data());
+    if (circularClipBoard->size() > 1) {
+        invokeAssist(QuickFix, d->m_clipboardAssistProvider.data());
+        return;
+    }
 
     if (const QMimeData *mimeData = circularClipBoard->next().data()) {
         QApplication::clipboard()->setMimeData(TextEditorWidget::duplicateMimeData(mimeData));
@@ -6766,7 +6767,7 @@ QMimeData *TextEditorWidget::createMimeDataFromSelection() const
             for (QTextBlock current = start; current.isValid() && current != end; current = current.next()) {
                 if (selectionVisible(current.blockNumber())) {
                     const QTextLayout *layout = current.layout();
-                    foreach (const QTextLayout::FormatRange &range, layout->additionalFormats()) {
+                    foreach (const QTextLayout::FormatRange &range, layout->formats()) {
                         const int startPosition = current.position() + range.start - selectionStart - removedCount;
                         const int endPosition = startPosition + range.length;
                         if (endPosition <= 0 || startPosition >= endOfDocument - removedCount)
@@ -7034,8 +7035,8 @@ QWidget *BaseTextEditor::toolBar()
     return editorWidget()->d->m_toolBar;
 }
 
-void TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
-                                              QWidget *widget)
+QAction * TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
+                                                     QWidget *widget)
 {
     if (widget->sizePolicy().horizontalPolicy() & QSizePolicy::ExpandFlag) {
         if (d->m_stretchWidget)
@@ -7044,9 +7045,9 @@ void TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
     }
 
     if (side == Right)
-        d->m_toolBar->insertWidget(d->m_cursorPositionLabelAction, widget);
+        return d->m_toolBar->insertWidget(d->m_cursorPositionLabelAction, widget);
     else
-        d->m_toolBar->insertWidget(d->m_toolBar->actions().first(), widget);
+        return d->m_toolBar->insertWidget(d->m_toolBar->actions().first(), widget);
 }
 
 void TextEditorWidget::keepAutoCompletionHighlight(bool keepHighlight)
@@ -7204,19 +7205,6 @@ void TextEditorWidget::setRefactorMarkers(const RefactorMarkers &markers)
     d->m_refactorOverlay->setMarkers(markers);
     foreach (const RefactorMarker &marker, markers)
         requestBlockUpdate(marker.cursor.block());
-}
-
-void TextEditorWidget::doFoo()
-{
-#ifdef DO_FOO
-    qDebug() << Q_FUNC_INFO;
-    RefactorMarkers markers = d->m_refactorOverlay->markers();
-    RefactorMarker marker;
-    marker.tooltip = "Hello World";
-    marker.cursor = textCursor();
-    markers += marker;
-    setRefactorMarkers(markers);
-#endif
 }
 
 TextBlockSelection::TextBlockSelection(const TextBlockSelection &other)

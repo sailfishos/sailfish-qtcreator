@@ -37,9 +37,9 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/dialogs/openwithdialog.h>
 #include <coreplugin/dialogs/readonlyfilesdialog.h>
+#include <coreplugin/diffservice.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/ieditorfactory.h>
 #include <coreplugin/editormanager/iexternaleditor.h>
@@ -376,13 +376,14 @@ void EditorManagerPrivate::init()
     connect(m_goForwardAction, &QAction::triggered,
             m_instance, &EditorManager::goForwardInNavigationHistory);
 
-    m_splitAction = new QAction(Icons::SPLIT_HORIZONTAL.icon(), tr("Split"), this);
+    m_splitAction = new QAction(Utils::Icons::SPLIT_HORIZONTAL.icon(), tr("Split"), this);
     cmd = ActionManager::registerAction(m_splitAction, Constants::SPLIT, editManagerContext);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+E,2") : tr("Ctrl+E,2")));
     mwindow->addAction(cmd, Constants::G_WINDOW_SPLIT);
     connect(m_splitAction, &QAction::triggered, this, [this]() { split(Qt::Vertical); });
 
-    m_splitSideBySideAction = new QAction(Icons::SPLIT_VERTICAL.icon(), tr("Split Side by Side"), this);
+    m_splitSideBySideAction = new QAction(Utils::Icons::SPLIT_VERTICAL.icon(),
+                                          tr("Split Side by Side"), this);
     cmd = ActionManager::registerAction(m_splitSideBySideAction, Constants::SPLIT_SIDE_BY_SIDE, editManagerContext);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+E,3") : tr("Ctrl+E,3")));
     mwindow->addAction(cmd, Constants::G_WINDOW_SPLIT);
@@ -1251,11 +1252,13 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
                 ModeManager::activateMode(Constants::MODE_DESIGN);
                 ModeManager::setFocusToCurrentMode();
             } else {
-                int index;
-                findEditorArea(view, &index);
-                if (index == 0) // main window --> we might need to switch mode
-                    if (!editor->widget()->isVisible())
-                        ModeManager::activateMode(Constants::MODE_EDIT);
+                if (!(flags & EditorManager::DoNotSwitchToEditMode)) {
+                    int index;
+                    findEditorArea(view, &index);
+                    if (index == 0) // main window --> we might need to switch mode
+                        if (!editor->widget()->isVisible())
+                            ModeManager::activateMode(Constants::MODE_EDIT);
+                }
                 editor->widget()->setFocus();
                 ICore::raiseWindow(editor->widget());
             }
@@ -1903,9 +1906,9 @@ void EditorManagerPrivate::handleDocumentStateChange()
     IDocument *document = qobject_cast<IDocument *>(sender());
     if (!document->isModified())
         document->removeAutoSaveFile();
-    if (EditorManager::currentDocument() == document) {
+    if (EditorManager::currentDocument() == document)
         emit m_instance->currentDocumentStateChanged();
-    }
+    emit m_instance->documentStateChanged(document);
 }
 
 void EditorManagerPrivate::editorAreaDestroyed(QObject *area)
@@ -1968,6 +1971,7 @@ void EditorManagerPrivate::autoSave()
     if (!errors.isEmpty())
         QMessageBox::critical(ICore::mainWindow(), tr("File Error"),
                               errors.join(QLatin1Char('\n')));
+    emit m_instance->autoSaved();
 }
 
 void EditorManagerPrivate::handleContextChange(const QList<IContext *> &context)
@@ -2096,25 +2100,8 @@ bool EditorManagerPrivate::saveDocumentAs(IDocument *document)
     if (!document)
         return false;
 
-    emit m_instance->aboutToSave(document);
-    Utils::MimeDatabase mdb;
-    const QString filter = Utils::MimeDatabase::allFiltersString();
-    QString selectedFilter;
-    const QString filePath = document->filePath().toString();
-    if (!filePath.isEmpty()) {
-        selectedFilter = mdb.mimeTypeForFile(filePath).filterString();
-    } else {
-        const QString suggestedName = document->fallbackSaveAsFileName();
-        if (!suggestedName.isEmpty()) {
-            const QList<MimeType> types = mdb.mimeTypesForFileName(suggestedName);
-            if (!types.isEmpty())
-                selectedFilter = types.first().filterString();
-        }
-    }
-    if (selectedFilter.isEmpty())
-        selectedFilter = mdb.mimeTypeForName(document->mimeType()).filterString();
     const QString &absoluteFilePath =
-        DocumentManager::getSaveAsFileName(document, filter, &selectedFilter);
+        DocumentManager::getSaveAsFileName(document);
 
     if (absoluteFilePath.isEmpty())
         return false;
@@ -2126,6 +2113,7 @@ bool EditorManagerPrivate::saveDocumentAs(IDocument *document)
             EditorManager::closeDocuments(QList<IDocument *>() << otherDocument, false);
     }
 
+    emit m_instance->aboutToSave(document);
     const bool success = DocumentManager::saveDocument(document, absoluteFilePath);
     document->checkPermissions();
 
@@ -2165,11 +2153,21 @@ void EditorManagerPrivate::revertToSaved(IDocument *document)
                            QMessageBox::Yes|QMessageBox::No, ICore::mainWindow());
         msgBox.button(QMessageBox::Yes)->setText(tr("Proceed"));
         msgBox.button(QMessageBox::No)->setText(tr("Cancel"));
+
+        QPushButton *diffButton = nullptr;
+        auto diffService = ExtensionSystem::PluginManager::getObject<DiffService>();
+        if (diffService)
+            diffButton = msgBox.addButton(tr("Cancel && &Diff"), QMessageBox::RejectRole);
+
         msgBox.setDefaultButton(QMessageBox::No);
         msgBox.setEscapeButton(QMessageBox::No);
         if (msgBox.exec() == QMessageBox::No)
             return;
 
+        if (diffService && msgBox.clickedButton() == diffButton) {
+            diffService->diffModifiedFiles(QStringList() << fileName);
+            return;
+        }
     }
     QString errorString;
     if (!document->reload(&errorString, IDocument::FlagReload, IDocument::TypeContents))
@@ -2793,6 +2791,16 @@ IEditor *EditorManager::openEditorWithContents(Id editorId,
     EditorManagerPrivate::addEditor(edt);
     activateEditor(edt, flags);
     return edt;
+}
+
+bool EditorManager::skipOpeningBigTextFile(const QString &filePath)
+{
+    return EditorManagerPrivate::skipOpeningBigTextFile(filePath);
+}
+
+void EditorManager::clearUniqueId(IDocument *document)
+{
+    document->setProperty(scratchBufferKey, QVariant());
 }
 
 bool EditorManager::saveDocument(IDocument *document)

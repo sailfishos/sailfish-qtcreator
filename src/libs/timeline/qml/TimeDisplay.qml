@@ -31,13 +31,9 @@ Item {
     property double windowStart
     property double rangeDuration
 
-    property int topBorderHeight: 2
-    property int bottomBorderHeight: 1
     property int textMargin: 5
     property int labelsHeight: 24
     property int fontSize: 8
-    property color color1: "#E6E6E6"
-    property color color2: "white"
     property int initialBlockLength: 120
     property double spacing: width / rangeDuration
 
@@ -77,13 +73,21 @@ Item {
         return m + "m" + s + "s";
     }
 
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: timeDisplay.labelsHeight
+        color: creatorTheme.PanelStatusBarBackgroundColor
+    }
+
     Item {
-        x: Math.floor(firstBlock * timeDisplay.pixelsPerBlock - timeDisplay.offsetX)
+        x: -(timeDisplay.offsetX % timeDisplay.pixelsPerBlock)
         y: 0
         id: row
 
         property int firstBlock: timeDisplay.offsetX / timeDisplay.pixelsPerBlock
-        property int offset: firstBlock % repeater.model
+        property int offset: repeater.model - (firstBlock % repeater.model);
 
         Repeater {
             id: repeater
@@ -94,21 +98,18 @@ Item {
 
                 // Changing the text in text nodes is expensive. We minimize the number of changes
                 // by rotating the nodes during scrolling.
-                property int stableIndex: row.offset > index ? repeater.model - row.offset + index :
-                                                               index - row.offset
+                property int stableIndex: (index + row.offset) % repeater.model
+
                 height: timeDisplay.height
                 y: 0
                 x: width * stableIndex
                 width: timeDisplay.pixelsPerBlock
 
-                // Manually control this. We don't want it to happen when firstBlock
-                // changes before stableIndex changes.
-                onStableIndexChanged: block = row.firstBlock + stableIndex
-                property int block: -1
-                property double blockStartTime: block * timeDisplay.timePerBlock +
-                                                timeDisplay.alignedWindowStart
+                property double blockStartTime: (row.firstBlock + stableIndex)
+                                                * timeDisplay.timePerBlock
+                                                + timeDisplay.alignedWindowStart
 
-                Rectangle {
+                TimelineText {
                     id: timeLabel
 
                     anchors.top: parent.top
@@ -116,19 +117,12 @@ Item {
                     anchors.right: parent.right
                     height: timeDisplay.labelsHeight
 
-                    color: (Math.round(column.block + timeDisplay.alignedWindowStart /
-                                       timeDisplay.timePerBlock) % 2) ? color1 : color2;
-
-                    TimelineText {
-                        id: labelText
-                        font.pixelSize: timeDisplay.fontSize
-                        anchors.fill: parent
-                        anchors.leftMargin: timeDisplay.textMargin
-                        anchors.bottomMargin: timeDisplay.textMargin
-                        verticalAlignment: Text.AlignBottom
-                        text: prettyPrintTime(column.blockStartTime, timeDisplay.rangeDuration)
-                        visible: width > 0
-                    }
+                    font.pixelSize: timeDisplay.fontSize
+                    anchors.leftMargin: timeDisplay.textMargin
+                    verticalAlignment: Text.AlignVCenter
+                    text: prettyPrintTime(column.blockStartTime, timeDisplay.rangeDuration)
+                    visible: width > 0
+                    color: creatorTheme.PanelTextColorLight
                 }
 
                 Row {
@@ -146,7 +140,7 @@ Item {
 
                             Rectangle {
                                 visible: column.stableIndex !== 0 || (-row.x < parent.x + x)
-                                color: "#CCCCCC"
+                                color: creatorTheme.Timeline_DividerColor
                                 width: 1
                                 anchors.top: parent.top
                                 anchors.bottom: parent.bottom
@@ -157,7 +151,7 @@ Item {
                 }
 
                 Rectangle {
-                    color: "#B0B0B0"
+                    color: creatorTheme.Timeline_DividerColor
                     width: 1
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
@@ -165,21 +159,5 @@ Item {
                 }
             }
         }
-    }
-
-    Rectangle {
-        height: topBorderHeight
-        anchors.left: parent.left
-        anchors.right: parent.right
-        y: labelsHeight - topBorderHeight
-        color: "#B0B0B0"
-    }
-
-    Rectangle {
-        height: bottomBorderHeight
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: row.bottom
-        color: "#B0B0B0"
     }
 }

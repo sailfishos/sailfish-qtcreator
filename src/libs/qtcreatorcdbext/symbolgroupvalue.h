@@ -40,10 +40,17 @@ class MemoryHandle;
 struct SymbolGroupValueContext
 {
     SymbolGroupValueContext(CIDebugDataSpaces *ds, CIDebugSymbols *s) : dataspaces(ds), symbols(s) {}
-    SymbolGroupValueContext::SymbolGroupValueContext() : dataspaces(0), symbols(0) {}
+    SymbolGroupValueContext() = default;
 
-    CIDebugDataSpaces *dataspaces;
-    CIDebugSymbols *symbols;
+    CIDebugDataSpaces *dataspaces = nullptr;
+    CIDebugSymbols *symbols = nullptr;
+};
+
+struct SymbolAncestorInfo
+{
+    bool isValid() const { return offset >= 0 && !type.empty(); }
+    std::string type;
+    LONG64 offset = -1;
 };
 
 class SymbolGroupValue
@@ -64,6 +71,7 @@ public:
     SymbolGroupValue operator[](const char *name) const;
     SymbolGroupValue operator[](unsigned) const;
     unsigned childCount() const;
+    ULONG64 offsetOfChild(const SymbolGroupValue &child) const;
     SymbolGroupValue parent() const;
     // take address and cast to desired (pointer) type
     SymbolGroupValue typeCast(const char *type) const;
@@ -79,6 +87,17 @@ public:
     std::vector<std::string>  innerTypes() const { return innerTypesOf(type()); }
     std::wstring value() const;
     unsigned size() const;
+
+    //offset based access to ancestors
+    SymbolGroupValue addSymbolForAncestor(const std::string &ancestorName) const;
+    ULONG64 readPointerValueFromAncestor(const std::string &name) const;
+    int readIntegerFromAncestor(const std::string &name, int defaultValue = -1) const;
+    LONG64 offsetOfAncestor(const std::string &name) const;
+    ULONG64 addressOfAncestor(const std::string &name) const;
+    std::string typeOfAncestor(const std::string &childName) const;
+    SymbolAncestorInfo infoOfAncestor(const std::string &name) const;
+
+    SymbolGroupValue addSymbol(const ULONG64 address, const std::string &type) const;
 
     SymbolGroupNode *node() const { return m_node; }
     SymbolGroupValueContext context() const { return m_context; }
@@ -112,6 +131,7 @@ public:
     static std::string moduleOfType(const std::string &type);
     // pointer type, return number of characters to strip
     static unsigned isPointerType(const std::string &);
+    static unsigned isMovable(const std::string &, const SymbolGroupValue &v);
     static bool isArrayType(const std::string &);
     static bool isVTableType(const std::string &t);
     // add pointer type 'Foo' -> 'Foo *', 'Foo *' -> 'Foo **'
@@ -169,8 +189,9 @@ public:
 private:
     bool ensureExpanded() const;
     SymbolGroupValue typeCastedValue(ULONG64 address, const char *type) const;
+    template<class POD> POD readPODFromAncestor(const std::string &name, POD defaultValue) const;
 
-    SymbolGroupNode *m_node;
+    SymbolGroupNode *m_node = 0;
     SymbolGroupValueContext m_context;
     mutable std::string m_errorMessage;
 };
@@ -184,8 +205,6 @@ struct QtInfo
     {
         Core, Gui, Widgets, Network, Script, Qml
     };
-
-    QtInfo() : version(0), isStatic(false) {}
 
     static const QtInfo &get(const SymbolGroupValueContext &ctx);
 
@@ -213,8 +232,8 @@ struct QtInfo
 
     std::string moduleName(Module m) const;
 
-    int version;
-    bool isStatic;
+    int version = 0;
+    bool isStatic = false;
     std::string nameSpace;
     std::string libInfix;
     // Fully qualified types with module and namespace

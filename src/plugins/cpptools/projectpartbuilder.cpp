@@ -208,11 +208,11 @@ void ProjectPartBuilder::setConfigFileName(const QString &configFileName)
 QList<Core::Id> ProjectPartBuilder::createProjectPartsForFiles(const QStringList &files,
                                                                FileClassifier fileClassifier)
 {
-    QList<Core::Id> languages;
+    QSet<Core::Id> languages;
 
     ProjectFileCategorizer cat(m_templatePart->displayName, files, fileClassifier);
     if (cat.hasNoParts())
-        return languages;
+        return languages.toList();
 
     using CppTools::ProjectFile;
     using CppTools::ProjectPart;
@@ -223,7 +223,7 @@ QList<Core::Id> ProjectPartBuilder::createProjectPartsForFiles(const QStringList
                           ProjectPart::C11,
                           ProjectPart::NoExtensions);
         // TODO: there is no C...
-//        languages += ProjectExplorer::Constants::LANG_C;
+        languages += ProjectExplorer::Constants::LANG_CXX;
     }
     if (cat.hasObjcSources()) {
         createProjectPart(cat.objcSources(),
@@ -231,7 +231,7 @@ QList<Core::Id> ProjectPartBuilder::createProjectPartsForFiles(const QStringList
                           ProjectPart::C11,
                           ProjectPart::ObjectiveCExtensions);
         // TODO: there is no Ojective-C...
-//        languages += ProjectExplorer::Constants::LANG_OBJC;
+        languages += ProjectExplorer::Constants::LANG_CXX;
     }
     if (cat.hasCxxSources()) {
         createProjectPart(cat.cxxSources(),
@@ -249,7 +249,7 @@ QList<Core::Id> ProjectPartBuilder::createProjectPartsForFiles(const QStringList
         languages += ProjectExplorer::Constants::LANG_CXX;
     }
 
-    return languages;
+    return languages.toList();
 }
 
 namespace {
@@ -273,7 +273,7 @@ QString targetTriple(ProjectExplorer::Project *project, const Core::Id &toolchai
 
     if (project) {
         if (Target *target = project->activeTarget()) {
-            if (ToolChain *toolChain = ToolChainKitInformation::toolChain(target->kit()))
+            if (ToolChain *toolChain = ToolChainKitInformation::toolChain(target->kit(), ToolChain::Language::Cxx))
                 return toolChain->originalTargetTriple();
         }
     }
@@ -316,8 +316,6 @@ void ProjectPartBuilder::evaluateProjectPartToolchain(
         languageVersion = ProjectPart::CXX11;
     else if (flags & ToolChain::StandardCxx98)
         languageVersion = ProjectPart::CXX98;
-    else
-        languageVersion = ProjectPart::CXX11;
 
     auto &languageExtensions = projectPart->languageExtensions;
 
@@ -345,6 +343,9 @@ void ProjectPartBuilder::evaluateProjectPartToolchain(
     projectPart->toolchainType = toolChain->typeId();
     projectPart->isMsvc2015Toolchain
             = toolChain->targetAbi().osFlavor() == ProjectExplorer::Abi::WindowsMsvc2015Flavor;
+    projectPart->toolChainWordWidth = toolChain->targetAbi().wordWidth() == 64
+            ? ProjectPart::WordWidth64Bit
+            : ProjectPart::WordWidth32Bit;
     projectPart->targetTriple = targetTriple(projectPart->project, toolChain->typeId());
     projectPart->updateLanguageFeatures();
 }
@@ -357,13 +358,21 @@ void ProjectPartBuilder::createProjectPart(const QVector<ProjectFile> &theSource
     ProjectPart::Ptr part(m_templatePart->copy());
     part->displayName = partName;
     part->files = theSources;
+    part->languageVersion = languageVersion;
 
     QTC_ASSERT(part->project, return);
     if (ProjectExplorer::Target *activeTarget = part->project->activeTarget()) {
         if (ProjectExplorer::Kit *kit = activeTarget->kit()) {
-            if (ProjectExplorer::ToolChain *toolChain = ProjectExplorer::ToolChainKitInformation::toolChain(kit)) {
-                const QStringList flags = languageVersion >= ProjectPart::CXX98 ? m_cxxFlags
-                                                                                : m_cFlags;
+            ProjectExplorer::ToolChain *toolChain = nullptr;
+            if (languageVersion < ProjectPart::CXX98)
+                toolChain = ProjectExplorer::ToolChainKitInformation::toolChain(kit, ProjectExplorer::ToolChain::Language::C);
+            if (!toolChain) // Use Cxx toolchain for C projects without C compiler in kit and for C++ code
+                toolChain = ProjectExplorer::ToolChainKitInformation::toolChain(kit, ProjectExplorer::ToolChain::Language::Cxx);
+
+            if (toolChain) {
+                const QStringList flags
+                        = (toolChain->language() == ProjectExplorer::ToolChain::Language::Cxx)
+                          ? m_cxxFlags : m_cFlags;
                 evaluateProjectPartToolchain(part.data(),
                                              toolChain,
                                              flags,

@@ -35,9 +35,10 @@ namespace Internal {
 
 class CppIncludeHierarchyItem;
 
-class CppIncludeHierarchyModel : public Utils::UniformTreeModel<CppIncludeHierarchyItem>
+class CppIncludeHierarchyModel : public Utils::TreeModel<CppIncludeHierarchyItem>
 {
     Q_OBJECT
+    typedef Utils::TreeModel<CppIncludeHierarchyItem> base_type;
 
 public:
     CppIncludeHierarchyModel();
@@ -50,6 +51,11 @@ public:
     QString editorFilePath() const { return m_editorFilePath; }
     void setSearching(bool on);
     QString toString() const;
+
+#if WITH_TESTS
+    using base_type::canFetchMore;
+    using base_type::fetchMore;
+#endif
 
 private:
     friend class CppIncludeHierarchyItem;

@@ -29,8 +29,6 @@
 #include <model.h>
 #include <nodemetainfo.h>
 #include "internalnode_p.h"
-#include <QHash>
-#include <QTextStream>
 #include "invalidargumentexception.h"
 #include "invalididexception.h"
 #include "invalidmodelnodeexception.h"
@@ -43,6 +41,10 @@
 #include "nodelistproperty.h"
 #include "nodeproperty.h"
 #include <rewriterview.h>
+
+#include <QHash>
+#include <QSet>
+#include <QTextStream>
 
 namespace QmlDesigner {
 using namespace QmlDesigner::Internal;
@@ -143,10 +145,74 @@ QString ModelNode::validId()
 
 static bool idIsQmlKeyWord(const QString& id)
 {
-    QStringList keywords;
-    keywords << QLatin1String("import") << QLatin1String("as");
+    static const QSet<QString> keywords = {
+        "as",
+        "break",
+        "case",
+        "catch",
+        "continue",
+        "debugger",
+        "default",
+        "delete",
+        "do",
+        "else",
+        "finally",
+        "for",
+        "function",
+        "if",
+        "import",
+        "in",
+        "instanceof",
+        "new",
+        "return",
+        "switch",
+        "this",
+        "throw",
+        "try",
+        "typeof",
+        "var",
+        "void",
+        "while",
+        "with"
+    };
 
     return keywords.contains(id);
+}
+
+static bool isIdToAvoid(const QString& id)
+{
+    static const QSet<QString> ids = {
+        "top",
+        "bottom",
+        "left",
+        "right",
+        "width",
+        "height",
+        "x",
+        "y",
+        "opacity",
+        "parent",
+        "item",
+        "flow",
+        "color",
+        "margin",
+        "padding",
+        "border",
+        "font",
+        "text",
+        "source",
+        "state",
+        "visible",
+        "focus",
+        "data",
+        "clip",
+        "layer",
+        "scale",
+        "enabled",
+        "anchors"
+    };
+
+    return ids.contains(id);
 }
 
 static bool idContainsWrongLetter(const QString& id)
@@ -157,7 +223,7 @@ static bool idContainsWrongLetter(const QString& id)
 
 bool ModelNode::isValidId(const QString &id)
 {
-    return id.isEmpty() || (!idContainsWrongLetter(id) && !idIsQmlKeyWord(id));
+    return id.isEmpty() || (!idContainsWrongLetter(id) && !idIsQmlKeyWord(id) && !isIdToAvoid(id));
 }
 
 bool ModelNode::hasId() const

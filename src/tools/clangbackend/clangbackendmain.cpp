@@ -23,12 +23,19 @@
 **
 ****************************************************************************/
 
+#include "../qtcreatorcrashhandler/crashhandlersetup.h"
+
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QLoggingCategory>
 
 #include <connectionserver.h>
-#include <clangipcserver.h>
+#include <clangcodemodelserver.h>
+#include <clangcodemodelclientproxy.h>
+
+using ClangBackEnd::ClangCodeModelClientProxy;
+using ClangBackEnd::ClangCodeModelServer;
+using ClangBackEnd::ConnectionServer;
 
 QString processArguments(QCoreApplication &application)
 {
@@ -56,16 +63,18 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0.0"));
 
     QCoreApplication application(argc, argv);
+    CrashHandlerSetup setupCrashHandler(QCoreApplication::applicationName(),
+                                        CrashHandlerSetup::DisableRestart);
 
-    const QString connection =  processArguments(application);
+    const QString connection = processArguments(application);
 
     clang_toggleCrashRecovery(true);
     clang_enableStackTraces();
 
-    ClangBackEnd::ClangIpcServer clangIpcServer;
-    ClangBackEnd::ConnectionServer connectionServer(connection);
+    ClangCodeModelServer clangCodeModelServer;
+    ConnectionServer<ClangCodeModelServer, ClangCodeModelClientProxy> connectionServer(connection);
     connectionServer.start();
-    connectionServer.setIpcServer(&clangIpcServer);
+    connectionServer.setServer(&clangCodeModelServer);
 
     return application.exec();
 }

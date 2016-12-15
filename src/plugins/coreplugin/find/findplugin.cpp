@@ -106,12 +106,14 @@ void Find::destroy()
 {
     delete m_instance;
     m_instance = 0;
-    delete d->m_currentDocumentFind;
-    delete d->m_findToolBar;
-    delete d->m_findDialog;
-    ExtensionSystem::PluginManager::removeObject(d->m_searchResultWindow);
-    delete d->m_searchResultWindow;
-    delete d;
+    if (d) {
+        delete d->m_currentDocumentFind;
+        delete d->m_findToolBar;
+        delete d->m_findDialog;
+        ExtensionSystem::PluginManager::removeObject(d->m_searchResultWindow);
+        delete d->m_searchResultWindow;
+        delete d;
+    }
 }
 
 Find *Find::instance()
@@ -234,8 +236,7 @@ void FindPrivate::setupFilterMenuItems()
     bool haveEnabledFilters = false;
     const Id base("FindFilter.");
     QList<IFindFilter *> sortedFilters = findInterfaces;
-    Utils::sort(sortedFilters, [](IFindFilter *a, IFindFilter *b) -> bool
-        { return a->displayName() < b->displayName(); });
+    Utils::sort(sortedFilters, &IFindFilter::displayName);
     foreach (IFindFilter *filter, sortedFilters) {
         QAction *action = new QAction(QLatin1String("    ") + filter->displayName(), this);
         bool isEnabled = filter->isEnabled();

@@ -467,12 +467,19 @@ QString AbstractView::generateNewId(const QString &prefixName) const
 {
     int counter = 1;
 
-    QString newId = QString(QStringLiteral("%1%2")).arg(firstCharToLower(prefixName)).arg(counter);
+    /* First try just the prefixName without number as postfix, then continue with 2 and further as postfix
+     * until id does not already exist.
+     * Properties of the root node are not allowed for ids, because they are available in the complete context
+     * without qualification.
+     * The id "item" is explicitly not allowed, because it is too likely to clash.
+    */
+
+    QString newId = QString(QStringLiteral("%1")).arg(firstCharToLower(prefixName));
     newId.remove(QRegExp(QStringLiteral("[^a-zA-Z0-9_]")));
 
-    while (hasId(newId)) {
+    while (!ModelNode::isValidId(newId) || hasId(newId) || rootModelNode().hasProperty(newId.toUtf8()) || newId == "item") {
         counter += 1;
-        newId = QString(QStringLiteral("%1%2")).arg(firstCharToLower(prefixName)).arg(counter);
+        newId = QString(QStringLiteral("%1%2")).arg(firstCharToLower(prefixName)).arg(counter - 1);
         newId.remove(QRegExp(QStringLiteral("[^a-zA-Z0-9_]")));
     }
 
@@ -665,6 +672,21 @@ QmlModelState AbstractView::currentState() const
     return QmlModelState(currentStateNode());
 }
 
+static int getMinorVersionFromImport(const Model *model)
+{
+    foreach (const Import &import, model->imports()) {
+        if (import.isLibraryImport() && import.url() == "QtQuick") {
+            const QString versionString = import.version();
+            if (versionString.contains(".")) {
+                const QString minorVersionString = versionString.split(".").last();
+                return minorVersionString.toInt();
+            }
+        }
+    }
+
+    return -1;
+}
+
 static int getMajorVersionFromImport(const Model *model)
 {
     foreach (const Import &import, model->imports()) {
@@ -695,6 +717,21 @@ static int getMajorVersionFromNode(const ModelNode &modelNode)
     return 1; //default
 }
 
+static int getMinorVersionFromNode(const ModelNode &modelNode)
+{
+    if (modelNode.metaInfo().isValid()) {
+        if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
+            return modelNode.minorVersion();
+
+        foreach (const NodeMetaInfo &superClass,  modelNode.metaInfo().superClasses()) {
+            if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
+                return superClass.minorVersion();
+        }
+    }
+
+    return 1; //default
+}
+
 int AbstractView::majorQtQuickVersion() const
 {
     int majorVersionFromImport = getMajorVersionFromImport(model());
@@ -703,5 +740,15 @@ int AbstractView::majorQtQuickVersion() const
 
     return getMajorVersionFromNode(rootModelNode());
 }
+
+int AbstractView::minorQtQuickVersion() const
+{
+    int minorVersionFromImport = getMinorVersionFromImport(model());
+    if (minorVersionFromImport >= 0)
+        return minorVersionFromImport;
+
+    return getMinorVersionFromNode(rootModelNode());
+}
+
 
 } // namespace QmlDesigner

@@ -26,7 +26,6 @@
 #include "cppinsertvirtualmethods.h"
 #include "cppquickfixassistant.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <cpptools/cppcodestylesettings.h>
 #include <cpptools/cpptoolsreuse.h>
@@ -39,6 +38,7 @@
 #include <cplusplus/Overview.h>
 #include <utils/changeset.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QAction>
 #include <QCheckBox>
@@ -1021,7 +1021,7 @@ void InsertVirtualMethodsDialog::initGui()
             m_overrideReplacementComboBox, &QComboBox::setEnabled);
 
     QAction *clearUserAddedReplacements = new QAction(this);
-    clearUserAddedReplacements->setIcon(Core::Icons::CLEAN_TOOLBAR.icon());
+    clearUserAddedReplacements->setIcon(Utils::Icons::CLEAN_TOOLBAR.icon());
     clearUserAddedReplacements->setText(tr("Clear Added \"override\" Equivalents"));
     connect(clearUserAddedReplacements, &QAction::triggered, [this]() {
        m_availableOverrideReplacements = defaultOverrideReplacements();
@@ -1222,11 +1222,9 @@ InsertVirtualMethods::~InsertVirtualMethods()
 void InsertVirtualMethods::match(const CppQuickFixInterface &interface,
                                  QuickFixOperations &result)
 {
-    InsertVirtualMethodsOp *op = new InsertVirtualMethodsOp(interface, m_dialog);
+    QSharedPointer<InsertVirtualMethodsOp> op(new InsertVirtualMethodsOp(interface, m_dialog));
     if (op->isValid())
         result.append(op);
-    else
-        delete op;
 }
 
 #ifdef WITH_TESTS

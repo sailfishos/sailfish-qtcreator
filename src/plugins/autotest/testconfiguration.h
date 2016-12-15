@@ -45,7 +45,6 @@ namespace Internal {
 class TestOutputReader;
 class TestResult;
 class TestRunConfiguration;
-struct TestSettings;
 
 using TestResultPtr = QSharedPointer<TestResult>;
 
@@ -86,7 +85,7 @@ public:
 
     virtual TestOutputReader *outputReader(const QFutureInterface<TestResultPtr> &fi,
                                            QProcess *app) const = 0;
-    virtual QStringList argumentsForTestRunner(const TestSettings &settings) const = 0;
+    virtual QStringList argumentsForTestRunner() const = 0;
 
 private:
     QStringList m_testCases;
@@ -101,6 +100,26 @@ private:
     QPointer<ProjectExplorer::Project> m_project;
     bool m_guessedConfiguration = false;
     TestRunConfiguration *m_runConfig = 0;
+};
+
+class DebuggableTestConfiguration : public TestConfiguration
+{
+public:
+    enum RunMode
+    {
+        Run,
+        Debug
+    };
+
+    explicit DebuggableTestConfiguration(RunMode runMode = Run) : m_runMode(runMode) {}
+    ~DebuggableTestConfiguration() {}
+
+    void setRunMode(RunMode mode) { m_runMode = mode; }
+    RunMode runMode() const { return m_runMode; }
+
+
+private:
+    RunMode m_runMode;
 };
 
 } // namespace Internal

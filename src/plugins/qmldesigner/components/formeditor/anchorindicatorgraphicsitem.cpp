@@ -28,6 +28,11 @@
 #include <QPainter>
 #include <QPainterPath>
 
+#include <QGraphicsScene>
+#include <QGraphicsView>
+
+static const int AngleDegree = 16;
+
 namespace QmlDesigner {
 
 AnchorIndicatorGraphicsItem::AnchorIndicatorGraphicsItem(QGraphicsItem *parent) :
@@ -42,11 +47,11 @@ int startAngleForAnchorLine(const AnchorLineType &anchorLineType)
     case AnchorLineTop:
         return 0;
     case AnchorLineBottom:
-        return 180 * 16;
+        return 180 * AngleDegree;
     case AnchorLineLeft:
-        return 90 * 16;
+        return 90 * AngleDegree;
     case AnchorLineRight:
-        return 270 * 16;
+        return 270 * AngleDegree;
     default:
         return 0;
     }
@@ -57,6 +62,7 @@ void AnchorIndicatorGraphicsItem::paint(QPainter *painter, const QStyleOptionGra
     painter->save();
 
     QPen linePen(QColor(0, 0, 0, 150));
+    linePen.setCosmetic(true);
     linePen.setDashPattern(QVector<double>() << 3. << 2.);
 
     painter->setPen(linePen);
@@ -75,24 +81,32 @@ void AnchorIndicatorGraphicsItem::paint(QPainter *painter, const QStyleOptionGra
     painter->drawLine(m_firstControlPoint, m_secondControlPoint);
     painter->drawLine(m_secondControlPoint, m_endPoint);
 
-    static QRectF bumpRectangle(0., 0., 8., 8.);
+    qreal zoomFactor = 1;
+    if (QGraphicsView* view = scene()->views().at(0))
+        zoomFactor = view->matrix().m11();
+    qreal bumpSize = 8 / zoomFactor;
+    QRectF bumpRectangle(0., 0., bumpSize, bumpSize);
 
-    painter->setPen(QPen(QColor(0, 255 , 0), 2));
+    QPen greenPen(Qt::green, 2);
+    greenPen.setCosmetic(true);
+    painter->setPen(greenPen);
     painter->drawLine(m_sourceAnchorLineFirstPoint, m_sourceAnchorLineSecondPoint);
 
-    bumpRectangle.moveTo(m_startPoint.x() - 4., m_startPoint.y() - 4.);
+    bumpRectangle.moveTo(m_startPoint.x() - bumpSize / 2, m_startPoint.y() - bumpSize / 2);
     painter->setBrush(painter->pen().color());
     painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->drawChord(bumpRectangle, startAngleForAnchorLine(m_sourceAnchorLineType), 180 * 16);
+    painter->drawChord(bumpRectangle, startAngleForAnchorLine(m_sourceAnchorLineType), 180 * AngleDegree);
     painter->setRenderHint(QPainter::Antialiasing, false);
 
-    painter->setPen(QPen(QColor(0, 0 , 255), 2));
+    QPen bluePen(Qt::blue, 2);
+    bluePen.setCosmetic(true);
+    painter->setPen(bluePen);
     painter->drawLine(m_targetAnchorLineFirstPoint, m_targetAnchorLineSecondPoint);
 
-    bumpRectangle.moveTo(m_endPoint.x() - 4., m_endPoint.y() - 4.);
+    bumpRectangle.moveTo(m_endPoint.x() - bumpSize / 2, m_endPoint.y() - bumpSize / 2);
     painter->setBrush(painter->pen().color());
     painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->drawChord(bumpRectangle, startAngleForAnchorLine(m_targetAnchorLineType), 180 * 16);
+    painter->drawChord(bumpRectangle, startAngleForAnchorLine(m_targetAnchorLineType), 180 * AngleDegree);
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     painter->restore();
@@ -105,8 +119,8 @@ QRectF AnchorIndicatorGraphicsItem::boundingRect() const
 
 static QPointF createParentAnchorPoint(const QmlItemNode &parentQmlItemNode, AnchorLineType anchorLineType, const QmlItemNode &childQmlItemNode)
 {
-    QRectF parentBoundingRect = parentQmlItemNode.instanceSceneTransform().mapRect(parentQmlItemNode.instanceBoundingRect().adjusted(0., 0., 1., 1.));
-    QRectF childBoundingRect = childQmlItemNode.instanceSceneTransform().mapRect(childQmlItemNode.instanceBoundingRect().adjusted(0., 0., 1., 1.));
+    QRectF parentBoundingRect = parentQmlItemNode.instanceSceneTransform().mapRect(parentQmlItemNode.instanceBoundingRect());
+    QRectF childBoundingRect = childQmlItemNode.instanceSceneTransform().mapRect(childQmlItemNode.instanceBoundingRect());
 
     QPointF anchorPoint;
 
@@ -132,7 +146,7 @@ static QPointF createParentAnchorPoint(const QmlItemNode &parentQmlItemNode, Anc
 
 static QPointF createAnchorPoint(const QmlItemNode &qmlItemNode, AnchorLineType anchorLineType)
 {
-    QRectF boundingRect = qmlItemNode.instanceBoundingRect().adjusted(0., 0., 1., 1.);
+    QRectF boundingRect = qmlItemNode.instanceBoundingRect();
 
     QPointF anchorPoint;
 
@@ -178,7 +192,7 @@ static QPointF createControlPoint(const QPointF &firstEditPoint, AnchorLineType 
 
 static void updateAnchorLinePoints(QPointF *firstPoint, QPointF *secondPoint, const AnchorLine &anchorLine)
 {
-    QRectF boundingRectangle = anchorLine.qmlItemNode().instanceBoundingRect().adjusted(0., 0., 1., 1.);
+    QRectF boundingRectangle = anchorLine.qmlItemNode().instanceBoundingRect();
 
     switch (anchorLine.type()) {
     case AnchorLineTop:

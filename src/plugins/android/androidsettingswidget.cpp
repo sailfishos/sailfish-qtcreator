@@ -31,11 +31,11 @@
 #include "androidconstants.h"
 #include "androidtoolchain.h"
 
-#include <coreplugin/coreicons.h>
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
 #include <utils/pathchooser.h>
 #include <utils/runextensions.h>
+#include <utils/utilsicons.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/kitinformation.h>
@@ -170,11 +170,11 @@ AndroidSettingsWidget::AndroidSettingsWidget(QWidget *parent)
     m_ui->downloadAntToolButton->setVisible(!Utils::HostOsInfo::isLinuxHost());
     m_ui->downloadOpenJDKToolButton->setVisible(!Utils::HostOsInfo::isLinuxHost());
 
-    const QPixmap warningPixmap = Core::Icons::WARNING.pixmap();
+    const QPixmap warningPixmap = Utils::Icons::WARNING.pixmap();
     m_ui->jdkWarningIconLabel->setPixmap(warningPixmap);
     m_ui->kitWarningIconLabel->setPixmap(warningPixmap);
 
-    const QPixmap errorPixmap = Core::Icons::ERROR.pixmap();
+    const QPixmap errorPixmap = Utils::Icons::ERROR.pixmap();
     m_ui->sdkWarningIconLabel->setPixmap(errorPixmap);
     m_ui->gdbWarningIconLabel->setPixmap(errorPixmap);
     m_ui->ndkWarningIconLabel->setPixmap(errorPixmap);
@@ -314,6 +314,8 @@ void AndroidSettingsWidget::check(AndroidSettingsWidget::Mode mode)
             // Check for a gdb with a broken python
             QStringList gdbPaths;
             foreach (const AndroidToolChainFactory::AndroidToolChainInformation &ati, compilerPaths) {
+                if (ati.language == ProjectExplorer::ToolChain::Language::C)
+                    continue;
                 // we only check the arm gdbs, that's indicative enough
                 if (ati.abi.architecture() != ProjectExplorer::Abi::ArmArchitecture)
                     continue;
@@ -329,8 +331,10 @@ void AndroidSettingsWidget::check(AndroidSettingsWidget::Mode mode)
 
             // See if we have qt versions for those toolchains
             QSet<ProjectExplorer::Abi> toolchainsForAbi;
-            foreach (const AndroidToolChainFactory::AndroidToolChainInformation &ati, compilerPaths)
-                toolchainsForAbi.insert(ati.abi);
+            foreach (const AndroidToolChainFactory::AndroidToolChainInformation &ati, compilerPaths) {
+                if (ati.language == ProjectExplorer::ToolChain::Language::Cxx)
+                    toolchainsForAbi.insert(ati.abi);
+            }
 
             QSet<ProjectExplorer::Abi> qtVersionsForAbi;
             foreach (QtSupport::BaseQtVersion *qtVersion, QtSupport::QtVersionManager::unsortedVersions()) {
@@ -496,16 +500,6 @@ void AndroidSettingsWidget::saveSettings()
     AndroidConfigurations::setConfig(m_androidConfig);
 }
 
-int indexOf(const QList<AndroidToolChainFactory::AndroidToolChainInformation> &list, const Utils::FileName &f)
-{
-    int end = list.count();
-    for (int i = 0; i < end; ++i) {
-        if (list.at(i).compilerCommand == f)
-            return i;
-    }
-    return -1;
-}
-
 void AndroidSettingsWidget::sdkLocationEditingFinished()
 {
     m_androidConfig.setSdkLocation(Utils::FileName::fromUserInput(m_ui->SDKLocationPathChooser->rawPath()));
@@ -568,22 +562,22 @@ void AndroidSettingsWidget::openJDKLocationEditingFinished()
 
 void AndroidSettingsWidget::openSDKDownloadUrl()
 {
-    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://developer.android.com/sdk")));
+    QDesktopServices::openUrl(QUrl::fromUserInput("https://developer.android.com/studio/"));
 }
 
 void AndroidSettingsWidget::openNDKDownloadUrl()
 {
-    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://developer.android.com/tools/sdk/ndk/index.html#Downloads")));
+    QDesktopServices::openUrl(QUrl::fromUserInput("https://developer.android.com/ndk/downloads/"));
 }
 
 void AndroidSettingsWidget::openAntDownloadUrl()
 {
-    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://ant.apache.org/bindownload.cgi")));
+    QDesktopServices::openUrl(QUrl::fromUserInput("http://ant.apache.org/bindownload.cgi"));
 }
 
 void AndroidSettingsWidget::openOpenJDKDownloadUrl()
 {
-    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://www.oracle.com/technetwork/java/javase/downloads")));
+    QDesktopServices::openUrl(QUrl::fromUserInput("http://www.oracle.com/technetwork/java/javase/downloads/"));
 }
 
 void AndroidSettingsWidget::addAVD()

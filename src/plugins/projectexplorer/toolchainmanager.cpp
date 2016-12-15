@@ -342,8 +342,11 @@ QList<ToolChain *> ToolChainManager::findToolChains(const Abi &abi)
 {
     QList<ToolChain *> result;
     foreach (ToolChain *tc, d->m_toolChains) {
-        Abi targetAbi = tc->targetAbi();
-        if (targetAbi.isCompatibleWith(abi))
+        bool isCompatible = Utils::anyOf(tc->supportedAbis(), [abi](const Abi &supportedAbi) {
+            return supportedAbi.isCompatibleWith(abi);
+        });
+
+        if (isCompatible)
             result.append(tc);
     }
     return result;
@@ -388,6 +391,7 @@ void ToolChainManager::notifyAboutUpdate(ToolChain *tc)
 
 bool ToolChainManager::registerToolChain(ToolChain *tc)
 {
+    QTC_ASSERT(tc->language() != ToolChain::Language::None, return false);
     QTC_ASSERT(d->m_writer, return false);
 
     if (!tc || d->m_toolChains.contains(tc))
@@ -433,7 +437,10 @@ public:
         ToolChain("TestToolChainType", d),
         token(t),
         m_valid(v)
-    { m_toolChains.append(this); }
+    {
+        m_toolChains.append(this);
+        setLanguage(ToolChain::Language::Cxx);
+    }
 
     static QList<TTC *> toolChains();
     static bool hasToolChains() { return !m_toolChains.isEmpty(); }

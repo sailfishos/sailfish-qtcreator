@@ -134,7 +134,7 @@ static ComponentTextModifier *createComponentTextModifier(TextModifier *original
         componentEndOffset = componentStartOffset + rewriterView->nodeLength(componentNode);
     }
 
-    return new ComponentTextModifier (originalModifier, componentStartOffset, componentEndOffset, rootStartOffset);
+    return new ComponentTextModifier(originalModifier, componentStartOffset, componentEndOffset, rootStartOffset);
 }
 
 bool DesignDocument::loadInFileComponent(const ModelNode &componentNode)
@@ -321,7 +321,7 @@ void DesignDocument::changeToMaster()
     if (m_inFileComponentModel)
         changeToDocumentModel();
 
-    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName().toString());
+    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName());
     QmlDesignerPlugin::instance()->viewManager().setComponentNode(rootModelNode());
 }
 
@@ -608,6 +608,7 @@ void DesignDocument::setEditor(Core::IEditor *editor)
             this, &DesignDocument::updateFileName);
 
     updateActiveQtVersion();
+    updateCurrentProject();
 }
 
 Core::IEditor *DesignDocument::editor() const
@@ -666,6 +667,12 @@ static inline Kit *getActiveKit(DesignDocument *designDocument)
     QObject::connect(currentProject, &Project::activeTargetChanged,
                      designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
 
+    QObject::connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
+                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
+
+    QObject::connect(currentProject, &Project::activeTargetChanged,
+                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
+
 
     Target *target = currentProject->activeTarget();
 
@@ -684,6 +691,12 @@ void DesignDocument::updateActiveQtVersion()
 {
     m_currentKit = getActiveKit(this);
     viewManager().setNodeInstanceViewKit(m_currentKit);
+}
+
+void DesignDocument::updateCurrentProject()
+{
+    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName());
+    viewManager().setNodeInstanceViewProject(currentProject);
 }
 
 QString DesignDocument::contextHelpId() const

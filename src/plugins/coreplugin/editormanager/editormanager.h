@@ -97,7 +97,8 @@ public:
         DoNotMakeVisible = 4,
         CanContainLineAndColumnNumber = 8,
         OpenInOtherSplit = 16,
-        DoNotSwitchToDesignMode = 32
+        DoNotSwitchToDesignMode = 32,
+        DoNotSwitchToEditMode = 64
     };
     Q_DECLARE_FLAGS(OpenEditorFlags, OpenEditorFlag)
 
@@ -117,6 +118,8 @@ public:
                                            const QByteArray &contents = QByteArray(),
                                            const QString &uniqueId = QString(),
                                            OpenEditorFlags flags = NoFlags);
+    static bool skipOpeningBigTextFile(const QString &filePath);
+    static void clearUniqueId(IDocument *document);
 
     static bool openExternalEditor(const QString &fileName, Id editorId);
     static void addCloseEditorListener(const std::function<bool(IEditor *)> &listener);
@@ -178,12 +181,14 @@ public: // for tests
 signals:
     void currentEditorChanged(Core::IEditor *editor);
     void currentDocumentStateChanged();
+    void documentStateChanged(Core::IDocument *document);
     void editorCreated(Core::IEditor *editor, const QString &fileName);
     void editorOpened(Core::IEditor *editor);
     void editorAboutToClose(Core::IEditor *editor);
     void editorsClosed(QList<Core::IEditor *> editors);
     void findOnFileSystemRequest(const QString &path);
     void aboutToSave(IDocument *document);
+    void autoSaved();
 
 public slots:
     static void saveDocument();

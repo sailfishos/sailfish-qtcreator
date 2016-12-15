@@ -12,7 +12,7 @@ QtcProduct {
     property var pluginRecommends: []
     property var pluginTestDepends: []
 
-    property string minimumQtVersion: "5.5.0"
+    property string minimumQtVersion: "5.6.0"
     condition: QtcFunctions.versionIsAtLeast(Qt.core.version, minimumQtVersion)
 
     targetName: QtcFunctions.qtLibraryName(qbs, name)
@@ -22,7 +22,7 @@ QtcProduct {
     Depends { name: "pluginjson" }
     Depends {
         condition: qtc.testsEnabled
-        name: "Qt.test"
+        name: "Qt.testlib"
     }
 
     Properties {
@@ -50,12 +50,14 @@ QtcProduct {
 
     Group {
         name: "PluginMetaData"
+        prefix: product.sourceDirectory + '/'
         files: [ product.name + ".json.in" ]
         fileTags: ["pluginJsonIn"]
     }
 
     Group {
         name: "MimeTypes"
+        prefix: product.sourceDirectory + '/'
         files: [ "*.mimetypes.xml" ]
     }
 

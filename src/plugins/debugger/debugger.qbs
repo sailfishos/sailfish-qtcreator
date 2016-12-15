@@ -21,12 +21,6 @@ Project {
         Depends { name: "QtSupport" }
         Depends { name: "TextEditor" }
 
-
-        Depends {
-            name: "Qt.test"
-            condition: qtc.testsEnabled
-        }
-
         pluginTestDepends: [
             "QmakeProjectManager"
         ]
@@ -35,7 +29,8 @@ Project {
         cpp.enableExceptions: true
 
         pluginRecommends: [
-            "CppEditor"
+            "CppEditor",
+            "BinEditor"
         ]
 
         Group {
@@ -43,7 +38,6 @@ Project {
             files: [
                 "breakhandler.cpp", "breakhandler.h",
                 "breakpoint.cpp", "breakpoint.h",
-                "breakwindow.cpp", "breakwindow.h",
                 "commonoptionspage.cpp", "commonoptionspage.h",
                 "debugger.qrc",
                 "debugger_global.h",
@@ -74,18 +68,14 @@ Project {
                 "localsandexpressionswindow.cpp", "localsandexpressionswindow.h",
                 "logwindow.cpp", "logwindow.h",
                 "memoryagent.cpp", "memoryagent.h",
-                "memoryview.cpp", "memoryview.h",
                 "moduleshandler.cpp", "moduleshandler.h",
-                "moduleswindow.cpp", "moduleswindow.h",
                 "outputcollector.cpp", "outputcollector.h",
                 "procinterrupt.cpp", "procinterrupt.h",
                 "registerhandler.cpp", "registerhandler.h",
-                "registerwindow.cpp", "registerwindow.h",
                 "snapshothandler.cpp", "snapshothandler.h",
                 "snapshotwindow.cpp", "snapshotwindow.h",
                 "sourceagent.cpp", "sourceagent.h",
                 "sourcefileshandler.cpp", "sourcefileshandler.h",
-                "sourcefileswindow.cpp", "sourcefileswindow.h",
                 "sourceutils.cpp", "sourceutils.h",
                 "stackframe.cpp", "stackframe.h",
                 "stackhandler.cpp", "stackhandler.h",
@@ -93,7 +83,6 @@ Project {
                 "terminal.cpp", "terminal.h",
                 "threaddata.h",
                 "threadshandler.cpp", "threadshandler.h",
-                "threadswindow.cpp", "threadswindow.h",
                 "watchdata.cpp", "watchdata.h",
                 "watchdelegatewidgets.cpp", "watchdelegatewidgets.h",
                 "watchhandler.cpp", "watchhandler.h",
