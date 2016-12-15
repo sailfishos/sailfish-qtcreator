@@ -125,8 +125,8 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         params.remoteSetupNeeded = true;
 
         if (aspect->useQmlDebugger()) {
-            params.qmlServerAddress = dev->sshParameters().host;
-            params.qmlServerPort = 0; // port is selected later on
+            params.qmlServer.host = dev->sshParameters().host;
+            // port is selected later on
         }
         if (aspect->useCppDebugger()) {
             aspect->setUseMultiProcess(true);
