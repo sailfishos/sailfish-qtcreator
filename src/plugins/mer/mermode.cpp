@@ -56,15 +56,18 @@ MerMode::MerMode()
             this, &MerMode::handleUpdateContext);
 }
 
-void MerMode::handleUpdateContext(IMode *newMode, IMode *oldMode)
+void MerMode::handleUpdateContext(Id newMode, Id oldMode)
 {
 #if !defined(QT_NO_WEBKIT)
     MerManagementWebView* view = qobject_cast<MerManagementWebView*>(widget());
-    if (view && newMode == this) {
+    if (view && newMode == id()) {
         view->setAutoFailReload(true);
-    } else if (view && oldMode == this) {
+    } else if (view && oldMode == id()) {
         view->setAutoFailReload(false);
     }
+#else
+    Q_UNUSED(newMode);
+    Q_UNUSED(oldMode);
 #endif
 }
 
