@@ -276,8 +276,7 @@ void MerQmlLiveBenchManager::processCommandsQueue()
     m_currentCommand->process->closeReadChannel(QProcess::StandardOutput);
     m_currentCommand->process->closeWriteChannel();
 
-    void (QProcess::*QProcess_error)(QProcess::ProcessError) = &QProcess::error;
-    auto onError = connect(m_currentCommand->process, QProcess_error, this, [this](QProcess::ProcessError error) {
+    auto onError = connect(m_currentCommand->process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         QTC_ASSERT(m_currentCommand, return );
         qCWarning(Log::qmlLive) << "Process error occurred: " << error << m_currentCommand->arguments;
         QByteArray allStdErr(m_currentCommand->process->readAllStandardError());
