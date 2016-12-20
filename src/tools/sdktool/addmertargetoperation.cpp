@@ -38,7 +38,6 @@
 #include <QDir>
 #include <iostream>
 
-const char MER_TARGETS_XML[] = "/targets.xml";
 const char MER_PARAM_MER_TARGETS_DIR[] = "--mer-targets-dir";
 const char MER_PARAM_TARGET_NAME[] = "--target-name";
 const char MER_PARAM_QMAKE_QUERY[] = "--qmake-query";
@@ -210,7 +209,7 @@ QVariantMap AddMerTargetOperation::load(const QString &root)
     QVariantMap map;
 
     // Read values from original file:
-    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
+    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(Mer::Constants::MER_TARGETS_FILENAME));
     if (path.toFileInfo().exists()) {
         Mer::MerTargetsXmlReader reader(path.toString());
         if (reader.hasError()) {
@@ -230,7 +229,7 @@ QVariantMap AddMerTargetOperation::load(const QString &root)
 
 bool AddMerTargetOperation::save(const QVariantMap &map, const QString &root)
 {
-    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
+    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(Mer::Constants::MER_TARGETS_FILENAME));
 
     if (path.isEmpty()) {
         std::cerr << "Error: No path found for " << qPrintable(root) << "." << std::endl;
