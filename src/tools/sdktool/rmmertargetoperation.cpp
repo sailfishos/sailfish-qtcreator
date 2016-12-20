@@ -37,7 +37,6 @@
 #include <QTextStream>
 #include <QDir>
 
-const char MER_TARGETS_XML[] = "/targets.xml";
 const char MER_PARAM_MER_TARGETS_DIR[] = "--mer-targets-dir";
 const char MER_PARAM_TARGET_NAME[] = "--target-name";
 
