@@ -27,6 +27,7 @@
 #include "merhardwaredevice.h"
 #include "mervirtualboxmanager.h"
 
+#include <coreplugin/coreicons.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
@@ -62,6 +63,8 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
             this, &MerHardwareDeviceWidget::sshPortEditingFinished);
     connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
             this, &MerHardwareDeviceWidget::handleFreePortsChanged);
+    connect(m_ui->qmlLivePortsLineEdit, &QLineEdit::editingFinished,
+            this, &MerHardwareDeviceWidget::handleQmlLivePortsChanged);
     initGui();
 }
 
@@ -104,6 +107,12 @@ void MerHardwareDeviceWidget::handleFreePortsChanged()
     updatePortsWarningLabel();
 }
 
+void MerHardwareDeviceWidget::handleQmlLivePortsChanged()
+{
+    device().staticCast<MerDevice>()->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
+    updateQmlLivePortsWarningLabel();
+}
+
 void MerHardwareDeviceWidget::updateDeviceFromUi()
 {
     hostNameEditingFinished();
@@ -111,6 +120,7 @@ void MerHardwareDeviceWidget::updateDeviceFromUi()
     timeoutEditingFinished();
     userNameEditingFinished();
     handleFreePortsChanged();
+    handleQmlLivePortsChanged();
 }
 
 void MerHardwareDeviceWidget::updatePortsWarningLabel()
@@ -118,15 +128,27 @@ void MerHardwareDeviceWidget::updatePortsWarningLabel()
     m_ui->portsWarningLabel->setVisible(!device()->freePorts().hasMore());
 }
 
+void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
+{
+    const int count = device().staticCast<MerDevice>()->qmlLivePorts().count();
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
+}
+
 void MerHardwareDeviceWidget::initGui()
 {
-    m_ui->portsWarningLabel->setPixmap(QPixmap(QLatin1String(":/mer/images/warning.png")));
+    m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
+    m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->qmlLivePortsWarningLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
+            + QLatin1String("</font>"));
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
+    m_ui->qmlLivePortsLineEdit->setValidator(portsValidator);
 
     const SshConnectionParameters &sshParams = device()->sshParameters();
 
@@ -138,7 +160,9 @@ void MerHardwareDeviceWidget::initGui()
     m_ui->privateKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     m_ui->sshPortSpinBox->setValue(sshParams.port);
     m_ui->portsLineEdit->setText(device()->freePorts().toString());
+    m_ui->qmlLivePortsLineEdit->setText(device().staticCast<MerDevice>()->qmlLivePorts().toString());
     updatePortsWarningLabel();
+    updateQmlLivePortsWarningLabel();
 }
 
 } // Internal

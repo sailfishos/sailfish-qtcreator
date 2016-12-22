@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,30 +20,17 @@
 **
 ****************************************************************************/
 
-#ifndef MERRUNCONTROLFACTORY_H
-#define MERRUNCONTROLFACTORY_H
+#ifndef MERLOGGING_H
+#define MERLOGGING_H
 
-#include <projectexplorer/runconfiguration.h>
+#include <QLoggingCategory>
 
 namespace Mer {
-namespace Internal {
+namespace Log {
 
-class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
-{
-    Q_OBJECT
+Q_DECLARE_LOGGING_CATEGORY(qmlLive)
 
-public:
-    explicit MerRunControlFactory(QObject *parent = 0);
-
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                Core::Id mode) const override;
-    ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
-                                        Core::Id mode, QString *errorMessage) override;
-    ProjectExplorer::IRunConfigurationAspect
-        *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override;
-};
-
-} // namespace Internal
+} // namespace Log
 } // namespace Mer
 
-#endif // MERRUNCONTROLFACTORY_H
+#endif // MERLOGGING_H

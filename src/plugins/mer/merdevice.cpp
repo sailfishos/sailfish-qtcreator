@@ -22,6 +22,8 @@
 
 #include "merdevice.h"
 
+#include <utils/qtcassert.h>
+
 #include "merconstants.h"
 
 using namespace ProjectExplorer;
@@ -45,12 +47,16 @@ void MerDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
     m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
+    m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
+                                                           QString::number(Constants::DEFAULT_QML_LIVE_PORT))
+                                                 .toString());
 }
 
 QVariantMap MerDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
+    map.insert(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS), m_qmlLivePorts.toString());
     return map;
 }
 
@@ -71,6 +77,26 @@ QString MerDevice::sharedSshPath() const
     return m_sharedSshPath;
 }
 
+Utils::PortList MerDevice::qmlLivePorts() const
+{
+    return m_qmlLivePorts;
+}
+
+void MerDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
+{
+    m_qmlLivePorts = qmlLivePorts;
+}
+
+QSet<int> MerDevice::qmlLivePortsSet() const
+{
+    Utils::PortList ports(m_qmlLivePorts);
+    QSet<int> retv;
+    while (ports.hasMore() && retv.count() < Constants::MAX_QML_LIVE_PORTS)
+        retv.insert(ports.getNext());
+    QTC_CHECK(!ports.hasMore());
+    return retv;
+}
+
 MerDevice::MerDevice()
 {
 }
@@ -79,6 +105,7 @@ MerDevice::MerDevice(const QString &name, MachineType machineType, Origin origin
     : LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
+    m_qmlLivePorts.addPort(Constants::DEFAULT_QML_LIVE_PORT);
 }
 
 MerDevice::~MerDevice()

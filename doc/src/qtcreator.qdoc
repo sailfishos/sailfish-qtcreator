@@ -192,6 +192,7 @@
                 \li \l {Browsing ISO 7000 Icons}
                 \li \l {Exporting Designs from Graphics Software}
                 \li \l {Using QML Modules with Plugins}
+                \li \l {Using QmlLive with Sailfish OS Devices}
             \endlist
             \li \l{Developing Widget Based Applications}
             \list

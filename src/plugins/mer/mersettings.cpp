@@ -22,6 +22,8 @@
 
 #include "mersettings.h"
 
+#include <QFileInfo>
+
 #include <coreplugin/icore.h>
 
 using Core::ICore;
@@ -32,12 +34,15 @@ namespace Internal {
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
+const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
 }
 
 MerSettings *MerSettings::s_instance = 0;
 
 MerSettings::MerSettings(QObject *parent)
     : QObject(parent)
+    , m_rpmValidationByDefault(true)
+    , m_syncQmlLiveWorkspaceEnabled(true)
 {
     Q_ASSERT(s_instance == 0);
     s_instance = this;
@@ -52,7 +57,7 @@ MerSettings::~MerSettings()
     s_instance = 0;
 }
 
-QObject *MerSettings::instance()
+MerSettings *MerSettings::instance()
 {
     Q_ASSERT(s_instance != 0);
 
@@ -78,6 +83,51 @@ void MerSettings::setRpmValidationByDefault(bool byDefault)
     emit s_instance->rpmValidationByDefaultChanged(s_instance->m_rpmValidationByDefault);
 }
 
+QString MerSettings::qmlLiveBenchLocation()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_qmlLiveBenchLocation;
+}
+
+void MerSettings::setQmlLiveBenchLocation(const QString &location)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_qmlLiveBenchLocation == location)
+        return;
+
+    s_instance->m_qmlLiveBenchLocation = location;
+
+    emit s_instance->qmlLiveBenchLocationChanged(s_instance->m_qmlLiveBenchLocation);
+}
+
+bool MerSettings::hasValidQmlLiveBenchLocation()
+{
+    Q_ASSERT(s_instance);
+
+    return QFileInfo(s_instance->m_qmlLiveBenchLocation).isExecutable();
+}
+
+bool MerSettings::isSyncQmlLiveWorkspaceEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_syncQmlLiveWorkspaceEnabled;
+}
+
+void MerSettings::setSyncQmlLiveWorkspaceEnabled(bool enable)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_syncQmlLiveWorkspaceEnabled == enable)
+        return;
+
+    s_instance->m_syncQmlLiveWorkspaceEnabled = enable;
+
+    emit s_instance->syncQmlLiveWorkspaceEnabledChanged(s_instance->m_syncQmlLiveWorkspaceEnabled);
+}
+
 void MerSettings::read()
 {
     QSettings *settings = ICore::settings();
@@ -85,6 +135,7 @@ void MerSettings::read()
 
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
             true).toBool();
+    m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
 
     settings->endGroup();
 }
@@ -95,6 +146,7 @@ void MerSettings::save()
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
+    settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
 
     settings->endGroup();
 }

@@ -1,0 +1,177 @@
+/****************************************************************************
+**
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \contentspage {Qt Creator Manual}
+    \previouspage creator-qml-modules-with-plugins.html
+    \page creator-qtquick-qmllive-sailfish.html
+    \nextpage creator-using-qt-designer.html
+
+    \title Using QmlLive with Sailfish OS Devices
+
+    Creating Qt Quick applications for \l {Creating a Sailfish OS
+    Application}{Sailfish OS} can be more effective with the help of Qt QmlLive
+    tool from \l {https://doc.qt.io/QtAutomotiveSuite/qtas-overview.html}{Qt
+    Automotive Suite}.
+
+    QmlLive is a live reloading tool for Qt Quick application development. It
+    comprises two parts capable of communicating over TCP/IP network:
+
+    \list 1
+
+        \li A workbench application (QmlLive Bench) and
+
+        \li QML runtime (QmlLive Runtime)
+
+    \endlist
+
+    QmlLive Bench monitors documents under its Workspace directory notifying
+    QmlLive Runtime of all changes to their contents, and controls the currently
+    displayed document. Start QmlLive Bench with extended support for Sailfish
+    OS application development using \gui {Tools > Mer > Start QmlLive Bench...}.
+
+    QmlLive Runtime instances may run directly on target devices or inside
+    emulators. Multiple QmlLive Runtime instances can be managed by single
+    QmlLive Bench; each instance is treated as a single display Host by the
+    bench.
+
+    QmlLive Bench also embeds one local QmlLive Runtime directly in its
+    application window. Its use in the context of Sailfish OS application
+    development is limited due to the absence of Sailfish OS APIs on this side.
+
+    Another obvious limitation exists, that previewing QML files works as long as
+    the QML Components they implement can be instantiated and displayed as top
+    level Qt Quick Items or Windows with no special requirements on the symbols
+    (internal APIs) available in the instantiating QML scope. If this limitation
+    is hit it is usually possible to deal with it by wrapping the component with
+    a QML component prepared just for the purpose of previewing with QmlLive,
+    fulfilling all the special requirements on the QML scope.
+
+    For other than QML documents, QmlLive comes with a few Content Adapter
+    plugins extending it with ability to display e.g. images.
+
+    Start using QmlLive to preview QML documents directly on your \l {Connecting
+    Sailfish OS Devices}{Sailfish OS device} with these steps:
+
+    \list 1
+
+          \li Configure your \l {Creating a Sailfish OS Application}{Sailfish OS
+              Application} project for use with QmlLive by checking the \gui
+              {Enable receiving updates with Qt QmlLive} option in its \l
+              {Specifying Run Settings for Sailfish OS Devices}{run settings}.
+
+          \li Run your application \l {Running on Sailfish OS Devices}{as usually}.
+
+              (Note that it may be necessary to connect the corresponding Host
+              in QmlLive Bench manually if the application takes too long to
+              start up.)
+
+    \endlist
+
+
+    \section1 Prerequisities
+
+    \list 1
+
+          \li The target device is running Sailfish OS version 2.1.0 or newer.
+
+          \li Package \b qmllive-sailfish is installed on the target device.
+
+    \endlist
+
+
+    \section1 QmlLive Options Reference
+
+    The following options can be set globally in \gui {Tools > Options > Mer >
+    General}.
+
+    \list
+
+        \li \gui {Bench location} is the path to the QmlLive Bench application
+            to work with.
+
+        \li \gui {Control workspace} allows Qt Creator to automatically change
+            QmlLive Bench's workspace to match the \gui {Bench workspace} option
+            in the active run configuration (see below).
+
+    \endlist
+
+    \target run settings
+
+    The following options can be set separately for each \l {Specifying Run
+    Settings for Sailfish OS Devices}{run configuration} after expanding the
+    \gui {Details} of the \gui {Enable receiving updates with Qt QmlLive}
+    option.
+
+    \list
+
+        \li \gui {Port} is the TCP port to listen on for connection from QmlLive
+            bench. Defaults to 10234.
+
+        \li \gui {Bench workspace} is the path to the directory tree on local
+            filesystem to be used as the workspace in QmlLive bench. Defaults to
+            project directory.
+
+        \li \gui {Target workspace} is the path to the directory tree on device
+            to match the workspace in QmlLive bench. Defaults to application's
+            shared data directory.
+
+        \li \gui {Update on connect} will block the application startup until
+            connection from QmlLive bench is established and let it continue
+            only after the workspace documents are updated initially.
+
+        \li \gui {Updates as overlay} allow to receive updates even with no
+            write permission to \gui {Target workspace}. Updates will be stored
+            in a temporary directory and layered over the actual workspace using
+            the \l
+            {http://doc.qt.io/qt-5/qqmlabstracturlinterceptor.html}{QQmlAbstractUrlInterceptor}
+            mechanism.
+
+        \li \gui {Load dummy data} enables loading of dummy QML data - QML
+            documents located in the "dummydata" subdirectory of \gui {Target
+            workspace} directory. These will be exposed as context properties
+            using file name without extension as property name.
+
+    \endlist
+
+    The following options can be set for each device:
+
+    \list
+
+        \li \gui {QmlLive ports} is the list of TCP ports to reserve for use
+            with QmlLive. For each configured port a unique Host in QmlLive
+            Bench will be created. If this is an emulator device, the
+            corresponding VirtualBox virtual machine will be configured to
+            enable port forwarding from \tt localhost.
+
+    \endlist
+
+*/

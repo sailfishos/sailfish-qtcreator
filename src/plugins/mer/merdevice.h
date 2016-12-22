@@ -25,6 +25,7 @@
 
 #include <projectexplorer/abi.h>
 #include <remotelinux/linuxdevice.h>
+#include <utils/portlist.h>
 
 #include <QSharedPointer>
 
@@ -51,6 +52,10 @@ public:
     void setSharedSshPath(const QString &sshPath);
     QString sharedSshPath() const;
 
+    Utils::PortList qmlLivePorts() const;
+    void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
+    QSet<int> qmlLivePortsSet() const;
+
 protected:
     MerDevice();
     MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id);
@@ -61,6 +66,7 @@ private:
 
 private:
     QString m_sharedSshPath;
+    Utils::PortList m_qmlLivePorts;
 };
 
 }

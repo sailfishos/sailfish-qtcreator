@@ -34,6 +34,7 @@
 #include "mergeneraloptionspage.h"
 #include "mermode.h"
 #include "meroptionspage.h"
+#include "merqmllivebenchmanager.h"
 #include "merqtversionfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
@@ -94,6 +95,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
+    addAutoReleasedObject(new MerQmlLiveBenchManager);
 
     addAutoReleasedObject(new MerMode);
 
@@ -118,6 +120,15 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
                                             Constants::MER_EMULATOR_MODE_ACTION_ID,
                                             Context(Core::Constants::C_GLOBAL));
     menu->addAction(emulatorModeCommand);
+
+    QAction *startQmlLiveBenchAction = new QAction(tr("Start &QmlLive Bench..."), this);
+    Command *startQmlLiveBenchCommand =
+        ActionManager::registerAction(startQmlLiveBenchAction,
+                                      Constants::MER_START_QML_LIVE_BENCH_ACTION_ID,
+                                      Context(Core::Constants::C_GLOBAL));
+    connect(startQmlLiveBenchAction, &QAction::triggered,
+            MerQmlLiveBenchManager::startBench);
+    menu->addAction(startQmlLiveBenchCommand);
 
     return true;
 }

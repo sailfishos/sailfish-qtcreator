@@ -25,6 +25,7 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "merrunconfiguration.h"
+#include "merrunconfigurationaspect.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
@@ -174,4 +175,9 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
 //        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
 //    }
     return 0;
+}
+
+ProjectExplorer::IRunConfigurationAspect *MerRunControlFactory::createRunConfigurationAspect(RunConfiguration *rc)
+{
+    return new MerRunConfigurationAspect(rc);
 }

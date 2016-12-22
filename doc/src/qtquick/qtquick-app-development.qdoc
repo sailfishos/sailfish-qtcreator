@@ -94,6 +94,14 @@
             provide extra type information for code completion and the semantic
             checks to work correctly.
 
+        \li \l {Using QmlLive with Sailfish OS Devices}
+
+            Creating Qt Quick applications for \l {Creating a Sailfish OS
+            Application}{Sailfish OS} can be more effective with the help of Qt
+            QmlLive tool from \l
+            {https://doc.qt.io/QtAutomotiveSuite/qtas-overview.html}{Qt
+            Automotive Suite}.
+
     \endlist
 
 */

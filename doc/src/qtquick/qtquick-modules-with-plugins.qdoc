@@ -33,7 +33,7 @@
     \contentspage {Qt Creator Manual}
     \previouspage quick-export-to-qml.html
     \page creator-qml-modules-with-plugins.html
-    \nextpage creator-using-qt-designer.html
+    \nextpage creator-qtquick-qmllive-sailfish.html
 
     \title Using QML Modules with Plugins
 

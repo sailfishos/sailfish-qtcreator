@@ -46,10 +46,12 @@ private slots:
     void timeoutEditingFinished();
     void userNameEditingFinished();
     void handleFreePortsChanged();
+    void handleQmlLivePortsChanged();
 
 private:
     void updateDeviceFromUi();
     void updatePortsWarningLabel();
+    void updateQmlLivePortsWarningLabel();
     void initGui();
 
     Ui::MerHardwareDeviceWidget *m_ui;

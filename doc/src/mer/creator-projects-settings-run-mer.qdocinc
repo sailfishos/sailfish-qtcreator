@@ -10,3 +10,9 @@
     Specifying run settings for Sailfish OS devices is very similar to
     \l{Specifying Run Settings for Linux-Based Devices}.
 
+    \section3 Enabling On-Device QML Files Preview with \l {Using QmlLive with
+              Sailfish OS Devices}{QmlLive}.
+
+    Tick the \uicontrol {Enable receiving updates with Qt QmlLive} checkbox
+    down in the \uicontrol {Sailfish OS Application Settings}. You can expand it
+    to adjust the \l{QmlLive Options Reference#run settings}{detailed options}.

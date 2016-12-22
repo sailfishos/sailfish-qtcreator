@@ -23,11 +23,13 @@
 #include "meremulatordevicewidget.h"
 #include "ui_meremulatordevicewidget.h"
 
+#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
+#include <coreplugin/coreicons.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
@@ -57,12 +59,20 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
             this, &MerEmulatorDeviceWidget::timeoutEditingFinished);
     connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
             this, &MerEmulatorDeviceWidget::handleFreePortsChanged);
+    connect(m_ui->qmlLivePortsLineEdit, &QLineEdit::editingFinished,
+            this, &MerEmulatorDeviceWidget::handleQmlLivePortsChanged);
     initGui();
 }
 
 MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 {
     delete m_ui;
+}
+
+void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
+{
+    m_ui->qmlLivePortsLineEdit->setEnabled(vmOff);
+    m_ui->qmlLivePortsInfoLabel->setVisible(!vmOff);
 }
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
@@ -104,11 +114,18 @@ void MerEmulatorDeviceWidget::handleFreePortsChanged()
     updatePortsWarningLabel();
 }
 
+void MerEmulatorDeviceWidget::handleQmlLivePortsChanged()
+{
+    device().staticCast<MerDevice>()->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
+    updateQmlLivePortsWarningLabel();
+}
+
 void MerEmulatorDeviceWidget::updateDeviceFromUi()
 {
     timeoutEditingFinished();
     userNameEditingFinished();
     handleFreePortsChanged();
+    handleQmlLivePortsChanged();
 }
 
 void MerEmulatorDeviceWidget::updatePortsWarningLabel()
@@ -116,15 +133,32 @@ void MerEmulatorDeviceWidget::updatePortsWarningLabel()
     m_ui->portsWarningLabel->setVisible(!device()->freePorts().hasMore());
 }
 
+void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
+{
+    const int count = device().staticCast<MerDevice>()->qmlLivePorts().count();
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
+}
+
 void MerEmulatorDeviceWidget::initGui()
 {
-    m_ui->portsWarningLabel->setPixmap(QPixmap(QLatin1String(":/mer/images/warning.png")));
+    m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
+    m_ui->qmlLivePortsInfoLabel->setPixmap(Core::Icons::INFO.pixmap());
+    m_ui->qmlLivePortsInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop emulator to unlock this field for editing.")
+            + QLatin1String("</font>"));
+    m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->qmlLivePortsWarningLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
+            + QLatin1String("</font>"));
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
+    m_ui->qmlLivePortsLineEdit->setValidator(portsValidator);
 
     Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     const MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
@@ -140,6 +174,7 @@ void MerEmulatorDeviceWidget::initGui()
     else
         m_ui->sshPortLabelEdit->setText(tr("none"));
     m_ui->portsLineEdit->setText(device->freePorts().toString());
+    m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
     if(!device->sharedConfigPath().isEmpty())
         m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
@@ -157,6 +192,11 @@ void MerEmulatorDeviceWidget::initGui()
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();
+    updateQmlLivePortsWarningLabel();
+
+    onVirtualMachineOffChanged(device->connection()->isVirtualMachineOff());
+    connect(device->connection(), &MerConnection::virtualMachineOffChanged,
+            this, &MerEmulatorDeviceWidget::onVirtualMachineOffChanged);
 }
 
 } // Internal
