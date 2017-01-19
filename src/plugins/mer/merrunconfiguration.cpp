@@ -112,7 +112,10 @@ Runnable MerRunConfiguration::runnable() const
 {
     auto r = RemoteLinuxRunConfiguration::runnable().as<StandardRunnable>();
     // required by qtbase not to direct logs to journald
+    // for Qt < 5.4
     r.environment.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
+    // for Qt >= 5.4
+    r.environment.appendOrSet(QLatin1String("QT_LOGGING_TO_CONSOLE"), QLatin1String("1"));
 
     auto merAspect = extraAspect<MerRunConfigurationAspect>();
     if (merAspect->isQmlLiveEnabled()) {
