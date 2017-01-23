@@ -57,7 +57,7 @@ const char QML_LIVE_TARGET_WORKSPACE_KEY[] = "MerRunConfiguration.QmlLiveTargetW
 const char QML_LIVE_OPTIONS_KEY[] = "MerRunConfiguration.QmlLiveOptions";
 
 const MerRunConfigurationAspect::QmlLiveOptions DEFAULT_QML_LIVE_OPTIONS =
-    MerRunConfigurationAspect::UpdatesAsOverlay;
+    MerRunConfigurationAspect::UpdateOnConnect | MerRunConfigurationAspect::UpdatesAsOverlay;
 } // namespace anonymous
 
 class MerRunConfigWidget : public ProjectExplorer::RunConfigWidget
