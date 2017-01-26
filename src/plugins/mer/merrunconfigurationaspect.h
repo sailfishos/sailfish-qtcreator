@@ -84,6 +84,8 @@ private:
     QmlLiveOptions m_qmlLiveOptions;
 };
 
+Q_DECLARE_OPERATORS_FOR_FLAGS(MerRunConfigurationAspect::QmlLiveOptions)
+
 } // namespace Internal
 } // namespace Mer
 
