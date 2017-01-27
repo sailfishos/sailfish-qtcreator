@@ -39,14 +39,14 @@ using namespace Utils;
 //https://wiki.merproject.org/wiki/SDK_on_VirtualBox/Design
 
 //<devices>
-// <engine name="Mer SDK" type="vbox">
+// <engine name="Sailfish OS Build Engine" type="vbox">
 //  <subnet>10.220.220</subnet
 // </engine>
 // <device name="Nemo N9" type="real">
 //  <ip>192.168.0.12</ip>
 //  <sshkeypath></sshkeypath>
 // </device>
-// <device name="SailfishOS Emulator" type="vbox">
+// <device name="Sailfish OS Emulator" type="vbox">
 //  <index>2</index>
 //  <subnet>10.220.220</subnet>
 //  <sshkeypath></sshkeypath>

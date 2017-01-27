@@ -1,5 +1,5 @@
 {
-    \"Name\" : \"Mer\",
+    \"Name\" : \"SailfishOS\",
     \"Version\" : \"$$QTCREATOR_VERSION\",
     \"CompatVersion\" : \"$$QTCREATOR_COMPAT_VERSION\",
     \"Vendor\" : \"Jolla Ltd.\",
@@ -12,12 +12,12 @@
                     \"Alternatively, this file may be used in accordance with the terms and conditions contained in a signed written agreement between you and Digia.\"
     ],
     \"Category\" : \"Device Support\",
-    \"Description\" : \"Support for Mer.\",
+    \"Description\" : \"Support for development for Sailfish OS devices.\",
     \"Url\" : \"https://github.com/sailfish-sdk\",
     \"Arguments\" : [
         {
             \"Name\" : \"-mer-verbose\",
-            \"Description\" : \"Verbose loading of Mer SDKs\"
+            \"Description\" : \"Verbose loading of Sailfish OS SDKs\"
         }
     ],
     $$dependencyList

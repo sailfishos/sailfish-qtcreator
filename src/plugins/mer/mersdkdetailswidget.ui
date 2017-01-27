@@ -142,7 +142,7 @@
           <item row="4" column="0">
            <widget class="QLabel" name="targetsLabel">
             <property name="text">
-             <string>Targets:</string>
+             <string>Build targets:</string>
             </property>
            </widget>
           </item>
@@ -279,7 +279,7 @@
              <bool>false</bool>
             </property>
             <property name="text">
-             <string>Targets folder:</string>
+             <string>Build targets folder:</string>
             </property>
            </widget>
           </item>

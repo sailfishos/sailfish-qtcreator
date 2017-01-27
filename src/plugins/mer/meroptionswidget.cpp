@@ -159,7 +159,7 @@ void MerOptionsWidget::onSdkChanged(const QString &sdkName)
 void MerOptionsWidget::onAddButtonClicked()
 {
     MerSdkSelectionDialog dialog(this);
-    dialog.setWindowTitle(tr("Add Mer SDK"));
+    dialog.setWindowTitle(tr("Add a Sailfish OS Build Engine"));
     if (dialog.exec() != QDialog::Accepted)
         return;
 

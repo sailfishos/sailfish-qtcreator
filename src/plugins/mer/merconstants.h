@@ -31,14 +31,12 @@ namespace Constants {
 const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
 const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
-const char MER_TOOLCHAIN[] = "Mer GCC";
-
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
-const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
+const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Sailfish OS");
 const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
 const char MER_OPTIONS_CATEGORY_ICON_MASK[] = ":/mer/images/icon-s-sailfish-qtcreator-mask.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
-const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
+const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
 
@@ -77,7 +75,6 @@ const char MER_DEVICE_ROOTUSER[] = "root";
 const char MER_SDK_DEFAULTHOST[] = "localhost";
 
 // Keys used for ini files
-const char MER_SDK[] = "MerSDK";
 const char MER_SDK_TOOLS[] = "/mer-sdk-tools/";
 const char MER_SDK_DATA_KEY[] = "MerSDK.";
 const char MER_TARGET_KEY[] = "MerTarget.Target";

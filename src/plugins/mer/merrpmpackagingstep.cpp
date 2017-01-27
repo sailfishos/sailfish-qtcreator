@@ -106,7 +106,7 @@ bool MerRpmPackagingStep::init(QList<const BuildStep *> &earlierSteps)
     QString merTarget =  MerSdkManager::targetNameForKit(target()->kit());
 
     if (merTarget.isEmpty()) {
-        raiseError(tr("Packaging failed: No mer target."));
+        raiseError(tr("Packaging failed: No Sailfish OS build target set."));
         return false;
     }
     m_fileName = project()->document()->filePath().toFileInfo().baseName();

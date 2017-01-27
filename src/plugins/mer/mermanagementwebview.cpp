@@ -97,7 +97,7 @@ MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
 
 MerSdk *MerManagementWebViewSdksModel::sdkAt(int row) const
 {
-    // generosity for easier use with respect to the "<no SDK>" row
+    // generosity for easier use with respect to the "<no build engine>" row
     if (m_sdks.count() == 0 && row == 0)
         return 0;
     if (row == -1)
@@ -130,9 +130,9 @@ QVariant MerManagementWebViewSdksModel::data(const QModelIndex &index, int role)
     if (m_sdks.isEmpty()) {
         switch (role) {
         case Qt::DisplayRole:
-            return tr("<no SDK>");
+            return tr("<no build engine>");
         case Qt::ToolTipRole:
-            return tr("Configure a Mer SDK in Options");
+            return tr("Configure a Sailfish OS build engine in Options");
         default:
             return QVariant();
         }
@@ -292,23 +292,21 @@ void MerManagementWebView::handleLoadFinished(bool success)
 {
     if (!success) {
         bool autoReloadHint = false;
-        QString vmStatus = QLatin1String("<h2>The SDK VM is not ready.</h2>");
+        QString vmStatus = QLatin1String("<h2>The Build Engine is not Ready</h2>");
         if (m_selectedSdk) { // one cannot be sure here
             QString vmName = m_selectedSdk->virtualMachineName();
             if (m_selectedSdk->connection()->isVirtualMachineOff()) {
                 vmStatus = QString::fromLatin1(
-                        "<h2>The \"%1\" VM is not running.</h2>"
-                        "<p><a href=\"%2\">Start the virtual machine!</a></p>"
+                        "<h2>The Build Engine is not Running</h2>"
+                        "<p><a href=\"%2\">Start the build engine!</a></p>"
                         )
-                    .arg(vmName)
                     .arg(QLatin1String(START_VM_URL));
             } else {
                 autoReloadHint = true;
                 vmStatus = QString::fromLatin1(
-                        "<h2>The \"%1\" VM is not ready.</h2>"
-                        "<p>The virtual machine is running but not responding.</p>"
-                        )
-                    .arg(vmName);
+                        "<h2>The Build Engine is not Ready</h2>"
+                        "<p>The build engine is running but not responding.</p>"
+                        );
             }
         }
 
@@ -323,7 +321,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     "  %3"
                     "  </div>"
                     "  <div style='padding-left: 24px; padding-right: 24px; font-size: small;'>"
-                    "    <p>An SDK virtual machine can be controlled with the "
+                    "    <p>A Sailfish OS build engine can be controlled with the "
                     "    <img src='qrc:/mer/images/sdk-run.png' style='vertical-align: middle;'/>"
                     "    button &ndash; available on the lower left side <em>when "
                     "    a&nbsp;Sailfish&nbsp;OS project is open</em>.</p>"
