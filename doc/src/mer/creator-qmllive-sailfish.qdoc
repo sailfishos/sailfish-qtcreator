@@ -56,7 +56,7 @@
     QmlLive Bench monitors documents under its Workspace directory notifying
     QmlLive Runtime of all changes to their contents, and controls the currently
     displayed document. Start QmlLive Bench with extended support for Sailfish
-    OS application development using \gui {Tools > Mer > Start QmlLive Bench...}.
+    OS application development using \gui {Tools > Sailfish OS > Start QmlLive Bench...}.
 
     QmlLive Runtime instances may run directly on target devices or inside
     emulators. Multiple QmlLive Runtime instances can be managed by single
@@ -110,7 +110,7 @@
 
     \section1 QmlLive Options Reference
 
-    The following options can be set globally in \gui {Tools > Options > Mer >
+    The following options can be set globally in \gui {Tools > Options > Sailfish OS >
     General}.
 
     \list
