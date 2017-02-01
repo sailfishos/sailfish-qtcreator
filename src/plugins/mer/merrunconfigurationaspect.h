@@ -58,6 +58,8 @@ public:
 
     QString defaultQmlLiveBenchWorkspace() const;
 
+    void applyTo(ProjectExplorer::StandardRunnable *r) const;
+
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 

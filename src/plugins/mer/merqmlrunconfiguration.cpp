@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,58 +20,68 @@
 **
 ****************************************************************************/
 
-#include "merrunconfiguration.h"
+#include "merqmlrunconfiguration.h"
 
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
+#include "merqmlrunconfigurationwidget.h"
 #include "merrunconfigurationaspect.h"
-#include "projectexplorer/kitinformation.h"
+#include "mersdk.h"
+#include "mersdkkitinformation.h"
+#include "mertargetkitinformation.h"
 
+#include <debugger/debuggerrunconfigurationaspect.h>
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
 
+using namespace Debugger;
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 using namespace RemoteLinux;
 using namespace Utils;
 
 namespace Mer {
 namespace Internal {
 
-MerRunConfiguration::MerRunConfiguration(Target *parent, Core::Id id,
-                                         const QString &targetName)
-    : RemoteLinuxRunConfiguration(parent, id, targetName)
+namespace {
+const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGING";
+} // anonymous namespace
+
+MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent, Core::Id id)
+    : RunConfiguration(parent, id)
 {
     ctor();
 }
 
-MerRunConfiguration::MerRunConfiguration(Target *parent,
-                                         MerRunConfiguration *source)
-    : RemoteLinuxRunConfiguration(parent, source)
+MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent, MerQmlRunConfiguration *source)
+    : RunConfiguration(parent, source)
 {
     ctor();
 }
 
-void MerRunConfiguration::ctor()
+void MerQmlRunConfiguration::ctor()
 {
+    addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
     connect(target(), &Target::activeDeployConfigurationChanged,
-            this, &MerRunConfiguration::enabledChanged);
+            this, &MerQmlRunConfiguration::enabledChanged);
 }
 
-QString MerRunConfiguration::disabledReason() const
+QString MerQmlRunConfiguration::disabledReason() const
 {
     if(m_disabledReason.isEmpty())
-        return RemoteLinuxRunConfiguration::disabledReason();
+        return RunConfiguration::disabledReason();
     else
         return m_disabledReason;
 }
 
-bool MerRunConfiguration::isEnabled() const
-{   
+bool MerQmlRunConfiguration::isEnabled() const
+{
     //TODO Hack
 
     DeployConfiguration* conf = target()->activeDeployConfiguration();
@@ -83,41 +93,50 @@ bool MerRunConfiguration::isEnabled() const
         }
     }
 
-    return RemoteLinuxRunConfiguration::isEnabled();
+    return RunConfiguration::isEnabled();
 }
 
-QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
+Runnable MerQmlRunConfiguration::runnable() const
 {
-    DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if (!conf) return QString();
+    auto project = qobject_cast<QmakeProject *>(target()->project());
+    const QString appName{project->rootProjectNode()->targetInformation().target};
 
-    QString executable = RemoteLinuxRunConfiguration::defaultRemoteExecutableFilePath();
-    if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
-        QString projectName = target()->project()->displayName();
-        return QLatin1String("/opt/sdk/") + projectName + executable;
-    }
+    StandardRunnable r;
+    r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();
+    r.executable = QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
+    r.commandLineArguments = appName;
 
-    if (conf->id() == MerRpmDeployConfiguration::configurationId()) {
-        //TODO:
-        return executable;
-    }
-
-    return executable;
-}
-
-Runnable MerRunConfiguration::runnable() const
-{
-    auto r = RemoteLinuxRunConfiguration::runnable().as<StandardRunnable>();
     // required by qtbase not to direct logs to journald
     // for Qt < 5.4
     r.environment.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
     // for Qt >= 5.4
     r.environment.appendOrSet(QLatin1String("QT_LOGGING_TO_CONSOLE"), QLatin1String("1"));
 
+    auto debuggerAspect = extraAspect<DebuggerRunConfigurationAspect>();
+    if (debuggerAspect->useQmlDebugger())
+        r.environment.set(QLatin1String(SAILFISHAPP_ENABLE_QML_DEBUGGING), QLatin1String("1"));
+
     auto merAspect = extraAspect<MerRunConfigurationAspect>();
     merAspect->applyTo(&r);
 
     return r;
+}
+
+QWidget *MerQmlRunConfiguration::createConfigurationWidget()
+{
+    return new MerQmlRunConfigurationWidget(this);
+}
+
+QString MerQmlRunConfiguration::localExecutableFilePath() const
+{
+    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
+    QTC_ASSERT(merSdk, return {});
+    const QString merTargetName = MerTargetKitInformation::targetName(target()->kit());
+    QTC_ASSERT(!merTargetName.isEmpty(), return {});
+
+    const QString path = merSdk->sharedTargetsPath() + QLatin1Char('/') + merTargetName +
+        QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
+    return QDir::cleanPath(path);
 }
 
 } // Internal

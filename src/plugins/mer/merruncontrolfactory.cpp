@@ -26,6 +26,7 @@
 #include "meremulatordevice.h"
 #include "merrunconfiguration.h"
 #include "merrunconfigurationaspect.h"
+#include "merqmlrunconfiguration.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
@@ -61,7 +62,6 @@ MerRunControlFactory::MerRunControlFactory(QObject *parent)
 
 bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id mode) const
 {
-
     if (mode != ProjectExplorer::Constants::NORMAL_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
@@ -69,9 +69,12 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
             return false;
     }
 
-    if (!runConfiguration->isEnabled()
-            || !runConfiguration->id().toString().startsWith(
-                QLatin1String(Constants::MER_RUNCONFIGURATION_PREFIX))) {
+    if (!runConfiguration->isEnabled())
+        return false;
+
+    const Core::Id id = runConfiguration->id();
+    if (!id.toString().startsWith(QLatin1String(Constants::MER_RUNCONFIGURATION_PREFIX)) &&
+            id != Constants::MER_QMLRUNCONFIGURATION) {
         return false;
     }
 
@@ -80,15 +83,12 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
         return false;
 
     if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE) {
-        const RemoteLinuxRunConfiguration * const remoteRunConfig
-                = qobject_cast<RemoteLinuxRunConfiguration *>(runConfiguration);
-        if (remoteRunConfig) {
-            auto aspect = remoteRunConfig->extraAspect<DebuggerRunConfigurationAspect>();
-            int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
-            return portsUsed <= dev->freePorts().count();
-        }
-        return false;
+        auto aspect = runConfiguration->extraAspect<DebuggerRunConfigurationAspect>();
+        int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
+        if (portsUsed > dev->freePorts().count())
+            return false;
     }
+
     return true;
 }
 
@@ -101,22 +101,29 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
     QTC_ASSERT(rcRunnable.is<StandardRunnable>(), return 0);
     const auto stdRunnable = rcRunnable.as<StandardRunnable>();
 
-    MerRunConfiguration *rc = qobject_cast<MerRunConfiguration *>(runConfig);
-    QTC_ASSERT(rc, return 0);
-
     if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE) {
-        return new RemoteLinuxRunControl(rc);
+        return new RemoteLinuxRunControl(runConfig);
     } else if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
                || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
-        IDevice::ConstPtr dev = DeviceKitInformation::device(rc->target()->kit());
+        IDevice::ConstPtr dev = DeviceKitInformation::device(runConfig->target()->kit());
         if (!dev) {
             *errorMessage = tr("Cannot debug: Kit has no device.");
             return 0;
         }
-        auto aspect = rc->extraAspect<DebuggerRunConfigurationAspect>();
+        auto aspect = runConfig->extraAspect<DebuggerRunConfigurationAspect>();
         int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
         if (portsUsed > dev->freePorts().count()) {
             *errorMessage = tr("Cannot debug: Not enough free ports available.");
+            return 0;
+        }
+
+        QString symbolFile;
+        if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
+            symbolFile = rc->localExecutableFilePath();
+        else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
+            symbolFile = rc->localExecutableFilePath();
+        if (symbolFile.isEmpty()) {
+            *errorMessage = tr("Cannot debug: Local executable is not set.");
             return 0;
         }
 
@@ -138,10 +145,10 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             }
             params.inferior.executable = stdRunnable.executable;
             params.remoteChannel = dev->sshParameters().host + QLatin1String(":-1");
-            params.symbolFile = rc->localExecutableFilePath();
+            params.symbolFile = symbolFile;
         }
 
-        MerSdk* mersdk = MerSdkKitInformation::sdk(rc->target()->kit());
+        MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
 
         if (mersdk && !mersdk->sharedHomePath().isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
@@ -149,7 +156,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
         DebuggerRunControl * const runControl
-                = Debugger::createDebuggerRunControl(params, rc, errorMessage, mode);
+                = Debugger::createDebuggerRunControl(params, runConfig, errorMessage, mode);
         if (!runControl)
             return 0;
         (void) new LinuxDeviceDebugSupport(runConfig, runControl);

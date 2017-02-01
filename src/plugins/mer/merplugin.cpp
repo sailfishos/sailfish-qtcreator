@@ -35,6 +35,7 @@
 #include "mermode.h"
 #include "meroptionspage.h"
 #include "merqmllivebenchmanager.h"
+#include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
@@ -92,6 +93,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
     addAutoReleasedObject(new MerDeployConfigurationFactory);
     addAutoReleasedObject(new MerRunConfigurationFactory);
+    addAutoReleasedObject(new MerQmlRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);

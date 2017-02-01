@@ -32,6 +32,7 @@
 #include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
@@ -58,6 +59,10 @@ const char QML_LIVE_OPTIONS_KEY[] = "MerRunConfiguration.QmlLiveOptions";
 
 const MerRunConfigurationAspect::QmlLiveOptions DEFAULT_QML_LIVE_OPTIONS =
     MerRunConfigurationAspect::UpdateOnConnect | MerRunConfigurationAspect::UpdatesAsOverlay;
+
+const char LIST_SEP[] = ":";
+const char QMLLIVE_SAILFISH_PRELOAD[] = "/usr/lib/qmllive-sailfish/libsailfishapp-preload.so";
+
 } // namespace anonymous
 
 class MerRunConfigWidget : public ProjectExplorer::RunConfigWidget
@@ -241,6 +246,40 @@ QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
     Project *project = runConfiguration()->target()->project();
     QTC_ASSERT(project, return QString());
     return project->projectDirectory().toString();
+}
+
+void MerRunConfigurationAspect::applyTo(ProjectExplorer::StandardRunnable *r) const
+{
+    if (isQmlLiveEnabled()) {
+        r->environment.appendOrSet(QLatin1String("LD_PRELOAD"),
+                                   QLatin1String(QMLLIVE_SAILFISH_PRELOAD),
+                                   QLatin1String(LIST_SEP));
+
+        if (qmlLiveIpcPort() > 0) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_IPC_PORT"),
+                               QString::number(qmlLiveIpcPort()));
+        }
+
+        if (!qmlLiveTargetWorkspace().isEmpty()) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_WORKSPACE"),
+                               qmlLiveTargetWorkspace());
+        }
+
+        if (qmlLiveOptions() & MerRunConfigurationAspect::UpdateOnConnect) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_UPDATE_ON_CONNECT"),
+                               QLatin1String("1"));
+        }
+
+        if (!(qmlLiveOptions() & MerRunConfigurationAspect::UpdatesAsOverlay)) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_NO_UPDATES_AS_OVERLAY"),
+                               QLatin1String("1"));
+        }
+
+        if (qmlLiveOptions() & MerRunConfigurationAspect::LoadDummyData) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_LOAD_DUMMY_DATA"),
+                               QLatin1String("1"));
+        }
+    }
 }
 
 void MerRunConfigurationAspect::fromMap(const QVariantMap &map)
