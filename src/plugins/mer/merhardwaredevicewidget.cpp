@@ -22,22 +22,31 @@
 
 #include "merhardwaredevicewidget.h"
 #include "ui_merhardwaredevicewidget.h"
+#include "ui_merhardwaredevicewidgetauthorizedialog.h"
 
 #include "merconstants.h"
 #include "merhardwaredevice.h"
+#include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/coreicons.h>
+#include <coreplugin/icore.h>
+#include <remotelinux/sshkeydeployer.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
 #include <utils/portlist.h>
 
 #include <QDir>
+#include <QDialog>
+#include <QMessageBox>
+#include <QPointer>
 #include <QTextStream>
 
+using namespace Core;
 using namespace ProjectExplorer;
 using namespace QSsh;
+using namespace RemoteLinux;
 using namespace Utils;
 
 namespace Mer {
@@ -65,6 +74,8 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
             this, &MerHardwareDeviceWidget::handleFreePortsChanged);
     connect(m_ui->qmlLivePortsLineEdit, &QLineEdit::editingFinished,
             this, &MerHardwareDeviceWidget::handleQmlLivePortsChanged);
+    connect(m_ui->privateKeyAuthorizeButton, &QAbstractButton::clicked,
+            this, &MerHardwareDeviceWidget::authorizePrivateKey);
     initGui();
 }
 
@@ -113,6 +124,88 @@ void MerHardwareDeviceWidget::handleQmlLivePortsChanged()
     updateQmlLivePortsWarningLabel();
 }
 
+void MerHardwareDeviceWidget::authorizePrivateKey()
+{
+    QPointer<QDialog> dialog = new QDialog(ICore::dialogParent());
+    auto *ui = new Ui::MerHardwareDeviceWidget_AuthorizeDialog;
+    ui->setupUi(dialog);
+    ui->deviceLineEdit->setText(device()->displayName());
+    ui->userNameLineEdit->setText(device()->sshParameters().userName);
+    ui->progressBar->setVisible(false);
+    ui->progressLabel->setText(QString());
+
+    QPushButton *authorizeButton =
+        ui->buttonBox->addButton(tr("Authorize"), QDialogButtonBox::ActionRole);
+    authorizeButton->setEnabled(false);
+    connect(ui->passwordLineEdit, &QLineEdit::textChanged,
+            authorizeButton, [authorizeButton](const QString &text) {
+        authorizeButton->setEnabled(!text.isEmpty());
+    });
+
+    auto generateKey = [this, ui]() -> bool {
+        QString privateKeyFile = device()->sshParameters().privateKeyFile;
+        QFileInfo info(privateKeyFile);
+        if (info.exists())
+            return true;
+
+        ui->progressLabel->setText(tr("Generating key…"));
+
+        QString error;
+        if (!MerSdkManager::generateSshKey(privateKeyFile, error)) {
+            QMessageBox::warning(ICore::dialogParent(), tr("Failed"),
+                                 tr("Failed to generate key: %1").arg(error));
+            return false;
+        }
+        return true;
+    };
+
+    auto deployKey = [this, ui]() -> bool {
+        ui->progressLabel->setText(tr("Deploying key…"));
+        QEventLoop loop;
+        SshKeyDeployer deployer;
+        connect(&deployer, &SshKeyDeployer::error, [&loop](const QString &errorString) {
+            QMessageBox::warning(ICore::dialogParent(), tr("Failed"),
+                                 tr("Failed to deploy SSH key: %1").arg(errorString));
+            loop.exit(EXIT_FAILURE);
+        });
+        connect(&deployer, &SshKeyDeployer::finishedSuccessfully, [&loop]() {
+            loop.exit(EXIT_SUCCESS);
+        });
+
+        SshConnectionParameters sshParameters = device()->sshParameters();
+        sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
+        sshParameters.password = ui->passwordLineEdit->text();
+        QString publicKeyPath = sshParameters.privateKeyFile + QLatin1String(".pub");
+
+        deployer.deployPublicKey(sshParameters, publicKeyPath);
+
+        return loop.exec() == EXIT_SUCCESS;
+    };
+
+    connect(authorizeButton, &QAbstractButton::clicked, [&] {
+        ui->formWidget->setEnabled(false);
+        ui->buttonBox->setEnabled(false);
+        ui->progressBar->setVisible(true);
+
+        bool ok = generateKey() && deployKey();
+
+        ui->progressBar->setVisible(false);
+        ui->progressLabel->setText(QString());
+        ui->buttonBox->setEnabled(true);
+        ui->formWidget->setEnabled(true);
+
+        updatePrivateKeyWarningLabel();
+
+        if (ok) {
+            QMessageBox::information(ICore::dialogParent(), tr("Authorized"),
+                tr("Successfully authorized SSH key"));
+            dialog->accept();
+        }
+    });
+
+    dialog->exec();
+}
+
 void MerHardwareDeviceWidget::updateDeviceFromUi()
 {
     hostNameEditingFinished();
@@ -134,6 +227,12 @@ void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
     m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
 }
 
+void MerHardwareDeviceWidget::updatePrivateKeyWarningLabel()
+{
+    QFileInfo info(device()->sshParameters().privateKeyFile);
+    m_ui->privateKeyWarningLabel->setVisible(!info.exists());
+}
+
 void MerHardwareDeviceWidget::initGui()
 {
     m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
@@ -145,6 +244,11 @@ void MerHardwareDeviceWidget::initGui()
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
+    m_ui->privateKeyWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->privateKeyWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
+                                             + tr("File does not exist.")
+                                             + QLatin1String("</font>"));
+
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
@@ -163,6 +267,7 @@ void MerHardwareDeviceWidget::initGui()
     m_ui->qmlLivePortsLineEdit->setText(device().staticCast<MerDevice>()->qmlLivePorts().toString());
     updatePortsWarningLabel();
     updateQmlLivePortsWarningLabel();
+    updatePrivateKeyWarningLabel();
 }
 
 } // Internal

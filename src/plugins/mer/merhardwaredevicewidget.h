@@ -47,11 +47,13 @@ private slots:
     void userNameEditingFinished();
     void handleFreePortsChanged();
     void handleQmlLivePortsChanged();
+    void authorizePrivateKey();
 
 private:
-    void updateDeviceFromUi();
+    void updateDeviceFromUi() override;
     void updatePortsWarningLabel();
     void updateQmlLivePortsWarningLabel();
+    void updatePrivateKeyWarningLabel();
     void initGui();
 
     Ui::MerHardwareDeviceWidget *m_ui;
