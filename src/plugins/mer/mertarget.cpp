@@ -302,7 +302,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("set ") +
                 QLatin1String(MER_SSH_SDK_TOOLS) +
-                QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
+                QLatin1String("=\"") + merDevToolsDir + QDir::separator() + targetName + QLatin1String("\"\n");
         scriptContent += QLatin1String("SetLocal DisableDelayedExpansion\n");
         scriptContent += QLatin1Char('"') +
                 QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ") +
@@ -317,7 +317,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("export  ") +
                 QLatin1String(MER_SSH_SDK_TOOLS) +
-                QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
+                QLatin1String("=\"") + merDevToolsDir + QDir::separator() + targetName + QLatin1String("\"\n");
         scriptContent += QLatin1String("exec ");
         scriptContent += QLatin1Char('"') +
                 QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ") +

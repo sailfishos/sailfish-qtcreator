@@ -51,7 +51,7 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 {
     m_ui->setupUi(this);
 
-    QString preferredName = tr("SailfishOS Emulator");
+    QString preferredName = tr("Sailfish OS Emulator");
 
     int i = 1;
     QString tryName = preferredName;
