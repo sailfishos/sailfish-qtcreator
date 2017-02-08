@@ -23,6 +23,7 @@
 #include "merconnection.h"
 
 #include "merconstants.h"
+#include "merlogging.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/icore.h>
@@ -35,11 +36,7 @@
 #include <QTimer>
 #include <QTimerEvent>
 
-#if 0
-# define DBG qDebug() << m_vmName << QTime::currentTime()
-#else
-# define DBG if (false) qDebug()
-#endif
+#define DBG qCDebug(Log::vms) << m_vmName << QTime::currentTime()
 
 using namespace Core;
 using namespace QSsh;

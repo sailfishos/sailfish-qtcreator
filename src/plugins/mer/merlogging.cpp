@@ -26,6 +26,7 @@ namespace Mer {
 namespace Log {
 
 Q_LOGGING_CATEGORY(qmlLive, "mer.qmlLive", QtWarningMsg)
+Q_LOGGING_CATEGORY(vms, "mer.vms", QtWarningMsg)
 
 } // namespace Log
 } // namespace Mer
