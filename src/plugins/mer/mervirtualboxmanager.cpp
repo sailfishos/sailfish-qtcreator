@@ -155,6 +155,7 @@ bool MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(RUNNINGVMS));
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments);
     if (!process.waitForFinished())
         return false;
@@ -169,6 +170,7 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(RUNNINGVMS));
     QProcess *process = new QProcess;
+    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->start(vBoxManagePath(), arguments);
 
     void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
@@ -188,6 +190,7 @@ bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments);
     if (!process.waitForFinished())
         return false;
@@ -209,6 +212,7 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     rargs.append(QLatin1String(SHARE_NAME));
     rargs.append(mountName);
     QProcess rproc;
+    rproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     rproc.start(vBoxManagePath(), rargs);
     if (!rproc.waitForFinished()) {
         qWarning() << "VBoxManage failed to remove " << mountName;
@@ -225,6 +229,7 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     aargs.append(newFolder);
 
     QProcess aproc;
+    aproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     aproc.start(vBoxManagePath(), aargs);
     if (!aproc.waitForFinished()) {
         qWarning() << "VBoxManage failed to add " << mountName;
@@ -238,6 +243,7 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     sargs.append(QLatin1String(YES_ARG));
 
     QProcess sproc;
+    sproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     sproc.start(vBoxManagePath(), sargs);
     if (!sproc.waitForFinished()) {
         qWarning() << "VBoxManage failed to enable symlinks under " << mountName;
@@ -255,6 +261,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     arguments.append(vmName);
     arguments.append(QLatin1String(MACHINE_READABLE));
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments);
     if (!process.waitForFinished())
         return info;
@@ -286,6 +293,7 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
             process, &QObject::deleteLater);
     connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             process, &QObject::deleteLater);
+    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->start(vBoxManagePath(), arguments);
 }
 
@@ -304,6 +312,7 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
             process, &QProcess::deleteLater);
     connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             process, &QProcess::deleteLater);
+    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->start(vBoxManagePath(), arguments);
 }
 
@@ -314,6 +323,7 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments);
     if (!process.waitForFinished())
         return vms;
@@ -335,6 +345,7 @@ bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     args.append(videoMode);
 
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), args);
     if (!process.waitForFinished()) {
         qWarning() << "VBoxManage failed to set video mode " << videoMode;
@@ -351,6 +362,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     arguments.append(vmName);
     arguments.append(key);
     QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments, QIODevice::ReadWrite | QIODevice::Text);
     if (!process.waitForFinished()) {
         qWarning() << "VBoxManage failed to getextradata";
@@ -376,6 +388,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(qmlLivePortsForwardingRuleName(i));
 
         QProcess process;
+        process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
         process.start(vBoxManagePath(), arguments);
         if (!process.waitForFinished())
             qWarning() << "VBoxManage failed to" << MODIFYVM;
@@ -393,6 +406,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(qmlLivePortsForwardingRule(i, port));
 
         QProcess process;
+        process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
         process.start(vBoxManagePath(), arguments);
         if (!process.waitForFinished())
             qWarning() << "VBoxManage failed to" << MODIFYVM;
