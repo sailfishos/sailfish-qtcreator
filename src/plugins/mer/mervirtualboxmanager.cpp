@@ -33,6 +33,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSize>
 #include <QTime>
@@ -74,6 +75,7 @@ namespace Mer {
 namespace Internal {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
 static bool isVirtualMachineListed(const QString &vmName, const QString &output);
 static QStringList listedVirtualMachines(const QString &output);
 
@@ -152,23 +154,23 @@ MerVirtualBoxManager *MerVirtualBoxManager::instance()
 bool MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
 {
     QStringList arguments;
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(RUNNINGVMS));
+    arguments.append(QLatin1String(SHOWVMINFO));
+    arguments.append(vmName);
     QProcess process;
     process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process.start(vBoxManagePath(), arguments);
     if (!process.waitForFinished())
         return false;
 
-    return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
+    return isVirtualMachineRunningFromInfo(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
 void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
                                                    std::function<void(bool)> slot)
 {
     QStringList arguments;
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(RUNNINGVMS));
+    arguments.append(QLatin1String(SHOWVMINFO));
+    arguments.append(vmName);
     QProcess *process = new QProcess;
     process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->start(vBoxManagePath(), arguments);
@@ -178,8 +180,8 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 Q_UNUSED(exitCode);
                 Q_UNUSED(exitStatus);
-                slot(isVirtualMachineListed(vmName,
-                                            QString::fromLocal8Bit(process->readAllStandardOutput())));
+                slot(isVirtualMachineRunningFromInfo(
+                        QString::fromLocal8Bit(process->readAllStandardOutput())));
                 delete process;
             });
 }
@@ -462,6 +464,12 @@ void MerVirtualBoxManager::onDeviceListReplaced()
 
         m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowPorts);
     }
+}
+
+bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
+{
+    QRegularExpression re(QStringLiteral("^Session name:"), QRegularExpression::MultilineOption);
+    return re.match(vmInfo).hasMatch();
 }
 
 bool isVirtualMachineListed(const QString &vmName, const QString &output)
