@@ -178,7 +178,7 @@ Kit* MerTarget::createKit() const
 
     Kit *k = new Kit();
     k->setAutoDetected(true);
-    k->setUnexpandedDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
+    k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)").arg(m_name, m_sdk->virtualMachineName()));
     k->setIconPath(FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
 
@@ -200,7 +200,7 @@ Kit* MerTarget::createKit() const
     debugger.setCommand(gdbFileName);
     debugger.setEngineType(GdbEngineType);
     const QString vmName = m_sdk->virtualMachineName();
-    debugger.setUnexpandedDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
+    debugger.setUnexpandedDisplayName(QObject::tr("GDB for %1 in %2").arg(m_name, vmName));
     debugger.setAutoDetected(true);
     debugger.setAbi(Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
     QVariant id = DebuggerItemManager::registerDebugger(debugger);
@@ -233,8 +233,8 @@ MerQtVersion* MerTarget::createQtVersion() const
     merqtv->setVirtualMachineName(vmName);
     merqtv->setTargetName(m_name);
     merqtv->setUnexpandedDisplayName(
-                QString::fromLatin1("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
-                                                          vmName, m_name));
+                QString::fromLatin1("Qt %1 for %2 in %3").arg(qtv->qtVersionString(),
+                                                              m_name, vmName));
     return merqtv;
 }
 
@@ -252,7 +252,7 @@ MerToolChain* MerTarget::createToolChain() const
 
     MerToolChain* mertoolchain = new MerToolChain(ToolChain::AutoDetection);
     const QString vmName = m_sdk->virtualMachineName();
-    mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
+    mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 in %2)").arg(m_name, vmName));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
     mertoolchain->resetToolChain(gcc);
