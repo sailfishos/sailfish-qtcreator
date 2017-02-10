@@ -242,6 +242,11 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
                 QTimer::singleShot(200, this, QWidget_update);
             },
             Qt::QueuedConnection);
+
+    connect(ui->webView, &QWebView::loadProgress,
+            this, [this](int prog) { ui->progressBar->setValue(prog < 100 ? prog : 0); });
+    connect(ui->webView, &QWebView::loadFinished,
+            this, [this]() { ui->progressBar->setValue(0); });
 }
 
 MerManagementWebView::~MerManagementWebView()
