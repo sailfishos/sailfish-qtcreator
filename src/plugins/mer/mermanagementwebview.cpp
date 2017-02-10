@@ -43,6 +43,7 @@ namespace Internal {
 
 const char CONTROLCENTER_URL_BASE[] = "http://127.0.0.1/";
 const char START_VM_URL[] = "about:blank#startVM";
+const int AUTO_RELOAD_TIMEOUT_MS = 2000;
 
 class MerManagementWebViewSdksModel : public QAbstractListModel
 {
@@ -345,12 +346,12 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 );
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)
-            QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
+            QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
         if (m_selectedSdk) {
             m_selectedSdk->connection()->connectTo();
         }
-        QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
+        QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
         m_loaded = true;
     }
