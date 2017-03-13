@@ -12,13 +12,16 @@ selectedBackground=46ffffff
 normalBackground=ff333333
 alternateBackground=ff515151
 error=ffff0000
+textColorLink=ff007af4
+textColorLinkVisited=ffa57aff
+backgroundColorDisabled=ff444444
 
 [Colors]
 BackgroundColorAlternate=alternateBackground
 BackgroundColorDark=shadowBackground
 BackgroundColorHover=hoverBackground
 BackgroundColorNormal=normalBackground
-BackgroundColorDisabled=ff444444
+BackgroundColorDisabled=backgroundColorDisabled
 BackgroundColorSelected=selectedBackground
 BadgeLabelBackgroundColorChecked=normalBackground
 BadgeLabelBackgroundColorUnchecked=selectedBackground
@@ -71,7 +74,7 @@ IconsModeWelcomeActiveColor=ff80c342
 IconsModeEditActiveColor=ff99aaef
 IconsModeDesignActiveColor=ffbb6000
 IconsModeDebugActiveColor=ff99aaef
-IconsModeProjetcsActiveColor=ff80c342
+IconsModeProjectActiveColor=ff80c342
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fff4be04
 IconsModeMerActiveColor=ff97f0ff
@@ -95,7 +98,7 @@ MenuBarItemTextColorDisabled=textDisabled
 MenuBarItemTextColorNormal=text
 MenuItemTextColorDisabled=textDisabled
 MenuItemTextColorNormal=text
-MiniProjectTargetSelectorBackgroundColor=shadowBackground
+MiniProjectTargetSelectorBackgroundColor=normalBackground
 MiniProjectTargetSelectorBorderColor=shadowBackground
 MiniProjectTargetSelectorSummaryBackgroundColor=shadowBackground
 MiniProjectTargetSelectorTextColor=text
@@ -113,8 +116,8 @@ SplitterColor=ff313131
 TextColorDisabled=textDisabled
 TextColorError=ffff4040
 TextColorHighlight=ffff0000
-TextColorLink=ff007af4
-TextColorLinkVisited=ffa57aff
+TextColorLink=textColorLink
+TextColorLinkVisited=textColorLinkVisited
 TextColorNormal=text
 TodoItemTextColor=ff000000
 ToggleButtonBackgroundColor=shadowBackground
@@ -165,6 +168,7 @@ VcsBase_FileAdded_TextColor=ff00ff00
 VcsBase_FileModified_TextColor=ff8ee0ff
 VcsBase_FileDeleted_TextColor=fffff6c6c
 VcsBase_FileRenamed_TextColor=ffffa500
+VcsBase_FileUnmerged_TextColor=ffff4040
 
 Bookmarks_TextMarkColor=ff8080ff
 
@@ -177,6 +181,29 @@ ProjectExplorer_TaskWarn_TextMarkColor=ffffff40
 ClangCodeModel_Error_TextMarkColor=ffff882f
 ClangCodeModel_Warning_TextMarkColor=ffceff40
 
+PaletteWindow=normalBackground
+PaletteWindowText=text
+PaletteBase=normalBackground
+PaletteAlternateBase=alternateBackground
+PaletteButton=shadowBackground
+PaletteBrightText=ffff0000
+PaletteText=text
+PaletteButtonText=text
+PaletteToolTipBase=selectedBackground
+PaletteHighlight=selectedBackground
+PaletteDark=shadowBackground
+PaletteHighlightedText=ffffffff
+PaletteToolTipText=text
+PaletteLink=textColorLink
+PaletteLinkVisited=textColorLinkVisited
+PaletteWindowDisabled=backgroundColorDisabled
+PaletteWindowTextDisabled=textDisabled
+PaletteBaseDisabled=backgroundColorDisabled
+PaletteTextDisabled=textDisabled
+
+QmlDesigner_BackgroundColor=ff3c3e40
+QmlDesigner_HighlightColor=ff46a2da
+
 [Flags]
 ComboBoxDrawTextShadow=false
 DerivePaletteFromTheme=true
@@ -184,10 +211,14 @@ DrawIndicatorBranch=true
 DrawSearchResultWidgetFrame=false
 DrawTargetSelectorBottom=false
 DrawToolBarHighlights=true
+DrawToolBarBorders=false
 ApplyThemePaletteGlobally=true
+FlatToolBars=true
 FlatSideBarIcons=true
 FlatProjectsMode=true
 FlatMenuBar=true
+ToolBarIconShadow=true
+WindowColorAsBase=false
 
 [Gradients]
 DetailsWidgetHeaderGradient\1\color=0
@@ -207,6 +238,3 @@ BuildStepDisable=:/projectexplorer/images/lightdisabledbuildstep.png
 BuildStepRemove=:/core/images/lightclose.png
 BuildStepMoveDown=:/core/images/lightarrowdown.png
 BuildStepMoveUp=:/core/images/lightarrowup.png
-
-[Style]
-WidgetStyle=StyleFlat

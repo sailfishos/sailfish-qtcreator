@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EXTERNALEDITORS_H
-#define EXTERNALEDITORS_H
+#pragma once
 
 #include <coreplugin/editormanager/iexternaleditor.h>
 #include <coreplugin/id.h>
@@ -126,10 +125,9 @@ public:
 
     virtual bool startEditor(const QString &fileName, QString *errorMessage);
 
-private slots:
+private:
     void processTerminated(const QString &binary);
 
-private:
     // A per-binary entry containing the socket
     typedef QMap<QString, QTcpSocket*> ProcessCache;
 
@@ -139,5 +137,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // EXTERNALEDITORS_H

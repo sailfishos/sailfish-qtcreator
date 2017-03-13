@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECTRUNCONFIGURATIONWIDGET_H
-#define QMLPROJECTRUNCONFIGURATIONWIDGET_H
+#pragma once
 
 #include <QWidget>
 
@@ -45,12 +44,11 @@ class QmlProjectRunConfigurationWidget : public QWidget
 public:
     explicit QmlProjectRunConfigurationWidget(QmlProjectRunConfiguration *rc);
 
-private slots:
+private:
     void updateFileComboBox();
     void setMainScript(int index);
     void onViewerArgsChanged();
 
-private:
     QmlProjectRunConfiguration *m_runConfiguration;
 
     QComboBox *m_fileListCombo;
@@ -59,5 +57,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProjectManager
-
-#endif // QMLPROJECTRUNCONFIGURATIONWIDGET_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDANALYZESUPPORT_H
-#define ANDROIDANALYZESUPPORT_H
+#pragma once
 
 #include "androidrunconfiguration.h"
 #include <qmldebug/qmloutputparser.h>
@@ -50,10 +49,8 @@ public:
 
 private:
     QmlDebug::QmlOutputParser m_outputParser;
-    int m_qmlPort;
+    Utils::Port m_qmlPort;
 };
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDANALYZESUPPORT_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ADDDEVICEOPERATION_H
-#define ADDDEVICEOPERATION_H
+#pragma once
 
 #include "operation.h"
 
@@ -96,5 +95,3 @@ private:
     int m_version;
     KeyValuePairList m_extra;
 };
-
-#endif // ADDDEVICEOPERATION_H

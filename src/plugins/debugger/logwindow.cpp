@@ -310,7 +310,6 @@ public:
         (void) new OutputHighlighter(this);
     }
 
-public slots:
     void gotoResult(int i)
     {
         QString needle = QString::number(i) + QLatin1Char('^');
@@ -414,14 +413,14 @@ LogWindow::LogWindow(QWidget *parent)
     aggregate->add(m_inputText);
     aggregate->add(new Core::BaseTextFind(m_inputText));
 
-    connect(m_inputText, SIGNAL(statusMessageRequested(QString,int)),
-        SIGNAL(statusMessageRequested(QString,int)));
-    connect(m_inputText, SIGNAL(commandSelected(int)),
-        m_combinedText, SLOT(gotoResult(int)));
+    connect(m_inputText, &InputPane::statusMessageRequested,
+            this, &LogWindow::statusMessageRequested);
+    connect(m_inputText, &InputPane::commandSelected,
+            m_combinedText, &CombinedPane::gotoResult);
     connect(m_commandEdit, &QLineEdit::returnPressed,
             this, &LogWindow::sendCommand);
-    connect(m_inputText, SIGNAL(executeLineRequested()),
-        SLOT(executeLine()));
+    connect(m_inputText, &InputPane::executeLineRequested,
+            this, &LogWindow::executeLine);
     connect(repeatButton, &QAbstractButton::clicked,
             this, &LogWindow::repeatLastCommand);
 
@@ -429,6 +428,16 @@ LogWindow::LogWindow(QWidget *parent)
             this, &LogWindow::doOutput);
 
     setMinimumHeight(60);
+
+    showOutput(LogWarning,
+        tr("NOTE: This log contains possibly confidential information about your machine, "
+           "environment variables, in-memory data of the processes you are debugging, and more. "
+           "It is never transferred over the internet by Qt Creator, and only stored "
+           "to disk if you manually use the respective option from the context menu, or through "
+           "mechanisms that are not under Qt Creator's control, for instance in swap files.\n"
+           "You may be asked to share the contents of this log when reporting bugs related "
+           "to debugger operation. In this case, make sure your submission does not "
+           "contain data you do not want to or you are not allowed to share.\n\n"));
 }
 
 void LogWindow::executeLine()

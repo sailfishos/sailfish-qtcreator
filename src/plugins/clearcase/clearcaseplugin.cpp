@@ -1334,9 +1334,8 @@ void ClearCasePlugin::ccUpdate(const QString &workingDir, const QStringList &rel
     args << QLatin1String("-noverwrite");
     if (!relativePaths.isEmpty())
         args.append(relativePaths);
-        const ClearCaseResponse response =
-                runCleartool(workingDir, args, m_settings.longTimeOutS(),
-                             VcsCommand::ShowStdOut);
+    const ClearCaseResponse response =
+            runCleartool(workingDir, args, m_settings.longTimeOutS(), VcsCommand::ShowStdOut);
     if (!response.error)
         clearCaseControl()->emitRepositoryChanged(workingDir);
 }
@@ -1481,8 +1480,8 @@ ClearCasePlugin::runCleartool(const QString &workingDir,
     response.error = sp_resp.result != SynchronousProcessResponse::Finished;
     if (response.error)
         response.message = sp_resp.exitMessage(executable, timeOutS);
-    response.stdErr = sp_resp.stdErr;
-    response.stdOut = sp_resp.stdOut;
+    response.stdErr = sp_resp.stdErr();
+    response.stdOut = sp_resp.stdOut();
     return response;
 }
 
@@ -2017,7 +2016,11 @@ void ClearCasePlugin::projectChanged(Project *project)
         m_topLevel = topLevel;
         if (topLevel.isEmpty())
             return;
-        connect(ICore::mainWindow(), SIGNAL(windowActivated()), this, SLOT(syncSlot()));
+        connect(qApp, &QApplication::applicationStateChanged,
+                this, [this](Qt::ApplicationState state) {
+                    if (state == Qt::ApplicationActive)
+                        syncSlot();
+                });
         updateStreamAndView();
         if (m_viewData.name.isEmpty())
             return;
@@ -2159,14 +2162,14 @@ QString ClearCasePlugin::runExtDiff(const QString &workingDir, const QStringList
     QStringList args(m_settings.diffArgs.split(QLatin1Char(' '), QString::SkipEmptyParts));
     args << arguments;
 
-    QProcess process;
+    SynchronousProcess process;
+    process.setTimeoutS(timeOutS);
     process.setWorkingDirectory(workingDir);
-    process.start(executable, args);
-    if (!process.waitForFinished(timeOutS * 1000))
+    process.setCodec(outputCodec ? outputCodec : QTextCodec::codecForName("UTF-8"));
+    SynchronousProcessResponse response = process.run(executable, args);
+    if (response.result != SynchronousProcessResponse::Finished)
         return QString();
-    QByteArray ba = process.readAll();
-    return outputCodec ? outputCodec->toUnicode(ba) :
-                         QString::fromLocal8Bit(ba.constData(), ba.size());
+    return response.allOutput();
 }
 
 void ClearCasePlugin::syncSlot()

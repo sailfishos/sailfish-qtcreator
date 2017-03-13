@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef LIBVALGRIND_FAKE_OUTPUTGENERATOR_H
-#define LIBVALGRIND_FAKE_OUTPUTGENERATOR_H
+#pragma once
 
 #include <QObject>
 #include <QTimer>
@@ -53,12 +52,12 @@ public:
 
 Q_SIGNALS:
     void finished();
-private slots:
-    /// write output to the stream until the next error
-    void writeOutput();
 
 private:
     void produceRuntimeError();
+
+    /// write output to the stream until the next error
+    void writeOutput();
 
     QAbstractSocket *m_output;
     QIODevice *m_input;
@@ -71,5 +70,3 @@ private:
 
 } // namespace Fake
 } // namespace Valgrind
-
-#endif // LIBVALGRIND_FAKE_OUTPUTGENERATOR_H

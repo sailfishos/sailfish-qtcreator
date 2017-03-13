@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_SOURCELOCATION_H
-#define CLANGBACKEND_SOURCELOCATION_H
+#pragma once
 
 #include <clang-c/Index.h>
 
@@ -64,10 +63,11 @@ private:
 
 private:
    CXSourceLocation cxSourceLocation;
-   Utf8String filePath_;
+   mutable Utf8String filePath_;
    uint line_ = 0;
    uint column_ = 0;
    uint offset_ = 0;
+   mutable bool isFilePathNormalized_ = true;
 };
 
 bool operator==(const SourceLocation &first, const SourceLocation &second);
@@ -75,5 +75,3 @@ bool operator==(const SourceLocation &first, const SourceLocation &second);
 void PrintTo(const SourceLocation &sourceLocation, ::std::ostream* os);
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_SOURCELOCATION_H

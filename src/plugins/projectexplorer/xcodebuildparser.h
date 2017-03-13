@@ -51,11 +51,11 @@ public:
     bool hasFatalErrors() const override;
 
 private:
-    int m_fatalErrorCount;
+    int m_fatalErrorCount = 0;
     QRegExp m_failureRe;
     QRegExp m_successRe;
     QRegExp m_buildRe;
-    XcodebuildStatus m_xcodeBuildParserState;
+    XcodebuildStatus m_xcodeBuildParserState = OutsideXcodebuild;
     QString m_lastTarget;
     QString m_lastProject;
 
@@ -70,7 +70,7 @@ class XcodebuildParserTester : public QObject
 {
     Q_OBJECT
 public:
-    explicit XcodebuildParserTester(XcodebuildParser *parser, QObject *parent = 0);
+    explicit XcodebuildParserTester(XcodebuildParser *parser, QObject *parent = nullptr);
 
     XcodebuildParser *parser;
     XcodebuildParser::XcodebuildStatus expectedFinalState;

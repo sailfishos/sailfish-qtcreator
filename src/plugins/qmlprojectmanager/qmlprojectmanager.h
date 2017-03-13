@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECTMANAGER_H
-#define QMLPROJECTMANAGER_H
+#pragma once
 
 #include <projectexplorer/iprojectmanager.h>
 #include <coreplugin/icontext.h>
@@ -42,8 +41,8 @@ class Manager: public ProjectExplorer::IProjectManager
 public:
     Manager();
 
-    virtual QString mimeType() const;
-    virtual ProjectExplorer::Project *openProject(const QString &fileName, QString *errorString);
+    QString mimeType() const override;
+    ProjectExplorer::Project *openProject(const QString &fileName, QString *errorString) override;
 
     void notifyChanged(const QString &fileName);
 
@@ -56,5 +55,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProjectManager
-
-#endif // QMLPROJECTMANAGER_H

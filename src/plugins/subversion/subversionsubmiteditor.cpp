@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "subversionsubmiteditor.h"
+#include "subversionplugin.h"
 
 #include <coreplugin/idocument.h>
 #include <vcsbase/submiteditorwidget.h>
@@ -40,7 +41,6 @@ SubversionSubmitEditor::SubversionSubmitEditor(const VcsBase::VcsBaseSubmitEdito
 
 void SubversionSubmitEditor::setStatusList(const QList<StatusFilePair> &statusOutput)
 {
-    typedef QList<StatusFilePair>::const_iterator ConstIterator;
     auto model = new VcsBase::SubmitFileModel(this);
     // Hack to allow completion in "description" field : completion needs a root repository, the
     // checkScriptWorkingDirectory property is fine (at this point it was set by SubversionPlugin)
@@ -48,18 +48,25 @@ void SubversionSubmitEditor::setStatusList(const QList<StatusFilePair> &statusOu
     model->setFileStatusQualifier([](const QString &status, const QVariant &)
                                   -> VcsBase::SubmitFileModel::FileStatusHint
     {
-        if (status == QLatin1String("A"))
+        const QByteArray statusC = status.toLatin1();
+        if (statusC == FileConflictedC)
+            return VcsBase::SubmitFileModel::FileUnmerged;
+        if (statusC == FileAddedC)
             return VcsBase::SubmitFileModel::FileAdded;
-        if (status == QLatin1String("M"))
+        if (statusC == FileModifiedC)
             return VcsBase::SubmitFileModel::FileModified;
-        if (status == QLatin1String("D"))
+        if (statusC == FileDeletedC)
             return VcsBase::SubmitFileModel::FileDeleted;
         return VcsBase::SubmitFileModel::FileStatusUnknown;
     } );
 
-    const ConstIterator cend = statusOutput.constEnd();
-    for (ConstIterator it = statusOutput.constBegin(); it != cend; ++it)
-        model->addFile(it->second, it->first);
+    for (const StatusFilePair &pair : statusOutput) {
+        const VcsBase::CheckMode checkMode =
+                (pair.first == QLatin1String(FileConflictedC))
+                    ? VcsBase::Uncheckable
+                    : VcsBase::Unchecked;
+        model->addFile(pair.second, pair.first, checkMode);
+    }
     setFileModel(model);
 }
 

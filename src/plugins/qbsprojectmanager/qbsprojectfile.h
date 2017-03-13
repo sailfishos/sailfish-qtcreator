@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSPROJECTFILE_H
-#define QBSPROJECTFILE_H
+#pragma once
 
 #include <coreplugin/idocument.h>
 
@@ -35,7 +34,6 @@ class QbsProject;
 
 class QbsProjectFile : public Core::IDocument
 {
-    Q_OBJECT
 public:
     QbsProjectFile(QbsProject *parent, QString fileName);
 
@@ -48,5 +46,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSPROJECTFILE_H

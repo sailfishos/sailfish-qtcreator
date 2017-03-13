@@ -23,31 +23,40 @@
 **
 ****************************************************************************/
 
-#ifndef TESTCONFIGURATION_H
-#define TESTCONFIGURATION_H
+#pragma once
 
 #include "autotestconstants.h"
 
 #include <projectexplorer/project.h>
 #include <utils/environment.h>
 
+#include <QFutureInterface>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
 
+QT_BEGIN_NAMESPACE
+class QProcess;
+QT_END_NAMESPACE
+
 namespace Autotest {
 namespace Internal {
 
-class TestConfiguration : public QObject
+class TestOutputReader;
+class TestResult;
+class TestRunConfiguration;
+struct TestSettings;
+
+using TestResultPtr = QSharedPointer<TestResult>;
+
+class TestConfiguration
 
 {
-    Q_OBJECT
 public:
-    explicit TestConfiguration(const QString &testClass, const QStringList &testCases,
-                               int testCaseCount = 0, QObject *parent = 0);
-    ~TestConfiguration();
+    explicit TestConfiguration();
+    virtual ~TestConfiguration();
 
-    void completeTestInformation();
+    void completeTestInformation(int runMode);
 
     void setTestCases(const QStringList &testCases);
     void setTestCaseCount(int count);
@@ -59,31 +68,29 @@ public:
     void setDisplayName(const QString &displayName);
     void setEnvironment(const Utils::Environment &env);
     void setProject(ProjectExplorer::Project *project);
-    void setUnnamedOnly(bool unnamedOnly);
     void setGuessedConfiguration(bool guessed);
-    void setTestType(TestType type);
 
-    QString testClass() const { return m_testClass; }
     QStringList testCases() const { return m_testCases; }
     int testCaseCount() const { return m_testCaseCount; }
     QString proFile() const { return m_proFile; }
     QString targetFile() const { return m_targetFile; }
+    QString executableFilePath() const;
     QString targetName() const { return m_targetName; }
-    QString workingDirectory() const { return m_workingDir; }
+    QString workingDirectory() const;
     QString buildDirectory() const { return m_buildDir; }
     QString displayName() const { return m_displayName; }
     Utils::Environment environment() const { return m_environment; }
     ProjectExplorer::Project *project() const { return m_project.data(); }
-    bool unnamedOnly() const { return m_unnamedOnly; }
+    TestRunConfiguration *runConfiguration() const { return m_runConfig; }
     bool guessedConfiguration() const { return m_guessedConfiguration; }
-    TestType testType() const { return m_type; }
+
+    virtual TestOutputReader *outputReader(const QFutureInterface<TestResultPtr> &fi,
+                                           QProcess *app) const = 0;
+    virtual QStringList argumentsForTestRunner(const TestSettings &settings) const = 0;
 
 private:
-    QString m_testClass;
     QStringList m_testCases;
-    int m_testCaseCount;
-    QString m_mainFilePath;
-    bool m_unnamedOnly;
+    int m_testCaseCount = 0;
     QString m_proFile;
     QString m_targetFile;
     QString m_targetName;
@@ -92,11 +99,9 @@ private:
     QString m_displayName;
     Utils::Environment m_environment;
     QPointer<ProjectExplorer::Project> m_project;
-    bool m_guessedConfiguration;
-    TestType m_type;
+    bool m_guessedConfiguration = false;
+    TestRunConfiguration *m_runConfig = 0;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTCONFIGURATION_H

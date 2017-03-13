@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BACKTRACECOLLECTOR_H
-#define BACKTRACECOLLECTOR_H
+#pragma once
 
 #include <QProcess>
 
@@ -46,15 +45,12 @@ signals:
     void backtrace(const QString &backtrace);
     void backtraceChunk(const QString &chunk);
 
-private slots:
+private:
     void onDebuggerOutputAvailable();
     void onDebuggerFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onDebuggerError(QProcess::ProcessError err);
 
-private:
     QString createTemporaryCommandFile();
 
     BacktraceCollectorPrivate *d;
 };
-
-#endif // BACKTRACECOLLECTOR_H

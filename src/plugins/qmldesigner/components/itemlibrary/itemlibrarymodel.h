@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ITEMLIBRARYMODEL_H
-#define ITEMLIBRARYMODEL_H
+#pragma once
 
 #include <QMap>
 #include <QIcon>
@@ -80,9 +79,8 @@ signals:
     void searchTextChanged();
 
 private: // functions
-    void updateVisibility();
+    void updateVisibility(bool *changed);
     void addRoleNames();
-    void resetModel();
     void sortSections();
 
 
@@ -96,5 +94,3 @@ private: // variables
 } // namespace QmlDesigner
 
 QML_DECLARE_TYPE(QmlDesigner::ItemLibraryModel)
-#endif // ITEMLIBRARYMODEL_H
-

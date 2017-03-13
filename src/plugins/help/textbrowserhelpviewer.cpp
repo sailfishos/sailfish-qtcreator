@@ -68,9 +68,9 @@ TextBrowserHelpViewer::TextBrowserHelpViewer(QWidget *parent)
 
     connect(m_textBrowser, &TextBrowserHelpWidget::anchorClicked,
             this, &TextBrowserHelpViewer::setSource);
-    connect(m_textBrowser, SIGNAL(sourceChanged(QUrl)), this, SIGNAL(titleChanged()));
-    connect(m_textBrowser, SIGNAL(forwardAvailable(bool)), this, SIGNAL(forwardAvailable(bool)));
-    connect(m_textBrowser, SIGNAL(backwardAvailable(bool)), this, SIGNAL(backwardAvailable(bool)));
+    connect(m_textBrowser, &QTextBrowser::sourceChanged, this, &HelpViewer::titleChanged);
+    connect(m_textBrowser, &QTextBrowser::forwardAvailable, this, &HelpViewer::forwardAvailable);
+    connect(m_textBrowser, &QTextBrowser::backwardAvailable, this, &HelpViewer::backwardAvailable);
 }
 
 TextBrowserHelpViewer::~TextBrowserHelpViewer()
@@ -256,8 +256,6 @@ bool TextBrowserHelpViewer::findText(const QString &text, Core::FindFlags flags,
     return !cursorIsNull;
 }
 
-// -- public slots
-
 void TextBrowserHelpViewer::copy()
 {
     m_textBrowser->copy();
@@ -368,7 +366,7 @@ void TextBrowserHelpWidget::scaleDown()
 
 void TextBrowserHelpWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    QMenu menu(QLatin1String(""), 0);
+    QMenu menu("", 0);
 
     QAction *copyAnchorAction = 0;
     const QUrl link(linkAt(event->pos()));
@@ -386,9 +384,9 @@ void TextBrowserHelpWidget::contextMenuEvent(QContextMenuEvent *event)
         }
         copyAnchorAction = menu.addAction(tr("Copy Link"));
     } else if (!textCursor().selectedText().isEmpty()) {
-        menu.addAction(tr("Copy"), this, SLOT(copy()));
+        connect(menu.addAction(tr("Copy")), &QAction::triggered, this, &QTextEdit::copy);
     } else {
-        menu.addAction(tr("Reload"), this, SLOT(reload()));
+        connect(menu.addAction(tr("Reload")), &QAction::triggered, this, &QTextBrowser::reload);
     }
 
     if (copyAnchorAction == menu.exec(event->globalPos()))
@@ -405,7 +403,7 @@ bool TextBrowserHelpWidget::eventFilter(QObject *obj, QEvent *event)
             QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
             if (keyEvent->key() == Qt::Key_Slash) {
                 keyEvent->accept();
-                Core::FindPlugin::instance()->openFindToolBar(Core::FindPlugin::FindForwardDirection);
+                Core::Find::openFindToolBar(Core::Find::FindForwardDirection);
                 return true;
             }
         } else if (event->type() == QEvent::ToolTip) {

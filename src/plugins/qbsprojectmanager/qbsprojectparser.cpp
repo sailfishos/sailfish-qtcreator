@@ -86,8 +86,11 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
     QString specialKey = QLatin1String(Constants::QBS_CONFIG_PROFILE_KEY);
     const QString profileName = userConfig.take(specialKey).toString();
     params.setTopLevelProfile(profileName);
-    specialKey = QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY);
-    params.setBuildVariant(userConfig.take(specialKey).toString());
+    const QString buildVariantKey = QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY);
+    const QString buildVariant = userConfig.value(buildVariantKey).toString();
+    params.setConfigurationName(profileName + QLatin1Char('-') + buildVariant);
+    specialKey = QLatin1String(Constants::QBS_FORCE_PROBES_KEY);
+    params.setForceProbeExecution(userConfig.take(specialKey).toBool());
     params.setSettingsDirectory(QbsManager::settings()->baseDirectory());
     params.setOverriddenValues(userConfig);
 
@@ -109,12 +112,12 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
 
     m_qbsSetupProjectJob = m_project.setupProject(params, QbsManager::logSink(), 0);
 
-    connect(m_qbsSetupProjectJob, SIGNAL(finished(bool,qbs::AbstractJob*)),
-            this, SLOT(handleQbsParsingDone(bool)));
-    connect(m_qbsSetupProjectJob, SIGNAL(taskStarted(QString,int,qbs::AbstractJob*)),
-            this, SLOT(handleQbsParsingTaskSetup(QString,int)));
-    connect(m_qbsSetupProjectJob, SIGNAL(taskProgress(int,qbs::AbstractJob*)),
-            this, SLOT(handleQbsParsingProgress(int)));
+    connect(m_qbsSetupProjectJob, &qbs::AbstractJob::finished,
+            this, &QbsProjectParser::handleQbsParsingDone);
+    connect(m_qbsSetupProjectJob, &qbs::AbstractJob::taskStarted,
+            this, &QbsProjectParser::handleQbsParsingTaskSetup);
+    connect(m_qbsSetupProjectJob, &qbs::AbstractJob::taskProgress,
+            this, &QbsProjectParser::handleQbsParsingProgress);
 }
 
 void QbsProjectParser::cancel()
@@ -155,7 +158,7 @@ void QbsProjectParser::startRuleExecution()
     options.setDryRun(m_dryRun);
     options.setExecuteRulesOnly(true);
     m_ruleExecutionJob = m_project.buildAllProducts(
-                options, qbs::Project::ProductSelectionWithNonDefault, this);
+                options, qbs::Project::ProductSelectionWithNonDefault, nullptr);
     connect(m_ruleExecutionJob, &qbs::AbstractJob::finished,
             this, &QbsProjectParser::handleRuleExecutionDone);
     connect(m_ruleExecutionJob, &qbs::AbstractJob::taskStarted,

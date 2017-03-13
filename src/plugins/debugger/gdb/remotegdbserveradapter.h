@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTEGDBSERVERADAPTER_H
-#define REMOTEGDBSERVERADAPTER_H
+#pragma once
 
 #include "gdbengine.h"
 
@@ -39,11 +38,11 @@ public:
     explicit GdbRemoteServerEngine(const DebuggerRunParameters &runParameters);
 
 private:
-    void setupEngine();
-    void setupInferior();
-    void runEngine();
-    void interruptInferior2();
-    void shutdownEngine();
+    void setupEngine() override;
+    void setupInferior() override;
+    void runEngine() override;
+    void interruptInferior2() override;
+    void shutdownEngine() override;
 
     void readUploadStandardOutput();
     void readUploadStandardError();
@@ -51,8 +50,8 @@ private:
     void uploadProcFinished();
     void callTargetRemote();
 
-    void notifyEngineRemoteServerRunning(const QByteArray &serverChannel, int inferiorPid);
-    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result);
+    void notifyEngineRemoteServerRunning(const QString &serverChannel, int inferiorPid) override;
+    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result) override;
 
     void handleSetTargetAsync(const DebuggerResponse &response);
     void handleFileExecAndSymbols(const DebuggerResponse &response);
@@ -71,5 +70,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // REMOTEGDBSERVERADAPTER_H

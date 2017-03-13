@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTSETTINGSPAGE_H
-#define TESTSETTINGSPAGE_H
+#pragma once
 
 #include "ui_testsettingspage.h"
 
@@ -47,6 +46,9 @@ public:
     TestSettings settings() const;
 
 private:
+    void populateFrameworksListWidget(const QHash<Core::Id, bool> &frameworks);
+    QHash<Core::Id, bool> frameworks() const;
+    void onFrameworkItemChanged();
     Ui::TestSettingsPage m_ui;
 
 };
@@ -69,5 +71,3 @@ private:
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTSETTINGSPAGE_H

@@ -26,7 +26,7 @@
 #include <diagnosticset.h>
 #include <filecontainer.h>
 #include <highlightingchangedmessage.h>
-#include <highlightinginformations.h>
+#include <highlightingmarks.h>
 #include <projectpartcontainer.h>
 #include <projectpart.h>
 #include <projectpartsdonotexistexception.h>
@@ -99,6 +99,7 @@ protected:
     const Utf8String headerPath = Utf8StringLiteral(TESTDATA_DIR"/translationunits.h");
     const Utf8String nonExistingFilePath = Utf8StringLiteral("foo.cpp");
     const Utf8String projectPartId = Utf8StringLiteral("projectPartId");
+    const Utf8String otherProjectPartId = Utf8StringLiteral("otherProjectPartId");
     const Utf8String nonExistingProjectPartId = Utf8StringLiteral("nonExistingProjectPartId");
     const ClangBackEnd::FileContainer fileContainer{filePath, projectPartId};
     const ClangBackEnd::FileContainer headerContainer{headerPath, projectPartId};
@@ -178,7 +179,7 @@ TEST_F(TranslationUnits, ThrowForUpdatingANonExistingTranslationUnit)
                  ClangBackEnd::TranslationUnitDoesNotExistException);
 }
 
-TEST_F(TranslationUnits, Update)
+TEST_F(TranslationUnits, UpdateSingle)
 {
     ClangBackEnd::FileContainer createFileContainer(filePath, projectPartId, Utf8StringVector(), 74u);
     ClangBackEnd::FileContainer updateFileContainer(filePath, Utf8String(), Utf8StringVector(), 75u);
@@ -188,6 +189,21 @@ TEST_F(TranslationUnits, Update)
 
     ASSERT_THAT(translationUnits.translationUnit(filePath, projectPartId),
                 IsTranslationUnit(filePath, projectPartId, 75u));
+}
+
+TEST_F(TranslationUnits, UpdateMultiple)
+{
+    ClangBackEnd::FileContainer fileContainer(filePath, projectPartId, Utf8StringVector(), 74u);
+    ClangBackEnd::FileContainer fileContainerWithOtherProject(filePath, otherProjectPartId, Utf8StringVector(), 74u);
+    ClangBackEnd::FileContainer updatedFileContainer(filePath, Utf8String(), Utf8StringVector(), 75u);
+    translationUnits.create({fileContainer, fileContainerWithOtherProject});
+
+    translationUnits.update({updatedFileContainer});
+
+    ASSERT_THAT(translationUnits.translationUnit(filePath, projectPartId),
+                IsTranslationUnit(filePath, projectPartId, 75u));
+    ASSERT_THAT(translationUnits.translationUnit(filePath, otherProjectPartId),
+                IsTranslationUnit(filePath, otherProjectPartId, 75u));
 }
 
 TEST_F(TranslationUnits, UpdateUnsavedFileAndCheckForReparse)
@@ -229,30 +245,30 @@ TEST_F(TranslationUnits, RemoveFileAndCheckForDiagnostics)
     ASSERT_TRUE(translationUnits.translationUnit(filePath, projectPartId).hasNewDiagnostics());
 }
 
-TEST_F(TranslationUnits, UpdateUnsavedFileAndCheckForHighlightingInformations)
+TEST_F(TranslationUnits, UpdateUnsavedFileAndCheckForHighlightingMarks)
 {
     ClangBackEnd::FileContainer fileContainer(filePath, projectPartId, Utf8StringVector(), 74u);
     ClangBackEnd::FileContainer headerContainer(headerPath, projectPartId, Utf8StringVector(), 74u);
     ClangBackEnd::FileContainer headerContainerWithUnsavedContent(headerPath, projectPartId, Utf8String(), true, 75u);
     translationUnits.create({fileContainer, headerContainer});
-    translationUnits.translationUnit(filePath, projectPartId).highlightingInformations();
+    translationUnits.translationUnit(filePath, projectPartId).highlightingMarks();
 
     translationUnits.update({headerContainerWithUnsavedContent});
 
-    ASSERT_TRUE(translationUnits.translationUnit(filePath, projectPartId).hasNewHighlightingInformations());
+    ASSERT_TRUE(translationUnits.translationUnit(filePath, projectPartId).hasNewHighlightingMarks());
 }
 
-TEST_F(TranslationUnits, RemoveFileAndCheckForHighlightingInformations)
+TEST_F(TranslationUnits, RemoveFileAndCheckForHighlightingMarks)
 {
     ClangBackEnd::FileContainer fileContainer(filePath, projectPartId, Utf8StringVector(), 74u);
     ClangBackEnd::FileContainer headerContainer(headerPath, projectPartId, Utf8StringVector(), 74u);
     ClangBackEnd::FileContainer headerContainerWithUnsavedContent(headerPath, projectPartId, Utf8String(), true, 75u);
     translationUnits.create({fileContainer, headerContainer});
-    translationUnits.translationUnit(filePath, projectPartId).highlightingInformations();
+    translationUnits.translationUnit(filePath, projectPartId).highlightingMarks();
 
     translationUnits.remove({headerContainerWithUnsavedContent});
 
-    ASSERT_TRUE(translationUnits.translationUnit(filePath, projectPartId).hasNewHighlightingInformations());
+    ASSERT_TRUE(translationUnits.translationUnit(filePath, projectPartId).hasNewHighlightingMarks());
 }
 
 TEST_F(TranslationUnits, DontGetNewerFileContainerIfRevisionIsTheSame)
@@ -414,7 +430,7 @@ TEST_F(TranslationUnits, DoNotSendDocumentAnnotationsAfterGettingDocumentAnnotat
     auto translationUnit = translationUnits.translationUnit(fileContainer);
     translationUnit.setIsVisibleInEditor(true);
     translationUnit.diagnostics(); // Reset
-    translationUnit.highlightingInformations(); // Reset
+    translationUnit.highlightingMarks(); // Reset
 
     EXPECT_CALL(mockSendDocumentAnnotationsCallback, sendDocumentAnnotations()).Times(0);
 
@@ -447,7 +463,7 @@ TEST_F(TranslationUnits, DoNotSendDocumentAnnotationsForCurrentEditorAfterGettin
     auto translationUnit = translationUnits.translationUnit(fileContainer);
     translationUnit.setIsUsedByCurrentEditor(true);
     translationUnit.diagnostics(); // Reset
-    translationUnit.highlightingInformations(); // Reset
+    translationUnit.highlightingMarks(); // Reset
 
     EXPECT_CALL(mockSendDocumentAnnotationsCallback, sendDocumentAnnotations()).Times(0);
 
@@ -484,7 +500,7 @@ TEST_F(TranslationUnits, SendDocumentAnnotationsOnlyOnceForVisibleEditor)
     auto headerTranslationUnit = translationUnits.translationUnit(headerContainer);
     headerTranslationUnit.setIsVisibleInEditor(true);
     headerTranslationUnit.diagnostics(); // Reset
-    headerTranslationUnit.highlightingInformations(); // Reset
+    headerTranslationUnit.highlightingMarks(); // Reset
 
     EXPECT_CALL(mockSendDocumentAnnotationsCallback, sendDocumentAnnotations()).Times(1);
 
@@ -497,7 +513,7 @@ TEST_F(TranslationUnits, SendDocumentAnnotationsAfterProjectPartChange)
     auto fileTranslationUnit = translationUnits.translationUnit(fileContainer);
     fileTranslationUnit.setIsVisibleInEditor(true);
     fileTranslationUnit.diagnostics(); // Reset
-    fileTranslationUnit.highlightingInformations(); // Reset
+    fileTranslationUnit.highlightingMarks(); // Reset
     projects.createOrUpdate({ProjectPartContainer(projectPartId, {Utf8StringLiteral("-DNEW")})});
     translationUnits.setTranslationUnitsDirtyIfProjectPartChanged();
 
@@ -509,6 +525,7 @@ TEST_F(TranslationUnits, SendDocumentAnnotationsAfterProjectPartChange)
 void TranslationUnits::SetUp()
 {
     projects.createOrUpdate({ProjectPartContainer(projectPartId)});
+    projects.createOrUpdate({ProjectPartContainer(otherProjectPartId)});
 
     auto callback = [&] (const DiagnosticsChangedMessage &, const HighlightingChangedMessage &) {
         mockSendDocumentAnnotationsCallback.sendDocumentAnnotations();

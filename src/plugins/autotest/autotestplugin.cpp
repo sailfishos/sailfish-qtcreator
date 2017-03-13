@@ -26,6 +26,7 @@
 #include "autotestplugin.h"
 #include "autotestconstants.h"
 #include "testcodeparser.h"
+#include "testframeworkmanager.h"
 #include "testrunner.h"
 #include "testsettings.h"
 #include "testsettingspage.h"
@@ -34,6 +35,10 @@
 #include "testtreemodel.h"
 #include "testresultspane.h"
 #include "testnavigationwidget.h"
+
+#include "qtest/qttestframework.h"
+#include "quick/quicktestframework.h"
+#include "gtest/gtestframework.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
@@ -67,18 +72,13 @@ AutotestPlugin::AutotestPlugin()
     qRegisterMetaType<TestResult>();
     qRegisterMetaType<TestTreeItem *>();
     qRegisterMetaType<TestCodeLocationAndType>();
-    qRegisterMetaType<TestTreeModel::Type>();
 
     m_instance = this;
 }
 
 AutotestPlugin::~AutotestPlugin()
 {
-    // Delete members
-    TestTreeModel *model = TestTreeModel::instance();
-    delete model;
-    TestRunner *runner = TestRunner::instance();
-    delete runner;
+    delete m_frameworkManager;
 }
 
 AutotestPlugin *AutotestPlugin::instance()
@@ -130,6 +130,11 @@ bool AutotestPlugin::initialize(const QStringList &arguments, QString *errorStri
 
     initializeMenuEntries();
 
+    m_frameworkManager = TestFrameworkManager::instance();
+    m_frameworkManager->registerTestFramework(new QtTestFramework);
+    m_frameworkManager->registerTestFramework(new QuickTestFramework);
+    m_frameworkManager->registerTestFramework(new GTestFramework);
+
     m_settings->fromSettings(ICore::settings());
     addAutoReleasedObject(new TestSettingsPage(m_settings));
     addAutoReleasedObject(new TestNavigationWidgetFactory);
@@ -137,6 +142,8 @@ bool AutotestPlugin::initialize(const QStringList &arguments, QString *errorStri
 
     if (m_settings->alwaysParse)
         TestTreeModel::instance()->enableParsingFromSettings();
+    m_frameworkManager->activateFrameworksFromSettings(m_settings);
+    TestTreeModel::instance()->syncTestFrameworks();
 
     return true;
 }
@@ -147,6 +154,7 @@ void AutotestPlugin::extensionsInitialized()
 
 ExtensionSystem::IPlugin::ShutdownFlag AutotestPlugin::aboutToShutdown()
 {
+    TestTreeModel::instance()->parser()->aboutToShutdown();
     return SynchronousShutdown;
 }
 
@@ -155,7 +163,7 @@ void AutotestPlugin::onRunAllTriggered()
     TestRunner *runner = TestRunner::instance();
     TestTreeModel *model = TestTreeModel::instance();
     runner->setSelectedTests(model->getAllTestCases());
-    runner->prepareToRunTests();
+    runner->prepareToRunTests(TestRunner::Run);
 }
 
 void AutotestPlugin::onRunSelectedTriggered()
@@ -163,7 +171,7 @@ void AutotestPlugin::onRunSelectedTriggered()
     TestRunner *runner = TestRunner::instance();
     TestTreeModel *model = TestTreeModel::instance();
     runner->setSelectedTests(model->getSelectedTests());
-    runner->prepareToRunTests();
+    runner->prepareToRunTests(TestRunner::Run);
 }
 
 void AutotestPlugin::updateMenuItemsEnabledState()

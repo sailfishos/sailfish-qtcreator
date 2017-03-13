@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COMPLETIONASSISTPROVIDER_H
-#define COMPLETIONASSISTPROVIDER_H
+#pragma once
 
 #include "iassistprovider.h"
 
@@ -36,7 +35,7 @@ class TEXTEDITOR_EXPORT CompletionAssistProvider : public IAssistProvider
     Q_OBJECT
 
 public:
-    CompletionAssistProvider();
+    CompletionAssistProvider(QObject *parent = 0);
     ~CompletionAssistProvider();
 
     IAssistProvider::RunType runType() const override;
@@ -46,5 +45,3 @@ public:
 };
 
 } // TextEditor
-
-#endif // COMPLETIONASSISTPROVIDER_H

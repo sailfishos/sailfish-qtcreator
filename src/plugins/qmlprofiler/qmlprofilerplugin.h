@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERPLUGIN_H
-#define QMLPROFILERPLUGIN_H
+#pragma once
 
 #include "qmlprofiler_global.h"
-#include "qmlprofilertimelinemodelfactory.h"
 #include "qmlprofilersettings.h"
 #include <extensionsystem/iplugin.h>
 
@@ -42,24 +40,14 @@ class QmlProfilerPlugin : public ExtensionSystem::IPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QmlProfiler.json")
 
 public:
-    QmlProfilerPlugin() : factory(0) {}
+    bool initialize(const QStringList &arguments, QString *errorString) override;
+    void extensionsInitialized() override;
+    ShutdownFlag aboutToShutdown() override;
 
-    bool initialize(const QStringList &arguments, QString *errorString);
-    void extensionsInitialized();
-    ShutdownFlag aboutToShutdown();
-
-    static bool debugOutput;
-    static QmlProfilerPlugin *instance;
-
-    QList<QmlProfilerTimelineModel *> getModels(QmlProfilerModelManager *manager) const;
     static QmlProfilerSettings *globalSettings();
 
-private:
-    QmlProfilerTimelineModelFactory *factory;
+    QList<QObject *> createTestObjects() const override;
 };
 
 } // namespace Internal
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERPLUGIN_H
-

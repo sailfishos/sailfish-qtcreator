@@ -85,7 +85,7 @@ class TabWidget : public QTabWidget
 {
     Q_OBJECT
 public:
-    TabWidget(QWidget *parent = 0);
+    TabWidget(QWidget *parent = nullptr);
 signals:
     void contextMenuRequested(const QPoint &pos, const int index);
 protected:
@@ -139,8 +139,7 @@ void TabWidget::slotContextMenuRequested(const QPoint &pos)
 
 AppOutputPane::RunControlTab::RunControlTab(RunControl *rc, Core::OutputWindow *w) :
     runControl(rc), window(w), asyncClosing(false), behaviorOnOutput(Flash)
-{
-}
+{ }
 
 AppOutputPane::AppOutputPane() :
     m_mainWidget(new QWidget),
@@ -322,8 +321,7 @@ QWidget *AppOutputPane::outputWidget(QWidget *)
 
 QList<QWidget*> AppOutputPane::toolBarWidgets() const
 {
-    return QList<QWidget*>() << m_reRunButton << m_stopButton << m_attachButton
-                             << m_zoomInButton << m_zoomOutButton;
+    return { m_reRunButton, m_stopButton, m_attachButton, m_zoomInButton, m_zoomOutButton };
 }
 
 QString AppOutputPane::displayName() const
@@ -388,8 +386,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
             this, &AppOutputPane::slotRunControlFinished);
     connect(rc, &RunControl::applicationProcessHandleChanged,
             this, &AppOutputPane::enableDefaultButtons);
-    connect(rc, static_cast<void (RunControl::*)(
-                ProjectExplorer::RunControl *, const QString &, Utils::OutputFormat)>(&RunControl::appendMessage),
+    connect(rc, &RunControl::appendMessageRequested,
             this, &AppOutputPane::appendMessage);
 
     Utils::OutputFormatter *formatter = rc->outputFormatter();
@@ -627,7 +624,7 @@ void AppOutputPane::zoomOut()
     m_zoom = m_runControlTabs.first().window->fontZoom();
 }
 
-void AppOutputPane::enableButtons(const RunControl *rc /* = 0 */, bool isRunning /*  = false */)
+void AppOutputPane::enableButtons(const RunControl *rc, bool isRunning)
 {
     if (rc) {
         m_reRunButton->setEnabled(!isRunning && rc->supportsReRunning());

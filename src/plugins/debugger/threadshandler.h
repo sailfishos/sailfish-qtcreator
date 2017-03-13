@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef THREADSHANDLER_H
-#define THREADSHANDLER_H
+#pragma once
 
 #include "threaddata.h"
 
@@ -40,8 +39,9 @@ namespace Debugger {
 namespace Internal {
 
 class GdbMi;
+class ThreadItem;
 
-class ThreadsHandler : public Utils::TreeModel
+class ThreadsHandler : public Utils::LeveledTreeModel<Utils::TypedTreeItem<ThreadItem>, ThreadItem>
 {
     Q_OBJECT
 
@@ -52,7 +52,7 @@ public:
     ThreadId currentThread() const;
     ThreadId threadAt(int index) const;
     void setCurrentThread(ThreadId id);
-    QByteArray pidForGroupId(const QByteArray &groupId) const;
+    QString pidForGroupId(const QString &groupId) const;
 
     void updateThread(const ThreadData &threadData);
     void updateThreads(const GdbMi &data);
@@ -63,15 +63,15 @@ public:
     ThreadData thread(ThreadId id) const;
     QAbstractItemModel *model();
 
-    void notifyGroupCreated(const QByteArray &groupId, const QByteArray &pid);
-    bool notifyGroupExited(const QByteArray &groupId); // Returns true when empty.
+    void notifyGroupCreated(const QString &groupId, const QString &pid);
+    bool notifyGroupExited(const QString &groupId); // Returns true when empty.
 
     // Clear out all frame information
-    void notifyRunning(const QByteArray &data);
+    void notifyRunning(const QString &data);
     void notifyRunning(ThreadId threadId);
     void notifyAllRunning();
 
-    void notifyStopped(const QByteArray &data);
+    void notifyStopped(const QString &data);
     void notifyStopped(ThreadId threadId);
     void notifyAllStopped();
 
@@ -85,10 +85,8 @@ private:
 
     ThreadId m_currentId;
     bool m_resetLocationScheduled;
-    QHash<QByteArray, QByteArray> m_pidForGroupId;
+    QHash<QString, QString> m_pidForGroupId;
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // THREADSHANDLER_H

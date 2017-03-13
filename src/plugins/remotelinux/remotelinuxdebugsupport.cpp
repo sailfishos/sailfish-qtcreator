@@ -60,8 +60,7 @@ public:
     LinuxDeviceDebugSupportPrivate(const RunConfiguration *runConfig, DebuggerRunControl *runControl)
         : runControl(runControl),
           qmlDebugging(runConfig->extraAspect<DebuggerRunConfigurationAspect>()->useQmlDebugger()),
-          cppDebugging(runConfig->extraAspect<DebuggerRunConfigurationAspect>()->useCppDebugger()),
-          gdbServerPort(-1), qmlPort(-1)
+          cppDebugging(runConfig->extraAspect<DebuggerRunConfigurationAspect>()->useCppDebugger())
     {
     }
 
@@ -69,8 +68,8 @@ public:
     bool qmlDebugging;
     bool cppDebugging;
     QByteArray gdbserverOutput;
-    int gdbServerPort;
-    int qmlPort;
+    Port gdbServerPort;
+    Port qmlPort;
 };
 
 } // namespace Internal
@@ -104,17 +103,27 @@ void LinuxDeviceDebugSupport::handleRemoteSetupRequested()
     QTC_ASSERT(state() == Inactive, return);
 
     showMessage(tr("Checking available ports...") + QLatin1Char('\n'), LogStatus);
-    AbstractRemoteLinuxRunSupport::handleRemoteSetupRequested();
+    startPortsGathering();
 }
 
 void LinuxDeviceDebugSupport::startExecution()
 {
-    QTC_ASSERT(state() == GatheringPorts, return);
+    QTC_ASSERT(state() == GatheringResources, return);
 
-    if (d->cppDebugging && !setPort(d->gdbServerPort))
-        return;
-    if (d->qmlDebugging && !setPort(d->qmlPort))
+    if (d->cppDebugging) {
+        d->gdbServerPort = findPort();
+        if (!d->gdbServerPort.isValid()) {
+            handleAdapterSetupFailed(tr("Not enough free ports on device for C++ debugging."));
             return;
+        }
+    }
+    if (d->qmlDebugging) {
+        d->qmlPort = findPort();
+        if (!d->qmlPort.isValid()) {
+            handleAdapterSetupFailed(tr("Not enough free ports on device for QML debugging."));
+            return;
+        }
+    }
 
     setState(StartingRunner);
     d->gdbserverOutput.clear();
@@ -149,7 +158,7 @@ void LinuxDeviceDebugSupport::startExecution()
             command = QLatin1String("gdbserver");
         args.clear();
         args.append(QString::fromLatin1("--multi"));
-        args.append(QString::fromLatin1(":%1").arg(d->gdbServerPort));
+        args.append(QString::fromLatin1(":%1").arg(d->gdbServerPort.number()));
     }
     r.executable = command;
     r.commandLineArguments = QtcProcess::joinArgs(args, OsTypeLinux);
@@ -203,7 +212,7 @@ void LinuxDeviceDebugSupport::handleRemoteOutput(const QByteArray &output)
 
 void LinuxDeviceDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 {
-    QTC_ASSERT(state() != GatheringPorts, return);
+    QTC_ASSERT(state() != GatheringResources, return);
 
     if (!d->runControl)
         return;

@@ -37,6 +37,8 @@
 #include <QFile>
 #include <QMessageBox>
 
+#include <functional>
+
 namespace QmlProfiler {
 namespace Internal {
 
@@ -55,26 +57,23 @@ static const char *ProfileFeatureNames[] = {
     QT_TRANSLATE_NOOP("MainView", "Debug Messages")
 };
 
-Q_STATIC_ASSERT(sizeof(ProfileFeatureNames) == sizeof(char *) * QmlDebug::MaximumProfileFeature);
+Q_STATIC_ASSERT(sizeof(ProfileFeatureNames) == sizeof(char *) * MaximumProfileFeature);
 
 /////////////////////////////////////////////////////////////////////
 QmlProfilerTraceTime::QmlProfilerTraceTime(QObject *parent) :
-    QObject(parent), m_startTime(-1), m_endTime(-1)
-{
-}
-
-QmlProfilerTraceTime::~QmlProfilerTraceTime()
+    QObject(parent), m_startTime(-1), m_endTime(-1),
+    m_restrictedStartTime(-1), m_restrictedEndTime(-1)
 {
 }
 
 qint64 QmlProfilerTraceTime::startTime() const
 {
-    return m_startTime;
+    return m_restrictedStartTime != -1 ? m_restrictedStartTime : m_startTime;
 }
 
 qint64 QmlProfilerTraceTime::endTime() const
 {
-    return m_endTime;
+    return m_restrictedEndTime != -1 ? m_restrictedEndTime : m_endTime;
 }
 
 qint64 QmlProfilerTraceTime::duration() const
@@ -82,19 +81,22 @@ qint64 QmlProfilerTraceTime::duration() const
     return endTime() - startTime();
 }
 
+bool QmlProfilerTraceTime::isRestrictedToRange() const
+{
+    return m_restrictedStartTime != -1 || m_restrictedEndTime != -1;
+}
+
 void QmlProfilerTraceTime::clear()
 {
+    restrictToRange(-1, -1);
     setTime(-1, -1);
 }
 
 void QmlProfilerTraceTime::setTime(qint64 startTime, qint64 endTime)
 {
-    Q_ASSERT(startTime <= endTime);
-    if (startTime != m_startTime || endTime != m_endTime) {
-        m_startTime = startTime;
-        m_endTime = endTime;
-        emit timeChanged(startTime, endTime);
-    }
+    QTC_ASSERT(startTime <= endTime, endTime = startTime);
+    m_startTime = startTime;
+    m_endTime = endTime;
 }
 
 void QmlProfilerTraceTime::decreaseStartTime(qint64 time)
@@ -105,7 +107,6 @@ void QmlProfilerTraceTime::decreaseStartTime(qint64 time)
             m_endTime = m_startTime;
         else
             QTC_ASSERT(m_endTime >= m_startTime, m_endTime = m_startTime);
-        emit timeChanged(time, m_endTime);
     }
 }
 
@@ -117,8 +118,14 @@ void QmlProfilerTraceTime::increaseEndTime(qint64 time)
             m_startTime = m_endTime;
         else
             QTC_ASSERT(m_endTime >= m_startTime, m_startTime = m_endTime);
-        emit timeChanged(m_startTime, time);
     }
+}
+
+void QmlProfilerTraceTime::restrictToRange(qint64 startTime, qint64 endTime)
+{
+    QTC_ASSERT(endTime == -1 || startTime <= endTime, endTime = startTime);
+    m_restrictedStartTime = startTime;
+    m_restrictedEndTime = endTime;
 }
 
 
@@ -129,34 +136,31 @@ void QmlProfilerTraceTime::increaseEndTime(qint64 time)
 class QmlProfilerModelManager::QmlProfilerModelManagerPrivate
 {
 public:
-    QmlProfilerModelManagerPrivate(QmlProfilerModelManager *qq) : q(qq) {}
-    ~QmlProfilerModelManagerPrivate() {}
-    QmlProfilerModelManager *q;
-
     QmlProfilerDataModel *model;
     QmlProfilerNotesModel *notesModel;
 
     QmlProfilerModelManager::State state;
     QmlProfilerTraceTime *traceTime;
 
-    QVector <double> partialCounts;
-    QVector <int> partialCountWeights;
+    int numRegisteredModels;
+    int numFinishedFinalizers;
+
+    uint numLoadedEvents;
     quint64 availableFeatures;
     quint64 visibleFeatures;
     quint64 recordedFeatures;
 
-    int totalWeight;
-    double progress;
-    double previousProgress;
+    QHash<ProfileFeature, QVector<EventLoader> > eventLoaders;
+    QVector<Finalizer> finalizers;
 };
 
 
 QmlProfilerModelManager::QmlProfilerModelManager(Utils::FileInProjectFinder *finder, QObject *parent) :
-    QObject(parent), d(new QmlProfilerModelManagerPrivate(this))
+    QObject(parent), d(new QmlProfilerModelManagerPrivate)
 {
-    d->totalWeight = 0;
-    d->previousProgress = 0;
-    d->progress = 0;
+    d->numRegisteredModels = 0;
+    d->numFinishedFinalizers = 0;
+    d->numLoadedEvents = 0;
     d->availableFeatures = 0;
     d->visibleFeatures = 0;
     d->recordedFeatures = 0;
@@ -164,7 +168,8 @@ QmlProfilerModelManager::QmlProfilerModelManager(Utils::FileInProjectFinder *fin
     d->state = Empty;
     d->traceTime = new QmlProfilerTraceTime(this);
     d->notesModel = new QmlProfilerNotesModel(this);
-    d->notesModel->setModelManager(this);
+    connect(d->model, &QmlProfilerDataModel::allTypesLoaded,
+            this, &QmlProfilerModelManager::processingDone);
 }
 
 QmlProfilerModelManager::~QmlProfilerModelManager()
@@ -192,47 +197,36 @@ bool QmlProfilerModelManager::isEmpty() const
     return d->model->isEmpty();
 }
 
-double QmlProfilerModelManager::progress() const
+uint QmlProfilerModelManager::numLoadedEvents() const
 {
-    return d->progress;
+    return d->numLoadedEvents;
 }
 
 int QmlProfilerModelManager::registerModelProxy()
 {
-    d->partialCounts << 0;
-    d->partialCountWeights << 1;
-    d->totalWeight++;
-    return d->partialCounts.count()-1;
+    return d->numRegisteredModels++;
 }
 
-void QmlProfilerModelManager::setProxyCountWeight(int proxyId, int weight)
+int QmlProfilerModelManager::numFinishedFinalizers() const
 {
-    d->totalWeight += weight - d->partialCountWeights[proxyId];
-    d->partialCountWeights[proxyId] = weight;
+    return d->numFinishedFinalizers;
 }
 
-void QmlProfilerModelManager::modelProxyCountUpdated(int proxyId, qint64 count, qint64 max)
+int QmlProfilerModelManager::numRegisteredFinalizers() const
 {
-    d->progress -= d->partialCounts[proxyId] * d->partialCountWeights[proxyId] /
-            d->totalWeight;
-
-    if (max <= 0)
-        d->partialCounts[proxyId] = 1;
-    else
-        d->partialCounts[proxyId] = (double)count / (double) max;
-
-    d->progress += d->partialCounts[proxyId] * d->partialCountWeights[proxyId] /
-            d->totalWeight;
-
-    if (d->progress - d->previousProgress > 0.01) {
-        d->previousProgress = d->progress;
-        emit progressChanged();
-    }
+    return d->finalizers.count();
 }
 
-void QmlProfilerModelManager::announceFeatures(int proxyId, quint64 features)
+void QmlProfilerModelManager::dispatch(const QmlEvent &event, const QmlEventType &type)
 {
-    Q_UNUSED(proxyId); // Will use that later to optimize the event dispatching on loading.
+    foreach (const EventLoader &loader, d->eventLoaders[type.feature()])
+        loader(event, type);
+    ++d->numLoadedEvents;
+}
+
+void QmlProfilerModelManager::announceFeatures(quint64 features, EventLoader eventLoader,
+                                               Finalizer finalizer)
+{
     if ((features & d->availableFeatures) != features) {
         d->availableFeatures |= features;
         emit availableFeaturesChanged(d->availableFeatures);
@@ -241,6 +235,13 @@ void QmlProfilerModelManager::announceFeatures(int proxyId, quint64 features)
         d->visibleFeatures |= features;
         emit visibleFeaturesChanged(d->visibleFeatures);
     }
+
+    for (int feature = 0; feature != MaximumProfileFeature; ++feature) {
+        if (features & (1ULL << feature))
+            d->eventLoaders[static_cast<ProfileFeature>(feature)].append(eventLoader);
+    }
+
+    d->finalizers.append(finalizer);
 }
 
 quint64 QmlProfilerModelManager::availableFeatures() const
@@ -274,46 +275,16 @@ void QmlProfilerModelManager::setRecordedFeatures(quint64 features)
     }
 }
 
-const char *QmlProfilerModelManager::featureName(QmlDebug::ProfileFeature feature)
+const char *QmlProfilerModelManager::featureName(ProfileFeature feature)
 {
     return ProfileFeatureNames[feature];
-}
-
-void QmlProfilerModelManager::addQmlEvent(QmlDebug::Message message,
-                                          QmlDebug::RangeType rangeType,
-                                          int detailType,
-                                          qint64 startTime,
-                                          qint64 length,
-                                          const QString &data,
-                                          const QmlDebug::QmlEventLocation &location,
-                                          qint64 ndata1,
-                                          qint64 ndata2,
-                                          qint64 ndata3,
-                                          qint64 ndata4,
-                                          qint64 ndata5)
-{
-    // If trace start time was not explicitly set, use the first event
-    if (d->traceTime->startTime() == -1)
-        d->traceTime->setTime(startTime, startTime + d->traceTime->duration());
-
-    QTC_ASSERT(state() == AcquiringData, /**/);
-    d->model->addQmlEvent(message, rangeType, detailType, startTime, length, data, location,
-                          ndata1, ndata2, ndata3, ndata4, ndata5);
-}
-
-void QmlProfilerModelManager::addDebugMessage(QtMsgType type, qint64 timestamp, const QString &text,
-                                              const QmlDebug::QmlEventLocation &location)
-{
-    if (state() == AcquiringData)
-        d->model->addQmlEvent(QmlDebug::DebugMessage, QmlDebug::MaximumRangeType, type, timestamp,
-                              0, text, location, 0, 0, 0, 0, 0);
 }
 
 void QmlProfilerModelManager::acquiringDone()
 {
     QTC_ASSERT(state() == AcquiringData, /**/);
     setState(ProcessingData);
-    d->model->processData();
+    d->model->finalize();
 }
 
 void QmlProfilerModelManager::processingDone()
@@ -321,8 +292,15 @@ void QmlProfilerModelManager::processingDone()
     QTC_ASSERT(state() == ProcessingData, /**/);
     // Load notes after the timeline models have been initialized ...
     // which happens on stateChanged(Done).
-    setState(Done);
+
+    foreach (const Finalizer &finalizer, d->finalizers) {
+        finalizer();
+        ++d->numFinishedFinalizers;
+    }
+
     d->notesModel->loadData();
+    setState(Done);
+
     emit loadFinished();
 }
 
@@ -341,15 +319,18 @@ void QmlProfilerModelManager::save(const QString &filename)
     QmlProfilerFileWriter *writer = new QmlProfilerFileWriter(this);
     writer->setTraceTime(traceTime()->startTime(), traceTime()->endTime(),
                         traceTime()->duration());
-    writer->setQmlEvents(d->model->getEventTypes(), d->model->getEvents());
-    writer->setNotes(d->model->getEventNotes());
+    writer->setData(d->model);
+    writer->setNotes(d->notesModel->notes());
 
     connect(writer, &QObject::destroyed, this, &QmlProfilerModelManager::saveFinished,
             Qt::QueuedConnection);
 
     QFuture<void> result = Utils::runAsync([file, writer] (QFutureInterface<void> &future) {
         writer->setFuture(&future);
-        writer->save(file);
+        if (file->fileName().endsWith(QLatin1String(Constants::QtdFileExtension)))
+            writer->saveQtd(file);
+        else
+            writer->saveQzt(file);
         delete writer;
         file->deleteLater();
     });
@@ -360,8 +341,9 @@ void QmlProfilerModelManager::save(const QString &filename)
 
 void QmlProfilerModelManager::load(const QString &filename)
 {
+    bool isQtd = filename.endsWith(QLatin1String(Constants::QtdFileExtension));
     QFile *file = new QFile(filename, this);
-    if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (!file->open(isQtd ? (QIODevice::ReadOnly | QIODevice::Text) : QIODevice::ReadOnly)) {
         emit error(tr("Could not open %1 for reading.").arg(filename));
         delete file;
         emit loadFinished();
@@ -377,19 +359,28 @@ void QmlProfilerModelManager::load(const QString &filename)
         emit error(message);
     }, Qt::QueuedConnection);
 
+    connect(reader, &QmlProfilerFileReader::typesLoaded,
+            d->model, &QmlProfilerDataModel::setEventTypes);
+
+    connect(reader, &QmlProfilerFileReader::notesLoaded,
+            d->notesModel, &QmlProfilerNotesModel::setNotes);
+
+    connect(reader, &QmlProfilerFileReader::qmlEventLoaded,
+            d->model, &QmlProfilerDataModel::addEvent);
+
     connect(reader, &QmlProfilerFileReader::success, this, [this, reader]() {
-        d->model->setData(reader->traceStart(), qMax(reader->traceStart(), reader->traceEnd()),
-                          reader->qmlEvents(), reader->ranges());
-        d->model->setNoteData(reader->notes());
+        d->traceTime->setTime(reader->traceStart(), reader->traceEnd());
         setRecordedFeatures(reader->loadedFeatures());
-        d->traceTime->increaseEndTime(d->model->lastTimeMark());
         delete reader;
         acquiringDone();
     }, Qt::QueuedConnection);
 
-    QFuture<void> result = Utils::runAsync([file, reader] (QFutureInterface<void> &future) {
+    QFuture<void> result = Utils::runAsync([isQtd, file, reader] (QFutureInterface<void> &future) {
         reader->setFuture(&future);
-        reader->load(file);
+        if (isQtd)
+            reader->loadQtd(file);
+        else
+            reader->loadQzt(file);
         file->close();
         file->deleteLater();
     });
@@ -438,10 +429,8 @@ QmlProfilerModelManager::State QmlProfilerModelManager::state() const
 void QmlProfilerModelManager::clear()
 {
     setState(ClearingData);
-    for (int i = 0; i < d->partialCounts.count(); i++)
-        d->partialCounts[i] = 0;
-    d->progress = 0;
-    d->previousProgress = 0;
+    d->numLoadedEvents = 0;
+    d->numFinishedFinalizers = 0;
     d->model->clear();
     d->traceTime->clear();
     d->notesModel->clear();
@@ -451,7 +440,30 @@ void QmlProfilerModelManager::clear()
     setState(Empty);
 }
 
-void QmlProfilerModelManager::prepareForWriting()
+void QmlProfilerModelManager::restrictToRange(qint64 startTime, qint64 endTime)
+{
+    d->notesModel->saveData();
+    const QVector<QmlNote> notes = d->notesModel->notes();
+    d->notesModel->clear();
+
+    setState(ClearingData);
+    setVisibleFeatures(0);
+
+    startAcquiring();
+    d->model->replayEvents(startTime, endTime,
+                           std::bind(&QmlProfilerModelManager::dispatch, this,
+                                     std::placeholders::_1, std::placeholders::_2));
+    d->notesModel->setNotes(notes);
+    d->traceTime->restrictToRange(startTime, endTime);
+    acquiringDone();
+}
+
+bool QmlProfilerModelManager::isRestrictedToRange() const
+{
+    return d->traceTime->isRestrictedToRange();
+}
+
+void QmlProfilerModelManager::startAcquiring()
 {
     setState(AcquiringData);
 }

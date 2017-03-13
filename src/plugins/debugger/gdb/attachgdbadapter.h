@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_ATTACHGDBADAPTER_H
-#define DEBUGGER_ATTACHGDBADAPTER_H
+#pragma once
 
 #include "gdbengine.h"
 
@@ -45,16 +44,14 @@ public:
     explicit GdbAttachEngine(const DebuggerRunParameters &runParameters);
 
 private:
-    void setupEngine();
-    void setupInferior();
-    void runEngine();
-    void interruptInferior2();
-    void shutdownEngine();
+    void setupEngine() override;
+    void setupInferior() override;
+    void runEngine() override;
+    void interruptInferior2() override;
+    void shutdownEngine() override;
 
     void handleAttach(const DebuggerResponse &response);
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_ATTACHDBADAPTER_H

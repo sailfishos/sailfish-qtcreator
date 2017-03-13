@@ -44,14 +44,12 @@ const char PROCESS_WORKINGDIRECTORY_KEY[] = "ProjectExplorer.ProcessStep.Working
 const char PROCESS_ARGUMENTS_KEY[] = "ProjectExplorer.ProcessStep.Arguments";
 }
 
-ProcessStep::ProcessStep(BuildStepList *bsl) :
-    AbstractProcessStep(bsl, Core::Id(PROCESS_STEP_ID))
+ProcessStep::ProcessStep(BuildStepList *bsl) : AbstractProcessStep(bsl, Core::Id(PROCESS_STEP_ID))
 {
     ctor();
 }
 
-ProcessStep::ProcessStep(BuildStepList *bsl, ProcessStep *bs) :
-    AbstractProcessStep(bsl, bs),
+ProcessStep::ProcessStep(BuildStepList *bsl, ProcessStep *bs) : AbstractProcessStep(bsl, bs),
     m_command(bs->m_command),
     m_arguments(bs->m_arguments),
     m_workingDirectory(bs->m_workingDirectory)
@@ -156,67 +154,29 @@ bool ProcessStep::fromMap(const QVariantMap &map)
 // ProcessStepFactory
 //*******
 
-bool ProcessStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
+QList<BuildStepInfo> ProcessStepFactory::availableSteps(BuildStepList *parent) const
 {
     Q_UNUSED(parent);
-    return id == PROCESS_STEP_ID;
+    return {{ PROCESS_STEP_ID, ProcessStep::tr("Custom Process Step", "item in combobox") }};
 }
 
 BuildStep *ProcessStepFactory::create(BuildStepList *parent, Core::Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
+    Q_UNUSED(id);
     return new ProcessStep(parent);
-}
-
-bool ProcessStepFactory::canClone(BuildStepList *parent, BuildStep *bs) const
-{
-    return canCreate(parent, bs->id());
 }
 
 BuildStep *ProcessStepFactory::clone(BuildStepList *parent, BuildStep *bs)
 {
-    if (!canClone(parent, bs))
-        return 0;
     return new ProcessStep(parent, static_cast<ProcessStep *>(bs));
-}
-
-bool ProcessStepFactory::canRestore(BuildStepList *parent, const QVariantMap &map) const
-{
-    Core::Id id = ProjectExplorer::idFromMap(map);
-    return canCreate(parent, id);
-}
-
-BuildStep *ProcessStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-
-    ProcessStep *bs(new ProcessStep(parent));
-    if (bs->fromMap(map))
-        return bs;
-    delete bs;
-    return 0;
-}
-
-QList<Core::Id> ProcessStepFactory::availableCreationIds(BuildStepList *parent) const
-{
-    Q_UNUSED(parent);
-    return QList<Core::Id>() << Core::Id(PROCESS_STEP_ID);
-}
-QString ProcessStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == PROCESS_STEP_ID)
-        return ProcessStep::tr("Custom Process Step", "item in combobox");
-    return QString();
 }
 
 //*******
 // ProcessStepConfigWidget
 //*******
 
-ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step)
-        : m_step(step)
+ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step) :
+    m_step(step)
 {
     m_ui.setupUi(this);
     m_ui.command->setExpectedKind(Utils::PathChooser::Command);

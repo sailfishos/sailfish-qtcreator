@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CODECOMPLETER_H
-#define CLANGBACKEND_CODECOMPLETER_H
+#pragma once
 
 #include "clangtranslationunit.h"
 
@@ -46,18 +45,20 @@ public:
 
     CompletionCorrection neededCorrection() const;
 
-public: // for tests
-    bool hasDotAt(uint line, uint column) const;
-
 private:
     uint defaultOptions() const;
+
+    void tryDotArrowCorrectionIfNoResults(ClangCodeCompleteResults &results,
+                                          uint line,
+                                          uint column);
 
     ClangCodeCompleteResults complete(uint line,
                                       uint column,
                                       CXUnsavedFile *unsavedFiles,
                                       unsigned unsavedFileCount);
-
-    ClangCodeCompleteResults completeWithArrowInsteadOfDot(uint line, uint column);
+    ClangCodeCompleteResults completeWithArrowInsteadOfDot(uint line,
+                                                           uint column,
+                                                           uint dotPosition);
 
     Utf8String filePath() const;
     static void checkCodeCompleteResult(CXCodeCompleteResults *completeResults);
@@ -68,5 +69,3 @@ private:
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_CODECOMPLETER_H

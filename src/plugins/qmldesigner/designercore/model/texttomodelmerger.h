@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTTOMODELMERGER_H
-#define TEXTTOMODELMERGER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "import.h"
@@ -137,8 +136,6 @@ private:
     void collectImportErrors(QList<RewriterError> *errors);
     void collectSemanticErrorsAndWarnings(QList<RewriterError> *errors,
                                           QList<RewriterError> *warnings);
-    bool showWarningsDialogIgnored(const QList<RewriterError> &warnings);
-
     void populateQrcMapping(const QString &filePath);
 
     static QString textAt(const QmlJS::Document::Ptr &doc,
@@ -308,5 +305,3 @@ public:
 
 } //Internal
 } //QmlDesigner
-
-#endif // TEXTTOMODELMERGER_H

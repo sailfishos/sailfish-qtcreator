@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTRUNNER_H
-#define TESTRUNNER_H
+#pragma once
 
 #include "testconfiguration.h"
 #include "testresult.h"
@@ -45,11 +44,21 @@ class TestRunner : public QObject
     Q_OBJECT
 
 public:
+    enum Mode
+    {
+        Run,
+        RunWithoutDeploy,
+        Debug,
+        DebugWithoutDeploy
+    };
+
     static TestRunner* instance();
     ~TestRunner();
 
     void setSelectedTests(const QList<TestConfiguration *> &selected);
     bool isTestRunning() const { return m_executingTests; }
+
+    void prepareToRunTests(Mode mode);
 
 signals:
     void testRunStarted();
@@ -57,21 +66,20 @@ signals:
     void requestStopTestRun();
     void testResultReady(const TestResultPtr &result);
 
-public slots:
-    void prepareToRunTests();
-
-private slots:
+private:
     void buildProject(ProjectExplorer::Project *project);
     void buildFinished(bool success);
     void onFinished();
 
-private:
     void runTests();
+    void debugTests();
+    void runOrDebugTests();
     explicit TestRunner(QObject *parent = 0);
 
     QFutureWatcher<TestResultPtr> m_futureWatcher;
     QList<TestConfiguration *> m_selectedTests;
     bool m_executingTests;
+    Mode m_runMode = Run;
 
     // temporarily used if building before running is necessary
     QMetaObject::Connection m_buildConnect;
@@ -79,5 +87,3 @@ private:
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTRUNNER_H

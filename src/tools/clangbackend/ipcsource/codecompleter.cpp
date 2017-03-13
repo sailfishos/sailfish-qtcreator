@@ -25,6 +25,7 @@
 
 #include "codecompleter.h"
 
+#include "clangfilepath.h"
 #include "clangcodecompleteresults.h"
 #include "clangstring.h"
 #include "cursor.h"
@@ -68,8 +69,7 @@ CodeCompletions CodeCompleter::complete(uint line, uint column)
                                                 translationUnit.cxUnsavedFiles(),
                                                 translationUnit.unsavedFilesCount());
 
-    if (results.hasNoResultsForDotCompletion() && hasDotAt(line, column - 1))
-        results = completeWithArrowInsteadOfDot(line, column);
+    tryDotArrowCorrectionIfNoResults(results, line, column);
 
     return toCodeCompletions(results);
 }
@@ -84,20 +84,15 @@ ClangCodeCompleteResults CodeCompleter::complete(uint line,
                                                  CXUnsavedFile *unsavedFiles,
                                                  unsigned unsavedFileCount)
 {
+    const Utf8String nativeFilePath = FilePath::toNativeSeparators(translationUnit.filePath());
+
     return clang_codeCompleteAt(translationUnit.cxTranslationUnitWithoutReparsing(),
-                                translationUnit.filePath().constData(),
+                                nativeFilePath.constData(),
                                 line,
                                 column,
                                 unsavedFiles,
                                 unsavedFileCount,
                                 defaultOptions());
-}
-
-bool CodeCompleter::hasDotAt(uint line, uint column) const
-{
-    const UnsavedFile &unsavedFile = translationUnit.unsavedFile();
-
-    return unsavedFile.hasCharacterAt(line, column, '.');
 }
 
 uint CodeCompleter::defaultOptions() const
@@ -111,12 +106,25 @@ uint CodeCompleter::defaultOptions() const
     return options;
 }
 
-ClangCodeCompleteResults CodeCompleter::completeWithArrowInsteadOfDot(uint line, uint column)
+void CodeCompleter::tryDotArrowCorrectionIfNoResults(ClangCodeCompleteResults &results,
+                                                     uint line,
+                                                     uint column)
+{
+    if (results.hasNoResultsForDotCompletion()) {
+        const UnsavedFile &unsavedFile = translationUnit.unsavedFile();
+        bool positionIsOk = false;
+        const uint dotPosition = unsavedFile.toUtf8Position(line, column - 1, &positionIsOk);
+        if (positionIsOk && unsavedFile.hasCharacterAt(dotPosition, '.'))
+            results = completeWithArrowInsteadOfDot(line, column, dotPosition);
+    }
+}
+
+ClangCodeCompleteResults CodeCompleter::completeWithArrowInsteadOfDot(uint line,
+                                                                      uint column,
+                                                                      uint dotPosition)
 {
     ClangCodeCompleteResults results;
-
-    const SourceLocation location = translationUnit.sourceLocationAtWithoutReparsing(line, column - 1);
-    const bool replaced = translationUnit.unsavedFile().replaceAt(location.offset(),
+    const bool replaced = translationUnit.unsavedFile().replaceAt(dotPosition,
                                                                   1,
                                                                   Utf8StringLiteral("->"));
 

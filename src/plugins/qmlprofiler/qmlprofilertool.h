@@ -23,12 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERTOOL_H
-#define QMLPROFILERTOOL_H
+#pragma once
 
 #include "qmlprofiler_global.h"
 #include "qmlprofilerconstants.h"
-#include "qmldebug/qmlprofilereventtypes.h"
+#include "qmlprofilereventtypes.h"
 
 #include <debugger/analyzer/analyzermanager.h>
 #include <debugger/analyzer/analyzerruncontrol.h>
@@ -99,7 +98,7 @@ private:
     void updateRunActions();
     void clearDisplay();
     void populateFileFinder(QString projectDirectory = QString(), QString activeSysroot = QString());
-    template<QmlDebug::ProfileFeature feature>
+    template<ProfileFeature feature>
     void updateFeatures(quint64 features);
     bool checkForUnsavedNotes();
     void restoreFeatureVisibility();
@@ -111,5 +110,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERTOOL_H

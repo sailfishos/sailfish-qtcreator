@@ -35,7 +35,9 @@
 #include "bindingproperty.h"
 #include "nodelistproperty.h"
 #include "nodeinstanceview.h"
+#ifndef QMLDESIGNER_TEST
 #include <qmldesignerplugin.h>
+#endif
 
 namespace QmlDesigner {
 
@@ -187,7 +189,7 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
     if (modelNode().metaInfo().isValid() && modelNode().metaInfo().hasProperty(name))
         if (modelNode().metaInfo().propertyTypeName(name) == "QString" || modelNode().metaInfo().propertyTypeName(name) == "string") {
             if (modelNode().hasBindingProperty(name)) {
-                static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id)\\((\".*\")\\)"));
+                static QRegExp regularExpressionPatter(QLatin1String("qsTr(?:|Id)\\((\".*\")\\)"));
                 return regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression());
             }
 
@@ -200,7 +202,7 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
 QString QmlObjectNode::stripedTranslatableText(const PropertyName &name) const
 {
     if (modelNode().hasBindingProperty(name)) {
-        static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id)\\(\"(.*)\"\\)"));
+        static QRegExp regularExpressionPatter(QLatin1String("qsTr(?:|Id)\\(\"(.*)\"\\)"));
         if (regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression()))
             return regularExpressionPatter.cap(1);
     } else {
@@ -315,9 +317,9 @@ void QmlObjectNode::ensureAliasExport()
 
     if (!isAliasExported()) {
         modelNode().validId();
-        PropertyName modelNodeId = modelNode().id().toUtf8();
         ModelNode rootModelNode = view()->rootModelNode();
-        rootModelNode.bindingProperty(modelNodeId).setDynamicTypeNameAndExpression("alias", modelNodeId);
+        rootModelNode.bindingProperty(modelNode().id().toUtf8()).
+            setDynamicTypeNameAndExpression("alias", modelNode().id());
     }
 }
 
@@ -330,7 +332,7 @@ bool QmlObjectNode::isAliasExported() const
          Q_ASSERT(rootModelNode.isValid());
          if (rootModelNode.hasBindingProperty(modelNodeId)
                  && rootModelNode.bindingProperty(modelNodeId).isDynamic()
-                 && rootModelNode.bindingProperty(modelNodeId).expression().toUtf8() == modelNodeId)
+                 && rootModelNode.bindingProperty(modelNodeId).expression() == modelNode().id())
              return true;
     }
 
@@ -463,11 +465,16 @@ QVariant QmlObjectNode::instanceValue(const ModelNode &modelNode, const Property
 
 QString QmlObjectNode::generateTranslatableText(const QString &text)
 {
+#ifndef QMLDESIGNER_TEST
     if (QmlDesignerPlugin::instance()->settings().value(
             DesignerSettingsKey::USE_QSTR_FUNCTION).toBool())
         return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
     else
         return QString(QStringLiteral("qsTrId(\"%1\")")).arg(text);
+#else
+    Q_UNUSED(text);
+    return QString();
+#endif
 }
 
 TypeName QmlObjectNode::instanceType(const PropertyName &name) const

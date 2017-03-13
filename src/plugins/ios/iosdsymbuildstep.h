@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSDSYMBUILDSTEP_H
-#define IOSDSYMBUILDSTEP_H
+#pragma once
 
 #include <projectexplorer/abstractprocessstep.h>
 
@@ -82,13 +81,12 @@ public:
     QString displayName() const override;
     QString summaryText() const override;
 
-private slots:
+private:
     void commandChanged();
     void argumentsChanged();
     void resetDefaults();
     void updateDetails();
 
-private:
     Ui::IosPresetBuildStep *m_ui;
     IosPresetBuildStep *m_buildStep;
     QString m_summaryText;
@@ -102,11 +100,8 @@ public:
     explicit IosPresetBuildStepFactory(QObject *parent = 0);
 
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent,
-                  ProjectExplorer::BuildStep *source) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent,
                                       ProjectExplorer::BuildStep *source) override;
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
     ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent,
                                         const QVariantMap &map) override;
 
@@ -129,14 +124,12 @@ class IosDsymBuildStepFactory : public IosPresetBuildStepFactory
 {
     Q_OBJECT
 public:
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *bc) const override;
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
+
     IosPresetBuildStep *createPresetStep(ProjectExplorer::BuildStepList *parent,
                                          const Core::Id id) const override;
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSDSYMBUILDSTEP_H

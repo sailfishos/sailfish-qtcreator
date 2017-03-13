@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONFILEPAGE_H
-#define JSONFILEPAGE_H
+#pragma once
 
 #include <utils/filewizardpage.h>
 
@@ -36,12 +35,10 @@ class JsonFilePage : public Utils::FileWizardPage
     Q_OBJECT
 
 public:
-    JsonFilePage(QWidget *parent = 0);
+    JsonFilePage(QWidget *parent = nullptr);
 
-    void initializePage();
-    bool validatePage();
+    void initializePage() override;
+    bool validatePage() override;
 };
 
 } // namespace ProjectExplorer
-
-#endif // JSONFILEPAGE_H

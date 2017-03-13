@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSFINDREFERENCES_H
-#define QMLJSFINDREFERENCES_H
+#pragma once
 
 #include "qmljseditor_global.h"
 
@@ -68,7 +67,7 @@ public:
     FindReferences(QObject *parent = 0);
     virtual ~FindReferences();
 
-Q_SIGNALS:
+signals:
     void changed();
 
 public:
@@ -78,7 +77,7 @@ public:
 
     static QList<Usage> findUsageOfType(const QString &fileName, const QString typeName);
 
-private Q_SLOTS:
+private:
     void displayResults(int first, int last);
     void searchFinished();
     void cancel();
@@ -86,11 +85,8 @@ private Q_SLOTS:
     void openEditor(const Core::SearchResultItem &item);
     void onReplaceButtonClicked(const QString &text, const QList<Core::SearchResultItem> &items, bool preserveCase);
 
-private:
     QPointer<Core::SearchResult> m_currentSearch;
     QFutureWatcher<Usage> m_watcher;
 };
 
 } // namespace QmlJSEditor
-
-#endif // QMLJSFINDREFERENCES_H

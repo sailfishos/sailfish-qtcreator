@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef RESOURCENODE_H
-#define RESOURCENODE_H
+#pragma once
 
 #include "resource_global.h"
 #include <projectexplorer/projectnodes.h>
@@ -101,6 +100,7 @@ public:
 
     bool addFiles(const QStringList &filePaths, QStringList *notAdded) override;
     bool removeFiles(const QStringList &filePaths, QStringList *notRemoved) override;
+    bool canRenameFile(const QString &filePath, const QString &newFilePath) override;
     bool renameFile(const QString &filePath, const QString &newFilePath) override;
 
     bool renamePrefix(const QString &prefix, const QString &lang);
@@ -165,7 +165,6 @@ private:
 
 class ResourceFileWatcher : public Core::IDocument
 {
-    Q_OBJECT
 public:
     ResourceFileWatcher(ResourceTopLevelNode *node);
 
@@ -176,5 +175,3 @@ private:
 };
 } // namespace Internal
 } // namespace ResourceEditor
-
-#endif // RESOUCENODE_H

@@ -20,6 +20,7 @@
   <style name="Doxygen.Tag" foreground="#4e5ab3"/>
   <style name="Field" bold="true"/>
   <style name="Function"/>
+  <style name="Global"/>
   <style name="Keyword" foreground="#808bed"/>
   <style name="PrimitiveType" foreground="#808bed"/>
   <style name="Label" foreground="#e76000"/>
@@ -33,6 +34,7 @@
   <style name="Operator" foreground="#cfbfad"/>
   <style name="Parentheses" foreground="#ffff00"  background="#4e4e8f"/>
   <style name="ParenthesesMismatch" background="#404040"/>
+  <style name="AutoComplete" foreground="#ffff00"  background="#4e4e8f"/>
   <style name="Preprocessor" foreground="#409090"/>
   <style name="RemovedLine" foreground="#ff0000"/>
   <style name="SearchResult" foreground="#000000" background="#ffef0b"/>

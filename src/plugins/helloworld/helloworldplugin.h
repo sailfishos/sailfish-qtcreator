@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HELLOWORLDPLUGIN_H
-#define HELLOWORLDPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 
@@ -45,11 +44,9 @@ public:
 
     void extensionsInitialized();
 
-private slots:
+private:
     void sayHelloWorld();
 };
 
 } // namespace Internal
 } // namespace HelloWorld
-
-#endif // HELLOWORLDPLUGIN_H

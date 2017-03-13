@@ -56,7 +56,11 @@
 
 #include <nodeinstanceview.h>
 #include <import.h>
+#include <rewriterview.h>
+
+#ifndef QMLDESIGNER_TEST
 #include <qmldesignerplugin.h>
+#endif
 
 #include <coreplugin/icore.h>
 #include <utils/hostosinfo.h>
@@ -82,11 +86,13 @@ namespace QmlDesigner {
 
 static void showCannotConnectToPuppetWarningAndSwitchToEditMode()
 {
+#ifndef QMLDESIGNER_TEST
     Core::AsynchronousMessageBox::warning(QCoreApplication::translate("NodeInstanceServerProxy", "Cannot Connect to QML Emulation Layer (QML Puppet)"),
-                                           QCoreApplication::translate("NodeInstanceServerProxy", "The executable of the QML emulation layer (QML Puppet) may not be responding. "
-                                                                                                  "Switching to another kit might help."));
+                                          QCoreApplication::translate("NodeInstanceServerProxy", "The executable of the QML emulation layer (QML Puppet) may not be responding. "
+                                                                                                 "Switching to another kit might help."));
 
     QmlDesignerPlugin::instance()->switchToTextModeDeferred();
+#endif
 
 }
 
@@ -184,7 +190,9 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
        Core::AsynchronousMessageBox::warning(tr("Cannot Start QML Emulation Layer (QML Puppet)"),
                                               tr("The executable of the QML emulation layer (QML Puppet) process cannot be started or does not respond."));
 
+#ifndef QMLDESIGNER_TEST
        QmlDesignerPlugin::instance()->switchToTextModeDeferred();
+#endif
    }
 
    m_localServer->close();
@@ -197,6 +205,7 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
        qDebug() << "file is open: " << isOpen;
    }
 
+#ifndef QMLDESIGNER_TEST
    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
    int timeOutTime = settings.value(DesignerSettingsKey::PUPPET_KILL_TIMEOUT).toInt();
    m_firstTimer.setInterval(timeOutTime);
@@ -209,6 +218,7 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
        connect(&m_secondTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
        connect(&m_thirdTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
    }
+#endif
 }
 
 NodeInstanceServerProxy::~NodeInstanceServerProxy()
@@ -540,7 +550,7 @@ void NodeInstanceServerProxy::printEditorProcessOutput()
     while (m_qmlPuppetEditorProcess && m_qmlPuppetEditorProcess->canReadLine()) {
         QByteArray line = m_qmlPuppetEditorProcess->readLine();
         line.chop(1);
-        qDebug().nospace() << "Editor Puppet: " << qPrintable(line);
+        qDebug().nospace() << "Editor Puppet: " << line;
     }
     qDebug() << "\n";
 }
@@ -550,7 +560,7 @@ void NodeInstanceServerProxy::printPreviewProcessOutput()
     while (m_qmlPuppetPreviewProcess && m_qmlPuppetPreviewProcess->canReadLine()) {
         QByteArray line = m_qmlPuppetPreviewProcess->readLine();
         line.chop(1);
-        qDebug().nospace() << "Preview Puppet: " << qPrintable(line);
+        qDebug().nospace() << "Preview Puppet: " << line;
     }
     qDebug() << "\n";
 }
@@ -560,7 +570,7 @@ void NodeInstanceServerProxy::printRenderProcessOutput()
     while (m_qmlPuppetRenderProcess && m_qmlPuppetRenderProcess->canReadLine()) {
         QByteArray line = m_qmlPuppetRenderProcess->readLine();
         line.chop(1);
-        qDebug().nospace() << "Render Puppet: " << qPrintable(line);
+        qDebug().nospace() << "Render Puppet: " << line;
     }
 
     qDebug() << "\n";

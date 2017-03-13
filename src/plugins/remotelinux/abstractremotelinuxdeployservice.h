@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ABSTRACTREMOTELINUXDEPLOYSERVICE_H
-#define ABSTRACTREMOTELINUXDEPLOYSERVICE_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -69,6 +68,7 @@ signals:
     void warningMessage(const QString &message);
     void stdOutData(const QString &data);
     void stdErrData(const QString &data);
+    void finished(); // Used by Qnx.
 
 protected:
     const ProjectExplorer::Target *target() const;
@@ -82,12 +82,9 @@ protected:
     void handleDeviceSetupDone(bool success);
     void handleDeploymentDone();
 
-private slots:
+private:
     void handleConnected();
     void handleConnectionFailure();
-
-private:
-    Q_SIGNAL void finished();
 
     virtual bool isDeploymentNecessary() const = 0;
 
@@ -104,5 +101,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // ABSTRACTREMOTELINUXDEPLOYSERVICE_H

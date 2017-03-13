@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONWIZARDPAGEFACTORY_P_H
-#define JSONWIZARDPAGEFACTORY_P_H
+#pragma once
 
 #include "jsonwizardpagefactory.h"
 
@@ -36,8 +35,8 @@ class FieldPageFactory : public JsonWizardPageFactory
 public:
     FieldPageFactory();
 
-    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data);
-    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage);
+    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data) override;
+    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage) override;
 };
 
 class FilePageFactory : public JsonWizardPageFactory
@@ -45,8 +44,8 @@ class FilePageFactory : public JsonWizardPageFactory
 public:
     FilePageFactory();
 
-    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data);
-    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage);
+    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data) override;
+    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage) override;
 };
 
 class KitsPageFactory : public JsonWizardPageFactory
@@ -54,8 +53,8 @@ class KitsPageFactory : public JsonWizardPageFactory
 public:
     KitsPageFactory();
 
-    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data);
-    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage);
+    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data) override;
+    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage) override;
 };
 
 class ProjectPageFactory : public JsonWizardPageFactory
@@ -63,8 +62,8 @@ class ProjectPageFactory : public JsonWizardPageFactory
 public:
     ProjectPageFactory();
 
-    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data);
-    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage);
+    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data) override;
+    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage) override;
 };
 
 class SummaryPageFactory : public JsonWizardPageFactory
@@ -72,11 +71,9 @@ class SummaryPageFactory : public JsonWizardPageFactory
 public:
     SummaryPageFactory();
 
-    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data);
-    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage);
+    Utils::WizardPage *create(JsonWizard *wizard, Core::Id typeId, const QVariant &data) override;
+    bool validateData(Core::Id typeId, const QVariant &data, QString *errorMessage) override;
 };
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // JSONWIZARDPAGEFACTORY_P_H

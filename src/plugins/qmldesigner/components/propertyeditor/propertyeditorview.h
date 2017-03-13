@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROPERTYEDITORVIEW_H
-#define PROPERTYEDITORVIEW_H
+#pragma once
 
 #include <abstractview.h>
 #include <QHash>
@@ -118,5 +117,3 @@ private: //variables
 };
 
 } //QmlDesigner
-
-#endif // PROPERTYEDITORVIEW_H

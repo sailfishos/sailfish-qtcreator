@@ -93,18 +93,17 @@ void QbsInstallStep::run(QFutureInterface<bool> &fi)
     m_job = pro->install(m_qbsInstallOptions);
 
     if (!m_job) {
-        m_fi->reportResult(false);
-        emit finished();
+        reportRunResult(*m_fi, false);
         return;
     }
 
     m_progressBase = 0;
 
-    connect(m_job, SIGNAL(finished(bool,qbs::AbstractJob*)), this, SLOT(installDone(bool)));
-    connect(m_job, SIGNAL(taskStarted(QString,int,qbs::AbstractJob*)),
-            this, SLOT(handleTaskStarted(QString,int)));
-    connect(m_job, SIGNAL(taskProgress(int,qbs::AbstractJob*)),
-            this, SLOT(handleProgress(int)));
+    connect(m_job, &qbs::AbstractJob::finished, this, &QbsInstallStep::installDone);
+    connect(m_job, &qbs::AbstractJob::taskStarted,
+            this, &QbsInstallStep::handleTaskStarted);
+    connect(m_job, &qbs::AbstractJob::taskProgress,
+            this, &QbsInstallStep::handleProgress);
 }
 
 ProjectExplorer::BuildStepConfigWidget *QbsInstallStep::createConfigWidget()
@@ -193,12 +192,10 @@ void QbsInstallStep::installDone(bool success)
     }
 
     QTC_ASSERT(m_fi, return);
-    m_fi->reportResult(success);
+    reportRunResult(*m_fi, success);
     m_fi = 0; // do not delete, it is not ours
     m_job->deleteLater();
     m_job = 0;
-
-    emit finished();
 }
 
 void QbsInstallStep::handleTaskStarted(const QString &desciption, int max)
@@ -264,8 +261,10 @@ void QbsInstallStep::setKeepGoing(bool kg)
 QbsInstallStepConfigWidget::QbsInstallStepConfigWidget(QbsInstallStep *step) :
     m_step(step), m_ignoreChange(false)
 {
-    connect(m_step, SIGNAL(displayNameChanged()), this, SLOT(updateState()));
-    connect(m_step, SIGNAL(changed()), this, SLOT(updateState()));
+    connect(m_step, &ProjectExplorer::ProjectConfiguration::displayNameChanged,
+            this, &QbsInstallStepConfigWidget::updateState);
+    connect(m_step, &QbsInstallStep::changed,
+            this, &QbsInstallStepConfigWidget::updateState);
 
     setContentsMargins(0, 0, 0, 0);
 
@@ -278,13 +277,17 @@ QbsInstallStepConfigWidget::QbsInstallStepConfigWidget(QbsInstallStep *step) :
     m_ui->installRootChooser->setExpectedKind(Utils::PathChooser::Directory);
     m_ui->installRootChooser->setHistoryCompleter(QLatin1String("Qbs.InstallRoot.History"));
 
-    connect(m_ui->installRootChooser, SIGNAL(rawPathChanged(QString)), this,
-            SLOT(changeInstallRoot()));
-    connect(m_ui->removeFirstCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeRemoveFirst(bool)));
-    connect(m_ui->dryRunCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeDryRun(bool)));
-    connect(m_ui->keepGoingCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeKeepGoing(bool)));
+    connect(m_ui->installRootChooser, &Utils::PathChooser::rawPathChanged, this,
+            &QbsInstallStepConfigWidget::changeInstallRoot);
+    connect(m_ui->removeFirstCheckBox, &QAbstractButton::toggled,
+            this, &QbsInstallStepConfigWidget::changeRemoveFirst);
+    connect(m_ui->dryRunCheckBox, &QAbstractButton::toggled,
+            this, &QbsInstallStepConfigWidget::changeDryRun);
+    connect(m_ui->keepGoingCheckBox, &QAbstractButton::toggled,
+            this, &QbsInstallStepConfigWidget::changeKeepGoing);
 
-    connect(project, SIGNAL(projectParsingDone(bool)), this, SLOT(updateState()));
+    connect(project, &QbsProject::projectParsingDone,
+            this, &QbsInstallStepConfigWidget::updateState);
 
     updateState();
 }
@@ -359,68 +362,25 @@ QbsInstallStepFactory::QbsInstallStepFactory(QObject *parent) :
     ProjectExplorer::IBuildStepFactory(parent)
 { }
 
-QList<Core::Id> QbsInstallStepFactory::availableCreationIds(ProjectExplorer::BuildStepList *parent) const
+QList<ProjectExplorer::BuildStepInfo> QbsInstallStepFactory::availableSteps(ProjectExplorer::BuildStepList *parent) const
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_DEPLOY
             && qobject_cast<ProjectExplorer::DeployConfiguration *>(parent->parent())
             && qobject_cast<QbsProject *>(parent->target()->project()))
-        return QList<Core::Id>() << Core::Id(Constants::QBS_INSTALLSTEP_ID);
-    return QList<Core::Id>();
-}
-
-QString QbsInstallStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == Core::Id(Constants::QBS_INSTALLSTEP_ID))
-        return tr("Qbs Install");
-    return QString();
-}
-
-bool QbsInstallStepFactory::canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const
-{
-    if (parent->id() != Core::Id(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-            || !qobject_cast<ProjectExplorer::DeployConfiguration *>(parent->parent())
-            || !qobject_cast<QbsProject *>(parent->target()->project()))
-        return false;
-    return id == Core::Id(Constants::QBS_INSTALLSTEP_ID);
+        return {{ Constants::QBS_INSTALLSTEP_ID, tr("Qbs Install") }};
+    return {};
 }
 
 ProjectExplorer::BuildStep *QbsInstallStepFactory::create(ProjectExplorer::BuildStepList *parent,
                                                           const Core::Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
+    Q_UNUSED(id);
     return new QbsInstallStep(parent);
-}
-
-bool QbsInstallStepFactory::canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
-}
-
-ProjectExplorer::BuildStep *QbsInstallStepFactory::restore(ProjectExplorer::BuildStepList *parent,
-                                                           const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-    QbsInstallStep *bs = new QbsInstallStep(parent);
-    if (!bs->fromMap(map)) {
-        delete bs;
-        return 0;
-    }
-    return bs;
-}
-
-bool QbsInstallStepFactory::canClone(ProjectExplorer::BuildStepList *parent,
-                                     ProjectExplorer::BuildStep *product) const
-{
-    return canCreate(parent, product->id());
 }
 
 ProjectExplorer::BuildStep *QbsInstallStepFactory::clone(ProjectExplorer::BuildStepList *parent,
                                                          ProjectExplorer::BuildStep *product)
 {
-    if (!canClone(parent, product))
-        return 0;
     return new QbsInstallStep(parent, static_cast<QbsInstallStep *>(product));
 }
 

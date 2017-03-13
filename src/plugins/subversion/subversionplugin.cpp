@@ -133,7 +133,7 @@ static inline QString debugCodec(const QTextCodec *c)
     return c ? QString::fromLatin1(c->name()) : QString::fromLatin1("Null codec");
 }
 
-// Parse "svn status" output for added/modified/deleted files
+// Parse "svn status" output for added/conflicted/deleted/modified files
 // "M<7blanks>file"
 typedef QList<SubversionSubmitEditor::StatusFilePair> StatusList;
 
@@ -145,10 +145,12 @@ StatusList parseStatusOutput(const QString &output)
     foreach (const QString &l, list) {
         const QString line =l.trimmed();
         if (line.size() > 8) {
-            const QChar state = line.at(0);
-            if (state == QLatin1Char('A') || state == QLatin1Char('D') || state == QLatin1Char('M')) {
+            const QByteArray state = line.left(1).toLatin1();
+            if (state == FileAddedC || state == FileConflictedC
+                    || state == FileDeletedC || state == FileModifiedC) {
                 const QString fileName = line.mid(7); // Column 8 starting from svn 1.6
-                changeSet.push_back(SubversionSubmitEditor::StatusFilePair(QString(state), fileName.trimmed()));
+                changeSet.push_back(SubversionSubmitEditor::StatusFilePair(QLatin1String(state),
+                                                                           fileName.trimmed()));
             }
 
         }
@@ -750,9 +752,9 @@ void SubversionPlugin::svnUpdate(const QString &workingDir, const QString &relat
     args.push_back(QLatin1String(Constants::NON_INTERACTIVE_OPTION));
     if (!relativePath.isEmpty())
         args.append(relativePath);
-        const SubversionResponse response
-                = runSvn(workingDir, args, 10 * m_client->vcsTimeoutS(),
-                         VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
+    const SubversionResponse response
+            = runSvn(workingDir, args, 10 * m_client->vcsTimeoutS(),
+                     VcsCommand::SshPasswordPrompt | VcsCommand::ShowStdOut);
     if (!response.error)
         subVersionControl()->emitRepositoryChanged(workingDir);
 }
@@ -875,23 +877,21 @@ SubversionResponse SubversionPlugin::runSvn(const QString &workingDir,
                                             int timeOutS, unsigned flags,
                                             QTextCodec *outputCodec) const
 {
-    const FileName executable = client()->vcsBinary();
     SubversionResponse response;
-    if (executable.isEmpty()) {
+    if (client()->vcsBinary().isEmpty()) {
         response.error = true;
         response.message =tr("No subversion executable specified.");
         return response;
     }
 
-    const SynchronousProcessResponse sp_resp =
-            VcsBasePlugin::runVcs(workingDir, executable, arguments, timeOutS,
-                                           flags, outputCodec);
+    const SynchronousProcessResponse sp_resp
+            = client()->vcsFullySynchronousExec(workingDir, arguments, flags, timeOutS, outputCodec);
 
     response.error = sp_resp.result != SynchronousProcessResponse::Finished;
     if (response.error)
-        response.message = sp_resp.exitMessage(executable.toString(), timeOutS);
-    response.stdErr = sp_resp.stdErr;
-    response.stdOut = sp_resp.stdOut;
+        response.message = sp_resp.exitMessage(client()->vcsBinary().toString(), timeOutS);
+    response.stdErr = sp_resp.stdErr();
+    response.stdOut = sp_resp.stdOut();
     return response;
 }
 

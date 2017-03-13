@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILEREVENTSVIEW_H
-#define QMLPROFILEREVENTSVIEW_H
+#pragma once
 
 #include "qmlprofiler_global.h"
 #include "qmlprofilermodelmanager.h"
@@ -39,10 +38,7 @@ class QMLPROFILER_EXPORT QmlProfilerEventsView : public QWidget
     Q_OBJECT
 public:
     QmlProfilerEventsView(QWidget *parent = 0) : QWidget(parent) {}
-
-    virtual void clear() = 0;
-    virtual void restrictToRange(qint64 rangeStart, qint64 rangeEnd) = 0;
-    virtual bool isRestrictedToRange() const = 0;
+    virtual void clear() {}
 
 signals:
     void gotoSourceLocation(const QString &fileName, int lineNumber, int columnNumber);
@@ -54,14 +50,4 @@ public slots:
     virtual void onVisibleFeaturesChanged(quint64 features) = 0;
 };
 
-class QMLPROFILER_EXPORT QmlProfilerEventsViewFactory : public QObject
-{
-    Q_OBJECT
-public:
-    virtual QList<QmlProfilerEventsView *> create(QWidget *parent,
-                                                  QmlProfilerModelManager *manager) = 0;
-};
-
-}
-
-#endif // QMLPROFILEREVENTSVIEW_H
+} // namespace QmlProfiler

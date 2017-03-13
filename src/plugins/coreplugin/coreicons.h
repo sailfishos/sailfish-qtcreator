@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COREICONS_H
-#define COREICONS_H
+#pragma once
 
 #include "core_global.h"
 
@@ -44,28 +43,21 @@ CORE_EXPORT extern const Utils::Icon PASTE;
 CORE_EXPORT extern const Utils::Icon CUT;
 CORE_EXPORT extern const Utils::Icon DIR;
 CORE_EXPORT extern const Utils::Icon RESET;
+CORE_EXPORT extern const Utils::Icon RESET_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon DARK_CLOSE;
-CORE_EXPORT extern const Utils::Icon LOCKED_TOOLBAR;
-CORE_EXPORT extern const Utils::Icon LOCKED;
-CORE_EXPORT extern const Utils::Icon UNLOCKED_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon FIND_CASE_INSENSITIVELY;
 CORE_EXPORT extern const Utils::Icon FIND_WHOLE_WORD;
 CORE_EXPORT extern const Utils::Icon FIND_REGEXP;
 CORE_EXPORT extern const Utils::Icon FIND_PRESERVE_CASE;
-CORE_EXPORT extern const Utils::Icon QTLOGO_32;
-CORE_EXPORT extern const Utils::Icon QTLOGO_64;
-CORE_EXPORT extern const Utils::Icon QTLOGO_128;
+CORE_EXPORT extern const Utils::Icon QTCREATORLOGO_BIG;
 
 CORE_EXPORT extern const Utils::Icon ARROW_UP;
 CORE_EXPORT extern const Utils::Icon ARROW_DOWN;
 CORE_EXPORT extern const Utils::Icon MINUS;
 CORE_EXPORT extern const Utils::Icon PLUS;
-CORE_EXPORT extern const Utils::Icon NEXT;
-CORE_EXPORT extern const Utils::Icon NEXT_TOOLBAR;
-CORE_EXPORT extern const Utils::Icon PREV;
-CORE_EXPORT extern const Utils::Icon PREV_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon MAGNIFIER;
-CORE_EXPORT extern const Utils::Icon CLEAN_PANE;
+CORE_EXPORT extern const Utils::Icon CLEAN;
+CORE_EXPORT extern const Utils::Icon CLEAN_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon RELOAD;
 CORE_EXPORT extern const Utils::Icon TOGGLE_SIDEBAR;
 CORE_EXPORT extern const Utils::Icon TOGGLE_SIDEBAR_TOOLBAR;
@@ -89,9 +81,7 @@ CORE_EXPORT extern const Utils::Icon ERROR_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon ERROR_TASKBAR;
 CORE_EXPORT extern const Utils::Icon INFO;
 CORE_EXPORT extern const Utils::Icon INFO_TOOLBAR;
-CORE_EXPORT extern const Utils::Icon EXPAND;
-CORE_EXPORT extern const Utils::Icon ZOOM;
-CORE_EXPORT extern const Utils::Icon ZOOM_TOOLBAR;
+CORE_EXPORT extern const Utils::Icon EXPAND_ALL_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon TOOLBAR_EXTENSION;
 CORE_EXPORT extern const Utils::Icon RUN_SMALL;
 CORE_EXPORT extern const Utils::Icon RUN_SMALL_TOOLBAR;
@@ -102,6 +92,11 @@ CORE_EXPORT extern const Utils::Icon INTERRUPT_SMALL_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon BOUNDING_RECT;
 CORE_EXPORT extern const Utils::Icon EYE_OPEN_TOOLBAR;
 CORE_EXPORT extern const Utils::Icon EYE_CLOSED_TOOLBAR;
+CORE_EXPORT extern const Utils::Icon REPLACE;
+CORE_EXPORT extern const Utils::Icon EXPAND;
+CORE_EXPORT extern const Utils::Icon EXPAND_TOOLBAR;
+CORE_EXPORT extern const Utils::Icon COLLAPSE;
+CORE_EXPORT extern const Utils::Icon COLLAPSE_TOOLBAR;
 
 CORE_EXPORT extern const Utils::Icon MODE_EDIT_CLASSIC;
 CORE_EXPORT extern const Utils::Icon MODE_EDIT_FLAT;
@@ -112,5 +107,3 @@ CORE_EXPORT extern const Utils::Icon MODE_DESIGN_FLAT_ACTIVE;
 
 } // namespace Icons
 } // namespace Core
-
-#endif // COREICONS_H

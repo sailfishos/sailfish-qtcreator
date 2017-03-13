@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EDITORMANAGER_P_H
-#define EDITORMANAGER_P_H
+#pragma once
 
 #include "documentmodel.h"
 #include "editorarea.h"
@@ -62,6 +61,12 @@ class EditorManagerPrivate : public QObject
     friend class Core::EditorManager;
 
 public:
+    enum class CloseFlag {
+        CloseWithAsking,
+        CloseWithoutAsking,
+        Suspend
+    };
+
     static EditorManagerPrivate *instance();
 
     static void extensionsInitialized(); // only use from MainWindow
@@ -87,10 +92,11 @@ public:
                                    EditorManager::OpenEditorFlags flags = EditorManager::NoFlags);
     static IEditor *activateEditorForDocument(EditorView *view, IDocument *document,
                                               EditorManager::OpenEditorFlags flags = 0);
-    static void activateEditorForEntry(EditorView *view, DocumentModel::Entry *entry,
+    static bool activateEditorForEntry(EditorView *view, DocumentModel::Entry *entry,
                                        EditorManager::OpenEditorFlags flags = EditorManager::NoFlags);
     /* closes the document if there is no other editor on the document visible */
     static void closeEditorOrDocument(IEditor *editor);
+    static bool closeEditors(const QList<IEditor *> &editors, CloseFlag flag);
 
     static EditorView *viewForEditor(IEditor *editor);
     static void setCurrentView(EditorView *view);
@@ -107,6 +113,10 @@ public:
     static bool autoSaveEnabled();
     static void setAutoSaveInterval(int interval);
     static int autoSaveInterval();
+    static void setAutoSuspendEnabled(bool enabled);
+    static bool autoSuspendEnabled();
+    static void setAutoSuspendMinDocumentCount(int count);
+    static int autoSuspendMinDocumentCount();
     static void setWarnBeforeOpeningBigFilesEnabled(bool enabled);
     static bool warnBeforeOpeningBigFilesEnabled();
     static void setBigFileSizeLimit(int limitInMB);
@@ -159,6 +169,7 @@ private:
 
     static void closeAllEditorsExceptVisible();
     static void revertToSaved(IDocument *document);
+    static void autoSuspendDocuments();
 
     static void showInGraphicalShell();
     static void openTerminal();
@@ -174,7 +185,7 @@ private:
     static EditorManager::EditorFactoryList findFactories(Id editorId, const QString &fileName);
     static IEditor *createEditor(IEditorFactory *factory, const QString &fileName);
     static void addEditor(IEditor *editor);
-    static void removeEditor(IEditor *editor);
+    static void removeEditor(IEditor *editor, bool removeSusependedEntry);
     static IEditor *placeEditor(EditorView *view, IEditor *editor);
     static void restoreEditorState(IEditor *editor);
     static int visibleDocumentsCount();
@@ -198,7 +209,7 @@ private:
     QPointer<IEditor> m_currentEditor;
     QPointer<IEditor> m_scheduledCurrentEditor;
     QPointer<EditorView> m_currentView;
-    QTimer *m_autoSaveTimer;
+    QTimer *m_autoSaveTimer = nullptr;
 
     // actions
     QAction *m_revertToSavedAction;
@@ -234,24 +245,27 @@ private:
     QAction *m_openGraphicalShellAction;
     QAction *m_openTerminalAction;
     QAction *m_findInDirectoryAction;
-    DocumentModel::Entry *m_contextMenuEntry;
-    IEditor *m_contextMenuEditor;
+    DocumentModel::Entry *m_contextMenuEntry = nullptr;
+    IEditor *m_contextMenuEditor = nullptr;
 
-    OpenEditorsWindow *m_windowPopup;
+    OpenEditorsWindow *m_windowPopup = nullptr;
 
     QMap<QString, QVariant> m_editorStates;
-    OpenEditorsViewFactory *m_openEditorsFactory;
+    OpenEditorsViewFactory *m_openEditorsFactory = nullptr;
 
-    IDocument::ReloadSetting m_reloadSetting;
+    IDocument::ReloadSetting m_reloadSetting = IDocument::AlwaysAsk;
 
     EditorManager::WindowTitleHandler m_titleAdditionHandler;
     EditorManager::WindowTitleHandler m_titleVcsTopicHandler;
 
-    bool m_autoSaveEnabled;
-    int m_autoSaveInterval;
+    bool m_autoSaveEnabled = true;
+    int m_autoSaveInterval = 5;
 
-    bool m_warnBeforeOpeningBigFilesEnabled;
-    int m_bigFileSizeLimitInMB;
+    bool m_autoSuspendEnabled = true;
+    int m_autoSuspendMinDocumentCount = 30;
+
+    bool m_warnBeforeOpeningBigFilesEnabled = true;
+    int m_bigFileSizeLimitInMB = 5;
 
     QString m_placeholderText;
     QList<std::function<bool(IEditor *)>> m_closeEditorListeners;
@@ -259,5 +273,3 @@ private:
 
 } // Internal
 } // Core
-
-#endif // EDITORMANAGER_P_H

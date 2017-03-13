@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODOOUTPUTPANE_H
-#define TODOOUTPUTPANE_H
+#pragma once
 
 #include "settings.h"
 
@@ -74,20 +73,10 @@ signals:
     void todoItemClicked(const TodoItem &item);
     void scanningScopeChanged(ScanningScope scanningScope);
 
-private slots:
+private:
     void scopeButtonClicked(QAbstractButton *button);
     void todoTreeViewClicked(const QModelIndex &index);
     void updateTodoCount();
-
-private:
-    TodoOutputTreeView *m_todoTreeView;
-    QToolButton *m_currentFileButton;
-    QToolButton *m_wholeProjectButton;
-    QToolButton *m_subProjectButton;
-    QWidget *m_spacer;
-    QButtonGroup *m_scopeButtons;
-    QList<TodoItem> *items;
-    TodoItemsModel *m_todoItemsModel;
 
     void createTreeView();
     void freeTreeView();
@@ -97,9 +86,16 @@ private:
     QModelIndex selectedModelIndex();
     QModelIndex nextModelIndex();
     QModelIndex previousModelIndex();
+
+    TodoOutputTreeView *m_todoTreeView;
+    QToolButton *m_currentFileButton;
+    QToolButton *m_wholeProjectButton;
+    QToolButton *m_subProjectButton;
+    QWidget *m_spacer;
+    QButtonGroup *m_scopeButtons;
+    QList<TodoItem> *items;
+    TodoItemsModel *m_todoItemsModel;
 };
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // TODOOUTPUTPANE_H

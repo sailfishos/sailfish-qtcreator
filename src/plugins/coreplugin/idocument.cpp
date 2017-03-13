@@ -63,14 +63,6 @@ namespace Internal {
 class IDocumentPrivate
 {
 public:
-    IDocumentPrivate() :
-        infoBar(0),
-        temporary(false),
-        hasWriteWarning(false),
-        restored(false)
-    {
-    }
-
     ~IDocumentPrivate()
     {
         delete infoBar;
@@ -81,11 +73,12 @@ public:
     QString preferredDisplayName;
     QString uniqueDisplayName;
     QString autoSaveName;
-    InfoBar *infoBar;
+    InfoBar *infoBar = nullptr;
     Id id;
-    bool temporary;
-    bool hasWriteWarning;
-    bool restored;
+    bool temporary = false;
+    bool hasWriteWarning = false;
+    bool restored = false;
+    bool isSuspendAllowed = false;
 };
 
 } // namespace Internal
@@ -213,6 +206,16 @@ bool IDocument::isModified() const
 bool IDocument::isSaveAsAllowed() const
 {
     return false;
+}
+
+bool IDocument::isSuspendAllowed() const
+{
+    return d->isSuspendAllowed;
+}
+
+void IDocument::setSuspendAllowed(bool value)
+{
+    d->isSuspendAllowed = value;
 }
 
 bool IDocument::isFileReadOnly() const
@@ -359,6 +362,11 @@ void IDocument::setPreferredDisplayName(const QString &name)
     emit changed();
 }
 
+QString IDocument::preferredDisplayName() const
+{
+    return d->preferredDisplayName;
+}
+
 /*!
     \internal
     Returns displayName without disambiguation.
@@ -375,6 +383,11 @@ QString IDocument::plainDisplayName() const
 void IDocument::setUniqueDisplayName(const QString &name)
 {
     d->uniqueDisplayName = name;
+}
+
+QString IDocument::uniqueDisplayName() const
+{
+    return d->uniqueDisplayName;
 }
 
 } // namespace Core

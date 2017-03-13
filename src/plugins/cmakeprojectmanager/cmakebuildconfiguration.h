@@ -52,6 +52,8 @@ public:
     CMakeBuildConfiguration(ProjectExplorer::Target *parent);
     ~CMakeBuildConfiguration();
 
+    void cmakeFilesChanged();
+
     bool isEnabled() const override;
     QString disabledReason() const override;
 
@@ -110,7 +112,7 @@ private:
     BuildDirManager *m_buildDirManager = nullptr;
 
     friend class CMakeBuildSettingsWidget;
-    friend class CMakeProject;
+    friend class CMakeProjectManager::CMakeProject;
 };
 
 class CMakeBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory

@@ -23,39 +23,17 @@
 **
 ****************************************************************************/
 
-//static void testMessageOutput(QtMsgType type, const char *msg)
-// {
-//     switch (type) {
-//     case QtDebugMsg:
-//#ifdef QDEBUG_IN_TESTS
-//         std::fprintf(stderr, "Debug: %s\n", msg);
-//#endif // QDEBUG_IN_TESTS
-//         break;
-//     case QtWarningMsg:
-//#ifdef WARNINGS_IN_TESTS
-//         std::fprintf(stderr, "Warning: %s\n", msg);
-//#endif // WARNINGS_IN_TESTS
-//         break;
-//     case QtCriticalMsg:
-//         std::fprintf(stderr, "Critical: %s\n", msg);
-//         break;
-//     case QtFatalMsg:
-//         std::fprintf(stderr, "Fatal: %s\n", msg);
-//         break;
-//     }
-// }
-
 static ModelNode addNodeListChild(const ModelNode &parentNode, const QString &typeName, int major, int minor, const QString &parentProperty)
 {
-    ModelNode newNode = parentNode.view()->createModelNode(typeName, major, minor);
-    parentNode.nodeListProperty(parentProperty).reparentHere(newNode);
+    ModelNode newNode = parentNode.view()->createModelNode(typeName.toUtf8(), major, minor);
+    parentNode.nodeListProperty(parentProperty.toUtf8()).reparentHere(newNode);
     return newNode;
 }
 
 static ModelNode addNodeChild(const ModelNode &parentNode, const QString &typeName, int major, int minor, const QString &parentProperty)
 {
-    ModelNode newNode = parentNode.view()->createModelNode(typeName, major, minor);
-    parentNode.nodeProperty(parentProperty).reparentHere(newNode);
+    ModelNode newNode = parentNode.view()->createModelNode(typeName.toUtf8(), major, minor);
+    parentNode.nodeProperty(parentProperty.toUtf8()).reparentHere(newNode);
     return newNode;
 }
 
@@ -104,8 +82,8 @@ static bool compareTree(const ModelNode &node1, const ModelNode &node2)
 
     // Compare list of children
     {
-        const QList<ModelNode> childList1 = node1.allDirectSubModelNodes();
-        const QList<ModelNode> childList2 = node2.allDirectSubModelNodes();
+        const QList<ModelNode> childList1 = node1.directSubModelNodes();
+        const QList<ModelNode> childList2 = node2.directSubModelNodes();
 
         QList<ModelNode>::const_iterator iter1;
         QList<ModelNode>::const_iterator iter2;

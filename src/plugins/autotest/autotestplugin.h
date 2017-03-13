@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef AUTOTESTPLUGIN_H
-#define AUTOTESTPLUGIN_H
+#pragma once
 
 #include "autotest_global.h"
 
@@ -33,6 +32,7 @@
 namespace Autotest {
 namespace Internal {
 
+class TestFrameworkManager;
 struct TestSettings;
 
 class AutotestPlugin : public ExtensionSystem::IPlugin
@@ -60,10 +60,8 @@ private:
     void updateMenuItemsEnabledState();
     QList<QObject *> createTestObjects() const;
     const QSharedPointer<TestSettings> m_settings;
+    TestFrameworkManager *m_frameworkManager = 0;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // AUTOTESTPLUGIN_H
-

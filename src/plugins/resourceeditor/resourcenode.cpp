@@ -385,6 +385,7 @@ QList<ProjectExplorer::ProjectAction> ResourceFolderNode::supportedActions(Proje
             << ProjectExplorer::AddExistingFile
             << ProjectExplorer::AddExistingDirectory
             << ProjectExplorer::RemoveFile
+            << ProjectExplorer::DuplicateFile
             << ProjectExplorer::Rename // Note: only works for the filename, works akwardly for relative file paths
             << ProjectExplorer::HidePathActions; // hides open terminal etc.
 
@@ -425,6 +426,27 @@ bool ResourceFolderNode::removeFiles(const QStringList &filePaths, QStringList *
     Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
 
     return true;
+}
+
+// QTCREATORBUG-15280
+bool ResourceFolderNode::canRenameFile(const QString &filePath, const QString &newFilePath)
+{
+    Q_UNUSED(newFilePath)
+
+    bool fileEntryExists = false;
+    ResourceFile file(m_topLevelNode->filePath().toString());
+
+    int index = (file.load() != Core::IDocument::OpenResult::Success) ? -1 :file.indexOfPrefix(m_prefix, m_lang);
+    if (index != -1) {
+        for (int j = 0; j < file.fileCount(index); ++j) {
+            if (file.file(index, j) == filePath) {
+                fileEntryExists = true;
+                break;
+            }
+        }
+    }
+
+    return fileEntryExists;
 }
 
 bool ResourceFolderNode::renameFile(const QString &filePath, const QString &newFilePath)
@@ -622,6 +644,7 @@ QList<ProjectExplorer::ProjectAction> SimpleResourceFolderNode::supportedActions
             << ProjectExplorer::AddExistingFile
             << ProjectExplorer::AddExistingDirectory
             << ProjectExplorer::RemoveFile
+            << ProjectExplorer::DuplicateFile
             << ProjectExplorer::Rename // Note: only works for the filename, works akwardly for relative file paths
             << ProjectExplorer::InheritedFromParent; // do not add to list of projects when adding new file
 

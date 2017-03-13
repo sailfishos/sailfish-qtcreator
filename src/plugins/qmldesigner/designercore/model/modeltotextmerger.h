@@ -23,18 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef MODELTOTEXTMERGER_H
-#define MODELTOTEXTMERGER_H
+#pragma once
 
-#include "qmldesignercorelib_global.h"
-#include <modelnode.h>
-#include "abstractview.h"
-#include "nodeabstractproperty.h"
-#include "variantproperty.h"
-#include "bindingproperty.h"
+#include <abstractview.h>
 #include "rewriteaction.h"
-#include <filemanager/qmlrefactoring.h>
-#include <QMap>
 
 namespace QmlDesigner {
 
@@ -96,5 +88,3 @@ private:
 
 } //Internal
 } //QmlDesigner
-
-#endif // MODELTOTEXTMERGER_H

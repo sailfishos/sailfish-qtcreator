@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSPARSER_H
-#define QBSPARSER_H
+#pragma once
 
 #include "qbsprojectmanager_global.h"
 
@@ -42,16 +41,12 @@ class QbsParser : public ProjectExplorer::IOutputParser
 public:
     explicit QbsParser();
 
+private:
     void setWorkingDirectory(const QString &workingDirectory);
-
-public slots:
     void taskAdded(const ProjectExplorer::Task &task, int linkedLines, int skipLines);
 
-private:
     QDir m_workingDirectory;
 };
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSPARSER_H

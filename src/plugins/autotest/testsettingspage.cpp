@@ -24,11 +24,13 @@
 ****************************************************************************/
 
 #include "autotestconstants.h"
+#include "testframeworkmanager.h"
 #include "testsettingspage.h"
 #include "testsettings.h"
 #include "testtreemodel.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/coreicons.h>
 
 #include <utils/hostosinfo.h>
 
@@ -42,8 +44,16 @@ TestSettingsWidget::TestSettingsWidget(QWidget *parent)
     m_ui.callgrindRB->setEnabled(Utils::HostOsInfo::isAnyUnixHost()); // valgrind available on UNIX
     m_ui.perfRB->setEnabled(Utils::HostOsInfo::isLinuxHost()); // according to docs perf Linux only
 
+    m_ui.frameworksWarnIcon->setVisible(false);
+    m_ui.frameworksWarnIcon->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui.frameworksWarn->setVisible(false);
+    m_ui.frameworksWarn->setText(tr("No active test frameworks."));
+    m_ui.frameworksWarn->setToolTip(tr("You will not be able to use the AutoTest plugin without "
+                                       "having at least one active test framework."));
     connect(m_ui.repeatGTestsCB, &QCheckBox::toggled, m_ui.repetitionSpin, &QSpinBox::setEnabled);
     connect(m_ui.shuffleGTestsCB, &QCheckBox::toggled, m_ui.seedSpin, &QSpinBox::setEnabled);
+    connect(m_ui.frameworkListWidget, &QListWidget::itemChanged,
+            this, &TestSettingsWidget::onFrameworkItemChanged);
 }
 
 void TestSettingsWidget::setSettings(const TestSettings &settings)
@@ -79,6 +89,7 @@ void TestSettingsWidget::setSettings(const TestSettings &settings)
     default:
         m_ui.walltimeRB->setChecked(true);
     }
+    populateFrameworksListWidget(settings.frameworks);
 }
 
 TestSettings TestSettingsWidget::settings() const
@@ -107,7 +118,49 @@ TestSettings TestSettingsWidget::settings() const
     else if (m_ui.perfRB->isChecked())
         result.metrics = MetricsType::Perf;
 
+    result.frameworks = frameworks();
+
     return result;
+}
+
+void TestSettingsWidget::populateFrameworksListWidget(const QHash<Core::Id, bool> &frameworks)
+{
+    TestFrameworkManager *frameworkManager = TestFrameworkManager::instance();
+    const QList<Core::Id> &registered = frameworkManager->sortedRegisteredFrameworkIds();
+    m_ui.frameworkListWidget->clear();
+    for (const Core::Id &id : registered) {
+        QListWidgetItem *item = new QListWidgetItem(frameworkManager->frameworkNameForId(id),
+                                                    m_ui.frameworkListWidget);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
+        item->setCheckState(frameworks.value(id) ? Qt::Checked : Qt::Unchecked);
+        item->setData(Qt::UserRole, id.toSetting());
+    }
+}
+
+QHash<Core::Id, bool> TestSettingsWidget::frameworks() const
+{
+    const int itemCount = m_ui.frameworkListWidget->count();
+    QHash<Core::Id, bool> frameworks;
+    for (int row = 0; row < itemCount; ++row) {
+        if (QListWidgetItem *item = m_ui.frameworkListWidget->item(row)) {
+            frameworks.insert(Core::Id::fromSetting(item->data(Qt::UserRole)),
+                              item->checkState() == Qt::Checked);
+        }
+    }
+    return frameworks;
+}
+
+void TestSettingsWidget::onFrameworkItemChanged()
+{
+    for (int row = 0, count = m_ui.frameworkListWidget->count(); row < count; ++row) {
+        if (m_ui.frameworkListWidget->item(row)->checkState() == Qt::Checked) {
+            m_ui.frameworksWarn->setVisible(false);
+            m_ui.frameworksWarnIcon->setVisible(false);
+            return;
+        }
+    }
+    m_ui.frameworksWarn->setVisible(true);
+    m_ui.frameworksWarnIcon->setVisible(true);
 }
 
 TestSettingsPage::TestSettingsPage(const QSharedPointer<TestSettings> &settings)
@@ -139,12 +192,16 @@ void TestSettingsPage::apply()
         return;
     const TestSettings newSettings = m_widget->settings();
     if (newSettings != *m_settings) {
+        bool frameworkSyncNecessary = newSettings.frameworks != m_settings->frameworks;
         *m_settings = newSettings;
         m_settings->toSettings(Core::ICore::settings());
         if (m_settings->alwaysParse)
             TestTreeModel::instance()->enableParsingFromSettings();
         else
             TestTreeModel::instance()->disableParsingFromSettings();
+        TestFrameworkManager::instance()->activateFrameworksFromSettings(m_settings);
+        if (frameworkSyncNecessary)
+            TestTreeModel::instance()->syncTestFrameworks();
     }
 }
 

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPSOURCEPROCESSOR_H
-#define CPPSOURCEPROCESSOR_H
+#pragma once
 
 #include "cppmodelmanager.h"
 #include "cppworkingcopy.h"
@@ -60,6 +59,9 @@ public:
     CppSourceProcessor(const CPlusPlus::Snapshot &snapshot, DocumentCallback documentFinished);
     ~CppSourceProcessor();
 
+    using CancelChecker = std::function<bool()>;
+    void setCancelChecker(const CancelChecker &cancelChecker);
+
     void setWorkingCopy(const CppTools::WorkingCopy &workingCopy);
     void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
     void setLanguageFeatures(CPlusPlus::LanguageFeatures languageFeatures);
@@ -83,7 +85,8 @@ private:
                          unsigned *revision) const;
     bool checkFile(const QString &absoluteFilePath) const;
     QString resolveFile(const QString &fileName, IncludeType type);
-    QString resolveFile_helper(const QString &fileName, IncludeType type);
+    QString resolveFile_helper(const QString &fileName,
+                               ProjectPartHeaderPaths::Iterator headerPathsIt);
 
     void mergeEnvironment(CPlusPlus::Document::Ptr doc);
 
@@ -124,5 +127,3 @@ private:
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // CPPSOURCEPROCESSOR_H

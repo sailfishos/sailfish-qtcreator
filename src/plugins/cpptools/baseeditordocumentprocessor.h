@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BASEEDITORDOCUMENTPROCESSOR_H
-#define BASEEDITORDOCUMENTPROCESSOR_H
+#pragma once
 
 #include "baseeditordocumentparser.h"
 #include "cppsemanticinfo.h"
@@ -66,10 +65,7 @@ public:
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface);
 
     virtual bool hasDiagnosticsAt(uint line, uint column) const;
-    virtual void showDiagnosticTooltip(const QPoint &point,
-                                       QWidget *parent,
-                                       uint line,
-                                       uint column) const;
+    virtual void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *layout) const;
 
 signals:
     // Signal interface to implement
@@ -99,6 +95,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // BASEEDITORDOCUMENTPROCESSOR_H
-

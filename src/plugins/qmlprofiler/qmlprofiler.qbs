@@ -19,7 +19,18 @@ QtcPlugin {
     Group {
         name: "General"
         files: [
+            "debugmessagesmodel.cpp", "debugmessagesmodel.h",
+            "flamegraph.cpp", "flamegraph.h",
+            "flamegraphmodel.cpp", "flamegraphmodel.h",
+            "flamegraphview.cpp", "flamegraphview.h",
+            "inputeventsmodel.cpp", "inputeventsmodel.h",
             "localqmlprofilerrunner.cpp", "localqmlprofilerrunner.h",
+            "memoryusagemodel.cpp", "memoryusagemodel.h",
+            "pixmapcachemodel.cpp", "pixmapcachemodel.h",
+            "qmlevent.cpp", "qmlevent.h",
+            "qmleventlocation.cpp", "qmleventlocation.h",
+            "qmleventtype.cpp", "qmleventtype.h",
+            "qmlnote.cpp", "qmlnote.h",
             "qmlprofiler_global.h",
             "qmlprofileranimationsmodel.h", "qmlprofileranimationsmodel.cpp",
             "qmlprofilerattachdialog.cpp", "qmlprofilerattachdialog.h",
@@ -30,6 +41,7 @@ QtcPlugin {
             "qmlprofilerdatamodel.cpp", "qmlprofilerdatamodel.h",
             "qmlprofilerdetailsrewriter.cpp", "qmlprofilerdetailsrewriter.h",
             "qmlprofilereventsview.h",
+            "qmlprofilereventtypes.h",
             "qmlprofilermodelmanager.cpp", "qmlprofilermodelmanager.h",
             "qmlprofilernotesmodel.cpp", "qmlprofilernotesmodel.h",
             "qmlprofileroptionspage.cpp", "qmlprofileroptionspage.h",
@@ -44,11 +56,13 @@ QtcPlugin {
             "qmlprofilerstatisticsmodel.cpp", "qmlprofilerstatisticsmodel.h",
             "qmlprofilerstatisticsview.cpp", "qmlprofilerstatisticsview.h",
             "qmlprofilertimelinemodel.cpp", "qmlprofilertimelinemodel.h",
-            "qmlprofilertimelinemodelfactory.cpp", "qmlprofilertimelinemodelfactory.h",
             "qmlprofilertool.cpp", "qmlprofilertool.h",
+            "qmlprofilertraceclient.cpp", "qmlprofilertraceclient.h",
             "qmlprofilertracefile.cpp", "qmlprofilertracefile.h",
             "qmlprofilertraceview.cpp", "qmlprofilertraceview.h",
             "qmlprofilerviewmanager.cpp", "qmlprofilerviewmanager.h",
+            "qmltypedevent.cpp", "qmltypedevent.h",
+            "scenegraphtimelinemodel.cpp", "scenegraphtimelinemodel.h",
         ]
     }
 
@@ -56,5 +70,25 @@ QtcPlugin {
         name: "QML"
         prefix: "qml/"
         files: ["qmlprofiler.qrc"]
+    }
+
+    Group {
+        name: "Unit tests"
+        condition: qtc.testsEnabled
+        prefix: "tests/"
+        files: [
+            "debugmessagesmodel_test.cpp", "debugmessagesmodel_test.h",
+            "flamegraph_test.cpp", "flamegraph_test.h",
+            "flamegraphmodel_test.cpp", "flamegraphmodel_test.h",
+            "flamegraphview_test.cpp", "flamegraphview_test.h",
+            "inputeventsmodel_test.cpp", "inputeventsmodel_test.h",
+            "localqmlprofilerrunner_test.cpp", "localqmlprofilerrunner_test.h",
+            "memoryusagemodel_test.cpp", "memoryusagemodel_test.h",
+            "pixmapcachemodel_test.cpp", "pixmapcachemodel_test.h",
+            "qmlevent_test.cpp", "qmlevent_test.h",
+            "qmleventlocation_test.cpp", "qmleventlocation_test.h",
+            "qmleventtype_test.cpp", "qmleventtype_test.h",
+            "qmlnote_test.cpp", "qmlnote_test.h",
+        ]
     }
 }

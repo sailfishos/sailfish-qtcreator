@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSINSTALLSTEP_H
-#define QBSINSTALLSTEP_H
+#pragma once
 
 #include "qbsbuildconfiguration.h"
 
@@ -69,12 +68,11 @@ public:
 signals:
     void changed();
 
-private slots:
+private:
     void installDone(bool success);
     void handleTaskStarted(const QString &desciption, int max);
     void handleProgress(int value);
 
-private:
     void createTaskAndOutput(ProjectExplorer::Task::TaskType type,
                              const QString &message, const QString &file, int line);
 
@@ -105,7 +103,7 @@ public:
     QString summaryText() const;
     QString displayName() const;
 
-private slots:
+private:
     void updateState();
 
     void changeInstallRoot();
@@ -128,21 +126,12 @@ class QbsInstallStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit QbsInstallStepFactory(QObject *parent = 0);
 
-    // used to show the list of possible additons to a target, returns a list of types
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const override;
-    // used to translate the types to names to display to the user
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    // used to recreate the runConfigurations when restoring settings
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) override;
 };
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSINSTALLSTEP_H

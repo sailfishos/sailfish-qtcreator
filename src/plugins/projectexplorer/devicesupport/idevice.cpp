@@ -30,6 +30,8 @@
 
 #include "../kit.h"
 #include "../kitinformation.h"
+#include "../runconfiguration.h"
+#include "../runnables.h"
 
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -422,9 +424,9 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-QString IDevice::qmlProfilerHost() const
+Connection IDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return d->sshParameters.host;
+    return HostName(d->sshParameters.host);
 }
 
 void IDevice::setFreePorts(const Utils::PortList &freePorts)
@@ -480,5 +482,7 @@ DeviceProcessSignalOperation::DeviceProcessSignalOperation()
 DeviceEnvironmentFetcher::DeviceEnvironmentFetcher()
 {
 }
+
+void *HostName::staticTypeId = &HostName::staticTypeId;
 
 } // namespace ProjectExplorer

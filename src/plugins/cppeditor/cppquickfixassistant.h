@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPQUICKFIXASSISTANT_H
-#define CPPQUICKFIXASSISTANT_H
+#pragma once
 
 #include <cpptools/cppsemanticinfo.h>
 #include <texteditor/codeassist/assistinterface.h>
@@ -72,6 +71,7 @@ private:
 class CppQuickFixAssistProvider : public TextEditor::QuickFixAssistProvider
 {
 public:
+    CppQuickFixAssistProvider(QObject *parent = 0) : TextEditor::QuickFixAssistProvider(parent) {}
     IAssistProvider::RunType runType() const override;
     bool supportsEditor(Core::Id editorId) const override;
     TextEditor::IAssistProcessor *createProcessor() const override;
@@ -81,5 +81,3 @@ public:
 
 } // Internal
 } // CppEditor
-
-#endif // CPPQUICKFIXASSISTANT_H

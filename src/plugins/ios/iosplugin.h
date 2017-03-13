@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSPLUGIN_H
-#define IOSPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 
@@ -40,10 +39,8 @@ public:
 
     bool initialize(const QStringList &arguments, QString *errorMessage) override;
     void extensionsInitialized() override;
-private slots:
+private:
     void kitsRestored();
 };
 
 } // namespace Ios
-
-#endif // IOSPLUGIN_H

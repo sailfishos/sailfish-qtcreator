@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COMPONENTTEXTMODIFIER_H
-#define COMPONENTTEXTMODIFIER_H
+#pragma once
 
 #include "textmodifier.h"
 
@@ -55,6 +54,7 @@ public:
     virtual void reactivateChangeSignals();
 
     virtual bool renameId(const QString & /* oldId */, const QString & /* newId */) { return false; }
+    virtual bool moveToComponent(int /* nodeOffset */) { return false; }
 
 public slots:
     void contentsChange(int position, int charsRemoved, int charsAdded);
@@ -68,5 +68,3 @@ private:
 };
 
 } // namespace QmlDesigner
-
-#endif // COMPONENTTEXTMODIFIER_H

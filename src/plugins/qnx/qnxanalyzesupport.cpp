@@ -25,7 +25,7 @@
 
 #include "qnxanalyzesupport.h"
 
-#include "qnxdeviceconfiguration.h"
+#include "qnxdevice.h"
 #include "qnxrunconfiguration.h"
 #include "slog2inforunner.h"
 
@@ -71,7 +71,7 @@ QnxAnalyzeSupport::QnxAnalyzeSupport(QnxRunConfiguration *runConfig,
             this, &QnxAnalyzeSupport::remoteIsRunning);
 
     IDevice::ConstPtr dev = DeviceKitInformation::device(runConfig->target()->kit());
-    QnxDeviceConfiguration::ConstPtr qnxDevice = dev.dynamicCast<const QnxDeviceConfiguration>();
+    QnxDevice::ConstPtr qnxDevice = dev.dynamicCast<const QnxDevice>();
 
     const QString applicationId = FileName::fromString(runConfig->remoteExecutableFilePath()).fileName();
     m_slog2Info = new Slog2InfoRunner(applicationId, qnxDevice, this);
@@ -97,7 +97,7 @@ void QnxAnalyzeSupport::startExecution()
     if (state() == Inactive)
         return;
 
-    if (!setPort(m_qmlPort) && m_qmlPort == -1)
+    if (!setPort(m_qmlPort) && !m_qmlPort.isValid())
         return;
 
     setState(StartingRemoteProcess);
@@ -105,8 +105,8 @@ void QnxAnalyzeSupport::startExecution()
     StandardRunnable r = m_runnable;
     if (!r.commandLineArguments.isEmpty())
         r.commandLineArguments += QLatin1Char(' ');
-    r.commandLineArguments
-            += QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlProfilerServices, m_qmlPort);
+    r.commandLineArguments += QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlProfilerServices,
+                                                             m_qmlPort);
     appRunner()->start(device(), r);
 }
 
@@ -159,7 +159,7 @@ void QnxAnalyzeSupport::remoteIsRunning()
 void QnxAnalyzeSupport::showMessage(const QString &msg, OutputFormat format)
 {
     if (state() != Inactive && m_runControl)
-        m_runControl->logApplicationMessage(msg, format);
+        m_runControl->appendMessage(msg, format);
     m_outputParser.processOutput(msg);
 }
 

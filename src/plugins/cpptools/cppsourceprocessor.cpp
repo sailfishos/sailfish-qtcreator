@@ -121,6 +121,11 @@ CppSourceProcessor::CppSourceProcessor(const Snapshot &snapshot, DocumentCallbac
 CppSourceProcessor::~CppSourceProcessor()
 { }
 
+void CppSourceProcessor::setCancelChecker(const CppSourceProcessor::CancelChecker &cancelChecker)
+{
+    m_preprocess.setCancelChecker(cancelChecker);
+}
+
 void CppSourceProcessor::setWorkingCopy(const WorkingCopy &workingCopy)
 { m_workingCopy = workingCopy; }
 
@@ -237,23 +242,6 @@ bool CppSourceProcessor::checkFile(const QString &absoluteFilePath) const
     return fileInfo.isFile() && fileInfo.isReadable();
 }
 
-/// Resolve the given file name to its absolute path w.r.t. the include type.
-QString CppSourceProcessor::resolveFile(const QString &fileName, IncludeType type)
-{
-    if (type == IncludeGlobal) {
-        QHash<QString, QString>::ConstIterator it = m_fileNameCache.constFind(fileName);
-        if (it != m_fileNameCache.constEnd())
-            return it.value();
-        const QString fn = resolveFile_helper(fileName, type);
-        if (!fn.isEmpty())
-            m_fileNameCache.insert(fileName, fn);
-        return fn;
-    }
-
-    // IncludeLocal, IncludeNext
-    return resolveFile_helper(fileName, type);
-}
-
 QString CppSourceProcessor::cleanPath(const QString &path)
 {
     QString result = QDir::cleanPath(path);
@@ -263,7 +251,8 @@ QString CppSourceProcessor::cleanPath(const QString &path)
     return result;
 }
 
-QString CppSourceProcessor::resolveFile_helper(const QString &fileName, IncludeType type)
+/// Resolve the given file name to its absolute path w.r.t. the include type.
+QString CppSourceProcessor::resolveFile(const QString &fileName, IncludeType type)
 {
     if (isInjectedFile(fileName))
         return fileName;
@@ -271,8 +260,6 @@ QString CppSourceProcessor::resolveFile_helper(const QString &fileName, IncludeT
     if (QFileInfo(fileName).isAbsolute())
         return checkFile(fileName) ? fileName : QString();
 
-    auto headerPathsIt = m_headerPaths.begin();
-    auto headerPathsEnd = m_headerPaths.end();
     if (m_currentDoc) {
         if (type == IncludeLocal) {
             const QFileInfo currentFileInfo(m_currentDoc->fileName());
@@ -285,34 +272,43 @@ QString CppSourceProcessor::resolveFile_helper(const QString &fileName, IncludeT
         } else if (type == IncludeNext) {
             const QFileInfo currentFileInfo(m_currentDoc->fileName());
             const QString currentDirPath = cleanPath(currentFileInfo.dir().path());
+            auto headerPathsEnd = m_headerPaths.end();
+            auto headerPathsIt = m_headerPaths.begin();
             for (; headerPathsIt != headerPathsEnd; ++headerPathsIt) {
                 if (headerPathsIt->path == currentDirPath) {
                     ++headerPathsIt;
-                    break;
+                    return resolveFile_helper(fileName, headerPathsIt);
                 }
             }
         }
     }
 
-    for (; headerPathsIt != headerPathsEnd; ++headerPathsIt) {
-        if (headerPathsIt->isFrameworkPath())
-            continue;
-        const QString path = headerPathsIt->path + fileName;
-        if (m_workingCopy.contains(path) || checkFile(path))
-            return path;
-    }
+    QHash<QString, QString>::ConstIterator it = m_fileNameCache.constFind(fileName);
+    if (it != m_fileNameCache.constEnd())
+        return it.value();
+    const QString fn = resolveFile_helper(fileName, m_headerPaths.begin());
+    if (!fn.isEmpty())
+        m_fileNameCache.insert(fileName, fn);
+    return fn;
+}
 
+QString CppSourceProcessor::resolveFile_helper(const QString &fileName,
+                                               ProjectPartHeaderPaths::Iterator headerPathsIt)
+{
+    auto headerPathsEnd = m_headerPaths.end();
     const int index = fileName.indexOf(QLatin1Char('/'));
-    if (index != -1) {
-        const QString frameworkName = fileName.left(index);
-        const QString name = frameworkName + QLatin1String(".framework/Headers/")
-            + fileName.mid(index + 1);
-
-        foreach (const ProjectPartHeaderPath &headerPath, m_headerPaths) {
-            if (!headerPath.isFrameworkPath())
-                continue;
-            const QString path = headerPath.path + name;
-            if (checkFile(path))
+    for (; headerPathsIt != headerPathsEnd; ++headerPathsIt) {
+        if (headerPathsIt->isValid()) {
+            QString path;
+            if (headerPathsIt->isFrameworkPath()) {
+                if (index == -1)
+                    continue;
+                path = headerPathsIt->path + fileName.left(index)
+                       + QLatin1String(".framework/Headers/") + fileName.mid(index + 1);
+            } else {
+                path = headerPathsIt->path + fileName;
+            }
+            if (m_workingCopy.contains(path) || checkFile(path))
                 return path;
         }
     }

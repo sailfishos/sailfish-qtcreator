@@ -44,7 +44,7 @@ FilterSettingsPage::FilterSettingsPage()
     setDisplayName(tr("Filters"));
     setCategory(Help::Constants::HELP_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("Help", Help::Constants::HELP_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Help::Constants::HELP_CATEGORY_ICON));
+    setCategoryIcon(Help::Constants::HELP_CATEGORY_ICON);
 }
 
 QWidget *FilterSettingsPage::widget()
@@ -63,8 +63,8 @@ QWidget *FilterSettingsPage::widget()
                 this, &FilterSettingsPage::addFilter);
         connect(m_ui.filterRemoveButton, &QPushButton::clicked,
                 this, &FilterSettingsPage::removeFilter);
-        connect(HelpManager::instance(), SIGNAL(documentationChanged()),
-                this, SLOT(updateFilterPage()));
+        connect(HelpManager::instance(), &HelpManager::documentationChanged,
+                this, &FilterSettingsPage::updateFilterPage);
     }
     return m_widget;
 }
@@ -221,8 +221,8 @@ void FilterSettingsPage::apply()
 
 void FilterSettingsPage::finish()
 {
-    disconnect(HelpManager::instance(), SIGNAL(documentationChanged()),
-        this, SLOT(updateFilterPage()));
+    disconnect(HelpManager::instance(), &HelpManager::documentationChanged,
+               this, &FilterSettingsPage::updateFilterPage);
     delete m_widget;
 }
 
@@ -243,7 +243,7 @@ QString FilterSettingsPage::msgFilterLabel(const QString &filter) const
 
     return tr("The filter \"%1\" will only show documentation files that"
               " have the attributes %2 specified.").
-            arg(filter, checkedList.join(QLatin1String(", ")));
+            arg(filter, checkedList.join(", "));
 }
 
 void FilterSettingsPage::updateFilterDescription(const QString &filter)

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPPREPROCESSORDIALOG_H
-#define CPPPREPROCESSORDIALOG_H
+#pragma once
 
 #include <cpptools/cppmodelmanager.h>
 
@@ -48,11 +47,10 @@ public:
     CppTools::ProjectPart::Ptr projectPart() const;
     QString additionalPreProcessorDirectives() const;
 
-private slots:
+private:
     void projectChanged(int index);
     void textChanged();
 
-private:
     struct ProjectPartAddition {
         CppTools::ProjectPart::Ptr projectPart;
         QString additionalDirectives;
@@ -65,5 +63,3 @@ private:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPPREPROCESSORDIALOG_H

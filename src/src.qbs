@@ -1,4 +1,5 @@
 import qbs
+import qbs.Environment
 import qbs.File
 import qbs.FileInfo
 
@@ -7,40 +8,26 @@ Project {
     references: [
         "app/app.qbs",
         "app/app_version_header.qbs",
-        project.sharedSourcesDir + "/json",
         "libs/libs.qbs",
         "plugins/plugins.qbs",
-        "tools/tools.qbs"
+        "tools/tools.qbs",
+        project.sharedSourcesDir + "/json",
+        project.sharedSourcesDir + "/proparser",
+        project.sharedSourcesDir + "/pch_files.qbs",
     ]
 
     property bool qbsSubModuleExists: File.exists(qbsProject.qbsBaseDir + "/qbs.qbs")
-    property path qbs_install_dir: qbs.getEnv("QBS_INSTALL_DIR")
+    property path qbs_install_dir: Environment.getEnv("QBS_INSTALL_DIR")
     property bool useExternalQbs: qbs_install_dir
     property bool buildQbsProjectManager: useExternalQbs || qbsSubModuleExists
     Project {
-        name: "qbs"
+        name: "qbs project"
         id: qbsProject
         property string qbsBaseDir: project.sharedSourcesDir + "/qbs"
         condition: qbsSubModuleExists && !useExternalQbs
-        qbsSearchPaths: [qbsBaseDir + "/qbs-resources"]
 
-        property bool enableUnitTests: false
-        property bool enableProjectFileUpdates: true
-        property bool installApiHeaders: false
-        property string libInstallDir: project.ide_library_path
-        property stringList libRPaths:  qbs.targetOS.contains("osx")
-            ? ["@loader_path/" + FileInfo.relativePath('/' + appInstallDir, '/' + libInstallDir)]
-            : ["$ORIGIN/..", "$ORIGIN/../" + project.ide_library_path]
-        property string resourcesInstallDir: project.ide_data_path + "/qbs"
-        property string pluginsInstallDir: project.ide_plugin_path
-        property string appInstallDir: project.ide_bin_path
-        property string libexecInstallDir: project.ide_libexec_path
-        property string relativeLibexecPath: FileInfo.relativePath('/' + appInstallDir,
-                                                                   '/' + libexecInstallDir)
-        property string relativePluginsPath: FileInfo.relativePath('/' + appInstallDir,
-                                                                   '/' + pluginsInstallDir)
-        property string relativeSearchPath: FileInfo.relativePath('/' + appInstallDir,
-                                                                  '/' + resourcesInstallDir)
+        // The first entry is for overriding qbs' own qbsbuildconfig module.
+        qbsSearchPaths: [project.ide_source_tree + "/qbs", qbsBaseDir + "/qbs-resources"]
 
         references: [
             qbsBaseDir + "/src/lib/libs.qbs",

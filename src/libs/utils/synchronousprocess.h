@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SYNCHRONOUSPROCESS_H
-#define SYNCHRONOUSPROCESS_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -32,15 +31,18 @@
 #include <QSharedPointer>
 #include <QTextCodec>
 
+#include <functional>
+
 QT_FORWARD_DECLARE_CLASS(QDebug)
 
 namespace Utils {
 
-struct SynchronousProcessPrivate;
+class SynchronousProcessPrivate;
 
 /* Result of SynchronousProcess execution */
-struct QTCREATOR_UTILS_EXPORT SynchronousProcessResponse
+class QTCREATOR_UTILS_EXPORT SynchronousProcessResponse
 {
+public:
     enum Result {
         // Finished with return code 0
         Finished,
@@ -53,27 +55,29 @@ struct QTCREATOR_UTILS_EXPORT SynchronousProcessResponse
         // Hang, no output after time out
         Hang };
 
-    SynchronousProcessResponse();
     void clear();
 
     // Helper to format an exit message.
     QString exitMessage(const QString &binary, int timeoutS) const;
 
-    Result result;
-    int exitCode;
-    QString stdOut;
-    QString stdErr;
+    QByteArray allRawOutput() const;
+    QString allOutput() const;
+
+    QString stdOut() const;
+    QString stdErr() const;
+
+    Result result = StartFailed;
+    int exitCode = -1;
+
+    QByteArray rawStdOut;
+    QByteArray rawStdErr;
+    QTextCodec *codec = QTextCodec::codecForLocale();
 };
 
 QTCREATOR_UTILS_EXPORT QDebug operator<<(QDebug str, const SynchronousProcessResponse &);
 
-class QTCREATOR_UTILS_EXPORT ExitCodeInterpreter : public QObject
-{
-    Q_OBJECT
-public:
-    ExitCodeInterpreter(QObject *parent) : QObject(parent) {}
-    virtual SynchronousProcessResponse::Result interpretExitCode(int code) const;
-};
+using ExitCodeInterpreter = std::function<SynchronousProcessResponse::Result(int /*exitCode*/)>;
+QTCREATOR_UTILS_EXPORT SynchronousProcessResponse::Result defaultExitCodeInterpreter(int code);
 
 class QTCREATOR_UTILS_EXPORT SynchronousProcess : public QObject
 {
@@ -119,10 +123,13 @@ public:
     unsigned flags() const;
     void setFlags(unsigned);
 
-    void setExitCodeInterpreter(ExitCodeInterpreter *interpreter);
-    ExitCodeInterpreter *exitCodeInterpreter() const;
+    void setExitCodeInterpreter(const ExitCodeInterpreter &interpreter);
+    ExitCodeInterpreter exitCodeInterpreter() const;
 
+    // Starts an nested event loop and runs the binary with the arguments
     SynchronousProcessResponse run(const QString &binary, const QStringList &args);
+    // Starts the binary with the arguments blocking the UI fully
+    SynchronousProcessResponse runBlocking(const QString &binary, const QStringList &args);
 
     // Create a (derived) processes with flags applied.
     static QSharedPointer<QProcess> createProcess(unsigned flags);
@@ -132,7 +139,7 @@ public:
     // occurs on stderr/stdout as opposed to waitForFinished()). Returns false if a timeout
     // occurs. Checking of the process' exit state/code still has to be done.
     static bool readDataFromProcess(QProcess &p, int timeoutS,
-                                    QByteArray *stdOut = 0, QByteArray *stdErr = 0,
+                                    QByteArray *rawStdOut = 0, QByteArray *rawStdErr = 0,
                                     bool timeOutMessageBox = false);
     // Stop a process by first calling terminate() (allowing for signal handling) and
     // then kill().
@@ -146,30 +153,20 @@ public:
     static QString normalizeNewlines(const QString &text);
 
 signals:
-    void stdOut(const QString &text, bool firstTime);
-    void stdErr(const QString &text, bool firstTime);
-
-    void stdOutBuffered(const QString &data, bool firstTime);
-    void stdErrBuffered(const QString &data, bool firstTime);
+    void stdOutBuffered(const QString &lines, bool firstTime);
+    void stdErrBuffered(const QString &lines, bool firstTime);
 
 public slots:
     bool terminate();
 
-private slots:
+private:
     void slotTimeout();
     void finished(int exitCode, QProcess::ExitStatus e);
     void error(QProcess::ProcessError);
-    void stdOutReady();
-    void stdErrReady();
-
-private:
     void processStdOut(bool emitSignals);
     void processStdErr(bool emitSignals);
-    QString convertOutput(const QByteArray &, QTextCodec::ConverterState *state) const;
 
     SynchronousProcessPrivate *d;
 };
 
 } // namespace Utils
-
-#endif

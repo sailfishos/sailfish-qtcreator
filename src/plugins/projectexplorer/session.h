@@ -27,23 +27,14 @@
 
 #include "projectexplorer_export.h"
 
+#include <coreplugin/id.h>
+
 #include <utils/persistentsettings.h>
 
-#include <QHash>
 #include <QString>
 #include <QStringList>
-#include <QMap>
-#include <QFutureInterface>
 
-QT_BEGIN_NAMESPACE
-class QAbstractItemModel;
-class QTimer;
-QT_END_NAMESPACE
-
-namespace Core {
-class IMode;
-class IEditor;
-} // namespace Core
+namespace Core { class IEditor; }
 
 namespace ProjectExplorer {
 
@@ -61,7 +52,7 @@ class PROJECTEXPLORER_EXPORT SessionManager : public QObject
     Q_OBJECT
 
 public:
-    explicit SessionManager(QObject *parent = 0);
+    explicit SessionManager(QObject *parent = nullptr);
     ~SessionManager() override;
 
     static SessionManager *instance();
@@ -85,7 +76,6 @@ public:
     static void closeAllProjects();
 
     static void addProject(Project *project);
-    static void addProjects(const QList<Project*> &projects);
     static void removeProject(Project *project);
     static void removeProjects(QList<Project *> remove);
 
@@ -134,7 +124,6 @@ public:
 
 signals:
     void projectAdded(ProjectExplorer::Project *project);
-    void singleProjectAdded(ProjectExplorer::Project *project);
     void aboutToRemoveProject(ProjectExplorer::Project *project);
     void projectDisplayNameChanged(ProjectExplorer::Project *project);
     void projectRemoved(ProjectExplorer::Project *project);
@@ -148,7 +137,7 @@ signals:
     void dependencyChanged(ProjectExplorer::Project *a, ProjectExplorer::Project *b);
 
 private:
-    static void saveActiveMode(Core::IMode *mode);
+    static void saveActiveMode(Core::Id mode);
     void clearProjectFileCache();
     static void configureEditor(Core::IEditor *editor, const QString &fileName);
     static void markSessionFileDirty(bool makeDefaultVirginDirty = true);

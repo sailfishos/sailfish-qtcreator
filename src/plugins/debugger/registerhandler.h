@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_REGISTERHANDLER_H
-#define DEBUGGER_REGISTERHANDLER_H
+#pragma once
 
 #include <utils/treemodel.h>
 
@@ -80,9 +79,9 @@ public:
     bool operator==(const RegisterValue &other);
     bool operator!=(const RegisterValue &other) { return !operator==(other); }
 
-    void fromByteArray(const QByteArray &ba, RegisterFormat format);
-    QByteArray toByteArray(RegisterKind kind, int size, RegisterFormat format,
-                           bool forEdit = false) const;
+    void fromString(const QString &str, RegisterFormat format);
+    QString toString(RegisterKind kind, int size, RegisterFormat format,
+                     bool forEdit = false) const;
 
     RegisterValue subValue(int size, int index) const;
     void setSubValue(int size, int index, RegisterValue subValue);
@@ -106,19 +105,23 @@ public:
     Register() { size = 0; kind = UnknownRegister; }
     void guessMissingData();
 
-    QByteArray name;
-    QByteArray reportedType;
+    QString name;
+    QString reportedType;
     RegisterValue value;
     RegisterValue previousValue;
-    QByteArray description;
+    QString description;
     int size;
     RegisterKind kind;
 };
 
 class RegisterItem;
-typedef QMap<quint64, QByteArray> RegisterMap;
+class RegisterSubItem;
+using RegisterRootItem = Utils::TypedTreeItem<RegisterItem>;
 
-class RegisterHandler : public Utils::TreeModel
+typedef QMap<quint64, QString> RegisterMap;
+
+class RegisterHandler
+    : public Utils::LeveledTreeModel<RegisterRootItem, RegisterItem, RegisterSubItem>
 {
     Q_OBJECT
 
@@ -130,19 +133,17 @@ public:
 
     void updateRegister(const Register &reg);
 
-    void setNumberFormat(const QByteArray &name, RegisterFormat format);
+    void setNumberFormat(const QString &name, RegisterFormat format);
     void commitUpdates() { emit layoutChanged(); }
     RegisterMap registerMap() const;
 
 signals:
-    void registerChanged(const QByteArray &name, quint64 value); // For memory views
+    void registerChanged(const QString &name, quint64 value); // For memory views
 
 private:
-    QHash<QByteArray, RegisterItem *> m_registerByName;
+    QHash<QString, RegisterItem *> m_registerByName;
     DebuggerEngine * const m_engine;
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_REGISTERHANDLER_H

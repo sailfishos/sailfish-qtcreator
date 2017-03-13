@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COMMON_H
-#define COMMON_H
+#pragma once
 
 // Define KDEXT_64BIT to make all wdbgexts APIs recognize 64 bit addresses
 // It is recommended for extensions to use 64 bit headers from wdbgexts so
@@ -35,7 +34,9 @@
 
 #include <windows.h>
 #define KDEXT_64BIT
+#pragma warning( disable : 4838  )
 #include <wdbgexts.h>
+#pragma warning( default : 4838  )
 #include <dbgeng.h>
 
 typedef IDebugControl3 CIDebugControl;
@@ -62,6 +63,18 @@ struct DebugPrint : public std::ostringstream {
     }
 };
 
+struct Bench
+{
+    Bench(const std::string &what) : m_initialTickCount(GetTickCount()), m_what(what) {}
+    ~Bench()
+    {
+        DebugPrint() << m_what << " took "
+                     << GetTickCount() - m_initialTickCount << "ms to execute." << std::endl;
+    }
+    const DWORD m_initialTickCount;
+    const std::string m_what;
+};
+
 ULONG currentThreadId(IDebugSystemObjects *sysObjects);
 ULONG currentThreadId(CIDebugClient *client);
 ULONG currentProcessId(IDebugSystemObjects *sysObjects);
@@ -76,5 +89,3 @@ std::string sourceFileNameByOffset(CIDebugSymbols *symbols, ULONG64 offset, PULO
 #  define QTC_TRACE_IN
 #  define QTC_TRACE_OUT
 #endif
-
-#endif // COMMON_H

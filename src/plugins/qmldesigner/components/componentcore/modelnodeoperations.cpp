@@ -602,7 +602,7 @@ static void addSignal(const QString &typeName, const QString &itemId, const QStr
         signalHandlerName = itemId.toUtf8() + ".on" + toUpper(signalName).toUtf8();
 
     foreach (const ModelNode &modelNode, rewriterView.allModelNodes()) {
-        if (modelNode.type() == typeName) {
+        if (modelNode.type() == typeName.toUtf8()) {
             modelNode.signalHandlerProperty(signalHandlerName).setSource(QLatin1String("{\n}"));
         }
     }
@@ -627,24 +627,21 @@ static QStringList getSortedSignalNameList(const ModelNode &modelNode)
     if (metaInfo.isValid()) {
         foreach (const PropertyName &signalName, sortedPropertyNameList(metaInfo.signalNames()))
             if (!signalName.contains("Changed"))
-            signalNames.append(signalName);
+                signalNames.append(QString::fromUtf8(signalName));
 
         foreach (const PropertyName &propertyName, sortedPropertyNameList(metaInfo.propertyNames()))
             if (!propertyName.contains("."))
-                signalNames.append(propertyName + "Changed");
+                signalNames.append(QString::fromUtf8(propertyName + "Changed"));
     }
 
     return signalNames;
 }
 
-void gotoImplementation(const SelectionContext &selectionState)
+void addSignalHandlerOrGotoImplementation(const SelectionContext &selectionState, bool addAlwaysNewSlot)
 {
-    QString itemId;
     ModelNode modelNode;
-    if (selectionState.singleNodeIsSelected()) {
-        itemId = selectionState.selectedModelNodes().first().id();
+    if (selectionState.singleNodeIsSelected())
         modelNode = selectionState.selectedModelNodes().first();
-    }
 
     bool isModelNodeRoot = true;
 
@@ -670,6 +667,8 @@ void gotoImplementation(const SelectionContext &selectionState)
         }
     }
 
+    QString itemId = modelNode.id();
+
     const QString fileName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toString();
     const QString typeName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toFileInfo().baseName();
 
@@ -688,7 +687,7 @@ void gotoImplementation(const SelectionContext &selectionState)
 
     Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
 
-    if (usages.count() == 1) {
+    if (usages.count() > 0 && (addAlwaysNewSlot || usages.count() < 2)  && (!isModelNodeRoot  || addAlwaysNewSlot)) {
         Core::EditorManager::openEditorAt(usages.first().path, usages.first().line, usages.first().col);
 
         if (!signalNames.isEmpty()) {
@@ -771,6 +770,26 @@ void removeLayout(const SelectionContext &selectionContext)
 void removePositioner(const SelectionContext &selectionContext)
 {
     removeLayout(selectionContext);
+}
+
+void moveToComponent(const SelectionContext &selectionContext)
+{
+    ModelNode modelNode;
+    if (selectionContext.singleNodeIsSelected())
+        modelNode = selectionContext.selectedModelNodes().first();
+
+    if (modelNode.isValid())
+        selectionContext.view()->model()->rewriterView()->moveToComponent(modelNode);
+}
+
+void goImplementation(const SelectionContext &selectionState)
+{
+    addSignalHandlerOrGotoImplementation(selectionState, false);
+}
+
+void addNewSignalHandler(const SelectionContext &selectionState)
+{
+    addSignalHandlerOrGotoImplementation(selectionState, true);
 }
 
 } // namespace Mode

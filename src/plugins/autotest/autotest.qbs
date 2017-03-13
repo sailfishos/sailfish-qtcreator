@@ -10,6 +10,7 @@ QtcPlugin {
     Depends { name: "QmlJS" }
     Depends { name: "QmlJSTools" }
     Depends { name: "Utils" }
+    Depends { name: "Debugger" }
 
     pluginTestDepends: [
         "QbsProjectManager",
@@ -18,12 +19,12 @@ QtcPlugin {
 
     Depends {
         name: "QtSupport"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
     }
 
     Depends {
         name: "Qt.test"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
     }
 
     Depends { name: "Qt.widgets" }
@@ -65,15 +66,40 @@ QtcPlugin {
         "testtreemodel.h",
         "testtreeview.cpp",
         "testtreeview.h",
-        "testvisitor.cpp",
-        "testvisitor.h",
         "testoutputreader.cpp",
         "testoutputreader.h",
+        "itestparser.cpp",
+        "itestparser.h",
+        "itestframework.h",
+        "testframeworkmanager.cpp",
+        "testframeworkmanager.h",
+        "testrunconfiguration.h"
     ]
 
     Group {
+        name: "QtTest framework files"
+        files: [
+            "qtest/*"
+        ]
+    }
+
+    Group {
+        name: "Quick Test framework files"
+        files: [
+            "quick/*"
+        ]
+    }
+
+    Group {
+        name: "Google Test framework files"
+        files: [
+            "gtest/*"
+        ]
+    }
+
+    Group {
         name: "Test sources"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
         files: [
             "autotestunittests.cpp",
             "autotestunittests.h",
@@ -89,6 +115,6 @@ QtcPlugin {
         ]
         fileTags: []
         qbs.install: true
-        qbs.installDir: project.ide_data_path + "/templates/wizards/autotest"
+        qbs.installDir: qtc.ide_data_path + "/templates/wizards/autotest"
     }
 }

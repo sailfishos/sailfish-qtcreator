@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MODELDIAGRAMEDITOR_H
-#define MODELDIAGRAMEDITOR_H
+#pragma once
 
 #include <coreplugin/editormanager/ieditor.h>
 
@@ -87,6 +86,9 @@ public:
     void editProperties();
     void editSelectedItem();
     void exportDiagram();
+    void zoomIn();
+    void zoomOut();
+    void resetZoom();
 
     qmt::MPackage *guessSelectedPackage() const;
 
@@ -103,6 +105,7 @@ private:
                                         const QIcon &icon,
                                         const QString &toolTipBase, QWidget *parent);
     bool updateButtonIconByTheme(QAbstractButton *button, const QString &name);
+    void showZoomIndicator();
 
     void onAddPackage();
     void onAddComponent();
@@ -154,5 +157,3 @@ private:
 
 } // namespace Internal
 } // namespace ModelEditor
-
-#endif // MODELDIAGRAMEDITOR_H

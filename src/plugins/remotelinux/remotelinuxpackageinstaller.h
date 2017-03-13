@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXPACKAGEINSTALLER_H
-#define REMOTELINUXPACKAGEINSTALLER_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -53,13 +52,12 @@ signals:
 protected:
     explicit AbstractRemoteLinuxPackageInstaller(QObject *parent = 0);
 
-private slots:
+private:
     void handleConnectionError();
     void handleInstallationFinished(int exitStatus);
     void handleInstallerOutput();
     void handleInstallerErrorOutput();
 
-private:
     virtual QString installCommandLine(const QString &packageFilePath) const = 0;
     virtual QString cancelInstallationCommandLine() const = 0;
 
@@ -85,5 +83,3 @@ private:
 
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXPACKAGEINSTALLER_H

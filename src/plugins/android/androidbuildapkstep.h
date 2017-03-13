@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDBUILDAPKSTEP_H
-#define ANDROIDBUILDAPKSTEP_H
+#pragma once
 
 #include "android_global.h"
 #include <projectexplorer/abstractprocessstep.h>
@@ -80,13 +79,11 @@ public:
     void setBuildTargetSdk(const QString &sdk);
 
     virtual Utils::FileName androidPackageSourceDir() const = 0;
-public slots:
     void setDeployAction(AndroidDeployAction deploy);
 
-protected slots:
-    void showInGraphicalShell();
-
 protected:
+    Q_INVOKABLE void showInGraphicalShell();
+
     AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc,
         AndroidBuildApkStep *other);
     bool keystorePassword();
@@ -114,5 +111,3 @@ protected:
 };
 
 } // namespace Android
-
-#endif // ANDROIDBUILDAPKSTEP_H

@@ -117,6 +117,7 @@ JsonFieldPage::Field::Field() : d(new FieldPrivate)
 JsonFieldPage::Field::~Field()
 {
     delete d->m_widget;
+    delete d->m_label;
     delete d;
 }
 
@@ -178,12 +179,14 @@ void JsonFieldPage::Field::createWidget(JsonFieldPage *page)
     w->setObjectName(name());
     QFormLayout *layout = page->layout();
 
-    if (suppressName())
+    if (suppressName()) {
         layout->addWidget(w);
-    else if (hasSpan())
+    } else if (hasSpan()) {
         layout->addRow(w);
-    else
-        layout->addRow(displayName(), w);
+    } else {
+        d->m_label = new QLabel(displayName());
+        layout->addRow(d->m_label, w);
+    }
 
     setup(page, name());
 }
@@ -205,6 +208,8 @@ void JsonFieldPage::Field::setEnabled(bool e)
 void JsonFieldPage::Field::setVisible(bool v)
 {
     QTC_ASSERT(d->m_widget, return);
+    if (d->m_label)
+        d->m_label->setVisible(v);
     d->m_widget->setVisible(v);
 }
 
@@ -662,8 +667,7 @@ void PathChooserField::initializeData(MacroExpander *expander)
 
 CheckBoxField::CheckBoxField() :
     m_checkedValue(QLatin1String("0")),
-    m_uncheckedValue(QLatin1String("1")),
-    m_isModified(false)
+    m_uncheckedValue(QLatin1String("1"))
 { }
 
 bool CheckBoxField::parseData(const QVariant &data, QString *errorMessage)
@@ -731,9 +735,6 @@ void CheckBoxField::initializeData(MacroExpander *expander)
 // --------------------------------------------------------------------
 // ComboBoxFieldData:
 // --------------------------------------------------------------------
-
-ComboBoxField::ComboBoxField() : m_index(-1), m_disabledIndex(-1), m_savedIndex(-1)
-{ }
 
 struct ComboBoxItem {
     ComboBoxItem(const QString &k = QString(), const QString &v = QString(), const QVariant &c = true) :

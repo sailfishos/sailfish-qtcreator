@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_CONFIGURATIONPANEL_H
-#define BEAUTIFIER_CONFIGURATIONPANEL_H
+#pragma once
 
 #include <QWidget>
 
@@ -32,8 +31,6 @@ namespace Beautifier {
 namespace Internal {
 
 class AbstractSettings;
-class ConfigurationDialog;
-
 namespace Ui { class ConfigurationPanel; }
 
 class ConfigurationPanel : public QWidget
@@ -41,26 +38,22 @@ class ConfigurationPanel : public QWidget
     Q_OBJECT
 
 public:
-    explicit ConfigurationPanel(QWidget *parent = 0);
+    explicit ConfigurationPanel(QWidget *parent = nullptr);
     ~ConfigurationPanel();
 
     void setSettings(AbstractSettings *settings);
     void setCurrentConfiguration(const QString &text);
     QString currentConfiguration() const;
 
-private slots:
+private:
     void remove();
     void add();
     void edit();
     void updateButtons();
-
-private:
     Ui::ConfigurationPanel *ui;
-    AbstractSettings *m_settings;
+    AbstractSettings *m_settings = nullptr;
     void populateConfigurations(const QString &key = QString());
 };
 
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_CONFIGURATIONPANEL_H

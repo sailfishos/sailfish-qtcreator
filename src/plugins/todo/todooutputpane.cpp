@@ -67,11 +67,7 @@ QWidget *TodoOutputPane::outputWidget(QWidget *parent)
 
 QList<QWidget*> TodoOutputPane::toolBarWidgets() const
 {
-    return QList<QWidget*>()
-        << m_spacer
-        << m_currentFileButton
-        << m_wholeProjectButton
-        << m_subProjectButton;
+    return { m_spacer, m_currentFileButton, m_wholeProjectButton, m_subProjectButton };
 }
 
 QString TodoOutputPane::displayName() const
@@ -170,7 +166,7 @@ void TodoOutputPane::todoTreeViewClicked(const QModelIndex &index)
 
     TodoItem item;
     item.text = index.sibling(row, Constants::OUTPUT_COLUMN_TEXT).data().toString();
-    item.file = index.sibling(row, Constants::OUTPUT_COLUMN_FILE).data().toString();
+    item.file = Utils::FileName::fromUserInput(index.sibling(row, Constants::OUTPUT_COLUMN_FILE).data().toString());
     item.line = index.sibling(row, Constants::OUTPUT_COLUMN_LINE).data().toInt();
     item.color = index.data(Qt::BackgroundColorRole).value<QColor>();
     item.iconType = static_cast<IconType>(index.sibling(row, Constants::OUTPUT_COLUMN_TEXT)

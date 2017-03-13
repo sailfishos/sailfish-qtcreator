@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTCPROCESS_H
-#define QTCPROCESS_H
+#pragma once
 
 #include "environment.h"
 
@@ -38,11 +37,7 @@ class QTCREATOR_UTILS_EXPORT QtcProcess : public QProcess
     Q_OBJECT
 
 public:
-    QtcProcess(QObject *parent = 0)
-      : QProcess(parent),
-        m_haveEnv(false)
-      , m_useCtrlCStub(false)
-        {}
+    QtcProcess(QObject *parent = 0);
     void setEnvironment(const Environment &env)
         { m_environment = env; m_haveEnv = true; }
     void setCommand(const QString &command, const QString &arguments)
@@ -154,4 +149,5 @@ private:
 
 } // namespace Utils
 
-#endif // QTCPROCESS_H
+Q_DECLARE_METATYPE(QProcess::ExitStatus);
+Q_DECLARE_METATYPE(QProcess::ProcessError);

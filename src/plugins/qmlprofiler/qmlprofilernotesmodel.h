@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERNOTESMODEL_H
-#define QMLPROFILERNOTESMODEL_H
+#pragma once
 
 #include "qmlprofilermodelmanager.h"
+#include "qmlnote.h"
 #include "timeline/timelinenotesmodel.h"
 #include <QList>
 #include <QHash>
@@ -37,14 +37,17 @@ class QMLPROFILER_EXPORT QmlProfilerNotesModel : public Timeline::TimelineNotesM
 public:
     QmlProfilerNotesModel(QObject *parent);
 
-    void setModelManager(QmlProfilerModelManager *modelManager);
     void loadData();
     void saveData();
 
-protected:
-    QmlProfilerModelManager *m_modelManager;
+    const QVector<QmlNote> &notes() const;
+    void setNotes(const QVector<QmlNote> &notes);
+    void clear();
 
-    int add(int typeId, qint64 startTime, qint64 duration, const QString &text);
+protected:
+    QVector<QmlNote> m_notes;
+
+    int addQmlNote(int typeId, int collapsedRow, qint64 startTime, qint64 duration,
+                   const QString &text);
 };
 } // namespace QmlProfiler
-#endif // QMLPROFILERNOTESMODEL_H

@@ -142,6 +142,17 @@
     \uicontrol Tools > \uicontrol Options > \uicontrol {Text Editor} >
     \uicontrol Display and deselect \uicontrol {Animate matching parentheses}.
 
+    You can use keyboard shortcuts to move within and between blocks. To go to
+    block end, press \key {Ctrl+]} and to go to block start, press
+    \key {Ctrl+[}. To also select the lines from the cursor position to the end
+    or beginning of the block, press \key {Ctrl+Shift+]} and
+    \key {Ctrl+Shift+[}, respectively.
+
+    To select the current block, press \key Ctrl+U. A second key press extends
+    the selection to the parent block. To undo the last selection, press
+    \key {Ctrl+Alt+Shift+U}. To enable smart block selection, select
+    \uicontrol Tools > \uicontrol Options > \uicontrol {Text Editor} >
+    \uicontrol Behavior > \uicontrol {Enable smart selection changing}.
 */
 
 
@@ -193,7 +204,7 @@
     schemas. \QC looks for a JSON schema file with a
     name that matches the name of the JSON instance file in the user
     configuration folder. For example, \c {~/config/QtProject/qtcreator/json} on
-    Linux and OS X and
+    Linux and \macos and
     \c {C:\Users\username\AppData\Roaming\QtCreator\qtcreator\json}
     in Windows. To check JSON data structure, copy the JSON schema file to the
     above folder.
@@ -489,6 +500,12 @@
         \li Warning
         \li Expression statements should be assignments, calls or delete
             expressions only
+        \li
+
+    \row
+        \li M128
+        \li Error
+        \li A state cannot have the specified child item
         \li
 
     \row
@@ -894,6 +911,8 @@
 
         \li QML code snippets, which specify QML code constructs
 
+        \li Nim code snippets, which specify Nim code constructs
+
     \endlist
 
     \section3 Adding and Editing Snippets
@@ -1036,9 +1055,9 @@
             copy the URL of the post on the code pasting service to the
             clipboard when you paste a post.
 
-        \li Select the \uicontrol {Display Output pane after sending a post} to
-            display the URL in the \uicontrol {General Messages} output pane
-            when you paste a post.
+        \li Select the \uicontrol {Display Output pane after sending a post}
+            check box to display the URL in the \uicontrol {General Messages}
+            output pane when you paste a post.
 
     \endlist
 
@@ -1190,6 +1209,8 @@
 
         \li QML files
 
+        \li Nim files
+
         \li Other text files
 
     \endlist
@@ -1238,6 +1259,8 @@
             identifiers, type names, or left or right \c const or \c volatile
             keywords.
 
+        \li Name getter functions.
+
     \endlist
 
     You can use the live preview to see how the options change the indentation.
@@ -1272,6 +1295,33 @@
 
     To specify different settings for a particular project, select
     \uicontrol Projects > \uicontrol {Code Style Settings}.
+
+    \section1 Indenting Nim Files
+
+    To specify settings for the Nim editor (experimental):
+
+    \list 1
+
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Nim.
+
+        \li In the \uicontrol {Current settings} field, select the settings to
+            modify and click \uicontrol Copy.
+
+            \image qtcreator-options-code-style-nim.png "Nim Code Style options"
+
+        \li Give a name to the settings and click \uicontrol OK.
+
+        \li Click \uicontrol Edit to specify code style settings for the project.
+
+            \image qtcreator-code-style-settings-edit-nim.png "Edit Code Style Settings dialog"
+
+    \endlist
+
+    You can specify how to interpret the \key Tab key presses and how to align
+    continuation lines.
+
+    To specify different settings for a particular project, select
+    \uicontrol Projects > \uicontrol {Code Style}.
 
     \section1 Indenting Other Text Files
 
@@ -1393,6 +1443,14 @@
     pointers to functions and pointers to arrays.
 
     \image qtcreator-pointers-references.png "Pointers and References options"
+
+    \section1 Naming Getters
+
+    To prefer getter names without the string \e get, select the
+    \uicontrol {Prefer getter names without "get"} check box in the
+    \uicontrol {Getter and Setter} tab.
+
+    \image qtcreator-code-style-getter-setter.png
 
 */
 
@@ -1518,6 +1576,8 @@
 
                 \li \uicontrol {Files in File System} recursively searches files
                     matching the defined file pattern in the selected directory.
+
+                    \image qtcreator-search-filesystem.png
 
                     Select the \uicontrol {Use Git Grep} check box to use Git to
                     only search tracked files in the Git work tree. To restrict
@@ -2413,7 +2473,7 @@
 
     \list
 
-        \li Press \key {Ctrl+K} (\key {Cmd+K} on OS X).
+        \li Press \key {Ctrl+K} (\key {Cmd+K} on \macos).
 
         \li Select \uicontrol Tools > \uicontrol Locate.
 
@@ -2507,6 +2567,11 @@
     To use a specific locator filter, type the assigned prefix followed by
     \key Space. The prefix is usually a single character. Then type the search
     string (typically, a filename or class name) or the command to execute.
+
+    You can also double-click a locator filter in the filter list to use it. You
+    can use the up and down arrow keys or the \key Ctrl+P and \key Ctrl+N
+    keyboard shortcuts to move up and down the list, and then press \key Enter
+    to use the selected filter.
 
     For example, to locate symbols matching QDataStream:
 

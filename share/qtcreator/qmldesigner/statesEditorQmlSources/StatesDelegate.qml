@@ -37,6 +37,7 @@ Rectangle {
     property int delegateStateImageSize
 
     color: baseColor
+    border.color: creatorTheme.QmlDesignerBorderColor
 
     MouseArea {
         anchors.fill: parent
@@ -54,7 +55,11 @@ Rectangle {
         style: ButtonStyle {
             background: Rectangle {
                 color: control.hovered ? Qt.lighter(baseColor, 1.2)  : "transparent"
-                radius: 2
+                Image {
+                    source: "image://icons/close"
+                    height: 16
+                    width: 16
+                }
             }
         }
 
@@ -64,7 +69,6 @@ Rectangle {
         anchors.verticalCenter: stateNameField.verticalCenter
         height: 16
         width: 16
-        iconSource: "images/darkclose.png"
         visible: !isBaseState
 
         onClicked: root.deleteState(internalNodeId)
@@ -98,24 +102,23 @@ Rectangle {
                 statesEditorModel.renameState(internalNodeId, text)
         }
 
-        // as we change the background we need to change the text
-        // color to see some text
-        textColor: "#FFFFFF"
     }
 
     Item {
         id: stateImageArea
-        anchors.topMargin: 1
+        anchors.topMargin: 4
         anchors.left: stateNameField.left
         anchors.top: stateNameField.bottom
 
         height: delegateStateImageSize + 2
         width: delegateStateImageSize + 2
+
+        visible: expanded
         Rectangle {
             anchors.margins: -1
             anchors.fill: stateImage
             border.width: 1
-            border.color: "#000000"
+            border.color: creatorTheme.QmlDesignerBackgroundColorDarker
         }
         Image {
             id: stateImage

@@ -31,7 +31,6 @@
 #include <vcsbase/vcsbaseplugin.h>
 #include <vcsbase/vcsoutputwindow.h>
 #include <vcsbase/vcsbaseeditorparameterwidget.h>
-#include <utils/synchronousprocess.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -43,21 +42,6 @@ using namespace VcsBase;
 
 namespace Bazaar {
 namespace Internal {
-
-class BazaarDiffExitCodeInterpreter : public ExitCodeInterpreter
-{
-    Q_OBJECT
-public:
-    BazaarDiffExitCodeInterpreter(QObject *parent) : ExitCodeInterpreter(parent) {}
-    SynchronousProcessResponse::Result interpretExitCode(int code) const;
-};
-
-SynchronousProcessResponse::Result BazaarDiffExitCodeInterpreter::interpretExitCode(int code) const
-{
-    if (code < 0 || code > 2)
-        return SynchronousProcessResponse::FinishedError;
-    return SynchronousProcessResponse::Finished;
-}
 
 // Parameter widget controlling whitespace diff mode, associated with a parameter
 class BazaarDiffParameterWidget : public VcsBaseEditorParameterWidget
@@ -126,8 +110,8 @@ bool BazaarClient::synchronousSetUserId()
     args << QLatin1String("whoami")
          << (settings().stringValue(BazaarSettings::userNameKey) + QLatin1String(" <")
              + settings().stringValue(BazaarSettings::userEmailKey) + QLatin1Char('>'));
-    QByteArray stdOut;
-    return vcsFullySynchronousExec(QDir::currentPath(), args, &stdOut);
+    return vcsFullySynchronousExec(QDir::currentPath(), args).result
+            == SynchronousProcessResponse::Finished;
 }
 
 BranchInfo BazaarClient::synchronousBranchQuery(const QString &repositoryRoot) const
@@ -166,11 +150,10 @@ bool BazaarClient::synchronousUncommit(const QString &workingDir,
          << QLatin1String("--verbose") // Will print out what is being removed
          << revisionSpec(revision)
          << extraOptions;
-    QByteArray stdOut;
-    const bool success = vcsFullySynchronousExec(workingDir, args, &stdOut);
-    if (!stdOut.isEmpty())
-        VcsOutputWindow::append(QString::fromUtf8(stdOut));
-    return success;
+
+    const SynchronousProcessResponse result = vcsFullySynchronousExec(workingDir, args);
+    VcsOutputWindow::append(result.stdOut());
+    return result.result == SynchronousProcessResponse::Finished;
 }
 
 void BazaarClient::commit(const QString &repositoryRoot, const QStringList &files,
@@ -180,12 +163,12 @@ void BazaarClient::commit(const QString &repositoryRoot, const QStringList &file
                           QStringList(extraOptions) << QLatin1String("-F") << commitMessageFile);
 }
 
-void BazaarClient::annotate(const QString &workingDir, const QString &file,
-                            const QString &revision, int lineNumber,
-                            const QStringList &extraOptions)
+VcsBaseEditorWidget *BazaarClient::annotate(
+        const QString &workingDir, const QString &file, const QString &revision,
+        int lineNumber, const QStringList &extraOptions)
 {
-    VcsBaseClient::annotate(workingDir, file, revision, lineNumber,
-                            QStringList(extraOptions) << QLatin1String("--long"));
+    return VcsBaseClient::annotate(workingDir, file, revision, lineNumber,
+                                   QStringList(extraOptions) << QLatin1String("--long"));
 }
 
 QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const
@@ -203,10 +186,11 @@ bool BazaarClient::managesFile(const QString &workingDirectory, const QString &f
 {
     QStringList args(QLatin1String("status"));
     args << fileName;
-    QByteArray stdOut;
-    if (!vcsFullySynchronousExec(workingDirectory, args, &stdOut))
+
+    const SynchronousProcessResponse result = vcsFullySynchronousExec(workingDirectory, args);
+    if (result.result != SynchronousProcessResponse::Finished)
         return false;
-    return !stdOut.startsWith("unknown");
+    return result.rawStdOut.startsWith("unknown");
 }
 
 void BazaarClient::view(const QString &source, const QString &id, const QStringList &extraOptions)
@@ -240,14 +224,15 @@ QString BazaarClient::vcsCommandString(VcsCommandTag cmd) const
     }
 }
 
-ExitCodeInterpreter *BazaarClient::exitCodeInterpreter(VcsCommandTag cmd, QObject *parent) const
+ExitCodeInterpreter BazaarClient::exitCodeInterpreter(VcsCommandTag cmd) const
 {
-    switch (cmd) {
-    case DiffCommand:
-        return new BazaarDiffExitCodeInterpreter(parent);
-    default:
-        return 0;
+    if (cmd == DiffCommand) {
+        return [](int code) {
+            return (code < 0 || code > 2) ? SynchronousProcessResponse::FinishedError
+                                          : SynchronousProcessResponse::Finished;
+        };
     }
+    return Utils::defaultExitCodeInterpreter;
 }
 
 QStringList BazaarClient::revisionSpec(const QString &revision) const

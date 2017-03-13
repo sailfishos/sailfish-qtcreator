@@ -27,7 +27,9 @@
 
 #include "qmljseditorconstants.h"
 #include "qmljseditordocument_p.h"
+#include "qmljseditorplugin.h"
 #include "qmljshighlighter.h"
+#include "qmljsquickfixassist.h"
 #include "qmljssemantichighlighter.h"
 #include "qmljssemanticinfoupdater.h"
 #include "qmloutlinemodel.h"
@@ -325,6 +327,34 @@ protected:
 
         return false;
     }
+
+    bool visit(AST::BinaryExpression *ast)
+    {
+        AST::FieldMemberExpression *field = AST::cast<AST::FieldMemberExpression *>(ast->left);
+        AST::FunctionExpression *funcExpr = AST::cast<AST::FunctionExpression *>(ast->right);
+
+        if (field && funcExpr && funcExpr->body && (ast->op == QSOperator::Assign)) {
+            Declaration decl;
+            init(&decl, ast);
+
+            decl.text.fill(QLatin1Char(' '), _depth);
+            decl.text += field->name;
+
+            decl.text += QLatin1Char('(');
+            for (FormalParameterList *it = funcExpr->formals; it; it = it->next) {
+                if (!it->name.isEmpty())
+                    decl.text += it->name;
+
+                if (it->next)
+                    decl.text += QLatin1String(", ");
+            }
+            decl.text += QLatin1Char(')');
+
+            _declarations.append(decl);
+        }
+
+        return true;
+    }
 };
 
 class CreateRanges: protected AST::Visitor
@@ -368,6 +398,16 @@ protected:
     virtual bool visit(AST::FunctionDeclaration *ast)
     {
         _ranges.append(createRange(ast));
+        return true;
+    }
+
+    bool visit(AST::BinaryExpression *ast)
+    {
+        auto field = AST::cast<AST::FieldMemberExpression *>(ast->left);
+        auto funcExpr = AST::cast<AST::FunctionExpression *>(ast->right);
+
+        if (field && funcExpr && funcExpr->body && (ast->op == QSOperator::Assign))
+            _ranges.append(createRange(ast, ast->firstSourceLocation(), ast->lastSourceLocation()));
         return true;
     }
 
@@ -427,28 +467,32 @@ QmlJSEditorDocumentPrivate::QmlJSEditorDocumentPrivate(QmlJSEditorDocument *pare
     // code model
     m_updateDocumentTimer.setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
     m_updateDocumentTimer.setSingleShot(true);
-    connect(q->document(), SIGNAL(contentsChanged()), &m_updateDocumentTimer, SLOT(start()));
-    connect(&m_updateDocumentTimer, SIGNAL(timeout()), this, SLOT(reparseDocument()));
-    connect(modelManager, SIGNAL(documentUpdated(QmlJS::Document::Ptr)),
-            this, SLOT(onDocumentUpdated(QmlJS::Document::Ptr)));
+    connect(q->document(), &QTextDocument::contentsChanged,
+            &m_updateDocumentTimer, static_cast<void (QTimer::*)()>(&QTimer::start));
+    connect(&m_updateDocumentTimer, &QTimer::timeout,
+            this, &QmlJSEditorDocumentPrivate::reparseDocument);
+    connect(modelManager, &ModelManagerInterface::documentUpdated,
+            this, &QmlJSEditorDocumentPrivate::onDocumentUpdated);
 
     // semantic info
     m_semanticInfoUpdater = new SemanticInfoUpdater(this);
-    connect(m_semanticInfoUpdater, SIGNAL(updated(QmlJSTools::SemanticInfo)),
-            this, SLOT(acceptNewSemanticInfo(QmlJSTools::SemanticInfo)));
+    connect(m_semanticInfoUpdater, &SemanticInfoUpdater::updated,
+            this, &QmlJSEditorDocumentPrivate::acceptNewSemanticInfo);
     m_semanticInfoUpdater->start();
 
     // library info changes
     m_reupdateSemanticInfoTimer.setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
     m_reupdateSemanticInfoTimer.setSingleShot(true);
-    connect(&m_reupdateSemanticInfoTimer, SIGNAL(timeout()), this, SLOT(reupdateSemanticInfo()));
-    connect(modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
-            &m_reupdateSemanticInfoTimer, SLOT(start()));
+    connect(&m_reupdateSemanticInfoTimer, &QTimer::timeout,
+            this, &QmlJSEditorDocumentPrivate::reupdateSemanticInfo);
+    connect(modelManager, &ModelManagerInterface::libraryInfoUpdated,
+            &m_reupdateSemanticInfoTimer, static_cast<void (QTimer::*)()>(&QTimer::start));
 
     // outline model
     m_updateOutlineModelTimer.setInterval(UPDATE_OUTLINE_INTERVAL);
     m_updateOutlineModelTimer.setSingleShot(true);
-    connect(&m_updateOutlineModelTimer, SIGNAL(timeout()), this, SLOT(updateOutlineModel()));
+    connect(&m_updateOutlineModelTimer, &QTimer::timeout,
+            this, &QmlJSEditorDocumentPrivate::updateOutlineModel);
 
     modelManager->updateSourceFiles(QStringList(parent->filePath().toString()), false);
 }
@@ -549,8 +593,8 @@ QmlJSEditorDocument::QmlJSEditorDocument()
     : d(new Internal::QmlJSEditorDocumentPrivate(this))
 {
     setId(Constants::C_QMLJSEDITOR_ID);
-    connect(this, SIGNAL(tabSettingsChanged()),
-            d, SLOT(invalidateFormatterCache()));
+    connect(this, &TextEditor::TextDocument::tabSettingsChanged,
+            d, &Internal::QmlJSEditorDocumentPrivate::invalidateFormatterCache);
     setSyntaxHighlighter(new QmlJSHighlighter(document()));
     setIndenter(new Internal::Indenter);
 }
@@ -578,6 +622,11 @@ QVector<QTextLayout::FormatRange> QmlJSEditorDocument::diagnosticRanges() const
 Internal::QmlOutlineModel *QmlJSEditorDocument::outlineModel() const
 {
     return d->m_outlineModel;
+}
+
+TextEditor::QuickFixAssistProvider *QmlJSEditorDocument::quickFixAssistProvider() const
+{
+    return Internal::QmlJSEditorPlugin::instance()->quickFixAssistProvider();
 }
 
 void QmlJSEditorDocument::setDiagnosticRanges(const QVector<QTextLayout::FormatRange> &ranges)

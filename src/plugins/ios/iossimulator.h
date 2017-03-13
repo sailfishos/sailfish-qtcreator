@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSSIMULATOR_H
-#define IOSSIMULATOR_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
 #include <utils/fileutils.h>
@@ -80,7 +79,7 @@ public:
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-    quint16 nextPort() const;
+    Utils::Port nextPort() const;
     bool canAutoDetectPorts() const override;
 
     ProjectExplorer::IDevice::Ptr clone() const override;
@@ -103,5 +102,3 @@ IosSimulator::ConstPtr simulator(ProjectExplorer::Kit *kit);
 } // namespace Ios
 
 Q_DECLARE_METATYPE(Ios::Internal::IosDeviceType)
-
-#endif // IOSSIMULATOR_H

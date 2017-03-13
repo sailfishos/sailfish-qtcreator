@@ -120,10 +120,13 @@ protected:
     bool setupTarget(ProjectExplorer::Target *t) override;
 
 private:
+    void handleCmakeFileChanged();
+
     void handleActiveTargetChanged();
     void handleActiveBuildConfigurationChanged();
     void handleParsingStarted();
     void parseCMakeOutput();
+    void updateQmlJSCodeModel();
 
     void buildTree(Internal::CMakeProjectNode *rootNode, QList<ProjectExplorer::FileNode *> list);
     void gatherFileNodes(ProjectExplorer::FolderNode *parent, QList<ProjectExplorer::FileNode *> &list) const;
@@ -143,7 +146,10 @@ private:
     QFuture<void> m_codeModelFuture;
     QList<ProjectExplorer::ExtraCompiler *> m_extraCompilers;
 
+    QSet<Internal::CMakeFile *> m_watchedFiles;
+
     friend class Internal::CMakeBuildConfiguration;
+    friend class Internal::CMakeFile;
 };
 
 } // namespace CMakeProjectManager

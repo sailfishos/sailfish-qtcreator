@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINERENDERER_H
-#define TIMELINERENDERER_H
+#pragma once
 
 #include "timelinezoomcontrol.h"
 #include "timelinemodel.h"
@@ -48,12 +47,7 @@ public:
 
     Q_INVOKABLE void selectNextFromSelectionId(int selectionId);
     Q_INVOKABLE void selectPrevFromSelectionId(int selectionId);
-
-    // TODO: We could add some Q_INVOKABLE functions to enable or disable render passes when the the
-    // need arises.
-
-public slots:
-    void clearData();
+    Q_INVOKABLE void clearData();
 
 protected:
     virtual QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *updatePaintNodeData);
@@ -71,5 +65,3 @@ private:
 } // namespace Timeline
 
 QML_DECLARE_TYPE(Timeline::TimelineRenderer)
-
-#endif // TIMELINERENDERER_H

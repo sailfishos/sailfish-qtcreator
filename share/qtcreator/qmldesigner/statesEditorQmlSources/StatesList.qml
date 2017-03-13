@@ -31,7 +31,7 @@ import "../common"
 FocusScope {
     id: root
 
-    height: expanded ? 136 : 32
+    height: expanded ? 136 : 30
     signal createNewState
     signal deleteState(int internalNodeId)
     signal duplicateCurrentState
@@ -39,7 +39,7 @@ FocusScope {
     property int stateImageSize: 100
     property int delegateWidth: stateImageSize + 10
     property int padding: 2
-    property int delegateHeight: root.height - padding * 2
+    property int delegateHeight: root.height - padding * 2 + 1
     property int innerSpacing: -1
     property int currentStateInternalId : 0
 
@@ -57,7 +57,7 @@ FocusScope {
     Rectangle {
         id: background
         anchors.fill: parent
-        color: "#4f4f4f"
+        color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
     }
 
     MouseArea {
@@ -104,15 +104,22 @@ FocusScope {
             anchors.verticalCenter: parent.verticalCenter
             width: Math.max(parent.height / 2 - 8, 18)
             height: width
-            iconSource: "images/plus.png"
 
             onClicked: root.createNewState()
 
             style: ButtonStyle {
                 background: Rectangle {
-                    property color buttonBaseColor: "#6f6f6f"
+                    property color buttonBaseColor: Qt.darker(creatorTheme.QmlDesignerBackgroundColorDarkAlternate, 1.1)
                     color: control.hovered ? Qt.lighter(buttonBaseColor, 1.2)  : buttonBaseColor
+                    border.color: creatorTheme.QmlDesignerBorderColor
                     border.width: 1
+                    Image {
+                        source: "image://icons/plus"
+                        width: 16
+                        height: 16
+                        anchors.centerIn: parent
+                        smooth: false
+                    }
                 }
             }
         }
@@ -141,7 +148,7 @@ FocusScope {
                 height: delegateHeight
                 isBaseState: 0 == internalNodeId
                 isCurrentState: root.currentStateInternalId == internalNodeId
-                baseColor: isCurrentState ? Qt.darker(highlightColor, 1.2) : background.color
+                baseColor: isCurrentState ? creatorTheme.QmlDesigner_HighlightColor : background.color
                 delegateStateName: stateName
                 delegateStateImageSource: stateImageSource
                 delegateStateImageSize: stateImageSize

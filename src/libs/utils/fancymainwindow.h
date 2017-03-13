@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FANCYMAINWINDOW_H
-#define FANCYMAINWINDOW_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -80,15 +79,12 @@ protected:
     void showEvent(QShowEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
 
-private slots:
+private:
     void onDockActionTriggered();
 
-private:
     void handleVisibilityChanged(bool visible);
 
     FancyMainWindowPrivate *d;
 };
 
 } // namespace Utils
-
-#endif // FANCYMAINWINDOW_H

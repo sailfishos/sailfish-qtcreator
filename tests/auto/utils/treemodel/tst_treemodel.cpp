@@ -37,21 +37,23 @@ class tst_TreeModel : public QObject
 
 private slots:
     void testIteration();
+    void testMixed();
 };
 
 static int countLevelItems(TreeItem *base, int level)
 {
     int n = 0;
-    foreach (TreeItem *item, UntypedTreeLevelItems(base, level)) {
-        Q_UNUSED(item);
-        ++n;
-    }
+    int bl = base->level();
+    base->forAllChildren<TreeItem *>([level, bl, &n](TreeItem *item) {
+        if (item->level() == bl + level)
+            ++n;
+    });
     return n;
 }
 
-static TreeItem *createItem(const char *name)
+static TreeItem *createItem(const QString &name)
 {
-    return new TreeItem(QStringList(QString::fromLatin1(name)));
+    return new StaticTreeItem(name);
 }
 
 void tst_TreeModel::testIteration()
@@ -77,7 +79,7 @@ void tst_TreeModel::testIteration()
     group2->appendChild(item21);
     group2->appendChild(item22);
 
-    QCOMPARE(r->rowCount(), 3);
+    QCOMPARE(r->childCount(), 3);
     QCOMPARE(countLevelItems(r, 1), 3);
     QCOMPARE(countLevelItems(r, 2), 6);
     QCOMPARE(countLevelItems(r, 3), 0);
@@ -86,6 +88,28 @@ void tst_TreeModel::testIteration()
     QCOMPARE(countLevelItems(group1, 2), 0);
     QCOMPARE(countLevelItems(group2, 1), 3);
     QCOMPARE(countLevelItems(group2, 2), 0);
+}
+
+struct ItemA : public TreeItem {};
+struct ItemB : public TreeItem {};
+
+void tst_TreeModel::testMixed()
+{
+    LeveledTreeModel<TreeItem, ItemA, ItemB> m;
+    TreeItem *r = m.rootItem();
+    TreeItem *ra;
+    r->appendChild(new ItemA);
+    r->appendChild(ra = new ItemA);
+    ra->appendChild(new ItemB);
+    ra->appendChild(new ItemB);
+
+    int n = 0;
+    m.forFirstLevelItems([&n](ItemA *) { ++n; });
+    QCOMPARE(n, 2);
+
+    n = 0;
+    m.forSecondLevelItems([&n](ItemB *) { ++n; });
+    QCOMPARE(n, 2);
 }
 
 

@@ -820,6 +820,11 @@ void Check::visitQmlObject(Node *ast, UiQualifiedId *typeId,
 
     const QString typeName = getRightMostIdentifier(typeId)->name.toString();
 
+    if (!m_typeStack.isEmpty() && m_typeStack.last() == QLatin1String("State")
+            && typeId->name.toString() != "PropertyChanges"
+            && typeId->name.toString() != "StateChangeScript")
+        addMessage(StateCannotHaveChildItem, typeErrorLocation, typeName);
+
     if (checkTypeForDesignerSupport(typeId))
         addMessage(WarnUnsupportedTypeInVisualDesigner, typeErrorLocation, typeName);
 
@@ -1548,8 +1553,12 @@ bool Check::visit(CallExpression *ast)
     SourceLocation location;
     const QString name = functionName(ast->base, &location);
 
-    //We have to allow the qsTr function for translation.
-    if (name != QLatin1String("qsTr") && name != QLatin1String("qsTrId"))
+    // We have to allow the qsTr function for translation.
+    bool isTranslationFunction = (name == QLatin1String("qsTr") || name == QLatin1String("qsTrId"));
+    // allow adding connections with the help of the qt quick designer ui
+    bool isDirectInConnectionsScope =
+            (!m_typeStack.isEmpty() && m_typeStack.last() == QLatin1String("Connections"));
+    if (!isTranslationFunction && !isDirectInConnectionsScope)
         addMessage(ErrFunctionsNotSupportedInQmlUi, location);
 
     if (!name.isEmpty() && name.at(0).isUpper()

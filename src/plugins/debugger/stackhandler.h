@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_STACKHANDLER_H
-#define DEBUGGER_STACKHANDLER_H
+#pragma once
 
 #include "stackframe.h"
 
@@ -84,13 +83,11 @@ private:
     QVariant data(const QModelIndex &index, int role) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
-    Q_SLOT void resetModel() { beginResetModel(); endResetModel(); }
+    void resetModel() { beginResetModel(); endResetModel(); }
 
     DebuggerEngine *m_engine;
     StackFrames m_stackFrames;
     int m_currentIndex;
-    const QVariant m_positionIcon;
-    const QVariant m_emptyIcon;
     bool m_canExpand;
     bool m_resetLocationScheduled;
     bool m_contentsValid;
@@ -98,5 +95,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_STACKHANDLER_H

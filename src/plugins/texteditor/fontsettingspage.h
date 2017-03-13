@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FONTSETTINGSPAGE_H
-#define FONTSETTINGSPAGE_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -57,6 +56,7 @@ public:
         ShowBackgroundControl = 0x2,
         ShowFontControls = 0x4,
         ShowUnderlineControl = 0x8,
+        ShowFontAndUnderlineControls = ShowFontControls | ShowUnderlineControl,
         AllControls = 0xF,
         AllControlsExceptUnderline = AllControls & ~ShowUnderlineControl,
     };
@@ -89,8 +89,8 @@ public:
     QString displayName() const
     { return m_displayName; }
 
-    QColor foreground() const;
-    QColor background() const;
+    static QColor defaultForeground(TextStyle id);
+    static QColor defaultBackground(TextStyle id);
 
     const Format &format() const { return m_format; }
     Format &format() { return m_format; }
@@ -151,5 +151,3 @@ private:
 };
 
 } // namespace TextEditor
-
-#endif // FONTSETTINGSPAGE_H

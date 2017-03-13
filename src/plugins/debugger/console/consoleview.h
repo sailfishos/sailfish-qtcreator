@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_CONSOLEVIEW_H
-#define DEBUGGER_CONSOLEVIEW_H
+#pragma once
 
 #include <utils/itemviews.h>
 
@@ -40,7 +39,6 @@ class ConsoleView : public Utils::TreeView
 public:
     ConsoleView(ConsoleItemModel *model, QWidget *parent);
 
-public slots:
     void onScrollToBottom();
 
 protected:
@@ -61,5 +59,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // DEBUGGER_CONSOLEVIEW_H

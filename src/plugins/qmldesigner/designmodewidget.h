@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DESIGNMODEWIDGET_H
-#define DESIGNMODEWIDGET_H
+#pragma once
 
 #include <coreplugin/minisplitter.h>
 #include <utils/faketooltip.h>
@@ -33,15 +32,7 @@
 #include <modelnode.h>
 
 #include <QWidget>
-#include <QLabel>
 #include <QScopedPointer>
-
-QT_BEGIN_NAMESPACE
-class QStackedWidget;
-class QTabWidget;
-class QVBoxLayout;
-class QToolButton;
-QT_END_NAMESPACE
 
 namespace Core {
     class SideBar;
@@ -60,22 +51,7 @@ namespace Internal {
 class DesignMode;
 class DocumentWidget;
 class DesignModeWidget;
-
-class DocumentWarningWidget : public Utils::FakeToolTip
-{
-    Q_OBJECT
-
-public:
-    explicit DocumentWarningWidget(DesignModeWidget *parent = 0);
-
-    void setError(const RewriterError &error);
-
-private:
-    QLabel *m_errorMessage;
-    QLabel *m_goToError;
-    RewriterError m_error;
-    DesignModeWidget *m_designModeWidget;
-};
+class DocumentWarningWidget;
 
 class DesignModeWidget : public QWidget
 {
@@ -101,7 +77,8 @@ public:
 
     void enableWidgets();
     void disableWidgets();
-    void showErrorMessage(const QList<RewriterError> &errors);
+    void showErrorMessageBox(const QList<RewriterError> &errors);
+    void showWarningMessageBox(const QList<RewriterError> &warnings);
 
     CrumbleBar* crumbleBar() const;
 
@@ -113,17 +90,8 @@ public slots:
     void toggleRightSidebar();
 
 private slots:
-    void updateAvailableSidebarItemsLeft();
-    void updateAvailableSidebarItemsRight();
-
-    void deleteSidebarWidgets();
-    void showQmlPuppetCrashedError();
-
     void toolBarOnGoBackClicked();
     void toolBarOnGoForwardClicked();
-
-protected:
-    void resizeEvent(QResizeEvent *event);
 
 private: // functions
     enum InitializeStatus { NotInitialized, Initializing, Initialized };
@@ -137,26 +105,25 @@ private: // functions
     QWidget *createCrumbleBarFrame();
 
 private: // variables
-    QSplitter *m_mainSplitter;
+    QSplitter *m_mainSplitter = nullptr;
+    QPointer<DocumentWarningWidget> m_warningWidget;
+
     QScopedPointer<Core::SideBar> m_leftSideBar;
     QScopedPointer<Core::SideBar> m_rightSideBar;
     QPointer<QWidget> m_topSideBar;
     Core::EditorToolBar *m_toolBar;
     CrumbleBar *m_crumbleBar;
-    bool m_isDisabled;
-    bool m_showSidebars;
+    bool m_isDisabled = false;
+    bool m_showSidebars = true;
 
-    InitializeStatus m_initStatus;
+    InitializeStatus m_initStatus = NotInitialized;
 
-    DocumentWarningWidget *m_warningWidget;
     QStringList m_navigatorHistory;
-    int m_navigatorHistoryCounter;
-    bool m_keepNavigatorHistory;
+    int m_navigatorHistoryCounter = -1;
+    bool m_keepNavigatorHistory = false;
 
     QList<QPointer<QWidget> >m_viewWidgets;
 };
 
 } // namespace Internal
 } // namespace Designer
-
-#endif // DESIGNMODEWIDGET_H

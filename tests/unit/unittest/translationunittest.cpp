@@ -23,9 +23,10 @@
 **
 ****************************************************************************/
 
+#include <clangfilepath.h>
 #include <commandlinearguments.h>
 #include <diagnosticset.h>
-#include <highlightinginformations.h>
+#include <highlightingmarks.h>
 #include <filecontainer.h>
 #include <projectpart.h>
 #include <projectpartcontainer.h>
@@ -52,6 +53,7 @@
 #include <thread>
 
 using ClangBackEnd::FileContainer;
+using ClangBackEnd::FilePath;
 using ClangBackEnd::TranslationUnit;
 using ClangBackEnd::UnsavedFiles;
 using ClangBackEnd::ProjectPart;
@@ -156,9 +158,10 @@ TEST_F(TranslationUnit, ResetedTranslationUnitIsNull)
 
 TEST_F(TranslationUnit, LastCommandLineArgumentIsFilePath)
 {
+    const Utf8String nativeFilePath = FilePath::toNativeSeparators(translationUnitFilePath);
     const auto arguments = translationUnit.commandLineArguments();
 
-    ASSERT_THAT(arguments.at(arguments.count() - 1), Eq(translationUnitFilePath));
+    ASSERT_THAT(arguments.at(arguments.count() - 1), Eq(nativeFilePath));
 }
 
 TEST_F(TranslationUnit, TimeStampForProjectPartChangeIsUpdatedAsNewCxTranslationUnitIsGenerated)
@@ -310,49 +313,49 @@ TEST_F(TranslationUnit, HasNoNewDiagnosticsAfterGettingDiagnostics)
     ASSERT_FALSE(translationUnit.hasNewDiagnostics());
 }
 
-TEST_F(TranslationUnit, HasNewHighlightingInformationsAfterCreation)
+TEST_F(TranslationUnit, HasNewHighlightingMarksAfterCreation)
 {
     translationUnit.cxTranslationUnit();
 
-    ASSERT_TRUE(translationUnit.hasNewHighlightingInformations());
+    ASSERT_TRUE(translationUnit.hasNewHighlightingMarks());
 }
 
-TEST_F(TranslationUnit, HasNewHighlightingInformationsForMainFile)
+TEST_F(TranslationUnit, HasNewHighlightingMarksForMainFile)
 {
     translationUnit.cxTranslationUnit();
 
     translationUnit.setDirtyIfDependencyIsMet(translationUnitFilePath);
 
-    ASSERT_TRUE(translationUnit.hasNewHighlightingInformations());
+    ASSERT_TRUE(translationUnit.hasNewHighlightingMarks());
 }
 
-TEST_F(TranslationUnit, HasNoNewHighlightingInformationsForIndependendFile)
+TEST_F(TranslationUnit, HasNoNewHighlightingMarksForIndependendFile)
 {
     translationUnit.cxTranslationUnit();
-    translationUnit.highlightingInformations();
+    translationUnit.highlightingMarks();
 
     translationUnit.setDirtyIfDependencyIsMet(Utf8StringLiteral(TESTDATA_DIR"/otherfiles.h"));
 
-    ASSERT_FALSE(translationUnit.hasNewHighlightingInformations());
+    ASSERT_FALSE(translationUnit.hasNewHighlightingMarks());
 }
 
-TEST_F(TranslationUnit, HasNewHighlightingInformationsForDependendFile)
+TEST_F(TranslationUnit, HasNewHighlightingMarksForDependendFile)
 {
     translationUnit.cxTranslationUnit();
 
     translationUnit.setDirtyIfDependencyIsMet(Utf8StringLiteral(TESTDATA_DIR"/translationunits.h"));
 
-    ASSERT_TRUE(translationUnit.hasNewHighlightingInformations());
+    ASSERT_TRUE(translationUnit.hasNewHighlightingMarks());
 }
 
-TEST_F(TranslationUnit, HasNoNewHighlightingInformationsAfterGettingHighlightingInformations)
+TEST_F(TranslationUnit, HasNoNewHighlightingMarksAfterGettingHighlightingMarks)
 {
     translationUnit.cxTranslationUnit();
     translationUnit.setDirtyIfDependencyIsMet(translationUnitFilePath);
 
-    translationUnit.highlightingInformations();
+    translationUnit.highlightingMarks();
 
-    ASSERT_FALSE(translationUnit.hasNewHighlightingInformations());
+    ASSERT_FALSE(translationUnit.hasNewHighlightingMarks());
 }
 
 TEST_F(TranslationUnit, SetDirtyIfProjectPartIsOutdated)

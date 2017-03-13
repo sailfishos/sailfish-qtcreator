@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLASSVIEWNAVIGATIONWIDGET_H
-#define CLASSVIEWNAVIGATIONWIDGET_H
+#pragma once
 
 #include "classviewtreeitemmodel.h"
 
@@ -65,7 +64,7 @@ signals:
 
     void requestTreeDataUpdate();
 
-public slots:
+public:
     void onItemActivated(const QModelIndex &index);
     void onItemDoubleClicked(const QModelIndex &index);
 
@@ -90,5 +89,3 @@ private:
 
 } // namespace Internal
 } // namespace ClassView
-
-#endif // CLASSVIEWNAVIGATIONWIDGET_H

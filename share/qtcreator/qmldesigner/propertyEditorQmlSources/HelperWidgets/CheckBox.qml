@@ -31,8 +31,6 @@ Controls.CheckBox {
 
     id: checkBox
 
-    property color borderColor: "#222"
-    property color highlightColor: "orange"
     property color textColor: colorLogic.textColor
 
     opacity: enabled ? 1 : 0.5
@@ -41,6 +39,7 @@ Controls.CheckBox {
 
     ExtendedFunctionButton {
         x: 22
+        anchors.verticalCenter: parent.verticalCenter
         backendValue: checkBox.backendValue
         visible: checkBox.enabled
     }

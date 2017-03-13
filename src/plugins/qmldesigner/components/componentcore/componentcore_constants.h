@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COMPONENTCORE_CONSTANTS_H
-#define COMPONENTCORE_CONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -72,7 +71,9 @@ const char resetSizeDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", 
 const char resetPositionDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Reset Position");
 
 const char goIntoComponentDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Go into Component");
-const char goToImplementation[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Go to Implementation");
+const char goToImplementationDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Go to Implementation");
+const char addSignalHandlerDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Add New Signal Handler");
+const char moveToComponentDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Move to Component");
 
 const char setIdDisplayName[] = QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Set Id");
 
@@ -112,5 +113,3 @@ const int priorityLast = 60;
 } //ComponentCoreConstants
 
 } //QmlDesigner
-
-#endif //COMPONENTCORE_CONSTANTS_H

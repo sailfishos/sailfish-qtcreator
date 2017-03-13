@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLINSPECTORAGENT_H
-#define QMLINSPECTORAGENT_H
+#pragma once
 
 #include <QStack>
 #include <QPointer>
@@ -87,7 +86,7 @@ private:
 
     void buildDebugIdHashRecursive(const QmlDebug::ObjectReference &ref);
     void addWatchData(const QmlDebug::ObjectReference &obj,
-                      const QByteArray &parentIname, bool append);
+                      const QString &parentIname, bool append);
 
     enum LogDirection {
         LogSend,
@@ -131,7 +130,7 @@ private:
     QList<quint32> m_objectTreeQueryIds;
     QStack<QmlDebug::ObjectReference> m_objectStack;
     QmlDebug::EngineReference m_engine;
-    QHash<int, QByteArray> m_debugIdToIname;
+    QHash<int, QString> m_debugIdToIname;
     QHash<int, QmlDebug::FileReference> m_debugIdLocations;
     DebugIdHash m_debugIdHash;
 
@@ -161,5 +160,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // QMLINSPECTORAGENT_H

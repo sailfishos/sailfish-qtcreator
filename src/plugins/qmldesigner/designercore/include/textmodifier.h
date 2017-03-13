@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTMODIFIER_H
-#define TEXTMODIFIER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 
@@ -83,6 +82,8 @@ public:
 
     virtual bool renameId(const QString &oldId, const QString &newId) = 0;
 
+    virtual bool moveToComponent(int nodeOffset) = 0;
+
 signals:
     void textChanged();
 
@@ -91,5 +92,3 @@ signals:
 };
 
 }
-
-#endif // TEXTMODIFIER_H

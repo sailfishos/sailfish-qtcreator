@@ -28,13 +28,14 @@ HEADERS += $$PWD/clangipcserver.h \
     $$PWD/translationunitalreadyexistsexception.h \
     $$PWD/commandlinearguments.h \
     $$PWD/cursor.h \
-    $$PWD/highlightinginformations.h \
-    $$PWD/highlightinginformation.h \
-    $$PWD/highlightinginformationsiterator.h \
     $$PWD/skippedsourceranges.h \
     $$PWD/clangtranslationunit.h \
     $$PWD/clangtype.h \
-    $$PWD/utf8positionfromlinecolumn.h
+    $$PWD/highlightingmark.h \
+    $$PWD/highlightingmarks.h \
+    $$PWD/highlightingmarksiterator.h \
+    $$PWD/utf8positionfromlinecolumn.h \
+    $$PWD/clangfilepath.h
 
 SOURCES += $$PWD/clangipcserver.cpp \
     $$PWD/codecompleter.cpp \
@@ -63,9 +64,10 @@ SOURCES += $$PWD/clangipcserver.cpp \
     $$PWD/translationunitalreadyexistsexception.cpp \
     $$PWD/commandlinearguments.cpp \
     $$PWD/cursor.cpp \
-    $$PWD/highlightinginformations.cpp \
-    $$PWD/highlightinginformation.cpp \
     $$PWD/skippedsourceranges.cpp \
     $$PWD/clangtranslationunit.cpp \
     $$PWD/clangtype.cpp \
-    $$PWD/utf8positionfromlinecolumn.cpp
+    $$PWD/highlightingmark.cpp \
+    $$PWD/highlightingmarks.cpp \
+    $$PWD/utf8positionfromlinecolumn.cpp \
+    $$PWD/clangfilepath.cpp

@@ -36,30 +36,11 @@
 
 #include <utils/fileutils.h>
 
-#include <QItemEditorFactory>
-#include <QComboBox>
 #include <QMessageBox>
-#include <QStyleFactory>
 #include <QTimer>
 #include <QUrl>
 
 namespace {
-
-enum ColumnRoles {
-    TargetModelNodeRow = 0,
-    PropertyNameRow = 1,
-    PropertyTypeRow = 2,
-    PropertyValueRow = 3
-};
-
-bool compareBindingProperties(const QmlDesigner::BindingProperty &bindingProperty01, const QmlDesigner::BindingProperty &bindingProperty02)
-{
-    if (bindingProperty01.parentModelNode() != bindingProperty02.parentModelNode())
-        return false;
-    if (bindingProperty01.name() != bindingProperty02.name())
-        return false;
-    return true;
-}
 
 bool compareVariantProperties(const QmlDesigner::VariantProperty &variantProperty01, const QmlDesigner::VariantProperty &variantProperty02)
 {
@@ -74,7 +55,7 @@ QString idOrTypeNameForNode(const QmlDesigner::ModelNode &modelNode)
 {
     QString idLabel = modelNode.id();
     if (idLabel.isEmpty())
-        idLabel = QString::fromLatin1(modelNode.simplifiedTypeName());
+        idLabel = modelNode.simplifiedTypeName();
 
     return idLabel;
 }
@@ -85,7 +66,7 @@ QmlDesigner::PropertyName unusedProperty(const QmlDesigner::ModelNode &modelNode
     int i = 0;
     if (modelNode.metaInfo().isValid()) {
         while (true) {
-            const QmlDesigner::PropertyName currentPropertyName = QString(QString::fromLatin1(propertyName) + QString::number(i)).toLatin1();
+            const QmlDesigner::PropertyName currentPropertyName = propertyName + QString::number(i).toLatin1();
             if (!modelNode.hasProperty(currentPropertyName) && !modelNode.metaInfo().hasProperty(currentPropertyName))
                 return currentPropertyName;
             i++;
@@ -136,13 +117,27 @@ namespace QmlDesigner {
 
 namespace Internal {
 
-DynamicPropertiesModel::DynamicPropertiesModel(ConnectionView *parent) :
-    QStandardItemModel(parent),
-    m_connectionView(parent),
-    m_lock(false),
-    m_handleDataChanged(false)
+DynamicPropertiesModel::DynamicPropertiesModel(ConnectionView *parent)
+    : QStandardItemModel(parent)
+    , m_connectionView(parent)
 {
-    connect(this, SIGNAL(dataChanged(QModelIndex,QModelIndex)), this, SLOT(handleDataChanged(QModelIndex,QModelIndex)));
+    connect(this, &QStandardItemModel::dataChanged, this, &DynamicPropertiesModel::handleDataChanged);
+}
+
+void DynamicPropertiesModel::resetModel()
+{
+    beginResetModel();
+    clear();
+    setHorizontalHeaderLabels(QStringList()
+                              << tr("Item")
+                              << tr("Property")
+                              << tr("Property Type")
+                              << tr("Property Value"));
+
+    foreach (const ModelNode modelNode, m_selectedModelNodes)
+        addModelNode(modelNode);
+
+    endResetModel();
 }
 
 void DynamicPropertiesModel::bindingPropertyChanged(const BindingProperty &bindingProperty)
@@ -228,7 +223,7 @@ BindingProperty DynamicPropertiesModel::bindingPropertyForRow(int rowNumber) con
     ModelNode  modelNode = connectionView()->modelNodeForInternalId(internalId);
 
     if (modelNode.isValid())
-        return modelNode.bindingProperty(targetPropertyName.toLatin1());
+        return modelNode.bindingProperty(targetPropertyName.toUtf8());
 
     return BindingProperty();
 }
@@ -241,7 +236,7 @@ VariantProperty DynamicPropertiesModel::variantPropertyForRow(int rowNumber) con
     ModelNode  modelNode = connectionView()->modelNodeForInternalId(internalId);
 
     if (modelNode.isValid())
-        return modelNode.variantProperty(targetPropertyName.toLatin1());
+        return modelNode.variantProperty(targetPropertyName.toUtf8());
 
     return VariantProperty();
 }
@@ -261,7 +256,7 @@ QStringList DynamicPropertiesModel::possibleTargetProperties(const BindingProper
         QStringList possibleProperties;
         foreach (const PropertyName &propertyName, metaInfo.propertyNames()) {
             if (metaInfo.propertyIsWritable(propertyName))
-                possibleProperties << QString::fromLatin1(propertyName);
+                possibleProperties << QString::fromUtf8(propertyName);
         }
 
         return possibleProperties;
@@ -315,7 +310,7 @@ QStringList DynamicPropertiesModel::possibleSourceProperties(const BindingProper
         QStringList possibleProperties;
         foreach (const PropertyName &propertyName, metaInfo.propertyNames()) {
             if (metaInfo.propertyTypeName(propertyName) == typeName) //### todo proper check
-                possibleProperties << QString::fromLatin1(propertyName);
+                possibleProperties << QString::fromUtf8(propertyName);
         }
 
         return possibleProperties;
@@ -342,27 +337,6 @@ void DynamicPropertiesModel::deleteDynamicPropertyByRow(int rowNumber)
     resetModel();
 }
 
-void DynamicPropertiesModel::resetModel()
-{
-    beginResetModel();
-    clear();
-
-    QStringList labels;
-
-    labels << tr("Item");
-    labels <<tr("Property");
-    labels <<tr("Property Type");
-    labels <<tr("Property Value");
-
-    setHorizontalHeaderLabels(labels);
-
-    foreach (const ModelNode modelNode, m_selectedModelNodes) {
-        addModelNode(modelNode);
-    }
-
-    endResetModel();
-}
-
 void DynamicPropertiesModel::addProperty(const QVariant &propertyValue,
                                          const QString &propertyType,
                                          const AbstractProperty &abstractProperty)
@@ -377,7 +351,7 @@ void DynamicPropertiesModel::addProperty(const QVariant &propertyValue,
     idItem = new QStandardItem(idOrTypeNameForNode(abstractProperty.parentModelNode()));
     updateCustomData(idItem, abstractProperty);
 
-    propertyNameItem = new QStandardItem(QString::fromLatin1(abstractProperty.name()));
+    propertyNameItem = new QStandardItem(QString::fromUtf8(abstractProperty.name()));
 
     items.append(idItem);
     items.append(propertyNameItem);
@@ -412,10 +386,10 @@ void DynamicPropertiesModel::updateBindingProperty(int rowNumber)
     BindingProperty bindingProperty = bindingPropertyForRow(rowNumber);
 
     if (bindingProperty.isValid()) {
-        QString propertyName = QString::fromLatin1(bindingProperty.name());
+        QString propertyName = QString::fromUtf8(bindingProperty.name());
         updateDisplayRole(rowNumber, PropertyNameRow, propertyName);
         QString value = bindingProperty.expression();
-        QString type = QString::fromLatin1(bindingProperty.dynamicTypeName());
+        QString type = QString::fromUtf8(bindingProperty.dynamicTypeName());
         updateDisplayRole(rowNumber, PropertyTypeRow, type);
         updateDisplayRole(rowNumber, PropertyValueRow, value);
     }
@@ -426,10 +400,10 @@ void DynamicPropertiesModel::updateVariantProperty(int rowNumber)
     VariantProperty variantProperty = variantPropertyForRow(rowNumber);
 
     if (variantProperty.isValid()) {
-        QString propertyName = QString::fromLatin1(variantProperty.name());
+        QString propertyName = QString::fromUtf8(variantProperty.name());
         updateDisplayRole(rowNumber, PropertyNameRow, propertyName);
         QVariant value = variantProperty.value();
-        QString type = QString::fromLatin1(variantProperty.dynamicTypeName());
+        QString type = QString::fromUtf8(variantProperty.dynamicTypeName());
         updateDisplayRole(rowNumber, PropertyTypeRow, type);
 
         updateDisplayRoleFromVariant(rowNumber, PropertyValueRow, value);
@@ -489,7 +463,7 @@ void DynamicPropertiesModel::updateValue(int row)
 
 void DynamicPropertiesModel::updatePropertyName(int rowNumber)
 {
-    const PropertyName newName = data(index(rowNumber, PropertyNameRow)).toString().toLatin1();
+    const PropertyName newName = data(index(rowNumber, PropertyNameRow)).toString().toUtf8();
     if (newName.isEmpty()) {
         qWarning() << "DynamicPropertiesModel::updatePropertyName invalid property name";
         return;
@@ -718,115 +692,6 @@ void DynamicPropertiesModel::handleException()
 {
     QMessageBox::warning(0, tr("Error"), m_exceptionError);
     resetModel();
-}
-
-DynamicPropertiesDelegate::DynamicPropertiesDelegate(QWidget *parent) : QStyledItemDelegate(parent)
-{
-//    static QItemEditorFactory *factory = 0;
-//        if (factory == 0) {
-//            factory = new QItemEditorFactory;
-//            QItemEditorCreatorBase *creator
-//                = new QItemEditorCreator<DynamicPropertiesComboBox>("text");
-//            factory->registerEditor(QVariant::String, creator);
-//        }
-
-//        setItemEditorFactory(factory);
-}
-
-QWidget *DynamicPropertiesDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
-{
-        QWidget *widget = QStyledItemDelegate::createEditor(parent, option, index);
-
-        if (widget) {
-            static QScopedPointer<QStyle> style(QStyleFactory::create(QLatin1String("windows")));
-            if (style)
-                widget->setStyle(style.data());
-        }
-
-        const DynamicPropertiesModel *model = qobject_cast<const DynamicPropertiesModel*>(index.model());
-
-        model->connectionView()->allModelNodes();
-
-//        DynamicPropertiesComboBox *bindingComboBox = qobject_cast<DynamicPropertiesComboBox*>(widget);
-
-//        if (!bindingComboBox) {
-//            return widget;
-//        }
-
-        if (!model) {
-            qWarning() << "BindingDelegate::createEditor no model";
-            return widget;
-        }
-
-        if (!model->connectionView()) {
-            qWarning() << "BindingDelegate::createEditor no connection view";
-            return widget;
-        }
-
-        BindingProperty bindingProperty = model->bindingPropertyForRow(index.row());
-
-        switch (index.column()) {
-        case TargetModelNodeRow: {
-            return 0; //no editor
-        } break;
-        case PropertyNameRow: {
-            return QStyledItemDelegate::createEditor(parent, option, index);
-        } break;
-        case PropertyTypeRow: {
-
-            DynamicPropertiesComboBox *bindingComboBox = new DynamicPropertiesComboBox(parent);
-            connect(bindingComboBox, SIGNAL(activated(QString)), this, SLOT(emitCommitData(QString)));
-
-            //bindingComboBox->addItem(QLatin1String("alias"));
-            //bindingComboBox->addItem(QLatin1String("Item"));
-            bindingComboBox->addItem(QLatin1String("real"));
-            bindingComboBox->addItem(QLatin1String("int"));
-            bindingComboBox->addItem(QLatin1String("string"));
-            bindingComboBox->addItem(QLatin1String("bool"));
-            bindingComboBox->addItem(QLatin1String("url"));
-            bindingComboBox->addItem(QLatin1String("color"));
-            bindingComboBox->addItem(QLatin1String("variant"));
-            return bindingComboBox;
-        } break;
-        case PropertyValueRow: {
-            return QStyledItemDelegate::createEditor(parent, option, index);
-        } break;
-        default: qWarning() << "BindingDelegate::createEditor column" << index.column();
-        }
-
-        return 0;
-}
-
-void DynamicPropertiesDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
-                            const QModelIndex &index) const
-{
-    QStyleOptionViewItem opt = option;
-    opt.state &= ~QStyle::State_HasFocus;
-    QStyledItemDelegate::paint(painter, opt, index);
-}
-
-void DynamicPropertiesDelegate::emitCommitData(const QString & /*text*/)
-{
-    DynamicPropertiesComboBox *bindingComboBox = qobject_cast<DynamicPropertiesComboBox*>(sender());
-    emit commitData(bindingComboBox);
-}
-
-DynamicPropertiesComboBox::DynamicPropertiesComboBox(QWidget *parent) : QComboBox(parent)
-{
-    static QScopedPointer<QStyle> style(QStyleFactory::create(QLatin1String("windows")));
-    setEditable(true);
-    if (style)
-        setStyle(style.data());
-}
-
-QString DynamicPropertiesComboBox::text() const
-{
-    return currentText();
-}
-
-void DynamicPropertiesComboBox::setText(const QString &text)
-{
-    setEditText(text);
 }
 
 } // namespace Internal

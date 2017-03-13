@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSPROJECT_H
-#define QBSPROJECT_H
+#pragma once
 
 #include "qbsprojectmanager.h"
 
@@ -42,6 +41,7 @@
 #include <qbs.h>
 
 #include <QFuture>
+#include <QHash>
 #include <QTimer>
 
 namespace Core { class IDocument; }
@@ -107,7 +107,7 @@ public:
                                       const qbs::ProductData &product);
     static QString uniqueProductName(const qbs::ProductData &product);
 
-public slots:
+public:
     void invalidate();
     void delayParsing();
 
@@ -115,15 +115,15 @@ signals:
     void projectParsingStarted();
     void projectParsingDone(bool);
 
-private slots:
+private:
     void handleQbsParsingDone(bool success);
 
     void targetWasAdded(ProjectExplorer::Target *t);
+    void targetWasRemoved(ProjectExplorer::Target *t);
     void changeActiveTarget(ProjectExplorer::Target *t);
     void buildConfigurationChanged(ProjectExplorer::BuildConfiguration *bc);
     void startParsing();
 
-private:
     RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
 
     void parse(const QVariantMap &config, const Utils::Environment &env, const QString &dir);
@@ -147,6 +147,7 @@ private:
                                        const qbs::GroupData &oldGroup);
 
     const QString m_projectName;
+    QHash<ProjectExplorer::Target *, qbs::Project> m_qbsProjects;
     qbs::Project m_qbsProject;
     qbs::ProjectData m_projectData;
     QSet<Core::IDocument *> m_qbsDocuments;
@@ -174,5 +175,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSPROJECT_H

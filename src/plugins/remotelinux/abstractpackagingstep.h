@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ABSTRACTPACKAGINGSTEP_H
-#define ABSTRACTPACKAGINGSTEP_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -63,12 +62,11 @@ protected:
 
     virtual bool isPackagingNeeded() const;
 
-private slots:
+private:
     void handleBuildConfigurationChanged();
     void setDeploymentDataUnmodified();
     void setDeploymentDataModified();
 
-private:
     virtual QString packageFileName() const = 0;
 
     void ctor();
@@ -77,5 +75,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // ABSTRACTPACKAGINGSTEP_H

@@ -79,8 +79,6 @@ private:
     class CategoryData
     {
     public:
-        CategoryData() : count(0), warnings(0), errors(0) { }
-
         void addTask(const Task &task)
         {
             ++count;
@@ -106,20 +104,20 @@ private:
         }
 
         QString displayName;
-        int count;
-        int warnings;
-        int errors;
+        int count = 0;
+        int warnings = 0;
+        int errors = 0;
     };
 
     QHash<Core::Id,CategoryData> m_categories; // category id to data
     QList<Task> m_tasks;   // all tasks (in order of id)
 
     QHash<QString,bool> m_fileNotFound;
-    int m_maxSizeOfFileName;
-    int m_lastMaxSizeIndex;
     QFont m_fileMeasurementFont;
-    int m_sizeOfLineNumber;
     QFont m_lineMeasurementFont;
+    int m_maxSizeOfFileName = 0;
+    int m_lastMaxSizeIndex = 0;
+    int m_sizeOfLineNumber = 0;
 };
 
 class TaskFilterModel : public QAbstractItemModel
@@ -127,7 +125,7 @@ class TaskFilterModel : public QAbstractItemModel
     Q_OBJECT
 
 public:
-    TaskFilterModel(TaskModel *sourceModel, QObject *parent = 0);
+    TaskFilterModel(TaskModel *sourceModel, QObject *parent = nullptr);
 
     TaskModel *taskModel() { return m_sourceModel; }
 

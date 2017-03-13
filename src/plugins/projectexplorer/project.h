@@ -45,15 +45,15 @@ namespace Utils { class MacroExpander; }
 namespace ProjectExplorer {
 
 class BuildInfo;
-class IProjectManager;
 class EditorConfiguration;
-class ProjectImporter;
-class ProjectNode;
+class IProjectManager;
 class Kit;
 class KitMatcher;
 class NamedWidget;
-class Target;
+class ProjectImporter;
+class ProjectNode;
 class ProjectPrivate;
+class Target;
 
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT Project : public QObject
@@ -99,7 +99,7 @@ public:
     Target *activeTarget() const;
     Target *target(Core::Id id) const;
     Target *target(Kit *k) const;
-    virtual bool supportsKit(Kit *k, QString *errorMessage = 0) const;
+    virtual bool supportsKit(Kit *k, QString *errorMessage = nullptr) const;
 
     Target *createTarget(Kit *k);
     Target *cloneTarget(Target *sourceTarget, Kit *k);

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CUSTOMWIZARD_H
-#define CUSTOMWIZARD_H
+#pragma once
 
 #include "../projectexplorer_export.h"
 
@@ -75,7 +74,7 @@ template <class Wizard> class CustomWizardMetaFactory : public ICustomWizardMeta
 public:
     CustomWizardMetaFactory(const QString &klass, Core::IWizardFactory::WizardKind kind) : ICustomWizardMetaFactory(klass, kind) { }
     CustomWizardMetaFactory(Core::IWizardFactory::WizardKind kind) : ICustomWizardMetaFactory(QString(), kind) { }
-    CustomWizard *create() const { return new Wizard; }
+    CustomWizard *create() const override { return new Wizard; }
 };
 
 // Documentation inside.
@@ -87,7 +86,7 @@ public:
     typedef QMap<QString, QString> FieldReplacementMap;
 
     CustomWizard();
-    ~CustomWizard();
+    ~CustomWizard() override;
 
     // Can be reimplemented to create custom wizards. initWizardDialog() needs to be
     // called.
@@ -131,7 +130,7 @@ class PROJECTEXPLORER_EXPORT CustomProjectWizard : public CustomWizard
 public:
     CustomProjectWizard();
 
-    static bool postGenerateOpen(const Core::GeneratedFiles &l, QString *errorMessage = 0);
+    static bool postGenerateOpen(const Core::GeneratedFiles &l, QString *errorMessage = nullptr);
 
 signals:
     void projectLocationChanged(const QString &path);
@@ -151,5 +150,3 @@ private:
 };
 
 } // namespace ProjectExplorer
-
-#endif // CUSTOMWIZARD_H

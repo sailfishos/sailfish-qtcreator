@@ -26,6 +26,7 @@
 #include "clangtranslationunit.h"
 
 #include "cursor.h"
+#include "clangfilepath.h"
 #include "clangstring.h"
 #include "codecompleter.h"
 #include "commandlinearguments.h"
@@ -35,7 +36,7 @@
 #include "skippedsourceranges.h"
 #include "sourcelocation.h"
 #include "sourcerange.h"
-#include "highlightinginformations.h"
+#include "highlightingmarks.h"
 #include "translationunitfilenotexitexception.h"
 #include "translationunitisnullexception.h"
 #include "translationunitparseerrorexception.h"
@@ -83,7 +84,7 @@ public:
     uint documentRevision = 0;
     bool needsToBeReparsed = false;
     bool hasNewDiagnostics = true;
-    bool hasNewHighlightingInformations = true;
+    bool hasNewHighlightingMarks = true;
     bool isUsedByCurrentEditor = false;
     bool isVisibleInEditor = false;
 };
@@ -260,9 +261,9 @@ bool TranslationUnit::hasNewDiagnostics() const
     return d->hasNewDiagnostics;
 }
 
-bool TranslationUnit::hasNewHighlightingInformations() const
+bool TranslationUnit::hasNewHighlightingMarks() const
 {
-    return d->hasNewHighlightingInformations;
+    return d->hasNewHighlightingMarks;
 }
 
 DiagnosticSet TranslationUnit::diagnostics() const
@@ -332,14 +333,14 @@ Cursor TranslationUnit::cursor() const
     return clang_getTranslationUnitCursor(cxTranslationUnit());
 }
 
-HighlightingInformations TranslationUnit::highlightingInformations() const
+HighlightingMarks TranslationUnit::highlightingMarks() const
 {
-    d->hasNewHighlightingInformations = false;
+    d->hasNewHighlightingMarks = false;
 
-    return highlightingInformationsInRange(cursor().sourceRange());
+    return highlightingMarksInRange(cursor().sourceRange());
 }
 
-HighlightingInformations TranslationUnit::highlightingInformationsInRange(const SourceRange &range) const
+HighlightingMarks TranslationUnit::highlightingMarksInRange(const SourceRange &range) const
 {
     CXToken *cxTokens = 0;
     uint cxTokensCount = 0;
@@ -347,7 +348,7 @@ HighlightingInformations TranslationUnit::highlightingInformationsInRange(const 
 
     clang_tokenize(translationUnit, range, &cxTokens, &cxTokensCount);
 
-    return HighlightingInformations(translationUnit, cxTokens, cxTokensCount);
+    return HighlightingMarks(translationUnit, cxTokens, cxTokensCount);
 }
 
 SkippedSourceRanges TranslationUnit::skippedSourceRanges() const
@@ -389,7 +390,7 @@ void TranslationUnit::setDirty()
 {
     d->needsToBeReparsed = true;
     d->hasNewDiagnostics = true;
-    d->hasNewHighlightingInformations = true;
+    d->hasNewHighlightingMarks = true;
 }
 
 bool TranslationUnit::isMainFileAndExistsOrIsOtherFile(const Utf8String &filePath) const
@@ -475,7 +476,8 @@ void TranslationUnit::includeCallback(CXFile included_file,
 
     TranslationUnit *translationUnit = static_cast<TranslationUnit*>(clientData);
 
-    translationUnit->d->dependedFilePaths.insert(includeFilePath);
+    const Utf8String normalizedFilePath = FilePath::fromNativeSeparators(includeFilePath);
+    translationUnit->d->dependedFilePaths.insert(normalizedFilePath);
 }
 
 UnsavedFiles &TranslationUnit::unsavedFiles() const

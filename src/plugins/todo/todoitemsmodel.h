@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODOITEMSMODEL_H
-#define TODOITEMSMODEL_H
+#pragma once
 
 #include "todoitem.h"
 
@@ -50,8 +49,6 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
 
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder);
-
-public slots:
     void todoItemsListUpdated();
 
 private:
@@ -62,5 +59,3 @@ private:
 
 }
 }
-
-#endif // TODOITEMSMODEL_H

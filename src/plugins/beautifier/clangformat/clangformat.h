@@ -23,12 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_CLANGFORMAT_H
-#define BEAUTIFIER_CLANGFORMAT_H
+#pragma once
 
 #include "../beautifierabstracttool.h"
-#include "../command.h"
-
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 
@@ -46,26 +43,25 @@ class ClangFormat : public BeautifierAbstractTool
     Q_OBJECT
 
 public:
-    explicit ClangFormat(BeautifierPlugin *parent = 0);
+    explicit ClangFormat(BeautifierPlugin *parent = nullptr);
     virtual ~ClangFormat();
+    QString id() const override;
     bool initialize() override;
     void updateActions(Core::IEditor *editor) override;
     QList<QObject *> autoReleaseObjects() override;
-
-private slots:
-    void formatFile();
-    void formatSelectedText();
+    Command command() const override;
+    bool isApplicable(const Core::IDocument *document) const override;
 
 private:
+    void formatFile();
+    void formatSelectedText();
     BeautifierPlugin *m_beautifierPlugin;
-    QAction *m_formatFile;
-    QAction *m_formatRange;
+    QAction *m_formatFile = nullptr;
+    QAction *m_formatRange = nullptr;
     ClangFormatSettings *m_settings;
-    Command command(int offset = -1, int length = -1) const;
+    Command command(int offset, int length) const;
 };
 
 } // namespace ClangFormat
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_CLANGFORMAT_H

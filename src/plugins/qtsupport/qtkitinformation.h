@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTSUPPORT_QTKITINFORMATION_H
-#define QTSUPPORT_QTKITINFORMATION_H
+#pragma once
 
 #include "qtsupport_global.h"
 
@@ -72,7 +71,7 @@ public:
     QSet<Core::Id> supportedPlatforms(const ProjectExplorer::Kit *k) const override;
     QSet<Core::Id> availableFeatures(const ProjectExplorer::Kit *k) const override;
 
-private slots:
+private:
     void qtVersionsChanged(const QList<int> &addedIds,
                            const QList<int> &removedIds,
                            const QList<int> &changedIds);
@@ -80,5 +79,3 @@ private slots:
 };
 
 } // namespace QtSupport
-
-#endif // QTSUPPORT_QTKITINFORMATION_H

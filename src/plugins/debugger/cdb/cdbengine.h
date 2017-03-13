@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_CDBENGINE_H
-#define DEBUGGER_CDBENGINE_H
+#pragma once
 
 #include <debugger/debuggerengine.h>
 #include <debugger/breakhandler.h>
@@ -46,7 +45,7 @@ namespace Internal {
 class DisassemblerAgent;
 class CdbCommand;
 struct MemoryViewCookie;
-class ByteArrayInputStream;
+class StringInputStream;
 class GdbMi;
 
 class CdbEngine : public DebuggerEngine
@@ -58,7 +57,7 @@ public:
     typedef std::function<void(const DebuggerResponse &)> CommandHandler;
 
     CdbEngine(const DebuggerRunParameters &sp);
-    ~CdbEngine();
+    ~CdbEngine() override;
 
     // Factory function that returns 0 if the debug engine library cannot be found.
 
@@ -75,7 +74,7 @@ public:
     void detachDebugger() override;
     bool hasCapability(unsigned cap) const override;
     void watchPoint(const QPoint &) override;
-    void setRegisterValue(const QByteArray &name, const QString &value) override;
+    void setRegisterValue(const QString &name, const QString &value) override;
 
     void executeStep() override;
     void executeStepOut() override;
@@ -117,7 +116,7 @@ public:
 
     static QString extensionLibraryName(bool is64Bit);
 
-private slots:
+private:
     void readyReadStandardOut();
     void readyReadStandardError();
     void processError();
@@ -133,7 +132,6 @@ private slots:
 
     void handleDoInterruptInferior(const QString &errorMessage);
 
-private:
     typedef QHash<BreakpointModelId, BreakpointResponse> PendingBreakPointMap;
     typedef QPair<QString, QString> SourcePathMapping;
     struct NormalizedSourceFileName // Struct for caching mapped/normalized source files.
@@ -170,17 +168,17 @@ private:
                                bool conditionalBreakPointTriggered = false);
     void processStop(const GdbMi &stopReason, bool conditionalBreakPointTriggered = false);
     bool commandsPending() const;
-    void handleExtensionMessage(char t, int token, const QByteArray &what, const QByteArray &message);
+    void handleExtensionMessage(char t, int token, const QString &what, const QString &message);
     bool doSetupEngine(QString *errorMessage);
     bool launchCDB(const DebuggerRunParameters &sp, QString *errorMessage);
     void handleSessionAccessible(unsigned long cdbExState);
     void handleSessionInaccessible(unsigned long cdbExState);
-    void handleSessionIdle(const QByteArray &message);
+    void handleSessionIdle(const QString &message);
     void doInterruptInferior(SpecialStopMode sm);
     void doInterruptInferiorCustomSpecialStop(const QVariant &v);
     void doContinueInferior();
-    inline void parseOutputLine(QByteArray line);
-    inline bool isCdbProcessRunning() const { return m_process.state() != QProcess::NotRunning; }
+    void parseOutputLine(QString line);
+    bool isCdbProcessRunning() const { return m_process.state() != QProcess::NotRunning; }
     bool canInterruptInferior() const;
     void syncOperateByInstruction(bool operateByInstruction);
     void postWidgetAtCommand();
@@ -220,7 +218,7 @@ private:
     unsigned parseStackTrace(const GdbMi &data, bool sourceStepInto);
     void mergeStartParametersSourcePathMap();
 
-    const QByteArray m_tokenPrefix;
+    const QString m_tokenPrefix;
 
     QProcess m_process;
     QScopedPointer<Utils::ConsoleProcess> m_consoleStub;
@@ -232,10 +230,10 @@ private:
     ProjectExplorer::DeviceProcessSignalOperation::Ptr m_signalOperation;
     int m_nextCommandToken;
     QHash<int, DebuggerCommand> m_commandForToken;
-    QByteArray m_currentBuiltinResponse;
+    QString m_currentBuiltinResponse;
     int m_currentBuiltinResponseToken;
     QMap<QString, NormalizedSourceFileName> m_normalizedFileCache;
-    const QByteArray m_extensionCommandPrefixBA; //!< Library name used as prefix
+    const QString m_extensionCommandPrefix; //!< Library name used as prefix
     bool m_operateByInstructionPending; //!< Creator operate by instruction action changed.
     bool m_operateByInstruction;
     bool m_hasDebuggee;
@@ -247,7 +245,7 @@ private:
     } m_wow64State;
     QTime m_logTime;
     mutable int m_elapsedLogTime;
-    QByteArray m_extensionMessageBuffer;
+    QString m_extensionMessageBuffer;
     bool m_sourceStepInto;
     int m_watchPointX;
     int m_watchPointY;
@@ -265,5 +263,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_CDBENGINE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BUILTINEDITORDOCUMENTPARSER_H
-#define BUILTINEDITORDOCUMENTPARSER_H
+#pragma once
 
 #include "baseeditordocumentparser.h"
 #include "cpptools_global.h"
@@ -59,7 +58,8 @@ public:
     static Ptr get(const QString &filePath);
 
 private:
-    void updateHelper(const WorkingCopy &workingCopy) override;
+    void updateHelper(const QFutureInterface<void> &future,
+                      const WorkingCopy &workingCopy) override;
     void addFileAndDependencies(CPlusPlus::Snapshot *snapshot,
                                 QSet<Utils::FileName> *toRemove,
                                 const Utils::FileName &fileName) const;
@@ -82,5 +82,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // BUILTINEDITORDOCUMENTPARSER_H

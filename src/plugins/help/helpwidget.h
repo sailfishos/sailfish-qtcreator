@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HELPWIDGET_H
-#define HELPWIDGET_H
+#pragma once
 
 #include <coreplugin/icontext.h>
 
@@ -79,7 +78,7 @@ public:
                           bool newPage = false);
     void activateSideBarItem(const QString &id);
 
-public slots:
+public:
     void setSource(const QUrl &url);
     void updateCloseButton();
 
@@ -93,13 +92,12 @@ signals:
     void sourceChanged(const QUrl &url);
     void filterActivated(const QString &name);
 
-private slots:
+private:
     void updateBackMenu();
     void updateForwardMenu();
     void updateWindowTitle();
     void helpModeButtonClicked();
 
-private:
     void goHome();
     void addBookmark();
     void copy();
@@ -147,5 +145,3 @@ private:
 
 } // Internal
 } // Help
-
-#endif // HELPWIDGET_H

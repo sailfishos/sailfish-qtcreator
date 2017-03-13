@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSEDITORDOCUMENT_P_H
-#define QMLJSEDITORDOCUMENT_P_H
+#pragma once
 
 #include <qmljs/qmljsdocument.h>
 #include <qmljstools/qmljssemanticinfo.h>
@@ -51,7 +50,6 @@ public:
     QmlJSEditorDocumentPrivate(QmlJSEditorDocument *parent);
     ~QmlJSEditorDocumentPrivate();
 
-public slots:
     void invalidateFormatterCache();
     void reparseDocument();
     void onDocumentUpdated(QmlJS::Document::Ptr doc);
@@ -77,5 +75,3 @@ public:
 
 } // Internal
 } // QmlJSEditor
-
-#endif // QMLJSEDITORDOCUMENT_P_H
