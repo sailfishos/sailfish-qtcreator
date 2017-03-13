@@ -42,7 +42,7 @@ namespace ProjectExplorer {
 }
 
 namespace Utils {
-    class PortList;
+    class Port;
 }
 
 namespace Mer {
@@ -55,7 +55,7 @@ class MerQmlLiveBenchManager : public QObject
     struct DeviceInfo
     {
         QString name;
-        QSet<int> ports;
+        QList<Utils::Port> ports;
     };
 
     struct Command
@@ -83,10 +83,10 @@ private:
     MerQmlLiveBenchManager(QObject *parent = nullptr);
 
     static void warnBenchLocationNotSet();
-    static QString qmlLiveHostName(const QString &merDeviceName, int port);
-    void addHostsToBench(const QString &merDeviceName, const QString &address, const QSet<int> &ports);
-    void removeHostsFromBench(const QString &merDeviceName, const QSet<int> &ports);
-    void letRunningBenchProbeHosts(const QString &merDeviceName, const QSet<int> &ports);
+    static QString qmlLiveHostName(const QString &merDeviceName, Utils::Port port);
+    void addHostsToBench(const QString &merDeviceName, const QString &address, const QList<Utils::Port> &ports);
+    void removeHostsFromBench(const QString &merDeviceName, const QList<Utils::Port> &ports);
+    void letRunningBenchProbeHosts(const QString &merDeviceName, const QList<Utils::Port> &ports);
     void enqueueCommand(Command *command);
     void processCommandsQueue();
 
