@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONSOLEPROCESS_H
-#define CONSOLEPROCESS_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -104,7 +103,7 @@ signals:
     void stubStarted();
     void stubStopped();
 
-private slots:
+private:
     void stubConnectionAvailable();
     void readStubOutput();
     void stubExited();
@@ -112,7 +111,6 @@ private slots:
     void inferiorExited();
 #endif
 
-private:
     static QString modeOption(Mode m);
     static QString msgCommChannelFailed(const QString &error);
     static QString msgPromptToClose();
@@ -135,5 +133,3 @@ private:
 };
 
 } //namespace Utils
-
-#endif

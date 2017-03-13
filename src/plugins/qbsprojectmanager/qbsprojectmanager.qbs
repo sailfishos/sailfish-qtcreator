@@ -7,7 +7,7 @@ QtcPlugin {
     property var externalQbsIncludes: project.useExternalQbs
             ? [project.qbs_install_dir + "/include/qbs"] : []
     property var externalQbsLibraryPaths: project.useExternalQbs
-            ? [project.qbs_install_dir + '/' + project.libDirName] : []
+            ? [project.qbs_install_dir + '/' + qtc.libDirName] : []
     property var externalQbsDynamicLibraries: {
         var libs = []
         if (!project.useExternalQbs)
@@ -26,7 +26,7 @@ QtcPlugin {
 
     property bool useInternalQbsProducts: project.qbsSubModuleExists && !project.useExternalQbs
 
-    Depends { name: "Qt"; submodules: [ "widgets", "script" ] }
+    Depends { name: "Qt"; submodules: [ "widgets" ] }
     Depends {
         name: "qbscore"
         condition: product.useInternalQbsProducts

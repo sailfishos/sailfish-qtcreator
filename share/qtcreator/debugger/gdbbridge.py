@@ -256,11 +256,6 @@ class Dumper(DumperBase):
         self.qtNamespaceToReport = None
         self.interpreterBreakpointResolvers = []
 
-        # The guess does not need to be updated during a fetchVariables()
-        # as the result is fixed during that time (ignoring "active"
-        # dumpers causing loading of shared objects etc).
-        self.currentQtNamespaceGuess = None
-
     def prepare(self, args):
         self.output = []
         self.currentIName = ""
@@ -293,6 +288,11 @@ class Dumper(DumperBase):
         #warn("NAMESPACE: '%s'" % self.qtNamespace())
         #warn("EXPANDED INAMES: %s" % self.expandedINames)
         #warn("WATCHERS: %s" % self.watchers)
+
+        # The guess does not need to be updated during a fetchVariables()
+        # as the result is fixed during that time (ignoring "active"
+        # dumpers causing loading of shared objects etc).
+        self.currentQtNamespaceGuess = None
 
     def listOfLocals(self):
         frame = gdb.selected_frame()
@@ -383,13 +383,9 @@ class Dumper(DumperBase):
     def canCallLocale(self):
         return False if self.is32bit() else True
 
-    def reportTime(self, hint):
-        #from datetime import datetime
-        #warn("%s: %s" % (hint, datetime.now().time().isoformat()))
-        pass
-
     def fetchVariables(self, args):
-        self.reportTime("begin fetch")
+        self.resetStats()
+        self.preping("locals")
         self.prepare(args)
         partialVariable = args.get("partialvar", "")
         isPartial = len(partialVariable) > 0
@@ -425,7 +421,7 @@ class Dumper(DumperBase):
         else:
             locals = self.listOfLocals()
 
-        self.reportTime("locals")
+        self.ping("locals")
 
         # Take care of the return value of the last function call.
         if len(self.resultVarName) > 0:
@@ -449,12 +445,16 @@ class Dumper(DumperBase):
                 else:
                     # A "normal" local variable or parameter.
                     with TopLevelItem(self, item.iname):
+                        self.preping("all-" + item.iname)
                         self.put('iname="%s",' % item.iname)
                         self.put('name="%s",' % item.name)
                         self.putItem(value)
+                        self.ping("all-" + item.iname)
 
+        self.preping("watches")
         with OutputSafer(self):
             self.handleWatches(args)
+        self.ping("watches")
 
         self.output.append('],typeinfo=[')
         for name in self.typesToReport.keys():
@@ -475,9 +475,10 @@ class Dumper(DumperBase):
 
         self.output.append(',partial="%d"' % isPartial)
 
-        self.reportTime("before print: %s" % len(self.output))
+        self.preping('safePrint')
         safePrint(''.join(self.output))
-        self.reportTime("after print")
+        self.ping('safePrint')
+        safePrint('"%s"' % str(self.dumpStats()))
 
     def enterSubItem(self, item):
         if not item.iname:
@@ -800,10 +801,12 @@ class Dumper(DumperBase):
         return struct.unpack("b", self.readRawMemory(address, 1))[0]
 
     def findStaticMetaObject(self, typename):
-        return self.findSymbol(typename + "::staticMetaObject")
+        symbol = gdb.lookup_global_symbol(typename + "::staticMetaObject")
+        return toInteger(symbol.value().address) if symbol else 0
 
     def findSymbol(self, symbolName):
         try:
+            self.bump('findSymbol1')
             result = gdb.lookup_global_symbol(symbolName)
             return result.value() if result else 0
         except:
@@ -812,9 +815,11 @@ class Dumper(DumperBase):
         try:
             address = gdb.parse_and_eval("&'%s'" % symbolName)
             typeobj = gdb.lookup_type(self.qtNamespace() + "QMetaObject")
+            self.bump('findSymbol2')
             return self.createPointerValue(address, typeobj)
         except:
-            return 0
+            self.bump('findSymbol3')
+        return 0
 
     def put(self, value):
         self.output.append(value)
@@ -849,7 +854,7 @@ class Dumper(DumperBase):
     def qtVersion(self):
         try:
             # Only available with Qt 5.3+
-            qtversion = int(gdb.parse_and_eval("((void**)&qtHookData)[2]"))
+            qtversion = int(str(gdb.parse_and_eval("((void**)&qtHookData)[2]")), 16)
             self.qtVersion = lambda: qtversion
             return qtversion
         except:
@@ -1025,7 +1030,7 @@ class Dumper(DumperBase):
             self.putType(typeName)
             if typeobj.sizeof == 1:
                 # Force unadorned value transport for char and Co.
-                self.putValue(int(value) & 0xff)
+                self.putValue(int(value))
             else:
                 self.putValue(value)
             self.putNumChild(0)
@@ -1136,23 +1141,10 @@ class Dumper(DumperBase):
         #warn("INAME: %s " % self.currentIName)
         #warn("INAMES: %s " % self.expandedINames)
         #warn("EXPANDED: %s " % (self.currentIName in self.expandedINames))
-        if self.showQObjectNames:
-            staticMetaObject = self.extractStaticMetaObject(value.type)
-            if staticMetaObject:
-                self.putQObjectNameValue(value)
         self.putType(typeName)
-        self.putEmptyValue()
         self.putNumChild(len(typeobj.fields()))
+        self.putStructGuts(value)
 
-        if self.currentIName in self.expandedINames:
-            innerType = None
-            self.put('sortable="1"')
-            with Children(self, 1, childType=innerType):
-                self.putFields(value)
-                if not self.showQObjectNames:
-                    staticMetaObject = self.extractStaticMetaObject(value.type)
-                if staticMetaObject:
-                    self.putQObjectGuts(value, staticMetaObject)
 
     def toBlob(self, value):
         size = toInteger(value.type.sizeof)
@@ -1251,7 +1243,7 @@ class Dumper(DumperBase):
                         # int (**)(void)
                         n = 100
                         self.putType(" ")
-                        self.put('sortgroup="1"')
+                        self.put('sortgroup="20"')
                         self.putValue(value[field.name])
                         self.putNumChild(n)
                         if self.isExpanded():
@@ -1275,7 +1267,7 @@ class Dumper(DumperBase):
                         baseNumber += 1
                         with UnnamedSubItem(self, "@%d" % baseNumber):
                             baseValue = value.cast(field.type)
-                            self.put('sortgroup="2"')
+                            self.put('sortgroup="30"')
                             self.putBaseClassName(field.name)
                             self.putAddress(baseValue.address)
                             self.putItem(baseValue, False)
@@ -1432,8 +1424,10 @@ class Dumper(DumperBase):
                 self.fallbackQtVersion = 0x30308
                 return ""
             # Seemingly needed with Debian's GDB 7.4.1
-            ns = s[s.find("class")+6:s.find("QByteArray")]
-            if len(ns):
+            pos1 = s.find("class")
+            pos2 = s.find("QByteArray")
+            if pos1 > -1 and pos2 > -1:
+                ns = s[s.find("class") + 6:s.find("QByteArray")]
                 self.qtNamespaceToReport = ns
                 self.qtNamespace = lambda: ns
                 return ns

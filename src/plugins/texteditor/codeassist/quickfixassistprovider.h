@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QUICKFIXASSISTPROVIDER_H
-#define QUICKFIXASSISTPROVIDER_H
+#pragma once
 
 #include "iassistprovider.h"
 
@@ -39,12 +38,10 @@ class TEXTEDITOR_EXPORT QuickFixAssistProvider : public IAssistProvider
     Q_OBJECT
 
 public:
-    QuickFixAssistProvider();
+    QuickFixAssistProvider(QObject *parent = 0);
     ~QuickFixAssistProvider();
 
     virtual QList<QuickFixFactory *> quickFixFactories() const;
 };
 
 } // TextEditor
-
-#endif // QUICKFIXASSISTPROVIDER_H

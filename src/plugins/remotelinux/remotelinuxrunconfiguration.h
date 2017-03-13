@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXRUNCONFIGURATION_H
-#define REMOTELINUXRUNCONFIGURATION_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -65,7 +64,7 @@ public:
     ProjectExplorer::Runnable runnable() const override;
 
     QString localExecutableFilePath() const;
-    virtual QString defaultRemoteExecutableFilePath() const;
+    QString defaultRemoteExecutableFilePath() const;
     QString remoteExecutableFilePath() const;
     QString arguments() const;
     void setArguments(const QString &args);
@@ -90,18 +89,14 @@ protected:
     bool fromMap(const QVariantMap &map) override;
     QString defaultDisplayName();
 
-protected slots:
+protected:
     void updateEnabledState() { emit enabledChanged(); }
 
-private slots:
-    void handleBuildSystemDataUpdated();
-
 private:
+    void handleBuildSystemDataUpdated();
     void init();
 
     Internal::RemoteLinuxRunConfigurationPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXRUNCONFIGURATION_H

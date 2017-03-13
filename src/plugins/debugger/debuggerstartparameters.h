@@ -23,14 +23,14 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERSTARTPARAMETERS_H
-#define DEBUGGER_DEBUGGERSTARTPARAMETERS_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
 
 #include <ssh/sshconnection.h>
 #include <utils/environment.h>
+#include <utils/port.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/runnables.h>
@@ -45,17 +45,23 @@ namespace Debugger {
 // Note: This is part of the "soft interface" of the debugger plugin.
 // Do not add anything that needs implementation in a .cpp file.
 
-const int InvalidPort = -1;
 const qint64 InvalidPid = -1;
 
 class DEBUGGER_EXPORT RemoteSetupResult
 {
 public:
-    int gdbServerPort = InvalidPort;
-    int qmlServerPort = InvalidPort;
+    Utils::Port gdbServerPort;
+    Utils::Port qmlServerPort;
     qint64 inferiorPid = InvalidPid;
     bool success = false;
     QString reason;
+};
+
+class DEBUGGER_EXPORT TcpServerConnection
+{
+public:
+    QString host;
+    Utils::Port port;
 };
 
 class DEBUGGER_EXPORT DebuggerStartParameters
@@ -73,8 +79,7 @@ public:
     bool useTerminal = false;
 
     // Used by Qml debugging.
-    QString qmlServerAddress;
-    int qmlServerPort = InvalidPort;
+    TcpServerConnection qmlServer;
 
     // Used by general remote debugging.
     QString remoteChannel;
@@ -86,12 +91,12 @@ public:
     QMap<QString, QString> sourcePathMap;
 
     // Used by baremetal plugin
-    QByteArray commandsForReset; // commands used for resetting the inferior
+    QString commandsForReset; // commands used for resetting the inferior
     bool useContinueInsteadOfRun = false; // if connected to a hw debugger run is not possible but continue is used
-    QByteArray commandsAfterConnect; // additional commands to post after connection to debug target
+    QString commandsAfterConnect; // additional commands to post after connection to debug target
 
     // Used by Valgrind
-    QVector<QByteArray> expectedSignals;
+    QStringList expectedSignals;
 
     // For QNX debugging
     bool useCtrlCStub = false;
@@ -111,6 +116,3 @@ public:
 
 Q_DECLARE_METATYPE(Debugger::RemoteSetupResult)
 Q_DECLARE_METATYPE(Debugger::DebuggerStartParameters)
-
-#endif // DEBUGGER_DEBUGGERSTARTPARAMETERS_H
-

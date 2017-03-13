@@ -27,27 +27,28 @@
 #include "projectexplorerconstants.h"
 
 #include <coreplugin/coreicons.h>
+
 #include <utils/stylehelper.h>
 
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QFont>
+#include <QLabel>
+#include <QHBoxLayout>
 #include <QPixmap>
-#include <QDebug>
+#include <QVariant>
+#include <QVBoxLayout>
 
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 
-BuildProgress::BuildProgress(TaskWindow *taskWindow, Qt::Orientation orientation)
-        : m_contentWidget(new QWidget),
-        m_errorIcon(new QLabel),
-        m_warningIcon(new QLabel),
-        m_errorLabel(new QLabel),
-        m_warningLabel(new QLabel),
-        m_taskWindow(taskWindow)
+BuildProgress::BuildProgress(TaskWindow *taskWindow, Qt::Orientation orientation) :
+    m_contentWidget(new QWidget),
+    m_errorIcon(new QLabel),
+    m_warningIcon(new QLabel),
+    m_errorLabel(new QLabel),
+    m_warningLabel(new QLabel),
+    m_taskWindow(taskWindow)
 {
-    QHBoxLayout *contentLayout = new QHBoxLayout;
+    auto contentLayout = new QHBoxLayout;
     contentLayout->setContentsMargins(0, 0, 0, 0);
     contentLayout->setSpacing(0);
     setLayout(contentLayout);
@@ -60,12 +61,12 @@ BuildProgress::BuildProgress(TaskWindow *taskWindow, Qt::Orientation orientation
     layout->setContentsMargins(8, 2, 0, 2);
     layout->setSpacing(2);
     m_contentWidget->setLayout(layout);
-    QHBoxLayout *errorLayout = new QHBoxLayout;
+    auto errorLayout = new QHBoxLayout;
     errorLayout->setSpacing(2);
     layout->addLayout(errorLayout);
     errorLayout->addWidget(m_errorIcon);
     errorLayout->addWidget(m_errorLabel);
-    QHBoxLayout *warningLayout = new QHBoxLayout;
+    auto warningLayout = new QHBoxLayout;
     warningLayout->setSpacing(2);
     layout->addLayout(warningLayout);
     warningLayout->addWidget(m_warningIcon);
@@ -79,6 +80,8 @@ BuildProgress::BuildProgress(TaskWindow *taskWindow, Qt::Orientation orientation
     m_warningLabel->setFont(f);
     m_errorLabel->setPalette(Utils::StyleHelper::sidebarFontPalette(m_errorLabel->palette()));
     m_warningLabel->setPalette(Utils::StyleHelper::sidebarFontPalette(m_warningLabel->palette()));
+    m_errorLabel->setProperty("_q_custom_style_disabled", QVariant(true));
+    m_warningLabel->setProperty("_q_custom_style_disabled", QVariant(true));
 
     m_errorIcon->setAlignment(Qt::AlignRight);
     m_warningIcon->setAlignment(Qt::AlignRight);

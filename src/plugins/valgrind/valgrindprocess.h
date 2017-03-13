@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef VALGRINDPROCESS_H
-#define VALGRINDPROCESS_H
+#pragma once
 
 #include <projectexplorer/applicationlauncher.h>
 #include <projectexplorer/devicesupport/idevice.h>
@@ -109,5 +108,3 @@ private:
 };
 
 } // namespace Valgrind
-
-#endif // VALGRINDPROCESS_H

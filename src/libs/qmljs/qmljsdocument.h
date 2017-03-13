@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSDOCUMENT_H
-#define QMLJSDOCUMENT_H
+#pragma once
 
 #include <QList>
 #include <QSharedPointer>
@@ -155,6 +154,7 @@ private:
     typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
     QList<ModuleApiInfo> _moduleApis;
+    QStringList _dependencies;
     QByteArray _fingerprint;
 
     PluginTypeInfoStatus _dumpStatus;
@@ -190,6 +190,12 @@ public:
 
     void setModuleApis(const QList<ModuleApiInfo> &apis)
     { _moduleApis = apis; }
+
+    QStringList dependencies() const
+    { return _dependencies; }
+
+    void setDependencies(const QStringList &deps)
+    { _dependencies = deps; }
 
     bool isValid() const
     { return _status == Found; }
@@ -246,5 +252,3 @@ public:
 };
 
 } // namespace QmlJS
-
-#endif // QMLJSDOCUMENT_H

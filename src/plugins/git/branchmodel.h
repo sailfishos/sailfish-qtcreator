@@ -68,6 +68,7 @@ public:
     QString fullName(const QModelIndex &idx, bool includePrefix = false) const;
     QStringList localBranchNames() const;
     QString sha(const QModelIndex &idx) const;
+    QDateTime dateTime(const QModelIndex &idx) const;
     bool hasTags() const;
     bool isLocal(const QModelIndex &idx) const;
     bool isLeaf(const QModelIndex &idx) const;
@@ -85,7 +86,7 @@ private:
     void parseOutputLine(const QString &line);
     void setCurrentBranch();
     BranchNode *indexToNode(const QModelIndex &index) const;
-    QModelIndex nodeToIndex(BranchNode *node) const;
+    QModelIndex nodeToIndex(BranchNode *node, int column) const;
     void removeNode(const QModelIndex &idx);
 
     QString toolTip(const QString &sha) const;
@@ -95,6 +96,7 @@ private:
     BranchNode *m_rootNode;
     BranchNode *m_currentBranch = nullptr;
     QString m_currentSha;
+    QStringList m_obsoleteLocalBranches;
     bool m_oldBranchesIncluded = false;
 };
 

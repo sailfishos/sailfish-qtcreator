@@ -32,10 +32,13 @@ Item {
 
 
     property variant backendValue
-    property color highlightColor: "orange"
-    property color borderColor: colorLogic.textColor
+    property color borderColorSelected: colorLogic.textColor
+    property color borderColor: creatorTheme.QmlDesignerBorderColor
 
     property bool showTranslateCheckBox: true
+
+    readonly property color selectedColor: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
+    readonly property color unselectedColor: creatorTheme.QmlDesignerBackgroundColorDarker
 
     ExtendedFunctionButton {
         backendValue: originControl.backendValue
@@ -98,9 +101,9 @@ Item {
             id: topLeft
             width: 15
             height: 15
-            color: selected ? "#4f4f4f" : "black"
-            border.color: originControl.borderColor
-            border.width: selected ? 2 : 0
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -113,9 +116,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -128,9 +131,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -143,9 +146,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -158,9 +161,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -173,9 +176,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -188,9 +191,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -203,9 +206,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
@@ -218,9 +221,9 @@ Item {
             property bool selected: false
             width: topLeft.width
             height: topLeft.height
-            color: selected ? "#4f4f4f" : "black"
-            border.width: selected ? 2 : 0
-            border.color: originControl.borderColor
+            color: selected ? selectedColor : unselectedColor
+            border.width: selected ? 2 : 1
+            border.color: selected ? originControl.borderColorSelected : originControl.borderColor
             MouseArea {
                 anchors.fill: parent
                 onClicked: {

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SYMBOLSFINDFILTER_H
-#define SYMBOLSFINDFILTER_H
+#pragma once
 
 #include "searchsymbols.h"
 
@@ -74,7 +73,7 @@ public:
 signals:
     void symbolsToSearchChanged();
 
-private slots:
+private:
     void openEditor(const Core::SearchResultItem &item);
 
     void addResults(int begin, int end);
@@ -85,7 +84,6 @@ private slots:
     void onAllTasksFinished(Core::Id type);
     void searchAgain();
 
-private:
     QString label() const;
     QString toolTip(Core::FindFlags findFlags) const;
     void startSearch(Core::SearchResult *search);
@@ -104,11 +102,10 @@ class SymbolsFindFilterConfigWidget : public QWidget
 public:
     SymbolsFindFilterConfigWidget(SymbolsFindFilter *filter);
 
-private slots:
+private:
     void setState() const;
     void getState();
 
-private:
     SymbolsFindFilter *m_filter;
 
     QCheckBox *m_typeClasses;
@@ -123,5 +120,3 @@ private:
 
 } // Internal
 } // CppTools
-
-#endif // SYMBOLSFINDFILTER_H

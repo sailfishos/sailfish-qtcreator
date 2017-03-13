@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPEDITOROUTLINE_H
-#define CPPEDITOROUTLINE_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -64,13 +63,12 @@ public slots:
     void updateIndex();
     void setSorted(bool sort);
 
-private slots:
+private:
     void updateNow();
     void updateIndexNow();
     void updateToolTip();
     void gotoSymbolInEditor();
 
-private:
     CppEditorOutline();
 
     bool isSorted() const;
@@ -90,5 +88,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPEDITOROUTLINE_H

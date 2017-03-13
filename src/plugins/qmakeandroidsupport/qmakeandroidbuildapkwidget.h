@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEANDROIDBUILDAPKWIDGET_H
-#define QMAKEANDROIDBUILDAPKWIDGET_H
+#pragma once
 
 #include "androidextralibrarylistmodel.h"
 
@@ -55,7 +54,7 @@ public:
     explicit QmakeAndroidBuildApkWidget(QmakeAndroidBuildApkStep *step);
     ~QmakeAndroidBuildApkWidget();
 
-private slots:
+private:
     void createAndroidTemplatesButton();
     void addAndroidExtraLib();
     void removeAndroidExtraLib();
@@ -75,5 +74,3 @@ public:
 
 } // namespace Internal
 } // namespace QmakeAndroidSupport
-
-#endif // QMAKEANDROIDBUILDAPKWIDGET_H

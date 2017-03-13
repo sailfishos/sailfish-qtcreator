@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSMODELMANAGERINTERFACE_H
-#define QMLJSMODELMANAGERINTERFACE_H
+#pragma once
 
 #include "qmljs_global.h"
 #include "qmljsbundle.h"
@@ -206,9 +205,11 @@ public:
                     PathsAndLanguages paths,
                     ModelManagerInterface *modelManager,
                     bool emitDocChangedOnDisk, bool libOnly = true);
-public slots:
+
     virtual void resetCodeModel();
     void removeProjectInfo(ProjectExplorer::Project *project);
+    void maybeQueueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc);
+
 signals:
     void documentUpdated(QmlJS::Document::Ptr doc);
     void documentChangedOnDisk(QmlJS::Document::Ptr doc);
@@ -216,12 +217,11 @@ signals:
     void libraryInfoUpdated(const QString &path, const QmlJS::LibraryInfo &info);
     void projectInfoUpdated(const ProjectInfo &pinfo);
     void projectPathChanged(const QString &projectPath);
-protected slots:
-    void maybeQueueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc);
-    void queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc, bool scan);
-    void asyncReset();
-    virtual void startCppQmlTypeUpdate();
+
 protected:
+    Q_INVOKABLE void queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc, bool scan);
+    Q_INVOKABLE void asyncReset();
+    virtual void startCppQmlTypeUpdate();
     QMutex *mutex() const;
     virtual QHash<QString,Dialect> languageForSuffix() const;
     virtual void writeMessageInternal(const QString &msg) const;
@@ -275,6 +275,7 @@ private:
     QrcCache m_qrcCache;
 
     CppDataHash m_cppDataHash;
+    QHash<QString, QStringList> m_cppDeclarationFiles;
     mutable QMutex m_cppDataMutex;
 
     // project integration
@@ -290,5 +291,3 @@ private:
 };
 
 } // namespace QmlJS
-
-#endif // QMLJSMODELMANAGERINTERFACE_H

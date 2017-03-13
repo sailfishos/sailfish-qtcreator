@@ -21,15 +21,12 @@ HEADERS += \
     baseqtversion.h \
     qmldumptool.h \
     qtoptionspage.h \
-    customexecutablerunconfiguration.h \
-    customexecutableconfigurationwidget.h \
     qtsupportconstants.h \
     profilereader.h \
     qtparser.h \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
-    copytolocationdialog.h \
     desktopqtversionfactory.h \
     desktopqtversion.h \
     winceqtversionfactory.h \
@@ -51,14 +48,11 @@ SOURCES += \
     baseqtversion.cpp \
     qmldumptool.cpp \
     qtoptionspage.cpp \
-    customexecutablerunconfiguration.cpp \
-    customexecutableconfigurationwidget.cpp \
     profilereader.cpp \
     qtparser.cpp \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
-    copytolocationdialog.cpp \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
     winceqtversionfactory.cpp \
@@ -71,7 +65,6 @@ FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     qtversionmanager.ui \
-    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc

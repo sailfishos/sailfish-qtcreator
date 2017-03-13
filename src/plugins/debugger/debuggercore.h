@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERCORE_H
-#define DEBUGGERCORE_H
+#pragma once
 
 #include "debuggerconstants.h"
 
@@ -37,7 +36,6 @@ QT_BEGIN_NAMESPACE
 class QIcon;
 class QMessageBox;
 class QWidget;
-class QTreeView;
 QT_END_NAMESPACE
 
 namespace CPlusPlus { class Snapshot; }
@@ -52,6 +50,7 @@ class DebuggerEngine;
 class Symbol;
 class Section;
 class GlobalDebuggerOptions;
+class WatchTreeView;
 
 enum TestCases
 {
@@ -62,7 +61,6 @@ enum TestCases
 // Some convenience.
 void updateState(DebuggerEngine *engine);
 void updateWatchersWindow(bool showWatch, bool showReturn);
-QIcon locationMarkIcon();
 const CPlusPlus::Snapshot &cppCodeModelSnapshot();
 bool hasSnapshots();
 void openTextEditor(const QString &titlePattern, const QString &contents);
@@ -88,11 +86,11 @@ void setThreadBoxContents(const QStringList &list, int index);
 
 QSharedPointer<Internal::GlobalDebuggerOptions> globalDebuggerOptions();
 
-QTreeView *inspectorView();
+WatchTreeView *inspectorView();
 QVariant sessionValue(const QByteArray &name);
 void setSessionValue(const QByteArray &name, const QVariant &value);
-QVariant configValue(const QByteArray &name);
-void setConfigValue(const QByteArray &name, const QVariant &value);
+QVariant configValue(const QString &name);
+void setConfigValue(const QString &name, const QVariant &value);
 
 bool isTestRun();
 
@@ -111,5 +109,3 @@ bool isReverseDebuggingEnabled();
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGERPLUGIN_H

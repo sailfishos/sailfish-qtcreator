@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTDOCUMENTMANIPULATOR_H
-#define TEXTDOCUMENTMANIPULATOR_H
+#pragma once
 
 #include "textdocumentmanipulatorinterface.h"
 
@@ -44,6 +43,7 @@ public:
     QTextCursor textCursorAt(int position) const final;
 
     void setCursorPosition(int position) final;
+    void setAutoCompleteSkipPosition(int position) final;
     bool replace(int position, int length, const QString &text) final;
     void insertCodeSnippet(int position, const QString &text) final;
     void paste() final;
@@ -59,5 +59,3 @@ private:
 };
 
 } // namespace TextEditor
-
-#endif // TEXTDOCUMENTMANIPULATOR_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTC_CUSTOMQBSPROPERTIESDIALOG_H
-#define QTC_CUSTOMQBSPROPERTIESDIALOG_H
+#pragma once
 
 #include <QVariantMap>
 #include <QDialog>
@@ -43,7 +42,7 @@ public:
     QVariantMap properties() const;
     ~CustomQbsPropertiesDialog();
 
-private slots:
+private:
     void addProperty();
     void removeSelectedProperty();
     void handleCurrentItemChanged();
@@ -54,5 +53,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // Include guard.

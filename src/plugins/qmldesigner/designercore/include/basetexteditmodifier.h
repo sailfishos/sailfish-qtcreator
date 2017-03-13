@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BASETEXTEDITMODIFIER_H
-#define BASETEXTEDITMODIFIER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "plaintexteditmodifier.h"
@@ -47,8 +46,7 @@ public:
     virtual int indentDepth() const;
 
     virtual bool renameId(const QString &oldId, const QString &newId);
+    virtual bool moveToComponent(int nodeOffset);
 };
 
 } // namespace QmlDesigner
-
-#endif // BASETEXTEDITMODIFIER_H

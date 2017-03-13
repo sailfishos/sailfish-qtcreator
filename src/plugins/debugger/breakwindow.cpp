@@ -47,10 +47,24 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QSpinBox>
+#include <QStyledItemDelegate>
 #include <QTextEdit>
 
 namespace Debugger {
 namespace Internal {
+
+class LeftElideDelegate : public QStyledItemDelegate
+{
+public:
+    LeftElideDelegate(QObject *parent) : QStyledItemDelegate(parent) {}
+
+    void paint(QPainter *pain, const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        QStyleOptionViewItem opt = option;
+        opt.textElideMode = Qt::ElideLeft;
+        QStyledItemDelegate::paint(pain, opt, index);
+    }
+};
 
 class SmallTextEdit : public QTextEdit
 {
@@ -82,7 +96,6 @@ public:
     void setParameters(const BreakpointParameters &data);
     BreakpointParameters parameters() const;
 
-public slots:
     void typeChanged(int index);
 
 private:
@@ -446,7 +459,7 @@ void BreakpointDialog::getParts(unsigned partsMask, BreakpointParameters *data) 
         data->expression = m_lineEditExpression->text();
 
     if (partsMask & ConditionPart)
-        data->condition = m_lineEditCondition->text().toUtf8();
+        data->condition = m_lineEditCondition->text();
     if (partsMask & IgnoreCountPart)
         data->ignoreCount = m_spinBoxIgnoreCount->text().toInt();
     if (partsMask & ThreadSpecPart)
@@ -496,7 +509,7 @@ void BreakpointDialog::setParts(unsigned mask, const BreakpointParameters &data)
     }
 
     if (mask & ConditionPart)
-        m_lineEditCondition->setText(QString::fromUtf8(data.condition));
+        m_lineEditCondition->setText(data.condition);
     if (mask & IgnoreCountPart)
         m_spinBoxIgnoreCount->setValue(data.ignoreCount);
     if (mask & ThreadSpecPart)
@@ -681,13 +694,14 @@ BreakTreeView::BreakTreeView()
 {
     setWindowIcon(Icons::BREAKPOINTS.icon());
     setSelectionMode(QAbstractItemView::ExtendedSelection);
+    setItemDelegateForColumn(BreakpointFileColumn, new LeftElideDelegate(this));
     connect(action(UseAddressInBreakpointsView), &QAction::toggled,
             this, &BreakTreeView::showAddressColumn);
 }
 
 void BreakTreeView::showAddressColumn(bool on)
 {
-    setColumnHidden(7, !on);
+    setColumnHidden(BreakpointAddressColumn, !on);
 }
 
 void BreakTreeView::keyPressEvent(QKeyEvent *ev)
@@ -721,7 +735,7 @@ void BreakTreeView::mouseDoubleClickEvent(QMouseEvent *ev)
 {
     QModelIndex indexUnderMouse = indexAt(ev->pos());
     if (indexUnderMouse.isValid()) {
-        if (indexUnderMouse.column() >= 4) {
+        if (indexUnderMouse.column() >= BreakpointAddressColumn) {
             Breakpoint b = breakHandler()->findBreakpointByIndex(indexUnderMouse);
             QTC_ASSERT(b, return);
             editBreakpoints(Breakpoints() << b);
@@ -756,7 +770,8 @@ void BreakTreeView::contextMenuEvent(QContextMenuEvent *ev)
     QAction *deleteByFileAction = 0;
     Breakpoints breakpointsInFile;
     if (indexUnderMouse.isValid()) {
-        const QModelIndex index = indexUnderMouse.sibling(indexUnderMouse.row(), 2);
+        const QModelIndex index = indexUnderMouse.sibling(indexUnderMouse.row(),
+                                                          BreakpointFileColumn);
         const QString file = index.data().toString();
         if (!file.isEmpty()) {
             for (int i = 0; i != rowCount; ++i)
@@ -900,7 +915,7 @@ void BreakTreeView::editBreakpoints(const Breakpoints &bps)
         return;
 
     MultiBreakPointsDialog dialog;
-    dialog.setCondition(QString::fromLatin1(bp.condition()));
+    dialog.setCondition(bp.condition());
     dialog.setIgnoreCount(bp.ignoreCount());
     dialog.setThreadSpec(bp.threadSpec());
 
@@ -913,7 +928,7 @@ void BreakTreeView::editBreakpoints(const Breakpoints &bps)
 
     foreach (Breakpoint bp, bps) {
         if (bp) {
-            bp.setCondition(newCondition.toLatin1());
+            bp.setCondition(newCondition);
             bp.setIgnoreCount(newIgnoreCount);
             bp.setThreadSpec(newThreadSpec);
         }

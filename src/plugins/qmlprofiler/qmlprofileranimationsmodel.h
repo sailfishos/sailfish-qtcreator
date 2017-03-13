@@ -23,20 +23,16 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERANIMATIONSMODEL_H
-#define QMLPROFILERANIMATIONSMODEL_H
+#pragma once
 
-#include <QObject>
 #include "qmlprofilertimelinemodel.h"
-#include <qmldebug/qmlprofilereventtypes.h>
-#include <qmldebug/qmlprofilereventlocation.h>
-//#include <QHash>
-//#include <QVector>
-#include <QVariantList>
-//#include <QVariantMap>
+#include "qmlprofilereventtypes.h"
+#include "qmleventlocation.h"
 #include "qmlprofilerdatamodel.h"
-#include <QColor>
 
+#include <QVariantList>
+#include <QColor>
+#include <QObject>
 
 namespace QmlProfiler {
 class QmlProfilerModelManager;
@@ -56,32 +52,32 @@ public:
 
     QmlProfilerAnimationsModel(QmlProfilerModelManager *manager, QObject *parent = 0);
 
-    int rowMaxValue(int rowNumber) const;
+    int rowMaxValue(int rowNumber) const override;
 
-    int typeId(int index) const;
-    Q_INVOKABLE int expandedRow(int index) const;
-    Q_INVOKABLE int collapsedRow(int index) const;
+    int typeId(int index) const override;
+    Q_INVOKABLE int expandedRow(int index) const override;
+    Q_INVOKABLE int collapsedRow(int index) const override;
 
-    QColor color(int index) const;
-    float relativeHeight(int index) const;
+    QColor color(int index) const override;
+    float relativeHeight(int index) const override;
 
-    QVariantList labels() const;
-    QVariantMap details(int index) const;
-
-    bool accepted(const QmlProfilerDataModel::QmlEventTypeData &event) const;
+    QVariantList labels() const override;
+    QVariantMap details(int index) const override;
 
 protected:
-    void loadData();
-    void clear();
+    bool accepted(const QmlEventType &event) const override;
+    void loadEvent(const QmlEvent &event, const QmlEventType &type) override;
+    void finalize() override;
+    void clear() override;
 
 private:
     QVector<QmlProfilerAnimationsModel::QmlPaintEventData> m_data;
-    int m_maxGuiThreadAnimations;
-    int m_maxRenderThreadAnimations;
+    int m_maxGuiThreadAnimations = 0;
+    int m_maxRenderThreadAnimations = 0;
+    qint64 m_minNextStartTimes[2];
+
     int rowFromThreadId(int threadId) const;
 };
 
-}
-}
-
-#endif // QMLPROFILERANIMATIONSMODEL_H
+} // namespace Internal
+} // namespace QmlProfiler

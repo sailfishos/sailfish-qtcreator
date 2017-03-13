@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HELPVIEWER_H
-#define HELPVIEWER_H
+#pragma once
 
 #include <coreplugin/find/textfindconstants.h>
 
@@ -78,7 +77,6 @@ public:
     static QString mimeFromUrl(const QUrl &url);
     static bool launchWithExternalApp(const QUrl &url);
 
-public slots:
     void home();
 
     virtual void scaleUp() = 0;
@@ -98,12 +96,10 @@ signals:
     void backwardAvailable(bool);
     void loadFinished();
 
-protected slots:
+protected:
     void slotLoadStarted();
     void slotLoadFinished();
 };
 
 }   // namespace Internal
 }   // namespace Help
-
-#endif  // HELPVIEWER_H

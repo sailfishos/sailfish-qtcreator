@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGCODEMODEL_INTERNAL_CLANGASSISTPROPOSALMODEL_H
-#define CLANGCODEMODEL_INTERNAL_CLANGASSISTPROPOSALMODEL_H
+#pragma once
 
 #include <cplusplus/Token.h>
 
@@ -40,6 +39,8 @@ class ClangAssistProposalModel : public TextEditor::GenericProposalModel
 public:
     ClangAssistProposalModel(ClangBackEnd::CompletionCorrection neededCorrection);
 
+    bool containsDuplicates() const override;
+
     bool isSortable(const QString &prefix) const override;
     void sort(const QString &prefix) override;
 
@@ -51,5 +52,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangCodeModel
-
-#endif // CLANGCODEMODEL_INTERNAL_CLANGASSISTPROPOSALMODEL_H

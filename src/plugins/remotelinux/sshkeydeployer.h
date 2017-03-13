@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SSHKEYDEPLOYER_H
-#define SSHKEYDEPLOYER_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -51,16 +50,12 @@ signals:
     void error(const QString &errorMsg);
     void finishedSuccessfully();
 
-private slots:
+private:
     void handleConnectionFailure();
     void handleKeyUploadFinished(int exitStatus);
-
-private:
     void cleanup();
 
     Internal::SshKeyDeployerPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // SSHKEYDEPLOYER_H

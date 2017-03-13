@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSCODESTYLESETTINGSPAGE_H
-#define QMLJSCODESTYLESETTINGSPAGE_H
+#pragma once
 
 #include <coreplugin/dialogs/ioptionspage.h>
 #include <QWidget>
@@ -56,13 +55,12 @@ public:
 
     void setPreferences(TextEditor::ICodeStylePreferences *preferences);
 
-private slots:
+private:
     void decorateEditor(const TextEditor::FontSettings &fontSettings);
     void setVisualizeWhitespace(bool on);
     void slotSettingsChanged();
     void updatePreview();
 
-private:
     TextEditor::ICodeStylePreferences *m_preferences;
     Ui::QmlJSCodeStyleSettingsPage *m_ui;
 };
@@ -86,5 +84,3 @@ private:
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // QMLJSCODESTYLESETTINGSPAGE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FINDTOOLBAR_H
-#define FINDTOOLBAR_H
+#pragma once
 
 #include "ui_findwidget.h"
 #include "currentdocumentfind.h"
@@ -41,7 +40,6 @@ QT_END_NAMESPACE
 namespace Core {
 
 class FindToolBarPlaceHolder;
-class FindPlugin;
 
 namespace Internal {
 
@@ -78,7 +76,7 @@ public:
     };
     Q_DECLARE_FLAGS(OpenFlags, OpenFlag)
 
-    explicit FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumentFind);
+    explicit FindToolBar(CurrentDocumentFind *currentDocumentFind);
     ~FindToolBar();
 
     void readSettings();
@@ -156,7 +154,6 @@ private:
     void updateIcons();
     void updateFlagMenus();
 
-    FindPlugin *m_plugin = nullptr;
     CurrentDocumentFind *m_currentDocumentFind = nullptr;
     Ui::FindWidget m_ui;
     QCompleter *m_findCompleter = nullptr;
@@ -195,5 +192,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // FINDTOOLBAR_H

@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITOR_SEMANTICHIGHLIGHTER_H
-#define TEXTEDITOR_SEMANTICHIGHLIGHTER_H
+#pragma once
 
 #include "texteditor_global.h"
+
+#include "fontsettings.h"
 
 #include <QHash>
 #include <QFuture>
@@ -45,7 +46,9 @@ public:
     unsigned line; // 1-based
     unsigned column; // 1-based
     unsigned length;
+    TextStyles textStyles;
     int kind; /// The various highlighters can define their own kind of results.
+    bool useTextSyles;
 
     bool isValid() const
     { return line != 0; }
@@ -58,7 +61,11 @@ public:
     {}
 
     HighlightingResult(unsigned line, unsigned column, unsigned length, int kind)
-        : line(line), column(column), length(length), kind(kind)
+        : line(line), column(column), length(length), kind(kind), useTextSyles(false)
+    {}
+
+    HighlightingResult(unsigned line, unsigned column, unsigned length, TextStyles textStyles)
+        : line(line), column(column), length(length), textStyles(textStyles), useTextSyles(true)
     {}
 
     bool operator==(const HighlightingResult& other) const
@@ -95,5 +102,3 @@ void TEXTEDITOR_EXPORT clearExtraAdditionalFormatsUntilEnd(
 
 } // namespace SemanticHighlighter
 } // namespace TextEditor
-
-#endif // TEXTEDITOR_SEMANTICHIGHLIGHTER_H

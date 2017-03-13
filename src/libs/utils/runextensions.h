@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef RUNEXTENSIONS_H
-#define RUNEXTENSIONS_H
+#pragma once
 
 #include "functiontraits.h"
 #include "utils_global.h"
@@ -99,7 +98,7 @@ struct resultTypeWithArgument<Function, QFutureInterface<ResultType>&>
 template <typename Function, typename Arg>
 struct resultTypeWithArgument
 {
-    using type = typename functionTraits<Function>::ResultType;
+    using type = functionResult_t<Function>;
 };
 
 template <typename Function, int index>
@@ -111,7 +110,7 @@ struct resultTypeTakesArguments<Function, index, true>
 template <typename Function, int index>
 struct resultTypeTakesArguments<Function, index, false>
 {
-    using type = typename functionTraits<Function>::ResultType;
+    using type = functionResult_t<Function>;
 };
 
 template <typename Function>
@@ -261,23 +260,6 @@ void runAsyncQFutureInterfaceDispatch(std::false_type, QFutureInterface<ResultTy
                                futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
 }
 
-// function that takes at least one argument which could be QFutureInterface
-template <typename ResultType, typename Function, typename... Args>
-void runAsyncArityDispatch(std::true_type, QFutureInterface<ResultType> futureInterface, Function &&function, Args&&... args)
-{
-    runAsyncQFutureInterfaceDispatch(std::is_same<QFutureInterface<ResultType>&,
-                                                  typename functionTraits<Function>::template argument<0>::type>(),
-                                     futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
-}
-
-// function that does not take an argument, so it does not take a QFutureInterface
-template <typename ResultType, typename Function, typename... Args>
-void runAsyncArityDispatch(std::false_type, QFutureInterface<ResultType> futureInterface, Function &&function, Args&&... args)
-{
-    runAsyncQFutureInterfaceDispatch(std::false_type(),
-                                     futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
-}
-
 // function, function pointer, or other callable object that is no member pointer
 template <typename ResultType, typename Function, typename... Args,
           typename = typename std::enable_if<
@@ -285,8 +267,8 @@ template <typename ResultType, typename Function, typename... Args,
               >::type>
 void runAsyncMemberDispatch(QFutureInterface<ResultType> futureInterface, Function &&function, Args&&... args)
 {
-    runAsyncArityDispatch(std::integral_constant<bool, (functionTraits<Function>::arity > 0)>(),
-                          futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
+    runAsyncQFutureInterfaceDispatch(functionTakesArgument<Function, 0, QFutureInterface<ResultType>&>(),
+                                     futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
 }
 
 // Function = member function
@@ -512,5 +494,3 @@ runAsync(QThreadPool *pool, Function &&function, Args&&... args)
 }
 
 } // Utils
-
-#endif // RUNEXTENSIONS_H

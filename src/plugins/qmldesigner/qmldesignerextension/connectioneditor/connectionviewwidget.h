@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONNECTIONVIEWWIDGET_H
-#define CONNECTIONVIEWWIDGET_H
+#pragma once
 
 #include <QFrame>
 #include <QAbstractItemView>
@@ -66,9 +65,6 @@ public:
 
     QList<QToolButton*> createToolBarWidgets();
 
-    void setEnabledAddButton(bool enabled);
-    void setEnabledRemoveButton(bool enabled);
-
     TabStatus currentTab() const;
 
     void resetItemViews();
@@ -84,8 +80,8 @@ public slots:
     void dynamicPropertiesTableViewSelectionChanged(const QModelIndex &current, const QModelIndex &previous);
 
 signals:
-    void setEnabledAddButtonChanged(bool);
-    void setEnabledRemoveButtonChanged(bool);
+    void setEnabledAddButton(bool enabled);
+    void setEnabledRemoveButton(bool enabled);
 
 private slots:
     void handleTabChanged(int i);
@@ -99,5 +95,3 @@ private:
 } // namespace Internal
 
 } // namespace QmlDesigner
-
-#endif // CONNECTIONVIEWWIDGET_H

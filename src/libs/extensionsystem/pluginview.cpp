@@ -31,8 +31,9 @@
 
 #include <utils/algorithm.h>
 #include <utils/categorysortfiltermodel.h>
-#include <utils/icon.h>
+#include <utils/utilsicons.h>
 #include <utils/itemviews.h>
+#include <utils/qtcassert.h>
 #include <utils/treemodel.h>
 
 #include <QDebug>
@@ -89,22 +90,16 @@ static const QIcon &icon(IconIndex icon)
     using namespace Utils;
     switch (icon) {
     case OkIcon: {
-        static const QIcon ok =
-                Icon({{QLatin1String(":/extensionsystem/images/ok.png"),
-                       Theme::IconsRunToolBarColor}}, Icon::Tint).icon();
+        static const QIcon ok = Utils::Icons::OK.icon();
         return ok;
     }
     case ErrorIcon: {
-        static const QIcon error =
-                Icon({{QLatin1String(":/extensionsystem/images/error.png"),
-                       Theme::IconsErrorColor}}, Icon::Tint).icon();
+        static const QIcon error = Utils::Icons::ERROR.icon();
         return error;
     }
     default:
     case NotLoadedIcon: {
-        static const QIcon notLoaded =
-                Icon({{QLatin1String(":/extensionsystem/images/notloaded.png"),
-                       Theme::IconsErrorColor}}, Icon::Tint).icon();
+        static const QIcon notLoaded = Utils::Icons::NOTLOADED.icon();
         return notLoaded;
     }
     }
@@ -265,10 +260,9 @@ public:
     bool setData(int column, const QVariant &data, int role)
     {
         if (column == LoadedColumn && role == Qt::CheckStateRole) {
-            QSet<PluginSpec *> affectedPlugins;
-            foreach (TreeItem *item, children())
-                affectedPlugins.insert(static_cast<PluginItem *>(item)->m_spec);
-            if (m_view->setPluginsEnabled(affectedPlugins, data.toBool())) {
+            const QList<PluginSpec *> affectedPlugins =
+                    Utils::filtered(m_plugins, [](PluginSpec *spec) { return !spec->isRequired(); });
+            if (m_view->setPluginsEnabled(affectedPlugins.toSet(), data.toBool())) {
                 update();
                 return true;
             }
@@ -314,8 +308,8 @@ PluginView::PluginView(QWidget *parent)
     m_categoryView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_categoryView->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-    m_model = new TreeModel(this);
-    m_model->setHeader(QStringList() << tr("Name") << tr("Load") << tr("Version") << tr("Vendor"));
+    m_model = new LeveledTreeModel<TreeItem, CollectionItem, PluginItem>(this);
+    m_model->setHeader({ tr("Name"), tr("Load"), tr("Version"), tr("Vendor") });
 
     m_sortModel = new CategorySortFilterModel(this);
     m_sortModel->setSourceModel(m_model);
@@ -368,7 +362,7 @@ void PluginView::setFilter(const QString &filter)
 PluginSpec *PluginView::pluginForIndex(const QModelIndex &index) const
 {
     const QModelIndex &sourceIndex = m_sortModel->mapToSource(index);
-    auto item = dynamic_cast<PluginItem *>(m_model->itemForIndex(sourceIndex));
+    PluginItem *item = m_model->secondLevelItemForIndex(sourceIndex);
     return item ? item->m_spec: 0;
 }
 
@@ -455,7 +449,7 @@ bool PluginView::setPluginsEnabled(const QSet<PluginSpec *> &plugins, bool enabl
 
     QSet<PluginSpec *> affectedPlugins = plugins + additionalPlugins;
     foreach (PluginSpec *spec, affectedPlugins) {
-        PluginItem *item = m_model->findItemAtLevel<PluginItem *>(2, [spec](PluginItem *item) {
+        PluginItem *item = m_model->findSecondLevelItem([spec](PluginItem *item) {
                 return item->m_spec == spec;
         });
         QTC_ASSERT(item, continue);

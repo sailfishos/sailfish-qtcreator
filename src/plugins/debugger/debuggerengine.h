@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERENGINE_H
-#define DEBUGGER_DEBUGGERENGINE_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
@@ -44,6 +43,7 @@ class QAbstractItemModel;
 QT_END_NAMESPACE
 
 namespace Core { class IOptionsPage; }
+namespace Utils { class MacroExpander; }
 
 namespace Debugger {
 
@@ -80,6 +80,7 @@ class DebuggerRunParameters : public DebuggerStartParameters
 {
 public:
     DebuggerRunParameters() {}
+    DebuggerRunParameters(const DebuggerStartParameters &sp) : DebuggerStartParameters(sp) {}
 
     DebuggerEngineType masterEngineType = NoEngineType;
     DebuggerEngineType cppEngineType = NoEngineType;
@@ -112,6 +113,8 @@ public:
 
     bool nativeMixedEnabled = false;
 
+    Utils::MacroExpander *macroExpander = 0;
+
     // For Debugger testing.
     int testCase = 0;
 };
@@ -121,15 +124,15 @@ class UpdateParameters
 public:
     UpdateParameters() {}
 
-    QList<QByteArray> partialVariables() const
+    QStringList partialVariables() const
     {
-        QList<QByteArray> result;
+        QStringList result;
         if (!partialVariable.isEmpty())
             result.append(partialVariable);
         return result;
     }
 
-    QByteArray partialVariable;
+    QString partialVariable;
 };
 
 class Location
@@ -195,10 +198,10 @@ public:
     DebuggerRunParameters &runParameters();
 
     virtual bool canHandleToolTip(const DebuggerToolTipContext &) const;
-    virtual void expandItem(const QByteArray &iname); // Called when item in tree gets expanded.
-    virtual void updateItem(const QByteArray &iname); // Called for fresh watch items.
-    void updateWatchData(const QByteArray &iname); // FIXME: Merge with above.
-    virtual void selectWatchData(const QByteArray &iname);
+    virtual void expandItem(const QString &iname); // Called when item in tree gets expanded.
+    virtual void updateItem(const QString &iname); // Called for fresh watch items.
+    void updateWatchData(const QString &iname); // FIXME: Merge with above.
+    virtual void selectWatchData(const QString &iname);
 
     virtual void startDebugger(DebuggerRunControl *runControl);
     virtual void prepareForRestart() {}
@@ -237,14 +240,14 @@ public:
     virtual void loadAdditionalQmlStack();
     virtual void reloadDebuggingHelpers();
 
-    virtual void setRegisterValue(const QByteArray &name, const QString &value);
+    virtual void setRegisterValue(const QString &name, const QString &value);
     virtual void addOptionPages(QList<Core::IOptionsPage*> *) const;
     virtual bool hasCapability(unsigned cap) const = 0;
     virtual void debugLastCommand() {}
 
     virtual bool isSynchronous() const;
-    virtual QByteArray qtNamespace() const;
-    void setQtNamespace(const QByteArray &ns);
+    virtual QString qtNamespace() const;
+    void setQtNamespace(const QString &ns);
 
     virtual void createSnapshot();
     virtual void updateAll();
@@ -290,7 +293,7 @@ public:
     DebuggerState targetState() const;
     bool isDying() const;
 
-    static const char *stateName(int s);
+    static QString stateName(int s);
 
     void notifyInferiorPid(qint64 pid);
     qint64 inferiorPid() const;
@@ -321,6 +324,8 @@ public:
     void updateBreakpointMarker(const Breakpoint &bp);
     void removeBreakpointMarker(const Breakpoint &bp);
 
+    QString expand(const QString &string) const;
+
 signals:
     void stateChanged(Debugger::DebuggerState state);
     // A new stack frame is on display including locals.
@@ -346,7 +351,7 @@ protected:
 
     virtual void notifyEngineRequestRemoteSetup();
     public:
-    virtual void notifyEngineRemoteServerRunning(const QByteArray &, int pid);
+    virtual void notifyEngineRemoteServerRunning(const QString &, int pid);
     virtual void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result);
 
     protected:
@@ -480,5 +485,3 @@ DebuggerRunControl *createAndScheduleRun(const DebuggerRunParameters &rp, const 
 
 Q_DECLARE_METATYPE(Debugger::Internal::UpdateParameters)
 Q_DECLARE_METATYPE(Debugger::Internal::ContextData)
-
-#endif // DEBUGGER_DEBUGGERENGINE_H

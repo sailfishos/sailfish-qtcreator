@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEPROJECTCONFIGWIDGET_H
-#define QMAKEPROJECTCONFIGWIDGET_H
+#pragma once
 
 #include <projectexplorer/namedwidget.h>
 
@@ -48,7 +47,7 @@ public:
     QmakeProjectConfigWidget(QmakeBuildConfiguration *bc);
     ~QmakeProjectConfigWidget();
 
-private slots:
+private:
     // User changes in our widgets
     void shadowBuildClicked(bool checked);
     void onBeforeBeforeShadowBuildDirBrowsed();
@@ -59,7 +58,6 @@ private slots:
     void updateProblemLabel();
     void environmentChanged();
 
-private:
     void updateDetails();
     void setProblemLabel(const QString &text);
 
@@ -73,5 +71,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // QMAKEPROJECTCONFIGWIDGET_H

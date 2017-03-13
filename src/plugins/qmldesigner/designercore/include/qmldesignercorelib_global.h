@@ -23,16 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef CORELIB_GLOBAL_H
-#define CORELIB_GLOBAL_H
+#pragma once
 
 #include <QtGlobal>
 #include <QList>
 
-
 // Unnecessary since core isn't a dll any more.
-
-#define TEST_CORESHARED_EXPORT
 
 #if defined(DESIGNER_CORE_LIBRARY)
 #  define QMLDESIGNERCORE_EXPORT Q_DECL_EXPORT
@@ -64,16 +60,3 @@ enum AnchorLineType {
     AnchorLineAllMask = AnchorLineVerticalMask | AnchorLineHorizontalMask
 };
 }
-//#if defined(TEST_EXPORTS)
-//#if defined(CORE_LIBRARY)
-//#  define TEST_CORESHARED_EXPORT Q_DECL_EXPORT
-//#else
-//#  define TEST_CORESHARED_EXPORT Q_DECL_IMPORT
-//#endif
-//#else
-//#  define TEST_CORESHARED_EXPORT
-//#endif
-
-#include <qglobal.h>
-
-#endif // CORELIB_GLOBAL_H

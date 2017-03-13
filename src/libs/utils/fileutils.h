@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILEUTILS_H
-#define FILEUTILS_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -109,6 +108,7 @@ public:
                                 QString *error = 0, const std::function<bool (QFileInfo, QFileInfo, QString *)> &copyHelper = std::function<bool (QFileInfo, QFileInfo, QString *)>());
     static bool isFileNewerThan(const FileName &filePath, const QDateTime &timeStamp);
     static FileName resolveSymlinks(const FileName &path);
+    static FileName canonicalPath(const FileName &path);
     static QString shortNativePath(const FileName &path);
     static QString fileSystemFriendlyName(const QString &name);
     static int indexOfQmakeUnfriendly(const QString &name, int startpos = 0);
@@ -207,5 +207,3 @@ QTCREATOR_UTILS_EXPORT uint qHash(const Utils::FileName &a);
 QT_END_NAMESPACE
 
 Q_DECLARE_METATYPE(Utils::FileName)
-
-#endif // FILEUTILS_H

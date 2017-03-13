@@ -71,7 +71,7 @@
                 the rectangle and produce rounded corners for the button.
 
             \li Select \uicontrol {Layout}, and then select the
-                \inlineimage anchor-fill-normal.png
+                \inlineimage anchor_fill.png
                 (\uicontrol {Fill to Parent}) button to anchor the rectangle to
                 the item.
 
@@ -159,10 +159,10 @@
             width (\uicontrol W) and height (\uicontrol H) of the button in the
             \uicontrol Properties pane.
 
-        \li Select \uicontrol Connections > \uicontrol {Dynamic Properties} >
+        \li Select \uicontrol Connections > \uicontrol {Properties} >
             \uicontrol Add to add properties for the item:
 
-            \image qmldesigner-borderimage-properties.png "Dynamic properties"
+            \image qmldesigner-borderimage-properties.png "Properties"
 
             \list a
 
@@ -198,7 +198,7 @@
                 for example button_up.png.
 
             \li  Click \uicontrol {Layout}, and then click the
-                \inlineimage anchor-fill-normal.png
+                \inlineimage anchor_fill.png
                 (\uicontrol {Fill to Parent}) button to anchor the border image to the
                 \uicontrol Item.
 
@@ -248,9 +248,9 @@
                 \endlist
 
             \li Click \uicontrol {Layout}, and then click the
-                \inlineimage anchor-vertical-normal.png
+                \inlineimage anchor_vertical.png
                 (\uicontrol {Set Vertical Anchor}) and
-                \inlineimage anchor-horizontal-normal.png
+                \inlineimage anchor_horizontal.png
                 (\uicontrol {Set Horizontal Anchor})
                 buttons to inherit the vertical and horizontal centering from
                 the parent.

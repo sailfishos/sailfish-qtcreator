@@ -42,6 +42,7 @@
 #include <QAction>
 #include <QDebug>
 #include <QMap>
+#include <QMouseEvent>
 #include <QVector>
 
 namespace Core {
@@ -57,6 +58,8 @@ namespace Core {
 
 struct ModeManagerPrivate
 {
+    void showMenu(int index, QMouseEvent *event);
+
     Internal::MainWindow *m_mainWindow;
     Internal::FancyTabWidget *m_modeStack;
     Internal::FancyActionBar *m_actionBar;
@@ -81,6 +84,12 @@ static int indexOf(Id id)
     return -1;
 }
 
+void ModeManagerPrivate::showMenu(int index, QMouseEvent *event)
+{
+    QTC_ASSERT(m_modes.at(index)->menu(), return);
+    m_modes.at(index)->menu()->popup(event->globalPos());
+}
+
 ModeManager::ModeManager(Internal::MainWindow *mainWindow,
                          Internal::FancyTabWidget *modeStack)
 {
@@ -98,6 +107,8 @@ ModeManager::ModeManager(Internal::MainWindow *mainWindow,
             this, &ModeManager::currentTabAboutToChange);
     connect(d->m_modeStack, &Internal::FancyTabWidget::currentChanged,
             this, &ModeManager::currentTabChanged);
+    connect(d->m_modeStack, &Internal::FancyTabWidget::menuTriggered,
+            this, [](int index, QMouseEvent *e) { d->showMenu(index, e); });
 }
 
 void ModeManager::init()
@@ -115,15 +126,15 @@ ModeManager::~ModeManager()
     m_instance = 0;
 }
 
-IMode *ModeManager::currentMode()
+Id ModeManager::currentMode()
 {
     int currentIndex = d->m_modeStack->currentIndex();
     if (currentIndex < 0)
-        return 0;
-    return d->m_modes.at(currentIndex);
+        return Id();
+    return d->m_modes.at(currentIndex)->id();
 }
 
-IMode *ModeManager::mode(Id id)
+static IMode *findMode(Id id)
 {
     const int index = indexOf(id);
     if (index >= 0)
@@ -153,7 +164,8 @@ void ModeManager::objectAdded(QObject *obj)
             ++index;
 
     d->m_modes.insert(index, mode);
-    d->m_modeStack->insertTab(index, mode->widget(), mode->icon(), mode->displayName());
+    d->m_modeStack->insertTab(index, mode->widget(), mode->icon(), mode->displayName(),
+                              mode->menu() != nullptr);
     d->m_modeStack->setTabEnabled(index, mode->isEnabled());
 
     // Register mode shortcut
@@ -205,7 +217,7 @@ void ModeManager::enabledStateChanged()
     d->m_modeStack->setTabEnabled(index, mode->isEnabled());
 
     // Make sure we leave any disabled mode to prevent possible crashes:
-    if (mode == currentMode() && !mode->isEnabled()) {
+    if (mode->id() == currentMode() && !mode->isEnabled()) {
         // This assumes that there is always at least one enabled mode.
         for (int i = 0; i < d->m_modes.count(); ++i) {
             if (d->m_modes.at(i) != mode &&
@@ -256,7 +268,7 @@ void ModeManager::currentTabAboutToChange(int index)
     if (index >= 0) {
         IMode *mode = d->m_modes.at(index);
         if (mode)
-            emit currentModeAboutToChange(mode);
+            emit currentModeAboutToChange(mode->id());
     }
 }
 
@@ -276,13 +288,13 @@ void ModeManager::currentTabChanged(int index)
         if (d->m_oldCurrent >= 0)
             oldMode = d->m_modes.at(d->m_oldCurrent);
         d->m_oldCurrent = index;
-        emit currentModeChanged(mode, oldMode);
+        emit currentModeChanged(mode ? mode->id() : Id(), oldMode ? oldMode->id() : Id());
     }
 }
 
 void ModeManager::setFocusToCurrentMode()
 {
-    IMode *mode = currentMode();
+    IMode *mode = findMode(currentMode());
     QTC_ASSERT(mode, return);
     QWidget *widget = mode->widget();
     if (widget) {

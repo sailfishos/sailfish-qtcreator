@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXRUNCONTROL_H
-#define REMOTELINUXRUNCONTROL_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -43,14 +42,12 @@ public:
     virtual StopResult stop() override;
     virtual bool isRunning() const override;
 
-private slots:
+private:
     void handleErrorMessage(const QString &error);
     void handleRunnerFinished();
     void handleRemoteOutput(const QByteArray &output);
     void handleRemoteErrorOutput(const QByteArray &output);
     void handleProgressReport(const QString &progressString);
-
-private:
     void setFinished();
 
     class RemoteLinuxRunControlPrivate;
@@ -58,5 +55,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXRUNCONTROL_H

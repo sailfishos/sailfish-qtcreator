@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPLUSPLUSCHECKSYMBOLS_H
-#define CPLUSPLUSCHECKSYMBOLS_H
+#pragma once
 
 #include "cpptools_global.h"
 #include "cppsemanticinfo.h"
@@ -95,6 +94,12 @@ protected:
     using ASTVisitor::visit;
     using ASTVisitor::endVisit;
 
+    enum FunctionKind
+    {
+        FunctionDeclaration,
+        FunctionCall
+    };
+
     CheckSymbols(CPlusPlus::Document::Ptr doc,
                  const CPlusPlus::LookupContext &context,
                  const QList<Result> &otherUses);
@@ -127,7 +132,8 @@ protected:
     bool maybeAddField(const QList<CPlusPlus::LookupItem> &candidates,
                        CPlusPlus::NameAST *ast);
     bool maybeAddFunction(const QList<CPlusPlus::LookupItem> &candidates,
-                          CPlusPlus::NameAST *ast, unsigned argumentCount);
+                          CPlusPlus::NameAST *ast, unsigned argumentCount,
+                          FunctionKind functionKind);
 
     bool isTemplateClass(CPlusPlus::Symbol *s) const;
 
@@ -193,5 +199,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPLUSPLUSCHECKSYMBOLS_H

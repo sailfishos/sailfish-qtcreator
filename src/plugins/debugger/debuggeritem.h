@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERITEM_H
-#define DEBUGGER_DEBUGGERITEM_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
@@ -124,5 +123,3 @@ private:
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGER_DEBUGGERITEM_H

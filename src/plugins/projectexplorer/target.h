@@ -33,17 +33,17 @@ QT_FORWARD_DECLARE_CLASS(QIcon)
 namespace Utils { class Environment; }
 
 namespace ProjectExplorer {
-class BuildTargetInfoList;
-class DeploymentData;
-class RunConfiguration;
 class BuildConfiguration;
+class BuildTargetInfoList;
 class DeployConfiguration;
-class IBuildConfigurationFactory;
 class DeployConfigurationFactory;
+class DeploymentData;
+class IBuildConfigurationFactory;
 class IRunConfigurationFactory;
 class Kit;
-class Project;
 class NamedWidget;
+class Project;
+class RunConfiguration;
 
 class TargetPrivate;
 
@@ -120,9 +120,9 @@ signals:
 
     // TODO clean up signal names
     // might be better to also have aboutToRemove signals
-    void removedRunConfiguration(ProjectExplorer::RunConfiguration *);
-    void addedRunConfiguration(ProjectExplorer::RunConfiguration *);
-    void activeRunConfigurationChanged(ProjectExplorer::RunConfiguration *);
+    void removedRunConfiguration(ProjectExplorer::RunConfiguration *rc);
+    void addedRunConfiguration(ProjectExplorer::RunConfiguration *rc);
+    void activeRunConfigurationChanged(ProjectExplorer::RunConfiguration *rc);
 
     void removedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc);
     void addedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc);
@@ -174,4 +174,3 @@ private:
 };
 
 } // namespace ProjectExplorer
-

@@ -61,13 +61,6 @@ using namespace Core;
 namespace UpdateInfo {
 namespace Internal {
 
-class IgnoreExitCode : public Utils::ExitCodeInterpreter
-{
-public:
-    IgnoreExitCode(QObject *parent);
-    Utils::SynchronousProcessResponse::Result interpretExitCode(int code) const override;
-};
-
 class UpdateInfoPluginPrivate
 {
 public:
@@ -83,17 +76,6 @@ public:
     UpdateInfoPlugin::CheckUpdateInterval m_checkInterval = UpdateInfoPlugin::WeeklyCheck;
     QDate m_lastCheckDate;
 };
-
-IgnoreExitCode::IgnoreExitCode(QObject *parent)
-    : Utils::ExitCodeInterpreter(parent)
-{
-}
-
-Utils::SynchronousProcessResponse::Result IgnoreExitCode::interpretExitCode(int code) const
-{
-    Q_UNUSED(code)
-    return Utils::SynchronousProcessResponse::Finished;
-}
 
 UpdateInfoPlugin::UpdateInfoPlugin()
     : d(new UpdateInfoPluginPrivate)
@@ -141,13 +123,14 @@ void UpdateInfoPlugin::startCheckForUpdates()
 {
     stopCheckForUpdates();
 
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QProcessEnvironment env;
     env.insert(QLatin1String("QT_LOGGING_RULES"), QLatin1String("*=false"));
     d->m_checkUpdatesCommand = new ShellCommand(QString(), env);
     connect(d->m_checkUpdatesCommand, &ShellCommand::stdOutText, this, &UpdateInfoPlugin::collectCheckForUpdatesOutput);
     connect(d->m_checkUpdatesCommand, &ShellCommand::finished, this, &UpdateInfoPlugin::checkForUpdatesFinished);
     d->m_checkUpdatesCommand->addJob(Utils::FileName(QFileInfo(d->m_maintenanceTool)), QStringList(QLatin1String("--checkupdates")),
-                                     /*workingDirectory=*/QString(), new IgnoreExitCode(d->m_checkUpdatesCommand));
+                                     /*workingDirectory=*/QString(),
+                                     [](int /*exitCode*/) { return Utils::SynchronousProcessResponse::Finished; });
     d->m_checkUpdatesCommand->execute();
     emit checkForUpdatesRunningChanged(true);
 }

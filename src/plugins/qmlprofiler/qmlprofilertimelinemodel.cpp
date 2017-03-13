@@ -28,10 +28,8 @@
 namespace QmlProfiler {
 
 QmlProfilerTimelineModel::QmlProfilerTimelineModel(QmlProfilerModelManager *modelManager,
-                                                   QmlDebug::Message message,
-                                                   QmlDebug::RangeType rangeType,
-                                                   QmlDebug::ProfileFeature mainFeature,
-                                                   QObject *parent) :
+                                                   Message message, RangeType rangeType,
+                                                   ProfileFeature mainFeature, QObject *parent) :
     TimelineModel(modelManager->registerModelProxy(), parent),
     m_message(message), m_rangeType(rangeType), m_mainFeature(mainFeature),
     m_modelManager(modelManager)
@@ -44,24 +42,24 @@ QmlProfilerTimelineModel::QmlProfilerTimelineModel(QmlProfilerModelManager *mode
     announceFeatures(1ULL << m_mainFeature);
 }
 
-QmlDebug::RangeType QmlProfilerTimelineModel::rangeType() const
+RangeType QmlProfilerTimelineModel::rangeType() const
 {
     return m_rangeType;
 }
 
-QmlDebug::Message QmlProfilerTimelineModel::message() const
+Message QmlProfilerTimelineModel::message() const
 {
     return m_message;
 }
 
-QmlDebug::ProfileFeature QmlProfilerTimelineModel::mainFeature() const
+ProfileFeature QmlProfilerTimelineModel::mainFeature() const
 {
     return m_mainFeature;
 }
 
-bool QmlProfilerTimelineModel::accepted(const QmlProfilerDataModel::QmlEventTypeData &event) const
+bool QmlProfilerTimelineModel::accepted(const QmlEventType &type) const
 {
-    return (event.rangeType == m_rangeType && event.message == m_message);
+    return (type.rangeType() == m_rangeType && type.message() == m_message);
 }
 
 bool QmlProfilerTimelineModel::handlesTypeId(int typeIndex) const
@@ -69,13 +67,12 @@ bool QmlProfilerTimelineModel::handlesTypeId(int typeIndex) const
     if (typeIndex < 0)
         return false;
 
-    return accepted(modelManager()->qmlModel()->getEventTypes().at(typeIndex));
+    return accepted(modelManager()->qmlModel()->eventTypes().at(typeIndex));
 }
 
 void QmlProfilerTimelineModel::clear()
 {
     TimelineModel::clear();
-    updateProgress(0, 1);
 }
 
 QmlProfilerModelManager *QmlProfilerTimelineModel::modelManager() const
@@ -83,14 +80,14 @@ QmlProfilerModelManager *QmlProfilerTimelineModel::modelManager() const
     return m_modelManager;
 }
 
-void QmlProfilerTimelineModel::updateProgress(qint64 count, qint64 max) const
+void QmlProfilerTimelineModel::announceFeatures(quint64 features)
 {
-    m_modelManager->modelProxyCountUpdated(modelId(), count, max);
-}
-
-void QmlProfilerTimelineModel::announceFeatures(quint64 features) const
-{
-    m_modelManager->announceFeatures(modelId(), features);
+    m_modelManager->announceFeatures(
+                features, [this](const QmlEvent &event, const QmlEventType &type) {
+        loadEvent(event, type);
+    }, [this]() {
+        finalize();
+    });
 }
 
 void QmlProfilerTimelineModel::dataChanged()
@@ -98,7 +95,6 @@ void QmlProfilerTimelineModel::dataChanged()
 
     switch (m_modelManager->state()) {
     case QmlProfilerModelManager::Done:
-        loadData();
         emit emptyChanged();
         break;
     case QmlProfilerModelManager::ClearingData:
@@ -129,17 +125,17 @@ QVariantMap QmlProfilerTimelineModel::locationFromTypeId(int index) const
     if (id < 0)
         return result;
 
-    auto types = modelManager()->qmlModel()->getEventTypes();
+    auto types = modelManager()->qmlModel()->eventTypes();
     if (id >= types.length())
         return result;
 
-    const QmlDebug::QmlEventLocation &location = types.at(id).location;
+    QmlEventLocation location = types.at(id).location();
 
-    result.insert(QStringLiteral("file"), location.filename);
-    result.insert(QStringLiteral("line"), location.line);
-    result.insert(QStringLiteral("column"), location.column);
+    result.insert(QStringLiteral("file"), location.filename());
+    result.insert(QStringLiteral("line"), location.line());
+    result.insert(QStringLiteral("column"), location.column());
 
     return result;
 }
 
-}
+} // namespace QmlProfiler

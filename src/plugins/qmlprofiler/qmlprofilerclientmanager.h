@@ -23,11 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERCLIENTMANAGER_H
-#define QMLPROFILERCLIENTMANAGER_H
+#pragma once
 
 #include "qmlprofilerstatemanager.h"
-#include <qmldebug/qmlprofilereventlocation.h>
+#include "qmleventlocation.h"
+#include <utils/port.h>
 
 #include <QObject>
 #include <QStringList>
@@ -46,11 +46,10 @@ public:
     ~QmlProfilerClientManager();
 
     void registerProfilerStateManager(QmlProfilerStateManager *profilerState);
-    void setTcpConnection(QString host, quint64 port);
+    void setTcpConnection(QString host, Utils::Port port);
     void setLocalSocket(QString file);
 
     void clearBufferedData();
-    void discardPendingData();
     bool isConnected() const;
 
     void setModelManager(QmlProfilerModelManager *m);
@@ -64,7 +63,7 @@ signals:
     void connectionClosed();
 
 public slots:
-    void connectTcpClient(quint16 port);
+    void connectTcpClient(Utils::Port port);
     void connectLocalClient(const QString &file);
     void disconnectClient();
 
@@ -95,7 +94,5 @@ private:
     void stopClientsRecording();
 };
 
-}
-}
-
-#endif // QMLPROFILERCLIENTMANAGER_H
+} // namespace Internal
+} // namespace QmlProfiler

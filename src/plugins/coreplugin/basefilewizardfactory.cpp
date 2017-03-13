@@ -91,7 +91,6 @@ Utils::Wizard *BaseFileWizardFactory::runWizardImpl(const QString &path, QWidget
 
     Utils::Wizard *wizard = create(parent, WizardDialogParameters(path, platform,
                                                                   requiredFeatures(),
-                                                                  preferredFeatures(),
                                                                   dialogParameterFlags,
                                                                   extraValues));
     QTC_CHECK(wizard);

@@ -85,7 +85,6 @@ public:
     virtual bool eventFilter(QObject *o, QEvent *e);
 
 private:
-    void proposalComputed();
     void processProposalItem(AssistProposalItemInterface *proposalItem);
     void handlePrefixExpansion(const QString &newPrefix);
     void finalizeProposal();
@@ -94,8 +93,8 @@ private:
 private:
     CodeAssistant *q;
     TextEditorWidget *m_editorWidget;
-    QList<QuickFixAssistProvider *> m_quickFixProviders;
     Internal::ProcessorRunner *m_requestRunner;
+    QMetaObject::Connection m_runnerConnection;
     IAssistProvider *m_requestProvider;
     IAssistProcessor *m_asyncProcessor;
     AssistKind m_assistKind;
@@ -128,6 +127,7 @@ CodeAssistantPrivate::CodeAssistantPrivate(CodeAssistant *assistant)
     connect(&m_automaticProposalTimer, &QTimer::timeout,
             this, &CodeAssistantPrivate::automaticProposalTimeout);
 
+    m_settings = TextEditorSettings::completionSettings();
     connect(TextEditorSettings::instance(), &TextEditorSettings::completionSettingsChanged,
             this, &CodeAssistantPrivate::updateFromCompletionSettings);
 
@@ -137,23 +137,7 @@ CodeAssistantPrivate::CodeAssistantPrivate(CodeAssistant *assistant)
 
 void CodeAssistantPrivate::configure(TextEditorWidget *editorWidget)
 {
-    // @TODO: There's a list of providers but currently only the first one is used. Perhaps we
-    // should implement a truly mechanism to support multiple providers for an editor (either
-    // merging or not proposals) or just leave it as not extensible and store directly the one
-    // completion and quick-fix provider (getting rid of the list).
-
     m_editorWidget = editorWidget;
-    m_quickFixProviders = ExtensionSystem::PluginManager::getObjects<QuickFixAssistProvider>();
-
-    Core::Id editorId = m_editorWidget->textDocument()->id();
-    auto it = m_quickFixProviders.begin();
-    while (it != m_quickFixProviders.end()) {
-        if ((*it)->supportsEditor(editorId))
-            ++it;
-        else
-            it = m_quickFixProviders.erase(it);
-    }
-
     m_editorWidget->installEventFilter(this);
 }
 
@@ -216,20 +200,19 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
     if (!provider) {
         if (kind == Completion)
             provider = m_editorWidget->textDocument()->completionAssistProvider();
-        else if (!m_quickFixProviders.isEmpty())
-            provider = m_quickFixProviders.at(0);
+        else
+            provider = m_editorWidget->textDocument()->quickFixAssistProvider();
 
         if (!provider)
             return;
     }
 
+    AssistInterface *assistInterface = m_editorWidget->createAssistInterface(kind, reason);
+    if (!assistInterface)
+        return;
+
     m_assistKind = kind;
     IAssistProcessor *processor = provider->createProcessor();
-    AssistInterface *assistInterface = m_editorWidget->createAssistInterface(kind, reason);
-    if (!assistInterface) {
-        delete processor;
-        return;
-    }
 
     switch (provider->runType()) {
     case IAssistProvider::Synchronous: {
@@ -244,14 +227,21 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
 
         m_requestProvider = provider;
         m_requestRunner = new ProcessorRunner;
+        m_runnerConnection = connect(m_requestRunner, &ProcessorRunner::finished,
+                                     this, [this, reason](){
+            // Since the request runner is a different thread, there's still a gap in which the
+            // queued signal could be processed after an invalidation of the current request.
+            if (!m_requestRunner || m_requestRunner != sender())
+                return;
+
+            IAssistProposal *proposal = m_requestRunner->proposal();
+            invalidateCurrentRequestData();
+            displayProposal(proposal, reason);
+            emit q->finished();
+        });
         connect(m_requestRunner, &ProcessorRunner::finished,
-                this, &CodeAssistantPrivate::proposalComputed);
-        connect(m_requestRunner, &ProcessorRunner::finished,
-                m_requestRunner, &QObject::deleteLater);
-        connect(m_requestRunner, &ProcessorRunner::finished,
-                q, &CodeAssistant::finished);
+                m_requestRunner, &ProcessorRunner::deleteLater);
         assistInterface->prepareForAsyncUse();
-        m_requestRunner->setReason(reason);
         m_requestRunner->setProcessor(processor);
         m_requestRunner->setAssistInterface(assistInterface);
         m_requestRunner->start();
@@ -286,23 +276,9 @@ void CodeAssistantPrivate::cancelCurrentRequest()
 {
     if (m_requestRunner) {
         m_requestRunner->setDiscardProposal(true);
-        disconnect(m_requestRunner, &ProcessorRunner::finished,
-                   this, &CodeAssistantPrivate::proposalComputed);
+        disconnect(m_runnerConnection);
     }
     invalidateCurrentRequestData();
-}
-
-void CodeAssistantPrivate::proposalComputed()
-{
-    // Since the request runner is a different thread, there's still a gap in which the queued
-    // signal could be processed after an invalidation of the current request.
-    if (!m_requestRunner || m_requestRunner != sender())
-        return;
-
-    IAssistProposal *newProposal = m_requestRunner->proposal();
-    AssistReason reason = m_requestRunner->reason();
-    invalidateCurrentRequestData();
-    displayProposal(newProposal, reason);
 }
 
 void CodeAssistantPrivate::displayProposal(IAssistProposal *newProposal, AssistReason reason)
@@ -331,6 +307,7 @@ void CodeAssistantPrivate::displayProposal(IAssistProposal *newProposal, AssistR
     if (m_proposal->isCorrective())
         m_proposal->makeCorrection(m_editorWidget);
 
+    m_editorWidget->keepAutoCompletionHighlight(true);
     basePosition = m_proposal->basePosition();
     m_proposalWidget = m_proposal->createWidget();
     connect(m_proposalWidget, &QObject::destroyed,
@@ -347,10 +324,7 @@ void CodeAssistantPrivate::displayProposal(IAssistProposal *newProposal, AssistR
     m_proposalWidget->setUnderlyingWidget(m_editorWidget);
     m_proposalWidget->setModel(m_proposal->model());
     m_proposalWidget->setDisplayRect(m_editorWidget->cursorRect(basePosition));
-    if (m_receivedContentWhileWaiting)
-        m_proposalWidget->setIsSynchronized(false);
-    else
-        m_proposalWidget->setIsSynchronized(true);
+    m_proposalWidget->setIsSynchronized(!m_receivedContentWhileWaiting);
     m_proposalWidget->showProposal(m_editorWidget->textAt(
                                        basePosition,
                                        m_editorWidget->position() - basePosition));
@@ -448,6 +422,7 @@ void CodeAssistantPrivate::destroyContext()
     if (isWaitingForProposal()) {
         cancelCurrentRequest();
     } else if (isDisplayingProposal()) {
+        m_editorWidget->keepAutoCompletionHighlight(false);
         m_proposalWidget->closeProposal();
         disconnect(m_proposalWidget, &QObject::destroyed,
                    this, &CodeAssistantPrivate::finalizeProposal);
@@ -540,11 +515,6 @@ CodeAssistant::~CodeAssistant()
 void CodeAssistant::configure(TextEditorWidget *editorWidget)
 {
     d->configure(editorWidget);
-}
-
-void CodeAssistant::updateFromCompletionSettings(const CompletionSettings &settings)
-{
-    d->updateFromCompletionSettings(settings);
 }
 
 void CodeAssistant::process()

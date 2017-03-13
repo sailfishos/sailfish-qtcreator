@@ -26,6 +26,8 @@
 #include "beautifierplugin.h"
 
 #include "beautifierconstants.h"
+#include "generaloptionspage.h"
+#include "generalsettings.h"
 
 #include "artisticstyle/artisticstyle.h"
 #include "clangformat/clangformat.h"
@@ -35,22 +37,26 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/icontext.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
+#include <cppeditor/cppeditorconstants.h>
 #include <diffeditor/differ.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projecttree.h>
 #include <texteditor/convenience.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/textdocumentlayout.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/texteditorconstants.h>
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
+#include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
+#include <utils/synchronousprocess.h>
 
-#include <QAction>
 #include <QDir>
 #include <QFileInfo>
 #include <QFutureWatcher>
@@ -59,7 +65,6 @@
 #include <QProcess>
 #include <QScrollBar>
 #include <QTextBlock>
-#include <QtPlugin>
 
 using namespace TextEditor;
 
@@ -79,59 +84,57 @@ FormatTask format(FormatTask task)
     case Command::FileProcessing: {
         // Save text to temporary file
         const QFileInfo fi(task.filePath);
-        Utils::TempFileSaver sourceFile(QDir::tempPath() + QLatin1String("/qtc_beautifier_XXXXXXXX.")
+        Utils::TempFileSaver sourceFile(QDir::tempPath() + "/qtc_beautifier_XXXXXXXX."
                                         + fi.suffix());
         sourceFile.setAutoRemove(true);
         sourceFile.write(task.sourceData.toUtf8());
         if (!sourceFile.finalize()) {
-            task.error = QObject::tr("Cannot create temporary file \"%1\": %2.")
+            task.error = BeautifierPlugin::tr("Cannot create temporary file \"%1\": %2.")
                     .arg(sourceFile.fileName()).arg(sourceFile.errorString());
             return task;
         }
 
         // Format temporary file
-        QProcess process;
         QStringList options = task.command.options();
         options.replaceInStrings(QLatin1String("%file"), sourceFile.fileName());
-        process.start(executable, options);
-        if (!process.waitForFinished(5000)) {
-            process.kill();
-            task.error = QObject::tr("Cannot call %1 or some other error occurred. Time out "
-                                     "reached while formatting file %2.")
-                    .arg(executable).arg(task.filePath);
+        Utils::SynchronousProcess process;
+        process.setTimeoutS(5);
+        Utils::SynchronousProcessResponse response = process.runBlocking(executable, options);
+        if (response.result != Utils::SynchronousProcessResponse::Finished) {
+            task.error = BeautifierPlugin::tr("Failed to format: %1.").arg(response.exitMessage(executable, 5));
             return task;
         }
-        const QByteArray output = process.readAllStandardError();
+        const QString output = response.stdErr();
         if (!output.isEmpty())
-            task.error = executable + QLatin1String(": ") + QString::fromUtf8(output);
+            task.error = executable + QLatin1String(": ") + output;
 
         // Read text back
         Utils::FileReader reader;
         if (!reader.fetch(sourceFile.fileName(), QIODevice::Text)) {
-            task.error = QObject::tr("Cannot read file \"%1\": %2.")
+            task.error = BeautifierPlugin::tr("Cannot read file \"%1\": %2.")
                     .arg(sourceFile.fileName()).arg(reader.errorString());
             return task;
         }
         task.formattedData = QString::fromUtf8(reader.data());
-        return task;
-    } break;
+    }
+    return task;
 
     case Command::PipeProcessing: {
         QProcess process;
         QStringList options = task.command.options();
-        options.replaceInStrings(QLatin1String("%filename"), QFileInfo(task.filePath).fileName());
-        options.replaceInStrings(QLatin1String("%file"), task.filePath);
+        options.replaceInStrings("%filename", QFileInfo(task.filePath).fileName());
+        options.replaceInStrings("%file", task.filePath);
         process.start(executable, options);
         if (!process.waitForStarted(3000)) {
-            task.error = QObject::tr("Cannot call %1 or some other error occurred.")
+            task.error = BeautifierPlugin::tr("Cannot call %1 or some other error occurred.")
                     .arg(executable);
             return task;
         }
         process.write(task.sourceData.toUtf8());
         process.closeWriteChannel();
-        if (!process.waitForFinished(5000)) {
+        if (!process.waitForFinished(5000) && process.state() == QProcess::Running) {
             process.kill();
-            task.error = QObject::tr("Cannot call %1 or some other error occurred. Time out "
+            task.error = BeautifierPlugin::tr("Cannot call %1 or some other error occurred. Timeout "
                                      "reached while formatting file %2.")
                     .arg(executable).arg(task.filePath);
             return task;
@@ -148,9 +151,9 @@ FormatTask format(FormatTask task)
         if (addsNewline || returnsCRLF) {
             task.formattedData = QString::fromUtf8(process.readAllStandardOutput());
             if (addsNewline)
-                task.formattedData.remove(QRegExp(QLatin1String("(\\r\\n|\\n)$")));
+                task.formattedData.remove(QRegExp("(\\r\\n|\\n)$"));
             if (returnsCRLF)
-                task.formattedData.replace(QLatin1String("\r\n"), QLatin1String("\n"));
+                task.formattedData.replace("\r\n", "\n");
             return task;
         }
         task.formattedData = QString::fromUtf8(process.readAllStandardOutput());
@@ -168,26 +171,49 @@ QString sourceData(TextEditorWidget *editor, int startPos, int endPos)
             : Convenience::textAt(editor->textCursor(), startPos, (endPos - startPos));
 }
 
+bool isAutoFormatApplicable(const Core::IDocument *document,
+                            const QList<Utils::MimeType> &allowedMimeTypes)
+{
+    if (!document)
+        return false;
+
+    if (allowedMimeTypes.isEmpty())
+        return true;
+
+    const Utils::MimeDatabase mdb;
+    const Utils::MimeType documentMimeType = mdb.mimeTypeForName(document->mimeType());
+    return Utils::anyOf(allowedMimeTypes, [&documentMimeType](const Utils::MimeType &mime) {
+        return documentMimeType.inherits(mime.name());
+    });
+}
+
 bool BeautifierPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
-
-    m_tools << new ArtisticStyle::ArtisticStyle(this);
-    m_tools << new ClangFormat::ClangFormat(this);
-    m_tools << new Uncrustify::Uncrustify(this);
 
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MENU_ID);
     menu->menu()->setTitle(QCoreApplication::translate("Beautifier", Constants::OPTION_TR_CATEGORY));
     menu->setOnAllDisabledBehavior(Core::ActionContainer::Show);
     Core::ActionManager::actionContainer(Core::Constants::M_TOOLS)->addMenu(menu);
 
-    foreach (BeautifierAbstractTool *tool, m_tools) {
+    m_tools << new ArtisticStyle::ArtisticStyle(this);
+    m_tools << new ClangFormat::ClangFormat(this);
+    m_tools << new Uncrustify::Uncrustify(this);
+
+    QStringList toolIds;
+    toolIds.reserve(m_tools.count());
+    for (BeautifierAbstractTool *tool : m_tools) {
+        toolIds << tool->id();
         tool->initialize();
         const QList<QObject *> autoReleasedObjects = tool->autoReleaseObjects();
-        foreach (QObject *object, autoReleasedObjects)
+        for (QObject *object : autoReleasedObjects)
             addAutoReleasedObject(object);
     }
+
+    m_generalSettings = new GeneralSettings;
+    auto settingsPage = new GeneralOptionsPage(m_generalSettings, toolIds, this);
+    addAutoReleasedObject(settingsPage);
 
     updateActions();
     return true;
@@ -195,10 +221,11 @@ bool BeautifierPlugin::initialize(const QStringList &arguments, QString *errorSt
 
 void BeautifierPlugin::extensionsInitialized()
 {
-    if (const Core::EditorManager *editorManager = Core::EditorManager::instance()) {
-        connect(editorManager, &Core::EditorManager::currentEditorChanged,
-                this, &BeautifierPlugin::updateActions);
-    }
+    const Core::EditorManager *editorManager = Core::EditorManager::instance();
+    connect(editorManager, &Core::EditorManager::currentEditorChanged,
+            this, &BeautifierPlugin::updateActions);
+    connect(editorManager, &Core::EditorManager::aboutToSave,
+            this, &BeautifierPlugin::autoFormatOnSave);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag BeautifierPlugin::aboutToShutdown()
@@ -208,8 +235,43 @@ ExtensionSystem::IPlugin::ShutdownFlag BeautifierPlugin::aboutToShutdown()
 
 void BeautifierPlugin::updateActions(Core::IEditor *editor)
 {
-    foreach (BeautifierAbstractTool *tool, m_tools)
+    for (BeautifierAbstractTool *tool : m_tools)
         tool->updateActions(editor);
+}
+
+void BeautifierPlugin::autoFormatOnSave(Core::IDocument *document)
+{
+    if (!m_generalSettings->autoFormatOnSave())
+        return;
+
+    if (!isAutoFormatApplicable(document, m_generalSettings->autoFormatMime()))
+        return;
+
+    // Check if file is contained in the current project (if wished)
+    if (m_generalSettings->autoFormatOnlyCurrentProject()) {
+        const ProjectExplorer::Project *pro = ProjectExplorer::ProjectTree::currentProject();
+        if (!pro || !pro->files(ProjectExplorer::Project::SourceFiles).contains(
+                    document->filePath().toString())) {
+            return;
+        }
+    }
+
+    // Find tool to use by id and format file!
+    const QString id = m_generalSettings->autoFormatTool();
+    auto tool = std::find_if(m_tools.constBegin(), m_tools.constEnd(),
+                             [&id](const BeautifierAbstractTool *t){return t->id() == id;});
+    if (tool != m_tools.constEnd()) {
+        if (!(*tool)->isApplicable(document))
+            return;
+        const Command command = (*tool)->command();
+        if (!command.isValid())
+            return;
+        const QList<Core::IEditor *> editors = Core::DocumentModel::editorsForDocument(document);
+        if (editors.isEmpty())
+            return;
+        if (TextEditorWidget* widget = qobject_cast<TextEditorWidget *>(editors.first()->widget()))
+            formatEditor(widget, command);
+    }
 }
 
 void BeautifierPlugin::formatCurrentFile(const Command &command, int startPos, int endPos)
@@ -252,7 +314,7 @@ void BeautifierPlugin::formatEditorAsync(TextEditorWidget *editor, const Command
     QFutureWatcher<FormatTask> *watcher = new QFutureWatcher<FormatTask>;
     const TextDocument *doc = editor->textDocument();
     connect(doc, &TextDocument::contentsChanged, watcher, &QFutureWatcher<FormatTask>::cancel);
-    connect(watcher, &QFutureWatcherBase::finished, [this, watcher]() {
+    connect(watcher, &QFutureWatcherBase::finished, [this, watcher] {
         if (watcher->isCanceled())
             showError(tr("File was modified."));
         else
@@ -333,7 +395,7 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
     int newCursorPos = charactersInfrontOfCursor;
     cursor.beginEditBlock();
     cursor.movePosition(QTextCursor::Start, QTextCursor::MoveAnchor);
-    foreach (const DiffEditor::Diff &d, diff) {
+    for (const DiffEditor::Diff &d : diff) {
         switch (d.command) {
         case DiffEditor::Diff::Insert:
         {
@@ -344,8 +406,8 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
                 newCursorPos += size;
             }
             // Adjust folded blocks, if a new block is added.
-            if (d.text.contains(QLatin1Char('\n'))) {
-                const int newLineCount = d.text.count(QLatin1Char('\n'));
+            if (d.text.contains('\n')) {
+                const int newLineCount = d.text.count('\n');
                 const int number = cursor.blockNumber();
                 const int total = foldedBlocks.size();
                 for (int i = 0; i < total; ++i) {
@@ -354,8 +416,9 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
                 }
             }
             cursor.insertText(d.text);
-        }
             break;
+        }
+
         case DiffEditor::Diff::Delete:
         {
             // Adjust cursor position if we do work in front of the cursor.
@@ -368,8 +431,8 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
                     newCursorPos -= charactersInfrontOfCursor;
             }
             // Adjust folded blocks, if at least one block is being deleted.
-            if (d.text.contains(QLatin1Char('\n'))) {
-                const int newLineCount = d.text.count(QLatin1Char('\n'));
+            if (d.text.contains('\n')) {
+                const int newLineCount = d.text.count('\n');
                 const int number = cursor.blockNumber();
                 for (int i = 0, total = foldedBlocks.size(); i < total; ++i) {
                     if (foldedBlocks.at(i) > number) {
@@ -384,8 +447,9 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
             }
             cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, d.text.size());
             cursor.removeSelectedText();
-        }
             break;
+        }
+
         case DiffEditor::Diff::Equal:
             // Adjust cursor position
             charactersInfrontOfCursor -= d.text.size();
@@ -404,7 +468,7 @@ void BeautifierPlugin::updateEditorText(QPlainTextEdit *editor, const QString &t
                                               + absoluteVerticalCursorOffset / fontHeight);
     // Restore folded blocks
     const QTextDocument *doc = editor->document();
-    foreach (const int blockId, foldedBlocks) {
+    for (int blockId : foldedBlocks) {
         const QTextBlock block = doc->findBlockByNumber(qMax(0, blockId));
         if (block.isValid())
             TextDocumentLayout::doFoldOrUnfold(block, false);

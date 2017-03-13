@@ -8,7 +8,7 @@
     "trDisplayCategory": "Application",
     "icon": "../qtquickapplication/qml_wizard.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQt.labs.controls.1.0" ],
-    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
 
     "options":
     [
@@ -17,7 +17,9 @@
         { "key": "QtQuickVersion", "value": "2.6" },
         { "key": "QtLabsControlsVersion", "value": "1.0" },
         { "key": "QtQuickDialogsVersion", "value": "1.0" },
-        { "key": "QtQuickLayoutsVersion", "value": "1.0" }
+        { "key": "QtQuickLayoutsVersion", "value": "1.0" },
+        { "key": "QtQuickVirtualKeyboardVersion", "value": "2.0" },
+        { "key": "UseVirtualKeyboard", "value": "%{JS: [ %{Plugins} ].indexOf('Boot2Qt') >= 0}" }
     ],
 
     "pages":
@@ -70,10 +72,6 @@
                 },
                 {
                     "source": "qml.qrc"
-                },
-                {
-                    "source": "../../../../shared/qrcdeployment.pri",
-                    "target": "%{ProjectDirectory}/deployment.pri"
                 },
                 {
                     "source": "../../git.ignore",

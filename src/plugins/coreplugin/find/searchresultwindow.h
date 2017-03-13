@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SEARCHRESULTWINDOW_H
-#define SEARCHRESULTWINDOW_H
+#pragma once
 
 #include <coreplugin/ioutputpane.h>
 
@@ -42,7 +41,7 @@ namespace Internal {
     class SearchResultWindowPrivate;
     class SearchResultWidget;
 }
-class FindPlugin;
+class Find;
 class SearchResultWindow;
 
 class CORE_EXPORT SearchResultItem
@@ -194,5 +193,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_METATYPE(Core::SearchResultItem)
-
-#endif // SEARCHRESULTWINDOW_H

@@ -281,7 +281,7 @@ bool AddKitOperation::test() const
     devMap = AddDeviceOperation::addDevice(devMap, QLatin1String("{dev-id}"), QLatin1String("Dev"), 0, 0,
                                            QLatin1String("HWplatform"), QLatin1String("SWplatform"),
                                            QLatin1String("localhost"), QLatin1String("10000-11000"),
-                                           QLatin1String("localhost"), QLatin1String(""), 42, false,
+                                           QLatin1String("localhost"), QLatin1String(""), 42,
                                            QLatin1String("desktop"), QLatin1String(""), 22, 10000,
                                            QLatin1String("uname"), 1,
                                            KeyValuePairList());

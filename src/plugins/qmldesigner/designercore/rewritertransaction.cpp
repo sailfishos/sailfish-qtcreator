@@ -25,8 +25,16 @@
 
 #include "rewritertransaction.h"
 #include <abstractview.h>
+#include <rewriterview.h>
+
+#include <utils/qtcassert.h>
+
+#ifndef QMLDESIGNER_TEST
 #include <designdocument.h>
 #include <qmldesignerplugin.h>
+#endif
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -67,11 +75,31 @@ bool RewriterTransaction::isValid() const
     return m_valid;
 }
 
+void RewriterTransaction::ignoreSemanticChecks()
+{
+    m_ignoreSemanticChecks = true;
+}
+
 void RewriterTransaction::commit()
 {
     if (m_valid) {
         m_valid = false;
+
+        RewriterView *rewriterView = view()->rewriterView();
+
+        QTC_ASSERT(rewriterView, qWarning() << Q_FUNC_INFO << "No rewriter attached");
+
+        bool oldSemanticChecks = false;
+        if (rewriterView) {
+            oldSemanticChecks = rewriterView->checkSemanticErrors();
+            if (m_ignoreSemanticChecks)
+                rewriterView->setCheckSemanticErrors(false);
+        }
+
         view()->emitRewriterEndTransaction();
+
+        if (rewriterView)
+            view()->rewriterView()->setCheckSemanticErrors(oldSemanticChecks);
 
         if (m_activeIdentifier) {
             qDebug() << "Commit RewriterTransaction:" << m_identifier << m_identifierNumber;
@@ -88,8 +116,10 @@ void RewriterTransaction::rollback()
     if (m_valid) {
         m_valid = false;
         view()->emitRewriterEndTransaction();
-        QmlDesignerPlugin::instance()->currentDesignDocument()->undo();
 
+#ifndef QMLDESIGNER_TEST
+        QmlDesignerPlugin::instance()->currentDesignDocument()->undo();
+#endif
         if (m_activeIdentifier) {
             qDebug() << "Rollback RewriterTransaction:" << m_identifier << m_identifierNumber;
             m_identifierList.removeOne(m_identifier + QByteArrayLiteral("-") + QByteArray::number(m_identifierNumber));

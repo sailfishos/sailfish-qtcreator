@@ -27,14 +27,18 @@
 #include "connectionview.h"
 #include "ui_connectionviewwidget.h"
 
+#include "delegates.h"
 #include "bindingmodel.h"
 #include "connectionmodel.h"
 #include "dynamicpropertiesmodel.h"
+#include "theming.h"
 
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <utils/fileutils.h>
 
 #include <QToolButton>
+#include <QStyleFactory>
 
 namespace QmlDesigner {
 
@@ -48,20 +52,26 @@ ConnectionViewWidget::ConnectionViewWidget(QWidget *parent) :
     setWindowTitle(tr("Connections", "Title of connection view"));
     ui->setupUi(this);
 
-    setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/connectionview/stylesheet.css"))));
+    QStyle *style = QStyleFactory::create("fusion");
+    setStyle(style);
+
+    setStyleSheet(Theming::replaceCssColors(QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/connectionview/stylesheet.css")))));
 
     //ui->tabWidget->tabBar()->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     ui->tabBar->addTab(tr("Connections", "Title of connection view"));
     ui->tabBar->addTab(tr("Bindings", "Title of connection view"));
-    ui->tabBar->addTab(tr("Dynamic Properties", "Title of dynamic properties view"));
+    ui->tabBar->addTab(tr("Properties", "Title of dynamic properties view"));
     ui->tabBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    ui->connectionView->setStyleSheet(
-            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
+    ui->connectionView->setStyleSheet(Theming::replaceCssColors(
+            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
 
-    ui->bindingView->setStyleSheet(
-            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
+    ui->bindingView->setStyleSheet(Theming::replaceCssColors(
+            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
+
+    ui->dynamicPropertiesView->setStyleSheet(Theming::replaceCssColors(
+                QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
 
     connect(ui->tabBar, SIGNAL(currentChanged(int)),
             ui->stackedWidget, SLOT(setCurrentIndex(int)));
@@ -114,29 +124,19 @@ QList<QToolButton *> ConnectionViewWidget::createToolBarWidgets()
     QList<QToolButton *> buttons;
 
     buttons << new QToolButton();
-    buttons.last()->setIcon(QIcon(QStringLiteral(":/connectionview/plus.png")));
+    buttons.last()->setIcon(Core::Icons::PLUS.icon());
     buttons.last()->setToolTip(tr("Add binding or connection."));
     connect(buttons.last(), SIGNAL(clicked()), this, SLOT(addButtonClicked()));
-    connect(this, SIGNAL(setEnabledAddButtonChanged(bool)), buttons.last(), SLOT(setEnabled(bool)));
+    connect(this, SIGNAL(setEnabledAddButton(bool)), buttons.last(), SLOT(setEnabled(bool)));
 
     buttons << new QToolButton();
-    buttons.last()->setIcon(QIcon(QStringLiteral(":/connectionview/minus.png")));
+    buttons.last()->setIcon(Core::Icons::MINUS.icon());
     buttons.last()->setToolTip(tr("Remove selected binding or connection."));
     buttons.last()->setShortcut(QKeySequence(Qt::Key_Delete));
     connect(buttons.last(), SIGNAL(clicked()), this, SLOT(removeButtonClicked()));
-    connect(this, SIGNAL(setEnabledRemoveButtonChanged(bool)), buttons.last(), SLOT(setEnabled(bool)));
+    connect(this, SIGNAL(setEnabledRemoveButton(bool)), buttons.last(), SLOT(setEnabled(bool)));
 
     return buttons;
-}
-
-void ConnectionViewWidget::setEnabledAddButton(bool enabled)
-{
-    emit setEnabledAddButtonChanged(enabled);
-}
-
-void ConnectionViewWidget::setEnabledRemoveButton(bool enabled)
-{
-    emit setEnabledRemoveButtonChanged(enabled);
 }
 
 ConnectionViewWidget::TabStatus ConnectionViewWidget::currentTab() const
@@ -166,16 +166,16 @@ void ConnectionViewWidget::resetItemViews()
 void ConnectionViewWidget::invalidateButtonStatus()
 {
     if (currentTab() == ConnectionTab) {
-        setEnabledRemoveButton(ui->connectionView->selectionModel()->hasSelection());
+        emit setEnabledRemoveButton(ui->connectionView->selectionModel()->hasSelection());
         setEnabledAddButton(true);
     } else if (currentTab() == BindingTab) {
-        setEnabledRemoveButton(ui->bindingView->selectionModel()->hasSelection());
+        emit setEnabledRemoveButton(ui->bindingView->selectionModel()->hasSelection());
         BindingModel *bindingModel = qobject_cast<BindingModel*>(ui->bindingView->model());
         setEnabledAddButton(bindingModel->connectionView()->model() &&
             bindingModel->connectionView()->selectedModelNodes().count() == 1);
 
     } else if (currentTab() == DynamicPropertiesTab) {
-        setEnabledRemoveButton(ui->dynamicPropertiesView->selectionModel()->hasSelection());
+        emit setEnabledRemoveButton(ui->dynamicPropertiesView->selectionModel()->hasSelection());
         DynamicPropertiesModel *dynamicPropertiesModel = qobject_cast<DynamicPropertiesModel*>(ui->dynamicPropertiesView->model());
         setEnabledAddButton(dynamicPropertiesModel->connectionView()->model() &&
             dynamicPropertiesModel->connectionView()->selectedModelNodes().count() == 1);
@@ -253,9 +253,9 @@ void ConnectionViewWidget::bindingTableViewSelectionChanged(const QModelIndex &c
 {
     if (currentTab() == BindingTab) {
         if (current.isValid()) {
-            setEnabledRemoveButton(true);
+            emit setEnabledRemoveButton(true);
         } else {
-            setEnabledRemoveButton(false);
+            emit setEnabledRemoveButton(false);
         }
     }
 }
@@ -264,9 +264,9 @@ void ConnectionViewWidget::connectionTableViewSelectionChanged(const QModelIndex
 {
     if (currentTab() == ConnectionTab) {
         if (current.isValid()) {
-            setEnabledRemoveButton(true);
+            emit setEnabledRemoveButton(true);
         } else {
-            setEnabledRemoveButton(false);
+            emit setEnabledRemoveButton(false);
         }
     }
 }
@@ -275,9 +275,9 @@ void ConnectionViewWidget::dynamicPropertiesTableViewSelectionChanged(const QMod
 {
     if (currentTab() == DynamicPropertiesTab) {
         if (current.isValid()) {
-            setEnabledRemoveButton(true);
+            emit setEnabledRemoveButton(true);
         } else {
-            setEnabledRemoveButton(false);
+            emit setEnabledRemoveButton(false);
         }
     }
 }

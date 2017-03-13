@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSSEMANTICHIGHLIGHTER_H
-#define QMLJSSEMANTICHIGHLIGHTER_H
+#pragma once
 
 #include <texteditor/semantichighlighter.h>
 #include <QFutureWatcher>
@@ -81,11 +80,9 @@ public:
     void reportMessagesInfo(const QVector<QTextLayout::FormatRange> &diagnosticMessages,
                             const QHash<int,QTextCharFormat> &formats);
 
-private slots:
+private:
     void applyResults(int from, int to);
     void finished();
-
-private:
     void run(QFutureInterface<Use> &futureInterface, const QmlJSTools::SemanticInfo &semanticInfo);
 
     QFutureWatcher<Use>  m_watcher;
@@ -98,5 +95,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSSEMANTICHIGHLIGHTER_H

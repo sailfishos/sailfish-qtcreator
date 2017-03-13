@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTRESULTDELEGATE_H
-#define TESTRESULTDELEGATE_H
+#pragma once
 
 #include "testresultmodel.h"
 
@@ -42,10 +41,6 @@ public:
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const;
-
-    static QString outputString(const TestResult &testResult, bool selected);
-
-public slots:
     void currentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
@@ -127,5 +122,3 @@ private:
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTRESULTDELEGATE_H

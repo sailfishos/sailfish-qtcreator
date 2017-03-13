@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_MEMORYAGENT_H
-#define DEBUGGER_MEMORYAGENT_H
+#pragma once
 
 #include "debuggerconstants.h"
 
@@ -63,7 +62,7 @@ public:
 
     QWidget *parent;
     quint64 startAddress;
-    QByteArray registerName;
+    QString registerName;
     unsigned flags;
     QList<Internal::MemoryMarkup> markup;
     QPoint pos;
@@ -116,5 +115,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_MEMORYAGENT_H

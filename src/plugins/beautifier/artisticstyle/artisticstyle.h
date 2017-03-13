@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_ARTISTICSTYLE_H
-#define BEAUTIFIER_ARTISTICSTYLE_H
+#pragma once
 
 #include "../beautifierabstracttool.h"
-#include "../command.h"
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 
@@ -45,18 +43,19 @@ class ArtisticStyle : public BeautifierAbstractTool
     Q_OBJECT
 
 public:
-    explicit ArtisticStyle(BeautifierPlugin *parent = 0);
+    explicit ArtisticStyle(BeautifierPlugin *parent = nullptr);
     virtual ~ArtisticStyle();
     bool initialize() override;
+    QString id() const override;
     void updateActions(Core::IEditor *editor) override;
     QList<QObject *> autoReleaseObjects() override;
-
-private slots:
-    void formatFile();
+    Command command() const override;
+    bool isApplicable(const Core::IDocument *document) const override;
 
 private:
+    void formatFile();
     BeautifierPlugin *m_beautifierPlugin;
-    QAction *m_formatFile;
+    QAction *m_formatFile = nullptr;
     ArtisticStyleSettings *m_settings;
     QString configurationFile() const;
     Command command(const QString &cfgFile) const;
@@ -65,5 +64,3 @@ private:
 } // namespace ArtisticStyle
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_ARTISTICSTYLE_H

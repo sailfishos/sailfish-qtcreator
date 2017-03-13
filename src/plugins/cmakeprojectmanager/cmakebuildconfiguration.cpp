@@ -71,6 +71,11 @@ CMakeBuildConfiguration::~CMakeBuildConfiguration()
     m_buildDirManager->deleteLater(); // Do not block while waiting for cmake...
 }
 
+void CMakeBuildConfiguration::cmakeFilesChanged()
+{
+    m_buildDirManager->cmakeFilesChanged();
+}
+
 bool CMakeBuildConfiguration::isEnabled() const
 {
     return m_error.isEmpty();
@@ -188,7 +193,7 @@ FileName CMakeBuildConfiguration::shadowBuildDirectory(const FileName &projectFi
         return FileName();
 
     const QString projectName = projectFilePath.parentDir().fileName();
-    ProjectMacroExpander expander(projectName, k, bcName, buildType);
+    ProjectMacroExpander expander(projectFilePath.toString(), projectName, k, bcName, buildType);
     QDir projectDir = QDir(Project::projectDirectory(projectFilePath).toString());
     QString buildPath = expander.expand(Core::DocumentManager::buildDirectory());
     return FileName::fromUserInput(projectDir.absoluteFilePath(buildPath));
@@ -307,7 +312,7 @@ void CMakeBuildConfiguration::setCMakeConfiguration(const CMakeConfig &config)
     }
 
     if (hasKitOverride)
-        setWarning(tr("CMake Configuration set by the Kit was overridden in the project."));
+        setWarning(tr("CMake configuration set by the kit was overridden in the project."));
     else
         setWarning(QString());
 }

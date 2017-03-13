@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TOOLTIP_H
-#define TOOLTIP_H
+#pragma once
 
 #include "../utils_global.h"
 
@@ -46,6 +45,7 @@
 QT_BEGIN_NAMESPACE
 class QPoint;
 class QVariant;
+class QLayout;
 class QWidget;
 QT_END_NAMESPACE
 
@@ -76,6 +76,8 @@ public:
     static void show(const QPoint &pos, const QColor &color, QWidget *w = 0,
                      const QString &helpId = QString(), const QRect &rect = QRect());
     static void show(const QPoint &pos, QWidget *content, QWidget *w = 0,
+                     const QString &helpId = QString(), const QRect &rect = QRect());
+    static void show(const QPoint &pos, QLayout *content, QWidget *w = 0,
                      const QString &helpId = QString(), const QRect &rect = QRect());
     static void move(const QPoint &pos, QWidget *w);
     static void hide();
@@ -117,5 +119,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // TOOLTIP_H

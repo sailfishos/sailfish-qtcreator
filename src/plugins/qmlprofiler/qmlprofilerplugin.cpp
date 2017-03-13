@@ -29,6 +29,21 @@
 #include "qmlprofilertool.h"
 #include "qmlprofilertimelinemodel.h"
 
+#ifdef WITH_TESTS
+#include "tests/debugmessagesmodel_test.h"
+#include "tests/flamegraph_test.h"
+#include "tests/flamegraphmodel_test.h"
+#include "tests/flamegraphview_test.h"
+#include "tests/inputeventsmodel_test.h"
+#include "tests/localqmlprofilerrunner_test.h"
+#include "tests/memoryusagemodel_test.h"
+#include "tests/pixmapcachemodel_test.h"
+#include "tests/qmlevent_test.h"
+#include "tests/qmleventlocation_test.h"
+#include "tests/qmleventtype_test.h"
+#include "tests/qmlnote_test.h"
+#endif
+
 #include <extensionsystem/pluginmanager.h>
 #include <utils/hostosinfo.h>
 
@@ -39,14 +54,9 @@ namespace Internal {
 
 Q_GLOBAL_STATIC(QmlProfilerSettings, qmlProfilerGlobalSettings)
 
-bool QmlProfilerPlugin::debugOutput = false;
-QmlProfilerPlugin *QmlProfilerPlugin::instance = 0;
-
 bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
-
-    QmlProfilerPlugin::instance = this;
 
     if (!Utils::HostOsInfo::canCreateOpenGLContext(errorString))
         return false;
@@ -56,8 +66,6 @@ bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorS
 
 void QmlProfilerPlugin::extensionsInitialized()
 {
-    factory = ExtensionSystem::PluginManager::getObject<QmlProfilerTimelineModelFactory>();
-
     (void) new QmlProfilerTool(this);
 
     addAutoReleasedObject(new QmlProfilerRunControlFactory());
@@ -72,17 +80,29 @@ ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
     return SynchronousShutdown;
 }
 
-QList<QmlProfilerTimelineModel *> QmlProfilerPlugin::getModels(QmlProfilerModelManager *manager) const
-{
-    if (factory)
-        return factory->create(manager);
-    else
-        return QList<QmlProfilerTimelineModel *>();
-}
-
 QmlProfilerSettings *QmlProfilerPlugin::globalSettings()
 {
     return qmlProfilerGlobalSettings();
+}
+
+QList<QObject *> QmlProfiler::Internal::QmlProfilerPlugin::createTestObjects() const
+{
+    QList<QObject *> tests;
+#ifdef WITH_TESTS
+    tests << new DebugMessagesModelTest;
+    tests << new FlameGraphTest;
+    tests << new FlameGraphModelTest;
+    tests << new FlameGraphViewTest;
+    tests << new InputEventsModelTest;
+    tests << new LocalQmlProfilerRunnerTest;
+    tests << new MemoryUsageModelTest;
+    tests << new PixmapCacheModelTest;
+    tests << new QmlEventTest;
+    tests << new QmlEventLocationTest;
+    tests << new QmlEventTypeTest;
+    tests << new QmlNoteTest;
+#endif
+    return tests;
 }
 
 } // namespace Internal

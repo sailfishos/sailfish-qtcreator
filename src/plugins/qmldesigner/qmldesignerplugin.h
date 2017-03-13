@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNERPLUGIN_H
-#define QMLDESIGNERPLUGIN_H
+#pragma once
 
 #include <qmldesigner/designersettings.h>
-#include <qmldesigner/components/pluginmanager/pluginmanager.h>
 #include <qmldesignercorelib_global.h>
 
 #include <extensionsystem/iplugin.h>
@@ -45,19 +43,18 @@ QT_END_NAMESPACE
 
 namespace Core {
     class IEditor;
-    class IMode;
 }
 
 namespace QmlDesigner {
 
-class QmlDesignerPluginData;
+class QmlDesignerPluginPrivate;
 
 namespace Internal { class DesignModeWidget; }
 
 class QMLDESIGNERCORE_EXPORT QmlDesignerPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/qmldesigner/QmlDesigner.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QmlDesigner.json")
 
 public:
     QmlDesignerPlugin();
@@ -86,13 +83,6 @@ public:
 
     void switchToTextModeDeferred();
 
-private slots:
-    void switchTextDesign();
-    void switschToTextMode();
-    void onTextEditorsClosed(QList<Core::IEditor *> editors);
-    void onCurrentEditorChanged(Core::IEditor *editor);
-    void onCurrentModeChanged(Core::IMode *mode, Core::IMode *oldMode);
-
 private: // functions
     void createDesignModeWidget();
     void showDesigner();
@@ -107,11 +97,9 @@ private: // functions
     Model *currentModel() const;
 
 private: // variables
-    QmlDesignerPluginData *data;
+    QmlDesignerPluginPrivate *d = nullptr;
     static QmlDesignerPlugin *m_instance;
 
 };
 
 } // namespace QmlDesigner
-
-#endif // QMLDESIGNERPLUGIN_H

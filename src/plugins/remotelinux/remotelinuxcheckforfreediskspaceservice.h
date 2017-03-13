@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXCHECKFORFREEDISKSPACESERVICE_H
-#define REMOTELINUXCHECKFORFREEDISKSPACESERVICE_H
+#pragma once
 
 #include "abstractremotelinuxdeployservice.h"
 
@@ -41,11 +40,10 @@ public:
     void setPathToCheck(const QString &path);
     void setRequiredSpaceInBytes(quint64 sizeInBytes);
 
-private slots:
+private:
     void handleStdErr();
     void handleProcessFinished();
 
-private:
     bool isDeploymentNecessary() const { return true; }
     void doDeviceSetup() { handleDeviceSetupDone(true); }
     void stopDeviceSetup() { handleDeviceSetupDone(false); }
@@ -60,5 +58,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXCHECKFORFREEDISKSPACESERVICE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_MESSAGEENVELOP_H
-#define CLANGBACKEND_MESSAGEENVELOP_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 
@@ -80,7 +79,7 @@ public:
     friend
     QDataStream &operator<<(QDataStream &out, const MessageEnvelop &messageEnvelop)
     {
-        out << reinterpret_cast<const quint8&>(messageEnvelop.messageType_);
+        out << static_cast<const quint8>(messageEnvelop.messageType_);
         out << messageEnvelop.data;
 
         return out;
@@ -89,8 +88,12 @@ public:
     friend
     QDataStream &operator>>(QDataStream &in, MessageEnvelop &messageEnvelop)
     {
-        in >> reinterpret_cast<quint8&>(messageEnvelop.messageType_);
+        quint8 messageType;
+
+        in >> messageType;
         in >> messageEnvelop.data;
+
+        messageEnvelop.messageType_ = static_cast<MessageType>(messageType);
 
         return in;
     }
@@ -108,5 +111,3 @@ private:
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_MESSAGEENVELOP_H

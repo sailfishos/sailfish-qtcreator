@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_REGISTERWINDOW_H
-#define DEBUGGER_REGISTERWINDOW_H
+#pragma once
 
 #include <utils/basetreeview.h>
 
@@ -38,7 +37,6 @@ class RegisterTreeView : public Utils::BaseTreeView
 public:
     RegisterTreeView();
 
-public slots:
     void reloadRegisters();
 
 private:
@@ -47,5 +45,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_REGISTERWINDOW_H

@@ -16,6 +16,7 @@ unix:!macx:!isEmpty(copydata):SUBDIRS += bin
 !isEmpty(BUILD_TESTS):SUBDIRS += tests
 
 DISTFILES += dist/copyright_template.txt \
+    README.md \
     $$files(dist/changes-*) \
     qtcreator.qbs \
     qbs/pluginjson/pluginjson.qbs \
@@ -95,7 +96,7 @@ else:INSTALLER_NAME = "$${BASENAME}"
 macx {
     APPBUNDLE = "$$OUT_PWD/bin/Qt Creator.app"
     BINDIST_SOURCE = "$$OUT_PWD/bin/Qt Creator.app"
-    BINDIST_INSTALLER_SOURCE = "$$OUT_PWD/bin"
+    BINDIST_INSTALLER_SOURCE = $$BINDIST_SOURCE
     deployqt.commands = $$PWD/scripts/deployqtHelper_mac.sh \"$${APPBUNDLE}\" \"$$[QT_INSTALL_TRANSLATIONS]\" \"$$[QT_INSTALL_PLUGINS]\" \"$$[QT_INSTALL_IMPORTS]\" \"$$[QT_INSTALL_QML]\"
     codesign.commands = codesign --deep -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${APPBUNDLE}\"
     dmg.commands = $$PWD/scripts/makedmg.sh $$OUT_PWD/bin $${BASENAME}.dmg

@@ -80,7 +80,6 @@ ConsoleView::ConsoleView(ConsoleItemModel *model, QWidget *parent) :
     setFrameStyle(QFrame::NoFrame);
     setHeaderHidden(true);
     setRootIsDecorated(false);
-    setUniformRowHeights(true);
     setEditTriggers(QAbstractItemView::AllEditTriggers);
     setStyleSheet(QLatin1String("QTreeView::branch:has-siblings:!adjoins-item {"
                                 "border-image: none;"
@@ -98,7 +97,9 @@ ConsoleView::ConsoleView(ConsoleItemModel *model, QWidget *parent) :
                                 "QTreeView::branch:open:has-children:!has-siblings,"
                                 "QTreeView::branch:open:has-children:has-siblings  {"
                                 "border-image: none;"
-                                "image: none; }"));
+                                "image: none; }"
+                                "QTreeView {"
+                                "background-color: white; }"));
 
     QString baseName = QApplication::style()->objectName();
     if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost()

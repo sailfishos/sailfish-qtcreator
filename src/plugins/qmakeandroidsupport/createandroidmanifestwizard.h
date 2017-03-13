@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CREATEANDROIDMANIFESTWIZARD_H
-#define CREATEANDROIDMANIFESTWIZARD_H
+#pragma once
 
 #include <utils/fileutils.h>
 #include <utils/pathchooser.h>
@@ -58,7 +57,7 @@ class ChooseProFilePage : public QWizardPage
     Q_OBJECT
 public:
     ChooseProFilePage(CreateAndroidManifestWizard *wizard, const QList<QmakeProjectManager::QmakeProFileNode *> &nodes, const QmakeProjectManager::QmakeProFileNode *select);
-private slots:
+private:
     void nodeSelected(int index);
 private:
     CreateAndroidManifestWizard *m_wizard;
@@ -73,7 +72,7 @@ public:
     void initializePage();
 protected:
     bool isComplete() const;
-private slots:
+private:
     void checkPackageSourceDir();
 private:
     CreateAndroidManifestWizard *m_wizard;
@@ -97,7 +96,6 @@ public:
     void accept();
     bool copyGradle();
 
-public slots:
     void setDirectory(const QString &directory);
     void setCopyGradle(bool copy);
 
@@ -120,5 +118,3 @@ private:
 
 } //namespace QmakeAndroidSupport
 } //namespace Internal
-
-#endif // CREATEANDROIDMANIFESTWIZARD_H

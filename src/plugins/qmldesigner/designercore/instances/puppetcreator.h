@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNER_PUPPETCREATOR_H
-#define QMLDESIGNER_PUPPETCREATOR_H
+#pragma once
 
 #include <QString>
 #include <QProcessEnvironment>
@@ -115,10 +114,10 @@ private:
     PuppetType m_availablePuppetType;
     static QHash<Core::Id, PuppetType> m_qml2PuppetForKitPuppetHash;
     const Model *m_model;
+#ifndef QMLDESIGNER_TEST
     const DesignerSettings m_designerSettings;
+#endif
     QString m_qrcMapping;
 };
 
 } // namespace QmlDesigner
-
-#endif // QMLDESIGNER_PUPPETCREATOR_H

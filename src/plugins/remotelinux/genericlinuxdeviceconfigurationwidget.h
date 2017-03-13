@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUX_GENERICLINUXDEVICECONFIGURATIONWIDGET_H
-#define REMOTELINUX_GENERICLINUXDEVICECONFIGURATIONWIDGET_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevicewidget.h>
 
@@ -44,7 +43,7 @@ public:
         const ProjectExplorer::IDevice::Ptr &deviceConfig, QWidget *parent = 0);
     ~GenericLinuxDeviceConfigurationWidget();
 
-private slots:
+private:
     void authenticationTypeChanged();
     void hostNameEditingFinished();
     void sshPortEditingFinished();
@@ -59,7 +58,6 @@ private slots:
     void createNewKey();
     void hostKeyCheckingChanged(bool doCheck);
 
-private:
     void updateDeviceFromUi();
     void updatePortsWarningLabel();
     void initGui();
@@ -68,5 +66,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUX_GENERICLINUXDEVICECONFIGURATIONWIDGET_H

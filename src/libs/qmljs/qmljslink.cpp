@@ -212,10 +212,12 @@ Context::ImportsPerDocument LinkPrivate::linkImports()
         Imports *imports = new Imports(valueOwner);
 
         // Add custom imports for the opened document
-        auto providers = ExtensionSystem::PluginManager::getObjects<CustomImportsProvider>();
-        foreach (const auto &provider, providers)
-            foreach (const auto &import, provider->imports(valueOwner, document.data()))
-                importCache.insert(ImportCacheKey(import.info), import);
+        if (ExtensionSystem::PluginManager::instance()) {
+            auto providers = ExtensionSystem::PluginManager::getObjects<CustomImportsProvider>();
+            foreach (const auto &provider, providers)
+                foreach (const auto &import, provider->imports(valueOwner, document.data()))
+                    importCache.insert(ImportCacheKey(import.info), import);
+        }
 
         populateImportedTypes(imports, document);
         importsPerDocument.insert(document.data(), QSharedPointer<Imports>(imports));
@@ -377,56 +379,8 @@ Import LinkPrivate::importNonFile(Document::Ptr doc, const ImportInfo &importInf
     const QString packageName = importInfo.name();
     const ComponentVersion version = importInfo.version();
 
-    bool importFound = false;
-
-    const QString &packagePath = importInfo.path();
-    // check the filesystem with full version
-    foreach (const QString &importPath, importPaths) {
-        QString libraryPath = QString::fromLatin1("%1/%2.%3").arg(importPath, packagePath, version.toString());
-        if (importLibrary(doc, libraryPath, &import, importPath)) {
-            importFound = true;
-            break;
-        }
-    }
-    if (!importFound) {
-        // check the filesystem with major version
-        foreach (const QString &importPath, importPaths) {
-            QString libraryPath = QString::fromLatin1("%1/%2.%3").arg(importPath, packagePath,
-                                                          QString::number(version.majorVersion()));
-            if (importLibrary(doc, libraryPath, &import, importPath)) {
-                importFound = true;
-                break;
-            }
-        }
-    }
-    if (!importFound) {
-        // check the filesystem with no version
-        foreach (const QString &importPath, importPaths) {
-            QString libraryPath = QString::fromLatin1("%1/%2").arg(importPath, packagePath);
-            if (importLibrary(doc, libraryPath, &import, importPath)) {
-                importFound = true;
-                break;
-            }
-        }
-    }
-
-    //The version number can be located higher in the path: qml/QtQuick.Controls.2/Material
-    if (!importFound) {
-        foreach (const QString &importPath, importPaths) {
-            QStringList splittedList = packagePath.split(QLatin1String("/"));
-            const QString last = splittedList.last();
-            splittedList.removeLast();
-            QString libraryPath = QString::fromLatin1("%1/%2.%3/%4").arg(importPath,
-                                                                         splittedList.join(QLatin1String("/")),
-                                                                         QString::number(version.majorVersion()),
-                                                                         last);
-            if (importLibrary(doc, libraryPath, &import, importPath)) {
-                importFound = true;
-                break;
-            }
-        }
-
-    }
+    QString libraryPath = modulePath(packageName, version.toString(), importPaths);
+    bool importFound = !libraryPath.isEmpty() && importLibrary(doc, libraryPath, &import);
 
     // if there are cpp-based types for this package, use them too
     if (valueOwner->cppQmlTypes().hasModule(packageName)) {
@@ -455,7 +409,8 @@ Import LinkPrivate::importNonFile(Document::Ptr doc, const ImportInfo &importInf
                   "For qmake projects, use the QML_IMPORT_PATH variable to add import paths.\n"
                   "For Qbs projects, declare and set a qmlImportPaths property in your product "
                   "to add import paths.\n"
-                  "For qmlproject projects, use the importPaths property to add import paths.").arg(
+                  "For qmlproject projects, use the importPaths property to add import paths.\n"
+                  "For CMake projects, make sure QML_IMPORT_PATH variable is in CMakeCache.txt.\n").arg(
                   importPaths.join(QLatin1Char('\n'))));
     }
 
@@ -471,13 +426,8 @@ bool LinkPrivate::importLibrary(Document::Ptr doc,
     QString libraryPath = libraryPath_;
 
     LibraryInfo libraryInfo = snapshot.libraryInfo(libraryPath);
-    if (!libraryInfo.isValid()) {
-        // try canonical path
-        libraryPath = QFileInfo(libraryPath).canonicalFilePath();
-        libraryInfo = snapshot.libraryInfo(libraryPath);
-        if (!libraryInfo.isValid())
-            return false;
-    }
+    if (!libraryInfo.isValid())
+        return false;
 
     import->libraryPath = libraryPath;
 

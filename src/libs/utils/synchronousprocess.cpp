@@ -37,6 +37,7 @@
 #include <QApplication>
 
 #include <limits.h>
+#include <memory>
 
 #ifdef Q_OS_UNIX
 #    include <unistd.h>
@@ -105,18 +106,12 @@ void TerminalControllingProcess::setupChildProcess()
 }
 
 // ----------- SynchronousProcessResponse
-SynchronousProcessResponse::SynchronousProcessResponse() :
-   result(StartFailed),
-   exitCode(-1)
-{
-}
-
 void SynchronousProcessResponse::clear()
 {
     result = StartFailed;
     exitCode = -1;
-    stdOut.clear();
-    stdErr.clear();
+    rawStdOut.clear();
+    rawStdErr.clear();
 }
 
 QString SynchronousProcessResponse::exitMessage(const QString &binary, int timeoutS) const
@@ -137,104 +132,161 @@ QString SynchronousProcessResponse::exitMessage(const QString &binary, int timeo
     return QString();
 }
 
+QByteArray SynchronousProcessResponse::allRawOutput() const
+{
+    if (!rawStdOut.isEmpty() && !rawStdErr.isEmpty()) {
+        QByteArray result = rawStdOut;
+        if (!result.endsWith('\n'))
+            result += '\n';
+        result += rawStdErr;
+        return result;
+    }
+    return !rawStdOut.isEmpty() ? rawStdOut : rawStdErr;
+}
+
+QString SynchronousProcessResponse::allOutput() const
+{
+    const QString out = stdOut();
+    const QString err = stdErr();
+
+    if (!out.isEmpty() && !err.isEmpty()) {
+        QString result = out;
+        if (!result.endsWith('\n'))
+            result += '\n';
+        result += err;
+        return result;
+    }
+    return !out.isEmpty() ? out : err;
+}
+
+QString SynchronousProcessResponse::stdOut() const
+{
+    return SynchronousProcess::normalizeNewlines(codec->toUnicode(rawStdOut));
+}
+
+QString SynchronousProcessResponse::stdErr() const
+{
+    return SynchronousProcess::normalizeNewlines(codec->toUnicode(rawStdErr));
+}
+
 QTCREATOR_UTILS_EXPORT QDebug operator<<(QDebug str, const SynchronousProcessResponse& r)
 {
     QDebug nsp = str.nospace();
     nsp << "SynchronousProcessResponse: result=" << r.result << " ex=" << r.exitCode << '\n'
-        << r.stdOut.size() << " bytes stdout, stderr=" << r.stdErr << '\n';
+        << r.rawStdOut.size() << " bytes stdout, stderr=" << r.rawStdErr << '\n';
     return str;
 }
 
-SynchronousProcessResponse::Result ExitCodeInterpreter::interpretExitCode(int code) const
+SynchronousProcessResponse::Result defaultExitCodeInterpreter(int code)
 {
     return code ? SynchronousProcessResponse::FinishedError
                 : SynchronousProcessResponse::Finished;
 }
 
 // Data for one channel buffer (stderr/stdout)
-struct ChannelBuffer {
-    ChannelBuffer();
-    void clearForRun();
-    QString linesRead();
-
-    QString data;
-    bool firstData;
-    bool bufferedSignalsEnabled;
-    bool firstBuffer;
-    int bufferPos;
-};
-
-ChannelBuffer::ChannelBuffer() :
-    firstData(true),
-    bufferedSignalsEnabled(false),
-    firstBuffer(true),
-    bufferPos(0)
+class ChannelBuffer : public QObject
 {
-}
+    Q_OBJECT
+
+public:
+    void clearForRun();
+
+    QString linesRead();
+    void append(const QByteArray &text, bool emitSignals);
+
+    QByteArray rawData;
+    QString incompleteLineBuffer; // lines not yet signaled
+    QTextCodec *codec = nullptr; // Not owner
+    std::unique_ptr<QTextCodec::ConverterState> codecState;
+    int rawDataPos = 0;
+    bool bufferedSignalsEnabled = false;
+    bool firstBuffer = true;
+
+signals:
+    void outputBuffered(const QString &text, bool firstTime);
+};
 
 void ChannelBuffer::clearForRun()
 {
-    firstData = true;
     firstBuffer = true;
-    bufferPos = 0;
+    rawDataPos = 0;
+    rawData.clear();
+    codecState.reset(new QTextCodec::ConverterState);
+    incompleteLineBuffer.clear();
 }
 
 /* Check for complete lines read from the device and return them, moving the
  * buffer position. */
 QString ChannelBuffer::linesRead()
 {
-    // Any new lines?
-    const int lastLineIndex = qMax(data.lastIndexOf(QLatin1Char('\n')),
-                                   data.lastIndexOf(QLatin1Char('\r')));
-    if (lastLineIndex == -1 || lastLineIndex <= bufferPos)
+    // Convert and append the new input to the buffer of incomplete lines
+    const char *start = rawData.constData() + rawDataPos;
+    const int len = rawData.size() - rawDataPos;
+    incompleteLineBuffer.append(codec->toUnicode(start, len, codecState.get()));
+    rawDataPos = rawData.size();
+
+    // Any completed lines in the incompleteLineBuffer?
+    const int lastLineIndex = qMax(incompleteLineBuffer.lastIndexOf('\n'),
+                                   incompleteLineBuffer.lastIndexOf('\r'));
+    if (lastLineIndex == -1)
         return QString();
-    const int nextBufferPos = lastLineIndex + 1;
-    const QString lines = data.mid(bufferPos, nextBufferPos - bufferPos);
-    bufferPos = nextBufferPos;
+
+    // Get completed lines and remove them from the incompleteLinesBuffer:
+    const QString lines = SynchronousProcess::normalizeNewlines(incompleteLineBuffer.left(lastLineIndex + 1));
+    incompleteLineBuffer = incompleteLineBuffer.mid(lastLineIndex + 1);
+
     return lines;
 }
 
+void ChannelBuffer::append(const QByteArray &text, bool emitSignals)
+{
+    if (text.isEmpty())
+        return;
+    rawData += text;
+    if (!emitSignals)
+        return;
+
+    // Buffered. Emit complete lines?
+    if (bufferedSignalsEnabled) {
+        const QString lines = linesRead();
+        if (!lines.isEmpty()) {
+            emit outputBuffered(lines, firstBuffer);
+            firstBuffer = false;
+        }
+    }
+}
+
 // ----------- SynchronousProcessPrivate
-struct SynchronousProcessPrivate {
-    SynchronousProcessPrivate();
+class SynchronousProcessPrivate {
+public:
     void clearForRun();
 
-    QTextCodec *m_codec;
-    ExitCodeInterpreter *m_exitCodeInterpreter;
-    QTextCodec::ConverterState m_stdOutState;
-    QTextCodec::ConverterState m_stdErrState;
+    QTextCodec *m_codec = QTextCodec::codecForLocale();
     TerminalControllingProcess m_process;
     QTimer m_timer;
     QEventLoop m_eventLoop;
     SynchronousProcessResponse m_result;
-    int m_hangTimerCount;
-    int m_maxHangTimerCount;
-    bool m_startFailure;
-    bool m_timeOutMessageBoxEnabled;
-    bool m_waitingForUser;
     QString m_binary;
-
     ChannelBuffer m_stdOut;
     ChannelBuffer m_stdErr;
-};
+    ExitCodeInterpreter m_exitCodeInterpreter = defaultExitCodeInterpreter;
 
-SynchronousProcessPrivate::SynchronousProcessPrivate() :
-    m_codec(QTextCodec::codecForLocale()),
-    m_exitCodeInterpreter(0),
-    m_hangTimerCount(0),
-    m_maxHangTimerCount(defaultMaxHangTimerCount),
-    m_startFailure(false),
-    m_timeOutMessageBoxEnabled(false),
-    m_waitingForUser(false)
-{
-}
+    int m_hangTimerCount = 0;
+    int m_maxHangTimerCount = defaultMaxHangTimerCount;
+    bool m_startFailure = false;
+    bool m_timeOutMessageBoxEnabled = false;
+    bool m_waitingForUser = false;
+};
 
 void SynchronousProcessPrivate::clearForRun()
 {
     m_hangTimerCount = 0;
     m_stdOut.clearForRun();
+    m_stdOut.codec = m_codec;
     m_stdErr.clearForRun();
+    m_stdErr.codec = m_codec;
     m_result.clear();
+    m_result.codec = m_codec;
     m_startFailure = false;
     m_binary.clear();
 }
@@ -251,9 +303,17 @@ SynchronousProcess::SynchronousProcess() :
     connect(&d->m_process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
             this, &SynchronousProcess::error);
     connect(&d->m_process, &QProcess::readyReadStandardOutput,
-            this, &SynchronousProcess::stdOutReady);
+            this, [this]() {
+                d->m_hangTimerCount = 0;
+                processStdOut(true);
+            });
     connect(&d->m_process, &QProcess::readyReadStandardError,
-            this, &SynchronousProcess::stdErrReady);
+            this, [this]() {
+                d->m_hangTimerCount = 0;
+                processStdErr(true);
+            });
+    connect(&d->m_stdOut, &ChannelBuffer::outputBuffered, this, &SynchronousProcess::stdOutBuffered);
+    connect(&d->m_stdErr, &ChannelBuffer::outputBuffered, this, &SynchronousProcess::stdErrBuffered);
 }
 
 SynchronousProcess::~SynchronousProcess()
@@ -268,12 +328,12 @@ void SynchronousProcess::setTimeoutS(int timeoutS)
     if (timeoutS > 0)
         d->m_maxHangTimerCount = qMax(2, timeoutS);
     else
-        d->m_maxHangTimerCount = INT_MAX;
+        d->m_maxHangTimerCount = INT_MAX / 1000;
 }
 
 int SynchronousProcess::timeoutS() const
 {
-    return d->m_maxHangTimerCount == INT_MAX ? -1 : d->m_maxHangTimerCount;
+    return d->m_maxHangTimerCount == (INT_MAX / 1000) ? -1 : d->m_maxHangTimerCount;
 }
 
 void SynchronousProcess::setCodec(QTextCodec *c)
@@ -347,12 +407,13 @@ void SynchronousProcess::setFlags(unsigned tc)
     d->m_process.setFlags(tc);
 }
 
-void SynchronousProcess::setExitCodeInterpreter(ExitCodeInterpreter *interpreter)
+void SynchronousProcess::setExitCodeInterpreter(const ExitCodeInterpreter &interpreter)
 {
+    QTC_ASSERT(interpreter, return);
     d->m_exitCodeInterpreter = interpreter;
 }
 
-ExitCodeInterpreter *SynchronousProcess::exitCodeInterpreter() const
+ExitCodeInterpreter SynchronousProcess::exitCodeInterpreter() const
 {
     return d->m_exitCodeInterpreter;
 }
@@ -406,8 +467,8 @@ SynchronousProcessResponse SynchronousProcess::run(const QString &binary,
             processStdErr(false);
         }
 
-        d->m_result.stdOut = d->m_stdOut.data;
-        d->m_result.stdErr = d->m_stdErr.data;
+        d->m_result.rawStdOut = d->m_stdOut.rawData;
+        d->m_result.rawStdErr = d->m_stdErr.rawData;
 
         d->m_timer.stop();
         if (isGuiThread())
@@ -417,6 +478,48 @@ SynchronousProcessResponse SynchronousProcess::run(const QString &binary,
     if (debug)
         qDebug() << '<' << Q_FUNC_INFO << binary << d->m_result;
     return  d->m_result;
+}
+
+SynchronousProcessResponse SynchronousProcess::runBlocking(const QString &binary, const QStringList &args)
+{
+    d->clearForRun();
+
+    // On Windows, start failure is triggered immediately if the
+    // executable cannot be found in the path. Do not start the
+    // event loop in that case.
+    d->m_binary = binary;
+    d->m_process.start(binary, args, QIODevice::ReadOnly);
+    if (!d->m_process.waitForStarted(d->m_maxHangTimerCount * 1000)) {
+        d->m_result.result = SynchronousProcessResponse::StartFailed;
+        return d->m_result;
+    }
+    d->m_process.closeWriteChannel();
+    if (d->m_process.waitForFinished(d->m_maxHangTimerCount * 1000)) {
+        if (d->m_process.state() == QProcess::Running) {
+            d->m_result.result = SynchronousProcessResponse::Hang;
+            d->m_process.terminate();
+            if (d->m_process.waitForFinished(1000) && d->m_process.state() == QProcess::Running) {
+                d->m_process.kill();
+                d->m_process.waitForFinished(1000);
+            }
+        }
+    }
+
+    QTC_ASSERT(d->m_process.state() == QProcess::NotRunning, return d->m_result);
+    d->m_result.exitCode = d->m_process.exitCode();
+    if (d->m_result.result == SynchronousProcessResponse::StartFailed) {
+        if (d->m_process.exitStatus() != QProcess::NormalExit)
+            d->m_result.result = SynchronousProcessResponse::TerminatedAbnormally;
+        else
+            d->m_result.result = (exitCodeInterpreter())(d->m_result.exitCode);
+    }
+    processStdOut(false);
+    processStdErr(false);
+
+    d->m_result.rawStdOut = d->m_stdOut.rawData;
+    d->m_result.rawStdErr = d->m_stdErr.rawData;
+
+    return d->m_result;
 }
 
 bool SynchronousProcess::terminate()
@@ -470,13 +573,9 @@ void SynchronousProcess::finished(int exitCode, QProcess::ExitStatus e)
         qDebug() << Q_FUNC_INFO << exitCode << e;
     d->m_hangTimerCount = 0;
 
-    ExitCodeInterpreter defaultInterpreter(this);
-    ExitCodeInterpreter *currentInterpreter = d->m_exitCodeInterpreter
-            ? d->m_exitCodeInterpreter : &defaultInterpreter;
-
     switch (e) {
     case QProcess::NormalExit:
-        d->m_result.result = currentInterpreter->interpretExitCode(exitCode);
+        d->m_result.result = d->m_exitCodeInterpreter(exitCode);
         d->m_result.exitCode = exitCode;
         break;
     case QProcess::CrashExit:
@@ -501,72 +600,16 @@ void SynchronousProcess::error(QProcess::ProcessError e)
     d->m_eventLoop.quit();
 }
 
-void SynchronousProcess::stdOutReady()
-{
-    d->m_hangTimerCount = 0;
-    processStdOut(true);
-}
-
-void SynchronousProcess::stdErrReady()
-{
-    d->m_hangTimerCount = 0;
-    processStdErr(true);
-}
-
-QString SynchronousProcess::convertOutput(const QByteArray &ba,
-                                          QTextCodec::ConverterState *state) const
-{
-    return normalizeNewlines(d->m_codec->toUnicode(ba, ba.size(), state));
-}
-
 void SynchronousProcess::processStdOut(bool emitSignals)
 {
     // Handle binary data
-    const QString stdOutput = convertOutput(d->m_process.readAllStandardOutput(),
-                                            &d->m_stdOutState);
-    if (debug > 1)
-        qDebug() << Q_FUNC_INFO << emitSignals << stdOutput;
-    if (!stdOutput.isEmpty()) {
-        d->m_stdOut.data += stdOutput;
-        if (emitSignals) {
-            // Emit binary signals
-            emit stdOut(stdOutput, d->m_stdOut.firstData);
-            d->m_stdOut.firstData = false;
-            // Buffered. Emit complete lines?
-            if (d->m_stdOut.bufferedSignalsEnabled) {
-                const QString lines = d->m_stdOut.linesRead();
-                if (!lines.isEmpty()) {
-                    emit stdOutBuffered(lines, d->m_stdOut.firstBuffer);
-                    d->m_stdOut.firstBuffer = false;
-                }
-            }
-        }
-    }
+    d->m_stdOut.append(d->m_process.readAllStandardOutput(), emitSignals);
 }
 
 void SynchronousProcess::processStdErr(bool emitSignals)
 {
     // Handle binary data
-    const QString stdError = convertOutput(d->m_process.readAllStandardError(),
-                                           &d->m_stdErrState);
-    if (debug > 1)
-        qDebug() << Q_FUNC_INFO << emitSignals << stdError;
-    if (!stdError.isEmpty()) {
-        d->m_stdErr.data += stdError;
-        if (emitSignals) {
-            // Emit binary signals
-            emit stdErr(stdError, d->m_stdErr.firstData);
-            d->m_stdErr.firstData = false;
-            if (d->m_stdErr.bufferedSignalsEnabled) {
-                // Buffered. Emit complete lines?
-                const QString lines = d->m_stdErr.linesRead();
-                if (!lines.isEmpty()) {
-                    emit stdErrBuffered(lines, d->m_stdErr.firstBuffer);
-                    d->m_stdErr.firstBuffer = false;
-                }
-            }
-        }
-    }
+    d->m_stdErr.append(d->m_process.readAllStandardError(), emitSignals);
 }
 
 QSharedPointer<QProcess> SynchronousProcess::createProcess(unsigned flags)
@@ -594,9 +637,8 @@ bool SynchronousProcess::readDataFromProcess(QProcess &p, int timeoutS,
     bool finished = false;
     bool hasData = false;
     do {
-        finished = p.state() == QProcess::NotRunning
-                || p.waitForFinished(timeoutS > 0 ? timeoutS * 1000 : -1);
-        hasData = false;
+        finished = p.waitForFinished(timeoutS > 0 ? timeoutS * 1000 : -1)
+                || p.state() == QProcess::NotRunning;
         // First check 'stdout'
         if (p.bytesAvailable()) { // applies to readChannel() only
             hasData = true;
@@ -623,13 +665,13 @@ bool SynchronousProcess::readDataFromProcess(QProcess &p, int timeoutS,
 
 bool SynchronousProcess::stopProcess(QProcess &p)
 {
-    if (p.state() != QProcess::Running)
+    if (p.state() == QProcess::NotRunning)
         return true;
     p.terminate();
-    if (p.waitForFinished(300))
+    if (p.waitForFinished(300) && p.state() == QProcess::Running)
         return true;
     p.kill();
-    return p.waitForFinished(300);
+    return p.waitForFinished(300) || p.state() == QProcess::NotRunning;
 }
 
 // Path utilities
@@ -725,3 +767,5 @@ QString SynchronousProcess::locateBinary(const QString &binary)
 }
 
 } // namespace Utils
+
+#include "synchronousprocess.moc"

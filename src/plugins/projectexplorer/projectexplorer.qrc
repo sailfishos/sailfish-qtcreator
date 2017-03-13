@@ -22,10 +22,13 @@
         <file>images/run_mask@2x.png</file>
         <file>images/debugger_overlay_small.png</file>
         <file>images/debugger_overlay_small@2x.png</file>
+        <file>images/analyzer_overlay_small.png</file>
+        <file>images/analyzer_overlay_small@2x.png</file>
         <file>images/session.png</file>
         <file>images/targetrunselected.png</file>
         <file>images/targetrunselected@2x.png</file>
         <file>images/targetseparatorbackground.png</file>
+        <file>images/targetseparatorbackground@2x.png</file>
         <file>images/targetunselected.png</file>
         <file>images/selection.png</file>
         <file>images/selection@2x.png</file>

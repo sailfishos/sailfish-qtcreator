@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROJECTINTROPAGE_H
-#define PROJECTINTROPAGE_H
+#pragma once
 
 #include "utils_global.h"
 #include "wizardpage.h"
@@ -74,11 +73,10 @@ public slots:
     void setUseAsDefaultPath(bool u);
     void setProjectNameRegularExpression(const QRegularExpression &regEx);
 
-private slots:
+private:
     void slotChanged();
     void slotActivated();
 
-private:
     enum StatusLabelMode { Error, Warning, Hint };
 
     bool validate();
@@ -89,5 +87,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // PROJECTINTROPAGE_H

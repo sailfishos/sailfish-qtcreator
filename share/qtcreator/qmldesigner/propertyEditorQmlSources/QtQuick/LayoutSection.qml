@@ -49,8 +49,8 @@ Section {
         }
 
         AnchorRow {
-            enabled: anchorBackend.topAnchored;
-            iconSource: "../HelperWidgets/images/anchor-top.png"
+            visible: anchorBackend.topAnchored;
+            iconSource: "image://icons/anchor-top"
             anchorMargin: backendValues.anchors_topMargin
             targetName: anchorBackend.topTarget
             onTargetChanged: {
@@ -72,8 +72,8 @@ Section {
         }
 
         AnchorRow {
-            enabled: anchorBackend.bottomAnchored;
-            iconSource: "../HelperWidgets/images/anchor-bottom.png"
+            visible: anchorBackend.bottomAnchored;
+            iconSource: "image://icons/anchor-bottom"
             anchorMargin: backendValues.anchors_bottomMargin
             targetName: anchorBackend.bottomTarget
             onTargetChanged: {
@@ -96,8 +96,8 @@ Section {
         }
 
         AnchorRow {
-            enabled: anchorBackend.leftAnchored;
-            iconSource: "../HelperWidgets/images/anchor-left.png"
+            visible: anchorBackend.leftAnchored;
+            iconSource: "image://icons/anchor-left"
             anchorMargin: backendValues.anchors_leftMargin
             targetName: anchorBackend.leftTarget
             onTargetChanged: {
@@ -119,8 +119,8 @@ Section {
         }
 
         AnchorRow {
-            enabled: anchorBackend.rightAnchored;
-            iconSource: "../HelperWidgets/images/anchor-right.png"
+            visible: anchorBackend.rightAnchored;
+            iconSource: "image://icons/anchor-right"
             anchorMargin: backendValues.anchors_rightMargin
             targetName: anchorBackend.rightTarget
             onTargetChanged: {
@@ -144,26 +144,28 @@ Section {
 
         AnchorRow {
             showAlternativeTargets: false
-            enabled: anchorBackend.horizontalCentered;
-            iconSource: "../HelperWidgets/images/anchor-horizontal.png"
+            visible: anchorBackend.horizontalCentered;
+            iconSource: "image://icons/anchor-horizontal"
             anchorMargin: backendValues.anchors_horizontalCenterOffset
             targetName: anchorBackend.horizontalTarget
             onTargetChanged: {
                 anchorBackend.horizontalTarget = currentText
             }
-            verticalAnchor: true
+            verticalAnchor: false
+            buttonRow.visible: false
         }
 
         AnchorRow {
             showAlternativeTargets: false
-            enabled: anchorBackend.verticalCentered;
-            iconSource: "../HelperWidgets/images/anchor-vertical.png"
+            visible: anchorBackend.verticalCentered;
+            iconSource: "image://icons/anchor-vertical"
             anchorMargin: backendValues.anchors_verticalCenterOffset
             targetName: anchorBackend.verticalTarget
             onTargetChanged: {
                  anchorBackend.verticalTarget = currentText
             }
-            verticalAnchor: false
+            verticalAnchor: true
+            buttonRow.visible: false
         }
 
     }

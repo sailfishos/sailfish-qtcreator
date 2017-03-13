@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -38,14 +37,9 @@ Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = 0);
 
-signals:
-
-public slots:
     void test();
     void append(const QString &s);
 
 private:
     QPlainTextEdit *m_logWindow;
 };
-
-#endif // MAINWINDOW_H

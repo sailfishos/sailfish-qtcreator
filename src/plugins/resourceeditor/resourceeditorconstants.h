@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef RESOURCEEDITOR_CONSTANTS_H
-#define RESOURCEEDITOR_CONSTANTS_H
+#pragma once
 
 namespace ResourceEditor {
 namespace Constants {
@@ -40,7 +39,7 @@ const char C_RESOURCE_MIMETYPE[] = "application/vnd.qt.xml.resource";
 const char C_ADD_PREFIX[] = "ResourceEditor.AddPrefix";
 const char C_REMOVE_PREFIX[] = "ResourceEditor.RemovePrefix";
 const char C_RENAME_PREFIX[] = "ResourceEditor.RenamePrefix";
-const char C_REMOVE_NON_EXISTING[] = "RessourceEditor.RemoveNonExistign";
+const char C_REMOVE_NON_EXISTING[] = "ResourceEditor.RemoveNonExisting";
 
 const char C_REMOVE_FILE[] = "ResourceEditor.RemoveFile";
 const char C_RENAME_FILE[] = "ResourceEditor.RenameFile";
@@ -50,8 +49,5 @@ const char C_OPEN_EDITOR[] = "ResourceEditor.OpenEditor";
 const char C_COPY_PATH[] = "ResourceEditor.CopyPath";
 const char C_COPY_URL[] = "ResourceEditor.CopyUrl";
 
-
 } // namespace Constants
 } // namespace ResourceEditor
-
-#endif // RESOURCEEDITOR_CONSTANTS_H

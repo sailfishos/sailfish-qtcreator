@@ -48,14 +48,13 @@ class FolderNavigationWidget : public QWidget
     Q_OBJECT
     Q_PROPERTY(bool autoSynchronization READ autoSynchronization WRITE setAutoSynchronization)
 public:
-    explicit FolderNavigationWidget(QWidget *parent = 0);
+    explicit FolderNavigationWidget(QWidget *parent = nullptr);
 
     static QStringList projectFilesInDirectory(const QString &path);
 
     bool autoSynchronization() const;
     bool hiddenFilesFilter() const;
 
-public slots:
     void setAutoSynchronization(bool sync);
     void toggleAutoSynchronization();
 
@@ -80,8 +79,9 @@ private:
     QAction *m_filterHiddenFilesAction;
     QSortFilterProxyModel *m_filterModel;
     QLabel *m_title;
-    bool m_autoSync;
+    bool m_autoSync = false;
     QToolButton *m_toggleSync;
+
     // FolderNavigationWidgetFactory needs private members to build a menu
     friend class FolderNavigationWidgetFactory;
 };
@@ -89,6 +89,7 @@ private:
 class FolderNavigationWidgetFactory : public Core::INavigationWidgetFactory
 {
     Q_OBJECT
+
 public:
     FolderNavigationWidgetFactory();
 

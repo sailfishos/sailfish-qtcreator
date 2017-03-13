@@ -102,15 +102,13 @@ public:
 // KitModel
 // --------------------------------------------------------------------------
 
-KitModel::KitModel(QBoxLayout *parentLayout, QObject *parent) :
-    TreeModel(parent),
-    m_parentLayout(parentLayout),
-    m_defaultNode(0),
-    m_keepUnique(true)
+KitModel::KitModel(QBoxLayout *parentLayout, QObject *parent)
+    : LeveledTreeModel<TreeItem, TreeItem, KitNode>(parent),
+      m_parentLayout(parentLayout)
 {
     setHeader(QStringList(tr("Name")));
-    m_autoRoot = new TreeItem(QStringList(tr("Auto-detected")));
-    m_manualRoot = new TreeItem(QStringList(tr("Manual")));
+    m_autoRoot = new StaticTreeItem(tr("Auto-detected"));
+    m_manualRoot = new StaticTreeItem(tr("Manual"));
     rootItem()->appendChild(m_autoRoot);
     rootItem()->appendChild(m_manualRoot);
 
@@ -140,7 +138,7 @@ Kit *KitModel::kit(const QModelIndex &index)
 KitNode *KitModel::kitNode(const QModelIndex &index)
 {
     TreeItem *n = itemForIndex(index);
-    return n && n->level() == 2 ? static_cast<KitNode *>(n) : 0;
+    return (n && n->level() == 2) ? static_cast<KitNode *>(n) : nullptr;
 }
 
 QModelIndex KitModel::indexOf(Kit *k) const
@@ -168,12 +166,12 @@ KitManagerConfigWidget *KitModel::widget(const QModelIndex &index)
 
 void KitModel::isAutoDetectedChanged()
 {
-    KitManagerConfigWidget *w = qobject_cast<KitManagerConfigWidget *>(sender());
+    auto w = qobject_cast<KitManagerConfigWidget *>(sender());
     int idx = -1;
     idx = Utils::indexOf(m_manualRoot->children(), [w](TreeItem *node) {
         return static_cast<KitNode *>(node)->widget == w;
     });
-    TreeItem *oldParent = 0;
+    TreeItem *oldParent = nullptr;
     TreeItem *newParent = w->workingCopy()->isAutoDetected() ? m_autoRoot : m_manualRoot;
     if (idx != -1) {
         oldParent = m_manualRoot;
@@ -198,29 +196,29 @@ void KitModel::isAutoDetectedChanged()
 void KitModel::validateKitNames()
 {
     QHash<QString, int> nameHash;
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
+    forSecondLevelItems([&nameHash](KitNode *n) {
         const QString displayName = n->widget->displayName();
         if (nameHash.contains(displayName))
             ++nameHash[displayName];
         else
             nameHash.insert(displayName, 1);
-    }
+    });
 
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
+    forSecondLevelItems([&nameHash](KitNode *n) {
         const QString displayName = n->widget->displayName();
         n->widget->setHasUniqueName(nameHash.value(displayName) == 1);
-    }
+    });
 }
 
 void KitModel::apply()
 {
     // Add/update dirty nodes before removing kits. This ensures the right kit ends up as default.
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
+    forSecondLevelItems([](KitNode *n) {
         if (n->widget->isDirty()) {
             n->widget->apply();
             n->update();
         }
-    }
+    });
 
     // Remove unused kits:
     foreach (KitNode *n, m_toRemoveList)
@@ -243,7 +241,7 @@ void KitModel::markForRemoval(Kit *k)
     }
 
     if (node == m_defaultNode)
-        setDefaultNode(findItemAtLevel<KitNode *>(2, [node](KitNode *kn) { return kn != node; }));
+        setDefaultNode(findSecondLevelItem([node](KitNode *kn) { return kn != node; }));
 
     takeItem(node);
     if (node->widget->configures(0))
@@ -275,16 +273,12 @@ Kit *KitModel::markForAddition(Kit *baseKit)
 
 KitNode *KitModel::findWorkingCopy(Kit *k) const
 {
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
-        if (n->widget->workingCopy() == k)
-            return n;
-    }
-    return 0;
+    return findSecondLevelItem([k](KitNode *n) { return n->widget->workingCopy() == k; });
 }
 
 KitNode *KitModel::createNode(Kit *k)
 {
-    KitNode *node = new KitNode(k);
+    auto node = new KitNode(k);
     m_parentLayout->addWidget(node->widget);
     connect(node->widget, &KitManagerConfigWidget::dirty, [this, node] {
         if (m_autoRoot->children().contains(node)
@@ -344,18 +338,14 @@ void KitModel::removeKit(Kit *k)
         }
     }
 
-    KitNode *node = 0;
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
-        if (n->widget->configures(k)) {
-            node = n;
-            break;
-        }
-    }
+    KitNode *node = findSecondLevelItem([k](KitNode *n) {
+        return n->widget->configures(k);
+    });
 
     if (node == m_defaultNode)
-        setDefaultNode(findItemAtLevel<KitNode *>(2, [node](KitNode *kn) { return kn != node; }));
+        setDefaultNode(findSecondLevelItem([node](KitNode *kn) { return kn != node; }));
 
-    delete takeItem(node);
+    destroyItem(node);
 
     validateKitNames();
     emit kitStateChanged();
@@ -364,12 +354,10 @@ void KitModel::removeKit(Kit *k)
 void KitModel::changeDefaultKit()
 {
     Kit *defaultKit = KitManager::defaultKit();
-    foreach (KitNode *n, itemsAtLevel<KitNode *>(2)) {
-        if (n->widget->configures(defaultKit)) {
-            setDefaultNode(n);
-            return;
-        }
-    }
+    KitNode *node = findSecondLevelItem([defaultKit](KitNode *n) {
+        return n->widget->configures(defaultKit);
+    });
+    setDefaultNode(node);
 }
 
 } // namespace Internal

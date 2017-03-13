@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODO_INTERNAL_TODOOUTPUTTREEVIEW_H
-#define TODO_INTERNAL_TODOOUTPUTTREEVIEW_H
+#pragma once
 
 #include <utils/itemviews.h>
 
@@ -33,17 +32,15 @@ namespace Internal {
 
 class TodoOutputTreeView : public Utils::TreeView
 {
-    Q_OBJECT
 public:
     explicit TodoOutputTreeView(QWidget *parent = 0);
     ~TodoOutputTreeView();
 
     void resizeEvent(QResizeEvent *event);
 
-private slots:
+private:
     void todoColumnResized(int column, int oldSize, int newSize);
 
-private:
     void saveDisplaySettings();
     void loadDisplaySettings();
 
@@ -53,5 +50,3 @@ private:
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // TODO_INTERNAL_TODOOUTPUTTREEVIEW_H

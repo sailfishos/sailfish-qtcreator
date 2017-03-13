@@ -111,10 +111,8 @@ void TodoPlugin::scanningScopeChanged(ScanningScope scanningScope)
 
 void TodoPlugin::todoItemClicked(const TodoItem &item)
 {
-    if (QFileInfo::exists(item.file)) {
-        Core::IEditor *editor = Core::EditorManager::openEditor(item.file);
-        editor->gotoLine(item.line);
-    }
+    if (item.file.exists())
+        Core::EditorManager::openEditorAt(item.file.toString(), item.line);
 }
 
 void TodoPlugin::createItemsProvider()

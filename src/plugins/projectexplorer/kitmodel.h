@@ -48,12 +48,12 @@ class KitNode;
 // KitModel:
 // --------------------------------------------------------------------------
 
-class KitModel : public Utils::TreeModel
+class KitModel : public Utils::LeveledTreeModel<Utils::TreeItem, Utils::TreeItem, KitNode>
 {
     Q_OBJECT
 
 public:
-    explicit KitModel(QBoxLayout *parentLayout, QObject *parent = 0);
+    explicit KitModel(QBoxLayout *parentLayout, QObject *parent = nullptr);
 
     Kit *kit(const QModelIndex &);
     KitNode *kitNode(const QModelIndex &);
@@ -90,9 +90,9 @@ private:
     QList<KitNode *> m_toRemoveList;
 
     QBoxLayout *m_parentLayout;
-    KitNode *m_defaultNode;
+    KitNode *m_defaultNode = nullptr;
 
-    bool m_keepUnique;
+    bool m_keepUnique = true;
 };
 
 } // namespace Internal

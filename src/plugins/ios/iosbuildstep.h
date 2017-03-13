@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSBUILDSTEP_H
-#define IOSBUILDSTEP_H
+#pragma once
 
 #include <projectexplorer/abstractprocessstep.h>
 
@@ -90,13 +89,12 @@ public:
     QString displayName() const override;
     QString summaryText() const override;
 
-private slots:
+private:
     void buildArgumentsChanged();
     void resetDefaultArguments();
     void extraArgumentsChanged();
     void updateDetails();
 
-private:
     Ui::IosBuildStep *m_ui;
     IosBuildStep *m_buildStep;
     QString m_summaryText;
@@ -109,21 +107,13 @@ class IosBuildStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit IosBuildStepFactory(QObject *parent = 0);
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
+
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent,
-                  ProjectExplorer::BuildStep *source) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent,
                                       ProjectExplorer::BuildStep *source) override;
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent,
-                                        const QVariantMap &map) override;
-
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *bc) const override;
-    QString displayNameForId(Core::Id id) const override;
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSBUILDSTEP_H

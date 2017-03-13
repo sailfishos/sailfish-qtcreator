@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PUBLICKEYDEPLOYMENTDIALOG_H
-#define PUBLICKEYDEPLOYMENTDIALOG_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -45,19 +44,15 @@ public:
 
     ~PublicKeyDeploymentDialog();
 
-private slots:
-    void handleDeploymentError(const QString &errorMsg);
-    void handleDeploymentSuccess();
-    void handleCanceled();
-
 private:
     explicit PublicKeyDeploymentDialog(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
         const QString &publicKeyFileName, QWidget *parent = 0);
     void handleDeploymentFinished(const QString &errorMsg);
+    void handleDeploymentError(const QString &errorMsg);
+    void handleDeploymentSuccess();
+    void handleCanceled();
 
     Internal::PublicKeyDeploymentDialogPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // PUBLICKEYDEPLOYMENTDIALOG_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EDITORDIAGRAMVIEW_H
-#define EDITORDIAGRAMVIEW_H
+#pragma once
 
 #include "qmt/diagram_widgets_ui/diagramview.h"
 
@@ -41,9 +40,17 @@ class EditorDiagramView :
 
 public:
     explicit EditorDiagramView(QWidget *parent = 0);
-    ~EditorDiagramView();
+    ~EditorDiagramView() override;
 
+signals:
+    void zoomIn();
+    void zoomOut();
+
+public:
     void setPxNodeController(PxNodeController *pxNodeController);
+
+protected:
+    void wheelEvent(QWheelEvent *wheelEvent) override;
 
 private:
     void dropProjectExplorerNodes(const QList<QVariant> &values, const QPoint &pos);
@@ -53,5 +60,3 @@ private:
 
 } // namespace Internal
 } // namespace ModelEditor
-
-#endif // EDITORDIAGRAMVIEW_H

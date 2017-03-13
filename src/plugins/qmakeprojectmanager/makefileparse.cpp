@@ -167,12 +167,12 @@ void MakeFileParse::parseAssignments(QList<QMakeAssignment> *assignments)
                         m_config.archConfig = QMakeStepConfig::NoArch;
                 } else if (value == QLatin1String("ppc")) {
                     if (qa.op == QLatin1String("+="))
-                        m_config.archConfig = QMakeStepConfig::PPC;
+                        m_config.archConfig = QMakeStepConfig::PowerPC;
                     else
                         m_config.archConfig = QMakeStepConfig::NoArch;
                 } else if (value == QLatin1String("ppc64")) {
                     if (qa.op == QLatin1String("+="))
-                        m_config.archConfig = QMakeStepConfig::PPC64;
+                        m_config.archConfig = QMakeStepConfig::PowerPC64;
                     else
                         m_config.archConfig = QMakeStepConfig::NoArch;
                 } else if (value == QLatin1String("iphonesimulator")) {
@@ -208,10 +208,11 @@ void MakeFileParse::parseAssignments(QList<QMakeAssignment> *assignments)
                 } else {
                     newValues.append(value);
                 }
+            }
+            if (!newValues.isEmpty()) {
                 QMakeAssignment newQA = qa;
                 newQA.value = newValues.join(QLatin1Char(' '));
-                if (!newValues.isEmpty())
-                    assignments->append(newQA);
+                assignments->append(newQA);
             }
         } else {
             assignments->append(qa);

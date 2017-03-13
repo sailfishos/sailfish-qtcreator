@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTEHELPFILTER_H
-#define REMOTEHELPFILTER_H
+#pragma once
 
 #include "ui_remotehelpfilter.h"
 
@@ -70,17 +69,14 @@ class RemoteFilterOptions : public QDialog
 public:
     explicit RemoteFilterOptions(RemoteHelpFilter *filter, QWidget *parent = 0);
 
-private slots:
+private:
     void addNewItem();
     void removeItem();
     void updateRemoveButton();
 
-private:
     RemoteHelpFilter *m_filter;
     Ui::RemoteFilterOptions m_ui;
 };
 
     } // namespace Internal
 } // namespace Help
-
-#endif // REMOTEHELPFILTER_H

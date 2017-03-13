@@ -33,6 +33,8 @@
 #include <coreplugin/documentmanager.h>
 #include <utils/qtcassert.h>
 
+#include <QLayout>
+
 using namespace Core;
 using namespace Utils;
 using namespace TextEditor::Internal;
@@ -58,20 +60,6 @@ TextMark::~TextMark()
     if (m_baseTextDocument)
         m_baseTextDocument->removeMark(this);
     m_baseTextDocument = 0;
-}
-
-TextMark::TextMark(TextMark &&other) Q_DECL_NOEXCEPT
-    : m_baseTextDocument(std::move(other.m_baseTextDocument)),
-      m_fileName(std::move(other.m_fileName)),
-      m_lineNumber(std::move(other.m_lineNumber)),
-      m_priority(std::move(other.m_priority)),
-      m_visible(std::move(other.m_visible)),
-      m_icon(std::move(other.m_icon)),
-      m_color(std::move(other.m_color)),
-      m_category(std::move(other.m_category)),
-      m_widthFactor(std::move(other.m_widthFactor))
-{
-    other.m_baseTextDocument = nullptr;
 }
 
 QString TextMark::fileName() const
@@ -202,6 +190,12 @@ void TextMark::dragToLine(int lineNumber)
     Q_UNUSED(lineNumber);
 }
 
+void TextMark::addToToolTipLayout(QLayout *target)
+{
+    if (!m_toolTip.isEmpty())
+        target->addWidget(new QLabel(m_toolTip));
+}
+
 TextDocument *TextMark::baseTextDocument() const
 {
     return m_baseTextDocument;
@@ -212,6 +206,15 @@ void TextMark::setBaseTextDocument(TextDocument *baseTextDocument)
     m_baseTextDocument = baseTextDocument;
 }
 
+QString TextMark::toolTip() const
+{
+    return m_toolTip;
+}
+
+void TextMark::setToolTip(const QString &toolTip)
+{
+    m_toolTip = toolTip;
+}
 
 TextMarkRegistry::TextMarkRegistry(QObject *parent)
     : QObject(parent)

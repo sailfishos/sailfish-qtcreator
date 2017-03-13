@@ -33,7 +33,6 @@
 
 #include <QObject>
 #include <QFileSystemModel>
-#include <QSet>
 
 namespace Core {
 class IDocument;
@@ -45,15 +44,15 @@ namespace Utils { class MacroExpander; }
 namespace ProjectExplorer {
 
 class BuildInfo;
-class IProjectManager;
 class EditorConfiguration;
-class ProjectImporter;
-class ProjectNode;
+class IProjectManager;
 class Kit;
 class KitMatcher;
 class NamedWidget;
-class Target;
+class ProjectImporter;
+class ProjectNode;
 class ProjectPrivate;
+class Target;
 
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT Project : public QObject
@@ -99,7 +98,7 @@ public:
     Target *activeTarget() const;
     Target *target(Core::Id id) const;
     Target *target(Kit *k) const;
-    virtual bool supportsKit(Kit *k, QString *errorMessage = 0) const;
+    virtual bool supportsKit(Kit *k, QString *errorMessage = nullptr) const;
 
     Target *createTarget(Kit *k);
     Target *cloneTarget(Target *sourceTarget, Kit *k);
@@ -128,8 +127,7 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     virtual bool needsConfiguration() const;
-    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
-                                           const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
+    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms);
 
     virtual bool requiresTargetPanel() const;
     virtual ProjectImporter *createProjectImporter() const;

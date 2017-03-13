@@ -23,9 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDEBUGCOMMANDLINEARGUMENTS_H
-#define QMLDEBUGCOMMANDLINEARGUMENTS_H
+#pragma once
 
+#include <utils/port.h>
 #include <QString>
 
 namespace QmlDebug {
@@ -64,11 +64,13 @@ static inline QString qmlDebugCommandLineArguments(QmlDebugServicesPreset servic
             .arg(QLatin1String(block ? ",block" : "")).arg(qmlDebugServices(services));
 }
 
-static inline QString qmlDebugTcpArguments(QmlDebugServicesPreset services, quint16 port = 0,
+static inline QString qmlDebugTcpArguments(QmlDebugServicesPreset services,
+                                           Utils::Port port = Utils::Port(),
                                            bool block = true)
 {
-    return qmlDebugCommandLineArguments(services, port ? QString::fromLatin1("port:%1").arg(port) :
-                                                         QStringLiteral("port:%qml_port%"), block);
+    return qmlDebugCommandLineArguments(services, port.isValid() ?
+                                            QString::fromLatin1("port:%1").arg(port.number()) :
+                                            QStringLiteral("port:%qml_port%"), block);
 }
 
 static inline QString qmlDebugNativeArguments(QmlDebugServicesPreset services, bool block = true)
@@ -83,6 +85,3 @@ static inline QString qmlDebugLocalArguments(QmlDebugServicesPreset services, co
 }
 
 } // namespace QmlDebug
-
-#endif // QMLDEBUGCOMMANDLINEARGUMENTS_H
-

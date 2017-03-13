@@ -50,16 +50,12 @@ const Icon CUT(
         QLatin1String(":/core/images/editcut.png"));
 const Icon DIR(
         QLatin1String(":/core/images/dir.png"));
-const Icon RESET(
-        QLatin1String(":/core/images/reset.png"));
+const Icon RESET({
+        {QLatin1String(":/core/images/reset.png"), Theme::PanelTextColorMid}}, Icon::Tint);
+const Icon RESET_TOOLBAR({
+        {QLatin1String(":/core/images/reset.png"), Theme::IconsBaseColor}});
 const Icon DARK_CLOSE(
         QLatin1String(":/core/images/darkclose.png"));
-const Icon LOCKED_TOOLBAR({
-        {QLatin1String(":/core/images/locked.png"), Theme::IconsBaseColor}});
-const Icon LOCKED({
-        {QLatin1String(":/core/images/locked.png"), Theme::PanelTextColorDark}}, Icon::Tint);
-const Icon UNLOCKED_TOOLBAR({
-        {QLatin1String(":/core/images/unlocked.png"), Theme::IconsBaseColor}});
 const Icon FIND_CASE_INSENSITIVELY(
         QLatin1String(":/find/images/casesensitively.png"));
 const Icon FIND_WHOLE_WORD(
@@ -68,12 +64,8 @@ const Icon FIND_REGEXP(
         QLatin1String(":/find/images/regexp.png"));
 const Icon FIND_PRESERVE_CASE(
         QLatin1String(":/find/images/preservecase.png"));
-const Icon QTLOGO_32(
-        QLatin1String(":/core/images/logo/32/QtProject-qtcreator.png"));
-const Icon QTLOGO_64(
-        QLatin1String(":/core/images/logo/64/QtProject-qtcreator.png"));
-const Icon QTLOGO_128(
-        QLatin1String(":/core/images/logo/128/QtProject-qtcreator.png"));
+const Icon QTCREATORLOGO_BIG(
+        QLatin1String(":/core/images/qtcreatorlogo-big.png"));
 
 const Icon ARROW_UP({
         {QLatin1String(":/core/images/arrowup.png"), Theme::IconsBaseColor}});
@@ -83,17 +75,11 @@ const Icon MINUS({
         {QLatin1String(":/core/images/minus.png"), Theme::IconsBaseColor}});
 const Icon PLUS({
         {QLatin1String(":/core/images/plus.png"), Theme::IconsBaseColor}});
-const Icon NEXT({
-        {QLatin1String(":/core/images/next.png"), Theme::IconsWarningColor}}, Icon::MenuTintedStyle);
-const Icon NEXT_TOOLBAR({
-        {QLatin1String(":/core/images/next.png"), Theme::IconsNavigationArrowsColor}});
-const Icon PREV({
-        {QLatin1String(":/core/images/prev.png"), Theme::IconsWarningColor}}, Icon::MenuTintedStyle);
-const Icon PREV_TOOLBAR({
-        {QLatin1String(":/core/images/prev.png"), Theme::IconsNavigationArrowsColor}});
 const Icon MAGNIFIER({
         {QLatin1String(":/core/images/magnifier.png"), Theme::PanelTextColorMid}}, Icon::Tint);
-const Icon CLEAN_PANE({
+const Icon CLEAN({
+        {QLatin1String(":/core/images/clean_pane_small.png"), Theme::PanelTextColorMid}}, Utils::Icon::Tint);
+const Icon CLEAN_TOOLBAR({
         {QLatin1String(":/core/images/clean_pane_small.png"), Theme::IconsBaseColor}});
 const Icon RELOAD({
         {QLatin1String(":/core/images/reload_gray.png"), Theme::IconsBaseColor}});
@@ -144,12 +130,8 @@ const Icon INFO({
         {QLatin1String(":/core/images/info.png"), Theme::IconsInfoColor}}, Icon::Tint);
 const Icon INFO_TOOLBAR({
         {QLatin1String(":/core/images/info.png"), Theme::IconsInfoToolBarColor}});
-const Icon EXPAND({
+const Icon EXPAND_ALL_TOOLBAR({
         {QLatin1String(":/find/images/expand.png"), Theme::IconsBaseColor}});
-const Icon ZOOM({
-        {QLatin1String(":/core/images/zoom.png"), Theme::PanelTextColorMid}}, Icon::Tint);
-const Icon ZOOM_TOOLBAR({
-        {QLatin1String(":/core/images/zoom.png"), Theme::IconsBaseColor}});
 const Icon TOOLBAR_EXTENSION({
         {QLatin1String(":/core/images/extension.png"), Theme::IconsBaseColor}});
 const Utils::Icon RUN_SMALL({
@@ -170,6 +152,17 @@ const Icon EYE_OPEN_TOOLBAR({
         {QLatin1String(":/core/images/eye_open.png"), Theme::IconsBaseColor}});
 const Icon EYE_CLOSED_TOOLBAR({
         {QLatin1String(":/core/images/eye_closed.png"), Theme::IconsBaseColor}});
+const Icon REPLACE({
+        {QLatin1String(":/core/images/replace_a.png"), Theme::PanelTextColorMid},
+        {QLatin1String(":/core/images/replace_b.png"), Theme::IconsInfoColor}}, Icon::Tint);
+const Icon EXPAND({
+        {QLatin1String(":/core/images/expand.png"), Theme::PanelTextColorMid}}, Utils::Icon::Tint);
+const Icon EXPAND_TOOLBAR({
+        {QLatin1String(":/core/images/expand.png"), Theme::IconsBaseColor}});
+const Icon COLLAPSE({
+        {QLatin1String(":/core/images/collapse.png"), Theme::PanelTextColorMid}}, Utils::Icon::Tint);
+const Icon COLLAPSE_TOOLBAR({
+        {QLatin1String(":/core/images/collapse.png"), Theme::IconsBaseColor}});
 
 const Icon MODE_EDIT_CLASSIC(
         QLatin1String(":/fancyactionbar/images/mode_Edit.png"));

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONTEXTPANETEXTWIDGET_H
-#define CONTEXTPANETEXTWIDGET_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include <QWidget>
@@ -51,7 +50,6 @@ public:
     void setVerticalAlignmentVisible(bool);
     void setStyleVisible(bool);
 
-public slots:
     void onTextColorButtonToggled(bool);
     void onColorButtonToggled(bool);
     void onColorDialogApplied(const QColor &color);
@@ -84,5 +82,3 @@ private:
 };
 
 } //QmlDesigner
-
-#endif // CONTEXTPANETEXTWIDGET_H

@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include <clangcodecompleteresults.h>
+#include <clangfilepath.h>
 #include <projectpart.h>
 #include <projects.h>
 #include <clangtranslationunit.h>
@@ -41,9 +42,16 @@
 namespace {
 
 using ClangBackEnd::ClangCodeCompleteResults;
+using ClangBackEnd::FilePath;
 using ClangBackEnd::TranslationUnit;
 using ClangBackEnd::UnsavedFiles;
 using ClangBackEnd::ProjectPart;
+
+static unsigned completionOptions(const TranslationUnit &translationUnit)
+{
+    return translationUnit.defaultOptions() & CXTranslationUnit_IncludeBriefCommentsInCodeCompletion
+            ? CXCodeComplete_IncludeBriefComments : 0;
+}
 
 TEST(ClangCodeCompleteResults, GetData)
 {
@@ -55,7 +63,12 @@ TEST(ClangCodeCompleteResults, GetData)
                                     projectPart,
                                     Utf8StringVector(),
                                     translationUnits);
-    CXCodeCompleteResults *cxCodeCompleteResults = clang_codeCompleteAt(translationUnit.cxTranslationUnit(), translationUnit.filePath().constData(), 49, 1, 0, 0, 0);
+    Utf8String nativeFilePath = FilePath::toNativeSeparators(translationUnit.filePath());
+    CXCodeCompleteResults *cxCodeCompleteResults =
+            clang_codeCompleteAt(translationUnit.cxTranslationUnit(),
+                                 nativeFilePath.constData(),
+                                 49, 1, 0, 0,
+                                 completionOptions(translationUnit));
 
     ClangCodeCompleteResults codeCompleteResults(cxCodeCompleteResults);
 
@@ -81,7 +94,12 @@ TEST(ClangCodeCompleteResults, MoveClangCodeCompleteResults)
                                     projectPart,
                                     Utf8StringVector(),
                                     translationUnits);
-    CXCodeCompleteResults *cxCodeCompleteResults = clang_codeCompleteAt(translationUnit.cxTranslationUnit(), translationUnit.filePath().constData(), 49, 1, 0, 0, 0);
+    Utf8String nativeFilePath = FilePath::toNativeSeparators(translationUnit.filePath());
+    CXCodeCompleteResults *cxCodeCompleteResults =
+            clang_codeCompleteAt(translationUnit.cxTranslationUnit(),
+                                 nativeFilePath.constData(),
+                                 49, 1, 0, 0,
+                                 completionOptions(translationUnit));
 
     ClangCodeCompleteResults codeCompleteResults(cxCodeCompleteResults);
 

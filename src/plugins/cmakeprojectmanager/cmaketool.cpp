@@ -42,6 +42,7 @@ namespace CMakeProjectManager {
 const char CMAKE_INFORMATION_ID[] = "Id";
 const char CMAKE_INFORMATION_COMMAND[] = "Binary";
 const char CMAKE_INFORMATION_DISPLAYNAME[] = "DisplayName";
+const char CMAKE_INFORMATION_AUTORUN[] = "AutoRun";
 const char CMAKE_INFORMATION_AUTODETECTED[] = "AutoDetected";
 
 ///////////////////////////
@@ -57,6 +58,7 @@ CMakeTool::CMakeTool(const QVariantMap &map, bool fromSdk) : m_isAutoDetected(fr
 {
     m_id = Core::Id::fromSetting(map.value(QLatin1String(CMAKE_INFORMATION_ID)));
     m_displayName = map.value(QLatin1String(CMAKE_INFORMATION_DISPLAYNAME)).toString();
+    m_isAutoRun = map.value(QLatin1String(CMAKE_INFORMATION_AUTORUN), true).toBool();
 
     //loading a CMakeTool from SDK is always autodetection
     if (!fromSdk)
@@ -79,6 +81,15 @@ void CMakeTool::setCMakeExecutable(const Utils::FileName &executable)
     m_didAttemptToRun = false;
 
     m_executable = executable;
+    CMakeToolManager::notifyAboutUpdate(this);
+}
+
+void CMakeTool::setAutorun(bool autoRun)
+{
+    if (m_isAutoRun == autoRun)
+        return;
+
+    m_isAutoRun = autoRun;
     CMakeToolManager::notifyAboutUpdate(this);
 }
 
@@ -105,11 +116,11 @@ Utils::SynchronousProcessResponse CMakeTool::run(const QString &arg) const
     cmake.setTimeoutS(1);
     cmake.setFlags(Utils::SynchronousProcess::UnixTerminalDisabled);
     Utils::Environment env = Utils::Environment::systemEnvironment();
-    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
+    Utils::Environment::setupEnglishOutput(&env);
     cmake.setProcessEnvironment(env.toProcessEnvironment());
     cmake.setTimeOutMessageBoxEnabled(false);
 
-    Utils::SynchronousProcessResponse response = cmake.run(m_executable.toString(), QStringList() << arg);
+    Utils::SynchronousProcessResponse response = cmake.runBlocking(m_executable.toString(), QStringList() << arg);
     m_didAttemptToRun = true;
     m_didRun = (response.result == Utils::SynchronousProcessResponse::Finished);
     return response;
@@ -121,6 +132,7 @@ QVariantMap CMakeTool::toMap() const
     data.insert(QLatin1String(CMAKE_INFORMATION_DISPLAYNAME), m_displayName);
     data.insert(QLatin1String(CMAKE_INFORMATION_ID), m_id.toSetting());
     data.insert(QLatin1String(CMAKE_INFORMATION_COMMAND), m_executable.toString());
+    data.insert(QLatin1String(CMAKE_INFORMATION_AUTORUN), m_isAutoRun);
     data.insert(QLatin1String(CMAKE_INFORMATION_AUTODETECTED), m_isAutoDetected);
     return data;
 }
@@ -130,13 +142,18 @@ Utils::FileName CMakeTool::cmakeExecutable() const
     return m_executable;
 }
 
+bool CMakeTool::isAutoRun() const
+{
+    return m_isAutoRun;
+}
+
 QStringList CMakeTool::supportedGenerators() const
 {
     if (m_generators.isEmpty()) {
         Utils::SynchronousProcessResponse response = run(QLatin1String("--help"));
         if (response.result == Utils::SynchronousProcessResponse::Finished) {
             bool inGeneratorSection = false;
-            const QStringList lines = response.stdOut.split(QLatin1Char('\n'));
+            const QStringList lines = response.stdOut().split(QLatin1Char('\n'));
             foreach (const QString &line, lines) {
                 if (line.isEmpty())
                     continue;
@@ -171,19 +188,19 @@ TextEditor::Keywords CMakeTool::keywords()
         Utils::SynchronousProcessResponse response;
         response = run(QLatin1String("--help-command-list"));
         if (response.result == Utils::SynchronousProcessResponse::Finished)
-            m_functions = response.stdOut.split(QLatin1Char('\n'));
+            m_functions = response.stdOut().split(QLatin1Char('\n'));
 
         response = run(QLatin1String("--help-commands"));
         if (response.result == Utils::SynchronousProcessResponse::Finished)
-            parseFunctionDetailsOutput(response.stdOut);
+            parseFunctionDetailsOutput(response.stdOut());
 
         response = run(QLatin1String("--help-property-list"));
         if (response.result == Utils::SynchronousProcessResponse::Finished)
-            m_variables = parseVariableOutput(response.stdOut);
+            m_variables = parseVariableOutput(response.stdOut());
 
         response = run(QLatin1String("--help-variable-list"));
         if (response.result == Utils::SynchronousProcessResponse::Finished) {
-            m_variables.append(parseVariableOutput(response.stdOut));
+            m_variables.append(parseVariableOutput(response.stdOut()));
             m_variables = Utils::filteredUnique(m_variables);
             Utils::sort(m_variables);
         }

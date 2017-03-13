@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GETTINGSTARTEDWELCOMEPAGE_H
-#define GETTINGSTARTEDWELCOMEPAGE_H
+#pragma once
 
 #include <coreplugin/iwelcomepage.h>
 
@@ -61,7 +60,7 @@ public slots:
     void openHelp(const QUrl &help);
     void openProject(const QString& projectFile, const QStringList& additionalFilesToOpen,
                      const QString &mainFile, const QUrl& help, const QStringList &dependencies,
-                     const QStringList &platforms, const QStringList &preferredFeatures);
+                     const QStringList &platforms);
 
 private:
     ExamplesListModel *examplesModel() const;
@@ -72,5 +71,3 @@ private:
 
 } // namespace Internal
 } // namespace QtSupport
-
-#endif // GETTINGSTARTEDWELCOMEPAGE_H

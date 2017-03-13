@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SEARCHWIDGET_H
-#define SEARCHWIDGET_H
+#pragma once
 
 #include <coreplugin/sidebar.h>
 
@@ -67,8 +66,6 @@ public:
     void zoomOut();
     void resetZoom();
 
-
-public slots:
     void reindexDocumentation();
 
 signals:
@@ -77,7 +74,7 @@ signals:
 protected:
     void showEvent(QShowEvent *event);
 
-private slots:
+private:
     void search() const;
 
     void searchingStarted();
@@ -86,12 +83,10 @@ private slots:
     void indexingStarted();
     void indexingFinished();
 
-private:
     bool eventFilter(QObject* o, QEvent *e);
     void contextMenuEvent(QContextMenuEvent *contextMenuEvent);
     QStringList currentSearchTerms() const;
 
-private:
     int zoomCount;
 
     QFutureWatcher<void> m_watcher;
@@ -103,5 +98,3 @@ private:
 
 } // namespace Internal
 } // namespace Help
-
-#endif // SEARCHWIDGET_H

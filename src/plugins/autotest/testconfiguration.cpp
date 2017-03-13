@@ -24,6 +24,10 @@
 ****************************************************************************/
 
 #include "testconfiguration.h"
+#include "testoutputreader.h"
+#include "testrunconfiguration.h"
+#include "testrunner.h"
+#include "testsettings.h"
 
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/projectinfo.h>
@@ -32,7 +36,6 @@
 #include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/kitinformation.h>
-#include <projectexplorer/project.h>
 #include <projectexplorer/runnables.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/session.h>
@@ -43,19 +46,8 @@ using namespace ProjectExplorer;
 namespace Autotest {
 namespace Internal {
 
-TestConfiguration::TestConfiguration(const QString &testClass, const QStringList &testCases,
-                                     int testCaseCount, QObject *parent)
-    : QObject(parent),
-      m_testClass(testClass),
-      m_testCases(testCases),
-      m_testCaseCount(testCaseCount),
-      m_unnamedOnly(false),
-      m_project(0),
-      m_guessedConfiguration(false),
-      m_type(TestTypeQt)
+TestConfiguration::TestConfiguration()
 {
-    if (testCases.size() != 0)
-        m_testCaseCount = testCases.size();
 }
 
 TestConfiguration::~TestConfiguration()
@@ -94,7 +86,7 @@ static bool isLocal(RunConfiguration *runConfiguration)
     return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
 }
 
-void TestConfiguration::completeTestInformation()
+void TestConfiguration::completeTestInformation(int runMode)
 {
     QTC_ASSERT(!m_proFile.isEmpty(), return);
 
@@ -109,6 +101,7 @@ void TestConfiguration::completeTestInformation()
     QString buildDir;
     Project *targetProject = 0;
     Utils::Environment env;
+    Target *runConfigTarget = 0;
     bool hasDesktopTarget = false;
     bool guessedRunConfiguration = false;
     setProject(0);
@@ -158,10 +151,16 @@ void TestConfiguration::completeTestInformation()
         Runnable runnable = rc->runnable();
         if (isLocal(rc) && runnable.is<StandardRunnable>()) {
             StandardRunnable stdRunnable = runnable.as<StandardRunnable>();
-            if (stdRunnable.executable == targetFile) {
+            // we might have an executable that gets installed - in such a case the
+            // runnable's executable and targetFile won't match - but the (unique) display name
+            // of the run configuration should match targetName
+            if (stdRunnable.executable == targetFile
+                    || (!targetName.isEmpty() && rc->displayName() == targetName)) {
+                targetFile = stdRunnable.executable;
                 workDir = Utils::FileUtils::normalizePathName(stdRunnable.workingDirectory);
                 env = stdRunnable.environment;
                 hasDesktopTarget = true;
+                runConfigTarget = rc->target();
                 break;
             }
         }
@@ -178,6 +177,7 @@ void TestConfiguration::completeTestInformation()
                 env = stdRunnable.environment;
                 hasDesktopTarget = true;
                 guessedRunConfiguration = true;
+                runConfigTarget = rc->target();
             }
         }
     }
@@ -192,6 +192,8 @@ void TestConfiguration::completeTestInformation()
         setEnvironment(env);
         setProject(project);
         setGuessedConfiguration(guessedRunConfiguration);
+        if (runMode == TestRunner::Debug)
+            m_runConfig = new TestRunConfiguration(runConfigTarget, this);
     }
 }
 
@@ -256,19 +258,52 @@ void TestConfiguration::setProject(Project *project)
     m_project = project;
 }
 
-void TestConfiguration::setUnnamedOnly(bool unnamedOnly)
-{
-    m_unnamedOnly = unnamedOnly;
-}
-
 void TestConfiguration::setGuessedConfiguration(bool guessed)
 {
     m_guessedConfiguration = guessed;
 }
 
-void TestConfiguration::setTestType(TestType type)
+QString TestConfiguration::executableFilePath() const
 {
-    m_type = type;
+    if (m_targetFile.isEmpty())
+        return QString();
+
+    QFileInfo commandFileInfo(m_targetFile);
+    if (commandFileInfo.isExecutable() && commandFileInfo.path() != ".") {
+        return commandFileInfo.absoluteFilePath();
+    } else if (commandFileInfo.path() == "."){
+        QString fullCommandFileName = m_targetFile;
+    #ifdef Q_OS_WIN
+        if (!m_targetFile.endsWith(".exe"))
+            fullCommandFileName = m_targetFile + QLatin1String(".exe");
+
+        static const QString separator(";");
+    #else
+        static const QString separator(":");
+    #endif
+        // TODO: check if we can use searchInPath() from Utils::Environment
+        const QStringList &pathList
+                = m_environment.toProcessEnvironment().value("PATH").split(separator);
+
+        foreach (const QString &path, pathList) {
+            QString filePath(path + QDir::separator() + fullCommandFileName);
+            if (QFileInfo(filePath).isExecutable())
+                return commandFileInfo.absoluteFilePath();
+        }
+    }
+    return QString();
+}
+
+QString TestConfiguration::workingDirectory() const
+{
+    if (!m_workingDir.isEmpty()) {
+        const QFileInfo info(m_workingDir);
+        if (info.isDir()) // ensure wanted working dir does exist
+            return info.absoluteFilePath();
+    }
+
+    const QString executable = executableFilePath();
+    return executable.isEmpty() ? executable : QFileInfo(executable).absolutePath();
 }
 
 } // namespace Internal

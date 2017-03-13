@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_UNCRUSTIFY_H
-#define BEAUTIFIER_UNCRUSTIFY_H
+#pragma once
 
 #include "../beautifierabstracttool.h"
-#include "../command.h"
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 
@@ -45,20 +43,21 @@ class Uncrustify : public BeautifierAbstractTool
     Q_OBJECT
 
 public:
-    explicit Uncrustify(BeautifierPlugin *parent = 0);
+    explicit Uncrustify(BeautifierPlugin *parent = nullptr);
     virtual ~Uncrustify();
     bool initialize() override;
+    QString id() const override;
     void updateActions(Core::IEditor *editor) override;
     QList<QObject *> autoReleaseObjects() override;
-
-private slots:
-    void formatFile();
-    void formatSelectedText();
+    Command command() const override;
+    bool isApplicable(const Core::IDocument *document) const override;
 
 private:
+    void formatFile();
+    void formatSelectedText();
     BeautifierPlugin *m_beautifierPlugin;
-    QAction *m_formatFile;
-    QAction *m_formatRange;
+    QAction *m_formatFile = nullptr;
+    QAction *m_formatRange = nullptr;
     UncrustifySettings *m_settings;
     QString configurationFile() const;
     Command command(const QString &cfgFile, bool fragment = false) const;
@@ -67,5 +66,3 @@ private:
 } // namespace Uncrustify
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_UNCRUSTIFY_H

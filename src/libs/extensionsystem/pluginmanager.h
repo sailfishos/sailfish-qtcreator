@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EXTENSIONSYSTEM_PLUGINMANAGER_H
-#define EXTENSIONSYSTEM_PLUGINMANAGER_H
+#pragma once
 
 #include "extensionsystem_global.h"
 #include <aggregation/aggregate.h>
@@ -149,6 +148,9 @@ public:
 
     static bool isInitializationDone();
 
+    void remoteArguments(const QString &serializedArguments, QObject *socket);
+    void shutdown();
+
 signals:
     void objectAdded(QObject *obj);
     void aboutToRemoveObject(QObject *obj);
@@ -157,13 +159,7 @@ signals:
     void initializationDone();
     void testsFinished(int failedTests);
 
-public slots:
-    void remoteArguments(const QString &serializedArguments, QObject *socket);
-    void shutdown();
-
     friend class Internal::PluginManagerPrivate;
 };
 
 } // namespace ExtensionSystem
-
-#endif // EXTENSIONSYSTEM_PLUGINMANAGER_H

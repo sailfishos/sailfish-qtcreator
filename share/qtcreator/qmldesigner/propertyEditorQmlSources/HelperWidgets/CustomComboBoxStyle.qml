@@ -28,63 +28,40 @@ import QtQuick.Controls 1.1 as Controls
 import QtQuick.Controls.Styles 1.2
 
 ComboBoxStyle {
-    property color borderColor: "#222"
-    property color highlightColor: "orange"
-    property color textColor: "#eee"
-
+    property color textColor: creatorTheme.PanelTextColorLight
     __editor: Item {
 
     }
 
     background: Item {
         implicitWidth: 120
-        implicitHeight: 25
+        implicitHeight: 24
 
-        RoundedPanel {
+        Rectangle {
             anchors.fill: parent
-            roundLeft: true
-            roundRight: true
             visible: !control.pressed
+            color: creatorTheme.QmlDesignerButtonColor
+            border.color: creatorTheme.QmlDesignerBorderColor
+            border.width: 1
         }
 
-        RoundedPanel {
-            gradient: Gradient {
-                GradientStop {color: '#444' ; position: 0}
-                GradientStop {color: '#333' ; position: 1}
-            }
+        Rectangle {
+            color: creatorTheme.QmlDesignerBackgroundColorDarker
             anchors.fill: parent
-            roundLeft: true
-            roundRight: true
             visible: control.pressed
-        }
-
-        Rectangle {
-            border.color: highlightColor
-            anchors.fill: parent
-            anchors.margins: -1
-            color: "transparent"
-            opacity: 0.3
-            visible: control.activeFocus
-        }
-
-        Rectangle {
-            color: "#333"
-            width: 1
-            anchors.right: imageItem.left
-            anchors.topMargin: 4
-            anchors.bottomMargin: 4
-            anchors.rightMargin: 6
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            border.color: creatorTheme.QmlDesignerBorderColor
+            border.width: 1
         }
 
         Image {
             id: imageItem
-            source: "images/down-arrow.png"
+            width: 8
+            height: 4
+            source: "image://icons/down-arrow"
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
-            anchors.rightMargin: 10
-            opacity: control.enabled ? 0.7 : 0.5
+            anchors.rightMargin: 8
+            opacity: control.enabled ? 1 : 0.5
         }
     }
 
@@ -97,7 +74,7 @@ ComboBoxStyle {
             anchors.verticalCenter: parent.verticalCenter
             text: control.currentText
             renderType: Text.NativeRendering
-            color: textColor
+            color: control.textColor
         }
     }
 

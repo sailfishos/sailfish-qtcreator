@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPEDITOR_H
-#define CPPEDITOR_H
+#pragma once
 
 #include "cppfunctiondecldeflink.h"
 
@@ -80,7 +79,6 @@ public:
 
     void encourageApply() override;
 
-public slots:
     void paste() override;
     void cut() override;
     void selectAll() override;
@@ -106,10 +104,9 @@ protected:
 
     void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker) override;
 
-protected slots:
     void slotCodeStyleSettingsChanged(const QVariant &) override;
 
-private slots:
+private:
     void updateFunctionDeclDefLink();
     void updateFunctionDeclDefLinkNow();
     void abortDeclDefLink();
@@ -131,7 +128,6 @@ private slots:
 
     void processKeyNormally(QKeyEvent *e);
 
-private:
     void finalizeInitialization() override;
     void finalizeInitializationAfterDuplication(TextEditorWidget *other) override;
 
@@ -145,5 +141,3 @@ private:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPEDITOR_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSBUILDCONFIGURATION_H
-#define QBSBUILDCONFIGURATION_H
+#pragma once
 
 #include "qbsprojectmanager_global.h"
 
@@ -87,10 +86,9 @@ protected:
     QbsBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     bool fromMap(const QVariantMap &map) override;
 
-private slots:
+private:
     void buildStepInserted(int pos);
 
-private:
     static QbsBuildConfiguration *setup(ProjectExplorer::Target *t,
                                         const QString &defaultDisplayName,
                                         const QString &displayName,
@@ -135,5 +133,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSBUILDCONFIGURATION_H

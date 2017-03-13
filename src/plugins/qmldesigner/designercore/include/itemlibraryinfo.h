@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ITEMLIBRARYINFO_H
-#define ITEMLIBRARYINFO_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 
@@ -98,10 +97,10 @@ class QMLDESIGNERCORE_EXPORT ItemLibraryInfo : public QObject
 public:
 
     QList<ItemLibraryEntry> entries() const;
-    QList<ItemLibraryEntry> entriesForType(const QString &typeName, int majorVersion, int minorVersion) const;
+    QList<ItemLibraryEntry> entriesForType(const QByteArray &typeName, int majorVersion, int minorVersion) const;
     ItemLibraryEntry entry(const QString &name) const;
 
-    void addEntry(const ItemLibraryEntry &entry, bool overwriteDuplicate = false);
+    void addEntries(const QList<ItemLibraryEntry> &entries, bool overwriteDuplicate = false);
     bool containsEntry(const ItemLibraryEntry &entry);
     void clearEntries();
 
@@ -120,5 +119,3 @@ private: // variables
 } // namespace QmlDesigner
 
 Q_DECLARE_METATYPE(QmlDesigner::ItemLibraryEntry)
-
-#endif // ITEMLIBRARYINFO_H

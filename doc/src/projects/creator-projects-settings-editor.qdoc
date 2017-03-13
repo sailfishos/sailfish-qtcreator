@@ -52,7 +52,7 @@
 
         \li Select \uicontrol Projects > \uicontrol Editor.
 
-        \li In the \uicontrol {Editor Settings} field, select \uicontrol {Custom}.
+        \li In the \uicontrol {Editor settings} field, select \uicontrol {Custom}.
 
         \li Specify text editor settings for the project.
 
@@ -73,6 +73,8 @@
         \li \l{Moving to Symbol Definition or Declaration}
 
         \li \l{Configuring Fonts}
+
+        \li \l{Highlighting and Folding Blocks}
 
         \li \l{Viewing Function Tooltips}
 

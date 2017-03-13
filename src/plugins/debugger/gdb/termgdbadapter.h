@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_TERMGDBADAPTER_H
-#define DEBUGGER_TERMGDBADAPTER_H
+#pragma once
 
 #include "gdbengine.h"
 
@@ -45,15 +44,15 @@ class GdbTermEngine : public GdbEngine
 
 public:
     explicit GdbTermEngine(const DebuggerRunParameters &runParameters);
-    ~GdbTermEngine();
+    ~GdbTermEngine() override;
 
 private:
-    void setupEngine();
-    void handleGdbStartFailed();
-    void setupInferior();
-    void runEngine();
-    void interruptInferior2();
-    void shutdownEngine();
+    void setupEngine() override;
+    void handleGdbStartFailed() override;
+    void setupInferior() override;
+    void runEngine() override;
+    void interruptInferior2() override;
+    void shutdownEngine() override;
 
     void handleStubAttached(const DebuggerResponse &response);
 
@@ -66,5 +65,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_TERMGDBADAPTER_H

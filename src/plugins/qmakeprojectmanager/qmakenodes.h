@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKENODES_H
-#define QMAKENODES_H
+#pragma once
 
 #include "qmakeprojectmanager_global.h"
 #include "proparser/prowriter.h"
@@ -238,7 +237,6 @@ private:
 namespace Internal {
 class QmakePriFile : public Core::IDocument
 {
-    Q_OBJECT
 public:
     QmakePriFile(QmakePriFileNode *qmakePriFile);
 
@@ -420,5 +418,3 @@ private:
 };
 
 } // namespace QmakeProjectManager
-
-#endif // QMAKENODES_H

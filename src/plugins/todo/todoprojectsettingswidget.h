@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODO_INTERNAL_TODOPROJECTSETTINGSWIDGET_H
-#define TODO_INTERNAL_TODOPROJECTSETTINGSWIDGET_H
+#pragma once
 
 #include <QWidget>
 
@@ -54,13 +53,11 @@ public:
 signals:
     void projectSettingsChanged();
 
-private slots:
+private:
     void addExcludedPatternButtonClicked();
     void removeExcludedPatternButtonClicked();
     void setExcludedPatternsButtonsEnabled();
     void excludedPatternChanged(QListWidgetItem *item);
-
-private:
     QListWidgetItem *addToExcludedPatternsList(const QString &pattern);
     void loadSettings();
     void saveSettings();
@@ -73,4 +70,3 @@ private:
 
 } // namespace Internal
 } // namespace Todo
-#endif // TODO_INTERNAL_TODOPROJECTSETTINGSWIDGET_H

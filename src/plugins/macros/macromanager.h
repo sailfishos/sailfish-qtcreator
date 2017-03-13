@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MACROSPLUGIN_MACROMANAGER_H
-#define MACROSPLUGIN_MACROMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QMap>
@@ -53,12 +52,13 @@ public:
 
     static QString macrosDirectory();
 
-public slots:
     void startMacro();
-    void endMacro();
     void executeLastMacro();
     void saveLastMacro();
     bool executeMacro(const QString &name);
+
+public slots:
+    void endMacro();
 
 protected:
     friend class Internal::MacroOptionsWidget;
@@ -80,5 +80,3 @@ private:
 
 } // namespace Internal
 } // namespace Macros
-
-#endif // MACROSPLUGIN_MACROMANAGER_H

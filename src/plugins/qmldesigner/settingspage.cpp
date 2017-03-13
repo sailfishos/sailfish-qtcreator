@@ -54,6 +54,7 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
     QWidget(parent)
 {
     m_ui.setupUi(this);
+
     connect(m_ui.designerEnableDebuggerCheckBox, &QCheckBox::toggled, [=](bool checked) {
         if (checked && ! m_ui.designerShowDebuggerCheckBox->isChecked())
             m_ui.designerShowDebuggerCheckBox->setChecked(true);
@@ -76,6 +77,10 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
         m_ui.puppetBuildPathLineEdit, &QLineEdit::setEnabled);
     connect(m_ui.resetStyle, &QPushButton::clicked,
         m_ui.styleLineEdit, &QLineEdit::clear);
+    connect(m_ui.controls2StyleComboBox, &QComboBox::currentTextChanged, [=]() {
+            m_ui.styleLineEdit->setText(m_ui.controls2StyleComboBox->currentText());
+        }
+    );
 
     m_ui.forwardPuppetOutputComboBox->addItems(puppetModes());
     m_ui.debugPuppetComboBox->addItems(puppetModes());
@@ -89,7 +94,10 @@ DesignerSettings SettingsPageWidget::settings() const
     settings.insert(DesignerSettingsKey::CANVASWIDTH, m_ui.spinCanvasWidth->value());
     settings.insert(DesignerSettingsKey::CANVASHEIGHT, m_ui.spinCanvasHeight->value());
     settings.insert(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER,
-        m_ui.designerWarningsCheckBox->isChecked());
+                    m_ui.designerWarningsCheckBox->isChecked());
+    settings.insert(DesignerSettingsKey::WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES,
+                    m_ui.designerWarningsUiQmlfiles->isChecked());
+
     settings.insert(DesignerSettingsKey::WARNING_FOR_DESIGNER_FEATURES_IN_EDITOR,
         m_ui.designerWarningsInEditorCheckBox->isChecked());
     settings.insert(DesignerSettingsKey::SHOW_DEBUGVIEW,
@@ -139,6 +147,8 @@ void SettingsPageWidget::setSettings(const DesignerSettings &settings)
         DesignerSettingsKey::CANVASHEIGHT).toInt());
     m_ui.designerWarningsCheckBox->setChecked(settings.value(
         DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER).toBool());
+    m_ui.designerWarningsUiQmlfiles->setChecked(settings.value(
+        DesignerSettingsKey::WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES).toBool());
     m_ui.designerWarningsInEditorCheckBox->setChecked(settings.value(
         DesignerSettingsKey::WARNING_FOR_DESIGNER_FEATURES_IN_EDITOR).toBool());
     m_ui.designerShowDebuggerCheckBox->setChecked(settings.value(
@@ -177,6 +187,8 @@ void SettingsPageWidget::setSettings(const DesignerSettings &settings)
         DesignerSettingsKey::SHOW_PROPERTYEDITOR_WARNINGS).toBool());
     m_ui.showWarnExceptionsCheckBox->setChecked(settings.value(
         DesignerSettingsKey::ENABLE_MODEL_EXCEPTION_OUTPUT).toBool());
+
+    m_ui.controls2StyleComboBox->setCurrentText(m_ui.styleLineEdit->text());
 }
 
 SettingsPage::SettingsPage() :

@@ -231,28 +231,6 @@ if False:
 
 if False:
 
-    def qform__basic__Function():
-        return "Normal,Displayed"
-
-    def qdump__basic__Function(d, value):
-        min = value["min"]
-        max = value["max"]
-        data, size, alloc = d.byteArrayData(value["var"])
-        var = extractCString(data, 0)
-        data, size, alloc = d.byteArrayData(value["f"])
-        f = extractCString(data, 0)
-        d.putValue("%s, %s=%f..%f" % (f, var, min, max))
-        d.putNumChild(0)
-        format = d.currentItemFormat()
-        if format == 1:
-            d.putDisplay(StopDisplay)
-        elif format == 2:
-            input = "plot [%s=%f:%f] %s" % (var, min, max, f)
-            d.putDisplay(DisplayProcess, input, "gnuplot")
-
-
-if False:
-
     def qdump__tree_entry(d, value):
         d.putValue("len: %s, offset: %s, type: %s" %
             (value["blocklength"], value["offset"], value["type"]))
@@ -368,3 +346,28 @@ def qdump__KDSoapValue(d, value):
     p = (value.cast(lookupType("char*")) + 4).dereference().cast(lookupType("QString"))
     d.putStringValue(p)
     d.putPlainChildren(value["d"]["d"].dereference())
+
+#######################################################################
+#
+# Webkit
+#
+#######################################################################
+
+def qdump__WTF__String(d, value):
+    # WTF::String -> WTF::RefPtr<WTF::StringImpl> -> WTF::StringImpl*
+    data = value['m_impl']['m_ptr']
+    d.checkPointer(data)
+
+    stringLength = int(data['m_length'])
+    d.check(0 <= stringLength and stringLength <= 100000000)
+
+    # WTF::StringImpl* -> WTF::StringImpl -> sizeof(WTF::StringImpl)
+    offsetToData = data.type.target().sizeof
+    bufferPtr = data.cast(d.charPtrType()) + offsetToData
+
+    is8Bit = data['m_is8Bit']
+    charSize = 1
+    if not is8Bit:
+        charSize = 2
+
+    d.putCharArrayHelper(bufferPtr, stringLength, charSize)

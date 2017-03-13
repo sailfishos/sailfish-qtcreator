@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITOR_SEMANTICHIGHLIGHTER_H
-#define TEXTEDITOR_SEMANTICHIGHLIGHTER_H
+#pragma once
+
+#include <texteditor/textstyles.h>
 
 namespace TextEditor {
 
@@ -33,7 +34,9 @@ public:
     unsigned line;
     unsigned column;
     unsigned length;
+    TextStyles textStyles;
     int kind;
+    bool useTextSyles;
 
     bool isValid() const
     { return line != 0; }
@@ -46,7 +49,11 @@ public:
     {}
 
     HighlightingResult(unsigned line, unsigned column, unsigned length, int kind)
-        : line(line), column(column), length(length), kind(kind)
+        : line(line), column(column), length(length), kind(kind), useTextSyles(false)
+    {}
+
+    HighlightingResult(unsigned line, unsigned column, unsigned length, TextStyles textStyles)
+        : line(line), column(column), length(length), textStyles(textStyles), useTextSyles(true)
     {}
 
     bool operator==(const HighlightingResult& other) const
@@ -59,5 +66,3 @@ public:
 };
 
 } // namespace TextEditor
-
-#endif // TEXTEDITOR_SEMANTICHIGHLIGHTER_H

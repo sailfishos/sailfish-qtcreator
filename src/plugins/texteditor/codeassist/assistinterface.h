@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IASSISTINTERFACE_H
-#define IASSISTINTERFACE_H
+#pragma once
 
 #include "assistenums.h"
 
@@ -68,5 +67,3 @@ private:
 };
 
 } // namespace TextEditor
-
-#endif // IASSISTINTERFACE_H

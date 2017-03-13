@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSPROJECTMANAGERCONSTANTS_H
-#define QBSPROJECTMANAGERCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -60,6 +59,7 @@ static const char QBS_CONFIG_VARIANT_KEY[] = "qbs.buildVariant";
 static const char QBS_CONFIG_PROFILE_KEY[] = "qbs.profile";
 static const char QBS_CONFIG_DECLARATIVE_DEBUG_KEY[] = "Qt.declarative.qmlDebugging";
 static const char QBS_CONFIG_QUICK_DEBUG_KEY[] = "Qt.quick.qmlDebugging";
+const char QBS_FORCE_PROBES_KEY[] = "qbspm.forceProbes";
 
 // Icons:
 static const char QBS_GROUP_ICON[] = ":/qbsprojectmanager/images/groups.png";
@@ -67,6 +67,3 @@ static const char QBS_PRODUCT_OVERLAY_ICON[] = ":/qbsprojectmanager/images/produ
 
 } // namespace Constants
 } // namespace QbsProjectManager
-
-#endif // QBSPROJECTMANAGERCONSTANTS_H
-

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSPLUGINDUMPER_H
-#define QMLJSPLUGINDUMPER_H
+#pragma once
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 
@@ -53,13 +52,13 @@ public:
     void scheduleRedumpPlugins();
     void scheduleMaybeRedumpBuiltins(const QmlJS::ModelManagerInterface::ProjectInfo &info);
 
-private slots:
-    void onLoadBuiltinTypes(const QmlJS::ModelManagerInterface::ProjectInfo &info,
-                            bool force = false);
-    void onLoadPluginTypes(const QString &libraryPath, const QString &importPath,
-                           const QString &importUri, const QString &importVersion);
-    void dumpBuiltins(const QmlJS::ModelManagerInterface::ProjectInfo &info);
-    void dumpAllPlugins();
+private:
+    Q_INVOKABLE void onLoadBuiltinTypes(const QmlJS::ModelManagerInterface::ProjectInfo &info,
+                                        bool force = false);
+    Q_INVOKABLE void onLoadPluginTypes(const QString &libraryPath, const QString &importPath,
+                                       const QString &importUri, const QString &importVersion);
+    Q_INVOKABLE void dumpBuiltins(const QmlJS::ModelManagerInterface::ProjectInfo &info);
+    Q_INVOKABLE void dumpAllPlugins();
     void qmlPluginTypeDumpDone(int exitCode);
     void qmlPluginTypeDumpError(QProcess::ProcessError error);
     void pluginChanged(const QString &pluginLibrary);
@@ -76,6 +75,15 @@ private:
 
     void runQmlDump(const QmlJS::ModelManagerInterface::ProjectInfo &info, const QStringList &arguments, const QString &importPath);
     void dump(const Plugin &plugin);
+    void loadQmlTypeDescription(const QStringList &path, QStringList &errors, QStringList &warnings,
+                                QList<LanguageUtils::FakeMetaObject::ConstPtr> &objects,
+                                QList<ModuleApiInfo> *moduleApi,
+                                QStringList *dependencies) const;
+    QString buildQmltypesPath(const QString &name) const;
+    void loadDependencies(const QStringList &dependencies,
+                          QStringList &errors,
+                          QStringList &warnings,
+                          QList<LanguageUtils::FakeMetaObject::ConstPtr> &objects) const;
     void loadQmltypesFile(const QStringList &qmltypesFilePaths,
                           const QString &libraryPath,
                           QmlJS::LibraryInfo libraryInfo);
@@ -97,5 +105,3 @@ private:
 };
 
 } // namespace QmlJS
-
-#endif // QMLJSPLUGINDUMPER_H

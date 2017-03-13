@@ -8,7 +8,7 @@ The standalone binary packages support the following platforms:
 
 Windows 7 or later
 (K)Ubuntu Linux 14.04 (64-bit) or later
-Mac OS X 10.7 or later
+macOS 10.8 or later
 
 Building the sources requires Qt 5.5.0 or later.
 
@@ -23,10 +23,14 @@ Prerequisites:
     * jom
 * On Mac OS X: latest Xcode
 * On Linux: g++ 4.7 or later
+* LLVM 3.8.0 or later (optional, needed for the Clang Code Model)
 
 The installed toolchains have to match the one Qt was compiled with.
 
 You can build Qt Creator with
+
+    # Optional, needed for the Clang Code Model:
+    export LLVM_INSTALL_DIR=/path/to/llvm (or "set" on Windows)
 
     cd $SOURCE_DIRECTORY
     qmake -r
@@ -116,7 +120,7 @@ For detailed information on the supported compilers, see
        command...` error. If a `sh.exe` is found, the compile process will fail.
        You have to remove it from the path.
 
-  10.  To enable the Clang-based code model: Install Clang (>= version 3.6.2)
+  10.  To enable the Clang-based code model: Install Clang (>= version 3.8.0)
        and set the environment variable LLVM_INSTALL_DIR to point to the
        installation location.
 
@@ -331,3 +335,15 @@ SQLite (https://www.sqlite.org) is in the Public Domain.
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+
+### Source Code Pro font
+
+  Copyright 2010, 2012 Adobe Systems Incorporated (http://www.adobe.com/),
+  with Reserved Font Name 'Source'. All Rights Reserved. Source is a
+  trademark of Adobe Systems Incorporated in the United States
+  and/or other countries.
+
+  This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+  The font and license files can be found in QtCreator/src/libs/3rdparty/fonts.
+

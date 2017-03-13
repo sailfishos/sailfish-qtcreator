@@ -341,8 +341,14 @@ void BaseQtVersion::setupExpander()
         [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_DEMOS"); });
 
     m_expander.registerVariable("Qt:QMAKE_MKSPECS",
-        QtKitInformation::tr("The current Qt version's default mkspecs."),
+        QtKitInformation::tr("The current Qt version's default mkspecs (Qt 4)."),
         [this] { return qmakeProperty(m_versionInfo, "QMAKE_MKSPECS"); });
+    m_expander.registerVariable("Qt:QMAKE_SPEC",
+        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; host system)"),
+        [this] { return qmakeProperty(m_versionInfo, "QMAKE_SPEC"); });
+    m_expander.registerVariable("Qt:QMAKE_XSPEC",
+        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; target system)."),
+        [this] { return qmakeProperty(m_versionInfo, "QMAKE_XSPEC"); });
 
     m_expander.registerVariable("Qt:QMAKE_VERSION",
         QtKitInformation::tr("The current Qt's qmake version."),
@@ -1130,14 +1136,15 @@ void BaseQtVersion::updateVersionInfo() const
     }
     m_qmakeIsExecutable = true;
 
-    const QString qtInstallData = qmakeProperty(m_versionInfo, "QT_INSTALL_DATA");
+
     const QString qtInstallBins = qmakeProperty(m_versionInfo, "QT_INSTALL_BINS");
     const QString qtHeaderData = qmakeProperty(m_versionInfo, "QT_INSTALL_HEADERS");
-    if (!qtInstallData.isNull()) {
-        if (!qtInstallData.isEmpty()) {
+
+    if (!qtInstallBins.isNull()) {
+        if (!qtInstallBins.isEmpty()) {
             m_hasQmlDump
-                    = !QmlDumpTool::toolForQtPaths(qtInstallData, qtInstallBins, qtHeaderData, false).isEmpty()
-                    || !QmlDumpTool::toolForQtPaths(qtInstallData, qtInstallBins, qtHeaderData, true).isEmpty();
+                    = !QmlDumpTool::toolForQtPaths(qtInstallBins, false).isEmpty()
+                    || !QmlDumpTool::toolForQtPaths(qtInstallBins, true).isEmpty();
         }
     }
 
@@ -1308,12 +1315,8 @@ Environment BaseQtVersion::qmlToolsEnvironment() const
 
 QString BaseQtVersion::qmlDumpTool(bool debugVersion) const
 {
-    const QString qtInstallData = qmakeProperty("QT_INSTALL_DATA");
-    if (qtInstallData.isEmpty())
-        return QString();
     const QString qtInstallBins = qmakeProperty("QT_INSTALL_BINS");
-    const QString qtHeaderData = qmakeProperty("QT_INSTALL_HEADERS");
-    return QmlDumpTool::toolForQtPaths(qtInstallData, qtInstallBins, qtHeaderData, debugVersion);
+    return QmlDumpTool::toolForQtPaths(qtInstallBins, debugVersion);
 }
 
 void BaseQtVersion::recheckDumper()
@@ -1350,12 +1353,7 @@ QList<Task> BaseQtVersion::reportIssuesImpl(const QString &proFile, const QStrin
     const QChar slash = QLatin1Char('/');
     if (!sourcePath.endsWith(slash))
         sourcePath.append(slash);
-    if ((tmpBuildDir.startsWith(sourcePath)) && (tmpBuildDir != sourcePath) && qtVersion() < QtVersionNumber(5, 2, 0)) {
-        const QString msg = QCoreApplication::translate("QmakeProjectManager::QtVersion",
-                                                        "Qmake does not support build directories below the source directory.");
-        results.append(Task(Task::Warning, msg, FileName(), -1,
-                             ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-    } else if (tmpBuildDir.count(slash) != sourcePath.count(slash) && qtVersion() < QtVersionNumber(4,8, 0)) {
+    if (tmpBuildDir.count(slash) != sourcePath.count(slash)) {
         const QString msg = QCoreApplication::translate("QmakeProjectManager::QtVersion",
                                                         "The build directory needs to be at the same level as the source directory.");
 
@@ -1396,7 +1394,7 @@ static QByteArray runQmakeQuery(const FileName &binary, const Environment &env,
         *error = QCoreApplication::translate("QtVersion", "Cannot start \"%1\": %2").arg(binary.toUserOutput()).arg(process.errorString());
         return QByteArray();
     }
-    if (!process.waitForFinished(timeOutMS)) {
+    if (!process.waitForFinished(timeOutMS) && process.state() == QProcess::Running) {
         SynchronousProcess::stopProcess(process);
         *error = QCoreApplication::translate("QtVersion", "Timeout running \"%1\" (%2 ms).").arg(binary.toUserOutput()).arg(timeOutMS);
         return QByteArray();

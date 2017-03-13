@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IGENERICPROPOSALMODEL_H
-#define IGENERICPROPOSALMODEL_H
+#pragma once
 
 #include "iassistproposalmodel.h"
 #include "assistenums.h"
@@ -54,6 +53,7 @@ public:
     virtual QIcon icon(int index) const;
     virtual QString detail(int index) const;
     virtual int persistentId(int index) const;
+    virtual bool containsDuplicates() const;
     virtual void removeDuplicates();
     virtual void filter(const QString &prefix);
     virtual bool isSortable(const QString &prefix) const;
@@ -64,8 +64,6 @@ public:
     virtual AssistProposalItemInterface *proposalItem(int index) const;
 
     void loadContent(const QList<AssistProposalItemInterface *> &items);
-    void setSortingAllowed(bool isAllowed);
-    bool isSortingAllowed() const;
 
 protected:
     QList<AssistProposalItemInterface *> m_currentItems;
@@ -75,5 +73,3 @@ private:
     QList<AssistProposalItemInterface *> m_originalItems;
 };
 } // TextEditor
-
-#endif // IGENERICPROPOSALMODEL_H

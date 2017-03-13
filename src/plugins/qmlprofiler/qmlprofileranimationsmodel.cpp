@@ -26,105 +26,88 @@
 #include "qmlprofileranimationsmodel.h"
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerdatamodel.h"
-#include <utils/qtcassert.h>
-#include <QCoreApplication>
 
+#include <utils/qtcassert.h>
+
+#include <QCoreApplication>
 #include <QVector>
 #include <QHash>
 #include <QUrl>
 #include <QString>
 #include <QStack>
 
-#include <QDebug>
 
 namespace QmlProfiler {
 namespace Internal {
 
 QmlProfilerAnimationsModel::QmlProfilerAnimationsModel(QmlProfilerModelManager *manager,
                                                        QObject *parent) :
-    QmlProfilerTimelineModel(manager, QmlDebug::Event, QmlDebug::MaximumRangeType,
-                             QmlDebug::ProfileAnimations, parent)
+    QmlProfilerTimelineModel(manager, Event, MaximumRangeType, ProfileAnimations, parent)
 {
-    m_maxGuiThreadAnimations = m_maxRenderThreadAnimations = 0;
+    m_minNextStartTimes[0] = m_minNextStartTimes[1] = 0;
 }
 
 void QmlProfilerAnimationsModel::clear()
 {
+    m_minNextStartTimes[0] = m_minNextStartTimes[1] = 0;
     m_maxGuiThreadAnimations = m_maxRenderThreadAnimations = 0;
     m_data.clear();
     QmlProfilerTimelineModel::clear();
 }
 
-bool QmlProfilerAnimationsModel::accepted(const QmlProfilerDataModel::QmlEventTypeData &event) const
+bool QmlProfilerAnimationsModel::accepted(const QmlEventType &event) const
 {
-    return QmlProfilerTimelineModel::accepted(event) &&
-            event.detailType== QmlDebug::AnimationFrame;
+    return QmlProfilerTimelineModel::accepted(event) && event.detailType() == AnimationFrame;
 }
 
-void QmlProfilerAnimationsModel::loadData()
+void QmlProfilerAnimationsModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
 {
-    QmlProfilerDataModel *simpleModel = modelManager()->qmlModel();
-    if (simpleModel->isEmpty())
-        return;
+    Q_UNUSED(type);
+    AnimationThread lastThread = (AnimationThread)event.number<qint32>(2);
 
-    // collect events
-    const QVector<QmlProfilerDataModel::QmlEventData> &referenceList = simpleModel->getEvents();
-    const QVector<QmlProfilerDataModel::QmlEventTypeData> &typeList = simpleModel->getEventTypes();
+    // initial estimation of the event duration: 1/framerate
+    qint64 estimatedDuration = event.number<qint32>(0) > 0 ? 1e9 / event.number<qint32>(0) : 1;
 
-    QmlDebug::AnimationThread lastThread;
+    // the profiler registers the animation events at the end of them
+    qint64 realEndTime = event.timestamp();
+
+    // ranges should not overlap. If they do, our estimate wasn't accurate enough
+    qint64 realStartTime = qMax(event.timestamp() - estimatedDuration,
+                                m_minNextStartTimes[lastThread]);
+
+    // Sometimes our estimate is far off or the server has miscalculated the frame rate
+    if (realStartTime >= realEndTime)
+        realEndTime = realStartTime + 1;
+
+    // Don't "fix" the framerate even if we've fixed the duration.
+    // The server should know better after all and if it doesn't we want to see that.
     QmlPaintEventData lastEvent;
-    qint64 minNextStartTimes[] = {0, 0};
+    lastEvent.typeId = event.typeIndex();
+    lastEvent.framerate = event.number<qint32>(0);
+    lastEvent.animationcount = event.number<qint32>(1);
+    QTC_ASSERT(lastEvent.animationcount > 0, return);
 
-    foreach (const QmlProfilerDataModel::QmlEventData &event, referenceList) {
-        const QmlProfilerDataModel::QmlEventTypeData &type = typeList[event.typeIndex()];
-        if (!accepted(type))
-            continue;
+    m_data.insert(insert(realStartTime, realEndTime - realStartTime, lastThread), lastEvent);
 
-        lastThread = (QmlDebug::AnimationThread)event.numericData(2);
+    if (lastThread == GuiThread)
+        m_maxGuiThreadAnimations = qMax(lastEvent.animationcount, m_maxGuiThreadAnimations);
+    else
+        m_maxRenderThreadAnimations = qMax(lastEvent.animationcount,
+                                           m_maxRenderThreadAnimations);
 
-        // initial estimation of the event duration: 1/framerate
-        qint64 estimatedDuration = event.numericData(0) > 0 ? 1e9/event.numericData(0) : 1;
+    m_minNextStartTimes[lastThread] = event.timestamp() + 1;
+}
 
-        // the profiler registers the animation events at the end of them
-        qint64 realEndTime = event.startTime();
-
-        // ranges should not overlap. If they do, our estimate wasn't accurate enough
-        qint64 realStartTime = qMax(event.startTime() - estimatedDuration,
-                                    minNextStartTimes[lastThread]);
-
-        // Sometimes our estimate is far off or the server has miscalculated the frame rate
-        if (realStartTime >= realEndTime)
-            realEndTime = realStartTime + 1;
-
-        // Don't "fix" the framerate even if we've fixed the duration.
-        // The server should know better after all and if it doesn't we want to see that.
-        lastEvent.typeId = event.typeIndex();
-        lastEvent.framerate = (int)event.numericData(0);
-        lastEvent.animationcount = (int)event.numericData(1);
-        QTC_ASSERT(lastEvent.animationcount > 0, continue);
-
-        m_data.insert(insert(realStartTime, realEndTime - realStartTime, lastThread), lastEvent);
-
-        if (lastThread == QmlDebug::GuiThread)
-            m_maxGuiThreadAnimations = qMax(lastEvent.animationcount, m_maxGuiThreadAnimations);
-        else
-            m_maxRenderThreadAnimations = qMax(lastEvent.animationcount,
-                                               m_maxRenderThreadAnimations);
-
-        minNextStartTimes[lastThread] = event.startTime() + 1;
-
-        updateProgress(count(), referenceList.count());
-    }
-
+void QmlProfilerAnimationsModel::finalize()
+{
     computeNesting();
     setExpandedRowCount((m_maxGuiThreadAnimations == 0 || m_maxRenderThreadAnimations == 0) ? 2 : 3);
     setCollapsedRowCount(expandedRowCount());
-    updateProgress(1, 1);
 }
 
 int QmlProfilerAnimationsModel::rowFromThreadId(int threadId) const
 {
-    return (threadId == QmlDebug::GuiThread || m_maxGuiThreadAnimations == 0) ? 1 : 2;
+    return (threadId == GuiThread || m_maxGuiThreadAnimations == 0) ? 1 : 2;
 }
 
 int QmlProfilerAnimationsModel::rowMaxValue(int rowNumber) const
@@ -166,7 +149,7 @@ QColor QmlProfilerAnimationsModel::color(int index) const
 
 float QmlProfilerAnimationsModel::relativeHeight(int index) const
 {
-    return (float)m_data[index].animationcount / (float)(selectionId(index) == QmlDebug::GuiThread ?
+    return (float)m_data[index].animationcount / (float)(selectionId(index) == GuiThread ?
                                                              m_maxGuiThreadAnimations :
                                                              m_maxRenderThreadAnimations);
 }
@@ -179,7 +162,7 @@ QVariantList QmlProfilerAnimationsModel::labels() const
         QVariantMap element;
         element.insert(QLatin1String("displayName"), QVariant(tr("Animations")));
         element.insert(QLatin1String("description"), QVariant(tr("GUI Thread")));
-        element.insert(QLatin1String("id"), QVariant(QmlDebug::GuiThread));
+        element.insert(QLatin1String("id"), QVariant(GuiThread));
         result << element;
     }
 
@@ -187,7 +170,7 @@ QVariantList QmlProfilerAnimationsModel::labels() const
         QVariantMap element;
         element.insert(QLatin1String("displayName"), QVariant(tr("Animations")));
         element.insert(QLatin1String("description"), QVariant(tr("Render Thread")));
-        element.insert(QLatin1String("id"), QVariant(QmlDebug::RenderThread));
+        element.insert(QLatin1String("id"), QVariant(RenderThread));
         result << element;
     }
 
@@ -202,10 +185,10 @@ QVariantMap QmlProfilerAnimationsModel::details(int index) const
     result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
     result.insert(tr("Framerate"), QString::fromLatin1("%1 FPS").arg(m_data[index].framerate));
     result.insert(tr("Animations"), QString::fromLatin1("%1").arg(m_data[index].animationcount));
-    result.insert(tr("Context"), tr(selectionId(index) == QmlDebug::GuiThread ? "GUI Thread" :
-                                                                                "Render Thread"));
+    result.insert(tr("Context"), tr(selectionId(index) == GuiThread ? "GUI Thread" :
+                                                                      "Render Thread"));
     return result;
 }
 
-}
-}
+} // namespace Internal
+} // namespace QmlProfiler

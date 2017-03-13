@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECTFILE_H
-#define QMLPROJECTFILE_H
+#pragma once
 
 #include <coreplugin/idocument.h>
 
@@ -36,7 +35,6 @@ namespace Internal {
 
 class QmlProjectFile : public Core::IDocument
 {
-    Q_OBJECT
 public:
     QmlProjectFile(QmlProject *parent, const Utils::FileName &fileName);
 
@@ -49,5 +47,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProjectManager
-
-#endif // QMLPROJECTFILE_H

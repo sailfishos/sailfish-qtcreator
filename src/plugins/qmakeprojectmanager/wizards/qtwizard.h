@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTWIZARD_H
-#define QTWIZARD_H
+#pragma once
 
 #include "qtprojectparameters.h"
 #include <projectexplorer/baseprojectwizarddialog.h>
@@ -131,10 +130,9 @@ public:
 
     void addExtensionPages(const QList<QWizardPage *> &wizardPageList);
 
-private slots:
+private:
     void generateProfileName(const QString &name, const QString &path);
 
-private:
     inline void init(bool showModulesPage);
 
     ModulesPage *m_modulesPage;
@@ -146,5 +144,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // QTWIZARD_H

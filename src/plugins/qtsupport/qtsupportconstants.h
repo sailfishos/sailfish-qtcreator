@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTSUPPORTCONSTANTS_H
-#define QTSUPPORTCONSTANTS_H
+#pragma once
 
 namespace QtSupport {
 namespace Constants {
@@ -62,5 +61,3 @@ const char FEATURE_DESKTOP[] = "QtSupport.Wizards.FeatureDesktop";
 
 } // namepsace Constants
 } // namepsace QtSupport
-
-#endif // QTSUPPORTCONSTANTS_H

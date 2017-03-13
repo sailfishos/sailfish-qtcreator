@@ -201,6 +201,7 @@ static void ensureProtocolHandler()
 {
     WebFrame *mainFrame;
     Help::Internal::MacWebKitHelpViewer *viewer;
+    bool finished;
 }
 
 - (id)initWithMainFrame:(WebFrame *)frame viewer:(Help::Internal::MacWebKitHelpViewer *)viewer;
@@ -208,6 +209,7 @@ static void ensureProtocolHandler()
 - (void)webView:(WebView *)sender didReceiveTitle:(NSString *)title forFrame:(WebFrame *)frame;
 - (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame;
 - (void)webView:(WebView *)sender didFailProvisionalLoadWithError:(NSError *)error forFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error forFrame:(WebFrame *)frame;
 
 @end
 
@@ -219,6 +221,7 @@ static void ensureProtocolHandler()
     if (self) {
         mainFrame = frame;
         viewer = helpViewer;
+        finished = false;
     }
     return self;
 }
@@ -226,8 +229,10 @@ static void ensureProtocolHandler()
 - (void)webView:(WebView *)sender didStartProvisionalLoadForFrame:(WebFrame *)frame
 {
     Q_UNUSED(sender)
-    if (frame == mainFrame)
+    if (frame == mainFrame) {
+        finished = false;
         viewer->slotLoadStarted();
+    }
 }
 
 - (void)webView:(WebView *)sender didReceiveTitle:(NSString *)title forFrame:(WebFrame *)frame
@@ -241,18 +246,31 @@ static void ensureProtocolHandler()
 - (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame
 {
     Q_UNUSED(sender)
-    if (frame == mainFrame)
+    if (frame == mainFrame && !finished) {
+        finished = true;
         viewer->slotLoadFinished();
+    }
 }
 
 - (void)webView:(WebView *)sender didFailProvisionalLoadWithError:(NSError *)error forFrame:(WebFrame *)frame
 {
     Q_UNUSED(sender)
     Q_UNUSED(error)
-    if (frame == mainFrame)
+    if (frame == mainFrame && !finished) {
+        finished = true;
         viewer->slotLoadFinished();
+    }
 }
 
+- (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error forFrame:(WebFrame *)frame
+{
+    Q_UNUSED(sender)
+    Q_UNUSED(error)
+    if (frame == mainFrame && !finished) {
+        finished = true;
+        viewer->slotLoadFinished();
+    }
+}
 @end
 
 // #pragma mark -- UIDelegate
@@ -639,7 +657,7 @@ void MacWebKitHelpViewer::addBackHistoryItems(QMenu *backMenu)
             QAction *action = new QAction(backMenu);
             action->setText(QString::fromNSString([list itemAtIndex:historyIndex].title));
             action->setData(historyIndex);
-            connect(action, SIGNAL(triggered()), this, SLOT(goToHistoryItem()));
+            connect(action, &QAction::triggered, this, &MacWebKitHelpViewer::goToHistoryItem);
             backMenu->addAction(action);
         }
     }
@@ -655,7 +673,7 @@ void MacWebKitHelpViewer::addForwardHistoryItems(QMenu *forwardMenu)
             QAction *action = new QAction(forwardMenu);
             action->setText(QString::fromNSString([list itemAtIndex:historyIndex].title));
             action->setData(historyIndex);
-            connect(action, SIGNAL(triggered()), this, SLOT(goToHistoryItem()));
+            connect(action, &QAction::triggered, this, &MacWebKitHelpViewer::goToHistoryItem);
             forwardMenu->addAction(action);
         }
     }
@@ -860,8 +878,8 @@ void MacWebKitHelpViewer::goToHistoryItem()
 MacResponderHack::MacResponderHack(QObject *parent)
     : QObject(parent)
 {
-    connect(qApp, SIGNAL(focusChanged(QWidget*,QWidget*)),
-            this, SLOT(responderHack(QWidget*,QWidget*)));
+    connect(qApp, &QApplication::focusChanged,
+            this, &MacResponderHack::responderHack);
 }
 
 void MacResponderHack::responderHack(QWidget *old, QWidget *now)

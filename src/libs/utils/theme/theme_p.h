@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef THEME_P_H
-#define THEME_P_H
+#pragma once
 
 #include "theme.h"
 #include "../utils_global.h"
@@ -48,12 +47,9 @@ public:
     QVector<QString> imageFiles;
     QVector<QGradientStops> gradients;
     QVector<bool> flags;
-    Theme::WidgetStyle widgetStyle;
     QMap<QString, QColor> palette;
 };
 
 QTCREATOR_UTILS_EXPORT void setCreatorTheme(Theme *theme);
 
 } // namespace Utils
-
-#endif // THEME_P_H

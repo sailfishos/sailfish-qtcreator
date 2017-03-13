@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEZOOMCONTROL_H
-#define TIMELINEZOOMCONTROL_H
+#pragma once
 
 #include "timeline_global.h"
 #include <QTimer>
@@ -82,6 +81,11 @@ public:
 
     virtual void clear();
 
+    Q_INVOKABLE void setTrace(qint64 start, qint64 end);
+    Q_INVOKABLE void setRange(qint64 start, qint64 end);
+    Q_INVOKABLE void setSelection(qint64 start, qint64 end);
+    void setWindowLocked(bool windowLocked);
+
 signals:
     void traceChanged(qint64 start, qint64 end);
     void windowChanged(qint64 start, qint64 end);
@@ -90,16 +94,11 @@ signals:
     void windowLockedChanged(bool windowLocked);
     void windowMovingChanged(bool windowMoving);
 
-public slots:
-    void setTrace(qint64 start, qint64 end);
-    void setRange(qint64 start, qint64 end);
-    void setSelection(qint64 start, qint64 end);
-    void setWindowLocked(bool windowLocked);
-
-protected slots:
-    void moveWindow();
-
 protected:
+    void moveWindow();
+    void rebuildWindow();
+    void clampRangeToWindow();
+
     qint64 m_traceStart;
     qint64 m_traceEnd;
     qint64 m_windowStart;
@@ -111,11 +110,6 @@ protected:
 
     QTimer m_timer;
     bool m_windowLocked;
-
-    void rebuildWindow();
-    void clampRangeToWindow();
 };
 
 } // namespace Timeline
-
-#endif // TIMELINEZOOMCONTROL_H

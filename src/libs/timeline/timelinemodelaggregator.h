@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEMODELAGGREGATOR_H
-#define TIMELINEMODELAGGREGATOR_H
+#pragma once
 
 #include "timelinemodel.h"
 #include "timelinenotesmodel.h"
@@ -44,6 +43,7 @@ public:
     int height() const;
 
     void addModel(TimelineModel *m);
+    void setModels(const QList<TimelineModel *> &models);
     const TimelineModel *model(int modelIndex) const;
     QVariantList models() const;
 
@@ -68,5 +68,3 @@ private:
 };
 
 } // namespace Timeline
-
-#endif // TIMELINEMODELAGGREGATOR_H

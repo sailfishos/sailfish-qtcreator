@@ -188,10 +188,11 @@ int ExampleSetModel::getExtraExampleSetIndex(int i) const
 
 QHash<int, QByteArray> ExampleSetModel::roleNames() const
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Qt::UserRole + 1] = "text";
-    roleNames[Qt::UserRole + 2] = "QtId";
-    roleNames[Qt::UserRole + 3] = "extraSetIndex";
+    static QHash<int, QByteArray> roleNames{
+        {Qt::UserRole + 1, "text"},
+        {Qt::UserRole + 2, "QtId"},
+        {Qt::UserRole + 3, "extraSetIndex"}
+    };
     return roleNames;
 }
 
@@ -327,8 +328,6 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 item.tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -426,10 +425,6 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
-            }  else if (reader->name() == QLatin1String("platforms")) {
-                item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -571,28 +566,10 @@ BaseQtVersion *ExamplesListModel::findHighestQtVersion() const
 QStringList ExamplesListModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
-    QSettings *settings = Core::ICore::settings();
     QString resourceDir = Core::ICore::resourcePath() + QLatin1String("/welcomescreen/");
 
-    // read extra tutorials settings
-    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
-                                                 QString()).toString();
-    if (installedTutorials.isEmpty()) {
-        // Qt Creator shipped tutorials
-        sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
-    } else {
-        if (debugExamples())
-            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
-        QFileInfo fi(installedTutorials);
-        if (fi.isFile() && fi.isReadable()) {
-            sources.append(installedTutorials);
-            if (debugExamples())
-                qWarning() << "Adding tutorials set " << installedTutorials;
-        } else {
-            if (debugExamples())
-                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
-        }
-    }
+    // Qt Creator shipped tutorials
+    sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
 
     QString examplesPath;
     QString demosPath;
@@ -694,8 +671,6 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
         return item.videoLength;
     case Platforms:
         return item.platforms;
-    case PreferredFeatures:
-        return item.preferredFeatures;
     case IsHighlighted:
         return item.isHighlighted;
     default:
@@ -706,25 +681,25 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> ExamplesListModel::roleNames() const
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Name] = "name";
-    roleNames[ProjectPath] = "projectPath";
-    roleNames[ImageUrl] = "imageUrl";
-    roleNames[Description] = "description";
-    roleNames[DocUrl] = "docUrl";
-    roleNames[FilesToOpen] = "filesToOpen";
-    roleNames[MainFile] = "mainFile";
-    roleNames[Tags] = "tags";
-    roleNames[Difficulty] = "difficulty";
-    roleNames[Type] = "type";
-    roleNames[HasSourceCode] = "hasSourceCode";
-    roleNames[Dependencies] = "dependencies";
-    roleNames[IsVideo] = "isVideo";
-    roleNames[VideoUrl] = "videoUrl";
-    roleNames[VideoLength] = "videoLength";
-    roleNames[Platforms] = "platforms";
-    roleNames[IsHighlighted] = "isHighlighted";
-    roleNames[PreferredFeatures] = "preferredFeatures";
+    static QHash<int, QByteArray> roleNames{
+        {Name, "name"},
+        {ProjectPath, "projectPath"},
+        {ImageUrl, "imageUrl"},
+        {Description, "description"},
+        {DocUrl, "docUrl"},
+        {FilesToOpen, "filesToOpen"},
+        {MainFile, "mainFile"},
+        {Tags, "tags"},
+        {Difficulty, "difficulty"},
+        {Type, "type"},
+        {HasSourceCode, "hasSourceCode"},
+        {Dependencies, "dependencies"},
+        {IsVideo, "isVideo"},
+        {VideoUrl, "videoUrl"},
+        {VideoLength, "videoLength"},
+        {Platforms, "platforms"},
+        {IsHighlighted, "isHighlighted"}
+    };
     return roleNames;
 }
 
@@ -761,14 +736,16 @@ ExamplesListModelFilter::ExamplesListModelFilter(ExamplesListModel *sourceModel,
     m_exampleDataRequested(false)
 {
     // initialization hooks
-    connect(QtVersionManager::instance(), SIGNAL(qtVersionsLoaded()),
-            this, SLOT(qtVersionManagerLoaded()));
-    connect(Core::HelpManager::instance(), SIGNAL(setupFinished()),
-            this, SLOT(helpManagerInitialized()));
+    connect(QtVersionManager::instance(), &QtVersionManager::qtVersionsLoaded,
+            this, &ExamplesListModelFilter::qtVersionManagerLoaded);
+    connect(Core::HelpManager::instance(), &Core::HelpManager::setupFinished,
+            this, &ExamplesListModelFilter::helpManagerInitialized);
 
-    connect(this, SIGNAL(showTutorialsOnlyChanged()), SLOT(updateFilter()));
+    connect(this, &ExamplesListModelFilter::showTutorialsOnlyChanged,
+            this, &ExamplesListModelFilter::updateFilter);
 
-    connect(m_sourceModel, SIGNAL(selectedExampleSetChanged()), this, SIGNAL(exampleSetIndexChanged()));
+    connect(m_sourceModel, &ExamplesListModel::selectedExampleSetChanged,
+            this, &ExamplesListModelFilter::exampleSetIndexChanged);
 
     setSourceModel(m_sourceModel);
 }
@@ -895,10 +872,10 @@ void ExamplesListModelFilter::tryToInitialize()
     if (!m_initalized
             && m_qtVersionManagerInitialized && m_helpManagerInitialized && m_exampleDataRequested) {
         m_initalized = true;
-        connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
-                this, SLOT(handleQtVersionsChanged()));
-        connect(ProjectExplorer::KitManager::instance(), SIGNAL(defaultkitChanged()),
-                this, SLOT(handleQtVersionsChanged()));
+        connect(QtVersionManager::instance(), &QtVersionManager::qtVersionsChanged,
+                this, &ExamplesListModelFilter::handleQtVersionsChanged);
+        connect(ProjectExplorer::KitManager::instance(), &ProjectExplorer::KitManager::defaultkitChanged,
+                this, &ExamplesListModelFilter::handleQtVersionsChanged);
         handleQtVersionsChanged();
     }
 }

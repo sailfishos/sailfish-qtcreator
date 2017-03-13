@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSSETTINGSWIDGET_H
-#define IOSSETTINGSWIDGET_H
+#pragma once
 
 #include "iosconfigurations.h"
 
@@ -50,8 +49,6 @@ public:
 
     void saveSettings();
 
-private slots:
-
 private:
     void initGui();
 
@@ -61,5 +58,3 @@ private:
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSSETTINGSWIDGET_H

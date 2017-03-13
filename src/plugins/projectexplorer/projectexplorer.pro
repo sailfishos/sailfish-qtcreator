@@ -110,7 +110,6 @@ HEADERS += projectexplorer.h \
     appoutputpane.h \
     codestylesettingspropertiespage.h \
     settingsaccessor.h \
-    environmentitemswidget.h \
     deployablefile.h \
     devicesupport/idevice.h \
     devicesupport/desktopdevice.h \
@@ -155,7 +154,9 @@ HEADERS += projectexplorer.h \
     waitforstopdialog.h \
     projectexplorericons.h \
     projectexplorer_global.h \
-    extracompiler.h
+    extracompiler.h \
+    customexecutableconfigurationwidget.h \
+    customexecutablerunconfiguration.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -256,7 +257,6 @@ SOURCES += projectexplorer.cpp \
     appoutputpane.cpp \
     codestylesettingspropertiespage.cpp \
     settingsaccessor.cpp \
-    environmentitemswidget.cpp \
     devicesupport/idevice.cpp \
     devicesupport/desktopdevice.cpp \
     devicesupport/desktopdevicefactory.cpp \
@@ -295,14 +295,16 @@ SOURCES += projectexplorer.cpp \
     projecttree.cpp \
     expanddata.cpp \
     waitforstopdialog.cpp \
-    extracompiler.cpp
+    projectexplorericons.cpp \
+    extracompiler.cpp \
+    customexecutableconfigurationwidget.cpp \
+    customexecutablerunconfiguration.cpp
 
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \
     sessiondialog.ui \
     projectwizardpage.ui \
     projectexplorersettingspage.ui \
-    targetsettingswidget.ui \
     doubletabwidget.ui \
     deploymentdataview.ui \
     codestylesettingspropertiespage.ui \

@@ -28,8 +28,8 @@
 #include <utils/pathchooser.h>
 #include <utils/fancylineedit.h>
 
-using namespace Qnx;
-using namespace Qnx::Internal;
+namespace Qnx {
+namespace Internal {
 
 PathChooserDelegate::PathChooserDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -58,7 +58,9 @@ QWidget *PathChooserDelegate::createEditor(QWidget *parent, const QStyleOptionVi
     editor->setAutoFillBackground(true); // To hide the text beneath the editor widget
     editor->lineEdit()->setMinimumWidth(0);
 
-    connect(editor, SIGNAL(browsingFinished()), this, SLOT(emitCommitData()));
+    connect(editor, &Utils::PathChooser::browsingFinished, this, [this, editor]() {
+        emit const_cast<PathChooserDelegate*>(this)->commitData(editor);
+    });
 
     return editor;
 }
@@ -97,7 +99,5 @@ void PathChooserDelegate::setHistoryCompleter(const QString &key)
     m_historyKey = key;
 }
 
-void PathChooserDelegate::emitCommitData()
-{
-    emit commitData(qobject_cast<QWidget*>(sender()));
-}
+} // namespace Internal
+} // namespace Qnx

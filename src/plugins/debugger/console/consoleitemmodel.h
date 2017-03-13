@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_CONSOLEITEMMODEL_H
-#define DEBUGGER_CONSOLEITEMMODEL_H
+#pragma once
 
 #include "consoleitem.h"
 #include <utils/treemodel.h>
@@ -52,7 +51,6 @@ public:
     int sizeOfFile(const QFont &font);
     int sizeOfLineNumber(const QFont &font);
 
-public slots:
     void clear();
 
 signals:
@@ -64,5 +62,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // DEBUGGER_CONSOLEITEMMODEL_H

@@ -25,7 +25,6 @@
 
 #include "localqmlprofilerrunner.h"
 #include "qmlprofilerplugin.h"
-#include "qmlprofilerruncontrol.h"
 
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/environmentaspect.h>
@@ -33,12 +32,14 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
+#include <debugger/analyzer/analyzerruncontrol.h>
 
 #include <QTcpServer>
 #include <QTemporaryFile>
 
-using namespace QmlProfiler;
 using namespace ProjectExplorer;
+
+namespace QmlProfiler {
 
 QString LocalQmlProfilerRunner::findFreeSocket()
 {
@@ -51,42 +52,39 @@ QString LocalQmlProfilerRunner::findFreeSocket()
     }
 }
 
-quint16 LocalQmlProfilerRunner::findFreePort(QString &host)
+Utils::Port LocalQmlProfilerRunner::findFreePort(QString &host)
 {
     QTcpServer server;
     if (!server.listen(QHostAddress::LocalHost)
             && !server.listen(QHostAddress::LocalHostIPv6)) {
         qWarning() << "Cannot open port on host for QML profiling.";
-        return 0;
+        return Utils::Port();
     }
     host = server.serverAddress().toString();
-    return server.serverPort();
+    return Utils::Port(server.serverPort());
 }
 
 LocalQmlProfilerRunner::LocalQmlProfilerRunner(const Configuration &configuration,
-                                               QmlProfilerRunControl *engine) :
-    QObject(engine),
+                                               Debugger::AnalyzerRunControl *runControl) :
+    QObject(runControl),
     m_configuration(configuration)
 {
     connect(&m_launcher, &ApplicationLauncher::appendMessage,
             this, &LocalQmlProfilerRunner::appendMessage);
     connect(this, &LocalQmlProfilerRunner::stopped,
-            engine, &QmlProfilerRunControl::notifyRemoteFinished);
+            runControl, &Debugger::AnalyzerRunControl::notifyRemoteFinished);
     connect(this, &LocalQmlProfilerRunner::appendMessage,
-            engine, &QmlProfilerRunControl::logApplicationMessage);
-    connect(engine, &Debugger::AnalyzerRunControl::starting,
+            runControl, &Debugger::AnalyzerRunControl::appendMessage);
+    connect(runControl, &Debugger::AnalyzerRunControl::starting,
             this, &LocalQmlProfilerRunner::start);
-    connect(engine, &RunControl::finished,
+    connect(runControl, &RunControl::finished,
             this, &LocalQmlProfilerRunner::stop);
-}
-
-LocalQmlProfilerRunner::~LocalQmlProfilerRunner()
-{
-    disconnect();
 }
 
 void LocalQmlProfilerRunner::start()
 {
+    QTC_ASSERT(!m_configuration.socket.isEmpty() || m_configuration.port.isValid(), return);
+
     StandardRunnable runnable = m_configuration.debuggee;
     QString arguments = m_configuration.socket.isEmpty() ?
                 QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlProfilerServices,
@@ -101,14 +99,11 @@ void LocalQmlProfilerRunner::start()
     runnable.commandLineArguments = arguments;
     runnable.runMode = ApplicationLauncher::Gui;
 
-    if (QmlProfilerPlugin::debugOutput) {
-        qWarning("QmlProfiler: Launching %s:%s", qPrintable(m_configuration.debuggee.executable),
-                 qPrintable(m_configuration.socket.isEmpty() ?
-                                QString::number(m_configuration.port) : m_configuration.socket));
-    }
-
+    // queue this, as the process can already die in the call to start().
+    // We want the started() signal to be emitted before the stopped() signal.
     connect(&m_launcher, &ApplicationLauncher::processExited,
-            this, &LocalQmlProfilerRunner::spontaneousStop);
+            this, &LocalQmlProfilerRunner::spontaneousStop,
+            Qt::QueuedConnection);
     m_launcher.start(runnable);
 
     emit started();
@@ -116,13 +111,8 @@ void LocalQmlProfilerRunner::start()
 
 void LocalQmlProfilerRunner::spontaneousStop(int exitCode, QProcess::ExitStatus status)
 {
-    if (QmlProfilerPlugin::debugOutput) {
-        if (status == QProcess::CrashExit)
-            qWarning("QmlProfiler: Application crashed.");
-        else
-            qWarning("QmlProfiler: Application exited (exit code %d).", exitCode);
-    }
-
+    Q_UNUSED(exitCode);
+    Q_UNUSED(status);
     disconnect(&m_launcher, &ApplicationLauncher::processExited,
                this, &LocalQmlProfilerRunner::spontaneousStop);
 
@@ -131,9 +121,8 @@ void LocalQmlProfilerRunner::spontaneousStop(int exitCode, QProcess::ExitStatus 
 
 void LocalQmlProfilerRunner::stop()
 {
-    if (QmlProfilerPlugin::debugOutput)
-        qWarning("QmlProfiler: Stopping application ...");
-
     if (m_launcher.isRunning())
         m_launcher.stop();
 }
+
+} // namespace QmlProfiler

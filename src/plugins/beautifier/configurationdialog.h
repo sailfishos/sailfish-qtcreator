@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_CONFIGURATIONDIALOG_H
-#define BEAUTIFIER_CONFIGURATIONDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QString>
@@ -33,7 +32,6 @@ namespace Beautifier {
 namespace Internal {
 
 class AbstractSettings;
-
 namespace Ui { class ConfigurationDialog; }
 
 class ConfigurationDialog : public QDialog
@@ -41,7 +39,7 @@ class ConfigurationDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ConfigurationDialog(QWidget *parent = 0);
+    explicit ConfigurationDialog(QWidget *parent = nullptr);
     ~ConfigurationDialog();
     void setSettings(AbstractSettings *settings);
 
@@ -50,18 +48,14 @@ public:
     void setKey(const QString &key);
     QString value() const;
 
-private slots:
+private:
     void updateOkButton();
     void updateDocumentation(const QString &word = QString(), const QString &docu = QString());
-
-private:
     Ui::ConfigurationDialog *ui;
-    AbstractSettings *m_settings;
+    AbstractSettings *m_settings = nullptr;
     QString m_currentKey;
 };
 
 
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_CONFIGURATIONDIALOG_H

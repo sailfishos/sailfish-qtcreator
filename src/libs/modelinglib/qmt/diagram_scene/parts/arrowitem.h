@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMT_GRAPHICSARROWITEM_H
-#define QMT_GRAPHICSARROWITEM_H
+#pragma once
 
 #include <QGraphicsItem>
 
@@ -38,7 +37,6 @@ class Style;
 
 class ArrowItem : public QGraphicsItem
 {
-    class GraphicsPathItem;
     class GraphicsHeadItem;
     class GraphicsShaftItem;
 
@@ -101,5 +99,3 @@ private:
 };
 
 } // namespace qmt
-
-#endif // QMT_GRAPHICSARROWITEM_H

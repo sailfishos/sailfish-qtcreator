@@ -72,8 +72,10 @@ class CategoryItem : public TreeItem
 public:
     CategoryItem(const QString &name, int order);
     QVariant data(int column, int role) const override;
+    Qt::ItemFlags flags(int column) const override { Q_UNUSED(column); return Qt::ItemIsEnabled; }
 
 private:
+    QString m_name;
     int m_order;
 };
 
@@ -146,16 +148,18 @@ ILocatorFilter *FilterItem::filter() const
 }
 
 CategoryItem::CategoryItem(const QString &name, int order)
-    : TreeItem(QStringList(name)),
-      m_order(order)
+    : m_name(name), m_order(order)
 {
 }
 
 QVariant CategoryItem::data(int column, int role) const
 {
+    Q_UNUSED(column);
     if (role == SortRole)
         return m_order;
-    return TreeItem::data(column, role);
+    if (role == Qt::DisplayRole)
+        return m_name;
+    return QVariant();
 }
 
 LocatorSettingsPage::LocatorSettingsPage(Locator *plugin)
@@ -355,7 +359,7 @@ void LocatorSettingsPage::removeCustomFilter()
     QTC_ASSERT(item, return);
     ILocatorFilter *filter = item->filter();
     QTC_ASSERT(m_customFilters.contains(filter), return);
-    delete m_model->takeItem(item);
+    m_model->destroyItem(item);
     m_filters.removeAll(filter);
     m_customFilters.removeAll(filter);
     m_refreshFilters.removeAll(filter);

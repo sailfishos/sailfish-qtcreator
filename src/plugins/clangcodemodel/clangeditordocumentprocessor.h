@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGEDITORDOCUMENTPROCESSOR_H
-#define CLANGEDITORDOCUMENTPROCESSOR_H
+#pragma once
 
 #include "clangdiagnosticmanager.h"
 #include "clangeditordocumentparser.h"
@@ -77,10 +76,7 @@ public:
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface) override;
 
     bool hasDiagnosticsAt(uint line, uint column) const override;
-    void showDiagnosticTooltip(const QPoint &point,
-                               QWidget *parent,
-                               uint line,
-                               uint column) const override;
+    void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *target) const override;
 
     ClangBackEnd::FileContainer fileContainerWithArguments() const;
 
@@ -114,5 +110,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangCodeModel
-
-#endif // CLANGEDITORDOCUMENTPROCESSOR_H

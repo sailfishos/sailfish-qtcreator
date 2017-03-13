@@ -76,7 +76,7 @@ MergeTool::~MergeTool()
 bool MergeTool::start(const QString &workingDirectory, const QStringList &files)
 {
     QStringList arguments;
-    arguments << QLatin1String("mergetool") << QLatin1String("-y") << files;
+    arguments << "mergetool" << "-y" << files;
     m_process = new MergeToolProcess(this);
     m_process->setWorkingDirectory(workingDirectory);
     const Utils::FileName binary = GitPlugin::client()->vcsBinary();
@@ -206,7 +206,7 @@ void MergeTool::chooseAction()
         key = button->property("key");
     // either the message box was closed without clicking anything, or abort was clicked
     if (!key.isValid())
-        key = QVariant(QLatin1Char('a')); // abort
+        key = QVariant('a'); // abort
     ba.append(key.toChar().toLatin1());
     ba.append('\n');
     m_process->write(ba);
@@ -216,6 +216,18 @@ void MergeTool::chooseAction()
 void MergeTool::addButton(QMessageBox *msgBox, const QString &text, char key)
 {
     msgBox->addButton(text, QMessageBox::AcceptRole)->setProperty("key", key);
+}
+
+void MergeTool::prompt(const QString &title, const QString &question)
+{
+    if (QMessageBox::question(Core::ICore::dialogParent(), title, question,
+                              QMessageBox::Yes | QMessageBox::No,
+                              QMessageBox::No) == QMessageBox::Yes) {
+        m_process->write("y\n");
+    } else {
+        m_process->write("n\n");
+    }
+    m_process->waitForBytesWritten();
 }
 
 void MergeTool::readData()
@@ -231,16 +243,10 @@ void MergeTool::readData()
             m_localState = waitAndReadStatus(m_localInfo);
             m_remoteState = waitAndReadStatus(m_remoteInfo);
             chooseAction();
+        } else if (line.startsWith("Was the merge successful")) {
+            prompt(tr("Unchanged File"), tr("Was the merge successful?"));
         } else if (line.startsWith("Continue merging")) {
-            if (QMessageBox::question(Core::ICore::dialogParent(), tr("Continue Merging"),
-                                      tr("Continue merging other unresolved paths?"),
-                                      QMessageBox::Yes | QMessageBox::No,
-                                      QMessageBox::No) == QMessageBox::Yes) {
-                m_process->write("y\n");
-            } else {
-                m_process->write("n\n");
-            }
-            m_process->waitForBytesWritten();
+            prompt(tr("Continue Merging"), tr("Continue merging other unresolved paths?"));
         }
     }
 }

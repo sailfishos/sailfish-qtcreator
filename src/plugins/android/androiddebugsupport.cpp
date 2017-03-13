@@ -114,7 +114,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
         QTcpServer server;
         QTC_ASSERT(server.listen(QHostAddress::LocalHost)
                    || server.listen(QHostAddress::LocalHostIPv6), return 0);
-        params.qmlServerAddress = server.serverAddress().toString();
+        params.qmlServer.host = server.serverAddress().toString();
         //TODO: Not sure if these are the right paths.
         Kit *kit = target->kit();
         QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
@@ -137,13 +137,8 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
 {
     QTC_ASSERT(runControl, return);
 
-    connect(m_runControl, SIGNAL(finished()),
-            m_runner, SLOT(stop()));
-
-    DebuggerRunConfigurationAspect *aspect
-            = runConfig->extraAspect<DebuggerRunConfigurationAspect>();
-    Q_ASSERT(aspect->useCppDebugger() || aspect->useQmlDebugger());
-    Q_UNUSED(aspect)
+    connect(m_runControl, &RunControl::finished,
+            m_runner, &AndroidRunner::stop);
 
     connect(m_runControl, &DebuggerRunControl::requestRemoteSetup,
             m_runner, &AndroidRunner::start);
@@ -181,7 +176,7 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
         });
 }
 
-void AndroidDebugSupport::handleRemoteProcessStarted(int gdbServerPort, int qmlPort)
+void AndroidDebugSupport::handleRemoteProcessStarted(Utils::Port gdbServerPort, Utils::Port qmlPort)
 {
     disconnect(m_runner, &AndroidRunner::remoteProcessStarted,
                this, &AndroidDebugSupport::handleRemoteProcessStarted);

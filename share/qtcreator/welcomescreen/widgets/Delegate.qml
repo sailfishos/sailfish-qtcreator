@@ -187,7 +187,7 @@ Rectangle {
     Rectangle {
         id: border
         color: "#00000000"
-        radius: creatorTheme.WidgetStyle === 'StyleFlat' ? 0 : 6
+        radius: creatorTheme.FlatToolBars ? 0 : 6
         anchors.rightMargin: 4
         anchors.leftMargin: 4
         anchors.bottomMargin: 4
@@ -224,8 +224,7 @@ Rectangle {
                                            model.mainFile,
                                            model.docUrl,
                                            model.dependencies,
-                                           model.platforms,
-                                           model.preferredFeatures)
+                                           model.platforms)
             else
                 gettingStarted.openHelpInExtraWindow(model.docUrl);
         }

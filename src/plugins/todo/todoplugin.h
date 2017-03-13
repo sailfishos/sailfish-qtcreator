@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODOPLUGIN_H
-#define TODOPLUGIN_H
+#pragma once
 
 #include "settings.h"
 
@@ -51,12 +50,10 @@ public:
     void extensionsInitialized();
     bool initialize(const QStringList &arguments, QString *errorString);
 
-private slots:
+private:
     void settingsChanged(const Settings &settings);
     void scanningScopeChanged(ScanningScope scanningScope);
     void todoItemClicked(const TodoItem &item);
-
-private:
     void createItemsProvider();
     void createTodoOutputPane();
     void createOptionsPage();
@@ -69,6 +66,3 @@ private:
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // TODOPLUGIN_H
-

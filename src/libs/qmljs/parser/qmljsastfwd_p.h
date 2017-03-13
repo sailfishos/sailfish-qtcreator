@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSAST_FWD_P_H
-#define QMLJSAST_FWD_P_H
+#pragma once
 
 #include "qmljsglobal_p.h"
 
@@ -48,7 +47,7 @@ namespace QmlJS { namespace AST {
 class SourceLocation
 {
 public:
-    SourceLocation(quint32 offset = 0, quint32 length = 0, quint32 line = 0, quint32 column = 0)
+    explicit SourceLocation(quint32 offset = 0, quint32 length = 0, quint32 line = 0, quint32 column = 0)
         : offset(offset), length(length),
           startLine(line), startColumn(column)
     { }
@@ -171,5 +170,3 @@ class UiHeaderItemList;
 } } // namespace AST
 
 QT_QML_END_NAMESPACE
-
-#endif

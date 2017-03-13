@@ -38,6 +38,7 @@
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QComboBox>
@@ -94,13 +95,13 @@ EditorToolBarPrivate::EditorToolBarPrivate(QWidget *parent, EditorToolBar *q) :
     m_lockButton(new QToolButton(q)),
     m_dragHandle(new QToolButton(q)),
     m_dragHandleMenu(0),
-    m_goBackAction(new QAction(Icons::PREV_TOOLBAR.icon(), EditorManager::tr("Go Back"), parent)),
-    m_goForwardAction(new QAction(Icons::NEXT_TOOLBAR.icon(), EditorManager::tr("Go Forward"), parent)),
+    m_goBackAction(new QAction(Utils::Icons::PREV_TOOLBAR.icon(), EditorManager::tr("Go Back"), parent)),
+    m_goForwardAction(new QAction(Utils::Icons::NEXT_TOOLBAR.icon(), EditorManager::tr("Go Forward"), parent)),
     m_backButton(new QToolButton(q)),
     m_forwardButton(new QToolButton(q)),
     m_splitButton(new QToolButton(q)),
-    m_horizontalSplitAction(new QAction(Icons::SPLIT_HORIZONTAL_TOOLBAR.icon(), EditorManager::tr("Split"), parent)),
-    m_verticalSplitAction(new QAction(Icons::SPLIT_VERTICAL_TOOLBAR.icon(), EditorManager::tr("Split Side by Side"), parent)),
+    m_horizontalSplitAction(new QAction(Icons::SPLIT_HORIZONTAL.icon(), EditorManager::tr("Split"), parent)),
+    m_verticalSplitAction(new QAction(Icons::SPLIT_VERTICAL.icon(), EditorManager::tr("Split Side by Side"), parent)),
     m_splitNewWindowAction(new QAction(EditorManager::tr("Open in New Window"), parent)),
     m_closeSplitButton(new QToolButton(q)),
     m_activeToolBar(0),
@@ -413,12 +414,12 @@ void EditorToolBar::updateDocumentStatus(IDocument *document)
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(QString());
     } else if (document->isFileReadOnly()) {
-        const static QIcon locked = Icons::LOCKED_TOOLBAR.icon();
+        const static QIcon locked = Utils::Icons::LOCKED_TOOLBAR.icon();
         d->m_lockButton->setIcon(locked);
         d->m_lockButton->setEnabled(true);
         d->m_lockButton->setToolTip(tr("Make Writable"));
     } else {
-        const static QIcon unlocked = Icons::UNLOCKED_TOOLBAR.icon();
+        const static QIcon unlocked = Utils::Icons::UNLOCKED_TOOLBAR.icon();
         d->m_lockButton->setIcon(unlocked);
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(tr("File is writable"));

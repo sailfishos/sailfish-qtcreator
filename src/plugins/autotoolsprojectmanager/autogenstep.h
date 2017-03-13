@@ -55,16 +55,11 @@ class AutogenStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     AutogenStepFactory(QObject *parent = 0);
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *bc) const override;
-    QString displayNameForId(Core::Id id) const override;
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
-    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) const override;
-    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    bool canHandle(ProjectExplorer::BuildStepList *parent) const;
+    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
+    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
 };
 
 ///////////////////////
@@ -91,7 +86,7 @@ public:
     explicit AutogenStep(ProjectExplorer::BuildStepList *bsl);
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &interface) override;
+    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool immutable() const override;
     QString additionalArguments() const;

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SSHBOTANCONVERSIONS_P_H
-#define SSHBOTANCONVERSIONS_P_H
+#pragma once
 
 #include "sshcapabilities_p.h"
 #include "sshexception_p.h"
@@ -46,7 +45,7 @@ inline Botan::byte *convertByteArray(QByteArray &a)
 
 inline QByteArray convertByteArray(const Botan::SecureVector<Botan::byte> &v)
 {
-    return QByteArray(reinterpret_cast<const char *>(v.begin()), v.size());
+    return QByteArray(reinterpret_cast<const char *>(v.begin()), static_cast<int>(v.size()));
 }
 
 inline const char *botanKeyExchangeAlgoName(const QByteArray &rfcAlgoName)
@@ -131,5 +130,3 @@ inline quint32 botanHMacKeyLen(const QByteArray &rfcAlgoName)
 
 } // namespace Internal
 } // namespace QSsh
-
-#endif // SSHBOTANCONVERSIONS_P_H

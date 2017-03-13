@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECT_H
-#define QMLPROJECT_H
+#pragma once
 
 #include "qmlprojectmanager_global.h"
 
@@ -87,17 +86,16 @@ public:
     enum QmlImport { UnknownImport, QtQuick1Import, QtQuick2Import };
     QmlImport defaultImport() const;
 
-private slots:
+protected:
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
+
+private:
     void refreshFiles(const QSet<QString> &added, const QSet<QString> &removed);
     void addedTarget(ProjectExplorer::Target *target);
     void onActiveTargetChanged(ProjectExplorer::Target *target);
     void onKitChanged();
     void addedRunConfiguration(ProjectExplorer::RunConfiguration *);
 
-protected:
-    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
-
-private:
     // plain format
     void parseProject(RefreshOptions options);
     QStringList convertToAbsoluteFiles(const QStringList &paths) const;
@@ -116,5 +114,3 @@ private:
 } // namespace QmlProjectManager
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QmlProjectManager::QmlProject::RefreshOptions)
-
-#endif // QMLPROJECT_H

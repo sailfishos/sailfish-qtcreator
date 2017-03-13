@@ -126,6 +126,15 @@ KitConfigWidget *CMakeKitInformation::createConfigWidget(Kit *k) const
     return new Internal::CMakeKitConfigWidget(k, this);
 }
 
+void CMakeKitInformation::addToMacroExpander(Kit *k, Utils::MacroExpander *expander) const
+{
+    expander->registerFileVariables("CMake:Executable", tr("Path to the cmake executable"),
+                                    [this, k]() -> QString {
+                                        CMakeTool *tool = CMakeKitInformation::cmakeTool(k);
+                                        return tool ? tool->cmakeExecutable().toString() : QString();
+                                    });
+}
+
 // --------------------------------------------------------------------
 // CMakeGeneratorKitInformation:
 // --------------------------------------------------------------------
@@ -208,23 +217,18 @@ QList<Task> CMakeGeneratorKitInformation::validate(const Kit *k) const
     QString generator = CMakeGeneratorKitInformation::generator(k);
 
     QList<Task> result;
-    if (!tool) {
-        if (!generator.isEmpty()) {
-            result << Task(Task::Warning, tr("No CMake Tool configured, CMake generator will be ignored."),
-                           Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
-        }
-    } else {
+    if (tool) {
         if (!tool->isValid()) {
             result << Task(Task::Warning, tr("CMake Tool is unconfigured, CMake generator will be ignored."),
                            Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
         } else {
             QStringList known = tool->supportedGenerators();
             if (!known.contains(generator)) {
-                result << Task(Task::Error, tr("CMake Tool does not support the configured generator."),
+                result << Task(Task::Warning, tr("CMake Tool does not support the configured generator."),
                                Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
             }
             if (!generator.startsWith(QLatin1String("CodeBlocks -"))) {
-                result << Task(Task::Warning, tr("CMake generator does not generate CodeBlocks file. "
+                result << Task(Task::Warning, tr("CMake generator does not generate a CodeBlocks file. "
                                                  "Qt Creator will not be able to parse the CMake project."),
                                Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
             }
@@ -299,6 +303,7 @@ QStringList CMakeConfigurationKitInformation::toStringList(const Kit *k)
     QStringList current
             = Utils::transform(CMakeConfigurationKitInformation::configuration(k),
                                [](const CMakeConfigItem &i) { return i.toString(); });
+    current = Utils::filtered(current, [](const QString &s) { return !s.isEmpty(); });
     Utils::sort(current);
     return current;
 }

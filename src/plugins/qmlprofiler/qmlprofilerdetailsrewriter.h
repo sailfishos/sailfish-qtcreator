@@ -23,14 +23,14 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERDETAILSREWRITER_H
-#define QMLPROFILERDETAILSREWRITER_H
+#pragma once
 
-#include <QObject>
+#include "qmleventlocation.h"
 
-#include <qmldebug/qmlprofilereventlocation.h>
 #include <qmljs/qmljsdocument.h>
 #include <utils/fileinprojectfinder.h>
+
+#include <QObject>
 
 namespace QmlProfiler {
 namespace Internal {
@@ -46,10 +46,10 @@ public:
 
 private:
     void rewriteDetailsForLocation(QTextStream &textDoc, QmlJS::Document::Ptr doc, int requestId,
-                                   const QmlDebug::QmlEventLocation &location);
+                                   const QmlEventLocation &location);
 
 public slots:
-    void requestDetailsForLocation(int requestId, const QmlDebug::QmlEventLocation &location);
+    void requestDetailsForLocation(int requestId, const QmlEventLocation &location);
     void reloadDocuments();
     void documentReady(QmlJS::Document::Ptr doc);
 signals:
@@ -62,5 +62,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERDETAILSREWRITER_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_TRANSLATIONUNITS_H
-#define CLANGBACKEND_TRANSLATIONUNITS_H
+#pragma once
 
 #include "clangfilesystemwatcher.h"
 #include "clangtranslationunit.h"
@@ -95,7 +94,7 @@ private:
     TranslationUnit createTranslationUnit(const FileContainer &fileContainer);
     void updateTranslationUnit(const FileContainer &fileContainer);
     std::vector<TranslationUnit>::iterator findTranslationUnit(const FileContainer &fileContainer);
-    std::vector<TranslationUnit>::iterator findAllTranslationUnitWithFilePath(const Utf8String &filePath);
+    std::vector<TranslationUnit> findAllTranslationUnitWithFilePath(const Utf8String &filePath);
     std::vector<TranslationUnit>::const_iterator findTranslationUnit(const Utf8String &filePath, const Utf8String &projectPartId) const;
     bool hasTranslationUnit(const FileContainer &fileContainer) const;
     bool hasTranslationUnitWithFilePath(const Utf8String &filePath) const;
@@ -119,5 +118,3 @@ private:
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_TRANSLATIONUNITS_H

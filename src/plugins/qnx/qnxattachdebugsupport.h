@@ -23,12 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef QNX_INTERNAL_QNXATTACHDEBUGSUPPORT_H
-#define QNX_INTERNAL_QNXATTACHDEBUGSUPPORT_H
+#pragma once
 
 #include <debugger/debuggerconstants.h>
 #include <projectexplorer/devicesupport/deviceprocesslist.h>
 #include <projectexplorer/devicesupport/idevice.h>
+#include <utils/port.h>
 
 #include <QObject>
 
@@ -72,12 +72,10 @@ private:
     ProjectExplorer::DeviceUsedPortsGatherer *m_portsGatherer;
     Debugger::DebuggerRunControl *m_runControl = 0;
 
-    int m_pdebugPort = -1;
+    Utils::Port m_pdebugPort;
     QString m_projectSourceDirectory;
     QString m_localExecutablePath;
 };
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNX_INTERNAL_QNXATTACHDEBUGSUPPORT_H

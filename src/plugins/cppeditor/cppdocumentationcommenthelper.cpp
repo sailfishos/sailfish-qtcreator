@@ -28,10 +28,12 @@
 #include "cppautocompleter.h"
 
 #include <cpptools/cpptoolssettings.h>
-#include <cpptools/commentssettings.h>
 #include <cpptools/doxygengenerator.h>
+#include <texteditor/commentssettings.h>
 #include <texteditor/texteditor.h>
+#include <texteditor/texteditorsettings.h>
 #include <texteditor/textdocument.h>
+#include <cplusplus/MatchingText.h>
 
 #include <QDebug>
 #include <QTextBlock>
@@ -150,7 +152,7 @@ bool isCursorAfterNonNestedCppStyleComment(const QTextCursor &cursor,
     if (!cursorBeforeCppComment.movePosition(QTextCursor::PreviousCharacter))
         return false;
 
-    return !editorWidget->autoCompleter()->isInComment(cursorBeforeCppComment);
+    return !CPlusPlus::MatchingText::isInCommentHelper(cursorBeforeCppComment);
 }
 
 bool handleDoxygenCppStyleContinuation(QTextCursor &cursor)
@@ -244,7 +246,7 @@ bool handleDoxygenContinuation(QTextCursor &cursor,
                 QTextCursor cursorOnFirstNonWhiteSpace(cursor);
                 const int positionOnFirstNonWhiteSpace = cursor.position() - blockPos + offset;
                 cursorOnFirstNonWhiteSpace.setPosition(positionOnFirstNonWhiteSpace);
-                if (!editorWidget->autoCompleter()->isInComment(cursorOnFirstNonWhiteSpace))
+                if (!CPlusPlus::MatchingText::isInCommentHelper(cursorOnFirstNonWhiteSpace))
                     return false;
 
                 // ...otherwise do the continuation
@@ -271,12 +273,12 @@ namespace Internal {
 bool trySplitComment(TextEditor::TextEditorWidget *editorWidget,
                      const CPlusPlus::Snapshot &snapshot)
 {
-    const CommentsSettings &settings = CppToolsSettings::instance()->commentsSettings();
+    const TextEditor::CommentsSettings &settings = CppToolsSettings::instance()->commentsSettings();
     if (!settings.m_enableDoxygen && !settings.m_leadingAsterisks)
         return false;
 
     QTextCursor cursor = editorWidget->textCursor();
-    if (!editorWidget->autoCompleter()->isInComment(cursor))
+    if (!CPlusPlus::MatchingText::isInCommentHelper(cursor))
         return false;
 
     // We are interested on two particular cases:

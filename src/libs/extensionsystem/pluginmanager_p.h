@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLUGINMANAGER_P_H
-#define PLUGINMANAGER_P_H
+#pragma once
 
 #include "pluginspec.h"
 
@@ -52,7 +51,7 @@ namespace Internal {
 
 class PluginSpecPrivate;
 
-class EXTENSIONSYSTEM_EXPORT PluginManagerPrivate : QObject
+class EXTENSIONSYSTEM_EXPORT PluginManagerPrivate : public QObject
 {
     Q_OBJECT
 public:
@@ -134,13 +133,11 @@ public:
 
     bool m_isInitializationDone = false;
 
-private slots:
+private:
+    PluginManager *q;
+
     void nextDelayedInitialize();
     void asyncShutdownFinished();
-
-private:
-    PluginCollection *defaultCollection;
-    PluginManager *q;
 
     void readPluginPaths();
     bool loadQueue(PluginSpec *spec,
@@ -156,5 +153,3 @@ private:
 
 } // namespace Internal
 } // namespace ExtensionSystem
-
-#endif // PLUGINMANAGER_P_H

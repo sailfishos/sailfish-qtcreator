@@ -36,6 +36,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QFontDatabase>
 #include <QFileInfo>
 #include <QLibraryInfo>
 #include <QLoggingCategory>
@@ -295,6 +296,15 @@ static inline QSettings *userSettings()
 static const char *SHARE_PATH =
         Utils::HostOsInfo::isMacHost() ? "/../Resources" : "/../share/qtcreator";
 
+void loadFonts()
+{
+    const QDir dir(QCoreApplication::applicationDirPath() + QLatin1String(SHARE_PATH)
+                   + QLatin1String("/fonts/"));
+
+    foreach (const QFileInfo &fileInfo, dir.entryInfoList(QStringList("*.ttf"), QDir::Files))
+        QFontDatabase::addApplicationFont(fileInfo.absoluteFilePath());
+}
+
 int main(int argc, char **argv)
 {
     const char *highDpiEnvironmentVariable = setHighDpiEnvironmentVariable();
@@ -310,6 +320,8 @@ int main(int argc, char **argv)
 #endif
 
     SharedTools::QtSingleApplication app((QLatin1String(appNameC)), argc, argv);
+
+    loadFonts();
 
     if (highDpiEnvironmentVariable)
         qunsetenv(highDpiEnvironmentVariable);
@@ -366,19 +378,8 @@ int main(int argc, char **argv)
             return 1;
         settingsPath = temporaryCleanSettingsDir->path();
     }
-    if (!settingsPath.isEmpty()) {
+    if (!settingsPath.isEmpty())
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
-    }
-#ifdef Q_OS_WIN
-    else {
-        // set the windows settings userdir to the install dir
-        QDir rootDir = QApplication::applicationDirPath();
-        rootDir.cdUp();
-        QString mySettingsPath = QDir::toNativeSeparators(rootDir.canonicalPath());
-        mySettingsPath += QDir::separator() + QLatin1String("settings");
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
-    }
-#endif
 
     // Must be done before any QSettings class is created
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,
@@ -526,14 +527,14 @@ int main(int argc, char **argv)
     }
 
     // Set up remote arguments.
-    QObject::connect(&app, SIGNAL(messageReceived(QString,QObject*)),
-                     &pluginManager, SLOT(remoteArguments(QString,QObject*)));
+    QObject::connect(&app, &SharedTools::QtSingleApplication::messageReceived,
+                     &pluginManager, &PluginManager::remoteArguments);
 
     QObject::connect(&app, SIGNAL(fileOpenRequest(QString)), coreplugin->plugin(),
                      SLOT(fileOpenRequest(QString)));
 
     // shutdown plugin manager on the exit
-    QObject::connect(&app, SIGNAL(aboutToQuit()), &pluginManager, SLOT(shutdown()));
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &pluginManager, &PluginManager::shutdown);
 
     return app.exec();
 }

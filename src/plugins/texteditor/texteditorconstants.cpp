@@ -42,6 +42,7 @@ const char *nameForStyle(TextStyle style)
     case C_SEARCH_SCOPE:        return "SearchScope";
     case C_PARENTHESES:         return "Parentheses";
     case C_PARENTHESES_MISMATCH:return "ParenthesesMismatch";
+    case C_AUTOCOMPLETE:        return "AutoComplete";
     case C_CURRENT_LINE:        return "CurrentLine";
     case C_CURRENT_LINE_NUMBER: return "CurrentLineNumber";
     case C_OCCURRENCES:         return "Occurrences";
@@ -52,6 +53,7 @@ const char *nameForStyle(TextStyle style)
     case C_STRING:              return "String";
     case C_TYPE:                return "Type";
     case C_LOCAL:               return "Local";
+    case C_GLOBAL:              return "Global";
     case C_FIELD:               return "Field";
     // TODO: Rename "Static" to "Enumeration" in next major update,
     // because renaming here would break styles defined by the user.
@@ -99,6 +101,7 @@ const char *nameForStyle(TextStyle style)
     case C_WARNING:             return "Warning";
     case C_WARNING_CONTEXT:     return "WarningContext";
 
+    case C_DECLARATION: return "Declaration";
 
     case C_LAST_STYLE_SENTINEL: return "LastStyleSentinel";
     }

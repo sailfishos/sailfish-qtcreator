@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEMODEL_H
-#define TIMELINEMODEL_H
+#pragma once
 
 #include "timeline_global.h"
 #include "timelinerenderpass.h"
@@ -100,8 +99,6 @@ public:
     Q_INVOKABLE virtual QVariantMap location(int index) const;
     Q_INVOKABLE virtual int typeId(int index) const;
     Q_INVOKABLE virtual bool handlesTypeId(int typeId) const;
-    Q_INVOKABLE virtual int selectionIdForLocation(const QString &filename, int line,
-                                                   int column) const;
     Q_INVOKABLE virtual float relativeHeight(int index) const;
     Q_INVOKABLE virtual int rowMinValue(int rowNumber) const;
     Q_INVOKABLE virtual int rowMaxValue(int rowNumber) const;
@@ -149,5 +146,3 @@ private:
 };
 
 } // namespace Timeline
-
-#endif // TIMELINEMODEL_H

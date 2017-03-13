@@ -88,8 +88,8 @@ IosDevice::IosDevice()
     setDisplayName(IosDevice::name());
     setDeviceState(DeviceDisconnected);
     Utils::PortList ports;
-    ports.addRange(Constants::IOS_DEVICE_PORT_START,
-                   Constants::IOS_DEVICE_PORT_END);
+    ports.addRange(Utils::Port(Constants::IOS_DEVICE_PORT_START),
+                   Utils::Port(Constants::IOS_DEVICE_PORT_END));
     setFreePorts(ports);
 }
 
@@ -200,12 +200,12 @@ QString IosDevice::osVersion() const
     return m_extraInfo.value(QLatin1String("osVersion"));
 }
 
-quint16 IosDevice::nextPort() const
+Utils::Port IosDevice::nextPort() const
 {
     // use qrand instead?
     if (++m_lastPort >= Constants::IOS_DEVICE_PORT_END)
         m_lastPort = Constants::IOS_DEVICE_PORT_START;
-    return m_lastPort;
+    return Utils::Port(m_lastPort);
 }
 
 bool IosDevice::canAutoDetectPorts() const
@@ -288,10 +288,10 @@ void IosDeviceManager::deviceDisconnected(const QString &uid)
 void IosDeviceManager::updateInfo(const QString &devId)
 {
     IosToolHandler *requester = new IosToolHandler(IosDeviceType(IosDeviceType::IosDevice), this);
-    connect(requester, SIGNAL(deviceInfo(Ios::IosToolHandler*,QString,Ios::IosToolHandler::Dict)),
-            SLOT(deviceInfo(Ios::IosToolHandler*,QString,Ios::IosToolHandler::Dict)), Qt::QueuedConnection);
-    connect(requester, SIGNAL(finished(Ios::IosToolHandler*)),
-            SLOT(infoGathererFinished(Ios::IosToolHandler*)));
+    connect(requester, &IosToolHandler::deviceInfo,
+            this, &IosDeviceManager::deviceInfo, Qt::QueuedConnection);
+    connect(requester, &IosToolHandler::finished,
+            this, &IosDeviceManager::infoGathererFinished);
     requester->requestDeviceInfo(devId);
 }
 
@@ -518,8 +518,8 @@ IosDeviceManager::IosDeviceManager(QObject *parent) :
 {
     m_userModeDevicesTimer.setSingleShot(true);
     m_userModeDevicesTimer.setInterval(8000);
-    connect(&m_userModeDevicesTimer, SIGNAL(timeout()),
-            SLOT(updateUserModeDevices()));
+    connect(&m_userModeDevicesTimer, &QTimer::timeout,
+            this, &IosDeviceManager::updateUserModeDevices);
 }
 
 void IosDeviceManager::updateUserModeDevices()

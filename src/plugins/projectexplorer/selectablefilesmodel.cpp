@@ -106,12 +106,12 @@ void SelectableFilesModel::cancel()
     m_watcher.waitForFinished();
 }
 
-bool SelectableFilesModel::filter(Tree *t)
+SelectableFilesModel::FilterState SelectableFilesModel::filter(Tree *t)
 {
     if (t->isDir)
-        return false;
+        return FilterState::SHOWN;
     if (m_files.contains(t->fullPath))
-        return false;
+        return FilterState::CHECKED;
 
     auto matchesTreeName = [t](const Glob &g) {
         return g.isMatch(t->name);
@@ -119,9 +119,9 @@ bool SelectableFilesModel::filter(Tree *t)
 
     //If one of the "show file" filters matches just return false
     if (Utils::anyOf(m_showFilesFilter, matchesTreeName))
-        return false;
+        return FilterState::CHECKED;
 
-    return Utils::anyOf(m_hideFilesFilter, matchesTreeName);
+    return Utils::anyOf(m_hideFilesFilter, matchesTreeName) ? FilterState::HIDDEN : FilterState::SHOWN;
 }
 
 void SelectableFilesModel::buildTree(const Utils::FileName &baseDir, Tree *tree,
@@ -144,7 +144,7 @@ void SelectableFilesModel::buildTree(const Utils::FileName &baseDir, Tree *tree,
         }
         ++m_futureCount;
         if (fileInfo.isDir()) {
-            Tree *t = new Tree;
+            auto t = new Tree;
             t->parent = tree;
             t->name = fileInfo.fileName();
             t->fullPath = fn;
@@ -154,16 +154,18 @@ void SelectableFilesModel::buildTree(const Utils::FileName &baseDir, Tree *tree,
             allUnchecked &= t->checked == Qt::Unchecked;
             tree->childDirectories.append(t);
         } else {
-            Tree *t = new Tree;
+            auto t = new Tree;
             t->parent = tree;
             t->name = fileInfo.fileName();
-            t->checked = (m_allFiles || m_files.contains(fn)) ? Qt::Checked : Qt::Unchecked;
+            FilterState state = filter(t);
+            t->checked = ((m_allFiles && state == FilterState::CHECKED)
+                          || m_files.contains(fn)) ? Qt::Checked : Qt::Unchecked;
             t->fullPath = fn;
             t->isDir = false;
             allChecked &= t->checked == Qt::Checked;
             allUnchecked &= t->checked == Qt::Unchecked;
             tree->files.append(t);
-            if (!filter(t))
+            if (state != FilterState::HIDDEN)
                 tree->visibleFiles.append(t);
         }
     }
@@ -193,7 +195,7 @@ int SelectableFilesModel::rowCount(const QModelIndex &parent) const
 {
     if (!parent.isValid())
         return 1;
-    Tree *parentT = static_cast<Tree *>(parent.internalPointer());
+    auto parentT = static_cast<Tree *>(parent.internalPointer());
     return parentT->childDirectories.size() + parentT->visibleFiles.size();
 }
 
@@ -201,7 +203,7 @@ QModelIndex SelectableFilesModel::index(int row, int column, const QModelIndex &
 {
     if (!parent.isValid())
         return createIndex(row, column, m_root);
-    Tree *parentT = static_cast<Tree *>(parent.internalPointer());
+    auto parentT = static_cast<Tree *>(parent.internalPointer());
     if (row < parentT->childDirectories.size())
         return createIndex(row, column, parentT->childDirectories.at(row));
     else
@@ -214,7 +216,7 @@ QModelIndex SelectableFilesModel::parent(const QModelIndex &child) const
         return QModelIndex();
     if (!child.internalPointer())
         return QModelIndex();
-    Tree *parent = static_cast<Tree *>(child.internalPointer())->parent;
+    auto parent = static_cast<Tree *>(child.internalPointer())->parent;
     if (!parent)
         return QModelIndex();
     if (!parent->parent) //then the parent is the root
@@ -230,7 +232,7 @@ QVariant SelectableFilesModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
-    Tree *t = static_cast<Tree *>(index.internalPointer());
+    auto t = static_cast<Tree *>(index.internalPointer());
     if (role == Qt::DisplayRole)
         return t->name;
     if (role == Qt::CheckStateRole)
@@ -247,7 +249,7 @@ bool SelectableFilesModel::setData(const QModelIndex &index, const QVariant &val
 {
     if (role == Qt::CheckStateRole) {
         // We can do that!
-        Tree *t = static_cast<Tree *>(index.internalPointer());
+        auto t = static_cast<Tree *>(index.internalPointer());
         t->checked = Qt::CheckState(value.toInt());
         propagateDown(index);
         propagateUp(index);
@@ -261,7 +263,7 @@ void SelectableFilesModel::propagateUp(const QModelIndex &index)
     QModelIndex parent = index.parent();
     if (!parent.isValid())
         return;
-    Tree *parentT = static_cast<Tree *>(parent.internalPointer());
+    auto parentT = static_cast<Tree *>(parent.internalPointer());
     if (!parentT)
         return;
     bool allChecked = true;
@@ -290,7 +292,7 @@ void SelectableFilesModel::propagateUp(const QModelIndex &index)
 
 void SelectableFilesModel::propagateDown(const QModelIndex &index)
 {
-    Tree *t = static_cast<Tree *>(index.internalPointer());
+    auto t = static_cast<Tree *>(index.internalPointer());
     for (int i = 0; i<t->childDirectories.size(); ++i) {
         t->childDirectories[i]->checked = t->checked;
         propagateDown(index.child(i, 0));
@@ -378,9 +380,16 @@ QList<Glob> SelectableFilesModel::parseFilter(const QString &filter)
 
 void SelectableFilesModel::applyFilter(const QString &showFilesfilter, const QString &hideFilesfilter)
 {
-    m_showFilesFilter = parseFilter(showFilesfilter);
-    m_hideFilesFilter = parseFilter(hideFilesfilter);
-    applyFilter(createIndex(0, 0, m_root));
+    QList<Glob> filter = parseFilter(showFilesfilter);
+    bool mustApply = filter != m_showFilesFilter;
+    m_showFilesFilter = filter;
+
+    filter = parseFilter(hideFilesfilter);
+    mustApply = mustApply || (filter != m_hideFilesFilter);
+    m_hideFilesFilter = filter;
+
+    if (mustApply)
+        applyFilter(createIndex(0, 0, m_root));
 }
 
 void SelectableFilesModel::selectAllFiles()
@@ -405,7 +414,7 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
 {
     bool allChecked = true;
     bool allUnchecked = true;
-    Tree *t = static_cast<Tree *>(index.internalPointer());
+    auto t = static_cast<Tree *>(index.internalPointer());
 
     for (int i=0; i < t->childDirectories.size(); ++i) {
         Qt::CheckState childCheckState = applyFilter(index.child(i, 0));
@@ -425,8 +434,8 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
     // first remove filtered out rows..
     for (;visibleIndex < visibleEnd; ++visibleIndex) {
         if (startOfBlock == visibleIndex) {
-            removeBlock = filter(t->visibleFiles.at(visibleIndex));
-        } else if (removeBlock != filter(t->visibleFiles.at(visibleIndex))) {
+            removeBlock = (filter(t->visibleFiles.at(visibleIndex)) == FilterState::HIDDEN);
+        } else if (removeBlock != (filter(t->visibleFiles.at(visibleIndex)) == FilterState::HIDDEN)) {
             if (removeBlock) {
                 beginRemoveRows(index, startOfBlock, visibleIndex - 1);
                 for (int i=startOfBlock; i < visibleIndex; ++i)
@@ -437,7 +446,7 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
                 visibleIndex = startOfBlock; // start again at startOfBlock
                 visibleEnd = t->visibleFiles.size();
             }
-            removeBlock = filter(t->visibleFiles.at(visibleIndex));
+            removeBlock = (filter(t->visibleFiles.at(visibleIndex)) == FilterState::HIDDEN);
             startOfBlock = visibleIndex;
         }
     }
@@ -452,9 +461,10 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
 
     // Figure out which rows should be visible
     QList<Tree *> newRows;
-    for (int i=0; i < t->files.size(); ++i)
-        if (!filter(t->files.at(i)))
+    for (int i=0; i < t->files.size(); ++i) {
+        if (filter(t->files.at(i)) != FilterState::HIDDEN)
             newRows.append(t->files.at(i));
+    }
     // now add them!
     startOfBlock = 0;
     visibleIndex = 0;
@@ -475,7 +485,7 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
             ++newIndex;
         }
         // end of block = newIndex
-        beginInsertRows(index, visibleIndex, visibleIndex + newIndex-startOfBlock-1);
+        beginInsertRows(index, visibleIndex, visibleIndex + newIndex - startOfBlock - 1);
         for (int i= newIndex - 1; i >= startOfBlock; --i)
             t->visibleFiles.insert(visibleIndex, newRows.at(i));
         endInsertRows();
@@ -485,8 +495,8 @@ Qt::CheckState SelectableFilesModel::applyFilter(const QModelIndex &index)
             break;
     }
     if (newIndex != newEnd) {
-        beginInsertRows(index, visibleIndex, visibleIndex + newEnd-newIndex-1);
-        for (int i=newEnd-1; i >=newIndex; --i)
+        beginInsertRows(index, visibleIndex, visibleIndex + newEnd - newIndex - 1);
+        for (int i = newEnd - 1; i >= newIndex; --i)
             t->visibleFiles.insert(visibleIndex, newRows.at(i));
         endInsertRows();
     }
@@ -527,7 +537,6 @@ enum class SelectableFilesWidgetRows {
 
 SelectableFilesWidget::SelectableFilesWidget(QWidget *parent) :
     QWidget(parent),
-    m_model(0),
     m_baseDirChooser(new Utils::PathChooser),
     m_baseDirLabel(new QLabel),
     m_startParsingButton(new QPushButton),
@@ -682,6 +691,7 @@ void SelectableFilesWidget::startParsing(const Utils::FileName &baseDir)
         return;
 
     enableWidgets(false);
+    applyFilter();
     m_model->startParsing(baseDir);
 }
 
@@ -694,8 +704,6 @@ void SelectableFilesWidget::parsingFinished()
 {
     if (!m_model)
         return;
-
-    applyFilter();
 
     smartExpand(m_model->index(0,0, QModelIndex()));
 
@@ -733,7 +741,7 @@ SelectableFilesDialogEditFiles::SelectableFilesDialogEditFiles(const Utils::File
 
     m_filesWidget->setBaseDirEditable(false);
 
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(Qt::Horizontal, this);
+    auto buttonBox = new QDialogButtonBox(Qt::Horizontal, this);
     buttonBox->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 
     connect(buttonBox, &QDialogButtonBox::accepted,

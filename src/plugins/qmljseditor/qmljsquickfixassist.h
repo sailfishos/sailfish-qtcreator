@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSQUICKFIXASSIST_H
-#define QMLJSQUICKFIXASSIST_H
+#pragma once
 
 #include "qmljseditor.h"
 
@@ -56,7 +55,7 @@ private:
 class QmlJSQuickFixAssistProvider : public TextEditor::QuickFixAssistProvider
 {
 public:
-    QmlJSQuickFixAssistProvider();
+    QmlJSQuickFixAssistProvider(QObject *parent = 0);
     ~QmlJSQuickFixAssistProvider();
 
     IAssistProvider::RunType runType() const override;
@@ -68,5 +67,3 @@ public:
 
 } // Internal
 } // QmlJSEditor
-
-#endif // QMLJSQUICKFIXASSIST_H

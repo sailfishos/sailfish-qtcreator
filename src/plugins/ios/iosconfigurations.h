@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSCONFIGURATIONS_H
-#define IOSCONFIGURATIONS_H
+#pragma once
 
 #include <projectexplorer/abi.h>
 #include <projectexplorer/toolchain.h>
@@ -61,12 +60,10 @@ public:
     static void setIgnoreAllDevices(bool ignoreDevices);
     static Utils::FileName developerPath();
     static Utils::FileName lldbPath();
+    static void updateAutomaticKitList();
 
 signals:
     void updated();
-
-public slots:
-    static void updateAutomaticKitList();
 
 private:
     IosConfigurations(QObject *parent);
@@ -81,5 +78,3 @@ private:
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSCONFIGURATIONS_H

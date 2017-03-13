@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILESPAGE_H
-#define FILESPAGE_H
+#pragma once
 
 #include <QWizard>
 
@@ -65,7 +64,6 @@ public:
 
     void setSuffixes(const QString &header, const QString &source,  const QString &form = QString());
 
-public slots:
     void setBaseClassName(const QString &);
     void setNamespacesEnabled(bool b);
     void setBaseClassInputVisible(bool visible);
@@ -83,5 +81,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // FILESPAGE_H

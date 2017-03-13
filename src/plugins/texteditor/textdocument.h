@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BASETEXTDOCUMENT_H
-#define BASETEXTDOCUMENT_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -46,6 +45,7 @@ class CompletionAssistProvider;
 class ExtraEncodingSettings;
 class FontSettings;
 class Indenter;
+class QuickFixAssistProvider;
 class StorageSettings;
 class SyntaxHighlighter;
 class TabSettings;
@@ -131,6 +131,7 @@ public:
 
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
     virtual CompletionAssistProvider *completionAssistProvider() const;
+    virtual QuickFixAssistProvider *quickFixAssistProvider() const;
 
     void setTabSettings(const TextEditor::TabSettings &tabSettings);
     void setFontSettings(const TextEditor::FontSettings &fontSettings);
@@ -157,5 +158,3 @@ private:
 typedef QSharedPointer<TextDocument> TextDocumentPtr;
 
 } // namespace TextEditor
-
-#endif // BASETEXTDOCUMENT_H

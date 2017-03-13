@@ -23,11 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef QMLOUTPUTPARSER_H
-#define QMLOUTPUTPARSER_H
+#pragma once
 
 #include "qmldebug_global.h"
 
+#include <utils/port.h>
 #include <QObject>
 
 namespace QmlDebug {
@@ -42,7 +42,7 @@ public:
     void processOutput(const QString &output);
 
 signals:
-    void waitingForConnectionOnPort(quint16 port);
+    void waitingForConnectionOnPort(Utils::Port port);
     void connectionEstablishedMessage();
     void connectingToSocketMessage();
     void errorMessage(const QString &detailedError);
@@ -55,5 +55,3 @@ private:
 };
 
 } // namespace QmlDebug
-
-#endif // QMLOUTPUTPARSER_H

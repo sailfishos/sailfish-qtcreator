@@ -99,7 +99,7 @@ public:
 // DebuggerItemModel
 // --------------------------------------------------------------------------
 
-class DebuggerItemModel : public TreeModel
+class DebuggerItemModel : public LeveledTreeModel<TreeItem, StaticTreeItem, DebuggerTreeItem>
 {
     Q_DECLARE_TR_FUNCTIONS(Debugger::DebuggerOptionsPage)
 
@@ -115,19 +115,17 @@ public:
     void apply();
 
 private:
-    DebuggerTreeItem *m_currentTreeItem;
+    DebuggerTreeItem *m_currentTreeItem = nullptr;
     QStringList removed;
 
     QList<QVariant> m_removedItems;
 };
 
 DebuggerItemModel::DebuggerItemModel()
-    : m_currentTreeItem(0)
 {
-    setHeader(QStringList() << tr("Name") << tr("Location") << tr("Type"));
-    rootItem()->appendChild(new TreeItem(QStringList() << tr("Auto-detected") << QString() << QString()));
-    rootItem()->appendChild(new TreeItem(QStringList() << tr("Manual") << QString() << QString()));
-
+    setHeader({ tr("Name"), tr("Location"), tr("Type") });
+    rootItem()->appendChild(new StaticTreeItem(tr("Auto-detected")));
+    rootItem()->appendChild(new StaticTreeItem(tr("Manual")));
     foreach (const DebuggerItem &item, DebuggerItemManager::debuggers())
         addDebugger(item, false);
 }
@@ -135,13 +133,13 @@ DebuggerItemModel::DebuggerItemModel()
 void DebuggerItemModel::addDebugger(const DebuggerItem &item, bool changed)
 {
     int group = item.isAutoDetected() ? 0 : 1;
-    rootItem()->child(group)->appendChild(new DebuggerTreeItem(item, changed));
+    rootItem()->childAt(group)->appendChild(new DebuggerTreeItem(item, changed));
 }
 
 void DebuggerItemModel::updateDebugger(const DebuggerItem &item)
 {
     auto matcher = [item](DebuggerTreeItem *n) { return n->m_item.m_id == item.id(); };
-    DebuggerTreeItem *treeItem = findItemAtLevel<DebuggerTreeItem *>(2, matcher);
+    DebuggerTreeItem *treeItem = findSecondLevelItem(matcher);
     QTC_ASSERT(treeItem, return);
 
     TreeItem *parent = treeItem->parent();
@@ -171,7 +169,7 @@ void DebuggerItemModel::removeCurrentDebugger()
     QVariant id = m_currentTreeItem->m_item.id();
     DebuggerTreeItem *treeItem = m_currentTreeItem;
     m_currentTreeItem = 0;
-    delete takeItem(treeItem);
+    destroyItem(treeItem);
     m_removedItems.append(id);
 }
 
@@ -180,10 +178,10 @@ void DebuggerItemModel::apply()
     foreach (const QVariant &id, m_removedItems)
         DebuggerItemManager::deregisterDebugger(id);
 
-    foreach (auto item, itemsAtLevel<DebuggerTreeItem *>(2)) {
+    forSecondLevelItems([](DebuggerTreeItem *item) {
         item->m_changed = false;
         DebuggerItemManager::updateOrAddDebugger(item->m_item);
-    }
+    });
 }
 
 void DebuggerItemModel::setCurrentIndex(const QModelIndex &index)
@@ -377,7 +375,6 @@ public:
         m_debuggerView = new QTreeView(this);
         m_debuggerView->setModel(&m_model);
         m_debuggerView->setUniformRowHeights(true);
-        m_debuggerView->setRootIsDecorated(false);
         m_debuggerView->setSelectionMode(QAbstractItemView::SingleSelection);
         m_debuggerView->setSelectionBehavior(QAbstractItemView::SelectRows);
         m_debuggerView->expandAll();

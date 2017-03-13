@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDGDBSERVERKITINFORMATION_H
-#define ANDROIDGDBSERVERKITINFORMATION_H
+#pragma once
 
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/kitconfigwidget.h>
@@ -54,10 +53,10 @@ public:
     QWidget *mainWidget() const override;
     QWidget *buttonWidget() const override;
 
-private slots:
+private:
     void autoDetectDebugger();
     void showDialog();
-private:
+
     QLabel *m_label;
     QPushButton *m_button;
 };
@@ -85,5 +84,3 @@ public:
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDGDBSERVERKITINFORMATION_H

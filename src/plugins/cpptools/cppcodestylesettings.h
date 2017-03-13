@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPCODESTYLESETTINGS_H
-#define CPPCODESTYLESETTINGS_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -81,6 +80,8 @@ public:
     //            b
     bool alignAssignments;
 
+    bool preferGetterNameWithoutGetPrefix;
+
     void toSettings(const QString &category, QSettings *s) const;
     void fromSettings(const QString &category, const QSettings *s);
 
@@ -90,6 +91,9 @@ public:
     bool equals(const CppCodeStyleSettings &rhs) const;
     bool operator==(const CppCodeStyleSettings &s) const { return equals(s); }
     bool operator!=(const CppCodeStyleSettings &s) const { return !equals(s); }
+
+    static CppCodeStyleSettings currentProjectCodeStyle();
+    static CppCodeStyleSettings currentGlobalCodeStyle();
 
     /*! Returns an Overview configured by the current project's code style.
 
@@ -110,5 +114,3 @@ public:
 } // namespace CppTools
 
 Q_DECLARE_METATYPE(CppTools::CppCodeStyleSettings)
-
-#endif // CPPCODESTYLESETTINGS_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONWIZARDFILEGENERATOR_H
-#define JSONWIZARDFILEGENERATOR_H
+#pragma once
 
 #include "jsonwizardgeneratorfactory.h"
 
@@ -41,9 +40,9 @@ public:
 
     Core::GeneratedFiles fileList(Utils::MacroExpander *expander,
                                   const QString &wizardDir, const QString &projectDir,
-                                  QString *errorMessage);
+                                  QString *errorMessage) override;
 
-    bool writeFile(const JsonWizard *wizard, Core::GeneratedFile *file, QString *errorMessage);
+    bool writeFile(const JsonWizard *wizard, Core::GeneratedFile *file, QString *errorMessage) override;
 
 private:
     class File {
@@ -61,12 +60,10 @@ private:
     };
 
     Core::GeneratedFile generateFile(const File &file, Utils::MacroExpander *expander,
-        QString *errorMessage);
+                                     QString *errorMessage);
 
     QList<File> m_fileList;
 };
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // JSONWIZARDFILEGENERATOR_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CUSTOMWIZARDPARAMETERS_H
-#define CUSTOMWIZARDPARAMETERS_H
+#pragma once
 
 #include <coreplugin/iwizardfactory.h>
 
@@ -130,7 +129,6 @@ public:
     QString category;
     QString displayCategory;
     QSet<Core::Id> requiredFeatures;
-    QSet<Core::Id> preferredFeatures;
     Core::IWizardFactory::WizardFlags flags;
 };
 
@@ -163,5 +161,3 @@ extern const char customWizardFileOpenProjectAttributeC[];
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // CUSTOMWIZARDPARAMETERS_H

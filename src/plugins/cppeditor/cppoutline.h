@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPOUTLINE_H
-#define CPPOUTLINE_H
+#pragma once
 
 #include "cppeditor.h"
 
@@ -71,13 +70,11 @@ public:
     virtual QList<QAction*> filterMenuActions() const;
     virtual void setCursorSynchronization(bool syncWithCursor);
 
-private slots:
+private:
     void modelUpdated();
     void updateSelectionInTree(const QModelIndex &index);
     void updateTextCursor(const QModelIndex &index);
     void onItemActivated(const QModelIndex &index);
-
-private:
     bool syncCursor();
 
 private:
@@ -100,5 +97,3 @@ public:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPOUTLINE_H

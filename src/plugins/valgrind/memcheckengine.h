@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef MEMCHECKENGINE_H
-#define MEMCHECKENGINE_H
+#pragma once
 
 #include "valgrindengine.h"
 
@@ -68,7 +67,8 @@ class MemcheckWithGdbRunControl : public MemcheckRunControl
     Q_OBJECT
 
 public:
-    MemcheckWithGdbRunControl(ProjectExplorer::RunConfiguration *runConfiguration);
+    MemcheckWithGdbRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
+                              Core::Id runMode);
 
 protected:
     QStringList toolArguments() const override;
@@ -78,5 +78,3 @@ protected:
 
 } // namespace Internal
 } // namespace Valgrind
-
-#endif // MEMCHECKENGINE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GDBPLAINENGINE_H
-#define GDBPLAINENGINE_H
+#pragma once
 
 #include "gdbengine.h"
 #include <debugger/outputcollector.h>
@@ -44,21 +43,15 @@ private:
     void handleExecRun(const DebuggerResponse &response);
     void handleFileExecAndSymbols(const DebuggerResponse &response);
 
-    void setupInferior();
-    void runEngine();
-    void setupEngine();
-    void handleGdbStartFailed();
-    void interruptInferior2();
-    void shutdownEngine();
-
-    QByteArray execFilePath() const;
-    QByteArray toLocalEncoding(const QString &s) const;
-    QString fromLocalEncoding(const QByteArray &b) const;
+    void setupInferior() override;
+    void runEngine() override;
+    void setupEngine() override;
+    void handleGdbStartFailed() override;
+    void interruptInferior2() override;
+    void shutdownEngine() override;
 
     OutputCollector m_outputCollector;
 };
 
 } // namespace Debugger
 } // namespace Internal
-
-#endif // GDBPLAINENGINE_H

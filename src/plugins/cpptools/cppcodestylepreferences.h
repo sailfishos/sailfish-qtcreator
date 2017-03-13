@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPCODESTYLEPREFERENCES_H
-#define CPPCODESTYLEPREFERENCES_H
+#pragma once
 
 #include "cpptools_global.h"
 #include "cppcodestylesettings.h"
@@ -61,13 +60,10 @@ signals:
 protected:
     virtual QString settingsSuffix() const;
 
-private slots:
+private:
     void slotCurrentValueChanged(const QVariant &);
 
-private:
     CppCodeStyleSettings m_data;
 };
 
 } // namespace CppTools
-
-#endif // CPPCODESTYLEPREFERENCES_H

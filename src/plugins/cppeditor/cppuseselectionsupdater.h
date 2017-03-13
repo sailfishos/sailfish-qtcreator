@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPUSESELECTIONSUPDATER_H
-#define CPPUSESELECTIONSUPDATER_H
+#pragma once
 
 #include <cpptools/cppsemanticinfo.h>
 #include <texteditor/texteditorconstants.h>
@@ -66,7 +65,6 @@ public:
 
     enum CallType { Synchronous, Asynchronous };
 
-public slots:
     void scheduleUpdate();
     void abortSchedule();
     void update(CallType callType = Asynchronous);
@@ -75,12 +73,10 @@ signals:
     void finished(CppTools::SemanticInfo::LocalUseMap localUses);
     void selectionsForVariableUnderCursorUpdated(const QList<QTextEdit::ExtraSelection> &);
 
-private slots:
-    void onFindUsesFinished();
-
 private:
     CppUseSelectionsUpdater();
 
+    void onFindUsesFinished();
     bool handleMacroCase(const CPlusPlus::Document::Ptr document);
     void handleSymbolCaseAsynchronously(const CPlusPlus::Document::Ptr document,
                                         const CPlusPlus::Snapshot &snapshot);
@@ -114,5 +110,3 @@ private:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPUSESELECTIONSUPDATER_H

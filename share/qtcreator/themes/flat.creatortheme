@@ -75,10 +75,9 @@ IconsModeWelcomeActiveColor=ff80c342
 IconsModeEditActiveColor=ff99aaef
 IconsModeDesignActiveColor=ffbb6000
 IconsModeDebugActiveColor=ff99aaef
-IconsModeProjetcsActiveColor=ff80c342
+IconsModeProjectActiveColor=ff80c342
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fff4be04
-IconsModeMerActiveColor=ff97f0ff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -102,7 +101,7 @@ MenuItemTextColorNormal=text
 MiniProjectTargetSelectorBackgroundColor=shadowBackground
 MiniProjectTargetSelectorBorderColor=shadowBackground
 MiniProjectTargetSelectorSummaryBackgroundColor=shadowBackground
-MiniProjectTargetSelectorTextColor=text
+MiniProjectTargetSelectorTextColor=fancyBarsNormalTextColor
 PanelStatusBarBackgroundColor=shadowBackground
 PanelsWidgetSeparatorLineColor=0
 PanelTextColorDark=text
@@ -167,8 +166,9 @@ Welcome_LinkColor=ff5caa15
 VcsBase_FileStatusUnknown_TextColor=ff000000
 VcsBase_FileAdded_TextColor=ff00aa00
 VcsBase_FileModified_TextColor=ff0000ee
-VcsBase_FileDeleted_TextColor=ffee0000
+VcsBase_FileDeleted_TextColor=ff800000
 VcsBase_FileRenamed_TextColor=ffd77d00
+VcsBase_FileUnmerged_TextColor=ffee0000
 
 Bookmarks_TextMarkColor=ffa0a0ff
 
@@ -181,6 +181,9 @@ ProjectExplorer_TaskWarn_TextMarkColor=ffffa500
 ClangCodeModel_Error_TextMarkColor=ffff882f
 ClangCodeModel_Warning_TextMarkColor=ffc6c132
 
+QmlDesigner_BackgroundColor=ff4c4e50
+QmlDesigner_HighlightColor=ff46a2da
+
 [Flags]
 ComboBoxDrawTextShadow=false
 DerivePaletteFromTheme=false
@@ -188,15 +191,16 @@ DrawIndicatorBranch=true
 DrawSearchResultWidgetFrame=false
 DrawTargetSelectorBottom=false
 DrawToolBarHighlights=false
+DrawToolBarBorders=false
 ApplyThemePaletteGlobally=false
+FlatToolBars=true
 FlatSideBarIcons=true
 FlatProjectsMode=false
 FlatMenuBar=false
+ToolBarIconShadow=true
+WindowColorAsBase=false
 
 [Gradients]
 DetailsWidgetHeaderGradient\1\color=0
 DetailsWidgetHeaderGradient\1\pos=1
 DetailsWidgetHeaderGradient\size=1
-
-[Style]
-WidgetStyle=StyleFlat

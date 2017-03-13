@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DOCSETTINGSPAGE_H
-#define DOCSETTINGSPAGE_H
+#pragma once
 
 #include "ui_docsettingspage.h"
 #include <coreplugin/dialogs/ioptionspage.h>
@@ -51,14 +50,12 @@ public:
     void apply();
     void finish();
 
-private slots:
+private:
     void addDocumentation();
 
-private:
     bool eventFilter(QObject *object, QEvent *event);
     void removeDocumentation(const QList<QModelIndex> &items);
 
-private:
     QList<QModelIndex> currentSelection() const;
 
     Ui::DocSettingsPage m_ui;
@@ -77,5 +74,3 @@ private:
 
 } // namespace Help
 } // namespace Internal
-
-#endif // DOCSETTINGSPAGE_H

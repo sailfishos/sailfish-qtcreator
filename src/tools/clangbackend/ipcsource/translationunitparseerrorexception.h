@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_TRANSLATIONUNITPARSEERROREXCEPTION_H
-#define CLANGBACKEND_TRANSLATIONUNITPARSEERROREXCEPTION_H
+#pragma once
 
 #include <utf8string.h>
 
@@ -60,5 +59,3 @@ private:
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_TRANSLATIONUNITPARSEERROREXCEPTION_H

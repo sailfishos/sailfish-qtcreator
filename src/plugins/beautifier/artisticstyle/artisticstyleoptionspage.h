@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_ARTISTICSTYLEOPTIONSPAGE_H
-#define BEAUTIFIER_ARTISTICSTYLEOPTIONSPAGE_H
+#pragma once
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
@@ -44,7 +43,8 @@ class ArtisticStyleOptionsPageWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ArtisticStyleOptionsPageWidget(ArtisticStyleSettings *settings, QWidget *parent = 0);
+    explicit ArtisticStyleOptionsPageWidget(ArtisticStyleSettings *settings,
+                                            QWidget *parent = nullptr);
     virtual ~ArtisticStyleOptionsPageWidget();
     void restore();
     void apply();
@@ -59,7 +59,7 @@ class ArtisticStyleOptionsPage : public Core::IOptionsPage
     Q_OBJECT
 
 public:
-    explicit ArtisticStyleOptionsPage(ArtisticStyleSettings *settings, QObject *parent = 0);
+    explicit ArtisticStyleOptionsPage(ArtisticStyleSettings *settings, QObject *parent = nullptr);
     QWidget *widget() override;
     void apply() override;
     void finish() override;
@@ -72,6 +72,3 @@ private:
 } // namespace ArtisticStyle
 } // namespace Internal
 } // namespace Beautifier
-
-
-#endif // BEAUTIFIER_ARTISTICSTYLEOPTIONSPAGE_H

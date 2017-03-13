@@ -71,8 +71,10 @@ QStringList createClangOptions(const ProjectPart::Ptr &pPart, const QString &fil
 
 static QString getResourceDir()
 {
-    QDir dir(ICore::instance()->resourcePath() + QLatin1String("/cplusplus/clang/") +
-             QLatin1String(CLANG_VERSION) + QLatin1String("/include"));
+    QDir dir(ICore::libexecPath()
+                + QLatin1String("/clang/lib/clang/")
+                + QLatin1String(CLANG_VERSION)
+                + QLatin1String("/include"));
     if (!dir.exists() || !QFileInfo(dir, QLatin1String("stdint.h")).exists())
         dir = QDir(QLatin1String(CLANG_RESOURCE_DIR));
     return dir.canonicalPath();
@@ -98,7 +100,7 @@ public:
 
         optionsBuilder.addPredefinedMacrosAndHeaderPathsOptions();
         optionsBuilder.addWrappedQtHeadersIncludePath();
-        optionsBuilder.addHeaderPathOptions();
+        optionsBuilder.addHeaderPathOptions(/*addAsNativePath*/ true);
         optionsBuilder.addProjectConfigFileInclude();
 
         optionsBuilder.addMsvcCompatibilityVersion();
@@ -149,19 +151,20 @@ private:
         static const QString resourceDir = getResourceDir();
         if (!resourceDir.isEmpty()) {
             add(QLatin1String("-nostdlibinc"));
-            add(QLatin1String("-I") + resourceDir);
+            add(QLatin1String("-I") + QDir::toNativeSeparators(resourceDir));
             add(QLatin1String("-undef"));
         }
     }
 
     void addWrappedQtHeadersIncludePath()
     {
-        static const QString wrappedQtHeaders = ICore::instance()->resourcePath()
+        static const QString wrappedQtHeadersPath = ICore::instance()->resourcePath()
                 + QLatin1String("/cplusplus/wrappedQtHeaders");
 
         if (m_projectPart.qtVersion != ProjectPart::NoQt) {
-            add(QLatin1String("-I") + wrappedQtHeaders);
-            add(QLatin1String("-I") + wrappedQtHeaders + QLatin1String("/QtCore"));
+            const QString wrappedQtCoreHeaderPath = wrappedQtHeadersPath + QLatin1String("/QtCore");
+            add(QLatin1String("-I") + QDir::toNativeSeparators(wrappedQtHeadersPath));
+            add(QLatin1String("-I") + QDir::toNativeSeparators(wrappedQtCoreHeaderPath));
         }
     }
 
@@ -169,7 +172,7 @@ private:
     {
         if (!m_projectPart.projectConfigFile.isEmpty()) {
             add(QLatin1String("-include"));
-            add(m_projectPart.projectConfigFile);
+            add(QDir::toNativeSeparators(m_projectPart.projectConfigFile));
         }
     }
 

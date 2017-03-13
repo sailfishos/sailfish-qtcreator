@@ -46,7 +46,7 @@ RowLayout {
 
     signal targetChanged
 
-    property bool verticalAnchor: true
+    property bool verticalAnchor
 
     property bool invertRelativeTargets: false
 
@@ -56,6 +56,9 @@ RowLayout {
     signal centerButtonClicked
     signal oppositeEdgeButtonClicked
 
+    property alias buttonRow: buttonRow
+
+    readonly property color __defaultTextColor: creatorTheme.PanelTextColorLight
 
     IconLabel {
         id: icon
@@ -69,9 +72,9 @@ RowLayout {
 
         Controls.Label {
             text: qsTr("Target")
-            color: "#eee"
+            color: __defaultTextColor
             elide: Text.ElideRight
-            Layout.minimumWidth: Math.min(60, preferredWidth + 10)
+            Layout.minimumWidth: Math.min(60, Layout.preferredWidth + 10)
         }
 
         TargetComboBox {
@@ -83,9 +86,9 @@ RowLayout {
 
         Controls.Label {
             text: "Margin"
-            color: "#eee"
+            color: __defaultTextColor
             elide: Text.ElideRight
-            Layout.minimumWidth: Math.min(60, preferredWidth + 10)
+            Layout.minimumWidth: Math.min(60, Layout.preferredWidth + 10)
         }
 
         RowLayout {
@@ -125,7 +128,8 @@ RowLayout {
 
                 exclusive: true
                 ButtonRowButton {
-                    iconSource: verticalAnchor ? "../HelperWidgets/images/anchor-top.png" : "../HelperWidgets/images/anchor-left.png"
+                    iconSource: "image://icons/anchor-" + (verticalAnchor ? "top" : "left")
+                    tooltip: verticalAnchor ? qsTr("Anchor to the top of the target.") : qsTr("Anchor to the left of the target.")
                     onClicked: {
                         if (!invertRelativeTargets)
                             sameEdgeButtonClicked();
@@ -135,13 +139,15 @@ RowLayout {
                 }
 
                 ButtonRowButton {
-                    iconSource: verticalAnchor ? "../HelperWidgets/images/anchor-vertical.png" : "../HelperWidgets/images/anchor-horizontal.png"
+                    iconSource: "image://icons/anchor-" + (verticalAnchor ? "vertical" : "horizontal")
+                    tooltip: verticalAnchor ? qsTr("Anchor to the vertical center of the target.") : qsTr("Anchor to the horizontal center of the target.")
 
                     onClicked: centerButtonClicked();
                 }
 
                 ButtonRowButton {
-                    iconSource: verticalAnchor ? "../HelperWidgets/images/anchor-bottom.png" : "../HelperWidgets/images/anchor-right.png"
+                    iconSource: "image://icons/anchor-" + (verticalAnchor ? "bottom" : "right")
+                    tooltip: verticalAnchor ? qsTr("Anchor to the bottom of the target.") : qsTr("Anchor to the right of the target.")
                     onClicked: {
                         if (!invertRelativeTargets)
                             oppositeEdgeButtonClicked();

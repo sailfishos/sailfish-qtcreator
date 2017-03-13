@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDDEPLOYQTSTEP_H
-#define ANDROIDDEPLOYQTSTEP_H
+#pragma once
 
 #include "androidbuildapkstep.h"
 #include "androidconfigurations.h"
@@ -33,9 +32,7 @@
 #include <projectexplorer/abstractprocessstep.h>
 #include <qtsupport/baseqtversion.h>
 
-namespace Utils {
-class QtcProcess;
-}
+namespace Utils { class QtcProcess; }
 
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
@@ -50,17 +47,10 @@ class AndroidDeployQtStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit AndroidDeployQtStepFactory(QObject *parent = 0);
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const override;
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
-
-    bool canClone(ProjectExplorer::BuildStepList *parent,
-                  ProjectExplorer::BuildStep *product) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent,
                                       ProjectExplorer::BuildStep *product) override;
 };
@@ -87,7 +77,6 @@ public:
 
     AndroidDeviceInfo deviceInfo() const;
 
-public slots:
     void setUninstallPreviousPackage(bool uninstall);
 
 signals:
@@ -143,5 +132,3 @@ private:
 
 }
 } // namespace Android
-
-#endif // ANDROIDDEPLOYQTSTEP_H

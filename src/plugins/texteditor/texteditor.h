@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITOR_H
-#define TEXTEDITOR_H
+#pragma once
 
 #include "texteditor_global.h"
 #include "blockrange.h"
@@ -302,6 +301,7 @@ public:
     static Core::Id SnippetPlaceholderSelection;
     static Core::Id CurrentLineSelection;
     static Core::Id ParenthesesMatchingSelection;
+    static Core::Id AutoCompleteSelection;
     static Core::Id CodeWarningsSelection;
     static Core::Id CodeSemanticsSelection;
     static Core::Id UndefinedSymbolSelection;
@@ -323,6 +323,10 @@ public:
 
     enum Side { Left, Right };
     void insertExtraToolBarWidget(Side side, QWidget *widget);
+
+    // keep the auto completion even if the focus is lost
+    void keepAutoCompletionHighlight(bool keepHighlight);
+    void setAutoCompleteSkipPosition(const QTextCursor &cursor);
 
     virtual void copy();
     virtual void paste();
@@ -579,8 +583,6 @@ signals:
     void tooltipOverrideRequested(TextEditor::TextEditorWidget *widget,
         const QPoint &globalPos, int position, bool *handled);
     void tooltipRequested(const QPoint &globalPos, int position);
-    void markTooltipRequested(TextEditor::TextEditorWidget *widget,
-        const QPoint &globalPos, int line);
     void activateEditor();
 
 protected slots:
@@ -635,13 +637,13 @@ public:
     typedef std::function<Indenter *()> IndenterCreator;
     typedef std::function<AutoCompleter *()> AutoCompleterCreator;
 
-    void setDocumentCreator(DocumentCreator &&creator);
-    void setEditorWidgetCreator(EditorWidgetCreator &&creator);
-    void setEditorCreator(EditorCreator &&creator);
-    void setIndenterCreator(IndenterCreator &&creator);
-    void setSyntaxHighlighterCreator(SyntaxHighLighterCreator &&creator);
+    void setDocumentCreator(const DocumentCreator &creator);
+    void setEditorWidgetCreator(const EditorWidgetCreator &creator);
+    void setEditorCreator(const EditorCreator &creator);
+    void setIndenterCreator(const IndenterCreator &creator);
+    void setSyntaxHighlighterCreator(const SyntaxHighLighterCreator &creator);
     void setUseGenericHighlighter(bool enabled);
-    void setAutoCompleterCreator(AutoCompleterCreator &&creator);
+    void setAutoCompleterCreator(const AutoCompleterCreator &creator);
 
     void setEditorActionHandlers(Core::Id contextId, uint optionalActions);
     void setEditorActionHandlers(uint optionalActions);
@@ -666,5 +668,3 @@ private:
 } // namespace TextEditor
 
 Q_DECLARE_METATYPE(TextEditor::TextEditorWidget::Link)
-
-#endif // TEXTEDITOR_H

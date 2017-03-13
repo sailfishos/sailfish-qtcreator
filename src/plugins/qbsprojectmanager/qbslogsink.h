@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSLOGSINK_H
-#define QBSLOGSINK_H
+#pragma once
 
 #include <projectexplorer/task.h>
 
@@ -46,10 +45,9 @@ public:
 signals:
     void newTask(const ProjectExplorer::Task &task);
 
-private slots:
-    void sendMessages();
-
 private:
+    Q_INVOKABLE void sendMessages();
+
     void doPrintWarning(const qbs::ErrorInfo &warning);
     void doPrintMessage(qbs::LoggerLevel level, const QString &message, const QString &tag);
 
@@ -59,5 +57,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSLOGSINK_H

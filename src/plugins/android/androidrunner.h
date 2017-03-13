@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDRUNNER_H
-#define ANDROIDRUNNER_H
+#pragma once
 
 #include "androidconfigurations.h"
 #include "androidrunnable.h"
@@ -62,27 +61,26 @@ public:
     void setRunnable(const AndroidRunnable &runnable);
     const AndroidRunnable &runnable() const { return m_androidRunnable; }
 
-public slots:
+public:
     void start();
     void stop();
     void handleRemoteDebuggerRunning();
 
 signals:
     void remoteServerRunning(const QByteArray &serverChannel, int pid);
-    void remoteProcessStarted(int gdbServerPort, int qmlPort);
+    void remoteProcessStarted(Utils::Port gdbServerPort, Utils::Port qmlPort);
     void remoteProcessFinished(const QString &errString = QString());
 
     void remoteOutput(const QString &output);
     void remoteErrorOutput(const QString &output);
 
-private slots:
+private:
     void checkPID();
     void logcatReadStandardError();
     void logcatReadStandardOutput();
     void asyncStart();
-    QByteArray runPs();
+    void asyncStop();
 
-private:
     void adbKill(qint64 pid);
     QStringList selector() const { return m_selector; }
     void forceStop();
@@ -90,7 +88,7 @@ private:
     void logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError);
     bool adbShellAmNeedsQuotes();
 
-private:
+    bool runAdb(const QStringList &args, QString *errorMessage = nullptr, int timeoutS = 10);
     QProcess m_adbLogcatProcess;
     QProcess m_psProc;
     QTimer m_checkPIDTimer;
@@ -102,8 +100,8 @@ private:
     qint64 m_processPID;
     bool m_useCppDebugger;
     QmlDebug::QmlDebugServicesPreset m_qmlDebugServices;
-    ushort m_localGdbServerPort; // Local end of forwarded debug socket.
-    quint16 m_qmlPort;
+    Utils::Port m_localGdbServerPort; // Local end of forwarded debug socket.
+    Utils::Port m_qmlPort;
     QString m_pingFile;
     QString m_pongFile;
     QString m_gdbserverPath;
@@ -113,12 +111,10 @@ private:
     QStringList m_selector;
     QMutex m_mutex;
     QRegExp m_logCatRegExp;
-    DebugHandShakeType m_handShakeMethod;
+    DebugHandShakeType m_handShakeMethod = SocketHandShake;
     QTcpSocket *m_socket;
     bool m_customPort;
 };
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDRUNNER_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SPOTLIGHTLOCATORFILTER_H
-#define SPOTLIGHTLOCATORFILTER_H
+#pragma once
 
 #include "basefilefilter.h"
 
@@ -33,8 +32,15 @@ namespace Internal {
 
 class SpotlightLocatorFilter : public BaseFileFilter
 {
+    Q_OBJECT
 public:
-    SpotlightLocatorFilter();
+    SpotlightLocatorFilter()
+    {
+        // tr() must not be placed in .mm file.
+        setId("SpotlightFileNamesLocatorFilter");
+        setDisplayName(tr("Spotlight File Name Index"));
+        setShortcutString(QLatin1String("md"));
+    }
 
     void prepareSearch(const QString &entry);
     void refresh(QFutureInterface<void> &future);
@@ -42,6 +48,3 @@ public:
 
 } // Internal
 } // Core
-
-#endif // SPOTLIGHTLOCATORFILTER_H
-

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXANALYZESUPPORT_H
-#define REMOTELINUXANALYZESUPPORT_H
+#pragma once
 
 #include "abstractremotelinuxrunsupport.h"
 
@@ -51,7 +50,7 @@ protected:
     void startExecution();
     void handleAdapterSetupFailed(const QString &error);
 
-private slots:
+private:
     void handleRemoteSetupRequested();
     void handleAppRunnerError(const QString &error);
     void handleRemoteOutput(const QByteArray &output);
@@ -64,12 +63,9 @@ private slots:
 
     void remoteIsRunning();
 
-private:
     void showMessage(const QString &, Utils::OutputFormat);
 
     Internal::RemoteLinuxAnalyzeSupportPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXANALYZESUPPORT_H

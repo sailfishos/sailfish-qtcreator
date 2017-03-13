@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSMODELMANAGER_H
-#define QMLJSMODELMANAGER_H
+#pragma once
 
 #include "qmljstools_global.h"
 
@@ -57,10 +56,10 @@ protected:
     WorkingCopy workingCopyInternal() const override;
     void addTaskInternal(QFuture<void> result, const QString &msg, const char *taskId) const override;
     ProjectInfo defaultProjectInfoForProject(ProjectExplorer::Project *project) const override;
-private slots:
-    void updateDefaultProjectInfo();
 private:
+    void updateDefaultProjectInfo();
     void loadDefaultQmlTypeDescriptions();
+    QHash<QString, QmlJS::Dialect> initLanguageForSuffix() const;
 };
 
 } // namespace Internal
@@ -68,5 +67,3 @@ private:
 QMLJSTOOLS_EXPORT void setupProjectInfoQmlBundles(QmlJS::ModelManagerInterface::ProjectInfo &projectInfo);
 
 } // namespace QmlJSTools
-
-#endif // QMLJSMODELMANAGER_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef AUTOTESTCONSTANTS_H
-#define AUTOTESTCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -39,21 +38,8 @@ const char AUTOTEST_ID[]                = "AutoTest.ATP";
 const char AUTOTEST_CONTEXT[]           = "Auto Tests";
 const char TASK_INDEX[]                 = "AutoTest.Task.Index";
 const char TASK_PARSE[]                 = "AutoTest.Task.Parse";
-const char UNNAMED_QUICKTESTS[]         = QT_TR_NOOP("<unnamed>");
 const char AUTOTEST_SETTINGS_CATEGORY[] = "ZY.Tests";
+const char FRAMEWORK_PREFIX[]           = "AutoTest.Framework.";
 
 } // namespace Constants
-
-namespace Internal {
-
-enum TestType
-{
-    TestTypeQt,
-    TestTypeGTest
-};
-
-} // namespace Internal
 } // namespace Autotest
-
-#endif // AUTOTESTCONSTANTS_H
-

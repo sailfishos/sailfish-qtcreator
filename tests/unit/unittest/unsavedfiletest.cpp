@@ -28,12 +28,15 @@
 #include "gmock/gmock.h"
 #include "gtest-qt-printing.h"
 
+#include <clangfilepath.h>
 #include <unsavedfile.h>
 #include <unsavedfiles.h>
 
+using ClangBackEnd::FilePath;
 using ClangBackEnd::UnsavedFile;
 using ClangBackEnd::UnsavedFiles;
 
+using ::testing::Eq;
 using ::testing::PrintToString;
 
 namespace {
@@ -59,6 +62,8 @@ protected:
 
     Utf8String otherFilePath = Utf8StringLiteral("otherpath");
     Utf8String otherFileContent = Utf8StringLiteral("othercontent");
+
+    Utf8String absoluteFilePath = Utf8StringLiteral(TESTDATA_DIR"/file.cpp");
 
     uint aLength = 2;
     Utf8String aReplacement = Utf8StringLiteral("replacement");
@@ -125,6 +130,21 @@ TEST_F(UnsavedFile, AssignMoveFromIsSwapped)
                                          otherFileContent.byteSize()));
 }
 
+TEST_F(UnsavedFile, FilePath)
+{
+    ::UnsavedFile unsavedFile(absoluteFilePath, QStringLiteral(""));
+
+    ASSERT_THAT(unsavedFile.filePath(), Eq(absoluteFilePath));
+}
+
+TEST_F(UnsavedFile, NativeFilePath)
+{
+    ::UnsavedFile unsavedFile(absoluteFilePath, QStringLiteral(""));
+    const Utf8String nativeFilePath = FilePath::toNativeSeparators(absoluteFilePath);
+
+    ASSERT_THAT(unsavedFile.nativeFilePath(), Eq(nativeFilePath));
+}
+
 TEST_F(UnsavedFile, DoNotReplaceWithOffsetZeroInEmptyContent)
 {
     ::UnsavedFile unsavedFile(filePath, QStringLiteral(""));
@@ -148,6 +168,44 @@ TEST_F(UnsavedFile, Replace)
 
     ASSERT_TRUE(hasReplaced);
     ASSERT_THAT(unsavedFile, IsUnsavedFile(filePath, expectedContent, expectedContent.byteSize()));
+}
+
+TEST_F(UnsavedFile, ToUtf8PositionForValidLineColumn)
+{
+    ::UnsavedFile unsavedFile(filePath, fileContent);
+    bool ok = false;
+
+    const uint position = unsavedFile.toUtf8Position(1, 1, &ok);
+
+    ASSERT_TRUE(ok);
+    ASSERT_THAT(position, Eq(0));
+}
+
+TEST_F(UnsavedFile, ToUtf8PositionForInValidLineColumn)
+{
+    ::UnsavedFile unsavedFile(filePath, fileContent);
+    bool ok = false;
+
+    unsavedFile.toUtf8Position(2, 1, &ok);
+
+    ASSERT_FALSE(ok);
+}
+
+TEST_F(UnsavedFile, ToUtf8PositionForDefaultConstructedUnsavedFile)
+{
+    ::UnsavedFile unsavedFile;
+    bool ok = false;
+
+    unsavedFile.toUtf8Position(1, 1, &ok);
+
+    ASSERT_FALSE(ok);
+}
+
+TEST_F(UnsavedFile, HasNoCharacterForDefaultConstructedUnsavedFile)
+{
+    ::UnsavedFile unsavedFile;
+
+    ASSERT_FALSE(unsavedFile.hasCharacterAt(0, 'x'));
 }
 
 TEST_F(UnsavedFile, HasNoCharacterForTooBigOffset)

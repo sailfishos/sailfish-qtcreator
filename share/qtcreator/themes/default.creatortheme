@@ -65,10 +65,9 @@ IconsModeWelcomeActiveColor=ffffffff
 IconsModeEditActiveColor=ffffffff
 IconsModeDesignActiveColor=ffffffff
 IconsModeDebugActiveColor=ffffffff
-IconsModeProjetcsActiveColor=ffffffff
+IconsModeProjectActiveColor=ffffffff
 IconsModeAnalyzeActiveColor=ffffffff
 IconsModeHelpActiveColor=ffffffff
-IconsModeMerActiveColor=ffffffff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -157,8 +156,9 @@ Welcome_LinkColor=ff5caa15
 VcsBase_FileStatusUnknown_TextColor=ff000000
 VcsBase_FileAdded_TextColor=ff00aa00
 VcsBase_FileModified_TextColor=ff0000ee
-VcsBase_FileDeleted_TextColor=ffee0000
+VcsBase_FileDeleted_TextColor=ff800000
 VcsBase_FileRenamed_TextColor=ffd77d00
+VcsBase_FileUnmerged_TextColor=ffee0000
 
 Bookmarks_TextMarkColor=ffa0a0ff
 
@@ -171,6 +171,9 @@ ProjectExplorer_TaskWarn_TextMarkColor=ffffa500
 ClangCodeModel_Error_TextMarkColor=ffff882f
 ClangCodeModel_Warning_TextMarkColor=ffc6c132
 
+QmlDesigner_BackgroundColor=ff4c4e50
+QmlDesigner_HighlightColor=ff46a2da
+
 [Flags]
 ComboBoxDrawTextShadow=true
 DerivePaletteFromTheme=false
@@ -178,15 +181,16 @@ DrawIndicatorBranch=false
 DrawSearchResultWidgetFrame=true
 DrawTargetSelectorBottom=true
 DrawToolBarHighlights=true
+DrawToolBarBorders=false
 ApplyThemePaletteGlobally=false
+FlatToolBars=false
 FlatSideBarIcons=false
 FlatProjectsMode=false
 FlatMenuBar=false
+ToolBarIconShadow=true
+WindowColorAsBase=false
 
 [Gradients]
 DetailsWidgetHeaderGradient\1\color=ffffff
 DetailsWidgetHeaderGradient\1\pos=1
 DetailsWidgetHeaderGradient\size=1
-
-[Style]
-WidgetStyle=StyleDefault

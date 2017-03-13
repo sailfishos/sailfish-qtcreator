@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECTRUNCONFIGURATION_H
-#define QMLPROJECTRUNCONFIGURATION_H
+#pragma once
 
 #include "qmlprojectmanager_global.h"
 
@@ -81,10 +80,6 @@ public:
 signals:
     void scriptSourceChanged();
 
-private slots:
-    void changeCurrentFile(Core::IEditor* = 0);
-    void updateEnabled();
-
 protected:
     QmlProjectRunConfiguration(ProjectExplorer::Target *parent,
                                QmlProjectRunConfiguration *source);
@@ -93,6 +88,9 @@ protected:
 
 private:
     void ctor();
+
+    void changeCurrentFile(Core::IEditor* = 0);
+    void updateEnabled();
 
     QString executable() const;
     QString commandLineArguments() const;
@@ -113,5 +111,3 @@ private:
 };
 
 } // namespace QmlProjectManager
-
-#endif // QMLPROJECTRUNCONFIGURATION_H

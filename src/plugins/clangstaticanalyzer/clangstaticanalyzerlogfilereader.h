@@ -23,23 +23,22 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGSTATICANALYZERLOGFILEREADER_H
-#define CLANGSTATICANALYZERLOGFILEREADER_H
+#pragma once
 
 #include "clangstaticanalyzerdiagnostic.h"
 
 #include <QList>
+#include <QCoreApplication>
 
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
 class LogFileReader
 {
+    Q_DECLARE_TR_FUNCTIONS(ClangStaticAnalyzer::Internal::LogFileReader)
 public:
     static QList<Diagnostic> read(const QString &filePath, QString *errorMessage);
 };
 
 } // namespace Internal
 } // namespace ClangStaticAnalyzer
-
-#endif // CLANGSTATICANALYZERLOGFILEREADER_H

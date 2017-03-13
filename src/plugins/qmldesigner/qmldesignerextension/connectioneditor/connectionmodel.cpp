@@ -32,35 +32,20 @@
 #include <rewritertransaction.h>
 #include <nodeabstractproperty.h>
 #include <exception.h>
+#include <nodemetainfo.h>
 
+#include <QStandardItemModel>
 #include <QMessageBox>
 #include <QTableView>
 #include <QTimer>
-#include <QItemEditorFactory>
-#include <QStyleFactory>
 
 namespace {
-
-QStringList prependOnForSignalHandler(const QStringList &signalNames)
-{
-    QStringList signalHandlerNames;
-    foreach (const QString &signalName, signalNames) {
-        QString signalHandlerName = signalName;
-        if (!signalHandlerName.isEmpty()) {
-            QChar firstChar = signalHandlerName.at(0).toUpper();
-            signalHandlerName[0] = firstChar;
-            signalHandlerName.prepend(QLatin1String("on"));
-            signalHandlerNames.append(signalHandlerName);
-        }
-    }
-    return signalHandlerNames;
-}
 
 QStringList propertyNameListToStringList(const QmlDesigner::PropertyNameList &propertyNameList)
 {
     QStringList stringList;
     foreach (QmlDesigner::PropertyName propertyName, propertyNameList) {
-        stringList << QString::fromLatin1(propertyName);
+        stringList << QString::fromUtf8(propertyName);
     }
     return stringList;
 }
@@ -73,42 +58,32 @@ bool isConnection(const QmlDesigner::ModelNode &modelNode)
 
 }
 
-enum ColumnRoles {
-    TargetModelNodeRow = 0,
-    TargetPropertyNameRow = 1,
-    SourceRow = 2
-};
-
 } //namespace
 
 namespace QmlDesigner {
 
 namespace Internal {
 
-ConnectionModel::ConnectionModel(ConnectionView *parent) : QStandardItemModel(parent), m_connectionView(parent), m_lock(false)
+ConnectionModel::ConnectionModel(ConnectionView *parent)
+    : QStandardItemModel(parent)
+    , m_connectionView(parent)
 {
-    connect(this, SIGNAL(dataChanged(QModelIndex,QModelIndex)), this, SLOT(handleDataChanged(QModelIndex,QModelIndex)));
+    connect(this, &QStandardItemModel::dataChanged, this, &ConnectionModel::handleDataChanged);
 }
 
 void ConnectionModel::resetModel()
 {
     beginResetModel();
     clear();
-
-    QStringList labels;
-
-    labels << tr("Target");
-    labels << tr("Signal Handler");
-    labels <<tr("Action");
-
-    setHorizontalHeaderLabels(labels);
+    setHorizontalHeaderLabels(QStringList()
+                              << tr("Target")
+                              << tr("Signal Handler")
+                              << tr("Action"));
 
     if (connectionView()->isAttached()) {
-        foreach (const ModelNode modelNode, connectionView()->allModelNodes()) {
+        foreach (const ModelNode modelNode, connectionView()->allModelNodes())
             addModelNode(modelNode);
-        }
     }
-
 
     const int columnWidthTarget = connectionView()->connectionTableView()->columnWidth(0);
     connectionView()->connectionTableView()->setColumnWidth(0, columnWidthTarget - 80);
@@ -124,7 +99,7 @@ SignalHandlerProperty ConnectionModel::signalHandlerPropertyForRow(int rowNumber
     ModelNode  modelNode = connectionView()->modelNodeForInternalId(internalId);
 
     if (modelNode.isValid())
-        return modelNode.signalHandlerProperty(targetPropertyName.toLatin1());
+        return modelNode.signalHandlerProperty(targetPropertyName.toUtf8());
 
     return SignalHandlerProperty();
 }
@@ -160,7 +135,7 @@ void ConnectionModel::addSignalHandler(const SignalHandlerProperty &signalHandle
 
     targetItem = new QStandardItem(idLabel);
     updateCustomData(targetItem, signalHandlerProperty);
-    const QString propertyName = QString::fromLatin1(signalHandlerProperty.name());
+    const QString propertyName = QString::fromUtf8(signalHandlerProperty.name());
     const QString source = signalHandlerProperty.source();
 
     signalItem = new QStandardItem(propertyName);
@@ -184,6 +159,7 @@ void ConnectionModel::removeModelNode(const ModelNode &modelNode)
 
 void ConnectionModel::removeConnection(const ModelNode & /*modelNode*/)
 {
+    Q_ASSERT_X(false, "not implemented", Q_FUNC_INFO);
 }
 
 void ConnectionModel::updateSource(int row)
@@ -210,7 +186,7 @@ void ConnectionModel::updateSignalName(int rowNumber)
 {
     SignalHandlerProperty signalHandlerProperty = signalHandlerPropertyForRow(rowNumber);
 
-    const PropertyName newName = data(index(rowNumber, TargetPropertyNameRow)).toString().toLatin1();
+    const PropertyName newName = data(index(rowNumber, TargetPropertyNameRow)).toString().toUtf8();
     const QString source = signalHandlerProperty.source();
     ModelNode connectionNode = signalHandlerProperty.parentModelNode();
 
@@ -256,8 +232,6 @@ void ConnectionModel::updateTargetNode(int rowNumber)
     } else {
         qWarning() << "BindingModel::updatePropertyName invalid target id";
     }
-
-
 }
 
 void ConnectionModel::updateCustomData(QStandardItem *item, const SignalHandlerProperty &signalHandlerProperty)
@@ -394,119 +368,6 @@ QStringList ConnectionModel::getPossibleSignalsForConnection(const ModelNode &co
     }
 
     return stringList;
-}
-
-ConnectionDelegate::ConnectionDelegate(QWidget *parent) : QStyledItemDelegate(parent)
-{
-    static QItemEditorFactory *factory = 0;
-    if (factory == 0) {
-        factory = new QItemEditorFactory;
-        QItemEditorCreatorBase *creator
-                = new QItemEditorCreator<ConnectionComboBox>("text");
-        factory->registerEditor(QVariant::String, creator);
-    }
-
-    setItemEditorFactory(factory);
-}
-
-QWidget *ConnectionDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
-{
-
-    QWidget *widget = QStyledItemDelegate::createEditor(parent, option, index);
-
-    const ConnectionModel *connectionModel = qobject_cast<const ConnectionModel*>(index.model());
-
-    //model->connectionView()->allModelNodes();
-
-    ConnectionComboBox *bindingComboBox = qobject_cast<ConnectionComboBox*>(widget);
-
-    if (!connectionModel) {
-        qWarning() << "ConnectionDelegate::createEditor no model";
-        return widget;
-    }
-
-    if (!connectionModel->connectionView()) {
-        qWarning() << "ConnectionDelegate::createEditor no connection view";
-        return widget;
-    }
-
-    if (!bindingComboBox) {
-        qWarning() << "ConnectionDelegate::createEditor no bindingComboBox";
-        return widget;
-    }
-
-    switch (index.column()) {
-    case TargetModelNodeRow: {
-        foreach (const ModelNode &modelNode, connectionModel->connectionView()->allModelNodes()) {
-            if (!modelNode.id().isEmpty()) {
-                bindingComboBox->addItem(modelNode.id());
-            }
-        }
-    } break;
-    case TargetPropertyNameRow: {
-        bindingComboBox->addItems(prependOnForSignalHandler(connectionModel->getSignalsForRow(index.row())));
-    } break;
-    case SourceRow: {
-        ModelNode rootModelNode = connectionModel->connectionView()->rootModelNode();
-        if (QmlItemNode::isValidQmlItemNode(rootModelNode) && !rootModelNode.id().isEmpty()) {
-
-            QString itemText = tr("Change to default state");
-            QString source = QString::fromLatin1("{ %1.state = \"\" }").arg(rootModelNode.id());
-            bindingComboBox->addItem(itemText, source);
-
-            foreach (const QmlModelState &state, QmlItemNode(rootModelNode).states().allStates()) {
-                QString itemText = tr("Change state to %1").arg(state.name());
-                QString source = QString::fromLatin1("{ %1.state = \"%2\" }").arg(rootModelNode.id()).arg(state.name());
-                bindingComboBox->addItem(itemText, source);
-            }
-        }
-    } break;
-
-    default: qWarning() << "ConnectionDelegate::createEditor column" << index.column();
-    }
-
-    connect(bindingComboBox, SIGNAL(activated(QString)), this, SLOT(emitCommitData(QString)));
-
-    return widget;
-}
-
-void ConnectionDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
-{
-    QStyleOptionViewItem opt = option;
-    opt.state &= ~QStyle::State_HasFocus;
-    QStyledItemDelegate::paint(painter, opt, index);
-}
-
-void ConnectionDelegate::emitCommitData(const QString & /*text*/)
-{
-    ConnectionComboBox *bindingComboBox = qobject_cast<ConnectionComboBox*>(sender());
-
-    emit commitData(bindingComboBox);
-}
-
-ConnectionComboBox::ConnectionComboBox(QWidget *parent) : QComboBox(parent)
-{
-    static QScopedPointer<QStyle> style(QStyleFactory::create(QLatin1String("windows")));
-    setEditable(true);
-    if (style)
-        setStyle(style.data());
-}
-
-QString ConnectionComboBox::text() const
-{
-    int index = findText(currentText());
-    if (index > -1) {
-        QVariant variantData = itemData(index);
-        if (variantData.isValid())
-            return variantData.toString();
-    }
-
-    return currentText();
-}
-
-void ConnectionComboBox::setText(const QString &text)
-{
-    setEditText(text);
 }
 
 } // namespace Internal

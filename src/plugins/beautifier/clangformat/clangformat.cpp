@@ -38,17 +38,16 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/icontext.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <cppeditor/cppeditorconstants.h>
 #include <texteditor/texteditor.h>
 #include <utils/algorithm.h>
+#include <utils/fileutils.h>
 
 #include <QAction>
 #include <QMenu>
-#include <QStringList>
 
 namespace Beautifier {
 namespace Internal {
@@ -66,10 +65,15 @@ ClangFormat::~ClangFormat()
     delete m_settings;
 }
 
+QString ClangFormat::id() const
+{
+    return QLatin1String(Constants::ClangFormat::DISPLAY_NAME);
+}
+
 bool ClangFormat::initialize()
 {
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::ClangFormat::MENU_ID);
-    menu->menu()->setTitle(QLatin1String(Constants::ClangFormat::DISPLAY_NAME));
+    menu->menu()->setTitle(tr(Constants::ClangFormat::DISPLAY_NAME));
 
     m_formatFile = new QAction(BeautifierPlugin::msgFormatCurrentFile(), this);
     Core::Command *cmd
@@ -86,20 +90,22 @@ bool ClangFormat::initialize()
 
     Core::ActionManager::actionContainer(Constants::MENU_ID)->addMenu(menu);
 
+    connect(m_settings, &ClangFormatSettings::supportedMimeTypesChanged,
+            [this] { updateActions(Core::EditorManager::currentEditor()); });
+
     return true;
 }
 
 void ClangFormat::updateActions(Core::IEditor *editor)
 {
-    const bool enabled = (editor && editor->document()->id() == CppEditor::Constants::CPPEDITOR_ID);
+    const bool enabled = editor && m_settings->isApplicable(editor->document());
     m_formatFile->setEnabled(enabled);
     m_formatRange->setEnabled(enabled);
 }
 
 QList<QObject *> ClangFormat::autoReleaseObjects()
 {
-    ClangFormatOptionsPage *optionsPage = new ClangFormatOptionsPage(m_settings, this);
-    return QList<QObject *>() << optionsPage;
+    return {new ClangFormatOptionsPage(m_settings, this)};
 }
 
 void ClangFormat::formatFile()
@@ -124,29 +130,36 @@ void ClangFormat::formatSelectedText()
     }
 }
 
-Command ClangFormat::command(int offset, int length) const
+Command ClangFormat::command() const
 {
     Command command;
     command.setExecutable(m_settings->command());
     command.setProcessing(Command::PipeProcessing);
 
     if (m_settings->usePredefinedStyle()) {
-        command.addOption(QLatin1String("-style=") + m_settings->predefinedStyle());
-        command.addOption(QLatin1String("-assume-filename=%file"));
+        command.addOption("-style=" + m_settings->predefinedStyle());
+        command.addOption("-assume-filename=%file");
     } else {
-        command.addOption(QLatin1String("-style=file"));
+        command.addOption("-style=file");
         const QString path =
                 QFileInfo(m_settings->styleFileName(m_settings->customStyle())).absolutePath();
-        command.addOption(QLatin1String("-assume-filename=") + path + QDir::separator()
-                          + QLatin1String("%filename"));
-    }
-
-    if (offset != -1) {
-        command.addOption(QLatin1String("-offset=") + QString::number(offset));
-        command.addOption(QLatin1String("-length=") + QString::number(length));
+        command.addOption("-assume-filename=" + path + QDir::separator() + "%filename");
     }
 
     return command;
+}
+
+bool ClangFormat::isApplicable(const Core::IDocument *document) const
+{
+    return m_settings->isApplicable(document);
+}
+
+Command ClangFormat::command(int offset, int length) const
+{
+    Command c = command();
+    c.addOption("-offset=" + QString::number(offset));
+    c.addOption("-length=" + QString::number(length));
+    return c;
 }
 
 } // namespace ClangFormat

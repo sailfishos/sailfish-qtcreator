@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLASSLIST_H
-#define CLASSLIST_H
+#pragma once
 
 #include <QListView>
 
@@ -51,11 +50,11 @@ signals:
     void classDeleted(int index);
     void currentRowChanged(int);
 
-public slots:
+public:
     void removeCurrentClass();
     void startEditingNewClassItem();
 
-private slots:
+private:
     void classEdited();
     void slotCurrentRowChanged(const QModelIndex &,const QModelIndex &);
 
@@ -68,4 +67,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-#endif

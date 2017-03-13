@@ -26,6 +26,8 @@
 #include "testresultdelegate.h"
 #include "testresultmodel.h"
 
+#include <utils/qtcassert.h>
+
 #include <QFontMetrics>
 #include <QIcon>
 
@@ -44,7 +46,7 @@ TestResultItem::~TestResultItem()
 }
 
 static QIcon testResultIcon(Result::Type result) {
-    static QIcon icons[11] = {
+    static QIcon icons[] = {
         QIcon(QLatin1String(":/images/pass.png")),
         QIcon(QLatin1String(":/images/fail.png")),
         QIcon(QLatin1String(":/images/xfail.png")),
@@ -54,8 +56,10 @@ static QIcon testResultIcon(Result::Type result) {
         QIcon(QLatin1String(":/images/blacklisted_fail.png")),
         QIcon(QLatin1String(":/images/benchmark.png")),
         QIcon(QLatin1String(":/images/debug.png")),
+        QIcon(QLatin1String(":/images/debug.png")), // Info get's the same handling as Debug for now
         QIcon(QLatin1String(":/images/warn.png")),
         QIcon(QLatin1String(":/images/fatal.png")),
+        QIcon(QLatin1String(":/images/fatal.png")), // System get's same handling as Fatal for now
     }; // provide an icon for unknown??
 
     if (result < 0 || result >= Result::MessageInternal) {
@@ -79,8 +83,7 @@ QVariant TestResultItem::data(int column, int role) const
     case Qt::DecorationRole:
         return m_testResult ? testResultIcon(m_testResult->result()) : QVariant();
     case Qt::DisplayRole:
-        return m_testResult ? TestResultDelegate::outputString(*m_testResult.data(), true)
-                            : QVariant();
+        return m_testResult ? m_testResult->outputString(true) : QVariant();
     default:
         return Utils::TreeItem::data(column, role);
     }
@@ -173,11 +176,11 @@ void TestResultModel::addTestResult(const TestResultPtr &testResult, bool autoEx
 
     TestResultItem *newItem = new TestResultItem(testResult);
     // FIXME this might be totally wrong... we need some more unique information!
-    if (!testResult->className().isEmpty()) {
+    if (!testResult->name().isEmpty()) {
         for (int row = lastRow; row >= 0; --row) {
             TestResultItem *current = static_cast<TestResultItem *>(topLevelItems.at(row));
             const TestResult *result = current->testResult();
-            if (result && result->className() == testResult->className()) {
+            if (result && result->name() == testResult->name()) {
                 current->appendChild(newItem);
                 if (autoExpand)
                     current->expand();
@@ -208,7 +211,7 @@ void TestResultModel::removeCurrentTestMessage()
     for (int row = topLevelItems.size() - 1; row >= 0; --row) {
         TestResultItem *current = static_cast<TestResultItem *>(topLevelItems.at(row));
         if (current->testResult()->result() == Result::MessageCurrentTest) {
-            delete takeItem(current);
+            destroyItem(current);
             break;
         }
     }
@@ -224,12 +227,12 @@ void TestResultModel::clearTestResults()
     m_widthOfLineNumber = 0;
 }
 
-TestResult TestResultModel::testResult(const QModelIndex &idx)
+const TestResult *TestResultModel::testResult(const QModelIndex &idx)
 {
     if (idx.isValid())
-        return *(static_cast<TestResultItem *>(itemForIndex(idx))->testResult());
+        return static_cast<TestResultItem *>(itemForIndex(idx))->testResult();
 
-    return TestResult();
+    return 0;
 }
 
 int TestResultModel::maxWidthOfFileName(const QFont &font)
@@ -297,7 +300,7 @@ void TestResultFilterModel::enableAllResultTypes()
               << Result::MessageCurrentTest << Result::MessageTestCaseStart
               << Result::MessageTestCaseSuccess << Result::MessageTestCaseWarn
               << Result::MessageTestCaseFail << Result::MessageTestCaseEnd
-              << Result::MessageTestCaseRepetition;
+              << Result::MessageTestCaseRepetition << Result::MessageInfo << Result::MessageSystem;
     invalidateFilter();
 }
 
@@ -307,10 +310,14 @@ void TestResultFilterModel::toggleTestResultType(Result::Type type)
         m_enabled.remove(type);
         if (type == Result::MessageInternal)
             m_enabled.remove(Result::MessageTestCaseEnd);
+        if (type == Result::MessageDebug)
+            m_enabled.remove(Result::MessageInfo);
     } else {
         m_enabled.insert(type);
         if (type == Result::MessageInternal)
             m_enabled.insert(Result::MessageTestCaseEnd);
+        if (type == Result::MessageDebug)
+            m_enabled.insert(Result::MessageInfo);
     }
     invalidateFilter();
 }
@@ -325,7 +332,7 @@ bool TestResultFilterModel::hasResults()
     return rowCount(QModelIndex());
 }
 
-TestResult TestResultFilterModel::testResult(const QModelIndex &index) const
+const TestResult *TestResultFilterModel::testResult(const QModelIndex &index) const
 {
     return m_sourceModel->testResult(mapToSource(index));
 }
@@ -335,7 +342,29 @@ bool TestResultFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex &s
     QModelIndex index = m_sourceModel->index(sourceRow, 0, sourceParent);
     if (!index.isValid())
         return false;
-    return m_enabled.contains(m_sourceModel->testResult(index).result());
+    Result::Type resultType = m_sourceModel->testResult(index)->result();
+    switch (resultType) {
+    case Result::MessageTestCaseSuccess:
+        return m_enabled.contains(Result::Pass);
+    case Result::MessageTestCaseFail:
+    case Result::MessageTestCaseWarn:
+        return acceptTestCaseResult(index);
+    default:
+        return m_enabled.contains(resultType);
+    }
+}
+
+bool TestResultFilterModel::acceptTestCaseResult(const QModelIndex &index) const
+{
+    Utils::TreeItem *item = m_sourceModel->itemForIndex(index);
+    QTC_ASSERT(item, return false);
+
+    for (const Utils::TreeItem *child : item->children()) {
+        const TestResultItem *resultItem = static_cast<const TestResultItem *>(child);
+        if (m_enabled.contains(resultItem->testResult()->result()))
+            return true;
+    }
+    return false;
 }
 
 } // namespace Internal

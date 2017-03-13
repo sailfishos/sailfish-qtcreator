@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERSOURCEPATHMAPPINGWIDGET_H
-#define DEBUGGERSOURCEPATHMAPPINGWIDGET_H
+#pragma once
 
 #include <QGroupBox>
 #include <QMap>
@@ -63,7 +62,7 @@ public:
     static SourcePathMap mergePlatformQtPath(const DebuggerRunParameters &sp,
                                              const SourcePathMap &in);
 
-private slots:
+private:
     void slotAdd();
     void slotAddQt();
     void slotRemove();
@@ -71,7 +70,6 @@ private slots:
     void slotEditSourceFieldChanged();
     void slotEditTargetFieldChanged();
 
-private:
     void resizeColumns();
     void updateEnabled();
     QString editSourceField() const;
@@ -91,5 +89,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGERSOURCEPATHMAPPINGWIDGET_H

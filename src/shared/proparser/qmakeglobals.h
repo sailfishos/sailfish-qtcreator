@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEGLOBALS_H
-#define QMAKEGLOBALS_H
+#pragma once
 
 #include "qmake_global.h"
 #include "proitems.h"
@@ -82,7 +81,7 @@ class QMAKE_EXPORT QMakeCmdLineParserState
 public:
     QMakeCmdLineParserState(const QString &_pwd) : pwd(_pwd), after(false) {}
     QString pwd;
-    QStringList precmds, preconfigs, postcmds, postconfigs;
+    QStringList precmds, preconfigs, postcmds, postconfigs, extraargs;
     bool after;
 
     void flush() { after = false; }
@@ -104,6 +103,7 @@ public:
     QString qmake_abslocation;
     QStringList qmake_args;
 
+    QString qtconf;
     QString qmakespec, xqmakespec;
     QString user_template, user_template_prefix;
     QString precmds, postcmds;
@@ -159,5 +159,3 @@ private:
 };
 
 QT_END_NAMESPACE
-
-#endif // QMAKEGLOBALS_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REWRITERTRANSACTION_H
-#define REWRITERTRANSACTION_H
+#pragma once
 
 #include <qmldesignercorelib_global.h>
 
@@ -47,6 +46,8 @@ public:
 
     bool isValid() const;
 
+    void ignoreSemanticChecks();
+
 protected:
     AbstractView *view();
 private:
@@ -56,8 +57,7 @@ private:
    int m_identifierNumber;
    static QList<QByteArray> m_identifierList;
    static bool m_activeIdentifier;
+   bool m_ignoreSemanticChecks = false;
 };
 
 } //QmlDesigner
-
-#endif // REWRITERTRANSACTION_H

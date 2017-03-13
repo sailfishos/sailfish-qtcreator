@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NODEMETAINFO_H
-#define NODEMETAINFO_H
+#pragma once
 
 #include <QList>
 #include <QString>
@@ -82,7 +81,7 @@ public:
     QList<NodeMetaInfo> superClasses() const;
     NodeMetaInfo directSuperClass() const;
 
-    QList<TypeName> superClassNames() const;
+    QStringList superClassNames() const;
 
     bool defaultPropertyIsComponent() const;
 
@@ -112,5 +111,3 @@ private:
 };
 
 } //QmlDesigner
-
-#endif // NODEMETAINFO_H

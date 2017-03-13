@@ -147,72 +147,27 @@ void DeviceManager::load()
                 QLatin1String("QtCreatorDevices"));
 
     Utils::PersistentSettingsReader reader;
-
     // read devices file from global settings path
     QList<IDevice::Ptr> sdkDevices;
     if (reader.load(systemSettingsFilePath(QLatin1String("/qtcreator/devices.xml"))))
         sdkDevices = fromMap(reader.restoreValues().value(QLatin1String(DeviceManagerKey)).toMap());
-
     // read devices file from user settings path
     QList<IDevice::Ptr> userDevices;
     if (reader.load(settingsFilePath(QLatin1String("/devices.xml"))))
         userDevices = fromMap(reader.restoreValues().value(QLatin1String(DeviceManagerKey)).toMap());
-
-//    //devices found in user settings to be added
-//    QList<IDevice::Ptr> devicesToRegister;
-//    //devices found in user settings, which came from sdk installer
-//    QList<IDevice::Ptr> devicesToBeChecked;
-//    foreach (IDevice::Ptr device, userDevices) {
-//        if(device->isSdkProvided())
-//            devicesToBeChecked.append(device);
-//        else
-//            devicesToRegister.append(device);
-//    }
-
-//    IDevice::Ptr deviceToAdd;
-//    foreach (IDevice::Ptr sdkDevice, sdkDevices) {
-//        deviceToAdd = sdkDevice;
-
-//        for(int i = 0; i < devicesToBeChecked.count(); ++i) {
-//            if(devicesToBeChecked.at(i)->id() == sdkDevice->id()) {
-//                if(devicesToBeChecked.at(i)->version() > sdkDevice->version())
-//                    deviceToAdd == devicesToBeChecked.at(i);
-
-//                devicesToBeChecked.removeAt(i);
-//                break;
-//            }
-//        }
-//        addDevice(deviceToAdd);
-//    }
-
-//    foreach (IDevice::Ptr device, devicesToBeChecked) {
-//        delete &device;
-//    }
-//    devicesToBeChecked.clear();
-
-//    foreach (IDevice::Ptr device, devicesToRegister) {
-//        addDevice(device);
-//    }
-
     // Insert devices into the model. Prefer the higher device version when there are multiple
     // devices with the same id.
     foreach (IDevice::Ptr device, userDevices) {
-        if (hasDevice(device->displayName())) // HACK: Do not re-load "Desktop Device"
-            continue;
         foreach (const IDevice::Ptr &sdkDevice, sdkDevices) {
             if (device->id() == sdkDevice->id()) {
                 if (device->version() < sdkDevice->version())
                     device = sdkDevice;
-                addDevice(device);
                 sdkDevices.removeOne(sdkDevice);
                 break;
             }
         }
-
-        if(!device->isSdkProvided())
-            addDevice(device);
+        addDevice(device);
     }
-
     // Append the new SDK devices to the model.
     foreach (const IDevice::Ptr &sdkDevice, sdkDevices)
         addDevice(sdkDevice);
@@ -496,13 +451,13 @@ public:
     static Core::Id testTypeId() { return "TestType"; }
 private:
     TestDevice(const TestDevice &other) : IDevice(other) {}
-    QString displayType() const { return QLatin1String("blubb"); }
-    IDeviceWidget *createWidget() { return 0; }
-    QList<Core::Id> actionIds() const { return QList<Core::Id>(); }
-    QString displayNameForActionId(Core::Id) const { return QString(); }
-    void executeAction(Core::Id, QWidget *) { }
-    Ptr clone() const { return Ptr(new TestDevice(*this)); }
-    DeviceProcessSignalOperation::Ptr signalOperation() const
+    QString displayType() const override { return QLatin1String("blubb"); }
+    IDeviceWidget *createWidget() override { return 0; }
+    QList<Core::Id> actionIds() const override { return QList<Core::Id>(); }
+    QString displayNameForActionId(Core::Id) const override { return QString(); }
+    void executeAction(Core::Id, QWidget *) override { }
+    Ptr clone() const override { return Ptr(new TestDevice(*this)); }
+    DeviceProcessSignalOperation::Ptr signalOperation() const override
     {
         return DeviceProcessSignalOperation::Ptr();
     }

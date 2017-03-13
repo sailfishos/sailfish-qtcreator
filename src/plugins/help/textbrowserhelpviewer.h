@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTBROWSERHELPVIEWER_H
-#define TEXTBROWSERHELPVIEWER_H
+#pragma once
 
 #include "centralwidget.h"
 #include "helpviewer.h"
@@ -68,7 +67,6 @@ public:
     bool findText(const QString &text, Core::FindFlags flags,
                   bool incremental, bool fromSearch, bool *wrapped = 0);
 
-public slots:
     void scaleUp();
     void scaleDown();
     void resetScale();
@@ -78,10 +76,9 @@ public slots:
     void backward();
     void print(QPrinter *printer);
 
-private slots:
+private:
     void goToHistoryItem();
 
-private:
     TextBrowserHelpWidget *m_textBrowser;
 };
 
@@ -119,5 +116,3 @@ private:
 
 }   // namespace Internal
 }   // namespace Help
-
-#endif // TEXTBROWSERHELPVIEWER_H

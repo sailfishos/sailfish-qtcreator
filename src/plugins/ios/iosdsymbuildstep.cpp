@@ -90,9 +90,7 @@ bool IosPresetBuildStep::init(QList<const BuildStep *> &earlierSteps)
     pp->setMacroExpander(bc->macroExpander());
     pp->setWorkingDirectory(bc->buildDirectory().toString());
     Utils::Environment env = bc->environment();
-    // Force output to english for the parsers. Do this here and not in the toolchain's
-    // addToEnvironment() to not screw up the users run environment.
-    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
+    Utils::Environment::setupEnglishOutput(&env);
     pp->setEnvironment(env);
     pp->setCommand(command());
     pp->setArguments(Utils::QtcProcess::joinArgs(arguments()));
@@ -251,19 +249,18 @@ IosPresetBuildStepConfigWidget::IosPresetBuildStepConfigWidget(IosPresetBuildSte
     m_ui->resetDefaultsButton->setEnabled(!m_buildStep->isDefault());
     updateDetails();
 
-    connect(m_ui->argumentsTextEdit, SIGNAL(textChanged()),
-            SLOT(argumentsChanged()));
-    connect(m_ui->commandLineEdit, SIGNAL(editingFinished()),
-            SLOT(commandChanged()));
-    connect(m_ui->resetDefaultsButton, SIGNAL(clicked()),
-            SLOT(resetDefaults()));
+    connect(m_ui->argumentsTextEdit, &QPlainTextEdit::textChanged,
+            this, &IosPresetBuildStepConfigWidget::argumentsChanged);
+    connect(m_ui->commandLineEdit, &QLineEdit::editingFinished,
+            this, &IosPresetBuildStepConfigWidget::commandChanged);
+    connect(m_ui->resetDefaultsButton, &QAbstractButton::clicked,
+            this, &IosPresetBuildStepConfigWidget::resetDefaults);
 
-    connect(ProjectExplorerPlugin::instance(), SIGNAL(settingsChanged()),
-            SLOT(updateDetails()));
-    connect(m_buildStep->target(), SIGNAL(kitChanged()),
-            SLOT(updateDetails()));
-    connect(pro, SIGNAL(environmentChanged()),
-            SLOT(updateDetails()));
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::settingsChanged,
+            this, &IosPresetBuildStepConfigWidget::updateDetails);
+    connect(m_buildStep->target(), &Target::kitChanged,
+            this, &IosPresetBuildStepConfigWidget::updateDetails);
+    connect(pro, &Project::environmentChanged, this, &IosPresetBuildStepConfigWidget::updateDetails);
 }
 
 IosPresetBuildStepConfigWidget::~IosPresetBuildStepConfigWidget()
@@ -334,8 +331,6 @@ IosPresetBuildStepFactory::IosPresetBuildStepFactory(QObject *parent) :
 
 BuildStep *IosPresetBuildStepFactory::create(BuildStepList *parent, const Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
     IosPresetBuildStep *step = createPresetStep(parent, id);
     if (step->completeSetup())
         return step;
@@ -343,15 +338,8 @@ BuildStep *IosPresetBuildStepFactory::create(BuildStepList *parent, const Id id)
     return 0;
 }
 
-bool IosPresetBuildStepFactory::canClone(BuildStepList *parent, BuildStep *source) const
-{
-    return canCreate(parent, source->id());
-}
-
 BuildStep *IosPresetBuildStepFactory::clone(BuildStepList *parent, BuildStep *source)
 {
-    if (!canClone(parent, source))
-        return 0;
     IosPresetBuildStep *old = qobject_cast<IosPresetBuildStep *>(source);
     Q_ASSERT(old);
     IosPresetBuildStep *res = createPresetStep(parent, old->id());
@@ -361,15 +349,8 @@ BuildStep *IosPresetBuildStepFactory::clone(BuildStepList *parent, BuildStep *so
     return 0;
 }
 
-bool IosPresetBuildStepFactory::canRestore(BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, idFromMap(map));
-}
-
 BuildStep *IosPresetBuildStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
 {
-    if (!canRestore(parent, map))
-        return 0;
     IosPresetBuildStep *bs = createPresetStep(parent, idFromMap(map));
     if (bs->fromMap(map))
         return bs;
@@ -377,38 +358,18 @@ BuildStep *IosPresetBuildStepFactory::restore(BuildStepList *parent, const QVari
     return 0;
 }
 
-QString IosDsymBuildStepFactory::displayNameForId(const Id id) const
-{
-    if (id == Constants::IOS_DSYM_BUILD_STEP_ID)
-        return QLatin1String("dsymutil");
-    return QString();
-}
-
-QList<Id> IosDsymBuildStepFactory::availableCreationIds(BuildStepList *parent) const
+QList<BuildStepInfo> IosDsymBuildStepFactory::availableSteps(BuildStepList *parent) const
 {
     if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_CLEAN
             && parent->id() != ProjectExplorer::Constants::BUILDSTEPS_BUILD
             && parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        return QList<Id>();
-    Kit *kit = parent->target()->kit();
-    Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
-    if (deviceType == Constants::IOS_DEVICE_TYPE
-            || deviceType == Constants::IOS_SIMULATOR_TYPE)
-        return QList<Id>() << Id(Constants::IOS_DSYM_BUILD_STEP_ID);
-    return QList<Id>();
-}
+        return {};
 
-bool IosDsymBuildStepFactory::canCreate(BuildStepList *parent, const Id id) const
-{
-    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_CLEAN
-            && parent->id() != ProjectExplorer::Constants::BUILDSTEPS_BUILD
-            && parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        return false;
-    Kit *kit = parent->target()->kit();
-    Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
-    return ((deviceType == Constants::IOS_DEVICE_TYPE
-            || deviceType == Constants::IOS_SIMULATOR_TYPE)
-            && id == Constants::IOS_DSYM_BUILD_STEP_ID);
+    Id deviceType = DeviceTypeKitInformation::deviceTypeId(parent->target()->kit());
+    if (deviceType != Constants::IOS_DEVICE_TYPE && deviceType != Constants::IOS_SIMULATOR_TYPE)
+        return {};
+
+    return {{ Constants::IOS_DSYM_BUILD_STEP_ID, "dsymutil" }};
 }
 
 IosPresetBuildStep *IosDsymBuildStepFactory::createPresetStep(BuildStepList *parent, const Id id) const

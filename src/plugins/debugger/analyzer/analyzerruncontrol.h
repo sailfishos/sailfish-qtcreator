@@ -24,14 +24,13 @@
 **
 ****************************************************************************/
 
-#ifndef ANALYZERRUNCONTROL_H
-#define ANALYZERRUNCONTROL_H
+#pragma once
 
 #include <debugger/debugger_global.h>
 
 #include <projectexplorer/runconfiguration.h>
 
-#include <utils/outputformat.h>
+#include <utils/port.h>
 
 namespace Debugger {
 
@@ -47,24 +46,11 @@ class DEBUGGER_EXPORT AnalyzerRunControl : public ProjectExplorer::RunControl
 public:
     AnalyzerRunControl(ProjectExplorer::RunConfiguration *runConfiguration, Core::Id runMode);
 
-    /// Controller actions.
-    virtual bool canPause() const { return false; }
-    virtual void pause() {}
-    virtual void unpause() {}
-
-    virtual void notifyRemoteSetupDone(quint16) {}
+    virtual void notifyRemoteSetupDone(Utils::Port) {}
     virtual void notifyRemoteFinished() {}
 
 signals:
     void starting();
-
-public slots:
-    virtual void logApplicationMessage(const QString &, Utils::OutputFormat) { }
-
-private:
-    bool supportsReRunning() const override { return false; }
 };
 
 } // namespace Debugger
-
-#endif // ANALYZERRUNCONTROL_H
