@@ -301,7 +301,7 @@ bool AddDeviceOperation::test() const
     QVariantMap result = addDevice(map, QLatin1String("test id"), QLatin1String("test name"),
                                    1, 2, QLatin1String("HW"), QLatin1String("SW"),
                                    QLatin1String("debugServer"), QLatin1String("ports"),
-                                   QLatin1String("host"), QLatin1String("keyfile"), 3,
+                                   QLatin1String("host"), QLatin1String("keyfile"), 3, false,
                                    QLatin1String("ostype"), QLatin1String("passwd"), 4, 5,
                                    QLatin1String("uname"), 6, KeyValuePairList());
 
