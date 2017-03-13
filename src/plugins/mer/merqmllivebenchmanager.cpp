@@ -540,7 +540,7 @@ void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc
 
     auto RunControl_appendMessage = static_cast<
         void (RunControl::*)(RunControl *, const QString &, Utils::OutputFormat)
-        >(&RunControl::appendMessage);
+        >(&RunControl::appendMessageRequested);
     connect(rc, RunControl_appendMessage, guard.data(), [probe](RunControl *rc, const QString &msg) {
         Q_UNUSED(rc);
         if (msg.contains(QLatin1String(APP_READY_PATTERN)))
