@@ -228,17 +228,13 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(ProjectExplorer::RunConfigu
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
     setDisplayName(tr("Sailfish OS Application Settings"));
+    setRunConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
 }
 
 ProjectExplorer::IRunConfigurationAspect *MerRunConfigurationAspect::create(
         ProjectExplorer::RunConfiguration *runConfig) const
 {
     return new MerRunConfigurationAspect(runConfig);
-}
-
-ProjectExplorer::RunConfigWidget *MerRunConfigurationAspect::createConfigurationWidget()
-{
-    return new MerRunConfigWidget(this);
 }
 
 QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
