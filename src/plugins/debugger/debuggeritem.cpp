@@ -36,6 +36,7 @@
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
+#include <utils/utilsicons.h>
 
 #include <QFileInfo>
 #include <QProcess>
@@ -59,6 +60,7 @@ const char DEBUGGER_INFORMATION_AUTODETECTION_SOURCE[] = "AutoDetectionSource";
 const char DEBUGGER_INFORMATION_VERSION[] = "Version";
 const char DEBUGGER_INFORMATION_ABIS[] = "Abis";
 const char DEBUGGER_INFORMATION_LASTMODIFIED[] = "LastModified";
+const char DEBUGGER_INFORMATION_WORKINGDIRECTORY[] = "WorkingDirectory";
 
 namespace Debugger {
 
@@ -81,8 +83,9 @@ DebuggerItem::DebuggerItem(const QVariant &id)
 
 DebuggerItem::DebuggerItem(const QVariantMap &data)
 {
-    m_command = FileName::fromUserInput(data.value(QLatin1String(DEBUGGER_INFORMATION_COMMAND)).toString());
     m_id = data.value(QLatin1String(DEBUGGER_INFORMATION_ID)).toString();
+    m_command = FileName::fromUserInput(data.value(QLatin1String(DEBUGGER_INFORMATION_COMMAND)).toString());
+    m_workingDirectory = FileName::fromUserInput(data.value(DEBUGGER_INFORMATION_WORKINGDIRECTORY).toString());
     m_unexpandedDisplayName = data.value(QLatin1String(DEBUGGER_INFORMATION_DISPLAYNAME)).toString();
     m_isAutoDetected = data.value(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTED), false).toBool();
     m_autoDetectionSource = data.value(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTION_SOURCE)).toString();
@@ -213,9 +216,15 @@ QDateTime DebuggerItem::lastModified() const
     return m_lastModified;
 }
 
-bool DebuggerItem::isGood() const
+QIcon DebuggerItem::decoration() const
 {
-    return m_engineType != NoEngineType;
+    if (m_engineType == NoEngineType)
+        return Utils::Icons::ERROR.icon();
+    if (!m_command.toFileInfo().isExecutable())
+        return Utils::Icons::WARNING.icon();
+    if (!m_workingDirectory.isEmpty() && !m_workingDirectory.toFileInfo().isDir())
+        return Utils::Icons::WARNING.icon();
+    return QIcon();
 }
 
 QString DebuggerItem::validityMessage() const
@@ -230,7 +239,8 @@ bool DebuggerItem::operator==(const DebuggerItem &other) const
     return m_id == other.m_id
             && m_unexpandedDisplayName == other.m_unexpandedDisplayName
             && m_isAutoDetected == other.m_isAutoDetected
-            && m_command == other.m_command;
+            && m_command == other.m_command
+            && m_workingDirectory == other.m_workingDirectory;
 }
 
 QVariantMap DebuggerItem::toMap() const
@@ -239,6 +249,7 @@ QVariantMap DebuggerItem::toMap() const
     data.insert(QLatin1String(DEBUGGER_INFORMATION_DISPLAYNAME), m_unexpandedDisplayName);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_ID), m_id);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_COMMAND), m_command.toString());
+    data.insert(QLatin1String(DEBUGGER_INFORMATION_WORKINGDIRECTORY), m_workingDirectory.toString());
     data.insert(QLatin1String(DEBUGGER_INFORMATION_ENGINETYPE), int(m_engineType));
     data.insert(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTED), m_isAutoDetected);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTION_SOURCE), m_autoDetectionSource);
@@ -342,7 +353,7 @@ static DebuggerItem::MatchLevel matchSingle(const Abi &debuggerAbi, const Abi &t
         return DebuggerItem::MatchesPerfectly;
     if (HostOsInfo::isLinuxHost() && engineType == GdbEngineType && targetAbi.os() == Abi::LinuxOS)
         return DebuggerItem::MatchesPerfectly;
-    if (HostOsInfo::isMacHost() && engineType == LldbEngineType && targetAbi.os() == Abi::MacOS)
+    if (HostOsInfo::isMacHost() && engineType == LldbEngineType && targetAbi.os() == Abi::DarwinOS)
         return DebuggerItem::MatchesPerfectly;
 
     return DebuggerItem::MatchesWell;

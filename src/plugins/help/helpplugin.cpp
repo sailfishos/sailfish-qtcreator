@@ -38,7 +38,6 @@
 #include "localhelpmanager.h"
 #include "openpagesmanager.h"
 #include "openpagesmodel.h"
-#include "qtwebkithelpviewer.h"
 #include "remotehelpfilter.h"
 #include "searchwidget.h"
 #include "searchtaskhandler.h"
@@ -79,9 +78,12 @@
 #include <utils/theme/theme.h>
 #include <utils/tooltip/tooltip.h>
 
+#include <QClipboard>
+#include <QDialog>
 #include <QDir>
 #include <QFileInfo>
 #include <QLibraryInfo>
+#include <QPlainTextEdit>
 #include <QTimer>
 #include <QTranslator>
 #include <qplugin.h>
@@ -106,6 +108,8 @@ static const char kToolTipHelpContext[] = "Help.ToolTip";
 using namespace Core;
 using namespace Utils;
 
+static HelpPlugin *m_instance = nullptr;
+
 HelpPlugin::HelpPlugin()
     : m_mode(0),
     m_centralWidget(0),
@@ -114,6 +118,7 @@ HelpPlugin::HelpPlugin()
     m_helpManager(0),
     m_openPagesManager(0)
 {
+    m_instance = this;
 }
 
 HelpPlugin::~HelpPlugin()
@@ -207,6 +212,11 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     cmd = ActionManager::registerAction(action, "Help.ReportBug");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
     connect(action, &QAction::triggered, this, &HelpPlugin::slotReportBug);
+
+    action = new QAction(tr("System Information..."), this);
+    cmd = ActionManager::registerAction(action, "Help.SystemInformation");
+    ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
+    connect(action, &QAction::triggered, this, &HelpPlugin::slotSystemInformation);
 
     if (ActionContainer *windowMenu = ActionManager::actionContainer(Core::Constants::M_WINDOW)) {
         // reuse EditorManager constants to avoid a second pair of menu actions
@@ -366,9 +376,6 @@ HelpViewer *HelpPlugin::createHelpViewer(qreal zoom)
     typedef std::function<HelpViewer *()> ViewerFactory;
     typedef QPair<QByteArray, ViewerFactory>  ViewerFactoryItem; // id -> factory
     QVector<ViewerFactoryItem> factories;
-#ifndef QT_NO_WEBKIT
-    factories.append(qMakePair(QByteArray("qtwebkit"), []() { return new QtWebKitHelpViewer(); }));
-#endif
 #ifdef QTC_WEBENGINE_HELPVIEWER
     factories.append(qMakePair(QByteArray("qtwebengine"), []() { return new WebEngineHelpViewer(); }));
 #endif
@@ -472,7 +479,7 @@ void HelpPlugin::setupHelpEngineIfNeeded()
         LocalHelpManager::setupGuiHelpEngine();
 }
 
-bool HelpPlugin::canShowHelpSideBySide() const
+bool HelpPlugin::canShowHelpSideBySide()
 {
     RightPanePlaceHolder *placeHolder = RightPanePlaceHolder::current();
     if (!placeHolder)
@@ -499,19 +506,19 @@ HelpViewer *HelpPlugin::viewerForHelpViewerLocation(HelpManager::HelpViewerLocat
                                                  : HelpManager::HelpModeAlways;
 
     if (actualLocation == HelpManager::ExternalHelpAlways)
-        return externalHelpViewer();
+        return m_instance->externalHelpViewer();
 
     if (actualLocation == HelpManager::SideBySideAlways) {
-        createRightPaneContextViewer();
-        RightPaneWidget::instance()->setWidget(m_rightPaneSideBarWidget);
+        m_instance->createRightPaneContextViewer();
+        RightPaneWidget::instance()->setWidget(m_instance->m_rightPaneSideBarWidget);
         RightPaneWidget::instance()->setShown(true);
-        return m_rightPaneSideBarWidget->currentViewer();
+        return m_instance->m_rightPaneSideBarWidget->currentViewer();
     }
 
     QTC_CHECK(actualLocation == HelpManager::HelpModeAlways);
 
     activateHelpMode(); // should trigger an createPage...
-    HelpViewer *viewer = m_centralWidget->currentViewer();
+    HelpViewer *viewer = m_instance->m_centralWidget->currentViewer();
     if (!viewer)
         viewer = OpenPagesManager::instance().createPage();
     return viewer;
@@ -615,25 +622,25 @@ void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocat
     if (HelpViewer::launchWithExternalApp(url))
         return;
 
-    QString address = url.toString();
     if (!HelpManager::findFile(url).isValid()) {
+        const QString address = url.toString();
         if (address.startsWith("qthelp://org.qt-project.")
-            || address.startsWith("qthelp://com.nokia.")
-            || address.startsWith("qthelp://com.trolltech.")) {
-                // local help not installed, resort to external web help
-                QString urlPrefix = "http://doc.qt.io/";
-                if (url.authority() == "org.qt-project.qtcreator")
-                    urlPrefix.append(QString::fromLatin1("qtcreator"));
-                else
-                    urlPrefix.append("latest");
-            address = urlPrefix + address.mid(address.lastIndexOf(QLatin1Char('/')));
+                || address.startsWith("qthelp://com.nokia.")
+                || address.startsWith("qthelp://com.trolltech.")) {
+            // local help not installed, resort to external web help
+            QString urlPrefix = "http://doc.qt.io/";
+            if (url.authority() == "org.qt-project.qtcreator")
+                urlPrefix.append(QString::fromLatin1("qtcreator"));
+            else
+                urlPrefix.append("qt-5");
+            QDesktopServices::openUrl(QUrl(urlPrefix + address.mid(address.lastIndexOf(QLatin1Char('/')))));
+            return;
         }
     }
 
-    const QUrl newUrl(address);
     HelpViewer *viewer = viewerForHelpViewerLocation(location);
     QTC_ASSERT(viewer, return);
-    viewer->setSource(newUrl);
+    viewer->setSource(url);
     ICore::raiseWindow(viewer);
 }
 
@@ -645,6 +652,59 @@ void HelpPlugin::slotOpenSupportPage()
 void HelpPlugin::slotReportBug()
 {
     QDesktopServices::openUrl(QUrl("https://bugreports.qt.io"));
+}
+
+class DialogClosingOnEscape : public QDialog
+{
+public:
+    DialogClosingOnEscape(QWidget *parent = 0) : QDialog(parent) {}
+    bool event(QEvent *event)
+    {
+        if (event->type() == QEvent::ShortcutOverride) {
+            QKeyEvent *ke = static_cast<QKeyEvent *>(event);
+            if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
+                ke->accept();
+                return true;
+            }
+        }
+        return QDialog::event(event);
+    }
+};
+
+void HelpPlugin::slotSystemInformation()
+{
+    auto dialog = new DialogClosingOnEscape(ICore::dialogParent());
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowFlags(Qt::Window);
+    dialog->setModal(true);
+    dialog->setWindowTitle(tr("System Information"));
+    auto layout = new QVBoxLayout;
+    dialog->setLayout(layout);
+    auto intro = new QLabel(tr("Use the following to provide more detailed information about your system to bug reports:"));
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    const QString text = "{noformat}\n" + ICore::systemInformation() + "\n{noformat}";
+    auto info = new QPlainTextEdit;
+    QFont font = info->font();
+    font.setFamily("Courier");
+    font.setStyleHint(QFont::TypeWriter);
+    info->setFont(font);
+    info->setPlainText(text);
+    layout->addWidget(info);
+    auto buttonBox = new QDialogButtonBox;
+    buttonBox->addButton(QDialogButtonBox::Cancel);
+    buttonBox->addButton(tr("Copy to Clipboard"), QDialogButtonBox::AcceptRole);
+    connect(buttonBox, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+    layout->addWidget(buttonBox);
+    connect(dialog, &QDialog::accepted, info, [info]() {
+        if (QApplication::clipboard())
+            QApplication::clipboard()->setText(info->toPlainText());
+    });
+    connect(dialog, &QDialog::rejected, dialog, [dialog]{ dialog->close(); });
+    dialog->resize(700, 400);
+    ICore::registerWindow(dialog, Context("Help.SystemInformation"));
+    dialog->show();
 }
 
 void HelpPlugin::doSetupIfNeeded()

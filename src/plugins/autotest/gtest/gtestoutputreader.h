@@ -27,17 +27,21 @@
 
 #include "../testoutputreader.h"
 
+#include <QCoreApplication>
+
 namespace Autotest {
 namespace Internal {
 
 class GTestOutputReader : public TestOutputReader
 {
+    Q_DECLARE_TR_FUNCTIONS(Autotest::Internal::GTestOutputReader)
+
 public:
     GTestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
                       QProcess *testApplication, const QString &buildDirectory);
 
 protected:
-    void processOutput() override;
+    void processOutput(const QByteArray &outputLine) override;
 
 private:
     QString m_currentTestName;

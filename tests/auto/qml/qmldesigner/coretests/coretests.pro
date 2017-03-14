@@ -6,11 +6,12 @@ QTC_LIB_DEPENDS += \
 
 QTC_PLUGIN_DEPENDS += \
     coreplugin \
-    qmljseditor
+    qmljseditor \
+    qmakeprojectmanager
 
 include(../../../qttest.pri)
 
-QT += network core-private
+QT += qml network core-private
 
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += printsupport

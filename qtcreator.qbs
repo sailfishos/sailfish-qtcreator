@@ -4,7 +4,7 @@ import qbs.FileInfo
 
 Project {
     name: "Qt Creator"
-    minimumQbsVersion: "1.5.0"
+    minimumQbsVersion: "1.6.0"
     property bool withAutotests: qbs.buildVariant === "debug"
     property string licenseType: "opensource"
     property path ide_source_tree: path
@@ -32,6 +32,19 @@ Project {
             qbs.install: qtc.make_dev_package
             qbs.installDir: qtc.ide_qbs_resources_path
             qbs.installSourceBase: "qbs"
+        }
+    }
+
+    Product {
+        name: "qmake project files"
+        files: {
+            var list = ["**/*.pr[io]"];
+            var props = [additionalPlugins, additionalLibs, additionalTools, additionalAutotests];
+            for (var i = 0; i < props.length; ++i) {
+                for (var j = 0; j < props[i].length; ++j)
+                    list.push(props[i][j] + "/**/*.pr[io]");
+            }
+            return list;
         }
     }
 

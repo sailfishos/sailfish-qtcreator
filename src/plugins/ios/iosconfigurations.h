@@ -32,6 +32,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVersionNumber>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -45,6 +46,7 @@ class IosToolChainFactory : public ProjectExplorer::ToolChainFactory
     Q_OBJECT
 
 public:
+    QSet<ProjectExplorer::ToolChain::Language> supportedLanguages() const override;
     QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &existingToolChains) override;
 };
 
@@ -59,11 +61,9 @@ public:
     static bool ignoreAllDevices();
     static void setIgnoreAllDevices(bool ignoreDevices);
     static Utils::FileName developerPath();
+    static QVersionNumber xcodeVersion();
     static Utils::FileName lldbPath();
     static void updateAutomaticKitList();
-
-signals:
-    void updated();
 
 private:
     IosConfigurations(QObject *parent);
@@ -73,6 +73,7 @@ private:
     static void setDeveloperPath(const Utils::FileName &devPath);
 
     Utils::FileName m_developerPath;
+    QVersionNumber m_xcodeVersion;
     bool m_ignoreAllDevices;
 };
 

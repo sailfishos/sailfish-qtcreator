@@ -165,6 +165,7 @@ void KitManager::restoreKits()
     Kit *toStore = 0;
     foreach (Kit *current, kitsToValidate) {
         toStore = current;
+        toStore->upgrade();
         toStore->setup(); // Make sure all kitinformation are properly set up before merging them
                           // with the information from the user settings file
 
@@ -205,7 +206,6 @@ void KitManager::restoreKits()
         defaultKit->setUnexpandedDisplayName(tr("Desktop"));
         defaultKit->setSdkProvided(false);
         defaultKit->setAutoDetected(false);
-        defaultKit->setIconPath(FileName::fromLatin1(ProjectExplorer::Constants::DESKTOP_DEVICE_ICON));
 
         defaultKit->setup();
 
@@ -269,9 +269,8 @@ void KitManager::registerKitInformation(KitInformation *ki)
     QTC_CHECK(!isLoaded());
     QTC_ASSERT(!d->m_informationList.contains(ki), return);
 
-    QList<KitInformation *>::iterator it
-            = qLowerBound(d->m_informationList.begin(),
-                          d->m_informationList.end(), ki, greaterPriority);
+    auto it = std::lower_bound(d->m_informationList.begin(), d->m_informationList.end(),
+                               ki, greaterPriority);
     d->m_informationList.insert(it, ki);
 
     if (!isLoaded())
@@ -500,6 +499,7 @@ void KitManager::addKit(Kit *k)
     {
         KitGuard g(k);
         foreach (KitInformation *ki, d->m_informationList) {
+            ki->upgrade(k);
             if (!k->hasValue(ki->id()))
                 k->setValue(ki->id(), ki->defaultValue(k));
             else

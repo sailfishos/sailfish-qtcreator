@@ -13,6 +13,12 @@ QTableView {
 
 }
 
+QTabBar QToolButton {
+    background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
+    border: 1px solid creatorTheme.QmlDesignerBackgroundColorDarker;
+    border-radius: 0px;
+}
+
 QTableView::item
 {
     border: 0px;
@@ -62,7 +68,7 @@ QTabBar::tab:selected {
 
 
 QTabBar::tab {
-    width: 80px;
+    width: 88px;
     height: 22px;
     margin-top: 0x;
     margin-bottom: 0px;

@@ -30,6 +30,7 @@
 #endif
 
 #include "qmakeparser.h"
+#include "qmakevfs.h"
 #include "ioutils.h"
 
 #include <qlist.h>
@@ -232,11 +233,11 @@ public:
     VisitReturn parseJsonInto(const QByteArray &json, const QString &into, ProValueMap *value);
 
     VisitReturn writeFile(const QString &ctx, const QString &fn, QIODevice::OpenMode mode,
-                          bool exe, const QString &contents);
+                          QMakeVfs::VfsFlags flags, const QString &contents);
 #ifndef QT_BOOTSTRAPPED
     void runProcess(QProcess *proc, const QString &command) const;
 #endif
-    QByteArray getCommandOutput(const QString &args) const;
+    QByteArray getCommandOutput(const QString &args, int *exitCode) const;
 
     QMakeEvaluator *m_caller;
 #ifdef PROEVALUATOR_CUMULATIVE

@@ -38,7 +38,7 @@
 #include <QFuture>
 
 QT_BEGIN_NAMESPACE
-class ProFileGlobals;
+class QMakeGlobals;
 class QMakeVfs;
 QT_END_NAMESPACE
 
@@ -91,9 +91,11 @@ public:
     /// \internal
     QtSupport::ProFileReader *createProFileReader(const QmakeProFileNode *qmakeProFileNode, QmakeBuildConfiguration *bc = 0);
     /// \internal
-    ProFileGlobals *qmakeGlobals();
+    QMakeGlobals *qmakeGlobals();
     /// \internal
     QMakeVfs *qmakeVfs();
+    /// \internal
+    QString qmakeSysroot();
     /// \internal
     void destroyProFileReader(QtSupport::ProFileReader *reader);
 
@@ -129,7 +131,7 @@ public:
     void emitBuildDirectoryInitialized();
     static void proFileParseError(const QString &errorMessage);
 
-    ProjectExplorer::ProjectImporter *createProjectImporter() const override;
+    ProjectExplorer::ProjectImporter *projectImporter() const override;
 
     enum AsyncUpdateState { Base, AsyncFullUpdatePending, AsyncPartialUpdatePending, AsyncUpdateInProgress, ShuttingDown };
     AsyncUpdateState asyncUpdateState() const;
@@ -150,6 +152,8 @@ private:
     void asyncUpdate();
     void buildFinished(bool success);
     void activeTargetWasChanged();
+
+    void setAllBuildConfigurationsEnabled(bool enabled);
 
     QString executableFor(const QmakeProFileNode *node);
     void updateRunConfigurations();
@@ -173,6 +177,11 @@ private:
     void startAsyncTimer(QmakeProFileNode::AsyncUpdateDelay delay);
     bool matchesKit(const ProjectExplorer::Kit *kit);
 
+    void warnOnToolChainMismatch(const QmakeProFileNode *pro) const;
+    void testToolChain(ProjectExplorer::ToolChain *tc, const Utils::FileName &path) const;
+
+    mutable QSet<const QPair<Utils::FileName, Utils::FileName>> m_toolChainWarnings;
+
     // Current configuration
     QString m_oldQtIncludePath;
     QString m_oldQtLibsPath;
@@ -183,8 +192,10 @@ private:
     QMakeVfs *m_qmakeVfs = nullptr;
 
     // cached data during project rescan
-    ProFileGlobals *m_qmakeGlobals = nullptr;
+    QMakeGlobals *m_qmakeGlobals = nullptr;
     int m_qmakeGlobalsRefCnt = 0;
+
+    QString m_qmakeSysroot;
 
     QTimer m_asyncUpdateTimer;
     QFutureInterface<void> *m_asyncUpdateFutureInterface = nullptr;
@@ -198,6 +209,7 @@ private:
     Internal::CentralizedFolderWatcher *m_centralizedFolderWatcher = nullptr;
 
     ProjectExplorer::Target *m_activeTarget = nullptr;
+    mutable ProjectExplorer::ProjectImporter *m_projectImporter = nullptr;
 
     friend class Internal::QmakeProjectFile;
     friend class Internal::QmakeProjectConfigWidget;

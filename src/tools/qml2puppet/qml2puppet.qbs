@@ -6,6 +6,7 @@ QtcTool {
     installDir: qbs.targetOS.contains("macos")
                 ? qtc.ide_libexec_path + "/qmldesigner" : qtc.ide_libexec_path
 
+    Depends { name: "Utils" }
     Depends { name: "bundle" }
     Depends {
         name: "Qt"
@@ -99,6 +100,8 @@ QtcTool {
             "container/informationcontainer.h",
             "container/instancecontainer.cpp",
             "container/instancecontainer.h",
+            "container/mockuptypecontainer.cpp",
+            "container/mockuptypecontainer.h",
             "container/propertyabstractcontainer.cpp",
             "container/propertyabstractcontainer.h",
             "container/propertybindingcontainer.cpp",

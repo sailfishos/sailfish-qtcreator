@@ -376,8 +376,8 @@
     You can double-click objects on the canvas to edit their text, color, or
     source properties inline.
     Because you can specify several of these properties for some QML types, such
-    as TextEdit, you can also right-click objects to open the inline editors
-    from a context-menu.
+    as \l [QML]{TextEdit}{Text Edit}, you can also right-click objects to open
+    the inline editors from a context-menu.
 
     \image qmldesigner-inline-editing.png
 
@@ -427,6 +427,10 @@
     image and show another image in its place. Or, to add movement to the screen,
     you can change the position of an object on the canvas and then add animation
     to the change between the states.
+
+    To determine when the state should be applied, select
+    \uicontrol {Set when Condition} in the context menu and specify a
+    \l [QtQuick]{State::when}{when} property for the state.
 
     You can preview the states in the \uicontrol State pane and click them to switch
     between states on the canvas.

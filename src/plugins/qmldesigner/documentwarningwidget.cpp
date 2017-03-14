@@ -27,6 +27,10 @@
 
 #include <qmldesignerplugin.h>
 
+
+#include <utils/theme/theme.h>
+#include <utils/stylehelper.h>
+
 #include <QLabel>
 #include <QPushButton>
 #include <QCheckBox>
@@ -65,9 +69,8 @@ DocumentWarningWidget::DocumentWarningWidget(QWidget *parent)
 
     connect(m_navigateLabel, &QLabel::linkActivated, this, [=](const QString &link) {
         if (link == QLatin1String("goToCode")) {
-            RewriterError message = m_messages.at(m_currentMessage);
             hide();
-            emit gotoCodeClicked(message.url().toLocalFile(), message.line(), message.column() - 1);
+            emitGotoCodeClicked(m_messages.at(m_currentMessage));
         } else if (link == QLatin1String("previous")) {
             --m_currentMessage;
             refreshContent();
@@ -79,10 +82,8 @@ DocumentWarningWidget::DocumentWarningWidget(QWidget *parent)
 
     connect(m_continueButton, &QPushButton::clicked, this, [=]() {
         hide();
-        if (m_mode == ErrorMode) {
-            RewriterError message = m_messages.at(m_currentMessage);
-            emit gotoCodeClicked(message.url().toLocalFile(), message.line(), message.column() - 1);
-        }
+        if (m_mode == ErrorMode)
+            emitGotoCodeClicked(m_messages.at(m_currentMessage));
     });
 
     connect(m_ignoreWarningsCheckBox, &QCheckBox::toggled, this, &DocumentWarningWidget::ignoreCheckBoxToggled);
@@ -142,7 +143,7 @@ void DocumentWarningWidget::refreshContent()
 
 QString DocumentWarningWidget::generateNavigateLinks()
 {
-    static QString link(QLatin1String("<a href=\"%1\">%2</a>"));
+    static const QString link("<a href=\"%1\">%2</a>");
     QStringList links;
     if (m_messages.count() > 1) {
         if (m_currentMessage != 0)
@@ -173,9 +174,28 @@ bool DocumentWarningWidget::eventFilter(QObject *object, QEvent *event)
 
 void DocumentWarningWidget::showEvent(QShowEvent *event)
 {
+    const QColor backgroundColor = Utils::creatorTheme()->color(Utils::Theme::QmlDesigner_BackgroundColor);
+    QPalette pal = palette();
+    QColor color = pal.color(QPalette::ToolTipBase);
+    const QColor backgroundNoAlpha = Utils::StyleHelper::alphaBlendedColors(color, backgroundColor);
+    color.setAlpha(255);
+    pal.setColor(QPalette::ToolTipBase, backgroundNoAlpha);
+    setPalette(pal);
+    m_gotoCodeWasClicked = false;
     moveToParentCenter();
     refreshContent();
     Utils::FakeToolTip::showEvent(event);
+}
+
+bool DocumentWarningWidget::gotoCodeWasClicked()
+{
+    return m_gotoCodeWasClicked;
+}
+
+void DocumentWarningWidget::emitGotoCodeClicked(const RewriterError &message)
+{
+    m_gotoCodeWasClicked = true;
+    emit gotoCodeClicked(message.url().toLocalFile(), message.line(), message.column() - 1);
 }
 
 bool DocumentWarningWidget::warningsEnabled() const

@@ -301,6 +301,67 @@ void PropertyEditorView::changeExpression(const QString &propertyName)
     }
 }
 
+void PropertyEditorView::exportPopertyAsAlias(const QString &name)
+{
+    if (name.isNull())
+        return;
+
+    if (m_locked)
+        return;
+
+    if (!m_selectedNode.isValid())
+        return;
+
+    RewriterTransaction transaction = beginRewriterTransaction(QByteArrayLiteral("PropertyEditorView::exportPopertyAsAlias"));
+
+    try {
+        const QString id = m_selectedNode.validId();
+        QString upperCasePropertyName = name;
+        upperCasePropertyName.replace(0, 1, upperCasePropertyName.at(0).toUpper());
+        QString aliasName = id + upperCasePropertyName;
+        aliasName.replace(".", ""); //remove all dots
+
+        PropertyName propertyName = aliasName.toUtf8();
+        if (rootModelNode().hasProperty(propertyName)) {
+            Core::AsynchronousMessageBox::warning(tr("Cannot Export Property as Alias"),
+                                                  tr("Property %1 does already exist for root item.").arg(aliasName));
+            return;
+        }
+        rootModelNode().bindingProperty(propertyName).setDynamicTypeNameAndExpression("alias", id + "." + name);
+
+        transaction.commit(); //committing in the try block
+    } catch (const RewritingException &e) {
+        e.showException();
+    }
+}
+
+void PropertyEditorView::removeAliasExport(const QString &name)
+{
+    if (name.isNull())
+        return;
+
+    if (m_locked)
+        return;
+
+    if (!m_selectedNode.isValid())
+        return;
+
+    RewriterTransaction transaction = beginRewriterTransaction(QByteArrayLiteral("PropertyEditorView::exportPopertyAsAlias"));
+
+    try {
+        const QString id = m_selectedNode.validId();
+
+        for (const BindingProperty &property : rootModelNode().bindingProperties())
+            if (property.expression() == (id + "." + name)) {
+                rootModelNode().removeProperty(property.name());
+                break;
+            }
+        transaction.commit(); //committing in the try block
+    } catch (const RewritingException &e) {
+        e.showException();
+    }
+}
+
 void PropertyEditorView::updateSize()
 {
     if (!m_qmlBackEndForCurrentType)
@@ -494,6 +555,10 @@ void PropertyEditorView::propertiesRemoved(const QList<AbstractProperty>& proper
 
     foreach (const AbstractProperty &property, propertyList) {
         ModelNode node(property.parentModelNode());
+
+        if (node.isRootNode() && !m_selectedNode.isRootNode())
+            m_qmlBackEndForCurrentType->contextObject()->setHasAliasExport(QmlObjectNode(m_selectedNode).isAliasExported());
+
         if (node == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == node) {
             setValue(m_selectedNode, property.name(), QmlObjectNode(m_selectedNode).instanceValue(property.name()));
 
@@ -547,6 +612,9 @@ void PropertyEditorView::bindingPropertiesChanged(const QList<BindingProperty>& 
     foreach (const BindingProperty &property, propertyList) {
         ModelNode node(property.parentModelNode());
 
+        if (property.isAliasExport())
+            m_qmlBackEndForCurrentType->contextObject()->setHasAliasExport(QmlObjectNode(m_selectedNode).isAliasExported());
+
         if (node == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == node) {
             if (property.name().contains("anchor"))
                 m_qmlBackEndForCurrentType->backendAnchorBinding().invalidate(m_selectedNode);
@@ -554,6 +622,7 @@ void PropertyEditorView::bindingPropertiesChanged(const QList<BindingProperty>& 
                 setValue(m_selectedNode, property.name(), QmlObjectNode(m_selectedNode).instanceValue(property.name()));
             else
                 setValue(m_selectedNode, property.name(), QmlObjectNode(m_selectedNode).modelValue(property.name()));
+
         }
     }
 }
@@ -649,6 +718,15 @@ void PropertyEditorView::instancePropertyChange(const QList<QPair<ModelNode, Pro
 void PropertyEditorView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVersion*/, int /*minorVersion*/)
 {
     // TODO: we should react to this case
+}
+
+void PropertyEditorView::nodeReparented(const ModelNode &node,
+                                        const NodeAbstractProperty & /*newPropertyParent*/,
+                                        const NodeAbstractProperty & /*oldPropertyParent*/,
+                                        AbstractView::PropertyChangeFlags /*propertyChange*/)
+{
+    if (node == m_selectedNode)
+        m_qmlBackEndForCurrentType->backendAnchorBinding().setup(QmlItemNode(m_selectedNode));
 }
 
 void PropertyEditorView::setValue(const QmlObjectNode &qmlObjectNode, const PropertyName &name, const QVariant &value)

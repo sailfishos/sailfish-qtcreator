@@ -43,17 +43,12 @@
 #include "debuggerkitinformation.h"
 #include "memoryagent.h"
 #include "breakhandler.h"
-#include "breakwindow.h"
 #include "disassemblerlines.h"
 #include "logwindow.h"
-#include "moduleswindow.h"
 #include "moduleshandler.h"
-#include "registerwindow.h"
 #include "snapshotwindow.h"
 #include "stackhandler.h"
 #include "stackwindow.h"
-#include "sourcefileswindow.h"
-#include "threadswindow.h"
 #include "watchhandler.h"
 #include "watchwindow.h"
 #include "watchutils.h"
@@ -79,7 +74,6 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/itemviewfind.h>
@@ -129,6 +123,7 @@
 #include <utils/savedaction.h>
 #include <utils/statuslabel.h>
 #include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 #include <utils/winutils.h>
 
 #include <QAction>
@@ -463,6 +458,30 @@ static void setProxyAction(ProxyAction *proxy, Id id)
     proxy->setIcon(visibleStartIcon(id, true));
 }
 
+QAction *addAction(QMenu *menu, const QString &display, bool on,
+                   const std::function<void()> &onTriggered)
+{
+    QAction *act = menu->addAction(display);
+    act->setEnabled(on);
+    QObject::connect(act, &QAction::triggered, onTriggered);
+    return act;
+};
+
+QAction *addAction(QMenu *menu, const QString &d1, const QString &d2, bool on,
+                   const std::function<void()> &onTriggered)
+{
+    return on ? addAction(menu, d1, true, onTriggered) : addAction(menu, d2, false);
+};
+
+QAction *addCheckableAction(QMenu *menu, const QString &display, bool on, bool checked,
+                            const std::function<void()> &onTriggered)
+{
+    QAction *act = addAction(menu, display, on, onTriggered);
+    act->setCheckable(true);
+    act->setChecked(checked);
+    return act;
+}
+
 ///////////////////////////////////////////////////////////////////////
 //
 // DummyEngine
@@ -547,15 +566,15 @@ public:
 ///////////////////////////////////////////////////////////////////////
 
 static QWidget *addSearch(BaseTreeView *treeView, const QString &title,
-    const char *objectName)
+    const QString &objectName)
 {
     QAction *act = action(UseAlternatingRowColors);
     treeView->setAlternatingRowColors(act->isChecked());
     QObject::connect(act, &QAction::toggled,
-                     treeView, &BaseTreeView::setAlternatingRowColorsHelper);
+                     treeView, &BaseTreeView::setAlternatingRowColors);
 
     QWidget *widget = ItemViewFind::createSearchableWrapper(treeView);
-    widget->setObjectName(QLatin1String(objectName));
+    widget->setObjectName(objectName);
     widget->setWindowTitle(title);
     return widget;
 }
@@ -564,13 +583,11 @@ static std::function<bool(const Kit *)> cdbMatcher(char wordWidth = 0)
 {
     return [wordWidth](const Kit *k) -> bool {
         if (DebuggerKitInformation::engineType(k) != CdbEngineType
-            || !DebuggerKitInformation::isValidDebugger(k)) {
+            || DebuggerKitInformation::configurationErrors(k)) {
             return false;
         }
-        if (wordWidth) {
-            const ToolChain *tc = ToolChainKitInformation::toolChain(k);
-            return tc && wordWidth == tc->targetAbi().wordWidth();
-        }
+        if (wordWidth)
+            ToolChainKitInformation::targetAbi(k).wordWidth();
         return true;
     };
 }
@@ -1107,18 +1124,15 @@ static Kit *guessKitFromParameters(const DebuggerRunParameters &rp)
     if (!abis.isEmpty()) {
         // Try exact abis.
         kit = KitManager::find(KitMatcher([abis](const Kit *k) -> bool {
-            if (const ToolChain *tc = ToolChainKitInformation::toolChain(k))
-                return abis.contains(tc->targetAbi()) && DebuggerKitInformation::isValidDebugger(k);
-            return false;
+            const Abi tcAbi = ToolChainKitInformation::targetAbi(k);
+            return abis.contains(tcAbi) && !DebuggerKitInformation::configurationErrors(k);
         }));
         if (!kit) {
             // Or something compatible.
             kit = KitManager::find(KitMatcher([abis](const Kit *k) -> bool {
-                if (const ToolChain *tc = ToolChainKitInformation::toolChain(k))
-                    foreach (const Abi &a, abis)
-                        if (a.isCompatibleWith(tc->targetAbi()) && DebuggerKitInformation::isValidDebugger(k))
-                            return true;
-                return false;
+                const Abi tcAbi = ToolChainKitInformation::targetAbi(k);
+                return !DebuggerKitInformation::configurationErrors(k)
+                        && Utils::contains(abis, [tcAbi](const Abi &a) { return a.isCompatibleWith(tcAbi); });
             }));
         }
     }
@@ -1190,7 +1204,7 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
         }
         rp.inferior.environment = Utils::Environment::systemEnvironment();
         rp.stubEnvironment = Utils::Environment::systemEnvironment();
-        rp.debuggerEnvironment = Utils::Environment::systemEnvironment();
+        rp.debugger.environment = Utils::Environment::systemEnvironment();
 
         if (!kit)
             kit = guessKitFromParameters(rp);
@@ -1318,19 +1332,26 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_logWindow->setObjectName(QLatin1String(DOCKWIDGET_OUTPUT));
 
     m_breakHandler = new BreakHandler;
-    m_breakView = new BreakTreeView;
+    m_breakView = new BaseTreeView;
+    m_breakView->setIconSize(QSize(10, 10));
+    m_breakView->setWindowIcon(Icons::BREAKPOINTS.icon());
+    m_breakView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    connect(action(UseAddressInBreakpointsView), &QAction::toggled,
+            this, [this](bool on) { m_breakView->setColumnHidden(BreakpointAddressColumn, !on); });
     m_breakView->setSettings(settings, "Debugger.BreakWindow");
     m_breakView->setModel(m_breakHandler->model());
     m_breakWindow = addSearch(m_breakView, tr("Breakpoints"), DOCKWIDGET_BREAK);
 
-    m_modulesView = new ModulesTreeView;
+    m_modulesView = new BaseTreeView;
+    m_modulesView->setSortingEnabled(true);
     m_modulesView->setSettings(settings, "Debugger.ModulesView");
     connect(m_modulesView, &BaseTreeView::aboutToShow,
             this, &DebuggerPluginPrivate::reloadModules,
             Qt::QueuedConnection);
     m_modulesWindow = addSearch(m_modulesView, tr("Modules"), DOCKWIDGET_MODULES);
 
-    m_registerView = new RegisterTreeView;
+    m_registerView = new BaseTreeView;
+    m_registerView->setRootIsDecorated(true);
     m_registerView->setSettings(settings, "Debugger.RegisterView");
     connect(m_registerView, &BaseTreeView::aboutToShow,
             this, &DebuggerPluginPrivate::reloadRegisters,
@@ -1339,17 +1360,21 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
 
     m_stackView = new StackTreeView;
     m_stackView->setSettings(settings, "Debugger.StackView");
+    m_stackView->setIconSize(QSize(10, 10));
     m_stackWindow = addSearch(m_stackView, tr("Stack"), DOCKWIDGET_STACK);
 
-    m_sourceFilesView = new SourceFilesTreeView;
+    m_sourceFilesView = new BaseTreeView;
+    m_sourceFilesView->setSortingEnabled(true);
     m_sourceFilesView->setSettings(settings, "Debugger.SourceFilesView");
     connect(m_sourceFilesView, &BaseTreeView::aboutToShow,
             this, &DebuggerPluginPrivate::reloadSourceFiles,
             Qt::QueuedConnection);
     m_sourceFilesWindow = addSearch(m_sourceFilesView, tr("Source Files"), DOCKWIDGET_SOURCE_FILES);
 
-    m_threadsView = new ThreadsTreeView;
+    m_threadsView = new BaseTreeView;
+    m_threadsView->setSortingEnabled(true);
     m_threadsView->setSettings(settings, "Debugger.ThreadsView");
+    m_threadsView->setIconSize(QSize(10, 10));
     m_threadsWindow = addSearch(m_threadsView, tr("Threads"), DOCKWIDGET_THREADS);
 
     m_returnView = new WatchTreeView(ReturnType); // No settings.
@@ -1748,6 +1773,8 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
 
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
         this, &DebuggerPluginPrivate::onModeChanged);
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
+            m_mainWindow.data(), &DebuggerMainWindow::onModeChanged);
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::settingsChanged,
         this, &DebuggerPluginPrivate::updateDebugWithoutDeployMenu);
 
@@ -1758,7 +1785,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_modeWindow = createModeWindow(Constants::MODE_DEBUG, m_mainWindow);
     m_mode->setWidget(m_modeWindow);
 
-    m_plugin->addAutoReleasedObject(new DebugModeContext(m_mainWindow));
+    m_plugin->addAutoReleasedObject(new DebugModeContext(m_modeWindow));
 
     m_plugin->addObject(m_mode);
 
@@ -2083,9 +2110,8 @@ DebuggerRunControl *DebuggerPluginPrivate::attachToRunningProcess(Kit *kit,
         return 0;
     }
 
-    bool isWindows = false;
-    if (const ToolChain *tc = ToolChainKitInformation::toolChain(kit))
-        isWindows = tc->targetAbi().os() == Abi::WindowsOS;
+    const Abi tcAbi = ToolChainKitInformation::targetAbi(kit);
+    const bool isWindows = (tcAbi.os() == Abi::WindowsOS);
     if (isWindows && isWinProcessBeingDebugged(process.pid)) {
         AsynchronousMessageBox::warning(tr("Process Already Under Debugger Control"),
                              tr("The process %1 is already under the control of a debugger.\n"
@@ -2252,7 +2278,7 @@ void DebuggerPluginPrivate::requestContextMenu(TextEditorWidget *widget,
         // Edit existing breakpoint.
         act = menu->addAction(tr("Edit Breakpoint %1...").arg(id));
         connect(act, &QAction::triggered, [bp] {
-            BreakTreeView::editBreakpoint(bp, ICore::dialogParent());
+            breakHandler()->editBreakpoint(bp, ICore::dialogParent());
         });
 
     } else {
@@ -2890,7 +2916,7 @@ static QString formatStartParameters(DebuggerRunParameters &sp)
             str << "Directory: " << QDir::toNativeSeparators(sp.inferior.workingDirectory)
                 << '\n';
     }
-    QString cmd = sp.debuggerCommand;
+    QString cmd = sp.debugger.executable;
     if (!cmd.isEmpty())
         str << "Debugger: " << QDir::toNativeSeparators(cmd) << '\n';
     if (!sp.coreFile.isEmpty())
@@ -3365,8 +3391,6 @@ void DebuggerPluginPrivate::onModeChanged(Id mode)
             editor->widget()->setFocus();
 
         m_toolTipManager.debugModeEntered();
-        m_mainWindow->setDockActionsVisible(true);
-        m_mainWindow->restorePerspective({});
 
 //        static bool firstTime = true;
 //        if (firstTime) {
@@ -3384,13 +3408,6 @@ void DebuggerPluginPrivate::onModeChanged(Id mode)
         updateActiveLanguages();
     } else {
         m_toolTipManager.leavingDebugMode();
-        m_mainWindow->setDockActionsVisible(false);
-
-        // Hide dock widgets manually in case they are floating.
-        foreach (QDockWidget *dockWidget, m_mainWindow->dockWidgets()) {
-            if (dockWidget->isFloating())
-                dockWidget->hide();
-        }
     }
 }
 
@@ -3571,7 +3588,7 @@ QAction *createStartAction()
 QAction *createStopAction()
 {
     auto action = new QAction(DebuggerMainWindow::tr("Stop"), DebuggerPlugin::instance());
-    action->setIcon(Core::Icons::STOP_SMALL_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::STOP_SMALL_TOOLBAR.icon());
     action->setEnabled(true);
     return action;
 }
@@ -3583,11 +3600,19 @@ void registerPerspective(const QByteArray &perspectiveId, const Perspective *per
 
 void selectPerspective(const QByteArray &perspectiveId)
 {
+    if (dd->m_mainWindow->currentPerspective() == perspectiveId)
+        return;
+
     // FIXME: Work-around aslong as the GammaRay integration does not use the same setup,
     if (perspectiveId.isEmpty())
         return;
     ModeManager::activateMode(MODE_DEBUG);
     dd->m_mainWindow->restorePerspective(perspectiveId);
+}
+
+QByteArray currentPerspective()
+{
+    return dd->m_mainWindow->currentPerspective();
 }
 
 QWidget *mainWindow()

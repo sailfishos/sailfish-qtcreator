@@ -23,10 +23,13 @@
 ** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-
-#include <coreplugin/coreicons.h>
+#include <utils/icon.h>
+#include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include "todoicons.h"
+
+using namespace Utils;
 
 namespace Todo {
 namespace Internal {
@@ -35,18 +38,52 @@ QIcon icon(IconType type)
 {
     switch (type) {
     case IconType::Info: {
-        const static QIcon icon = Core::Icons::INFO.icon();
+        const static QIcon icon = Utils::Icons::INFO.icon();
         return icon;
     }
     case IconType::Warning: {
-        const static QIcon icon = Core::Icons::WARNING.icon();
+        const static QIcon icon = Utils::Icons::WARNING.icon();
         return icon;
     }
+    case IconType::Bug: {
+        const static QIcon icon =
+                Icon({
+                         {":/todoplugin/images/bugfill.png", Theme::BackgroundColorNormal},
+                         {":/todoplugin/images/bug.png", Theme::IconsInterruptColor}
+                     }, Icon::Tint).icon();
+
+        return icon;
+    }
+    case IconType::Todo: {
+        const static QIcon icon =
+                Icon({
+                         {":/todoplugin/images/tasklist.png", Theme::IconsRunColor}
+                     }, Icon::Tint).icon();
+        return icon;
+    }
+
     default:
     case IconType::Error: {
-        const static QIcon icon = Core::Icons::ERROR.icon();
+        const static QIcon icon = Utils::Icons::ERROR.icon();
         return icon;
     }
+    }
+}
+
+QIcon toolBarIcon(IconType type)
+{
+    switch (type) {
+    case IconType::Info:
+        return Icons::INFO_TOOLBAR.icon();
+    case IconType::Warning:
+        return Icons::WARNING_TOOLBAR.icon();
+    case IconType::Bug:
+        return Icon({{":/todoplugin/images/bug.png", Theme::IconsInterruptToolBarColor}}).icon();
+    case IconType::Todo:
+        return Icon({{":/todoplugin/images/tasklist.png", Theme::IconsRunToolBarColor}}).icon();
+    default:
+    case IconType::Error:
+        return Icons::ERROR_TOOLBAR.icon();
     }
 }
 

@@ -172,6 +172,7 @@ const char KITS_SETTINGS_PAGE_ID[] = "D.ProjectExplorer.KitsOptions";
 
 // Device settings page
 const char DEVICE_SETTINGS_CATEGORY[] = "XW.Devices";
+const char DEVICE_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("ProjectExplorer", "Devices");
 const char DEVICE_SETTINGS_PAGE_ID[] = "AA.Device Settings";
 
 // Task categories
@@ -225,7 +226,6 @@ const char DEFAULT_WORKING_DIR_ALTERNATE[] = "%{sourceDir}";
 // Desktop Device related ids:
 const char DESKTOP_DEVICE_ID[] = "Desktop Device";
 const char DESKTOP_DEVICE_TYPE[] = "Desktop";
-const char DESKTOP_DEVICE_ICON[] = ":///DESKTOP///";
 const int DESKTOP_PORT_START = 30000;
 const int DESKTOP_PORT_END = 31000;
 

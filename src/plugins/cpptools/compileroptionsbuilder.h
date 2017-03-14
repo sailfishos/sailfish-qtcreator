@@ -34,6 +34,11 @@ namespace CppTools {
 class CPPTOOLS_EXPORT CompilerOptionsBuilder
 {
 public:
+    enum class PchUsage {
+        None,
+        Use
+    };
+
     CompilerOptionsBuilder(const ProjectPart &projectPart);
     virtual ~CompilerOptionsBuilder() {}
 
@@ -41,31 +46,39 @@ public:
 
     // Add custom options
     void add(const QString &option);
-    void addDefine(const QByteArray &defineLine);
+    void addDefine(const QByteArray &defineDirective);
 
     // Add options based on project part
+    void addWordWidth();
     virtual void addTargetTriple();
     virtual void enableExceptions();
-    void addHeaderPathOptions(bool addAsNativePath = false);
+    void addHeaderPathOptions();
+    void addPrecompiledHeaderOptions(PchUsage pchUsage);
     void addToolchainAndProjectDefines();
     void addDefines(const QByteArray &defineDirectives);
     virtual void addLanguageOption(ProjectFile::Kind fileKind);
     virtual void addOptionsForLanguage(bool checkForBorlandExtensions = true);
 
+    void addDefineToAvoidIncludingGccOrMinGwIntrinsics();
+
     void addMsvcCompatibilityVersion();
     void undefineCppLanguageFeatureMacrosForMsvc2015();
 
+    void addDefineFloat128ForMingw();
+
 protected:
-    virtual bool excludeDefineLine(const QByteArray &defineLine) const;
+    virtual bool excludeDefineDirective(const QByteArray &defineDirective) const;
     virtual bool excludeHeaderPath(const QString &headerPath) const;
 
     virtual QString defineOption() const;
+    virtual QString undefineOption() const;
     virtual QString includeOption() const;
+    virtual QString includeDirOption() const;
 
     const ProjectPart m_projectPart;
 
 private:
-    QString defineLineToDefineOption(const QByteArray &defineLine);
+    QString defineDirectiveToDefineOption(const QByteArray &defineDirective);
 
     QStringList m_options;
 };

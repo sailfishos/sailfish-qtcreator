@@ -41,7 +41,6 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
 #include <qtsupport/qtkitinformation.h>
@@ -50,6 +49,7 @@
 #include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcprocess.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QMessageBox>
@@ -162,7 +162,7 @@ QMakeStepConfig QMakeStep::deducedArguments() const
     ProjectExplorer::Kit *kit = target()->kit();
     QMakeStepConfig config;
     ProjectExplorer::ToolChain *tc
-            = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
+            = ProjectExplorer::ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
     ProjectExplorer::Abi targetAbi;
     if (tc)
         targetAbi = tc->targetAbi();
@@ -566,7 +566,7 @@ QMakeStepConfigWidget::QMakeStepConfigWidget(QMakeStep *step)
     m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->linkQmlDebuggingLibrary());
     m_ui->qtQuickCompilerCheckBox->setChecked(m_step->useQtQuickCompiler());
     m_ui->separateDebugInfoCheckBox->setChecked(m_step->separateDebugInfo());
-    const QPixmap warning = Core::Icons::WARNING.pixmap();
+    const QPixmap warning = Utils::Icons::WARNING.pixmap();
     m_ui->qmlDebuggingWarningIcon->setPixmap(warning);
     m_ui->qtQuickCompilerWarningIcon->setPixmap(warning);
 
@@ -883,7 +883,7 @@ QMakeStepConfig::TargetArchConfig QMakeStepConfig::targetArchFor(const Abi &targ
     QMakeStepConfig::TargetArchConfig arch = QMakeStepConfig::NoArch;
     if (!version || version->type() != QLatin1String(QtSupport::Constants::DESKTOPQT))
         return arch;
-    if ((targetAbi.os() == ProjectExplorer::Abi::MacOS)
+    if ((targetAbi.os() == ProjectExplorer::Abi::DarwinOS)
             && (targetAbi.binaryFormat() == ProjectExplorer::Abi::MachOFormat)) {
         if (targetAbi.architecture() == ProjectExplorer::Abi::X86Architecture) {
             if (targetAbi.wordWidth() == 32)
@@ -906,7 +906,7 @@ QMakeStepConfig::OsType QMakeStepConfig::osTypeFor(const ProjectExplorer::Abi &t
     const char IOSQT[] = "Qt4ProjectManager.QtVersion.Ios";
     if (!version || version->type() != QLatin1String(IOSQT))
         return os;
-    if ((targetAbi.os() == ProjectExplorer::Abi::MacOS)
+    if ((targetAbi.os() == ProjectExplorer::Abi::DarwinOS)
             && (targetAbi.binaryFormat() == ProjectExplorer::Abi::MachOFormat)) {
         if (targetAbi.architecture() == ProjectExplorer::Abi::X86Architecture) {
             os = QMakeStepConfig::IphoneSimulator;

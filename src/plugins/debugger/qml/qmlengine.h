@@ -129,12 +129,13 @@ private:
     bool hasCapability(unsigned) const override;
     void quitDebugger() override;
 
+    void doUpdateLocals(const UpdateParameters &params) override;
+
     void closeConnection();
     void startApplicationLauncher();
     void stopApplicationLauncher();
 
-    void connectionErrorOccurred(QAbstractSocket::SocketError socketError);
-    void connectionStateChanged(QAbstractSocket::SocketState socketState);
+    void connectionFailed();
 
     void checkConnectionState();
     void showConnectionStateMessage(const QString &message);

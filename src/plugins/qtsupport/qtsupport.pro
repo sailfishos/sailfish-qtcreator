@@ -11,6 +11,7 @@ HEADERS += \
     codegensettings.h \
     codegensettingspage.h \
     gettingstartedwelcomepage.h \
+    qtprojectimporter.h \
     qtsupportplugin.h \
     qtsupport_global.h \
     qtkitconfigwidget.h \
@@ -40,6 +41,7 @@ SOURCES += \
     codegensettings.cpp \
     codegensettingspage.cpp \
     gettingstartedwelcomepage.cpp \
+    qtprojectimporter.cpp \
     qtsupportplugin.cpp \
     qtkitconfigwidget.cpp \
     qtkitinformation.cpp \

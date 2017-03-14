@@ -25,44 +25,41 @@
 
 #pragma once
 
+#include "clangclock.h"
+
 #include <filecontainer.h>
 
+#include <QSharedPointer>
 #include <QVector>
 
 #include <clang-c/Index.h>
 
-#include <chrono>
-#include <memory>
-
 namespace ClangBackEnd {
-
-using time_point = std::chrono::steady_clock::time_point;
 
 class UnsavedFile;
 class UnsavedFilesData;
+class UnsavedFilesShallowArguments;
 
 class UnsavedFiles
 {
-    friend class UnsavedFilesData;
 public:
     UnsavedFiles();
     ~UnsavedFiles();
 
-    UnsavedFiles(const UnsavedFiles &unsavedFiles);
-    UnsavedFiles &operator=(const UnsavedFiles &unsavedFiles);
-
-    UnsavedFiles(UnsavedFiles &&unsavedFiles);
-    UnsavedFiles &operator=(UnsavedFiles &&unsavedFiles);
+    UnsavedFiles(const UnsavedFiles &other);
+    UnsavedFiles &operator=(const UnsavedFiles &other);
 
     void createOrUpdate(const QVector<FileContainer> &fileContainers);
     void remove(const QVector<FileContainer> &fileContainers);
 
+    uint count() const;
+    const UnsavedFile &at(int index) const;
+
     UnsavedFile &unsavedFile(const Utf8String &filePath);
 
-    uint count() const;
-    CXUnsavedFile *cxUnsavedFiles() const;
+    UnsavedFilesShallowArguments shallowArguments() const;
 
-    const time_point &lastChangeTimePoint() const;
+    const TimePoint lastChangeTimePoint() const;
 
 private:
     void updateUnsavedFileWithFileContainer(const FileContainer &fileContainer);
@@ -71,7 +68,7 @@ private:
     void updateLastChangeTimePoint();
 
 private:
-    mutable std::shared_ptr<UnsavedFilesData> d;
+    QSharedDataPointer<UnsavedFilesData> d;
 };
 
 } // namespace ClangBackEnd

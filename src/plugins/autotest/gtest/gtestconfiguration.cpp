@@ -24,8 +24,10 @@
 ****************************************************************************/
 
 #include "gtestconfiguration.h"
+#include "gtestconstants.h"
 #include "gtestoutputreader.h"
-#include "../testsettings.h"
+#include "gtestsettings.h"
+#include "../testframeworkmanager.h"
 
 namespace Autotest {
 namespace Internal {
@@ -36,19 +38,33 @@ TestOutputReader *GTestConfiguration::outputReader(const QFutureInterface<TestRe
     return new GTestOutputReader(fi, app, buildDirectory());
 }
 
-QStringList GTestConfiguration::argumentsForTestRunner(const TestSettings &settings) const
+QStringList GTestConfiguration::argumentsForTestRunner() const
 {
+    static const Core::Id id
+            = Core::Id(Constants::FRAMEWORK_PREFIX).withSuffix(GTest::Constants::FRAMEWORK_NAME);
+
     QStringList arguments;
     const QStringList &testSets = testCases();
     if (testSets.size())
-        arguments << QLatin1String("--gtest_filter=") + testSets.join(QLatin1Char(':'));
-    if (settings.gtestRunDisabled)
-        arguments << QLatin1String("--gtest_also_run_disabled_tests");
-    if (settings.gtestRepeat)
-        arguments << QString::fromLatin1("--gtest_repeat=%1").arg(settings.gtestIterations);
-    if (settings.gtestShuffle) {
-        arguments << QLatin1String("--gtest_shuffle")
-                  << QString::fromLatin1("--gtest_random_seed=%1").arg(settings.gtestSeed);
+        arguments << "--gtest_filter=" + testSets.join(':');
+
+    TestFrameworkManager *manager = TestFrameworkManager::instance();
+    auto gSettings = qSharedPointerCast<GTestSettings>(manager->settingsForTestFramework(id));
+    if (gSettings.isNull())
+        return arguments;
+
+    if (gSettings->runDisabled)
+        arguments << "--gtest_also_run_disabled_tests";
+    if (gSettings->repeat)
+        arguments << QString("--gtest_repeat=%1").arg(gSettings->iterations);
+    if (gSettings->shuffle)
+        arguments << "--gtest_shuffle" << QString("--gtest_random_seed=%1").arg(gSettings->seed);
+    if (gSettings->throwOnFailure)
+        arguments << "--gtest_throw_on_failure";
+
+    if (runMode() == DebuggableTestConfiguration::Debug) {
+        if (gSettings->breakOnFailure)
+            arguments << "--gtest_break_on_failure";
     }
     return arguments;
 }

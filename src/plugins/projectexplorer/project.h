@@ -102,7 +102,7 @@ public:
     virtual bool supportsKit(Kit *k, QString *errorMessage = nullptr) const;
 
     Target *createTarget(Kit *k);
-    Target *cloneTarget(Target *sourceTarget, Kit *k);
+    static bool copySteps(Target *sourceTarget, Target *newTarget);
     Target *restoreTarget(const QVariantMap &data);
 
     void saveSettings();
@@ -132,7 +132,7 @@ public:
                                            const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
 
     virtual bool requiresTargetPanel() const;
-    virtual ProjectImporter *createProjectImporter() const;
+    virtual ProjectImporter *projectImporter() const;
 
     KitMatcher requiredKitMatcher() const;
     void setRequiredKitMatcher(const KitMatcher &matcher);
@@ -169,6 +169,9 @@ signals:
 
     void projectContextUpdated();
     void projectLanguagesUpdated();
+
+signals: // for tests only
+    void parsingFinished();
 
 protected:
     virtual RestoreResult fromMap(const QVariantMap &map, QString *errorMessage);

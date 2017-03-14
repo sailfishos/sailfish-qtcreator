@@ -51,14 +51,12 @@
     creating classic desktop-style user interfaces using Qt Quick 2.1. You can
     use the Qt Quick Controls Styles to customize Qt Quick Controls.
 
-    Since Qt 5.6, Qt Labs Controls provide lightweight QML types for creating
+    Since Qt 5.7, \l {Qt Quick Controls 2} replace Qt Quick Controls 1 and
+    Qt Labs Controls. These controls provide lightweight QML types for creating
     performant user interfaces for embedded and mobile devices. These controls
     achieve improved efficiency by employing a simplified styling architecture
     when compared to Qt Quick Controls, on which the module is based. These
     types work in conjunction with Qt Quick and Qt Quick Layouts.
-
-    Since Qt 5.7, \l {Qt Quick Controls 2} replace Qt Quick Controls 1 and
-    Qt Labs Controls.
 
     \section1 Adding Components to Screens
 
@@ -81,18 +79,19 @@
 
     \list
 
-        \li GridView provides a grid vizualization of a model.
+        \li \l{GridView}{Grid View} provides a grid vizualization of a model.
 
-        \li ListView provides a list vizualization of a model.
+        \li \l{ListView}{List View} provides a list vizualization of a model.
 
-        \li PathView visualizes the contents of a model along a path.
+        \li \l{PathView}{Path View} visualizes the contents of a model along a
+            path.
 
     \endlist
 
-    When you add a GridView, ListView, or PathView, the ListModel and the
-    delegate component that creates an instance for each item in the model are
-    added automatically. You can edit item properties
-    in the \uicontrol Properties pane or
+    When you add a \l{GridView}{Grid View}, \l{ListView}{List View}, or
+    \l{PathView}{Path View}, the ListModel and the delegate component that
+    creates an instance for each item in the model are added automatically.
+    You can edit item properties in the \uicontrol Properties pane or
     in the code editor. You can also replace the default model and
     delegate with other, more complex models and delegates in the code editor.
 
@@ -115,7 +114,7 @@
 
         \li \l{Using Layouts}
 
-        \li \l{Using Split Views}
+        \li \l{Organizing Items}
 
     \endlist
 
@@ -135,12 +134,23 @@
 
     \image qmldesigner-set-expression.png "Type properties context menu"
 
+    The \uicontrol {Binding Editor} supports code completion. Start typing a
+    string and press \key Ctrl+Space to display a list of properties, IDs, and
+    code snippets. When you enter a period (.) after a property name, a list of
+    available values is displayed. Press \key Enter to accept the first
+    suggestion in the list and to complete the code.
+
+    \image qmldesigner-binding-editor.png "Binding Editor"
+
     To remove bindings, select \uicontrol Reset in the context menu.
+
+    You can set bindings also in the \uicontrol Connections view. For more
+    information, see \l {Adding Bindings Between Properties}.
 
     For more information on the JavaScript environment provided by QML, see
     \l{Integrating QML and JavaScript}.
 
-    \QMLD cannot show bindings and using them might have a negative impact on
+    Bindings are a black box for \QMLD and using them might have a negative impact on
     performance, so consider setting anchors and margins for items, instead.
     For example, instead of setting \c {parent.width} for an item, you could
     anchor the item to its sibling items on the left and the right.
@@ -209,22 +219,22 @@
 
     \list
 
-        \li \l{Column} arranges its child items vertically.
+        \li \l[QML] {Column} arranges its child items vertically.
 
-        \li \l{Row} arranges its child items horizontally.
+        \li \l[QML] {Row} arranges its child items horizontally.
 
-        \li \l{Grid}
+        \li \l[QML] {Grid}
             arranges its child items so that they are aligned in a grid and
             are not overlapping.
 
-        \li \l{Flow}
+        \li \l[QML] {Flow}
             arranges its child items side by side, wrapping as necessary.
 
     \endlist
 
-    To lay out several items in a Column, Row, Grid, or Flow, select
-    the items on the canvas, and then select \uicontrol Layout in the context
-    menu.
+    To lay out several items in a \uicontrol Column, \uicontrol Row,
+    \uicontrol Grid, or \uicontrol Flow, select the items on the canvas, and
+    then select \uicontrol Layout in the context menu.
 
     \section2 Using Layouts
 
@@ -240,12 +250,13 @@
         \li \l{Layout} provides attached properties for items pushed onto a
             \uicontrol {Column Layout}, \uicontrol {Row Layout}, or \uicontrol {Grid Layout}.
 
-        \li ColumnLayout provides a grid layout with only one column.
+        \li \l{ColumnLayout}{Column Layout} provides a grid layout with only one
+            column.
 
-        \li RowLayout provides a grid layout with only one row.
+        \li \l{RowLayout}{Row Layout} provides a grid layout with only one row.
 
-        \li GridLayout provides a way of dynamically arranging items in a
-            grid.
+        \li \l{GridLayout}{Grid Layout} provides a way of dynamically arranging
+            items in a grid.
 
     \endlist
 
@@ -258,12 +269,29 @@
     \uicontrol Layout > \uicontrol {Fill Width} in the context menu. To make the item as
     high as possible, select \uicontrol {Fill Height}.
 
-    \section2 Using Split Views
+    \section2 Organizing Items
 
-    From Qt 5.1, you can use the SplitView Qt Quick Control to arrange items
-    horizontally or vertically
-    with a draggable splitter between each item.
+    From Qt 5.7, you can use the following \l{Qt Quick Controls 2} types to
+    organize items on screens:
 
+    \list
+
+        \li \l [QtQuickControls2]{Frame} places a logical group of controls
+            within a visual frame.
+
+        \li \l [QtQuickControls2]{GroupBox}{Group Box} is used to lay out a
+            logical group of controls together, within a titled visual frame.
+
+        \li \l [QtQuickControls2]{Label} is a text label with inherited styling
+            and font.
+
+        \li \l [QtQuickControls2]{PageIndicator}{Page Indicator} indicates the
+            currently active page.
+
+        \li \l [QtQuickControls2]{Pane} provides a background matching with the
+            application style and theme.
+
+    \endlist
 
     \section1 Using States
 
@@ -363,70 +391,76 @@
         \li \l{Flickable}
             items can be flicked horizontally or vertically.
 
-        \li FocusScope
+        \li \l{FocusScope}{Focus Scope}
             assists in keyboard focus handling when building reusable QML
             components.
 
-        \li MouseArea enables simple mouse handling.
+        \li \l [QML]{MouseArea}{Mouse Area} enables simple mouse handling.
 
     \endlist
 
-    From Qt 5.1, you can also use the following
-    \l{Qt Quick Controls} to present or receive input from the user:
+    Since Qt 5.7, you can also use the following \l{Qt Quick Controls 2} types
+    to inform users about the progress of the application or to gather input
+    from the user:
 
     \list
 
-        \li \l{Button} provides a push button that you can associate with an
-            action.
+        \li \l [QtQuickControls2]{BusyIndicator}{Busy Indicator} indicates
+            activity while content is being loaded.
 
-        \li CheckBox provides an option button that can be toggled on
-            (checked) or off (unchecked).
+        \li \l [QtQuickControls2]{Button} provides a push button that you can
+            associate with an action.
 
-        \li ComboBox provides a drop-down list. Add items to the combo box by
-            assigning it a ListModel, or a list of strings to the model
-            property.
+        \li \l [QtQuickControls2]{CheckBox}{Check Box} provides an option button
+            that can be toggled on (checked) or off (unchecked).
 
-        \li GroupBox provides a frame, a title on top, and place for various
-            other controls inside the frame.
+        \li \l [QtQuickControls2]{CheckDelegate}{Check Delegate} presents an
+            item delegate that can be toggled on (checked) or off (unchecked).
 
-        \li \l{Label} provides a text label that follows the font and color scheme
-            of the system.
+        \li \l [QtQuickControls2]{ComboBox}{Combo Box} is a combined button and
+            popup list that is populated by using a data model.
 
-        \li ProgressBar indicates the progress of an operation.
+        \li \l [QtQuickControls2]{Dial} is a circular dial that is rotated to
+            set a value.
 
-        \li RadioButton provides an option button that can be switched on
-            (checked) or off (unchecked).
+        \li \l [QtQuickControls2]{ItemDelegate}{Item Delegate} is a standard
+            view item that can be used in various views and controls.
 
-        \li \l{Slider}
-            {Slider (Horizontal) and Slider (Vertical)} enable the user to move
-            a slider handle along a horizontal or vertical groove and translate
-            the handle's position into a value within the specified range.
+        \li \l [QtQuickControls2]{ProgressBar}{Progress Bar} indicates the
+            progress of an operation.
 
-        \li SpinBox enables the user to specify a value by clicking the up or
-            down buttons, by pressing up or down on the keyboard, or by entering
-            a value in the box.
+        \li \l [QtQuickControls2]{RadioButton}{Radio Button} provides an option
+            button that can be switched on (checked) or off (unchecked).
 
-        \omit
-        Not visible in the item library in 3.2.
-        \li StatusBar contains status information in your application. It
-            does not provide a layout of its own, but requires you to position
-            its contents, for instance by creating a \uicontrol {Row Layout}.
-        \endomit
+        \li \l [QtQuickControls2]{RadioDelegate}{Radio Delegate} presents an
+            item delegate that can be toggled on (checked) or off (unchecked).
 
-        \li TextArea displays multiple lines of editable formatted text.
+        \li \l [QtQuickControls2]{Slider} selects a value by sliding a handle
+            along a track.
 
-        \li TextField displays a single line of editable plain text.
+        \li \l [QtQuickControls2]{SpinBox}{Spin Box} enables the user to specify
+            a value by clicking the up or down buttons, by pressing up or down
+            on the keyboard, or by entering a value in the box.
 
-        \omit
-        Not visible in the item library in 3.2.
-        \li ToolBar provides styling for ToolButton as well as other controls
-            that it can contain. However, it does not provide a layout of its
-            own, but requires you to position its contents, for instance by
-            creating a \uicontrol {Row Layout}.
-        \endomit
+        \li \l [QtQuickControls2]{Switch} is an option button that can be
+            toggled on or off.
 
-        \li ToolButton provides a button that is functionally similar to
-            \uicontrol Button, but that looks more suitable on a \uicontrol {Tool Bar}.
+        \li \l [QtQuickControls2]{TextArea}{Text Area} displays multiple lines
+            of editable formatted text.
+
+        \li \l [QtQuickControls2]{TextField}{Text Field} displays a single line
+            of editable plain text.
+
+        \li \l [QtQuickControls2]{ToolBar}{Tool Bar} is a container of
+            application-wide and context sensitive actions and controls, such as
+            navigation buttons and search fields.
+
+        \li \l [QtQuickControls2]{ToolButton}{Tool Button} is a button
+            that is functionally similar to \uicontrol Button, but provides a
+            look that is more suitable for a \uicontrol {Tool Bar}.
+
+        \li \l [QtQuickControls2]{Tumbler} is a spinnable wheel of items that
+            can be selected.
 
     \endlist
 

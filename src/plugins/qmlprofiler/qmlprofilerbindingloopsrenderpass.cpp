@@ -24,6 +24,9 @@
 ****************************************************************************/
 
 #include "qmlprofilerbindingloopsrenderpass.h"
+#include <utils/qtcassert.h>
+
+#include <utils/theme/theme.h>
 
 namespace QmlProfiler {
 namespace Internal {
@@ -164,7 +167,7 @@ Timeline::TimelineRenderPass::State *QmlProfilerBindingLoopsRenderPass::update(
     const QmlProfilerRangeModel *model = qobject_cast<const QmlProfilerRangeModel *>(
                 renderer->model());
 
-    if (!model || indexFrom < 0 || indexTo > model->count())
+    if (!model || indexFrom < 0 || indexTo > model->count() || indexFrom >= indexTo)
         return oldState;
 
     BindingLoopsRenderPassState *state;
@@ -229,6 +232,7 @@ void BindlingLoopsGeometry::allocate(QSGMaterial *material)
 {
     QSGGeometry *geometry = new QSGGeometry(BindlingLoopsGeometry::point2DWithOffset(),
                                             usedVertices);
+    Q_ASSERT(geometry->vertexData());
     geometry->setIndexDataPattern(QSGGeometry::StaticPattern);
     geometry->setVertexDataPattern(QSGGeometry::StaticPattern);
     node = new QSGGeometryNode;
@@ -256,12 +260,11 @@ void BindlingLoopsGeometry::addCollapsedEvent(float horizontalCenterSource,
                                               float verticalCenterSource,
                                               float verticalCenterTarget)
 {
-    if (verticalCenterSource < verticalCenterTarget) {
-        qSwap(verticalCenterSource, verticalCenterTarget);
-        qSwap(horizontalCenterSource, horizontalCenterTarget);
-    }
+    // The source event should always be above the parent event because ranges are perfectly nested
+    // and events are ordered by start time.
+    QTC_ASSERT(verticalCenterSource > verticalCenterTarget, /**/);
 
-    float tilt = horizontalCenterSource < horizontalCenterTarget ? +0.3 : -0.3;
+    float tilt = horizontalCenterSource < horizontalCenterTarget ? +0.3f : -0.3f;
 
     Point2DWithOffset *v = vertexData() + usedVertices;
     v[0].set(horizontalCenterSource, verticalCenterSource, -0.3f, tilt);
@@ -302,6 +305,7 @@ private:
 
     int m_matrix_id;
     int m_z_range_id;
+    int m_color_id;
 };
 
 BindingLoopMaterialShader::BindingLoopMaterialShader()
@@ -316,6 +320,9 @@ void BindingLoopMaterialShader::updateState(const RenderState &state, QSGMateria
     if (state.isMatrixDirty()) {
         program()->setUniformValue(m_matrix_id, state.combinedMatrix());
         program()->setUniformValue(m_z_range_id, GLfloat(1.0));
+        program()->setUniformValue(
+                    m_color_id,
+                    Utils::creatorTheme()->color(Utils::Theme::Timeline_HighlightColor));
     }
 }
 
@@ -329,6 +336,7 @@ void BindingLoopMaterialShader::initialize()
 {
     m_matrix_id = program()->uniformLocation("matrix");
     m_z_range_id = program()->uniformLocation("_qt_zRange");
+    m_color_id = program()->uniformLocation("bindingLoopsColor");
 }
 
 

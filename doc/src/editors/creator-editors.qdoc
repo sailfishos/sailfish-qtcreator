@@ -554,6 +554,12 @@
     \row
         \li M208
         \li Error
+        \li This id might be ambiguous and is not supported in the \QMLD.
+        \li
+
+    \row
+        \li M209
+        \li Error
         \li This type (type name) is not supported as a root element by \QMLD.
         \li
 
@@ -908,6 +914,9 @@
             comments
 
         \li C++ code snippets, which specify C++ code constructs
+
+        \li CMake code snippets that you can use when editing \c CMakeLists.txt
+            files in the CMake editor
 
         \li QML code snippets, which specify QML code constructs
 
@@ -1772,7 +1781,7 @@
     You can also press \key {Alt+Enter} to open a context menu that contains
     refactoring actions available in the current cursor position.
 
-    If you use the \l{Parsing C++ Files}{Clang code model} to parse the C++
+    If you use the \l{Parsing C++ Files with the Clang Code Model}{Clang code model} to parse the C++
     files, the \l{http://clang.llvm.org/diagnostics.html}{Clang fix-it hints}
     that have been integrated into \QC are also available to you. In addition to
     the standard ways of activating refactoring actions, you can select the

@@ -289,10 +289,13 @@ QmlEngine::QmlEngine(const DebuggerRunParameters &startParameters, DebuggerEngin
     connect(&d->connectionTimer, &QTimer::timeout,
             this, &QmlEngine::checkConnectionState);
 
-    connect(d->connection, &QmlDebugConnection::socketStateChanged,
-            this, &QmlEngine::connectionStateChanged);
-    connect(d->connection, &QmlDebugConnection::socketError,
-            this, &QmlEngine::connectionErrorOccurred);
+    connect(d->connection, &QmlDebugConnection::logStateChange,
+            this, &QmlEngine::showConnectionStateMessage);
+    connect(d->connection, &QmlDebugConnection::logError, this,
+            [this](const QString &error) { showMessage("QML Debugger: " + error, StatusBar); });
+
+    connect(d->connection, &QmlDebugConnection::connectionFailed,
+            this, &QmlEngine::connectionFailed);
     connect(d->connection, &QmlDebugConnection::connected,
             &d->connectionTimer, &QTimer::stop);
     connect(d->connection, &QmlDebugConnection::connected,
@@ -1084,6 +1087,12 @@ void QmlEngine::quitDebugger()
     shutdownInferior();
 }
 
+void QmlEngine::doUpdateLocals(const UpdateParameters &params)
+{
+    Q_UNUSED(params);
+    d->updateLocals();
+}
+
 void QmlEngine::disconnected()
 {
     showMessage(tr("QML Debugger disconnected."), StatusBar);
@@ -1200,13 +1209,10 @@ bool QmlEnginePrivate::canEvaluateScript(const QString &script)
     return interpreter.canEvaluate();
 }
 
-void QmlEngine::connectionErrorOccurred(QAbstractSocket::SocketError error)
+void QmlEngine::connectionFailed()
 {
     // this is only an error if we are already connected and something goes wrong.
     if (isConnected()) {
-        if (error == QAbstractSocket::RemoteHostClosedError)
-            showMessage(tr("QML Debugger: Remote host closed connection."), StatusBar);
-
         if (!isSlaveEngine()) { // normal flow for slave engine when gdb exits
             notifyInferiorSpontaneousStop();
             notifyInferiorIll();
@@ -1215,11 +1221,6 @@ void QmlEngine::connectionErrorOccurred(QAbstractSocket::SocketError error)
         d->connectionTimer.stop();
         connectionStartupFailed();
     }
-}
-
-void QmlEngine::connectionStateChanged(QAbstractSocket::SocketState socketState)
-{
-    showConnectionStateMessage(QmlDebugConnection::socketStateToString(socketState));
 }
 
 void QmlEngine::checkConnectionState()
@@ -2155,7 +2156,7 @@ void QmlEnginePrivate::handleFrame(const QVariantMap &response)
 
     StackHandler *stackHandler = engine->stackHandler();
     WatchHandler * watchHandler = engine->watchHandler();
-    watchHandler->notifyUpdateStarted({"local"});
+    watchHandler->notifyUpdateStarted();
 
     const int frameIndex = stackHandler->currentIndex();
     if (frameIndex < 0)
@@ -2212,18 +2213,6 @@ void QmlEnginePrivate::handleFrame(const QVariantMap &response)
             });
         }
     }
-
-    // Expand locals that were previously expanded. local.this and watch.*
-    // trigger updates in there handleEvaluatedExpression handlers.
-    LookupItems itemsToLookup;
-    foreach (const QString &iname, watchHandler->expandedINames()) {
-        if (iname != "local.this") {
-            const WatchItem *item = watchHandler->findItem(iname);
-            if (item && item->isLocal())
-                itemsToLookup.insert(int(item->id), {item->iname, item->name, item->exp});
-        }
-    }
-    lookup(itemsToLookup);
 }
 
 void QmlEnginePrivate::handleScope(const QVariantMap &response)
@@ -2391,6 +2380,7 @@ void QmlEnginePrivate::insertSubItems(WatchItem *parent, const QVariantList &pro
     QTC_ASSERT(parent, return);
     LookupItems itemsToLookup;
 
+    const QSet<QString> expandedINames = engine->watchHandler()->expandedINames();
     foreach (const QVariant &property, properties) {
         QmlV8ObjectData propertyData = extractData(property);
         auto item = new WatchItem;
@@ -2412,7 +2402,7 @@ void QmlEnginePrivate::insertSubItems(WatchItem *parent, const QVariantList &pro
         item->id = propertyData.handle;
         item->type = propertyData.type;
         item->value = propertyData.value.toString();
-        if (item->type.isEmpty())
+        if (item->type.isEmpty() || expandedINames.contains(item->iname))
             itemsToLookup.insert(propertyData.handle, {item->iname, item->name, item->exp});
         item->setHasChildren(propertyData.properties.count() > 0);
         parent->appendChild(item);

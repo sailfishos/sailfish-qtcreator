@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>495</width>
-    <height>311</height>
+    <height>330</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -95,6 +95,13 @@
      </item>
     </layout>
    </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="checkBox">
+     <property name="text">
+      <string>ui.qml file</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -110,6 +117,11 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>componentNameEdit</tabstop>
+  <tabstop>listWidget</tabstop>
+  <tabstop>plainTextEdit</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

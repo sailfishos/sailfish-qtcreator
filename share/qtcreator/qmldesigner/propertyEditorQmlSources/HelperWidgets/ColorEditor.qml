@@ -123,6 +123,7 @@ Column {
                 if (supportGradient && gradientLine.hasGradient) {
                     colorEditor.color = gradientLine.currentColor
                     gradientLine.currentColor = color
+                    textField.text = colorEditor.color
                 }
                 gradientLine.isInValidState = true
             }
@@ -190,8 +191,9 @@ Column {
                 ButtonRowButton {
                     iconSource: "images/icon_color_solid.png"
                     onClicked: {
-                        colorEditor.backendValue.resetValue()
                         gradientLine.deleteGradient()
+                        textField.text = colorEditor.color
+                        colorEditor.backendValue.resetValue()
                     }
                     tooltip: qsTr("Solid Color")
                 }

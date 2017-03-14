@@ -27,6 +27,8 @@
 #include "textdocumentlayout.h"
 #include "texteditor.h"
 
+#include <utils/icon.h>
+
 #include <QPainter>
 
 #include <QDebug>
@@ -37,7 +39,9 @@ RefactorOverlay::RefactorOverlay(TextEditor::TextEditorWidget *editor) :
     QObject(editor),
     m_editor(editor),
     m_maxWidth(0),
-    m_icon(QLatin1String(":/texteditor/images/refactormarker.png"))
+    m_icon(Utils::Icon({
+        {QLatin1String(":/texteditor/images/lightbulbcap.png"), Utils::Theme::PanelTextColorMid},
+        {QLatin1String(":/texteditor/images/lightbulb.png"), Utils::Theme::IconsWarningColor}}, Utils::Icon::Tint).icon())
 {
 }
 
@@ -77,9 +81,10 @@ void RefactorOverlay::paintMarker(const RefactorMarker& marker, QPainter *painte
     if (icon.isNull())
         icon = m_icon;
 
+    const qreal devicePixelRatio = painter->device()->devicePixelRatio();
     const QSize proposedIconSize = QSize(m_editor->fontMetrics().width(QLatin1Char(' ')) + 3,
-                                         cursorRect.height());
-    const QSize actualIconSize = icon.actualSize(proposedIconSize);
+                                         cursorRect.height()) * devicePixelRatio;
+    const QSize actualIconSize = icon.actualSize(proposedIconSize) / devicePixelRatio;
 
     const int y = cursorRect.top() + ((cursorRect.height() - actualIconSize.height()) / 2);
     const int x = cursorRect.right();

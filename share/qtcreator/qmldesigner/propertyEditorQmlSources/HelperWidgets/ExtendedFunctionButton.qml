@@ -42,6 +42,8 @@ Item {
 
     property bool active: true
 
+    signal reseted
+
 
     function setIcon() {
         if (backendValue == null) {
@@ -106,35 +108,57 @@ Item {
     }
 
     Controls.Menu {
+
         id: menu
+
+
+        onAboutToShow: {
+            exportMenuItem.checked = backendValue.hasPropertyAlias()
+            exportMenuItem.enabled = !backendValue.isAttachedProperty()
+        }
+
         Controls.MenuItem {
-            text: "Reset"
+            text: qsTr("Reset")
             onTriggered: {
                 transaction.start();
                 backendValue.resetValue();
                 backendValue.resetValue();
                 transaction.end();
+                extendedFunctionButton.reseted()
             }
         }
         Controls.MenuItem {
-            text: "Set Binding"
+            text: qsTr("Set Binding")
             onTriggered: {
                 textField.text = backendValue.expression
                 expressionDialog.visible = true
+                textField.forceActiveFocus()
             }
+        }
+        Controls.MenuItem {
+            id: exportMenuItem
+            text: qsTr("Export Property as Alias")
+            onTriggered: {
+                if (checked)
+                    backendValue.exportPopertyAsAlias();
+                else
+                    backendValue.removeAliasExport();
+            }
+            checkable: true
         }
     }
 
     Item {
 
         Rectangle {
-             anchors.fill: parent
-             color: creatorTheme.QmlDesignerBackgroundColorDarker
-             opacity: 0.6
+            anchors.fill: parent
+            color: creatorTheme.QmlDesignerBackgroundColorDarker
+            opacity: 0.6
         }
 
         MouseArea {
-             anchors.fill: parent
+            anchors.fill: parent
+            onDoubleClicked: expressionDialog.visible = false
         }
 
 
@@ -154,7 +178,7 @@ Item {
             }
 
             width: parent.width - 8
-            height: 160
+            height: 260
 
             radius: 2
             color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
@@ -167,97 +191,18 @@ Item {
                 text: qsTr("Binding Editor")
             }
 
-            Controls.TextField {
-                verticalAlignment: Text.AlignTop
+            ExpressionTextField {
                 id: textField
+                onRejected: expressionDialog.visible = false
+                onAccepted: {
+                    backendValue.expression = textField.text.trim()
+                    expressionDialog.visible = false
+                }
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
                 anchors.topMargin: 24
                 anchors.bottomMargin: 32
-                onAccepted: {
-                    backendValue.expression = textField.text
-                    expressionDialog.visible = false
-                }
-
-                style: TextFieldStyle {
-                    textColor: creatorTheme.PanelTextColorLight
-                    padding.top: 6
-                    padding.bottom: 2
-                    padding.left: 6
-                    placeholderTextColor: creatorTheme.PanelTextColorMid
-                    background: Rectangle {
-                        implicitWidth: 100
-                        implicitHeight: 23
-                        radius: 2
-                        color: creatorTheme.QmlDesignerBackgroundColorDarker
-                        border.color: creatorTheme.QmlDesignerBorderColor
-                    }
-                }
-            }
-
-            Row {
-                spacing: 2
-                Button {
-                    width: 16
-                    height: 16
-                    style: ButtonStyle {
-                        background: Item{
-                            Image {
-                                width: 16
-                                height: 16
-                                source: "image://icons/error"
-                                opacity: {
-                                    if (control.pressed)
-                                        return 0.8;
-                                    return 1.0;
-                                }
-                                Rectangle {
-                                    z: -1
-                                    anchors.fill: parent
-                                    color: control.pressed || control.hovered ? creatorTheme.QmlDesignerBackgroundColorDarker : creatorTheme.QmlDesignerButtonColor
-                                    border.color: creatorTheme.QmlDesignerBorderColor
-                                    radius: 2
-                                }
-                            }
-                        }
-                    }
-                    onClicked: {
-                        backendValue.expression = textField.text
-                        expressionDialog.visible = false
-                    }
-                }
-                Button {
-                    width: 16
-                    height: 16
-                    style: ButtonStyle {
-                        background: Item {
-                            Image {
-                                width: 16
-                                height: 16
-                                source: "image://icons/ok"
-                                opacity: {
-                                    if (control.pressed)
-                                        return 0.8;
-                                    return 1.0;
-                                }
-                                Rectangle {
-                                    z: -1
-                                    anchors.fill: parent
-                                    color: control.pressed || control.hovered ? creatorTheme.QmlDesignerBackgroundColorDarker : creatorTheme.QmlDesignerButtonColor
-                                    border.color: creatorTheme.QmlDesignerBorderColor
-                                    radius: 2
-                                }
-                            }
-                        }
-                    }
-                    onClicked: {
-                        expressionDialog.visible = false
-                    }
-                }
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 4
             }
         }
     }

@@ -3,11 +3,10 @@
     "supportedProjectTypes": [ ],
     "id": "F.Scxml",
     "category": "O.Model",
-    "trDescription": "Creates a new, empty, state chart.",
+    "trDescription": "Creates a new empty state chart.",
     "trDisplayName": "State Chart",
     "trDisplayCategory": "Modeling",
     "platformIndependent": true,
-    "icon": "../../global/genericfilewizard.png",
     "enabled": "%{JS: [ %{Plugins} ].indexOf('QtSupport') >= 0}",
 
     "options":
@@ -26,7 +25,7 @@
             [
                 {
                     "name": "Name",
-                    "trDisplayName": "State Chart name:",
+                    "trDisplayName": "State chart name:",
                     "mandatory": true,
                     "type": "LineEdit"
                 },

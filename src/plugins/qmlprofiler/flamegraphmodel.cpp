@@ -44,14 +44,16 @@ FlameGraphModel::FlameGraphModel(QmlProfilerModelManager *modelManager,
 {
     m_modelManager = modelManager;
     m_callStack.append(QmlEvent());
-    m_stackTop = &m_stackBottom;
+    m_compileStack.append(QmlEvent());
+    m_callStackTop = &m_stackBottom;
+    m_compileStackTop = &m_stackBottom;
     connect(modelManager, &QmlProfilerModelManager::stateChanged,
             this, &FlameGraphModel::onModelManagerStateChanged);
     connect(modelManager->notesModel(), &Timeline::TimelineNotesModel::changed,
             this, [this](int typeId, int, int){loadNotes(typeId, true);});
     m_modelId = modelManager->registerModelProxy();
 
-    modelManager->announceFeatures(Constants::QML_JS_RANGE_FEATURES,
+    modelManager->announceFeatures(Constants::QML_JS_RANGE_FEATURES | 1 << ProfileMemory,
                                    [this](const QmlEvent &event, const QmlEventType &type) {
         loadEvent(event, type);
     }, [this](){
@@ -64,8 +66,11 @@ void FlameGraphModel::clear()
     beginResetModel();
     m_stackBottom = FlameGraphData(0, -1, 1);
     m_callStack.clear();
+    m_compileStack.clear();
     m_callStack.append(QmlEvent());
-    m_stackTop = &m_stackBottom;
+    m_compileStack.append(QmlEvent());
+    m_callStackTop = &m_stackBottom;
+    m_compileStackTop = &m_stackBottom;
     m_typeIdsWithNotes.clear();
     endResetModel();
 }
@@ -99,16 +104,33 @@ void FlameGraphModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
     if (m_stackBottom.children.isEmpty())
         beginResetModel();
 
-    const QmlEvent *potentialParent = &(m_callStack.top());
-    if (event.rangeStage() == RangeEnd) {
-        m_stackTop->duration += event.timestamp() - potentialParent->timestamp();
-        m_callStack.pop();
-        m_stackTop = m_stackTop->parent;
-        potentialParent = &(m_callStack.top());
+    const bool isCompiling = (type.rangeType() == Compiling);
+    QStack<QmlEvent> &stack =  isCompiling ? m_compileStack : m_callStack;
+    FlameGraphData *&stackTop = isCompiling ? m_compileStackTop : m_callStackTop;
+
+    const QmlEvent *potentialParent = &(stack.top());
+    if (type.message() == MemoryAllocation) {
+        if (type.detailType() == HeapPage)
+            return; // We're only interested in actual allocations, not heap pages being mmap'd
+
+        qint64 amount = event.number<qint64>(0);
+        if (amount < 0)
+            return; // We're not interested in GC runs here
+
+        for (FlameGraphData *data = stackTop; data; data = data->parent) {
+            ++data->allocations;
+            data->memory += amount;
+        }
+
+    } else if (event.rangeStage() == RangeEnd) {
+        stackTop->duration += event.timestamp() - potentialParent->timestamp();
+        stack.pop();
+        stackTop = stackTop->parent;
+        potentialParent = &(stack.top());
     } else {
         QTC_ASSERT(event.rangeStage() == RangeStart, return);
-        m_callStack.push(event);
-        m_stackTop = pushChild(m_stackTop, event);
+        stack.push(event);
+        stackTop = pushChild(stackTop, event);
     }
 }
 
@@ -160,6 +182,8 @@ QVariant FlameGraphModel::lookup(const FlameGraphData &stats, int role) const
     case CallCountRole: return stats.calls;
     case TimePerCallRole: return stats.duration / stats.calls;
     case TimeInPercentRole: return stats.duration * 100 / m_stackBottom.duration;
+    case AllocationsRole: return stats.allocations;
+    case MemoryRole: return stats.memory;
     default: break;
     }
 
@@ -184,7 +208,7 @@ QVariant FlameGraphModel::lookup(const FlameGraphData &stats, int role) const
 }
 
 FlameGraphData::FlameGraphData(FlameGraphData *parent, int typeIndex, qint64 duration) :
-    duration(duration), calls(1), typeIndex(typeIndex), parent(parent) {}
+    duration(duration), calls(1), memory(0), allocations(0), typeIndex(typeIndex), parent(parent) {}
 
 FlameGraphData::~FlameGraphData()
 {
@@ -262,7 +286,10 @@ QHash<int, QByteArray> FlameGraphModel::roleNames() const
         {NoteRole, "note"},
         {TimePerCallRole, "timePerCall"},
         {TimeInPercentRole, "timeInPercent"},
-        {RangeTypeRole, "rangeType"}
+        {RangeTypeRole, "rangeType"},
+        {LocationRole, "location" },
+        {AllocationsRole, "allocations" },
+        {MemoryRole, "memory" }
     };
     return QAbstractItemModel::roleNames().unite(extraRoles);
 }

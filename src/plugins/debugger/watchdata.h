@@ -60,33 +60,15 @@ public:
 
     WatchItem *parentItem() const;
 
-    enum State
-    {
-        ValueNeeded       = 2,
-        ChildrenNeeded    = 8,
-
-        InitialState = ValueNeeded | ChildrenNeeded
-    };
-
     static const qint64 InvalidId = -1;
 
-    void setAllUnneeded()          { state = State(0); }
-
-    bool isValueNeeded() const { return state & ValueNeeded; }
-    void setValueNeeded()      { state = State(state | ValueNeeded); }
-    void setValueUnneeded()    { state = State(state & ~ValueNeeded); }
-
-    bool isChildrenNeeded() const { return state & ChildrenNeeded; }
-    void setChildrenNeeded()   { state = State(state | ChildrenNeeded); }
-    void setChildrenUnneeded() { state = State(state & ~ChildrenNeeded); }
-    void setHasChildren(bool c)   { wantsChildren = c;  if (!c) setChildrenUnneeded(); }
+    void setHasChildren(bool c)   { wantsChildren = c; }
 
     bool isValid()   const { return !iname.isEmpty(); }
     bool isVTablePointer() const;
 
     void setError(const QString &);
     void setValue(const QString &);
-    void setType(const QString &, bool guessChildrenFromType = true);
 
     QString toString() const;
 
@@ -99,7 +81,6 @@ public:
 
 public:
     qint64          id;            // Token for the engine for internal mapping
-    qint32          state;         // 'needed' flags;
     QString         iname;         // Internal name sth like 'local.baz.public.a'
     QString         exp;           // The expression
     QString         name;          // Displayed name

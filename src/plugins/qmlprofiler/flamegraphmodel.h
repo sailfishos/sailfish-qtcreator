@@ -44,6 +44,9 @@ struct FlameGraphData {
 
     qint64 duration;
     qint64 calls;
+    qint64 memory;
+
+    int allocations;
     int typeIndex;
 
     FlameGraphData *parent;
@@ -69,6 +72,8 @@ public:
         TimeInPercentRole,
         RangeTypeRole,
         LocationRole,
+        AllocationsRole,
+        MemoryRole,
         MaxRole
     };
 
@@ -91,19 +96,15 @@ public slots:
     void clear();
 
 private:
-    friend class FlameGraphRelativesModel;
-    friend class FlameGraphParentsModel;
-    friend class FlameGraphChildrenModel;
-
     QVariant lookup(const FlameGraphData &data, int role) const;
     FlameGraphData *pushChild(FlameGraphData *parent, const QmlEvent &data);
 
-    int m_selectedTypeIndex;
-
     // used by binding loop detection
     QStack<QmlEvent> m_callStack;
+    QStack<QmlEvent> m_compileStack;
     FlameGraphData m_stackBottom;
-    FlameGraphData *m_stackTop;
+    FlameGraphData *m_callStackTop;
+    FlameGraphData *m_compileStackTop;
 
     int m_modelId;
     QmlProfilerModelManager *m_modelManager;

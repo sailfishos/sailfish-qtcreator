@@ -102,6 +102,8 @@ enum { debug = 0 };
 QmakeBuildConfiguration::QmakeBuildConfiguration(Target *target)
     : QmakeBuildConfiguration(target, Core::Id(QMAKE_BC_ID))
 {
+    connect(this, &BuildConfiguration::buildDirectoryChanged,
+            this, &QmakeBuildConfiguration::emitProFileEvaluateNeeded);
 }
 
 QmakeBuildConfiguration::QmakeBuildConfiguration(Target *target, Core::Id id) :
@@ -170,7 +172,7 @@ void QmakeBuildConfiguration::kitChanged()
 
 void QmakeBuildConfiguration::toolChainUpdated(ToolChain *tc)
 {
-    if (ToolChainKitInformation::toolChain(target()->kit()) == tc)
+    if (ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx) == tc)
         emitProFileEvaluateNeeded();
 }
 
@@ -221,14 +223,6 @@ void QmakeBuildConfiguration::setFileNodeBuild(FileNode *node)
 bool QmakeBuildConfiguration::isShadowBuild() const
 {
     return buildDirectory() != target()->project()->projectDirectory();
-}
-
-void QmakeBuildConfiguration::setBuildDirectory(const FileName &directory)
-{
-    if (directory == buildDirectory())
-        return;
-    BuildConfiguration::setBuildDirectory(directory);
-    emitProFileEvaluateNeeded();
 }
 
 QString QmakeBuildConfiguration::makefile() const
@@ -766,7 +760,7 @@ QmakeBuildConfiguration::LastKitState::LastKitState(Kit *k)
       m_sysroot(SysRootKitInformation::sysRoot(k).toString()),
       m_mkspec(QmakeKitInformation::mkspec(k).toString())
 {
-    ToolChain *tc = ToolChainKitInformation::toolChain(k);
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
     m_toolchain = tc ? tc->id() : QByteArray();
 }
 

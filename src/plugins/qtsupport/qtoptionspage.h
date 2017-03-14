@@ -85,7 +85,6 @@ private:
 
 private:
     void updateQtVersions(const QList<int> &, const QList<int> &, const QList<int> &);
-    void qtVersionChanged();
     void versionChanged(const QModelIndex &current, const QModelIndex &previous);
     void addQtDir();
     void removeQtDir();
@@ -113,7 +112,7 @@ private:
     bool isNameUnique(const BaseQtVersion *version);
     void updateVersionItem(QtVersionItem *item);
 
-    Utils::LeveledTreeModel<Utils::TreeItem, QtVersionItem> *m_model;
+    Utils::TreeModel<Utils::TreeItem, Utils::TreeItem, QtVersionItem> *m_model;
     QSortFilterProxyModel *m_filterModel;
     Utils::TreeItem *m_autoItem;
     Utils::TreeItem *m_manualItem;

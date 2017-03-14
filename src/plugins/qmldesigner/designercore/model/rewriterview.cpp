@@ -40,6 +40,7 @@
 #include <modelnode.h>
 
 #include <qmljs/parser/qmljsengine_p.h>
+#include <qmljs/qmljsmodelmanagerinterface.h>
 
 using namespace QmlDesigner::Internal;
 
@@ -368,8 +369,8 @@ void RewriterView::applyChanges()
 
     if (inErrorState()) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterView::applyChanges() got called while in error state. Will do a quick-exit now.";
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterView::applyChanges() got called while in error state. Will do a quick-exit now.";
+        qDebug().noquote() << "Content: " << content;
         throw RewritingException(__LINE__, __FUNCTION__, __FILE__, "RewriterView::applyChanges() already in error state", content);
     }
 
@@ -381,8 +382,8 @@ void RewriterView::applyChanges()
             enterErrorState(errors().first().description());
     } catch (const Exception &e) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterException:" << m_rewritingErrorMessage;
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterException:" << m_rewritingErrorMessage;
+        qDebug().noquote() << "Content: " << qPrintable(content);
         enterErrorState(e.description());
     }
 
@@ -390,10 +391,10 @@ void RewriterView::applyChanges()
 
     if (inErrorState()) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterException:" << m_rewritingErrorMessage;
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterException: " << m_rewritingErrorMessage;
+        qDebug().noquote() << "Content: " << content;
         if (!errors().isEmpty())
-            qDebug() << "Error:" << errors().first().description();
+            qDebug().noquote() << "Error:" << errors().first().description();
         throw RewritingException(__LINE__, __FUNCTION__, __FILE__, qPrintable(m_rewritingErrorMessage), content);
     }
 }
@@ -651,8 +652,40 @@ void RewriterView::moveToComponent(const ModelNode &modelNode)
     textModifier()->moveToComponent(offset);
 }
 
+QStringList RewriterView::autoComplete(const QString &text, int pos, bool explicitComplete)
+{
+    QTextDocument textDocument;
+    textDocument.setPlainText(text);
+
+    return textModifier()->autoComplete(&textDocument, pos, explicitComplete);
+}
+
+QList<CppTypeData> RewriterView::getCppTypes()
+{
+    QList<CppTypeData> cppDataList;
+    for (const QmlJS::ModelManagerInterface::CppData &cppData : QmlJS::ModelManagerInterface::instance()->cppData().values())
+        for (const LanguageUtils::FakeMetaObject::ConstPtr &fakeMetaObject : cppData.exportedTypes) {
+            for (const LanguageUtils::FakeMetaObject::Export &exportItem : fakeMetaObject->exports()) {
+
+            CppTypeData cppData;
+            cppData.cppClassName = fakeMetaObject->className();
+            cppData.typeName = exportItem.type;
+            cppData.importUrl = exportItem.package;
+            cppData.versionString = exportItem.version.toString();
+            cppData.superClassName = fakeMetaObject->superclassName();
+            cppData.isSingleton = fakeMetaObject->isSingleton();
+
+            if (cppData.importUrl != "<cpp>") //ignore pure unregistered cpp types
+                cppDataList.append(cppData);
+            }
+        }
+
+    return cppDataList;
+}
+
 void RewriterView::qmlTextChanged()
 {
+    getCppTypes();
     if (inErrorState())
         return;
 

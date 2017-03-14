@@ -59,6 +59,20 @@ static Argument *arg(const QString &name, const FullySpecifiedType &ty)
     return a;
 }
 
+static TypenameArgument *typenameArg(const QString &name, bool isClassDeclarator)
+{
+    TypenameArgument *arg = new TypenameArgument(0, 0, nameId(name));
+    arg->setClassDeclarator(isClassDeclarator);
+    return arg;
+}
+
+static Declaration *decl(const FullySpecifiedType &ty)
+{
+    Declaration *d = new Declaration(0, 0, nameId(""));
+    d->setType(ty);
+    return d;
+}
+
 static FullySpecifiedType voidTy()
 { return FullySpecifiedType(new VoidType); }
 
@@ -91,6 +105,16 @@ static FullySpecifiedType fnTy(const QString &name, const FullySpecifiedType &re
     fn->addMember(arg("a1", a1));
     fn->addMember(arg("a1", a2));
     return FullySpecifiedType(fn);
+}
+
+static FullySpecifiedType templTy(FullySpecifiedType declTy, bool isClassDeclarator)
+{
+    Template *templ = new Template(0, 0, nameId(""));
+    templ->addMember(typenameArg("T", isClassDeclarator));
+    templ->addMember(decl(declTy));
+    if (Function *func = declTy->asFunctionType())
+        func->setEnclosingScope(templ);
+    return FullySpecifiedType(templ);
 }
 
 static FullySpecifiedType refThis(const FullySpecifiedType &type)
@@ -425,6 +449,9 @@ void tst_TypePrettyPrinter::basic_data()
 
     addRow(fnTy("foo", ref(voidTy()), ptr(voidTy())), bindToNothing, "void &foo(void *)", "foo");
     addRow(fnTy("foo", ref(voidTy()), ptr(voidTy())), bindToAll, "void&foo(void*)", "foo");
+
+    addRow(templTy(fnTy("foo", voidTy(), voidTy()), true), bindToNothing, "template<class T>\nvoid foo()", "foo");
+    addRow(templTy(fnTy("foo", voidTy(), voidTy()), false), bindToNothing, "template<typename T>\nvoid foo()", "foo");
 }
 
 void tst_TypePrettyPrinter::basic()
@@ -436,6 +463,7 @@ void tst_TypePrettyPrinter::basic()
 
     Overview o;
     o.showReturnTypes = true;
+    o.showEnclosingTemplate = true;
     o.starBindFlags = starBindFlags;
     TypePrettyPrinter pp(&o);
     QCOMPARE(pp(type, name), result);

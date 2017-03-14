@@ -177,7 +177,7 @@ static QList<Abi> guessGccAbi(const QString &m, const QByteArray &macros)
     else if (macros.contains("#define __SIZEOF_SIZE_T__ 4"))
         width = 32;
 
-    if (os == Abi::MacOS) {
+    if (os == Abi::DarwinOS) {
         // Apple does PPC and x86!
         abiList << Abi(arch, os, flavor, format, width);
         abiList << Abi(arch, os, flavor, format, width == 64 ? 32 : 64);
@@ -575,9 +575,9 @@ FileNameList GccToolChain::suggestedMkspecList() const
             || abi.osFlavor() != host.osFlavor()) // Note: This can fail:-(
         return FileNameList();
 
-    if (abi.os() == Abi::MacOS) {
+    if (abi.os() == Abi::DarwinOS) {
         QString v = version();
-        // prefer versioned g++ on mac. This is required to enable building for older Mac OS versions
+        // prefer versioned g++ on macOS. This is required to enable building for older macOS versions
         if (v.startsWith(QLatin1String("4.0")) && m_compilerCommand.endsWith(QLatin1String("-4.0")))
             return FileNameList() << FileName::fromLatin1("macx-g++40");
         if (v.startsWith(QLatin1String("4.2")) && m_compilerCommand.endsWith(QLatin1String("-4.2")))
@@ -617,10 +617,7 @@ IOutputParser *GccToolChain::outputParser() const
 
 void GccToolChain::resetToolChain(const FileName &path)
 {
-    if (path == m_compilerCommand)
-        return;
-
-    bool resetDisplayName = displayName() == defaultDisplayName();
+    bool resetDisplayName = (displayName() == defaultDisplayName());
 
     setCompilerCommand(path);
 
@@ -710,14 +707,18 @@ bool GccToolChain::fromMap(const QVariantMap &data)
     m_platformLinkerFlags = data.value(QLatin1String(compilerPlatformLinkerFlagsKeyC)).toStringList();
     m_targetAbi = Abi(data.value(QLatin1String(targetAbiKeyC)).toString());
     m_originalTargetTriple = data.value(QLatin1String(originalTargetTripleKeyC)).toString();
-    QStringList abiList = data.value(QLatin1String(supportedAbisKeyC)).toStringList();
+    const QStringList abiList = data.value(QLatin1String(supportedAbisKeyC)).toStringList();
     m_supportedAbis.clear();
-    foreach (const QString &a, abiList) {
+    for (const QString &a : abiList) {
         Abi abi(a);
         if (!abi.isValid())
             continue;
         m_supportedAbis.append(abi);
     }
+
+    if (!m_targetAbi.isValid())
+        resetToolChain(m_compilerCommand);
+
     return true;
 }
 
@@ -770,14 +771,21 @@ GccToolChainFactory::GccToolChainFactory()
     setDisplayName(tr("GCC"));
 }
 
+QSet<ToolChain::Language> GccToolChainFactory::supportedLanguages() const
+{
+    return { ToolChain::Language::Cxx, ToolChain::Language::C };
+}
+
 bool GccToolChainFactory::canCreate()
 {
     return true;
 }
 
-ToolChain *GccToolChainFactory::create()
+ToolChain *GccToolChainFactory::create(ToolChain::Language l)
 {
-    return createToolChain(false);
+    ToolChain *tc = createToolChain(false);
+    tc->setLanguage(l);
+    return tc;
 }
 
 QList<ToolChain *> GccToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
@@ -786,11 +794,21 @@ QList<ToolChain *> GccToolChainFactory::autoDetect(const QList<ToolChain *> &alr
     if (HostOsInfo::isMacHost()) {
         // Old mac compilers needed to support macx-gccXY mkspecs:
         tcs.append(autoDetectToolchains(QLatin1String("g++-4.0"), Abi::hostAbi(),
-                                        Constants::GCC_TOOLCHAIN_TYPEID, alreadyKnown));
+                                        ToolChain::Language::Cxx, Constants::GCC_TOOLCHAIN_TYPEID,
+                                        alreadyKnown));
         tcs.append(autoDetectToolchains(QLatin1String("g++-4.2"), Abi::hostAbi(),
-                                        Constants::GCC_TOOLCHAIN_TYPEID, alreadyKnown));
+                                        ToolChain::Language::Cxx,  Constants::GCC_TOOLCHAIN_TYPEID,
+                                        alreadyKnown));
+        tcs.append(autoDetectToolchains(QLatin1String("gcc-4.0"), Abi::hostAbi(),
+                                        ToolChain::Language::C, Constants::GCC_TOOLCHAIN_TYPEID,
+                                        alreadyKnown));
+        tcs.append(autoDetectToolchains(QLatin1String("gcc-4.2"), Abi::hostAbi(),
+                                        ToolChain::Language::C,  Constants::GCC_TOOLCHAIN_TYPEID,
+                                        alreadyKnown));
     }
-    tcs.append(autoDetectToolchains(QLatin1String("g++"), Abi::hostAbi(),
+    tcs.append(autoDetectToolchains(QLatin1String("g++"), Abi::hostAbi(), ToolChain::Language::Cxx,
+                                    Constants::GCC_TOOLCHAIN_TYPEID,alreadyKnown));
+    tcs.append(autoDetectToolchains(QLatin1String("gcc"), Abi::hostAbi(), ToolChain::Language::C,
                                     Constants::GCC_TOOLCHAIN_TYPEID,alreadyKnown));
 
     return tcs;
@@ -819,6 +837,7 @@ GccToolChain *GccToolChainFactory::createToolChain(bool autoDetect)
 
 QList<ToolChain *> GccToolChainFactory::autoDetectToolchains(const QString &compiler,
                                                              const Abi &requiredAbi,
+                                                             ToolChain::Language l,
                                                              const Core::Id requiredTypeId,
                                                              const QList<ToolChain *> &alreadyKnown)
 {
@@ -861,6 +880,7 @@ QList<ToolChain *> GccToolChainFactory::autoDetectToolchains(const QString &comp
         tc->setTargetAbi(abi);
         tc->setOriginalTargetTriple(detectedAbis.originalTargetTriple);
         tc->setDisplayName(tc->defaultDisplayName()); // reset displayname
+        tc->setLanguage(l);
 
         result.append(tc.take());
     }
@@ -1085,7 +1105,7 @@ WarningFlags ClangToolChain::warningFlags(const QStringList &cflags) const
 FileNameList ClangToolChain::suggestedMkspecList() const
 {
     Abi abi = targetAbi();
-    if (abi.os() == Abi::MacOS)
+    if (abi.os() == Abi::DarwinOS)
         return FileNameList()
                 << FileName::fromLatin1("macx-clang")
                 << FileName::fromLatin1("macx-clang-32")
@@ -1132,10 +1152,21 @@ ClangToolChainFactory::ClangToolChainFactory()
     setDisplayName(tr("Clang"));
 }
 
+QSet<ToolChain::Language> ClangToolChainFactory::supportedLanguages() const
+{
+    return { ProjectExplorer::ToolChain::Language::Cxx, ProjectExplorer::ToolChain::Language::C };
+}
+
 QList<ToolChain *> ClangToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
 {
-    return autoDetectToolchains(QLatin1String("clang++"), Abi::hostAbi(),
-                                Constants::CLANG_TOOLCHAIN_TYPEID, alreadyKnown);
+    QList<ToolChain *> result
+            = autoDetectToolchains(QLatin1String("clang++"), Abi::hostAbi(),
+                                   ToolChain::Language::Cxx, Constants::CLANG_TOOLCHAIN_TYPEID,
+                                   alreadyKnown);
+    result += autoDetectToolchains(QLatin1String("clang"), Abi::hostAbi(),
+                                   ToolChain::Language::C, Constants::CLANG_TOOLCHAIN_TYPEID,
+                                   alreadyKnown);
+    return result;
 }
 
 bool ClangToolChainFactory::canRestore(const QVariantMap &data)
@@ -1211,12 +1242,21 @@ MingwToolChainFactory::MingwToolChainFactory()
     setDisplayName(tr("MinGW"));
 }
 
+QSet<ToolChain::Language> MingwToolChainFactory::supportedLanguages() const
+{
+    return { ProjectExplorer::ToolChain::Language::Cxx, ProjectExplorer::ToolChain::Language::C };
+}
+
 QList<ToolChain *> MingwToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
 {
     Abi ha = Abi::hostAbi();
     ha = Abi(ha.architecture(), Abi::WindowsOS, Abi::WindowsMSysFlavor, Abi::PEFormat, ha.wordWidth());
-    return autoDetectToolchains(QLatin1String("g++"), ha,
-                                Constants::MINGW_TOOLCHAIN_TYPEID, alreadyKnown);
+    QList<ToolChain *> result
+            = autoDetectToolchains(QLatin1String("g++"), ha, ToolChain::Language::Cxx,
+                                   Constants::MINGW_TOOLCHAIN_TYPEID, alreadyKnown);
+    result += autoDetectToolchains(QLatin1String("gcc"), ha, ToolChain::Language::C,
+                                   Constants::MINGW_TOOLCHAIN_TYPEID, alreadyKnown);
+    return result;
 }
 
 bool MingwToolChainFactory::canRestore(const QVariantMap &data)
@@ -1289,9 +1329,14 @@ LinuxIccToolChainFactory::LinuxIccToolChainFactory()
     setDisplayName(tr("Linux ICC"));
 }
 
+QSet<ToolChain::Language> LinuxIccToolChainFactory::supportedLanguages() const
+{
+    return { ProjectExplorer::ToolChain::Language::Cxx };
+}
+
 QList<ToolChain *> LinuxIccToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
 {
-    return autoDetectToolchains(QLatin1String("icpc"), Abi::hostAbi(),
+    return autoDetectToolchains(QLatin1String("icpc"), Abi::hostAbi(), ToolChain::Language::Cxx,
                                 Constants::LINUXICC_TOOLCHAIN_TYPEID, alreadyKnown);
 }
 
@@ -1464,23 +1509,23 @@ void ProjectExplorerPlugin::testGccAbiGuessing_data()
     QTest::newRow("Mac 1")
             << QString::fromLatin1("i686-apple-darwin10")
             << QByteArray("#define __SIZEOF_SIZE_T__ 8\n")
-            << (QStringList() << QLatin1String("x86-macos-generic-mach_o-64bit")
-                              << QLatin1String("x86-macos-generic-mach_o-32bit"));
+            << (QStringList() << QLatin1String("x86-darwin-generic-mach_o-64bit")
+                              << QLatin1String("x86-darwin-generic-mach_o-32bit"));
     QTest::newRow("Mac 2")
             << QString::fromLatin1("powerpc-apple-darwin10")
             << QByteArray("#define __SIZEOF_SIZE_T__ 8\n")
-            << (QStringList() << QLatin1String("ppc-macos-generic-mach_o-64bit")
-                              << QLatin1String("ppc-macos-generic-mach_o-32bit"));
+            << (QStringList() << QLatin1String("ppc-darwin-generic-mach_o-64bit")
+                              << QLatin1String("ppc-darwin-generic-mach_o-32bit"));
     QTest::newRow("Mac 3")
             << QString::fromLatin1("i686-apple-darwin9")
             << QByteArray("#define __SIZEOF_SIZE_T__ 4\n")
-            << (QStringList() << QLatin1String("x86-macos-generic-mach_o-32bit")
-                              << QLatin1String("x86-macos-generic-mach_o-64bit"));
+            << (QStringList() << QLatin1String("x86-darwin-generic-mach_o-32bit")
+                              << QLatin1String("x86-darwin-generic-mach_o-64bit"));
     QTest::newRow("Mac IOS")
             << QString::fromLatin1("arm-apple-darwin9")
             << QByteArray("#define __SIZEOF_SIZE_T__ 4\n")
-            << (QStringList() << QLatin1String("arm-macos-generic-mach_o-32bit")
-                              << QLatin1String("arm-macos-generic-mach_o-64bit"));
+            << (QStringList() << QLatin1String("arm-darwin-generic-mach_o-32bit")
+                              << QLatin1String("arm-darwin-generic-mach_o-64bit"));
     QTest::newRow("Intel 1")
             << QString::fromLatin1("86_64 x86_64 GNU/Linux")
             << QByteArray("#define __SIZEOF_SIZE_T__ 8\n")

@@ -116,7 +116,6 @@ protected:
     QmakeBuildConfiguration(ProjectExplorer::Target *target, QmakeBuildConfiguration *source);
     QmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     bool fromMap(const QVariantMap &map) override;
-    void setBuildDirectory(const Utils::FileName &directory) override;
 
 private:
     void ctor();
@@ -137,7 +136,7 @@ private:
     LastKitState m_lastKitState;
 
     bool m_shadowBuild = true;
-    bool m_isEnabled = false;
+    bool m_isEnabled = true;
     QtSupport::BaseQtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration = 0;
     QmakeProjectManager::QmakeProFileNode *m_subNodeBuild = nullptr;
     ProjectExplorer::FileNode *m_fileNodeBuild = nullptr;

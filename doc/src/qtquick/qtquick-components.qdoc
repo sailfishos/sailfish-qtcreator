@@ -48,28 +48,28 @@
 
     \list
 
-        \li \l{BorderImage} uses an image as a border or background.
+        \li \l [QML]{BorderImage}{Border Image} uses an image as a border or background.
 
-        \li \l{Image}
+        \li \l [QML]{Image}
             adds a bitmap to the scene. You can stretch and tile images.
 
-        \li \l{Item}
+        \li \l [QML]{Item}
             is the most basic of all visual types in QML. Even though it has no
             visual appearance, it defines all the properties that are common
             across visual types, such as the x and y position, width and height,
             anchoring, and key handling.
 
-        \li \l{Rectangle}
+        \li \l [QML]{Rectangle}
             adds a rectangle that is painted with a solid fill color and an
             optional border. You can also use the radius property to create
             rounded rectangles.
 
-        \li \l{Text} adds formatted read-only text.
+        \li \l [QML]{Text} adds formatted read-only text.
 
-        \li \l{TextEdit}
+        \li \l [QML]{TextEdit}{Text Edit}
             adds a single line of editable formatted text that can be validated.
 
-        \li \l{TextInput}
+        \li \l [QML]{TextInput}{Text Input}
             adds a single line of editable plain text that can be validated.
 
         \omit
@@ -84,14 +84,12 @@
     creating classic desktop-style user interfaces using Qt Quick 2.1. You can
     use the Qt Quick Controls Styles to customize Qt Quick Controls.
 
-    Since Qt 5.6, Qt Labs Controls provide lightweight QML types for creating
+    Since Qt 5.7, \l {Qt Quick Controls 2} replace Qt Quick Controls 1 and
+    Qt Labs Controls. These Controls provide lightweight QML types for creating
     performant user interfaces for embedded and mobile devices. These controls
     achieve improved efficiency by employing a simplified styling architecture
     when compared to Qt Quick Controls, on which the module is based. These
     types work in conjunction with Qt Quick and Qt Quick Layouts.
-
-    Since Qt 5.7, \l {Qt Quick Controls 2} replace Qt Quick Controls 1 and
-    Qt Labs Controls.
 
     Some ready-made controls, such as a gauge, dial, status indicator, and
     tumbler, are provided by the \l {Qt Quick Extras} module.

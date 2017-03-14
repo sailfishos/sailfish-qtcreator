@@ -26,36 +26,97 @@
 #pragma once
 
 #include "icon.h"
+#include "utils_global.h"
 
 namespace Utils {
 namespace Icons {
 
-const Utils::Icon EDIT_CLEAR({
-        {QLatin1String(":/core/images/editclear.png"), Utils::Theme::PanelTextColorMid}}, Utils::Icon::Tint);
-const Utils::Icon LOCKED_TOOLBAR({
-        {QLatin1String(":/utils/images/locked.png"), Utils::Theme::IconsBaseColor}});
-const Utils::Icon LOCKED({
-        {QLatin1String(":/utils/images/locked.png"), Utils::Theme::PanelTextColorDark}}, Icon::Tint);
-const Utils::Icon UNLOCKED_TOOLBAR({
-        {QLatin1String(":/utils/images/unlocked.png"), Utils::Theme::IconsBaseColor}});
-const Utils::Icon NEXT({
-        {QLatin1String(":/utils/images/next.png"), Utils::Theme::IconsWarningColor}}, Utils::Icon::MenuTintedStyle);
-const Utils::Icon NEXT_TOOLBAR({
-        {QLatin1String(":/utils/images/next.png"), Utils::Theme::IconsNavigationArrowsColor}});
-const Utils::Icon PREV({
-        {QLatin1String(":/utils/images/prev.png"), Utils::Theme::IconsWarningColor}}, Utils::Icon::MenuTintedStyle);
-const Utils::Icon PREV_TOOLBAR({
-        {QLatin1String(":/utils/images/prev.png"), Utils::Theme::IconsNavigationArrowsColor}});
-const Utils::Icon ZOOM({
-        {QLatin1String(":/utils/images/zoom.png"), Utils::Theme::PanelTextColorMid}}, Utils::Icon::Tint);
-const Utils::Icon ZOOM_TOOLBAR({
-        {QLatin1String(":/utils/images/zoom.png"), Utils::Theme::IconsBaseColor}});
-const Utils::Icon OK({
-        {QLatin1String(":/utils/images/ok.png"), Utils::Theme::IconsRunToolBarColor}}, Icon::Tint);
-const Utils::Icon NOTLOADED({
-        {QLatin1String(":/utils/images/notloaded.png"), Utils::Theme::IconsErrorColor}}, Icon::Tint);
-const Utils::Icon ERROR({
-        {QLatin1String(":/utils/images/error.png"), Utils::Theme::IconsErrorColor}}, Icon::Tint);
+QTCREATOR_UTILS_EXPORT extern const Icon EDIT_CLEAR;
+QTCREATOR_UTILS_EXPORT extern const Icon LOCKED_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon LOCKED;
+QTCREATOR_UTILS_EXPORT extern const Icon UNLOCKED_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon NEXT;
+QTCREATOR_UTILS_EXPORT extern const Icon NEXT_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon PREV;
+QTCREATOR_UTILS_EXPORT extern const Icon PREV_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon ZOOM;
+QTCREATOR_UTILS_EXPORT extern const Icon ZOOM_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon ZOOMIN_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon ZOOMOUT_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon FITTOVIEW_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon OK;
+QTCREATOR_UTILS_EXPORT extern const Icon NOTLOADED;
+QTCREATOR_UTILS_EXPORT extern const Icon BROKEN;
+QTCREATOR_UTILS_EXPORT extern const Icon ERROR;
+QTCREATOR_UTILS_EXPORT extern const Icon BOOKMARK;
+QTCREATOR_UTILS_EXPORT extern const Icon BOOKMARK_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon BOOKMARK_TEXTEDITOR;
+QTCREATOR_UTILS_EXPORT extern const Icon SNAPSHOT_TOOLBAR;
+
+QTCREATOR_UTILS_EXPORT extern const Icon NEWFILE;
+QTCREATOR_UTILS_EXPORT extern const Icon OPENFILE;
+QTCREATOR_UTILS_EXPORT extern const Icon SAVEFILE;
+QTCREATOR_UTILS_EXPORT extern const Icon SAVEFILE_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon UNDO;
+QTCREATOR_UTILS_EXPORT extern const Icon REDO;
+QTCREATOR_UTILS_EXPORT extern const Icon COPY;
+QTCREATOR_UTILS_EXPORT extern const Icon PASTE;
+QTCREATOR_UTILS_EXPORT extern const Icon CUT;
+QTCREATOR_UTILS_EXPORT extern const Icon DIR;
+QTCREATOR_UTILS_EXPORT extern const Icon RESET;
+QTCREATOR_UTILS_EXPORT extern const Icon RESET_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon DARK_CLOSE;
+
+QTCREATOR_UTILS_EXPORT extern const Icon ARROW_UP;
+QTCREATOR_UTILS_EXPORT extern const Icon ARROW_DOWN;
+QTCREATOR_UTILS_EXPORT extern const Icon MINUS;
+QTCREATOR_UTILS_EXPORT extern const Icon PLUS_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon PLUS;
+QTCREATOR_UTILS_EXPORT extern const Icon MAGNIFIER;
+QTCREATOR_UTILS_EXPORT extern const Icon CLEAN;
+QTCREATOR_UTILS_EXPORT extern const Icon CLEAN_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon RELOAD;
+QTCREATOR_UTILS_EXPORT extern const Icon TOGGLE_SIDEBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon TOGGLE_SIDEBAR_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_FOREGROUND;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_BACKGROUND;
+QTCREATOR_UTILS_EXPORT extern const Icon SPLIT_HORIZONTAL;
+QTCREATOR_UTILS_EXPORT extern const Icon SPLIT_HORIZONTAL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon SPLIT_VERTICAL;
+QTCREATOR_UTILS_EXPORT extern const Icon SPLIT_VERTICAL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_SPLIT_TOP;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_SPLIT_BOTTOM;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_SPLIT_LEFT;
+QTCREATOR_UTILS_EXPORT extern const Icon CLOSE_SPLIT_RIGHT;
+QTCREATOR_UTILS_EXPORT extern const Icon FILTER;
+QTCREATOR_UTILS_EXPORT extern const Icon LINK;
+QTCREATOR_UTILS_EXPORT extern const Icon WARNING;
+QTCREATOR_UTILS_EXPORT extern const Icon WARNING_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon ERROR_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon ERROR_TASKBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon INFO;
+QTCREATOR_UTILS_EXPORT extern const Icon INFO_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon EXPAND_ALL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon TOOLBAR_EXTENSION;
+QTCREATOR_UTILS_EXPORT extern const Icon RUN_SMALL;
+QTCREATOR_UTILS_EXPORT extern const Icon RUN_SMALL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon STOP_SMALL;
+QTCREATOR_UTILS_EXPORT extern const Icon STOP_SMALL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon INTERRUPT_SMALL;
+QTCREATOR_UTILS_EXPORT extern const Icon INTERRUPT_SMALL_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon BOUNDING_RECT;
+QTCREATOR_UTILS_EXPORT extern const Icon EYE_OPEN_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon EYE_CLOSED_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon REPLACE;
+QTCREATOR_UTILS_EXPORT extern const Icon EXPAND;
+QTCREATOR_UTILS_EXPORT extern const Icon EXPAND_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon COLLAPSE;
+QTCREATOR_UTILS_EXPORT extern const Icon COLLAPSE_TOOLBAR;
+QTCREATOR_UTILS_EXPORT extern const Icon EMPTY14;
+QTCREATOR_UTILS_EXPORT extern const Icon OVERLAY_ADD;
+QTCREATOR_UTILS_EXPORT extern const Icon OVERLAY_WARNING;
+QTCREATOR_UTILS_EXPORT extern const Icon OVERLAY_ERROR;
 
 } // namespace Icons
 } // namespace Utils

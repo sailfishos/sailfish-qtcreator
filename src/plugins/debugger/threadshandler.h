@@ -38,15 +38,16 @@
 namespace Debugger {
 namespace Internal {
 
+class DebuggerEngine;
 class GdbMi;
 class ThreadItem;
 
-class ThreadsHandler : public Utils::LeveledTreeModel<Utils::TypedTreeItem<ThreadItem>, ThreadItem>
+class ThreadsHandler : public Utils::TreeModel<Utils::TypedTreeItem<ThreadItem>, ThreadItem>
 {
     Q_OBJECT
 
 public:
-    ThreadsHandler();
+    explicit ThreadsHandler(DebuggerEngine *engine);
 
     int currentThreadIndex() const;
     ThreadId currentThread() const;
@@ -82,7 +83,9 @@ private:
     void updateThreadBox();
 
     void sort(int column, Qt::SortOrder order);
+    bool setData(const QModelIndex &idx, const QVariant &data, int role);
 
+    DebuggerEngine *m_engine;
     ThreadId m_currentId;
     bool m_resetLocationScheduled;
     QHash<QString, QString> m_pidForGroupId;

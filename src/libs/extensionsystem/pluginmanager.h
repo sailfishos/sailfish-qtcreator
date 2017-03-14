@@ -37,7 +37,6 @@ class QSettings;
 QT_END_NAMESPACE
 
 namespace ExtensionSystem {
-class PluginCollection;
 class IPlugin;
 class PluginSpec;
 
@@ -115,8 +114,8 @@ public:
     static void setPluginPaths(const QStringList &paths);
     static QString pluginIID();
     static void setPluginIID(const QString &iid);
-    static QList<PluginSpec *> plugins();
-    static QHash<QString, PluginCollection *> pluginCollections();
+    static const QList<PluginSpec *> plugins();
+    static QHash<QString, QList<PluginSpec *>> pluginCollections();
     static bool hasError();
     static QSet<PluginSpec *> pluginsRequiringPlugin(PluginSpec *spec);
     static QSet<PluginSpec *> pluginsRequiredByPlugin(PluginSpec *spec);
@@ -150,6 +149,8 @@ public:
 
     void remoteArguments(const QString &serializedArguments, QObject *socket);
     void shutdown();
+
+    QString systemInformation() const;
 
 signals:
     void objectAdded(QObject *obj);

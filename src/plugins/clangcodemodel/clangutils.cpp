@@ -26,19 +26,20 @@
 #include "clangutils.h"
 
 #include "clangeditordocumentprocessor.h"
+#include "clangmodelmanagersupport.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <cpptools/baseeditordocumentparser.h>
 #include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/editordocumenthandle.h>
 #include <cpptools/projectpart.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
 
 #include <QDir>
 #include <QFile>
-#include <QRegularExpression>
 #include <QStringList>
 
 using namespace ClangCodeModel;
@@ -90,17 +91,21 @@ public:
 
         LibClangOptionsBuilder optionsBuilder(*projectPart.data());
 
+        optionsBuilder.addWordWidth();
         optionsBuilder.addTargetTriple();
         optionsBuilder.addLanguageOption(fileKind);
         optionsBuilder.addOptionsForLanguage(/*checkForBorlandExtensions*/ true);
         optionsBuilder.enableExceptions();
 
+        optionsBuilder.addDefineToAvoidIncludingGccOrMinGwIntrinsics();
+        optionsBuilder.addDefineFloat128ForMingw();
         optionsBuilder.addToolchainAndProjectDefines();
         optionsBuilder.undefineCppLanguageFeatureMacrosForMsvc2015();
 
         optionsBuilder.addPredefinedMacrosAndHeaderPathsOptions();
         optionsBuilder.addWrappedQtHeadersIncludePath();
-        optionsBuilder.addHeaderPathOptions(/*addAsNativePath*/ true);
+        optionsBuilder.addHeaderPathOptions();
+        optionsBuilder.addDummyUiHeaderOnDiskIncludePath();
         optionsBuilder.addProjectConfigFileInclude();
 
         optionsBuilder.addMsvcCompatibilityVersion();
@@ -118,18 +123,12 @@ private:
 
     bool excludeHeaderPath(const QString &path) const override
     {
-        if (path.contains(QLatin1String("lib/gcc/i686-apple-darwin")))
-            return true;
+        if (m_projectPart.toolchainType == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID) {
+            if (path.contains(QLatin1String("lib/gcc/i686-apple-darwin")))
+                return true;
+        }
 
-        // We already provide a custom clang include path matching the used libclang version,
-        // so better ignore the clang include paths from the system as this might lead to an
-        // unfavorable order with regard to include_next.
-        static QRegularExpression clangIncludeDir(
-                    QLatin1String("\\A.*/lib/clang/\\d+\\.\\d+(\\.\\d+)?/include\\z"));
-        if (clangIncludeDir.match(path).hasMatch())
-            return true;
-
-        return false;
+        return CompilerOptionsBuilder::excludeHeaderPath(path);
     }
 
     void addPredefinedMacrosAndHeaderPathsOptions()
@@ -149,7 +148,7 @@ private:
     void addPredefinedMacrosAndHeaderPathsOptionsForNonMsvc()
     {
         static const QString resourceDir = getResourceDir();
-        if (!resourceDir.isEmpty()) {
+        if (QTC_GUARD(!resourceDir.isEmpty())) {
             add(QLatin1String("-nostdlibinc"));
             add(QLatin1String("-I") + QDir::toNativeSeparators(resourceDir));
             add(QLatin1String("-undef"));
@@ -176,6 +175,13 @@ private:
         }
     }
 
+    void addDummyUiHeaderOnDiskIncludePath()
+    {
+        const QString path = ModelManagerSupportClang::instance()->dummyUiHeaderOnDiskDirPath();
+        if (!path.isEmpty())
+            add(includeDirOption() + QDir::toNativeSeparators(path));
+    }
+
     void addExtraOptions()
     {
         add(QLatin1String("-fmessage-length=0"));
@@ -194,27 +200,6 @@ private:
 QStringList createClangOptions(const ProjectPart::Ptr &pPart, ProjectFile::Kind fileKind)
 {
     return LibClangOptionsBuilder::build(pPart, fileKind);
-}
-
-/// @return Option to speed up parsing with precompiled header
-QStringList createPCHInclusionOptions(const QStringList &pchFiles)
-{
-    QStringList opts;
-
-    foreach (const QString &pchFile, pchFiles) {
-        if (QFile(pchFile).exists()) {
-            opts += QLatin1String("-include-pch");
-            opts += pchFile;
-        }
-    }
-
-    return opts;
-}
-
-/// @return Option to speed up parsing with precompiled header
-QStringList createPCHInclusionOptions(const QString &pchFile)
-{
-    return createPCHInclusionOptions(QStringList() << pchFile);
 }
 
 ProjectPart::Ptr projectPartForFile(const QString &filePath)
@@ -245,6 +230,17 @@ QString projectPartIdForFile(const QString &filePath)
     if (isProjectPartLoaded(projectPart))
         return projectPart->id(); // OK, Project Part is still loaded
     return QString();
+}
+
+CppEditorDocumentHandle *cppDocument(const QString &filePath)
+{
+    return CppTools::CppModelManager::instance()->cppEditorDocument(filePath);
+}
+
+void setLastSentDocumentRevision(const QString &filePath, uint revision)
+{
+    if (CppEditorDocumentHandle *document = cppDocument(filePath))
+        document->sendTracker().setLastSentRevision(int(revision));
 }
 
 } // namespace Utils

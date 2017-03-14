@@ -99,6 +99,7 @@ public:
     bool m_casadeSetActive = false;
 
     mutable QStringList m_sessions;
+    mutable QHash<QString, QDateTime> m_sessionDateTimes;
 
     mutable QHash<Project *, QStringList> m_projectFileCache;
 
@@ -383,8 +384,10 @@ void SessionManager::addProject(Project *pro)
     connect(pro, &Project::fileListChanged,
             m_instance, &SessionManager::clearProjectFileCache);
 
-    connect(pro, &Project::displayNameChanged,
-            m_instance, &SessionManager::handleProjectDisplayNameChanged);
+    connect(pro, &Project::displayNameChanged, m_instance, [pro] {
+        d->m_sessionNode->projectDisplayNameChanged(pro->rootProjectNode());
+        emit m_instance->projectDisplayNameChanged(pro);
+    });
 
     emit m_instance->projectAdded(pro);
     configureEditors(pro);
@@ -405,6 +408,10 @@ bool SessionManager::loadingSession()
 
 bool SessionManager::save()
 {
+    // do not save new virgin default sessions
+    if (isDefaultVirgin())
+        return true;
+
     emit m_instance->aboutToSaveSession();
 
     if (!d->m_writer || d->m_writer->fileName() != sessionNameToFileName(d->m_sessionName)) {
@@ -464,7 +471,9 @@ bool SessionManager::save()
     data.insert(QLatin1String("valueKeys"), keys);
 
     bool result = d->m_writer->save(data, ICore::mainWindow());
-    if (!result) {
+    if (result) {
+        d->m_sessionDateTimes.insert(activeSession(), QDateTime::currentDateTime());
+    } else {
         QMessageBox::warning(ICore::dialogParent(), tr("Error while saving session"),
             tr("Could not save session to file %1").arg(d->m_writer->fileName().toUserOutput()));
     }
@@ -748,12 +757,19 @@ QStringList SessionManager::sessions()
         QDir sessionDir(ICore::userResourcePath());
         QList<QFileInfo> sessionFiles = sessionDir.entryInfoList(QStringList() << QLatin1String("*.qws"), QDir::NoFilter, QDir::Time);
         foreach (const QFileInfo &fileInfo, sessionFiles) {
-            if (fileInfo.completeBaseName() != QLatin1String("default"))
-                d->m_sessions << fileInfo.completeBaseName();
+            const QString &name = fileInfo.completeBaseName();
+            d->m_sessionDateTimes.insert(name, fileInfo.lastModified());
+            if (name != QLatin1String("default"))
+                d->m_sessions << name;
         }
         d->m_sessions.prepend(QLatin1String("default"));
     }
     return d->m_sessions;
+}
+
+QDateTime SessionManager::sessionDateTime(const QString &session)
+{
+    return d->m_sessionDateTimes.value(session);
 }
 
 FileName SessionManager::sessionNameToFileName(const QString &session)
@@ -818,6 +834,7 @@ bool SessionManager::cloneSession(const QString &original, const QString &clone)
     // If the file does not exist, we can still clone
     if (!fi.exists() || fi.copy(sessionNameToFileName(clone).toString())) {
         d->m_sessions.insert(1, clone);
+        d->m_sessionDateTimes.insert(clone, QFileInfo(sessionNameToFileName(clone).toString()).lastModified());
         return true;
     }
     return false;
@@ -948,11 +965,9 @@ bool SessionManager::loadSession(const QString &session)
     // Allow everyone to set something in the session and before saving
     emit m_instance->aboutToUnloadSession(d->m_sessionName);
 
-    if (!isDefaultVirgin()) {
-        if (!save()) {
-            d->m_loadingSession = false;
-            return false;
-        }
+    if (!save()) {
+        d->m_loadingSession = false;
+        return false;
     }
 
     // Clean up
@@ -1073,15 +1088,6 @@ void SessionManagerPrivate::sessionLoadingProgress()
 {
     m_future.setProgressValue(m_future.progressValue() + 1);
     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-}
-
-void SessionManager::handleProjectDisplayNameChanged()
-{
-    auto pro = qobject_cast<Project*>(m_instance->sender());
-    if (pro) {
-        d->m_sessionNode->projectDisplayNameChanged(pro->rootProjectNode());
-        emit m_instance->projectDisplayNameChanged(pro);
-    }
 }
 
 QStringList SessionManager::projectsForSessionName(const QString &session)

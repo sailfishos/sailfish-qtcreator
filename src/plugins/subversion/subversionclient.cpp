@@ -39,6 +39,9 @@
 #include <diffeditor/diffutils.h>
 #include <coreplugin/editormanager/editormanager.h>
 
+#include <utils/algorithm.h>
+#include <utils/hostosinfo.h>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QTextStream>
@@ -85,7 +88,7 @@ VcsCommand *SubversionClient::createCommitCmd(const QString &repositoryRoot,
     VcsCommand *cmd = createCommand(repositoryRoot);
     cmd->addFlags(VcsCommand::ShowStdOut);
     QStringList args(vcsCommandString(CommitCommand));
-    cmd->addJob(vcsBinary(), args << svnExtraOptions << files);
+    cmd->addJob(vcsBinary(), args << svnExtraOptions << escapeFiles(files));
     return cmd;
 }
 
@@ -136,19 +139,30 @@ QStringList SubversionClient::addAuthenticationOptions(const VcsBaseClientSettin
 QString SubversionClient::synchronousTopic(const QString &repository)
 {
     QStringList args;
-    args << QLatin1String("info");
 
-    const SynchronousProcessResponse result = vcsFullySynchronousExec(repository, args);
+    QString svnVersionBinary = vcsBinary().toString();
+    int pos = svnVersionBinary.lastIndexOf('/');
+    if (pos < 0)
+        svnVersionBinary.clear();
+    else
+        svnVersionBinary = svnVersionBinary.left(pos + 1);
+    svnVersionBinary.append(HostOsInfo::withExecutableSuffix("svnversion"));
+    const SynchronousProcessResponse result
+            = vcsFullySynchronousExec(repository, FileName::fromString(svnVersionBinary), args);
     if (result.result != SynchronousProcessResponse::Finished)
         return QString();
 
-    const QString revisionString = QLatin1String("Revision: ");
-    // stdOut is ASCII only (at least in those areas we care about).
-    foreach (const QString &line, result.stdOut().split(QLatin1Char('\n'))) {
-        if (line.startsWith(revisionString))
-            return QString::fromLatin1("r") + line.mid(revisionString.count());
-    }
-    return QString();
+    return result.stdOut().trimmed();
+}
+
+QString SubversionClient::escapeFile(const QString &file)
+{
+    return (file.contains('@') && !file.endsWith('@')) ? file + '@' : file;
+}
+
+QStringList SubversionClient::escapeFiles(const QStringList &files)
+{
+    return Utils::transform(files, &SubversionClient::escapeFile);
 }
 
 class DiffController : public DiffEditorController
@@ -161,7 +175,7 @@ public:
     void setChangeNumber(int changeNumber);
 
 protected:
-    void reload();
+    void reload() override;
 
 private slots:
     void slotTextualDiffOutputReceived(const QString &contents);
@@ -195,7 +209,7 @@ void DiffController::setFilesList(const QStringList &filesList)
     if (isReloading())
         return;
 
-    m_filesList = filesList;
+    m_filesList = SubversionClient::escapeFiles(filesList);
 }
 
 void DiffController::setChangeNumber(int changeNumber)
@@ -305,13 +319,9 @@ void SubversionClient::log(const QString &workingDir,
     if (logCount > 0)
         svnExtraOptions << QLatin1String("-l") << QString::number(logCount);
 
-    QStringList nativeFiles;
-    foreach (const QString& file, files)
-        nativeFiles.append(QDir::toNativeSeparators(file));
-
     // subversion stores log in UTF-8 and returns it back in user system locale.
     // So we do not need to encode it.
-    VcsBaseClient::log(workingDir, files, svnExtraOptions, enableAnnotationContextMenu);
+    VcsBaseClient::log(workingDir, escapeFiles(files), svnExtraOptions, enableAnnotationContextMenu);
 }
 
 void SubversionClient::describe(const QString &workingDirectory, int changeNumber, const QString &title)

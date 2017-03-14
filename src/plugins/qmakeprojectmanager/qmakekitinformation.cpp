@@ -72,22 +72,28 @@ void QmakeKitInformation::setup(Kit *k)
     if (!version)
         return;
 
+    if (version->type() == "Boot2Qt.QtVersionType") // HACK: Ignore boot2Qt kits!
+        return;
+
     FileName spec = QmakeKitInformation::mkspec(k);
     if (spec.isEmpty())
         spec = version->mkspec();
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(k);
+
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
 
     if (!tc || (!tc->suggestedMkspecList().empty() && !tc->suggestedMkspecList().contains(spec))) {
-        ToolChain *possibleTc = 0;
+        ToolChain *possibleTc = nullptr;
         foreach (ToolChain *current, ToolChainManager::toolChains()) {
-            if (version->qtAbis().contains(current->targetAbi())) {
+            if (current->language() == ToolChain::Language::Cxx
+                    && version->qtAbis().contains(current->targetAbi())) {
                 possibleTc = current;
                 if (current->suggestedMkspecList().contains(spec))
                     break;
             }
         }
-        ToolChainKitInformation::setToolChain(k, possibleTc);
+        if (possibleTc)
+            ToolChainKitInformation::setToolChain(k, possibleTc);
     }
 }
 
@@ -142,7 +148,7 @@ FileName QmakeKitInformation::defaultMkspec(const Kit *k)
     if (!version) // No version, so no qmake
         return FileName();
 
-    return version->mkspecFor(ToolChainKitInformation::toolChain(k));
+    return version->mkspecFor(ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx));
 }
 
 } // namespace QmakeProjectManager

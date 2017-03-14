@@ -32,8 +32,10 @@
 //#include <coreplugin/messagemanager.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 
 #include <QDir>
+#include <QRegularExpression>
 
 using namespace LanguageUtils;
 using namespace QmlJS;
@@ -417,17 +419,16 @@ void PluginDumper::loadQmlTypeDescription(const QStringList &paths,
  */
 QString PluginDumper::buildQmltypesPath(const QString &name) const
 {
-    QStringList importName = name.split(QLatin1Char(' '));
-    QString qualifiedName = importName[0];
+    QString qualifiedName;
     QString majorVersion;
     QString minorVersion;
-    if (importName.length() == 2) {
-        QString versionString = importName[1];
-        QStringList version = versionString.split(QLatin1Char('.'));
-        if (version.length() == 2) {
-            majorVersion = version[0];
-            minorVersion = version[1];
-        }
+
+    QRegularExpression import("^(?<name>[\\w|\\.]+)\\s+(?<major>\\d+)\\.(?<minor>\\d+)$");
+    QRegularExpressionMatch m = import.match(name);
+    if (m.hasMatch()) {
+        qualifiedName = m.captured("name");
+        majorVersion = m.captured("major");
+        minorVersion = m.captured("minor");
     }
 
     for (const PathAndLanguage &p: m_modelManager->importPaths()) {
@@ -458,19 +459,27 @@ QString PluginDumper::buildQmltypesPath(const QString &name) const
 void PluginDumper::loadDependencies(const QStringList &dependencies,
                                     QStringList &errors,
                                     QStringList &warnings,
-                                    QList<FakeMetaObject::ConstPtr> &objects) const
+                                    QList<FakeMetaObject::ConstPtr> &objects,
+                                    QSet<QString> *visited) const
 {
+    if (dependencies.isEmpty())
+        return;
+
+    QScopedPointer<QSet<QString>> visitedPtr(visited ? visited : new QSet<QString>());
+
     QStringList dependenciesPaths;
     QString path;
     for (const QString &name: dependencies) {
         path = buildQmltypesPath(name);
         if (!path.isNull())
             dependenciesPaths << path;
+        visitedPtr->insert(name);
     }
     QStringList newDependencies;
     loadQmlTypeDescription(dependenciesPaths, errors, warnings, objects, 0, &newDependencies);
+    newDependencies = (newDependencies.toSet() - *visitedPtr).toList();
     if (!newDependencies.isEmpty())
-        loadDependencies(newDependencies, errors, warnings, objects);
+        loadDependencies(newDependencies, errors, warnings, objects, visitedPtr.take());
 }
 
 void PluginDumper::loadQmltypesFile(const QStringList &qmltypesFilePaths,
@@ -507,12 +516,15 @@ void PluginDumper::loadQmltypesFile(const QStringList &qmltypesFilePaths,
 void PluginDumper::runQmlDump(const QmlJS::ModelManagerInterface::ProjectInfo &info,
     const QStringList &arguments, const QString &importPath)
 {
+    QDir wd = QDir(importPath);
+    wd.cdUp();
     QProcess *process = new QProcess(this);
     process->setEnvironment(info.qmlDumpEnvironment.toStringList());
+    QString workingDir = wd.canonicalPath();
+    process->setWorkingDirectory(workingDir);
     connect(process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
             this, &PluginDumper::qmlPluginTypeDumpDone);
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &PluginDumper::qmlPluginTypeDumpError);
+    connect(process, &QProcess::errorOccurred, this, &PluginDumper::qmlPluginTypeDumpError);
     process->start(info.qmlDumpPath, arguments);
     m_runningQmldumps.insert(process, importPath);
 }
@@ -559,7 +571,7 @@ void PluginDumper::dump(const Plugin &plugin)
         args << QLatin1String("-nonrelocatable");
     args << plugin.importUri;
     args << plugin.importVersion;
-    args << plugin.importPath;
+    args << (plugin.importPath.isEmpty() ? QLatin1String(".") : plugin.importPath);
     runQmlDump(info, args, plugin.qmldirPath);
 }
 
@@ -631,41 +643,33 @@ QString PluginDumper::resolvePlugin(const QDir &qmldirPath, const QString &qmldi
 QString PluginDumper::resolvePlugin(const QDir &qmldirPath, const QString &qmldirPluginPath,
                                     const QString &baseName)
 {
-#if defined(Q_OS_WIN32) || defined(Q_OS_WINCE)
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName,
-                         QStringList()
-                         << QLatin1String("d.dll") // try a qmake-style debug build first
-                         << QLatin1String(".dll"));
-#elif defined(Q_OS_DARWIN)
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName,
-                         QStringList()
-                         << QLatin1String("_debug.dylib") // try a qmake-style debug build first
-                         << QLatin1String(".dylib")
-                         << QLatin1String(".so")
-                         << QLatin1String(".bundle"),
-                         QLatin1String("lib"));
-#else  // Generic Unix
     QStringList validSuffixList;
-
-#  if defined(Q_OS_HPUX)
+    QString prefix;
+    if (Utils::HostOsInfo::isWindowsHost()) {
+        // try a qmake-style debug build first
+        validSuffixList = QStringList({ "d.dll",  ".dll" });
+    } else if (Utils::HostOsInfo::isMacHost()) {
+        // try a qmake-style debug build first
+        validSuffixList = QStringList({ "_debug.dylib", ".dylib", ".so", ".bundle", "lib" });
+    } else {
+        // Examples of valid library names:
+        //  libfoo.so
+        prefix = "lib";
+#if defined(Q_OS_HPUX)
 /*
     See "HP-UX Linker and Libraries User's Guide", section "Link-time Differences between PA-RISC and IPF":
     "In PA-RISC (PA-32 and PA-64) shared libraries are suffixed with .sl. In IPF (32-bit and 64-bit),
     the shared libraries are suffixed with .so. For compatibility, the IPF linker also supports the .sl suffix."
  */
-    validSuffixList << QLatin1String(".sl");
-#   if defined __ia64
-    validSuffixList << QLatin1String(".so");
-#   endif
-#  elif defined(Q_OS_AIX)
-    validSuffixList << QLatin1String(".a") << QLatin1String(".so");
-#  elif defined(Q_OS_UNIX)
-    validSuffixList << QLatin1String(".so");
-#  endif
-
-    // Examples of valid library names:
-    //  libfoo.so
-
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName, validSuffixList, QLatin1String("lib"));
+        validSuffixList << QLatin1String(".sl");
+# if defined __ia64
+        validSuffixList << QLatin1String(".so");
+# endif
+#elif defined(Q_OS_AIX)
+        validSuffixList << QLatin1String(".a") << QLatin1String(".so");
+#else
+        validSuffixList << QLatin1String(".so");
 #endif
+    }
+    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName, validSuffixList, prefix);
 }

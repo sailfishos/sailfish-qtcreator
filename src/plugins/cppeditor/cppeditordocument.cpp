@@ -165,8 +165,8 @@ void CppEditorDocument::applyFontSettings()
         // Clear all additional formats since they may have changed
         QTextBlock b = document()->firstBlock();
         while (b.isValid()) {
-            QList<QTextLayout::FormatRange> noFormats;
-            highlighter->setExtraAdditionalFormats(b, noFormats);
+            QVector<QTextLayout::FormatRange> noFormats;
+            highlighter->setExtraFormats(b, noFormats);
             b = b.next();
         }
     }
@@ -230,12 +230,14 @@ void CppEditorDocument::scheduleProcessDocument()
 {
     m_processorRevision = document()->revision();
     m_processorTimer.start();
+    processor()->editorDocumentTimerRestarted();
 }
 
 void CppEditorDocument::processDocument()
 {
     if (processor()->isParserRunning() || m_processorRevision != contentsRevision()) {
         m_processorTimer.start();
+        processor()->editorDocumentTimerRestarted();
         return;
     }
 

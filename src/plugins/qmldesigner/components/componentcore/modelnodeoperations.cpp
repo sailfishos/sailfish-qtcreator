@@ -59,6 +59,7 @@
 #include <QCoreApplication>
 #include <QByteArray>
 
+#include <algorithm>
 #include <functional>
 
 namespace QmlDesigner {
@@ -568,7 +569,7 @@ static inline QList<IOptionsPage*> sortedOptionsPages()
 static PropertyNameList sortedPropertyNameList(const PropertyNameList &nameList)
 {
     PropertyNameList sortedPropertyNameList = nameList;
-    qStableSort(sortedPropertyNameList);
+    std::stable_sort(sortedPropertyNameList.begin(), sortedPropertyNameList.end());
     return sortedPropertyNameList;
 }
 
@@ -669,8 +670,9 @@ void addSignalHandlerOrGotoImplementation(const SelectionContext &selectionState
 
     QString itemId = modelNode.id();
 
-    const QString fileName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toString();
-    const QString typeName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toFileInfo().baseName();
+    const Utils::FileName currentDesignDocument = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName();
+    const QString fileName = currentDesignDocument.toString();
+    const QString typeName = currentDesignDocument.toFileInfo().baseName();
 
     QStringList signalNames = cleanSignalNames(getSortedSignalNameList(selectionState.selectedModelNodes().first()));
 

@@ -278,12 +278,12 @@ void FinalClass::FinalClassThisCall()
 }
 
 
-void OutputParameter(int &one, const int &two, int *three=0);
+void OutputArgument(int &one, const int &two, int *three=0);
 
-void f12()
+void f12b()
 {
     int One;
-    OutputParameter(One, 2);
+    OutputArgument(One, 2);
 }
 
 #include <highlightingmarks.h>
@@ -444,4 +444,107 @@ struct LambdaTester
         };
         lambda(var2);
     }
+};
+
+void NonConstReferenceArgument(int &argument);
+
+void f22()
+{
+    int x = 1;
+
+    NonConstReferenceArgument(x);
+}
+
+void ConstReferenceArgument(const int &argument);
+
+void f23()
+{
+    int x = 1;
+
+    ConstReferenceArgument(x);
+}
+
+void RValueReferenceArgument(int &&argument);
+
+void f24()
+{
+    int x = 1;
+
+    RValueReferenceArgument(static_cast<int&&>(x));
+}
+
+void NonConstPointerArgument(int *argument);
+
+void f25()
+{
+    int *x;
+
+    NonConstPointerArgument(x);
+}
+
+void ConstPointerArgument(const int *argument);
+
+void f26()
+{
+    int *x;
+
+    ConstPointerArgument(x);
+}
+
+void NonConstReferenceArgumentCallInsideCall(int x, int &argument);
+int GetArgument(int x);
+
+void f27()
+{
+    int x = 1;
+
+    NonConstReferenceArgumentCallInsideCall(GetArgument(x), x);
+}
+
+void f28(int &Reference)
+{
+    NonConstReferenceArgument(Reference);
+}
+
+void f29()
+{
+    int x;
+
+    NonConstPointerArgument(&x);
+}
+
+struct NonConstPointerArgumentAsMemberOfClass
+{
+    int member;
+};
+
+void f30()
+{
+    NonConstPointerArgumentAsMemberOfClass instance;
+
+    NonConstReferenceArgument(instance.member);
+}
+
+struct NonConstReferenceArgumentConstructor
+{
+    NonConstReferenceArgumentConstructor() = default;
+    NonConstReferenceArgumentConstructor(NonConstReferenceArgumentConstructor &other);
+
+    void NonConstReferenceArgumentMember(NonConstReferenceArgumentConstructor &other);
+};
+
+void f31()
+{
+    NonConstReferenceArgumentConstructor instance;
+
+    NonConstReferenceArgumentConstructor copy(instance);
+}
+
+struct NonConstReferenceMemberInitialization
+{
+    NonConstReferenceMemberInitialization(int &foo)
+        : foo(foo)
+    {}
+
+    int &foo;
 };

@@ -60,8 +60,7 @@ GdbRemoteServerEngine::GdbRemoteServerEngine(const DebuggerRunParameters &runPar
     if (HostOsInfo::isWindowsHost())
         m_gdbProc.setUseCtrlCStub(runParameters.useCtrlCStub); // This is only set for QNX/BlackBerry
 
-    connect(&m_uploadProc, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &GdbRemoteServerEngine::uploadProcError);
+    connect(&m_uploadProc, &QProcess::errorOccurred, this, &GdbRemoteServerEngine::uploadProcError);
     connect(&m_uploadProc, &QProcess::readyReadStandardOutput,
             this, &GdbRemoteServerEngine::readUploadStandardOutput);
     connect(&m_uploadProc, &QProcess::readyReadStandardError,
@@ -86,8 +85,6 @@ void GdbRemoteServerEngine::setupEngine()
         m_uploadProc.start(arglist);
         m_uploadProc.waitForStarted();
     }
-    if (!runParameters().inferior.workingDirectory.isEmpty())
-        m_gdbProc.setWorkingDirectory(runParameters().inferior.workingDirectory);
 
     if (runParameters().remoteSetupNeeded) {
         notifyEngineRequestRemoteSetup();
@@ -265,7 +262,7 @@ void GdbRemoteServerEngine::callTargetRemote()
 
     if (m_isQnxGdb)
         runCommand({"target qnx " + channel, NoFlags, CB(handleTargetQnx)});
-    else if (runParameters().multiProcess)
+    else if (runParameters().useExtendedRemote)
         runCommand({"target extended-remote " + channel, NoFlags, CB(handleTargetExtendedRemote)});
     else
         runCommand({"target remote " + channel, NoFlags, CB(handleTargetRemote)});
@@ -278,11 +275,9 @@ void GdbRemoteServerEngine::handleTargetRemote(const DebuggerResponse &response)
         // gdb server will stop the remote application itself.
         showMessage("INFERIOR STARTED");
         showMessage(msgAttachedToStoppedInferior(), StatusBar);
-        QString postAttachCommands = stringSetting(GdbPostAttachCommands);
-        if (!postAttachCommands.isEmpty()) {
-            foreach (const QString &cmd, postAttachCommands.split(QLatin1Char('\n')))
-                runCommand({cmd, NoFlags});
-        }
+        QString commands = expand(stringSetting(GdbPostAttachCommands));
+        if (!commands.isEmpty())
+            runCommand({commands, NoFlags});
         handleInferiorPrepared();
     } else {
         // 16^error,msg="hd:5555: Connection timed out."
@@ -296,11 +291,9 @@ void GdbRemoteServerEngine::handleTargetExtendedRemote(const DebuggerResponse &r
     if (response.resultClass == ResultDone) {
         showMessage("ATTACHED TO GDB SERVER STARTED");
         showMessage(msgAttachedToStoppedInferior(), StatusBar);
-        QString postAttachCommands = stringSetting(GdbPostAttachCommands);
-        if (!postAttachCommands.isEmpty()) {
-            foreach (const QString &cmd, postAttachCommands.split(QLatin1Char('\n')))
-                runCommand({cmd, NoFlags});
-        }
+        QString commands = expand(stringSetting(GdbPostAttachCommands));
+        if (!commands.isEmpty())
+            runCommand({commands, NoFlags});
         if (runParameters().attachPID > 0) { // attach to pid if valid
             // gdb server will stop the remote application itself.
             runCommand({"attach " + QString::number(runParameters().attachPID),
@@ -474,7 +467,7 @@ void GdbRemoteServerEngine::notifyEngineRemoteServerRunning
     // Currently only used by Android support.
     runParameters().attachPID = inferiorPid;
     runParameters().remoteChannel = serverChannel;
-    runParameters().multiProcess = true;
+    runParameters().useExtendedRemote = true;
     showMessage("NOTE: REMOTE SERVER RUNNING IN MULTIMODE");
     m_startAttempted = true;
     startGdb();
