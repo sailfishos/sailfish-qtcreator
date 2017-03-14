@@ -8,7 +8,7 @@
     "trDisplayCategory": "Application",
     "icon": "qml_wizard.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQt.5.3" ],
-    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0 }",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0 }",
 
     "options":
     [
@@ -46,6 +46,16 @@
                         "index": 2,
                         "items":
                         [
+                            {
+                                "trKey": "Qt 5.8",
+                                "value":
+                                "{
+                                    'qtQuickVersion': '2.8',
+                                    'qtQuickWindowVersion': '2.2',
+                                    'qtQuickVirtualKeyboardImport': 'QtQuick.VirtualKeyboard 2.1',
+                                    'qtQuickVirtualKeyboardWhenVisible': 'inputPanel.active'
+                                }"
+                            },
                             {
                                 "trKey": "Qt 5.7",
                                 "value":

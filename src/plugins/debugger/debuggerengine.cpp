@@ -104,7 +104,7 @@ QDebug operator<<(QDebug str, const DebuggerRunParameters &sp)
             << " coreFile=" << sp.coreFile
             << " processArgs=" << sp.inferior.commandLineArguments
             << " inferior environment=<" << sp.inferior.environment.size() << " variables>"
-            << " debugger environment=<" << sp.debuggerEnvironment.size() << " variables>"
+            << " debugger environment=<" << sp.debugger.environment.size() << " variables>"
             << " workingDir=" << sp.inferior.workingDirectory
             << " attachPID=" << sp.attachPID
             << " useTerminal=" << sp.useTerminal
@@ -118,7 +118,6 @@ namespace Internal {
 
 Location::Location(const StackFrame &frame, bool marker)
 {
-    init();
     m_fileName = frame.file;
     m_lineNumber = frame.line;
     m_needsMarker = marker;
@@ -154,6 +153,59 @@ void LocationMark::dragToLine(int line)
 
 //////////////////////////////////////////////////////////////////////
 //
+// MemoryAgentSet
+//
+//////////////////////////////////////////////////////////////////////
+
+class MemoryAgentSet
+{
+public:
+    ~MemoryAgentSet()
+    {
+        qDeleteAll(m_agents);
+        m_agents.clear();
+    }
+
+    // Called by engine to create a new view.
+    void createBinEditor(const MemoryViewSetupData &data, DebuggerEngine *engine)
+    {
+        auto agent = new MemoryAgent(data, engine);
+        if (agent->isUsable()) {
+            m_agents.append(agent);
+        } else {
+            delete agent;
+            AsynchronousMessageBox::warning(
+                        DebuggerEngine::tr("No Memory Viewer Available"),
+                        DebuggerEngine::tr("The memory contents cannot be shown as no viewer plugin "
+                                           "for binary data has been loaded."));
+        }
+    }
+
+    // On stack frame completed and on request.
+    void updateContents()
+    {
+        foreach (MemoryAgent *agent, m_agents) {
+            if (agent)
+                agent->updateContents();
+        }
+    }
+
+    void handleDebuggerFinished()
+    {
+        foreach (MemoryAgent *agent, m_agents) {
+            if (agent)
+                agent->setFinished(); // Prevent triggering updates, etc.
+        }
+    }
+
+private:
+    QList<MemoryAgent *> m_agents;
+};
+
+
+
+//////////////////////////////////////////////////////////////////////
+//
 // DebuggerEnginePrivate
 //
 //////////////////////////////////////////////////////////////////////
@@ -174,22 +226,14 @@ class DebuggerEnginePrivate : public QObject
 public:
     DebuggerEnginePrivate(DebuggerEngine *engine, const DebuggerRunParameters &sp)
       : m_engine(engine),
-        m_masterEngine(0),
-        m_runControl(0),
         m_runParameters(sp),
-        m_state(DebuggerNotReady),
-        m_lastGoodState(DebuggerNotReady),
-        m_targetState(DebuggerNotReady),
-        m_remoteSetupState(RemoteSetupNone),
-        m_inferiorPid(0),
         m_modulesHandler(engine),
         m_registerHandler(engine),
-        m_sourceFilesHandler(),
+        m_sourceFilesHandler(engine),
         m_stackHandler(engine),
-        m_threadsHandler(),
+        m_threadsHandler(engine),
         m_watchHandler(engine),
         m_disassemblerAgent(engine),
-        m_memoryAgent(engine),
         m_isStateDebugging(false)
     {
         connect(&m_locationTimer, &QTimer::timeout,
@@ -298,26 +342,26 @@ public:
         { return m_masterEngine ? m_masterEngine->runControl() : m_runControl; }
     void setRemoteSetupState(RemoteSetupState state);
 
-    DebuggerEngine *m_engine; // Not owned.
-    DebuggerEngine *m_masterEngine; // Not owned
-    DebuggerRunControl *m_runControl;  // Not owned.
+    DebuggerEngine *m_engine = nullptr; // Not owned.
+    DebuggerEngine *m_masterEngine = nullptr; // Not owned
+    DebuggerRunControl *m_runControl = nullptr;  // Not owned.
 
     DebuggerRunParameters m_runParameters;
 
     // The current state.
-    DebuggerState m_state;
+    DebuggerState m_state = DebuggerNotReady;
 
     // The state we had before something unexpected happend.
-    DebuggerState m_lastGoodState;
+    DebuggerState m_lastGoodState = DebuggerNotReady;
 
     // The state we are aiming for.
-    DebuggerState m_targetState;
+    DebuggerState m_targetState = DebuggerNotReady;
 
     // State of RemoteSetup signal/slots.
-    RemoteSetupState m_remoteSetupState;
+    RemoteSetupState m_remoteSetupState = RemoteSetupNone;
 
     Terminal m_terminal;
-    qint64 m_inferiorPid;
+    qint64 m_inferiorPid = 0;
 
     ModulesHandler m_modulesHandler;
     RegisterHandler m_registerHandler;
@@ -328,17 +372,18 @@ public:
     QFutureInterface<void> m_progress;
 
     DisassemblerAgent m_disassemblerAgent;
-    MemoryAgent m_memoryAgent;
+    MemoryAgentSet m_memoryAgents;
     QScopedPointer<LocationMark> m_locationMark;
     QTimer m_locationTimer;
 
-    bool m_isStateDebugging;
+    bool m_isStateDebugging = false;
 
     Utils::FileInProjectFinder m_fileFinder;
     QString m_qtNamespace;
 
     // Safety net to avoid infinite lookups.
     QSet<QString> m_lookupRequests; // FIXME: Integrate properly.
+    QPointer<QWidget> m_alertBox;
 };
 
 
@@ -488,15 +533,13 @@ QAbstractItemModel *DebuggerEngine::sourceFilesModel() const
     return sourceFilesHandler()->model();
 }
 
-void DebuggerEngine::fetchMemory(MemoryAgent *, QObject *,
-        quint64 addr, quint64 length)
+void DebuggerEngine::fetchMemory(MemoryAgent *, quint64 addr, quint64 length)
 {
     Q_UNUSED(addr);
     Q_UNUSED(length);
 }
 
-void DebuggerEngine::changeMemory(MemoryAgent *, QObject *,
-        quint64 addr, const QByteArray &data)
+void DebuggerEngine::changeMemory(MemoryAgent *, quint64 addr, const QByteArray &data)
 {
     Q_UNUSED(addr);
     Q_UNUSED(data);
@@ -506,16 +549,6 @@ void DebuggerEngine::setRegisterValue(const QString &name, const QString &value)
 {
     Q_UNUSED(name);
     Q_UNUSED(value);
-}
-
-static Utils::OutputFormat outputFormatForChannelType(int channel)
-{
-    switch (channel) {
-    case AppOutput: return Utils::StdOutFormatSameLine;
-    case AppError: return Utils::StdErrFormatSameLine;
-    case AppStuff: return Utils::DebugFormat;
-    default: return Utils::NumberOfFormats;
-    }
 }
 
 void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) const
@@ -535,7 +568,7 @@ void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) c
     case AppError:
     case AppStuff:
         if (d->m_runControl)
-            d->m_runControl->appendMessage(msg, outputFormatForChannelType(channel));
+            d->m_runControl->handleApplicationOutput(msg, channel);
         else
             qWarning("Warning: %s (no active run control)", qPrintable(msg));
         break;
@@ -626,8 +659,6 @@ void DebuggerEngine::gotoLocation(const Location &loc)
 
     if (loc.needsMarker())
         d->m_locationMark.reset(new LocationMark(this, file, line));
-
-    //qDebug() << "MEMORY: " << d->m_memoryAgent.hasVisibleEditor();
 }
 
 // Called from RunControl.
@@ -1210,6 +1241,7 @@ void DebuggerEngine::notifyDebuggerProcessFinished(int exitCode,
         // Nothing to do.
         break;
     case EngineShutdownRequested:
+    case InferiorShutdownRequested:
         notifyEngineShutdownOk();
         break;
     case InferiorRunOk:
@@ -1278,7 +1310,7 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
         foreach (Breakpoint bp, breakHandler()->engineBreakpoints(this))
             bp.notifyBreakpointReleased();
         DebuggerToolTipManager::deregisterEngine(this);
-        d->m_memoryAgent.handleDebuggerFinished();
+        d->m_memoryAgents.handleDebuggerFinished();
         prepareForRestart();
     }
 
@@ -1782,8 +1814,11 @@ QString DebuggerEngine::msgInterrupted()
     return tr("Interrupted.");
 }
 
-void DebuggerEngine::showStoppedBySignalMessageBox(QString meaning, QString name)
+bool DebuggerEngine::showStoppedBySignalMessageBox(QString meaning, QString name)
 {
+    if (d->m_alertBox)
+        return false;
+
     if (name.isEmpty())
         name = ' ' + tr("<Unknown>", "name") + ' ';
     if (meaning.isEmpty())
@@ -1793,7 +1828,9 @@ void DebuggerEngine::showStoppedBySignalMessageBox(QString meaning, QString name
                            "<table><tr><td>Signal name : </td><td>%1</td></tr>"
                            "<tr><td>Signal meaning : </td><td>%2</td></tr></table>")
             .arg(name, meaning);
-    AsynchronousMessageBox::information(tr("Signal Received"), msg);
+
+    d->m_alertBox = AsynchronousMessageBox::information(tr("Signal Received"), msg);
+    return true;
 }
 
 void DebuggerEngine::showStoppedByExceptionMessageBox(const QString &description)
@@ -1806,12 +1843,12 @@ void DebuggerEngine::showStoppedByExceptionMessageBox(const QString &description
 
 void DebuggerEngine::openMemoryView(const MemoryViewSetupData &data)
 {
-    d->m_memoryAgent.createBinEditor(data);
+    d->m_memoryAgents.createBinEditor(data, this);
 }
 
 void DebuggerEngine::updateMemoryViews()
 {
-    d->m_memoryAgent.updateContents();
+    d->m_memoryAgents.updateContents();
 }
 
 void DebuggerEngine::openDisassemblerView(const Location &location)
@@ -2013,7 +2050,7 @@ void DebuggerEngine::updateLocalsView(const GdbMi &all)
 
     const bool partial = all["partial"].toInt();
     if (!partial)
-        emit stackFrameCompleted();
+        updateMemoryViews();
 }
 
 bool DebuggerEngine::canHandleToolTip(const DebuggerToolTipContext &context) const
@@ -2031,7 +2068,7 @@ void DebuggerEngine::updateItem(const QString &iname)
         WatchModelBase *model = handler->model();
         QTC_CHECK(model);
         if (item && !model->hasChildren(model->indexForItem(item))) {
-            handler->notifyUpdateStarted({iname});
+            handler->notifyUpdateStarted(UpdateParameters(iname));
             item->setValue(decodeData({}, "notaccessible"));
             item->setHasChildren(false);
             item->outdated = false;

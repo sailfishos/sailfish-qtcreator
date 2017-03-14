@@ -72,7 +72,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/json.cpp \
     $$PWD/portlist.cpp \
     $$PWD/appmainwindow.cpp \
-    $$PWD/sleep.cpp \
     $$PWD/basetreeview.cpp \
     $$PWD/qtcassert.cpp \
     $$PWD/elfreader.cpp \
@@ -100,7 +99,9 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/dropsupport.cpp \
     $$PWD/icon.cpp \
     $$PWD/port.cpp \
-    $$PWD/runextensions.cpp
+    $$PWD/runextensions.cpp \
+    $$PWD/utilsicons.cpp \
+    $$PWD/guard.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
@@ -172,7 +173,6 @@ HEADERS += \
     $$PWD/runextensions.h \
     $$PWD/portlist.h \
     $$PWD/appmainwindow.h \
-    $$PWD/sleep.h \
     $$PWD/basetreeview.h \
     $$PWD/elfreader.h \
     $$PWD/bracematcher.h \
@@ -217,7 +217,9 @@ HEADERS += \
     $$PWD/smallstringmemory.h \
     $$PWD/smallstringvector.h \
     $$PWD/smallstringlayout.h \
-    $$PWD/sizedarray.h
+    $$PWD/sizedarray.h \
+    $$PWD/smallstringio.h \
+    $$PWD/guard.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \

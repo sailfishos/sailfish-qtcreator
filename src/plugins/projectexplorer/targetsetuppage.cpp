@@ -218,9 +218,9 @@ void TargetSetupPage::setPreferredKitMatcher(const KitMatcher &matcher)
 
 TargetSetupPage::~TargetSetupPage()
 {
+    disconnect();
     reset();
     delete m_ui;
-    delete m_importer;
 }
 
 bool TargetSetupPage::isKitSelected(Core::Id id) const
@@ -273,7 +273,7 @@ void TargetSetupPage::reset()
         if (!k)
             continue;
         if (m_importer)
-            m_importer->removeProject(k, m_projectPath);
+            m_importer->removeProject(k);
         delete widget;
     }
 
@@ -286,9 +286,12 @@ void TargetSetupPage::reset()
 void TargetSetupPage::setProjectPath(const QString &path)
 {
     m_projectPath = path;
-    if (!m_projectPath.isEmpty())
+    if (!m_projectPath.isEmpty()) {
+        QFileInfo fileInfo(QDir::cleanPath(path));
+        QStringList subDirsList = fileInfo.absolutePath().split('/');
         m_ui->headerLabel->setText(tr("Qt Creator can use the following kits for project <b>%1</b>:",
-                                      "%1: Project name").arg(QFileInfo(m_projectPath).baseName()));
+                                      "%1: Project name").arg(subDirsList.last()));
+    }
     m_ui->headerLabel->setVisible(!m_projectPath.isEmpty());
 
     if (m_widgets.isEmpty())
@@ -302,10 +305,8 @@ void TargetSetupPage::setProjectImporter(ProjectImporter *importer)
 {
     if (importer == m_importer)
         return;
-    if (m_importer)
-        delete m_importer;
-    m_importer = importer;
 
+    m_importer = importer;
     m_importWidget->setVisible(m_importer);
 
     reset();
@@ -329,7 +330,7 @@ void TargetSetupPage::setupImports()
     if (!m_importer || m_projectPath.isEmpty())
         return;
 
-    QStringList toImport = m_importer->importCandidates(Utils::FileName::fromString(m_projectPath));
+    QStringList toImport = m_importer->importCandidates();
     foreach (const QString &path, toImport)
         import(Utils::FileName::fromString(path), true);
 }
@@ -362,7 +363,7 @@ void TargetSetupPage::handleKitUpdate(Kit *k)
         return;
 
     if (m_importer)
-        m_importer->makePermanent(k);
+        m_importer->makePersistent(k);
 
     TargetSetupWidget *widget = m_widgets.value(k->id());
 
@@ -543,7 +544,7 @@ bool TargetSetupPage::setupProject(Project *project)
 
         Kit *k = widget->kit();
         if (m_importer)
-            m_importer->makePermanent(k);
+            m_importer->makePersistent(k);
         toSetUp << widget->selectedBuildInfoList();
         widget->clearKit();
     }

@@ -68,8 +68,6 @@ public:
     void readSettings();
     void saveSettings();
 
-    TextEditor::BaseTextEditor *textEditor() const;
-
     DesignDocument *currentDesignDocument() const;
     ViewManager &viewManager();
 
@@ -79,6 +77,7 @@ public:
     void disableWidgets();
     void showErrorMessageBox(const QList<RewriterError> &errors);
     void showWarningMessageBox(const QList<RewriterError> &warnings);
+    bool gotoCodeWasClicked();
 
     CrumbleBar* crumbleBar() const;
 
@@ -96,11 +95,10 @@ private slots:
 private: // functions
     enum InitializeStatus { NotInitialized, Initializing, Initialized };
 
-    void setCurrentDesignDocument(DesignDocument *newDesignDocument);
     void setup();
     bool isInNodeDefinition(int nodeOffset, int nodeLength, int cursorPos) const;
     QmlDesigner::ModelNode nodeForPosition(int cursorPos) const;
-    void addNavigatorHistoryEntry(const QString &fileName);
+    void addNavigatorHistoryEntry(const Utils::FileName &fileName);
     QWidget *createCenterWidget();
     QWidget *createCrumbleBarFrame();
 

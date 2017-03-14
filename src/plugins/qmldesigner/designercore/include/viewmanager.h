@@ -29,8 +29,11 @@
 
 #include <QWidgetAction>
 
+#include <utils/fileutils.h>
+
 namespace ProjectExplorer {
 class Kit;
+class Project;
 }
 
 namespace QmlDesigner {
@@ -63,6 +66,7 @@ public:
     void setComponentNode(const ModelNode &componentNode);
     void setComponentViewToMaster();
     void setNodeInstanceViewKit(ProjectExplorer::Kit *kit);
+    void setNodeInstanceViewProject(ProjectExplorer::Project *project);
 
     void resetPropertyEditorView();
 
@@ -74,7 +78,7 @@ public:
     void disableWidgets();
     void enableWidgets();
 
-    void pushFileOnCrumbleBar(const QString &fileName);
+    void pushFileOnCrumbleBar(const Utils::FileName &fileName);
     void pushInFileComponentOnCrumbleBar(const ModelNode &modelNode);
     void nextFileIsCalledInternally();
 

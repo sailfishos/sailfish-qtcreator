@@ -23,6 +23,7 @@
 **
 ****************************************************************************/
 
+#include "algorithm.h"
 #include "environment.h"
 
 #include <QDir>
@@ -55,14 +56,9 @@ Q_GLOBAL_STATIC(SystemEnvironment, staticSystemEnvironment)
 
 namespace Utils {
 
-static bool sortEnvironmentItem(const EnvironmentItem &a, const EnvironmentItem &b)
-{
-    return a.name < b.name;
-}
-
 void EnvironmentItem::sort(QList<EnvironmentItem> *list)
 {
-    qSort(list->begin(), list->end(), &sortEnvironmentItem);
+    Utils::sort(*list, &EnvironmentItem::name);
 }
 
 QList<EnvironmentItem> EnvironmentItem::fromStringList(const QStringList &list)
@@ -273,7 +269,8 @@ QStringList Environment::appendExeExtensions(const QString &executable) const
 }
 
 FileName Environment::searchInPath(const QString &executable,
-                                   const QStringList &additionalDirs) const
+                                   const QStringList &additionalDirs,
+                                   bool (*func)(const QString &name)) const
 {
     if (executable.isEmpty())
         return FileName();
@@ -296,7 +293,7 @@ FileName Environment::searchInPath(const QString &executable,
             continue;
         alreadyChecked.insert(dir);
         FileName tmp = searchInDirectory(execs, dir);
-        if (!tmp.isEmpty())
+        if (!tmp.isEmpty() && (!func || func(tmp.toString())))
             return tmp;
     }
 
@@ -308,7 +305,7 @@ FileName Environment::searchInPath(const QString &executable,
             continue;
         alreadyChecked.insert(p);
         FileName tmp = searchInDirectory(execs, QDir::fromNativeSeparators(p));
-        if (!tmp.isEmpty())
+        if (!tmp.isEmpty() && (!func || func(tmp.toString())))
             return tmp;
     }
     return FileName();

@@ -177,12 +177,14 @@ void OutputPanePlaceHolder::ensureSizeHintAsMinimum()
     Internal::OutputPaneManager *om = Internal::OutputPaneManager::instance();
     int minimum = (d->m_splitter->orientation() == Qt::Vertical
                    ? om->sizeHint().height() : om->sizeHint().width());
-    if (height() < minimum)
+    if (nonMaximizedSize() < minimum && !d->m_isMaximized)
         setHeight(minimum);
 }
 
 int OutputPanePlaceHolder::nonMaximizedSize() const
 {
+    if (!d->m_initialized)
+        return Internal::OutputPaneManager::outputPaneHeightSetting();
     return d->m_nonMaximizedSize;
 }
 

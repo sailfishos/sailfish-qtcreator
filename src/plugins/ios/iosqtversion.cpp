@@ -86,7 +86,7 @@ QList<Abi> IosQtVersion::detectQtAbis() const
     for (int i = 0; i < abis.count(); ++i) {
         abis[i] = Abi(abis.at(i).architecture(),
                       abis.at(i).os(),
-                      Abi::GenericMacFlavor,
+                      Abi::GenericDarwinFlavor,
                       abis.at(i).binaryFormat(),
                       abis.at(i).wordWidth());
     }
@@ -116,5 +116,6 @@ QSet<Core::Id> IosQtVersion::availableFeatures() const
 
 QSet<Core::Id> IosQtVersion::targetDeviceTypes() const
 {
-    return { Constants::IOS_DEVICE_TYPE };
+    // iOS Qt version supports ios devices as well as simulator.
+    return { Constants::IOS_DEVICE_TYPE, Constants::IOS_SIMULATOR_TYPE };
 }

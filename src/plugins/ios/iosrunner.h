@@ -29,6 +29,7 @@
 #include "iostoolhandler.h"
 #include "iossimulator.h"
 
+#include <debugger/debuggerconstants.h>
 #include <projectexplorer/devicesupport/idevice.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
 

@@ -84,6 +84,7 @@
                     \li \l{Refactoring}
                     \li \l{Configuring the Editor}
                     \li \l{Modeling}
+                    \li \l{Editing State Charts}
                 \endlist
         \row
             \li \inlineimage creator_buildingrunning.png
@@ -123,6 +124,9 @@
         \row
             \li {4,1} \note To report bugs and suggestions to the Qt Bug
                 Tracker, select \uicontrol {Help > Report Bug}.
+                To copy and paste detailed information about your system to the
+                bug report, select \uicontrol Help >
+                \uicontrol {System Information}.
 
                 You can also join the \QC mailing list at:
                 \l{http://lists.qt-project.org/mailman/listinfo/}
@@ -160,6 +164,15 @@
                 \endlist
             \endlist
             \li \l{Using Version Control Systems}
+            \list
+                \li \l{Using Bazaar}
+                \li \l{Using ClearCase}
+                \li \l{Using CVS}
+                \li \l{Using Git}
+                \li \l{Using Mercurial}
+                \li \l{Using Perforce}
+                \li \l{Using Subversion}
+            \endlist
             \li \l{Configuring Projects}
             \list
                 \li \l{Adding Kits}
@@ -211,7 +224,7 @@
                 \li \l{Pasting and Fetching Code Snippets}
                 \li \l{Using Text Editing Macros}
                 \li \l{Comparing Files}
-                \li \l{Parsing C++ Files}
+                \li \l{Parsing C++ Files with the Clang Code Model}
             \endlist
             \li \l{Finding}
             \list
@@ -227,6 +240,8 @@
             \endlist
             \li \l{Editing MIME Types}
             \li \l{Modeling}
+            \li \l{Editing State Charts}
+
         \endlist
         \li \l{Building and Running}
         \list

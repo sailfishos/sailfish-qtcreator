@@ -14,7 +14,6 @@ CONFIG += exceptions
 HEADERS += \
     breakhandler.h \
     breakpoint.h \
-    breakwindow.h \
     commonoptionspage.h \
     debugger_global.h \
     debuggeractions.h \
@@ -40,22 +39,18 @@ HEADERS += \
     logwindow.h \
     memoryagent.h \
     moduleshandler.h \
-    moduleswindow.h \
     outputcollector.h \
     procinterrupt.h \
     registerhandler.h \
-    registerwindow.h \
     snapshothandler.h \
     snapshotwindow.h \
     sourceagent.h \
     sourcefileshandler.h \
-    sourcefileswindow.h \
     sourceutils.h \
     stackframe.h \
     stackhandler.h \
     stackwindow.h \
     terminal.h \
-    threadswindow.h \
     watchhandler.h \
     watchutils.h \
     watchwindow.h \
@@ -64,7 +59,6 @@ HEADERS += \
     watchdelegatewidgets.h \
     debuggertooltipmanager.h \
     debuggersourcepathmappingwidget.h \
-    memoryview.h \
     localsandexpressionswindow.h \
     imageviewer.h \
     simplifytype.h \
@@ -74,7 +68,6 @@ HEADERS += \
 SOURCES += \
     breakhandler.cpp \
     breakpoint.cpp \
-    breakwindow.cpp \
     commonoptionspage.cpp \
     debuggeractions.cpp \
     debuggerdialogs.cpp \
@@ -95,21 +88,17 @@ SOURCES += \
     logwindow.cpp \
     memoryagent.cpp \
     moduleshandler.cpp \
-    moduleswindow.cpp \
     outputcollector.cpp \
     procinterrupt.cpp \
     registerhandler.cpp \
-    registerwindow.cpp \
     snapshothandler.cpp \
     snapshotwindow.cpp \
     sourceagent.cpp \
     sourcefileshandler.cpp \
-    sourcefileswindow.cpp \
     sourceutils.cpp \
     stackhandler.cpp \
     stackwindow.cpp \
     threadshandler.cpp \
-    threadswindow.cpp \
     terminal.cpp \
     watchdata.cpp \
     watchhandler.cpp \
@@ -119,7 +108,6 @@ SOURCES += \
     watchdelegatewidgets.cpp \
     debuggertooltipmanager.cpp \
     debuggersourcepathmappingwidget.cpp \
-    memoryview.cpp \
     localsandexpressionswindow.cpp \
     imageviewer.cpp \
     simplifytype.cpp \

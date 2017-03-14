@@ -65,7 +65,7 @@ class SearchTaskHandler;
 class HelpPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/help/Help.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Help.json")
 
 public:
     HelpPlugin();
@@ -74,6 +74,8 @@ public:
     bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
+
+    static HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
 
     static HelpViewer *createHelpViewer(qreal zoom);
 
@@ -98,11 +100,11 @@ private:
 
     void slotOpenSupportPage();
     void slotReportBug();
+    void slotSystemInformation();
 
     void resetFilter();
-    void activateHelpMode();
-    bool canShowHelpSideBySide() const;
-    HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
+    static void activateHelpMode();
+    static bool canShowHelpSideBySide();
     HelpViewer *viewerForContextHelp();
     HelpWidget *createHelpWidget(const Core::Context &context, HelpWidget::WidgetStyle style);
     void createRightPaneContextViewer();

@@ -28,6 +28,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 
 #include <QDir>
+#include <QRegularExpression>
 
 namespace CppTools {
 
@@ -81,9 +82,17 @@ QByteArray Macro::toDefineOption(const QByteArray &option) const
     return result;
 }
 
-void CompilerOptionsBuilder::addDefine(const QByteArray &defineLine)
+void CompilerOptionsBuilder::addDefine(const QByteArray &defineDirective)
 {
-    m_options.append(defineLineToDefineOption(defineLine));
+    m_options.append(defineDirectiveToDefineOption(defineDirective));
+}
+
+void CompilerOptionsBuilder::addWordWidth()
+{
+    const QString argument = m_projectPart.toolChainWordWidth == ProjectPart::WordWidth64Bit
+            ? QLatin1String("-m64")
+            : QLatin1String("-m32");
+    add(argument);
 }
 
 void CompilerOptionsBuilder::addTargetTriple()
@@ -100,10 +109,10 @@ void CompilerOptionsBuilder::enableExceptions()
     add(QLatin1String("-fexceptions"));
 }
 
-void CompilerOptionsBuilder::addHeaderPathOptions(bool addAsNativePath)
+void CompilerOptionsBuilder::addHeaderPathOptions()
 {
     typedef ProjectPartHeaderPath HeaderPath;
-    const QString defaultPrefix = includeOption();
+    const QString defaultPrefix = includeDirOption();
 
     QStringList result;
 
@@ -126,10 +135,25 @@ void CompilerOptionsBuilder::addHeaderPathOptions(bool addAsNativePath)
             break;
         }
 
-        QString path = prefix + headerPath.path;
-        path = addAsNativePath ? QDir::toNativeSeparators(path) : path;
+        result.append(prefix + QDir::toNativeSeparators(headerPath.path));
+    }
 
-        result.append(path);
+    m_options.append(result);
+}
+
+void CompilerOptionsBuilder::addPrecompiledHeaderOptions(PchUsage pchUsage)
+{
+    if (pchUsage == PchUsage::None)
+        return;
+
+    QStringList result;
+
+    const QString includeOptionString = includeOption();
+    foreach (const QString &pchFile, m_projectPart.precompiledHeaders) {
+        if (QFile::exists(pchFile)) {
+            result += includeOptionString;
+            result += QDir::toNativeSeparators(pchFile);
+        }
     }
 
     m_options.append(result);
@@ -146,10 +170,10 @@ void CompilerOptionsBuilder::addDefines(const QByteArray &defineDirectives)
     QStringList result;
 
     foreach (QByteArray def, defineDirectives.split('\n')) {
-        if (def.isEmpty() || excludeDefineLine(def))
+        if (def.isEmpty() || excludeDefineDirective(def))
             continue;
 
-        const QString defineOption = defineLineToDefineOption(def);
+        const QString defineOption = defineDirectiveToDefineOption(def);
         if (!result.contains(defineOption))
             result.append(defineOption);
     }
@@ -264,6 +288,20 @@ void CompilerOptionsBuilder::addOptionsForLanguage(bool checkForBorlandExtension
     m_options.append(opts);
 }
 
+void CompilerOptionsBuilder::addDefineToAvoidIncludingGccOrMinGwIntrinsics()
+{
+    // In gcc headers, lots of built-ins are referenced that clang does not understand.
+    // Therefore, prevent the inclusion of the header that references them. Of course, this
+    // will break if code actually requires stuff from there, but that should be the less common
+    // case.
+
+    const Core::Id type = m_projectPart.toolchainType;
+    if (type == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID
+            || type == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID) {
+        addDefine("#define _X86INTRIN_H_INCLUDED");
+    }
+}
+
 static QByteArray toMsCompatibilityVersionFormat(const QByteArray &mscFullVer)
 {
     return mscFullVer.left(2)
@@ -344,18 +382,26 @@ void CompilerOptionsBuilder::undefineCppLanguageFeatureMacrosForMsvc2015()
         // Undefine the language feature macros that are pre-defined in clang-cl 3.8.0,
         // but not in MSVC2015's cl.exe.
         foreach (const QString &macroName, languageFeatureMacros())
-            m_options.append(QLatin1String("/U") + macroName);
+            m_options.append(undefineOption() + macroName);
     }
 }
 
-QString CompilerOptionsBuilder::includeOption() const
+void CompilerOptionsBuilder::addDefineFloat128ForMingw()
+{
+    // TODO: Remove once this is fixed in clang >= 3.9.
+    // https://llvm.org/bugs/show_bug.cgi?id=30685
+    if (m_projectPart.toolchainType == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID)
+        addDefine("#define __float128 void");
+}
+
+QString CompilerOptionsBuilder::includeDirOption() const
 {
     return QLatin1String("-I");
 }
 
-QString CompilerOptionsBuilder::defineLineToDefineOption(const QByteArray &defineLine)
+QString CompilerOptionsBuilder::defineDirectiveToDefineOption(const QByteArray &defineDirective)
 {
-    const Macro macro = Macro::fromDefineDirective(defineLine);
+    const Macro macro = Macro::fromDefineDirective(defineDirective);
     const QByteArray option = macro.toDefineOption(defineOption().toLatin1());
 
     return QString::fromLatin1(option);
@@ -366,17 +412,27 @@ QString CompilerOptionsBuilder::defineOption() const
     return QLatin1String("-D");
 }
 
+QString CompilerOptionsBuilder::undefineOption() const
+{
+    return QLatin1String("-U");
+}
+
+QString CompilerOptionsBuilder::includeOption() const
+{
+    return QLatin1String("-include");
+}
+
 static bool isGccOrMinGwToolchain(const Core::Id &toolchainType)
 {
     return toolchainType == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID
         || toolchainType == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID;
 }
 
-bool CompilerOptionsBuilder::excludeDefineLine(const QByteArray &defineLine) const
+bool CompilerOptionsBuilder::excludeDefineDirective(const QByteArray &defineDirective) const
 {
     // This is a quick fix for QTCREATORBUG-11501.
     // TODO: do a proper fix, see QTCREATORBUG-11709.
-    if (defineLine.startsWith("#define __cplusplus"))
+    if (defineDirective.startsWith("#define __cplusplus"))
         return true;
 
     // gcc 4.9 has:
@@ -385,15 +441,42 @@ bool CompilerOptionsBuilder::excludeDefineLine(const QByteArray &defineLine) con
     // The right-hand sides are gcc built-ins that clang does not understand, and they'd
     // override clang's own (non-macro, it seems) definitions of the symbols on the left-hand
     // side.
-    if (isGccOrMinGwToolchain(m_projectPart.toolchainType) && defineLine.contains("has_include"))
+    if (isGccOrMinGwToolchain(m_projectPart.toolchainType)
+            && defineDirective.contains("has_include")) {
         return true;
+    }
+
+    // If _FORTIFY_SOURCE is defined (typically in release mode), it will
+    // enable the inclusion of extra headers to help catching buffer overflows
+    // (e.g. wchar.h includes wchar2.h). These extra headers use
+    // __builtin_va_arg_pack, which clang does not support (yet), so avoid
+    // including those.
+    if (m_projectPart.toolchainType == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID
+            && defineDirective.startsWith("#define _FORTIFY_SOURCE")) {
+        return true;
+    }
+
+    // MinGW 6 supports some fancy asm output flags and uses them in an
+    // intrinsics header pulled in by windows.h. Clang does not know them.
+    if (m_projectPart.toolchainType == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID
+            && defineDirective.startsWith("#define __GCC_ASM_FLAG_OUTPUTS__")) {
+        return true;
+    }
 
     return false;
 }
 
 bool CompilerOptionsBuilder::excludeHeaderPath(const QString &headerPath) const
 {
-    Q_UNUSED(headerPath);
+    // A clang tool chain might have another version and passing in the
+    // intrinsics path from that version will lead to errors (unknown
+    // intrinsics, unfavorable order with regard to include_next).
+    if (m_projectPart.toolchainType == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID) {
+        static QRegularExpression clangIncludeDir(
+                    QLatin1String("\\A.*/lib/clang/\\d+\\.\\d+(\\.\\d+)?/include\\z"));
+        return clangIncludeDir.match(headerPath).hasMatch();
+    }
+
     return false;
 }
 

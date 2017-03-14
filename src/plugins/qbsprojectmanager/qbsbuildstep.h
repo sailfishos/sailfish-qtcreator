@@ -45,6 +45,12 @@ class QbsBuildStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
+    enum VariableHandling
+    {
+        PreserveVariables,
+        ExpandVariables
+    };
+
     explicit QbsBuildStep(ProjectExplorer::BuildStepList *bsl);
     QbsBuildStep(ProjectExplorer::BuildStepList *bsl, const QbsBuildStep *other);
     ~QbsBuildStep() override;
@@ -58,7 +64,7 @@ public:
     bool runInGuiThread() const override;
     void cancel() override;
 
-    QVariantMap qbsConfiguration() const;
+    QVariantMap qbsConfiguration(VariableHandling variableHandling) const;
     void setQbsConfiguration(const QVariantMap &config);
 
     bool keepGoing() const;
@@ -123,44 +129,6 @@ private:
     bool m_parsingProject;
 
     friend class QbsBuildStepConfigWidget;
-};
-
-namespace Ui { class QbsBuildStepConfigWidget; }
-
-class QbsBuildStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
-{
-    Q_OBJECT
-public:
-    QbsBuildStepConfigWidget(QbsBuildStep *step);
-    ~QbsBuildStepConfigWidget();
-    QString summaryText() const;
-    QString displayName() const;
-
-private:
-    void updateState();
-    void updateQmlDebuggingOption();
-    void updatePropertyEdit(const QVariantMap &data);
-
-    void changeBuildVariant(int);
-    void changeShowCommandLines(bool show);
-    void changeKeepGoing(bool kg);
-    void changeJobCount(int count);
-    void changeInstall(bool install);
-    void changeCleanInstallRoot(bool clean);
-    void changeForceProbes(bool forceProbes);
-    void applyCachedProperties();
-
-    // QML debugging:
-    void linkQmlDebuggingLibraryChecked(bool checked);
-
-    bool validateProperties(Utils::FancyLineEdit *edit, QString *errorMessage);
-
-    Ui::QbsBuildStepConfigWidget *m_ui;
-
-    QList<QPair<QString, QString> > m_propertyCache;
-    QbsBuildStep *m_step;
-    QString m_summary;
-    bool m_ignoreChange;
 };
 
 class QbsBuildStepFactory : public ProjectExplorer::IBuildStepFactory

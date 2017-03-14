@@ -27,6 +27,9 @@
 
 #include <extensionsystem/pluginmanager.h>
 
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
+
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/imode.h>
@@ -49,14 +52,9 @@
 #include <QDir>
 #include <QQmlPropertyMap>
 #include <QQuickImageProvider>
+#include <QTimer>
 
-#ifdef USE_QUICK_WIDGET
-    #include <QtQuickWidgets/QQuickWidget>
-    typedef QQuickWidget QuickContainer;
-#else
-    #include <QtQuick/QQuickView>
-    typedef QQuickView QuickContainer;
-#endif
+#include <QtQuickWidgets/QQuickWidget>
 #include <QtQml/QQmlContext>
 #include <QtQml/QQmlEngine>
 
@@ -125,6 +123,8 @@ class WelcomeMode : public IMode
 {
     Q_OBJECT
     Q_PROPERTY(int activePlugin READ activePlugin WRITE setActivePlugin NOTIFY activePluginChanged)
+    Q_PROPERTY(QStringList recentProjectsShortcuts READ recentProjectsShortcuts NOTIFY recentProjectsShortcutsChanged)
+    Q_PROPERTY(QStringList sessionsShortcuts READ sessionsShortcuts NOTIFY sessionsShortcutsChanged)
 public:
     WelcomeMode();
     ~WelcomeMode();
@@ -132,6 +132,11 @@ public:
     void activated();
     void initPlugins();
     int activePlugin() const { return m_activePlugin; }
+
+    QStringList recentProjectsShortcuts() const { return m_recentProjectsShortcuts; }
+    QStringList sessionsShortcuts() const { return m_sessionsShortcuts; }
+
+    Q_INVOKABLE bool openDroppedFiles(const QList<QUrl> &urls);
 
 public slots:
     void setActivePlugin(int pos)
@@ -145,19 +150,26 @@ public slots:
 signals:
     void activePluginChanged(int pos);
 
+    void openSessionTriggered(int index);
+    void openRecentProjectTriggered(int index);
+
+    void recentProjectsShortcutsChanged(QStringList recentProjectsShortcuts);
+    void sessionsShortcutsChanged(QStringList sessionsShortcuts);
+
 private:
     void welcomePluginAdded(QObject*);
     void sceneGraphError(QQuickWindow::SceneGraphError, const QString &message);
     void facilitateQml(QQmlEngine *engine);
     void addPages(const QList<IWelcomePage *> &pages);
-    void applyTheme();
+    void addKeyboardShortcuts();
 
     QWidget *m_modeWidget;
-    QuickContainer *m_welcomePage;
+    QQuickWidget *m_welcomePage;
     QMap<Id, IWelcomePage *> m_idPageMap;
     QList<IWelcomePage *> m_pluginList;
     int m_activePlugin;
-    QQmlPropertyMap m_themeProperties;
+    QStringList m_recentProjectsShortcuts;
+    QStringList m_sessionsShortcuts;
 };
 
 WelcomeMode::WelcomeMode()
@@ -185,37 +197,58 @@ WelcomeMode::WelcomeMode()
     layout->setMargin(0);
     layout->setSpacing(0);
 
-    m_welcomePage = new QuickContainer();
-    applyTheme(); // initialize background color and theme properties
-    m_welcomePage->setResizeMode(QuickContainer::SizeRootObjectToView);
+    m_welcomePage = new QQuickWidget;
+    m_welcomePage->setResizeMode(QQuickWidget::SizeRootObjectToView);
 
     m_welcomePage->setObjectName(QLatin1String("WelcomePage"));
 
-    connect(m_welcomePage, &QuickContainer::sceneGraphError,
+    connect(m_welcomePage, &QQuickWidget::sceneGraphError,
             this, &WelcomeMode::sceneGraphError);
 
     StyledBar *styledBar = new StyledBar(m_modeWidget);
     styledBar->setObjectName(QLatin1String("WelcomePageStyledBar"));
     layout->addWidget(styledBar);
 
-#ifdef USE_QUICK_WIDGET
     m_welcomePage->setParent(m_modeWidget);
     layout->addWidget(m_welcomePage);
-#else
-    QWidget *container = QWidget::createWindowContainer(m_welcomePage, m_modeWidget);
-    container->setProperty("nativeAncestors", true);
-    m_modeWidget->setLayout(layout);
-    layout->addWidget(container);
-#endif // USE_QUICK_WIDGET
+
+    addKeyboardShortcuts();
 
     setWidget(m_modeWidget);
 }
 
-void WelcomeMode::applyTheme()
+void WelcomeMode::addKeyboardShortcuts()
 {
-    const QVariantHash creatorTheme = Utils::creatorTheme()->values();
-    for (auto it = creatorTheme.constBegin(); it != creatorTheme.constEnd(); ++it)
-        m_themeProperties.insert(it.key(), it.value());
+    const int actionsCount = 9;
+    Context welcomeContext(Core::Constants::C_WELCOME_MODE);
+
+    const Id sessionBase = "Welcome.OpenSession";
+    for (int i = 1; i <= actionsCount; ++i) {
+        auto act = new QAction(tr("Open Session #%1").arg(i), this);
+        Command *cmd = ActionManager::registerAction(act, sessionBase.withSuffix(i), welcomeContext);
+        cmd->setDefaultKeySequence(QKeySequence((UseMacShortcuts ? tr("Ctrl+Meta+%1") : tr("Ctrl+Alt+%1")).arg(i)));
+        m_sessionsShortcuts.append(cmd->keySequence().toString(QKeySequence::NativeText));
+
+        connect(act, &QAction::triggered, this, [this, i] { openSessionTriggered(i-1); });
+        connect(cmd, &Command::keySequenceChanged, this, [this, i, cmd] {
+            m_sessionsShortcuts[i-1] = cmd->keySequence().toString(QKeySequence::NativeText);
+            emit sessionsShortcutsChanged(m_sessionsShortcuts);
+        });
+    }
+
+    const Id projectBase = "Welcome.OpenRecentProject";
+    for (int i = 1; i <= actionsCount; ++i) {
+        auto act = new QAction(tr("Open Recent Project #%1").arg(i), this);
+        Command *cmd = ActionManager::registerAction(act, projectBase.withSuffix(i), welcomeContext);
+        cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+%1").arg(i)));
+        m_recentProjectsShortcuts.append(cmd->keySequence().toString(QKeySequence::NativeText));
+
+        connect(act, &QAction::triggered, this, [this, i] { openRecentProjectTriggered(i-1); });
+        connect(cmd, &Command::keySequenceChanged, this, [this, i, cmd] {
+            m_recentProjectsShortcuts[i-1] = cmd->keySequence().toString(QKeySequence::NativeText);
+            emit recentProjectsShortcutsChanged(m_recentProjectsShortcuts);
+        });
+    }
 }
 
 WelcomeMode::~WelcomeMode()
@@ -254,15 +287,8 @@ void WelcomeMode::facilitateQml(QQmlEngine *engine)
 
     QQmlContext *ctx = engine->rootContext();
     ctx->setContextProperty(QLatin1String("welcomeMode"), this);
-
-    ctx->setContextProperty(QLatin1String("creatorTheme"), &m_themeProperties);
-
-#if defined(USE_QUICK_WIDGET) && (QT_VERSION < QT_VERSION_CHECK(5, 5, 0))
-    bool useNativeText = !HostOsInfo::isMacHost();
-#else
-    bool useNativeText = true;
-#endif
-    ctx->setContextProperty(QLatin1String("useNativeText"), useNativeText);
+    ctx->setContextProperty(QLatin1String("creatorTheme"), Utils::creatorTheme()->values());
+    ctx->setContextProperty(QLatin1String("useNativeText"), true);
 }
 
 void WelcomeMode::initPlugins()
@@ -284,6 +310,18 @@ void WelcomeMode::initPlugins()
     m_welcomePage->setSource(QUrl::fromLocalFile(path));
 }
 
+bool WelcomeMode::openDroppedFiles(const QList<QUrl> &urls)
+{
+    const QList<QUrl> localUrls = Utils::filtered(urls, &QUrl::isLocalFile);
+    if (!localUrls.isEmpty()) {
+        QTimer::singleShot(0, [localUrls]() {
+            ICore::openFiles(Utils::transform(localUrls, &QUrl::toLocalFile), ICore::SwitchMode);
+        });
+        return true;
+    }
+    return false;
+}
+
 void WelcomeMode::welcomePluginAdded(QObject *obj)
 {
     IWelcomePage *page = qobject_cast<IWelcomePage*>(obj);
@@ -295,9 +333,7 @@ void WelcomeMode::welcomePluginAdded(QObject *obj)
 void WelcomeMode::addPages(const QList<IWelcomePage *> &pages)
 {
     QList<IWelcomePage *> addedPages = pages;
-    Utils::sort(addedPages, [](const IWelcomePage *l, const IWelcomePage *r) {
-        return l->priority() < r->priority();
-    });
+    Utils::sort(addedPages, &IWelcomePage::priority);
     // insert into m_pluginList, keeping m_pluginList sorted by priority
     QQmlEngine *engine = m_welcomePage->engine();
     auto addIt = addedPages.begin();

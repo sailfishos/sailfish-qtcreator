@@ -23,7 +23,6 @@ HEADERS += projectexplorer.h \
     removetaskhandler.h \
     targetsetuppage.h \
     targetsetupwidget.h \
-    unconfiguredprojectpanel.h \
     kit.h \
     kitchooser.h \
     kitconfigwidget.h \
@@ -78,6 +77,7 @@ HEADERS += projectexplorer.h \
     buildprogress.h \
     projectnodes.h \
     sessiondialog.h \
+    sessionview.h \
     projectwizardpage.h \
     buildstepspage.h \
     nodesvisitor.h \
@@ -92,9 +92,6 @@ HEADERS += projectexplorer.h \
     projectexplorersettingspage.h \
     baseprojectwizarddialog.h \
     miniprojecttargetselector.h \
-    targetselector.h \
-    targetsettingswidget.h \
-    doubletabwidget.h \
     buildenvironmentwidget.h \
     ldparser.h \
     linuxiccparser.h \
@@ -145,9 +142,9 @@ HEADERS += projectexplorer.h \
     ipotentialkit.h \
     selectablefilesmodel.h \
     xcodebuildparser.h \
-    propertiespanel.h \
     panelswidget.h \
     projectwelcomepage.h \
+    sessionmodel.h \
     projectpanelfactory.h \
     projecttree.h \
     expanddata.h \
@@ -177,7 +174,6 @@ SOURCES += projectexplorer.cpp \
     removetaskhandler.cpp \
     targetsetuppage.cpp \
     targetsetupwidget.cpp \
-    unconfiguredprojectpanel.cpp \
     kit.cpp \
     kitchooser.cpp \
     kitconfigwidget.cpp \
@@ -228,6 +224,7 @@ SOURCES += projectexplorer.cpp \
     buildprogress.cpp \
     projectnodes.cpp \
     sessiondialog.cpp \
+    sessionview.cpp \
     projectwizardpage.cpp \
     buildstepspage.cpp \
     nodesvisitor.cpp \
@@ -242,9 +239,6 @@ SOURCES += projectexplorer.cpp \
     projectexplorersettingspage.cpp \
     baseprojectwizarddialog.cpp \
     miniprojecttargetselector.cpp \
-    targetselector.cpp \
-    targetsettingswidget.cpp \
-    doubletabwidget.cpp \
     buildenvironmentwidget.cpp \
     ldparser.cpp \
     linuxiccparser.cpp \
@@ -288,9 +282,9 @@ SOURCES += projectexplorer.cpp \
     customparserconfigdialog.cpp \
     selectablefilesmodel.cpp \
     xcodebuildparser.cpp \
-    propertiespanel.cpp \
     panelswidget.cpp \
     projectwelcomepage.cpp \
+    sessionmodel.cpp \
     projectpanelfactory.cpp \
     projecttree.cpp \
     expanddata.cpp \
@@ -305,7 +299,6 @@ FORMS += processstep.ui \
     sessiondialog.ui \
     projectwizardpage.ui \
     projectexplorersettingspage.ui \
-    doubletabwidget.ui \
     deploymentdataview.ui \
     codestylesettingspropertiespage.ui \
     devicesupport/devicefactoryselectiondialog.ui \

@@ -226,6 +226,11 @@ void ViewManager::setNodeInstanceViewKit(ProjectExplorer::Kit *kit)
     d->nodeInstanceView.setKit(kit);
 }
 
+void QmlDesigner::ViewManager::setNodeInstanceViewProject(ProjectExplorer::Project *project)
+{
+    d->nodeInstanceView.setProject(project);
+}
+
 QList<WidgetInfo> ViewManager::widgetInfos()
 {
     QList<WidgetInfo> widgetInfoList;
@@ -262,7 +267,7 @@ void ViewManager::enableWidgets()
         widgetInfo.widget->setEnabled(true);
 }
 
-void ViewManager::pushFileOnCrumbleBar(const QString &fileName)
+void ViewManager::pushFileOnCrumbleBar(const Utils::FileName &fileName)
 {
     crumbleBar()->pushFile(fileName);
 }

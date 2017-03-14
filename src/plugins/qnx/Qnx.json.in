@@ -2,7 +2,6 @@
     \"Name\" : \"Qnx\",
     \"Version\" : \"$$QTCREATOR_VERSION\",
     \"CompatVersion\" : \"$$QTCREATOR_COMPAT_VERSION\",
-    \"Experimental\" : true,
     \"Vendor\" : \"BlackBerry\",
     \"Copyright\" : \"(C) 2016 BlackBerry\",
     \"License\" : [ \"Commercial Usage\",

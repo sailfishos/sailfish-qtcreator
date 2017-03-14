@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "bookmarkmanager.h"
-#include "helpicons.h"
 
 #include <localhelpmanager.h>
 
@@ -32,6 +31,7 @@
 
 #include <utils/fancylineedit.h>
 #include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 
 #include <QMenu>
 #include <QIcon>
@@ -443,6 +443,10 @@ void BookmarkWidget::setup()
     treeView->setDropIndicatorShown(true);
     treeView->viewport()->installEventFilter(this);
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
+    // work around crash on Windows with drag & drop
+    // in combination with proxy model and ResizeToContents section resize mode
+    treeView->header()->setSectionResizeMode(QHeaderView::Stretch);
+
 
     connect(treeView, &TreeView::expanded, this, &BookmarkWidget::expand);
     connect(treeView, &TreeView::collapsed, this, &BookmarkWidget::expand);
@@ -566,7 +570,7 @@ Qt::ItemFlags BookmarkModel::flags(const QModelIndex &index) const
 
 BookmarkManager::BookmarkManager()
     : m_folderIcon(QApplication::style()->standardIcon(QStyle::SP_DirClosedIcon))
-    , m_bookmarkIcon(Help::Icons::BOOKMARK.icon())
+    , m_bookmarkIcon(Utils::Icons::BOOKMARK.icon())
     , treeModel(new BookmarkModel(0, 1, this))
     , listModel(new BookmarkModel(0, 1, this))
 {

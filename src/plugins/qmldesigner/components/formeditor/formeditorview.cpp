@@ -164,6 +164,7 @@ void FormEditorView::nodeCreated(const ModelNode &createdNode)
 
 void FormEditorView::modelAboutToBeDetached(Model *model)
 {
+    m_currentTool->setItems(QList<FormEditorItem*>());
     m_selectionTool->clear();
     m_moveTool->clear();
     m_resizeTool->clear();
@@ -406,6 +407,7 @@ void FormEditorView::instancesCompleted(const QVector<ModelNode> &completedNodeL
     foreach (const ModelNode &node, completedNodeList) {
         QmlItemNode qmlItemNode(node);
         if (qmlItemNode.isValid() && scene()->hasItemForQmlItemNode(qmlItemNode)) {
+            scene()->synchronizeParent(qmlItemNode);
             itemNodeList.append(scene()->itemForQmlItemNode(qmlItemNode));
         }
     }

@@ -300,8 +300,7 @@ SynchronousProcess::SynchronousProcess() :
     connect(&d->m_process,
             static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &SynchronousProcess::finished);
-    connect(&d->m_process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &SynchronousProcess::error);
+    connect(&d->m_process, &QProcess::errorOccurred, this, &SynchronousProcess::error);
     connect(&d->m_process, &QProcess::readyReadStandardOutput,
             this, [this]() {
                 d->m_hangTimerCount = 0;
@@ -505,7 +504,9 @@ SynchronousProcessResponse SynchronousProcess::runBlocking(const QString &binary
         }
     }
 
-    QTC_ASSERT(d->m_process.state() == QProcess::NotRunning, return d->m_result);
+    if (d->m_process.state() != QProcess::NotRunning)
+        return d->m_result;
+
     d->m_result.exitCode = d->m_process.exitCode();
     if (d->m_result.result == SynchronousProcessResponse::StartFailed) {
         if (d->m_process.exitStatus() != QProcess::NormalExit)

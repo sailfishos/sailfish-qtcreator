@@ -26,8 +26,11 @@
 #pragma once
 
 #include "projectexplorer_export.h"
-#include "propertiespanel.h"
+
 #include "panelswidget.h"
+#include "projectwindow.h"
+
+#include <utils/treemodel.h>
 
 #include <functional>
 
@@ -49,43 +52,27 @@ public:
 
     // interface for users of ProjectPanelFactory
     bool supports(Project *project);
-    QWidget *createWidget(Project *project);
+
+    using WidgetCreator = std::function<QWidget *(Project *)>;
 
     // interface for "implementations" of ProjectPanelFactory
     // by default all projects are supported, only set a custom supports function
     // if you need something different
+    using SupportsFunction = std::function<bool (Project *)>;
     void setSupportsFunction(std::function<bool (Project *)> function);
-
-    // the simpleCreatePanelFunction creates new instance of T
-    // wraps that into a PropertiesPanel
-    // sets the passed in icon on it
-    // and uses displayName() for the displayname
-    // Note: call setDisplayName before calling this
-    template<typename T>
-    void setSimpleCreateWidgetFunction(const QIcon &icon)
-    {
-        m_createWidgetFunction = [icon, this](Project *project) -> QWidget * {
-            PropertiesPanel *panel = new PropertiesPanel;
-            panel->setDisplayName(this->displayName());
-            QWidget *widget = new T(project);
-            panel->setWidget(widget);
-            panel->setIcon(icon);
-            PanelsWidget *panelsWidget = new PanelsWidget();
-            panelsWidget->addPropertiesPanel(panel);
-            panelsWidget->setFocusProxy(widget);
-            return panelsWidget;
-        };
-    }
-
-    void setCreateWidgetFunction(std::function<QWidget *(Project *)> function)
-    {
-        m_createWidgetFunction = function;
-    }
 
     // This takes ownership.
     static void registerFactory(ProjectPanelFactory *factory);
 
     static QList<ProjectPanelFactory *> factories();
+
+    Utils::TreeItem *createPanelItem(Project *project);
+
+    QString icon() const;
+    void setIcon(const QString &icon);
+
+    void setCreateWidgetFunction(const WidgetCreator &createWidgetFunction);
+    QWidget *createWidget(Project *project) const;
 
 private:
     friend class ProjectExplorerPlugin;
@@ -93,8 +80,9 @@ private:
 
     int m_priority = 0;
     QString m_displayName;
-    std::function<bool (Project *)> m_supportsFunction;
-    std::function<QWidget *(Project *)> m_createWidgetFunction;
+    SupportsFunction m_supportsFunction;
+    WidgetCreator m_widgetCreator;
+    QString m_icon;
 };
 
 } // namespace ProjectExplorer

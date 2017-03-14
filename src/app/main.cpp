@@ -159,13 +159,6 @@ static const char *setHighDpiEnvironmentVariable()
 {
     const char* envVarName = 0;
     static const char ENV_VAR_QT_DEVICE_PIXEL_RATIO[] = "QT_DEVICE_PIXEL_RATIO";
-#if (QT_VERSION < QT_VERSION_CHECK(5, 6, 0))
-    if (Utils::HostOsInfo().isWindowsHost()
-            && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO)) {
-        envVarName = ENV_VAR_QT_DEVICE_PIXEL_RATIO;
-        qputenv(envVarName, "auto");
-    }
-#else
     if (Utils::HostOsInfo().isWindowsHost()
             && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO) // legacy in 5.6, but still functional
             && !qEnvironmentVariableIsSet("QT_AUTO_SCREEN_SCALE_FACTOR")
@@ -173,7 +166,6 @@ static const char *setHighDpiEnvironmentVariable()
             && !qEnvironmentVariableIsSet("QT_SCREEN_SCALE_FACTORS")) {
         QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     }
-#endif // < Qt 5.6
     return envVarName;
 }
 
@@ -230,9 +222,8 @@ static inline QStringList getPluginPaths()
     //    "$XDG_DATA_HOME/data/QtProject/qtcreator" or "~/.local/share/data/QtProject/qtcreator" on Linux
     //    "~/Library/Application Support/QtProject/Qt Creator" on Mac
     pluginPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
-    pluginPath += QLatin1String("/data");
-#endif
+    if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost())
+        pluginPath += QLatin1String("/data");
     pluginPath += QLatin1Char('/')
             + QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR)
             + QLatin1Char('/');
@@ -309,7 +300,8 @@ int main(int argc, char **argv)
 {
     const char *highDpiEnvironmentVariable = setHighDpiEnvironmentVariable();
 
-    QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false"));
+    QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false\nqtc.*.info=false"));
+
 #ifdef Q_OS_MAC
     // increase the number of file that can be opened in Qt Creator.
     struct rlimit rl;
@@ -319,6 +311,7 @@ int main(int argc, char **argv)
     setrlimit(RLIMIT_NOFILE, &rl);
 #endif
 
+    SharedTools::QtSingleApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     SharedTools::QtSingleApplication app((QLatin1String(appNameC)), argc, argv);
 
     loadFonts();
@@ -335,7 +328,9 @@ int main(int argc, char **argv)
     const int threadCount = QThreadPool::globalInstance()->maxThreadCount();
     QThreadPool::globalInstance()->setMaxThreadCount(qMax(4, 2 * threadCount));
 
-    CrashHandlerSetup setupCrashHandler; // Display a backtrace once a serious signal is delivered.
+    // Display a backtrace once a serious signal is delivered (Linux only).
+    const QString libexecPath = QCoreApplication::applicationDirPath() + "/../libexec/qtcreator";
+    CrashHandlerSetup setupCrashHandler(appNameC, CrashHandlerSetup::EnableRestart, libexecPath);
 
 #ifdef ENABLE_QT_BREAKPAD
     QtSystemExceptionHandler systemExceptionHandler;
@@ -378,19 +373,8 @@ int main(int argc, char **argv)
             return 1;
         settingsPath = temporaryCleanSettingsDir->path();
     }
-    if (!settingsPath.isEmpty()) {
+    if (!settingsPath.isEmpty())
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
-    }
-#ifdef Q_OS_WIN
-    else {
-        // set the windows settings userdir to the install dir
-        QDir rootDir = QApplication::applicationDirPath();
-        rootDir.cdUp();
-        QString mySettingsPath = QDir::toNativeSeparators(rootDir.canonicalPath());
-        mySettingsPath += QDir::separator() + QLatin1String("settings");
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
-    }
-#endif
 
     // Must be done before any QSettings class is created
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,

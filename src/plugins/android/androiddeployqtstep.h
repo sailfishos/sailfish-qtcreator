@@ -59,6 +59,16 @@ class AndroidDeployQtStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
     friend class AndroidDeployQtStepFactory;
+
+    enum DeployErrorCode
+    {
+        NoError = 0,
+        InconsistentCertificates = 0x0001,
+        UpdateIncompatible = 0x0002,
+        PermissionModelDowngrade = 0x0004,
+        Failure = 0x0008
+    };
+
 public:
     enum UninstallType {
         Keep,
@@ -80,7 +90,7 @@ public:
     void setUninstallPreviousPackage(bool uninstall);
 
 signals:
-    void askForUninstall();
+    void askForUninstall(DeployErrorCode errorCode);
     void setSerialNumber(const QString &serialNumber);
 
 private:
@@ -90,21 +100,24 @@ private:
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
-    enum DeployResult { Success, Failure, AskUinstall };
-    DeployResult runDeploy(QFutureInterface<bool> &fi);
-    void slotAskForUninstall();
+    DeployErrorCode runDeploy(QFutureInterface<bool> &fi);
+    void slotAskForUninstall(DeployErrorCode errorCode);
     void slotSetSerialNumber(const QString &serialNumber);
 
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool immutable() const override { return true; }
 
-    void processReadyReadStdOutput();
+    void processReadyReadStdOutput(DeployErrorCode &errorCode);
     void stdOutput(const QString &line);
-    void processReadyReadStdError();
+    void processReadyReadStdError(DeployErrorCode &errorCode);
     void stdError(const QString &line);
+    DeployErrorCode parseDeployErrors(QString &deployOutputLine) const;
 
     void slotProcessFinished(int, QProcess::ExitStatus);
     void processFinished(int exitCode, QProcess::ExitStatus status);
+
+    friend void operator|=(DeployErrorCode &e1, const DeployErrorCode &e2) { e1 = static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
+    friend DeployErrorCode operator|(const DeployErrorCode &e1, const DeployErrorCode &e2) { return static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
 
     Utils::FileName m_manifestName;
     QString m_serialNumber;
@@ -117,7 +130,6 @@ private:
     QString m_targetArch;
     bool m_uninstallPreviousPackage;
     bool m_uninstallPreviousPackageRun;
-    bool m_installOk;
     bool m_useAndroiddeployqt;
     bool m_askForUinstall;
     static const Core::Id Id;

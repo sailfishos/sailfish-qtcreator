@@ -34,7 +34,6 @@
 
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/variablechooser.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -46,6 +45,7 @@
 #include <utils/runextensions.h>
 #include <utils/algorithm.h>
 #include <utils/treemodel.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QMessageBox>
@@ -116,6 +116,8 @@ public:
 
     void setIcon(const QIcon &icon)
     {
+        if (m_icon.cacheKey() == icon.cacheKey())
+            return;
         m_icon = icon;
         update();
     }
@@ -168,7 +170,7 @@ QtOptionsPage::QtOptionsPage()
     setCategory(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
         ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
 }
 
 QWidget *QtOptionsPage::widget()
@@ -199,8 +201,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
     , m_ui(new Internal::Ui::QtVersionManager())
     , m_versionUi(new Internal::Ui::QtVersionInfo())
     , m_infoBrowser(new QTextBrowser)
-    , m_invalidVersionIcon(Core::Icons::ERROR.icon())
-    , m_warningVersionIcon(Core::Icons::WARNING.icon())
+    , m_invalidVersionIcon(Utils::Icons::ERROR.icon())
+    , m_warningVersionIcon(Utils::Icons::WARNING.icon())
     , m_configurationWidget(0)
 {
     QWidget *versionInfoWidget = new QWidget();
@@ -223,8 +225,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
     m_autoItem = new StaticTreeItem(tr("Auto-detected"));
     m_manualItem = new StaticTreeItem(tr("Manual"));
 
-    m_model = new LeveledTreeModel<Utils::TreeItem, QtVersionItem>();
-    m_model->setHeader({tr("Name"), tr("qmake Location"), tr("Type")});
+    m_model = new TreeModel<Utils::TreeItem, Utils::TreeItem, QtVersionItem>();
+    m_model->setHeader({tr("Name"), tr("qmake Location")});
     m_model->rootItem()->appendChild(m_autoItem);
     m_model->rootItem()->appendChild(m_manualItem);
 
@@ -299,7 +301,7 @@ QtVersionItem *QtOptionsPageWidget::currentItem() const
 {
     QModelIndex idx = m_ui->qtdirList->selectionModel()->currentIndex();
     QModelIndex sourceIdx = m_filterModel->mapToSource(idx);
-    return m_model->secondLevelItemForIndex(sourceIdx);
+    return m_model->itemForIndexAtLevel<2>(sourceIdx);
 }
 
 void QtOptionsPageWidget::cleanUpQtVersions()
@@ -336,7 +338,7 @@ void QtOptionsPageWidget::cleanUpQtVersions()
 
 void QtOptionsPageWidget::toolChainsUpdated()
 {
-    m_model->forSecondLevelItems([this](QtVersionItem *item) {
+    m_model->forItemsAtLevel<2>([this](QtVersionItem *item) {
         if (item == currentItem())
             updateDescriptionLabel();
         else
@@ -346,7 +348,7 @@ void QtOptionsPageWidget::toolChainsUpdated()
 
 void QtOptionsPageWidget::qtVersionsDumpUpdated(const FileName &qmakeCommand)
 {
-    m_model->forSecondLevelItems([this, qmakeCommand](QtVersionItem *item) {
+    m_model->forItemsAtLevel<2>([this, qmakeCommand](QtVersionItem *item) {
         if (item->version()->qmakeCommand() == qmakeCommand)
             item->version()->recheckDumper();
     });
@@ -454,7 +456,7 @@ bool QtOptionsPageWidget::isNameUnique(const BaseQtVersion *version)
 {
     const QString name = version->displayName().trimmed();
 
-    return !m_model->findSecondLevelItem([name, version](QtVersionItem *item) {
+    return !m_model->findItemAtLevel<2>([name, version](QtVersionItem *item) {
         BaseQtVersion *v = item->version();
         return v != version && v->displayName().trimmed() == name;
     });
@@ -513,7 +515,7 @@ void QtOptionsPageWidget::updateQtVersions(const QList<int> &additions, const QL
     QList<int> toAdd = additions;
 
     // Find existing items to remove/change:
-    m_model->forSecondLevelItems([&](QtVersionItem *item) {
+    m_model->forItemsAtLevel<2>([&](QtVersionItem *item) {
         int id = item->uniqueId();
         if (removals.contains(id)) {
             toRemove.append(item);
@@ -539,7 +541,7 @@ void QtOptionsPageWidget::updateQtVersions(const QList<int> &additions, const QL
         parent->appendChild(item);
     }
 
-    m_model->forSecondLevelItems([this](QtVersionItem *item) { updateVersionItem(item); });
+    m_model->forItemsAtLevel<2>([this](QtVersionItem *item) { updateVersionItem(item); });
 }
 
 QtOptionsPageWidget::~QtOptionsPageWidget()
@@ -683,11 +685,6 @@ void QtOptionsPageWidget::userChangedCurrentVersion()
     updateDescriptionLabel();
 }
 
-void QtOptionsPageWidget::qtVersionChanged()
-{
-    updateDescriptionLabel();
-}
-
 void QtOptionsPageWidget::updateDescriptionLabel()
 {
     QtVersionItem *item = currentItem();
@@ -734,7 +731,7 @@ void QtOptionsPageWidget::updateWidgets()
             m_versionUi->formLayout->addRow(m_configurationWidget);
             m_configurationWidget->setEnabled(!version->isAutodetected());
             connect(m_configurationWidget, &QtConfigWidget::changed,
-                    this, &QtOptionsPageWidget::qtVersionChanged);
+                    this, &QtOptionsPageWidget::updateDescriptionLabel);
         }
     } else {
         m_versionUi->nameEdit->clear();
@@ -758,7 +755,7 @@ void QtOptionsPageWidget::updateCurrentQtName()
     item->version()->setUnexpandedDisplayName(m_versionUi->nameEdit->text());
 
     updateDescriptionLabel();
-    m_model->forSecondLevelItems([this](QtVersionItem *item) { updateVersionItem(item); });
+    m_model->forItemsAtLevel<2>([this](QtVersionItem *item) { updateVersionItem(item); });
 }
 
 void QtOptionsPageWidget::apply()
@@ -768,7 +765,7 @@ void QtOptionsPageWidget::apply()
 
     QList<BaseQtVersion *> versions;
 
-    m_model->forSecondLevelItems([this, &versions](QtVersionItem *item) {
+    m_model->forItemsAtLevel<2>([this, &versions](QtVersionItem *item) {
         item->setChanged(false);
         versions.append(item->version()->clone());
     });

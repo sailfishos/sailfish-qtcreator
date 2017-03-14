@@ -27,7 +27,6 @@
 #include "pluginmanager.h"
 #include "pluginspec.h"
 #include "pluginspec_p.h"
-#include "plugincollection.h"
 
 #include <utils/algorithm.h>
 #include <utils/categorysortfiltermodel.h>
@@ -71,7 +70,6 @@
 */
 
 Q_DECLARE_METATYPE(ExtensionSystem::PluginSpec*)
-Q_DECLARE_METATYPE(ExtensionSystem::PluginCollection*)
 
 using namespace Utils;
 
@@ -94,7 +92,7 @@ static const QIcon &icon(IconIndex icon)
         return ok;
     }
     case ErrorIcon: {
-        static const QIcon error = Utils::Icons::ERROR.icon();
+        static const QIcon error = Utils::Icons::BROKEN.icon();
         return error;
     }
     default:
@@ -308,7 +306,7 @@ PluginView::PluginView(QWidget *parent)
     m_categoryView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_categoryView->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-    m_model = new LeveledTreeModel<TreeItem, CollectionItem, PluginItem>(this);
+    m_model = new TreeModel<TreeItem, CollectionItem, PluginItem>(this);
     m_model->setHeader({ tr("Name"), tr("Load"), tr("Version"), tr("Vendor") });
 
     m_sortModel = new CategorySortFilterModel(this);
@@ -362,7 +360,7 @@ void PluginView::setFilter(const QString &filter)
 PluginSpec *PluginView::pluginForIndex(const QModelIndex &index) const
 {
     const QModelIndex &sourceIndex = m_sortModel->mapToSource(index);
-    PluginItem *item = m_model->secondLevelItemForIndex(sourceIndex);
+    PluginItem *item = m_model->itemForIndexAtLevel<2>(sourceIndex);
     return item ? item->m_spec: 0;
 }
 
@@ -371,28 +369,14 @@ void PluginView::updatePlugins()
     // Model.
     m_model->clear();
 
-    PluginCollection *defaultCollection = 0;
+
     QList<CollectionItem *> collections;
-    foreach (PluginCollection *collection, PluginManager::pluginCollections()) {
-        if (collection->name().isEmpty() || collection->plugins().isEmpty()) {
-            defaultCollection = collection;
-            continue;
-        }
-        collections.append(new CollectionItem(collection->name(), collection->plugins(), this));
+    auto end = PluginManager::pluginCollections().cend();
+    for (auto it = PluginManager::pluginCollections().cbegin(); it != end; ++it) {
+        const QString name = it.key().isEmpty() ? tr("Utilities") : it.key();
+        collections.append(new CollectionItem(name, it.value(), this));
     }
-
-    QList<PluginSpec *> plugins;
-    if (defaultCollection)
-        plugins = defaultCollection->plugins();
-
-    if (!plugins.isEmpty()) {
-        // add all non-categorized plugins into utilities. could also be added as root items
-        // but that makes the tree ugly.
-        collections.append(new CollectionItem(tr("Utilities"), plugins, this));
-    }
-
-    Utils::sort(collections, [](CollectionItem *a, CollectionItem *b) -> bool
-        { return a->m_name < b->m_name; });
+    Utils::sort(collections, &CollectionItem::m_name);
 
     foreach (CollectionItem *collection, collections)
         m_model->rootItem()->appendChild(collection);
@@ -449,7 +433,7 @@ bool PluginView::setPluginsEnabled(const QSet<PluginSpec *> &plugins, bool enabl
 
     QSet<PluginSpec *> affectedPlugins = plugins + additionalPlugins;
     foreach (PluginSpec *spec, affectedPlugins) {
-        PluginItem *item = m_model->findSecondLevelItem([spec](PluginItem *item) {
+        PluginItem *item = m_model->findItemAtLevel<2>([spec](PluginItem *item) {
                 return item->m_spec == spec;
         });
         QTC_ASSERT(item, continue);

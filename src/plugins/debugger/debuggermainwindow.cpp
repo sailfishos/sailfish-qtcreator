@@ -126,6 +126,22 @@ QDockWidget *DebuggerMainWindow::dockWidget(const QByteArray &dockId) const
     return m_dockForDockId.value(dockId);
 }
 
+void DebuggerMainWindow::onModeChanged(Core::Id mode)
+{
+    if (mode == Debugger::Constants::MODE_DEBUG) {
+        setDockActionsVisible(true);
+        restorePerspective({});
+    } else {
+        setDockActionsVisible(false);
+
+        // Hide dock widgets manually in case they are floating.
+        foreach (QDockWidget *dockWidget, dockWidgets()) {
+            if (dockWidget->isFloating())
+                dockWidget->hide();
+        }
+    }
+}
+
 void DebuggerMainWindow::resetCurrentPerspective()
 {
     loadPerspectiveHelper(m_currentPerspectiveId, false);
@@ -168,7 +184,12 @@ void DebuggerMainWindow::finalizeSetup()
     Context debugcontext(Debugger::Constants::C_DEBUGMODE);
 
     ActionContainer *viewsMenu = ActionManager::actionContainer(Core::Constants::M_WINDOW_VIEWS);
-    Command *cmd = ActionManager::registerAction(menuSeparator1(),
+    Command *cmd = ActionManager::registerAction(showCentralWidgetAction(),
+        "Debugger.Views.ShowCentralWidget", debugcontext);
+    cmd->setAttribute(Command::CA_Hide);
+    cmd->setAttribute(Command::CA_UpdateText);
+    viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
+    cmd = ActionManager::registerAction(menuSeparator1(),
         "Debugger.Views.Separator1", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
@@ -184,8 +205,6 @@ void DebuggerMainWindow::finalizeSetup()
         "Debugger.Views.ResetSimple", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
-
-    addDockActionsToMenu(viewsMenu->menu());
 
     auto dock = new QDockWidget(tr("Toolbar"));
     dock->setObjectName(QLatin1String("Toolbar"));
@@ -282,6 +301,7 @@ void DebuggerMainWindow::loadPerspectiveHelper(const QByteArray &perspectiveId, 
 
     QTC_ASSERT(m_perspectiveForPerspectiveId.contains(m_currentPerspectiveId), return);
     const Perspective *perspective = m_perspectiveForPerspectiveId.value(m_currentPerspectiveId);
+    perspective->aboutToActivate();
     for (const Perspective::Operation &operation : perspective->operations()) {
         QDockWidget *dock = m_dockForDockId.value(operation.dockId);
         if (!dock) {
@@ -335,10 +355,14 @@ void DebuggerMainWindow::loadPerspectiveHelper(const QByteArray &perspectiveId, 
         if (settings->value(QLatin1String("ToolSettingsSaved"), false).toBool())
             restoreSettings(settings);
         settings->endGroup();
+    } else {
+        // By default, show the central widget
+        showCentralWidgetAction()->setChecked(true);
     }
 
     QWidget *central = perspective->centralWidget();
     m_centralWidgetStack->addWidget(central ? central : m_editorPlaceHolder);
+    showCentralWidgetAction()->setText(central ? central->windowTitle() : tr("Editor"));
 
     QTC_CHECK(m_toolbarForPerspectiveId.contains(m_currentPerspectiveId));
     m_controlsStackWidget->setCurrentWidget(m_toolbarForPerspectiveId.value(m_currentPerspectiveId));
@@ -380,6 +404,17 @@ QString Perspective::name() const
 void Perspective::setName(const QString &name)
 {
     m_name = name;
+}
+
+void Perspective::setAboutToActivateCallback(const Perspective::Callback &cb)
+{
+    m_aboutToActivateCallback = cb;
+}
+
+void Perspective::aboutToActivate() const
+{
+    if (m_aboutToActivateCallback)
+        m_aboutToActivateCallback();
 }
 
 QList<QWidget *> ToolbarDescription::widgets() const

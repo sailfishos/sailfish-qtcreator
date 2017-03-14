@@ -157,6 +157,7 @@ bool LogChangeWidget::populateLog(const QString &repository, const QString &comm
     arguments << (commit.isEmpty() ? "HEAD" : commit);
     if (!(flags & IncludeRemotes))
         arguments << "--not" << "--remotes";
+    arguments << "--";
     QString output;
     if (!GitPlugin::client()->synchronousLog(repository, arguments, &output, 0, VcsCommand::NoOutput))
         return false;
@@ -279,9 +280,9 @@ int LogItemDelegate::currentRow() const
     return m_widget->commitIndex();
 }
 
-IconItemDelegate::IconItemDelegate(LogChangeWidget *widget, const QString &icon)
+IconItemDelegate::IconItemDelegate(LogChangeWidget *widget, const Utils::Icon &icon)
     : LogItemDelegate(widget)
-    , m_icon(icon)
+    , m_icon(icon.icon())
 {
 }
 

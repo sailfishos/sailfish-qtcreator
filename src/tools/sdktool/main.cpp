@@ -45,8 +45,6 @@
 
 #include <iostream>
 
-#include <app/app_version.h>
-
 #include <QCoreApplication>
 #include <QStringList>
 
@@ -58,6 +56,12 @@ void printHelp(const Operation *op)
     std::cout << std::endl;
     std::cout << qPrintable(op->argumentsHelpText());
     std::cout << std::endl;
+}
+
+const QString tabular(const Operation *o)
+{
+    const QString name = o->name();
+    return name + QString(16 - name.length(), QChar::Space) + o->helpText();
 }
 
 void printHelp(const QList<Operation *> &operations)
@@ -72,7 +76,7 @@ void printHelp(const QList<Operation *> &operations)
     std::cout << "OPERATION:" << std::endl;
     std::cout << "    One of:" << std::endl;
     foreach (const Operation *o, operations)
-        std::cout << "        " << qPrintable(o->name()) << "\t\t" << qPrintable(o->helpText()) << std::endl;
+        std::cout << "        " << qPrintable(tabular(o)) << std::endl;
     std::cout << std::endl;
     std::cout << "OPERATION_ARGS:" << std::endl;
     std::cout << "   use \"--help <OPERATION>\" to get help on the arguments required for an operation." << std::endl;
@@ -165,9 +169,6 @@ int main(int argc, char *argv[])
     QCoreApplication::setSetuidAllowed(true);
 
     QCoreApplication a(argc, argv);
-
-    QCoreApplication::setApplicationName(QLatin1String("sdktool"));
-    QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
 
     Settings settings;
 

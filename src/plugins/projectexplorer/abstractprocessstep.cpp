@@ -203,7 +203,7 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
     if (Utils::HostOsInfo::isWindowsHost())
         m_process->setUseCtrlCStub(true);
     m_process->setWorkingDirectory(wd.absolutePath());
-    m_process->setEnvironment(m_param.effectiveEnvironment());
+    m_process->setEnvironment(m_param.environment());
 
     connect(m_process, &QProcess::readyReadStandardOutput,
             this, &AbstractProcessStep::processReadyReadStdOutput);

@@ -198,16 +198,12 @@ int BaseQmakeProjectWizardDialog::addModulesPage(int id)
 int BaseQmakeProjectWizardDialog::addTargetSetupPage(int id)
 {
     m_targetSetupPage = new ProjectExplorer::TargetSetupPage;
-    if (!preferredFeatures().isEmpty()) {
-        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(preferredFeatures()));
-    } else {
-        const Core::Id platform = selectedPlatform();
-        QSet<Core::Id> features = { QtSupport::Constants::FEATURE_DESKTOP };
-        if (!platform.isValid())
-            m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(features));
-        else
-            m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::platformMatcher(platform));
-    }
+    const Core::Id platform = selectedPlatform();
+    QSet<Core::Id> features = { QtSupport::Constants::FEATURE_DESKTOP };
+    if (!platform.isValid())
+        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(features));
+    else
+        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::platformMatcher(platform));
 
     m_targetSetupPage->setRequiredKitMatcher(QtKitInformation::qtVersionMatcher(requiredFeatures()));
 
@@ -268,13 +264,6 @@ bool BaseQmakeProjectWizardDialog::writeUserFile(const QString &proFileName) con
         pro->saveSettings();
     delete pro;
     return success;
-}
-
-bool BaseQmakeProjectWizardDialog::setupProject(QmakeProject *project) const
-{
-    if (!m_targetSetupPage)
-        return true;
-    return m_targetSetupPage->setupProject(project);
 }
 
 bool BaseQmakeProjectWizardDialog::isQtPlatformSelected(Core::Id platform) const

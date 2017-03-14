@@ -33,6 +33,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QDateTime>
 
 namespace Core { class IEditor; }
 
@@ -61,6 +62,7 @@ public:
     static QString activeSession();
     static QString lastSession();
     static QStringList sessions();
+    static QDateTime sessionDateTime(const QString &session);
 
     static bool createSession(const QString &session);
 
@@ -136,12 +138,14 @@ signals:
     void aboutToSaveSession();
     void dependencyChanged(ProjectExplorer::Project *a, ProjectExplorer::Project *b);
 
+signals: // for tests only
+    void projectFinishedParsing(ProjectExplorer::Project *project);
+
 private:
     static void saveActiveMode(Core::Id mode);
     void clearProjectFileCache();
     static void configureEditor(Core::IEditor *editor, const QString &fileName);
     static void markSessionFileDirty(bool makeDefaultVirginDirty = true);
-    static void handleProjectDisplayNameChanged();
     static void configureEditors(Project *project);
 };
 

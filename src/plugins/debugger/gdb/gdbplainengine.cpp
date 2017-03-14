@@ -52,8 +52,11 @@ void GdbPlainEngine::setupInferior()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
     setEnvironmentVariables();
-    if (!runParameters().inferior.commandLineArguments.isEmpty()) {
-        QString args = runParameters().inferior.commandLineArguments;
+    const DebuggerRunParameters &rp = runParameters();
+    if (!rp.inferior.workingDirectory.isEmpty())
+        runCommand({"cd " + rp.inferior.workingDirectory, NoFlags});
+    if (!rp.inferior.commandLineArguments.isEmpty()) {
+        QString args = rp.inferior.commandLineArguments;
         runCommand({"-exec-arguments " + args, NoFlags});
     }
 
@@ -120,10 +123,6 @@ void GdbPlainEngine::setupEngine()
         return;
     }
     gdbArgs.append("--tty=" + m_outputCollector.serverName());
-
-    QString workingDirectory = runParameters().inferior.workingDirectory;
-    if (!workingDirectory.isEmpty() && QFileInfo::exists(workingDirectory))
-        m_gdbProc.setWorkingDirectory(workingDirectory);
 
     startGdb(gdbArgs);
 }

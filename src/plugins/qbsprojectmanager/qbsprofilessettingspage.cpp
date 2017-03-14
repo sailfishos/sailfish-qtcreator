@@ -27,8 +27,8 @@
 #include "ui_qbsprofilessettingswidget.h"
 
 #include "customqbspropertiesdialog.h"
-#include "qbsconstants.h"
 #include "qbsprojectmanager.h"
+#include "qbsprojectmanagerconstants.h"
 #include "qbsprojectmanagersettings.h"
 
 #include <coreplugin/icore.h>
@@ -80,7 +80,7 @@ QbsProfilesSettingsPage::QbsProfilesSettingsPage(QObject *parent)
     setCategory(Constants::QBS_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("QbsProjectManager",
                                                    Constants::QBS_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::QBS_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(Constants::QBS_SETTINGS_CATEGORY_ICON));
 }
 
 QWidget *QbsProfilesSettingsPage::widget()

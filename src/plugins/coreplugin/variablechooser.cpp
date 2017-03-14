@@ -26,13 +26,12 @@
 #include "variablechooser.h"
 #include "coreconstants.h"
 
-#include <coreplugin/coreicons.h>
-
 #include <utils/fancylineedit.h> // IconButton
 #include <utils/headerviewstretcher.h> // IconButton
 #include <utils/macroexpander.h>
 #include <utils/treemodel.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QAbstractItemModel>
@@ -43,6 +42,7 @@
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPointer>
+#include <QSortFilterProxyModel>
 #include <QTextEdit>
 #include <QTimer>
 #include <QTreeView>
@@ -89,7 +89,7 @@ public:
     void createIconButton()
     {
         m_iconButton = new IconButton;
-        m_iconButton->setPixmap(Core::Icons::REPLACE.pixmap());
+        m_iconButton->setPixmap(Utils::Icons::REPLACE.pixmap());
         m_iconButton->setToolTip(VariableChooser::tr("Insert Variable"));
         m_iconButton->hide();
         connect(m_iconButton.data(), static_cast<void(QAbstractButton::*)(bool)>(&QAbstractButton::clicked),
@@ -109,7 +109,7 @@ public:
 
 public:
     VariableChooser *q;
-    TreeModel m_model;
+    TreeModel<> m_model;
 
     QPointer<QLineEdit> m_lineEdit;
     QPointer<QTextEdit> m_textEdit;
@@ -118,6 +118,7 @@ public:
 
     VariableTreeView *m_variableTree;
     QLabel *m_variableDescription;
+    QSortFilterProxyModel *m_sortModel;
     QString m_defaultDescription;
     QByteArray m_currentVariableName; // Prevent recursive insertion of currently expanded item
 };
@@ -161,12 +162,19 @@ public:
     MacroExpanderProvider m_provider;
 };
 
-class VariableItem : public TreeItem
+class VariableItem : public TypedTreeItem<TreeItem, VariableGroupItem>
 {
 public:
     VariableItem() {}
 
-    QVariant data(int column, int role) const
+    Qt::ItemFlags flags(int) const override
+    {
+        if (m_variable == parent()->m_chooser->m_currentVariableName)
+            return Qt::ItemIsSelectable;
+        return Qt::ItemIsSelectable|Qt::ItemIsEnabled;
+    }
+
+    QVariant data(int column, int role) const override
     {
         if (role == Qt::DisplayRole || role == Qt::EditRole) {
             if (column == 0)
@@ -174,28 +182,27 @@ public:
         }
 
         if (role == Qt::ToolTipRole) {
-            const QByteArray var = m_variable.toUtf8();
-            QString description = m_expander->variableDescription(var);
+            QString description = m_expander->variableDescription(m_variable);
             QString value;
-            if (!m_expander->isPrefixVariable(var))
-                value = m_expander->value(var).toHtmlEscaped();
+            if (!m_expander->isPrefixVariable(m_variable))
+                value = m_expander->value(m_variable).toHtmlEscaped();
             if (!value.isEmpty())
                 description += QLatin1String("<p>") + VariableChooser::tr("Current Value: %1").arg(value);
             return description;
         }
 
         if (role == UnexpandedTextRole)
-            return QString(QLatin1String("%{") + m_variable + QLatin1Char('}'));
+            return QString::fromUtf8("%{" + m_variable + '}');
 
         if (role == ExpandedTextRole)
-            return m_expander->expand(QLatin1String("%{") + m_variable + QLatin1Char('}'));
+            return m_expander->expand(QString::fromUtf8("%{" + m_variable + '}'));
 
         return QVariant();
     }
 
 public:
     MacroExpander *m_expander;
-    QString m_variable;
+    QByteArray m_variable;
 };
 
 void VariableTreeView::contextMenuEvent(QContextMenuEvent *ev)
@@ -252,7 +259,10 @@ VariableChooserPrivate::VariableChooserPrivate(VariableChooser *parent)
     m_variableTree = new VariableTreeView(q, this);
     m_variableDescription = new QLabel(q);
 
-    m_variableTree->setModel(&m_model);
+    m_sortModel = new QSortFilterProxyModel(this);
+    m_sortModel->setSourceModel(&m_model);
+    m_sortModel->sort(0);
+    m_variableTree->setModel(m_sortModel);
     m_variableDescription->setText(m_defaultDescription);
     m_variableDescription->setMinimumSize(QSize(0, 60));
     m_variableDescription->setAlignment(Qt::AlignLeft|Qt::AlignTop);
@@ -279,10 +289,8 @@ void VariableGroupItem::populateGroup(MacroExpander *expander)
 
     foreach (const QByteArray &variable, expander->visibleVariables()) {
         auto item = new VariableItem;
-        item->m_variable = QString::fromUtf8(variable);
+        item->m_variable = variable;
         item->m_expander = expander;
-        if (variable == m_chooser->m_currentVariableName)
-            item->setFlags(Qt::ItemIsSelectable); // not ItemIsEnabled
         appendChild(item);
     }
 
@@ -409,7 +417,8 @@ void VariableChooser::addSupportForChildWidgets(QWidget *parent, MacroExpander *
 void VariableChooserPrivate::updateDescription(const QModelIndex &index)
 {
     if (m_variableDescription)
-        m_variableDescription->setText(m_model.data(index, Qt::ToolTipRole).toString());
+        m_variableDescription->setText(m_model.data(m_sortModel->mapToSource(index),
+                                                    Qt::ToolTipRole).toString());
 }
 
 /*!
@@ -527,7 +536,7 @@ QWidget *VariableChooserPrivate::currentWidget()
  */
 void VariableChooserPrivate::handleItemActivated(const QModelIndex &index)
 {
-    QString text = m_model.data(index, UnexpandedTextRole).toString();
+    QString text = m_model.data(m_sortModel->mapToSource(index), UnexpandedTextRole).toString();
     if (!text.isEmpty())
         insertText(text);
 }

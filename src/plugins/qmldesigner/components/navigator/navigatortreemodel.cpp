@@ -38,7 +38,8 @@
 #include <qmlitemnode.h>
 
 #include <coreplugin/icore.h>
-#include <coreplugin/coreicons.h>
+
+#include <utils/utilsicons.h>
 
 #include <QMimeData>
 #include <QMessageBox>
@@ -365,7 +366,7 @@ void NavigatorTreeModel::updateItemRow(const ModelNode &modelNode, ItemRow items
     if (currentQmlObjectNode.hasError()) {
         items.idItem->setData(true, ErrorRole);
         items.idItem->setToolTip(currentQmlObjectNode.error());
-        items.idItem->setIcon(Core::Icons::WARNING.icon());
+        items.idItem->setIcon(Utils::Icons::WARNING.icon());
     } else {
         items.idItem->setData(false, ErrorRole);
         if (modelNode.metaInfo().isValid())
@@ -665,20 +666,24 @@ static bool isInLayoutable(NodeAbstractProperty &parentProperty)
 
 static void reparentModelNodeToNodeProperty(NodeAbstractProperty &parentProperty, const ModelNode &modelNode)
 {
-    if (!modelNode.hasParentProperty() || parentProperty != modelNode.parentProperty()) {
-        if (isInLayoutable(parentProperty)) {
-            removePosition(modelNode);
-            parentProperty.reparentHere(modelNode);
-        } else {
-            if (QmlItemNode::isValidQmlItemNode(modelNode)) {
-                QPointF scenePosition = QmlItemNode(modelNode).instanceScenePosition();
+    try {
+        if (!modelNode.hasParentProperty() || parentProperty != modelNode.parentProperty()) {
+            if (isInLayoutable(parentProperty)) {
+                removePosition(modelNode);
                 parentProperty.reparentHere(modelNode);
-                if (!scenePosition.isNull())
-                    setScenePosition(modelNode, scenePosition);
             } else {
-                parentProperty.reparentHere(modelNode);
+                if (QmlItemNode::isValidQmlItemNode(modelNode)) {
+                    QPointF scenePosition = QmlItemNode(modelNode).instanceScenePosition();
+                    parentProperty.reparentHere(modelNode);
+                    if (!scenePosition.isNull())
+                        setScenePosition(modelNode, scenePosition);
+                } else {
+                    parentProperty.reparentHere(modelNode);
+                }
             }
         }
+    }  catch (const RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
+        exception.showException();
     }
 }
 

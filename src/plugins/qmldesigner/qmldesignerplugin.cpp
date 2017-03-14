@@ -130,15 +130,22 @@ static bool shouldAssertInException()
     return !processEnvironment.value("QMLDESIGNER_ASSERT_ON_EXCEPTION").isEmpty();
 }
 
-static void switchTextDesign()
+static bool useTextEditInDesignMode()
 {
-    if (Core::ModeManager::currentMode() == Core::Constants::MODE_EDIT) {
-        Core::IEditor *editor = Core::EditorManager::currentEditor();
-        if (checkIfEditorIsQtQuick(editor))
-            Core::ModeManager::activateMode(Core::Constants::MODE_DESIGN);
-    } else if (Core::ModeManager::currentMode() == Core::Constants::MODE_DESIGN) {
-        Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
-    }
+    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
+    return settings.value(DesignerSettingsKey::TEXTEDIT_IN_DESIGNMODE, false).toBool();
+}
+
+static bool warningsForQmlFilesInsteadOfUiQmlEnabled()
+{
+    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
+    return settings.value(DesignerSettingsKey::WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES).toBool();
+}
+
+static bool showWarningsForFeaturesInDesigner()
+{
+    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
+    return settings.value(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER).toBool();
 }
 
 QmlDesignerPlugin::QmlDesignerPlugin()
@@ -206,7 +213,14 @@ bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *e
     MetaInfo::setPluginPaths(QStringList(pluginPath));
 
     createDesignModeWidget();
-    connect(switchTextDesignAction, &QAction::triggered, this, &switchTextDesign);
+    connect(switchTextDesignAction, &QAction::triggered, this, [](){
+        if (Core::ModeManager::currentMode() == Core::Constants::MODE_DESIGN) {
+            if (useTextEditInDesignMode())
+                qDebug() << "not implemented";
+            else
+                Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
+        }
+    });
 
     addAutoReleasedObject(new Internal::SettingsPage);
 
@@ -277,7 +291,7 @@ void QmlDesignerPlugin::createDesignModeWidget()
     connect(Core::EditorManager::instance(), &Core::EditorManager::editorsClosed, [=] (QList<Core::IEditor*> editors) {
         if (d) {
             if (d->documentManager.hasCurrentDesignDocument()
-                    && editors.contains(d->documentManager.currentDesignDocument()->textEditor()))
+                    && editors.contains(currentDesignDocument()->textEditor()))
                 hideDesigner();
 
             d->documentManager.removeEditors(editors);
@@ -287,30 +301,18 @@ void QmlDesignerPlugin::createDesignModeWidget()
     connect(Core::ModeManager::instance(), &Core::ModeManager::currentModeChanged,
         [=] (Core::Id newMode, Core::Id oldMode) {
 
-        if (d && Core::EditorManager::currentEditor() && checkIfEditorIsQtQuick
-                (Core::EditorManager::currentEditor()) && !documentIsAlreadyOpen(
-                currentDesignDocument(), Core::EditorManager::currentEditor(), newMode)) {
+        Core::IEditor *currentEditor = Core::EditorManager::currentEditor();
+        if (d && currentEditor && checkIfEditorIsQtQuick(currentEditor) &&
+                !documentIsAlreadyOpen(currentDesignDocument(), currentEditor, newMode)) {
 
             if (!isDesignerMode(newMode) && isDesignerMode(oldMode))
                 hideDesigner();
-            else if (Core::EditorManager::currentEditor() && isDesignerMode(newMode))
+            else if (currentEditor && isDesignerMode(newMode))
                 showDesigner();
             else if (currentDesignDocument())
                 hideDesigner();
         }
     });
-}
-
-static bool warningsForQmlFilesInsteadOfUiQmlEnabled()
-{
-    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
-    return settings.value(DesignerSettingsKey::WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES).toBool();
-}
-
-static bool showWarningsForFeaturesInDesigner()
-{
-    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
-    return settings.value(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER).toBool();
 }
 
 void QmlDesignerPlugin::showDesigner()
@@ -339,7 +341,7 @@ void QmlDesignerPlugin::showDesigner()
     if (d->documentManager.hasCurrentDesignDocument()) {
         activateAutoSynchronization();
         d->shortCutManager.updateActions(currentDesignDocument()->textEditor());
-        d->viewManager.pushFileOnCrumbleBar(d->documentManager.currentDesignDocument()->fileName().toString());
+        d->viewManager.pushFileOnCrumbleBar(currentDesignDocument()->fileName());
     }
 
     d->shortCutManager.updateUndoActions(currentDesignDocument());
@@ -347,10 +349,11 @@ void QmlDesignerPlugin::showDesigner()
 
 void QmlDesignerPlugin::hideDesigner()
 {
-    if (currentDesignDocument()
-            && currentModel()
-            && !currentDesignDocument()->hasQmlParseErrors())
-        jumpTextCursorToSelectedModelNode();
+    if (currentDesignDocument() && currentModel()) {
+        // the message box handle the cursor jump itself
+        if (mainWidget()->gotoCodeWasClicked() == false)
+            jumpTextCursorToSelectedModelNode();
+    }
 
     if (d->documentManager.hasCurrentDesignDocument()) {
         deactivateAutoSynchronization();
@@ -376,7 +379,7 @@ void QmlDesignerPlugin::changeEditor()
 
     if (d->documentManager.hasCurrentDesignDocument()) {
         activateAutoSynchronization();
-        d->viewManager.pushFileOnCrumbleBar(d->documentManager.currentDesignDocument()->fileName().toString());
+        d->viewManager.pushFileOnCrumbleBar(currentDesignDocument()->fileName());
         d->viewManager.setComponentViewToMaster();
     }
 
@@ -419,6 +422,7 @@ void QmlDesignerPlugin::activateAutoSynchronization()
         currentDesignDocument()->loadDocument(currentDesignDocument()->plainTextEdit());
 
     currentDesignDocument()->updateActiveQtVersion();
+    currentDesignDocument()->updateCurrentProject();
     currentDesignDocument()->attachRewriterToModel();
 
     resetModelSelection();

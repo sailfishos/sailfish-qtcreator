@@ -50,12 +50,11 @@ public:
 
     virtual bool accepted(const QmlEventType &type) const;
     bool handlesTypeId(int typeId) const;
-    Q_INVOKABLE virtual int bindingLoopDest(int index) const;
+
     QVariantMap locationFromTypeId(int index) const;
 
     virtual void loadEvent(const QmlEvent &event, const QmlEventType &type) = 0;
     virtual void finalize() = 0;
-    void clear();
 
 private slots:
     void dataChanged();

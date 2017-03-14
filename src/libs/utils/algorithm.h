@@ -418,24 +418,37 @@ inline void sort(Container &c, Predicate p)
     std::sort(c.begin(), c.end(), p);
 }
 
+// pointer to member
+template <typename Container, typename R, typename S>
+inline void sort(Container &c, R S::*member)
+{
+    auto f = std::mem_fn(member);
+    using const_ref = typename Container::const_reference;
+    std::sort(c.begin(), c.end(), [&f](const_ref a, const_ref b) {
+        return f(a) < f(b);
+    });
+}
+
+// pointer to member function
+template <typename Container, typename R, typename S>
+inline void sort(Container &c, R (S::*function)() const)
+{
+    auto f = std::mem_fn(function);
+    using const_ref = typename Container::const_reference;
+    std::sort(c.begin(), c.end(), [&f](const_ref a, const_ref b) {
+        return f(a) < f(b);
+    });
+}
+
 //////////////////
 // reverseForeach
 /////////////////
 template <typename Container, typename Op>
 inline void reverseForeach(const Container &c, const Op &operation)
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 6, 0)
-    auto rend = c.begin();
-    auto it = c.end();
-    while (it != rend) {
-        --it;
-        operation(*it);
-    }
-#else
     auto rend = c.rend();
     for (auto it = c.rbegin(); it != rend; ++it)
         operation(*it);
-#endif
 }
 
 }

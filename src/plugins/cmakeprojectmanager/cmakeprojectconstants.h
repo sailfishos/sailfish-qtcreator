@@ -51,5 +51,8 @@ const char M_CONTEXT[] = "CMakeEditor.ContextMenu";
 // Settings page
 const char CMAKE_SETTINGSPAGE_ID[] = "Z.CMake";
 
+// Snippets
+const char CMAKE_SNIPPETS_GROUP_ID[] = "CMake";
+
 } // namespace Constants
 } // namespace CMakeProjectManager

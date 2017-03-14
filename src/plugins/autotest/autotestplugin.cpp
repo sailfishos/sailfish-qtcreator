@@ -95,6 +95,7 @@ void AutotestPlugin::initializeMenuEntries()
 {
     ActionContainer *menu = ActionManager::createMenu(Constants::MENU_ID);
     menu->menu()->setTitle(tr("&Tests"));
+    menu->setOnAllDisabledBehavior(ActionContainer::Show);
 
     QAction *action = new QAction(tr("Run &All Tests"), this);
     Command *command = ActionManager::registerAction(action, Constants::ACTION_RUN_ALL_ID);
@@ -135,7 +136,7 @@ bool AutotestPlugin::initialize(const QStringList &arguments, QString *errorStri
     m_frameworkManager->registerTestFramework(new QuickTestFramework);
     m_frameworkManager->registerTestFramework(new GTestFramework);
 
-    m_settings->fromSettings(ICore::settings());
+    m_frameworkManager->synchronizeSettings(ICore::settings());
     addAutoReleasedObject(new TestSettingsPage(m_settings));
     addAutoReleasedObject(new TestNavigationWidgetFactory);
     addAutoReleasedObject(TestResultsPane::instance());
@@ -177,6 +178,7 @@ void AutotestPlugin::onRunSelectedTriggered()
 void AutotestPlugin::updateMenuItemsEnabledState()
 {
     const bool enabled = !TestRunner::instance()->isTestRunning()
+            && TestTreeModel::instance()->parser()->enabled()
             && TestTreeModel::instance()->parser()->state() == TestCodeParser::Idle;
     const bool hasTests = TestTreeModel::instance()->hasTests();
 

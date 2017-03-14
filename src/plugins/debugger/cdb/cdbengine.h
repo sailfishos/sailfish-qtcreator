@@ -99,9 +99,8 @@ public:
     void attemptBreakpointSynchronization() override;
 
     void fetchDisassembler(DisassemblerAgent *agent) override;
-    void fetchMemory(MemoryAgent *, QObject *, quint64 addr, quint64 length) override;
-    void changeMemory(Internal::MemoryAgent *, QObject *, quint64 addr,
-                      const QByteArray &data) override;
+    void fetchMemory(MemoryAgent *, quint64 addr, quint64 length) override;
+    void changeMemory(MemoryAgent *, quint64 addr, const QByteArray &data) override;
 
     void reloadModules() override;
     void loadSymbols(const QString &moduleName) override;
@@ -159,6 +158,7 @@ private:
         NoFlags = 0,
         BuiltinCommand,
         ExtensionCommand,
+        ScriptCommand
     };
 
     bool startConsole(const DebuggerRunParameters &sp, QString *errorMessage);
@@ -211,6 +211,7 @@ private:
     void handleWidgetAt(const DebuggerResponse &response);
     void handleBreakPoints(const DebuggerResponse &response);
     void handleAdditionalQmlStack(const DebuggerResponse &response);
+    void setupScripting(const DebuggerResponse &response);
     NormalizedSourceFileName sourceMapNormalizeFileNameFromDebugger(const QString &f);
     void doUpdateLocals(const UpdateParameters &params) override;
     void updateAll() override;
@@ -259,6 +260,7 @@ private:
     QVariantList m_customSpecialStopData;
     QList<SourcePathMapping> m_sourcePathMappings;
     QScopedPointer<GdbMi> m_coreStopReason;
+    int m_pythonVersion = 0; // 0xMMmmpp MM = major; mm = minor; pp = patch
 };
 
 } // namespace Internal

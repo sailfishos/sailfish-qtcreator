@@ -45,7 +45,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -63,6 +62,7 @@
 #include <utils/qtcassert.h>
 #include <utils/parameteraction.h>
 #include <utils/pathchooser.h>
+#include <utils/utilsicons.h>
 #include <texteditor/texteditor.h>
 
 #include <vcsbase/basevcseditorfactory.h>
@@ -724,7 +724,7 @@ void GitPlugin::undoFileChanges(bool revertStaging)
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
     FileChangeBlocker fcb(state.currentFile());
-    m_gitClient->revert(QStringList(state.currentFile()), revertStaging);
+    m_gitClient->revert({ state.currentFile() }, revertStaging);
 }
 
 class ResetItemDelegate : public LogItemDelegate
@@ -743,7 +743,7 @@ class RebaseItemDelegate : public IconItemDelegate
 {
 public:
     RebaseItemDelegate(LogChangeWidget *widget)
-        : IconItemDelegate(widget, Core::Icons::UNDO.imageFileName())
+        : IconItemDelegate(widget, Utils::Icons::UNDO)
     {
     }
 
@@ -839,7 +839,7 @@ void GitPlugin::unstageFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_gitClient->synchronousReset(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()));
+    m_gitClient->synchronousReset(state.currentFileTopLevel(), { state.relativeCurrentFile() });
 }
 
 void GitPlugin::gitkForCurrentFile()
@@ -1396,6 +1396,10 @@ void GitPlugin::testStatusParsing_data()
 
     QTest::newRow(" M") << FileStates(ModifiedFile) << FileStates(UnknownFileState);
     QTest::newRow(" D") << FileStates(DeletedFile) << FileStates(UnknownFileState);
+    QTest::newRow(" T") << FileStates(TypeChangedFile) << FileStates(UnknownFileState);
+    QTest::newRow("T ") << (TypeChangedFile | StagedFile) << FileStates(UnknownFileState);
+    QTest::newRow("TM") << (TypeChangedFile | StagedFile) << FileStates(ModifiedFile);
+    QTest::newRow("MT") << (ModifiedFile | StagedFile) << FileStates(TypeChangedFile);
     QTest::newRow("M ") << (ModifiedFile | StagedFile) << FileStates(UnknownFileState);
     QTest::newRow("MM") << (ModifiedFile | StagedFile) << FileStates(ModifiedFile);
     QTest::newRow("MD") << (ModifiedFile | StagedFile) << FileStates(DeletedFile);

@@ -149,6 +149,7 @@ public:
     quint64 availableFeatures;
     quint64 visibleFeatures;
     quint64 recordedFeatures;
+    bool aggregateTraces;
 
     QHash<ProfileFeature, QVector<EventLoader> > eventLoaders;
     QVector<Finalizer> finalizers;
@@ -164,6 +165,7 @@ QmlProfilerModelManager::QmlProfilerModelManager(Utils::FileInProjectFinder *fin
     d->availableFeatures = 0;
     d->visibleFeatures = 0;
     d->recordedFeatures = 0;
+    d->aggregateTraces = false;
     d->model = new QmlProfilerDataModel(finder, this);
     d->state = Empty;
     d->traceTime = new QmlProfilerTraceTime(this);
@@ -275,6 +277,17 @@ void QmlProfilerModelManager::setRecordedFeatures(quint64 features)
     }
 }
 
+bool QmlProfilerModelManager::aggregateTraces() const
+{
+    return d->aggregateTraces;
+}
+
+void QmlProfilerModelManager::setAggregateTraces(bool aggregateTraces)
+{
+    d->aggregateTraces = aggregateTraces;
+}
+
+
 const char *QmlProfilerModelManager::featureName(ProfileFeature feature)
 {
     return ProfileFeatureNames[feature];
@@ -331,7 +344,7 @@ void QmlProfilerModelManager::save(const QString &filename)
             writer->saveQtd(file);
         else
             writer->saveQzt(file);
-        delete writer;
+        writer->deleteLater();
         file->deleteLater();
     });
 

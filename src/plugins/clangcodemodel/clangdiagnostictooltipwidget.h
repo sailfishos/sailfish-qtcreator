@@ -34,7 +34,13 @@ QT_END_NAMESPACE
 namespace ClangCodeModel {
 namespace Internal {
 
-void addToolTipToLayout(const ClangBackEnd::DiagnosticContainer &diagnostic, QLayout *target);
+class ClangDiagnosticWidget {
+public:
+    enum Destination { ToolTip, InfoBar };
+
+    static QWidget *create(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
+                           const Destination &destination);
+};
 
 } // namespace Internal
 } // namespace ClangCodeModel

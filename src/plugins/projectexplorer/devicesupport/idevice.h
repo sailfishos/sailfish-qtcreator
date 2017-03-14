@@ -43,6 +43,7 @@ namespace QSsh { class SshConnectionParameters; }
 
 namespace Utils {
 class Environment;
+class Icon;
 class PortList;
 class Port;
 } // Utils
@@ -137,7 +138,6 @@ public:
 
     Core::Id type() const;
     bool isAutoDetected() const;
-    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
@@ -166,6 +166,9 @@ public:
     DeviceState deviceState() const;
     void setDeviceState(const DeviceState state);
     QString deviceStateToString() const;
+
+    void setDeviceIcon(const QList<Utils::Icon> &deviceIcon);
+    QIcon deviceIcon() const;
 
     virtual void fromMap(const QVariantMap &map);
     virtual QVariantMap toMap() const;
@@ -203,7 +206,6 @@ private:
     IDevice &operator=(const IDevice &); // Unimplemented.
 
     int version() const;
-    void setSdkProvided(bool sdkProvided);
 
     Internal::IDevicePrivate *d;
     friend class DeviceManager;

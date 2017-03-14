@@ -88,7 +88,6 @@ using namespace Core::Internal;
 FilterItem::FilterItem(ILocatorFilter *filter)
     : m_filter(filter)
 {
-    setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 }
 
 QVariant FilterItem::data(int column, int role) const
@@ -114,12 +113,11 @@ QVariant FilterItem::data(int column, int role) const
 
 Qt::ItemFlags FilterItem::flags(int column) const
 {
-    if (column == FilterPrefix) {
-        return TreeItem::flags(column) | Qt::ItemIsEditable;
-    } else if (column == FilterIncludedByDefault) {
-        return TreeItem::flags(column) | Qt::ItemIsEditable | Qt::ItemIsUserCheckable;
-    }
-    return TreeItem::flags(column);
+    if (column == FilterPrefix)
+        return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsEditable;
+    if (column == FilterIncludedByDefault)
+        return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsEditable | Qt::ItemIsUserCheckable;
+    return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
 }
 
 bool FilterItem::setData(int column, const QVariant &data, int role)
@@ -169,7 +167,7 @@ LocatorSettingsPage::LocatorSettingsPage(Locator *plugin)
     setDisplayName(QCoreApplication::translate("Locator", Constants::FILTER_OPTIONS_PAGE));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
     setDisplayCategory(QCoreApplication::translate("Core", Constants::SETTINGS_TR_CATEGORY_CORE));
-    setCategoryIcon(QLatin1String(Constants::SETTINGS_CATEGORY_CORE_ICON));
+    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CORE_ICON));
 }
 
 QWidget *LocatorSettingsPage::widget()
@@ -190,7 +188,7 @@ QWidget *LocatorSettingsPage::widget()
         m_ui.filterList->setUniformRowHeights(true);
         m_ui.filterList->setActivationMode(Utils::DoubleClickActivation);
 
-        m_model = new TreeModel(m_ui.filterList);
+        m_model = new TreeModel<>(m_ui.filterList);
         initializeModel();
         m_proxyModel = new CategorySortFilterModel(m_ui.filterList);
         m_proxyModel->setSourceModel(m_model);

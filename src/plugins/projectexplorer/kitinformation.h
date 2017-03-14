@@ -25,17 +25,18 @@
 
 #pragma once
 
+#include "abi.h"
+#include "devicesupport/idevice.h"
 #include "kitmanager.h"
 #include "kit.h"
+#include "toolchain.h"
 
-#include "devicesupport/idevice.h"
 #include <utils/environment.h>
 
 #include <QVariant>
 
 namespace ProjectExplorer {
 
-class ToolChain;
 class KitConfigWidget;
 
 // --------------------------------------------------------------------------
@@ -78,6 +79,7 @@ public:
     QVariant defaultValue(const Kit *k) const override;
 
     QList<Task> validate(const Kit *k) const override;
+    void upgrade(Kit *k) override;
     void fix(Kit *k) override;
     void setup(Kit *k) override;
 
@@ -92,8 +94,11 @@ public:
     IOutputParser *createOutputParser(const Kit *k) const override;
 
     static Core::Id id();
-    static ToolChain *toolChain(const Kit *k);
+    static ToolChain *toolChain(const Kit *k, ToolChain::Language l);
+    static QList<ToolChain *> toolChains(const Kit *k);
     static void setToolChain(Kit *k, ToolChain *tc);
+    static void setToolChain(Kit *k, ToolChain::Language l, ToolChain *tc);
+    static Abi targetAbi(const Kit *k);
 
     static QString msgNoToolChainInTarget();
 

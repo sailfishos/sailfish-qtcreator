@@ -141,11 +141,11 @@ void QmlProfilerStateManager::setCurrentState(QmlProfilerState newState)
 void QmlProfilerStateManager::setClientRecording(bool recording)
 {
 #ifdef _DEBUG_PROFILERSTATE_
-    qDebug() << "Setting client recording flag from" << d->m_serverRecording << "to" << recording;
+    qDebug() << "Setting client recording flag from" << d->m_clientRecording << "to" << recording;
 #endif
     if (d->m_clientRecording != recording) {
         d->m_clientRecording = recording;
-        emit clientRecordingChanged();
+        emit clientRecordingChanged(recording);
     }
 }
 
@@ -156,7 +156,7 @@ void QmlProfilerStateManager::setServerRecording(bool recording)
 #endif
     if (d->m_serverRecording != recording) {
         d->m_serverRecording = recording;
-        emit serverRecordingChanged();
+        emit serverRecordingChanged(recording);
     }
 }
 

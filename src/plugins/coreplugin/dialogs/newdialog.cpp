@@ -26,11 +26,11 @@
 #include "newdialog.h"
 #include "ui_newdialog.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QAbstractProxyModel>
 #include <QDebug>
@@ -186,16 +186,16 @@ Q_DECLARE_METATYPE(WizardFactoryContainer)
 using namespace Core;
 using namespace Core::Internal;
 
-bool NewDialog::m_isRunning = false;
+QWidget *NewDialog::m_currentDialog = nullptr;
 
 NewDialog::NewDialog(QWidget *parent) :
     QDialog(parent),
     m_ui(new Ui::NewDialog),
     m_okButton(0)
 {
-    QTC_CHECK(!m_isRunning);
+    QTC_CHECK(m_currentDialog == nullptr);
 
-    m_isRunning = true;
+    m_currentDialog = this;
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setWindowFlags(windowFlags());
@@ -251,7 +251,7 @@ void NewDialog::setWizardFactories(QList<IWizardFactory *> factories,
 {
     m_defaultLocation = defaultLocation;
     m_extraVariables = extraVariables;
-    qStableSort(factories.begin(), factories.end(), wizardFactoryLessThan);
+    std::stable_sort(factories.begin(), factories.end(), wizardFactoryLessThan);
 
     m_model->clear();
     QStandardItem *parentItem = m_model->invisibleRootItem();
@@ -267,7 +267,7 @@ void NewDialog::setWizardFactories(QList<IWizardFactory *> factories,
     parentItem->appendRow(filesKindItem);
 
     if (m_dummyIcon.isNull())
-        m_dummyIcon = Core::Icons::NEWFILE.icon();
+        m_dummyIcon = Utils::Icons::NEWFILE.icon();
 
     QSet<Id> availablePlatforms = IWizardFactory::allAvailablePlatforms();
     m_ui->comboBox->addItem(tr("All Templates"), Id().toSetting());
@@ -339,9 +339,9 @@ Id NewDialog::selectedPlatform() const
     return Id::fromSetting(m_ui->comboBox->itemData(index));
 }
 
-bool NewDialog::isRunning()
+QWidget *NewDialog::currentDialog()
 {
-    return m_isRunning;
+    return m_currentDialog;
 }
 
 bool NewDialog::event(QEvent *event)
@@ -358,8 +358,8 @@ bool NewDialog::event(QEvent *event)
 
 NewDialog::~NewDialog()
 {
-    QTC_CHECK(m_isRunning);
-    m_isRunning = false;
+    QTC_CHECK(m_currentDialog != nullptr);
+    m_currentDialog = nullptr;
 
     delete m_ui;
 }

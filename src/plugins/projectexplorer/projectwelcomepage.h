@@ -36,28 +36,7 @@ QT_END_NAMESPACE
 namespace ProjectExplorer {
 namespace Internal {
 
-class SessionModel : public QAbstractListModel
-{
-    Q_OBJECT
-
-public:
-    enum { DefaultSessionRole = Qt::UserRole+1, LastSessionRole, ActiveSessionRole, ProjectsPathRole, ProjectsDisplayRole };
-
-    explicit SessionModel(QObject *parent = nullptr);
-
-    int rowCount(const QModelIndex &parent) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-    Q_SCRIPTABLE bool isDefaultVirgin() const;
-
-public slots:
-    void resetSessions();
-    void cloneSession(const QString &session);
-    void deleteSession(const QString &session);
-    void renameSession(const QString &session);
-};
-
+class SessionModel;
 
 class ProjectModel : public QAbstractListModel
 {
@@ -96,7 +75,6 @@ public slots:
 
 signals:
     void requestProject(const QString &project);
-    void requestSession(const QString &session);
     void manageSessions();
 
 private:

@@ -85,6 +85,7 @@ typedef QMap<QString, Library> LibrariesMap;
 
 static bool openXmlFile(QDomDocument &doc, const Utils::FileName &fileName);
 static bool openManifest(ProjectExplorer::Target *target, QDomDocument &doc);
+static int parseMinSdk(const QDomElement &manifestElem);
 
 bool AndroidManager::supportsAndroid(const ProjectExplorer::Kit *kit)
 {
@@ -129,22 +130,37 @@ QString AndroidManager::activityName(ProjectExplorer::Target *target)
     return activityElem.attribute(QLatin1String("android:name"));
 }
 
+/*!
+    Returns the minimum Android API level set for the APK. Minimum API level
+    of the kit is returned if the manifest file of the APK can not be found
+    or parsed.
+*/
 int AndroidManager::minimumSDK(ProjectExplorer::Target *target)
 {
     QDomDocument doc;
     if (!openXmlFile(doc, AndroidManager::manifestSourcePath(target)))
-        return 0;
-    QDomElement manifestElem = doc.documentElement();
-    QDomElement usesSdk = manifestElem.firstChildElement(QLatin1String("uses-sdk"));
-    if (usesSdk.isNull())
-        return 0;
-    if (usesSdk.hasAttribute(QLatin1String("android:minSdkVersion"))) {
-        bool ok;
-        int tmp = usesSdk.attribute(QLatin1String("android:minSdkVersion")).toInt(&ok);
-        if (ok)
-            return tmp;
+        return minimumSDK(target->kit());
+    return parseMinSdk(doc.documentElement());
+}
+
+/*!
+    Returns the minimum Android API level required by the kit to compile. -1 is
+    returned if the kit does not support Android.
+*/
+int AndroidManager::minimumSDK(const ProjectExplorer::Kit *kit)
+{
+    int minSDKVersion = -1;
+    if (supportsAndroid(kit)) {
+        QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+        Utils::FileName stockManifestFilePath =
+                Utils::FileName::fromUserInput(version->qmakeProperty("QT_INSTALL_PREFIX") +
+                                               QLatin1String("/src/android/templates/AndroidManifest.xml"));
+        QDomDocument doc;
+        if (openXmlFile(doc, stockManifestFilePath)) {
+            minSDKVersion = parseMinSdk(doc.documentElement());
+        }
     }
-    return 0;
+    return minSDKVersion;
 }
 
 QString AndroidManager::buildTargetSDK(ProjectExplorer::Target *target)
@@ -267,6 +283,10 @@ QString AndroidManager::androidNameForApiLevel(int x)
         return QLatin1String("Android 5.1");
     case 23:
         return QLatin1String("Android 6.0");
+    case 24:
+        return QLatin1String("Android 7.0");
+    case 25:
+        return QLatin1String("Android 7.1");
     default:
         return tr("Unknown Android version. API Level: %1").arg(QString::number(x));
     }
@@ -293,6 +313,20 @@ static bool openXmlFile(QDomDocument &doc, const Utils::FileName &fileName)
 static bool openManifest(ProjectExplorer::Target *target, QDomDocument &doc)
 {
     return openXmlFile(doc, AndroidManager::manifestPath(target));
+}
+
+static int parseMinSdk(const QDomElement &manifestElem)
+{
+    QDomElement usesSdk = manifestElem.firstChildElement(QLatin1String("uses-sdk"));
+    if (usesSdk.isNull())
+        return 0;
+    if (usesSdk.hasAttribute(QLatin1String("android:minSdkVersion"))) {
+        bool ok;
+        int tmp = usesSdk.attribute(QLatin1String("android:minSdkVersion")).toInt(&ok);
+        if (ok)
+            return tmp;
+    }
+    return 0;
 }
 
 void AndroidManager::cleanLibsOnDevice(ProjectExplorer::Target *target)

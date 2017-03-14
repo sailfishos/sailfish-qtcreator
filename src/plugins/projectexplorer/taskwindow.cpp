@@ -35,13 +35,13 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/itemviews.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QPainter>
@@ -232,7 +232,7 @@ TaskWindow::TaskWindow() : d(new TaskWindowPrivate)
 
     d->m_listview->setModel(d->m_filter);
     d->m_listview->setFrameStyle(QFrame::NoFrame);
-    d->m_listview->setWindowTitle(tr("Issues"));
+    d->m_listview->setWindowTitle(displayName());
     d->m_listview->setSelectionMode(QAbstractItemView::SingleSelection);
     Internal::TaskDelegate *tld = new Internal::TaskDelegate(this);
     d->m_listview->setItemDelegate(tld);
@@ -257,11 +257,11 @@ TaskWindow::TaskWindow() : d(new TaskWindowPrivate)
     d->m_listview->setContextMenuPolicy(Qt::ActionsContextMenu);
 
     d->m_filterWarningsButton = createFilterButton(
-                Core::Icons::WARNING_TOOLBAR.icon(),
+                Utils::Icons::WARNING_TOOLBAR.icon(),
                 tr("Show Warnings"), this, [this](bool show) { setShowWarnings(show); });
 
     d->m_categoriesButton = new QToolButton;
-    d->m_categoriesButton->setIcon(Core::Icons::FILTER.icon());
+    d->m_categoriesButton->setIcon(Utils::Icons::FILTER.icon());
     d->m_categoriesButton->setToolTip(tr("Filter by categories"));
     d->m_categoriesButton->setProperty("noArrow", true);
     d->m_categoriesButton->setAutoRaise(true);
@@ -694,7 +694,7 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
         int height = 0;
         description.replace(QLatin1Char('\n'), QChar::LineSeparator);
         QTextLayout tl(description);
-        tl.setAdditionalFormats(index.data(TaskModel::Task_t).value<Task>().formats);
+        tl.setFormats(index.data(TaskModel::Task_t).value<Task>().formats);
         tl.beginLayout();
         while (true) {
             QTextLine line = tl.createLine();
@@ -794,7 +794,7 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
         int height = 0;
         description.replace(QLatin1Char('\n'), QChar::LineSeparator);
         QTextLayout tl(description);
-        tl.setAdditionalFormats(index.data(TaskModel::Task_t).value<Task>().formats);
+        tl.setFormats(index.data(TaskModel::Task_t).value<Task>().formats);
         tl.beginLayout();
         while (true) {
             QTextLine line = tl.createLine();
@@ -875,7 +875,8 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 
     // Separator lines
     painter->setPen(QColor::fromRgb(150,150,150));
-    painter->drawLine(0, opt.rect.bottom(), opt.rect.right(), opt.rect.bottom());
+    const QRectF borderRect = QRectF(opt.rect).adjusted(0.5, 0.5, -0.5, -0.5);
+    painter->drawLine(borderRect.bottomLeft(), borderRect.bottomRight());
     painter->restore();
 }
 

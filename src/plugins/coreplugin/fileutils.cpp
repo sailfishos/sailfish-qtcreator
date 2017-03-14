@@ -31,15 +31,14 @@
 #include <coreplugin/iversioncontrol.h>
 #include <coreplugin/vcsmanager.h>
 #include <utils/consoleprocess.h>
+#include <utils/environment.h>
 #include <utils/hostosinfo.h>
-#include <utils/qtcprocess.h>
 #include <utils/unixutils.h>
 
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
-#include <QProcess>
 #include <QPushButton>
 #include <QWidget>
 
@@ -67,6 +66,7 @@ static void showGraphicalShellError(QWidget *parent, const QString &app, const Q
 
 void FileUtils::showInGraphicalShell(QWidget *parent, const QString &pathIn)
 {
+    const QFileInfo fileInfo(pathIn);
     // Mac, Windows support folder or file.
     if (HostOsInfo::isWindowsHost()) {
         const FileName explorer = Environment::systemEnvironment().searchInPath(QLatin1String("explorer.exe"));
@@ -79,15 +79,15 @@ void FileUtils::showInGraphicalShell(QWidget *parent, const QString &pathIn)
             return;
         }
         QStringList param;
-        if (!QFileInfo(pathIn).isDir())
+        if (!fileInfo.isDir())
             param += QLatin1String("/select,");
-        param += QDir::toNativeSeparators(pathIn);
+        param += QDir::toNativeSeparators(fileInfo.canonicalFilePath());
         QProcess::startDetached(explorer.toString(), param);
     } else if (HostOsInfo::isMacHost()) {
         QStringList scriptArgs;
         scriptArgs << QLatin1String("-e")
                    << QString::fromLatin1("tell application \"Finder\" to reveal POSIX file \"%1\"")
-                                         .arg(pathIn);
+                                         .arg(fileInfo.canonicalFilePath());
         QProcess::execute(QLatin1String("/usr/bin/osascript"), scriptArgs);
         scriptArgs.clear();
         scriptArgs << QLatin1String("-e")
@@ -95,7 +95,6 @@ void FileUtils::showInGraphicalShell(QWidget *parent, const QString &pathIn)
         QProcess::execute(QLatin1String("/usr/bin/osascript"), scriptArgs);
     } else {
         // we cannot select a file here, because no file browser really supports it...
-        const QFileInfo fileInfo(pathIn);
         const QString folder = fileInfo.isDir() ? fileInfo.absoluteFilePath() : fileInfo.filePath();
         const QString app = UnixUtils::fileBrowser(ICore::settings());
         QProcess browserProc;
@@ -110,27 +109,11 @@ void FileUtils::showInGraphicalShell(QWidget *parent, const QString &pathIn)
 
 void FileUtils::openTerminal(const QString &path)
 {
-    // Get terminal application
-    QString terminalEmulator;
-    QStringList args;
-    const OsType hostOs = HostOsInfo::hostOs();
-    if (hostOs == OsTypeWindows) {
-        terminalEmulator = ConsoleProcess::defaultTerminalEmulator();
-    } else if (hostOs == OsTypeMac) {
-        terminalEmulator = ICore::resourcePath()
-            + QLatin1String("/scripts/openTerminal.command");
-    } else {
-        args = QtcProcess::splitArgs(ConsoleProcess::terminalEmulator(ICore::settings()), hostOs);
-        terminalEmulator = args.takeFirst();
-        args.append(QString::fromLocal8Bit(qgetenv("SHELL")));
-    }
-
-    // Launch terminal with working directory set.
     const QFileInfo fileInfo(path);
     const QString pwd = QDir::toNativeSeparators(fileInfo.isDir() ?
                                                  fileInfo.absoluteFilePath() :
                                                  fileInfo.absolutePath());
-    QProcess::startDetached(terminalEmulator, args, pwd);
+    ConsoleProcess::startTerminalEmulator(ICore::settings(), pwd);
 }
 
 QString FileUtils::msgFindInDirectory()

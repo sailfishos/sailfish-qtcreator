@@ -145,8 +145,13 @@ private slots:
     void test_quickfix_InsertDefFromDecl_rvalueReference();
     void test_quickfix_InsertDefFromDecl_findImplementationFile();
     void test_quickfix_InsertDefFromDecl_unicodeIdentifier();
+    void test_quickfix_InsertDefFromDecl_templateClass();
+    void test_quickfix_InsertDefFromDecl_templateFunction();
 
     void test_quickfix_InsertDeclFromDef();
+    void test_quickfix_InsertDeclFromDef_templateFuncTypename();
+    void test_quickfix_InsertDeclFromDef_templateFuncInt();
+    void test_quickfix_InsertDeclFromDef_notTriggeredForTemplateFunc();
 
     void test_quickfix_AddIncludeForUndefinedIdentifier_data();
     void test_quickfix_AddIncludeForUndefinedIdentifier();
@@ -186,6 +191,8 @@ private slots:
     void test_quickfix_MoveFuncDefToDecl_structWithAssignedVariable();
     void test_quickfix_MoveFuncDefToDecl_macroUses();
     void test_quickfix_MoveFuncDefToDecl_override();
+    void test_quickfix_MoveFuncDefToDecl_template();
+    void test_quickfix_MoveFuncDefToDecl_templateFunction();
 
     void test_quickfix_AssignToLocalVariable_templates();
 

@@ -23,11 +23,16 @@
 **
 ****************************************************************************/
 
-#include "echoipcserver.h"
+#include "echoclangcodemodelserver.h"
 
-#include <connectionserver.h>
+#include <clangbackendipc/clangcodemodelclientproxy.h>
+#include <clangbackendipc/connectionserver.h>
 
 #include <QCoreApplication>
+
+using ClangBackEnd::ClangCodeModelClientProxy;
+using ClangBackEnd::ConnectionServer;
+using ClangBackEnd::EchoClangCodeModelServer;
 
 int main(int argc, char *argv[])
 {
@@ -43,10 +48,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ClangBackEnd::EchoIpcServer echoIpcServer;
-    ClangBackEnd::ConnectionServer connectionServer(application.arguments()[1]);
+    EchoClangCodeModelServer echoClangCodeModelServer;
+    ConnectionServer<EchoClangCodeModelServer, ClangCodeModelClientProxy> connectionServer(application.arguments()[1]);
     connectionServer.start();
-    connectionServer.setIpcServer(&echoIpcServer);
+    connectionServer.setServer(&echoClangCodeModelServer);
 
     return application.exec();
 }

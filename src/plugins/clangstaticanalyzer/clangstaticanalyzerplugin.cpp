@@ -32,6 +32,7 @@
 #include "clangstaticanalyzertool.h"
 
 #ifdef WITH_TESTS
+#include "clangstaticanalyzerpreconfiguredsessiontests.h"
 #include "clangstaticanalyzerunittests.h"
 #endif
 
@@ -54,6 +55,7 @@
 #include <QtPlugin>
 
 using namespace Debugger;
+using namespace ProjectExplorer;
 
 namespace ClangStaticAnalyzer {
 namespace Internal {
@@ -69,7 +71,7 @@ public:
                            "Clang Static Analyzer"));
         setCategory("T.Analyzer");
         setDisplayCategory(QCoreApplication::translate("Analyzer", "Analyzer"));
-        setCategoryIcon(QLatin1String(":/images/analyzer_category.png"));
+        setCategoryIcon(Utils::Icon(":/images/analyzer_category.png"));
     }
 
     QWidget *widget()
@@ -116,11 +118,11 @@ bool ClangStaticAnalyzerPlugin::initialize(const QStringList &arguments, QString
     Q_UNUSED(arguments);
     Q_UNUSED(errorString);
 
-    auto panelFactory = new ProjectExplorer::ProjectPanelFactory();
+    auto panelFactory = new ProjectPanelFactory();
     panelFactory->setPriority(100);
     panelFactory->setDisplayName(tr("Clang Static Analyzer"));
-    panelFactory->setSimpleCreateWidgetFunction<ProjectSettingsWidget>(QIcon());
-    ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
+    panelFactory->setCreateWidgetFunction([](Project *project) { return new ProjectSettingsWidget(project); });
+    ProjectPanelFactory::registerFactory(panelFactory);
 
     m_analyzerTool = new ClangStaticAnalyzerTool(this);
     addAutoReleasedObject(new ClangStaticAnalyzerRunControlFactory(m_analyzerTool));
@@ -148,6 +150,7 @@ QList<QObject *> ClangStaticAnalyzerPlugin::createTestObjects() const
 {
     QList<QObject *> tests;
 #ifdef WITH_TESTS
+    tests << new ClangStaticAnalyzerPreconfiguredSessionTests(m_analyzerTool);
     tests << new ClangStaticAnalyzerUnitTests(m_analyzerTool);
 #endif
     return tests;

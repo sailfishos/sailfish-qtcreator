@@ -32,6 +32,7 @@ namespace CppTools {
 
 ProjectPart::ProjectPart()
     : project(0)
+    , toolChainWordWidth(WordWidth32Bit)
     , isMsvc2015Toolchain(false)
     , languageVersion(CXX14)
     , languageExtensions(NoExtensions)
@@ -45,6 +46,9 @@ void ProjectPart::updateLanguageFeatures()
 {
     const bool hasQt = qtVersion != NoQt;
     languageFeatures.cxx11Enabled = languageVersion >= CXX11;
+    languageFeatures.cxxEnabled = languageVersion >= CXX98;
+    languageFeatures.c99Enabled = languageVersion >= C99;
+    languageFeatures.objCEnabled = languageExtensions & ObjectiveCExtensions;
     languageFeatures.qtEnabled = hasQt;
     languageFeatures.qtMocRunEnabled = hasQt;
     if (!hasQt) {

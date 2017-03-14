@@ -328,8 +328,6 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 item.tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -427,10 +425,6 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
-            }  else if (reader->name() == QLatin1String("platforms")) {
-                item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -572,28 +566,10 @@ BaseQtVersion *ExamplesListModel::findHighestQtVersion() const
 QStringList ExamplesListModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
-    QSettings *settings = Core::ICore::settings();
     QString resourceDir = Core::ICore::resourcePath() + QLatin1String("/welcomescreen/");
 
-    // read extra tutorials settings
-    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
-                                                 QString()).toString();
-    if (installedTutorials.isEmpty()) {
-        // Qt Creator shipped tutorials
-        sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
-    } else {
-        if (debugExamples())
-            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
-        QFileInfo fi(installedTutorials);
-        if (fi.isFile() && fi.isReadable()) {
-            sources.append(installedTutorials);
-            if (debugExamples())
-                qWarning() << "Adding tutorials set " << installedTutorials;
-        } else {
-            if (debugExamples())
-                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
-        }
-    }
+    // Qt Creator shipped tutorials
+    sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
 
     QString examplesPath;
     QString demosPath;
@@ -695,8 +671,6 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
         return item.videoLength;
     case Platforms:
         return item.platforms;
-    case PreferredFeatures:
-        return item.preferredFeatures;
     case IsHighlighted:
         return item.isHighlighted;
     default:
@@ -724,8 +698,7 @@ QHash<int, QByteArray> ExamplesListModel::roleNames() const
         {VideoUrl, "videoUrl"},
         {VideoLength, "videoLength"},
         {Platforms, "platforms"},
-        {IsHighlighted, "isHighlighted"},
-        {PreferredFeatures, "preferredFeatures"}
+        {IsHighlighted, "isHighlighted"}
     };
     return roleNames;
 }
@@ -787,6 +760,14 @@ void ExamplesListModelFilter::updateFilter()
     }
 }
 
+void ExamplesListModelFilter::setFilterStrings(const QStringList &arg)
+{
+    if (m_filterStrings != arg) {
+        m_filterStrings = arg;
+        delayedUpdateFilter();
+    }
+}
+
 bool containsSubString(const QStringList &list, const QString &substr, Qt::CaseSensitivity cs)
 {
     return Utils::contains(list, [&substr, &cs](const QString &elem) {
@@ -816,11 +797,11 @@ bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex 
         });
     }
 
-    if (!m_searchString.isEmpty()) {
+    if (!m_filterStrings.isEmpty()) {
         const QString description = sourceModel()->index(sourceRow, 0, sourceParent).data(Description).toString();
         const QString name = sourceModel()->index(sourceRow, 0, sourceParent).data(Name).toString();
 
-        foreach (const QString &subString, m_searchString) {
+        foreach (const QString &subString, m_filterStrings) {
             bool wordMatch = false;
             wordMatch |= (bool)name.contains(subString, Qt::CaseInsensitive);
             if (wordMatch)
@@ -860,6 +841,14 @@ void ExamplesListModelFilter::filterForExampleSet(int index)
         return;
 
     m_sourceModel->selectExampleSet(index);
+}
+
+void ExamplesListModelFilter::setFilterTags(const QStringList &arg)
+{
+    if (m_filterTags != arg) {
+        m_filterTags = arg;
+        emit filterTagsChanged(arg);
+    }
 }
 
 void ExamplesListModelFilter::setShowTutorialsOnly(bool showTutorialsOnly)
@@ -1011,8 +1000,13 @@ struct SearchStringLexer
     }
 };
 
-void ExamplesListModelFilter::parseSearchString(const QString &arg)
+void ExamplesListModelFilter::setSearchString(const QString &arg)
 {
+    if (m_searchString == arg)
+        return;
+    m_searchString = arg;
+    emit searchStringChanged(m_searchString);
+    // parse and update
     QStringList tags;
     QStringList searchTerms;
     SearchStringLexer lex(arg);
@@ -1034,9 +1028,14 @@ void ExamplesListModelFilter::parseSearchString(const QString &arg)
         }
     }
 
-    setSearchStrings(searchTerms);
+    setFilterStrings(searchTerms);
     setFilterTags(tags);
     delayedUpdateFilter();
+}
+
+QString ExamplesListModelFilter::searchString() const
+{
+    return m_searchString;
 }
 
 } // namespace Internal

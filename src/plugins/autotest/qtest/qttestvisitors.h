@@ -42,7 +42,7 @@ namespace Internal {
 class TestVisitor : public CPlusPlus::SymbolVisitor
 {
 public:
-    TestVisitor(const QString &fullQualifiedClassName);
+    explicit TestVisitor(const QString &fullQualifiedClassName, const CPlusPlus::Snapshot &snapshot);
 
     QMap<QString, TestCodeLocationAndType> privateSlots() const { return m_privSlots; }
     bool resultValid() const { return m_valid; }
@@ -52,6 +52,7 @@ public:
 private:
     CppTools::SymbolFinder m_symbolFinder;
     QString m_className;
+    CPlusPlus::Snapshot m_snapshot;
     QMap<QString, TestCodeLocationAndType> m_privSlots;
     bool m_valid = false;
 };
@@ -59,7 +60,7 @@ private:
 class TestAstVisitor : public CPlusPlus::ASTVisitor
 {
 public:
-    TestAstVisitor(CPlusPlus::Document::Ptr doc);
+    explicit TestAstVisitor(CPlusPlus::Document::Ptr doc, const CPlusPlus::Snapshot &snapshot);
 
     bool visit(CPlusPlus::CallAST *ast);
     bool visit(CPlusPlus::CompoundStatementAST *ast);
@@ -70,12 +71,13 @@ private:
     QString m_className;
     CPlusPlus::Scope *m_currentScope = 0;
     CPlusPlus::Document::Ptr m_currentDoc;
+    CPlusPlus::Snapshot m_snapshot;
 };
 
 class TestDataFunctionVisitor : public CPlusPlus::ASTVisitor
 {
 public:
-    TestDataFunctionVisitor(CPlusPlus::Document::Ptr doc);
+    explicit TestDataFunctionVisitor(CPlusPlus::Document::Ptr doc);
 
     bool visit(CPlusPlus::UsingDirectiveAST *ast);
     bool visit(CPlusPlus::FunctionDefinitionAST *ast);
@@ -93,9 +95,9 @@ private:
     QString m_currentFunction;
     QMap<QString, TestCodeLocationList> m_dataTags;
     TestCodeLocationList m_currentTags;
-    unsigned m_currentAstDepth;
-    unsigned m_insideUsingQTestDepth;
-    bool m_insideUsingQTest;
+    unsigned m_currentAstDepth = 0;
+    unsigned m_insideUsingQTestDepth = 0;
+    bool m_insideUsingQTest = false;
 };
 
 } // namespace Internal

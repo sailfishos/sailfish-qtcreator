@@ -33,7 +33,7 @@
     \contentspage {Qt Creator Manual}
     \previouspage creator-mime-types.html
     \page creator-modeling.html
-    \nextpage creator-building-running.html
+    \nextpage creator-scxml.html
 
     \title Modeling
 
@@ -82,6 +82,22 @@
     entity is usually a class that is used to store data. For some stereotypes,
     a custom icon is defined. You can assign several comma-separated stereotypes
     to one element.
+
+    By default, when you select an element in a diagram, it is highlighted also
+    in the \uicontrol Structure view. To change this behavior so that selecting
+    an element in the \uicontrol Structure makes it highlighted also in the
+    diagram, click and hold the \inlineimage linkicon.png
+    button, and then select \uicontrol {Synchronize Diagram with Structure}.
+    To keep the selections in the diagram and the \uicontrol Structure view
+    synchronized, select \uicontrol {Keep Synchronized}.
+
+    To zoom into diagrams, select \uicontrol Tools > \uicontrol {Model Editor} >
+    \uicontrol {Zoom In}, press \key Ctrl++, or press \key Ctrl and roll the
+    mouse wheel up. To zoom out of diagrams, select \uicontrol Tools >
+    \uicontrol {Model Editor} > \uicontrol {Zoom Out}, press \key Ctrl+-, or
+    press \key Ctrl and roll the mouse wheel down. To reset the diagram size to
+    100%, select \uicontrol Tools > \uicontrol {Model Editor} > \uicontrol
+    {Reset Zoom} or press \key Ctrl+0.
 
     To print diagrams, press \key Ctrl+C when no elements are selected in
     the editor to copy all elements to the clipboard by using 300 dpi. Then

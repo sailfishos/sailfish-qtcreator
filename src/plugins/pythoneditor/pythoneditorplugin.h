@@ -26,10 +26,6 @@
 #pragma once
 
 #include <extensionsystem/iplugin.h>
-#include <projectexplorer/runconfiguration.h>
-#include <projectexplorer/target.h>
-
-#include <QSet>
 
 namespace PythonEditor {
 namespace Internal {
@@ -41,19 +37,10 @@ class PythonEditorPlugin : public ExtensionSystem::IPlugin
 
 public:
     PythonEditorPlugin();
-    virtual ~PythonEditorPlugin();
+    ~PythonEditorPlugin() override;
 
-    virtual bool initialize(const QStringList &arguments, QString *errorMessage);
-    virtual void extensionsInitialized() {}
-
-    static QSet<QString> keywords();
-    static QSet<QString> magics();
-    static QSet<QString> builtins();
-
-private:
-    QSet<QString> m_keywords;
-    QSet<QString> m_magics;
-    QSet<QString> m_builtins;
+    bool initialize(const QStringList &arguments, QString *errorMessage) override;
+    void extensionsInitialized() override;
 };
 
 } // namespace Internal

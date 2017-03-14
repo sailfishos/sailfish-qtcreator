@@ -34,6 +34,7 @@
 #include "qmljsviewercontext.h"
 
 #include <cplusplus/cppmodelmanagerbase.h>
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/runextensions.h>
 
@@ -439,9 +440,9 @@ void ModelManagerInterface::iterateQrcFiles(ProjectExplorer::Project *project,
     } else {
         pInfos = projectInfos();
         if (resources == ActiveQrcResources) // make the result predictable
-            qSort(pInfos.begin(), pInfos.end(), &pInfoLessThanActive);
+            Utils::sort(pInfos, &pInfoLessThanActive);
         else
-            qSort(pInfos.begin(), pInfos.end(), &pInfoLessThanAll);
+            Utils::sort(pInfos, &pInfoLessThanAll);
     }
 
     QSet<QString> pathsChecked;
@@ -565,8 +566,9 @@ void ModelManagerInterface::updateProjectInfo(const ProjectInfo &pinfo, ProjectE
     updateSourceFiles(newFiles, false);
 
     // update qrc cache
+    m_qrcContents = pinfo.resourceFileContents;
     foreach (const QString &newQrc, pinfo.allResourceFiles)
-        m_qrcCache.addPath(newQrc);
+        m_qrcCache.addPath(newQrc, m_qrcContents.value(newQrc));
     foreach (const QString &oldQrc, oldInfo.allResourceFiles)
         m_qrcCache.removePath(oldQrc);
 
@@ -655,7 +657,7 @@ void ModelManagerInterface::emitDocumentChangedOnDisk(Document::Ptr doc)
 
 void ModelManagerInterface::updateQrcFile(const QString &path)
 {
-    m_qrcCache.updatePath(path);
+    m_qrcCache.updatePath(path, m_qrcContents.value(path));
 }
 
 void ModelManagerInterface::updateDocument(Document::Ptr doc)
@@ -1299,7 +1301,7 @@ void ModelManagerInterface::updateCppQmlTypes(QFutureInterface<void> &interface,
     interface.setProgressValue(0);
 
     CppDataHash newData;
-    QHash<QString, QStringList> newDeclarations;
+    QHash<QString, QList<CPlusPlus::Document::Ptr> > newDeclarations;
     {
         QMutexLocker locker(&qmlModelManager->m_cppDataMutex);
         newData = qmlModelManager->m_cppDataHash;
@@ -1320,33 +1322,36 @@ void ModelManagerInterface::updateCppQmlTypes(QFutureInterface<void> &interface,
         const QString fileName = doc->fileName();
         if (!scan) {
             hasNewInfo = newData.remove(fileName) > 0 || hasNewInfo;
-            foreach (const QString &file, newDeclarations[fileName]) {
-                CPlusPlus::Document::Ptr doc = snapshot.document(file);
-                if (doc.isNull())
-                    continue;
-                finder(doc);
-                hasNewInfo = rescanExports(file, finder, newData) || hasNewInfo;
+            foreach (const CPlusPlus::Document::Ptr &savedDoc, newDeclarations.value(fileName)) {
+                finder(savedDoc);
+                hasNewInfo = rescanExports(savedDoc->fileName(), finder, newData) || hasNewInfo;
             }
             continue;
         }
 
         for (auto it = newDeclarations.begin(), end = newDeclarations.end(); it != end;) {
-            if (it->removeOne(fileName)) {
-                doc->releaseSourceAndAST();
-                if (it->isEmpty()) {
-                    it = newDeclarations.erase(it);
-                    continue;
+            for (auto docIt = it->begin(), endDocIt = it->end(); docIt != endDocIt;) {
+                CPlusPlus::Document::Ptr &savedDoc = *docIt;
+                if (savedDoc->fileName() == fileName) {
+                    savedDoc->releaseSourceAndAST();
+                    it->erase(docIt);
+                    break;
+                } else {
+                    ++docIt;
                 }
             }
-            ++it;
+            if (it->isEmpty())
+                it = newDeclarations.erase(it);
+            else
+                ++it;
         }
 
         foreach (const QString &declarationFile, finder(doc)) {
-            newDeclarations[declarationFile].append(fileName);
+            newDeclarations[declarationFile].append(doc);
             doc->keepSourceAndAST(); // keep for later reparsing when dependent doc changes
         }
 
-        hasNewInfo = rescanExports(doc->fileName(), finder, newData) || hasNewInfo;
+        hasNewInfo = rescanExports(fileName, finder, newData) || hasNewInfo;
         doc->releaseSourceAndAST();
     }
 

@@ -29,8 +29,6 @@
 
 namespace Nim {
 
-class NimBuildInfo;
-
 class NimBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
 {
     Q_OBJECT
@@ -63,12 +61,14 @@ public:
     int priority(const ProjectExplorer::Target *parent) const override;
 
 private:
+    bool canHandle(const ProjectExplorer::Target *t) const;
     static Utils::FileName defaultBuildDirectory(const ProjectExplorer::Kit *k,
                                                  const QString &projectPath,
                                                  const QString &bc, ProjectExplorer::BuildConfiguration::BuildType buildType);
 
-    NimBuildInfo *createBuildInfo(const ProjectExplorer::Kit *k,
-                                  const QString &projectPath, ProjectExplorer::BuildConfiguration::BuildType buildType) const;
+    ProjectExplorer::BuildInfo *createBuildInfo(const ProjectExplorer::Kit *k,
+                                                const QString &projectPath,
+                                                ProjectExplorer::BuildConfiguration::BuildType buildType) const;
 };
 
 }

@@ -30,6 +30,7 @@
 #include "toolchainconfigwidget.h"
 
 QT_FORWARD_DECLARE_CLASS(QLabel)
+QT_FORWARD_DECLARE_CLASS(QVersionNumber)
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -55,7 +56,7 @@ public:
 
     explicit MsvcToolChain(const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
-                           Detection d = ManualDetection);
+                           const Language &l, Detection d = ManualDetection);
     MsvcToolChain();
 
     Utils::FileNameList suggestedMkspecList() const override;
@@ -76,7 +77,7 @@ public:
 protected:
     explicit MsvcToolChain(Core::Id typeId, const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
-                           Detection d);
+                           const Language &l, Detection d);
     explicit MsvcToolChain(Core::Id typeId);
 
     Utils::Environment readEnvironmentSetting(Utils::Environment& env) const override;
@@ -93,6 +94,7 @@ public:
     explicit ClangClToolChain(const QString &name, const QString &llvmDir,
                               const Abi &abi,
                               const QString &varsBat, const QString &varsBatArg,
+                              const Language &l,
                               Detection d = ManualDetection);
     ClangClToolChain();
 
@@ -124,6 +126,7 @@ class MsvcToolChainFactory : public ToolChainFactory
 
 public:
     MsvcToolChainFactory();
+    QSet<ToolChain::Language> supportedLanguages() const override;
 
     QList<ToolChain *> autoDetect(const QList<ToolChain *> &alreadyKnown) override;
 
@@ -131,9 +134,8 @@ public:
     ToolChain *restore(const QVariantMap &data) override;
 
     ToolChainConfigWidget *configurationWidget(ToolChain *);
-    static QString vcVarsBatFor(const QString &basePath, MsvcToolChain::Platform platform);
-private:
-    static bool checkForVisualStudioInstallation(const QString &vsName);
+    static QString vcVarsBatFor(const QString &basePath, MsvcToolChain::Platform platform,
+                                const QVersionNumber &v);
 };
 
 // --------------------------------------------------------------------------

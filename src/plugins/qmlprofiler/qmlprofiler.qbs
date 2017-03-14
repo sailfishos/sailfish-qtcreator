@@ -4,9 +4,10 @@ QtcPlugin {
     name: "QmlProfiler"
 
     Depends { name: "Qt"; submodules: ["widgets", "network", "quick", "quickwidgets"] }
+
+    Depends { name: "FlameGraph" }
     Depends { name: "QmlJS" }
     Depends { name: "QmlDebug" }
-    Depends { name: "QtcSsh" }
     Depends { name: "Utils" }
     Depends { name: "Timeline" }
 
@@ -20,7 +21,6 @@ QtcPlugin {
         name: "General"
         files: [
             "debugmessagesmodel.cpp", "debugmessagesmodel.h",
-            "flamegraph.cpp", "flamegraph.h",
             "flamegraphmodel.cpp", "flamegraphmodel.h",
             "flamegraphview.cpp", "flamegraphview.h",
             "inputeventsmodel.cpp", "inputeventsmodel.h",
@@ -78,7 +78,6 @@ QtcPlugin {
         prefix: "tests/"
         files: [
             "debugmessagesmodel_test.cpp", "debugmessagesmodel_test.h",
-            "flamegraph_test.cpp", "flamegraph_test.h",
             "flamegraphmodel_test.cpp", "flamegraphmodel_test.h",
             "flamegraphview_test.cpp", "flamegraphview_test.h",
             "inputeventsmodel_test.cpp", "inputeventsmodel_test.h",
@@ -89,6 +88,12 @@ QtcPlugin {
             "qmleventlocation_test.cpp", "qmleventlocation_test.h",
             "qmleventtype_test.cpp", "qmleventtype_test.h",
             "qmlnote_test.cpp", "qmlnote_test.h",
+            "qmlprofileranimationsmodel_test.cpp", "qmlprofileranimationsmodel_test.h",
+            "qmlprofilerattachdialog_test.cpp", "qmlprofilerattachdialog_test.h",
+            "qmlprofilerbindingloopsrenderpass_test.cpp",
+            "qmlprofilerbindingloopsrenderpass_test.h",
+            "qmlprofilerclientmanager_test.cpp", "qmlprofilerclientmanager_test.h",
+            "qmlprofilerconfigwidget_test.cpp", "qmlprofilerconfigwidget_test.h",
         ]
     }
 }

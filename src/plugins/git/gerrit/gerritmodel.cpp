@@ -268,8 +268,7 @@ QueryContext::QueryContext(const QStringList &queries,
             this, &QueryContext::readyReadStandardOutput);
     connect(&m_process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &QueryContext::processFinished);
-    connect(&m_process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &QueryContext::processError);
+    connect(&m_process, &QProcess::errorOccurred, this, &QueryContext::processError);
     connect(&m_watcher, &QFutureWatcherBase::canceled, this, &QueryContext::terminate);
     m_watcher.setFuture(m_progress.future());
     m_process.setProcessEnvironment(Git::Internal::GitPlugin::client()->processEnvironment());
@@ -640,9 +639,9 @@ static bool parseOutput(const QSharedPointer<GerritParameters> &parameters,
             approval.description = ao.value(approvalsDescriptionKey).toString();
             change->currentPatchSet.approvals.push_back(approval);
         }
-        qStableSort(change->currentPatchSet.approvals.begin(),
-                    change->currentPatchSet.approvals.end(),
-                    gerritApprovalLessThan);
+        std::stable_sort(change->currentPatchSet.approvals.begin(),
+                         change->currentPatchSet.approvals.end(),
+                         gerritApprovalLessThan);
         // Remaining
         change->number = object.value(numberKey).toString().toInt();
         change->url = object.value(urlKey).toString();
@@ -779,7 +778,7 @@ void GerritModel::queryFinished(const QByteArray &output)
         }
     }
     // Sort by depth (root nodes first) and by date.
-    qStableSort(changes.begin(), changes.end(), gerritChangeLessThan);
+    std::stable_sort(changes.begin(), changes.end(), gerritChangeLessThan);
     numberIndexHash.clear();
 
     foreach (const GerritChangePtr &c, changes) {

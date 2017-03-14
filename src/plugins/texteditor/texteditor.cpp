@@ -91,6 +91,7 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QGridLayout>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMessageBox>
@@ -111,9 +112,6 @@
 #include <QTimeLine>
 #include <QTimer>
 #include <QToolBar>
-#include <QVBoxLayout>
-
-//#define DO_FOO
 
 /*!
     \namespace TextEditor
@@ -425,7 +423,13 @@ public:
     void enableBlockSelection(const QTextCursor &cursor);
     void enableBlockSelection(int positionBlock, int positionColumn,
                               int anchorBlock, int anchorColumn);
-    void disableBlockSelection(bool keepSelection = true);
+
+    enum BlockSelectionUpdateKind {
+        NoCursorUpdate,
+        CursorUpdateKeepSelection,
+        CursorUpdateClearSelection,
+    };
+    void disableBlockSelection(BlockSelectionUpdateKind kind);
     void resetCursorFlashTimer();
     QBasicTimer m_cursorFlashTimer;
     bool m_cursorVisible;
@@ -727,14 +731,6 @@ void TextEditorWidgetPrivate::ctor(const QSharedPointer<TextDocument> &doc)
     QObject::connect(q, &QPlainTextEdit::selectionChanged,
                      this, &TextEditorWidgetPrivate::slotSelectionChanged);
 
-//     (void) new QShortcut(tr("CTRL+L"), this, SLOT(centerCursor()), 0, Qt::WidgetShortcut);
-//     (void) new QShortcut(tr("F9"), this, SLOT(slotToggleMark()), 0, Qt::WidgetShortcut);
-//     (void) new QShortcut(tr("F11"), this, SLOT(slotToggleBlockVisible()));
-
-#ifdef DO_FOO
-    (void) new QShortcut(TextEditorWidget::tr("CTRL+D"), this, SLOT(doFoo()));
-#endif
-
     // parentheses matcher
     m_formatRange = true;
     m_parenthesesMatchingTimer.setSingleShot(true);
@@ -867,7 +863,7 @@ void TextEditorWidgetPrivate::print(QPrinter *printer)
          srcBlock = srcBlock.next(), dstBlock = dstBlock.next()) {
 
 
-        QList<QTextLayout::FormatRange> formatList = srcBlock.layout()->additionalFormats();
+        QVector<QTextLayout::FormatRange> formatList = srcBlock.layout()->formats();
         if (backgroundIsDark) {
             // adjust syntax highlighting colors for better contrast
             for (int i = formatList.count() - 1; i >= 0; --i) {
@@ -885,7 +881,7 @@ void TextEditorWidgetPrivate::print(QPrinter *printer)
             }
         }
 
-        dstBlock.layout()->setAdditionalFormats(formatList);
+        dstBlock.layout()->setFormats(formatList);
     }
 
     QAbstractTextDocumentLayout *layout = doc->documentLayout();
@@ -1357,6 +1353,15 @@ bool TextEditorWidget::selectBlockDown()
     return true;
 }
 
+void TextEditorWidget::selectWordUnderCursor()
+{
+    QTextCursor tc = textCursor();
+    if (tc.hasSelection())
+        return;
+    tc.select(QTextCursor::WordUnderCursor);
+    setTextCursor(tc);
+}
+
 void TextEditorWidget::copyLineUp()
 {
     d->copyLineUpDown(true);
@@ -1470,7 +1475,7 @@ void TextEditorWidget::insertLineAbove()
 void TextEditorWidget::insertLineBelow()
 {
     if (d->m_inBlockSelectionMode)
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
     QTextCursor cursor = textCursor();
     cursor.beginEditBlock();
     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
@@ -1527,14 +1532,14 @@ void TextEditorWidget::unindent()
 void TextEditorWidget::undo()
 {
     if (d->m_inBlockSelectionMode)
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateClearSelection);
     QPlainTextEdit::undo();
 }
 
 void TextEditorWidget::redo()
 {
     if (d->m_inBlockSelectionMode)
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateClearSelection);
     QPlainTextEdit::redo();
 }
 
@@ -1573,7 +1578,7 @@ void TextEditorWidgetPrivate::moveLineUpDown(bool up)
 
     if (hasSelection) {
         if (m_inBlockSelectionMode)
-            disableBlockSelection(true);
+            disableBlockSelection(NoCursorUpdate);
         move.setPosition(cursor.selectionStart());
         move.movePosition(QTextCursor::StartOfBlock);
         move.setPosition(cursor.selectionEnd(), QTextCursor::KeepAnchor);
@@ -2115,7 +2120,7 @@ void TextEditorWidget::keyPressEvent(QKeyEvent *e)
         && (e == QKeySequence::InsertParagraphSeparator
             || (!d->m_lineSeparatorsAllowed && e == QKeySequence::InsertLineSeparator))) {
         if (d->m_inBlockSelectionMode) {
-            d->disableBlockSelection(false);
+            d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateClearSelection);
             e->accept();
             return;
         }
@@ -2242,7 +2247,7 @@ void TextEditorWidget::keyPressEvent(QKeyEvent *e)
         return;
     } else if (!ro && (e == QKeySequence::MoveToNextPage || e == QKeySequence::MoveToPreviousPage)
                && d->m_inBlockSelectionMode) {
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateClearSelection);
         QPlainTextEdit::keyPressEvent(e);
         return;
     } else if (!ro && (e == QKeySequence::SelectNextPage || e == QKeySequence::SelectPreviousPage)
@@ -2342,7 +2347,7 @@ void TextEditorWidget::keyPressEvent(QKeyEvent *e)
             e->accept();
             return;
         } else if (d->m_inBlockSelectionMode) { // leave block selection mode
-            d->disableBlockSelection();
+            d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
         }
         break;
     case Qt::Key_Insert:
@@ -2529,7 +2534,7 @@ void TextEditorWidget::doSetTextCursor(const QTextCursor &cursor, bool keepBlock
     // workaround for QTextControl bug
     bool selectionChange = cursor.hasSelection() || textCursor().hasSelection();
     if (!keepBlockSelection && d->m_inBlockSelectionMode)
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
     QTextCursor c = cursor;
     c.setVisualNavigation(true);
     QPlainTextEdit::doSetTextCursor(c);
@@ -3503,15 +3508,17 @@ void TextEditorWidgetPrivate::enableBlockSelection(int positionBlock, int positi
     q->viewport()->update();
 }
 
-void TextEditorWidgetPrivate::disableBlockSelection(bool keepSelection)
+void TextEditorWidgetPrivate::disableBlockSelection(BlockSelectionUpdateKind kind)
 {
     m_inBlockSelectionMode = false;
     m_cursorFlashTimer.stop();
-    QTextCursor cursor = m_blockSelection.selection(m_document.data());
+    if (kind != NoCursorUpdate) {
+        QTextCursor cursor = m_blockSelection.selection(m_document.data());
+        if (kind == CursorUpdateClearSelection)
+            cursor.clearSelection();
+        q->setTextCursor(cursor);
+    }
     m_blockSelection.clear();
-    if (!keepSelection)
-        cursor.clearSelection();
-    q->setTextCursor(cursor);
     q->viewport()->update();
 }
 
@@ -4880,7 +4887,7 @@ void TextEditorWidget::mouseMoveEvent(QMouseEvent *e)
                 viewport()->update();
             }
         } else if (d->m_inBlockSelectionMode) {
-            d->disableBlockSelection();
+            d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateKeepSelection);
         }
     }
     if (viewport()->cursor().shape() == Qt::BlankCursor)
@@ -4924,7 +4931,7 @@ void TextEditorWidget::mousePressEvent(QMouseEvent *e)
             }
         } else {
             if (d->m_inBlockSelectionMode)
-                d->disableBlockSelection(false); // just in case, otherwise we might get strange drag and drop
+                d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
 
             QTextBlock foldedBlock = d->foldedBlockAt(e->pos());
             if (foldedBlock.isValid()) {
@@ -5113,7 +5120,7 @@ void TextEditorWidget::extraAreaMouseEvent(QMouseEvent *e)
                     if (data->marks().isEmpty()) {
                         ToolTip::hide();
                     } else {
-                        auto layout = new QVBoxLayout;
+                        auto layout = new QGridLayout;
                         layout->setContentsMargins(0, 0, 0, 0);
                         layout->setSpacing(2);
                         foreach (TextMark *mark, data->marks())
@@ -6681,7 +6688,7 @@ void TextEditorWidget::cut()
 void TextEditorWidget::selectAll()
 {
     if (d->m_inBlockSelectionMode)
-        d->disableBlockSelection();
+        d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
     QPlainTextEdit::selectAll();
 }
 
@@ -6721,8 +6728,10 @@ void TextEditorWidget::circularPaste()
         circularClipBoard->toLastCollect();
     }
 
-    if (circularClipBoard->size() > 1)
-        return invokeAssist(QuickFix, d->m_clipboardAssistProvider.data());
+    if (circularClipBoard->size() > 1) {
+        invokeAssist(QuickFix, d->m_clipboardAssistProvider.data());
+        return;
+    }
 
     if (const QMimeData *mimeData = circularClipBoard->next().data()) {
         QApplication::clipboard()->setMimeData(TextEditorWidget::duplicateMimeData(mimeData));
@@ -6766,7 +6775,7 @@ QMimeData *TextEditorWidget::createMimeDataFromSelection() const
             for (QTextBlock current = start; current.isValid() && current != end; current = current.next()) {
                 if (selectionVisible(current.blockNumber())) {
                     const QTextLayout *layout = current.layout();
-                    foreach (const QTextLayout::FormatRange &range, layout->additionalFormats()) {
+                    foreach (const QTextLayout::FormatRange &range, layout->formats()) {
                         const int startPosition = current.position() + range.start - selectionStart - removedCount;
                         const int endPosition = startPosition + range.length;
                         if (endPosition <= 0 || startPosition >= endOfDocument - removedCount)
@@ -7034,8 +7043,8 @@ QWidget *BaseTextEditor::toolBar()
     return editorWidget()->d->m_toolBar;
 }
 
-void TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
-                                              QWidget *widget)
+QAction * TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
+                                                     QWidget *widget)
 {
     if (widget->sizePolicy().horizontalPolicy() & QSizePolicy::ExpandFlag) {
         if (d->m_stretchWidget)
@@ -7044,9 +7053,9 @@ void TextEditorWidget::insertExtraToolBarWidget(TextEditorWidget::Side side,
     }
 
     if (side == Right)
-        d->m_toolBar->insertWidget(d->m_cursorPositionLabelAction, widget);
+        return d->m_toolBar->insertWidget(d->m_cursorPositionLabelAction, widget);
     else
-        d->m_toolBar->insertWidget(d->m_toolBar->actions().first(), widget);
+        return d->m_toolBar->insertWidget(d->m_toolBar->actions().first(), widget);
 }
 
 void TextEditorWidget::keepAutoCompletionHighlight(bool keepHighlight)
@@ -7138,7 +7147,8 @@ void BaseTextEditor::setCursorPosition(int pos)
 
 void TextEditorWidget::setCursorPosition(int pos)
 {
-    setBlockSelection(false);
+    if (d->m_inBlockSelectionMode)
+        d->disableBlockSelection(TextEditorWidgetPrivate::NoCursorUpdate);
     QTextCursor tc = textCursor();
     tc.setPosition(pos);
     setTextCursor(tc);
@@ -7204,19 +7214,6 @@ void TextEditorWidget::setRefactorMarkers(const RefactorMarkers &markers)
     d->m_refactorOverlay->setMarkers(markers);
     foreach (const RefactorMarker &marker, markers)
         requestBlockUpdate(marker.cursor.block());
-}
-
-void TextEditorWidget::doFoo()
-{
-#ifdef DO_FOO
-    qDebug() << Q_FUNC_INFO;
-    RefactorMarkers markers = d->m_refactorOverlay->markers();
-    RefactorMarker marker;
-    marker.tooltip = "Hello World";
-    marker.cursor = textCursor();
-    markers += marker;
-    setRefactorMarkers(markers);
-#endif
 }
 
 TextBlockSelection::TextBlockSelection(const TextBlockSelection &other)
@@ -7328,7 +7325,7 @@ void TextEditorWidget::setBlockSelection(bool on)
     if (on)
         d->enableBlockSelection(textCursor());
     else
-        d->disableBlockSelection(false);
+        d->disableBlockSelection(TextEditorWidgetPrivate::CursorUpdateClearSelection);
 }
 
 void TextEditorWidget::setBlockSelection(int positionBlock, int positionColumn,

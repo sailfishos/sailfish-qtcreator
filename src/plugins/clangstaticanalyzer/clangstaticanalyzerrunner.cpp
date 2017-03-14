@@ -63,7 +63,7 @@ static QStringList constructCommandLineArguments(const QString &filePath,
     arguments
         << QLatin1String("--analyze")
         << QLatin1String("-o")
-        << logFile
+        << QDir::toNativeSeparators(logFile)
         ;
     arguments += options;
     arguments << QDir::toNativeSeparators(filePath);
@@ -80,7 +80,7 @@ ClangStaticAnalyzerRunner::ClangStaticAnalyzerRunner(const QString &clangExecuta
                                                      const Utils::Environment &environment,
                                                      QObject *parent)
     : QObject(parent)
-    , m_clangExecutable(clangExecutable)
+    , m_clangExecutable(QDir::toNativeSeparators(clangExecutable))
     , m_clangLogFileDir(clangLogFileDir)
 {
     QTC_CHECK(!m_clangExecutable.isEmpty());
@@ -89,14 +89,11 @@ ClangStaticAnalyzerRunner::ClangStaticAnalyzerRunner(const QString &clangExecuta
     m_process.setProcessChannelMode(QProcess::MergedChannels);
     m_process.setProcessEnvironment(environment.toProcessEnvironment());
     m_process.setWorkingDirectory(m_clangLogFileDir); // Current clang-cl puts log file into working dir.
-    connect(&m_process, &QProcess::started,
-            this, &ClangStaticAnalyzerRunner::onProcessStarted);
+    connect(&m_process, &QProcess::started, this, &ClangStaticAnalyzerRunner::onProcessStarted);
     connect(&m_process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &ClangStaticAnalyzerRunner::onProcessFinished);
-    connect(&m_process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &ClangStaticAnalyzerRunner::onProcessError);
-    connect(&m_process, &QProcess::readyRead,
-            this, &ClangStaticAnalyzerRunner::onProcessOutput);
+    connect(&m_process, &QProcess::errorOccurred, this, &ClangStaticAnalyzerRunner::onProcessError);
+    connect(&m_process, &QProcess::readyRead, this, &ClangStaticAnalyzerRunner::onProcessOutput);
 }
 
 ClangStaticAnalyzerRunner::~ClangStaticAnalyzerRunner()

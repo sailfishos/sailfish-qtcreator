@@ -33,7 +33,9 @@
 
 namespace CppTools {
 class CppEditorOutline;
+class RefactoringEngineInterface;
 class SemanticInfo;
+class ProjectPart;
 }
 
 namespace CppEditor {
@@ -106,6 +108,9 @@ protected:
 
     void slotCodeStyleSettingsChanged(const QVariant &) override;
 
+public:
+    using HeaderErrorDiagnosticWidgetCreator = std::function<QWidget*()>;
+
 private:
     void updateFunctionDeclDefLink();
     void updateFunctionDeclDefLinkNow();
@@ -116,15 +121,15 @@ private:
 
     void onCodeWarningsUpdated(unsigned revision,
                                const QList<QTextEdit::ExtraSelection> selections,
+                               const HeaderErrorDiagnosticWidgetCreator &creator,
                                const TextEditor::RefactorMarkers &refactorMarkers);
     void onIfdefedOutBlocksUpdated(unsigned revision,
                                    const QList<TextEditor::BlockRange> ifdefedOutBlocks);
 
+    void updateHeaderErrorWidgets();
     void updateSemanticInfo(const CppTools::SemanticInfo &semanticInfo,
                             bool updateUseSelectionSynchronously = false);
     void updatePreprocessorButtonTooltip();
-
-    void performQuickFix(int index);
 
     void processKeyNormally(QKeyEvent *e);
 
@@ -134,6 +139,15 @@ private:
     unsigned documentRevision() const;
 
     TextEditor::RefactorMarkers refactorMarkersWithoutClangMarkers() const;
+
+    CppTools::RefactoringEngineInterface *refactoringEngine() const;
+
+    void renameSymbolUnderCursorClang();
+    void renameSymbolUnderCursorBuiltin();
+
+    void addHeaderErrorInfoBarEntry() const;
+
+    CppTools::ProjectPart *projectPart() const;
 
 private:
     QScopedPointer<CppEditorWidgetPrivate> d;

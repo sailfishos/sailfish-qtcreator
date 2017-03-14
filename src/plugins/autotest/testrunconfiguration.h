@@ -36,11 +36,15 @@
 #include <utils/qtcassert.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
 
+#include <QCoreApplication>
+
 namespace Autotest {
 namespace Internal {
 
 class TestRunConfiguration : public ProjectExplorer::RunConfiguration
 {
+    Q_DECLARE_TR_FUNCTIONS(Autotest::Internal::TestRunConfiguration)
+
 public:
     TestRunConfiguration(ProjectExplorer::Target *parent, TestConfiguration *config)
         : ProjectExplorer::RunConfiguration(parent, "AutoTest.TestRunConfig")
@@ -60,8 +64,7 @@ public:
         ProjectExplorer::StandardRunnable r;
         QTC_ASSERT(m_testConfig, return r);
         r.executable = m_testConfig->targetFile();
-        r.commandLineArguments = m_testConfig->argumentsForTestRunner(
-                    *AutotestPlugin::instance()->settings()).join(' ');
+        r.commandLineArguments = m_testConfig->argumentsForTestRunner().join(' ');
         r.workingDirectory = m_testConfig->workingDirectory();
         r.environment = m_testConfig->environment();
         r.runMode = ProjectExplorer::ApplicationLauncher::Gui;

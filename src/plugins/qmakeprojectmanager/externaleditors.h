@@ -27,6 +27,7 @@
 
 #include <coreplugin/editormanager/iexternaleditor.h>
 #include <coreplugin/id.h>
+#include <functional>
 
 #include <QStringList>
 #include <QMap>
@@ -34,7 +35,6 @@
 QT_BEGIN_NAMESPACE
 class QProcess;
 class QTcpSocket;
-class QSignalMapper;
 QT_END_NAMESPACE
 
 namespace QtSupport { class BaseQtVersion; }
@@ -53,64 +53,46 @@ class ExternalQtEditor : public Core::IExternalEditor
     Q_OBJECT
 
 public:
-    virtual QStringList mimeTypes() const;
-    virtual Core::Id id() const;
-    virtual QString displayName() const;
-
-protected:
     // Member function pointer for a QtVersion function return a string (command)
-    typedef QString (QtSupport::BaseQtVersion::*QtVersionCommandAccessor)() const;
+    using CommandForQtVersion = std::function<QString(const QtSupport::BaseQtVersion *)>;
+
+    static ExternalQtEditor *createLinguistEditor();
+    static ExternalQtEditor *createDesignerEditor();
+
+    QStringList mimeTypes() const override;
+    Core::Id id() const override;
+    QString displayName() const override;
+
+    bool startEditor(const QString &fileName, QString *errorMessage) override;
 
     // Data required to launch the editor
-    struct EditorLaunchData {
+    struct LaunchData {
         QString binary;
         QStringList arguments;
         QString workingDirectory;
     };
 
-    explicit ExternalQtEditor(Core::Id id,
-                              const QString &displayName,
-                              const QString &mimetype,
-                              QObject *parent = 0);
+protected:
+    ExternalQtEditor(Core::Id id,
+                     const QString &displayName,
+                     const QString &mimetype,
+                     const CommandForQtVersion &commandForQtVersion);
 
     // Try to retrieve the binary of the editor from the Qt version,
     // prepare arguments accordingly (Mac "open" if desired)
     bool getEditorLaunchData(const QString &fileName,
-                             QtVersionCommandAccessor commandAccessor,
-                             const QString &fallbackBinary,
-                             const QStringList &additionalArguments,
-                             bool useMacOpenCommand,
-                             EditorLaunchData *data,
+                             LaunchData *data,
                              QString *errorMessage) const;
 
     // Create and start a detached GUI process executing in the background.
     // Set the project environment if there is one.
-    bool startEditorProcess(const EditorLaunchData &data, QString *errorMessage);
+    bool startEditorProcess(const LaunchData &data, QString *errorMessage);
 
 private:
     const QStringList m_mimeTypes;
     const Core::Id m_id;
     const QString m_displayName;
-};
-
-// Qt Linguist
-class LinguistExternalEditor : public ExternalQtEditor
-{
-    Q_OBJECT
-public:
-    explicit LinguistExternalEditor(QObject *parent = 0);
-    virtual bool startEditor(const QString &fileName, QString *errorMessage);
-};
-
-// Qt Designer on Mac: Make use of the Mac's 'open' mechanism to
-// ensure files are opened in the same (per version) instance.
-
-class MacDesignerExternalEditor : public ExternalQtEditor
-{
-    Q_OBJECT
-public:
-    explicit MacDesignerExternalEditor(QObject *parent = 0);
-    virtual bool startEditor(const QString &fileName, QString *errorMessage);
+    const CommandForQtVersion m_commandForQtVersion;
 };
 
 /* Qt Designer on the remaining platforms: Uses Designer's own
@@ -121,9 +103,9 @@ class DesignerExternalEditor : public ExternalQtEditor
 {
     Q_OBJECT
 public:
-    explicit DesignerExternalEditor(QObject *parent = 0);
+    DesignerExternalEditor();
 
-    virtual bool startEditor(const QString &fileName, QString *errorMessage);
+    bool startEditor(const QString &fileName, QString *errorMessage) override;
 
 private:
     void processTerminated(const QString &binary);
@@ -132,7 +114,6 @@ private:
     typedef QMap<QString, QTcpSocket*> ProcessCache;
 
     ProcessCache m_processCache;
-    QSignalMapper *m_terminationMapper = nullptr;
 };
 
 } // namespace Internal

@@ -41,6 +41,10 @@
 
 #include <qmlprivategate.h>
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 0))
+#include <private/qquickdesignersupportmetainfo_p.h>
+#endif
+
 #include <createinstancescommand.h>
 #include <changefileurlcommand.h>
 #include <clearscenecommand.h>
@@ -78,31 +82,78 @@
 #include <QAbstractAnimation>
 #include <QMutableVectorIterator>
 #include <QQuickView>
-
+#include <QSet>
 #include <designersupportdelegate.h>
 
+#include <algorithm>
 
 namespace {
-    bool testImportStatements(const QStringList &importStatementList, const QUrl &url, QString *errorMessage = 0) {
-        QQmlEngine engine;
-        QQmlComponent testImportComponent(&engine);
+bool testImportStatements(const QStringList &importStatementList, const QUrl &url, QString *errorMessage = 0) {
+    if (importStatementList.isEmpty())
+        return false;
+    // ToDo: move engine outside of this function, this makes it expensive
+    QQmlEngine engine;
+    QQmlComponent testImportComponent(&engine);
 
-        QByteArray testComponentCode = QStringList(importStatementList).join("\n").toUtf8();
+    QByteArray testComponentCode = QStringList(importStatementList).join("\n").toUtf8();
 
-        testImportComponent.setData(testComponentCode.append("\nItem {}\n"), url);
-        testImportComponent.create();
+    testImportComponent.setData(testComponentCode.append("\nItem {}\n"), url);
+    testImportComponent.create();
 
-        if (testImportComponent.errors().isEmpty()) {
-            return true;
-        } else {
-            if (errorMessage) {
-                errorMessage->append("found not working imports: ");
-                errorMessage->append(testImportComponent.errorString());
+    if (testImportComponent.isError()) {
+        if (errorMessage) {
+            errorMessage->append("found not working imports: ");
+            errorMessage->append(testImportComponent.errorString());
+        }
+        return false;
+    }
+    return true;
+}
+
+void sortFilterImports(const QStringList &imports, QStringList *workingImports, QStringList *failedImports, const QUrl &url, QString *errorMessage)
+{
+    static QSet<QString> visited;
+    QString visitCheckId("imports: %1, workingImports: %2, failedImports: %3");
+    visitCheckId = visitCheckId.arg(imports.join(""), workingImports->join(""), failedImports->join(""));
+    if (visited.contains(visitCheckId))
+        return;
+    else
+        visited.insert(visitCheckId);
+
+    for (const QString &import : imports) {
+        const QStringList alreadyTestedImports = *workingImports + *failedImports;
+        if (!alreadyTestedImports.contains(import)) {
+            QStringList readyForTestImports = *workingImports;
+            readyForTestImports.append(import);
+
+            QString lastErrorMessage;
+            if (testImportStatements(readyForTestImports, url, &lastErrorMessage)) {
+                Q_ASSERT(!workingImports->contains(import));
+                workingImports->append(import);
+            } else {
+                if (imports.endsWith(import) == false) {
+                    // the not working import is not the last import, so there could be some
+                    // import dependency which we try with the reorderd remaining imports
+                    QStringList reorderedImports;
+                    std::copy_if(imports.cbegin(), imports.cend(), std::back_inserter(reorderedImports),
+                                 [&import, &alreadyTestedImports] (const QString &checkForResortingImport){
+                        if (checkForResortingImport == import)
+                            return false;
+                        return !alreadyTestedImports.contains(checkForResortingImport);
+                    });
+                    reorderedImports.append(import);
+                    sortFilterImports(reorderedImports, workingImports, failedImports, url, errorMessage);
+                } else {
+                    Q_ASSERT(!failedImports->contains(import));
+                    failedImports->append(import);
+                    if (errorMessage)
+                        errorMessage->append(lastErrorMessage);
+                }
             }
-            return false;
         }
     }
 }
+} // anonymous
 
 namespace QmlDesigner {
 
@@ -388,6 +439,8 @@ void NodeInstanceServer::setupImports(const QVector<AddImportContainer> &contain
 {
     Q_ASSERT(quickView());
     QSet<QString> importStatementSet;
+    QString qtQuickImport;
+
     foreach (const AddImportContainer &container, containerVector) {
         QString importStatement = QString("import ");
 
@@ -402,42 +455,36 @@ void NodeInstanceServer::setupImports(const QVector<AddImportContainer> &contain
         if (!container.alias().isEmpty())
             importStatement += " as " + container.alias();
 
-        importStatementSet.insert(importStatement);
+        if (importStatement.startsWith(QLatin1String("import QtQuick") + QChar(QChar::Space)))
+            qtQuickImport = importStatement;
+        else
+            importStatementSet.insert(importStatement);
     }
 
     delete m_importComponent.data();
     delete m_importComponentObject.data();
-    QStringList importStatementList(importStatementSet.toList());
-    QStringList workingImportStatementList;
+    const QStringList importStatementList(importStatementSet.toList());
+    const QStringList fullImportStatementList(QStringList(qtQuickImport) + importStatementList);
 
     // check possible import statements combinations
-    QString errorMessage;
-    // maybe it just works
-    if (testImportStatements(importStatementList, fileUrl())) {
-        workingImportStatementList = importStatementList;
+    // but first try the current order -> maybe it just works
+    if (testImportStatements(fullImportStatementList, fileUrl())) {
+        setupOnlyWorkingImports(fullImportStatementList);
     } else {
-        QString firstWorkingImportStatement; //usually this will be "import QtQuick x.x"
-        QStringList otherImportStatements;
-        foreach (const QString &importStatement, importStatementList) {
-            if (testImportStatements(QStringList(importStatement), fileUrl()))
-                firstWorkingImportStatement = importStatement;
-            else
-                otherImportStatements.append(importStatement);
-        }
+        QString errorMessage;
 
-        // find the bad imports from otherImportStatements
-        foreach (const QString &importStatement, otherImportStatements) {
-            if (testImportStatements(QStringList(firstWorkingImportStatement) <<
-                importStatement, fileUrl(), &errorMessage)) {
-                workingImportStatementList.append(importStatement);
-            }
+        if (!testImportStatements(QStringList(qtQuickImport), fileUrl(), &errorMessage))
+            qtQuickImport = "import QtQuick 2.0";
+        if (testImportStatements(QStringList(qtQuickImport), fileUrl(), &errorMessage)) {
+            QStringList workingImportStatementList;
+            QStringList failedImportList;
+            sortFilterImports(QStringList(qtQuickImport) + importStatementList, &workingImportStatementList,
+                &failedImportList, fileUrl(), &errorMessage);
+            setupOnlyWorkingImports(workingImportStatementList);
         }
-        workingImportStatementList.prepend(firstWorkingImportStatement);
+        if (!errorMessage.isEmpty())
+            sendDebugOutput(DebugOutputCommand::WarningType, errorMessage);
     }
-
-    if (!errorMessage.isEmpty())
-        sendDebugOutput(DebugOutputCommand::WarningType, errorMessage);
-    setupOnlyWorkingImports(workingImportStatementList);
 }
 
 void NodeInstanceServer::setupOnlyWorkingImports(const QStringList &workingImportStatementList)
@@ -450,14 +497,6 @@ void NodeInstanceServer::setupOnlyWorkingImports(const QStringList &workingImpor
 
     m_importComponent->setData(componentCode.append("\nItem {}\n"), fileUrl());
     m_importComponentObject = m_importComponent->create();
-
-    if (!m_importComponentObject) {
-        delete m_importComponent;
-        m_importComponent = new QQmlComponent(engine(), quickView());
-        m_importComponent->setData("import QtQuick 2.0\n\nItem {}\n", fileUrl());
-        sendDebugOutput(DebugOutputCommand::WarningType, tr("No working QtQuick import"));
-        m_importComponentObject = m_importComponent->create();
-    }
 
     Q_ASSERT(m_importComponent && m_importComponentObject);
     Q_ASSERT_X(m_importComponent->errors().isEmpty(), __FUNCTION__, m_importComponent->errorString().toLatin1());
@@ -656,6 +695,45 @@ void NodeInstanceServer::setupDummysForContext(QQmlContext *context)
         if (dummyPair.second) {
             context->setContextProperty(dummyPair.first, dummyPair.second.data());
         }
+    }
+}
+
+static bool isTypeAvailable(const MockupTypeContainer &mockupType, QQmlEngine *engine)
+{
+    QString qmlSource;
+    qmlSource.append("import " +
+                     mockupType.importUri()
+                     + " "
+                     + QString::number(mockupType.majorVersion())
+                     + "." + QString::number(mockupType.minorVersion())
+                     + "\n");
+
+    qmlSource.append(QString::fromUtf8(mockupType.typeName()) + "{\n}\n");
+
+    QQmlComponent component(engine);
+    component.setData(qmlSource.toUtf8(), QUrl());
+
+    return !component.isError();
+}
+
+void NodeInstanceServer::setupMockupTypes(const QVector<MockupTypeContainer> &container)
+{
+    for (const MockupTypeContainer &mockupType :  container) {
+        if (!isTypeAvailable(mockupType, engine()))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
+
+            QQuickDesignerSupportMetaInfo::registerMockupObject(mockupType.importUri().toUtf8(),
+                                                            mockupType.majorVersion(),
+                                                            mockupType.minorVersion(),
+                                                            mockupType.typeName());
+#else
+            qmlRegisterType(QUrl("qrc:/qtquickplugin/mockfiles/GenericBackend.qml"),
+                        mockupType.importUri().toUtf8(),
+                        mockupType.majorVersion(),
+                        mockupType.minorVersion(),
+                        mockupType.typeName());
+#endif
+
     }
 }
 

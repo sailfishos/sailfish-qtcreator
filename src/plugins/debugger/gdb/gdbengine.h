@@ -31,6 +31,7 @@
 #include <debugger/registerhandler.h>
 #include <debugger/watchhandler.h>
 #include <debugger/watchutils.h>
+#include <debugger/debuggeritem.h>
 #include <debugger/debuggertooltipmanager.h>
 
 #include <coreplugin/id.h>
@@ -153,6 +154,8 @@ private: ////////// Gdb Command Management //////////
         NeedsStop = 1,
         // No need to wait for the reply before continuing inferior.
         Discardable = 2,
+        // Needs a dummy extra command to force GDB output flushing.
+        NeedsFlush = 4,
         // Callback expects ResultRunning instead of ResultDone.
         RunRequest = 16,
         // Callback expects ResultExit instead of ResultDone.
@@ -359,9 +362,8 @@ protected:
     void handleThreadNames(const DebuggerResponse &response);
     DebuggerCommand stackCommand(int depth);
     void reloadStack();
-    virtual void reloadFullStack() override;
-    virtual void loadAdditionalQmlStack() override;
-    void handleQmlStackTrace(const DebuggerResponse &response);
+    void reloadFullStack() override;
+    void loadAdditionalQmlStack() override;
     int currentFrame() const;
 
     //
@@ -370,12 +372,10 @@ protected:
     virtual void assignValueInDebugger(WatchItem *item,
         const QString &expr, const QVariant &value) override;
 
-    virtual void fetchMemory(MemoryAgent *agent, QObject *token,
-        quint64 addr, quint64 length) override;
+    void fetchMemory(MemoryAgent *agent, quint64 addr, quint64 length) override;
     void fetchMemoryHelper(const MemoryAgentCookie &cookie);
     void handleChangeMemory(const DebuggerResponse &response);
-    virtual void changeMemory(MemoryAgent *agent, QObject *token,
-        quint64 addr, const QByteArray &data) override;
+    void changeMemory(MemoryAgent *agent, quint64 addr, const QByteArray &data) override;
     void handleFetchMemory(const DebuggerResponse &response, MemoryAgentCookie ac);
 
     virtual void watchPoint(const QPoint &) override;
@@ -399,13 +399,12 @@ protected:
     //
     void reloadDebuggingHelpers() override;
 
-    QString m_gdb;
-
     //
     // Convenience Functions
     //
     QString errorMessage(QProcess::ProcessError error);
     void showExecutionError(const QString &message);
+    QString failedToStartMessage();
 
     static QString tooltipIName(const QString &exp);
 

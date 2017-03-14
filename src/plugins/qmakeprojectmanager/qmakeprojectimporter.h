@@ -27,7 +27,7 @@
 
 #include "qmakestep.h"
 
-#include <projectexplorer/projectimporter.h>
+#include <qtsupport/qtprojectimporter.h>
 
 namespace QtSupport { class BaseQtVersion; }
 
@@ -38,24 +38,26 @@ class QmakeProject;
 namespace Internal {
 
 // Documentation inside.
-class QmakeProjectImporter : public ProjectExplorer::ProjectImporter
+class QmakeProjectImporter : public QtSupport::QtProjectImporter
 {
 public:
     QmakeProjectImporter(const QString &path);
 
-    QList<ProjectExplorer::BuildInfo *> import(const Utils::FileName &importPath, bool silent = false);
-    QStringList importCandidates(const Utils::FileName &projectFilePath);
-    ProjectExplorer::Target *preferredTarget(const QList<ProjectExplorer::Target *> &possibleTargets);
-
-    void cleanupKit(ProjectExplorer::Kit *k);
-
-    void makePermanent(ProjectExplorer::Kit *k);
+    QStringList importCandidates() final;
 
 private:
-    ProjectExplorer::Kit *createTemporaryKit(QtSupport::BaseQtVersion *version,
-                                             bool temporaryVersion,
+    QList<void *> examineDirectory(const Utils::FileName &importPath) const final;
+    bool matchKit(void *directoryData, const ProjectExplorer::Kit *k) const final;
+    ProjectExplorer::Kit *createKit(void *directoryData) const final;
+    QList<ProjectExplorer::BuildInfo *> buildInfoListForKit(const ProjectExplorer::Kit *k,
+                                                            void *directoryData) const final;
+
+    void deleteDirectoryData(void *directoryData) const final;
+
+    ProjectExplorer::Kit *createTemporaryKit(const QtProjectImporter::QtVersionData &data,
                                              const Utils::FileName &parsedSpec,
-                                             const QmakeProjectManager::QMakeStepConfig::TargetArchConfig &archConfig, const QMakeStepConfig::OsType &osType);
+                                             const QmakeProjectManager::QMakeStepConfig::TargetArchConfig &archConfig,
+                                             const QMakeStepConfig::OsType &osType) const;
 };
 
 } // namespace Internal

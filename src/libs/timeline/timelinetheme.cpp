@@ -74,6 +74,24 @@ public:
         else if (iconName == QLatin1String("selectionmode"))
             icon = Utils::Icon({{QLatin1String(":/timeline/ico_selectionmode.png"),
                                  Utils::Theme::IconsBaseColor}});
+        else if (iconName == QLatin1String("edit"))
+            icon = Utils::Icon({{QLatin1String(":/timeline/ico_edit.png"),
+                                 Utils::Theme::IconsBaseColor}});
+        else if (iconName == QLatin1String("lock_open"))
+            icon = Utils::Icons::UNLOCKED_TOOLBAR;
+        else if (iconName == QLatin1String("lock_closed"))
+            icon = Utils::Icons::LOCKED_TOOLBAR;
+        else if (iconName == QLatin1String("range_handle"))
+            icon = Utils::Icon({{QLatin1String(":/timeline/range_handle.png"),
+                                 Utils::Theme::IconsBaseColor}});
+        else if (iconName == QLatin1String("note"))
+            icon = Utils::Icons::INFO_TOOLBAR;
+        else if (iconName == QLatin1String("split"))
+            icon = Utils::Icons::SPLIT_HORIZONTAL_TOOLBAR;
+        else if (iconName == QLatin1String("close_split"))
+            icon = Utils::Icons::CLOSE_SPLIT_TOP;
+        else if (iconName == QLatin1String("close_window"))
+            icon = Utils::Icons::CLOSE_TOOLBAR;
 
         const QSize iconSize(16, 16);
         const QPixmap result = icon.icon().pixmap(iconSize, iconMode);
@@ -86,12 +104,8 @@ public:
 
 void TimelineTheme::setupTheme(QQmlEngine *engine)
 {
-    QQmlPropertyMap *themePropertyMap = new QQmlPropertyMap(engine);
-    const QVariantHash creatorTheme = Utils::creatorTheme()->values();
-    for (auto it = creatorTheme.constBegin(); it != creatorTheme.constEnd(); ++it)
-        themePropertyMap->insert(it.key(), it.value());
-
-    engine->rootContext()->setContextProperty(QLatin1String("creatorTheme"), themePropertyMap);
+    engine->rootContext()->setContextProperty(QLatin1String("creatorTheme"),
+                                              Utils::creatorTheme()->values());
 
     engine->addImageProvider(QLatin1String("icons"), new TimelineImageIconProvider);
 }

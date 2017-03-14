@@ -103,7 +103,7 @@ class RelayServer: public QObject
 public:
     RelayServer(IosTool *parent);
     ~RelayServer();
-    bool startServer(int port, bool ipv6);
+    bool startServer();
     void stopServer();
     quint16 serverPort();
     IosTool *iosTool();
@@ -113,7 +113,9 @@ public:
 protected:
     virtual void newRelayConnection() = 0;
 
-    QTcpServer m_server;
+    QTcpServer m_ipv4Server;
+    QTcpServer m_ipv6Server;
+    quint16 m_port = 0;
     QList<Relayer *> m_connections;
 };
 
@@ -188,7 +190,6 @@ private:
     int maxProgress;
     int opLeft;
     bool debug;
-    bool ipv6;
     bool inAppOutput;
     bool splitAppOutput; // as QXmlStreamReader reports the text attributes atomically it is better to split
     Ios::IosDeviceManager::AppOp appOp;
@@ -404,31 +405,38 @@ RelayServer::~RelayServer()
     stopServer();
 }
 
-bool RelayServer::startServer(int port, bool ipv6)
+bool RelayServer::startServer()
 {
-    QTC_CHECK(!m_server.isListening());
-    m_server.setMaxPendingConnections(1);
-    connect(&m_server, &QTcpServer::newConnection, this, &RelayServer::handleNewRelayConnection);
-    quint16 portValue = static_cast<quint16>(port);
-    if (port < 0 || port > 0xFFFF)
-        return false;
-    if (ipv6)
-        return m_server.listen(QHostAddress(QHostAddress::LocalHostIPv6), portValue);
-    else
-        return m_server.listen(QHostAddress(QHostAddress::LocalHost), portValue);
+    QTC_CHECK(!m_ipv4Server.isListening());
+    QTC_CHECK(!m_ipv6Server.isListening());
+
+    connect(&m_ipv4Server, &QTcpServer::newConnection,
+            this, &RelayServer::handleNewRelayConnection);
+    connect(&m_ipv6Server, &QTcpServer::newConnection,
+            this, &RelayServer::handleNewRelayConnection);
+
+    m_port = 0;
+    if (m_ipv4Server.listen(QHostAddress(QHostAddress::LocalHost), 0))
+        m_port = m_ipv4Server.serverPort();
+    if (m_ipv6Server.listen(QHostAddress(QHostAddress::LocalHostIPv6), m_port))
+        m_port = m_ipv6Server.serverPort();
+
+    return m_port > 0;
 }
 
 void RelayServer::stopServer()
 {
     foreach (Relayer *connection, m_connections)
         delete connection;
-    if (m_server.isListening())
-        m_server.close();
+    if (m_ipv4Server.isListening())
+        m_ipv4Server.close();
+    if (m_ipv6Server.isListening())
+        m_ipv6Server.close();
 }
 
 quint16 RelayServer::serverPort()
 {
-    return m_server.serverPort();
+    return m_port;
 }
 
 IosTool *RelayServer::iosTool()
@@ -459,11 +467,12 @@ SingleRelayServer::SingleRelayServer(IosTool *parent,
 
 void SingleRelayServer::newRelayConnection()
 {
+    QTcpSocket *clientSocket = m_ipv4Server.hasPendingConnections()
+            ? m_ipv4Server.nextPendingConnection() : m_ipv6Server.nextPendingConnection();
     if (m_connections.size() > 0) {
-        delete m_server.nextPendingConnection();
+        delete clientSocket;
         return;
     }
-    QTcpSocket *clientSocket = m_server.nextPendingConnection();
     if (clientSocket) {
         Relayer *newConnection = new Relayer(this, clientSocket);
         m_connections.append(newConnection);
@@ -483,7 +492,8 @@ GenericRelayServer::GenericRelayServer(IosTool *parent, int remotePort,
 
 void GenericRelayServer::newRelayConnection()
 {
-    QTcpSocket *clientSocket = m_server.nextPendingConnection();
+    QTcpSocket *clientSocket = m_ipv4Server.hasPendingConnections()
+            ? m_ipv4Server.nextPendingConnection() : m_ipv6Server.nextPendingConnection();
     if (clientSocket) {
         iosTool()->errorMsg(QString::fromLatin1("setting up relayer for new connection"));
         RemotePortRelayer *newConnection = new RemotePortRelayer(this, clientSocket);
@@ -498,7 +508,6 @@ IosTool::IosTool(QObject *parent):
     maxProgress(0),
     opLeft(0),
     debug(false),
-    ipv6(false),
     inAppOutput(false),
     splitAppOutput(true),
     appOp(Ios::IosDeviceManager::None),
@@ -548,8 +557,6 @@ void IosTool::run(const QStringList &args)
             appOp = Ios::IosDeviceManager::AppOp(appOp | Ios::IosDeviceManager::Run);
         } else if (arg == QLatin1String("--noninteractive")) {
             // ignored for compatibility
-        } else if (arg == QLatin1String("--ipv6")) {
-            ipv6 = true;
         } else if (arg == QLatin1String("-v") || arg == QLatin1String("--verbose")) {
             echoRelays = true;
         } else if (arg == QLatin1String("-d") || arg == QLatin1String("--debug")) {
@@ -721,12 +728,12 @@ void IosTool::didStartApp(const QString &bundlePath, const QString &deviceId,
         int qmlPort = deviceSession->qmljsDebugPort();
         if (qmlPort) {
             qmlServer = new GenericRelayServer(this, qmlPort, deviceSession);
-            qmlServer->startServer(0, ipv6);
+            qmlServer->startServer();
         }
     }
     if (debug) {
         gdbServer = new SingleRelayServer(this, gdbFd);
-        if (!gdbServer->startServer(0, ipv6)) {
+        if (!gdbServer->startServer()) {
             doExit(-4);
             return;
         }
@@ -735,9 +742,9 @@ void IosTool::didStartApp(const QString &bundlePath, const QString &deviceId,
         QMutexLocker l(&m_xmlMutex);
         out.writeStartElement(QLatin1String("server_ports"));
         out.writeAttribute(QLatin1String("gdb_server"),
-                           QString::number(gdbServer ? gdbServer->serverPort() : 0));
+                           QString::number(gdbServer ? gdbServer->serverPort() : -1));
         out.writeAttribute(QLatin1String("qml_server"),
-                           QString::number(qmlServer ? qmlServer->serverPort() : 0));
+                           QString::number(qmlServer ? qmlServer->serverPort() : -1));
         out.writeEndElement();
         outFile.flush();
     }

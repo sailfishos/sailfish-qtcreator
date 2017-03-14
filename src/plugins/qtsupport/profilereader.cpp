@@ -74,7 +74,7 @@ void ProMessageHandler::fileMessage(int type, const QString &msg)
 }
 
 
-ProFileReader::ProFileReader(ProFileGlobals *option, QMakeVfs *vfs)
+ProFileReader::ProFileReader(QMakeGlobals *option, QMakeVfs *vfs)
     : QMakeParser(ProFileCacheManager::instance()->cache(), vfs, this)
     , ProFileEvaluator(option, this, vfs, this)
     , m_ignoreLevel(0)
@@ -97,7 +97,7 @@ void ProFileReader::aboutToEval(ProFile *parent, ProFile *pro, EvalFileType type
 {
     if (m_ignoreLevel || (type != EvalProjectFile && type != EvalIncludeFile)) {
         m_ignoreLevel++;
-    } else {
+    } else if (parent) {  // Skip the actual .pro file, as nobody needs that.
         QVector<ProFile *> &children = m_includeFiles[parent];
         if (!children.contains(pro)) {
             children.append(pro);

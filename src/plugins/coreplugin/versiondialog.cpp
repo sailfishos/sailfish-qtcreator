@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "versiondialog.h"
+#include "coreicons.h"
 
 #include <app/app_version.h>
 #include <coreplugin/coreicons.h>
@@ -31,6 +32,7 @@
 #include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QDialogButtonBox>
 #include <QGridLayout>

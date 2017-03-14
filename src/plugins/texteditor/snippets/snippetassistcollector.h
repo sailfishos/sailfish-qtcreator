@@ -39,7 +39,9 @@ class TEXTEDITOR_EXPORT SnippetAssistCollector
 {
 public:
     SnippetAssistCollector(const QString &groupId, const QIcon &icon, int order = 0);
-    ~SnippetAssistCollector();
+
+    void setGroupId(const QString &gid);
+    QString groupId() const;
 
     QList<AssistProposalItemInterface *> collect() const;
 

@@ -24,10 +24,12 @@
 ****************************************************************************/
 
 #include "qmldesignericonprovider.h"
+#include <qmldesignericons.h>
+
 
 #include <utils/icon.h>
+#include <utils/utilsicons.h>
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 
 #include <QDebug>
@@ -54,9 +56,9 @@ QPixmap QmlDesignerIconProvider::requestPixmap(const QString &id, QSize *size, c
     QPixmap result;
 
     if (id == "close")
-        result = Core::Icons::CLOSE_TOOLBAR.pixmap();
+        result = Utils::Icons::CLOSE_TOOLBAR.pixmap();
     else if (id == "plus")
-        result = Core::Icons::PLUS.pixmap();
+        result = Utils::Icons::PLUS_TOOLBAR.pixmap();
     else if (id == "expression")
         result = Icon({
                 { iconPath() + QLatin1String("expression.png"), Theme::IconsBaseColor}}, Icon::Tint).pixmap();
@@ -83,7 +85,7 @@ QPixmap QmlDesignerIconProvider::requestPixmap(const QString &id, QSize *size, c
                 { ":/utils/images/ok.png", Theme::IconsBaseColor}}, Icon::Tint).pixmap();
     else if (id == "error")
         result = Icon({
-                { ":/utils/images/error.png", Theme::IconsBaseColor}}, Icon::Tint).pixmap();
+                { ":/utils/images/broken.png", Theme::IconsBaseColor}}, Icon::Tint).pixmap();
     else if (id == "anchor-top")
         result = Icon({
                 { ":/qmldesigner/images/anchor_top.png", Theme::IconsBaseColor},
@@ -171,6 +173,10 @@ QPixmap QmlDesignerIconProvider::requestPixmap(const QString &id, QSize *size, c
     else if (id == "style-strikeout-h")
         result = Icon({
                 { ":/qmldesigner/images/style_strikeout.png", Theme::QmlDesigner_HighlightColor}}, Icon::Tint).pixmap();
+    else if (id == "alias-export-checked")
+        result = Icons::EXPORT_CHECKED.pixmap();
+    else if (id == "alias-export-unchecked")
+        result = Icons::EXPORT_UNCHECKED.pixmap();
     else
         qWarning() << Q_FUNC_INFO << "Image not found:" << id;
 

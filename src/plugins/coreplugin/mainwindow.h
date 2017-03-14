@@ -111,8 +111,7 @@ public:
 
     void addPreCloseListener(const std::function<bool()> &listener);
 
-signals:
-    void newItemDialogRunningChanged();
+    void saveSettings();
 
 public slots:
     void openFileWith();
@@ -140,7 +139,6 @@ private:
     void destroyVersionDialog();
     void openDroppedFiles(const QList<Utils::DropSupport::FileSpec> &files);
     void restoreWindowState();
-    void newItemDialogFinished();
 
     void updateContextObject(const QList<IContext *> &context);
     void updateContext();
@@ -149,7 +147,7 @@ private:
     void registerDefaultActions();
 
     void readSettings();
-    void writeSettings();
+    void saveWindowSettings();
 
     ICore *m_coreImpl;
     QStringList m_aboutInformation;

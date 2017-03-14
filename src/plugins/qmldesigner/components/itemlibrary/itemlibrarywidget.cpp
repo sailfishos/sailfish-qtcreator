@@ -62,7 +62,7 @@ namespace QmlDesigner {
 ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     QFrame(parent),
     m_itemIconSize(24, 24),
-    m_resIconSize(24, 24),
+    m_resIconSize(64, 64),
     m_iconProvider(m_resIconSize),
     m_itemViewQuickWidget(new QQuickWidget),
     m_resourcesView(new ItemLibraryTreeView(this)),
@@ -83,8 +83,7 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     rootContext->setContextProperty(QStringLiteral("itemLibraryIconWidth"), m_itemIconSize.width());
     rootContext->setContextProperty(QStringLiteral("itemLibraryIconHeight"), m_itemIconSize.height());
     rootContext->setContextProperty(QStringLiteral("rootView"), this);
-    Theming::insertTheme(&m_themeProperties);
-    rootContext->setContextProperty(QLatin1String("creatorTheme"), &m_themeProperties);
+    rootContext->setContextProperty(QLatin1String("creatorTheme"), Theming::theme());
 
     m_itemViewQuickWidget->rootContext()->setContextProperty(QStringLiteral("highlightColor"), Utils::StyleHelper::notTooBrightHighlightColor());
 
@@ -142,7 +141,6 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     layout->addWidget(lineEditFrame, 2, 0, 1, 1);
     layout->addWidget(m_stackedWidget.data(), 3, 0, 1, 1);
 
-    setResourcePath(QDir::currentPath());
     setSearchFilter(QString());
 
     /* style sheets */
@@ -170,8 +168,7 @@ void ItemLibraryWidget::setItemLibraryInfo(ItemLibraryInfo *itemLibraryInfo)
     if (itemLibraryInfo)
         connect(m_itemLibraryInfo.data(), SIGNAL(entriesChanged()),
                 this, SLOT(delayedUpdateModel()));
-
-    updateModel();
+    delayedUpdateModel();
 }
 
 void ItemLibraryWidget::updateImports()
@@ -229,7 +226,6 @@ void ItemLibraryWidget::setModel(Model *model)
     if (!model)
         return;
     setItemLibraryInfo(model->metaInfo().itemLibraryInfo());
-    updateModel();
 }
 
 void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
@@ -245,6 +241,11 @@ void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
 QString ItemLibraryWidget::qmlSourcesPath()
 {
     return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/itemLibraryQmlSources");
+}
+
+void ItemLibraryWidget::clearSearchFilter()
+{
+    m_filterLineEdit->clear();
 }
 
 void ItemLibraryWidget::reloadQmlSource()
@@ -321,31 +322,38 @@ void ItemLibraryWidget::addImport(const QString &name, const QString &version)
 
 QIcon ItemLibraryFileIconProvider::icon(const QFileInfo &info) const
 {
+    QSize iconSize = m_iconSize;
+
     QPixmap pixmap(info.absoluteFilePath());
+
     if (pixmap.isNull()) {
         QIcon defaultIcon(QFileIconProvider::icon(info));
-        pixmap = defaultIcon.pixmap(defaultIcon.actualSize(m_iconSize));
+        pixmap = defaultIcon.pixmap(defaultIcon.actualSize(QSize(16, 16)));
     }
 
     if (pixmap.isNull())
         return pixmap;
 
-    if (pixmap.width() == m_iconSize.width()
-            && pixmap.height() == m_iconSize.height())
+    if (pixmap.width() == iconSize.width()
+            && pixmap.height() == iconSize.height())
         return pixmap;
 
-    if ((pixmap.width() > m_iconSize.width())
-            || (pixmap.height() > m_iconSize.height()))
-        return pixmap.scaled(m_iconSize, Qt::KeepAspectRatio,
-                             Qt::SmoothTransformation);
+    if ((pixmap.width() > iconSize.width())
+            || (pixmap.height() > iconSize.height())) {
 
-    QPoint offset((m_iconSize.width() - pixmap.width()) / 2,
-                  (m_iconSize.height() - pixmap.height()) / 2);
-    QImage newIcon(m_iconSize, QImage::Format_ARGB32_Premultiplied);
+        pixmap = pixmap.scaled(iconSize, Qt::KeepAspectRatio,
+                             Qt::SmoothTransformation);
+    }
+
+    QImage newIcon(iconSize, QImage::Format_ARGB32_Premultiplied);
     newIcon.fill(Qt::transparent);
     QPainter painter(&newIcon);
-    painter.drawPixmap(offset, pixmap);
-    return QPixmap::fromImage(newIcon);
+
+    painter.drawPixmap(qAbs(m_iconSize.width() - pixmap.width()) / 2, qAbs(m_iconSize.height() - pixmap.height()) / 2, pixmap);
+
+    QIcon icon(QPixmap::fromImage(newIcon));
+
+    return icon;
 }
 
 ItemLibraryFileIconProvider::ItemLibraryFileIconProvider(const QSize &iconSize)

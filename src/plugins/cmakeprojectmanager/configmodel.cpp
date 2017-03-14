@@ -44,17 +44,12 @@ ConfigModel::ConfigModel(QObject *parent) : QAbstractTableModel(parent)
 
 int ConfigModel::rowCount(const QModelIndex &parent) const
 {
-    QTC_ASSERT(parent.model() == nullptr || parent.model() == this, return 0);
-    if (parent.isValid())
-        return 0;
-    return m_configuration.count();
+    return parent.isValid() ? 0 : m_configuration.count();
 }
 
 int ConfigModel::columnCount(const QModelIndex &parent) const
 {
-    QTC_ASSERT(!parent.isValid(), return 0);
-    QTC_ASSERT(parent.model() == nullptr, return 0);
-    return 3;
+    return parent.isValid() ? 0 : 3;
 }
 
 Qt::ItemFlags ConfigModel::flags(const QModelIndex &index) const
@@ -88,6 +83,15 @@ QVariant ConfigModel::data(const QModelIndex &index, int role) const
 
     const InternalDataItem &item = m_configuration[index.row()];
 
+    if (index.column() < 2) {
+        switch (role) {
+        case ItemTypeRole:
+            return item.type;
+        case ItemValuesRole:
+            return item.values;
+        }
+    }
+
     switch (index.column()) {
     case 0:
         switch (role) {
@@ -97,8 +101,6 @@ QVariant ConfigModel::data(const QModelIndex &index, int role) const
             return item.key;
         case Qt::ToolTipRole:
             return item.description;
-        case Qt::UserRole:
-            return item.type;
         case Qt::FontRole: {
             QFont font;
             font.setItalic(item.isCMakeChanged);
@@ -126,8 +128,6 @@ QVariant ConfigModel::data(const QModelIndex &index, int role) const
         }
         case Qt::ToolTipRole:
             return item.description;
-        case Qt::UserRole:
-            return item.type;
         default:
             return QVariant();
         }
@@ -209,13 +209,15 @@ QVariant ConfigModel::headerData(int section, Qt::Orientation orientation, int r
 void ConfigModel::appendConfiguration(const QString &key,
                                       const QString &value,
                                       const ConfigModel::DataItem::Type type,
-                                      const QString &description)
+                                      const QString &description,
+                                      const QStringList &values)
 {
     DataItem item;
     item.key = key;
     item.type = type;
     item.value = value;
     item.description = description;
+    item.values = values;
 
     InternalDataItem internalItem(item);
     internalItem.isUserNew = true;

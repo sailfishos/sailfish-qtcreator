@@ -100,10 +100,10 @@ PropertyEditorQmlBackend::PropertyEditorQmlBackend(PropertyEditorView *propertyE
     m_dummyPropertyEditorValue->setValue(QLatin1String("#000000"));
     context()->setContextProperty(QLatin1String("dummyBackendValue"), m_dummyPropertyEditorValue.data());
     m_contextObject->setBackendValues(&m_backendValuesPropertyMap);
+    m_contextObject->setModel(propertyEditor->model());
     m_contextObject->insertInQmlContext(context());
 
-    Theming::insertTheme(&m_themeProperties);
-    context()->setContextProperty(QLatin1String("creatorTheme"), &m_themeProperties);
+    context()->setContextProperty(QLatin1String("creatorTheme"), Theming::theme());
 
     QObject::connect(&m_backendValuesPropertyMap, &DesignerPropertyMap::valueChanged, propertyEditor, &PropertyEditorView::changeValue);
 }
@@ -190,6 +190,8 @@ void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qm
         valueObject = new PropertyEditorValue(&backendValuesPropertyMap());
         QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
         QObject::connect(valueObject, &PropertyEditorValue::expressionChanged, propertyEditor, &PropertyEditorView::changeExpression);
+        QObject::connect(valueObject, &PropertyEditorValue::exportPopertyAsAliasRequested, propertyEditor, &PropertyEditorView::exportPopertyAsAlias);
+        QObject::connect(valueObject, &PropertyEditorValue::removeAliasExportRequested, propertyEditor, &PropertyEditorView::removeAliasExport);
         backendValuesPropertyMap().insert(QString::fromUtf8(propertyName), QVariant::fromValue(valueObject));
     }
     valueObject->setName(name);
@@ -311,6 +313,8 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         context()->setContextProperty(QLatin1String("propertyCount"), QVariant(qmlObjectNode.modelNode().properties().count()));
 
         contextObject()->setIsBaseState(qmlObjectNode.isInBaseState());
+
+        contextObject()->setHasAliasExport(qmlObjectNode.isAliasExported());
         contextObject()->setSelectionChanged(false);
 
         contextObject()->setSelectionChanged(false);
@@ -323,10 +327,12 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         } else {
             contextObject()->setMajorVersion(-1);
             contextObject()->setMinorVersion(-1);
-             contextObject()->setMajorQtQuickVersion(-1);
+            contextObject()->setMajorQtQuickVersion(-1);
+            contextObject()->setMinorQtQuickVersion(-1);
         }
 
         contextObject()->setMajorQtQuickVersion(qmlObjectNode.view()->majorQtQuickVersion());
+        contextObject()->setMinorQtQuickVersion(qmlObjectNode.view()->minorQtQuickVersion());
     } else {
         qWarning() << "PropertyEditor: invalid node for setup";
     }

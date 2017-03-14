@@ -105,6 +105,8 @@ TaskHub::TaskHub()
                                Utils::Theme::ProjectExplorer_TaskError_TextMarkColor);
     TaskMark::setCategoryColor(Constants::TASK_MARK_WARNING,
                                Utils::Theme::ProjectExplorer_TaskWarn_TextMarkColor);
+    TaskMark::setDefaultToolTip(Constants::TASK_MARK_ERROR, tr("Error"));
+    TaskMark::setDefaultToolTip(Constants::TASK_MARK_WARNING, tr("Warning"));
 }
 
 TaskHub::~TaskHub()
@@ -145,6 +147,7 @@ void TaskHub::addTask(Task task)
         auto mark = new TaskMark(task.taskId, task.file.toString(), task.line, task.type, !task.icon.isNull());
         mark->setIcon(task.icon);
         mark->setPriority(TextEditor::TextMark::LowPriority);
+        mark->setToolTip(task.description);
         task.setMark(mark);
     }
     emit m_instance->taskAdded(task);

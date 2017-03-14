@@ -362,7 +362,7 @@ public:
         setDisplayName(Tr::tr("General"));
         setCategory(SETTINGS_CATEGORY);
         setDisplayCategory(Tr::tr("FakeVim"));
-        setCategoryIcon(SETTINGS_CATEGORY_FAKEVIM_ICON);
+        setCategoryIcon(Utils::Icon(SETTINGS_CATEGORY_FAKEVIM_ICON));
     }
 
     QWidget *widget();
@@ -596,7 +596,7 @@ public:
         setDisplayName(Tr::tr("Ex Command Mapping"));
         setCategory(SETTINGS_CATEGORY);
         setDisplayCategory(Tr::tr("FakeVim"));
-        setCategoryIcon(SETTINGS_CATEGORY_FAKEVIM_ICON);
+        setCategoryIcon(Utils::Icon(SETTINGS_CATEGORY_FAKEVIM_ICON));
     }
 
     QWidget *widget() override;
@@ -810,7 +810,7 @@ public:
         setDisplayName(Tr::tr("User Command Mapping"));
         setCategory(SETTINGS_CATEGORY);
         setDisplayCategory(Tr::tr("FakeVim"));
-        setCategoryIcon(SETTINGS_CATEGORY_FAKEVIM_ICON);
+        setCategoryIcon(Utils::Icon(SETTINGS_CATEGORY_FAKEVIM_ICON));
     }
 
     void apply();
@@ -1035,6 +1035,7 @@ private:
     void onCoreAboutToClose();
     void editorOpened(Core::IEditor *);
     void editorAboutToClose(Core::IEditor *);
+    void currentEditorAboutToChange(Core::IEditor *);
 
     void allDocumentsRenamed(const QString &oldName, const QString &newName);
     void documentRenamed(Core::IDocument *document, const QString &oldName, const QString &newName);
@@ -1246,6 +1247,8 @@ bool FakeVimPluginPrivate::initialize()
             this, &FakeVimPluginPrivate::editorAboutToClose);
     connect(EditorManager::instance(), &EditorManager::editorOpened,
             this, &FakeVimPluginPrivate::editorOpened);
+    connect(EditorManager::instance(), &EditorManager::currentEditorAboutToChange,
+            this, &FakeVimPluginPrivate::currentEditorAboutToChange);
 
     connect(DocumentManager::instance(), &DocumentManager::allDocumentsRenamed,
             this, &FakeVimPluginPrivate::allDocumentsRenamed);
@@ -1839,6 +1842,12 @@ void FakeVimPluginPrivate::editorAboutToClose(IEditor *editor)
 {
     //qDebug() << "CLOSING: " << editor << editor->widget();
     m_editorToHandler.remove(editor);
+}
+
+void FakeVimPluginPrivate::currentEditorAboutToChange(IEditor *editor)
+{
+    if (FakeVimHandler *handler = m_editorToHandler.value(editor, 0))
+        handler->enterCommandMode();
 }
 
 void FakeVimPluginPrivate::allDocumentsRenamed(const QString &oldName, const QString &newName)
