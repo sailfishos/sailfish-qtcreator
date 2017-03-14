@@ -29,7 +29,6 @@
 #include <QToolButton>
 #include <QUrl>
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runnables.h>
@@ -37,6 +36,7 @@
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
 #include <utils/hostosinfo.h>
+#include <utils/utilsicons.h>
 
 #include "merconstants.h"
 #include "merqmllivebenchmanager.h"
@@ -137,8 +137,8 @@ private:
     {
         // Init infoWidget
 
-        m_qmlLiveDetailsUi->noControlWorkspaceIconLabel->setPixmap(Core::Icons::INFO.pixmap());
-        m_qmlLiveDetailsUi->noBenchIconLabel->setPixmap(Core::Icons::WARNING.pixmap());
+        m_qmlLiveDetailsUi->noControlWorkspaceIconLabel->setPixmap(Utils::Icons::INFO.pixmap());
+        m_qmlLiveDetailsUi->noBenchIconLabel->setPixmap(Utils::Icons::WARNING.pixmap());
         m_qmlLiveDetailsUi->configureButton->setText(ICore::msgShowOptionsDialog());
         connect(m_qmlLiveDetailsUi->configureButton, &QAbstractButton::clicked,
                 [] { ICore::showOptionsDialog(Constants::MER_GENERAL_OPTIONS_ID); });

@@ -25,11 +25,11 @@
 #include "merconstants.h"
 #include "merqmlrunconfiguration.h"
 
-#include <coreplugin/coreicons.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <utils/detailswidget.h>
+#include <utils/utilsicons.h>
 
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -55,7 +55,7 @@ MerQmlRunConfigurationWidget::MerQmlRunConfigurationWidget(
         auto layout = new QHBoxLayout;
         layout->addStretch();
         m_disabledIcon = new QLabel;
-        m_disabledIcon->setPixmap(Core::Icons::WARNING.pixmap());
+        m_disabledIcon->setPixmap(Utils::Icons::WARNING.pixmap());
         layout->addWidget(m_disabledIcon);
         m_disabledReason = new QLabel;
         layout->addWidget(m_disabledReason);
