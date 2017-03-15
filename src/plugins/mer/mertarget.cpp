@@ -238,7 +238,7 @@ MerQtVersion* MerTarget::createQtVersion() const
     return merqtv;
 }
 
-MerToolChain* MerTarget::createToolChain() const
+MerToolChain* MerTarget::createToolChain(ProjectExplorer::ToolChain::Language l) const
 {
     const FileName gcc = FileName::fromString(targetPath() + QLatin1Char('/') +
             QLatin1String(Constants::MER_WRAPPER_GCC));
@@ -255,6 +255,7 @@ MerToolChain* MerTarget::createToolChain() const
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
+    mertoolchain->setLanguage(l);
     mertoolchain->resetToolChain(gcc);
     return mertoolchain;
 }

@@ -426,8 +426,11 @@ bool MerSdk::addTarget(const MerTarget &target)
         return false;
     }
 
-    QScopedPointer<MerToolChain> toolchain(target.createToolChain());
+    QScopedPointer<MerToolChain> toolchain(target.createToolChain(ProjectExplorer::ToolChain::Language::Cxx));
     if (toolchain.isNull())
+        return false;
+    QScopedPointer<MerToolChain> toolchain_c(target.createToolChain(ProjectExplorer::ToolChain::Language::C));
+    if (toolchain_c.isNull())
         return false;
     QScopedPointer<MerQtVersion> version(target.createQtVersion());
     if (version.isNull())
@@ -437,11 +440,14 @@ bool MerSdk::addTarget(const MerTarget &target)
         return false;
 
     ToolChainManager::registerToolChain(toolchain.data());
+    ToolChainManager::registerToolChain(toolchain_c.data());
     QtVersionManager::addVersion(version.data());
     QtKitInformation::setQtVersion(kit, version.data());
     ToolChainKitInformation::setToolChain(kit, toolchain.data());
+    ToolChainKitInformation::setToolChain(kit, toolchain_c.data());
     KitManager::registerKit(kit);
     toolchain.take();
+    toolchain_c.take();
     version.take();
     return true;
 }
@@ -455,6 +461,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
         if (!kit->isAutoDetected())
             continue;
         ToolChain* tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+        ToolChain* tc_c = ToolChainKitInformation::toolChain(kit, ToolChain::Language::C);
         if (!tc ) {
             continue;
         }
@@ -465,6 +472,8 @@ bool MerSdk::removeTarget(const MerTarget &target)
                  BaseQtVersion *v = QtKitInformation::qtVersion(kit);
                  KitManager::deregisterKit(kit);
                  ToolChainManager::deregisterToolChain(tc);
+                 if (tc_c)
+                     ToolChainManager::deregisterToolChain(tc_c);
                  QTC_ASSERT(v && v->type() == QLatin1String(Constants::MER_QT), continue); //serious bug
                  QtVersionManager::removeVersion(v);
                  target.deleteScripts();

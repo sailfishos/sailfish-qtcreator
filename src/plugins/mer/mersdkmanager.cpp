@@ -246,6 +246,7 @@ void MerSdkManager::restore()
                 if (!kit->isAutoDetected())
                     continue;
                 ToolChain *tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+                ToolChain *tc_c = ToolChainKitInformation::toolChain(kit, ToolChain::Language::C);
                 if (!tc)
                     continue;
 
@@ -255,6 +256,8 @@ void MerSdkManager::restore()
                     BaseQtVersion *v = QtKitInformation::qtVersion(kit);
                     KitManager::deregisterKit(kit);
                     ToolChainManager::deregisterToolChain(tc);
+                    if (tc_c)
+                        ToolChainManager::deregisterToolChain(tc_c);
                     QtVersionManager::removeVersion(v);
                 }
             }

@@ -25,6 +25,8 @@
 
 #include <QVariantMap>
 
+#include <projectexplorer/toolchain.h>
+
 namespace ProjectExplorer {
  class Kit;
 }
@@ -57,7 +59,7 @@ public:
     QVariantMap toMap() const;
     ProjectExplorer::Kit* createKit() const;
     MerQtVersion* createQtVersion() const;
-    MerToolChain* createToolChain() const;
+    MerToolChain* createToolChain(ProjectExplorer::ToolChain::Language l) const;
     bool createScripts() const;
     void deleteScripts() const;
     bool isValid() const;
