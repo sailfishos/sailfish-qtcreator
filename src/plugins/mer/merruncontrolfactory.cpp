@@ -134,7 +134,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
 
         if (aspect->useQmlDebugger()) {
             params.qmlServer.host = dev->sshParameters().host;
-            // port is selected later on
+            params.qmlServer.port = Utils::Port(); // port is selected later on
         }
         if (aspect->useCppDebugger()) {
             params.useExtendedRemote = true;
