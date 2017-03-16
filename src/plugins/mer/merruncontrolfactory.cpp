@@ -137,7 +137,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             // port is selected later on
         }
         if (aspect->useCppDebugger()) {
-            aspect->setUseMultiProcess(true);
+            params.useExtendedRemote = true;
             params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
             if (aspect->useQmlDebugger()) {
                 params.inferior.commandLineArguments.prepend(QLatin1Char(' '));
