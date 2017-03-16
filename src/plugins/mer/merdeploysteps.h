@@ -132,6 +132,9 @@ private slots:
     void onImplFinished();
 
 private:
+    void ctor();
+
+private:
     ProjectExplorer::BuildStep *m_impl;
     QFutureWatcher<bool> m_watcher;
 };

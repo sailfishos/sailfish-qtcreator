@@ -368,14 +368,21 @@ QString MerPrepareTargetStep::displayName()
 MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
-    setDefaultDisplayName(displayName());
+    ctor();
 }
 
 MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl,
         MerPrepareTargetStep *bs)
     : BuildStep(bsl, bs)
 {
+    ctor();
+}
+
+void MerPrepareTargetStep::ctor()
+{
     setDefaultDisplayName(displayName());
+    connect(&m_watcher, &QFutureWatcherBase::finished,
+            this, &MerPrepareTargetStep::onImplFinished);
 }
 
 bool MerPrepareTargetStep::init(QList<const BuildStep *> &earlierSteps)
@@ -408,7 +415,6 @@ bool MerPrepareTargetStep::init(QList<const BuildStep *> &earlierSteps)
 
 void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
 {
-    connect(&m_watcher, &QFutureWatcherBase::finished, this, &MerPrepareTargetStep::onImplFinished);
     m_watcher.setFuture(fi.future());
     m_impl->run(fi);
 }
