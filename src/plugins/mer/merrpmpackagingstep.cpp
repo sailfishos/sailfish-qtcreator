@@ -126,7 +126,7 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
 {
     if (!m_packagingNeeded) {
         emit addOutput(tr("Package up to date."), MessageOutput);
-        fi.reportResult(true);
+        reportRunResult(fi, true);
         return;
     }
 
@@ -145,7 +145,7 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
     if (success)
         emit addOutput(tr("Package created."), BuildStep::MessageOutput);
     setPackagingFinished(success);
-    fi.reportResult(success);
+    reportRunResult(fi, success);
 }
 
 
