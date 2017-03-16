@@ -65,7 +65,8 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
     if (mode != ProjectExplorer::Constants::NORMAL_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
-            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
+            && mode != ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
             return false;
     }
 
@@ -161,7 +162,8 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             return 0;
         (void) new LinuxDeviceDebugSupport(runConfig, runControl);
         return runControl;
-    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
+            mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
         Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
         AnalyzerConnection connection;
         connection.connParams =
