@@ -2,7 +2,7 @@ TEMPLATE = lib
 TARGET = Mer
 PROVIDER = MerProject
 
-QT += gui xmlpatterns
+QT += gui xmlpatterns webenginewidgets
 
 include(../../qtcreatorplugin.pri)
 
@@ -20,6 +20,7 @@ FORMS += \
     merhardwaredevicewidgetauthorizedialog.ui \
     merhardwaredevicewizardselectionpage.ui \
     merhardwaredevicewizardsetuppage.ui \
+    mermanagementwebview.ui \
     meroptionswidget.ui \
     merrpmpackagingwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
@@ -53,6 +54,7 @@ SOURCES += \
     merhardwaredevicewizard.cpp \
     merhardwaredevicewizardpages.cpp \
     merlogging.cpp \
+    mermanagementwebview.cpp \
     mermode.cpp \
     meroptionspage.cpp \
     meroptionswidget.cpp \
@@ -117,6 +119,7 @@ HEADERS += \
     merhardwaredevicewizardpages.h \
     mericons.h \
     merlogging.h \
+    mermanagementwebview.h \
     mermode.h \
     meroptionspage.h \
     meroptionswidget.h \
@@ -152,13 +155,3 @@ HEADERS += \
     mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
     mervirtualboxmanager.h \
-
-contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
-    QT += webkit
-    greaterThan(QT_MAJOR_VERSION, 4):QT += webkitwidgets
-    SOURCES += $$PWD/mermanagementwebview.cpp
-    HEADERS += $$PWD/mermanagementwebview.h
-    FORMS += $$PWD/mermanagementwebview.ui
-} else {
-    DEFINES += QT_NO_WEBKIT
-}

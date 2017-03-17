@@ -34,6 +34,7 @@
 
 #include <QApplication>
 #include <QTimer>
+#include <QWebEngineSettings>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -42,7 +43,7 @@ namespace Mer {
 namespace Internal {
 
 const char CONTROLCENTER_URL_BASE[] = "http://127.0.0.1/";
-const char START_VM_URL[] = "about:blank#startVM";
+const char START_VM_FRAGMENT[] = "startVM";
 
 class MerManagementWebViewSdksModel : public QAbstractListModel
 {
@@ -208,6 +209,33 @@ void MerManagementWebViewSdksModel::endReset()
 }
 
 /*
+ * \class MerManagementWebPage
+ */
+
+// Workaround: The QWebEngineView::urlChanged signal cannot be used to handle
+// command links because with ErrorPageEnabled disabled urlChanged is never
+// emitted with the actual failed-to-load URL; "about:blank" is reported
+// instead.  (And "about:blank#command" URL cannot be used for command links
+// because fragment is always stripped from "about:blank" URL by QtWebEngine.)
+class MerManagementWebPage : public QWebEnginePage
+{
+    Q_OBJECT
+
+public:
+    using QWebEnginePage::QWebEnginePage;
+
+signals:
+    void navigationRequested(const QUrl &url);
+
+protected:
+    bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame) override
+    {
+        emit navigationRequested(url);
+        return QWebEnginePage::acceptNavigationRequest(url, type, isMainFrame);
+    }
+};
+
+/*
  * \class MerManagementWebView
  */
 
@@ -219,23 +247,34 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
     , m_autoFailReload(false)
 {
     ui->setupUi(this);
+
     ui->sdksComboBox->setModel(m_sdksModel);
     connect(m_sdksModel, &MerManagementWebViewSdksModel::modelReset,
             this, &MerManagementWebView::selectActiveSdkVm);
     connect(m_sdksModel, &MerManagementWebViewSdksModel::activeSdkIndexChanged,
             this, &MerManagementWebView::selectActiveSdkVm);
     selectActiveSdkVm();
-    connect(ui->webView->page(), &QWebPage::linkHovered,
+
+    auto page = new MerManagementWebPage(ui->webView);
+    ui->webView->setPage(page);
+
+    connect(page, &QWebEnginePage::linkHovered,
             ui->statusBarLabel, &QLabel::setText);
-    connect(ui->webView->page(), &QWebPage::loadFinished,
+    connect(page, &QWebEnginePage::loadFinished,
             this, &MerManagementWebView::handleLoadFinished);
+    connect(page, &MerManagementWebPage::navigationRequested,
+            this, &MerManagementWebView::onNavigationRequested);
 
     // Workaround: the sdk-webapp does not like receiving another request while processing one
-    connect(ui->webView, &QWebView::loadStarted,
+    connect(page, &QWebEnginePage::loadStarted,
             this, [this]() { setEnabled(false); });
-    connect(ui->webView, &QWebView::loadFinished,
+    connect(page, &QWebEnginePage::loadFinished,
             this, [this]() { setEnabled(true); },
             Qt::QueuedConnection);
+
+    QWebEngineSettings *webSettings = ui->webView->settings();
+    webSettings->setAttribute(QWebEngineSettings::ErrorPageEnabled, false);
+    webSettings->setFontFamily(QWebEngineSettings::StandardFont, QStringLiteral("Sans Serif"));
 }
 
 MerManagementWebView::~MerManagementWebView()
@@ -249,7 +288,7 @@ void MerManagementWebView::resetWebView()
 
     if (m_selectedSdk) {
         disconnect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
-                ui->webView, &QWebView::reload);
+                ui->webView, &QWebEngineView::reload);
     }
 
     m_selectedSdk = m_sdksModel->sdkAt(ui->sdksComboBox->currentIndex());
@@ -258,7 +297,7 @@ void MerManagementWebView::resetWebView()
         url = QUrl(QLatin1String(CONTROLCENTER_URL_BASE));
         url.setPort(m_selectedSdk->wwwPort());
         connect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
-                ui->webView, &QWebView::reload);
+                ui->webView, &QWebEngineView::reload);
     } else {
         url = QLatin1String("about:blank");
     }
@@ -296,19 +335,38 @@ void MerManagementWebView::handleLoadFinished(bool success)
         if (m_selectedSdk) { // one cannot be sure here
             QString vmName = m_selectedSdk->virtualMachineName();
             if (m_selectedSdk->connection()->isVirtualMachineOff()) {
+                QUrl startVmUrl = QUrl(QLatin1String(CONTROLCENTER_URL_BASE));
+                startVmUrl.setPort(m_selectedSdk->wwwPort());
+                startVmUrl.setFragment(QLatin1String(START_VM_FRAGMENT));
                 vmStatus = QString::fromLatin1(
                         "<h2>The \"%1\" VM is not running.</h2>"
                         "<p><a href=\"%2\">Start the virtual machine!</a></p>"
                         )
                     .arg(vmName)
-                    .arg(QLatin1String(START_VM_URL));
+                    .arg(startVmUrl.toString());
             } else {
                 autoReloadHint = true;
+                QString detail;
+                switch (m_selectedSdk->connection()->state()) {
+                case MerConnection::Disconnected:
+                case MerConnection::StartingVm:
+                case MerConnection::Connecting:
+                case MerConnection::Connected:
+                    detail = QLatin1String("The virtual machine is starting&hellip;");
+                    break;
+                case MerConnection::Error:
+                    detail = QLatin1String("Error connecting to the virtual machine.");
+                    break;
+                case MerConnection::Disconnecting:
+                case MerConnection::ClosingVm:
+                    detail = QLatin1String("The virtual machine is closing&hellip;");
+                }
                 vmStatus = QString::fromLatin1(
                         "<h2>The \"%1\" VM is not ready.</h2>"
-                        "<p>The virtual machine is running but not responding.</p>"
+                        "<p>%2</p>"
                         )
-                    .arg(vmName);
+                    .arg(vmName)
+                    .arg(detail);
             }
         }
 
@@ -337,11 +395,6 @@ void MerManagementWebView::handleLoadFinished(bool success)
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)
             QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
-    } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
-        if (m_selectedSdk) {
-            m_selectedSdk->connection()->connectTo();
-        }
-        QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
         m_loaded = true;
     }
@@ -350,7 +403,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
 void MerManagementWebView::reloadPage()
 {
     if (ui->webView->url().isEmpty() ||
-            ui->webView->url().matches(QUrl(QLatin1String("about:blank")), QUrl::RemoveFragment)) {
+            ui->webView->url().matches(QUrl(QLatin1String("about:blank")), QUrl::None)) {
         resetWebView();
     }
 }
@@ -360,6 +413,16 @@ void MerManagementWebView::setAutoFailReload(bool enabled)
     m_autoFailReload = enabled;
     if(enabled && !m_loaded)
         reloadPage();
+}
+
+void MerManagementWebView::onNavigationRequested(const QUrl &url)
+{
+    if (url.fragment() == QLatin1String(START_VM_FRAGMENT)) {
+        if (m_selectedSdk) {
+            m_selectedSdk->connection()->connectTo();
+        }
+        QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
+    }
 }
 
 } // namespace Internal

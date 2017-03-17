@@ -24,9 +24,7 @@
 
 #include "merconstants.h"
 #include "mericons.h"
-#if !defined(QT_NO_WEBKIT)
 #include "mermanagementwebview.h"
-#endif
 
 #include <coreplugin/modemanager.h>
 #include <utils/icon.h>
@@ -40,11 +38,7 @@ namespace Internal {
 
 MerMode::MerMode()
 {
-#if !defined(QT_NO_WEBKIT)
     setWidget(new MerManagementWebView);
-#else
-    setWidget(new QWidget);
-#endif
     setContext(Context("Mer.MerMode"));
     setDisplayName(tr("Sailfish OS"));
     setIcon(Utils::Icon::modeIcon(Icons::MER_MODE_ICON_CLASSIC,
@@ -58,17 +52,12 @@ MerMode::MerMode()
 
 void MerMode::handleUpdateContext(Id newMode, Id oldMode)
 {
-#if !defined(QT_NO_WEBKIT)
     MerManagementWebView* view = qobject_cast<MerManagementWebView*>(widget());
     if (view && newMode == id()) {
         view->setAutoFailReload(true);
     } else if (view && oldMode == id()) {
         view->setAutoFailReload(false);
     }
-#else
-    Q_UNUSED(newMode);
-    Q_UNUSED(oldMode);
-#endif
 }
 
 } // namespace Internal

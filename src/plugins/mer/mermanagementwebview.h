@@ -58,6 +58,7 @@ private slots:
     void selectActiveSdkVm();
     void handleLoadFinished(bool success);
     void reloadPage();
+    void onNavigationRequested(const QUrl &url);
 
 private:
     Ui::MerManagementWebView *ui;
