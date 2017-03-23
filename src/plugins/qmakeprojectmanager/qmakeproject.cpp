@@ -1312,6 +1312,7 @@ void QmakeProject::testToolChain(ToolChain *tc, const Utils::FileName &path) con
     }
 
     if (!env.isSameExecutable(path.toString(), expected.toString())) {
+#if 0 // Does not work with Mer SDK
         const QPair<Utils::FileName, Utils::FileName> pair = qMakePair(expected, path);
         if (!m_toolChainWarnings.contains(pair)) {
             // Suppress warnings on Apple machines where compilers in /usr/bin point into Xcode.
@@ -1327,6 +1328,7 @@ void QmakeProject::testToolChain(ToolChain *tc, const Utils::FileName &path) con
                 m_toolChainWarnings.insert(pair);
             }
         }
+#endif
     }
 }
 
