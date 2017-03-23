@@ -1571,6 +1571,7 @@ void QmakeProject::testToolChain(ToolChain *tc, const Utils::FileName &path) con
 
     const Utils::FileName expected = tc->compilerCommand();
     if (expected != path) {
+#if 0 // Does not work with Mer SDK
         const QPair<Utils::FileName, Utils::FileName> pair = qMakePair(expected, path);
         if (!m_toolChainWarnings.contains(pair)) {
             TaskHub::addTask(Task(Task::Warning,
@@ -1580,6 +1581,7 @@ void QmakeProject::testToolChain(ToolChain *tc, const Utils::FileName &path) con
                                   Utils::FileName(), -1, ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
             m_toolChainWarnings.insert(pair);
         }
+#endif
     }
 }
 
