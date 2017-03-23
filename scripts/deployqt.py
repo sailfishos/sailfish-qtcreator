@@ -109,7 +109,7 @@ def ignored_qt_lib_files(path, filenames):
         return []
     return [fn for fn in filenames if is_ignored_windows_file(debug_build, path, fn)]
 
-def copy_qt_libs(target_qt_prefix_path, qt_bin_dir, qt_libs_dir, qt_plugin_dir, qt_import_dir, qt_qml_dir, plugins, imports):
+def copy_qt_libs(target_qt_prefix_path, qt_bin_dir, qt_libs_dir, qt_libexec_dir, qt_plugin_dir, qt_import_dir, qt_qml_dir, qt_data_dir, plugins, imports):
     print("copying Qt libraries...")
 
     if common.is_windows_platform():
@@ -174,10 +174,28 @@ def copy_qt_libs(target_qt_prefix_path, qt_bin_dir, qt_libs_dir, qt_plugin_dir, 
         os.makedirs(bin_dest)
     shutil.copy(qtdiag_src, bin_dest)
 
+    print("Copying QtWebEngineProcess")
+    libexec_dest = target_qt_prefix_path if common.is_windows_platform() else os.path.join(target_qt_prefix_path, 'libexec')
+    src = os.path.join(qt_libexec_dir, 'QtWebEngineProcess')
+    if not os.path.exists(libexec_dest):
+        os.makedirs(libexec_dest)
+    shutil.copy(src, libexec_dest)
 
-def add_qt_conf(target_path, qt_prefix_path):
+    print("Copying QtWebEngine resources")
+    data_dest = target_qt_prefix_path if common.is_windows_platform() else os.path.join(target_qt_prefix_path, 'resources')
+    resources = []
+    resources.append(os.path.join(qt_data_dir, 'icudtl.dat'))
+    resources.extend(glob(os.path.join(qt_data_dir, 'qtwebengine_resources*.pak')))
+    if not os.path.exists(data_dest):
+        os.makedirs(data_dest)
+    for resource in resources:
+        shutil.copy(resource, data_dest)
+
+
+def add_qt_conf(target_path, qt_prefix_path, tr_path):
     qtconf_filepath = os.path.join(target_path, 'qt.conf')
     prefix_path = os.path.relpath(qt_prefix_path, target_path).replace('\\', '/')
+    tr_path = os.path.relpath(tr_path, qt_prefix_path).replace('\\', '/')
     print('Creating qt.conf in "{0}":'.format(qtconf_filepath))
     f = open(qtconf_filepath, 'w')
     f.write('[Paths]\n')
@@ -187,16 +205,26 @@ def add_qt_conf(target_path, qt_prefix_path):
     f.write('Plugins=plugins\n')
     f.write('Imports=imports\n')
     f.write('Qml2Imports=qml\n')
+    f.write('Translations={0}\n'.format(tr_path))
     f.close()
 
-def copy_translations(install_dir, qt_tr_dir):
+def copy_translations(tr_dir, qt_tr_dir):
     translations = glob(os.path.join(qt_tr_dir, '*.qm'))
-    tr_dir = os.path.join(install_dir, 'share', 'qtcreator', 'translations')
 
     print("copying translations...")
     for translation in translations:
         print(translation, '->', tr_dir)
         shutil.copy(translation, tr_dir)
+
+    qtwebengine_locales = glob(os.path.join(qt_tr_dir, 'qtwebengine_locales', '*.pak'))
+    qtwebengine_tr_dir = os.path.join(tr_dir, 'qtwebengine_locales')
+    if not os.path.exists(qtwebengine_tr_dir):
+        os.makedirs(qtwebengine_tr_dir)
+
+    print("copying qtwebengine locales...")
+    for qtwebengine_locale in qtwebengine_locales:
+        print(qtwebengine_locale, '->', qtwebengine_tr_dir)
+        shutil.copy(qtwebengine_locale, qtwebengine_tr_dir)
 
 def copyPreservingLinks(source, destination):
     if os.path.islink(source):
@@ -285,6 +313,9 @@ def main():
         qt_deploy_prefix = os.path.join(install_dir, 'lib', 'Qt')
     else:
         qt_deploy_prefix = os.path.join(install_dir, 'bin')
+
+    tr_dir = os.path.join(install_dir, 'share', 'qtcreator', 'translations')
+
     qmake_bin = 'qmake'
     if len(args) > 1:
         qmake_bin = args[1]
@@ -304,10 +335,16 @@ def main():
     qt_install_info = common.get_qt_install_info(qmake_bin)
     QT_INSTALL_LIBS = qt_install_info['QT_INSTALL_LIBS']
     QT_INSTALL_BINS = qt_install_info['QT_INSTALL_BINS']
+    QT_INSTALL_LIBEXECS = qt_install_info['QT_INSTALL_LIBEXECS']
     QT_INSTALL_PLUGINS = qt_install_info['QT_INSTALL_PLUGINS']
     QT_INSTALL_IMPORTS = qt_install_info['QT_INSTALL_IMPORTS']
     QT_INSTALL_QML = qt_install_info['QT_INSTALL_QML']
     QT_INSTALL_TRANSLATIONS = qt_install_info['QT_INSTALL_TRANSLATIONS']
+    QT_INSTALL_DATA = qt_install_info['QT_INSTALL_DATA']
+
+    if QT_INSTALL_DATA == qt_install_info['QT_INSTALL_PREFIX']:
+        print("Warning: QT_INSTALL_DATA equals to QT_INSTALL_PREFIX. Fixing as '$[QT_INSTALL_PREFIX]/resources'")
+        QT_INSTALL_DATA = os.path.join(QT_INSTALL_DATA, 'resources')
 
     plugins = ['accessible', 'codecs', 'designer', 'iconengines', 'imageformats', 'platformthemes', 'platforminputcontexts', 'platforms', 'printsupport', 'sqldrivers', 'xcbglintegrations']
     imports = ['Qt', 'QtWebKit']
@@ -317,19 +354,20 @@ def main():
         debug_build = is_debug_build(install_dir)
 
     if common.is_windows_platform():
-        copy_qt_libs(qt_deploy_prefix, QT_INSTALL_BINS, QT_INSTALL_BINS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, plugins, imports)
+        copy_qt_libs(qt_deploy_prefix, QT_INSTALL_BINS, QT_INSTALL_BINS, QT_INSTALL_LIBEXECS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, QT_INSTALL_DATA, plugins, imports)
     else:
-        copy_qt_libs(qt_deploy_prefix, QT_INSTALL_BINS, QT_INSTALL_LIBS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, plugins, imports)
-    copy_translations(install_dir, QT_INSTALL_TRANSLATIONS)
+        copy_qt_libs(qt_deploy_prefix, QT_INSTALL_BINS, QT_INSTALL_LIBS, QT_INSTALL_LIBEXECS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, QT_INSTALL_DATA, plugins, imports)
+    copy_translations(tr_dir, QT_INSTALL_TRANSLATIONS)
     if "LLVM_INSTALL_DIR" in os.environ:
         deploy_libclang(install_dir, os.environ["LLVM_INSTALL_DIR"], chrpath_bin)
 
     if not common.is_windows_platform():
         print("fixing rpaths...")
         common.fix_rpaths(install_dir, os.path.join(qt_deploy_prefix, 'lib'), qt_install_info, chrpath_bin)
-        add_qt_conf(os.path.join(install_dir, 'libexec', 'qtcreator'), qt_deploy_prefix) # e.g. for qml2puppet
-        add_qt_conf(os.path.join(qt_deploy_prefix, 'bin'), qt_deploy_prefix) # e.g. qtdiag
-    add_qt_conf(os.path.join(install_dir, 'bin'), qt_deploy_prefix)
+        add_qt_conf(os.path.join(install_dir, 'libexec', 'qtcreator'), qt_deploy_prefix, tr_dir) # e.g. for qml2puppet
+        add_qt_conf(os.path.join(qt_deploy_prefix, 'bin'), qt_deploy_prefix, tr_dir) # e.g. qtdiag
+        add_qt_conf(os.path.join(qt_deploy_prefix, 'libexec'), qt_deploy_prefix, tr_dir) # e.g. QtWebEngineProcess
+    add_qt_conf(os.path.join(install_dir, 'bin'), qt_deploy_prefix, tr_dir)
 
 if __name__ == "__main__":
     if common.is_mac_platform():
