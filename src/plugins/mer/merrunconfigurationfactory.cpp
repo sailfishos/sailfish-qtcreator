@@ -76,7 +76,7 @@ QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
 QString MerRunConfigurationFactory::displayNameForId(Core::Id id) const
 {
     if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return tr("%1 (on Mer Device)").arg(stringFromId(id));
+        return tr("%1 (on Sailfish OS Device)").arg(stringFromId(id));
 
     return QString();
 }

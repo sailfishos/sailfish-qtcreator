@@ -130,7 +130,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (device && device->architecture() != targetAbi().architecture()) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain \"%1\" can not be used for device with %2 architecture")
+                                            "Toolchain \"%1\" can not be used for device with %2 architecture")
                 .arg(displayName()).arg(Abi::toString(device->architecture()));
         result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
@@ -149,7 +149,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "The toolchain \"%1\" does not match mersdk or qt version").
+                                            "The toolchain \"%1\" does not match Sailfish OS build engine or Qt version").
                                                                 arg(displayName());
         result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
@@ -179,7 +179,7 @@ void MerToolChain::addToEnvironment(Environment &env) const
 
 MerToolChainFactory::MerToolChainFactory()
 {
-    setDisplayName(tr("Mer"));
+    setDisplayName(tr("Sailfish OS"));
 }
 
 /*

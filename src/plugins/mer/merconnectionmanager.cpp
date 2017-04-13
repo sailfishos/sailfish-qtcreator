@@ -237,28 +237,28 @@ MerConnectionManager::MerConnectionManager():
     QIcon sdkIconOff(QLatin1String(":/mer/images/sdk-run.png"));
     QIcon sdkIconOn(QLatin1String(":/mer/images/sdk-stop.png"));
 
-    m_emulatorAction->setName(tr("Emulator"));
+    m_emulatorAction->setName(tr("Sailfish OS Emulator"));
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
     m_emulatorAction->setIconOff(emuIconOff);
     m_emulatorAction->setIconOn(emuIconOn);
-    m_emulatorAction->setStartTip(tr("Start Emulator"));
-    m_emulatorAction->setStopTip(tr("Stop Emulator"));
+    m_emulatorAction->setStartTip(tr("Start Sailfish OS Emulator"));
+    m_emulatorAction->setStopTip(tr("Stop Sailfish OS Emulator"));
     m_emulatorAction->setConnectingTip(tr("Connecting..."));
     m_emulatorAction->setDisconnectingTip(tr("Disconnecting..."));
-    m_emulatorAction->setClosingTip(tr("Closing Emulator"));
-    m_emulatorAction->setStartingTip(tr("Starting Emulator"));
+    m_emulatorAction->setClosingTip(tr("Closing..."));
+    m_emulatorAction->setStartingTip(tr("Starting..."));
     m_emulatorAction->initialize();
 
-    m_sdkAction->setName(tr("MerSdk"));
+    m_sdkAction->setName(tr("Sailfish OS Build Engine"));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkAction->setIconOff(sdkIconOff);
     m_sdkAction->setIconOn(sdkIconOn);
-    m_sdkAction->setStartTip(tr("Start SDK"));
-    m_sdkAction->setStopTip(tr("Stop SDK"));
+    m_sdkAction->setStartTip(tr("Start Sailfish OS Build Engine"));
+    m_sdkAction->setStopTip(tr("Stop Sailfish OS Build Engine"));
     m_sdkAction->setConnectingTip(tr("Connecting..."));
     m_sdkAction->setDisconnectingTip(tr("Disconnecting..."));
-    m_sdkAction->setClosingTip(tr("Closing SDK"));
-    m_sdkAction->setStartingTip(tr("Starting SDK"));
+    m_sdkAction->setClosingTip(tr("Closing..."));
+    m_sdkAction->setStartingTip(tr("Starting..."));
     m_sdkAction->initialize();
 
     connect(KitManager::instance(), &KitManager::kitUpdated,

@@ -149,7 +149,7 @@
         <item row="0" column="0">
          <widget class="QLabel" name="merSdkLabel">
           <property name="text">
-           <string>Mer SDK Virtual Machine:</string>
+           <string>Sailfish OS build engine:</string>
           </property>
          </widget>
         </item>

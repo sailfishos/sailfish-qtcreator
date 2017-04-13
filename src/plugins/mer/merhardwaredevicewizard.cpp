@@ -36,7 +36,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
       m_setupPage(this),
       m_finalPage(this)
 {
-    setWindowTitle(tr("New Mer Hardware Device Setup"));
+    setWindowTitle(tr("New Sailfish OS Hardware Device Setup"));
     addPage(&m_selectionPage);
     addPage(&m_setupPage);
     addPage(&m_finalPage);

@@ -140,14 +140,14 @@ bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions op
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
 
     if (!merSdk) {
-        addOutput(tr("Cannot deploy: Missing MerSdk information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),ErrorMessageOutput);
         return false;
     }
 
     const QString target = MerTargetKitInformation::targetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing MerTarget information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"), ErrorMessageOutput);
         return false;
     }
 
@@ -155,7 +155,7 @@ bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions op
 
     //TODO: HACK
     if (device.isNull() && !(options & DoNotNeedDevice)) {
-        addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS device information in the kit"), ErrorMessageOutput);
         return false;
     }
 
@@ -528,14 +528,14 @@ bool MerLocalRsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
 
     if (!merSdk) {
-        addOutput(tr("Cannot deploy: Missing MerSdk information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),ErrorMessageOutput);
         return false;
     }
 
     const QString target = MerTargetKitInformation::targetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing MerTarget information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"), ErrorMessageOutput);
         return false;
     }
 

@@ -266,7 +266,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
 
     m_ui->sshCheckBox->setChecked(true);
 
-    static QRegExp regExp(tr("MerSDK"));
+    static QRegExp regExp(tr("Build Engine"));
     QList<MerSdk*> sdks = MerSdkManager::sdks();
     foreach (const MerSdk *s, sdks) {
         m_ui->merSdkComboBox->addItem(s->virtualMachineName());

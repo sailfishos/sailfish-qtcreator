@@ -25,13 +25,13 @@
 
     \title Connecting Sailfish OS Devices
 
-    In Mer terminology, a \e target contains everything that you need to build
-    applications for a particular type of Mer device, such as a phone or a
-    tablet. \QC fetches information about header files and QML types from the
-    target to be able to provide features such as syntax highlighting and code
-    completion.
+    In Sailfish OS SDK terminology, a \e{target} contains everything that
+    you need to build applications for a particular type of Sailfish OS device,
+    such as a phone or a tablet. \QC fetches information about header files and
+    QML types from the target to be able to provide features such as syntax
+    highlighting and code completion.
 
-    The Sailfish OS SDK installation program installs Mer targets on the
+    The Sailfish OS SDK installation program installs targets on the
     development host and configures the appropriate \l{glossary-buildandrun-kit}
     {kit} for you in \QC. After the installation, you are ready to start
     developing applications, as described in
@@ -42,26 +42,27 @@
 
     The following sections describe how to configure connections between \QC and
     a device and how to specify build and run settings for a kit that contains
-    the device. In addition, you can add Mer targets and configure them in \QC.
+    the device. In addition, you can add targets and configure them in \QC.
 
     \section1 Adding Sailfish OS Devices
 
     To deploy applications and run them remotely on Sailfish OS devices, specify
-    parameters for accessing the devices. In addition, you can run the
-    Sailfish OS device image in the Virtual Machine. The Sailfish OS SDK
-    installation program creates the connection to the Virtual Machine for you.
-    When you use the Sailfish OS application wizard to create a Sailfish OS
-    project, buttons for starting the Mer SDK Virtual Machine and the emulator
-    become visible on the taskbar.
+    parameters for accessing the devices. In addition, you can run the Sailfish
+    OS device image in a virtual machine. The Sailfish OS SDK installation
+    program creates the connection to the Sailfish OS build engine and emulator
+    virtual machines for you. When you use the Sailfish OS application wizard to
+    create a Sailfish OS project, buttons for starting the Sailfish OS build
+    engine and the emulator become visible on the taskbar.
 
-    By default, the Virtual Machine is run in a \e {headless state}, which means
-    that the VirtualBox user interface is hidden. When running in the headless
-    state, you are prompted to close the Virtual Machine when you exit \QC.
-    To show VirtualBox, select \gui Tools > \gui Options > \gui Mer.
+    By default, the build engine virtual machine is run in a \e {headless
+    state}, which means that the VirtualBox user interface is hidden. When
+    running in the headless state, you are prompted to close the virtual machine
+    when you exit \QC. To show VirtualBox, select \gui Tools > \gui Options >
+    \gui{Sailfish OS} > \gui{Build Engine} and disable the \gui {No window}
+    option.
 
-    You can protect the connections between \QC and a device by using
-    either a password or an SSH key. If you do not have an SSH key, you can
-    create it in \QC.
+    Connections between \QC and devices are protected by using SSH keys.
+    If you do not have an SSH key, you can create it in \QC.
 
     \image qtcreator-devices-mer.png "Devices options dialog"
 
@@ -69,10 +70,10 @@
 
     \list 1
 
-        \li Select \gui Tools > \gui Options > \gui Devices > \gui Add >
-            \gui {Mer Emulator Device} > \gui {Start Wizard}.
+        \li Select \gui Tools > \gui Options > \gui Devices > \gui Add... >
+            \gui {Sailfish OS Device} > \gui {Emulator}.
 
-            \image qtcreator-device-mer.png "New Mer Emulator Device Setup"
+            \image qtcreator-device-mer.png "New Sailfish OS Emulator Device Setup"
 
             Usually, you can use the default values for all the fields.
 
@@ -130,10 +131,10 @@
     device or to the emulator. For more information, see
     \l{Deploying Applications to Sailfish OS Devices}.
 
-    \section1 Adding Mer SDK Targets
+    \section1 Adding Sailfish OS Build Targets
 
-    To add Mer SDK targets, select \gui {Sailfish OS Mode} to access the
-    \gui {SDK Control Center}:
+    To add build targets, switch to \gui {Sailfish OS} mode to access the
+    build engine's \gui {Control Centre}:
 
     \image creator-mer-sdk-control-center.png
 
@@ -157,24 +158,23 @@
 
     \section1 Configuring Connections
 
-    To configure a connection between \QC and a Mer SDK target running in the
-    Virtual Machine:
+    To configure a connection between \QC and a Sailfish OS build engine running
+    in a virtual machine:
 
     \list 1
 
-        \li Select \gui Tools > \gui Options > \gui Mer > \gui SDK > \gui Add >
-            \gui {MerSDK} > \gui Add.
+        \li Select \gui Tools > \gui Options > \gui {Sailfish OS} > \gui {Build
+            Engine} > \gui {Add...}.
 
             \image creator-mer-options-vm.png
 
-            \note You can only create one connection to a particular Mer SDK
-            target.
+            \note You can create only one connection to a particular build engine.
 
-        \li Deselect the \gui Headless check box and restart the Virtual Machine
+        \li Deselect the \gui {No window} check box and restart the virtual machine
             to show the VirtualBox user interface.
 
         \li In the \gui Connection field, specify the SSH key to use to protect
-            the connection between \QC and the Mer SDK:
+            the connection between \QC and the build engine:
 
             \list
 
@@ -191,9 +191,9 @@
 
     \endlist
 
-    To create a kit that uses the new Mer SDK, select \gui Tools
-    > \gui Options > \gui {Build & Run} > \gui Kits. You can clone the kit
-    created by the Sailfish OS SDK installation program and just change the
-    Mer SDK, and other fields, as necessary.
+    To create a kit that uses the new Sailfish OS build engine, select \gui
+    Tools > \gui Options > \gui {Build & Run} > \gui Kits. You can clone the kit
+    created by the Sailfish OS SDK installation program and just change the \gui
+    {Sailfish OS Build Engine}, and other fields, as necessary.
 
 */

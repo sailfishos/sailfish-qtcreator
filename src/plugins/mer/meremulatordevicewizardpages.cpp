@@ -51,14 +51,6 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 {
     m_ui->setupUi(this);
 
-    QString preferredName = tr("SailfishOS Emulator");
-
-    int i = 1;
-    QString tryName = preferredName;
-    while (DeviceManager::instance()->hasDevice(tryName))
-        tryName = preferredName + QString::number(++i);
-
-    m_ui->configNameLineEdit->setText(tryName);
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(30);
@@ -133,6 +125,12 @@ QString MerEmualtorVMPage::mac() const
 
 void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 {
+    int i = 1;
+    QString tryName = vmName;
+    while (DeviceManager::instance()->hasDevice(tryName))
+        tryName = vmName + QString::number(++i);
+    m_ui->configNameLineEdit->setText(tryName);
+
     VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
     if (info.sshPort == 0)
         m_ui->sshPortLabelEdit->setText(tr("none"));

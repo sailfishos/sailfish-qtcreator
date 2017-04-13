@@ -55,7 +55,7 @@ MerDeviceFactory::MerDeviceFactory()
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
     if (type == Constants::MER_DEVICE_TYPE)
-        return tr("Mer Device");
+        return tr("Sailfish OS Device");
     return QString();
 }
 
@@ -76,7 +76,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
     QStringList choices = QStringList() << tr("Emulator") << tr("Physical device");
     bool ok;
     QString machineType = QInputDialog::getItem(ICore::dialogParent(),
-            tr("Create Mer Device"),
+            tr("Create a Sailfish OS Device"),
             tr("Add an emulator or physical device?"),
             choices, 0, false, &ok);
     if (!ok)

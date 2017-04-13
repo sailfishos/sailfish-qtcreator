@@ -62,7 +62,8 @@ QList<Task> MerTargetKitInformation::validate(const Kit *kit) const
         const QString &target = kit->value(MerTargetKitInformation::id()).toString();
         if (sdk && !sdk->targetNames().contains(target)) {
             const QString message = QCoreApplication::translate("MerTarget",
-                                                                "No valid MerTarget for %1 sdk found").arg(sdk->virtualMachineName());
+                    "No valid build target found for %1")
+                .arg(sdk->virtualMachineName());
             return QList<Task>() << Task(Task::Error, message, FileName(), -1,
                                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
@@ -82,7 +83,7 @@ KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) c
     if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString targetName = MerTargetKitInformation::targetName(kit);
         return KitInformation::ItemList()
-                << qMakePair(tr("MerTarget"),targetName);
+                << qMakePair(tr("Sailfish OS build target"),targetName);
     }
     return KitInformation::ItemList();
 }
@@ -127,12 +128,12 @@ MerTargetKitInformationWidget::MerTargetKitInformationWidget(Kit *kit,
 
 QString MerTargetKitInformationWidget::displayName() const
 {
-    return tr("Mer Target:");
+    return tr("Sailfish OS build target:");
 }
 
 QString MerTargetKitInformationWidget::toolTip() const
 {
-    return tr("Name of target used by sb2.");
+    return tr("Name of an sb2 build target.");
 }
 
 void MerTargetKitInformationWidget::makeReadOnly()

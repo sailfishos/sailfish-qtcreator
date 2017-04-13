@@ -43,9 +43,9 @@
 
             \image creator-sailfish-tutorial-1.png "New project wizard"
 
-            The \gui {Introduction and Product Location} dialog opens.
+            The \gui {Introduction and Project Location} dialog opens.
 
-            \image creator-sailfish-tutorial-1a.png "Introduction and Product Location"
+            \image creator-sailfish-tutorial-1a.png "Introduction and Project Location"
 
         \li In the \gui{Name} field, type \b {HelloWorld}.
 
@@ -58,8 +58,8 @@
             applications in the Sailfish OS SDK installation directory and in an
             additional source directory that you specify during the installation
             of the Sailfish OS SDK. These directories are shared with the
-            MerSDK Virtual Machine. If you select some other directory, a
-            warning is displayed.
+            Sailfish OS build engine virtual machine. If you select some other
+            directory, a warning is displayed.
 
             \image creator-sailfish-tutorial-2.png "Kit Selection dialog"
 
@@ -92,22 +92,23 @@
     \section2 Running on the Emulator
 
     If no device is connected, \QC runs the application on the emulator
-    running in the MerSDK Virtual Machine.
+    running in a virtual machine.
 
     When you create your first Sailfish OS application, the buttons for
-    starting the Mer SDK Virtual Machine and the emulator become visible on the
+    starting the Sailfish OS build engine and the emulator become visible on the
     taskbar.
 
     \list 1
 
         \li Select
             \inlineimage creator-mer-start-sdk-button.png
-            (\gui {Start SDK}) to start the MerSDK Virtual Machine.
+            (\gui {Start Sailfish OS Build Engine}) to start the build engine
+            virtual machine.
 
         \li Select
             \inlineimage creator-mer-start-emulator-button.png
-            (\gui {Start Emulator}) to start the emulator in the Virtual
-            Machine.
+            (\gui {Start Sailfish OS Emulator}) to start the emulator virtual
+            machine.
 
         \li In the target selector, select the Sailfish OS kit.
 

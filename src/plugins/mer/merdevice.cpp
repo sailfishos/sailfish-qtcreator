@@ -40,7 +40,7 @@ namespace {
 
 QString MerDevice::displayType() const
 {
-    return tr("Mer Device");
+    return tr("Sailfish OS Device");
 }
 
 void MerDevice::fromMap(const QVariantMap &map)

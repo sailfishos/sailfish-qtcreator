@@ -116,7 +116,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
         ActionManager::actionContainer(Core::Constants::M_TOOLS);
 
     ActionContainer *menu = ActionManager::createMenu(Constants::MER_TOOLS_MENU);
-    menu->menu()->setTitle(tr("Me&r"));
+    menu->menu()->setTitle(tr("&Sailfish OS"));
     toolsMenu->addMenu(menu);
 
     MerEmulatorModeDialog *emulatorModeDialog = new MerEmulatorModeDialog(this);

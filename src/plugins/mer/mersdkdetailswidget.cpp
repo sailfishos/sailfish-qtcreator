@@ -98,11 +98,11 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     if (MerSdkManager::hasSdk(sdk)) {
         const QStringList &targets = sdk->targetNames();
         if (targets.isEmpty())
-            m_ui->targetsListLabel->setText(tr("No targets installed"));
+            m_ui->targetsListLabel->setText(tr("No build targets installed"));
         else
             m_ui->targetsListLabel->setText(sdk->targetNames().join(QLatin1String(", ")));
     } else {
-        m_ui->targetsListLabel->setText(tr("Add SDK first to see targets"));
+        m_ui->targetsListLabel->setText(tr("Complete adding the build engine to see its build targets"));
     }
 
     if (!sdk->sharedSshPath().isEmpty()) {

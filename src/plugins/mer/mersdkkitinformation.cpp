@@ -63,7 +63,7 @@ QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
         const QString &vmName = kit->value(MerSdkKitInformation::id()).toString();
         if (!MerSdkManager::sdk(vmName)) {
             const QString message = QCoreApplication::translate("MerSdk",
-                                                                "No valid MerSdk virtual machine %1 found").arg(vmName);
+                                                                "No valid Sailfish OS build engine \"%1\" found").arg(vmName);
             return QList<Task>() << Task(Task::Error, message, FileName(), -1,
                                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
@@ -86,7 +86,7 @@ KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) cons
         if (sdk)
             vmName = sdk->virtualMachineName();
         return KitInformation::ItemList()
-                << qMakePair(tr("MerSdk"),vmName);
+                << qMakePair(tr("Sailfish OS build engine"), vmName);
     }
     return KitInformation::ItemList();
 }
@@ -146,12 +146,12 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
 
 QString MerSdkKitInformationWidget::displayName() const
 {
-    return tr("Mer SDK:");
+    return tr("Sailfish OS build engine:");
 }
 
 QString MerSdkKitInformationWidget::toolTip() const
 {
-    return tr("Name of virtual machine used as Mer SDK.");
+    return tr("Name of the virtual machine used as a Sailfish OS build engine.");
 }
 
 void MerSdkKitInformationWidget::makeReadOnly()

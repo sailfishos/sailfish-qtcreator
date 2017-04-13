@@ -49,7 +49,7 @@ bool MerSdkStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     if (!merSdk) {
-        addOutput(tr("Cannot start SDK: Missing MerSDK information in the kit"),
+        addOutput(tr("Cannot start SDK: Missing Sailfish OS build-engine information in the kit"),
                 ErrorMessageOutput);
         return false;
     }
@@ -66,7 +66,7 @@ Core::Id MerSdkStartStep::stepId()
 
 QString MerSdkStartStep::displayName()
 {
-    return tr("Start SDK");
+    return tr("Start Build Engine");
 }
 
 } // namespace Internal
