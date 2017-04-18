@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGSTATICANALYZERRUNCONTROL_H
-#define CLANGSTATICANALYZERRUNCONTROL_H
+#pragma once
 
 #include <debugger/analyzer/analyzerruncontrol.h>
 #include <cpptools/projectinfo.h>
@@ -48,12 +47,7 @@ struct AnalyzeUnit {
 };
 typedef QList<AnalyzeUnit> AnalyzeUnits;
 
-struct ExtraToolChainInfo {
-    unsigned char wordWidth = 0;
-    QString targetTriple;
-};
-
-class ClangStaticAnalyzerRunControl : public Debugger::AnalyzerRunControl
+class ClangStaticAnalyzerRunControl : public ProjectExplorer::RunControl
 {
     Q_OBJECT
 
@@ -67,9 +61,11 @@ public:
     bool isRunning() const override;
 
     bool success() const { return m_success; } // For testing.
+    bool supportsReRunning() const override { return false; }
 
 signals:
     void newDiagnosticsAvailable(const QList<Diagnostic> &diagnostics);
+    void starting();
 
 private:
     AnalyzeUnits sortedUnitsToAnalyze();
@@ -87,7 +83,7 @@ private:
 
 private:
     const CppTools::ProjectInfo m_projectInfo;
-    ExtraToolChainInfo m_extraToolChainInfo;
+    QString m_targetTriple;
 
     Utils::Environment m_environment;
     QString m_clangExecutable;
@@ -104,5 +100,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangStaticAnalyzer
-
-#endif // CLANGSTATICANALYZERRUNCONTROL_H

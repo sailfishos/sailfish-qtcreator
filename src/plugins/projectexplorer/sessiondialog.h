@@ -43,23 +43,14 @@ class SessionDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SessionDialog(QWidget *parent = 0);
+    explicit SessionDialog(QWidget *parent = nullptr);
 
     void setAutoLoadSession(bool);
     bool autoLoadSession() const;
 
 private:
-    void createNew();
-    void clone();
-    void remove();
-    void rename();
-    void switchToSession();
+    void updateActions(const QString &session);
 
-    void updateActions();
-
-    void addItems(bool setDefaultSession);
-    void markItems();
-    void addSessionToUi(const QString &name, bool switchTo);
     Ui::SessionDialog m_ui;
 };
 
@@ -68,7 +59,7 @@ class SessionNameInputDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SessionNameInputDialog(const QStringList &sessions, QWidget *parent = 0);
+    explicit SessionNameInputDialog(const QStringList &sessions, QWidget *parent = nullptr);
 
     void setValue(const QString &value);
     QString value() const;

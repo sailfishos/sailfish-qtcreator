@@ -46,6 +46,8 @@
 #include <qtsupport/qtversionmanager.h>
 #include <coreplugin/idocument.h>
 
+#include <qmljs/qmljsmodelmanagerinterface.h>
+
 #include <QFileInfo>
 #include <QUrl>
 #include <QDebug>
@@ -132,7 +134,7 @@ static ComponentTextModifier *createComponentTextModifier(TextModifier *original
         componentEndOffset = componentStartOffset + rewriterView->nodeLength(componentNode);
     }
 
-    return new ComponentTextModifier (originalModifier, componentStartOffset, componentEndOffset, rootStartOffset);
+    return new ComponentTextModifier(originalModifier, componentStartOffset, componentEndOffset, rootStartOffset);
 }
 
 bool DesignDocument::loadInFileComponent(const ModelNode &componentNode)
@@ -163,17 +165,24 @@ Model* DesignDocument::createInFileComponentModel()
     return model;
 }
 
-/*!
-  Returns any errors that happened when parsing the latest qml file.
-  */
-QList<RewriterError> DesignDocument::qmlSyntaxErrors() const
+QList<RewriterError> DesignDocument::qmlParseWarnings() const
+{
+    return m_rewriterView->warnings();
+}
+
+bool DesignDocument::hasQmlParseWarnings() const
+{
+    return !m_rewriterView->warnings().isEmpty();
+}
+
+QList<RewriterError> DesignDocument::qmlParseErrors() const
 {
     return m_rewriterView->errors();
 }
 
-bool DesignDocument::hasQmlSyntaxErrors() const
+bool DesignDocument::hasQmlParseErrors() const
 {
-    return currentModel()->rewriterView() && !currentModel()->rewriterView()->errors().isEmpty();
+    return !m_rewriterView->errors().isEmpty();
 }
 
 QString DesignDocument::displayName() const
@@ -236,11 +245,16 @@ void DesignDocument::loadDocument(QPlainTextEdit *edit)
             this, SIGNAL(dirtyStateChanged(bool)));
 
     m_documentTextModifier.reset(new BaseTextEditModifier(dynamic_cast<TextEditor::TextEditorWidget*>(plainTextEdit())));
+
+    connect(m_documentTextModifier.data(), &TextModifier::textChanged, this, &DesignDocument::updateQrcFiles);
+
     m_documentModel->setTextModifier(m_documentTextModifier.data());
 
     m_inFileComponentTextModifier.reset();
 
     updateFileName(Utils::FileName(), fileName());
+
+    updateQrcFiles();
 
     m_documentLoaded = true;
 }
@@ -270,6 +284,18 @@ void DesignDocument::changeToInFileComponentModel(ComponentTextModifier *textMod
     viewManager().attachViewsExceptRewriterAndComponetView();
 }
 
+void DesignDocument::updateQrcFiles()
+{
+    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName());
+
+    if (currentProject) {
+        foreach (const QString &fileName, currentProject->files(ProjectExplorer::Project::SourceFiles)) {
+            if (fileName.endsWith(".qrc"))
+                QmlJS::ModelManagerInterface::instance()->updateQrcFile(fileName);
+        }
+    }
+}
+
 void DesignDocument::changeToSubComponent(const ModelNode &componentNode)
 {
     if (QmlDesignerPlugin::instance()->currentDesignDocument() != this)
@@ -295,7 +321,7 @@ void DesignDocument::changeToMaster()
     if (m_inFileComponentModel)
         changeToDocumentModel();
 
-    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName().toString());
+    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName());
     QmlDesignerPlugin::instance()->viewManager().setComponentNode(rootModelNode());
 }
 
@@ -582,6 +608,7 @@ void DesignDocument::setEditor(Core::IEditor *editor)
             this, &DesignDocument::updateFileName);
 
     updateActiveQtVersion();
+    updateCurrentProject();
 }
 
 Core::IEditor *DesignDocument::editor() const
@@ -640,6 +667,12 @@ static inline Kit *getActiveKit(DesignDocument *designDocument)
     QObject::connect(currentProject, &Project::activeTargetChanged,
                      designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
 
+    QObject::connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
+                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
+
+    QObject::connect(currentProject, &Project::activeTargetChanged,
+                     designDocument, &DesignDocument::updateCurrentProject, Qt::UniqueConnection);
+
 
     Target *target = currentProject->activeTarget();
 
@@ -658,6 +691,12 @@ void DesignDocument::updateActiveQtVersion()
 {
     m_currentKit = getActiveKit(this);
     viewManager().setNodeInstanceViewKit(m_currentKit);
+}
+
+void DesignDocument::updateCurrentProject()
+{
+    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName());
+    viewManager().setNodeInstanceViewProject(currentProject);
 }
 
 QString DesignDocument::contextHelpId() const

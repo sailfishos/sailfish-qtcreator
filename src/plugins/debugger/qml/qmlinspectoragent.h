@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLINSPECTORAGENT_H
-#define QMLINSPECTORAGENT_H
+#pragma once
 
 #include <QStack>
 #include <QPointer>
@@ -56,25 +55,24 @@ QHash<QPair<QString, int>, QHash<QPair<int, int>, QList<int> > > DebugIdHash;
 class QmlInspectorAgent : public QObject
 {
     Q_OBJECT
+
 public:
     QmlInspectorAgent(QmlEngine *engine, QmlDebug::QmlDebugConnection *connection);
 
-    void fetchObject(int debugId);
     quint32 queryExpressionResult(int debugId, const QString &expression);
-
     void assignValue(const WatchItem *data, const QString &expression, const QVariant &valueV);
     void updateWatchData(const WatchItem &data);
     void watchDataSelected(qint64 id);
+
+private:
     bool selectObjectInTree(int debugId);
     void addObjectWatch(int objectDebugId);
 
     QmlDebug::ObjectReference objectForId(int objectDebugId) const;
     QString displayName(int objectDebugId) const;
     void reloadEngines();
+    void fetchObject(int debugId);
 
-    QmlDebug::BaseToolsClient *toolsClient() const;
-
-private:
     void updateState();
     void onResult(quint32 queryId, const QVariant &value, const QByteArray &type);
     void newObject(int engineId, int objectId, int parentId);
@@ -87,7 +85,7 @@ private:
 
     void buildDebugIdHashRecursive(const QmlDebug::ObjectReference &ref);
     void addWatchData(const QmlDebug::ObjectReference &obj,
-                      const QByteArray &parentIname, bool append);
+                      const QString &parentIname, bool append);
 
     enum LogDirection {
         LogSend,
@@ -131,7 +129,7 @@ private:
     QList<quint32> m_objectTreeQueryIds;
     QStack<QmlDebug::ObjectReference> m_objectStack;
     QmlDebug::EngineReference m_engine;
-    QHash<int, QByteArray> m_debugIdToIname;
+    QHash<int, QString> m_debugIdToIname;
     QHash<int, QmlDebug::FileReference> m_debugIdLocations;
     DebugIdHash m_debugIdHash;
 
@@ -161,5 +159,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // QMLINSPECTORAGENT_H

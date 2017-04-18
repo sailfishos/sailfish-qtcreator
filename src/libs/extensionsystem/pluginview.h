@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef PLUGINVIEW_H
-#define PLUGINVIEW_H
+#pragma once
 
 #include "extensionsystem_global.h"
+
+#include <utils/treemodel.h>
 
 #include <QWidget>
 #include <QSet>
@@ -36,11 +37,7 @@ QT_BEGIN_NAMESPACE
 class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
-namespace Utils {
-class TreeItem;
-class TreeModel;
-class TreeView;
-} // namespace Utils
+namespace Utils { class TreeView; }
 
 namespace ExtensionSystem {
 
@@ -74,7 +71,7 @@ private:
     bool setPluginsEnabled(const QSet<PluginSpec *> &plugins, bool enable);
 
     Utils::TreeView *m_categoryView;
-    Utils::TreeModel *m_model;
+    Utils::TreeModel<Utils::TreeItem, Internal::CollectionItem, Internal::PluginItem> *m_model;
     QSortFilterProxyModel *m_sortModel;
 
     friend class Internal::CollectionItem;
@@ -82,5 +79,3 @@ private:
 };
 
 } // namespae ExtensionSystem
-
-#endif // PLUGIN_VIEW_H

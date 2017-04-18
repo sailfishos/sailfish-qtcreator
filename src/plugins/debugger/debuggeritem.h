@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERITEM_H
-#define DEBUGGER_DEBUGGERITEM_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
@@ -95,13 +94,16 @@ public:
     QStringList abiNames() const;
     QDateTime lastModified() const;
 
-    bool isGood() const;
+    QIcon decoration() const;
     QString validityMessage() const;
 
     bool operator==(const DebuggerItem &other) const;
     bool operator!=(const DebuggerItem &other) const { return !operator==(other); }
 
     void reinitializeFromFile();
+
+    Utils::FileName workingDirectory() const { return m_workingDirectory; }
+    void setWorkingDirectory(const Utils::FileName &workingPath) { m_workingDirectory = workingPath; }
 
 private:
     DebuggerItem(const QVariant &id);
@@ -111,6 +113,7 @@ private:
     QString m_unexpandedDisplayName;
     DebuggerEngineType m_engineType;
     Utils::FileName m_command;
+    Utils::FileName m_workingDirectory;
     bool m_isAutoDetected;
     QString m_autoDetectionSource;
     QString m_version;
@@ -124,5 +127,3 @@ private:
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGER_DEBUGGERITEM_H

@@ -42,6 +42,7 @@
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
 #include <utils/pathchooser.h>
+#include <utils/environmentdialog.h>
 
 #include <QComboBox>
 #include <QDialog>
@@ -129,12 +130,35 @@ void SysRootInformationConfigWidget::pathWasChanged()
 ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const KitInformation *ki) :
     KitConfigWidget(k, ki)
 {
-    m_comboBox = new QComboBox;
-    m_comboBox->setToolTip(toolTip());
+    m_mainWidget = new QWidget;
+    m_mainWidget->setContentsMargins(0, 0, 0, 0);
+
+    auto layout = new QGridLayout(m_mainWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setColumnStretch(1, 2);
+
+    int row = 0;
+    QList<ToolChain::Language> languageList = ToolChain::allLanguages().toList();
+    Utils::sort(languageList, [](ToolChain::Language l1, ToolChain::Language l2) {
+        return ToolChain::languageDisplayName(l1) < ToolChain::languageDisplayName(l2);
+    });
+
+    QTC_ASSERT(!languageList.isEmpty(), return);
+
+    foreach (ToolChain::Language l, languageList) {
+        layout->addWidget(new QLabel(ToolChain::languageDisplayName(l) + ':'), row, 0);
+        auto cb = new QComboBox;
+        cb->setToolTip(toolTip());
+
+        m_languageComboboxMap.insert(l, cb);
+        layout->addWidget(cb, row, 1);
+        ++row;
+
+        connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+                this, [this, l](int idx) { currentToolChainChanged(l, idx); });
+    }
 
     refresh();
-    connect(m_comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &ToolChainInformationConfigWidget::currentToolChainChanged);
 
     m_manageButton = new QPushButton(KitConfigWidget::msgManage());
     m_manageButton->setContentsMargins(0, 0, 0, 0);
@@ -144,7 +168,7 @@ ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const
 
 ToolChainInformationConfigWidget::~ToolChainInformationConfigWidget()
 {
-    delete m_comboBox;
+    delete m_mainWidget;
     delete m_manageButton;
 }
 
@@ -163,27 +187,37 @@ QString ToolChainInformationConfigWidget::toolTip() const
 void ToolChainInformationConfigWidget::refresh()
 {
     m_ignoreChanges = true;
-    m_comboBox->clear();
-    m_comboBox->addItem(tr("<No compiler>"), QByteArray());
-    foreach (ToolChain *tc, ToolChainManager::toolChains())
-        m_comboBox->addItem(tc->displayName(), tc->id());
 
-    m_comboBox->setEnabled(m_comboBox->count() > 1 && !m_isReadOnly);
+    const QList<ToolChain *> tcList = ToolChainManager::toolChains();
+    foreach (ToolChain::Language l, m_languageComboboxMap.keys()) {
+        const QList<ToolChain *> ltcList
+                = Utils::filtered(tcList, Utils::equal(&ToolChain::language, l));
 
-    const int index = indexOf(ToolChainKitInformation::toolChain(m_kit));
-    m_comboBox->setCurrentIndex(index);
+        QComboBox *cb = m_languageComboboxMap.value(l);
+        cb->clear();
+        cb->addItem(tr("<No compiler>"), QByteArray());
+
+        foreach (ToolChain *tc, ltcList)
+            cb->addItem(tc->displayName(), tc->id());
+
+        cb->setEnabled(cb->count() > 1 && !m_isReadOnly);
+        const int index = indexOf(cb, ToolChainKitInformation::toolChain(m_kit, l));
+        cb->setCurrentIndex(index);
+    }
     m_ignoreChanges = false;
 }
 
 void ToolChainInformationConfigWidget::makeReadOnly()
 {
     m_isReadOnly = true;
-    m_comboBox->setEnabled(false);
+    foreach (ToolChain::Language l, m_languageComboboxMap.keys()) {
+        m_languageComboboxMap.value(l)->setEnabled(false);
+    }
 }
 
 QWidget *ToolChainInformationConfigWidget::mainWidget() const
 {
-    return m_comboBox;
+    return m_mainWidget;
 }
 
 QWidget *ToolChainInformationConfigWidget::buttonWidget() const
@@ -196,20 +230,20 @@ void ToolChainInformationConfigWidget::manageToolChains()
     ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID, buttonWidget());
 }
 
-void ToolChainInformationConfigWidget::currentToolChainChanged(int idx)
+void ToolChainInformationConfigWidget::currentToolChainChanged(ToolChain::Language l, int idx)
 {
-    if (m_ignoreChanges)
+    if (m_ignoreChanges || idx < 0)
         return;
 
-    const QByteArray id = m_comboBox->itemData(idx).toByteArray();
-    ToolChainKitInformation::setToolChain(m_kit, ToolChainManager::findToolChain(id));
+    const QByteArray id = m_languageComboboxMap.value(l)->itemData(idx).toByteArray();
+    ToolChainKitInformation::setToolChain(m_kit, l, ToolChainManager::findToolChain(id));
 }
 
-int ToolChainInformationConfigWidget::indexOf(const ToolChain *tc)
+int ToolChainInformationConfigWidget::indexOf(QComboBox *cb, const ToolChain *tc)
 {
     const QByteArray id = tc ? tc->id() : QByteArray();
-    for (int i = 0; i < m_comboBox->count(); ++i) {
-        if (id == m_comboBox->itemData(i).toByteArray())
+    for (int i = 0; i < cb->count(); ++i) {
+        if (id == cb->itemData(i).toByteArray())
             return i;
     }
     return -1;
@@ -395,81 +429,41 @@ QString KitEnvironmentConfigWidget::displayName() const
 
 QString KitEnvironmentConfigWidget::toolTip() const
 {
-    return tr("Additional environment settings when using this kit.");
+    return tr("Additional build environment settings when using this kit.");
 }
 
 void KitEnvironmentConfigWidget::refresh()
 {
-    QList<Utils::EnvironmentItem> changes = EnvironmentKitInformation::environmentChanges(m_kit);
-    Utils::sort(changes, [](const Utils::EnvironmentItem &lhs, const Utils::EnvironmentItem &rhs)
-                         { return QString::localeAwareCompare(lhs.name, rhs.name) < 0; });
+    const QList<Utils::EnvironmentItem> changes = currentEnvironment();
     QString shortSummary = Utils::EnvironmentItem::toStringList(changes).join(QLatin1String("; "));
     QFontMetrics fm(m_summaryLabel->font());
     shortSummary = fm.elidedText(shortSummary, Qt::ElideRight, m_summaryLabel->width());
     m_summaryLabel->setText(shortSummary.isEmpty() ? tr("No changes to apply.") : shortSummary);
-    if (m_editor)
-        m_editor->setPlainText(Utils::EnvironmentItem::toStringList(changes).join(QLatin1Char('\n')));
 }
 
 void KitEnvironmentConfigWidget::makeReadOnly()
 {
     m_manageButton->setEnabled(false);
-    if (m_dialog)
-        m_dialog->reject();
+}
+
+QList<Utils::EnvironmentItem> KitEnvironmentConfigWidget::currentEnvironment() const
+{
+    QList<Utils::EnvironmentItem> changes = EnvironmentKitInformation::environmentChanges(m_kit);
+    Utils::sort(changes, [](const Utils::EnvironmentItem &lhs, const Utils::EnvironmentItem &rhs)
+                         { return QString::localeAwareCompare(lhs.name, rhs.name) < 0; });
+    return changes;
 }
 
 void KitEnvironmentConfigWidget::editEnvironmentChanges()
 {
-    if (m_dialog) {
-        m_dialog->activateWindow();
-        m_dialog->raise();
+    bool ok;
+    const QList<Utils::EnvironmentItem> changes = Utils::EnvironmentDialog::getEnvironmentItems(&ok,
+                                                                 m_summaryLabel,
+                                                                 currentEnvironment());
+    if (!ok)
         return;
-    }
 
-    QTC_ASSERT(!m_editor, return);
-
-    m_dialog = new QDialog(m_summaryLabel);
-    m_dialog->setWindowTitle(tr("Edit Environment Changes"));
-    QVBoxLayout *layout = new QVBoxLayout(m_dialog);
-    m_editor = new QPlainTextEdit;
-    m_editor->setToolTip(tr("Enter one variable per line with the variable name "
-                            "separated from the variable value by \"=\".<br>"
-                            "Environment variables can be referenced with ${OTHER}."));
-
-    QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Apply|QDialogButtonBox::Cancel);
-
-    layout->addWidget(m_editor);
-    layout->addWidget(buttons);
-
-    connect(buttons, &QDialogButtonBox::accepted, m_dialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, m_dialog, &QDialog::reject);
-    connect(m_dialog, &QDialog::accepted, this, &KitEnvironmentConfigWidget::acceptChangesDialog);
-    connect(m_dialog, &QDialog::rejected, this, &KitEnvironmentConfigWidget::closeChangesDialog);
-    connect(buttons->button(QDialogButtonBox::Apply), &QAbstractButton::clicked,
-            this, &KitEnvironmentConfigWidget::applyChanges);
-
-    refresh();
-    m_dialog->show();
-}
-
-void KitEnvironmentConfigWidget::applyChanges()
-{
-    QTC_ASSERT(m_editor, return);
-    auto changes = Utils::EnvironmentItem::fromStringList(m_editor->toPlainText().split(QLatin1Char('\n')));
     EnvironmentKitInformation::setEnvironmentChanges(m_kit, changes);
-}
-
-void KitEnvironmentConfigWidget::closeChangesDialog()
-{
-    m_dialog->deleteLater();
-    m_dialog = 0;
-    m_editor = 0;
-}
-
-void KitEnvironmentConfigWidget::acceptChangesDialog()
-{
-    applyChanges();
-    closeChangesDialog();
 }
 
 QWidget *KitEnvironmentConfigWidget::buttonWidget() const

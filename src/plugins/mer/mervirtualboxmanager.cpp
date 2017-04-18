@@ -291,8 +291,7 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
     }
 
     QProcess *process = new QProcess(instance());
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            process, &QObject::deleteLater);
+    connect(process, &QProcess::errorOccurred, process, &QProcess::deleteLater);
     connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             process, &QObject::deleteLater);
     process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
@@ -310,8 +309,7 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
     QProcess *process = new QProcess(instance());
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            process, &QProcess::deleteLater);
+    connect(process, &QProcess::errorOccurred, process, &QProcess::deleteLater);
     connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             process, &QProcess::deleteLater);
     process->setProcessChannelMode(QProcess::ForwardedErrorChannel);

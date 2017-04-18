@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSCONFIGURATIONS_H
-#define IOSCONFIGURATIONS_H
+#pragma once
 
 #include <projectexplorer/abi.h>
 #include <projectexplorer/toolchain.h>
@@ -46,6 +45,7 @@ class IosToolChainFactory : public ProjectExplorer::ToolChainFactory
     Q_OBJECT
 
 public:
+    QSet<ProjectExplorer::ToolChain::Language> supportedLanguages() const override;
     QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &existingToolChains) override;
 };
 
@@ -61,11 +61,6 @@ public:
     static void setIgnoreAllDevices(bool ignoreDevices);
     static Utils::FileName developerPath();
     static Utils::FileName lldbPath();
-
-signals:
-    void updated();
-
-public slots:
     static void updateAutomaticKitList();
 
 private:
@@ -81,5 +76,3 @@ private:
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSCONFIGURATIONS_H

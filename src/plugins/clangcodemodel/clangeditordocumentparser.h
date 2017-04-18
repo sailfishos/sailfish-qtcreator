@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGEDITORDOCUMENTPARSER_H
-#define CLANGEDITORDOCUMENTPARSER_H
+#pragma once
 
 #include <cpptools/baseeditordocumentparser.h>
 
@@ -38,9 +37,8 @@ public:
     ClangEditorDocumentParser(const QString &filePath);
 
 private:
-    void updateHelper(const CppTools::WorkingCopy &) override;
+    void updateHelper(const QFutureInterface<void> &future,
+                      const CppTools::WorkingCopy &) override;
 };
 
 } // namespace ClangCodeModel
-
-#endif // CLANGEDITORDOCUMENTPARSER_H

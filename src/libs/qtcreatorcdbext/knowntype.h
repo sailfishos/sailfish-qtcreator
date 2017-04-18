@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef KNOWNTYPE_H
-#define KNOWNTYPE_H
+#pragma once
 
 // Enumeration describing a type.
 enum KnownType
@@ -179,5 +178,3 @@ enum KnownType
     KT_StdArray =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 8,
     KT_StdValArray =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 9
 };
-
-#endif // KNOWNTYPE_H

@@ -23,12 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLSREUSE_H
-#define CPPTOOLSREUSE_H
+#pragma once
 
 #include "cpptools_global.h"
 
 #include <texteditor/texteditor.h>
+
+#include <cpptools/compileroptionsbuilder.h>
 
 #include <cplusplus/CppDocument.h>
 
@@ -73,9 +74,9 @@ void CPPTOOLS_EXPORT switchHeaderSource();
 class CppCodeModelSettings;
 QSharedPointer<CppCodeModelSettings> CPPTOOLS_EXPORT codeModelSettings();
 
-int fileSizeLimit();
-bool skipFileDueToSizeLimit(const QFileInfo &fileInfo, int limitInMB = fileSizeLimit());
+CompilerOptionsBuilder::PchUsage CPPTOOLS_EXPORT getPchUsage();
+
+int indexerFileSizeLimitInMb();
+bool fileSizeExceedsLimit(const QFileInfo &fileInfo, int sizeLimitInMb);
 
 } // CppTools
-
-#endif // CPPTOOLSREUSE_H

@@ -50,7 +50,6 @@ MoveTool::MoveTool(FormEditorView *editorView)
     m_selectionIndicator.setCursor(Qt::SizeAllCursor);
 }
 
-
 MoveTool::~MoveTool()
 {
 
@@ -369,6 +368,10 @@ void MoveTool::formEditorItemsChanged(const QList<FormEditorItem*> &itemList)
     m_anchorIndicator.updateItems(selectedItemList);
     m_bindingIndicator.updateItems(selectedItemList);
     m_contentNotEditableIndicator.updateItems(selectedItemList);
+}
+
+void MoveTool::focusLost()
+{
 }
 
 }

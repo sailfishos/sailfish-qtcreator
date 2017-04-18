@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERCORE_H
-#define DEBUGGERCORE_H
+#pragma once
 
 #include "debuggerconstants.h"
 
@@ -33,11 +32,14 @@
 #include <QObject>
 #include <QSharedPointer>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
 class QIcon;
 class QMessageBox;
 class QWidget;
-class QTreeView;
+class QMenu;
+class QAction;
 QT_END_NAMESPACE
 
 namespace CPlusPlus { class Snapshot; }
@@ -52,6 +54,7 @@ class DebuggerEngine;
 class Symbol;
 class Section;
 class GlobalDebuggerOptions;
+class WatchTreeView;
 
 enum TestCases
 {
@@ -62,7 +65,6 @@ enum TestCases
 // Some convenience.
 void updateState(DebuggerEngine *engine);
 void updateWatchersWindow(bool showWatch, bool showReturn);
-QIcon locationMarkIcon();
 const CPlusPlus::Snapshot &cppCodeModelSnapshot();
 bool hasSnapshots();
 void openTextEditor(const QString &titlePattern, const QString &contents);
@@ -88,11 +90,11 @@ void setThreadBoxContents(const QStringList &list, int index);
 
 QSharedPointer<Internal::GlobalDebuggerOptions> globalDebuggerOptions();
 
-QTreeView *inspectorView();
+WatchTreeView *inspectorView();
 QVariant sessionValue(const QByteArray &name);
 void setSessionValue(const QByteArray &name, const QVariant &value);
-QVariant configValue(const QByteArray &name);
-void setConfigValue(const QByteArray &name, const QVariant &value);
+QVariant configValue(const QString &name);
+void setConfigValue(const QString &name, const QVariant &value);
 
 bool isTestRun();
 
@@ -109,7 +111,12 @@ QMessageBox *showMessageBox(int icon, const QString &title,
 
 bool isReverseDebuggingEnabled();
 
+QAction *addAction(QMenu *menu, const QString &display, bool on,
+                   const std::function<void()> &onTriggered = {});
+QAction *addAction(QMenu *menu, const QString &d1, const QString &d2, bool on,
+                   const std::function<void()> &onTriggered);
+QAction *addCheckableAction(QMenu *menu, const QString &display, bool on, bool checked,
+                            const std::function<void()> &onTriggered);
+
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGERPLUGIN_H

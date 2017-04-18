@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSPROJECTPARSER_H
-#define QBSPROJECTPARSER_H
+#pragma once
 
 #include <utils/environment.h>
 
@@ -58,12 +57,11 @@ signals:
     void done(bool success);
     void ruleExecutionDone();
 
-private slots:
+private:
     void handleQbsParsingDone(bool success);
     void handleQbsParsingProgress(int progress);
     void handleQbsParsingTaskSetup(const QString &description, int maximumProgressValue);
 
-private:
     QString pluginsBaseDirectory() const;
     QString resourcesBaseDirectory() const;
     QString libExecDirectory() const;
@@ -83,5 +81,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSPROJECTPARSER_H

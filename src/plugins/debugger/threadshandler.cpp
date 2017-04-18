@@ -25,17 +25,22 @@
 
 #include "threadshandler.h"
 
+#include "debuggeractions.h"
 #include "debuggercore.h"
+#include "debuggerengine.h"
 #include "debuggericons.h"
 #include "debuggerprotocol.h"
 #include "watchutils.h"
 
 #include <utils/algorithm.h>
+#include <utils/basetreeview.h>
 #include <utils/qtcassert.h>
+#include <utils/savedaction.h>
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QIcon>
+#include <QMenu>
 
 using namespace Utils;
 
@@ -47,18 +52,6 @@ namespace Internal {
 // ThreadItem
 //
 ///////////////////////////////////////////////////////////////////////
-
-static const QIcon &positionIcon()
-{
-    static QIcon icon = Icons::LOCATION.icon();
-    return icon;
-}
-
-static const QIcon &emptyIcon()
-{
-    static QIcon icon = Icons::EMPTY.icon();
-    return icon;
-}
 
 class ThreadItem : public TreeItem
 {
@@ -79,7 +72,8 @@ public:
         case Qt::DecorationRole:
             // Return icon that indicates whether this is the active stack frame.
             if (column == 0)
-                return threadData.id == handler->currentThread() ? positionIcon() : emptyIcon();
+                return threadData.id == handler->currentThread() ? Icons::LOCATION.icon()
+                                                                 : Icons::EMPTY.icon();
             break;
         case ThreadData::IdRole:
             return threadData.id.raw();
@@ -236,11 +230,11 @@ public:
             represent the running threads in a QTreeView or ComboBox.
 */
 
-ThreadsHandler::ThreadsHandler()
+ThreadsHandler::ThreadsHandler(DebuggerEngine *engine)
+    : m_engine(engine)
 {
     m_resetLocationScheduled = false;
     setObjectName(QLatin1String("ThreadsModel"));
-    setRootItem(new ThreadItem(this));
     setHeader({
         QLatin1String("  ") + tr("ID") + QLatin1String("  "),
         tr("Address"), tr("Function"), tr("File"), tr("Line"), tr("State"),
@@ -248,10 +242,32 @@ ThreadsHandler::ThreadsHandler()
     });
 }
 
+bool ThreadsHandler::setData(const QModelIndex &idx, const QVariant &data, int role)
+{
+    if (role == BaseTreeView::ItemActivatedRole) {
+        ThreadId id = ThreadId(idx.data(ThreadData::IdRole).toLongLong());
+        m_engine->selectThread(id);
+        return true;
+    }
+
+    if (role == BaseTreeView::ItemViewEventRole) {
+        ItemViewEvent ev = data.value<ItemViewEvent>();
+
+        if (ev.as<QContextMenuEvent>()) {
+            auto menu = new QMenu;
+            menu->addAction(action(SettingsDialog));
+            menu->popup(ev.globalPos());
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static ThreadItem *itemForThreadId(const ThreadsHandler *handler, ThreadId threadId)
 {
     const auto matcher = [threadId](ThreadItem *item) { return item->threadData.id == threadId; };
-    return handler->findItemAtLevel<ThreadItem *>(1, matcher);
+    return handler->findItemAtLevel<1>(matcher);
 }
 
 static int indexForThreadId(const ThreadsHandler *handler, ThreadId threadId)
@@ -267,9 +283,9 @@ int ThreadsHandler::currentThreadIndex() const
 
 void ThreadsHandler::sort(int column, Qt::SortOrder order)
 {
-    rootItem()->sortChildren([order, column](const TreeItem *item1, const TreeItem *item2) -> bool {
-        const QVariant v1 = static_cast<const ThreadItem *>(item1)->threadPart(column);
-        const QVariant v2 = static_cast<const ThreadItem *>(item2)->threadPart(column);
+    rootItem()->sortChildren([order, column](const ThreadItem *item1, const ThreadItem *item2) -> bool {
+        const QVariant v1 = item1->threadPart(column);
+        const QVariant v2 = item2->threadPart(column);
         if (v1 == v2)
             return false;
         if (column == 0)
@@ -287,7 +303,7 @@ ThreadId ThreadsHandler::currentThread() const
 ThreadId ThreadsHandler::threadAt(int index) const
 {
     QTC_ASSERT(index >= 0 && index < rootItem()->childCount(), return ThreadId());
-    return static_cast<ThreadItem *>(rootItem()->childAt(index))->threadData.id;
+    return rootItem()->childAt(index)->threadData.id;
 }
 
 void ThreadsHandler::setCurrentThread(ThreadId id)
@@ -311,12 +327,12 @@ void ThreadsHandler::setCurrentThread(ThreadId id)
     updateThreadBox();
 }
 
-QByteArray ThreadsHandler::pidForGroupId(const QByteArray &groupId) const
+QString ThreadsHandler::pidForGroupId(const QString &groupId) const
 {
     return m_pidForGroupId[groupId];
 }
 
-void ThreadsHandler::notifyGroupCreated(const QByteArray &groupId, const QByteArray &pid)
+void ThreadsHandler::notifyGroupCreated(const QString &groupId, const QString &pid)
 {
     m_pidForGroupId[groupId] = pid;
 }
@@ -332,7 +348,7 @@ void ThreadsHandler::updateThread(const ThreadData &threadData)
 void ThreadsHandler::removeThread(ThreadId threadId)
 {
     if (ThreadItem *item = itemForThreadId(this, threadId))
-        delete takeItem(item);
+        destroyItem(item);
 }
 
 void ThreadsHandler::setThreads(const Threads &threads)
@@ -349,9 +365,9 @@ void ThreadsHandler::setThreads(const Threads &threads)
 void ThreadsHandler::updateThreadBox()
 {
     QStringList list;
-    auto items = itemsAtLevel<ThreadItem *>(1);
-    foreach (ThreadItem *item, items)
+    forItemsAtLevel<1>([&list](ThreadItem *item) {
         list.append(QString::fromLatin1("#%1 %2").arg(item->threadData.id.raw()).arg(item->threadData.name));
+    });
     Internal::setThreadBoxContents(list, indexForThreadId(this, m_currentId));
 }
 
@@ -367,21 +383,21 @@ void ThreadsHandler::removeAll()
     rootItem()->removeChildren();
 }
 
-bool ThreadsHandler::notifyGroupExited(const QByteArray &groupId)
+bool ThreadsHandler::notifyGroupExited(const QString &groupId)
 {
     QList<ThreadItem *> list;
-    auto items = itemsAtLevel<ThreadItem *>(1);
-    foreach (ThreadItem *item, items)
+    forItemsAtLevel<1>([&list, groupId](ThreadItem *item) {
         if (item->threadData.groupId == groupId)
             list.append(item);
+    });
     foreach (ThreadItem *item, list)
-        delete takeItem(item);
+        destroyItem(item);
 
     m_pidForGroupId.remove(groupId);
     return m_pidForGroupId.isEmpty();
 }
 
-void ThreadsHandler::notifyRunning(const QByteArray &data)
+void ThreadsHandler::notifyRunning(const QString &data)
 {
     if (data.isEmpty() || data == "all") {
         notifyAllRunning();
@@ -397,9 +413,7 @@ void ThreadsHandler::notifyRunning(const QByteArray &data)
 
 void ThreadsHandler::notifyAllRunning()
 {
-    auto items = itemsAtLevel<ThreadItem *>(1);
-    foreach (ThreadItem *item, items)
-        item->notifyRunning();
+    forItemsAtLevel<1>([](ThreadItem *item) { item->notifyRunning(); });
 }
 
 void ThreadsHandler::notifyRunning(ThreadId threadId)
@@ -408,7 +422,7 @@ void ThreadsHandler::notifyRunning(ThreadId threadId)
         item->notifyRunning();
 }
 
-void ThreadsHandler::notifyStopped(const QByteArray &data)
+void ThreadsHandler::notifyStopped(const QString &data)
 {
     if (data.isEmpty() || data == "all") {
         notifyAllStopped();
@@ -424,9 +438,7 @@ void ThreadsHandler::notifyStopped(const QByteArray &data)
 
 void ThreadsHandler::notifyAllStopped()
 {
-    auto items = itemsAtLevel<ThreadItem *>(1);
-    foreach (ThreadItem *item, items)
-        item->notifyStopped();
+    forItemsAtLevel<1>([](ThreadItem *item) { item->notifyStopped(); });
 }
 
 void ThreadsHandler::notifyStopped(ThreadId threadId)
@@ -449,17 +461,17 @@ void ThreadsHandler::updateThreads(const GdbMi &data)
         const GdbMi frame = item["frame"];
         ThreadData thread;
         thread.id = ThreadId(item["id"].toInt());
-        thread.targetId = item["target-id"].toLatin1();
-        thread.details = item["details"].toLatin1();
-        thread.core = item["core"].toLatin1();
-        thread.state = item["state"].toLatin1();
+        thread.targetId = item["target-id"].data();
+        thread.details = item["details"].data();
+        thread.core = item["core"].data();
+        thread.state = item["state"].data();
         thread.address = frame["addr"].toAddress();
-        thread.function = frame["func"].toLatin1();
-        thread.fileName = frame["fullname"].toLatin1();
+        thread.function = frame["func"].data();
+        thread.fileName = frame["fullname"].data();
         thread.lineNumber = frame["line"].toInt();
-        thread.module = QString::fromLocal8Bit(frame["from"].data());
-        thread.name = item["name"].toLatin1();
-        thread.stopped = thread.state != QLatin1String("running");
+        thread.module = frame["from"].data();
+        thread.name = item["name"].data();
+        thread.stopped = thread.state != "running";
         updateThread(thread);
     }
 

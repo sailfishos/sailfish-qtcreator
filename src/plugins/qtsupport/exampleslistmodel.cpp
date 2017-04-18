@@ -188,10 +188,11 @@ int ExampleSetModel::getExtraExampleSetIndex(int i) const
 
 QHash<int, QByteArray> ExampleSetModel::roleNames() const
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Qt::UserRole + 1] = "text";
-    roleNames[Qt::UserRole + 2] = "QtId";
-    roleNames[Qt::UserRole + 3] = "extraSetIndex";
+    static QHash<int, QByteArray> roleNames{
+        {Qt::UserRole + 1, "text"},
+        {Qt::UserRole + 2, "QtId"},
+        {Qt::UserRole + 3, "extraSetIndex"}
+    };
     return roleNames;
 }
 
@@ -706,25 +707,26 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> ExamplesListModel::roleNames() const
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Name] = "name";
-    roleNames[ProjectPath] = "projectPath";
-    roleNames[ImageUrl] = "imageUrl";
-    roleNames[Description] = "description";
-    roleNames[DocUrl] = "docUrl";
-    roleNames[FilesToOpen] = "filesToOpen";
-    roleNames[MainFile] = "mainFile";
-    roleNames[Tags] = "tags";
-    roleNames[Difficulty] = "difficulty";
-    roleNames[Type] = "type";
-    roleNames[HasSourceCode] = "hasSourceCode";
-    roleNames[Dependencies] = "dependencies";
-    roleNames[IsVideo] = "isVideo";
-    roleNames[VideoUrl] = "videoUrl";
-    roleNames[VideoLength] = "videoLength";
-    roleNames[Platforms] = "platforms";
-    roleNames[IsHighlighted] = "isHighlighted";
-    roleNames[PreferredFeatures] = "preferredFeatures";
+    static QHash<int, QByteArray> roleNames{
+        {Name, "name"},
+        {ProjectPath, "projectPath"},
+        {ImageUrl, "imageUrl"},
+        {Description, "description"},
+        {DocUrl, "docUrl"},
+        {FilesToOpen, "filesToOpen"},
+        {MainFile, "mainFile"},
+        {Tags, "tags"},
+        {Difficulty, "difficulty"},
+        {Type, "type"},
+        {HasSourceCode, "hasSourceCode"},
+        {Dependencies, "dependencies"},
+        {IsVideo, "isVideo"},
+        {VideoUrl, "videoUrl"},
+        {VideoLength, "videoLength"},
+        {Platforms, "platforms"},
+        {IsHighlighted, "isHighlighted"},
+        {PreferredFeatures, "preferredFeatures"}
+    };
     return roleNames;
 }
 
@@ -761,14 +763,16 @@ ExamplesListModelFilter::ExamplesListModelFilter(ExamplesListModel *sourceModel,
     m_exampleDataRequested(false)
 {
     // initialization hooks
-    connect(QtVersionManager::instance(), SIGNAL(qtVersionsLoaded()),
-            this, SLOT(qtVersionManagerLoaded()));
-    connect(Core::HelpManager::instance(), SIGNAL(setupFinished()),
-            this, SLOT(helpManagerInitialized()));
+    connect(QtVersionManager::instance(), &QtVersionManager::qtVersionsLoaded,
+            this, &ExamplesListModelFilter::qtVersionManagerLoaded);
+    connect(Core::HelpManager::instance(), &Core::HelpManager::setupFinished,
+            this, &ExamplesListModelFilter::helpManagerInitialized);
 
-    connect(this, SIGNAL(showTutorialsOnlyChanged()), SLOT(updateFilter()));
+    connect(this, &ExamplesListModelFilter::showTutorialsOnlyChanged,
+            this, &ExamplesListModelFilter::updateFilter);
 
-    connect(m_sourceModel, SIGNAL(selectedExampleSetChanged()), this, SIGNAL(exampleSetIndexChanged()));
+    connect(m_sourceModel, &ExamplesListModel::selectedExampleSetChanged,
+            this, &ExamplesListModelFilter::exampleSetIndexChanged);
 
     setSourceModel(m_sourceModel);
 }
@@ -780,6 +784,14 @@ void ExamplesListModelFilter::updateFilter()
         exampleListModel->beginReset();
         invalidateFilter();
         exampleListModel->endReset();
+    }
+}
+
+void ExamplesListModelFilter::setFilterStrings(const QStringList &arg)
+{
+    if (m_filterStrings != arg) {
+        m_filterStrings = arg;
+        delayedUpdateFilter();
     }
 }
 
@@ -812,11 +824,11 @@ bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex 
         });
     }
 
-    if (!m_searchString.isEmpty()) {
+    if (!m_filterStrings.isEmpty()) {
         const QString description = sourceModel()->index(sourceRow, 0, sourceParent).data(Description).toString();
         const QString name = sourceModel()->index(sourceRow, 0, sourceParent).data(Name).toString();
 
-        foreach (const QString &subString, m_searchString) {
+        foreach (const QString &subString, m_filterStrings) {
             bool wordMatch = false;
             wordMatch |= (bool)name.contains(subString, Qt::CaseInsensitive);
             if (wordMatch)
@@ -858,6 +870,14 @@ void ExamplesListModelFilter::filterForExampleSet(int index)
     m_sourceModel->selectExampleSet(index);
 }
 
+void ExamplesListModelFilter::setFilterTags(const QStringList &arg)
+{
+    if (m_filterTags != arg) {
+        m_filterTags = arg;
+        emit filterTagsChanged(arg);
+    }
+}
+
 void ExamplesListModelFilter::setShowTutorialsOnly(bool showTutorialsOnly)
 {
     m_showTutorialsOnly = showTutorialsOnly;
@@ -895,10 +915,10 @@ void ExamplesListModelFilter::tryToInitialize()
     if (!m_initalized
             && m_qtVersionManagerInitialized && m_helpManagerInitialized && m_exampleDataRequested) {
         m_initalized = true;
-        connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
-                this, SLOT(handleQtVersionsChanged()));
-        connect(ProjectExplorer::KitManager::instance(), SIGNAL(defaultkitChanged()),
-                this, SLOT(handleQtVersionsChanged()));
+        connect(QtVersionManager::instance(), &QtVersionManager::qtVersionsChanged,
+                this, &ExamplesListModelFilter::handleQtVersionsChanged);
+        connect(ProjectExplorer::KitManager::instance(), &ProjectExplorer::KitManager::defaultkitChanged,
+                this, &ExamplesListModelFilter::handleQtVersionsChanged);
         handleQtVersionsChanged();
     }
 }
@@ -1007,8 +1027,13 @@ struct SearchStringLexer
     }
 };
 
-void ExamplesListModelFilter::parseSearchString(const QString &arg)
+void ExamplesListModelFilter::setSearchString(const QString &arg)
 {
+    if (m_searchString == arg)
+        return;
+    m_searchString = arg;
+    emit searchStringChanged(m_searchString);
+    // parse and update
     QStringList tags;
     QStringList searchTerms;
     SearchStringLexer lex(arg);
@@ -1030,9 +1055,14 @@ void ExamplesListModelFilter::parseSearchString(const QString &arg)
         }
     }
 
-    setSearchStrings(searchTerms);
+    setFilterStrings(searchTerms);
     setFilterTags(tags);
     delayedUpdateFilter();
+}
+
+QString ExamplesListModelFilter::searchString() const
+{
+    return m_searchString;
 }
 
 } // namespace Internal

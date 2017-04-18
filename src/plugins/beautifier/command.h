@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_COMMAND_H
-#define BEAUTIFIER_COMMAND_H
+#pragma once
 
 #include <QString>
 #include <QStringList>
@@ -40,7 +39,7 @@ public:
         PipeProcessing
     };
 
-    Command();
+    bool isValid() const;
 
     QString executable() const;
     void setExecutable(const QString &executable);
@@ -60,12 +59,10 @@ public:
 private:
     QString m_executable;
     QStringList m_options;
-    Processing m_processing;
-    bool m_pipeAddsNewline;
-    bool m_returnsCRLF;
+    Processing m_processing = FileProcessing;
+    bool m_pipeAddsNewline = false;
+    bool m_returnsCRLF = false;
 };
 
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_COMMAND_H

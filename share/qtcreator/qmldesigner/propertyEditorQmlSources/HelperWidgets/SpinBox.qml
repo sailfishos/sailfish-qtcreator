@@ -29,14 +29,13 @@ import QtQuick.Controls.Styles 1.1
 
 Controls.SpinBox {
     id: spinBox
-    property color borderColor: "#222"
-    property color highlightColor: "orange"
+
     property color textColor: colorLogic.textColor
     property variant backendValue;
 
     ExtendedFunctionButton {
         x: 2
-        y: 4
+        anchors.verticalCenter: parent.verticalCenter
         backendValue: spinBox.backendValue
         visible: spinBox.enabled
     }

@@ -30,10 +30,10 @@
 #include "openpagesmanager.h"
 
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -131,24 +131,24 @@ void SearchWidget::showEvent(QShowEvent *event)
 
         setFocusProxy(queryWidget);
 
-        connect(queryWidget, SIGNAL(search()), this, SLOT(search()));
+        connect(queryWidget, &QHelpSearchQueryWidget::search, this, &SearchWidget::search);
         connect(resultWidget, &QHelpSearchResultWidget::requestShowLink, this,
                 [this](const QUrl &url) {
                     emit linkActivated(url, currentSearchTerms(), false/*newPage*/);
                 });
 
-        connect(searchEngine, SIGNAL(searchingStarted()), this,
-            SLOT(searchingStarted()));
-        connect(searchEngine, SIGNAL(searchingFinished(int)), this,
-            SLOT(searchingFinished(int)));
+        connect(searchEngine, &QHelpSearchEngine::searchingStarted, this,
+            &SearchWidget::searchingStarted);
+        connect(searchEngine, &QHelpSearchEngine::searchingFinished, this,
+            &SearchWidget::searchingFinished);
 
         QTextBrowser* browser = resultWidget->findChild<QTextBrowser*>();
         browser->viewport()->installEventFilter(this);
 
-        connect(searchEngine, SIGNAL(indexingStarted()), this,
-            SLOT(indexingStarted()));
-        connect(searchEngine, SIGNAL(indexingFinished()), this,
-            SLOT(indexingFinished()));
+        connect(searchEngine, &QHelpSearchEngine::indexingStarted, this,
+            &SearchWidget::indexingStarted);
+        connect(searchEngine, &QHelpSearchEngine::indexingFinished, this,
+            &SearchWidget::indexingFinished);
 
         QMetaObject::invokeMethod(&LocalHelpManager::helpEngine(), "setupFinished",
             Qt::QueuedConnection);
@@ -157,17 +157,12 @@ void SearchWidget::showEvent(QShowEvent *event)
 
 void SearchWidget::search() const
 {
-    static QStringList charsToEscapeList;
-    if (charsToEscapeList.isEmpty()) {
-        charsToEscapeList << QLatin1String("\\") << QLatin1String("+")
-            << QLatin1String("-") << QLatin1String("!") << QLatin1String("(")
-            << QLatin1String(")") << QLatin1String(":") << QLatin1String("^")
-            << QLatin1String("[") << QLatin1String("]") << QLatin1String("{")
-            << QLatin1String("}") << QLatin1String("~");
-    }
+    static const QStringList charsToEscapeList({
+        "\\", "+", "-", "!", "(", ")", ":", "^", "[", "]", "{", "}", "~"
+    });
 
-    static QString escapeChar(QLatin1String("\\"));
-    static QRegExp regExp(QLatin1String("[\\+\\-\\!\\(\\)\\^\\[\\]\\{\\}~:]"));
+    static const QString escapeChar("\\");
+    static const QRegExp regExp("[\\+\\-\\!\\(\\)\\^\\[\\]\\{\\}~:]");
 
     QList<QHelpSearchQuery> escapedQueries;
     const QList<QHelpSearchQuery> queries = searchEngine->queryWidget()->query();
@@ -207,7 +202,8 @@ void SearchWidget::indexingStarted()
     m_progress->reportStarted();
 
     m_watcher.setFuture(m_progress->future());
-    connect(&m_watcher, SIGNAL(canceled()), searchEngine, SLOT(cancelIndexing()));
+    connect(&m_watcher, &QFutureWatcherBase::canceled,
+            searchEngine, &QHelpSearchEngine::cancelIndexing);
 }
 
 void SearchWidget::indexingFinished()
@@ -259,9 +255,9 @@ void SearchWidget::contextMenuEvent(QContextMenuEvent *contextMenuEvent)
         openLinkInNewTab = menu.addAction(tr("Open Link as New Page"));
         copyAnchorAction = menu.addAction(tr("Copy Link"));
     } else if (browser->textCursor().hasSelection()) {
-        menu.addAction(tr("Copy"), browser, SLOT(copy()));
+        connect(menu.addAction(tr("Copy")), &QAction::triggered, browser, &QTextEdit::copy);
     } else {
-        menu.addAction(tr("Reload"), browser, SLOT(reload()));
+        connect(menu.addAction(tr("Reload")), &QAction::triggered, browser, &QTextBrowser::reload);
     }
 
     QAction *usedAction = menu.exec(mapToGlobal(contextMenuEvent->pos()));
@@ -298,19 +294,19 @@ QStringList SearchWidget::currentSearchTerms() const
 // #pragma mark -- SearchSideBarItem
 
 SearchSideBarItem::SearchSideBarItem()
-    : SideBarItem(new SearchWidget, QLatin1String(Constants::HELP_SEARCH))
+    : SideBarItem(new SearchWidget, Constants::HELP_SEARCH)
 {
     widget()->setWindowTitle(HelpPlugin::tr(Constants::SB_SEARCH));
-    connect(widget(), SIGNAL(linkActivated(QUrl,QStringList,bool)),
-            this, SIGNAL(linkActivated(QUrl,QStringList,bool)));
+    connect(static_cast<SearchWidget *>(widget()), &SearchWidget::linkActivated,
+            this, &SearchSideBarItem::linkActivated);
 }
 
 QList<QToolButton *> SearchSideBarItem::createToolBarWidgets()
 {
     QToolButton *reindexButton = new QToolButton;
-    reindexButton->setIcon(Core::Icons::RELOAD.icon());
+    reindexButton->setIcon(Utils::Icons::RELOAD.icon());
     reindexButton->setToolTip(tr("Regenerate Index"));
-    connect(reindexButton, SIGNAL(clicked()),
-            widget(), SLOT(reindexDocumentation()));
+    connect(reindexButton, &QAbstractButton::clicked,
+            static_cast<SearchWidget *>(widget()), &SearchWidget::reindexDocumentation);
     return QList<QToolButton *>() << reindexButton;
 }

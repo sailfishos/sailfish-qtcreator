@@ -34,7 +34,6 @@ class QPushButton;
 class QToolButton;
 class QLabel;
 class QVBoxLayout;
-class QSignalMapper;
 class QGraphicsOpacityEffect;
 QT_END_NAMESPACE
 
@@ -51,7 +50,7 @@ class ToolWidget : public Utils::FadingPanel
 {
     Q_OBJECT
 public:
-    explicit ToolWidget(QWidget *parent = 0);
+    explicit ToolWidget(QWidget *parent = nullptr);
 
     void fadeTo(qreal value);
     void setOpacity(qreal value);
@@ -75,7 +74,7 @@ private:
     QToolButton *m_downButton;
     QToolButton *m_removeButton;
 
-    bool m_buildStepEnabled;
+    bool m_buildStepEnabled = true;
     Utils::FadingWidget *m_firstWidget;
     Utils::FadingWidget *m_secondWidget;
     qreal m_targetOpacity;
@@ -98,7 +97,7 @@ class BuildStepListWidget : public NamedWidget
     Q_OBJECT
 
 public:
-    BuildStepListWidget(QWidget *parent = 0);
+    BuildStepListWidget(QWidget *parent = nullptr);
     virtual ~BuildStepListWidget();
 
     void init(BuildStepList *bsl);
@@ -109,12 +108,8 @@ private:
     void updateSummary();
     void updateAdditionalSummary();
     void updateEnabledState();
-    void triggerStepMoveUp(int pos);
     void stepMoved(int from, int to);
-    void triggerStepMoveDown(int pos);
-    void triggerRemoveBuildStep(int pos);
     void removeBuildStep(int pos);
-    void triggerDisable(int pos);
 
     void setupUi();
     void updateBuildStepButtonsState();
@@ -129,11 +124,6 @@ private:
     QLabel *m_noStepsLabel;
     QPushButton *m_addButton;
 
-    QSignalMapper *m_disableMapper;
-    QSignalMapper *m_upMapper;
-    QSignalMapper *m_downMapper;
-    QSignalMapper *m_removeMapper;
-
     int m_leftMargin;
 };
 
@@ -145,11 +135,10 @@ class BuildStepsPage : public NamedWidget
 
 public:
     BuildStepsPage(BuildConfiguration *bc, Core::Id id);
-    virtual ~BuildStepsPage();
 
 private:
     Core::Id m_id;
-    BuildStepListWidget *m_widget;
+    BuildStepListWidget *m_widget = nullptr;
 };
 
 } // Internal

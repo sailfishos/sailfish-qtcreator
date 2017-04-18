@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITORQUICKFIX_H
-#define TEXTEDITORQUICKFIX_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -86,12 +85,13 @@ private:
     QString _description;
 };
 
-class TEXTEDITOR_EXPORT QuickFixOperations : public QList<QuickFixOperation::Ptr>
+typedef QList<QuickFixOperation::Ptr> QuickFixOperations;
+
+inline QuickFixOperations &operator<<(QuickFixOperations &list, QuickFixOperation *op)
 {
-public:
-    using QList<QuickFixOperation::Ptr>::append;
-    void append(QuickFixOperation *op) { append(QuickFixOperation::Ptr(op)); }
-};
+    list.append(QuickFixOperation::Ptr(op));
+    return list;
+}
 
 typedef QSharedPointer<const AssistInterface> QuickFixInterface;
 
@@ -120,5 +120,3 @@ public:
 } // namespace TextEditor
 
 Q_DECLARE_METATYPE(TextEditor::QuickFixOperation::Ptr)
-
-#endif // TEXTEDITORQUICKFIX_H

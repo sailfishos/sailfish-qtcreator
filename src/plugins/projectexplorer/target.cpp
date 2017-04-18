@@ -41,6 +41,7 @@
 #include <coreplugin/coreconstants.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/projectexplorericons.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <utils/qtcassert.h>
@@ -94,17 +95,10 @@ public:
     BuildTargetInfoList m_appTargets;
     QVariantMap m_pluginSettings;
 
-    QPixmap m_connectedPixmap;
-    QPixmap m_readyToUsePixmap;
-    QPixmap m_disconnectedPixmap;
-
     Kit *const m_kit;
 };
 
 TargetPrivate::TargetPrivate(Kit *k) :
-    m_connectedPixmap(QLatin1String(":/projectexplorer/images/DeviceConnected.png")),
-    m_readyToUsePixmap(QLatin1String(":/projectexplorer/images/DeviceReadyToUse.png")),
-    m_disconnectedPixmap(QLatin1String(":/projectexplorer/images/DeviceDisconnected.png")),
     m_kit(k)
 { }
 
@@ -154,35 +148,35 @@ Target::~Target()
 
 void Target::changeEnvironment()
 {
-    BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(sender());
+    auto bc = qobject_cast<BuildConfiguration *>(sender());
     if (bc == activeBuildConfiguration())
         emit environmentChanged();
 }
 
 void Target::changeBuildConfigurationEnabled()
 {
-    BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(sender());
+    auto bc = qobject_cast<BuildConfiguration *>(sender());
     if (bc == activeBuildConfiguration())
         emit buildConfigurationEnabledChanged();
 }
 
 void Target::changeDeployConfigurationEnabled()
 {
-    DeployConfiguration *dc = qobject_cast<DeployConfiguration *>(sender());
+    auto dc = qobject_cast<DeployConfiguration *>(sender());
     if (dc == activeDeployConfiguration())
         emit deployConfigurationEnabledChanged();
 }
 
 void Target::changeRunConfigurationEnabled()
 {
-    RunConfiguration *rc = qobject_cast<RunConfiguration *>(sender());
+    auto rc = qobject_cast<RunConfiguration *>(sender());
     if (rc == activeRunConfiguration())
         emit runConfigurationEnabledChanged();
 }
 
 void Target::onBuildDirectoryChanged()
 {
-    BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(sender());
+    auto bc = qobject_cast<BuildConfiguration *>(sender());
     if (bc && activeBuildConfiguration() == bc)
         emit buildDirectoryChanged();
 }
@@ -216,59 +210,59 @@ Kit *Target::kit() const
     return d->m_kit;
 }
 
-void Target::addBuildConfiguration(BuildConfiguration *configuration)
+void Target::addBuildConfiguration(BuildConfiguration *bc)
 {
-    QTC_ASSERT(configuration && !d->m_buildConfigurations.contains(configuration), return);
-    Q_ASSERT(configuration->target() == this);
+    QTC_ASSERT(bc && !d->m_buildConfigurations.contains(bc), return);
+    Q_ASSERT(bc->target() == this);
 
     // Check that we don't have a configuration with the same displayName
-    QString configurationDisplayName = configuration->displayName();
+    QString configurationDisplayName = bc->displayName();
     QStringList displayNames = Utils::transform(d->m_buildConfigurations, &BuildConfiguration::displayName);
     configurationDisplayName = Project::makeUnique(configurationDisplayName, displayNames);
-    if (configurationDisplayName != configuration->displayName()) {
-        if (configuration->usesDefaultDisplayName())
-            configuration->setDefaultDisplayName(configurationDisplayName);
+    if (configurationDisplayName != bc->displayName()) {
+        if (bc->usesDefaultDisplayName())
+            bc->setDefaultDisplayName(configurationDisplayName);
         else
-            configuration->setDisplayName(configurationDisplayName);
+            bc->setDisplayName(configurationDisplayName);
     }
 
     // add it
-    d->m_buildConfigurations.push_back(configuration);
+    d->m_buildConfigurations.push_back(bc);
 
-    emit addedBuildConfiguration(configuration);
+    emit addedBuildConfiguration(bc);
 
-    connect(configuration, &BuildConfiguration::environmentChanged,
+    connect(bc, &BuildConfiguration::environmentChanged,
             this, &Target::changeEnvironment);
-    connect(configuration, &BuildConfiguration::enabledChanged,
+    connect(bc, &BuildConfiguration::enabledChanged,
             this, &Target::changeBuildConfigurationEnabled);
-    connect(configuration, &BuildConfiguration::buildDirectoryChanged,
+    connect(bc, &BuildConfiguration::buildDirectoryChanged,
             this, &Target::onBuildDirectoryChanged);
 
     if (!activeBuildConfiguration())
-        setActiveBuildConfiguration(configuration);
+        setActiveBuildConfiguration(bc);
 }
 
-bool Target::removeBuildConfiguration(BuildConfiguration *configuration)
+bool Target::removeBuildConfiguration(BuildConfiguration *bc)
 {
     //todo: this might be error prone
-    if (!d->m_buildConfigurations.contains(configuration))
+    if (!d->m_buildConfigurations.contains(bc))
         return false;
 
-    if (BuildManager::isBuilding(configuration))
+    if (BuildManager::isBuilding(bc))
         return false;
 
-    d->m_buildConfigurations.removeOne(configuration);
+    d->m_buildConfigurations.removeOne(bc);
 
-    emit removedBuildConfiguration(configuration);
+    emit removedBuildConfiguration(bc);
 
-    if (activeBuildConfiguration() == configuration) {
+    if (activeBuildConfiguration() == bc) {
         if (d->m_buildConfigurations.isEmpty())
-            SessionManager::setActiveBuildConfiguration(this, 0, SetActive::Cascade);
+            SessionManager::setActiveBuildConfiguration(this, nullptr, SetActive::Cascade);
         else
             SessionManager::setActiveBuildConfiguration(this, d->m_buildConfigurations.at(0), SetActive::Cascade);
     }
 
-    delete configuration;
+    delete bc;
     return true;
 }
 
@@ -337,7 +331,7 @@ bool Target::removeDeployConfiguration(DeployConfiguration *dc)
 
     if (activeDeployConfiguration() == dc) {
         if (d->m_deployConfigurations.isEmpty())
-            SessionManager::setActiveDeployConfiguration(this, 0, SetActive::Cascade);
+            SessionManager::setActiveDeployConfiguration(this, nullptr, SetActive::Cascade);
         else
             SessionManager::setActiveDeployConfiguration(this, d->m_deployConfigurations.at(0),
                                                          SetActive::Cascade);
@@ -400,57 +394,57 @@ QList<RunConfiguration *> Target::runConfigurations() const
     return d->m_runConfigurations;
 }
 
-void Target::addRunConfiguration(RunConfiguration* runConfiguration)
+void Target::addRunConfiguration(RunConfiguration *rc)
 {
-    QTC_ASSERT(runConfiguration && !d->m_runConfigurations.contains(runConfiguration), return);
-    Q_ASSERT(runConfiguration->target() == this);
-    runConfiguration->addExtraAspects();
+    QTC_ASSERT(rc && !d->m_runConfigurations.contains(rc), return);
+    Q_ASSERT(rc->target() == this);
+    rc->addExtraAspects();
 
     // Check that we don't have a configuration with the same displayName
-    QString configurationDisplayName = runConfiguration->displayName();
+    QString configurationDisplayName = rc->displayName();
     QStringList displayNames = Utils::transform(d->m_runConfigurations, &RunConfiguration::displayName);
     configurationDisplayName = Project::makeUnique(configurationDisplayName, displayNames);
-    runConfiguration->setDisplayName(configurationDisplayName);
+    rc->setDisplayName(configurationDisplayName);
 
-    d->m_runConfigurations.push_back(runConfiguration);
+    d->m_runConfigurations.push_back(rc);
 
-    connect(runConfiguration, &RunConfiguration::enabledChanged,
+    connect(rc, &RunConfiguration::enabledChanged,
             this, &Target::changeRunConfigurationEnabled);
 
-    emit addedRunConfiguration(runConfiguration);
+    emit addedRunConfiguration(rc);
 
     if (!activeRunConfiguration())
-        setActiveRunConfiguration(runConfiguration);
+        setActiveRunConfiguration(rc);
 }
 
-void Target::removeRunConfiguration(RunConfiguration* runConfiguration)
+void Target::removeRunConfiguration(RunConfiguration *rc)
 {
-    QTC_ASSERT(runConfiguration && d->m_runConfigurations.contains(runConfiguration), return);
+    QTC_ASSERT(rc && d->m_runConfigurations.contains(rc), return);
 
-    d->m_runConfigurations.removeOne(runConfiguration);
+    d->m_runConfigurations.removeOne(rc);
 
-    if (activeRunConfiguration() == runConfiguration) {
+    if (activeRunConfiguration() == rc) {
         if (d->m_runConfigurations.isEmpty())
-            setActiveRunConfiguration(0);
+            setActiveRunConfiguration(nullptr);
         else
             setActiveRunConfiguration(d->m_runConfigurations.at(0));
     }
 
-    emit removedRunConfiguration(runConfiguration);
-    delete runConfiguration;
+    emit removedRunConfiguration(rc);
+    delete rc;
 }
 
-RunConfiguration* Target::activeRunConfiguration() const
+RunConfiguration *Target::activeRunConfiguration() const
 {
     return d->m_activeRunConfiguration;
 }
 
-void Target::setActiveRunConfiguration(RunConfiguration* configuration)
+void Target::setActiveRunConfiguration(RunConfiguration *rc)
 {
-    if ((!configuration && d->m_runConfigurations.isEmpty()) ||
-        (configuration && d->m_runConfigurations.contains(configuration) &&
-         configuration != d->m_activeRunConfiguration)) {
-        d->m_activeRunConfiguration = configuration;
+    if ((!rc && d->m_runConfigurations.isEmpty()) ||
+        (rc && d->m_runConfigurations.contains(rc) &&
+         rc != d->m_activeRunConfiguration)) {
+        d->m_activeRunConfiguration = rc;
         emit activeRunConfigurationChanged(d->m_activeRunConfiguration);
         emit runConfigurationEnabledChanged();
     }
@@ -728,41 +722,35 @@ void Target::updateDeviceState()
 {
     IDevice::ConstPtr current = DeviceKitInformation::device(kit());
 
-    QPixmap overlay;
+    QIcon overlay;
+    static const QIcon disconnected = Icons::DEVICE_DISCONNECTED_INDICATOR_OVERLAY.icon();
     if (current.isNull()) {
-        overlay = d->m_disconnectedPixmap;
+        overlay = disconnected;
     } else {
         switch (current->deviceState()) {
         case IDevice::DeviceStateUnknown:
-            setOverlayIcon(QIcon());
+            overlay = QIcon();
             setToolTip(QString());
             return;
-        case IDevice::DeviceReadyToUse:
-            overlay = d->m_readyToUsePixmap;
+        case IDevice::DeviceReadyToUse: {
+            static const QIcon ready = Icons::DEVICE_READY_INDICATOR_OVERLAY.icon();
+            overlay = ready;
             break;
-        case IDevice::DeviceConnected:
-            overlay = d->m_connectedPixmap;
+        }
+        case IDevice::DeviceConnected: {
+            static const QIcon connected = Icons::DEVICE_CONNECTED_INDICATOR_OVERLAY.icon();
+            overlay = connected;
             break;
+        }
         case IDevice::DeviceDisconnected:
-            overlay = d->m_disconnectedPixmap;
+            overlay = disconnected;
             break;
         default:
             break;
         }
     }
 
-    static const int TARGET_OVERLAY_ORIGINAL_SIZE = 32;
-
-    double factor = Core::Constants::TARGET_ICON_SIZE / (double)TARGET_OVERLAY_ORIGINAL_SIZE;
-    QSize overlaySize(overlay.size().width()*factor, overlay.size().height()*factor);
-    QPixmap pixmap(Core::Constants::TARGET_ICON_SIZE, Core::Constants::TARGET_ICON_SIZE);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.drawPixmap(Core::Constants::TARGET_ICON_SIZE - overlaySize.width(),
-                       Core::Constants::TARGET_ICON_SIZE - overlaySize.height(),
-                       overlay.scaled(overlaySize));
-
-    setOverlayIcon(QIcon(pixmap));
+    setOverlayIcon(overlay);
     setToolTip(current.isNull() ? QString() : formatToolTip(current->deviceInformation()));
 }
 

@@ -27,7 +27,6 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/editormanager_p.h>
@@ -38,6 +37,7 @@
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QComboBox>
@@ -94,13 +94,15 @@ EditorToolBarPrivate::EditorToolBarPrivate(QWidget *parent, EditorToolBar *q) :
     m_lockButton(new QToolButton(q)),
     m_dragHandle(new QToolButton(q)),
     m_dragHandleMenu(0),
-    m_goBackAction(new QAction(Icons::PREV_TOOLBAR.icon(), EditorManager::tr("Go Back"), parent)),
-    m_goForwardAction(new QAction(Icons::NEXT_TOOLBAR.icon(), EditorManager::tr("Go Forward"), parent)),
+    m_goBackAction(new QAction(Utils::Icons::PREV_TOOLBAR.icon(), EditorManager::tr("Go Back"), parent)),
+    m_goForwardAction(new QAction(Utils::Icons::NEXT_TOOLBAR.icon(), EditorManager::tr("Go Forward"), parent)),
     m_backButton(new QToolButton(q)),
     m_forwardButton(new QToolButton(q)),
     m_splitButton(new QToolButton(q)),
-    m_horizontalSplitAction(new QAction(Icons::SPLIT_HORIZONTAL_TOOLBAR.icon(), EditorManager::tr("Split"), parent)),
-    m_verticalSplitAction(new QAction(Icons::SPLIT_VERTICAL_TOOLBAR.icon(), EditorManager::tr("Split Side by Side"), parent)),
+    m_horizontalSplitAction(new QAction(Utils::Icons::SPLIT_HORIZONTAL.icon(),
+                                        EditorManager::tr("Split"), parent)),
+    m_verticalSplitAction(new QAction(Utils::Icons::SPLIT_VERTICAL.icon(),
+                                      EditorManager::tr("Split Side by Side"), parent)),
     m_splitNewWindowAction(new QAction(EditorManager::tr("Open in New Window"), parent)),
     m_closeSplitButton(new QToolButton(q)),
     m_activeToolBar(0),
@@ -142,12 +144,13 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_editorList->setProperty("notelideasterisk", true);
     d->m_editorList->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     d->m_editorList->setMinimumContentsLength(20);
+    d->m_editorList->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     d->m_editorList->setModel(DocumentModel::model());
     d->m_editorList->setMaxVisibleItems(40);
     d->m_editorList->setContextMenuPolicy(Qt::CustomContextMenu);
 
     d->m_closeEditorButton->setAutoRaise(true);
-    d->m_closeEditorButton->setIcon(Icons::CLOSE_TOOLBAR.icon());
+    d->m_closeEditorButton->setIcon(Utils::Icons::CLOSE_TOOLBAR.icon());
     d->m_closeEditorButton->setEnabled(false);
     d->m_closeEditorButton->setProperty("showborder", true);
 
@@ -157,13 +160,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
 
     d->m_forwardButton->setDefaultAction(d->m_goForwardAction);
 
-    if (Utils::HostOsInfo::isMacHost()) {
-        d->m_horizontalSplitAction->setIconVisibleInMenu(false);
-        d->m_verticalSplitAction->setIconVisibleInMenu(false);
-        d->m_splitNewWindowAction->setIconVisibleInMenu(false);
-    }
-
-    d->m_splitButton->setIcon(Icons::SPLIT_HORIZONTAL_TOOLBAR.icon());
+    d->m_splitButton->setIcon(Utils::Icons::SPLIT_HORIZONTAL_TOOLBAR.icon());
     d->m_splitButton->setToolTip(tr("Split"));
     d->m_splitButton->setPopupMode(QToolButton::InstantPopup);
     d->m_splitButton->setProperty("noArrow", true);
@@ -174,7 +171,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_splitButton->setMenu(splitMenu);
 
     d->m_closeSplitButton->setAutoRaise(true);
-    d->m_closeSplitButton->setIcon(Icons::CLOSE_SPLIT_BOTTOM.icon());
+    d->m_closeSplitButton->setIcon(Utils::Icons::CLOSE_SPLIT_BOTTOM.icon());
 
     QHBoxLayout *toplayout = new QHBoxLayout(this);
     toplayout->setSpacing(0);
@@ -413,12 +410,12 @@ void EditorToolBar::updateDocumentStatus(IDocument *document)
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(QString());
     } else if (document->isFileReadOnly()) {
-        const static QIcon locked = Icons::LOCKED_TOOLBAR.icon();
+        const static QIcon locked = Utils::Icons::LOCKED_TOOLBAR.icon();
         d->m_lockButton->setIcon(locked);
         d->m_lockButton->setEnabled(true);
         d->m_lockButton->setToolTip(tr("Make Writable"));
     } else {
-        const static QIcon unlocked = Icons::UNLOCKED_TOOLBAR.icon();
+        const static QIcon unlocked = Utils::Icons::UNLOCKED_TOOLBAR.icon();
         d->m_lockButton->setIcon(unlocked);
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(tr("File is writable"));

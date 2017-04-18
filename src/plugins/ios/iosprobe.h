@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSPROBE_H
-#define IOSPROBE_H
+#pragma once
 #include <QSettings>
 #include <QSharedPointer>
 #include <QString>
@@ -41,13 +40,20 @@ public:
         Cxx11Support = 1 << 1
     };
 
+    enum CompilerType {
+        CLang,
+        GCC
+    };
+
     quint32 platformKind;
+    CompilerType type;
     QString name;
     Utils::FileName developerPath;
     Utils::FileName platformPath;
     Utils::FileName sdkPath;
     Utils::FileName defaultToolchainPath;
-    Utils::FileName compilerPath;
+    Utils::FileName cxxCompilerPath;
+    Utils::FileName cCompilerPath;
     QString architecture;
     QStringList backendFlags;
 
@@ -76,5 +82,3 @@ private:
     QStringList m_developerPaths;
 };
 } // namespace Ios
-
-#endif // IOSPROBE_H

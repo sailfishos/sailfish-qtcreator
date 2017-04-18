@@ -31,10 +31,12 @@
 
 #include <coreplugin/icore.h>
 
+#include <utils/synchronousprocess.h>
+
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
-#include <QProcess>
+#include <QRegularExpression>
 #include <QXmlStreamWriter>
 
 namespace Beautifier {
@@ -42,89 +44,93 @@ namespace Internal {
 namespace Uncrustify {
 
 namespace {
-const QString kUseOtherFiles = QLatin1String("useOtherFiles");
-const QString kUseHomeFile = QLatin1String("useHomeFile");
-const QString kUseCustomStyle = QLatin1String("useCustomStyle");
-const QString kCustomStyle = QLatin1String("customStyle");
-const QString kFormatEntireFileFallback = QLatin1String("formatEntireFileFallback");
+const char USE_OTHER_FILES[]             = "useOtherFiles";
+const char USE_HOME_FILE[]               = "useHomeFile";
+const char USE_CUSTOM_STYLE[]            = "useCustomStyle";
+const char CUSTOM_STYLE[]                = "customStyle";
+const char FORMAT_ENTIRE_FILE_FALLBACK[] = "formatEntireFileFallback";
 }
 
 UncrustifySettings::UncrustifySettings() :
-    AbstractSettings(QLatin1String(Constants::Uncrustify::SETTINGS_NAME), QLatin1String(".cfg"))
+    AbstractSettings(Constants::Uncrustify::SETTINGS_NAME, ".cfg")
 {
-    setCommand(QLatin1String("uncrustify"));
-    m_settings.insert(kUseOtherFiles, QVariant(true));
-    m_settings.insert(kUseHomeFile, QVariant(false));
-    m_settings.insert(kUseCustomStyle, QVariant(false));
-    m_settings.insert(kCustomStyle, QVariant());
-    m_settings.insert(kFormatEntireFileFallback, QVariant(true));
+    connect(&m_versionProcess,
+            static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            this, &UncrustifySettings::parseVersionProcessResult);
+
+    setCommand("uncrustify");
+    m_settings.insert(USE_OTHER_FILES, QVariant(true));
+    m_settings.insert(USE_HOME_FILE, QVariant(false));
+    m_settings.insert(USE_CUSTOM_STYLE, QVariant(false));
+    m_settings.insert(CUSTOM_STYLE, QVariant());
+    m_settings.insert(FORMAT_ENTIRE_FILE_FALLBACK, QVariant(true));
     read();
 }
 
 bool UncrustifySettings::useOtherFiles() const
 {
-    return m_settings.value(kUseOtherFiles).toBool();
+    return m_settings.value(USE_OTHER_FILES).toBool();
 }
 
 void UncrustifySettings::setUseOtherFiles(bool useOtherFiles)
 {
-    m_settings.insert(kUseOtherFiles, QVariant(useOtherFiles));
+    m_settings.insert(USE_OTHER_FILES, QVariant(useOtherFiles));
 }
 
 bool UncrustifySettings::useHomeFile() const
 {
-    return m_settings.value(kUseHomeFile).toBool();
+    return m_settings.value(USE_HOME_FILE).toBool();
 }
 
 void UncrustifySettings::setUseHomeFile(bool useHomeFile)
 {
-    m_settings.insert(kUseHomeFile, QVariant(useHomeFile));
+    m_settings.insert(USE_HOME_FILE, QVariant(useHomeFile));
 }
 
 bool UncrustifySettings::useCustomStyle() const
 {
-    return m_settings.value(kUseCustomStyle).toBool();
+    return m_settings.value(USE_CUSTOM_STYLE).toBool();
 }
 
 void UncrustifySettings::setUseCustomStyle(bool useCustomStyle)
 {
-    m_settings.insert(kUseCustomStyle, QVariant(useCustomStyle));
+    m_settings.insert(USE_CUSTOM_STYLE, QVariant(useCustomStyle));
 }
 
 QString UncrustifySettings::customStyle() const
 {
-    return m_settings.value(kCustomStyle).toString();
+    return m_settings.value(CUSTOM_STYLE).toString();
 }
 
 void UncrustifySettings::setCustomStyle(const QString &customStyle)
 {
-    m_settings.insert(kCustomStyle, QVariant(customStyle));
+    m_settings.insert(CUSTOM_STYLE, QVariant(customStyle));
 }
 
 bool UncrustifySettings::formatEntireFileFallback() const
 {
-    return m_settings.value(kFormatEntireFileFallback).toBool();
+    return m_settings.value(FORMAT_ENTIRE_FILE_FALLBACK).toBool();
 }
 
 void UncrustifySettings::setFormatEntireFileFallback(bool formatEntireFileFallback)
 {
-    m_settings.insert(kFormatEntireFileFallback, QVariant(formatEntireFileFallback));
+    m_settings.insert(FORMAT_ENTIRE_FILE_FALLBACK, QVariant(formatEntireFileFallback));
 }
 
 QString UncrustifySettings::documentationFilePath() const
 {
-    return Core::ICore::userResourcePath() + QLatin1Char('/')
-            + QLatin1String(Beautifier::Constants::SETTINGS_DIRNAME) + QLatin1Char('/')
-            + QLatin1String(Beautifier::Constants::DOCUMENTATION_DIRNAME) + QLatin1Char('/')
-            + QLatin1String(Constants::Uncrustify::SETTINGS_NAME) + QLatin1String(".xml");
+    return Core::ICore::userResourcePath() + '/' + Beautifier::Constants::SETTINGS_DIRNAME + '/'
+            + Beautifier::Constants::DOCUMENTATION_DIRNAME + '/'
+            + Constants::Uncrustify::SETTINGS_NAME + ".xml";
 }
 
 void UncrustifySettings::createDocumentationFile() const
 {
-    QProcess process;
-    process.start(command(), QStringList() << QLatin1String("--show-config"));
-    process.waitForFinished(2000); // show config should be really fast.
-    if (process.error() != QProcess::UnknownError)
+    Utils::SynchronousProcess process;
+    process.setTimeoutS(2);
+    Utils::SynchronousProcessResponse response
+            = process.runBlocking(command(), QStringList() << QLatin1String("--show-config"));
+    if (response.result != Utils::SynchronousProcessResponse::Finished)
         return;
 
     QFile file(documentationFilePath());
@@ -137,33 +143,30 @@ void UncrustifySettings::createDocumentationFile() const
     bool contextWritten = false;
     QXmlStreamWriter stream(&file);
     stream.setAutoFormatting(true);
-    stream.writeStartDocument(QLatin1String("1.0"), true);
-    stream.writeComment(QLatin1String("Created ")
-                        + QDateTime::currentDateTime().toString(Qt::ISODate));
-    stream.writeStartElement(QLatin1String(Constants::DOCUMENTATION_XMLROOT));
+    stream.writeStartDocument("1.0", true);
+    stream.writeComment("Created " + QDateTime::currentDateTime().toString(Qt::ISODate));
+    stream.writeStartElement(Constants::DOCUMENTATION_XMLROOT);
 
-    const QStringList lines = QString::fromUtf8(process.readAll()).split(QLatin1Char('\n'));
+    const QStringList lines = response.allOutput().split(QLatin1Char('\n'));
     const int totalLines = lines.count();
     for (int i = 0; i < totalLines; ++i) {
         const QString &line = lines.at(i);
-        if (line.startsWith(QLatin1Char('#')) || line.trimmed().isEmpty())
+        if (line.startsWith('#') || line.trimmed().isEmpty())
             continue;
 
-        const int firstSpace = line.indexOf(QLatin1Char(' '));
+        const int firstSpace = line.indexOf(' ');
         const QString keyword = line.left(firstSpace);
         const QString options = line.right(line.size() - firstSpace).trimmed();
         QStringList docu;
         while (++i < totalLines) {
             const QString &subline = lines.at(i);
-            if (line.startsWith(QLatin1Char('#')) || subline.trimmed().isEmpty()) {
-                const QString text = QLatin1String("<p><span class=\"option\">") + keyword
-                        + QLatin1String("</span> <span class=\"param\">") + options
-                        + QLatin1String("</span></p><p>")
-                        + (docu.join(QLatin1Char(' ')).toHtmlEscaped())
-                        + QLatin1String("</p>");
-                stream.writeStartElement(QLatin1String(Constants::DOCUMENTATION_XMLENTRY));
-                stream.writeTextElement(QLatin1String(Constants::DOCUMENTATION_XMLKEY), keyword);
-                stream.writeTextElement(QLatin1String(Constants::DOCUMENTATION_XMLDOC), text);
+            if (line.startsWith('#') || subline.trimmed().isEmpty()) {
+                const QString text = "<p><span class=\"option\">" + keyword
+                        + "</span> <span class=\"param\">" + options
+                        + "</span></p><p>" + docu.join(' ').toHtmlEscaped() + "</p>";
+                stream.writeStartElement(Constants::DOCUMENTATION_XMLENTRY);
+                stream.writeTextElement(Constants::DOCUMENTATION_XMLKEY, keyword);
+                stream.writeTextElement(Constants::DOCUMENTATION_XMLDOC, text);
                 stream.writeEndElement();
                 contextWritten = true;
                 break;
@@ -182,6 +185,39 @@ void UncrustifySettings::createDocumentationFile() const
         file.close();
         file.remove();
     }
+}
+
+static bool parseVersion(const QString &text, int &version)
+{
+    // The version in Uncrustify is printed like "uncrustify 0.62"
+    const QRegularExpression rx("([0-9]{1})\\.([0-9]{2})");
+    const QRegularExpressionMatch match = rx.match(text);
+    if (!match.hasMatch())
+        return false;
+
+    const int major = match.captured(1).toInt() * 100;
+    const int minor = match.captured(2).toInt();
+    version = major + minor;
+    return true;
+}
+
+void UncrustifySettings::updateVersion()
+{
+    if (m_versionProcess.state() != QProcess::NotRunning) {
+        m_versionProcess.kill();
+        m_versionProcess.waitForFinished();
+    }
+    m_versionProcess.start(command(), {"--version"});
+}
+
+void UncrustifySettings::parseVersionProcessResult(int exitCode, QProcess::ExitStatus exitStatus)
+{
+    Q_UNUSED(exitCode)
+    if (exitStatus != QProcess::NormalExit)
+        return;
+
+    if (!parseVersion(QString::fromUtf8(m_versionProcess.readAllStandardOutput()), m_version))
+        parseVersion(QString::fromUtf8(m_versionProcess.readAllStandardError()), m_version);
 }
 
 } // namespace Uncrustify

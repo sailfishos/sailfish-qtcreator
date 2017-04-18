@@ -62,9 +62,7 @@ namespace Core {
 namespace Internal {
 
 Locator::Locator()
-    : m_settingsInitialized(false)
 {
-    m_corePlugin = 0;
     m_refreshTimer.setSingleShot(false);
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(); });
 }
@@ -312,7 +310,7 @@ void Locator::refresh(QList<ILocatorFilter *> filters)
 {
     if (filters.isEmpty())
         filters = m_filters;
-    QFuture<void> task = Utils::map(filters, &ILocatorFilter::refresh);
+    QFuture<void> task = Utils::map(filters, &ILocatorFilter::refresh, Utils::MapReduceOption::Unordered);
     FutureProgress *progress =
         ProgressManager::addTask(task, tr("Updating Locator Caches"), Constants::TASK_INDEX);
     connect(progress, &FutureProgress::finished, this, &Locator::saveSettings);

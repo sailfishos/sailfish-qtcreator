@@ -39,21 +39,20 @@ namespace Internal {
 
 GlslHighlighter::GlslHighlighter()
 {
-    static QVector<TextStyle> categories;
-    if (categories.isEmpty()) {
-        categories << C_NUMBER
-                   << C_STRING
-                   << C_TYPE
-                   << C_KEYWORD
-                   << C_OPERATOR
-                   << C_PREPROCESSOR
-                   << C_LABEL
-                   << C_COMMENT
-                   << C_DOXYGEN_COMMENT
-                   << C_DOXYGEN_TAG
-                   << C_VISUAL_WHITESPACE
-                   << C_REMOVED_LINE;
-    }
+    static const QVector<TextStyle> categories({
+        C_NUMBER,
+        C_STRING,
+        C_TYPE,
+        C_KEYWORD,
+        C_OPERATOR,
+        C_PREPROCESSOR,
+        C_LABEL,
+        C_COMMENT,
+        C_DOXYGEN_COMMENT,
+        C_DOXYGEN_TAG,
+        C_VISUAL_WHITESPACE,
+        C_REMOVED_LINE
+    });
     setTextFormatCategories(categories);
 }
 
@@ -367,15 +366,15 @@ void Highlighter::highlightBlock(const QString &text)
         const GLSL::Token &tk = tokens.at(i);
 
         if (tk.is(GLSL::Parser::T_NUMBER)) {
-            setFormat(tk.position, tk.length, formatForCategory(GLSLNumberFormat);
+            setFormat(tk.position, tk.length, formatForCategory(GLSLNumberFormat));
         } else if (tk.is(GLSL::Parser::T_COMMENT)) {
             setFormat(tk.position, tk.length, Qt::darkGreen); // ### FIXME: formatForCategory(GLSLCommentFormat);
         } else if (tk.is(GLSL::Parser::T_IDENTIFIER)) {
             int kind = lex.findKeyword(data.constData() + tk.position, tk.length);
             if (kind == GLSL::Parser::T_RESERVED)
-                setFormat(tk.position, tk.length, formatForCategory(GLSLReservedKeyword);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLReservedKeyword));
             else if (kind != GLSL::Parser::T_IDENTIFIER)
-                setFormat(tk.position, tk.length, formatForCategory(GLSLKeywordFormat);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLKeywordFormat));
         } else if (tk.is(GLSL::Parser::T_LEFT_PAREN) || tk.is(GLSL::Parser::T_LEFT_BRACE) || tk.is(GLSL::Parser::T_LEFT_BRACKET)) {
             const QChar c = text.at(tk.begin());
             parentheses.append(Parenthesis(Parenthesis::Opened, c, tk.begin()));

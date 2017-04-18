@@ -454,7 +454,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
     foreach (Kit *kit, KitManager::kits()) {
         if (!kit->isAutoDetected())
             continue;
-        ToolChain* tc = ToolChainKitInformation::toolChain(kit);
+        ToolChain* tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
         if (!tc ) {
             continue;
         }

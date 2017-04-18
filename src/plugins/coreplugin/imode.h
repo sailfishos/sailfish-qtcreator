@@ -23,13 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef IMODE_H
-#define IMODE_H
+#pragma once
 
 #include "icontext.h"
 #include "id.h"
 
 #include <QIcon>
+#include <QMenu>
 
 namespace Core {
 
@@ -40,18 +40,21 @@ class CORE_EXPORT IMode : public IContext
 
 public:
     IMode(QObject *parent = 0);
+    ~IMode();
 
     QString displayName() const { return m_displayName; }
     QIcon icon() const { return m_icon; }
     int priority() const { return m_priority; }
     Id id() const { return m_id; }
     bool isEnabled() const;
+    QMenu *menu() const { return m_menu; }
 
     void setEnabled(bool enabled);
     void setDisplayName(const QString &displayName) { m_displayName = displayName; }
     void setIcon(const QIcon &icon) { m_icon = icon; }
     void setPriority(int priority) { m_priority = priority; }
     void setId(Id id) { m_id = id; }
+    void setMenu(QMenu *menu) { m_menu = menu; }
 
 signals:
     void enabledStateChanged(bool enabled);
@@ -59,11 +62,10 @@ signals:
 private:
     QString m_displayName;
     QIcon m_icon;
+    QMenu *m_menu = nullptr;
     int m_priority;
     Id m_id;
     bool m_isEnabled;
 };
 
 } // namespace Core
-
-#endif // IMODE_H

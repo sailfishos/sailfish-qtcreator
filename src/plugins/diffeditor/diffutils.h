@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DIFFUTILS_H
-#define DIFFUTILS_H
+#pragma once
 
 #include "diffeditor_global.h"
 
@@ -39,12 +38,18 @@ class Diff;
 
 class DIFFEDITOR_EXPORT DiffFileInfo {
 public:
+    enum PatchBehaviour {
+        PatchFile,
+        PatchEditor
+    };
+
     DiffFileInfo() {}
     DiffFileInfo(const QString &file) : fileName(file) {}
     DiffFileInfo(const QString &file, const QString &type)
         : fileName(file), typeInfo(type) {}
     QString fileName;
     QString typeInfo;
+    PatchBehaviour patchBehaviour = PatchFile;
 };
 
 class DIFFEDITOR_EXPORT TextLineData {
@@ -149,5 +154,3 @@ public:
 };
 
 } // namespace DiffEditor
-
-#endif // DIFFUTILS_H

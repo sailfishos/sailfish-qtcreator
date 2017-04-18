@@ -1,5 +1,4 @@
-#ifndef MYTYPE_H
-#define MYTYPE_H
+#pragma once
 
 #include <QObject>
 #include <QString>
@@ -21,15 +20,11 @@ public:
 signals:
     void timeChanged(const QString &newText);
 
-private slots:
+private:
     void updateTimerText();
 
-private:
     QString m_timeText;
     QTimer *m_timer;
 
     Q_DISABLE_COPY(MyType)
 };
-
-#endif // MYTYPE_H
-

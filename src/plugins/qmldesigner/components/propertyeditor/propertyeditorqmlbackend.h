@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROPERTYEDITORQMLBACKEND_H
-#define PROPERTYEDITORQMLBACKEND_H
+#pragma once
 
 #include "qmlanchorbindingproxy.h"
 #include "designerpropertymap.h"
@@ -34,6 +33,8 @@
 #include "quick2propertyeditorview.h"
 
 #include <nodemetainfo.h>
+
+#include <QQmlPropertyMap>
 
 class PropertyEditorValue;
 
@@ -70,7 +71,7 @@ public:
     static QString templateGeneration(NodeMetaInfo type, NodeMetaInfo superType,
                                       const QmlObjectNode &objectNode);
 
-    static QUrl getQmlFileUrl(const QString &relativeTypeName, const NodeMetaInfo &info = NodeMetaInfo());
+    static QUrl getQmlFileUrl(const TypeName &relativeTypeName, const NodeMetaInfo &info = NodeMetaInfo());
     static QUrl getQmlUrlForModelNode(const ModelNode &modelNode, TypeName &className);
 
     static bool checkIfUrlExists(const QUrl &url);
@@ -88,11 +89,11 @@ private:
                                    PropertyEditorView *propertyEditor);
     void setupPropertyEditorValue(const PropertyName &name, PropertyEditorView *propertyEditor, const QString &type);
 
-    static QString qmlFileName(const NodeMetaInfo &nodeInfo);
+    static TypeName qmlFileName(const NodeMetaInfo &nodeInfo);
     static QUrl fileToUrl(const QString &filePath);
     static QString fileFromUrl(const QUrl &url);
     static QString locateQmlFile(const NodeMetaInfo &info, const QString &relativePath);
-    static QString fixTypeNameForPanes(const QString &typeName);
+    static TypeName fixTypeNameForPanes(const TypeName &typeName);
 
 private:
     Quick2PropertyEditorView *m_view;
@@ -105,5 +106,3 @@ private:
 };
 
 } //QmlDesigner
-
-#endif //PROPERTYEDITORQMLBACKEND_H

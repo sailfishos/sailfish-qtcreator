@@ -23,13 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERKITINFORMATION_H
-#define DEBUGGER_DEBUGGERKITINFORMATION_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
 
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/runnables.h>
 
 namespace Debugger {
 class DebuggerItem;
@@ -50,9 +50,21 @@ public:
     void fix(ProjectExplorer::Kit *k) override;
 
     static const DebuggerItem *debugger(const ProjectExplorer::Kit *kit);
+    static ProjectExplorer::StandardRunnable runnable(const ProjectExplorer::Kit *kit);
+
+    enum ConfigurationError
+    {
+        NoConfigurationError      = 0x0,
+        NoDebugger                = 0x1,
+        DebuggerNotFound          = 0x2,
+        DebuggerNotExecutable     = 0x4,
+        DebuggerNeedsAbsolutePath = 0x8,
+        DebuggerDoesNotMatch      = 0x10
+    };
+    Q_DECLARE_FLAGS(ConfigurationErrors, ConfigurationError)
 
     static QList<ProjectExplorer::Task> validateDebugger(const ProjectExplorer::Kit *k);
-    static bool isValidDebugger(const ProjectExplorer::Kit *k);
+    static ConfigurationErrors configurationErrors(const ProjectExplorer::Kit *k);
 
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const override;
     void addToMacroExpander(ProjectExplorer::Kit *kit, Utils::MacroExpander *expander) const override;
@@ -62,11 +74,8 @@ public:
     static void setDebugger(ProjectExplorer::Kit *k, const QVariant &id);
 
     static Core::Id id();
-    static Utils::FileName debuggerCommand(const ProjectExplorer::Kit *k);
     static DebuggerEngineType engineType(const ProjectExplorer::Kit *k);
     static QString displayString(const ProjectExplorer::Kit *k);
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGER_DEBUGGERKITINFORMATION_H

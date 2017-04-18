@@ -35,18 +35,19 @@
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 
-WaitForStopDialog::WaitForStopDialog(QList<ProjectExplorer::RunControl *> runControls)
-    : m_runControls(runControls)
+WaitForStopDialog::WaitForStopDialog(QList<ProjectExplorer::RunControl *> runControls) :
+    m_runControls(runControls)
 {
     setWindowTitle(tr("Waiting for Applications to Stop"));
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
-    QVBoxLayout *layout = new QVBoxLayout();
+    auto layout = new QVBoxLayout();
     setLayout(layout);
 
     m_progressLabel = new QLabel;
     layout->addWidget(m_progressLabel);
 
-    QPushButton *cancelButton = new QPushButton(tr("Cancel"));
+    auto cancelButton = new QPushButton(tr("Cancel"));
     connect(cancelButton, &QPushButton::clicked,
             this, &QDialog::close);
     layout->addWidget(cancelButton);
@@ -74,7 +75,7 @@ void WaitForStopDialog::updateProgressText()
 
 void WaitForStopDialog::runControlFinished()
 {
-    RunControl *rc = qobject_cast<RunControl *>(sender());
+    auto rc = qobject_cast<RunControl *>(sender());
     m_runControls.removeOne(rc);
 
     if (m_runControls.isEmpty()) {

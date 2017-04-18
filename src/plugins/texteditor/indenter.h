@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef INDENTER_H
-#define INDENTER_H
+#pragma once
 
 #include "texteditor_global.h"
+
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 class QTextDocument;
@@ -39,6 +40,8 @@ namespace TextEditor {
 
 class ICodeStylePreferences;
 class TabSettings;
+
+using IndentationForBlock = QMap<int, int>;
 
 class TEXTEDITOR_EXPORT Indenter
 {
@@ -70,8 +73,10 @@ public:
     virtual void invalidateCache(QTextDocument *doc);
 
     virtual int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings);
+
+    // Expects a list of blocks in order of occurrence in the document.
+    virtual IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
+                                                     const TextEditor::TabSettings &tabSettings);
 };
 
 } // namespace TextEditor
-
-#endif // INDENTER_H

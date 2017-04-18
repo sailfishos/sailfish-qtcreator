@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTTOOL_H
-#define TEXTTOOL_H
+#pragma once
 
 #include "abstractcustomtool.h"
 #include "selectionindicator.h"
@@ -78,6 +77,8 @@ public:
 
     QString name() const override;
 
+    void focusLost() override;
+
 protected:
     TextEditItem *textItem() const;
 
@@ -86,5 +87,3 @@ private:
 };
 
 }
-#endif // TEXTTOOL_H
-

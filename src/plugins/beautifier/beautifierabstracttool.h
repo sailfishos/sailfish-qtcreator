@@ -23,13 +23,17 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_BEAUTIFIERABSTRACTTOOL_H
-#define BEAUTIFIER_BEAUTIFIERABSTRACTTOOL_H
+#pragma once
+
+#include "command.h"
 
 #include <QList>
 #include <QObject>
 
-namespace Core { class IEditor; }
+namespace Core {
+class IDocument;
+class IEditor;
+}
 
 namespace Beautifier {
 namespace Internal {
@@ -39,15 +43,23 @@ class BeautifierAbstractTool : public QObject
     Q_OBJECT
 
 public:
-    explicit BeautifierAbstractTool(QObject *parent = 0) : QObject(parent) {}
+    explicit BeautifierAbstractTool(QObject *parent = nullptr) : QObject(parent) {}
     virtual ~BeautifierAbstractTool() {}
 
+    virtual QString id() const = 0;
     virtual bool initialize() = 0;
     virtual void updateActions(Core::IEditor *editor) = 0;
     virtual QList<QObject *> autoReleaseObjects() = 0;
+
+    /**
+     * Returns the tool's command to format an entire file.
+     *
+     * @note    The received command may be invalid.
+     */
+    virtual Command command() const = 0;
+
+    virtual bool isApplicable(const Core::IDocument *document) const = 0;
 };
 
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_BEAUTIFIERABSTRACTTOOL_H

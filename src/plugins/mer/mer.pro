@@ -6,8 +6,6 @@ QT += gui xmlpatterns
 
 include(../../qtcreatorplugin.pri)
 
-DEFINES += QT_NO_CAST_TO_ASCII QT_NO_CAST_FROM_ASCII
-
 RESOURCES += \
     mer.qrc
 

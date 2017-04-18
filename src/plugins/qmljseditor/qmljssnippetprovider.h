@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSSNIPPETPROVIDER_H
-#define QMLJSSNIPPETPROVIDER_H
+#pragma once
 
 #include <texteditor/snippets/isnippetprovider.h>
 
@@ -33,17 +32,15 @@ namespace Internal {
 
 class QmlJSSnippetProvider : public TextEditor::ISnippetProvider
 {
-public:
-    QmlJSSnippetProvider();
-    virtual ~QmlJSSnippetProvider();
+    Q_OBJECT
 
 public:
-    virtual QString groupId() const;
-    virtual QString displayName() const;
-    virtual void decorateEditor(TextEditor::SnippetEditorWidget *editor) const;
+    ~QmlJSSnippetProvider() final = default;
+
+    QString groupId() const final;
+    QString displayName() const final;
+    void decorateEditor(TextEditor::SnippetEditorWidget *editor) const final;
 };
 
 } // Internal
 } // QmlJSEditor
-
-#endif // QMLJSSNIPPETPROVIDER_H

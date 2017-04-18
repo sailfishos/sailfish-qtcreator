@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTTREEITEMDELEGATE_H
-#define TESTTREEITEMDELEGATE_H
+#pragma once
 
 #include <QStyledItemDelegate>
 
@@ -35,14 +34,12 @@ class TestTreeItemDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
 public:
-    TestTreeItemDelegate(QObject *parent = 0);
+    explicit TestTreeItemDelegate(QObject *parent = 0);
     ~TestTreeItemDelegate();
 
 public:
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTTREEITEMDELEGATE_H

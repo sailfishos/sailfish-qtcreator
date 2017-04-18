@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPLUSPLUS_OVERVIEWMODEL_H
-#define CPLUSPLUS_OVERVIEWMODEL_H
+#pragma once
 
 #include "CppDocument.h"
 #include "Overview.h"
@@ -75,5 +74,3 @@ private:
 };
 
 } // namespace CPlusPlus
-
-#endif // CPLUSPLUS_OVERVIEWMODEL_H

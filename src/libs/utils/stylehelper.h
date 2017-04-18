@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef STYLEHELPER_H
-#define STYLEHELPER_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -60,8 +59,10 @@ public:
     static QColor highlightColor(bool lightColored = false);
     static QColor shadowColor(bool lightColored = false);
     static QColor borderColor(bool lightColored = false);
+    static QColor toolBarBorderColor();
     static QColor buttonTextColor() { return QColor(0x4c4c4c); }
     static QColor mergedColors(const QColor &colorA, const QColor &colorB, int factor = 50);
+    static QColor alphaBlendedColors(const QColor &colorA, const QColor &colorB);
 
     static QColor sidebarHighlight() { return QColor(255, 255, 255, 40); }
     static QColor sidebarShadow() { return QColor(0, 0, 0, 40); }
@@ -102,4 +103,3 @@ private:
 };
 
 } // namespace Utils
-#endif // STYLEHELPER_H

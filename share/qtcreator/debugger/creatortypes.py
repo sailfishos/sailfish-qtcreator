@@ -89,17 +89,18 @@ def dumpLiteral(d, value):
     d.putValue(d.hexencode(readLiteral(d, value)), "latin1")
 
 def qdump__Core__Id(d, value):
+    val = value.extractPointer()
     try:
-        name = d.parseAndEvaluate("Core::nameForId(%d)" % value["m_id"])
-        d.putSimpleCharArray(name)
+        name = d.parseAndEvaluate("Core::nameForId(0x%x)" % val)
+        d.putSimpleCharArray(name.pointer())
     except:
-        d.putValue(value["m_id"])
+        d.putValue(val)
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__GdbMi(d, value):
-    str = d.encodeByteArray(value["m_name"]) + "3a20" \
-        + d.encodeByteArray(value["m_data"])
-    d.putValue(str, "latin1")
+    val = d.encodeString(value["m_name"]) + "3a002000" \
+        + d.encodeString(value["m_data"])
+    d.putValue(val, "utf16")
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__DisassemblerLine(d, value):
@@ -107,11 +108,11 @@ def qdump__Debugger__Internal__DisassemblerLine(d, value):
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__WatchData(d, value):
-    d.putByteArrayValue(value["iname"])
+    d.putStringValue(value["iname"])
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__WatchItem(d, value):
-    d.putByteArrayValue(value["iname"])
+    d.putStringValue(value["iname"])
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__BreakpointModelId(d, value):
@@ -224,7 +225,30 @@ def qdump__ProString(d, value):
         d.putEmptyValue()
     d.putPlainChildren(value)
 
+def qdump__ProKey(d, value):
+    qdump__ProString(d, value)
+    d.putBetterType(value.type)
+
 def qdump__Core__GeneratedFile(d, value):
     d.putStringValue(value["m_d"]["d"]["path"])
     d.putPlainChildren(value)
 
+def qdump__ProjectExplorer__Node(d, value):
+    d.putStringValue(value["m_filePath"])
+    d.putPlainChildren(value)
+
+def qdump__ProjectExplorer__FolderNode(d, value):
+    d.putStringValue(value["m_displayName"])
+    d.putPlainChildren(value)
+
+def qdump__ProjectExplorer__ProjectNode(d, value):
+    qdump__ProjectExplorer__FolderNode(d, value)
+
+def qdump__CMakeProjectManager__Internal__CMakeProjectNode(d, value):
+    qdump__ProjectExplorer__FolderNode(d, value)
+
+def qdump__QmakeProjectManager__QmakePriFileNode(d, value):
+    qdump__ProjectExplorer__FolderNode(d, value)
+
+def qdump__QmakeProjectManager__QmakeProFileNode(d, value):
+    qdump__ProjectExplorer__FolderNode(d, value)

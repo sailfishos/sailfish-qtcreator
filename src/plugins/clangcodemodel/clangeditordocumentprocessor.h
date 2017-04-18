@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGEDITORDOCUMENTPROCESSOR_H
-#define CLANGEDITORDOCUMENTPROCESSOR_H
+#pragma once
 
 #include "clangdiagnosticmanager.h"
 #include "clangeditordocumentparser.h"
@@ -33,6 +32,7 @@
 #include <cpptools/semantichighlighter.h>
 
 #include <QFutureWatcher>
+#include <QTimer>
 
 namespace ClangBackEnd {
 class DiagnosticContainer;
@@ -68,6 +68,7 @@ public:
     void clearProjectPart();
 
     void updateCodeWarnings(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
+                            const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic,
                             uint documentRevision);
     void updateHighlighting(const QVector<ClangBackEnd::HighlightingMarkContainer> &highlightingMarks,
                             const QVector<ClangBackEnd::SourceRangeContainer> &skippedPreprocessorRanges,
@@ -77,10 +78,9 @@ public:
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface) override;
 
     bool hasDiagnosticsAt(uint line, uint column) const override;
-    void showDiagnosticTooltip(const QPoint &point,
-                               QWidget *parent,
-                               uint line,
-                               uint column) const override;
+    void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *target) const override;
+
+    void editorDocumentTimerRestarted() override;
 
     ClangBackEnd::FileContainer fileContainerWithArguments() const;
 
@@ -97,7 +97,11 @@ private:
     void registerTranslationUnitForEditor(CppTools::ProjectPart *projectPart);
     void updateTranslationUnitIfProjectPartExists();
     void requestDocumentAnnotations(const QString &projectpartId);
+    HeaderErrorDiagnosticWidgetCreator creatorForHeaderErrorDiagnosticWidget(
+            const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic);
     ClangBackEnd::FileContainer fileContainerWithArguments(CppTools::ProjectPart *projectPart) const;
+    ClangBackEnd::FileContainer fileContainerWithArgumentsAndDocumentContent(
+            CppTools::ProjectPart *projectPart) const;
     ClangBackEnd::FileContainer fileContainerWithDocumentContent(const QString &projectpartId) const;
 
 private:
@@ -106,6 +110,7 @@ private:
     QSharedPointer<ClangEditorDocumentParser> m_parser;
     CppTools::ProjectPart::Ptr m_projectPart;
     QFutureWatcher<void> m_parserWatcher;
+    QTimer m_updateTranslationUnitTimer;
     unsigned m_parserRevision;
 
     CppTools::SemanticHighlighter m_semanticHighlighter;
@@ -114,5 +119,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangCodeModel
-
-#endif // CLANGEDITORDOCUMENTPROCESSOR_H

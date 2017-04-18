@@ -23,40 +23,55 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_UNREGISTERPROJECTSFOREDITOR_H
-#define CLANGBACKEND_UNREGISTERPROJECTSFOREDITOR_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 
 #include <utf8stringvector.h>
 
+#include <QDataStream>
+
 namespace ClangBackEnd {
 
 class CMBIPC_EXPORT UnregisterProjectPartsForEditorMessage
 {
-    friend CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const UnregisterProjectPartsForEditorMessage &message);
-    friend CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, UnregisterProjectPartsForEditorMessage &message);
-    friend CMBIPC_EXPORT bool operator==(const UnregisterProjectPartsForEditorMessage &first, const UnregisterProjectPartsForEditorMessage &second);
-    friend void PrintTo(const UnregisterProjectPartsForEditorMessage &message, ::std::ostream* os);
-
 public:
     UnregisterProjectPartsForEditorMessage() = default;
-    UnregisterProjectPartsForEditorMessage(const Utf8StringVector &projectPartIds);
+    UnregisterProjectPartsForEditorMessage(const Utf8StringVector &projectPartIds)
+        : projectPartIds_(projectPartIds)
+    {
+    }
 
-    const Utf8StringVector &projectPartIds() const;
+    const Utf8StringVector &projectPartIds() const
+    {
+        return projectPartIds_;
+    }
+
+    friend QDataStream &operator<<(QDataStream &out, const UnregisterProjectPartsForEditorMessage &message)
+    {
+        out << message.projectPartIds_;
+
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, UnregisterProjectPartsForEditorMessage &message)
+    {
+        in >> message.projectPartIds_;
+
+        return in;
+    }
+
+    friend bool operator==(const UnregisterProjectPartsForEditorMessage &first, const UnregisterProjectPartsForEditorMessage &second)
+    {
+        return first.projectPartIds_ == second.projectPartIds_;
+    }
 
 private:
     Utf8StringVector projectPartIds_;
 };
-
-CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const UnregisterProjectPartsForEditorMessage &message);
-CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, UnregisterProjectPartsForEditorMessage &message);
-CMBIPC_EXPORT bool operator==(const UnregisterProjectPartsForEditorMessage &first, const UnregisterProjectPartsForEditorMessage &second);
 
 CMBIPC_EXPORT QDebug operator<<(QDebug debug, const UnregisterProjectPartsForEditorMessage &message);
 void PrintTo(const UnregisterProjectPartsForEditorMessage &message, ::std::ostream* os);
 
 DECLARE_MESSAGE(UnregisterProjectPartsForEditorMessage);
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_UNREGISTERPROJECTSFOREDITOR_H

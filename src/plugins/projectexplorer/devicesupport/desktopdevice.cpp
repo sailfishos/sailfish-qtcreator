@@ -29,7 +29,10 @@
 #include "localprocesslist.h"
 #include "desktopdeviceconfigurationwidget.h"
 #include "desktopprocesssignaloperation.h"
+
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runnables.h>
 
 #include <ssh/sshconnection.h>
 
@@ -134,9 +137,9 @@ DeviceEnvironmentFetcher::Ptr DesktopDevice::environmentFetcher() const
     return DeviceEnvironmentFetcher::Ptr(new DesktopDeviceEnvironmentFetcher());
 }
 
-QString DesktopDevice::qmlProfilerHost() const
+Connection DesktopDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return QLatin1String("localhost");
+    return HostName("localhost");
 }
 
 IDevice::Ptr DesktopDevice::clone() const

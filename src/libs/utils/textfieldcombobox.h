@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTFIELDCOMBOBOX_H
-#define TEXTFIELDCOMBOBOX_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -47,13 +46,10 @@ public:
 signals:
     void text4Changed(const QString &); // Do not conflict with Qt 3 compat signal.
 
-private slots:
+private:
     void slotCurrentIndexChanged(int);
 
-private:
     inline QString valueAt(int) const;
 };
 
 } // namespace Utils
-
-#endif // TEXTFIELDCOMBOBOX_H

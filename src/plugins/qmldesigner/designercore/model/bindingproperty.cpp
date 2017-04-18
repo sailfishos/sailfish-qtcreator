@@ -34,6 +34,15 @@
 #include "model_p.h"
 namespace QmlDesigner {
 
+bool compareBindingProperties(const QmlDesigner::BindingProperty &bindingProperty01, const QmlDesigner::BindingProperty &bindingProperty02)
+{
+    if (bindingProperty01.parentModelNode() != bindingProperty02.parentModelNode())
+        return false;
+    if (bindingProperty01.name() != bindingProperty02.name())
+        return false;
+    return true;
+}
+
 BindingProperty::BindingProperty()
 {
 }
@@ -96,7 +105,7 @@ static ModelNode resolveBinding(const QString &binding, ModelNode currentNode, A
     while (!element.isEmpty())
     {
         if (currentNode.isValid()) {
-            if (element == "parent") {
+            if (element == QLatin1String("parent")) {
                 if (currentNode.hasParentProperty())
                     currentNode = currentNode.parentProperty().toNodeAbstractProperty().parentModelNode();
                 else
@@ -200,7 +209,7 @@ bool BindingProperty::isAliasExport() const
     return parentModelNode() == parentModelNode().view()->rootModelNode()
             && isDynamic()
             && dynamicTypeName() == "alias"
-            && name() == expression()
+            && name() == expression().toUtf8()
             && parentModelNode().view()->modelNodeForId(expression()).isValid();
 }
 
@@ -233,6 +242,24 @@ void BindingProperty::setDynamicTypeNameAndExpression(const TypeName &typeName, 
         model()->d->removeProperty(internalNode()->property(name()));
 
      model()->d->setDynamicBindingProperty(internalNode(), name(), typeName, expression);
+}
+
+QDebug operator<<(QDebug debug, const BindingProperty &property)
+{
+    if (!property.isValid())
+        return debug.nospace() << "BindingProperty(" << PropertyName("invalid") << ')';
+    else
+        return debug.nospace() << "BindingProperty(" <<  property.name() << " " << property.expression() << ')';
+}
+
+QTextStream& operator<<(QTextStream &stream, const BindingProperty &property)
+{
+    if (!property.isValid())
+        stream << "BindingProperty(" << PropertyName("invalid") << ')';
+    else
+        stream << "BindingProperty(" <<  property.name() << " " << property.expression() << ')';
+
+    return stream;
 }
 
 } // namespace QmlDesigner

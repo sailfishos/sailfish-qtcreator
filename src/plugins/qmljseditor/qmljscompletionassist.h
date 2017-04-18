@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSCOMPLETIONASSIST_H
-#define QMLJSCOMPLETIONASSIST_H
+#pragma once
 
 #include "qmljseditor.h"
 
@@ -135,6 +134,10 @@ private:
     QIcon m_darkCyanIcon;
 };
 
-} // QmlJSEditor
+QStringList QMLJSEDITOR_EXPORT qmlJSAutoComplete(QTextDocument *textDocument,
+                                                 int position,
+                                                 const QString &fileName,
+                                                 TextEditor::AssistReason reason,
+                                                 const QmlJSTools::SemanticInfo &info);
 
-#endif // QMLJSCOMPLETIONASSIST_H
+} // QmlJSEditor

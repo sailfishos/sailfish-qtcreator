@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ADDTOOLCHAINOPERATION_H
-#define ADDTOOLCHAINOPERATION_H
+#pragma once
 
 #include "operation.h"
 
@@ -46,9 +45,9 @@ public:
 #endif
 
     static QVariantMap addToolChain(const QVariantMap &map,
-                                    const QString &id, const QString &displayName,
-                                    const QString &path, const QString &abi,
-                                    const QString &supportedAbis,
+                                    const QString &id, const QString &lang,
+                                    const QString &displayName, const QString &path,
+                                    const QString &abi, const QString &supportedAbis,
                                     const KeyValuePairList &extra);
 
     static QVariantMap initializeToolChains();
@@ -57,11 +56,10 @@ public:
 
 private:
     QString m_id;
+    QString m_languageId;
     QString m_displayName;
     QString m_path;
     QString m_targetAbi;
     QString m_supportedAbis;
     KeyValuePairList m_extra;
 };
-
-#endif // ADDTOOLCHAINOPERATION_H

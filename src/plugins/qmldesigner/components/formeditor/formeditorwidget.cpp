@@ -28,6 +28,7 @@
 #include "designersettings.h"
 #include "qmldesignerconstants.h"
 #include "qmldesignericons.h"
+#include <theming.h>
 
 #include <QWheelEvent>
 #include <QVBoxLayout>
@@ -40,8 +41,8 @@
 #include <lineeditaction.h>
 #include <backgroundaction.h>
 
-#include <coreplugin/coreicons.h>
 #include <utils/fileutils.h>
+#include <utils/utilsicons.h>
 
 namespace QmlDesigner {
 
@@ -49,7 +50,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     : QWidget(),
     m_formEditorView(view)
 {
-    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/formeditorstylesheet.css"))));
+    setStyleSheet(Theming::replaceCssColors(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/formeditorstylesheet.css")))));
 
     QVBoxLayout *fillLayout = new QVBoxLayout(this);
     fillLayout->setMargin(0);
@@ -98,7 +99,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_showBoundingRectAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_showBoundingRectAction->setCheckable(true);
     m_showBoundingRectAction->setChecked(true);
-    m_showBoundingRectAction->setIcon(Core::Icons::BOUNDING_RECT.icon());
+    m_showBoundingRectAction->setIcon(Utils::Icons::BOUNDING_RECT.icon());
 
     addAction(m_showBoundingRectAction.data());
     upperActions.append(m_showBoundingRectAction.data());
@@ -108,12 +109,14 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     addAction(separatorAction);
     upperActions.append(separatorAction);
 
-    m_rootWidthAction = new LineEditAction(tr("Width"), this);
+    m_rootWidthAction = new LineEditAction(tr("Override Width"), this);
+    m_rootWidthAction->setToolTip(tr("Override width of root item."));
     connect(m_rootWidthAction.data(), SIGNAL(textChanged(QString)), this, SLOT(changeRootItemWidth(QString)));
     addAction(m_rootWidthAction.data());
     upperActions.append(m_rootWidthAction.data());
 
-    m_rootHeightAction =  new LineEditAction(tr("Height"), this);
+    m_rootHeightAction =  new LineEditAction(tr("Override Height"), this);
+    m_rootHeightAction->setToolTip(tr("Override height of root item."));
     connect(m_rootHeightAction.data(), SIGNAL(textChanged(QString)), this, SLOT(changeRootItemHeight(QString)));
     addAction(m_rootHeightAction.data());
     upperActions.append(m_rootHeightAction.data());
@@ -137,7 +140,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_resetAction = new QAction(tr("Reset view (R)."), this);
     m_resetAction->setShortcut(Qt::Key_R);
     m_resetAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    m_resetAction->setIcon(Icons::RESET.icon());
+    m_resetAction->setIcon(Utils::Icons::RESET_TOOLBAR.icon());
     connect(m_resetAction.data(), SIGNAL(triggered(bool)), this, SLOT(resetNodeInstanceView()));
     addAction(m_resetAction.data());
     upperActions.append(m_resetAction.data());
@@ -146,7 +149,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_graphicsView = new FormEditorGraphicsView(this);
 
     fillLayout->addWidget(m_graphicsView.data());
-    m_graphicsView.data()->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
+    m_graphicsView.data()->setStyleSheet(Theming::replaceCssColors(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
 }
 
 void FormEditorWidget::changeTransformTool(bool checked)

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef UTILS_STATUSLABEL_H
-#define UTILS_STATUSLABEL_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -44,10 +43,8 @@ public slots:
     void showStatusMessage(const QString &message, int timeoutMS = 5000);
     void clearStatusMessage();
 
-private slots:
-    void slotTimeout();
-
 private:
+    void slotTimeout();
     void stopTimer();
 
     QTimer *m_timer;
@@ -55,5 +52,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // UTILS_STATUSLABEL_H

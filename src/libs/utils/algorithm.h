@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ALGORITHM_H
-#define ALGORITHM_H
+#pragma once
 
 #include <qcompilerdetection.h> // for Q_REQUIRED_RESULT
 
@@ -212,6 +211,9 @@ inserter(QSet<X> &container)
 template<typename T>
 using decay_t = typename std::decay<T>::type;
 
+template<typename T>
+using result_of_t = typename std::result_of<T>::type;
+
 // abstraction to treat Container<T> and QStringList similarly
 template<typename T>
 struct ContainerType
@@ -221,26 +223,13 @@ struct ContainerType
 
 // specialization for qt container T_Container<T_Type>
 template<template<typename> class T_Container, typename T_Type>
-struct ContainerType<T_Container<T_Type>> {
-    typedef T_Type ElementType;
-
-    template<class NewElementType>
-    struct WithElementType
-    {
-        typedef T_Container<NewElementType> type;
-    };
-
+struct ContainerType<T_Container<T_Type>>
+{
     template<class F, template<typename> class C = T_Container>
-    struct ResultOfTransform
-    {
-        typedef C<decay_t<typename std::result_of<F (ElementType)>::type>> type;
-    };
+    using ResultOfTransform = C<decay_t<result_of_t<F (T_Type)>>>;
 
     template<class R>
-    struct ResultOfTransformPMF
-    {
-        typedef typename WithElementType<decay_t<R>>::type type;
-    };
+    using ResultOfTransformPMF = T_Container<decay_t<R>>;
 };
 
 // specialization for QStringList
@@ -281,10 +270,10 @@ template<typename C, // container
          typename F>
 Q_REQUIRED_RESULT
 auto transform(const C &container, F function)
--> typename ContainerType<C>::template ResultOfTransform<F>::type
+-> typename ContainerType<C>::template ResultOfTransform<F>
 {
     return TransformImpl<
-                typename ContainerType<C>::template ResultOfTransform<F>::type,
+                typename ContainerType<C>::template ResultOfTransform<F>,
                 C
             >::call(container, function);
 }
@@ -295,10 +284,10 @@ template<typename C,
         typename S>
 Q_REQUIRED_RESULT
 auto transform(const C &container, R (S::*p)() const)
-    ->typename ContainerType<C>::template ResultOfTransformPMF<R>::type
+    ->typename ContainerType<C>::template ResultOfTransformPMF<R>
 {
     return TransformImpl<
-                typename ContainerType<C>::template ResultOfTransformPMF<R>::type,
+                typename ContainerType<C>::template ResultOfTransformPMF<R>,
                 C
             >::call(container, p);
 }
@@ -309,10 +298,10 @@ template<template<typename> class C, // result container type
          typename F> // function type
 Q_REQUIRED_RESULT
 auto transform(const SC &container, F function)
-     -> typename ContainerType<SC>::template ResultOfTransform<F, C>::type
+     -> typename ContainerType<SC>::template ResultOfTransform<F, C>
 {
     return TransformImpl<
-                typename ContainerType<SC>::template ResultOfTransform<F, C>::type,
+                typename ContainerType<SC>::template ResultOfTransform<F, C>,
                 SC
             >::call(container, function);
 }
@@ -429,6 +418,37 @@ inline void sort(Container &c, Predicate p)
     std::sort(c.begin(), c.end(), p);
 }
 
+// pointer to member
+template <typename Container, typename R, typename S>
+inline void sort(Container &c, R S::*member)
+{
+    auto f = std::mem_fn(member);
+    using const_ref = typename Container::const_reference;
+    std::sort(c.begin(), c.end(), [&f](const_ref a, const_ref b) {
+        return f(a) < f(b);
+    });
 }
 
-#endif // ALGORITHM_H
+// pointer to member function
+template <typename Container, typename R, typename S>
+inline void sort(Container &c, R (S::*function)() const)
+{
+    auto f = std::mem_fn(function);
+    using const_ref = typename Container::const_reference;
+    std::sort(c.begin(), c.end(), [&f](const_ref a, const_ref b) {
+        return f(a) < f(b);
+    });
+}
+
+//////////////////
+// reverseForeach
+/////////////////
+template <typename Container, typename Op>
+inline void reverseForeach(const Container &c, const Op &operation)
+{
+    auto rend = c.rend();
+    for (auto it = c.rbegin(); it != rend; ++it)
+        operation(*it);
+}
+
+}

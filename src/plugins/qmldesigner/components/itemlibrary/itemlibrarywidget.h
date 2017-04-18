@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ITEMLIBRARYWIDGET_H
-#define ITEMLIBRARYWIDGET_H
+#pragma once
 
 #include "itemlibraryinfo.h"
 #include "itemlibrarytreeview.h"
@@ -35,6 +34,8 @@
 #include <QToolButton>
 #include <QFileIconProvider>
 #include <QQuickWidget>
+#include <QQmlPropertyMap>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QFileSystemModel;
@@ -85,8 +86,11 @@ public:
     void setImportsWidget(QWidget *importsWidget);
 
     static QString qmlSourcesPath();
+    void clearSearchFilter();
+
 public slots:
     void setSearchFilter(const QString &searchFilter);
+    void delayedUpdateModel();
     void updateModel();
     void updateSearch();
 
@@ -96,26 +100,19 @@ public slots:
 
     void setModel(Model *model);
 
-    void setImportFilter(FilterChangeFlag flag);
-
-    void onQtBasicOnlyChecked(bool b);
-    void onMeegoChecked(bool b);
-
 protected:
     void removeImport(const QString &name);
     void addImport(const QString &name, const QString &version);
-    void emitImportChecked();
 
 signals:
     void itemActivated(const QString& itemName);
-    void qtBasicOnlyChecked(bool b);
-    void meegoChecked(bool b);
 
 private slots:
     void setCurrentIndexOfStackedWidget(int index);
     void reloadQmlSource();
 
 private:
+    QTimer m_compressionTimer;
     QSize m_itemIconSize;
     QSize m_resIconSize;
     ItemLibraryFileIconProvider m_iconProvider;
@@ -138,6 +135,3 @@ private:
 };
 
 }
-
-#endif // ITEMLIBRARYWIDGET_H
-

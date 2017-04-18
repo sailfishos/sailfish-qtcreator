@@ -91,8 +91,6 @@ QList<AssistProposalItemInterface *> toAssistProposalItems(const CodeCompletions
             item->addOverload(codeCompletion);
         } else {
             item = new ClangAssistProposalItem;
-            QString detail = CompletionChunksToTextConverter::convertToToolTipWithHtml(codeCompletion.chunks());
-
             items.insert(name, item);
 
             item->setText(name);
@@ -138,7 +136,8 @@ using namespace CPlusPlus;
 using namespace TextEditor;
 
 ClangCompletionAssistProcessor::ClangCompletionAssistProcessor()
-    : m_completionOperator(T_EOF_SYMBOL)
+    : CppCompletionAssistProcessor(100)
+    , m_completionOperator(T_EOF_SYMBOL)
 {
 }
 
@@ -520,15 +519,10 @@ void ClangCompletionAssistProcessor::sendFileContent(const QByteArray &customFil
                                                       uint(m_interface->textDocument()->revision())}});
 }
 namespace {
-CppTools::CppEditorDocumentHandle *cppDocument(const QString &filePath)
-{
-    return CppTools::CppModelManager::instance()->cppEditorDocument(filePath);
-}
-
 bool shouldSendDocumentForCompletion(const QString &filePath,
                                      int completionPosition)
 {
-    auto *document = cppDocument(filePath);
+    CppTools::CppEditorDocumentHandle *document = ClangCodeModel::Utils::cppDocument(filePath);
 
     if (document) {
         auto &sendTracker = document->sendTracker();
@@ -542,7 +536,7 @@ bool shouldSendDocumentForCompletion(const QString &filePath,
 bool shouldSendCodeCompletion(const QString &filePath,
                               int completionPosition)
 {
-    auto *document = cppDocument(filePath);
+    CppTools::CppEditorDocumentHandle *document = ClangCodeModel::Utils::cppDocument(filePath);
 
     if (document) {
         auto &sendTracker = document->sendTracker();
@@ -554,7 +548,7 @@ bool shouldSendCodeCompletion(const QString &filePath,
 
 void setLastDocumentRevision(const QString &filePath)
 {
-    auto *document = cppDocument(filePath);
+    CppTools::CppEditorDocumentHandle *document = ClangCodeModel::Utils::cppDocument(filePath);
 
     if (document)
         document->sendTracker().setLastSentRevision(int(document->revision()));
@@ -563,7 +557,7 @@ void setLastDocumentRevision(const QString &filePath)
 void setLastCompletionPosition(const QString &filePath,
                                int completionPosition)
 {
-    auto *document = cppDocument(filePath);
+    CppTools::CppEditorDocumentHandle *document = ClangCodeModel::Utils::cppDocument(filePath);
 
     if (document)
         document->sendTracker().setLastCompletionPosition(completionPosition);
@@ -613,7 +607,7 @@ void ClangCompletionAssistProcessor::handleAvailableCompletions(
     QTC_CHECK(m_completions.isEmpty());
 
     m_completions = toAssistProposalItems(completions);
-    if (m_addSnippets)
+    if (m_addSnippets && !m_completions.isEmpty())
         addSnippets();
 
     setAsyncProposalAvailable(createProposal(neededCorrection));

@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEPARSER_H
-#define QMAKEPARSER_H
+#pragma once
 
 #include "qmake_global.h"
+#include "qmakevfs.h"
 #include "proitems.h"
 
 #include <qhash.h>
@@ -75,7 +75,13 @@ public:
     enum ParseFlag {
         ParseDefault = 0,
         ParseUseCache = 1,
-        ParseReportMissing = 2
+        ParseOnlyCached = 2,
+        ParseReportMissing = 4,
+#ifdef PROEVALUATOR_DUAL_VFS
+        ParseCumulative = 8
+#else
+        ParseCumulative = 0
+#endif
     };
     Q_DECLARE_FLAGS(ParseFlags, ParseFlag)
 
@@ -84,7 +90,7 @@ public:
     enum SubGrammar { FullGrammar, TestGrammar, ValueGrammar };
     // fileName is expected to be absolute and cleanPath()ed.
     ProFile *parsedProFile(const QString &fileName, ParseFlags flags = ParseDefault);
-    ProFile *parsedProBlock(const QString &contents, const QString &name, int line = 0,
+    ProFile *parsedProBlock(const QStringRef &contents, const QString &name, int line = 0,
                             SubGrammar grammar = FullGrammar);
 
     void discardFileFromCache(const QString &fileName);
@@ -126,8 +132,8 @@ private:
         ushort terminator; // '}' if replace function call is braced, ':' if test function
     };
 
-    bool read(ProFile *pro, ParseFlags flags);
-    void read(ProFile *pro, const QString &content, int line, SubGrammar grammar);
+    bool readFile(const QString &fn, QMakeVfs::VfsFlags vfsFlags, QMakeParser::ParseFlags flags, QString *contents);
+    void read(ProFile *pro, const QStringRef &content, int line, SubGrammar grammar);
 
     ALWAYS_INLINE void putTok(ushort *&tokPtr, ushort tok);
     ALWAYS_INLINE void putBlockLen(ushort *&tokPtr, uint len);
@@ -138,7 +144,7 @@ private:
     ALWAYS_INLINE bool resolveVariable(ushort *xprPtr, int tlen, int needSep, ushort **ptr,
                                        ushort **buf, QString *xprBuff,
                                        ushort **tokPtr, QString *tokBuff,
-                                       const ushort *cur, const QString &in);
+                                       const ushort *cur, const QStringRef &in);
     void finalizeCond(ushort *&tokPtr, ushort *uc, ushort *ptr, int wordCount);
     void finalizeCall(ushort *&tokPtr, ushort *uc, ushort *ptr, int argc);
     void warnOperator(const char *msg);
@@ -226,5 +232,3 @@ Q_DECLARE_TYPEINFO(QMakeParser::Context, Q_PRIMITIVE_TYPE);
 #endif
 
 QT_END_NAMESPACE
-
-#endif // PROFILEPARSER_H

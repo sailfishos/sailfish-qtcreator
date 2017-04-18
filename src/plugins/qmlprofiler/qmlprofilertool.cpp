@@ -45,6 +45,7 @@
 #include <utils/fancymainwindow.h>
 #include <utils/fileinprojectfinder.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
@@ -55,7 +56,6 @@
 #include <texteditor/texteditor.h>
 
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/findplugin.h>
 #include <coreplugin/icore.h>
@@ -86,7 +86,6 @@ using namespace Core::Constants;
 using namespace Debugger;
 using namespace Debugger::Constants;
 using namespace QmlProfiler::Constants;
-using namespace QmlDebug;
 using namespace ProjectExplorer;
 
 namespace QmlProfiler {
@@ -143,7 +142,7 @@ QmlProfilerTool::QmlProfilerTool(QObject *parent)
             this, &QmlProfilerTool::setRecordedFeatures);
 
     d->m_profilerConnections = new QmlProfilerClientManager(this);
-    d->m_profilerConnections->registerProfilerStateManager(d->m_profilerState);
+    d->m_profilerConnections->setProfilerStateManager(d->m_profilerState);
     connect(d->m_profilerConnections, &QmlProfilerClientManager::connectionClosed,
             this, &QmlProfilerTool::clientsDisconnected);
 
@@ -170,13 +169,13 @@ QmlProfilerTool::QmlProfilerTool(QObject *parent)
 
     QAction *act = d->m_loadQmlTrace = new QAction(tr("Load QML Trace"), options);
     command = ActionManager::registerAction(act, Constants::QmlProfilerLoadActionId);
-    connect(act, &QAction::triggered, this, &QmlProfilerTool::showLoadDialog);
+    connect(act, &QAction::triggered, this, &QmlProfilerTool::showLoadDialog, Qt::QueuedConnection);
     options->addAction(command);
 
     act = d->m_saveQmlTrace = new QAction(tr("Save QML Trace"), options);
     d->m_saveQmlTrace->setEnabled(false);
     command = ActionManager::registerAction(act, Constants::QmlProfilerSaveActionId);
-    connect(act, &QAction::triggered, this, &QmlProfilerTool::showSaveDialog);
+    connect(act, &QAction::triggered, this, &QmlProfilerTool::showSaveDialog, Qt::QueuedConnection);
     options->addAction(command);
 
     d->m_recordingTimer.setInterval(100);
@@ -205,7 +204,7 @@ QmlProfilerTool::QmlProfilerTool(QObject *parent)
     setRecording(d->m_profilerState->clientRecording());
 
     d->m_clearButton = new QToolButton;
-    d->m_clearButton->setIcon(Core::Icons::CLEAN_PANE.icon());
+    d->m_clearButton->setIcon(Utils::Icons::CLEAN_TOOLBAR.icon());
     d->m_clearButton->setToolTip(tr("Discard data"));
 
     connect(d->m_clearButton, &QAbstractButton::clicked, [this](){
@@ -214,13 +213,13 @@ QmlProfilerTool::QmlProfilerTool(QObject *parent)
     });
 
     d->m_searchButton = new QToolButton;
-    d->m_searchButton->setIcon(Core::Icons::ZOOM_TOOLBAR.icon());
+    d->m_searchButton->setIcon(Utils::Icons::ZOOM_TOOLBAR.icon());
     d->m_searchButton->setToolTip(tr("Search timeline event notes."));
 
     connect(d->m_searchButton, &QToolButton::clicked, this, &QmlProfilerTool::showTimeLineSearch);
 
     d->m_displayFeaturesButton = new QToolButton;
-    d->m_displayFeaturesButton->setIcon(Core::Icons::FILTER.icon());
+    d->m_displayFeaturesButton->setIcon(Utils::Icons::FILTER.icon());
     d->m_displayFeaturesButton->setToolTip(tr("Hide or show event categories."));
     d->m_displayFeaturesButton->setPopupMode(QToolButton::InstantPopup);
     d->m_displayFeaturesButton->setProperty("noArrow", true);
@@ -327,7 +326,7 @@ AnalyzerRunControl *QmlProfilerTool::createRunControl(RunConfiguration *runConfi
             if (QmlProfilerSettings *settings = static_cast<QmlProfilerSettings *>(aspect->currentSettings())) {
                 d->m_profilerConnections->setFlushInterval(settings->flushEnabled() ?
                                                                settings->flushInterval() : 0);
-                d->m_profilerConnections->setAggregateTraces(settings->aggregateTraces());
+                d->m_profilerModelManager->setAggregateTraces(settings->aggregateTraces());
             }
         }
     }
@@ -348,32 +347,68 @@ AnalyzerRunControl *QmlProfilerTool::createRunControl(RunConfiguration *runConfi
 void QmlProfilerTool::finalizeRunControl(QmlProfilerRunControl *runControl)
 {
     runControl->registerProfilerStateManager(d->m_profilerState);
+    QmlProfilerClientManager *clientManager = d->m_profilerConnections;
 
+    QTC_ASSERT(runControl->connection().is<AnalyzerConnection>(), return);
     // FIXME: Check that there's something sensible in sp.connParams
     auto connection = runControl->connection().as<AnalyzerConnection>();
-    if (!connection.analyzerSocket.isEmpty())
-        d->m_profilerConnections->setLocalSocket(connection.analyzerSocket);
-    else
-        d->m_profilerConnections->setTcpConnection(connection.analyzerHost, connection.analyzerPort);
+    if (!connection.analyzerSocket.isEmpty()) {
+        clientManager->setLocalSocket(connection.analyzerSocket);
+        // We open the server and the application connects to it, so let's do that right away.
+        clientManager->startLocalServer();
+    } else {
+        clientManager->setTcpConnection(connection.analyzerHost, connection.analyzerPort);
+    }
 
     //
     // Initialize m_projectFinder
     //
 
     RunConfiguration *runConfiguration = runControl->runConfiguration();
-    QString projectDirectory;
     if (runConfiguration) {
+        QString projectDirectory;
         Project *project = runConfiguration->target()->project();
         projectDirectory = project->projectDirectory().toString();
+        populateFileFinder(projectDirectory, sysroot(runConfiguration));
     }
 
-    populateFileFinder(projectDirectory, sysroot(runConfiguration));
-
-    if (connection.analyzerSocket.isEmpty())
+    if (connection.analyzerSocket.isEmpty()) {
+        QString host = connection.analyzerHost;
         connect(runControl, &QmlProfilerRunControl::processRunning,
-                d->m_profilerConnections, &QmlProfilerClientManager::connectTcpClient);
-    connect(d->m_profilerConnections, &QmlProfilerClientManager::connectionFailed,
-            runControl, &QmlProfilerRunControl::cancelProcess);
+                clientManager, [clientManager, host](Utils::Port port) {
+            clientManager->setTcpConnection(host, port);
+            clientManager->connectToTcpServer();
+        });
+    }
+    connect(clientManager, &QmlProfilerClientManager::connectionFailed,
+            runControl, [this, clientManager, runControl]() {
+        QMessageBox *infoBox = new QMessageBox(ICore::mainWindow());
+        infoBox->setIcon(QMessageBox::Critical);
+        infoBox->setWindowTitle(tr("Qt Creator"));
+        infoBox->setText(tr("Could not connect to the in-process QML profiler.\n"
+                            "Do you want to retry?"));
+        infoBox->setStandardButtons(QMessageBox::Retry | QMessageBox::Cancel | QMessageBox::Help);
+        infoBox->setDefaultButton(QMessageBox::Retry);
+        infoBox->setModal(true);
+
+        connect(infoBox, &QDialog::finished, runControl, [clientManager, runControl](int result) {
+            switch (result) {
+            case QMessageBox::Retry:
+                clientManager->retryConnect();
+                break;
+            case QMessageBox::Help:
+                HelpManager::handleHelpRequest(
+                            "qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html");
+            case QMessageBox::Cancel:
+                // The actual error message has already been logged.
+                logState(tr("Failed to connect."));
+                runControl->cancelProcess();
+                break;
+            }
+        });
+
+        infoBox->show();
+    });
 }
 
 void QmlProfilerTool::populateFileFinder(QString projectDirectory, QString activeSysroot)
@@ -412,7 +447,7 @@ void QmlProfilerTool::recordingButtonChanged(bool recording)
 
     if (recording && d->m_profilerState->currentState() == QmlProfilerStateManager::AppRunning) {
         if (checkForUnsavedNotes()) {
-            if (!d->m_profilerConnections->aggregateTraces() ||
+            if (!d->m_profilerModelManager->aggregateTraces() ||
                     d->m_profilerModelManager->state() == QmlProfilerModelManager::Done)
                 clearData(); // clear before the recording starts, unless we aggregate recordings
             if (d->m_profilerState->clientRecording())
@@ -462,7 +497,8 @@ void QmlProfilerTool::gotoSourceLocation(const QString &fileUrl, int lineNumber,
     // The text editors count columns starting with 0, but the ASTs store the
     // location starting with 1, therefore the -1.
     EditorManager::openEditorAt(projectFileName, lineNumber, columnNumber - 1, Id(),
-                                EditorManager::DoNotSwitchToDesignMode);
+                                EditorManager::DoNotSwitchToDesignMode
+                                | EditorManager::DoNotSwitchToEditMode);
 }
 
 void QmlProfilerTool::updateTimeDisplay()
@@ -491,13 +527,13 @@ void QmlProfilerTool::updateTimeDisplay()
 void QmlProfilerTool::showTimeLineSearch()
 {
     d->m_viewContainer->raiseTimeline();
-    Core::FindPlugin::instance()->openFindToolBar(Core::FindPlugin::FindForwardDirection);
+    Core::Find::openFindToolBar(Core::Find::FindForwardDirection);
 }
 
 void QmlProfilerTool::clearData()
 {
     d->m_profilerModelManager->clear();
-    d->m_profilerConnections->discardPendingData();
+    d->m_profilerConnections->clearBufferedData();
     setRecordedFeatures(0);
 }
 
@@ -560,10 +596,12 @@ void QmlProfilerTool::startRemoteTool(ProjectExplorer::RunConfiguration *rc)
 
     IDevice::ConstPtr device = DeviceKitInformation::device(kit);
     if (device) {
+        Connection toolControl = device->toolControlChannel(IDevice::QmlControlChannel);
+        QTC_ASSERT(toolControl.is<HostName>(), return);
+        connection.analyzerHost = toolControl.as<HostName>().host();
         connection.connParams = device->sshParameters();
-        connection.analyzerHost = device->qmlProfilerHost();
     }
-    connection.analyzerPort = port;
+    connection.analyzerPort = Utils::Port(port);
 
     auto runControl = qobject_cast<QmlProfilerRunControl *>(createRunControl(rc));
     runControl->setConnection(connection);
@@ -614,13 +652,15 @@ void saveLastTraceFile(const QString &filename)
 
 void QmlProfilerTool::showSaveDialog()
 {
+    QLatin1String tFile(QtdFileExtension);
+    QLatin1String zFile(QztFileExtension);
     QString filename = QFileDialog::getSaveFileName(
                 ICore::mainWindow(), tr("Save QML Trace"),
                 QmlProfilerPlugin::globalSettings()->lastTraceFile(),
-                tr("QML traces (*%1)").arg(QLatin1String(TraceFileExtension)));
+                tr("QML traces (*%1 *%2)").arg(zFile).arg(tFile));
     if (!filename.isEmpty()) {
-        if (!filename.endsWith(QLatin1String(TraceFileExtension)))
-            filename += QLatin1String(TraceFileExtension);
+        if (!filename.endsWith(zFile) && !filename.endsWith(tFile))
+            filename += zFile;
         saveLastTraceFile(filename);
         Debugger::enableMainWindow(false);
         d->m_profilerModelManager->save(filename);
@@ -634,10 +674,12 @@ void QmlProfilerTool::showLoadDialog()
 
     Debugger::selectPerspective(QmlProfilerPerspectiveId);
 
+    QLatin1String tFile(QtdFileExtension);
+    QLatin1String zFile(QztFileExtension);
     QString filename = QFileDialog::getOpenFileName(
                 ICore::mainWindow(), tr("Load QML Trace"),
                 QmlProfilerPlugin::globalSettings()->lastTraceFile(),
-                tr("QML traces (*%1)").arg(QLatin1String(TraceFileExtension)));
+                tr("QML traces (*%1 *%2)").arg(zFile).arg(tFile));
 
     if (!filename.isEmpty()) {
         saveLastTraceFile(filename);
@@ -687,7 +729,7 @@ void QmlProfilerTool::restoreFeatureVisibility()
 void QmlProfilerTool::clientsDisconnected()
 {
     if (d->m_profilerModelManager->state() == QmlProfilerModelManager::AcquiringData) {
-        if (d->m_profilerConnections->aggregateTraces()) {
+        if (d->m_profilerModelManager->aggregateTraces()) {
             d->m_profilerModelManager->acquiringDone();
         } else {
             // If the application stopped by itself, check if we have all the data
@@ -763,6 +805,7 @@ void QmlProfilerTool::profilerDataModelStateChanged()
         clearDisplay();
         break;
     case QmlProfilerModelManager::AcquiringData :
+        restoreFeatureVisibility();
         d->m_recordButton->setEnabled(true); // Press recording button to stop recording
         setButtonsEnabled(false);            // Other buttons disabled
         break;
@@ -771,11 +814,8 @@ void QmlProfilerTool::profilerDataModelStateChanged()
         setButtonsEnabled(false);
         break;
     case QmlProfilerModelManager::Done :
-        if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppStopRequested)
-            d->m_profilerState->setCurrentState(QmlProfilerStateManager::Idle);
         showSaveOption();
         updateTimeDisplay();
-        restoreFeatureVisibility();
         d->m_recordButton->setEnabled(true);
         setButtonsEnabled(true);
     break;
@@ -811,23 +851,13 @@ void QmlProfilerTool::showNonmodalWarning(const QString &warningMsg)
     noExecWarning->show();
 }
 
-QMessageBox *QmlProfilerTool::requestMessageBox()
-{
-    return new QMessageBox(ICore::mainWindow());
-}
-
-void QmlProfilerTool::handleHelpRequest(const QString &link)
-{
-    HelpManager::handleHelpRequest(link);
-}
-
 void QmlProfilerTool::profilerStateChanged()
 {
     switch (d->m_profilerState->currentState()) {
     case QmlProfilerStateManager::AppDying : {
         // If already disconnected when dying, check again that all data was read
         if (!d->m_profilerConnections->isConnected())
-            QTimer::singleShot(0, this, &QmlProfilerTool::clientsDisconnected);
+            clientsDisconnected();
         break;
     }
     case QmlProfilerStateManager::Idle :
@@ -836,8 +866,14 @@ void QmlProfilerTool::profilerStateChanged()
         break;
     case QmlProfilerStateManager::AppStopRequested:
         // Don't allow toggling the recording while data is loaded when application quits
-        if (d->m_profilerState->serverRecording())
+        if (d->m_profilerState->serverRecording()) {
             d->m_recordButton->setEnabled(false);
+            // Turn off recording and wait for remaining data
+            d->m_profilerConnections->stopRecording();
+        } else {
+            // Directly transition to idle
+            d->m_profilerState->setCurrentState(QmlProfilerStateManager::Idle);
+        }
         break;
     default:
         // no special action needed for other states
@@ -871,17 +907,22 @@ void QmlProfilerTool::serverRecordingChanged()
                 showSaveDialog();
 
             setRecording(true);
-            if (!d->m_profilerConnections->aggregateTraces() ||
+            if (!d->m_profilerModelManager->aggregateTraces() ||
                     d->m_profilerModelManager->state() == QmlProfilerModelManager::Done)
                 clearData();
-            d->m_profilerModelManager->prepareForWriting();
+            d->m_profilerModelManager->startAcquiring();
         } else {
             setRecording(false);
 
             // changes back once loading is finished, see profilerDataModelStateChanged()
-            if (!d->m_profilerConnections->aggregateTraces())
+            if (!d->m_profilerModelManager->aggregateTraces()) {
                 d->m_recordButton->setEnabled(false);
+                d->m_profilerModelManager->acquiringDone();
+            }
         }
+    } else if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppStopRequested) {
+        d->m_profilerModelManager->acquiringDone();
+        d->m_profilerState->setCurrentState(QmlProfilerStateManager::Idle);
     }
 }
 
@@ -907,5 +948,5 @@ void QmlProfilerTool::toggleVisibleFeature(QAction *action)
                     d->m_profilerModelManager->visibleFeatures() & (~(1ULL << feature)));
 }
 
-}
-}
+} // namespace Internal
+} // namespace QmlProfiler

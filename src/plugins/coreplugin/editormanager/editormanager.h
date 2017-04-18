@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EDITORMANAGER_H
-#define EDITORMANAGER_H
+#pragma once
 
 #include "../core_global.h"
 #include "../idocument.h"
@@ -73,13 +72,11 @@ class CORE_EXPORT EditorManagerPlaceHolder : public QWidget
 {
     Q_OBJECT
 public:
-    explicit EditorManagerPlaceHolder(IMode *mode, QWidget *parent = 0);
+    explicit EditorManagerPlaceHolder(QWidget *parent = 0);
     ~EditorManagerPlaceHolder();
 
-private:
-    void currentModeChanged(IMode *);
-
-    IMode *m_mode;
+protected:
+    void showEvent(QShowEvent *event) override;
 };
 
 class CORE_EXPORT EditorManager : public QObject
@@ -100,7 +97,8 @@ public:
         DoNotMakeVisible = 4,
         CanContainLineAndColumnNumber = 8,
         OpenInOtherSplit = 16,
-        DoNotSwitchToDesignMode = 32
+        DoNotSwitchToDesignMode = 32,
+        DoNotSwitchToEditMode = 64
     };
     Q_DECLARE_FLAGS(OpenEditorFlags, OpenEditorFlag)
 
@@ -120,6 +118,8 @@ public:
                                            const QByteArray &contents = QByteArray(),
                                            const QString &uniqueId = QString(),
                                            OpenEditorFlags flags = NoFlags);
+    static bool skipOpeningBigTextFile(const QString &filePath);
+    static void clearUniqueId(IDocument *document);
 
     static bool openExternalEditor(const QString &fileName, Id editorId);
     static void addCloseEditorListener(const std::function<bool(IEditor *)> &listener);
@@ -181,11 +181,14 @@ public: // for tests
 signals:
     void currentEditorChanged(Core::IEditor *editor);
     void currentDocumentStateChanged();
+    void documentStateChanged(Core::IDocument *document);
     void editorCreated(Core::IEditor *editor, const QString &fileName);
     void editorOpened(Core::IEditor *editor);
     void editorAboutToClose(Core::IEditor *editor);
     void editorsClosed(QList<Core::IEditor *> editors);
     void findOnFileSystemRequest(const QString &path);
+    void aboutToSave(IDocument *document);
+    void autoSaved();
 
 public slots:
     static void saveDocument();
@@ -210,5 +213,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Core::EditorManager::OpenEditorFlags)
-
-#endif // EDITORMANAGER_H

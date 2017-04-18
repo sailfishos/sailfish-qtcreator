@@ -47,10 +47,10 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 
-#include <qtsupport/customexecutablerunconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <utils/algorithm.h>
+#include <utils/synchronousprocess.h>
 
 #include <QDir>
 #include <QFileSystemWatcher>
@@ -85,6 +85,7 @@ typedef QMap<QString, Library> LibrariesMap;
 
 static bool openXmlFile(QDomDocument &doc, const Utils::FileName &fileName);
 static bool openManifest(ProjectExplorer::Target *target, QDomDocument &doc);
+static int parseMinSdk(const QDomElement &manifestElem);
 
 bool AndroidManager::supportsAndroid(const ProjectExplorer::Kit *kit)
 {
@@ -129,22 +130,37 @@ QString AndroidManager::activityName(ProjectExplorer::Target *target)
     return activityElem.attribute(QLatin1String("android:name"));
 }
 
+/*!
+    Returns the minimum Android API level set for the APK. Minimum API level
+    of the kit is returned if the manifest file of the APK can not be found
+    or parsed.
+*/
 int AndroidManager::minimumSDK(ProjectExplorer::Target *target)
 {
     QDomDocument doc;
     if (!openXmlFile(doc, AndroidManager::manifestSourcePath(target)))
-        return 0;
-    QDomElement manifestElem = doc.documentElement();
-    QDomElement usesSdk = manifestElem.firstChildElement(QLatin1String("uses-sdk"));
-    if (usesSdk.isNull())
-        return 0;
-    if (usesSdk.hasAttribute(QLatin1String("android:minSdkVersion"))) {
-        bool ok;
-        int tmp = usesSdk.attribute(QLatin1String("android:minSdkVersion")).toInt(&ok);
-        if (ok)
-            return tmp;
+        return minimumSDK(target->kit());
+    return parseMinSdk(doc.documentElement());
+}
+
+/*!
+    Returns the minimum Android API level required by the kit to compile. -1 is
+    returned if the kit does not support Android.
+*/
+int AndroidManager::minimumSDK(const ProjectExplorer::Kit *kit)
+{
+    int minSDKVersion = -1;
+    if (supportsAndroid(kit)) {
+        QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+        Utils::FileName stockManifestFilePath =
+                Utils::FileName::fromUserInput(version->qmakeProperty("QT_INSTALL_PREFIX") +
+                                               QLatin1String("/src/android/templates/AndroidManifest.xml"));
+        QDomDocument doc;
+        if (openXmlFile(doc, stockManifestFilePath)) {
+            minSDKVersion = parseMinSdk(doc.documentElement());
+        }
     }
-    return 0;
+    return minSDKVersion;
 }
 
 QString AndroidManager::buildTargetSDK(ProjectExplorer::Target *target)
@@ -267,6 +283,10 @@ QString AndroidManager::androidNameForApiLevel(int x)
         return QLatin1String("Android 5.1");
     case 23:
         return QLatin1String("Android 6.0");
+    case 24:
+        return QLatin1String("Android 7.0");
+    case 25:
+        return QLatin1String("Android 7.1");
     default:
         return tr("Unknown Android version. API Level: %1").arg(QString::number(x));
     }
@@ -295,6 +315,20 @@ static bool openManifest(ProjectExplorer::Target *target, QDomDocument &doc)
     return openXmlFile(doc, AndroidManager::manifestPath(target));
 }
 
+static int parseMinSdk(const QDomElement &manifestElem)
+{
+    QDomElement usesSdk = manifestElem.firstChildElement(QLatin1String("uses-sdk"));
+    if (usesSdk.isNull())
+        return 0;
+    if (usesSdk.hasAttribute(QLatin1String("android:minSdkVersion"))) {
+        bool ok;
+        int tmp = usesSdk.attribute(QLatin1String("android:minSdkVersion")).toInt(&ok);
+        if (ok)
+            return tmp;
+    }
+    return 0;
+}
+
 void AndroidManager::cleanLibsOnDevice(ProjectExplorer::Target *target)
 {
     const QString targetArch = AndroidManager::targetArch(target);
@@ -316,7 +350,8 @@ void AndroidManager::cleanLibsOnDevice(ProjectExplorer::Target *target)
     QProcess *process = new QProcess();
     QStringList arguments = AndroidDeviceInfo::adbSelector(deviceSerialNumber);
     arguments << QLatin1String("shell") << QLatin1String("rm") << QLatin1String("-r") << QLatin1String("/data/local/tmp/qt");
-    process->connect(process, SIGNAL(finished(int)), process, SLOT(deleteLater()));
+    QObject::connect(process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+                     process, &QObject::deleteLater);
     const QString adb = AndroidConfigurations::currentConfig().adbToolPath().toString();
     Core::MessageManager::write(adb + QLatin1Char(' ') + arguments.join(QLatin1Char(' ')));
     process->start(adb, arguments);
@@ -345,13 +380,13 @@ void AndroidManager::installQASIPackage(ProjectExplorer::Target *target, const Q
     QStringList arguments = AndroidDeviceInfo::adbSelector(deviceSerialNumber);
     arguments << QLatin1String("install") << QLatin1String("-r ") << packagePath;
 
-    process->connect(process, SIGNAL(finished(int)), process, SLOT(deleteLater()));
+    connect(process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+            process, &QObject::deleteLater);
     const QString adb = AndroidConfigurations::currentConfig().adbToolPath().toString();
     Core::MessageManager::write(adb + QLatin1Char(' ') + arguments.join(QLatin1Char(' ')));
     process->start(adb, arguments);
-    if (!process->waitForFinished(500))
+    if (!process->waitForStarted(500) && process->state() != QProcess::Running)
         delete process;
-
 }
 
 bool AndroidManager::checkKeystorePassword(const QString &keystorePath, const QString &keystorePasswd)
@@ -364,16 +399,10 @@ bool AndroidManager::checkKeystorePassword(const QString &keystorePath, const QS
               << keystorePath
               << QLatin1String("--storepass")
               << keystorePasswd;
-    QProcess proc;
-    proc.start(AndroidConfigurations::currentConfig().keytoolPath().toString(), arguments);
-    if (!proc.waitForStarted(10000))
-        return false;
-    if (!proc.waitForFinished(10000)) {
-        proc.kill();
-        proc.waitForFinished();
-        return false;
-    }
-    return proc.exitCode() == 0;
+    Utils::SynchronousProcess proc;
+    proc.setTimeoutS(10);
+    Utils::SynchronousProcessResponse response = proc.run(AndroidConfigurations::currentConfig().keytoolPath().toString(), arguments);
+    return (response.result == Utils::SynchronousProcessResponse::Finished && response.exitCode == 0);
 }
 
 bool AndroidManager::checkCertificatePassword(const QString &keystorePath, const QString &keystorePasswd, const QString &alias, const QString &certificatePasswd)
@@ -393,16 +422,11 @@ bool AndroidManager::checkCertificatePassword(const QString &keystorePath, const
     else
         arguments << certificatePasswd;
 
-    QProcess proc;
-    proc.start(AndroidConfigurations::currentConfig().keytoolPath().toString(), arguments);
-    if (!proc.waitForStarted(10000))
-        return false;
-    if (!proc.waitForFinished(10000)) {
-        proc.kill();
-        proc.waitForFinished();
-        return false;
-    }
-    return proc.exitCode() == 0;
+    Utils::SynchronousProcess proc;
+    proc.setTimeoutS(10);
+    Utils::SynchronousProcessResponse response
+            = proc.run(AndroidConfigurations::currentConfig().keytoolPath().toString(), arguments);
+    return response.result == Utils::SynchronousProcessResponse::Finished && response.exitCode == 0;
 }
 
 bool AndroidManager::checkForQt51Files(Utils::FileName fileName)

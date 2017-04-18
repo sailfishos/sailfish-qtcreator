@@ -102,7 +102,7 @@ bool QmlCppEngine::canHandleToolTip(const DebuggerToolTipContext &ctx) const
     return success;
 }
 
-void QmlCppEngine::updateItem(const QByteArray &iname)
+void QmlCppEngine::updateItem(const QString &iname)
 {
     if (iname.startsWith("inspect."))
         m_qmlEngine->updateItem(iname);
@@ -110,7 +110,7 @@ void QmlCppEngine::updateItem(const QByteArray &iname)
         m_activeEngine->updateItem(iname);
 }
 
-void QmlCppEngine::expandItem(const QByteArray &iname)
+void QmlCppEngine::expandItem(const QString &iname)
 {
     if (iname.startsWith("inspect."))
         m_qmlEngine->expandItem(iname);
@@ -118,7 +118,7 @@ void QmlCppEngine::expandItem(const QByteArray &iname)
         m_activeEngine->expandItem(iname);
 }
 
-void QmlCppEngine::selectWatchData(const QByteArray &iname)
+void QmlCppEngine::selectWatchData(const QString &iname)
 {
     if (iname.startsWith("inspect."))
         m_qmlEngine->selectWatchData(iname);
@@ -129,10 +129,14 @@ void QmlCppEngine::watchPoint(const QPoint &point)
     m_cppEngine->watchPoint(point);
 }
 
-void QmlCppEngine::fetchMemory(MemoryAgent *ma, QObject *obj,
-        quint64 addr, quint64 length)
+void QmlCppEngine::fetchMemory(MemoryAgent *agent, quint64 addr, quint64 length)
 {
-    m_cppEngine->fetchMemory(ma, obj, addr, length);
+    m_cppEngine->fetchMemory(agent, addr, length);
+}
+
+void QmlCppEngine::changeMemory(MemoryAgent *agent, quint64 addr, const QByteArray &data)
+{
+    m_cppEngine->changeMemory(agent, addr, data);
 }
 
 void QmlCppEngine::fetchDisassembler(DisassemblerAgent *da)
@@ -190,7 +194,7 @@ void QmlCppEngine::reloadFullStack()
     m_cppEngine->reloadFullStack();
 }
 
-void QmlCppEngine::setRegisterValue(const QByteArray &name, const QString &value)
+void QmlCppEngine::setRegisterValue(const QString &name, const QString &value)
 {
     m_cppEngine->setRegisterValue(name, value);
 }
@@ -219,7 +223,7 @@ bool QmlCppEngine::isSynchronous() const
     return m_activeEngine->isSynchronous();
 }
 
-QByteArray QmlCppEngine::qtNamespace() const
+QString QmlCppEngine::qtNamespace() const
 {
     return m_cppEngine->qtNamespace();
 }
@@ -417,7 +421,7 @@ void QmlCppEngine::notifyInferiorSetupOk()
     DebuggerEngine::notifyInferiorSetupOk();
 }
 
-void QmlCppEngine::notifyEngineRemoteServerRunning(const QByteArray &serverChannel, int pid)
+void QmlCppEngine::notifyEngineRemoteServerRunning(const QString &serverChannel, int pid)
 {
     m_cppEngine->notifyEngineRemoteServerRunning(serverChannel, pid);
 }
@@ -773,6 +777,12 @@ void QmlCppEngine::setActiveEngine(DebuggerEngine *engine)
 {
     m_activeEngine = engine;
     updateViews();
+}
+
+void QmlCppEngine::loadAdditionalQmlStack()
+{
+    if (m_cppEngine)
+        m_cppEngine->loadAdditionalQmlStack();
 }
 
 } // namespace Internal

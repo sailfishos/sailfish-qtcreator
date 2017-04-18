@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTRESULTMODEL_H
-#define TESTRESULTMODEL_H
+#pragma once
 
 #include "testresult.h"
 
@@ -43,7 +42,7 @@ class TestResultItem : public Utils::TreeItem
 public:
     explicit TestResultItem(const TestResultPtr &testResult);
     ~TestResultItem();
-    QVariant data(int column, int role) const;
+    QVariant data(int column, int role) const override;
     const TestResult *testResult() const { return m_testResult.data(); }
     void updateDescription(const QString &description);
     void updateResult();
@@ -52,17 +51,16 @@ private:
     TestResultPtr m_testResult;
 };
 
-class TestResultModel : public Utils::TreeModel
+class TestResultModel : public Utils::TreeModel<>
 {
 public:
     explicit TestResultModel(QObject *parent = 0);
-    QVariant data(const QModelIndex &idx, int role) const;
 
     void addTestResult(const TestResultPtr &testResult, bool autoExpand = false);
     void removeCurrentTestMessage();
     void clearTestResults();
 
-    TestResult testResult(const QModelIndex &idx);
+    const TestResult *testResult(const QModelIndex &idx);
 
     int maxWidthOfFileName(const QFont &font);
     int maxWidthOfLineNumber(const QFont &font);
@@ -72,9 +70,9 @@ public:
 
 private:
     QMap<Result::Type, int> m_testResultCount;
-    int m_widthOfLineNumber;
-    int m_maxWidthOfFileName;
-    int m_disabled;
+    int m_widthOfLineNumber = 0;
+    int m_maxWidthOfFileName = 0;
+    int m_disabled = 0;
     QList<int> m_processedIndices;
     QFont m_measurementFont;
 };
@@ -83,23 +81,22 @@ class TestResultFilterModel : public QSortFilterProxyModel
 {
     Q_OBJECT
 public:
-    TestResultFilterModel(TestResultModel *sourceModel, QObject *parent = 0);
+    explicit TestResultFilterModel(TestResultModel *sourceModel, QObject *parent = 0);
 
     void enableAllResultTypes();
     void toggleTestResultType(Result::Type type);
     void clearTestResults();
     bool hasResults();
-    TestResult testResult(const QModelIndex &index) const;
+    const TestResult *testResult(const QModelIndex &index) const;
 
 protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
 
 private:
+    bool acceptTestCaseResult(const QModelIndex &index) const;
     TestResultModel *m_sourceModel;
     QSet<Result::Type> m_enabled;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTRESULTMODEL_H

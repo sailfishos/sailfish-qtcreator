@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ABSTRACTVIEW_H
-#define ABSTRACTVIEW_H
+#pragma once
 
 #include <qmldesignercorelib_global.h>
 
@@ -237,6 +236,7 @@ public:
     QmlModelState currentState() const;
 
     int majorQtQuickVersion() const;
+    int minorQtQuickVersion() const;
 
     void resetView();
 
@@ -269,5 +269,3 @@ QMLDESIGNERCORE_EXPORT QList<Internal::InternalNodePointer> toInternalNodeList(c
 QMLDESIGNERCORE_EXPORT QList<ModelNode> toModelNodeList(const QList<Internal::InternalNodePointer> &nodeList, AbstractView *view);
 
 }
-
-#endif // ABSTRACTVIEW_H

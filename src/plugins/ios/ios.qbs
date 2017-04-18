@@ -11,7 +11,7 @@ QtcPlugin {
     Depends { name: "QmlDebug" }
     Depends { name: "Qt"; submodules: ["widgets", "xml", "network"] }
 
-    cpp.frameworks: base.concat(qbs.targetOS.contains("osx") ? ["CoreFoundation", "IOKit"] : [])
+    cpp.frameworks: base.concat(qbs.targetOS.contains("macos") ? ["CoreFoundation", "IOKit"] : [])
 
     files: [
         "ios.qrc",
@@ -69,6 +69,8 @@ QtcPlugin {
         "iossimulatorfactory.cpp",
         "iossimulatorfactory.h",
         "iostoolhandler.cpp",
-        "iostoolhandler.h"
+        "iostoolhandler.h",
+        "simulatorcontrol.cpp",
+        "simulatorcontrol.h"
     ]
 }

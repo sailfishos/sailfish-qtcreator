@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONSOLEPROCESS_H
-#define CONSOLEPROCESS_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -84,10 +83,9 @@ public:
     // Quote a Windows command line correctly for the "CreateProcess" API
     static QString createWinCommandline(const QString &program, const QStringList &args);
     static QString createWinCommandline(const QString &program, const QString &args);
-#else
-    void setSettings(QSettings *settings);
 #endif
 
+    void setSettings(QSettings *settings);
     static QString defaultTerminalEmulator();
     static QStringList availableTerminalEmulators();
     static QString terminalEmulator(const QSettings *settings, bool nonEmpty = true);
@@ -104,7 +102,7 @@ signals:
     void stubStarted();
     void stubStopped();
 
-private slots:
+private:
     void stubConnectionAvailable();
     void readStubOutput();
     void stubExited();
@@ -112,7 +110,6 @@ private slots:
     void inferiorExited();
 #endif
 
-private:
     static QString modeOption(Mode m);
     static QString msgCommChannelFailed(const QString &error);
     static QString msgPromptToClose();
@@ -135,5 +132,3 @@ private:
 };
 
 } //namespace Utils
-
-#endif

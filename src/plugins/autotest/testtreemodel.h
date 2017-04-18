@@ -23,13 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef TESTTREEMODEL_H
-#define TESTTREEMODEL_H
+#pragma once
 
 #include "testconfiguration.h"
 #include "testtreeitem.h"
-
-#include <cplusplus/CppDocument.h>
 
 #include <utils/treemodel.h>
 
@@ -39,19 +36,14 @@ namespace Autotest {
 namespace Internal {
 
 class TestCodeParser;
-struct TestParseResult;
+class TestParseResult;
 
-class TestTreeModel : public Utils::TreeModel
+using TestParseResultPtr = QSharedPointer<TestParseResult>;
+
+class TestTreeModel : public Utils::TreeModel<>
 {
     Q_OBJECT
 public:
-    enum Type {
-        Invalid,
-        AutoTest,
-        QuickTest,
-        GoogleTest
-    };
-
     static TestTreeModel* instance();
     ~TestTreeModel();
     void enableParsing();
@@ -66,13 +58,15 @@ public:
     bool hasTests() const;
     QList<TestConfiguration *> getAllTestCases() const;
     QList<TestConfiguration *> getSelectedTests() const;
-    TestConfiguration *getTestConfiguration(const TestTreeItem *item) const;
-    bool hasUnnamedQuickTests() const;
+
+    void syncTestFrameworks();
 
 #ifdef WITH_TESTS
     int autoTestsCount() const;
     int namedQuickTestsCount() const;
+    bool hasUnnamedQuickTests(const TestTreeItem *rootNode) const;
     int unnamedQuickTestsCount() const;
+    TestTreeItem *unnamedQuickTests() const;
     int dataTagsCount() const;
     int gtestNamesCount() const;
     QMultiMap<QString, int> gtestNamesAndSets() const;
@@ -81,37 +75,26 @@ public:
     void markAllForRemoval();
     void markForRemoval(const QString &filePath);
     void sweep();
-    QHash<QString, QString> testCaseNamesForFiles(QStringList files);
 
 signals:
     void testTreeModelChanged();
+    void updatedActiveFrameworks(int numberOfActiveFrameworks);
 #ifdef WITH_TESTS
     void sweepingDone();
 #endif
 
-public slots:
-
 private:
-    void onParseResultReady(const TestParseResult &result);
-    void handleParseResult(const TestParseResult &result);
-    void handleUnnamedQuickParseResult(const TestParseResult &result);
-    void handleGTestParseResult(const TestParseResult &result);
+    void onParseResultReady(const TestParseResultPtr result);
+    void handleParseResult(const TestParseResult *result, TestTreeItem *rootNode);
     void removeAllTestItems();
     void removeFiles(const QStringList &files);
-    void markForRemoval(const QString &filePath, Type type);
     bool sweepChildren(TestTreeItem *item);
-
-    TestTreeItem *unnamedQuickTests() const;
-    TestTreeItem *rootItemForType(Type type);
 
     explicit TestTreeModel(QObject *parent = 0);
     void setupParsingConnections();
 
-    AutoTestTreeItem *m_autoTestRootItem;
-    QuickTestTreeItem *m_quickTestRootItem;
-    GoogleTestTreeItem *m_googleTestRootItem;
     TestCodeParser *m_parser;
-    bool m_connectionsInitialized;
+    bool m_connectionsInitialized = false;
     QAtomicInt m_refCounter;
 };
 
@@ -119,11 +102,6 @@ class TestTreeSortFilterModel : public QSortFilterProxyModel
 {
     Q_OBJECT
 public:
-    enum SortMode {
-        Alphabetically,
-        Naturally
-    };
-
     enum FilterMode {
         Basic,
         ShowInitAndCleanup = 0x01,
@@ -131,8 +109,8 @@ public:
         ShowAll            = ShowInitAndCleanup | ShowTestData
     };
 
-    TestTreeSortFilterModel(TestTreeModel *sourceModel, QObject *parent = 0);
-    void setSortMode(SortMode sortMode);
+    explicit TestTreeSortFilterModel(TestTreeModel *sourceModel, QObject *parent = 0);
+    void setSortMode(TestTreeItem::SortMode sortMode);
     void setFilterMode(FilterMode filterMode);
     void toggleFilter(FilterMode filterMode);
     static FilterMode toFilterMode(int f);
@@ -143,32 +121,10 @@ protected:
 
 private:
     TestTreeModel *m_sourceModel;
-    SortMode m_sortMode;
-    FilterMode m_filterMode;
+    TestTreeItem::SortMode m_sortMode = TestTreeItem::Alphabetically;
+    FilterMode m_filterMode = Basic;
 
-};
-
-struct TestParseResult
-{
-    TestParseResult(TestTreeModel::Type t = TestTreeModel::Invalid) : type(t) {}
-
-    TestTreeModel::Type type;
-    QString fileName;
-    QString proFile;
-    QString testCaseName;
-    unsigned line = 0;
-    unsigned column = 0;
-    bool parameterized = false;
-    bool typed = false;
-    bool disabled = false;
-    QMap<QString, TestCodeLocationAndType> functions;
-    QMap<QString, TestCodeLocationList> dataTagsOrTestSets;
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-Q_DECLARE_METATYPE(Autotest::Internal::TestTreeModel::Type)
-Q_DECLARE_METATYPE(Autotest::Internal::TestParseResult)
-
-#endif // TESTTREEMODEL_H

@@ -39,7 +39,7 @@ class MerMode : public Core::IMode
 public:
     MerMode();
 private slots:
-    void handleUpdateContext(Core::IMode *newMode, Core::IMode *oldMode);
+    void handleUpdateContext(Core::Id newMode, Core::Id oldMode);
 };
 
 } // namespace Internal

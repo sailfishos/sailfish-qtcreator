@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONWIZARDFACTORY_H
-#define JSONWIZARDFACTORY_H
+#pragma once
 
 #include "../projectexplorer_export.h"
 
@@ -82,8 +81,6 @@ public:
     static void registerPageFactory(JsonWizardPageFactory *factory);
     static void registerGeneratorFactory(JsonWizardGeneratorFactory *factory);
 
-    ~JsonWizardFactory();
-
     static QList<QVariant> objectOrList(const QVariant &data, QString *errorMessage);
 
     static QString localizedString(const QVariant &value);
@@ -123,5 +120,3 @@ private:
 };
 
 } //namespace ProjectExplorer
-
-#endif // JSONWIZARDFACTORY_H

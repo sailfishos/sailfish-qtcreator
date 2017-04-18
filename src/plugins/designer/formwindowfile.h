@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef FORMWINDOWFILE_H
-#define FORMWINDOWFILE_H
+#pragma once
 
 #include <texteditor/textdocument.h>
+#include <utils/guard.h>
 
 #include <QPointer>
 
@@ -85,9 +85,8 @@ private:
     QPointer<QDesignerFormWindowInterface> m_formWindow;
     bool m_isModified = false;
     ResourceHandler *m_resourceHandler = nullptr;
+    Utils::Guard m_modificationChangedGuard;
 };
 
 } // namespace Internal
 } // namespace Designer
-
-#endif // FORMWINDOWFILE_H

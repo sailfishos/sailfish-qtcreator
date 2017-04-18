@@ -53,7 +53,7 @@ WinRtDebugSupport::WinRtDebugSupport(RunControl *runControl, WinRtRunnerHelper *
     , m_debugRunControl(runControl)
     , m_runner(runner)
 {
-    connect(m_debugRunControl, SIGNAL(finished()), this, SLOT(finish()));
+    connect(m_debugRunControl, &RunControl::finished, this, &WinRtDebugSupport::finish);
 }
 
 bool WinRtDebugSupport::useQmlDebugging(WinRtRunConfiguration *runConfig)
@@ -63,14 +63,15 @@ bool WinRtDebugSupport::useQmlDebugging(WinRtRunConfiguration *runConfig)
     return extraAspect && extraAspect->useQmlDebugger();
 }
 
-bool WinRtDebugSupport::getFreePort(quint16 &qmlDebuggerPort, QString *errorMessage)
+bool WinRtDebugSupport::getFreePort(Utils::Port &qmlDebuggerPort, QString *errorMessage)
 {
     QTcpServer server;
-    if (!server.listen(QHostAddress::LocalHost, qmlDebuggerPort)) {
+    if (!server.listen(QHostAddress::LocalHost,
+                       qmlDebuggerPort.isValid() ? qmlDebuggerPort.number() : 0)) {
         *errorMessage = tr("Not enough free ports for QML debugging.");
         return false;
     }
-    qmlDebuggerPort = server.serverPort();
+    qmlDebuggerPort = Utils::Port(server.serverPort());
     return true;
 }
 
@@ -105,11 +106,11 @@ RunControl *WinRtDebugSupport::createDebugRunControl(WinRtRunConfiguration *runC
     }
 
     if (useQmlDebugging(runConfig)) {
-        quint16 qmlDebugPort = 0;
+        Utils::Port qmlDebugPort;
         if (!getFreePort(qmlDebugPort, errorMessage))
             return 0;
-        params.qmlServerAddress = QHostAddress(QHostAddress::LocalHost).toString();
-        params.qmlServerPort = qmlDebugPort;
+        params.qmlServer.host = QHostAddress(QHostAddress::LocalHost).toString();
+        params.qmlServer.port = qmlDebugPort;
     }
 
     WinRtRunnerHelper *runner = new WinRtRunnerHelper(runConfig, errorMessage);

@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef PRINTLINESWITHPREFIX_H
-#define PRINTLINESWITHPREFIX_H
+#pragma once
+
+#include "clangbackendipc_global.h"
 
 #include <QString>
 #include <QTextStream>
@@ -32,18 +33,17 @@
 
 namespace ClangBackEnd {
 
-class LinePrefixer
+class CMBIPC_EXPORT LinePrefixer
 {
 public:
-    LinePrefixer() = delete;
-    LinePrefixer(const QByteArray &m_prefix);
+    LinePrefixer() = default;
+    LinePrefixer(const QByteArray &prefix);
+    void setPrefix(const QByteArray &prefix);
     QByteArray prefix(const QByteArray &text);
 
 private:
     QByteArray m_prefix;
-    bool m_previousIsEndingWithNewLine;
+    bool m_previousIsEndingWithNewLine = true;
 };
 
 } // namespace ClangBackEnd
-
-#endif // PRINTLINESWITHPREFIX_H

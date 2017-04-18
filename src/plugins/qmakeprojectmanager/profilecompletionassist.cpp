@@ -26,7 +26,9 @@
 #include "profilecompletionassist.h"
 #include "qmakeprojectmanagerconstants.h"
 
+#include <texteditor/codeassist/assistinterface.h>
 #include <texteditor/codeassist/keywordscompletionassist.h>
+#include <texteditor/texteditorconstants.h>
 
 #include <coreplugin/id.h>
 
@@ -234,13 +236,13 @@ static const char *const variableKeywords[] = {
 };
 
 static const char *const functionKeywords[] = {
+    "CONFIG",
     "absolute_path",
     "basename",
     "cache",
     "cat",
     "clean_path",
     "clear",
-    "CONFIG",
     "contains",
     "count",
     "debug",
@@ -250,9 +252,9 @@ static const char *const functionKeywords[] = {
     "equals",
     "error",
     "escape_expand",
+    "eval",
     "exists",
     "export",
-    "eval",
     "files",
     "find",
     "first",
@@ -267,9 +269,9 @@ static const char *const functionKeywords[] = {
     "isActiveConfig",
     "isEmpty",
     "isEqual",
-    "lessThan",
     "join",
     "last",
+    "lessThan",
     "list",
     "load",
     "log",
@@ -281,20 +283,20 @@ static const char *const functionKeywords[] = {
     "parseJson",
     "prompt",
     "quote",
+    "re_escape",
     "relative_path",
     "replace",
     "requires",
     "resolve_depends",
     "reverse",
-    "re_escape",
     "section",
     "shadowed",
     "shell_path",
     "shell_quote",
     "size",
+    "sort_depends",
     "split",
     "sprintf",
-    "sort_depends",
     "system",
     "system_path",
     "system_quote",
@@ -304,8 +306,8 @@ static const char *const functionKeywords[] = {
     "unset",
     "upper",
     "val_escape",
-    "write_file",
     "warning",
+    "write_file",
     0
 };
 
@@ -334,7 +336,9 @@ IAssistProcessor *ProFileCompletionAssistProvider::createProcessor() const
     if (m_variables.isEmpty())
         const_cast<ProFileCompletionAssistProvider *>(this)->init();
     TextEditor::Keywords keywords = TextEditor::Keywords(m_variables, m_functions, QMap<QString, QStringList>());
-    return new KeywordsCompletionAssistProcessor(keywords);
+    auto processor = new KeywordsCompletionAssistProcessor(keywords);
+    processor->setSnippetGroup(TextEditor::Constants::TEXT_SNIPPET_GROUP_ID);
+    return processor;
 }
 
 QStringList ProFileCompletionAssistProvider::variables() const

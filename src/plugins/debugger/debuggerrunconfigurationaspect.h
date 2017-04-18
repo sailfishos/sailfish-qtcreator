@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERRUNCONFIGURATIONASPECT_H
-#define DEBUGGERRUNCONFIGURATIONASPECT_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
@@ -62,8 +61,6 @@ public:
     void fromMap(const QVariantMap &map);
     void toMap(QVariantMap &map) const;
 
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget();
-
     bool useCppDebugger() const;
     void setUseCppDebugger(bool value);
     bool useQmlDebugger() const;
@@ -82,5 +79,3 @@ private:
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGERRUNCONFIGURATIONASPECT_H

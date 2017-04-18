@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "qmlprofilerruncontrol.h"
-
 #include "localqmlprofilerrunner.h"
 #include "qmlprofilertool.h"
 
@@ -32,16 +31,20 @@
 #include <debugger/analyzer/analyzerstartparameters.h>
 
 #include <coreplugin/icore.h>
-#include <utils/qtcassert.h>
 #include <coreplugin/helpmanager.h>
-#include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/target.h>
+
 #include <projectexplorer/environmentaspect.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/localapplicationruncontrol.h>
+#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectexplorericons.h>
 #include <projectexplorer/runnables.h>
+#include <projectexplorer/target.h>
+
 #include <qtsupport/qtsupportconstants.h>
 #include <qmldebug/qmloutputparser.h>
+
+#include <utils/qtcassert.h>
 
 #include <QMainWindow>
 #include <QMessageBox>
@@ -67,7 +70,6 @@ public:
     Internal::QmlProfilerTool *m_tool = 0;
     QmlProfilerStateManager *m_profilerState = 0;
     QTimer m_noDebugOutputTimer;
-    QmlDebug::QmlOutputParser m_outputParser;
     bool m_running = false;
 };
 
@@ -80,23 +82,16 @@ QmlProfilerRunControl::QmlProfilerRunControl(RunConfiguration *runConfiguration,
     : AnalyzerRunControl(runConfiguration, ProjectExplorer::Constants::QML_PROFILER_RUN_MODE)
     , d(new QmlProfilerRunControlPrivate)
 {
+    setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL_TOOLBAR);
+
     d->m_tool = tool;
     // Only wait 4 seconds for the 'Waiting for connection' on application output, then just try to connect
     // (application output might be redirected / blocked)
     d->m_noDebugOutputTimer.setSingleShot(true);
     d->m_noDebugOutputTimer.setInterval(4000);
-    connect(&d->m_noDebugOutputTimer, &QTimer::timeout,
-            this, [this](){processIsRunning(0);});
-
-    d->m_outputParser.setNoOutputText(ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput());
-    connect(&d->m_outputParser, &QmlDebug::QmlOutputParser::waitingForConnectionOnPort,
-            this, &QmlProfilerRunControl::processIsRunning);
-    connect(&d->m_outputParser, &QmlDebug::QmlOutputParser::noOutputMessage,
-            this, [this](){processIsRunning(0);});
-    connect(&d->m_outputParser, &QmlDebug::QmlOutputParser::connectingToSocketMessage,
-            this, [this](){processIsRunning(0);});
-    connect(&d->m_outputParser, &QmlDebug::QmlOutputParser::errorMessage,
-            this, &QmlProfilerRunControl::wrongSetupMessageBox);
+    connect(&d->m_noDebugOutputTimer, &QTimer::timeout, this, [this]() {
+        notifyRemoteSetupDone(Utils::Port());
+    });
 }
 
 QmlProfilerRunControl::~QmlProfilerRunControl()
@@ -114,7 +109,7 @@ void QmlProfilerRunControl::start()
     QTC_ASSERT(connection().is<AnalyzerConnection>(), finished(); return);
     auto conn = connection().as<AnalyzerConnection>();
 
-    if (conn.analyzerPort != 0)
+    if (conn.analyzerPort.isValid())
         emit processRunning(conn.analyzerPort);
     else if (conn.analyzerSocket.isEmpty())
         d->m_noDebugOutputTimer.start();
@@ -198,13 +193,7 @@ void QmlProfilerRunControl::cancelProcess()
     emit finished();
 }
 
-void QmlProfilerRunControl::logApplicationMessage(const QString &msg, Utils::OutputFormat format)
-{
-    appendMessage(msg, format);
-    d->m_outputParser.processOutput(msg);
-}
-
-void QmlProfilerRunControl::wrongSetupMessageBox(const QString &errorMessage)
+void QmlProfilerRunControl::notifyRemoteSetupFailed(const QString &errorMessage)
 {
     QMessageBox *infoBox = new QMessageBox(ICore::mainWindow());
     infoBox->setIcon(QMessageBox::Critical);
@@ -236,19 +225,15 @@ void QmlProfilerRunControl::wrongSetupMessageBoxFinished(int button)
     }
 }
 
-void QmlProfilerRunControl::notifyRemoteSetupDone(quint16 port)
-{
-    d->m_noDebugOutputTimer.stop();
-    emit processRunning(port);
-}
-
-void QmlProfilerRunControl::processIsRunning(quint16 port)
+void QmlProfilerRunControl::notifyRemoteSetupDone(Utils::Port port)
 {
     d->m_noDebugOutputTimer.stop();
 
-    if (port == 0)
+    if (!port.isValid()) {
+        QTC_ASSERT(connection().is<AnalyzerConnection>(), return);
         port = connection().as<AnalyzerConnection>().analyzerPort;
-    if (port != 0)
+    }
+    if (port.isValid())
         emit processRunning(port);
 }
 

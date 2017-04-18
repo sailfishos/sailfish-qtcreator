@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef INDEXWINDOW_H
-#define INDEXWINDOW_H
+#pragma once
 
 #include <QAbstractProxyModel>
 #include <QList>
@@ -66,13 +65,13 @@ public:
     QModelIndex sibling(int row, int column, const QModelIndex &idx) const;
 
     Qt::ItemFlags flags(const QModelIndex &index) const;
-private slots:
+
+private:
     void sourceDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
     void sourceRowsRemoved(const QModelIndex &parent, int start, int end);
     void sourceRowsInserted(const QModelIndex &parent, int start, int end);
     void sourceModelReset();
 
-private:
     QString m_filter;
     QString m_wildcard;
     QList<int> m_toSource;
@@ -108,5 +107,3 @@ private:
 
 } // Internal
 } // Help
-
-#endif // INDEXWINDOW_H

@@ -407,7 +407,8 @@ void GenericProposalWidget::setIsSynchronized(bool isSync)
 void GenericProposalWidget::showProposal(const QString &prefix)
 {
     ensurePolished();
-    d->m_model->removeDuplicates();
+    if (d->m_model->containsDuplicates())
+        d->m_model->removeDuplicates();
     if (!updateAndCheck(prefix))
         return;
     show();
@@ -620,7 +621,7 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
 
         default:
             // Only forward keys that insert text and refine the completion.
-            if (ke->text().isEmpty())
+            if (ke->text().isEmpty() && !(ke == QKeySequence::Paste))
                 return true;
             break;
         }

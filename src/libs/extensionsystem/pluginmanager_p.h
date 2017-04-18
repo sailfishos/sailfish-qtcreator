@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLUGINMANAGER_P_H
-#define PLUGINMANAGER_P_H
+#pragma once
 
 #include "pluginspec.h"
 
@@ -46,13 +45,12 @@ QT_END_NAMESPACE
 namespace ExtensionSystem {
 
 class PluginManager;
-class PluginCollection;
 
 namespace Internal {
 
 class PluginSpecPrivate;
 
-class EXTENSIONSYSTEM_EXPORT PluginManagerPrivate : QObject
+class EXTENSIONSYSTEM_EXPORT PluginManagerPrivate : public QObject
 {
     Q_OBJECT
 public:
@@ -97,7 +95,7 @@ public:
         testSpecs = Utils::filtered(testSpecs, [pluginSpec](const TestSpec &s) { return s.pluginSpec != pluginSpec; });
     }
 
-    QHash<QString, PluginCollection *> pluginCategories;
+    QHash<QString, QList<PluginSpec *>> pluginCategories;
     QList<PluginSpec *> pluginSpecs;
     QList<TestSpec> testSpecs;
     QStringList pluginPaths;
@@ -134,13 +132,11 @@ public:
 
     bool m_isInitializationDone = false;
 
-private slots:
+private:
+    PluginManager *q;
+
     void nextDelayedInitialize();
     void asyncShutdownFinished();
-
-private:
-    PluginCollection *defaultCollection;
-    PluginManager *q;
 
     void readPluginPaths();
     bool loadQueue(PluginSpec *spec,
@@ -156,5 +152,3 @@ private:
 
 } // namespace Internal
 } // namespace ExtensionSystem
-
-#endif // PLUGINMANAGER_P_H

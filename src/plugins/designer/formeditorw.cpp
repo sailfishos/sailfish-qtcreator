@@ -75,9 +75,10 @@
 
 #include <QDebug>
 #include <QSettings>
-#include <QSignalMapper>
 #include <QPluginLoader>
 #include <QTime>
+
+#include <algorithm>
 
 static const char settingsGroupC[] = "Designer";
 
@@ -155,7 +156,7 @@ public:
     void toolChanged(int);
     void print();
     void setPreviewMenuEnabled(bool e);
-    void updateShortcut(QObject *command);
+    void updateShortcut(Command *command);
 
     void fullInit();
 
@@ -207,7 +208,6 @@ public:
     QActionGroup *m_actionGroupPreviewInStyle;
     QMenu *m_previewInStyleMenu;
     QAction *m_actionAboutPlugins;
-    QSignalMapper m_shortcutMapper;
 
     DesignerContext *m_context;
     Context m_contexts;
@@ -251,8 +251,8 @@ FormEditorData::FormEditorData() :
     QTC_ASSERT(!d, return);
     d = this;
 
-    qFill(m_designerSubWindows, m_designerSubWindows + DesignerSubWindowCount,
-          static_cast<QWidget *>(0));
+    std::fill(m_designerSubWindows, m_designerSubWindows + DesignerSubWindowCount,
+              static_cast<QWidget *>(0));
 
     m_formeditor->setTopLevel(ICore::mainWindow());
     m_formeditor->setSettingsManager(new SettingsManager());
@@ -283,9 +283,6 @@ FormEditorData::FormEditorData() :
             m_fwm->setActiveFormWindow(fw->formWindow());
         }
     });
-
-    QObject::connect(&m_shortcutMapper, static_cast<void(QSignalMapper::*)(QObject *)>(&QSignalMapper::mapped),
-        [this](QObject *ob) { updateShortcut(ob); });
 
     m_xmlEditorFactory = new FormWindowEditorFactory;
 }
@@ -434,7 +431,7 @@ void FormEditorData::fullInit()
     // 'Run' in 'Design' mode emits output.
     MiniSplitter *splitter = new MiniSplitter(Qt::Vertical);
     splitter->addWidget(m_editorWidget);
-    QWidget *outputPane = new OutputPanePlaceHolder(m_designMode, splitter);
+    QWidget *outputPane = new OutputPanePlaceHolder(m_designMode->id(), splitter);
     outputPane->setObjectName(QLatin1String("DesignerOutputPanePlaceHolder"));
     splitter->addWidget(outputPane);
     layout->addWidget(splitter);
@@ -454,7 +451,7 @@ void FormEditorData::fullInit()
 
 void FormEditorData::initDesignerSubWindows()
 {
-    qFill(m_designerSubWindows, m_designerSubWindows + DesignerSubWindowCount, static_cast<QWidget*>(0));
+    std::fill(m_designerSubWindows, m_designerSubWindows + DesignerSubWindowCount, static_cast<QWidget*>(0));
 
     QDesignerWidgetBoxInterface *wb = QDesignerComponents::createWidgetBox(m_formeditor, 0);
     wb->setWindowTitle(tr("Widget Box"));
@@ -736,12 +733,9 @@ void FormEditorData::critical(const QString &errorMessage)
 // Apply the command shortcut to the action and connects to the command's keySequenceChanged signal
 void FormEditorData::bindShortcut(Command *command, QAction *action)
 {
-    typedef void (QSignalMapper::*SignalMapperVoidSlot)();
-
     m_commandToDesignerAction.insert(command, action);
     QObject::connect(command, &Command::keySequenceChanged,
-                     &m_shortcutMapper, static_cast<SignalMapperVoidSlot>(&QSignalMapper::map));
-    m_shortcutMapper.setMapping(command, command);
+                     command, [this, command] { updateShortcut(command); });
     updateShortcut(command);
 }
 
@@ -837,15 +831,12 @@ FormWindowEditor *FormEditorW::activeEditor()
     return 0;
 }
 
-void FormEditorData::updateShortcut(QObject *command)
+void FormEditorData::updateShortcut(Command *command)
 {
-    Command *c = qobject_cast<Command *>(command);
-    if (!c)
+    if (!command)
         return;
-    QAction *a = m_commandToDesignerAction.value(c);
-    if (!a)
-        return;
-    a->setShortcut(c->action()->shortcut());
+    if (QAction *a = m_commandToDesignerAction.value(command))
+        a->setShortcut(command->action()->shortcut());
 }
 
 void FormEditorData::activateEditMode(int id)

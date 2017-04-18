@@ -94,7 +94,7 @@ QVariant fixResourcePaths(const QVariant &value)
         const QUrl url = value.toUrl();
         if (url.scheme() == QLatin1String("qrc")) {
             const QString path = QLatin1String("qrc:") +  url.path();
-            QString qrcSearchPath = qgetenv("QMLDESIGNER_RC_PATHS");
+            QString qrcSearchPath = QString::fromLocal8Bit(qgetenv("QMLDESIGNER_RC_PATHS"));
             if (!qrcSearchPath.isEmpty()) {
                 const QStringList searchPaths = qrcSearchPath.split(QLatin1Char(';'));
                 foreach (const QString &qrcPath, searchPaths) {
@@ -105,7 +105,7 @@ QVariant fixResourcePaths(const QVariant &value)
                         if (QFileInfo(fixedPath).exists()) {
                             fixedPath.replace(QLatin1String("//"), QLatin1String("/"));
                             fixedPath.replace(QLatin1Char('\\'), QLatin1Char('/'));
-                            return QUrl(fixedPath);
+                            return QUrl::fromLocalFile(fixedPath);
                         }
                     }
                 }
@@ -115,7 +115,7 @@ QVariant fixResourcePaths(const QVariant &value)
     if (value.type() == QVariant::String) {
         const QString str = value.toString();
         if (str.contains(QLatin1String("qrc:"))) {
-            QString qrcSearchPath = qgetenv("QMLDESIGNER_RC_PATHS");
+            QString qrcSearchPath = QString::fromLocal8Bit(qgetenv("QMLDESIGNER_RC_PATHS"));
             if (!qrcSearchPath.isEmpty()) {
                 const QStringList searchPaths = qrcSearchPath.split(QLatin1Char(';'));
                 foreach (const QString &qrcPath, searchPaths) {
@@ -126,7 +126,7 @@ QVariant fixResourcePaths(const QVariant &value)
                         if (QFileInfo(fixedPath).exists()) {
                             fixedPath.replace(QLatin1String("//"), QLatin1String("/"));
                             fixedPath.replace(QLatin1Char('\\'), QLatin1Char('/'));
-                            return fixedPath;
+                            return QUrl::fromLocalFile(fixedPath);
                         }
                     }
                 }
@@ -134,6 +134,25 @@ QVariant fixResourcePaths(const QVariant &value)
         }
     }
     return value;
+}
+
+
+void fixResourcePathsForObject(QObject *object)
+{
+    if (qgetenv("QMLDESIGNER_RC_PATHS").isEmpty())
+        return;
+
+    PropertyNameList propertyNameList = propertyNameListForWritableProperties(object);
+
+    foreach (const PropertyName &propertyName, propertyNameList) {
+        QQmlProperty property(object, QString::fromUtf8(propertyName), QQmlEngine::contextForObject(object));
+
+        const QVariant value  = property.read();
+        const QVariant fixedValue = fixResourcePaths(value);
+        if (value != fixedValue) {
+            property.write(fixedValue);
+        }
+    }
 }
 
 
@@ -168,7 +187,7 @@ QVariant getResetValue(QObject *object, const PropertyName &propertyName)
 
 static void setProperty(QObject *object, QQmlContext *context, const PropertyName &propertyName, const QVariant &value)
 {
-    QQmlProperty property(object, propertyName, context);
+    QQmlProperty property(object, QString::fromUtf8(propertyName), context);
     property.write(value);
 }
 
@@ -394,6 +413,11 @@ ComponentCompleteDisabler::ComponentCompleteDisabler()
 ComponentCompleteDisabler::~ComponentCompleteDisabler()
 {
     DesignerSupport::enableComponentComplete();
+}
+
+void registerFixResourcePathsForObjectCallBack()
+{
+    QQuickDesignerSupportItems::registerFixResourcePathsForObjectCallBack(&fixResourcePathsForObject);
 }
 
 } // namespace QmlPrivateGate

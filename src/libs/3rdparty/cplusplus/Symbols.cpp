@@ -171,11 +171,13 @@ void Argument::visitSymbol0(SymbolVisitor *visitor)
 
 TypenameArgument::TypenameArgument(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)
+    , _isClassDeclarator(false)
 { }
 
 TypenameArgument::TypenameArgument(Clone *clone, Subst *subst, TypenameArgument *original)
     : Symbol(clone, subst, original)
     , _type(clone->type(original->_type, subst))
+    , _isClassDeclarator(original->_isClassDeclarator)
 { }
 
 TypenameArgument::~TypenameArgument()
@@ -366,6 +368,12 @@ bool Function::isPureVirtual() const
 
 void Function::setPureVirtual(bool isPureVirtual)
 { f._isPureVirtual = isPureVirtual; }
+
+Function::RefQualifier Function::refQualifier() const
+{ return static_cast<RefQualifier>(f._refQualifier); }
+
+void Function::setRefQualifier(Function::RefQualifier refQualifier)
+{ f._refQualifier = refQualifier; }
 
 bool Function::isAmbiguous() const
 { return f._isAmbiguous; }

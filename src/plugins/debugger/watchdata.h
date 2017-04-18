@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_WATCHDATA_H
-#define DEBUGGER_WATCHDATA_H
+#pragma once
 
 #include "debuggerprotocol.h"
 
@@ -40,7 +39,7 @@ namespace Internal {
 
 class GdbMi;
 
-class WatchItem : public Utils::TreeItem
+class WatchItem : public Utils::TypedTreeItem<WatchItem>
 {
 public:
     WatchItem();
@@ -53,62 +52,43 @@ public:
 
     QString expression() const;
     QString realName() const;
-    QByteArray internalName() const;
+    QString internalName() const;
     QString toToolTip() const;
 
     QVariant editValue() const;
     int editType() const;
 
-    WatchItem *findItem(const QByteArray &iname);
     WatchItem *parentItem() const;
-
-    enum State
-    {
-        ValueNeeded       = 2,
-        ChildrenNeeded    = 8,
-
-        InitialState = ValueNeeded | ChildrenNeeded
-    };
 
     static const qint64 InvalidId = -1;
 
-    void setAllUnneeded()          { state = State(0); }
-
-    bool isValueNeeded() const { return state & ValueNeeded; }
-    void setValueNeeded()      { state = State(state | ValueNeeded); }
-    void setValueUnneeded()    { state = State(state & ~ValueNeeded); }
-
-    bool isChildrenNeeded() const { return state & ChildrenNeeded; }
-    void setChildrenNeeded()   { state = State(state | ChildrenNeeded); }
-    void setChildrenUnneeded() { state = State(state & ~ChildrenNeeded); }
-    void setHasChildren(bool c)   { wantsChildren = c;  if (!c) setChildrenUnneeded(); }
+    void setHasChildren(bool c)   { wantsChildren = c; }
 
     bool isValid()   const { return !iname.isEmpty(); }
     bool isVTablePointer() const;
 
     void setError(const QString &);
     void setValue(const QString &);
-    void setType(const QByteArray &, bool guessChildrenFromType = true);
 
-    QString toString()  const;
+    QString toString() const;
 
     static QString msgNotInScope();
     static QString shadowedName(const QString &name, int seen);
     static const QString &shadowedNameFormat();
 
-    QByteArray hexAddress()  const;
+    QString hexAddress() const;
+    QString key() const { return address ? hexAddress() : iname; }
 
 public:
     qint64          id;            // Token for the engine for internal mapping
-    qint32          state;         // 'needed' flags;
-    QByteArray      iname;         // Internal name sth like 'local.baz.public.a'
-    QByteArray      exp;           // The expression
+    QString         iname;         // Internal name sth like 'local.baz.public.a'
+    QString         exp;           // The expression
     QString         name;          // Displayed name
     QString         value;         // Displayed value
-    QByteArray      editvalue;     // Displayed value
-    DebuggerDisplay editformat;    // Format of displayed value
+    QString         editvalue;     // Displayed value
+    QString         editformat;    // Format of displayed value
     DebuggerEncoding editencoding; // Encoding of displayed value
-    QByteArray      type;          // Type for further processing
+    QString         type;          // Type for further processing
     quint64         address;       // Displayed address of the actual object
     quint64         origaddr;      // Address of the pointer referencing this item (gdb auto-deref)
     uint            size;          // Size
@@ -129,5 +109,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_WATCHDATA_H

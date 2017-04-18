@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKENDIPC_GLOBAL_H
-#define CLANGBACKENDIPC_GLOBAL_H
+#pragma once
+
+#include <utils/sizedarray.h>
 
 #include <QtCore/qglobal.h>
 
@@ -42,7 +43,7 @@
 
 namespace ClangBackEnd {
 
-enum class DiagnosticSeverity // one to one mapping of the clang enum numbers
+enum class DiagnosticSeverity : quint32 // one to one mapping of the clang enum numbers
 {
     Ignored = 0,
     Note = 1,
@@ -51,7 +52,7 @@ enum class DiagnosticSeverity // one to one mapping of the clang enum numbers
     Fatal = 4
 };
 
-enum class HighlightingType
+enum class HighlightingType : quint8
 {
     Invalid,
     Keyword,
@@ -70,10 +71,11 @@ enum class HighlightingType
     PreprocessorDefinition,
     PreprocessorExpansion,
     Label,
-    OutputArgument
+    OutputArgument,
+    Declaration
 };
 
-enum class CompletionCorrection
+enum class CompletionCorrection : quint32
 {
     NoCorrection,
     DotToArrowCorrection
@@ -95,11 +97,8 @@ enum class MessageType : quint8 {
     RegisterProjectPartsForEditorMessage,
     UnregisterProjectPartsForEditorMessage,
 
-    RequestDiagnosticsMessage,
-    DiagnosticsChangedMessage,
-
-    RequestHighlightingMessage,
-    HighlightingChangedMessage,
+    RequestDocumentAnnotationsMessage,
+    DocumentAnnotationsChangedMessage,
 
     UpdateVisibleTranslationUnitsMessage,
 
@@ -107,7 +106,10 @@ enum class MessageType : quint8 {
     CodeCompletedMessage,
 
     TranslationUnitDoesNotExistMessage,
-    ProjectPartsDoNotExistMessage
+    ProjectPartsDoNotExistMessage,
+
+    SourceLocationsForRenamingMessage,
+    RequestSourceLocationsForRenamingMessage
 };
 
 template<MessageType messageEnumeration>
@@ -123,5 +125,11 @@ struct MessageTrait<Message> \
     static const MessageType enumeration = MessageType::Message; \
 };
 
+using MixinHighlightingTypes = Utils::SizedArray<HighlightingType, 6>;
+
+struct HighlightingTypes {
+    HighlightingType mainHighlightingType;
+    MixinHighlightingTypes mixinHighlightingTypes;
+};
+
 }
-#endif // CLANGBACKENDIPC_GLOBAL_H

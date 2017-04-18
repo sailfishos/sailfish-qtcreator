@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSINDENTER_H
-#define QMLJSINDENTER_H
+#pragma once
 
 #include "qmljstools_global.h"
 
@@ -47,9 +46,9 @@ public:
     void invalidateCache(QTextDocument *doc) override;
 
     int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    TextEditor::IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
+                                                         const TextEditor::TabSettings &tabSettings) override;
 };
 
 } // Internal
 } // QmlJSEditor
-
-#endif // QMLJSINDENTER_H

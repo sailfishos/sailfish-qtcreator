@@ -25,7 +25,6 @@
 
 #include "mainwindow.h"
 #include "icore.h"
-#include "coreicons.h"
 #include "jsexpander.h"
 #include "toolsettings.h"
 #include "mimetypesettings.h"
@@ -51,6 +50,7 @@
 #include "externaltoolmanager.h"
 #include "editormanager/systemeditor.h"
 #include "windowsupport.h"
+#include "coreicons.h"
 
 #include <app/app_version.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -76,6 +76,7 @@
 #include <utils/stylehelper.h>
 #include <utils/theme/theme.h>
 #include <utils/stringutils.h>
+#include <utils/utilsicons.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -147,7 +148,7 @@ MainWindow::MainWindow() :
 
     setWindowTitle(tr("Qt Creator"));
     if (HostOsInfo::isLinuxHost())
-        QApplication::setWindowIcon(Icons::QTLOGO_128.icon());
+        QApplication::setWindowIcon(Icons::QTCREATORLOGO_BIG.icon());
     QCoreApplication::setApplicationName(QLatin1String("QtCreator"));
     QCoreApplication::setApplicationVersion(QLatin1String(Constants::IDE_VERSION_LONG));
     QCoreApplication::setOrganizationName(QLatin1String(Constants::IDE_SETTINGSVARIANT_STR));
@@ -297,6 +298,9 @@ MainWindow::~MainWindow()
     PluginManager::removeObject(m_outputView);
     delete m_outputView;
 
+    delete m_navigationWidget;
+    m_navigationWidget = 0;
+
     delete m_editorManager;
     m_editorManager = 0;
     delete m_progressManager;
@@ -384,7 +388,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
     emit m_coreImpl->coreAboutToClose();
 
-    writeSettings();
+    saveWindowSettings();
 
     m_navigationWidget->closeSubWidgets();
 
@@ -503,21 +507,22 @@ void MainWindow::registerDefaultActions()
     connect(m_focusToEditor, &QAction::triggered, this, &MainWindow::setFocusToEditor);
 
     // New File Action
-    QIcon icon = QIcon::fromTheme(QLatin1String("document-new"), Icons::NEWFILE.icon());
+    QIcon icon = QIcon::fromTheme(QLatin1String("document-new"), Utils::Icons::NEWFILE.icon());
     m_newAction = new QAction(icon, tr("&New File or Project..."), this);
     cmd = ActionManager::registerAction(m_newAction, Constants::NEW);
     cmd->setDefaultKeySequence(QKeySequence::New);
     mfile->addAction(cmd, Constants::G_FILE_NEW);
     connect(m_newAction, &QAction::triggered, this, [this]() {
-        ICore::showNewItemDialog(tr("New File or Project", "Title of dialog"),
-                                 IWizardFactory::allWizardFactories(), QString());
-    });
-    connect(ICore::instance(), &ICore::newItemDialogRunningChanged, m_newAction, [this]() {
-        m_newAction->setEnabled(!ICore::isNewItemDialogRunning());
+        if (!ICore::isNewItemDialogRunning()) {
+            ICore::showNewItemDialog(tr("New File or Project", "Title of dialog"),
+                                     IWizardFactory::allWizardFactories(), QString());
+        } else {
+            ICore::raiseWindow(ICore::newItemDialog());
+        }
     });
 
     // Open Action
-    icon = QIcon::fromTheme(QLatin1String("document-open"), Icons::OPENFILE.icon());
+    icon = QIcon::fromTheme(QLatin1String("document-open"), Utils::Icons::OPENFILE.icon());
     m_openAction = new QAction(icon, tr("&Open File or Project..."), this);
     cmd = ActionManager::registerAction(m_openAction, Constants::OPEN);
     cmd->setDefaultKeySequence(QKeySequence::Open);
@@ -537,7 +542,7 @@ void MainWindow::registerDefaultActions()
     ac->setOnAllDisabledBehavior(ActionContainer::Show);
 
     // Save Action
-    icon = QIcon::fromTheme(QLatin1String("document-save"), Icons::SAVEFILE.icon());
+    icon = QIcon::fromTheme(QLatin1String("document-save"), Utils::Icons::SAVEFILE.icon());
     QAction *tmpaction = new QAction(icon, EditorManager::tr("&Save"), this);
     tmpaction->setEnabled(false);
     cmd = ActionManager::registerAction(tmpaction, Constants::SAVE);
@@ -581,7 +586,7 @@ void MainWindow::registerDefaultActions()
     connect(m_exitAction, &QAction::triggered, this, &MainWindow::exit);
 
     // Undo Action
-    icon = QIcon::fromTheme(QLatin1String("edit-undo"), Icons::UNDO.icon());
+    icon = QIcon::fromTheme(QLatin1String("edit-undo"), Utils::Icons::UNDO.icon());
     tmpaction = new QAction(icon, tr("&Undo"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::UNDO);
     cmd->setDefaultKeySequence(QKeySequence::Undo);
@@ -591,7 +596,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Redo Action
-    icon = QIcon::fromTheme(QLatin1String("edit-redo"), Icons::REDO.icon());
+    icon = QIcon::fromTheme(QLatin1String("edit-redo"), Utils::Icons::REDO.icon());
     tmpaction = new QAction(icon, tr("&Redo"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::REDO);
     cmd->setDefaultKeySequence(QKeySequence::Redo);
@@ -601,7 +606,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Cut Action
-    icon = QIcon::fromTheme(QLatin1String("edit-cut"), Icons::CUT.icon());
+    icon = QIcon::fromTheme(QLatin1String("edit-cut"), Utils::Icons::CUT.icon());
     tmpaction = new QAction(icon, tr("Cu&t"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::CUT);
     cmd->setDefaultKeySequence(QKeySequence::Cut);
@@ -609,7 +614,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Copy Action
-    icon = QIcon::fromTheme(QLatin1String("edit-copy"), Icons::COPY.icon());
+    icon = QIcon::fromTheme(QLatin1String("edit-copy"), Utils::Icons::COPY.icon());
     tmpaction = new QAction(icon, tr("&Copy"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::COPY);
     cmd->setDefaultKeySequence(QKeySequence::Copy);
@@ -617,7 +622,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Paste Action
-    icon = QIcon::fromTheme(QLatin1String("edit-paste"), Icons::PASTE.icon());
+    icon = QIcon::fromTheme(QLatin1String("edit-paste"), Utils::Icons::PASTE.icon());
     tmpaction = new QAction(icon, tr("&Paste"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::PASTE);
     cmd->setDefaultKeySequence(QKeySequence::Paste);
@@ -691,7 +696,7 @@ void MainWindow::registerDefaultActions()
     }
 
     // Show Sidebar Action
-    m_toggleSideBarAction = new QAction(Icons::TOGGLE_SIDEBAR_TOOLBAR.icon(),
+    m_toggleSideBarAction = new QAction(Utils::Icons::TOGGLE_SIDEBAR.icon(),
                                         QCoreApplication::translate("Core", Constants::TR_SHOW_SIDEBAR),
                                         this);
     m_toggleSideBarAction->setCheckable(true);
@@ -699,7 +704,10 @@ void MainWindow::registerDefaultActions()
     cmd->setAttribute(Command::CA_UpdateText);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+0") : tr("Alt+0")));
     connect(m_toggleSideBarAction, &QAction::triggered, this, &MainWindow::setSidebarVisible);
-    m_toggleSideBarButton->setDefaultAction(cmd->action());
+    ProxyAction *toggleSideBarProxyAction =
+            ProxyAction::proxyActionWithIcon(cmd->action(),
+                                             Utils::Icons::TOGGLE_SIDEBAR_TOOLBAR.icon());
+    m_toggleSideBarButton->setDefaultAction(toggleSideBarProxyAction);
     mwindow->addAction(cmd, Constants::G_WINDOW_VIEWS);
     m_toggleSideBarAction->setEnabled(false);
 
@@ -973,13 +981,26 @@ void MainWindow::readSettings()
     m_rightPaneWidget->readSettings(settings);
 }
 
-void MainWindow::writeSettings()
+void MainWindow::saveSettings()
 {
     QSettings *settings = PluginManager::settings();
     settings->beginGroup(QLatin1String(settingsGroup));
 
     if (!(m_overrideColor.isValid() && StyleHelper::baseColor() == m_overrideColor))
         settings->setValue(QLatin1String(colorKey), StyleHelper::requestedBaseColor());
+
+    settings->endGroup();
+
+    DocumentManager::saveSettings();
+    ActionManager::saveSettings();
+    EditorManagerPrivate::saveSettings();
+    m_navigationWidget->saveSettings(settings);
+}
+
+void MainWindow::saveWindowSettings()
+{
+    QSettings *settings = PluginManager::settings();
+    settings->beginGroup(QLatin1String(settingsGroup));
 
     // On OS X applications usually do not restore their full screen state.
     // To be able to restore the correct non-full screen geometry, we have to put
@@ -992,11 +1013,6 @@ void MainWindow::writeSettings()
     settings->setValue(QLatin1String(modeSelectorVisibleKey), ModeManager::isModeSelectorVisible());
 
     settings->endGroup();
-
-    DocumentManager::saveSettings();
-    ActionManager::saveSettings();
-    EditorManagerPrivate::saveSettings();
-    m_navigationWidget->saveSettings(settings);
 }
 
 void MainWindow::updateAdditionalContexts(const Context &remove, const Context &add,
@@ -1051,15 +1067,19 @@ void MainWindow::aboutToShowRecentFiles()
     QMenu *menu = aci->menu();
     menu->clear();
 
-    bool hasRecentFiles = false;
-    foreach (const DocumentManager::RecentFile &file, DocumentManager::recentFiles()) {
-        hasRecentFiles = true;
-        QAction *action = menu->addAction(
-                    QDir::toNativeSeparators(Utils::withTildeHomePath(file.first)));
+    const QList<DocumentManager::RecentFile> recentFiles = DocumentManager::recentFiles();
+    for (int i = 0; i < recentFiles.count(); ++i) {
+        const DocumentManager::RecentFile file = recentFiles[i];
+
+        const QString filePath = QDir::toNativeSeparators(withTildeHomePath(file.first));
+        const QString actionText = ActionManager::withNumberAccelerator(filePath, i + 1);
+        QAction *action = menu->addAction(actionText);
         connect(action, &QAction::triggered, this, [file] {
             EditorManager::openEditor(file.first, file.second);
         });
     }
+
+    bool hasRecentFiles = !recentFiles.isEmpty();
     menu->setEnabled(hasRecentFiles);
 
     // add the Clear Menu item
@@ -1078,8 +1098,11 @@ void MainWindow::aboutQtCreator()
         m_versionDialog = new VersionDialog(this);
         connect(m_versionDialog, &QDialog::finished,
                 this, &MainWindow::destroyVersionDialog);
+        ICore::registerWindow(m_versionDialog, Context("Core.VersionDialog"));
+        m_versionDialog->show();
+    } else {
+        ICore::raiseWindow(m_versionDialog);
     }
-    m_versionDialog->show();
 }
 
 void MainWindow::destroyVersionDialog()
@@ -1132,18 +1155,11 @@ void MainWindow::restoreWindowState()
     QSettings *settings = PluginManager::settings();
     settings->beginGroup(QLatin1String(settingsGroup));
     if (!restoreGeometry(settings->value(QLatin1String(windowGeometryKey)).toByteArray()))
-        resize(1008, 700); // size without window decoration
+        resize(1260, 700); // size without window decoration
     restoreState(settings->value(QLatin1String(windowStateKey)).toByteArray());
     settings->endGroup();
     show();
     m_statusBarManager->restoreSettings();
-}
-
-void MainWindow::newItemDialogFinished()
-{
-    m_newAction->setEnabled(true);
-    // fire signal when the dialog is actually destroyed
-    QTimer::singleShot(0, this, &MainWindow::newItemDialogRunningChanged);
 }
 
 } // namespace Internal

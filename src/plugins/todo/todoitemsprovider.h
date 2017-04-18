@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODOITEMSPROVIDER_H
-#define TODOITEMSPROVIDER_H
+#pragma once
 
 #include "todoitem.h"
 #include "settings.h"
@@ -50,7 +49,6 @@ public:
     explicit TodoItemsProvider(Settings settings, QObject *parent = 0);
     TodoItemsModel *todoItemsModel();
 
-public slots:
     void settingsChanged(const Settings &newSettings);
     void projectSettingsChanged(ProjectExplorer::Project *project);
 
@@ -83,7 +81,7 @@ private:
     void setItemsListWithinStartupProject();
     void setItemsListWithinSubproject();
 
-private slots:
+private:
     void itemsFetched(const QString &fileName, const QList<TodoItem> &items);
     void startupProjectChanged(ProjectExplorer::Project *project);
     void projectsFilesChanged();
@@ -93,5 +91,3 @@ private slots:
 
 }
 }
-
-#endif // TODOITEMSPROVIDER_H

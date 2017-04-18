@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_ARTISTICSTYLESETTINGS_H
-#define BEAUTIFIER_ARTISTICSTYLESETTINGS_H
+#pragma once
 
 #include "../abstractsettings.h"
-
 
 #include <QFuture>
 #include <QFutureWatcher>
@@ -36,7 +34,7 @@ namespace Beautifier {
 namespace Internal {
 namespace ArtisticStyle {
 
-class ArtisticStyleSettings : public QObject, public AbstractSettings
+class ArtisticStyleSettings : public AbstractSettings
 {
     Q_OBJECT
 
@@ -64,10 +62,8 @@ public:
     QString documentationFilePath() const override;
     void createDocumentationFile() const override;
 
-private slots:
-    void helperSetVersion();
-
 private:
+    void helperSetVersion();
     QFuture<int> m_versionFuture;
     QFutureWatcher<int> m_versionWatcher;
 };
@@ -75,5 +71,3 @@ private:
 } // namespace ArtisticStyle
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_ARTISTICSTYLESETTINGS_H

@@ -38,11 +38,11 @@
 #include <projectexplorer/session.h>
 #include <texteditor/texteditor.h>
 #include <utils/icon.h>
-#include <utils/tooltip/tooltip.h>
 #include <utils/qtcassert.h>
 #include <utils/checkablemessagebox.h>
 #include <utils/theme/theme.h>
 #include <utils/dropsupport.h>
+#include <utils/utilsicons.h>
 
 #include <QAction>
 #include <QContextMenuEvent>
@@ -224,7 +224,7 @@ BookmarkView::BookmarkView(BookmarkManager *manager)  :
     setItemDelegate(new BookmarkDelegate(this));
     setFrameStyle(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setFocusPolicy(Qt::NoFocus);
+    setAttribute(Qt::WA_MacShowFocusRect, false);
     setSelectionModel(manager->selectionModel());
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -320,8 +320,7 @@ void BookmarkView::gotoBookmark(const QModelIndex &index)
 ////
 
 BookmarkManager::BookmarkManager() :
-    m_bookmarkIcon(Utils::Icon({{QLatin1String(":/bookmarks/images/bookmark.png"),
-                                 Theme::Bookmarks_TextMarkColor}}, Icon::Tint).pixmap()),
+    m_bookmarkIcon(Utils::Icons::BOOKMARK_TEXTEDITOR.pixmap()),
     m_selectionModel(new QItemSelectionModel(this, this))
 {
     connect(ICore::instance(), &ICore::contextChanged,
@@ -333,6 +332,7 @@ BookmarkManager::BookmarkManager() :
     updateActionStatus();
     Bookmark::setCategoryColor(Constants::BOOKMARKS_TEXT_MARK_CATEGORY,
                                Theme::Bookmarks_TextMarkColor);
+    Bookmark::setDefaultToolTip(Constants::BOOKMARKS_TEXT_MARK_CATEGORY, tr("Bookmark"));
 }
 
 BookmarkManager::~BookmarkManager()
@@ -845,17 +845,6 @@ void BookmarkManager::saveBookmarks()
     SessionManager::setValue(QLatin1String("Bookmarks"), list);
 }
 
-void BookmarkManager::operateTooltip(QWidget *widget, const QPoint &pos, Bookmark *mark)
-{
-    if (!mark)
-        return;
-
-    if (mark->note().isEmpty())
-        ToolTip::hide();
-    else
-        ToolTip::show(pos, mark->note(), widget);
-}
-
 /* Loads the bookmarks from the session settings. */
 void BookmarkManager::loadBookmarks()
 {
@@ -865,12 +854,6 @@ void BookmarkManager::loadBookmarks()
         addBookmark(bookmarkString);
 
     updateActionStatus();
-}
-
-void BookmarkManager::handleBookmarkTooltipRequest(IEditor *editor, const QPoint &pos, int line)
-{
-    Bookmark *mark = findBookmark(editor->document()->filePath().toString(), line);
-    operateTooltip(editor->widget(), pos, mark);
 }
 
 // BookmarkViewFactory

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONTEXT_H
-#define CONTEXT_H
+#pragma once
 
 #include "includerulesinstruction.h"
 
@@ -58,6 +57,9 @@ public:
     void setLineEndContext(const QString &context);
     const QString &lineEndContext() const;
 
+    void setLineEmptyContext(const QString &context);
+    const QString &lineEmptyContext() const;
+
     void setFallthroughContext(const QString &context);
     const QString &fallthroughContext() const;
 
@@ -89,6 +91,7 @@ private:
     QString m_name;
     QString m_lineBeginContext;
     QString m_lineEndContext;
+    QString m_lineEmptyContext;
     QString m_fallthroughContext;
     QString m_itemData;
     bool m_fallthrough;
@@ -102,5 +105,3 @@ private:
 
 } // namespace Internal
 } // namespace TextEditor
-
-#endif // CONTEXT_H

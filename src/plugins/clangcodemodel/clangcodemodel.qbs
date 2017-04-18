@@ -1,8 +1,5 @@
 import qbs
-import qbs.File
-import QtcClangInstallation as Clang
-import QtcFunctions
-import QtcProcessOutputReader
+import qbs.FileInfo
 
 QtcPlugin {
     name: "ClangCodeModel"
@@ -14,24 +11,22 @@ QtcPlugin {
     Depends { name: "TextEditor" }
     Depends { name: "Utils" }
     Depends { name: "ClangBackEndIpc" }
+    Depends { name: "libclang"; required: false }
 
     pluginTestDepends: [
         "CppEditor",
         "QmakeProjectManager",
     ]
 
-    property string llvmConfig: Clang.llvmConfig(qbs, QtcFunctions, QtcProcessOutputReader)
-    property string llvmIncludeDir: Clang.includeDir(llvmConfig, QtcProcessOutputReader)
-    property string llvmLibDir: Clang.libDir(llvmConfig, QtcProcessOutputReader)
-    property string llvmVersion: Clang.version(llvmConfig, QtcProcessOutputReader)
-
-    condition: llvmConfig && File.exists(llvmIncludeDir.concat("/clang-c/Index.h"))
+    condition: libclang.present
 
     cpp.defines: {
         var defines = base;
         // The following defines are used to determine the clang include path for intrinsics.
-        defines.push('CLANG_VERSION="' + llvmVersion + '"');
-        defines.push('CLANG_RESOURCE_DIR="' + llvmLibDir + '/clang/' + llvmVersion + '/include"');
+        defines.push('CLANG_VERSION="' + libclang.llvmVersion + '"');
+        var resourceDir = FileInfo.joinPaths(libclang.llvmLibDir, "clang", libclang.llvmVersion,
+                                             "include");
+        defines.push('CLANG_RESOURCE_DIR="' + resourceDir + '"');
         return defines;
     }
 
@@ -50,6 +45,7 @@ QtcPlugin {
         "clangbackendipcintegration.h",
         "clangcodemodelplugin.cpp",
         "clangcodemodelplugin.h",
+        "clangcodemodel.qrc",
         "clangcompletionassistinterface.cpp",
         "clangcompletionassistinterface.h",
         "clangcompletionassistprocessor.cpp",
@@ -91,13 +87,15 @@ QtcPlugin {
         "clangprojectsettingswidget.ui",
         "clangtextmark.cpp",
         "clangtextmark.h",
+        "clanguiheaderondiskmanager.cpp",
+        "clanguiheaderondiskmanager.h",
         "clangutils.cpp",
         "clangutils.h",
     ]
 
     Group {
         name: "Tests"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
         prefix: "test/"
         files: [
             "data/clangtestdata.qrc",

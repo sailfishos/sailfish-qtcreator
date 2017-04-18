@@ -40,13 +40,15 @@
 #include <qmljs/qmljsvalueowner.h>
 #include <languageutils/fakemetaobject.h>
 
+#include <utils/qtcassert.h>
+
 namespace QmlDesigner {
 
 namespace Internal {
 
 struct TypeDescription
 {
-    TypeName className;
+    QString className;
     int minorVersion;
     int majorVersion;
 };
@@ -76,9 +78,9 @@ using namespace QmlJS;
 
 typedef QPair<PropertyName, TypeName> PropertyInfo;
 
-QList<PropertyInfo> getObjectTypes(const ObjectValue *ov, const ContextPtr &context, bool local = false, int rec = 0);
+QVector<PropertyInfo> getObjectTypes(const ObjectValue *ov, const ContextPtr &context, bool local = false, int rec = 0);
 
-static TypeName resolveTypeName(const ASTPropertyReference *ref, const ContextPtr &context,  QList<PropertyInfo> &dotProperties)
+static TypeName resolveTypeName(const ASTPropertyReference *ref, const ContextPtr &context,  QVector<PropertyInfo> &dotProperties)
 {
     TypeName type = "unknown";
 
@@ -94,7 +96,7 @@ static TypeName resolveTypeName(const ASTPropertyReference *ref, const ContextPt
             if (const ASTObjectValue * astObjectValue = value->asAstObjectValue()) {
                 if (astObjectValue->typeName()) {
                     type = astObjectValue->typeName()->name.toUtf8();
-                    const ObjectValue *  objectValue =  context->lookupType(astObjectValue->document(), astObjectValue->typeName());;
+                    const ObjectValue *objectValue = context->lookupType(astObjectValue->document(), astObjectValue->typeName());
                     if (objectValue)
                         dotProperties = getObjectTypes(objectValue, context);
                 }
@@ -281,7 +283,7 @@ public:
         PropertyName propertyName = name.toUtf8();
         const ASTPropertyReference *ref = value_cast<ASTPropertyReference>(value);
         if (ref) {
-            QList<PropertyInfo> dotProperties;
+            QVector<PropertyInfo> dotProperties;
             const TypeName type = resolveTypeName(ref, m_context, dotProperties);
             m_properties.append(qMakePair(propertyName, type));
             if (!dotProperties.isEmpty()) {
@@ -320,20 +322,27 @@ public:
         return true;
     }
 
-    QList<PropertyInfo> properties() const { return m_properties; }
+    QVector<PropertyInfo> properties() const { return m_properties; }
 
     PropertyNameList signalList() const { return m_signals; }
 
 private:
-    QList<PropertyInfo> m_properties;
+    QVector<PropertyInfo> m_properties;
     PropertyNameList m_signals;
     const ContextPtr m_context;
 };
 
+static inline bool isValueType(const TypeName &type)
+{
+    static const PropertyTypeList objectValuesList({"QFont", "QPoint", "QPointF",
+        "QSize", "QSizeF", "QVector3D", "QVector2D"});
+    return objectValuesList.contains(type);
+}
+
 static inline bool isValueType(const QString &type)
 {
-    QStringList objectValuesList;
-    objectValuesList << "QFont" << "QPoint" << "QPointF" << "QSize" << "QSizeF" << "QVector3D" << "QVector2D";
+    static const QStringList objectValuesList({"QFont", "QPoint", "QPointF",
+        "QSize", "QSizeF", "QVector3D", "QVector2D"});
     return objectValuesList.contains(type);
 }
 
@@ -367,7 +376,7 @@ QStringList prototypes(const ObjectValue *ov, const ContextPtr &context, bool ve
             }
         } else {
             if (versions)
-                list << ov->className() + " -1.-1";
+                list << ov->className() + QLatin1String(" -1.-1");
             else
                 list << ov->className();
         }
@@ -376,9 +385,21 @@ QStringList prototypes(const ObjectValue *ov, const ContextPtr &context, bool ve
     return list;
 }
 
-QList<PropertyInfo> getQmlTypes(const CppComponentValue *objectValue, const ContextPtr &context, bool local = false, int rec = 0)
+QVector<PropertyInfo> getQmlTypes(const CppComponentValue *objectValue, const ContextPtr &context, bool local = false, int rec = 0);
+
+QVector<PropertyInfo> getTypes(const ObjectValue *objectValue, const ContextPtr &context, bool local = false, int rec = 0)
 {
-    QList<PropertyInfo> propertyList;
+    const CppComponentValue * qmlObjectValue = value_cast<CppComponentValue>(objectValue);
+
+    if (qmlObjectValue)
+        return getQmlTypes(qmlObjectValue, context, local, rec);
+
+    return getObjectTypes(objectValue, context, local, rec);
+}
+
+QVector<PropertyInfo> getQmlTypes(const CppComponentValue *objectValue, const ContextPtr &context, bool local, int rec)
+{
+    QVector<PropertyInfo> propertyList;
 
     if (!objectValue)
         return propertyList;
@@ -391,51 +412,44 @@ QList<PropertyInfo> getQmlTypes(const CppComponentValue *objectValue, const Cont
     PropertyMemberProcessor processor(context);
     objectValue->processMembers(&processor);
 
-    QList<PropertyInfo> newList = processor.properties();
-
-    foreach (PropertyInfo property, newList) {
-        PropertyName name = property.first;
-        if (!objectValue->isWritable(name) && objectValue->isPointer(name)) {
+    foreach (const PropertyInfo &property, processor.properties()) {
+        const PropertyName name = property.first;
+        const QString nameAsString = QString::fromUtf8(name);
+        if (!objectValue->isWritable(nameAsString) && objectValue->isPointer(nameAsString)) {
             //dot property
-            const CppComponentValue * qmlValue = value_cast<CppComponentValue>(objectValue->lookupMember(name, context));
+            const CppComponentValue * qmlValue = value_cast<CppComponentValue>(objectValue->lookupMember(nameAsString, context));
             if (qmlValue) {
-                QList<PropertyInfo> dotProperties = getQmlTypes(qmlValue, context, false, rec + 1);
+                QVector<PropertyInfo> dotProperties = getQmlTypes(qmlValue, context, false, rec + 1);
                 foreach (const PropertyInfo &propertyInfo, dotProperties) {
-                    PropertyName dotName = propertyInfo.first;
-                    TypeName type = propertyInfo.second;
-                    dotName = name + '.' + dotName;
+                    const PropertyName dotName = name + '.' + propertyInfo.first;
+                    const TypeName type = propertyInfo.second;
                     propertyList.append(qMakePair(dotName, type));
                 }
             }
         }
-        if (isValueType(objectValue->propertyType(name))) {
-            const ObjectValue *dotObjectValue = value_cast<ObjectValue>(objectValue->lookupMember(name, context));
+        if (isValueType(objectValue->propertyType(nameAsString))) {
+            const ObjectValue *dotObjectValue = value_cast<ObjectValue>(objectValue->lookupMember(nameAsString, context));
             if (dotObjectValue) {
-                QList<PropertyInfo> dotProperties = getObjectTypes(dotObjectValue, context, false, rec + 1);
+                QVector<PropertyInfo> dotProperties = getObjectTypes(dotObjectValue, context, false, rec + 1);
                 foreach (const PropertyInfo &propertyInfo, dotProperties) {
-                    PropertyName dotName = propertyInfo.first;
-                    TypeName type = propertyInfo.second;
-                    dotName = name + '.' + dotName;
+                    const PropertyName dotName = name + '.' + propertyInfo.first;
+                    const TypeName type = propertyInfo.second;
                     propertyList.append(qMakePair(dotName, type));
                 }
             }
         }
         TypeName type = property.second;
-        if (!objectValue->isPointer(name) && !objectValue->isListProperty(name))
-            type = objectValue->propertyType(name).toUtf8();
+        if (!objectValue->isPointer(nameAsString) && !objectValue->isListProperty(nameAsString))
+            type = objectValue->propertyType(nameAsString).toUtf8();
+
+        if (type == "unknown" && objectValue->hasProperty(nameAsString))
+            type = objectValue->propertyType(nameAsString).toUtf8();
+
         propertyList.append(qMakePair(name, type));
     }
 
-    if (!local) {
-        const ObjectValue* prototype = objectValue->prototype(context);
-
-        const CppComponentValue * qmlObjectValue = value_cast<CppComponentValue>(prototype);
-
-        if (qmlObjectValue)
-            propertyList.append(getQmlTypes(qmlObjectValue, context, false, rec));
-        else
-            propertyList.append(getObjectTypes(prototype, context, false, rec));
-    }
+    if (!local)
+        propertyList.append(getTypes(objectValue->prototype(context), context, local, rec));
 
     return propertyList;
 }
@@ -444,7 +458,7 @@ PropertyNameList getSignals(const ObjectValue *objectValue, const ContextPtr &co
 {
     PropertyNameList signalList;
 
-     if (!objectValue)
+    if (!objectValue)
         return signalList;
     if (objectValue->className().isEmpty())
         return signalList;
@@ -465,23 +479,9 @@ PropertyNameList getSignals(const ObjectValue *objectValue, const ContextPtr &co
     return signalList;
 }
 
-QList<PropertyInfo> getTypes(const ObjectValue *objectValue, const ContextPtr &context, bool local = false)
+QVector<PropertyInfo> getObjectTypes(const ObjectValue *objectValue, const ContextPtr &context, bool local, int rec)
 {
-    QList<PropertyInfo> propertyList;
-
-    const CppComponentValue * qmlObjectValue = value_cast<CppComponentValue>(objectValue);
-
-    if (qmlObjectValue)
-        propertyList.append(getQmlTypes(qmlObjectValue, context, local));
-    else
-        propertyList.append(getObjectTypes(objectValue, context, local));
-
-    return propertyList;
-}
-
-QList<PropertyInfo> getObjectTypes(const ObjectValue *objectValue, const ContextPtr &context, bool local, int rec)
-{
-    QList<PropertyInfo> propertyList;
+    QVector<PropertyInfo> propertyList;
 
     if (!objectValue)
         return propertyList;
@@ -498,7 +498,7 @@ QList<PropertyInfo> getObjectTypes(const ObjectValue *objectValue, const Context
 
     if (!local) {
         const ObjectValue* prototype = objectValue->prototype(context);
-
+        // TODO: can we move this to getType methode and use that one here then
         if (prototype == objectValue)
             return propertyList;
 
@@ -537,7 +537,7 @@ public:
     bool isPropertyEnum(const PropertyName &propertyName) const;
     QString propertyEnumScope(const PropertyName &propertyName) const;
     QStringList keysForEnum(const QString &enumName) const;
-    bool cleverCheckType(const QString &otherType) const;
+    bool cleverCheckType(const TypeName &otherType) const;
     QVariant::Type variantTypeId(const PropertyName &properyName) const;
 
     int majorVersion() const;
@@ -545,7 +545,7 @@ public:
     TypeName qualfiedTypeName() const;
     Model *model() const;
 
-    QString cppPackageName() const;
+    QByteArray cppPackageName() const;
 
     QString componentSource() const;
     QString componentFileName() const;
@@ -553,8 +553,8 @@ public:
 
     static Pointer create(Model *model, const TypeName &type, int maj = -1, int min = -1);
 
-    QSet<QString> &prototypeCachePositives();
-    QSet<QString> &prototypeCacheNegatives();
+    QSet<QByteArray> &prototypeCachePositives();
+    QSet<QByteArray> &prototypeCacheNegatives();
 
     static void clearCache();
 
@@ -564,12 +564,15 @@ private:
 
     const CppComponentValue *getCppComponentValue() const;
     const ObjectValue *getObjectValue() const;
-    void setupPropertyInfo(QList<PropertyInfo> propertyInfos);
-    void setupLocalPropertyInfo(QList<PropertyInfo> propertyInfos);
+    void setupPropertyInfo(const QVector<PropertyInfo> &propertyInfos);
+    void setupLocalPropertyInfo(const QVector<PropertyInfo> &propertyInfos);
     QString lookupName() const;
     QStringList lookupNameComponent() const;
     const CppComponentValue *getNearestCppComponentValue() const;
     QString fullQualifiedImportAliasType() const;
+
+    void ensureProperties() const;
+    void initialiseProperties();
 
     TypeName m_qualfiedTypeName;
     int m_majorVersion;
@@ -582,18 +585,20 @@ private:
     PropertyNameList m_localProperties;
     PropertyName m_defaultPropertyName;
     QList<TypeDescription> m_prototypes;
-    QSet<QString> m_prototypeCachePositives;
-    QSet<QString> m_prototypeCacheNegatives;
+    QSet<QByteArray> m_prototypeCachePositives;
+    QSet<QByteArray> m_prototypeCacheNegatives;
 
     //storing the pointer would not be save
     ContextPtr context() const;
     const Document *document() const;
 
     QPointer<Model> m_model;
-    static QHash<QString, Pointer> m_nodeMetaInfoCache;
+    static QHash<TypeName, Pointer> m_nodeMetaInfoCache;
+    const ObjectValue *m_objectValue = nullptr;
+    bool m_propertiesSetup = false;
 };
 
-QHash<QString, NodeMetaInfoPrivate::Pointer> NodeMetaInfoPrivate::m_nodeMetaInfoCache;
+QHash<TypeName, NodeMetaInfoPrivate::Pointer> NodeMetaInfoPrivate::m_nodeMetaInfoCache;
 
 bool NodeMetaInfoPrivate::isFileComponent() const
 {
@@ -602,25 +607,30 @@ bool NodeMetaInfoPrivate::isFileComponent() const
 
 PropertyNameList NodeMetaInfoPrivate::properties() const
 {
+    ensureProperties();
+
     return m_properties;
 }
 
 PropertyNameList NodeMetaInfoPrivate::localProperties() const
 {
+    ensureProperties();
+
     return m_localProperties;
 }
 
 PropertyNameList NodeMetaInfoPrivate::signalNames() const
 {
+    ensureProperties();
     return m_signals;
 }
 
-QSet<QString> &NodeMetaInfoPrivate::prototypeCachePositives()
+QSet<QByteArray> &NodeMetaInfoPrivate::prototypeCachePositives()
 {
     return m_prototypeCachePositives;
 }
 
-QSet<QString> &NodeMetaInfoPrivate::prototypeCacheNegatives()
+QSet<QByteArray> &NodeMetaInfoPrivate::prototypeCacheNegatives()
 {
     return m_prototypeCacheNegatives;
 }
@@ -637,9 +647,9 @@ PropertyName NodeMetaInfoPrivate::defaultPropertyName() const
     return PropertyName("data");
 }
 
-static inline QString stringIdentifier( const QString &type, int maj, int min)
+static inline TypeName stringIdentifier( const TypeName &type, int maj, int min)
 {
-    return type + QString::number(maj) + '_' + QString::number(min);
+    return type + QString::number(maj).toLatin1() + '_' + QString::number(min).toLatin1();
 }
 
 NodeMetaInfoPrivate::Pointer NodeMetaInfoPrivate::create(Model *model, const TypeName &type, int major, int minor)
@@ -676,12 +686,10 @@ NodeMetaInfoPrivate::NodeMetaInfoPrivate(Model *model, TypeName type, int maj, i
                 m_majorVersion = cppObjectValue->componentVersion().majorVersion();
                 m_minorVersion = cppObjectValue->componentVersion().minorVersion();
             }
-            setupPropertyInfo(getTypes(cppObjectValue, context()));
-            setupLocalPropertyInfo(getTypes(cppObjectValue, context(), true));
+            m_objectValue = cppObjectValue;
             m_defaultPropertyName = cppObjectValue->defaultPropertyName().toUtf8();
             m_isValid = true;
             setupPrototypes();
-            m_signals = getSignals(cppObjectValue, context());
         } else {
             const ObjectValue *objectValue = getObjectValue();
             if (objectValue) {
@@ -705,12 +713,10 @@ NodeMetaInfoPrivate::NodeMetaInfoPrivate(Model *model, TypeName type, int maj, i
                         m_minorVersion = importInfo.version().minorVersion();
                     }
                 }
-                setupPropertyInfo(getTypes(objectValue, context()));
-                setupLocalPropertyInfo(getTypes(objectValue, context(), true));
+                m_objectValue = objectValue;
                 m_defaultPropertyName = context()->defaultPropertyName(objectValue).toUtf8();
                 m_isValid = true;
                 setupPrototypes();
-                m_signals = getSignals(objectValue, context());
             }
         }
     }
@@ -748,7 +754,7 @@ const CppComponentValue *NodeMetaInfoPrivate::getCppComponentValue() const
         return value;
 
     // maybe 'type' is a cpp name
-    const CppComponentValue *cppValue = context()->valueOwner()->cppQmlTypes().objectByCppName(type);
+    const CppComponentValue *cppValue = context()->valueOwner()->cppQmlTypes().objectByCppName(QString::fromUtf8(type));
 
     if (cppValue) {
         foreach (const LanguageUtils::FakeMetaObject::Export &exportValue, cppValue->metaObject()->exports()) {
@@ -787,14 +793,14 @@ const Document *NodeMetaInfoPrivate::document() const
     return 0;
 }
 
-void NodeMetaInfoPrivate::setupLocalPropertyInfo(QList<PropertyInfo> localPropertyInfos)
+void NodeMetaInfoPrivate::setupLocalPropertyInfo(const QVector<PropertyInfo> &localPropertyInfos)
 {
     foreach (const PropertyInfo &propertyInfo, localPropertyInfos) {
         m_localProperties.append(propertyInfo.first);
     }
 }
 
-void NodeMetaInfoPrivate::setupPropertyInfo(QList<PropertyInfo> propertyInfos)
+void NodeMetaInfoPrivate::setupPropertyInfo(const QVector<PropertyInfo> &propertyInfos)
 {
     foreach (const PropertyInfo &propertyInfo, propertyInfos) {
         if (!m_properties.contains(propertyInfo.first)) {
@@ -809,16 +815,18 @@ bool NodeMetaInfoPrivate::isPropertyWritable(const PropertyName &propertyName) c
     if (!isValid())
         return false;
 
+    ensureProperties();
+
     if (propertyName.contains('.')) {
         const PropertyNameList parts = propertyName.split('.');
         const PropertyName objectName = parts.first();
         const PropertyName rawPropertyName = parts.last();
-        const QString objectType = propertyType(objectName);
+        const TypeName objectType = propertyType(objectName);
 
         if (isValueType(objectType))
             return true;
 
-        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType.toUtf8()));
+        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType));
         if (objectInfo->isValid())
             return objectInfo->isPropertyWritable(rawPropertyName);
         else
@@ -828,8 +836,8 @@ bool NodeMetaInfoPrivate::isPropertyWritable(const PropertyName &propertyName) c
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return true;
-    if (qmlObjectValue->hasProperty(propertyName))
-        return qmlObjectValue->isWritable(propertyName);
+    if (qmlObjectValue->hasProperty(QString::fromUtf8(propertyName)))
+        return qmlObjectValue->isWritable(QString::fromUtf8(propertyName));
     else
         return true; //all properties of components are writable
 }
@@ -840,16 +848,18 @@ bool NodeMetaInfoPrivate::isPropertyList(const PropertyName &propertyName) const
     if (!isValid())
         return false;
 
+    ensureProperties();
+
     if (propertyName.contains('.')) {
         const PropertyNameList parts = propertyName.split('.');
         const PropertyName objectName = parts.first();
         const PropertyName rawPropertyName = parts.last();
-        const QString objectType = propertyType(objectName);
+        const TypeName objectType = propertyType(objectName);
 
         if (isValueType(objectType))
             return false;
 
-        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType.toUtf8()));
+        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType));
         if (objectInfo->isValid())
             return objectInfo->isPropertyList(rawPropertyName);
         else
@@ -859,7 +869,7 @@ bool NodeMetaInfoPrivate::isPropertyList(const PropertyName &propertyName) const
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return false;
-    return qmlObjectValue->isListProperty(propertyName);
+    return qmlObjectValue->isListProperty(QString::fromUtf8(propertyName));
 }
 
 bool NodeMetaInfoPrivate::isPropertyPointer(const PropertyName &propertyName) const
@@ -867,16 +877,18 @@ bool NodeMetaInfoPrivate::isPropertyPointer(const PropertyName &propertyName) co
     if (!isValid())
         return false;
 
+    ensureProperties();
+
     if (propertyName.contains('.')) {
         const PropertyNameList parts = propertyName.split('.');
         const PropertyName objectName = parts.first();
         const PropertyName rawPropertyName = parts.last();
-        const QString objectType = propertyType(objectName);
+        const TypeName objectType = propertyType(objectName);
 
         if (isValueType(objectType))
             return false;
 
-        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType.toUtf8()));
+        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType));
         if (objectInfo->isValid())
             return objectInfo->isPropertyPointer(rawPropertyName);
         else
@@ -886,13 +898,15 @@ bool NodeMetaInfoPrivate::isPropertyPointer(const PropertyName &propertyName) co
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return false;
-    return qmlObjectValue->isPointer(propertyName);
+    return qmlObjectValue->isPointer(QString::fromUtf8(propertyName));
 }
 
 bool NodeMetaInfoPrivate::isPropertyEnum(const PropertyName &propertyName) const
 {
     if (!isValid())
         return false;
+
+    ensureProperties();
 
     if (propertyType(propertyName).contains("Qt::"))
         return true;
@@ -901,12 +915,12 @@ bool NodeMetaInfoPrivate::isPropertyEnum(const PropertyName &propertyName) const
         const PropertyNameList parts = propertyName.split('.');
         const PropertyName objectName = parts.first();
         const PropertyName rawPropertyName = parts.last();
-        const QString objectType = propertyType(objectName);
+        const TypeName objectType = propertyType(objectName);
 
         if (isValueType(objectType))
             return false;
 
-        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType.toUtf8()));
+        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType));
         if (objectInfo->isValid())
             return objectInfo->isPropertyEnum(rawPropertyName);
         else
@@ -916,13 +930,15 @@ bool NodeMetaInfoPrivate::isPropertyEnum(const PropertyName &propertyName) const
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return false;
-    return qmlObjectValue->getEnum(propertyType(propertyName)).isValid();
+    return qmlObjectValue->getEnum(QString::fromUtf8(propertyType(propertyName))).isValid();
 }
 
 QString NodeMetaInfoPrivate::propertyEnumScope(const PropertyName &propertyName) const
 {
     if (!isValid())
         return QString();
+
+    ensureProperties();
 
     if (propertyType(propertyName).contains("Qt::"))
         return QStringLiteral("Qt");
@@ -931,12 +947,12 @@ QString NodeMetaInfoPrivate::propertyEnumScope(const PropertyName &propertyName)
         const PropertyNameList parts = propertyName.split('.');
         const PropertyName objectName = parts.first();
         const PropertyName rawPropertyName = parts.last();
-        const QString objectType = propertyType(objectName);
+        const TypeName objectType = propertyType(objectName);
 
         if (isValueType(objectType))
             return QString();
 
-        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType.toUtf8()));
+        QSharedPointer<NodeMetaInfoPrivate> objectInfo(create(m_model, objectType));
         if (objectInfo->isValid())
             return objectInfo->propertyEnumScope(rawPropertyName);
         else
@@ -947,7 +963,7 @@ QString NodeMetaInfoPrivate::propertyEnumScope(const PropertyName &propertyName)
     if (!qmlObjectValue)
         return QString();
     const CppComponentValue *definedIn = 0;
-    qmlObjectValue->getEnum(propertyType(propertyName), &definedIn);
+    qmlObjectValue->getEnum(QString::fromUtf8(propertyType(propertyName)), &definedIn);
     if (definedIn) {
         QString nonCppPackage;
         foreach (const LanguageUtils::FakeMetaObject::Export &qmlExport, definedIn->metaObject()->exports()) {
@@ -966,25 +982,25 @@ QString NodeMetaInfoPrivate::propertyEnumScope(const PropertyName &propertyName)
     return QString();
 }
 
-static QString getUnqualifiedName(const QString &name)
+static QByteArray getUnqualifiedName(const QByteArray &name)
 {
-    const QStringList nameComponents = name.split('.');
+    const QList<QByteArray> nameComponents = name.split('.');
     if (nameComponents.size() < 2)
         return name;
     return nameComponents.last();
 }
 
-static QString getPackage(const QString &name)
+static QByteArray getPackage(const QByteArray &name)
 {
-    QStringList nameComponents = name.split('.');
+    QList<QByteArray> nameComponents = name.split('.');
     if (nameComponents.size() < 2)
-        return QString();
+        return QByteArray();
     nameComponents.removeLast();
 
-    return nameComponents.join(QLatin1Char('.'));
+    return nameComponents.join('.');
 }
 
-bool NodeMetaInfoPrivate::cleverCheckType(const QString &otherType) const
+bool NodeMetaInfoPrivate::cleverCheckType(const TypeName &otherType) const
 {
     if (otherType == qualfiedTypeName())
             return true;
@@ -992,28 +1008,28 @@ bool NodeMetaInfoPrivate::cleverCheckType(const QString &otherType) const
     if (isFileComponent())
         return false;
 
-    const QString typeName = getUnqualifiedName(otherType);
-    const QString package = getPackage(otherType);
+    const QByteArray typeName = getUnqualifiedName(otherType);
+    const QByteArray package = getPackage(otherType);
 
     if (cppPackageName() == package)
-        return QString(package + '.' + typeName) == cppPackageName() + '.' + getUnqualifiedName(qualfiedTypeName());
+        return QByteArray(package + '.' + typeName) == (cppPackageName() + '.' + getUnqualifiedName(qualfiedTypeName()));
 
     const CppComponentValue *qmlObjectValue = getCppComponentValue();
     if (!qmlObjectValue)
         return false;
 
     const LanguageUtils::FakeMetaObject::Export exp =
-            qmlObjectValue->metaObject()->exportInPackage(package);
+            qmlObjectValue->metaObject()->exportInPackage(QString::fromUtf8(package));
     QString convertedName = exp.type;
     if (convertedName.isEmpty())
         convertedName = qmlObjectValue->className();
 
-    return typeName == convertedName;
+    return typeName == convertedName.toUtf8();
 }
 
 QVariant::Type NodeMetaInfoPrivate::variantTypeId(const PropertyName &properyName) const
 {
-    QString typeName = propertyType(properyName);
+    TypeName typeName = propertyType(properyName);
     if (typeName == "string")
         return QVariant::String;
 
@@ -1044,7 +1060,7 @@ QVariant::Type NodeMetaInfoPrivate::variantTypeId(const PropertyName &properyNam
     if (typeName == "var")
         return QVariant::UserType;
 
-    return QVariant::nameToType(typeName.toUtf8().data());
+    return QVariant::nameToType(typeName.data());
 }
 
 int NodeMetaInfoPrivate::majorVersion() const
@@ -1079,13 +1095,13 @@ QStringList NodeMetaInfoPrivate::keysForEnum(const QString &enumName) const
     return qmlObjectValue->getEnum(enumName).keys();
 }
 
-QString NodeMetaInfoPrivate::cppPackageName() const
+QByteArray NodeMetaInfoPrivate::cppPackageName() const
 {
     if (!isFileComponent()) {
         if (const CppComponentValue *qmlObject = getCppComponentValue())
-            return qmlObject->moduleName();
+            return qmlObject->moduleName().toUtf8();
     }
-    return QString();
+    return QByteArray();
 }
 
 QString NodeMetaInfoPrivate::componentSource() const
@@ -1131,7 +1147,7 @@ QString NodeMetaInfoPrivate::importDirectoryPath() const
                     if (QDir(targetPath).exists())
                         return targetPath;
                     const QString targetPathVersion = QDir(importPath).filePath(importInfo.path()
-                                                                                + QLatin1Char('.')
+                                                                                + '.'
                                                                                 + QString::number(importInfo.version().majorVersion()));
                     if (QDir(targetPathVersion).exists())
                         return targetPathVersion;
@@ -1147,10 +1163,10 @@ QString NodeMetaInfoPrivate::lookupName() const
     QString className = QString::fromUtf8(m_qualfiedTypeName);
     QString packageName;
 
-    QStringList packageClassName = className.split(QLatin1Char('.'));
+    QStringList packageClassName = className.split('.');
     if (packageClassName.size() > 1) {
         className = packageClassName.takeLast();
-        packageName = packageClassName.join(QLatin1Char('.'));
+        packageName = packageClassName.join('.');
     }
 
     return CppQmlTypes::qualifiedName(
@@ -1173,6 +1189,8 @@ bool NodeMetaInfoPrivate::isValid() const
 
 TypeName NodeMetaInfoPrivate::propertyType(const PropertyName &propertyName) const
 {
+    ensureProperties();
+
     if (!m_properties.contains(propertyName))
         return TypeName("Property does not exist...");
     return m_propertyTypes.at(m_properties.indexOf(propertyName));
@@ -1200,32 +1218,32 @@ void NodeMetaInfoPrivate::setupPrototypes()
 
     foreach (const ObjectValue *ov, objects) {
         TypeDescription description;
-        description.className = ov->className().toUtf8();
+        description.className = ov->className();
         description.minorVersion = -1;
         description.majorVersion = -1;
         if (const CppComponentValue * qmlValue = value_cast<CppComponentValue>(ov)) {
             description.minorVersion = qmlValue->componentVersion().minorVersion();
             description.majorVersion = qmlValue->componentVersion().majorVersion();
-            LanguageUtils::FakeMetaObject::Export qtquickExport = qmlValue->metaObject()->exportInPackage("QtQuick");
-            LanguageUtils::FakeMetaObject::Export cppExport = qmlValue->metaObject()->exportInPackage("<cpp>");
+            LanguageUtils::FakeMetaObject::Export qtquickExport = qmlValue->metaObject()->exportInPackage(QLatin1String("QtQuick"));
+            LanguageUtils::FakeMetaObject::Export cppExport = qmlValue->metaObject()->exportInPackage(QLatin1String("<cpp>"));
 
             if (qtquickExport.isValid()) {
-                description.className = qtquickExport.package.toUtf8() + '.' + qtquickExport.type.toUtf8();
+                description.className = qtquickExport.package + '.' + qtquickExport.type;
             } else {
                 bool found = false;
                 if (cppExport.isValid()) {
                     foreach (const LanguageUtils::FakeMetaObject::Export &exportValue, qmlValue->metaObject()->exports()) {
                         if (exportValue.package.toUtf8() != "<cpp>") {
                             found = true;
-                            description.className = exportValue.package.toUtf8() + '.' + exportValue.type.toUtf8();
+                            description.className = exportValue.package + '.' + exportValue.type;
                         }
                     }
                 }
                 if (!found) {
                     if (qmlValue->moduleName().isEmpty() && cppExport.isValid()) {
-                        description.className = cppExport.package.toUtf8() + '.' + cppExport.type.toUtf8();
+                        description.className = cppExport.package + '.' + cppExport.type;
                     } else if (!qmlValue->moduleName().isEmpty()) {
-                        description.className = qmlValue->moduleName().toUtf8() + '.' + description.className;
+                        description.className.prepend(qmlValue->moduleName() + QLatin1Char('.'));
                     }
                 }
             }
@@ -1239,7 +1257,7 @@ void NodeMetaInfoPrivate::setupPrototypes()
                     QString uri = importInfo.name();
                     uri.replace(QStringLiteral(","), QStringLiteral("."));
                     if (!uri.isEmpty())
-                        description.className = QString(uri + QString::fromLatin1(".") + QString::fromUtf8(description.className)).toUtf8();
+                        description.className = QString(uri + "." + description.className);
                 }
 
                 m_prototypes.append(description);
@@ -1264,8 +1282,31 @@ const CppComponentValue *NodeMetaInfoPrivate::getNearestCppComponentValue() cons
 QString NodeMetaInfoPrivate::fullQualifiedImportAliasType() const
 {
     if (m_model && m_model->rewriterView())
-        return model()->rewriterView()->convertTypeToImportAlias(m_qualfiedTypeName);
-    return m_qualfiedTypeName;
+        return model()->rewriterView()->convertTypeToImportAlias(QString::fromUtf8(m_qualfiedTypeName));
+    return QString::fromUtf8(m_qualfiedTypeName);
+}
+
+void NodeMetaInfoPrivate::ensureProperties() const
+{
+    if (m_propertiesSetup)
+        return;
+
+    const_cast<NodeMetaInfoPrivate*>(this)->initialiseProperties();
+}
+
+void NodeMetaInfoPrivate::initialiseProperties()
+{
+    if (!isValid())
+        return;
+
+    m_propertiesSetup = true;
+
+    QTC_ASSERT(m_objectValue, qDebug() << qualfiedTypeName(); return);
+
+    setupPropertyInfo(getTypes(m_objectValue, context()));
+    setupLocalPropertyInfo(getTypes(m_objectValue, context(), true));
+
+    m_signals = getSignals(m_objectValue, context());
 }
 
 } //namespace Internal
@@ -1369,7 +1410,7 @@ QString NodeMetaInfo::propertyEnumScope(const PropertyName &propertyName) const
 
 QStringList NodeMetaInfo::propertyKeysForEnum(const PropertyName &propertyName) const
 {
-    return m_privateData->keysForEnum(propertyTypeName(propertyName));
+    return m_privateData->keysForEnum(QString::fromUtf8(propertyTypeName(propertyName)));
 }
 
 QVariant NodeMetaInfo::propertyCastedValue(const PropertyName &propertyName, const QVariant &value) const
@@ -1381,17 +1422,17 @@ QVariant NodeMetaInfo::propertyCastedValue(const PropertyName &propertyName, con
             || variant.canConvert<Enumeration>())
         return variant;
 
-    const QString typeName = propertyTypeName(propertyName);
+    const TypeName typeName = propertyTypeName(propertyName);
 
     QVariant::Type typeId = m_privateData->variantTypeId(propertyName);
 
     if (variant.type() == QVariant::UserType && variant.userType() == ModelNode::variantUserType()) {
         return variant;
-    } else if (typeId == QVariant::UserType && typeName == QStringLiteral("QVariant")) {
+    } else if (typeId == QVariant::UserType && typeName == "QVariant") {
         return variant;
-    } else if (typeId == QVariant::UserType && typeName == QStringLiteral("variant")) {
+    } else if (typeId == QVariant::UserType && typeName == "variant") {
         return variant;
-    } else if (typeId == QVariant::UserType && typeName == QStringLiteral("var")) {
+    } else if (typeId == QVariant::UserType && typeName == "var") {
         return variant;
     } else if (variant.type() == QVariant::List) {
         // TODO: check the contents of the list
@@ -1413,7 +1454,7 @@ QList<NodeMetaInfo> NodeMetaInfo::superClasses() const
     QList<NodeMetaInfo> list;
 
     foreach (const Internal::TypeDescription &type,  m_privateData->prototypes()) {
-        list.append(NodeMetaInfo(m_privateData->model(), type.className, type.majorVersion, type.minorVersion));
+        list.append(NodeMetaInfo(m_privateData->model(), type.className.toUtf8(), type.majorVersion, type.minorVersion));
     }
     return list;
 }
@@ -1426,9 +1467,9 @@ NodeMetaInfo NodeMetaInfo::directSuperClass() const
     return NodeMetaInfo();
 }
 
-QList<TypeName> NodeMetaInfo::superClassNames() const
+QStringList NodeMetaInfo::superClassNames() const
 {
-    QList<TypeName> list;
+    QStringList list;
 
     foreach (const Internal::TypeDescription &type,  m_privateData->prototypes()) {
         list.append(type.className);

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSBUILDSTEP_H
-#define QBSBUILDSTEP_H
+#pragma once
 
 #include "qbsbuildconfiguration.h"
 
@@ -46,6 +45,12 @@ class QbsBuildStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
+    enum VariableHandling
+    {
+        PreserveVariables,
+        ExpandVariables
+    };
+
     explicit QbsBuildStep(ProjectExplorer::BuildStepList *bsl);
     QbsBuildStep(ProjectExplorer::BuildStepList *bsl, const QbsBuildStep *other);
     ~QbsBuildStep() override;
@@ -59,7 +64,7 @@ public:
     bool runInGuiThread() const override;
     void cancel() override;
 
-    QVariantMap qbsConfiguration() const;
+    QVariantMap qbsConfiguration(VariableHandling variableHandling) const;
     void setQbsConfiguration(const QVariantMap &config);
 
     bool keepGoing() const;
@@ -68,6 +73,9 @@ public:
     bool cleanInstallRoot() const;
     int maxJobs() const;
     QString buildVariant() const;
+
+    void setForceProbes(bool force) { m_forceProbes = force; emit qbsConfigurationChanged(); }
+    bool forceProbes() const { return m_forceProbes; }
 
     bool isQmlDebuggingEnabled() const;
 
@@ -78,7 +86,7 @@ signals:
     void qbsConfigurationChanged();
     void qbsBuildOptionsChanged();
 
-private slots:
+private:
     void buildingDone(bool success);
     void reparsingDone(bool success);
     void handleTaskStarted(const QString &desciption, int max);
@@ -86,7 +94,6 @@ private slots:
     void handleCommandDescriptionReport(const QString &highlight, const QString &message);
     void handleProcessResultReport(const qbs::ProcessResult &result);
 
-private:
     void createTaskAndOutput(ProjectExplorer::Task::TaskType type,
                              const QString &message, const QString &file, int line);
 
@@ -107,6 +114,7 @@ private:
 
     QVariantMap m_qbsConfiguration;
     qbs::BuildOptions m_qbsBuildOptions;
+    bool m_forceProbes = false;
 
     // Temporary data:
     QStringList m_changedFiles;
@@ -123,44 +131,6 @@ private:
     friend class QbsBuildStepConfigWidget;
 };
 
-namespace Ui { class QbsBuildStepConfigWidget; }
-
-class QbsBuildStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
-{
-    Q_OBJECT
-public:
-    QbsBuildStepConfigWidget(QbsBuildStep *step);
-    ~QbsBuildStepConfigWidget();
-    QString summaryText() const;
-    QString displayName() const;
-
-private slots:
-    void updateState();
-    void updateQmlDebuggingOption();
-    void updatePropertyEdit(const QVariantMap &data);
-
-    void changeBuildVariant(int);
-    void changeShowCommandLines(bool show);
-    void changeKeepGoing(bool kg);
-    void changeJobCount(int count);
-    void changeInstall(bool install);
-    void changeCleanInstallRoot(bool clean);
-    void applyCachedProperties();
-
-    // QML debugging:
-    void linkQmlDebuggingLibraryChecked(bool checked);
-
-private:
-    bool validateProperties(Utils::FancyLineEdit *edit, QString *errorMessage);
-
-    Ui::QbsBuildStepConfigWidget *m_ui;
-
-    QList<QPair<QString, QString> > m_propertyCache;
-    QbsBuildStep *m_step;
-    QString m_summary;
-    bool m_ignoreChange;
-};
-
 class QbsBuildStepFactory : public ProjectExplorer::IBuildStepFactory
 {
     Q_OBJECT
@@ -168,21 +138,12 @@ class QbsBuildStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit QbsBuildStepFactory(QObject *parent = 0);
 
-    // used to show the list of possible additons to a target, returns a list of types
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const override;
-    // used to translate the types to names to display to the user
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    // used to recreate the runConfigurations when restoring settings
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) override;
 };
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSBUILDSTEP_H

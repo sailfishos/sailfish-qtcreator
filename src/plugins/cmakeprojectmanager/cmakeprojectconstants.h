@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <QtGlobal>
+
 namespace CMakeProjectManager {
 namespace Constants {
 
@@ -32,7 +34,7 @@ const char PROJECTCONTEXT[] = "CMakeProject.ProjectContext";
 const char CMAKEMIMETYPE[]  = "text/x-cmake";
 const char CMAKEPROJECTMIMETYPE[]  = "text/x-cmake-project";
 const char CMAKE_EDITOR_ID[] = "CMakeProject.CMakeEditor";
-const char CMAKE_EDITOR_DISPLAY_NAME[] = "CMake Editor";
+const char CMAKE_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CMakeProjectManager::Internal::CMakeEditorFactory", "CMake Editor");
 const char RUNCMAKE[] = "CMakeProject.RunCMake";
 const char CLEARCMAKECACHE[] = "CMakeProject.ClearCache";
 const char RUNCMAKECONTEXTMENU[] = "CMakeProject.RunCMakeContextMenu";
@@ -48,6 +50,9 @@ const char M_CONTEXT[] = "CMakeEditor.ContextMenu";
 
 // Settings page
 const char CMAKE_SETTINGSPAGE_ID[] = "Z.CMake";
+
+// Snippets
+const char CMAKE_SNIPPETS_GROUP_ID[] = "CMake";
 
 } // namespace Constants
 } // namespace CMakeProjectManager

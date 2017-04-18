@@ -330,6 +330,42 @@ bool isLiteral(AST::Node *ast)
 
 } // Anonymous
 
+QStringList qmlJSAutoComplete(QTextDocument *textDocument,
+                              int position,
+                              const QString &fileName,
+                              TextEditor::AssistReason reason,
+                              const SemanticInfo &info)
+{
+    QStringList list;
+    QmlJSCompletionAssistProcessor processor;
+    QScopedPointer<IAssistProposal> proposal(processor.perform( /* The processor takes ownership. */
+                                                 new QmlJSCompletionAssistInterface(
+                                                     textDocument,
+                                                     position,
+                                                     fileName,
+                                                     reason,
+                                                     info)));
+
+    if (proposal) {
+        GenericProposalModel *model = static_cast<GenericProposalModel*>(proposal->model());
+
+        int basePosition = proposal->basePosition();
+        const QString prefix = textDocument->toPlainText().mid(basePosition,
+                                                               position - basePosition);
+
+        if (reason == TextEditor::ExplicitlyInvoked) {
+            model->filter(prefix);
+            model->sort(prefix);
+        }
+
+        for (int i = 0; i < model->size(); ++i)
+            list.append(proposal->model()->text(i));
+        list.append(prefix);
+    }
+
+    return list;
+}
+
 } // namesapce QmlJSEditor
 
 Q_DECLARE_METATYPE(QmlJSEditor::CompleteFunctionCall)
@@ -379,8 +415,10 @@ void QmlJSAssistProposalItem::applyContextualContent(TextEditor::TextDocumentMan
     }
     const int length = manipulator.currentPosition() - basePosition + replacedLength;
     manipulator.replace(basePosition, length, content);
-    if (cursorOffset)
+    if (cursorOffset) {
         manipulator.setCursorPosition(manipulator.currentPosition() + cursorOffset);
+        manipulator.setAutoCompleteSkipPosition(manipulator.currentPosition());
+    }
 }
 
 // -------------------------
@@ -815,17 +853,15 @@ IAssistProposal *QmlJSCompletionAssistProcessor::perform(const AssistInterface *
 
         // add qml extra words
         if (doQmlKeywordCompletion && isQmlFile) {
-            static QStringList qmlWords;
-            static QStringList qmlWordsAlsoInJs;
-
-            if (qmlWords.isEmpty()) {
-                qmlWords << QLatin1String("property")
-                            //<< QLatin1String("readonly")
-                         << QLatin1String("signal")
-                         << QLatin1String("import");
-            }
-            if (qmlWordsAlsoInJs.isEmpty())
-                qmlWordsAlsoInJs << QLatin1String("default") << QLatin1String("function");
+            static QStringList qmlWords{
+                QLatin1String("property"),
+                //QLatin1String("readonly")
+                QLatin1String("signal"),
+                QLatin1String("import")
+            };
+            static QStringList qmlWordsAlsoInJs{
+                QLatin1String("default"), QLatin1String("function")
+            };
 
             addCompletions(&m_completions, qmlWords, m_interface->keywordIcon(), KeywordOrder);
             if (!doJsKeywordCompletion)

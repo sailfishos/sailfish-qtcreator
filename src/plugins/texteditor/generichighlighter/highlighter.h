@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HIGHLIGHTER_H
-#define HIGHLIGHTER_H
+#pragma once
 
 #include "context.h"
 
@@ -91,7 +90,8 @@ public:
         CommentVar,
         Import,
         Others,
-        Identifier
+        Identifier,
+        Documentation
     };
 
     void setTabSettings(const TabSettings &ts);
@@ -192,5 +192,3 @@ private:
 };
 
 } // namespace TextEditor
-
-#endif // HIGHLIGHTER_H

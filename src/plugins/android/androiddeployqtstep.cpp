@@ -50,82 +50,50 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/synchronousprocess.h>
 
 #include <QInputDialog>
 #include <QMessageBox>
 
 
+using namespace ProjectExplorer;
 using namespace Android;
 using namespace Android::Internal;
 
 const QLatin1String UninstallPreviousPackageKey("UninstallPreviousPackage");
 const QLatin1String InstallFailedInconsistentCertificatesString("INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES");
-const QLatin1String InstallFailedInconsistentCertificatesString2("INSTALL_FAILED_UPDATE_INCOMPATIBLE");
+const QLatin1String InstallFailedUpdateIncompatible("INSTALL_FAILED_UPDATE_INCOMPATIBLE");
+const QLatin1String InstallFailedPermissionModelDowngrade("INSTALL_FAILED_PERMISSION_MODEL_DOWNGRADE");
 const Core::Id AndroidDeployQtStep::Id("Qt4ProjectManager.AndroidDeployQtStep");
 
 //////////////////
 // AndroidDeployQtStepFactory
 /////////////////
 
+
 AndroidDeployQtStepFactory::AndroidDeployQtStepFactory(QObject *parent)
     : IBuildStepFactory(parent)
 {
 }
 
-QList<Core::Id> AndroidDeployQtStepFactory::availableCreationIds(ProjectExplorer::BuildStepList *parent) const
+QList<BuildStepInfo> AndroidDeployQtStepFactory::availableSteps(BuildStepList *parent) const
 {
-    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        return QList<Core::Id>();
-    if (!AndroidManager::supportsAndroid(parent->target()))
-        return QList<Core::Id>();
-    if (parent->contains(AndroidDeployQtStep::Id))
-        return QList<Core::Id>();
-    return QList<Core::Id>() << AndroidDeployQtStep::Id;
-}
+    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_DEPLOY
+            || !AndroidManager::supportsAndroid(parent->target())
+            || parent->contains(AndroidDeployQtStep::Id))
+        return {};
 
-QString AndroidDeployQtStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == AndroidDeployQtStep::Id)
-        return tr("Deploy to Android device or emulator");
-    return QString();
-}
-
-bool AndroidDeployQtStepFactory::canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const
-{
-    return availableCreationIds(parent).contains(id);
+    return {{ AndroidDeployQtStep::Id, tr("Deploy to Android device or emulator") }};
 }
 
 ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::create(ProjectExplorer::BuildStepList *parent, Core::Id id)
 {
-    Q_ASSERT(canCreate(parent, id));
     Q_UNUSED(id);
     return new AndroidDeployQtStep(parent);
 }
 
-bool AndroidDeployQtStepFactory::canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
-}
-
-ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map)
-{
-    Q_ASSERT(canRestore(parent, map));
-    AndroidDeployQtStep * const step = new AndroidDeployQtStep(parent);
-    if (!step->fromMap(map)) {
-        delete step;
-        return 0;
-    }
-    return step;
-}
-
-bool AndroidDeployQtStepFactory::canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const
-{
-    return canCreate(parent, product->id());
-}
-
 ProjectExplorer::BuildStep *AndroidDeployQtStepFactory::clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product)
 {
-    Q_ASSERT(canClone(parent, product));
     return new AndroidDeployQtStep(parent, static_cast<AndroidDeployQtStep *>(product));
 }
 
@@ -210,7 +178,7 @@ bool AndroidDeployQtStep::init(QList<const BuildStep *> &earlierSteps)
     m_libdir = QLatin1String("lib");
     if (info.cpuAbi.contains(QLatin1String("arm64-v8a")) ||
             info.cpuAbi.contains(QLatin1String("x86_64"))) {
-        ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit());
+        ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
         if (tc && tc->targetAbi().wordWidth() == 64) {
             m_appProcessBinaries << QLatin1String("/system/bin/app_process64");
             m_libdir += QLatin1String("64");
@@ -298,9 +266,8 @@ bool AndroidDeployQtStep::init(QList<const BuildStep *> &earlierSteps)
     return true;
 }
 
-AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterface<bool> &fi)
+AndroidDeployQtStep::DeployErrorCode AndroidDeployQtStep::runDeploy(QFutureInterface<bool> &fi)
 {
-    m_installOk = true;
     QString args;
     if (m_useAndroiddeployqt) {
         args = m_androiddeployqtArgs;
@@ -343,10 +310,11 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
     if (Utils::HostOsInfo::isWindowsHost())
         m_process->setUseCtrlCStub(true);
 
+    DeployErrorCode deployError = NoError;
     connect(m_process, &Utils::QtcProcess::readyReadStandardOutput,
-            this, &AndroidDeployQtStep::processReadyReadStdOutput, Qt::DirectConnection);
+            std::bind(&AndroidDeployQtStep::processReadyReadStdOutput, this, std::ref(deployError)));
     connect(m_process, &Utils::QtcProcess::readyReadStandardError,
-            this, &AndroidDeployQtStep::processReadyReadStdError, Qt::DirectConnection);
+            std::bind(&AndroidDeployQtStep::processReadyReadStdError, this, std::ref(deployError)));
 
     m_process->start();
 
@@ -354,7 +322,10 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
                    .arg(QDir::toNativeSeparators(m_command), args),
                    BuildStep::MessageOutput);
 
-    while (m_process->state() != QProcess::NotRunning && !m_process->waitForFinished(200)) {
+    while (!m_process->waitForFinished(200)) {
+        if (m_process->state() == QProcess::NotRunning)
+            break;
+
         if (fi.isCanceled()) {
             m_process->kill();
             m_process->waitForFinished();
@@ -362,12 +333,16 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
     }
 
     QString line = QString::fromLocal8Bit(m_process->readAllStandardError());
-    if (!line.isEmpty())
+    if (!line.isEmpty()) {
+        deployError |= parseDeployErrors(line);
         stdError(line);
+    }
 
     line = QString::fromLocal8Bit(m_process->readAllStandardOutput());
-    if (!line.isEmpty())
+    if (!line.isEmpty()) {
+        deployError |= parseDeployErrors(line);
         stdOutput(line);
+    }
 
     QProcess::ExitStatus exitStatus = m_process->exitStatus();
     int exitCode = m_process->exitCode();
@@ -386,23 +361,43 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
     }
 
     if (exitCode == 0 && exitStatus == QProcess::NormalExit) {
-        if (!m_installOk) {
-            if (!m_uninstallPreviousPackageRun)
-                return AskUinstall;
-            else
-                return Failure;
+        if (deployError != NoError && m_uninstallPreviousPackageRun) {
+            deployError = Failure;
         }
-        return Success;
+    } else {
+        deployError = Failure;
     }
-    return Failure;
+
+    return deployError;
 }
 
-void AndroidDeployQtStep::slotAskForUninstall()
+void AndroidDeployQtStep::slotAskForUninstall(DeployErrorCode errorCode)
 {
-    int button = QMessageBox::critical(0, tr("Install failed"),
-                                       tr("Another application with the same package id but signed with "
-                                          "different certificate already exists.\n"
-                                          "Do you want to uninstall the existing package?"),
+    Q_ASSERT(errorCode > 0);
+
+    QString uninstallMsg = tr("Deployment failed with the following errors:\n\n");
+    uint errorCodeFlags = errorCode;
+    uint mask = 1;
+    while (errorCodeFlags) {
+      switch (errorCodeFlags & mask) {
+      case DeployErrorCode::PermissionModelDowngrade:
+          uninstallMsg += InstallFailedPermissionModelDowngrade+"\n";
+          break;
+      case InconsistentCertificates:
+          uninstallMsg += InstallFailedInconsistentCertificatesString+"\n";
+          break;
+      case UpdateIncompatible:
+          uninstallMsg += InstallFailedUpdateIncompatible+"\n";
+          break;
+      default:
+          break;
+      }
+      errorCodeFlags &= ~mask;
+      mask <<= 1;
+    }
+
+    uninstallMsg.append(tr("\nUninstalling the installed package may solve the issue.\nDo you want to uninstall the existing package?"));
+    int button = QMessageBox::critical(0, tr("Install failed"), uninstallMsg,
                                        QMessageBox::Yes, QMessageBox::No);
     m_askForUinstall = button == QMessageBox::Yes;
 }
@@ -417,17 +412,16 @@ void AndroidDeployQtStep::run(QFutureInterface<bool> &fi)
     if (!m_avdName.isEmpty()) {
         QString serialNumber = AndroidConfigurations::currentConfig().waitForAvd(m_avdName, fi);
         if (serialNumber.isEmpty()) {
-            fi.reportResult(false);
-            emit finished();
+            reportRunResult(fi, false);
             return;
         }
         m_serialNumber = serialNumber;
         emit setSerialNumber(serialNumber);
     }
 
-    DeployResult returnValue = runDeploy(fi);
-    if (returnValue == AskUinstall) {
-        emit askForUninstall();
+    DeployErrorCode returnValue = runDeploy(fi);
+    if (returnValue > DeployErrorCode::NoError && returnValue < DeployErrorCode::Failure) {
+        emit askForUninstall(returnValue);
         if (m_askForUinstall) {
             m_uninstallPreviousPackageRun = true;
             returnValue = runDeploy(fi);
@@ -460,31 +454,17 @@ void AndroidDeployQtStep::run(QFutureInterface<bool> &fi)
                << QLatin1String("/system/") + m_libdir + QLatin1String("/libc.so")
                << QString::fromLatin1("%1/libc.so").arg(m_buildDirectory));
 
-    fi.reportResult(returnValue == Success ? true : false);
-    fi.reportFinished();
+    reportRunResult(fi, returnValue == NoError);
 }
 
 void AndroidDeployQtStep::runCommand(const QString &program, const QStringList &arguments)
 {
-    QProcess buildProc;
+    Utils::SynchronousProcess buildProc;
+    buildProc.setTimeoutS(2 * 60);
     emit addOutput(tr("Package deploy: Running command \"%1 %2\".").arg(program).arg(arguments.join(QLatin1Char(' '))), BuildStep::MessageOutput);
-    buildProc.start(program, arguments);
-    if (!buildProc.waitForStarted()) {
-        emit addOutput(tr("Packaging error: Could not start command \"%1 %2\". Reason: %3")
-            .arg(program).arg(arguments.join(QLatin1Char(' '))).arg(buildProc.errorString()), BuildStep::ErrorMessageOutput);
-        return;
-    }
-    if (!buildProc.waitForFinished(2 * 60 * 1000)
-            || buildProc.error() != QProcess::UnknownError
-            || buildProc.exitCode() != 0) {
-        QString mainMessage = tr("Packaging error: Command \"%1 %2\" failed.")
-                .arg(program).arg(arguments.join(QLatin1Char(' ')));
-        if (buildProc.error() != QProcess::UnknownError)
-            mainMessage += QLatin1Char(' ') + tr("Reason: %1").arg(buildProc.errorString());
-        else
-            mainMessage += tr("Exit code: %1").arg(buildProc.exitCode());
-        emit addOutput(mainMessage, BuildStep::ErrorMessageOutput);
-    }
+    Utils::SynchronousProcessResponse response = buildProc.run(program, arguments);
+    if (response.result != Utils::SynchronousProcessResponse::Finished || response.exitCode != 0)
+        emit addOutput(response.exitMessage(program, 2 * 60), BuildStep::ErrorMessageOutput);
 }
 
 AndroidDeviceInfo AndroidDeployQtStep::deviceInfo() const
@@ -497,38 +477,48 @@ ProjectExplorer::BuildStepConfigWidget *AndroidDeployQtStep::createConfigWidget(
     return new AndroidDeployQtWidget(this);
 }
 
-void AndroidDeployQtStep::processReadyReadStdOutput()
+void AndroidDeployQtStep::processReadyReadStdOutput(DeployErrorCode &errorCode)
 {
     m_process->setReadChannel(QProcess::StandardOutput);
     while (m_process->canReadLine()) {
         QString line = QString::fromLocal8Bit(m_process->readLine());
+        errorCode |= parseDeployErrors(line);
         stdOutput(line);
     }
 }
 
 void AndroidDeployQtStep::stdOutput(const QString &line)
 {
-    if (line.contains(InstallFailedInconsistentCertificatesString)
-            || line.contains(InstallFailedInconsistentCertificatesString2))
-        m_installOk = false;
     emit addOutput(line, BuildStep::NormalOutput, BuildStep::DontAppendNewline);
 }
 
-void AndroidDeployQtStep::processReadyReadStdError()
+void AndroidDeployQtStep::processReadyReadStdError(DeployErrorCode &errorCode)
 {
     m_process->setReadChannel(QProcess::StandardError);
     while (m_process->canReadLine()) {
         QString line = QString::fromLocal8Bit(m_process->readLine());
+        errorCode |= parseDeployErrors(line);
         stdError(line);
     }
 }
 
 void AndroidDeployQtStep::stdError(const QString &line)
 {
-    if (line.contains(InstallFailedInconsistentCertificatesString)
-            || line.contains(InstallFailedInconsistentCertificatesString2))
-        m_installOk = false;
     emit addOutput(line, BuildStep::ErrorOutput, BuildStep::DontAppendNewline);
+}
+
+AndroidDeployQtStep::DeployErrorCode AndroidDeployQtStep::parseDeployErrors(QString &deployOutputLine) const
+{
+    DeployErrorCode errorCode = NoError;
+
+    if (deployOutputLine.contains(InstallFailedInconsistentCertificatesString))
+        errorCode |= InconsistentCertificates;
+    if (deployOutputLine.contains(InstallFailedUpdateIncompatible))
+        errorCode |= UpdateIncompatible;
+    if (deployOutputLine.contains(InstallFailedPermissionModelDowngrade))
+        errorCode |= PermissionModelDowngrade;
+
+    return errorCode;
 }
 
 bool AndroidDeployQtStep::fromMap(const QVariantMap &map)

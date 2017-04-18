@@ -28,6 +28,7 @@
 #include "effects.h"
 #include "reuse.h"
 
+#include <utils/faketooltip.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
@@ -83,6 +84,17 @@ void ToolTip::show(const QPoint &pos, QWidget *content, QWidget *w, const QStrin
         instance()->hideTipWithDelay();
     else
         instance()->showInternal(pos, QVariant::fromValue(content), WidgetContent, w, helpId, rect);
+}
+
+void ToolTip::show(const QPoint &pos, QLayout *content, QWidget *w, const QString &helpId, const QRect &rect)
+{
+    if (content && content->count()) {
+        auto tooltipWidget = new FakeToolTip;
+        tooltipWidget->setLayout(content);
+        instance()->showInternal(pos, QVariant::fromValue(tooltipWidget), WidgetContent, w, helpId, rect);
+    } else {
+        instance()->hideTipWithDelay();
+    }
 }
 
 void ToolTip::move(const QPoint &pos, QWidget *w)
@@ -292,18 +304,17 @@ bool ToolTip::eventFilter(QObject *o, QEvent *event)
         return false;
 
     switch (event->type()) {
-#ifdef Q_OS_MAC
     case QEvent::KeyPress:
-    case QEvent::KeyRelease: {
-        int key = static_cast<QKeyEvent *>(event)->key();
-        Qt::KeyboardModifiers mody = static_cast<QKeyEvent *>(event)->modifiers();
-        if (!(mody & Qt::KeyboardModifierMask)
-            && key != Qt::Key_Shift && key != Qt::Key_Control
-            && key != Qt::Key_Alt && key != Qt::Key_Meta)
-            hideTipWithDelay();
+    case QEvent::KeyRelease:
+        if (HostOsInfo::isMacHost()) {
+            int key = static_cast<QKeyEvent *>(event)->key();
+            Qt::KeyboardModifiers mody = static_cast<QKeyEvent *>(event)->modifiers();
+            if (!(mody & Qt::KeyboardModifierMask)
+                && key != Qt::Key_Shift && key != Qt::Key_Control
+                && key != Qt::Key_Alt && key != Qt::Key_Meta)
+                hideTipWithDelay();
+        }
         break;
-    }
-#endif
     case QEvent::Leave:
         if (o == m_tip && !m_tip->isAncestorOf(qApp->focusWidget()))
             hideTipWithDelay();

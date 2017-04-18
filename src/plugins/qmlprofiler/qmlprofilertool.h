@@ -23,12 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERTOOL_H
-#define QMLPROFILERTOOL_H
+#pragma once
 
 #include "qmlprofiler_global.h"
 #include "qmlprofilerconstants.h"
-#include "qmldebug/qmlprofilereventtypes.h"
+#include "qmlprofilereventtypes.h"
 
 #include <debugger/analyzer/analyzermanager.h>
 #include <debugger/analyzer/analyzerruncontrol.h>
@@ -60,8 +59,6 @@ public:
     static QList <QAction *> profilerContextMenuActions();
 
     // display dialogs / log output
-    static QMessageBox *requestMessageBox();
-    static void handleHelpRequest(const QString &link);
     static void logState(const QString &msg);
     static void logError(const QString &msg);
     static void showNonmodalWarning(const QString &warningMsg);
@@ -99,7 +96,7 @@ private:
     void updateRunActions();
     void clearDisplay();
     void populateFileFinder(QString projectDirectory = QString(), QString activeSysroot = QString());
-    template<QmlDebug::ProfileFeature feature>
+    template<ProfileFeature feature>
     void updateFeatures(quint64 features);
     bool checkForUnsavedNotes();
     void restoreFeatureVisibility();
@@ -111,5 +108,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlProfiler
-
-#endif // QMLPROFILERTOOL_H

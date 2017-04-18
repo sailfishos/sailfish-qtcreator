@@ -29,7 +29,6 @@
 #include "winrtrunconfiguration.h"
 #include "winrtrunnerhelper.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -38,6 +37,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/kitinformation.h>
 #include <qtsupport/qtkitinformation.h>
+#include <utils/utilsicons.h>
 
 #include <QTimer>
 
@@ -56,7 +56,7 @@ WinRtRunControl::WinRtRunControl(WinRtRunConfiguration *runConfiguration, Core::
     , m_state(StoppedState)
     , m_runner(0)
 {
-    setIcon(Core::Icons::RUN_SMALL_TOOLBAR);
+    setIcon(Utils::Icons::RUN_SMALL_TOOLBAR);
 }
 
 void WinRtRunControl::start()
@@ -108,9 +108,9 @@ bool WinRtRunControl::startWinRtRunner()
 {
     QTC_ASSERT(!m_runner, return false);
     m_runner = new WinRtRunnerHelper(this);
-    connect(m_runner, SIGNAL(started()), SLOT(onProcessStarted()));
-    connect(m_runner, SIGNAL(finished(int,QProcess::ExitStatus)), SLOT(onProcessFinished()));
-    connect(m_runner, SIGNAL(error(QProcess::ProcessError)), SLOT(onProcessError()));
+    connect(m_runner, &WinRtRunnerHelper::started, this, &WinRtRunControl::onProcessStarted);
+    connect(m_runner, &WinRtRunnerHelper::finished, this, &WinRtRunControl::onProcessFinished);
+    connect(m_runner, &WinRtRunnerHelper::error, this, &WinRtRunControl::onProcessError);
     m_state = StartingState;
     m_runner->start();
     return true;

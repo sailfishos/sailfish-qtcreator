@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_BREAKHANDLER_H
-#define DEBUGGER_BREAKHANDLER_H
+#pragma once
 
 #include "breakpoint.h"
 #include "debuggerprotocol.h"
@@ -34,15 +33,12 @@
 #include <QCoreApplication>
 #include <QPointer>
 
-//////////////////////////////////////////////////////////////////
-//
-// BreakHandler
-//
-//////////////////////////////////////////////////////////////////
+namespace Utils { class ItemViewEvent; }
 
 namespace Debugger {
 namespace Internal {
 
+class LocationItem;
 class BreakpointItem;
 class BreakHandler;
 class DebuggerCommand;
@@ -100,8 +96,8 @@ public:
     // obtained the BreakpointItem pointer.
     BreakpointPathUsage pathUsage() const;
     void setPathUsage(const BreakpointPathUsage &u);
-    QByteArray condition() const;
-    void setCondition(const QByteArray &condition);
+    QString condition() const;
+    void setCondition(const QString &condition);
     int ignoreCount() const;
     void setIgnoreCount(const int &count);
     int threadSpec() const;
@@ -163,7 +159,9 @@ inline uint qHash(const Debugger::Internal::Breakpoint &b) { return b.hash(); }
 
 typedef QList<Breakpoint> Breakpoints;
 
-class BreakHandler : public Utils::TreeModel
+using BreakModel = Utils::TreeModel<Utils::TypedTreeItem<BreakpointItem>, BreakpointItem, LocationItem>;
+
+class BreakHandler : public BreakModel
 {
     Q_OBJECT
 
@@ -193,13 +191,6 @@ public:
     Breakpoints findBreakpointsByIndex(const QList<QModelIndex> &list) const;
     void updateMarkers();
 
-    static QIcon breakpointIcon();
-    static QIcon disabledBreakpointIcon();
-    static QIcon pendingBreakpointIcon();
-    static QIcon emptyIcon();
-    static QIcon watchpointIcon();
-    static QIcon tracepointIcon();
-
     Breakpoint findBreakpointByFileAndLine(const QString &fileName,
         int lineNumber, bool useMarkerPosition = true);
     Breakpoint findBreakpointByAddress(quint64 address) const;
@@ -213,8 +204,15 @@ public:
     void setWatchpointAtExpression(const QString &exp);
 
     Breakpoint breakpointById(BreakpointModelId id) const;
+    void editBreakpoint(Breakpoint bp, QWidget *parent);
 
 private:
+    QVariant data(const QModelIndex &idx, int role) const override;
+    bool setData(const QModelIndex &idx, const QVariant &value, int role) override;
+    void timerEvent(QTimerEvent *event) override;
+
+    bool contextMenuEvent(const Utils::ItemViewEvent &ev);
+
     friend class BreakpointItem;
     friend class Breakpoint;
 
@@ -222,12 +220,17 @@ private:
     void saveBreakpoints();
 
     void appendBreakpointInternal(const BreakpointParameters &data);
+    void deleteBreakpoints(const Breakpoints &bps);
+    void deleteAllBreakpoints();
+    void setBreakpointsEnabled(const Breakpoints &bps, bool enabled);
+    void addBreakpoint();
+    void editBreakpoints(const Breakpoints &bps, QWidget *parent);
 
     Q_SLOT void changeLineNumberFromMarkerHelper(Debugger::Internal::BreakpointModelId id);
     Q_SLOT void deletionHelper(Debugger::Internal::BreakpointModelId id);
 
     void scheduleSynchronization();
-    void timerEvent(QTimerEvent *event);
+
     int m_syncTimerId;
 };
 
@@ -235,5 +238,3 @@ private:
 } // namespace Debugger
 
 Q_DECLARE_METATYPE(Debugger::Internal::Breakpoint)
-
-#endif // DEBUGGER_BREAKHANDLER_H

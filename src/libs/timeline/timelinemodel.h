@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINEMODEL_H
-#define TIMELINEMODEL_H
+#pragma once
 
 #include "timeline_global.h"
 #include "timelinerenderpass.h"
@@ -38,15 +37,15 @@ class TIMELINE_EXPORT TimelineModel : public QObject
     Q_OBJECT
     Q_PROPERTY(int modelId READ modelId CONSTANT)
     Q_PROPERTY(QString displayName READ displayName WRITE setDisplayName NOTIFY displayNameChanged)
-    Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY contentChanged)
     Q_PROPERTY(bool hidden READ hidden WRITE setHidden NOTIFY hiddenChanged)
     Q_PROPERTY(bool expanded READ expanded WRITE setExpanded NOTIFY expandedChanged)
     Q_PROPERTY(int height READ height NOTIFY heightChanged)
     Q_PROPERTY(int expandedRowCount READ expandedRowCount NOTIFY expandedRowCountChanged)
     Q_PROPERTY(int collapsedRowCount READ collapsedRowCount NOTIFY collapsedRowCountChanged)
     Q_PROPERTY(int rowCount READ rowCount NOTIFY rowCountChanged)
-    Q_PROPERTY(QVariantList labels READ labels NOTIFY labelsChanged)
-    Q_PROPERTY(int count READ count NOTIFY emptyChanged)
+    Q_PROPERTY(QVariantList labels READ labels NOTIFY contentChanged)
+    Q_PROPERTY(int count READ count NOTIFY contentChanged)
     Q_PROPERTY(int defaultRowHeight READ defaultRowHeight CONSTANT)
 
 public:
@@ -100,8 +99,6 @@ public:
     Q_INVOKABLE virtual QVariantMap location(int index) const;
     Q_INVOKABLE virtual int typeId(int index) const;
     Q_INVOKABLE virtual bool handlesTypeId(int typeId) const;
-    Q_INVOKABLE virtual int selectionIdForLocation(const QString &filename, int line,
-                                                   int column) const;
     Q_INVOKABLE virtual float relativeHeight(int index) const;
     Q_INVOKABLE virtual int rowMinValue(int rowNumber) const;
     Q_INVOKABLE virtual int rowMaxValue(int rowNumber) const;
@@ -118,12 +115,11 @@ signals:
     void expandedChanged();
     void hiddenChanged();
     void expandedRowHeightChanged(int row, int height);
-    void emptyChanged();
+    void contentChanged();
     void heightChanged();
     void expandedRowCountChanged();
     void collapsedRowCountChanged();
     void rowCountChanged();
-    void labelsChanged();
     void displayNameChanged();
 
 protected:
@@ -141,13 +137,9 @@ protected:
 
     virtual void clear();
 
-    explicit TimelineModel(TimelineModelPrivate &dd, QObject *parent);
-    TimelineModelPrivate *d_ptr;
-
 private:
+    TimelineModelPrivate *d_ptr;
     Q_DECLARE_PRIVATE(TimelineModel)
 };
 
 } // namespace Timeline
-
-#endif // TIMELINEMODEL_H

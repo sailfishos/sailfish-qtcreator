@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDEBUGCLIENT_H
-#define QMLDEBUGCLIENT_H
+#pragma once
 
 #include "qmldebug_global.h"
 #include <qtcpsocket.h>
@@ -62,22 +61,20 @@ public:
     float serviceVersion(const QString &serviceName) const;
     bool sendMessage(const QString &name, const QByteArray &message);
 
-    static QString socketStateToString(QAbstractSocket::SocketState state);
-    static QString socketErrorToString(QAbstractSocket::SocketError error);
-
 signals:
     void connected();
     void disconnected();
-    void socketError(QAbstractSocket::SocketError error);
-    void socketStateChanged(QAbstractSocket::SocketState state);
+    void connectionFailed();
 
-private slots:
+    void logError(const QString &error);
+    void logStateChange(const QString &state);
+
+private:
     void newConnection();
     void socketConnected();
     void socketDisconnected();
     void protocolReadyRead();
 
-private:
     QScopedPointer<QmlDebugConnectionPrivate> d_ptr;
 };
 
@@ -111,5 +108,3 @@ private:
 };
 
 } // namespace QmlDebug
-
-#endif // QMLDEBUGCLIENT_H

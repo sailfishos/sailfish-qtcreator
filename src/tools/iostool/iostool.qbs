@@ -2,7 +2,7 @@ import qbs 1.0
 
 QtcTool {
     name: "iostool"
-    condition: qbs.targetOS.contains("osx")
+    condition: qbs.targetOS.contains("macos")
 
     Depends { name: "bundle" }
     Depends { name: "Qt.widgets" }
@@ -11,14 +11,13 @@ QtcTool {
     Depends { name: "app_version_header" }
 
     files: [
+        "Info.plist",
         "main.cpp",
         "iosdevicemanager.cpp",
         "iosdevicemanager.h"
     ]
     cpp.frameworks: base.concat(["CoreFoundation", "CoreServices", "IOKit", "Security",
                                  "SystemConfiguration"])
-    cpp.dynamicLibraries: base.concat(["ssl", "bz2"])
-    bundle.infoPlistFile: "Info.plist"
 
-    installDir: project.ide_libexec_path + "/ios"
+    installDir: qtc.ide_libexec_path + "/ios"
 }

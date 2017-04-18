@@ -23,6 +23,8 @@
 **
 ****************************************************************************/
 
+#include "googletest.h"
+
 #include "chunksreportedmonitor.h"
 
 #include <QSignalSpy>
@@ -43,10 +45,8 @@ bool ChunksReportedMonitor::waitUntilFinished(int timeoutInMs)
     return spy.wait(timeoutInMs);
 }
 
-void ChunksReportedMonitor::onResultsReadyAt(int beginIndex, int endIndex)
+void ChunksReportedMonitor::onResultsReadyAt(int, int)
 {
-    Q_UNUSED(beginIndex)
-    Q_UNUSED(endIndex)
     ++m_resultsReadyCounter;
 }
 

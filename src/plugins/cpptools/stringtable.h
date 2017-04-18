@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef STRINGTABLE_H
-#define STRINGTABLE_H
+#pragma once
 
 #include <QAtomicInt>
 #include <QMutex>
@@ -46,11 +45,10 @@ public:
     QString insert(const QString &string);
     void scheduleGC();
 
-private slots:
-    void startGC();
-
 private:
+    void startGC();
     void GC();
+
     class GCRunner: public QRunnable {
         StringTable &m_stringTable;
 
@@ -69,5 +67,3 @@ private:
 
 } // Internal namespace
 } // CppTools namespace
-
-#endif // STRINGTABLE_H

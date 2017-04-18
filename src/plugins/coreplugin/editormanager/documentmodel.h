@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DOCUMENTMODEL_H
-#define DOCUMENTMODEL_H
+#pragma once
 
 #include "../core_global.h"
 #include "../id.h"
@@ -70,6 +69,7 @@ public:
     static QList<Entry *> entries();
     static int indexOfDocument(IDocument *document);
     static Entry *entryForDocument(IDocument *document);
+    static Entry *entryForFilePath(const Utils::FileName &filePath);
     static QList<IDocument *> openedDocuments();
 
     static IDocument *documentForFilePath(const QString &filePath);
@@ -78,19 +78,10 @@ public:
     static QList<IEditor *> editorsForDocuments(const QList<IDocument *> &entries);
     static QList<IEditor *> editorsForOpenedDocuments();
 
-    // editor manager related functions, nobody else should call it
-    static void addEditor(IEditor *editor, bool *isNewDocument);
-    static void addSuspendedDocument(const QString &fileName, const QString &displayName, Id id);
-    static Entry *firstSuspendedEntry();
-    static void removeEditor(IEditor *editor, bool *lastOneForDocument);
-    static void removeDocument(const QString &fileName);
-    static void removeEntry(Entry *entry);
-    static void removeAllSuspendedEntries();
-
 private:
     DocumentModel();
 };
 
 } // namespace Core
 
-#endif // DOCUMENTMODEL_H
+Q_DECLARE_METATYPE(Core::DocumentModel::Entry *)

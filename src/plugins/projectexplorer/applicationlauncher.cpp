@@ -88,8 +88,8 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate() :
 {
 }
 
-ApplicationLauncher::ApplicationLauncher(QObject *parent)
-    : QObject(parent), d(new ApplicationLauncherPrivate)
+ApplicationLauncher::ApplicationLauncher(QObject *parent) : QObject(parent),
+    d(new ApplicationLauncherPrivate)
 {
     if (ProjectExplorerPlugin::projectExplorerSettings().mergeStdErrAndStdOut){
         d->m_guiProcess.setReadChannelMode(QProcess::MergedChannels);
@@ -100,14 +100,12 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
     }
     connect(&d->m_guiProcess, &QProcess::readyReadStandardOutput,
             this, &ApplicationLauncher::readStandardOutput);
-    connect(&d->m_guiProcess, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+    connect(&d->m_guiProcess, &QProcess::errorOccurred,
             this, &ApplicationLauncher::guiProcessError);
     connect(&d->m_guiProcess, static_cast<void (QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
             this, &ApplicationLauncher::processDone);
-    connect(&d->m_guiProcess, &QProcess::started,
-            this, &ApplicationLauncher::bringToForeground);
-    connect(&d->m_guiProcess, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &ApplicationLauncher::error);
+    connect(&d->m_guiProcess, &QProcess::started, this, &ApplicationLauncher::bringToForeground);
+    connect(&d->m_guiProcess, &QProcess::errorOccurred, this, &ApplicationLauncher::error);
 
 #ifdef Q_OS_UNIX
     d->m_consoleProcess.setSettings(Core::ICore::settings());
@@ -174,7 +172,7 @@ void ApplicationLauncher::stop()
         return;
     if (d->m_currentMode == Gui) {
         d->m_guiProcess.terminate();
-        if (!d->m_guiProcess.waitForFinished(1000)) { // This is blocking, so be fast.
+        if (!d->m_guiProcess.waitForFinished(1000) && d->m_guiProcess.state() == QProcess::Running) { // This is blocking, so be fast.
             d->m_guiProcess.kill();
             d->m_guiProcess.waitForFinished();
         }

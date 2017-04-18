@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MODELNODEOPERATIONS_H
-#define MODELNODEOPERATIONS_H
+#pragma once
 
 #include "selectioncontext.h"
 
@@ -64,12 +63,13 @@ void layoutFlowPositioner(const SelectionContext &selectionState);
 void layoutRowLayout(const SelectionContext &selectionState);
 void layoutColumnLayout(const SelectionContext &selectionState);
 void layoutGridLayout(const SelectionContext &selectionState);
-void gotoImplementation(const SelectionContext &selectionState);
+void goImplementation(const SelectionContext &selectionState);
+void addNewSignalHandler(const SelectionContext &selectionState);
+void addSignalHandlerOrGotoImplementation(const SelectionContext &selectionState, bool addAlwaysNewSlot);
 void removeLayout(const SelectionContext &selectionContext);
 void removePositioner(const SelectionContext &selectionContext);
+void moveToComponent(const SelectionContext &selectionContext);
 
 
 } // namespace ModelNodeOperationso
 } //QmlDesigner
-
-#endif //MODELNODEOPERATIONS_H

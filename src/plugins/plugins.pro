@@ -6,7 +6,6 @@ SUBDIRS   = \
     autotest \
     clangstaticanalyzer \
     coreplugin \
-    qmlprofilerextension \
     texteditor \
     cppeditor \
     bineditor \
@@ -36,6 +35,7 @@ SUBDIRS   = \
     qmlprojectmanager \
     glsleditor \
     pythoneditor \
+    nim \
     mercurial \
     bazaar \
     classview \
@@ -57,6 +57,7 @@ SUBDIRS   = \
     winrt \
     qmlprofiler \
     updateinfo \
+    scxmleditor \
     welcome
 
 DO_NOT_BUILD_QMLDESIGNER = $$(DO_NOT_BUILD_QMLDESIGNER)
@@ -76,6 +77,10 @@ exists(../shared/qbs/qbs.pro)|!isEmpty(QBS_INSTALL_DIR): \
 isEmpty(LLVM_INSTALL_DIR):LLVM_INSTALL_DIR=$$(LLVM_INSTALL_DIR)
 exists($$LLVM_INSTALL_DIR) {
     SUBDIRS += clangcodemodel
+#    SUBDIRS += clangrefactoring
+} else {
+    warning("Set LLVM_INSTALL_DIR to build the Clang Code Model. " \
+            "For details, see doc/src/editors/creator-clang-codemodel.qdoc.")
 }
 
 isEmpty(IDE_PACKAGE_MODE) {

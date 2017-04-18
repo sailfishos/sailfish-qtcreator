@@ -35,8 +35,11 @@
 #include <QDebug>
 #include <QFile>
 #include <QFont>
+#include <QFontDatabase>
 #include <QSettings>
 #include <QTextCharFormat>
+
+#include <cmath>
 
 static const char fontFamilyKey[] = "FontFamily";
 static const char fontSizeKey[] = "FontSize";
@@ -68,6 +71,7 @@ void FontSettings::clear()
     m_antialias = DEFAULT_ANTIALIAS;
     m_scheme.clear();
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 void FontSettings::toSettings(const QString &category,
@@ -180,12 +184,9 @@ QTextCharFormat FontSettings::toTextCharFormat(TextStyle category) const
     return tf;
 }
 
-uint qHash(const TextStyles &textStyles)
+uint qHash(TextStyles textStyles)
 {
-    uint hash = qHash(textStyles.mainStyle);
-    for (TextStyle mixinStyle : textStyles.mixinStyles)
-        hash ^= qHash(mixinStyle);
-    return hash;
+    return ::qHash(reinterpret_cast<quint64&>(textStyles));
 }
 
 bool operator==(const TextStyles &first, const TextStyles &second)
@@ -194,31 +195,60 @@ bool operator==(const TextStyles &first, const TextStyles &second)
         && first.mixinStyles == second.mixinStyles;
 }
 
+namespace {
+
+double clamp(double value)
+{
+    return std::max(0.0, std::min(1.0, value));
+}
+
+QBrush mixBrush(const QBrush &original, double relativeSaturation, double relativeLightness)
+{
+    const QColor originalColor = original.color().toHsl();
+    QColor mixedColor(QColor::Hsl);
+
+    double mixedSaturation = clamp(originalColor.hslSaturationF() + relativeSaturation);
+
+    double mixedLightness = clamp(originalColor.lightnessF() + relativeLightness);
+
+    mixedColor.setHslF(originalColor.hslHueF(), mixedSaturation, mixedLightness);
+
+    return mixedColor;
+}
+}
+
 void FontSettings::addMixinStyle(QTextCharFormat &textCharFormat,
                                  const MixinTextStyles &mixinStyles) const
 {
     for (TextStyle mixinStyle : mixinStyles) {
-        const QTextCharFormat mixinTextCharFormat = toTextCharFormat(mixinStyle);
-        if (!textCharFormat.hasProperty(QTextFormat::ForegroundBrush))
-            textCharFormat.setForeground(mixinTextCharFormat.foreground());
+        const Format &format = m_scheme.formatFor(mixinStyle);
 
-        if (!textCharFormat.hasProperty(QTextFormat::BackgroundBrush))
-            textCharFormat.setBackground(mixinTextCharFormat.background());
+        if (textCharFormat.hasProperty(QTextFormat::ForegroundBrush)) {
+            textCharFormat.setForeground(mixBrush(textCharFormat.foreground(),
+                                                  format.relativeForegroundSaturation(),
+                                                  format.relativeForegroundLightness()));
+        }
+
+        if (textCharFormat.hasProperty(QTextFormat::BackgroundBrush)) {
+            textCharFormat.setBackground(mixBrush(textCharFormat.background(),
+                                                  format.relativeBackgroundSaturation(),
+                                                  format.relativeBackgroundLightness()));
+        }
 
         if (!textCharFormat.fontItalic())
-            textCharFormat.setFontItalic(mixinTextCharFormat.fontItalic());
+            textCharFormat.setFontItalic(format.italic());
 
         if (textCharFormat.fontWeight() == QFont::Normal)
-            textCharFormat.setFontWeight(mixinTextCharFormat.fontWeight());
+            textCharFormat.setFontWeight(format.bold() ? QFont::Bold : QFont::Normal);
 
         if (textCharFormat.underlineStyle() == QTextCharFormat::NoUnderline) {
-            textCharFormat.setUnderlineStyle(mixinTextCharFormat.underlineStyle());
-            textCharFormat.setUnderlineColor(mixinTextCharFormat.underlineColor());
+            textCharFormat.setUnderlineStyle(format.underlineStyle());
+            textCharFormat.setUnderlineColor(format.underlineColor());
         }
     };
 }
 
-QTextCharFormat FontSettings::toTextCharFormat(const TextStyles textStyles) const
+QTextCharFormat FontSettings::toTextCharFormat(TextStyles textStyles) const
 {
     auto textCharFormatIterator = m_textCharFormatCache.find(textStyles);
     if (textCharFormatIterator != m_textCharFormatCache.end())
@@ -259,6 +289,7 @@ void FontSettings::setFamily(const QString &family)
 {
     m_family = family;
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 /**
@@ -273,6 +304,7 @@ void FontSettings::setFontSize(int size)
 {
     m_fontSize = size;
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 /**
@@ -287,6 +319,7 @@ void FontSettings::setFontZoom(int zoom)
 {
     m_fontZoom = zoom;
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 QFont FontSettings::font() const
@@ -308,6 +341,7 @@ void FontSettings::setAntialias(bool antialias)
 {
     m_antialias = antialias;
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 /**
@@ -345,6 +379,7 @@ bool FontSettings::loadColorScheme(const QString &fileName,
                                    const FormatDescriptions &descriptions)
 {
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
     bool loaded = true;
     m_schemeFileName = fileName;
 
@@ -359,12 +394,24 @@ bool FontSettings::loadColorScheme(const QString &fileName,
         const TextStyle id = desc.id();
         if (!m_scheme.contains(id)) {
             Format format;
-            format.setForeground(desc.foreground());
-            format.setBackground(desc.background());
-            format.setBold(desc.format().bold());
-            format.setItalic(desc.format().italic());
-            format.setUnderlineColor(desc.format().underlineColor());
-            format.setUnderlineStyle(desc.format().underlineStyle());
+            const Format &descFormat = desc.format();
+            if (descFormat == format && m_scheme.contains(C_TEXT)) {
+                // Default format -> Text
+                const Format textFormat = m_scheme.formatFor(C_TEXT);
+                format.setForeground(textFormat.foreground());
+                format.setBackground(textFormat.background());
+            } else {
+                format.setForeground(descFormat.foreground());
+                format.setBackground(descFormat.background());
+            }
+            format.setRelativeForegroundSaturation(descFormat.relativeForegroundSaturation());
+            format.setRelativeForegroundLightness(descFormat.relativeForegroundLightness());
+            format.setRelativeBackgroundSaturation(descFormat.relativeBackgroundSaturation());
+            format.setRelativeBackgroundLightness(descFormat.relativeBackgroundLightness());
+            format.setBold(descFormat.bold());
+            format.setItalic(descFormat.italic());
+            format.setUnderlineColor(descFormat.underlineColor());
+            format.setUnderlineStyle(descFormat.underlineStyle());
             m_scheme.setFormatFor(id, format);
         }
     }
@@ -392,12 +439,19 @@ void FontSettings::setColorScheme(const ColorScheme &scheme)
 {
     m_scheme = scheme;
     m_formatCache.clear();
+    m_textCharFormatCache.clear();
 }
 
 static QString defaultFontFamily()
 {
     if (Utils::HostOsInfo::isMacHost())
         return QLatin1String("Monaco");
+
+    const QString sourceCodePro("Source Code Pro");
+    const QFontDatabase dataBase;
+    if (dataBase.hasFamily(sourceCodePro))
+        return sourceCodePro;
+
     if (Utils::HostOsInfo::isAnyUnixHost())
         return QLatin1String("Monospace");
     return QLatin1String("Courier");

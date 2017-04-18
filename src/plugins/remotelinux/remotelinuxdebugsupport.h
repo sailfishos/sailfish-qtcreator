@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXDEBUGSUPPORT_H
-#define REMOTELINUXDEBUGSUPPORT_H
+#pragma once
 
 #include "abstractremotelinuxrunsupport.h"
 
@@ -48,7 +47,7 @@ protected:
     void handleAdapterSetupFailed(const QString &error);
     void handleAdapterSetupDone();
 
-private slots:
+private:
     void handleRemoteSetupRequested();
     void handleAppRunnerError(const QString &error);
     void handleRemoteOutput(const QByteArray &output);
@@ -59,12 +58,9 @@ private slots:
     void handleRemoteProcessStarted();
     void handleDebuggingFinished();
 
-private:
     void showMessage(const QString &msg, int channel);
 
     Internal::LinuxDeviceDebugSupportPrivate * const d;
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXDEBUGSUPPORT_H

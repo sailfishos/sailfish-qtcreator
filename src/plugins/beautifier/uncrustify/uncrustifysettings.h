@@ -23,11 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_UNCRUSTIFYSETTINGS_H
-#define BEAUTIFIER_UNCRUSTIFYSETTINGS_H
+#pragma once
 
 #include "../abstractsettings.h"
 
+#include <QProcess>
 
 namespace Beautifier {
 namespace Internal {
@@ -35,6 +35,8 @@ namespace Uncrustify {
 
 class UncrustifySettings : public AbstractSettings
 {
+    Q_OBJECT
+
 public:
     UncrustifySettings();
 
@@ -55,10 +57,14 @@ public:
 
     QString documentationFilePath() const override;
     void createDocumentationFile() const override;
+
+    void updateVersion() override;
+
+private:
+    QProcess m_versionProcess;
+    void parseVersionProcessResult(int exitCode, QProcess::ExitStatus exitStatus);
 };
 
 } // namespace Uncrustify
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_UNCRUSTIFYSETTINGS_H

@@ -30,7 +30,9 @@
 
 #include <nodelistproperty.h>
 #include <modelnode.h>
+#include <bindingproperty.h>
 #include <variantproperty.h>
+#include <rewriterview.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagebox.h>
@@ -115,19 +117,31 @@ QVariant StatesEditorModel::data(const QModelIndex &index, int role) const
         else
             return QString("image://qmldesigner_stateseditor/%1-%2").arg(index.internalId()).arg(randomNumber);
     }
-    case InternalNodeId : return index.internalId();
+    case InternalNodeId: return index.internalId();
+
+    case HasWhenCondition: return stateNode.isValid() && stateNode.hasProperty("when");
+
+    case WhenConditionString: {
+        if (stateNode.isValid() && stateNode.hasBindingProperty("when"))
+            return stateNode.bindingProperty("when").expression();
+        else
+            return QString();
     }
 
+    }
 
     return QVariant();
 }
 
 QHash<int, QByteArray> StatesEditorModel::roleNames() const
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames.insert(StateNameRole, "stateName");
-    roleNames.insert(StateImageSourceRole, "stateImageSource");
-    roleNames.insert(InternalNodeId, "internalNodeId");
+    static QHash<int, QByteArray> roleNames{
+        {StateNameRole, "stateName"},
+        {StateImageSourceRole, "stateImageSource"},
+        {InternalNodeId, "internalNodeId"},
+        {HasWhenCondition, "hasWhenCondition"},
+        {WhenConditionString, "whenConditionString"}
+    };
     return roleNames;
 }
 
@@ -179,6 +193,25 @@ void StatesEditorModel::renameState(int internalNodeId, const QString &newName)
         m_statesEditorView->renameState(internalNodeId, newName);
     }
 
+}
+
+void StatesEditorModel::setWhenCondition(int internalNodeId, const QString &condition)
+{
+    m_statesEditorView->setWhenCondition(internalNodeId, condition);
+}
+
+void StatesEditorModel::resetWhenCondition(int internalNodeId)
+{
+    m_statesEditorView->resetWhenCondition(internalNodeId);
+}
+
+QStringList StatesEditorModel::autoComplete(const QString &text, int pos, bool explicitComplete)
+{
+    Model *model = m_statesEditorView->model();
+    if (model && model->rewriterView())
+        return model->rewriterView()->autoComplete(text, pos, explicitComplete);
+
+    return QStringList();
 }
 
 } // namespace QmlDesigner

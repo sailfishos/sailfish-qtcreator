@@ -1,22 +1,15 @@
 INCLUDEPATH += $$PWD
 
-HEADERS += $$PWD/clangipcserver.h \
+HEADERS += $$PWD/clangcodemodelserver.h \
     $$PWD/codecompleter.h \
     $$PWD/clangstring.h \
-    $$PWD/translationunitisnullexception.h \
-    $$PWD/codecompletefailedexception.h \
     $$PWD/clangcodecompleteresults.h \
     $$PWD/codecompletionsextractor.h \
     $$PWD/unsavedfile.h \
     $$PWD/unsavedfiles.h \
     $$PWD/projects.h \
-    $$PWD/translationunits.h \
-    $$PWD/translationunitparseerrorexception.h \
-    $$PWD/translationunitreparseerrorexception.h \
+    $$PWD/clangdocuments.h \
     $$PWD/projectpart.h \
-    $$PWD/translationunitfilenotexitexception.h \
-    $$PWD/translationunitdoesnotexistexception.h \
-    $$PWD/projectpartsdonotexistexception.h \
     $$PWD/codecompletionchunkconverter.h \
     $$PWD/diagnosticset.h \
     $$PWD/diagnostic.h \
@@ -25,34 +18,48 @@ HEADERS += $$PWD/clangipcserver.h \
     $$PWD/fixit.h \
     $$PWD/diagnosticsetiterator.h \
     $$PWD/clangfilesystemwatcher.h \
-    $$PWD/translationunitalreadyexistsexception.h \
     $$PWD/commandlinearguments.h \
     $$PWD/cursor.h \
-    $$PWD/highlightinginformations.h \
-    $$PWD/highlightinginformation.h \
-    $$PWD/highlightinginformationsiterator.h \
     $$PWD/skippedsourceranges.h \
-    $$PWD/clangtranslationunit.h \
+    $$PWD/clangdocument.h \
+    $$PWD/clangtranslationunitupdater.h \
     $$PWD/clangtype.h \
-    $$PWD/utf8positionfromlinecolumn.h
+    $$PWD/highlightingmark.h \
+    $$PWD/highlightingmarks.h \
+    $$PWD/highlightingmarksiterator.h \
+    $$PWD/utf8positionfromlinecolumn.h \
+    $$PWD/clangasyncjob.h \
+    $$PWD/clangbackend_global.h \
+    $$PWD/clangcompletecodejob.h \
+    $$PWD/clangcreateinitialdocumentpreamblejob.h \
+    $$PWD/clangfilepath.h \
+    $$PWD/clangiasyncjob.h \
+    $$PWD/clangjobcontext.h \
+    $$PWD/clangjobqueue.h \
+    $$PWD/clangjobrequest.h \
+    $$PWD/clangjobs.h \
+    $$PWD/clangrequestdocumentannotationsjob.h \
+    $$PWD/clangtranslationunit.h \
+    $$PWD/clangunsavedfilesshallowarguments.h \
+    $$PWD/clangupdatedocumentannotationsjob.h \
+    $$PWD/clangexceptions.h \
+    $$PWD/clangdocumentprocessor.h \
+    $$PWD/clangdocumentprocessors.h \
+    $$PWD/clangtranslationunits.h \
+    $$PWD/clangclock.h \
+    $$PWD/clangsupportivetranslationunitinitializer.h \
+    $$PWD/clangparsesupportivetranslationunitjob.h \
+    $$PWD/clangreparsesupportivetranslationunitjob.h \
 
-SOURCES += $$PWD/clangipcserver.cpp \
+SOURCES += $$PWD/clangcodemodelserver.cpp \
     $$PWD/codecompleter.cpp \
-    $$PWD/clangstring.cpp \
-    $$PWD/translationunitisnullexception.cpp \
-    $$PWD/codecompletefailedexception.cpp \
     $$PWD/clangcodecompleteresults.cpp \
     $$PWD/codecompletionsextractor.cpp \
     $$PWD/unsavedfile.cpp \
     $$PWD/unsavedfiles.cpp \
     $$PWD/projects.cpp \
-    $$PWD/translationunits.cpp \
-    $$PWD/translationunitparseerrorexception.cpp \
-    $$PWD/translationunitreparseerrorexception.cpp \
+    $$PWD/clangdocuments.cpp \
     $$PWD/projectpart.cpp \
-    $$PWD/translationunitfilenotexitexception.cpp \
-    $$PWD/translationunitdoesnotexistexception.cpp \
-    $$PWD/projectpartsdonotexistexception.cpp \
     $$PWD/codecompletionchunkconverter.cpp \
     $$PWD/diagnosticset.cpp \
     $$PWD/diagnostic.cpp \
@@ -60,12 +67,31 @@ SOURCES += $$PWD/clangipcserver.cpp \
     $$PWD/sourcerange.cpp \
     $$PWD/fixit.cpp \
     $$PWD/clangfilesystemwatcher.cpp \
-    $$PWD/translationunitalreadyexistsexception.cpp \
     $$PWD/commandlinearguments.cpp \
     $$PWD/cursor.cpp \
-    $$PWD/highlightinginformations.cpp \
-    $$PWD/highlightinginformation.cpp \
     $$PWD/skippedsourceranges.cpp \
-    $$PWD/clangtranslationunit.cpp \
+    $$PWD/clangdocument.cpp \
+    $$PWD/clangtranslationunitupdater.cpp \
     $$PWD/clangtype.cpp \
-    $$PWD/utf8positionfromlinecolumn.cpp
+    $$PWD/highlightingmark.cpp \
+    $$PWD/highlightingmarks.cpp \
+    $$PWD/utf8positionfromlinecolumn.cpp \
+    $$PWD/clangcompletecodejob.cpp \
+    $$PWD/clangcreateinitialdocumentpreamblejob.cpp \
+    $$PWD/clangfilepath.cpp \
+    $$PWD/clangiasyncjob.cpp \
+    $$PWD/clangjobcontext.cpp \
+    $$PWD/clangjobqueue.cpp \
+    $$PWD/clangjobrequest.cpp \
+    $$PWD/clangjobs.cpp \
+    $$PWD/clangrequestdocumentannotationsjob.cpp \
+    $$PWD/clangtranslationunit.cpp \
+    $$PWD/clangunsavedfilesshallowarguments.cpp \
+    $$PWD/clangupdatedocumentannotationsjob.cpp \
+    $$PWD/clangexceptions.cpp \
+    $$PWD/clangdocumentprocessor.cpp \
+    $$PWD/clangdocumentprocessors.cpp \
+    $$PWD/clangtranslationunits.cpp \
+    $$PWD/clangsupportivetranslationunitinitializer.cpp \
+    $$PWD/clangparsesupportivetranslationunitjob.cpp \
+    $$PWD/clangreparsesupportivetranslationunitjob.cpp \

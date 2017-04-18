@@ -23,15 +23,29 @@
 **
 ****************************************************************************/
 
-#ifndef DIFFEDITORPLUGIN_H
-#define DIFFEDITORPLUGIN_H
+#pragma once
 
 #include "diffeditor_global.h"
 
+#include <coreplugin/diffservice.h>
 #include <extensionsystem/iplugin.h>
+
+QT_FORWARD_DECLARE_CLASS(QAction)
+
+namespace Core { class IEditor; }
 
 namespace DiffEditor {
 namespace Internal {
+
+class DiffEditorServiceImpl : public QObject, public Core::DiffService
+{
+    Q_OBJECT
+    Q_INTERFACES(Core::DiffService)
+public:
+    explicit DiffEditorServiceImpl(QObject *parent = nullptr);
+
+    void diffModifiedFiles(const QStringList &fileNames) override;
+};
 
 class DiffEditorPlugin : public ExtensionSystem::IPlugin
 {
@@ -43,7 +57,11 @@ public:
     void extensionsInitialized();
 
 private slots:
-    void diff();
+    void updateDiffCurrentFileAction();
+    void updateDiffOpenFilesAction();
+    void diffCurrentFile();
+    void diffOpenFiles();
+    void diffExternalFiles();
 
 #ifdef WITH_TESTS
     void testMakePatch_data();
@@ -51,9 +69,10 @@ private slots:
     void testReadPatch_data();
     void testReadPatch();
 #endif // WITH_TESTS
+private:
+    QAction *m_diffCurrentFileAction;
+    QAction *m_diffOpenFilesAction;
 };
 
 } // namespace Internal
 } // namespace DiffEditor
-
-#endif // DIFFEDITORPLUGIN_H

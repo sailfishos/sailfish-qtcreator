@@ -42,7 +42,7 @@ QT_END_NAMESPACE
 namespace Core {
 class IMode;
 class Id;
-}
+} // namespace Core
 
 namespace ProjectExplorer {
 class RunControl;
@@ -75,7 +75,7 @@ public:
                           const QString &errorMessage)
             : m_projects(projects), m_alreadyOpen(alreadyOpen),
               m_errorMessage(errorMessage)
-        {}
+        { }
 
         explicit operator bool() const
         {
@@ -84,7 +84,7 @@ public:
 
         Project *project() const
         {
-            return m_projects.isEmpty() ? 0 : m_projects.first();
+            return m_projects.isEmpty() ? nullptr : m_projects.first();
         }
 
         QList<Project *> projects() const
@@ -134,7 +134,7 @@ public:
     static QStringList projectFilePatterns();
     static QList<QPair<QString, QString> > recentProjects();
 
-    static bool canRunStartupProject(Core::Id runMode, QString *whyNot = 0);
+    static bool canRunStartupProject(Core::Id runMode, QString *whyNot = nullptr);
     static void runProject(Project *pro, Core::Id, const bool forceSkipDeploy = false);
     static void runStartupProject(Core::Id runMode, bool forceSkipDeploy = false);
     static void runRunConfiguration(RunConfiguration *rc, Core::Id runMode,
@@ -143,9 +143,6 @@ public:
     static void addExistingFiles(FolderNode *folderNode, const QStringList &filePaths);
 
     static void buildProject(Project *p);
-    /// Normally there's no need to call this function.
-    /// This function needs to be called, only if the pages that support a project changed.
-    static void requestProjectModeUpdate(Project *p);
 
     static void initiateInlineRenaming();
 
@@ -158,6 +155,7 @@ public:
 
     static QThreadPool *sharedThreadPool();
 
+    static void openNewProjectDialog();
     static void openOpenProjectDialog();
 
 signals:

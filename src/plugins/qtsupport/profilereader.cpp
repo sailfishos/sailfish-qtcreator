@@ -47,9 +47,8 @@ ProMessageHandler::ProMessageHandler(bool verbose, bool exact)
     //: Prefix used for output from the cumulative evaluation of project files.
     , m_prefix(tr("[Inexact] "))
 {
-    QObject::connect(this, SIGNAL(writeMessage(QString,Core::MessageManager::PrintToOutputPaneFlags)),
-                     Core::MessageManager::instance(), SLOT(write(QString,Core::MessageManager::PrintToOutputPaneFlags)),
-                     Qt::QueuedConnection);
+    connect(this, &ProMessageHandler::writeMessage,
+            Core::MessageManager::instance(), &Core::MessageManager::write, Qt::QueuedConnection);
 }
 
 void ProMessageHandler::message(int type, const QString &msg, const QString &fileName, int lineNo)
@@ -75,7 +74,7 @@ void ProMessageHandler::fileMessage(int type, const QString &msg)
 }
 
 
-ProFileReader::ProFileReader(ProFileGlobals *option, QMakeVfs *vfs)
+ProFileReader::ProFileReader(QMakeGlobals *option, QMakeVfs *vfs)
     : QMakeParser(ProFileCacheManager::instance()->cache(), vfs, this)
     , ProFileEvaluator(option, this, vfs, this)
     , m_ignoreLevel(0)
@@ -129,8 +128,8 @@ ProFileCacheManager::ProFileCacheManager(QObject *parent) :
     s_instance = this;
     m_timer.setInterval(5000);
     m_timer.setSingleShot(true);
-    connect(&m_timer, SIGNAL(timeout()),
-            this, SLOT(clear()));
+    connect(&m_timer, &QTimer::timeout,
+            this, &ProFileCacheManager::clear);
 }
 
 void ProFileCacheManager::incRefCount()

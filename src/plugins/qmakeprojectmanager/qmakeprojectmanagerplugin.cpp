@@ -35,6 +35,7 @@
 #include "wizards/guiappwizard.h"
 #include "wizards/librarywizard.h"
 #include "wizards/testwizard.h"
+#include "wizards/simpleprojectwizard.h"
 #include "wizards/subdirsprojectwizard.h"
 #include "customwidgetwizard/customwidgetwizard.h"
 #include "qmakeprojectmanagerconstants.h"
@@ -90,11 +91,15 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
 
     ProjectExplorer::KitManager::registerKitInformation(new QmakeKitInformation);
 
-    IWizardFactory::registerFactoryCreator([]() {
-        QList<IWizardFactory *> result;
-        result << new SubdirsProjectWizard /*<< new GuiAppWizard << new LibraryWizard
-               << new TestWizard << new CustomWidgetWizard*/;
-        return result;
+    IWizardFactory::registerFactoryCreator([] {
+        return QList<IWizardFactory *> {
+            new SubdirsProjectWizard,
+//            new GuiAppWizard,
+//            new LibraryWizard,
+//            new TestWizard,
+//            new CustomWidgetWizard,
+//            new SimpleProjectWizard
+        };
     });
 
     addAutoReleasedObject(new CustomWizardMetaFactory<CustomQmakeProjectWizard>
@@ -106,11 +111,8 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
     addAutoReleasedObject(new QmakeBuildConfigurationFactory);
     addAutoReleasedObject(new DesktopQmakeRunConfigurationFactory);
 
-    if (Utils::HostOsInfo::isMacHost())
-        addAutoReleasedObject(new MacDesignerExternalEditor);
-    else
-        addAutoReleasedObject(new DesignerExternalEditor);
-    addAutoReleasedObject(new LinguistExternalEditor);
+    addAutoReleasedObject(ExternalQtEditor::createDesignerEditor());
+    addAutoReleasedObject(ExternalQtEditor::createLinguistEditor());
 
     addAutoReleasedObject(new ProFileEditorFactory);
 

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef OUTPUTCALLBACK_H
-#define OUTPUTCALLBACK_H
+#pragma once
 
 #include "common.h"
 
@@ -60,8 +59,6 @@ public:
 
 private:
     IDebugOutputCallbacksWide *m_wrapped;
-    bool m_recording;
+    bool m_recording = false;
     std::wstring m_recorded;
 };
-
-#endif // OUTPUTCALLBACK_H

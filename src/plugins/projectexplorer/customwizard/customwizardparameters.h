@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CUSTOMWIZARDPARAMETERS_H
-#define CUSTOMWIZARDPARAMETERS_H
+#pragma once
 
 #include <coreplugin/iwizardfactory.h>
 
@@ -163,5 +162,3 @@ extern const char customWizardFileOpenProjectAttributeC[];
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // CUSTOMWIZARDPARAMETERS_H

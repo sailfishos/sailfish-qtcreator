@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDCONFIGURATIONS_H
-#define ANDROIDCONFIGURATIONS_H
+#pragma once
 
 #include "android_global.h"
+
+#include <projectexplorer/toolchain.h>
 
 #include <QObject>
 #include <QString>
@@ -127,7 +128,9 @@ public:
     Utils::FileName emulatorToolPath() const;
 
 
-    Utils::FileName gccPath(const ProjectExplorer::Abi &abi, const QString &ndkToolChainVersion) const;
+    Utils::FileName gccPath(const ProjectExplorer::Abi &abi,
+                            ProjectExplorer::ToolChain::Language lang,
+                            const QString &ndkToolChainVersion) const;
     Utils::FileName gdbPath(const ProjectExplorer::Abi &abi, const QString &ndkToolChainVersion) const;
 
     Utils::FileName keytoolPath() const;
@@ -225,7 +228,6 @@ public:
     static AndroidDeviceInfo showDeviceDialog(ProjectExplorer::Project *project, int apiLevel, const QString &abi, Options options);
     static void setDefaultDevice(ProjectExplorer::Project *project, const QString &abi, const QString &serialNumber); // serial number or avd name
     static QString defaultDevice(ProjectExplorer::Project *project, const QString &abi); // serial number or avd name
-public slots:
     static void clearDefaultDevices(ProjectExplorer::Project *project);
     static void registerNewToolChains();
     static void removeOldToolChains();
@@ -248,5 +250,3 @@ private:
 };
 
 } // namespace Android
-
-#endif // ANDROIDCONFIGURATIONS_H

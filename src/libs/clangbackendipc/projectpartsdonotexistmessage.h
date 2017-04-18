@@ -23,40 +23,55 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_PROJECTPARTSDONOTEXISTMESSAGE_H
-#define CLANGBACKEND_PROJECTPARTSDONOTEXISTMESSAGE_H
+#pragma once
 
 #include "clangbackendipc_global.h"
 
 #include <utf8stringvector.h>
 
+#include <QDataStream>
+
 namespace ClangBackEnd {
 
-class CMBIPC_EXPORT ProjectPartsDoNotExistMessage
+class ProjectPartsDoNotExistMessage
 {
-    friend CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const ProjectPartsDoNotExistMessage &message);
-    friend CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, ProjectPartsDoNotExistMessage &message);
-    friend CMBIPC_EXPORT bool operator==(const ProjectPartsDoNotExistMessage &first, const ProjectPartsDoNotExistMessage &second);
-    friend CMBIPC_EXPORT QDebug operator<<(QDebug debug, const ProjectPartsDoNotExistMessage &message);
-    friend void PrintTo(const ProjectPartsDoNotExistMessage &message, ::std::ostream* os);
 public:
     ProjectPartsDoNotExistMessage() = default;
-    ProjectPartsDoNotExistMessage(const Utf8StringVector &projectPartIds);
+    ProjectPartsDoNotExistMessage(const Utf8StringVector &projectPartIds)
+        : projectPartIds_(projectPartIds)
+    {
+    }
 
-    const Utf8StringVector &projectPartIds() const;
+    const Utf8StringVector &projectPartIds() const
+    {
+        return projectPartIds_;
+    }
+
+    friend QDataStream &operator<<(QDataStream &out, const ProjectPartsDoNotExistMessage &message)
+    {
+        out << message.projectPartIds_;
+
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, ProjectPartsDoNotExistMessage &message)
+    {
+        in >> message.projectPartIds_;
+
+        return in;
+    }
+
+    friend bool operator==(const ProjectPartsDoNotExistMessage &first, const ProjectPartsDoNotExistMessage &second)
+    {
+        return first.projectPartIds_ == second.projectPartIds_;
+    }
 
 private:
     Utf8StringVector projectPartIds_;
 };
-
-CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const ProjectPartsDoNotExistMessage &message);
-CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, ProjectPartsDoNotExistMessage &message);
-CMBIPC_EXPORT bool operator==(const ProjectPartsDoNotExistMessage &first, const ProjectPartsDoNotExistMessage &second);
 
 CMBIPC_EXPORT QDebug operator<<(QDebug debug, const ProjectPartsDoNotExistMessage &message);
 void PrintTo(const ProjectPartsDoNotExistMessage &message, ::std::ostream* os);
 
 DECLARE_MESSAGE(ProjectPartsDoNotExistMessage)
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_PROJECTPARTSDONOTEXISTMESSAGE_H

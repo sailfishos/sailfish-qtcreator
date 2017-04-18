@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_STACKWINDOW_H
-#define DEBUGGER_STACKWINDOW_H
+#pragma once
 
 #include <utils/basetreeview.h>
+
 #include <QCoreApplication>
 
 namespace Debugger {
@@ -35,13 +35,12 @@ namespace Internal {
 class StackTreeView : public Utils::BaseTreeView
 {
     Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::StackTreeView)
+
 public:
     StackTreeView();
 
 private:
-    void rowActivated(const QModelIndex &index);
-    void setModel(QAbstractItemModel *model);
-    void contextMenuEvent(QContextMenuEvent *ev);
+    void setModel(QAbstractItemModel *model) override;
 
     void showAddressColumn(bool on);
     void reloadFullStack();
@@ -50,6 +49,3 @@ private:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_STACKWINDOW_H
-

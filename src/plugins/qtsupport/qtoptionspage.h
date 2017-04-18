@@ -23,11 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef QTOPTIONSPAGE_H
-#define QTOPTIONSPAGE_H
+#pragma once
 
 #include <coreplugin/dialogs/ioptionspage.h>
+
 #include <utils/fileutils.h>
+#include <utils/treemodel.h>
 
 #include <QIcon>
 #include <QPointer>
@@ -40,10 +41,6 @@ class QUrl;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer { class ToolChain; }
-namespace Utils {
-class TreeModel;
-class TreeItem;
-}
 
 namespace QtSupport {
 
@@ -65,7 +62,6 @@ class QtOptionsPageWidget : public QWidget
 public:
     QtOptionsPageWidget(QWidget *parent = 0);
     ~QtOptionsPageWidget();
-    QList<BaseQtVersion *> versions() const;
     void apply();
 
 private:
@@ -87,9 +83,8 @@ private:
     QIcon m_validVersionIcon;
     QtConfigWidget *m_configurationWidget;
 
-private slots:
+private:
     void updateQtVersions(const QList<int> &, const QList<int> &, const QList<int> &);
-    void qtVersionChanged();
     void versionChanged(const QModelIndex &current, const QModelIndex &previous);
     void addQtDir();
     void removeQtDir();
@@ -104,7 +99,6 @@ private slots:
     void setInfoWidgetVisibility();
     void infoAnchorClicked(const QUrl &);
 
-private:
     struct ValidityInfo {
         QString description;
         QString message;
@@ -118,7 +112,7 @@ private:
     bool isNameUnique(const BaseQtVersion *version);
     void updateVersionItem(QtVersionItem *item);
 
-    Utils::TreeModel *m_model;
+    Utils::TreeModel<Utils::TreeItem, Utils::TreeItem, QtVersionItem> *m_model;
     QSortFilterProxyModel *m_filterModel;
     Utils::TreeItem *m_autoItem;
     Utils::TreeItem *m_manualItem;
@@ -141,6 +135,3 @@ private:
 
 } //namespace Internal
 } //namespace QtSupport
-
-
-#endif // QTOPTIONSPAGE_H

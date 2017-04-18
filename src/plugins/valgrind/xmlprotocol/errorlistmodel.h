@@ -24,22 +24,20 @@
 **
 ****************************************************************************/
 
-#ifndef LIBVALGRIND_PROTOCOL_ERRORLISTMODEL_H
-#define LIBVALGRIND_PROTOCOL_ERRORLISTMODEL_H
+#pragma once
 
 #include <debugger/analyzer/detailederrorview.h>
 #include <utils/treemodel.h>
 
-#include <QSharedPointer>
+#include <functional>
 
 namespace Valgrind {
 namespace XmlProtocol {
 
 class Error;
-class ErrorListModelPrivate;
 class Frame;
 
-class ErrorListModel : public Utils::TreeModel
+class ErrorListModel : public Utils::TreeModel<>
 {
     Q_OBJECT
 
@@ -48,27 +46,23 @@ public:
         ErrorRole = Debugger::DetailedErrorView::FullTextRole + 1,
     };
 
-    class RelevantFrameFinder
-    {
-    public:
-        virtual ~RelevantFrameFinder() {}
-        virtual Frame findRelevant(const Error &error) const = 0;
-    };
-
     explicit ErrorListModel(QObject *parent = 0);
-    ~ErrorListModel();
 
-    QSharedPointer<const RelevantFrameFinder> relevantFrameFinder() const;
-    void setRelevantFrameFinder(const QSharedPointer<const RelevantFrameFinder> &finder);
+    typedef std::function<Frame(const Error &)> RelevantFrameFinder;
+    RelevantFrameFinder relevantFrameFinder() const;
+    void setRelevantFrameFinder(const RelevantFrameFinder &relevantFrameFinder);
 
-public slots:
     void addError(const Valgrind::XmlProtocol::Error &error);
 
 private:
-    ErrorListModelPrivate *const d;
+    friend class ErrorItem;
+    friend class StackItem;
+    QVariant errorData(const QModelIndex &index, int role) const;
+    Frame findRelevantFrame(const Error &error) const;
+    QString errorLocation(const Error &error) const;
+
+    RelevantFrameFinder m_relevantFrameFinder;
 };
 
 } // namespace XmlProtocol
 } // namespace Valgrind
-
-#endif // LIBVALGRIND_PROTOCOL_ERRORLISTMODEL_H

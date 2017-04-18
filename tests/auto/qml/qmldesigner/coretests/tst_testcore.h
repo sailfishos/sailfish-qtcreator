@@ -61,6 +61,8 @@ private slots:
     void testMetaInfoListProperties();
     void testQtQuick20Basic();
     void testQtQuick20BasicRectangle();
+    void testQtQuickControls2();
+    void testImplicitComponents();
 
     //
     // unit tests Model, ModelNode, NodeProperty, AbstractView
@@ -80,6 +82,8 @@ private slots:
     void testModelBasicOperations();
     void testModelResolveIds();
     void testModelNodeListProperty();
+    void testModelNodePropertyDynamic();
+    void testModelNodePropertyDynamicSource();
     void testModelPropertyValueTypes();
     void testModelNodeInHierarchy();
     void testModelNodeIsAncestorOf();
@@ -149,7 +153,7 @@ private slots:
     // unit tests Instances
     //
     void testInstancesAttachToExistingModel();
-    void testInstancesStates();
+    void testStatesWasInstances();
     void testInstancesIdResolution();
     void testInstancesNotInScene();
     void testInstancesBindingsInStatesStress();

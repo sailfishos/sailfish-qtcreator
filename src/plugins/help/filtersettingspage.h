@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILTERSETTINGSPAGE_H
-#define FILTERSETTINGSPAGE_H
+#pragma once
 
 #include "ui_filtersettingspage.h"
 #include <coreplugin/dialogs/ioptionspage.h>
@@ -48,18 +47,15 @@ public:
 signals:
     void filtersChanged();
 
-private slots:
+private:
     void updateAttributes(QListWidgetItem *item);
     void updateFilterMap();
     void updateFilterPage();
     void addFilter();
     void removeFilter();
-
-private:
     void updateFilterDescription(const QString &filter);
-
-private:
     QString msgFilterLabel(const QString &filter) const;
+
     Ui::FilterSettingsPage m_ui;
     QPointer<QWidget> m_widget;
 
@@ -72,5 +68,3 @@ private:
 
 } // namespace Help
 } // namespace Internal
-
-#endif // DOCSETTINGSPAGE_H

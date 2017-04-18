@@ -29,7 +29,6 @@
 #include "clangstaticanalyzertool.h"
 #include "clangstaticanalyzerutils.h"
 
-#include <debugger/analyzer/analyzermanager.h>
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/cpptoolstestcase.h>
 #include <projectexplorer/kitinformation.h>
@@ -44,7 +43,6 @@
 #include <QTimer>
 #include <QtTest>
 
-using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Utils;
 
@@ -64,7 +62,8 @@ void ClangStaticAnalyzerUnitTests::initTestCase()
     const QList<Kit *> allKits = KitManager::kits();
     if (allKits.count() != 1)
         QSKIP("This test requires exactly one kit to be present");
-    const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first());
+    const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first(),
+                                                                           ToolChain::Language::Cxx);
     if (!toolchain)
         QSKIP("This test requires that there is a kit with a toolchain.");
     bool hasClangExecutable;
@@ -89,7 +88,7 @@ void ClangStaticAnalyzerUnitTests::testProject()
     CppTools::Tests::ProjectOpenerAndCloser projectManager;
     const CppTools::ProjectInfo projectInfo = projectManager.open(projectFilePath, true);
     QVERIFY(projectInfo.isValid());
-    Debugger::runAction(ClangStaticAnalyzerActionId);
+    m_analyzerTool->startTool();
     QSignalSpy waiter(m_analyzerTool, SIGNAL(finished(bool)));
     QVERIFY(waiter.wait(30000));
     const QList<QVariant> arguments = waiter.takeFirst();
@@ -111,6 +110,11 @@ void ClangStaticAnalyzerUnitTests::testProject_data()
             << QString(m_tmpDir->absolutePath("simple-library/simple-library.qbs")) << 0;
     QTest::newRow("simple qmake library project")
             << QString(m_tmpDir->absolutePath("simple-library/simple-library.pro")) << 0;
+
+    QTest::newRow("stdc++11-includes qbs project")
+            << QString(m_tmpDir->absolutePath("stdc++11-includes/stdc++11-includes.qbs")) << 0;
+    QTest::newRow("stdc++11-includes qmake project")
+            << QString(m_tmpDir->absolutePath("stdc++11-includes/stdc++11-includes.pro")) << 0;
 
     QTest::newRow("qt-widgets-app qbs project")
             << QString(m_tmpDir->absolutePath("qt-widgets-app/qt-widgets-app.qbs")) << 0;

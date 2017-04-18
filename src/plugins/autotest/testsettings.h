@@ -23,10 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef TESTSETTINGS_H
-#define TESTSETTINGS_H
+#pragma once
 
-#include <QtGlobal>
+#include <QHash>
+
+namespace Core { class Id; }
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -35,40 +36,20 @@ QT_END_NAMESPACE
 namespace Autotest {
 namespace Internal {
 
-enum MetricsType {
-    Walltime,
-    TickCounter,
-    EventCounter,
-    CallGrind,
-    Perf
-};
-
 struct TestSettings
 {
     TestSettings();
     void toSettings(QSettings *s) const;
-    void fromSettings(const QSettings *s);
-    bool equals(const TestSettings &rhs) const;
-    static QString metricsTypeToOption(const MetricsType type);
+    void fromSettings(QSettings *s);
 
     int timeout;
-    int gtestIterations;
-    int gtestSeed;
-    MetricsType metrics;
-    bool omitInternalMssg;
-    bool omitRunConfigWarn;
-    bool limitResultOutput;
-    bool autoScroll;
-    bool alwaysParse;
-    bool gtestRunDisabled;
-    bool gtestShuffle;
-    bool gtestRepeat;
+    bool omitInternalMssg = true;
+    bool omitRunConfigWarn = false;
+    bool limitResultOutput = true;
+    bool autoScroll = true;
+    bool alwaysParse = true;
+    QHash<Core::Id, bool> frameworks;
 };
-
-inline bool operator==(const TestSettings &s1, const TestSettings &s2) { return s1.equals(s2); }
-inline bool operator!=(const TestSettings &s1, const TestSettings &s2) { return !s1.equals(s2); }
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTSETTINGS_H

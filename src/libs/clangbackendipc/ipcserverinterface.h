@@ -23,44 +23,33 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_IPCSERVERINTERFACE_H
-#define CLANGBACKEND_IPCSERVERINTERFACE_H
+#pragma once
 
 #include "ipcinterface.h"
 
-#include "ipcclientdispatcher.h"
-
 namespace ClangBackEnd {
 
-class IpcClientInterface;
-
-class CMBIPC_EXPORT IpcServerInterface : public IpcInterface
+template <typename ClientInterface>
+class IpcServerInterface : public IpcInterface
 {
 public:
-    void dispatch(const MessageEnvelop &messageEnvelop) override;
+    void setClient(ClientInterface *client)
+    {
+        client_ = client;
+    }
 
-    virtual void end() = 0;
-    virtual void registerTranslationUnitsForEditor(const RegisterTranslationUnitForEditorMessage &message) = 0;
-    virtual void updateTranslationUnitsForEditor(const UpdateTranslationUnitsForEditorMessage &message) = 0;
-    virtual void unregisterTranslationUnitsForEditor(const UnregisterTranslationUnitsForEditorMessage &message) = 0;
-    virtual void registerProjectPartsForEditor(const RegisterProjectPartsForEditorMessage &message) = 0;
-    virtual void unregisterProjectPartsForEditor(const UnregisterProjectPartsForEditorMessage &message) = 0;
-    virtual void registerUnsavedFilesForEditor(const RegisterUnsavedFilesForEditorMessage &message) = 0;
-    virtual void unregisterUnsavedFilesForEditor(const UnregisterUnsavedFilesForEditorMessage &message) = 0;
-    virtual void completeCode(const CompleteCodeMessage &message) = 0;
-    virtual void requestDiagnostics(const RequestDiagnosticsMessage &message) = 0;
-    virtual void requestHighlighting(const RequestHighlightingMessage &message) = 0;
-    virtual void updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message) = 0;
+    void resetClient()
+    {
+        client_ = nullptr;
+    }
 
-    void addClient(IpcClientInterface *client);
-    void removeClient(IpcClientInterface *client);
-
-    IpcClientInterface *client();
+    ClientInterface *client()
+    {
+        return client_;
+    }
 
 private:
-    IpcClientDispatcher clientDispatcher;
+    ClientInterface *client_;
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_IPCSERVERINTERFACE_H

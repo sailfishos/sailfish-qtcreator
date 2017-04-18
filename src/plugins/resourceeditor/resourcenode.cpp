@@ -85,9 +85,8 @@ static bool addFilesToResource(const Utils::FileName &resourceFile,
         }
     }
 
-    Core::DocumentManager::expectFileChange(resourceFile.toString());
+    Core::FileChangeBlocker changeGuard(resourceFile.toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(resourceFile.toString());
 
     return true;
 }
@@ -109,12 +108,19 @@ static bool sortNodesByPath(ProjectExplorer::Node *a, ProjectExplorer::Node *b)
     return a->filePath() < b->filePath();
 }
 
-ResourceTopLevelNode::ResourceTopLevelNode(const Utils::FileName &filePath, FolderNode *parent)
+ResourceTopLevelNode::ResourceTopLevelNode(
+        const Utils::FileName &filePath, const QString &contents,
+        ProjectExplorer::FolderNode *parent)
     : ProjectExplorer::FolderNode(filePath)
 {
     setIcon(Core::FileIconProvider::icon(filePath.toString()));
-    m_document = new ResourceFileWatcher(this);
-    Core::DocumentManager::addDocument(m_document);
+    if (contents.isEmpty()) {
+        m_document = new ResourceFileWatcher(this);
+        Core::DocumentManager::addDocument(m_document);
+    } else {
+        m_contents = contents;
+        m_document = nullptr;
+    }
 
     Utils::FileName base = parent->filePath();
     if (filePath.isChildOf(base))
@@ -125,7 +131,8 @@ ResourceTopLevelNode::ResourceTopLevelNode(const Utils::FileName &filePath, Fold
 
 ResourceTopLevelNode::~ResourceTopLevelNode()
 {
-    Core::DocumentManager::removeDocument(m_document);
+    if (m_document)
+        Core::DocumentManager::removeDocument(m_document);
     delete m_document;
 }
 
@@ -136,7 +143,7 @@ void ResourceTopLevelNode::update()
     QMap<PrefixFolderLang, QList<ProjectExplorer::FolderNode *>> foldersToAddToFolders;
     QMap<PrefixFolderLang, QList<ProjectExplorer::FolderNode *>> foldersToAddToPrefix;
 
-    ResourceFile file(filePath().toString());
+    ResourceFile file(filePath().toString(), m_contents);
     if (file.load() == Core::IDocument::OpenResult::Success) {
         QMap<PrefixFolderLang, ProjectExplorer::FolderNode *> prefixNodes;
         QMap<PrefixFolderLang, ProjectExplorer::FolderNode *> folderNodes;
@@ -282,9 +289,8 @@ bool ResourceTopLevelNode::addPrefix(const QString &prefix, const QString &lang)
     int index = file.addPrefix(prefix, lang);
     if (index == -1)
         return false;
-    Core::DocumentManager::expectFileChange(filePath().toString());
+    Core::FileChangeBlocker changeGuard(filePath().toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(filePath().toString());
 
     return true;
 }
@@ -298,9 +304,8 @@ bool ResourceTopLevelNode::removePrefix(const QString &prefix, const QString &la
         if (file.prefix(i) == prefix
                 && file.lang(i) == lang) {
             file.removePrefix(i);
-            Core::DocumentManager::expectFileChange(filePath().toString());
+            Core::FileChangeBlocker changeGuard(filePath().toString());
             file.save();
-            Core::DocumentManager::unexpectFileChange(filePath().toString());
             return true;
         }
     }
@@ -324,9 +329,8 @@ bool ResourceTopLevelNode::removeNonExistingFiles()
         }
     }
 
-    Core::DocumentManager::expectFileChange(filePath().toString());
+    Core::FileChangeBlocker changeGuard(filePath().toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(filePath().toString());
     return true;
 }
 
@@ -385,6 +389,7 @@ QList<ProjectExplorer::ProjectAction> ResourceFolderNode::supportedActions(Proje
             << ProjectExplorer::AddExistingFile
             << ProjectExplorer::AddExistingDirectory
             << ProjectExplorer::RemoveFile
+            << ProjectExplorer::DuplicateFile
             << ProjectExplorer::Rename // Note: only works for the filename, works akwardly for relative file paths
             << ProjectExplorer::HidePathActions; // hides open terminal etc.
 
@@ -420,11 +425,31 @@ bool ResourceFolderNode::removeFiles(const QStringList &filePaths, QStringList *
         file.removeFile(index, j);
         --j;
     }
-    Core::DocumentManager::expectFileChange(m_topLevelNode->filePath().toString());
+    Core::FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
 
     return true;
+}
+
+// QTCREATORBUG-15280
+bool ResourceFolderNode::canRenameFile(const QString &filePath, const QString &newFilePath)
+{
+    Q_UNUSED(newFilePath)
+
+    bool fileEntryExists = false;
+    ResourceFile file(m_topLevelNode->filePath().toString());
+
+    int index = (file.load() != Core::IDocument::OpenResult::Success) ? -1 :file.indexOfPrefix(m_prefix, m_lang);
+    if (index != -1) {
+        for (int j = 0; j < file.fileCount(index); ++j) {
+            if (file.file(index, j) == filePath) {
+                fileEntryExists = true;
+                break;
+            }
+        }
+    }
+
+    return fileEntryExists;
 }
 
 bool ResourceFolderNode::renameFile(const QString &filePath, const QString &newFilePath)
@@ -439,9 +464,8 @@ bool ResourceFolderNode::renameFile(const QString &filePath, const QString &newF
     for (int j = 0; j < file.fileCount(index); ++j) {
         if (file.file(index, j) == filePath) {
             file.replaceFile(index, j, newFilePath);
-            Core::DocumentManager::expectFileChange(m_topLevelNode->filePath().toString());
+            Core::FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
             file.save();
-            Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
             return true;
         }
     }
@@ -461,9 +485,8 @@ bool ResourceFolderNode::renamePrefix(const QString &prefix, const QString &lang
     if (!file.replacePrefixAndLang(index, prefix, lang))
         return false;
 
-    Core::DocumentManager::expectFileChange(m_topLevelNode->filePath().toString());
+    Core::FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
     return true;
 }
 
@@ -622,6 +645,7 @@ QList<ProjectExplorer::ProjectAction> SimpleResourceFolderNode::supportedActions
             << ProjectExplorer::AddExistingFile
             << ProjectExplorer::AddExistingDirectory
             << ProjectExplorer::RemoveFile
+            << ProjectExplorer::DuplicateFile
             << ProjectExplorer::Rename // Note: only works for the filename, works akwardly for relative file paths
             << ProjectExplorer::InheritedFromParent; // do not add to list of projects when adding new file
 
@@ -652,9 +676,8 @@ bool SimpleResourceFolderNode::removeFiles(const QStringList &filePaths, QString
         file.removeFile(index, j);
         --j;
     }
-    Core::DocumentManager::expectFileChange(m_topLevelNode->filePath().toString());
+    Core::FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
     file.save();
-    Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
 
     return true;
 }
@@ -671,9 +694,8 @@ bool SimpleResourceFolderNode::renameFile(const QString &filePath, const QString
     for (int j = 0; j < file.fileCount(index); ++j) {
         if (file.file(index, j) == filePath) {
             file.replaceFile(index, j, newFilePath);
-            Core::DocumentManager::expectFileChange(m_topLevelNode->filePath().toString());
+            Core::FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
             file.save();
-            Core::DocumentManager::unexpectFileChange(m_topLevelNode->filePath().toString());
             return true;
         }
     }

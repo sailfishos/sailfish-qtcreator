@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDRUNNER_H
-#define ANDROIDRUNNER_H
+#pragma once
 
 #include "androidconfigurations.h"
 #include "androidrunnable.h"
@@ -32,6 +31,7 @@
 #include <projectexplorer/runconfiguration.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
 
+#include <QFutureInterface>
 #include <QObject>
 #include <QTimer>
 #include <QTcpSocket>
@@ -44,14 +44,10 @@ class AndroidRunConfiguration;
 
 namespace Internal {
 
-class AndroidRunner : public QThread
+class AndroidRunnerWorker;
+class AndroidRunner : public QObject
 {
     Q_OBJECT
-
-    enum DebugHandShakeType {
-        PingPongFiles,
-        SocketHandShake
-    };
 
 public:
     AndroidRunner(QObject *parent, AndroidRunConfiguration *runConfig,
@@ -62,63 +58,35 @@ public:
     void setRunnable(const AndroidRunnable &runnable);
     const AndroidRunnable &runnable() const { return m_androidRunnable; }
 
-public slots:
     void start();
     void stop();
-    void handleRemoteDebuggerRunning();
 
 signals:
     void remoteServerRunning(const QByteArray &serverChannel, int pid);
-    void remoteProcessStarted(int gdbServerPort, int qmlPort);
+    void remoteProcessStarted(Utils::Port gdbServerPort, Utils::Port qmlPort);
     void remoteProcessFinished(const QString &errString = QString());
+    void remoteDebuggerRunning();
 
     void remoteOutput(const QString &output);
     void remoteErrorOutput(const QString &output);
 
-private slots:
-    void checkPID();
-    void logcatReadStandardError();
-    void logcatReadStandardOutput();
-    void asyncStart();
-    QByteArray runPs();
+    void asyncStart(const QString &intentName, const QVector<QStringList> &adbCommands);
+    void asyncStop(const QVector<QStringList> &adbCommands);
+
+    void adbParametersChanged(const QString &packageName, const QStringList &selector);
+    void avdDetected();
 
 private:
-    void adbKill(qint64 pid);
-    QStringList selector() const { return m_selector; }
-    void forceStop();
-    void findPs();
-    void logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError);
-    bool adbShellAmNeedsQuotes();
+    void checkAVD();
+    void launchAVD();
 
-private:
-    QProcess m_adbLogcatProcess;
-    QProcess m_psProc;
-    QTimer m_checkPIDTimer;
-    bool m_wasStarted;
-    int m_tries;
-    QByteArray m_stdoutBuffer;
-    QByteArray m_stderrBuffer;
     AndroidRunnable m_androidRunnable;
-    qint64 m_processPID;
-    bool m_useCppDebugger;
-    QmlDebug::QmlDebugServicesPreset m_qmlDebugServices;
-    ushort m_localGdbServerPort; // Local end of forwarded debug socket.
-    quint16 m_qmlPort;
-    QString m_pingFile;
-    QString m_pongFile;
-    QString m_gdbserverPath;
-    QString m_gdbserverSocket;
-    QString m_adb;
-    bool m_isBusyBox;
-    QStringList m_selector;
-    QMutex m_mutex;
-    QRegExp m_logCatRegExp;
-    DebugHandShakeType m_handShakeMethod;
-    QTcpSocket *m_socket;
-    bool m_customPort;
+    AndroidRunConfiguration *m_runConfig;
+    QString m_launchedAVDName;
+    QThread m_thread;
+    QTimer m_checkAVDTimer;
+    QScopedPointer<AndroidRunnerWorker> m_worker;
 };
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDRUNNER_H

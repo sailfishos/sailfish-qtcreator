@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SAVEITEMSDIALOG_H
-#define SAVEITEMSDIALOG_H
+#pragma once
 
 #include <QList>
 #include <QDialog>
@@ -55,18 +54,20 @@ public:
     void setAlwaysSaveMessage(const QString &msg);
     bool alwaysSaveChecked();
     QList<IDocument *> itemsToSave() const;
+    QStringList filesToDiff() const;
 
 private:
     void collectItemsToSave();
+    void collectFilesToDiff();
     void discardAll();
-    void updateSaveButton();
+    void updateButtons();
     void adjustButtonWidths();
 
     Ui::SaveItemsDialog m_ui;
     QList<IDocument*> m_itemsToSave;
+    QStringList m_filesToDiff;
+    QPushButton *m_diffButton = nullptr;
 };
 
 } // namespace Internal
 } // namespace Core
-
-#endif // SAVEITEMSDIALOG_H

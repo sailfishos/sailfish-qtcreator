@@ -23,14 +23,14 @@
 **
 ****************************************************************************/
 
-#ifndef BASEEDITORDOCUMENTPROCESSOR_H
-#define BASEEDITORDOCUMENTPROCESSOR_H
+#pragma once
 
 #include "baseeditordocumentparser.h"
 #include "cppsemanticinfo.h"
 #include "cpptools_global.h"
 
 #include <texteditor/codeassist/assistinterface.h>
+#include <texteditor/quickfix.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
 
@@ -38,9 +38,10 @@
 
 #include <QTextEdit>
 
+#include <functional>
+
 namespace TextEditor {
 class TextDocument;
-class QuickFixOperations;
 }
 
 namespace CppTools {
@@ -66,15 +67,19 @@ public:
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface);
 
     virtual bool hasDiagnosticsAt(uint line, uint column) const;
-    virtual void showDiagnosticTooltip(const QPoint &point,
-                                       QWidget *parent,
-                                       uint line,
-                                       uint column) const;
+    virtual void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *layout) const;
+
+    virtual void editorDocumentTimerRestarted();
+
+public:
+    using HeaderErrorDiagnosticWidgetCreator = std::function<QWidget*()>;
 
 signals:
+
     // Signal interface to implement
     void codeWarningsUpdated(unsigned revision,
                              const QList<QTextEdit::ExtraSelection> selections,
+                             const HeaderErrorDiagnosticWidgetCreator &creator,
                              const TextEditor::RefactorMarkers &refactorMarkers);
 
     void ifdefedOutBlocksUpdated(unsigned revision,
@@ -99,6 +104,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // BASEEDITORDOCUMENTPROCESSOR_H
-

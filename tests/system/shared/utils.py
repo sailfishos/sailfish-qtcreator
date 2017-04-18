@@ -198,11 +198,30 @@ def invokeMenuItem(menu, item, *subItems):
     itemObject = waitForObjectItem(objectMap.realName(menuObject), item)
     waitFor("itemObject.enabled", 2000)
     activateItem(itemObject)
+    numberedPrefix = "(&\\d \| )?"
     for subItem in subItems:
         sub = itemObject.menu()
         waitFor("sub.visible", 1000)
-        itemObject = waitForObjectItem(sub, subItem)
-        activateItem(itemObject)
+        # we might have numbered sub items (e.g. "Recent Files") - these have this special prefix
+        if subItem.startswith(numberedPrefix):
+            actions = sub.actions()
+            triggered = False
+            for i in range(actions.count()):
+                current = actions.at(i)
+                nonPrefix = subItem[len(numberedPrefix):]
+                matcher = re.match("%s(.*)" % numberedPrefix, str(current.text))
+                if matcher and matcher.group(2) == nonPrefix:
+                    itemObject = current
+                    activateItem(itemObject)
+                    triggered = True
+                    break
+            if not triggered:
+                test.fail("Could not trigger '%s' - item missing or code wrong?" % subItem,
+                          "Function arguments: '%s', '%s', %s" % (menu, item, str(subItems)))
+                break # we failed to trigger - no need to process subItems further
+        else:
+            itemObject = waitForObjectItem(sub, subItem)
+            activateItem(itemObject)
 
 def logApplicationOutput():
     # make sure application output is shown
@@ -263,7 +282,6 @@ def selectFromFileDialog(fileName, waitForFile=False):
 # add Qt documentations from given paths
 # param which a list/tuple of the paths to the qch files to be added
 def addHelpDocumentation(which):
-    global sdkPath
     invokeMenuItem("Tools", "Options...")
     waitForObjectItem(":Options_QListView", "Help")
     clickItem(":Options_QListView", "Help", 14, 15, 0, Qt.LeftButton)
@@ -629,6 +647,8 @@ def openVcsLog():
                                  "window=':Qt Creator_Core::Internal::MainWindow'}", 2000)
         if className(foundObj) != 'Core::OutputWindow':
             raise Exception("Found derived class, but not a pure QPlainTextEdit.")
+        waitForObject("{text='Version Control' type='QLabel' unnamed='1' visible='1' "
+                      "window=':Qt Creator_Core::Internal::MainWindow'}", 2000)
     except:
         invokeMenuItem("Window", "Output Panes", "Version Control")
 
@@ -651,6 +671,11 @@ def getHelpViewer():
     try:
         return waitForObject(":Qt Creator_Help::Internal::HelpViewer", 3000)
     except:
+        pass
+    try:
+        return waitForObject("{type='QWebEngineView' unnamed='1' "
+                             "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 1000)
+    except:
         return waitForObject("{type='Help::Internal::TextBrowserHelpWidget' unnamed='1' "
                              "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 1000)
 
@@ -660,7 +685,3 @@ def getHelpTitle():
         return str(hv.title)
     except:
         return str(hv.documentTitle)
-
-def canTestEmbeddedQtQuick():
-    return (squishinfo.major * 0x10000 + squishinfo.minor * 0x100
-            + squishinfo.patch) > 0x050100

@@ -353,6 +353,9 @@ QString DiffUtils::makePatchLine(const QChar &startLineCharacter,
 QString DiffUtils::makePatch(const ChunkData &chunkData,
                              bool lastChunk)
 {
+    if (chunkData.contextChunk)
+        return QString();
+
     QString diffText;
     int leftLineCount = 0;
     int rightLineCount = 0;
@@ -1134,7 +1137,7 @@ QList<FileData> DiffUtils::readPatch(const QString &patch, bool *ok)
     QList<FileData> fileDataList;
 
     QString croppedPatch = patch;
-    // Crop e.g. "-- \n1.9.4.msysgit.0\n\n" at end of file
+    // Crop e.g. "-- \n2.10.2.windows.1\n\n" at end of file
     const QRegExp formatPatchEndingRegExp(QLatin1String("(\\n-- \\n\\S*\\n\\n$)"));
     const int pos = formatPatchEndingRegExp.indexIn(patch);
     if (pos != -1)

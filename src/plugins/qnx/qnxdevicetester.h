@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNX_INTERNAL_QNXDEVICETESTER_H
-#define QNX_INTERNAL_QNXDEVICETESTER_H
+#pragma once
 
 #include <remotelinux/linuxdevicetester.h>
 
@@ -41,8 +40,8 @@ class QnxDeviceTester : public ProjectExplorer::DeviceTester
 public:
     explicit QnxDeviceTester(QObject *parent = 0);
 
-    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration);
-    void stopTest();
+    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) override;
+    void stopTest() override;
 
 private slots:
     void handleGenericTestFinished(ProjectExplorer::DeviceTester::TestResult result);
@@ -74,5 +73,3 @@ private:
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNX_INTERNAL_QNXDEVICETESTER_H

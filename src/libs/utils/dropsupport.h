@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef UTILS_DROPSUPPORT_H
-#define UTILS_DROPSUPPORT_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -69,11 +68,10 @@ public:
 protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
-private slots:
+private:
     void emitFilesDropped();
     void emitValuesDropped();
 
-private:
     DropFilterFunction m_filterFunction;
     QList<FileSpec> m_files;
     QList<QVariant> m_values;
@@ -105,5 +103,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // UTILS_DROPSUPPORT_H

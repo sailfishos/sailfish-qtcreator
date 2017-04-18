@@ -85,10 +85,13 @@ public:
 class CrashHandlerPrivate
 {
 public:
-    CrashHandlerPrivate(pid_t pid, const QString &signalName, CrashHandler *crashHandler)
+    CrashHandlerPrivate(pid_t pid,
+                        const QString &signalName,
+                        const QString &appName,
+                        CrashHandler *crashHandler)
         : pid(pid),
           creatorInPath(Utils::Environment::systemEnvironment().searchInPath(QLatin1String(QtCreatorExecutable))),
-          dialog(crashHandler, signalName) {}
+          dialog(crashHandler, signalName, appName) {}
 
     const pid_t pid;
     const Utils::FileName creatorInPath; // Backup debugger.
@@ -100,17 +103,23 @@ public:
     QStringList restartAppEnvironment;
 };
 
-CrashHandler::CrashHandler(pid_t pid, const QString &signalName, QObject *parent)
-    : QObject(parent), d(new CrashHandlerPrivate(pid, signalName, this))
+CrashHandler::CrashHandler(pid_t pid,
+                           const QString &signalName,
+                           const QString &appName,
+                           RestartCapability restartCap,
+                           QObject *parent)
+    : QObject(parent), d(new CrashHandlerPrivate(pid, signalName, appName, this))
 {
-    connect(&d->backtraceCollector, SIGNAL(error(QString)), SLOT(onError(QString)));
-    connect(&d->backtraceCollector, SIGNAL(backtraceChunk(QString)), SLOT(onBacktraceChunk(QString)));
-    connect(&d->backtraceCollector, SIGNAL(backtrace(QString)), SLOT(onBacktraceFinished(QString)));
+    connect(&d->backtraceCollector, &BacktraceCollector::error, this, &CrashHandler::onError);
+    connect(&d->backtraceCollector, &BacktraceCollector::backtraceChunk,
+            this, &CrashHandler::onBacktraceChunk);
+    connect(&d->backtraceCollector, &BacktraceCollector::backtrace,
+            this, &CrashHandler::onBacktraceFinished);
 
     d->dialog.appendDebugInfo(collectKernelVersionInfo());
     d->dialog.appendDebugInfo(collectLinuxDistributionInfo());
 
-    if (!collectRestartAppData()) {
+    if (restartCap == DisableRestart || !collectRestartAppData()) {
         d->dialog.disableRestartAppCheckBox();
         if (d->creatorInPath.isEmpty())
             d->dialog.disableDebugAppButton();

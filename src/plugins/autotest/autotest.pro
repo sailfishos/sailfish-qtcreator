@@ -2,7 +2,6 @@ TARGET = AutoTest
 TEMPLATE = lib
 
 include(../../qtcreatorplugin.pri)
-include(autotest_dependencies.pri)
 
 DEFINES += AUTOTEST_LIBRARY
 
@@ -10,7 +9,6 @@ SOURCES += \
     testtreeview.cpp \
     testtreemodel.cpp \
     testtreeitem.cpp \
-    testvisitor.cpp \
     testcodeparser.cpp \
     autotestplugin.cpp \
     testrunner.cpp \
@@ -23,13 +21,41 @@ SOURCES += \
     testsettings.cpp \
     testsettingspage.cpp \
     testnavigationwidget.cpp \
-    testoutputreader.cpp
+    testoutputreader.cpp \
+    itestparser.cpp \
+    gtest/gtestconfiguration.cpp \
+    gtest/gtestparser.cpp \
+    gtest/gtesttreeitem.cpp \
+    gtest/gtestresult.cpp \
+    gtest/gtestoutputreader.cpp \
+    gtest/gtestvisitors.cpp \
+    gtest/gtestframework.cpp \
+    gtest/gtestsettings.cpp \
+    gtest/gtestsettingspage.cpp \
+    gtest/gtest_utils.cpp \
+    qtest/qttesttreeitem.cpp \
+    qtest/qttestvisitors.cpp \
+    qtest/qttestconfiguration.cpp \
+    qtest/qttestoutputreader.cpp \
+    qtest/qttestresult.cpp \
+    qtest/qttestparser.cpp \
+    qtest/qttestframework.cpp \
+    qtest/qttestsettings.cpp \
+    qtest/qttestsettingspage.cpp \
+    qtest/qttest_utils.cpp \
+    quick/quicktestconfiguration.cpp \
+    quick/quicktestparser.cpp \
+    quick/quicktesttreeitem.cpp \
+    quick/quicktestvisitors.cpp \
+    quick/quicktestframework.cpp \
+    quick/quicktest_utils.cpp \
+    testframeworkmanager.cpp
+
 
 HEADERS += \
     testtreeview.h \
     testtreemodel.h \
     testtreeitem.h \
-    testvisitor.h \
     testcodeparser.h \
     autotestplugin.h \
     autotest_global.h \
@@ -46,13 +72,49 @@ HEADERS += \
     testsettingspage.h \
     testnavigationwidget.h \
     testoutputreader.h \
-    autotesticons.h
+    autotesticons.h \
+    itestframework.h \
+    iframeworksettings.h \
+    itestparser.h \
+    gtest/gtestconfiguration.h \
+    gtest/gtestparser.h \
+    gtest/gtesttreeitem.h \
+    gtest/gtestoutputreader.h \
+    gtest/gtestresult.h \
+    gtest/gtest_utils.h \
+    gtest/gtestvisitors.h \
+    gtest/gtestframework.h \
+    gtest/gtestsettings.h \
+    gtest/gtestsettingspage.h \
+    gtest/gtestconstants.h \
+    qtest/qttesttreeitem.h \
+    qtest/qttest_utils.h \
+    qtest/qttestresult.h \
+    qtest/qttestvisitors.h \
+    qtest/qttestconfiguration.h \
+    qtest/qttestoutputreader.h \
+    qtest/qttestparser.h \
+    qtest/qttestframework.h \
+    qtest/qttestsettings.h \
+    qtest/qttestsettingspage.h \
+    qtest/qttestconstants.h \
+    quick/quicktestconfiguration.h \
+    quick/quicktestparser.h \
+    quick/quicktesttreeitem.h \
+    quick/quicktest_utils.h \
+    quick/quicktestvisitors.h \
+    quick/quicktestframework.h \
+    testframeworkmanager.h \
+    testrunconfiguration.h \
+    itestsettingspage.h
 
 RESOURCES += \
     autotest.qrc
 
 FORMS += \
-    testsettingspage.ui
+    testsettingspage.ui \
+    qtest/qttestsettingspage.ui \
+    gtest/gtestsettingspage.ui
 
 equals(TEST, 1) {
     HEADERS += autotestunittests.h

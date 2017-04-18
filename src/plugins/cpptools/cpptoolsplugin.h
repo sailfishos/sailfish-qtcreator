@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLS_H
-#define CPPTOOLS_H
+#pragma once
 
 #include "cpptools_global.h"
 #include "stringtable.h"
@@ -188,5 +187,3 @@ private:
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // CPPTOOLS_H

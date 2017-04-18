@@ -3,7 +3,7 @@ import qbs 1.0
 QtcPlugin {
     name: "QmlJSTools"
 
-    Depends { name: "Qt"; submodules: ["script", "widgets"] }
+    Depends { name: "Qt"; submodules: ["widgets"] }
     Depends { name: "Aggregation" }
     Depends { name: "CPlusPlus" }
     Depends { name: "LanguageUtils" }
@@ -49,7 +49,7 @@ QtcPlugin {
 
     Group {
         name: "Tests"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
         files: ["qmljstools_test.cpp"]
     }
 

@@ -43,11 +43,30 @@ class PROJECTEXPLORER_EXPORT BuildStepList : public ProjectConfiguration
 public:
     BuildStepList(QObject *parent, Core::Id id);
     BuildStepList(QObject *parent, BuildStepList *source);
-    BuildStepList(QObject *parent, const QVariantMap &data);
     ~BuildStepList() override;
 
     QList<BuildStep *> steps() const;
-    bool isNull() const;
+    QList<BuildStep *> steps(const std::function<bool(const BuildStep *)> &filter) const;
+    template <class BS> BS *firstOfType() {
+        BS *bs = nullptr;
+        for (int i = 0; i < count(); ++i) {
+            bs = qobject_cast<BS *>(at(i));
+            if (bs)
+                return bs;
+        }
+        return nullptr;
+    }
+    template <class BS> QList<BS *>allOfType() {
+        QList<BS *> result;
+        BS *bs = nullptr;
+        for (int i = 0; i < count(); ++i) {
+            bs = qobject_cast<BS *>(at(i));
+            if (bs)
+                result.append(bs);
+        }
+        return result;
+    }
+
     int count() const;
     bool isEmpty() const;
     bool contains(Core::Id id) const;
@@ -61,6 +80,7 @@ public:
     Target *target() const;
 
     virtual QVariantMap toMap() const override;
+    virtual bool fromMap(const QVariantMap &map) override;
     void cloneSteps(BuildStepList *source);
 
 signals:
@@ -69,13 +89,8 @@ signals:
     void stepRemoved(int position);
     void stepMoved(int from, int to);
 
-protected:
-    virtual bool fromMap(const QVariantMap &map) override;
-
 private:
     QList<BuildStep *> m_steps;
-    bool m_isNull;
 };
 
 } // namespace ProjectExplorer
-

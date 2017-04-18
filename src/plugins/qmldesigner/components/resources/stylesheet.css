@@ -1,6 +1,6 @@
 QFrame {
    border: 2px;
-   background-color: #4f4f4f;
+   background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
 }
 
 QLabel {
@@ -8,100 +8,45 @@ QLabel {
     border-image: none;
     padding: 0;
     background: none;
-    color: #E1E1E1;
+    color: creatorTheme.PanelTextColorLight;
 }
 
 QScrollArea {
      border: 0px;
-     background-color: #4f4f4f;
+     background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
 }
 
 QStackedWidget {
      border: 0px;
-     background-color: #4f4f4f;
+     background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
 }
-
 
 QGraphicsView {
      border: 0px;
-     background-color: #4f4f4f;
-}
-
-QTabWidget {
-     border: 0px;
-     background-color: #4f4f4f;
-}
-
-QTabWidget::pane { /* The tab widget frame */
-     border: 0px;
-     background-color: #4f4f4f;
-}
-
-QLineEdit
-{
-     border: 2px solid #8F8F8F;
-     border-radius: 4px;
-     padding: 0 8px;
-     background-color: white;
-     selection-background-color: darkgray;
+     background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
 }
 
 QLineEdit#itemLibrarySearchInput
 {
-    color: white;
+    color: creatorTheme.PanelTextColorLight;
     font-size: 11px;
-    border: 2px solid #0F0F0F;
-    border-radius: 6px;
+    border: 1px solid creatorTheme.QmlDesignerBackgroundColorDarker;
     border-width: 1;
     max-height: 20px;
     min-height: 20px;
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                        stop: 0 #2c2c2c, stop: 1 #333333);
+    background-color: creatorTheme.FancyToolButtonSelectedColor;
 }
 
  QTreeView {
-    color: white;
-    selection-color: white
- }
-
- QTreeView::item:selected {
-     color: white;
- }
-
-QTreeView::branch:has-siblings:!adjoins-item {
-     border-image: none;
-     image:none;
- }
-
- QTreeView::branch:has-siblings:adjoins-item {
-     border-image: none;
-     image:none;
- }
-
- QTreeView::branch:!has-children:!has-siblings:adjoins-item {
-     border-image: none;
-     image:none;
- }
-
- QTreeView::branch:has-children:!has-siblings:closed,
- QTreeView::branch:closed:has-children:has-siblings {
-         border-image: none;
-         image: url(:/qmldesigner/images/triangle_horz.png);
- }
-
- QTreeView::branch:open:has-children:!has-siblings,
- QTreeView::branch:open:has-children:has-siblings  {
-         border-image: none;
-         image: url(:/qmldesigner/images/triangle_vert.png);
+    color: creatorTheme.PanelTextColorLight;
+    selection-color: creatorTheme.PanelTextColorLight;
+    selection-background-color: creatorTheme.QmlDesigner_HighlightColor;
  }
 
  QListView {
-    color: white;
-    selection-color: white
- }
-
- QListView::item:selected {
-     color: white;
+    color: creatorTheme.PanelTextColorLight;
+    selection-color: creatorTheme.PanelTextColorLight;
+    selection-background-color: creatorTheme.QmlDesigner_HighlightColor;
  }
 
   QComboBox QAbstractItemView {
@@ -114,36 +59,38 @@ QTreeView::branch:has-siblings:!adjoins-item {
 	 selection-color: #404040;
  }
 
+QTabWidget {
+     border: 0px;
+     background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
+}
+
+QTabWidget::pane { /* The tab widget frame */
+     border: 0px;
+     background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;
+}
+
 QTabBar::tab {
-    border-image: none;
-
     width: 80px;
-
     height: 22px;
+
+    border-image: none;
+    background-color: creatorTheme.QmlDesignerTabDark;
+    color: creatorTheme.QmlDesignerTabLight;
+
     margin-top: 0x;
     margin-bottom: 0px;
     margin-left: 0px;
     margin-right: 0px;
     font: bold;
-	font-size: 11px;
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #3c3c3c, stop: 1 #444444);
-
-    color: #EEEEEE;
-}
-
-QTabBar::tab:hover {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #3c3c3c, stop: 1 #666666);
+    font-size: 11px;
 }
 
 QTabBar::tab:selected {
     border: none; /* no border for a flat push button */
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #EFEFEF, stop: 1 #EEEEEE);
-    color: #3c3c3c;
+    background-color: creatorTheme.QmlDesignerTabLight;
+    color: creatorTheme.QmlDesignerTabDark;
 }
 
 QWidget#itemLibrarySearchInputSpacer {
-    background-color: #eeeeee;
+    background-color: creatorTheme.QmlDesignerTabLight;
 }

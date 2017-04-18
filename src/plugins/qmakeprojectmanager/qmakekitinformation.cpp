@@ -76,7 +76,7 @@ void QmakeKitInformation::setup(Kit *k)
     if (spec.isEmpty())
         spec = version->mkspec();
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(k);
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
 
     if (!tc || (!tc->suggestedMkspecList().empty() && !tc->suggestedMkspecList().contains(spec))) {
         ToolChain *possibleTc = 0;
@@ -87,7 +87,8 @@ void QmakeKitInformation::setup(Kit *k)
                     break;
             }
         }
-        ToolChainKitInformation::setToolChain(k, possibleTc);
+        if (possibleTc)
+            ToolChainKitInformation::setToolChain(k, possibleTc);
     }
 }
 
@@ -99,6 +100,14 @@ KitConfigWidget *QmakeKitInformation::createConfigWidget(Kit *k) const
 KitInformation::ItemList QmakeKitInformation::toUserOutput(const Kit *k) const
 {
     return ItemList() << qMakePair(tr("mkspec"), mkspec(k).toUserOutput());
+}
+
+void QmakeKitInformation::addToMacroExpander(Kit *kit, MacroExpander *expander) const
+{
+    expander->registerVariable("Qmake:mkspec", tr("Mkspec configured for qmake by the Kit."),
+                [this, kit]() -> QString {
+                    return QmakeKitInformation::mkspec(kit).toUserOutput();
+                });
 }
 
 Core::Id QmakeKitInformation::id()
@@ -134,7 +143,7 @@ FileName QmakeKitInformation::defaultMkspec(const Kit *k)
     if (!version) // No version, so no qmake
         return FileName();
 
-    return version->mkspecFor(ToolChainKitInformation::toolChain(k));
+    return version->mkspecFor(ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx));
 }
 
 } // namespace QmakeProjectManager

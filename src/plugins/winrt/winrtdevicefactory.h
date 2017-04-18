@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef WINRTDEVICEFACTORY_H
-#define WINRTDEVICEFACTORY_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevicefactory.h>
 #include <utils/qtcprocess.h>
@@ -44,15 +43,13 @@ public:
     bool canRestore(const QVariantMap &map) const;
     ProjectExplorer::IDevice::Ptr restore(const QVariantMap &map) const;
 
-public slots:
     void autoDetect();
     void onPrerequisitesLoaded();
 
-private slots:
+private:
     void onProcessError();
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
-private:
     static bool allPrerequisitesLoaded();
     QString findRunnerFilePath() const;
     void parseRunnerOutput(const QByteArray &output) const;
@@ -63,5 +60,3 @@ private:
 
 } // Internal
 } // WinRt
-
-#endif // WINRTDEVICEFACTORY_H

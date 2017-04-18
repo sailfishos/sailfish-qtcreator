@@ -42,8 +42,8 @@ CodeGenSettingsPageWidget::CodeGenSettingsPageWidget(QWidget *parent) :
         QWidget(parent)
 {
     m_ui.setupUi(this);
-    connect(m_ui.includeQtModuleCheckBox, SIGNAL(toggled(bool)),
-            m_ui.addQtVersionCheckBox, SLOT(setEnabled(bool)));
+    connect(m_ui.includeQtModuleCheckBox, &QAbstractButton::toggled,
+            m_ui.addQtVersionCheckBox, &QWidget::setEnabled);
 }
 
 CodeGenSettings CodeGenSettingsPageWidget::parameters() const
@@ -98,7 +98,7 @@ CodeGenSettingsPage::CodeGenSettingsPage(QObject *parent) :
     setDisplayName(QCoreApplication::translate("QtSupport", Constants::CODEGEN_SETTINGS_PAGE_NAME));
     setCategory(CppTools::Constants::CPP_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("CppTools", CppTools::Constants::CPP_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(CppTools::Constants::SETTINGS_CATEGORY_CPP_ICON));
+    setCategoryIcon(Utils::Icon(CppTools::Constants::SETTINGS_CATEGORY_CPP_ICON));
 }
 
 QWidget *CodeGenSettingsPage::widget()

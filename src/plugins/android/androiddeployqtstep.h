@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDDEPLOYQTSTEP_H
-#define ANDROIDDEPLOYQTSTEP_H
+#pragma once
 
 #include "androidbuildapkstep.h"
 #include "androidconfigurations.h"
@@ -33,9 +32,7 @@
 #include <projectexplorer/abstractprocessstep.h>
 #include <qtsupport/baseqtversion.h>
 
-namespace Utils {
-class QtcProcess;
-}
+namespace Utils { class QtcProcess; }
 
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
@@ -50,17 +47,10 @@ class AndroidDeployQtStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit AndroidDeployQtStepFactory(QObject *parent = 0);
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const override;
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
-
-    bool canClone(ProjectExplorer::BuildStepList *parent,
-                  ProjectExplorer::BuildStep *product) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent,
                                       ProjectExplorer::BuildStep *product) override;
 };
@@ -69,6 +59,16 @@ class AndroidDeployQtStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
     friend class AndroidDeployQtStepFactory;
+
+    enum DeployErrorCode
+    {
+        NoError = 0,
+        InconsistentCertificates = 0x0001,
+        UpdateIncompatible = 0x0002,
+        PermissionModelDowngrade = 0x0004,
+        Failure = 0x0008
+    };
+
 public:
     enum UninstallType {
         Keep,
@@ -87,11 +87,10 @@ public:
 
     AndroidDeviceInfo deviceInfo() const;
 
-public slots:
     void setUninstallPreviousPackage(bool uninstall);
 
 signals:
-    void askForUninstall();
+    void askForUninstall(DeployErrorCode errorCode);
     void setSerialNumber(const QString &serialNumber);
 
 private:
@@ -101,21 +100,24 @@ private:
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
-    enum DeployResult { Success, Failure, AskUinstall };
-    DeployResult runDeploy(QFutureInterface<bool> &fi);
-    void slotAskForUninstall();
+    DeployErrorCode runDeploy(QFutureInterface<bool> &fi);
+    void slotAskForUninstall(DeployErrorCode errorCode);
     void slotSetSerialNumber(const QString &serialNumber);
 
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool immutable() const override { return true; }
 
-    void processReadyReadStdOutput();
+    void processReadyReadStdOutput(DeployErrorCode &errorCode);
     void stdOutput(const QString &line);
-    void processReadyReadStdError();
+    void processReadyReadStdError(DeployErrorCode &errorCode);
     void stdError(const QString &line);
+    DeployErrorCode parseDeployErrors(QString &deployOutputLine) const;
 
     void slotProcessFinished(int, QProcess::ExitStatus);
     void processFinished(int exitCode, QProcess::ExitStatus status);
+
+    friend void operator|=(DeployErrorCode &e1, const DeployErrorCode &e2) { e1 = static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
+    friend DeployErrorCode operator|(const DeployErrorCode &e1, const DeployErrorCode &e2) { return static_cast<AndroidDeployQtStep::DeployErrorCode>((int)e1 | (int)e2); }
 
     Utils::FileName m_manifestName;
     QString m_serialNumber;
@@ -128,7 +130,6 @@ private:
     QString m_targetArch;
     bool m_uninstallPreviousPackage;
     bool m_uninstallPreviousPackageRun;
-    bool m_installOk;
     bool m_useAndroiddeployqt;
     bool m_askForUinstall;
     static const Core::Id Id;
@@ -143,5 +144,3 @@ private:
 
 }
 } // namespace Android
-
-#endif // ANDROIDDEPLOYQTSTEP_H

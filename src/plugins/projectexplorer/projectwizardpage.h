@@ -31,6 +31,7 @@
 #include <coreplugin/iwizardfactory.h>
 
 #include <utils/wizardpage.h>
+#include <utils/treemodel.h>
 
 QT_BEGIN_NAMESPACE
 class QTreeView;
@@ -38,7 +39,6 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 namespace Core { class IVersionControl; }
-namespace Utils { class TreeModel; }
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -53,7 +53,7 @@ class ProjectWizardPage : public Utils::WizardPage
     Q_OBJECT
 
 public:
-    explicit ProjectWizardPage(QWidget *parent = 0);
+    explicit ProjectWizardPage(QWidget *parent = nullptr);
     ~ProjectWizardPage() override;
 
     FolderNode *currentNode() const;
@@ -73,13 +73,12 @@ public:
                                Core::IWizardFactory::WizardKind kind,
                                ProjectAction action);
 
+    void initializeVersionControls();
+    void setProjectUiVisible(bool visible);
+
 signals:
     void projectNodeChanged();
     void versionControlChanged(int);
-
-public slots:
-    void initializeVersionControls();
-    void setProjectUiVisible(bool visible);
 
 private:
     void projectChanged(int);
@@ -88,7 +87,7 @@ private:
 
     void setAdditionalInfo(const QString &text);
     void setAddingSubProject(bool addingSubProject);
-    void setModel(Utils::TreeModel *model);
+    void setModel(Utils::TreeModel<> *model);
     void setBestNode(ProjectExplorer::Internal::AddNewTree *tree);
     void setVersionControls(const QStringList &);
     void setProjectToolTip(const QString &);
@@ -96,11 +95,11 @@ private:
 
     Ui::WizardPage *m_ui;
     QStringList m_projectToolTips;
-    Utils::TreeModel *m_model;
+    Utils::TreeModel<> *m_model = nullptr;
 
     QList<Core::IVersionControl*> m_activeVersionControls;
     QString m_commonDirectory;
-    bool m_repositoryExists;
+    bool m_repositoryExists = false;
 };
 
 } // namespace Internal

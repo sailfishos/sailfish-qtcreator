@@ -47,8 +47,8 @@ KeywordDialog::KeywordDialog(const Keyword &keyword, const QSet<QString> &alread
     ui->keywordNameEdit->setText(keyword.name);
     ui->errorLabel->hide();
 
-    connect(ui->buttonBox, SIGNAL(accepted()), SLOT(acceptButtonClicked()));
-    connect(ui->keywordNameEdit, SIGNAL(textChanged(QString)), ui->errorLabel, SLOT(hide()));
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &KeywordDialog::acceptButtonClicked);
+    connect(ui->keywordNameEdit, &QLineEdit::textChanged, ui->errorLabel, &QWidget::hide);
 }
 
 KeywordDialog::~KeywordDialog()
@@ -95,6 +95,14 @@ void KeywordDialog::setupListWidget(IconType selectedIcon)
     item->setData(Qt::UserRole, static_cast<int>(IconType::Error));
     ui->listWidget->addItem(item);
 
+    item = new QListWidgetItem(icon(IconType::Bug), QLatin1String("bug"));
+    item->setData(Qt::UserRole, static_cast<int>(IconType::Bug));
+    ui->listWidget->addItem(item);
+
+    item = new QListWidgetItem(icon(IconType::Todo), QLatin1String("todo"));
+    item->setData(Qt::UserRole, static_cast<int>(IconType::Todo));
+    ui->listWidget->addItem(item);
+
     for (int i = 0; i < ui->listWidget->count(); ++i) {
         item = ui->listWidget->item(i);
         if (static_cast<IconType>(item->data(Qt::UserRole).toInt()) == selectedIcon) {
@@ -108,7 +116,7 @@ void KeywordDialog::setupColorWidgets(const QColor &color)
 {
     ui->colorButton->setColor(color);
     ui->colorEdit->setText(color.name());
-    connect(ui->colorButton, SIGNAL(colorChanged(QColor)), SLOT(colorSelected(QColor)));
+    connect(ui->colorButton, &Utils::QtColorButton::colorChanged, this, &KeywordDialog::colorSelected);
 }
 
 bool KeywordDialog::canAccept()

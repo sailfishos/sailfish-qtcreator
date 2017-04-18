@@ -30,12 +30,12 @@
 namespace TextEditor {
 
 GenericProposal::GenericProposal(int cursorPos, GenericProposalModel *model)
-    : m_basePosition(cursorPos)
+    : IAssistProposal(cursorPos)
     , m_model(model)
 {}
 
 GenericProposal::GenericProposal(int cursorPos, const QList<AssistProposalItemInterface *> &items)
-    : m_basePosition(cursorPos)
+    : IAssistProposal(cursorPos)
     , m_model(new GenericProposalModel)
 {
     m_model->loadContent(items);
@@ -48,19 +48,6 @@ bool GenericProposal::isFragile() const
 {
     return false;
 }
-
-int GenericProposal::basePosition() const
-{
-    return m_basePosition;
-}
-
-bool GenericProposal::isCorrective() const
-{
-    return false;
-}
-
-void GenericProposal::makeCorrection(TextEditorWidget *)
-{}
 
 IAssistProposalModel *GenericProposal::model() const
 {

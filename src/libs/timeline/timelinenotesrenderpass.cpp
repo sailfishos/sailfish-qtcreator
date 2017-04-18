@@ -27,6 +27,8 @@
 #include "timelinerenderstate.h"
 #include "timelinenotesmodel.h"
 
+#include <utils/theme/theme.h>
+
 namespace Timeline {
 
 struct Point2DWithDistanceFromTop {
@@ -226,6 +228,7 @@ private:
 
     int m_matrix_id;
     int m_z_range_id;
+    int m_color_id;
 };
 
 NotesMaterialShader::NotesMaterialShader()
@@ -240,6 +243,10 @@ void NotesMaterialShader::updateState(const RenderState &state, QSGMaterial *, Q
     if (state.isMatrixDirty()) {
         program()->setUniformValue(m_matrix_id, state.combinedMatrix());
         program()->setUniformValue(m_z_range_id, GLfloat(1.0));
+        const QColor notesColor = Utils::creatorTheme()
+                ? Utils::creatorTheme()->color(Utils::Theme::Timeline_HighlightColor)
+                : QColor(255, 165, 0);
+        program()->setUniformValue(m_color_id, notesColor);
     }
 }
 
@@ -253,6 +260,7 @@ void NotesMaterialShader::initialize()
 {
     m_matrix_id = program()->uniformLocation("matrix");
     m_z_range_id = program()->uniformLocation("_qt_zRange");
+    m_color_id = program()->uniformLocation("notesColor");
 }
 
 QSGMaterialType *NotesMaterial::type() const

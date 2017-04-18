@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TextMark_H
-#define TextMark_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -34,6 +33,8 @@
 #include <QIcon>
 
 QT_BEGIN_NAMESPACE
+class QGridLayout;
+class QLayout;
 class QPainter;
 class QRect;
 class QTextBlock;
@@ -51,8 +52,6 @@ class TEXTEDITOR_EXPORT TextMark
 public:
     TextMark(const QString &fileName, int lineNumber, Core::Id category);
     virtual ~TextMark();
-
-    TextMark(TextMark &&other) Q_DECL_NOEXCEPT;
 
     // determine order on markers on the same line.
     enum Priority
@@ -76,11 +75,15 @@ public:
     virtual void clicked();
     virtual bool isDraggable() const;
     virtual void dragToLine(int lineNumber);
+    void addToToolTipLayout(QGridLayout *target);
+    virtual bool addToolTipContent(QLayout *target);
 
     static Utils::Theme::Color categoryColor(Core::Id category);
     static bool categoryHasColor(Core::Id category);
     static void setCategoryColor(Core::Id category, Utils::Theme::Color color);
+    static void setDefaultToolTip(Core::Id category, const QString &toolTip);
     void setIcon(const QIcon &icon);
+    const QIcon &icon() const;
     // call this if the icon has changed.
     void updateMarker();
     Priority priority() const;
@@ -93,6 +96,9 @@ public:
 
     TextDocument *baseTextDocument() const;
     void setBaseTextDocument(TextDocument *baseTextDocument);
+
+    QString toolTip() const;
+    void setToolTip(const QString &toolTip);
 
 private:
     Q_DISABLE_COPY(TextMark)
@@ -107,8 +113,7 @@ private:
     QColor m_color;
     Core::Id m_category;
     double m_widthFactor;
+    QString m_toolTip;
 };
 
 } // namespace TextEditor
-
-#endif // TextMark_H

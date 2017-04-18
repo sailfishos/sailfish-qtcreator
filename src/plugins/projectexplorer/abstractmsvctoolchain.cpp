@@ -35,18 +35,18 @@
 
 #include <QDir>
 #include <QTemporaryFile>
+#include <QTextCodec>
 
 enum { debug = 0 };
 
 namespace ProjectExplorer {
 namespace Internal {
 
-
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId,
+                                             const Language &l,
                                              Detection d,
                                              const Abi &abi,
-                                             const QString& vcvarsBat) :
-    ToolChain(typeId, d),
+                                             const QString& vcvarsBat) : ToolChain(typeId, d),
     m_lastEnvironment(Utils::Environment::systemEnvironment()),
     m_abi(abi),
     m_vcvarsBat(vcvarsBat)
@@ -55,6 +55,7 @@ AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId,
     Q_ASSERT(abi.binaryFormat() == Abi::PEFormat);
     Q_ASSERT(abi.osFlavor() != Abi::WindowsMSysFlavor);
     Q_ASSERT(!m_vcvarsBat.isEmpty());
+    setLanguage(l);
 }
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId, Detection d) :
@@ -95,11 +96,17 @@ ToolChain::CompilerFlags AbstractMsvcToolChain::compilerFlags(const QStringList 
     if (cxxflags.contains(QLatin1String("/Za")))
         flags &= ~MicrosoftExtensions;
 
-    if (m_abi.osFlavor() == Abi::WindowsMsvc2010Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2012Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2013Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2015Flavor)
-        flags |= StandardCxx11;
+    switch (m_abi.osFlavor()) {
+    case Abi::WindowsMsvc2010Flavor:
+    case Abi::WindowsMsvc2012Flavor: flags |= StandardCxx11;
+        break;
+    case Abi::WindowsMsvc2013Flavor:
+    case Abi::WindowsMsvc2015Flavor:
+    case Abi::WindowsMsvc2017Flavor: flags |= StandardCxx14;
+        break;
+    default:
+        break;
+    }
 
     return flags;
 }
@@ -203,7 +210,16 @@ Utils::FileName AbstractMsvcToolChain::compilerCommand() const
 {
     Utils::Environment env = Utils::Environment::systemEnvironment();
     addToEnvironment(env);
-    return env.searchInPath(QLatin1String("cl.exe"));
+
+    Utils::FileName clexe = env.searchInPath(QLatin1String("cl.exe"), QStringList(), [](const QString &name) {
+        QDir dir(QDir::cleanPath(QFileInfo(name).absolutePath() + QStringLiteral("/..")));
+        do {
+            if (QFile::exists(dir.absoluteFilePath(QStringLiteral("vcvarsall.bat"))))
+                return true;
+        } while (dir.cdUp() && !dir.isRoot());
+        return false;
+    });
+    return clexe;
 }
 
 IOutputParser *AbstractMsvcToolChain::outputParser() const
@@ -235,13 +251,12 @@ QByteArray AbstractMsvcToolChain::msvcPredefinedMacros(const QStringList cxxflag
     return predefinedMacros;
 }
 
-
 bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
                                                         const QString &batchFile,
                                                         const QString &batchArgs,
                                                         QMap<QString, QString> &envPairs)
 {
-    const QByteArray marker = "####################\r\n";
+    const QString marker = "####################";
     // Create a temporary file name for the output. Use a temporary file here
     // as I don't know another way to do this in Qt...
     // Note, can't just use a QTemporaryFile all the way through as it remains open
@@ -256,76 +271,65 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
         call += ' ';
         call += batchArgs.toLocal8Bit();
     }
+    saver.write("chcp 65001\r\n");
     saver.write(call + "\r\n");
-    saver.write("@echo " + marker);
+    saver.write("@echo " + marker.toLocal8Bit() + "\r\n");
     saver.write("set\r\n");
-    saver.write("@echo " + marker);
+    saver.write("@echo " + marker.toLocal8Bit() + "\r\n");
     if (!saver.finalize()) {
         qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
         return false;
     }
 
-    Utils::QtcProcess run;
+    Utils::SynchronousProcess run;
     // As of WinSDK 7.1, there is logic preventing the path from being set
     // correctly if "ORIGINALPATH" is already set. That can cause problems
     // if Creator is launched within a session set up by setenv.cmd.
     env.unset(QLatin1String("ORIGINALPATH"));
-    run.setEnvironment(env);
+    run.setEnvironment(env.toStringList());
+    run.setTimeoutS(10);
     Utils::FileName cmdPath = Utils::FileName::fromUserInput(QString::fromLocal8Bit(qgetenv("COMSPEC")));
     if (cmdPath.isEmpty())
         cmdPath = env.searchInPath(QLatin1String("cmd.exe"));
     // Windows SDK setup scripts require command line switches for environment expansion.
-    QString cmdArguments = QLatin1String(" /E:ON /V:ON /c \"");
-    cmdArguments += QDir::toNativeSeparators(saver.fileName());
-    cmdArguments += QLatin1Char('"');
-    run.setCommand(cmdPath.toString(), cmdArguments);
+    QStringList cmdArguments({
+        QLatin1String("/E:ON"), QLatin1String("/V:ON"), QLatin1String("/c")});
+    cmdArguments << QDir::toNativeSeparators(saver.fileName());
     if (debug)
-        qDebug() << "readEnvironmentSetting: " << call << cmdPath << cmdArguments
+        qDebug() << "readEnvironmentSetting: " << call << cmdPath << cmdArguments.join(' ')
                  << " Env: " << env.size();
-    run.start();
+    run.setCodec(QTextCodec::codecForName("UTF-8"));
+    Utils::SynchronousProcessResponse response = run.runBlocking(cmdPath.toString(), cmdArguments);
+    if (response.result != Utils::SynchronousProcessResponse::Finished) {
+        qWarning() << response.exitMessage(cmdPath.toString(), 10);
+        return false;
+    }
 
-    if (!run.waitForStarted()) {
-        qWarning("%s: Unable to run '%s': %s", Q_FUNC_INFO, qPrintable(batchFile),
-                 qPrintable(run.errorString()));
-        return false;
-    }
-    if (!run.waitForFinished()) {
-        qWarning("%s: Timeout running '%s'", Q_FUNC_INFO, qPrintable(batchFile));
-        Utils::SynchronousProcess::stopProcess(run);
-        return false;
-    }
     // The SDK/MSVC scripts do not return exit codes != 0. Check on stdout.
-    QByteArray stdOut = run.readAllStandardOutput();
-    if (!stdOut.isEmpty() && (stdOut.contains("Unknown") || stdOut.contains("Error")))
-        qWarning("%s: '%s' reports:\n%s", Q_FUNC_INFO, call.constData(), stdOut.constData());
+    const QString stdOut = response.stdOut();
 
     //
     // Now parse the file to get the environment settings
-    int start = stdOut.indexOf(marker);
+    const int start = stdOut.indexOf(marker);
     if (start == -1) {
         qWarning("Could not find start marker in stdout output.");
         return false;
     }
 
-    stdOut = stdOut.mid(start + marker.size());
-
-    int end = stdOut.indexOf(marker);
+    const int end = stdOut.indexOf(marker, start + 1);
     if (end == -1) {
         qWarning("Could not find end marker in stdout output.");
         return false;
     }
 
-    stdOut = stdOut.left(end);
+    const QString output = stdOut.mid(start, end - start);
 
-    QStringList lines = QString::fromLocal8Bit(stdOut).split(QLatin1String("\r\n"));
-    QRegExp regexp(QLatin1String("(\\w*)=(.*)"));
-    foreach (const QString &line, lines) {
-        if (regexp.exactMatch(line)) {
-            const QString varName = regexp.cap(1);
-            const QString varValue = regexp.cap(2);
-
-            if (!varValue.isEmpty())
-                envPairs.insert(varName, varValue);
+    foreach (const QString &line, output.split(QLatin1String("\n"))) {
+        const int pos = line.indexOf('=');
+        if (pos > 0) {
+            const QString varName = line.mid(0, pos);
+            const QString varValue = line.mid(pos + 1);
+            envPairs.insert(varName, varValue);
         }
     }
 
@@ -403,7 +407,6 @@ bool AbstractMsvcToolChain::WarningFlagAdder::triggered() const
 {
     return m_triggered;
 }
-
 
 } // namespace Internal
 } // namespace ProjectExplorer

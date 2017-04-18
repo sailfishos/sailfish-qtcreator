@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SUBVERSIONCLIENT_H
-#define SUBVERSIONCLIENT_H
+#pragma once
 
 #include "subversionsettings.h"
 #include <vcsbase/vcsbaseclient.h>
@@ -72,6 +71,9 @@ public:
 
     QString synchronousTopic(const QString &repository);
 
+    static QString escapeFile(const QString &file);
+    static QStringList escapeFiles(const QStringList &files);
+
 protected:
     Core::Id vcsEditorKind(VcsCommandTag cmd) const override;
 
@@ -85,5 +87,3 @@ private:
 
 } // namespace Internal
 } // namespace Subversion
-
-#endif // SUBVERSIONCLIENT_H

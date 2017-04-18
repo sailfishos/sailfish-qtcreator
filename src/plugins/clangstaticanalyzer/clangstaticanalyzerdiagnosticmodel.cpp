@@ -66,7 +66,7 @@ private:
 };
 
 ClangStaticAnalyzerDiagnosticModel::ClangStaticAnalyzerDiagnosticModel(QObject *parent)
-    : Utils::TreeModel(parent)
+    : Utils::TreeModel<>(parent)
 {
     setHeader(QStringList() << tr("Issue") << tr("Location"));
 }
@@ -272,8 +272,8 @@ QVariant ExplainingStepItem::data(int column, int role) const
     case ClangStaticAnalyzerDiagnosticModel::DiagnosticRole:
         return QVariant::fromValue(static_cast<DiagnosticItem *>(parent())->diagnostic());
     case Qt::DisplayRole: {
-        const int row = parent()->children().indexOf(const_cast<ExplainingStepItem *>(this)) + 1;
-        const int padding = static_cast<int>(std::log10(parent()->rowCount()))
+        const int row = indexInParent() + 1;
+        const int padding = static_cast<int>(std::log10(parent()->childCount()))
                 - static_cast<int>(std::log10(row));
         return QString::fromLatin1("%1%2: %3")
                 .arg(QString(padding, QLatin1Char(' ')))

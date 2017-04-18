@@ -23,24 +23,20 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_DIAGNOSTICCONTAINER_H
-#define CLANGBACKEND_DIAGNOSTICCONTAINER_H
+#pragma once
 
 #include "sourcerangecontainer.h"
 #include "fixitcontainer.h"
 
+#include <QDataStream>
 #include <QVector>
 
 #include <utility>
 
 namespace ClangBackEnd {
 
-class CMBIPC_EXPORT DiagnosticContainer
+class DiagnosticContainer
 {
-    friend CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const DiagnosticContainer &container);
-    friend CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, DiagnosticContainer &container);
-    friend CMBIPC_EXPORT bool operator==(const DiagnosticContainer &first, const DiagnosticContainer &second);
-
 public:
     DiagnosticContainer() = default;
     DiagnosticContainer(const Utf8String &text,
@@ -50,20 +46,108 @@ public:
                         const SourceLocationContainer &location,
                         const QVector<SourceRangeContainer> &ranges,
                         const QVector<FixItContainer> &fixIts,
-                        const QVector<DiagnosticContainer> &children);
+                        const QVector<DiagnosticContainer> &children)
+        : location_(location),
+          ranges_(ranges),
+          text_(text),
+          category_(category),
+          enableOption_(options.first),
+          disableOption_(options.second),
+          children_(children),
+          fixIts_(fixIts),
+          severity_(severity)
+    {
+    }
 
-    const Utf8String &text() const;
-    const Utf8String &category() const;
-    const Utf8String &enableOption() const;
-    const Utf8String &disableOption() const;
-    const SourceLocationContainer &location() const;
-    const QVector<SourceRangeContainer> &ranges() const;
-    DiagnosticSeverity severity() const;
-    const QVector<FixItContainer> &fixIts() const;
-    const QVector<DiagnosticContainer> &children() const;
+    const Utf8String &text() const
+    {
+        return text_;
+    }
 
-private:
-    quint32 &severityAsInt();
+    const Utf8String &category() const
+    {
+        return category_;
+    }
+
+    const Utf8String &enableOption() const
+    {
+        return enableOption_;
+    }
+
+    const Utf8String &disableOption() const
+    {
+        return disableOption_;
+    }
+
+    const SourceLocationContainer &location() const
+    {
+        return location_;
+    }
+
+    const QVector<SourceRangeContainer> &ranges() const
+    {
+        return ranges_;
+    }
+
+    DiagnosticSeverity severity() const
+    {
+        return severity_;
+    }
+
+    const QVector<FixItContainer> &fixIts() const
+    {
+        return fixIts_;
+    }
+
+    const QVector<DiagnosticContainer> &children() const
+    {
+        return children_;
+    }
+
+    friend QDataStream &operator<<(QDataStream &out, const DiagnosticContainer &container)
+    {
+        out << container.text_;
+        out << container.category_;
+        out << container.enableOption_;
+        out << container.disableOption_;
+        out << container.location_;
+        out << static_cast<quint32>(container.severity_);
+        out << container.ranges_;
+        out << container.fixIts_;
+        out << container.children_;
+
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, DiagnosticContainer &container)
+    {
+        quint32 severity;
+
+        in >> container.text_;
+        in >> container.category_;
+        in >> container.enableOption_;
+        in >> container.disableOption_;
+        in >> container.location_;
+        in >> severity;
+        in >> container.ranges_;
+        in >> container.fixIts_;
+        in >> container.children_;
+
+        container.severity_ = static_cast<DiagnosticSeverity>(severity);
+
+        return in;
+    }
+
+    friend bool operator==(const DiagnosticContainer &first, const DiagnosticContainer &second)
+    {
+        return first.text_ == second.text_
+            && first.location_ == second.location_;
+    }
+
+    friend bool operator!=(const DiagnosticContainer &first, const DiagnosticContainer &second)
+    {
+        return !(first == second);
+    }
 
 private:
     SourceLocationContainer location_;
@@ -77,13 +161,7 @@ private:
     DiagnosticSeverity severity_;
 };
 
-CMBIPC_EXPORT QDataStream &operator<<(QDataStream &out, const DiagnosticContainer &container);
-CMBIPC_EXPORT QDataStream &operator>>(QDataStream &in, DiagnosticContainer &container);
-CMBIPC_EXPORT bool operator==(const DiagnosticContainer &first, const DiagnosticContainer &second);
-
 CMBIPC_EXPORT QDebug operator<<(QDebug debug, const DiagnosticContainer &container);
 void PrintTo(const DiagnosticContainer &container, ::std::ostream* os);
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_DIAGNOSTICCONTAINER_H

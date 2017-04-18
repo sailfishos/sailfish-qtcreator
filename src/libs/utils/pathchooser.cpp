@@ -30,6 +30,7 @@
 
 #include "synchronousprocess.h"
 #include "hostosinfo.h"
+#include "theme/theme.h"
 
 #include <QDebug>
 #include <QFileDialog>
@@ -129,16 +130,12 @@ QString BinaryVersionToolTipEventFilter::toolVersion(const QString &binary, cons
 {
     if (binary.isEmpty())
         return QString();
-    QProcess proc;
-    proc.start(binary, arguments);
-    if (!proc.waitForStarted())
+    SynchronousProcess proc;
+    proc.setTimeoutS(1);
+    SynchronousProcessResponse response = proc.runBlocking(binary, arguments);
+    if (response.result != SynchronousProcessResponse::Finished)
         return QString();
-    if (!proc.waitForFinished()) {
-        SynchronousProcess::stopProcess(proc);
-        return QString();
-    }
-    return QString::fromLocal8Bit(QByteArray(proc.readAllStandardOutput()
-        + proc.readAllStandardError()));
+    return response.allOutput();
 }
 
 // Extends BinaryVersionToolTipEventFilter to prepend the existing pathchooser
@@ -230,6 +227,7 @@ PathChooser::PathChooser(QWidget *parent) :
     connect(d->m_lineEdit, &QLineEdit::textChanged, this, [this] { emit pathChanged(path()); });
 
     d->m_lineEdit->setMinimumWidth(120);
+    d->m_lineEdit->setErrorColor(creatorTheme()->color(Theme::TextColorError));
     d->m_hLayout->addWidget(d->m_lineEdit);
     d->m_hLayout->setSizeConstraint(QLayout::SetMinimumSize);
 
@@ -310,24 +308,24 @@ void PathChooser::setEnvironment(const Environment &env)
     }
 }
 
-QString PathChooser::path() const
-{
-    return d->expandedPath(rawPath());
-}
-
 QString PathChooser::rawPath() const
 {
     return rawFileName().toString();
 }
 
+QString PathChooser::path() const
+{
+    return fileName().toString();
+}
+
 FileName PathChooser::rawFileName() const
 {
-    return FileName::fromUserInput(d->m_lineEdit->text());
+    return FileName::fromString(QDir::fromNativeSeparators(d->m_lineEdit->text()));
 }
 
 FileName PathChooser::fileName() const
 {
-    return FileName::fromString(path());
+    return FileName::fromUserInput(d->expandedPath(rawFileName().toString()));
 }
 
 // FIXME: try to remove again
@@ -544,7 +542,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
         }
         if (!fi.isFile()) {
             if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" is not a file.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
@@ -556,7 +554,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
         }
         if (fi.exists() && fi.isDir()) {
             if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(fi.absolutePath()));
+                *errorMessage = tr("The path \"%1\" is not a file.").arg(QDir::toNativeSeparators(fi.absolutePath()));
             return false;
         }
         break;
@@ -568,7 +566,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
         }
         if (!fi.isFile() || !fi.isExecutable()) {
             if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not an executable file.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" is not an executable file.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
@@ -592,7 +590,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
     }
 
     if (errorMessage)
-        *errorMessage = tr("Full path: <b>%1</b>").arg(QDir::toNativeSeparators(expandedPath));
+        *errorMessage = tr("Full path: \"%1\"").arg(QDir::toNativeSeparators(expandedPath));
     return true;
 }
 

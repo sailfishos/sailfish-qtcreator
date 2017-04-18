@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TOPICCHOOSER_H
-#define TOPICCHOOSER_H
+#pragma once
 
 #include "ui_topicchooser.h"
 
@@ -47,20 +46,15 @@ public:
 
     QUrl link() const;
 
-private slots:
+private:
     void acceptDialog();
     void setFilter(const QString &pattern);
     void activated(const QModelIndex &index);
-
-private:
     bool eventFilter(QObject *object, QEvent *event);
 
-private:
     Ui::TopicChooser ui;
     QList<QUrl> m_links;
 
     QModelIndex m_activedIndex;
     QSortFilterProxyModel *m_filterModel;
 };
-
-#endif // TOPICCHOOSER_H

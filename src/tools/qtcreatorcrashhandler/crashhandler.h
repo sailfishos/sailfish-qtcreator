@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CRASHHANDLER_H
-#define CRASHHANDLER_H
+#pragma once
 
 #include <QObject>
 
@@ -39,12 +38,17 @@ class CrashHandler : public QObject
 {
     Q_OBJECT
 public:
-    explicit CrashHandler(pid_t pid, const QString &signalName, QObject *parent = 0);
+    enum RestartCapability { EnableRestart, DisableRestart };
+
+    explicit CrashHandler(pid_t pid,
+                          const QString &signalName,
+                          const QString &appName,
+                          RestartCapability restartCap = EnableRestart,
+                          QObject *parent = 0);
     ~CrashHandler();
 
     void run();
 
-public slots:
     void onError(const QString &errorMessage);
     void onBacktraceChunk(const QString &chunk);
     void onBacktraceFinished(const QString &backtrace);
@@ -61,5 +65,3 @@ private:
 
     CrashHandlerPrivate *d;
 };
-
-#endif // CRASHHANDLER_H

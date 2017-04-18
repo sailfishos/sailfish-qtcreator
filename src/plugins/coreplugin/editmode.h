@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EDITMODE_H
-#define EDITMODE_H
+#pragma once
 
 #include <coreplugin/imode.h>
 
@@ -48,7 +47,7 @@ public:
     ~EditMode();
 
 private:
-    void grabEditorManager(IMode *mode);
+    void grabEditorManager(Id mode);
 
     QSplitter *m_splitter;
     QVBoxLayout *m_rightSplitWidgetLayout;
@@ -56,5 +55,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // EDITMODE_H

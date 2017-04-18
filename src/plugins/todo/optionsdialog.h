@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef OPTIONSDIALOG_H
-#define OPTIONSDIALOG_H
+#pragma once
 
 #include <QWidget>
 
@@ -43,7 +42,6 @@ class Keyword;
 
 class OptionsDialog : public QWidget
 {
-    Q_OBJECT
 public:
     explicit OptionsDialog(QWidget *parent = 0);
     ~OptionsDialog();
@@ -51,15 +49,13 @@ public:
     void setSettings(const Settings &settings);
     Settings settings();
 
-private slots:
+private:
     void addKeywordButtonClicked();
     void editKeywordButtonClicked();
     void removeKeywordButtonClicked();
     void resetKeywordsButtonClicked();
     void setKeywordsButtonsEnabled();
     void keywordDoubleClicked(QListWidgetItem *item);
-
-private:
     void uiFromSettings(const Settings &settings);
     Settings settingsFromUi();
     void addToKeywordsList(const Keyword &keyword);
@@ -71,5 +67,3 @@ private:
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // OPTIONSDIALOG_H

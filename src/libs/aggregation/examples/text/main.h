@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MAIN_H
-#define MAIN_H
+#pragma once
 
 #include "myinterfaces.h"
 #include "ui_main.h"
@@ -43,13 +42,10 @@ public:
 
     void add(IComboEntry *obj);
 
-private slots:
+private:
     void select(int index);
 
-private:
     Ui::mainClass ui;
 
     QList<IComboEntry *> m_entries;
 };
-
-#endif // MAIN_H

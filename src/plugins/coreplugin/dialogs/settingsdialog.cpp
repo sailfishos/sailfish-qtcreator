@@ -70,7 +70,7 @@ bool optionsPageLessThan(const IOptionsPage *p1, const IOptionsPage *p2)
 static inline QList<IOptionsPage*> sortedOptionsPages()
 {
     QList<IOptionsPage*> rc = ExtensionSystem::PluginManager::getObjects<IOptionsPage>();
-    qStableSort(rc.begin(), rc.end(), optionsPageLessThan);
+    std::stable_sort(rc.begin(), rc.end(), optionsPageLessThan);
     return rc;
 }
 
@@ -103,8 +103,8 @@ public:
     CategoryModel(QObject *parent = 0);
     ~CategoryModel();
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     void setPages(const QList<IOptionsPage*> &pages,
                   const QList<IOptionsPageProvider *> &providers);
@@ -222,7 +222,7 @@ void CategoryModel::ensurePages(Category *category)
 
         category->pages += createdPages;
         category->providerPagesCreated = true;
-        qStableSort(category->pages.begin(), category->pages.end(), optionsPageLessThan);
+        std::stable_sort(category->pages.begin(), category->pages.end(), optionsPageLessThan);
     }
 }
 
@@ -251,7 +251,7 @@ public:
     {}
 
 protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
 };
 
 bool CategoryFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -337,6 +337,7 @@ public:
     {
         setFrameStyle(QFrame::NoFrame | QFrame::Plain);
         viewport()->setAutoFillBackground(false);
+        setWidgetResizable(true);
     }
 private:
     void resizeEvent(QResizeEvent *event) override
@@ -385,7 +386,6 @@ private:
             return 0;
         return list.first()->sizeHint().width();
     }
-
 };
 
 

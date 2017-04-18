@@ -40,6 +40,7 @@
 #include "extraencodingsettings.h"
 #include "icodestylepreferences.h"
 #include "icodestylepreferencesfactory.h"
+#include "completionsettingspage.h"
 #include <texteditor/generichighlighter/highlightersettingspage.h>
 #include <texteditor/snippets/snippetssettingspage.h>
 
@@ -64,14 +65,13 @@ public:
     DisplaySettingsPage *m_displaySettingsPage;
     HighlighterSettingsPage *m_highlighterSettingsPage;
     SnippetsSettingsPage *m_snippetsSettingsPage;
+    CompletionSettingsPage *m_completionSettingsPage;
 
     QMap<Core::Id, ICodeStylePreferencesFactory *> m_languageToFactory;
 
     QMap<Core::Id, ICodeStylePreferences *> m_languageToCodeStyle;
     QMap<Core::Id, CodeStylePool *> m_languageToCodeStylePool;
     QMap<QString, Core::Id> m_mimeTypeToLanguage;
-
-    CompletionSettings m_completionSettings;
 };
 
 } // namespace Internal
@@ -118,6 +118,9 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
     formatDescr.emplace_back(C_PARENTHESES_MISMATCH, tr("Mismatched Parentheses"),
                              tr("Displayed when mismatched parentheses, "
                                 "square brackets, or curly brackets are found."));
+    formatDescr.emplace_back(C_AUTOCOMPLETE, tr("Auto Complete"),
+                             tr("Displayed when a character is automatically inserted "
+                                "like brackets or quotes."));
     formatDescr.emplace_back(C_CURRENT_LINE, tr("Current Line"),
                              tr("Line where the cursor is placed in."),
                              FormatDescription::ShowBackgroundControl);
@@ -157,6 +160,7 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
     formatDescr.emplace_back(C_LOCAL, tr("Local"), tr("Local variables."));
     formatDescr.emplace_back(C_FIELD, tr("Field"),
                              tr("Class' data members."), Qt::darkRed);
+    formatDescr.emplace_back(C_GLOBAL, tr("Global"), tr("Global variables."));
     formatDescr.emplace_back(C_ENUMERATION, tr("Enumeration"),
                              tr("Applied to enumeration items."), Qt::darkMagenta);
 
@@ -305,7 +309,14 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
                              QColor(255, 190, 0),
                              QTextCharFormat::DotLine,
                              FormatDescription::ShowUnderlineControl);
-
+    formatDescr.emplace_back(C_DECLARATION,
+                             tr("Declaration"),
+                             tr("Declaration of a function, variable, and so on."),
+                             FormatDescription::ShowFontUnderlineAndRelativeControls);
+    formatDescr.emplace_back(C_OUTPUT_ARGUMENT,
+                             tr("Output Argument"),
+                             tr("Writable arguments of a function call."),
+                             FormatDescription::ShowFontUnderlineAndRelativeControls);
 
     d->m_fontSettingsPage = new FontSettingsPage(formatDescr,
                                                    Constants::TEXT_EDITOR_FONT_SETTINGS,
@@ -335,6 +346,9 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
         new SnippetsSettingsPage(Constants::TEXT_EDITOR_SNIPPETS_SETTINGS, this);
     ExtensionSystem::PluginManager::addObject(d->m_snippetsSettingsPage);
 
+    d->m_completionSettingsPage = new CompletionSettingsPage(this);
+    ExtensionSystem::PluginManager::addObject(d->m_completionSettingsPage);
+
     connect(d->m_fontSettingsPage, &FontSettingsPage::changed,
             this, &TextEditorSettings::fontSettingsChanged);
     connect(d->m_behaviorSettingsPage, &BehaviorSettingsPage::typingSettingsChanged,
@@ -349,9 +363,10 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
             this, &TextEditorSettings::marginSettingsChanged);
     connect(d->m_displaySettingsPage, &DisplaySettingsPage::displaySettingsChanged,
             this, &TextEditorSettings::displaySettingsChanged);
-
-    // TODO: Move these settings to TextEditor category
-    d->m_completionSettings.fromSettings(QLatin1String("CppTools/"), Core::ICore::settings());
+    connect(d->m_completionSettingsPage, &CompletionSettingsPage::completionSettingsChanged,
+            this, &TextEditorSettings::completionSettingsChanged);
+    connect(d->m_completionSettingsPage, &CompletionSettingsPage::commentsSettingsChanged,
+            this, &TextEditorSettings::commentsSettingsChanged);
 }
 
 TextEditorSettings::~TextEditorSettings()
@@ -361,6 +376,7 @@ TextEditorSettings::~TextEditorSettings()
     ExtensionSystem::PluginManager::removeObject(d->m_displaySettingsPage);
     ExtensionSystem::PluginManager::removeObject(d->m_highlighterSettingsPage);
     ExtensionSystem::PluginManager::removeObject(d->m_snippetsSettingsPage);
+    ExtensionSystem::PluginManager::removeObject(d->m_completionSettingsPage);
 
     delete d;
 
@@ -404,7 +420,7 @@ const DisplaySettings &TextEditorSettings::displaySettings()
 
 const CompletionSettings &TextEditorSettings::completionSettings()
 {
-    return d->m_completionSettings;
+    return d->m_completionSettingsPage->completionSettings();
 }
 
 const HighlighterSettings &TextEditorSettings::highlighterSettings()
@@ -417,15 +433,9 @@ const ExtraEncodingSettings &TextEditorSettings::extraEncodingSettings()
     return d->m_behaviorSettingsPage->extraEncodingSettings();
 }
 
-void TextEditorSettings::setCompletionSettings(const CompletionSettings &settings)
+const CommentsSettings &TextEditorSettings::commentsSettings()
 {
-    if (d->m_completionSettings == settings)
-        return;
-
-    d->m_completionSettings = settings;
-    d->m_completionSettings.toSettings(QLatin1String("CppTools/"), Core::ICore::settings());
-
-    emit m_instance->completionSettingsChanged(d->m_completionSettings);
+    return d->m_completionSettingsPage->commentsSettings();
 }
 
 void TextEditorSettings::registerCodeStyleFactory(ICodeStylePreferencesFactory *factory)

@@ -23,46 +23,16 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_IPCCLIENTINTERFACE_H
-#define CLANGBACKEND_IPCCLIENTINTERFACE_H
+#pragma once
 
 #include "ipcinterface.h"
 
 namespace ClangBackEnd {
 
-class IpcServerInterface;
-class RegisterTranslationUnitForEditorMessage;
-class UpdateTranslationUnitsForEditorMessage;
-class RegisterProjectPartsForEditorMessage;
-class UnregisterTranslationUnitsForEditorMessage;
-class UnregisterProjectPartsForEditorMessage;
-class EchoMessage;
-class CompleteCodeMessage;
-class CodeCompletedMessage;
-class TranslationUnitDoesNotExistMessage;
-class ProjectPartsDoNotExistMessage;
-class DiagnosticsChangedMessage;
-class RequestDiagnosticsMessage;
-class RegisterUnsavedFilesForEditorMessage;
-class UnregisterUnsavedFilesForEditorMessage;
-class UpdateVisibleTranslationUnitsMessage;
-class RequestHighlightingMessage;
-class HighlightingChangedMessage;
-
 class CMBIPC_EXPORT IpcClientInterface : public IpcInterface
 {
 public:
-    void dispatch(const MessageEnvelop &messageEnvelop) override;
-
-    virtual void alive() = 0;
-    virtual void echo(const EchoMessage &message) = 0;
-    virtual void codeCompleted(const CodeCompletedMessage &message) = 0;
-    virtual void translationUnitDoesNotExist(const TranslationUnitDoesNotExistMessage &message) = 0;
-    virtual void projectPartsDoNotExist(const ProjectPartsDoNotExistMessage &message) = 0;
-    virtual void diagnosticsChanged(const DiagnosticsChangedMessage &message) = 0;
-    virtual void highlightingChanged(const HighlightingChangedMessage &message) = 0;
+    IpcClientInterface();
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_IPCCLIENTINTERFACE_H

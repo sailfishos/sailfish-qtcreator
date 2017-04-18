@@ -11,7 +11,7 @@ CONFIG   += console
 QMAKE_LFLAGS += -Wl,-sectcreate,__TEXT,__info_plist,\"$$PWD/Info.plist\"
 CONFIG -= app_bundle
 
-LIBS += -framework CoreFoundation -framework CoreServices -framework IOKit -lssl -lbz2 -framework Security -framework SystemConfiguration
+LIBS += -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -framework SystemConfiguration
 
 TEMPLATE = app
 
@@ -28,3 +28,6 @@ HEADERS += \
     iosdevicemanager.h
 
 DISTFILES += Info.plist
+
+target.path = $$INSTALL_LIBEXEC_PATH/ios
+INSTALLS += target

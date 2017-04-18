@@ -37,9 +37,6 @@ QtcPlugin {
         "cpphighlighter.cpp", "cpphighlighter.h",
         "cpphoverhandler.cpp", "cpphoverhandler.h",
         "cppincludehierarchy.cpp", "cppincludehierarchy.h",
-        "cppincludehierarchyitem.cpp", "cppincludehierarchyitem.h",
-        "cppincludehierarchymodel.cpp", "cppincludehierarchymodel.h",
-        "cppincludehierarchytreeview.cpp", "cppincludehierarchytreeview.h",
         "cppinsertvirtualmethods.cpp",
         "cppinsertvirtualmethods.h",
         "cpplocalrenaming.cpp", "cpplocalrenaming.h",
@@ -53,11 +50,12 @@ QtcPlugin {
         "cppuseselectionsupdater.cpp", "cppuseselectionsupdater.h",
         "cppvirtualfunctionassistprovider.cpp", "cppvirtualfunctionassistprovider.h",
         "cppvirtualfunctionproposalitem.cpp", "cppvirtualfunctionproposalitem.h",
+        "resourcepreviewhoverhandler.cpp", "resourcepreviewhoverhandler.h",
     ]
 
     Group {
         name: "Tests"
-        condition: project.testsEnabled
+        condition: qtc.testsEnabled
         files: [
             "cppdoxygen_test.cpp", "cppdoxygen_test.h",
             "cppeditortestcase.cpp", "cppeditortestcase.h",

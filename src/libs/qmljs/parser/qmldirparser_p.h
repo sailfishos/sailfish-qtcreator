@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QQMLDIRPARSER_P_H
-#define QQMLDIRPARSER_P_H
+#pragma once
 
 //
 //  W A R N I N G
@@ -41,8 +40,7 @@
 #include <QtCore/QHash>
 #include <QtCore/QDebug>
 
-
-#include "qmljsglobal_p.h"
+#include "qmljsengine_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -108,8 +106,10 @@ public:
     };
 
     QHash<QString,Component> components() const;
+    QHash<QString,Component> dependencies() const;
     QList<Script> scripts() const;
     QList<Plugin> plugins() const;
+    bool designerSupported() const;
 
 #ifdef QT_CREATOR
     struct TypeInfo
@@ -125,14 +125,17 @@ public:
 #endif
 
 private:
+    bool maybeAddComponent(const QString &typeName, const QString &fileName, const QString &version, QHash<QString,Component> &hash, int lineNumber = -1, bool multi = true);
     void reportError(quint16 line, quint16 column, const QString &message);
 
 private:
-    QList<QmlError> _errors;
+    QList<QmlJS::DiagnosticMessage> _errors;
     QString _typeNamespace;
     QHash<QString,Component> _components; // multi hash
+    QHash<QString,Component> _dependencies;
     QList<Script> _scripts;
     QList<Plugin> _plugins;
+    bool _designerSupported;
 #ifdef QT_CREATOR
     QList<TypeInfo> _typeInfos;
 #endif
@@ -146,5 +149,3 @@ QDebug &operator<< (QDebug &, const QmlDirParser::Component &);
 QDebug &operator<< (QDebug &, const QmlDirParser::Script &);
 
 QT_END_NAMESPACE
-
-#endif // QQMLDIRPARSER_P_H

@@ -34,7 +34,10 @@
 
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljsdocument.h>
+#include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljsutils.h>
+#include <qmljs/qmljspropertyreader.h>
+#include <qmljs/qmljsrewriter.h>
 #include <qmljstools/qmljsrefactoringchanges.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/projectnodes.h>
@@ -61,6 +64,7 @@ class Operation: public QmlJSQuickFixOperation
     QString m_idName, m_componentName;
     SourceLocation m_firstSourceLocation;
     SourceLocation m_lastSourceLocation;
+    UiObjectInitializer *m_initializer;
 public:
     void init()
     {
@@ -78,7 +82,8 @@ public:
         : QmlJSQuickFixOperation(interface, 0),
           m_idName(idOfObject(objDef)),
           m_firstSourceLocation(objDef->firstSourceLocation()),
-          m_lastSourceLocation(objDef->lastSourceLocation())
+          m_lastSourceLocation(objDef->lastSourceLocation()),
+          m_initializer(objDef->initializer)
     {
         init();
     }
@@ -88,7 +93,8 @@ public:
         : QmlJSQuickFixOperation(interface, 0),
           m_idName(idOfObject(objDef)),
           m_firstSourceLocation(objDef->qualifiedTypeNameId->firstSourceLocation()),
-          m_lastSourceLocation(objDef->lastSourceLocation())
+          m_lastSourceLocation(objDef->lastSourceLocation()),
+          m_initializer(objDef->initializer)
     {
         init();
     }
@@ -97,9 +103,38 @@ public:
                                 const QmlJSRefactoringChanges &refactoring)
     {
         QString componentName = m_componentName;
-        QString path = QFileInfo(fileName()).path();
-        bool confirm = ComponentNameDialog::go(&componentName, &path, Core::ICore::dialogParent());
 
+        const QString currentFileName = currentFile->qmljsDocument()->fileName();
+        QString path = QFileInfo(currentFileName).path();
+
+        QmlJS::PropertyReader propertyReader(currentFile->qmljsDocument(), m_initializer);
+        QStringList result;
+        QStringList sourcePreview;
+
+        QString suffix;
+
+        if (!m_idName.isEmpty())
+            sourcePreview.append(QLatin1String("    id: ") + m_idName);
+        else
+            sourcePreview.append(QString());
+
+        QStringList sortedPropertiesWithoutId;
+
+        foreach (const QString &property, propertyReader.properties())
+            if (property != QLatin1String("id"))
+                sortedPropertiesWithoutId.append(property);
+
+        sortedPropertiesWithoutId.sort();
+
+        foreach (const QString &property, sortedPropertiesWithoutId)
+            sourcePreview.append(QLatin1String("    ") + property + QLatin1String(": ") + propertyReader.readAstValue(property));
+
+        const bool confirm = ComponentNameDialog::go(&componentName, &path, &suffix,
+                                               sortedPropertiesWithoutId,
+                                               sourcePreview,
+                                               QFileInfo(currentFileName).fileName(),
+                                               &result,
+                                               Core::ICore::dialogParent());
         if (!confirm)
             return;
 
@@ -107,35 +142,76 @@ public:
             return;
 
         const QString newFileName = path + QLatin1Char('/') + componentName
-                + QLatin1String(".qml");
+                + QLatin1String(".") + suffix;
 
         QString imports;
         UiProgram *prog = currentFile->qmljsDocument()->qmlProgram();
         if (prog && prog->headers) {
-            const int start = currentFile->startOf(prog->headers->firstSourceLocation());
-            const int end = currentFile->startOf(prog->members->member->firstSourceLocation());
+            const unsigned int start = currentFile->startOf(prog->headers->firstSourceLocation());
+            const unsigned int end = currentFile->startOf(prog->members->member->firstSourceLocation());
             imports = currentFile->textOf(start, end);
         }
 
-        const int start = currentFile->startOf(m_firstSourceLocation);
-        const int end = currentFile->startOf(m_lastSourceLocation);
-        const QString txt = imports + currentFile->textOf(start, end)
+        const unsigned int start = currentFile->startOf(m_firstSourceLocation);
+        const unsigned int end = currentFile->startOf(m_lastSourceLocation);
+        QString newComponentSource = imports + currentFile->textOf(start, end)
                 + QLatin1String("}\n");
 
+        //Remove properties from resulting code...
+
+        Utils::ChangeSet changeSet;
+        QmlJS::Rewriter rewriter(newComponentSource, &changeSet, QStringList());
+
+        QmlJS::Dialect dialect = QmlJS::Dialect::Qml;
+
+        QmlJS::Document::MutablePtr doc = QmlJS::Document::create(newFileName, dialect);
+        doc->setSource(newComponentSource);
+        doc->parseQml();
+
+        if (doc->isParsedCorrectly()) {
+
+            UiObjectMember *astRootNode = 0;
+            if (UiProgram *program = doc->qmlProgram())
+                if (program->members)
+                    astRootNode = program->members->member;
+
+            foreach (const QString &property, result)
+                rewriter.removeBindingByName(initializerOfObject(astRootNode), property);
+        } else {
+            qWarning() << Q_FUNC_INFO << "parsing failed:" << newComponentSource;
+        }
+
+        changeSet.apply(&newComponentSource);
+
         // stop if we can't create the new file
-        if (!refactoring.createFile(newFileName, txt))
+        const bool reindent = true;
+        const bool openEditor = false;
+        if (!refactoring.createFile(newFileName, newComponentSource, reindent, openEditor))
             return;
 
-        if (path == QFileInfo(fileName()).path()) {
+        if (path == QFileInfo(currentFileName).path()) {
             // hack for the common case, next version should use the wizard
             ProjectExplorer::Node * oldFileNode =
-                    ProjectExplorer::SessionManager::nodeForFile(Utils::FileName::fromString(fileName()));
+                    ProjectExplorer::SessionManager::nodeForFile(Utils::FileName::fromString(currentFileName));
             if (oldFileNode) {
                 ProjectExplorer::FolderNode *containingFolder = oldFileNode->parentFolderNode();
                 if (containingFolder)
                     containingFolder->addFiles(QStringList(newFileName));
             }
         }
+
+        QString replacement = componentName + QLatin1String(" {\n");
+        if (!m_idName.isEmpty())
+            replacement += QLatin1String("id: ") + m_idName + QLatin1Char('\n');
+
+        foreach (const QString &property, result)
+            replacement += property + QLatin1String(": ") + propertyReader.readAstValue(property) + QLatin1Char('\n');
+
+        Utils::ChangeSet changes;
+        changes.replace(start, end, replacement);
+        currentFile->setChangeSet(changes);
+        currentFile->appendIndentRange(Range(start, end + 1));
+        currentFile->apply();
 
         Core::IVersionControl *versionControl = Core::VcsManager::findVersionControlForDirectory(path);
         if (versionControl
@@ -151,15 +227,6 @@ public:
                                      Core::VcsManager::msgToAddToVcsFailed(QStringList(newFileName), versionControl));
             }
         }
-        QString replacement = componentName + QLatin1String(" {\n");
-        if (!m_idName.isEmpty())
-            replacement += QLatin1String("id: ") + m_idName + QLatin1Char('\n');
-
-        Utils::ChangeSet changes;
-        changes.replace(start, end, replacement);
-        currentFile->setChangeSet(changes);
-        currentFile->appendIndentRange(Range(start, end + 1));
-        currentFile->apply();
     }
 };
 
@@ -174,20 +241,33 @@ void ComponentFromObjectDef::match(const QmlJSQuickFixInterface &interface, Quic
     for (int i = path.size() - 1; i >= 0; --i) {
         Node *node = path.at(i);
         if (UiObjectDefinition *objDef = cast<UiObjectDefinition *>(node)) {
+
             if (!interface->currentFile()->isCursorOn(objDef->qualifiedTypeNameId))
                 return;
              // check that the node is not the root node
             if (i > 0 && !cast<UiProgram*>(path.at(i - 1))) {
-                result.append(new Operation(interface, objDef));
+                result << new Operation(interface, objDef);
                 return;
             }
         } else if (UiObjectBinding *objBinding = cast<UiObjectBinding *>(node)) {
             if (!interface->currentFile()->isCursorOn(objBinding->qualifiedTypeNameId))
                 return;
-            result.append(new Operation(interface, objBinding));
+            result << new Operation(interface, objBinding);
             return;
         }
     }
+}
+
+void ComponentFromObjectDef::perform(const QString &fileName, QmlJS::AST::UiObjectDefinition *objDef)
+{
+    QmlJSRefactoringChanges refactoring(QmlJS::ModelManagerInterface::instance(),
+                                        QmlJS::ModelManagerInterface::instance()->snapshot());
+    QmlJSRefactoringFilePtr current = refactoring.file(fileName);
+
+    QmlJSQuickFixInterface interface;
+    Operation operation(interface, objDef);
+
+    operation.performChanges(current, refactoring);
 }
 
 } //namespace QmlJSEditor

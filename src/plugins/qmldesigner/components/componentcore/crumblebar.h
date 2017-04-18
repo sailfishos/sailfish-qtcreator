@@ -23,11 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNER_FORMEDITORCRUMBLEBAR_H
-#define QMLDESIGNER_FORMEDITORCRUMBLEBAR_H
+#pragma once
 
 #include <QObject>
 #include <utils/crumblepath.h>
+#include <utils/fileutils.h>
 #include <modelnode.h>
 
 namespace QmlDesigner {
@@ -39,7 +39,7 @@ public:
     explicit CrumbleBar(QObject *parent = 0);
     ~CrumbleBar();
 
-    void pushFile(const QString &fileName);
+    void pushFile(const Utils::FileName &fileName);
     void pushInFileComponent(const ModelNode &modelNode);
 
     void nextFileIsCalledInternally();
@@ -60,7 +60,7 @@ private:
 
 class CrumbleBarInfo {
 public:
-    QString fileName;
+    Utils::FileName fileName;
     QString displayName;
     ModelNode modelNode;
 };
@@ -70,5 +70,3 @@ bool operator !=(const CrumbleBarInfo &first, const CrumbleBarInfo &second);
 } // namespace QmlDesigner
 
 Q_DECLARE_METATYPE(QmlDesigner::CrumbleBarInfo)
-
-#endif // QMLDESIGNER_FORMEDITORCRUMBLEBAR_H

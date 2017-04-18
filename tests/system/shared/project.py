@@ -50,8 +50,7 @@ def openQmakeProject(projectPath, targets=Targets.desktopTargetClasses(), fromWe
     except:
         pass
     checkedTargets = __chooseTargets__(targets)
-    configureButton = waitForObject("{text='Configure Project' type='QPushButton' unnamed='1' visible='1'"
-                                    "window=':Qt Creator_Core::Internal::MainWindow'}")
+    configureButton = waitForObject(":Qt Creator.Configure Project_QPushButton")
     clickButton(configureButton)
     return checkedTargets
 
@@ -74,8 +73,7 @@ def openCmakeProject(projectPath, buildDir):
     selectFromFileDialog(projectPath)
     __chooseTargets__(0) # uncheck all
     __chooseTargets__(Targets.DESKTOP_480_DEFAULT, additionalFunc=additionalFunction)
-    clickButton(waitForObject("{text='Configure Project' type='QPushButton' unnamed='1' visible='1'"
-                              "window=':Qt Creator_Core::Internal::MainWindow'}"))
+    clickButton(waitForObject(":Qt Creator.Configure Project_QPushButton"))
     return True
 
 # this function returns a list of available targets - this is not 100% error proof
@@ -125,7 +123,7 @@ def __createProjectSetNameAndPath__(path, projectName = None, checks = True, lib
     return str(projectName)
 
 def __createProjectHandleQtQuickSelection__(minimumQtVersion):
-    comboBox = waitForObject("{buddy=':Minimal required Qt version:_QLabel' name='QtVersion' "
+    comboBox = waitForObject("{leftWidget=':Minimal required Qt version:_QLabel' name='QtVersion' "
                              "type='Utils::TextFieldComboBox' visible='1'}")
     try:
         selectFromCombo(comboBox, "Qt %s" % minimumQtVersion)
@@ -629,7 +627,11 @@ def __getSupportedPlatforms__(text, templateName, getAsStrings=False):
         version = res.group("version")
     else:
         version = None
-    if 'Supported Platforms' in text:
+    if 'only available with Qt 5.6' in text:
+        result = [Targets.DESKTOP_561_DEFAULT]
+    elif 'available with Qt 5.7 and later' in text:
+        result = [] # FIXME we have currently no Qt5.7+ available in predefined settings
+    elif 'Supported Platforms' in text:
         supports = text[text.find('Supported Platforms'):].split(":")[1].strip().split(" ")
         result = []
         if 'Desktop' in supports:
@@ -638,7 +640,7 @@ def __getSupportedPlatforms__(text, templateName, getAsStrings=False):
                 result.append(Targets.DESKTOP_480_DEFAULT)
                 if platform.system() in ("Linux", "Darwin"):
                     result.append(Targets.EMBEDDED_LINUX)
-            result.extend([Targets.DESKTOP_521_DEFAULT, Targets.DESKTOP_531_DEFAULT])
+            result.extend([Targets.DESKTOP_531_DEFAULT, Targets.DESKTOP_561_DEFAULT])
             if platform.system() != 'Darwin':
                 result.append(Targets.DESKTOP_541_GCC)
         if not templateName == "Qt Creator Plugin" and (version == None or version < "5.0"):

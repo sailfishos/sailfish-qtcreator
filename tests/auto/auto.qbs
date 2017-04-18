@@ -5,6 +5,7 @@ Project {
     condition: project.withAutotests
     references: [
         "aggregation/aggregation.qbs",
+        "algorithm/algorithm.qbs",
         "changeset/changeset.qbs",
         "clangstaticanalyzer/clangstaticanalyzer.qbs",
         "cplusplus/cplusplus.qbs",
@@ -14,6 +15,7 @@ Project {
         "extensionsystem/extensionsystem.qbs",
         "externaltool/externaltool.qbs",
         "filesearch/filesearch.qbs",
+        "flamegraph/flamegraph.qbs",
         "generichighlighter/generichighlighter.qbs",
         "json/json.qbs",
         "profilewriter/profilewriter.qbs",

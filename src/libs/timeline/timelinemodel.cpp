@@ -153,20 +153,13 @@ int TimelineModel::row(int index) const
 
 TimelineModel::TimelineModelPrivate::TimelineModelPrivate(int modelId) :
     modelId(modelId), expanded(false), hidden(false),
-    expandedRowCount(1), collapsedRowCount(1), q_ptr(0)
+    expandedRowCount(1), collapsedRowCount(1)
 {
-}
-
-TimelineModel::TimelineModel(TimelineModelPrivate &dd, QObject *parent) :
-    QObject(parent), d_ptr(&dd)
-{
-    d_ptr->q_ptr = this;
 }
 
 TimelineModel::TimelineModel(int modelId, QObject *parent) :
     QObject(parent), d_ptr(new TimelineModelPrivate(modelId))
 {
-    d_ptr->q_ptr = this;
 }
 
 TimelineModel::~TimelineModel()
@@ -373,14 +366,6 @@ bool TimelineModel::handlesTypeId(int typeIndex) const
 {
     Q_UNUSED(typeIndex);
     return false;
-}
-
-int TimelineModel::selectionIdForLocation(const QString &filename, int line, int column) const
-{
-    Q_UNUSED(filename);
-    Q_UNUSED(line);
-    Q_UNUSED(column);
-    return -1;
 }
 
 float TimelineModel::relativeHeight(int index) const
@@ -591,7 +576,7 @@ void TimelineModel::clear()
     if (hadRowHeights)
         emit expandedRowHeightChanged(-1, -1);
     if (!wasEmpty) {
-        emit emptyChanged();
+        emit contentChanged();
         emit heightChanged();
     }
 }
@@ -599,31 +584,38 @@ void TimelineModel::clear()
 int TimelineModel::nextItemBySelectionId(int selectionId, qint64 time, int currentItem) const
 {
     Q_D(const TimelineModel);
-    return d->nextItemById(TimelineModelPrivate::SelectionId, selectionId, time, currentItem);
+    return d->nextItemById([d, selectionId](int index) {
+        return d->ranges[index].selectionId == selectionId;
+    }, time, currentItem);
 }
 
-int TimelineModel::nextItemByTypeId(int typeId, qint64 time, int currentItem) const
+int TimelineModel::nextItemByTypeId(int requestedTypeId, qint64 time, int currentItem) const
 {
     Q_D(const TimelineModel);
-    return d->nextItemById(TimelineModelPrivate::TypeId, typeId, time, currentItem);
+    return d->nextItemById([this, requestedTypeId](int index) {
+        return typeId(index) == requestedTypeId;
+    }, time, currentItem);
 }
 
 int TimelineModel::prevItemBySelectionId(int selectionId, qint64 time, int currentItem) const
 {
     Q_D(const TimelineModel);
-    return d->prevItemById(TimelineModelPrivate::SelectionId, selectionId, time, currentItem);
+    return d->prevItemById([d, selectionId](int index) {
+        return d->ranges[index].selectionId == selectionId;
+    }, time, currentItem);
 }
 
-int TimelineModel::prevItemByTypeId(int typeId, qint64 time, int currentItem) const
+int TimelineModel::prevItemByTypeId(int requestedTypeId, qint64 time, int currentItem) const
 {
     Q_D(const TimelineModel);
-    return d->prevItemById(TimelineModelPrivate::TypeId, typeId, time, currentItem);
+    return d->prevItemById([this, requestedTypeId](int index) {
+        return typeId(index) == requestedTypeId;
+    }, time, currentItem);
 }
 
-int TimelineModel::TimelineModelPrivate::nextItemById(IdType idType, int id, qint64 time,
-                                                      int currentItem) const
+int TimelineModel::TimelineModelPrivate::nextItemById(std::function<bool(int)> matchesId,
+                                                      qint64 time, int currentItem) const
 {
-    Q_Q(const TimelineModel);
     if (ranges.empty())
         return -1;
 
@@ -637,18 +629,16 @@ int TimelineModel::TimelineModelPrivate::nextItemById(IdType idType, int id, qin
         ndx = 0;
     int startIndex = ndx;
     do {
-        if ((idType == TypeId && q->typeId(ndx) == id) ||
-                (idType == SelectionId && ranges[ndx].selectionId == id))
+        if (matchesId(ndx))
             return ndx;
         ndx = (ndx + 1) % ranges.count();
     } while (ndx != startIndex);
     return -1;
 }
 
-int TimelineModel::TimelineModelPrivate::prevItemById(IdType idType, int id, qint64 time,
-                                                      int currentItem) const
+int TimelineModel::TimelineModelPrivate::prevItemById(std::function<bool(int)> matchesId,
+                                                      qint64 time, int currentItem) const
 {
-    Q_Q(const TimelineModel);
     if (ranges.empty())
         return -1;
 
@@ -661,8 +651,7 @@ int TimelineModel::TimelineModelPrivate::prevItemById(IdType idType, int id, qin
         ndx = ranges.count() - 1;
     int startIndex = ndx;
     do {
-        if ((idType == TypeId && q->typeId(ndx) == id) ||
-                (idType == SelectionId && ranges[ndx].selectionId == id))
+        if (matchesId(ndx))
             return ndx;
         if (--ndx < 0)
             ndx = ranges.count()-1;

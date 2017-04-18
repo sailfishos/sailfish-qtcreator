@@ -55,7 +55,8 @@ BuiltinEditorDocumentParser::BuiltinEditorDocumentParser(const QString &filePath
     qRegisterMetaType<CPlusPlus::Snapshot>("CPlusPlus::Snapshot");
 }
 
-void BuiltinEditorDocumentParser::updateHelper(const WorkingCopy &theWorkingCopy)
+void BuiltinEditorDocumentParser::updateHelper(const QFutureInterface<void> &future,
+                                               const WorkingCopy &theWorkingCopy)
 {
     if (filePath().isEmpty())
         return;
@@ -87,6 +88,8 @@ void BuiltinEditorDocumentParser::updateHelper(const WorkingCopy &theWorkingCopy
         configFile += part->toolchainDefines;
         configFile += overwrittenToolchainDefines(*part.data());
         configFile += part->projectDefines;
+        if (!part->projectConfigFile.isEmpty())
+            configFile += ProjectPart::readProjectConfigFile(part);
         headerPaths = part->headerPaths;
         projectConfigFile = part->projectConfigFile;
         if (baseConfig.usePrecompiledHeaders)
@@ -181,6 +184,10 @@ void BuiltinEditorDocumentParser::updateHelper(const WorkingCopy &theWorkingCopy
             if (releaseSourceAndAST_)
                 doc->releaseSourceAndAST();
         });
+        sourceProcessor.setCancelChecker([future]() {
+           return future.isCanceled();
+        });
+
         Snapshot globalSnapshot = modelManager->snapshot();
         globalSnapshot.remove(filePath());
         sourceProcessor.setGlobalSnapshot(globalSnapshot);
@@ -188,8 +195,6 @@ void BuiltinEditorDocumentParser::updateHelper(const WorkingCopy &theWorkingCopy
         sourceProcessor.setHeaderPaths(state.headerPaths);
         sourceProcessor.setLanguageFeatures(features);
         sourceProcessor.run(configurationFileName);
-        if (!state.projectConfigFile.isEmpty())
-            sourceProcessor.run(state.projectConfigFile);
         if (baseConfig.usePrecompiledHeaders) {
             foreach (const QString &precompiledHeader, state.precompiledHeaders)
                 sourceProcessor.run(precompiledHeader);

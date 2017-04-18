@@ -34,6 +34,7 @@
 #include <model.h>
 #include <modelnode.h>
 #include <metainfo.h>
+#include <rewriterview.h>
 
 #include "abstractproperty.h"
 #include "variantproperty.h"
@@ -103,7 +104,6 @@ NodeInstanceView::NodeInstanceView(QObject *parent, NodeInstanceServerInterface:
         : AbstractView(parent),
           m_baseStatePreviewImage(QSize(100, 100), QImage::Format_ARGB32),
           m_runModus(runModus),
-          m_currentKit(0),
           m_restartProcessTimerId(0)
 {
     m_baseStatePreviewImage.fill(0xFFFFFF);
@@ -124,7 +124,7 @@ NodeInstanceView::~NodeInstanceView()
 
 bool isSkippedRootNode(const ModelNode &node)
 {
-    static QStringList skipList =  QStringList() << "Qt.ListModel" << "QtQuick.ListModel" << "Qt.ListModel" << "QtQuick.ListModel";
+    static const PropertyNameList skipList({"Qt.ListModel", "QtQuick.ListModel", "Qt.ListModel", "QtQuick.ListModel"});
 
     if (skipList.contains(node.type()))
         return true;
@@ -135,7 +135,7 @@ bool isSkippedRootNode(const ModelNode &node)
 
 bool isSkippedNode(const ModelNode &node)
 {
-    static QStringList skipList =  QStringList() << "QtQuick.XmlRole" << "Qt.XmlRole" << "QtQuick.ListElement" << "Qt.ListElement";
+    static const PropertyNameList skipList({"QtQuick.XmlRole", "Qt.XmlRole", "QtQuick.ListElement", "Qt.ListElement"});
 
     if (skipList.contains(node.type()))
         return true;
@@ -151,7 +151,7 @@ bool isSkippedNode(const ModelNode &node)
 void NodeInstanceView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
-    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit);
+    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
     m_lastCrashTime.start();
     connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
@@ -203,7 +203,7 @@ void NodeInstanceView::restartProcess()
     if (model()) {
         delete nodeInstanceServer();
 
-        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit);
+        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
         connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
         if (!isSkippedRootNode(rootModelNode()))
@@ -318,7 +318,7 @@ void NodeInstanceView::propertiesAboutToBeRemoved(const QList<AbstractProperty>&
     nodeInstanceServer()->removeProperties(createRemovePropertiesCommand(nonNodePropertyList));
 
     foreach (const AbstractProperty &property, propertyList) {
-        const QString &name = property.name();
+        const PropertyName &name = property.name();
         if (name == "anchors.fill") {
             resetHorizontalAnchors(property.parentModelNode());
             resetVerticalAnchors(property.parentModelNode());
@@ -841,6 +841,44 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
     foreach (const Import &import, model()->imports())
         importVector.append(AddImportContainer(import.url(), import.file(), import.version(), import.alias(), import.importPaths()));
 
+    QVector<MockupTypeContainer> mockupTypesVector;
+
+    for (const CppTypeData &cppTypeData : model()->rewriterView()->getCppTypes()) {
+        const QString versionString = cppTypeData.versionString;
+        int majorVersion = -1;
+        int minorVersion = -1;
+
+        if (versionString.contains(QStringLiteral("."))) {
+            const QStringList splittedString = versionString.split(QStringLiteral("."));
+            majorVersion = splittedString.first().toInt();
+            minorVersion = splittedString.last().toInt();
+        }
+
+        bool isItem = false;
+
+        if (!cppTypeData.isSingleton) { /* Singletons only appear on the right hand sides of bindings and create just warnings. */
+            const TypeName typeName = cppTypeData.typeName.toUtf8();
+            const QString uri = cppTypeData.importUrl;
+
+            NodeMetaInfo metaInfo = model()->metaInfo(uri.toUtf8() + "." + typeName);
+
+            if (metaInfo.isValid())
+                isItem = metaInfo.isGraphicalItem();
+
+            MockupTypeContainer mockupType(typeName, uri, majorVersion, minorVersion, isItem);
+
+            mockupTypesVector.append(mockupType);
+        } else { /* We need a type for the signleton import */
+            const TypeName typeName = cppTypeData.typeName.toUtf8() + "Mockup";
+            const QString uri = cppTypeData.importUrl;
+
+            MockupTypeContainer mockupType(typeName, uri, majorVersion, minorVersion, isItem);
+
+            mockupTypesVector.append(mockupType);
+        }
+    }
+
+
     return CreateSceneCommand(instanceContainerList,
                               reparentContainerList,
                               idContainerList,
@@ -848,6 +886,7 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
                               bindingContainerList,
                               auxiliaryContainerVector,
                               importVector,
+                              mockupTypesVector,
                               model()->fileUrl());
 }
 
@@ -1133,6 +1172,14 @@ void NodeInstanceView::setKit(ProjectExplorer::Kit *newKit)
     }
 }
 
+void NodeInstanceView::setProject(ProjectExplorer::Project *project)
+{
+    if (m_currentProject != project) {
+        m_currentProject = project;
+        restartProcess();
+    }
+}
+
 void NodeInstanceView::statePreviewImagesChanged(const StatePreviewImageChangedCommand &command)
 {
     if (!model())
@@ -1184,7 +1231,7 @@ void NodeInstanceView::childrenChanged(const ChildrenChangedCommand &command)
     foreach (qint32 instanceId, command.childrenInstances()) {
         if (hasInstanceForId(instanceId)) {
             NodeInstance instance = instanceForId(instanceId);
-            if (!instance.directUpdates()) {
+            if (instance.parentId() == -1 || !instance.directUpdates()) {
                 instance.setParentId(command.parentInstanceId());
                 childNodeVector.append(instance.modelNode());
             }

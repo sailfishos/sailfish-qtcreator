@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef THEME_H
-#define THEME_H
+#pragma once
 
 #include "../utils_global.h"
 
@@ -126,6 +125,50 @@ public:
         TreeViewArrowColorNormal,
         TreeViewArrowColorSelected,
 
+        /* Palette for QPalette */
+
+        PaletteWindow,
+        PaletteWindowText,
+        PaletteBase,
+        PaletteAlternateBase,
+        PaletteToolTipBase,
+        PaletteToolTipText,
+        PaletteText,
+        PaletteButton,
+        PaletteButtonText,
+        PaletteBrightText,
+        PaletteHighlight,
+        PaletteHighlightedText,
+        PaletteLink,
+        PaletteLinkVisited,
+
+        PaletteLight,
+        PaletteMidlight,
+        PaletteDark,
+        PaletteMid,
+        PaletteShadow,
+
+        PaletteWindowDisabled,
+        PaletteWindowTextDisabled,
+        PaletteBaseDisabled,
+        PaletteAlternateBaseDisabled,
+        PaletteToolTipBaseDisabled,
+        PaletteToolTipTextDisabled,
+        PaletteTextDisabled,
+        PaletteButtonDisabled,
+        PaletteButtonTextDisabled,
+        PaletteBrightTextDisabled,
+        PaletteHighlightDisabled,
+        PaletteHighlightedTextDisabled,
+        PaletteLinkDisabled,
+        PaletteLinkVisitedDisabled,
+
+        PaletteLightDisabled,
+        PaletteMidlightDisabled,
+        PaletteDarkDisabled,
+        PaletteMidDisabled,
+        PaletteShadowDisabled,
+
         /* Icons */
 
         IconsBaseColor,
@@ -150,7 +193,7 @@ public:
         IconsModeEditActiveColor,
         IconsModeDesignActiveColor,
         IconsModeDebugActiveColor,
-        IconsModeProjetcsActiveColor,
+        IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
         IconsModeMerActiveColor,
@@ -211,12 +254,24 @@ public:
         Welcome_LinkColor,
         Welcome_HoverColor,
 
+        /* Timeline Library */
+        Timeline_TextColor,
+        Timeline_BackgroundColor1,
+        Timeline_BackgroundColor2,
+        Timeline_DividerColor,
+        Timeline_HighlightColor,
+        Timeline_PanelBackgroundColor,
+        Timeline_PanelHeaderColor,
+        Timeline_HandleColor,
+        Timeline_RangeColor,
+
         /* VcsBase Plugin */
         VcsBase_FileStatusUnknown_TextColor,
         VcsBase_FileAdded_TextColor,
         VcsBase_FileModified_TextColor,
         VcsBase_FileDeleted_TextColor,
         VcsBase_FileRenamed_TextColor,
+        VcsBase_FileUnmerged_TextColor,
 
         /* Bookmarks Plugin */
         Bookmarks_TextMarkColor,
@@ -234,23 +289,18 @@ public:
 
         /* ClangCodeModel Plugin */
         ClangCodeModel_Error_TextMarkColor,
-        ClangCodeModel_Warning_TextMarkColor
+        ClangCodeModel_Warning_TextMarkColor,
+
+        /* QmlDesigner */
+        QmlDesigner_BackgroundColor,
+        QmlDesigner_HighlightColor
     };
 
     enum Gradient {
         DetailsWidgetHeaderGradient,
-        Welcome_Button_GradientNormal,
-        Welcome_Button_GradientPressed
     };
 
     enum ImageFile {
-        ProjectExplorerHeader,
-        ProjectExplorerSource,
-        ProjectExplorerForm,
-        ProjectExplorerResource,
-        ProjectExplorerQML,
-        ProjectExplorerOtherFiles,
-        ProjectFileIcon,
         IconOverlayCSource,
         IconOverlayCppHeader,
         IconOverlayCppSource,
@@ -258,11 +308,7 @@ public:
         IconOverlayPrf,
         IconOverlayPro,
         StandardPixmapFileIcon,
-        StandardPixmapDirIcon,
-        BuildStepDisable,
-        BuildStepRemove,
-        BuildStepMoveDown,
-        BuildStepMoveUp
+        StandardPixmapDirIcon
     };
 
     enum Flag {
@@ -270,20 +316,18 @@ public:
         DrawSearchResultWidgetFrame,
         DrawIndicatorBranch,
         DrawToolBarHighlights,
+        DrawToolBarBorders,
         ComboBoxDrawTextShadow,
         DerivePaletteFromTheme,
         ApplyThemePaletteGlobally,
+        FlatToolBars,
         FlatSideBarIcons,
         FlatProjectsMode,
-        FlatMenuBar
+        FlatMenuBar,
+        ToolBarIconShadow,
+        WindowColorAsBase
     };
 
-    enum WidgetStyle {
-        StyleDefault,
-        StyleFlat
-    };
-
-    WidgetStyle widgetStyle() const;
     bool flag(Flag f) const;
     QColor color(Color role) const;
     QString imageFile(ImageFile imageFile, const QString &fallBack) const;
@@ -297,7 +341,7 @@ public:
     QString displayName() const;
     void setDisplayName(const QString &displayName);
 
-    QVariantHash values() const;
+    const QVariantMap &values() const;
 
     void readSettings(QSettings &settings);
 
@@ -312,5 +356,3 @@ private:
 QTCREATOR_UTILS_EXPORT Theme *creatorTheme();
 
 } // namespace Utils
-
-#endif // THEME_H

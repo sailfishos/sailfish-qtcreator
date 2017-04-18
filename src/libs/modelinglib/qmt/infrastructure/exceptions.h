@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMT_EXCEPTIONS_H
-#define QMT_EXCEPTIONS_H
+#pragma once
 
 #include "qmt_global.h"
 
@@ -35,7 +34,7 @@ namespace qmt {
 
 class QMT_EXPORT Exception
 {
-    Q_DECLARE_TR_FUNCTIONS(Exception)
+    Q_DECLARE_TR_FUNCTIONS(qmt::Exception)
 
 public:
     explicit Exception(const QString &errorMessage);
@@ -55,5 +54,3 @@ public:
 };
 
 } // namespace qmt
-
-#endif // QMT_EXCEPTIONS_H

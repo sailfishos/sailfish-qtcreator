@@ -23,13 +23,14 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERRUNCONTROL_H
-#define DEBUGGERRUNCONTROL_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
 
 #include <projectexplorer/runconfiguration.h>
+
+#include <functional>
 
 namespace Debugger {
 
@@ -37,15 +38,25 @@ class RemoteSetupResult;
 class DebuggerStartParameters;
 class DebuggerRunControl;
 
-namespace Internal {
-class DebuggerEngine;
-class DebuggerRunControlCreator;
-}
+namespace Internal { class DebuggerEngine; }
 
 DEBUGGER_EXPORT DebuggerRunControl *createDebuggerRunControl(const DebuggerStartParameters &sp,
                                                              ProjectExplorer::RunConfiguration *runConfig,
                                                              QString *errorMessage,
                                                              Core::Id runMode = ProjectExplorer::Constants::DEBUG_RUN_MODE);
+
+
+struct OutputProcessor
+{
+    enum OutputChannel
+    {
+        StandardOut,
+        StandardError
+    };
+
+    std::function<void(const QString &msg, OutputChannel channel)> process;
+    bool logToAppOutputPane = true;
+};
 
 class DEBUGGER_EXPORT DebuggerRunControl : public ProjectExplorer::RunControl
 {
@@ -61,6 +72,7 @@ public:
     bool isRunning() const override;
     QString displayName() const override;
     bool supportsReRunning() const override;
+    void handleApplicationOutput(const QString &msg, int channel);
 
     void startFailed();
     void notifyEngineRemoteServerRunning(const QByteArray &msg, int pid);
@@ -75,6 +87,8 @@ public:
 
     DebuggerStartParameters &startParameters();
 
+    void setOutputProcessor(OutputProcessor *processor);
+
 signals:
     void requestRemoteSetup();
     void aboutToNotifyInferiorSetupOk();
@@ -83,15 +97,15 @@ signals:
 private:
     void handleFinished();
 
-    friend class Internal::DebuggerRunControlCreator;
+    friend DebuggerRunControl *createHelper(ProjectExplorer::RunConfiguration *runConfig,
+                                            Internal::DebuggerEngine *engine);
 
     DebuggerRunControl(ProjectExplorer::RunConfiguration *runConfig,
                        Internal::DebuggerEngine *engine);
 
     Internal::DebuggerEngine *m_engine;
     bool m_running;
+    OutputProcessor *m_outputProcessor = 0;
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGERRUNCONTROL_H

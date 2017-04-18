@@ -64,7 +64,6 @@ const char QTVERSION_DATA_KEY[] = "QtVersion.";
 const char QTVERSION_TYPE_KEY[] = "QtVersion.Type";
 const char QTVERSION_FILE_VERSION_KEY[] = "Version";
 const char QTVERSION_FILENAME[] = "/qtcreator/qtversion.xml";
-const char QTVERSION_LEGACY_FILENAME[] = "/qtversion.xml"; // TODO: pre 2.6, remove later
 
 static QMap<int, BaseQtVersion *> m_versions;
 static int m_idcount = 0;
@@ -118,13 +117,13 @@ QtVersionManager::QtVersionManager()
 
     // Give the file a bit of time to settle before reading it...
     m_fileWatcherTimer->setInterval(2000);
-    connect(m_fileWatcherTimer, SIGNAL(timeout()), SLOT(updateFromInstaller()));
+    connect(m_fileWatcherTimer, &QTimer::timeout, this, [this] { updateFromInstaller(); });
 }
 
 void QtVersionManager::triggerQtVersionRestore()
 {
-    disconnect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsLoaded()),
-               this, SLOT(triggerQtVersionRestore()));
+    disconnect(ProjectExplorer::ToolChainManager::instance(), &ProjectExplorer::ToolChainManager::toolChainsLoaded,
+               this, &QtVersionManager::triggerQtVersionRestore);
 
     bool success = restoreQtVersions();
     m_instance->updateFromInstaller(false);
@@ -142,8 +141,8 @@ void QtVersionManager::triggerQtVersionRestore()
     const FileName configFileName = globalSettingsFileName();
     if (configFileName.exists()) {
         m_configFileWatcher = new FileSystemWatcher(m_instance);
-        connect(m_configFileWatcher, SIGNAL(fileChanged(QString)),
-                m_fileWatcherTimer, SLOT(start()));
+        connect(m_configFileWatcher, &FileSystemWatcher::fileChanged,
+                m_fileWatcherTimer, static_cast<void (QTimer::*)()>(&QTimer::start));
         m_configFileWatcher->addFile(configFileName.toString(),
                                      FileSystemWatcher::WatchModifiedDate);
     } // exists
@@ -165,8 +164,8 @@ QtVersionManager::~QtVersionManager()
 
 void QtVersionManager::initialized()
 {
-    connect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsLoaded()),
-            QtVersionManager::instance(), SLOT(triggerQtVersionRestore()));
+    connect(ProjectExplorer::ToolChainManager::instance(), &ProjectExplorer::ToolChainManager::toolChainsLoaded,
+            QtVersionManager::instance(), &QtVersionManager::triggerQtVersionRestore);
 }
 
 QtVersionManager *QtVersionManager::instance()
@@ -185,9 +184,6 @@ static bool restoreQtVersions()
     PersistentSettingsReader reader;
     FileName filename = settingsFileName(QLatin1String(QTVERSION_FILENAME));
 
-    // Read Qt Creator 2.5 qtversions.xml once:
-    if (!filename.exists())
-        filename = settingsFileName(QLatin1String(QTVERSION_LEGACY_FILENAME));
     if (!reader.load(filename))
         return false;
     QVariantMap data = reader.restoreValues();
@@ -560,9 +556,7 @@ void QtVersionManager::setNewQtVersions(QList<BaseQtVersion *> newVersions)
     // We want to preserve the same order as in the settings dialog
     // so we sort a copy
     QList<BaseQtVersion *> sortedNewVersions = newVersions;
-    Utils::sort(sortedNewVersions, [](const BaseQtVersion *l, const BaseQtVersion *r) {
-        return l->uniqueId() < r->uniqueId();
-    });
+    Utils::sort(sortedNewVersions, &BaseQtVersion::uniqueId);
 
     QList<int> addedVersions;
     QList<int> removedVersions;

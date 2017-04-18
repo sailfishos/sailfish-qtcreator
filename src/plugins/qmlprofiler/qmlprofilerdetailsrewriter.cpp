@@ -35,7 +35,7 @@ namespace QmlProfiler {
 namespace Internal {
 
 struct PendingEvent {
-    QmlDebug::QmlEventLocation location;
+    QmlEventLocation location;
     QString localFile;
     int requestId;
 };
@@ -118,14 +118,15 @@ QmlProfilerDetailsRewriter::~QmlProfilerDetailsRewriter()
 }
 
 void QmlProfilerDetailsRewriter::requestDetailsForLocation(int requestId,
-        const QmlDebug::QmlEventLocation &location)
+        const QmlEventLocation &location)
 {
     QString localFile;
-    if (!d->m_filesCache.contains(location.filename)) {
-        localFile = d->m_projectFinder->findFile(location.filename);
-        d->m_filesCache[location.filename] = localFile;
+    const QString locationFile = location.filename();
+    if (!d->m_filesCache.contains(locationFile)) {
+        localFile = d->m_projectFinder->findFile(locationFile);
+        d->m_filesCache[locationFile] = localFile;
     } else {
-        localFile = d->m_filesCache[location.filename];
+        localFile = d->m_filesCache[locationFile];
     }
     QFileInfo fileInfo(localFile);
     if (!fileInfo.exists() || !fileInfo.isReadable())
@@ -138,7 +139,7 @@ void QmlProfilerDetailsRewriter::requestDetailsForLocation(int requestId,
     PendingEvent ev = {location, localFile, requestId};
     d->m_pendingEvents << ev;
     if (!d->m_pendingDocs.contains(localFile)) {
-        if (d->m_pendingDocs.isEmpty())
+        if (d->m_pendingDocs.isEmpty() && QmlJS::ModelManagerInterface::instance())
             connect(QmlJS::ModelManagerInterface::instance(),
                     &QmlJS::ModelManagerInterface::documentUpdated,
                     this,
@@ -150,17 +151,23 @@ void QmlProfilerDetailsRewriter::requestDetailsForLocation(int requestId,
 
 void QmlProfilerDetailsRewriter::reloadDocuments()
 {
-    if (!d->m_pendingDocs.isEmpty())
-        QmlJS::ModelManagerInterface::instance()->updateSourceFiles(d->m_pendingDocs, false);
-    else
+    if (!d->m_pendingDocs.isEmpty()) {
+        if (QmlJS::ModelManagerInterface *manager = QmlJS::ModelManagerInterface::instance()) {
+            manager->updateSourceFiles(d->m_pendingDocs, false);
+        } else {
+            d->m_pendingDocs.clear();
+            emit eventDetailsChanged();
+        }
+    } else {
         emit eventDetailsChanged();
+    }
 }
 
 void QmlProfilerDetailsRewriter::rewriteDetailsForLocation(QTextStream &textDoc,
-        QmlJS::Document::Ptr doc, int requestId, const QmlDebug::QmlEventLocation &location)
+        QmlJS::Document::Ptr doc, int requestId, const QmlEventLocation &location)
 {
     PropertyVisitor propertyVisitor;
-    QmlJS::AST::Node *node = propertyVisitor(doc->ast(), location.line, location.column);
+    QmlJS::AST::Node *node = propertyVisitor(doc->ast(), location.line(), location.column());
 
     if (!node)
         return;

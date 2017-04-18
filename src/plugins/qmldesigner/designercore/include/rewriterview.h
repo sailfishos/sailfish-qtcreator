@@ -23,27 +23,20 @@
 **
 ****************************************************************************/
 
-#ifndef REWRITERVIEW_H
-#define REWRITERVIEW_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
-#include "abstractview.h"
 #include "exception.h"
-#include <modelnodepositionstorage.h>
-#include <QMap>
+#include "abstractview.h"
+#include "rewritererror.h"
+
+#include <QScopedPointer>
 #include <QUrl>
 
-#include <modelnode.h>
-#include <QScopedPointer>
-
 namespace QmlJS {
-
-class DiagnosticMessage;
-class LookupContext;
 class Document;
 class ScopeChain;
 }
-
 
 namespace QmlDesigner {
 
@@ -57,43 +50,14 @@ class ModelNodePositionStorage;
 
 } //Internal
 
-class RewriterError {
-public:
-    enum Type {
-        NoError = 0,
-        InternalError = 1,
-        ParseError = 2
-    };
-
-public:
-    RewriterError();
-    RewriterError(const QmlJS::DiagnosticMessage &qmlError, const QUrl &document);
-    RewriterError(const QString &shortDescription);
-    RewriterError(Exception *exception);
-
-    Type type() const
-    { return m_type; }
-
-    int line() const
-    { return m_line; }
-
-    int column() const
-    { return m_column; }
-
-    QString description() const
-    { return m_description; }
-
-    QUrl url() const
-    { return m_url; }
-
-    QString toString() const;
-
-private:
-    Type m_type;
-    int m_line;
-    int m_column;
-    QString m_description;
-    QUrl m_url;
+struct CppTypeData
+{
+    QString superClassName;
+    QString importUrl;
+    QString versionString;
+    QString cppClassName;
+    QString typeName;
+    bool isSingleton = false;
 };
 
 class QMLDESIGNERCORE_EXPORT RewriterView : public AbstractView
@@ -141,12 +105,13 @@ public:
     void reactivateTextMofifierChangeSignals();
     void deactivateTextMofifierChangeSignals();
 
-    Internal::ModelNodePositionStorage *positionStorage() const
-    { return m_positionStorage; }
+    Internal::ModelNodePositionStorage *positionStorage() const;
 
+    QList<RewriterError> warnings() const;
     QList<RewriterError> errors() const;
-    void clearErrors();
+    void clearErrorAndWarnings();
     void setErrors(const QList<RewriterError> &errors);
+    void setWarnings(const QList<RewriterError> &warnings);
     void addError(const RewriterError &error);
 
     void enterErrorState(const QString &errorMessage);
@@ -181,6 +146,12 @@ public:
 
     QSet<QPair<QString, QString> > qrcMapping() const;
 
+    void moveToComponent(const ModelNode &modelNode);
+
+    QStringList autoComplete(const QString &text, int pos, bool explicitComplete = true);
+
+    QList<CppTypeData> getCppTypes();
+
 signals:
     void errorsChanged(const QList<RewriterError> &errors);
 
@@ -200,20 +171,20 @@ protected: // functions
     void applyChanges();
 
 private: //variables
+    TextModifier *m_textModifier = nullptr;
+    int transactionLevel = 0;
+    bool m_modificationGroupActive = false;
+    bool m_checkErrors = true;
+
     DifferenceHandling m_differenceHandling;
-    bool m_modificationGroupActive;
-    Internal::ModelNodePositionStorage *m_positionStorage;
+    QScopedPointer<Internal::ModelNodePositionStorage> m_positionStorage;
     QScopedPointer<Internal::ModelToTextMerger> m_modelToTextMerger;
     QScopedPointer<Internal::TextToModelMerger> m_textToModelMerger;
-    TextModifier *m_textModifier;
     QList<RewriterError> m_errors;
-    int transactionLevel;
+    QList<RewriterError> m_warnings;
     RewriterTransaction m_removeDefaultPropertyTransaction;
     QString m_rewritingErrorMessage;
     QString lastCorrectQmlSource;
-    bool m_checkErrors;
 };
 
 } //QmlDesigner
-
-#endif // REWRITERVIEW_H

@@ -131,8 +131,7 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
         emit addOutput(message, ErrorMessageOutput);
         emit addTask(Task(Task::Error, message, FileName(), -1,
                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
-        fi.reportResult(false);
-        emit finished();
+        reportRunResult(fi, false);
         return;
     }
 

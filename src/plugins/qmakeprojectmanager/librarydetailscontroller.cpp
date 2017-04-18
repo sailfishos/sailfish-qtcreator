@@ -31,10 +31,7 @@
 
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
-#include <projectexplorer/toolchain.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcprocess.h>
 
@@ -53,12 +50,10 @@ LibraryDetailsController::LibraryDetailsController(
     m_proFile(proFile),
     m_libraryDetailsWidget(libraryDetails)
 {
+    m_creatorPlatform = CreatorLinux;
     switch (Utils::HostOsInfo::hostOs()) {
     case Utils::OsTypeMac:
         m_creatorPlatform = CreatorMac;
-        break;
-    case Utils::OsTypeLinux:
-        m_creatorPlatform = CreatorLinux;
         break;
     case Utils::OsTypeWindows:
         m_creatorPlatform = CreatorWindows;
@@ -67,27 +62,6 @@ LibraryDetailsController::LibraryDetailsController(
         break;
     }
 
-    if (!Utils::HostOsInfo::isLinuxHost()) {
-        // project for which we are going to insert the snippet
-        const Project *project = SessionManager::projectForFile(Utils::FileName::fromString(proFile));
-        if (project && project->activeTarget()) {
-            // if its tool chain is maemo behave the same as we would be on linux
-            ProjectExplorer::ToolChain *tc = ToolChainKitInformation::toolChain(project->activeTarget()->kit());
-            if (tc) {
-                switch (tc->targetAbi().os()) {
-                case Abi::WindowsOS:
-                    m_creatorPlatform = CreatorWindows;
-                    break;
-                case Abi::MacOS:
-                    m_creatorPlatform = CreatorMac;
-                    break;
-                default:
-                    m_creatorPlatform = CreatorLinux;
-                    break;
-                }
-            }
-        }
-    }
     setPlatformsVisible(true);
     setLinkageGroupVisible(true);
     setMacLibraryGroupVisible(true);
@@ -99,22 +73,22 @@ LibraryDetailsController::LibraryDetailsController(
     if (creatorPlatform() != CreatorWindows)
         setLinkageRadiosVisible(false);
 
-    connect(m_libraryDetailsWidget->includePathChooser, SIGNAL(rawPathChanged(QString)),
-            this, SLOT(slotIncludePathChanged()));
-    connect(m_libraryDetailsWidget->frameworkRadio, SIGNAL(clicked(bool)),
-            this, SLOT(slotMacLibraryTypeChanged()));
-    connect(m_libraryDetailsWidget->libraryRadio, SIGNAL(clicked(bool)),
-            this, SLOT(slotMacLibraryTypeChanged()));
-    connect(m_libraryDetailsWidget->useSubfoldersCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(slotUseSubfoldersChanged(bool)));
-    connect(m_libraryDetailsWidget->addSuffixCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(slotAddSuffixChanged(bool)));
-    connect(m_libraryDetailsWidget->linCheckBox, SIGNAL(clicked(bool)),
-            this, SLOT(slotPlatformChanged()));
-    connect(m_libraryDetailsWidget->macCheckBox, SIGNAL(clicked(bool)),
-            this, SLOT(slotPlatformChanged()));
-    connect(m_libraryDetailsWidget->winCheckBox, SIGNAL(clicked(bool)),
-            this, SLOT(slotPlatformChanged()));
+    connect(m_libraryDetailsWidget->includePathChooser, &Utils::PathChooser::rawPathChanged,
+            this, &LibraryDetailsController::slotIncludePathChanged);
+    connect(m_libraryDetailsWidget->frameworkRadio, &QAbstractButton::clicked,
+            this, &LibraryDetailsController::slotMacLibraryTypeChanged);
+    connect(m_libraryDetailsWidget->libraryRadio, &QAbstractButton::clicked,
+            this, &LibraryDetailsController::slotMacLibraryTypeChanged);
+    connect(m_libraryDetailsWidget->useSubfoldersCheckBox, &QAbstractButton::toggled,
+            this, &LibraryDetailsController::slotUseSubfoldersChanged);
+    connect(m_libraryDetailsWidget->addSuffixCheckBox, &QAbstractButton::toggled,
+            this, &LibraryDetailsController::slotAddSuffixChanged);
+    connect(m_libraryDetailsWidget->linCheckBox, &QAbstractButton::clicked,
+            this, &LibraryDetailsController::slotPlatformChanged);
+    connect(m_libraryDetailsWidget->macCheckBox, &QAbstractButton::clicked,
+            this, &LibraryDetailsController::slotPlatformChanged);
+    connect(m_libraryDetailsWidget->winCheckBox, &QAbstractButton::clicked,
+            this, &LibraryDetailsController::slotPlatformChanged);
 }
 
 LibraryDetailsController::CreatorPlatform LibraryDetailsController::creatorPlatform() const
@@ -456,8 +430,12 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
                      const QString &targetRelativePath, const QString &pwd,
                      bool useSubfolders, bool addSuffix, bool generateLibPath)
 {
-    // it contains: $$[pwd]/
-    const QString libraryPathSnippet = QLatin1String("$$") + pwd + QLatin1Char('/');
+    const QDir targetRelativeDir(targetRelativePath);
+    QString libraryPathSnippet;
+    if (targetRelativeDir.isRelative()) {
+        // it contains: $$[pwd]/
+        libraryPathSnippet = QLatin1String("$$") + pwd + QLatin1Char('/');
+    }
 
     AddLibraryWizard::Platforms commonPlatforms = platforms;
     if (macLibraryType == AddLibraryWizard::FrameworkType) // we will generate a separate -F -framework line
@@ -522,10 +500,15 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
 
 static QString generateIncludePathSnippet(const QString &includeRelativePath)
 {
-    return QLatin1String("\nINCLUDEPATH += $$PWD/")
-            + smartQuote(includeRelativePath) + QLatin1Char('\n')
-            + QLatin1String("DEPENDPATH += $$PWD/")
-            + smartQuote(includeRelativePath) + QLatin1Char('\n');
+    const QDir includeRelativeDir(includeRelativePath);
+    QString includePathSnippet;
+    if (includeRelativeDir.isRelative()) {
+        includePathSnippet = QLatin1String("$$PWD/");
+    }
+    includePathSnippet += smartQuote(includeRelativePath) + QLatin1Char('\n');
+
+    return QLatin1String("\nINCLUDEPATH += ") + includePathSnippet
+            + QLatin1String("DEPENDPATH += ") + includePathSnippet;
 }
 
 static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platforms,
@@ -537,9 +520,13 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
     if (linkageType != AddLibraryWizard::StaticLinkage)
         return QString();
 
-    // it contains: PRE_TARGETDEPS += $$[pwd]/
-    const QString preTargetDepsSnippet = QLatin1String("PRE_TARGETDEPS += $$") +
-            pwd + QLatin1Char('/');
+    const QDir targetRelativeDir(targetRelativePath);
+
+    QString preTargetDepsSnippet = QLatin1String("PRE_TARGETDEPS += ");
+    if (targetRelativeDir.isRelative()) {
+        // it contains: PRE_TARGETDEPS += $$[pwd]/
+        preTargetDepsSnippet += QLatin1String("$$") + pwd + QLatin1Char('/');
+    }
 
     QString snippetMessage;
     QTextStream str(&snippetMessage);
@@ -612,9 +599,6 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
     setLibraryComboBoxVisible(false);
     setLibraryPathChooserVisible(true);
 
-    libraryDetailsWidget()->libraryPathChooser
-            ->setHistoryCompleter(QLatin1String("Qmake.LibDir.History"));
-
     if (creatorPlatform() == CreatorWindows) {
         libraryDetailsWidget()->libraryPathChooser->setPromptDialogFilter(
                 QLatin1String("Library file (*.lib lib*.a)"));
@@ -638,16 +622,16 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
         libraryDetailsWidget()->libraryPathChooser->setExpectedKind(Utils::PathChooser::File);
     }
 
-    connect(libraryDetailsWidget()->libraryPathChooser, SIGNAL(validChanged(bool)),
-            this, SIGNAL(completeChanged()));
-    connect(libraryDetailsWidget()->libraryPathChooser, SIGNAL(rawPathChanged(QString)),
-            this, SLOT(slotLibraryPathChanged()));
-    connect(libraryDetailsWidget()->removeSuffixCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(slotRemoveSuffixChanged(bool)));
-    connect(libraryDetailsWidget()->dynamicRadio, SIGNAL(clicked(bool)),
-            this, SLOT(slotLinkageTypeChanged()));
-    connect(libraryDetailsWidget()->staticRadio, SIGNAL(clicked(bool)),
-            this, SLOT(slotLinkageTypeChanged()));
+    connect(libraryDetailsWidget()->libraryPathChooser, &Utils::PathChooser::validChanged,
+            this, &LibraryDetailsController::completeChanged);
+    connect(libraryDetailsWidget()->libraryPathChooser, &Utils::PathChooser::rawPathChanged,
+            this, &NonInternalLibraryDetailsController::slotLibraryPathChanged);
+    connect(libraryDetailsWidget()->removeSuffixCheckBox, &QAbstractButton::toggled,
+            this, &NonInternalLibraryDetailsController::slotRemoveSuffixChanged);
+    connect(libraryDetailsWidget()->dynamicRadio, &QAbstractButton::clicked,
+            this, &NonInternalLibraryDetailsController::slotLinkageTypeChanged);
+    connect(libraryDetailsWidget()->staticRadio, &QAbstractButton::clicked,
+            this, &NonInternalLibraryDetailsController::slotLinkageTypeChanged);
 }
 
 AddLibraryWizard::LinkageType NonInternalLibraryDetailsController::suggestedLinkageType() const
@@ -852,8 +836,8 @@ PackageLibraryDetailsController::PackageLibraryDetailsController(
     setLibraryPathChooserVisible(false);
     setPackageLineEditVisible(true);
 
-    connect(libraryDetailsWidget()->packageLineEdit, SIGNAL(textChanged(QString)),
-            this, SIGNAL(completeChanged()));
+    connect(libraryDetailsWidget()->packageLineEdit, &QLineEdit::textChanged,
+            this, &LibraryDetailsController::completeChanged);
 
     updateGui();
 }
@@ -965,8 +949,9 @@ InternalLibraryDetailsController::InternalLibraryDetailsController(
     if (creatorPlatform() == CreatorWindows)
         libraryDetailsWidget()->useSubfoldersCheckBox->setEnabled(true);
 
-    connect(libraryDetailsWidget()->libraryComboBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotCurrentLibraryChanged()));
+    connect(libraryDetailsWidget()->libraryComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &InternalLibraryDetailsController::slotCurrentLibraryChanged);
 
     updateProFile();
     updateGui();

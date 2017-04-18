@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FINDTOOLWINDOW_H
-#define FINDTOOLWINDOW_H
+#pragma once
 
 #include "ui_finddialog.h"
 #include "findplugin.h"
@@ -43,7 +42,7 @@ class FindToolWindow : public QWidget
     Q_OBJECT
 
 public:
-    explicit FindToolWindow(FindPlugin *plugin, QWidget *parent = 0);
+    explicit FindToolWindow(QWidget *parent = 0);
     ~FindToolWindow();
     static FindToolWindow *instance();
 
@@ -69,7 +68,6 @@ private:
     void acceptAndGetParameters(QString *term, IFindFilter **filter);
 
     Ui::FindDialog m_ui;
-    FindPlugin *m_plugin;
     QList<IFindFilter *> m_filters;
     QCompleter *m_findCompleter;
     QWidgetList m_configWidgets;
@@ -79,5 +77,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // FINDTOOLWINDOW_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEBUILDCONFIGURATION_H
-#define QMAKEBUILDCONFIGURATION_H
+#pragma once
 
 #include "qmakeprojectmanager_global.h"
 
@@ -100,7 +99,6 @@ public:
 
     BuildType buildType() const override;
 
-public slots:
     void emitProFileEvaluateNeeded();
 
 signals:
@@ -109,7 +107,7 @@ signals:
     void qmakeBuildConfigurationChanged();
     void shadowBuildChanged();
 
-private slots:
+private:
     void kitChanged();
     void toolChainUpdated(ProjectExplorer::ToolChain *tc);
     void qtVersionsChanged(const QList<int> &, const QList<int> &, const QList<int> &changed);
@@ -118,7 +116,6 @@ protected:
     QmakeBuildConfiguration(ProjectExplorer::Target *target, QmakeBuildConfiguration *source);
     QmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     bool fromMap(const QVariantMap &map) override;
-    void setBuildDirectory(const Utils::FileName &directory) override;
 
 private:
     void ctor();
@@ -139,7 +136,7 @@ private:
     LastKitState m_lastKitState;
 
     bool m_shadowBuild = true;
-    bool m_isEnabled = false;
+    bool m_isEnabled = true;
     QtSupport::BaseQtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration = 0;
     QmakeProjectManager::QmakeProFileNode *m_subNodeBuild = nullptr;
     ProjectExplorer::FileNode *m_fileNodeBuild = nullptr;
@@ -170,15 +167,12 @@ public:
 protected:
     void configureBuildConfiguration(ProjectExplorer::Target *parent, QmakeBuildConfiguration *bc, const QmakeBuildInfo *info) const;
 
-private slots:
+private:
     void update();
 
-private:
     bool canHandle(const ProjectExplorer::Target *t) const;
     QmakeBuildInfo *createBuildInfo(const ProjectExplorer::Kit *k, const QString &projectPath,
                                     ProjectExplorer::BuildConfiguration::BuildType type) const;
 };
 
 } // namespace QmakeProjectManager
-
-#endif // QMAKEBUILDCONFIGURATION_H

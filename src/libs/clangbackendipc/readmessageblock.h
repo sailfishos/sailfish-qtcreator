@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_READMESSAGEBLOCK_H
-#define CLANGBACKEND_READMESSAGEBLOCK_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -49,7 +48,7 @@ public:
 
 private:
     bool isTheWholeMessageReadable(QDataStream &in);
-    void checkIfMessageIsLost(QDataStream &in);
+    bool checkIfMessageIsLost(QDataStream &in);
 
 private:
     QIODevice *ioDevice;
@@ -58,5 +57,3 @@ private:
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_READMESSAGEBLOCK_H

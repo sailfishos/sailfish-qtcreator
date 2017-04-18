@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXENVIRONMENTREADER_H
-#define REMOTELINUXENVIRONMENTREADER_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
 #include <utils/environment.h>
@@ -67,5 +66,3 @@ private:
 
 } // namespace Internal
 } // namespace RemoteLinux
-
-#endif  // REMOTELINUXENVIRONMENTREADER_H

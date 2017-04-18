@@ -28,31 +28,29 @@
 
 #include "artisticstyleconstants.h"
 #include "artisticstylesettings.h"
+#include "artisticstyle.h"
 
 #include "../beautifierconstants.h"
 #include "../beautifierplugin.h"
 
 #include <coreplugin/icore.h>
 
-#include <QTextStream>
-
 namespace Beautifier {
 namespace Internal {
 namespace ArtisticStyle {
 
 ArtisticStyleOptionsPageWidget::ArtisticStyleOptionsPageWidget(ArtisticStyleSettings *settings,
-                                                         QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::ArtisticStyleOptionsPage)
-    , m_settings(settings)
+                                                               QWidget *parent) :
+    QWidget(parent),
+    ui(new Ui::ArtisticStyleOptionsPage),
+    m_settings(settings)
 {
     ui->setupUi(this);
     ui->useHomeFile->setText(ui->useHomeFile->text().replace(
-                                 QLatin1String("HOME"),
-                                 QDir::toNativeSeparators(QDir::home().absolutePath())));
+                                 "HOME", QDir::toNativeSeparators(QDir::home().absolutePath())));
     ui->command->setExpectedKind(Utils::PathChooser::ExistingCommand);
     ui->command->setPromptDialogTitle(BeautifierPlugin::msgCommandPromptDialogTitle(
-                                          QLatin1String(Constants::ArtisticStyle::DISPLAY_NAME)));
+                                          ArtisticStyle::tr(Constants::ArtisticStyle::DISPLAY_NAME)));
     connect(ui->command, &Utils::PathChooser::validChanged, ui->options, &QWidget::setEnabled);
     ui->configurations->setSettings(m_settings);
 }
@@ -65,6 +63,7 @@ ArtisticStyleOptionsPageWidget::~ArtisticStyleOptionsPageWidget()
 void ArtisticStyleOptionsPageWidget::restore()
 {
     ui->command->setPath(m_settings->command());
+    ui->mime->setText(m_settings->supportedMimeTypesAsString());
     ui->useOtherFiles->setChecked(m_settings->useOtherFiles());
     ui->useHomeFile->setChecked(m_settings->useHomeFile());
     ui->useCustomStyle->setChecked(m_settings->useCustomStyle());
@@ -74,25 +73,26 @@ void ArtisticStyleOptionsPageWidget::restore()
 void ArtisticStyleOptionsPageWidget::apply()
 {
     m_settings->setCommand(ui->command->path());
+    m_settings->setSupportedMimeTypes(ui->mime->text());
     m_settings->setUseOtherFiles(ui->useOtherFiles->isChecked());
     m_settings->setUseHomeFile(ui->useHomeFile->isChecked());
     m_settings->setUseCustomStyle(ui->useCustomStyle->isChecked());
     m_settings->setCustomStyle(ui->configurations->currentConfiguration());
     m_settings->save();
-}
 
-/* ---------------------------------------------------------------------------------------------- */
+    // update since not all MIME types are accepted (invalids or duplicates)
+    ui->mime->setText(m_settings->supportedMimeTypesAsString());
+}
 
 ArtisticStyleOptionsPage::ArtisticStyleOptionsPage(ArtisticStyleSettings *settings, QObject *parent) :
     IOptionsPage(parent),
-    m_widget(0),
     m_settings(settings)
 {
     setId(Constants::ArtisticStyle::OPTION_ID);
     setDisplayName(tr("Artistic Style"));
     setCategory(Constants::OPTION_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("Beautifier", Constants::OPTION_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::OPTION_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(Constants::OPTION_CATEGORY_ICON));
 }
 
 QWidget *ArtisticStyleOptionsPage::widget()

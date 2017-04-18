@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLAINTEXTSNIPPETPROVIDER_H
-#define PLAINTEXTSNIPPETPROVIDER_H
+#pragma once
 
 #include "isnippetprovider.h"
 
@@ -33,17 +32,15 @@ namespace Internal {
 
 class PlainTextSnippetProvider : public ISnippetProvider
 {
-public:
-    PlainTextSnippetProvider();
-    virtual ~PlainTextSnippetProvider();
+    Q_OBJECT
 
 public:
-    virtual QString groupId() const;
-    virtual QString displayName() const;
-    virtual void decorateEditor(TextEditor::SnippetEditorWidget *editor) const;
+    ~PlainTextSnippetProvider() final = default;
+
+    QString groupId() const final;
+    QString displayName() const final;
+    void decorateEditor(TextEditor::SnippetEditorWidget *editor) const final;
 };
 
 } // Internal
 } // TextEditor
-
-#endif // PLAINTEXTSNIPPETPROVIDER_H

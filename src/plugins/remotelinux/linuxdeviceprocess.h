@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTC_LINUXDEVICEPROCESS_H
-#define QTC_LINUXDEVICEPROCESS_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -44,14 +43,17 @@ public:
     // Files to source before executing the command (if they exist). Overrides the default.
     void setRcFilesToSource(const QStringList &filePaths);
 
+    QByteArray readAllStandardOutput() override;
+
 private:
     QString fullCommandLine(const ProjectExplorer::StandardRunnable &) const override;
+    qint64 processId() const override;
 
     QStringList rcFilesToSource() const;
 
     QStringList m_rcFilesToSource;
+    QByteArray m_processIdString;
+    qint64 m_processId;
 };
 
 } // namespace RemoteLinux
-
-#endif // Include guard.

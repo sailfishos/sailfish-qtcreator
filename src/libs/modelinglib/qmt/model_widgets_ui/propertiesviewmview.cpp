@@ -65,6 +65,7 @@
 #include "qmt/style/style.h"
 #include "qmt/style/objectvisuals.h"
 
+#include <QCoreApplication>
 #include <QWidget>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -1103,7 +1104,7 @@ void PropertiesView::MView::onClassMembersStatusChanged(bool valid)
     if (valid)
         m_classMembersStatusLabel->clear();
     else
-        m_classMembersStatusLabel->setText(tr("<font color=red>Invalid syntax!</font>"));
+        m_classMembersStatusLabel->setText(tr("<font color=red>Invalid syntax.</font>"));
 }
 
 void PropertiesView::MView::onParseClassMembers()
@@ -1353,7 +1354,7 @@ void PropertiesView::MView::insertRow(const char *before_id, QWidget *widget, co
     addRow(widget, id);
 }
 
-template<class T, class V>
+template<typename T, typename V>
 void PropertiesView::MView::setTitle(const QList<V *> &elements,
                                      const QString &singularTitle, const QString &pluralTitle)
 {
@@ -1364,11 +1365,11 @@ void PropertiesView::MView::setTitle(const QList<V *> &elements,
         else
             m_propertiesTitle = pluralTitle;
     } else {
-        m_propertiesTitle = tr("Multi-Selection");
+        m_propertiesTitle = QCoreApplication::translate("qmt::PropertiesView::MView", "Multi-Selection");
     }
 }
 
-template<class T, class V>
+template<typename T, typename V>
 void PropertiesView::MView::setTitle(const MItem *item, const QList<V *> &elements,
                                      const QString &singularTitle, const QString &pluralTitle)
 {
@@ -1389,7 +1390,7 @@ void PropertiesView::MView::setTitle(const MItem *item, const QList<V *> &elemen
                 m_propertiesTitle = pluralTitle;
             }
         } else {
-            m_propertiesTitle = tr("Multi-Selection");
+            m_propertiesTitle = QCoreApplication::translate("qmt::PropertiesView::MView", "Multi-Selection");
         }
     }
 }

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EVENTCALLBACK_H
-#define EVENTCALLBACK_H
+#pragma once
 
 #include "common.h"
 #include "extensioncontext.h"
@@ -33,7 +32,7 @@ class EventCallback : public IDebugEventCallbacks
 {
 public:
     explicit EventCallback(IDebugEventCallbacks *wrapped);
-    virtual ~EventCallback();
+    virtual ~EventCallback() = default;
     // IUnknown.
     STDMETHOD(QueryInterface)(
             THIS_
@@ -148,4 +147,3 @@ public:
     private:
         IDebugEventCallbacks *m_wrapped;
 };
-#endif // EVENTCALLBACK_H

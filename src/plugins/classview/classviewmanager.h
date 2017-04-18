@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLASSVIEWMANAGER_H
-#define CLASSVIEWMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QSharedPointer>
@@ -73,7 +72,7 @@ signals:
 
     void requestSetFlatMode(bool flat);
 
-public slots:
+public:
     void gotoLocation(const QString &fileName, int line = 0, int column = 0);
 
     void gotoLocations(const QList<QVariant> &locations);
@@ -82,8 +81,9 @@ public slots:
 
     void setFlatMode(bool flat);
 
-protected slots:
     void onWidgetVisibilityIsChanged(bool visibility);
+
+protected:
     void onStateChanged(bool state);
     void onProjectListChanged();
     void onDocumentUpdated(CPlusPlus::Document::Ptr doc);
@@ -106,5 +106,3 @@ private:
 
 } // namespace Internal
 } // namespace ClassView
-
-#endif // CLASSVIEWMANAGER_H

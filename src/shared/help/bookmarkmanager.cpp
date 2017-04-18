@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "bookmarkmanager.h"
-#include "helpicons.h"
 
 #include <localhelpmanager.h>
 
@@ -32,6 +31,7 @@
 
 #include <utils/fancylineedit.h>
 #include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 
 #include <QMenu>
 #include <QIcon>
@@ -102,8 +102,8 @@ BookmarkDialog::BookmarkDialog(BookmarkManager *manager, const QString &title,
     connect(ui.treeView, &TreeView::customContextMenuRequested,
             this, &BookmarkDialog::customContextMenuRequested);
 
-    connect(ui.treeView->selectionModel(), SIGNAL(currentChanged(QModelIndex, QModelIndex)),
-            this, SLOT(currentChanged(QModelIndex)));
+    connect(ui.treeView->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, &BookmarkDialog::currentChanged);
 }
 
 BookmarkDialog::~BookmarkDialog()
@@ -313,15 +313,6 @@ BookmarkWidget::~BookmarkWidget()
 void BookmarkWidget::setOpenInNewPageActionVisible(bool visible)
 {
     m_isOpenInNewPageActionVisible = visible;
-}
-
-void BookmarkWidget::removeClicked()
-{
-    const QModelIndex& index = treeView->currentIndex();
-    if (searchField->text().isEmpty()) {
-        bookmarkManager->removeBookmarkItem(treeView,
-            filterBookmarkModel->mapToSource(index));
-    }
 }
 
 void BookmarkWidget::filterChanged()
@@ -575,7 +566,7 @@ Qt::ItemFlags BookmarkModel::flags(const QModelIndex &index) const
 
 BookmarkManager::BookmarkManager()
     : m_folderIcon(QApplication::style()->standardIcon(QStyle::SP_DirClosedIcon))
-    , m_bookmarkIcon(Help::Icons::BOOKMARK.icon())
+    , m_bookmarkIcon(Utils::Icons::BOOKMARK.icon())
     , treeModel(new BookmarkModel(0, 1, this))
     , listModel(new BookmarkModel(0, 1, this))
 {

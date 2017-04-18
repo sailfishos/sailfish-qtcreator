@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROFILEHOVERHANDLER_H
-#define PROFILEHOVERHANDLER_H
+#pragma once
 
 #include <texteditor/basehoverhandler.h>
 #include <texteditor/codeassist/keywordscompletionassist.h>
@@ -47,7 +46,7 @@ signals:
     void creatorHelpRequested(const QUrl &url);
 
 private:
-    void identifyMatch(TextEditor::TextEditorWidget *editorWidget, int pos);
+    void identifyMatch(TextEditor::TextEditorWidget *editorWidget, int pos) override;
     void identifyQMakeKeyword(const QString &text, int pos);
 
     enum ManualKind {
@@ -67,5 +66,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // PROFILEHOVERHANDLER_H

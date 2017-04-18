@@ -42,6 +42,7 @@ namespace ProjectExplorer {
 class IOutputParser;
 
 namespace Internal {
+class KitManagerPrivate;
 class KitModel;
 class KitPrivate;
 } // namespace Internal
@@ -83,10 +84,10 @@ public:
     Core::Id id() const;
 
     QIcon icon() const;
-    static QIcon icon(const Utils::FileName &path);
     Utils::FileName iconPath() const;
     void setIconPath(const Utils::FileName &path);
 
+    QList<Core::Id> allKeys() const;
     QVariant value(Core::Id key, const QVariant &unset = QVariant()) const;
     bool hasValue(Core::Id key) const;
     void setValue(Core::Id key, const QVariant &value);
@@ -139,6 +140,7 @@ private:
 
     friend class KitInformation;
     friend class KitManager;
+    friend class Internal::KitManagerPrivate;
     friend class Internal::KitModel; // needed for setAutoDetected() when cloning kits
 };
 

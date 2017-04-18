@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef OUTPUTWINDOW_H
-#define OUTPUTWINDOW_H
+#pragma once
 
 #include "core_global.h"
 #include "icontext.h"
@@ -49,7 +48,7 @@ public:
     OutputWindow(Context context, QWidget *parent = 0);
     ~OutputWindow();
 
-    Utils::OutputFormatter* formatter() const;
+    Utils::OutputFormatter *formatter() const;
     void setFormatter(Utils::OutputFormatter *formatter);
 
     void appendMessage(const QString &out, Utils::OutputFormat format);
@@ -59,7 +58,7 @@ public:
     void grayOutOldContent();
     void clear();
 
-    void showEvent(QShowEvent *);
+    void showEvent(QShowEvent *) override;
 
     void scrollToBottom();
 
@@ -80,12 +79,12 @@ public slots:
 protected:
     bool isScrollbarAtBottom() const;
 
-    virtual void mousePressEvent(QMouseEvent *e);
-    virtual void mouseReleaseEvent(QMouseEvent *e);
-    virtual void mouseMoveEvent(QMouseEvent *e);
-    virtual void resizeEvent(QResizeEvent *e);
-    virtual void keyPressEvent(QKeyEvent *ev);
-    virtual void wheelEvent(QWheelEvent *e);
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;
+    void keyPressEvent(QKeyEvent *ev) override;
+    void wheelEvent(QWheelEvent *e) override;
 
 private:
     using QPlainTextEdit::setFont; // call setBaseFont instead, which respects the zoom factor
@@ -98,5 +97,3 @@ private:
 };
 
 } // namespace Core
-
-#endif // OUTPUTWINDOW_H

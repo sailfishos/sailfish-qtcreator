@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILESYSTEMFILTER_H
-#define FILESYSTEMFILTER_H
+#pragma once
 
 #include "ilocatorfilter.h"
 #include "ui_filesystemfilter.h"
@@ -55,11 +54,9 @@ public:
 
 private:
     LocatorWidget *m_locatorWidget;
-    bool m_includeHidden;
+    bool m_includeHidden = true;
     QString m_currentDocumentDirectory;
 };
 
 } // namespace Internal
 } // namespace Core
-
-#endif // FILESYSTEMFILTER_H

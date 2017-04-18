@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ACTIOMACROHANDLER_H
-#define ACTIOMACROHANDLER_H
+#pragma once
 
 #include "imacrohandler.h"
 
@@ -32,10 +31,6 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 
 #include <QSet>
-
-QT_BEGIN_NAMESPACE
-class QSignalMapper;
-QT_END_NAMESPACE
 
 namespace Macros {
 namespace Internal {
@@ -50,9 +45,6 @@ public:
     bool canExecuteEvent(const MacroEvent &macroEvent);
     bool executeEvent(const MacroEvent &macroEvent);
 
-private slots:
-    void addActionEvent(const QString &id);
-
 private:
     void registerCommand(Core::Id id);
     Core::Command *command(const QString &id);
@@ -60,10 +52,7 @@ private:
 
 private:
     QSet<Core::Id> m_commandIds;
-    QSignalMapper *m_mapper;
 };
 
 } // namespace Internal
 } // namespace Macros
-
-#endif // ACTIOMACROHANDLER_H

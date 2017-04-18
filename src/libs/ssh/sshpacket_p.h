@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SSHPACKET_P_H
-#define SSHPACKET_P_H
+#pragma once
 
 #include "sshexception_p.h"
 
@@ -85,6 +84,13 @@ enum SshPacketType {
     SSH_MSG_INVALID = 128
 };
 
+enum SshOpenFailureType {
+    SSH_OPEN_ADMINISTRATIVELY_PROHIBITED = 1,
+    SSH_OPEN_CONNECT_FAILED = 2,
+    SSH_OPEN_UNKNOWN_CHANNEL_TYPE = 3,
+    SSH_OPEN_RESOURCE_SHORTAGE = 4
+};
+
 enum SshExtendedDataType { SSH_EXTENDED_DATA_STDERR = 1 };
 
 class SshAbstractCryptoFacility;
@@ -139,5 +145,3 @@ protected:
 
 } // namespace Internal
 } // namespace QSsh
-
-#endif // SSHPACKET_P_H

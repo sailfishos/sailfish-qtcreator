@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROPERTYEDITORVALUE_H
-#define PROPERTYEDITORVALUE_H
+#pragma once
 
 #include <qmldesignercorelib_global.h>
 
@@ -84,7 +83,7 @@ class PropertyEditorValue : public QObject
     Q_PROPERTY(bool isValid READ isValid NOTIFY isValidChanged FINAL)
     Q_PROPERTY(bool isTranslated READ isTranslated NOTIFY expressionChanged FINAL)
 
-    Q_PROPERTY(QString name READ name FINAL)
+    Q_PROPERTY(QString name READ nameAsQString FINAL)
     Q_PROPERTY(PropertyEditorNodeWrapper* complexNode READ complexNode NOTIFY complexNodeChanged FINAL)
 
 public:
@@ -114,6 +113,7 @@ public:
     bool isTranslated() const;
 
     QmlDesigner::PropertyName name() const;
+    QString nameAsQString() const;
     void setName(const QmlDesigner::PropertyName &name);
 
     QmlDesigner::ModelNode modelNode() const;
@@ -122,6 +122,11 @@ public:
     PropertyEditorNodeWrapper* complexNode();
 
     static void registerDeclarativeTypes();
+
+    Q_INVOKABLE void exportPopertyAsAlias();
+    Q_INVOKABLE bool hasPropertyAlias() const;
+    Q_INVOKABLE bool isAttachedProperty() const;
+    Q_INVOKABLE void removeAliasExport();
 
 public slots:
     void resetValue();
@@ -132,6 +137,8 @@ signals:
     void valueChangedQml();
 
     void expressionChanged(const QString &name);
+    void exportPopertyAsAliasRequested(const QString &name);
+    void removeAliasExportRequested(const QString &name);
 
     void modelStateChanged();
     void modelNodeChanged();
@@ -154,6 +161,3 @@ private: //variables
 QML_DECLARE_TYPE(PropertyEditorValue)
 QML_DECLARE_TYPE(PropertyEditorNodeWrapper)
 QML_DECLARE_TYPE(QQmlPropertyMap)
-
-
-#endif // PROPERTYEDITORVALUE_H

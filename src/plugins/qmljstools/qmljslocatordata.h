@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSLOCATORDATA_H
-#define QMLJSLOCATORDATA_H
+#pragma once
 
 #include <qmljs/qmljsdocument.h>
 
@@ -61,16 +60,13 @@ public:
 
     QHash<QString, QList<Entry> > entries() const;
 
-private slots:
+private:
     void onDocumentUpdated(const QmlJS::Document::Ptr &doc);
     void onAboutToRemoveFiles(const QStringList &files);
 
-private:
     mutable QMutex m_mutex;
     QHash<QString, QList<Entry> > m_entries;
 };
 
 } // namespace Internal
 } // namespace QmlJSTools
-
-#endif // QMLJSLOCATORDATA_H

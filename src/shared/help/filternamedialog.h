@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FILTERNAMEDIALOG_H
-#define FILTERNAMEDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include "ui_filternamedialog.h"
@@ -37,11 +36,8 @@ public:
     FilterNameDialog(QWidget *parent = 0);
     QString filterName() const;
 
-private slots:
+private:
     void updateOkButton();
 
-private:
     Ui::FilterNameDialogClass m_ui;
 };
-
-#endif // FILTERNAMEDIALOG_H

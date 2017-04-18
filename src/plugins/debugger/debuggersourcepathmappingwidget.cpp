@@ -49,7 +49,8 @@ using namespace Utils;
 static const char* qtBuildPaths[] = {
     "Q:/qt5_workdir/w/s",
     "C:/work/build/qt5_workdir/w/s",
-    "c:/users/qt/work/qt"
+    "c:/users/qt/work/qt",
+    "c:/Users/qt/work/install"
 };
 #elif defined(Q_OS_MAC)
 static const char* qtBuildPaths[] = {};
@@ -415,7 +416,7 @@ static QString findQtInstallPath(const FileName &qmakePath)
         return QString();
     }
     proc.closeWriteChannel();
-    if (!proc.waitForFinished()) {
+    if (!proc.waitForFinished() && proc.state() == QProcess::Running) {
         SynchronousProcess::stopProcess(proc);
         qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(qmakePath.toString()));
         return QString();

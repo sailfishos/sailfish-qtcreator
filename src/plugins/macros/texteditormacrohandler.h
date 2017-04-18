@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITORMACROHANDLER_H
-#define TEXTEDITORMACROHANDLER_H
+#pragma once
 
 #include "imacrohandler.h"
 
@@ -50,7 +49,6 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event);
 
-public slots:
     void changeEditor(Core::IEditor *editor);
     void closeEditor(Core::IEditor *editor);
 
@@ -60,5 +58,3 @@ private:
 
 } // namespace Internal
 } // namespace Macros
-
-#endif // TEXTEDITORMACROHANDLER_H

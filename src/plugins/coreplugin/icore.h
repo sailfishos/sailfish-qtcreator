@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ICORE_H
-#define ICORE_H
+#pragma once
 
 #include "core_global.h"
 #include "id.h"
@@ -38,7 +37,7 @@ QT_BEGIN_NAMESPACE
 class QPrinter;
 class QStatusBar;
 class QWidget;
-template <class T> class QList;
+template <typename T> class QList;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -73,6 +72,7 @@ public:
     static ICore *instance();
 
     static bool isNewItemDialogRunning();
+    static QWidget *newItemDialog();
     static void showNewItemDialog(const QString &title,
                                   const QList<IWizardFactory *> &factories,
                                   const QString &defaultLocation = QString(),
@@ -131,13 +131,15 @@ public:
 
     static void addPreCloseListener(const std::function<bool()> &listener);
 
+    static QString systemInformation();
+
 public slots:
     static void saveSettings();
 
 signals:
     void coreAboutToOpen();
     void coreOpened();
-    void newItemDialogRunningChanged();
+    void newItemDialogStateChanged();
     void saveSettingsRequested();
     void optionsDialogRequested();
     void coreAboutToClose();
@@ -150,11 +152,7 @@ public:
     static void appendAboutInformation(const QString &line);
 
 private:
-    static void validateNewItemDialogIsRunning();
-    static void newItemDialogOpened();
-    static void newItemDialogClosed();
+    static void updateNewItemDialogState();
 };
 
 } // namespace Core
-
-#endif // ICORE_H

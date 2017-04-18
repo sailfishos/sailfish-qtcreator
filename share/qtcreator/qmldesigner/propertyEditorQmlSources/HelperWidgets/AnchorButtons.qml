@@ -33,7 +33,8 @@ ButtonRow {
     id: buttonRow
 
     ButtonRowButton {
-        iconSource: "images/anchor-top.png"
+        iconSource: "image://icons/anchor-top"
+        tooltip: qsTr("Anchor item to the top.")
 
         property bool topAnchored: anchorBackend.topAnchored
         onTopAnchoredChanged: {
@@ -52,7 +53,8 @@ ButtonRow {
     }
 
     ButtonRowButton {
-        iconSource: "images/anchor-bottom.png"
+        iconSource: "image://icons/anchor-bottom"
+        tooltip: qsTr("Anchor item to the bottom.")
 
         property bool bottomAnchored: anchorBackend.bottomAnchored
         onBottomAnchoredChanged: {
@@ -72,7 +74,8 @@ ButtonRow {
     }
 
     ButtonRowButton {
-        iconSource: "images/anchor-left.png"
+        iconSource: "image://icons/anchor-left"
+        tooltip: qsTr("Anchor item to the left.")
 
         property bool leftAnchored: anchorBackend.leftAnchored
         onLeftAnchoredChanged: {
@@ -91,7 +94,8 @@ ButtonRow {
     }
 
     ButtonRowButton {
-        iconSource: "images/anchor-right.png"
+        iconSource: "image://icons/anchor-right"
+        tooltip: qsTr("Anchor item to the right.")
 
         property bool rightAnchored: anchorBackend.rightAnchored
         onRightAnchoredChanged: {
@@ -115,7 +119,8 @@ ButtonRow {
 
 
     ButtonRowButton {
-        iconSource: "images/anchor-fill.png"
+        iconSource: "image://icons/anchor-fill"
+        tooltip: qsTr("Fill parent item.")
 
         property bool isFilled: anchorBackend.isFilled
         onIsFilledChanged: {
@@ -136,7 +141,8 @@ ButtonRow {
     }
 
     ButtonRowButton {
-        iconSource: "images/anchor-vertical.png"
+        iconSource: "image://icons/anchor-vertical"
+        tooltip: qsTr("Anchor item vertically.")
 
         property bool verticalCentered: anchorBackend.verticalCentered;
         onVerticalCenteredChanged: {
@@ -157,7 +163,8 @@ ButtonRow {
     }
 
     ButtonRowButton {
-        iconSource: "images/anchor-horizontal.png"
+        iconSource: "image://icons/anchor-horizontal"
+        tooltip: qsTr("Anchor item horizontally.")
 
         property bool horizontalCentered: anchorBackend.horizontalCentered;
         onHorizontalCenteredChanged: {

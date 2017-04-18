@@ -23,18 +23,17 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERSTATEWIDGET_H
-#define QMLPROFILERSTATEWIDGET_H
-
-#include <QWidget>
+#pragma once
 
 #include "qmlprofilerstatemanager.h"
 #include "qmlprofilermodelmanager.h"
 
+#include <QFrame>
+
 namespace QmlProfiler {
 namespace Internal {
 
-class QmlProfilerStateWidget : public QWidget
+class QmlProfilerStateWidget : public QFrame
 {
     Q_OBJECT
 public:
@@ -43,19 +42,15 @@ public:
     ~QmlProfilerStateWidget();
 
 private slots:
-    void showText(const QString &text, bool showProgress = false);
+    void showText(const QString &text);
     void updateDisplay();
+    void update();
     void reposition();
-
-protected:
-    void paintEvent(QPaintEvent *event);
 
 private:
     class QmlProfilerStateWidgetPrivate;
     QmlProfilerStateWidgetPrivate *d;
 };
 
-}
-}
-
-#endif // QMLPROFILERSTATEWIDGET_H
+} // namespace Internal
+} // namespace QmlProfiler

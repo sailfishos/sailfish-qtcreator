@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GENERICPROPOSAL_H
-#define GENERICPROPOSAL_H
+#pragma once
 
 #include "iassistproposal.h"
 
@@ -42,9 +41,6 @@ public:
     ~GenericProposal();
 
     bool isFragile() const override;
-    int basePosition() const override;
-    bool isCorrective() const override;
-    void makeCorrection(TextEditorWidget *editorWidget) override;
     IAssistProposalModel *model() const override;
     IAssistProposalWidget *createWidget() const override;
 
@@ -52,10 +48,7 @@ protected:
     void moveBasePosition(int length);
 
 private:
-    int m_basePosition;
     GenericProposalModel *m_model;
 };
 
 } // TextEditor
-
-#endif // GENERICPROPOSAL_H

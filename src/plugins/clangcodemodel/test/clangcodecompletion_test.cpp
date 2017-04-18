@@ -219,7 +219,7 @@ WaitForAsyncCompletions::WaitResult WaitForAsyncCompletions::wait(
     // There are not any, so wait for async results.
     QElapsedTimer timer; timer.start();
     while (!gotResults) {
-        if (timer.elapsed() >= 5 * 1000)
+        if (timer.elapsed() >= 30 * 1000)
             return Timeout;
         QCoreApplication::processEvents();
     }
@@ -250,13 +250,13 @@ class ChangeIpcSender
 public:
     ChangeIpcSender(IpcSenderInterface *ipcSender)
     {
-        auto &ipc = ModelManagerSupportClang::instance_forTestsOnly()->ipcCommunicator();
+        auto &ipc = ModelManagerSupportClang::instance()->ipcCommunicator();
         m_previousSender = ipc.setIpcSender(ipcSender);
     }
 
     ~ChangeIpcSender()
     {
-        auto &ipc = ModelManagerSupportClang::instance_forTestsOnly()->ipcCommunicator();
+        auto &ipc = ModelManagerSupportClang::instance()->ipcCommunicator();
         ipc.setIpcSender(m_previousSender);
     }
 
@@ -370,15 +370,11 @@ QString toString(const CompleteCodeMessage &)
     return QLatin1String("CompleteCodeMessage\n");
 }
 
-QString toString(const RequestDiagnosticsMessage &)
+QString toString(const RequestDocumentAnnotationsMessage &)
 {
-    return QStringLiteral("RequestDiagnosticsMessage\n");
+    return QStringLiteral("RequestDocumentAnnotationsMessage\n");
 }
 
-QString toString(const RequestHighlightingMessage &)
-{
-    return QStringLiteral("RequestHighlightingMessage\n");
-}
 
 QString toString(const UpdateVisibleTranslationUnitsMessage &)
 {
@@ -415,10 +411,7 @@ public:
     void completeCode(const CompleteCodeMessage &message) override
     { senderLog.append(toString(message)); }
 
-    void requestDiagnostics(const RequestDiagnosticsMessage &message) override
-    { senderLog.append(toString(message)); }
-
-    void requestHighlighting(const RequestHighlightingMessage &message) override
+    void requestDocumentAnnotations(const RequestDocumentAnnotationsMessage &message) override
     { senderLog.append(toString(message)); }
 
     void updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message) override
@@ -932,16 +925,26 @@ void ClangCodeCompletionTest::testCompleteConstructorAndFallbackToGlobalCompleti
     QVERIFY(!hasSnippet(t.proposal, "class"));
 }
 
+// Explicitly Inserting The Dot
+// ----------------------------
+// Inserting the dot for is important since it will send the editor
+// content to the backend and thus generate an unsaved file on the backend
+// side. The unsaved file enables us to do the dot to arrow correction.
+
 void ClangCodeCompletionTest::testCompleteWithDotToArrowCorrection()
 {
-    // Inserting the dot for this test is important since it will send the editor
-    // content to the backend and thus generate an unsaved file on the backend
-    // side. The unsaved file enables us to do the dot to arrow correction.
-
     ProjectLessCompletionTest t("dotToArrowCorrection.cpp",
-                                QStringLiteral("."));
+                                QStringLiteral(".")); // See above "Explicitly Inserting The Dot"
 
     QVERIFY(hasItem(t.proposal, "member"));
+}
+
+void ClangCodeCompletionTest::testDontCompleteWithDotToArrowCorrectionForFloats()
+{
+    ProjectLessCompletionTest t("noDotToArrowCorrectionForFloats.cpp",
+                                QStringLiteral(".")); // See above "Explicitly Inserting The Dot"
+
+    QCOMPARE(t.proposal->size(), 0);
 }
 
 void ClangCodeCompletionTest::testCompleteProjectDependingCode()
@@ -1207,7 +1210,7 @@ void ClangCodeCompletionTest::testUpdateBackendAfterRestart()
     spy.senderLog.clear();
 
     // Kill backend process...
-    auto &ipcCommunicator = ModelManagerSupportClang::instance_forTestsOnly()->ipcCommunicator();
+    auto &ipcCommunicator = ModelManagerSupportClang::instance()->ipcCommunicator();
     ipcCommunicator.killBackendProcess();
     QSignalSpy waitForReinitializedBackend(&ipcCommunicator,
                                            SIGNAL(backendReinitialized()));

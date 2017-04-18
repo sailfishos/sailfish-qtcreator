@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITORCONSTANTS_H
-#define TEXTEDITORCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -41,6 +40,7 @@ enum TextStyle : quint8 {
     C_SEARCH_SCOPE,
     C_PARENTHESES,
     C_PARENTHESES_MISMATCH,
+    C_AUTOCOMPLETE,
     C_CURRENT_LINE,
     C_CURRENT_LINE_NUMBER,
     C_OCCURRENCES,
@@ -51,6 +51,7 @@ enum TextStyle : quint8 {
     C_STRING,
     C_TYPE,
     C_LOCAL,
+    C_GLOBAL,
     C_FIELD,
     C_ENUMERATION,
     C_VIRTUAL_METHOD,
@@ -98,6 +99,9 @@ enum TextStyle : quint8 {
     C_ERROR,
     C_ERROR_CONTEXT,
 
+    C_DECLARATION,
+    C_OUTPUT_ARGUMENT,
+
     C_LAST_STYLE_SENTINEL
 };
 
@@ -124,6 +128,7 @@ const char GOTO_BLOCK_END[]        = "TextEditor.GotoBlockEnd";
 const char GOTO_BLOCK_END_WITH_SELECTION[] = "TextEditor.GotoBlockEndWithSelection";
 const char SELECT_BLOCK_UP[]       = "TextEditor.SelectBlockUp";
 const char SELECT_BLOCK_DOWN[]     = "TextEditor.SelectBlockDown";
+const char SELECT_WORD_UNDER_CURSOR[]   = "TextEditor.SelectWordUnderCursor";
 const char VIEW_PAGE_UP[] = "TextEditor.viewPageUp";
 const char VIEW_PAGE_DOWN[] = "TextEditor.viewPageDown";
 const char VIEW_LINE_UP[] = "TextEditor.viewLineUp";
@@ -205,5 +210,3 @@ const unsigned COMPLETION_ASSIST_TOOLTIP_DELAY = 100;
 
 } // namespace Constants
 } // namespace TextEditor
-
-#endif // TEXTEDITORCONSTANTS_H

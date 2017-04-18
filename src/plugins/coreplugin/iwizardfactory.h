@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IWIZARDFACTORY_H
-#define IWIZARDFACTORY_H
+#pragma once
 
 #include <coreplugin/core_global.h>
 #include <coreplugin/featureprovider.h>
@@ -88,8 +87,8 @@ public:
     QString runPath(const QString &defaultPath);
 
     // Does bookkeeping and the calls runWizardImpl. Please implement that.
-    virtual Utils::Wizard *runWizard(const QString &path, QWidget *parent, Id platform,
-                                     const QVariantMap &variables);
+    Utils::Wizard *runWizard(const QString &path, QWidget *parent, Id platform,
+                             const QVariantMap &variables);
 
     virtual bool isAvailable(Id platformId) const;
     QSet<Id> supportedPlatforms() const;
@@ -105,6 +104,7 @@ public:
     static void registerFeatureProvider(IFeatureProvider *provider);
 
     static bool isWizardRunning();
+    static QWidget *currentWizard();
 
     static void requestNewItemDialog(const QString &title,
                                      const QList<IWizardFactory *> &factories,
@@ -143,5 +143,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Core::IWizardFactory::WizardFlags)
-
-#endif // IWIZARDFACTORY_H

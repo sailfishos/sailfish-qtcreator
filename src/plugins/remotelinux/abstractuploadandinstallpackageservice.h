@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ABSTRACTUPLOADANDINSTALLPACKAGESERVICE_H
-#define ABSTRACTUPLOADANDINSTALLPACKAGESERVICE_H
+#pragma once
 
 #include "abstractremotelinuxdeployservice.h"
 #include "remotelinux_export.h"
@@ -47,11 +46,10 @@ protected:
 
     QString packageFilePath() const;
 
-private slots:
+private:
     void handleUploadFinished(const QString &errorMsg);
     void handleInstallationFinished(const QString &errorMsg);
 
-private:
     virtual AbstractRemoteLinuxPackageInstaller *packageInstaller() const = 0;
     virtual QString uploadDir() const; // Defaults to remote user's home directory.
 
@@ -67,5 +65,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // ABSTRACTUPLOADANDINSTALLPACKAGESERVICE_H

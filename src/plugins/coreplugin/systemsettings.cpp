@@ -55,7 +55,10 @@ SystemSettings::SystemSettings()
     setDisplayName(tr("System"));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
     setDisplayCategory(QCoreApplication::translate("Core", Constants::SETTINGS_TR_CATEGORY_CORE));
-    setCategoryIcon(QLatin1String(Constants::SETTINGS_CATEGORY_CORE_ICON));
+    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CORE_ICON));
+
+    connect(VcsManager::instance(), &VcsManager::configurationChanged,
+            this, &SystemSettings::updatePath);
 }
 
 QWidget *SystemSettings::widget()
@@ -95,6 +98,8 @@ QWidget *SystemSettings::widget()
         m_page->patchChooser->setPath(PatchTool::patchCommand());
         m_page->autoSaveCheckBox->setChecked(EditorManagerPrivate::autoSaveEnabled());
         m_page->autoSaveInterval->setValue(EditorManagerPrivate::autoSaveInterval());
+        m_page->autoSuspendCheckBox->setChecked(EditorManagerPrivate::autoSuspendEnabled());
+        m_page->autoSuspendMinDocumentCount->setValue(EditorManagerPrivate::autoSuspendMinDocumentCount());
         m_page->warnBeforeOpeningBigFiles->setChecked(
                     EditorManagerPrivate::warnBeforeOpeningBigFilesEnabled());
         m_page->bigFilesLimitSpinBox->setValue(EditorManagerPrivate::bigFileSizeLimit());
@@ -136,9 +141,6 @@ QWidget *SystemSettings::widget()
         }
 
         updatePath();
-
-        connect(VcsManager::instance(), &VcsManager::configurationChanged,
-                this, &SystemSettings::updatePath);
     }
     return m_widget;
 }
@@ -159,6 +161,8 @@ void SystemSettings::apply()
     PatchTool::setPatchCommand(m_page->patchChooser->path());
     EditorManagerPrivate::setAutoSaveEnabled(m_page->autoSaveCheckBox->isChecked());
     EditorManagerPrivate::setAutoSaveInterval(m_page->autoSaveInterval->value());
+    EditorManagerPrivate::setAutoSuspendEnabled(m_page->autoSuspendCheckBox->isChecked());
+    EditorManagerPrivate::setAutoSuspendMinDocumentCount(m_page->autoSuspendMinDocumentCount->value());
     EditorManagerPrivate::setWarnBeforeOpeningBigFilesEnabled(
                 m_page->warnBeforeOpeningBigFiles->isChecked());
     EditorManagerPrivate::setBigFileSizeLimit(m_page->bigFilesLimitSpinBox->value());
@@ -196,6 +200,9 @@ void SystemSettings::resetFileBrowser()
 
 void SystemSettings::updatePath()
 {
+    if (!m_page)
+       return;
+
     Environment env = Environment::systemEnvironment();
     QStringList toAdd = VcsManager::additionalToolsPath();
     env.appendOrSetPath(toAdd.join(HostOsInfo::pathListSeparator()));

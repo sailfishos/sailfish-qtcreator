@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONTEXTPANEWIDGET_H
-#define CONTEXTPANEWIDGET_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include <QFrame>
@@ -94,7 +93,6 @@ public:
     bool isPropertyChanges() const
     { return m_isPropertyChanges; }
 
-public slots:
     void onTogglePane();
     void onShowColorDialog(bool, const QPoint &);
 
@@ -106,12 +104,11 @@ signals:
     void enabledChanged(bool);
     void closed();
 
-private slots:
+private:
     void onDisable(bool);
     void onResetPosition(bool toggle);
 
 protected:
-
     void protectedMoved();
 
     QToolButton *m_toolButton;
@@ -141,5 +138,3 @@ private:
 };
 
 } //QmlDesigner
-
-#endif // CONTEXTPANEWIDGET_H

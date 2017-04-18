@@ -38,7 +38,7 @@ namespace Internal {
 ///////////////////////////////////////////////////////////////////////
 
 ConsoleItemModel::ConsoleItemModel(QObject *parent) :
-    Utils::TreeModel(new ConsoleItem, parent),
+    Utils::TreeModel<>(new ConsoleItem, parent),
     m_maxSizeOfFileName(0)
 {
     clear();
@@ -46,7 +46,7 @@ ConsoleItemModel::ConsoleItemModel(QObject *parent) :
 
 void ConsoleItemModel::clear()
 {
-    Utils::TreeModel::clear();
+    Utils::TreeModel<>::clear();
     appendItem(new ConsoleItem(ConsoleItem::InputType));
     emit selectEditableRow(index(0, 0, QModelIndex()), QItemSelectionModel::ClearAndSelect);
 }
@@ -67,9 +67,6 @@ void ConsoleItemModel::shiftEditableRow()
     int position = rootItem()->childCount();
     Q_ASSERT(position > 0);
 
-    // Disable editing for old editable row
-    rootItem()->lastChild()->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-
     appendItem(new ConsoleItem(ConsoleItem::InputType), position);
     emit selectEditableRow(index(position, 0, QModelIndex()), QItemSelectionModel::ClearAndSelect);
 }
@@ -80,7 +77,7 @@ int ConsoleItemModel::sizeOfFile(const QFont &font)
     lastReadOnlyRow -= 2; // skip editable row
     if (lastReadOnlyRow < 0)
         return 0;
-    QString filename = static_cast<ConsoleItem *>(rootItem()->child(lastReadOnlyRow))->file();
+    QString filename = static_cast<ConsoleItem *>(rootItem()->childAt(lastReadOnlyRow))->file();
     const int pos = filename.lastIndexOf(QLatin1Char('/'));
     if (pos != -1)
         filename = filename.mid(pos + 1);

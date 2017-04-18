@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NODEABSTRACTPROPERTY_H
-#define NODEABSTRACTPROPERTY_H
+#pragma once
 
 #include "abstractproperty.h"
 
@@ -60,7 +59,7 @@ public:
 protected:
     NodeAbstractProperty(const PropertyName &propertyName, const Internal::InternalNodePointer &internalNode, Model *model, AbstractView *view);
     NodeAbstractProperty(const Internal::InternalNodeAbstractPropertyPointer &property, Model *model, AbstractView *view);
-    void reparentHere(const ModelNode &modelNode, bool isNodeList);
+    void reparentHere(const ModelNode &modelNode, bool isNodeList, const TypeName &typeName = TypeName());
 };
 
 
@@ -71,5 +70,3 @@ QMLDESIGNERCORE_EXPORT QTextStream& operator<<(QTextStream &stream, const NodeAb
 QMLDESIGNERCORE_EXPORT QDebug operator<<(QDebug debug, const NodeAbstractProperty &property);
 
 } // namespace QmlDesigner
-
-#endif // NODEABSTRACTPROPERTY_H

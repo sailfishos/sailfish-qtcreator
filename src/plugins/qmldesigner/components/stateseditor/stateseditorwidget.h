@@ -23,11 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef STATESEDITORWIDGET_H
-#define STATESEDITORWIDGET_H
+#pragma once
 
 #include <QQuickWidget>
 #include <QPointer>
+#include <QQmlPropertyMap>
 
 QT_BEGIN_NAMESPACE
 class QShortcut;
@@ -70,5 +70,3 @@ private:
 };
 
 }
-
-#endif // STATESEDITORWIDGET_H

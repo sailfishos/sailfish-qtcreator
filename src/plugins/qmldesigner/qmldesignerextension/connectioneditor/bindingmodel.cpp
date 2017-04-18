@@ -29,50 +29,39 @@
 
 #include <nodemetainfo.h>
 #include <nodeproperty.h>
-#include <variantproperty.h>
 #include <bindingproperty.h>
+#include <variantproperty.h>
 #include <rewritingexception.h>
 #include <rewritertransaction.h>
 
-#include <utils/fileutils.h>
-
-#include <QItemEditorFactory>
-#include <QComboBox>
 #include <QMessageBox>
-#include <QStyleFactory>
 #include <QTimer>
-
-namespace {
-
-enum ColumnRoles {
-    TargetModelNodeRow = 0,
-    TargetPropertyNameRow = 1,
-    SourceModelNodeRow = 2,
-    SourcePropertyNameRow = 3
-};
-
-bool compareBindingProperties(const QmlDesigner::BindingProperty &bindingProperty01, const QmlDesigner::BindingProperty &bindingProperty02)
-{
-    if (bindingProperty01.parentModelNode() != bindingProperty02.parentModelNode())
-        return false;
-    if (bindingProperty01.name() != bindingProperty02.name())
-        return false;
-    return true;
-}
-
-} //internal namespace
 
 namespace QmlDesigner {
 
 namespace Internal {
 
-BindingModel::BindingModel(ConnectionView *parent) :
-    QStandardItemModel(parent),
-    m_connectionView(parent),
-    m_lock(false),
-    m_handleDataChanged(false)
+BindingModel::BindingModel(ConnectionView *parent)
+    : QStandardItemModel(parent)
+    , m_connectionView(parent)
 {
-    connect(this, SIGNAL(dataChanged(QModelIndex,QModelIndex)), this, SLOT(handleDataChanged(QModelIndex,QModelIndex)));
+    connect(this, &QStandardItemModel::dataChanged, this, &BindingModel::handleDataChanged);
+}
+
+void BindingModel::resetModel()
+{
+    beginResetModel();
+    clear();
+    setHorizontalHeaderLabels(QStringList()
+                              << tr("Item")
+                              << tr("Property")
+                              << tr("Source Item")
+                              << tr("Source Property"));
+
+    foreach (const ModelNode modelNode, m_selectedModelNodes)
+        addModelNode(modelNode);
+
+    endResetModel();
 }
 
 void BindingModel::bindingChanged(const BindingProperty &bindingProperty)
@@ -152,7 +141,7 @@ QStringList BindingModel::possibleTargetProperties(const BindingProperty &bindin
         QStringList possibleProperties;
         foreach (const PropertyName &propertyName, metaInfo.propertyNames()) {
             if (metaInfo.propertyIsWritable(propertyName))
-                possibleProperties << QString::fromLatin1(propertyName);
+                possibleProperties << QString::fromUtf8(propertyName);
         }
 
         return possibleProperties;
@@ -189,18 +178,18 @@ QStringList BindingModel::possibleSourceProperties(const BindingProperty &bindin
 
     foreach (VariantProperty variantProperty, modelNode.variantProperties()) {
         if (variantProperty.isDynamic())
-            possibleProperties << QString::fromLatin1((variantProperty.name()));
+            possibleProperties << QString::fromUtf8(variantProperty.name());
     }
 
     foreach (BindingProperty bindingProperty, modelNode.bindingProperties()) {
         if (bindingProperty.isDynamic())
-            possibleProperties << QString::fromLatin1((bindingProperty.name()));
+            possibleProperties << QString::fromUtf8((bindingProperty.name()));
     }
 
     if (metaInfo.isValid())  {
         foreach (const PropertyName &propertyName, metaInfo.propertyNames()) {
             if (metaInfo.propertyTypeName(propertyName) == typeName) //### todo proper check
-                possibleProperties << QString::fromLatin1(propertyName);
+                possibleProperties << QString::fromUtf8(propertyName);
         }
     } else {
         qWarning() << " BindingModel::possibleSourcePropertiesForRow no meta info for source node";
@@ -250,27 +239,6 @@ void BindingModel::addBindingForCurrentNode()
     }
 }
 
-void BindingModel::resetModel()
-{
-    beginResetModel();
-    clear();
-
-    QStringList labels;
-
-    labels << tr("Item");
-    labels <<tr("Property");
-    labels <<tr("Source Item");
-    labels <<tr("Source Property");
-
-    setHorizontalHeaderLabels(labels);
-
-    foreach (const ModelNode modelNode, m_selectedModelNodes) {
-        addModelNode(modelNode);
-    }
-
-    endResetModel();
-}
-
 void BindingModel::addBindingProperty(const BindingProperty &property)
 {
     QStandardItem *idItem;
@@ -280,10 +248,10 @@ void BindingModel::addBindingProperty(const BindingProperty &property)
 
     QString idLabel = property.parentModelNode().id();
     if (idLabel.isEmpty())
-        idLabel = QString::fromLatin1(property.parentModelNode().simplifiedTypeName());
+        idLabel = property.parentModelNode().simplifiedTypeName();
     idItem = new QStandardItem(idLabel);
     updateCustomData(idItem, property);
-    targetPropertyNameItem = new QStandardItem(QString::fromLatin1(property.name()));
+    targetPropertyNameItem = new QStandardItem(QString::fromUtf8(property.name()));
     QList<QStandardItem*> items;
 
     items.append(idItem);
@@ -306,7 +274,7 @@ void BindingModel::updateBindingProperty(int rowNumber)
     BindingProperty bindingProperty = bindingPropertyForRow(rowNumber);
 
     if (bindingProperty.isValid()) {
-        QString targetPropertyName = QString::fromLatin1(bindingProperty.name());
+        QString targetPropertyName = QString::fromUtf8(bindingProperty.name());
         updateDisplayRole(rowNumber, TargetPropertyNameRow, targetPropertyName);
         QString sourceNodeName;
         QString sourcePropertyName;
@@ -340,7 +308,7 @@ void BindingModel::updateExpression(int row)
     RewriterTransaction transaction =
         connectionView()->beginRewriterTransaction(QByteArrayLiteral("BindingModel::updateExpression"));
     try {
-        bindingProperty.setExpression(expression);
+        bindingProperty.setExpression(expression.trimmed());
         transaction.commit(); //committing in the try block
     } catch (Exception &e) {
         m_exceptionError = e.description();
@@ -352,7 +320,7 @@ void BindingModel::updatePropertyName(int rowNumber)
 {
     BindingProperty bindingProperty = bindingPropertyForRow(rowNumber);
 
-    const PropertyName newName = data(index(rowNumber, TargetPropertyNameRow)).toString().toLatin1();
+    const PropertyName newName = data(index(rowNumber, TargetPropertyNameRow)).toString().toUtf8();
     const QString expression = bindingProperty.expression();
     const PropertyName dynamicPropertyType = bindingProperty.dynamicTypeName();
     ModelNode targetNode = bindingProperty.parentModelNode();
@@ -481,110 +449,6 @@ void BindingModel::handleException()
 {
     QMessageBox::warning(0, tr("Error"), m_exceptionError);
     resetModel();
-}
-
-BindingDelegate::BindingDelegate(QWidget *parent) : QStyledItemDelegate(parent)
-{
-    static QItemEditorFactory *factory = 0;
-        if (factory == 0) {
-            factory = new QItemEditorFactory;
-            QItemEditorCreatorBase *creator
-                = new QItemEditorCreator<BindingComboBox>("text");
-            factory->registerEditor(QVariant::String, creator);
-        }
-
-        setItemEditorFactory(factory);
-}
-
-QWidget *BindingDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
-{
-        QWidget *widget = QStyledItemDelegate::createEditor(parent, option, index);
-
-        const BindingModel *model = qobject_cast<const BindingModel*>(index.model());
-
-        model->connectionView()->allModelNodes();
-
-        BindingComboBox *bindingComboBox = qobject_cast<BindingComboBox*>(widget);
-
-        if (!model) {
-            qWarning() << "BindingDelegate::createEditor no model";
-            return widget;
-        }
-
-        if (!model->connectionView()) {
-            qWarning() << "BindingDelegate::createEditor no connection view";
-            return widget;
-        }
-
-        if (!bindingComboBox) {
-            qWarning() << "BindingDelegate::createEditor no bindingComboBox";
-            return widget;
-        }
-
-        BindingProperty bindingProperty = model->bindingPropertyForRow(index.row());
-
-        switch (index.column()) {
-        case TargetModelNodeRow: {
-            return 0; //no editor
-            foreach (const ModelNode &modelNode, model->connectionView()->allModelNodes()) {
-                if (!modelNode.id().isEmpty()) {
-                    bindingComboBox->addItem(modelNode.id());
-                }
-            }
-        } break;
-        case TargetPropertyNameRow: {
-            bindingComboBox->addItems(model->possibleTargetProperties(bindingProperty));
-        } break;
-        case SourceModelNodeRow: {
-            foreach (const ModelNode &modelNode, model->connectionView()->allModelNodes()) {
-                if (!modelNode.id().isEmpty()) {
-                    bindingComboBox->addItem(modelNode.id());
-                }
-            }
-            if (!bindingProperty.parentModelNode().isRootNode())
-                bindingComboBox->addItem(QLatin1String("parent"));
-        } break;
-        case SourcePropertyNameRow: {
-            bindingComboBox->addItems(model->possibleSourceProperties(bindingProperty));
-        } break;
-        default: qWarning() << "BindingDelegate::createEditor column" << index.column();
-        }
-
-        connect(bindingComboBox, SIGNAL(activated(QString)), this, SLOT(emitCommitData(QString)));
-
-        return widget;
-}
-
-void BindingDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
-                            const QModelIndex &index) const
-{
-    QStyleOptionViewItem opt = option;
-    opt.state &= ~QStyle::State_HasFocus;
-    QStyledItemDelegate::paint(painter, opt, index);
-}
-
-void BindingDelegate::emitCommitData(const QString & /*text*/)
-{
-    BindingComboBox *bindingComboBox = qobject_cast<BindingComboBox*>(sender());
-    emit commitData(bindingComboBox);
-}
-
-BindingComboBox::BindingComboBox(QWidget *parent) : QComboBox(parent)
-{
-    static QScopedPointer<QStyle> style(QStyleFactory::create(QLatin1String("windows")));
-    setEditable(true);
-    if (style)
-        setStyle(style.data());
-}
-
-QString BindingComboBox::text() const
-{
-    return currentText();
-}
-
-void BindingComboBox::setText(const QString &text)
-{
-    setEditText(text);
 }
 
 } // namespace Internal

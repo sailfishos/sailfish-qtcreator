@@ -25,15 +25,19 @@
 
 #include "codecompleter.h"
 
+#include "clangfilepath.h"
 #include "clangcodecompleteresults.h"
 #include "clangstring.h"
 #include "cursor.h"
-#include "codecompletefailedexception.h"
+#include "clangexceptions.h"
 #include "codecompletionsextractor.h"
 #include "sourcelocation.h"
 #include "unsavedfile.h"
-#include "clangtranslationunit.h"
+#include "unsavedfiles.h"
+#include "clangdocument.h"
 #include "sourcerange.h"
+#include "clangunsavedfilesshallowarguments.h"
+#include "clangtranslationunitupdater.h"
 
 #include <clang-c/Index.h>
 
@@ -54,8 +58,10 @@ CodeCompletions toCodeCompletions(const ClangCodeCompleteResults &results)
 
 } // anonymous namespace
 
-CodeCompleter::CodeCompleter(TranslationUnit translationUnit)
-    : translationUnit(std::move(translationUnit))
+CodeCompleter::CodeCompleter(const TranslationUnit &translationUnit,
+                             const UnsavedFiles &unsavedFiles)
+    : translationUnit(translationUnit)
+    , unsavedFiles(unsavedFiles)
 {
 }
 
@@ -63,13 +69,9 @@ CodeCompletions CodeCompleter::complete(uint line, uint column)
 {
     neededCorrection_ = CompletionCorrection::NoCorrection;
 
-    ClangCodeCompleteResults results = complete(line,
-                                                column,
-                                                translationUnit.cxUnsavedFiles(),
-                                                translationUnit.unsavedFilesCount());
+    ClangCodeCompleteResults results = completeHelper(line, column);
 
-    if (results.hasNoResultsForDotCompletion() && hasDotAt(line, column - 1))
-        results = completeWithArrowInsteadOfDot(line, column);
+    tryDotArrowCorrectionIfNoResults(results, line, column);
 
     return toCodeCompletions(results);
 }
@@ -79,25 +81,18 @@ CompletionCorrection CodeCompleter::neededCorrection() const
     return neededCorrection_;
 }
 
-ClangCodeCompleteResults CodeCompleter::complete(uint line,
-                                                 uint column,
-                                                 CXUnsavedFile *unsavedFiles,
-                                                 unsigned unsavedFileCount)
+ClangCodeCompleteResults CodeCompleter::completeHelper(uint line, uint column)
 {
-    return clang_codeCompleteAt(translationUnit.cxTranslationUnitWithoutReparsing(),
-                                translationUnit.filePath().constData(),
+    const Utf8String nativeFilePath = FilePath::toNativeSeparators(translationUnit.filePath());
+    UnsavedFilesShallowArguments unsaved = unsavedFiles.shallowArguments();
+
+    return clang_codeCompleteAt(translationUnit.cxTranslationUnit(),
+                                nativeFilePath.constData(),
                                 line,
                                 column,
-                                unsavedFiles,
-                                unsavedFileCount,
+                                unsaved.data(),
+                                unsaved.count(),
                                 defaultOptions());
-}
-
-bool CodeCompleter::hasDotAt(uint line, uint column) const
-{
-    const UnsavedFile &unsavedFile = translationUnit.unsavedFile();
-
-    return unsavedFile.hasCharacterAt(line, column, '.');
 }
 
 uint CodeCompleter::defaultOptions() const
@@ -105,43 +100,48 @@ uint CodeCompleter::defaultOptions() const
     uint options = CXCodeComplete_IncludeMacros
                  | CXCodeComplete_IncludeCodePatterns;
 
-    if (translationUnit.defaultOptions() & CXTranslationUnit_IncludeBriefCommentsInCodeCompletion)
+    if (TranslationUnitUpdater::defaultParseOptions()
+            & CXTranslationUnit_IncludeBriefCommentsInCodeCompletion) {
         options |= CXCodeComplete_IncludeBriefComments;
+    }
 
     return options;
 }
 
-ClangCodeCompleteResults CodeCompleter::completeWithArrowInsteadOfDot(uint line, uint column)
+UnsavedFile &CodeCompleter::unsavedFile()
+{
+    return unsavedFiles.unsavedFile(translationUnit.filePath());
+}
+
+void CodeCompleter::tryDotArrowCorrectionIfNoResults(ClangCodeCompleteResults &results,
+                                                     uint line,
+                                                     uint column)
+{
+    if (results.hasNoResultsForDotCompletion()) {
+        const UnsavedFile &theUnsavedFile = unsavedFile();
+        bool positionIsOk = false;
+        const uint dotPosition = theUnsavedFile.toUtf8Position(line, column - 1, &positionIsOk);
+        if (positionIsOk && theUnsavedFile.hasCharacterAt(dotPosition, '.'))
+            results = completeWithArrowInsteadOfDot(line, column, dotPosition);
+    }
+}
+
+ClangCodeCompleteResults CodeCompleter::completeWithArrowInsteadOfDot(uint line,
+                                                                      uint column,
+                                                                      uint dotPosition)
 {
     ClangCodeCompleteResults results;
-
-    const SourceLocation location = translationUnit.sourceLocationAtWithoutReparsing(line, column - 1);
-    const bool replaced = translationUnit.unsavedFile().replaceAt(location.offset(),
-                                                                  1,
-                                                                  Utf8StringLiteral("->"));
+    const bool replaced = unsavedFile().replaceAt(dotPosition,
+                                                  1,
+                                                  Utf8StringLiteral("->"));
 
     if (replaced) {
-        results = complete(line,
-                           column + 1,
-                           translationUnit.cxUnsavedFiles(),
-                           translationUnit.unsavedFilesCount());
-
+        results = completeHelper(line, column + 1);
         if (results.hasResults())
             neededCorrection_ = CompletionCorrection::DotToArrowCorrection;
     }
 
     return results;
-}
-
-Utf8String CodeCompleter::filePath() const
-{
-    return translationUnit.filePath();
-}
-
-void CodeCompleter::checkCodeCompleteResult(CXCodeCompleteResults *completeResults)
-{
-    if (!completeResults)
-        throw CodeCompleteFailedException();
 }
 
 } // namespace ClangBackEnd

@@ -27,6 +27,7 @@
 
 #include "clangstaticanalyzerconstants.h"
 
+#include <utils/qtcprocess.h>
 #include <utils/synchronousprocess.h>
 
 #include <QDebug>
@@ -37,36 +38,41 @@
 
 static Q_LOGGING_CATEGORY(LOG, "qtc.clangstaticanalyzer.runner")
 
+namespace ClangStaticAnalyzer {
+namespace Internal {
+
 static QString generalProcessError()
 {
-    return QObject::tr("An error occurred with the Clang Static Analyzer process.");
+    return ClangStaticAnalyzerRunner::tr("An error occurred with the Clang Static Analyzer process.");
 }
 
 static QString finishedDueToCrash()
 {
-    return QObject::tr("Clang Static Analyzer crashed.");
+    return ClangStaticAnalyzerRunner::tr("Clang Static Analyzer crashed.");
 }
 
 static QStringList constructCommandLineArguments(const QString &filePath,
                                                  const QString &logFile,
                                                  const QStringList &options)
 {
-    QStringList arguments = QStringList()
+    QStringList arguments;
+
+    if (LOG().isDebugEnabled())
+        arguments << QLatin1String("-v");
+
+    arguments
         << QLatin1String("--analyze")
         << QLatin1String("-o")
-        << logFile
+        << QDir::toNativeSeparators(logFile)
         ;
     arguments += options;
     arguments << QDir::toNativeSeparators(filePath);
     return arguments;
 }
 
-namespace ClangStaticAnalyzer {
-namespace Internal {
-
 QString finishedWithBadExitCode(int exitCode)
 {
-    return QObject::tr("Clang Static Analyzer finished with exit code: %1.").arg(exitCode);
+    return ClangStaticAnalyzerRunner::tr("Clang Static Analyzer finished with exit code: %1.").arg(exitCode);
 }
 
 ClangStaticAnalyzerRunner::ClangStaticAnalyzerRunner(const QString &clangExecutable,
@@ -74,7 +80,7 @@ ClangStaticAnalyzerRunner::ClangStaticAnalyzerRunner(const QString &clangExecuta
                                                      const Utils::Environment &environment,
                                                      QObject *parent)
     : QObject(parent)
-    , m_clangExecutable(clangExecutable)
+    , m_clangExecutable(QDir::toNativeSeparators(clangExecutable))
     , m_clangLogFileDir(clangLogFileDir)
 {
     QTC_CHECK(!m_clangExecutable.isEmpty());
@@ -83,14 +89,11 @@ ClangStaticAnalyzerRunner::ClangStaticAnalyzerRunner(const QString &clangExecuta
     m_process.setProcessChannelMode(QProcess::MergedChannels);
     m_process.setProcessEnvironment(environment.toProcessEnvironment());
     m_process.setWorkingDirectory(m_clangLogFileDir); // Current clang-cl puts log file into working dir.
-    connect(&m_process, &QProcess::started,
-            this, &ClangStaticAnalyzerRunner::onProcessStarted);
+    connect(&m_process, &QProcess::started, this, &ClangStaticAnalyzerRunner::onProcessStarted);
     connect(&m_process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &ClangStaticAnalyzerRunner::onProcessFinished);
-    connect(&m_process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            this, &ClangStaticAnalyzerRunner::onProcessError);
-    connect(&m_process, &QProcess::readyRead,
-            this, &ClangStaticAnalyzerRunner::onProcessOutput);
+    connect(&m_process, &QProcess::errorOccurred, this, &ClangStaticAnalyzerRunner::onProcessError);
+    connect(&m_process, &QProcess::readyRead, this, &ClangStaticAnalyzerRunner::onProcessOutput);
 }
 
 ClangStaticAnalyzerRunner::~ClangStaticAnalyzerRunner()
@@ -111,9 +114,9 @@ bool ClangStaticAnalyzerRunner::run(const QString &filePath, const QStringList &
     QTC_ASSERT(!m_logFile.isEmpty(), return false);
     const QStringList arguments = constructCommandLineArguments(filePath, m_logFile,
                                                                 compilerOptions);
-    m_commandLine = (QStringList(m_clangExecutable) + arguments).join(QLatin1String("\" \""));
+    m_commandLine = Utils::QtcProcess::joinArgs(QStringList(m_clangExecutable) + arguments);
 
-    qCDebug(LOG) << "Starting" << m_commandLine;
+    qCDebug(LOG).noquote() << "Starting" << m_commandLine;
     m_process.start(m_clangExecutable, arguments);
     return true;
 }
@@ -131,8 +134,11 @@ void ClangStaticAnalyzerRunner::onProcessStarted()
 void ClangStaticAnalyzerRunner::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus == QProcess::NormalExit) {
-        if (exitCode == 0)
+        if (exitCode == 0) {
+            qCDebug(LOG).noquote() << "Output:\n" << Utils::SynchronousProcess::normalizeNewlines(
+                                                        QString::fromLocal8Bit(m_processOutput));
             emit finishedWithSuccess(actualLogFile());
+        }
         else
             emit finishedWithFailure(finishedWithBadExitCode(exitCode), processCommandlineAndOutput());
     } else { // == QProcess::CrashExit
@@ -171,12 +177,13 @@ QString ClangStaticAnalyzerRunner::createLogFile(const QString &filePath) const
 
 QString ClangStaticAnalyzerRunner::processCommandlineAndOutput() const
 {
-    return QObject::tr("Command line: \"%1\"\n"
+    return tr("Command line: %1\n"
                        "Process Error: %2\n"
                        "Output:\n%3")
                             .arg(m_commandLine,
                                  QString::number(m_process.error()),
-                                 QString::fromLocal8Bit(m_processOutput));
+                                 Utils::SynchronousProcess::normalizeNewlines(
+                                     QString::fromLocal8Bit(m_processOutput)));
 }
 
 QString ClangStaticAnalyzerRunner::actualLogFile() const

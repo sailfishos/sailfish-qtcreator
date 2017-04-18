@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONSOLEITEM_H
-#define CONSOLEITEM_H
+#pragma once
 
 #include <utils/treemodel.h>
 
@@ -65,11 +64,12 @@ public:
     QString text() const;
     QString file() const;
     int line() const;
-    QVariant data(int column, int role) const;
-    bool setData(int column, const QVariant &data, int role);
+    Qt::ItemFlags flags(int column) const override;
+    QVariant data(int column, int role) const override;
+    bool setData(int column, const QVariant &data, int role) override;
 
-    bool canFetchMore() const;
-    void fetchMore();
+    bool canFetchMore() const override;
+    void fetchMore() override;
 
 private:
     ItemType m_itemType;
@@ -82,5 +82,3 @@ private:
 
 } // Internal
 } // Debugger
-
-#endif // CONSOLEITEM_H

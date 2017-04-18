@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJS_SIMPLEREADER_H
-#define QMLJS_SIMPLEREADER_H
+#pragma once
 
 #include <qmljs/qmljs_global.h>
 #include <qmljs/parser/qmljsastfwd_p.h>
@@ -102,9 +101,11 @@ private:
     QVariant parsePropertyScriptBinding(AST::UiScriptBinding *ExpressionNode);
     QVariant parsePropertyExpression(AST::ExpressionNode *expressionNode);
     void setSourceLocation(const AST::SourceLocation &sourceLocation);
+    QString textAt(const AST::SourceLocation &from, const AST::SourceLocation &to);
 
     QStringList m_errors;
     AST::SourceLocation m_currentSourceLocation;
+    QString m_source;
 };
 
 class QMLJS_EXPORT SimpleReader: public SimpleAbstractStreamReader
@@ -127,5 +128,3 @@ private:
 };
 
 }  // namespace QmlJS
-
-#endif // QMLJS_SIMPLEREADER_H

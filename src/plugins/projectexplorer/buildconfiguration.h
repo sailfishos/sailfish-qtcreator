@@ -50,6 +50,7 @@ public:
 
     Utils::FileName buildDirectory() const;
     Utils::FileName rawBuildDirectory() const;
+    void setBuildDirectory(const Utils::FileName &dir);
 
     virtual NamedWidget *createConfigWidget() = 0;
     virtual QList<NamedWidget *> createSubConfigWidgets();
@@ -96,7 +97,6 @@ protected:
     BuildConfiguration(Target *target, Core::Id id);
     BuildConfiguration(Target *target, BuildConfiguration *source);
 
-    virtual void setBuildDirectory(const Utils::FileName &dir);
     void cloneSteps(BuildConfiguration *source);
     void emitEnvironmentChanged();
 
@@ -119,7 +119,7 @@ class PROJECTEXPLORER_EXPORT IBuildConfigurationFactory : public QObject
     Q_OBJECT
 
 public:
-    explicit IBuildConfigurationFactory(QObject *parent = 0);
+    explicit IBuildConfigurationFactory(QObject *parent = nullptr);
     ~IBuildConfigurationFactory() override;
 
     // The priority is negative if this factory can not create anything for the target.
@@ -143,7 +143,7 @@ public:
     virtual BuildConfiguration *clone(Target *parent, BuildConfiguration *product) = 0;
 
     static IBuildConfigurationFactory *find(Target *parent, const QVariantMap &map);
-    static IBuildConfigurationFactory *find(Kit *k, const QString &projectPath);
+    static IBuildConfigurationFactory *find(const Kit *k, const QString &projectPath);
     static IBuildConfigurationFactory *find(Target *parent);
     static IBuildConfigurationFactory *find(Target *parent, BuildConfiguration *bc);
 
@@ -152,4 +152,3 @@ signals:
 };
 
 } // namespace ProjectExplorer
-

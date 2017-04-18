@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BASETEXTEDITMODIFIER_H
-#define BASETEXTEDITMODIFIER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "plaintexteditmodifier.h"
@@ -42,13 +41,14 @@ class QMLDESIGNERCORE_EXPORT BaseTextEditModifier: public PlainTextEditModifier
 public:
     BaseTextEditModifier(TextEditor::TextEditorWidget *textEdit);
 
-    virtual void indent(int offset, int length);
+    void indentLines(int startLine, int endLine) override;
+    void indent(int offset, int length) override;
 
-    virtual int indentDepth() const;
+    int indentDepth() const override;
 
-    virtual bool renameId(const QString &oldId, const QString &newId);
+    bool renameId(const QString &oldId, const QString &newId) override;
+    bool moveToComponent(int nodeOffset) override;
+    QStringList autoComplete(QTextDocument *textDocument, int position, bool explicitComplete) override;
 };
 
 } // namespace QmlDesigner
-
-#endif // BASETEXTEDITMODIFIER_H

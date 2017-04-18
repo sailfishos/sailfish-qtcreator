@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPLUSPLUS_OVERVIEW_H
-#define CPLUSPLUS_OVERVIEW_H
+#pragma once
 
 #include <cplusplus/CPlusPlusForwardDeclarations.h>
 
@@ -68,6 +67,7 @@ public:
     bool showFunctionSignatures: 1;
     bool showDefaultArguments: 1;
     bool showTemplateParameters: 1;
+    bool showEnclosingTemplate: 1;
     bool includeWhiteSpaceInOperatorName: 1; /// "operator =()" vs "operator=()"
 
     unsigned markedArgument;
@@ -76,5 +76,3 @@ public:
 };
 
 } // namespace CPlusPlus
-
-#endif // CPLUSPLUS_OVERVIEW_H

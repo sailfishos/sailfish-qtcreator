@@ -238,14 +238,19 @@ public:
     {}
 
     virtual void pragmaLibrary() { isLibrary = true; }
-    virtual void importFile(const QString &jsfile, const QString &module)
+    virtual void importFile(const QString &jsfile, const QString &module, int line, int column)
     {
+        Q_UNUSED(line);
+        Q_UNUSED(column);
         imports += ImportInfo::pathImport(
                     documentPath, jsfile, LanguageUtils::ComponentVersion(), module);
     }
 
-    virtual void importModule(const QString &uri, const QString &version, const QString &module)
+    virtual void importModule(const QString &uri, const QString &version, const QString &module,
+                              int line, int column)
     {
+        Q_UNUSED(line);
+        Q_UNUSED(column);
         imports += ImportInfo::moduleImport(uri, LanguageUtils::ComponentVersion(version), module);
     }
 
@@ -494,6 +499,14 @@ void Snapshot::insertLibraryInfo(const QString &path, const LibraryInfo &info)
         QRegExp safeName(QLatin1String("^[a-zA-Z_][[a-zA-Z0-9_]*$"));
         int majorVersion = LanguageUtils::ComponentVersion::NoVersion;
         int minorVersion = LanguageUtils::ComponentVersion::NoVersion;
+
+        foreach (const QmlDirParser::Component &component, info.components()) {
+            if (component.majorVersion > majorVersion)
+                majorVersion = component.majorVersion;
+            if (component.minorVersion > minorVersion)
+                minorVersion = component.minorVersion;
+        }
+
         if (vNr.indexIn(splitPath.last()) == 0) {
             splitPath.last() = vNr.cap(1);
             bool ok;
@@ -519,6 +532,7 @@ void Snapshot::insertLibraryInfo(const QString &path, const LibraryInfo &info)
         foreach (const Export &e, cImport.possibleExports)
             _dependencies.addExport(component.fileName, e.exportName, e.pathRequired, e.typeName);
     }
+
     cImport.fingerprint = info.fingerprint();
     _dependencies.addCoreImport(cImport);
 }

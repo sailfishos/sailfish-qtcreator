@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNER_PUPPETCREATOR_H
-#define QMLDESIGNER_PUPPETCREATOR_H
+#pragma once
 
 #include <QString>
 #include <QProcessEnvironment>
@@ -35,6 +34,7 @@
 
 namespace ProjectExplorer {
 class Kit;
+class Project;
 }
 
 namespace QmlDesigner {
@@ -50,7 +50,11 @@ public:
         UserSpacePuppet
     };
 
-    PuppetCreator(ProjectExplorer::Kit *kit, const QString &qtCreatorVersion, const Model *model);
+    PuppetCreator(ProjectExplorer::Kit *kit,
+                  ProjectExplorer::Project *project,
+                  const QString &qtCreatorVersion,
+                  const Model *model);
+
     ~PuppetCreator();
 
     void createPuppetExecutableIfMissing();
@@ -115,10 +119,11 @@ private:
     PuppetType m_availablePuppetType;
     static QHash<Core::Id, PuppetType> m_qml2PuppetForKitPuppetHash;
     const Model *m_model;
+#ifndef QMLDESIGNER_TEST
     const DesignerSettings m_designerSettings;
+#endif
     QString m_qrcMapping;
+    ProjectExplorer::Project *m_currentProject = nullptr;
 };
 
 } // namespace QmlDesigner
-
-#endif // QMLDESIGNER_PUPPETCREATOR_H

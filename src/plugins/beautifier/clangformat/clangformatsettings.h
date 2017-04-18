@@ -23,11 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_CLANGFORMATSETTINGS_H
-#define BEAUTIFIER_CLANGFORMATSETTINGS_H
+#pragma once
 
 #include "../abstractsettings.h"
-
 
 namespace Beautifier {
 namespace Internal {
@@ -35,7 +33,7 @@ namespace ClangFormat {
 
 class ClangFormatSettings : public AbstractSettings
 {
-    Q_DECLARE_TR_FUNCTIONS(ClangFormatSettings)
+    Q_OBJECT
 
 public:
     explicit ClangFormatSettings();
@@ -67,5 +65,3 @@ private:
 } // namespace ClangFormat
 } // namespace Internal
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_CLANGFORMATSETTINGS_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPSNIPPETPROVIDER_H
-#define CPPSNIPPETPROVIDER_H
+#pragma once
 
 #include <texteditor/snippets/isnippetprovider.h>
 
@@ -33,17 +32,15 @@ namespace Internal {
 
 class CppSnippetProvider : public TextEditor::ISnippetProvider
 {
-public:
-    CppSnippetProvider();
-    virtual ~CppSnippetProvider();
+    Q_OBJECT
 
 public:
-    virtual QString groupId() const;
-    virtual QString displayName() const;
-    virtual void decorateEditor(TextEditor::SnippetEditorWidget *editor) const;
+    ~CppSnippetProvider() final = default;
+
+    QString groupId() const final;
+    QString displayName() const final;
+    void decorateEditor(TextEditor::SnippetEditorWidget *editor) const final;
 };
 
 } // Internal
 } // CppEditor
-
-#endif // CPPSNIPPETPROVIDER_H

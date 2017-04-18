@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QTOUTPUTFORMATTER_H
-#define QTOUTPUTFORMATTER_H
+#pragma once
 
 #include "qtsupport_global.h"
 
@@ -64,10 +63,8 @@ protected:
     void clearLastLine();
     virtual void openEditor(const QString &fileName, int line, int column = -1);
 
-private slots:
-    void updateProjectFileList();
-
 private:
+    void updateProjectFileList();
     LinkResult matchLine(const QString &line) const;
     void appendMessagePart(QTextCursor &cursor, const QString &txt, const QTextCharFormat &format);
     void appendLine(QTextCursor &cursor, const LinkResult &lr, const QString &line,
@@ -83,5 +80,3 @@ private:
 
 
 } // namespace QtSupport
-
-#endif // QTOUTPUTFORMATTER_H

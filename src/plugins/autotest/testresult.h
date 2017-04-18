@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTRESULT_H
-#define TESTRESULT_H
+#pragma once
 
 #include "autotestconstants.h"
 
@@ -47,8 +46,10 @@ enum Type {
     BlacklistedFail,
     Benchmark,
     MessageDebug,
+    MessageInfo,
     MessageWarn,
     MessageFatal,
+    MessageSystem,
 
     MessageInternal, INTERNAL_MESSAGES_BEGIN = MessageInternal,
     MessageDisabledTests,
@@ -68,25 +69,22 @@ enum Type {
 class TestResult
 {
 public:
-    TestResult();
-    TestResult(const QString &className);
+    explicit TestResult();
+    explicit TestResult(const QString &name);
+    virtual ~TestResult() {}
 
-    QString className() const { return m_class; }
-    QString testCase() const { return m_case; }
-    QString dataTag() const { return m_dataTag; }
+    virtual const QString outputString(bool selected) const;
+
+    QString name() const { return m_name; }
     Result::Type result() const { return m_result; }
     QString description() const { return m_description; }
     QString fileName() const { return m_file; }
     int line() const { return m_line; }
-    TestType type() const { return m_type; }
 
     void setDescription(const QString &description) { m_description = description; }
     void setFileName(const QString &fileName) { m_file = fileName; }
     void setLine(int line) { m_line = line; }
     void setResult(Result::Type type) { m_result = type; }
-    void setTestCase(const QString &testCase) { m_case = testCase; }
-    void setDataTag(const QString &dataTag) { m_dataTag = dataTag; }
-    void setTestType(TestType type) { m_type = type; }
 
     static Result::Type resultFromString(const QString &resultString);
     static Result::Type toResultType(int rt);
@@ -94,15 +92,11 @@ public:
     static QColor colorForType(const Result::Type type);
 
 private:
-    QString m_class;
-    QString m_case;
-    QString m_dataTag;
-    Result::Type m_result;
+    QString m_name;
+    Result::Type m_result = Result::Invalid;
     QString m_description;
     QString m_file;
-    int m_line;
-    TestType m_type;
-    // environment?
+    int m_line = 0;
 };
 
 using TestResultPtr = QSharedPointer<TestResult>;
@@ -113,24 +107,8 @@ public:
     FaultyTestResult(Result::Type result, const QString &description);
 };
 
-class QTestResult : public TestResult
-{
-public:
-    QTestResult(const QString &className = QString());
-};
-
-class GTestResult : public TestResult
-{
-public:
-    GTestResult(const QString &className = QString());
-};
-
-bool operator==(const TestResult &t1, const TestResult &t2);
-
 } // namespace Internal
 } // namespace Autotest
 
 Q_DECLARE_METATYPE(Autotest::Internal::TestResult)
 Q_DECLARE_METATYPE(Autotest::Internal::Result::Type)
-
-#endif // TESTRESULT_H

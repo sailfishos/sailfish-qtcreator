@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ITEMLIBRARYINFO_H
-#define ITEMLIBRARYINFO_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 
@@ -75,6 +74,7 @@ public:
     typedef QmlDesigner::PropertyContainer Property;
 
     QList<Property> properties() const;
+    QHash<QString, QString> hints() const;
 
     void setType(const TypeName &typeName, int majorVersion = -1, int minorVersion = -1);
     void setName(const QString &name);
@@ -85,6 +85,7 @@ public:
     void setCategory(const QString &category);
     void setQmlPath(const QString &qml);
     void setRequiredImport(const QString &requiredImport);
+    void addHints(const QHash<QString, QString> &hints);
 
 private:
     QExplicitlySharedDataPointer<Internal::ItemLibraryEntryData> m_data;
@@ -98,10 +99,10 @@ class QMLDESIGNERCORE_EXPORT ItemLibraryInfo : public QObject
 public:
 
     QList<ItemLibraryEntry> entries() const;
-    QList<ItemLibraryEntry> entriesForType(const QString &typeName, int majorVersion, int minorVersion) const;
+    QList<ItemLibraryEntry> entriesForType(const QByteArray &typeName, int majorVersion, int minorVersion) const;
     ItemLibraryEntry entry(const QString &name) const;
 
-    void addEntry(const ItemLibraryEntry &entry, bool overwriteDuplicate = false);
+    void addEntries(const QList<ItemLibraryEntry> &entries, bool overwriteDuplicate = false);
     bool containsEntry(const ItemLibraryEntry &entry);
     void clearEntries();
 
@@ -120,5 +121,3 @@ private: // variables
 } // namespace QmlDesigner
 
 Q_DECLARE_METATYPE(QmlDesigner::ItemLibraryEntry)
-
-#endif // ITEMLIBRARYINFO_H

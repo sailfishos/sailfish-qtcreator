@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNXABSTRACTRUNSUPPORT_H
-#define QNXABSTRACTRUNSUPPORT_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
 #include <utils/environment.h>
@@ -57,7 +56,7 @@ public:
     QnxAbstractRunSupport(QnxRunConfiguration *runConfig, QObject *parent = 0);
 
 protected:
-    bool setPort(int &port);
+    bool setPort(Utils::Port &port);
     virtual void startExecution() = 0;
 
     void setFinished();
@@ -90,5 +89,3 @@ private:
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNXABSTRACTRUNSUPPORT_H

@@ -164,6 +164,7 @@ void FormEditorView::nodeCreated(const ModelNode &createdNode)
 
 void FormEditorView::modelAboutToBeDetached(Model *model)
 {
+    m_currentTool->setItems(QList<FormEditorItem*>());
     m_selectionTool->clear();
     m_moveTool->clear();
     m_resizeTool->clear();
@@ -406,6 +407,7 @@ void FormEditorView::instancesCompleted(const QVector<ModelNode> &completedNodeL
     foreach (const ModelNode &node, completedNodeList) {
         QmlItemNode qmlItemNode(node);
         if (qmlItemNode.isValid() && scene()->hasItemForQmlItemNode(qmlItemNode)) {
+            scene()->synchronizeParent(qmlItemNode);
             itemNodeList.append(scene()->itemForQmlItemNode(qmlItemNode));
         }
     }
@@ -424,8 +426,10 @@ void FormEditorView::instanceInformationsChange(const QMultiHash<ModelNode, Info
                 if (qmlItemNode.instanceBoundingRect().isEmpty() &&
                         !(qmlItemNode.propertyAffectedByCurrentState("width")
                           && qmlItemNode.propertyAffectedByCurrentState("height"))) {
-                    rootModelNode().setAuxiliaryData("width", 640);
-                    rootModelNode().setAuxiliaryData("height", 480);
+                    if (!(rootModelNode().hasAuxiliaryData("width")))
+                        rootModelNode().setAuxiliaryData("width", 640);
+                    if (!(rootModelNode().hasAuxiliaryData("height")))
+                        rootModelNode().setAuxiliaryData("height", 480);
                     rootModelNode().setAuxiliaryData("autoSize", true);
                     formEditorWidget()->updateActions();
                 } else {
@@ -527,7 +531,7 @@ void FormEditorView::instancePropertyChange(const QList<QPair<ModelNode, Propert
         const QmlItemNode itemNode(nodePropertyPair.first);
         const PropertyName propertyName = nodePropertyPair.second;
         if (itemNode.isValid() && scene()->hasItemForQmlItemNode(itemNode)) {
-            static PropertyNameList skipList = PropertyNameList() << "x" << "y" << "width" << "height";
+            static const PropertyNameList skipList({"x", "y", "width", "height"});
             if (!skipList.contains(propertyName)) {
                 m_scene->synchronizeOtherProperty(itemNode, propertyName);
                 m_currentTool->formEditorItemsChanged(QList<FormEditorItem*>() << m_scene->itemForQmlItemNode(itemNode));

@@ -471,12 +471,13 @@ CountingLabel::CountingLabel()
     f.setPointSizeF(StyleHelper::sidebarFontSize());
     setFont(f);
     setPalette(StyleHelper::sidebarFontPalette(palette()));
+    setProperty("_q_custom_style_disabled", QVariant(true));
     updateCount(0);
 }
 
 void CountingLabel::updateCount(int count)
 {
-    setText(tr("%1 found").arg(count));
+    setText(BaseFileFind::tr("%n found", nullptr, count));
 }
 
 } // namespace Internal

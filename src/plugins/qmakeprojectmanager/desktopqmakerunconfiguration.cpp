@@ -29,7 +29,6 @@
 #include "qmakeproject.h"
 #include "qmakebuildconfiguration.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/variablechooser.h>
 #include <projectexplorer/localenvironmentaspect.h>
 #include <projectexplorer/runconfigurationaspects.h>
@@ -46,6 +45,7 @@
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 #include <utils/stringutils.h>
+#include <utils/utilsicons.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -125,8 +125,8 @@ void DesktopQmakeRunConfiguration::proFileUpdated(QmakeProFileNode *pro, bool su
 {
     if (m_proFilePath != pro->filePath())
         return;
-    bool enabled = isEnabled();
-    QString reason = disabledReason();
+    const bool enabled = isEnabled();
+    const QString reason = disabledReason();
     m_parseSuccess = success;
     m_parseInProgress = parseInProgress;
     if (enabled != isEnabled() || reason != disabledReason())
@@ -170,7 +170,7 @@ DesktopQmakeRunConfigurationWidget::DesktopQmakeRunConfigurationWidget(DesktopQm
     auto hl = new QHBoxLayout();
     hl->addStretch();
     m_disabledIcon = new QLabel(this);
-    m_disabledIcon->setPixmap(Core::Icons::WARNING.pixmap());
+    m_disabledIcon->setPixmap(Utils::Icons::WARNING.pixmap());
     hl->addWidget(m_disabledIcon);
     m_disabledReason = new QLabel(this);
     m_disabledReason->setVisible(false);
@@ -379,8 +379,11 @@ QString DesktopQmakeRunConfiguration::baseWorkingDirectory() const
 bool DesktopQmakeRunConfiguration::isConsoleApplication() const
 {
     if (QmakeProFileNode *node = projectNode()) {
-        return node->variableValue(ConfigVar).contains(QLatin1String("console"))
-                && !node->variableValue(QtVar).contains(QLatin1String("testlib"));
+        const QStringList config = node->variableValue(ConfigVar);
+        if (!config.contains("console") || config.contains("testcase"))
+            return false;
+        const QStringList qt = node->variableValue(QtVar);
+        return !qt.contains("testlib") && !qt.contains("qmltest");
     }
     return false;
 }

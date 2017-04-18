@@ -26,7 +26,9 @@
 #include "cppeditordocument.h"
 
 #include "cppeditorconstants.h"
+#include "cppeditorplugin.h"
 #include "cpphighlighter.h"
+#include "cppquickfixassistant.h"
 
 #include <cpptools/baseeditordocumentparser.h>
 #include <cpptools/builtineditordocumentprocessor.h>
@@ -100,11 +102,15 @@ CppEditorDocument::CppEditorDocument()
     setSyntaxHighlighter(new CppHighlighter);
     setIndenter(new CppTools::CppQtStyleIndenter);
 
-    connect(this, SIGNAL(tabSettingsChanged()), this, SLOT(invalidateFormatterCache()));
-    connect(this, SIGNAL(mimeTypeChanged()), this, SLOT(onMimeTypeChanged()));
+    connect(this, &TextEditor::TextDocument::tabSettingsChanged,
+            this, &CppEditorDocument::invalidateFormatterCache);
+    connect(this, &Core::IDocument::mimeTypeChanged,
+            this, &CppEditorDocument::onMimeTypeChanged);
 
-    connect(this, SIGNAL(aboutToReload()), this, SLOT(onAboutToReload()));
-    connect(this, SIGNAL(reloadFinished(bool)), this, SLOT(onReloadFinished()));
+    connect(this, &Core::IDocument::aboutToReload,
+            this, &CppEditorDocument::onAboutToReload);
+    connect(this, &Core::IDocument::reloadFinished,
+            this, &CppEditorDocument::onReloadFinished);
     connect(this, &IDocument::filePathChanged,
             this, &CppEditorDocument::onFilePathChanged);
 
@@ -119,6 +125,11 @@ bool CppEditorDocument::isObjCEnabled() const
 TextEditor::CompletionAssistProvider *CppEditorDocument::completionAssistProvider() const
 {
     return m_completionAssistProvider;
+}
+
+TextEditor::QuickFixAssistProvider *CppEditorDocument::quickFixAssistProvider() const
+{
+    return CppEditorPlugin::instance()->quickFixProvider();
 }
 
 void CppEditorDocument::recalculateSemanticInfoDetached()
@@ -154,8 +165,8 @@ void CppEditorDocument::applyFontSettings()
         // Clear all additional formats since they may have changed
         QTextBlock b = document()->firstBlock();
         while (b.isValid()) {
-            QList<QTextLayout::FormatRange> noFormats;
-            highlighter->setExtraAdditionalFormats(b, noFormats);
+            QVector<QTextLayout::FormatRange> noFormats;
+            highlighter->setExtraFormats(b, noFormats);
             b = b.next();
         }
     }
@@ -201,8 +212,8 @@ void CppEditorDocument::onFilePathChanged(const Utils::FileName &oldPath,
         Utils::MimeDatabase mdb;
         setMimeType(mdb.mimeTypeForFile(newPath.toFileInfo()).name());
 
-        disconnect(this, SIGNAL(contentsChanged()), this, SLOT(scheduleProcessDocument()));
-        connect(this, SIGNAL(contentsChanged()), this, SLOT(scheduleProcessDocument()));
+        disconnect(this, &Core::IDocument::contentsChanged, this, &CppEditorDocument::scheduleProcessDocument);
+        connect(this, &Core::IDocument::contentsChanged, this, &CppEditorDocument::scheduleProcessDocument);
 
         // Un-Register/Register in ModelManager
         m_editorDocumentHandle.reset();
@@ -219,12 +230,14 @@ void CppEditorDocument::scheduleProcessDocument()
 {
     m_processorRevision = document()->revision();
     m_processorTimer.start();
+    processor()->editorDocumentTimerRestarted();
 }
 
 void CppEditorDocument::processDocument()
 {
     if (processor()->isParserRunning() || m_processorRevision != contentsRevision()) {
         m_processorTimer.start();
+        processor()->editorDocumentTimerRestarted();
         return;
     }
 

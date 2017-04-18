@@ -27,6 +27,9 @@
 #include "androidconstants.h"
 #include "androidsignaloperation.h"
 
+#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runnables.h>
+
 #include <QCoreApplication>
 
 using namespace ProjectExplorer;
@@ -42,6 +45,10 @@ AndroidDevice::AndroidDevice()
 {
     setDisplayName(QCoreApplication::translate("Android::Internal::AndroidDevice", "Run on Android"));
     setDeviceState(DeviceReadyToUse);
+    setDeviceIcon({Utils::Icon({{":/android/images/androiddevicesmall.png",
+                                 Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
+                   Utils::Icon({{":/android/images/androiddevice.png",
+                                 Utils::Theme::IconsBaseColor}})});
 }
 
 AndroidDevice::AndroidDevice(const AndroidDevice &other)
@@ -96,9 +103,9 @@ IDevice::Ptr AndroidDevice::clone() const
     return IDevice::Ptr(new AndroidDevice(*this));
 }
 
-QString AndroidDevice::qmlProfilerHost() const
+Connection AndroidDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return QLatin1String("localhost");
+    return HostName("localhost");
 }
 
 } // namespace Internal

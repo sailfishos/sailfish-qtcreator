@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <QVector>
+
 #include <coreplugin/ioutputpane.h>
 
 #include <utils/outputformat.h>
@@ -45,6 +47,7 @@ class Project;
 
 namespace Internal {
 
+class TabWidget;
 class AppOutputPane : public Core::IOutputPane
 {
     Q_OBJECT
@@ -93,7 +96,7 @@ signals:
      void runControlStarted(ProjectExplorer::RunControl *rc);
      void runControlFinished(ProjectExplorer::RunControl *rc);
 
-public slots:
+public:
     // ApplicationOutput specifics
     void projectRemoved();
 
@@ -119,14 +122,15 @@ private:
 
     void enableButtons(const RunControl *rc, bool isRunning);
 
-    struct RunControlTab {
-        explicit RunControlTab(RunControl *runControl = 0,
-                               Core::OutputWindow *window = 0);
-        RunControl* runControl;
+    class RunControlTab {
+    public:
+        explicit RunControlTab(RunControl *runControl = nullptr,
+                               Core::OutputWindow *window = nullptr);
+        RunControl *runControl;
         Core::OutputWindow *window;
         // Is the run control stopping asynchronously, close the tab once it finishes
-        bool asyncClosing;
-        BehaviorOnOutput behaviorOnOutput;
+        bool asyncClosing = false;
+        BehaviorOnOutput behaviorOnOutput = Flash;
     };
 
     bool isRunning() const;
@@ -145,8 +149,8 @@ private:
     void updateBehaviorSettings();
 
     QWidget *m_mainWidget;
-    class TabWidget *m_tabWidget;
-    QList<RunControlTab> m_runControlTabs;
+    TabWidget *m_tabWidget;
+    QVector<RunControlTab> m_runControlTabs;
     QAction *m_stopAction;
     QAction *m_closeCurrentTabAction;
     QAction *m_closeAllTabsAction;

@@ -64,16 +64,15 @@ bool AndroidPackageInstallationStep::init(QList<const BuildStep *> &earlierSteps
             dirPath = QDir::toNativeSeparators(dirPath);
 
     ProjectExplorer::ToolChain *tc
-            = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit());
+            = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit(),
+                                                                  ProjectExplorer::ToolChain::Language::Cxx);
 
     ProjectExplorer::ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
     pp->setWorkingDirectory(bc->buildDirectory().toString());
     pp->setCommand(tc->makeCommand(bc->environment()));
     Utils::Environment env = bc->environment();
-    // Force output to english for the parsers. Do this here and not in the toolchain's
-    // addToEnvironment() to not screw up the users run environment.
-    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
+    Utils::Environment::setupEnglishOutput(&env);
     pp->setEnvironment(env);
     const QString innerQuoted = Utils::QtcProcess::quoteArg(dirPath);
     const QString outerQuoted = Utils::QtcProcess::quoteArg(QString::fromLatin1("INSTALL_ROOT=") + innerQuoted);
@@ -107,8 +106,7 @@ void AndroidPackageInstallationStep::run(QFutureInterface<bool> &fi)
             emit addOutput(tr("Removing directory %1").arg(dir), MessageOutput);
             if (!Utils::FileUtils::removeRecursively(androidDir, &error)) {
                 emit addOutput(error, ErrorOutput);
-                fi.reportResult(false);
-                emit finished();
+                reportRunResult(fi, false);
                 return;
             }
         }

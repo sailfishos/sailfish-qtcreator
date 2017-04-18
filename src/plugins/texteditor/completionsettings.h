@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COMPLETIONSETTINGS_H
-#define COMPLETIONSETTINGS_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -52,26 +51,28 @@ enum CompletionTrigger {
 class TEXTEDITOR_EXPORT CompletionSettings
 {
 public:
-    CompletionSettings();
-
-    void toSettings(const QString &category, QSettings *s) const;
-    void fromSettings(const QString &category, const QSettings *s);
+    void toSettings(QSettings *s) const;
+    void fromSettings(QSettings *s);
 
     bool equals(const CompletionSettings &bs) const;
 
-    CaseSensitivity m_caseSensitivity;
-    CompletionTrigger m_completionTrigger;
-    int m_automaticProposalTimeoutInMs;
-    bool m_autoInsertBrackets;
-    bool m_surroundingAutoBrackets;
-    bool m_partiallyComplete;
-    bool m_spaceAfterFunctionName;
-    bool m_autoSplitStrings;
+    CaseSensitivity m_caseSensitivity = CaseInsensitive;
+    CompletionTrigger m_completionTrigger = AutomaticCompletion;
+    int m_automaticProposalTimeoutInMs = 400;
+    bool m_autoInsertBrackets = true;
+    bool m_surroundingAutoBrackets = true;
+    bool m_autoInsertQuotes = true;
+    bool m_surroundingAutoQuotes = true;
+    bool m_partiallyComplete = true;
+    bool m_spaceAfterFunctionName = false;
+    bool m_autoSplitStrings = true;
+    bool m_animateAutoComplete = true;
+    bool m_highlightAutoComplete = true;
+    bool m_skipAutoCompletedText = true;
+    bool m_autoRemove = true;
 };
 
 inline bool operator==(const CompletionSettings &t1, const CompletionSettings &t2) { return t1.equals(t2); }
 inline bool operator!=(const CompletionSettings &t1, const CompletionSettings &t2) { return !t1.equals(t2); }
 
 } // namespace TextEditor
-
-#endif // COMPLETIONSETTINGS_H

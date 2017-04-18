@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEPROJECTMANAGERPLUGIN_H
-#define QMAKEPROJECTMANAGERPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 #include <coreplugin/icontext.h>
@@ -62,6 +61,8 @@ public:
 private slots:
     void testQmakeOutputParsers_data();
     void testQmakeOutputParsers();
+    void testMakefileParser_data();
+    void testMakefileParser();
 #endif
 
 private:
@@ -94,5 +95,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // QMAKEPROJECTMANAGERPLUGIN_H

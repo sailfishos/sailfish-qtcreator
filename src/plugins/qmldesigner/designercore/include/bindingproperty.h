@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BINDINGPROPERTY_H
-#define BINDINGPROPERTY_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "abstractproperty.h"
@@ -57,6 +56,9 @@ protected:
     BindingProperty(const PropertyName &propertyName, const Internal::InternalNodePointer &internalNode, Model* model, AbstractView *view);
 };
 
-} // namespace QmlDesigner
+bool compareBindingProperties(const QmlDesigner::BindingProperty &bindingProperty01, const QmlDesigner::BindingProperty &bindingProperty02);
 
-#endif // BINDINGPROPERTY_H
+QMLDESIGNERCORE_EXPORT QTextStream& operator<<(QTextStream &stream, const BindingProperty &property);
+QMLDESIGNERCORE_EXPORT QDebug operator<<(QDebug debug, const BindingProperty &AbstractProperty);
+
+} // namespace QmlDesigner

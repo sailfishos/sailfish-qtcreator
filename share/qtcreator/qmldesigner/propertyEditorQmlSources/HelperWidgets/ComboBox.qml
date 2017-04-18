@@ -43,6 +43,8 @@ Controls.ComboBox {
 
     signal valueFromBackendChanged
 
+    property bool block: false
+
     ColorLogic {
         id: colorLogic
         backendValue: comboBox.backendValue
@@ -51,6 +53,11 @@ Controls.ComboBox {
         }
 
         function invalidate() {
+
+            if (block)
+                return
+
+            block = true
 
             if (manualMapping) {
                 valueFromBackendChanged();
@@ -72,6 +79,8 @@ Controls.ComboBox {
                 if (comboBox.currentIndex !== backendValue.value)
                     comboBox.currentIndex = backendValue.value
             }
+
+            block = false
         }
     }
 
@@ -103,7 +112,7 @@ Controls.ComboBox {
 
     ExtendedFunctionButton {
         x: 2
-        y: 4
+        anchors.verticalCenter: parent.verticalCenter
         backendValue: comboBox.backendValue
         visible: comboBox.enabled
     }

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXRUNCONFIGURATIONWIDGET_H
-#define REMOTELINUXRUNCONFIGURATIONWIDGET_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -51,9 +50,9 @@ public:
     void addFormLayoutRow(QWidget *label, QWidget *field);
 
     void addDisabledLabel(QVBoxLayout *topLayout);
-    Q_SLOT void runConfigurationEnabledChange();
+    void runConfigurationEnabledChange();
 
-private slots:
+private:
     void argumentsEdited(const QString &args);
     void updateTargetInformation();
     void handleDeploySpecsChanged();
@@ -61,7 +60,6 @@ private slots:
     void handleAlternateCommandChanged();
     void handleWorkingDirectoryChanged();
 
-private:
     void addGenericWidgets(QVBoxLayout *mainLayout);
     void setLabelText(QLabel &label, const QString &regularText, const QString &errorText);
 
@@ -69,5 +67,3 @@ private:
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXRUNCONFIGURATIONWIDGET_H

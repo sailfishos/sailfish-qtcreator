@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIPS_H
-#define TIPS_H
+#pragma once
 
 #include "../utils_global.h"
 
@@ -65,6 +64,7 @@ public:
     TextTip(QWidget *parent);
 
     virtual void setContent(const QVariant &content);
+    virtual bool isInteractive() const;
     virtual void configure(const QPoint &pos, QWidget *w);
     virtual bool canHandleContentReplacement(int typeId) const;
     virtual int showTime() const;
@@ -117,5 +117,3 @@ private:
 } // namespace Internal
 } // namespace Utils
 #endif
-
-#endif // TIPS_H

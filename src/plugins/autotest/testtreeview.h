@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTTREEVIEW_H
-#define TESTTREEVIEW_H
+#pragma once
 
 #include <utils/navigationtreeview.h>
 
@@ -40,9 +39,9 @@ class TestTreeView : public Utils::NavigationTreeView
     Q_OBJECT
 
 public:
-    TestTreeView(QWidget *parent = 0);
+    explicit TestTreeView(QWidget *parent = 0);
 
-    void selectAll();
+    void selectAll() override;
     void deselectAll();
 
 private:
@@ -52,5 +51,3 @@ private:
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTTREEVIEW_H

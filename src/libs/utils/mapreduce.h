@@ -26,11 +26,19 @@
 #pragma once
 
 #include "utils_global.h"
+#include "algorithm.h"
 #include "runextensions.h"
 
 #include <QFutureWatcher>
 
 namespace Utils {
+
+enum class MapReduceOption
+{
+    Ordered,
+    Unordered
+};
+
 namespace Internal {
 
 class QTCREATOR_UTILS_EXPORT MapReduceObject : public QObject
@@ -38,23 +46,27 @@ class QTCREATOR_UTILS_EXPORT MapReduceObject : public QObject
     Q_OBJECT
 };
 
-template <typename Iterator, typename MapResult, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
+template <typename ForwardIterator, typename MapResult, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
 class MapReduceBase : public MapReduceObject
 {
 protected:
     static const int MAX_PROGRESS = 1000000;
+    // either const or non-const reference wrapper for items from the iterator
+    using ItemReferenceWrapper = std::reference_wrapper<typename std::remove_reference<typename ForwardIterator::reference>::type>;
 
 public:
-    MapReduceBase(QFutureInterface<ReduceResult> futureInterface, Iterator begin, Iterator end,
-              const MapFunction &map, State &state, const ReduceFunction &reduce, int size)
+    MapReduceBase(QFutureInterface<ReduceResult> futureInterface, ForwardIterator begin, ForwardIterator end,
+                  MapFunction &&map, State &state, ReduceFunction &&reduce,
+                  MapReduceOption option, int size)
         : m_futureInterface(futureInterface),
           m_iterator(begin),
           m_end(end),
-          m_map(map),
+          m_map(std::forward<MapFunction>(map)),
           m_state(state),
-          m_reduce(reduce),
+          m_reduce(std::forward<ReduceFunction>(reduce)),
           m_handleProgress(size >= 0),
-          m_size(size)
+          m_size(size),
+          m_option(option)
     {
         if (m_handleProgress) // progress is handled by us
             m_futureInterface.setProgressRange(0, MAX_PROGRESS);
@@ -70,7 +82,7 @@ public:
     }
 
 protected:
-    virtual void reduce(QFutureWatcher<MapResult> *watcher) = 0;
+    virtual void reduce(QFutureWatcher<MapResult> *watcher, int index) = 0;
 
     bool schedule()
     {
@@ -88,7 +100,10 @@ protected:
                         this, &MapReduceBase::updateProgress);
             }
             m_mapWatcher.append(watcher);
-            watcher->setFuture(runAsync(&m_threadPool, m_map, *m_iterator));
+            m_watcherIndex.append(m_currentIndex);
+            ++m_currentIndex;
+            watcher->setFuture(runAsync(&m_threadPool, std::cref(m_map),
+                                        ItemReferenceWrapper(*m_iterator)));
             ++m_iterator;
         }
         return didSchedule;
@@ -96,7 +111,10 @@ protected:
 
     void mapFinished(QFutureWatcher<MapResult> *watcher)
     {
-        m_mapWatcher.removeOne(watcher); // remove so we can schedule next one
+        int index = m_mapWatcher.indexOf(watcher);
+        int watcherIndex = m_watcherIndex.at(index);
+        m_mapWatcher.removeAt(index); // remove so we can schedule next one
+        m_watcherIndex.removeAt(index);
         bool didSchedule = false;
         if (!m_futureInterface.isCanceled()) {
             // first schedule the next map...
@@ -104,7 +122,7 @@ protected:
             ++m_successfullyFinishedMapCount;
             updateProgress();
             // ...then reduce
-            reduce(watcher);
+            reduce(watcher, watcherIndex);
         }
         delete watcher;
         if (!didSchedule && m_mapWatcher.isEmpty())
@@ -140,87 +158,190 @@ protected:
 
     QFutureWatcher<void> m_selfWatcher;
     QFutureInterface<ReduceResult> m_futureInterface;
-    Iterator m_iterator;
-    const Iterator m_end;
-    const MapFunction &m_map;
+    ForwardIterator m_iterator;
+    const ForwardIterator m_end;
+    MapFunction m_map;
     State &m_state;
-    const ReduceFunction &m_reduce;
+    ReduceFunction m_reduce;
     QEventLoop m_loop;
     QThreadPool m_threadPool; // for reusing threads
     QList<QFutureWatcher<MapResult> *> m_mapWatcher;
+    QList<int> m_watcherIndex;
+    int m_currentIndex = 0;
     const bool m_handleProgress;
     const int m_size;
     int m_successfullyFinishedMapCount = 0;
+    MapReduceOption m_option;
 };
 
 // non-void result of map function.
-template <typename Iterator, typename MapResult, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
-class MapReduce : public MapReduceBase<Iterator, MapResult, MapFunction, State, ReduceResult, ReduceFunction>
+template <typename ForwardIterator, typename MapResult, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
+class MapReduce : public MapReduceBase<ForwardIterator, MapResult, MapFunction, State, ReduceResult, ReduceFunction>
 {
-    using BaseType = MapReduceBase<Iterator, MapResult, MapFunction, State, ReduceResult, ReduceFunction>;
+    using BaseType = MapReduceBase<ForwardIterator, MapResult, MapFunction, State, ReduceResult, ReduceFunction>;
 public:
-    MapReduce(QFutureInterface<ReduceResult> futureInterface, Iterator begin, Iterator end,
-              const MapFunction &map, State &state, const ReduceFunction &reduce, int size)
-        : BaseType(futureInterface, begin, end, map, state, reduce, size)
+    MapReduce(QFutureInterface<ReduceResult> futureInterface, ForwardIterator begin, ForwardIterator end,
+              MapFunction &&map, State &state, ReduceFunction &&reduce, MapReduceOption option, int size)
+        : BaseType(futureInterface, begin, end, std::forward<MapFunction>(map), state,
+                   std::forward<ReduceFunction>(reduce), option, size)
     {
     }
 
 protected:
-    void reduce(QFutureWatcher<MapResult> *watcher) override
+    void reduce(QFutureWatcher<MapResult> *watcher, int index) override
     {
-        const int resultCount = watcher->future().resultCount();
-        for (int i = 0; i < resultCount; ++i) {
-            Internal::runAsyncImpl(BaseType::m_futureInterface, BaseType::m_reduce,
-                                   BaseType::m_state, watcher->future().resultAt(i));
+        if (BaseType::m_option == MapReduceOption::Unordered) {
+            reduceOne(watcher->future().results());
+        } else {
+            if (m_nextIndex == index) {
+                // handle this result and all directly following
+                reduceOne(watcher->future().results());
+                ++m_nextIndex;
+                while (!m_pendingResults.isEmpty() && m_pendingResults.firstKey() == m_nextIndex) {
+                    reduceOne(m_pendingResults.take(m_nextIndex));
+                    ++m_nextIndex;
+                }
+            } else {
+                // add result to pending results
+                m_pendingResults.insert(index, watcher->future().results());
+            }
         }
     }
 
+private:
+    void reduceOne(const QList<MapResult> &results)
+    {
+        const int resultCount = results.size();
+        for (int i = 0; i < resultCount; ++i) {
+            Internal::runAsyncImpl(BaseType::m_futureInterface, BaseType::m_reduce,
+                                   BaseType::m_state, results.at(i));
+        }
+    }
+
+    QMap<int, QList<MapResult>> m_pendingResults;
+    int m_nextIndex = 0;
 };
 
 // specialization for void result of map function. Reducing is a no-op.
-template <typename Iterator, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
-class MapReduce<Iterator, void, MapFunction, State, ReduceResult, ReduceFunction> : public MapReduceBase<Iterator, void, MapFunction, State, ReduceResult, ReduceFunction>
+template <typename ForwardIterator, typename MapFunction, typename State, typename ReduceResult, typename ReduceFunction>
+class MapReduce<ForwardIterator, void, MapFunction, State, ReduceResult, ReduceFunction> : public MapReduceBase<ForwardIterator, void, MapFunction, State, ReduceResult, ReduceFunction>
 {
-    using BaseType = MapReduceBase<Iterator, void, MapFunction, State, ReduceResult, ReduceFunction>;
+    using BaseType = MapReduceBase<ForwardIterator, void, MapFunction, State, ReduceResult, ReduceFunction>;
 public:
-    MapReduce(QFutureInterface<ReduceResult> futureInterface, Iterator begin, Iterator end,
-              const MapFunction &map, State &state, const ReduceFunction &reduce, int size)
-        : BaseType(futureInterface, begin, end, map, state, reduce, size)
+    MapReduce(QFutureInterface<ReduceResult> futureInterface, ForwardIterator begin, ForwardIterator end,
+              MapFunction &&map, State &state, ReduceFunction &&reduce, MapReduceOption option, int size)
+        : BaseType(futureInterface, begin, end, std::forward<MapFunction>(map), state,
+                   std::forward<ReduceFunction>(reduce), option, size)
     {
     }
 
 protected:
-    void reduce(QFutureWatcher<void> *) override
+    void reduce(QFutureWatcher<void> *, int) override
     {
     }
 
 };
 
-template <typename Iterator, typename InitFunction, typename MapFunction, typename ReduceResult,
-          typename ReduceFunction, typename CleanUpFunction>
-void blockingIteratorMapReduce(QFutureInterface<ReduceResult> &futureInterface, Iterator begin, Iterator end,
-                               const InitFunction &init, const MapFunction &map,
-                               const ReduceFunction &reduce, const CleanUpFunction &cleanup, int size)
+template <typename ResultType, typename Function, typename... Args>
+functionResult_t<Function>
+callWithMaybeFutureInterfaceDispatch(std::false_type, QFutureInterface<ResultType> &,
+                                     Function &&function, Args&&... args)
 {
-    auto state = init(futureInterface);
-    MapReduce<Iterator, typename Internal::resultType<MapFunction>::type, MapFunction, decltype(state), ReduceResult, ReduceFunction>
-            mr(futureInterface, begin, end, map, state, reduce, size);
+    return function(std::forward<Args>(args)...);
+}
+
+template <typename ResultType, typename Function, typename... Args>
+functionResult_t<Function>
+callWithMaybeFutureInterfaceDispatch(std::true_type, QFutureInterface<ResultType> &futureInterface,
+                                     Function &&function, Args&&... args)
+{
+    return function(futureInterface, std::forward<Args>(args)...);
+}
+
+template <typename ResultType, typename Function, typename... Args>
+functionResult_t<Function>
+callWithMaybeFutureInterface(QFutureInterface<ResultType> &futureInterface,
+                             Function &&function, Args&&... args)
+{
+    return callWithMaybeFutureInterfaceDispatch(
+                functionTakesArgument<Function, 0, QFutureInterface<ResultType>&>(),
+                futureInterface, std::forward<Function>(function), std::forward<Args>(args)...);
+}
+
+template <typename ForwardIterator, typename InitFunction, typename MapFunction, typename ReduceResult,
+          typename ReduceFunction, typename CleanUpFunction>
+void blockingIteratorMapReduce(QFutureInterface<ReduceResult> &futureInterface, ForwardIterator begin, ForwardIterator end,
+                               InitFunction &&init, MapFunction &&map,
+                               ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+                               MapReduceOption option, int size)
+{
+    auto state = callWithMaybeFutureInterface<ReduceResult, InitFunction>
+            (futureInterface, std::forward<InitFunction>(init));
+    MapReduce<ForwardIterator, typename Internal::resultType<MapFunction>::type, MapFunction, decltype(state), ReduceResult, ReduceFunction>
+            mr(futureInterface, begin, end, std::forward<MapFunction>(map), state,
+               std::forward<ReduceFunction>(reduce), option, size);
     mr.exec();
-    cleanup(futureInterface, state);
+    callWithMaybeFutureInterface<ReduceResult, CleanUpFunction, typename std::remove_reference<decltype(state)>::type&>
+            (futureInterface, std::forward<CleanUpFunction>(cleanup), state);
 }
 
 template <typename Container, typename InitFunction, typename MapFunction, typename ReduceResult,
           typename ReduceFunction, typename CleanUpFunction>
-void blockingContainerMapReduce(QFutureInterface<ReduceResult> &futureInterface, const Container &container,
-                                const InitFunction &init, const MapFunction &map,
-                                const ReduceFunction &reduce, const CleanUpFunction &cleanup)
+void blockingContainerMapReduce(QFutureInterface<ReduceResult> &futureInterface, Container &&container,
+                                InitFunction &&init, MapFunction &&map,
+                                ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+                                MapReduceOption option)
 {
     blockingIteratorMapReduce(futureInterface, std::begin(container), std::end(container),
-                              init, map, reduce, cleanup, container.size());
+                              std::forward<InitFunction>(init), std::forward<MapFunction>(map),
+                              std::forward<ReduceFunction>(reduce),
+                              std::forward<CleanUpFunction>(cleanup),
+                              option, static_cast<int>(container.size()));
+}
+
+template <typename Container, typename InitFunction, typename MapFunction, typename ReduceResult,
+          typename ReduceFunction, typename CleanUpFunction>
+void blockingContainerRefMapReduce(QFutureInterface<ReduceResult> &futureInterface,
+                                    std::reference_wrapper<Container> containerWrapper,
+                                    InitFunction &&init, MapFunction &&map,
+                                    ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+                                    MapReduceOption option)
+{
+    blockingContainerMapReduce(futureInterface, containerWrapper.get(),
+                               std::forward<InitFunction>(init), std::forward<MapFunction>(map),
+                               std::forward<ReduceFunction>(reduce),
+                               std::forward<CleanUpFunction>(cleanup),
+                               option);
 }
 
 template <typename ReduceResult>
-static void *dummyInit(QFutureInterface<ReduceResult> &) { return nullptr; }
+static void *dummyInit() { return nullptr; }
+
+// copies or moves state to member, and then moves it to the result of the call operator
+template <typename State>
+struct StateWrapper {
+    using StateResult = typename std::decay<State>::type; // State is const& or & for lvalues
+    StateWrapper(State &&state) : m_state(std::forward<State>(state)) { }
+    StateResult operator()()
+    {
+        return std::move(m_state); // invalidates m_state
+    }
+
+    StateResult m_state;
+};
+
+// copies or moves reduce function to member, calls the reduce function with state and mapped value
+template <typename StateResult, typename MapResult, typename ReduceFunction>
+struct ReduceWrapper {
+    using Reduce = typename std::decay<ReduceFunction>::type;
+    ReduceWrapper(ReduceFunction &&reduce) : m_reduce(std::forward<ReduceFunction>(reduce)) { }
+    void operator()(QFutureInterface<StateResult> &, StateResult &state, const MapResult &mapResult)
+    {
+        m_reduce(state, mapResult);
+    }
+
+    Reduce m_reduce;
+};
 
 template <typename MapResult>
 struct DummyReduce {
@@ -232,25 +353,37 @@ struct DummyReduce<void> {
 };
 
 template <typename ReduceResult>
-static void dummyCleanup(QFutureInterface<ReduceResult> &, void *) { }
+static void dummyCleanup(void *) { }
+
+template <typename StateResult>
+static void cleanupReportingState(QFutureInterface<StateResult> &fi, StateResult &state)
+{
+    fi.reportResult(state);
+}
 
 } // Internal
 
-template <typename Iterator, typename InitFunction, typename MapFunction,
+template <typename ForwardIterator, typename InitFunction, typename MapFunction,
           typename ReduceFunction, typename CleanUpFunction,
           typename ReduceResult = typename Internal::resultType<ReduceFunction>::type>
 QFuture<ReduceResult>
-mapReduce(Iterator begin, Iterator end, const InitFunction &init, const MapFunction &map,
-               const ReduceFunction &reduce, const CleanUpFunction &cleanup, int size = -1)
+mapReduce(ForwardIterator begin, ForwardIterator end, InitFunction &&init, MapFunction &&map,
+          ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+          MapReduceOption option = MapReduceOption::Unordered,
+          QThread::Priority priority = QThread::InheritPriority,
+          int size = -1)
 {
-    return runAsync(Internal::blockingIteratorMapReduce<
-                    Iterator,
-                    typename std::decay<InitFunction>::type,
-                    typename std::decay<MapFunction>::type,
-                    typename std::decay<ReduceResult>::type,
-                    typename std::decay<ReduceFunction>::type,
-                    typename std::decay<CleanUpFunction>::type>,
-                begin, end, init, map, reduce, cleanup, size);
+    return runAsync(priority,
+                    Internal::blockingIteratorMapReduce<
+                        ForwardIterator,
+                        typename std::decay<InitFunction>::type,
+                        typename std::decay<MapFunction>::type,
+                        typename std::decay<ReduceResult>::type,
+                        typename std::decay<ReduceFunction>::type,
+                        typename std::decay<CleanUpFunction>::type>,
+                    begin, end, std::forward<InitFunction>(init), std::forward<MapFunction>(map),
+                    std::forward<ReduceFunction>(reduce), std::forward<CleanUpFunction>(cleanup),
+                    option, size);
 }
 
 /*!
@@ -273,46 +406,196 @@ mapReduce(Iterator begin, Iterator end, const InitFunction &init, const MapFunct
     mapReduce.
 
     Container<ItemType>
+
     StateType InitFunction(QFutureInterface<ReduceResultType>&)
+    or
+    StateType InitFunction()
 
     void MapFunction(QFutureInterface<MapResultType>&, const ItemType&)
     or
     MapResultType MapFunction(const ItempType&)
 
-    void ReduceFunction(QFutureInterface<ReduceResultType>&, StateType&, const ItemType&)
+    void ReduceFunction(QFutureInterface<ReduceResultType>&, StateType&, const MapResultType&)
     or
-    ReduceResultType ReduceFunction(StateType&, const ItemType&)
+    ReduceResultType ReduceFunction(StateType&, const MapResultType&)
 
     void CleanUpFunction(QFutureInterface<ReduceResultType>&, StateType&)
+    or
+    void CleanUpFunction(StateType&)
+
+    Notes:
+    \list
+        \li Container can be a move-only type or a temporary. If it is a lvalue reference, it will
+            be copied to the mapReduce thread. You can avoid that by using
+            the version that takes iterators, or by using std::ref/cref to pass a reference_wrapper.
+        \li ItemType can be a move-only type, if the map function takes (const) references to ItemType.
+        \li StateType can be a move-only type.
+        \li The init, map, reduce and cleanup functions can be move-only types and are moved to the
+            mapReduce thread if they are rvalues.
+    \endlist
+
  */
 template <typename Container, typename InitFunction, typename MapFunction,
           typename ReduceFunction, typename CleanUpFunction,
           typename ReduceResult = typename Internal::resultType<ReduceFunction>::type>
 QFuture<ReduceResult>
-mapReduce(const Container &container, const InitFunction &init, const MapFunction &map,
-               const ReduceFunction &reduce, const CleanUpFunction &cleanup)
+mapReduce(Container &&container, InitFunction &&init, MapFunction &&map,
+          ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+          MapReduceOption option = MapReduceOption::Unordered,
+          QThread::Priority priority = QThread::InheritPriority)
 {
-    return runAsync(Internal::blockingContainerMapReduce<
-                    typename std::decay<Container>::type,
-                    typename std::decay<InitFunction>::type,
-                    typename std::decay<MapFunction>::type,
-                    typename std::decay<ReduceResult>::type,
-                    typename std::decay<ReduceFunction>::type,
-                    typename std::decay<CleanUpFunction>::type>,
-                    container, init, map, reduce, cleanup);
+    return runAsync(priority,
+                    Internal::blockingContainerMapReduce<
+                        typename std::decay<Container>::type,
+                        typename std::decay<InitFunction>::type,
+                        typename std::decay<MapFunction>::type,
+                        typename std::decay<ReduceResult>::type, typename std::decay<ReduceFunction>::type,
+                        typename std::decay<CleanUpFunction>::type>,
+                    std::forward<Container>(container),
+                    std::forward<InitFunction>(init), std::forward<MapFunction>(map),
+                    std::forward<ReduceFunction>(reduce), std::forward<CleanUpFunction>(cleanup),
+                    option);
 }
 
-// TODO: Currently does not order its map results.
+template <typename Container, typename InitFunction, typename MapFunction,
+          typename ReduceFunction, typename CleanUpFunction,
+          typename ReduceResult = typename Internal::resultType<ReduceFunction>::type>
+QFuture<ReduceResult>
+mapReduce(std::reference_wrapper<Container> containerWrapper, InitFunction &&init, MapFunction &&map,
+          ReduceFunction &&reduce, CleanUpFunction &&cleanup,
+          MapReduceOption option = MapReduceOption::Unordered,
+          QThread::Priority priority = QThread::InheritPriority)
+{
+    return runAsync(priority,
+                    Internal::blockingContainerRefMapReduce<
+                        Container,
+                        typename std::decay<InitFunction>::type,
+                        typename std::decay<MapFunction>::type,
+                        typename std::decay<ReduceResult>::type,
+                        typename std::decay<ReduceFunction>::type,
+                        typename std::decay<CleanUpFunction>::type>,
+                    containerWrapper,
+                    std::forward<InitFunction>(init), std::forward<MapFunction>(map),
+                    std::forward<ReduceFunction>(reduce), std::forward<CleanUpFunction>(cleanup),
+                    option);
+}
+
+template <typename ForwardIterator, typename MapFunction, typename State, typename ReduceFunction,
+          typename StateResult = typename std::decay<State>::type, // State = T& or const T& for lvalues, so decay that away
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+QFuture<StateResult>
+mapReduce(ForwardIterator begin, ForwardIterator end, MapFunction &&map, State &&initialState,
+          ReduceFunction &&reduce, MapReduceOption option = MapReduceOption::Unordered,
+          QThread::Priority priority = QThread::InheritPriority, int size = -1)
+{
+    return mapReduce(begin, end,
+                     Internal::StateWrapper<State>(std::forward<State>(initialState)),
+                     std::forward<MapFunction>(map),
+                     Internal::ReduceWrapper<StateResult, MapResult, ReduceFunction>(std::forward<ReduceFunction>(reduce)),
+                     &Internal::cleanupReportingState<StateResult>,
+                     option, priority, size);
+}
+
+template <typename Container, typename MapFunction, typename State, typename ReduceFunction,
+          typename StateResult = typename std::decay<State>::type, // State = T& or const T& for lvalues, so decay that away
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+QFuture<StateResult>
+mapReduce(Container &&container, MapFunction &&map, State &&initialState, ReduceFunction &&reduce,
+          MapReduceOption option = MapReduceOption::Unordered,
+          QThread::Priority priority = QThread::InheritPriority)
+{
+    return mapReduce(std::forward<Container>(container),
+                     Internal::StateWrapper<State>(std::forward<State>(initialState)),
+                     std::forward<MapFunction>(map),
+                     Internal::ReduceWrapper<StateResult, MapResult, ReduceFunction>(std::forward<ReduceFunction>(reduce)),
+                     &Internal::cleanupReportingState<StateResult>,
+                     option, priority);
+}
+
+template <typename ForwardIterator, typename MapFunction, typename State, typename ReduceFunction,
+          typename StateResult = typename std::decay<State>::type, // State = T& or const T& for lvalues, so decay that away
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+Q_REQUIRED_RESULT
+StateResult
+mappedReduced(ForwardIterator begin, ForwardIterator end, MapFunction &&map, State &&initialState,
+              ReduceFunction &&reduce, MapReduceOption option = MapReduceOption::Unordered,
+              QThread::Priority priority = QThread::InheritPriority, int size = -1)
+{
+    return mapReduce(begin, end,
+                     std::forward<MapFunction>(map), std::forward<State>(initialState),
+                     std::forward<ReduceFunction>(reduce),
+                     option, priority, size).result();
+}
+
+template <typename Container, typename MapFunction, typename State, typename ReduceFunction,
+          typename StateResult = typename std::decay<State>::type, // State = T& or const T& for lvalues, so decay that away
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+Q_REQUIRED_RESULT
+StateResult
+mappedReduced(Container &&container, MapFunction &&map, State &&initialState, ReduceFunction &&reduce,
+              MapReduceOption option = MapReduceOption::Unordered,
+              QThread::Priority priority = QThread::InheritPriority)
+{
+    return mapReduce(std::forward<Container>(container), std::forward<MapFunction>(map),
+                     std::forward<State>(initialState), std::forward<ReduceFunction>(reduce),
+                     option, priority).result();
+}
+
+template <typename ForwardIterator, typename MapFunction,
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+QFuture<MapResult>
+map(ForwardIterator begin, ForwardIterator end, MapFunction &&map,
+    MapReduceOption option = MapReduceOption::Ordered,
+    QThread::Priority priority = QThread::InheritPriority, int size = -1)
+{
+    return mapReduce(begin, end,
+                     &Internal::dummyInit<MapResult>,
+                     std::forward<MapFunction>(map),
+                     Internal::DummyReduce<MapResult>(),
+                     &Internal::dummyCleanup<MapResult>,
+                     option, priority, size);
+}
+
 template <typename Container, typename MapFunction,
           typename MapResult = typename Internal::resultType<MapFunction>::type>
 QFuture<MapResult>
-map(const Container &container, const MapFunction &map)
+map(Container &&container, MapFunction &&map, MapReduceOption option = MapReduceOption::Ordered,
+    QThread::Priority priority = QThread::InheritPriority)
 {
-    return mapReduce(container,
+    return mapReduce(std::forward<Container>(container),
                      Internal::dummyInit<MapResult>,
-                     map,
+                     std::forward<MapFunction>(map),
                      Internal::DummyReduce<MapResult>(),
-                     Internal::dummyCleanup<MapResult>);
+                     Internal::dummyCleanup<MapResult>,
+                     option, priority);
+}
+
+template <template<typename> class ResultContainer, typename ForwardIterator, typename MapFunction,
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+Q_REQUIRED_RESULT
+ResultContainer<MapResult>
+mapped(ForwardIterator begin, ForwardIterator end, MapFunction &&mapFun,
+    MapReduceOption option = MapReduceOption::Ordered,
+       QThread::Priority priority = QThread::InheritPriority, int size = -1)
+{
+    return Utils::transform<ResultContainer>(map(begin, end,
+                                                 std::forward<MapFunction>(mapFun),
+                                                 option, priority, size).results(),
+                                             [](const MapResult &r) { return r; });
+}
+
+template <template<typename> class ResultContainer, typename Container, typename MapFunction,
+          typename MapResult = typename Internal::resultType<MapFunction>::type>
+Q_REQUIRED_RESULT
+ResultContainer<MapResult>
+mapped(Container &&container, MapFunction &&mapFun,
+       MapReduceOption option = MapReduceOption::Ordered,
+       QThread::Priority priority = QThread::InheritPriority)
+{
+    return Utils::transform<ResultContainer>(map(container,
+                                                 std::forward<MapFunction>(mapFun),
+                                                 option, priority).results(),
+                                             [](const MapResult &r) { return r; });
 }
 
 } // Utils

@@ -23,14 +23,15 @@
 **
 ****************************************************************************/
 
-#ifndef THEMECHOOSER_H
-#define THEMECHOOSER_H
+#pragma once
 
 #include "id.h"
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
 #include <QWidget>
+
+namespace Utils { class Theme; }
 
 namespace Core {
 namespace Internal {
@@ -47,6 +48,8 @@ public:
     QString displayName() const;
     QString filePath() const;
     static QList<ThemeEntry> availableThemes();
+    static Id themeSetting();
+    static Utils::Theme *createTheme(Id id);
 
 private:
     Id m_id;
@@ -70,5 +73,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // THEMESETTINGS_H

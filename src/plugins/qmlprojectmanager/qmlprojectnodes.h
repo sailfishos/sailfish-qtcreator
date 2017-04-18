@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROJECTNODES_H
-#define QMLPROJECTNODES_H
+#pragma once
 
 #include <projectexplorer/projectnodes.h>
 
@@ -56,15 +55,8 @@ public:
     void refresh();
 
 private:
-    FolderNode *findOrCreateFolderByName(const QString &filePath);
-    FolderNode *findOrCreateFolderByName(const QStringList &components, int end);
-
-private:
     QmlProject *m_project;
-    QHash<QString, FolderNode *> m_folderByName;
 };
 
 } // namespace Internal
 } // namespace QmlProjectManager
-
-#endif // QMLPROJECTNODES_H

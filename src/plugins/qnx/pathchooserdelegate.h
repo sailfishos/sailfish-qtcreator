@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNX_INTERNAL_PATHCHOOSERDELEGATE_H
-#define QNX_INTERNAL_PATHCHOOSERDELEGATE_H
+#pragma once
 
 #include <QStyledItemDelegate>
 
@@ -56,9 +55,6 @@ public:
 
     void setHistoryCompleter(const QString &key);
 
-private slots:
-    void emitCommitData();
-
 private:
     Utils::PathChooser::Kind m_kind;
     QString m_filter;
@@ -67,5 +63,3 @@ private:
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNX_INTERNAL_PATHCHOOSERDELEGATE_H

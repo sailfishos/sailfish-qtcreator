@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SSHOUTGOINGPACKET_P_H
-#define SSHOUTGOINGPACKET_P_H
+#pragma once
 
 #include "sshpacket_p.h"
 
@@ -66,6 +65,8 @@ public:
     void generateDirectTcpIpPacket(quint32 channelId, quint32 windowSize,
         quint32 maxPacketSize, const QByteArray &remoteHost, quint32 remotePort,
         const QByteArray &localIpAddress, quint32 localPort);
+    void generateTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
+    void generateCancelTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
     void generateEnvPacket(quint32 remoteChannel, const QByteArray &var,
         const QByteArray &value);
     void generatePtyRequestPacket(quint32 remoteChannel,
@@ -80,6 +81,10 @@ public:
         const QByteArray &signalName);
     void generateChannelEofPacket(quint32 remoteChannel);
     void generateChannelClosePacket(quint32 remoteChannel);
+    void generateChannelOpenConfirmationPacket(quint32 remoteChannel, quint32 localChannel,
+        quint32 localWindowSize, quint32 maxPackeSize);
+    void generateChannelOpenFailurePacket(quint32 remoteChannel, quint32 reason,
+        const QByteArray &reasonString);
 
 private:
     virtual quint32 cipherBlockSize() const;
@@ -106,5 +111,3 @@ private:
 
 } // namespace Internal
 } // namespace QSsh
-
-#endif // SSHOUTGOINGPACKET_P_H

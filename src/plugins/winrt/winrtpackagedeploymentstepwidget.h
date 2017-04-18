@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef WINRTPACKAGEDEPLOYMENTSTEPWIDGET_H
-#define WINRTPACKAGEDEPLOYMENTSTEPWIDGET_H
+#pragma once
 
 #include "winrtpackagedeploymentstep.h"
 
@@ -45,16 +44,13 @@ public:
     virtual QString summaryText() const;
     virtual QString displayName() const;
 
-private slots:
+private:
     void on_btnRestoreDefaultArgs_clicked();
     void on_leArguments_textChanged(QString str);
 
-private:
     Ui::WinRtPackageDeploymentStepWidget *m_ui;
     WinRtPackageDeploymentStep *m_step;
 };
 
 } // namespace Internal
 } // namespace WinRt
-
-#endif // WINRTPACKAGEDEPLOYMENTSTEPWIDGET_H

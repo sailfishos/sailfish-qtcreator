@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef TESTNAVIGATIONWIDGETTREEVIEW_H
-#define TESTNAVIGATIONWIDGETTREEVIEW_H
+#pragma once
+
+#include "testrunner.h"
 
 #include <coreplugin/inavigationwidgetfactory.h>
 
@@ -59,23 +60,19 @@ class TestNavigationWidget : public QWidget
 public:
     explicit TestNavigationWidget(QWidget *parent = 0);
     ~TestNavigationWidget();
-    void contextMenuEvent(QContextMenuEvent *event);
+    void contextMenuEvent(QContextMenuEvent *event) override;
     QList<QToolButton *> createToolButtons();
 
 signals:
 
-public slots:
-
-private slots:
+private:
     void onItemActivated(const QModelIndex &index);
     void onSortClicked();
     void onFilterMenuTriggered(QAction *action);
     void onParsingStarted();
     void onParsingFinished();
-
-private:
     void initializeFilterMenu();
-    void onRunThisTestTriggered();
+    void onRunThisTestTriggered(TestRunner::Mode runMode);
 
     TestTreeModel *m_model;
     TestTreeSortFilterModel *m_sortFilterModel;
@@ -86,6 +83,7 @@ private:
     bool m_sortAlphabetically;
     Utils::ProgressIndicator *m_progressIndicator;
     QTimer *m_progressTimer;
+    QFrame *m_missingFrameworksWidget;
 };
 
 class TestNavigationWidgetFactory : public Core::INavigationWidgetFactory
@@ -96,11 +94,9 @@ public:
     TestNavigationWidgetFactory();
 
 private:
-    Core::NavigationView createWidget();
+    Core::NavigationView createWidget() override;
 
 };
 
 } // namespace Internal
 } // namespace Autotest
-
-#endif // TESTNAVIGATIONWIDGETTREEVIEW_H

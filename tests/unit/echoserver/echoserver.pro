@@ -3,7 +3,7 @@ QT       += core network
 QT       -= gui
 
 TARGET = echo
-CONFIG   += console c++11
+CONFIG   += console
 CONFIG   -= app_bundle
 
 TEMPLATE = app
@@ -15,12 +15,14 @@ osx:QMAKE_CXXFLAGS = -stdlib=libc++
 include(../../../src/libs/clangbackendipc/clangbackendipc-lib.pri)
 include(../../../src/libs/sqlite/sqlite-lib.pri)
 
+INCLUDEPATH += ../../../src/libs
+
 SOURCES += \
-    echoipcserver.cpp \
+    echoclangcodemodelserver.cpp \
     echoserverprocessmain.cpp
 
 HEADERS += \
-    echoipcserver.h
+    echoclangcodemodelserver.h
 
 DEFINES += CLANGBACKENDIPC_TESTS
 DEFINES += DONT_CHECK_MESSAGE_COUNTER

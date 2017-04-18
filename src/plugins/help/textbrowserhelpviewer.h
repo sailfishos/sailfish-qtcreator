@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTBROWSERHELPVIEWER_H
-#define TEXTBROWSERHELPVIEWER_H
+#pragma once
 
 #include "centralwidget.h"
 #include "helpviewer.h"
@@ -63,12 +62,10 @@ public:
     bool isBackwardAvailable() const;
     void addBackHistoryItems(QMenu *backMenu);
     void addForwardHistoryItems(QMenu *forwardMenu);
-    void setOpenInNewPageActionVisible(bool visible);
 
     bool findText(const QString &text, Core::FindFlags flags,
                   bool incremental, bool fromSearch, bool *wrapped = 0);
 
-public slots:
     void scaleUp();
     void scaleDown();
     void resetScale();
@@ -78,10 +75,9 @@ public slots:
     void backward();
     void print(QPrinter *printer);
 
-private slots:
+private:
     void goToHistoryItem();
 
-private:
     TextBrowserHelpWidget *m_textBrowser;
 };
 
@@ -108,16 +104,12 @@ protected:
 
 private:
     QString linkAt(const QPoint& pos);
-    void openLink(const QUrl &url, bool newPage);
 
     int zoomCount;
     bool forceFont;
-    bool m_openInNewPageActionVisible;
     TextBrowserHelpViewer *m_parent;
     friend class Help::Internal::TextBrowserHelpViewer;
 };
 
 }   // namespace Internal
 }   // namespace Help
-
-#endif // TEXTBROWSERHELPVIEWER_H
