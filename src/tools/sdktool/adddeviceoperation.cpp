@@ -76,6 +76,7 @@ QString AddDeviceOperation::argumentsHelpText() const
                          "    --sshPort <INT>                            ssh port.\n"
                          "    --timeout <INT>                            timeout.\n"
                          "    --uname <STRING>                           uname.\n"
+                         "    --version <INT>                            version.\n"
                          "    <KEY> <TYPE:VALUE>                         extra key value pairs\n");
 }
 
@@ -233,6 +234,17 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_uname = next;
+            continue;
+        }
+
+        if (current == QLatin1String("--version")) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            bool ok;
+            m_version = next.toInt(&ok);
+            if (!ok)
+                return false;
             continue;
         }
 
