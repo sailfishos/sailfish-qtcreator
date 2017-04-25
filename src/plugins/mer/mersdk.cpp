@@ -24,6 +24,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
+#include "merlogging.h"
 #include "merqtversion.h"
 #include "mersdkmanager.h"
 #include "mertarget.h"
@@ -419,8 +420,7 @@ QList<MerTarget> MerSdk::readTargets(const FileName &fileName)
 
 bool MerSdk::addTarget(const MerTarget &target)
 {
-    if (MerSdkManager::verbose)
-        qDebug() << "Installing" << target.name() << "for" << virtualMachineName();
+    qCDebug(Log::sdks) << "Installing" << target.name() << "for" << virtualMachineName();
     if (!target.createScripts()) {
         qWarning() << "Failed to create wrapper scripts.";
         return false;
@@ -448,8 +448,7 @@ bool MerSdk::addTarget(const MerTarget &target)
 
 bool MerSdk::removeTarget(const MerTarget &target)
 {
-    if (MerSdkManager::verbose)
-        qDebug() << "Uninstalling" << target.name() << "for" << virtualMachineName();
+    qCDebug(Log::sdks) << "Uninstalling" << target.name() << "for" << virtualMachineName();
     //delete kit
     foreach (Kit *kit, KitManager::kits()) {
         if (!kit->isAutoDetected())

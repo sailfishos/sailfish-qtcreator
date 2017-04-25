@@ -28,6 +28,7 @@
 #include "merdevicexmlparser.h"
 #include "meremulatordevice.h"
 #include "merhardwaredevice.h"
+#include "merlogging.h"
 #include "merplugin.h"
 #include "merqtversion.h"
 #include "mersdkkitinformation.h"
@@ -69,7 +70,6 @@ namespace Mer {
 namespace Internal {
 
 MerSdkManager *MerSdkManager::m_instance = 0;
-bool MerSdkManager::verbose = false;
 
 static FileName globalSettingsFileName()
 {
@@ -87,7 +87,7 @@ static FileName settingsFileName()
 MerSdkManager::MerSdkManager()
     : m_intialized(false),
       m_writer(0),
-      m_reinstall(false)
+      m_version(0)
 {
     connect(ICore::instance(), &ICore::saveSettingsRequested,
             this, &MerSdkManager::storeSdks);
@@ -197,8 +197,7 @@ QList<MerSdk*> MerSdkManager::sdks()
     return m_instance->m_sdks.values();
 }
 
-const FileName& MerSdkManager::checkInstallLocation(const FileName &local,
-                                                    const FileName &global)
+FileName MerSdkManager::checkLocalConfig(const FileName &local, const FileName &global)
 {
     PersistentSettingsReader lReader;
     if (!lReader.load(local)) {
@@ -215,51 +214,66 @@ const FileName& MerSdkManager::checkInstallLocation(const FileName &local,
     QVariantMap lData = lReader.restoreValues();
     QVariantMap gData = gReader.restoreValues();
 
+    int lVersion = lData.value(QLatin1String(MER_SDK_FILE_VERSION_KEY), 0).toInt();
+    int gVersion = gData.value(QLatin1String(MER_SDK_FILE_VERSION_KEY), 0).toInt();
     QString lInstallDir = lData.value(QLatin1String(MER_SDK_INSTALLDIR)).toString();
     QString gInstallDir = gData.value(QLatin1String(MER_SDK_INSTALLDIR)).toString();
 
-    // if the installdirectory has changed, return the global file
-    if (lInstallDir != gInstallDir) {
-        if (MerSdkManager::verbose)
-            qDebug() << "MerSdkManager::installdir changed => use global config";
-        m_reinstall = true;
-        return global;
+    bool reinstall = false;
+    if (lVersion != gVersion) {
+        qCDebug(Log::sdks) << "MerSdkManager: version changed => use global config";
+        reinstall = true;
+    } else if (lInstallDir != gInstallDir) {
+        qCDebug(Log::sdks) << "MerSdkManager: installdir changed => use global config";
+        reinstall = true;
+    } else {
+        qCDebug(Log::sdks) << "MerSdkManager: version and installdir same => use local config";
     }
-    else {
-        if (MerSdkManager::verbose)
-            qDebug() << "MerSdkManager::installdir same => use local config";
-        return local;
+
+    // This is executed if the version changed or the user has reinstalled
+    // MerSDK to a different directory. SDKs will be restored from the global
+    // configuration.
+    if (reinstall) {
+        // Clean up all the existing Mer kits.
+        foreach (Kit *kit, KitManager::kits()) {
+            if (!kit->isAutoDetected())
+                continue;
+            ToolChain *tc = ToolChainKitInformation::toolChain(kit);
+            if (!tc)
+                continue;
+
+            if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
+                qCDebug(Log::sdks) << "Removing Mer kit due to reinstall";
+                BaseQtVersion *v = QtKitInformation::qtVersion(kit);
+                KitManager::deregisterKit(kit);
+                ToolChainManager::deregisterToolChain(tc);
+                QtVersionManager::removeVersion(v);
+            }
+        }
+
+        // Remove tools directories - see MerTarget::deleteScripts()
+        int count = lData.value(QLatin1String(MER_SDK_COUNT_KEY), 0).toInt();
+        for (int i = 0; i < count; ++i) {
+            const QString key = QString::fromLatin1(MER_SDK_DATA_KEY) + QString::number(i);
+            if (!lData.contains(key))
+                break;
+
+            const QVariantMap merSdkMap = lData.value(key).toMap();
+
+            const QString vmName = merSdkMap.value(QLatin1String(VM_NAME)).toString();
+            const QString toolsPath = sdkToolsDirectory() + vmName;
+            FileUtils::removeRecursively(FileName::fromString(toolsPath));
+        }
     }
+
+    return reinstall ? global : local;
 }
 
 void MerSdkManager::restore()
 {
-    FileName settings = checkInstallLocation(settingsFileName(), globalSettingsFileName());
-
+    FileName settings = checkLocalConfig(settingsFileName(), globalSettingsFileName());
     QList<MerSdk*> sdks = restoreSdks(settings);
     foreach (MerSdk *sdk, sdks) {
-        if (m_reinstall) {
-            // This is executed if the user has reinstalled MerSDK to
-            // a different directory. Clean up all the existing Mer
-            // kits, which contain paths to the old install directory.
-            foreach (Kit *kit, KitManager::kits()) {
-                if (!kit->isAutoDetected())
-                    continue;
-                ToolChain *tc = ToolChainKitInformation::toolChain(kit);
-                if (!tc)
-                    continue;
-
-                if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
-                    if (MerSdkManager::verbose)
-                        qDebug() << "Removing Mer kit due to reinstall";
-                    BaseQtVersion *v = QtKitInformation::qtVersion(kit);
-                    KitManager::deregisterKit(kit);
-                    ToolChainManager::deregisterToolChain(tc);
-                    QtVersionManager::removeVersion(v);
-                }
-            }
-        }
-
         addSdk(sdk);
     }
 }
@@ -277,6 +291,7 @@ QList<MerSdk*> MerSdkManager::restoreSdks(const FileName &fileName)
         qWarning() << "invalid configuration version: " << version;
         return result;
     }
+    m_instance->m_version = version;
 
     m_instance->m_installDir = data.value(QLatin1String(MER_SDK_INSTALLDIR)).toString();
 
@@ -300,7 +315,7 @@ QList<MerSdk*> MerSdkManager::restoreSdks(const FileName &fileName)
 void MerSdkManager::storeSdks()
 {
     QVariantMap data;
-    data.insert(QLatin1String(MER_SDK_FILE_VERSION_KEY), 1);
+    data.insert(QLatin1String(MER_SDK_FILE_VERSION_KEY), m_version);
     data.insert(QLatin1String(MER_SDK_INSTALLDIR), m_installDir);
     int count = 0;
     foreach (const MerSdk* sdk, m_instance->m_sdks) {

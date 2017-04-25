@@ -90,18 +90,15 @@ private:
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
     static QList<MerToolChain*> merToolChains();
     static QList<MerQtVersion*> merQtVersions();
-    const Utils::FileName& checkInstallLocation(const Utils::FileName &l, const Utils::FileName &g);
+    Utils::FileName checkLocalConfig(const Utils::FileName &l, const Utils::FileName &g);
 private:
     static MerSdkManager *m_instance;
     QMap<QString, MerSdk*> m_sdks;
     bool m_intialized;
     Utils::PersistentSettingsWriter *m_writer;
     QString m_installDir;
-    bool m_reinstall;
+    int m_version;
     friend class MerPlugin;
-
-public:
-    static bool verbose;
 };
 
 } // Internal
