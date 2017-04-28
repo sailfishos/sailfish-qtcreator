@@ -363,7 +363,7 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
         QString index(QLatin1String("/ssh/private_keys/%1/"));
         //TODO fix me:
         QString privateKeyFile = m_sharedConfigPath +
-                index.arg(virtualMachine()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
+                index.arg(id().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
                                          user, sharedSshPath(), ICore::dialogParent());
 
@@ -378,7 +378,7 @@ SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnect
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO fix me:
     QString privateKeyFile = sharedConfigPath()  +
-            index.arg(virtualMachine()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
+            index.arg(id().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
     SshConnectionParameters m_sshParams = sshParams;
     m_sshParams.userName = user;
     m_sshParams.privateKeyFile = privateKeyFile;
