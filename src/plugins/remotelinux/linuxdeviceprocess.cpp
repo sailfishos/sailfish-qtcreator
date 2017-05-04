@@ -70,6 +70,7 @@ QString LinuxDeviceProcess::fullCommandLine(const StandardRunnable &runnable) co
         fullCommandLine.append(QLatin1Char(' ')).append(envString);
     if (!fullCommandLine.isEmpty())
         fullCommandLine += QLatin1Char(' ');
+    fullCommandLine.append(QLatin1String("exec "));
     fullCommandLine.append(quote(runnable.executable));
     if (!runnable.commandLineArguments.isEmpty()) {
         fullCommandLine.append(QLatin1Char(' '));
