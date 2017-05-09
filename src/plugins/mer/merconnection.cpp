@@ -50,10 +50,11 @@ const int VM_STATE_POLLING_INTERVAL_FAST   = 1000;
 const int VM_START_TIMEOUT                 = 10000;
 const int VM_SOFT_CLOSE_TIMEOUT            = 15000; // via sdk-shutdown command
 const int VM_HARD_CLOSE_TIMEOUT            = 15000; // via ACPI poweroff
-// Note that SshConnection already internally operates with (much longer)
-// timeouts and ability to recover with only limited state information exposed
-// outside, so these numbers cannot really be interpreted as that a new network
-// connection attempt will happen every <number> of milliseconds.
+// Note that SshConnection internally operates with timeouts and has ability to
+// recover, but only limited state information is exposed publicly, so these
+// numbers cannot really be interpreted as that a new network connection attempt
+// will happen every <number> of milliseconds.
+const int SSH_TRY_CONNECT_TIMEOUT          = 3000;
 const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
 const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
 const int DISMISS_MESSAGE_BOX_DELAY        = 2000;
@@ -200,7 +201,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
 {
-
+    m_vmStateEntryTime.start();
 }
 
 MerConnection::~MerConnection()
@@ -241,6 +242,7 @@ void MerConnection::setSshParameters(const SshConnectionParameters &sshParameter
     if (m_params == sshParameters)
         return;
 
+    // Notice how m_params.timeout is treated!
     m_params = sshParameters;
     scheduleReset();
 }
@@ -516,7 +518,7 @@ void MerConnection::updateState()
                         .arg(m_vmName)
                         .arg((int)m_cachedSshError)
                         .arg(m_cachedSshErrorString);
-                    if (m_cachedSshError == SshTimeoutError) {
+                    if (isRecoverable(m_cachedSshError)) {
                         m_errorString += QString::fromLatin1(" (%1)")
                             .arg(tr("Consider increasing SSH connection timeout in options."));
                     }
@@ -586,6 +588,7 @@ void MerConnection::vmStmTransition(VmState toState, const char *event)
             .arg(QLatin1String(str(toState))));
 
     m_vmState = toState;
+    m_vmStateEntryTime.restart();
     m_vmStmTransition = true;
 }
 
@@ -957,6 +960,9 @@ bool MerConnection::sshStmStep()
         } else if (m_cachedSshError != SshNoError) {
             if (m_vmStartedOutside && !m_connectRequested) {
                 sshStmTransition(SshConnectingError, "connecting error+connect not requested");
+            } else if (m_vmStateEntryTime.elapsed() < (m_params.timeout * 1000) &&
+                       isRecoverable(m_cachedSshError)) {
+                ; // Do not report possibly recoverable boot-time failure
             } else {
                 // To be accurate, the question to the user should be "Wait longer?" instead of "Try
                 // again?" - the m_sshTryConnectTimer is active so we are already trying again. But
@@ -1086,7 +1092,9 @@ void MerConnection::createConnection()
 {
     QTC_CHECK(m_connection == 0);
 
-    m_connection = new SshConnection(m_params, this);
+    SshConnectionParameters params(m_params);
+    params.timeout = SSH_TRY_CONNECT_TIMEOUT / 1000;
+    m_connection = new SshConnection(params, this);
     connect(m_connection.data(), &SshConnection::connected,
             this, &MerConnection::onSshConnected);
     connect(m_connection.data(), &SshConnection::disconnected,
@@ -1284,7 +1292,7 @@ void MerConnection::openRetrySshConnectionQuestionBox()
     QString informativeText = tr("Connection error: %1 %2")
         .arg(m_cachedSshError)
         .arg(m_cachedSshErrorString);
-    if (m_cachedSshError == SshTimeoutError) {
+    if (isRecoverable(m_cachedSshError)) {
         informativeText += QString::fromLatin1("\n\n(%1)")
             .arg(tr("Consider increasing SSH connection timeout in options."));
     }
@@ -1324,6 +1332,21 @@ void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
         QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox.data(), &QObject::deleteLater);
         messageBox->disconnect(this);
         messageBox = 0;
+    }
+}
+
+bool MerConnection::isRecoverable(QSsh::SshError sshError)
+{
+    switch (sshError) {
+    case SshNoError:             return true;
+    case SshSocketError:         return true;
+    case SshTimeoutError:        return true;
+    case SshProtocolError:       return true;
+    case SshHostKeyError:        return false;
+    case SshKeyFileError:        return false;
+    case SshAuthenticationError: return false;
+    case SshClosedByServerError: return true;
+    case SshInternalError:       return true;
     }
 }
 
