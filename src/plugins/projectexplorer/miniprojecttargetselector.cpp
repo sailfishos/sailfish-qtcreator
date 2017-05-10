@@ -570,6 +570,10 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
     m_layout->setMargin(3);
     setAutoFillBackground(true);
     connect(KitManager::instance(), &KitManager::kitUpdated, this, &KitAreaWidget::updateKit);
+
+    QPalette p;
+    p.setColor(QPalette::ButtonText, Qt::white);
+    setPalette(p);
 }
 
 KitAreaWidget::~KitAreaWidget()
