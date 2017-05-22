@@ -234,7 +234,13 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
     connect(ui->webView, &QWebView::loadStarted,
             this, [this]() { setEnabled(false); });
     connect(ui->webView, &QWebView::loadFinished,
-            this, [this]() { setEnabled(true); },
+            this, [this]() {
+                setEnabled(true);
+                // Without this it does not repaint (Linux/X11) and leaves blank area
+                auto QWidget_update = static_cast<void (QWidget::*)()>(&QWidget::update);
+                QTimer::singleShot(200, ui->webView, QWidget_update);
+                QTimer::singleShot(200, this, QWidget_update);
+            },
             Qt::QueuedConnection);
 }
 
