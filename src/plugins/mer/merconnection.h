@@ -28,6 +28,7 @@
 #include <QBasicTimer>
 #include <QObject>
 #include <QPointer>
+#include <QTime>
 #include <QtGlobal>
 
 QT_BEGIN_NAMESPACE
@@ -152,6 +153,8 @@ private:
     void openRetryLockDownQuestionBox();
     void deleteMessageBox(QPointer<QMessageBox> &messageBox);
 
+    static bool isRecoverable(QSsh::SshError sshError);
+
     static const char *str(State state);
     static const char *str(VmState vmState);
     static const char *str(SshState sshState);
@@ -176,6 +179,7 @@ private:
     State m_state;
     QString m_errorString;
     VmState m_vmState;
+    QTime m_vmStateEntryTime;
     bool m_vmStartedOutside;
     SshState m_sshState;
 
