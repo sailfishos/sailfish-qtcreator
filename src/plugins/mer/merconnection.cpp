@@ -1348,6 +1348,9 @@ bool MerConnection::isRecoverable(QSsh::SshError sshError)
     case SshClosedByServerError: return true;
     case SshInternalError:       return true;
     }
+
+    QTC_CHECK(false);
+    return false;
 }
 
 const char *MerConnection::str(State state)
