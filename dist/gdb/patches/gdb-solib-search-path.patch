@@ -1,0 +1,124 @@
+From gdb-patches-return-94942-listarch-gdb-patches=sources dot redhat dot com at sourceware dot org Fri Sep 28 06:32:24 2012
+Return-Path: <gdb-patches-return-94942-listarch-gdb-patches=sources dot redhat dot com at sourceware dot org>
+Delivered-To: listarch-gdb-patches at sources dot redhat dot com
+Received: (qmail 28526 invoked by alias); 28 Sep 2012 06:32:21 -0000
+Received: (qmail 28517 invoked by uid 22791); 28 Sep 2012 06:32:20 -0000
+X-SWARE-Spam-Status: No, hits=-7.2 required=5.0	tests=BAYES_00,KHOP_RCVD_UNTRUST,RCVD_IN_DNSWL_HI,RP_MATCHES_RCVD
+X-Spam-Check-By: sourceware.org
+Received: from e24smtp04.br.ibm.com (HELO e24smtp04.br.ibm.com) (32.104.18.25)    by sourceware.org (qpsmtpd/0.43rc1) with ESMTP; Fri, 28 Sep 2012 06:32:11 +0000
+Received: from /spool/local	by e24smtp04.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted	for <gdb-patches@sourceware.org> from <emachado@linux.vnet.ibm.com>;	Fri, 28 Sep 2012 03:32:09 -0300
+Received: from d24dlp01.br.ibm.com (9.18.248.204)	by e24smtp04.br.ibm.com (10.172.0.140) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;	Fri, 28 Sep 2012 03:32:06 -0300
+Received: from d24relay01.br.ibm.com (d24relay01.br.ibm.com [9.8.31.16])	by d24dlp01.br.ibm.com (Postfix) with ESMTP id EC59C352001A	for <gdb-patches@sourceware.org>; Fri, 28 Sep 2012 02:32:05 -0400 (EDT)
+Received: from d24av03.br.ibm.com (d24av03.br.ibm.com [9.8.31.95])	by d24relay01.br.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8S6VuMe4624630	for <gdb-patches@sourceware.org>; Fri, 28 Sep 2012 03:31:56 -0300
+Received: from d24av03.br.ibm.com (loopback [127.0.0.1])	by d24av03.br.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8S4WPMh025378	for <gdb-patches@sourceware.org>; Fri, 28 Sep 2012 01:32:25 -0300
+Received: from grandaddy.ibm.com ([9.8.6.44])	by d24av03.br.ibm.com (8.14.4/8.13.1/NCO v10.0 AVin) with ESMTP id q8S4WPdZ025375	for <gdb-patches@sourceware.org>; Fri, 28 Sep 2012 01:32:25 -0300
+From: Edjunior Barbosa Machado <emachado at linux dot vnet dot ibm dot com>
+To: gdb-patches at sourceware dot org
+Subject: [RFC] Prevent GDB from loading native libraries when debugging a cross-target corefile
+Date: Fri, 28 Sep 2012 03:31:44 -0300
+Message-Id: <1348813904-21180-1-git-send-email-emachado@linux.vnet.ibm.com>
+CC: Nathan Miller <nathanm2 at us dot ibm dot com>, Jon Tollefson <tollefso at us dot ibm dot com>
+X-Content-Scanned: Fidelis XPS MAILER
+x-cbid: 12092806-8936-0000-0000-00000822BE80
+X-IsSubscribed: yes
+Mailing-List: contact gdb-patches-help at sourceware dot org; run by ezmlm
+Precedence: bulk
+List-Id: <gdb-patches.sourceware.org>
+List-Subscribe: <mailto:gdb-patches-subscribe at sourceware dot org>
+List-Archive: <http://sourceware.org/ml/gdb-patches/>
+List-Post: <mailto:gdb-patches at sourceware dot org>
+List-Help: <mailto:gdb-patches-help at sourceware dot org>, <http://sourceware dot org/ml/#faqs>
+Sender: gdb-patches-owner at sourceware dot org
+Delivered-To: mailing list gdb-patches at sourceware dot org
+
+Hi,
+
+The GDB documentation recommends the following in the 'set solib-search-path'
+description:
+
+"If you want to use `solib-search-path' instead of `sysroot', be sure to set
+`sysroot' to a nonexistent directory to prevent gdb from finding your host's
+libraries." (http://sourceware.org/gdb/onlinedocs/gdb/Files.html)
+
+However, when trying to debug cross-target corefiles using recent versions of
+gdb, we noticed it's trying to load host libraries instead of libraries from a
+cross-architecture jail (pointed by solib-search-path). Here's the example
+showing the problem:
+
+Using a faulty application foo that uses a shared library libfoo.so, generate a
+corefile in the target system (a powerpc machine in my example here):
+
+$ ls /usr/local/lib/libfoo.so
+/usr/local/lib/libfoo.so
+$ ./foo
+Segmentation fault (core dumped)
+
+Then copy the binary and the corefile for a cross-target debugging in the host
+(an x86 machine here) that has his own libfoo.so at the same /usr/local/lib
+and a cross environment at /opt/at6.0/ppc. Note that 'info sharedlibrary'
+shows that GDB was trying to load the native library libfoo.so:
+
+$ powerpc64-linux-gdb ./foo -q
+Reading symbols from /home/emachado/bugs/ppc32-bin/foo...done.
+(gdb) set sysroot /dev/null
+(gdb) set solib-search-path /opt/at6.0/ppc/lib:/opt/at6.0/ppc/usr/lib
+(gdb) core core.19304 
+[New LWP 19304]
+warning: `/usr/local/lib/libfoo.so': Shared library architecture unknown is not compatible with target architecture powerpc:common.
+warning: .dynamic section for "/opt/at6.0/ppc/lib/libc.so.6" is not at the expected address (wrong library or version mismatch?)
+warning: .dynamic section for "/opt/at6.0/ppc/lib/ld.so.1" is not at the expected address (wrong library or version mismatch?)
+warning: Could not load shared library symbols for linux-vdso32.so.1.
+Do you need "set solib-search-path" or "set sysroot"?
+Core was generated by `./foo'.
+Program terminated with signal 11, Segmentation fault.
+#0  0x10000704 in main () at foo.c:7
+7   printf("null dereference: %c\n", *p); 
+(gdb) info sharedlibrary 
+>From        To          Syms Read   Shared Object Library
+                        No          linux-vdso32.so.1
+0x0ffdec50  0x0ffded58  Yes (*)     /usr/local/lib/libfoo.so
+0x0fe49a5c  0x0ff6aacc  Yes         /opt/at6.0/ppc/lib/libc.so.6
+0xf7eb2fb0  0xf7ece9d0  Yes         /opt/at6.0/ppc/lib/ld.so.1
+(*): Shared library is missing debugging information.
+
+It might be worth mentioning that this behavior was modified by this patch from
+April 2010:
+http://sourceware.org/ml/gdb-patches/2010-04/msg00758.html
+
+Please consider the following patch as a fix for this issue.
+
+Thanks,
+--
+Edjunior
+
+gdb/
+2012-09-28  Nathan Miller  <nathanm2@us.ibm.com>
+	    Edjunior Machado  <emachado@linux.vnet.ibm.com>
+
+	* solib.c (solib_find): Prevent GDB from loading native libraries when
+	debugging a cross-target corefile.
+
+
+---
+ gdb/solib.c |    5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/gdb/solib.c b/gdb/solib.c
+index 01573f8..d795678 100644
+--- a/gdb/solib.c
++++ b/gdb/solib.c
+@@ -300,11 +300,6 @@ solib_find (char *in_pathname, int *fd)
+   if (found_file < 0)
+     temp_pathname = NULL;
+ 
+-  /* If not found, search the solib_search_path (if any).  */
+-  if (found_file < 0 && solib_search_path != NULL)
+-    found_file = openp (solib_search_path, OPF_TRY_CWD_FIRST,
+-			in_pathname, O_RDONLY | O_BINARY, &temp_pathname);
+-
+   /* If the search in gdb_sysroot failed, and the path name is
+      absolute at this point, make it relative.  (openp will try and open the
+      file according to its absolute path otherwise, which is not what we want.)
+-- 
+1.7.9.5
+
