@@ -41,6 +41,7 @@
 #include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/remotelinuxanalyzesupport.h>
@@ -51,6 +52,7 @@
 
 using namespace Debugger;
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 using namespace Mer;
 using namespace Mer::Internal;
 using namespace RemoteLinux;
@@ -146,6 +148,11 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             params.inferior.executable = stdRunnable.executable;
             params.remoteChannel = dev->sshParameters().host + QLatin1String(":-1");
             params.symbolFile = symbolFile;
+
+            QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
+            QTC_ASSERT(project, return 0);
+            foreach (QmakeProFileNode *node, project->allProFiles({QmakeProjectManager::SharedLibraryTemplate}))
+                params.solibSearchPath.append(node->targetInformation().destDir);
         }
 
         MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());

@@ -86,7 +86,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	cd gdb-${version} && \
 	touch configure && \
         patch -p2 < ${PATCHDIR}/pythonhome-7.4_linux.patch && \
-        patch -p2 < ${PATCHDIR}/gdb-ipv6.patch
+        patch -p2 < ${PATCHDIR}/gdb-ipv6.patch && \
+        patch -p1 < ${PATCHDIR}/gdb-solib-search-path.patch
 
 ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
 	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*

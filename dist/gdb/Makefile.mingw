@@ -93,7 +93,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	cd gdb-${version} && \
 	touch configure && \
 	patch -p2 < ${PATCHDIR}/gdb-ipv6.patch && \
-	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
+	patch -p2 < ${PATCHDIR}/mingw-compilation.patch && \
+	patch -p1 < ${PATCHDIR}/gdb-solib-search-path.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
 	$(Q)cd ${staging} && \
