@@ -119,7 +119,7 @@ void MerRemoteProcess::onConnectionError()
     if (!m_cache) {
         fprintf(stderr, "%s",
                 qPrintable(QString::fromLatin1(
-                               "Project ERROR: Could not connect to MerSDK Virtual Machine. %1\n")
+                               "Project ERROR: Could not connect to build engine virtual machine. %1\n")
                                          .arg(lastConnectionErrorString())));
         fflush(stderr);
     }
