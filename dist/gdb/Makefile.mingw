@@ -35,7 +35,7 @@ endif
 all: package
 
 clean:
-	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-*
+	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-* sailfish-gdb-*.7z
 
 distclean:
 	rm -rf ${staging} ${source} ${broot}/qtcreator-gdb-*

@@ -30,7 +30,7 @@ endif
 all:package
 
 clean:
-	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-* qtcreator-gdb-*.tar.gz
+	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-* sailfish-gdb-*.7z
 
 makesourcedir:
 	@test -e ${source} || mkdir ${source}
