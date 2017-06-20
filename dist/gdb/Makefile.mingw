@@ -9,8 +9,8 @@ expatversion=2.0.1
 iconvversion=1.14
 version=7.5.1
 targetdir=${broot}/qtcreator-gdb-${version}
-gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
-packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
+gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
+packageparts=${targetdir}/bin/lib ${targetdir}/bin/lib ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 
@@ -45,6 +45,7 @@ makesourcedir:
 
 maketargetdir:
 	@test -e ${targetdir} || mkdir ${targetdir}
+	@test -e ${targetdir}/bin || mkdir ${targetdir}/bin
 
 makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
@@ -112,7 +113,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingd
 	./configure -prefix=${staging} --enable-static && \
 	${MAKE} && ${MAKE} install
 
-${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
+${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
 	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
 	$(Q)export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
@@ -124,13 +125,12 @@ ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libi
 	--with-separate-debug-dir="" \
 	--with-python=${pydir} && \
 	${MAKE} && \
-	strip -o ${targetdir}/gdb-$*.exe gdb/gdb.exe
+	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
 
 package: ${gdbtargets} ${broot}/python/python.exe
-	$(Q)cp ${staging}/bin/libiconv* ${targetdir} && \
-	cp ${staging}/bin/libexpat* ${targetdir} && \
-	cp ${pydir}/python*.dll ${targetdir} && \
-	cp -r ${pydir}/lib ${targetdir} && \
-	mv ${targetdir} bin && \
+	$(Q)cp ${staging}/bin/libiconv* ${targetdir}/bin && \
+	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
+	cp ${pydir}/python*.dll ${targetdir}/bin && \
+	cp -r ${pydir}/lib ${targetdir}/bin && \
 	echo "Packing..." && \
-	7z a ${packagename} bin
+	7z a ${packagename} ${targetdir}/*
