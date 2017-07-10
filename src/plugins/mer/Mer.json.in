@@ -13,7 +13,7 @@
     ],
     \"Category\" : \"Device Support\",
     \"Description\" : \"Support for development for Sailfish OS devices.\",
-    \"Url\" : \"https://github.com/sailfish-sdk\",
+    \"Url\" : \"https://github.com/sailfishos/sailfish-qtcreator\",
     \"Arguments\" : [
         {
             \"Name\" : \"-mer-verbose\",
