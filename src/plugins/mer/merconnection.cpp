@@ -54,7 +54,11 @@ const int VM_HARD_CLOSE_TIMEOUT            = 15000; // via ACPI poweroff
 // recover, but only limited state information is exposed publicly, so these
 // numbers cannot really be interpreted as that a new network connection attempt
 // will happen every <number> of milliseconds.
-const int SSH_TRY_CONNECT_TIMEOUT          = 3000;
+const int SSH_TRY_CONNECT_TIMEOUT          = [] {
+    bool ok;
+    int env = qEnvironmentVariableIntValue("MER_SSH_TRY_CONNECT_TIMEOUT", &ok);
+    return ok ? env : 3000;
+}();
 const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
 const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
 const int DISMISS_MESSAGE_BOX_DELAY        = 2000;
