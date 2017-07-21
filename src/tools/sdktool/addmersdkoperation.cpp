@@ -49,8 +49,10 @@ const char MER_PARAM_SSH_PORT[] = "--ssh-port";
 const char MER_PARAM_WWW_PORT[] = "--www-port";
 const char MER_PARAM_HEADLESS[] = "--headless";
 const char MER_PARAM_INSTALLDIR[] = "--installdir";
+const char MER_PARAM_VERSION[] = "--version";
 
 AddMerSdkOperation::AddMerSdkOperation():
+    m_version(0),
     m_autoDetected(true),
     m_sshPort(0),
     m_wwwPort(0),
@@ -73,6 +75,7 @@ QString AddMerSdkOperation::argumentsHelpText() const
     const QString indent = QLatin1String("    ");
     return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>            mer sdk install directory (required).\n")
          + indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>              mer sdk virtual machine name (required).\n")
+         + indent + QLatin1String(MER_PARAM_VERSION) + QLatin1String(" <NUMBER>            configuration version (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is sdk autodetected.\n")
          + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
@@ -107,6 +110,14 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_name = next;
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_VERSION)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_version = next.toInt();
             continue;
         }
 
@@ -216,6 +227,10 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_VM_NAME << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_version == 0) {
+        std::cerr << MER_PARAM_VERSION << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_sharedHomePath.isEmpty()) {
         std::cerr << MER_PARAM_SHARED_HOME << MISSING << std::endl << std::endl;
         error = true;
@@ -264,7 +279,7 @@ int AddMerSdkOperation::execute() const
 {
     QVariantMap map = load(QLatin1String("mersdk"));
     if (map.isEmpty())
-        map = initializeSdks();
+        map = initializeSdks(m_version);
 
     map.insert(QLatin1String(Mer::Constants::MER_SDK_INSTALLDIR), m_installDir);
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
@@ -277,10 +292,10 @@ int AddMerSdkOperation::execute() const
     return save(result,QLatin1String("mersdk")) ? 0 : 3;
 }
 
-QVariantMap AddMerSdkOperation::initializeSdks()
+QVariantMap AddMerSdkOperation::initializeSdks(int version)
 {
     QVariantMap map;
-    map.insert(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY), 2);
+    map.insert(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY), version);
     map.insert(QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY), 0);
     return map;
 }
@@ -348,7 +363,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
 #ifdef WITH_TESTS
 bool AddMerSdkOperation::test() const
 {
-    QVariantMap map = initializeSdks();
+    QVariantMap map = initializeSdks(2);
 
     if (map.count() != 2
             || !map.contains(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY))

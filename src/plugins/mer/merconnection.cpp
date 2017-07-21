@@ -54,7 +54,11 @@ const int VM_HARD_CLOSE_TIMEOUT            = 15000; // via ACPI poweroff
 // recover, but only limited state information is exposed publicly, so these
 // numbers cannot really be interpreted as that a new network connection attempt
 // will happen every <number> of milliseconds.
-const int SSH_TRY_CONNECT_TIMEOUT          = 3000;
+const int SSH_TRY_CONNECT_TIMEOUT          = [] {
+    bool ok;
+    int env = qEnvironmentVariableIntValue("MER_SSH_TRY_CONNECT_TIMEOUT", &ok);
+    return ok ? env : 3000;
+}();
 const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
 const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
 const int DISMISS_MESSAGE_BOX_DELAY        = 2000;
@@ -1154,8 +1158,11 @@ void MerConnection::sshTryConnect()
     if (!m_connection || (m_connection->state() == SshConnection::Unconnected &&
                 /* Important: retry only after an SSH connection error is reported to us! Otherwise
                  * we would end trying-again endlessly, suppressing any SSH error. */
-                m_cachedSshError != SshNoError)) {
-        DBG << "SSH try connect";
+                m_cachedSshError != SshNoError && m_cachedSshErrorOrigin == m_connection)) {
+        if (m_connection)
+            DBG << "SSH try connect - previous error:" << m_cachedSshError << m_cachedSshErrorString;
+        else
+            DBG << "SSH try connect - no active connection";
         delete m_connection;
         createConnection();
         m_connection->connectToHost();
@@ -1431,6 +1438,7 @@ void MerConnection::onSshError(SshError error)
     DBG << "SSH error:" << error << m_connection->errorString();
     m_cachedSshError = error;
     m_cachedSshErrorString = m_connection->errorString();
+    m_cachedSshErrorOrigin = m_connection;
     vmPollState();
     sshStmScheduleExec();
 }

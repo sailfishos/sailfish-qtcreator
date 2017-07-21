@@ -200,6 +200,7 @@ private:
     bool m_cachedSshConnected;
     QSsh::SshError m_cachedSshError;
     QString m_cachedSshErrorString;
+    QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
 
     // timeout timers
     QBasicTimer m_vmStartingTimeoutTimer;

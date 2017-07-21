@@ -73,7 +73,7 @@ int RmMerSdkOperation::execute() const
 {
     QVariantMap map = load(QLatin1String("mersdk"));
     if (map.isEmpty())
-        map = AddMerSdkOperation::initializeSdks();
+        return 2;
 
     QVariantMap result = removeSdk(map, m_vmName);
 
@@ -85,10 +85,13 @@ int RmMerSdkOperation::execute() const
 
 QVariantMap RmMerSdkOperation::removeSdk(const QVariantMap &map, const QString &sdkName)
 {
-    QVariantMap result = AddMerSdkOperation::initializeSdks();
-
     QVariantList sdkList;
     bool ok;
+    int version = GetOperation::get(map, QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY)).toInt(&ok);
+    if (!ok) {
+        std::cerr << "Error: The version found in map is not an integer." << std::endl;
+        return map;
+    }
     int count = GetOperation::get(map, QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY)).toInt(&ok);
     if (!ok) {
         std::cerr << "Error: The count found in map is not an integer." << std::endl;
@@ -108,26 +111,23 @@ QVariantMap RmMerSdkOperation::removeSdk(const QVariantMap &map, const QString &
         return map;
     }
 
-    // remove data:
-    QStringList toRemove;
-    toRemove << QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY);
-    result = RmKeysOperation::rmKeys(result, toRemove);
-
     // insert data:
     KeyValuePairList data;
+    data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY), QVariant(version));
     data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY), QVariant(count - 1));
 
     for (int i = 0; i < sdkList.count(); ++i)
         data << KeyValuePair(QStringList() << QString::fromLatin1(Mer::Constants::MER_SDK_DATA_KEY) + QString::number(i),
                              sdkList.at(i));
 
+    QVariantMap result;
     return AddKeysOperation::addKeys(result, data);
 }
 
 #ifdef WITH_TESTS
 bool RmMerSdkOperation::test() const
 {
-    QVariantMap map = AddMerSdkOperation::addSdk(AddMerSdkOperation::initializeSdks(),
+    QVariantMap map = AddMerSdkOperation::addSdk(AddMerSdkOperation::initializeSdks(2),
                                                  QLatin1String("testSdk"), true,
                                                  QLatin1String("/test/sharedHomePath"),
                                                  QLatin1String("/test/sharedTargetPath"),

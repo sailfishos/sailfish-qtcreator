@@ -63,11 +63,12 @@ public:
            quint16 sshPort,
            quint16 wwwPort,
            bool headless);
-    static QVariantMap initializeSdks();
+    static QVariantMap initializeSdks(int version);
 
 private:
     QString m_installDir;
     QString m_name;
+    int m_version;
     bool m_autoDetected;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
