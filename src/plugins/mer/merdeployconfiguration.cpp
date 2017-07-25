@@ -29,19 +29,29 @@
 
 #include "merdeployconfiguration.h"
 
+#include "merdeploysteps.h"
+
 #include <coreplugin/idocument.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <utils/qtcassert.h>
 
 #include <QLabel>
 #include <QVBoxLayout>
 
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 using namespace RemoteLinux;
 
 namespace Mer {
 namespace Internal {
+
+namespace {
+const char SAILFISH_AMBIENCE_CONFIG[] = "sailfish-ambience";
+const int ADD_REMOVE_RPM_VALIDATION_TIMEOUT_MS = 1000;
+} // anonymous namespace
 
 MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
     : RemoteLinuxDeployConfiguration(parent, id, displayName)
@@ -111,11 +121,21 @@ Core::Id MerRsyncDeployConfiguration::configurationId()
 MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
 {
+    init();
 }
 
 MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *target, MerMb2RpmBuildConfiguration *source)
     : MerDeployConfiguration(target, source)
 {
+    init();
+}
+
+void MerMb2RpmBuildConfiguration::init()
+{
+    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(target()->project());
+    QTC_ASSERT(qmakeProject, return);
+    connect(qmakeProject, &QmakeProject::proFilesEvaluated, this,
+            &MerMb2RpmBuildConfiguration::addRemoveRpmValidationStep);
 }
 
 QString MerMb2RpmBuildConfiguration::displayName()
@@ -126,6 +146,47 @@ QString MerMb2RpmBuildConfiguration::displayName()
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
     return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+}
+
+void MerMb2RpmBuildConfiguration::addRemoveRpmValidationStep()
+{
+    // Avoid temporary changes
+    m_addRemoveRpmValidationStepTimer.start(ADD_REMOVE_RPM_VALIDATION_TIMEOUT_MS, this);
+}
+
+void MerMb2RpmBuildConfiguration::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_addRemoveRpmValidationStepTimer.timerId()) {
+        m_addRemoveRpmValidationStepTimer.stop();
+        doAddRemoveRpmValidationStep();
+    } else {
+        MerDeployConfiguration::timerEvent(event);
+    }
+}
+
+// Helps to add MerRpmValidationStep to all but sailfish-ambience projects
+void MerMb2RpmBuildConfiguration::doAddRemoveRpmValidationStep()
+{
+    static auto isAmbienceProject = [](Project *project) {
+        QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(project);
+        QTC_ASSERT(qmakeProject, return false);
+
+        QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
+        return rootNode->projectType() == AuxTemplate &&
+            rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
+    };
+
+    if (isAmbienceProject(target()->project())) {
+        for (int i = 0; i < stepList()->count(); ++i) {
+            if (stepList()->at(i)->id() == MerRpmValidationStep::stepId()) {
+                stepList()->removeStep(i);
+                break;
+            }
+        }
+    } else {
+        if (!stepList()->contains(MerRpmValidationStep::stepId()))
+            stepList()->appendStep(new MerRpmValidationStep(stepList()));
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

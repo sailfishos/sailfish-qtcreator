@@ -33,6 +33,8 @@
 //#include <projectexplorer/deployconfiguration.h>
 #include <remotelinux/remotelinuxdeployconfiguration.h>
 
+#include <QBasicTimer>
+
 QT_BEGIN_NAMESPACE
 class QLabel;
 QT_END_NAMESPACE
@@ -86,10 +88,21 @@ public:
     static QString displayName();
     static Core::Id configurationId();
 
+public slots:
+    void addRemoveRpmValidationStep();
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
+
 private:
     MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     MerMb2RpmBuildConfiguration(ProjectExplorer::Target *target, MerMb2RpmBuildConfiguration *source);
     friend class MerDeployConfigurationFactory;
+
+    void init();
+    void doAddRemoveRpmValidationStep();
+
+    QBasicTimer m_addRemoveRpmValidationStepTimer;
 };
 
 class MerRpmBuildDeployConfiguration : public MerDeployConfiguration
