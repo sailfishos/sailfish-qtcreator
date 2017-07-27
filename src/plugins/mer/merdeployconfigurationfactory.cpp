@@ -88,31 +88,31 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
 {
     QTC_ASSERT(canCreate(parent, id), return 0);
 
+    MerDeployConfiguration *dc = 0;
+
      if (id == MerRpmDeployConfiguration::configurationId()) {
-         auto *dc = new MerRpmDeployConfiguration(parent, id);
+         dc = new MerRpmDeployConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerMb2RpmDeployStep(dc->stepList()));
-         return dc;
      } else if (id == MerRsyncDeployConfiguration::configurationId()) {
-         auto *dc = new MerRsyncDeployConfiguration(parent, id);
+         dc = new MerRsyncDeployConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerMb2RsyncDeployStep(dc->stepList()));
-         return dc;
      } else if (id == MerMb2RpmBuildConfiguration::configurationId()) {
-         auto *dc = new MerMb2RpmBuildConfiguration(parent, id);
+         dc = new MerMb2RpmBuildConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerMb2RpmBuildStep(dc->stepList()));
-         dc->addRemoveRpmValidationStep();
          //dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
-         return dc;
      } else if (id == MerRpmBuildDeployConfiguration::configurationId()) {
-         auto *dc = new MerRpmBuildDeployConfiguration(parent, id);
+         dc = new MerRpmBuildDeployConfiguration(parent, id);
          dc->stepList()->insertStep(1, new MerRpmPackagingStep(dc->stepList()));
          dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
-         return dc;
      }
 
-     QTC_CHECK(false);
-     return 0;
+     QTC_ASSERT(dc, return 0);
+
+     dc->addRemoveSpecialSteps();
+
+     return dc;
 }
 
 

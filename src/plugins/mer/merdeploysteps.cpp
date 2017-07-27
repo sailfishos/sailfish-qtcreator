@@ -53,6 +53,8 @@
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+#include <remotelinux/abstractremotelinuxdeployservice.h>
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
@@ -63,6 +65,7 @@ using namespace Core;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 using namespace QSsh;
+using namespace RemoteLinux;
 using namespace Utils;
 
 namespace Mer {
@@ -864,6 +867,165 @@ void MerDeployStepWidget::setSummaryText(const QString& summaryText)
 QString MerDeployStepWidget::commnadText() const
 {
    return  m_ui.commandLabelEdit->text();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class MerNamedCommandDeployService : public AbstractRemoteLinuxDeployService
+{
+    Q_OBJECT
+    enum State { Inactive, Running };
+
+public:
+    explicit MerNamedCommandDeployService(QObject *parent = 0);
+
+    QString description() const { return m_description; }
+    QString command() const { return m_command; }
+    void setDescription(const QString &description) { m_description = description; }
+    void setCommand(const QString &command) { m_command = command; }
+
+    bool isDeploymentNecessary() const override { return true; }
+
+protected:
+    void doDeviceSetup() override { handleDeviceSetupDone(true); }
+    void stopDeviceSetup() override { handleDeviceSetupDone(false); }
+    void doDeploy() override;
+    void stopDeployment() override;
+
+private slots:
+    void handleStdout();
+    void handleStderr();
+    void handleProcessClosed(int exitStatus);
+
+private:
+    State m_state{Inactive};
+    QString m_description;
+    QString m_command;
+    SshRemoteProcessRunner *m_runner{};
+};
+
+MerNamedCommandDeployService::MerNamedCommandDeployService(QObject *parent)
+    : AbstractRemoteLinuxDeployService(parent)
+{
+}
+
+void MerNamedCommandDeployService::doDeploy()
+{
+    QTC_CHECK(!m_description.isEmpty());
+    QTC_CHECK(!m_command.isEmpty());
+    QTC_ASSERT(m_state == Inactive, handleDeploymentDone());
+
+    if (!m_runner)
+        m_runner = new SshRemoteProcessRunner(this);
+    connect(m_runner, &SshRemoteProcessRunner::readyReadStandardOutput, this, &MerNamedCommandDeployService::handleStdout);
+    connect(m_runner, &SshRemoteProcessRunner::readyReadStandardError, this, &MerNamedCommandDeployService::handleStderr);
+    connect(m_runner, &SshRemoteProcessRunner::processClosed, this, &MerNamedCommandDeployService::handleProcessClosed);
+
+    emit progressMessage(m_description);
+    m_state = Running;
+    m_runner->run(m_command.toUtf8(), deviceConfiguration()->sshParameters());
+}
+
+void MerNamedCommandDeployService::stopDeployment()
+{
+    QTC_ASSERT(m_state == Running, return);
+
+    disconnect(m_runner, 0, this, 0);
+    m_runner->cancel();
+    m_state = Inactive;
+    handleDeploymentDone();
+}
+
+void MerNamedCommandDeployService::handleStdout()
+{
+    emit stdOutData(QString::fromUtf8(m_runner->readAllStandardOutput()));
+}
+
+void MerNamedCommandDeployService::handleStderr()
+{
+    emit stdErrData(QString::fromUtf8(m_runner->readAllStandardError()));
+}
+
+void MerNamedCommandDeployService::handleProcessClosed(int exitStatus)
+{
+    QTC_ASSERT(m_state == Running, return);
+
+    if (exitStatus == SshRemoteProcess::FailedToStart) {
+        emit errorMessage(tr("Remote process failed to start."));
+    } else if (exitStatus == SshRemoteProcess::CrashExit) {
+        emit errorMessage(tr("Remote process was killed by a signal."));
+    } else if (m_runner->processExitCode() != 0) {
+        emit errorMessage(tr("Remote process finished with exit code %1.")
+            .arg(m_runner->processExitCode()));
+    } else {
+        emit progressMessage(tr("Remote command finished successfully."));
+    }
+
+    stopDeployment();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MerNamedCommandDeployStep::MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id)
+    : AbstractRemoteLinuxDeployStep(bsl, id)
+    , m_deployService(new MerNamedCommandDeployService(this))
+{
+}
+
+MerNamedCommandDeployStep::MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, MerNamedCommandDeployStep *bs)
+    : AbstractRemoteLinuxDeployStep(bsl, bs)
+    , m_deployService(new MerNamedCommandDeployService(this))
+{
+    m_deployService->setDescription(bs->m_deployService->description());
+    m_deployService->setCommand(bs->m_deployService->command());
+}
+
+AbstractRemoteLinuxDeployService *MerNamedCommandDeployStep::deployService() const
+{
+    return m_deployService;
+}
+
+bool MerNamedCommandDeployStep::initInternal(QString *error)
+{
+    return m_deployService->isDeploymentPossible(error);
+}
+
+void MerNamedCommandDeployStep::setCommand(const QString &description, const QString &command)
+{
+    m_deployService->setDescription(description);
+    m_deployService->setCommand(command);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl)
+    : MerNamedCommandDeployStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+    QString ambienceName = target()->project()->displayName();
+
+    QFile scriptFile(QStringLiteral(":/mer/reset-ambience.sh"));
+    bool ok = scriptFile.open(QIODevice::ReadOnly);
+    QTC_CHECK(ok);
+    QString script = QString::fromUtf8(scriptFile.readAll());
+    script.prepend(QStringLiteral("AMBIENCE_URL='file:///usr/share/ambience/%1/%1.ambience'\n").arg(ambienceName));
+
+    setCommand(tr("Starting remote command to reset ambience '%1'...").arg(ambienceName), script);
+}
+
+MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, MerResetAmbienceDeployStep *bs)
+    : MerNamedCommandDeployStep(bsl, bs)
+{
+}
+
+Core::Id MerResetAmbienceDeployStep::stepId()
+{
+    return Core::Id("Mer.MerResetAmbienceDeployStep");
+}
+
+QString MerResetAmbienceDeployStep::displayName()
+{
+    return tr("Reset Sailfish OS Ambience");
 }
 
 } // Internal

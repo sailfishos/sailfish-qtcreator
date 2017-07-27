@@ -15,5 +15,6 @@
         <file>images/sdk.png</file>
         <file>images/sdk@2x.png</file>
         <file>Mer.mimetypes.xml</file>
+        <file>reset-ambience.sh</file>
     </qresource>
 </RCC>

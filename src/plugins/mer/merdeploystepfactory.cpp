@@ -57,6 +57,7 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
     ids << MerRpmValidationStep::stepId();
     ids << MerUploadAndInstallRpmStep::stepId();
     ids << MerLocalRsyncDeployStep::stepId();
+    ids << MerResetAmbienceDeployStep::stepId();
 
     return ids;
 }
@@ -79,6 +80,8 @@ QString MerDeployStepFactory::displayNameForId(Core::Id id) const
         return MerUploadAndInstallRpmStep::displayName();
     if (id == MerLocalRsyncDeployStep::stepId())
         return MerLocalRsyncDeployStep::displayName();
+    if (id == MerResetAmbienceDeployStep::stepId())
+        return MerResetAmbienceDeployStep::displayName();
 
     return QString();
 }
@@ -106,6 +109,8 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, Core::Id id)
         return new MerUploadAndInstallRpmStep(parent);
     if (id == MerLocalRsyncDeployStep::stepId())
         return new MerLocalRsyncDeployStep(parent);
+    if (id == MerResetAmbienceDeployStep::stepId())
+        return new MerResetAmbienceDeployStep(parent);
 
     return 0;
 }
@@ -154,6 +159,8 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
         return new MerUploadAndInstallRpmStep(parent, other);
     if (MerLocalRsyncDeployStep * const other = qobject_cast<MerLocalRsyncDeployStep *>(product))
         return new MerLocalRsyncDeployStep(parent, other);
+    if (MerResetAmbienceDeployStep * const other = qobject_cast<MerResetAmbienceDeployStep *>(product))
+        return new MerResetAmbienceDeployStep(parent, other);
 
     return 0;
 }
