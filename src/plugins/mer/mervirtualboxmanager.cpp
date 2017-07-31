@@ -200,13 +200,9 @@ bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
+// It is an error to call this function when the VM vmName is running
 bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder)
 {
-    if (isVirtualMachineRunning(vmName)) {
-        qWarning() << "Virtual machine " << vmName << " is running, unable to update shared folder.";
-        return false;
-    }
-
     QStringList rargs;
     rargs.append(QLatin1String(SHAREDFOLDER));
     rargs.append(QLatin1String(REMOVE_SHARED));
@@ -271,17 +267,9 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
+// It is an error to call this function when the VM vmName is running
 void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
-    // Start VM if it is not running
-    if (isVirtualMachineRunning(vmName))
-        return;
-
-    if (!isVirtualMachineRegistered(vmName)) {
-        qWarning() << "MerVirtualBoxManager: VM not registered:" << vmName;
-        return;
-    }
-
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
     arguments.append(vmName);
@@ -299,11 +287,9 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
     process->start(vBoxManagePath(), arguments);
 }
 
+// It is an error to call this function when the VM vmName is not running
 void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
 {
-    if (!isVirtualMachineRunning(vmName))
-        return;
-
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
     arguments.append(vmName);
@@ -333,6 +319,7 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
     return listedVirtualMachines(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
+// It is an error to call this function when the VM vmName is running
 bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
 {
     QString videoMode = QStringLiteral("%1x%2x%3")
