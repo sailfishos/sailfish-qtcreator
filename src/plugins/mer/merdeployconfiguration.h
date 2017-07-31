@@ -33,9 +33,15 @@
 //#include <projectexplorer/deployconfiguration.h>
 #include <remotelinux/remotelinuxdeployconfiguration.h>
 
+#include <QBasicTimer>
+
 QT_BEGIN_NAMESPACE
 class QLabel;
 QT_END_NAMESPACE
+
+namespace ProjectExplorer {
+class Project;
+}
 
 namespace Mer {
 namespace Internal {
@@ -46,7 +52,21 @@ class MerDeployConfiguration : public RemoteLinux::RemoteLinuxDeployConfiguratio
 public:
     MerDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id,const QString& displayName);
     MerDeployConfiguration(ProjectExplorer::Target *target, MerDeployConfiguration *source);
-    friend class MerDeployConfigurationFactory;
+
+public slots:
+    void addRemoveSpecialSteps();
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
+    virtual void doAddRemoveSpecialSteps();
+
+    static bool isAmbienceProject(ProjectExplorer::Project *project);
+    static void removeStep(ProjectExplorer::BuildStepList *stepList, Core::Id stepId);
+
+private:
+    void init();
+
+    QBasicTimer m_addRemoveSpecialStepsTimer;
 };
 
 class MerRpmDeployConfiguration : public MerDeployConfiguration
@@ -56,6 +76,9 @@ class MerRpmDeployConfiguration : public MerDeployConfiguration
 public:
     static QString displayName();
     static Core::Id configurationId();
+
+protected:
+    void doAddRemoveSpecialSteps() override;
 
 private:
     MerRpmDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
@@ -72,6 +95,9 @@ public:
     static QString displayName();
     static Core::Id configurationId();
 
+protected:
+    void doAddRemoveSpecialSteps() override;
+
 private:
     MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     MerRsyncDeployConfiguration(ProjectExplorer::Target *target, MerRsyncDeployConfiguration *source);
@@ -85,6 +111,9 @@ class MerMb2RpmBuildConfiguration : public  MerDeployConfiguration
 public:
     static QString displayName();
     static Core::Id configurationId();
+
+protected:
+    void doAddRemoveSpecialSteps() override;
 
 private:
     MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);

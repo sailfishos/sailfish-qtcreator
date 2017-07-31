@@ -29,31 +29,93 @@
 
 #include "merdeployconfiguration.h"
 
+#include "merdeploysteps.h"
+
 #include <coreplugin/idocument.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <utils/qtcassert.h>
 
 #include <QLabel>
 #include <QVBoxLayout>
 
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 using namespace RemoteLinux;
 
 namespace Mer {
 namespace Internal {
+
+namespace {
+const char SAILFISH_AMBIENCE_CONFIG[] = "sailfish-ambience";
+const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
+} // anonymous namespace
 
 MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
     : RemoteLinuxDeployConfiguration(parent, id, displayName)
 {
     setDisplayName(displayName);
     setDefaultDisplayName(displayName);
+    init();
 }
 
 MerDeployConfiguration::MerDeployConfiguration(Target *target, MerDeployConfiguration *source)
     : RemoteLinuxDeployConfiguration(target, source)
 {
     cloneSteps(source);
+    init();
+}
+
+void MerDeployConfiguration::init()
+{
+    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(target()->project());
+    QTC_ASSERT(qmakeProject, return);
+    connect(qmakeProject, &QmakeProject::proFilesEvaluated, this,
+            &MerMb2RpmBuildConfiguration::addRemoveSpecialSteps);
+}
+
+void MerDeployConfiguration::addRemoveSpecialSteps()
+{
+    // Avoid temporary changes
+    m_addRemoveSpecialStepsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
+}
+
+// Override to add specific deploy steps based on particular project configuration
+void MerDeployConfiguration::doAddRemoveSpecialSteps()
+{
+}
+
+void MerDeployConfiguration::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_addRemoveSpecialStepsTimer.timerId()) {
+        m_addRemoveSpecialStepsTimer.stop();
+        doAddRemoveSpecialSteps();
+    } else {
+        RemoteLinuxDeployConfiguration::timerEvent(event);
+    }
+}
+
+bool MerDeployConfiguration::isAmbienceProject(Project *project)
+{
+    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(project);
+    QTC_ASSERT(qmakeProject, return false);
+
+    QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
+    return rootNode->projectType() == AuxTemplate &&
+        rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
+}
+
+// TODO add BuildStepList::removeStep(Core::Id)
+void MerDeployConfiguration::removeStep(BuildStepList *stepList, Core::Id stepId)
+{
+    for (int i = 0; i < stepList->count(); ++i) {
+        if (stepList->at(i)->id() == stepId) {
+            stepList->removeStep(i);
+            break;
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -84,6 +146,16 @@ Core::Id MerRpmDeployConfiguration::configurationId()
     return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
+void MerRpmDeployConfiguration::doAddRemoveSpecialSteps()
+{
+    if (isAmbienceProject(target()->project())) {
+        if (!stepList()->contains(MerResetAmbienceDeployStep::stepId()))
+            stepList()->appendStep(new MerResetAmbienceDeployStep(stepList()));
+    } else {
+        removeStep(stepList(), MerResetAmbienceDeployStep::stepId());
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, Core::Id id)
@@ -106,6 +178,16 @@ Core::Id MerRsyncDeployConfiguration::configurationId()
     return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
 }
 
+void MerRsyncDeployConfiguration::doAddRemoveSpecialSteps()
+{
+    if (isAmbienceProject(target()->project())) {
+        if (!stepList()->contains(MerResetAmbienceDeployStep::stepId()))
+            stepList()->appendStep(new MerResetAmbienceDeployStep(stepList()));
+    } else {
+        removeStep(stepList(), MerResetAmbienceDeployStep::stepId());
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////
 //TODO:HACK
 MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, Core::Id id)
@@ -126,6 +208,16 @@ QString MerMb2RpmBuildConfiguration::displayName()
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
     return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+}
+
+void MerMb2RpmBuildConfiguration::doAddRemoveSpecialSteps()
+{
+    if (isAmbienceProject(target()->project())) {
+        removeStep(stepList(), MerRpmValidationStep::stepId());
+    } else {
+        if (!stepList()->contains(MerRpmValidationStep::stepId()))
+            stepList()->appendStep(new MerRpmValidationStep(stepList()));
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -34,12 +34,14 @@
 #include "merabstractvmstartstep.h"
 
 #include <projectexplorer/abstractprocessstep.h>
+#include <remotelinux/abstractremotelinuxdeploystep.h>
 #include <ssh/sshconnection.h>
 
 namespace Mer {
 namespace Internal {
 
 class MerDeployConfiguration;
+class MerNamedCommandDeployService;
 
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
@@ -248,6 +250,30 @@ private:
     Ui::MerDeployStepWidget m_ui;
     QString m_displayText;
     QString m_summaryText;
+};
+
+class MerNamedCommandDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
+{
+    Q_OBJECT
+public:
+    MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+    MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, MerNamedCommandDeployStep *bs);
+    RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const override;
+protected:
+    bool initInternal(QString *error = 0) override;
+    void setCommand(const QString &name, const QString &command);
+private:
+    MerNamedCommandDeployService *m_deployService;
+};
+
+class MerResetAmbienceDeployStep : public MerNamedCommandDeployStep
+{
+    Q_OBJECT
+public:
+    explicit MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl);
+    MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, MerResetAmbienceDeployStep *bs);
+    static Core::Id stepId();
+    static QString displayName();
 };
 
 } // namespace Internal

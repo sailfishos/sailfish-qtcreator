@@ -34,19 +34,13 @@
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
-#include <qmakeprojectmanager/qmakeproject.h>
 #include <remotelinux/genericdirectuploadstep.h>
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
-using namespace QmakeProjectManager;
 
 namespace Mer {
 namespace Internal {
-
-namespace {
-const char SAILFISH_AMBIENCE_CONFIG[] = "sailfish-ambience";
-} // anonymous namespace
 
 MerDeployConfigurationFactory::MerDeployConfigurationFactory(QObject *parent)
     : DeployConfigurationFactory(parent)
@@ -94,17 +88,7 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
 {
     QTC_ASSERT(canCreate(parent, id), return 0);
 
-    static auto isAmbienceProject = [](Project *project) {
-        QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(project);
-        if (!qmakeProject)
-            return false;
-
-        QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
-        return rootNode->projectType() == AuxTemplate &&
-            rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
-    };
-
-    DeployConfiguration *dc = 0;
+    MerDeployConfiguration *dc = 0;
 
      if (id == MerRpmDeployConfiguration::configurationId()) {
          dc = new MerRpmDeployConfiguration(parent, id);
@@ -117,8 +101,6 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
      } else if (id == MerMb2RpmBuildConfiguration::configurationId()) {
          dc = new MerMb2RpmBuildConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerMb2RpmBuildStep(dc->stepList()));
-         if (!isAmbienceProject(parent->project()))
-             dc->stepList()->insertStep(1, new MerRpmValidationStep(dc->stepList()));
          //dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
      } else if (id == MerRpmBuildDeployConfiguration::configurationId()) {
          dc = new MerRpmBuildDeployConfiguration(parent, id);
@@ -126,7 +108,11 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
          dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
      }
 
-    return dc;
+     QTC_ASSERT(dc, return 0);
+
+     dc->addRemoveSpecialSteps();
+
+     return dc;
 }
 
 
