@@ -320,7 +320,7 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
+void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
 {
     QString videoMode = QStringLiteral("%1x%2x%3")
         .arg(size.width())
@@ -333,15 +333,13 @@ bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     args.append(QLatin1String(CUSTOM_VIDEO_MODE1));
     args.append(videoMode);
 
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), args);
-    if (!process.waitForFinished()) {
-        qWarning() << "VBoxManage failed to set video mode " << videoMode;
-        return false;
-    }
-
-    return true;
+    QProcess *process = new QProcess(instance());
+    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            process, &QProcess::deleteLater);
+    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            process, &QProcess::deleteLater);
+    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
+    process->start(vBoxManagePath(), args);
 }
 
 QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)

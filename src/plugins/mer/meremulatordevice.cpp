@@ -231,6 +231,7 @@ MerEmulatorDevice::~MerEmulatorDevice()
 #if __cplusplus >= 201103L
     QObject::disconnect(m_virtualMachineChangedConnection);
 #endif
+    delete m_setVideoModeTimer;
 }
 
 IDeviceWidget *MerEmulatorDevice::createWidget()
@@ -411,7 +412,7 @@ void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 
     QVariantMap fullDeviceModelData = readFullDeviceModelData();
     updateDconfDb(fullDeviceModelData);
-    setVideoMode();
+    scheduleSetVideoMode();
 }
 
 Qt::Orientation MerEmulatorDevice::orientation() const
@@ -426,7 +427,7 @@ void MerEmulatorDevice::setOrientation(Qt::Orientation orientation)
 
     m_orientation = orientation;
 
-    setVideoMode();
+    scheduleSetVideoMode();
 }
 
 bool MerEmulatorDevice::isViewScaled() const
@@ -441,7 +442,7 @@ void MerEmulatorDevice::setViewScaled(bool viewScaled)
 
     m_viewScaled = viewScaled;
 
-    setVideoMode();
+    scheduleSetVideoMode();
 }
 
 MerConnection *MerEmulatorDevice::connection() const
@@ -489,6 +490,20 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
     } else {
         m_deviceModel = QString();
     }
+}
+
+void MerEmulatorDevice::scheduleSetVideoMode()
+{
+    // this is not a QObject
+    if (!m_setVideoModeTimer) {
+        m_setVideoModeTimer = new QTimer;
+        m_setVideoModeTimer->setSingleShot(true);
+        QObject::connect(m_setVideoModeTimer, &QTimer::timeout, [this]() {
+            setVideoMode();
+            m_setVideoModeTimer->deleteLater();
+        });
+    }
+    m_setVideoModeTimer->start(0);
 }
 
 void MerEmulatorDevice::setVideoMode()
