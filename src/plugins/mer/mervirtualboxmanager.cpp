@@ -30,9 +30,11 @@
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
+#include <QBasicTimer>
 #include <QDebug>
 #include <QDir>
 #include <QProcess>
+#include <QQueue>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSize>
@@ -122,12 +124,135 @@ static QString vBoxManagePath()
     return path;
 }
 
+class CommandSerializer : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit CommandSerializer(QObject *parent)
+        : QObject(parent)
+    {
+        QTC_ASSERT(!s_instance, return);
+        s_instance = this;
+    }
+
+    ~CommandSerializer() override
+    {
+        s_instance = 0;
+    }
+
+    static bool runSynchronous(QProcess *process)
+    {
+        s_instance->m_queue.prepend(process);
+
+        // Currently runnning an asynchronous process?
+        if (s_instance->m_current)
+            s_instance->m_current->waitForFinished();
+
+        s_instance->dequeue();
+        QTC_CHECK(s_instance->m_current == process);
+
+        return s_instance->m_current->waitForFinished();
+    }
+
+    static void runAsynchronous(QProcess *process)
+    {
+        s_instance->m_queue.enqueue(process);
+        s_instance->scheduleDequeue();
+    }
+
+protected:
+    void timerEvent(QTimerEvent *event) override
+    {
+        if (event->timerId() == m_dequeueTimer.timerId()) {
+            m_dequeueTimer.stop();
+            dequeue();
+        } else  {
+            QObject::timerEvent(event);
+        }
+    }
+
+private:
+    void scheduleDequeue()
+    {
+        m_dequeueTimer.start(0, this);
+    }
+
+    void dequeue()
+    {
+        if (m_current)
+            return;
+        if (m_queue.isEmpty())
+            return;
+
+        m_current = m_queue.dequeue();
+
+        connect(m_current, &QProcess::errorOccurred, this, &CommandSerializer::finalize);
+        void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
+        connect(m_current, QProcess_finished, this, &CommandSerializer::finalize);
+
+        m_current->start(QIODevice::ReadWrite | QIODevice::Text);
+    }
+
+private slots:
+    void finalize()
+    {
+        QTC_ASSERT(sender() == m_current, return);
+
+        m_current->disconnect(this);
+        m_current = 0;
+
+        scheduleDequeue();
+    }
+
+private:
+    static CommandSerializer *s_instance;
+    QQueue<QProcess *> m_queue;
+    QProcess *m_current{};
+    QBasicTimer m_dequeueTimer;
+};
+
+CommandSerializer *CommandSerializer::s_instance = 0;
+
+class VBoxManageProcess : public QProcess
+{
+    Q_OBJECT
+
+public:
+    explicit VBoxManageProcess(QObject *parent = 0)
+        : QProcess(parent)
+    {
+        setProcessChannelMode(QProcess::ForwardedErrorChannel);
+        setProgram(vBoxManagePath());
+    }
+
+    bool runSynchronously(const QStringList &arguments)
+    {
+        setArguments(arguments);
+        return CommandSerializer::runSynchronous(this);
+    }
+
+    void runAsynchronously(const QStringList &arguments)
+    {
+        setArguments(arguments);
+        CommandSerializer::runAsynchronous(this);
+    }
+
+    void setDeleteOnFinished()
+    {
+        void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
+        connect(this, &QProcess::errorOccurred, this, &QObject::deleteLater);
+        connect(this, QProcess_finished, this, &QObject::deleteLater);
+    }
+};
+
 MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
 
 MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
 {
     m_instance = this;
+    new CommandSerializer(this);
 
     const int deviceCount = DeviceManager::instance()->deviceCount();
     for (int i = 0; i < deviceCount; ++i)
@@ -151,29 +276,14 @@ MerVirtualBoxManager *MerVirtualBoxManager::instance()
     return m_instance;
 }
 
-bool MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
-{
-    QStringList arguments;
-    arguments.append(QLatin1String(SHOWVMINFO));
-    arguments.append(vmName);
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
-        return false;
-
-    return isVirtualMachineRunningFromInfo(QString::fromLocal8Bit(process.readAllStandardOutput()));
-}
-
 void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
                                                    std::function<void(bool)> slot)
 {
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
-    QProcess *process = new QProcess;
-    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process->start(vBoxManagePath(), arguments);
+
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
 
     void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
     connect(process, QProcess_finished, context,
@@ -182,8 +292,10 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
                 Q_UNUSED(exitStatus);
                 slot(isVirtualMachineRunningFromInfo(
                         QString::fromLocal8Bit(process->readAllStandardOutput())));
-                delete process;
             });
+
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
 }
 
 bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
@@ -191,10 +303,9 @@ bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
     QStringList arguments;
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments))
         return false;
 
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
@@ -209,10 +320,9 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     rargs.append(vmName);
     rargs.append(QLatin1String(SHARE_NAME));
     rargs.append(mountName);
-    QProcess rproc;
-    rproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    rproc.start(vBoxManagePath(), rargs);
-    if (!rproc.waitForFinished()) {
+
+    VBoxManageProcess rproc;
+    if (!rproc.runSynchronously(rargs)) {
         qWarning() << "VBoxManage failed to remove " << mountName;
         return false;
     }
@@ -226,10 +336,8 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     aargs.append(QLatin1String(HOSTPATH));
     aargs.append(newFolder);
 
-    QProcess aproc;
-    aproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    aproc.start(vBoxManagePath(), aargs);
-    if (!aproc.waitForFinished()) {
+    VBoxManageProcess aproc;
+    if (!aproc.runSynchronously(aargs)) {
         qWarning() << "VBoxManage failed to add " << mountName;
         return false;
     }
@@ -240,10 +348,8 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     sargs.append(QString::fromLatin1(ENABLE_SYMLINKS).arg(mountName));
     sargs.append(QLatin1String(YES_ARG));
 
-    QProcess sproc;
-    sproc.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    sproc.start(vBoxManagePath(), sargs);
-    if (!sproc.waitForFinished()) {
+    VBoxManageProcess sproc;
+    if (!sproc.runSynchronously(sargs)) {
         qWarning() << "VBoxManage failed to enable symlinks under " << mountName;
         return false;
     }
@@ -258,10 +364,8 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
     arguments.append(QLatin1String(MACHINE_READABLE));
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments))
         return info;
 
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
@@ -278,13 +382,9 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
         arguments.append(QLatin1String(HEADLESS));
     }
 
-    QProcess *process = new QProcess(instance());
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            process, &QObject::deleteLater);
-    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-            process, &QObject::deleteLater);
-    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process->start(vBoxManagePath(), arguments);
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
 }
 
 // It is an error to call this function when the VM vmName is not running
@@ -295,13 +395,9 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
     arguments.append(vmName);
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
-    QProcess *process = new QProcess(instance());
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            process, &QProcess::deleteLater);
-    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-            process, &QProcess::deleteLater);
-    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process->start(vBoxManagePath(), arguments);
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
 }
 
 QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
@@ -310,10 +406,8 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
     QStringList arguments;
     arguments.append(QLatin1String(LIST));
     arguments.append(QLatin1String(VMS));
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments))
         return vms;
 
     return listedVirtualMachines(QString::fromLocal8Bit(process.readAllStandardOutput()));
@@ -333,13 +427,9 @@ void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     args.append(QLatin1String(CUSTOM_VIDEO_MODE1));
     args.append(videoMode);
 
-    QProcess *process = new QProcess(instance());
-    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
-            process, &QProcess::deleteLater);
-    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-            process, &QProcess::deleteLater);
-    process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process->start(vBoxManagePath(), args);
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+    process->setDeleteOnFinished();
+    process->runAsynchronously(args);
 }
 
 QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
@@ -348,10 +438,8 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     arguments.append(QLatin1String(GETEXTRADATA));
     arguments.append(vmName);
     arguments.append(key);
-    QProcess process;
-    process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    process.start(vBoxManagePath(), arguments, QIODevice::ReadWrite | QIODevice::Text);
-    if (!process.waitForFinished()) {
+    VBoxManageProcess process;
+    if (process.runSynchronously(arguments)) {
         qWarning() << "VBoxManage failed to getextradata";
         return QString();
     }
@@ -374,10 +462,8 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(QLatin1String(DELETE));
         arguments.append(qmlLivePortsForwardingRuleName(i));
 
-        QProcess process;
-        process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-        process.start(vBoxManagePath(), arguments);
-        if (!process.waitForFinished())
+        VBoxManageProcess process;
+        if (!process.runSynchronously(arguments))
             qWarning() << "VBoxManage failed to" << MODIFYVM;
     }
 
@@ -392,10 +478,8 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(QLatin1String(NATPF1));
         arguments.append(qmlLivePortsForwardingRule(i, port));
 
-        QProcess process;
-        process.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-        process.start(vBoxManagePath(), arguments);
-        if (!process.waitForFinished())
+        VBoxManageProcess process;
+        if (process.runSynchronously(arguments))
             qWarning() << "VBoxManage failed to" << MODIFYVM;
 
         ++i;
@@ -536,3 +620,5 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
 
 } // Internal
 } // VirtualBox
+
+#include "mervirtualboxmanager.moc"

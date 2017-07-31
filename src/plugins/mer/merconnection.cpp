@@ -348,7 +348,7 @@ bool MerConnection::lockDown(bool lockDown)
         }
     } else {
         DBG << "Lockdown end";
-        vmPollState();
+        vmPollState(Asynchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
         return true;
@@ -369,7 +369,7 @@ void MerConnection::refresh()
 {
     DBG << "Refresh requested";
 
-    vmPollState();
+    vmPollState(Asynchronous);
 }
 
 void MerConnection::connectTo(ConnectOptions options)
@@ -410,7 +410,7 @@ void MerConnection::connectTo(ConnectOptions options)
         m_connectOptions = options;
     }
 
-    vmPollState();
+    vmPollState(Asynchronous);
     vmStmScheduleExec();
     sshStmScheduleExec();
 }
@@ -451,8 +451,7 @@ void MerConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
-        const bool async = true;
-        vmPollState(async);
+        vmPollState(Asynchronous);
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
     } else if (event->timerId() == m_vmStmExecTimer.timerId()) {
@@ -482,7 +481,7 @@ void MerConnection::reset()
 
     if (!m_vmName.isEmpty() && !m_vmStatePollTimer.isActive()) {
         m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
-        vmPollState();
+        vmPollState(Asynchronous);
     }
 
     vmStmScheduleExec();
@@ -572,7 +571,7 @@ void MerConnection::updateState()
         m_connectRequested = true;
         QTC_CHECK(m_disconnectRequested == false);
 
-        vmPollState();
+        vmPollState(Asynchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
     }
@@ -1134,7 +1133,11 @@ void MerConnection::vmPollState(bool async)
 
     m_pollingVmState = true;
 
-    auto handler = [this](bool vmRunning) {
+    QEventLoop *loop = 0;
+    if (!async)
+        loop = new QEventLoop(this);
+
+    auto handler = [this, loop](bool vmRunning) {
         if (vmRunning != m_cachedVmRunning) {
             DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
             m_cachedVmRunning = vmRunning;
@@ -1143,13 +1146,16 @@ void MerConnection::vmPollState(bool async)
         }
 
         m_pollingVmState = false;
+
+        if (loop)
+            loop->quit();
     };
 
-    if (async) {
-        MerVirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
-    } else {
-        bool vmRunning = MerVirtualBoxManager::isVirtualMachineRunning(m_vmName);
-        handler(vmRunning);
+    MerVirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
+
+    if (!async) {
+        loop->exec();
+        delete loop, loop = 0;
     }
 }
 
@@ -1429,7 +1435,7 @@ void MerConnection::onSshDisconnected()
 {
     DBG << "SSH disconnected";
     m_cachedSshConnected = false;
-    vmPollState();
+    vmPollState(Asynchronous);
     sshStmScheduleExec();
 }
 
@@ -1439,7 +1445,7 @@ void MerConnection::onSshError(SshError error)
     m_cachedSshError = error;
     m_cachedSshErrorString = m_connection->errorString();
     m_cachedSshErrorOrigin = m_connection;
-    vmPollState();
+    vmPollState(Asynchronous);
     sshStmScheduleExec();
 }
 

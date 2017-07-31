@@ -66,6 +66,8 @@ class MerConnection : public QObject
         SshConnectionLost,
     };
 
+    const bool Asynchronous = true;
+
 public:
     enum State {
         Disconnected,

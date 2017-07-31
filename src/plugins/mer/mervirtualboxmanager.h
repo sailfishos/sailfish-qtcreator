@@ -62,7 +62,6 @@ class MerVirtualBoxManager : public QObject
 public:
     static MerVirtualBoxManager* instance();
     ~MerVirtualBoxManager() override;
-    static bool isVirtualMachineRunning(const QString &vmName);
     static void isVirtualMachineRunning(const QString &vmName, QObject *context,
                                         std::function<void(bool)> slot);
     static bool isVirtualMachineRegistered(const QString &vmName);
