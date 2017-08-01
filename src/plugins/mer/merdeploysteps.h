@@ -37,8 +37,14 @@
 #include <remotelinux/abstractremotelinuxdeploystep.h>
 #include <ssh/sshconnection.h>
 
+#include <QDialog>
+
 namespace Mer {
 namespace Internal {
+
+namespace Ui {
+class MerRpmInfo;
+}
 
 class MerDeployConfiguration;
 class MerNamedCommandDeployService;
@@ -204,14 +210,17 @@ private:
     QStringList m_packages;
 };
 
-class RpmInfo: public QObject
+class RpmInfo: public QDialog
 {
     Q_OBJECT
 public:
-    RpmInfo(const QStringList &list);
+    RpmInfo(const QStringList &list, QWidget *parent);
+    ~RpmInfo();
 public slots:
-    void info();
+    void copyToClipboard();
+    void openContainingFolder();
 private:
+    Ui::MerRpmInfo *m_ui;
     QStringList m_list;
 };
 

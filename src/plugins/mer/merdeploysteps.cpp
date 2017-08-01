@@ -38,7 +38,9 @@
 #include "mersettings.h"
 #include "mertargetkitinformation.h"
 #include "mervirtualboxmanager.h"
+#include "ui_merrpminfo.h"
 
+#include <coreplugin/fileutils.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
@@ -58,7 +60,10 @@
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
-#include <QMessageBox>
+#include <QApplication>
+#include <QClipboard>
+#include <QMimeData>
+#include <QScrollBar>
 #include <QTimer>
 
 using namespace Core;
@@ -688,7 +693,7 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
     if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
-        new RpmInfo(m_packages);
+        new RpmInfo(m_packages, ICore::dialogParent());
     }
 }
 
@@ -719,24 +724,49 @@ void MerMb2RpmBuildStep::stdOutput(const QString &line)
     MerProcessStep::stdOutput(line);
 }
 
-RpmInfo::RpmInfo(const QStringList& list):
-    m_list(list)
+RpmInfo::RpmInfo(const QStringList& list, QWidget *parent)
+    : QDialog(parent)
+    , m_ui(new Ui::MerRpmInfo)
+    , m_list(list)
 {
-    QTimer::singleShot(0, this, &RpmInfo::info);
+    setAttribute(Qt::WA_DeleteOnClose);
+
+    m_ui->setupUi(this);
+    m_ui->textEdit->setPlainText(m_list.join(QLatin1Char('\n')));
+
+    connect(m_ui->copyButton, &QAbstractButton::clicked, this, &RpmInfo::copyToClipboard);
+    connect(m_ui->openButton, &QAbstractButton::clicked, this, &RpmInfo::openContainingFolder);
+
+    QTimer::singleShot(0, m_ui->textEdit, [this]() {
+        m_ui->textEdit->horizontalScrollBar()->triggerAction(QAbstractSlider::SliderToMaximum);
+    });
+
+    show();
 }
 
-void RpmInfo::info()
+RpmInfo::~RpmInfo()
 {
-    QString message(QLatin1String("Following packages have been created:"));
-    message.append(QLatin1String("<ul>"));
-    foreach(const QString file,m_list) {
-        message.append(QLatin1String("<li>"));
-        message.append(file);
-        message.append(QLatin1String("</li>"));
-    }
-    message.append(QLatin1String("</ul>"));
-    QMessageBox::information(ICore::mainWindow(), tr("Packages created"),message);
-    this->deleteLater();
+    delete m_ui, m_ui = 0;
+}
+
+void RpmInfo::copyToClipboard()
+{
+    QList<QUrl> urls;
+    urls.reserve(m_list.size());
+    foreach (const QString &path, m_list)
+        urls.append(QUrl::fromLocalFile(path));
+
+    QMimeData *mime = new QMimeData;
+    mime->setText(m_list.join(QLatin1Char('\n')));
+    mime->setUrls(urls);
+
+    QApplication::clipboard()->setMimeData(mime);
+}
+
+void RpmInfo::openContainingFolder()
+{
+    QTC_ASSERT(!m_list.isEmpty(), return);
+    Core::FileUtils::showInGraphicalShell(ICore::mainWindow(), m_list.first());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////

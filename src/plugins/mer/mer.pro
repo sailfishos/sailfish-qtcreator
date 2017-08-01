@@ -23,6 +23,7 @@ FORMS += \
     merhardwaredevicewizardselectionpage.ui \
     merhardwaredevicewizardsetuppage.ui \
     meroptionswidget.ui \
+    merrpminfo.ui \
     merrpmpackagingwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     mersdkdetailswidget.ui \
