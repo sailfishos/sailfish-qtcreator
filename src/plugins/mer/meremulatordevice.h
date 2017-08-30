@@ -26,8 +26,13 @@
 #include "merdevice.h"
 
 #include <QCoreApplication>
+#include <QPointer>
 #include <QSharedPointer>
 #include <QSize>
+
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
 
 namespace Mer {
 namespace Internal {
@@ -118,6 +123,7 @@ private:
     MerEmulatorDevice(const MerEmulatorDevice &other);
 
     void updateAvailableDeviceModels();
+    void scheduleSetVideoMode();
     void setVideoMode();
     void updateDconfDb(const QVariantMap &fullDeviceModelData);
     QVariantMap readFullDeviceModelData() const;
@@ -134,6 +140,7 @@ private:
     QMap<QString, MerEmulatorDeviceModel> m_availableDeviceModels;
     Qt::Orientation m_orientation;
     bool m_viewScaled;
+    QPointer<QTimer> m_setVideoModeTimer;
 };
 
 }
