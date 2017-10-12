@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CUSTOMCOLORDIALOG_H
-#define CUSTOMCOLORDIALOG_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include <QFrame>
@@ -57,7 +56,6 @@ public:
         emit colorChanged();
     }
 
-public slots:
     void changeColor(const QColor &color) { setColor(color); }
     void spinBoxChanged();
     void onColorBoxChanged();
@@ -103,5 +101,3 @@ private:
 };
 
 } //QmlEditorWidgets
-
-#endif //CUSTOMCOLORDIALOG_H

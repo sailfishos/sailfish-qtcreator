@@ -26,8 +26,8 @@
 #include "avddialog.h"
 #include "androidconfigurations.h"
 
-#include <coreplugin/coreicons.h>
 #include <utils/tooltip/tooltip.h>
+#include <utils/utilsicons.h>
 
 #include <QKeyEvent>
 #include <QMessageBox>
@@ -57,12 +57,13 @@ AvdDialog::AvdDialog(int minApiLevel, const QString &targetArch, const AndroidCo
     m_avdDialog.nameLineEdit->setValidator(v);
     m_avdDialog.nameLineEdit->installEventFilter(this);
 
-    m_avdDialog.warningIcon->setPixmap(Core::Icons::WARNING.pixmap());
+    m_avdDialog.warningIcon->setPixmap(Utils::Icons::WARNING.pixmap());
 
     updateApiLevelComboBox();
 
-    connect(m_avdDialog.abiComboBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateApiLevelComboBox()));
+    connect(m_avdDialog.abiComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AvdDialog::updateApiLevelComboBox);
 
     connect(&m_hideTipTimer, &QTimer::timeout,
             this, [](){Utils::ToolTip::hide();});

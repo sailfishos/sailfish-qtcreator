@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PYTHONEDITOR_EDITOR_H
-#define PYTHONEDITOR_EDITOR_H
+#pragma once
 
 #include <texteditor/texteditor.h>
 
@@ -33,13 +32,9 @@ namespace Internal {
 
 class PythonEditorFactory : public TextEditor::TextEditorFactory
 {
-    Q_OBJECT
-
 public:
     PythonEditorFactory();
 };
 
 } // namespace Internal
 } // namespace PythonEditor
-
-#endif // PYTHONEDITOR_EDITOR_H

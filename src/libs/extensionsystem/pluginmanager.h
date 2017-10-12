@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EXTENSIONSYSTEM_PLUGINMANAGER_H
-#define EXTENSIONSYSTEM_PLUGINMANAGER_H
+#pragma once
 
 #include "extensionsystem_global.h"
 #include <aggregation/aggregate.h>
@@ -38,7 +37,6 @@ class QSettings;
 QT_END_NAMESPACE
 
 namespace ExtensionSystem {
-class PluginCollection;
 class IPlugin;
 class PluginSpec;
 
@@ -116,8 +114,8 @@ public:
     static void setPluginPaths(const QStringList &paths);
     static QString pluginIID();
     static void setPluginIID(const QString &iid);
-    static QList<PluginSpec *> plugins();
-    static QHash<QString, PluginCollection *> pluginCollections();
+    static const QList<PluginSpec *> plugins();
+    static QHash<QString, QList<PluginSpec *>> pluginCollections();
     static bool hasError();
     static QSet<PluginSpec *> pluginsRequiringPlugin(PluginSpec *spec);
     static QSet<PluginSpec *> pluginsRequiredByPlugin(PluginSpec *spec);
@@ -149,6 +147,11 @@ public:
 
     static bool isInitializationDone();
 
+    void remoteArguments(const QString &serializedArguments, QObject *socket);
+    void shutdown();
+
+    QString systemInformation() const;
+
 signals:
     void objectAdded(QObject *obj);
     void aboutToRemoveObject(QObject *obj);
@@ -157,13 +160,7 @@ signals:
     void initializationDone();
     void testsFinished(int failedTests);
 
-public slots:
-    void remoteArguments(const QString &serializedArguments, QObject *socket);
-    void shutdown();
-
     friend class Internal::PluginManagerPrivate;
 };
 
 } // namespace ExtensionSystem
-
-#endif // EXTENSIONSYSTEM_PLUGINMANAGER_H

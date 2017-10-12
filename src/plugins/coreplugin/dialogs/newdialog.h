@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NEWDIALOG_H
-#define NEWDIALOG_H
+#pragma once
 
 #include "../iwizardfactory.h"
 
@@ -62,7 +61,7 @@ public:
     void showDialog();
     Id selectedPlatform() const;
 
-    static bool isRunning();
+    static QWidget *currentDialog();
 
 protected:
     bool event(QEvent *);
@@ -79,7 +78,7 @@ private:
     void addItem(QStandardItem *topLevelCategoryItem, IWizardFactory *factory);
     void saveState();
 
-    static bool m_isRunning;
+    static QWidget *m_currentDialog;
 
     Ui::NewDialog *m_ui;
     QStandardItemModel *m_model;
@@ -94,5 +93,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // NEWDIALOG_H

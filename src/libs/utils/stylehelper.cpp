@@ -64,6 +64,18 @@ QColor StyleHelper::mergedColors(const QColor &colorA, const QColor &colorB, int
     return tmp;
 }
 
+QColor StyleHelper::alphaBlendedColors(const QColor &colorA, const QColor &colorB)
+{
+    const int alpha = colorB.alpha();
+    const int antiAlpha = 255 - alpha;
+
+    return QColor(
+                (colorA.red() * antiAlpha + colorB.red() * alpha) / 255,
+                (colorA.green() * antiAlpha + colorB.green() * alpha) / 255,
+                (colorA.blue() * antiAlpha + colorB.blue() * alpha) / 255
+                );
+}
+
 qreal StyleHelper::sidebarFontSize()
 {
     return HostOsInfo::isMacHost() ? 10 : 7.5;
@@ -81,10 +93,9 @@ QColor StyleHelper::notTooBrightHighlightColor()
 QPalette StyleHelper::sidebarFontPalette(const QPalette &original)
 {
     QPalette palette = original;
-    palette.setColor(QPalette::Active, QPalette::Text, panelTextColor());
-    palette.setColor(QPalette::Active, QPalette::WindowText, panelTextColor());
-    palette.setColor(QPalette::Inactive, QPalette::Text, panelTextColor().darker());
-    palette.setColor(QPalette::Inactive, QPalette::WindowText, panelTextColor().darker());
+    const QColor textColor = creatorTheme()->color(Theme::ProgressBarTitleColor);
+    palette.setColor(QPalette::WindowText, textColor);
+    palette.setColor(QPalette::Text, textColor);
     return palette;
 }
 
@@ -103,6 +114,12 @@ QColor StyleHelper::m_requestedBaseColor;
 
 QColor StyleHelper::baseColor(bool lightColored)
 {
+    static const bool windowColorAsBase = creatorTheme()->flag(Theme::WindowColorAsBase);
+    if (windowColorAsBase) {
+        static const QColor windowColor = QApplication::palette().color(QPalette::Window);
+        return windowColor;
+    }
+
     if (!lightColored)
         return m_baseColor;
     else
@@ -139,6 +156,14 @@ QColor StyleHelper::borderColor(bool lightColored)
                   result.saturation(),
                   result.value() / 2);
     return result;
+}
+
+QColor StyleHelper::toolBarBorderColor()
+{
+    const QColor base = baseColor();
+    return QColor::fromHsv(base.hue(),
+                           base.saturation() ,
+                           clamp(base.value() * 0.80f));
 }
 
 // We try to ensure that the actual color used are within
@@ -315,7 +340,8 @@ void StyleHelper::drawArrow(QStyle::PrimitiveElement element, QPainter *painter,
         if (!enabled) {
             drawCommonStyleArrow(image.rect(), creatorTheme()->color(Theme::IconsDisabledColor));
         } else {
-            drawCommonStyleArrow(image.rect().translated(0, devicePixelRatio), toolBarDropShadowColor());
+            if (creatorTheme()->flag(Theme::ToolBarIconShadow))
+                drawCommonStyleArrow(image.rect().translated(0, devicePixelRatio), toolBarDropShadowColor());
             drawCommonStyleArrow(image.rect(), creatorTheme()->color(Theme::IconsBaseColor));
         }
         painter.end();
@@ -393,7 +419,7 @@ void StyleHelper::drawIconWithShadow(const QIcon &icon, const QRect &rect,
             const bool hasDisabledState = icon.availableSizes(QIcon::Disabled).contains(px.size());
             if (!hasDisabledState)
                 px = disabledSideBarIcon(icon.pixmap(window, rect.size()));
-        } else {
+        } else if (creatorTheme()->flag(Theme::ToolBarIconShadow)) {
             // Draw shadow
             QImage tmp(px.size() + QSize(radius * 2, radius * 2 + 1), QImage::Format_ARGB32_Premultiplied);
             tmp.fill(Qt::transparent);

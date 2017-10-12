@@ -29,13 +29,13 @@
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <remotelinux/sshkeydeployer.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
 #include <utils/portlist.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QDialog>
@@ -235,16 +235,16 @@ void MerHardwareDeviceWidget::updatePrivateKeyWarningLabel()
 
 void MerHardwareDeviceWidget::initGui()
 {
-    m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->portsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
-    m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
-    m_ui->privateKeyWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->privateKeyWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->privateKeyWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                              + tr("File does not exist.")
                                              + QLatin1String("</font>"));

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NODEPROPERTY_H
-#define NODEPROPERTY_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "nodeabstractproperty.h"
@@ -44,6 +43,7 @@ public:
     ModelNode modelNode() const;
 
     void reparentHere(const ModelNode &modelNode);
+    void setDynamicTypeNameAndsetModelNode(const TypeName &typeName, const ModelNode &modelNode);
 
     NodeProperty();
 protected:
@@ -51,5 +51,3 @@ protected:
 };
 
 } // namespace QmlDesigner
-
-#endif // NODEPROPERTY_H

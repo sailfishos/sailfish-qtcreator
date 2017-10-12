@@ -33,7 +33,7 @@
 #include <coreplugin/id.h>
 
 namespace Utils {
-    class PortList;
+    class Port;
 }
 
 namespace Mer {
@@ -75,9 +75,9 @@ public:
 
 private:
     MerVirtualBoxManager(QObject *parent = 0);
-    void setUpQmlLivePortsForwarding(const QString &vmName, const QSet<int> &ports);
+    void setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports);
     QString qmlLivePortsForwardingRuleName(int index);
-    QString qmlLivePortsForwardingRule(int index, int port);
+    QString qmlLivePortsForwardingRule(int index, Utils::Port port);
 
 private slots:
     void onDeviceAdded(Core::Id id);
@@ -88,7 +88,7 @@ private:
     static MerVirtualBoxManager *m_instance;
     friend class MerPlugin;
 
-    QHash<Core::Id, QSet<int>> m_deviceQmlLivePortsCache;
+    QHash<Core::Id, QList<Utils::Port>> m_deviceQmlLivePortsCache;
 };
 
 } // Internal

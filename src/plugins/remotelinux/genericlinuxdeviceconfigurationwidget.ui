@@ -292,12 +292,22 @@
    <extends>QWidget</extends>
    <header location="global">utils/pathchooser.h</header>
    <container>1</container>
-   <slots>
-    <signal>editingFinished()</signal>
-    <signal>browsingFinished()</signal>
-   </slots>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>passwordButton</tabstop>
+  <tabstop>keyButton</tabstop>
+  <tabstop>hostLineEdit</tabstop>
+  <tabstop>sshPortSpinBox</tabstop>
+  <tabstop>hostKeyCheckBox</tabstop>
+  <tabstop>portsLineEdit</tabstop>
+  <tabstop>timeoutSpinBox</tabstop>
+  <tabstop>userLineEdit</tabstop>
+  <tabstop>pwdLineEdit</tabstop>
+  <tabstop>showPasswordCheckBox</tabstop>
+  <tabstop>createKeyButton</tabstop>
+  <tabstop>gdbServerLineEdit</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

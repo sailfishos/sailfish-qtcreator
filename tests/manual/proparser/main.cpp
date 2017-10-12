@@ -66,7 +66,7 @@ public:
 static EvalHandler evalHandler;
 
 static int evaluate(const QString &fileName, const QString &in_pwd, const QString &out_pwd,
-                    bool cumulative, ProFileGlobals *option, QMakeParser *parser, QMakeVfs *vfs,
+                    bool cumulative, QMakeGlobals *option, QMakeParser *parser, QMakeVfs *vfs,
                     int level)
 {
     static QSet<QString> visited;
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
-    ProFileGlobals option;
+    QMakeGlobals option;
     QString qmake = QString::fromLocal8Bit(qgetenv("TESTREADER_QMAKE"));
     if (qmake.isEmpty())
         qmake = QLibraryInfo::location(QLibraryInfo::BinariesPath) + QLatin1String("/qmake");
@@ -189,6 +189,8 @@ int main(int argc, char **argv)
         qCritical("usage: testreader [-v] [-d [-d]] [-c] <filenme> [<out_pwd>] [<variable assignments>]");
         return 3;
     }
+    option.commitCommandLineArguments(state);
+    option.useEnvironment();
     if (out_pwd.isEmpty())
         out_pwd = in_pwd;
     option.setDirectories(in_pwd, out_pwd);

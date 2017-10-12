@@ -38,7 +38,10 @@
 #include <QLabel>
 #include <QStandardItemModel>
 
+#include <algorithm>
+
 using Core::ICore;
+using ProjectExplorer::ProjectExplorerPlugin;
 
 namespace QmlProjectManager {
 namespace Internal {
@@ -68,8 +71,8 @@ QmlProjectRunConfigurationWidget::QmlProjectRunConfigurationWidget(QmlProjectRun
 
     connect(m_fileListCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
             this, &QmlProjectRunConfigurationWidget::setMainScript);
-    connect(ProjectExplorer::ProjectExplorerPlugin::instance(), SIGNAL(fileListChanged()),
-            SLOT(updateFileComboBox()));
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::fileListChanged,
+            this, &QmlProjectRunConfigurationWidget::updateFileComboBox);
 
     QLineEdit *qmlViewerArgs = new QLineEdit;
     qmlViewerArgs->setText(rc->m_qmlViewerArgs);
@@ -83,8 +86,8 @@ QmlProjectRunConfigurationWidget::QmlProjectRunConfigurationWidget(QmlProjectRun
 
     updateFileComboBox();
 
-    connect(rc, SIGNAL(scriptSourceChanged()),
-            this, SLOT(updateFileComboBox()));
+    connect(rc, &QmlProjectRunConfiguration::scriptSourceChanged,
+            this, &QmlProjectRunConfigurationWidget::updateFileComboBox);
 }
 
 static bool caseInsensitiveLessThan(const QString &s1, const QString &s2)
@@ -120,7 +123,7 @@ void QmlProjectRunConfigurationWidget::updateFileComboBox()
     }
     sortedFiles = relativeFiles;
 
-    qStableSort(sortedFiles.begin(), sortedFiles.end(), caseInsensitiveLessThan);
+    std::stable_sort(sortedFiles.begin(), sortedFiles.end(), caseInsensitiveLessThan);
 
     QString mainScriptPath;
     if (m_runConfiguration->mainScriptSource() != QmlProjectRunConfiguration::FileInEditor)

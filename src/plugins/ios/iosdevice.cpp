@@ -31,6 +31,7 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <coreplugin/helpmanager.h>
+#include <utils/icon.h>
 #include <utils/portlist.h>
 
 #include <QCoreApplication>
@@ -78,6 +79,16 @@ static QString CFStringRef2QString(CFStringRef s)
 namespace Ios {
 namespace Internal {
 
+static const QList<Utils::Icon>& iosDeviceIcon()
+{
+    static const QList<Utils::Icon> icon =
+        {Utils::Icon({{":/ios/images/iosdevicesmall.png",
+                       Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
+         Utils::Icon({{":/ios/images/iosdevice.png",
+                       Utils::Theme::IconsBaseColor}})};
+    return icon;
+}
+
 IosDevice::IosDevice()
     : IDevice(Core::Id(Constants::IOS_DEVICE_TYPE),
                              IDevice::AutoDetected,
@@ -88,9 +99,10 @@ IosDevice::IosDevice()
     setDisplayName(IosDevice::name());
     setDeviceState(DeviceDisconnected);
     Utils::PortList ports;
-    ports.addRange(Constants::IOS_DEVICE_PORT_START,
-                   Constants::IOS_DEVICE_PORT_END);
+    ports.addRange(Utils::Port(Constants::IOS_DEVICE_PORT_START),
+                   Utils::Port(Constants::IOS_DEVICE_PORT_END));
     setFreePorts(ports);
+    setDeviceIcon(iosDeviceIcon());
 }
 
 IosDevice::IosDevice(const IosDevice &other)
@@ -107,6 +119,7 @@ IosDevice::IosDevice(const QString &uid)
 {
     setDisplayName(IosDevice::name());
     setDeviceState(DeviceDisconnected);
+    setDeviceIcon(iosDeviceIcon());
 }
 
 
@@ -200,12 +213,12 @@ QString IosDevice::osVersion() const
     return m_extraInfo.value(QLatin1String("osVersion"));
 }
 
-quint16 IosDevice::nextPort() const
+Utils::Port IosDevice::nextPort() const
 {
     // use qrand instead?
     if (++m_lastPort >= Constants::IOS_DEVICE_PORT_END)
         m_lastPort = Constants::IOS_DEVICE_PORT_START;
-    return m_lastPort;
+    return Utils::Port(m_lastPort);
 }
 
 bool IosDevice::canAutoDetectPorts() const
@@ -288,10 +301,10 @@ void IosDeviceManager::deviceDisconnected(const QString &uid)
 void IosDeviceManager::updateInfo(const QString &devId)
 {
     IosToolHandler *requester = new IosToolHandler(IosDeviceType(IosDeviceType::IosDevice), this);
-    connect(requester, SIGNAL(deviceInfo(Ios::IosToolHandler*,QString,Ios::IosToolHandler::Dict)),
-            SLOT(deviceInfo(Ios::IosToolHandler*,QString,Ios::IosToolHandler::Dict)), Qt::QueuedConnection);
-    connect(requester, SIGNAL(finished(Ios::IosToolHandler*)),
-            SLOT(infoGathererFinished(Ios::IosToolHandler*)));
+    connect(requester, &IosToolHandler::deviceInfo,
+            this, &IosDeviceManager::deviceInfo, Qt::QueuedConnection);
+    connect(requester, &IosToolHandler::finished,
+            this, &IosDeviceManager::infoGathererFinished);
     requester->requestDeviceInfo(devId);
 }
 
@@ -518,8 +531,8 @@ IosDeviceManager::IosDeviceManager(QObject *parent) :
 {
     m_userModeDevicesTimer.setSingleShot(true);
     m_userModeDevicesTimer.setInterval(8000);
-    connect(&m_userModeDevicesTimer, SIGNAL(timeout()),
-            SLOT(updateUserModeDevices()));
+    connect(&m_userModeDevicesTimer, &QTimer::timeout,
+            this, &IosDeviceManager::updateUserModeDevices);
 }
 
 void IosDeviceManager::updateUserModeDevices()

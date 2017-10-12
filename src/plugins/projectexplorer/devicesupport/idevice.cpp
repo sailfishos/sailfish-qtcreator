@@ -30,8 +30,12 @@
 
 #include "../kit.h"
 #include "../kitinformation.h"
+#include "../runconfiguration.h"
+#include "../runnables.h"
 
 #include <ssh/sshconnection.h>
+#include <utils/algorithm.h>
+#include <utils/icon.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
@@ -155,6 +159,8 @@ public:
     QSsh::SshConnectionParameters sshParameters;
     Utils::PortList freePorts;
     QString debugServerPath;
+
+    QList<Utils::Icon> deviceIcons;
 };
 } // namespace Internal
 
@@ -411,6 +417,18 @@ QString IDevice::deviceStateToString() const
     }
 }
 
+void IDevice::setDeviceIcon(const QList<Utils::Icon> &deviceIcon)
+{
+    d->deviceIcons = deviceIcon;
+}
+
+QIcon IDevice::deviceIcon() const
+{
+    const QList<QIcon> icons =
+            Utils::transform(d->deviceIcons, [](const Utils::Icon &icon){return icon.icon();});
+    return Utils::Icon::combinedIcon(icons);
+}
+
 QSsh::SshConnectionParameters IDevice::sshParameters() const
 {
     return d->sshParameters;
@@ -422,9 +440,9 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-QString IDevice::qmlProfilerHost() const
+Connection IDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return d->sshParameters.host;
+    return HostName(d->sshParameters.host);
 }
 
 void IDevice::setFreePorts(const Utils::PortList &freePorts)
@@ -480,5 +498,7 @@ DeviceProcessSignalOperation::DeviceProcessSignalOperation()
 DeviceEnvironmentFetcher::DeviceEnvironmentFetcher()
 {
 }
+
+void *HostName::staticTypeId = &HostName::staticTypeId;
 
 } // namespace ProjectExplorer

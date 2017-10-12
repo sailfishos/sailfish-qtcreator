@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLSCONSTANTS_H
-#define CPPTOOLSCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -50,7 +49,10 @@ const char CPPTOOLS_SETTINGSGROUP[] = "CppTools";
 const char LOWERCASE_CPPFILES_KEY[] = "LowerCaseFiles";
 enum { lowerCaseFilesDefault = 1 };
 const char CPPTOOLS_SORT_EDITOR_DOCUMENT_OUTLINE[] = "SortedMethodOverview";
+const char CPPTOOLS_SHOW_INFO_BAR_FOR_HEADER_ERRORS[] = "ShowInfoBarForHeaderErrors";
 const char CPPTOOLS_MODEL_MANAGER_PCH_USAGE[] = "PCHUsage";
+const char CPPTOOLS_SKIP_INDEXING_BIG_FILES[] = "SkipIndexingBigFiles";
+const char CPPTOOLS_INDEXER_FILE_SIZE_LIMIT[] = "IndexerFileSizeLimit";
 
 const char CPP_CLANG_BUILTIN_CONFIG_ID_EVERYTHING_WITH_EXCEPTIONS[] = "Builtin.EverythingWithExceptions";
 
@@ -71,5 +73,3 @@ const char CPP_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++");
 
 } // namespace Constants
 } // namespace CppTools
-
-#endif // CPPTOOLSCONSTANTS_H

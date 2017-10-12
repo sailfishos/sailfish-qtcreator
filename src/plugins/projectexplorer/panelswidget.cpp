@@ -25,8 +25,6 @@
 
 #include "panelswidget.h"
 
-#include "propertiespanel.h"
-
 #include <QPainter>
 #include <QVBoxLayout>
 #include <QLabel>
@@ -34,6 +32,7 @@
 #include <utils/stylehelper.h>
 #include <utils/theme/theme.h>
 #include <utils/qtcassert.h>
+#include <utils/styledbar.h>
 
 namespace {
 const int ICON_SIZE(64);
@@ -85,7 +84,7 @@ void RootWidget::paintEvent(QPaintEvent *e)
 {
     QWidget::paintEvent(e);
 
-    if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
+    if (!creatorTheme()->flag(Theme::FlatToolBars)) {
         // draw separator line to the right of the settings panel
         QPainter painter(this);
         QColor light = StyleHelper::mergedColors(
@@ -106,14 +105,13 @@ void RootWidget::paintEvent(QPaintEvent *e)
 ///
 
 PanelsWidget::PanelsWidget(QWidget *parent) :
-    QScrollArea(parent),
+    QWidget(parent),
     m_root(new RootWidget(this))
 {
     // We want a 900px wide widget with and the scrollbar at the
     // side of the screen.
     m_root->setMaximumWidth(900);
     m_root->setContentsMargins(0, 0, 40, 0);
-
     QPalette pal;
     QColor background = StyleHelper::mergedColors(
                 palette().window().color(), Qt::white, 85);
@@ -122,26 +120,35 @@ PanelsWidget::PanelsWidget(QWidget *parent) :
     pal.setColor(QPalette::All, QPalette::Window, background);
     m_root->setPalette(pal);
 
+    m_scroller = new QScrollArea(this);
+    m_scroller->setWidget(m_root);
+    m_scroller->setFrameStyle(QFrame::NoFrame);
+    m_scroller->setWidgetResizable(true);
+    m_scroller->setFocusPolicy(Qt::NoFocus);
+
     // The layout holding the individual panels:
-    QVBoxLayout *topLayout = new QVBoxLayout(m_root);
+    auto topLayout = new QVBoxLayout(m_root);
     topLayout->setMargin(0);
     topLayout->setSpacing(0);
 
     m_layout = new QGridLayout;
     m_layout->setColumnMinimumWidth(0, ICON_SIZE + 4);
     m_layout->setSpacing(0);
+
     topLayout->addLayout(m_layout);
     topLayout->addStretch(100);
 
-    setWidget(m_root);
-    setFrameStyle(QFrame::NoFrame);
-    setWidgetResizable(true);
-    setFocusPolicy(Qt::NoFocus);
+    auto layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(new Utils::StyledBar(this));
+    layout->addWidget(m_scroller);
+
+    //layout->addWidget(new FindToolBarPlaceHolder(this));
 }
 
 PanelsWidget::~PanelsWidget()
 {
-    qDeleteAll(m_panels);
 }
 
 /*
@@ -157,23 +164,21 @@ PanelsWidget::~PanelsWidget()
  * |        | widget (with contentsmargins adjusted!)   |
  * +--------+-------------------------------------------+ BELOW_CONTENTS_MARGIN
  */
-void PanelsWidget::addPropertiesPanel(PropertiesPanel *panel)
+void PanelsWidget::addPropertiesPanel(const QString &displayName, const QIcon &icon, QWidget *widget)
 {
-    QTC_ASSERT(panel, return);
-
     const int headerRow = m_layout->rowCount();
 
     // icon:
-    if (!panel->icon().isNull()) {
-        QLabel *iconLabel = new QLabel(m_root);
-        iconLabel->setPixmap(panel->icon().pixmap(ICON_SIZE, ICON_SIZE));
+    if (!icon.isNull()) {
+        auto iconLabel = new QLabel(m_root);
+        iconLabel->setPixmap(icon.pixmap(ICON_SIZE, ICON_SIZE));
         iconLabel->setContentsMargins(0, ABOVE_HEADING_MARGIN, 0, 0);
         m_layout->addWidget(iconLabel, headerRow, 0, 3, 1, Qt::AlignTop | Qt::AlignHCenter);
     }
 
     // name:
-    QLabel *nameLabel = new QLabel(m_root);
-    nameLabel->setText(panel->displayName());
+    auto nameLabel = new QLabel(m_root);
+    nameLabel->setText(displayName);
     QPalette palette = nameLabel->palette();
     for (int i = QPalette::Active; i < QPalette::NColorGroups; ++i ) {
         // FIXME: theming
@@ -190,23 +195,16 @@ void PanelsWidget::addPropertiesPanel(PropertiesPanel *panel)
     m_layout->addWidget(nameLabel, headerRow, 1, 1, 1, Qt::AlignVCenter | Qt::AlignLeft);
 
     // line:
-    const int lineRow(headerRow + 1);
-    QWidget *line = new OnePixelBlackLine(m_root);
+    const int lineRow = headerRow + 1;
+    auto line = new OnePixelBlackLine(m_root);
     m_layout->addWidget(line, lineRow, 1, 1, -1, Qt::AlignTop);
 
     // add the widget:
-    const int widgetRow(lineRow + 1);
-    addPanelWidget(panel, widgetRow);
-}
+    const int widgetRow = lineRow + 1;
 
-void PanelsWidget::addPanelWidget(PropertiesPanel *panel, int row)
-{
-    QWidget *widget = panel->widget();
     widget->setContentsMargins(PANEL_LEFT_MARGIN,
                                ABOVE_CONTENTS_MARGIN, 0,
                                BELOW_CONTENTS_MARGIN);
     widget->setParent(m_root);
-    m_layout->addWidget(widget, row, 0, 1, 2);
-
-    m_panels.append(panel);
+    m_layout->addWidget(widget, widgetRow, 0, 1, 2);
 }

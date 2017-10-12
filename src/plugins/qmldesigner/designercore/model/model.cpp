@@ -311,16 +311,16 @@ void ModelPrivate::changeNodeId(const InternalNode::Pointer& internalNodePointer
     }
 }
 
-void ModelPrivate::checkPropertyName(const QString &propertyName)
+void ModelPrivate::checkPropertyName(const PropertyName &propertyName)
 {
     if (propertyName.isEmpty()) {
         Q_ASSERT_X(propertyName.isEmpty(), Q_FUNC_INFO, "empty property name");
         throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, "<empty property name>");
     }
 
-    if (propertyName == QLatin1String("id")) {
-        Q_ASSERT_X(propertyName != QLatin1String("id"), Q_FUNC_INFO, "cannot add property id");
-        throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, propertyName.toUtf8());
+    if (propertyName == "id") {
+        Q_ASSERT_X(propertyName != "id", Q_FUNC_INFO, "cannot add property id");
+        throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, propertyName);
     }
 }
 
@@ -1488,7 +1488,7 @@ void ModelPrivate::setVariantProperty(const InternalNode::Pointer &internalNodeP
 
     internalNodePointer->variantProperty(name)->setValue(value);
     internalNodePointer->variantProperty(name)->resetDynamicTypeName();
-    notifyVariantPropertiesChanged(internalNodePointer, PropertyNameList() << name, propertyChange);
+    notifyVariantPropertiesChanged(internalNodePointer, PropertyNameList({name}), propertyChange);
 }
 
 void ModelPrivate::setDynamicVariantProperty(const InternalNodePointer &internalNodePointer,
@@ -1503,7 +1503,7 @@ void ModelPrivate::setDynamicVariantProperty(const InternalNodePointer &internal
     }
 
     internalNodePointer->variantProperty(name)->setDynamicValue(dynamicPropertyType, value);
-    notifyVariantPropertiesChanged(internalNodePointer, PropertyNameList() << name, propertyChange);
+    notifyVariantPropertiesChanged(internalNodePointer, PropertyNameList({name}), propertyChange);
 }
 
 void ModelPrivate::setDynamicBindingProperty(const InternalNodePointer &internalNodePointer,
@@ -1522,14 +1522,18 @@ void ModelPrivate::setDynamicBindingProperty(const InternalNodePointer &internal
     notifyBindingPropertiesChanged(QList<InternalBindingPropertyPointer>() << bindingProperty, propertyChange);
 }
 
-void ModelPrivate::reparentNode(const InternalNode::Pointer &newParentNode, const PropertyName &name, const InternalNode::Pointer &internalNodePointer, bool list)
+void ModelPrivate::reparentNode(const InternalNode::Pointer &newParentNode,
+                                const PropertyName &name,
+                                const InternalNode::Pointer &internalNodePointer,
+                                bool list,
+                                const TypeName &dynamicTypeName)
 {
     AbstractView::PropertyChangeFlags propertyChange = AbstractView::NoAdditionalChanges;
     if (!newParentNode->hasProperty(name)) {
         if (list)
             newParentNode->addNodeListProperty(name);
         else
-            newParentNode->addNodeProperty(name);
+            newParentNode->addNodeProperty(name, dynamicTypeName);
         propertyChange |= AbstractView::PropertiesAdded;
     }
 
@@ -1958,9 +1962,14 @@ The view is informed that it has been registered within the model by a call to A
 void Model::attachView(AbstractView *view)
 {
 //    Internal::WriteLocker locker(d);
-    RewriterView *rewriterView = qobject_cast<RewriterView*>(view);
-    if (rewriterView)
+    RewriterView *castedRewriterView = qobject_cast<RewriterView*>(view);
+    if (castedRewriterView) {
+        if (rewriterView() == castedRewriterView)
+            return;
+        setRewriterView(castedRewriterView);
+
         return;
+    }
 
     NodeInstanceView *nodeInstanceView = qobject_cast<NodeInstanceView*>(view);
     if (nodeInstanceView)

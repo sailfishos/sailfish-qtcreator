@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SUBCOMPONENTMANAGER_H
-#define SUBCOMPONENTMANAGER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 
@@ -34,6 +33,7 @@
 #include <QString>
 #include <QUrl>
 #include <QFileSystemWatcher>
+#include <QMultiHash>
 #include <QPointer>
 #include <QFileInfo>
 
@@ -77,6 +77,3 @@ private: // variables
 };
 
 } // namespace QmlDesigner
-
-
-#endif // SUBCOMPONENTMANAGER_H

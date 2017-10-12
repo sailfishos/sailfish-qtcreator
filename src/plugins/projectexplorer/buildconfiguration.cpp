@@ -56,7 +56,7 @@ BuildConfiguration::BuildConfiguration(Target *target, Core::Id id) :
     m_clearSystemEnvironment(false)
 {
     Q_ASSERT(target);
-    BuildStepList *bsl = new BuildStepList(this, Core::Id(Constants::BUILDSTEPS_BUILD));
+    auto bsl = new BuildStepList(this, Core::Id(Constants::BUILDSTEPS_BUILD));
     //: Display name of the build build step list. Used as part of the labels in the project window.
     bsl->setDefaultDisplayName(tr("Build"));
     m_stepLists.append(bsl);
@@ -122,6 +122,8 @@ Utils::FileName BuildConfiguration::rawBuildDirectory() const
 
 void BuildConfiguration::setBuildDirectory(const Utils::FileName &dir)
 {
+    if (dir == m_buildDirectory)
+        return;
     m_buildDirectory = dir;
     emitBuildDirectoryChanged();
 }
@@ -173,8 +175,8 @@ bool BuildConfiguration::fromMap(const QVariantMap &map)
             qWarning() << "No data for build step list" << i << "found!";
             continue;
         }
-        BuildStepList *list = new BuildStepList(this, data);
-        if (list->isNull()) {
+        auto list = new BuildStepList(this, Core::Id());
+        if (!list->fromMap(data)) {
             qWarning() << "Failed to restore build step list" << i;
             delete list;
             return false;
@@ -282,7 +284,7 @@ void BuildConfiguration::cloneSteps(BuildConfiguration *source)
     qDeleteAll(m_stepLists);
     m_stepLists.clear();
     foreach (BuildStepList *bsl, source->m_stepLists) {
-        BuildStepList *newBsl = new BuildStepList(this, bsl);
+        auto newBsl = new BuildStepList(this, bsl);
         newBsl->cloneSteps(bsl);
         m_stepLists.append(newBsl);
     }
@@ -346,7 +348,7 @@ IBuildConfigurationFactory *IBuildConfigurationFactory::find(Target *parent, con
 }
 
 // setup
-IBuildConfigurationFactory *IBuildConfigurationFactory::find(Kit *k, const QString &projectPath)
+IBuildConfigurationFactory *IBuildConfigurationFactory::find(const Kit *k, const QString &projectPath)
 {
     QList<IBuildConfigurationFactory *> factories
             = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();

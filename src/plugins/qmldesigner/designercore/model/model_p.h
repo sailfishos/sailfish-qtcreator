@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MODEL_P_H
-#define MODEL_P_H
+#pragma once
 
 #include <QList>
 #include <QPointer>
@@ -192,9 +191,12 @@ public:
     void setVariantProperty(const InternalNodePointer &internalNodePointer, const PropertyName &name, const QVariant &value);
     void setDynamicVariantProperty(const InternalNodePointer &internalNodePointer, const PropertyName &name, const TypeName &propertyType, const QVariant &value);
     void setDynamicBindingProperty(const InternalNodePointer &internalNodePointer, const PropertyName &name, const TypeName &dynamicPropertyType, const QString &expression);
-    void reparentNode(const InternalNodePointer &internalNodePointer, const PropertyName &name, const InternalNodePointer &internalNodeToBeAppended, bool list = true);
+    void reparentNode(const InternalNodePointer &internalNodePointer,
+                      const PropertyName &name,
+                      const InternalNodePointer &internalNodeToBeAppended,
+                      bool list = true, const TypeName &dynamicTypeName = TypeName());
     void changeNodeOrder(const InternalNodePointer &internalParentNode, const PropertyName &listPropertyName, int from, int to);
-    void checkPropertyName(const QString &propertyName);
+    void checkPropertyName(const PropertyName &propertyName);
     void clearParent(const InternalNodePointer &internalNodePointer);
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
     void setScriptFunctions(const InternalNodePointer &internalNode, const QStringList &scriptFunctionList);
@@ -254,4 +256,3 @@ private:
 
 }
 }
-#endif // MODEL_P_H

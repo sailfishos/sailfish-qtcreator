@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef TODOOUTPUTPANE_H
-#define TODOOUTPUTPANE_H
+#pragma once
 
 #include "settings.h"
 
@@ -36,6 +35,7 @@ class QToolButton;
 class QButtonGroup;
 class QModelIndex;
 class QAbstractButton;
+class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
 namespace Todo {
@@ -45,12 +45,14 @@ class TodoItem;
 class TodoItemsModel;
 class TodoOutputTreeView;
 
+typedef QList<QToolButton*> QToolButtonList;
+
 class TodoOutputPane : public Core::IOutputPane
 {
     Q_OBJECT
 
 public:
-    TodoOutputPane(TodoItemsModel *todoItemsModel, QObject *parent = 0);
+    TodoOutputPane(TodoItemsModel *todoItemsModel, const Settings *settings, QObject *parent = 0);
     ~TodoOutputPane();
 
     QWidget *outputWidget(QWidget *parent);
@@ -74,20 +76,12 @@ signals:
     void todoItemClicked(const TodoItem &item);
     void scanningScopeChanged(ScanningScope scanningScope);
 
-private slots:
+private:
     void scopeButtonClicked(QAbstractButton *button);
     void todoTreeViewClicked(const QModelIndex &index);
     void updateTodoCount();
-
-private:
-    TodoOutputTreeView *m_todoTreeView;
-    QToolButton *m_currentFileButton;
-    QToolButton *m_wholeProjectButton;
-    QToolButton *m_subProjectButton;
-    QWidget *m_spacer;
-    QButtonGroup *m_scopeButtons;
-    QList<TodoItem> *items;
-    TodoItemsModel *m_todoItemsModel;
+    void updateFilter();
+    void clearFilter();
 
     void createTreeView();
     void freeTreeView();
@@ -97,9 +91,21 @@ private:
     QModelIndex selectedModelIndex();
     QModelIndex nextModelIndex();
     QModelIndex previousModelIndex();
+
+    QToolButton *createCheckableToolButton(const QString &text, const QString &toolTip, const QIcon &icon);
+
+    TodoOutputTreeView *m_todoTreeView;
+    QToolButton *m_currentFileButton;
+    QToolButton *m_wholeProjectButton;
+    QToolButton *m_subProjectButton;
+    QWidget *m_spacer;
+    QButtonGroup *m_scopeButtons;
+    QList<TodoItem> *items;
+    TodoItemsModel *m_todoItemsModel;
+    QSortFilterProxyModel *m_filteredTodoItemsModel;
+    const Settings *m_settings;
+    QToolButtonList m_filterButtons;
 };
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // TODOOUTPUTPANE_H

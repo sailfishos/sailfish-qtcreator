@@ -23,18 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef MODELTOTEXTMERGER_H
-#define MODELTOTEXTMERGER_H
+#pragma once
 
-#include "qmldesignercorelib_global.h"
-#include <modelnode.h>
-#include "abstractview.h"
-#include "nodeabstractproperty.h"
-#include "variantproperty.h"
-#include "bindingproperty.h"
+#include <abstractview.h>
 #include "rewriteaction.h"
-#include <filemanager/qmlrefactoring.h>
-#include <QMap>
 
 namespace QmlDesigner {
 
@@ -45,7 +37,6 @@ namespace Internal {
 class ModelToTextMerger
 {
     typedef AbstractView::PropertyChangeFlags PropertyChangeFlags;
-    static PropertyNameList m_propertyOrder;
 
 public:
     ModelToTextMerger(RewriterView *reWriterView);
@@ -83,7 +74,7 @@ protected:
     { return m_rewriteActions; }
 
     static QmlDesigner::QmlRefactoring::PropertyType propertyType(const AbstractProperty &property, const QString &textValue = QString());
-    static PropertyNameList getPropertyOrder();
+    static PropertyNameList propertyOrder();
 
     static bool isInHierarchy(const AbstractProperty &property);
 
@@ -96,5 +87,3 @@ private:
 
 } //Internal
 } //QmlDesigner
-
-#endif // MODELTOTEXTMERGER_H

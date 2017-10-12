@@ -162,6 +162,9 @@ public:
 
     bool m_enableGC;
     QTimer m_delayedGcTimer;
+
+    // Refactoring
+    RefactoringEngineInterface *m_refactoringEngine = nullptr;
 };
 
 } // namespace Internal
@@ -254,6 +257,16 @@ QString CppModelManager::editorConfigurationFileName()
     return QLatin1String("<per-editor-defines>");
 }
 
+void CppModelManager::setRefactoringEngine(RefactoringEngineInterface *refactoringEngine)
+{
+    instance()->d->m_refactoringEngine = refactoringEngine;
+}
+
+RefactoringEngineInterface *CppModelManager::refactoringEngine()
+{
+    return instance()->d->m_refactoringEngine;
+}
+
 QString CppModelManager::configurationFileName()
 {
     return Preprocessor::configurationFileName();
@@ -307,8 +320,8 @@ CppModelManager::CppModelManager(QObject *parent)
     d->m_enableGC = true;
 
     qRegisterMetaType<QSet<QString> >();
-    connect(this, SIGNAL(sourceFilesRefreshed(QSet<QString>)),
-            this, SLOT(onSourceFilesRefreshed()));
+    connect(this, &CppModelManager::sourceFilesRefreshed,
+            this, &CppModelManager::onSourceFilesRefreshed);
 
     d->m_findReferences = new CppFindReferences(this);
     d->m_indexerEnabled = qgetenv("QTC_NO_CODE_INDEXER") != "1";
@@ -317,15 +330,15 @@ CppModelManager::CppModelManager(QObject *parent)
 
     d->m_delayedGcTimer.setObjectName(QLatin1String("CppModelManager::m_delayedGcTimer"));
     d->m_delayedGcTimer.setSingleShot(true);
-    connect(&d->m_delayedGcTimer, SIGNAL(timeout()), this, SLOT(GC()));
+    connect(&d->m_delayedGcTimer, &QTimer::timeout, this, &CppModelManager::GC);
 
-    QObject *sessionManager = ProjectExplorer::SessionManager::instance();
-    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
-            this, SLOT(onProjectAdded(ProjectExplorer::Project*)));
-    connect(sessionManager, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
-            this, SLOT(onAboutToRemoveProject(ProjectExplorer::Project*)));
-    connect(sessionManager, SIGNAL(aboutToLoadSession(QString)),
-            this, SLOT(onAboutToLoadSession()));
+    auto sessionManager = ProjectExplorer::SessionManager::instance();
+    connect(sessionManager, &ProjectExplorer::SessionManager::projectAdded,
+            this, &CppModelManager::onProjectAdded);
+    connect(sessionManager, &ProjectExplorer::SessionManager::aboutToRemoveProject,
+            this, &CppModelManager::onAboutToRemoveProject);
+    connect(sessionManager, &ProjectExplorer::SessionManager::aboutToLoadSession,
+            this, &CppModelManager::onAboutToLoadSession);
 
     connect(Core::EditorManager::instance(), &Core::EditorManager::currentEditorChanged,
             this, &CppModelManager::onCurrentEditorChanged);
@@ -333,8 +346,8 @@ CppModelManager::CppModelManager(QObject *parent)
     connect(Core::DocumentManager::instance(), &Core::DocumentManager::allDocumentsRenamed,
             this, &CppModelManager::renameIncludes);
 
-    connect(Core::ICore::instance(), SIGNAL(coreAboutToClose()),
-            this, SLOT(onCoreAboutToClose()));
+    connect(Core::ICore::instance(), &Core::ICore::coreAboutToClose,
+            this, &CppModelManager::onCoreAboutToClose);
 
     qRegisterMetaType<CPlusPlus::Document::Ptr>("CPlusPlus::Document::Ptr");
     qRegisterMetaType<QList<Document::DiagnosticMessage>>(
@@ -598,9 +611,9 @@ QByteArray CppModelManager::codeModelConfiguration() const
     return QByteArray::fromRawData(pp_configuration, qstrlen(pp_configuration));
 }
 
-static QSet<QString> tooBigFilesRemoved(const QSet<QString> &files, int fileSizeLimit)
+static QSet<QString> tooBigFilesRemoved(const QSet<QString> &files, int fileSizeLimitInMb)
 {
-    if (fileSizeLimit == 0)
+    if (fileSizeLimitInMb <= 0)
         return files;
 
     QSet<QString> result;
@@ -610,7 +623,7 @@ static QSet<QString> tooBigFilesRemoved(const QSet<QString> &files, int fileSize
     while (i.hasNext()) {
         const QString filePath = i.next();
         fileInfo.setFile(filePath);
-        if (skipFileDueToSizeLimit(fileInfo), fileSizeLimit)
+        if (fileSizeExceedsLimit(fileInfo, fileSizeLimitInMb))
             continue;
 
         result << filePath;
@@ -625,7 +638,7 @@ QFuture<void> CppModelManager::updateSourceFiles(const QSet<QString> &sourceFile
     if (sourceFiles.isEmpty() || !d->m_indexerEnabled)
         return QFuture<void>();
 
-    const auto filteredFiles = tooBigFilesRemoved(sourceFiles, fileSizeLimit());
+    const QSet<QString> filteredFiles = tooBigFilesRemoved(sourceFiles, indexerFileSizeLimitInMb());
 
     if (d->m_indexingSupporter)
         d->m_indexingSupporter->refreshSourceFiles(filteredFiles, mode);
@@ -996,34 +1009,34 @@ void CppModelManager::delayedGC()
         d->m_delayedGcTimer.start(500);
 }
 
-static QStringList idsOfAllProjectParts(const ProjectInfo &projectInfo)
+static QStringList removedProjectParts(const QStringList &before, const QStringList &after)
 {
-    QStringList projectPaths;
-    foreach (const ProjectPart::Ptr &part, projectInfo.projectParts())
-        projectPaths << part->id();
-    return projectPaths;
+    QSet<QString> b = before.toSet();
+    b.subtract(after.toSet());
+
+    return b.toList();
 }
 
 void CppModelManager::onAboutToRemoveProject(ProjectExplorer::Project *project)
 {
-    QStringList projectPartIds;
+    QStringList idsOfRemovedProjectParts;
 
     d->m_projectToIndexerCanceled.remove(project);
 
     {
         QMutexLocker locker(&d->m_projectMutex);
         d->m_dirty = true;
-
-        // Save paths
-        const ProjectInfo projectInfo = d->m_projectToProjectsInfo.value(project, ProjectInfo());
-        projectPartIds = idsOfAllProjectParts(projectInfo);
+        const QStringList projectPartsIdsBefore = d->m_projectPartIdToProjectProjectPart.keys();
 
         d->m_projectToProjectsInfo.remove(project);
         recalculateProjectPartMappings();
+
+        const QStringList projectPartsIdsAfter = d->m_projectPartIdToProjectProjectPart.keys();
+        idsOfRemovedProjectParts = removedProjectParts(projectPartsIdsBefore, projectPartsIdsAfter);
     }
 
-    if (!projectPartIds.isEmpty())
-        emit projectPartsRemoved(projectPartIds);
+    if (!idsOfRemovedProjectParts.isEmpty())
+        emit projectPartsRemoved(idsOfRemovedProjectParts);
 
     delayedGC();
 }
@@ -1031,7 +1044,7 @@ void CppModelManager::onAboutToRemoveProject(ProjectExplorer::Project *project)
 void CppModelManager::onSourceFilesRefreshed() const
 {
     if (BuiltinIndexingSupport::isFindErrorsIndexingActive()) {
-        QTimer::singleShot(1, QCoreApplication::instance(), SLOT(quit()));
+        QTimer::singleShot(1, QCoreApplication::instance(), &QCoreApplication::quit);
         qDebug("FindErrorsIndexing: Done, requesting Qt Creator to quit.");
     }
 }

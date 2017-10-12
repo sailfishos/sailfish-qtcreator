@@ -77,8 +77,10 @@ public:
     Model *documentModel() const;
 
     QString contextHelpId() const;
-    QList<RewriterError> qmlSyntaxErrors() const;
-    bool hasQmlSyntaxErrors() const;
+    QList<RewriterError> qmlParseWarnings() const;
+    bool hasQmlParseWarnings() const;
+    QList<RewriterError> qmlParseErrors() const;
+    bool hasQmlParseErrors() const;
 
     RewriterView *rewriterView() const;
 
@@ -113,6 +115,7 @@ public slots:
     void undo();
     void redo();
     void updateActiveQtVersion();
+    void updateCurrentProject();
     void changeToSubComponent(const ModelNode &componentNode);
     void changeToMaster();
 
@@ -121,6 +124,8 @@ private slots:
 
 private: // functions
     void changeToInFileComponentModel(ComponentTextModifier *textModifer);
+
+    void updateQrcFiles();
 
     QWidget *centralWidget() const;
     QString pathToQt() const;

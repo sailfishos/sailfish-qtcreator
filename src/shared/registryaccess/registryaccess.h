@@ -27,8 +27,7 @@
 // qtcdebugger is currently registered for post-mortem debugging.
 // This is only needed on Windows.
 
-#ifndef REGISTRYACCESS_H
-#define REGISTRYACCESS_H
+#pragma once
 
 #include <QString>
 #include <QLatin1String>
@@ -36,6 +35,12 @@
 #include <windows.h>
 
 namespace RegistryAccess {
+
+enum AccessMode {
+    DefaultAccessMode,
+    Registry32Mode = 0x2, // Corresponds to QSettings::Registry32Format (5.7)
+    Registry64Mode = 0x4  // Corresponds to QSettings::Registry64Format (5.7)
+};
 
 static const char *debuggerApplicationFileC = "qtcdebugger";
 static const WCHAR *debuggerRegistryKeyC = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
@@ -68,12 +73,14 @@ bool openRegistryKey(HKEY category, // HKEY_LOCAL_MACHINE, etc.
                      const WCHAR *key,
                      bool readWrite,
                      HKEY *keyHandle,
+                     AccessMode mode,
                      QString *errorMessage);
+
+inline bool openRegistryKey(HKEY category, const WCHAR *key, bool readWrite, HKEY *keyHandle, QString *errorMessage)
+{ return openRegistryKey(category, key, readWrite, keyHandle, DefaultAccessMode, errorMessage); }
 
 QString debuggerCall(const QString &additionalOption = QString());
 
 bool isRegistered(HKEY handle, const QString &call, QString *errorMessage, QString *oldDebugger = 0);
 
 } // namespace RegistryAccess
-
-#endif // REGISTRYACCESS_H

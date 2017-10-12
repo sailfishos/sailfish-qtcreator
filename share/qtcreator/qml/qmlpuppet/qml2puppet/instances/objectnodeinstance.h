@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef OBJECTNODEINSTANCE_H
-#define OBJECTNODEINSTANCE_H
+#pragma once
 
 #include "nodeinstanceserver.h"
 #include "nodeinstancesignalspy.h"
@@ -68,6 +67,7 @@ public:
 
     static Pointer create(QObject *objectToBeWrapped);
     static QObject *createPrimitive(const QString &typeName, int majorNumber, int minorNumber, QQmlContext *context);
+    static QObject *createPrimitiveFromSource(const QString &typeName, int majorNumber, int minorNumber, QQmlContext *context);
     static QObject *createCustomParserObject(const QString &nodeSource, const QByteArray &importCode, QQmlContext *context);
     static QObject *createComponent(const QString &componentPath, QQmlContext *context);
     static QObject *createComponent(const QUrl &componentUrl, QQmlContext *context);
@@ -221,5 +221,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlDesigner
-
-#endif // OBJECTNODEINSTANCE_H

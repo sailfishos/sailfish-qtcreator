@@ -168,7 +168,8 @@ void setupProjectInfoQmlBundles(ModelManagerInterface::ProjectInfo &projectInfo)
 
 namespace Internal {
 
-QHash<QString,Dialect> ModelManager::languageForSuffix() const
+
+QHash<QString,Dialect> ModelManager::initLanguageForSuffix() const
 {
     QHash<QString,Dialect> res = ModelManagerInterface::languageForSuffix();
 
@@ -196,6 +197,12 @@ QHash<QString,Dialect> ModelManager::languageForSuffix() const
     return res;
 }
 
+QHash<QString,Dialect> ModelManager::languageForSuffix() const
+{
+    static QHash<QString,Dialect> res = initLanguageForSuffix();
+    return res;
+}
+
 ModelManager::ModelManager(QObject *parent):
         ModelManagerInterface(parent)
 {
@@ -212,8 +219,8 @@ void ModelManager::delayedInitialization()
     CppTools::CppModelManager *cppModelManager = CppTools::CppModelManager::instance();
     // It's important to have a direct connection here so we can prevent
     // the source and AST of the cpp document being cleaned away.
-    connect(cppModelManager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
-            this, SLOT(maybeQueueCppQmlTypeUpdate(CPlusPlus::Document::Ptr)), Qt::DirectConnection);
+    connect(cppModelManager, &CppTools::CppModelManager::documentUpdated,
+            this, &ModelManagerInterface::maybeQueueCppQmlTypeUpdate, Qt::DirectConnection);
 
     connect(SessionManager::instance(), &SessionManager::projectRemoved,
             this, &ModelManager::removeProjectInfo);
@@ -242,6 +249,10 @@ void ModelManager::writeMessageInternal(const QString &msg) const
 ModelManagerInterface::WorkingCopy ModelManager::workingCopyInternal() const
 {
     WorkingCopy workingCopy;
+
+    if (!Core::ICore::instance())
+        return workingCopy;
+
     foreach (IDocument *document, DocumentModel::openedDocuments()) {
         const QString key = document->filePath().toString();
         if (TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {

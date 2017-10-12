@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef AGGREGATE_H
-#define AGGREGATE_H
+#pragma once
 
 #include "aggregation_global.h"
 
@@ -73,10 +72,9 @@ public:
 signals:
     void changed();
 
-private slots:
+private:
     void deleteSelf(QObject *obj);
 
-private:
     static QHash<QObject *, Aggregate *> &aggregateMap();
 
     QList<QObject *> m_components;
@@ -126,5 +124,3 @@ template <typename T> QList<T *> query_all(QObject *obj)
 }
 
 } // namespace Aggregation
-
-#endif // AGGREGATE_H

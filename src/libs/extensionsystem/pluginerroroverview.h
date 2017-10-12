@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLUGINERROROVERVIEW_H
-#define PLUGINERROROVERVIEW_H
+#pragma once
 
 #include "extensionsystem_global.h"
 
@@ -48,13 +47,10 @@ public:
     explicit PluginErrorOverview(QWidget *parent = 0);
     ~PluginErrorOverview();
 
-private slots:
+private:
     void showDetails(QListWidgetItem *item);
 
-private:
     Internal::Ui::PluginErrorOverview *m_ui;
 };
 
 } // ExtensionSystem
-
-#endif // PLUGINERROROVERVIEW_H

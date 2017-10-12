@@ -41,11 +41,11 @@
 #include <valgrind/callgrind/callgrindproxymodel.h>
 #include <valgrind/callgrind/callgrindstackbrowser.h>
 #include <valgrind/valgrindplugin.h>
+#include <valgrind/valgrindruncontrolfactory.h>
 #include <valgrind/valgrindsettings.h>
 
 #include <debugger/debuggerconstants.h>
 #include <debugger/analyzer/analyzerconstants.h>
-#include <debugger/analyzer/analyzericons.h>
 #include <debugger/analyzer/analyzermanager.h>
 #include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/analyzer/analyzerutils.h>
@@ -54,7 +54,6 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 
@@ -64,17 +63,27 @@
 
 #include <cppeditor/cppeditorconstants.h>
 
+#include <extensionsystem/pluginmanager.h>
+
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
 
 #include <utils/fancymainwindow.h>
 #include <utils/qtcassert.h>
 #include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorericons.h>
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/taskhub.h>
+
+#include <utils/fancymainwindow.h>
+#include <utils/qtcassert.h>
+#include <utils/styledbar.h>
+#include <utils/utilsicons.h>
 
 #include <QAction>
 #include <QActionGroup>
@@ -100,6 +109,16 @@ using namespace Utils;
 namespace Valgrind {
 namespace Internal {
 
+const char CallgrindPerspectiveId[]       = "Callgrind.Perspective";
+const char CallgrindLocalActionId[]       = "Callgrind.Local.Action";
+const char CallgrindRemoteActionId[]      = "Callgrind.Remote.Action";
+const char CallgrindCallersDockId[]       = "Callgrind.Callers.Dock";
+const char CallgrindCalleesDockId[]       = "Callgrind.Callees.Dock";
+const char CallgrindFlatDockId[]          = "Callgrind.Flat.Dock";
+const char CallgrindVisualizationDockId[] = "Callgrind.Visualization.Dock";
+
+const char CALLGRIND_RUN_MODE[]           = "CallgrindTool.CallgrindRunMode";
+
 class CallgrindTool : public QObject
 {
     Q_OBJECT
@@ -108,7 +127,7 @@ public:
     CallgrindTool(QObject *parent);
     ~CallgrindTool();
 
-    ValgrindRunControl *createRunControl(RunConfiguration *runConfiguration);
+    ValgrindRunControl *createRunControl(RunConfiguration *runConfiguration, Id runMode);
 
     void setParseData(ParseData *data);
     CostDelegate::CostFormat costFormat() const;
@@ -245,7 +264,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
         desc.setText(tr("Valgrind Function Profiler"));
         desc.setPerspectiveId(CallgrindPerspectiveId);
         desc.setRunControlCreator([this](RunConfiguration *runConfiguration, Id) {
-            return createRunControl(runConfiguration);
+            return createRunControl(runConfiguration, CALLGRIND_RUN_MODE);
         });
         desc.setToolMode(OptimizedMode);
         desc.setRunMode(CALLGRIND_RUN_MODE);
@@ -259,7 +278,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
         StartRemoteDialog dlg;
         if (dlg.exec() != QDialog::Accepted)
             return;
-        ValgrindRunControl *rc = createRunControl(runConfig);
+        ValgrindRunControl *rc = createRunControl(runConfig, CALLGRIND_RUN_MODE);
         QTC_ASSERT(rc, return);
         const auto runnable = dlg.runnable();
         rc->setRunnable(runnable);
@@ -279,7 +298,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
         editorContextMenu->addSeparator(analyzerContext);
 
         auto action = new QAction(tr("Profile Costs of This Function and Its Callees"), this);
-        action->setIcon(Debugger::Icons::ANALYZER_CONTROL_START.icon());
+        action->setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL.icon());
         connect(action, &QAction::triggered, this,
                 &CallgrindTool::handleShowCostsOfFunction);
         Command *cmd = ActionManager::registerAction(action, "Analyzer.Callgrind.ShowCostsOfFunction",
@@ -347,14 +366,14 @@ CallgrindTool::CallgrindTool(QObject *parent)
 
     // load external log file
     auto action = m_loadExternalLogFile = new QAction(this);
-    action->setIcon(Core::Icons::OPENFILE.icon());
+    action->setIcon(Utils::Icons::OPENFILE.icon());
     action->setToolTip(tr("Load External Log File"));
     connect(action, &QAction::triggered, this, &CallgrindTool::loadExternalLogFile);
 
     // dump action
     m_dumpAction = action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::REDO.icon());
+    action->setIcon(Utils::Icons::REDO.icon());
     //action->setText(tr("Dump"));
     action->setToolTip(tr("Request the dumping of profile information. This will update the Callgrind visualization."));
     connect(action, &QAction::triggered, this, &CallgrindTool::slotRequestDump);
@@ -362,7 +381,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
     // reset action
     m_resetAction = action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::RELOAD.icon());
+    action->setIcon(Utils::Icons::RELOAD.icon());
     //action->setText(tr("Reset"));
     action->setToolTip(tr("Reset all event counters."));
     connect(action, &QAction::triggered, this, &CallgrindTool::resetRequested);
@@ -370,7 +389,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
     // pause action
     m_pauseAction = action = new QAction(this);
     action->setCheckable(true);
-    action->setIcon(Core::Icons::INTERRUPT_SMALL_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::INTERRUPT_SMALL_TOOLBAR.icon());
     //action->setText(tr("Ignore"));
     action->setToolTip(tr("Pause event logging. No events are counted which will speed up program execution during profiling."));
     connect(action, &QAction::toggled, this, &CallgrindTool::pauseToggled);
@@ -379,14 +398,14 @@ CallgrindTool::CallgrindTool(QObject *parent)
     // go back
     m_goBack = action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::PREV_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::PREV_TOOLBAR.icon());
     action->setToolTip(tr("Go back one step in history. This will select the previously selected item."));
     connect(action, &QAction::triggered, &m_stackBrowser, &StackBrowser::goBack);
 
     // go forward
     m_goNext = action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::NEXT_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::NEXT_TOOLBAR.icon());
     action->setToolTip(tr("Go forward one step in history."));
     connect(action, &QAction::triggered, &m_stackBrowser, &StackBrowser::goNext);
 
@@ -462,7 +481,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
 
     // Filtering
     action = m_filterProjectCosts = new QAction(tr("Show Project Costs Only"), this);
-    action->setIcon(Core::Icons::FILTER.icon());
+    action->setIcon(Utils::Icons::FILTER.icon());
     action->setToolTip(tr("Show only profiling info that originated from this project source."));
     action->setCheckable(true);
     connect(action, &QAction::toggled, this, &CallgrindTool::handleFilterProjectCosts);
@@ -483,13 +502,13 @@ CallgrindTool::CallgrindTool(QObject *parent)
     toolbar.addWidget(m_searchFilter);
     Debugger::registerToolbar(CallgrindPerspectiveId, toolbar);
 
-    Debugger::registerPerspective(CallgrindPerspectiveId, { tr("Callgrind"), {
+    Debugger::registerPerspective(CallgrindPerspectiveId, new Perspective(tr("Callgrind"), {
         { CallgrindFlatDockId, m_flatView, {}, Perspective::SplitVertical },
         { CallgrindCalleesDockId, m_calleesView, {}, Perspective::SplitVertical },
         { CallgrindCallersDockId, m_callersView, CallgrindCalleesDockId, Perspective::SplitHorizontal },
         { CallgrindVisualizationDockId, m_visualization, {}, Perspective::SplitVertical,
           false, Qt::RightDockWidgetArea }
-    }});
+    }));
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
             this, &CallgrindTool::updateRunActions);
@@ -729,9 +748,9 @@ void CallgrindTool::updateEventCombo()
         m_eventCombo->addItem(ParseData::prettyStringForEvent(event));
 }
 
-ValgrindRunControl *CallgrindTool::createRunControl(RunConfiguration *runConfiguration)
+ValgrindRunControl *CallgrindTool::createRunControl(RunConfiguration *runConfiguration, Id runMode)
 {
-    auto runControl = new CallgrindRunControl(runConfiguration);
+    auto runControl = new CallgrindRunControl(runConfiguration, runMode);
 
     connect(runControl, &CallgrindRunControl::parserDataReady, this, &CallgrindTool::takeParserDataFromRunControl);
     connect(runControl, &AnalyzerRunControl::starting, this, &CallgrindTool::engineStarting);
@@ -891,8 +910,9 @@ void CallgrindTool::loadExternalLogFile()
 
     QFile logFile(filePath);
     if (!logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        AnalyzerUtils::logToIssuesPane(Task::Error,
-                tr("Callgrind: Failed to open file for reading: %1").arg(filePath));
+        QString msg = tr("Callgrind: Failed to open file for reading: %1").arg(filePath);
+        TaskHub::addTask(Task::Error, msg, Debugger::Constants::ANALYZERTASK_ID);
+        TaskHub::requestPopup();
         return;
     }
 
@@ -958,17 +978,47 @@ void CallgrindTool::createTextMarks()
     }
 }
 
-static CallgrindTool *theCallgrindTool;
 
-void initCallgrindTool(QObject *parent)
+class CallgrindRunControlFactory : public IRunControlFactory
 {
-    theCallgrindTool = new CallgrindTool(parent);
+public:
+    CallgrindRunControlFactory() : m_tool(new CallgrindTool(this)) {}
+
+    bool canRun(RunConfiguration *runConfiguration, Core::Id runMode) const override
+    {
+        Q_UNUSED(runConfiguration);
+        return runMode == CALLGRIND_RUN_MODE;
+    }
+
+    RunControl *create(RunConfiguration *runConfiguration, Core::Id runMode, QString *errorMessage) override
+    {
+        Q_UNUSED(errorMessage);
+        return m_tool->createRunControl(runConfiguration, runMode);
+    }
+
+    IRunConfigurationAspect *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override
+    {
+        return createValgrindRunConfigurationAspect(rc);
+    }
+
+public:
+    CallgrindTool *m_tool;
+};
+
+
+static CallgrindRunControlFactory *theCallgrindRunControlFactory;
+
+void initCallgrindTool()
+{
+    theCallgrindRunControlFactory = new CallgrindRunControlFactory;
+    ExtensionSystem::PluginManager::addObject(theCallgrindRunControlFactory);
 }
 
 void destroyCallgrindTool()
 {
-    delete theCallgrindTool;
-    theCallgrindTool = 0;
+    ExtensionSystem::PluginManager::removeObject(theCallgrindRunControlFactory);
+    delete theCallgrindRunControlFactory;
+    theCallgrindRunControlFactory = 0;
 }
 
 } // namespace Internal

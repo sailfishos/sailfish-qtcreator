@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTFIELDCHECKBOX_H
-#define TEXTFIELDCHECKBOX_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -52,14 +51,11 @@ public:
 signals:
     void textChanged(const QString &);
 
-private slots:
+private:
     void slotStateChanged(int);
 
-private:
     QString m_trueText;
     QString m_falseText;
 };
 
 } // namespace Utils
-
-#endif // TEXTFIELDCHECKBOX_H

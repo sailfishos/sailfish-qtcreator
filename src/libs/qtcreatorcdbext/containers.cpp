@@ -101,25 +101,22 @@ static inline std::string fixInnerType(const std::string &type,
 // Return size from an STL vector (last/first iterators).
 static inline int msvcStdVectorSize(const SymbolGroupValue &v)
 {
-    // MSVC2012 has 2 base classes, MSVC2010 1, MSVC2008 none
-    if (const SymbolGroupValue myFirstPtrV = SymbolGroupValue::findMember(v, "_Myfirst")) {
-        if (const SymbolGroupValue myLastPtrV = myFirstPtrV.parent()["_Mylast"]) {
-            const ULONG64 firstPtr = myFirstPtrV.pointerValue();
-            const ULONG64 lastPtr = myLastPtrV.pointerValue();
-            if (!firstPtr || lastPtr < firstPtr)
-                return -1;
-            if (lastPtr == firstPtr)
-                return 0;
-            // Subtract the pointers: We need to do the pointer arithmetics ourselves
-            // as we get char *pointers.
-            const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(myFirstPtrV.type()), v);
-            const size_t size = SymbolGroupValue::sizeOf(innerType.c_str());
-            if (size == 0)
-                return -1;
-            return static_cast<int>((lastPtr - firstPtr) / size);
-        }
-    }
-    return -1;
+    const ULONG64 firstPtr = v.readPointerValueFromAncestor("_Myfirst");
+    const ULONG64 lastPtr = v.readPointerValueFromAncestor("_Mylast");
+    if (!firstPtr || lastPtr < firstPtr)
+        return -1;
+    const std::vector<std::string> innerTypes = v.innerTypes();
+    if (innerTypes.empty())
+        return -1;
+    const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(innerTypes[0]), v);
+    const size_t size = SymbolGroupValue::sizeOf(innerType.c_str());
+    if (size == 0)
+        return -1;
+    if (lastPtr == firstPtr)
+        return 0;
+    // Subtract the pointers: We need to do the pointer arithmetics ourselves
+    // as we get char *pointers.
+    return static_cast<int>((lastPtr - firstPtr) / size);
 }
 
 // Return size of container or -1
@@ -193,10 +190,12 @@ int containerSize(KnownType kt, const SymbolGroupValue &v)
     case KT_StdMap:
     case KT_StdMultiMap:
     case KT_StdValArray:
-    case KT_StdList:
-        if (const SymbolGroupValue size = SymbolGroupValue::findMember(v, "_Mysize"))
-            return size.intValue();
+    case KT_StdList: {
+        const int size = v.readIntegerFromAncestor("_Mysize");
+        if (size >= 0)
+            return size;
         break;
+    }
     case KT_StdStack:
         if (const SymbolGroupValue deque =  v[unsigned(0)])
             return containerSize(KT_StdDeque, deque);
@@ -758,14 +757,8 @@ static inline AbstractSymbolGroupNodePtrVector
                                AddressSequence(arrayAddress, pointerSize),
                                v.module(), innerType, count);
      // Check condition for large||static.
-     bool isLargeOrStatic = innerTypeSize > pointerSize;
-     if (!isLargeOrStatic && !SymbolGroupValue::isPointerType(innerType)) {
-         const KnownType kt = knownType(innerType, false); // inner type, no 'class ' prefix.
-         if (kt != KT_Unknown && !(kt & (KT_POD_Type|KT_Qt_PrimitiveType|KT_Qt_MovableType))
-                 && !(kt == KT_QStringList && QtInfo::get(v.context()).version >= 5)) {
-             isLargeOrStatic = true;
-         }
-     }
+     const bool isLargeOrStatic = innerTypeSize > pointerSize
+             || !SymbolGroupValue::isMovable(innerType, v);
      if (SymbolGroupValue::verbose)
          DebugPrint() << "isLargeOrStatic " << isLargeOrStatic;
      if (isLargeOrStatic) {
@@ -776,7 +769,8 @@ static inline AbstractSymbolGroupNodePtrVector
                          arrayChildList(v.node()->symbolGroup(),
                                         AddressArraySequence<ULONG64>(reinterpret_cast<const ULONG64 *>(data)),
                                         v.module(), innerType, count) :
-                         arrayChildList(v.node()->symbolGroup(), AddressArraySequence<ULONG32>(reinterpret_cast<const ULONG32 *>(data)),
+                         arrayChildList(v.node()->symbolGroup(),
+                                        AddressArraySequence<ULONG32>(reinterpret_cast<const ULONG32 *>(data)),
                                         v.module(), innerType, count);
              delete [] data;
              return rc;
@@ -965,9 +959,11 @@ static inline SymbolGroupValueVector qMap4Nodes(const SymbolGroupValue &v, Vecto
     SymbolGroupValueVector rc;
     rc.reserve(count);
     SymbolGroupValue n = e["forward"][unsigned(0)];
+    const std::string &type = SymbolGroupValue::stripClassPrefixes(n.type());
     for (VectorIndexType i = 0; i < count && n && n.pointerValue() != ePtr; ++i) {
         rc.push_back(n);
-        n = n["forward"][unsigned(0)];
+        ULONG64 address = n.addressOfAncestor("forward");
+        n = n.addSymbol(address, type);
     }
     return rc;
 }

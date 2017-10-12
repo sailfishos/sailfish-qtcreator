@@ -25,6 +25,7 @@
 
 #include "kit.h"
 
+#include "kitinformation.h"
 #include "kitmanager.h"
 #include "ioutputparser.h"
 #include "osparser.h"
@@ -72,20 +73,12 @@ class KitPrivate
 
 public:
     KitPrivate(Id id, Kit *kit) :
-        m_id(id),
-        m_nestedBlockingLevel(0),
-        m_autodetected(false),
-        m_sdkProvided(false),
-        m_isValid(true),
-        m_hasWarning(false),
-        m_hasValidityInfo(false),
-        m_mustNotify(false)
+        m_id(id)
     {
         if (!id.isValid())
             m_id = Id::fromString(QUuid::createUuid().toString());
 
         m_unexpandedDisplayName = QCoreApplication::translate("ProjectExplorer::Kit", "Unnamed");
-        m_iconPath = FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON);
 
         m_macroExpander.setDisplayName(tr("Kit"));
         m_macroExpander.setAccumulating(true);
@@ -116,14 +109,14 @@ public:
     QString m_fileSystemFriendlyName;
     QString m_autoDetectionSource;
     Id m_id;
-    int m_nestedBlockingLevel;
-    bool m_autodetected;
-    bool m_sdkProvided;
-    bool m_isValid;
-    bool m_hasWarning;
-    bool m_hasValidityInfo;
-    bool m_mustNotify;
-    QIcon m_icon;
+    int m_nestedBlockingLevel = 0;
+    bool m_autodetected = false;
+    bool m_sdkProvided = false;
+    bool m_isValid = true;
+    bool m_hasWarning = false;
+    bool m_hasValidityInfo = false;
+    bool m_mustNotify = false;
+    QIcon m_cachedIcon;
     FileName m_iconPath;
 
     QHash<Id, QVariant> m_data;
@@ -143,8 +136,6 @@ Kit::Kit(Id id) :
 {
     foreach (KitInformation *sti, KitManager::kitInformation())
         d->m_data.insert(sti->id(), sti->defaultValue(this));
-
-    d->m_icon = icon(d->m_iconPath);
 }
 
 Kit::Kit(const QVariantMap &data) :
@@ -167,7 +158,6 @@ Kit::Kit(const QVariantMap &data) :
     d->m_fileSystemFriendlyName = data.value(QLatin1String(FILESYSTEMFRIENDLYNAME_KEY)).toString();
     d->m_iconPath = FileName::fromString(data.value(QLatin1String(ICON_KEY),
                                                     d->m_iconPath.toString()).toString());
-    d->m_icon = icon(d->m_iconPath);
 
     QVariantMap extra = data.value(QLatin1String(DATA_KEY)).toMap();
     d->m_data.clear(); // remove default values
@@ -210,7 +200,7 @@ void Kit::unblockNotification()
 
 Kit *Kit::clone(bool keepName) const
 {
-    Kit *k = new Kit;
+    auto k = new Kit;
     if (keepName)
         k->d->m_unexpandedDisplayName = d->m_unexpandedDisplayName;
     else
@@ -220,7 +210,7 @@ Kit *Kit::clone(bool keepName) const
     k->d->m_data = d->m_data;
     // Do not clone m_fileSystemFriendlyName, needs to be unique
     k->d->m_isValid = d->m_isValid;
-    k->d->m_icon = d->m_icon;
+    k->d->m_cachedIcon = d->m_cachedIcon;
     k->d->m_iconPath = d->m_iconPath;
     k->d->m_sticky = d->m_sticky;
     k->d->m_mutable = d->m_mutable;
@@ -232,7 +222,7 @@ void Kit::copyFrom(const Kit *k)
     KitGuard g(this);
     d->m_data = k->d->m_data;
     d->m_iconPath = k->d->m_iconPath;
-    d->m_icon = k->d->m_icon;
+    d->m_cachedIcon = k->d->m_cachedIcon;
     d->m_autodetected = k->d->m_autodetected;
     d->m_autoDetectionSource = k->d->m_autoDetectionSource;
     d->m_unexpandedDisplayName = k->d->m_unexpandedDisplayName;
@@ -297,6 +287,15 @@ void Kit::setup()
     QList<KitInformation *> info = KitManager::kitInformation();
     for (int i = info.count() - 1; i >= 0; --i)
         info.at(i)->setup(this);
+}
+
+void Kit::upgrade()
+{
+    KitGuard g(this);
+    // Process the KitInfos in reverse order: They may only be based on other information lower in
+    // the stack.
+    for (KitInformation *ki : KitManager::kitInformation())
+        ki->upgrade(this);
 }
 
 QString Kit::unexpandedDisplayName() const
@@ -368,24 +367,28 @@ Id Kit::id() const
 
 QIcon Kit::icon() const
 {
-    return d->m_icon;
-}
+    if (!d->m_cachedIcon.isNull())
+        return d->m_cachedIcon;
 
-QIcon Kit::icon(const FileName &path)
-{
-    if (path.isEmpty())
-        return QIcon();
+    if (d->m_iconPath.exists()) {
+        d->m_cachedIcon = QIcon(d->m_iconPath.toString());
+        return d->m_cachedIcon;
+    }
 
-    if (path == FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON))
-        return creatorTheme()->flag(Theme::FlatSideBarIcons)
-                ? Icon::combinedIcon({Icons::DESKTOP_DEVICE.icon(),
-                                      Icons::DESKTOP_DEVICE_SMALL.icon()})
-                : QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
+    const IDevice::ConstPtr kitDevice = DeviceKitInformation::device(this);
+    if (!kitDevice.isNull()) {
+        const QIcon deviceIcon = kitDevice->deviceIcon();
+        if (!deviceIcon.isNull()) {
+            d->m_cachedIcon = deviceIcon;
+            return d->m_cachedIcon;
+        }
+    }
 
-    QFileInfo fi = path.toFileInfo();
-    if (fi.isFile() && fi.isReadable())
-        return QIcon(path.toString());
-    return QIcon();
+    d->m_cachedIcon = creatorTheme()->flag(Theme::FlatSideBarIcons)
+            ? Icon::combinedIcon({Icons::DESKTOP_DEVICE.icon(),
+                                  Icons::DESKTOP_DEVICE_SMALL.icon()})
+            : QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
+    return d->m_cachedIcon;
 }
 
 FileName Kit::iconPath() const
@@ -398,8 +401,12 @@ void Kit::setIconPath(const FileName &path)
     if (d->m_iconPath == path)
         return;
     d->m_iconPath = path;
-    d->m_icon = icon(path);
     kitUpdated();
+}
+
+QList<Id> Kit::allKeys() const
+{
+    return d->m_data.keys();
 }
 
 QVariant Kit::value(Id key, const QVariant &unset) const
@@ -512,7 +519,7 @@ void Kit::addToEnvironment(Environment &env) const
 
 IOutputParser *Kit::createOutputParser() const
 {
-    IOutputParser *first = new OsParser;
+    auto first = new OsParser;
     QList<KitInformation *> infoList = KitManager::kitInformation();
     foreach (KitInformation *ki, infoList)
         first->appendOutputParser(ki->createOutputParser(this));
@@ -552,8 +559,17 @@ QString Kit::toHtml(const QList<Task> &additional) const
     QList<KitInformation *> infoList = KitManager::kitInformation();
     foreach (KitInformation *ki, infoList) {
         KitInformation::ItemList list = ki->toUserOutput(this);
-        foreach (const KitInformation::Item &j, list)
-            str << "<tr><td><b>" << j.first << ":</b></td><td>" << j.second << "</td></tr>";
+        foreach (const KitInformation::Item &j, list) {
+            QString contents = j.second;
+            if (contents.count() > 256) {
+                int pos = contents.lastIndexOf("<br>", 256);
+                if (pos < 0) // no linebreak, so cut early.
+                    pos = 80;
+                contents = contents.mid(0, pos);
+                contents += "&lt;...&gt;";
+            }
+            str << "<tr><td><b>" << j.first << ":</b></td><td>" << contents << "</td></tr>";
+        }
     }
     str << "</table></body></html>";
     return rc;
@@ -654,6 +670,7 @@ void Kit::kitUpdated()
         return;
     }
     d->m_hasValidityInfo = false;
+    d->m_cachedIcon = QIcon();
     KitManager::notifyAboutUpdate(this);
     d->m_mustNotify = false;
 }

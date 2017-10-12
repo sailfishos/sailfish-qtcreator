@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -37,12 +36,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
 
-private slots:
+private:
     void slotOpen();
     void slotSave();
 
-private:
     SharedTools::QrcEditor *m_qrcEditor;
 };
-
-#endif // MAINWINDOW_H

@@ -44,6 +44,7 @@
 #include <cpptools/cpptoolsbridge.h>
 #include <cpptools/cpptoolsreuse.h>
 #include <cpptools/cppworkingcopy.h>
+#include <cpptools/editordocumenthandle.h>
 
 #include <texteditor/convenience.h>
 #include <texteditor/fontsettings.h>
@@ -54,10 +55,11 @@
 #include <cplusplus/CppDocument.h>
 
 #include <utils/qtcassert.h>
-#include <utils/tooltip/tooltip.h>
 #include <utils/runextensions.h>
 
 #include <QTextBlock>
+#include <QVBoxLayout>
+#include <QWidget>
 
 namespace ClangCodeModel {
 namespace Internal {
@@ -73,6 +75,11 @@ ClangEditorDocumentProcessor::ClangEditorDocumentProcessor(
     , m_semanticHighlighter(document)
     , m_builtinProcessor(document, /*enableSemanticHighlighter=*/ false)
 {
+    m_updateTranslationUnitTimer.setSingleShot(true);
+    m_updateTranslationUnitTimer.setInterval(350);
+    connect(&m_updateTranslationUnitTimer, &QTimer::timeout,
+            this, &ClangEditorDocumentProcessor::updateTranslationUnitIfProjectPartExists);
+
     // Forwarding the semantic info from the builtin processor enables us to provide all
     // editor (widget) related features that are not yet implemented by the clang plugin.
     connect(&m_builtinProcessor, &CppTools::BuiltinEditorDocumentProcessor::cppDocumentUpdated,
@@ -83,6 +90,8 @@ ClangEditorDocumentProcessor::ClangEditorDocumentProcessor(
 
 ClangEditorDocumentProcessor::~ClangEditorDocumentProcessor()
 {
+    m_updateTranslationUnitTimer.stop();
+
     m_parserWatcher.cancel();
     m_parserWatcher.waitForFinished();
 
@@ -94,7 +103,7 @@ ClangEditorDocumentProcessor::~ClangEditorDocumentProcessor()
 
 void ClangEditorDocumentProcessor::run()
 {
-    updateTranslationUnitIfProjectPartExists();
+    m_updateTranslationUnitTimer.start();
 
     // Run clang parser
     disconnect(&m_parserWatcher, &QFutureWatcher<void>::finished,
@@ -161,14 +170,21 @@ void ClangEditorDocumentProcessor::clearProjectPart()
     m_projectPart.clear();
 }
 
-void ClangEditorDocumentProcessor::updateCodeWarnings(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
-                                                      uint documentRevision)
+void ClangEditorDocumentProcessor::updateCodeWarnings(
+        const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
+        const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic,
+        uint documentRevision)
 {
     if (documentRevision == revision()) {
         m_diagnosticManager.processNewDiagnostics(diagnostics);
         const auto codeWarnings = m_diagnosticManager.takeExtraSelections();
         const auto fixitAvailableMarkers = m_diagnosticManager.takeFixItAvailableMarkers();
-        emit codeWarningsUpdated(revision(), codeWarnings, fixitAvailableMarkers);
+        const auto creator = creatorForHeaderErrorDiagnosticWidget(firstHeaderErrorDiagnostic);
+
+        emit codeWarningsUpdated(revision(),
+                                 codeWarnings,
+                                 creator,
+                                 fixitAvailableMarkers);
     }
 }
 namespace {
@@ -244,16 +260,21 @@ bool ClangEditorDocumentProcessor::hasDiagnosticsAt(uint line, uint column) cons
     return m_diagnosticManager.hasDiagnosticsAt(line, column);
 }
 
-void ClangEditorDocumentProcessor::showDiagnosticTooltip(const QPoint &point,
-                                                         QWidget *parent,
-                                                         uint line,
-                                                         uint column) const
+void ClangEditorDocumentProcessor::addDiagnosticToolTipToLayout(uint line,
+                                                                uint column,
+                                                                QLayout *target) const
 {
-    const QVector<ClangBackEnd::DiagnosticContainer> diagnostics
-            = m_diagnosticManager.diagnosticsAt(line, column);
-    auto *tooltipWidget = new ClangDiagnosticToolTipWidget(diagnostics, parent);
+    using Internal::ClangDiagnosticWidget;
 
-    ::Utils::ToolTip::show(point, tooltipWidget, parent);
+    const QVector<ClangBackEnd::DiagnosticContainer> diagnostics
+        = m_diagnosticManager.diagnosticsAt(line, column);
+
+    target->addWidget(ClangDiagnosticWidget::create(diagnostics, ClangDiagnosticWidget::ToolTip));
+}
+
+void ClangEditorDocumentProcessor::editorDocumentTimerRestarted()
+{
+    m_updateTranslationUnitTimer.stop(); // Wait for the next call to run().
 }
 
 ClangBackEnd::FileContainer ClangEditorDocumentProcessor::fileContainerWithArguments() const
@@ -305,6 +326,10 @@ void ClangEditorDocumentProcessor::registerTranslationUnitForEditor(CppTools::Pr
             m_ipcCommunicator.unregisterTranslationUnitsForEditor({fileContainerWithArguments()});
             m_ipcCommunicator.registerTranslationUnitsForEditor({fileContainerWithArguments(projectPart)});
         }
+    } else if (revision() != 1) {
+        // E.g. a refactoring action opened the document and modified it immediately.
+        m_ipcCommunicator.registerTranslationUnitsForEditor({{fileContainerWithArgumentsAndDocumentContent(projectPart)}});
+        ClangCodeModel::Utils::setLastSentDocumentRevision(filePath(), revision());
     } else {
         m_ipcCommunicator.registerTranslationUnitsForEditor({{fileContainerWithArguments(projectPart)}});
     }
@@ -323,8 +348,30 @@ void ClangEditorDocumentProcessor::requestDocumentAnnotations(const QString &pro
 {
     const auto fileContainer = fileContainerWithDocumentContent(projectpartId);
 
-    m_ipcCommunicator.requestDiagnostics(fileContainer);
-    m_ipcCommunicator.requestHighlighting(fileContainer);
+    m_ipcCommunicator.requestDocumentAnnotations(fileContainer);
+}
+
+CppTools::BaseEditorDocumentProcessor::HeaderErrorDiagnosticWidgetCreator
+ClangEditorDocumentProcessor::creatorForHeaderErrorDiagnosticWidget(
+        const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic)
+{
+    if (firstHeaderErrorDiagnostic.text().isEmpty())
+        return CppTools::BaseEditorDocumentProcessor::HeaderErrorDiagnosticWidgetCreator();
+
+    return [firstHeaderErrorDiagnostic]() {
+        auto vbox = new QVBoxLayout;
+        vbox->setMargin(0);
+        vbox->setContentsMargins(10, 0, 0, 2);
+        vbox->setSpacing(2);
+
+        vbox->addWidget(ClangDiagnosticWidget::create({firstHeaderErrorDiagnostic},
+                                                      ClangDiagnosticWidget::InfoBar));
+
+        auto widget = new QWidget;
+        widget->setLayout(vbox);
+
+        return widget;
+    };
 }
 
 static CppTools::ProjectPart projectPartForLanguageOption(CppTools::ProjectPart *projectPart)
@@ -359,9 +406,30 @@ static QStringList warningOptions(CppTools::ProjectPart *projectPart)
     return CppTools::codeModelSettings()->clangDiagnosticConfig().commandLineOptions();
 }
 
+static QStringList precompiledHeaderOptions(
+        const QString& filePath,
+        CppTools::ProjectPart *projectPart)
+{
+    using namespace CppTools;
+
+    if (CppTools::getPchUsage() == CompilerOptionsBuilder::PchUsage::None)
+        return QStringList();
+
+    if (projectPart->precompiledHeaders.contains(filePath))
+        return QStringList();
+
+    const CppTools::ProjectPart theProjectPart = projectPartForLanguageOption(projectPart);
+    CppTools::CompilerOptionsBuilder builder(theProjectPart);
+    builder.addPrecompiledHeaderOptions(CompilerOptionsBuilder::PchUsage::Use);
+
+    return builder.options();
+}
+
 static QStringList fileArguments(const QString &filePath, CppTools::ProjectPart *projectPart)
 {
-    return languageOptions(filePath, projectPart) + warningOptions(projectPart);
+    return languageOptions(filePath, projectPart)
+            + warningOptions(projectPart)
+            + precompiledHeaderOptions(filePath, projectPart);
 }
 
 ClangBackEnd::FileContainer
@@ -373,6 +441,20 @@ ClangEditorDocumentProcessor::fileContainerWithArguments(CppTools::ProjectPart *
     const QStringList theFileArguments = fileArguments(filePath(), projectPart);
 
     return {filePath(), projectPartId, Utf8StringVector(theFileArguments), revision()};
+}
+
+ClangBackEnd::FileContainer
+ClangEditorDocumentProcessor::fileContainerWithArgumentsAndDocumentContent(
+        CppTools::ProjectPart *projectPart) const
+{
+    const QStringList theFileArguments = fileArguments(filePath(), projectPart);
+
+    return ClangBackEnd::FileContainer(filePath(),
+                                       projectPart->id(),
+                                       Utf8StringVector(theFileArguments),
+                                       textDocument()->toPlainText(),
+                                       true,
+                                       revision());
 }
 
 ClangBackEnd::FileContainer

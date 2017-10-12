@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPCOMPLETIONASSISTPROCESSOR_H
-#define CPPCOMPLETIONASSISTPROCESSOR_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -46,7 +45,7 @@ namespace CppTools {
 class CPPTOOLS_EXPORT CppCompletionAssistProcessor : public TextEditor::IAssistProcessor
 {
 public:
-    CppCompletionAssistProcessor();
+    CppCompletionAssistProcessor(int snippetItemOrder = 0);
 
 protected:
     void addSnippets();
@@ -71,5 +70,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPCOMPLETIONASSISTPROCESSOR_H

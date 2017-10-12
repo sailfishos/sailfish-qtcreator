@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROJECTINTROPAGE_H
-#define PROJECTINTROPAGE_H
+#pragma once
 
 #include "utils_global.h"
 #include "wizardpage.h"
@@ -36,7 +35,7 @@ class ProjectIntroPagePrivate;
 class QTCREATOR_UTILS_EXPORT ProjectIntroPage : public WizardPage
 {
     Q_OBJECT
-    Q_PROPERTY(QString description READ description WRITE setPath DESIGNABLE true)
+    Q_PROPERTY(QString description READ description WRITE setDescription DESIGNABLE true)
     Q_PROPERTY(QString path READ path WRITE setPath DESIGNABLE true)
     Q_PROPERTY(QString projectName READ projectName WRITE setProjectName DESIGNABLE true)
     Q_PROPERTY(bool useAsDefaultPath READ useAsDefaultPath WRITE setUseAsDefaultPath DESIGNABLE true)
@@ -74,11 +73,10 @@ public slots:
     void setUseAsDefaultPath(bool u);
     void setProjectNameRegularExpression(const QRegularExpression &regEx);
 
-private slots:
+private:
     void slotChanged();
     void slotActivated();
 
-private:
     enum StatusLabelMode { Error, Warning, Hint };
 
     bool validate();
@@ -89,5 +87,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // PROJECTINTROPAGE_H

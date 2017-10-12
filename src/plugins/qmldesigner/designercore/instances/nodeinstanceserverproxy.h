@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NODEINSTANCESERVERPROXY_H
-#define NODEINSTANCESERVERPROXY_H
+#pragma once
 
 #include "nodeinstanceserverinterface.h"
 
@@ -41,6 +40,7 @@ QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Kit;
+class Project;
 }
 
 namespace QmlDesigner {
@@ -60,7 +60,10 @@ public:
         ThirdPuppetStream,
     };
 
-    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView, RunModus runModus = NormalModus, ProjectExplorer::Kit *kit = 0);
+    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView,
+                                     RunModus runModus,
+                                     ProjectExplorer::Kit *kit,
+                                     ProjectExplorer::Project *project);
     ~NodeInstanceServerProxy();
     void createInstances(const CreateInstancesCommand &command);
     void changeFileUrl(const ChangeFileUrlCommand &command);
@@ -124,5 +127,3 @@ private:
 };
 
 } // namespace QmlDesigner
-
-#endif // NODEINSTANCESERVERPROXY_H

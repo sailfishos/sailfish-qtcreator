@@ -27,6 +27,7 @@
 #include "iosconstants.h"
 #include "iosmanager.h"
 #include "iosdeploystep.h"
+#include "simulatorcontrol.h"
 
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
@@ -174,19 +175,8 @@ void IosRunConfiguration::updateDisplayNames()
 
 IosDeployStep *IosRunConfiguration::deployStep() const
 {
-    IosDeployStep * step = 0;
     DeployConfiguration *config = target()->activeDeployConfiguration();
-    BuildStepList *bsl = config->stepList();
-    if (bsl) {
-        const QList<BuildStep *> &buildSteps = bsl->steps();
-        for (int i = buildSteps.count() - 1; i >= 0; --i) {
-            step = qobject_cast<IosDeployStep *>(buildSteps.at(i));
-            if (step)
-                break;
-        }
-    }
-    Q_ASSERT_X(step, Q_FUNC_INFO, "Impossible: iOS build configuration without deploy step.");
-    return step;
+    return config ? config->stepList()->firstOfType<IosDeployStep>() : nullptr;
 }
 
 FileName IosRunConfiguration::profilePath() const
@@ -357,7 +347,7 @@ IosDeviceType IosRunConfiguration::deviceType() const
 {
     QList<IosDeviceType> availableSimulators;
     if (m_deviceType.type == IosDeviceType::SimulatedDevice)
-        availableSimulators = IosSimulator::availableDevices();
+        availableSimulators = SimulatorControl::availableSimulators();
     if (!availableSimulators.isEmpty()) {
         QList<IosDeviceType> elegibleDevices;
         QString devname = m_deviceType.identifier.split(QLatin1Char(',')).value(0);
@@ -411,7 +401,7 @@ IosRunConfigurationWidget::IosRunConfigurationWidget(IosRunConfiguration *runCon
 
 QString IosRunConfigurationWidget::displayName() const
 {
-    return tr("iOS run settings");
+    return IosRunConfiguration::tr("iOS run settings");
 }
 
 void IosRunConfigurationWidget::setDeviceTypeIndex(int devIndex)
@@ -428,7 +418,7 @@ void IosRunConfigurationWidget::updateValues()
     m_deviceTypeLabel->setVisible(showDeviceSelector);
     m_deviceTypeComboBox->setVisible(showDeviceSelector);
     if (showDeviceSelector && m_deviceTypeModel.rowCount() == 0) {
-        foreach (const IosDeviceType &dType, IosSimulator::availableDevices()) {
+        foreach (const IosDeviceType &dType, SimulatorControl::availableSimulators()) {
             QStandardItem *item = new QStandardItem(dType.displayName);
             QVariant v;
             v.setValue(dType);

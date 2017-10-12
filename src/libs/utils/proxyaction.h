@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROXYACTION_H
-#define PROXYACTION_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -59,13 +58,12 @@ public:
     bool hasAttribute(Attribute attribute);
 
     static QString stringWithAppendedShortcut(const QString &str, const QKeySequence &shortcut);
+    static ProxyAction *proxyActionWithIcon(QAction *original, const QIcon &newIcon);
 
-private slots:
+private:
     void actionChanged();
     void updateState();
     void updateToolTipWithKeySequence();
-
-private:
     void disconnectAction();
     void connectAction();
     void update(QAction *action, bool initialize);
@@ -80,5 +78,3 @@ private:
 } // namespace Utils
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Utils::ProxyAction::Attributes)
-
-#endif // PROXYACTION_H

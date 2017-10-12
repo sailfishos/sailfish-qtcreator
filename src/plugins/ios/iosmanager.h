@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSMANAGER_H
-#define IOSMANAGER_H
+#pragma once
 
 #include <utils/fileutils.h>
 
@@ -32,7 +31,10 @@
 #include <QObject>
 #include <QStringList>
 
-namespace ProjectExplorer { class Target; }
+namespace ProjectExplorer {
+    class Target;
+    class Kit;
+}
 
 namespace Ios {
 namespace Internal {
@@ -42,11 +44,10 @@ class IosManager : public QObject
     Q_OBJECT
 
 public:
-    static bool supportsIos(ProjectExplorer::Target *target);
+    static bool supportsIos(const ProjectExplorer::Target *target);
+    static bool supportsIos(const ProjectExplorer::Kit *kit);
     static QString resDirForTarget(ProjectExplorer::Target *target);
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSMANAGER_H

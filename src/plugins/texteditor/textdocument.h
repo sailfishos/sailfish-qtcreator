@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BASETEXTDOCUMENT_H
-#define BASETEXTDOCUMENT_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -46,6 +45,7 @@ class CompletionAssistProvider;
 class ExtraEncodingSettings;
 class FontSettings;
 class Indenter;
+class QuickFixAssistProvider;
 class StorageSettings;
 class SyntaxHighlighter;
 class TabSettings;
@@ -118,6 +118,7 @@ public:
     OpenResult open(QString *errorString, const QString &fileName,
                     const QString &realFileName) override;
     virtual bool reload(QString *errorString);
+    bool reload(QString *errorString, const QString &realFileName);
 
     bool setPlainText(const QString &text);
     QTextDocument *document() const;
@@ -131,6 +132,7 @@ public:
 
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
     virtual CompletionAssistProvider *completionAssistProvider() const;
+    virtual QuickFixAssistProvider *quickFixAssistProvider() const;
 
     void setTabSettings(const TextEditor::TabSettings &tabSettings);
     void setFontSettings(const TextEditor::FontSettings &fontSettings);
@@ -150,6 +152,7 @@ private:
                         bool reload);
     void cleanWhitespace(QTextCursor &cursor, bool cleanIndentation, bool inEntireDocument);
     void ensureFinalNewLine(QTextCursor &cursor);
+    void modificationChanged(bool modified);
 
     TextDocumentPrivate *d;
 };
@@ -157,5 +160,3 @@ private:
 typedef QSharedPointer<TextDocument> TextDocumentPtr;
 
 } // namespace TextEditor
-
-#endif // BASETEXTDOCUMENT_H

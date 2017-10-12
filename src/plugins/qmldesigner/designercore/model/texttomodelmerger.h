@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTTOMODELMERGER_H
-#define TEXTTOMODELMERGER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "import.h"
@@ -90,6 +89,7 @@ public:
     void syncNodeProperty(AbstractProperty &modelProperty,
                           QmlJS::AST::UiObjectBinding *binding,
                           ReadingContext *context,
+                          const TypeName &astType,
                           DifferenceHandler &differenceHandler);
     void syncExpressionProperty(AbstractProperty &modelProperty,
                                 const QString &javascript,
@@ -137,8 +137,6 @@ private:
     void collectImportErrors(QList<RewriterError> *errors);
     void collectSemanticErrorsAndWarnings(QList<RewriterError> *errors,
                                           QList<RewriterError> *warnings);
-    bool showWarningsDialogIgnored(const QList<RewriterError> &warnings);
-
     void populateQrcMapping(const QString &filePath);
 
     static QString textAt(const QmlJS::Document::Ptr &doc,
@@ -190,6 +188,7 @@ public:
                                       int majorVersion,
                                       int minorVersion,
                                       QmlJS::AST::UiObjectMember *astNode,
+                                      const TypeName &dynamicPropertyType,
                                       ReadingContext *context) = 0;
     virtual void modelNodeAbsentFromQml(ModelNode &modelNode) = 0;
     virtual ModelNode listPropertyMissingModelNode(NodeListProperty &modelProperty,
@@ -241,7 +240,9 @@ public:
                                       int majorVersion,
                                       int minorVersion,
                                       QmlJS::AST::UiObjectMember *astNode,
+                                      const TypeName &dynamicPropertyType,
                                       ReadingContext *context);
+
     virtual void modelNodeAbsentFromQml(ModelNode &modelNode);
     virtual ModelNode listPropertyMissingModelNode(NodeListProperty &modelProperty,
                                                    ReadingContext *context,
@@ -289,7 +290,9 @@ public:
                                       int majorVersion,
                                       int minorVersion,
                                       QmlJS::AST::UiObjectMember *astNode,
+                                      const TypeName &dynamicPropertyType,
                                       ReadingContext *context);
+
     virtual void modelNodeAbsentFromQml(ModelNode &modelNode);
     virtual ModelNode listPropertyMissingModelNode(NodeListProperty &modelProperty,
                                                    ReadingContext *context,
@@ -308,5 +311,3 @@ public:
 
 } //Internal
 } //QmlDesigner
-
-#endif // TEXTTOMODELMERGER_H

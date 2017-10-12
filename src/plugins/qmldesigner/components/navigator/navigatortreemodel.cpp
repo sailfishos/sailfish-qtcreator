@@ -32,14 +32,14 @@
 #include <variantproperty.h>
 #include <metainfo.h>
 #include <abstractview.h>
-#include <rewriterview.h>
 #include <invalididexception.h>
 #include <rewritingexception.h>
 #include <modelnodecontextmenu.h>
 #include <qmlitemnode.h>
 
 #include <coreplugin/icore.h>
-#include <coreplugin/coreicons.h>
+
+#include <utils/utilsicons.h>
 
 #include <QMimeData>
 #include <QMessageBox>
@@ -366,7 +366,7 @@ void NavigatorTreeModel::updateItemRow(const ModelNode &modelNode, ItemRow items
     if (currentQmlObjectNode.hasError()) {
         items.idItem->setData(true, ErrorRole);
         items.idItem->setToolTip(currentQmlObjectNode.error());
-        items.idItem->setIcon(Core::Icons::WARNING.icon());
+        items.idItem->setIcon(Utils::Icons::WARNING.icon());
     } else {
         items.idItem->setData(false, ErrorRole);
         if (modelNode.metaInfo().isValid())
@@ -546,8 +546,8 @@ static void appendNodeToEndOfTheRow(const ModelNode &modelNode, const ItemRow &n
     if (modelNode.hasParentProperty()) {
         NodeAbstractProperty parentProperty(modelNode.parentProperty());
         ItemRow parentRow = treeModel->itemRowForNode(parentProperty.parentModelNode());
-        if (parentRow.propertyItems.contains(parentProperty.name())) {
-            QStandardItem *parentPropertyItem = parentRow.propertyItems.value(parentProperty.name());
+        if (parentRow.propertyItems.contains(QString::fromUtf8(parentProperty.name()))) {
+            QStandardItem *parentPropertyItem = parentRow.propertyItems.value(QString::fromUtf8(parentProperty.name()));
             parentPropertyItem->appendRow(newItemRow.toList());
         } else {
             QStandardItem *parentDefaultPropertyItem = parentRow.idItem;
@@ -666,20 +666,24 @@ static bool isInLayoutable(NodeAbstractProperty &parentProperty)
 
 static void reparentModelNodeToNodeProperty(NodeAbstractProperty &parentProperty, const ModelNode &modelNode)
 {
-    if (!modelNode.hasParentProperty() || parentProperty != modelNode.parentProperty()) {
-        if (isInLayoutable(parentProperty)) {
-            removePosition(modelNode);
-            parentProperty.reparentHere(modelNode);
-        } else {
-            if (QmlItemNode::isValidQmlItemNode(modelNode)) {
-                QPointF scenePosition = QmlItemNode(modelNode).instanceScenePosition();
+    try {
+        if (!modelNode.hasParentProperty() || parentProperty != modelNode.parentProperty()) {
+            if (isInLayoutable(parentProperty)) {
+                removePosition(modelNode);
                 parentProperty.reparentHere(modelNode);
-                if (!scenePosition.isNull())
-                    setScenePosition(modelNode, scenePosition);
             } else {
-                parentProperty.reparentHere(modelNode);
+                if (QmlItemNode::isValidQmlItemNode(modelNode)) {
+                    QPointF scenePosition = QmlItemNode(modelNode).instanceScenePosition();
+                    parentProperty.reparentHere(modelNode);
+                    if (!scenePosition.isNull())
+                        setScenePosition(modelNode, scenePosition);
+                } else {
+                    parentProperty.reparentHere(modelNode);
+                }
             }
         }
+    }  catch (const RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
+        exception.showException();
     }
 }
 
@@ -768,7 +772,7 @@ void NavigatorTreeModel::handleItemLibraryImageDrop(const QMimeData *mimeData, i
     bool foundTarget = computeTarget(rowModelIndex, this, &targetProperty, &targetRowNumber);
 
     if (foundTarget) {
-        QString imageFileName = QString::fromUtf8(mimeData->data("application/vnd.bauhaus.libraryresource"));
+        QString imageFileName = QString::fromUtf8(mimeData->data(QLatin1String("application/vnd.bauhaus.libraryresource")));
         QmlItemNode newQmlItemNode = QmlItemNode::createQmlItemNodeFromImage(m_view, imageFileName, QPointF(), targetProperty);
 
         if (newQmlItemNode.isValid()) {

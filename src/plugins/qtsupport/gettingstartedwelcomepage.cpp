@@ -65,17 +65,6 @@ using namespace Utils;
 namespace QtSupport {
 namespace Internal {
 
-class ExampleDialog : public QDialog
-{
-    Q_OBJECT
- public:
-    enum ResultCode { Copy = QDialog::Accepted + 1, Keep };
-    ExampleDialog(QWidget *parent = 0) : QDialog(parent) {};
- private slots:
-    void handleCopyClicked() { done(Copy); };
-    void handleKeepClicked() { done(Keep); };
-};
-
 const char C_FALLBACK_ROOT[] = "ProjectsFallbackRoot";
 
 QPointer<ExamplesListModel> &examplesModelStatic()
@@ -91,7 +80,7 @@ class Fetcher : public QObject
 public:
     Fetcher() : QObject(),  m_shutdown(false)
     {
-        connect(Core::ICore::instance(), SIGNAL(coreAboutToClose()), this, SLOT(shutdown()));
+        connect(Core::ICore::instance(), &Core::ICore::coreAboutToClose, this, &Fetcher::shutdown);
     }
 
     void wait()
@@ -147,7 +136,7 @@ public slots:
         m_waitcondition.wakeAll();
     }
 
-private slots:
+private:
     void shutdown()
     {
         m_shutdown = true;

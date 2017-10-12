@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNER_SHORTCUTMANAGER_H
-#define QMLDESIGNER_SHORTCUTMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QAction>
@@ -92,8 +91,7 @@ private:
     QAction m_toggleLeftSidebarAction;
     QAction m_toggleRightSidebarAction;
     QAction m_goIntoComponentAction;
+    QAction m_escapeAction;
 };
 
 } // namespace QmlDesigner
-
-#endif // QMLDESIGNER_SHORTCUTMANAGER_H

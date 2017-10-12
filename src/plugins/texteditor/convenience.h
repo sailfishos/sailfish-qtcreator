@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONVENIENCE_H
-#define CONVENIENCE_H
+#pragma once
 
 #include "texteditor_global.h"
 
@@ -44,9 +43,9 @@ TEXTEDITOR_EXPORT bool convertPosition(const QTextDocument *document,
 
 TEXTEDITOR_EXPORT QString textAt(QTextCursor tc, int pos, int length);
 
+TEXTEDITOR_EXPORT QTextCursor selectAt(QTextCursor textCursor, uint line, uint column, uint length);
+
 TEXTEDITOR_EXPORT QTextCursor flippedCursor(const QTextCursor &cursor);
 
 } // Util
 } // TextEditor
-
-#endif // CONVENIENCE_H

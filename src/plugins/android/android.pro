@@ -42,7 +42,6 @@ HEADERS += \
     androidsignaloperation.h \
     javaeditor.h \
     javaindenter.h \
-    javaautocompleter.h \
     javacompletionassistprovider.h \
     avddialog.h \
     android_global.h \
@@ -84,12 +83,12 @@ SOURCES += \
     androidsignaloperation.cpp \
     javaeditor.cpp \
     javaindenter.cpp \
-    javaautocompleter.cpp \
     javacompletionassistprovider.cpp \
     avddialog.cpp \
     androidbuildapkstep.cpp \
     androidbuildapkwidget.cpp \
-    androidqtsupport.cpp
+    androidqtsupport.cpp \
+    androidrunnable.cpp
 
 FORMS += \
     androidsettingswidget.ui \

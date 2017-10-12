@@ -106,7 +106,7 @@ void TimelineAbstractRenderer::setModel(TimelineModel *model)
         disconnect(d->model, &TimelineModel::hiddenChanged, this, &QQuickItem::update);
         disconnect(d->model, &TimelineModel::expandedRowHeightChanged,
                    this, &TimelineAbstractRenderer::setRowHeightsDirty);
-        disconnect(d->model, &TimelineModel::emptyChanged,
+        disconnect(d->model, &TimelineModel::contentChanged,
                    this, &TimelineAbstractRenderer::setModelDirty);
     }
 
@@ -116,7 +116,7 @@ void TimelineAbstractRenderer::setModel(TimelineModel *model)
         connect(d->model, &TimelineModel::hiddenChanged, this, &QQuickItem::update);
         connect(d->model, &TimelineModel::expandedRowHeightChanged,
                 this, &TimelineAbstractRenderer::setRowHeightsDirty);
-        connect(d->model, &TimelineModel::emptyChanged,
+        connect(d->model, &TimelineModel::contentChanged,
                 this, &TimelineAbstractRenderer::setModelDirty);
         d->renderPasses = d->model->supportedRenderPasses();
     }
@@ -161,10 +161,10 @@ void TimelineAbstractRenderer::setZoomer(TimelineZoomControl *zoomer)
     Q_D(TimelineAbstractRenderer);
     if (zoomer != d->zoomer) {
         if (d->zoomer != 0)
-            disconnect(d->zoomer, SIGNAL(windowChanged(qint64,qint64)), this, SLOT(update()));
+            disconnect(d->zoomer, &TimelineZoomControl::windowChanged, this, &QQuickItem::update);
         d->zoomer = zoomer;
         if (d->zoomer != 0)
-            connect(d->zoomer, SIGNAL(windowChanged(qint64,qint64)), this, SLOT(update()));
+            connect(d->zoomer, &TimelineZoomControl::windowChanged, this, &QQuickItem::update);
         emit zoomerChanged(zoomer);
         update();
     }

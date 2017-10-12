@@ -8,6 +8,7 @@ QtcPlugin {
 
     Depends { name: "Core" }
     Depends { name: "CppTools" }
+    Depends { name: "QmlJS" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "TextEditor" }
     Depends { name: "QtSupport" }
@@ -63,11 +64,15 @@ QtcPlugin {
         "cmaketoolmanager.h",
         "cmakesettingspage.h",
         "cmakesettingspage.cpp",
+        "cmakesnippetprovider.cpp",
+        "cmakesnippetprovider.h",
         "cmakeindenter.h",
         "cmakeindenter.cpp",
         "cmakeautocompleter.h",
         "cmakeautocompleter.cpp",
         "configmodel.cpp",
-        "configmodel.h"
+        "configmodel.h",
+        "configmodelitemdelegate.cpp",
+        "configmodelitemdelegate.h"
     ]
 }

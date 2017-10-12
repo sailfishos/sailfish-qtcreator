@@ -76,6 +76,7 @@ const char SEARCHONFILESYSTEM[]   = "ProjectExplorer.SearchOnFileSystem";
 const char SHOWINGRAPHICALSHELL[] = "ProjectExplorer.ShowInGraphicalShell";
 const char OPENTERMIANLHERE[]     = "ProjectExplorer.OpenTerminalHere";
 const char REMOVEFILE[]           = "ProjectExplorer.RemoveFile";
+const char DUPLICATEFILE[]        = "ProjectExplorer.DuplicateFile";
 const char DELETEFILE[]           = "ProjectExplorer.DeleteFile";
 const char RENAMEFILE[]           = "ProjectExplorer.RenameFile";
 const char SETSTARTUP[]           = "ProjectExplorer.SetStartup";
@@ -158,6 +159,7 @@ const char LINGUIST_MIMETYPE[]    = "text/vnd.trolltech.linguist";
 const char FORM_MIMETYPE[]        = "application/x-designer";
 const char QML_MIMETYPE[]         = "text/x-qml"; // separate def also in qmljstoolsconstants.h
 const char RESOURCE_MIMETYPE[]    = "application/vnd.qt.xml.resource";
+const char SCXML_MIMETYPE[]       = "application/scxml+xml";
 
 // Settings page
 const char PROJECTEXPLORER_SETTINGS_CATEGORY[]  = "K.ProjectExplorer";
@@ -170,6 +172,7 @@ const char KITS_SETTINGS_PAGE_ID[] = "D.ProjectExplorer.KitsOptions";
 
 // Device settings page
 const char DEVICE_SETTINGS_CATEGORY[] = "XW.Devices";
+const char DEVICE_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("ProjectExplorer", "Devices");
 const char DEVICE_SETTINGS_PAGE_ID[] = "AA.Device Settings";
 
 // Task categories
@@ -223,7 +226,6 @@ const char DEFAULT_WORKING_DIR_ALTERNATE[] = "%{sourceDir}";
 // Desktop Device related ids:
 const char DESKTOP_DEVICE_ID[] = "Desktop Device";
 const char DESKTOP_DEVICE_TYPE[] = "Desktop";
-const char DESKTOP_DEVICE_ICON[] = ":///DESKTOP///";
 const int DESKTOP_PORT_START = 30000;
 const int DESKTOP_PORT_END = 31000;
 
@@ -257,6 +259,7 @@ const char GENERATOR_ID_PREFIX[] = "PE.Wizard.Generator.";
 const char NO_RUN_MODE[]="RunConfiguration.NoRunMode";
 const char NORMAL_RUN_MODE[]="RunConfiguration.NormalRunMode";
 const char QML_PROFILER_RUN_MODE[]="RunConfiguration.QmlProfilerRunMode";
+const char PERFPROFILER_RUN_MODE[]="PerfProfiler.RunMode";
 const char DEBUG_RUN_MODE[]="RunConfiguration.DebugRunMode";
 const char DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN[]="RunConfiguration.DebugRunModeWithBreakOnMain";
 

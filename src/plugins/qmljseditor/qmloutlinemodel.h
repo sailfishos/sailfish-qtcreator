@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLOUTLINEMODEL_H
-#define QMLOUTLINEMODEL_H
+#pragma once
 
 #include "qmljseditordocument.h"
 #include <utils/changeset.h>
@@ -116,6 +115,10 @@ private:
     QModelIndex enterFunctionDeclaration(QmlJS::AST::FunctionDeclaration *functionDeclaration);
     void leaveFunctionDeclaration();
 
+    QModelIndex enterFieldMemberExpression(QmlJS::AST::FieldMemberExpression *expression,
+                                           QmlJS::AST::FunctionExpression *functionExpression);
+    void leaveFieldMemberExpression();
+
     QModelIndex enterTestCase(QmlJS::AST::ObjectLiteral *objectLiteral);
     void leaveTestCase();
 
@@ -165,5 +168,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLOUTLINEMODEL_H

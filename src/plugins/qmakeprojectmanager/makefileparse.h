@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MAKEFILEPARSE_H
-#define MAKEFILEPARSE_H
+#pragma once
 
 #include <utils/fileutils.h>
 #include <qtsupport/baseqtversion.h>
@@ -63,8 +62,11 @@ public:
 
     static const QLoggingCategory &logging();
 
+    void parseCommandLine(const QString &command, const QString &project);
+
 private:
-    void parseArgs(const QString &args, QList<QMakeAssignment> *assignments, QList<QMakeAssignment> *afterAssignments);
+    void parseArgs(const QString &args, const QString &project,
+                   QList<QMakeAssignment> *assignments, QList<QMakeAssignment> *afterAssignments);
     void parseAssignments(QList<QMakeAssignment> *assignments);
 
     class QmakeBuildConfig
@@ -87,6 +89,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-
-#endif // MAKEFILEPARSE_H

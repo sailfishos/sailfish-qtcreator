@@ -25,105 +25,84 @@
 
 #include "unsavedfile.h"
 
-#include "utf8string.h"
+#include "clangfilepath.h"
 #include "utf8positionfromlinecolumn.h"
 
-#include <cstring>
 #include <ostream>
 
 namespace ClangBackEnd {
 
 UnsavedFile::UnsavedFile()
-    : cxUnsavedFile(CXUnsavedFile{nullptr, nullptr, 0UL})
 {
 }
 
-UnsavedFile::UnsavedFile(const Utf8String &filePath, const Utf8String &fileContent)
+UnsavedFile::UnsavedFile(const Utf8String &filePath,
+                         const Utf8String &fileContent)
+    : m_filePath(filePath)
+    , m_nativeFilePath(FilePath::toNativeSeparators(filePath))
+    , m_fileContent(fileContent)
 {
-    char *cxUnsavedFilePath = new char[filePath.byteSize() + 1];
-    char *cxUnsavedFileContent = new char[fileContent.byteSize() + 1];
-
-    std::memcpy(cxUnsavedFilePath, filePath.constData(), filePath.byteSize() + 1);
-    std::memcpy(cxUnsavedFileContent, fileContent.constData(), fileContent.byteSize() + 1);
-
-    cxUnsavedFile = CXUnsavedFile{cxUnsavedFilePath,
-                                  cxUnsavedFileContent,
-                                  ulong(fileContent.byteSize())};
 }
 
-UnsavedFile::UnsavedFile(UnsavedFile &&other) Q_DECL_NOEXCEPT
-    : cxUnsavedFile(other.cxUnsavedFile)
+Utf8String UnsavedFile::nativeFilePath() const
 {
-    other.cxUnsavedFile = { nullptr, nullptr, 0UL };
+    return m_nativeFilePath;
 }
 
-UnsavedFile &UnsavedFile::operator=(UnsavedFile &&other) Q_DECL_NOEXCEPT
+Utf8String UnsavedFile::filePath() const
 {
-    using std::swap;
-
-    swap(this->cxUnsavedFile, other.cxUnsavedFile);
-
-    return *this;
+    return m_filePath;
 }
 
-const char *UnsavedFile::filePath() const
+Utf8String UnsavedFile::fileContent() const
 {
-    return cxUnsavedFile.Filename;
+    return m_fileContent;
+}
+
+uint UnsavedFile::toUtf8Position(uint line, uint column, bool *ok) const
+{
+    Utf8PositionFromLineColumn converter(m_fileContent.constData());
+    if (converter.find(line, column)) {
+        *ok = true;
+        return converter.position();
+    }
+
+    *ok = false;
+    return 0;
 }
 
 bool UnsavedFile::hasCharacterAt(uint line, uint column, char character) const
 {
-    Utf8PositionFromLineColumn converter(cxUnsavedFile.Contents);
-    if (converter.find(line, column)) {
-        const uint utf8Position = converter.position();
-        return hasCharacterAt(utf8Position, character);
-    }
+    bool positionIsOk = false;
+    const uint utf8Position = toUtf8Position(line, column, &positionIsOk);
 
-    return false;
+    return positionIsOk && hasCharacterAt(utf8Position, character);
 }
 
 bool UnsavedFile::hasCharacterAt(uint position, char character) const
 {
-    if (position < cxUnsavedFile.Length)
-        return cxUnsavedFile.Contents[position] == character;
+    if (position < uint(m_fileContent.byteSize()))
+        return m_fileContent.constData()[position] == character;
 
     return false;
 }
 
 bool UnsavedFile::replaceAt(uint position, uint length, const Utf8String &replacement)
 {
-    if (position < cxUnsavedFile.Length) {
-        Utf8String modifiedContent(cxUnsavedFile.Contents, cxUnsavedFile.Length);
-        modifiedContent.replace(int(position), int(length), replacement);
-
-        *this = UnsavedFile(Utf8String::fromUtf8(filePath()), modifiedContent);
-
+    if (position < uint(m_fileContent.byteSize())) {
+        m_fileContent.replace(int(position), int(length), replacement);
         return true;
     }
 
     return false;
 }
 
-CXUnsavedFile *UnsavedFile::data()
-{
-    return &cxUnsavedFile;
-}
-
-UnsavedFile::~UnsavedFile()
-{
-    delete [] cxUnsavedFile.Contents;
-    delete [] cxUnsavedFile.Filename;
-    cxUnsavedFile.Contents = nullptr;
-    cxUnsavedFile.Filename = nullptr;
-    cxUnsavedFile.Length = 0;
-}
-
 void PrintTo(const UnsavedFile &unsavedFile, std::ostream *os)
 {
     *os << "UnsavedFile("
-           << unsavedFile.cxUnsavedFile.Filename << ", "
-           << unsavedFile.cxUnsavedFile.Contents << ", "
-           << unsavedFile.cxUnsavedFile.Length << ")";
+           << unsavedFile.m_filePath.constData() << ", "
+           << unsavedFile.m_fileContent.constData() << ", "
+           << unsavedFile.m_fileContent.byteSize() << ")";
 }
 
 } // namespace ClangBackEnd

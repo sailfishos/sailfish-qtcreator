@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MESSAGEMANAGER_H
-#define MESSAGEMANAGER_H
+#pragma once
 
 #include "core_global.h"
 #include "ioutputpane.h"
@@ -41,7 +40,7 @@ class CORE_EXPORT MessageManager : public QObject
     Q_OBJECT
 
 public:
-    static QObject *instance();
+    static MessageManager *instance();
 
     static void showOutputPane();
 
@@ -56,10 +55,9 @@ public:
 
     Q_DECLARE_FLAGS(PrintToOutputPaneFlags, PrintToOutputPaneFlag)
 
-    static void write(const QString &text); // imply NoModeSwitch
-
 public slots:
-    static void write(const QString &text, Core::MessageManager::PrintToOutputPaneFlags flags);
+    static void write(const QString &text,
+                      Core::MessageManager::PrintToOutputPaneFlags flags = NoModeSwitch);
 
 private:
     MessageManager();
@@ -71,5 +69,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_METATYPE(Core::MessageManager::PrintToOutputPaneFlags)
-
-#endif // MESSAGEMANAGER_H

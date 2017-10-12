@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FANCYMAINWINDOW_H
-#define FANCYMAINWINDOW_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -48,7 +47,7 @@ public:
 
     /* The widget passed in should have an objectname set
      * which will then be used as key for QSettings. */
-    QDockWidget *addDockForWidget(QWidget *widget);
+    QDockWidget *addDockForWidget(QWidget *widget, bool immutable = false);
     QList<QDockWidget *> dockWidgets() const;
 
     void setTrackingEnabled(bool enabled);
@@ -63,6 +62,7 @@ public:
     QAction *autoHideTitleBarsAction() const;
     QAction *menuSeparator2() const;
     QAction *resetLayoutAction() const;
+    QAction *showCentralWidgetAction() const;
     void addDockActionsToMenu(QMenu *menu);
 
     bool autoHideTitleBars() const;
@@ -80,15 +80,12 @@ protected:
     void showEvent(QShowEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
 
-private slots:
+private:
     void onDockActionTriggered();
 
-private:
     void handleVisibilityChanged(bool visible);
 
     FancyMainWindowPrivate *d;
 };
 
 } // namespace Utils
-
-#endif // FANCYMAINWINDOW_H

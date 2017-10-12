@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef COREPLUGIN_H
-#define COREPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 
@@ -40,7 +39,6 @@ class Theme;
 namespace Core {
 
 class DesignMode;
-class FindPlugin;
 
 namespace Internal {
 
@@ -80,17 +78,13 @@ private slots:
 #endif
 
 private:
-    void parseArguments(const QStringList & arguments);
     static void addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QMenu *menu);
 
     MainWindow *m_mainWindow;
     EditMode *m_editMode;
     DesignMode *m_designMode;
-    FindPlugin *m_findPlugin;
     Locator *m_locator;
 };
 
 } // namespace Internal
 } // namespace Core
-
-#endif // COREPLUGIN_H

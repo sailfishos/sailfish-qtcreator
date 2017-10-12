@@ -25,13 +25,18 @@
 
 #include "projectpanelfactory.h"
 
+#include "project.h"
+#include "projectwindow.h"
+
+using namespace ProjectExplorer::Internal;
+using namespace Utils;
+
 namespace ProjectExplorer {
 
 static QList<ProjectPanelFactory *> s_factories;
 
-ProjectPanelFactory::ProjectPanelFactory() :
-    m_priority(0),
-    m_supportsFunction([] (Project *) { return true; })
+ProjectPanelFactory::ProjectPanelFactory()
+    : m_supportsFunction([] (Project *) { return true; })
 { }
 
 int ProjectPanelFactory::priority() const
@@ -75,6 +80,26 @@ void ProjectPanelFactory::destroyFactories()
     s_factories.clear();
 }
 
+QString ProjectPanelFactory::icon() const
+{
+    return m_icon;
+}
+
+void ProjectPanelFactory::setIcon(const QString &icon)
+{
+    m_icon = icon;
+}
+
+QWidget *ProjectPanelFactory::createWidget(Project *project) const
+{
+    return m_widgetCreator(project);
+}
+
+void ProjectPanelFactory::setCreateWidgetFunction(const WidgetCreator &createWidgetFunction)
+{
+    m_widgetCreator = createWidgetFunction;
+}
+
 bool ProjectPanelFactory::supports(Project *project)
 {
     return m_supportsFunction(project);
@@ -83,11 +108,6 @@ bool ProjectPanelFactory::supports(Project *project)
 void ProjectPanelFactory::setSupportsFunction(std::function<bool (Project *)> function)
 {
     m_supportsFunction = function;
-}
-
-QWidget *ProjectPanelFactory::createWidget(Project *project)
-{
-    return m_createWidgetFunction(project);
 }
 
 } // namespace ProjectExplorer

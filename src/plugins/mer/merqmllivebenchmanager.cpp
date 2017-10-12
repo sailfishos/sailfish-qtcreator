@@ -22,6 +22,8 @@
 
 #include "merqmllivebenchmanager.h"
 
+#include <set>
+
 #include <QCoreApplication>
 #include <QMessageBox>
 #include <QProcess>
@@ -176,20 +178,20 @@ void MerQmlLiveBenchManager::warnBenchLocationNotSet()
     warning->raise();
 }
 
-QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, int port)
+QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, Utils::Port port)
 {
-    if (port == Constants::DEFAULT_QML_LIVE_PORT) {
+    if (port == Utils::Port(Constants::DEFAULT_QML_LIVE_PORT)) {
         return merDeviceName;
-    } else if (port > Constants::DEFAULT_QML_LIVE_PORT
-            && port < (Constants::DEFAULT_QML_LIVE_PORT + Constants::MAX_QML_LIVE_PORTS)) {
-        return merDeviceName + QLatin1Char('_') + QString::number(port - Constants::DEFAULT_QML_LIVE_PORT);
+    } else if (port > Utils::Port(Constants::DEFAULT_QML_LIVE_PORT)
+            && port < Utils::Port(Constants::DEFAULT_QML_LIVE_PORT + Constants::MAX_QML_LIVE_PORTS)) {
+        return merDeviceName + QLatin1Char('_') + QString::number(port.number() - Constants::DEFAULT_QML_LIVE_PORT);
     } else {
-        return merDeviceName + QLatin1Char(':') + QString::number(port);
+        return merDeviceName + QLatin1Char(':') + QString::number(port.number());
     }
 }
 
 void MerQmlLiveBenchManager::addHostsToBench(const QString &merDeviceName, const QString &address,
-                                            const QSet<int> &ports)
+                                            const QList<Utils::Port> &ports)
 {
     QTC_ASSERT(!ports.isEmpty(), return);
 
@@ -197,11 +199,11 @@ void MerQmlLiveBenchManager::addHostsToBench(const QString &merDeviceName, const
         return;
 
     QStringList arguments;
-    foreach (int port, ports) {
+    foreach (const Utils::Port &port, ports) {
         arguments.append(QLatin1String(ADD_HOST_OPTION));
         arguments.append(qmlLiveHostName(merDeviceName, port) + QLatin1Char(VALUE_SEPARATOR) +
                          address + QLatin1Char(VALUE_SEPARATOR) +
-                         QString::number(port));
+                         QString::number(port.number()));
     }
 
     Command *command = new Command;
@@ -210,7 +212,7 @@ void MerQmlLiveBenchManager::addHostsToBench(const QString &merDeviceName, const
     enqueueCommand(command);
 }
 
-void MerQmlLiveBenchManager::removeHostsFromBench(const QString &merDeviceName, const QSet<int> &ports)
+void MerQmlLiveBenchManager::removeHostsFromBench(const QString &merDeviceName, const QList<Utils::Port> &ports)
 {
     QTC_ASSERT(!ports.isEmpty(), return);
 
@@ -218,7 +220,7 @@ void MerQmlLiveBenchManager::removeHostsFromBench(const QString &merDeviceName, 
         return;
 
     QStringList arguments;
-    foreach (int port, ports) {
+    foreach (const Utils::Port &port, ports) {
         arguments.append(QLatin1String(RM_HOST_OPTION));
         arguments.append(qmlLiveHostName(merDeviceName, port));
     }
@@ -229,7 +231,7 @@ void MerQmlLiveBenchManager::removeHostsFromBench(const QString &merDeviceName, 
     enqueueCommand(command);
 }
 
-void MerQmlLiveBenchManager::letRunningBenchProbeHosts(const QString &merDeviceName, const QSet<int> &ports)
+void MerQmlLiveBenchManager::letRunningBenchProbeHosts(const QString &merDeviceName, const QList<Utils::Port> &ports)
 {
     QTC_ASSERT(!ports.isEmpty(), return);
 
@@ -237,7 +239,7 @@ void MerQmlLiveBenchManager::letRunningBenchProbeHosts(const QString &merDeviceN
         return;
 
     QStringList arguments;
-    foreach (int port, ports) {
+    foreach (const Utils::Port &port, ports) {
         arguments.append(QLatin1String(PROBE_HOST_OPTION));
         arguments.append(qmlLiveHostName(merDeviceName, port));
     }
@@ -274,8 +276,7 @@ void MerQmlLiveBenchManager::processCommandsQueue()
     m_currentCommand->process->closeReadChannel(QProcess::StandardOutput);
     m_currentCommand->process->closeWriteChannel();
 
-    void (QProcess::*QProcess_error)(QProcess::ProcessError) = &QProcess::error;
-    auto onError = connect(m_currentCommand->process, QProcess_error, this, [this](QProcess::ProcessError error) {
+    auto onError = connect(m_currentCommand->process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         QTC_ASSERT(m_currentCommand, return );
         qCWarning(Log::qmlLive) << "Process error occurred: " << error << m_currentCommand->arguments;
         QByteArray allStdErr(m_currentCommand->process->readAllStandardError());
@@ -337,7 +338,7 @@ void MerQmlLiveBenchManager::onDeviceAdded(Core::Id id)
 
     DeviceInfo *info = new DeviceInfo;
     info->name = device->displayName();
-    info->ports = merDevice->qmlLivePortsSet();
+    info->ports = merDevice->qmlLivePortsList();
     const QString address = device->sshParameters().host;
 
     if (info->ports.isEmpty()) {
@@ -370,6 +371,17 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
     if (!m_enabled)
         return;
 
+    auto difference = [](QList<Utils::Port> ports1, QList<Utils::Port> ports2) {
+        std::sort(ports1.begin(), ports1.end());
+        std::sort(ports2.begin(), ports2.end());
+
+        QList<Utils::Port> retv;
+        std::set_difference(ports1.constBegin(), ports1.constEnd(),
+                ports2.constBegin(), ports2.constEnd(), std::back_inserter(retv));
+
+        return retv;
+    };
+
     QSet<Core::Id> currentDevices;
 
     const int deviceCount = DeviceManager::instance()->deviceCount();
@@ -390,10 +402,10 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
 
         DeviceInfo *info = new DeviceInfo;
         info->name = merDevice->displayName();
-        info->ports = merDevice->qmlLivePortsSet();
+        info->ports = merDevice->qmlLivePortsList();
 
-        const QSet<int> removedPorts = cachedInfo->ports - info->ports;
-        const QSet<int> addedPorts = info->ports - cachedInfo->ports;
+        const QList<Utils::Port> removedPorts = difference(cachedInfo->ports, info->ports);
+        const QList<Utils::Port> addedPorts = difference(info->ports, cachedInfo->ports);
         const QString address = merDevice->sshParameters().host;
 
         if (info->name != cachedInfo->name)
@@ -519,7 +531,7 @@ void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc
     QTC_ASSERT(merDevice, return);
 
     const QString merDeviceName = merDevice->displayName();
-    const QSet<int> ports = merDevice->qmlLivePortsSet();
+    const QList<Utils::Port> ports = merDevice->qmlLivePortsList();
 
     if (ports.isEmpty()) {
         qCWarning(Log::qmlLive) << "Not instructing QmlLive Bench to probe host with empty port list:"
@@ -540,7 +552,7 @@ void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc
 
     auto RunControl_appendMessage = static_cast<
         void (RunControl::*)(RunControl *, const QString &, Utils::OutputFormat)
-        >(&RunControl::appendMessage);
+        >(&RunControl::appendMessageRequested);
     connect(rc, RunControl_appendMessage, guard.data(), [probe](RunControl *rc, const QString &msg) {
         Q_UNUSED(rc);
         if (msg.contains(QLatin1String(APP_READY_PATTERN)))

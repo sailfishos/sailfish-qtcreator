@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMAKEKITCONFIGWIDGET_H
-#define QMAKEKITCONFIGWIDGET_H
+#pragma once
 
 #include <projectexplorer/kitconfigwidget.h>
 
@@ -50,10 +49,8 @@ public:
     void makeReadOnly() override;
     void refresh() override;
 
-private slots:
-    void mkspecWasChanged(const QString &text);
-
 private:
+    void mkspecWasChanged(const QString &text);
     int findQtVersion(const int id) const;
 
     QLineEdit *m_lineEdit = nullptr;
@@ -62,5 +59,3 @@ private:
 
 } // namespace Internal
 } // namespace QmakeProjectManager
-
-#endif // QMAKEKITCONFIGWIDGET_H

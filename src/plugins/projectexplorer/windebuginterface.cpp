@@ -27,10 +27,6 @@
 
 #ifdef Q_OS_WIN
 
-#  if (QT_VERSION < QT_VERSION_CHECK(5, 4, 1))
-#    define NOMINMAX
-#  endif
-
 #include <windows.h>
 #include <QApplication>
 #include <QTime>
@@ -49,7 +45,7 @@
 namespace ProjectExplorer {
 namespace Internal {
 
-WinDebugInterface *WinDebugInterface::m_instance = 0;
+WinDebugInterface *WinDebugInterface::m_instance = nullptr;
 
 WinDebugInterface *WinDebugInterface::instance()
 {
@@ -76,7 +72,7 @@ WinDebugInterface::~WinDebugInterface()
 {
     if (stop())
         wait(500);
-    m_instance = 0;
+    m_instance = nullptr;
 }
 
 void WinDebugInterface::run()
@@ -184,15 +180,15 @@ bool WinDebugInterface::runLoop()
 namespace ProjectExplorer {
 namespace Internal {
 
-WinDebugInterface *WinDebugInterface::m_instance = 0;
+WinDebugInterface *WinDebugInterface::m_instance = nullptr;
 
-WinDebugInterface *WinDebugInterface::instance() { return 0; }
+WinDebugInterface *WinDebugInterface::instance() { return nullptr; }
 
-WinDebugInterface::WinDebugInterface(QObject *) {}
+WinDebugInterface::WinDebugInterface(QObject *) { }
 
-WinDebugInterface::~WinDebugInterface() {}
+WinDebugInterface::~WinDebugInterface() { }
 
-void WinDebugInterface::run() {}
+void WinDebugInterface::run() { }
 
 bool WinDebugInterface::runLoop() { return false; }
 

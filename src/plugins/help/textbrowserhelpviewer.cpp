@@ -68,9 +68,9 @@ TextBrowserHelpViewer::TextBrowserHelpViewer(QWidget *parent)
 
     connect(m_textBrowser, &TextBrowserHelpWidget::anchorClicked,
             this, &TextBrowserHelpViewer::setSource);
-    connect(m_textBrowser, SIGNAL(sourceChanged(QUrl)), this, SIGNAL(titleChanged()));
-    connect(m_textBrowser, SIGNAL(forwardAvailable(bool)), this, SIGNAL(forwardAvailable(bool)));
-    connect(m_textBrowser, SIGNAL(backwardAvailable(bool)), this, SIGNAL(backwardAvailable(bool)));
+    connect(m_textBrowser, &QTextBrowser::sourceChanged, this, &HelpViewer::titleChanged);
+    connect(m_textBrowser, &QTextBrowser::forwardAvailable, this, &HelpViewer::forwardAvailable);
+    connect(m_textBrowser, &QTextBrowser::backwardAvailable, this, &HelpViewer::backwardAvailable);
 }
 
 TextBrowserHelpViewer::~TextBrowserHelpViewer()
@@ -198,11 +198,6 @@ void TextBrowserHelpViewer::addForwardHistoryItems(QMenu *forwardMenu)
     }
 }
 
-void TextBrowserHelpViewer::setOpenInNewPageActionVisible(bool visible)
-{
-    m_textBrowser->m_openInNewPageActionVisible = visible;
-}
-
 bool TextBrowserHelpViewer::findText(const QString &text, Core::FindFlags flags,
     bool incremental, bool fromSearch, bool *wrapped)
 {
@@ -256,8 +251,6 @@ bool TextBrowserHelpViewer::findText(const QString &text, Core::FindFlags flags,
     return !cursorIsNull;
 }
 
-// -- public slots
-
 void TextBrowserHelpViewer::copy()
 {
     m_textBrowser->copy();
@@ -269,12 +262,16 @@ void TextBrowserHelpViewer::stop()
 
 void TextBrowserHelpViewer::forward()
 {
+    slotLoadStarted();
     m_textBrowser->forward();
+    slotLoadFinished();
 }
 
 void TextBrowserHelpViewer::backward()
 {
+    slotLoadStarted();
     m_textBrowser->backward();
+    slotLoadFinished();
 }
 
 void TextBrowserHelpViewer::print(QPrinter *printer)
@@ -307,7 +304,6 @@ TextBrowserHelpWidget::TextBrowserHelpWidget(TextBrowserHelpViewer *parent)
     : QTextBrowser(parent)
     , zoomCount(0)
     , forceFont(false)
-    , m_openInNewPageActionVisible(true)
     , m_parent(parent)
 {
     installEventFilter(this);
@@ -336,16 +332,6 @@ QString TextBrowserHelpWidget::linkAt(const QPoint &pos)
     return anchor;
 }
 
-void TextBrowserHelpWidget::openLink(const QUrl &url, bool newPage)
-{
-    if (url.isEmpty() || !url.isValid())
-        return;
-    if (newPage)
-        OpenPagesManager::instance().createPage(url);
-    else
-        setSource(url);
-}
-
 void TextBrowserHelpWidget::scaleUp()
 {
     if (zoomCount < 10) {
@@ -368,27 +354,32 @@ void TextBrowserHelpWidget::scaleDown()
 
 void TextBrowserHelpWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    QMenu menu(QLatin1String(""), 0);
+    QMenu menu("", 0);
 
     QAction *copyAnchorAction = 0;
     const QUrl link(linkAt(event->pos()));
     if (!link.isEmpty() && link.isValid()) {
         QAction *action = menu.addAction(tr("Open Link"));
         connect(action, &QAction::triggered, this, [this, link]() {
-            openLink(link, false/*newPage*/);
+            setSource(link);
         });
-        if (m_openInNewPageActionVisible) {
-            action = menu.addAction(QCoreApplication::translate("HelpViewer",
-                                                                "Open Link as New Page"));
+        if (m_parent->isActionVisible(HelpViewer::Action::NewPage)) {
+            action = menu.addAction(QCoreApplication::translate("HelpViewer", Constants::TR_OPEN_LINK_AS_NEW_PAGE));
             connect(action, &QAction::triggered, this, [this, link]() {
-                openLink(link, true/*newPage*/);
+                emit m_parent->newPageRequested(link);
+            });
+        }
+        if (m_parent->isActionVisible(HelpViewer::Action::ExternalWindow)) {
+            action = menu.addAction(QCoreApplication::translate("HelpViewer", Constants::TR_OPEN_LINK_IN_WINDOW));
+            connect(action, &QAction::triggered, this, [this, link]() {
+                emit m_parent->externalPageRequested(link);
             });
         }
         copyAnchorAction = menu.addAction(tr("Copy Link"));
     } else if (!textCursor().selectedText().isEmpty()) {
-        menu.addAction(tr("Copy"), this, SLOT(copy()));
+        connect(menu.addAction(tr("Copy")), &QAction::triggered, this, &QTextEdit::copy);
     } else {
-        menu.addAction(tr("Reload"), this, SLOT(reload()));
+        connect(menu.addAction(tr("Reload")), &QAction::triggered, this, &QTextBrowser::reload);
     }
 
     if (copyAnchorAction == menu.exec(event->globalPos()))
@@ -405,7 +396,7 @@ bool TextBrowserHelpWidget::eventFilter(QObject *obj, QEvent *event)
             QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
             if (keyEvent->key() == Qt::Key_Slash) {
                 keyEvent->accept();
-                Core::FindPlugin::instance()->openFindToolBar(Core::FindPlugin::FindForwardDirection);
+                Core::Find::openFindToolBar(Core::Find::FindForwardDirection);
                 return true;
             }
         } else if (event->type() == QEvent::ToolTip) {
@@ -442,7 +433,7 @@ void TextBrowserHelpWidget::mouseReleaseEvent(QMouseEvent *e)
     bool controlPressed = e->modifiers() & Qt::ControlModifier;
     const QString link = linkAt(e->pos());
     if ((controlPressed || e->button() == Qt::MidButton) && link.isEmpty()) {
-        openLink(link, true/*newPage*/);
+        emit m_parent->newPageRequested(QUrl(link));
         return;
     }
 

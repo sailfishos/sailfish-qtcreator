@@ -61,7 +61,10 @@ public:
 
 static inline QString msgInvalidConstructor(const char *what)
 {
-    return StaticAnalysisMessages::tr("Do not use \"%1\" as a constructor.").arg(QLatin1String(what));
+    return StaticAnalysisMessages::tr("Do not use \"%1\" as a constructor."
+                                      "\n\nFor more information, see the"
+                                      " \"Checking Code Syntax\" documentation.")
+            .arg(QLatin1String(what));
 }
 
 StaticAnalysisMessages::StaticAnalysisMessages()
@@ -217,6 +220,8 @@ StaticAnalysisMessages::StaticAnalysisMessages()
                "and might not show up in Qt Quick Designer as expected."));
     newMsg(WarnStatesOnlyInRootItemForVisualDesigner, Warning,
             tr("Qt Quick Designer only supports states in the root item."));
+    newMsg(ErrInvalidIdeInVisualDesigner, Error,
+           tr("This id might be ambiguous and is not supported in the Qt Quick Designer."));
     newMsg(WarnAboutQtQuick1InsteadQtQuick2, Warning,
             tr("Using Qt Quick 1 code model instead of Qt Quick 2."));
     newMsg(ErrUnsupportedRootTypeInVisualDesigner, Error,
@@ -235,6 +240,8 @@ StaticAnalysisMessages::StaticAnalysisMessages()
             tr("States are only supported in the root item in a Qt Quick UI form."));
     newMsg(ErrReferenceToParentItemNotSupportedInQmlUi, Error,
             tr("Referencing the parent of the root item is not supported in a Qt Quick UI form."));
+    newMsg(StateCannotHaveChildItem, Error,
+            tr("A State cannot have a child item (%1)."), 1);
 }
 
 } // anonymous namespace

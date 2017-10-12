@@ -447,7 +447,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
-void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, const QSet<int> &ports)
+void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports)
 {
     qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
@@ -467,11 +467,11 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
             qWarning() << "VBoxManage failed to" << MODIFYVM;
     }
 
-    auto ports_ = ports.toList();
+    auto ports_ = ports;
     std::sort(ports_.begin(), ports_.end());
 
     int i = 1;
-    foreach (int port, ports_) {
+    foreach (const Utils::Port &port, ports_) {
         QStringList arguments;
         arguments.append(QLatin1String(MODIFYVM));
         arguments.append(vmName);
@@ -493,9 +493,9 @@ QString MerVirtualBoxManager::qmlLivePortsForwardingRuleName(int index)
     return QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(index);
 }
 
-QString MerVirtualBoxManager::qmlLivePortsForwardingRule(int index, int port)
+QString MerVirtualBoxManager::qmlLivePortsForwardingRule(int index, Utils::Port port)
 {
-    return QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(index).arg(port);
+    return QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(index).arg(port.number());
 }
 
 void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
@@ -506,7 +506,7 @@ void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
         return;
 
     QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
-    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsSet());
+    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsList());
 }
 
 void MerVirtualBoxManager::onDeviceRemoved(Core::Id id)
@@ -525,8 +525,8 @@ void MerVirtualBoxManager::onDeviceListReplaced()
         if (!merEmulator)
             continue;
 
-        const QSet<int> oldPorts = oldCache.value(merEmulator->id());
-        const QSet<int> nowPorts = merEmulator->qmlLivePortsSet();
+        const QList<Utils::Port> oldPorts = oldCache.value(merEmulator->id());
+        const QList<Utils::Port> nowPorts = merEmulator->qmlLivePortsList();
 
         if (nowPorts != oldPorts)
             setUpQmlLivePortsForwarding(merEmulator->virtualMachine(), nowPorts);

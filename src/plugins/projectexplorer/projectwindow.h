@@ -27,78 +27,36 @@
 
 #include "projectexplorer_export.h"
 
-#include <QMap>
-#include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QStackedWidget;
-QT_END_NAMESPACE
+#include <utils/fancymainwindow.h>
 
 namespace ProjectExplorer {
-class Project;
-class Target;
-
 namespace Internal {
 
-class DoubleTabWidget;
+enum {
+    ContextMenuItemAdderRole // To augment a context menu, data has a QMenu*
+        = Qt::UserRole + 1,
 
-class WidgetCache
-{
-public:
-    void registerProject(Project *project);
-    QVector<QWidget *> deregisterProject(Project *project);
-
-    bool isRegistered(Project *project) const;
-    int indexForProject(Project *project) const;
-    Project *projectFor(int projectIndex) const;
-    QStringList tabNames(Project *project) const;
-
-    QWidget *widgetFor(Project *project, int factoryIndex);
-
-    void sort();
-    int recheckFactories(Project *project, int oldSupportsIndex);
-
-    void clear();
-
-private:
-    int factoryIndex(int projectIndex, int supportsIndex) const;
-
-    class ProjectInfo
-    {
-    public:
-        Project *project;
-        QVector<bool> supports;
-        QVector<QWidget *> widgets;
-    };
-    QList<ProjectInfo> m_projects; //ordered by displaynames of the projects
+    ProjectDisplayNameRole,       // Shown in the project selection combobox
+    ItemActivatedDirectlyRole,    // This item got activated through user interaction and
+                                  // is now responsible for the central widget.
+    ItemActivatedFromBelowRole,   // A subitem gots activated and gives us the opportunity to adjust
+    ItemActivatedFromAboveRole,   // A parent item gots activated and makes us its active child.
+    ItemDeactivatedFromBelowRole, // A subitem got deactivated and gives us the opportunity to adjust
+    ItemUpdatedFromBelowRole,     // A subitem got updated, re-expansion is necessary.
+    ActiveItemRole,               // The index of the currently selected item in the tree view
+    KitIdRole,                    // The kit id in case the item is associated with a kit.
+    PanelWidgetRole               // This item's widget to be shown as central widget.
 };
 
-class ProjectWindow : public QWidget
+class ProjectWindow : public Utils::FancyMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit ProjectWindow(QWidget *parent = 0);
-
-    void aboutToShutdown();
-
-    void projectUpdated(Project *project);
+    ProjectWindow();
 
 private:
-    void projectDisplayNameChanged(Project *p);
-    void showProperties(int index, int subIndex);
-    void registerProject(Project*);
-    bool deregisterProject(Project*);
-    void startupProjectChanged(Project *);
-    void removedTarget(Target*);
-
-    void removeCurrentWidget();
-
-    bool m_ignoreChange;
-    DoubleTabWidget *m_tabWidget;
-    QStackedWidget *m_centralWidget;
-    QWidget *m_currentWidget;
-    WidgetCache m_cache;
+    void setPanel(QWidget *panel);
 };
 
 } // namespace Internal

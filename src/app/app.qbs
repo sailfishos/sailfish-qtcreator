@@ -2,12 +2,10 @@ import qbs
 
 QtcProduct {
     Depends { name: "bundle" }
-    Depends { name: "ib"; condition: qbs.targetOS.contains("osx") }
-
-    bundle.infoPlistFile: "Info.plist" // TODO: Remove for qbs 1.6
+    Depends { name: "ib"; condition: qbs.targetOS.contains("macos") }
 
     Properties {
-        condition: qbs.targetOS.contains("osx")
+        condition: qbs.targetOS.contains("macos")
         ib.appIconName: "qtcreator"
     }
 
@@ -18,13 +16,15 @@ QtcProduct {
     consoleApplication: false
 
     type: ["application"]
-    name: project.ide_app_target
-    version: project.qtcreator_version
+    name: "qtcreator"
+    targetName: qtc.ide_app_target
+    version: qtc.qtcreator_version
 
-    installDir: project.ide_bin_path
+    installDir: qtc.ide_bin_path
+    property bool qtcRunnable: true
 
-    cpp.rpaths: qbs.targetOS.contains("osx") ? ["@executable_path/../Frameworks"]
-                                             : ["$ORIGIN/../" + project.libDirName + "/qtcreator"]
+    cpp.rpaths: qbs.targetOS.contains("macos") ? ["@executable_path/../Frameworks"]
+                                             : ["$ORIGIN/../" + qtc.libDirName + "/qtcreator"]
     cpp.includePaths: [
         project.sharedSourcesDir + "/qtsingleapplication",
         project.sharedSourcesDir + "/qtlockedfile",
@@ -36,7 +36,7 @@ QtcProduct {
     Depends { name: "ExtensionSystem" }
 
     files: [
-        // TODO: Uncomment for qbs 1.6 "Info.plist",
+        "Info.plist",
         "main.cpp",
         "qtcreator.xcassets",
         "qtcreator.rc",
@@ -51,7 +51,7 @@ QtcProduct {
 
     Group {
         name: "qtcreator.sh"
-        condition: qbs.targetOS.contains("unix") && !qbs.targetOS.contains("osx")
+        condition: qbs.targetOS.contains("unix") && !qbs.targetOS.contains("macos")
         files: "../../bin/qtcreator.sh"
         qbs.install: true
         qbs.installDir: "bin"
@@ -74,8 +74,8 @@ QtcProduct {
     }
 
     Group {
-        condition: qbs.targetOS.contains("osx")
-        fileTagsFilter: ["infoplist", "pkginfo", "compiled_assetcatalog"]
+        condition: qbs.targetOS.contains("macos")
+        fileTagsFilter: ["aggregate_infoplist", "pkginfo", "compiled_assetcatalog"]
         qbs.install: true
         qbs.installSourceBase: product.buildDirectory
     }

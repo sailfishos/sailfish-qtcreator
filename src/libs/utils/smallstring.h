@@ -33,16 +33,17 @@
 #include "smallstringmemory.h"
 
 #include <QByteArray>
-#include <QDataStream>
-#include <QDebug>
 #include <QString>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <climits>
 #include <cstring>
-#include <iosfwd>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #pragma push_macro("constexpr")
 #ifndef __cpp_constexpr
@@ -114,9 +115,32 @@ public:
     {
     }
 
+    template<typename Type,
+             typename = typename std::enable_if<std::is_pointer<Type>::value>::type
+             >
+    SmallString(Type characterPointer) noexcept
+        : SmallString(characterPointer, std::strlen(characterPointer))
+    {
+        static_assert(!std::is_array<Type>::value, "Input type is array and not char pointer!");
+    }
+
     SmallString(const QString &qString)
         : SmallString(SmallString::fromQString(qString))
     {}
+
+    SmallString(const std::string &stdString)
+        : SmallString(stdString.data(), stdString.size())
+    {}
+
+    template<typename BeginIterator,
+             typename EndIterator,
+             typename = typename std::enable_if<std::is_same<BeginIterator, EndIterator>::value>::type
+             >
+    SmallString(BeginIterator begin, EndIterator end)
+        : SmallString(&(*begin), size_type(end - begin))
+    {
+    }
+
 
     ~SmallString() noexcept
     {
@@ -197,6 +221,11 @@ public:
         return toQString();
     }
 
+    operator std::string() const
+    {
+        return std::string(data(), size());
+    }
+
     static
     SmallString fromUtf8(const char *characterPointer)
     {
@@ -258,12 +287,12 @@ public:
 
     reverse_iterator rbegin() noexcept
     {
-        return reverse_iterator(end() - 1l);
+        return reverse_iterator(end() - static_cast<std::size_t>(1));
     }
 
     reverse_iterator rend() noexcept
     {
-        return reverse_iterator(begin() - 1l);
+        return reverse_iterator(begin() - static_cast<std::size_t>(1));
     }
 
     const_iterator begin() const noexcept
@@ -499,7 +528,6 @@ UNIT_TEST_PUBLIC:
     }
 
 private:
-    constexpr
     SmallString(Internal::StringDataLayout data) noexcept
         : m_data(data)
     {
@@ -746,70 +774,36 @@ bool operator<(const SmallString& first, const SmallString& second) noexcept
     return comparison < 0;
 }
 
-inline
-QDataStream &operator<<(QDataStream &out, const SmallString &string)
+template<typename Key,
+         typename Value,
+         typename Hash = std::hash<Key>,
+         typename KeyEqual = std::equal_to<Key>,
+         typename Allocator = std::allocator<std::pair<const Key, Value>>>
+std::unordered_map<Key, Value, Hash, KeyEqual, Allocator>
+clone(const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &map)
 {
-   if (string.isEmpty())
-       out << quint32(0);
-   else
-       out.writeBytes(string.data(), qint32(string.size()));
+    std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> clonedMap;
+    clonedMap.reserve(clonedMap.size());
 
-   return out;
+    for (auto &&entry : map)
+        clonedMap.emplace(entry.first, entry.second.clone());
+
+    return clonedMap;
 }
 
-inline
-QDataStream &operator>>(QDataStream &in, SmallString &string)
+template <typename Type>
+std::vector<Type> clone(const std::vector<Type> &vector)
 {
-    quint32 size;
+    std::vector<Type> clonedVector;
+    clonedVector.reserve(vector.size());
 
-    in >> size;
+    for (auto &&entry : vector)
+        clonedVector.push_back(entry.clone());
 
-    if (size > 0 ) {
-        string.resize(size);
-
-        char *data = string.data();
-
-        in.readRawData(data, size);
-    }
-
-    return in;
-}
-
-inline
-QDebug &operator<<(QDebug &debug, const SmallString &string)
-{
-    debug.nospace() << "\"" << string.data() << "\"";
-
-    return debug;
-}
-
-inline
-std::ostream &operator<<(std::ostream &stream, const SmallString &string)
-{
-    return stream << string.data();
-}
-
-inline
-void PrintTo(const SmallString &string, ::std::ostream *os)
-{
-    *os << "'" << string.data() << "'";
+    return clonedVector;
 }
 
 } // namespace Utils
-
-namespace std {
-
-template<> struct hash<Utils::SmallString>
-{
-    using argument_type = Utils::SmallString;
-    using result_type = uint;
-    result_type operator()(const argument_type& string) const
-    {
-        return qHashBits(string.data(), string.size());
-    }
-};
-
-} // namespace std
 
 #pragma pop_macro("noexcept")
 #pragma pop_macro("constexpr")

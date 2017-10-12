@@ -25,7 +25,7 @@
 
 #include "clangfilesystemwatcher.h"
 
-#include "translationunits.h"
+#include "clangdocuments.h"
 
 #include <utf8stringvector.h>
 
@@ -64,13 +64,13 @@ QStringList filterExistingFiles(QStringList &&filePaths)
 }
 }
 
-ClangFileSystemWatcher::ClangFileSystemWatcher(TranslationUnits &translationUnits)
-    : translationUnits(translationUnits)
+ClangFileSystemWatcher::ClangFileSystemWatcher(Documents &documents)
+    : documents(documents)
 {
     connect(&watcher,
             &QFileSystemWatcher::fileChanged,
             this,
-            &ClangFileSystemWatcher::updateTranslationUnitsWithChangedDependencies);
+            &ClangFileSystemWatcher::updateDocumentsWithChangedDependencies);
 }
 
 void ClangFileSystemWatcher::addFiles(const QSet<Utf8String> &filePaths)
@@ -81,9 +81,9 @@ void ClangFileSystemWatcher::addFiles(const QSet<Utf8String> &filePaths)
         watcher.addPaths(existingFiles);
 }
 
-void ClangFileSystemWatcher::updateTranslationUnitsWithChangedDependencies(const QString &filePath)
+void ClangFileSystemWatcher::updateDocumentsWithChangedDependencies(const QString &filePath)
 {
-    translationUnits.updateTranslationUnitsWithChangedDependency(filePath);
+    documents.updateDocumentsWithChangedDependency(filePath);
 
     emit fileChanged(filePath);
 }

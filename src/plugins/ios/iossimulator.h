@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSSIMULATOR_H
-#define IOSSIMULATOR_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
 #include <utils/fileutils.h>
@@ -68,10 +67,6 @@ public:
     typedef QSharedPointer<IosSimulator> Ptr;
     ProjectExplorer::IDevice::DeviceInfo deviceInformation() const override;
 
-    static QList<IosDeviceType> availableDevices();
-    static void setAvailableDevices(QList<IosDeviceType> value);
-    static void updateAvailableDevices();
-
     QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
     QList<Core::Id> actionIds() const override;
@@ -80,7 +75,7 @@ public:
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-    quint16 nextPort() const;
+    Utils::Port nextPort() const;
     bool canAutoDetectPorts() const override;
 
     ProjectExplorer::IDevice::Ptr clone() const override;
@@ -92,8 +87,6 @@ protected:
     IosSimulator(const IosSimulator &other);
 private:
     mutable quint16 m_lastPort;
-    static QMutex _mutex;
-    static QList<IosDeviceType> _availableDevices;
 };
 
 namespace IosKitInformation {
@@ -103,5 +96,3 @@ IosSimulator::ConstPtr simulator(ProjectExplorer::Kit *kit);
 } // namespace Ios
 
 Q_DECLARE_METATYPE(Ios::Internal::IosDeviceType)
-
-#endif // IOSSIMULATOR_H

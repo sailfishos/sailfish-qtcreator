@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDDEVICE_H
-#define ANDROIDDEVICE_H
+#pragma once
 
 #include <projectexplorer/devicesupport/idevice.h>
 
@@ -36,18 +35,18 @@ namespace Internal {
 class AndroidDevice : public ProjectExplorer::IDevice
 {
 public:
-    ProjectExplorer::IDevice::DeviceInfo deviceInformation() const;
+    ProjectExplorer::IDevice::DeviceInfo deviceInformation() const override;
 
-    QString displayType() const;
-    ProjectExplorer::IDeviceWidget *createWidget();
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent = 0);
-    bool canAutoDetectPorts() const;
-    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const;
+    QString displayType() const override;
+    ProjectExplorer::IDeviceWidget *createWidget() override;
+    QList<Core::Id> actionIds() const override;
+    QString displayNameForActionId(Core::Id actionId) const override;
+    void executeAction(Core::Id actionId, QWidget *parent = 0) override;
+    bool canAutoDetectPorts() const override;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
 
-    ProjectExplorer::IDevice::Ptr clone() const;
-    QString qmlProfilerHost() const;
+    ProjectExplorer::IDevice::Ptr clone() const override;
+    ProjectExplorer::Connection toolControlChannel(const ControlChannelHint &) const override;
 
 protected:
     friend class AndroidDeviceFactory;
@@ -58,5 +57,3 @@ protected:
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDDEVICE_H

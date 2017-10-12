@@ -42,24 +42,6 @@ using namespace ProjectExplorer;
 namespace Valgrind {
 namespace Internal {
 
-ValgrindRunControlFactory::ValgrindRunControlFactory(QObject *parent) :
-    IRunControlFactory(parent)
-{
-}
-
-bool ValgrindRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id mode) const
-{
-    if (runConfiguration && !runConfiguration->runnable().is<StandardRunnable>())
-        return false;
-    return mode == CALLGRIND_RUN_MODE || mode == MEMCHECK_RUN_MODE || mode == MEMCHECK_WITH_GDB_RUN_MODE;
-}
-
-RunControl *ValgrindRunControlFactory::create(RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage)
-{
-    Q_UNUSED(errorMessage);
-    return Debugger::createAnalyzerRunControl(runConfiguration, mode);
-}
-
 class ValgrindRunConfigurationAspect : public IRunConfigurationAspect
 {
 public:
@@ -72,20 +54,16 @@ public:
         setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindRunConfigurationAspect", "Valgrind Settings"));
         setUsingGlobalSettings(true);
         resetProjectToGlobalSettings();
+        setRunConfigWidgetCreator([this] { return new AnalyzerRunConfigWidget(this); });
     }
 
     ValgrindRunConfigurationAspect *create(RunConfiguration *parent) const override
     {
         return new ValgrindRunConfigurationAspect(parent);
     }
-
-    RunConfigWidget *createConfigurationWidget() override
-    {
-        return new AnalyzerRunConfigWidget(this);
-    }
 };
 
-IRunConfigurationAspect *ValgrindRunControlFactory::createRunConfigurationAspect(RunConfiguration *rc)
+IRunConfigurationAspect *createValgrindRunConfigurationAspect(RunConfiguration *rc)
 {
     return new ValgrindRunConfigurationAspect(rc);
 }

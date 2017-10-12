@@ -23,29 +23,35 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGCODEMODEL_CLANGTEXTMARK_H
-#define CLANGCODEMODEL_CLANGTEXTMARK_H
+#pragma once
 
 #include <clangbackendipc_global.h>
+#include <clangbackendipc/diagnosticcontainer.h>
 
 #include <texteditor/textmark.h>
+
+#include <functional>
 
 namespace ClangCodeModel {
 
 class ClangTextMark : public TextEditor::TextMark
 {
 public:
-    ClangTextMark(const QString &fileName, int lineNumber, ClangBackEnd::DiagnosticSeverity severity);
+    using RemovedFromEditorHandler = std::function<void(ClangTextMark *)>;
 
-    ClangTextMark(ClangTextMark &&other) Q_DECL_NOEXCEPT;
-
-    ClangTextMark(ClangTextMark &other) = delete;
-    ClangTextMark &operator=(ClangTextMark &other) = delete;
+    ClangTextMark(const QString &fileName,
+                  const ClangBackEnd::DiagnosticContainer &diagnostic,
+                  const RemovedFromEditorHandler &removedHandler);
 
 private:
     void setIcon(ClangBackEnd::DiagnosticSeverity severity);
+
+    bool addToolTipContent(QLayout *target) override;
+    void removedFromEditor() override;
+
+private:
+    ClangBackEnd::DiagnosticContainer m_diagnostic;
+    RemovedFromEditorHandler m_removedFromEditorHandler;
 };
 
 } // namespace ClangCodeModel
-
-#endif // CLANGCODEMODEL_CLANGTEXTMARK_H

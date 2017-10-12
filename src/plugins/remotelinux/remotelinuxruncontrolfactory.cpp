@@ -64,7 +64,8 @@ bool RemoteLinuxRunControlFactory::canRun(RunConfiguration *runConfiguration, Co
     if (mode != ProjectExplorer::Constants::NORMAL_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
-            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
+            && mode != ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
         return false;
     }
 
@@ -117,11 +118,11 @@ RunControl *RemoteLinuxRunControlFactory::create(RunConfiguration *runConfig, Co
         params.remoteSetupNeeded = true;
 
         if (aspect->useQmlDebugger()) {
-            params.qmlServerAddress = dev->sshParameters().host;
-            params.qmlServerPort = 0; // port is selected later on
+            params.qmlServer.host = dev->sshParameters().host;
+            params.qmlServer.port = Utils::Port(); // port is selected later on
         }
         if (aspect->useCppDebugger()) {
-            aspect->setUseMultiProcess(true);
+            params.useExtendedRemote = true;
             params.inferior.executable = stdRunnable.executable;
             params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
             if (aspect->useQmlDebugger()) {
@@ -139,7 +140,8 @@ RunControl *RemoteLinuxRunControlFactory::create(RunConfiguration *runConfig, Co
         return runControl;
     }
 
-    if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+    if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
+            mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
         auto runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
         AnalyzerConnection connection;
         connection.connParams =

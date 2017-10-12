@@ -109,7 +109,7 @@ QString CMakeEditor::contextHelpId() const
 class CMakeEditorWidget : public TextEditorWidget
 {
 public:
-    CMakeEditorWidget() {}
+    ~CMakeEditorWidget() final = default;
 
 private:
     bool save(const QString &fileName = QString());
@@ -196,20 +196,12 @@ CMakeEditorWidget::Link CMakeEditorWidget::findLinkAt(const QTextCursor &cursor,
     return link;
 }
 
-//
-// CMakeDocument
-//
-
-class CMakeDocument : public TextDocument
+static TextDocument *createCMakeDocument()
 {
-public:
-    CMakeDocument();
-};
-
-CMakeDocument::CMakeDocument()
-{
-    setId(Constants::CMAKE_EDITOR_ID);
-    setMimeType(QLatin1String(Constants::CMAKEMIMETYPE));
+    auto doc = new TextDocument;
+    doc->setId(Constants::CMAKE_EDITOR_ID);
+    doc->setMimeType(QLatin1String(Constants::CMAKEMIMETYPE));
+    return doc;
 }
 
 //
@@ -225,7 +217,7 @@ CMakeEditorFactory::CMakeEditorFactory()
 
     setEditorCreator([]() { return new CMakeEditor; });
     setEditorWidgetCreator([]() { return new CMakeEditorWidget; });
-    setDocumentCreator([]() { return new CMakeDocument; });
+    setDocumentCreator(createCMakeDocument);
     setIndenterCreator([]() { return new CMakeIndenter; });
     setUseGenericHighlighter(true);
     setCommentStyle(Utils::CommentDefinition::HashStyle);

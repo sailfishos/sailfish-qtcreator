@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGCODECOMPLETIONTEST_H
-#define CLANGCODECOMPLETIONTEST_H
+#pragma once
 
 #include <QObject>
 
@@ -49,6 +48,7 @@ private slots:
     void testCompleteConstructorAndFallbackToGlobalCompletion();
 
     void testCompleteWithDotToArrowCorrection();
+    void testDontCompleteWithDotToArrowCorrectionForFloats();
 
     void testCompleteProjectDependingCode();
     void testCompleteProjectDependingCodeAfterChangingProject();
@@ -65,5 +65,3 @@ private slots:
 } // namespace Tests
 } // namespace Internal
 } // namespace ClangCodeModel
-
-#endif // CLANGCODECOMPLETIONTEST_H

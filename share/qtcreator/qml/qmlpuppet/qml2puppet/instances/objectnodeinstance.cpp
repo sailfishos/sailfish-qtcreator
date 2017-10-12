@@ -301,7 +301,7 @@ static void removeObjectFromList(const QQmlProperty &property, QObject *objectTo
 
 void ObjectNodeInstance::removeFromOldProperty(QObject *object, QObject *oldParent, const PropertyName &oldParentProperty)
 {
-    QQmlProperty property(oldParent, oldParentProperty, context());
+    QQmlProperty property(oldParent, QString::fromUtf8(oldParentProperty), context());
 
     if (!property.isValid())
         return;
@@ -320,7 +320,7 @@ void ObjectNodeInstance::removeFromOldProperty(QObject *object, QObject *oldPare
 
 void ObjectNodeInstance::addToNewProperty(QObject *object, QObject *newParent, const PropertyName &newParentProperty)
 {
-    QQmlProperty property(newParent, newParentProperty, context());
+    QQmlProperty property(newParent, QString::fromUtf8(newParentProperty), context());
 
     if (object)
         object->setParent(newParent);
@@ -336,6 +336,10 @@ void ObjectNodeInstance::addToNewProperty(QObject *object, QObject *newParent, c
         list.append(object);
     } else if (isObject(property)) {
         property.write(objectToVariant(object));
+
+        if (QQuickItem *item = qobject_cast<QQuickItem *>(object))
+            if (QQuickItem *newParentItem = qobject_cast<QQuickItem *>(newParent))
+                item->setParentItem(newParentItem);
     }
 
     Q_ASSERT(objectToVariant(object).isValid());
@@ -400,7 +404,7 @@ void ObjectNodeInstance::setPropertyVariant(const PropertyName &name, const QVar
     if (ignoredProperties().contains(name))
         return;
 
-    QQmlProperty property(object(), name, context());
+    QQmlProperty property(object(), QString::fromUtf8(name), context());
 
     if (!property.isValid())
         return;
@@ -482,7 +486,7 @@ void ObjectNodeInstance::resetProperty(const PropertyName &name)
 
 void ObjectNodeInstance::refreshProperty(const PropertyName &name)
 {
-    QQmlProperty property(object(), name, context());
+    QQmlProperty property(object(), QString::fromUtf8(name), context());
 
     if (!property.isValid())
         return;
@@ -523,7 +527,7 @@ QVariant ObjectNodeInstance::property(const PropertyName &name) const
     if (QmlPrivateGate::isPropertyBlackListed(name))
         return QVariant();
 
-    QQmlProperty property(object(), name, context());
+    QQmlProperty property(object(), QString::fromUtf8(name), context());
     if (property.property().isEnumType()) {
         QVariant value = property.read();
         return property.property().enumerator().valueToKey(value.toInt());
@@ -555,10 +559,10 @@ QString ObjectNodeInstance::instanceType(const PropertyName &name) const
     if (QmlPrivateGate::isPropertyBlackListed(name))
         return QLatin1String("undefined");
 
-    QQmlProperty property(object(), name, context());
+    QQmlProperty property(object(), QString::fromUtf8(name), context());
     if (!property.isValid())
         return QLatin1String("undefined");
-    return property.propertyTypeName();
+    return QString::fromUtf8(property.propertyTypeName());
 }
 
 QList<ServerNodeInstance> ObjectNodeInstance::childItems() const
@@ -601,7 +605,33 @@ ObjectNodeInstance::Pointer ObjectNodeInstance::create(QObject *object)
 
 QObject *ObjectNodeInstance::createPrimitive(const QString &typeName, int majorNumber, int minorNumber, QQmlContext *context)
 {
-    return QmlPrivateGate::createPrimitive(typeName, majorNumber, minorNumber, context);
+    QObject *object = QmlPrivateGate::createPrimitive(typeName, majorNumber, minorNumber, context);
+
+    /* Let's try to create the primitive from source, since with incomplete meta info this might be a pure
+     * QML type. This is the case for example if a C++ type is mocked up with a QML file.
+     */
+
+    if (!object)
+        object = createPrimitiveFromSource(typeName, majorNumber, minorNumber, context);
+
+    return object;
+}
+
+QObject *ObjectNodeInstance::createPrimitiveFromSource(const QString &typeName, int majorNumber, int minorNumber, QQmlContext *context)
+{
+    if (typeName.isEmpty())
+        return 0;
+
+    QStringList parts = typeName.split("/");
+    const QString unqualifiedTypeName = parts.last();
+    parts.removeLast();
+
+    if (parts.isEmpty())
+        return 0;
+
+    const QString importString = parts.join(".") + " " + QString::number(majorNumber) + "." + QString::number(minorNumber);
+    QString source = "import " + importString + "\n" + unqualifiedTypeName + " {\n" + "}\n";
+    return createCustomParserObject(source, "", context);
 }
 
 QObject *ObjectNodeInstance::createComponentWrap(const QString &nodeSource, const QByteArray &importCode, QQmlContext *context)

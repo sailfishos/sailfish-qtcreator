@@ -27,8 +27,8 @@
 #include "ui_qbsprofilessettingswidget.h"
 
 #include "customqbspropertiesdialog.h"
-#include "qbsconstants.h"
 #include "qbsprojectmanager.h"
+#include "qbsprojectmanagerconstants.h"
 #include "qbsprojectmanagersettings.h"
 
 #include <coreplugin/icore.h>
@@ -54,12 +54,10 @@ public:
 
     void apply();
 
-private slots:
+private:
     void refreshKitsList();
     void displayCurrentProfile();
     void editProfile();
-
-private:
     void setupCustomProperties(const ProjectExplorer::Kit *kit);
     void mergeCustomPropertiesIntoModel();
 
@@ -82,7 +80,7 @@ QbsProfilesSettingsPage::QbsProfilesSettingsPage(QObject *parent)
     setCategory(Constants::QBS_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("QbsProjectManager",
                                                    Constants::QBS_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::QBS_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(Constants::QBS_SETTINGS_CATEGORY_ICON));
 }
 
 QWidget *QbsProfilesSettingsPage::widget()
@@ -123,9 +121,12 @@ QbsProfilesSettingsWidget::QbsProfilesSettingsWidget(QWidget *parent)
         m_model.updateSettingsDir(QbsProjectManagerSettings::qbsSettingsBaseDir());
         displayCurrentProfile();
     });
-    connect(m_ui.expandButton, SIGNAL(clicked()), m_ui.propertiesView, SLOT(expandAll()));
-    connect(m_ui.collapseButton, SIGNAL(clicked()), m_ui.propertiesView, SLOT(collapseAll()));
-    connect(m_ui.editButton, SIGNAL(clicked()), SLOT(editProfile()));
+    connect(m_ui.expandButton, &QAbstractButton::clicked,
+            m_ui.propertiesView, &QTreeView::expandAll);
+    connect(m_ui.collapseButton, &QAbstractButton::clicked,
+            m_ui.propertiesView, &QTreeView::collapseAll);
+    connect(m_ui.editButton, &QAbstractButton::clicked,
+            this, &QbsProfilesSettingsWidget::editProfile);
     refreshKitsList();
 }
 
@@ -175,7 +176,9 @@ void QbsProfilesSettingsWidget::refreshKitsList()
     else if (hasKits)
         m_ui.kitsComboBox->setCurrentIndex(0);
     displayCurrentProfile();
-    connect(m_ui.kitsComboBox, SIGNAL(currentIndexChanged(int)), SLOT(displayCurrentProfile()));
+    connect(m_ui.kitsComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &QbsProfilesSettingsWidget::displayCurrentProfile);
 }
 
 void QbsProfilesSettingsWidget::displayCurrentProfile()

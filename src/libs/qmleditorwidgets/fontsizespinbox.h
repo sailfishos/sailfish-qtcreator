@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FONTSIZESPINBOX_H
-#define FONTSIZESPINBOX_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include <QAbstractSpinBox>
@@ -54,7 +53,7 @@ signals:
      void formatChanged();
      void valueChanged(int);
 
-public slots:
+public:
      void setIsPointSize(bool b)
      {
          if (isPointSize() == b)
@@ -81,16 +80,14 @@ public slots:
 
  protected:
     StepEnabled stepEnabled() const;
-private slots:
+
+private:
     void onEditingFinished();
     void setText();
 
-private:
     bool m_isPointSize;
     int m_value;
 
 };
 
 } //QmlDesigner
-
-#endif // FONTSIZESPINBOX_H

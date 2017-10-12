@@ -26,11 +26,13 @@
 #pragma once
 
 #include "cmakeconfigitem.h"
+#include "cmakeproject.h"
 #include "configmodel.h"
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/abi.h>
 
+namespace CppTools { class ProjectPartBuilder; }
 namespace ProjectExplorer { class ToolChain; }
 
 namespace CMakeProjectManager {
@@ -70,13 +72,18 @@ public:
     QString error() const;
     QString warning() const;
 
-    BuildDirManager *buildDirManager() const;
-
     bool isParsing() const;
 
     void maybeForceReparse();
     void resetData();
     bool persistCMakeState();
+    bool updateCMakeStateBeforeBuild();
+    void runCMake();
+    void clearCache();
+
+    QList<CMakeBuildTarget> buildTargets() const;
+    void generateProjectTree(CMakeProjectNode *root) const;
+    QSet<Core::Id> updateCodeModel(CppTools::ProjectPartBuilder &ppBuilder);
 
     static Utils::FileName
     shadowBuildDirectory(const Utils::FileName &projectFilePath, const ProjectExplorer::Kit *k,
@@ -107,10 +114,10 @@ private:
 
     mutable QList<CMakeConfigItem> m_completeConfigurationCache;
 
-    BuildDirManager *m_buildDirManager = nullptr;
+    BuildDirManager *const m_buildDirManager = nullptr;
 
     friend class CMakeBuildSettingsWidget;
-    friend class CMakeProject;
+    friend class CMakeProjectManager::CMakeProject;
 };
 
 class CMakeBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory

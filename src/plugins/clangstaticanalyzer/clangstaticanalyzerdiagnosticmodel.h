@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGSTATICANALYZERDIAGNOSTICMODEL_H
-#define CLANGSTATICANALYZERDIAGNOSTICMODEL_H
+#pragma once
 
 #include "clangstaticanalyzerdiagnostic.h"
 #include "clangstaticanalyzerprojectsettings.h"
@@ -41,7 +40,7 @@ namespace ProjectExplorer { class Project; }
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
-class ClangStaticAnalyzerDiagnosticModel : public Utils::TreeModel
+class ClangStaticAnalyzerDiagnosticModel : public Utils::TreeModel<>
 {
     Q_OBJECT
 
@@ -78,5 +77,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangStaticAnalyzer
-
-#endif // CLANGSTATICANALYZERDIAGNOSTICMODEL_H

@@ -6,12 +6,12 @@ Project {
         "buildoutputparser/buildoutputparser.qbs",
         "clangbackend/clangbackend.qbs",
         "cplusplustools.qbs",
+        "qml2puppet/qml2puppet.qbs",
         "qtcdebugger/qtcdebugger.qbs",
         "qtcreatorcrashhandler/qtcreatorcrashhandler.qbs",
         "qtpromaker/qtpromaker.qbs",
         "sdktool/sdktool.qbs",
         "valgrindfake/valgrindfake.qbs",
-        "3rdparty/iossim/iossim.qbs",
         "iostool/iostool.qbs",
         "winrtdebughelper/winrtdebughelper.qbs"
     ].concat(project.additionalTools)

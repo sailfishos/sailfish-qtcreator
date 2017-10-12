@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HELPWIDGET_H
-#define HELPWIDGET_H
+#pragma once
 
 #include <coreplugin/icontext.h>
 
@@ -79,7 +78,7 @@ public:
                           bool newPage = false);
     void activateSideBarItem(const QString &id);
 
-public slots:
+public:
     void setSource(const QUrl &url);
     void updateCloseButton();
 
@@ -93,13 +92,12 @@ signals:
     void sourceChanged(const QUrl &url);
     void filterActivated(const QString &name);
 
-private slots:
+private:
     void updateBackMenu();
     void updateForwardMenu();
     void updateWindowTitle();
     void helpModeButtonClicked();
 
-private:
     void goHome();
     void addBookmark();
     void copy();
@@ -113,39 +111,37 @@ private:
     void addSideBar();
     QString sideBarSettingsKey() const;
 
-    Core::IContext *m_context;
+    Core::IContext *m_context = nullptr;
     WidgetStyle m_style;
-    QAction *m_toggleSideBarAction;
-    QAction *m_switchToHelp;
-    QAction *m_homeAction;
-    QMenu *m_backMenu;
-    QMenu *m_forwardMenu;
-    QAction *m_backAction;
-    QAction *m_forwardAction;
-    QAction *m_addBookmarkAction;
-    QComboBox *m_filterComboBox;
-    QAction *m_closeAction;
-    QAction *m_scaleUp;
-    QAction *m_scaleDown;
-    QAction *m_resetScale;
-    QAction *m_printAction;
-    QAction *m_copy;
+    QAction *m_toggleSideBarAction = nullptr;
+    QAction *m_switchToHelp = nullptr;
+    QAction *m_homeAction = nullptr;
+    QMenu *m_backMenu = nullptr;
+    QMenu *m_forwardMenu = nullptr;
+    QAction *m_backAction = nullptr;
+    QAction *m_forwardAction = nullptr;
+    QAction *m_addBookmarkAction = nullptr;
+    QComboBox *m_filterComboBox = nullptr;
+    QAction *m_closeAction = nullptr;
+    QAction *m_scaleUp = nullptr;
+    QAction *m_scaleDown = nullptr;
+    QAction *m_resetScale = nullptr;
+    QAction *m_printAction = nullptr;
+    QAction *m_copy = nullptr;
 
-    QStackedWidget *m_viewerStack;
-    QPrinter *m_printer;
+    QStackedWidget *m_viewerStack = nullptr;
+    QPrinter *m_printer = nullptr;
 
-    Core::MiniSplitter *m_sideBarSplitter;
-    Core::SideBar *m_sideBar;
-    QAction *m_contentsAction;
-    QAction *m_indexAction;
-    QAction *m_bookmarkAction;
-    QAction *m_searchAction;
-    QAction *m_openPagesAction;
+    Core::MiniSplitter *m_sideBarSplitter = nullptr;
+    Core::SideBar *m_sideBar = nullptr;
+    QAction *m_contentsAction = nullptr;
+    QAction *m_indexAction = nullptr;
+    QAction *m_bookmarkAction = nullptr;
+    QAction *m_searchAction = nullptr;
+    QAction *m_openPagesAction = nullptr;
 
     QStringList m_searchTerms;
 };
 
 } // Internal
 } // Help
-
-#endif // HELPWIDGET_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONFIELDPAGE_H
-#define JSONFIELDPAGE_H
+#pragma once
 
 #include "../projectexplorer_export.h"
 
@@ -108,16 +107,16 @@ public:
     };
 
     JsonFieldPage(Utils::MacroExpander *expander, QWidget *parent = 0);
-    ~JsonFieldPage();
+    ~JsonFieldPage() override;
 
     typedef std::function<Field *()> FieldFactory;
     static void registerFieldFactory(const QString &id, const FieldFactory &ff);
 
     bool setup(const QVariant &data);
 
-    bool isComplete() const;
-    void initializePage();
-    void cleanupPage();
+    bool isComplete() const override;
+    void initializePage() override;
+    void cleanupPage() override;
 
     QFormLayout *layout() const { return m_formLayout; }
 
@@ -140,5 +139,3 @@ private:
 };
 
 } // namespace ProjectExplorer
-
-#endif // JSONFIELDPAGE_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef RESOURCEFILE_P_H
-#define RESOURCEFILE_P_H
+#pragma once
 
 #include <QAbstractItemModel>
 #include <QCoreApplication>
@@ -128,7 +127,7 @@ class ResourceFile
 {
     Q_DECLARE_TR_FUNCTIONS(ResourceFile)
 public:
-    ResourceFile(const QString &file_name = QString());
+    ResourceFile(const QString &file_name = QString(), const QString &contents = QString());
     ~ResourceFile();
 
     void setFileName(const QString &file_name) { m_file_name = file_name; }
@@ -176,6 +175,7 @@ public:
 private:
     PrefixList m_prefix_list;
     QString m_file_name;
+    QString m_contents;
     QString m_error_message;
     Utils::TextFileFormat m_textFileFormat;
 
@@ -328,5 +328,3 @@ private:
 
 } // namespace Internal
 } // namespace ResourceEditor
-
-#endif // RESOURCEFILE_P_H

@@ -59,10 +59,16 @@ class LldbEngine : public DebuggerEngine
 
 public:
     explicit LldbEngine(const DebuggerRunParameters &runParameters);
-    ~LldbEngine();
+    ~LldbEngine() override;
+
+    enum LldbCommandFlag {
+        NoFlags = 0,
+        // Do not echo to log.
+        Silent = 1
+    };
 
 signals:
-    void outputReady(const QByteArray &data);
+    void outputReady(const QString &data);
 
 private:
     DebuggerEngine *cppEngine() override { return this; }
@@ -116,10 +122,10 @@ private:
     void fetchDisassembler(Internal::DisassemblerAgent *) override;
 
     bool isSynchronous() const override { return true; }
-    void setRegisterValue(const QByteArray &name, const QString &value) override;
+    void setRegisterValue(const QString &name, const QString &value) override;
 
-    void fetchMemory(Internal::MemoryAgent *, QObject *, quint64 addr, quint64 length) override;
-    void changeMemory(Internal::MemoryAgent *, QObject *, quint64 addr, const QByteArray &data) override;
+    void fetchMemory(MemoryAgent *, quint64 addr, quint64 length) override;
+    void changeMemory(MemoryAgent *, quint64 addr, const QByteArray &data) override;
 
     QString errorMessage(QProcess::ProcessError error) const;
     bool hasCapability(unsigned cap) const override;
@@ -133,7 +139,7 @@ private:
     void handleLocationNotification(const GdbMi &location);
     void handleOutputNotification(const GdbMi &output);
 
-    void handleResponse(const QByteArray &data);
+    void handleResponse(const QString &data);
     void updateAll() override;
     void doUpdateLocals(const UpdateParameters &params) override;
     void updateBreakpointData(Breakpoint bp, const GdbMi &bkpt, bool added);
@@ -147,24 +153,21 @@ private:
 private:
     DebuggerCommand m_lastDebuggableCommand;
 
-    QByteArray m_inbuffer;
+    QString m_inbuffer;
     QString m_scriptFileName;
     Utils::QtcProcess m_lldbProc;
-    QString m_lldbCmd;
 
     // FIXME: Make generic.
     int m_lastAgentId;
     int m_continueAtNextSpontaneousStop;
     QMap<QPointer<DisassemblerAgent>, int> m_disassemblerAgents;
-    QMap<QPointer<MemoryAgent>, int> m_memoryAgents;
-    QHash<int, QPointer<QObject> > m_memoryAgentTokens;
 
     QHash<int, DebuggerCommand> m_commandForToken;
 
     // Console handling.
-    Q_SLOT void stubError(const QString &msg);
-    Q_SLOT void stubExited();
-    Q_SLOT void stubStarted();
+    void stubError(const QString &msg);
+    void stubExited();
+    void stubStarted();
     bool prepareCommand();
     Utils::ConsoleProcess m_stubProc;
 };

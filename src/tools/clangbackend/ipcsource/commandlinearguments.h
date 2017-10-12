@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_COMMANDLINEARGUMENTS_H
-#define CLANGBACKEND_COMMANDLINEARGUMENTS_H
+#pragma once
 
 #include <utf8stringvector.h>
 
@@ -36,7 +35,7 @@ class CommandLineArguments
 {
 public:
     CommandLineArguments(const char *filePath,
-                         const std::vector<const char *> &projectPartArguments,
+                         const Utf8StringVector &projectPartArguments,
                          const Utf8StringVector &fileArguments,
                          bool addVerboseOption);
 
@@ -47,9 +46,8 @@ public:
     void print() const;
 
 private:
+    Utf8String m_nativeFilePath;
     std::vector<const char *> m_arguments;
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_COMMANDLINEARGUMENTS_H

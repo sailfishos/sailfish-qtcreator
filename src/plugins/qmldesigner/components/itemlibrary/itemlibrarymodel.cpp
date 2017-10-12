@@ -32,12 +32,17 @@
 #include <model.h>
 #include <nodemetainfo.h>
 
+#include <utils/algorithm.h>
+
 #include <QVariant>
 #include <QMetaProperty>
+#include <QLoggingCategory>
 #include <QMimeData>
 #include <QPainter>
 #include <QPen>
 #include <qdebug.h>
+
+static Q_LOGGING_CATEGORY(itemlibraryPopulate, "qtc.itemlibrary.populate")
 
 static bool inline registerItemLibrarySortedModel() {
     qmlRegisterType<QmlDesigner::ItemLibrarySectionModel>();
@@ -118,7 +123,10 @@ void ItemLibraryModel::setSearchText(const QString &searchText)
         m_searchText = lowerSearchText;
         emit searchTextChanged();
 
-        updateVisibility();
+        bool changed = false;
+        updateVisibility(&changed);
+        if (changed)
+            dataChanged(QModelIndex(), QModelIndex());
     }
 }
 
@@ -137,8 +145,7 @@ void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
     if (!model)
         return;
 
-    QMap<QString, int> sections;
-
+    beginResetModel();
     clearSections();
 
     QStringList imports;
@@ -146,32 +153,52 @@ void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
         if (import.isLibraryImport())
             imports << import.url() + QLatin1Char(' ') + import.version();
 
+
+    qCInfo(itemlibraryPopulate) << Q_FUNC_INFO;
     foreach (ItemLibraryEntry entry, itemLibraryInfo->entries()) {
 
-         NodeMetaInfo metaInfo = model->metaInfo(entry.typeName());
-         bool valid = metaInfo.isValid() && metaInfo.majorVersion() == entry.majorVersion();
+        qCInfo(itemlibraryPopulate) << entry.typeName() << entry.majorVersion() << entry.minorVersion();
 
-         if (valid
-                 && (entry.requiredImport().isEmpty()
-                     || model->hasImport(entryToImport(entry), true, true))) {
+        NodeMetaInfo metaInfo = model->metaInfo(entry.typeName());
+
+        qCInfo(itemlibraryPopulate) << "valid: " << metaInfo.isValid() << metaInfo.majorVersion() << metaInfo.minorVersion();
+
+        bool valid = metaInfo.isValid() && metaInfo.majorVersion() == entry.majorVersion();
+        bool isItem = valid && metaInfo.isSubclassOf("QtQuick.Item");
+
+        qCInfo(itemlibraryPopulate) << "isItem: " << isItem;
+
+        qCInfo(itemlibraryPopulate) << "required import: " << entry.requiredImport() << entryToImport(entry).toImportString();
+
+        if (!isItem && valid) {
+            qDebug() << Q_FUNC_INFO;
+            qDebug() << metaInfo.typeName() << "is not a QtQuick.Item";
+            qDebug() << Utils::transform(metaInfo.superClasses(), &NodeMetaInfo::typeName);
+        }
+
+        if (valid
+                && isItem //We can change if the navigator does support pure QObjects
+                && (entry.requiredImport().isEmpty()
+                    || model->hasImport(entryToImport(entry), true, true))) {
             QString itemSectionName = entry.category();
+            qCInfo(itemlibraryPopulate) << "Adding:" << entry.typeName() << "to:" << entry.category();
             ItemLibrarySection *sectionModel = sectionByName(itemSectionName);
-            ItemLibraryItem *item;
 
             if (sectionModel == 0) {
                 sectionModel = new ItemLibrarySection(itemSectionName, this);
                 m_sections.append(sectionModel);
             }
 
-            item = new ItemLibraryItem(sectionModel);
+            ItemLibraryItem *item = new ItemLibraryItem(sectionModel);
             item->setItemLibraryEntry(entry);
             sectionModel->addSectionEntry(item);
         }
     }
 
     sortSections();
-    resetModel();
-    updateVisibility();
+    bool changed = false;
+    updateVisibility(&changed);
+    endResetModel();
 }
 
 QMimeData *ItemLibraryModel::getMimeData(const ItemLibraryEntry &itemLibraryEntry)
@@ -195,10 +222,8 @@ QList<ItemLibrarySection *> ItemLibraryModel::sections() const
 
 void ItemLibraryModel::clearSections()
 {
-    beginResetModel();
     qDeleteAll(m_sections);
     m_sections.clear();
-    endResetModel();
 }
 
 void ItemLibraryModel::registerQmlTypes()
@@ -217,22 +242,17 @@ ItemLibrarySection *ItemLibraryModel::sectionByName(const QString &sectionName)
     return 0;
 }
 
-void ItemLibraryModel::updateVisibility()
+void ItemLibraryModel::updateVisibility(bool *changed)
 {
-    bool changed = false;
-
     foreach (ItemLibrarySection *itemLibrarySection, m_sections) {
         QString sectionSearchText = m_searchText;
 
         bool sectionChanged = false;
         bool sectionVisibility = itemLibrarySection->updateSectionVisibility(sectionSearchText,
                                                                              &sectionChanged);
-        changed |= sectionChanged;
-        changed |= itemLibrarySection->setVisible(sectionVisibility);
+        *changed |= sectionChanged;
+        *changed |= itemLibrarySection->setVisible(sectionVisibility);
     }
-
-    if (changed)
-        resetModel();
 }
 
 void ItemLibraryModel::addRoleNames()
@@ -243,12 +263,6 @@ void ItemLibraryModel::addRoleNames()
         m_roleNames.insert(role, property.name());
         ++role;
     }
-}
-
-void ItemLibraryModel::resetModel()
-{
-    beginResetModel();
-    endResetModel();
 }
 
 void ItemLibraryModel::sortSections()

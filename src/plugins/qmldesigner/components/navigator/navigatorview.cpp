@@ -33,9 +33,9 @@
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/coreicons.h>
 
 #include <utils/icon.h>
+#include <utils/utilsicons.h>
 
 #include <bindingproperty.h>
 #include <designmodecontext.h>
@@ -87,8 +87,8 @@ NavigatorView::NavigatorView(QObject* parent) :
                                                         m_treeModel.data());
     IconCheckboxItemDelegate *showDelegate =
             new IconCheckboxItemDelegate(this,
-                                         Core::Icons::EYE_OPEN_TOOLBAR.pixmap(),
-                                         Core::Icons::EYE_CLOSED_TOOLBAR.pixmap(),
+                                         Utils::Icons::EYE_OPEN_TOOLBAR.pixmap(),
+                                         Utils::Icons::EYE_CLOSED_TOOLBAR.pixmap(),
                                          m_treeModel.data());
 
     IconCheckboxItemDelegate *exportDelegate =
@@ -214,6 +214,20 @@ void NavigatorView::propertiesAboutToBeRemoved(const QList<AbstractProperty>& pr
             foreach (const ModelNode &childNode, nodeAbstractProperty.directSubNodes()) {
                 m_treeModel->removeSubTree(childNode);
             }
+        }
+    }
+}
+
+void NavigatorView::propertiesRemoved(const QList<AbstractProperty> &propertyList)
+{
+    for (const AbstractProperty &property : propertyList) {
+        ModelNode node = property.parentModelNode();
+        /* Update export alias state if property from root note was removed and the root node was not selected. */
+        /* The check for the selection is an optimization to reduce updates. */
+        if (node.isRootNode() && !selectedModelNodes().isEmpty() && !selectedModelNodes().first().isRootNode()) {
+
+            foreach (const ModelNode &modelNode, node.allSubModelNodes())
+                m_treeModel->updateItemRow(modelNode);
         }
     }
 }

@@ -274,8 +274,8 @@ CppCodeStylePreferencesWidget::CppCodeStylePreferencesWidget(QWidget *parent)
         m_previews[i]->setPlainText(QLatin1String(defaultCodeStyleSnippets[i]));
 
     decorateEditors(TextEditorSettings::fontSettings());
-    connect(TextEditorSettings::instance(), SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
-       this, SLOT(decorateEditors(TextEditor::FontSettings)));
+    connect(TextEditorSettings::instance(), &TextEditorSettings::fontSettingsChanged,
+            this, &CppCodeStylePreferencesWidget::decorateEditors);
 
     setVisualizeWhitespace(true);
 
@@ -321,6 +321,8 @@ CppCodeStylePreferencesWidget::CppCodeStylePreferencesWidget(QWidget *parent)
             this, &CppCodeStylePreferencesWidget::slotCodeStyleSettingsChanged);
     connect(m_ui->bindStarToRightSpecifier, &QCheckBox::toggled,
             this, &CppCodeStylePreferencesWidget::slotCodeStyleSettingsChanged);
+    connect(m_ui->preferGetterNamesWithoutGet, &QCheckBox::toggled,
+            this, &CppCodeStylePreferencesWidget::slotCodeStyleSettingsChanged);
 
     m_ui->categoryTab->setCurrentIndex(0);
 
@@ -339,10 +341,15 @@ void CppCodeStylePreferencesWidget::setCodeStyle(CppTools::CppCodeStylePreferenc
 
     connect(m_preferences, &CppCodeStylePreferences::currentTabSettingsChanged,
             this, &CppCodeStylePreferencesWidget::setTabSettings);
-    connect(m_preferences, SIGNAL(currentCodeStyleSettingsChanged(CppTools::CppCodeStyleSettings)),
-            this, SLOT(setCodeStyleSettings(CppTools::CppCodeStyleSettings)));
-    connect(m_preferences, SIGNAL(currentPreferencesChanged(TextEditor::ICodeStylePreferences*)),
-            this, SLOT(slotCurrentPreferencesChanged(TextEditor::ICodeStylePreferences*)));
+    connect(m_preferences, &CppCodeStylePreferences::currentCodeStyleSettingsChanged,
+            this, [this](const CppTools::CppCodeStyleSettings &codeStyleSettings) {
+        setCodeStyleSettings(codeStyleSettings);
+    });
+
+    connect(m_preferences, &ICodeStylePreferences::currentPreferencesChanged,
+            this, [this](TextEditor::ICodeStylePreferences *currentPreferences) {
+        slotCurrentPreferencesChanged(currentPreferences);
+    });
 
     setTabSettings(m_preferences->tabSettings());
     setCodeStyleSettings(m_preferences->codeStyleSettings(), false);
@@ -375,6 +382,7 @@ CppCodeStyleSettings CppCodeStylePreferencesWidget::cppCodeStyleSettings() const
     set.bindStarToRightSpecifier = m_ui->bindStarToRightSpecifier->isChecked();
     set.extraPaddingForConditionsIfConfusingAlign = m_ui->extraPaddingConditions->isChecked();
     set.alignAssignments = m_ui->alignAssignments->isChecked();
+    set.preferGetterNameWithoutGetPrefix = m_ui->preferGetterNamesWithoutGet->isChecked();
 
     return set;
 }
@@ -408,6 +416,7 @@ void CppCodeStylePreferencesWidget::setCodeStyleSettings(const CppCodeStyleSetti
     m_ui->bindStarToRightSpecifier->setChecked(s.bindStarToRightSpecifier);
     m_ui->extraPaddingConditions->setChecked(s.extraPaddingForConditionsIfConfusingAlign);
     m_ui->alignAssignments->setChecked(s.alignAssignments);
+    m_ui->preferGetterNamesWithoutGet->setChecked(s.preferGetterNameWithoutGetPrefix);
     m_blockUpdates = wasBlocked;
     if (preview)
         updatePreview();
@@ -516,7 +525,7 @@ CppCodeStyleSettingsPage::CppCodeStyleSettingsPage(QWidget *parent) :
     setDisplayName(QCoreApplication::translate("CppTools", Constants::CPP_CODE_STYLE_SETTINGS_NAME));
     setCategory(Constants::CPP_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("CppTools", Constants::CPP_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::SETTINGS_CATEGORY_CPP_ICON));
+    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CPP_ICON));
 }
 
 QWidget *CppCodeStyleSettingsPage::widget()

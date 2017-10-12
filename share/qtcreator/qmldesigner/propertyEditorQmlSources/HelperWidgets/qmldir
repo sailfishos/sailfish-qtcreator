@@ -31,10 +31,11 @@ ScrollView 2.0 ScrollView.qml
 SecondColumnLayout 2.0 SecondColumnLayout.qml
 Section 2.0 Section.qml
 SectionLayout 2.0 SectionLayout.qml
-SliderSpinBox 2.0 SliderSpinBox.qml
+DoubleSpinBox 2.0 DoubleSpinBox.qml
 SpinBox 2.0 SpinBox.qml
 StandardTextSection 2.0 StandardTextSection.qml
 Tab 2.0 Tab.qml
 TabView 2.0 TabView.qml
 ToolTipArea 2.0 ToolTipArea.qml
 UrlChooser 2.0 UrlChooser.qml
+PaddingSection 2.0 PaddingSection.qml

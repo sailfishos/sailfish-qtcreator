@@ -38,6 +38,7 @@
 #include <ssh/sshconnection.h>
 
 #include <QDialog>
+#include <QFutureWatcher>
 
 namespace Mer {
 namespace Internal {
@@ -138,7 +139,11 @@ private slots:
     void onImplFinished();
 
 private:
+    void ctor();
+
+private:
     ProjectExplorer::BuildStep *m_impl;
+    QFutureWatcher<bool> m_watcher;
 };
 
 class MerMb2RsyncDeployStep : public MerProcessStep

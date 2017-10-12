@@ -51,7 +51,7 @@
     \list
 
         \li GNU Compiler Collection (GCC) is a compiler for Linux and
-            OS X.
+            \macos.
 
         \li MinGW (Minimalist GNU for Windows) is a native software port of GCC
             and GNU Binutils for use in the development of native Microsoft
@@ -62,7 +62,7 @@
             for Linux.
 
         \li Clang is a C, C++, Objective C, and Objective C++ front-end for the
-            LLVM compiler for Windows, Linux, and OS X.
+            LLVM compiler for Windows, Linux, and \macos.
 
         \li QCC is the interface for compiling C++ applications for QNX.
 
@@ -82,8 +82,9 @@
     \list 1
 
         \li Select \uicontrol Tools > \uicontrol Options >
-            \uicontrol {Build & Run} > \uicontrol Compilers > \uicontrol Add
-            and select a compiler in the list.
+            \uicontrol {Build & Run} > \uicontrol Compilers > \uicontrol Add,
+            then select a compiler in the list, and then select \uicontrol C or
+            \uicontrol C++ to add a C or C++ compiler.
 
             \image qtcreator-toolchains.png
 
@@ -124,7 +125,8 @@
     \list 1
 
         \li Select \uicontrol Tools > \uicontrol Options > \uicontrol {Build & Run} >
-            \uicontrol Compilers > \uicontrol Add > \uicontrol Custom.
+            \uicontrol Compilers > \uicontrol Add > \uicontrol Custom >
+            \uicontrol C or \uicontrol C++.
 
         \li In the \uicontrol Name field, enter a name for the compiler.
 

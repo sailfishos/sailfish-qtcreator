@@ -26,10 +26,13 @@
 #include "clangtextmark.h"
 
 #include "clangconstants.h"
+#include "clangdiagnostictooltipwidget.h"
 
 #include <utils/icon.h>
+#include <utils/qtcassert.h>
 #include <utils/theme/theme.h>
 
+#include <QLayout>
 #include <QString>
 
 namespace ClangCodeModel {
@@ -57,11 +60,18 @@ Core::Id cartegoryForSeverity(ClangBackEnd::DiagnosticSeverity severity)
 
 } // anonymous namespace
 
-ClangTextMark::ClangTextMark(const QString &fileName, int lineNumber, ClangBackEnd::DiagnosticSeverity severity)
-    : TextEditor::TextMark(fileName, lineNumber, cartegoryForSeverity(severity))
+
+ClangTextMark::ClangTextMark(const QString &fileName,
+                             const ClangBackEnd::DiagnosticContainer &diagnostic,
+                             const RemovedFromEditorHandler &removedHandler)
+    : TextEditor::TextMark(fileName,
+                           int(diagnostic.location().line()),
+                           cartegoryForSeverity(diagnostic.severity()))
+    , m_diagnostic(diagnostic)
+    , m_removedFromEditorHandler(removedHandler)
 {
     setPriority(TextEditor::TextMark::HighPriority);
-    setIcon(severity);
+    setIcon(diagnostic.severity());
 }
 
 void ClangTextMark::setIcon(ClangBackEnd::DiagnosticSeverity severity)
@@ -79,9 +89,20 @@ void ClangTextMark::setIcon(ClangBackEnd::DiagnosticSeverity severity)
         TextMark::setIcon(errorIcon);
 }
 
-ClangTextMark::ClangTextMark(ClangTextMark &&other) Q_DECL_NOEXCEPT
-    : TextMark(std::move(other))
+bool ClangTextMark::addToolTipContent(QLayout *target)
 {
+    using Internal::ClangDiagnosticWidget;
+
+    QWidget *widget = ClangDiagnosticWidget::create({m_diagnostic}, ClangDiagnosticWidget::ToolTip);
+    target->addWidget(widget);
+
+    return true;
+}
+
+void ClangTextMark::removedFromEditor()
+{
+    QTC_ASSERT(m_removedFromEditorHandler, return);
+    m_removedFromEditorHandler(this);
 }
 
 } // namespace ClangCodeModel

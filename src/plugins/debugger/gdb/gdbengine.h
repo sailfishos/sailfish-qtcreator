@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_GDBENGINE_H
-#define DEBUGGER_GDBENGINE_H
+#pragma once
 
 #include <debugger/debuggerengine.h>
 
@@ -32,6 +31,7 @@
 #include <debugger/registerhandler.h>
 #include <debugger/watchhandler.h>
 #include <debugger/watchutils.h>
+#include <debugger/debuggeritem.h>
 #include <debugger/debuggertooltipmanager.h>
 
 #include <coreplugin/id.h>
@@ -65,7 +65,7 @@ class GdbEngine : public DebuggerEngine
 
 public:
     explicit GdbEngine(const DebuggerRunParameters &runParameters);
-    ~GdbEngine();
+    ~GdbEngine() override;
 
 private: ////////// General Interface //////////
     DebuggerEngine *cppEngine() override { return this; }
@@ -123,25 +123,27 @@ protected: ////////// Gdb Process Management //////////
     // Make sure to clean up everything before emitting this signal.
     void handleAdapterCrashed(const QString &msg);
 
-private slots:
+private:
     friend class GdbPlainEngine;
+    friend class GdbCoreEngine;
     void handleInterruptDeviceInferior(const QString &error);
     void handleGdbFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void handleGdbError(QProcess::ProcessError error);
-    void readDebugeeOutput(const QByteArray &data);
     void readGdbStandardOutput();
     void readGdbStandardError();
+    void readDebuggeeOutput(const QByteArray &ba);
 
-private:
-    QTextCodec *m_outputCodec;
-    QTextCodec::ConverterState m_outputCodecState;
+    QTextCodec *m_gdbOutputCodec;
+    QTextCodec::ConverterState m_gdbOutputCodecState;
+    QTextCodec *m_inferiorOutputCodec;
+    QTextCodec::ConverterState m_inferiorOutputCodecState;
 
     QByteArray m_inbuffer;
     bool m_busy;
 
     // Name of the convenience variable containing the last
     // known function return value.
-    QByteArray m_resultVarName;
+    QString m_resultVarName;
 
 private: ////////// Gdb Command Management //////////
 
@@ -152,6 +154,8 @@ private: ////////// Gdb Command Management //////////
         NeedsStop = 1,
         // No need to wait for the reply before continuing inferior.
         Discardable = 2,
+        // Needs a dummy extra command to force GDB output flushing.
+        NeedsFlush = 4,
         // Callback expects ResultRunning instead of ResultDone.
         RunRequest = 16,
         // Callback expects ResultExit instead of ResultDone.
@@ -172,19 +176,19 @@ private: ////////// Gdb Command Management //////////
     void runCommand(const DebuggerCommand &command) override;
 
 private:
-    Q_SLOT void commandTimeout();
+    void commandTimeout();
     void setTokenBarrier();
 
     // Sets up an "unexpected result" for the following commeand.
-    void scheduleTestResponse(int testCase, const QByteArray &response);
+    void scheduleTestResponse(int testCase, const QString &response);
 
     QHash<int, DebuggerCommand> m_commandForToken;
     QHash<int, int> m_flagsForToken;
     int commandTimeoutTime() const;
     QTimer m_commandTimer;
 
-    QByteArray m_pendingConsoleStreamOutput;
-    QByteArray m_pendingLogStreamOutput;
+    QString m_pendingConsoleStreamOutput;
+    QString m_pendingLogStreamOutput;
 
     // This contains the first token number for the current round
     // of evaluation. Responses with older tokens are considers
@@ -202,13 +206,13 @@ private:
 
 private: ////////// Gdb Output, State & Capability Handling //////////
 protected:
-    Q_SLOT void handleResponse(const QByteArray &buff);
-    void handleAsyncOutput(const QByteArray &asyncClass, const GdbMi &result);
+    Q_INVOKABLE void handleResponse(const QString &buff);
+    void handleAsyncOutput(const QString &asyncClass, const GdbMi &result);
     void handleStopResponse(const GdbMi &data);
     void handleResultRecord(DebuggerResponse *response);
     void handleStop1(const GdbMi &data);
     void handleStop2(const GdbMi &data);
-    Q_SLOT void handleStop2();
+    void handleStop3();
     void resetCommandQueue();
 
     bool isSynchronous() const override { return true; }
@@ -282,8 +286,8 @@ private: ////////// View & Data Stuff //////////
     void handleCatchInsert(const DebuggerResponse &response, Breakpoint bp);
     void handleBkpt(const GdbMi &bkpt, Breakpoint bp);
     void updateResponse(BreakpointResponse &response, const GdbMi &bkpt);
-    QByteArray breakpointLocation(const BreakpointParameters &data); // For gdb/MI.
-    QByteArray breakpointLocation2(const BreakpointParameters &data); // For gdb/CLI fallback.
+    QString breakpointLocation(const BreakpointParameters &data); // For gdb/MI.
+    QString breakpointLocation2(const BreakpointParameters &data); // For gdb/CLI fallback.
     QString breakLocation(const QString &file) const;
 
     //
@@ -291,7 +295,7 @@ private: ////////// View & Data Stuff //////////
     //
     protected:
     void loadSymbols(const QString &moduleName) override;
-    Q_SLOT void loadAllSymbols() override;
+    void loadAllSymbols() override;
     void loadSymbolsForStack() override;
     void requestModuleSymbols(const QString &moduleName) override;
     void requestModuleSections(const QString &moduleName) override;
@@ -311,8 +315,8 @@ private: ////////// View & Data Stuff //////////
     //
     // Register specific stuff
     //
-    Q_SLOT void reloadRegisters() override;
-    void setRegisterValue(const QByteArray &name, const QString &value) override;
+    void reloadRegisters() override;
+    void setRegisterValue(const QString &name, const QString &value) override;
     void handleRegisterListNames(const DebuggerResponse &response);
     void handleRegisterListing(const DebuggerResponse &response);
     void handleRegisterListValues(const DebuggerResponse &response);
@@ -327,7 +331,7 @@ private: ////////// View & Data Stuff //////////
     void fetchDisassemblerByCliPointMixed(const DisassemblerAgentCookie &ac);
     void fetchDisassemblerByCliRangeMixed(const DisassemblerAgentCookie &ac);
     void fetchDisassemblerByCliRangePlain(const DisassemblerAgentCookie &ac);
-    bool handleCliDisassemblerResult(const QByteArray &response, DisassemblerAgent *agent);
+    bool handleCliDisassemblerResult(const QString &response, DisassemblerAgent *agent);
 
     //
     // Source file specific stuff
@@ -357,13 +361,10 @@ protected:
     void handleThreadInfo(const DebuggerResponse &response);
     void handleThreadNames(const DebuggerResponse &response);
     DebuggerCommand stackCommand(int depth);
-    Q_SLOT void reloadStack();
-    Q_SLOT virtual void reloadFullStack() override;
-    virtual void loadAdditionalQmlStack() override;
-    void handleQmlStackTrace(const DebuggerResponse &response);
+    void reloadStack();
+    void reloadFullStack() override;
+    void loadAdditionalQmlStack() override;
     int currentFrame() const;
-
-    QList<GdbMi> m_currentFunctionArgs;
 
     //
     // Watch specific stuff
@@ -371,12 +372,10 @@ protected:
     virtual void assignValueInDebugger(WatchItem *item,
         const QString &expr, const QVariant &value) override;
 
-    virtual void fetchMemory(MemoryAgent *agent, QObject *token,
-        quint64 addr, quint64 length) override;
+    void fetchMemory(MemoryAgent *agent, quint64 addr, quint64 length) override;
     void fetchMemoryHelper(const MemoryAgentCookie &cookie);
     void handleChangeMemory(const DebuggerResponse &response);
-    virtual void changeMemory(MemoryAgent *agent, QObject *token,
-        quint64 addr, const QByteArray &data) override;
+    void changeMemory(MemoryAgent *agent, quint64 addr, const QByteArray &data) override;
     void handleFetchMemory(const DebuggerResponse &response, MemoryAgentCookie ac);
 
     virtual void watchPoint(const QPoint &) override;
@@ -388,7 +387,7 @@ protected:
     void handleThreadGroupCreated(const GdbMi &result);
     void handleThreadGroupExited(const GdbMi &result);
 
-    Q_SLOT void createFullBacktrace();
+    void createFullBacktrace();
 
     void doUpdateLocals(const UpdateParameters &parameters) override;
     void handleFetchVariables(const DebuggerResponse &response);
@@ -400,15 +399,14 @@ protected:
     //
     void reloadDebuggingHelpers() override;
 
-    QString m_gdb;
-
     //
     // Convenience Functions
     //
     QString errorMessage(QProcess::ProcessError error);
     void showExecutionError(const QString &message);
+    QString failedToStartMessage();
 
-    static QByteArray tooltipIName(const QString &exp);
+    static QString tooltipIName(const QString &exp);
 
     // For short-circuiting stack and thread list evaluation.
     bool m_stackNeeded;
@@ -418,7 +416,7 @@ protected:
     bool m_inUpdateLocals;
 
     // HACK:
-    QByteArray m_currentThread;
+    QString m_currentThread;
     QString m_lastWinException;
     QString m_lastMissingDebugInfo;
     bool m_terminalTrap;
@@ -426,7 +424,7 @@ protected:
     bool usesExecInterrupt() const;
     bool usesTargetAsync() const;
 
-    QHash<int, QByteArray> m_scheduledTestResponses;
+    QHash<int, QString> m_scheduledTestResponses;
     QSet<int> m_testCases;
 
     // Debug information
@@ -446,7 +444,6 @@ protected:
     static QString msgInferiorSetupOk();
     static QString msgInferiorRunOk();
     static QString msgConnectRemoteServerFailed(const QString &why);
-    static QByteArray dotEscape(QByteArray str);
 
     void debugLastCommand() override;
     DebuggerCommand m_lastDebuggableCommand;
@@ -468,5 +465,3 @@ protected:
 } // namespace Debugger
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Debugger::Internal::GdbEngine::GdbCommandFlags)
-
-#endif // DEBUGGER_GDBENGINE_H

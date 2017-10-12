@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROCESSORRUNNER_H
-#define PROCESSORRUNNER_H
+#pragma once
 
 #include "iassistproposalwidget.h"
 
@@ -50,10 +49,6 @@ public:
     void setAssistInterface(AssistInterface *interface);
     void setDiscardProposal(bool discard);
 
-    // @TODO: Not really necessary...
-    void setReason(AssistReason reason);
-    AssistReason reason() const;
-
     virtual void run();
 
     IAssistProposal *proposal() const;
@@ -68,5 +63,3 @@ private:
 
 } // Internal
 } // TextEditor
-
-#endif // PROCESSORRUNNER_H

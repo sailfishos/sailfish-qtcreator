@@ -31,8 +31,7 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 
-#include <coreplugin/coreicons.h>
-
+#include <utils/utilsicons.h>
 #include <utils/qtcassert.h>
 
 #include <QDir>
@@ -63,7 +62,7 @@ LocalApplicationRunControl::LocalApplicationRunControl(RunConfiguration *rc, Cor
     : RunControl(rc, mode)
 {
     setRunnable(rc->runnable());
-    setIcon(Core::Icons::RUN_SMALL_TOOLBAR);
+    setIcon(Utils::Icons::RUN_SMALL_TOOLBAR);
     connect(&m_applicationLauncher, &ApplicationLauncher::appendMessage,
             this, static_cast<void(RunControl::*)(const QString &, Utils::OutputFormat)>(&RunControl::appendMessage));
     connect(&m_applicationLauncher, &ApplicationLauncher::processStarted,
@@ -131,8 +130,8 @@ void LocalApplicationRunControl::processExited(int exitCode, QProcess::ExitStatu
 
 static bool isLocal(RunConfiguration *runConfiguration)
 {
-    Target *target = runConfiguration ? runConfiguration->target() : 0;
-    Kit *kit = target ? target->kit() : 0;
+    Target *target = runConfiguration ? runConfiguration->target() : nullptr;
+    Kit *kit = target ? target->kit() : nullptr;
     return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
 }
 

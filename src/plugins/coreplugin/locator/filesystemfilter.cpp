@@ -26,6 +26,7 @@
 #include "filesystemfilter.h"
 #include "locatorwidget.h"
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/idocument.h>
@@ -52,7 +53,7 @@ QList<LocatorFilterEntry> *categorize(const QString &entry, const QString &candi
 } // anynoumous namespace
 
 FileSystemFilter::FileSystemFilter(LocatorWidget *locatorWidget)
-        : m_locatorWidget(locatorWidget), m_includeHidden(true)
+        : m_locatorWidget(locatorWidget)
 {
     setId("Files in file system");
     setDisplayName(tr("Files in File System"));
@@ -63,13 +64,7 @@ FileSystemFilter::FileSystemFilter(LocatorWidget *locatorWidget)
 void FileSystemFilter::prepareSearch(const QString &entry)
 {
     Q_UNUSED(entry)
-    IDocument *document= EditorManager::currentDocument();
-    if (document && !document->filePath().isEmpty()) {
-        const QFileInfo info = document->filePath().toFileInfo();
-        m_currentDocumentDirectory = info.absolutePath() + QLatin1Char('/');
-    } else {
-        m_currentDocumentDirectory.clear();
-    }
+    m_currentDocumentDirectory = DocumentManager::fileDialogInitialDirectory();
 }
 
 QList<LocatorFilterEntry> FileSystemFilter::matchesFor(QFutureInterface<LocatorFilterEntry> &future,
@@ -85,7 +80,7 @@ QList<LocatorFilterEntry> FileSystemFilter::matchesFor(QFutureInterface<LocatorF
         if (filePath.startsWith(QLatin1String("~/")))
             directory.replace(0, 1, QDir::homePath());
         else if (!m_currentDocumentDirectory.isEmpty())
-            directory.prepend(m_currentDocumentDirectory);
+            directory.prepend(m_currentDocumentDirectory + "/");
     }
     QDir dirInfo(directory);
     QDir::Filters dirFilter = QDir::Dirs|QDir::Drives|QDir::NoDot;

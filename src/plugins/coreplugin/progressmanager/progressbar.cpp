@@ -265,14 +265,10 @@ void ProgressBar::paintEvent(QPaintEvent *)
         QString elidedtitle  = fm.elidedText(m_title, Qt::ElideRight, textSpace);
 
         QRect textRect = rect().adjusted(3, separatorHeight - 1, -3, 0);
-        textRect.setHeight(titleHeight+5);
+        textRect.setHeight(titleHeight + 4);
 
-        p.setPen(QColor(0, 0, 0, 120));
-        p.drawText(textRect, alignment | Qt::AlignBottom, elidedtitle);
-        p.translate(0, -1);
         p.setPen(creatorTheme()->color(Theme::ProgressBarTitleColor));
         p.drawText(textRect, alignment | Qt::AlignBottom, elidedtitle);
-        p.translate(0, 1);
     }
 
     m_progressHeight = PROGRESSBAR_HEIGHT;
@@ -295,13 +291,13 @@ void ProgressBar::paintEvent(QPaintEvent *)
     const QColor c = creatorTheme()->color(themeColor);
 
     //draw the progress bar
-    if (creatorTheme()->widgetStyle() == Theme::StyleFlat) {
+    if (creatorTheme()->flag(Theme::FlatToolBars)) {
         p.fillRect(rect.adjusted(2, 2, -2, -2),
                    creatorTheme()->color(Theme::ProgressBarBackgroundColor));
         p.fillRect(inner, c);
     } else {
         const static QImage bar(StyleHelper::dpiSpecificImageFile(
-                                    QLatin1String(":/core/images/progressbar.png")));
+                                    QLatin1String(":/utils/images/progressbar.png")));
         StyleHelper::drawCornerImage(bar, &p, rect, 3, 3, 3, 3);
 
         // Draw line and shadow after the gradient fill
@@ -336,7 +332,7 @@ void ProgressBar::paintEvent(QPaintEvent *)
             const bool hover = m_cancelRect.contains(mapFromGlobal(QCursor::pos()));
             const QRectF cancelVisualRect(m_cancelRect.adjusted(0, 1, -2, -2));
             int intensity = hover ? 90 : 70;
-            if (creatorTheme()->widgetStyle() != Theme::StyleFlat) {
+            if (!creatorTheme()->flag(Theme::FlatToolBars)) {
                 QLinearGradient grad(cancelVisualRect.topLeft(), cancelVisualRect.bottomLeft());
                 QColor buttonColor(intensity, intensity, intensity, 255);
                 grad.setColorAt(0, buttonColor.lighter(130));

@@ -54,7 +54,7 @@ public:
 
     Utils::PortList qmlLivePorts() const;
     void setQmlLivePorts(const Utils::PortList &qmlLivePorts);
-    QSet<int> qmlLivePortsSet() const;
+    QList<Utils::Port> qmlLivePortsList() const;
 
 protected:
     MerDevice();

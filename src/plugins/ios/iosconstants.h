@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSCONSTANTS_H
-#define IOSCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 #include <QLoggingCategory>
@@ -35,10 +34,7 @@ Q_DECLARE_LOGGING_CATEGORY(iosLog)
 } // namespace Internal
 
 namespace Constants {
-const char IOS_SETTINGS_ID[] = "ZZ.Ios Configurations";
-const char IOS_SETTINGS_CATEGORY[] = "XA.Ios";
-const char IOS_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("Ios", "iOS");
-const char IOS_SETTINGS_CATEGORY_ICON[] = ":/ios/images/iossettings.png";
+const char IOS_SETTINGS_ID[] = "CC.Ios Configurations";
 const char IOSQT[] = "Qt4ProjectManager.QtVersion.Ios"; // this literal is replicated to avoid dependencies
 
 const char IOS_DEVICE_TYPE[] = "Ios.Device.Type";
@@ -56,5 +52,3 @@ const char EXTRA_INFO_KEY[] = "extraInfo";
 
 } // namespace Constants;
 } // namespace Ios
-
-#endif  // IOSCONSTANTS_H

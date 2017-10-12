@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDCONSTANTS_H
-#define ANDROIDCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -48,10 +47,7 @@ enum AndroidQemuStatus {
 } // namespace Internal
 
 namespace Constants {
-const char ANDROID_SETTINGS_ID[] = "ZZ.Android Configurations";
-const char ANDROID_SETTINGS_CATEGORY[] = "XA.Android";
-const char ANDROID_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("Android", "Android");
-const char ANDROID_SETTINGS_CATEGORY_ICON[] = ":/android/images/QtAndroid.png";
+const char ANDROID_SETTINGS_ID[] = "BB.Android Configurations";
 const char ANDROID_TOOLCHAIN_ID[] = "Qt4ProjectManager.ToolChain.Android";
 const char ANDROIDQT[] = "Qt4ProjectManager.QtVersion.Android";
 
@@ -71,5 +67,3 @@ const char ANDROID_EXTRA_LIBS[] = "AndroidExtraLibs";
 
 } // namespace Constants;
 } // namespace Android
-
-#endif  // ANDROIDCONSTANTS_H

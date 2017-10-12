@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CURSOR_H
-#define CLANGBACKEND_CURSOR_H
+#pragma once
 
 #include "clangtype.h"
 
@@ -79,8 +78,11 @@ public:
     Type nonPointerTupe() const;
 
     SourceLocation sourceLocation() const;
+    CXSourceLocation cxSourceLocation() const;
     SourceRange sourceRange() const;
+    CXSourceRange cxSourceRange() const;
     SourceRange commentRange() const;
+    bool hasSameSourceLocationAs(const Cursor &other) const;
 
     Cursor definition() const;
     Cursor canonical() const;
@@ -91,7 +93,9 @@ public:
     Cursor functionBaseDeclaration() const;
     Cursor functionBase() const;
     Cursor argument(int index) const;
-    std::vector<Cursor> outputArguments() const;
+    void collectOutputArgumentRangesTo(
+            std::vector<CXSourceRange> &outputArgumentRanges) const;
+    std::vector<CXSourceRange> outputArgumentRanges() const;
 
     CXCursorKind kind() const;
 
@@ -115,10 +119,8 @@ void Cursor::visit(VisitorCallback visitorCallback) const
 }
 
 bool operator==(const Cursor &first, const Cursor &second);
+bool operator!=(const Cursor &first, const Cursor &second);
 
 void PrintTo(CXCursorKind cursorKind, ::std::ostream *os);
 void PrintTo(const Cursor &cursor, ::std::ostream* os);
 } // namespace ClangBackEnd
-
-
-#endif // CLANGBACKEND_CURSOR_H

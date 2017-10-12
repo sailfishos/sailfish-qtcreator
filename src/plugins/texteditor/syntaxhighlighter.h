@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTEDITOR_SYNTAXHIGHLIGHTER_H
-#define TEXTEDITOR_SYNTAXHIGHLIGHTER_H
+#pragma once
 
 #include "texteditor_global.h"
 #include <texteditor/texteditorconstants.h>
@@ -59,7 +58,7 @@ public:
     void setDocument(QTextDocument *doc);
     QTextDocument *document() const;
 
-    void setExtraAdditionalFormats(const QTextBlock& block, QList<QTextLayout::FormatRange> &formats);
+    void setExtraFormats(const QTextBlock &block, QVector<QTextLayout::FormatRange> &formats);
 
     static QList<QColor> generateColors(int n, const QColor &background);
 
@@ -98,5 +97,3 @@ private:
 };
 
 } // namespace TextEditor
-
-#endif // TEXTEDITOR_SYNTAXHIGHLIGHTER_H

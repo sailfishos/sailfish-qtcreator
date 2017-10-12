@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_CONSOLEITEMDELEGATE_H
-#define DEBUGGER_CONSOLEITEMDELEGATE_H
+#pragma once
 
 #include "consoleitemmodel.h"
 #include "console.h"
@@ -45,8 +44,6 @@ public:
     void emitSizeHintChanged(const QModelIndex &index);
     QColor drawBackground(QPainter *painter, const QRect &rect, const QModelIndex &index,
                           bool selected) const;
-
-public slots:
     void currentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 protected:
@@ -61,9 +58,6 @@ protected:
 
     void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
                               const QModelIndex &index) const;
-
-private slots:
-    void commitAndCloseEditor();
 
 private:
     qreal layoutText(QTextLayout &tl, int width, bool *success = 0) const;
@@ -173,5 +167,3 @@ public:
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_CONSOLEITEMDELEGATE_H

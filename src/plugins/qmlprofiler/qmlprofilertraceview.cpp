@@ -32,6 +32,13 @@
 #include "qmlprofilerrangemodel.h"
 #include "qmlprofilerplugin.h"
 
+#include "inputeventsmodel.h"
+#include "pixmapcachemodel.h"
+#include "debugmessagesmodel.h"
+#include "flamegraphview.h"
+#include "memoryusagemodel.h"
+#include "scenegraphtimelinemodel.h"
+
 // Communication with the other views (limit events to range)
 #include "qmlprofilerviewmanager.h"
 
@@ -39,6 +46,7 @@
 #include "timeline/timelinemodelaggregator.h"
 #include "timeline/timelinerenderer.h"
 #include "timeline/timelineoverviewrenderer.h"
+#include "timeline/timelinetheme.h"
 
 #include <aggregation/aggregate.h>
 // Needed for the load&save actions in the context menu
@@ -60,8 +68,6 @@
 #include <QTextCursor>
 
 #include <math.h>
-
-using namespace QmlDebug;
 
 namespace QmlProfiler {
 namespace Internal {
@@ -85,10 +91,15 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
     setObjectName(QLatin1String("QML Profiler"));
 
     d->m_zoomControl = new Timeline::TimelineZoomControl(this);
-    connect(modelManager->traceTime(), &QmlProfilerTraceTime::timeChanged,
-            this, [this](qint64 start, qint64 end) {
-        d->m_zoomControl->setTrace(start, end);
-        d->m_zoomControl->setRange(start, start + (end - start) / 10);
+    connect(modelManager, &QmlProfilerModelManager::stateChanged, this, [modelManager, this]() {
+        if (modelManager->state() == QmlProfilerModelManager::Done) {
+            qint64 start = modelManager->traceTime()->startTime();
+            qint64 end = modelManager->traceTime()->endTime();
+            d->m_zoomControl->setTrace(start, end);
+            d->m_zoomControl->setRange(start, start + (end - start) / 10);
+        } else if (modelManager->state() == QmlProfilerModelManager::ClearingData) {
+            d->m_zoomControl->clear();
+        }
     });
 
     QVBoxLayout *groupLayout = new QVBoxLayout;
@@ -119,20 +130,21 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
     d->m_modelProxy = new Timeline::TimelineModelAggregator(modelManager->notesModel(), this);
     d->m_modelManager = modelManager;
 
-    // external models pushed on top
-    foreach (QmlProfilerTimelineModel *timelineModel,
-             QmlProfilerPlugin::instance->getModels(modelManager)) {
-        d->m_modelProxy->addModel(timelineModel);
-    }
-
-    d->m_modelProxy->addModel(new QmlProfilerAnimationsModel(modelManager, d->m_modelProxy));
-
+    QList<Timeline::TimelineModel *> models;
+    models.append(new PixmapCacheModel(modelManager, d->m_modelProxy));
+    models.append(new SceneGraphTimelineModel(modelManager, d->m_modelProxy));
+    models.append(new MemoryUsageModel(modelManager, d->m_modelProxy));
+    models.append(new InputEventsModel(modelManager, d->m_modelProxy));
+    models.append(new DebugMessagesModel(modelManager, d->m_modelProxy));
+    models.append(new QmlProfilerAnimationsModel(modelManager, d->m_modelProxy));
     for (int i = 0; i < MaximumRangeType; ++i)
-        d->m_modelProxy->addModel(new QmlProfilerRangeModel(modelManager, (RangeType)i,
-                                                            d->m_modelProxy));
+        models.append(new QmlProfilerRangeModel(modelManager, (RangeType)i, d->m_modelProxy));
+    d->m_modelProxy->setModels(models);
 
     // Minimum height: 5 rows of 20 pixels + scrollbar of 50 pixels + 20 pixels margin
     setMinimumHeight(170);
+
+    Timeline::TimelineTheme::setupTheme(d->m_mainView->engine());
 
     d->m_mainView->rootContext()->setContextProperty(QLatin1String("timelineModelAggregator"),
                                                      d->m_modelProxy);

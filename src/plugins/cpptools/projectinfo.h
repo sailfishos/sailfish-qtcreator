@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLS_PROJECTINFO_H
-#define CPPTOOLS_PROJECTINFO_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -81,5 +80,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPTOOLS_PROJECTINFO_H

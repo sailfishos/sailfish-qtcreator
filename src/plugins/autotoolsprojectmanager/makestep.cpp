@@ -62,60 +62,23 @@ const char MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY[] = "AutotoolsProjectManager.MakeS
 MakeStepFactory::MakeStepFactory(QObject *parent) : IBuildStepFactory(parent)
 { setObjectName(QLatin1String("Autotools::MakeStepFactory")); }
 
-QList<Core::Id> MakeStepFactory::availableCreationIds(BuildStepList *parent) const
+QList<BuildStepInfo> MakeStepFactory::availableSteps(BuildStepList *parent) const
 {
-    if (parent->target()->project()->id() == AUTOTOOLS_PROJECT_ID)
-        return QList<Core::Id>() << Core::Id(MAKE_STEP_ID);
-    return QList<Core::Id>();
-}
+    if (parent->target()->project()->id() != AUTOTOOLS_PROJECT_ID)
+        return {};
 
-QString MakeStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == MAKE_STEP_ID)
-        return tr("Make", "Display name for AutotoolsProjectManager::MakeStep id.");
-    return QString();
-}
-
-bool MakeStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
-{
-    if (parent->target()->project()->id() == AUTOTOOLS_PROJECT_ID)
-        return id == MAKE_STEP_ID;
-    return false;
+    return {{ MAKE_STEP_ID, tr("Make", "Display name for AutotoolsProjectManager::MakeStep id.") }};
 }
 
 BuildStep *MakeStepFactory::create(BuildStepList *parent, Core::Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
+    Q_UNUSED(id)
     return new MakeStep(parent);
-}
-
-bool MakeStepFactory::canClone(BuildStepList *parent, BuildStep *source) const
-{
-    return canCreate(parent, source->id());
 }
 
 BuildStep *MakeStepFactory::clone(BuildStepList *parent, BuildStep *source)
 {
-    if (!canClone(parent, source))
-        return 0;
     return new MakeStep(parent, static_cast<MakeStep *>(source));
-}
-
-bool MakeStepFactory::canRestore(BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, idFromMap(map));
-}
-
-BuildStep *MakeStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-    MakeStep *bs = new MakeStep(parent);
-    if (bs->fromMap(map))
-        return bs;
-    delete bs;
-    return 0;
 }
 
 /////////////////////
@@ -157,11 +120,11 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     if (!bc)
         emit addTask(Task::buildConfigurationMissingTask());
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit());
-    if (!tc)
+    QList<ToolChain *> tcList = ToolChainKitInformation::toolChains(target()->kit());
+    if (tcList.isEmpty())
         emit addTask(Task::compilerMissingTask());
 
-    if (!tc || !bc) {
+    if (tcList.isEmpty() || !bc) {
         emitFaultyConfigurationMessage();
         return false;
     }
@@ -174,12 +137,10 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
     Utils::Environment env = bc->environment();
-    // Force output to english for the parsers. Do this here and not in the toolchain's
-    // addToEnvironment() to not screw up the users run environment.
-    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
+    Utils::Environment::setupEnglishOutput(&env);
     pp->setEnvironment(env);
     pp->setWorkingDirectory(bc->buildDirectory().toString());
-    pp->setCommand(tc ? tc->makeCommand(bc->environment()) : QLatin1String("make"));
+    pp->setCommand(tcList.at(0)->makeCommand(bc->environment()));
     pp->setArguments(arguments);
     pp->resolveAll();
 
@@ -294,9 +255,9 @@ void MakeStepConfigWidget::updateDetails()
     BuildConfiguration *bc = m_makeStep->buildConfiguration();
     if (!bc)
         bc = m_makeStep->target()->activeBuildConfiguration();
-    ToolChain *tc = ToolChainKitInformation::toolChain(m_makeStep->target()->kit());
+    QList<ToolChain *> tcList = ToolChainKitInformation::toolChains(m_makeStep->target()->kit());
 
-    if (tc) {
+    if (!tcList.isEmpty()) {
         QString arguments = Utils::QtcProcess::joinArgs(m_makeStep->m_buildTargets);
         Utils::QtcProcess::addArgs(&arguments, m_makeStep->additionalArguments());
 
@@ -304,7 +265,7 @@ void MakeStepConfigWidget::updateDetails()
         param.setMacroExpander(bc->macroExpander());
         param.setEnvironment(bc->environment());
         param.setWorkingDirectory(bc->buildDirectory().toString());
-        param.setCommand(tc->makeCommand(bc->environment()));
+        param.setCommand(tcList.at(0)->makeCommand(bc->environment()));
         param.setArguments(arguments);
         m_summaryText = param.summary(displayName());
     } else {

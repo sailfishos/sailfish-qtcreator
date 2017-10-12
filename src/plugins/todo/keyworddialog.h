@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef KEYWORDDIALOG_H
-#define KEYWORDDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QSet>
@@ -48,11 +47,9 @@ public:
 
     Keyword keyword();
 
-private slots:
+private:
     void colorSelected(const QColor &color);
     void acceptButtonClicked();
-
-private:
     void setupListWidget(IconType selectedIcon);
     void setupColorWidgets(const QColor &color);
     bool canAccept();
@@ -67,5 +64,3 @@ private:
 
 } // namespace Internal
 } // namespace Todo
-
-#endif // KEYWORDDIALOG_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLDESIGNER_DOCUMENTMANAGER_H
-#define QMLDESIGNER_DOCUMENTMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QList>
@@ -50,7 +49,7 @@ public:
     DesignDocument *currentDesignDocument() const;
     bool hasCurrentDesignDocument() const;
 
-    void removeEditors(QList<Core::IEditor*> editors);
+    void removeEditors(const QList<Core::IEditor *> &editors);
 
     static void goIntoComponent(const ModelNode &modelNode);
 
@@ -71,5 +70,3 @@ private:
 };
 
 } // namespace QmlDesigner
-
-#endif // QMLDESIGNER_DOCUMENTMANAGER_H

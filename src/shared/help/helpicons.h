@@ -23,18 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef HELPICONS_H
-#define HELPICONS_H
+#pragma once
 
 #include <utils/icon.h>
 
 namespace Help {
 namespace Icons {
 
-const Utils::Icon BOOKMARK({
-        {QLatin1String(":/help/images/bookmark.png"), Utils::Theme::PanelTextColorMid}}, Utils::Icon::Tint);
-const Utils::Icon BOOKMARK_TOOLBAR({
-        {QLatin1String(":/help/images/bookmark.png"), Utils::Theme::IconsBaseColor}});
 const Utils::Icon HOME_TOOLBAR({
         {QLatin1String(":/help/images/home.png"), Utils::Theme::IconsBaseColor}});
 const Utils::Icon MODE_HELP_CLASSIC(
@@ -46,5 +41,3 @@ const Utils::Icon MODE_HELP_FLAT_ACTIVE({
 
 } // namespace Icons
 } // namespace Help
-
-#endif // HELPICONS_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TIMELINENOTESMODEL_P_H
-#define TIMELINENOTESMODEL_P_H
+#pragma once
 
 #include "timelinenotesmodel.h"
 
@@ -47,14 +46,9 @@ public:
     QHash<int, const TimelineModel *> timelineModels;
     bool modified;
 
-    void _q_removeTimelineModel(QObject *model);
-
 private:
     TimelineNotesModel *q_ptr;
     Q_DECLARE_PUBLIC(TimelineNotesModel)
 };
 
 } // namespace Timeline
-
-#endif // TIMELINENOTESMODEL_P_H
-

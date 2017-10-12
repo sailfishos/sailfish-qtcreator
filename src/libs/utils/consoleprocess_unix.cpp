@@ -211,7 +211,7 @@ void ConsoleProcess::stop()
     killStub();
     if (isRunning()) {
         d->m_process.terminate();
-        if (!d->m_process.waitForFinished(1000)) {
+        if (!d->m_process.waitForFinished(1000) && d->m_process.state() == QProcess::Running) {
             d->m_process.kill();
             d->m_process.waitForFinished();
         }
@@ -393,6 +393,12 @@ QStringList ConsoleProcess::availableTerminalEmulators()
         result.append(defaultTerminalEmulator());
     result.sort();
     return result;
+}
+
+bool ConsoleProcess::startTerminalEmulator(QSettings *settings, const QString &workingDir)
+{
+    const QString emu = QtcProcess::splitArgs(terminalEmulator(settings)).takeFirst();
+    return QProcess::startDetached(emu, QStringList(), workingDir);
 }
 
 } // namespace Utils

@@ -244,10 +244,11 @@ BaseTreeView::BaseTreeView(QWidget *parent)
     setAttribute(Qt::WA_MacShowFocusRect, false);
     setFrameStyle(QFrame::NoFrame);
     setRootIsDecorated(false);
-    setIconSize(QSize(10, 10));
+    setIconSize(QSize(16, 16));
     setSelectionMode(QAbstractItemView::ExtendedSelection);
     setUniformRowHeights(true);
     setItemDelegate(new BaseTreeViewDelegate(this));
+    setAlternatingRowColors(false);
 
     QHeaderView *h = header();
     h->setDefaultAlignment(Qt::AlignLeft);
@@ -303,6 +304,13 @@ void BaseTreeView::setModel(QAbstractItemModel *m)
                 connect(model(), c[i].qsignal, c[i].receiver, c[i].qslot);
         }
         d->restoreState();
+
+        QVariant delegateBlob = m->data(QModelIndex(), ItemDelegateRole);
+        if (delegateBlob.isValid()) {
+            auto delegate = delegateBlob.value<QAbstractItemDelegate *>();
+            delegate->setParent(this);
+            setItemDelegate(delegate);
+        }
     }
 }
 
@@ -312,6 +320,48 @@ void BaseTreeView::mousePressEvent(QMouseEvent *ev)
     const QModelIndex mi = indexAt(ev->pos());
     if (!mi.isValid())
         d->toggleColumnWidth(columnAt(ev->x()));
+}
+
+void BaseTreeView::contextMenuEvent(QContextMenuEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::contextMenuEvent(ev);
+}
+
+void BaseTreeView::keyPressEvent(QKeyEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::keyPressEvent(ev);
+}
+
+void BaseTreeView::dragEnterEvent(QDragEnterEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::dragEnterEvent(ev);
+}
+
+void BaseTreeView::dropEvent(QDropEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::dropEvent(ev);
+}
+
+void BaseTreeView::dragMoveEvent(QDragMoveEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::dragMoveEvent(ev);
+}
+
+void BaseTreeView::mouseDoubleClickEvent(QMouseEvent *ev)
+{
+    ItemViewEvent ive(ev, this);
+    if (!model()->setData(ive.index(), QVariant::fromValue(ive), ItemViewEventRole))
+        TreeView::mouseDoubleClickEvent(ev);
 }
 
 void BaseTreeView::showEvent(QShowEvent *ev)
@@ -346,6 +396,16 @@ void BaseTreeView::hideProgressIndicator()
         d->m_progressIndicator->hide();
 }
 
+void BaseTreeView::rowActivated(const QModelIndex &index)
+{
+    model()->setData(index, QVariant(), ItemActivatedRole);
+}
+
+void BaseTreeView::rowClicked(const QModelIndex &index)
+{
+    model()->setData(index, QVariant(), ItemClickedRole);
+}
+
 void BaseTreeView::setSettings(QSettings *settings, const QByteArray &key)
 {
     QTC_ASSERT(!d->m_settings, qDebug() << "DUPLICATED setSettings" << key);
@@ -354,16 +414,43 @@ void BaseTreeView::setSettings(QSettings *settings, const QByteArray &key)
     d->readSettings();
 }
 
-QModelIndexList BaseTreeView::activeRows() const
+ItemViewEvent::ItemViewEvent(QEvent *ev, QAbstractItemView *view)
+    : m_event(ev), m_view(view)
 {
-    QItemSelectionModel *selection = selectionModel();
-    QModelIndexList indices = selection->selectedRows();
-    if (indices.isEmpty()) {
+    QItemSelectionModel *selection = view->selectionModel();
+    switch (ev->type()) {
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+    case QEvent::MouseButtonDblClick:
+        m_pos = static_cast<QMouseEvent *>(ev)->pos();
+        m_index = view->indexAt(m_pos);
+        break;
+    case QEvent::ContextMenu:
+        m_pos = static_cast<QContextMenuEvent *>(ev)->pos();
+        m_index = view->indexAt(m_pos);
+        break;
+    case QEvent::DragEnter:
+    case QEvent::DragMove:
+    case QEvent::Drop:
+        m_pos = static_cast<QDropEvent *>(ev)->pos();
+        m_index = view->indexAt(m_pos);
+        break;
+    default:
+        m_index = selection->currentIndex();
+        break;
+    }
+
+    m_selectedRows = selection->selectedRows();
+    if (m_selectedRows.isEmpty()) {
         QModelIndex current = selection->currentIndex();
         if (current.isValid())
-            indices.append(current);
+            m_selectedRows.append(current);
     }
-    return indices;
+}
+
+QModelIndexList ItemViewEvent::currentOrSelectedRows() const
+{
+    return m_selectedRows.isEmpty() ? QModelIndexList() << m_index : m_selectedRows;
 }
 
 } // namespace Utils

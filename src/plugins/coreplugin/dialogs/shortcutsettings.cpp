@@ -112,10 +112,11 @@ ShortcutButton::ShortcutButton(QWidget *parent)
     : QPushButton(parent)
     , m_key({{ 0, 0, 0, 0 }})
 {
-    setToolTip(tr("Click and type the new key sequence."));
+    // Using ShortcutButton::tr() as workaround for QTBUG-34128
+    setToolTip(ShortcutButton::tr("Click and type the new key sequence."));
     setCheckable(true);
-    m_checkedText = tr("Stop Recording");
-    m_uncheckedText = tr("Record");
+    m_checkedText = ShortcutButton::tr("Stop Recording");
+    m_uncheckedText = ShortcutButton::tr("Record");
     updateText();
     connect(this, &ShortcutButton::toggled, this, &ShortcutButton::handleToggleChange);
 }
@@ -289,7 +290,7 @@ ShortcutSettings::ShortcutSettings(QObject *parent)
     setDisplayName(tr("Keyboard"));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
     setDisplayCategory(QCoreApplication::translate("Core", Constants::SETTINGS_TR_CATEGORY_CORE));
-    setCategoryIcon(QLatin1String(Constants::SETTINGS_CATEGORY_CORE_ICON));
+    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CORE_ICON));
 }
 
 QWidget *ShortcutSettings::widget()

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ACTIONMANAGER_H
-#define ACTIONMANAGER_H
+#pragma once
 
 #include "coreplugin/core_global.h"
 #include "coreplugin/coreconstants.h"
@@ -74,6 +73,8 @@ public:
     static void setPresentationModeEnabled(bool enabled);
     static bool isPresentationModeEnabled();
 
+    static QString withNumberAccelerator(const QString &text, const int number);
+
 signals:
     void commandListChanged();
     void commandAdded(Core::Id id);
@@ -89,5 +90,3 @@ private:
 };
 
 } // namespace Core
-
-#endif // ACTIONMANAGER_H

@@ -65,10 +65,11 @@ void AutoTestUnitTests::initTestCase()
     if (allKits.count() != 1)
         QSKIP("This test requires exactly one kit to be present");
     if (auto qtVersion = QtSupport::QtKitInformation::qtVersion(allKits.first()))
-        m_isQt4 = qtVersion->qtVersionString().startsWith(QLatin1Char('4'));
+        m_isQt4 = qtVersion->qtVersionString().startsWith('4');
     else
         QSKIP("Could not figure out which Qt version is used for default kit.");
-    const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first());
+    const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first(),
+                                                                           ToolChain::Language::Cxx);
     if (!toolchain)
         QSKIP("This test requires that there is a kit with a toolchain.");
 
@@ -204,7 +205,7 @@ void AutoTestUnitTests::testCodeParserGTest()
     QVERIFY(parserSpy.wait(20000));
     QVERIFY(modelUpdateSpy.wait());
 
-    QCOMPARE(m_model->gtestNamesCount(), 6);
+    QCOMPARE(m_model->gtestNamesCount(), 7);
 
     QMultiMap<QString, int> expectedNamesAndSets;
     expectedNamesAndSets.insert(QStringLiteral("FactorialTest"), 3);
@@ -213,6 +214,7 @@ void AutoTestUnitTests::testCodeParserGTest()
     expectedNamesAndSets.insert(QStringLiteral("QueueTest"), 2);
     expectedNamesAndSets.insert(QStringLiteral("DummyTest"), 1); // used as parameterized test
     expectedNamesAndSets.insert(QStringLiteral("DummyTest"), 1); // used as 'normal' test
+    expectedNamesAndSets.insert(QStringLiteral("NamespaceTest"), 1);
 
     QMultiMap<QString, int> foundNamesAndSets = m_model->gtestNamesAndSets();
     QCOMPARE(expectedNamesAndSets.size(), foundNamesAndSets.size());

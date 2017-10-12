@@ -35,21 +35,16 @@
 namespace Debugger {
 namespace Internal {
 
-bool isPointerType(const QByteArray &type)
+bool isPointerType(const QString &type)
 {
     return type.endsWith('*') || type.endsWith("* const");
 }
 
-bool isCharPointerType(const QByteArray &type)
-{
-    return type == "char *" || type == "const char *" || type == "char const *";
-}
-
-bool isIntType(const QByteArray &type)
+bool isIntType(const QString &type)
 {
     if (type.isEmpty())
         return false;
-    switch (type.at(0)) {
+    switch (type.at(0).unicode()) {
         case 'b':
             return type == "bool";
         case 'c':
@@ -97,20 +92,18 @@ bool isIntType(const QByteArray &type)
     }
 }
 
-bool isFloatType(const QByteArray &type)
+bool isFloatType(const QString &type)
 {
     return type == "float" || type == "double" || type == "qreal";
 }
 
-bool isIntOrFloatType(const QByteArray &type)
+bool isIntOrFloatType(const QString &type)
 {
     return isIntType(type) || isFloatType(type);
 }
 
 WatchItem::WatchItem() :
     id(WatchItem::InvalidId),
-    state(InitialState),
-    editformat(StopDisplay),
     address(0),
     origaddr(0),
     size(0),
@@ -130,13 +123,11 @@ bool WatchItem::isVTablePointer() const
 {
     // First case: Cdb only. No user type can be named like this, this is safe.
     // Second case: Python dumper only.
-    return type.startsWith("__fptr()")
-        || (type.isEmpty() && name == QLatin1String("[vptr]"));
+    return type.startsWith("__fptr()") || (type.isEmpty() && name == "[vptr]");
 }
 
 void WatchItem::setError(const QString &msg)
 {
-    setAllUnneeded();
     value = msg;
     wantsChildren = false;
     valueEnabled = false;
@@ -150,89 +141,6 @@ void WatchItem::setValue(const QString &value0)
         value.clear();
         wantsChildren = true; // at least one...
     }
-    // strip off quoted characters for chars.
-    if (value.endsWith(QLatin1Char('\'')) && type.endsWith("char")) {
-        const int blankPos = value.indexOf(QLatin1Char(' '));
-        if (blankPos != -1)
-            value.truncate(blankPos);
-    }
-
-    // avoid duplicated information
-    if (value.startsWith(QLatin1Char('(')) && value.contains(QLatin1String(") 0x")))
-        value.remove(0, value.lastIndexOf(QLatin1String(") 0x")) + 2);
-
-    // doubles are sometimes displayed as "@0x6141378: 1.2".
-    // I don't want that.
-    if (/*isIntOrFloatType(type) && */ value.startsWith(QLatin1String("@0x"))
-         && value.contains(QLatin1Char(':'))) {
-        value.remove(0, value.indexOf(QLatin1Char(':')) + 2);
-        setHasChildren(false);
-    }
-
-    // "numchild" is sometimes lying
-    //MODEL_DEBUG("\n\n\nPOINTER: " << type << value);
-    if (isPointerType(type))
-        setHasChildren(value != QLatin1String("0x0") && value != QLatin1String("<null>")
-            && !isCharPointerType(type));
-
-    // pointer type information is available in the 'type'
-    // column. No need to duplicate it here.
-    if (value.startsWith(QLatin1Char('(') + QLatin1String(type) + QLatin1String(") 0x")))
-        value = value.section(QLatin1Char(' '), -1, -1);
-
-    setValueUnneeded();
-}
-
-enum GuessChildrenResult { HasChildren, HasNoChildren, HasPossiblyChildren };
-
-static GuessChildrenResult guessChildren(const QByteArray &type)
-{
-    if (isIntOrFloatType(type))
-        return HasNoChildren;
-    if (isCharPointerType(type))
-        return HasNoChildren;
-    if (isPointerType(type))
-        return HasChildren;
-    if (type.endsWith("QString"))
-        return HasNoChildren;
-    return HasPossiblyChildren;
-}
-
-void WatchItem::setType(const QByteArray &str, bool guessChildrenFromType)
-{
-    type = str.trimmed();
-    bool changed = true;
-    while (changed) {
-        if (type.endsWith("const"))
-            type.chop(5);
-        else if (type.endsWith(' '))
-            type.chop(1);
-        else if (type.startsWith("const "))
-            type = type.mid(6);
-        else if (type.startsWith("volatile "))
-            type = type.mid(9);
-        else if (type.startsWith("class "))
-            type = type.mid(6);
-        else if (type.startsWith("struct "))
-            type = type.mid(7);
-        else if (type.startsWith(' '))
-            type = type.mid(1);
-        else
-            changed = false;
-    }
-    if (guessChildrenFromType) {
-        switch (guessChildren(type)) {
-        case HasChildren:
-            setHasChildren(true);
-            break;
-        case HasNoChildren:
-            setHasChildren(false);
-            break;
-        case HasPossiblyChildren:
-            setHasChildren(true); // FIXME: bold assumption
-            break;
-        }
-    }
 }
 
 QString WatchItem::toString() const
@@ -243,7 +151,7 @@ QString WatchItem::toString() const
     str << QLatin1Char('{');
     if (!iname.isEmpty())
         str << "iname=\"" << iname << doubleQuoteComma;
-    if (!name.isEmpty() && name != QLatin1String(iname))
+    if (!name.isEmpty() && name != iname)
         str << "name=\"" << name << doubleQuoteComma;
     if (address) {
         str.setIntegerBase(16);
@@ -258,8 +166,6 @@ QString WatchItem::toString() const
     if (!exp.isEmpty())
         str << "exp=\"" << exp << doubleQuoteComma;
 
-    if (isValueNeeded())
-        str << "value=<needed>,";
     if (!value.isEmpty())
         str << "value=\"" << value << doubleQuoteComma;
 
@@ -273,8 +179,6 @@ QString WatchItem::toString() const
 
     str << "wantsChildren=\"" << (wantsChildren ? "true" : "false") << doubleQuoteComma;
 
-    if (isChildrenNeeded())
-        str << "children=<needed>,";
     str.flush();
     if (res.endsWith(QLatin1Char(',')))
         res.truncate(res.size() - 1);
@@ -307,11 +211,11 @@ QString WatchItem::shadowedName(const QString &name, int seen)
     return shadowedNameFormat().arg(name).arg(seen);
 }
 
-QByteArray WatchItem::hexAddress() const
+QString WatchItem::hexAddress() const
 {
     if (address)
-        return QByteArray("0x") + QByteArray::number(address, 16);
-    return QByteArray();
+        return "0x" + QString::number(address, 16);
+    return QString();
 }
 
 template <class T>
@@ -331,7 +235,7 @@ public:
     template <class T>
     void decodeArrayHelper(int childSize)
     {
-        const QByteArray ba = QByteArray::fromHex(rawData);
+        const QByteArray ba = QByteArray::fromHex(rawData.toUtf8());
         const T *p = (const T *) ba.data();
         for (int i = 0, n = ba.size() / sizeof(T); i < n; ++i) {
             WatchItem *child = new WatchItem;
@@ -341,7 +245,6 @@ public:
             child->type = childType;
             child->address = addrbase + i * addrstep;
             child->valueEditable = true;
-            child->setAllUnneeded();
             item->appendChild(child);
         }
     }
@@ -388,34 +291,29 @@ public:
     }
 
     WatchItem *item;
-    QByteArray rawData;
-    QByteArray childType;
+    QString rawData;
+    QString childType;
     DebuggerEncoding encoding;
     quint64 addrbase;
     quint64 addrstep;
 };
 
-static bool sortByName(const Utils::TreeItem *a, const Utils::TreeItem *b)
+static bool sortByName(const WatchItem *a, const WatchItem *b)
 {
-    auto aa = static_cast<const WatchItem *>(a);
-    auto bb = static_cast<const WatchItem *>(b);
+    if (a->sortGroup != b->sortGroup)
+        return a->sortGroup > b->sortGroup;
 
-    if (aa->sortGroup != bb->sortGroup)
-        return aa->sortGroup > bb->sortGroup;
-
-    return aa->name < bb->name;
+    return a->name < b->name;
 }
 
 void WatchItem::parseHelper(const GdbMi &input, bool maySort)
 {
-    setChildrenUnneeded();
-
     GdbMi mi = input["type"];
     if (mi.isValid())
-        setType(mi.data());
+        type = mi.data();
 
     editvalue = input["editvalue"].data();
-    editformat = DebuggerDisplay(input["editformat"].toInt());
+    editformat = input["editformat"].data();
     editencoding = DebuggerEncoding(input["editencoding"].data());
 
     mi = input["valueelided"];
@@ -441,18 +339,19 @@ void WatchItem::parseHelper(const GdbMi &input, bool maySort)
             if (iname.startsWith("local.") && iname.count('.') == 1)
                 // Solve one common case of adding 'class' in
                 // *(class X*)0xdeadbeef for gdb.
-                exp = name.toLatin1();
+                exp = name;
             else
-                exp = "*(" + gdbQuoteTypes(type) + "*)" + hexAddress();
+                exp = "*(" + type + "*)" + hexAddress();
         }
     }
 
     mi = input["value"];
-    QByteArray enc = input["valueencoded"].data();
+    QString enc = input["valueencoded"].data();
     if (mi.isValid() || !enc.isEmpty()) {
         setValue(decodeData(mi.data(), enc));
-    } else {
-        setValueNeeded();
+        mi = input["valuesuffix"];
+        if (mi.isValid())
+            value += mi.data();
     }
 
     mi = input["size"];
@@ -511,17 +410,17 @@ void WatchItem::parseHelper(const GdbMi &input, bool maySort)
                 const GdbMi &subinput = children.children().at(i);
                 WatchItem *child = new WatchItem;
                 if (childType.isValid())
-                    child->setType(childType.data());
+                    child->type = childType.data();
                 if (childNumChild.isValid())
                     child->setHasChildren(childNumChild.toInt() > 0);
                 GdbMi name = subinput["name"];
-                QByteArray nn;
+                QString nn;
                 if (name.isValid()) {
                     nn = name.data();
-                    child->name = QString::fromLatin1(nn);
+                    child->name = nn;
                 } else {
                     nn.setNum(i);
-                    child->name = QString::fromLatin1("[%1]").arg(i);
+                    child->name = QString("[%1]").arg(i);
                 }
                 GdbMi iname = subinput["iname"];
                 if (iname.isValid())
@@ -530,12 +429,13 @@ void WatchItem::parseHelper(const GdbMi &input, bool maySort)
                     child->iname = this->iname + '.' + nn;
                 if (addressStep) {
                     child->address = addressBase + i * addressStep;
-                    child->exp = "*(" + gdbQuoteTypes(child->type) + "*)0x"
-                                      + QByteArray::number(child->address, 16);
+                    child->exp = "*(" + child->type + "*)0x"
+                                      + QString::number(child->address, 16);
                 }
-                QByteArray key = subinput["key"].data();
+                QString key = subinput["key"].data();
                 if (!key.isEmpty())
                     child->name = decodeData(key, subinput["keyencoded"].data());
+                child->name = subinput["keyprefix"].data() + child->name;
                 child->parseHelper(subinput, maySort);
                 appendChild(child);
             }
@@ -552,14 +452,14 @@ void WatchItem::parse(const GdbMi &data, bool maySort)
 
     GdbMi wname = data["wname"];
     if (wname.isValid()) // Happens (only) for watched expressions.
-        name = QString::fromUtf8(QByteArray::fromHex(wname.data()));
+        name = fromHex(wname.data());
     else
-        name = QString::fromLatin1(data["name"].data());
+        name = data["name"].data();
 
     parseHelper(data, maySort);
 
     if (wname.isValid())
-        exp = name.toUtf8();
+        exp = name;
 }
 
 WatchItem *WatchItem::parentItem() const
@@ -585,14 +485,14 @@ QString WatchItem::toToolTip() const
     str << "<html><body><table>";
     formatToolTipRow(str, tr("Name"), name);
     formatToolTipRow(str, tr("Expression"), expression());
-    formatToolTipRow(str, tr("Internal Type"), QLatin1String(type));
+    formatToolTipRow(str, tr("Internal Type"), type);
     bool ok;
     const quint64 intValue = value.toULongLong(&ok);
     if (ok && intValue) {
-        formatToolTipRow(str, tr("Value"), QLatin1String("(dec)  ") + value);
-        formatToolTipRow(str, QString(), QLatin1String("(hex)  ") + QString::number(intValue, 16));
-        formatToolTipRow(str, QString(), QLatin1String("(oct)  ") + QString::number(intValue, 8));
-        formatToolTipRow(str, QString(), QLatin1String("(bin)  ") + QString::number(intValue, 2));
+        formatToolTipRow(str, tr("Value"), "(dec)  " + value);
+        formatToolTipRow(str, QString(), "(hex)  " + QString::number(intValue, 16));
+        formatToolTipRow(str, QString(), "(oct)  " + QString::number(intValue, 8));
+        formatToolTipRow(str, QString(), "(bin)  " + QString::number(intValue, 2));
     } else {
         QString val = value;
         if (val.size() > 1000) {
@@ -610,7 +510,7 @@ QString WatchItem::toToolTip() const
         formatToolTipRow(str, tr("Array Index"), QString::number(arrayIndex));
     if (size)
         formatToolTipRow(str, tr("Static Object Size"), tr("%n bytes", 0, size));
-    formatToolTipRow(str, tr("Internal ID"), QLatin1String(internalName()));
+    formatToolTipRow(str, tr("Internal ID"), internalName());
     str << "</table></body></html>";
     return res;
 }
@@ -639,11 +539,11 @@ bool WatchItem::isInspect() const
     return iname.startsWith("inspect.");
 }
 
-QByteArray WatchItem::internalName() const
+QString WatchItem::internalName() const
 {
     if (arrayIndex >= 0) {
         if (const WatchItem *p = parentItem())
-            return p->iname + '.' + QByteArray::number(arrayIndex);
+            return p->iname + '.' + QString::number(arrayIndex);
     }
     return iname;
 }
@@ -658,27 +558,15 @@ QString WatchItem::realName() const
 QString WatchItem::expression() const
 {
     if (!exp.isEmpty())
-         return QString::fromLatin1(exp);
+         return exp;
     if (quint64 addr = address) {
         if (!type.isEmpty())
-            return QString::fromLatin1("*(%1*)0x%2").arg(QLatin1String(type)).arg(addr, 0, 16);
+            return QString("*(%1*)0x%2").arg(type).arg(addr, 0, 16);
     }
     const WatchItem *p = parentItem();
     if (p && !p->exp.isEmpty())
-        return QString::fromLatin1("(%1).%2").arg(QString::fromLatin1(p->exp), name);
+        return QString("(%1).%2").arg(p->exp, name);
     return name;
-}
-
-WatchItem *WatchItem::findItem(const QByteArray &iname)
-{
-    if (internalName() == iname)
-        return this;
-    foreach (TreeItem *child, children()) {
-        auto witem = static_cast<WatchItem *>(child);
-        if (WatchItem *result = witem->findItem(iname))
-            return result;
-    }
-    return 0;
 }
 
 } // namespace Internal

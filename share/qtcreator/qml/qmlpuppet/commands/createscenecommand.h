@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CREATESCENECOMMAND_H
-#define CREATESCENECOMMAND_H
+#pragma once
 
 #include <qmetatype.h>
 #include <QUrl>
@@ -33,6 +32,7 @@
 #include "instancecontainer.h"
 #include "reparentcontainer.h"
 #include "idcontainer.h"
+#include "mockuptypecontainer.h"
 #include "propertyvaluecontainer.h"
 #include "propertybindingcontainer.h"
 #include "addimportcontainer.h"
@@ -52,6 +52,7 @@ public:
                        const QVector<PropertyBindingContainer> &bindingChangeVector,
                        const QVector<PropertyValueContainer> &auxiliaryChangeVector,
                        const QVector<AddImportContainer> &importVector,
+                       const QVector<MockupTypeContainer> &mockupTypeVector,
                        const QUrl &fileUrl);
 
     QVector<InstanceContainer> instances() const;
@@ -61,6 +62,7 @@ public:
     QVector<PropertyBindingContainer> bindingChanges() const;
     QVector<PropertyValueContainer> auxiliaryChanges() const;
     QVector<AddImportContainer> imports() const;
+    QVector<MockupTypeContainer> mockupTypes() const;
     QUrl fileUrl() const;
 
 private:
@@ -71,6 +73,7 @@ private:
     QVector<PropertyBindingContainer> m_bindingChangeVector;
     QVector<PropertyValueContainer> m_auxiliaryChangeVector;
     QVector<AddImportContainer> m_importVector;
+    QVector<MockupTypeContainer> m_mockupTypeVector;
     QUrl m_fileUrl;
 };
 
@@ -81,5 +84,3 @@ QDebug operator <<(QDebug debug, const CreateSceneCommand &command);
 }
 
 Q_DECLARE_METATYPE(QmlDesigner::CreateSceneCommand)
-
-#endif // CREATESCENECOMMAND_H

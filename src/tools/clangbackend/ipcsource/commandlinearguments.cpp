@@ -25,14 +25,19 @@
 
 #include "commandlinearguments.h"
 
+#include "clangfilepath.h"
+
 #include <utf8string.h>
+#include <utils/qtcprocess.h>
+
+#include <QByteArray>
 
 #include <iostream>
 
 namespace ClangBackEnd {
 
 CommandLineArguments::CommandLineArguments(const char *filePath,
-                                           const std::vector<const char *> &projectPartArguments,
+                                           const Utf8StringVector &projectPartArguments,
                                            const Utf8StringVector &fileArguments,
                                            bool addVerboseOption)
 {
@@ -41,12 +46,14 @@ CommandLineArguments::CommandLineArguments(const char *filePath,
             + (addVerboseOption ? 1 : 0);
     m_arguments.reserve(elementsToReserve);
 
-    m_arguments = projectPartArguments;
+    for (const auto &argument : projectPartArguments)
+        m_arguments.push_back(argument.constData());
     for (const auto &argument : fileArguments)
         m_arguments.push_back(argument.constData());
     if (addVerboseOption)
         m_arguments.push_back("-v");
-    m_arguments.push_back(filePath);
+    m_nativeFilePath = FilePath::toNativeSeparators(Utf8String::fromUtf8(filePath));
+    m_arguments.push_back(m_nativeFilePath.constData());
 }
 
 const char * const *CommandLineArguments::data() const
@@ -66,13 +73,10 @@ const char *CommandLineArguments::at(int position) const
 
 static Utf8String maybeQuoted(const char *argumentAsCString)
 {
-    const auto quotationMark = Utf8StringLiteral("\"");
-    const auto argument = Utf8String::fromUtf8(argumentAsCString);
+    const QString argumentAsQString = QString::fromUtf8(argumentAsCString);
+    const QString quotedArgument = Utils::QtcProcess::quoteArg(argumentAsQString);
 
-    if (argument.contains(quotationMark))
-        return argument;
-
-    return quotationMark + argument + quotationMark;
+    return Utf8String::fromString(quotedArgument);
 }
 
 void CommandLineArguments::print() const

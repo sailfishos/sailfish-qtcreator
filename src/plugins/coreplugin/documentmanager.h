@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DOCUMENTMANAGER_H
-#define DOCUMENTMANAGER_H
+#pragma once
 
 #include <coreplugin/id.h>
 
@@ -93,8 +92,7 @@ public:
                             const QString &filter = QString(), QString *selectedFilter = 0);
     static QString getSaveFileNameWithExtension(const QString &title, const QString &pathIn,
                                          const QString &filter);
-    static QString getSaveAsFileName(const IDocument *document, const QString &filter = QString(),
-                              QString *selectedFilter = 0);
+    static QString getSaveAsFileName(const IDocument *document);
 
     static bool saveAllModifiedDocumentsSilently(bool *canceled = 0,
                                                  QList<IDocument *> *failedToClose = 0);
@@ -184,5 +182,3 @@ private:
 } // namespace Core
 
 Q_DECLARE_METATYPE(Core::DocumentManager::RecentFile)
-
-#endif // DOCUMENTMANAGER_H

@@ -35,13 +35,13 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/itemviews.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QPainter>
@@ -88,7 +88,6 @@ public:
     // TaskView uses this method if the size of the taskview changes
     void emitSizeHintChanged(const QModelIndex &index);
 
-public slots:
     void currentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
@@ -204,7 +203,7 @@ public:
     Internal::TaskView *m_listview;
     Internal::TaskWindowContext *m_taskWindowContext;
     QMenu *m_contextMenu;
-    ITaskHandler *m_defaultHandler;
+    ITaskHandler *m_defaultHandler = nullptr;
     QToolButton *m_filterWarningsButton;
     QToolButton *m_categoriesButton;
     QMenu *m_categoriesMenu;
@@ -214,7 +213,7 @@ public:
 static QToolButton *createFilterButton(QIcon icon, const QString &toolTip,
                                        QObject *receiver, std::function<void(bool)> lambda)
 {
-    QToolButton *button = new QToolButton;
+    auto button = new QToolButton;
     button->setIcon(icon);
     button->setToolTip(toolTip);
     button->setCheckable(true);
@@ -227,15 +226,13 @@ static QToolButton *createFilterButton(QIcon icon, const QString &toolTip,
 
 TaskWindow::TaskWindow() : d(new TaskWindowPrivate)
 {
-    d->m_defaultHandler = 0;
-
     d->m_model = new Internal::TaskModel(this);
     d->m_filter = new Internal::TaskFilterModel(d->m_model);
     d->m_listview = new Internal::TaskView;
 
     d->m_listview->setModel(d->m_filter);
     d->m_listview->setFrameStyle(QFrame::NoFrame);
-    d->m_listview->setWindowTitle(tr("Issues"));
+    d->m_listview->setWindowTitle(displayName());
     d->m_listview->setSelectionMode(QAbstractItemView::SingleSelection);
     Internal::TaskDelegate *tld = new Internal::TaskDelegate(this);
     d->m_listview->setItemDelegate(tld);
@@ -260,11 +257,11 @@ TaskWindow::TaskWindow() : d(new TaskWindowPrivate)
     d->m_listview->setContextMenuPolicy(Qt::ActionsContextMenu);
 
     d->m_filterWarningsButton = createFilterButton(
-                Core::Icons::WARNING_TOOLBAR.icon(),
+                Utils::Icons::WARNING_TOOLBAR.icon(),
                 tr("Show Warnings"), this, [this](bool show) { setShowWarnings(show); });
 
     d->m_categoriesButton = new QToolButton;
-    d->m_categoriesButton->setIcon(Core::Icons::FILTER.icon());
+    d->m_categoriesButton->setIcon(Utils::Icons::FILTER.icon());
     d->m_categoriesButton->setToolTip(tr("Filter by categories"));
     d->m_categoriesButton->setProperty("noArrow", true);
     d->m_categoriesButton->setAutoRaise(true);
@@ -351,7 +348,7 @@ void TaskWindow::delayedInitialization()
 
 QList<QWidget*> TaskWindow::toolBarWidgets() const
 {
-    return QList<QWidget*>() << d->m_filterWarningsButton << d->m_categoriesButton;
+    return { d->m_filterWarningsButton, d->m_categoriesButton };
 }
 
 QWidget *TaskWindow::outputWidget(QWidget *)
@@ -500,7 +497,7 @@ void TaskWindow::triggerDefaultHandler(const QModelIndex &index)
 
 void TaskWindow::actionTriggered()
 {
-    QAction *action = qobject_cast<QAction *>(sender());
+    auto action = qobject_cast<QAction *>(sender());
     if (!action || !action->isEnabled())
         return;
     ITaskHandler *h = handler(action);
@@ -537,7 +534,7 @@ void TaskWindow::updateCategoriesMenu()
     for (NameToIdsConstIt it = nameToIds.constBegin(); it != cend; ++it) {
         const QString &displayName = it.key();
         const Core::Id categoryId = it.value();
-        QAction *action = new QAction(d->m_categoriesMenu);
+        auto action = new QAction(d->m_categoriesMenu);
         action->setCheckable(true);
         action->setText(displayName);
         action->setChecked(!filteredCategories.contains(categoryId));
@@ -673,7 +670,7 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
 
-    const QAbstractItemView * view = qobject_cast<const QAbstractItemView *>(opt.widget);
+    auto view = qobject_cast<const QAbstractItemView *>(opt.widget);
     const bool selected = (view->selectionModel()->currentIndex() == index);
     QSize s;
     s.setWidth(option.rect.width());
@@ -687,7 +684,7 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
     int fontHeight = fm.height();
     int fontLeading = fm.leading();
 
-    TaskModel *model = static_cast<TaskFilterModel *>(view->model())->taskModel();
+    auto model = static_cast<TaskFilterModel *>(view->model())->taskModel();
     Positions positions(option, model);
 
     if (selected) {
@@ -697,7 +694,7 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
         int height = 0;
         description.replace(QLatin1Char('\n'), QChar::LineSeparator);
         QTextLayout tl(description);
-        tl.setAdditionalFormats(index.data(TaskModel::Task_t).value<Task>().formats);
+        tl.setFormats(index.data(TaskModel::Task_t).value<Task>().formats);
         tl.beginLayout();
         while (true) {
             QTextLine line = tl.createLine();
@@ -746,7 +743,7 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
     QColor backgroundColor;
     QColor textColor;
 
-    const QAbstractItemView * view = qobject_cast<const QAbstractItemView *>(opt.widget);
+    auto view = qobject_cast<const QAbstractItemView *>(opt.widget);
     bool selected = view->selectionModel()->currentIndex() == index;
 
     if (selected) {
@@ -767,7 +764,7 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 
     painter->setPen(textColor);
 
-    TaskModel *model = static_cast<TaskFilterModel *>(view->model())->taskModel();
+    auto model = static_cast<TaskFilterModel *>(view->model())->taskModel();
     Positions positions(opt, model);
 
     // Paint TaskIconArea:
@@ -797,7 +794,7 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
         int height = 0;
         description.replace(QLatin1Char('\n'), QChar::LineSeparator);
         QTextLayout tl(description);
-        tl.setAdditionalFormats(index.data(TaskModel::Task_t).value<Task>().formats);
+        tl.setFormats(index.data(TaskModel::Task_t).value<Task>().formats);
         tl.beginLayout();
         while (true) {
             QTextLine line = tl.createLine();
@@ -878,7 +875,8 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 
     // Separator lines
     painter->setPen(QColor::fromRgb(150,150,150));
-    painter->drawLine(0, opt.rect.bottom(), opt.rect.right(), opt.rect.bottom());
+    const QRectF borderRect = QRectF(opt.rect).adjusted(0.5, 0.5, -0.5, -0.5);
+    painter->drawLine(borderRect.bottomLeft(), borderRect.bottomRight());
     painter->restore();
 }
 

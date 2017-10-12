@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_WATCHHANDLER_H
-#define DEBUGGER_WATCHHANDLER_H
+#pragma once
 
 #include "watchdata.h"
+#include "debuggerengine.h"
 
 #include <QVector>
 
@@ -39,7 +39,7 @@ class WatchModel;
 
 typedef QVector<DisplayFormat> DisplayFormats;
 
-class WatchModelBase : public Utils::TreeModel
+class WatchModelBase : public Utils::TreeModel<WatchItem, WatchItem>
 {
     Q_OBJECT
 
@@ -49,7 +49,7 @@ public:
 signals:
     void currentIndexRequested(const QModelIndex &idx);
     void itemIsExpanded(const QModelIndex &idx);
-    void inameIsExpanded(const QByteArray &iname);
+    void inameIsExpanded(const QString &iname);
     void columnAdjustmentRequested();
     void updateStarted();
     void updateFinished();
@@ -67,57 +67,52 @@ public:
 
     void cleanup();
     void watchExpression(const QString &exp, const QString &name = QString());
-    void updateWatchExpression(WatchItem *item, const QByteArray &newExp);
+    void updateWatchExpression(WatchItem *item, const QString &newExp);
     void watchVariable(const QString &exp);
-    Q_SLOT void clearWatches();
 
     const WatchItem *watchItem(const QModelIndex &) const;
-    void fetchMore(const QByteArray &iname) const;
-    WatchItem *findItem(const QByteArray &iname) const;
+    void fetchMore(const QString &iname) const;
+    WatchItem *findItem(const QString &iname) const;
     const WatchItem *findCppLocalVariable(const QString &name) const;
 
     void loadSessionData();
     void saveSessionData();
 
-    bool isExpandedIName(const QByteArray &iname) const;
-    QSet<QByteArray> expandedINames() const;
+    bool isExpandedIName(const QString &iname) const;
+    QSet<QString> expandedINames() const;
 
     static QStringList watchedExpressions();
-    static QHash<QByteArray, int> watcherNames();
+    static QMap<QString, int> watcherNames();
 
     void appendFormatRequests(DebuggerCommand *cmd);
     void appendWatchersAndTooltipRequests(DebuggerCommand *cmd);
 
-    QByteArray typeFormatRequests() const;
-    QByteArray individualFormatRequests() const;
+    QString typeFormatRequests() const;
+    QString individualFormatRequests() const;
 
-    int format(const QByteArray &iname) const;
+    int format(const QString &iname) const;
     static QString nameForFormat(int format);
 
     void addDumpers(const GdbMi &dumpers);
-    void addTypeFormats(const QByteArray &type, const DisplayFormats &formats);
+    void addTypeFormats(const QString &type, const DisplayFormats &formats);
 
-    void setUnprintableBase(int base);
-    static int unprintableBase();
-
-    QByteArray watcherName(const QByteArray &exp);
-    QString editorContents();
+    QString watcherName(const QString &exp);
 
     void scheduleResetLocation();
     void resetLocation();
 
-    void setCurrentItem(const QByteArray &iname);
+    void setCurrentItem(const QString &iname);
     void updateWatchersWindow();
 
     bool insertItem(WatchItem *item); // Takes ownership, returns whether item was added, not overwritten.
     void insertItems(const GdbMi &data);
 
-    void removeItemByIName(const QByteArray &iname);
+    void removeItemByIName(const QString &iname);
     void removeAllData(bool includeInspectData = false);
     void resetValueCache();
     void resetWatchers();
 
-    void notifyUpdateStarted(const QList<QByteArray> &inames = {});
+    void notifyUpdateStarted(const UpdateParameters &updateParameters = UpdateParameters());
     void notifyUpdateFinished();
 
     void reexpandItems();
@@ -131,5 +126,3 @@ private:
 } // namespace Debugger
 
 Q_DECLARE_METATYPE(Debugger::Internal::DisplayFormat)
-
-#endif // DEBUGGER_WATCHHANDLER_H

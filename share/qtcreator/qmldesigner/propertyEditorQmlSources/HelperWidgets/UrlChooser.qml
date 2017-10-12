@@ -52,11 +52,29 @@ RowLayout {
     Controls.ComboBox {
         id: comboBox
 
+        ExtendedFunctionButton {
+            x: 2
+            anchors.verticalCenter: parent.verticalCenter
+            backendValue: urlChooser.backendValue
+            visible: urlChooser.enabled
+        }
+
         property bool isComplete: false
 
-        property string textValue: backendValue.value
+        function setCurrentText(text) {
+            if (text === "")
+                return
+
+
+            var index = comboBox.find(textValue)
+            if (index === -1)
+                currentIndex = -1
+            editText = textValue
+        }
+
+        property string textValue: backendValue.valueToString
         onTextValueChanged: {
-            comboBox.editText = textValue
+            setCurrentText(textValue)
         }
 
         Layout.fillWidth: true
@@ -72,18 +90,27 @@ RowLayout {
             if (!comboBox.isComplete)
                 return;
 
-            editText = backendValue.valueToString
+            setCurrentText(textValue)
+        }
+        onAccepted: {
+            if (!comboBox.isComplete)
+                return;
+
+            if (backendValue.value !== currentText)
+                backendValue.value = currentText;
         }
 
-        onCurrentTextChanged: {
+        onActivated: {
+            var cText = textAt(index)
+            print(cText)
             if (backendValue === undefined)
                 return;
 
             if (!comboBox.isComplete)
                 return;
 
-            if (backendValue.value !== currentText)
-                backendValue.value = currentText;
+            if (backendValue.value !== cText)
+                backendValue.value = cText;
         }
 
         Component.onCompleted: {
@@ -95,7 +122,7 @@ RowLayout {
                 }
             }
             comboBox.isComplete = true
-            editText = backendValue.valueToString
+            setCurrentText(textValue)
         }
 
     }
@@ -140,7 +167,8 @@ RowLayout {
             onClicked: {
                 darkPanel.opacity = 1
                 fileModel.openFileDialog()
-                backendValue.value = fileModel.fileName
+                if (fileModel.fileName != "")
+                    backendValue.value = fileModel.fileName
                 darkPanel.opacity = 0
             }
         }

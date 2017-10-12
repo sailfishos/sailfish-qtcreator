@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PLAINTEXTEDITMODIFIER_H
-#define PLAINTEXTEDITMODIFIER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include "textmodifier.h"
@@ -52,24 +51,32 @@ public:
 
     virtual void save(QIODevice *device);
 
-    virtual QTextDocument *textDocument() const;
-    virtual QString text() const;
-    virtual QTextCursor textCursor() const;
+    QTextDocument *textDocument() const override;
+    QString text() const override;
+    QTextCursor textCursor() const override;
 
-    virtual void replace(int offset, int length, const QString &replacement);
-    virtual void move(const MoveInfo &moveInfo);
-    virtual void indent(int offset, int length) = 0;
+    void replace(int offset, int length, const QString &replacement) override;
+    void move(const MoveInfo &moveInfo) override;
+    void indent(int offset, int length) override = 0;
+    void indentLines(int startLine, int endLine) override = 0;
 
-    virtual int indentDepth() const = 0;
+    int indentDepth() const override = 0;
 
-    virtual void startGroup();
-    virtual void flushGroup();
-    virtual void commitGroup();
+    void startGroup() override;
+    void flushGroup() override;
+    void commitGroup() override;
 
-    virtual void deactivateChangeSignals();
-    virtual void reactivateChangeSignals();
+    void deactivateChangeSignals() override;
+    void reactivateChangeSignals() override;
 
-    virtual bool renameId(const QString & /* oldId */, const QString & /* newId */) { return false; }
+    bool renameId(const QString & /* oldId */, const QString & /* newId */) override
+    { return false; }
+
+    QStringList autoComplete(QTextDocument * /*textDocument*/, int /*position*/,  bool /*explicitComplete*/) override
+    { return QStringList(); }
+
+    bool moveToComponent(int /* nodeOffset */) override
+    { return false; }
 
 protected:
     QPlainTextEdit *plainTextEdit() const
@@ -96,13 +103,13 @@ public:
         : PlainTextEditModifier(textEdit)
     {}
 
-    virtual void indent(int /*offset*/, int /*length*/)
+    void indent(int /*offset*/, int /*length*/) override
+    {}
+    void indentLines(int /*offset*/, int /*length*/) override
     {}
 
-    virtual int indentDepth() const
+    int indentDepth() const override
     { return 0; }
 };
 
 }
-
-#endif // PLAINTEXTEDITMODIFIER_H

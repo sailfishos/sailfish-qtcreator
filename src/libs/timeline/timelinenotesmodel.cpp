@@ -52,8 +52,9 @@ int TimelineNotesModel::count() const
 void TimelineNotesModel::addTimelineModel(const TimelineModel *timelineModel)
 {
     Q_D(TimelineNotesModel);
-    connect(timelineModel, SIGNAL(destroyed(QObject*)),
-            this, SLOT(_q_removeTimelineModel(QObject*)));
+    connect(timelineModel, &QObject::destroyed, this, [this](QObject *obj) {
+        removeTimelineModel(static_cast<TimelineModel *>(obj));
+    });
     d->timelineModels.insert(timelineModel->modelId(), timelineModel);
 }
 
@@ -134,7 +135,7 @@ int TimelineNotesModel::get(int modelId, int timelineIndex) const
 int TimelineNotesModel::add(int modelId, int timelineIndex, const QString &text)
 {
     Q_D(TimelineNotesModel);
-    const TimelineModel *model = d->timelineModels[modelId];
+    const TimelineModel *model = d->timelineModels.value(modelId);
     int typeId = model->typeId(timelineIndex);
     TimelineNotesModelPrivate::Note note = { text, modelId, timelineIndex };
     d->data << note;
@@ -178,11 +179,12 @@ void TimelineNotesModel::resetModified()
     d->modified = false;
 }
 
-void TimelineNotesModel::TimelineNotesModelPrivate::_q_removeTimelineModel(QObject *timelineModel)
+void TimelineNotesModel::removeTimelineModel(const TimelineModel *timelineModel)
 {
-    for (auto i = timelineModels.begin(); i != timelineModels.end();) {
+    Q_D(TimelineNotesModel);
+    for (auto i = d->timelineModels.begin(); i != d->timelineModels.end();) {
         if (i.value() == timelineModel)
-            i = timelineModels.erase(i);
+            i = d->timelineModels.erase(i);
         else
             ++i;
     }

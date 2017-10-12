@@ -31,7 +31,7 @@ Rectangle {
     id: itemPane
     width: 320
     height: 400
-    color: "#4f4f4f"
+    color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
 
     ScrollView {
         anchors.fill: parent
@@ -76,9 +76,16 @@ Rectangle {
                         }
                         // workaround: without this item the lineedit does not shrink to the
                         // right size after resizing to a wider width
-                        Item {
-                            width: 0
-                            height: 1
+
+                        Image {
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
+                            source: hasAliasExport ? "image://icons/alias-export-checked" : "image://icons/alias-export-unchecked"
+                            ToolTipArea {
+                                anchors.fill: parent
+                                onClicked: toogleExportAlias()
+                                tooltip: qsTr("Toggles whether this item is exported as an alias property of the root item.")
+                            }
                         }
                     }
                 }

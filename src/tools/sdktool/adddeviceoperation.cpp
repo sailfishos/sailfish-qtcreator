@@ -71,6 +71,7 @@ QString AddDeviceOperation::argumentsHelpText() const
                          "    --debugServerKey <STRING>                  Debug server key.\n"
                          "    --keyFile <STRING>                         Key file.\n"
                          "    --origin <INT>                             origin.\n"
+                         "    --sdkProvided <BOOL>                       provided by SDK installer.\n"
                          "    --osType <STRING>                          Os Type.\n"
                          "    --password <STRING>                        Password.\n"
                          "    --sshPort <INT>                            ssh port.\n"
@@ -84,6 +85,7 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
 {
     m_authentication = -1;
     m_origin = 1;
+    m_sdkProvided = false;
     m_sshPort = 0;
     m_timeout = 5;
     m_type = -1;
@@ -176,6 +178,14 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             m_origin = next.toInt(&ok);
             if (!ok)
                 return false;
+            continue;
+        }
+
+        if (current == QLatin1String("--sdkProvided")) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_sdkProvided = next == QLatin1String("true");
             continue;
         }
 
@@ -286,7 +296,7 @@ int AddDeviceOperation::execute() const
 
     QVariantMap result = addDevice(map, m_id, m_displayName, m_type, m_authentication,
                                    m_b2q_platformHardware, m_b2q_platformSoftware, m_debugServer,
-                                   m_freePortsSpec, m_host, m_keyFile, m_origin, m_osType,
+                                   m_freePortsSpec, m_host, m_keyFile, m_origin, m_sdkProvided, m_osType,
                                    m_password, m_sshPort, m_timeout, m_uname, m_version, m_extra);
 
     if (result.isEmpty() || map == result)
@@ -303,7 +313,7 @@ bool AddDeviceOperation::test() const
     QVariantMap result = addDevice(map, QLatin1String("test id"), QLatin1String("test name"),
                                    1, 2, QLatin1String("HW"), QLatin1String("SW"),
                                    QLatin1String("debugServer"), QLatin1String("ports"),
-                                   QLatin1String("host"), QLatin1String("keyfile"), 3,
+                                   QLatin1String("host"), QLatin1String("keyfile"), 3, false,
                                    QLatin1String("ostype"), QLatin1String("passwd"), 4, 5,
                                    QLatin1String("uname"), 6, KeyValuePairList());
 
@@ -354,7 +364,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           int auth, const QString &hwPlatform, const QString &swPlatform,
                                           const QString &debugServer, const QString &freePorts,
                                           const QString &host, const QString &keyFile,
-                                          int origin, const QString &osType, const QString &passwd,
+                                          int origin, bool sdkProvided, const QString &osType, const QString &passwd,
                                           int sshPort, int timeout, const QString &uname, int version,
                                           const KeyValuePairList &extra)
 {
@@ -371,7 +381,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
             = AddKeysOperation::addKeys(QVariantMap(),
                                         createDevice(id, displayName, type, auth, hwPlatform,
                                                      swPlatform, debugServer, freePorts, host,
-                                                     keyFile, origin, osType, passwd, sshPort,
+                                                     keyFile, origin, sdkProvided, osType, passwd, sshPort,
                                                      timeout, uname, version, extra));
 
     devList.append(devMap);
@@ -419,7 +429,7 @@ Operation::KeyValuePairList AddDeviceOperation::createDevice(const QString &id, 
                                                              int type, int auth, const QString &hwPlatform,
                                                              const QString &swPlatform, const QString &debugServer,
                                                              const QString &freePorts, const QString &host,
-                                                             const QString &keyFile, int origin,
+                                                             const QString &keyFile, int origin, bool sdkProvided,
                                                              const QString &osType, const QString &passwd,
                                                              int sshPort, int timeout, const QString &uname,
                                                              int version, const Operation::KeyValuePairList &extra)
@@ -437,6 +447,7 @@ Operation::KeyValuePairList AddDeviceOperation::createDevice(const QString &id, 
     dev.append(KeyValuePair(QLatin1String("Host"), QVariant(host)));
     dev.append(KeyValuePair(QLatin1String("KeyFile"), QVariant(keyFile)));
     dev.append(KeyValuePair(QLatin1String("Origin"), QVariant(origin)));
+    dev.append(KeyValuePair(QLatin1String("SdkProvided"), QVariant(sdkProvided)));
     dev.append(KeyValuePair(QLatin1String("OsType"), QVariant(osType)));
     dev.append(KeyValuePair(QLatin1String("Password"), QVariant(passwd)));
     dev.append(KeyValuePair(QLatin1String("SshPort"), QVariant(sshPort)));

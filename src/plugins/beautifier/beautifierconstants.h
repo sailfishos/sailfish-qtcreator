@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef BEAUTIFIER_BEAUTIFIERCONSTANTS_H
-#define BEAUTIFIER_BEAUTIFIERCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -36,6 +35,7 @@ const char MENU_ID[]                = "Beautifier.Menu";
 const char OPTION_CATEGORY[]        = "II.Beautifier";
 const char OPTION_TR_CATEGORY[]     = QT_TRANSLATE_NOOP("Beautifier", "Beautifier");
 const char OPTION_CATEGORY_ICON[]   = ":/beautifier/images/beautifier.png";
+const char OPTION_GENERAL_ID[]      = "aaa.General";
 const char SETTINGS_GROUP[]         = "Beautifier";
 const char SETTINGS_DIRNAME[]       = "beautifier";
 const char DOCUMENTATION_DIRNAME[]  = "documentation";
@@ -47,6 +47,3 @@ const char DOCUMENTATION_XMLDOC[]   = "doc";
 
 } // namespace Constants
 } // namespace Beautifier
-
-#endif // BEAUTIFIER_BEAUTIFIERCONSTANTS_H
-

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HELPPLUGIN_H
-#define HELPPLUGIN_H
+#pragma once
 
 #include "helpwidget.h"
 
@@ -43,7 +42,6 @@ class QUrl;
 QT_END_NAMESPACE
 
 namespace Core {
-class IMode;
 class MiniSplitter;
 class SideBar;
 class SideBarItem;
@@ -77,10 +75,12 @@ public:
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
+    static HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
+
     static HelpViewer *createHelpViewer(qreal zoom);
 
-private slots:
-    void modeChanged(Core::IMode *mode, Core::IMode *old);
+private:
+    void modeChanged(Core::Id mode, Core::Id old);
 
     void showContextHelp();
     void activateIndex();
@@ -91,7 +91,6 @@ private slots:
     void showLinksInHelpMode(const QMap<QString, QUrl> &links, const QString &key);
     void slotHideRightPane();
 
-    void updateSideBarSource();
     void updateSideBarSource(const QUrl &newUrl);
 
     void setupHelpEngineIfNeeded();
@@ -101,12 +100,11 @@ private slots:
 
     void slotOpenSupportPage();
     void slotReportBug();
+    void slotSystemInformation();
 
-private:
     void resetFilter();
-    void activateHelpMode();
-    bool canShowHelpSideBySide() const;
-    HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
+    static void activateHelpMode();
+    static bool canShowHelpSideBySide();
     HelpViewer *viewerForContextHelp();
     HelpWidget *createHelpWidget(const Core::Context &context, HelpWidget::WidgetStyle style);
     void createRightPaneContextViewer();
@@ -114,7 +112,6 @@ private:
 
     void doSetupIfNeeded();
 
-private:
     HelpMode *m_mode;
     CentralWidget *m_centralWidget;
     HelpWidget *m_rightPaneSideBarWidget;
@@ -135,5 +132,3 @@ private:
 
 } // namespace Internal
 } // namespace Help
-
-#endif // HELPPLUGIN_H

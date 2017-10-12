@@ -51,7 +51,34 @@ Rectangle {
                     newSessionName = qsTr("%1 (current session)").arg(sessionName);
                 return newSessionName;
             }
+
+            function maybeNumber() {
+                return index < 9 ? "%1".arg(index + 1) : "";
+            }
+
+            function tooltipText() {
+                var shortcutText = welcomeMode.sessionsShortcuts[index];
+                if (shortcutText)
+                    return qsTr("Opens session \"%1\" (%2)").arg(sessionName).arg(shortcutText);
+                else
+                    return qsTr("Opens session \"%1\"").arg(sessionName);
+            }
+
+            number: maybeNumber()
             name: fullSessionName()
+            tooltip: tooltipText()
+        }
+    }
+
+    Connections {
+        target: welcomeMode
+        // this is coming from session shortcuts
+        onOpenSessionTriggered: {
+            if (index < content.count) {
+                content.currentIndex = index;
+                // calling a javascript method on the SessionItem which knows its own current sessionName
+                content.currentItem.requestSession();
+            }
         }
     }
 }

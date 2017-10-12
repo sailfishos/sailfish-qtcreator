@@ -87,14 +87,13 @@ public:
     QString displayName() const override;
     QString summaryText() const override;
 
-private slots:
+private:
     void itemChanged(QListWidgetItem *item);
     void makeLineEditTextEdited();
     void makeArgumentsLineEditTextEdited();
     void updateMakeOverrrideLabel();
     void updateDetails();
 
-private:
     Ui::GenericMakeStep *m_ui;
     GenericMakeStep *m_makeStep;
     QString m_summaryText;
@@ -107,18 +106,12 @@ class GenericMakeStepFactory : public ProjectExplorer::IBuildStepFactory
 public:
     explicit GenericMakeStepFactory(QObject *parent = 0);
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const override;
+    QList<ProjectExplorer::BuildStepInfo>
+        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
+
     ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    bool canClone(ProjectExplorer::BuildStepList *parent,
-                  ProjectExplorer::BuildStep *source) const override;
     ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent,
                                       ProjectExplorer::BuildStep *source) override;
-    bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent,
-                                        const QVariantMap &map) override;
-
-    QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *bc) const override;
-    QString displayNameForId(Core::Id id) const override;
 };
 
 } // namespace Internal

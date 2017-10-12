@@ -66,13 +66,11 @@ public:
     {
     }
 
-    constexpr
     const char *data() const
     {
         return Q_LIKELY(isShortString()) ? m_data.shortString.string : m_data.allocated.data.pointer;
     }
 
-    constexpr
     size_type size() const
     {
         return Q_LIKELY(isShortString()) ? m_data.shortString.shortStringSize : m_data.allocated.data.size;
@@ -90,12 +88,12 @@ public:
 
     const_reverse_iterator rbegin() const noexcept
     {
-        return const_reverse_iterator(end() - 1l);
+        return const_reverse_iterator(end() - static_cast<std::size_t>(1));
     }
 
     const_reverse_iterator rend() const noexcept
     {
-        return const_reverse_iterator(begin() - 1l);
+        return const_reverse_iterator(begin() - static_cast<std::size_t>(1));
     }
 
     constexpr static
@@ -104,13 +102,11 @@ public:
         return sizeof(Internal::ShortStringLayout) - 2;
     }
 
-    constexpr
     bool isShortString() const noexcept
     {
         return !m_data.shortString.isReference;
     }
 
-    constexpr
     bool isReadOnlyReference() const noexcept
     {
         return m_data.shortString.isReadOnlyReference;
@@ -122,7 +118,7 @@ public:
     }
 
 private:
-    constexpr SmallStringLiteral(Internal::StringDataLayout data) noexcept
+    SmallStringLiteral(Internal::StringDataLayout data) noexcept
         : m_data(data)
     {
     }
@@ -134,4 +130,3 @@ private:
 
 #pragma pop_macro("noexcept")
 #pragma pop_macro("constexpr")
-

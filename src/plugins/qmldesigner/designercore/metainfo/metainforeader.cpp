@@ -41,6 +41,7 @@ enum {
 const QString rootElementName = QStringLiteral("MetaInfo");
 const QString typeElementName = QStringLiteral("Type");
 const QString ItemLibraryEntryElementName = QStringLiteral("ItemLibraryEntry");
+const QString HintsElementName = QStringLiteral("Hints");
 const QString QmlSourceElementName = QStringLiteral("QmlSource");
 const QString PropertyElementName = QStringLiteral("Property");
 
@@ -69,6 +70,7 @@ void MetaInfoReader::readMetaInfoFile(const QString &path, bool overwriteDuplica
         m_parserState = Error;
         throw InvalidMetaInfoException(__LINE__, __FUNCTION__, __FILE__);
     }
+    syncItemLibraryEntries();
 }
 
 QStringList MetaInfoReader::errors()
@@ -90,6 +92,7 @@ void MetaInfoReader::elementStart(const QString &name)
     case ParsingItemLibrary: setParserState(readItemLibraryEntryElement(name)); break;
     case ParsingProperty: setParserState(readPropertyElement(name)); break;
     case ParsingQmlSource: setParserState(readQmlSourceElement(name)); break;
+    case ParsingHints:
     case Finished:
     case Undefined: setParserState(Error);
         addError(tr("Illegal state while parsing"), currentSourceLocation());
@@ -103,7 +106,8 @@ void MetaInfoReader::elementEnd()
     switch (parserState()) {
     case ParsingMetaInfo: setParserState(Finished); break;
     case ParsingType: setParserState(ParsingMetaInfo); break;
-    case ParsingItemLibrary: insertItemLibraryEntry(); setParserState((ParsingType)); break;
+    case ParsingItemLibrary: keepCurrentItemLibraryEntry(); setParserState((ParsingType)); break;
+    case ParsingHints: setParserState(ParsingType); break;
     case ParsingProperty: insertProperty(); setParserState(ParsingItemLibrary);  break;
     case ParsingQmlSource: setParserState(ParsingItemLibrary); break;
     case ParsingDocument:
@@ -124,6 +128,7 @@ void MetaInfoReader::propertyDefinition(const QString &name, const QVariant &val
     case ParsingQmlSource: readQmlSourceProperty(name, value); break;
     case ParsingMetaInfo: addError(tr("No property definition allowed"), currentSourceLocation()); break;
     case ParsingDocument:
+    case ParsingHints: readHint(name, value); break;
     case Finished:
     case Undefined: setParserState(Error);
         addError(tr("Illegal state while parsing"), currentSourceLocation());
@@ -162,7 +167,12 @@ MetaInfoReader::ParserSate MetaInfoReader::readTypeElement(const QString &name)
         m_currentEntry = ItemLibraryEntry();
         m_currentEntry.setType(m_currentClassName);
         m_currentEntry.setTypeIcon(QIcon(m_currentIcon));
+
+        m_currentEntry.addHints(m_currentHints);
+
         return ParsingItemLibrary;
+    } else if (name == HintsElementName) {
+        return ParsingHints;
     } else {
         addErrorInvalidType(name);
         return Error;
@@ -252,6 +262,11 @@ void MetaInfoReader::readQmlSourceProperty(const QString &name, const QVariant &
     }
 }
 
+void MetaInfoReader::readHint(const QString &name, const QVariant &value)
+{
+    m_currentHints.insert(name, value.toString());
+}
+
 void MetaInfoReader::setVersion(const QString &versionNumber)
 {
     const TypeName typeName = m_currentEntry.typeName();
@@ -281,24 +296,22 @@ MetaInfoReader::ParserSate MetaInfoReader::parserState() const
 
 void MetaInfoReader::setParserState(ParserSate newParserState)
 {
-    if (debug && newParserState == Error)
-        qDebug() << "Error";
-
     m_parserState = newParserState;
 }
 
-void MetaInfoReader::insertItemLibraryEntry()
+void MetaInfoReader::syncItemLibraryEntries()
 {
-    if (debug) {
-        qDebug() << "insertItemLibraryEntry()";
-        qDebug() << m_currentEntry;
-    }
-
     try {
-        m_metaInfo.itemLibraryInfo()->addEntry(m_currentEntry, m_overwriteDuplicates);
+        m_metaInfo.itemLibraryInfo()->addEntries(m_bufferedEntries, m_overwriteDuplicates);
     } catch (const InvalidMetaInfoException &) {
         addError(tr("Invalid or duplicate item library entry %1").arg(m_currentEntry.name()), currentSourceLocation());
     }
+    m_bufferedEntries.clear();
+}
+
+void MetaInfoReader::keepCurrentItemLibraryEntry()
+{
+    m_bufferedEntries.append(m_currentEntry);
 }
 
 void MetaInfoReader::insertProperty()
@@ -313,12 +326,14 @@ void MetaInfoReader::addErrorInvalidType(const QString &typeName)
 
 QString MetaInfoReader::absoluteFilePathForDocument(const QString &relativeFilePath)
 {
-
     QFileInfo fileInfo(relativeFilePath);
-    if (fileInfo.isAbsolute() && fileInfo.exists())
-        return relativeFilePath;
+    if (!fileInfo.isAbsolute() && !fileInfo.exists())
+        fileInfo.setFile(QFileInfo(m_documentPath).absolutePath() + QStringLiteral("/") + relativeFilePath);
+    if (fileInfo.exists())
+        return fileInfo.absoluteFilePath();
 
-    return QFileInfo(QFileInfo(m_documentPath).absolutePath() + QStringLiteral("/") + relativeFilePath).absoluteFilePath();
+    qWarning() << relativeFilePath << "does not exist";
+    return relativeFilePath;
 }
 
 } //Internal

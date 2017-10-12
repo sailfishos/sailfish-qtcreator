@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef JSONPROJECTPAGE_H
-#define JSONPROJECTPAGE_H
+#pragma once
 
 #include <utils/projectintropage.h>
 
@@ -36,14 +35,12 @@ class JsonProjectPage : public Utils::ProjectIntroPage
     Q_OBJECT
 
 public:
-    JsonProjectPage(QWidget *parent = 0);
+    JsonProjectPage(QWidget *parent = nullptr);
 
-    void initializePage();
-    bool validatePage();
+    void initializePage() override;
+    bool validatePage() override;
 
     static QString uniqueProjectName(const QString &path);
 };
 
 } // namespace ProjectExplorer
-
-#endif // JSONPROJECTPAGE_H

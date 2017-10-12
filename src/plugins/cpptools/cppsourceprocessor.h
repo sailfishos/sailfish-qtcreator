@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPSOURCEPROCESSOR_H
-#define CPPSOURCEPROCESSOR_H
+#pragma once
 
 #include "cppmodelmanager.h"
 #include "cppworkingcopy.h"
@@ -60,9 +59,13 @@ public:
     CppSourceProcessor(const CPlusPlus::Snapshot &snapshot, DocumentCallback documentFinished);
     ~CppSourceProcessor();
 
+    using CancelChecker = std::function<bool()>;
+    void setCancelChecker(const CancelChecker &cancelChecker);
+
     void setWorkingCopy(const CppTools::WorkingCopy &workingCopy);
     void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
     void setLanguageFeatures(CPlusPlus::LanguageFeatures languageFeatures);
+    void setFileSizeLimitInMb(int fileSizeLimitInMb);
     void setTodo(const QSet<QString> &files);
 
     void run(const QString &fileName, const QStringList &initialIncludes = QStringList());
@@ -83,7 +86,8 @@ private:
                          unsigned *revision) const;
     bool checkFile(const QString &absoluteFilePath) const;
     QString resolveFile(const QString &fileName, IncludeType type);
-    QString resolveFile_helper(const QString &fileName, IncludeType type);
+    QString resolveFile_helper(const QString &fileName,
+                               ProjectPartHeaderPaths::Iterator headerPathsIt);
 
     void mergeEnvironment(CPlusPlus::Document::Ptr doc);
 
@@ -119,10 +123,9 @@ private:
     QSet<QString> m_todo;
     QSet<QString> m_processed;
     QHash<QString, QString> m_fileNameCache;
+    int m_fileSizeLimitInMb = -1;
     QTextCodec *m_defaultCodec;
 };
 
 } // namespace Internal
 } // namespace CppTools
-
-#endif // CPPSOURCEPROCESSOR_H

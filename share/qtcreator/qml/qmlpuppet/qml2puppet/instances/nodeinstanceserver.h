@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef NODEINSTANCESERVER_H
-#define NODEINSTANCESERVER_H
+#pragma once
 
 #include <QUrl>
 #include <QVector>
@@ -55,6 +54,7 @@ class ChildrenChangedCommand;
 class ReparentContainer;
 class ComponentCompletedCommand;
 class AddImportContainer;
+class MockupTypeContainer;
 class IdContainer;
 
 namespace Internal {
@@ -189,6 +189,7 @@ protected:
 
     void setupDummysForContext(QQmlContext *context);
 
+    void setupMockupTypes(const QVector<MockupTypeContainer> &container);
     void setupFileUrl(const QUrl &fileUrl);
     void setupImports(const QVector<AddImportContainer> &container);
     void setupDummyData(const QUrl &fileUrl);
@@ -225,5 +226,3 @@ private:
 };
 
 }
-
-#endif // NODEINSTANCESERVER_H

@@ -30,6 +30,8 @@
 #include "deployconfiguration.h"
 #include "target.h"
 
+#include <utils/algorithm.h>
+
 /*!
     \class ProjectExplorer::BuildStep
 
@@ -160,6 +162,12 @@ Project *BuildStep::project() const
     return target()->project();
 }
 
+void BuildStep::reportRunResult(QFutureInterface<bool> &fi, bool success)
+{
+    fi.reportResult(success);
+    fi.reportFinished();
+}
+
 /*!
     If this function returns \c true, the user cannot delete this build step for
     this target and the user is prevented from changing the order in which
@@ -203,3 +211,14 @@ bool BuildStep::enabled() const
 IBuildStepFactory::IBuildStepFactory(QObject *parent) :
     QObject(parent)
 { }
+
+BuildStep *IBuildStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
+{
+    const Core::Id id = idFromMap(map);
+    BuildStep *bs = create(parent, id);
+    if (bs->fromMap(map))
+        return bs;
+    delete bs;
+    return nullptr;
+}
+

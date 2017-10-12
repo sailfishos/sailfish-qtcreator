@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDDEBUGSUPPORT_H
-#define ANDROIDDEBUGSUPPORT_H
+#pragma once
 
 #include "androidrunconfiguration.h"
 
@@ -50,7 +49,7 @@ public:
                                                               QString *errorMessage);
 
 private:
-    void handleRemoteProcessStarted(int gdbServerPort, int qmlPort);
+    void handleRemoteProcessStarted(Utils::Port gdbServerPort, Utils::Port qmlPort);
 
     Debugger::DebuggerRunControl *m_runControl;
     AndroidRunner * const m_runner;
@@ -58,5 +57,3 @@ private:
 
 } // namespace Internal
 } // namespace Android
-
-#endif // ANDROIDDEBUGSUPPORT_H

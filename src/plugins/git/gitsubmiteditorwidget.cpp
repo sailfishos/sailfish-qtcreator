@@ -29,8 +29,8 @@
 #include "logchangedialog.h"
 
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <utils/completingtextedit.h>
+#include <utils/utilsicons.h>
 
 #include <QRegExpValidator>
 #include <QTextEdit>
@@ -51,8 +51,8 @@ GitSubmitEditorWidget::GitSubmitEditorWidget() :
     m_gitSubmitPanelUi.setupUi(m_gitSubmitPanel);
     new GitSubmitHighlighter(descriptionEdit());
 
-    m_emailValidator = new QRegExpValidator(QRegExp(QLatin1String("[^@ ]+@[^@ ]+\\.[a-zA-Z]+")), this);
-    const QPixmap error = Core::Icons::ERROR.pixmap();
+    m_emailValidator = new QRegExpValidator(QRegExp("[^@ ]+@[^@ ]+\\.[a-zA-Z]+"), this);
+    const QPixmap error = Utils::Icons::ERROR.pixmap();
     m_gitSubmitPanelUi.invalidAuthorLabel->setPixmap(error);
     m_gitSubmitPanelUi.invalidEmailLabel->setToolTip(tr("Provide a valid email to commit."));
     m_gitSubmitPanelUi.invalidEmailLabel->setPixmap(error);
@@ -66,7 +66,7 @@ GitSubmitEditorWidget::GitSubmitEditorWidget() :
 void GitSubmitEditorWidget::setPanelInfo(const GitSubmitEditorPanelInfo &info)
 {
     m_gitSubmitPanelUi.repositoryLabel->setText(QDir::toNativeSeparators(info.repository));
-    if (info.branch.contains(QLatin1String("(no branch)")))
+    if (info.branch.contains("(no branch)"))
         m_gitSubmitPanelUi.branchLabel->setText(QString::fromLatin1("<span style=\"color:red\">%1</span>")
                                                 .arg(tr("Detached HEAD")));
     else
@@ -163,8 +163,8 @@ QString GitSubmitEditorWidget::cleanupDescription(const QString &input) const
 {
     // We need to manually purge out comment lines starting with
     // hash '#' since git does not do that when using -F.
-    const QChar newLine = QLatin1Char('\n');
-    const QChar hash = QLatin1Char('#');
+    const QChar newLine = '\n';
+    const QChar hash = '#';
     QString message = input;
     for (int pos = 0; pos < message.size(); ) {
         const int newLinePos = message.indexOf(newLine, pos);

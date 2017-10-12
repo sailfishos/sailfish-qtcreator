@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QBSNODES_H
-#define QBSNODES_H
+#pragma once
 
 #include <projectexplorer/projectnodes.h>
 
@@ -56,10 +55,14 @@ class QbsFolderNode : public ProjectExplorer::FolderNode
 {
 public:
     QbsFolderNode(const Utils::FileName &folderPath, ProjectExplorer::NodeType nodeType,
-                  const QString &displayName);
+                  const QString &displayName, bool isGeneratedFilesFolder);
+
+    bool isGeneratedFilesFolder() const { return m_isGeneratedFilesFolder; }
 
 private:
     QList<ProjectExplorer::ProjectAction> supportedActions(ProjectExplorer::Node *node) const override;
+
+    const bool m_isGeneratedFilesFolder;
 };
 
 // ---------------------------------------------------------------------------
@@ -103,14 +106,14 @@ public:
 
     // group can be invalid
     static void setupFiles(FolderNode *root, const qbs::GroupData &group, const QStringList &files,
-                           const QString &productPath, bool updateExisting);
+                           const QString &productPath, bool updateExisting, bool generated);
 
 private:
     static void setupFolder(ProjectExplorer::FolderNode *folder,
                             const QHash<QString, ProjectExplorer::FileType> &fileTypeHash,
                             const FileTreeNode *subFileTree, const QString &baseDir,
-                            bool updateExisting);
-    static ProjectExplorer::FileType fileType(const qbs::SourceArtifact &artifact);
+                            bool updateExisting, bool generated);
+    static ProjectExplorer::FileType fileType(const qbs::ArtifactData &artifact);
 
     qbs::GroupData m_qbsGroupData;
     QString m_productPath;
@@ -143,6 +146,7 @@ private:
     QbsGroupNode *findGroupNode(const QString &name);
 
     qbs::ProductData m_qbsProductData;
+    ProjectExplorer::FolderNode * const m_generatedFilesNode;
     static QIcon m_productIcon;
 };
 
@@ -199,5 +203,3 @@ private:
 
 } // namespace Internal
 } // namespace QbsProjectManager
-
-#endif // QBSNODES_H

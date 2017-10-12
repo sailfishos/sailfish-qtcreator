@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNXTOOLCHAIN_H
-#define QNXTOOLCHAIN_H
+#pragma once
 
 #include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/gcctoolchainfactories.h>
@@ -36,6 +35,7 @@ class QnxToolChain : public ProjectExplorer::GccToolChain
 {
 public:
     explicit QnxToolChain(Detection d);
+    explicit QnxToolChain(Language l, Detection d);
 
     QString typeDisplayName() const override;
 
@@ -69,12 +69,13 @@ class QnxToolChainFactory : public ProjectExplorer::ToolChainFactory
 
 public:
     QnxToolChainFactory();
+    QSet<ProjectExplorer::ToolChain::Language> supportedLanguages() const override;
 
     bool canRestore(const QVariantMap &data) override;
     ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;
 
     bool canCreate() override;
-    ProjectExplorer::ToolChain *create() override;
+    ProjectExplorer::ToolChain *create(ProjectExplorer::ToolChain::Language l) override;
 };
 
 //----------------------------------------------------------------------------
@@ -102,5 +103,3 @@ private:
 
 } // namespace Internal
 } // namespace Qnx
-
-#endif // QNXTOOLCHAIN_H

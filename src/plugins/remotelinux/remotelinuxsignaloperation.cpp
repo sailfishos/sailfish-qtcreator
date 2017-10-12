@@ -58,8 +58,10 @@ void RemoteLinuxSignalOperation::run(const QString &command)
 {
     QTC_ASSERT(!m_runner, return);
     m_runner = new QSsh::SshRemoteProcessRunner();
-    connect(m_runner, SIGNAL(processClosed(int)), SLOT(runnerProcessFinished()));
-    connect(m_runner, SIGNAL(connectionError()), SLOT(runnerConnectionError()));
+    connect(m_runner, &QSsh::SshRemoteProcessRunner::processClosed,
+            this, &RemoteLinuxSignalOperation::runnerProcessFinished);
+    connect(m_runner, &QSsh::SshRemoteProcessRunner::connectionError,
+            this, &RemoteLinuxSignalOperation::runnerConnectionError);
     m_runner->run(command.toLatin1(), m_sshParameters);
 }
 
@@ -94,7 +96,8 @@ QString RemoteLinuxSignalOperation::interruptProcessByNameCommandLine(const QStr
 
 void RemoteLinuxSignalOperation::killProcess(qint64 pid)
 {
-    run(signalProcessByPidCommandLine(pid, 9));
+    run(QString::fromLatin1("%1; sleep 1; %2").arg(signalProcessByPidCommandLine(pid, 15),
+                                          signalProcessByPidCommandLine(pid, 9)));
 }
 
 void RemoteLinuxSignalOperation::killProcess(const QString &filePath)

@@ -40,8 +40,13 @@
 #include <algorithm>
 #include <limits>
 #include <ctype.h>
+#include <unordered_map>
 
 typedef std::vector<int>::size_type VectorIndexType;
+
+typedef std::unordered_map<std::string, SymbolAncestorInfo> AncestorInfos;
+
+static std::unordered_map<std::string, AncestorInfos> typeAncestorInfos;
 
 /*!
     \class SymbolGroupValueContext
@@ -68,7 +73,7 @@ typedef std::vector<int>::size_type VectorIndexType;
 unsigned SymbolGroupValue::verbose = 0;
 
 SymbolGroupValue::SymbolGroupValue(const std::string &parentError) :
-    m_node(0), m_errorMessage(parentError)
+    m_errorMessage(parentError)
 {
     if (m_errorMessage.empty())
         m_errorMessage = "Invalid";
@@ -87,7 +92,7 @@ SymbolGroupValue::SymbolGroupValue(SymbolGroupNode *node,
 }
 
 SymbolGroupValue::SymbolGroupValue() :
-    m_node(0), m_errorMessage("Invalid")
+    m_errorMessage("Invalid")
 {
 }
 
@@ -127,6 +132,113 @@ SymbolGroupValue SymbolGroupValue::operator[](unsigned index) const
         formatNodeError(m_node, dp);
     }
     return SymbolGroupValue(m_errorMessage);
+}
+
+SymbolGroupValue SymbolGroupValue::addSymbolForAncestor(const std::string &ancestorName) const
+{
+    const SymbolAncestorInfo info = infoOfAncestor(ancestorName);
+    if (info.isValid()) {
+        const ULONG64 base = isPointerType(type()) ? pointerValue() : address();
+        return addSymbol(base + info.offset, stripClassPrefixes(info.type));
+    }
+    if (isValid() && SymbolGroupValue::verbose) { // Do not report subsequent errors
+        DebugPrint dp;
+        dp << this->name() << "::addSymbolForAncestor(\"" << ancestorName << "\") failed. ";
+        formatNodeError(m_node, dp);
+    }
+    return SymbolGroupValue(m_errorMessage);
+}
+
+int SymbolGroupValue::readIntegerFromAncestor(const std::string &name, int defaultValue) const
+{
+    return readPODFromAncestor<int>(name, defaultValue);
+}
+
+ULONG64 SymbolGroupValue::offsetOfChild(const SymbolGroupValue &child) const
+{
+    const ULONG64 base = isPointerType(type()) ? pointerValue() : address();
+    const ULONG64 childAddress = child.address();
+    if (base == 0 || childAddress == 0)
+        return 0;
+    return childAddress - base;
+}
+
+LONG64 SymbolGroupValue::offsetOfAncestor(const std::string &name) const
+{
+    return infoOfAncestor(name).offset;
+}
+
+ULONG64 SymbolGroupValue::addressOfAncestor(const std::string &name) const
+{
+    const ULONG64 base = isPointerType(type()) ? pointerValue() : address();
+    LONG64 offset = offsetOfAncestor(name);
+    return offset >= 0 ? base + ULONG64(offset) : 0;
+}
+
+std::string SymbolGroupValue::typeOfAncestor(const std::string &name) const
+{
+    return infoOfAncestor(name).type;
+}
+
+SymbolAncestorInfo SymbolGroupValue::infoOfAncestor(const std::string &name) const
+{
+    const std::string &typeName = type();
+    AncestorInfos &offsets = typeAncestorInfos[typeName];
+    auto offsetIt = offsets.find(name);
+    if (offsetIt != offsets.end())
+        return offsetIt->second;
+
+    SymbolAncestorInfo info;
+    if (!ensureExpanded())
+        return info;
+
+    if (AbstractSymbolGroupNode *abstractChildNode = m_node->childByIName(name.c_str())) {
+        if (SymbolGroupNode *childNode = abstractChildNode->asSymbolGroupNode()) {
+            SymbolGroupValue child(childNode, m_context);
+            ULONG64 childAddress = child.address();
+            if (childAddress == 0)
+                return info;
+            const ULONG64 base = isPointerType(typeName) ? pointerValue() : address();
+            info.offset = LONG64(childAddress - base);
+            info.type = child.type();
+        }
+    }
+
+    if (!info.isValid()) {
+        // Search recursively for ancestor
+        for (AbstractSymbolGroupNode *abstractChildNode : m_node->children())  {
+            if (SymbolGroupNode *childNode = abstractChildNode->asSymbolGroupNode()) {
+                SymbolGroupValue child(childNode, m_context);
+                if (isPointerType(child.type()))
+                    continue;
+                info = child.infoOfAncestor(name);
+                if (info.isValid()) {
+                    info.offset += offsetOfChild(child);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (info.isValid())
+        offsets[name] = info;
+    return info;
+}
+
+SymbolGroupValue SymbolGroupValue::addSymbol(const ULONG64 address, const std::string &type) const
+{
+    const std::string &pointerToType = pointedToSymbolName(address, type);
+    if (SymbolGroupNode *ancestorNode =
+            node()->symbolGroup()->addSymbol(module(), pointerToType, "", "", &std::string())) {
+        return SymbolGroupValue(ancestorNode, m_context);
+    }
+    if (isValid() && SymbolGroupValue::verbose) { // Do not report subsequent errors
+        DebugPrint dp;
+        dp << this->name() << "::addSymbol(\"" << address << "\", \"" << address << "\") failed. ";
+        formatNodeError(m_node, dp);
+    }
+    return SymbolGroupValue(m_errorMessage);
+
 }
 
 unsigned SymbolGroupValue::childCount() const
@@ -254,10 +366,27 @@ template<class POD>
     return rc;
 }
 
+template<class POD>
+POD SymbolGroupValue::readPODFromAncestor(const std::string &name, POD defaultValue) const
+{
+    ULONG64 address = addressOfAncestor(name.c_str());
+    if (address == 0)
+        return defaultValue;
+    return readPODFromMemory<POD>(m_context.dataspaces, address, sizeof(POD), defaultValue, 0);
+}
+
 ULONG64 SymbolGroupValue::readPointerValue(CIDebugDataSpaces *ds, ULONG64 address,
                                            std::string *errorMessage /* = 0 */)
 {
     return readPODFromMemory<ULONG64>(ds, address, SymbolGroupValue::pointerSize(), 0, errorMessage);
+}
+
+ULONG64 SymbolGroupValue::readPointerValueFromAncestor(const std::string &name) const
+{
+    ULONG64 address = addressOfAncestor(name.c_str());
+    if (address == 0)
+        return 0;
+    return readPointerValue(m_context.dataspaces, address);
 }
 
 ULONG64 SymbolGroupValue::readUnsignedValue(CIDebugDataSpaces *ds,
@@ -1503,6 +1632,14 @@ void formatKnownTypeFlags(std::ostream &os, KnownType kt)
         os << " stl";
     if (kt & KT_HasSimpleDumper)
         os << " simple_dumper";
+}
+
+unsigned SymbolGroupValue::isMovable(const std::string &t, const SymbolGroupValue &v)
+{
+    KnownType kt = knownType(t, false);
+    if (kt & (KT_POD_Type | KT_Qt_MovableType | KT_Qt_PrimitiveType))
+        return true;
+    return kt == KT_QStringList && QtInfo::get(v.context()).version >= 5;
 }
 
 static inline DumpParameterRecodeResult
@@ -3047,55 +3184,27 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     return rc;
 }
 
-static inline void formatEditValue(int displayFormat, const MemoryHandle *mh, std::ostream &str)
+static inline void formatEditValue(const std::string &displayFormat, const MemoryHandle *mh, std::ostream &str)
 {
     str << "editformat=\"" << displayFormat << "\",editvalue=\""
         << mh->toHex() << "\",";
 }
 
-bool dumpEditValue(const SymbolGroupNode *n, const SymbolGroupValueContext &,
-                   int desiredFormat, std::ostream &str)
+void dumpEditValue(const SymbolGroupNode *n, const SymbolGroupValueContext &,
+                   const std::string &desiredFormat, std::ostream &str)
 {
-    // Keep in sync watchhandler.cpp/showEditValue(), dumper.py.
-    enum DebuggerEditFormats {
-        DisplayImageData                       = 1,
-        DisplayUtf16String                     = 2,
-        DisplayImageFile                       = 3,
-        DisplayLatin1String                    = 4,
-        DisplayUtf8String                      = 5
-    };
-
-    enum Formats {
-        NormalFormat = 0,
-        StringSeparateWindow = 1 // corresponds to menu index.
-    };
-
-    if (desiredFormat <= 0)
-        return true;
-
     if (SymbolGroupValue::verbose)
         DebugPrint() << __FUNCTION__ << ' ' << n->name() << '/' << desiredFormat;
 
-    switch (n->dumperType()) {
-    case KT_QString:
-    case KT_StdWString:
-        if (desiredFormat == StringSeparateWindow)
-            if (const MemoryHandle *mh = n->memory())
-                formatEditValue(DisplayUtf16String, mh, str);
-        break;
-    case KT_QByteArray:
-    case KT_StdString:
-        if (desiredFormat == StringSeparateWindow)
-            if (const MemoryHandle *mh = n->memory())
-                formatEditValue(DisplayLatin1String, mh, str);
-        break;
-    case KT_QImage:
-        if (desiredFormat == 1) // Image.
-            if (const MemoryHandle *mh = n->memory())
-                formatEditValue(DisplayImageData, mh, str);
-        break;
-    }
-    return true;
+    auto separatorPos = desiredFormat.find(':');
+    if (separatorPos == std::string::npos)
+        return;
+
+    if (desiredFormat.substr(separatorPos) != "separate")
+        return;
+
+    if (const MemoryHandle *mh = n->memory())
+        formatEditValue(desiredFormat, mh, str);
 }
 
 // Dump of QByteArray: Display as an array of unsigned chars.

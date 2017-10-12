@@ -32,15 +32,15 @@ QtObject {
     id: innerObject
 
     property variant backendValue
-    property color textColor: Constants.colorsDefaultText
+    property color textColor: creatorTheme.PanelTextColorLight
     property variant valueFromBackend: backendValue.value;
     property bool baseStateFlag: isBaseState;
     property bool isInModel: backendValue.isInModel;
     property bool isInSubState: backendValue.isInSubState;
-    property bool highlight: textColor == Constants.colorsChangedBaseText
+    property bool highlight: textColor === __changedTextColor
 
-    property color __defaultTextColor: Constants.colorsDefaultText
-    property color __changedTextColor: Constants.colorsChangedBaseText
+    property color __defaultTextColor: creatorTheme.PanelTextColorLight
+    readonly property color __changedTextColor: creatorTheme.QmlDesigner_HighlightColor
 
     onBackendValueChanged: {
         evaluate();
@@ -68,14 +68,14 @@ QtObject {
 
         if (baseStateFlag) {
             if (innerObject.backendValue.isInModel)
-                innerObject.textColor = Constants.colorsChangedBaseText
+                innerObject.textColor = __changedTextColor
             else
-                innerObject.textColor = Constants.colorsDefaultText
+                innerObject.textColor = creatorTheme.PanelTextColorLight
         } else {
             if (innerObject.backendValue.isInSubState)
                 innerObject.textColor = Constants.colorsChangedStateText
             else
-                innerObject.textColor = Constants.colorsDefaultText
+                innerObject.textColor = creatorTheme.PanelTextColorLight
         }
 
     }

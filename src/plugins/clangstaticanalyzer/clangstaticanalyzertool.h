@@ -23,10 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGSTATICANALYZERTOOL_H
-#define CLANGSTATICANALYZERTOOL_H
+#pragma once
 
-#include <debugger/analyzer/analyzermanager.h>
+#include <projectexplorer/runconfiguration.h>
 #include <cpptools/projectinfo.h>
 
 #include <QHash>
@@ -57,8 +56,8 @@ public:
     bool isRunning() const { return m_running; }
     QList<Diagnostic> diagnostics() const;
 
-    Debugger::AnalyzerRunControl *createRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
-                                                   Core::Id runMode);
+    ProjectExplorer::RunControl *createRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
+                                                  Core::Id runMode);
     void startTool();
 
 signals:
@@ -91,5 +90,3 @@ private:
 
 } // namespace Internal
 } // namespace ClangStaticAnalyzer
-
-#endif // CLANGSTATICANALYZERTOOL_H

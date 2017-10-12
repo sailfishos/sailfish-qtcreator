@@ -23,12 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_STACKHANDLER_H
-#define DEBUGGER_STACKHANDLER_H
+#pragma once
 
 #include "stackframe.h"
 
 #include <QAbstractItemModel>
+
+namespace Utils { class ItemViewEvent; }
 
 namespace Debugger {
 namespace Internal {
@@ -78,25 +79,26 @@ signals:
     void currentIndexChanged();
 
 private:
-    // QAbstractTableModel
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    Qt::ItemFlags flags(const QModelIndex &index) const;
-    Q_SLOT void resetModel() { beginResetModel(); endResetModel(); }
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    bool setData(const QModelIndex &idx, const QVariant &data, int role) override;
+
+    bool contextMenuEvent(const Utils::ItemViewEvent &event);
+    void resetModel() { beginResetModel(); endResetModel(); }
+    void reloadFullStack();
+    void copyContentsToClipboard();
+    void saveTaskFile();
 
     DebuggerEngine *m_engine;
     StackFrames m_stackFrames;
-    int m_currentIndex;
-    const QVariant m_positionIcon;
-    const QVariant m_emptyIcon;
-    bool m_canExpand;
-    bool m_resetLocationScheduled;
-    bool m_contentsValid;
+    int m_currentIndex = -1;
+    bool m_canExpand = false;
+    bool m_resetLocationScheduled = false;
+    bool m_contentsValid = false;
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_STACKHANDLER_H

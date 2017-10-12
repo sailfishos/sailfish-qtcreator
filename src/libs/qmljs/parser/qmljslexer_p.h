@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSLEXER_P_H
-#define QMLJSLEXER_P_H
+#pragma once
 
 //
 //  W A R N I N G
@@ -47,6 +46,7 @@ QT_QML_BEGIN_NAMESPACE
 namespace QmlJS {
 
 class Engine;
+class DiagnosticMessage;
 
 class QML_PARSER_EXPORT Directives {
 public:
@@ -56,17 +56,21 @@ public:
     {
     }
 
-    virtual void importFile(const QString &jsfile, const QString &module)
+    virtual void importFile(const QString &jsfile, const QString &module, int line, int column)
     {
         Q_UNUSED(jsfile);
         Q_UNUSED(module);
+        Q_UNUSED(line);
+        Q_UNUSED(column);
     }
 
-    virtual void importModule(const QString &uri, const QString &version, const QString &module)
+    virtual void importModule(const QString &uri, const QString &version, const QString &module, int line, int column)
     {
         Q_UNUSED(uri);
         Q_UNUSED(version);
         Q_UNUSED(module);
+        Q_UNUSED(line);
+        Q_UNUSED(column);
     }
 };
 
@@ -138,7 +142,7 @@ public:
     int lex();
 
     bool scanRegExp(RegExpBodyPrefix prefix = NoPrefix);
-    bool scanDirectives(Directives *directives);
+    bool scanDirectives(Directives *directives, DiagnosticMessage *error);
 
     int regExpFlags() const { return _patternFlags; }
     QString regExpPattern() const { return _tokenText; }
@@ -233,5 +237,3 @@ private:
 } // end of namespace QmlJS
 
 QT_QML_END_NAMESPACE
-
-#endif // LEXER_H

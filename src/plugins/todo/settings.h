@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#pragma once
 
 #include "keyword.h"
 
@@ -37,13 +36,14 @@ namespace Internal {
 enum ScanningScope {
     ScanningScopeCurrentFile,
     ScanningScopeProject,
-    ScanningScopeSubProject
+    ScanningScopeSubProject,
+    ScanningScopeMax
 };
 
 class Settings {
 public:
     KeywordList keywords;
-    ScanningScope scanningScope;
+    ScanningScope scanningScope = ScanningScopeCurrentFile;
     void save(QSettings *settings) const;
     void load(QSettings *settings);
     void setDefault();
@@ -57,5 +57,3 @@ bool operator !=(Settings &s1, Settings &s2);
 } // namespace Todo
 
 Q_DECLARE_METATYPE(Todo::Internal::ScanningScope)
-
-#endif // SETTINGS_H

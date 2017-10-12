@@ -23,13 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef IOSRUNNER_H
-#define IOSRUNNER_H
+#pragma once
 
 #include "iosconfigurations.h"
 #include "iostoolhandler.h"
 #include "iossimulator.h"
 
+#include <debugger/debuggerconstants.h>
 #include <projectexplorer/devicesupport/idevice.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
 
@@ -61,14 +61,14 @@ public:
     IosToolHandler::RunKind runType();
     bool cppDebug() const;
     QmlDebug::QmlDebugServicesPreset qmlDebugServices() const;
-public slots:
+
     void start();
     void stop();
 
 signals:
     void didStartApp(Ios::IosToolHandler::OpStatus status);
-    void gotServerPorts(int gdbPort, int qmlPort);
-    void gotInferiorPid(qint64 pid, int);
+    void gotServerPorts(Utils::Port gdbPort, Utils::Port qmlPort);
+    void gotInferiorPid(qint64 pid, Utils::Port qmlPort);
     void appOutput(const QString &output);
     void errorMsg(const QString &msg);
     void finished(bool cleanExit);
@@ -77,7 +77,7 @@ private:
     void handleDidStartApp(Ios::IosToolHandler *handler, const QString &bundlePath,
                            const QString &deviceId, Ios::IosToolHandler::OpStatus status);
     void handleGotServerPorts(Ios::IosToolHandler *handler, const QString &bundlePath,
-                              const QString &deviceId, int gdbPort, int qmlPort);
+                              const QString &deviceId, Utils::Port gdbPort, Utils::Port qmlPort);
     void handleGotInferiorPid(Ios::IosToolHandler *handler, const QString &bundlePath,
                               const QString &deviceId, qint64 pid);
     void handleAppOutput(Ios::IosToolHandler *handler, const QString &output);
@@ -94,11 +94,9 @@ private:
     QmlDebug::QmlDebugServicesPreset m_qmlDebugServices;
 
     bool m_cleanExit;
-    quint16 m_qmlPort;
+    Utils::Port m_qmlPort;
     qint64 m_pid;
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSRUNNER_H

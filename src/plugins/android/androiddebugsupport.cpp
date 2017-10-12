@@ -86,6 +86,15 @@ static QStringList uniquePaths(const QStringList &files)
     return paths.toList();
 }
 
+static QString toNdkArch(const QString &arch)
+{
+    if (arch == QLatin1String("armeabi-v7a") || arch == QLatin1String("armeabi"))
+        return QLatin1String("arch-arm");
+    if (arch == QLatin1String("arm64-v8a"))
+        return QLatin1String("arch-arm64");
+    return QLatin1String("arch-") + arch;
+}
+
 RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *runConfig, QString *errorMessage)
 {
     Target *target = runConfig->target();
@@ -109,12 +118,15 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
         QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
         params.solibSearchPath.append(qtSoPaths(version));
         params.solibSearchPath.append(uniquePaths(AndroidManager::androidQtSupport(target)->androidExtraLibs(target)));
+        params.sysRoot = AndroidConfigurations::currentConfig().ndkLocation().appendPath(QLatin1String("platforms"))
+                                                     .appendPath(QLatin1String("android-") + QString::number(AndroidManager::minimumSDK(target)))
+                                                     .appendPath(toNdkArch(AndroidManager::targetArch(target))).toString();
     }
     if (aspect->useQmlDebugger()) {
         QTcpServer server;
         QTC_ASSERT(server.listen(QHostAddress::LocalHost)
                    || server.listen(QHostAddress::LocalHostIPv6), return 0);
-        params.qmlServerAddress = server.serverAddress().toString();
+        params.qmlServer.host = server.serverAddress().toString();
         //TODO: Not sure if these are the right paths.
         Kit *kit = target->kit();
         QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
@@ -137,20 +149,15 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
 {
     QTC_ASSERT(runControl, return);
 
-    connect(m_runControl, SIGNAL(finished()),
-            m_runner, SLOT(stop()));
-
-    DebuggerRunConfigurationAspect *aspect
-            = runConfig->extraAspect<DebuggerRunConfigurationAspect>();
-    Q_ASSERT(aspect->useCppDebugger() || aspect->useQmlDebugger());
-    Q_UNUSED(aspect)
+    connect(m_runControl, &RunControl::finished,
+            m_runner, &AndroidRunner::stop);
 
     connect(m_runControl, &DebuggerRunControl::requestRemoteSetup,
             m_runner, &AndroidRunner::start);
 
     // FIXME: Move signal to base class and generalize handling.
     connect(m_runControl, &DebuggerRunControl::aboutToNotifyInferiorSetupOk,
-            m_runner, &AndroidRunner::handleRemoteDebuggerRunning);
+            m_runner, &AndroidRunner::remoteDebuggerRunning);
 
     connect(m_runner, &AndroidRunner::remoteServerRunning,
         [this](const QByteArray &serverChannel, int pid) {
@@ -181,7 +188,7 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
         });
 }
 
-void AndroidDebugSupport::handleRemoteProcessStarted(int gdbServerPort, int qmlPort)
+void AndroidDebugSupport::handleRemoteProcessStarted(Utils::Port gdbServerPort, Utils::Port qmlPort)
 {
     disconnect(m_runner, &AndroidRunner::remoteProcessStarted,
                this, &AndroidDebugSupport::handleRemoteProcessStarted);

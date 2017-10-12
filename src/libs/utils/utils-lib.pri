@@ -14,6 +14,7 @@ win32: LIBS += -liphlpapi -lws2_32
 
 SOURCES += $$PWD/environment.cpp \
     $$PWD/environmentmodel.cpp \
+    $$PWD/environmentdialog.cpp \
     $$PWD/qtcprocess.cpp \
     $$PWD/reloadpromptutils.cpp \
     $$PWD/shellcommand.cpp \
@@ -71,7 +72,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/json.cpp \
     $$PWD/portlist.cpp \
     $$PWD/appmainwindow.cpp \
-    $$PWD/sleep.cpp \
     $$PWD/basetreeview.cpp \
     $$PWD/qtcassert.cpp \
     $$PWD/elfreader.cpp \
@@ -99,7 +99,9 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/dropsupport.cpp \
     $$PWD/icon.cpp \
     $$PWD/port.cpp \
-    $$PWD/runextensions.cpp
+    $$PWD/runextensions.cpp \
+    $$PWD/utilsicons.cpp \
+    $$PWD/guard.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
@@ -107,6 +109,7 @@ else:SOURCES += $$PWD/consoleprocess_unix.cpp
 HEADERS += \
     $$PWD/environment.h \
     $$PWD/environmentmodel.h \
+    $$PWD/environmentdialog.h \
     $$PWD/qtcprocess.h \
     $$PWD/utils_global.h \
     $$PWD/reloadpromptutils.h \
@@ -170,7 +173,6 @@ HEADERS += \
     $$PWD/runextensions.h \
     $$PWD/portlist.h \
     $$PWD/appmainwindow.h \
-    $$PWD/sleep.h \
     $$PWD/basetreeview.h \
     $$PWD/elfreader.h \
     $$PWD/bracematcher.h \
@@ -215,7 +217,9 @@ HEADERS += \
     $$PWD/smallstringmemory.h \
     $$PWD/smallstringvector.h \
     $$PWD/smallstringlayout.h \
-    $$PWD/sizedarray.h
+    $$PWD/sizedarray.h \
+    $$PWD/smallstringio.h \
+    $$PWD/guard.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \

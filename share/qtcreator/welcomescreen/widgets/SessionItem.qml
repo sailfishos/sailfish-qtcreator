@@ -30,7 +30,13 @@ Item {
     property bool expanded: false
     height: columns.height
     width: columns.width
+    property alias number: number.text
     property alias name: titleText.text
+    property alias tooltip: titleAreaTooltip.text
+
+    function requestSession() {
+        root.model.switchToSession(sessionName);
+    }
 
     Column {
         id: columns
@@ -48,15 +54,26 @@ Item {
                 id: sessionIcon
                 source: "image://icons/session/Welcome_ForegroundSecondaryColor"
                 x: 11
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: titleText.verticalCenter
                 height: 16
                 width: 16
             }
 
             NativeText {
+                id: number
+                anchors.verticalCenter: titleText.verticalCenter
+                anchors.right: sessionIcon.left
+                anchors.rightMargin: 3
+                color: creatorTheme.Welcome_ForegroundSecondaryColor
+                font: fonts.smallNumber
+            }
+
+            NativeText {
                 id: titleText
-                anchors.fill: parent
-                anchors.leftMargin: 38
+                x: 36
+                height: 30
+                width: parent.width - x
+                anchors.top: parent.top
                 elide: Text.ElideRight
                 color: creatorTheme.Welcome_LinkColor
                 verticalAlignment: Text.AlignVCenter
@@ -65,15 +82,20 @@ Item {
                 font.underline: titleArea.containsMouse
             }
 
+            ToolTip {
+                id: titleAreaTooltip
+            }
+
             MouseArea {
                 id: titleArea
                 hoverEnabled: true
                 anchors.fill: parent
-                onClicked: {
-                    projectWelcomePage.requestSession(sessionName);
-                }
+                onClicked: delegate.requestSession()
+                onEntered: titleAreaTooltip.showAt(mouseX, mouseY)
+                onExited: titleAreaTooltip.hide()
             }
         }
+
         Rectangle {
             z: -1
             property int margin: 6
@@ -106,7 +128,7 @@ Item {
                 spacing: 12
 
                 Repeater {
-                    model: projectsPath
+                    model: details.visible ? projectsPath : 0
                     delegate: Column {
                         spacing: 4
                         NativeText {

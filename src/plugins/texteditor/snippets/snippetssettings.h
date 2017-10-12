@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SNIPPETSSETTINGS_H
-#define SNIPPETSSETTINGS_H
+#pragma once
 
 #include <QString>
 
@@ -37,7 +36,7 @@ namespace TextEditor {
 class SnippetsSettings
 {
 public:
-    SnippetsSettings();
+    SnippetsSettings() = default;
 
     void toSettings(const QString &category, QSettings *s) const;
     void fromSettings(const QString &category, QSettings *s);
@@ -58,5 +57,3 @@ inline bool operator!=(const SnippetsSettings &a, const SnippetsSettings &b)
 { return !a.equals(b); }
 
 } // TextEditor
-
-#endif // SNIPPETSSETTINGS_H

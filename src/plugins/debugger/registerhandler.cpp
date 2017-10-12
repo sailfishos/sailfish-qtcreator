@@ -28,10 +28,125 @@
 #include "debuggerengine.h"
 #include "watchdelegatewidgets.h"
 
+#include "memoryagent.h"
+#include "debuggeractions.h"
+#include "debuggerdialogs.h"
+#include "debuggercore.h"
+#include "debuggerengine.h"
+
+#include <utils/basetreeview.h>
 #include <utils/qtcassert.h>
+#include <utils/savedaction.h>
+
+#include <QDebug>
+#include <QItemDelegate>
+#include <QMenu>
+#include <QPainter>
+
+using namespace Utils;
 
 namespace Debugger {
 namespace Internal {
+
+enum RegisterColumns
+{
+    RegisterNameColumn,
+    RegisterValueColumn,
+    RegisterColumnCount
+};
+
+enum RegisterDataRole
+{
+    RegisterChangedRole = Qt::UserRole
+};
+
+///////////////////////////////////////////////////////////////////////
+//
+// RegisterDelegate
+//
+///////////////////////////////////////////////////////////////////////
+
+class RegisterDelegate : public QItemDelegate
+{
+public:
+    RegisterDelegate() {}
+
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
+        const QModelIndex &index) const override
+    {
+        if (index.column() == RegisterValueColumn) {
+            auto lineEdit = new QLineEdit(parent);
+            lineEdit->setAlignment(Qt::AlignLeft);
+            lineEdit->setFrame(false);
+            return lineEdit;
+        }
+        return 0;
+    }
+
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override
+    {
+        auto lineEdit = qobject_cast<QLineEdit *>(editor);
+        QTC_ASSERT(lineEdit, return);
+        lineEdit->setText(index.data(Qt::EditRole).toString());
+    }
+
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+        const QModelIndex &index) const override
+    {
+        if (index.column() == RegisterValueColumn) {
+            auto lineEdit = qobject_cast<QLineEdit *>(editor);
+            QTC_ASSERT(lineEdit, return);
+            model->setData(index, lineEdit->text(), Qt::EditRole);
+        }
+    }
+
+    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+        const QModelIndex &) const override
+    {
+        editor->setGeometry(option.rect);
+    }
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+        const QModelIndex &index) const override
+    {
+        if (index.column() == RegisterValueColumn) {
+            const bool paintRed = index.data(RegisterChangedRole).toBool();
+            QPen oldPen = painter->pen();
+            const QColor lightColor(140, 140, 140);
+            if (paintRed)
+                painter->setPen(QColor(200, 0, 0));
+            else
+                painter->setPen(lightColor);
+            // FIXME: performance? this changes only on real font changes.
+            QFontMetrics fm(option.font);
+            int charWidth = qMax(fm.width(QLatin1Char('x')), fm.width(QLatin1Char('0')));
+            QString str = index.data(Qt::DisplayRole).toString();
+            int x = option.rect.x();
+            bool light = !paintRed;
+            for (int i = 0; i < str.size(); ++i) {
+                const QChar c = str.at(i);
+                const int uc = c.unicode();
+                if (light && (uc != 'x' && uc != '0')) {
+                    light = false;
+                    painter->setPen(oldPen.color());
+                }
+                if (uc == ' ') {
+                    light = true;
+                    painter->setPen(lightColor);
+                } else {
+                    QRect r = option.rect;
+                    r.setX(x);
+                    r.setWidth(charWidth);
+                    painter->drawText(r, Qt::AlignHCenter, c);
+                }
+                x += charWidth;
+            }
+            painter->setPen(oldPen);
+        } else {
+            QItemDelegate::paint(painter, option, index);
+        }
+    }
+};
 
 //////////////////////////////////////////////////////////////////
 //
@@ -97,22 +212,22 @@ static uint decodeHexChar(unsigned char c)
     return uint(-1);
 }
 
-void RegisterValue::fromByteArray(const QByteArray &ba, RegisterFormat format)
+void RegisterValue::fromString(const QString &str, RegisterFormat format)
 {
-    known = !ba.isEmpty();
+    known = !str.isEmpty();
     v.u64[1] = v.u64[0] = 0;
 
-    const int n = ba.size();
+    const int n = str.size();
     int pos = 0;
-    if (ba.startsWith("0x"))
+    if (str.startsWith("0x"))
         pos += 2;
 
-    bool negative = pos < n && ba.at(pos) == '-';
+    bool negative = pos < n && str.at(pos) == '-';
     if (negative)
         ++pos;
 
     while (pos < n) {
-        uint c = ba.at(pos);
+        uint c = str.at(pos).unicode();
         if (format != CharacterFormat) {
             c = decodeHexChar(c);
             if (c == uint(-1))
@@ -136,15 +251,15 @@ bool RegisterValue::operator==(const RegisterValue &other)
     return v.u64[0] == other.v.u64[0] && v.u64[1] == other.v.u64[1];
 }
 
-static QByteArray formatRegister(quint64 v, int size, RegisterFormat format, bool forEdit)
+static QString formatRegister(quint64 v, int size, RegisterFormat format, bool forEdit)
 {
-    QByteArray result;
+    QString result;
     if (format == HexadecimalFormat) {
-        result = QByteArray::number(v, 16);
-        result.prepend(QByteArray(2*size - result.size(), '0'));
+        result = QString::number(v, 16);
+        result.prepend(QString(2*size - result.size(), '0'));
     } else if (format == DecimalFormat) {
-        result = QByteArray::number(v, 10);
-        result.prepend(QByteArray(2*size - result.size(), ' '));
+        result = QString::number(v, 10);
+        result.prepend(QString(2*size - result.size(), ' '));
     } else if (format == SignedDecimalFormat) {
         qint64 sv;
         if (size >= 8)
@@ -155,8 +270,8 @@ static QByteArray formatRegister(quint64 v, int size, RegisterFormat format, boo
             sv = qint16(v);
         else
             sv = qint8(v);
-        result = QByteArray::number(sv, 10);
-        result.prepend(QByteArray(2*size - result.size(), ' '));
+        result = QString::number(sv, 10);
+        result.prepend(QString(2*size - result.size(), ' '));
     } else if (format == CharacterFormat) {
         bool spacesOnly = true;
         if (v >= 32 && v < 127) {
@@ -172,23 +287,23 @@ static QByteArray formatRegister(quint64 v, int size, RegisterFormat format, boo
         if (spacesOnly && forEdit)
             result.clear();
         else
-            result.prepend(QByteArray(2*size - result.size(), ' '));
+            result.prepend(QString(2*size - result.size(), ' '));
     }
     return result;
 }
 
-QByteArray RegisterValue::toByteArray(RegisterKind kind, int size, RegisterFormat format, bool forEdit) const
+QString RegisterValue::toString(RegisterKind kind, int size, RegisterFormat format, bool forEdit) const
 {
     if (!known)
-        return "[inaccessible]";
+        return QLatin1String("[inaccessible]");
     if (kind == FloatRegister) {
         if (size == 4)
-            return QByteArray::number(v.f[0]);
+            return QString::number(v.f[0]);
         if (size == 8)
-            return QByteArray::number(v.d[0]);
+            return QString::number(v.d[0]);
     }
 
-    QByteArray result;
+    QString result;
     if (size > 8) {
         result += formatRegister(v.u64[1], size - 8, format, forEdit);
         size = 8;
@@ -286,9 +401,7 @@ void RegisterValue::shiftOneDigit(uint digit, RegisterFormat format)
 //
 //////////////////////////////////////////////////////////////////
 
-class RegisterSubItem;
-
-class RegisterEditItem : public Utils::TreeItem
+class RegisterEditItem : public TypedTreeItem<TreeItem, RegisterSubItem>
 {
 public:
     RegisterEditItem(int pos, RegisterKind subKind, int subSize, RegisterFormat format)
@@ -305,8 +418,7 @@ public:
     RegisterFormat m_subFormat;
 };
 
-
-class RegisterSubItem : public Utils::TreeItem
+class RegisterSubItem : public TypedTreeItem<RegisterEditItem, RegisterItem>
 {
 public:
     RegisterSubItem(RegisterKind subKind, int subSize, int count, RegisterFormat format)
@@ -333,10 +445,10 @@ public:
     bool m_changed;
 };
 
-class RegisterItem : public Utils::TreeItem
+class RegisterItem : public TypedTreeItem<RegisterSubItem>
 {
 public:
-    explicit RegisterItem(const Register &reg);
+    RegisterItem(DebuggerEngine *engine, const Register &reg);
 
     QVariant data(int column, int role) const override;
     bool setData(int column, const QVariant &value, int role) override;
@@ -345,13 +457,14 @@ public:
     quint64 addressValue() const;
     void triggerChange();
 
+    DebuggerEngine *m_engine;
     Register m_reg;
-    RegisterFormat m_format;
-    bool m_changed;
+    RegisterFormat m_format = HexadecimalFormat;
+    bool m_changed = true;
 };
 
-RegisterItem::RegisterItem(const Register &reg) :
-    m_reg(reg), m_format(HexadecimalFormat), m_changed(true)
+RegisterItem::RegisterItem(DebuggerEngine *engine, const Register &reg)
+    : m_engine(engine), m_reg(reg), m_changed(true)
 {
     if (m_reg.kind == UnknownRegister)
         m_reg.guessMissingData();
@@ -391,49 +504,36 @@ quint64 RegisterItem::addressValue() const
 
 void RegisterItem::triggerChange()
 {
-    QByteArray ba = "0x" + m_reg.value.toByteArray(m_reg.kind, m_reg.size, HexadecimalFormat);
-    DebuggerEngine *engine = static_cast<RegisterHandler *>(model())->engine();
-    engine->setRegisterValue(m_reg.name, QString::fromLatin1(ba));
+    QString value = "0x" + m_reg.value.toString(m_reg.kind, m_reg.size, HexadecimalFormat);
+    m_engine->setRegisterValue(m_reg.name, value);
 }
 
 QVariant RegisterItem::data(int column, int role) const
 {
     switch (role) {
-        case RegisterNameRole:
-            return m_reg.name;
-
-        case RegisterIsBigRole:
-            return m_reg.value.v.u64[1] > 0;
-
         case RegisterChangedRole:
             return m_changed;
-
-        case RegisterAsAddressRole:
-            return addressValue();
-
-        case RegisterFormatRole:
-            return m_format;
 
         case Qt::DisplayRole:
             switch (column) {
                 case RegisterNameColumn: {
-                    QByteArray res = m_reg.name;
+                    QString res = m_reg.name;
                     if (!m_reg.description.isEmpty())
                         res += " (" + m_reg.description + ')';
                     return res;
                 }
                 case RegisterValueColumn: {
-                    return m_reg.value.toByteArray(m_reg.kind, m_reg.size, m_format);
+                    return m_reg.value.toString(m_reg.kind, m_reg.size, m_format);
                 }
             }
 
         case Qt::ToolTipRole:
-            return QString::fromLatin1("Current Value: %1\nPreviousValue: %2")
-                    .arg(QString::fromLatin1(m_reg.value.toByteArray(m_reg.kind, m_reg.size, m_format)))
-                    .arg(QString::fromLatin1(m_reg.previousValue.toByteArray(m_reg.kind, m_reg.size, m_format)));
+            return QString("Current Value: %1\nPreviousValue: %2")
+                    .arg(m_reg.value.toString(m_reg.kind, m_reg.size, m_format))
+                    .arg(m_reg.previousValue.toString(m_reg.kind, m_reg.size, m_format));
 
         case Qt::EditRole: // Edit: Unpadded for editing
-            return QString::fromLatin1(m_reg.value.toByteArray(m_reg.kind, m_reg.size, m_format));
+            return m_reg.value.toString(m_reg.kind, m_reg.size, m_format);
 
         case Qt::TextAlignmentRole:
             return column == RegisterValueColumn ? QVariant(Qt::AlignRight) : QVariant();
@@ -447,7 +547,7 @@ QVariant RegisterItem::data(int column, int role) const
 bool RegisterItem::setData(int column, const QVariant &value, int role)
 {
     if (column == RegisterValueColumn && role == Qt::EditRole) {
-        m_reg.value.fromByteArray(value.toString().toLatin1(), m_format);
+        m_reg.value.fromString(value.toString(), m_format);
         triggerChange();
         return true;
     }
@@ -460,27 +560,18 @@ QVariant RegisterSubItem::data(int column, int role) const
         case RegisterChangedRole:
             return m_changed;
 
-        case RegisterFormatRole: {
-            RegisterItem *registerItem = static_cast<RegisterItem *>(parent());
-            return int(registerItem->m_format);
-        }
-
-        case RegisterAsAddressRole:
-            return 0;
-
         case Qt::DisplayRole:
             switch (column) {
                 case RegisterNameColumn:
                     return subTypeName(m_subKind, m_subSize, m_subFormat);
                 case RegisterValueColumn: {
                     QTC_ASSERT(parent(), return QVariant());
-                    RegisterItem *registerItem = static_cast<RegisterItem *>(parent());
-                    RegisterValue value = registerItem->m_reg.value;
-                    QByteArray ba;
+                    RegisterValue value = parent()->m_reg.value;
+                    QString ba;
                     for (int i = 0; i != m_count; ++i) {
                         int tab = 5 * (i + 1) * m_subSize;
-                        QByteArray b = value.subValue(m_subSize, i).toByteArray(m_subKind, m_subSize, m_subFormat);
-                        ba += QByteArray(tab - ba.size() - b.size(), ' ');
+                        QString b = value.subValue(m_subSize, i).toString(m_subKind, m_subSize, m_subFormat);
+                        ba += QString(tab - ba.size() - b.size(), ' ');
                         ba += b;
                     }
                     return ba;
@@ -521,7 +612,7 @@ QVariant RegisterSubItem::data(int column, int role) const
 RegisterHandler::RegisterHandler(DebuggerEngine *engine)
     : m_engine(engine)
 {
-    setObjectName(QLatin1String("RegisterModel"));
+    setObjectName("RegisterModel");
     setHeader({tr("Name"), tr("Value")});
 }
 
@@ -529,7 +620,7 @@ void RegisterHandler::updateRegister(const Register &r)
 {
     RegisterItem *reg = m_registerByName.value(r.name, 0);
     if (!reg) {
-        reg = new RegisterItem(r);
+        reg = new RegisterItem(m_engine, r);
         m_registerByName[r.name] = reg;
         rootItem()->appendChild(reg);
         return;
@@ -550,26 +641,121 @@ void RegisterHandler::updateRegister(const Register &r)
     }
 }
 
-void RegisterHandler::setNumberFormat(const QByteArray &name, RegisterFormat format)
-{
-    RegisterItem *reg = m_registerByName.value(name, 0);
-    QTC_ASSERT(reg, return);
-    reg->m_format = format;
-    QModelIndex index = indexForItem(reg);
-    emit dataChanged(index, index);
-}
-
 RegisterMap RegisterHandler::registerMap() const
 {
     RegisterMap result;
-    Utils::TreeItem *root = rootItem();
-    for (int i = 0, n = root->rowCount(); i != n; ++i) {
-        RegisterItem *reg = static_cast<RegisterItem *>(root->child(i));
+    for (int i = 0, n = rootItem()->childCount(); i != n; ++i) {
+        RegisterItem *reg = rootItem()->childAt(i);
         quint64 value = reg->addressValue();
         if (value)
             result.insert(value, reg->m_reg.name);
     }
     return result;
+}
+
+QVariant RegisterHandler::data(const QModelIndex &idx, int role) const
+{
+    if (role == BaseTreeView::ItemDelegateRole)
+        return QVariant::fromValue(static_cast<QAbstractItemDelegate *>(new RegisterDelegate));
+
+    return RegisterModel::data(idx, role);
+}
+
+bool RegisterHandler::setData(const QModelIndex &idx, const QVariant &data, int role)
+{
+    if (role == BaseTreeView::ItemViewEventRole) {
+        ItemViewEvent ev = data.value<ItemViewEvent>();
+        if (ev.type() == QEvent::ContextMenu)
+            return contextMenuEvent(ev);
+    }
+
+    return RegisterModel::setData(idx, data, role);
+}
+
+bool RegisterHandler::contextMenuEvent(const ItemViewEvent &ev)
+{
+    const bool actionsEnabled = m_engine->debuggerActionsEnabled();
+    const DebuggerState state = m_engine->state();
+
+    RegisterItem *registerItem = itemForIndexAtLevel<1>(ev.index());
+    RegisterSubItem *registerSubItem = itemForIndexAtLevel<2>(ev.index());
+
+    const quint64 address = registerItem ? registerItem->addressValue() : 0;
+    const QString registerName = registerItem ? registerItem->m_reg.name : QString();
+
+    auto menu = new QMenu;
+
+    addAction(menu, tr("Reload Register Listing"),
+              m_engine->hasCapability(RegisterCapability)
+                && (state == InferiorStopOk || state == InferiorUnrunnable),
+              [this] { m_engine->reloadRegisters(); });
+
+    menu->addSeparator();
+
+    addAction(menu, tr("Open Memory View at Value of Register %1 0x%2")
+              .arg(registerName).arg(address, 0, 16),
+              tr("Open Memory View at Value of Register"),
+              address,
+              [this, registerName, address] {
+                    MemoryViewSetupData data;
+                    data.startAddress = address;
+                    data.registerName = registerName;
+                    data.trackRegisters = true;
+                    data.separateView = true;
+                    m_engine->openMemoryView(data);
+              });
+
+    addAction(menu, tr("Open Memory Editor at 0x%1").arg(address, 0, 16),
+              tr("Open Memory Editor"),
+              address && actionsEnabled && m_engine->hasCapability(ShowMemoryCapability),
+              [this, registerName, address] {
+                    MemoryViewSetupData data;
+                    data.startAddress = address;
+                    data.registerName = registerName;
+                    data.markup = registerViewMarkup(address, registerName);
+                    data.title = registerViewTitle(registerName);
+                    m_engine->openMemoryView(data);
+              });
+
+    addAction(menu, tr("Open Disassembler at 0x%1").arg(address, 0, 16),
+              tr("Open Disassembler"),
+              address && m_engine->hasCapability(DisassemblerCapability),
+              [this, address] { m_engine->openDisassemblerView(Location(address)); });
+
+    addAction(menu, tr("Open Disassembler..."),
+              m_engine->hasCapability(DisassemblerCapability),
+              [this, address] {
+                    AddressDialog dialog;
+                    if (address)
+                        dialog.setAddress(address);
+                    if (dialog.exec() == QDialog::Accepted)
+                        m_engine->openDisassemblerView(Location(dialog.address()));
+              });
+
+    menu->addSeparator();
+
+    const RegisterFormat currentFormat = registerItem
+            ? registerItem->m_format
+            : registerSubItem
+              ? registerSubItem->parent()->m_format
+              : HexadecimalFormat;
+
+    auto addFormatAction = [this, menu, currentFormat, registerItem](const QString &display, RegisterFormat format) {
+        addCheckableAction(menu, display, registerItem, currentFormat == format, [this, registerItem, format] {
+            registerItem->m_format = format;
+            registerItem->update();
+        });
+    };
+
+    addFormatAction(tr("Hexadecimal"), HexadecimalFormat);
+    addFormatAction(tr("Decimal"), DecimalFormat);
+    addFormatAction(tr("Octal"), OctalFormat);
+    addFormatAction(tr("Binary"), BinaryFormat);
+
+    menu->addSeparator();
+    menu->addAction(action(SettingsDialog));
+    menu->popup(ev.globalPos());
+    return true;
 }
 
 QVariant RegisterEditItem::data(int column, int role) const
@@ -579,20 +765,18 @@ QVariant RegisterEditItem::data(int column, int role) const
         case Qt::EditRole:
             switch (column) {
                 case RegisterNameColumn: {
-                    return QString::fromLatin1("[%1]").arg(m_index);
+                    return QString("[%1]").arg(m_index);
                 }
                 case RegisterValueColumn: {
-                    RegisterItem *registerItem = static_cast<RegisterItem *>(parent()->parent());
-                    RegisterValue value = registerItem->m_reg.value;
+                    RegisterValue value = parent()->parent()->m_reg.value;
                     return value.subValue(m_subSize, m_index)
-                            .toByteArray(m_subKind, m_subSize, m_subFormat, role == Qt::EditRole);
+                            .toString(m_subKind, m_subSize, m_subFormat, role == Qt::EditRole);
                 }
             }
         case Qt::ToolTipRole: {
-                RegisterItem *registerItem = static_cast<RegisterItem *>(parent()->parent());
+                RegisterItem *registerItem = parent()->parent();
                 return RegisterHandler::tr("Edit bits %1...%2 of register %3")
-                        .arg(m_index * 8).arg(m_index * 8 + 7)
-                        .arg(QString::fromLatin1(registerItem->m_reg.name));
+                        .arg(m_index * 8).arg(m_index * 8 + 7).arg(registerItem->m_reg.name);
             }
         default:
             break;
@@ -605,10 +789,10 @@ bool RegisterEditItem::setData(int column, const QVariant &value, int role)
     if (column == RegisterValueColumn && role == Qt::EditRole) {
         QTC_ASSERT(parent(), return false);
         QTC_ASSERT(parent()->parent(), return false);
-        RegisterItem *registerItem = static_cast<RegisterItem *>(parent()->parent());
+        RegisterItem *registerItem = parent()->parent();
         Register &reg = registerItem->m_reg;
         RegisterValue vv;
-        vv.fromByteArray(value.toString().toLatin1(), m_subFormat);
+        vv.fromString(value.toString(), m_subFormat);
         reg.value.setSubValue(m_subSize, m_index, vv);
         registerItem->triggerChange();
         return true;
@@ -619,8 +803,7 @@ bool RegisterEditItem::setData(int column, const QVariant &value, int role)
 Qt::ItemFlags RegisterEditItem::flags(int column) const
 {
     QTC_ASSERT(parent(), return Qt::ItemFlags());
-    RegisterSubItem *registerSubItem = static_cast<RegisterSubItem *>(parent());
-    Qt::ItemFlags f = registerSubItem->flags(column);
+    Qt::ItemFlags f = parent()->flags(column);
     if (column == RegisterValueColumn)
         f |= Qt::ItemIsEditable;
     return f;

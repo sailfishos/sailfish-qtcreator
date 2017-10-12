@@ -32,6 +32,11 @@
 #include "valgrindsettings.h"
 #include "valgrindconfigwidget.h"
 
+#ifdef WITH_TESTS
+#   include "valgrindmemcheckparsertest.h"
+#   include "valgrindtestrunnertest.h"
+#endif
+
 #include <coreplugin/dialogs/ioptionspage.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
@@ -59,7 +64,7 @@ public:
         setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindOptionsPage", "Valgrind"));
         setCategory("T.Analyzer");
         setDisplayCategory(QCoreApplication::translate("Analyzer", "Analyzer"));
-        setCategoryIcon(QLatin1String(":/images/analyzer_category.png"));
+        setCategoryIcon(Utils::Icon(":/images/analyzer_category.png"));
     }
 
     QWidget *widget()
@@ -95,15 +100,14 @@ bool ValgrindPlugin::initialize(const QStringList &, QString *)
     theGlobalSettings->readSettings();
 
     addAutoReleasedObject(new ValgrindOptionsPage);
-    addAutoReleasedObject(new ValgrindRunControlFactory);
 
     return true;
 }
 
 void ValgrindPlugin::extensionsInitialized()
 {
-    initMemcheckTool(this);
-    initCallgrindTool(this);
+    initMemcheckTool();
+    initCallgrindTool();
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag ValgrindPlugin::aboutToShutdown()
@@ -116,6 +120,15 @@ ExtensionSystem::IPlugin::ShutdownFlag ValgrindPlugin::aboutToShutdown()
 ValgrindGlobalSettings *ValgrindPlugin::globalSettings()
 {
     return theGlobalSettings;
+}
+
+QList<QObject *> ValgrindPlugin::createTestObjects() const
+{
+    QList<QObject *> tests;
+#ifdef WITH_TESTS
+    tests << new Test::ValgrindMemcheckParserTest << new Test::ValgrindTestRunnerTest;
+#endif
+    return tests;
 }
 
 } // namespace Internal

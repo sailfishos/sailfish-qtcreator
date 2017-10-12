@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PACKAGEUPLOADER_H
-#define PACKAGEUPLOADER_H
+#pragma once
 
 #include <QObject>
 #include <QSharedPointer>
@@ -56,15 +55,13 @@ signals:
     void progress(const QString &message);
     void uploadFinished(const QString &errorMsg = QString());
 
-private slots:
+private:
+    enum State { InitializingSftp, Uploading, Inactive };
+
     void handleConnectionFailure();
     void handleSftpChannelInitialized();
     void handleSftpChannelError(const QString &error);
     void handleSftpJobFinished(QSsh::SftpJobId job, const QString &error);
-
-private:
-    enum State { InitializingSftp, Uploading, Inactive };
-
     void cleanup();
     void setState(State newState);
 
@@ -77,5 +74,3 @@ private:
 
 } // namespace Internal
 } // namespace RemoteLinux
-
-#endif // PACKAGEUPLOADER_H

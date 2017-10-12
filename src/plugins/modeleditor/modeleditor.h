@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MODELDIAGRAMEDITOR_H
-#define MODELDIAGRAMEDITOR_H
+#pragma once
 
 #include <coreplugin/editormanager/ieditor.h>
 
@@ -34,6 +33,7 @@
 
 QT_BEGIN_NAMESPACE
 class QItemSelection;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace qmt {
@@ -87,6 +87,9 @@ public:
     void editProperties();
     void editSelectedItem();
     void exportDiagram();
+    void zoomIn();
+    void zoomOut();
+    void resetZoom();
 
     qmt::MPackage *guessSelectedPackage() const;
 
@@ -99,10 +102,11 @@ private:
     void showProperties(qmt::MDiagram *diagram, const QList<qmt::DElement *> &diagramElements);
     void clearProperties();
     void expandModelTreeToDepth(int depth);
-    QWidget *createToolbarCommandButton(const Core::Id &id, const std::function<void()> &slot,
+    QToolButton *createToolbarCommandButton(const Core::Id &id, const std::function<void()> &slot,
                                         const QIcon &icon,
                                         const QString &toolTipBase, QWidget *parent);
     bool updateButtonIconByTheme(QAbstractButton *button, const QString &name);
+    void showZoomIndicator();
 
     void onAddPackage();
     void onAddComponent();
@@ -145,8 +149,11 @@ private:
     void addToNavigationHistory(const qmt::MDiagram *diagram);
     QByteArray saveState(const qmt::MDiagram *diagram) const;
 
-private slots:
     void onEditSelectedElement();
+    bool isSyncBrowserWithDiagram() const;
+    bool isSyncDiagramWithBrowser() const;
+    void synchronizeDiagramWithBrowser();
+    void synchronizeBrowserWithDiagram(const qmt::MDiagram *diagram);
 
 private:
     ModelEditorPrivate *d;
@@ -154,5 +161,3 @@ private:
 
 } // namespace Internal
 } // namespace ModelEditor
-
-#endif // MODELDIAGRAMEDITOR_H

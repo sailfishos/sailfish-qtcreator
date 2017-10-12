@@ -24,11 +24,12 @@
 **
 ****************************************************************************/
 
-#ifndef TODOITEM_H
-#define TODOITEM_H
+#pragma once
 
 #include "constants.h"
 #include "todoicons.h"
+
+#include <utils/fileutils.h>
 
 #include <QMetaType>
 #include <QString>
@@ -43,7 +44,7 @@ public:
     TodoItem() : line(-1) {}
 
     QString text;
-    QString file;
+    Utils::FileName file;
     int line;
     IconType iconType;
     QColor color;
@@ -92,5 +93,3 @@ private:
 } // namespace Todo
 
 Q_DECLARE_METATYPE(Todo::Internal::TodoItem)
-
-#endif // TODOITEM_H

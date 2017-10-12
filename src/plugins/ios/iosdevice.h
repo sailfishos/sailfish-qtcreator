@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef IOSDEVICE_H
-#define IOSDEVICE_H
+#pragma once
 
 #include "iostoolhandler.h"
 
@@ -67,7 +66,7 @@ public:
     QString uniqueDeviceID() const;
     IosDevice(const QString &uid);
     QString osVersion() const;
-    quint16 nextPort() const;
+    Utils::Port nextPort() const;
     bool canAutoDetectPorts() const override;
 
     static QString name();
@@ -94,16 +93,13 @@ public:
     void deviceConnected(const QString &uid, const QString &name = QString());
     void deviceDisconnected(const QString &uid);
     friend class IosConfigurations;
-public slots:
     void updateInfo(const QString &devId);
-//private slots:
     void deviceInfo(Ios::IosToolHandler *gatherer, const QString &deviceId,
                     const Ios::IosToolHandler::Dict &info);
     void infoGathererFinished(Ios::IosToolHandler *gatherer);
     void monitorAvailableDevices();
-private slots:
-    void updateUserModeDevices();
 private:
+    void updateUserModeDevices();
     IosDeviceManager(QObject *parent = 0);
     QTimer m_userModeDevicesTimer;
     QStringList m_userModeDeviceIds;
@@ -116,5 +112,3 @@ IosDevice::ConstPtr device(ProjectExplorer::Kit *);
 } // namespace Internal
 
 } // namespace Ios
-
-#endif // IOSDEVICE_H

@@ -7,7 +7,7 @@
     "trDisplayName": "Qt Canvas 3D Application",
     "trDisplayCategory": "Application",
     "icon": "3dapplication.png",
-    "featuresRequired": [ "QtSupport.Wizards.FeatureQtCanvas3d" ],
+    "featuresRequired": [ "QtSupport.Wizards.FeatureQtCanvas3d1.1" ],
     "enabled": "%{JS: false // [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
 
     "options":
@@ -86,10 +86,6 @@
                 },
                 {
                     "source": "qml.qrc"
-                },
-                {
-                    "source": "../../../../shared/qrcdeployment.pri",
-                    "target": "%{ProjectDirectory}/deployment.pri"
                 },
                 {
                     "source": "../../git.ignore",

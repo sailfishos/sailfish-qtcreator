@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef OPENPAGESWIDGET_H
-#define OPENPAGESWIDGET_H
+#pragma once
 
 #include <coreplugin/opendocumentstreeview.h>
 
@@ -50,17 +49,14 @@ signals:
     void closePage(const QModelIndex &index);
     void closePagesExcept(const QModelIndex &index);
 
-private slots:
+private:
     void contextMenuRequested(QPoint pos);
     void handleActivated(const QModelIndex &index);
     void handleCloseActivated(const QModelIndex &index);
     void updateCloseButtonVisibility();
 
-private:
     bool m_allowContextMenu;
 };
 
     } // namespace Internal
 } // namespace Help
-
-#endif // OPENPAGESWIDGET_H

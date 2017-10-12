@@ -49,7 +49,7 @@ Rectangle {
         content.scroll();
     }
 
-    color: "#dcdcdc"
+    color: creatorTheme.Timeline_BackgroundColor1
 
     // ***** connections with external objects
     Connections {
@@ -161,7 +161,7 @@ Rectangle {
         contentY: content.contentY
         selectedModel: root.selectedModel
         selectedItem: root.selectedItem
-        color: root.color
+        color: creatorTheme.PanelStatusBarBackgroundColor
         modelProxy: timelineModelAggregator
         zoomer: zoomControl
         reverseSelect: shiftPressed
@@ -246,6 +246,7 @@ Rectangle {
                     root.updateCursorPosition();
                 }
             } else {
+                selectedModel = -1;
                 rangeDetails.hide();
             }
             lockItemSelection = false;
@@ -317,6 +318,17 @@ Rectangle {
         }
     }
 
+    TimelineRulers {
+        contentX: buttonsBar.width - content.x - content.flickableItem.x + content.contentX
+        anchors.left: buttonsBar.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: content.flickableItem.height + buttonsBar.height
+        windowStart: zoomControl.windowStart
+        viewTimePerPixel: selectionRange.viewTimePerPixel
+        scaleHeight: buttonsBar.height
+    }
+
     SelectionRangeDetails {
         z: 3
         x: 200
@@ -368,17 +380,9 @@ Rectangle {
     }
 
     Rectangle {
-        anchors.left: buttonsBar.right
-        anchors.bottom: overview.top
-        anchors.top: parent.top
-        width: 1
-        color: "#B0B0B0"
-    }
-
-    Rectangle {
         id: zoomSliderToolBar
         objectName: "zoomSliderToolBar"
-        color: "#9b9b9b"
+        color: creatorTheme.Timeline_PanelBackgroundColor
         enabled: buttonsBar.enabled
         visible: false
         width: buttonsBar.width

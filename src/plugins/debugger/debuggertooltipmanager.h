@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERTOOLTIPMANAGER_H
-#define DEBUGGER_DEBUGGERTOOLTIPMANAGER_H
+#pragma once
 
 #include "debuggerconstants.h"
 
@@ -50,7 +49,6 @@ public:
     bool isValid() const { return !expression.isEmpty(); }
     bool matchesFrame(const StackFrame &frame) const;
     bool isSame(const DebuggerToolTipContext &other) const;
-    void appendFormatRequest(DebuggerCommand *cmd) const;
     QString toolTip() const;
 
     QString fileName;
@@ -65,7 +63,7 @@ public:
 
     QPoint mousePosition;
     QString expression;
-    QByteArray iname;
+    QString iname;
     bool isCppEditor;
 };
 
@@ -95,12 +93,8 @@ public:
     static void saveSessionData();
     static void closeAllToolTips();
     static void resetLocation();
-
-public slots:
-    static void slotUpdateVisibleToolTips();
+    static void updateVisibleToolTips();
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_INTERNAL_DEBUGGERTOOLTIPMANAGER_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPEDITORPLUGIN_H
-#define CPPEDITORPLUGIN_H
+#pragma once
 
 #include <coreplugin/editormanager/ieditorfactory.h>
 
@@ -65,7 +64,7 @@ signals:
     void typeHierarchyRequested();
     void includeHierarchyRequested();
 
-public slots:
+public:
     void openDeclarationDefinitionInNextSplit();
     void openTypeHierarchy();
     void openIncludeHierarchy();
@@ -74,7 +73,7 @@ public slots:
     void renameSymbolUnderCursor();
     void switchDeclarationDefinition();
 
-private slots:
+private:
     void onTaskStarted(Core::Id type);
     void onAllTasksFinished(Core::Id type);
     void inspectCppCodeModel();
@@ -118,6 +117,7 @@ private slots:
 
     void test_quickfix_GenerateGetterSetter_basicGetterWithPrefixAndNamespaceToCpp();
     void test_quickfix_GenerateGetterSetter_onlyGetter();
+    void test_quickfix_GenerateGetterSetter_onlyGetter_DontPreferGetterWithGet();
     void test_quickfix_GenerateGetterSetter_onlySetter();
     void test_quickfix_GenerateGetterSetter_offerGetterWhenSetterPresent();
     void test_quickfix_GenerateGetterSetter_offerSetterWhenGetterPresent();
@@ -145,8 +145,13 @@ private slots:
     void test_quickfix_InsertDefFromDecl_rvalueReference();
     void test_quickfix_InsertDefFromDecl_findImplementationFile();
     void test_quickfix_InsertDefFromDecl_unicodeIdentifier();
+    void test_quickfix_InsertDefFromDecl_templateClass();
+    void test_quickfix_InsertDefFromDecl_templateFunction();
 
     void test_quickfix_InsertDeclFromDef();
+    void test_quickfix_InsertDeclFromDef_templateFuncTypename();
+    void test_quickfix_InsertDeclFromDef_templateFuncInt();
+    void test_quickfix_InsertDeclFromDef_notTriggeredForTemplateFunc();
 
     void test_quickfix_AddIncludeForUndefinedIdentifier_data();
     void test_quickfix_AddIncludeForUndefinedIdentifier();
@@ -167,6 +172,7 @@ private slots:
     void test_quickfix_MoveFuncDefOutside_respectWsInOperatorNames1();
     void test_quickfix_MoveFuncDefOutside_respectWsInOperatorNames2();
     void test_quickfix_MoveFuncDefOutside_macroUses();
+    void test_quickfix_MoveFuncDefOutside_template();
 
     void test_quickfix_MoveAllFuncDefOutside_MemberFuncToCpp();
     void test_quickfix_MoveAllFuncDefOutside_MemberFuncOutside();
@@ -185,6 +191,8 @@ private slots:
     void test_quickfix_MoveFuncDefToDecl_structWithAssignedVariable();
     void test_quickfix_MoveFuncDefToDecl_macroUses();
     void test_quickfix_MoveFuncDefToDecl_override();
+    void test_quickfix_MoveFuncDefToDecl_template();
+    void test_quickfix_MoveFuncDefToDecl_templateFunction();
 
     void test_quickfix_AssignToLocalVariable_templates();
 
@@ -230,6 +238,16 @@ private slots:
     void test_moveTokenWiseThroughEveryFileAndOpenTypeHierarchy();
     void test_moveTokenWiseThroughEveryFileAndInvokeCompletion();
     void test_moveTokenWiseThroughEveryFileAndTriggerQuickFixes();
+
+    // CppAutoCompleter tests
+    void test_autoComplete_data();
+    void test_autoComplete();
+    void test_surroundWithSelection_data();
+    void test_surroundWithSelection();
+    void test_autoBackspace_data();
+    void test_autoBackspace();
+    void test_insertParagraph_data();
+    void test_insertParagraph();
 #endif // WITH_TESTS
 
 private:
@@ -252,5 +270,3 @@ private:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPEDITORPLUGIN_H

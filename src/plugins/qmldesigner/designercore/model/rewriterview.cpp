@@ -25,113 +25,38 @@
 
 #include "rewriterview.h"
 
+#include "texttomodelmerger.h"
+#include "modeltotextmerger.h"
+
+#include <variantproperty.h>
+#include <bindingproperty.h>
+#include <rewritingexception.h>
+#include <signalhandlerproperty.h>
 #include <filemanager/astobjecttextextractor.h>
 #include <filemanager/objectlengthcalculator.h>
 #include <filemanager/firstdefinitionfinder.h>
 #include <customnotifications.h>
-
-
-#include "rewritingexception.h"
-#include "texttomodelmerger.h"
-#include "modelnodepositionstorage.h"
-#include "modeltotextmerger.h"
-#include "nodelistproperty.h"
-#include "signalhandlerproperty.h"
-
+#include <modelnodepositionstorage.h>
+#include <modelnode.h>
 
 #include <qmljs/parser/qmljsengine_p.h>
+#include <qmljs/qmljsmodelmanagerinterface.h>
 
 using namespace QmlDesigner::Internal;
 
 namespace QmlDesigner {
 
-RewriterError::RewriterError():
-        m_type(NoError),
-        m_line(-1),
-        m_column(-1)
-{
-}
-
-RewriterError::RewriterError(Exception *exception):
-        m_type(InternalError),
-        m_line(exception->line()),
-        m_column(-1),
-        m_description(exception->description()),
-        m_url(exception->file())
-{
-}
-
-RewriterError::RewriterError(const QmlJS::DiagnosticMessage &qmlError, const QUrl &document):
-        m_type(ParseError),
-        m_line(qmlError.loc.startLine),
-        m_column(qmlError.loc.startColumn),
-        m_description(qmlError.message),
-        m_url(document)
-{
-}
-
-RewriterError::RewriterError(const QString &shortDescription) :
-    m_type(ParseError),
-    m_line(1),
-    m_column(0),
-    m_description(shortDescription),
-    m_url()
-{
-}
-
-
-QString RewriterError::toString() const
-{
-    QString str;
-
-    if (m_type == ParseError)
-        str += RewriterView::tr("Error parsing");
-    else if (m_type == InternalError)
-        str += RewriterView::tr("Internal error");
-
-    if (url().isValid()) {
-        if (!str.isEmpty())
-            str += QLatin1Char(' ');
-
-        str += RewriterView::tr("\"%1\"").arg(url().toString());
-    }
-
-    if (line() != -1) {
-        if (!str.isEmpty())
-            str += QLatin1Char(' ');
-        str += RewriterView::tr("line %1").arg(line());
-    }
-
-    if (column() != -1) {
-        if (!str.isEmpty())
-            str += QLatin1Char(' ');
-
-        str += RewriterView::tr("column %1").arg(column());
-    }
-
-    if (!str.isEmpty())
-        QStringLiteral(": ");
-    str += description();
-
-    return str;
-}
-
 RewriterView::RewriterView(DifferenceHandling differenceHandling, QObject *parent):
         AbstractView(parent),
         m_differenceHandling(differenceHandling),
-        m_modificationGroupActive(false),
         m_positionStorage(new ModelNodePositionStorage),
         m_modelToTextMerger(new Internal::ModelToTextMerger(this)),
-        m_textToModelMerger(new Internal::TextToModelMerger(this)),
-        m_textModifier(0),
-        transactionLevel(0),
-        m_checkErrors(true)
+        m_textToModelMerger(new Internal::TextToModelMerger(this))
 {
 }
 
 RewriterView::~RewriterView()
 {
-    delete m_positionStorage;
 }
 
 Internal::ModelToTextMerger *RewriterView::modelToTextMerger() const
@@ -296,9 +221,9 @@ void RewriterView::importAdded(const Import &import)
     if (textToModelMerger()->isActive())
         return;
 
-    if (import.url() == "Qt")
+    if (import.url() == QLatin1String("Qt"))
         foreach (const Import &import, model()->imports()) {
-            if (import.url() == "QtQuick")
+            if (import.url() == QLatin1String("QtQuick"))
                 return; //QtQuick magic we do not have to add an import for Qt
         }
 
@@ -440,12 +365,12 @@ void RewriterView::applyChanges()
     if (modelToTextMerger()->hasNoPendingChanges())
         return; // quick exit: nothing to be done.
 
-    clearErrors();
+    clearErrorAndWarnings();
 
     if (inErrorState()) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterView::applyChanges() got called while in error state. Will do a quick-exit now.";
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterView::applyChanges() got called while in error state. Will do a quick-exit now.";
+        qDebug().noquote() << "Content: " << content;
         throw RewritingException(__LINE__, __FUNCTION__, __FILE__, "RewriterView::applyChanges() already in error state", content);
     }
 
@@ -457,8 +382,8 @@ void RewriterView::applyChanges()
             enterErrorState(errors().first().description());
     } catch (const Exception &e) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterException:" << m_rewritingErrorMessage;
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterException:" << m_rewritingErrorMessage;
+        qDebug().noquote() << "Content: " << qPrintable(content);
         enterErrorState(e.description());
     }
 
@@ -466,12 +391,22 @@ void RewriterView::applyChanges()
 
     if (inErrorState()) {
         const QString content = textModifierContent();
-        qDebug() << "RewriterException:" << m_rewritingErrorMessage;
-        qDebug() << "Content:" << content;
+        qDebug().noquote() << "RewriterException: " << m_rewritingErrorMessage;
+        qDebug().noquote() << "Content: " << content;
         if (!errors().isEmpty())
-            qDebug() << "Error:" << errors().first().description();
-        throw RewritingException(__LINE__, __FUNCTION__, __FILE__, m_rewritingErrorMessage.toUtf8(), content.toUtf8());
+            qDebug().noquote() << "Error:" << errors().first().description();
+        throw RewritingException(__LINE__, __FUNCTION__, __FILE__, qPrintable(m_rewritingErrorMessage), content);
     }
+}
+
+Internal::ModelNodePositionStorage *RewriterView::positionStorage() const
+{
+    return m_positionStorage.data();
+}
+
+QList<RewriterError> RewriterView::warnings() const
+{
+    return m_warnings;
 }
 
 QList<RewriterError> RewriterView::errors() const
@@ -479,10 +414,16 @@ QList<RewriterError> RewriterView::errors() const
     return m_errors;
 }
 
-void RewriterView::clearErrors()
+void RewriterView::clearErrorAndWarnings()
 {
     m_errors.clear();
+    m_warnings.clear();
     emit errorsChanged(m_errors);
+}
+
+void RewriterView::setWarnings(const QList<RewriterError> &warnings)
+{
+    m_warnings = warnings;
 }
 
 void RewriterView::setErrors(const QList<RewriterError> &errors)
@@ -611,7 +552,7 @@ bool RewriterView::renameId(const QString& oldId, const QString& newId)
         if (refactoring && hasAliasExport) { //Keep export alias properties
             rootModelNode().removeProperty(propertyName);
             PropertyName newPropertyName = newId.toUtf8();
-            rootModelNode().bindingProperty(newPropertyName).setDynamicTypeNameAndExpression("alias", newPropertyName);
+            rootModelNode().bindingProperty(newPropertyName).setDynamicTypeNameAndExpression("alias", QString::fromUtf8(newPropertyName));
         }
         return refactoring;
     }
@@ -704,8 +645,47 @@ QSet<QPair<QString, QString> > RewriterView::qrcMapping() const
     return m_textToModelMerger->qrcMapping();
 }
 
+void RewriterView::moveToComponent(const ModelNode &modelNode)
+{
+    int offset = nodeOffset(modelNode);
+
+    textModifier()->moveToComponent(offset);
+}
+
+QStringList RewriterView::autoComplete(const QString &text, int pos, bool explicitComplete)
+{
+    QTextDocument textDocument;
+    textDocument.setPlainText(text);
+
+    return textModifier()->autoComplete(&textDocument, pos, explicitComplete);
+}
+
+QList<CppTypeData> RewriterView::getCppTypes()
+{
+    QList<CppTypeData> cppDataList;
+    for (const QmlJS::ModelManagerInterface::CppData &cppData : QmlJS::ModelManagerInterface::instance()->cppData().values())
+        for (const LanguageUtils::FakeMetaObject::ConstPtr &fakeMetaObject : cppData.exportedTypes) {
+            for (const LanguageUtils::FakeMetaObject::Export &exportItem : fakeMetaObject->exports()) {
+
+            CppTypeData cppData;
+            cppData.cppClassName = fakeMetaObject->className();
+            cppData.typeName = exportItem.type;
+            cppData.importUrl = exportItem.package;
+            cppData.versionString = exportItem.version.toString();
+            cppData.superClassName = fakeMetaObject->superclassName();
+            cppData.isSingleton = fakeMetaObject->isSingleton();
+
+            if (cppData.importUrl != "<cpp>") //ignore pure unregistered cpp types
+                cppDataList.append(cppData);
+            }
+        }
+
+    return cppDataList;
+}
+
 void RewriterView::qmlTextChanged()
 {
+    getCppTypes();
     if (inErrorState())
         return;
 

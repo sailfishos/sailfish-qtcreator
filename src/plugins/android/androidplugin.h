@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDPLUGIN_H
-#define ANDROIDPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 
@@ -41,11 +40,9 @@ public:
     bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized() { }
 
-private slots:
+private:
     void updateDevice();
     void kitsRestored();
 };
 
 } // namespace Android
-
-#endif // ANDROIDPLUGIN_H

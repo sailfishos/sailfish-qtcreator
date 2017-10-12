@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXSIGNALOPERATION_H
-#define REMOTELINUXSIGNALOPERATION_H
+#pragma once
 
 #include "remotelinux_export.h"
 
@@ -42,23 +41,22 @@ class REMOTELINUX_EXPORT RemoteLinuxSignalOperation
 {
     Q_OBJECT
 public:
-    virtual ~RemoteLinuxSignalOperation();
+    ~RemoteLinuxSignalOperation() override;
 
-    void killProcess(qint64 pid);
-    void killProcess(const QString &filePath);
-    void interruptProcess(qint64 pid);
-    void interruptProcess(const QString &filePath);
+    void killProcess(qint64 pid) override;
+    void killProcess(const QString &filePath) override;
+    void interruptProcess(qint64 pid) override;
+    void interruptProcess(const QString &filePath) override;
 
 protected:
     RemoteLinuxSignalOperation(const QSsh::SshConnectionParameters &sshParameters);
 
-private slots:
-    void runnerProcessFinished();
-    void runnerConnectionError();
-
 private:
     virtual QString killProcessByNameCommandLine(const QString &filePath) const;
     virtual QString interruptProcessByNameCommandLine(const QString &filePath) const;
+
+    void runnerProcessFinished();
+    void runnerConnectionError();
     void run(const QString &command);
     void finish();
 
@@ -69,5 +67,3 @@ private:
 };
 
 }
-
-#endif // REMOTELINUXSIGNALOPERATION_H

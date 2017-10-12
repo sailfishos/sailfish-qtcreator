@@ -31,6 +31,8 @@
 
 #include <projectexplorer/session.h>
 
+#include <algorithm>
+
 using namespace CppEditor::Internal;
 
 static bool projectPartLessThan(const CppTools::ProjectPart::Ptr &projectPart1,
@@ -58,7 +60,7 @@ CppPreProcessorDialog::CppPreProcessorDialog(QWidget *parent, const QString &fil
     int currentIndex = 0;
 
     QList<CppTools::ProjectPart::Ptr> sortedProjectParts(projectParts);
-    qStableSort(sortedProjectParts.begin(), sortedProjectParts.end(), projectPartLessThan);
+    std::stable_sort(sortedProjectParts.begin(), sortedProjectParts.end(), projectPartLessThan);
 
     foreach (CppTools::ProjectPart::Ptr projectPart, sortedProjectParts) {
         m_ui->projectComboBox->addItem(projectPart->displayName);
@@ -75,8 +77,10 @@ CppPreProcessorDialog::CppPreProcessorDialog(QWidget *parent, const QString &fil
     m_ui->projectComboBox->setCurrentIndex(currentIndex);
     m_ui->editWidget->setPlainText(m_partAdditions.value(currentIndex).additionalDirectives);
 
-    connect(m_ui->projectComboBox, SIGNAL(currentIndexChanged(int)), SLOT(projectChanged(int)));
-    connect(m_ui->editWidget, SIGNAL(textChanged()), SLOT(textChanged()));
+    connect(m_ui->projectComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &CppPreProcessorDialog::projectChanged);
+    connect(m_ui->editWidget, &QPlainTextEdit::textChanged, this, &CppPreProcessorDialog::textChanged);
 }
 
 CppPreProcessorDialog::~CppPreProcessorDialog()

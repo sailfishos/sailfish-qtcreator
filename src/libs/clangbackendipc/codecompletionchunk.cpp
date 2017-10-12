@@ -25,66 +25,11 @@
 
 #include "codecompletionchunk.h"
 
-#include <QDataStream>
 #include <QDebug>
 
 #include <ostream>
 
 namespace ClangBackEnd {
-
-CodeCompletionChunk::CodeCompletionChunk(CodeCompletionChunk::Kind kind,
-                                         const Utf8String &text,
-                                         bool isOptional)
-    : text_(text),
-      kind_(kind),
-      isOptional_(isOptional)
-{
-}
-
-CodeCompletionChunk::Kind CodeCompletionChunk::kind() const
-{
-    return kind_;
-}
-
-const Utf8String &CodeCompletionChunk::text() const
-{
-    return text_;
-}
-
-bool CodeCompletionChunk::isOptional() const
-{
-    return isOptional_;
-}
-
-quint8 &CodeCompletionChunk::kindAsInt()
-{
-    return reinterpret_cast<quint8&>(kind_);
-}
-
-QDataStream &operator<<(QDataStream &out, const CodeCompletionChunk &chunk)
-{
-    out << quint8(chunk.kind_);
-    out << chunk.text_;
-    out << chunk.isOptional_;
-
-    return out;
-}
-
-QDataStream &operator>>(QDataStream &in, CodeCompletionChunk &chunk)
-{
-    in >> chunk.kindAsInt();
-    in >> chunk.text_;
-    in >> chunk.isOptional_;
-
-    return in;
-}
-
-bool operator==(const CodeCompletionChunk &first, const CodeCompletionChunk &second)
-{
-    return first.kind() == second.kind()
-            && first.text() == second.text()
-            && first.isOptional() == second.isOptional();
-}
 
 static const char *completionChunkKindToString(CodeCompletionChunk::Kind kind)
 {

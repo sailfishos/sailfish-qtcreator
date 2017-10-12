@@ -28,8 +28,9 @@
 #include "customwizardpage.h"
 #include "customwizardscriptgenerator.h"
 
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/baseprojectwizarddialog.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/runconfiguration.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
@@ -136,10 +137,10 @@ void CustomWizard::setParameters(const CustomWizardParametersPtr &p)
 Core::BaseFileWizard *CustomWizard::create(QWidget *parent, const Core::WizardDialogParameters &p) const
 {
     QTC_ASSERT(!d->m_parameters.isNull(), return 0);
-    Core::BaseFileWizard *wizard = new Core::BaseFileWizard(this, p.extraValues(), parent);
+    auto wizard = new Core::BaseFileWizard(this, p.extraValues(), parent);
 
     d->m_context->reset();
-    CustomWizardPage *customPage = new CustomWizardPage(d->m_context, parameters());
+    auto customPage = new CustomWizardPage(d->m_context, parameters());
     customPage->setPath(p.defaultPath());
     if (parameters()->firstPageId >= 0)
         wizard->setPage(parameters()->firstPageId, customPage);
@@ -203,7 +204,7 @@ template <class WizardPage>
         WizardPage *findWizardPage(const QWizard *w)
 {
     foreach (int pageId, w->pageIds())
-        if (WizardPage *wp = qobject_cast<WizardPage *>(w->page(pageId)))
+        if (auto wp = qobject_cast<WizardPage *>(w->page(pageId)))
             return wp;
     return 0;
 }
@@ -331,7 +332,7 @@ CustomWizard *CustomWizard::createWizard(const CustomProjectWizard::CustomWizard
             return p->klass.isEmpty() ? (p->kind == factory->kind()) : (p->klass == factory->klass());
         });
 
-    CustomWizard *rc = 0;
+    CustomWizard *rc = nullptr;
     if (factory)
         rc = factory->create();
 
@@ -475,7 +476,7 @@ CustomProjectWizard::CustomProjectWizard()
 Core::BaseFileWizard *CustomProjectWizard::create(QWidget *parent,
                                      const Core::WizardDialogParameters &parameters) const
 {
-    BaseProjectWizardDialog *projectDialog = new BaseProjectWizardDialog(this, parent, parameters);
+    auto projectDialog = new BaseProjectWizardDialog(this, parent, parameters);
     initProjectWizardDialog(projectDialog,
                             parameters.defaultPath(),
                             projectDialog->extensionPages());

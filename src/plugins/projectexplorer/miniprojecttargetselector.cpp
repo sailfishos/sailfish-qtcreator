@@ -110,7 +110,6 @@ private:
     void paint(QPainter *painter,
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const;
-    mutable QImage selectionGradient;
     ListWidget *m_listWidget;
 };
 
@@ -128,17 +127,15 @@ void TargetSelectorDelegate::paint(QPainter *painter,
     painter->save();
     painter->setClipping(false);
 
-    if (selectionGradient.isNull())
-        selectionGradient.load(QLatin1String(":/projectexplorer/images/targetpanel_gradient.png"));
-
     if (option.state & QStyle::State_Selected) {
         const QColor color = (option.state & QStyle::State_HasFocus) ?
                     option.palette.highlight().color() :
                     option.palette.dark().color();
-        if (creatorTheme()->widgetStyle() == Theme::StyleFlat) {
+        if (creatorTheme()->flag(Theme::FlatToolBars)) {
             painter->fillRect(option.rect, color);
         } else {
             painter->fillRect(option.rect, color.darker(140));
+            static const QImage selectionGradient(":/projectexplorer/images/targetpanel_gradient.png");
             StyleHelper::drawCornerImage(selectionGradient, painter, option.rect.adjusted(0, 0, 0, -1), 5, 5, 5, 5);
             const QRectF borderRect = QRectF(option.rect).adjusted(0.5, 0.5, -0.5, -0.5);
             painter->setPen(QColor(255, 255, 255, 60));
@@ -152,7 +149,7 @@ void TargetSelectorDelegate::paint(QPainter *painter,
 
     QFontMetrics fm(option.font);
     QString text = index.data(Qt::DisplayRole).toString();
-    painter->setPen(QColor(255, 255, 255, 160));
+    painter->setPen(creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
     QString elidedText = fm.elidedText(text, Qt::ElideMiddle, option.rect.width() - 12);
     if (elidedText != text)
         const_cast<QAbstractItemModel *>(index.model())->setData(index, text, Qt::ToolTipRole);
@@ -166,8 +163,7 @@ void TargetSelectorDelegate::paint(QPainter *painter,
 ////////
 // ListWidget
 ////////
-ListWidget::ListWidget(QWidget *parent)
-    : QListWidget(parent), m_maxCount(0), m_optimalWidth(0)
+ListWidget::ListWidget(QWidget *parent) : QListWidget(parent)
 {
     setFocusPolicy(Qt::NoFocus);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -175,7 +171,10 @@ ListWidget::ListWidget(QWidget *parent)
     setFocusPolicy(Qt::WheelFocus);
     setItemDelegate(new TargetSelectorDelegate(this));
     setAttribute(Qt::WA_MacShowFocusRect, false);
-    setStyleSheet(QString::fromLatin1("QListWidget { background: #464646; border-style: none; }"));
+    const QColor bgColor = creatorTheme()->color(Theme::MiniProjectTargetSelectorBackgroundColor);
+    const QString bgColorName = creatorTheme()->flag(Theme::FlatToolBars)
+            ? bgColor.lighter(120).name() : bgColor.name();
+    setStyleSheet(QString::fromLatin1("QListWidget { background: %1; border-style: none; }").arg(bgColorName));
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 }
 
@@ -251,7 +250,7 @@ QListWidgetItem *ProjectListWidget::itemForProject(Project *project)
         if (currentItem->data(Qt::UserRole).value<Project*>() == project)
             return currentItem;
     }
-    return 0;
+    return nullptr;
 }
 
 QString ProjectListWidget::fullName(Project *project)
@@ -264,7 +263,7 @@ void ProjectListWidget::addProject(Project *project)
     m_ignoreIndexChange = true;
 
     int pos = count();
-    for (int i=0; i < count(); ++i) {
+    for (int i = 0; i < count(); ++i) {
         Project *p = item(i)->data(Qt::UserRole).value<Project*>();
         if (projectLesserThan(project, p)) {
             pos = i;
@@ -488,7 +487,7 @@ void GenericListWidget::rowChanged(int index)
 void GenericListWidget::displayNameChanged()
 {
     m_ignoreIndexChange = true;
-    ProjectConfiguration *activeProjectConfiguration = 0;
+    ProjectConfiguration *activeProjectConfiguration = nullptr;
     if (currentItem())
         activeProjectConfiguration = currentItem()->data(Qt::UserRole).value<ProjectConfiguration *>();
 
@@ -536,7 +535,7 @@ QListWidgetItem *GenericListWidget::itemForProjectConfiguration(ProjectConfigura
         if (lwi->data(Qt::UserRole).value<ProjectConfiguration *>() == pc)
             return lwi;
     }
-    return 0;
+    return nullptr;
 }
 
 /////////
@@ -544,7 +543,7 @@ QListWidgetItem *GenericListWidget::itemForProjectConfiguration(ProjectConfigura
 /////////
 
 KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
-    m_layout(new QGridLayout(this)), m_kit(0)
+    m_layout(new QGridLayout(this))
 {
     m_layout->setMargin(3);
     setAutoFillBackground(true);
@@ -557,7 +556,7 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
 
 KitAreaWidget::~KitAreaWidget()
 {
-    setKit(0);
+    setKit(nullptr);
 }
 
 void KitAreaWidget::setKit(Kit *k)
@@ -648,23 +647,9 @@ QWidget *MiniProjectTargetSelector::createTitleLabel(const QString &text)
 }
 
 MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorAction, QWidget *parent) :
-    QWidget(parent), m_projectAction(targetSelectorAction),
-    m_project(0),
-    m_target(0),
-    m_buildConfiguration(0),
-    m_deployConfiguration(0),
-    m_runConfiguration(0),
-    m_hideOnRelease(false)
+    QWidget(parent),
+    m_projectAction(targetSelectorAction)
 {
-    QPalette p;
-    p.setColor(QPalette::Foreground, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Text, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::ButtonText, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Background, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Base, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Button, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name());
-    setPalette(p);
-
     setProperty("panelwidget", true);
     setContentsMargins(QMargins(0, 1, 1, 8));
     setWindowFlags(Qt::Popup);
@@ -838,7 +823,7 @@ QVector<int> MiniProjectTargetSelector::listWidgetWidths(int minSize, int maxSiz
         }
 
         widthToDistribute -= delta * i;
-        if (widthToDistribute == 0)
+        if (widthToDistribute <= 0)
             return result;
 
         first = result[indexes.first()];
@@ -873,8 +858,7 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
         visibleLineCount += m_listWidgets[i]->isVisibleTo(this) ? 0 : 1;
 
     if (visibleLineCount == LAST) {
-        summaryLabelHeight = visibleLineCount * QFontMetrics(m_summaryLabel->font()).height()
-                + m_summaryLabel->margin() *2;
+        summaryLabelHeight = m_summaryLabel->sizeHint().height();
         onlySummary = true;
     } else {
         if (visibleLineCount < 3) {
@@ -882,8 +866,7 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
                 visibleLineCount = 3;
         }
         if (visibleLineCount)
-            summaryLabelHeight = visibleLineCount * QFontMetrics(m_summaryLabel->font()).height()
-                    + m_summaryLabel->margin() *2;
+            summaryLabelHeight = m_summaryLabel->sizeHint().height();
     }
 
     if (keepSize && oldSummaryLabelHeight > summaryLabelHeight)
@@ -962,7 +945,7 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
         setFixedSize(m_summaryLabel->width() + 1, heightWithoutKitArea + kitAreaHeight); //1 extra pixel for the border
     }
 
-    QPoint moveTo = statusBar->mapToGlobal(QPoint(0,0));
+    QPoint moveTo = statusBar->mapToGlobal(QPoint(0, 0));
     moveTo -= QPoint(0, height());
     move(moveTo);
 }
@@ -1257,7 +1240,7 @@ void MiniProjectTargetSelector::changeStartupProject(Project *project)
                 this, &MiniProjectTargetSelector::activeTargetChanged);
         activeTargetChanged(m_project->activeTarget());
     } else {
-        activeTargetChanged(0);
+        activeTargetChanged(nullptr);
     }
 
     if (project) {
@@ -1266,7 +1249,7 @@ void MiniProjectTargetSelector::changeStartupProject(Project *project)
             list.append(t);
         m_listWidgets[TARGET]->setProjectConfigurations(list, project->activeTarget());
     } else {
-        m_listWidgets[TARGET]->setProjectConfigurations(QList<ProjectConfiguration *>(), 0);
+        m_listWidgets[TARGET]->setProjectConfigurations(QList<ProjectConfiguration *>(), nullptr);
     }
 
     updateActionAndSummary();
@@ -1291,7 +1274,7 @@ void MiniProjectTargetSelector::activeTargetChanged(Target *target)
 
     m_target = target;
 
-    m_kitAreaWidget->setKit(m_target ? m_target->kit() : 0);
+    m_kitAreaWidget->setKit(m_target ? m_target->kit() : nullptr);
 
     m_listWidgets[TARGET]->setActiveProjectConfiguration(m_target);
 
@@ -1348,12 +1331,12 @@ void MiniProjectTargetSelector::activeTargetChanged(Target *target)
         connect(m_target, &Target::activeRunConfigurationChanged,
                 this, &MiniProjectTargetSelector::activeRunConfigurationChanged);
     } else {
-        m_listWidgets[BUILD]->setProjectConfigurations(QList<ProjectConfiguration *>(), 0);
-        m_listWidgets[DEPLOY]->setProjectConfigurations(QList<ProjectConfiguration *>(), 0);
-        m_listWidgets[RUN]->setProjectConfigurations(QList<ProjectConfiguration *>(), 0);
-        m_buildConfiguration = 0;
-        m_deployConfiguration = 0;
-        m_runConfiguration = 0;
+        m_listWidgets[BUILD]->setProjectConfigurations(QList<ProjectConfiguration *>(), nullptr);
+        m_listWidgets[DEPLOY]->setProjectConfigurations(QList<ProjectConfiguration *>(), nullptr);
+        m_listWidgets[RUN]->setProjectConfigurations(QList<ProjectConfiguration *>(), nullptr);
+        m_buildConfiguration = nullptr;
+        m_deployConfiguration = nullptr;
+        m_runConfiguration = nullptr;
     }
     updateActionAndSummary();
 }
@@ -1614,7 +1597,7 @@ void MiniProjectTargetSelector::paintEvent(QPaintEvent *)
     if (creatorTheme()->flag(Theme::DrawTargetSelectorBottom)) {
         // draw thicker border on the bottom
         QRect bottomRect(0, rect().height() - 8, rect().width(), 8);
-        static QImage image(QLatin1String(":/projectexplorer/images/targetpanel_bottom.png"));
+        static const QImage image(":/projectexplorer/images/targetpanel_bottom.png");
         StyleHelper::drawCornerImage(image, &painter, bottomRect, 1, 1, 1, 1);
     }
 }

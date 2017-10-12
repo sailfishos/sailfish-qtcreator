@@ -23,19 +23,24 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLS_CLANGUTILS_H
-#define CPPTOOLS_CLANGUTILS_H
+#pragma once
 
 #include <cpptools/projectpart.h>
 
+namespace CppTools {
+class CppEditorDocumentHandle;
+}
+
 namespace ClangCodeModel {
 namespace Utils {
+
+CppTools::CppEditorDocumentHandle *cppDocument(const QString &filePath);
+void setLastSentDocumentRevision(const QString &filePath, uint revision);
 
 QStringList createClangOptions(const CppTools::ProjectPart::Ptr &pPart,
                                CppTools::ProjectFile::Kind fileKind);
 QStringList createClangOptions(const CppTools::ProjectPart::Ptr &pPart,
                                const QString &fileName = QString());
-QStringList createPCHInclusionOptions(const QString &pchFile);
 
 CppTools::ProjectPart::Ptr projectPartForFile(const QString &filePath);
 CppTools::ProjectPart::Ptr projectPartForFileBasedOnProcessor(const QString &filePath);
@@ -44,5 +49,3 @@ QString projectPartIdForFile(const QString &filePath);
 
 } // namespace Utils
 } // namespace Clang
-
-#endif // CPPTOOLS_CLANGUTILS_H

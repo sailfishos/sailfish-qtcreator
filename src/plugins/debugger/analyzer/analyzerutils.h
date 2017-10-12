@@ -23,20 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef ANALYZERUTILS_H
-#define ANALYZERUTILS_H
+#pragma once
 
 #include <debugger/debugger_global.h>
-
-#include <projectexplorer/task.h>
 
 namespace CPlusPlus { class Symbol; }
 
 namespace AnalyzerUtils
 {
     DEBUGGER_EXPORT CPlusPlus::Symbol *findSymbolUnderCursor();
-    DEBUGGER_EXPORT void logToIssuesPane(ProjectExplorer::Task::TaskType type,
-                                         const QString &message);
 }
-
-#endif // ANALYZERUTILS_H

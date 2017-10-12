@@ -33,15 +33,13 @@
 
 #include "../beautifierconstants.h"
 #include "../beautifierplugin.h"
-#include "../command.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/icontext.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <cppeditor/cppeditorconstants.h>
 #include <projectexplorer/projecttree.h>
@@ -71,7 +69,7 @@ ArtisticStyle::~ArtisticStyle()
 bool ArtisticStyle::initialize()
 {
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::ArtisticStyle::MENU_ID);
-    menu->menu()->setTitle(QLatin1String(Constants::ArtisticStyle::DISPLAY_NAME));
+    menu->menu()->setTitle(tr(Constants::ArtisticStyle::DISPLAY_NAME));
 
     m_formatFile = new QAction(BeautifierPlugin::msgFormatCurrentFile(), this);
     menu->addAction(Core::ActionManager::registerAction(m_formatFile,
@@ -80,18 +78,25 @@ bool ArtisticStyle::initialize()
 
     Core::ActionManager::actionContainer(Constants::MENU_ID)->addMenu(menu);
 
+    connect(m_settings, &ArtisticStyleSettings::supportedMimeTypesChanged,
+            [this] { updateActions(Core::EditorManager::currentEditor()); });
+
     return true;
+}
+
+QString ArtisticStyle::id() const
+{
+    return QLatin1String(Constants::ArtisticStyle::DISPLAY_NAME);
 }
 
 void ArtisticStyle::updateActions(Core::IEditor *editor)
 {
-    m_formatFile->setEnabled(editor && editor->document()->id() == CppEditor::Constants::CPPEDITOR_ID);
+    m_formatFile->setEnabled(editor && m_settings->isApplicable(editor->document()));
 }
 
 QList<QObject *> ArtisticStyle::autoReleaseObjects()
 {
-    ArtisticStyleOptionsPage *optionsPage = new ArtisticStyleOptionsPage(m_settings, this);
-    return QList<QObject *>() << optionsPage;
+    return {new ArtisticStyleOptionsPage(m_settings, this)};
 }
 
 void ArtisticStyle::formatFile()
@@ -99,7 +104,7 @@ void ArtisticStyle::formatFile()
     const QString cfgFileName = configurationFile();
     if (cfgFileName.isEmpty()) {
         BeautifierPlugin::showError(BeautifierPlugin::msgCannotGetConfigurationFile(
-                                        QLatin1String(Constants::ArtisticStyle::DISPLAY_NAME)));
+                                        tr(Constants::ArtisticStyle::DISPLAY_NAME)));
     } else {
         m_beautifierPlugin->formatCurrentFile(command(cfgFileName));
     }
@@ -114,8 +119,8 @@ QString ArtisticStyle::configurationFile() const
         if (const ProjectExplorer::Project *project
                 = ProjectExplorer::ProjectTree::currentProject()) {
             const QStringList files = project->files(ProjectExplorer::Project::AllFiles);
-            foreach (const QString &file, files) {
-                if (!file.endsWith(QLatin1String(".astylerc")))
+            for (const QString &file : files) {
+                if (!file.endsWith(".astylerc"))
                     continue;
                 const QFileInfo fi(file);
                 if (fi.isReadable())
@@ -126,10 +131,10 @@ QString ArtisticStyle::configurationFile() const
 
     if (m_settings->useHomeFile()) {
         const QDir homeDirectory = QDir::home();
-        QString file = homeDirectory.filePath(QLatin1String(".astylerc"));
+        QString file = homeDirectory.filePath(".astylerc");
         if (QFile::exists(file))
             return file;
-        file = homeDirectory.filePath(QLatin1String("astylerc"));
+        file = homeDirectory.filePath("astylerc");
         if (QFile::exists(file))
             return file;
     }
@@ -137,19 +142,30 @@ QString ArtisticStyle::configurationFile() const
     return QString();
 }
 
+Command ArtisticStyle::command() const
+{
+    const QString cfgFile = configurationFile();
+    return cfgFile.isEmpty() ? Command() : command(cfgFile);
+}
+
+bool ArtisticStyle::isApplicable(const Core::IDocument *document) const
+{
+    return m_settings->isApplicable(document);
+}
+
 Command ArtisticStyle::command(const QString &cfgFile) const
 {
     Command command;
     command.setExecutable(m_settings->command());
-    command.addOption(QLatin1String("-q"));
-    command.addOption(QLatin1String("--options=") + cfgFile);
+    command.addOption("-q");
+    command.addOption("--options=" + cfgFile);
 
     if (m_settings->version() > ArtisticStyleSettings::Version_2_03) {
         command.setProcessing(Command::PipeProcessing);
         command.setPipeAddsNewline(true);
         command.setReturnsCRLF(Utils::HostOsInfo::isWindowsHost());
     } else {
-        command.addOption(QLatin1String("%file"));
+        command.addOption("%file");
     }
 
     return command;

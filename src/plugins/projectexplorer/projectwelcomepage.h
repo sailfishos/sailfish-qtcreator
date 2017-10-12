@@ -36,28 +36,7 @@ QT_END_NAMESPACE
 namespace ProjectExplorer {
 namespace Internal {
 
-class SessionModel : public QAbstractListModel
-{
-    Q_OBJECT
-
-public:
-    enum { DefaultSessionRole = Qt::UserRole+1, LastSessionRole, ActiveSessionRole, ProjectsPathRole, ProjectsDisplayRole };
-
-    explicit SessionModel(QObject *parent = 0);
-
-    int rowCount(const QModelIndex &parent) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-    Q_SCRIPTABLE bool isDefaultVirgin() const;
-
-public slots:
-    void resetSessions();
-    void cloneSession(const QString &session);
-    void deleteSession(const QString &session);
-    void renameSession(const QString &session);
-};
-
+class SessionModel;
 
 class ProjectModel : public QAbstractListModel
 {
@@ -66,7 +45,7 @@ class ProjectModel : public QAbstractListModel
 public:
     enum { FilePathRole = Qt::UserRole+1, PrettyFilePathRole };
 
-    ProjectModel(QObject *parent = 0);
+    ProjectModel(QObject *parent = nullptr);
     int rowCount(const QModelIndex &parent) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
@@ -79,11 +58,11 @@ class ProjectWelcomePage : public Core::IWelcomePage
 {
     Q_OBJECT
 public:
-    ProjectWelcomePage();
+    ProjectWelcomePage() = default;
 
     void facilitateQml(QQmlEngine *engine) override;
     QUrl pageLocation() const override;
-    QWidget *page() { return 0; }
+    QWidget *page() { return nullptr; }
     QString title() const override { return tr("Projects"); }
     int priority() const override { return 20; }
     Core::Id id() const override;
@@ -96,12 +75,11 @@ public slots:
 
 signals:
     void requestProject(const QString &project);
-    void requestSession(const QString &session);
     void manageSessions();
 
 private:
-    SessionModel *m_sessionModel;
-    ProjectModel *m_projectModel;
+    SessionModel *m_sessionModel = nullptr;
+    ProjectModel *m_projectModel = nullptr;
 };
 
 } // namespace Internal

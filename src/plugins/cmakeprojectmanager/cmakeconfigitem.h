@@ -36,7 +36,7 @@ namespace CMakeProjectManager {
 
 class CMakeConfigItem {
 public:
-    enum Type { FILEPATH, PATH, BOOL, STRING, INTERNAL };
+    enum Type { FILEPATH, PATH, BOOL, STRING, INTERNAL, STATIC };
     CMakeConfigItem();
     CMakeConfigItem(const CMakeConfigItem &other);
     CMakeConfigItem(const QByteArray &k, Type t, const QByteArray &d, const QByteArray &v);
@@ -45,6 +45,7 @@ public:
     static QByteArray valueOf(const QByteArray &key, const QList<CMakeConfigItem> &input);
     static QString expandedValueOf(const ProjectExplorer::Kit *k, const QByteArray &key,
                                    const QList<CMakeConfigItem> &input);
+    static QStringList cmakeSplitValue(const QString &in, bool keepEmpty = false);
     bool isNull() const { return key.isEmpty(); }
 
     QString expandedValue(const ProjectExplorer::Kit *k) const;
@@ -53,11 +54,14 @@ public:
     static CMakeConfigItem fromString(const QString &s);
     QString toString() const;
 
+    bool operator==(const CMakeConfigItem &o) const;
+
     QByteArray key;
     Type type = STRING;
     bool isAdvanced = false;
     QByteArray value; // converted to string as needed
     QByteArray documentation;
+    QStringList values;
 };
 using CMakeConfig = QList<CMakeConfigItem>;
 

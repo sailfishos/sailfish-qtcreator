@@ -33,7 +33,6 @@
 
 #include <debugger/analyzer/analyzermanager.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <cpptools/cppmodelmanager.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -44,6 +43,7 @@
 
 #include <utils/checkablemessagebox.h>
 #include <utils/fancymainwindow.h>
+#include <utils/utilsicons.h>
 
 #include <QAction>
 #include <QDockWidget>
@@ -123,7 +123,7 @@ ClangStaticAnalyzerTool::ClangStaticAnalyzerTool(QObject *parent)
     // Go to previous diagnostic
     auto action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::PREV_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::PREV_TOOLBAR.icon());
     action->setToolTip(tr("Go to previous bug."));
     connect(action, &QAction::triggered, m_diagnosticView, &DetailedErrorView::goBack);
     m_goBack = action;
@@ -131,7 +131,7 @@ ClangStaticAnalyzerTool::ClangStaticAnalyzerTool(QObject *parent)
     // Go to next diagnostic
     action = new QAction(this);
     action->setDisabled(true);
-    action->setIcon(Core::Icons::NEXT_TOOLBAR.icon());
+    action->setIcon(Utils::Icons::NEXT_TOOLBAR.icon());
     action->setToolTip(tr("Go to next bug."));
     connect(action, &QAction::triggered, m_diagnosticView, &DetailedErrorView::goNext);
     m_goNext = action;
@@ -139,19 +139,16 @@ ClangStaticAnalyzerTool::ClangStaticAnalyzerTool(QObject *parent)
     const QString toolTip = tr("Clang Static Analyzer uses the analyzer from the Clang project "
                                "to find bugs.");
 
-    Debugger::registerPerspective(ClangStaticAnalyzerPerspectiveId, {
+    Debugger::registerPerspective(ClangStaticAnalyzerPerspectiveId, new Perspective(
         tr("Clang Static Analyzer"),
         {{ ClangStaticAnalyzerDockId, m_diagnosticView, {}, Perspective::SplitVertical }}
-    });
+    ));
 
     ActionDescription desc;
     desc.setText(tr("Clang Static Analyzer"));
     desc.setToolTip(toolTip);
     desc.setRunMode(Constants::CLANGSTATICANALYZER_RUN_MODE);
     desc.setPerspectiveId(ClangStaticAnalyzerPerspectiveId);
-    desc.setRunControlCreator([this](RunConfiguration *runConfiguration, Core::Id runMode) {
-        return createRunControl(runConfiguration, runMode);
-    });
     desc.setCustomToolStarter([this](RunConfiguration *runConfiguration) {
         Q_UNUSED(runConfiguration);
         startTool();
@@ -172,8 +169,8 @@ ClangStaticAnalyzerTool::ClangStaticAnalyzerTool(QObject *parent)
             this, &ClangStaticAnalyzerTool::updateRunActions);
 }
 
-AnalyzerRunControl *ClangStaticAnalyzerTool::createRunControl(RunConfiguration *runConfiguration,
-                                                              Core::Id runMode)
+RunControl *ClangStaticAnalyzerTool::createRunControl(RunConfiguration *runConfiguration,
+                                                      Core::Id runMode)
 {
     QTC_ASSERT(runConfiguration, return 0);
     QTC_ASSERT(m_projectInfoBeforeBuild.isValid(), return 0);

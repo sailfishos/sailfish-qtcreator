@@ -2388,9 +2388,11 @@ bool Bind::visit(TypenameTypeParameterAST *ast)
     // unsigned dot_dot_dot_token = ast->dot_dot_dot_token;
     const Name *name = this->name(ast->name);
     ExpressionTy type_id = this->expression(ast->type_id);
+    CPlusPlus::Kind classKey = translationUnit()->tokenKind(ast->classkey_token);
 
     TypenameArgument *arg = control()->newTypenameArgument(sourceLocation, name);
     arg->setType(type_id);
+    arg->setClassDeclarator(classKey == T_CLASS);
     ast->symbol = arg;
     _scope->addMember(arg);
     return false;
@@ -3254,6 +3256,14 @@ bool Bind::visit(FunctionDeclaratorAST *ast)
     fun->setVolatile(type.isVolatile());
     fun->setOverride(type.isOverride());
     fun->setFinal(type.isFinal());
+
+    // propagate ref-qualifier
+    if (ast->ref_qualifier_token) {
+        const Kind kind = tokenAt(ast->ref_qualifier_token).kind();
+        CPP_CHECK(kind == T_AMPER || kind == T_AMPER_AMPER); // & or && are only allowed
+        fun->setRefQualifier(kind == T_AMPER ? Function::LvalueRefQualifier :
+                                               Function::RvalueRefQualifier);
+    }
 
     this->exceptionSpecification(ast->exception_specification, type);
     if (ast->as_cpp_initializer != 0) {

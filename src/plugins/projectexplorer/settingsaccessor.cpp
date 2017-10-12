@@ -1868,23 +1868,19 @@ static const char * const varExpandedKeys[] = {
 // Translate old-style ${} var expansions into new-style %{} ones
 static QVariant version8VarNodeTransform(const QVariant &var)
 {
-    static const char * const vars[] = {
-        "absoluteFilePath",
-        "absolutePath",
-        "baseName",
-        "canonicalPath",
-        "canonicalFilePath",
-        "completeBaseName",
-        "completeSuffix",
-        "fileName",
-        "filePath",
-        "path",
-        "suffix"
-    };
-    static QSet<QString> map;
-    if (map.isEmpty())
-        for (unsigned i = 0; i < sizeof(vars)/sizeof(vars[0]); ++i)
-            map.insert(QLatin1String("CURRENT_DOCUMENT:") + QLatin1String(vars[i]));
+    static const QSet<QString> map({
+            "CURRENT_DOCUMENT:absoluteFilePath",
+            "CURRENT_DOCUMENT:absolutePath",
+            "CURRENT_DOCUMENT:baseName",
+            "CURRENT_DOCUMENT:canonicalPath",
+            "CURRENT_DOCUMENT:canonicalFilePath",
+            "CURRENT_DOCUMENT:completeBaseName",
+            "CURRENT_DOCUMENT:completeSuffix",
+            "CURRENT_DOCUMENT:fileName",
+            "CURRENT_DOCUMENT:filePath",
+            "CURRENT_DOCUMENT:path",
+            "CURRENT_DOCUMENT:suffix"
+        });
 
     QString str = var.toString();
     int pos = 0;
@@ -2083,7 +2079,7 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
         const QString oldTargetId = extraTargetData.value(QLatin1String("ProjectExplorer.ProjectConfiguration.Id")).toString();
 
         // Check each BCs/DCs and create profiles as needed
-        Kit *rawKit = new Kit; // Do not needlessly use Core::Ids
+        auto rawKit = new Kit; // Do not needlessly use Core::Ids
         QMapIterator<int, QVariantMap> buildIt(bcs);
         while (buildIt.hasNext()) {
             buildIt.next();
@@ -2091,12 +2087,14 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
             const QVariantMap &bc = buildIt.value();
             Kit *tmpKit = rawKit;
 
+            const auto desktopDeviceIcon = FileName::fromLatin1(":///DESKTOP///");
+
             if (oldTargetId == QLatin1String("Qt4ProjectManager.Target.AndroidDeviceTarget")) {
                 tmpKit->setIconPath(FileName::fromLatin1(":/android/images/QtAndroid.png"));
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString());
             } else if (oldTargetId == QLatin1String("RemoteLinux.EmbeddedLinuxTarget")) {
-                tmpKit->setIconPath(FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON));
+                tmpKit->setIconPath(desktopDeviceIcon);
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("GenericLinuxOsType"));
                 tmpKit->setValue("PE.Profile.Device", QString());
             } else if (oldTargetId == QLatin1String("Qt4ProjectManager.Target.HarmattanDeviceTarget")) {
@@ -2120,7 +2118,7 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString::fromLatin1("Desktop Device"));
             } else {
-                tmpKit->setIconPath(FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON));
+                tmpKit->setIconPath(desktopDeviceIcon);
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString::fromLatin1("Desktop Device"));
             }

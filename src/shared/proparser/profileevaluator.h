@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef PROFILEEVALUATOR_H
-#define PROFILEEVALUATOR_H
+#pragma once
 
 #include "qmake_global.h"
 #include "qmakeglobals.h"
@@ -41,12 +40,6 @@ class QMakeParser;
 class QMakeEvaluator;
 class QMakeHandler;
 
-class QMAKE_EXPORT ProFileGlobals : public QMakeGlobals
-{
-public:
-    QString sysroot;
-};
-
 class QMAKE_EXPORT ProFileEvaluator
 {
 public:
@@ -60,10 +53,15 @@ public:
         TT_Subdirs
     };
 
+    struct SourceFile {
+        QString fileName;
+        const ProFile *proFile;
+    };
+
     // Call this from a concurrency-free context
     static void initialize();
 
-    ProFileEvaluator(ProFileGlobals *option, QMakeParser *parser, QMakeVfs *vfs,
+    ProFileEvaluator(QMakeGlobals *option, QMakeParser *parser, QMakeVfs *vfs,
                      QMakeHandler *handler);
     ~ProFileEvaluator();
 
@@ -82,19 +80,20 @@ public:
     bool contains(const QString &variableName) const;
     QString value(const QString &variableName) const;
     QStringList values(const QString &variableName) const;
-    QStringList values(const QString &variableName, const ProFile *pro) const;
+    QVector<SourceFile> fixifiedValues(
+            const QString &variable, const QString &baseDirectory, const QString &buildDirectory) const;
     QStringList absolutePathValues(const QString &variable, const QString &baseDirectory) const;
-    QStringList absoluteFileValues(
+    QVector<SourceFile> absoluteFileValues(
             const QString &variable, const QString &baseDirectory, const QStringList &searchDirs,
-            const ProFile *pro) const;
+            QHash<ProString, bool> *handled) const;
     QString propertyValue(const QString &val) const;
+    static QStringList sourcesToFiles(const QVector<SourceFile> &sources);
 
 private:
-    QString sysrootify(const QString &path, const QString &baseDir) const;
-
     QMakeEvaluator *d;
+    QMakeVfs *m_vfs;
 };
 
-QT_END_NAMESPACE
+Q_DECLARE_TYPEINFO(ProFileEvaluator::SourceFile, Q_MOVABLE_TYPE);
 
-#endif // PROFILEEVALUATOR_H
+QT_END_NAMESPACE

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPLUSPLUS_CPPDOCUMENT_H
-#define CPLUSPLUS_CPPDOCUMENT_H
+#pragma once
 
 #include "Macro.h"
 
@@ -79,6 +78,7 @@ public:
                               unsigned bytesOffset, unsigned utf16charsOffset);
 
     Control *control() const;
+    Control *swapControl(Control *newControl);
     TranslationUnit *translationUnit() const;
 
     bool skipFunctionBody() const;
@@ -457,5 +457,3 @@ private:
 };
 
 } // namespace CPlusPlus
-
-#endif // CPLUSPLUS_CPPDOCUMENT_H

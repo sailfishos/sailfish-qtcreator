@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXCUSTOMCOMMANDDEPLOYSERVICE_H
-#define REMOTELINUXCUSTOMCOMMANDDEPLOYSERVICE_H
+#pragma once
 
 #include "abstractremotelinuxdeployservice.h"
 
@@ -50,15 +49,12 @@ protected:
     void doDeploy();
     void stopDeployment();
 
-private slots:
+private:
     void handleStdout();
     void handleStderr();
     void handleProcessClosed(int exitStatus);
 
-private:
     Internal::RemoteLinuxCustomCommandDeployservicePrivate *d;
 };
 
 } // namespace RemoteLinux
-
-#endif // REMOTELINUXCUSTOMCOMMANDDEPLOYSERVICE_H

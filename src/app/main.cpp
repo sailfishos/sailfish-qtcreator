@@ -36,6 +36,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QFontDatabase>
 #include <QFileInfo>
 #include <QLibraryInfo>
 #include <QLoggingCategory>
@@ -158,13 +159,6 @@ static const char *setHighDpiEnvironmentVariable()
 {
     const char* envVarName = 0;
     static const char ENV_VAR_QT_DEVICE_PIXEL_RATIO[] = "QT_DEVICE_PIXEL_RATIO";
-#if (QT_VERSION < QT_VERSION_CHECK(5, 6, 0))
-    if (Utils::HostOsInfo().isWindowsHost()
-            && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO)) {
-        envVarName = ENV_VAR_QT_DEVICE_PIXEL_RATIO;
-        qputenv(envVarName, "auto");
-    }
-#else
     if (Utils::HostOsInfo().isWindowsHost()
             && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO) // legacy in 5.6, but still functional
             && !qEnvironmentVariableIsSet("QT_AUTO_SCREEN_SCALE_FACTOR")
@@ -172,7 +166,6 @@ static const char *setHighDpiEnvironmentVariable()
             && !qEnvironmentVariableIsSet("QT_SCREEN_SCALE_FACTORS")) {
         QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     }
-#endif // < Qt 5.6
     return envVarName;
 }
 
@@ -229,9 +222,8 @@ static inline QStringList getPluginPaths()
     //    "$XDG_DATA_HOME/data/QtProject/qtcreator" or "~/.local/share/data/QtProject/qtcreator" on Linux
     //    "~/Library/Application Support/QtProject/Qt Creator" on Mac
     pluginPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
-    pluginPath += QLatin1String("/data");
-#endif
+    if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost())
+        pluginPath += QLatin1String("/data");
     pluginPath += QLatin1Char('/')
             + QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR)
             + QLatin1Char('/');
@@ -295,11 +287,21 @@ static inline QSettings *userSettings()
 static const char *SHARE_PATH =
         Utils::HostOsInfo::isMacHost() ? "/../Resources" : "/../share/qtcreator";
 
+void loadFonts()
+{
+    const QDir dir(QCoreApplication::applicationDirPath() + QLatin1String(SHARE_PATH)
+                   + QLatin1String("/fonts/"));
+
+    foreach (const QFileInfo &fileInfo, dir.entryInfoList(QStringList("*.ttf"), QDir::Files))
+        QFontDatabase::addApplicationFont(fileInfo.absoluteFilePath());
+}
+
 int main(int argc, char **argv)
 {
     const char *highDpiEnvironmentVariable = setHighDpiEnvironmentVariable();
 
-    QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false"));
+    QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false\nqtc.*.info=false"));
+
 #ifdef Q_OS_MAC
     // increase the number of file that can be opened in Qt Creator.
     struct rlimit rl;
@@ -309,7 +311,10 @@ int main(int argc, char **argv)
     setrlimit(RLIMIT_NOFILE, &rl);
 #endif
 
+    SharedTools::QtSingleApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     SharedTools::QtSingleApplication app((QLatin1String(appNameC)), argc, argv);
+
+    loadFonts();
 
     if (highDpiEnvironmentVariable)
         qunsetenv(highDpiEnvironmentVariable);
@@ -323,7 +328,9 @@ int main(int argc, char **argv)
     const int threadCount = QThreadPool::globalInstance()->maxThreadCount();
     QThreadPool::globalInstance()->setMaxThreadCount(qMax(4, 2 * threadCount));
 
-    CrashHandlerSetup setupCrashHandler; // Display a backtrace once a serious signal is delivered.
+    // Display a backtrace once a serious signal is delivered (Linux only).
+    const QString libexecPath = QCoreApplication::applicationDirPath() + "/../libexec/qtcreator";
+    CrashHandlerSetup setupCrashHandler(appNameC, CrashHandlerSetup::EnableRestart, libexecPath);
 
 #ifdef ENABLE_QT_BREAKPAD
     QtSystemExceptionHandler systemExceptionHandler;
@@ -526,14 +533,14 @@ int main(int argc, char **argv)
     }
 
     // Set up remote arguments.
-    QObject::connect(&app, SIGNAL(messageReceived(QString,QObject*)),
-                     &pluginManager, SLOT(remoteArguments(QString,QObject*)));
+    QObject::connect(&app, &SharedTools::QtSingleApplication::messageReceived,
+                     &pluginManager, &PluginManager::remoteArguments);
 
     QObject::connect(&app, SIGNAL(fileOpenRequest(QString)), coreplugin->plugin(),
                      SLOT(fileOpenRequest(QString)));
 
     // shutdown plugin manager on the exit
-    QObject::connect(&app, SIGNAL(aboutToQuit()), &pluginManager, SLOT(shutdown()));
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &pluginManager, &PluginManager::shutdown);
 
     return app.exec();
 }

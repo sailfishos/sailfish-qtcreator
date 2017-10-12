@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DESIGNERSETTINGS_H
-#define DESIGNERSETTINGS_H
+#pragma once
 
 #include <QtGlobal>
 #include <QHash>
@@ -43,6 +42,7 @@ const char CONTAINERPADDING[] = "ContainerPadding";
 const char CANVASWIDTH[] = "CanvasWidth";
 const char CANVASHEIGHT[] = "CanvasHeight";
 const char WARNING_FOR_FEATURES_IN_DESIGNER[] = "WarnAboutQtQuickFeaturesInDesigner";
+const char WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES[] = "WarnAboutQmlFilesInsteadOfUiQmlFiles";
 const char WARNING_FOR_DESIGNER_FEATURES_IN_EDITOR[] = "WarnAboutQtQuickDesignerFeaturesInCodeEditor";
 const char SHOW_DEBUGVIEW[] = "ShowQtQuickDesignerDebugView";
 const char ENABLE_DEBUGVIEW[] = "EnableQtQuickDesignerDebugView";
@@ -57,7 +57,10 @@ const char ENABLE_MODEL_EXCEPTION_OUTPUT[] = "WarnException";
 const char PUPPET_KILL_TIMEOUT[] = "PuppetKillTimeout";
 const char DEBUG_PUPPET[] = "DebugPuppet";
 const char FORWARD_PUPPET_OUTPUT[] = "ForwardPuppetOutput";
-
+const char REFORMAT_UI_QML_FILES[] = "ReformatUiQmlFiles"; /* This Setting is not exposed in ui.
+                                                              The setting can be used to turn off the feature,
+                                                              if there are serious issues */
+const char TEXTEDIT_IN_DESIGNMODE[] = "TextEditInDesignMode";
 }
 
 class DesignerSettings : public QHash<QByteArray, QVariant>
@@ -74,5 +77,3 @@ private:
 };
 
 } // namespace QmlDesigner
-
-#endif // DESIGNERSETTINGS_H

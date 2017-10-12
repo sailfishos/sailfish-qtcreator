@@ -91,6 +91,8 @@ void SelectionIndicator::setItems(const QList<FormEditorItem*> &itemList)
         newSelectionIndicatorGraphicsItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
 
         QPen pen;
+        pen.setCosmetic(true);
+        pen.setJoinStyle(Qt::MiterJoin);
         pen.setColor(QColor(108, 141, 221));
         newSelectionIndicatorGraphicsItem->setPen(pen);
         newSelectionIndicatorGraphicsItem->setCursor(m_cursor);

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLPROFILERRUNCONFIGURATIONASPECT_H
-#define QMLPROFILERRUNCONFIGURATIONASPECT_H
+#pragma once
 
 #include <projectexplorer/runconfiguration.h>
 
@@ -38,11 +37,7 @@ public:
 
     ProjectExplorer::IRunConfigurationAspect *create(
             ProjectExplorer::RunConfiguration *runConfig) const;
-
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget();
 };
 
 } // Internal
 } // QmlProfiler
-
-#endif // QMLPROFILERRUNCONFIGURATIONASPECT_H

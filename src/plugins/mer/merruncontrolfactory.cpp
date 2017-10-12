@@ -67,7 +67,8 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
     if (mode != ProjectExplorer::Constants::NORMAL_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
-            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
+            && mode != ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
             return false;
     }
 
@@ -135,11 +136,11 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         params.remoteSetupNeeded = true;
 
         if (aspect->useQmlDebugger()) {
-            params.qmlServerAddress = dev->sshParameters().host;
-            params.qmlServerPort = 0; // port is selected later on
+            params.qmlServer.host = dev->sshParameters().host;
+            params.qmlServer.port = Utils::Port(); // port is selected later on
         }
         if (aspect->useCppDebugger()) {
-            aspect->setUseMultiProcess(true);
+            params.useExtendedRemote = true;
             params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
             if (aspect->useQmlDebugger()) {
                 params.inferior.commandLineArguments.prepend(QLatin1Char(' '));
@@ -168,7 +169,8 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             return 0;
         (void) new LinuxDeviceDebugSupport(runConfig, runControl);
         return runControl;
-    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
+            mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
         Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
         AnalyzerConnection connection;
         connection.connParams =

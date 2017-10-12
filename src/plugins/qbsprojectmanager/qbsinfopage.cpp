@@ -26,7 +26,7 @@
 #include "qbsinfopage.h"
 #include "ui_qbsinfowidget.h"
 
-#include "qbsconstants.h"
+#include "qbsprojectmanagerconstants.h"
 
 #include <qbs.h>
 
@@ -54,7 +54,7 @@ QbsInfoPage::QbsInfoPage(QObject *parent) : Core::IOptionsPage(parent), m_widget
     setCategory(Constants::QBS_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("QbsProjectManager",
                                                    Constants::QBS_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::QBS_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Utils::Icon(Constants::QBS_SETTINGS_CATEGORY_ICON));
 }
 
 QWidget *QbsInfoPage::widget()

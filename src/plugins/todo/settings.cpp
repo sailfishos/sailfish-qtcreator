@@ -76,6 +76,8 @@ void Settings::load(QSettings *settings)
 
     scanningScope = static_cast<ScanningScope>(settings->value(QLatin1String(Constants::SCANNING_SCOPE),
         ScanningScopeCurrentFile).toInt());
+    if (scanningScope >= ScanningScopeMax)
+        scanningScope = ScanningScopeCurrentFile;
 
     KeywordList newKeywords;
     const int keywordsSize = settings->beginReadArray(QLatin1String(Constants::KEYWORDS_LIST));
@@ -110,7 +112,7 @@ void Settings::setDefault()
     Keyword keyword;
 
     keyword.name = QLatin1String("TODO");
-    keyword.iconType = IconType::Warning;
+    keyword.iconType = IconType::Todo;
     keyword.color = QColor(QLatin1String(Constants::COLOR_TODO_BG));
     keywords.append(keyword);
 
@@ -125,7 +127,7 @@ void Settings::setDefault()
     keywords.append(keyword);
 
     keyword.name = QLatin1String("BUG");
-    keyword.iconType = IconType::Error;
+    keyword.iconType = IconType::Bug;
     keyword.color = QColor(QLatin1String(Constants::COLOR_BUG_BG));
     keywords.append(keyword);
 

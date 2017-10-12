@@ -67,7 +67,7 @@ public:
 
     void setupUi(TargetSetupPage *q)
     {
-        QWidget *setupTargetPage = new QWidget(q);
+        auto setupTargetPage = new QWidget(q);
         descriptionLabel = new QLabel(setupTargetPage);
         descriptionLabel->setWordWrap(true);
         descriptionLabel->setVisible(false);
@@ -104,17 +104,16 @@ public:
         scrollArea = new QScrollArea(scrollAreaWidget);
         scrollArea->setWidgetResizable(true);
 
-        QWidget *scrollAreaWidgetContents;
-        scrollAreaWidgetContents = new QWidget();
+        auto scrollAreaWidgetContents = new QWidget();
         scrollAreaWidgetContents->setGeometry(QRect(0, 0, 230, 81));
         scrollArea->setWidget(scrollAreaWidgetContents);
 
-        QVBoxLayout *verticalLayout = new QVBoxLayout(scrollAreaWidget);
+        auto verticalLayout = new QVBoxLayout(scrollAreaWidget);
         verticalLayout->setSpacing(0);
         verticalLayout->setContentsMargins(0, 0, 0, 0);
         verticalLayout->addWidget(scrollArea);
 
-        QVBoxLayout *verticalLayout_2 = new QVBoxLayout(setupTargetPage);
+        auto verticalLayout_2 = new QVBoxLayout(setupTargetPage);
         verticalLayout_2->addWidget(headerLabel);
         verticalLayout_2->addWidget(noValidKitLabel);
         verticalLayout_2->addWidget(descriptionLabel);
@@ -123,7 +122,7 @@ public:
         verticalLayout_2->addWidget(centralWidget);
         verticalLayout_2->addWidget(scrollAreaWidget);
 
-        QVBoxLayout *verticalLayout_3 = new QVBoxLayout(q);
+        auto verticalLayout_3 = new QVBoxLayout(q);
         verticalLayout_3->setContentsMargins(0, 0, 0, -1);
         verticalLayout_3->addWidget(setupTargetPage);
 
@@ -141,13 +140,9 @@ using namespace Internal;
 
 TargetSetupPage::TargetSetupPage(QWidget *parent) :
     Utils::WizardPage(parent),
-    m_importer(0),
-    m_baseLayout(0),
-    m_firstWidget(0),
     m_ui(new TargetSetupPageUi),
     m_importWidget(new ImportWidget(this)),
-    m_spacer(new QSpacerItem(0,0, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding)),
-    m_forceOptionHint(false)
+    m_spacer(new QSpacerItem(0,0, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding))
 {
     m_importWidget->setVisible(false);
 
@@ -161,7 +156,7 @@ TargetSetupPage::TargetSetupPage(QWidget *parent) :
     policy.setHeightForWidth(sizePolicy().hasHeightForWidth());
     setSizePolicy(policy);
 
-    QWidget *centralWidget = new QWidget(this);
+    auto centralWidget = new QWidget(this);
     m_ui->scrollArea->setWidget(centralWidget);
     centralWidget->setLayout(new QVBoxLayout);
     m_ui->centralWidget->setLayout(new QVBoxLayout);
@@ -206,9 +201,8 @@ void TargetSetupPage::setRequiredKitMatcher(const KitMatcher &matcher)
 QList<Core::Id> TargetSetupPage::selectedKits() const
 {
     QList<Core::Id> result;
-    QMap<Core::Id, TargetSetupWidget *>::const_iterator it, end;
-    it = m_widgets.constBegin();
-    end = m_widgets.constEnd();
+    auto it = m_widgets.constBegin();
+    auto end = m_widgets.constEnd();
 
     for ( ; it != end; ++it) {
         if (isKitSelected(it.key()))
@@ -224,9 +218,9 @@ void TargetSetupPage::setPreferredKitMatcher(const KitMatcher &matcher)
 
 TargetSetupPage::~TargetSetupPage()
 {
+    disconnect();
     reset();
     delete m_ui;
-    delete m_importer;
 }
 
 bool TargetSetupPage::isKitSelected(Core::Id id) const
@@ -279,7 +273,7 @@ void TargetSetupPage::reset()
         if (!k)
             continue;
         if (m_importer)
-            m_importer->removeProject(k, m_projectPath);
+            m_importer->removeProject(k);
         delete widget;
     }
 
@@ -292,9 +286,12 @@ void TargetSetupPage::reset()
 void TargetSetupPage::setProjectPath(const QString &path)
 {
     m_projectPath = path;
-    if (!m_projectPath.isEmpty())
+    if (!m_projectPath.isEmpty()) {
+        QFileInfo fileInfo(QDir::cleanPath(path));
+        QStringList subDirsList = fileInfo.absolutePath().split('/');
         m_ui->headerLabel->setText(tr("Qt Creator can use the following kits for project <b>%1</b>:",
-                                      "%1: Project name").arg(QFileInfo(m_projectPath).baseName()));
+                                      "%1: Project name").arg(subDirsList.last()));
+    }
     m_ui->headerLabel->setVisible(!m_projectPath.isEmpty());
 
     if (m_widgets.isEmpty())
@@ -308,10 +305,8 @@ void TargetSetupPage::setProjectImporter(ProjectImporter *importer)
 {
     if (importer == m_importer)
         return;
-    if (m_importer)
-        delete m_importer;
-    m_importer = importer;
 
+    m_importer = importer;
     m_importWidget->setVisible(m_importer);
 
     reset();
@@ -335,7 +330,7 @@ void TargetSetupPage::setupImports()
     if (!m_importer || m_projectPath.isEmpty())
         return;
 
-    QStringList toImport = m_importer->importCandidates(Utils::FileName::fromString(m_projectPath));
+    QStringList toImport = m_importer->importCandidates();
     foreach (const QString &path, toImport)
         import(Utils::FileName::fromString(path), true);
 }
@@ -368,7 +363,7 @@ void TargetSetupPage::handleKitUpdate(Kit *k)
         return;
 
     if (m_importer)
-        m_importer->makePermanent(k);
+        m_importer->makePersistent(k);
 
     TargetSetupWidget *widget = m_widgets.value(k->id());
 
@@ -510,7 +505,7 @@ TargetSetupWidget *TargetSetupPage::addWidget(Kit *k)
         return 0;
 
     QList<BuildInfo *> infoList = factory->availableSetups(k, m_projectPath);
-    TargetSetupWidget *widget = infoList.isEmpty() ? 0 : new TargetSetupWidget(k, m_projectPath, infoList);
+    TargetSetupWidget *widget = infoList.isEmpty() ? nullptr : new TargetSetupWidget(k, m_projectPath, infoList);
     if (!widget)
         return 0;
 
@@ -549,7 +544,7 @@ bool TargetSetupPage::setupProject(Project *project)
 
         Kit *k = widget->kit();
         if (m_importer)
-            m_importer->makePermanent(k);
+            m_importer->makePersistent(k);
         toSetUp << widget->selectedBuildInfoList();
         widget->clearKit();
     }

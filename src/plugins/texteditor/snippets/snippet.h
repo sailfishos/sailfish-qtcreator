@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef SNIPPET_H
-#define SNIPPET_H
+#pragma once
 
 #include <texteditor/texteditor_global.h>
 
@@ -39,7 +38,7 @@ namespace TextEditor {
 class TEXTEDITOR_EXPORT NameMangler
 {
 public:
-    virtual ~NameMangler() { }
+    virtual ~NameMangler();
 
     virtual Core::Id id() const = 0;
     virtual QString mangle(const QString &unmangled) const = 0;
@@ -93,8 +92,8 @@ public:
     static ParsedSnippet parse(const QString &snippet);
 
 private:
-    bool m_isRemoved;
-    bool m_isModified;
+    bool m_isRemoved = false;
+    bool m_isModified = false;
     QString m_groupId;
     QString m_id; // Only built-in snippets have an id.
     QString m_trigger;
@@ -103,5 +102,3 @@ private:
 };
 
 } // TextEditor
-
-#endif // SNIPPET_H

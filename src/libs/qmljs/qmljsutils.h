@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJS_QMLJSUTILS_H
-#define QMLJS_QMLJSUTILS_H
+#pragma once
 
 #include "qmljs_global.h"
 #include "qmljsconstants.h"
@@ -55,6 +54,11 @@ QMLJS_EXPORT bool isValidBuiltinPropertyType(const QString &name);
 QMLJS_EXPORT DiagnosticMessage errorMessage(const AST::SourceLocation &loc,
                                             const QString &message);
 
+QMLJS_EXPORT bool maybeModuleVersion(const QString &version);
+
+QMLJS_EXPORT QString modulePath(const QString &moduleImportName, const QString &version,
+                                const QStringList &importPaths);
+
 template <class T>
 AST::SourceLocation locationFromRange(const T *node)
 {
@@ -70,5 +74,3 @@ DiagnosticMessage errorMessage(const T *node, const QString &message)
 }
 
 } // namespace QmlJS
-
-#endif // QMLJS_QMLJSUTILS_H

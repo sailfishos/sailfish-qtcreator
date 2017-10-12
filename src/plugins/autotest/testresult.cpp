@@ -41,35 +41,41 @@ TestResult::TestResult()
 {
 }
 
-TestResult::TestResult(const QString &className)
-    : m_class(className)
-    , m_result(Result::Invalid)
-    , m_line(0)
-    , m_type(TestTypeQt)
+TestResult::TestResult(const QString &name)
+    : m_name(name)
 {
+}
+
+const QString TestResult::outputString(bool selected) const
+{
+    return selected ? m_description : m_description.split('\n').first();
 }
 
 Result::Type TestResult::resultFromString(const QString &resultString)
 {
-    if (resultString == QLatin1String("pass"))
+    if (resultString == "pass")
         return Result::Pass;
-    if (resultString == QLatin1String("fail"))
+    if (resultString == "fail")
         return Result::Fail;
-    if (resultString == QLatin1String("xfail"))
+    if (resultString == "xfail")
         return Result::ExpectedFail;
-    if (resultString == QLatin1String("xpass"))
+    if (resultString == "xpass")
         return Result::UnexpectedPass;
-    if (resultString == QLatin1String("skip"))
+    if (resultString == "skip")
         return Result::Skip;
-    if (resultString == QLatin1String("qdebug"))
+    if (resultString == "qdebug")
         return Result::MessageDebug;
-    if (resultString == QLatin1String("warn") || resultString == QLatin1String("qwarn"))
+    if (resultString == "qinfo")
+        return Result::MessageInfo;
+    if (resultString == "warn" || resultString == "qwarn")
         return Result::MessageWarn;
-    if (resultString == QLatin1String("qfatal"))
+    if (resultString == "qfatal")
         return Result::MessageFatal;
-    if (resultString == QLatin1String("bpass"))
+    if (resultString == "system")
+        return Result::MessageSystem;
+    if (resultString == "bpass")
         return Result::BlacklistedPass;
-    if (resultString == QLatin1String("bfail"))
+    if (resultString == "bfail")
         return Result::BlacklistedFail;
     qDebug("Unexpected test result: %s", qPrintable(resultString));
     return Result::Invalid;
@@ -103,10 +109,14 @@ QString TestResult::resultToString(const Result::Type type)
         return QLatin1String("BENCH");
     case Result::MessageDebug:
         return QLatin1String("DEBUG");
+    case Result::MessageInfo:
+        return QLatin1String("INFO");
     case Result::MessageWarn:
         return QLatin1String("WARN");
     case Result::MessageFatal:
         return QLatin1String("FATAL");
+    case Result::MessageSystem:
+        return QLatin1String("SYSTEM");
     case Result::BlacklistedPass:
         return QLatin1String("BPASS");
     case Result::BlacklistedFail:
@@ -134,35 +144,18 @@ QColor TestResult::colorForType(const Result::Type type)
     case Result::Skip:
         return creatorTheme->color(Utils::Theme::OutputPanes_TestSkipTextColor);
     case Result::MessageDebug:
+    case Result::MessageInfo:
         return creatorTheme->color(Utils::Theme::OutputPanes_TestDebugTextColor);
     case Result::MessageWarn:
         return creatorTheme->color(Utils::Theme::OutputPanes_TestWarnTextColor);
     case Result::MessageFatal:
+    case Result::MessageSystem:
         return creatorTheme->color(Utils::Theme::OutputPanes_TestFatalTextColor);
     case Result::BlacklistedPass:
     case Result::BlacklistedFail:
     default:
         return creatorTheme->color(Utils::Theme::OutputPanes_StdOutTextColor);
     }
-}
-
-bool operator==(const TestResult &t1, const TestResult &t2)
-{
-    return t1.className() == t2.className()
-            && t1.testCase() == t2.testCase()
-            && t1.dataTag() == t2.dataTag()
-            && t1.result() == t2.result();
-}
-
-QTestResult::QTestResult(const QString &className)
-    : TestResult(className)
-{
-}
-
-GTestResult::GTestResult(const QString &className)
-    : TestResult(className)
-{
-    setTestType(TestTypeGTest);
 }
 
 } // namespace Internal

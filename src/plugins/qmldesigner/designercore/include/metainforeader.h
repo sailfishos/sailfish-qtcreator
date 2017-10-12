@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef METAINFOREADER_H
-#define METAINFOREADER_H
+#pragma once
 
 #include "qmldesignercorelib_global.h"
 #include <metainfo.h>
@@ -68,6 +67,7 @@ private:
                       ParsingMetaInfo,
                       ParsingType,
                       ParsingItemLibrary,
+                      ParsingHints,
                       ParsingProperty,
                       ParsingQmlSource
                     };
@@ -84,13 +84,15 @@ private:
     void readItemLibraryEntryProperty(const QString &name, const QVariant &value);
     void readPropertyProperty(const QString &name, const QVariant &value);
     void readQmlSourceProperty(const QString &name, const QVariant &value);
+    void readHint(const QString &name, const QVariant &value);
 
     void setVersion(const QString &versionNumber);
 
     ParserSate parserState() const;
     void setParserState(ParserSate newParserState);
 
-    void insertItemLibraryEntry();
+    void syncItemLibraryEntries();
+    void keepCurrentItemLibraryEntry();
     void insertProperty();
 
     void addErrorInvalidType(const QString &typeName);
@@ -103,8 +105,10 @@ private:
 
     TypeName m_currentClassName;
     QString m_currentIcon;
+    QHash<QString, QString> m_currentHints;
     QString m_currentSource;
     ItemLibraryEntry m_currentEntry;
+    QList<ItemLibraryEntry> m_bufferedEntries;
 
     PropertyName m_currentPropertyName;
     QString m_currentPropertyType;
@@ -117,4 +121,3 @@ private:
 
 }
 }
-#endif // METAINFOREADER_H

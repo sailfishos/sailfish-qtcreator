@@ -63,8 +63,8 @@ BranchDialog::BranchDialog(QWidget *parent) :
 
     m_ui->setupUi(this);
     m_ui->includeOldCheckBox->setToolTip(
-                tr("Include branches and tags that have not been active for %1 days.")
-                .arg(Constants::OBSOLETE_COMMIT_AGE_IN_DAYS));
+                tr("Include branches and tags that have not been active for %n days.", 0,
+                   Constants::OBSOLETE_COMMIT_AGE_IN_DAYS));
 
     connect(m_ui->refreshButton, &QAbstractButton::clicked, this, &BranchDialog::refreshCurrentRepository);
     connect(m_ui->addButton, &QAbstractButton::clicked, this, &BranchDialog::add);
@@ -88,6 +88,9 @@ BranchDialog::BranchDialog(QWidget *parent) :
 
     connect(m_ui->branchView->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &BranchDialog::enableButtons);
+    connect(m_model, &QAbstractItemModel::dataChanged, this, &BranchDialog::resizeColumns);
+    connect(m_model, &QAbstractItemModel::rowsInserted, this, &BranchDialog::resizeColumns);
+    connect(m_model, &QAbstractItemModel::rowsRemoved, this, &BranchDialog::resizeColumns);
 
     enableButtons();
 }
@@ -109,12 +112,19 @@ void BranchDialog::refresh(const QString &repository, bool force)
         VcsOutputWindow::appendError(errorMessage);
 
     m_ui->branchView->expandAll();
+    resizeColumns();
 }
 
 void BranchDialog::refreshIfSame(const QString &repository)
 {
     if (m_repository == repository)
         refreshCurrentRepository();
+}
+
+void BranchDialog::resizeColumns()
+{
+    m_ui->branchView->resizeColumnToContents(0);
+    m_ui->branchView->resizeColumnToContents(1);
 }
 
 void BranchDialog::enableButtons()
@@ -162,7 +172,7 @@ void BranchDialog::add()
     QString suggestedName;
     if (!isTag) {
         QString suggestedNameBase;
-        suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf(QLatin1Char('/')) + 1);
+        suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf('/') + 1);
         suggestedName = suggestedNameBase;
         int i = 2;
         while (localNames.contains(suggestedName)) {
@@ -198,7 +208,7 @@ void BranchDialog::checkout()
     const QString currentBranch = m_model->fullName(m_model->currentBranch());
     const QString nextBranch = m_model->fullName(idx);
     const QString popMessageStart = QCoreApplication::applicationName() +
-            QLatin1Char(' ') + nextBranch + QLatin1String("-AutoStash ");
+            ' ' + nextBranch + "-AutoStash ";
 
     BranchCheckoutDialog branchCheckoutDialog(this, currentBranch, nextBranch);
     GitClient *client = GitPlugin::client();
@@ -222,12 +232,10 @@ void BranchDialog::checkout()
     } else if (branchCheckoutDialog.exec() == QDialog::Accepted) {
 
         if (branchCheckoutDialog.makeStashOfCurrentBranch()) {
-            if (client->synchronousStash(m_repository,
-                           currentBranch + QLatin1String("-AutoStash")).isEmpty()) {
+            if (client->synchronousStash(m_repository, currentBranch + "-AutoStash").isEmpty())
                 return;
-            }
         } else if (branchCheckoutDialog.moveLocalChangesToNextBranch()) {
-            if (!client->beginStashScope(m_repository, QLatin1String("Checkout"), NoPrompt))
+            if (!client->beginStashScope(m_repository, "Checkout", NoPrompt))
                 return;
         } else if (branchCheckoutDialog.discardLocalChanges()) {
             if (!client->synchronousReset(m_repository))
@@ -328,7 +336,7 @@ void BranchDialog::log()
     QString branchName = m_model->fullName(selectedIndex(), true);
     if (branchName.isEmpty())
         return;
-    GitPlugin::client()->log(m_repository, QString(), false, QStringList(branchName));
+    GitPlugin::client()->log(m_repository, QString(), false, { branchName });
 }
 
 void BranchDialog::reset()
@@ -341,7 +349,7 @@ void BranchDialog::reset()
     if (QMessageBox::question(this, tr("Git Reset"), tr("Hard reset branch \"%1\" to \"%2\"?")
                               .arg(currentName).arg(branchName),
                               QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes) {
-        GitPlugin::client()->reset(m_repository, QLatin1String("--hard"), branchName);
+        GitPlugin::client()->reset(m_repository, "--hard", branchName);
     }
 }
 
@@ -364,7 +372,7 @@ void BranchDialog::merge()
             return;
         allowFastForward = (chosen == fastForward);
     }
-    if (client->beginStashScope(m_repository, QLatin1String("merge"), AllowUnstashed))
+    if (client->beginStashScope(m_repository, "merge", AllowUnstashed))
         client->synchronousMerge(m_repository, branch, allowFastForward);
 }
 
@@ -377,7 +385,7 @@ void BranchDialog::rebase()
 
     const QString baseBranch = m_model->fullName(idx, true);
     GitClient *client = GitPlugin::client();
-    if (client->beginStashScope(m_repository, QLatin1String("rebase")))
+    if (client->beginStashScope(m_repository, "rebase"))
         client->rebase(m_repository, baseBranch);
 }
 

@@ -23,14 +23,13 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGCODEMODEL_INTERNAL_CLANGBACKENDIPCINTEGRATION_H
-#define CLANGCODEMODEL_INTERNAL_CLANGBACKENDIPCINTEGRATION_H
+#pragma once
 
 #include <cpptools/projectpart.h>
 
-#include <clangbackendipc/connectionclient.h>
+#include <clangbackendipc/clangcodemodelconnectionclient.h>
 #include <clangbackendipc/filecontainer.h>
-#include <clangbackendipc/ipcclientinterface.h>
+#include <clangbackendipc/clangcodemodelclientinterface.h>
 #include <clangbackendipc/projectpartcontainer.h>
 
 #include <QObject>
@@ -43,7 +42,7 @@ class IDocument;
 }
 
 namespace ClangBackEnd {
-class DiagnosticsChangedMessage;
+class DocumentAnnotationsChangedMessage;
 }
 
 namespace TextEditor {
@@ -58,7 +57,7 @@ class ModelManagerSupportClang;
 
 class ClangCompletionAssistProcessor;
 
-class IpcReceiver : public ClangBackEnd::IpcClientInterface
+class IpcReceiver : public ClangBackEnd::ClangCodeModelClientInterface
 {
 public:
     IpcReceiver();
@@ -77,15 +76,16 @@ private:
     void alive() override;
     void echo(const ClangBackEnd::EchoMessage &message) override;
     void codeCompleted(const ClangBackEnd::CodeCompletedMessage &message) override;
-    void diagnosticsChanged(const ClangBackEnd::DiagnosticsChangedMessage &message) override;
-    void highlightingChanged(const ClangBackEnd::HighlightingChangedMessage &message) override;
 
-    void translationUnitDoesNotExist(const ClangBackEnd::TranslationUnitDoesNotExistMessage &message) override;
-    void projectPartsDoNotExist(const ClangBackEnd::ProjectPartsDoNotExistMessage &message) override;
+    void documentAnnotationsChanged(const ClangBackEnd::DocumentAnnotationsChangedMessage &message) override;
+
+    void translationUnitDoesNotExist(const ClangBackEnd::TranslationUnitDoesNotExistMessage &) override {}
+    void projectPartsDoNotExist(const ClangBackEnd::ProjectPartsDoNotExistMessage &) override {}
 
 private:
     AliveHandler m_aliveHandler;
     QHash<quint64, ClangCompletionAssistProcessor *> m_assistProcessorsTable;
+    const bool m_printAliveMessage = false;
 };
 
 class IpcSenderInterface
@@ -102,8 +102,7 @@ public:
     virtual void registerUnsavedFilesForEditor(const ClangBackEnd::RegisterUnsavedFilesForEditorMessage &message) = 0;
     virtual void unregisterUnsavedFilesForEditor(const ClangBackEnd::UnregisterUnsavedFilesForEditorMessage &message) = 0;
     virtual void completeCode(const ClangBackEnd::CompleteCodeMessage &message) = 0;
-    virtual void requestDiagnostics(const ClangBackEnd::RequestDiagnosticsMessage &message) = 0;
-    virtual void requestHighlighting(const ClangBackEnd::RequestHighlightingMessage &message) = 0;
+    virtual void requestDocumentAnnotations(const ClangBackEnd::RequestDocumentAnnotationsMessage &message) = 0;
     virtual void updateVisibleTranslationUnits(const ClangBackEnd::UpdateVisibleTranslationUnitsMessage &message) = 0;
 };
 
@@ -118,6 +117,7 @@ public:
 
 public:
     IpcCommunicator();
+    ~IpcCommunicator();
 
     void registerTranslationUnitsForEditor(const FileContainers &fileContainers);
     void updateTranslationUnitsForEditor(const FileContainers &fileContainers);
@@ -126,8 +126,7 @@ public:
     void unregisterProjectPartsForEditor(const QStringList &projectPartIds);
     void registerUnsavedFilesForEditor(const FileContainers &fileContainers);
     void unregisterUnsavedFilesForEditor(const FileContainers &fileContainers);
-    void requestDiagnostics(const ClangBackEnd::FileContainer &fileContainer);
-    void requestHighlighting(const ClangBackEnd::FileContainer &fileContainer);
+    void requestDocumentAnnotations(const ClangBackEnd::FileContainer &fileContainer);
     void completeCode(ClangCompletionAssistProcessor *assistProcessor, const QString &filePath,
                       quint32 line,
                       quint32 column,
@@ -159,8 +158,6 @@ signals: // for tests
     void backendReinitialized();
 
 private:
-    enum SendMode { RespectSendRequests, IgnoreSendRequests };
-
     void initializeBackend();
     void initializeBackendWithCurrentData();
     void registerCurrentProjectParts();
@@ -169,23 +166,27 @@ private:
     void registerVisibleCppEditorDocumentAndMarkInvisibleDirty();
     void registerCurrentCodeModelUiHeaders();
 
+    void setupDummySender();
 
-    void onBackendRestarted();
+    void onConnectedToBackend();
+    void onDisconnectedFromBackend();
     void onEditorAboutToClose(Core::IEditor *editor);
-    void onCoreAboutToClose();
+
+    void logExecutableDoesNotExist();
+    void logRestartedDueToUnexpectedFinish();
+    void logStartTimeOut();
+    void logError(const QString &text);
 
     void updateTranslationUnitVisiblity(const Utf8String &currentEditorFilePath,
                                         const Utf8StringVector &visibleEditorsFilePaths);
 
 private:
     IpcReceiver m_ipcReceiver;
-    ClangBackEnd::ConnectionClient m_connection;
+    ClangBackEnd::ClangCodeModelConnectionClient m_connection;
+    QTimer m_backendStartTimeOut;
     QScopedPointer<IpcSenderInterface> m_ipcSender;
-
-    SendMode m_sendMode = RespectSendRequests;
+    int m_connectedCount = 0;
 };
 
 } // namespace Internal
 } // namespace ClangCodeModel
-
-#endif // CLANGCODEMODEL_INTERNAL_CLANGBACKENDIPCINTEGRATION_H

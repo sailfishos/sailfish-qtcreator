@@ -41,7 +41,6 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
-#include <qtsupport/customexecutablerunconfiguration.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
 
@@ -60,9 +59,14 @@ using namespace ProjectExplorer::Constants;
 AutotoolsBuildConfiguration::AutotoolsBuildConfiguration(Target *parent) :
     BuildConfiguration(parent, Core::Id(AUTOTOOLS_BC_ID))
 {
-  // /<foobar> is used so the un-changed check in setBuildDirectory() works correctly.
-  // The leading / is to avoid the relative the path expansion in BuildConfiguration::buildDirectory.
-  BuildConfiguration::setBuildDirectory(Utils::FileName::fromString(QString::fromLatin1("/<foobar>")));
+    // /<foobar> is used so the un-changed check in setBuildDirectory() works correctly.
+    // The leading / is to avoid the relative the path expansion in BuildConfiguration::buildDirectory.
+    BuildConfiguration::setBuildDirectory(Utils::FileName::fromString(QString::fromLatin1("/<foobar>")));
+
+    connect(this, &BuildConfiguration::buildDirectoryChanged, this, [this] {
+        foreach (auto bs, stepList(BUILDSTEPS_BUILD)->allOfType<ConfigureStep>())
+            bs->notifyBuildDirectoryChanged();
+    });
 }
 
 NamedWidget *AutotoolsBuildConfiguration::createConfigWidget()
@@ -222,18 +226,4 @@ BuildConfiguration::BuildType AutotoolsBuildConfiguration::buildType() const
 {
     // TODO: Should I return something different from Unknown?
     return Unknown;
-}
-
-void AutotoolsBuildConfiguration::setBuildDirectory(const Utils::FileName &directory)
-{
-    if (directory == buildDirectory())
-        return;
-    BuildConfiguration::setBuildDirectory(directory);
-    BuildStepList *bsl = stepList(BUILDSTEPS_BUILD);
-    foreach (BuildStep *bs, bsl->steps()) {
-        ConfigureStep *cs = qobject_cast<ConfigureStep *>(bs);
-        if (cs) {
-            cs->notifyBuildDirectoryChanged();
-        }
-    }
 }

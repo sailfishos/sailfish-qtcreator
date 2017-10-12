@@ -28,6 +28,7 @@
 #include "vcsbase_global.h"
 
 #include <utils/fileutils.h>
+#include <utils/synchronousprocess.h>
 
 #include <QObject>
 #include <QStringList>
@@ -41,11 +42,6 @@ class QProcessEnvironment;
 QT_END_NAMESPACE
 
 namespace Core { class Id; }
-
-namespace Utils {
-struct SynchronousProcessResponse;
-class ExitCodeInterpreter;
-} // namespace Utils
 
 namespace VcsBase {
 
@@ -86,41 +82,48 @@ public:
 
     void enqueueJob(VcsCommand *cmd, const QStringList &args,
                     const QString &workingDirectory = QString(),
-                    Utils::ExitCodeInterpreter *interpreter = 0);
+                    const Utils::ExitCodeInterpreter &interpreter = Utils::defaultExitCodeInterpreter) const;
 
     virtual QProcessEnvironment processEnvironment() const;
 
     // VCS functionality:
-    virtual void annotate(const QString &workingDir, const QString &file,
-                          const QString &revision = QString(), int lineNumber = -1,
-                          const QStringList &extraOptions = QStringList()) = 0;
+    virtual VcsBaseEditorWidget *annotate(
+            const QString &workingDir, const QString &file, const QString &revision = QString(),
+            int lineNumber = -1, const QStringList &extraOptions = QStringList()) = 0;
 
     // Return converted command output, remove '\r' read on Windows
     static QString commandOutputFromLocal8Bit(const QByteArray &a);
     // Return converted command output split into lines
     static QStringList commandOutputLinesFromLocal8Bit(const QByteArray &a);
+    static QStringList splitLines(const QString &s);
+
+    static QString stripLastNewline(const QString &in);
+
+    // Fully synchronous VCS execution (QProcess-based)
+    Utils::SynchronousProcessResponse
+    vcsFullySynchronousExec(const QString &workingDir, const QStringList &args,
+                            unsigned flags = 0, int timeoutS = -1, QTextCodec *codec = nullptr) const;
+    Utils::SynchronousProcessResponse
+    vcsFullySynchronousExec(const QString &workingDir, const Utils::FileName &binary, const QStringList &args,
+                            unsigned flags = 0, int timeoutS = -1, QTextCodec *codec = nullptr) const;
+
+
+    // Simple helper to execute a single command using createCommand and enqueueJob.
+    VcsCommand *vcsExec(const QString &workingDirectory, const QStringList &arguments,
+                        VcsBaseEditorWidget *editor = nullptr, bool useOutputToWindow = false,
+                        unsigned additionalFlags = 0, const QVariant &cookie = QVariant()) const;
 
 protected:
     void resetCachedVcsInfo(const QString &workingDir);
     virtual void annotateRevisionRequested(const QString &workingDirectory, const QString &file,
                                            const QString &change, int line);
 
-    // Fully synchronous VCS execution (QProcess-based)
-    bool vcsFullySynchronousExec(const QString &workingDir, const QStringList &args,
-                                 QByteArray *outputData, QByteArray *errorData = 0,
-                                 unsigned flags = 0) const;
-
-    // Simple helper to execute a single command using createCommand and enqueueJob.
-    VcsCommand *vcsExec(const QString &workingDirectory, const QStringList &arguments,
-                        VcsBaseEditorWidget *editor = 0, bool useOutputToWindow = false,
-                        unsigned additionalFlags = 0, const QVariant &cookie = QVariant());
-
     // Synchronous VCS execution using Utils::SynchronousProcess, with
     // log windows updating (using VcsBasePlugin::runVcs with flags)
     Utils::SynchronousProcessResponse vcsSynchronousExec(const QString &workingDir,
                                                          const QStringList &args,
                                                          unsigned flags = 0,
-                                                         QTextCodec *outputCodec = 0) const;
+                                                         QTextCodec *outputCodec = nullptr) const;
 
 private:
     void saveSettings();
@@ -163,9 +166,9 @@ public:
     virtual bool synchronousPush(const QString &workingDir,
                                  const QString &dstLocation,
                                  const QStringList &extraOptions = QStringList());
-    void annotate(const QString &workingDir, const QString &file,
-                  const QString &revision = QString(), int lineNumber = -1,
-                  const QStringList &extraOptions = QStringList()) override;
+    VcsBaseEditorWidget *annotate(
+            const QString &workingDir, const QString &file, const QString &revision = QString(),
+            int lineNumber = -1, const QStringList &extraOptions = QStringList()) override;
     virtual void diff(const QString &workingDir, const QStringList &files = QStringList(),
                       const QStringList &extraOptions = QStringList());
     virtual void log(const QString &workingDir, const QStringList &files = QStringList(),
@@ -220,7 +223,7 @@ protected:
     };
     virtual QString vcsCommandString(VcsCommandTag cmd) const;
     virtual Core::Id vcsEditorKind(VcsCommandTag cmd) const = 0;
-    virtual Utils::ExitCodeInterpreter *exitCodeInterpreter(VcsCommandTag cmd, QObject *parent) const;
+    virtual Utils::ExitCodeInterpreter exitCodeInterpreter(VcsCommandTag cmd) const;
 
     virtual QStringList revisionSpec(const QString &revision) const = 0;
 

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef INTERNALNODE_H
-#define INTERNALNODE_H
+#pragma once
 
 #include <QMap>
 #include <QHash>
@@ -102,7 +101,7 @@ public:
     void addSignalHandlerProperty(const PropertyName &name);
     void addNodeListProperty(const PropertyName &name);
     void addVariantProperty(const PropertyName &name);
-    void addNodeProperty(const PropertyName &name);
+    void addNodeProperty(const PropertyName &name, const TypeName &dynamicTypeName);
 
 
     PropertyNameList propertyNameList() const;
@@ -158,5 +157,3 @@ uint qHash(const InternalNodePointer& node);
 bool operator <(const InternalNodePointer &firstNode, const InternalNodePointer &secondNode);
 } // Internal
 } // QtQmlDesigner
-
-#endif // INTERNALNODE_H

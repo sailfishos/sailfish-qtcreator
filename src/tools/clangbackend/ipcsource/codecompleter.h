@@ -23,10 +23,10 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CODECOMPLETER_H
-#define CLANGBACKEND_CODECOMPLETER_H
+#pragma once
 
 #include "clangtranslationunit.h"
+#include "unsavedfiles.h"
 
 #include <codecompletion.h>
 
@@ -40,33 +40,30 @@ class CodeCompleter
 {
 public:
     CodeCompleter() = default;
-    CodeCompleter(TranslationUnit translationUnit);
+    CodeCompleter(const TranslationUnit &translationUnit,
+                  const UnsavedFiles &unsavedFiles);
 
     CodeCompletions complete(uint line, uint column);
 
     CompletionCorrection neededCorrection() const;
 
-public: // for tests
-    bool hasDotAt(uint line, uint column) const;
-
 private:
     uint defaultOptions() const;
+    UnsavedFile &unsavedFile();
 
-    ClangCodeCompleteResults complete(uint line,
-                                      uint column,
-                                      CXUnsavedFile *unsavedFiles,
-                                      unsigned unsavedFileCount);
+    void tryDotArrowCorrectionIfNoResults(ClangCodeCompleteResults &results,
+                                          uint line,
+                                          uint column);
 
-    ClangCodeCompleteResults completeWithArrowInsteadOfDot(uint line, uint column);
-
-    Utf8String filePath() const;
-    static void checkCodeCompleteResult(CXCodeCompleteResults *completeResults);
+    ClangCodeCompleteResults completeHelper(uint line, uint column);
+    ClangCodeCompleteResults completeWithArrowInsteadOfDot(uint line,
+                                                           uint column,
+                                                           uint dotPosition);
 
 private:
     TranslationUnit translationUnit;
+    UnsavedFiles unsavedFiles;
     CompletionCorrection neededCorrection_ = CompletionCorrection::NoCorrection;
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_CODECOMPLETER_H

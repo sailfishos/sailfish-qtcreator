@@ -145,20 +145,22 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
     if (!HostOsInfo::isMacHost() // Mac UIs usually don't hover
             && m_fader > 0 && isEnabled() && !isDown() && !isChecked()) {
         painter.save();
-        if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
-            painter.setOpacity(m_fader);
-            FancyToolButton::hoverOverlay(&painter, rect());
-        } else {
+        if (creatorTheme()->flag(Theme::FlatToolBars)) {
             const QColor hoverColor = creatorTheme()->color(Theme::FancyToolButtonHoverColor);
             QColor fadedHoverColor = hoverColor;
             fadedHoverColor.setAlpha(int(m_fader * hoverColor.alpha()));
             painter.fillRect(rect(), fadedHoverColor);
+        } else {
+            painter.setOpacity(m_fader);
+            FancyToolButton::hoverOverlay(&painter, rect());
         }
         painter.restore();
     } else if (isDown() || isChecked()) {
         painter.save();
         const QColor selectedColor = creatorTheme()->color(Theme::FancyToolButtonSelectedColor);
-        if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
+        if (creatorTheme()->flag(Theme::FlatToolBars)) {
+            painter.fillRect(rect(), selectedColor);
+        } else {
             QLinearGradient grad(rect().topLeft(), rect().topRight());
             grad.setColorAt(0, Qt::transparent);
             grad.setColorAt(0.5, selectedColor);
@@ -171,8 +173,6 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
             painter.drawLine(borderRectF.topLeft() + QPointF(0, 1), borderRectF.topRight() + QPointF(0, 1));
             painter.drawLine(borderRectF.bottomLeft(), borderRectF.bottomRight());
             painter.drawLine(borderRectF.bottomLeft(), borderRectF.bottomRight());
-        } else {
-            painter.fillRect(rect(), selectedColor);
         }
         painter.restore();
     }
@@ -206,23 +206,14 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
         QPoint textOffset = centerRect.center() - QPoint(iconRect.width()/2, iconRect.height()/2);
         textOffset = textOffset - QPoint(0, lineHeight + 4);
         QRectF r(0, textOffset.y(), rect().width(), lineHeight);
-        QColor penColor;
-        if (isEnabled())
-            penColor = Qt::white;
-        else
-            penColor = Qt::gray;
-        painter.setPen(penColor);
+        painter.setPen(creatorTheme()->color(isEnabled()
+                                             ? Theme::PanelTextColorLight
+                                             : Theme::IconsDisabledColor));
 
         // draw project name
         const int margin = 6;
         const qreal availableWidth = r.width() - margin;
         QString ellidedProjectName = fm.elidedText(projectName, Qt::ElideMiddle, availableWidth);
-        if (isEnabled()) {
-            const QRectF shadowR = r.translated(0, 1);
-            painter.setPen(QColor(30, 30, 30, 80));
-            painter.drawText(shadowR, textFlags, ellidedProjectName);
-            painter.setPen(penColor);
-        }
         painter.drawText(r, textFlags, ellidedProjectName);
 
         // draw build configuration name
@@ -239,16 +230,18 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
         } else {
             splitBuildConfiguration = splitInTwoLines(buildConfiguration, boldFm, availableWidth);
         }
-        // draw the two lines for the build configuration
+
+        // draw the two text lines for the build configuration
+        painter.setPen(creatorTheme()->color(isEnabled()
+                                             // Intentionally using the "Unselected" colors,
+                                             // because the text color won't change in the pressed
+                                             // state as they would do on the mode buttons.
+                                             ? Theme::FancyTabWidgetEnabledUnselectedTextColor
+                                             : Theme::FancyTabWidgetDisabledUnselectedTextColor));
+
         for (int i = 0; i < 2; ++i) {
             if (splitBuildConfiguration[i].isEmpty())
                 continue;
-            if (isEnabled()) {
-                const QRectF shadowR = buildConfigRect[i].translated(0, 1);
-                painter.setPen(QColor(30, 30, 30, 80));
-                painter.drawText(shadowR, textFlags, splitBuildConfiguration[i]);
-                painter.setPen(penColor);
-            }
             painter.drawText(buildConfigRect[i], textFlags, splitBuildConfiguration[i]);
         }
 
@@ -269,7 +262,7 @@ void FancyActionBar::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
     const QRectF borderRect = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-    if (creatorTheme()->widgetStyle () == Theme::StyleFlat) {
+    if (creatorTheme()->flag(Theme::FlatToolBars)) {
         // this paints the background of the bottom portion of the
         // left tab bar
         painter.fillRect(event->rect(), StyleHelper::baseColor());

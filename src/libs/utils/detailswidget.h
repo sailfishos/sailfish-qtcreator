@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DETAILSWIDGET_H
-#define DETAILSWIDGET_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -88,7 +87,7 @@ signals:
     void linkActivated(const QString &link);
     void expanded(bool);
 
-private slots:
+private:
     void setExpanded(bool);
 
 protected:
@@ -101,5 +100,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // DETAILSWIDGET_H

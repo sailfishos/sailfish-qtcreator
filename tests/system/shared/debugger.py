@@ -111,6 +111,7 @@ def removeOldBreakpoints():
     except:
         test.fatal("UI seems to have changed - check manually and fix this script.")
         return False
+    waitFor("model.rowCount() == 0", 1000)
     return test.compare(model.rowCount(), 0, "Check if all breakpoints have been removed.")
 
 # function to do simple debugging of the current (configured) project
@@ -127,6 +128,8 @@ def doSimpleDebugging(kitCount, currentKit, currentConfigName, pressContinueCoun
     expectedLabelTexts = ['Stopped\.', 'Stopped at breakpoint \d+ \(\d+\) in thread \d+\.']
     if len(expectedBPOrder) == 0:
         expectedLabelTexts.append("Running\.")
+    if JIRA.isBugStillOpen(17492):
+        expectedLabelTexts.append("QML Debugger: Error: Unknown socket error 0")
     switchViewTo(ViewConstants.PROJECTS)
     switchToBuildOrRunSettingsFor(kitCount, currentKit, ProjectSettings.RUN)
     ensureChecked(waitForObject("{container=':Qt Creator.scrollArea_QScrollArea' text='Enable QML' "

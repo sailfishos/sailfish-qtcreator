@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FANCYTABWIDGET_H
-#define FANCYTABWIDGET_H
+#pragma once
 
 #include <QIcon>
 #include <QWidget>
@@ -47,7 +46,7 @@ class FancyTab : public QObject
 
     Q_PROPERTY(float fader READ fader WRITE setFader)
 public:
-    FancyTab(QWidget *tabbar) : enabled(false), tabbar(tabbar), m_fader(0) {
+    FancyTab(QWidget *tabbar) : tabbar(tabbar){
         animator.setPropertyName("fader");
         animator.setTargetObject(this);
     }
@@ -60,12 +59,13 @@ public:
     QIcon icon;
     QString text;
     QString toolTip;
-    bool enabled;
+    bool enabled = false;
+    bool hasMenu = false;
 
 private:
     QPropertyAnimation animator;
     QWidget *tabbar;
-    float m_fader;
+    float m_fader = 0;
 };
 
 class FancyTabBar : public QWidget
@@ -92,11 +92,14 @@ public:
     void setTabEnabled(int index, bool enable);
     bool isTabEnabled(int index) const;
 
-    void insertTab(int index, const QIcon &icon, const QString &label) {
+    void insertTab(int index, const QIcon &icon, const QString &label, bool hasMenu) {
         FancyTab *tab = new FancyTab(this);
         tab->icon = icon;
         tab->text = label;
+        tab->hasMenu = hasMenu;
         m_tabs.insert(index, tab);
+        if (m_currentIndex >= index)
+            ++m_currentIndex;
         updateGeometry();
     }
     void setEnabled(int index, bool enabled);
@@ -111,16 +114,12 @@ public:
     void setTabToolTip(int index, QString toolTip) { m_tabs[index]->toolTip = toolTip; }
     QString tabToolTip(int index) const { return m_tabs.at(index)->toolTip; }
 
-    QIcon tabIcon(int index) const { return m_tabs.at(index)->icon; }
-    QString tabText(int index) const { return m_tabs.at(index)->text; }
     int count() const {return m_tabs.count(); }
     QRect tabRect(int index) const;
 
 signals:
-    void currentChanged(int);
-
-public slots:
-    void emitCurrentIndex();
+    void currentChanged(int index);
+    void menuTriggered(int index, QMouseEvent *event);
 
 private:
     static const int m_rounding;
@@ -129,7 +128,6 @@ private:
     int m_hoverIndex;
     int m_currentIndex;
     QList<FancyTab*> m_tabs;
-    QTimer m_triggerTimer;
     QSize tabSizeHint(bool minimum = false) const;
 
 };
@@ -141,7 +139,7 @@ class FancyTabWidget : public QWidget
 public:
     FancyTabWidget(QWidget *parent = 0);
 
-    void insertTab(int index, QWidget *tab, const QIcon &icon, const QString &label);
+    void insertTab(int index, QWidget *tab, const QIcon &icon, const QString &label, bool hasMenu);
     void removeTab(int index);
     void setBackgroundBrush(const QBrush &brush);
     void addCornerWidget(QWidget *widget);
@@ -162,6 +160,7 @@ public:
 signals:
     void currentAboutToShow(int index);
     void currentChanged(int index);
+    void menuTriggered(int index, QMouseEvent *event);
     void topAreaClicked(Qt::MouseButton button, Qt::KeyboardModifiers modifiers);
 
 public slots:
@@ -180,5 +179,3 @@ private:
 
 } // namespace Internal
 } // namespace Core
-
-#endif // FANCYTABWIDGET_H

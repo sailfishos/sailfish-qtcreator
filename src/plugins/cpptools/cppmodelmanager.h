@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPMODELMANAGER_H
-#define CPPMODELMANAGER_H
+#pragma once
 
 #include "cpptools_global.h"
 
@@ -55,6 +54,7 @@ class BaseEditorDocumentProcessor;
 class CppCompletionAssistProvider;
 class CppEditorDocumentHandle;
 class CppIndexingSupport;
+class RefactoringEngineInterface;
 class SymbolFinder;
 class WorkingCopy;
 
@@ -172,6 +172,9 @@ public:
     static QString configurationFileName();
     static QString editorConfigurationFileName();
 
+    static void setRefactoringEngine(RefactoringEngineInterface *refactoringEngine);
+    static RefactoringEngineInterface *refactoringEngine();
+
 signals:
     /// Project data might be locked while this is emitted.
     void aboutToRemoveFiles(const QStringList &files);
@@ -193,7 +196,7 @@ public slots:
     void updateModifiedSourceFiles();
     void GC();
 
-private slots:
+private:
     // This should be executed in the GUI thread.
     friend class Tests::ModelManagerTestHelper;
     void onAboutToLoadSession();
@@ -204,7 +207,6 @@ private slots:
     void onCurrentEditorChanged(Core::IEditor *editor);
     void onCoreAboutToClose();
 
-private:
     void initializeBuiltinModelManagerSupport();
     void delayedGC();
     void recalculateProjectPartMappings();
@@ -228,5 +230,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPMODELMANAGER_H

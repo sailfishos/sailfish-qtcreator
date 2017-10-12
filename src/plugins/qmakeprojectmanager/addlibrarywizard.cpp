@@ -28,17 +28,17 @@
 #include "librarydetailscontroller.h"
 
 #include <utils/hostosinfo.h>
+#include <utils/fileutils.h>
 
 #include <QVBoxLayout>
 #include <QRadioButton>
 #include <QLabel>
 
 #include <QFileInfo>
-#include <QDebug>
+#include <QTextStream>
 
 using namespace QmakeProjectManager;
 using namespace QmakeProjectManager::Internal;
-
 
 const char qt_file_dialog_filter_reg_exp[] =
 "^(.*)\\(([a-zA-Z0-9_.*? +;#\\-\\[\\]@\\{\\}/!<>\\$%&=^~:\\|]*)\\)$";
@@ -54,19 +54,20 @@ QStringList qt_clean_filter_list(const QString &filter)
     return f.split(QLatin1Char(' '), QString::SkipEmptyParts);
 }
 
-static bool validateLibraryPath(const QString &path, const Utils::PathChooser *pathChooser,
+static bool validateLibraryPath(const Utils::FileName &filePath,
+                                const Utils::PathChooser *pathChooser,
                                 QString *errorMessage)
 {
     Q_UNUSED(errorMessage);
-    QFileInfo fi(path);
-    if (!fi.exists())
+    if (!filePath.exists())
         return false;
 
-    const QString fileName = fi.fileName();
+    const QString fileName = filePath.fileName();
 
     QStringList filters = qt_clean_filter_list(pathChooser->promptDialogFilter());
     for (int i = 0; i < filters.count(); i++) {
         QRegExp regExp(filters.at(i));
+        regExp.setCaseSensitivity(Utils::HostOsInfo::fileNameCaseSensitivity());
         regExp.setPatternSyntax(QRegExp::Wildcard);
         if (regExp.exactMatch(fileName))
             return true;
@@ -189,11 +190,14 @@ DetailsPage::DetailsPage(AddLibraryWizard *parent)
 {
     m_libraryDetailsWidget = new Ui::LibraryDetailsWidget();
     m_libraryDetailsWidget->setupUi(this);
+
     Utils::PathChooser * const libPathChooser = m_libraryDetailsWidget->libraryPathChooser;
+    libPathChooser->setHistoryCompleter("Qmake.LibDir.History");
+
     const auto pathValidator = [libPathChooser](Utils::FancyLineEdit *edit, QString *errorMessage) {
         return libPathChooser->defaultValidationFunction()(edit, errorMessage)
-                && validateLibraryPath(libPathChooser->fileName().toString(), libPathChooser,
-                                       errorMessage);
+                && validateLibraryPath(libPathChooser->fileName(),
+                                       libPathChooser, errorMessage);
     };
     libPathChooser->setValidationFunction(pathValidator);
     setProperty(Utils::SHORT_TITLE_PROPERTY, tr("Details"));
@@ -252,8 +256,8 @@ void DetailsPage::initializePage()
     setTitle(title);
     setSubTitle(subTitle);
     if (m_libraryDetailsController) {
-        connect(m_libraryDetailsController, SIGNAL(completeChanged()),
-                this, SIGNAL(completeChanged()));
+        connect(m_libraryDetailsController, &LibraryDetailsController::completeChanged,
+                this, &QWizardPage::completeChanged);
     }
 }
 

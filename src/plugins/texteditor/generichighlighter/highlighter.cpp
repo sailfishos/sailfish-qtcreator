@@ -85,36 +85,36 @@ Highlighter::Highlighter(QTextDocument *parent) :
     m_dynamicContextsCounter(0),
     m_isBroken(false)
 {
-    static QVector<TextStyle> categories;
-    if (categories.isEmpty()) {
-        categories << C_TEXT              // Normal
-                   << C_VISUAL_WHITESPACE // VisualWhitespace
-                   << C_KEYWORD           // Keyword
-                   << C_TYPE              // DataType
-                   << C_COMMENT           // Comment
-                   << C_NUMBER            // Decimal
-                   << C_NUMBER            // BaseN
-                   << C_NUMBER            // Float
-                   << C_STRING            // Char
-                   << C_STRING            // SpecialChar
-                   << C_STRING            // String
-                   << C_WARNING           // Alert
-                   << C_TEXT              // Information
-                   << C_WARNING           // Warning
-                   << C_ERROR             // Error
-                   << C_FUNCTION          // Function
-                   << C_TEXT              // RegionMarker
-                   << C_PREPROCESSOR      // BuiltIn
-                   << C_PRIMITIVE_TYPE    // Extension
-                   << C_OPERATOR          // Operator
-                   << C_LOCAL             // Variable
-                   << C_LABEL             // Attribute
-                   << C_TEXT              // Annotation
-                   << C_COMMENT           // CommentVar
-                   << C_PREPROCESSOR      // Import
-                   << C_TEXT              // Others
-                   << C_LOCAL;            // Identifier
-    }
+    static const QVector<TextStyle> categories({
+        C_TEXT,              // Normal
+        C_VISUAL_WHITESPACE, // VisualWhitespace
+        C_KEYWORD,           // Keyword
+        C_TYPE,              // DataType
+        C_COMMENT,           // Comment
+        C_NUMBER,            // Decimal
+        C_NUMBER,            // BaseN
+        C_NUMBER,            // Float
+        C_STRING,            // Char
+        C_STRING,            // SpecialChar
+        C_STRING,            // String
+        C_WARNING,           // Alert
+        C_TEXT,              // Information
+        C_WARNING,           // Warning
+        C_ERROR,             // Error
+        C_FUNCTION,          // Function
+        C_TEXT,              // RegionMarker
+        C_PREPROCESSOR,      // BuiltIn
+        C_PRIMITIVE_TYPE,    // Extension
+        C_OPERATOR,          // Operator
+        C_LOCAL,             // Variable
+        C_LABEL,             // Attribute
+        C_TEXT,              // Annotation
+        C_COMMENT,           // CommentVar
+        C_PREPROCESSOR,      // Import
+        C_TEXT,              // Others
+        C_LOCAL,             // Identifier
+        C_DOXYGEN_COMMENT    // Documentation
+    });
 
     setTextFormatCategories(categories);
 }
@@ -157,6 +157,7 @@ KateFormatMap::KateFormatMap()
     m_ids.insert(QLatin1String("dsImport"), Highlighter::Import);
     m_ids.insert(QLatin1String("dsOthers"), Highlighter::Others);
     m_ids.insert(QLatin1String("dsIdentifier"), Highlighter::Identifier);
+    m_ids.insert(QLatin1String("dsDocumentation"), Highlighter::Documentation);
 }
 
 Q_GLOBAL_STATIC(KateFormatMap, kateFormatMap)
@@ -199,6 +200,11 @@ void Highlighter::highlightBlock(const QString &text)
 
             if (extractObservableState(currentBlockState()) != WillContinue) {
                 handleContextChange(m_currentContext->lineEndContext(),
+                                    m_currentContext->definition(),
+                                    false);
+            }
+            if (length == 0) {
+                handleContextChange(m_currentContext->lineEmptyContext(),
                                     m_currentContext->definition(),
                                     false);
             }
@@ -409,8 +415,8 @@ void Highlighter::changeContext(const QString &contextName,
                                 const bool assignCurrent)
 {
     if (contextName.startsWith(kPop)) {
-        QStringList list = contextName.split(kHash, QString::SkipEmptyParts);
-        for (int i = 0; i < list.size(); ++i) {
+        const int count = contextName.splitRef(kHash, QString::SkipEmptyParts).size();
+        for (int i = 0; i < count; ++i) {
             if (m_contexts.isEmpty()) {
                 throw HighlighterException(
                         QCoreApplication::translate("GenericHighlighter", "Reached empty context."));

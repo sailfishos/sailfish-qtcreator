@@ -37,26 +37,27 @@ Item {
 
     property variant backendValue
 
-    property string icon:  "images/placeholder.png"
-    property string hoverIcon:  "images/submenu.png";
+    property string icon: "image://icons/placeholder"
+    property string hoverIcon: "image://icons/submenu"
 
     property bool active: true
+
+    signal reseted
 
 
     function setIcon() {
         if (backendValue == null) {
-            extendedFunctionButton.icon = "images/placeholder.png"
+            extendedFunctionButton.icon = "image://icons/placeholder"
         } else if (backendValue.isBound ) {
             if (backendValue.isTranslated) { //translations are a special case
-                extendedFunctionButton.icon = "images/placeholder.png"
+                extendedFunctionButton.icon = "image://icons/placeholder"
             } else {
-                extendedFunctionButton.icon = "images/expression.png"
+                extendedFunctionButton.icon = "image://icons/expression"
             }
         } else {
             if (backendValue.complexNode != null && backendValue.complexNode.exists) {
-                //extendedFunctionButton.icon = "images/behaivour.png"
             } else {
-                extendedFunctionButton.icon = "images/placeholder.png"
+                extendedFunctionButton.icon = "image://icons/placeholder"
             }
         }
     }
@@ -86,6 +87,8 @@ Item {
     }
 
     Image {
+        width: 14
+        height: 14
         source: extendedFunctionButton.icon
         anchors.centerIn: parent
     }
@@ -105,124 +108,102 @@ Item {
     }
 
     Controls.Menu {
+
         id: menu
+
+
+        onAboutToShow: {
+            exportMenuItem.checked = backendValue.hasPropertyAlias()
+            exportMenuItem.enabled = !backendValue.isAttachedProperty()
+        }
+
         Controls.MenuItem {
-            text: "Reset"
+            text: qsTr("Reset")
             onTriggered: {
                 transaction.start();
                 backendValue.resetValue();
                 backendValue.resetValue();
                 transaction.end();
+                extendedFunctionButton.reseted()
             }
         }
         Controls.MenuItem {
-            text: "Set Binding"
+            text: qsTr("Set Binding")
             onTriggered: {
                 textField.text = backendValue.expression
                 expressionDialog.visible = true
+                textField.forceActiveFocus()
             }
+        }
+        Controls.MenuItem {
+            id: exportMenuItem
+            text: qsTr("Export Property as Alias")
+            onTriggered: {
+                if (checked)
+                    backendValue.exportPopertyAsAlias();
+                else
+                    backendValue.removeAliasExport();
+            }
+            checkable: true
         }
     }
 
-    Rectangle {
-        parent: itemPane
-        visible: false
-        x: 10
-        color: "#424242"
+    Item {
 
-        radius: 3
-        border.color: "black"
-        gradient: Gradient {
-            GradientStop {color: "#2c2c2c" ; position: 0}
-            GradientStop {color: "#343434" ; position: 0.15}
-            GradientStop {color: "#373737" ; position: 1.0}
+        Rectangle {
+            anchors.fill: parent
+            color: creatorTheme.QmlDesignerBackgroundColorDarker
+            opacity: 0.6
         }
+
+        MouseArea {
+            anchors.fill: parent
+            onDoubleClicked: expressionDialog.visible = false
+        }
+
 
         id: expressionDialog
+        visible: false
+        parent: itemPane
 
-        onVisibleChanged: {
-            var pos  = itemPane.mapFromItem(extendedFunctionButton.parent, 0, 0);
-            y = pos.y + 2;
-        }
+        anchors.fill: parent
 
-        width: parent.width - 20
-        height: 120
 
-        Controls.TextField {
-            id: textField
-            anchors.fill: parent
-            anchors.leftMargin: 4
-            anchors.rightMargin: 4
-            anchors.topMargin: 4
-            anchors.bottomMargin: 20
-            onAccepted: {
-                backendValue.expression = textField.text
-                expressionDialog.visible = false
+
+        Rectangle {
+            x: 4
+            onVisibleChanged: {
+                var pos  = itemPane.mapFromItem(extendedFunctionButton.parent, 0, 0);
+                y = pos.y + 2;
             }
 
-            style: TextFieldStyle {
-                textColor: Constants.colorsDefaultText
-                padding.top: 3
-                padding.bottom: 1
-                padding.left: 16
-                placeholderTextColor: "gray"
-                background: Rectangle {
-                    implicitWidth: 100
-                    implicitHeight: 23
-                    radius: 3
-                    gradient: Gradient {
-                        GradientStop {color: "#2c2c2c" ; position: 0}
-                        GradientStop {color: "#343434" ; position: 0.15}
-                        GradientStop {color: "#373737" ; position: 1.0}
-                    }
-                }
-            }
-        }
+            width: parent.width - 8
+            height: 260
 
-        Row {
-            spacing: 0
-            Button {
-                style: ButtonStyle {
-                    background: Image {
-                        source: "images/apply.png"
-                        Rectangle {
-                            opacity:  control.pressed ? 0.5 : 0
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                GradientStop {color: "#606060" ; position: 0}
-                                GradientStop {color: "#404040" ; position: 0.07}
-                                GradientStop {color: "#303030" ; position: 1}
-                            }
-                        }
-                    }
-                }
-                onClicked: {
-                    backendValue.expression = textField.text
+            radius: 2
+            color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
+            border.color: creatorTheme.QmlDesignerBorderColor
+
+            Label {
+                x: 8
+                y: 6
+                font.bold: true
+                text: qsTr("Binding Editor")
+            }
+
+            ExpressionTextField {
+                id: textField
+                onRejected: expressionDialog.visible = false
+                onAccepted: {
+                    backendValue.expression = textField.text.trim()
                     expressionDialog.visible = false
                 }
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                anchors.topMargin: 24
+                anchors.bottomMargin: 32
             }
-            Button {
-                style: ButtonStyle {
-                    background: Image {
-                        source: "images/cancel.png"
-
-                        Rectangle {
-                            opacity:  control.pressed ? 0.5 : 0
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                GradientStop {color: "#606060" ; position: 0}
-                                GradientStop {color: "#404040" ; position: 0.07}
-                                GradientStop {color: "#303030" ; position: 1}
-                            }
-                        }
-                    }
-                }
-                onClicked: {
-                    expressionDialog.visible = false
-                }
-            }
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
         }
     }
 

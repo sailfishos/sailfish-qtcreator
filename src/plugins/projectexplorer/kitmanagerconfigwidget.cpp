@@ -60,12 +60,10 @@ KitManagerConfigWidget::KitManagerConfigWidget(Kit *k) :
     m_nameEdit(new QLineEdit),
     m_fileSystemFriendlyNameLineEdit(new QLineEdit),
     m_kit(k),
-    m_modifiedKit(new Kit(Core::Id(WORKING_COPY_KIT_ID))),
-    m_fixingKit(false),
-    m_hasUniqueName(true)
+    m_modifiedKit(new Kit(Core::Id(WORKING_COPY_KIT_ID)))
 {
-    static const Qt::Alignment alignment
-            = static_cast<Qt::Alignment>(style()->styleHint(QStyle::SH_FormLayoutLabelAlignment));
+    static auto alignment
+            = static_cast<const Qt::Alignment>(style()->styleHint(QStyle::SH_FormLayoutLabelAlignment));
 
     m_layout->addWidget(m_nameEdit, 0, WidgetColumn);
     m_layout->addWidget(m_iconButton, 0, ButtonColumn);
@@ -86,10 +84,10 @@ KitManagerConfigWidget::KitManagerConfigWidget(Kit *k) :
     connect(m_fileSystemFriendlyNameLineEdit, &QLineEdit::textChanged,
             this, &KitManagerConfigWidget::setFileSystemFriendlyName);
 
-    QWidget *inner = new QWidget;
+    auto inner = new QWidget;
     inner->setLayout(m_layout);
 
-    QGridLayout *mainLayout = new QGridLayout(this);
+    auto mainLayout = new QGridLayout(this);
     mainLayout->setMargin(1);
     mainLayout->addWidget(inner, 0, 0);
 
@@ -97,11 +95,19 @@ KitManagerConfigWidget::KitManagerConfigWidget(Kit *k) :
     label = createLabel(tr("Name:"), toolTip);
     m_layout->addWidget(label, 0, LabelColumn, alignment);
     m_iconButton->setToolTip(toolTip);
+    auto setIconAction = new QAction(tr("Select Icon File"), this);
+    m_iconButton->addAction(setIconAction);
+    auto resetIconAction = new QAction(tr("Reset to Device Default Icon"), this);
+    m_iconButton->addAction(resetIconAction);
 
     discard();
 
     connect(m_iconButton, &QAbstractButton::clicked,
             this, &KitManagerConfigWidget::setIcon);
+    connect(setIconAction, &QAction::triggered,
+            this, &KitManagerConfigWidget::setIcon);
+    connect(resetIconAction, &QAction::triggered,
+            this, &KitManagerConfigWidget::resetIcon);
     connect(m_nameEdit, &QLineEdit::textChanged,
             this, &KitManagerConfigWidget::setDisplayName);
 
@@ -134,6 +140,11 @@ QString KitManagerConfigWidget::displayName() const
     if (m_cachedDisplayName.isEmpty())
         m_cachedDisplayName = m_modifiedKit->displayName();
     return m_cachedDisplayName;
+}
+
+QIcon KitManagerConfigWidget::icon() const
+{
+    return m_modifiedKit->icon();
 }
 
 void KitManagerConfigWidget::apply()
@@ -207,7 +218,7 @@ void KitManagerConfigWidget::addConfigWidget(KitConfigWidget *widget)
     QString name = widget->displayName();
     QString toolTip = widget->toolTip();
 
-    QAction *action = new QAction(tr("Mark as Mutable"), 0);
+    auto action = new QAction(tr("Mark as Mutable"), 0);
     action->setCheckable(true);
     action->setChecked(widget->isMutable());
     action->setEnabled(!widget->isSticky());
@@ -225,8 +236,8 @@ void KitManagerConfigWidget::addConfigWidget(KitConfigWidget *widget)
     if (QWidget *button = widget->buttonWidget())
         m_layout->addWidget(button, row, ButtonColumn);
 
-    static const Qt::Alignment alignment
-        = static_cast<Qt::Alignment>(style()->styleHint(QStyle::SH_FormLayoutLabelAlignment));
+    static auto alignment
+        = static_cast<const Qt::Alignment>(style()->styleHint(QStyle::SH_FormLayoutLabelAlignment));
     QLabel *label = createLabel(name, toolTip);
     m_layout->addWidget(label, row, LabelColumn, alignment);
     m_widgets.append(widget);
@@ -291,19 +302,24 @@ void KitManagerConfigWidget::removeKit()
 
 void KitManagerConfigWidget::setIcon()
 {
-    const Utils::FileName path = Utils::FileName::fromString(
-                QFileDialog::getOpenFileName(this, tr("Select Icon"),
-                                             m_modifiedKit->iconPath().toString(),
-                                             tr("Images (*.png *.xpm *.jpg)")));
+    const QString path = QFileDialog::getOpenFileName(this, tr("Select Icon"),
+                                                      m_modifiedKit->iconPath().toString(),
+                                                      tr("Images (*.png *.xpm *.jpg)"));
     if (path.isEmpty())
         return;
 
-    const QIcon icon = Kit::icon(path);
+    const QIcon icon(path);
     if (icon.isNull())
         return;
 
     m_iconButton->setIcon(icon);
-    m_modifiedKit->setIconPath(path);
+    m_modifiedKit->setIconPath(Utils::FileName::fromString(path));
+    emit dirty();
+}
+
+void KitManagerConfigWidget::resetIcon()
+{
+    m_modifiedKit->setIconPath(Utils::FileName());
     emit dirty();
 }
 
@@ -365,7 +381,7 @@ void KitManagerConfigWidget::showEvent(QShowEvent *event)
 
 QLabel *KitManagerConfigWidget::createLabel(const QString &name, const QString &toolTip)
 {
-    QLabel *label = new QLabel(name);
+    auto label = new QLabel(name);
     label->setToolTip(toolTip);
     return label;
 }

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef MODELEDITORCONSTANTS_H
-#define MODELEDITORCONSTANTS_H
+#pragma once
 
 namespace ModelEditor {
 namespace Constants {
@@ -37,10 +36,14 @@ const char DELETE_SELECTED_ELEMENTS[] = "ModelEditor.DeleteSelectedElements";
 const char OPEN_PARENT_DIAGRAM[] = "ModelEditor.OpenParentDiagram";
 const char MENU_ID[] = "ModelEditor.Menu";
 const char EXPORT_DIAGRAM[] = "ModelEditor.ExportDiagram";
+const char ZOOM_IN[] = "ModelEditor.ZoomIn";
+const char ZOOM_OUT[] = "ModelEditor.ZoomOut";
+const char RESET_ZOOM[] = "ModelEditor.ResetZoom";
 const char ACTION_ADD_PACKAGE[] = "ModelEditor.Action.AddPackage";
 const char ACTION_ADD_COMPONENT[] = "ModelEditor.Action.AddComponent";
 const char ACTION_ADD_CLASS[] = "ModelEditor.Action.AddClass";
 const char ACTION_ADD_CANVAS_DIAGRAM[] = "ModelEditor.Action.AddCanvasDiagram";
+const char ACTION_SYNC_BROWSER[] = "ModelEditor.Action.SynchronizeBrowser";
 
 const char EXPLORER_GROUP_MODELING[] = "ModelEditor.ProjectFolder.Group.Modeling";
 const char ACTION_EXPLORER_OPEN_DIAGRAM[] = "ModelEditor.Action.Explorer.OpenDiagram";
@@ -63,5 +66,3 @@ const char SETTINGS_RIGHT_HORIZ_SPLITTER[] = "RightHorizSplitter";
 
 } // namespace Constants
 } // namespace ModelEditor
-
-#endif // MODELEDITORCONSTANTS_H

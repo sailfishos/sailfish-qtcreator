@@ -71,7 +71,7 @@
                 the rectangle and produce rounded corners for the button.
 
             \li Select \uicontrol {Layout}, and then select the
-                \inlineimage anchor-fill-normal.png
+                \inlineimage anchor_fill.png
                 (\uicontrol {Fill to Parent}) button to anchor the rectangle to
                 the item.
 
@@ -106,8 +106,8 @@
     \endlist
 
     To create a graphical button that scales beautifully without using vector
-    graphics, use the \l{BorderImage} type. For more information, see
-    \l{Creating Scalable Buttons and Borders}.
+    graphics, use the \l [QML]{BorderImage}{Border Image} type. For more
+    information, see \l{Creating Scalable Buttons and Borders}.
 
     */
 
@@ -121,17 +121,17 @@
 
     \title Creating Scalable Buttons and Borders
 
-    You can use the
-    \l{BorderImage} type to display an image, such as a PNG file, as a border
-    and a background.
+    You can use the \l [QML]{BorderImage}{Border Image} type to display an
+    image, such as a PNG file, as a border and a background.
 
     Use two border images and suitable graphics to make it look like the
     button is pushed down when it is clicked. One of the border images
     is visible by default. You can specify that it is hidden and the other one
     becomes visible when the mouse is clicked.
 
-    Add a \l MouseArea type that covers the whole area and emits the clicked
-    signal (\c {item.clicked()}) when it detects a mouse click.
+    Add a \l [QML]{MouseArea}{Mouse Area} type that covers the whole area and
+    emits the clicked signal (\c {item.clicked()}) when it detects a mouse
+    click.
 
     You can add text to the button and set it up as a property. The text can
     then be initialized from the outside, making the button a reusable UI
@@ -159,10 +159,10 @@
             width (\uicontrol W) and height (\uicontrol H) of the button in the
             \uicontrol Properties pane.
 
-        \li Select \uicontrol Connections > \uicontrol {Dynamic Properties} >
+        \li Select \uicontrol Connections > \uicontrol {Properties} >
             \uicontrol Add to add properties for the item:
 
-            \image qmldesigner-borderimage-properties.png "Dynamic properties"
+            \image qmldesigner-borderimage-properties.png "Properties"
 
             \list a
 
@@ -198,7 +198,7 @@
                 for example button_up.png.
 
             \li  Click \uicontrol {Layout}, and then click the
-                \inlineimage anchor-fill-normal.png
+                \inlineimage anchor_fill.png
                 (\uicontrol {Fill to Parent}) button to anchor the border image to the
                 \uicontrol Item.
 
@@ -248,9 +248,9 @@
                 \endlist
 
             \li Click \uicontrol {Layout}, and then click the
-                \inlineimage anchor-vertical-normal.png
+                \inlineimage anchor_vertical.png
                 (\uicontrol {Set Vertical Anchor}) and
-                \inlineimage anchor-horizontal-normal.png
+                \inlineimage anchor_horizontal.png
                 (\uicontrol {Set Horizontal Anchor})
                 buttons to inherit the vertical and horizontal centering from
                 the parent.

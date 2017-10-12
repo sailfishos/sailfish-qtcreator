@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPFINDREFERENCES_H
-#define CPPFINDREFERENCES_H
+#pragma once
 
 #include <cplusplus/FindUsages.h>
 
@@ -71,16 +70,11 @@ public:
     void findMacroUses(const CPlusPlus::Macro &macro);
     void renameMacroUses(const CPlusPlus::Macro &macro, const QString &replacement = QString());
 
-private slots:
-    void displayResults(int first, int last);
-    void searchFinished();
-    void cancel();
-    void setPaused(bool paused);
+private:
     void openEditor(const Core::SearchResultItem &item);
     void onReplaceButtonClicked(const QString &text, const QList<Core::SearchResultItem> &items, bool preserveCase);
     void searchAgain();
 
-private:
     void findUsages(CPlusPlus::Symbol *symbol, const CPlusPlus::LookupContext &context,
                     const QString &replacement, bool replace);
     void findMacroUses(const CPlusPlus::Macro &macro, const QString &replacement,
@@ -93,12 +87,9 @@ private:
 
 private:
     QPointer<CppModelManager> m_modelManager;
-    QMap<QFutureWatcher<CPlusPlus::Usage> *, QPointer<Core::SearchResult> > m_watchers;
 };
 
 } // namespace Internal
 } // namespace CppTools
 
 Q_DECLARE_METATYPE(CppTools::Internal::CppFindReferencesParameters)
-
-#endif // CPPFINDREFERENCES_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CIRCULARCLIPBOARDASSIST_H
-#define CIRCULARCLIPBOARDASSIST_H
+#pragma once
 
 #include "codeassist/iassistprovider.h"
 
@@ -35,6 +34,7 @@ namespace Internal {
 class ClipboardAssistProvider: public IAssistProvider
 {
 public:
+    ClipboardAssistProvider(QObject *parent = 0) : IAssistProvider(parent) {}
     IAssistProvider::RunType runType() const override;
     bool supportsEditor(Core::Id editorId) const override;
     IAssistProcessor *createProcessor() const override;
@@ -42,5 +42,3 @@ public:
 
 } // namespace Internal
 } // namespace TextEditor
-
-#endif // CIRCULARCLIPBOARDASSIST_H

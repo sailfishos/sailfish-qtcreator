@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef UTILS_ENVIRONMENT_H
-#define UTILS_ENVIRONMENT_H
+#pragma once
 
 #include "fileutils.h"
 #include "hostosinfo.h"
@@ -66,6 +65,9 @@ public:
     explicit Environment(OsType osType = HostOsInfo::hostOs()) : m_osType(osType) {}
     explicit Environment(const QStringList &env, OsType osType = HostOsInfo::hostOs());
     static Environment systemEnvironment();
+    static void setupEnglishOutput(Environment *environment);
+    static void setupEnglishOutput(QProcessEnvironment *environment);
+    static void setupEnglishOutput(QStringList *environment);
 
     QStringList toStringList() const;
     QProcessEnvironment toProcessEnvironment() const;
@@ -98,7 +100,9 @@ public:
     Environment::const_iterator constFind(const QString &name) const;
 
     FileName searchInPath(const QString &executable,
-                          const QStringList &additionalDirs = QStringList()) const;
+                          const QStringList &additionalDirs = QStringList(),
+                          bool (*func)(const QString &name) = nullptr) const;
+
     QStringList path() const;
     QStringList appendExeExtensions(const QString &executable) const;
 
@@ -115,5 +119,3 @@ private:
 };
 
 } // namespace Utils
-
-#endif // UTILS_ENVIRONMENT_H

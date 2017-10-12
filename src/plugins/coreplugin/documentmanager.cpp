@@ -29,6 +29,7 @@
 #include "idocument.h"
 #include "coreconstants.h"
 
+#include <coreplugin/diffservice.h>
 #include <coreplugin/dialogs/readonlyfilesdialog.h>
 #include <coreplugin/dialogs/saveitemsdialog.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -37,6 +38,8 @@
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/editormanager/ieditorfactory.h>
 #include <coreplugin/editormanager/iexternaleditor.h>
+
+#include <extensionsystem/pluginmanager.h>
 
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
@@ -229,6 +232,9 @@ DocumentManager::DocumentManager(QObject *parent)
     qApp->installEventFilter(this);
 
     readSettings();
+
+    if (d->m_useProjectsDirectory)
+        setFileDialogLastVisitedDirectory(d->m_projectsDirectory);
 }
 
 DocumentManager::~DocumentManager()
@@ -603,6 +609,11 @@ static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
                     (*alwaysSave) = dia.alwaysSaveChecked();
                 if (failedToSave)
                     (*failedToSave) = modifiedDocuments;
+                const QStringList filesToDiff = dia.filesToDiff();
+                if (!filesToDiff.isEmpty()) {
+                    if (auto diffService = ExtensionSystem::PluginManager::getObject<DiffService>())
+                        diffService->diffModifiedFiles(filesToDiff);
+                }
                 return false;
             }
             if (alwaysSave)
@@ -692,20 +703,22 @@ QString DocumentManager::getSaveFileName(const QString &title, const QString &pa
                 const int index = regExp.lastIndexIn(*selectedFilter);
                 if (index != -1) {
                     bool suffixOk = false;
-                    const QStringList &suffixes = regExp.cap(1).remove(QLatin1Char('*')).split(QLatin1Char(' '));
-                    foreach (const QString &suffix, suffixes)
+                    QString caption = regExp.cap(1);
+                    caption.remove(QLatin1Char('*'));
+                    const QVector<QStringRef> suffixes = caption.splitRef(QLatin1Char(' '));
+                    foreach (const QStringRef &suffix, suffixes)
                         if (fileName.endsWith(suffix)) {
                             suffixOk = true;
                             break;
                         }
                     if (!suffixOk && !suffixes.isEmpty())
-                        fileName.append(suffixes.at(0));
+                        fileName.append(suffixes.at(0).toString());
                 }
             }
             if (QFile::exists(fileName)) {
                 if (QMessageBox::warning(ICore::dialogParent(), tr("Overwrite?"),
                     tr("An item named \"%1\" already exists at this location. "
-                       "Do you want to overwrite it?").arg(fileName),
+                       "Do you want to overwrite it?").arg(QDir::toNativeSeparators(fileName)),
                     QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
                     repeat = true;
                 }
@@ -727,40 +740,36 @@ QString DocumentManager::getSaveFileNameWithExtension(const QString &title, cons
 /*!
     Asks the user for a new file name (\gui {Save File As}) for \a document.
 */
-QString DocumentManager::getSaveAsFileName(const IDocument *document, const QString &filter, QString *selectedFilter)
+QString DocumentManager::getSaveAsFileName(const IDocument *document)
 {
-    if (!document)
-        return QLatin1String("");
-    QString absoluteFilePath = document->filePath().toString();
-    const QFileInfo fi(absoluteFilePath);
-    QString path;
-    QString fileName;
-    if (absoluteFilePath.isEmpty()) {
-        fileName = document->fallbackSaveAsFileName();
+    QTC_ASSERT(document, return QString());
+    Utils::MimeDatabase mdb;
+    const QString filter = Utils::MimeDatabase::allFiltersString();
+    const QString filePath = document->filePath().toString();
+    QString selectedFilter;
+    QString fileDialogPath = filePath;
+    if (!filePath.isEmpty()) {
+        selectedFilter = mdb.mimeTypeForFile(filePath).filterString();
+    } else {
+        const QString suggestedName = document->fallbackSaveAsFileName();
+        if (!suggestedName.isEmpty()) {
+            const QList<MimeType> types = mdb.mimeTypesForFileName(suggestedName);
+            if (!types.isEmpty())
+                selectedFilter = types.first().filterString();
+        }
         const QString defaultPath = document->fallbackSaveAsPath();
         if (!defaultPath.isEmpty())
-            path = defaultPath;
-    } else {
-        path = fi.absolutePath();
-        fileName = fi.fileName();
+            fileDialogPath = defaultPath + (suggestedName.isEmpty()
+                    ? QString()
+                    : '/' + suggestedName);
     }
+    if (selectedFilter.isEmpty())
+        selectedFilter = mdb.mimeTypeForName(document->mimeType()).filterString();
 
-    QString filterString;
-    if (filter.isEmpty()) {
-        Utils::MimeDatabase mdb;
-        const Utils::MimeType &mt = mdb.mimeTypeForFile(fi);
-        if (mt.isValid())
-            filterString = mt.filterString();
-        selectedFilter = &filterString;
-    } else {
-        filterString = filter;
-    }
-
-    absoluteFilePath = getSaveFileName(tr("Save File As"),
-        path + QLatin1Char('/') + fileName,
-        filterString,
-        selectedFilter);
-    return absoluteFilePath;
+    return getSaveFileName(tr("Save File As"),
+                           fileDialogPath,
+                           filter,
+                           &selectedFilter);
 }
 
 /*!
@@ -886,13 +895,7 @@ QStringList DocumentManager::getOpenFileNames(const QString &filters,
                                               const QString &pathIn,
                                               QString *selectedFilter)
 {
-    QString path = pathIn;
-    if (path.isEmpty()) {
-        if (EditorManager::currentDocument() && !EditorManager::currentDocument()->isTemporary())
-            path = EditorManager::currentDocument()->filePath().toString();
-        if (path.isEmpty() && useProjectsDirectory())
-            path = projectsDirectory();
-    }
+    const QString &path = pathIn.isEmpty() ? fileDialogInitialDirectory() : pathIn;
     const QStringList files = QFileDialog::getOpenFileNames(ICore::dialogParent(),
                                                       tr("Open File"),
                                                       path, filters,
@@ -981,6 +984,7 @@ void DocumentManager::checkForReload()
 
     // handle the IDocuments
     QStringList errorStrings;
+    QStringList filesToDiff;
     foreach (IDocument *document, changedIDocuments) {
         IDocument::ChangeTrigger trigger = IDocument::TriggerInternal;
         IDocument::ChangeType type = IDocument::TypePermissions;
@@ -1070,7 +1074,7 @@ void DocumentManager::checkForReload()
             // IDocument wants us to ask
             } else if (type == IDocument::TypeContents) {
                 // content change, IDocument wants to ask user
-                if (previousReloadAnswer == ReloadNone) {
+                if (previousReloadAnswer == ReloadNone || previousReloadAnswer == ReloadNoneAndDiff) {
                     // answer already given, ignore
                     success = document->reload(&errorString, IDocument::FlagIgnore, IDocument::TypeContents);
                 } else if (previousReloadAnswer == ReloadAll) {
@@ -1079,7 +1083,8 @@ void DocumentManager::checkForReload()
                 } else {
                     // Ask about content change
                     previousReloadAnswer = reloadPrompt(document->filePath(), document->isModified(),
-                                                               ICore::dialogParent());
+                                                        ExtensionSystem::PluginManager::getObject<DiffService>(),
+                                                        ICore::dialogParent());
                     switch (previousReloadAnswer) {
                     case ReloadAll:
                     case ReloadCurrent:
@@ -1087,6 +1092,7 @@ void DocumentManager::checkForReload()
                         break;
                     case ReloadSkipCurrent:
                     case ReloadNone:
+                    case ReloadNoneAndDiff:
                         success = document->reload(&errorString, IDocument::FlagIgnore, IDocument::TypeContents);
                         break;
                     case CloseCurrent:
@@ -1094,6 +1100,9 @@ void DocumentManager::checkForReload()
                         break;
                     }
                 }
+                if (previousReloadAnswer == ReloadNoneAndDiff)
+                    filesToDiff.append(document->filePath().toString());
+
             // IDocument wants us to ask, and it's the TypeRemoved case
             } else {
                 // Ask about removed file
@@ -1137,6 +1146,12 @@ void DocumentManager::checkForReload()
 
         d->m_blockedIDocument = 0;
     }
+
+    if (!filesToDiff.isEmpty()) {
+        if (auto diffService = ExtensionSystem::PluginManager::getObject<DiffService>())
+            diffService->diffModifiedFiles(filesToDiff);
+    }
+
     if (!errorStrings.isEmpty())
         QMessageBox::critical(ICore::dialogParent(), tr("File Error"),
                               errorStrings.join(QLatin1Char('\n')));

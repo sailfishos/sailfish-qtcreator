@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef WINRT_INTERNAL_WINRTDEBUGSUPPORT_H
-#define WINRT_INTERNAL_WINRTDEBUGSUPPORT_H
+#pragma once
 
 #include <projectexplorer/runconfiguration.h>
 
@@ -48,17 +47,14 @@ public:
 private:
     WinRtDebugSupport(ProjectExplorer::RunControl *runControl, WinRtRunnerHelper *runner);
 
+    void finish();
+
     static bool useQmlDebugging(WinRtRunConfiguration *runConfig);
-    static bool getFreePort(quint16 &qmlDebuggerPort, QString *errorMessage);
+    static bool getFreePort(Utils::Port &qmlDebuggerPort, QString *errorMessage);
 
     ProjectExplorer::RunControl *m_debugRunControl;
     WinRtRunnerHelper *m_runner;
-
-private slots:
-    void finish();
 };
 
 } // namespace Internal
 } // namespace WinRt
-
-#endif // WINRT_INTERNAL_WINRTDEBUGSUPPORT_H

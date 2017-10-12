@@ -37,30 +37,28 @@ def main():
     mainWindow = waitForObject(":Qt Creator_Core::Internal::MainWindow")
     test.verify(waitFor("sessionName in str(mainWindow.windowTitle)", 2000),
                 "Verifying window title contains created session name.")
-    if canTestEmbeddedQtQuick():
-        checkWelcomePage(sessionName, True)
+    checkWelcomePage(sessionName, True)
     for project in projects:
-        openQmakeProject(project, Targets.DESKTOP_480_DEFAULT)
+        openQmakeProject(project, Targets.DESKTOP_531_DEFAULT)
     progressBarWait(20000)
-    checkNavigator(70, "Verifying whether all projects have been opened.")
-    openDocument("propertyanimation.QML.qml.color-animation\\.qml")
-    openDocument("declarative-music-browser.Headers.utility\\.h")
+    checkNavigator(53, "Verifying whether all projects have been opened.")
+    openDocument("animation.Resources.animation\\.qrc./animation.basics.animators\\.qml")
+    openDocument("keyinteraction.Sources.main\\.cpp")
     checkOpenDocuments(2, "Verifying whether 2 files are open.")
     originalText = str(waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget").plainText)
     switchSession("default")
     test.verify(waitFor("'Qt Creator' == str(mainWindow.windowTitle)", 2000),
                 "Verifying window title is set to default.")
-    if canTestEmbeddedQtQuick():
-        checkWelcomePage(sessionName, False)
-        switchViewTo(ViewConstants.EDIT)
+    checkWelcomePage(sessionName, False)
+    switchViewTo(ViewConstants.EDIT)
     checkNavigator(1, "Verifying that no more project is opened.")
     checkOpenDocuments(0, "Verifying whether all files have been closed.")
     switchSession(sessionName)
     test.verify(waitFor("sessionName in str(mainWindow.windowTitle)", 2000),
                 "Verifying window title contains created session name.")
-    checkNavigator(70, "Verifying whether all projects have been re-opened.")
+    checkNavigator(53, "Verifying whether all projects have been re-opened.")
     checkOpenDocuments(2, "Verifying whether 2 files have been re-opened.")
-    if test.verify("utility.h" in str(mainWindow.windowTitle),
+    if test.verify("main.cpp" in str(mainWindow.windowTitle),
                    "Verifying whether utility.h has been opened."):
         current = str(waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget").plainText)
         test.verify(originalText == current, "Verifying that same file has been opened.")
@@ -68,10 +66,10 @@ def main():
     invokeMenuItem("File", "Exit")
 
 def prepareTestExamples():
-    examples = [os.path.join(sdkPath, "Examples", "4.7", "declarative", "animation", "basics",
-                             "property-animation", "propertyanimation.pro"),
-                os.path.join(sdkPath, "Examples", "QtMobility", "declarative-music-browser",
-                             "declarative-music-browser.pro")
+    examples = [os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_561_DEFAULT),
+                             "quick", "animation", "animation.pro"),
+                os.path.join(Qt5Path.examplesPath(Targets.DESKTOP_561_DEFAULT),
+                             "quick", "keyinteraction", "keyinteraction.pro")
                 ]
     projects = []
     for sourceExample in examples:
@@ -86,7 +84,7 @@ def prepareTestExamples():
 def switchSession(toSession):
     test.log("Switching to session '%s'" % toSession)
     invokeMenuItem("File", "Session Manager...")
-    clickItem(waitForObject("{name='sessionList' type='QListWidget' visible='1' "
+    clickItem(waitForObject("{name='sessionView' type='ProjectExplorer::Internal::SessionView' visible='1' "
                             "window=':Session Manager_ProjectExplorer::Internal::SessionDialog'}"),
                             toSession, 5, 5, 0, Qt.LeftButton)
     clickButton(waitForObject("{name='btSwitch' text='Switch to' type='QPushButton' visible='1' "

@@ -25,6 +25,8 @@
 
 #include "itemlibrarywidget.h"
 
+#include <theming.h>
+
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/stylehelper.h>
@@ -60,12 +62,14 @@ namespace QmlDesigner {
 ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     QFrame(parent),
     m_itemIconSize(24, 24),
-    m_resIconSize(24, 24),
+    m_resIconSize(64, 64),
     m_iconProvider(m_resIconSize),
     m_itemViewQuickWidget(new QQuickWidget),
     m_resourcesView(new ItemLibraryTreeView(this)),
     m_filterFlag(QtBasic)
 {
+    m_compressionTimer.setInterval(200);
+    m_compressionTimer.setSingleShot(true);
     ItemLibraryModel::registerQmlTypes();
 
     setWindowTitle(tr("Library", "Title of library view"));
@@ -79,6 +83,7 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     rootContext->setContextProperty(QStringLiteral("itemLibraryIconWidth"), m_itemIconSize.width());
     rootContext->setContextProperty(QStringLiteral("itemLibraryIconHeight"), m_itemIconSize.height());
     rootContext->setContextProperty(QStringLiteral("rootView"), this);
+    rootContext->setContextProperty(QLatin1String("creatorTheme"), Theming::theme());
 
     m_itemViewQuickWidget->rootContext()->setContextProperty(QStringLiteral("highlightColor"), Utils::StyleHelper::notTooBrightHighlightColor());
 
@@ -90,6 +95,7 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
 
     /* create image provider for loading item icons */
     m_itemViewQuickWidget->engine()->addImageProvider(QStringLiteral("qmldesigner_itemlibrary"), new Internal::ItemLibraryImageProvider);
+    Theming::registerIconProvider(m_itemViewQuickWidget->engine());
 
     /* other widgets */
     QTabBar *tabBar = new QTabBar(this);
@@ -135,15 +141,16 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     layout->addWidget(lineEditFrame, 2, 0, 1, 1);
     layout->addWidget(m_stackedWidget.data(), 3, 0, 1, 1);
 
-    setResourcePath(QDir::currentPath());
     setSearchFilter(QString());
 
     /* style sheets */
-    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/stylesheet.css"))));
-    m_resourcesView->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
+    setStyleSheet(Theming::replaceCssColors(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/stylesheet.css")))));
+    m_resourcesView->setStyleSheet(Theming::replaceCssColors(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
 
     m_qmlSourceUpdateShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F5), this);
     connect(m_qmlSourceUpdateShortcut, SIGNAL(activated()), this, SLOT(reloadQmlSource()));
+
+    connect(&m_compressionTimer, SIGNAL(timeout()), this, SLOT(updateModel()));
 
     // init the first load of the QML UI elements
     reloadQmlSource();
@@ -156,30 +163,22 @@ void ItemLibraryWidget::setItemLibraryInfo(ItemLibraryInfo *itemLibraryInfo)
 
     if (m_itemLibraryInfo)
         disconnect(m_itemLibraryInfo.data(), SIGNAL(entriesChanged()),
-                   this, SLOT(updateModel()));
+                   this, SLOT(delayedUpdateModel()));
     m_itemLibraryInfo = itemLibraryInfo;
     if (itemLibraryInfo)
         connect(m_itemLibraryInfo.data(), SIGNAL(entriesChanged()),
-                this, SLOT(updateModel()));
-
-    updateModel();
-    updateSearch();
+                this, SLOT(delayedUpdateModel()));
+    delayedUpdateModel();
 }
 
 void ItemLibraryWidget::updateImports()
 {
-    FilterChangeFlag filter;
-    filter = QtBasic;
     if (m_model) {
         QStringList imports;
         foreach (const Import &import, m_model->imports())
             if (import.isLibraryImport())
                 imports << import.url();
-        if (imports.contains(QLatin1String("com.nokia.meego"), Qt::CaseInsensitive))
-            filter = Meego;
     }
-
-    setImportFilter(filter);
 }
 
 void ItemLibraryWidget::setImportsWidget(QWidget *importsWidget)
@@ -216,37 +215,17 @@ void ItemLibraryWidget::setSearchFilter(const QString &searchFilter)
     }
 }
 
+void ItemLibraryWidget::delayedUpdateModel()
+{
+    m_compressionTimer.start();
+}
+
 void ItemLibraryWidget::setModel(Model *model)
 {
     m_model = model;
     if (!model)
         return;
     setItemLibraryInfo(model->metaInfo().itemLibraryInfo());
-    updateModel();
-}
-
-void ItemLibraryWidget::emitImportChecked()
-{
-    if (!m_model)
-        return;
-
-    bool qtOnlyImport = false;
-    bool meegoImport = false;
-
-    foreach (const Import &import, m_model->imports()) {
-        if (import.isLibraryImport()) {
-            if (import.url().contains(QLatin1String("meego"), Qt::CaseInsensitive))
-                meegoImport = true;
-            if (import.url().contains(QLatin1String("Qt"), Qt::CaseInsensitive) || import.url().contains(QLatin1String("QtQuick"), Qt::CaseInsensitive))
-                qtOnlyImport = true;
-        }
-    }
-
-    if (meegoImport)
-        qtOnlyImport = false;
-
-    emit qtBasicOnlyChecked(qtOnlyImport);
-    emit meegoChecked(meegoImport);
 }
 
 void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
@@ -264,61 +243,17 @@ QString ItemLibraryWidget::qmlSourcesPath()
     return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/itemLibraryQmlSources");
 }
 
+void ItemLibraryWidget::clearSearchFilter()
+{
+    m_filterLineEdit->clear();
+}
+
 void ItemLibraryWidget::reloadQmlSource()
 {
     QString itemLibraryQmlFilePath = qmlSourcesPath() + QStringLiteral("/ItemsView.qml");
     QTC_ASSERT(QFileInfo::exists(itemLibraryQmlFilePath), return);
     m_itemViewQuickWidget->engine()->clearComponentCache();
     m_itemViewQuickWidget->setSource(QUrl::fromLocalFile(itemLibraryQmlFilePath));
-}
-
-void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
-{
-    return;
-
-    static bool block = false;
-    if (!m_model)
-        return;
-    if (flag == m_filterFlag)
-        return;
-
-    if (block == true)
-        return;
-
-
-    FilterChangeFlag oldfilterFlag = m_filterFlag;
-
-    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    try {
-        block = true;
-        if (flag == QtBasic)
-            removeImport(QStringLiteral("com.nokia.meego"));
-        else if (flag == Meego)
-            addImport(QStringLiteral("com.nokia.meego"), QStringLiteral("1.0"));
-        QApplication::restoreOverrideCursor();
-        block = false;
-        m_filterFlag = flag;
-    } catch (const RewritingException &) {
-        QApplication::restoreOverrideCursor();
-        m_filterFlag = oldfilterFlag;
-        block = false;
-        // do something about it
-    }
-
-    emitImportChecked();
-}
-
-void ItemLibraryWidget::onQtBasicOnlyChecked(bool b)
-{
-    if (b)
-        setImportFilter(QtBasic);
-
-}
-
-void ItemLibraryWidget::onMeegoChecked(bool b)
-{
-    if (b)
-        setImportFilter(Meego);
 }
 
 void ItemLibraryWidget::updateModel()
@@ -387,31 +322,38 @@ void ItemLibraryWidget::addImport(const QString &name, const QString &version)
 
 QIcon ItemLibraryFileIconProvider::icon(const QFileInfo &info) const
 {
+    QSize iconSize = m_iconSize;
+
     QPixmap pixmap(info.absoluteFilePath());
+
     if (pixmap.isNull()) {
         QIcon defaultIcon(QFileIconProvider::icon(info));
-        pixmap = defaultIcon.pixmap(defaultIcon.actualSize(m_iconSize));
+        pixmap = defaultIcon.pixmap(defaultIcon.actualSize(QSize(16, 16)));
     }
 
     if (pixmap.isNull())
         return pixmap;
 
-    if (pixmap.width() == m_iconSize.width()
-            && pixmap.height() == m_iconSize.height())
+    if (pixmap.width() == iconSize.width()
+            && pixmap.height() == iconSize.height())
         return pixmap;
 
-    if ((pixmap.width() > m_iconSize.width())
-            || (pixmap.height() > m_iconSize.height()))
-        return pixmap.scaled(m_iconSize, Qt::KeepAspectRatio,
-                             Qt::SmoothTransformation);
+    if ((pixmap.width() > iconSize.width())
+            || (pixmap.height() > iconSize.height())) {
 
-    QPoint offset((m_iconSize.width() - pixmap.width()) / 2,
-                  (m_iconSize.height() - pixmap.height()) / 2);
-    QImage newIcon(m_iconSize, QImage::Format_ARGB32_Premultiplied);
+        pixmap = pixmap.scaled(iconSize, Qt::KeepAspectRatio,
+                             Qt::SmoothTransformation);
+    }
+
+    QImage newIcon(iconSize, QImage::Format_ARGB32_Premultiplied);
     newIcon.fill(Qt::transparent);
     QPainter painter(&newIcon);
-    painter.drawPixmap(offset, pixmap);
-    return QPixmap::fromImage(newIcon);
+
+    painter.drawPixmap(qAbs(m_iconSize.width() - pixmap.width()) / 2, qAbs(m_iconSize.height() - pixmap.height()) / 2, pixmap);
+
+    QIcon icon(QPixmap::fromImage(newIcon));
+
+    return icon;
 }
 
 ItemLibraryFileIconProvider::ItemLibraryFileIconProvider(const QSize &iconSize)

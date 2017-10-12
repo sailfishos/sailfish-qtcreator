@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GERNERICDIRECTDEVICEUPLOADSERVICE_H
-#define GERNERICDIRECTDEVICEUPLOADSERVICE_H
+#pragma once
 
 #include "abstractremotelinuxdeployservice.h"
 #include "remotelinux_export.h"
@@ -60,7 +59,7 @@ public:
     void doDeploy();
     void stopDeployment();
 
-private slots:
+private:
     void handleSftpInitialized();
     void handleSftpChannelError(const QString &errorMessage);
     void handleUploadFinished(QSsh::SftpJobId jobId, const QString &errorMsg);
@@ -69,8 +68,8 @@ private slots:
     void handleChmodFinished(int exitStatus);
     void handleStdOutData();
     void handleStdErrData();
+    void handleReadChannelFinished();
 
-private:
     void checkDeploymentNeeded(const ProjectExplorer::DeployableFile &file) const;
     void setFinished();
     void uploadNextFile();
@@ -79,5 +78,3 @@ private:
 };
 
 } //namespace RemoteLinux
-
-#endif // GERNERICDIRECTDEVICEUPLOADSERVICE_H

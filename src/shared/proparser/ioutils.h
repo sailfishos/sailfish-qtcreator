@@ -23,8 +23,9 @@
 **
 ****************************************************************************/
 
-#ifndef IOUTILS_H
-#define IOUTILS_H
+#pragma once
+
+#include "qmake_global.h"
 
 #include <qstring.h>
 
@@ -36,7 +37,7 @@ namespace QMakeInternal {
   This class provides replacement functionality for QFileInfo, QFile & QDir,
   as these are abysmally slow.
 */
-class IoUtils {
+class QMAKE_EXPORT IoUtils {
 public:
     enum FileType {
         FileNotFound = 0,
@@ -64,5 +65,3 @@ public:
 } // namespace ProFileEvaluatorInternal
 
 QT_END_NAMESPACE
-
-#endif // IOUTILS_H

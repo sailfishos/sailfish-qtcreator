@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDDEPLOYQTWIDGET_H
-#define ANDROIDDEPLOYQTWIDGET_H
+#pragma once
 
 #include <projectexplorer/buildstep.h>
 
@@ -47,12 +46,11 @@ public:
     AndroidDeployQtWidget(AndroidDeployQtStep *step);
     ~AndroidDeployQtWidget();
 
-private slots:
+private:
     void installMinistro();
     void cleanLibsOnDevice();
     void resetDefaultDevices();
 
-private:
     virtual QString summaryText() const;
     virtual QString displayName() const;
 
@@ -62,4 +60,3 @@ private:
 
 }
 }
-#endif // ANDROIDDEPLOYQTWIDGET_H

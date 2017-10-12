@@ -35,13 +35,14 @@
 #include <coreplugin/outputwindow.h>
 #include <coreplugin/find/basetextfind.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/coreicons.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/behaviorsettings.h>
 #include <utils/ansiescapecodehandler.h>
+#include <utils/proxyaction.h>
 #include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include <QIcon>
 #include <QTextCharFormat>
@@ -65,8 +66,7 @@ class CompileOutputTextEdit : public Core::OutputWindow
 {
     Q_OBJECT
 public:
-    CompileOutputTextEdit(const Core::Context &context)
-        : Core::OutputWindow(context)
+    CompileOutputTextEdit(const Core::Context &context) : Core::OutputWindow(context)
     {
         setWheelZoomEnabled(true);
 
@@ -150,7 +150,7 @@ CompileOutputWindow::CompileOutputWindow(QAction *cancelBuildAction) :
 {
     Core::Context context(Constants::C_COMPILE_OUTPUT);
     m_outputWindow = new CompileOutputTextEdit(context);
-    m_outputWindow->setWindowTitle(tr("Compile Output"));
+    m_outputWindow->setWindowTitle(displayName());
     m_outputWindow->setWindowIcon(Icons::WINDOW.icon());
     m_outputWindow->setReadOnly(true);
     m_outputWindow->setUndoRedoEnabled(false);
@@ -165,11 +165,14 @@ CompileOutputWindow::CompileOutputWindow(QAction *cancelBuildAction) :
     p.setColor(QPalette::HighlightedText, activeHighlightedText);
     m_outputWindow->setPalette(p);
 
-    m_cancelBuildButton->setDefaultAction(cancelBuildAction);
+    Utils::ProxyAction *cancelBuildProxyButton =
+            Utils::ProxyAction::proxyActionWithIcon(cancelBuildAction,
+                                                    Utils::Icons::STOP_SMALL_TOOLBAR.icon());
+    m_cancelBuildButton->setDefaultAction(cancelBuildProxyButton);
     m_zoomInButton->setToolTip(tr("Increase Font Size"));
-    m_zoomInButton->setIcon(Core::Icons::PLUS.icon());
+    m_zoomInButton->setIcon(Utils::Icons::PLUS_TOOLBAR.icon());
     m_zoomOutButton->setToolTip(tr("Decrease Font Size"));
-    m_zoomOutButton->setIcon(Core::Icons::MINUS.icon());
+    m_zoomOutButton->setIcon(Utils::Icons::MINUS.icon());
 
     updateZoomEnabled();
 
@@ -182,7 +185,7 @@ CompileOutputWindow::CompileOutputWindow(QAction *cancelBuildAction) :
     connect(m_zoomOutButton, &QToolButton::clicked,
             this, [this]() { m_outputWindow->zoomOut(1); });
 
-    Aggregation::Aggregate *agg = new Aggregation::Aggregate;
+    auto agg = new Aggregation::Aggregate;
     agg->add(m_outputWindow);
     agg->add(new Core::BaseTextFind(m_outputWindow));
 
@@ -242,9 +245,7 @@ QWidget *CompileOutputWindow::outputWidget(QWidget *)
 
 QList<QWidget *> CompileOutputWindow::toolBarWidgets() const
 {
-     return QList<QWidget *>() << m_cancelBuildButton
-                               << m_zoomInButton
-                               << m_zoomOutButton;
+     return { m_cancelBuildButton, m_zoomInButton, m_zoomOutButton };
 }
 
 void CompileOutputWindow::appendText(const QString &text, BuildStep::OutputFormat format)
@@ -284,9 +285,7 @@ void CompileOutputWindow::clearContents()
 }
 
 void CompileOutputWindow::visibilityChanged(bool)
-{
-
-}
+{ }
 
 int CompileOutputWindow::priorityInStatusBar() const
 {
@@ -304,14 +303,10 @@ bool CompileOutputWindow::canPrevious() const
 }
 
 void CompileOutputWindow::goToNext()
-{
-
-}
+{ }
 
 void CompileOutputWindow::goToPrev()
-{
-
-}
+{ }
 
 bool CompileOutputWindow::canNavigate() const
 {

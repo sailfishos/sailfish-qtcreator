@@ -84,7 +84,10 @@ exists($$PLUGINJSON_IN) {
     DISTFILES += $$PLUGINJSON
 }
 
-osx: QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/PlugIns/
+osx {
+    QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/PlugIns/
+    QMAKE_LFLAGS += -compatibility_version $$QTCREATOR_COMPAT_VERSION
+}
 include(rpath.pri)
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
@@ -93,13 +96,11 @@ TEMPLATE = lib
 CONFIG += plugin plugin_with_soname
 linux*:QMAKE_LFLAGS += $$QMAKE_LFLAGS_NOUNDEF
 
-!macx {
-    target.path = $$INSTALL_PLUGIN_PATH
-    INSTALLS += target
-}
+target.path = $$INSTALL_PLUGIN_PATH
+INSTALLS += target
 
 MIMETYPES = $$_PRO_FILE_PWD_/$${TARGET}.mimetypes.xml
 exists($$MIMETYPES):DISTFILES += $$MIMETYPES
 
-TARGET = $$qtLibraryName($$TARGET)
+TARGET = $$qtLibraryTargetName($$TARGET)
 

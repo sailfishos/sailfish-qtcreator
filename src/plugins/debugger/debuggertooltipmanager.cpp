@@ -36,7 +36,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 
@@ -45,9 +44,11 @@
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
 
+#include <utils/algorithm.h>
 #include <utils/tooltip/tooltip.h>
 #include <utils/treemodel.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QAbstractItemModel>
 #include <QApplication>
@@ -206,19 +207,19 @@ public:
     QString expression;
     QColor valueColor;
     bool expandable;
-    QByteArray iname;
+    QString iname;
 };
 
 ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 {
-    const TreeModel *model = item->model();
-    QModelIndex idx = model->indexForItem(item);
+    const QAbstractItemModel *model = item->model();
+    QModelIndex idx = item->index();
     name = model->data(idx.sibling(idx.row(), 0), Qt::DisplayRole).toString();
     value = model->data(idx.sibling(idx.row(), 1), Qt::DisplayRole).toString();
     type = model->data(idx.sibling(idx.row(), 2), Qt::DisplayRole).toString();
-    iname = model->data(idx.sibling(idx.row(), 0), LocalsINameRole).toByteArray();
+    iname = model->data(idx.sibling(idx.row(), 0), LocalsINameRole).toString();
     valueColor = model->data(idx.sibling(idx.row(), 1), Qt::ForegroundRole).value<QColor>();
-    expandable = item->hasChildren();
+    expandable = model->hasChildren(idx);
     expression = model->data(idx.sibling(idx.row(), 0), Qt::EditRole).toString();
     foreach (TreeItem *child, item->children())
         appendChild(new ToolTipWatchItem(child));
@@ -230,16 +231,14 @@ ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 //
 /////////////////////////////////////////////////////////////////////////
 
-class ToolTipModel : public TreeModel
+class ToolTipModel : public TreeModel<ToolTipWatchItem>
 {
 public:
     ToolTipModel()
     {
-        QStringList headers;
-        headers.append(DebuggerToolTipManager::tr("Name"));
-        headers.append(DebuggerToolTipManager::tr("Value"));
-        headers.append(DebuggerToolTipManager::tr("Type"));
-        setHeader(headers);
+        setHeader({ DebuggerToolTipManager::tr("Name"),
+                    DebuggerToolTipManager::tr("Value"),
+                    DebuggerToolTipManager::tr("Type") });
         m_enabled = true;
         auto item = new ToolTipWatchItem;
         item->expandable = true;
@@ -248,14 +247,14 @@ public:
 
     void expandNode(const QModelIndex &idx)
     {
-        m_expandedINames.insert(idx.data(LocalsINameRole).toByteArray());
+        m_expandedINames.insert(idx.data(LocalsINameRole).toString());
         if (canFetchMore(idx))
             fetchMore(idx);
     }
 
     void collapseNode(const QModelIndex &idx)
     {
-        m_expandedINames.remove(idx.data(LocalsINameRole).toByteArray());
+        m_expandedINames.remove(idx.data(LocalsINameRole).toString());
     }
 
     void fetchMore(const QModelIndex &idx)
@@ -265,19 +264,19 @@ public:
         auto item = dynamic_cast<ToolTipWatchItem *>(itemForIndex(idx));
         if (!item)
             return;
-        QByteArray iname = item->iname;
+        QString iname = item->iname;
         if (!m_engine)
             return;
 
         WatchItem *it = m_engine->watchHandler()->findItem(iname);
         QTC_ASSERT(it, return);
-        it->fetchMore();
+        it->model()->fetchMore(it->index());
     }
 
     void restoreTreeModel(QXmlStreamReader &r);
 
     QPointer<DebuggerEngine> m_engine;
-    QSet<QByteArray> m_expandedINames;
+    QSet<QString> m_expandedINames;
     bool m_enabled;
 };
 
@@ -473,7 +472,7 @@ public:
     {
         TreeItem *item = model.itemForIndex(idx);
         QTC_ASSERT(item, return);
-        QByteArray iname = item->data(0, LocalsINameRole).toByteArray();
+        QString iname = item->data(0, LocalsINameRole).toString();
         bool shouldExpand = model.m_expandedINames.contains(iname);
         if (shouldExpand) {
             if (!treeView->isExpanded(idx)) {
@@ -509,7 +508,7 @@ DebuggerToolTipWidget::DebuggerToolTipWidget()
 
     auto copyButton = new QToolButton;
     copyButton->setToolTip(DebuggerToolTipManager::tr("Copy Contents to Clipboard"));
-    copyButton->setIcon(Core::Icons::COPY.icon());
+    copyButton->setIcon(Utils::Icons::COPY.icon());
 
     titleLabel = new DraggableLabel(this);
     titleLabel->setMinimumWidth(40); // Ensure a draggable area even if text is empty.
@@ -537,10 +536,9 @@ DebuggerToolTipWidget::DebuggerToolTipWidget()
     connect(copyButton, &QAbstractButton::clicked, [this] {
         QString text;
         QTextStream str(&text);
-        model.rootItem()->walkTree([&str](TreeItem *item) {
-            auto titem = static_cast<ToolTipWatchItem *>(item);
+        model.forAllItems([&str](ToolTipWatchItem *item) {
             str << QString(item->level(), QLatin1Char('\t'))
-                << titem->name << '\t' << titem->value << '\t' << titem->type << '\n';
+                << item->name << '\t' << item->value << '\t' << item->type << '\n';
         });
         QClipboard *clipboard = QApplication::clipboard();
         clipboard->setText(text, QClipboard::Selection);
@@ -694,13 +692,6 @@ bool DebuggerToolTipContext::isSame(const DebuggerToolTipContext &other) const
         && filesMatch(fileName, other.fileName);
 }
 
-void DebuggerToolTipContext::appendFormatRequest(DebuggerCommand *cmd) const
-{
-    cmd->arg("expression", expression);
-    cmd->arg("fileName", fileName);
-    cmd->arg("iname", iname);
-}
-
 QString DebuggerToolTipContext::toolTip() const
 {
     return DebuggerToolTipManager::tr("Expression %1 in function %2 from line %3 to %4")
@@ -756,7 +747,7 @@ QDebug operator<<(QDebug d, const DebuggerToolTipContext &c)
 DebuggerToolTipHolder::DebuggerToolTipHolder(const DebuggerToolTipContext &context_)
 {
     widget = new DebuggerToolTipWidget;
-    widget->setObjectName(QLatin1String("DebuggerTreeViewToolTipWidget: ") + QLatin1String(context_.iname));
+    widget->setObjectName("DebuggerTreeViewToolTipWidget: " + context_.iname);
 
     context = context_;
     context.creationDate = QDate::currentDate();
@@ -921,11 +912,11 @@ void DebuggerToolTipHolder::saveSessionData(QXmlStreamWriter &w) const
         attributes.append(QLatin1String(offsetYAttributeC), QString::number(offset.y()));
     attributes.append(QLatin1String(engineTypeAttributeC), context.engineType);
     attributes.append(QLatin1String(treeExpressionAttributeC), context.expression);
-    attributes.append(QLatin1String(treeInameAttributeC), QLatin1String(context.iname));
+    attributes.append(QLatin1String(treeInameAttributeC), context.iname);
     w.writeAttributes(attributes);
 
     w.writeStartElement(QLatin1String(treeElementC));
-    widget->model.rootItem()->walkTree([&w](TreeItem *item) {
+    widget->model.forAllItems([&w](ToolTipWatchItem *item) {
         const QString modelItemElement = QLatin1String(modelItemElementC);
         for (int i = 0; i < 3; ++i) {
             const QString value = item->data(i, Qt::DisplayRole).toString();
@@ -967,7 +958,7 @@ DebuggerToolTipManager::~DebuggerToolTipManager()
     m_instance = 0;
 }
 
-void DebuggerToolTipManager::slotUpdateVisibleToolTips()
+void DebuggerToolTipManager::updateVisibleToolTips()
 {
     purgeClosedToolTips();
     if (m_tooltips.isEmpty())
@@ -1009,7 +1000,7 @@ void DebuggerToolTipManager::updateEngine(DebuggerEngine *engine)
     // all others release (arguable, this could be more precise?)
     foreach (DebuggerToolTipHolder *tooltip, m_tooltips)
         tooltip->updateTooltip(engine);
-    slotUpdateVisibleToolTips(); // Move tooltip when stepping in same file.
+    updateVisibleToolTips(); // Move tooltip when stepping in same file.
 }
 
 void DebuggerToolTipManager::registerEngine(DebuggerEngine *engine)
@@ -1072,7 +1063,7 @@ void DebuggerToolTipManager::loadSessionData()
                     offset.setY(attributes.value(offsetYAttribute).toString().toInt());
                 context.mousePosition = offset;
 
-                context.iname = attributes.value(QLatin1String(treeInameAttributeC)).toString().toLatin1();
+                context.iname = attributes.value(QLatin1String(treeInameAttributeC)).toString();
                 context.expression = attributes.value(QLatin1String(treeExpressionAttributeC)).toString();
 
                 //    const QStringRef className = attributes.value(QLatin1String(toolTipClassAttributeC));
@@ -1174,7 +1165,7 @@ static void slotTooltipOverrideRequested
     // Prefer a filter on an existing local variable if it can be found.
     const WatchItem *localVariable = engine->watchHandler()->findCppLocalVariable(context.expression);
     if (localVariable) {
-        context.expression = QLatin1String(localVariable->exp);
+        context.expression = localVariable->exp;
         if (context.expression.isEmpty())
             context.expression = localVariable->name;
         context.iname = localVariable->iname;
@@ -1201,7 +1192,7 @@ static void slotTooltipOverrideRequested
 
     } else {
 
-        context.iname = "tooltip." + context.expression.toLatin1().toHex();
+        context.iname = "tooltip." + toHex(context.expression);
         auto reusable = [context] (DebuggerToolTipHolder *tooltip) {
             return tooltip->context.isSame(context);
         };
@@ -1236,7 +1227,7 @@ static void slotEditorOpened(IEditor *e)
     if (BaseTextEditor *textEditor = qobject_cast<BaseTextEditor *>(e)) {
         TextEditorWidget *widget = textEditor->editorWidget();
         QObject::connect(widget->verticalScrollBar(), &QScrollBar::valueChanged,
-                         &DebuggerToolTipManager::slotUpdateVisibleToolTips);
+                         &DebuggerToolTipManager::updateVisibleToolTips);
         QObject::connect(widget, &TextEditorWidget::tooltipOverrideRequested,
                          slotTooltipOverrideRequested);
     }
@@ -1251,14 +1242,14 @@ void DebuggerToolTipManager::debugModeEntered()
         topLevel->installEventFilter(this);
         EditorManager *em = EditorManager::instance();
         connect(em, &EditorManager::currentEditorChanged,
-                &DebuggerToolTipManager::slotUpdateVisibleToolTips);
+                &DebuggerToolTipManager::updateVisibleToolTips);
         connect(em, &EditorManager::editorOpened, slotEditorOpened);
 
         foreach (IEditor *e, DocumentModel::editorsForOpenedDocuments())
             slotEditorOpened(e);
         // Position tooltips delayed once all the editor placeholder layouting is done.
         if (!m_tooltips.isEmpty())
-            QTimer::singleShot(0, this, SLOT(slotUpdateVisibleToolTips()));
+            QTimer::singleShot(0, this, &DebuggerToolTipManager::updateVisibleToolTips);
     }
 }
 

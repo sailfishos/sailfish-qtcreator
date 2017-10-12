@@ -23,17 +23,19 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTOOLSSETTINGS_H
-#define CPPTOOLSSETTINGS_H
+#pragma once
 
 #include "cpptools_global.h"
 
 #include <QObject>
 
+namespace TextEditor {
+class CommentsSettings;
+}
+
 namespace CppTools
 {
 class CppCodeStylePreferences;
-class CommentsSettings;
 
 namespace Internal
 {
@@ -55,14 +57,18 @@ public:
 
     CppCodeStylePreferences *cppCodeStyle() const;
 
-    const CommentsSettings &commentsSettings() const;
-    void setCommentsSettings(const CommentsSettings &commentsSettings);
+    const TextEditor::CommentsSettings &commentsSettings() const;
+    void setCommentsSettings(const TextEditor::CommentsSettings &commentsSettings);
 
     bool sortedEditorDocumentOutline() const;
     void setSortedEditorDocumentOutline(bool sorted);
 
+    bool showHeaderErrorInfoBar() const;
+    void setShowHeaderErrorInfoBar(bool show);
+
 signals:
     void editorDocumentOutlineSortingChanged(bool isSorted);
+    void showHeaderErrorInfoBarChanged(bool isShown);
 
 private:
     Internal::CppToolsSettingsPrivate *d;
@@ -71,5 +77,3 @@ private:
 };
 
 } // namespace CppTools
-
-#endif // CPPTOOLSSETTINGS_H

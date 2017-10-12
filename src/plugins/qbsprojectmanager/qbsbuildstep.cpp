@@ -34,14 +34,16 @@
 #include "ui_qbsbuildstepconfigwidget.h"
 
 #include <coreplugin/icore.h>
-#include <coreplugin/coreicons.h>
+#include <coreplugin/variablechooser.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtversionmanager.h>
+#include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <utils/utilsicons.h>
 
 #include <qbs.h>
 
@@ -60,6 +62,61 @@ static const char QBS_CLEAN_INSTALL_ROOT[] = "Qbs.CleanInstallRoot";
 namespace QbsProjectManager {
 namespace Internal {
 
+class QbsBuildStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
+{
+    Q_OBJECT
+public:
+    QbsBuildStepConfigWidget(QbsBuildStep *step);
+    ~QbsBuildStepConfigWidget();
+    QString summaryText() const;
+    QString displayName() const;
+
+private:
+    void updateState();
+    void updateQmlDebuggingOption();
+    void updatePropertyEdit(const QVariantMap &data);
+
+    void changeBuildVariant(int);
+    void changeShowCommandLines(bool show);
+    void changeKeepGoing(bool kg);
+    void changeJobCount(int count);
+    void changeInstall(bool install);
+    void changeCleanInstallRoot(bool clean);
+    void changeForceProbes(bool forceProbes);
+    void applyCachedProperties();
+
+    // QML debugging:
+    void linkQmlDebuggingLibraryChecked(bool checked);
+
+    bool validateProperties(Utils::FancyLineEdit *edit, QString *errorMessage);
+
+    Ui::QbsBuildStepConfigWidget *m_ui;
+
+    class Property
+    {
+    public:
+        Property() = default;
+        Property(const QString &n, const QString &v, const QString &e) :
+            name(n), value(v), effectiveValue(e)
+        {}
+        bool operator==(const Property &other) const
+        {
+            return name == other.name
+                    && value == other.value
+                    && effectiveValue == other.effectiveValue;
+        }
+
+        QString name;
+        QString value;
+        QString effectiveValue;
+    };
+
+    QList<Property> m_propertyCache;
+    QbsBuildStep *m_step;
+    QString m_summary;
+    bool m_ignoreChange;
+};
+
 // --------------------------------------------------------------------
 // QbsBuildStep:
 // --------------------------------------------------------------------
@@ -76,7 +133,7 @@ QbsBuildStep::QbsBuildStep(ProjectExplorer::BuildStepList *bsl, const QbsBuildSt
     ProjectExplorer::BuildStep(bsl, Core::Id(Constants::QBS_BUILDSTEP_ID)),
     m_qbsBuildOptions(other->m_qbsBuildOptions),  m_job(0), m_parser(0), m_parsingProject(false)
 {
-    setQbsConfiguration(other->qbsConfiguration());
+    setQbsConfiguration(other->qbsConfiguration(PreserveVariables));
 }
 
 QbsBuildStep::~QbsBuildStep()
@@ -112,8 +169,10 @@ bool QbsBuildStep::init(QList<const BuildStep *> &earlierSteps)
     m_activeFileTags = bc->activeFileTags();
     m_products = bc->products();
 
-    connect(m_parser, SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat)),
-            this, SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat)));
+    connect(m_parser, &ProjectExplorer::IOutputParser::addOutput,
+            this, [this](const QString &string, ProjectExplorer::BuildStep::OutputFormat format) {
+        emit addOutput(string, format);
+    });
     connect(m_parser, &ProjectExplorer::IOutputParser::addTask, this, &QbsBuildStep::addTask);
 
     return true;
@@ -146,9 +205,19 @@ void QbsBuildStep::cancel()
         m_job->cancel();
 }
 
-QVariantMap QbsBuildStep::qbsConfiguration() const
+QVariantMap QbsBuildStep::qbsConfiguration(VariableHandling variableHandling) const
 {
-    return m_qbsConfiguration;
+    QVariantMap config = m_qbsConfiguration;
+    config.insert(QLatin1String(Constants::QBS_FORCE_PROBES_KEY), m_forceProbes);
+    if (variableHandling == ExpandVariables) {
+        const Utils::MacroExpander *expander = Utils::globalMacroExpander();
+        for (auto it = config.begin(), end = config.end(); it != end; ++it) {
+            const QString rawString = it.value().toString();
+            const QString expandedString = expander->expand(rawString);
+            it.value() = qbs::representationToSettingsValue(expandedString);
+        }
+    }
+    return config;
 }
 
 void QbsBuildStep::setQbsConfiguration(const QVariantMap &config)
@@ -197,6 +266,8 @@ int QbsBuildStep::maxJobs() const
     return qbs::BuildOptions::defaultMaxJobCount();
 }
 
+static QString forceProbesKey() { return QLatin1String("Qbs.forceProbesKey"); }
+
 bool QbsBuildStep::fromMap(const QVariantMap &map)
 {
     if (!ProjectExplorer::BuildStep::fromMap(map))
@@ -212,6 +283,7 @@ bool QbsBuildStep::fromMap(const QVariantMap &map)
     m_qbsBuildOptions.setInstall(map.value(QLatin1String(QBS_INSTALL), true).toBool());
     m_qbsBuildOptions.setRemoveExistingInstallation(map.value(QLatin1String(QBS_CLEAN_INSTALL_ROOT))
                                                     .toBool());
+    m_forceProbes = map.value(forceProbesKey()).toBool();
     return true;
 }
 
@@ -227,6 +299,7 @@ QVariantMap QbsBuildStep::toMap() const
     map.insert(QLatin1String(QBS_INSTALL), m_qbsBuildOptions.install());
     map.insert(QLatin1String(QBS_CLEAN_INSTALL_ROOT),
                m_qbsBuildOptions.removeExistingInstallation());
+    map.insert(forceProbesKey(), m_forceProbes);
     return map;
 }
 
@@ -253,7 +326,7 @@ void QbsBuildStep::buildingDone(bool success)
 
 void QbsBuildStep::reparsingDone(bool success)
 {
-    disconnect(qbsProject(), SIGNAL(projectParsingDone(bool)), this, SLOT(reparsingDone(bool)));
+    disconnect(qbsProject(), &QbsProject::projectParsingDone, this, &QbsBuildStep::reparsingDone);
     m_parsingProject = false;
     if (m_job) { // This was a scheduled reparsing after building.
         finish();
@@ -322,12 +395,12 @@ void QbsBuildStep::createTaskAndOutput(ProjectExplorer::Task::TaskType type, con
 
 QString QbsBuildStep::buildVariant() const
 {
-    return qbsConfiguration().value(QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY)).toString();
+    return qbsConfiguration(PreserveVariables).value(Constants::QBS_CONFIG_VARIANT_KEY).toString();
 }
 
 bool QbsBuildStep::isQmlDebuggingEnabled() const
 {
-    QVariantMap data = qbsConfiguration();
+    QVariantMap data = qbsConfiguration(PreserveVariables);
     return data.value(QLatin1String(Constants::QBS_CONFIG_DECLARATIVE_DEBUG_KEY), false).toBool()
             || data.value(QLatin1String(Constants::QBS_CONFIG_QUICK_DEBUG_KEY), false).toBool();
 }
@@ -345,7 +418,7 @@ void QbsBuildStep::setBuildVariant(const QString &variant)
 
 QString QbsBuildStep::profile() const
 {
-    return qbsConfiguration().value(QLatin1String(Constants::QBS_CONFIG_PROFILE_KEY)).toString();
+    return qbsConfiguration(PreserveVariables).value(Constants::QBS_CONFIG_PROFILE_KEY).toString();
 }
 
 void QbsBuildStep::setKeepGoing(bool kg)
@@ -392,7 +465,7 @@ void QbsBuildStep::setCleanInstallRoot(bool clean)
 void QbsBuildStep::parseProject()
 {
     m_parsingProject = true;
-    connect(qbsProject(), SIGNAL(projectParsingDone(bool)), SLOT(reparsingDone(bool)));
+    connect(qbsProject(), &QbsProject::projectParsingDone, this, &QbsBuildStep::reparsingDone);
     qbsProject()->parseCurrentBuildConfiguration();
 }
 
@@ -402,41 +475,39 @@ void QbsBuildStep::build()
     options.setChangedFiles(m_changedFiles);
     options.setFilesToConsider(m_changedFiles);
     options.setActiveFileTags(m_activeFileTags);
+    options.setLogElapsedTime(!qgetenv(Constants::QBS_PROFILING_ENV).isEmpty());
 
     QString error;
     m_job = qbsProject()->build(options, m_products, error);
     if (!m_job) {
         emit addOutput(error, ErrorMessageOutput);
-        m_fi->reportResult(false);
-        emit finished();
+        reportRunResult(*m_fi, false);
         return;
     }
 
     m_progressBase = 0;
 
-    connect(m_job, SIGNAL(finished(bool,qbs::AbstractJob*)), this, SLOT(buildingDone(bool)));
-    connect(m_job, SIGNAL(taskStarted(QString,int,qbs::AbstractJob*)),
-            this, SLOT(handleTaskStarted(QString,int)));
-    connect(m_job, SIGNAL(taskProgress(int,qbs::AbstractJob*)),
-            this, SLOT(handleProgress(int)));
-    connect(m_job, SIGNAL(reportCommandDescription(QString,QString)),
-            this, SLOT(handleCommandDescriptionReport(QString,QString)));
-    connect(m_job, SIGNAL(reportProcessResult(qbs::ProcessResult)),
-            this, SLOT(handleProcessResultReport(qbs::ProcessResult)));
+    connect(m_job, &qbs::AbstractJob::finished, this, &QbsBuildStep::buildingDone);
+    connect(m_job, &qbs::AbstractJob::taskStarted,
+            this, &QbsBuildStep::handleTaskStarted);
+    connect(m_job, &qbs::AbstractJob::taskProgress,
+            this, &QbsBuildStep::handleProgress);
+    connect(m_job, &qbs::BuildJob::reportCommandDescription,
+            this, &QbsBuildStep::handleCommandDescriptionReport);
+    connect(m_job, &qbs::BuildJob::reportProcessResult,
+            this, &QbsBuildStep::handleProcessResultReport);
 
 }
 
 void QbsBuildStep::finish()
 {
     QTC_ASSERT(m_fi, return);
-    m_fi->reportResult(m_lastWasSuccess);
+    reportRunResult(*m_fi, m_lastWasSuccess);
     m_fi = 0; // do not delete, it is not ours
     if (m_job) {
         m_job->deleteLater();
         m_job = 0;
     }
-
-    emit finished();
 }
 
 QbsProject *QbsBuildStep::qbsProject() const
@@ -452,9 +523,12 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
     m_step(step),
     m_ignoreChange(false)
 {
-    connect(m_step, SIGNAL(displayNameChanged()), this, SLOT(updateState()));
-    connect(m_step, SIGNAL(qbsConfigurationChanged()), this, SLOT(updateState()));
-    connect(m_step, SIGNAL(qbsBuildOptionsChanged()), this, SLOT(updateState()));
+    connect(m_step, &ProjectExplorer::ProjectConfiguration::displayNameChanged,
+            this, &QbsBuildStepConfigWidget::updateState);
+    connect(m_step, &QbsBuildStep::qbsConfigurationChanged,
+            this, &QbsBuildStepConfigWidget::updateState);
+    connect(m_step, &QbsBuildStep::qbsBuildOptionsChanged,
+            this, &QbsBuildStepConfigWidget::updateState);
     connect(&QbsProjectManagerSettings::instance(), &QbsProjectManagerSettings::settingsBaseChanged,
             this, &QbsBuildStepConfigWidget::updateState);
     connect(step->buildConfiguration()->target(), &ProjectExplorer::Target::buildDirectoryChanged,
@@ -465,26 +539,33 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
     m_ui = new Ui::QbsBuildStepConfigWidget;
     m_ui->setupUi(this);
 
+    auto chooser = new Core::VariableChooser(this);
+    chooser->addSupportedWidget(m_ui->propertyEdit);
     m_ui->propertyEdit->setValidationFunction([this](Utils::FancyLineEdit *edit,
                                                      QString *errorMessage) {
         return validateProperties(edit, errorMessage);
     });
-    m_ui->qmlDebuggingWarningText->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->qmlDebuggingWarningText->setPixmap(Utils::Icons::WARNING.pixmap());
 
-    connect(m_ui->buildVariantComboBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(changeBuildVariant(int)));
-    connect(m_ui->keepGoingCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeKeepGoing(bool)));
-    connect(m_ui->jobSpinBox, SIGNAL(valueChanged(int)), this, SLOT(changeJobCount(int)));
+    connect(m_ui->buildVariantComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &QbsBuildStepConfigWidget::changeBuildVariant);
+    connect(m_ui->keepGoingCheckBox, &QAbstractButton::toggled,
+            this, &QbsBuildStepConfigWidget::changeKeepGoing);
+    connect(m_ui->jobSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &QbsBuildStepConfigWidget::changeJobCount);
     connect(m_ui->showCommandLinesCheckBox, &QCheckBox::toggled, this,
             &QbsBuildStepConfigWidget::changeShowCommandLines);
     connect(m_ui->installCheckBox, &QCheckBox::toggled, this,
             &QbsBuildStepConfigWidget::changeInstall);
     connect(m_ui->cleanInstallRootCheckBox, &QCheckBox::toggled, this,
             &QbsBuildStepConfigWidget::changeCleanInstallRoot);
-    connect(m_ui->qmlDebuggingLibraryCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(linkQmlDebuggingLibraryChecked(bool)));
-    connect(QtSupport::QtVersionManager::instance(), SIGNAL(dumpUpdatedFor(Utils::FileName)),
-            this, SLOT(updateQmlDebuggingOption()));
+    connect(m_ui->forceProbesCheckBox, &QCheckBox::toggled, this,
+            &QbsBuildStepConfigWidget::changeForceProbes);
+    connect(m_ui->qmlDebuggingLibraryCheckBox, &QAbstractButton::toggled,
+            this, &QbsBuildStepConfigWidget::linkQmlDebuggingLibraryChecked);
+    connect(QtSupport::QtVersionManager::instance(), &QtSupport::QtVersionManager::dumpUpdatedFor,
+            this, &QbsBuildStepConfigWidget::updateQmlDebuggingOption);
     updateState();
 }
 
@@ -511,7 +592,8 @@ void QbsBuildStepConfigWidget::updateState()
         m_ui->showCommandLinesCheckBox->setChecked(m_step->showCommandLines());
         m_ui->installCheckBox->setChecked(m_step->install());
         m_ui->cleanInstallRootCheckBox->setChecked(m_step->cleanInstallRoot());
-        updatePropertyEdit(m_step->qbsConfiguration());
+        m_ui->forceProbesCheckBox->setChecked(m_step->forceProbes());
+        updatePropertyEdit(m_step->qbsConfiguration(QbsBuildStep::PreserveVariables));
         m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->isQmlDebuggingEnabled());
     }
 
@@ -523,8 +605,8 @@ void QbsBuildStepConfigWidget::updateState()
     QString command = QbsBuildConfiguration::equivalentCommandLine(m_step);
 
     for (int i = 0; i < m_propertyCache.count(); ++i) {
-        command += QLatin1Char(' ') + m_propertyCache.at(i).first
-                + QLatin1Char(':') + m_propertyCache.at(i).second;
+        command += QLatin1Char(' ') + m_propertyCache.at(i).name
+                + QLatin1Char(':') + m_propertyCache.at(i).effectiveValue;
     }
 
     if (m_step->isQmlDebuggingEnabled())
@@ -562,6 +644,7 @@ void QbsBuildStepConfigWidget::updatePropertyEdit(const QVariantMap &data)
     editable.remove(QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY));
     editable.remove(QLatin1String(Constants::QBS_CONFIG_DECLARATIVE_DEBUG_KEY));
     editable.remove(QLatin1String(Constants::QBS_CONFIG_QUICK_DEBUG_KEY));
+    editable.remove(QLatin1String(Constants::QBS_FORCE_PROBES_KEY));
 
     QStringList propertyList;
     for (QVariantMap::const_iterator i = editable.constBegin(); i != editable.constEnd(); ++i)
@@ -617,10 +700,17 @@ void QbsBuildStepConfigWidget::changeCleanInstallRoot(bool clean)
     m_ignoreChange = false;
 }
 
+void QbsBuildStepConfigWidget::changeForceProbes(bool forceProbes)
+{
+    m_ignoreChange = true;
+    m_step->setForceProbes(forceProbes);
+    m_ignoreChange = false;
+}
+
 void QbsBuildStepConfigWidget::applyCachedProperties()
 {
     QVariantMap data;
-    QVariantMap tmp = m_step->qbsConfiguration();
+    const QVariantMap tmp = m_step->qbsConfiguration(QbsBuildStep::PreserveVariables);
 
     // Insert values set up with special UIs:
     data.insert(QLatin1String(Constants::QBS_CONFIG_PROFILE_KEY),
@@ -634,8 +724,10 @@ void QbsBuildStepConfigWidget::applyCachedProperties()
         data.insert(QLatin1String(Constants::QBS_CONFIG_QUICK_DEBUG_KEY),
                     tmp.value(QLatin1String(Constants::QBS_CONFIG_QUICK_DEBUG_KEY)));
 
-    for (int i = 0; i < m_propertyCache.count(); ++i)
-        data.insert(m_propertyCache.at(i).first, m_propertyCache.at(i).second);
+    for (int i = 0; i < m_propertyCache.count(); ++i) {
+        const Property &property = m_propertyCache.at(i);
+        data.insert(property.name, property.value);
+    }
 
     m_ignoreChange = true;
     m_step->setQbsConfiguration(data);
@@ -644,7 +736,7 @@ void QbsBuildStepConfigWidget::applyCachedProperties()
 
 void QbsBuildStepConfigWidget::linkQmlDebuggingLibraryChecked(bool checked)
 {
-    QVariantMap data = m_step->qbsConfiguration();
+    QVariantMap data = m_step->qbsConfiguration(QbsBuildStep::PreserveVariables);
     if (checked) {
         data.insert(QLatin1String(Constants::QBS_CONFIG_DECLARATIVE_DEBUG_KEY), checked);
         data.insert(QLatin1String(Constants::QBS_CONFIG_QUICK_DEBUG_KEY), checked);
@@ -669,15 +761,14 @@ bool QbsBuildStepConfigWidget::validateProperties(Utils::FancyLineEdit *edit, QS
         return false;
     }
 
-    QList<QPair<QString, QString> > properties;
-    foreach (const QString &arg, argList) {
-        int pos = arg.indexOf(QLatin1Char(':'));
-        QString key;
-        QString value;
+    QList<Property> properties;
+    const Utils::MacroExpander *expander = Utils::globalMacroExpander();
+    foreach (const QString &rawArg, argList) {
+        int pos = rawArg.indexOf(QLatin1Char(':'));
         if (pos > 0) {
-            key = arg.left(pos);
-            value = arg.mid(pos + 1);
-            properties.append(qMakePair(key, value));
+            const QString rawValue = rawArg.mid(pos + 1);
+            Property property(rawArg.left(pos), rawValue, expander->expand(rawValue));
+            properties.append(property);
         } else {
             if (errorMessage)
                 *errorMessage = tr("No \":\" found in property definition.");
@@ -700,66 +791,28 @@ QbsBuildStepFactory::QbsBuildStepFactory(QObject *parent) :
     ProjectExplorer::IBuildStepFactory(parent)
 { }
 
-QList<Core::Id> QbsBuildStepFactory::availableCreationIds(ProjectExplorer::BuildStepList *parent) const
+QList<ProjectExplorer::BuildStepInfo> QbsBuildStepFactory::availableSteps(ProjectExplorer::BuildStepList *parent) const
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_BUILD
             && qobject_cast<QbsBuildConfiguration *>(parent->parent())
             && qobject_cast<QbsProject *>(parent->target()->project()))
-        return QList<Core::Id>() << Core::Id(Constants::QBS_BUILDSTEP_ID);
-    return QList<Core::Id>();
-}
+       return {{ Constants::QBS_BUILDSTEP_ID, tr("Qbs Build") }};
 
-QString QbsBuildStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == Core::Id(Constants::QBS_BUILDSTEP_ID))
-        return tr("Qbs Build");
-    return QString();
-}
-
-bool QbsBuildStepFactory::canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const
-{
-    if (parent->id() != Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD)
-            || !qobject_cast<QbsBuildConfiguration *>(parent->parent())
-            || !qobject_cast<QbsProject *>(parent->target()->project()))
-        return false;
-    return id == Core::Id(Constants::QBS_BUILDSTEP_ID);
+    return {};
 }
 
 ProjectExplorer::BuildStep *QbsBuildStepFactory::create(ProjectExplorer::BuildStepList *parent, Core::Id id)
 {
-    if (!canCreate(parent, id))
-        return 0;
+    Q_UNUSED(id);
     return new QbsBuildStep(parent);
-}
-
-bool QbsBuildStepFactory::canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
-}
-
-ProjectExplorer::BuildStep *QbsBuildStepFactory::restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-    QbsBuildStep *bs = new QbsBuildStep(parent);
-    if (!bs->fromMap(map)) {
-        delete bs;
-        return 0;
-    }
-    return bs;
-}
-
-bool QbsBuildStepFactory::canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product) const
-{
-    return canCreate(parent, product->id());
 }
 
 ProjectExplorer::BuildStep *QbsBuildStepFactory::clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *product)
 {
-    if (!canClone(parent, product))
-        return 0;
     return new QbsBuildStep(parent, static_cast<QbsBuildStep *>(product));
 }
 
 } // namespace Internal
 } // namespace QbsProjectManager
+
+#include "qbsbuildstep.moc"

@@ -23,14 +23,12 @@
 **
 ****************************************************************************/
 
-#ifndef FONTSETTINGS_H
-#define FONTSETTINGS_H
+#pragma once
 
 #include "texteditor_global.h"
 
 #include "colorscheme.h"
-
-#include <utils/sizedarray.h>
+#include "textstyles.h"
 
 #include <QHash>
 #include <QList>
@@ -46,13 +44,6 @@ QT_END_NAMESPACE
 namespace TextEditor {
 
 class FormatDescription;
-
-using MixinTextStyles = Utils::SizedArray<TextStyle, 6>;
-
-struct TextStyles {
-    TextStyle mainStyle;
-    MixinTextStyles mixinStyles;
-};
 
 /**
  * Font settings (default font and enumerated list of formats).
@@ -75,7 +66,7 @@ public:
 
     QVector<QTextCharFormat> toTextCharFormats(const QVector<TextStyle> &categories) const;
     QTextCharFormat toTextCharFormat(TextStyle category) const;
-    QTextCharFormat toTextCharFormat(const TextStyles textStyles) const;
+    QTextCharFormat toTextCharFormat(TextStyles textStyles) const;
 
     QString family() const;
     void setFamily(const QString &family);
@@ -127,5 +118,3 @@ inline bool operator==(const FontSettings &f1, const FontSettings &f2) { return 
 inline bool operator!=(const FontSettings &f1, const FontSettings &f2) { return !f1.equals(f2); }
 
 } // namespace TextEditor
-
-#endif // FONTSETTINGS_H

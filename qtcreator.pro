@@ -1,9 +1,9 @@
 include(qtcreator.pri)
 
 #version check qt
-!minQtVersion(5, 5, 0) {
+!minQtVersion(5, 6, 0) {
     message("Cannot build Qt Creator with Qt version $${QT_VERSION}.")
-    error("Use at least Qt 5.5.0.")
+    error("Use at least Qt 5.6.0.")
 }
 
 include(doc/doc.pri)
@@ -16,6 +16,7 @@ unix:!macx:!isEmpty(copydata):SUBDIRS += bin
 !isEmpty(BUILD_TESTS):SUBDIRS += tests
 
 DISTFILES += dist/copyright_template.txt \
+    README.md \
     $$files(dist/changes-*) \
     qtcreator.qbs \
     qbs/pluginjson/pluginjson.qbs \
@@ -92,11 +93,21 @@ isEmpty(BASENAME): BASENAME = qt-creator-$${PLATFORM}$(INSTALL_EDITION)-$${QTCRE
 macx:INSTALLER_NAME = "qt-creator-$${QTCREATOR_VERSION}"
 else:INSTALLER_NAME = "$${BASENAME}"
 
+linux {
+    appstream.files = dist/org.qt-project.qtcreator.appdata.xml
+    appstream.path = $$QTC_PREFIX/share/metainfo/
+
+    desktop.files = dist/org.qt-project.qtcreator.desktop
+    desktop.path = $$QTC_PREFIX/share/applications/
+
+    INSTALLS += appstream desktop
+}
+
 macx {
     APPBUNDLE = "$$OUT_PWD/bin/Qt Creator.app"
     BINDIST_SOURCE = "$$OUT_PWD/bin/Qt Creator.app"
     BINDIST_INSTALLER_SOURCE = "$$OUT_PWD/bin"
-    deployqt.commands = $$PWD/scripts/deployqtHelper_mac.sh \"$${APPBUNDLE}\" \"$$[QT_INSTALL_TRANSLATIONS]\" \"$$[QT_INSTALL_PLUGINS]\" \"$$[QT_INSTALL_IMPORTS]\" \"$$[QT_INSTALL_QML]\"
+    deployqt.commands = $$PWD/scripts/deployqtHelper_mac.sh \"$${APPBUNDLE}\" \"$$[QT_INSTALL_BINS]\" \"$$[QT_INSTALL_TRANSLATIONS]\" \"$$[QT_INSTALL_PLUGINS]\" \"$$[QT_INSTALL_IMPORTS]\" \"$$[QT_INSTALL_QML]\"
     codesign.commands = codesign --deep -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${APPBUNDLE}\"
     dmg.commands = $$PWD/scripts/makedmg.sh $$OUT_PWD/bin $${BASENAME}.dmg
     #dmg.depends = deployqt
@@ -108,7 +119,10 @@ macx {
     deployqt.depends = install
     win32 {
         deployartifacts.depends = install
-        deployartifacts.commands = git clone "git://code.qt.io/qt-creator/binary-artifacts.git" -b $$BINARY_ARTIFACTS_BRANCH&& xcopy /s /q /y /i "binary-artifacts\\win32" \"$(INSTALL_ROOT)$$QTC_PREFIX\"&& rmdir /s /q binary-artifacts
+        deployartifacts.commands = git clone --depth 1 -b $$BINARY_ARTIFACTS_BRANCH \
+                "http://code.qt.io/qt-creator/binary-artifacts.git" \
+            && xcopy /s /q /y /i "binary-artifacts\\win32" \"$(INSTALL_ROOT)$$QTC_PREFIX\" \
+            && rmdir /s /q binary-artifacts
         QMAKE_EXTRA_TARGETS += deployartifacts
     }
 }

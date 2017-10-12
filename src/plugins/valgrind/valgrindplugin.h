@@ -24,8 +24,7 @@
 **
 ****************************************************************************/
 
-#ifndef VALGRINDPLUGIN_H
-#define VALGRINDPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 #include <projectexplorer/projectexplorer.h>
@@ -49,9 +48,9 @@ public:
     ShutdownFlag aboutToShutdown() override;
 
     static ValgrindGlobalSettings *globalSettings();
+private:
+    QList<QObject *> createTestObjects() const override;
 };
 
 } // namespace Internal
 } // namespace Valgrind
-
-#endif // VALGRINDPLUGIN_H

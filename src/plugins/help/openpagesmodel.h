@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef OPENPAGESMODEL_H
-#define OPENPAGESMODEL_H
+#pragma once
 
 #include <QList>
 #include <QAbstractTableModel>
@@ -51,14 +50,11 @@ public:
     void removePage(int index);
     HelpViewer *pageAt(int index) const;
 
-private slots:
+private:
     void handleTitleChanged();
 
-private:
     QList<HelpViewer *> m_pages;
 };
 
     } // namespace Internal
 } // namespace Help
-
-#endif // OPENPAGESMODEL_H

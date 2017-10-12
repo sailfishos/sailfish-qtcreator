@@ -41,54 +41,24 @@ MerDeployStepFactory::MerDeployStepFactory(QObject *parent)
 {
 }
 
-QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent) const
+QList<BuildStepInfo> MerDeployStepFactory::availableSteps(BuildStepList *parent) const
 {
-    QList<Core::Id> ids;
     if (!qobject_cast<MerDeployConfiguration *>(parent->parent()))
-        return ids;
+        return {};
 
     // Intentionally omit MerEmulatorStartStep and MerConnectionTestStep - these
     // are available wrapped by MerPrepareTargetStep
-    ids << MerPrepareTargetStep::stepId();
-    ids << MerMb2RsyncDeployStep::stepId();
-    ids << MerMb2RpmDeployStep::stepId();
-    ids << MerMb2RpmBuildStep::stepId();
-    ids << MerRpmPackagingStep::stepId();
-    ids << MerRpmValidationStep::stepId();
-    ids << MerUploadAndInstallRpmStep::stepId();
-    ids << MerLocalRsyncDeployStep::stepId();
-    ids << MerResetAmbienceDeployStep::stepId();
-
-    return ids;
-}
-
-QString MerDeployStepFactory::displayNameForId(Core::Id id) const
-{
-    if (id == MerPrepareTargetStep::stepId())
-        return MerPrepareTargetStep::displayName();
-    if (id == MerMb2RsyncDeployStep::stepId())
-        return MerMb2RsyncDeployStep::displayName();
-    if (id == MerMb2RpmDeployStep::stepId())
-        return MerMb2RpmDeployStep::displayName();
-    if (id == MerMb2RpmBuildStep::stepId())
-        return MerMb2RpmBuildStep::displayName();
-    if (id == MerRpmPackagingStep::stepId())
-        return MerRpmPackagingStep::displayName();
-    if (id == MerRpmValidationStep::stepId())
-        return MerRpmValidationStep::displayName();
-    if (id == MerUploadAndInstallRpmStep::stepId())
-        return MerUploadAndInstallRpmStep::displayName();
-    if (id == MerLocalRsyncDeployStep::stepId())
-        return MerLocalRsyncDeployStep::displayName();
-    if (id == MerResetAmbienceDeployStep::stepId())
-        return MerResetAmbienceDeployStep::displayName();
-
-    return QString();
-}
-
-bool MerDeployStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
-{
-    return availableCreationIds(parent).contains(id) && !parent->contains(id);
+    return {
+        { MerPrepareTargetStep::stepId(), MerPrepareTargetStep::displayName() },
+        { MerMb2RsyncDeployStep::stepId(), MerMb2RsyncDeployStep::displayName() },
+        { MerMb2RpmDeployStep::stepId(), MerMb2RpmDeployStep::displayName() },
+        { MerMb2RpmBuildStep::stepId(), MerMb2RpmBuildStep::displayName() },
+        { MerRpmPackagingStep::stepId(), MerRpmPackagingStep::displayName() },
+        { MerRpmValidationStep::stepId(), MerRpmValidationStep::displayName() },
+        { MerUploadAndInstallRpmStep::stepId(), MerUploadAndInstallRpmStep::displayName() },
+        { MerLocalRsyncDeployStep::stepId(), MerLocalRsyncDeployStep::displayName() },
+        { MerResetAmbienceDeployStep::stepId(), MerResetAmbienceDeployStep::displayName() },
+    };
 }
 
 BuildStep *MerDeployStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -115,30 +85,8 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, Core::Id id)
     return 0;
 }
 
-bool MerDeployStepFactory::canRestore(BuildStepList *parent, const QVariantMap &map) const
-{
-    return canCreate(parent, idFromMap(map));
-}
-
-BuildStep *MerDeployStepFactory::restore(BuildStepList *parent, const QVariantMap &map)
-{
-    QTC_ASSERT(canRestore(parent, map), return 0);
-    BuildStep * const step = create(parent, idFromMap(map));
-    if (!step->fromMap(map)) {
-        delete step;
-        return 0;
-    }
-    return step;
-}
-
-bool MerDeployStepFactory::canClone(BuildStepList *parent, BuildStep *product) const
-{
-    return canCreate(parent, product->id());
-}
-
 BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product)
 {
-    QTC_ASSERT(canClone(parent, product), return 0);
     if (MerEmulatorStartStep * const other = qobject_cast<MerEmulatorStartStep *>(product))
         return new MerEmulatorStartStep(parent, other);
     if (MerConnectionTestStep * const other = qobject_cast<MerConnectionTestStep *>(product))

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGERINTERNALCONSTANTS_H
-#define DEBUGGERINTERNALCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -76,29 +75,13 @@ enum ModelRoles
 
     // Locals and Watchers
     LocalsINameRole,
-    LocalsEditTypeRole,     // A QVariant::type describing the item
-    LocalsIntegerBaseRole,  // Number base 16, 10, 8, 2
     LocalsNameRole,
-    LocalsExpressionRole,
-    LocalsRawExpressionRole,
     LocalsExpandedRole,     // The preferred expanded state to the view
-    LocalsRawTypeRole,      // Raw type name
-    LocalsTypeRole,         // Display type name
-    LocalsTypeFormatListRole,
     LocalsTypeFormatRole,   // Used to communicate alternative formats to the view
     LocalsIndividualFormatRole,
-    LocalsObjectAddressRole,      // Memory address of variable as quint64
-    LocalsSizeRole,         // Size of variable as quint
-    LocalsRawValueRole,     // Unformatted value as string
-    LocalsPointerAddressRole, // Address of (undereferenced) pointer as quint64
-    LocalsIsWatchpointAtObjectAddressRole,
-    LocalsIsWatchpointAtPointerAddressRole,
 
     // Snapshots
     SnapshotCapabilityRole
 };
 
 } // namespace Debugger
-
-#endif // DEBUGGERINTERNALCONSTANTS_H
-

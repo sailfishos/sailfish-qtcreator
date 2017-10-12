@@ -27,7 +27,8 @@
 #include "consoleedit.h"
 
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/coreicons.h>
+
+#include <utils/utilsicons.h>
 
 #include <QPainter>
 #include <QTreeView>
@@ -66,11 +67,11 @@ namespace Internal {
 ConsoleItemDelegate::ConsoleItemDelegate(ConsoleItemModel *model, QObject *parent) :
     QStyledItemDelegate(parent),
     m_model(model),
-    m_logIcon(Core::Icons::INFO.icon()),
-    m_warningIcon(Core::Icons::WARNING.icon()),
-    m_errorIcon(Core::Icons::ERROR.icon()),
-    m_expandIcon(QLatin1String(":/qmljstools/images/expand.png")),
-    m_collapseIcon(QLatin1String(":/qmljstools/images/collapse.png")),
+    m_logIcon(Utils::Icons::INFO.icon()),
+    m_warningIcon(Utils::Icons::WARNING.icon()),
+    m_errorIcon(Utils::Icons::ERROR.icon()),
+    m_expandIcon(Utils::Icons::EXPAND.icon()),
+    m_collapseIcon(Utils::Icons::COLLAPSE.icon()),
     m_prompt(QLatin1String(":/qmljstools/images/prompt.png")),
     m_cachedHeight(0)
 {
@@ -312,14 +313,18 @@ QWidget *ConsoleItemDelegate::createEditor(QWidget *parent,
     editor->setStyleSheet(QLatin1String("QTextEdit {"
                                         "margin-left: 24px;"
                                         "margin-top: 4px;"
+                                        "color: black;"
                                         "background-color: white;"
                                         "background-image: url(:/qmljstools/images/prompt.png);"
                                         "background-position: baseline left;"
                                         "background-origin: margin;"
                                         "background-repeat: none;"
                                         "}"));
-    connect(editor, &ConsoleEdit::editingFinished,
-            this, &ConsoleItemDelegate::commitAndCloseEditor);
+    connect(editor, &ConsoleEdit::editingFinished, this, [this, editor] {
+        auto delegate = const_cast<ConsoleItemDelegate*>(this);
+        emit delegate->commitData(editor);
+        emit delegate->closeEditor(editor);
+    });
     return editor;
 }
 
@@ -351,13 +356,6 @@ void ConsoleItemDelegate::currentChanged(const QModelIndex &current,
 {
     emit sizeHintChanged(current);
     emit sizeHintChanged(previous);
-}
-
-void ConsoleItemDelegate::commitAndCloseEditor()
-{
-    ConsoleEdit *editor = qobject_cast<ConsoleEdit *>(sender());
-    emit commitData(editor);
-    emit closeEditor(editor);
 }
 
 qreal ConsoleItemDelegate::layoutText(QTextLayout &tl, int width,

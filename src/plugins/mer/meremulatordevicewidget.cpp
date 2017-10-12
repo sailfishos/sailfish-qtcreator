@@ -29,11 +29,11 @@
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
-#include <coreplugin/coreicons.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
 #include <utils/portlist.h>
+#include <utils/utilsicons.h>
 
 #include <QDir>
 #include <QTextStream>
@@ -141,16 +141,16 @@ void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
 
 void MerEmulatorDeviceWidget::initGui()
 {
-    m_ui->portsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->portsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
-    m_ui->qmlLivePortsInfoLabel->setPixmap(Core::Icons::INFO.pixmap());
+    m_ui->qmlLivePortsInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     m_ui->qmlLivePortsInfoLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("Stop emulator to unlock this field for editing.")
             + QLatin1String("</font>"));
-    m_ui->qmlLivePortsWarningLabel->setPixmap(Core::Icons::WARNING.pixmap());
+    m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)

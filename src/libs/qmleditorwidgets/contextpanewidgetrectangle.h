@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CONTEXTPANEWIDGETRECTANGLE_H
-#define CONTEXTPANEWIDGETRECTANGLE_H
+#pragma once
 
 #include "qmleditorwidgets_global.h"
 #include <QWidget>
@@ -47,7 +46,6 @@ public:
     void setProperties(QmlJS::PropertyReader *propertyReader);
     void enabableGradientEditing(bool);
 
-public slots:
     void onBorderColorButtonToggled(bool);
     void onColorButtonToggled(bool);
     void onColorDialogApplied(const QColor &color);
@@ -82,5 +80,3 @@ private:
 };
 
 } //QmlDesigner
-
-#endif // CONTEXTPANEWIDGETRECTANGLE_H

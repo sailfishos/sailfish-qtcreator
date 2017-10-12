@@ -23,35 +23,18 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_REGISTERHANDLER_H
-#define DEBUGGER_REGISTERHANDLER_H
+#pragma once
 
 #include <utils/treemodel.h>
 
-#include <QAbstractTableModel>
 #include <QHash>
-#include <QVector>
+
+namespace Utils { class ItemViewEvent; }
 
 namespace Debugger {
 namespace Internal {
 
 class DebuggerEngine;
-
-enum RegisterColumns
-{
-    RegisterNameColumn,
-    RegisterValueColumn,
-    RegisterColumnCount
-};
-
-enum RegisterDataRole
-{
-    RegisterNameRole = Qt::UserRole,
-    RegisterIsBigRole,
-    RegisterChangedRole,
-    RegisterFormatRole,
-    RegisterAsAddressRole
-};
 
 enum RegisterKind
 {
@@ -80,9 +63,9 @@ public:
     bool operator==(const RegisterValue &other);
     bool operator!=(const RegisterValue &other) { return !operator==(other); }
 
-    void fromByteArray(const QByteArray &ba, RegisterFormat format);
-    QByteArray toByteArray(RegisterKind kind, int size, RegisterFormat format,
-                           bool forEdit = false) const;
+    void fromString(const QString &str, RegisterFormat format);
+    QString toString(RegisterKind kind, int size, RegisterFormat format,
+                     bool forEdit = false) const;
 
     RegisterValue subValue(int size, int index) const;
     void setSubValue(int size, int index, RegisterValue subValue);
@@ -103,22 +86,26 @@ public:
 class Register
 {
 public:
-    Register() { size = 0; kind = UnknownRegister; }
+    Register() {}
     void guessMissingData();
 
-    QByteArray name;
-    QByteArray reportedType;
+    QString name;
+    QString reportedType;
     RegisterValue value;
     RegisterValue previousValue;
-    QByteArray description;
-    int size;
-    RegisterKind kind;
+    QString description;
+    int size = 0;
+    RegisterKind kind = UnknownRegister;
 };
 
+class RegisterSubItem;
 class RegisterItem;
-typedef QMap<quint64, QByteArray> RegisterMap;
+using RegisterRootItem = Utils::TypedTreeItem<RegisterItem>;
+using RegisterModel = Utils::TreeModel<RegisterRootItem, RegisterItem, RegisterSubItem>;
 
-class RegisterHandler : public Utils::TreeModel
+typedef QMap<quint64, QString> RegisterMap;
+
+class RegisterHandler : public RegisterModel
 {
     Q_OBJECT
 
@@ -126,23 +113,23 @@ public:
     explicit RegisterHandler(DebuggerEngine *engine);
 
     QAbstractItemModel *model() { return this; }
-    DebuggerEngine *engine() const { return m_engine; }
 
     void updateRegister(const Register &reg);
-
-    void setNumberFormat(const QByteArray &name, RegisterFormat format);
     void commitUpdates() { emit layoutChanged(); }
     RegisterMap registerMap() const;
 
 signals:
-    void registerChanged(const QByteArray &name, quint64 value); // For memory views
+    void registerChanged(const QString &name, quint64 value); // For memory views
 
 private:
-    QHash<QByteArray, RegisterItem *> m_registerByName;
+    QVariant data(const QModelIndex &idx, int role) const override;
+    bool setData(const QModelIndex &idx, const QVariant &data, int role) override;
+
+    bool contextMenuEvent(const Utils::ItemViewEvent &ev);
+
+    QHash<QString, RegisterItem *> m_registerByName;
     DebuggerEngine * const m_engine;
 };
 
 } // namespace Internal
 } // namespace Debugger
-
-#endif // DEBUGGER_REGISTERHANDLER_H

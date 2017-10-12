@@ -12,7 +12,6 @@ QtcPlugin {
     Depends { name: "QtcSsh" }
     Depends { name: "Qt"; submodules: ["widgets", "webkit"] }
     Depends { name: "cpp" }
-    cpp.defines: base.concat(["QT_NO_CAST_TO_ASCII", "QT_NO_CAST_FROM_ASCII"])
 
     files: [
         "meroptionswidget.ui",

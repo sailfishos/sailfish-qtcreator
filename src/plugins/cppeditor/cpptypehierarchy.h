@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPTYPEHIERARCHY_H
-#define CPPTYPEHIERARCHY_H
+#pragma once
 
 #include <coreplugin/inavigationwidgetfactory.h>
 
@@ -77,7 +76,6 @@ public:
     CppTypeHierarchyWidget();
     virtual ~CppTypeHierarchyWidget();
 
-public slots:
     void perform();
 
 private:
@@ -111,5 +109,3 @@ public:
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPTYPEHIERARCHY_H

@@ -33,6 +33,8 @@
 #include <coreplugin/documentmanager.h>
 #include <utils/qtcassert.h>
 
+#include <QGridLayout>
+
 using namespace Core;
 using namespace Utils;
 using namespace TextEditor::Internal;
@@ -58,20 +60,6 @@ TextMark::~TextMark()
     if (m_baseTextDocument)
         m_baseTextDocument->removeMark(this);
     m_baseTextDocument = 0;
-}
-
-TextMark::TextMark(TextMark &&other) Q_DECL_NOEXCEPT
-    : m_baseTextDocument(std::move(other.m_baseTextDocument)),
-      m_fileName(std::move(other.m_fileName)),
-      m_lineNumber(std::move(other.m_lineNumber)),
-      m_priority(std::move(other.m_priority)),
-      m_visible(std::move(other.m_visible)),
-      m_icon(std::move(other.m_icon)),
-      m_color(std::move(other.m_color)),
-      m_category(std::move(other.m_category)),
-      m_widthFactor(std::move(other.m_widthFactor))
-{
-    other.m_baseTextDocument = nullptr;
 }
 
 QString TextMark::fileName() const
@@ -126,6 +114,11 @@ void TextMark::setIcon(const QIcon &icon)
     m_icon = icon;
 }
 
+const QIcon &TextMark::icon() const
+{
+    return m_icon;
+}
+
 Theme::Color TextMark::categoryColor(Id category)
 {
     return TextEditorPlugin::baseTextMarkRegistry()->categoryColor(category);
@@ -139,6 +132,11 @@ bool TextMark::categoryHasColor(Id category)
 void TextMark::setCategoryColor(Id category, Theme::Color color)
 {
     TextEditorPlugin::baseTextMarkRegistry()->setCategoryColor(category, color);
+}
+
+void TextMark::setDefaultToolTip(Id category, const QString &toolTip)
+{
+    TextEditorPlugin::baseTextMarkRegistry()->setDefaultToolTip(category, toolTip);
 }
 
 void TextMark::updateMarker()
@@ -202,6 +200,39 @@ void TextMark::dragToLine(int lineNumber)
     Q_UNUSED(lineNumber);
 }
 
+void TextMark::addToToolTipLayout(QGridLayout *target)
+{
+    auto *contentLayout = new QVBoxLayout;
+    addToolTipContent(contentLayout);
+    if (contentLayout->count() > 0) {
+        const int row = target->rowCount();
+        if (!m_icon.isNull()) {
+            auto iconLabel = new QLabel;
+            iconLabel->setPixmap(m_icon.pixmap(16, 16));
+            target->addWidget(iconLabel, row, 0, Qt::AlignTop | Qt::AlignHCenter);
+        }
+        target->addLayout(contentLayout, row, 1);
+    }
+}
+
+bool TextMark::addToolTipContent(QLayout *target)
+{
+    QString text = m_toolTip;
+    if (text.isEmpty()) {
+        text = TextEditorPlugin::baseTextMarkRegistry()->defaultToolTip(m_category);
+        if (text.isEmpty())
+            return false;
+    }
+
+    auto textLabel = new QLabel;
+    textLabel->setText(text);
+    // Differentiate between tool tips that where explicitly set and default tool tips.
+    textLabel->setEnabled(!m_toolTip.isEmpty());
+    target->addWidget(textLabel);
+
+    return true;
+}
+
 TextDocument *TextMark::baseTextDocument() const
 {
     return m_baseTextDocument;
@@ -212,6 +243,15 @@ void TextMark::setBaseTextDocument(TextDocument *baseTextDocument)
     m_baseTextDocument = baseTextDocument;
 }
 
+QString TextMark::toolTip() const
+{
+    return m_toolTip;
+}
+
+void TextMark::setToolTip(const QString &toolTip)
+{
+    m_toolTip = toolTip;
+}
 
 TextMarkRegistry::TextMarkRegistry(QObject *parent)
     : QObject(parent)
@@ -249,11 +289,25 @@ bool TextMarkRegistry::categoryHasColor(Id category)
     return m_colors.contains(category);
 }
 
-void TextMarkRegistry::setCategoryColor(Id category, Theme::Color color)
+void TextMarkRegistry::setCategoryColor(Id category, Theme::Color newColor)
 {
-    if (m_colors[category] == color)
+    Theme::Color &color = m_colors[category];
+    if (color == newColor)
         return;
-    m_colors[category] = color;
+    color = newColor;
+}
+
+QString TextMarkRegistry::defaultToolTip(Id category) const
+{
+    return m_defaultToolTips[category];
+}
+
+void TextMarkRegistry::setDefaultToolTip(Id category, const QString &toolTip)
+{
+    QString &defaultToolTip = m_defaultToolTips[category];
+    if (defaultToolTip == toolTip)
+        return;
+    defaultToolTip = toolTip;
 }
 
 void TextMarkRegistry::editorOpened(IEditor *editor)
@@ -272,7 +326,7 @@ void TextMarkRegistry::documentRenamed(IDocument *document, const
                                            QString &oldName, const QString &newName)
 {
     TextDocument *baseTextDocument = qobject_cast<TextDocument *>(document);
-    if (!document)
+    if (!baseTextDocument)
         return;
     FileName oldFileName = FileName::fromString(oldName);
     FileName newFileName = FileName::fromString(newName);

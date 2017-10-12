@@ -27,12 +27,15 @@
 #include "qmljsmodelmanagerinterface.h"
 
 #include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljsviewercontext.h>
 //#include <projectexplorer/session.h>
 //#include <coreplugin/messagemanager.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 
 #include <QDir>
+#include <QRegularExpression>
 
 using namespace LanguageUtils;
 using namespace QmlJS;
@@ -50,8 +53,8 @@ Utils::FileSystemWatcher *PluginDumper::pluginWatcher()
     if (!m_pluginWatcher) {
         m_pluginWatcher = new Utils::FileSystemWatcher(this);
         m_pluginWatcher->setObjectName(QLatin1String("PluginDumperWatcher"));
-        connect(m_pluginWatcher, SIGNAL(fileChanged(QString)),
-                this, SLOT(pluginChanged(QString)));
+        connect(m_pluginWatcher, &Utils::FileSystemWatcher::fileChanged,
+                this, &PluginDumper::pluginChanged);
     }
     return m_pluginWatcher;
 }
@@ -309,7 +312,9 @@ void PluginDumper::qmlPluginTypeDumpDone(int exitCode)
     QString warning;
     CppQmlTypesLoader::BuiltinObjects objectsList;
     QList<ModuleApiInfo> moduleApis;
-    CppQmlTypesLoader::parseQmlTypeDescriptions(output, &objectsList, &moduleApis, &error, &warning,
+    QStringList dependencies;
+    CppQmlTypesLoader::parseQmlTypeDescriptions(output, &objectsList, &moduleApis, &dependencies,
+                                                &error, &warning,
                                                 QLatin1String("<dump of ") + libraryPath + QLatin1Char('>'));
     if (exitCode == 0) {
         if (!error.isEmpty()) {
@@ -361,6 +366,122 @@ void PluginDumper::pluginChanged(const QString &pluginLibrary)
     dump(plugin);
 }
 
+void PluginDumper::loadQmlTypeDescription(const QStringList &paths,
+                                          QStringList &errors,
+                                          QStringList &warnings,
+                                          QList<FakeMetaObject::ConstPtr> &objects,
+                                          QList<ModuleApiInfo> *moduleApi,
+                                          QStringList *dependencies) const {
+    for (const QString &p: paths) {
+        Utils::FileReader reader;
+        if (!reader.fetch(p, QFile::Text)) {
+            errors += reader.errorString();
+            continue;
+        }
+        QString error;
+        QString warning;
+        CppQmlTypesLoader::BuiltinObjects objs;
+        QList<ModuleApiInfo> apis;
+        QStringList deps;
+        CppQmlTypesLoader::parseQmlTypeDescriptions(reader.data(), &objs, &apis, &deps,
+                                                    &error, &warning, p);
+        if (!error.isEmpty()) {
+            errors += tr("Failed to parse \"%1\".\nError: %2").arg(p, error);
+        } else {
+            objects += objs.values();
+            if (moduleApi)
+                *moduleApi += apis;
+            if (!deps.isEmpty())
+                *dependencies += deps;
+        }
+        if (!warning.isEmpty())
+            warnings += warning;
+    }
+}
+/*!
+ * \brief Build the path of an existing qmltypes file from a module name.
+ * \param name
+ * \return the module's qmltypes file path
+ *
+ * Look for \a name qmltypes file in model manager's import paths.
+ * For each import path the following files are searched, in this order:
+ *
+ *   - <name>.<major>.<minor>/plugins.qmltypes
+ *   - <name>.<major>/plugins.qmltypes
+ *   - <name>/plugins.qmltypes
+ *
+ * That means that a more qualified directory name has precedence over a
+ * less qualified one.  Be aware that the import paths order has a stronger
+ * precedence, so a less qualified name could shadow a more qualified one if
+ * it resides in a different import path.
+ *
+ * \sa LinkPrivate::importNonFile
+ */
+QString PluginDumper::buildQmltypesPath(const QString &name) const
+{
+    QString qualifiedName;
+    QString majorVersion;
+    QString minorVersion;
+
+    QRegularExpression import("^(?<name>[\\w|\\.]+)\\s+(?<major>\\d+)\\.(?<minor>\\d+)$");
+    QRegularExpressionMatch m = import.match(name);
+    if (m.hasMatch()) {
+        qualifiedName = m.captured("name");
+        majorVersion = m.captured("major");
+        minorVersion = m.captured("minor");
+    }
+
+    for (const PathAndLanguage &p: m_modelManager->importPaths()) {
+        QString moduleName = qualifiedName.replace(QLatin1Char('.'), QLatin1Char('/'));
+        QString moduleNameMajor = moduleName + QLatin1Char('.') + majorVersion;
+        QString moduleNameMajorMinor = moduleNameMajor + QLatin1Char('.') + minorVersion;
+
+        for (const auto n: QStringList{moduleNameMajorMinor, moduleNameMajor, moduleName}) {
+            QString filename(p.path().toString() + QLatin1Char('/') + n
+                             + QLatin1String("/plugins.qmltypes"));
+            if (QFile::exists(filename))
+                return filename;
+        }
+    }
+    return QString();
+}
+
+/*!
+ * \brief Recursively load dependencies.
+ * \param dependencies
+ * \param errors
+ * \param warnings
+ * \param objects
+ *
+ * Recursively load type descriptions of dependencies, collecting results
+ * in \a objects.
+ */
+void PluginDumper::loadDependencies(const QStringList &dependencies,
+                                    QStringList &errors,
+                                    QStringList &warnings,
+                                    QList<FakeMetaObject::ConstPtr> &objects,
+                                    QSet<QString> *visited) const
+{
+    if (dependencies.isEmpty())
+        return;
+
+    QScopedPointer<QSet<QString>> visitedPtr(visited ? visited : new QSet<QString>());
+
+    QStringList dependenciesPaths;
+    QString path;
+    for (const QString &name: dependencies) {
+        path = buildQmltypesPath(name);
+        if (!path.isNull())
+            dependenciesPaths << path;
+        visitedPtr->insert(name);
+    }
+    QStringList newDependencies;
+    loadQmlTypeDescription(dependenciesPaths, errors, warnings, objects, 0, &newDependencies);
+    newDependencies = (newDependencies.toSet() - *visitedPtr).toList();
+    if (!newDependencies.isEmpty())
+        loadDependencies(newDependencies, errors, warnings, objects, visitedPtr.take());
+}
+
 void PluginDumper::loadQmltypesFile(const QStringList &qmltypesFilePaths,
                                     const QString &libraryPath,
                                     QmlJS::LibraryInfo libraryInfo)
@@ -369,31 +490,14 @@ void PluginDumper::loadQmltypesFile(const QStringList &qmltypesFilePaths,
     QStringList warnings;
     QList<FakeMetaObject::ConstPtr> objects;
     QList<ModuleApiInfo> moduleApis;
+    QStringList dependencies;
 
-    foreach (const QString &qmltypesFilePath, qmltypesFilePaths) {
-        Utils::FileReader reader;
-        if (!reader.fetch(qmltypesFilePath, QFile::Text)) {
-            errors += reader.errorString();
-            continue;
-        }
-
-        QString error;
-        QString warning;
-        CppQmlTypesLoader::BuiltinObjects newObjects;
-        QList<ModuleApiInfo> newModuleApis;
-        CppQmlTypesLoader::parseQmlTypeDescriptions(reader.data(), &newObjects, &newModuleApis, &error, &warning, qmltypesFilePath);
-        if (!error.isEmpty()) {
-            errors += tr("Failed to parse \"%1\".\nError: %2").arg(qmltypesFilePath, error);
-        } else {
-            objects += newObjects.values();
-            moduleApis += newModuleApis;
-        }
-        if (!warning.isEmpty())
-            warnings += warning;
-    }
+    loadQmlTypeDescription(qmltypesFilePaths, errors, warnings, objects, &moduleApis, &dependencies);
+    loadDependencies(dependencies, errors, warnings, objects);
 
     libraryInfo.setMetaObjects(objects);
     libraryInfo.setModuleApis(moduleApis);
+    libraryInfo.setDependencies(dependencies);
     if (errors.isEmpty()) {
         libraryInfo.setPluginTypeInfoStatus(LibraryInfo::TypeInfoFileDone);
     } else {
@@ -412,10 +516,15 @@ void PluginDumper::loadQmltypesFile(const QStringList &qmltypesFilePaths,
 void PluginDumper::runQmlDump(const QmlJS::ModelManagerInterface::ProjectInfo &info,
     const QStringList &arguments, const QString &importPath)
 {
+    QDir wd = QDir(importPath);
+    wd.cdUp();
     QProcess *process = new QProcess(this);
     process->setEnvironment(info.qmlDumpEnvironment.toStringList());
-    connect(process, SIGNAL(finished(int)), SLOT(qmlPluginTypeDumpDone(int)));
-    connect(process, SIGNAL(error(QProcess::ProcessError)), SLOT(qmlPluginTypeDumpError(QProcess::ProcessError)));
+    QString workingDir = wd.canonicalPath();
+    process->setWorkingDirectory(workingDir);
+    connect(process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+            this, &PluginDumper::qmlPluginTypeDumpDone);
+    connect(process, &QProcess::errorOccurred, this, &PluginDumper::qmlPluginTypeDumpError);
     process->start(info.qmlDumpPath, arguments);
     m_runningQmldumps.insert(process, importPath);
 }
@@ -462,7 +571,7 @@ void PluginDumper::dump(const Plugin &plugin)
         args << QLatin1String("-nonrelocatable");
     args << plugin.importUri;
     args << plugin.importVersion;
-    args << plugin.importPath;
+    args << (plugin.importPath.isEmpty() ? QLatin1String(".") : plugin.importPath);
     runQmlDump(info, args, plugin.qmldirPath);
 }
 
@@ -534,41 +643,33 @@ QString PluginDumper::resolvePlugin(const QDir &qmldirPath, const QString &qmldi
 QString PluginDumper::resolvePlugin(const QDir &qmldirPath, const QString &qmldirPluginPath,
                                     const QString &baseName)
 {
-#if defined(Q_OS_WIN32) || defined(Q_OS_WINCE)
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName,
-                         QStringList()
-                         << QLatin1String("d.dll") // try a qmake-style debug build first
-                         << QLatin1String(".dll"));
-#elif defined(Q_OS_DARWIN)
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName,
-                         QStringList()
-                         << QLatin1String("_debug.dylib") // try a qmake-style debug build first
-                         << QLatin1String(".dylib")
-                         << QLatin1String(".so")
-                         << QLatin1String(".bundle"),
-                         QLatin1String("lib"));
-#else  // Generic Unix
     QStringList validSuffixList;
-
-#  if defined(Q_OS_HPUX)
+    QString prefix;
+    if (Utils::HostOsInfo::isWindowsHost()) {
+        // try a qmake-style debug build first
+        validSuffixList = QStringList({ "d.dll",  ".dll" });
+    } else if (Utils::HostOsInfo::isMacHost()) {
+        // try a qmake-style debug build first
+        validSuffixList = QStringList({ "_debug.dylib", ".dylib", ".so", ".bundle", "lib" });
+    } else {
+        // Examples of valid library names:
+        //  libfoo.so
+        prefix = "lib";
+#if defined(Q_OS_HPUX)
 /*
     See "HP-UX Linker and Libraries User's Guide", section "Link-time Differences between PA-RISC and IPF":
     "In PA-RISC (PA-32 and PA-64) shared libraries are suffixed with .sl. In IPF (32-bit and 64-bit),
     the shared libraries are suffixed with .so. For compatibility, the IPF linker also supports the .sl suffix."
  */
-    validSuffixList << QLatin1String(".sl");
-#   if defined __ia64
-    validSuffixList << QLatin1String(".so");
-#   endif
-#  elif defined(Q_OS_AIX)
-    validSuffixList << QLatin1String(".a") << QLatin1String(".so");
-#  elif defined(Q_OS_UNIX)
-    validSuffixList << QLatin1String(".so");
-#  endif
-
-    // Examples of valid library names:
-    //  libfoo.so
-
-    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName, validSuffixList, QLatin1String("lib"));
+        validSuffixList << QLatin1String(".sl");
+# if defined __ia64
+        validSuffixList << QLatin1String(".so");
+# endif
+#elif defined(Q_OS_AIX)
+        validSuffixList << QLatin1String(".a") << QLatin1String(".so");
+#else
+        validSuffixList << QLatin1String(".so");
 #endif
+    }
+    return resolvePlugin(qmldirPath, qmldirPluginPath, baseName, validSuffixList, prefix);
 }

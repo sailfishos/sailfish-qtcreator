@@ -23,14 +23,11 @@
 **
 ****************************************************************************/
 
-#ifndef IOSANALYZESUPPORT_H
-#define IOSANALYZESUPPORT_H
-
-#include "iosrunconfiguration.h"
+#pragma once
 
 #include <qmldebug/qmloutputparser.h>
+#include <utils/port.h>
 
-#include <QProcess>
 #include <QObject>
 
 namespace Debugger { class AnalyzerRunControl; }
@@ -52,8 +49,8 @@ public:
 
 private:
     void qmlServerReady();
-    void handleServerPorts(int gdbServerFd, int qmlPort);
-    void handleGotInferiorPid(qint64 pid, int qmlPort);
+    void handleServerPorts(Utils::Port gdbServerPort, Utils::Port qmlPort);
+    void handleGotInferiorPid(qint64 pid, Utils::Port qmlPort);
     void handleRemoteProcessFinished(bool cleanEnd);
 
     void handleRemoteOutput(const QString &output);
@@ -62,10 +59,8 @@ private:
     Debugger::AnalyzerRunControl *m_runControl;
     IosRunner * const m_runner;
     QmlDebug::QmlOutputParser m_outputParser;
-    int m_qmlPort;
+    Utils::Port m_qmlPort;
 };
 
 } // namespace Internal
 } // namespace Ios
-
-#endif // IOSANALYZESUPPORT_H

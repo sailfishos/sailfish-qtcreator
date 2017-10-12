@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSHOVERHANDLER_H
-#define QMLJSHOVERHANDLER_H
+#pragma once
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <texteditor/basehoverhandler.h>
@@ -58,8 +57,8 @@ public:
 private:
     void reset();
 
-    void identifyMatch(TextEditor::TextEditorWidget *editorWidget, int pos);
-    void operateTooltip(TextEditor::TextEditorWidget *editorWidget, const QPoint &point);
+    void identifyMatch(TextEditor::TextEditorWidget *editorWidget, int pos) override;
+    void operateTooltip(TextEditor::TextEditorWidget *editorWidget, const QPoint &point) override;
 
     bool matchDiagnosticMessage(QmlJSEditorWidget *qmlEditor, int pos);
     bool matchColorItem(const QmlJS::ScopeChain &lookupContext,
@@ -86,5 +85,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSHOVERHANDLER_H

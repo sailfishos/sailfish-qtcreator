@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QNX_QNXCONSTANTS_H
-#define QNX_QNXCONSTANTS_H
+#pragma once
 
 #include <QtGlobal>
 
@@ -56,10 +55,8 @@ const char QNX_DEBUG_EXECUTABLE[] = "pdebug";
 const char QNX_TOOLCHAIN_ID[] = "Qnx.QccToolChain";
 
 // QNX settings constants
-const char QNX_CATEGORY[] = "XF.Qnx";
-const char QNX_CATEGORY_TR[] = QT_TRANSLATE_NOOP("QNX", "QNX");
 const char QNX_CATEGORY_ICON[] = ":/qnx/images/qnx-target.png";
-const char QNX_SETTINGS_ID[] = "ZZ.Qnx Configuration";
+const char QNX_SETTINGS_ID[] = "DD.Qnx Configuration";
 
 const char QNX_CONFIGS_FILENAME[] = "qnxconfigurations.xml";
 
@@ -67,5 +64,3 @@ const char QNX_DEBUGGING_GROUP[] = "Debugger.Group.Qnx";
 
 } // namespace Constants
 } // namespace Qnx
-
-#endif // QNX_QNXCONSTANTS_H

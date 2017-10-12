@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GLSLAUTOCOMPLETER_H
-#define GLSLAUTOCOMPLETER_H
+#pragma once
 
 #include <texteditor/autocompleter.h>
 
@@ -34,21 +33,18 @@ namespace Internal {
 class GlslCompleter : public TextEditor::AutoCompleter
 {
 public:
-    GlslCompleter();
-    virtual ~GlslCompleter();
-
-    virtual bool contextAllowsAutoParentheses(const QTextCursor &cursor,
-                                              const QString &textToInsert = QString()) const;
-    virtual bool contextAllowsElectricCharacters(const QTextCursor &cursor) const;
-    virtual bool isInComment(const QTextCursor &cursor) const;
-    virtual QString insertMatchingBrace(const QTextCursor &cursor,
-                                        const QString &text,
-                                        QChar la,
-                                        int *skippedChars) const;
-    virtual QString insertParagraphSeparator(const QTextCursor &cursor) const;
+    bool contextAllowsAutoBrackets(const QTextCursor &cursor,
+                                   const QString &textToInsert = QString()) const override;
+    bool contextAllowsAutoQuotes(const QTextCursor &cursor,
+                                 const QString &textToInsert = QString()) const override;
+    bool contextAllowsElectricCharacters(const QTextCursor &cursor) const override;
+    bool isInComment(const QTextCursor &cursor) const override;
+    QString insertMatchingBrace(const QTextCursor &cursor, const QString &text,
+                                QChar lookAhead, bool skipChars, int *skippedChars) const override;
+    QString insertMatchingQuote(const QTextCursor &cursor, const QString &text,
+                                QChar lookAhead, bool skipChars, int *skippedChars) const override;
+    QString insertParagraphSeparator(const QTextCursor &cursor) const override;
 };
 
 } // namespace Internal
 } // namespace GlslEditor
-
-#endif // GLSLAUTOCOMPLETER_H

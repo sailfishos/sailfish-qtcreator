@@ -23,19 +23,21 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_CONNECTIONCLIENT_H
-#define CLANGBACKEND_CONNECTIONCLIENT_H
+#pragma once
 
-#include "ipcserverproxy.h"
+#include "clangcodemodelserverproxy.h"
 #include "lineprefixer.h"
 
 #include <QLocalSocket>
 #include <QProcessEnvironment>
+#include <QScopedPointer>
+#include <QTemporaryDir>
 
 #include <memory>
 
 QT_BEGIN_NAMESPACE
 class QProcess;
+class QTemporaryDir;
 QT_END_NAMESPACE
 
 class Utf8String;
@@ -50,10 +52,9 @@ class CMBIPC_EXPORT ConnectionClient : public QObject
     Q_OBJECT
 
 public:
-    ConnectionClient(IpcClientInterface *client);
-    ~ConnectionClient();
+    ConnectionClient();
 
-    bool connectToServer();
+    void startProcessAndConnectToServerAsynchronously();
     bool disconnectFromServer();
     bool isConnected() const;
 
@@ -65,51 +66,71 @@ public:
     const QString &processPath() const;
     void setProcessPath(const QString &processPath);
 
-    void startProcess();
-    void restartProcess();
+    void restartProcessAsynchronously();
     void restartProcessIfTimerIsNotResettedAndSocketIsEmpty();
     void finishProcess();
     bool isProcessIsRunning() const;
 
     bool waitForEcho();
-
-    IpcServerProxy &serverProxy();
+    bool waitForConnected();
 
     QProcess *processForTestOnly() const;
 
 signals:
-    void processRestarted();
+    void connectedToLocalSocket();
+    void disconnectedFromLocalSocket();
+    void processFinished();
+
+protected:
+    QIODevice *ioDevice();
+    const QTemporaryDir &temporaryDirectory() const;
+    LinePrefixer &stdErrPrefixer();
+    LinePrefixer &stdOutPrefixer();
+
+    virtual void sendEndCommand() = 0;
+    virtual void resetCounter() = 0;
+    virtual QString connectionName() const = 0;
+    virtual QString outputName() const = 0;
 
 private:
-    bool connectToLocalSocket();
-    void endProcess();
-    void terminateProcess();
-    void killProcess();
+    std::unique_ptr<QProcess> startProcess();
+    void finishProcess(std::unique_ptr<QProcess> &&process);
+    void connectToLocalSocket();
+    void endProcess(QProcess *process);
+    void terminateProcess(QProcess *process);
+    void killProcess(QProcess *process);
+    void resetProcessIsStarting();
     void printLocalSocketError(QLocalSocket::LocalSocketError socketError);
     void printStandardOutput();
     void printStandardError();
 
-    QProcess *process() const;
-    void connectProcessFinished() const;
-    void disconnectProcessFinished() const;
-    void connectStandardOutputAndError() const;
+    void resetTemporaryDir();
+
+    void connectLocalSocketConnected();
+    void connectLocalSocketDisconnected();
+    void connectProcessFinished(QProcess *process) const;
+    void connectProcessStarted(QProcess *process) const;
+    void disconnectProcessFinished(QProcess *process) const;
+    void connectStandardOutputAndError(QProcess *process) const;
+    void connectLocalSocketError() const;
+    void connectAliveTimer();
 
     void ensureMessageIsWritten();
 
     QProcessEnvironment processEnvironment() const;
 
 private:
+    LinePrefixer stdErrPrefixer_;
+    LinePrefixer stdOutPrefixer_;
+
     mutable std::unique_ptr<QProcess> process_;
     QLocalSocket localSocket;
-    IpcServerProxy serverProxy_;
+    QScopedPointer<QTemporaryDir> temporaryDirectory_;
     QTimer processAliveTimer;
     QString processPath_;
-    bool isAliveTimerResetted;
+    bool isAliveTimerResetted = false;
+    bool processIsStarting = false;
 
-    LinePrefixer stdErrPrefixer;
-    LinePrefixer stdOutPrefixer;
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_CONNECTIONCLIENT_H

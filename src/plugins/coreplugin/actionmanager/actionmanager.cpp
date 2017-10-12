@@ -163,6 +163,8 @@ ActionManager::ActionManager(QObject *parent)
 {
     m_instance = this;
     d = new ActionManagerPrivate;
+    if (Utils::HostOsInfo::isMacHost())
+        QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 }
 
 /*!
@@ -357,6 +359,13 @@ void ActionManager::setPresentationModeEnabled(bool enabled)
 bool ActionManager::isPresentationModeEnabled()
 {
     return d->m_presentationModeEnabled;
+}
+
+QString ActionManager::withNumberAccelerator(const QString &text, const int number)
+{
+    if (Utils::HostOsInfo::isMacHost() || number > 9)
+        return text;
+    return QString("&%1 | %2").arg(number).arg(text);
 }
 
 void ActionManager::saveSettings()

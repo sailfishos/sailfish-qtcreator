@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef FAKEVIM_HANDLER_H
-#define FAKEVIM_HANDLER_H
+#pragma once
 
 #include <QObject>
 #include <QTextEdit>
@@ -96,7 +95,7 @@ public:
 
     static void updateGlobalMarksFilenames(const QString &oldFileName, const QString &newFileName);
 
-public slots:
+public:
     void setCurrentFileName(const QString &fileName);
     QString currentFileName() const;
 
@@ -107,6 +106,7 @@ public slots:
     void handleCommand(const QString &cmd);
     void handleReplay(const QString &keys);
     void handleInput(const QString &keys);
+    void enterCommandMode();
 
     void installEventFilter();
 
@@ -132,8 +132,8 @@ public slots:
     bool eventFilter(QObject *ob, QEvent *ev);
 
 signals:
-    void commandBufferChanged(const QString &msg, int cursorPos,
-        int anchorPos, int messageLevel, QObject *eventFilter);
+    void commandBufferChanged(const QString &msg, int cursorPos, int anchorPos,
+                              int messageLevel, FakeVimHandler *eventFilter);
     void statusDataChanged(const QString &msg);
     void extraInformationChanged(const QString &msg);
     void selectionChanged(const QList<QTextEdit::ExtraSelection> &selection);
@@ -169,6 +169,3 @@ private:
 } // namespace FakeVim
 
 Q_DECLARE_METATYPE(FakeVim::Internal::ExCommand)
-
-
-#endif // FAKEVIM_HANDLER_H

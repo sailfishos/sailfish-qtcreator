@@ -12,8 +12,6 @@ HEADERS += \
     clangdiagnosticconfig.h \
     clangdiagnosticconfigsmodel.h \
     clangdiagnosticconfigswidget.h \
-    commentssettings.h \
-    completionsettingspage.h \
     cppchecksymbols.h \
     cppclassesfilter.h \
     cppcodeformatter.h \
@@ -78,8 +76,8 @@ HEADERS += \
     projectpartheaderpath.h \
     projectinfo.h \
     projectpartbuilder.h \
-    compileroptionsbuilder.h
-
+    compileroptionsbuilder.h \
+    refactoringengineinterface.h
 SOURCES += \
     abstracteditorsupport.cpp \
     baseeditordocumentparser.cpp \
@@ -90,8 +88,6 @@ SOURCES += \
     clangdiagnosticconfig.cpp \
     clangdiagnosticconfigsmodel.cpp \
     clangdiagnosticconfigswidget.cpp \
-    commentssettings.cpp \
-    completionsettingspage.cpp \
     cppchecksymbols.cpp \
     cppclassesfilter.cpp \
     cppcodeformatter.cpp \
@@ -156,7 +152,6 @@ SOURCES += \
 
 FORMS += \
     clangdiagnosticconfigswidget.ui \
-    completionsettingspage.ui \
     cppcodemodelsettingspage.ui \
     cppcodestylesettingspage.ui \
     cppfilesettingspage.ui

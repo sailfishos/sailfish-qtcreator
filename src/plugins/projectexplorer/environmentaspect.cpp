@@ -39,16 +39,12 @@ namespace ProjectExplorer {
 // EnvironmentAspect:
 // --------------------------------------------------------------------
 
-EnvironmentAspect::EnvironmentAspect(RunConfiguration *runConfig)
-    : IRunConfigurationAspect(runConfig), m_base(-1)
+EnvironmentAspect::EnvironmentAspect(RunConfiguration *runConfig) :
+    IRunConfigurationAspect(runConfig), m_base(-1)
 {
     setDisplayName(tr("Run Environment"));
     setId("EnvironmentAspect");
-}
-
-RunConfigWidget *EnvironmentAspect::createConfigurationWidget()
-{
-    return new EnvironmentAspectWidget(this);
+    setRunConfigWidgetCreator([this] { return new EnvironmentAspectWidget(this); });
 }
 
 int EnvironmentAspect::baseEnvironmentBase() const

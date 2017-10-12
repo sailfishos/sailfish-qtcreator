@@ -27,22 +27,34 @@
 #include "iosconfigurations.h"
 #include "iosconstants.h"
 #include "iossimulator.h"
+#include "simulatorcontrol.h"
 
+#include "debugger/debuggerconstants.h"
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
+#include "utils/runextensions.h"
+#include "utils/synchronousprocess.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
+#include <QFutureWatcher>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QList>
 #include <QLoggingCategory>
+#include <QPointer>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QScopedArrayPointer>
 #include <QSocketNotifier>
+#include <QTemporaryFile>
 #include <QTimer>
 #include <QXmlStreamReader>
 
+#include <signal.h>
 #include <string.h>
 #include <errno.h>
 
@@ -51,6 +63,70 @@ static Q_LOGGING_CATEGORY(toolHandlerLog, "qtc.ios.toolhandler")
 namespace Ios {
 
 namespace Internal {
+
+using namespace std::placeholders;
+
+// As per the currrent behavior, any absolute path given to simctl --stdout --stderr where the
+// directory after the root also exists on the simulator's file system will map to
+// simulator's file system i.e. simctl translates $TMPDIR/somwhere/out.txt to
+// your_home_dir/Library/Developer/CoreSimulator/Devices/data/$TMP_DIR/somwhere/out.txt.
+// Because /var also exists on simulator's file system.
+// Though the log files located at CONSOLE_PATH_TEMPLATE are deleted on
+// app exit any leftovers shall be removed on simulator restart.
+static QString CONSOLE_PATH_TEMPLATE = QDir::homePath() +
+        "/Library/Developer/CoreSimulator/Devices/%1/data/tmp/%2";
+
+class LogTailFiles : public QObject
+{
+    Q_OBJECT
+public:
+
+    void exec(QFutureInterface<void> &fi, std::shared_ptr<QTemporaryFile> stdoutFile,
+                    std::shared_ptr<QTemporaryFile> stderrFile)
+    {
+        if (fi.isCanceled())
+            return;
+
+        // The future is canceled when app on simulator is stoped.
+        QEventLoop loop;
+        QFutureWatcher<void> watcher;
+        connect(&watcher, &QFutureWatcher<void>::canceled, [&](){
+            loop.quit();
+        });
+        watcher.setFuture(fi.future());
+
+        // Process to print the console output while app is running.
+        auto logProcess = [this, fi](QProcess *tailProcess, std::shared_ptr<QTemporaryFile> file) {
+            QObject::connect(tailProcess, &QProcess::readyReadStandardOutput, [=]() {
+                if (!fi.isCanceled())
+                    emit logMessage(QString::fromLocal8Bit(tailProcess->readAll()));
+            });
+            tailProcess->start(QStringLiteral("tail"), QStringList() << "-f" << file->fileName());
+        };
+
+        auto processDeleter = [](QProcess *process) {
+            if (process->state() != QProcess::NotRunning) {
+                process->terminate();
+                process->waitForFinished();
+            }
+            delete process;
+        };
+
+        std::unique_ptr<QProcess, void(*)(QProcess *)> tailStdout(new QProcess, processDeleter);
+        if (stdoutFile)
+            logProcess(tailStdout.get(), stdoutFile);
+
+        std::unique_ptr<QProcess, void(*)(QProcess *)> tailStderr(new QProcess, processDeleter);
+        if (stderrFile)
+            logProcess(tailStderr.get(), stderrFile);
+
+        // Blocks untill tool is deleted or toolexited is called.
+        loop.exec();
+    }
+
+signals:
+    void logMessage(QString message);
+};
 
 struct ParserState {
     enum Kind {
@@ -123,7 +199,7 @@ public:
     };
 
     explicit IosToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
-    virtual ~IosToolHandlerPrivate() {}
+    virtual ~IosToolHandlerPrivate();
     virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
                                     int timeout = 1000) = 0;
     virtual void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
@@ -132,7 +208,7 @@ public:
     virtual void requestDeviceInfo(const QString &deviceId, int timeout = 1000) = 0;
     bool isRunning();
     void start(const QString &exe, const QStringList &args);
-    void stop(int errorCode);
+    virtual void stop(int errorCode) = 0;
 
     // signals
     void isTransferringApp(const QString &bundlePath, const QString &deviceId, int progress,
@@ -141,24 +217,20 @@ public:
                         IosToolHandler::OpStatus status);
     void didStartApp(const QString &bundlePath, const QString &deviceId,
                      IosToolHandler::OpStatus status);
-    void gotServerPorts(const QString &bundlePath, const QString &deviceId, int gdbPort,
-                        int qmlPort);
+    void gotServerPorts(const QString &bundlePath, const QString &deviceId, Utils::Port gdbPort,
+                        Utils::Port qmlPort);
     void gotInferiorPid(const QString &bundlePath, const QString &deviceId, qint64 pid);
     void deviceInfo(const QString &deviceId, const IosToolHandler::Dict &info);
     void appOutput(const QString &output);
     void errorMsg(const QString &msg);
     void toolExited(int code);
-    // slots
-    void subprocessError(QProcess::ProcessError error);
-    void subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus);
-    void subprocessHasData();
-    void killProcess();
-    virtual bool expectsFileDescriptor() = 0;
-protected:
-    void processXml();
 
+protected:
+    void killProcess();
+
+protected:
     IosToolHandler *q;
-    QProcess process;
+    std::shared_ptr<QProcess> process;
     QTimer killTimer;
     QXmlStreamReader outputParser;
     QString deviceId;
@@ -176,115 +248,117 @@ class IosDeviceToolHandlerPrivate : public IosToolHandlerPrivate
 {
 public:
     explicit IosDeviceToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
-    virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
-                                    int timeout = 1000);
-    virtual void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
-                               IosToolHandler::RunKind runKind,
-                               const QString &deviceId, int timeout = 1000);
-    virtual void requestDeviceInfo(const QString &deviceId, int timeout = 1000);
-    virtual bool expectsFileDescriptor();
+
+// IosToolHandlerPrivate overrides
+public:
+    void requestTransferApp(const QString &bundlePath, const QString &deviceId,
+                            int timeout = 1000) override;
+    void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
+                       IosToolHandler::RunKind runKind,
+                       const QString &deviceId, int timeout = 1000) override;
+    void requestDeviceInfo(const QString &deviceId, int timeout = 1000) override;
+    void stop(int errorCode) override;
+
+private:
+    void subprocessError(QProcess::ProcessError error);
+    void subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void subprocessHasData();
+    void processXml();
 };
 
+/****************************************************************************
+ * Flow to install an app on simulator:-
+ *      +------------------+
+ *      |   Transfer App   |
+ *      +--------+---------+
+ *               |
+ *               v
+ *     +---------+----------+             +--------------------------------+
+ *     |  SimulatorRunning  +---No------> +SimulatorControl::startSimulator|
+ *     +---------+----------+             +--------+-----------------------+
+ *              Yes                                |
+ *               |                                 |
+ *               v                                 |
+ * +---------+--------------------+                |
+ * | SimulatorControl::installApp | <--------------+
+ * +------------------------------+
+ *
+ *
+ *
+ * Flow to launch an app on Simulator:-
+ *            +---------+
+ *            | Run App |
+ *            +----+----+
+ *                 |
+ *                 v
+ *       +-------------------+             +----------------------------- - --+
+ *       | SimulatorRunning? +---NO------> + SimulatorControl::startSimulator |
+ *       +--------+----------+             +----------------+-----------------+
+ *                YES                                       |
+ *                 |                                        |
+ *                 v                                        |
+ * +---------+------------------------------+               |
+ * | SimulatorControl::launchAppOnSimulator | <-------------+
+ * +----------------------------------------+
+ *
+ ***************************************************************************/
 class IosSimulatorToolHandlerPrivate : public IosToolHandlerPrivate
 {
 public:
     explicit IosSimulatorToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
-    virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
-                                    int timeout = 1000);
-    virtual void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
-                               IosToolHandler::RunKind runKind,
-                               const QString &deviceId, int timeout = 1000);
-    virtual void requestDeviceInfo(const QString &deviceId, int timeout = 1000);
-    virtual bool expectsFileDescriptor();
+    ~IosSimulatorToolHandlerPrivate();
+
+// IosToolHandlerPrivate overrides
+public:
+    void requestTransferApp(const QString &appBundlePath, const QString &deviceIdentifier,
+                            int timeout = 1000) override;
+    void requestRunApp(const QString &appBundlePath, const QStringList &extraArgs,
+                       IosToolHandler::RunKind runKind,
+                       const QString &deviceIdentifier, int timeout = 1000) override;
+    void requestDeviceInfo(const QString &deviceId, int timeout = 1000) override;
+    void stop(int errorCode) override;
+
 private:
-    void addDeviceArguments(QStringList &args) const;
+    void installAppOnSimulator();
+    void launchAppOnSimulator(const QStringList &extraArgs);
+    bool isResponseValid(const SimulatorControl::ResponseData &responseData);
+
+private:
+    SimulatorControl *simCtl;
+    LogTailFiles outputLogger;
+    QList<QFuture<void>> futureList;
 };
 
 IosToolHandlerPrivate::IosToolHandlerPrivate(const IosDeviceType &devType,
                                              Ios::IosToolHandler *q) :
-    q(q), state(NonStarted), devType(devType), iBegin(0), iEnd(0),
+    q(q),
+    process(nullptr),
+    state(NonStarted),
+    devType(devType),
+    iBegin(0),
+    iEnd(0),
     gdbSocket(-1)
 {
     killTimer.setSingleShot(true);
-    QProcessEnvironment env(QProcessEnvironment::systemEnvironment());
-    foreach (const QString &k, env.keys())
-        if (k.startsWith(QLatin1String("DYLD_")))
-            env.remove(k);
-    QStringList frameworkPaths;
-    Utils::FileName xcPath = IosConfigurations::developerPath();
-    QString privateFPath = xcPath.appendPath(QLatin1String("Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks")).toFileInfo().canonicalFilePath();
-    if (!privateFPath.isEmpty())
-        frameworkPaths << privateFPath;
-    QString otherFPath = xcPath.appendPath(QLatin1String("../OtherFrameworks")).toFileInfo().canonicalFilePath();
-    if (!otherFPath.isEmpty())
-        frameworkPaths << otherFPath;
-    QString sharedFPath = xcPath.appendPath(QLatin1String("../SharedFrameworks")).toFileInfo().canonicalFilePath();
-    if (!sharedFPath.isEmpty())
-        frameworkPaths << sharedFPath;
-    frameworkPaths << QLatin1String("/System/Library/Frameworks")
-                   << QLatin1String("/System/Library/PrivateFrameworks");
-    env.insert(QLatin1String("DYLD_FALLBACK_FRAMEWORK_PATH"), frameworkPaths.join(QLatin1Char(':')));
-    qCDebug(toolHandlerLog) << "IosToolHandler runEnv:" << env.toStringList();
-    process.setProcessEnvironment(env);
-    QObject::connect(&process, SIGNAL(readyReadStandardOutput()), q, SLOT(subprocessHasData()));
-    QObject::connect(&process, SIGNAL(finished(int,QProcess::ExitStatus)),
-            q, SLOT(subprocessFinished(int,QProcess::ExitStatus)));
-    QObject::connect(&process, SIGNAL(error(QProcess::ProcessError)),
-            q, SLOT(subprocessError(QProcess::ProcessError)));
-    QObject::connect(&killTimer, SIGNAL(timeout()),
-            q, SLOT(killProcess()));
+}
+
+IosToolHandlerPrivate::~IosToolHandlerPrivate()
+{
 }
 
 bool IosToolHandlerPrivate::isRunning()
 {
-    return process.state() != QProcess::NotRunning;
+    return process && (process->state() != QProcess::NotRunning);
 }
 
 void IosToolHandlerPrivate::start(const QString &exe, const QStringList &args)
 {
+    Q_ASSERT(process);
     QTC_CHECK(state == NonStarted);
     state = Starting;
     qCDebug(toolHandlerLog) << "running " << exe << args;
-    process.start(exe, args);
+    process->start(exe, args);
     state = StartedInferior;
-}
-
-void IosToolHandlerPrivate::stop(int errorCode)
-{
-    qCDebug(toolHandlerLog) << "IosToolHandlerPrivate::stop";
-    State oldState = state;
-    state = Stopped;
-    switch (oldState) {
-    case NonStarted:
-        qCWarning(toolHandlerLog) << "IosToolHandler::stop() when state was NonStarted";
-        // pass
-    case Starting:
-        switch (op){
-        case OpNone:
-            qCWarning(toolHandlerLog) << "IosToolHandler::stop() when op was OpNone";
-            break;
-        case OpAppTransfer:
-            didTransferApp(bundlePath, deviceId, IosToolHandler::Failure);
-            break;
-        case OpAppRun:
-            didStartApp(bundlePath, deviceId, IosToolHandler::Failure);
-            break;
-        case OpDeviceInfo:
-            break;
-        }
-        // pass
-    case StartedInferior:
-    case XmlEndProcessed:
-        toolExited(errorCode);
-        break;
-    case Stopped:
-        return;
-    }
-    if (process.state() != QProcess::NotRunning) {
-        process.write("k\n\r");
-        process.closeWriteChannel();
-        killTimer.start(1500);
-    }
 }
 
 // signals
@@ -306,8 +380,8 @@ void IosToolHandlerPrivate::didStartApp(const QString &bundlePath, const QString
     emit q->didStartApp(q, bundlePath, deviceId, status);
 }
 
-void IosToolHandlerPrivate::gotServerPorts(const QString &bundlePath,
-                                           const QString &deviceId, int gdbPort, int qmlPort)
+void IosToolHandlerPrivate::gotServerPorts(const QString &bundlePath, const QString &deviceId,
+                                           Utils::Port gdbPort, Utils::Port qmlPort)
 {
     emit q->gotServerPorts(q, bundlePath, deviceId, gdbPort, qmlPort);
 }
@@ -339,7 +413,7 @@ void IosToolHandlerPrivate::toolExited(int code)
     emit q->toolExited(q, code);
 }
 
-void IosToolHandlerPrivate::subprocessError(QProcess::ProcessError error)
+void IosDeviceToolHandlerPrivate::subprocessError(QProcess::ProcessError error)
 {
     if (state != Stopped)
         errorMsg(IosToolHandler::tr("iOS tool Error %1").arg(error));
@@ -350,7 +424,7 @@ void IosToolHandlerPrivate::subprocessError(QProcess::ProcessError error)
     }
 }
 
-void IosToolHandlerPrivate::subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void IosDeviceToolHandlerPrivate::subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     stop((exitStatus == QProcess::NormalExit) ? exitCode : -1 );
     qCDebug(toolHandlerLog) << "IosToolHandler::finished(" << this << ")";
@@ -358,7 +432,7 @@ void IosToolHandlerPrivate::subprocessFinished(int exitCode, QProcess::ExitStatu
     emit q->finished(q);
 }
 
-void IosToolHandlerPrivate::processXml()
+void IosDeviceToolHandlerPrivate::processXml()
 {
     while (!outputParser.atEnd()) {
         QXmlStreamReader::TokenType tt = outputParser.readNext();
@@ -445,8 +519,10 @@ void IosToolHandlerPrivate::processXml()
             } else if (elName == QLatin1String("server_ports")) {
                 stack.append(ParserState(ParserState::ServerPorts));
                 QXmlStreamAttributes attributes = outputParser.attributes();
-                int gdbServerPort = attributes.value(QLatin1String("gdb_server")).toString().toInt();
-                int qmlServerPort = attributes.value(QLatin1String("qml_server")).toString().toInt();
+                Utils::Port gdbServerPort(
+                            attributes.value(QLatin1String("gdb_server")).toString().toInt());
+                Utils::Port qmlServerPort(
+                            attributes.value(QLatin1String("qml_server")).toString().toInt());
                 gotServerPorts(bundlePath, deviceId, gdbServerPort, qmlServerPort);
             } else {
                 qCWarning(toolHandlerLog) << "unexpected element " << elName;
@@ -538,7 +614,7 @@ void IosToolHandlerPrivate::processXml()
     }
 }
 
-void IosToolHandlerPrivate::subprocessHasData()
+void IosDeviceToolHandlerPrivate::subprocessHasData()
 {
     qCDebug(toolHandlerLog) << "subprocessHasData, state:" << state;
     while (true) {
@@ -551,8 +627,8 @@ void IosToolHandlerPrivate::subprocessHasData()
             // read some data
         {
             char buf[200];
-            while (true) {
-                qint64 rRead = process.read(buf, sizeof(buf));
+            while (isRunning()) {
+                qint64 rRead = process->read(buf, sizeof(buf));
                 if (rRead == -1) {
                     stop(-1);
                     return;
@@ -578,7 +654,47 @@ void IosToolHandlerPrivate::subprocessHasData()
 IosDeviceToolHandlerPrivate::IosDeviceToolHandlerPrivate(const IosDeviceType &devType,
                                                          IosToolHandler *q)
     : IosToolHandlerPrivate(devType, q)
-{ }
+{
+    auto deleter = [](QProcess *p) {
+        p->kill();
+        p->waitForFinished(10000);
+        delete p;
+    };
+    process = std::shared_ptr<QProcess>(new QProcess, deleter);
+
+    // Prepare & set process Environment.
+    QProcessEnvironment env(QProcessEnvironment::systemEnvironment());
+    foreach (const QString &k, env.keys())
+        if (k.startsWith(QLatin1String("DYLD_")))
+            env.remove(k);
+    QStringList frameworkPaths;
+    Utils::FileName xcPath = IosConfigurations::developerPath();
+    QString privateFPath = xcPath.appendPath(QLatin1String("Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks")).toFileInfo().canonicalFilePath();
+    if (!privateFPath.isEmpty())
+        frameworkPaths << privateFPath;
+    QString otherFPath = xcPath.appendPath(QLatin1String("../OtherFrameworks")).toFileInfo().canonicalFilePath();
+    if (!otherFPath.isEmpty())
+        frameworkPaths << otherFPath;
+    QString sharedFPath = xcPath.appendPath(QLatin1String("../SharedFrameworks")).toFileInfo().canonicalFilePath();
+    if (!sharedFPath.isEmpty())
+        frameworkPaths << sharedFPath;
+    frameworkPaths << QLatin1String("/System/Library/Frameworks")
+                   << QLatin1String("/System/Library/PrivateFrameworks");
+    env.insert(QLatin1String("DYLD_FALLBACK_FRAMEWORK_PATH"), frameworkPaths.join(QLatin1Char(':')));
+    qCDebug(toolHandlerLog) << "IosToolHandler runEnv:" << env.toStringList();
+    process->setProcessEnvironment(env);
+
+    QObject::connect(process.get(), &QProcess::readyReadStandardOutput,
+                     std::bind(&IosDeviceToolHandlerPrivate::subprocessHasData,this));
+
+    QObject::connect(process.get(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+                     std::bind(&IosDeviceToolHandlerPrivate::subprocessFinished,this, _1,_2));
+
+    QObject::connect(process.get(), &QProcess::errorOccurred,
+                     std::bind(&IosDeviceToolHandlerPrivate::subprocessError, this, _1));
+
+    QObject::connect(&killTimer, &QTimer::timeout, std::bind(&IosDeviceToolHandlerPrivate::killProcess, this));
+}
 
 void IosDeviceToolHandlerPrivate::requestTransferApp(const QString &bundlePath,
                                                      const QString &deviceId, int timeout)
@@ -626,83 +742,253 @@ void IosDeviceToolHandlerPrivate::requestDeviceInfo(const QString &deviceId, int
     start(IosToolHandler::iosDeviceToolPath(), args);
 }
 
-bool IosDeviceToolHandlerPrivate::expectsFileDescriptor()
+
+void IosDeviceToolHandlerPrivate::stop(int errorCode)
 {
-    return op == OpAppRun && runKind == IosToolHandler::DebugRun;
+    qCDebug(toolHandlerLog) << "IosToolHandlerPrivate::stop";
+    State oldState = state;
+    state = Stopped;
+    switch (oldState) {
+    case NonStarted:
+        qCWarning(toolHandlerLog) << "IosToolHandler::stop() when state was NonStarted";
+        // pass
+    case Starting:
+        switch (op){
+        case OpNone:
+            qCWarning(toolHandlerLog) << "IosToolHandler::stop() when op was OpNone";
+            break;
+        case OpAppTransfer:
+            didTransferApp(bundlePath, deviceId, IosToolHandler::Failure);
+            break;
+        case OpAppRun:
+            didStartApp(bundlePath, deviceId, IosToolHandler::Failure);
+            break;
+        case OpDeviceInfo:
+            break;
+        }
+        // pass
+    case StartedInferior:
+    case XmlEndProcessed:
+        toolExited(errorCode);
+        break;
+    case Stopped:
+        return;
+    }
+    if (isRunning()) {
+        process->write("k\n\r");
+        process->closeWriteChannel();
+        killTimer.start(1500);
+    }
 }
+
 
 // IosSimulatorToolHandlerPrivate
 
 IosSimulatorToolHandlerPrivate::IosSimulatorToolHandlerPrivate(const IosDeviceType &devType,
                                                          IosToolHandler *q)
-    : IosToolHandlerPrivate(devType, q)
-{ }
-
-void IosSimulatorToolHandlerPrivate::requestTransferApp(const QString &bundlePath,
-                                                        const QString &deviceId, int timeout)
+    : IosToolHandlerPrivate(devType, q),
+      simCtl(new SimulatorControl)
 {
-    Q_UNUSED(timeout);
-    this->bundlePath = bundlePath;
-    this->deviceId = deviceId;
-    emit didTransferApp(bundlePath, deviceId, IosToolHandler::Success);
+    QObject::connect(&outputLogger, &LogTailFiles::logMessage,
+                     std::bind(&IosToolHandlerPrivate::appOutput, this, _1));
 }
 
-void IosSimulatorToolHandlerPrivate::requestRunApp(const QString &bundlePath,
-                                                   const QStringList &extraArgs,
-                                                   IosToolHandler::RunKind runType,
-                                                   const QString &deviceId, int timeout)
+IosSimulatorToolHandlerPrivate::~IosSimulatorToolHandlerPrivate()
+{
+    foreach (auto f, futureList) {
+        if (!f.isFinished())
+            f.cancel();
+    }
+    delete simCtl;
+}
+void IosSimulatorToolHandlerPrivate::requestTransferApp(const QString &appBundlePath,
+                                                        const QString &deviceIdentifier, int timeout)
 {
     Q_UNUSED(timeout);
-    this->bundlePath = bundlePath;
-    this->deviceId = deviceId;
-    this->runKind = runType;
-    QStringList args;
+    bundlePath = appBundlePath;
+    deviceId = deviceIdentifier;
+    isTransferringApp(bundlePath, deviceId, 0, 100, "");
 
-    args << QLatin1String("launch") << bundlePath;
-    Utils::FileName devPath = IosConfigurations::developerPath();
-    if (!devPath.isEmpty())
-        args << QLatin1String("--developer-path") << devPath.toString();
-    addDeviceArguments(args);
-    switch (runType) {
-    case IosToolHandler::NormalRun:
-        break;
-    case IosToolHandler::DebugRun:
-        args << QLatin1String("--wait-for-debugger");
-        break;
+    auto onSimulatorStart = [this](const SimulatorControl::ResponseData &response) {
+        if (!isResponseValid(response))
+            return;
+
+        if (response.success) {
+            installAppOnSimulator();
+        } else {
+            errorMsg(IosToolHandler::tr("Application install on Simulator failed. Simulator not running."));
+            didTransferApp(bundlePath, deviceId, IosToolHandler::Failure);
+            emit q->finished(q);
+        }
+    };
+
+    if (SimulatorControl::isSimulatorRunning(deviceId))
+        installAppOnSimulator();
+    else
+        futureList << Utils::onResultReady(simCtl->startSimulator(deviceId), onSimulatorStart);
+}
+
+void IosSimulatorToolHandlerPrivate::requestRunApp(const QString &appBundlePath,
+                                                   const QStringList &extraArgs,
+                                                   IosToolHandler::RunKind runType,
+                                                   const QString &deviceIdentifier, int timeout)
+{
+    Q_UNUSED(timeout);
+    Q_UNUSED(deviceIdentifier);
+    bundlePath = appBundlePath;
+    deviceId = devType.identifier;
+    runKind = runType;
+
+    Utils::FileName appBundle = Utils::FileName::fromString(bundlePath);
+    if (!appBundle.exists()) {
+        errorMsg(IosToolHandler::tr("Application launch on Simulator failed. Invalid Bundle path %1")
+                 .arg(bundlePath));
+        didStartApp(bundlePath, deviceId, Ios::IosToolHandler::Failure);
+        return;
     }
-    args << QLatin1String("--args") << extraArgs;
-    op = OpAppRun;
-    start(IosToolHandler::iosSimulatorToolPath(), args);
+
+    auto onSimulatorStart = [this, extraArgs] (const SimulatorControl::ResponseData &response) {
+        if (isResponseValid(response))
+            return;
+        if (response.success) {
+            launchAppOnSimulator(extraArgs);
+        } else {
+            errorMsg(IosToolHandler::tr("Application launch on Simulator failed. Simulator not running.")
+                     .arg(bundlePath));
+            didStartApp(bundlePath, deviceId, Ios::IosToolHandler::Failure);
+        }
+    };
+
+    if (SimulatorControl::isSimulatorRunning(deviceId))
+        launchAppOnSimulator(extraArgs);
+    else
+        futureList << Utils::onResultReady(simCtl->startSimulator(deviceId), onSimulatorStart);
 }
 
 void IosSimulatorToolHandlerPrivate::requestDeviceInfo(const QString &deviceId, int timeout)
 {
     Q_UNUSED(timeout);
-    this->deviceId = deviceId;
-    QStringList args;
-    args << QLatin1String("showdevicetypes");
-    op = OpDeviceInfo;
-    start(IosToolHandler::iosSimulatorToolPath(), args);
+    Q_UNUSED(deviceId);
 }
 
-bool IosSimulatorToolHandlerPrivate::expectsFileDescriptor()
+void IosSimulatorToolHandlerPrivate::stop(int errorCode)
 {
-    return false;
-}
-
-void IosSimulatorToolHandlerPrivate::addDeviceArguments(QStringList &args) const
-{
-    if (devType.type != IosDeviceType::SimulatedDevice) {
-        qCWarning(toolHandlerLog) << "IosSimulatorToolHandlerPrivate device type is not SimulatedDevice";
-        return;
+    foreach (auto f, futureList) {
+        if (!f.isFinished())
+            f.cancel();
     }
-    args << QLatin1String("--devicetypeid") << devType.identifier;
+
+    toolExited(errorCode);
+    q->finished(q);
+}
+
+void IosSimulatorToolHandlerPrivate::installAppOnSimulator()
+{
+    auto onResponseAppInstall = [this](const SimulatorControl::ResponseData &response) {
+        if (!isResponseValid(response))
+            return;
+
+        if (response.success) {
+            isTransferringApp(bundlePath, deviceId, 100, 100, "");
+            didTransferApp(bundlePath, deviceId, IosToolHandler::Success);
+        } else {
+            errorMsg(IosToolHandler::tr("Application install on Simulator failed. %1")
+                     .arg(QString::fromLocal8Bit(response.commandOutput)));
+            didTransferApp(bundlePath, deviceId, IosToolHandler::Failure);
+        }
+        emit q->finished(q);
+    };
+
+    isTransferringApp(bundlePath, deviceId, 20, 100, "");
+    futureList << Utils::onResultReady(simCtl->installApp(deviceId, Utils::FileName::fromString(bundlePath)),
+                         onResponseAppInstall);
+}
+
+void IosSimulatorToolHandlerPrivate::launchAppOnSimulator(const QStringList &extraArgs)
+{
+    const Utils::FileName appBundle = Utils::FileName::fromString(bundlePath);
+    const QString bundleId = SimulatorControl::bundleIdentifier(appBundle);
+    const bool debugRun = runKind == IosToolHandler::DebugRun;
+    bool captureConsole = IosConfigurations::xcodeVersion() >= QVersionNumber(8);
+    std::shared_ptr<QTemporaryFile> stdoutFile;
+    std::shared_ptr<QTemporaryFile> stderrFile;
+
+    if (captureConsole) {
+        const QString fileTemplate = CONSOLE_PATH_TEMPLATE.arg(deviceId).arg(bundleId);
+        stdoutFile.reset(new QTemporaryFile);
+        stdoutFile->setFileTemplate(fileTemplate + QStringLiteral(".stdout"));
+
+        stderrFile.reset(new QTemporaryFile);
+        stderrFile->setFileTemplate(fileTemplate + QStringLiteral(".stderr"));
+
+        captureConsole = stdoutFile->open() && stderrFile->open();
+        if (!captureConsole)
+            errorMsg(IosToolHandler::tr("Cannot capture console output from %1. "
+                                        "Error redirecting output to %2.*")
+                     .arg(bundleId).arg(fileTemplate));
+    } else {
+        errorMsg(IosToolHandler::tr("Cannot capture console output from %1. "
+                    "Install Xcode 8 or later.").arg(bundleId));
+    }
+
+    auto monitorPid = [this](QFutureInterface<void> &fi, qint64 pid) {
+#ifdef Q_OS_UNIX
+        do {
+            // Poll every 1 sec to check whether the app is running.
+            QThread::msleep(1000);
+        } while (!fi.isCanceled() && kill(pid, 0) == 0);
+#else
+    Q_UNUSED(pid);
+#endif
+        // Future is cancelled if the app is stopped from the qt creator.
+        if (!fi.isCanceled())
+            stop(0);
+    };
+
+    auto onResponseAppLaunch = [=](const SimulatorControl::ResponseData &response) {
+        if (!isResponseValid(response))
+            return;
+        if (response.success) {
+            gotInferiorPid(bundlePath, deviceId, response.pID);
+            didStartApp(bundlePath, deviceId, Ios::IosToolHandler::Success);
+            // Start monitoring app's life signs.
+            futureList << Utils::runAsync(monitorPid, response.pID);
+            if (captureConsole)
+                futureList << Utils::runAsync(&LogTailFiles::exec, &outputLogger, stdoutFile,
+                                              stderrFile);
+        } else {
+            errorMsg(IosToolHandler::tr("Application launch on Simulator failed. %1")
+                     .arg(QString::fromLocal8Bit(response.commandOutput)));
+            didStartApp(bundlePath, deviceId, Ios::IosToolHandler::Failure);
+            stop(-1);
+            q->finished(q);
+        }
+    };
+
+    futureList << Utils::onResultReady(
+                      simCtl->launchApp(deviceId, bundleId, debugRun, extraArgs,
+                                        captureConsole ? stdoutFile->fileName() : QString(),
+                                        captureConsole ? stderrFile->fileName() : QString()),
+                      onResponseAppLaunch);
+}
+
+bool IosSimulatorToolHandlerPrivate::isResponseValid(const SimulatorControl::ResponseData &responseData)
+{
+    if (responseData.simUdid.compare(deviceId) != 0) {
+        errorMsg(IosToolHandler::tr("Invalid simulator response. Device Id mismatch. "
+                                    "Device Id = %1 Response Id = %2")
+                 .arg(responseData.simUdid)
+                 .arg(deviceId));
+        emit q->finished(q);
+        return false;
+    }
+    return true;
 }
 
 void IosToolHandlerPrivate::killProcess()
 {
-    if (process.state() != QProcess::NotRunning)
-        process.kill();
+    if (isRunning())
+        process->kill();
 }
 
 } // namespace Internal
@@ -710,18 +996,6 @@ void IosToolHandlerPrivate::killProcess()
 QString IosToolHandler::iosDeviceToolPath()
 {
     QString res = Core::ICore::libexecPath() + QLatin1String("/ios/iostool");
-    return res;
-}
-
-QString IosToolHandler::iosSimulatorToolPath()
-{
-    Utils::FileName devPath = Internal::IosConfigurations::developerPath();
-    bool version182 = devPath.appendPath(QLatin1String(
-        "Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks/iPhoneSimulatorRemoteClient.framework"))
-            .exists();
-    QString res = Core::ICore::libexecPath() + QLatin1String("/ios/iossim");
-    if (version182)
-        res = res.append(QLatin1String("_1_8_2"));
     return res;
 }
 
@@ -766,24 +1040,6 @@ bool IosToolHandler::isRunning()
     return d->isRunning();
 }
 
-void IosToolHandler::subprocessError(QProcess::ProcessError error)
-{
-    d->subprocessError(error);
-}
-
-void IosToolHandler::subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus)
-{
-    d->subprocessFinished(exitCode, exitStatus);
-}
-
-void IosToolHandler::subprocessHasData()
-{
-    d->subprocessHasData();
-}
-
-void IosToolHandler::killProcess()
-{
-    d->killProcess();
-}
-
 } // namespace Ios
+
+#include "iostoolhandler.moc"

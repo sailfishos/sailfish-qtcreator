@@ -23,15 +23,16 @@
 **
 ****************************************************************************/
 
-#ifndef DEBUGGER_DEBUGGERENGINE_H
-#define DEBUGGER_DEBUGGERENGINE_H
+#pragma once
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
+#include "debuggeritem.h"
 #include "debuggerprotocol.h"
 #include "debuggerstartparameters.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/runnables.h>
 #include <texteditor/textmark.h>
 
 #include <QObject>
@@ -44,6 +45,7 @@ class QAbstractItemModel;
 QT_END_NAMESPACE
 
 namespace Core { class IOptionsPage; }
+namespace Utils { class MacroExpander; }
 
 namespace Debugger {
 
@@ -80,6 +82,7 @@ class DebuggerRunParameters : public DebuggerStartParameters
 {
 public:
     DebuggerRunParameters() {}
+    DebuggerRunParameters(const DebuggerStartParameters &sp) : DebuggerStartParameters(sp) {}
 
     DebuggerEngineType masterEngineType = NoEngineType;
     DebuggerEngineType cppEngineType = NoEngineType;
@@ -88,15 +91,13 @@ public:
     bool breakOnMain = false;
     bool multiProcess = false; // Whether to set detach-on-fork off.
 
-    QString debuggerCommand;
-    QString coreFile;
+    ProjectExplorer::StandardRunnable debugger;
     QString overrideStartScript; // Used in attach to core and remote debugging
     QString startMessage; // First status message shown.
     QString debugInfoLocation; // Gdb "set-debug-file-directory".
     QStringList debugSourceLocation; // Gdb "directory"
     QString serverStartScript;
     ProjectExplorer::IDevice::ConstPtr device;
-    QString sysRoot;
     bool isSnapshot = false; // Set if created internally.
     ProjectExplorer::Abi toolChainAbi;
 
@@ -112,6 +113,8 @@ public:
 
     bool nativeMixedEnabled = false;
 
+    Utils::MacroExpander *macroExpander = 0;
+
     // For Debugger testing.
     int testCase = 0;
 };
@@ -119,27 +122,28 @@ public:
 class UpdateParameters
 {
 public:
-    UpdateParameters() {}
+    UpdateParameters(const QString &partialVariable = QString()) :
+        partialVariable(partialVariable) {}
 
-    QList<QByteArray> partialVariables() const
+    QStringList partialVariables() const
     {
-        QList<QByteArray> result;
+        QStringList result;
         if (!partialVariable.isEmpty())
             result.append(partialVariable);
         return result;
     }
 
-    QByteArray partialVariable;
+    QString partialVariable;
 };
 
 class Location
 {
 public:
-    Location() { init(); }
-    Location(quint64 address) { init(); m_address = address; }
-    Location(const QString &file) { init(); m_fileName = file; }
+    Location() {}
+    Location(quint64 address) { m_address = address; }
+    Location(const QString &file) { m_fileName = file; }
     Location(const QString &file, int line, bool marker = true)
-        { init(); m_lineNumber = line; m_fileName = file; m_needsMarker = marker; }
+        { m_lineNumber = line; m_fileName = file; m_needsMarker = marker; }
     Location(const StackFrame &frame, bool marker = true);
     QString fileName() const { return m_fileName; }
     QString functionName() const { return m_functionName; }
@@ -157,16 +161,14 @@ public:
     quint64 address() const { return m_address; }
 
 private:
-    void init() { m_needsMarker = false; m_needsRaise = true; m_lineNumber = -1;
-        m_address = 0; m_hasDebugInfo = true; }
-    bool m_needsMarker;
-    bool m_needsRaise;
-    bool m_hasDebugInfo;
-    int m_lineNumber;
+    bool m_needsMarker = false;
+    bool m_needsRaise = true;
+    bool m_hasDebugInfo = true;
+    int m_lineNumber = -1;
     QString m_fileName;
     QString m_functionName;
     QString m_from;
-    quint64 m_address;
+    quint64 m_address = 0;
 };
 
 enum LocationType { UnknownLocation, LocationByFile, LocationByAddress };
@@ -195,29 +197,19 @@ public:
     DebuggerRunParameters &runParameters();
 
     virtual bool canHandleToolTip(const DebuggerToolTipContext &) const;
-    virtual void expandItem(const QByteArray &iname); // Called when item in tree gets expanded.
-    virtual void updateItem(const QByteArray &iname); // Called for fresh watch items.
-    void updateWatchData(const QByteArray &iname); // FIXME: Merge with above.
-    virtual void selectWatchData(const QByteArray &iname);
+    virtual void expandItem(const QString &iname); // Called when item in tree gets expanded.
+    virtual void updateItem(const QString &iname); // Called for fresh watch items.
+    void updateWatchData(const QString &iname); // FIXME: Merge with above.
+    virtual void selectWatchData(const QString &iname);
 
     virtual void startDebugger(DebuggerRunControl *runControl);
     virtual void prepareForRestart() {}
 
     virtual void watchPoint(const QPoint &);
-
-    enum MemoryViewFlags
-    {
-        MemoryReadOnly = 0x1,      //!< Read-only.
-        MemoryTrackRegister = 0x2, //!< Address parameter is register number to track
-        MemoryView = 0x4           //!< Open a separate view (using the pos-parameter).
-    };
-
     virtual void runCommand(const DebuggerCommand &cmd);
     virtual void openMemoryView(const MemoryViewSetupData &data);
-    virtual void fetchMemory(Internal::MemoryAgent *, QObject *,
-                             quint64 addr, quint64 length);
-    virtual void changeMemory(Internal::MemoryAgent *, QObject *,
-                              quint64 addr, const QByteArray &data);
+    virtual void fetchMemory(MemoryAgent *, quint64 addr, quint64 length);
+    virtual void changeMemory(MemoryAgent *, quint64 addr, const QByteArray &data);
     virtual void updateMemoryViews();
     virtual void openDisassemblerView(const Internal::Location &location);
     virtual void fetchDisassembler(Internal::DisassemblerAgent *);
@@ -237,14 +229,14 @@ public:
     virtual void loadAdditionalQmlStack();
     virtual void reloadDebuggingHelpers();
 
-    virtual void setRegisterValue(const QByteArray &name, const QString &value);
+    virtual void setRegisterValue(const QString &name, const QString &value);
     virtual void addOptionPages(QList<Core::IOptionsPage*> *) const;
     virtual bool hasCapability(unsigned cap) const = 0;
     virtual void debugLastCommand() {}
 
     virtual bool isSynchronous() const;
-    virtual QByteArray qtNamespace() const;
-    void setQtNamespace(const QByteArray &ns);
+    virtual QString qtNamespace() const;
+    void setQtNamespace(const QString &ns);
 
     virtual void createSnapshot();
     virtual void updateAll();
@@ -290,7 +282,7 @@ public:
     DebuggerState targetState() const;
     bool isDying() const;
 
-    static const char *stateName(int s);
+    static QString stateName(int s);
 
     void notifyInferiorPid(qint64 pid);
     qint64 inferiorPid() const;
@@ -321,10 +313,10 @@ public:
     void updateBreakpointMarker(const Breakpoint &bp);
     void removeBreakpointMarker(const Breakpoint &bp);
 
+    QString expand(const QString &string) const;
+
 signals:
     void stateChanged(Debugger::DebuggerState state);
-    // A new stack frame is on display including locals.
-    void stackFrameCompleted();
     /*
      * For "external" clients of a debugger run control that needs to do
      * further setup before the debugger is started (e.g. RemoteLinux).
@@ -346,7 +338,7 @@ protected:
 
     virtual void notifyEngineRequestRemoteSetup();
     public:
-    virtual void notifyEngineRemoteServerRunning(const QByteArray &, int pid);
+    virtual void notifyEngineRemoteServerRunning(const QString &, int pid);
     virtual void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result);
 
     protected:
@@ -423,7 +415,7 @@ protected:
     static QString msgStoppedByException(const QString &description,
         const QString &threadId);
     static QString msgInterrupted();
-    void showStoppedBySignalMessageBox(const QString meaning, QString name);
+    bool showStoppedBySignalMessageBox(const QString meaning, QString name);
     void showStoppedByExceptionMessageBox(const QString &description);
 
     bool isStateDebugging() const;
@@ -480,5 +472,3 @@ DebuggerRunControl *createAndScheduleRun(const DebuggerRunParameters &rp, const 
 
 Q_DECLARE_METATYPE(Debugger::Internal::UpdateParameters)
 Q_DECLARE_METATYPE(Debugger::Internal::ContextData)
-
-#endif // DEBUGGER_DEBUGGERENGINE_H

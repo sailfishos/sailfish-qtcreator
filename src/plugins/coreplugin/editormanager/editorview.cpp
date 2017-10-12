@@ -28,10 +28,10 @@
 #include "editormanager.h"
 #include "editormanager_p.h"
 #include "documentmodel.h"
+#include "documentmodel_p.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/editortoolbar.h>
-#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/locator/locatorconstants.h>
@@ -40,6 +40,7 @@
 #include <coreplugin/findplaceholder.h>
 #include <utils/qtcassert.h>
 #include <utils/theme/theme.h>
+#include <utils/utilsicons.h>
 
 #include <QDebug>
 
@@ -290,14 +291,14 @@ void EditorView::paintEvent(QPaintEvent *)
     QPainter painter(this);
 
     QRect rect = m_container->geometry();
-    if (creatorTheme()->widgetStyle() == Theme::StyleDefault) {
+    if (creatorTheme()->flag(Theme::FlatToolBars)) {
+        painter.fillRect(rect, creatorTheme()->color(Theme::EditorPlaceholderColor));
+    } else {
         painter.setRenderHint(QPainter::Antialiasing, true);
         painter.setPen(Qt::NoPen);
         painter.setBrush(creatorTheme()->color(Theme::EditorPlaceholderColor));
         const int r = 3;
         painter.drawRoundedRect(rect.adjusted(r , r, -r, -r), r * 2, r * 2);
-    } else {
-        painter.fillRect(rect, creatorTheme()->color(Theme::EditorPlaceholderColor));
     }
 }
 
@@ -739,11 +740,11 @@ void SplitterOrView::split(Qt::Orientation orientation)
     view->view()->setCurrentEditor(duplicate);
 
     if (orientation == Qt::Horizontal) {
-        view->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_LEFT.icon());
-        otherView->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_RIGHT.icon());
+        view->view()->setCloseSplitIcon(Utils::Icons::CLOSE_SPLIT_LEFT.icon());
+        otherView->view()->setCloseSplitIcon(Utils::Icons::CLOSE_SPLIT_RIGHT.icon());
     } else {
-        view->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_TOP.icon());
-        otherView->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_BOTTOM.icon());
+        view->view()->setCloseSplitIcon(Utils::Icons::CLOSE_SPLIT_TOP.icon());
+        otherView->view()->setCloseSplitIcon(Utils::Icons::CLOSE_SPLIT_BOTTOM.icon());
     }
 
     EditorManagerPrivate::activateView(otherView->view());
@@ -833,12 +834,12 @@ void SplitterOrView::unsplit()
             if (parentSplitter) { // not the toplevel splitterOrView
                 if (parentSplitter->orientation() == Qt::Horizontal)
                     m_view->setCloseSplitIcon(parentSplitter->widget(0) == this ?
-                                                  Icons::CLOSE_SPLIT_LEFT.icon()
-                                                : Icons::CLOSE_SPLIT_RIGHT.icon());
+                                                  Utils::Icons::CLOSE_SPLIT_LEFT.icon()
+                                                : Utils::Icons::CLOSE_SPLIT_RIGHT.icon());
                 else
                     m_view->setCloseSplitIcon(parentSplitter->widget(0) == this ?
-                                                  Icons::CLOSE_SPLIT_TOP.icon()
-                                                : Icons::CLOSE_SPLIT_BOTTOM.icon());
+                                                  Utils::Icons::CLOSE_SPLIT_TOP.icon()
+                                                : Utils::Icons::CLOSE_SPLIT_BOTTOM.icon());
             }
         }
         m_layout->setCurrentWidget(m_view);
@@ -920,7 +921,7 @@ void SplitterOrView::restoreState(const QByteArray &state)
                                                       | EditorManager::DoNotChangeCurrentEditor);
 
         if (!e) {
-            DocumentModel::Entry *entry = DocumentModel::firstSuspendedEntry();
+            DocumentModel::Entry *entry = DocumentModelPrivate::firstSuspendedEntry();
             if (entry) {
                 EditorManagerPrivate::activateEditorForEntry(view(), entry,
                     EditorManager::IgnoreNavigationHistory | EditorManager::DoNotChangeCurrentEditor);

@@ -27,10 +27,6 @@
 
 #include "clangstaticanalyzerconstants.h"
 
-#include <debugger/analyzer/analyzermanager.h>
-#include <debugger/analyzer/analyzerruncontrol.h>
-#include <debugger/analyzer/analyzerstartparameters.h>
-
 #include <coreplugin/icontext.h>
 
 #include <cpptools/cppmodelmanager.h>
@@ -47,7 +43,6 @@
 
 #include <utils/qtcassert.h>
 
-using namespace Debugger;
 using namespace ProjectExplorer;
 
 namespace ClangStaticAnalyzer {
@@ -78,7 +73,7 @@ bool ClangStaticAnalyzerRunControlFactory::canRun(RunConfiguration *runConfigura
     QTC_ASSERT(target, return false);
     Kit *kit = target->kit();
     QTC_ASSERT(kit, return false);
-    ToolChain *toolChain = ToolChainKitInformation::toolChain(kit);
+    ToolChain *toolChain = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
     return toolChain;
 }
 
@@ -112,7 +107,7 @@ RunControl *ClangStaticAnalyzerRunControlFactory::create(RunConfiguration *runCo
         return 0;
     }
 
-    return Debugger::createAnalyzerRunControl(runConfiguration, runMode);
+    return m_tool->createRunControl(runConfiguration, runMode);
 }
 
 } // namespace Internal

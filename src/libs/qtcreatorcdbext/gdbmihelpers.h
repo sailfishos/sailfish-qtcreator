@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GDBMIHELPERS_H
-#define GDBMIHELPERS_H
+#pragma once
 
 #include "common.h"
 #include <vector>
@@ -46,7 +45,7 @@ struct StackFrame
     ULONG64 address;
     std::wstring function;
     std::wstring fullPathName;
-    ULONG line;
+    ULONG line = 0;
 };
 
 typedef std::vector<StackFrame> StackFrames;
@@ -62,7 +61,6 @@ struct Thread
 
     ULONG id;
     ULONG systemId;
-    ULONG64 address;
     std::string state;
     std::wstring name;
     StackFrame frame;
@@ -88,13 +86,11 @@ std::string gdbmiThreadList(CIDebugSystemObjects *debugSystemObjects,
 /* Helpers for retrieving module lists */
 
 struct Module {
-    Module();
-
     std::string name;
     std::string image;
-    bool deferred;
-    ULONG64 base;
-    ULONG64 size;
+    bool deferred = false;
+    ULONG64 base = 0;
+    ULONG64 size = 0;
 };
 
 typedef std::vector<Module> Modules;
@@ -125,9 +121,9 @@ struct Register
     std::wstring name;
     std::wstring description;
     std::wstring type;
-    int size;
-    bool subRegister;
-    bool pseudoRegister;
+    int size = 0;
+    bool subRegister = false;
+    bool pseudoRegister = false;
     DEBUG_VALUE value;
 };
 
@@ -177,5 +173,3 @@ bool evaluateExpression(CIDebugControl *control, const std::string expression,
 
 bool evaluateInt64Expression(CIDebugControl *control, const std::string expression,
                              LONG64 *, std::string *errorMessage);
-
-#endif // GDBMIHELPERS_H

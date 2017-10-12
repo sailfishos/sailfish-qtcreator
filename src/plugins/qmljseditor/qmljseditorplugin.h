@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSEDITORPLUGIN_H
-#define QMLJSEDITORPLUGIN_H
+#pragma once
 
 #include <extensionsystem/iplugin.h>
 #include <coreplugin/icontext.h>
@@ -74,18 +73,16 @@ public:
 
     Utils::JsonSchemaManager *jsonManager() const;
 
-public Q_SLOTS:
     void findUsages();
     void renameUsages();
     void reformatFile();
     void showContextPane();
 
-private Q_SLOTS:
+private:
     void currentEditorChanged(Core::IEditor *editor);
     void runSemanticScan();
     void checkCurrentEditorSemanticInfoUpToDate();
 
-private:
     Core::Command *addToolAction(QAction *a, Core::Context &context, Core::Id id,
                                  Core::ActionContainer *c1, const QString &keySequence);
 
@@ -103,5 +100,3 @@ private:
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSEDITORPLUGIN_H

@@ -87,12 +87,12 @@ void MerDevice::setQmlLivePorts(const Utils::PortList &qmlLivePorts)
     m_qmlLivePorts = qmlLivePorts;
 }
 
-QSet<int> MerDevice::qmlLivePortsSet() const
+QList<Utils::Port> MerDevice::qmlLivePortsList() const
 {
     Utils::PortList ports(m_qmlLivePorts);
-    QSet<int> retv;
+    QList<Utils::Port> retv;
     while (ports.hasMore() && retv.count() < Constants::MAX_QML_LIVE_PORTS)
-        retv.insert(ports.getNext());
+        retv.append(ports.getNext());
     QTC_CHECK(!ports.hasMore());
     return retv;
 }
@@ -105,7 +105,7 @@ MerDevice::MerDevice(const QString &name, MachineType machineType, Origin origin
     : LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
-    m_qmlLivePorts.addPort(Constants::DEFAULT_QML_LIVE_PORT);
+    m_qmlLivePorts.addPort(Utils::Port(Constants::DEFAULT_QML_LIVE_PORT));
 }
 
 MerDevice::~MerDevice()

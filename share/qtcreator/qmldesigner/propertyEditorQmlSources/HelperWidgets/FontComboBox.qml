@@ -40,7 +40,7 @@ Controls.ComboBox {
     model: ["Arial", "Times New Roman", "Courier", "Verdana", "Tahoma"]
 
     onModelChanged: {
-        editText = backendValue.valueToString
+        editText = comboBox.backendValue.valueToString
     }
 
     style: CustomComboBoxStyle {
@@ -50,7 +50,7 @@ Controls.ComboBox {
     ColorLogic {
         id: colorLogic
         backendValue: comboBox.backendValue
-        property string textValue: backendValue.value
+        property string textValue: comboBox.backendValue.valueToString
         onTextValueChanged: {
             comboBox.editText = textValue
         }
@@ -68,7 +68,7 @@ Controls.ComboBox {
 
     ExtendedFunctionButton {
         x: 2
-        y: 4
+        anchors.verticalCenter: parent.verticalCenter
         backendValue: comboBox.backendValue
         visible: comboBox.enabled
     }

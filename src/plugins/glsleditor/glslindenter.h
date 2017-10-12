@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef GLSLINDENTER_H
-#define GLSLINDENTER_H
+#pragma once
 
 #include <texteditor/indenter.h>
 
@@ -49,9 +48,9 @@ public:
                         const TextEditor::TabSettings &tabSettings) override;
 
     int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    TextEditor::IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
+                                                         const TextEditor::TabSettings &tabSettings) override;
 };
 
 } // namespace Internal
 } // namespace GlslEditor
-
-#endif // GLSLINDENTER_H

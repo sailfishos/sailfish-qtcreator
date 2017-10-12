@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSEDITORDOCUMENT_H
-#define QMLJSEDITORDOCUMENT_H
+#pragma once
 
 #include "qmljseditor_global.h"
 
@@ -53,6 +52,8 @@ public:
     void setDiagnosticRanges(const QVector<QTextLayout::FormatRange> &ranges);
     Internal::QmlOutlineModel *outlineModel() const;
 
+    TextEditor::QuickFixAssistProvider *quickFixAssistProvider() const override;
+
 signals:
     void updateCodeWarnings(QmlJS::Document::Ptr doc);
     void semanticInfoUpdated(const QmlJSTools::SemanticInfo &semanticInfo);
@@ -67,5 +68,3 @@ private:
 };
 
 } // QmlJSEditor
-
-#endif // QMLJSEDITORDOCUMENT_H

@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef HOSTOSINFO_H
-#define HOSTOSINFO_H
+#pragma once
 
 #include "utils_global.h"
 
@@ -43,16 +42,36 @@ namespace Utils {
 class QTCREATOR_UTILS_EXPORT HostOsInfo
 {
 public:
-    static inline OsType hostOs();
+    static constexpr OsType hostOs()
+    {
+#if defined(Q_OS_WIN)
+        return OsTypeWindows;
+#elif defined(Q_OS_LINUX)
+        return OsTypeLinux;
+#elif defined(Q_OS_MAC)
+        return OsTypeMac;
+#elif defined(Q_OS_UNIX)
+        return OsTypeOtherUnix;
+#else
+        return OsTypeOther;
+#endif
+    }
 
     enum HostArchitecture { HostArchitectureX86, HostArchitectureAMD64, HostArchitectureItanium,
                             HostArchitectureArm, HostArchitectureUnknown };
     static HostArchitecture hostArchitecture();
 
-    static bool isWindowsHost() { return hostOs() == OsTypeWindows; }
-    static bool isLinuxHost() { return hostOs() == OsTypeLinux; }
-    static bool isMacHost() { return hostOs() == OsTypeMac; }
-    static inline bool isAnyUnixHost();
+    static constexpr bool isWindowsHost() { return hostOs() == OsTypeWindows; }
+    static constexpr bool isLinuxHost() { return hostOs() == OsTypeLinux; }
+    static constexpr bool isMacHost() { return hostOs() == OsTypeMac; }
+    static constexpr bool isAnyUnixHost()
+    {
+#ifdef Q_OS_UNIX
+        return true;
+#else
+        return false;
+#endif
+    }
 
     static QString withExecutableSuffix(const QString &executable)
     {
@@ -88,31 +107,4 @@ private:
     static bool m_useOverrideFileNameCaseSensitivity;
 };
 
-
-OsType HostOsInfo::hostOs()
-{
-#if defined(Q_OS_WIN)
-    return OsTypeWindows;
-#elif defined(Q_OS_LINUX)
-    return OsTypeLinux;
-#elif defined(Q_OS_MAC)
-    return OsTypeMac;
-#elif defined(Q_OS_UNIX)
-    return OsTypeOtherUnix;
-#else
-    return OsTypeOther;
-#endif
-}
-
-bool HostOsInfo::isAnyUnixHost()
-{
-#ifdef Q_OS_UNIX
-    return true;
-#else
-    return false;
-#endif
-}
-
 } // namespace Utils
-
-#endif // HOSTOSINFO_H

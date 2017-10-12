@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef QMLJSCOMPONENTNAMEDIALOG_H
-#define QMLJSCOMPONENTNAMEDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -41,10 +40,17 @@ public:
     explicit ComponentNameDialog(QWidget *parent = 0);
     ~ComponentNameDialog();
 
-    static bool go(QString *proposedName, QString *proposedPath, QWidget *parent = 0);
+    static bool go(QString *proposedName, QString *proposedPath, QString *proposedSuffix,
+                   const QStringList &properties, const QStringList &sourcePreview, const QString &oldFileName,
+                   QStringList *result,
+                   QWidget *parent = 0);
 
-public slots:
-    void choosePath();
+    void setProperties(const QStringList &properties);
+
+    QStringList propertiesToKeep() const;
+
+    void generateCodePreview();
+
     void validate();
 
 protected:
@@ -52,9 +58,8 @@ protected:
 
 private:
     Ui::ComponentNameDialog *ui;
+    QStringList m_sourcePreview;
 };
 
 } // namespace Internal
 } // namespace QmlJSEditor
-
-#endif // QMLJSCOMPONENTNAMEDIALOG_H

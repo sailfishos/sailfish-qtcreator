@@ -117,6 +117,7 @@ JsonFieldPage::Field::Field() : d(new FieldPrivate)
 JsonFieldPage::Field::~Field()
 {
     delete d->m_widget;
+    delete d->m_label;
     delete d;
 }
 
@@ -178,12 +179,14 @@ void JsonFieldPage::Field::createWidget(JsonFieldPage *page)
     w->setObjectName(name());
     QFormLayout *layout = page->layout();
 
-    if (suppressName())
+    if (suppressName()) {
         layout->addWidget(w);
-    else if (hasSpan())
+    } else if (hasSpan()) {
         layout->addRow(w);
-    else
-        layout->addRow(displayName(), w);
+    } else {
+        d->m_label = new QLabel(displayName());
+        layout->addRow(d->m_label, w);
+    }
 
     setup(page, name());
 }
@@ -205,6 +208,8 @@ void JsonFieldPage::Field::setEnabled(bool e)
 void JsonFieldPage::Field::setVisible(bool v)
 {
     QTC_ASSERT(d->m_widget, return);
+    if (d->m_label)
+        d->m_label->setVisible(v);
     d->m_widget->setVisible(v);
 }
 
@@ -299,9 +304,6 @@ void JsonFieldPage::Field::setIsCompleteExpando(const QVariant &v, const QString
 // LabelFieldData:
 // --------------------------------------------------------------------
 
-LabelField::LabelField() : m_wordWrap(false)
-{ }
-
 bool LabelField::parseData(const QVariant &data, QString *errorMessage)
 {
     if (data.type() != QVariant::Map) {
@@ -337,9 +339,6 @@ QWidget *LabelField::createWidget(const QString &displayName, JsonFieldPage *pag
 // --------------------------------------------------------------------
 // SpacerFieldData:
 // --------------------------------------------------------------------
-
-SpacerField::SpacerField() : m_factor(1)
-{ }
 
 bool SpacerField::parseData(const QVariant &data, QString *errorMessage)
 {
@@ -383,9 +382,6 @@ QWidget *SpacerField::createWidget(const QString &displayName, JsonFieldPage *pa
 // LineEditFieldData:
 // --------------------------------------------------------------------
 
-LineEditField::LineEditField() : m_isModified(false), m_isValidating(false)
-{ }
-
 bool LineEditField::parseData(const QVariant &data, QString *errorMessage)
 {
     if (data.isNull())
@@ -399,6 +395,7 @@ bool LineEditField::parseData(const QVariant &data, QString *errorMessage)
 
     QVariantMap tmp = data.toMap();
 
+    m_isPassword = tmp.value("isPassword", false).toBool();
     m_defaultText = JsonWizardFactory::localizedString(tmp.value(QLatin1String("trText")).toString());
     m_disabledText = JsonWizardFactory::localizedString(tmp.value(QLatin1String("trDisabledText")).toString());
     m_placeholderText = JsonWizardFactory::localizedString(tmp.value(QLatin1String("trPlaceholder")).toString());
@@ -433,6 +430,8 @@ QWidget *LineEditField::createWidget(const QString &displayName, JsonFieldPage *
 
     if (!m_historyId.isEmpty())
         w->setHistoryCompleter(m_historyId, m_restoreLastHistoryItem);
+
+    w->setEchoMode(m_isPassword ? QLineEdit::Password : QLineEdit::Normal);
 
     return w;
 }
@@ -493,9 +492,6 @@ void LineEditField::initializeData(MacroExpander *expander)
 // TextEditFieldData:
 // --------------------------------------------------------------------
 
-
-TextEditField::TextEditField() : m_acceptRichText(false)
-{ }
 
 bool TextEditField::parseData(const QVariant &data, QString *errorMessage)
 {
@@ -561,9 +557,6 @@ void TextEditField::initializeData(MacroExpander *expander)
 // --------------------------------------------------------------------
 // PathChooserFieldData:
 // --------------------------------------------------------------------
-
-PathChooserField::PathChooserField() : m_kind(PathChooser::ExistingDirectory)
-{ }
 
 bool PathChooserField::parseData(const QVariant &data, QString *errorMessage)
 {
@@ -660,12 +653,6 @@ void PathChooserField::initializeData(MacroExpander *expander)
 // CheckBoxFieldData:
 // --------------------------------------------------------------------
 
-CheckBoxField::CheckBoxField() :
-    m_checkedValue(QLatin1String("0")),
-    m_uncheckedValue(QLatin1String("1")),
-    m_isModified(false)
-{ }
-
 bool CheckBoxField::parseData(const QVariant &data, QString *errorMessage)
 {
     if (data.isNull())
@@ -731,9 +718,6 @@ void CheckBoxField::initializeData(MacroExpander *expander)
 // --------------------------------------------------------------------
 // ComboBoxFieldData:
 // --------------------------------------------------------------------
-
-ComboBoxField::ComboBoxField() : m_index(-1), m_disabledIndex(-1), m_savedIndex(-1)
-{ }
 
 struct ComboBoxItem {
     ComboBoxItem(const QString &k = QString(), const QString &v = QString(), const QVariant &c = true) :

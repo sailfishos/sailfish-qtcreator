@@ -36,10 +36,11 @@ QSGGeometryNode *createSelectionNode(QSGMaterial *material)
     selectionNode->setMaterial(material);
     selectionNode->setFlag(QSGNode::OwnsMaterial, false);
     QSGGeometry *geometry = new QSGGeometry(OpaqueColoredPoint2DWithSize::attributes(), 4);
+    Q_ASSERT(geometry->vertexData());
     geometry->setDrawingMode(GL_TRIANGLE_STRIP);
     OpaqueColoredPoint2DWithSize *v = OpaqueColoredPoint2DWithSize::fromVertexData(geometry);
     for (int i = 0; i < 4; ++i)
-        v[i].set(0, 0, 0, 0, 0, 0, 0, 0);
+        v[i].set(0, 0, 0, 0, 0, 0, 0, 0, 0);
     selectionNode->setGeometry(geometry);
     selectionNode->setFlag(QSGNode::OwnsGeometry, true);
     selectionNode->setFlag(QSGNode::OwnedByParent, false);
@@ -119,13 +120,13 @@ TimelineRenderPass::State *TimelineSelectionRenderPass::update(
         OpaqueColoredPoint2DWithSize *v = OpaqueColoredPoint2DWithSize::fromVertexData(
                     node->geometry());
         v[0].set(position.left(), position.bottom(), -position.width(), -position.height(),
-                 selectionId, red, green, blue);
+                 selectionId, red, green, blue, 255);
         v[1].set(position.right(), position.bottom(), position.width(), -position.height(),
-                 selectionId, red, green, blue);
+                 selectionId, red, green, blue, 255);
         v[2].set(position.left(), position.top(), -position.width(), position.height(),
-                 selectionId, red, green, blue);
+                 selectionId, red, green, blue, 255);
         v[3].set(position.right(), position.top(), position.width(), position.height(),
-                 selectionId, red, green, blue);
+                 selectionId, red, green, blue, 255);
         state->material()->setSelectionColor(renderer->selectionLocked() ? QColor(96,0,255) :
                                                                            Qt::blue);
         state->material()->setSelectedItem(selectionId);
@@ -135,7 +136,7 @@ TimelineRenderPass::State *TimelineSelectionRenderPass::update(
         OpaqueColoredPoint2DWithSize *v = OpaqueColoredPoint2DWithSize::fromVertexData(
                     node->geometry());
         for (int i = 0; i < 4; ++i)
-            v[i].set(0, 0, 0, 0, 0, 0, 0, 0);
+            v[i].set(0, 0, 0, 0, 0, 0, 0, 0, 0);
         node->markDirty(QSGNode::DirtyGeometry);
     }
     return state;

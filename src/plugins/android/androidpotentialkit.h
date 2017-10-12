@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef ANDROIDPOTENTIALKIT_H
-#define ANDROIDPOTENTIALKIT_H
+#pragma once
 
 #include <projectexplorer/ipotentialkit.h>
 #include <utils/detailswidget.h>
@@ -36,10 +35,10 @@ class AndroidPotentialKit : public ProjectExplorer::IPotentialKit
 {
     Q_OBJECT
 public:
-    QString displayName() const;
-    void executeFromMenu();
-    QWidget *createWidget(QWidget *parent) const;
-    bool isEnabled() const;
+    QString displayName() const override;
+    void executeFromMenu() override;
+    QWidget *createWidget(QWidget *parent) const override;
+    bool isEnabled() const override;
 };
 
 class AndroidPotentialKitWidget : public Utils::DetailsWidget
@@ -47,7 +46,7 @@ class AndroidPotentialKitWidget : public Utils::DetailsWidget
     Q_OBJECT
 public:
     AndroidPotentialKitWidget(QWidget *parent);
-private slots:
+private:
     void openOptions();
     void recheck();
 };
@@ -56,5 +55,3 @@ private slots:
 
 }
 }
-
-#endif // ANDROIDPOTENTIALKIT_H

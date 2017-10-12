@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef CPPEDITOR_H
-#define CPPEDITOR_H
+#pragma once
 
 #include "cppfunctiondecldeflink.h"
 
@@ -34,7 +33,9 @@
 
 namespace CppTools {
 class CppEditorOutline;
+class RefactoringEngineInterface;
 class SemanticInfo;
+class ProjectPart;
 }
 
 namespace CppEditor {
@@ -80,7 +81,6 @@ public:
 
     void encourageApply() override;
 
-public slots:
     void paste() override;
     void cut() override;
     void selectAll() override;
@@ -106,10 +106,12 @@ protected:
 
     void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker) override;
 
-protected slots:
     void slotCodeStyleSettingsChanged(const QVariant &) override;
 
-private slots:
+public:
+    using HeaderErrorDiagnosticWidgetCreator = std::function<QWidget*()>;
+
+private:
     void updateFunctionDeclDefLink();
     void updateFunctionDeclDefLinkNow();
     void abortDeclDefLink();
@@ -119,19 +121,18 @@ private slots:
 
     void onCodeWarningsUpdated(unsigned revision,
                                const QList<QTextEdit::ExtraSelection> selections,
+                               const HeaderErrorDiagnosticWidgetCreator &creator,
                                const TextEditor::RefactorMarkers &refactorMarkers);
     void onIfdefedOutBlocksUpdated(unsigned revision,
                                    const QList<TextEditor::BlockRange> ifdefedOutBlocks);
 
+    void updateHeaderErrorWidgets();
     void updateSemanticInfo(const CppTools::SemanticInfo &semanticInfo,
                             bool updateUseSelectionSynchronously = false);
     void updatePreprocessorButtonTooltip();
 
-    void performQuickFix(int index);
-
     void processKeyNormally(QKeyEvent *e);
 
-private:
     void finalizeInitialization() override;
     void finalizeInitializationAfterDuplication(TextEditorWidget *other) override;
 
@@ -139,11 +140,18 @@ private:
 
     TextEditor::RefactorMarkers refactorMarkersWithoutClangMarkers() const;
 
+    CppTools::RefactoringEngineInterface *refactoringEngine() const;
+
+    void renameSymbolUnderCursorClang();
+    void renameSymbolUnderCursorBuiltin();
+
+    void addHeaderErrorInfoBarEntry() const;
+
+    CppTools::ProjectPart *projectPart() const;
+
 private:
     QScopedPointer<CppEditorWidgetPrivate> d;
 };
 
 } // namespace Internal
 } // namespace CppEditor
-
-#endif // CPPEDITOR_H
