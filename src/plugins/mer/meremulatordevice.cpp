@@ -498,7 +498,7 @@ void MerEmulatorDevice::scheduleSetVideoMode()
     if (!m_setVideoModeTimer) {
         m_setVideoModeTimer = new QTimer;
         m_setVideoModeTimer->setSingleShot(true);
-        QObject::connect(m_setVideoModeTimer, &QTimer::timeout, [this]() {
+        QObject::connect(m_setVideoModeTimer.data(), &QTimer::timeout, [this]() {
             setVideoMode();
             m_setVideoModeTimer->deleteLater();
         });
