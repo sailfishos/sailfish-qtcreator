@@ -46,6 +46,10 @@
 #include <QApplication>
 #include <QFileDialog>
 
+#if !defined(QT_NO_WEBKIT)
+#include <QWebSettings>
+#endif
+
 using namespace Core;
 using namespace Help::Internal;
 
