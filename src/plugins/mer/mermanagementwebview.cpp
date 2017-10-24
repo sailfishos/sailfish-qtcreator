@@ -43,6 +43,7 @@ namespace Internal {
 
 const char CONTROLCENTER_URL_BASE[] = "http://127.0.0.1/";
 const char START_VM_URL[] = "about:blank#startVM";
+const int AUTO_RELOAD_TIMEOUT_MS = 2000;
 
 class MerManagementWebViewSdksModel : public QAbstractListModel
 {
@@ -242,6 +243,11 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
                 QTimer::singleShot(200, this, QWidget_update);
             },
             Qt::QueuedConnection);
+
+    connect(ui->webView, &QWebView::loadProgress,
+            this, [this](int prog) { ui->progressBar->setValue(prog < 100 ? prog : 0); });
+    connect(ui->webView, &QWebView::loadFinished,
+            this, [this]() { ui->progressBar->setValue(0); });
 }
 
 MerManagementWebView::~MerManagementWebView()
@@ -255,7 +261,7 @@ void MerManagementWebView::resetWebView()
 
     if (m_selectedSdk) {
         disconnect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
-                ui->webView, &QWebView::reload);
+                this, &MerManagementWebView::resetWebView);
     }
 
     m_selectedSdk = m_sdksModel->sdkAt(ui->sdksComboBox->currentIndex());
@@ -264,7 +270,7 @@ void MerManagementWebView::resetWebView()
         url = QUrl(QLatin1String(CONTROLCENTER_URL_BASE));
         url.setPort(m_selectedSdk->wwwPort());
         connect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
-                ui->webView, &QWebView::reload);
+                this, &MerManagementWebView::resetWebView);
     } else {
         url = QLatin1String("about:blank");
     }
@@ -340,12 +346,12 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 );
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)
-            QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
+            QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
         if (m_selectedSdk) {
             m_selectedSdk->connection()->connectTo();
         }
-        QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
+        QTimer::singleShot(AUTO_RELOAD_TIMEOUT_MS, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
         m_loaded = true;
     }
