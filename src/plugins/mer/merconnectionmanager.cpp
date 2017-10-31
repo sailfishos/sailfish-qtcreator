@@ -81,6 +81,9 @@ public:
 public slots:
     void update();
 
+private:
+    QString vmName() const;
+
 private slots:
     void handleTriggered();
 
@@ -124,7 +127,7 @@ void MerConnectionAction::initialize()
 
     m_action->setText(m_name);
     m_action->setIcon(m_iconOff);
-    m_action->setToolTip(m_startTip);
+    m_action->setToolTip(m_startTip.arg(vmName()));
     connect(m_action, &QAction::triggered,
             this, &MerConnectionAction::handleTriggered);
 
@@ -206,10 +209,22 @@ void MerConnectionAction::update()
         break;
     }
 
+    if (toolTip.contains(QLatin1String("%1")))
+        toolTip = toolTip.arg(vmName());
+
     m_action->setEnabled(enabled);
     m_action->setVisible(m_visible);
     m_action->setToolTip(toolTip);
     m_action->setIcon(state == QIcon::Off ? m_iconOff : m_iconOn);
+}
+
+QString MerConnectionAction::vmName() const
+{
+    if (m_connection) {
+        return m_connection->virtualMachine();
+    } else {
+        return tr("<UNKNOWN>");
+    }
 }
 
 void MerConnectionAction::handleTriggered()
@@ -237,24 +252,24 @@ MerConnectionManager::MerConnectionManager():
     QIcon sdkIconOff(QLatin1String(":/mer/images/sdk-run.png"));
     QIcon sdkIconOn(QLatin1String(":/mer/images/sdk-stop.png"));
 
-    m_emulatorAction->setName(tr("Sailfish OS Emulator"));
+    m_emulatorAction->setName(tr("Start/Stop a Sailfish OS Emulator"));
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
     m_emulatorAction->setIconOff(emuIconOff);
     m_emulatorAction->setIconOn(emuIconOn);
-    m_emulatorAction->setStartTip(tr("Start Sailfish OS Emulator"));
-    m_emulatorAction->setStopTip(tr("Stop Sailfish OS Emulator"));
+    m_emulatorAction->setStartTip(tr("Start '%1'"));
+    m_emulatorAction->setStopTip(tr("Stop '%1'"));
     m_emulatorAction->setConnectingTip(tr("Connecting..."));
     m_emulatorAction->setDisconnectingTip(tr("Disconnecting..."));
     m_emulatorAction->setClosingTip(tr("Closing..."));
     m_emulatorAction->setStartingTip(tr("Starting..."));
     m_emulatorAction->initialize();
 
-    m_sdkAction->setName(tr("Sailfish OS Build Engine"));
+    m_sdkAction->setName(tr("Start/Stop a Sailfish OS Build Engine"));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkAction->setIconOff(sdkIconOff);
     m_sdkAction->setIconOn(sdkIconOn);
-    m_sdkAction->setStartTip(tr("Start Sailfish OS Build Engine"));
-    m_sdkAction->setStopTip(tr("Stop Sailfish OS Build Engine"));
+    m_sdkAction->setStartTip(tr("Start '%1'"));
+    m_sdkAction->setStopTip(tr("Stop '%1'"));
     m_sdkAction->setConnectingTip(tr("Connecting..."));
     m_sdkAction->setDisconnectingTip(tr("Disconnecting..."));
     m_sdkAction->setClosingTip(tr("Closing..."));
