@@ -537,7 +537,8 @@ void MerVirtualBoxManager::onDeviceListReplaced()
 
 bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
 {
-    QRegularExpression re(QStringLiteral("^Session name:"), QRegularExpression::MultilineOption);
+    // VBox 4.x says "type", 5.x says "name"
+    QRegularExpression re(QStringLiteral("^Session (name|type):"), QRegularExpression::MultilineOption);
     return re.match(vmInfo).hasMatch();
 }
 
