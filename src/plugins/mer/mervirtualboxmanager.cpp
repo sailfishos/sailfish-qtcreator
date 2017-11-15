@@ -78,7 +78,6 @@ namespace Internal {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
-static bool isVirtualMachineListed(const QString &vmName, const QString &output);
 static QStringList listedVirtualMachines(const QString &output);
 
 static QString vBoxManagePath()
@@ -276,8 +275,9 @@ MerVirtualBoxManager *MerVirtualBoxManager::instance()
     return m_instance;
 }
 
+// accepts void slot(bool running, bool exists)
 void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
-                                                   std::function<void(bool)> slot)
+                                                   std::function<void(bool, bool)> slot)
 {
     QStringList arguments;
     arguments.append(QLatin1String(SHOWVMINFO));
@@ -290,25 +290,14 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 Q_UNUSED(exitCode);
                 Q_UNUSED(exitStatus);
-                slot(isVirtualMachineRunningFromInfo(
-                        QString::fromLocal8Bit(process->readAllStandardOutput())));
+                bool isRunning = isVirtualMachineRunningFromInfo(
+                    QString::fromLocal8Bit(process->readAllStandardOutput()));
+                bool exists = exitCode == 0;
+                slot(isRunning, exists);
             });
 
     process->setDeleteOnFinished();
     process->runAsynchronously(arguments);
-}
-
-bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
-{
-    QStringList arguments;
-    arguments.append(QLatin1String(LIST));
-    arguments.append(QLatin1String(VMS));
-
-    VBoxManageProcess process;
-    if (!process.runSynchronously(arguments))
-        return false;
-
-    return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -540,11 +529,6 @@ bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
     // VBox 4.x says "type", 5.x says "name"
     QRegularExpression re(QStringLiteral("^Session (name|type):"), QRegularExpression::MultilineOption);
     return re.match(vmInfo).hasMatch();
-}
-
-bool isVirtualMachineListed(const QString &vmName, const QString &output)
-{
-    return output.indexOf(QRegExp(QString::fromLatin1("\\B\"%1\"\\B").arg(vmName))) != -1;
 }
 
 QStringList listedVirtualMachines(const QString &output)
