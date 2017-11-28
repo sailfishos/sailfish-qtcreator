@@ -22,12 +22,9 @@
 
 #include "qmakecommand.h"
 
-#include "merremoteprocess.h"
-
 #include <mer/merconstants.h>
 
 #include <QDir>
-#include <QEventLoop>
 #include <QFile>
 #include <QStringList>
 

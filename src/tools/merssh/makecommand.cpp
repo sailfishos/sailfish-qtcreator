@@ -22,13 +22,6 @@
 
 #include "makecommand.h"
 
-#include "merremoteprocess.h"
-
-#include <mer/merconstants.h>
-
-#include <QEventLoop>
-#include <QStringList>
-
 MakeCommand::MakeCommand()
 {
 
