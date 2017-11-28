@@ -26,7 +26,6 @@
 
 #include <QDir>
 #include <QFile>
-#include <QStringList>
 
 GccCommand::GccCommand()
 {
