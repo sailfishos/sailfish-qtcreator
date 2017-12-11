@@ -67,7 +67,7 @@ int QMakeCommand::execute()
         ? QString()
         : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
 
-    QString command = QLatin1String("mb2") +
+    QString command = QLatin1String("mb2 --pedantic") +
                       projectPathParameter +
                       QLatin1String(" -t ") +
                       targetName() +
