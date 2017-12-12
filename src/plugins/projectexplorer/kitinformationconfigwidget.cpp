@@ -227,7 +227,7 @@ QWidget *ToolChainInformationConfigWidget::buttonWidget() const
 
 void ToolChainInformationConfigWidget::manageToolChains()
 {
-    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID, buttonWidget());
+    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID);
 }
 
 void ToolChainInformationConfigWidget::currentToolChainChanged(ToolChain::Language l, int idx)
@@ -380,7 +380,7 @@ QWidget *DeviceInformationConfigWidget::buttonWidget() const
 
 void DeviceInformationConfigWidget::manageDevices()
 {
-    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID, buttonWidget());
+    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID);
 }
 
 void DeviceInformationConfigWidget::modelAboutToReset()
