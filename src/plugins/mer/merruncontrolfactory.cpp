@@ -152,7 +152,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
 
             QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
             QTC_ASSERT(project, return 0);
-            foreach (QmakeProFileNode *node, project->allProFiles(QList<QmakeProjectManager::QmakeProjectType>() << QmakeProjectManager::SharedLibraryTemplate))
+            foreach (QmakeProFileNode *node, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate))
                 params.solibSearchPath.append(node->targetInformation().destDir);
         }
 

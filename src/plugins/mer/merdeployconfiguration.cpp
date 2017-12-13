@@ -103,7 +103,7 @@ bool MerDeployConfiguration::isAmbienceProject(Project *project)
     QTC_ASSERT(qmakeProject, return false);
 
     QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
-    return rootNode->projectType() == AuxTemplate &&
+    return rootNode->projectType() == ProjectType::AuxTemplate &&
         rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
 }
 
