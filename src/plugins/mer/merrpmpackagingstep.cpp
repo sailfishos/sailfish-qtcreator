@@ -125,7 +125,7 @@ bool MerRpmPackagingStep::init(QList<const BuildStep *> &earlierSteps)
 void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
 {
     if (!m_packagingNeeded) {
-        emit addOutput(tr("Package up to date."), MessageOutput);
+        emit addOutput(tr("Package up to date."), OutputFormat::NormalMessage);
         reportRunResult(fi, true);
         return;
     }
@@ -143,7 +143,7 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
     disconnect(buildProc, 0, this, 0);
     buildProc->deleteLater();
     if (success)
-        emit addOutput(tr("Package created."), BuildStep::MessageOutput);
+        emit addOutput(tr("Package created."), OutputFormat::NormalMessage);
     setPackagingFinished(success);
     reportRunResult(fi, success);
 }
@@ -169,12 +169,12 @@ void MerRpmPackagingStep::handleBuildOutput()
         m_pkgFileName  = m_regExp.cap(1);
     }
     if (!stdOut.isEmpty())
-        emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput,
+        emit addOutput(QString::fromLocal8Bit(stdOut), OutputFormat::Stdout,
                 BuildStep::DontAppendNewline);
     QByteArray errorOut = buildProc->readAllStandardError();
     errorOut.replace('\0', QByteArray());
     if (!errorOut.isEmpty()) {
-        emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput,
+        emit addOutput(QString::fromLocal8Bit(errorOut), OutputFormat::Stderr,
             BuildStep::DontAppendNewline);
     }
 }
@@ -229,7 +229,7 @@ bool MerRpmPackagingStep::prepareBuildDir()
 
 bool MerRpmPackagingStep::createSpecFile()
 {
-    emit addOutput(tr("Creating spec file..."), MessageOutput);
+    emit addOutput(tr("Creating spec file..."), OutputFormat::NormalMessage);
     const QString rpmDirPath = cachedPackageDirectory() + QLatin1String("/rpmbuild");
     const QString specFilePath = rpmDirPath + QLatin1Char('/') + SpecFileName;
     QFile specFile(specFilePath);
@@ -270,7 +270,7 @@ bool MerRpmPackagingStep::createSpecFile()
 
 bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Creating package file..."), MessageOutput);
+    emit addOutput(tr("Creating package file..."), OutputFormat::NormalMessage);
     Q_UNUSED(fi);
     buildProc->setEnvironment(m_environment.toStringList());
     buildProc->setWorkingDirectory(cachedPackageDirectory());
@@ -278,7 +278,7 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     emit addOutput(tr("Package Creation: Running command \"%1 %2\" .")
                    .arg(m_rpmCommand)
                    .arg(m_rpmArgs.join(QLatin1Char(' '))),
-                   BuildStep::MessageOutput);
+                   OutputFormat::NormalMessage);
 
     buildProc->start(m_rpmCommand, m_rpmArgs);
     if (!buildProc->waitForStarted()) {

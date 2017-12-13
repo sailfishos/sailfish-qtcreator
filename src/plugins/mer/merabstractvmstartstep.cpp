@@ -89,18 +89,18 @@ bool MerAbstractVmStartStep::init(QList<const BuildStep *> &earlierSteps)
 void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
 {
     if (!m_connection) {
-        emit addOutput(tr("%1: Internal error.").arg(displayName()), ErrorMessageOutput);
+        emit addOutput(tr("%1: Internal error.").arg(displayName()), OutputFormat::ErrorMessage);
         reportRunResult(fi, false);
         return;
     }
 
     if (m_connection->state() == MerConnection::Connected) {
         emit addOutput(tr("%1: The \"%2\" virtual machine is already running. Nothing to do.")
-            .arg(displayName()).arg(m_connection->virtualMachine()), MessageOutput);
+            .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
         reportRunResult(fi, true);
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
-                .arg(displayName()).arg(m_connection->virtualMachine()), MessageOutput);
+                .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
         m_futureInterface = &fi;
 
         m_checkForCancelTimer = new QTimer(this);

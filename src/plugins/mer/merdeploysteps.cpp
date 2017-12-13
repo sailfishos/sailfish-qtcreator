@@ -141,21 +141,23 @@ bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions op
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
-            ErrorMessageOutput);
+                OutputFormat::ErrorMessage);
         return false;
     }
 
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
 
     if (!merSdk) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
+                OutputFormat::ErrorMessage);
         return false;
     }
 
     const QString target = MerTargetKitInformation::targetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"), ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
+                OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -163,7 +165,8 @@ bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions op
 
     //TODO: HACK
     if (device.isNull() && !(options & DoNotNeedDevice)) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS device information in the kit"), ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS device information in the kit"),
+                OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -304,7 +307,7 @@ void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
             this, &MerConnectionTestStep::onConnectionFailure);
 
     emit addOutput(tr("%1: Testing connection to \"%2\"...")
-            .arg(displayName()).arg(d->displayName()), MessageOutput);
+            .arg(displayName()).arg(d->displayName()), OutputFormat::NormalMessage);
 
     m_checkForCancelTimer = new QTimer(this);
     connect(m_checkForCancelTimer, &QTimer::timeout,
@@ -486,7 +489,7 @@ bool MerMb2RsyncDeployStep::immutable() const
 
 void MerMb2RsyncDeployStep::run(QFutureInterface<bool> &fi)
 {
-   emit addOutput(tr("Deploying binaries..."), MessageOutput);
+   emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
    AbstractProcessStep::run(fi);
 }
 
@@ -530,21 +533,23 @@ bool MerLocalRsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
-            ErrorMessageOutput);
+                OutputFormat::ErrorMessage);
         return false;
     }
 
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
 
     if (!merSdk) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-engine information in the kit"),
+                OutputFormat::ErrorMessage);
         return false;
     }
 
     const QString target = MerTargetKitInformation::targetName(this->target()->kit());
 
     if (target.isEmpty()) {
-        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"), ErrorMessageOutput);
+        addOutput(tr("Cannot deploy: Missing Sailfish OS build-target information in the kit"),
+                OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -570,7 +575,7 @@ bool MerLocalRsyncDeployStep::immutable() const
 
 void MerLocalRsyncDeployStep::run(QFutureInterface<bool> &fi)
 {
-   emit addOutput(tr("Deploying binaries..."), MessageOutput);
+   emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
    AbstractProcessStep::run(fi);
 }
 
@@ -623,7 +628,7 @@ bool MerMb2RpmDeployStep::immutable() const
 
 void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Deploying RPM package..."), MessageOutput);
+    emit addOutput(tr("Deploying RPM package..."), OutputFormat::NormalMessage);
     AbstractProcessStep::run(fi);
 }
 
@@ -685,7 +690,7 @@ bool MerMb2RpmBuildStep::immutable() const
 //TODO: This is hack
 void MerMb2RpmBuildStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Building RPM package..."), MessageOutput);
+    emit addOutput(tr("Building RPM package..."), OutputFormat::NormalMessage);
     AbstractProcessStep::run(fi);
 }
 //TODO: This is hack
@@ -807,7 +812,7 @@ bool MerRpmValidationStep::init(QList<const BuildStep *> &earlierSteps)
     if (!m_packagingStep) {
         emit addOutput(tr("Cannot validate: No previous \"%1\" step found")
                 .arg(MerMb2RpmBuildStep::displayName()),
-                ErrorMessageOutput);
+                OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -823,12 +828,12 @@ bool MerRpmValidationStep::immutable() const
 
 void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Validating RPM package..."), MessageOutput);
+    emit addOutput(tr("Validating RPM package..."), OutputFormat::NormalMessage);
 
     const QString packageFile = m_packagingStep->packagesFilePath().first();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to validate found in %1")).arg(packageFile));
-        emit addOutput(message, ErrorMessageOutput);
+        emit addOutput(message, OutputFormat::ErrorMessage);
         reportRunResult(fi, false);
         return;
     }

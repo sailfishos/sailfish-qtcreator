@@ -128,7 +128,7 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
     const QString packageFile = m_packagingStep->packagesFilePath().first();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to deploy found in %1")).arg(packageFile));
-        emit addOutput(message, ErrorMessageOutput);
+        emit addOutput(message, OutputFormat::ErrorMessage);
         emit addTask(Task(Task::Error, message, FileName(), -1,
                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         reportRunResult(fi, false);
