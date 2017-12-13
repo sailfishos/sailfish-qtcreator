@@ -110,7 +110,7 @@ namespace Internal {
 
 ShortcutButton::ShortcutButton(QWidget *parent)
     : QPushButton(parent)
-    , m_key({{ 0, 0, 0, 0 }})
+    , m_key({{0, 0, 0, 0}})
 {
     // Using ShortcutButton::tr() as workaround for QTBUG-34128
     setToolTip(ShortcutButton::tr("Click and type the new key sequence."));
@@ -200,8 +200,8 @@ void ShortcutButton::handleToggleChange(bool toogleState)
     updateText();
     m_keyNum = m_key[0] = m_key[1] = m_key[2] = m_key[3] = 0;
     if (toogleState) {
-        if (qApp->focusWidget())
-            qApp->focusWidget()->clearFocus(); // funny things happen otherwise
+        if (QApplication::focusWidget())
+            QApplication::focusWidget()->clearFocus(); // funny things happen otherwise
         qApp->installEventFilter(this);
     } else {
         qApp->removeEventFilter(this);
@@ -499,7 +499,7 @@ void ShortcutSettingsWidget::initialize()
         const QString section = identifier.left(pos);
         const QString subId = identifier.mid(pos + 1);
         if (!sections.contains(section)) {
-            QTreeWidgetItem *categoryItem = new QTreeWidgetItem(commandList(), QStringList() << section);
+            QTreeWidgetItem *categoryItem = new QTreeWidgetItem(commandList(), QStringList(section));
             QFont f = categoryItem->font(0);
             f.setBold(true);
             categoryItem->setFont(0, f);

@@ -34,12 +34,20 @@ class QtTestResult : public TestResult
 {
 public:
     explicit QtTestResult(const QString &className = QString());
+    QtTestResult(const QString &executable, const QString &className);
     const QString outputString(bool selected) const override;
 
     void setFunctionName(const QString &functionName) { m_function = functionName; }
     void setDataTag(const QString &dataTag) { m_dataTag = dataTag; }
 
+    bool isDirectParentOf(const TestResult *other, bool *needsIntermediate) const override;
+    bool isIntermediateFor(const TestResult *other) const override;
+    TestResult *createIntermediateResultFor(const TestResult *other) override;
 private:
+    bool isTestCase() const     { return m_function.isEmpty()  && m_dataTag.isEmpty(); }
+    bool isTestFunction() const { return !m_function.isEmpty() && m_dataTag.isEmpty(); }
+    bool isDataTag() const      { return !m_function.isEmpty() && !m_dataTag.isEmpty(); }
+
     QString m_function;
     QString m_dataTag;
 };

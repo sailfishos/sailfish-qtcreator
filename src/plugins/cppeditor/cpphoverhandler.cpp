@@ -72,7 +72,8 @@ bool editorDocumentProcessorHasDiagnosticAt(TextEditorWidget *editorWidget, int 
 
 void processWithEditorDocumentProcessor(TextEditorWidget *editorWidget,
                                         const QPoint &point,
-                                        int position)
+                                        int position,
+                                        const QString &helpId)
 {
     if (CppTools::BaseEditorDocumentProcessor *processor = editorDocumentProcessor(editorWidget)) {
         int line, column;
@@ -81,7 +82,7 @@ void processWithEditorDocumentProcessor(TextEditorWidget *editorWidget,
             layout->setContentsMargins(0, 0, 0, 0);
             layout->setSpacing(2);
             processor->addDiagnosticToolTipToLayout(line, column, layout);
-            Utils::ToolTip::show(point, layout, editorWidget);
+            Utils::ToolTip::show(point, layout, editorWidget, helpId);
         }
     }
 }
@@ -96,7 +97,7 @@ void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos)
     m_positionForEditorDocumentProcessor = -1;
 
     if (editorDocumentProcessorHasDiagnosticAt(editorWidget, pos)) {
-        setIsDiagnosticTooltip(true);
+        setPriority(Priority_Diagnostic);
         m_positionForEditorDocumentProcessor = pos;
     } else if (!editorWidget->extraSelectionTooltip(pos).isEmpty()) {
         setToolTip(editorWidget->extraSelectionTooltip(pos));
@@ -109,12 +110,14 @@ void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos)
         evaluator.execute();
         if (evaluator.hasDiagnosis()) {
             setToolTip(evaluator.diagnosis());
-            setIsDiagnosticTooltip(true);
+            setPriority(Priority_Diagnostic);
         }
         if (evaluator.identifiedCppElement()) {
             const QSharedPointer<CppElement> &cppElement = evaluator.cppElement();
-            if (!isDiagnosticTooltip())
+            if (priority() != Priority_Diagnostic) {
                 setToolTip(cppElement->tooltip);
+                setPriority(cppElement->tooltip.isEmpty() ? Priority_None : Priority_Tooltip);
+            }
             QStringList candidates = cppElement->helpIdCandidates;
             candidates.removeDuplicates();
             foreach (const QString &helpId, candidates) {
@@ -142,7 +145,7 @@ void CppHoverHandler::decorateToolTip()
     if (Qt::mightBeRichText(toolTip()))
         setToolTip(toolTip().toHtmlEscaped());
 
-    if (isDiagnosticTooltip())
+    if (priority() != Priority_Diagnostic)
         return;
 
     const HelpItem &help = lastHelpItemIdentified();
@@ -174,10 +177,15 @@ void CppHoverHandler::decorateToolTip()
 void CppHoverHandler::operateTooltip(TextEditor::TextEditorWidget *editorWidget,
                                      const QPoint &point)
 {
-    if (m_positionForEditorDocumentProcessor != -1)
-        processWithEditorDocumentProcessor(editorWidget, point, m_positionForEditorDocumentProcessor);
-    else
+    if (m_positionForEditorDocumentProcessor == -1) {
         BaseHoverHandler::operateTooltip(editorWidget, point);
+        return;
+    }
+
+    const HelpItem helpItem = lastHelpItemIdentified();
+    const QString helpId = helpItem.isValid() ? helpItem.helpId() : QString();
+    processWithEditorDocumentProcessor(editorWidget, point, m_positionForEditorDocumentProcessor,
+                                       helpId);
 }
 
 } // namespace Internal

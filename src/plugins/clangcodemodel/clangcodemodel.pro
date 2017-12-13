@@ -1,10 +1,7 @@
 include(../../qtcreatorplugin.pri)
 include(../../shared/clang/clang_installation.pri)
 
-# The following defines are used to determine the clang include path for intrinsics.
-DEFINES += CLANG_VERSION=\\\"$${LLVM_VERSION}\\\"
-CLANG_RESOURCE_DIR=$$clean_path($${LLVM_LIBDIR}/clang/$${LLVM_VERSION}/include)
-DEFINES += "\"CLANG_RESOURCE_DIR=\\\"$${CLANG_RESOURCE_DIR}\\\"\""
+include(../../shared/clang/clang_defines.pri)
 
 SOURCES += \
     clangactivationsequencecontextprocessor.cpp \
@@ -79,10 +76,14 @@ DISTFILES += \
 
 equals(TEST, 1) {
     HEADERS += \
-        test/clangcodecompletion_test.h
+        test/clangautomationutils.h \
+        test/clangbatchfileprocessor.h \
+        test/clangcodecompletion_test.h \
 
     SOURCES += \
-        test/clangcodecompletion_test.cpp
+        test/clangautomationutils.cpp \
+        test/clangbatchfileprocessor.cpp \
+        test/clangcodecompletion_test.cpp \
 
     RESOURCES += test/data/clangtestdata.qrc
     OTHER_FILES += $$files(test/data/*)

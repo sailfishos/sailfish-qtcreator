@@ -138,15 +138,15 @@ ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const
     layout->setColumnStretch(1, 2);
 
     int row = 0;
-    QList<ToolChain::Language> languageList = ToolChain::allLanguages().toList();
-    Utils::sort(languageList, [](ToolChain::Language l1, ToolChain::Language l2) {
-        return ToolChain::languageDisplayName(l1) < ToolChain::languageDisplayName(l2);
+    QList<Core::Id> languageList = ToolChainManager::allLanguages().toList();
+    Utils::sort(languageList, [](Core::Id l1, Core::Id l2) {
+        return ToolChainManager::displayNameOfLanguageId(l1) < ToolChainManager::displayNameOfLanguageId(l2);
     });
 
     QTC_ASSERT(!languageList.isEmpty(), return);
 
-    foreach (ToolChain::Language l, languageList) {
-        layout->addWidget(new QLabel(ToolChain::languageDisplayName(l) + ':'), row, 0);
+    foreach (Core::Id l, languageList) {
+        layout->addWidget(new QLabel(ToolChainManager::displayNameOfLanguageId(l) + ':'), row, 0);
         auto cb = new QComboBox;
         cb->setToolTip(toolTip());
 
@@ -188,10 +188,9 @@ void ToolChainInformationConfigWidget::refresh()
 {
     m_ignoreChanges = true;
 
-    const QList<ToolChain *> tcList = ToolChainManager::toolChains();
-    foreach (ToolChain::Language l, m_languageComboboxMap.keys()) {
+    foreach (Core::Id l, m_languageComboboxMap.keys()) {
         const QList<ToolChain *> ltcList
-                = Utils::filtered(tcList, Utils::equal(&ToolChain::language, l));
+                = ToolChainManager::toolChains(Utils::equal(&ToolChain::language, l));
 
         QComboBox *cb = m_languageComboboxMap.value(l);
         cb->clear();
@@ -210,7 +209,7 @@ void ToolChainInformationConfigWidget::refresh()
 void ToolChainInformationConfigWidget::makeReadOnly()
 {
     m_isReadOnly = true;
-    foreach (ToolChain::Language l, m_languageComboboxMap.keys()) {
+    foreach (Core::Id l, m_languageComboboxMap.keys()) {
         m_languageComboboxMap.value(l)->setEnabled(false);
     }
 }
@@ -227,16 +226,21 @@ QWidget *ToolChainInformationConfigWidget::buttonWidget() const
 
 void ToolChainInformationConfigWidget::manageToolChains()
 {
-    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID, buttonWidget());
 }
 
-void ToolChainInformationConfigWidget::currentToolChainChanged(ToolChain::Language l, int idx)
+void ToolChainInformationConfigWidget::currentToolChainChanged(Id language, int idx)
 {
     if (m_ignoreChanges || idx < 0)
         return;
 
-    const QByteArray id = m_languageComboboxMap.value(l)->itemData(idx).toByteArray();
-    ToolChainKitInformation::setToolChain(m_kit, l, ToolChainManager::findToolChain(id));
+    const QByteArray id = m_languageComboboxMap.value(language)->itemData(idx).toByteArray();
+    ToolChain *tc = ToolChainManager::findToolChain(id);
+    QTC_ASSERT(!tc || tc->language() == language, return);
+    if (tc)
+        ToolChainKitInformation::setToolChain(m_kit, tc);
+    else
+        ToolChainKitInformation::clearToolChain(m_kit, language);
 }
 
 int ToolChainInformationConfigWidget::indexOf(QComboBox *cb, const ToolChain *tc)
@@ -380,7 +384,7 @@ QWidget *DeviceInformationConfigWidget::buttonWidget() const
 
 void DeviceInformationConfigWidget::manageDevices()
 {
-    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID, buttonWidget());
 }
 
 void DeviceInformationConfigWidget::modelAboutToReset()

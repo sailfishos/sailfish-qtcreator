@@ -129,6 +129,7 @@ void UpdateInfoPlugin::startCheckForUpdates()
     connect(d->m_checkUpdatesCommand, &ShellCommand::stdOutText, this, &UpdateInfoPlugin::collectCheckForUpdatesOutput);
     connect(d->m_checkUpdatesCommand, &ShellCommand::finished, this, &UpdateInfoPlugin::checkForUpdatesFinished);
     d->m_checkUpdatesCommand->addJob(Utils::FileName(QFileInfo(d->m_maintenanceTool)), QStringList(QLatin1String("--checkupdates")),
+                                     60 * 3, // 3 minutes timeout
                                      /*workingDirectory=*/QString(),
                                      [](int /*exitCode*/) { return Utils::SynchronousProcessResponse::Finished; });
     d->m_checkUpdatesCommand->execute();
@@ -212,6 +213,7 @@ bool UpdateInfoPlugin::initialize(const QStringList & /* arguments */, QString *
     addAutoReleasedObject(new SettingsPage(this));
 
     QAction *checkForUpdatesAction = new QAction(tr("Check for Updates"), this);
+    checkForUpdatesAction->setMenuRole(QAction::ApplicationSpecificRole);
     Core::Command *checkForUpdatesCommand = Core::ActionManager::registerAction(checkForUpdatesAction, "Updates.CheckForUpdates");
     connect(checkForUpdatesAction, &QAction::triggered, this, &UpdateInfoPlugin::startCheckForUpdates);
     ActionContainer *const helpContainer = ActionManager::actionContainer(Core::Constants::M_HELP);

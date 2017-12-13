@@ -52,11 +52,14 @@ static QString clangDiagnosticConfigsArrayIdKey()
 static QString clangDiagnosticConfigsArrayDisplayNameKey()
 { return QLatin1String("displayName"); }
 
-static QString clangDiagnosticConfigsArrayOptionsKey()
+static QString clangDiagnosticConfigsArrayWarningsKey()
 { return QLatin1String("diagnosticOptions"); }
 
 static QString pchUsageKey()
 { return QLatin1String(Constants::CPPTOOLS_MODEL_MANAGER_PCH_USAGE); }
+
+static QString interpretAmbiguousHeadersAsCHeadersKey()
+{ return QLatin1String(Constants::CPPTOOLS_INTERPRET_AMBIGIUOUS_HEADERS_AS_C_HEADERS); }
 
 static QString skipIndexingBigFilesKey()
 { return QLatin1String(Constants::CPPTOOLS_SKIP_INDEXING_BIG_FILES); }
@@ -75,7 +78,7 @@ void CppCodeModelSettings::fromSettings(QSettings *s)
         ClangDiagnosticConfig config;
         config.setId(Core::Id::fromSetting(s->value(clangDiagnosticConfigsArrayIdKey())));
         config.setDisplayName(s->value(clangDiagnosticConfigsArrayDisplayNameKey()).toString());
-        config.setCommandLineOptions(s->value(clangDiagnosticConfigsArrayOptionsKey()).toStringList());
+        config.setCommandLineWarnings(s->value(clangDiagnosticConfigsArrayWarningsKey()).toStringList());
         m_clangCustomDiagnosticConfigs.append(config);
     }
     s->endArray();
@@ -87,6 +90,10 @@ void CppCodeModelSettings::fromSettings(QSettings *s)
 
     const QVariant pchUsageVariant = s->value(pchUsageKey(), initialPchUsage());
     setPCHUsage(static_cast<PCHUsage>(pchUsageVariant.toInt()));
+
+    const QVariant interpretAmbiguousHeadersAsCHeaders
+            = s->value(interpretAmbiguousHeadersAsCHeadersKey(), false);
+    setInterpretAmbigiousHeadersAsCHeaders(interpretAmbiguousHeadersAsCHeaders.toBool());
 
     const QVariant skipIndexingBigFiles = s->value(skipIndexingBigFilesKey(), true);
     setSkipIndexingBigFiles(skipIndexingBigFiles.toBool());
@@ -110,12 +117,14 @@ void CppCodeModelSettings::toSettings(QSettings *s)
         s->setArrayIndex(i);
         s->setValue(clangDiagnosticConfigsArrayIdKey(), config.id().toSetting());
         s->setValue(clangDiagnosticConfigsArrayDisplayNameKey(), config.displayName());
-        s->setValue(clangDiagnosticConfigsArrayOptionsKey(), config.commandLineOptions());
+        s->setValue(clangDiagnosticConfigsArrayWarningsKey(), config.commandLineWarnings());
     }
     s->endArray();
 
     s->setValue(clangDiagnosticConfigKey(), clangDiagnosticConfigId().toSetting());
     s->setValue(pchUsageKey(), pchUsage());
+
+    s->setValue(interpretAmbiguousHeadersAsCHeadersKey(), interpretAmbigiousHeadersAsCHeaders());
     s->setValue(skipIndexingBigFilesKey(), skipIndexingBigFiles());
     s->setValue(indexerFileSizeLimitKey(), indexerFileSizeLimitInMb());
 
@@ -164,6 +173,16 @@ void CppCodeModelSettings::setPCHUsage(CppCodeModelSettings::PCHUsage pchUsage)
 void CppCodeModelSettings::emitChanged()
 {
     emit changed();
+}
+
+bool CppCodeModelSettings::interpretAmbigiousHeadersAsCHeaders() const
+{
+    return m_interpretAmbigiousHeadersAsCHeaders;
+}
+
+void CppCodeModelSettings::setInterpretAmbigiousHeadersAsCHeaders(bool yesno)
+{
+    m_interpretAmbigiousHeadersAsCHeaders = yesno;
 }
 
 bool CppCodeModelSettings::skipIndexingBigFiles() const

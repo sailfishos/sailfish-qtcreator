@@ -7,7 +7,6 @@ Project {
 
     QtcPlugin {
         Depends { name: "Qt"; submodules: ["widgets", "xml", "network", "qml"] }
-        Depends { name: "Qt.quick" }
         Depends { name: "Aggregation" }
         Depends { name: "QtcSsh" }
         Depends { name: "Utils" }
@@ -16,10 +15,6 @@ Project {
         Depends { name: "TextEditor" }
 
         cpp.defines: base.concat("QTC_CPU=X86Architecture")
-        Properties {
-            condition: qbs.targetOS.contains("macos")
-            cpp.frameworks: base.concat(["Carbon"])
-        }
 
         Group {
             name: "General"
@@ -44,7 +39,6 @@ Project {
                 "buildsteplist.cpp", "buildsteplist.h",
                 "buildstepspage.cpp", "buildstepspage.h",
                 "buildtargetinfo.h",
-                "cesdkhandler.cpp", "cesdkhandler.h",
                 "clangparser.cpp", "clangparser.h",
                 "codestylesettingspropertiespage.cpp", "codestylesettingspropertiespage.h", "codestylesettingspropertiespage.ui",
                 "compileoutputwindow.cpp", "compileoutputwindow.h",
@@ -83,7 +77,6 @@ Project {
                 "importwidget.cpp", "importwidget.h",
                 "ioutputparser.cpp", "ioutputparser.h",
                 "ipotentialkit.h",
-                "iprojectmanager.h",
                 "itaskhandler.h",
                 "kit.cpp", "kit.h",
                 "kitchooser.cpp", "kitchooser.h",
@@ -97,11 +90,10 @@ Project {
                 "kitoptionspage.cpp", "kitoptionspage.h",
                 "ldparser.cpp", "ldparser.h",
                 "linuxiccparser.cpp", "linuxiccparser.h",
-                "localapplicationruncontrol.cpp", "localapplicationruncontrol.h",
                 "localenvironmentaspect.cpp", "localenvironmentaspect.h",
                 "miniprojecttargetselector.cpp", "miniprojecttargetselector.h",
+                "msvcparser.cpp", "msvcparser.h",
                 "namedwidget.cpp", "namedwidget.h",
-                "nodesvisitor.cpp", "nodesvisitor.h",
                 "osparser.cpp", "osparser.h",
                 "panelswidget.cpp", "panelswidget.h",
                 "processparameters.cpp", "processparameters.h",
@@ -119,6 +111,7 @@ Project {
                 "projectfilewizardextension.cpp", "projectfilewizardextension.h",
                 "projectimporter.cpp", "projectimporter.h",
                 "projectmacroexpander.cpp", "projectmacroexpander.h",
+                "projectmanager.h",
                 "projectmodels.cpp", "projectmodels.h",
                 "projectnodes.cpp", "projectnodes.h",
                 "projectpanelfactory.cpp", "projectpanelfactory.h",
@@ -203,7 +196,6 @@ Project {
             files: [
                 "desktopdevice.cpp", "desktopdevice.h",
                 "desktopdevicefactory.cpp", "desktopdevicefactory.h",
-                "deviceapplicationrunner.cpp", "deviceapplicationrunner.h",
                 "devicecheckbuildstep.cpp", "devicecheckbuildstep.h",
                 "devicefactoryselectiondialog.cpp", "devicefactoryselectiondialog.h", "devicefactoryselectiondialog.ui",
                 "devicemanager.cpp", "devicemanager.h",
@@ -239,12 +231,8 @@ Project {
             files: [
                 "abstractmsvctoolchain.cpp",
                 "abstractmsvctoolchain.h",
-                "msvcparser.cpp",
-                "msvcparser.h",
                 "msvctoolchain.cpp",
                 "msvctoolchain.h",
-                "wincetoolchain.cpp",
-                "wincetoolchain.h",
                 "windebuginterface.cpp",
                 "windebuginterface.h",
             ]

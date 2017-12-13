@@ -25,20 +25,9 @@
 
 #include "clangcodemodelserverproxy.h"
 
-#include <cmbalivemessage.h>
-#include <cmbcompletecodemessage.h>
-#include <cmbendmessage.h>
-#include <cmbregisterprojectsforeditormessage.h>
-#include <cmbregistertranslationunitsforeditormessage.h>
-#include <cmbunregisterprojectsforeditormessage.h>
-#include <cmbunregistertranslationunitsforeditormessage.h>
 #include <clangcodemodelclientinterface.h>
+#include <clangcodemodelservermessages.h>
 #include <messageenvelop.h>
-#include <registerunsavedfilesforeditormessage.h>
-#include <requestdocumentannotations.h>
-#include <unregisterunsavedfilesforeditormessage.h>
-#include <updatetranslationunitsforeditormessage.h>
-#include <updatevisibletranslationunitsmessage.h>
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -47,78 +36,83 @@
 namespace ClangBackEnd {
 
 ClangCodeModelServerProxy::ClangCodeModelServerProxy(ClangCodeModelClientInterface *client, QIODevice *ioDevice)
-    : writeMessageBlock(ioDevice),
-      readMessageBlock(ioDevice),
-      client(client)
+    : m_writeMessageBlock(ioDevice),
+      m_readMessageBlock(ioDevice),
+      m_client(client)
 {
     QObject::connect(ioDevice, &QIODevice::readyRead, [this] () {ClangCodeModelServerProxy::readMessages();});
 }
 
 void ClangCodeModelServerProxy::readMessages()
 {
-    for (const auto &message : readMessageBlock.readAll())
-        client->dispatch(message);
+    for (const auto &message : m_readMessageBlock.readAll())
+        m_client->dispatch(message);
 }
 
 void ClangCodeModelServerProxy::resetCounter()
 {
-    writeMessageBlock.resetCounter();
-    readMessageBlock.resetCounter();
+    m_writeMessageBlock.resetCounter();
+    m_readMessageBlock.resetCounter();
 }
 
 void ClangCodeModelServerProxy::end()
 {
-    writeMessageBlock.write(EndMessage());
+    m_writeMessageBlock.write(EndMessage());
 }
 
 void ClangCodeModelServerProxy::registerTranslationUnitsForEditor(const RegisterTranslationUnitForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::updateTranslationUnitsForEditor(const ClangBackEnd::UpdateTranslationUnitsForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::unregisterTranslationUnitsForEditor(const UnregisterTranslationUnitsForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::registerProjectPartsForEditor(const RegisterProjectPartsForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::unregisterProjectPartsForEditor(const UnregisterProjectPartsForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangBackEnd::ClangCodeModelServerProxy::registerUnsavedFilesForEditor(const ClangBackEnd::RegisterUnsavedFilesForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangBackEnd::ClangCodeModelServerProxy::unregisterUnsavedFilesForEditor(const ClangBackEnd::UnregisterUnsavedFilesForEditorMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::completeCode(const CompleteCodeMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::requestDocumentAnnotations(const RequestDocumentAnnotationsMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
+}
+
+void ClangCodeModelServerProxy::requestReferences(const RequestReferencesMessage &message)
+{
+    m_writeMessageBlock.write(message);
 }
 
 void ClangCodeModelServerProxy::updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message)
 {
-    writeMessageBlock.write(message);
+    m_writeMessageBlock.write(message);
 }
 
 } // namespace ClangBackEnd

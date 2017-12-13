@@ -26,7 +26,6 @@
 #include "refactoringconnectionclient.h"
 
 #include <QCoreApplication>
-#include <QTemporaryDir>
 
 namespace ClangBackEnd {
 
@@ -44,6 +43,11 @@ RefactoringConnectionClient::RefactoringConnectionClient(RefactoringClientInterf
 {
     stdErrPrefixer().setPrefix("RefactoringConnectionClient.stderr: ");
     stdOutPrefixer().setPrefix("RefactoringConnectionClient.stdout: ");
+}
+
+RefactoringConnectionClient::~RefactoringConnectionClient()
+{
+    finishProcess();
 }
 
 RefactoringServerProxy &RefactoringConnectionClient::serverProxy()

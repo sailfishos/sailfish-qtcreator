@@ -31,17 +31,34 @@
 namespace Timeline {
 
 class TimelineRenderer::TimelineRendererPrivate :
-        TimelineAbstractRenderer::TimelineAbstractRendererPrivate {
+        public TimelineAbstractRenderer::TimelineAbstractRendererPrivate {
 public:
-    TimelineRendererPrivate(TimelineRenderer *q);
+    enum MatchResult {
+        NoMatch,
+        Cutoff,
+        ApproximateMatch,
+        ExactMatch
+    };
+
+    struct MatchParameters {
+        qint64 startTime;
+        qint64 endTime;
+        qint64 exactTime;
+        qint64 bestOffset;
+    };
+
+    TimelineRendererPrivate();
     ~TimelineRendererPrivate();
 
     void clear();
 
     int rowFromPosition(int y) const;
 
-    void manageClicked();
-    void manageHovered(int mouseX, int mouseY);
+    MatchResult checkMatch(MatchParameters *params, int index, qint64 itemStart, qint64 itemEnd);
+    MatchResult matchForward(MatchParameters *params, int index);
+    MatchResult matchBackward(MatchParameters *params, int index);
+
+    void findCurrentSelection(int mouseX, int mouseY, int width);
 
     static const int SafeFloatMax = 1 << 12;
 
@@ -49,19 +66,11 @@ public:
 
     TimelineRenderState *findRenderState();
 
-    struct {
-        qint64 startTime;
-        qint64 endTime;
-        int row;
-        int eventIndex;
-    } currentSelection;
+    int currentEventIndex;
+    int currentRow;
 
     QVector<QHash<qint64, TimelineRenderState *> > renderStates;
     TimelineRenderState *lastState;
-
-private:
-    TimelineRenderer *q_ptr;
-    Q_DECLARE_PUBLIC(TimelineRenderer)
 };
 
 } // namespace Timeline

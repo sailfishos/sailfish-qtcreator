@@ -62,16 +62,21 @@ public:
     bool isCompoundType() const;
     bool isDeclaration() const;
     bool isLocalVariable() const;
+    bool isReference() const;
+    bool isExpression() const;
+    bool isFunctionLike() const;
+    bool isConstructorOrDestructor() const;
+    bool isTemplateLike() const;
     bool hasFinalFunctionAttribute() const;
     bool hasFinalClassAttribute() const;
     bool isUnexposed() const;
 
-    Utf8String unifiedSymbolResolution() const;
-    Utf8String mangling() const;
+    ClangString unifiedSymbolResolution() const;
+    ClangString mangling() const;
     ClangString spelling() const;
-    Utf8String displayName() const;
-    Utf8String briefComment() const;
-    Utf8String rawComment() const;
+    ClangString displayName() const;
+    ClangString briefComment() const;
+    ClangString rawComment() const;
     int argumentCount() const;
 
     Type type() const;
@@ -93,6 +98,10 @@ public:
     Cursor functionBaseDeclaration() const;
     Cursor functionBase() const;
     Cursor argument(int index) const;
+    unsigned overloadedDeclarationsCount() const;
+    Cursor overloadedDeclaration(unsigned index) const;
+    Cursor specializedCursorTemplate() const;
+
     void collectOutputArgumentRangesTo(
             std::vector<CXSourceRange> &outputArgumentRanges) const;
     std::vector<CXSourceRange> outputArgumentRanges() const;
@@ -121,6 +130,7 @@ void Cursor::visit(VisitorCallback visitorCallback) const
 bool operator==(const Cursor &first, const Cursor &second);
 bool operator!=(const Cursor &first, const Cursor &second);
 
-void PrintTo(CXCursorKind cursorKind, ::std::ostream *os);
-void PrintTo(const Cursor &cursor, ::std::ostream* os);
+std::ostream &operator<<(std::ostream &os, CXCursorKind cursorKind);
+std::ostream &operator<<(std::ostream &os, const Cursor &cursor);
+
 } // namespace ClangBackEnd

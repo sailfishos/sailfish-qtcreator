@@ -37,11 +37,25 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <functional>
+
 namespace Utils { class Environment; }
 
 namespace ProjectExplorer {
 
 namespace Internal { class ToolChainPrivate; }
+
+namespace Deprecated {
+// Deprecated in 4.3:
+namespace Toolchain {
+enum Language {
+    None = 0,
+    C,
+    Cxx
+};
+QString languageId(Language l);
+} // namespace Toolchain
+} // namespace Deprecated
 
 class Abi;
 class HeaderPath;
@@ -65,6 +79,8 @@ public:
         AutoDetectionFromSettings
     };
 
+    using Predicate = std::function<bool(const ToolChain *)>;
+
     virtual ~ToolChain();
 
     QString displayName() const;
@@ -86,8 +102,6 @@ public:
 
     virtual bool isValid() const = 0;
 
-    virtual QByteArray predefinedMacros(const QStringList &cxxflags) const = 0;
-
     enum CompilerFlag {
         NoFlags = 0,
         StandardCxx11 = 0x1,
@@ -105,23 +119,22 @@ public:
     Q_DECLARE_FLAGS(CompilerFlags, CompilerFlag)
 
     virtual CompilerFlags compilerFlags(const QStringList &cxxflags) const = 0;
-
     virtual WarningFlags warningFlags(const QStringList &cflags) const = 0;
+
+    // A PredefinedMacrosRunner is created in the ui thread and runs in another thread.
+    using PredefinedMacrosRunner = std::function<QByteArray(const QStringList &cxxflags)>;
+    virtual PredefinedMacrosRunner createPredefinedMacrosRunner() const = 0;
+    virtual QByteArray predefinedMacros(const QStringList &cxxflags) const = 0;
+
+    // A SystemHeaderPathsRunner is created in the ui thread and runs in another thread.
+    using SystemHeaderPathsRunner = std::function<QList<HeaderPath>(const QStringList &cxxflags, const QString &sysRoot)>;
+    virtual SystemHeaderPathsRunner createSystemHeaderPathsRunner() const = 0;
     virtual QList<HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
                                                 const Utils::FileName &sysRoot) const = 0;
     virtual void addToEnvironment(Utils::Environment &env) const = 0;
     virtual QString makeCommand(const Utils::Environment &env) const = 0;
 
-    enum class Language {
-        None = 0,
-        C,
-        Cxx
-    };
-    static const QSet<Language>& allLanguages();
-    static QString languageDisplayName(Language language);
-    static QString languageId(Language l);
-
-    Language language() const;
+    Core::Id language() const;
 
     virtual Utils::FileName compilerCommand() const = 0;
     virtual IOutputParser *outputParser() const = 0;
@@ -137,12 +150,11 @@ public:
     virtual QVariantMap toMap() const;
     virtual QList<Task> validateKit(const Kit *k) const;
 
-    void setLanguage(const Language &l);
+    void setLanguage(Core::Id language);
 
 protected:
     explicit ToolChain(Core::Id typeId, Detection d);
     explicit ToolChain(const ToolChain &);
-
 
     void toolChainUpdated();
 
@@ -166,9 +178,10 @@ public:
     QString displayName() const { return m_displayName; }
 
     virtual QList<ToolChain *> autoDetect(const QList<ToolChain *> &alreadyKnown);
+    virtual QList<ToolChain *> autoDetect(const Utils::FileName &compilerPath, const Core::Id &language);
 
     virtual bool canCreate();
-    virtual ToolChain *create(ToolChain::Language l);
+    virtual ToolChain *create(Core::Id l);
 
     virtual bool canRestore(const QVariantMap &data);
     virtual ToolChain *restore(const QVariantMap &data);
@@ -177,7 +190,7 @@ public:
     static Core::Id typeIdFromMap(const QVariantMap &data);
     static void autoDetectionToMap(QVariantMap &data, bool detected);
 
-    virtual QSet<ToolChain::Language> supportedLanguages() const = 0;
+    virtual QSet<Core::Id> supportedLanguages() const = 0;
 
 protected:
     void setDisplayName(const QString &name) { m_displayName = name; }
@@ -185,10 +198,5 @@ protected:
 private:
     QString m_displayName;
 };
-
-inline uint qHash(const ProjectExplorer::ToolChain::Language &l, uint seed = 0)
-{
-    return QT_PREPEND_NAMESPACE(qHash)(static_cast<int>(l), seed);
-}
 
 } // namespace ProjectExplorer

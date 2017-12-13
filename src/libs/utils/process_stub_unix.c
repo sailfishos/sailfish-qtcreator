@@ -223,6 +223,10 @@ int main(int argc, char *argv[])
         }
         fseek(envFd, 0, SEEK_END);
         size = ftell(envFd);
+        if (size < 0) {
+            perror("Failed to get size of env file");
+            doExit(1);
+        }
         rewind(envFd);
         envdata = malloc(size);
         if (fread(envdata, 1, size, envFd) != (size_t)size) {
@@ -230,6 +234,7 @@ int main(int argc, char *argv[])
             doExit(1);
         }
         fclose(envFd);
+        assert(!size || !envdata[size - 1]);
         for (count = 0, edp = envdata; edp < envdata + size; ++count)
             edp += strlen(edp) + 1;
         env = malloc((count + 2) * sizeof(char *));

@@ -60,8 +60,6 @@
 #include <QAction>
 #include <QItemDelegate>
 
-#include <array>
-
 static QIcon createCenteredIcon(const QIcon &icon, const QIcon &overlay)
 {
     QPixmap targetPixmap;
@@ -111,8 +109,6 @@ private:
     void paint(QPainter *painter,
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const;
-    QString elide(const QString &text, const QStringList &otherTexts, const QFontMetrics &fm,
-            int width) const;
     ListWidget *m_listWidget;
 };
 
@@ -152,52 +148,16 @@ void TargetSelectorDelegate::paint(QPainter *painter,
 
     QFontMetrics fm(option.font);
     QString text = index.data(Qt::DisplayRole).toString();
-    QStringList otherTexts;
-    for (QModelIndex other = index.sibling(0, 0); other.isValid(); other = other.sibling(other.row() + 1, 0)) {
-        if (other != index)
-            otherTexts.append(other.data(Qt::DisplayRole).toString());
-    }
-
     painter->setPen(creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    QString elidedText = elide(text, otherTexts, fm, option.rect.width() - 12);
+    QString elidedText = fm.elidedText(text, Qt::ElideMiddle, option.rect.width() - 12);
     if (elidedText != text)
         const_cast<QAbstractItemModel *>(index.model())->setData(index, text, Qt::ToolTipRole);
     else
-        const_cast<QAbstractItemModel *>(index.model())->setData(index, QString(), Qt::ToolTipRole);
+        const_cast<QAbstractItemModel *>(index.model())
+            ->setData(index, index.model()->data(index, Qt::UserRole + 1).toString(), Qt::ToolTipRole);
     painter->drawText(option.rect.left() + 6, option.rect.top() + (option.rect.height() - fm.height()) / 2 + fm.ascent(), elidedText);
 
     painter->restore();
-}
-
-QString TargetSelectorDelegate::elide(const QString &text, const QStringList &otherTexts,
-        const QFontMetrics &fm, int width) const
-{
-    std::array<Qt::TextElideMode, 3> modes{
-        Qt::ElideMiddle,
-        Qt::ElideRight,
-        Qt::ElideLeft
-    };
-
-    int minDuplicates = std::numeric_limits<int>::max();
-    QString retv;
-
-    foreach (const Qt::TextElideMode mode, modes) {
-        QString elidedText = fm.elidedText(text, mode, width);
-        int duplicates = 0;
-        foreach (const QString &otherText, otherTexts) {
-            QString otherElidedText = fm.elidedText(otherText, mode, width);
-            if (elidedText == otherElidedText)
-                ++duplicates;
-        }
-        if (duplicates < minDuplicates) {
-            minDuplicates = duplicates;
-            retv = elidedText;
-            if (duplicates == 0)
-                break;
-        }
-    }
-
-    return retv;
 }
 
 ////////
@@ -445,6 +405,7 @@ void GenericListWidget::setProjectConfigurations(const QList<ProjectConfiguratio
 {
     m_ignoreIndexChange = true;
     clear();
+
     for (int i = 0; i < count(); ++i) {
         ProjectConfiguration *p = item(i)->data(Qt::UserRole).value<ProjectConfiguration *>();
         disconnect(p, &ProjectConfiguration::displayNameChanged,
@@ -472,8 +433,10 @@ void GenericListWidget::setActiveProjectConfiguration(ProjectConfiguration *acti
 void GenericListWidget::addProjectConfiguration(ProjectConfiguration *pc)
 {
     m_ignoreIndexChange = true;
-    QListWidgetItem *lwi = new QListWidgetItem();
+    auto lwi = new QListWidgetItem();
     lwi->setText(pc->displayName());
+    lwi->setData(Qt::ToolTipRole, pc->toolTip());
+    lwi->setData(Qt::UserRole + 1, pc->toolTip());
     lwi->setData(Qt::UserRole, QVariant::fromValue(pc));
 
     // Figure out pos
@@ -489,11 +452,13 @@ void GenericListWidget::addProjectConfiguration(ProjectConfiguration *pc)
 
     connect(pc, &ProjectConfiguration::displayNameChanged,
             this, &GenericListWidget::displayNameChanged);
+    connect(pc, &ProjectConfiguration::toolTipChanged, this, &GenericListWidget::toolTipChanged);
 
     QFontMetrics fn(font());
     int width = fn.width(pc->displayName()) + padding();
     if (width > optimalWidth())
         setOptimalWidth(width);
+
     m_ignoreIndexChange = false;
 }
 
@@ -568,6 +533,15 @@ void GenericListWidget::displayNameChanged()
     m_ignoreIndexChange = false;
 }
 
+void GenericListWidget::toolTipChanged()
+{
+    ProjectConfiguration *pc = qobject_cast<ProjectConfiguration *>(sender());
+    if (QListWidgetItem *lwi = itemForProjectConfiguration(pc)) {
+        lwi->setData(Qt::ToolTipRole, pc->toolTip());
+        lwi->setData(Qt::UserRole + 1, pc->toolTip());
+    }
+}
+
 QListWidgetItem *GenericListWidget::itemForProjectConfiguration(ProjectConfiguration *pc)
 {
     for (int i = 0; i < count(); ++i) {
@@ -588,10 +562,6 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
     m_layout->setMargin(3);
     setAutoFillBackground(true);
     connect(KitManager::instance(), &KitManager::kitUpdated, this, &KitAreaWidget::updateKit);
-
-    QPalette p;
-    p.setColor(QPalette::ButtonText, Qt::white);
-    setPalette(p);
 }
 
 KitAreaWidget::~KitAreaWidget()
@@ -690,15 +660,6 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     QWidget(parent),
     m_projectAction(targetSelectorAction)
 {
-    QPalette p;
-    p.setColor(QPalette::Foreground, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Text, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::ButtonText, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Background, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Base, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Button, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name());
-    setPalette(p);
-
     setProperty("panelwidget", true);
     setContentsMargins(QMargins(0, 1, 1, 8));
     setWindowFlags(Qt::Popup);
@@ -720,7 +681,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
 
     m_listWidgets.resize(LAST);
     m_titleWidgets.resize(LAST);
-    m_listWidgets[PROJECT] = 0; //project is not a generic list widget
+    m_listWidgets[PROJECT] = nullptr; //project is not a generic list widget
 
     m_titleWidgets[PROJECT] = createTitleLabel(tr("Project"));
     m_projectListWidget = new ProjectListWidget(this);
@@ -779,7 +740,6 @@ bool MiniProjectTargetSelector::event(QEvent *event)
         }
     }
     return QWidget::event(event);
-
 }
 
 // does some fancy calculations to ensure proper widths for the list widgets
@@ -856,9 +816,9 @@ QVector<int> MiniProjectTargetSelector::listWidgetWidths(int minSize, int maxSiz
 
         int delta;
         if (tooSmall)
-            delta = qMin(next - first, widthToDistribute / i);
+            delta = qMin(next - first, widthToDistribute / qMax(i, 1));
         else
-            delta = qMin(first - next, widthToDistribute / i);
+            delta = qMin(first - next, widthToDistribute / qMax(i, 1));
 
         if (delta == 0)
             return result;
@@ -1225,7 +1185,7 @@ void MiniProjectTargetSelector::updateProjectListVisible()
 void MiniProjectTargetSelector::updateTargetListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, SessionManager::projects())
+    for (Project *p : SessionManager::projects())
         maxCount = qMax(p->targets().size(), maxCount);
 
     bool visible = maxCount > 1;
@@ -1238,7 +1198,7 @@ void MiniProjectTargetSelector::updateTargetListVisible()
 void MiniProjectTargetSelector::updateBuildListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, SessionManager::projects())
+    for (Project *p : SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->buildConfigurations().size(), maxCount);
 
@@ -1252,7 +1212,7 @@ void MiniProjectTargetSelector::updateBuildListVisible()
 void MiniProjectTargetSelector::updateDeployListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, SessionManager::projects())
+    for (Project *p : SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->deployConfigurations().size(), maxCount);
 
@@ -1266,7 +1226,7 @@ void MiniProjectTargetSelector::updateDeployListVisible()
 void MiniProjectTargetSelector::updateRunListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, SessionManager::projects())
+    for (Project *p : SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->runConfigurations().size(), maxCount);
 
@@ -1546,7 +1506,7 @@ void MiniProjectTargetSelector::updateActionAndSummary()
     Project *project = SessionManager::startupProject();
     if (project) {
         projectName = project->displayName();
-        foreach (Project *p, SessionManager::projects()) {
+        for (Project *p : SessionManager::projects()) {
             if (p != project && p->displayName() == projectName) {
                 fileName = project->projectFilePath().toUserOutput();
                 break;
@@ -1565,7 +1525,7 @@ void MiniProjectTargetSelector::updateActionAndSummary()
             if (RunConfiguration *rc = target->activeRunConfiguration())
                 runConfig = rc->displayName();
 
-            targetToolTipText = target->toolTip();
+            targetToolTipText = target->overlayIconToolTip();
             targetIcon = createCenteredIcon(target->icon(), target->overlayIcon());
         }
     }

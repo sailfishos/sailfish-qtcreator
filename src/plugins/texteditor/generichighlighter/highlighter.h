@@ -65,7 +65,6 @@ public:
 
     enum TextFormatId {
         Normal,
-        VisualWhitespace,
         Keyword,
         DataType,
         Comment,
@@ -91,7 +90,13 @@ public:
         Import,
         Others,
         Identifier,
-        Documentation
+        Documentation,
+        ControlFlow,
+        Preprocessor,
+        VerbatimString,
+        SpecialString,
+        Constant,
+        TextFormatIdCount
     };
 
     void setTabSettings(const TabSettings &ts);

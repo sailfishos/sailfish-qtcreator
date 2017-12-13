@@ -157,7 +157,7 @@ ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
             newImports.append(import);
     }
 
-    view()->model()->changeImports(newImports, QList<Import>());
+    view()->model()->changeImports(newImports, {});
 
     QHash<QString, QString> idRenamingHash;
     setupIdRenamingHash(modelNode, idRenamingHash, view());
@@ -168,7 +168,7 @@ ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
 
 void ModelMerger::replaceModel(const ModelNode &modelNode)
 {
-        view()->model()->changeImports(modelNode.model()->imports(), QList<Import>());
+        view()->model()->changeImports(modelNode.model()->imports(), {});
         view()->model()->setFileUrl(modelNode.model()->fileUrl());
 
     try {
@@ -188,6 +188,8 @@ void ModelMerger::replaceModel(const ModelNode &modelNode)
         syncNodeProperties(rootNode, modelNode, idRenamingHash, view());
         syncNodeListProperties(rootNode, modelNode, idRenamingHash, view());
         m_view->changeRootNodeType(modelNode.type(), modelNode.majorVersion(), modelNode.minorVersion());
+
+        transaction.commit();
     } catch (const RewritingException &e) {
         qWarning() << e.description(); //silent error
     }

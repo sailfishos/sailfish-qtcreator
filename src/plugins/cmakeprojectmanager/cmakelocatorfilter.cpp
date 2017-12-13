@@ -60,15 +60,17 @@ CMakeLocatorFilter::CMakeLocatorFilter()
 void CMakeLocatorFilter::prepareSearch(const QString &entry)
 {
     m_result.clear();
-    foreach (Project *p, SessionManager::projects()) {
+    for (Project *p : SessionManager::projects()) {
         CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(p);
         if (!cmakeProject)
             continue;
         foreach (const QString &title, cmakeProject->buildTargetTitles()) {
-            if (title.contains(entry)) {
-                Core::LocatorFilterEntry entry(this, title, cmakeProject->projectFilePath().toString());
-                entry.extraInfo = FileUtils::shortNativePath(cmakeProject->projectFilePath());
-                m_result.append(entry);
+            const int index = title.indexOf(entry);
+            if (index >= 0) {
+                Core::LocatorFilterEntry filterEntry(this, title, cmakeProject->projectFilePath().toString());
+                filterEntry.extraInfo = FileUtils::shortNativePath(cmakeProject->projectFilePath());
+                filterEntry.highlightInfo = {index, entry.length()};
+                m_result.append(filterEntry);
             }
         }
     }
@@ -81,8 +83,12 @@ QList<Core::LocatorFilterEntry> CMakeLocatorFilter::matchesFor(QFutureInterface<
     return m_result;
 }
 
-void CMakeLocatorFilter::accept(Core::LocatorFilterEntry selection) const
+void CMakeLocatorFilter::accept(Core::LocatorFilterEntry selection,
+                                QString *newText, int *selectionStart, int *selectionLength) const
 {
+    Q_UNUSED(newText)
+    Q_UNUSED(selectionStart)
+    Q_UNUSED(selectionLength)
     // Get the project containing the target selected
     const auto cmakeProject = qobject_cast<CMakeProject *>(
                 Utils::findOrDefault(SessionManager::projects(), [selection](Project *p) {

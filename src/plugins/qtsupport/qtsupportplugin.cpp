@@ -32,7 +32,6 @@
 #include "qtkitinformation.h"
 #include "qtoptionspage.h"
 #include "qtversionmanager.h"
-#include "winceqtversionfactory.h"
 #include "uicgenerator.h"
 #include "qscxmlcgenerator.h"
 
@@ -46,7 +45,6 @@
 #include <projectexplorer/target.h>
 
 #include <utils/macroexpander.h>
-#include <utils/mimetypes/mimedatabase.h>
 
 #include <QtPlugin>
 
@@ -65,31 +63,21 @@ bool QtSupportPlugin::initialize(const QStringList &arguments, QString *errorMes
     ProFileEvaluator::initialize();
     new ProFileCacheManager(this);
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":qtsupport/QtSupport.mimetypes.xml"));
-
     JsExpander::registerQObjectForJs(QLatin1String("QtSupport"), new CodeGenerator);
 
     addAutoReleasedObject(new QtVersionManager);
     addAutoReleasedObject(new DesktopQtVersionFactory);
-    addAutoReleasedObject(new WinCeQtVersionFactory);
 
     addAutoReleasedObject(new CodeGenSettingsPage);
     addAutoReleasedObject(new QtOptionsPage);
 
-    ExamplesWelcomePage *welcomePage;
-    welcomePage = new ExamplesWelcomePage;
-    addAutoReleasedObject(welcomePage);
-    welcomePage->setShowExamples(true);
-
-    welcomePage = new ExamplesWelcomePage;
-    addAutoReleasedObject(welcomePage);
+    addAutoReleasedObject(new ExamplesWelcomePage(true)); // Examples
+    addAutoReleasedObject(new ExamplesWelcomePage(false)); // Tutorials
 
     ProjectExplorer::KitManager::registerKitInformation(new QtKitInformation);
 
-    ProjectExplorer::ExtraCompilerFactory::registerExtraCompilerFactory(
-                new UicGeneratorFactory(this));
-    ProjectExplorer::ExtraCompilerFactory::registerExtraCompilerFactory(
-                new QScxmlcGeneratorFactory(this));
+    (void) new UicGeneratorFactory(this);
+    (void) new QScxmlcGeneratorFactory(this);
 
     QtVersionManager::initialized();
 

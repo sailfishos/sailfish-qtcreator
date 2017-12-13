@@ -33,7 +33,6 @@
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerstartparameters.h>
-#include <projectexplorer/devicesupport/deviceapplicationrunner.h>
 #include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <projectexplorer/devicesupport/deviceprocessesdialog.h>
 #include <projectexplorer/devicesupport/deviceprocesslist.h>
@@ -55,29 +54,29 @@ namespace Internal {
 QnxAttachDebugSupport::QnxAttachDebugSupport(QObject *parent)
     : QObject(parent)
 {
-    m_runner = new DeviceApplicationRunner(this);
+    m_launcher = new ApplicationLauncher(this);
     m_portsGatherer = new DeviceUsedPortsGatherer(this);
 
     connect(m_portsGatherer, &DeviceUsedPortsGatherer::portListReady,
             this, &QnxAttachDebugSupport::launchPDebug);
     connect(m_portsGatherer, &DeviceUsedPortsGatherer::error,
             this, &QnxAttachDebugSupport::handleError);
-    connect(m_runner, &DeviceApplicationRunner::remoteProcessStarted,
+    connect(m_launcher, &ApplicationLauncher::remoteProcessStarted,
             this, &QnxAttachDebugSupport::attachToProcess);
-    connect(m_runner, &DeviceApplicationRunner::reportError,
+    connect(m_launcher, &ApplicationLauncher::reportError,
             this, &QnxAttachDebugSupport::handleError);
-    connect(m_runner, &DeviceApplicationRunner::reportProgress,
+    connect(m_launcher, &ApplicationLauncher::reportProgress,
             this, &QnxAttachDebugSupport::handleProgressReport);
-    connect(m_runner, &DeviceApplicationRunner::remoteStdout,
+    connect(m_launcher, &ApplicationLauncher::remoteStdout,
             this, &QnxAttachDebugSupport::handleRemoteOutput);
-    connect(m_runner, &DeviceApplicationRunner::remoteStderr,
+    connect(m_launcher, &ApplicationLauncher::remoteStderr,
             this, &QnxAttachDebugSupport::handleRemoteOutput);
 }
 
 void QnxAttachDebugSupport::showProcessesDialog()
 {
     auto kitChooser = new KitChooser;
-    kitChooser->setKitMatcher([](const Kit *k){
+    kitChooser->setKitPredicate([](const Kit *k){
         return k->isValid() && DeviceTypeKitInformation::deviceTypeId(k) == Core::Id(Constants::QNX_QNX_OS_TYPE);
     });
 
@@ -113,20 +112,17 @@ void QnxAttachDebugSupport::launchPDebug()
     StandardRunnable r;
     r.executable = QLatin1String("pdebug");
     r.commandLineArguments = QString::number(m_pdebugPort.number());
-    m_runner->start(m_device, r);
+    m_launcher->start(r, m_device);
 }
 
 void QnxAttachDebugSupport::attachToProcess()
 {
     Debugger::DebuggerStartParameters sp;
-    sp.attachPID = m_process.pid;
+    sp.attachPID = Utils::ProcessHandle(m_process.pid);
     sp.startMode = Debugger::AttachToRemoteServer;
     sp.closeMode = Debugger::DetachAtClose;
-    sp.connParams.port = m_pdebugPort.number();
-    sp.remoteChannel = m_device->sshParameters().host + QLatin1Char(':') +
-            QString::number(m_pdebugPort.number());
-    sp.displayName = tr("Remote: \"%1:%2\" - Process %3").arg(sp.connParams.host)
-            .arg(m_pdebugPort.number()).arg(m_process.pid);
+    sp.remoteChannel = QString("%1:%2").arg(m_device->sshParameters().host).arg(m_pdebugPort.number());
+    sp.displayName = tr("Remote: \"%1\" - Process %2").arg(sp.remoteChannel).arg(m_process.pid);
     sp.inferior.executable = m_localExecutablePath;
     sp.useCtrlCStub = true;
 
@@ -134,21 +130,12 @@ void QnxAttachDebugSupport::attachToProcess()
     if (qtVersion)
         sp.solibSearchPath = QnxUtils::searchPaths(qtVersion);
 
-    QString errorMessage;
-    Debugger::DebuggerRunControl *runControl = Debugger::createDebuggerRunControl(sp, 0, &errorMessage);
-    if (!errorMessage.isEmpty()) {
-        handleError(errorMessage);
-        stopPDebug();
-        return;
-    }
-    if (!runControl) {
-        handleError(tr("Attaching failed."));
-        stopPDebug();
-        return;
-    }
-    connect(runControl, &Debugger::DebuggerRunControl::stateChanged,
-            this, &QnxAttachDebugSupport::handleDebuggerStateChanged);
-    ProjectExplorerPlugin::startRunControl(runControl, ProjectExplorer::Constants::DEBUG_RUN_MODE);
+    auto runControl = new RunControl(nullptr, ProjectExplorer::Constants::DEBUG_RUN_MODE);
+    (void) new Debugger::DebuggerRunTool(runControl, sp);
+//    connect(qobject_cast<Debugger::DebuggerRunTool *>(runControl->toolRunner()),
+//            &Debugger::DebuggerRunTool::stateChanged,
+//            this, &QnxAttachDebugSupport::handleDebuggerStateChanged);
+    ProjectExplorerPlugin::startRunControl(runControl);
 }
 
 void QnxAttachDebugSupport::handleDebuggerStateChanged(Debugger::DebuggerState state)
@@ -159,25 +146,25 @@ void QnxAttachDebugSupport::handleDebuggerStateChanged(Debugger::DebuggerState s
 
 void QnxAttachDebugSupport::handleError(const QString &message)
 {
-    if (m_runControl)
-        m_runControl->showMessage(message, Debugger::AppError);
+    if (m_runTool)
+        m_runTool->showMessage(message, Debugger::AppError);
 }
 
 void QnxAttachDebugSupport::handleProgressReport(const QString &message)
 {
-    if (m_runControl)
-        m_runControl->showMessage(message + QLatin1Char('\n'), Debugger::AppStuff);
+    if (m_runTool)
+        m_runTool->showMessage(message + QLatin1Char('\n'), Debugger::AppStuff);
 }
 
-void QnxAttachDebugSupport::handleRemoteOutput(const QByteArray &output)
+void QnxAttachDebugSupport::handleRemoteOutput(const QString &output)
 {
-    if (m_runControl)
-        m_runControl->showMessage(QString::fromUtf8(output), Debugger::AppOutput);
+    if (m_runTool)
+        m_runTool->showMessage(output, Debugger::AppOutput);
 }
 
 void QnxAttachDebugSupport::stopPDebug()
 {
-    m_runner->stop();
+    m_launcher->stop();
 }
 
 } // namespace Internal

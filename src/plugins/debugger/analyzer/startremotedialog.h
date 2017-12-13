@@ -29,8 +29,6 @@
 
 #include <QDialog>
 
-namespace QSsh { class SshConnectionParameters; }
-
 namespace ProjectExplorer { class StandardRunnable; }
 
 namespace Debugger {
@@ -45,7 +43,6 @@ public:
     explicit StartRemoteDialog(QWidget *parent = 0);
     ~StartRemoteDialog() override;
 
-    QSsh::SshConnectionParameters sshParams() const;
     ProjectExplorer::StandardRunnable runnable() const;
 
 private:

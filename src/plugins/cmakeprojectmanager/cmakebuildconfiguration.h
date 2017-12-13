@@ -29,10 +29,13 @@
 #include "cmakeproject.h"
 #include "configmodel.h"
 
+#include <cpptools/cpprawprojectpart.h>
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/abi.h>
 
-namespace CppTools { class ProjectPartBuilder; }
+#include <memory>
+
 namespace ProjectExplorer { class ToolChain; }
 
 namespace CMakeProjectManager {
@@ -44,6 +47,7 @@ namespace Internal {
 class BuildDirManager;
 class CMakeBuildConfigurationFactory;
 class CMakeBuildSettingsWidget;
+class CMakeProjectNode;
 
 class CMakeBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
@@ -82,12 +86,15 @@ public:
     void clearCache();
 
     QList<CMakeBuildTarget> buildTargets() const;
-    void generateProjectTree(CMakeProjectNode *root) const;
-    QSet<Core::Id> updateCodeModel(CppTools::ProjectPartBuilder &ppBuilder);
+    CMakeProjectManager::Internal::CMakeProjectNode *generateProjectTree(const QList<const ProjectExplorer::FileNode *> &allFiles) const;
+    void updateCodeModel(CppTools::RawProjectParts &rpps);
 
     static Utils::FileName
     shadowBuildDirectory(const Utils::FileName &projectFilePath, const ProjectExplorer::Kit *k,
                          const QString &bcName, BuildConfiguration::BuildType buildType);
+
+    // Context menu action:
+    void buildTarget(const QString &buildTarget);
 
 signals:
     void errorOccured(const QString &message);
@@ -102,6 +109,9 @@ protected:
 
 private:
     void ctor();
+
+    enum ForceEnabledChanged : quint8 { False, True };
+    void clearError(ForceEnabledChanged fec = ForceEnabledChanged::False);
     QList<ConfigModel::DataItem> completeCMakeConfiguration() const;
     void setCurrentCMakeConfiguration(const QList<ConfigModel::DataItem> &items);
 
@@ -112,13 +122,13 @@ private:
     QString m_error;
     QString m_warning;
 
-    mutable QList<CMakeConfigItem> m_completeConfigurationCache;
-
-    BuildDirManager *const m_buildDirManager = nullptr;
+    std::unique_ptr<BuildDirManager> m_buildDirManager;
 
     friend class CMakeBuildSettingsWidget;
     friend class CMakeProjectManager::CMakeProject;
 };
+
+class CMakeProjectImporter;
 
 class CMakeBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
 {
@@ -126,6 +136,15 @@ class CMakeBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurati
 
 public:
     CMakeBuildConfigurationFactory(QObject *parent = 0);
+
+    enum BuildType { BuildTypeNone = 0,
+                     BuildTypeDebug = 1,
+                     BuildTypeRelease = 2,
+                     BuildTypeRelWithDebInfo = 3,
+                     BuildTypeMinSizeRel = 4,
+                     BuildTypeLast = 5 };
+    static BuildType buildTypeFromByteArray(const QByteArray &in);
+    static ProjectExplorer::BuildConfiguration::BuildType cmakeBuildTypeToBuildType(const BuildType &in);
 
     int priority(const ProjectExplorer::Target *parent) const override;
     QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const override;
@@ -143,16 +162,11 @@ public:
 private:
     bool canHandle(const ProjectExplorer::Target *t) const;
 
-    enum BuildType { BuildTypeNone = 0,
-                     BuildTypeDebug = 1,
-                     BuildTypeRelease = 2,
-                     BuildTypeRelWithDebInfo = 3,
-                     BuildTypeMinSizeRel = 4,
-                     BuildTypeLast = 5 };
-
     CMakeBuildInfo *createBuildInfo(const ProjectExplorer::Kit *k,
                                     const QString &sourceDir,
                                     BuildType buildType) const;
+
+    friend class CMakeProjectImporter;
 };
 
 } // namespace Internal

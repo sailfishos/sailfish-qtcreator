@@ -28,7 +28,7 @@
 #include "baseannotationhighlighter.h"
 #include "basevcseditorfactory.h"
 #include "vcsbaseplugin.h"
-#include "vcsbaseeditorparameterwidget.h"
+#include "vcsbaseeditorconfig.h"
 #include "vcscommand.h"
 
 #include <coreplugin/icore.h>
@@ -156,13 +156,7 @@ VcsBaseEditor::VcsBaseEditor()
 
 void VcsBaseEditor::finalizeInitialization()
 {
-    auto widget = qobject_cast<VcsBaseEditorWidget *>(editorWidget());
-    QTC_ASSERT(widget, return);
-    // Pass on signals.
-    connect(widget, &VcsBaseEditorWidget::describeRequested,
-            this, &VcsBaseEditor::describeRequested);
-    connect(widget, &VcsBaseEditorWidget::annotateRevisionRequested,
-            this, &VcsBaseEditor::annotateRevisionRequested);
+    QTC_CHECK(qobject_cast<VcsBaseEditorWidget *>(editorWidget()));
 }
 
 // ----------- VcsBaseEditorPrivate
@@ -565,11 +559,10 @@ public:
     QString m_annotateRevisionTextFormat;
     QString m_annotatePreviousRevisionTextFormat;
     QString m_copyRevisionTextFormat;
-    VcsBaseEditorParameterWidget *m_configurationWidget = nullptr;
+    VcsBaseEditorConfig *m_config = nullptr;
     QList<AbstractTextCursorHandler *> m_textCursorHandlers;
     QPointer<VcsCommand> m_command;
-    QObject *m_describeReceiver = nullptr;
-    const char *m_describeSlot = nullptr;
+    VcsBaseEditorWidget::DescribeFunc m_describeFunc = nullptr;
     Utils::ProgressIndicator *m_progressIndicator = nullptr;
     bool m_fileLogAnnotateEnabled = false;
     bool m_mouseDragging = false;
@@ -713,17 +706,14 @@ int VcsBaseEditorWidget::lineNumberDigits() const
     return digits;
 }
 
-void VcsBaseEditorWidget::setDescribeSlot(QObject *describeReceiver, const char *describeSlot)
+void VcsBaseEditorWidget::setDescribeFunc(DescribeFunc describeFunc)
 {
-    d->m_describeReceiver = describeReceiver;
-    d->m_describeSlot = describeSlot;
+    d->m_describeFunc = describeFunc;
 }
 
 void VcsBaseEditorWidget::finalizeInitialization()
 {
-    if (d->m_describeReceiver)
-        connect(this, SIGNAL(describeRequested(QString,QString)), d->m_describeReceiver, d->m_describeSlot);
-
+    connect(this, &VcsBaseEditorWidget::describeRequested, this, d->m_describeFunc);
     init();
 }
 
@@ -1267,7 +1257,7 @@ static QTextCodec *findProjectCodec(const QString &dir)
                     return codec;
                 }
     }
-    return 0;
+    return nullptr;
 }
 
 QTextCodec *VcsBaseEditor::getCodec(const QString &source)
@@ -1390,20 +1380,14 @@ QString VcsBaseEditor::getTitleId(const QString &workingDirectory,
     return rc;
 }
 
-bool VcsBaseEditorWidget::setConfigurationWidget(VcsBaseEditorParameterWidget *w)
+void VcsBaseEditorWidget::setEditorConfig(VcsBaseEditorConfig *config)
 {
-    if (d->m_configurationWidget)
-        return false;
-
-    d->m_configurationWidget = w;
-    insertExtraToolBarWidget(TextEditorWidget::Right, w);
-
-    return true;
+    d->m_config = config;
 }
 
-VcsBaseEditorParameterWidget *VcsBaseEditorWidget::configurationWidget() const
+VcsBaseEditorConfig *VcsBaseEditorWidget::editorConfig() const
 {
-    return d->m_configurationWidget;
+    return d->m_config;
 }
 
 void VcsBaseEditorWidget::setCommand(VcsCommand *command)

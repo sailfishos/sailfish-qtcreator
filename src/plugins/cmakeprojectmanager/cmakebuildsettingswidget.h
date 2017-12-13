@@ -40,6 +40,8 @@ class QSortFilterProxyModel;
 class QMenu;
 QT_END_NAMESPACE
 
+namespace Utils { class FancyLineEdit; }
+
 namespace CMakeProjectManager {
 
 class ConfigModel;
@@ -60,11 +62,13 @@ public:
 private:
     void updateButtonState();
     void updateAdvancedCheckBox();
+    void updateFromKit();
 
     CMakeBuildConfiguration *m_buildConfiguration;
     QTreeView *m_configView;
     ConfigModel *m_configModel;
     QSortFilterProxyModel *m_configFilterModel;
+    QSortFilterProxyModel *m_configTextFilterModel;
     Utils::ProgressIndicator *m_progressIndicator;
     QPushButton *m_addButton;
     QMenu *m_addButtonMenu;
@@ -73,6 +77,7 @@ private:
     QCheckBox *m_showAdvancedCheckBox;
     QPushButton *m_reconfigureButton;
     QTimer m_showProgressTimer;
+    Utils::FancyLineEdit *m_filterEdit;
     QLabel *m_errorLabel;
     QLabel *m_warningLabel;
     QLabel *m_errorMessageLabel;

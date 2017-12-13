@@ -56,7 +56,7 @@ static QString appBundleExpandedPath(const QString &path)
         QFileInfo info(path);
         if (info.isDir()) {
             QString exePath = path + QLatin1String("/Contents/MacOS/") + info.completeBaseName();
-            if (QFileInfo(exePath).exists())
+            if (QFileInfo::exists(exePath))
                 return exePath;
         }
     }
@@ -187,7 +187,7 @@ QString PathChooserPrivate::expandedPath(const QString &input) const
 {
     if (input.isEmpty())
         return input;
-    const QString path = QDir::cleanPath(m_environment.expandVariables(input));
+    const QString path = FileName::fromUserInput(m_environment.expandVariables(input)).toString();
     if (path.isEmpty())
         return path;
 
@@ -294,8 +294,7 @@ FileName PathChooser::baseFileName() const
 
 void PathChooser::setBaseFileName(const FileName &base)
 {
-    d->m_baseDirectory = base.toString();
-    triggerChanged();
+    setBaseDirectory(base.toString());
 }
 
 void PathChooser::setEnvironment(const Environment &env)

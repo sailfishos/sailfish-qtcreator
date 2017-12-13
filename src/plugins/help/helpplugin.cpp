@@ -38,7 +38,6 @@
 #include "localhelpmanager.h"
 #include "openpagesmanager.h"
 #include "openpagesmodel.h"
-#include "qtwebkithelpviewer.h"
 #include "remotehelpfilter.h"
 #include "searchwidget.h"
 #include "searchtaskhandler.h"
@@ -112,12 +111,6 @@ using namespace Utils;
 static HelpPlugin *m_instance = nullptr;
 
 HelpPlugin::HelpPlugin()
-    : m_mode(0),
-    m_centralWidget(0),
-    m_rightPaneSideBarWidget(0),
-    m_setupNeeded(true),
-    m_helpManager(0),
-    m_openPagesManager(0)
 {
     m_instance = this;
 }
@@ -143,9 +136,9 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
         const QString &trFile = QLatin1String("assistant_") + locale;
         const QString &helpTrFile = QLatin1String("qt_help_") + locale;
         if (qtr->load(trFile, qtTrPath) || qtr->load(trFile, creatorTrPath))
-            qApp->installTranslator(qtr);
+            QCoreApplication::installTranslator(qtr);
         if (qhelptr->load(helpTrFile, qtTrPath) || qhelptr->load(helpTrFile, creatorTrPath))
-            qApp->installTranslator(qhelptr);
+            QCoreApplication::installTranslator(qhelptr);
     }
 
     m_helpManager = new LocalHelpManager(this);
@@ -165,8 +158,7 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
             m_centralWidget, &CentralWidget::updateCloseButton);
     connect(HelpManager::instance(), &HelpManager::helpRequested,
             this, &HelpPlugin::handleHelpRequest);
-    connect(m_searchTaskHandler, &SearchTaskHandler::search, this,
-            &HelpPlugin::showLinkInHelpMode);
+    connect(m_searchTaskHandler, &SearchTaskHandler::search, this, &QDesktopServices::openUrl);
 
     connect(m_filterSettingsPage, &FilterSettingsPage::filtersChanged, this,
         &HelpPlugin::setupHelpEngineIfNeeded);
@@ -207,12 +199,16 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     action = new QAction(tr("Technical Support"), this);
     cmd = ActionManager::registerAction(action, "Help.TechSupport");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
-    connect(action, &QAction::triggered, this, &HelpPlugin::slotOpenSupportPage);
+    connect(action, &QAction::triggered, this, [this] {
+        showLinkInHelpMode(QUrl("qthelp://org.qt-project.qtcreator/doc/technical-support.html"));
+    });
 
     action = new QAction(tr("Report Bug..."), this);
     cmd = ActionManager::registerAction(action, "Help.ReportBug");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
-    connect(action, &QAction::triggered, this, &HelpPlugin::slotReportBug);
+    connect(action, &QAction::triggered, this, [] {
+        QDesktopServices::openUrl(QUrl("https://bugreports.qt.io"));
+    });
 
     action = new QAction(tr("System Information..."), this);
     cmd = ActionManager::registerAction(action, "Help.SystemInformation");
@@ -240,15 +236,12 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
 
     auto helpIndexFilter = new HelpIndexFilter();
     addAutoReleasedObject(helpIndexFilter);
-    connect(helpIndexFilter, &HelpIndexFilter::linkActivated,
-            this, &HelpPlugin::showLinkInHelpMode);
     connect(helpIndexFilter, &HelpIndexFilter::linksActivated,
-            this, &HelpPlugin::showLinksInHelpMode);
+            this, &HelpPlugin::showLinksInCurrentViewer);
 
     RemoteHelpFilter *remoteHelpFilter = new RemoteHelpFilter();
     addAutoReleasedObject(remoteHelpFilter);
-    connect(remoteHelpFilter, &RemoteHelpFilter::linkActivated, this,
-        &HelpPlugin::showLinkInHelpMode);
+    connect(remoteHelpFilter, &RemoteHelpFilter::linkActivated, this, &QDesktopServices::openUrl);
 
     QDesktopServices::setUrlHandler("qthelp", HelpManager::instance(), "handleHelpRequest");
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
@@ -367,7 +360,6 @@ HelpViewer *HelpPlugin::externalHelpViewer()
     else
         m_externalWindow->setGeometry(m_externalWindowState);
     m_externalWindow->show();
-    m_externalWindow->setFocus();
     return m_externalWindow->currentViewer();
 }
 
@@ -377,9 +369,6 @@ HelpViewer *HelpPlugin::createHelpViewer(qreal zoom)
     typedef std::function<HelpViewer *()> ViewerFactory;
     typedef QPair<QByteArray, ViewerFactory>  ViewerFactoryItem; // id -> factory
     QVector<ViewerFactoryItem> factories;
-#ifndef QT_NO_WEBKIT
-    factories.append(qMakePair(QByteArray("qtwebkit"), []() { return new QtWebKitHelpViewer(); }));
-#endif
 #ifdef QTC_WEBENGINE_HELPVIEWER
     factories.append(qMakePair(QByteArray("qtwebengine"), []() { return new WebEngineHelpViewer(); }));
 #endif
@@ -436,17 +425,15 @@ void HelpPlugin::activateHelpMode()
 
 void HelpPlugin::showLinkInHelpMode(const QUrl &source)
 {
-    activateHelpMode();
-    ICore::raiseWindow(m_mode->widget());
-    m_centralWidget->setSource(source);
-    m_centralWidget->setFocus();
+    showInHelpViewer(source, helpModeHelpViewer());
 }
 
-void HelpPlugin::showLinksInHelpMode(const QMap<QString, QUrl> &links, const QString &key)
+void HelpPlugin::showLinksInCurrentViewer(const QMap<QString, QUrl> &links, const QString &key)
 {
-    activateHelpMode();
-    ICore::raiseWindow(m_mode->widget());
-    m_centralWidget->showTopicChooser(links, key);
+    if (links.size() < 1)
+        return;
+    HelpWidget *widget = helpWidgetForWindow(QApplication::activeWindow());
+    widget->showLinks(links, key);
 }
 
 void HelpPlugin::slotHideRightPane()
@@ -458,9 +445,9 @@ void HelpPlugin::modeChanged(Core::Id mode, Core::Id old)
 {
     Q_UNUSED(old)
     if (mode == m_mode->id()) {
-        qApp->setOverrideCursor(Qt::WaitCursor);
+        QGuiApplication::setOverrideCursor(Qt::WaitCursor);
         doSetupIfNeeded();
-        qApp->restoreOverrideCursor();
+        QGuiApplication::restoreOverrideCursor();
     }
 }
 
@@ -502,6 +489,23 @@ bool HelpPlugin::canShowHelpSideBySide()
     return true;
 }
 
+HelpViewer *HelpPlugin::helpModeHelpViewer()
+{
+    activateHelpMode(); // should trigger an createPage...
+    HelpViewer *viewer = m_instance->m_centralWidget->currentViewer();
+    if (!viewer)
+        viewer = OpenPagesManager::instance().createPage();
+    return viewer;
+}
+
+HelpWidget *HelpPlugin::helpWidgetForWindow(QWidget *window)
+{
+    if (m_externalWindow && m_externalWindow->window() == window->window())
+        return m_externalWindow;
+    activateHelpMode();
+    return m_centralWidget;
+}
+
 HelpViewer *HelpPlugin::viewerForHelpViewerLocation(HelpManager::HelpViewerLocation location)
 {
     HelpManager::HelpViewerLocation actualLocation = location;
@@ -521,11 +525,16 @@ HelpViewer *HelpPlugin::viewerForHelpViewerLocation(HelpManager::HelpViewerLocat
 
     QTC_CHECK(actualLocation == HelpManager::HelpModeAlways);
 
-    activateHelpMode(); // should trigger an createPage...
-    HelpViewer *viewer = m_instance->m_centralWidget->currentViewer();
-    if (!viewer)
-        viewer = OpenPagesManager::instance().createPage();
-    return viewer;
+    return m_instance->helpModeHelpViewer();
+}
+
+void HelpPlugin::showInHelpViewer(const QUrl &url, HelpViewer *viewer)
+{
+    QTC_ASSERT(viewer, return);
+    viewer->setFocus();
+    viewer->stop();
+    viewer->setSource(url);
+    ICore::raiseWindow(viewer);
 }
 
 HelpViewer *HelpPlugin::viewerForContextHelp()
@@ -582,7 +591,7 @@ void HelpPlugin::showContextHelp()
     QUrl source = findBestLink(links, &m_contextHelpHighlightId);
     if (!source.isValid()) {
         // No link found or no context object
-        viewer->setSource(QUrl(Help::Constants::AboutBlank));
+        showInHelpViewer(QUrl(Help::Constants::AboutBlank), viewer);
         viewer->setHtml(tr("<html><head><title>No Documentation</title>"
             "</head><body><br/><center>"
             "<font color=\"%1\"><b>%2</b></font><br/>"
@@ -592,10 +601,7 @@ void HelpPlugin::showContextHelp()
             .arg(contextHelpId)
             .arg(creatorTheme()->color(Theme::TextColorNormal).name()));
     } else {
-        viewer->setFocus();
-        viewer->stop();
-        viewer->setSource(source); // triggers loadFinished which triggers id highlighting
-        ICore::raiseWindow(viewer);
+        showInHelpViewer(source, viewer);  // triggers loadFinished which triggers id highlighting
     }
 }
 
@@ -623,6 +629,16 @@ void HelpPlugin::highlightSearchTermsInContextHelp()
 
 void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocation location)
 {
+    static const QString qtcreatorUnversionedID = "org.qt-project.qtcreator";
+    if (url.host() == qtcreatorUnversionedID) {
+        // QtHelp doesn't know about versions, add the version number and use that
+        QUrl versioned = url;
+        versioned.setHost(qtcreatorUnversionedID + "."
+                          + QString::fromLatin1(Core::Constants::IDE_VERSION_LONG).remove('.'));
+        handleHelpRequest(versioned, location);
+        return;
+    }
+
     if (HelpViewer::launchWithExternalApp(url))
         return;
 
@@ -633,7 +649,7 @@ void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocat
                 || address.startsWith("qthelp://com.trolltech.")) {
             // local help not installed, resort to external web help
             QString urlPrefix = "http://doc.qt.io/";
-            if (url.authority() == "org.qt-project.qtcreator")
+            if (url.authority().startsWith(qtcreatorUnversionedID))
                 urlPrefix.append(QString::fromLatin1("qtcreator"));
             else
                 urlPrefix.append("qt-5");
@@ -643,19 +659,7 @@ void HelpPlugin::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocat
     }
 
     HelpViewer *viewer = viewerForHelpViewerLocation(location);
-    QTC_ASSERT(viewer, return);
-    viewer->setSource(url);
-    ICore::raiseWindow(viewer);
-}
-
-void HelpPlugin::slotOpenSupportPage()
-{
-    showLinkInHelpMode(QUrl("qthelp://org.qt-project.qtcreator/doc/technical-support.html"));
-}
-
-void HelpPlugin::slotReportBug()
-{
-    QDesktopServices::openUrl(QUrl("https://bugreports.qt.io"));
+    showInHelpViewer(url, viewer);
 }
 
 class DialogClosingOnEscape : public QDialog

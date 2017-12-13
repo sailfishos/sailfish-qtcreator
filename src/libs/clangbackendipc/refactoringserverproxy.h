@@ -42,7 +42,7 @@ namespace ClangBackEnd {
 
 class RefactoringClientInterface;
 
-class CMBIPC_EXPORT RefactoringServerProxy : public RefactoringServerInterface
+class CMBIPC_EXPORT RefactoringServerProxy final : public RefactoringServerInterface
 {
 public:
     explicit RefactoringServerProxy(RefactoringClientInterface *client, QIODevice *ioDevice);
@@ -50,7 +50,10 @@ public:
     const RefactoringServerProxy &operator=(const RefactoringServerProxy&) = delete;
 
     void end() override;
-    void requestSourceLocationsForRenamingMessage(ClangBackEnd::RequestSourceLocationsForRenamingMessage &&message) override;
+    void requestSourceLocationsForRenamingMessage(RequestSourceLocationsForRenamingMessage &&message) override;
+    void requestSourceRangesAndDiagnosticsForQueryMessage(RequestSourceRangesAndDiagnosticsForQueryMessage &&message) override;
+    void requestSourceRangesForQueryMessage(RequestSourceRangesForQueryMessage &&message) override;
+    void cancel() override;
 
     void readMessages();
 

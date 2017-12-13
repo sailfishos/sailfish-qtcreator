@@ -69,7 +69,7 @@ ArtisticStyle::~ArtisticStyle()
 bool ArtisticStyle::initialize()
 {
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::ArtisticStyle::MENU_ID);
-    menu->menu()->setTitle(tr(Constants::ArtisticStyle::DISPLAY_NAME));
+    menu->menu()->setTitle(tr("&Artistic Style"));
 
     m_formatFile = new QAction(BeautifierPlugin::msgFormatCurrentFile(), this);
     menu->addAction(Core::ActionManager::registerAction(m_formatFile,
@@ -129,6 +129,12 @@ QString ArtisticStyle::configurationFile() const
         }
     }
 
+    if (m_settings->useSpecificConfigFile()) {
+        const Utils::FileName file = m_settings->specificConfigFile();
+        if (file.exists())
+            return file.toUserOutput();
+    }
+
     if (m_settings->useHomeFile()) {
         const QDir homeDirectory = QDir::home();
         QString file = homeDirectory.filePath(".astylerc");
@@ -160,10 +166,13 @@ Command ArtisticStyle::command(const QString &cfgFile) const
     command.addOption("-q");
     command.addOption("--options=" + cfgFile);
 
-    if (m_settings->version() > ArtisticStyleSettings::Version_2_03) {
+    const int version = m_settings->version();
+    if (version > ArtisticStyleSettings::Version_2_03) {
         command.setProcessing(Command::PipeProcessing);
-        command.setPipeAddsNewline(true);
+        if (version == ArtisticStyleSettings::Version_2_04)
+            command.setPipeAddsNewline(true);
         command.setReturnsCRLF(Utils::HostOsInfo::isWindowsHost());
+        command.addOption("-z2");
     } else {
         command.addOption("%file");
     }

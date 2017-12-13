@@ -1,5 +1,5 @@
 DEFINES += QTSUPPORT_LIBRARY
-QT += network quick
+QT += network
 
 include(../../qtcreatorplugin.pri)
 
@@ -28,11 +28,8 @@ HEADERS += \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
-    copytolocationdialog.h \
     desktopqtversionfactory.h \
     desktopqtversion.h \
-    winceqtversionfactory.h \
-    winceqtversion.h \
     uicgenerator.h \
     qscxmlcgenerator.h
 
@@ -56,11 +53,8 @@ SOURCES += \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
-    copytolocationdialog.cpp \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
-    winceqtversionfactory.cpp \
-    winceqtversion.cpp \
     uicgenerator.cpp \
     qscxmlcgenerator.cpp
 
@@ -69,7 +63,6 @@ FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     qtversionmanager.ui \
-    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc

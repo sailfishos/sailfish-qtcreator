@@ -262,7 +262,12 @@ void RunSettingsWidget::cloneRunConfiguration()
         return;
 
     //: Title of a the cloned RunConfiguration window, text of the window
-    QString name = uniqueRCName(QInputDialog::getText(this, tr("Clone Configuration"), tr("New configuration name:")));
+    QString name = uniqueRCName(
+                        QInputDialog::getText(this,
+                                              tr("Clone Configuration"),
+                                              tr("New configuration name:"),
+                                              QLineEdit::Normal,
+                                              m_target->activeRunConfiguration()->displayName()));
     if (name.isEmpty())
         return;
 
@@ -363,7 +368,7 @@ void RunSettingsWidget::aboutToShowDeployMenu()
         QList<Core::Id> ids = factory->availableCreationIds(m_target);
         foreach (Core::Id id, ids) {
             QAction *action = m_addDeployMenu->addAction(factory->displayNameForId(id));
-            DeployFactoryAndId data = { factory, id };
+            DeployFactoryAndId data = {factory, id};
             action->setData(QVariant::fromValue(data));
             connect(action, &QAction::triggered, [factory, id, this]() {
                 if (!factory->canCreate(m_target, id))

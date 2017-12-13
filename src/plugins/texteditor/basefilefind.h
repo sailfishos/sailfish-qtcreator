@@ -48,34 +48,49 @@ class SearchResultItem;
 
 namespace TextEditor {
 
-namespace Internal { class BaseFileFindPrivate; }
+namespace Internal {
+class BaseFileFindPrivate;
+class SearchEnginePrivate;
+} // Internal
 
 class TEXTEDITOR_EXPORT FileFindParameters
 {
 public:
     QString text;
-    Core::FindFlags flags;
     QStringList nameFilters;
+    QStringList exclusionFilters;
     QVariant additionalParameters;
-    QVariant extensionParameters;
+    QVariant searchEngineParameters;
+    int searchEngineIndex;
+    Core::FindFlags flags;
 };
 
-class TEXTEDITOR_EXPORT FileFindExtension : public QObject
+class BaseFileFind;
+
+class TEXTEDITOR_EXPORT SearchEngine : public QObject
 {
+    Q_OBJECT
 public:
-    virtual ~FileFindExtension() {}
+    SearchEngine();
+    ~SearchEngine();
     virtual QString title() const = 0;
     virtual QString toolTip() const = 0; // add %1 placeholder where the find flags should be put
     virtual QWidget *widget() const = 0;
-    virtual bool isEnabled() const = 0;
-    virtual bool isEnabled(const FileFindParameters &parameters) const = 0;
     virtual QVariant parameters() const = 0;
     virtual void readSettings(QSettings *settings) = 0;
     virtual void writeSettings(QSettings *settings) const = 0;
     virtual QFuture<Utils::FileSearchResultList> executeSearch(
-            const FileFindParameters &parameters) = 0;
+            const FileFindParameters &parameters, BaseFileFind *baseFileFind) = 0;
     virtual Core::IEditor *openEditor(const Core::SearchResultItem &item,
                                       const FileFindParameters &parameters) = 0;
+    bool isEnabled() const;
+    void setEnabled(bool enabled);
+
+signals:
+    void enabledChanged(bool enabled);
+
+private:
+    Internal::SearchEnginePrivate *d;
 };
 
 class TEXTEDITOR_EXPORT BaseFileFind : public Core::IFindFilter
@@ -90,36 +105,39 @@ public:
     bool isReplaceSupported() const { return true; }
     void findAll(const QString &txt, Core::FindFlags findFlags);
     void replaceAll(const QString &txt, Core::FindFlags findFlags);
-    void setFindExtension(FileFindExtension *extension);
+    void addSearchEngine(SearchEngine *searchEngine);
 
     /* returns the list of unique files that were passed in items */
     static QStringList replaceAll(const QString &txt,
                                   const QList<Core::SearchResultItem> &items,
                                   bool preserveCase = false);
+    virtual Utils::FileIterator *files(const QStringList &nameFilters,
+                                       const QStringList &exclusionFilters,
+                                       const QVariant &additionalParameters) const = 0;
 
 protected:
-    virtual Utils::FileIterator *files(const QStringList &nameFilters,
-                                       const QVariant &additionalParameters) const = 0;
     virtual QVariant additionalParameters() const = 0;
-    QVariant getAdditionalParameters(Core::SearchResult *search);
+    static QVariant getAdditionalParameters(Core::SearchResult *search);
     virtual QString label() const = 0; // see Core::SearchResultWindow::startNewSearch
     virtual QString toolTip() const = 0; // see Core::SearchResultWindow::startNewSearch,
                                          // add %1 placeholder where the find flags should be put
     QFuture<Utils::FileSearchResultList> executeSearch(const FileFindParameters &parameters);
 
     void writeCommonSettings(QSettings *settings);
-    void readCommonSettings(QSettings *settings, const QString &defaultFilter);
-    QWidget *createPatternWidget();
-    void syncComboWithSettings(QComboBox *combo, const QString &setting);
-    void updateComboEntries(QComboBox *combo, bool onTop);
+    void readCommonSettings(QSettings *settings, const QString &defaultFilter, const QString &defaultExclusionFilter);
+    QList<QPair<QWidget *, QWidget *>> createPatternWidgets();
     QStringList fileNameFilters() const;
-    FileFindExtension *extension() const;
+    QStringList fileExclusionFilters() const;
+
+    SearchEngine *currentSearchEngine() const;
+    QVector<SearchEngine *> searchEngines() const;
+    void setCurrentSearchEngine(int index);
+    virtual void syncSearchEngineCombo(int /*selectedSearchEngineIndex*/) {}
+
+signals:
+    void currentSearchEngineChanged();
 
 private:
-    void displayResult(int index);
-    void searchFinished();
-    void cancel();
-    void setPaused(bool paused);
     void openEditor(const Core::SearchResultItem &item);
     void doReplace(const QString &txt,
                    const QList<Core::SearchResultItem> &items,

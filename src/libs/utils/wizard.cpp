@@ -301,25 +301,15 @@ void LinearProgressWidget::enableUpdates()
 
 class WizardPrivate
 {
-    Wizard *q_ptr;
-    Q_DECLARE_PUBLIC(Wizard)
-
 public:
-    WizardPrivate()
-        :
-        m_automaticProgressCreation(true),
-        m_wizardProgress(0)
-    {
-    }
-    bool m_automaticProgressCreation;
-    WizardProgress *m_wizardProgress;
+    bool m_automaticProgressCreation = true;
+    WizardProgress *m_wizardProgress = nullptr;
     QSet<QString> m_fieldNames;
 };
 
 Wizard::Wizard(QWidget *parent, Qt::WindowFlags flags) :
     QWizard(parent, flags), d_ptr(new WizardPrivate)
 {
-    d_ptr->q_ptr = this;
     d_ptr->m_wizardProgress = new WizardProgress(this);
     connect(this, &QWizard::currentIdChanged, this, &Wizard::_q_currentPageChanged);
     connect(this, &QWizard::pageAdded, this, &Wizard::_q_pageAdded);
@@ -440,7 +430,9 @@ void Wizard::showVariables()
 
     auto label = new QLabel(result);
     label->setWordWrap(true);
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
     scrollArea->setWidget(label);
+    scrollArea->setWidgetResizable(true);
 
     layout->addWidget(scrollArea);
     layout->addWidget(buttons);

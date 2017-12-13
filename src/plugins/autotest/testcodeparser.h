@@ -38,6 +38,10 @@ namespace Core {
 class Id;
 }
 
+QT_BEGIN_NAMESPACE
+class QThreadPool;
+QT_END_NAMESPACE
+
 namespace Autotest {
 namespace Internal {
 
@@ -56,8 +60,6 @@ public:
     virtual ~TestCodeParser();
     void setState(State state);
     State state() const { return m_parserState; }
-    void setEnabled(bool enabled) { m_enabled = enabled; }
-    bool enabled() const { return m_enabled; }
     bool isParsing() const { return m_parserState == PartialParse || m_parserState == FullParse; }
     void setDirty() { m_dirty = true; }
     void syncTestFrameworks(const QVector<Core::Id> &frameworkIds);
@@ -74,8 +76,8 @@ signals:
     void parsingFailed();
 
 public:
-    void emitUpdateTestTree();
-    void updateTestTree();
+    void emitUpdateTestTree(ITestParser *parser = nullptr);
+    void updateTestTree(ITestParser *parser = nullptr);
     void onCppDocumentUpdated(const CPlusPlus::Document::Ptr &document);
     void onQmlDocumentUpdated(const QmlJS::Document::Ptr &document);
     void onStartupProjectChanged(ProjectExplorer::Project *project);
@@ -84,9 +86,10 @@ public:
 
 private:
     bool postponed(const QStringList &fileList);
-    void scanForTests(const QStringList &fileList = QStringList());
+    void scanForTests(const QStringList &fileList = QStringList(), ITestParser *parser = nullptr);
 
-    void onDocumentUpdated(const QString &fileName);
+    // qml files must be handled slightly different
+    void onDocumentUpdated(const QString &fileName, bool isQmlFile = false);
     void onTaskStarted(Core::Id type);
     void onAllTasksFinished(Core::Id type);
     void onFinished();
@@ -96,7 +99,6 @@ private:
 
     TestTreeModel *m_model;
 
-    bool m_enabled = false;
     bool m_codeModelParsing = false;
     bool m_fullUpdatePostponed = false;
     bool m_partialUpdatePostponed = false;
@@ -108,6 +110,8 @@ private:
     QFutureWatcher<TestParseResultPtr> m_futureWatcher;
     QVector<ITestParser *> m_testCodeParsers; // ptrs are still owned by TestFrameworkManager
     QTimer m_reparseTimer;
+    ITestParser *m_updateParser = nullptr;
+    QThreadPool *m_threadPool = nullptr;
 };
 
 } // namespace Internal

@@ -49,7 +49,7 @@
 #include <utils/mimetypes/mimedatabase.h>
 
 #include <QAction>
-#include <QApplication>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QFileInfo>
 #include <QLibraryInfo>
@@ -87,6 +87,7 @@ bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
                     wizard->setCategory(QLatin1String(Core::Constants::WIZARD_CATEGORY_QT));
                     wizard->setDisplayCategory(QCoreApplication::translate("Core", Core::Constants::WIZARD_TR_CATEGORY_QT));
                     wizard->setDisplayName(tr("Qt Designer Form Class"));
+                    wizard->setIconText("ui/h");
                     wizard->setId("C.FormClass");
                     wizard->setDescription(tr("Creates a Qt Designer form along with a matching class (C++ header and source file) "
                     "for implementation purposes. You can add the form and class to an existing Qt Widget Project."));
@@ -108,7 +109,7 @@ bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
         const QString &qtTrPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
         const QString &trFile = QLatin1String("designer_") + locale;
         if (qtr->load(trFile, qtTrPath) || qtr->load(trFile, creatorTrPath))
-            qApp->installTranslator(qtr);
+            QCoreApplication::installTranslator(qtr);
     }
     error->clear();
     return true;
@@ -157,19 +158,17 @@ static QString otherFile()
     const QString current = currentFile();
     if (current.isEmpty())
         return QString();
-    Utils::MimeDatabase mdb;
-    const Utils::MimeType currentMimeType = mdb.mimeTypeForFile(current);
+    const Utils::MimeType currentMimeType = Utils::mimeTypeForFile(current);
     if (!currentMimeType.isValid())
         return QString();
     // Determine potential suffixes of candidate files
     // 'ui' -> 'cpp', 'cpp/h' -> 'ui'.
     QStringList candidateSuffixes;
     if (currentMimeType.matchesName(QLatin1String(FORM_MIMETYPE))) {
-        candidateSuffixes += mdb.mimeTypeForName(
-                    QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)).suffixes();
+        candidateSuffixes += Utils::mimeTypeForName(CppTools::Constants::CPP_SOURCE_MIMETYPE).suffixes();
     } else if (currentMimeType.matchesName(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE))
                || currentMimeType.matchesName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE))) {
-        candidateSuffixes += mdb.mimeTypeForName(QLatin1String(FORM_MIMETYPE)).suffixes();
+        candidateSuffixes += Utils::mimeTypeForName(FORM_MIMETYPE).suffixes();
     } else {
         return QString();
     }

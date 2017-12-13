@@ -981,6 +981,8 @@
     Linux, LLDB on macOS, and CDB on Windows, or any other platform on which at
     least one of the three supported backends is available.
 
+    \section2 Adding Custom Debugging Helpers
+
     To add debugging helpers for your own types, no compilation is required,
     just adding a few lines of Python. The scripts can address multiple versions
     of Qt, or of your own library, at the same time.
@@ -991,13 +993,73 @@
     \uicontrol {Additional Startup Commands} in \uicontrol Tools >
     \uicontrol Options > \uicontrol Debugger > \uicontrol GDB.
 
+    To get started with implementing debugging helpers for your own data types,
+    you can put their implementation into the file
+    \c share/qtcreator/debugger/personaltypes.py in your Qt installation or
+    stand-alone \QC installation. On \macos, the file is bundled into the
+    \QC application package, where it is located in the
+    \c Contents/resources/debugger folder.
+
+    The \c personaltypes.py file contains one example implementation:
+
+    \quotefromfile ../../share/qtcreator/debugger/personaltypes.py
+    \skipto qdump__
+    \printuntil d.putItem
+
+    To add debugging helpers:
+
+    \list 1
+
+        \li Open the \c share/qtcreator/debugger/personaltypes.py file for
+            editing. For example, if your Qt installation is located in the
+            \c Qt5 directory on Windows, look in
+            \c C:\Qt5\Tools\QtCreator\share\qtcreator\debugger. On \macos, look
+            in \c {Qt5/Qt Creator.app/Contents/resources/debugger}.
+
+        \li Add your dumper implementation to the end of the \c personaltypes.py
+            file.  For more information about implementing debugging helpers,
+            see the following sections.
+
+        \li To prevent \c personaltypes.py from being overwritten when you
+            update your \QC installation (when updating your Qt installation,
+            for example), copy it to a safe location outside the \QC
+            installation in your file system and specify the location in
+            \uicontrol Tools > \uicontrol Options > \uicontrol Debugger >
+            \uicontrol {Locals & Expressions} >
+            \uicontrol {Extra Debugging Helpers}.
+
+            \image qtcreator-debugging-helper-options.png
+
+    \endlist
+
+    The custom debugging helpers will be automatically picked up from
+    \c personaltypes.py when you start a debugging session in \QC or select
+    \uicontrol {Reload Debugging Helpers} from the context menu of the
+    \uicontrol {Debugger Log} view.
+
     \section2 Debugging Helper Overview
 
     The implementation of a debugging helper typically consists of a single
     Python function, which needs to be named \c{qdump__NS__Foo}, where
     \c{NS::Foo} is the class or class template to be examined. Note that the
     \c{::} scope resolution operator is replaced by double underscores: \c{__}.
-    Nested namespaces are possible.
+    Nested namespaces are possible. Template arguments are not used for
+    the construction of the function name.
+
+    Examples:
+
+    \list
+
+        \li The name for the function implementing a debugging helper for the type
+            \c{namespace Project { template<typename T> struct Foo {... } } } is
+            \c{qdump__Project__Foo}.
+
+        \li The name for the function implementing a debugging helper
+            for the type \c{std::__1::vector<T>::iterator} is
+            \c{qdump__std____1__vector__iterator}.
+
+    \endlist
+
 
     \QC's debugger plugin calls this function whenever you want to display an
     object of this type. The function is passed the following parameters:
@@ -1028,7 +1090,7 @@
         size = value["_size"].integer()
         d.putItemCount(size)
         if d.isExpanded():
-            d.putArrayData(value.type[0], value["_array"], size)
+            d.putArrayData(value["_array"], size, value.type[0])
     \endcode
 
     \note To create dumper functions usable with both LLDB and GDB backends,
@@ -1149,7 +1211,7 @@
 
             \endlist
 
-        \li \c{putArrayData(self, type, address, itemCount)} - Creates the
+        \li \c{putArrayData(self, address, itemCount, type)} - Creates the
             number of children specified by \c itemCount of the type \c type of
             an array-like object located at \c address.
 

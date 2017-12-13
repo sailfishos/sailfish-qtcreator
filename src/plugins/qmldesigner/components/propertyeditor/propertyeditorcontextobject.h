@@ -76,9 +76,11 @@ public:
     Q_INVOKABLE QColor colorFromString(const QString &colorString);
     Q_INVOKABLE QString translateFunction();
 
-    Q_INVOKABLE QStringList autoComplete(const QString &text, int pos, bool explicitComplete);
+    Q_INVOKABLE QStringList autoComplete(const QString &text, int pos, bool explicitComplete, bool filter);
 
     Q_INVOKABLE void toogleExportAlias();
+
+    Q_INVOKABLE void changeTypeName(const QString &typeName);
 
     int majorVersion() const;
     int majorQtQuickVersion() const;

@@ -26,15 +26,21 @@
 #pragma once
 
 #include <cpptools/projectpart.h>
+#include <cpptools/cppcursorinfo.h>
 
 #include <clangbackendipc/clangcodemodelconnectionclient.h>
 #include <clangbackendipc/filecontainer.h>
 #include <clangbackendipc/clangcodemodelclientinterface.h>
 #include <clangbackendipc/projectpartcontainer.h>
 
+#include <QFuture>
 #include <QObject>
+#include <QPointer>
 #include <QSharedPointer>
+#include <QTextDocument>
 #include <QVector>
+
+#include <functional>
 
 namespace Core {
 class IEditor;
@@ -67,10 +73,15 @@ public:
     void setAliveHandler(const AliveHandler &handler);
 
     void addExpectedCodeCompletedMessage(quint64 ticket, ClangCompletionAssistProcessor *processor);
-    void deleteAndClearWaitingAssistProcessors();
     void deleteProcessorsOfEditorWidget(TextEditor::TextEditorWidget *textEditorWidget);
 
+    QFuture<CppTools::CursorInfo>
+    addExpectedReferencesMessage(quint64 ticket,
+                                 QTextDocument *textDocument,
+                                 const CppTools::SemanticInfo::LocalUseMap &localUses);
     bool isExpectingCodeCompletedMessage() const;
+
+    void reset();
 
 private:
     void alive() override;
@@ -78,6 +89,7 @@ private:
     void codeCompleted(const ClangBackEnd::CodeCompletedMessage &message) override;
 
     void documentAnnotationsChanged(const ClangBackEnd::DocumentAnnotationsChangedMessage &message) override;
+    void references(const ClangBackEnd::ReferencesMessage &message) override;
 
     void translationUnitDoesNotExist(const ClangBackEnd::TranslationUnitDoesNotExistMessage &) override {}
     void projectPartsDoNotExist(const ClangBackEnd::ProjectPartsDoNotExistMessage &) override {}
@@ -85,7 +97,20 @@ private:
 private:
     AliveHandler m_aliveHandler;
     QHash<quint64, ClangCompletionAssistProcessor *> m_assistProcessorsTable;
-    const bool m_printAliveMessage = false;
+
+    struct ReferencesEntry {
+        ReferencesEntry() = default;
+        ReferencesEntry(QFutureInterface<CppTools::CursorInfo> futureInterface,
+                        QTextDocument *textDocument,
+                        const CppTools::SemanticInfo::LocalUseMap &localUses)
+            : futureInterface(futureInterface)
+            , textDocument(textDocument)
+            , localUses(localUses) {}
+        QFutureInterface<CppTools::CursorInfo> futureInterface;
+        QPointer<QTextDocument> textDocument;
+        CppTools::SemanticInfo::LocalUseMap localUses;
+    };
+    QHash<quint64, ReferencesEntry> m_referencesTable;
 };
 
 class IpcSenderInterface
@@ -103,6 +128,7 @@ public:
     virtual void unregisterUnsavedFilesForEditor(const ClangBackEnd::UnregisterUnsavedFilesForEditorMessage &message) = 0;
     virtual void completeCode(const ClangBackEnd::CompleteCodeMessage &message) = 0;
     virtual void requestDocumentAnnotations(const ClangBackEnd::RequestDocumentAnnotationsMessage &message) = 0;
+    virtual void requestReferences(const ClangBackEnd::RequestReferencesMessage &message) = 0;
     virtual void updateVisibleTranslationUnits(const ClangBackEnd::UpdateVisibleTranslationUnitsMessage &message) = 0;
 };
 
@@ -112,6 +138,7 @@ class IpcCommunicator : public QObject
 
 public:
     using Ptr = QSharedPointer<IpcCommunicator>;
+    using FileContainer = ClangBackEnd::FileContainer;
     using FileContainers = QVector<ClangBackEnd::FileContainer>;
     using ProjectPartContainers = QVector<ClangBackEnd::ProjectPartContainer>;
 
@@ -127,12 +154,18 @@ public:
     void registerUnsavedFilesForEditor(const FileContainers &fileContainers);
     void unregisterUnsavedFilesForEditor(const FileContainers &fileContainers);
     void requestDocumentAnnotations(const ClangBackEnd::FileContainer &fileContainer);
+    QFuture<CppTools::CursorInfo> requestReferences(
+            const FileContainer &fileContainer,
+            quint32 line,
+            quint32 column,
+            QTextDocument *textDocument,
+            const CppTools::SemanticInfo::LocalUseMap &localUses);
     void completeCode(ClangCompletionAssistProcessor *assistProcessor, const QString &filePath,
                       quint32 line,
                       quint32 column,
                       const QString &projectFilePath);
 
-    void registerProjectsParts(const QList<CppTools::ProjectPart::Ptr> projectParts);
+    void registerProjectsParts(const QVector<CppTools::ProjectPart::Ptr> projectParts);
 
     void updateTranslationUnitIfNotCurrentDocument(Core::IDocument *document);
     void updateTranslationUnit(Core::IDocument *document);

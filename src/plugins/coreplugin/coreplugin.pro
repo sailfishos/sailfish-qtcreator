@@ -1,10 +1,11 @@
 DEFINES += CORE_LIBRARY
 QT += \
-    help \
     network \
     printsupport \
     qml \
     sql
+
+qtHaveModule(help): QT += help
 
 # embedding build time information prevents repeatedly binary exact versions from same source code
 isEmpty(QTC_SHOW_BUILD_DATE): QTC_SHOW_BUILD_DATE = $$(QTC_SHOW_BUILD_DATE)
@@ -56,6 +57,7 @@ SOURCES += corejsextensions.cpp \
     progressmanager/progressview.cpp \
     progressmanager/progressbar.cpp \
     progressmanager/futureprogress.cpp \
+    reaper.cpp \
     statusbarwidget.cpp \
     coreplugin.cpp \
     modemanager.cpp \
@@ -160,6 +162,8 @@ HEADERS += corejsextensions.h \
     progressmanager/progressbar.h \
     progressmanager/futureprogress.h \
     progressmanager/progressmanager.h \
+    reaper.h \
+    reaper_p.h \
     icontext.h \
     icore.h \
     infobar.h \
@@ -260,7 +264,6 @@ else:unix {
         INSTALLS += image$${imagesize}
     }
 }
-DISTFILES += editormanager/BinFiles.mimetypes.xml
 
 equals(TEST, 1) {
     SOURCES += testdatadir.cpp

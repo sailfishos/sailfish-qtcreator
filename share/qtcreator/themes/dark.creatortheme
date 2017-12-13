@@ -78,7 +78,6 @@ IconsModeDebugActiveColor=ff99aaef
 IconsModeProjectActiveColor=ff80c342
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fff4be04
-IconsModeMerActiveColor=ff97f0ff
 IconsCodeModelKeywordColor=ffaaaaaa
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -117,10 +116,10 @@ SplitterColor=ff313131
 TextColorDisabled=textDisabled
 TextColorError=ffff4040
 TextColorHighlight=ffff0000
+TextColorHighlightBackground=555500
 TextColorLink=textColorLink
 TextColorLinkVisited=textColorLinkVisited
 TextColorNormal=text
-TodoItemTextColor=ff000000
 ToggleButtonBackgroundColor=shadowBackground
 ToolBarBackgroundColor=shadowBackground
 TreeViewArrowColorNormal=hoverBackground
@@ -214,6 +213,8 @@ PaletteTextDisabled=textDisabled
 
 QmlDesigner_BackgroundColor=ff3c3e40
 QmlDesigner_HighlightColor=ff46a2da
+QmlDesigner_FormEditorSelectionColor=ff4ba2ff
+QmlDesigner_FormEditorForegroundColor=ffffffff
 
 [Flags]
 ComboBoxDrawTextShadow=false

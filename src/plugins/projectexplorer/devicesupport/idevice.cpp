@@ -34,7 +34,6 @@
 #include "../runnables.h"
 
 #include <ssh/sshconnection.h>
-#include <utils/algorithm.h>
 #include <utils/icon.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
@@ -111,7 +110,6 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
-const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char VersionKey[] = "Version";
 
@@ -141,7 +139,6 @@ class IDevicePrivate
 public:
     IDevicePrivate() :
         origin(IDevice::AutoDetected),
-        sdkProvided(false),
         deviceState(IDevice::DeviceStateUnknown),
         machineType(IDevice::Hardware),
         version(0)
@@ -150,7 +147,6 @@ public:
     QString displayName;
     Core::Id type;
     IDevice::Origin origin;
-    bool sdkProvided;
     Core::Id id;
     IDevice::DeviceState deviceState;
     IDevice::MachineType machineType;
@@ -182,7 +178,9 @@ IDevice::IDevice(Core::Id type, Origin origin, MachineType machineType, Core::Id
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-IDevice::IDevice(const IDevice &other) : d(new Internal::IDevicePrivate)
+IDevice::IDevice(const IDevice &other)
+    : QEnableSharedFromThis<IDevice>(other)
+    , d(new Internal::IDevicePrivate)
 {
     *d = *other.d;
 }
@@ -239,16 +237,6 @@ bool IDevice::isAutoDetected() const
     return d->origin == AutoDetected;
 }
 
-bool IDevice::isSdkProvided() const
-{
-    return d->sdkProvided;
-}
-
-void IDevice::setSdkProvided(bool sdkProvided)
-{
-    d->sdkProvided = sdkProvided;
-}
-
 /*!
     Identifies the device. If an id is given when constructing a device then
     this id is used. Otherwise, a UUID is generated and used to identity the
@@ -288,6 +276,11 @@ DeviceTester *IDevice::createDeviceTester() const
 {
     QTC_ASSERT(false, qDebug("This should not have been called..."));
     return 0;
+}
+
+Utils::OsType IDevice::osType() const
+{
+    return Utils::OsTypeOther;
 }
 
 DeviceProcess *IDevice::createProcess(QObject * /* parent */) const
@@ -337,7 +330,6 @@ void IDevice::fromMap(const QVariantMap &map)
     if (!d->id.isValid())
         d->id = newId();
     d->origin = static_cast<Origin>(map.value(QLatin1String(OriginKey), ManuallyAdded).toInt());
-    d->sdkProvided = map.value(QLatin1String(SdkProvidedKey)).toBool();
 
     d->sshParameters.host = map.value(QLatin1String(HostKey)).toString();
     d->sshParameters.port = map.value(QLatin1String(SshPortKey), 22).toInt();
@@ -353,8 +345,10 @@ void IDevice::fromMap(const QVariantMap &map)
     if (optionsVariant.isValid())  // false for QtC < 3.4
         d->sshParameters.options = QSsh::SshConnectionOptions(optionsVariant.toInt());
 
-    d->freePorts = Utils::PortList::fromString(map.value(QLatin1String(PortsSpecKey),
-        QLatin1String("10000-10100")).toString());
+    QString portsSpec = map.value(PortsSpecKey).toString();
+    if (portsSpec.isEmpty())
+        portsSpec = "10000-10100";
+    d->freePorts = Utils::PortList::fromString(portsSpec);
     d->machineType = static_cast<MachineType>(map.value(QLatin1String(MachineTypeKey), DefaultMachineType).toInt());
     d->version = map.value(QLatin1String(VersionKey), 0).toInt();
 
@@ -374,7 +368,6 @@ QVariantMap IDevice::toMap() const
     map.insert(QLatin1String(TypeKey), d->type.toString());
     map.insert(QLatin1String(IdKey), d->id.toSetting());
     map.insert(QLatin1String(OriginKey), d->origin);
-    map.insert(QLatin1String(SdkProvidedKey), d->sdkProvided);
 
     map.insert(QLatin1String(MachineTypeKey), d->machineType);
     map.insert(QLatin1String(HostKey), d->sshParameters.host);
@@ -395,16 +388,6 @@ QVariantMap IDevice::toMap() const
     return map;
 }
 
-IDevice::Ptr IDevice::sharedFromThis()
-{
-    return DeviceManager::instance()->fromRawPointer(this);
-}
-
-IDevice::ConstPtr IDevice::sharedFromThis() const
-{
-    return DeviceManager::instance()->fromRawPointer(this);
-}
-
 QString IDevice::deviceStateToString() const
 {
     const char context[] = "ProjectExplorer::IDevice";
@@ -415,18 +398,6 @@ QString IDevice::deviceStateToString() const
     case IDevice::DeviceStateUnknown: return QCoreApplication::translate(context, "Unknown");
     default: return QCoreApplication::translate(context, "Invalid");
     }
-}
-
-void IDevice::setDeviceIcon(const QList<Utils::Icon> &deviceIcon)
-{
-    d->deviceIcons = deviceIcon;
-}
-
-QIcon IDevice::deviceIcon() const
-{
-    const QList<QIcon> icons =
-            Utils::transform(d->deviceIcons, [](const Utils::Icon &icon){return icon.icon();});
-    return Utils::Icon::combinedIcon(icons);
 }
 
 QSsh::SshConnectionParameters IDevice::sshParameters() const
@@ -440,9 +411,11 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-Connection IDevice::toolControlChannel(const ControlChannelHint &) const
+QUrl IDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return HostName(d->sshParameters.host);
+    QUrl url;
+    url.setHost(d->sshParameters.host);
+    return url;
 }
 
 void IDevice::setFreePorts(const Utils::PortList &freePorts)
@@ -498,7 +471,5 @@ DeviceProcessSignalOperation::DeviceProcessSignalOperation()
 DeviceEnvironmentFetcher::DeviceEnvironmentFetcher()
 {
 }
-
-void *HostName::staticTypeId = &HostName::staticTypeId;
 
 } // namespace ProjectExplorer

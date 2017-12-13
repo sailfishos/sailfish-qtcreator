@@ -31,14 +31,15 @@
 #include "todoitemsmodel.h"
 #include "todoitemsscanner.h"
 
-#include <projectexplorer/nodesvisitor.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/idocument.h>
+
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/projecttree.h>
-#include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/idocument.h>
 #include <projectexplorer/session.h>
 
+#include <QRegExp>
 #include <QTimer>
 
 using namespace ProjectExplorer;
@@ -146,15 +147,15 @@ void TodoItemsProvider::setItemsListWithinSubproject()
     // TODO prefer current editor as source of sub-project
     Node *node = ProjectTree::currentNode();
     if (node) {
-        ProjectNode *projectNode = node->projectNode();
+        ProjectNode *projectNode = node->parentProjectNode();
         if (projectNode) {
-
-            FindAllFilesVisitor filesVisitor;
-            projectNode->accept(&filesVisitor);
+            // FIXME: The name doesn't match the implementation that lists all files.
+            QSet<Utils::FileName> subprojectFileNames;
+            projectNode->forEachGenericNode([&](Node *node) {
+                 subprojectFileNames.insert(node->filePath());
+            });
 
             // files must be both in the current subproject and the startup-project.
-            QSet<Utils::FileName> subprojectFileNames =
-                    QSet<Utils::FileName>::fromList(filesVisitor.filePaths());
             QSet<QString> fileNames = QSet<QString>::fromList(
                         m_startupProject->files(ProjectExplorer::Project::SourceFiles));
             QHashIterator<QString, QList<TodoItem> > it(m_itemsHash);

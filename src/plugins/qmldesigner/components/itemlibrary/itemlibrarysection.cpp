@@ -85,7 +85,7 @@ bool ItemLibrarySection::updateSectionVisibility(const QString &searchText, bool
             haveVisibleItems = true;
     }
 
-    if (changed)
+    if (*changed)
         m_sectionEntries.resetModel();
 
     return haveVisibleItems;
@@ -110,6 +110,11 @@ bool ItemLibrarySection::isVisible() const
 void ItemLibrarySection::sortItems()
 {
     m_sectionEntries.sortItems();
+}
+
+void ItemLibrarySection::setSectionExpanded(bool expanded)
+{
+    m_sectionExpanded = expanded;
 }
 
 } // namespace QmlDesigner

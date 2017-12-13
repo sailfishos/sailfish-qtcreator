@@ -31,8 +31,7 @@
 #include <writemessageblock.h>
 #include <refactoringclientproxy.h>
 #include <refactoringserverproxy.h>
-#include <sourcelocationsforrenamingmessage.h>
-#include <requestsourcelocationforrenamingmessage.h>
+#include <clangrefactoringmessages.h>
 
 #include <QBuffer>
 #include <QString>
@@ -70,8 +69,7 @@ protected:
 
 TEST_F(RefactoringClientServerInProcess, SendEndMessage)
 {
-    EXPECT_CALL(mockRefactoringServer, end())
-        .Times(1);
+    EXPECT_CALL(mockRefactoringServer, end());
 
     serverProxy.end();
     scheduleServerMessages();
@@ -79,9 +77,7 @@ TEST_F(RefactoringClientServerInProcess, SendEndMessage)
 
 TEST_F(RefactoringClientServerInProcess, SendAliveMessage)
 {
-
-    EXPECT_CALL(mockRefactoringClient, alive())
-        .Times(1);
+    EXPECT_CALL(mockRefactoringClient, alive());
 
     clientProxy.alive();
     scheduleClientMessages();
@@ -92,8 +88,7 @@ TEST_F(RefactoringClientServerInProcess, SendSourceLocationsForRenamingMessage)
     ClangBackEnd::SourceLocationsContainer container;
     ClangBackEnd::SourceLocationsForRenamingMessage message("symbolName", std::move(container), 1);
 
-    EXPECT_CALL(mockRefactoringClient, sourceLocationsForRenamingMessage(message))
-        .Times(1);
+    EXPECT_CALL(mockRefactoringClient, sourceLocationsForRenamingMessage(message));
 
     clientProxy.sourceLocationsForRenamingMessage(message.clone());
     scheduleClientMessages();
@@ -101,19 +96,87 @@ TEST_F(RefactoringClientServerInProcess, SendSourceLocationsForRenamingMessage)
 
 TEST_F(RefactoringClientServerInProcess, SendRequestSourceLocationsForRenamingMessage)
 {
-    RequestSourceLocationsForRenamingMessage message{{"/home/marco/dev/qt-creator/tests/unit/unittest/data", "renamevariable.cpp"},
+    RequestSourceLocationsForRenamingMessage message{{TESTDATA_DIR, "renamevariable.cpp"},
                                                      1,
                                                      5,
                                                      "int v;\n\nint x = v + 3;\n",
                                                      {"cc", "renamevariable.cpp"},
                                                      1};
 
-    EXPECT_CALL(mockRefactoringServer, requestSourceLocationsForRenamingMessage(message))
-        .Times(1);
+    EXPECT_CALL(mockRefactoringServer, requestSourceLocationsForRenamingMessage(message));
 
     serverProxy.requestSourceLocationsForRenamingMessage(message.clone());
     scheduleServerMessages();
 }
+
+TEST_F(RefactoringClientServerInProcess, SourceRangesAndDiagnosticsForQueryMessage)
+{
+    ClangBackEnd::SourceRangesContainer sourceRangesContainer;
+    std::vector<ClangBackEnd::DynamicASTMatcherDiagnosticContainer> diagnosticContainers;
+    ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage message(std::move(sourceRangesContainer),
+                                                                    std::move(diagnosticContainers));
+
+    EXPECT_CALL(mockRefactoringClient, sourceRangesAndDiagnosticsForQueryMessage(message));
+
+    clientProxy.sourceRangesAndDiagnosticsForQueryMessage(message.clone());
+    scheduleClientMessages();
+}
+
+TEST_F(RefactoringClientServerInProcess, SourceRangesForQueryMessage)
+{
+    ClangBackEnd::SourceRangesContainer sourceRangesContainer;
+    ClangBackEnd::SourceRangesForQueryMessage message(std::move(sourceRangesContainer));
+
+    EXPECT_CALL(mockRefactoringClient, sourceRangesForQueryMessage(message));
+
+    clientProxy.sourceRangesForQueryMessage(message.clone());
+    scheduleClientMessages();
+}
+
+TEST_F(RefactoringClientServerInProcess, RequestSourceRangesAndDiagnosticsForQueryMessage)
+{
+    RequestSourceRangesForQueryMessage message{"functionDecl()",
+                                               {{{TESTDATA_DIR, "query_simplefunction.cpp"},
+                                                  "void f();",
+                                                 {"cc", "query_simplefunction.cpp"},
+                                                 1}},
+                                               {{{TESTDATA_DIR, "query_simplefunction.h"},
+                                                  "void f();",
+                                                 {},
+                                                 1}}};
+
+    EXPECT_CALL(mockRefactoringServer, requestSourceRangesForQueryMessage(message));
+
+    serverProxy.requestSourceRangesForQueryMessage(message.clone());
+    scheduleServerMessages();
+}
+
+TEST_F(RefactoringClientServerInProcess, RequestSourceRangesForQueryMessage)
+{
+    RequestSourceRangesForQueryMessage message{"functionDecl()",
+                                               {{{TESTDATA_DIR, "query_simplefunction.cpp"},
+                                                  "void f();",
+                                                 {"cc", "query_simplefunction.cpp"},
+                                                 1}},
+                                               {{{TESTDATA_DIR, "query_simplefunction.h"},
+                                                  "void f();",
+                                                 {},
+                                                 1}}};
+
+    EXPECT_CALL(mockRefactoringServer, requestSourceRangesForQueryMessage(message));
+
+    serverProxy.requestSourceRangesForQueryMessage(message.clone());
+    scheduleServerMessages();
+}
+
+TEST_F(RefactoringClientServerInProcess, CancelMessage)
+{
+    EXPECT_CALL(mockRefactoringServer, cancel());
+
+    serverProxy.cancel();
+    scheduleServerMessages();
+}
+
 
 RefactoringClientServerInProcess::RefactoringClientServerInProcess()
     : serverProxy(&mockRefactoringClient, &buffer),

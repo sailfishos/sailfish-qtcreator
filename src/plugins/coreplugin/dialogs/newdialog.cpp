@@ -47,7 +47,7 @@ Q_DECLARE_METATYPE(Core::IWizardFactory*)
 
 namespace {
 
-const int ICON_SIZE = 22;
+const int ICON_SIZE = 48;
 const char LAST_CATEGORY_KEY[] = "Core/NewDialog/LastCategory";
 const char LAST_PLATFORM_KEY[] = "Core/NewDialog/LastPlatform";
 
@@ -79,7 +79,7 @@ public:
         invalidateFilter();
     }
 
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
     {
         if (!sourceParent.isValid())
             return true;
@@ -101,18 +101,18 @@ class TwoLevelProxyModel : public QAbstractProxyModel
 public:
     TwoLevelProxyModel(QObject *parent = 0): QAbstractProxyModel(parent) {}
 
-    QModelIndex index(int row, int column, const QModelIndex &parent) const
+    QModelIndex index(int row, int column, const QModelIndex &parent) const override
     {
         QModelIndex ourModelIndex = sourceModel()->index(row, column, mapToSource(parent));
         return createIndex(row, column, ourModelIndex.internalPointer());
     }
 
-    QModelIndex parent(const QModelIndex &index) const
+    QModelIndex parent(const QModelIndex &index) const override
     {
         return mapFromSource(mapToSource(index).parent());
     }
 
-    int rowCount(const QModelIndex &index) const
+    int rowCount(const QModelIndex &index) const override
     {
         if (index.isValid() && index.parent().isValid() && !index.parent().parent().isValid())
             return 0;
@@ -120,19 +120,19 @@ public:
             return sourceModel()->rowCount(mapToSource(index));
     }
 
-    int columnCount(const QModelIndex &index) const
+    int columnCount(const QModelIndex &index) const override
     {
         return sourceModel()->columnCount(mapToSource(index));
     }
 
-    QModelIndex	mapFromSource (const QModelIndex &index) const
+    QModelIndex mapFromSource (const QModelIndex &index) const override
     {
         if (!index.isValid())
             return QModelIndex();
         return createIndex(index.row(), index.column(), index.internalPointer());
     }
 
-    QModelIndex	mapToSource (const QModelIndex &index) const
+    QModelIndex mapToSource (const QModelIndex &index) const override
     {
         if (!index.isValid())
             return QModelIndex();
@@ -148,7 +148,7 @@ public:
     FancyTopLevelDelegate(QObject *parent = 0)
         : QItemDelegate(parent) {}
 
-    void drawDisplay(QPainter *painter, const QStyleOptionViewItem &option, const QRect &rect, const QString &text) const
+    void drawDisplay(QPainter *painter, const QStyleOptionViewItem &option, const QRect &rect, const QString &text) const override
     {
         QStyleOptionViewItem newoption = option;
         if (!(option.state & QStyle::State_Enabled)) {
@@ -168,10 +168,9 @@ public:
         QItemDelegate::drawDisplay(painter, newoption, rect, text);
     }
 
-    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         QSize size = QItemDelegate::sizeHint(option, index);
-
 
         size = size.expandedTo(QSize(0, ROW_HEIGHT));
 
@@ -191,7 +190,7 @@ QWidget *NewDialog::m_currentDialog = nullptr;
 NewDialog::NewDialog(QWidget *parent) :
     QDialog(parent),
     m_ui(new Ui::NewDialog),
-    m_okButton(0)
+    m_okButton(nullptr)
 {
     QTC_CHECK(m_currentDialog == nullptr);
 
@@ -267,7 +266,7 @@ void NewDialog::setWizardFactories(QList<IWizardFactory *> factories,
     parentItem->appendRow(filesKindItem);
 
     if (m_dummyIcon.isNull())
-        m_dummyIcon = Utils::Icons::NEWFILE.icon();
+        m_dummyIcon = QIcon(":/utils/images/wizardicon-file.png");
 
     QSet<Id> availablePlatforms = IWizardFactory::allAvailablePlatforms();
     m_ui->comboBox->addItem(tr("All Templates"), Id().toSetting());
@@ -370,6 +369,28 @@ IWizardFactory *NewDialog::currentWizardFactory() const
     return factoryOfItem(m_model->itemFromIndex(index));
 }
 
+static QIcon iconWithText(const QIcon &icon, const QString &text)
+{
+    if (text.isEmpty())
+        return icon;
+    QIcon iconWithText;
+    for (const QSize &pixmapSize : icon.availableSizes()) {
+        QPixmap pixmap = icon.pixmap(pixmapSize);
+        const int fontSize = pixmap.height() / 4;
+        const int margin = pixmap.height() / 8;
+        QFont font;
+        font.setPixelSize(fontSize);
+        font.setStretch(85);
+        QPainter p(&pixmap);
+        p.setFont(font);
+        QTextOption textOption(Qt::AlignHCenter | Qt::AlignBottom);
+        textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+        p.drawText(pixmap.rect().adjusted(margin, margin, -margin, -margin), text, textOption);
+        iconWithText.addPixmap(pixmap);
+    }
+    return iconWithText;
+}
+
 void NewDialog::addItem(QStandardItem *topLevelCategoryItem, IWizardFactory *factory)
 {
     const QString categoryName = factory->category();
@@ -395,7 +416,7 @@ void NewDialog::addItem(QStandardItem *topLevelCategoryItem, IWizardFactory *fac
         wizardIcon = m_dummyIcon;
     else
         wizardIcon = factory->icon();
-    wizardItem->setIcon(wizardIcon);
+    wizardItem->setIcon(iconWithText(wizardIcon, factory->iconText()));
     wizardItem->setData(QVariant::fromValue(WizardFactoryContainer(factory, 0)), Qt::UserRole);
     wizardItem->setFlags(Qt::ItemIsEnabled|Qt::ItemIsSelectable);
     categoryItem->appendRow(wizardItem);

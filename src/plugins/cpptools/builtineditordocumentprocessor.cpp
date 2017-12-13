@@ -25,6 +25,7 @@
 
 #include "builtineditordocumentprocessor.h"
 
+#include "builtincursorinfo.h"
 #include "cppchecksymbols.h"
 #include "cppcodemodelsettings.h"
 #include "cppmodelmanager.h"
@@ -190,6 +191,8 @@ BuiltinEditorDocumentProcessor::BuiltinEditorDocumentProcessor(
             });
     }
 
+    connect(m_parser.data(), &BuiltinEditorDocumentParser::projectPartInfoUpdated,
+            this, &BaseEditorDocumentProcessor::projectPartInfoUpdated);
     connect(m_parser.data(), &BuiltinEditorDocumentParser::finished,
             this, &BuiltinEditorDocumentProcessor::onParserFinished);
     connect(&m_semanticInfoUpdater, &SemanticInfoUpdater::updated,
@@ -202,13 +205,13 @@ BuiltinEditorDocumentProcessor::~BuiltinEditorDocumentProcessor()
     m_parserFuture.waitForFinished();
 }
 
-void BuiltinEditorDocumentProcessor::run()
+void BuiltinEditorDocumentProcessor::runImpl(
+        const BaseEditorDocumentParser::UpdateParams &updateParams)
 {
-    CppModelManager *mgr = CppModelManager::instance();
-    m_parserFuture = Utils::runAsync(mgr->sharedThreadPool(),
+    m_parserFuture = Utils::runAsync(CppModelManager::instance()->sharedThreadPool(),
                                      runParser,
                                      parser(),
-                                     mgr->workingCopy());
+                                     updateParams);
 }
 
 BaseEditorDocumentParser::Ptr BuiltinEditorDocumentProcessor::parser()
@@ -249,6 +252,12 @@ SemanticInfo BuiltinEditorDocumentProcessor::recalculateSemanticInfo()
 bool BuiltinEditorDocumentProcessor::isParserRunning() const
 {
     return m_parserFuture.isRunning();
+}
+
+QFuture<CursorInfo>
+BuiltinEditorDocumentProcessor::cursorInfo(const CursorInfoParams &params)
+{
+    return BuiltinCursorInfo::run(params);
 }
 
 void BuiltinEditorDocumentProcessor::onParserFinished(CPlusPlus::Document::Ptr document,

@@ -31,6 +31,8 @@
 #include "../projectnodes.h"
 #include "../session.h"
 
+#include "../projecttree.h"
+
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/iversioncontrol.h>
 
@@ -125,10 +127,19 @@ void JsonSummaryPage::initializePage()
                                  });
     }
 
-    Node *contextNode = m_wizard->value(QLatin1String(Constants::PREFERRED_PROJECT_NODE))
-            .value<Node *>();
-    initializeProjectTree(contextNode, files, kind,
-                          isProject ? AddSubProject : AddNewFile);
+    // Use static cast from void * to avoid qobject_cast (which needs a valid object) in value()
+    // in the following code:
+    auto contextNode = findWizardContextNode(static_cast<Node *>(m_wizard->value(Constants::PREFERRED_PROJECT_NODE).value<void *>()));
+    const ProjectAction currentAction = isProject ? AddSubProject : AddNewFile;
+
+    initializeProjectTree(contextNode, files, kind, currentAction);
+
+    // Refresh combobox on project tree changes:
+    connect(ProjectTree::instance(), &ProjectTree::treeChanged,
+            this, [this, files, kind, currentAction]() {
+        initializeProjectTree(findWizardContextNode(currentNode()), files, kind, currentAction);
+    });
+
 
     bool hideProjectUi = JsonWizard::boolFromVariant(m_hideProjectUiValue, m_wizard->expander());
     setProjectUiVisible(!hideProjectUi);
@@ -175,7 +186,7 @@ void JsonSummaryPage::addToProject(const JsonWizard::GeneratorFiles &files)
     if (!folder)
         return;
     if (kind == IWizardFactory::ProjectWizard) {
-        if (!static_cast<ProjectNode *>(folder)->addSubProjects(QStringList(generatedProject))) {
+        if (!static_cast<ProjectNode *>(folder)->addSubProject(generatedProject)) {
             QMessageBox::critical(m_wizard, tr("Failed to Add to Project"),
                                   tr("Failed to add subproject \"%1\"\nto project \"%2\".")
                                   .arg(QDir::toNativeSeparators(generatedProject))
@@ -205,6 +216,23 @@ void JsonSummaryPage::summarySettingsHaveChanged()
     m_wizard->setValue(QLatin1String(KEY_VERSIONCONTROL), vc ? vc->id().toString() : QString());
 
     updateProjectData(currentNode());
+}
+
+Node *JsonSummaryPage::findWizardContextNode(Node *contextNode) const
+{
+    if (contextNode && !ProjectTree::hasNode(contextNode)) {
+        contextNode = nullptr;
+
+        // Static cast from void * to avoid qobject_cast (which needs a valid object) in value().
+        auto project = static_cast<Project *>(m_wizard->value(Constants::PROJECT_POINTER).value<void *>());
+        if (SessionManager::projects().contains(project) && project->rootProjectNode()) {
+            const QString path = m_wizard->value(Constants::PREFERRED_PROJECT_NODE_PATH).toString();
+            contextNode = project->rootProjectNode()->findNode([path](const Node *n) {
+                return path == n->filePath().toString();
+            });
+        }
+    }
+    return contextNode;
 }
 
 void JsonSummaryPage::updateFileList()

@@ -56,6 +56,7 @@
 
 #include <utils/fancylineedit.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcfallthrough.h>
 
 #include <QApplication>
 #include <QComboBox>
@@ -193,6 +194,13 @@ inline bool isQtStringLiteral(const QByteArray &id)
 inline bool isQtStringTranslation(const QByteArray &id)
 {
     return id == "tr" || id == "trUtf8" || id == "translate" || id == "QT_TRANSLATE_NOOP";
+}
+
+inline bool isQtFuzzyComparable(const QString &typeName)
+{
+    return typeName == QLatin1String("double")
+        || typeName == QLatin1String("float")
+        || typeName == QLatin1String("qreal");
 }
 
 Class *isMemberFunction(const LookupContext &context, Function *function)
@@ -817,9 +825,9 @@ public:
 
     ASTMatcher matcher;
     ASTPatternBuilder mk;
-    ConditionAST *condition;
-    IfStatementAST *pattern;
-    CoreDeclaratorAST *core;
+    ConditionAST *condition = nullptr;
+    IfStatementAST *pattern = nullptr;
+    CoreDeclaratorAST *core = nullptr;
 };
 
 } // anonymous namespace
@@ -894,9 +902,9 @@ public:
 
     ASTMatcher matcher;
     ASTPatternBuilder mk;
-    ConditionAST *condition;
-    WhileStatementAST *pattern;
-    CoreDeclaratorAST *core;
+    ConditionAST *condition = nullptr;
+    WhileStatementAST *pattern = nullptr;
+    CoreDeclaratorAST *core = nullptr;
 };
 
 } // anonymous namespace
@@ -1865,24 +1873,6 @@ QString templateNameAsString(const TemplateNameId *templateName)
     return QString::fromUtf8(id->chars(), id->size());
 }
 
-// For templates, simply the name is returned, without '<...>'.
-QString unqualifiedNameForLocator(const Name *name)
-{
-    QTC_ASSERT(name, return QString());
-
-    const Overview oo;
-    if (const QualifiedNameId *qualifiedName = name->asQualifiedNameId()) {
-        const Name *name = qualifiedName->name();
-        if (const TemplateNameId *templateName = name->asTemplateNameId())
-            return templateNameAsString(templateName);
-        return oo.prettyName(name);
-    } else if (const TemplateNameId *templateName = name->asTemplateNameId()) {
-        return templateNameAsString(templateName);
-    } else {
-        return oo.prettyName(name);
-    }
-}
-
 Snapshot forwardingHeaders(const CppQuickFixInterface &interface)
 {
     Snapshot result;
@@ -1902,6 +1892,44 @@ bool looksLikeAQtClass(const QString &identifier)
         && identifier.at(1).isUpper();
 }
 
+bool matchName(const Name *name, QList<Core::LocatorFilterEntry> *matches, QString *className) {
+    if (!name)
+        return false;
+
+    if (CppClassesFilter *classesFilter
+            = ExtensionSystem::PluginManager::getObject<CppClassesFilter>()) {
+        QFutureInterface<Core::LocatorFilterEntry> dummy;
+
+        const Overview oo;
+        if (const QualifiedNameId *qualifiedName = name->asQualifiedNameId()) {
+            const Name *name = qualifiedName->name();
+            if (const TemplateNameId *templateName = name->asTemplateNameId()) {
+                *className = templateNameAsString(templateName);
+            } else {
+                *className = oo.prettyName(name);
+                *matches = classesFilter->matchesFor(dummy, *className);
+                if (matches->empty()) {
+                    if (const Name *name = qualifiedName->base()) {
+                        if (const TemplateNameId *templateName = name->asTemplateNameId())
+                            *className = templateNameAsString(templateName);
+                        else
+                            *className = oo.prettyName(name);
+                    }
+                }
+            }
+        } else if (const TemplateNameId *templateName = name->asTemplateNameId()) {
+            *className = templateNameAsString(templateName);
+        } else {
+            *className = oo.prettyName(name);
+        }
+
+        if (matches->empty())
+            *matches = classesFilter->matchesFor(dummy, *className);
+    }
+
+    return !matches->empty();
+}
+
 } // anonymous namespace
 
 void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interface,
@@ -1914,20 +1942,14 @@ void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interfa
     if (canLookupDefinition(interface, nameAst))
         return;
 
-    const QString className = unqualifiedNameForLocator(nameAst->name);
-    if (className.isEmpty())
-        return;
-
+    QString className;
+    QList<Core::LocatorFilterEntry> matches;
     const QString currentDocumentFilePath = interface.semanticInfo().doc->fileName();
     const ProjectPartHeaderPaths headerPaths = relevantHeaderPaths(currentDocumentFilePath);
     bool qtHeaderFileIncludeOffered = false;
 
     // Find an include file through the locator
-    if (CppClassesFilter *classesFilter
-            = ExtensionSystem::PluginManager::getObject<CppClassesFilter>()) {
-        QFutureInterface<Core::LocatorFilterEntry> dummy;
-        const QList<Core::LocatorFilterEntry> matches = classesFilter->matchesFor(dummy, className);
-
+    if (matchName(nameAst->name, &matches, &className)) {
         const Snapshot forwardHeaders = forwardingHeaders(interface);
         foreach (const Core::LocatorFilterEntry &entry, matches) {
             IndexItem::Ptr info = entry.internalData.value<IndexItem::Ptr>();
@@ -1963,6 +1985,9 @@ void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interfa
             }
         }
     }
+
+    if (className.isEmpty())
+        return;
 
     // The header file we are looking for might not be (yet) included in any file we have parsed.
     // As such, it will not be findable via locator. At least for Qt classes, check also for
@@ -2228,7 +2253,7 @@ public:
     }
 
     Overview prettyPrint;
-    bool foundCaseStatementLevel;
+    bool foundCaseStatementLevel = false;
     QStringList values;
     TypeOfExpression typeOfExpression;
     Document::Ptr document;
@@ -2446,8 +2471,6 @@ void InsertDeclFromDef::match(const CppQuickFixInterface &interface, QuickFixOpe
             if (DeclaratorIdAST *declId = node->asDeclaratorId()) {
                 if (file->isCursorOn(declId)) {
                     if (FunctionDefinitionAST *candidate = path.at(idx - 2)->asFunctionDefinition()) {
-                        if (funDef)
-                            return;
                         funDef = candidate;
                         break;
                     }
@@ -3850,7 +3873,7 @@ public:
                 result.file = refactoring.file(declFileName);
                 ASTPath astPath(result.file->cppDocument());
                 const QList<AST *> path = astPath(s->line(), s->column());
-                SimpleDeclarationAST *simpleDecl;
+                SimpleDeclarationAST *simpleDecl = nullptr;
                 for (int idx = 0; idx < path.size(); ++idx) {
                     AST *node = path.at(idx);
                     simpleDecl = node->asSimpleDeclaration();
@@ -4097,7 +4120,7 @@ public:
             break;
         case FromReference:
             removeReferenceOperator(changes);
-            // fallthrough intended
+            Q_FALLTHROUGH();
         case FromVariable:
             convertToPointer(changes);
             break;
@@ -4429,7 +4452,7 @@ public:
         , m_signalName(signalName)
         , m_storageName(storageName)
     {
-        setDescription(QuickFixFactory::tr("Generate Missing Q_PROPERTY Members..."));
+        setDescription(QuickFixFactory::tr("Generate Missing Q_PROPERTY Members"));
     }
 
     void perform()
@@ -4463,9 +4486,14 @@ public:
             if (m_signalName.isEmpty()) {
                 setter << m_storageName <<  " = " << baseName << ";\n}\n";
             } else {
-                setter << "if (" << m_storageName << " == " << baseName << ")\nreturn;\n\n"
-                       << m_storageName << " = " << baseName << ";\nemit " << m_signalName
-                       << '(' << baseName << ");\n}\n";
+                if (isQtFuzzyComparable(typeName)) {
+                    setter << "qWarning(\"Floating point comparison needs context sanity check\");\n";
+                    setter << "if (qFuzzyCompare(" << m_storageName << ", " << baseName << "))\nreturn;\n\n";
+                }
+                else
+                    setter << "if (" << m_storageName << " == " << baseName << ")\nreturn;\n\n";
+                setter << m_storageName << " = " << baseName << ";\nemit " << m_signalName
+                       << '(' << m_storageName << ");\n}\n";
             }
             InsertionLocation setterLoc = locator.methodDeclarationInClass(file->fileName(), m_class, InsertionPointLocator::PublicSlot);
             QTC_ASSERT(setterLoc.isValid(), return);
@@ -4890,7 +4918,7 @@ void MoveAllFuncDefOutside::match(const CppQuickFixInterface &interface, QuickFi
         return;
 
     // Determine if cursor is on a class which is not a base class
-    ClassSpecifierAST *classAST = Q_NULLPTR;
+    ClassSpecifierAST *classAST = nullptr;
     if (SimpleNameAST *nameAST = path.at(pathSize - 1)->asSimpleName()) {
         if (!interface.isCursorOn(nameAST))
             return;

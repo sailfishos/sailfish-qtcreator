@@ -27,7 +27,6 @@
 
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerstatisticsmodel.h"
-#include "qmlprofilerviewmanager.h"
 #include "qmlprofilereventsview.h"
 #include "qmlprofilereventtypes.h"
 
@@ -79,6 +78,9 @@ public:
                                        QWidget *parent = nullptr);
     ~QmlProfilerStatisticsView();
     void clear() override;
+
+    QString summary(const QVector<int> &typeIds) const;
+    QStringList details(int typeId) const;
 
 public slots:
     void selectByTypeId(int typeIndex) override;

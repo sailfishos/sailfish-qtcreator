@@ -43,6 +43,7 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QRegExp>
 
 using namespace Utils;
 
@@ -138,7 +139,7 @@ public:
 private:
     struct TargetDescription
     {
-        TargetDescription(QString tid, QString dn) :
+        TargetDescription(const QString &tid, const QString &dn) :
             id(tid),
             displayName(dn)
         {
@@ -1622,43 +1623,41 @@ QVariantMap UserFileVersion7Upgrader::upgrade(const QVariantMap &map)
 
 static const char * const argListKeys[] = {
     "ProjectExplorer.Project.Target.",
-        "ProjectExplorer.Target.BuildConfiguration."
-        "|ProjectExplorer.Target.DeployConfiguration.",
-            "ProjectExplorer.BuildConfiguration.BuildStepList.",
-                "ProjectExplorer.BuildStepList.Step.",
-                    "GenericProjectManager.GenericMakeStep.MakeArguments",
-                    "QtProjectManager.QMakeBuildStep.QMakeArguments",
-                    "Qt4ProjectManager.MakeStep.MakeArguments",
-                    "CMakeProjectManager.MakeStep.AdditionalArguments",
-                    0,
-                0,
-            0,
-        "ProjectExplorer.Target.RunConfiguration.",
-            "ProjectExplorer.CustomExecutableRunConfiguration.Arguments",
-            "Qt4ProjectManager.Qt4RunConfiguration.CommandLineArguments",
-            "CMakeProjectManager.CMakeRunConfiguration.Arguments",
-            0,
-        0,
-    0
+    "ProjectExplorer.Target.BuildConfiguration.|ProjectExplorer.Target.DeployConfiguration.",
+    "ProjectExplorer.BuildConfiguration.BuildStepList.",
+    "ProjectExplorer.BuildStepList.Step.",
+    "GenericProjectManager.GenericMakeStep.MakeArguments",
+    "QtProjectManager.QMakeBuildStep.QMakeArguments",
+    "Qt4ProjectManager.MakeStep.MakeArguments",
+    "CMakeProjectManager.MakeStep.AdditionalArguments",
+    nullptr,
+    nullptr,
+    nullptr,
+    "ProjectExplorer.Target.RunConfiguration.",
+    "ProjectExplorer.CustomExecutableRunConfiguration.Arguments",
+    "Qt4ProjectManager.Qt4RunConfiguration.CommandLineArguments",
+    "CMakeProjectManager.CMakeRunConfiguration.Arguments",
+    nullptr,
+    nullptr,
+    nullptr
 };
 
 static const char * const lameArgListKeys[] = {
     "ProjectExplorer.Project.Target.",
-        "ProjectExplorer.Target.BuildConfiguration."
-        "|ProjectExplorer.Target.DeployConfiguration.",
-            "ProjectExplorer.BuildConfiguration.BuildStepList.",
-                "ProjectExplorer.BuildStepList.Step.",
-                    "ProjectExplorer.ProcessStep.Arguments",
-                    0,
-                0,
-            0,
-        "ProjectExplorer.Target.RunConfiguration.",
-            "Qt4ProjectManager.MaemoRunConfiguration.Arguments",
-            "Qt4ProjectManager.S60DeviceRunConfiguration.CommandLineArguments",
-            "QmlProjectManager.QmlRunConfiguration.QDeclarativeViewerArguments",
-            0,
-        0,
-    0
+    "ProjectExplorer.Target.BuildConfiguration.|ProjectExplorer.Target.DeployConfiguration.",
+    "ProjectExplorer.BuildConfiguration.BuildStepList.",
+    "ProjectExplorer.BuildStepList.Step.",
+    "ProjectExplorer.ProcessStep.Arguments",
+    nullptr,
+    nullptr,
+    nullptr,
+    "ProjectExplorer.Target.RunConfiguration.",
+    "Qt4ProjectManager.MaemoRunConfiguration.Arguments",
+    "Qt4ProjectManager.S60DeviceRunConfiguration.CommandLineArguments",
+    "QmlProjectManager.QmlRunConfiguration.QDeclarativeViewerArguments",
+    nullptr,
+    nullptr,
+    nullptr
 };
 
 inline static bool isSpecialChar(ushort c)
@@ -2150,13 +2149,12 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
                 for (int j = i + 2; j < split.count(); ++j)
                     debuggerPath = debuggerPath + QLatin1Char('.') + split.at(j);
 
-                foreach (ToolChain *tc, ToolChainManager::toolChains()) {
-                    if ((tc->compilerCommand() == FileName::fromString(compilerPath))
-                            && (tc->targetAbi() == compilerAbi)) {
-                        tcId = QString::fromUtf8(tc->id());
-                        break;
-                    }
-                }
+                ToolChain *tc = ToolChainManager::toolChain([cp = FileName::fromString(compilerPath),
+                                                            compilerAbi](const ToolChain *t) {
+                    return t->compilerCommand() == cp && t->targetAbi() == compilerAbi;
+                });
+                if (tc)
+                    tcId = QString::fromUtf8(tc->id());
             }
             tmpKit->setValue("PE.Profile.ToolChain", tcId);
 

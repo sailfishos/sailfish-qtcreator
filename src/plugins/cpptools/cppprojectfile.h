@@ -27,8 +27,6 @@
 
 #include "cpptools_global.h"
 
-#include <QHash>
-#include <QList>
 #include <QString>
 
 namespace CppTools {
@@ -36,32 +34,44 @@ namespace CppTools {
 class CPPTOOLS_EXPORT ProjectFile
 {
 public:
-    // enums and types
     enum Kind {
-        Unclassified = 0,
-        CHeader = 1,
-        CSource = 2,
-        CXXHeader = 3,
-        CXXSource = 4,
-        ObjCHeader = 5,
-        ObjCSource = 6,
-        ObjCXXHeader = 7,
-        ObjCXXSource = 8,
-        CudaSource = 9,
-        OpenCLSource = 10
+        Unclassified,
+        Unsupported,
+        AmbiguousHeader,
+        CHeader,
+        CSource,
+        CXXHeader,
+        CXXSource,
+        ObjCHeader,
+        ObjCSource,
+        ObjCXXHeader,
+        ObjCXXSource,
+        CudaSource,
+        OpenCLSource,
     };
 
-    ProjectFile();
-    ProjectFile(const QString &file, Kind kind);
+    static Kind classify(const QString &filePath);
 
-    static Kind classify(const QString &file);
-    static bool isHeader(Kind kind);
     static bool isSource(Kind kind);
+    static bool isHeader(Kind kind);
+    static bool isAmbiguousHeader(const QString &filePath);
+
+    bool isHeader() const;
+    bool isSource() const;
+
+public:
+    ProjectFile() = default;
+    ProjectFile(const QString &filePath, Kind kind);
+
+    bool operator==(const ProjectFile &other) const;
 
     QString path;
-    Kind kind;
+    Kind kind = Unclassified;
 };
 
-QDebug operator<<(QDebug stream, const CppTools::ProjectFile &cxxFile);
+using ProjectFiles = QVector<ProjectFile>;
+
+const char *projectFileKindToText(ProjectFile::Kind kind);
+QDebug operator<<(QDebug stream, const CppTools::ProjectFile &projectFile);
 
 } // namespace CppTools

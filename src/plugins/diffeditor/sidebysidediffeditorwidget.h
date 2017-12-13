@@ -30,7 +30,12 @@
 #include <QWidget>
 #include <QTextCharFormat>
 
-namespace TextEditor { class FontSettings; }
+namespace Core { class IContext; }
+
+namespace TextEditor {
+class FontSettings;
+class TextEditorWidget;
+}
 
 QT_BEGIN_NAMESPACE
 class QMenu;
@@ -52,8 +57,13 @@ class SideBySideDiffEditorWidget : public QWidget
     Q_OBJECT
 public:
     explicit SideBySideDiffEditorWidget(QWidget *parent = 0);
+    ~SideBySideDiffEditorWidget();
+
+    TextEditor::TextEditorWidget *leftEditorWidget() const;
+    TextEditor::TextEditorWidget *rightEditorWidget() const;
 
     void setDocument(DiffEditorDocument *document);
+    DiffEditorDocument *diffDocument() const;
 
     void setDiff(const QList<FileData> &diffFileList,
                  const QString &workingDirectory);
@@ -69,7 +79,7 @@ public:
 signals:
     void currentDiffFileIndexChanged(int index);
 
-private slots:
+private:
     void setFontSettings(const TextEditor::FontSettings &fontSettings);
     void slotLeftJumpToOriginalFileRequested(int diffFileIndex,
                                              int lineNumber, int columnNumber);
@@ -86,7 +96,6 @@ private slots:
     void leftCursorPositionChanged();
     void rightCursorPositionChanged();
 
-private:
     void showDiff();
 
     SideDiffEditorWidget *m_leftEditor;
@@ -98,6 +107,8 @@ private:
     bool m_horizontalSync = false;
 
     QTextCharFormat m_spanLineFormat;
+    Core::IContext *m_leftContext;
+    Core::IContext *m_rightContext;
 };
 
 } // namespace Internal

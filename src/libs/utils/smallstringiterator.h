@@ -28,11 +28,6 @@
 #include <cstddef>
 #include <iterator>
 
-#pragma push_macro("noexcept")
-#ifndef __cpp_noexcept
-#define noexcept
-#endif
-
 namespace Utils {
 
 namespace Internal {
@@ -46,7 +41,7 @@ struct SmallStringIterator : public  std::iterator<Category, Type, DistanceType,
 {
     SmallStringIterator() noexcept = default;
 
-    SmallStringIterator(Pointer ptr) : pointer_(ptr) noexcept
+    SmallStringIterator(Pointer ptr) noexcept : pointer_(ptr)
     {
     }
 
@@ -151,5 +146,3 @@ private:
 } // namespace Internal
 
 } // namespace Utils
-
-#pragma pop_macro("noexcept")

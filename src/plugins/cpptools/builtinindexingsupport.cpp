@@ -42,10 +42,11 @@
 #include <cplusplus/LookupContext.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
+#include <utils/temporarydirectory.h>
 
 #include <QCoreApplication>
-#include <QDir>
 #include <QElapsedTimer>
+#include <QRegularExpression>
 
 using namespace CppTools;
 using namespace CppTools::Internal;
@@ -71,10 +72,9 @@ public:
     WriteTaskFileForDiagnostics()
         : m_processedDiagnostics(0)
     {
-        const QString fileName = QDir::tempPath()
-                + QLatin1String("/qtc_findErrorsIndexing.diagnostics.")
-                + QDateTime::currentDateTime().toString(QLatin1String("yyMMdd_HHmm"))
-                + QLatin1String(".tasks");
+        const QString fileName = Utils::TemporaryDirectory::masterDirectoryPath()
+                + "/qtc_findErrorsIndexing.diagnostics."
+                + QDateTime::currentDateTime().toString("yyMMdd_HHmm") + ".tasks";
 
         m_file.setFileName(fileName);
         Q_ASSERT(m_file.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -133,7 +133,9 @@ void classifyFiles(const QSet<QString> &files, QStringList *headers, QStringList
     }
 }
 
-void indexFindErrors(QFutureInterface<void> &future, const ParseParams params)
+void indexFindErrors(QFutureInterface<void> &indexingFuture,
+                     const QFutureInterface<void> &superFuture,
+                     const ParseParams params)
 {
     QStringList sources, headers;
     classifyFiles(params.sourceFiles, &headers, &sources);
@@ -146,9 +148,7 @@ void indexFindErrors(QFutureInterface<void> &future, const ParseParams params)
     timer.start();
 
     for (int i = 0, end = files.size(); i < end ; ++i) {
-        if (future.isPaused())
-            future.waitForResume();
-        if (future.isCanceled())
+        if (indexingFuture.isCanceled() || superFuture.isCanceled())
             break;
 
         const QString file = files.at(i);
@@ -157,7 +157,7 @@ void indexFindErrors(QFutureInterface<void> &future, const ParseParams params)
         // Parse the file as precisely as possible
         BuiltinEditorDocumentParser parser(file);
         parser.setReleaseSourceAndAST(false);
-        parser.update(CppModelManager::instance()->workingCopy());
+        parser.update({CppModelManager::instance()->workingCopy(), nullptr, Language::Cxx, false});
         CPlusPlus::Document::Ptr document = parser.document();
         QTC_ASSERT(document, return);
 
@@ -170,7 +170,7 @@ void indexFindErrors(QFutureInterface<void> &future, const ParseParams params)
 
         document->releaseSourceAndAST();
 
-        future.setProgressValue(files.size() - (files.size() - (i + 1)));
+        indexingFuture.setProgressValue(files.size() - (files.size() - (i + 1)));
     }
 
     const QTime format = QTime(0, 0, 0, 0).addMSecs(timer.elapsed() + 500);
@@ -178,7 +178,9 @@ void indexFindErrors(QFutureInterface<void> &future, const ParseParams params)
     qDebug("FindErrorsIndexing: Finished after %s.", qPrintable(time));
 }
 
-void index(QFutureInterface<void> &future, const ParseParams params)
+void index(QFutureInterface<void> &indexingFuture,
+           const QFutureInterface<void> &superFuture,
+           const ParseParams params)
 {
     QScopedPointer<CppSourceProcessor> sourceProcessor(CppModelManager::createSourceProcessor());
     sourceProcessor->setFileSizeLimitInMb(params.indexerFileSizeLimitInMb);
@@ -205,10 +207,7 @@ void index(QFutureInterface<void> &future, const ParseParams params)
     const CPlusPlus::LanguageFeatures defaultFeatures =
             CPlusPlus::LanguageFeatures::defaultFeatures();
     for (int i = 0; i < files.size(); ++i) {
-        if (future.isPaused())
-            future.waitForResume();
-
-        if (future.isCanceled())
+        if (indexingFuture.isCanceled() || superFuture.isCanceled())
             break;
 
         const QString fileName = files.at(i);
@@ -233,27 +232,29 @@ void index(QFutureInterface<void> &future, const ParseParams params)
         sourceProcessor->setHeaderPaths(headerPaths);
         sourceProcessor->run(fileName);
 
-        future.setProgressValue(files.size() - sourceProcessor->todo().size());
+        indexingFuture.setProgressValue(files.size() - sourceProcessor->todo().size());
 
         if (isSourceFile)
             sourceProcessor->resetEnvironment();
     }
 }
 
-void parse(QFutureInterface<void> &future, const ParseParams params)
+void parse(QFutureInterface<void> &indexingFuture,
+           const QFutureInterface<void> &superFuture,
+           const ParseParams params)
 {
     const QSet<QString> &files = params.sourceFiles;
     if (files.isEmpty())
         return;
 
-    future.setProgressRange(0, files.size());
+    indexingFuture.setProgressRange(0, files.size());
 
     if (FindErrorsIndexing)
-        indexFindErrors(future, params);
+        indexFindErrors(indexingFuture, superFuture, params);
     else
-        index(future, params);
+        index(indexingFuture, superFuture, params);
 
-    future.setProgressValue(files.size());
+    indexingFuture.setProgressValue(files.size());
     CppModelManager::instance()->finishedRefreshingSourceFiles(files);
 }
 
@@ -281,11 +282,13 @@ public:
         CPlusPlus::Snapshot::const_iterator it = m_snapshot.begin();
 
         QString findString = (m_parameters.flags & Core::FindRegularExpression
-                              ? m_parameters.text : QRegExp::escape(m_parameters.text));
+                              ? m_parameters.text : QRegularExpression::escape(m_parameters.text));
         if (m_parameters.flags & Core::FindWholeWords)
             findString = QString::fromLatin1("\\b%1\\b").arg(findString);
-        QRegExp matcher(findString, (m_parameters.flags & Core::FindCaseSensitively
-                                     ? Qt::CaseSensitive : Qt::CaseInsensitive));
+        QRegularExpression matcher(findString, (m_parameters.flags & Core::FindCaseSensitively
+                                                ? QRegularExpression::NoPatternOption
+                                                : QRegularExpression::CaseInsensitiveOption));
+        matcher.optimize();
         while (it != m_snapshot.end()) {
             if (future.isPaused())
                 future.waitForResume();
@@ -294,7 +297,7 @@ public:
             if (m_fileNames.isEmpty() || m_fileNames.contains(it.value()->fileName())) {
                 QVector<Core::SearchResultItem> resultItems;
                 auto filter = [&](const IndexItem::Ptr &info) -> IndexItem::VisitorResult {
-                    if (matcher.indexIn(info->symbolName()) != -1) {
+                    if (matcher.match(info->symbolName()).hasMatch()) {
                         QString text = info->symbolName();
                         QString scope = info->symbolScope();
                         if (info->type() == IndexItem::Function) {
@@ -308,10 +311,7 @@ public:
                         Core::SearchResultItem item;
                         item.path = scope.split(QLatin1String("::"), QString::SkipEmptyParts);
                         item.text = text;
-                        item.textMarkPos = -1;
-                        item.textMarkLength = 0;
                         item.icon = info->icon();
-                        item.lineNumber = -1;
                         item.userData = qVariantFromValue(info);
                         resultItems << item;
                     }
@@ -346,8 +346,10 @@ BuiltinIndexingSupport::BuiltinIndexingSupport()
 BuiltinIndexingSupport::~BuiltinIndexingSupport()
 {}
 
-QFuture<void> BuiltinIndexingSupport::refreshSourceFiles(const QSet<QString> &sourceFiles,
-    CppModelManager::ProgressNotificationMode mode)
+QFuture<void> BuiltinIndexingSupport::refreshSourceFiles(
+        const QFutureInterface<void> &superFuture,
+        const QSet<QString> &sourceFiles,
+        CppModelManager::ProgressNotificationMode mode)
 {
     CppModelManager *mgr = CppModelManager::instance();
 
@@ -357,7 +359,7 @@ QFuture<void> BuiltinIndexingSupport::refreshSourceFiles(const QSet<QString> &so
     params.workingCopy = mgr->workingCopy();
     params.sourceFiles = sourceFiles;
 
-    QFuture<void> result = Utils::runAsync(mgr->sharedThreadPool(), parse, params);
+    QFuture<void> result = Utils::runAsync(mgr->sharedThreadPool(), parse, superFuture, params);
 
     if (m_synchronizer.futures().size() > 10) {
         QList<QFuture<void> > futures = m_synchronizer.futures();

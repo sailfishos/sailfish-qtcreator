@@ -93,6 +93,8 @@ DesignerSettings SettingsPageWidget::settings() const
     settings.insert(DesignerSettingsKey::CONTAINERPADDING, m_ui.spinSnapMargin->value());
     settings.insert(DesignerSettingsKey::CANVASWIDTH, m_ui.spinCanvasWidth->value());
     settings.insert(DesignerSettingsKey::CANVASHEIGHT, m_ui.spinCanvasHeight->value());
+    settings.insert(DesignerSettingsKey::ROOT_ELEMENT_INIT_WIDTH, m_ui.spinRootItemInitWidth->value());
+    settings.insert(DesignerSettingsKey::ROOT_ELEMENT_INIT_HEIGHT, m_ui.spinRootItemInitHeight->value());
     settings.insert(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER,
                     m_ui.designerWarningsCheckBox->isChecked());
     settings.insert(DesignerSettingsKey::WARNING_FOR_QML_FILES_INSTEAD_OF_UIQML_FILES,
@@ -106,8 +108,19 @@ DesignerSettings SettingsPageWidget::settings() const
         m_ui.designerEnableDebuggerCheckBox->isChecked());
     settings.insert(DesignerSettingsKey::USE_ONLY_FALLBACK_PUPPET,
         m_ui.useDefaultPuppetRadioButton->isChecked());
-    settings.insert(DesignerSettingsKey::USE_QSTR_FUNCTION,
-        m_ui.useQsTrFunctionRadioButton->isChecked());
+
+    int typeOfQsTrFunction;
+
+    if (m_ui.useQsTrFunctionRadioButton->isChecked())
+        typeOfQsTrFunction = 0;
+    else if (m_ui.useQsTrIdFunctionRadioButton->isChecked())
+        typeOfQsTrFunction = 1;
+    else if (m_ui.useQsTranslateFunctionRadioButton->isChecked())
+        typeOfQsTrFunction = 2;
+    else
+        typeOfQsTrFunction = 0;
+
+    settings.insert(DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION, typeOfQsTrFunction);
     settings.insert(DesignerSettingsKey::CONTROLS_STYLE, m_ui.styleLineEdit->text());
     settings.insert(DesignerSettingsKey::FORWARD_PUPPET_OUTPUT,
         m_ui.forwardPuppetOutputComboBox->currentText());
@@ -145,6 +158,10 @@ void SettingsPageWidget::setSettings(const DesignerSettings &settings)
         DesignerSettingsKey::CANVASWIDTH).toInt());
     m_ui.spinCanvasHeight->setValue(settings.value(
         DesignerSettingsKey::CANVASHEIGHT).toInt());
+    m_ui.spinRootItemInitWidth->setValue(settings.value(
+        DesignerSettingsKey::ROOT_ELEMENT_INIT_WIDTH).toInt());
+    m_ui.spinRootItemInitHeight->setValue(settings.value(
+        DesignerSettingsKey::ROOT_ELEMENT_INIT_HEIGHT).toInt());
     m_ui.designerWarningsCheckBox->setChecked(settings.value(
         DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER).toBool());
     m_ui.designerWarningsUiQmlfiles->setChecked(settings.value(
@@ -160,9 +177,11 @@ void SettingsPageWidget::setSettings(const DesignerSettings &settings)
     m_ui.useQtRelatedPuppetRadioButton->setChecked(!settings.value(
         DesignerSettingsKey::USE_ONLY_FALLBACK_PUPPET).toBool());
     m_ui.useQsTrFunctionRadioButton->setChecked(settings.value(
-        DesignerSettingsKey::USE_QSTR_FUNCTION).toBool());
-    m_ui.useQsTrIdFunctionRadioButton->setChecked(!settings.value(
-        DesignerSettingsKey::USE_QSTR_FUNCTION).toBool());
+        DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt() == 0);
+    m_ui.useQsTrIdFunctionRadioButton->setChecked(settings.value(
+        DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt() == 1);
+    m_ui.useQsTranslateFunctionRadioButton->setChecked(settings.value(
+        DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt() == 2);
     m_ui.styleLineEdit->setText(settings.value(
         DesignerSettingsKey::CONTROLS_STYLE).toString());
 

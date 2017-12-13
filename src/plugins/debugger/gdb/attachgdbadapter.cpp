@@ -31,12 +31,13 @@
 #include <debugger/debuggerstartparameters.h>
 
 #include <utils/qtcassert.h>
+#include <utils/qtcfallthrough.h>
 
 namespace Debugger {
 namespace Internal {
 
-GdbAttachEngine::GdbAttachEngine(const DebuggerRunParameters &startParameters)
-    : GdbEngine(startParameters)
+GdbAttachEngine::GdbAttachEngine(bool useTerminal)
+    : GdbEngine(useTerminal)
 {
 }
 
@@ -59,9 +60,9 @@ void GdbAttachEngine::setupInferior()
 void GdbAttachEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
-    const qint64 pid = runParameters().attachPID;
+    const qint64 pid = runParameters().attachPID.pid();
     showStatusMessage(tr("Attaching to process %1.").arg(pid));
-    runCommand({"attach " + QString::number(pid), NoFlags,
+    runCommand({"attach " + QString::number(pid),
                 [this](const DebuggerResponse &r) { handleAttach(r); }});
     // In some cases we get only output like
     //   "Could not attach to process.  If your uid matches the uid of the target\n"
@@ -69,7 +70,7 @@ void GdbAttachEngine::runEngine()
     //   " again as the root user.  For more details, see /etc/sysctl.d/10-ptrace.conf\n"
     //   " ptrace: Operation not permitted.\n"
     // but no(!) ^ response. Use a second command to force *some* output
-    runCommand({"print 24", NoFlags});
+    runCommand({"print 24"});
 }
 
 void GdbAttachEngine::handleAttach(const DebuggerResponse &response)
@@ -102,7 +103,7 @@ void GdbAttachEngine::handleAttach(const DebuggerResponse &response)
             notifyEngineIll();
             break;
         }
-        // if msg != "ptrace: ..." fall through
+        Q_FALLTHROUGH(); // if msg != "ptrace: ..."
     default:
         showStatusMessage(tr("Failed to attach to application: %1")
                           .arg(QString(response.data["msg"].data())));
@@ -110,10 +111,9 @@ void GdbAttachEngine::handleAttach(const DebuggerResponse &response)
     }
 }
 
-
 void GdbAttachEngine::interruptInferior2()
 {
-    interruptLocalInferior(runParameters().attachPID);
+    interruptLocalInferior(runParameters().attachPID.pid());
 }
 
 void GdbAttachEngine::shutdownEngine()

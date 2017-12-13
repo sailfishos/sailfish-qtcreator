@@ -27,6 +27,7 @@
 #include "baseeditordocumentprocessor.h"
 
 #include "cppmodelmanager.h"
+#include "cppprojectpartchooser.h"
 #include "editordocumenthandle.h"
 
 namespace CppTools {
@@ -40,19 +41,21 @@ namespace CppTools {
     It's meant to be used in the C++ editor to get precise results by using
     the "best" project part for a file.
 
-    Derived classes are expected to implement updateHelper() this way:
+    Derived classes are expected to implement updateImpl() this way:
 
     \list
         \li Get a copy of the configuration and the last state.
         \li Work on the data and do whatever is necessary. At least, update
             the project part with the help of determineProjectPart().
-        \li Ensure the new state is set before updateHelper() returns.
+        \li Ensure the new state is set before updateImpl() returns.
     \endlist
 */
 
 BaseEditorDocumentParser::BaseEditorDocumentParser(const QString &filePath)
     : m_filePath(filePath)
 {
+    static int meta = qRegisterMetaType<ProjectPartInfo>("CppTools::ProjectPartInfo");
+    Q_UNUSED(meta);
 }
 
 BaseEditorDocumentParser::~BaseEditorDocumentParser()
@@ -76,17 +79,17 @@ void BaseEditorDocumentParser::setConfiguration(const Configuration &configurati
     m_configuration = configuration;
 }
 
-void BaseEditorDocumentParser::update(const WorkingCopy &workingCopy)
+void BaseEditorDocumentParser::update(const UpdateParams &updateParams)
 {
     QFutureInterface<void> dummy;
-    update(dummy, workingCopy);
+    update(dummy, updateParams);
 }
 
 void BaseEditorDocumentParser::update(const QFutureInterface<void> &future,
-                                      const WorkingCopy &workingCopy)
+                                      const UpdateParams &updateParams)
 {
     QMutexLocker locker(&m_updateIsRunning);
-    updateHelper(future, workingCopy);
+    updateImpl(future, updateParams);
 }
 
 BaseEditorDocumentParser::State BaseEditorDocumentParser::state() const
@@ -101,9 +104,9 @@ void BaseEditorDocumentParser::setState(const State &state)
     m_state = state;
 }
 
-ProjectPart::Ptr BaseEditorDocumentParser::projectPart() const
+ProjectPartInfo BaseEditorDocumentParser::projectPartInfo() const
 {
-    return state().projectPart;
+    return state().projectPartInfo;
 }
 
 BaseEditorDocumentParser::Ptr BaseEditorDocumentParser::get(const QString &filePath)
@@ -116,37 +119,35 @@ BaseEditorDocumentParser::Ptr BaseEditorDocumentParser::get(const QString &fileP
     return BaseEditorDocumentParser::Ptr();
 }
 
-ProjectPart::Ptr BaseEditorDocumentParser::determineProjectPart(const QString &filePath,
-                                                                const Configuration &config,
-                                                                const State &state)
+ProjectPartInfo BaseEditorDocumentParser::determineProjectPart(
+        const QString &filePath,
+        const QString &preferredProjectPartId,
+        const ProjectPartInfo &currentProjectPartInfo,
+        const ProjectExplorer::Project *activeProject,
+        Language languagePreference,
+        bool projectsUpdated)
 {
-    if (config.manuallySetProjectPart)
-        return config.manuallySetProjectPart;
+    Internal::ProjectPartChooser chooser;
+    chooser.setFallbackProjectPart([](){
+        return CppModelManager::instance()->fallbackProjectPart();
+    });
+    chooser.setProjectPartsForFile([](const QString &filePath) {
+        return CppModelManager::instance()->projectPart(filePath);
+    });
+    chooser.setProjectPartsFromDependenciesForFile([&](const QString &filePath) {
+        const auto fileName = Utils::FileName::fromString(filePath);
+        return CppModelManager::instance()->projectPartFromDependencies(fileName);
+    });
 
-    ProjectPart::Ptr projectPart = state.projectPart;
+    const ProjectPartInfo chooserResult
+            = chooser.choose(filePath,
+                             currentProjectPartInfo,
+                             preferredProjectPartId,
+                             activeProject,
+                             languagePreference,
+                             projectsUpdated);
 
-    CppModelManager *cmm = CppModelManager::instance();
-    QList<ProjectPart::Ptr> projectParts = cmm->projectPart(filePath);
-    if (projectParts.isEmpty()) {
-        if (projectPart && config.stickToPreviousProjectPart)
-            // File is not directly part of any project, but we got one before. We will re-use it,
-            // because re-calculating this can be expensive when the dependency table is big.
-            return projectPart;
-
-        // Fall-back step 1: Get some parts through the dependency table:
-        projectParts = cmm->projectPartFromDependencies(Utils::FileName::fromString(filePath));
-        if (projectParts.isEmpty())
-            // Fall-back step 2: Use fall-back part from the model manager:
-            projectPart = cmm->fallbackProjectPart();
-        else
-            projectPart = projectParts.first();
-    } else {
-        if (!projectParts.contains(projectPart))
-            // Apparently the project file changed, so update our project part.
-            projectPart = projectParts.first();
-    }
-
-    return projectPart;
+    return chooserResult;
 }
 
 } // namespace CppTools

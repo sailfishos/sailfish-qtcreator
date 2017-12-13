@@ -59,6 +59,7 @@ public:
     void unregisterUnsavedFilesForEditor(const UnregisterUnsavedFilesForEditorMessage &message) override;
     void completeCode(const CompleteCodeMessage &message) override;
     void requestDocumentAnnotations(const RequestDocumentAnnotationsMessage &message) override;
+    void requestReferences(const RequestReferencesMessage &message) override;
     void updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message) override;
 
     void readMessages();
@@ -66,9 +67,9 @@ public:
     void resetCounter();
 
 private:
-    ClangBackEnd::WriteMessageBlock writeMessageBlock;
-    ClangBackEnd::ReadMessageBlock readMessageBlock;
-    ClangCodeModelClientInterface *client;
+    ClangBackEnd::WriteMessageBlock m_writeMessageBlock;
+    ClangBackEnd::ReadMessageBlock m_readMessageBlock;
+    ClangCodeModelClientInterface *m_client;
 };
 
 } // namespace ClangBackEnd

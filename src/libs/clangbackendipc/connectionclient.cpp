@@ -26,23 +26,17 @@
 #include "connectionclient.h"
 
 #include "clangbackendipcdebugutils.h"
-#include "cmbcompletecodemessage.h"
-#include "cmbregistertranslationunitsforeditormessage.h"
-#include "cmbunregistertranslationunitsforeditormessage.h"
-
-#include <utils/hostosinfo.h>
 
 #include <QCoreApplication>
 #include <QMetaMethod>
 #include <QProcess>
-#include <QTemporaryDir>
 #include <QThread>
 
 namespace ClangBackEnd {
 
 ConnectionClient::ConnectionClient()
 {
-    processAliveTimer.setInterval(10000);
+    m_processAliveTimer.setInterval(10000);
     resetTemporaryDir();
 
     static const bool startAliveTimer = !qEnvironmentVariableIntValue("QTC_CLANG_NO_ALIVE_TIMER");
@@ -57,7 +51,7 @@ ConnectionClient::ConnectionClient()
 
 void ConnectionClient::startProcessAndConnectToServerAsynchronously()
 {
-    process_ = startProcess();
+    m_process = startProcess();
 }
 
 bool ConnectionClient::disconnectFromServer()
@@ -89,13 +83,13 @@ void ConnectionClient::sendEndMessage()
 
 void ConnectionClient::resetProcessAliveTimer()
 {
-    isAliveTimerResetted = true;
-    processAliveTimer.start();
+    m_isAliveTimerResetted = true;
+    m_processAliveTimer.start();
 }
 
 void ConnectionClient::setProcessAliveTimerInterval(int processTimerInterval)
 {
-    processAliveTimer.setInterval(processTimerInterval);
+    m_processAliveTimer.setInterval(processTimerInterval);
 }
 
 QProcessEnvironment ConnectionClient::processEnvironment() const
@@ -114,22 +108,22 @@ QProcessEnvironment ConnectionClient::processEnvironment() const
 
 const QTemporaryDir &ConnectionClient::temporaryDirectory() const
 {
-    return *temporaryDirectory_.data();
+    return *m_temporaryDirectory;
 }
 
 LinePrefixer &ConnectionClient::stdErrPrefixer()
 {
-    return stdErrPrefixer_;
+    return m_stdErrPrefixer;
 }
 
 LinePrefixer &ConnectionClient::stdOutPrefixer()
 {
-    return stdOutPrefixer_;
+    return m_stdOutPrefixer;
 }
 
 std::unique_ptr<QProcess> ConnectionClient::startProcess()
 {
-    processIsStarting = true;
+    m_processIsStarting = true;
 
     auto process = std::unique_ptr<QProcess>(new QProcess);
     connectProcessFinished(process.get());
@@ -144,8 +138,8 @@ std::unique_ptr<QProcess> ConnectionClient::startProcess()
 
 void ConnectionClient::restartProcessAsynchronously()
 {
-    if (!processIsStarting) {
-        finishProcess(std::move(process_));
+    if (!m_processIsStarting) {
+        finishProcess(std::move(m_process));
         resetTemporaryDir(); // clear left-over preambles
 
         startProcessAndConnectToServerAsynchronously();
@@ -154,8 +148,8 @@ void ConnectionClient::restartProcessAsynchronously()
 
 void ConnectionClient::restartProcessIfTimerIsNotResettedAndSocketIsEmpty()
 {
-    if (isAliveTimerResetted) {
-        isAliveTimerResetted = false;
+    if (m_isAliveTimerResetted) {
+        m_isAliveTimerResetted = false;
         return; // Already reset, but we were scheduled after.
     }
 
@@ -183,10 +177,13 @@ void ConnectionClient::endProcess(QProcess *process)
 
 void ConnectionClient::terminateProcess(QProcess *process)
 {
-    if (!Utils::HostOsInfo::isWindowsHost() && isProcessIsRunning()) {
+    Q_UNUSED(process)
+#ifndef Q_OS_WIN32
+    if (isProcessIsRunning()) {
         process->terminate();
         process->waitForFinished();
     }
+#endif
 }
 
 void ConnectionClient::killProcess(QProcess *process)
@@ -199,7 +196,7 @@ void ConnectionClient::killProcess(QProcess *process)
 
 void ConnectionClient::resetProcessIsStarting()
 {
-    processIsStarting = false;
+    m_processIsStarting = false;
 }
 
 void ConnectionClient::printLocalSocketError(QLocalSocket::LocalSocketError socketError)
@@ -210,18 +207,17 @@ void ConnectionClient::printLocalSocketError(QLocalSocket::LocalSocketError sock
 
 void ConnectionClient::printStandardOutput()
 {
-    qDebug("%s", stdOutPrefixer_.prefix(process_->readAllStandardOutput()).constData());
+    qDebug("%s", m_stdOutPrefixer.prefix(m_process->readAllStandardOutput()).constData());
 }
 
 void ConnectionClient::printStandardError()
 {
-    qDebug("%s", stdErrPrefixer_.prefix(process_->readAllStandardError()).constData());
+    qDebug("%s", m_stdErrPrefixer.prefix(m_process->readAllStandardError()).constData());
 }
 
 void ConnectionClient::resetTemporaryDir()
 {
-    const QString templatePath = QDir::tempPath() + QStringLiteral("/qtc-clang-XXXXXX");
-    temporaryDirectory_.reset(new QTemporaryDir(templatePath));
+    m_temporaryDirectory = std::make_unique<Utils::TemporaryDirectory>("clang-XXXXXX");
 }
 
 void ConnectionClient::connectLocalSocketConnected()
@@ -247,13 +243,13 @@ void ConnectionClient::connectLocalSocketDisconnected()
 
 void ConnectionClient::finishProcess()
 {
-    finishProcess(std::move(process_));
+    finishProcess(std::move(m_process));
 }
 
 void ConnectionClient::finishProcess(std::unique_ptr<QProcess> &&process)
 {
     if (process) {
-        processAliveTimer.stop();
+        m_processAliveTimer.stop();
 
         disconnectProcessFinished(process.get());
         endProcess(process.get());
@@ -292,7 +288,7 @@ bool ConnectionClient::waitForConnected()
 
 QProcess *ConnectionClient::processForTestOnly() const
 {
-    return process_.get();
+    return m_process.get();
 }
 
 QIODevice *ConnectionClient::ioDevice()
@@ -302,7 +298,7 @@ QIODevice *ConnectionClient::ioDevice()
 
 bool ConnectionClient::isProcessIsRunning() const
 {
-    return process_ && process_->state() == QProcess::Running;
+    return m_process && m_process->state() == QProcess::Running;
 }
 
 void ConnectionClient::connectProcessFinished(QProcess *process) const
@@ -348,7 +344,7 @@ void ConnectionClient::connectLocalSocketError() const
 
 void ConnectionClient::connectAliveTimer()
 {
-    connect(&processAliveTimer,
+    connect(&m_processAliveTimer,
             &QTimer::timeout,
             this,
             &ConnectionClient::restartProcessIfTimerIsNotResettedAndSocketIsEmpty);
@@ -356,12 +352,12 @@ void ConnectionClient::connectAliveTimer()
 
 const QString &ConnectionClient::processPath() const
 {
-    return processPath_;
+    return m_processPath;
 }
 
 void ConnectionClient::setProcessPath(const QString &processPath)
 {
-    processPath_ = processPath;
+    m_processPath = processPath;
 }
 
 } // namespace ClangBackEnd

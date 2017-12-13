@@ -34,8 +34,6 @@ QtcPlugin {
             "valgrindconfigwidget.cpp", "valgrindconfigwidget.h", "valgrindconfigwidget.ui",
             "valgrindengine.cpp", "valgrindengine.h",
             "valgrindplugin.cpp", "valgrindplugin.h",
-            "valgrindprocess.cpp", "valgrindprocess.h",
-            "valgrindruncontrolfactory.cpp", "valgrindruncontrolfactory.h",
             "valgrindrunner.cpp", "valgrindrunner.h",
             "valgrindsettings.cpp", "valgrindsettings.h",
             "workarounds.cpp", "workarounds.h",
@@ -58,17 +56,7 @@ QtcPlugin {
             "callgrindparsedata.cpp", "callgrindparsedata.h",
             "callgrindparser.cpp", "callgrindparser.h",
             "callgrindproxymodel.cpp", "callgrindproxymodel.h",
-            "callgrindrunner.cpp", "callgrindrunner.h",
             "callgrindstackbrowser.cpp", "callgrindstackbrowser.h"
-        ]
-    }
-
-    Group {
-        name: "Memcheck"
-        prefix: "memcheck/"
-        files: [
-            "memcheckrunner.cpp",
-            "memcheckrunner.h"
         ]
     }
 

@@ -76,6 +76,8 @@ public:
 
     int firstIndex(qint64 startTime) const;
     int lastIndex(qint64 endTime) const;
+    int bestIndex(qint64 timestamp) const;
+    int parentIndex(int index) const;
 
     bool expanded() const;
     bool hidden() const;
@@ -88,7 +90,7 @@ public:
     int rowCount() const;
 
     // Methods which can optionally be implemented by child models.
-    Q_INVOKABLE virtual QColor color(int index) const;
+    Q_INVOKABLE virtual QRgb color(int index) const;
     virtual QVariantList labels() const;
     Q_INVOKABLE virtual QVariantMap details(int index) const;
     Q_INVOKABLE virtual int expandedRow(int index) const;
@@ -123,9 +125,9 @@ signals:
     void displayNameChanged();
 
 protected:
-    QColor colorBySelectionId(int index) const;
-    QColor colorByFraction(double fraction) const;
-    QColor colorByHue(int hue) const;
+    QRgb colorBySelectionId(int index) const;
+    QRgb colorByFraction(double fraction) const;
+    QRgb colorByHue(int hue) const;
 
     int insert(qint64 startTime, qint64 duration, int selectionId);
     int insertStart(qint64 startTime, int selectionId);

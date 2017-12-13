@@ -53,6 +53,19 @@ bool JobQueue::add(const JobRequest &job)
         return false;
     }
 
+    if (!m_documents.hasDocument(job.filePath, job.projectPartId)) {
+        qCDebug(jobsLog) << "Not adding / cancelling due to already closed document:" << job;
+        cancelJobRequest(job);
+        return false;
+    }
+
+    const Document document = m_documents.document(job.filePath, job.projectPartId);
+    if (!document.isIntact()) {
+        qCDebug(jobsLog) << "Not adding / cancelling due not intact document:" << job;
+        cancelJobRequest(job);
+        return false;
+    }
+
     qCDebug(jobsLog) << "Adding" << job;
     m_queue.append(job);
 
@@ -66,20 +79,20 @@ int JobQueue::size() const
 
 JobRequests JobQueue::processQueue()
 {
-    removeOutDatedRequests();
+    removeExpiredRequests();
     prioritizeRequests();
     const JobRequests jobsToRun = takeJobRequestsToRunNow();
 
     return jobsToRun;
 }
 
-void JobQueue::removeOutDatedRequests()
+void JobQueue::removeExpiredRequests()
 {
     JobRequests cleanedRequests;
 
     foreach (const JobRequest &jobRequest, m_queue) {
         try {
-            if (!isJobRequestOutDated(jobRequest))
+            if (!isJobRequestExpired(jobRequest))
                 cleanedRequests.append(jobRequest);
         } catch (const std::exception &exception) {
             qWarning() << "Error in Jobs::removeOutDatedRequests for"
@@ -90,12 +103,13 @@ void JobQueue::removeOutDatedRequests()
     m_queue = cleanedRequests;
 }
 
-bool JobQueue::isJobRequestOutDated(const JobRequest &jobRequest) const
+bool JobQueue::isJobRequestExpired(const JobRequest &jobRequest)
 {
-    const JobRequest::Requirements requirements = jobRequest.requirements;
+    const JobRequest::ExpirationReasons expirationReasons = jobRequest.expirationReasons;
     const UnsavedFiles unsavedFiles = m_documents.unsavedFiles();
+    using ExpirationReason = JobRequest::ExpirationReason;
 
-    if (requirements.testFlag(JobRequest::CurrentUnsavedFiles)) {
+    if (expirationReasons.testFlag(ExpirationReason::UnsavedFilesChanged)) {
         if (jobRequest.unsavedFilesChangeTimePoint != unsavedFiles.lastChangeTimePoint()) {
             qCDebug(jobsLog) << "Removing due to outdated unsaved files:" << jobRequest;
             return true;
@@ -104,7 +118,7 @@ bool JobQueue::isJobRequestOutDated(const JobRequest &jobRequest) const
 
     bool projectCheckedAndItExists = false;
 
-    if (requirements.testFlag(JobRequest::DocumentValid)) {
+    if (expirationReasons.testFlag(ExpirationReason::DocumentClosed)) {
         if (!m_documents.hasDocument(jobRequest.filePath, jobRequest.projectPartId)) {
             qCDebug(jobsLog) << "Removing due to already closed document:" << jobRequest;
             return true;
@@ -119,19 +133,20 @@ bool JobQueue::isJobRequestOutDated(const JobRequest &jobRequest) const
         const Document document
                 = m_documents.document(jobRequest.filePath, jobRequest.projectPartId);
         if (!document.isIntact()) {
-            qCDebug(jobsLog) << "Removing due to not intact translation unit:" << jobRequest;
+            qCDebug(jobsLog) << "Removing/Cancelling due to not intact document:" << jobRequest;
+            cancelJobRequest(jobRequest);
             return true;
         }
 
-        if (requirements.testFlag(JobRequest::CurrentDocumentRevision)) {
-            if (document.documentRevision() != jobRequest.documentRevision) {
+        if (expirationReasons.testFlag(ExpirationReason::DocumentRevisionChanged)) {
+            if (document.documentRevision() > jobRequest.documentRevision) {
                 qCDebug(jobsLog) << "Removing due to changed document revision:" << jobRequest;
                 return true;
             }
         }
     }
 
-    if (requirements.testFlag(JobRequest::CurrentProject)) {
+    if (expirationReasons.testFlag(ExpirationReason::ProjectChanged)) {
         if (!projectCheckedAndItExists && !m_projectParts.hasProjectPart(jobRequest.projectPartId)) {
             qCDebug(jobsLog) << "Removing due to already closed project:" << jobRequest;
             return true;
@@ -173,6 +188,54 @@ void JobQueue::prioritizeRequests()
     std::stable_sort(m_queue.begin(), m_queue.end(), lessThan);
 }
 
+void JobQueue::cancelJobRequest(const JobRequest &jobRequest)
+{
+    if (m_cancelJobRequest)
+        m_cancelJobRequest(jobRequest);
+}
+
+static bool passesPreconditions(const JobRequest &request, const Document &document)
+{
+    using Condition = JobRequest::Condition;
+    const JobRequest::Conditions conditions = request.conditions;
+
+    if (conditions.testFlag(Condition::DocumentSuspended) && !document.isSuspended()) {
+        qCDebug(jobsLog) << "Not choosing due to unsuspended document:" << request;
+        return false;
+    }
+
+    if (conditions.testFlag(Condition::DocumentUnsuspended) && document.isSuspended()) {
+        qCDebug(jobsLog) << "Not choosing due to suspended document:" << request;
+        return false;
+    }
+
+    if (conditions.testFlag(Condition::DocumentVisible) && !document.isVisibleInEditor()) {
+        qCDebug(jobsLog) << "Not choosing due to invisble document:" << request;
+        return false;
+    }
+
+    if (conditions.testFlag(Condition::DocumentNotVisible) && document.isVisibleInEditor()) {
+        qCDebug(jobsLog) << "Not choosing due to visble document:" << request;
+        return false;
+    }
+
+    if (conditions.testFlag(Condition::CurrentDocumentRevision)) {
+        if (document.isDirty()) {
+            // TODO: If the document is dirty due to a project update,
+            // references are processes later than ideal.
+            qCDebug(jobsLog) << "Not choosing due to dirty document:" << request;
+            return false;
+        }
+
+        if (request.documentRevision != document.documentRevision()) {
+            qCDebug(jobsLog) << "Not choosing due to revision mismatch:" << request;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 JobRequests JobQueue::takeJobRequestsToRunNow()
 {
     JobRequests jobsToRun;
@@ -187,7 +250,7 @@ JobRequests JobQueue::takeJobRequestsToRunNow()
             const Document &document = m_documents.document(request.filePath,
                                                             request.projectPartId);
 
-            if (!document.isUsedByCurrentEditor() && !document.isVisibleInEditor())
+            if (!passesPreconditions(request, document))
                 continue;
 
             const Utf8String id = document.translationUnit(request.preferredTranslationUnit).id();
@@ -237,7 +300,12 @@ void JobQueue::setIsJobRunningForJobRequestHandler(
     m_isJobRunningForJobRequestHandler = isJobRunningHandler;
 }
 
-JobRequests JobQueue::queue() const
+void JobQueue::setCancelJobRequest(const JobQueue::CancelJobRequest &cancelJobRequest)
+{
+    m_cancelJobRequest = cancelJobRequest;
+}
+
+JobRequests &JobQueue::queue()
 {
     return m_queue;
 }

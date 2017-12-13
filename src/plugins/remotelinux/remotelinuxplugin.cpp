@@ -28,9 +28,12 @@
 #include "embeddedlinuxqtversionfactory.h"
 #include "genericlinuxdeviceconfigurationfactory.h"
 #include "genericremotelinuxdeploystepfactory.h"
+#include "remotelinuxanalyzesupport.h"
+#include "remotelinuxcustomrunconfiguration.h"
+#include "remotelinuxdebugsupport.h"
 #include "remotelinuxdeployconfigurationfactory.h"
+#include "remotelinuxrunconfiguration.h"
 #include "remotelinuxrunconfigurationfactory.h"
-#include "remotelinuxruncontrolfactory.h"
 
 #include <QtPlugin>
 
@@ -48,9 +51,22 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
 
+    using namespace ProjectExplorer;
+    using namespace ProjectExplorer::Constants;
+
+    auto constraint = [](RunConfiguration *runConfig) {
+        const Core::Id id = runConfig->id();
+        return id == RemoteLinuxCustomRunConfiguration::runConfigId()
+            || id.name().startsWith(RemoteLinuxRunConfiguration::IdPrefix);
+    };
+
+    RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
+    RunControl::registerWorker<LinuxDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
+    RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
+    //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
+
     addAutoReleasedObject(new GenericLinuxDeviceConfigurationFactory);
     addAutoReleasedObject(new RemoteLinuxRunConfigurationFactory);
-    addAutoReleasedObject(new RemoteLinuxRunControlFactory);
     addAutoReleasedObject(new RemoteLinuxDeployConfigurationFactory);
     addAutoReleasedObject(new GenericRemoteLinuxDeployStepFactory);
 

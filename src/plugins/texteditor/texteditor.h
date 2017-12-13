@@ -183,13 +183,14 @@ public:
     // IEditor
     QByteArray saveState() const;
     bool restoreState(const QByteArray &state);
-    void gotoLine(int line, int column = 0, bool centerLine = true);
+    void gotoLine(int line, int column = 0, bool centerLine = true, bool animate = false);
     int position(TextPositionOperation posOp = CurrentPosition,
          int at = -1) const;
     void convertPosition(int pos, int *line, int *column) const;
     using QPlainTextEdit::cursorRect;
     QRect cursorRect(int pos) const;
     void setCursorPosition(int pos);
+    QToolBar *toolBar();
 
     void print(QPrinter *);
 
@@ -296,6 +297,7 @@ public:
     const BehaviorSettings &behaviorSettings() const;
 
     void ensureCursorVisible();
+    void ensureBlockIsUnfolded(QTextBlock block);
 
     static Core::Id FakeVimSelection;
     static Core::Id SnippetPlaceholderSelection;
@@ -339,7 +341,6 @@ public:
 
     virtual void encourageApply();
 
-public slots: // Qt4-style connect used in EditorConfiguration
     virtual void setDisplaySettings(const TextEditor::DisplaySettings &);
     virtual void setMarginSettings(const TextEditor::MarginSettings &);
     void setBehaviorSettings(const TextEditor::BehaviorSettings &);
@@ -348,7 +349,6 @@ public slots: // Qt4-style connect used in EditorConfiguration
     void setCompletionSettings(const TextEditor::CompletionSettings &);
     void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &);
 
-public:
     void circularPaste();
     void switchUtf8bom();
 
@@ -357,9 +357,13 @@ public:
 
     void cutLine();
     void copyLine();
+    void duplicateSelection();
+    void duplicateSelectionAndComment();
     void deleteLine();
+    void deleteEndOfLine();
     void deleteEndOfWord();
     void deleteEndOfWordCamelCase();
+    void deleteStartOfLine();
     void deleteStartOfWord();
     void deleteStartOfWordCamelCase();
     void unfoldAll();
@@ -397,6 +401,8 @@ public:
     virtual bool selectBlockUp();
     virtual bool selectBlockDown();
     void selectWordUnderCursor();
+
+    void showContextMenu();
 
     void moveLineUp();
     void moveLineDown();
@@ -506,6 +512,8 @@ protected:
     virtual void finalizeInitializationAfterDuplication(TextEditorWidget *) {}
     static QTextCursor flippedCursor(const QTextCursor &cursor);
 
+    void addHoverHandler(BaseHoverHandler *handler);
+
 public:
     struct Link
     {
@@ -586,7 +594,7 @@ signals:
     void tooltipRequested(const QPoint &globalPos, int position);
     void activateEditor();
 
-protected slots:
+protected:
     virtual void slotCursorPositionChanged(); // Used in VcsBase
     virtual void slotCodeStyleSettingsChanged(const QVariant &); // Used in CppEditor
 
@@ -650,13 +658,13 @@ public:
     void addHoverHandler(BaseHoverHandler *handler);
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
 
-    void setCommentStyle(Utils::CommentDefinition::Style style);
+    void setCommentDefinition(Utils::CommentDefinition definition);
     void setDuplicatedSupported(bool on);
     void setMarksVisible(bool on);
     void setParenthesesMatchingEnabled(bool on);
     void setCodeFoldingSupported(bool on);
 
-    Core::IEditor *createEditor();
+    Core::IEditor *createEditor() override;
 
 private:
     friend class BaseTextEditor;
@@ -665,5 +673,11 @@ private:
 };
 
 } // namespace TextEditor
+
+QT_BEGIN_NAMESPACE
+
+uint qHash(const QColor &color);
+
+QT_END_NAMESPACE
 
 Q_DECLARE_METATYPE(TextEditor::TextEditorWidget::Link)

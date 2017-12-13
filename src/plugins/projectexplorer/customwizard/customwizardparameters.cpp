@@ -32,17 +32,17 @@
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/macroexpander.h>
 #include <utils/templateengine.h>
+#include <utils/temporarydirectory.h>
+#include <utils/temporaryfile.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 #include <QDate>
 #include <QDebug>
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QIcon>
 #include <QJSEngine>
-#include <QTemporaryFile>
 #include <QTime>
 #include <QXmlStreamAttribute>
 #include <QXmlStreamReader>
@@ -64,7 +64,6 @@ static const char langAttributeC[] = "xml:lang";
 static const char categoryAttributeC[] = "category";
 static const char displayCategoryElementC[] = "displaycategory";
 static const char featuresRequiredC[] = "featuresRequired";
-static const char featuresPreferredC[] = "featuresPreferred";
 static const char platformIndependentC[] = "platformIndependent";
 static const char fieldPageTitleElementC[] = "fieldpagetitle";
 static const char fieldsElementC[] = "fields";
@@ -197,11 +196,6 @@ bool CustomWizardValidationRule::validate(QJSEngine &engine, const QMap<QString,
         return false;
     }
     return valid;
-}
-
-CustomWizardParameters::CustomWizardParameters() :
-        firstPageId(-1)
-{
 }
 
 void CustomWizardParameters::clear()
@@ -463,16 +457,6 @@ static inline QSet<Id> readRequiredFeatures(const QXmlStreamReader &reader)
     return features;
 }
 
-static inline QSet<Id> readPreferredFeatures(const QXmlStreamReader &reader)
-{
-    QString value = reader.attributes().value(QLatin1String(featuresPreferredC)).toString();
-    QStringList stringList = value.split(QLatin1Char(','), QString::SkipEmptyParts);
-    QSet<Id> features;
-    foreach (const QString &string, stringList)
-        features |= Id::fromString(string);
-    return features;
-}
-
 static inline IWizardFactory::WizardFlags wizardFlags(const QXmlStreamReader &reader)
 {
     IWizardFactory::WizardFlags flags;
@@ -592,7 +576,6 @@ CustomWizardParameters::parse(QIODevice &device, const QString &configFileFullPa
                     category = attributeValue(reader, categoryAttributeC);
                     kind = kindAttribute(reader);
                     requiredFeatures = readRequiredFeatures(reader);
-                    preferredFeatures = readPreferredFeatures(reader);
                     flags = wizardFlags(reader);
                     klass = attributeValue(reader, klassAttributeC);
                     firstPageId = integerAttributeValue(reader, firstPageAttributeC, -1);
@@ -865,16 +848,12 @@ private:
 };
 
 TemporaryFileTransform::TemporaryFileTransform(TemporaryFilePtrList *f) :
-    m_files(f), m_pattern(QDir::tempPath())
-{
-    if (!m_pattern.endsWith(QLatin1Char('/')))
-        m_pattern += QLatin1Char('/');
-    m_pattern += QLatin1String("qtcreatorXXXXXX.txt");
-}
+    m_files(f), m_pattern(Utils::TemporaryDirectory::masterDirectoryPath() + "/qtcreatorXXXXXX.txt")
+{ }
 
 QString TemporaryFileTransform::operator()(const QString &value) const
 {
-    TemporaryFilePtr temporaryFile(new QTemporaryFile(m_pattern));
+    TemporaryFilePtr temporaryFile(new Utils::TemporaryFile(m_pattern));
     QTC_ASSERT(temporaryFile->open(), return QString());
 
     temporaryFile->write(value.toLocal8Bit());
@@ -923,12 +902,11 @@ void CustomWizardContext::reset()
     const QDate currentDate = QDate::currentDate();
     const QTime currentTime = QTime::currentTime();
     baseReplacements.clear();
-    Utils::MimeDatabase mdb;
     baseReplacements.insert(QLatin1String("CppSourceSuffix"),
-                            mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE))
+                            Utils::mimeTypeForName(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE))
                             .preferredSuffix());
     baseReplacements.insert(QLatin1String("CppHeaderSuffix"),
-                            mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE))
+                            Utils::mimeTypeForName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE))
                             .preferredSuffix());
     baseReplacements.insert(QLatin1String("CurrentDate"),
                             currentDate.toString(Qt::ISODate));

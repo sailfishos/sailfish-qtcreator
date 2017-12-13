@@ -140,8 +140,6 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
     Q_UNUSED(arguments)
     Q_UNUSED(error)
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/cpptools/CppTools.mimetypes.xml"));
-
     CppModelManager::instance()->setParent(this);
 
     m_settings = new CppToolsSettings(this); // force registration of cpp tools settings
@@ -277,25 +275,24 @@ static QStringList findFilesInProject(const QString &name,
 // source belonging to a header and vice versa
 static QStringList matchingCandidateSuffixes(ProjectFile::Kind kind)
 {
-    Utils::MimeDatabase mdb;
     switch (kind) {
-     // Note that C/C++ headers are undistinguishable
+    case ProjectFile::AmbiguousHeader:
     case ProjectFile::CHeader:
     case ProjectFile::CXXHeader:
     case ProjectFile::ObjCHeader:
     case ProjectFile::ObjCXXHeader:
-        return mdb.mimeTypeForName(QLatin1String(Constants::C_SOURCE_MIMETYPE)).suffixes()
-                + mdb.mimeTypeForName(QLatin1String(Constants::CPP_SOURCE_MIMETYPE)).suffixes()
-                + mdb.mimeTypeForName(QLatin1String(Constants::OBJECTIVE_C_SOURCE_MIMETYPE)).suffixes()
-                + mdb.mimeTypeForName(QLatin1String(Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE)).suffixes();
+        return Utils::mimeTypeForName(QLatin1String(Constants::C_SOURCE_MIMETYPE)).suffixes()
+                + Utils::mimeTypeForName(QLatin1String(Constants::CPP_SOURCE_MIMETYPE)).suffixes()
+                + Utils::mimeTypeForName(QLatin1String(Constants::OBJECTIVE_C_SOURCE_MIMETYPE)).suffixes()
+                + Utils::mimeTypeForName(QLatin1String(Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE)).suffixes();
     case ProjectFile::CSource:
     case ProjectFile::ObjCSource:
-        return mdb.mimeTypeForName(QLatin1String(Constants::C_HEADER_MIMETYPE)).suffixes();
+        return Utils::mimeTypeForName(QLatin1String(Constants::C_HEADER_MIMETYPE)).suffixes();
     case ProjectFile::CXXSource:
     case ProjectFile::ObjCXXSource:
     case ProjectFile::CudaSource:
     case ProjectFile::OpenCLSource:
-        return mdb.mimeTypeForName(QLatin1String(Constants::CPP_HEADER_MIMETYPE)).suffixes();
+        return Utils::mimeTypeForName(QLatin1String(Constants::CPP_HEADER_MIMETYPE)).suffixes();
     default:
         return QStringList();
     }
@@ -404,7 +401,7 @@ QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader)
     if (debug)
         qDebug() << Q_FUNC_INFO << fileName <<  kind;
 
-    if (kind == ProjectFile::Unclassified)
+    if (kind == ProjectFile::Unsupported)
         return QString();
 
     const QString baseName = fi.completeBaseName();

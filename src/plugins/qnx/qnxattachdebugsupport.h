@@ -32,10 +32,10 @@
 
 #include <QObject>
 
-namespace Debugger { class DebuggerRunControl; }
+namespace Debugger { class DebuggerRunTool; }
 
 namespace ProjectExplorer {
-class DeviceApplicationRunner;
+class ApplicationLauncher;
 class DeviceUsedPortsGatherer;
 class Kit;
 }
@@ -59,7 +59,7 @@ private slots:
     void handleDebuggerStateChanged(Debugger::DebuggerState state);
     void handleError(const QString &message);
     void handleProgressReport(const QString &message);
-    void handleRemoteOutput(const QByteArray &output);
+    void handleRemoteOutput(const QString &output);
 
 private:
     void stopPDebug();
@@ -68,9 +68,9 @@ private:
     ProjectExplorer::IDevice::ConstPtr m_device;
     ProjectExplorer::DeviceProcessItem m_process;
 
-    ProjectExplorer::DeviceApplicationRunner *m_runner;
+    ProjectExplorer::ApplicationLauncher *m_launcher;
     ProjectExplorer::DeviceUsedPortsGatherer *m_portsGatherer;
-    Debugger::DebuggerRunControl *m_runControl = 0;
+    Debugger::DebuggerRunTool *m_runTool = 0;
 
     Utils::Port m_pdebugPort;
     QString m_projectSourceDirectory;

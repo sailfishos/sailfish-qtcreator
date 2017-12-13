@@ -25,12 +25,9 @@
 
 #pragma once
 
-#include <refactoringclientinterface.h>
+#include "googletest.h"
 
-#include <gmock/gmock.h>
-#include <gmock/gmock-matchers.h>
-#include <gtest/gtest.h>
-#include "gtest-qt-printing.h"
+#include <refactoringclientinterface.h>
 
 class MockRefactoringClient : public ClangBackEnd::RefactoringClientInterface
 {
@@ -39,10 +36,24 @@ public:
                  void());
     MOCK_METHOD1(sourceLocationsForRenamingMessage,
                  void (const ClangBackEnd::SourceLocationsForRenamingMessage&));
+    MOCK_METHOD1(sourceRangesAndDiagnosticsForQueryMessage,
+                 void (const ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage&));
+    MOCK_METHOD1(sourceRangesForQueryMessage,
+                 void (const ClangBackEnd::SourceRangesForQueryMessage&));
 
     void sourceLocationsForRenamingMessage(ClangBackEnd::SourceLocationsForRenamingMessage &&message) override
     {
         sourceLocationsForRenamingMessage(message);
+    }
+
+    void sourceRangesAndDiagnosticsForQueryMessage(ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage &&message) override
+    {
+        sourceRangesAndDiagnosticsForQueryMessage(message);
+    }
+
+    void sourceRangesForQueryMessage(ClangBackEnd::SourceRangesForQueryMessage &&message) override
+    {
+        sourceRangesForQueryMessage(message);
     }
 
     void setLocalRenamingCallback(RenameCallback &&)

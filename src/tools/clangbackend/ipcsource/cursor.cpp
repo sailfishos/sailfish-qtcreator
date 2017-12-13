@@ -118,6 +118,46 @@ bool Cursor::isLocalVariable() const
     }
 }
 
+bool Cursor::isReference() const
+{
+    return clang_isReference(kind());
+}
+
+bool Cursor::isExpression() const
+{
+    return clang_isExpression(kind());
+}
+
+bool Cursor::isFunctionLike() const
+{
+    const CXCursorKind k = kind();
+    return k == CXCursor_FunctionDecl
+        || k == CXCursor_CXXMethod
+        || k == CXCursor_FunctionTemplate;
+}
+
+bool Cursor::isConstructorOrDestructor() const
+{
+    const CXCursorKind k = kind();
+    return k == CXCursor_Constructor
+        || k == CXCursor_Destructor;
+}
+
+bool Cursor::isTemplateLike() const
+{
+    switch (kind()) {
+    case CXCursor_ClassTemplate:
+    case CXCursor_ClassTemplatePartialSpecialization:
+        return  true;
+    case CXCursor_ClassDecl:
+        return specializedCursorTemplate().isValid();
+    default:
+        return false;
+    }
+
+    Q_UNREACHABLE();
+}
+
 bool Cursor::hasFinalFunctionAttribute() const
 {
     bool hasFinal = false;
@@ -158,12 +198,12 @@ bool Cursor::isUnexposed() const
     return clang_isUnexposed(kind());
 }
 
-Utf8String Cursor::unifiedSymbolResolution() const
+ClangString Cursor::unifiedSymbolResolution() const
 {
     return ClangString(clang_getCursorUSR(cxCursor));
 }
 
-Utf8String Cursor::mangling() const
+ClangString Cursor::mangling() const
 {
     return ClangString(clang_Cursor_getMangling(cxCursor));
 }
@@ -173,17 +213,17 @@ ClangString Cursor::spelling() const
     return ClangString(clang_getCursorSpelling(cxCursor));
 }
 
-Utf8String Cursor::displayName() const
+ClangString Cursor::displayName() const
 {
     return ClangString(clang_getCursorDisplayName(cxCursor));
 }
 
-Utf8String Cursor::briefComment() const
+ClangString Cursor::briefComment() const
 {
     return ClangString(clang_Cursor_getBriefCommentText(cxCursor));
 }
 
-Utf8String Cursor::rawComment() const
+ClangString Cursor::rawComment() const
 {
     return ClangString(clang_Cursor_getRawCommentText(cxCursor));
 }
@@ -206,6 +246,11 @@ Type Cursor::nonPointerTupe() const
         typeResult = typeResult.pointeeType();
 
     return typeResult;
+}
+
+Cursor Cursor::specializedCursorTemplate() const
+{
+    return clang_getSpecializedCursorTemplate(cxCursor);
 }
 
 SourceLocation Cursor::sourceLocation() const
@@ -296,6 +341,16 @@ Cursor Cursor::argument(int index) const
     return clang_Cursor_getArgument(cxCursor, index);
 }
 
+unsigned Cursor::overloadedDeclarationsCount() const
+{
+    return clang_getNumOverloadedDecls(cxCursor);
+}
+
+Cursor Cursor::overloadedDeclaration(unsigned index) const
+{
+    return clang_getOverloadedDecl(cxCursor, index);
+}
+
 namespace {
 
 bool isNotUnexposedLValueReference(const Cursor &argument, const Type &argumentType)
@@ -348,29 +403,31 @@ bool operator!=(const Cursor &first, const Cursor &second)
     return !(first == second);
 }
 
-void PrintTo(CXCursorKind cursorKind, ::std::ostream *os)
+std::ostream &operator<<(std::ostream &os, CXCursorKind cursorKind)
 {
     ClangString cursorKindSpelling(clang_getCursorKindSpelling(cursorKind));
-    *os << cursorKindSpelling.cString();
+    return os << cursorKindSpelling.cString();
 }
 
-void PrintTo(const Cursor &cursor, ::std::ostream*os)
+std::ostream &operator<<(std::ostream &os, const Cursor &cursor)
 {
     if (cursor.isValid()) {
         ClangString cursorKindSpelling(clang_getCursorKindSpelling(cursor.kind()));
-        *os << cursorKindSpelling.cString() << " ";
+        os << cursorKindSpelling << " ";
 
         auto identifier = cursor.displayName();
         if (identifier.hasContent()) {
-            *os  << "\""
-                 << identifier.constData()
-                 << "\": ";
+            os  << "\""
+                << identifier
+                << "\": ";
         }
 
-        PrintTo(cursor.sourceLocation(), os);
+        os << cursor.sourceLocation();
     } else {
-        *os << "Invalid cursor!";
+        os << "Invalid cursor!";
     }
+
+    return os;
 }
 
 } // namespace ClangBackEnd

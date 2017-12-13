@@ -23,6 +23,7 @@
 **
 ****************************************************************************/
 
+#include "algorithm.h"
 #include "icon.h"
 #include "qtcassert.h"
 #include "theme/theme.h"
@@ -35,6 +36,7 @@
 #include <QPainter>
 #include <QPaintEngine>
 #include <QWidget>
+#include <QDebug>
 
 namespace Utils {
 
@@ -66,7 +68,12 @@ static MasksAndColors masksAndColors(const Icon &icon, int dpr)
         const QColor color = creatorTheme()->color(i.second);
         const QString dprFileName = StyleHelper::availableImageResolutions(i.first).contains(dpr) ?
                     StyleHelper::imageFileWithResolution(fileName, dpr) : fileName;
-        result.append(qMakePair(QPixmap(dprFileName), color));
+        QPixmap pixmap;
+        if (!pixmap.load(dprFileName)) {
+            pixmap = QPixmap(1, 1);
+            qWarning() << "Could not load image: " << dprFileName;
+        }
+        result.append({pixmap, color});
     }
     return result;
 }
@@ -250,6 +257,12 @@ QIcon Icon::combinedIcon(const QList<QIcon> &icons)
             for (const QSize &size: icon.availableSizes(mode))
                 result.addPixmap(icon.pixmap(window, size, mode), mode);
     return result;
+}
+
+QIcon Icon::combinedIcon(const QList<Icon> &icons)
+{
+    const QList<QIcon> qIcons = transform(icons, &Icon::icon);
+    return combinedIcon(qIcons);
 }
 
 } // namespace Utils

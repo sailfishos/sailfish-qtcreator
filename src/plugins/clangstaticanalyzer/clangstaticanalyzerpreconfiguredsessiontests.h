@@ -31,20 +31,14 @@
 namespace ProjectExplorer {
 class Project;
 class Target;
-class SessionManager;
 }
 
 namespace ClangStaticAnalyzer {
 namespace Internal {
-class ClangStaticAnalyzerTool;
 
 class ClangStaticAnalyzerPreconfiguredSessionTests: public QObject
 {
     Q_OBJECT
-
-public:
-    ClangStaticAnalyzerPreconfiguredSessionTests(ClangStaticAnalyzerTool *analyzerTool,
-                                                 QObject *parent = 0);
 
 private slots:
     void initTestCase();
@@ -55,9 +49,6 @@ private slots:
 private:
     bool switchToProjectAndTarget(ProjectExplorer::Project *project,
                                   ProjectExplorer::Target *target);
-
-    ProjectExplorer::SessionManager &m_sessionManager;
-    ClangStaticAnalyzerTool &m_analyzerTool;
 };
 
 } // namespace Internal

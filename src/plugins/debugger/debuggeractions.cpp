@@ -228,6 +228,12 @@ DebuggerSettings::DebuggerSettings()
 
     item = new SavedAction(this);
     item->setCheckable(true);
+    item->setDefaultValue(true);
+    item->setSettingsKey(cdbSettingsGroup, QLatin1String("UsePythonDumper"));
+    insertItem(CdbUsePythonDumper, item);
+
+    item = new SavedAction(this);
+    item->setCheckable(true);
     item->setDefaultValue(false);
     item->setSettingsKey(cdbSettingsGroup, QLatin1String("IgnoreFirstChanceAccessViolation"));
     insertItem(IgnoreFirstChanceAccessViolation, item);
@@ -477,12 +483,6 @@ DebuggerSettings::DebuggerSettings()
     insertItem(AutoQuit, item);
 
     item = new SavedAction(this);
-    item->setSettingsKey(debugModeGroup, QLatin1String("AttemptQuickStart"));
-    item->setCheckable(true);
-    item->setDefaultValue(false);
-    insertItem(AttemptQuickStart, item);
-
-    item = new SavedAction(this);
     item->setSettingsKey(debugModeGroup, QLatin1String("MultiInferior"));
     item->setCheckable(true);
     item->setDefaultValue(false);
@@ -683,21 +683,20 @@ SavedAction *DebuggerSettings::item(int code) const
 
 QString DebuggerSettings::dump() const
 {
-    QString out;
-    QTextStream ts(&out);
-    ts << "Debugger settings: ";
+    QStringList settings;
     foreach (SavedAction *item, m_items) {
         QString key = item->settingsKey();
         if (!key.isEmpty()) {
             const QString current = item->value().toString();
             const QString default_ = item->defaultValue().toString();
-            ts << '\n' << key << ": " << current
-               << "  (default: " << default_ << ')';
+            QString setting = key + ": " + current + "  (default: " + default_ + ')';
             if (current != default_)
-                ts <<  "  ***";
+                setting +=  "  ***";
+            settings << setting;
         }
     }
-    return out;
+    settings.sort();
+    return "Debugger settings:\n" + settings.join('\n');
 }
 
 } // namespace Internal

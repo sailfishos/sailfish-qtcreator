@@ -26,7 +26,6 @@
 #include "cppeditor.h"
 
 #include "cppautocompleter.h"
-#include "cppcanonicalsymbol.h"
 #include "cppdocumentationcommenthelper.h"
 #include "cppeditorconstants.h"
 #include "cppeditordocument.h"
@@ -34,6 +33,7 @@
 #include "cppfollowsymbolundercursor.h"
 #include "cpphighlighter.h"
 #include "cpplocalrenaming.h"
+#include "cppminimizableinfobars.h"
 #include "cpppreprocessordialog.h"
 #include "cppquickfixassistant.h"
 #include "cppuseselectionsupdater.h"
@@ -46,11 +46,13 @@
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/infobar.h>
 
+#include <cpptools/cppcanonicalsymbol.h>
 #include <cpptools/cppchecksymbols.h>
 #include <cpptools/cppcodeformatter.h>
 #include <cpptools/cppcompletionassistprovider.h>
 #include <cpptools/cppeditoroutline.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/cppqtstyleindenter.h>
 #include <cpptools/cppselectionchanger.h>
 #include <cpptools/cppsemanticinfo.h>
 #include <cpptools/cpptoolsconstants.h>
@@ -103,7 +105,14 @@ namespace Internal {
 
 CppEditor::CppEditor()
 {
-    addContext(ProjectExplorer::Constants::LANG_CXX);
+    addContext(ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+}
+
+void CppEditor::decorateEditor(TextEditorWidget *editor)
+{
+    editor->textDocument()->setSyntaxHighlighter(new CppHighlighter);
+    editor->textDocument()->setIndenter(new CppTools::CppQtStyleIndenter);
+    editor->setAutoCompleter(new CppAutoCompleter);
 }
 
 class CppEditorWidgetPrivate
@@ -130,12 +139,12 @@ public:
 
     QScopedPointer<FollowSymbolUnderCursor> m_followSymbolUnderCursor;
 
+    QAction *m_parseContextAction = nullptr;
+    ParseContextWidget *m_parseContextWidget = nullptr;
     QToolButton *m_preprocessorButton = nullptr;
-    QAction *m_headerErrorsIndicatorAction = nullptr;
+    MinimizableInfoBars::Actions m_showInfoBarActions;
 
     CppSelectionChanger m_cppSelectionChanger;
-
-    CppEditorWidget::HeaderErrorDiagnosticWidgetCreator m_headerErrorDiagnosticWidgetCreator;
 };
 
 CppEditorWidgetPrivate::CppEditorWidgetPrivate(CppEditorWidget *q)
@@ -183,9 +192,8 @@ void CppEditorWidget::finalizeInitialization()
             &d->m_localRenaming,
             &CppLocalRenaming::updateSelectionsForVariableUnderCursor);
 
-    connect(&d->m_useSelectionsUpdater, &CppUseSelectionsUpdater::finished,
+    connect(&d->m_useSelectionsUpdater, &CppUseSelectionsUpdater::finished, this,
             [this] (SemanticInfo::LocalUseMap localUses) {
-                QTC_CHECK(isSemanticInfoValidExceptLocalUses());
                 d->m_lastSemanticInfo.localUsesUpdated = true;
                 d->m_lastSemanticInfo.localUses = localUses;
     });
@@ -200,10 +208,9 @@ void CppEditorWidget::finalizeInitialization()
     connect(this, &QPlainTextEdit::cursorPositionChanged,
             d->m_cppEditorOutline, &CppEditorOutline::updateIndex);
 
-    connect(cppEditorDocument(), &CppEditorDocument::preprocessorSettingsChanged,
+    connect(cppEditorDocument(), &CppEditorDocument::preprocessorSettingsChanged, this,
             [this](bool customSettings) {
-        d->m_preprocessorButton->setProperty("highlightWidget", customSettings);
-        d->m_preprocessorButton->update();
+        updateWidgetHighlighting(d->m_preprocessorButton, customSettings);
     });
 
     // set up function declaration - definition link
@@ -215,7 +222,7 @@ void CppEditorWidget::finalizeInitialization()
     connect(this, &QPlainTextEdit::textChanged, this, &CppEditorWidget::updateFunctionDeclDefLink);
 
     // set up the use highlighitng
-    connect(this, &CppEditorWidget::cursorPositionChanged, [this]() {
+    connect(this, &CppEditorWidget::cursorPositionChanged, this, [this]() {
         if (!d->m_localRenaming.isActive())
             d->m_useSelectionsUpdater.scheduleUpdate();
 
@@ -223,28 +230,41 @@ void CppEditorWidget::finalizeInitialization()
         d->m_cppSelectionChanger.onCursorPositionChanged(textCursor());
     });
 
-    // Tool bar creation
-    d->m_preprocessorButton = new QToolButton(this);
-    d->m_preprocessorButton->setText(QLatin1String("#"));
-    Command *cmd = ActionManager::command(Constants::OPEN_PREPROCESSOR_DIALOG);
-    connect(cmd, &Command::keySequenceChanged, this, &CppEditorWidget::updatePreprocessorButtonTooltip);
-    updatePreprocessorButtonTooltip();
-    connect(d->m_preprocessorButton, &QAbstractButton::clicked, this, &CppEditorWidget::showPreProcessorWidget);
-    insertExtraToolBarWidget(TextEditorWidget::Left, d->m_preprocessorButton);
-
-    auto *headerErrorsIndicatorButton = new QToolButton(this);
-    headerErrorsIndicatorButton->setToolTip(tr("Show First Error in Included Files"));
-    headerErrorsIndicatorButton->setIcon(Utils::Icons::WARNING_TOOLBAR.pixmap());
-    connect(headerErrorsIndicatorButton, &QAbstractButton::clicked, []() {
-        CppToolsSettings::instance()->setShowHeaderErrorInfoBar(true);
-    });
-    d->m_headerErrorsIndicatorAction = insertExtraToolBarWidget(TextEditorWidget::Left,
-                                                                headerErrorsIndicatorButton);
-    d->m_headerErrorsIndicatorAction->setVisible(false);
-    connect(CppToolsSettings::instance(), &CppToolsSettings::showHeaderErrorInfoBarChanged,
-            this, &CppEditorWidget::updateHeaderErrorWidgets);
-
+    // Toolbar: Outline/Overview combo box
     insertExtraToolBarWidget(TextEditorWidget::Left, d->m_cppEditorOutline->widget());
+
+    // Toolbar: Parse context
+    ParseContextModel &parseContextModel = cppEditorDocument()->parseContextModel();
+    d->m_parseContextWidget = new ParseContextWidget(parseContextModel, this);
+    d->m_parseContextAction = insertExtraToolBarWidget(TextEditorWidget::Left,
+                                                       d->m_parseContextWidget);
+    d->m_parseContextAction->setVisible(false);
+    connect(&parseContextModel, &ParseContextModel::updated,
+            this, [this](bool areMultipleAvailable) {
+        d->m_parseContextAction->setVisible(areMultipleAvailable);
+    });
+
+    // Toolbar: '#' Button
+    // TODO: Make "Additional Preprocessor Directives" also useful with Clang Code Model.
+    if (!d->m_modelManager->isClangCodeModelActive()) {
+        d->m_preprocessorButton = new QToolButton(this);
+        d->m_preprocessorButton->setText(QLatin1String("#"));
+        Command *cmd = ActionManager::command(Constants::OPEN_PREPROCESSOR_DIALOG);
+        connect(cmd, &Command::keySequenceChanged,
+                this, &CppEditorWidget::updatePreprocessorButtonTooltip);
+        updatePreprocessorButtonTooltip();
+        connect(d->m_preprocessorButton, &QAbstractButton::clicked,
+                this, &CppEditorWidget::showPreProcessorWidget);
+
+        insertExtraToolBarWidget(TextEditorWidget::Left, d->m_preprocessorButton);
+    }
+
+    // Toolbar: Actions to show minimized info bars
+    d->m_showInfoBarActions = MinimizableInfoBars::createShowInfoBarActions([this](QWidget *w) {
+        return this->insertExtraToolBarWidget(TextEditorWidget::Left, w);
+    });
+    connect(&cppEditorDocument()->minimizableInfoBars(), &MinimizableInfoBars::showAction,
+            this, &CppEditorWidget::onShowInfoBarAction);
 }
 
 void CppEditorWidget::finalizeInitializationAfterDuplication(TextEditorWidget *other)
@@ -259,9 +279,12 @@ void CppEditorWidget::finalizeInitializationAfterDuplication(TextEditorWidget *o
     const Id selectionKind = CodeWarningsSelection;
     setExtraSelections(selectionKind, cppEditorWidget->extraSelections(selectionKind));
 
-    d->m_headerErrorDiagnosticWidgetCreator
-            = cppEditorWidget->d->m_headerErrorDiagnosticWidgetCreator;
-    updateHeaderErrorWidgets();
+    if (isWidgetHighlighted(cppEditorWidget->d->m_preprocessorButton))
+        updateWidgetHighlighting(d->m_preprocessorButton, true);
+
+    d->m_parseContextWidget->syncToModel();
+    d->m_parseContextAction->setVisible(
+                d->m_cppEditorDocument->parseContextModel().areMultipleAvailable());
 }
 
 CppEditorWidget::~CppEditorWidget()
@@ -310,7 +333,6 @@ void CppEditorWidget::onCppDocumentUpdated()
 
 void CppEditorWidget::onCodeWarningsUpdated(unsigned revision,
                                             const QList<QTextEdit::ExtraSelection> selections,
-                                            const HeaderErrorDiagnosticWidgetCreator &creator,
                                             const TextEditor::RefactorMarkers &refactorMarkers)
 {
     if (revision != documentRevision())
@@ -318,9 +340,6 @@ void CppEditorWidget::onCodeWarningsUpdated(unsigned revision,
 
     setExtraSelections(TextEditorWidget::CodeWarningsSelection, selections);
     setRefactorMarkers(refactorMarkersWithoutClangMarkers() + refactorMarkers);
-
-    d->m_headerErrorDiagnosticWidgetCreator = creator;
-    updateHeaderErrorWidgets();
 }
 
 void CppEditorWidget::onIfdefedOutBlocksUpdated(unsigned revision,
@@ -331,23 +350,11 @@ void CppEditorWidget::onIfdefedOutBlocksUpdated(unsigned revision,
     setIfdefedOutBlocks(ifdefedOutBlocks);
 }
 
-void CppEditorWidget::updateHeaderErrorWidgets()
+void CppEditorWidget::onShowInfoBarAction(const Id &id, bool show)
 {
-    const Id id(Constants::ERRORS_IN_HEADER_FILES);
-    InfoBar *infoBar = textDocument()->infoBar();
-
-    infoBar->removeInfo(id);
-
-    if (d->m_headerErrorDiagnosticWidgetCreator) {
-        if (CppToolsSettings::instance()->showHeaderErrorInfoBar()) {
-            addHeaderErrorInfoBarEntry();
-            d->m_headerErrorsIndicatorAction->setVisible(false);
-        } else {
-            d->m_headerErrorsIndicatorAction->setVisible(true);
-        }
-    } else {
-        d->m_headerErrorsIndicatorAction->setVisible(false);
-    }
+    QAction *action = d->m_showInfoBarActions.value(id);
+    QTC_ASSERT(action, return);
+    action->setVisible(show);
 }
 
 void CppEditorWidget::findUsages()
@@ -426,6 +433,20 @@ bool CppEditorWidget::selectBlockDown()
     return changed;
 }
 
+void CppEditorWidget::updateWidgetHighlighting(QWidget *widget, bool highlight)
+{
+    if (!widget)
+        return;
+
+    widget->setProperty("highlightWidget", highlight);
+    widget->update();
+}
+
+bool CppEditorWidget::isWidgetHighlighted(QWidget *widget)
+{
+    return widget ? widget->property("highlightWidget").toBool() : false;
+}
+
 void CppEditorWidget::renameSymbolUnderCursor()
 {
     if (refactoringEngine())
@@ -436,29 +457,11 @@ void CppEditorWidget::renameSymbolUnderCursor()
 
 void CppEditorWidget::renameSymbolUnderCursorBuiltin()
 {
-    d->m_useSelectionsUpdater.abortSchedule();
-
     updateSemanticInfo(d->m_cppEditorDocument->recalculateSemanticInfo(),
                        /*updateUseSelectionSynchronously=*/ true);
 
     if (!d->m_localRenaming.start()) // Rename local symbol
         renameUsages(); // Rename non-local symbol or macro
-}
-
-void CppEditorWidget::addHeaderErrorInfoBarEntry() const
-{
-    InfoBarEntry info(Constants::ERRORS_IN_HEADER_FILES,
-                      tr("<b>Warning</b>: The code model could not parse an included file, "
-                         "which might lead to slow or incorrect code completion and "
-                         "highlighting, for example."));
-    info.setDetailsWidgetCreator(d->m_headerErrorDiagnosticWidgetCreator);
-    info.setShowDefaultCancelButton(false);
-    info.setCustomButtonInfo("Minimize", [](){
-         CppToolsSettings::instance()->setShowHeaderErrorInfoBar(false);
-    });
-
-    InfoBar *infoBar = textDocument()->infoBar();
-    infoBar->addInfo(info);
 }
 
 namespace {
@@ -470,7 +473,7 @@ QList<ProjectPart::Ptr> fetchProjectParts(CppTools::CppModelManager *modelManage
 
     if (projectParts.isEmpty())
         projectParts = modelManager->projectPartFromDependencies(filePath);
-    else if (projectParts.isEmpty())
+    if (projectParts.isEmpty())
         projectParts.append(modelManager->fallbackProjectPart());
 
     return projectParts;
@@ -495,6 +498,9 @@ ProjectPart *findProjectPartForCurrentProject(const QList<ProjectPart::Ptr> &pro
 
 ProjectPart *CppEditorWidget::projectPart() const
 {
+    if (!d->m_modelManager)
+        return 0;
+
     auto projectParts = fetchProjectParts(d->m_modelManager, textDocument()->filePath());
 
     return findProjectPartForCurrentProject(projectParts,
@@ -550,7 +556,8 @@ void CppEditorWidget::renameSymbolUnderCursorClang()
 {
     using ClangBackEnd::SourceLocationsContainer;
 
-    if (refactoringEngine()->isUsable()) {
+    ProjectPart *theProjectPart = projectPart();
+    if (refactoringEngine()->isUsable() && theProjectPart) {
         d->m_useSelectionsUpdater.abortSchedule();
 
         QPointer<CppEditorWidget> cppEditorWidget = this;
@@ -577,7 +584,7 @@ void CppEditorWidget::renameSymbolUnderCursorClang()
         refactoringEngine()->startLocalRenaming(textCursor(),
                                                 textDocument()->filePath(),
                                                 document()->revision(),
-                                                projectPart(),
+                                                theProjectPart,
                                                 std::move(renameSymbols));
 
         viewport()->setCursor(Qt::BusyCursor);
@@ -586,7 +593,9 @@ void CppEditorWidget::renameSymbolUnderCursorClang()
 
 void CppEditorWidget::updatePreprocessorButtonTooltip()
 {
-    QTC_ASSERT(d->m_preprocessorButton, return);
+    if (!d->m_preprocessorButton)
+        return;
+
     Command *cmd = ActionManager::command(Constants::OPEN_PREPROCESSOR_DIALOG);
     QTC_ASSERT(cmd, return);
     d->m_preprocessorButton->setToolTip(cmd->action()->toolTip());
@@ -815,7 +824,8 @@ bool CppEditorWidget::handleStringSplitting(QKeyEvent *e) const
     if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
         QTextCursor cursor = textCursor();
 
-        if (CPlusPlus::MatchingText::isInStringHelper(cursor)) {
+        const Kind stringKind = CPlusPlus::MatchingText::stringKindAtCursor(cursor);
+        if (stringKind >= T_FIRST_STRING_LITERAL && stringKind < T_FIRST_RAW_STRING_LITERAL) {
             cursor.beginEditBlock();
             if (cursor.positionInBlock() > 0
                     && cursor.block().text().at(cursor.positionInBlock() - 1) == QLatin1Char('\\')) {
@@ -872,7 +882,7 @@ AssistInterface *CppEditorWidget::createAssistInterface(AssistKind kind, AssistR
             LanguageFeatures features = LanguageFeatures::defaultFeatures();
             if (Document::Ptr doc = d->m_lastSemanticInfo.doc)
                 features = doc->languageFeatures();
-            features.objCEnabled = cppEditorDocument()->isObjCEnabled();
+            features.objCEnabled |= cppEditorDocument()->isObjCEnabled();
             return cap->createAssistInterface(
                             textDocument()->filePath().toString(),
                             this,
@@ -1014,20 +1024,12 @@ void CppEditorWidget::abortDeclDefLink()
 
 void CppEditorWidget::showPreProcessorWidget()
 {
-    const Utils::FileName fileName = textDocument()->filePath();
+    const QString filePath = textDocument()->filePath().toString();
 
-    // Check if this editor belongs to a project
-    QList<ProjectPart::Ptr> projectParts = d->m_modelManager->projectPart(fileName);
-    if (projectParts.isEmpty())
-        projectParts = d->m_modelManager->projectPartFromDependencies(fileName);
-    if (projectParts.isEmpty())
-        projectParts << d->m_modelManager->fallbackProjectPart();
-
-    CppPreProcessorDialog preProcessorDialog(this, textDocument()->filePath().toString(), projectParts);
-    if (preProcessorDialog.exec() == QDialog::Accepted) {
-        cppEditorDocument()->setPreprocessorSettings(
-                    preProcessorDialog.projectPart(),
-                    preProcessorDialog.additionalPreProcessorDirectives().toUtf8());
+    CppPreProcessorDialog dialog(filePath, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        const QByteArray extraDirectives = dialog.extraPreprocessorDirectives().toUtf8();
+        cppEditorDocument()->setExtraPreprocessorDirectives(extraDirectives);
         cppEditorDocument()->scheduleProcessDocument();
     }
 }

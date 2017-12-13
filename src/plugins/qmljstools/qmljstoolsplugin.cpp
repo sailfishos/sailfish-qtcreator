@@ -38,7 +38,6 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/progressmanager/progressmanager.h>
-#include <utils/mimetypes/mimedatabase.h>
 
 #include <QtPlugin>
 #include <QMenu>
@@ -68,19 +67,17 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
     Q_UNUSED(arguments)
     Q_UNUSED(error)
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/qmljstools/QmlJSTools.mimetypes.xml"));
-
     m_settings = new QmlJSToolsSettings(this); // force registration of qmljstools settings
 
     // Objects
     m_modelManager = new ModelManager(this);
 
-//    VCSManager *vcsManager = core->vcsManager();
-//    DocumentManager *fileManager = core->fileManager();
-//    connect(vcsManager, SIGNAL(repositoryChanged(QString)),
-//            m_modelManager, SLOT(updateModifiedSourceFiles()));
-//    connect(fileManager, SIGNAL(filesChangedInternally(QStringList)),
-//            m_modelManager, SLOT(updateSourceFiles(QStringList)));
+//    Core::VcsManager *vcsManager = Core::VcsManager::instance();
+//    Core::DocumentManager *documentManager = Core::DocumentManager::instance();
+//    connect(vcsManager, &Core::VcsManager::repositoryChanged,
+//            m_modelManager, &ModelManager::updateModifiedSourceFiles);
+//    connect(documentManager, &DocumentManager::filesChangedInternally,
+//            m_modelManager, &ModelManager::updateSourceFiles);
 
     LocatorData *locatorData = new LocatorData;
     addAutoReleasedObject(locatorData);

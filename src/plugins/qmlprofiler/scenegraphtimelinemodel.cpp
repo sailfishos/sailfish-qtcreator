@@ -27,6 +27,8 @@
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilereventtypes.h"
 
+#include <timeline/timelineformattime.h>
+
 #include <QCoreApplication>
 #include <QDebug>
 
@@ -94,7 +96,7 @@ int SceneGraphTimelineModel::typeId(int index) const
     return m_data[index].typeId;
 }
 
-QColor SceneGraphTimelineModel::color(int index) const
+QRgb SceneGraphTimelineModel::color(int index) const
 {
     return colorBySelectionId(index);
 }
@@ -122,7 +124,7 @@ QVariantMap SceneGraphTimelineModel::details(int index) const
 
     result.insert(QLatin1String("displayName"), tr(threadLabel(stage)));
     result.insert(tr("Stage"), tr(StageLabels[stage]));
-    result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
+    result.insert(tr("Duration"), Timeline::formatTime(duration(index)));
 
     const int glyphCount = m_data[index].glyphCount;
     if (glyphCount >= 0)

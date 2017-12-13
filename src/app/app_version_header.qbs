@@ -32,6 +32,8 @@ Product {
                 if (onWindows)
                     content = content.replace(/\r\n/g, "\n");
                 // replace the magic qmake incantations
+                content = content.replace(/(\n#define IDE_VERSION_DISPLAY_DEF) .+\n/, "$1 "
+                        + product.moduleProperty("qtc", "qtcreator_display_version") + "\n");
                 content = content.replace(/(\n#define IDE_VERSION) .+\n/, "$1 "
                         + product.moduleProperty("qtc", "qtcreator_version") + "\n");
                 content = content.replace(/(\n#define IDE_VERSION_MAJOR) .+\n/, "$1 "
@@ -40,6 +42,8 @@ Product {
                         + product.moduleProperty("qtc", "ide_version_minor") + "\n");
                 content = content.replace(/(\n#define IDE_VERSION_RELEASE) .+\n/, "$1 "
                         + product.moduleProperty("qtc", "ide_version_release") + "\n");
+                content = content.replace("$${QTCREATOR_COPYRIGHT_YEAR}",
+                        product.moduleProperty("qtc", "qtcreator_copyright_year"));
                 file = new TextFile(output.filePath, TextFile.WriteOnly);
                 file.truncate();
                 file.write(content);

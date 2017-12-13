@@ -48,6 +48,7 @@
 #include <utils/algorithm.h>
 #include <utils/mapreduce.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QSettings>
 #include <QtPlugin>
@@ -61,8 +62,11 @@
 namespace Core {
 namespace Internal {
 
+static Locator *m_instance = nullptr;
+
 Locator::Locator()
 {
+    m_instance = this;
     m_refreshTimer.setSingleShot(false);
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(); });
 }
@@ -82,6 +86,11 @@ Locator::~Locator()
     qDeleteAll(m_customFilters);
 }
 
+Locator *Locator::instance()
+{
+    return m_instance;
+}
+
 void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
 {
     m_corePlugin = corePlugin;
@@ -89,31 +98,29 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
     m_settingsPage = new LocatorSettingsPage(this);
     m_corePlugin->addObject(m_settingsPage);
 
-    m_locatorWidget = new LocatorWidget(this);
-    m_locatorWidget->setEnabled(false);
-    StatusBarWidget *view = new StatusBarWidget;
-    view->setWidget(m_locatorWidget);
-    view->setContext(Context("LocatorWidget"));
-    view->setPosition(StatusBarWidget::First);
-    m_corePlugin->addAutoReleasedObject(view);
-
-    QAction *action = new QAction(m_locatorWidget->windowIcon(), m_locatorWidget->windowTitle(), this);
+    QAction *action = new QAction(Utils::Icons::ZOOM.icon(), tr("Locate..."), this);
     Command *cmd = ActionManager::registerAction(action, Constants::LOCATE);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+K")));
-    connect(action, &QAction::triggered, this, &Locator::openLocator);
-    connect(cmd, &Command::keySequenceChanged,
-            this, [this, cmd]() { updatePlaceholderText(cmd); });
-    updatePlaceholderText(cmd);
+    connect(action, &QAction::triggered, this, [] {
+        LocatorManager::show(QString());
+    });
 
     ActionContainer *mtools = ActionManager::actionContainer(Constants::M_TOOLS);
     mtools->addAction(cmd);
 
-    m_corePlugin->addObject(new LocatorManager(m_locatorWidget));
+    auto locatorWidget = LocatorManager::createLocatorInputWidget(ICore::mainWindow());
+    StatusBarWidget *view = new StatusBarWidget;
+    view->setWidget(locatorWidget);
+    view->setContext(Context("LocatorWidget"));
+    view->setPosition(StatusBarWidget::First);
+    m_corePlugin->addAutoReleasedObject(view);
+
+    new LocatorManager(this);
 
     m_openDocumentsFilter = new OpenDocumentsFilter;
     m_corePlugin->addObject(m_openDocumentsFilter);
 
-    m_fileSystemFilter = new FileSystemFilter(m_locatorWidget);
+    m_fileSystemFilter = new FileSystemFilter();
     m_corePlugin->addObject(m_fileSystemFilter);
 
     m_executeFilter = new ExecuteFilter();
@@ -122,27 +129,12 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
     m_externalToolsFilter = new ExternalToolsFilter;
     m_corePlugin->addObject(m_externalToolsFilter);
 
-    m_corePlugin->addAutoReleasedObject(new LocatorFiltersFilter(this, m_locatorWidget));
+    m_corePlugin->addAutoReleasedObject(new LocatorFiltersFilter);
 #ifdef Q_OS_OSX
     m_corePlugin->addAutoReleasedObject(new SpotlightLocatorFilter);
 #endif
 
     connect(ICore::instance(), &ICore::saveSettingsRequested, this, &Locator::saveSettings);
-}
-
-void Locator::updatePlaceholderText(Command *command)
-{
-    QTC_ASSERT(command, return);
-    if (command->keySequence().isEmpty())
-        m_locatorWidget->setPlaceholderText(tr("Type to locate"));
-    else
-        m_locatorWidget->setPlaceholderText(tr("Type to locate (%1)").arg(
-                                                command->keySequence().toString(QKeySequence::NativeText)));
-}
-
-void Locator::openLocator()
-{
-    m_locatorWidget->show(QString());
 }
 
 void Locator::extensionsInitialized()
@@ -172,23 +164,69 @@ bool Locator::delayedInitialize()
 
 void Locator::loadSettings()
 {
-    QSettings *qs = ICore::settings();
+    SettingsDatabase *settings = ICore::settingsDatabase();
+    settings->beginGroup(QLatin1String("QuickOpen"));
+    m_refreshTimer.setInterval(settings->value(QLatin1String("RefreshInterval"), 60).toInt() * 60000);
 
-    // Backwards compatibility to old settings location
-    if (qs->contains(QLatin1String("QuickOpen/FiltersFilter"))) {
-        loadSettingsHelper(qs);
-    } else {
-        SettingsDatabase *settings = ICore::settingsDatabase();
-        loadSettingsHelper(settings);
+    foreach (ILocatorFilter *filter, m_filters) {
+        if (settings->contains(filter->id().toString())) {
+            const QByteArray state = settings->value(filter->id().toString()).toByteArray();
+            if (!state.isEmpty())
+                filter->restoreState(state);
+        }
     }
+    settings->beginGroup(QLatin1String("CustomFilters"));
+    QList<ILocatorFilter *> customFilters;
+    const QStringList keys = settings->childKeys();
+    int count = 0;
+    Id baseId(Constants::CUSTOM_FILTER_BASEID);
+    foreach (const QString &key, keys) {
+        ILocatorFilter *filter = new DirectoryFilter(baseId.withSuffix(++count));
+        filter->restoreState(settings->value(key).toByteArray());
+        customFilters.append(filter);
+    }
+    setCustomFilters(customFilters);
+    settings->endGroup();
+    settings->endGroup();
 
-    qs->remove(QLatin1String("QuickOpen"));
-
-    m_locatorWidget->updateFilterList();
-    m_locatorWidget->setEnabled(true);
     if (m_refreshTimer.interval() > 0)
         m_refreshTimer.start();
     m_settingsInitialized = true;
+    setFilters(m_filters + customFilters);
+}
+
+void Locator::updateFilterActions()
+{
+    QMap<Id, QAction *> actionCopy = m_filterActionMap;
+    m_filterActionMap.clear();
+    // register new actions, update existent
+    for (ILocatorFilter *filter : m_filters) {
+        if (filter->shortcutString().isEmpty() || filter->isHidden())
+            continue;
+        Id filterId = filter->id();
+        Id actionId = filter->actionId();
+        QAction *action = 0;
+        if (!actionCopy.contains(filterId)) {
+            // register new action
+            action = new QAction(filter->displayName(), this);
+            Command *cmd = ActionManager::registerAction(action, actionId);
+            cmd->setAttribute(Command::CA_UpdateText);
+            connect(action, &QAction::triggered, this, [filter] {
+                LocatorManager::showFilter(filter);
+            });
+        } else {
+            action = actionCopy.take(filterId);
+            action->setText(filter->displayName());
+        }
+        m_filterActionMap.insert(filterId, action);
+    }
+
+    // unregister actions that are deleted now
+    const auto end = actionCopy.end();
+    for (auto it = actionCopy.begin(); it != end; ++it) {
+        ActionManager::unregisterAction(it.value(), it.key().withPrefix("Locator."));
+        delete it.value();
+    }
 }
 
 void Locator::updateEditorManagerPlaceholderText()
@@ -266,7 +304,7 @@ void Locator::saveSettings()
 */
 QList<ILocatorFilter *> Locator::filters()
 {
-    return m_filters;
+    return m_instance->m_filters;
 }
 
 /*!
@@ -281,8 +319,9 @@ QList<ILocatorFilter *> Locator::customFilters()
 void Locator::setFilters(QList<ILocatorFilter *> f)
 {
     m_filters = f;
+    updateFilterActions();
     updateEditorManagerPlaceholderText(); // possibly some shortcut changed
-    m_locatorWidget->updateFilterList();
+    emit filtersChanged();
 }
 
 void Locator::setCustomFilters(QList<ILocatorFilter *> filters)

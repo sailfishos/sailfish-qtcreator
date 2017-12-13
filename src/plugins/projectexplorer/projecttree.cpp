@@ -29,7 +29,6 @@
 #include "project.h"
 #include "projectnodes.h"
 #include "projectexplorerconstants.h"
-#include "nodesvisitor.h"
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
@@ -73,10 +72,15 @@ ProjectTree::ProjectTree(QObject *parent) : QObject(parent)
 
     connect(SessionManager::instance(), &SessionManager::projectAdded,
             this, &ProjectTree::sessionChanged);
+    connect(SessionManager::instance(), &SessionManager::projectAdded,
+            this, &ProjectTree::treeChanged);
     connect(SessionManager::instance(), &SessionManager::projectRemoved,
             this, &ProjectTree::sessionChanged);
+    connect(SessionManager::instance(), &SessionManager::projectRemoved,
+            this, &ProjectTree::treeChanged);
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &ProjectTree::sessionChanged);
+    connect(this, &ProjectTree::subtreeChanged, this, &ProjectTree::treeChanged);
 }
 
 ProjectTree::~ProjectTree()
@@ -89,7 +93,7 @@ void ProjectTree::aboutToShutDown()
 {
     disconnect(qApp, &QApplication::focusChanged,
                s_instance, &ProjectTree::focusChanged);
-    s_instance->update(0, 0);
+    s_instance->update(nullptr, nullptr);
     qDeleteAll(s_instance->m_projectTreeWidgets);
     QTC_CHECK(s_instance->m_projectTreeWidgets.isEmpty());
 }
@@ -149,7 +153,7 @@ void ProjectTree::updateFromFocus(bool invalidCurrentNode)
 void ProjectTree::updateFromProjectTreeWidget(ProjectTreeWidget *widget)
 {
     Node *currentNode = widget->currentNode();
-    Project *project = projectForNode(currentNode);
+    Project *project = SessionManager::projectForNode(currentNode);
 
     update(currentNode, project);
 }
@@ -157,23 +161,6 @@ void ProjectTree::updateFromProjectTreeWidget(ProjectTreeWidget *widget)
 void ProjectTree::documentManagerCurrentFileChanged()
 {
     updateFromFocus();
-}
-
-Project *ProjectTree::projectForNode(Node *node)
-{
-    if (!node)
-        return nullptr;
-
-    FolderNode *rootProjectNode = node->asFolderNode();
-    if (!rootProjectNode)
-        rootProjectNode = node->parentFolderNode();
-
-    while (rootProjectNode && rootProjectNode->parentFolderNode() != SessionManager::sessionNode())
-        rootProjectNode = rootProjectNode->parentFolderNode();
-
-    Q_ASSERT(rootProjectNode);
-
-    return Utils::findOrDefault(SessionManager::projects(), Utils::equal(&Project::rootProjectNode, rootProjectNode));
 }
 
 void ProjectTree::updateFromDocumentManager(bool invalidCurrentNode)
@@ -194,7 +181,7 @@ void ProjectTree::updateFromNode(Node *node)
 {
     Project *project;
     if (node)
-        project = projectForNode(node);
+        project = SessionManager::projectForNode(node);
     else
         project = SessionManager::startupProject();
 
@@ -205,8 +192,7 @@ void ProjectTree::updateFromNode(Node *node)
 
 void ProjectTree::update(Node *node, Project *project)
 {
-    bool changedProject = project != m_currentProject;
-    bool changedNode = node != m_currentNode;
+    const bool changedProject = project != m_currentProject;
     if (changedProject) {
         if (m_currentProject) {
             disconnect(m_currentProject, &Project::projectContextUpdated,
@@ -225,17 +211,22 @@ void ProjectTree::update(Node *node, Project *project)
         }
     }
 
-    if (!node && Core::EditorManager::currentDocument()) {
-        connect(Core::EditorManager::currentDocument(), &Core::IDocument::changed,
-                this, &ProjectTree::updateExternalFileWarning,
-                Qt::UniqueConnection);
+    if (Core::IDocument *document = Core::EditorManager::currentDocument()) {
+        if (node) {
+            disconnect(document, &Core::IDocument::changed,
+                       this, &ProjectTree::updateExternalFileWarning);
+            document->infoBar()->removeInfo(EXTERNAL_FILE_WARNING);
+        } else {
+            connect(document, &Core::IDocument::changed,
+                    this, &ProjectTree::updateExternalFileWarning,
+                    Qt::UniqueConnection);
+        }
     }
 
-    if (changedNode) {
+    if (node != m_currentNode) {
         m_currentNode = node;
-        emit currentNodeChanged(m_currentNode, project);
+        emit currentNodeChanged();
     }
-
 
     if (changedProject) {
         emit currentProjectChanged(m_currentProject);
@@ -273,169 +264,10 @@ void ProjectTree::updateContext()
     Core::ICore::updateAdditionalContexts(oldContext, newContext);
 }
 
-void ProjectTree::emitNodeUpdated(Node *node)
+void ProjectTree::emitSubtreeChanged(FolderNode *node)
 {
-    if (!isInNodeHierarchy(node))
-        return;
-    emit nodeUpdated(node);
-}
-
-void ProjectTree::emitAboutToChangeShowInSimpleTree(FolderNode *node)
-{
-    if (!isInNodeHierarchy(node))
-        return;
-    emit aboutToChangeShowInSimpleTree(node);
-}
-
-void ProjectTree::emitShowInSimpleTreeChanged(FolderNode *node)
-{
-    if (!isInNodeHierarchy(node))
-        return;
-    emit showInSimpleTreeChanged(node);
-}
-
-void ProjectTree::emitFoldersAboutToBeAdded(FolderNode *parentFolder, const QList<FolderNode *> &newFolders)
-{
-    if (!isInNodeHierarchy(parentFolder))
-        return;
-
-    m_foldersAdded = newFolders;
-
-    emit foldersAboutToBeAdded(parentFolder, newFolders);
-}
-
-void ProjectTree::emitFoldersAdded(FolderNode *folder)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-
-    emit foldersAdded();
-
-    if (Utils::anyOf(m_projectTreeWidgets, &ProjectTreeWidget::hasFocus))
-        return;
-
-    if (!m_currentNode) {
-        Core::IDocument *document = Core::EditorManager::currentDocument();
-        const FileName fileName = document ? document->filePath() : FileName();
-
-
-        FindNodesForFileVisitor findNodes(fileName);
-        foreach (FolderNode *fn, m_foldersAdded)
-            fn->accept(&findNodes);
-
-        Node *bestNode = ProjectTreeWidget::mostExpandedNode(findNodes.nodes());
-        if (!bestNode)
-            return;
-
-        updateFromNode(bestNode);
-    }
-    m_foldersAdded.clear();
-}
-
-void ProjectTree::emitFoldersAboutToBeRemoved(FolderNode *parentFolder, const QList<FolderNode *> &staleFolders)
-{
-    if (!isInNodeHierarchy(parentFolder))
-        return;
-
-    Node *n = ProjectTree::currentNode();
-    while (n) {
-        if (FolderNode *fn = n->asFolderNode()) {
-            if (staleFolders.contains(fn)) {
-                ProjectNode *pn = n->projectNode();
-                // Make sure the node we are switching too isn't going to be removed also
-                while (staleFolders.contains(pn))
-                    pn = pn->parentFolderNode()->projectNode();
-                m_resetCurrentNodeFolder = true;
-                break;
-            }
-        }
-        n = n->parentFolderNode();
-    }
-    emit foldersAboutToBeRemoved(parentFolder, staleFolders);
-}
-
-void ProjectTree::emitFoldersRemoved(FolderNode *folder)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-
-    emit foldersRemoved();
-
-    if (m_resetCurrentNodeFolder) {
-        updateFromFocus(true);
-        m_resetCurrentNodeFolder = false;
-    }
-}
-
-void ProjectTree::emitFilesAboutToBeAdded(FolderNode *folder, const QList<FileNode *> &newFiles)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-    m_filesAdded = newFiles;
-    emit filesAboutToBeAdded(folder, newFiles);
-}
-
-void ProjectTree::emitFilesAdded(FolderNode *folder)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-
-    emit filesAdded();
-
-    if (Utils::anyOf(m_projectTreeWidgets, &ProjectTreeWidget::hasFocus))
-        return;
-
-    if (!m_currentNode) {
-        Core::IDocument *document = Core::EditorManager::currentDocument();
-        const FileName fileName = document ? document->filePath() : FileName();
-
-        int index = Utils::indexOf(m_filesAdded, Utils::equal(&FileNode::filePath, fileName));
-
-        if (index == -1)
-            return;
-
-        updateFromNode(m_filesAdded.at(index));
-    }
-    m_filesAdded.clear();
-}
-
-void ProjectTree::emitFilesAboutToBeRemoved(FolderNode *folder, const QList<FileNode *> &staleFiles)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-
-    if (m_currentNode)
-        if (FileNode *fileNode = m_currentNode->asFileNode())
-            if (staleFiles.contains(fileNode))
-                m_resetCurrentNodeFile = true;
-
-    emit filesAboutToBeRemoved(folder, staleFiles);
-}
-
-void ProjectTree::emitFilesRemoved(FolderNode *folder)
-{
-    if (!isInNodeHierarchy(folder))
-        return;
-    emit filesRemoved();
-
-    if (m_resetCurrentNodeFile) {
-        updateFromFocus(true);
-        m_resetCurrentNodeFile = false;
-    }
-}
-
-void ProjectTree::emitNodeSortKeyAboutToChange(Node *node)
-{
-    if (!isInNodeHierarchy(node))
-        return;
-    emit nodeSortKeyAboutToChange(node);
-}
-
-void ProjectTree::emitNodeSortKeyChanged(Node *node)
-{
-    if (!isInNodeHierarchy(node))
-        return;
-    emit nodeSortKeyChanged();
+    if (hasNode(node))
+        emit s_instance->subtreeChanged(node);
 }
 
 void ProjectTree::collapseAll()
@@ -461,7 +293,7 @@ void ProjectTree::updateExternalFileWarning()
     const QList<Project *> projects = SessionManager::projects();
     if (projects.isEmpty())
         return;
-    foreach (Project *project, projects) {
+    for (Project *project : projects) {
         FileName projectDir = project->projectDirectory();
         if (projectDir.isEmpty())
             continue;
@@ -489,34 +321,31 @@ bool ProjectTree::hasFocus(ProjectTreeWidget *widget)
 void ProjectTree::showContextMenu(ProjectTreeWidget *focus, const QPoint &globalPos, Node *node)
 {
     QMenu *contextMenu = nullptr;
+    Project *project = SessionManager::projectForNode(node);
+    emit s_instance->aboutToShowContextMenu(project, node);
 
-    if (!node)
-        node = SessionManager::sessionNode();
-    if (node->nodeType() != SessionNodeType) {
-        Project *project = SessionManager::projectForNode(node);
-
-        emit s_instance->aboutToShowContextMenu(project, node);
+    if (!node) {
+        contextMenu = Core::ActionManager::actionContainer(Constants::M_SESSIONCONTEXT)->menu();
+    } else {
         switch (node->nodeType()) {
-        case ProjectNodeType:
-            if (node->parentFolderNode() == SessionManager::sessionNode())
+        case NodeType::Project: {
+            if ((node->parentFolderNode() && node->parentFolderNode()->asContainerNode())
+                    || node->asContainerNode())
                 contextMenu = Core::ActionManager::actionContainer(Constants::M_PROJECTCONTEXT)->menu();
             else
                 contextMenu = Core::ActionManager::actionContainer(Constants::M_SUBPROJECTCONTEXT)->menu();
             break;
-        case VirtualFolderNodeType:
-        case FolderNodeType:
+        }
+        case NodeType::VirtualFolder:
+        case NodeType::Folder:
             contextMenu = Core::ActionManager::actionContainer(Constants::M_FOLDERCONTEXT)->menu();
             break;
-        case FileNodeType:
+        case NodeType::File:
             contextMenu = Core::ActionManager::actionContainer(Constants::M_FILECONTEXT)->menu();
             break;
         default:
             qWarning("ProjectExplorerPlugin::showContextMenu - Missing handler for node type");
         }
-    } else { // session item
-        emit s_instance->aboutToShowContextMenu(nullptr, node);
-
-        contextMenu = Core::ActionManager::actionContainer(Constants::M_SESSIONCONTEXT)->menu();
     }
 
     if (contextMenu && contextMenu->actions().count() > 0) {
@@ -530,31 +359,42 @@ void ProjectTree::showContextMenu(ProjectTreeWidget *focus, const QPoint &global
 
 void ProjectTree::highlightProject(Project *project, const QString &message)
 {
-
     Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
-    Core::NavigationWidget *navigation = Core::NavigationWidget::instance();
 
     // Shows and focusses a project tree
-    QWidget *widget = navigation->activateSubWidget(ProjectExplorer::Constants::PROJECTTREE_ID);
+    QWidget *widget = Core::NavigationWidget::activateSubWidget(ProjectExplorer::Constants::PROJECTTREE_ID, Core::Side::Left);
 
     if (auto *projectTreeWidget = qobject_cast<ProjectTreeWidget *>(widget))
         projectTreeWidget->showMessage(project->rootProjectNode(), message);
 }
 
+void ProjectTree::registerTreeManager(const TreeManagerFunction &treeChange)
+{
+    if (treeChange)
+        s_instance->m_treeManagers.append(treeChange);
+}
+
+void ProjectTree::applyTreeManager(FolderNode *folder)
+{
+    if (!folder)
+        return;
+
+    for (TreeManagerFunction &f : s_instance->m_treeManagers)
+        f(folder);
+}
+
+bool ProjectTree::hasNode(const Node *node)
+{
+    return Utils::contains(SessionManager::projects(), [node](const Project *p) {
+        return p && p->rootProjectNode() && (
+                    p->containerNode() == node
+                    || p->rootProjectNode()->findNode([node](const Node *n) { return n == node; }));
+    });
+}
+
 void ProjectTree::hideContextMenu()
 {
     m_focusForContextMenu = nullptr;
-}
-
-bool ProjectTree::isInNodeHierarchy(Node *n)
-{
-    Node *sessionNode = SessionManager::sessionNode();
-    do {
-        if (n == sessionNode)
-            return true;
-        n = n->parentFolderNode();
-    } while (n);
-    return false;
 }
 
 } // namespace ProjectExplorer

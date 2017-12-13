@@ -25,6 +25,8 @@
 
 #include <sqliteglobal.h>
 
+#include <utils/temporarydirectory.h>
+
 #include <QCoreApplication>
 #include <QLoggingCategory>
 
@@ -37,6 +39,11 @@
 
 int main(int argc, char *argv[])
 {
+    const QString temporayDirectoryPath = QDir::tempPath() +"/QtCreator-UnitTests-XXXXXX";
+    Utils::TemporaryDirectory::setMasterTemporaryDirectory(temporayDirectoryPath);
+    qputenv("TMPDIR", Utils::TemporaryDirectory::masterDirectoryPath().toUtf8());
+    qputenv("TEMP", Utils::TemporaryDirectory::masterDirectoryPath().toUtf8());
+
     Sqlite::registerTypes();
 
     QCoreApplication application(argc, argv);

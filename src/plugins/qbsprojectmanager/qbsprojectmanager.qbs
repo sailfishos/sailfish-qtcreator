@@ -41,12 +41,12 @@ QtcPlugin {
     Depends { name: "ProjectExplorer" }
     Depends { name: "Core" }
     Depends { name: "CppTools" }
-    Depends { name: "ResourceEditor" }
     Depends { name: "QtSupport" }
     Depends { name: "QmlJSTools" }
 
     cpp.defines: base.concat([
         'QML_BUILD_STATIC_LIB',
+        'QBS_ENABLE_PROJECT_FILE_UPDATES', // TODO: Take from installed qbscore module
         'QBS_INSTALL_DIR="'
                 + (project.useExternalQbs
                        ? FileInfo.fromWindowsSeparators(project.qbs_install_dir)
@@ -69,6 +69,8 @@ QtcPlugin {
         "qbsbuildconfiguration.h",
         "qbsbuildconfigurationwidget.cpp",
         "qbsbuildconfigurationwidget.h",
+        "qbsbuildinfo.cpp",
+        "qbsbuildinfo.h",
         "qbsbuildstep.cpp",
         "qbsbuildstep.h",
         "qbsbuildstepconfigwidget.ui",
@@ -77,16 +79,17 @@ QtcPlugin {
         "qbscleanstepconfigwidget.ui",
         "qbsdeployconfigurationfactory.cpp",
         "qbsdeployconfigurationfactory.h",
-        "qbsinfopage.cpp",
-        "qbsinfopage.h",
-        "qbsinfowidget.ui",
         "qbsinstallstep.cpp",
         "qbsinstallstep.h",
         "qbsinstallstepconfigwidget.ui",
+        "qbskitinformation.cpp",
+        "qbskitinformation.h",
         "qbslogsink.cpp",
         "qbslogsink.h",
         "qbsnodes.cpp",
         "qbsnodes.h",
+        "qbsnodetreebuilder.cpp",
+        "qbsnodetreebuilder.h",
         "qbsparser.cpp",
         "qbsparser.h",
         "qbspmlogging.cpp",
@@ -96,8 +99,8 @@ QtcPlugin {
         "qbsprofilessettingswidget.ui",
         "qbsproject.cpp",
         "qbsproject.h",
-        "qbsprojectfile.cpp",
-        "qbsprojectfile.h",
+        "qbsprojectimporter.cpp",
+        "qbsprojectimporter.h",
         "qbsprojectmanager.cpp",
         "qbsprojectmanager.h",
         "qbsprojectmanager.qrc",

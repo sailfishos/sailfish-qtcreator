@@ -863,11 +863,6 @@ void FakeVimUserCommandsPage::apply()
 class FakeVimCompletionAssistProvider : public CompletionAssistProvider
 {
 public:
-    bool supportsEditor(Id ) const
-    {
-        return false;
-    }
-
     IAssistProcessor *createProcessor() const;
 
     void setActive(const QString &needle, bool forward, FakeVimHandler *handler)
@@ -908,7 +903,7 @@ public:
     }
 
 private:
-    FakeVimHandler *m_handler;
+    FakeVimHandler *m_handler = nullptr;
     QString m_needle;
 };
 
@@ -1044,33 +1039,33 @@ private:
     void setUseFakeVim(const QVariant &value);
     void setUseFakeVimInternal(bool on);
     void quitFakeVim();
-    void triggerCompletions();
-    void triggerSimpleCompletions(const QString &needle, bool forward);
-    void windowCommand(const QString &key, int count);
+    void triggerCompletions(FakeVimHandler *handler);
+    void triggerSimpleCompletions(FakeVimHandler *handler, const QString &needle, bool forward);
+    void windowCommand(FakeVimHandler *handler, const QString &key, int count);
     void find(bool reverse);
     void findNext(bool reverse);
-    void foldToggle(int depth);
-    void foldAll(bool fold);
-    void fold(int depth, bool fold);
-    void foldGoTo(int count, bool current);
-    void jumpToGlobalMark(QChar mark, bool backTickMode, const QString &fileName);
+    void foldToggle(FakeVimHandler *handler, int depth);
+    void foldAll(FakeVimHandler *handler, bool fold);
+    void fold(FakeVimHandler *handler, int depth, bool fold);
+    void foldGoTo(FakeVimHandler *handler, int count, bool current);
+    void jumpToGlobalMark(FakeVimHandler *, QChar mark, bool backTickMode, const QString &fileName);
     void maybeReadVimRc();
-    void disableBlockSelection();
-    void setBlockSelection(const QTextCursor&);
-    void blockSelection(QTextCursor *);
-    void hasBlockSelection(bool*);
+    void disableBlockSelection(FakeVimHandler *handler);
+    void setBlockSelection(FakeVimHandler *handler, const QTextCursor &cursor);
+    void blockSelection(FakeVimHandler *handler, QTextCursor *cursor);
+    void hasBlockSelection(FakeVimHandler *handler, bool *on);
     void setShowRelativeLineNumbers(const QVariant &value);
 
     void resetCommandBuffer();
-    void showCommandBuffer(const QString &contents, int cursorPos, int anchorPos,
-                           int messageLevel, FakeVimHandler *eventFilter);
-    void showExtraInformation(const QString &msg);
-    void changeSelection(const QList<QTextEdit::ExtraSelection> &selections);
-    void highlightMatches(const QString &needle);
-    void moveToMatchingParenthesis(bool *moved, bool *forward, QTextCursor *cursor);
-    void checkForElectricCharacter(bool *result, QChar c);
-    void indentRegion(int beginBlock, int endBlock, QChar typedChar);
-    void handleExCommand(bool *handled, const ExCommand &cmd);
+    void showCommandBuffer(FakeVimHandler *handler, const QString &contents,
+                           int cursorPos, int anchorPos, int messageLevel);
+    void showExtraInformation(FakeVimHandler *handler, const QString &msg);
+    void changeSelection(FakeVimHandler *handler, const QList<QTextEdit::ExtraSelection> &selections);
+    void highlightMatches(FakeVimHandler *handler, const QString &needle);
+    void moveToMatchingParenthesis(FakeVimHandler *handler, bool *moved, bool *forward, QTextCursor *cursor);
+    void checkForElectricCharacter(FakeVimHandler *handler, bool *result, QChar c);
+    void indentRegion(FakeVimHandler *handler, int beginBlock, int endBlock, QChar typedChar);
+    void handleExCommand(FakeVimHandler *handler, bool *handled, const ExCommand &cmd);
 
     void writeSettings();
     void readSettings();
@@ -1099,7 +1094,7 @@ private:
     void setActionChecked(Id id, bool check);
 
     typedef int (*DistFunction)(const QRect &cursor, const QRect &other);
-    void moveSomewhere(DistFunction f, int count);
+    void moveSomewhere(FakeVimHandler *handler, DistFunction f, int count);
 
     void keepOnlyWindow(); // :only
 
@@ -1470,7 +1465,7 @@ static int moveDownWeight(const QRect &cursor, const QRect &other)
     return w;
 }
 
-void FakeVimPluginPrivate::windowCommand(const QString &map, int count)
+void FakeVimPluginPrivate::windowCommand(FakeVimHandler *handler, const QString &map, int count)
 {
     // normalize mapping
     const QString key = map.toUpper();
@@ -1490,31 +1485,31 @@ void FakeVimPluginPrivate::windowCommand(const QString &map, int count)
     else if (key == "W" || key == "<C-W>")
         triggerAction(Core::Constants::GOTO_NEXT_SPLIT);
     else if (key.contains("RIGHT") || key == "L" || key == "<S-L>")
-        moveSomewhere(&moveRightWeight, key == "<S-L>" ? -1 : count);
+        moveSomewhere(handler, &moveRightWeight, key == "<S-L>" ? -1 : count);
     else if (key.contains("LEFT")  || key == "H" || key == "<S-H>")
-        moveSomewhere(&moveLeftWeight, key == "<S-H>" ? -1 : count);
+        moveSomewhere(handler, &moveLeftWeight, key == "<S-H>" ? -1 : count);
     else if (key.contains("UP")    || key == "K" || key == "<S-K>")
-        moveSomewhere(&moveUpWeight, key == "<S-K>" ? -1 : count);
+        moveSomewhere(handler, &moveUpWeight, key == "<S-K>" ? -1 : count);
     else if (key.contains("DOWN")  || key == "J" || key == "<S-J>")
-        moveSomewhere(&moveDownWeight, key == "<S-J>" ? -1 : count);
+        moveSomewhere(handler, &moveDownWeight, key == "<S-J>" ? -1 : count);
     else
         qDebug() << "UNKNOWN WINDOW COMMAND: <C-W>" << map;
 }
 
-void FakeVimPluginPrivate::moveSomewhere(DistFunction f, int count)
+void FakeVimPluginPrivate::moveSomewhere(FakeVimHandler *handler, DistFunction f, int count)
 {
-    IEditor *currentEditor = EditorManager::currentEditor();
-    QWidget *w = currentEditor->widget();
+    QTC_ASSERT(handler, return);
+    QWidget *w = handler->widget();
     QPlainTextEdit *pe = qobject_cast<QPlainTextEdit *>(w);
     QTC_ASSERT(pe, return);
     QRect rc = pe->cursorRect();
-    QRect cursorRect(w->mapToGlobal(rc.topLeft()),
-            w->mapToGlobal(rc.bottomRight()));
+    QRect cursorRect(w->mapToGlobal(rc.topLeft()), w->mapToGlobal(rc.bottomRight()));
     //qDebug() << "\nCURSOR: " << cursorRect;
 
     IEditor *bestEditor = 0;
     int repeat = count;
 
+    IEditor *currentEditor = EditorManager::currentEditor();
     QList<IEditor *> editors = EditorManager::visibleEditors();
     while (repeat < 0 || repeat-- > 0) {
         editors.removeOne(currentEditor);
@@ -1572,28 +1567,21 @@ void FakeVimPluginPrivate::findNext(bool reverse)
         triggerAction(Core::Constants::FIND_NEXT);
 }
 
-void FakeVimPluginPrivate::foldToggle(int depth)
+void FakeVimPluginPrivate::foldToggle(FakeVimHandler *handler, int depth)
 {
-    IEditor *ieditor = EditorManager::currentEditor();
-    FakeVimHandler *handler = m_editorToHandler.value(ieditor, 0);
-    QTC_ASSERT(handler != 0, return);
-
+    QTC_ASSERT(handler, return);
     QTextBlock block = handler->textCursor().block();
-    fold(depth, !TextDocumentLayout::isFolded(block));
+    fold(handler, depth, !TextDocumentLayout::isFolded(block));
 }
 
-void FakeVimPluginPrivate::foldAll(bool fold)
+void FakeVimPluginPrivate::foldAll(FakeVimHandler *handler, bool fold)
 {
-    IEditor *ieditor = EditorManager::currentEditor();
-    TextEditorWidget *editor = qobject_cast<TextEditorWidget *>(ieditor->widget());
-    QTC_ASSERT(editor != 0, return);
-
-    QTextDocument *doc = editor->document();
-    TextDocumentLayout *documentLayout =
-            qobject_cast<TextDocumentLayout*>(doc->documentLayout());
+    QTC_ASSERT(handler, return);
+    QTextDocument *document = handler->textCursor().document();
+    auto documentLayout = qobject_cast<TextDocumentLayout*>(document->documentLayout());
     QTC_ASSERT(documentLayout != 0, return);
 
-    QTextBlock block = editor->document()->firstBlock();
+    QTextBlock block = document->firstBlock();
     while (block.isValid()) {
         TextDocumentLayout::doFoldOrUnfold(block, !fold);
         block = block.next();
@@ -1603,18 +1591,13 @@ void FakeVimPluginPrivate::foldAll(bool fold)
     documentLayout->emitDocumentSizeChanged();
 }
 
-void FakeVimPluginPrivate::fold(int depth, bool fold)
+void FakeVimPluginPrivate::fold(FakeVimHandler *handler, int depth, bool fold)
 {
-    IEditor *ieditor = EditorManager::currentEditor();
-    FakeVimHandler *handler = m_editorToHandler.value(ieditor, 0);
-    QTC_ASSERT(handler != 0, return);
-    TextEditorWidget *editor = qobject_cast<TextEditorWidget *>(ieditor->widget());
-    QTC_ASSERT(editor != 0, return);
-
-    QTextDocument *doc = editor->document();
-    TextDocumentLayout *documentLayout =
-            qobject_cast<TextDocumentLayout*>(doc->documentLayout());
-    QTC_ASSERT(documentLayout != 0, return);
+    QTC_ASSERT(handler, return);
+    QTextDocument *doc = handler->textCursor().document();
+    QTC_ASSERT(doc, return);
+    auto documentLayout = qobject_cast<TextDocumentLayout*>(doc->documentLayout());
+    QTC_ASSERT(documentLayout, return);
 
     QTextBlock block = handler->textCursor().block();
     int indent = TextDocumentLayout::foldingIndent(block);
@@ -1641,13 +1624,10 @@ void FakeVimPluginPrivate::fold(int depth, bool fold)
         if (TextDocumentLayout::isFolded(block)) {
             if (depth < 0) {
                 // recursively open fold
-                while (depth < 0 && block.isValid()
+                while (block.isValid()
                     && TextDocumentLayout::foldingIndent(block) >= indent) {
-                    if (TextDocumentLayout::canFold(block)) {
+                    if (TextDocumentLayout::canFold(block))
                         TextDocumentLayout::doFoldOrUnfold(block, true);
-                        if (depth > 0)
-                            --depth;
-                    }
                     block = block.next();
                 }
             } else {
@@ -1664,12 +1644,9 @@ void FakeVimPluginPrivate::fold(int depth, bool fold)
     documentLayout->emitDocumentSizeChanged();
 }
 
-void FakeVimPluginPrivate::foldGoTo(int count, bool current)
+void FakeVimPluginPrivate::foldGoTo(FakeVimHandler *handler, int count, bool current)
 {
-    IEditor *ieditor = EditorManager::currentEditor();
-    FakeVimHandler *handler = m_editorToHandler.value(ieditor, 0);
-    QTC_ASSERT(handler != 0, return);
-
+    QTC_ASSERT(handler, return);
     QTextCursor tc = handler->textCursor();
     QTextBlock block = tc.block();
 
@@ -1721,8 +1698,8 @@ void FakeVimPluginPrivate::foldGoTo(int count, bool current)
     }
 }
 
-void FakeVimPluginPrivate::jumpToGlobalMark(QChar mark, bool backTickMode,
-    const QString &fileName)
+void FakeVimPluginPrivate::jumpToGlobalMark(FakeVimHandler *,
+    QChar mark, bool backTickMode, const QString &fileName)
 {
     IEditor *iedit = EditorManager::openEditor(fileName);
     if (!iedit)
@@ -1825,6 +1802,11 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
     connect(ICore::instance(), &ICore::saveSettingsRequested,
             this, &FakeVimPluginPrivate::writeSettings);
 
+    connect(handler, &FakeVimHandler::tabNextRequested,
+            this, [this] { triggerAction(Core::Constants::GOTONEXTINHISTORY); });
+    connect(handler, &FakeVimHandler::tabPreviousRequested,
+            this, [this] { triggerAction(Core::Constants::GOTOPREVINHISTORY); });
+
     handler->setCurrentFileName(editor->document()->filePath().toString());
     handler->installEventFilter();
 
@@ -1899,55 +1881,46 @@ void FakeVimPluginPrivate::setUseFakeVimInternal(bool on)
     }
 }
 
-void FakeVimPluginPrivate::triggerCompletions()
+void FakeVimPluginPrivate::triggerCompletions(FakeVimHandler *handler)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *editor = qobject_cast<TextEditorWidget *>(handler->widget()))
         editor->invokeAssist(Completion, m_wordProvider);
 //        CompletionSupport::instance()->complete(editor->editor(), TextCompletion, false);
 }
 
-void FakeVimPluginPrivate::triggerSimpleCompletions(const QString &needle, bool forward)
+void FakeVimPluginPrivate::triggerSimpleCompletions(FakeVimHandler *handler, const QString &needle, bool forward)
 {
-//    m_wordCompletion->setActive(needle, forward, qobject_cast<FakeVimHandler *>(sender()));
-    m_wordProvider->setActive(needle, forward, qobject_cast<FakeVimHandler *>(sender()));
+    QTC_ASSERT(handler, return);
+//    m_wordCompletion->setActive(needle, forward, handler);
+    m_wordProvider->setActive(needle, forward, handler);
 }
 
-void FakeVimPluginPrivate::disableBlockSelection()
+void FakeVimPluginPrivate::disableBlockSelection(FakeVimHandler *handler)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
         bt->setBlockSelection(false);
 }
 
-void FakeVimPluginPrivate::setBlockSelection(const QTextCursor &cursor)
+void FakeVimPluginPrivate::setBlockSelection(FakeVimHandler *handler, const QTextCursor &cursor)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
         bt->setBlockSelection(cursor);
 }
 
-void FakeVimPluginPrivate::blockSelection(QTextCursor *cursor)
+void FakeVimPluginPrivate::blockSelection(FakeVimHandler *handler, QTextCursor *cursor)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
         if (cursor)
             *cursor = bt->blockSelection();
 }
 
-void FakeVimPluginPrivate::hasBlockSelection(bool *on)
+void FakeVimPluginPrivate::hasBlockSelection(FakeVimHandler *handler, bool *on)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
         *on = bt->hasBlockSelection();
 }
@@ -1960,25 +1933,20 @@ void FakeVimPluginPrivate::setShowRelativeLineNumbers(const QVariant &value)
     }
 }
 
-void FakeVimPluginPrivate::checkForElectricCharacter(bool *result, QChar c)
+void FakeVimPluginPrivate::checkForElectricCharacter(FakeVimHandler *handler, bool *result, QChar c)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
     if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
         *result = bt->textDocument()->indenter()->isElectricCharacter(c);
 }
 
-void FakeVimPluginPrivate::handleExCommand(bool *handled, const ExCommand &cmd)
+void FakeVimPluginPrivate::handleExCommand(FakeVimHandler *handler, bool *handled, const ExCommand &cmd)
 {
+    QTC_ASSERT(handler, return);
     using namespace Core;
     //qDebug() << "PLUGIN HANDLE: " << cmd.cmd << cmd.count;
 
     *handled = false;
-
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
 
     // Focus editor first so actions can be executed in correct context.
     QWidget *editor = handler->widget();
@@ -1988,28 +1956,31 @@ void FakeVimPluginPrivate::handleExCommand(bool *handled, const ExCommand &cmd)
     *handled = true;
     if ((cmd.matches("w", "write") || cmd.cmd == "wq") && cmd.args.isEmpty()) {
         // :w[rite]
+        bool saved = false;
         IEditor *editor = m_editorToHandler.key(handler);
         const QString fileName = handler->currentFileName();
         if (editor && editor->document()->filePath().toString() == fileName) {
-            // Handle that as a special case for nicer interaction with core
-            DocumentManager::saveDocument(editor->document());
-            // Check result by reading back.
-            QFile file3(fileName);
-            file3.open(QIODevice::ReadOnly);
-            QByteArray ba = file3.readAll();
-            handler->showMessage(MessageInfo, Tr::tr("\"%1\" %2 %3L, %4C written")
-                .arg(fileName).arg(' ').arg(ba.count('\n')).arg(ba.size()));
-            if (cmd.cmd == "wq")
-                delayedQuitRequested(cmd.hasBang, m_editorToHandler.key(handler));
-        } else {
-            handler->showMessage(MessageError, Tr::tr("File not saved"));
+            triggerAction(Core::Constants::SAVE);
+            saved = !editor->document()->isModified();
+            if (saved) {
+                QFile file3(fileName);
+                if (file3.open(QIODevice::ReadOnly)) {
+                    const QByteArray ba = file3.readAll();
+                    handler->showMessage(MessageInfo, Tr::tr("\"%1\" %2 %3L, %4C written")
+                        .arg(fileName).arg(' ').arg(ba.count('\n')).arg(ba.size()));
+                    if (cmd.cmd == "wq")
+                        delayedQuitRequested(cmd.hasBang, m_editorToHandler.key(handler));
+                }
+            }
         }
+
+        if (!saved)
+            handler->showMessage(MessageError, Tr::tr("File not saved"));
     } else if (cmd.matches("wa", "wall")) {
         // :w[all]
-        QList<IDocument *> toSave = DocumentManager::modifiedDocuments();
-        QList<IDocument *> failed;
-        bool success = DocumentManager::saveModifiedDocuments(toSave, QString(), 0, QString(), 0, &failed);
-        if (!success)
+        triggerAction(Core::Constants::SAVEALL);
+        const QList<IDocument *> failed = DocumentManager::modifiedDocuments();
+        if (failed.isEmpty())
             handler->showMessage(MessageInfo, Tr::tr("Saving succeeded"));
         else
             handler->showMessage(MessageError, Tr::tr("%n files not saved", 0, failed.size()));
@@ -2093,7 +2064,7 @@ void FakeVimPluginPrivate::handleDelayedQuitAll(bool forced)
     EditorManager::closeAllEditors(!forced);
 }
 
-void FakeVimPluginPrivate::moveToMatchingParenthesis(bool *moved, bool *forward,
+void FakeVimPluginPrivate::moveToMatchingParenthesis(FakeVimHandler *, bool *moved, bool *forward,
         QTextCursor *cursor)
 {
     *moved = false;
@@ -2129,12 +2100,10 @@ void FakeVimPluginPrivate::moveToMatchingParenthesis(bool *moved, bool *forward,
     }
 }
 
-void FakeVimPluginPrivate::indentRegion(int beginBlock, int endBlock,
-      QChar typedChar)
+void FakeVimPluginPrivate::indentRegion(FakeVimHandler *handler,
+        int beginBlock, int endBlock, QChar typedChar)
 {
-    FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
-    if (!handler)
-        return;
+    QTC_ASSERT(handler, return);
 
     TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget());
     if (!bt)
@@ -2174,18 +2143,18 @@ void FakeVimPluginPrivate::quitFakeVim()
 
 void FakeVimPluginPrivate::resetCommandBuffer()
 {
-    showCommandBuffer(QString(), -1, -1, 0, 0);
+    showCommandBuffer(nullptr, QString(), -1, -1, 0);
 }
 
-void FakeVimPluginPrivate::showCommandBuffer(const QString &contents, int cursorPos, int anchorPos,
-                                             int messageLevel, FakeVimHandler *eventFilter)
+void FakeVimPluginPrivate::showCommandBuffer(FakeVimHandler *handler, const QString &contents, int cursorPos, int anchorPos,
+                                             int messageLevel)
 {
     //qDebug() << "SHOW COMMAND BUFFER" << contents;
     if (MiniBuffer *w = qobject_cast<MiniBuffer *>(m_statusBar->widget()))
-        w->setContents(contents, cursorPos, anchorPos, messageLevel, eventFilter);
+        w->setContents(contents, cursorPos, anchorPos, messageLevel, handler);
 }
 
-void FakeVimPluginPrivate::showExtraInformation(const QString &text)
+void FakeVimPluginPrivate::showExtraInformation(FakeVimHandler *, const QString &text)
 {
     EditorManager::splitSideBySide();
     QString title = "stdout.txt";
@@ -2196,14 +2165,14 @@ void FakeVimPluginPrivate::showExtraInformation(const QString &text)
     handler->handleCommand("0");
 }
 
-void FakeVimPluginPrivate::changeSelection(const QList<QTextEdit::ExtraSelection> &selection)
+void FakeVimPluginPrivate::changeSelection(FakeVimHandler *handler, const QList<QTextEdit::ExtraSelection> &selection)
 {
-    if (FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender()))
-        if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
-            bt->setExtraSelections(TextEditorWidget::FakeVimSelection, selection);
+    QTC_ASSERT(handler, return);
+    if (TextEditorWidget *bt = qobject_cast<TextEditorWidget *>(handler->widget()))
+        bt->setExtraSelections(TextEditorWidget::FakeVimSelection, selection);
 }
 
-void FakeVimPluginPrivate::highlightMatches(const QString &needle)
+void FakeVimPluginPrivate::highlightMatches(FakeVimHandler *, const QString &needle)
 {
     foreach (IEditor *editor, EditorManager::visibleEditors()) {
         QWidget *w = editor->widget();

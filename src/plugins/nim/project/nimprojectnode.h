@@ -36,16 +36,16 @@ class NimProject;
 class NimProjectNode : public ProjectExplorer::ProjectNode
 {
 public:
-    NimProjectNode(const Utils::FileName &projectFilePath);
+    NimProjectNode(NimProject &project, const Utils::FileName &projectFilePath);
 
-    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const override;
-    bool canAddSubProject(const QString &) const override;
-    bool addSubProjects(const QStringList &) override;
-    bool removeSubProjects(const QStringList &) override;
-    bool addFiles(const QStringList &, QStringList *) override;
-    bool removeFiles(const QStringList &, QStringList *) override;
+    bool supportsAction(ProjectExplorer::ProjectAction action, Node *node) const override;
+    bool addFiles(const QStringList &filePaths, QStringList *) override;
+    bool removeFiles(const QStringList &filePaths, QStringList *) override;
     bool deleteFiles(const QStringList &) override;
-    bool renameFile(const QString &, const QString &) override;
+    bool renameFile(const QString &filePath, const QString &newFilePath) override;
+
+private:
+    NimProject &m_project;
 };
 
 }

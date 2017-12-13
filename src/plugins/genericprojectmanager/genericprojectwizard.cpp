@@ -110,15 +110,8 @@ QString GenericProjectWizardDialog::projectName() const
 
 GenericProjectWizard::GenericProjectWizard()
 {
-    setSupportedProjectTypes({ Constants::GENERICPROJECT_ID });
-    // TODO do something about the ugliness of standard icons in sizes different than 16, 32, 64, 128
-    {
-        QPixmap icon(22, 22);
-        icon.fill(Qt::transparent);
-        QPainter p(&icon);
-        p.drawPixmap(3, 3, 16, 16, qApp->style()->standardIcon(QStyle::SP_DirIcon).pixmap(16));
-        setIcon(icon);
-    }
+    setSupportedProjectTypes({Constants::GENERICPROJECT_ID});
+    setIcon(QIcon(QLatin1String(":/genericprojectmanager/images/genericprojectmanager.png")));
     setDisplayName(tr("Import Existing Project"));
     setId("Z.Makefile");
     setDescription(tr("Imports existing projects that do not use qmake, CMake or Autotools. "
@@ -156,8 +149,7 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
     const QString configFileName = QFileInfo(dir, projectName + QLatin1String(".config")).absoluteFilePath();
     const QStringList paths = Utils::transform(wizard->selectedPaths(), &Utils::FileName::toString);
 
-    Utils::MimeDatabase mdb;
-    Utils::MimeType headerTy = mdb.mimeTypeForName(QLatin1String("text/x-chdr"));
+    Utils::MimeType headerTy = Utils::mimeTypeForName(QLatin1String("text/x-chdr"));
 
     QStringList nameFilters = headerTy.globPatterns();
 

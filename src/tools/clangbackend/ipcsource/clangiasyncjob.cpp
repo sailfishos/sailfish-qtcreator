@@ -30,6 +30,9 @@
 #include "clangparsesupportivetranslationunitjob.h"
 #include "clangreparsesupportivetranslationunitjob.h"
 #include "clangrequestdocumentannotationsjob.h"
+#include "clangrequestreferencesjob.h"
+#include "clangresumedocumentjob.h"
+#include "clangsuspenddocumentjob.h"
 #include "clangupdatedocumentannotationsjob.h"
 
 Q_LOGGING_CATEGORY(jobsLog, "qtc.clangbackend.jobs");
@@ -51,6 +54,12 @@ IAsyncJob *IAsyncJob::create(JobRequest::Type type)
         return new CompleteCodeJob();
     case JobRequest::Type::RequestDocumentAnnotations:
         return new RequestDocumentAnnotationsJob();
+    case JobRequest::Type::RequestReferences:
+        return new RequestReferencesJob();
+    case JobRequest::Type::SuspendDocument:
+        return new SuspendDocumentJob();
+    case JobRequest::Type::ResumeDocument:
+        return new ResumeDocumentJob();
     }
 
     return nullptr;

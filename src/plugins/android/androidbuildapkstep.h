@@ -73,7 +73,8 @@ public:
     bool useGradle() const;
     void setUseGradle(bool b);
 
-    bool runInGuiThread() const override;
+    bool addDebugger() const;
+    void setAddDebugger(bool debug);
 
     QString buildTargetSdk() const;
     void setBuildTargetSdk(const QString &sdk);
@@ -89,21 +90,22 @@ protected:
 
     AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc,
         AndroidBuildApkStep *other);
-    bool keystorePassword();
-    bool certificatePassword();
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool immutable() const override { return true; }
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
+    bool verifyKeystorePassword();
+    bool verifyCertificatePassword();
 
 protected:
-    AndroidDeployAction m_deployAction;
-    bool m_signPackage;
-    bool m_verbose;
-    bool m_useGradle;
-    bool m_openPackageLocation;
-    bool m_openPackageLocationForRun;
+    AndroidDeployAction m_deployAction = BundleLibrariesDeployment;
+    bool m_signPackage = false;
+    bool m_verbose = false;
+    bool m_useGradle = true; // Ant builds are deprecated.
+    bool m_openPackageLocation = false;
+    bool m_openPackageLocationForRun = false;
+    bool m_addDebugger = true;
     QString m_buildTargetSdk;
 
     Utils::FileName m_keystorePath;

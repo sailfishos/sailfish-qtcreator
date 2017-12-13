@@ -68,7 +68,9 @@ public:
         AuthenticationTypeKeyboardInteractive,
 
         // Some servers disable "password", others disable "keyboard-interactive".
-        AuthenticationTypeTryAllPasswordBasedMethods
+        AuthenticationTypeTryAllPasswordBasedMethods,
+
+        AuthenticationTypeAgent,
     };
 
     SshConnectionParameters();

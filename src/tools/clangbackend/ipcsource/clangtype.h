@@ -42,6 +42,8 @@ class Type
     friend bool operator==(Type first, Type second);
 
 public:
+    bool isValid() const;
+
     bool isConstant() const;
     bool isConstantReference();
     bool isPointer() const;
@@ -50,6 +52,7 @@ public:
     bool isLValueReference() const;
     bool isReferencingConstant() const;
     bool isOutputArgument() const;
+    bool isBuiltinType() const;
 
     Utf8String utf8Spelling() const;
     ClangString spelling() const;
@@ -74,6 +77,6 @@ private:
 
 bool operator==(Type first, Type second);
 
-void PrintTo(CXTypeKind typeKind, ::std::ostream* os);
-void PrintTo(const Type &type, ::std::ostream* os);
+std::ostream &operator<<(std::ostream &os, CXTypeKind typeKind);
+std::ostream &operator<<(std::ostream &os, const Type &type);
 } // namespace ClangBackEnd

@@ -27,12 +27,15 @@
 
 #include "utils_global.h"
 
+#include "hostosinfo.h"
+
 #include <QCoreApplication>
 #include <QXmlStreamWriter> // Mac.
 #include <QMetaType>
 #include <QStringList>
 
 #include <functional>
+#include <memory>
 
 namespace Utils {class FileName; }
 
@@ -40,7 +43,6 @@ QT_BEGIN_NAMESPACE
 class QDataStream;
 class QDateTime;
 class QDir;
-class QDropEvent;
 class QFile;
 class QFileInfo;
 class QTemporaryFile;
@@ -48,6 +50,11 @@ class QTextStream;
 class QWidget;
 
 QTCREATOR_UTILS_EXPORT QDebug operator<<(QDebug dbg, const Utils::FileName &c);
+
+// for withNTFSPermissions
+#ifdef Q_OS_WIN
+extern Q_CORE_EXPORT int qt_ntfs_permission_lookup;
+#endif
 
 QT_END_NAMESPACE
 
@@ -121,6 +128,28 @@ public:
     static QString resolvePath(const QString &baseDir, const QString &fileName);
 };
 
+// for actually finding out if e.g. directories are writable on Windows
+#ifdef Q_OS_WIN
+
+template <typename T>
+static T withNTFSPermissions(const std::function<T()> &task)
+{
+    qt_ntfs_permission_lookup++;
+    T result = task();
+    qt_ntfs_permission_lookup--;
+    return result;
+}
+
+#else // Q_OS_WIN
+
+template <typename T>
+static T withNTFSPermissions(const std::function<T()> &task)
+{
+    return task();
+}
+
+#endif // Q_OS_WIN
+
 class QTCREATOR_UTILS_EXPORT FileReader
 {
     Q_DECLARE_TR_FUNCTIONS(Utils::FileUtils) // sic!
@@ -130,9 +159,11 @@ public:
     bool fetch(const QString &fileName, QIODevice::OpenMode mode, QString *errorString);
     bool fetch(const QString &fileName, QString *errorString)
         { return fetch(fileName, QIODevice::NotOpen, errorString); }
+#ifdef QT_GUI_LIB
     bool fetch(const QString &fileName, QIODevice::OpenMode mode, QWidget *parent);
     bool fetch(const QString &fileName, QWidget *parent)
         { return fetch(fileName, QIODevice::NotOpen, parent); }
+#endif // QT_GUI_LIB
     const QByteArray &data() const { return m_data; }
     const QString &errorString() const { return m_errorString; }
 private:
@@ -152,7 +183,9 @@ public:
     QString errorString() const { return m_errorString; }
     virtual bool finalize();
     bool finalize(QString *errStr);
+#ifdef QT_GUI_LIB
     bool finalize(QWidget *parent);
+#endif
 
     bool write(const char *data, int len);
     bool write(const QByteArray &bytes);
@@ -161,8 +194,10 @@ public:
     bool setResult(QXmlStreamWriter *stream);
     bool setResult(bool ok);
 
+    QFile *file() { return m_file.get(); }
+
 protected:
-    QFile *m_file;
+    std::unique_ptr<QFile> m_file;
     QString m_fileName;
     QString m_errorString;
     bool m_hasError;
@@ -179,7 +214,6 @@ public:
 
     virtual bool finalize();
     using FileSaverBase::finalize;
-    QFile *file() { return m_file; }
 
 private:
     bool m_isSafe;
@@ -192,8 +226,6 @@ public:
     explicit TempFileSaver(const QString &templ = QString());
     ~TempFileSaver();
 
-    QTemporaryFile *file() { return reinterpret_cast<QTemporaryFile *>(m_file); }
-
     void setAutoRemove(bool on) { m_autoRemove = on; }
 
 private:
@@ -205,5 +237,19 @@ private:
 QT_BEGIN_NAMESPACE
 QTCREATOR_UTILS_EXPORT uint qHash(const Utils::FileName &a);
 QT_END_NAMESPACE
+
+namespace std {
+template<> struct hash<Utils::FileName>
+{
+    using argument_type = Utils::FileName;
+    using result_type = size_t;
+    result_type operator()(const argument_type &fn) const
+    {
+        if (Utils::HostOsInfo::fileNameCaseSensitivity() == Qt::CaseInsensitive)
+            return hash<string>()(fn.toString().toUpper().toStdString());
+        return hash<string>()(fn.toString().toStdString());
+    }
+};
+} // namespace std
 
 Q_DECLARE_METATYPE(Utils::FileName)

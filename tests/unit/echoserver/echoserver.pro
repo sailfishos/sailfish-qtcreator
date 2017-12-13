@@ -1,7 +1,5 @@
 QT       += core network
 
-QT       -= gui
-
 TARGET = echo
 CONFIG   += console
 CONFIG   -= app_bundle
@@ -10,8 +8,13 @@ TEMPLATE = app
 
 unix:LIBS += -ldl
 
-osx:QMAKE_CXXFLAGS = -stdlib=libc++
+# Set IDE_LIBEXEC_PATH and IDE_BIN_PATH to silence a warning about empty
+# QTC_REL_TOOLS_PATH, which is not used by the tests.
+IDE_LIBEXEC_PATH=$$PWD
+IDE_BIN_PATH=$$PWD
+include($$PWD/../../../src/libs/utils/utils-lib.pri)
 
+include(../../../qtcreator.pri)
 include(../../../src/libs/clangbackendipc/clangbackendipc-lib.pri)
 include(../../../src/libs/sqlite/sqlite-lib.pri)
 

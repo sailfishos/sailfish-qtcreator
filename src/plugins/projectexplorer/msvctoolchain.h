@@ -56,7 +56,7 @@ public:
 
     explicit MsvcToolChain(const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
-                           const Language &l, Detection d = ManualDetection);
+                           Core::Id l, Detection d = ManualDetection);
     MsvcToolChain();
 
     Utils::FileNameList suggestedMkspecList() const override;
@@ -77,14 +77,19 @@ public:
 protected:
     explicit MsvcToolChain(Core::Id typeId, const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
-                           const Language &l, Detection d);
+                           Core::Id l, Detection d);
     explicit MsvcToolChain(Core::Id typeId);
 
-    Utils::Environment readEnvironmentSetting(Utils::Environment& env) const override;
+    Utils::Environment readEnvironmentSetting(const Utils::Environment& env) const final;
+    // Function must be thread-safe!
     QByteArray msvcPredefinedMacros(const QStringList cxxflags,
                                     const Utils::Environment &env) const override;
 
 private:
+    QList<Utils::EnvironmentItem> environmentModifications() const;
+
+    mutable QList<Utils::EnvironmentItem> m_environmentModifications;
+
     QString m_varsBatArg; // Argument
 };
 
@@ -94,7 +99,7 @@ public:
     explicit ClangClToolChain(const QString &name, const QString &llvmDir,
                               const Abi &abi,
                               const QString &varsBat, const QString &varsBatArg,
-                              const Language &l,
+                              Core::Id language,
                               Detection d = ManualDetection);
     ClangClToolChain();
 
@@ -126,7 +131,7 @@ class MsvcToolChainFactory : public ToolChainFactory
 
 public:
     MsvcToolChainFactory();
-    QSet<ToolChain::Language> supportedLanguages() const override;
+    QSet<Core::Id> supportedLanguages() const override;
 
     QList<ToolChain *> autoDetect(const QList<ToolChain *> &alreadyKnown) override;
 

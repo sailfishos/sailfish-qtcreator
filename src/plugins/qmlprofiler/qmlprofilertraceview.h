@@ -26,10 +26,7 @@
 #pragma once
 
 #include "qmlprofilermodelmanager.h"
-
 #include <coreplugin/find/ifindsupport.h>
-
-#include <QTimer>
 #include <QWidget>
 
 namespace QmlProfiler {
@@ -55,6 +52,8 @@ public:
     qint64 selectionStart() const;
     qint64 selectionEnd() const;
     void showContextMenu(QPoint position);
+    bool isUsable() const;
+    bool isSuspended() const;
 
 public slots:
     void clear();

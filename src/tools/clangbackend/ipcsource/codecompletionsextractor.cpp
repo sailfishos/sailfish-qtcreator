@@ -28,10 +28,6 @@
 #include "clangstring.h"
 #include "codecompletionchunkconverter.h"
 
-#ifdef CLANGBACKEND_TESTS
-#include <gtest/gtest.h>
-#endif
-
 #include <QDebug>
 
 namespace ClangBackEnd {
@@ -87,7 +83,7 @@ bool CodeCompletionsExtractor::peek(const Utf8String &name)
 CodeCompletions CodeCompletionsExtractor::extractAll()
 {
     CodeCompletions codeCompletions;
-    codeCompletions.reserve(cxCodeCompleteResults->NumResults);
+    codeCompletions.reserve(int(cxCodeCompleteResults->NumResults));
 
     while (next())
         codeCompletions.append(currentCodeCompletion_);
@@ -151,6 +147,9 @@ void CodeCompletionsExtractor::extractCompletionKind()
             break;
         case CXCursor_NotImplemented:
             currentCodeCompletion_.setCompletionKind(CodeCompletion::KeywordCompletionKind);
+            break;
+        case CXCursor_OverloadCandidate:
+            currentCodeCompletion_.setCompletionKind(CodeCompletion::FunctionOverloadCompletionKind);
             break;
         default:
             currentCodeCompletion_.setCompletionKind(CodeCompletion::Other);
@@ -341,15 +340,15 @@ const CodeCompletion &CodeCompletionsExtractor::currentCodeCompletion() const
     return currentCodeCompletion_;
 }
 
-#ifdef CLANGBACKEND_TESTS
-void PrintTo(const CodeCompletionsExtractor &extractor, std::ostream *os)
+std::ostream &operator<<(std::ostream &os, const CodeCompletionsExtractor &extractor)
 {
-    *os << "name: " << ::testing::PrintToString(extractor.currentCodeCompletion().text())
-        << ", kind: " <<  ::testing::PrintToString(extractor.currentCodeCompletion().completionKind())
-        << ", priority: " <<  extractor.currentCodeCompletion().priority()
-        << ", kind: " <<  ::testing::PrintToString(extractor.currentCodeCompletion().availability());
+    os << "name: " << extractor.currentCodeCompletion().text()
+       << ", kind: " <<  extractor.currentCodeCompletion().completionKind()
+       << ", priority: " <<  extractor.currentCodeCompletion().priority()
+       << ", kind: " <<  extractor.currentCodeCompletion().availability();
+
+    return os;
 }
-#endif
 
 } // namespace ClangBackEnd
 

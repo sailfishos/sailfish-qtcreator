@@ -171,7 +171,7 @@ static TextDocument *createProFileDocument()
 ProFileEditorFactory::ProFileEditorFactory()
 {
     setId(Constants::PROFILE_EDITOR_ID);
-    setDisplayName(qApp->translate("OpenWith::Editors", Constants::PROFILE_EDITOR_DISPLAY_NAME));
+    setDisplayName(QCoreApplication::translate("OpenWith::Editors", Constants::PROFILE_EDITOR_DISPLAY_NAME));
     addMimeType(Constants::PROFILE_MIMETYPE);
     addMimeType(Constants::PROINCLUDEFILE_MIMETYPE);
     addMimeType(Constants::PROFEATUREFILE_MIMETYPE);
@@ -182,24 +182,22 @@ ProFileEditorFactory::ProFileEditorFactory()
     setDocumentCreator(createProFileDocument);
     setEditorWidgetCreator([]() { return new ProFileEditorWidget; });
 
-    ProFileCompletionAssistProvider *pcap = new ProFileCompletionAssistProvider;
-    setCompletionAssistProvider(pcap);
+    setCompletionAssistProvider(new KeywordsCompletionAssistProvider(qmakeKeywords()));
 
-    setCommentStyle(Utils::CommentDefinition::HashStyle);
+    setCommentDefinition(Utils::CommentDefinition::HashStyle);
     setEditorActionHandlers(TextEditorActionHandler::UnCommentSelection
                 | TextEditorActionHandler::JumpToFileUnderCursor);
 
-    Keywords keywords(pcap->variables(), pcap->functions(), QMap<QString, QStringList>());
-    addHoverHandler(new ProFileHoverHandler(keywords));
-    setSyntaxHighlighterCreator([keywords]() { return new ProFileHighlighter(keywords); });
+    addHoverHandler(new ProFileHoverHandler);
+    setSyntaxHighlighterCreator([]() { return new ProFileHighlighter; });
 
     const QString defaultOverlay = QLatin1String(ProjectExplorer::Constants::FILEOVERLAY_QT);
     Core::FileIconProvider::registerIconOverlayForSuffix(
-                creatorTheme()->imageFile(Theme::IconOverlayPro, defaultOverlay).toLatin1().data(), "pro");
+                creatorTheme()->imageFile(Theme::IconOverlayPro, defaultOverlay), "pro");
     Core::FileIconProvider::registerIconOverlayForSuffix(
-                creatorTheme()->imageFile(Theme::IconOverlayPri, defaultOverlay).toLatin1().data(), "pri");
+                creatorTheme()->imageFile(Theme::IconOverlayPri, defaultOverlay), "pri");
     Core::FileIconProvider::registerIconOverlayForSuffix(
-                creatorTheme()->imageFile(Theme::IconOverlayPrf, defaultOverlay).toLatin1().data(), "prf");
+                creatorTheme()->imageFile(Theme::IconOverlayPrf, defaultOverlay), "prf");
 }
 
 } // namespace Internal

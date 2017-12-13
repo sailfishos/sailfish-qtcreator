@@ -27,14 +27,19 @@
 
 #include "projectexplorer_export.h"
 
+#include "devicesupport/idevice.h"
+
 #include <utils/outputformat.h>
+#include <utils/processhandle.h>
 
 #include <QProcess>
 
+namespace Utils { class ProcessHandle; }
+
 namespace ProjectExplorer {
 
-struct ApplicationLauncherPrivate;
-class StandardRunnable;
+class Runnable;
+namespace Internal { class ApplicationLauncherPrivate; }
 
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT ApplicationLauncher : public QObject
@@ -51,13 +56,15 @@ public:
     ~ApplicationLauncher() override;
 
     void setProcessChannelMode(QProcess::ProcessChannelMode mode);
-    void start(const ProjectExplorer::StandardRunnable &runnable);
+    void start(const Runnable &runnable);
+    void start(const Runnable &runnable, const IDevice::ConstPtr &device);
     void stop();
     bool isRunning() const;
-    qint64 applicationPID() const;
+    Utils::ProcessHandle applicationPID() const;
 
     QString errorString() const;
     QProcess::ProcessError processError() const;
+    void bringToForeground();
 
     static QString msgWinCannotRetrieveDebuggingOutput();
 
@@ -65,23 +72,17 @@ signals:
     void appendMessage(const QString &message, Utils::OutputFormat format);
     void processStarted();
     void processExited(int exitCode, QProcess::ExitStatus);
-    void bringToForegroundRequested(qint64 pid);
     void error(QProcess::ProcessError error);
 
-private:
-    void handleProcessStarted();
-    void guiProcessError();
-    void consoleProcessError(const QString &error);
-    void readStandardOutput();
-    void readStandardError();
-#ifdef Q_OS_WIN
-    void cannotRetrieveDebugOutput();
-#endif
-    void checkDebugOutput(qint64 pid, const QString &message);
-    void processDone(int, QProcess::ExitStatus);
-    void bringToForeground();
+    void remoteStdout(const QString &output);
+    void remoteStderr(const QString &output);
+    void reportProgress(const QString &progressOutput);
+    void reportError(const QString &errorOutput);
+    void remoteProcessStarted();
+    void finished(bool success);
 
-    ApplicationLauncherPrivate *d;
+private:
+    Internal::ApplicationLauncherPrivate *d;
 };
 
 } // namespace ProjectExplorer

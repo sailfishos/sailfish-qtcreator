@@ -87,6 +87,7 @@ bool QbsCleanStep::init(QList<const BuildStep *> &earlierSteps)
     if (!bc)
         return false;
 
+    m_products = bc->products();
     return true;
 }
 
@@ -97,9 +98,10 @@ void QbsCleanStep::run(QFutureInterface<bool> &fi)
     QbsProject *pro = static_cast<QbsProject *>(project());
     qbs::CleanOptions options(m_qbsCleanOptions);
 
-    m_job = pro->clean(options);
-
+    QString error;
+    m_job = pro->clean(options, m_products, error);
     if (!m_job) {
+        emit addOutput(error, OutputFormat::ErrorMessage);
         reportRunResult(*m_fi, false);
         return;
     }
@@ -200,7 +202,7 @@ void QbsCleanStep::createTaskAndOutput(ProjectExplorer::Task::TaskType type, con
                                                        Utils::FileName::fromString(file), line,
                                                        ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
     emit addTask(task, 1);
-    emit addOutput(message, NormalOutput);
+    emit addOutput(message, OutputFormat::Stdout);
 }
 
 void QbsCleanStep::setDryRun(bool dr)
@@ -271,7 +273,8 @@ void QbsCleanStepConfigWidget::updateState()
     m_ui->dryRunCheckBox->setChecked(m_step->dryRun());
     m_ui->keepGoingCheckBox->setChecked(m_step->keepGoing());
 
-    QString command = QbsBuildConfiguration::equivalentCommandLine(m_step);
+    QString command = static_cast<QbsBuildConfiguration *>(m_step->buildConfiguration())
+            ->equivalentCommandLine(m_step);
     m_ui->commandLineTextEdit->setPlainText(command);
 
     QString summary = tr("<b>Qbs:</b> %1").arg(command);
@@ -308,7 +311,7 @@ QList<ProjectExplorer::BuildStepInfo> QbsCleanStepFactory::availableSteps(Projec
 {
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN
             && qobject_cast<QbsBuildConfiguration *>(parent->parent()))
-        return {{ Constants::QBS_CLEANSTEP_ID, tr("Qbs Clean") }};
+        return {{Constants::QBS_CLEANSTEP_ID, tr("Qbs Clean")}};
     return {};
 }
 

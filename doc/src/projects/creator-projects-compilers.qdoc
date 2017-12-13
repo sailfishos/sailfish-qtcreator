@@ -40,8 +40,8 @@
     Qt is supported on a variety of 32-bit and 64-bit platforms, and can
     usually be built on each platform with GCC, a vendor-supplied compiler, or
     a third party compiler. In \QC, a \l{glossary-buildandrun-kit}{kit}
-    specifies the compiler and other necessary tools for building and running an
-    application on a particular platform.
+    specifies the compiler and other necessary tools for building an application
+    for and running it on a particular platform.
 
     \QC automatically detects the compilers that are registered by your system
     or by an installer. You can add compilers to build applications by using other
@@ -64,6 +64,8 @@
         \li Clang is a C, C++, Objective C, and Objective C++ front-end for the
             LLVM compiler for Windows, Linux, and \macos.
 
+        \li Nim is the Nim Compiler for Windows, Linux, and \macos.
+
         \li QCC is the interface for compiling C++ applications for QNX.
 
     \endlist
@@ -77,7 +79,7 @@
     You specify the compiler to use for each kit in \uicontrol Tools >
     \uicontrol Options > \uicontrol {Build & Run} > \uicontrol Kits.
 
-    To add compilers:
+    To add C or C++ compilers:
 
     \list 1
 
@@ -111,6 +113,13 @@
             within the kits.
 
     \endlist
+
+    \section1 Adding Nim Compilers
+
+    To build an application using the Nim Compiler, select  \uicontrol Tools >
+    \uicontrol Options > \uicontrol {Build & Run} > \uicontrol Compilers >
+    \uicontrol Add > \uicontrol Nim, and specify the path to the directory where
+    the compiler is located.
 
     \section1 Adding Custom Compilers
 

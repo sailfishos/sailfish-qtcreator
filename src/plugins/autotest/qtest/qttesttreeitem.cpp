@@ -26,7 +26,6 @@
 #include "qttesttreeitem.h"
 #include "qttestconfiguration.h"
 #include "qttestparser.h"
-#include "../autotest_utils.h"
 
 #include <projectexplorer/session.h>
 #include <utils/qtcassert.h>
@@ -41,25 +40,15 @@ QtTestTreeItem::QtTestTreeItem(const QString &name, const QString &filePath, Tes
         setChecked(Qt::Checked);
 }
 
-QtTestTreeItem *QtTestTreeItem::createTestItem(const TestParseResult *result)
-{
-    QtTestTreeItem *item = new QtTestTreeItem(result->displayName, result->fileName,
-                                              result->itemType);
-    item->setProFile(result->proFile);
-    item->setLine(result->line);
-    item->setColumn(result->column);
-
-    foreach (const TestParseResult *funcParseResult, result->children)
-        item->appendChild(createTestItem(funcParseResult));
-    return item;
-}
-
 QVariant QtTestTreeItem::data(int column, int role) const
 {
     switch (role) {
+    case Qt::DisplayRole:
+        if (type() == Root)
+            break;
+        return QVariant(name() + nameSuffix());
     case Qt::CheckStateRole:
         switch (type()) {
-        case Root:
         case TestDataFunction:
         case TestSpecialFunction:
             return QVariant();
@@ -111,44 +100,41 @@ bool QtTestTreeItem::canProvideDebugConfiguration() const
 TestConfiguration *QtTestTreeItem::testConfiguration() const
 {
     ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
-    QTC_ASSERT(project, return 0);
+    QTC_ASSERT(project, return nullptr);
 
-    QtTestConfiguration *config = 0;
+    QtTestConfiguration *config = nullptr;
     switch (type()) {
     case TestCase:
         config = new QtTestConfiguration;
         config->setTestCaseCount(childCount());
-        config->setProFile(proFile());
+        config->setProjectFile(proFile());
         config->setProject(project);
-        config->setDisplayName(TestUtils::getCMakeDisplayNameIfNecessary(filePath(), proFile()));
         break;
     case TestFunctionOrSet: {
         TestTreeItem *parent = parentItem();
         config = new QtTestConfiguration();
         config->setTestCases(QStringList(name()));
-        config->setProFile(parent->proFile());
+        config->setProjectFile(parent->proFile());
         config->setProject(project);
-        config->setDisplayName(
-                TestUtils::getCMakeDisplayNameIfNecessary(filePath(), parent->proFile()));
         break;
     }
     case TestDataTag: {
         const TestTreeItem *function = parentItem();
-        const TestTreeItem *parent = function ? function->parentItem() : 0;
+        const TestTreeItem *parent = function ? function->parentItem() : nullptr;
         if (!parent)
-            return 0;
+            return nullptr;
         const QString functionWithTag = function->name() + ':' + name();
         config = new QtTestConfiguration();
         config->setTestCases(QStringList(functionWithTag));
-        config->setProFile(parent->proFile());
+        config->setProjectFile(parent->proFile());
         config->setProject(project);
-        config->setDisplayName(TestUtils::getCMakeDisplayNameIfNecessary(filePath(),
-                                                                         parent->proFile()));
         break;
     }
     default:
-        return 0;
+        return nullptr;
     }
+    if (config)
+        config->setInternalTargets(internalTargets());
     return config;
 }
 
@@ -173,10 +159,9 @@ QList<TestConfiguration *> QtTestTreeItem::getAllTestConfigurations() const
 
         TestConfiguration *tc = new QtTestConfiguration();
         tc->setTestCaseCount(child->childCount());
-        tc->setProFile(child->proFile());
+        tc->setProjectFile(child->proFile());
         tc->setProject(project);
-        tc->setDisplayName(TestUtils::getCMakeDisplayNameIfNecessary(child->filePath(),
-                                                                     child->proFile()));
+        tc->setInternalTargets(child->internalTargets());
         result << tc;
     }
     return result;
@@ -189,7 +174,7 @@ QList<TestConfiguration *> QtTestTreeItem::getSelectedTestConfigurations() const
     if (!project || type() != Root)
         return result;
 
-    QtTestConfiguration *testConfiguration = 0;
+    QtTestConfiguration *testConfiguration = nullptr;
 
     for (int row = 0, count = childCount(); row < count; ++row) {
         const TestTreeItem *child = childItem(row);
@@ -200,10 +185,9 @@ QList<TestConfiguration *> QtTestTreeItem::getSelectedTestConfigurations() const
         case Qt::Checked:
             testConfiguration = new QtTestConfiguration();
             testConfiguration->setTestCaseCount(child->childCount());
-            testConfiguration->setProFile(child->proFile());
+            testConfiguration->setProjectFile(child->proFile());
             testConfiguration->setProject(project);
-            testConfiguration->setDisplayName(
-                    TestUtils::getCMakeDisplayNameIfNecessary(child->filePath(), child->proFile()));
+            testConfiguration->setInternalTargets(child->internalTargets());
             result << testConfiguration;
             continue;
         case Qt::PartiallyChecked:
@@ -227,10 +211,9 @@ QList<TestConfiguration *> QtTestTreeItem::getSelectedTestConfigurations() const
 
             testConfiguration = new QtTestConfiguration();
             testConfiguration->setTestCases(testCases);
-            testConfiguration->setProFile(child->proFile());
+            testConfiguration->setProjectFile(child->proFile());
             testConfiguration->setProject(project);
-            testConfiguration->setDisplayName(
-                    TestUtils::getCMakeDisplayNameIfNecessary(child->filePath(), child->proFile()));
+            testConfiguration->setInternalTargets(child->internalTargets());
             result << testConfiguration;
         }
     }
@@ -240,19 +223,21 @@ QList<TestConfiguration *> QtTestTreeItem::getSelectedTestConfigurations() const
 
 TestTreeItem *QtTestTreeItem::find(const TestParseResult *result)
 {
-    QTC_ASSERT(result, return 0);
+    QTC_ASSERT(result, return nullptr);
 
     switch (type()) {
     case Root:
         return findChildByFile(result->fileName);
-    case TestCase:
-        return findChildByName(result->displayName);
+    case TestCase: {
+        const QtTestParseResult *qtResult = static_cast<const QtTestParseResult *>(result);
+        return findChildByNameAndInheritance(qtResult->displayName, qtResult->inherited());
+    }
     case TestFunctionOrSet:
     case TestDataFunction:
     case TestSpecialFunction:
         return findChildByName(result->name);
     default:
-        return 0;
+        return nullptr;
     }
 }
 
@@ -262,16 +247,32 @@ bool QtTestTreeItem::modify(const TestParseResult *result)
 
     switch (type()) {
     case TestCase:
-        return modifyTestCaseContent(result->name, result->line, result->column);
+        return modifyTestCaseContent(result);
     case TestFunctionOrSet:
     case TestDataFunction:
     case TestSpecialFunction:
         return modifyTestFunctionContent(result);
     case TestDataTag:
-        return modifyDataTagContent(result->name, result->fileName, result->line, result->column);
+        return modifyDataTagContent(result);
     default:
         return false;
     }
+}
+
+TestTreeItem *QtTestTreeItem::findChildByNameAndInheritance(const QString &name, bool inherited) const
+{
+    return findChildBy([name, inherited](const TestTreeItem *other) -> bool {
+        const QtTestTreeItem *qtOther = static_cast<const QtTestTreeItem *>(other);
+        return qtOther->inherited() == inherited && qtOther->name() == name;
+    });
+}
+
+QString QtTestTreeItem::nameSuffix() const
+{
+    static QString inheritedSuffix = QString(" [")
+                + QCoreApplication::translate("QtTestTreeItem", "inherited")
+                + QString("]");
+    return m_inherited ? inheritedSuffix : QString();
 }
 
 } // namespace Internal

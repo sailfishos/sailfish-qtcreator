@@ -26,6 +26,7 @@
 #include "basetreeview.h"
 
 #include "progressindicator.h"
+#include "treemodel.h"
 
 #include <utils/qtcassert.h>
 
@@ -47,8 +48,6 @@ const char ColumnKey[] = "Columns";
 
 class BaseTreeViewPrivate : public QObject
 {
-    Q_OBJECT
-
 public:
     explicit BaseTreeViewPrivate(BaseTreeView *parent)
         : q(parent), m_settings(0), m_expectUserChanges(false), m_progressIndicator(0)
@@ -169,7 +168,7 @@ public:
         return minimum;
     }
 
-    Q_SLOT void resizeColumns() // Needs moc, see BaseTreeView::setModel
+    void resizeColumns()
     {
         QHeaderView *h = q->header();
         QTC_ASSERT(h, return);
@@ -273,36 +272,14 @@ BaseTreeView::~BaseTreeView()
 
 void BaseTreeView::setModel(QAbstractItemModel *m)
 {
-    struct ExtraConnection {
-        const char *signature;
-        const char *qsignal;
-        QObject *receiver;
-        const char *qslot;
-    };
-#define DESC(sign, receiver, slot) { #sign, SIGNAL(sign), receiver, SLOT(slot) }
-    const ExtraConnection c[] = {
-        DESC(columnAdjustmentRequested(), d, resizeColumns()),
-        DESC(requestExpansion(QModelIndex), this, expand(QModelIndex))
-    };
-#undef DESC
-
-    QAbstractItemModel *oldModel = model();
-    if (oldModel) {
-        for (unsigned i = 0; i < sizeof(c) / sizeof(c[0]); ++i) {
-            int index = model()->metaObject()->indexOfSignal(c[i].signature);
-            if (index != -1)
-                disconnect(model(), c[i].qsignal, c[i].receiver, c[i].qslot);
-        }
-    }
+    if (BaseTreeModel *oldModel = qobject_cast<BaseTreeModel *>(model()))
+        disconnect(oldModel, &BaseTreeModel::requestExpansion, this, &BaseTreeView::expand);
 
     TreeView::setModel(m);
 
     if (m) {
-        for (unsigned i = 0; i < sizeof(c) / sizeof(c[0]); ++i) {
-            int index = m->metaObject()->indexOfSignal(c[i].signature);
-            if (index != -1)
-                connect(model(), c[i].qsignal, c[i].receiver, c[i].qslot);
-        }
+        if (BaseTreeModel *newModel = qobject_cast<BaseTreeModel *>(m))
+            connect(newModel, &BaseTreeModel::requestExpansion, this, &BaseTreeView::expand);
         d->restoreState();
 
         QVariant delegateBlob = m->data(QModelIndex(), ItemDelegateRole);
@@ -406,6 +383,11 @@ void BaseTreeView::rowClicked(const QModelIndex &index)
     model()->setData(index, QVariant(), ItemClickedRole);
 }
 
+void BaseTreeView::resizeColumns()
+{
+    d->resizeColumns();
+}
+
 void BaseTreeView::setSettings(QSettings *settings, const QByteArray &key)
 {
     QTC_ASSERT(!d->m_settings, qDebug() << "DUPLICATED setSettings" << key);
@@ -454,5 +436,3 @@ QModelIndexList ItemViewEvent::currentOrSelectedRows() const
 }
 
 } // namespace Utils
-
-#include "basetreeview.moc"

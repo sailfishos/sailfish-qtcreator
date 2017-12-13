@@ -26,7 +26,6 @@
 #pragma once
 
 #include <QObject>
-#include <QTemporaryDir>
 
 namespace CppTools { namespace Tests { class TemporaryCopiedDir; } }
 
@@ -57,7 +56,6 @@ private:
     TestTreeModel *m_model;
     CppTools::Tests::TemporaryCopiedDir *m_tmpDir;
     bool m_isQt4;
-    bool m_originalAlwaysParse;
 };
 
 } // namespace Internal

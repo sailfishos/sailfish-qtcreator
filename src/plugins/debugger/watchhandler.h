@@ -50,7 +50,6 @@ signals:
     void currentIndexRequested(const QModelIndex &idx);
     void itemIsExpanded(const QModelIndex &idx);
     void inameIsExpanded(const QString &iname);
-    void columnAdjustmentRequested();
     void updateStarted();
     void updateFinished();
 };
@@ -66,7 +65,9 @@ public:
     WatchModelBase *model() const;
 
     void cleanup();
-    void watchExpression(const QString &exp, const QString &name = QString());
+    void grabWidget(QWidget *viewParent);
+    void watchExpression(const QString &exp, const QString &name = QString(),
+                         bool temporary = false);
     void updateWatchExpression(WatchItem *item, const QString &newExp);
     void watchVariable(const QString &exp);
 

@@ -28,10 +28,12 @@
 #include "stateseditorview.h"
 #include "stateseditorimageprovider.h"
 
-#include <theming.h>
+#include <designersettings.h>
+#include <theme.h>
 
 #include <invalidqmlsourceexception.h>
 
+#include <coreplugin/messagebox.h>
 #include <coreplugin/icore.h>
 
 #include <utils/qtcassert.h>
@@ -56,14 +58,15 @@ namespace QmlDesigner {
 
 int StatesEditorWidget::currentStateInternalId() const
 {
-    Q_ASSERT(rootObject());
-    Q_ASSERT(rootObject()->property("currentStateInternalId").isValid());
+    QTC_ASSERT(rootObject(), return -1);
+    QTC_ASSERT(rootObject()->property("currentStateInternalId").isValid(), return -1);
 
     return rootObject()->property("currentStateInternalId").toInt();
 }
 
 void StatesEditorWidget::setCurrentStateInternalId(int internalId)
 {
+    QTC_ASSERT(rootObject(), return);
     rootObject()->setProperty("currentStateInternalId", internalId);
 }
 
@@ -90,7 +93,7 @@ StatesEditorWidget::StatesEditorWidget(StatesEditorView *statesEditorView, State
     engine()->addImportPath(qmlSourcesPath());
 
     m_qmlSourceUpdateShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F4), this);
-    connect(m_qmlSourceUpdateShortcut, SIGNAL(activated()), this, SLOT(reloadQmlSource()));
+    connect(m_qmlSourceUpdateShortcut, &QShortcut::activated, this, &StatesEditorWidget::reloadQmlSource);
 
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -99,9 +102,7 @@ StatesEditorWidget::StatesEditorWidget(StatesEditorView *statesEditorView, State
 
     rootContext()->setContextProperty(QLatin1String("canAddNewStates"), true);
 
-    rootContext()->setContextProperty(QLatin1String("creatorTheme"), Theming::theme());
-
-    Theming::registerIconProvider(engine());
+    Theme::setupTheme(engine());
 
     setWindowTitle(tr("States", "Title of Editor widget"));
 
@@ -117,6 +118,13 @@ QString StatesEditorWidget::qmlSourcesPath() {
     return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/statesEditorQmlSources");
 }
 
+void StatesEditorWidget::toggleStatesViewExpanded()
+{
+    QTC_ASSERT(rootObject(), return);
+    bool expanded = rootObject()->property("expanded").toBool();
+    rootObject()->setProperty("expanded", !expanded);
+}
+
 void StatesEditorWidget::reloadQmlSource()
 {
     QString statesListQmlFilePath = qmlSourcesPath() + QStringLiteral("/StatesList.qml");
@@ -124,18 +132,34 @@ void StatesEditorWidget::reloadQmlSource()
     engine()->clearComponentCache();
     setSource(QUrl::fromLocalFile(statesListQmlFilePath));
 
-    QTC_ASSERT(rootObject(), return);
+    if (!rootObject()) {
+        Core::AsynchronousMessageBox::warning(tr("Cannot create QtQuick View"),
+                                              tr("StatesEditorWidget: %1 cannot be created. "
+                                                 "Most likely QtQuick.Controls 1 are not installed.").arg(qmlSourcesPath()));
+        return;
+    }
+
     connect(rootObject(), SIGNAL(currentStateInternalIdChanged()), m_statesEditorView.data(), SLOT(synchonizeCurrentStateFromWidget()));
     connect(rootObject(), SIGNAL(createNewState()), m_statesEditorView.data(), SLOT(createNewState()));
     connect(rootObject(), SIGNAL(deleteState(int)), m_statesEditorView.data(), SLOT(removeState(int)));
     m_statesEditorView.data()->synchonizeCurrentStateFromWidget();
     setFixedHeight(initialSize().height());
 
-    connect(rootObject(), SIGNAL(expandedChanged()), this, SLOT(changeHeight()));
+    if (!DesignerSettings::getValue(DesignerSettingsKey::STATESEDITOR_EXPANDED).toBool()) {
+        toggleStatesViewExpanded();
+        setFixedHeight(rootObject()->height());
+    }
+
+    connect(rootObject(), SIGNAL(expandedChanged()), this, SLOT(handleExpandedChanged()));
 }
 
-void StatesEditorWidget::changeHeight()
+void StatesEditorWidget::handleExpandedChanged()
 {
+    QTC_ASSERT(rootObject(), return);
+
+    bool expanded = rootObject()->property("expanded").toBool();
+    DesignerSettings::setValue(DesignerSettingsKey::STATESEDITOR_EXPANDED, expanded);
+
     setFixedHeight(rootObject()->height());
 }
 }

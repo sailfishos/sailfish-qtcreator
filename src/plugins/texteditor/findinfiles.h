@@ -32,7 +32,10 @@
 #include <QPointer>
 #include <QStringListModel>
 
-QT_FORWARD_DECLARE_CLASS(QLabel)
+QT_BEGIN_NAMESPACE
+class QLabel;
+class QStackedWidget;
+QT_END_NAMESPACE
 
 namespace Utils { class PathChooser; }
 
@@ -44,16 +47,17 @@ class TEXTEDITOR_EXPORT FindInFiles : public BaseFileFind
 
 public:
     FindInFiles();
-    ~FindInFiles();
+    ~FindInFiles() override;
 
-    QString id() const;
-    QString displayName() const;
-    QWidget *createConfigWidget();
-    void writeSettings(QSettings *settings);
-    void readSettings(QSettings *settings);
-    bool isValid() const;
+    QString id() const override;
+    QString displayName() const override;
+    QWidget *createConfigWidget() override;
+    void writeSettings(QSettings *settings) override;
+    void readSettings(QSettings *settings) override;
+    bool isValid() const override;
 
     void setDirectory(const Utils::FileName &directory);
+    void setBaseDirectory(const Utils::FileName &directory);
     Utils::FileName directory() const;
     static void findOnFileSystem(const QString &path);
     static FindInFiles *instance();
@@ -63,16 +67,23 @@ signals:
 
 protected:
     Utils::FileIterator *files(const QStringList &nameFilters,
-                               const QVariant &additionalParameters) const;
-    QVariant additionalParameters() const;
-    QString label() const;
-    QString toolTip() const;
+                               const QStringList &exclusionFilters,
+                               const QVariant &additionalParameters) const override;
+    QVariant additionalParameters() const override;
+    QString label() const override;
+    QString toolTip() const override;
+    void syncSearchEngineCombo(int selectedSearchEngineIndex) override;
 
 private:
+    void setValid(bool valid);
+    void searchEnginesSelectionChanged(int index);
     Utils::FileName path() const;
 
     QPointer<QWidget> m_configWidget;
     QPointer<Utils::PathChooser> m_directory;
+    QStackedWidget *m_searchEngineWidget = nullptr;
+    QComboBox *m_searchEngineCombo = nullptr;
+    bool m_isValid = false;
 };
 
 } // namespace TextEditor

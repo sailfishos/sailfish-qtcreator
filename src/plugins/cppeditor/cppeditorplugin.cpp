@@ -36,7 +36,6 @@
 #include "cppoutline.h"
 #include "cppquickfixassistant.h"
 #include "cppquickfixes.h"
-#include "cppsnippetprovider.h"
 #include "cpptypehierarchy.h"
 #include "resourcepreviewhoverhandler.h"
 
@@ -58,6 +57,7 @@
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/colorpreviewhoverhandler.h>
+#include <texteditor/snippets/snippetprovider.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/mimetypes/mimedatabase.h>
@@ -83,7 +83,7 @@ public:
     CppEditorFactory()
     {
         setId(Constants::CPPEDITOR_ID);
-        setDisplayName(qApp->translate("OpenWith::Editors", Constants::CPPEDITOR_DISPLAY_NAME));
+        setDisplayName(QCoreApplication::translate("OpenWith::Editors", Constants::CPPEDITOR_DISPLAY_NAME));
         addMimeType(CppTools::Constants::C_SOURCE_MIMETYPE);
         addMimeType(CppTools::Constants::C_HEADER_MIMETYPE);
         addMimeType(CppTools::Constants::CPP_SOURCE_MIMETYPE);
@@ -95,7 +95,7 @@ public:
         setEditorWidgetCreator([]() { return new CppEditorWidget; });
         setEditorCreator([]() { return new CppEditor; });
         setAutoCompleterCreator([]() { return new CppAutoCompleter; });
-        setCommentStyle(CommentDefinition::CppStyle);
+        setCommentDefinition(CommentDefinition::CppStyle);
         setCodeFoldingSupported(true);
         setMarksVisible(true);
         setParenthesesMatchingEnabled(true);
@@ -149,7 +149,8 @@ bool CppEditorPlugin::initialize(const QStringList & /*arguments*/, QString *err
     addAutoReleasedObject(new CppOutlineWidgetFactory);
     addAutoReleasedObject(new CppTypeHierarchyFactory);
     addAutoReleasedObject(new CppIncludeHierarchyFactory);
-    addAutoReleasedObject(new CppSnippetProvider);
+    SnippetProvider::registerGroup(Constants::CPP_SNIPPETS_GROUP_ID, tr("C++", "SnippetProvider"),
+                                   &CppEditor::decorateEditor);
 
     m_quickFixProvider = new CppQuickFixAssistProvider(this);
     registerQuickFixes(this);
@@ -366,8 +367,7 @@ QList<QObject *> CppEditorPlugin::createTestObjects() const
 void CppEditorPlugin::openTypeHierarchy()
 {
     if (currentCppEditorWidget()) {
-        NavigationWidget *navigation = NavigationWidget::instance();
-        navigation->activateSubWidget(Constants::TYPE_HIERARCHY_ID);
+        NavigationWidget::activateSubWidget(Constants::TYPE_HIERARCHY_ID, Side::Left);
         emit typeHierarchyRequested();
     }
 }
@@ -375,8 +375,7 @@ void CppEditorPlugin::openTypeHierarchy()
 void CppEditorPlugin::openIncludeHierarchy()
 {
     if (currentCppEditorWidget()) {
-        NavigationWidget *navigation = NavigationWidget::instance();
-        navigation->activateSubWidget(Id(Constants::INCLUDE_HIERARCHY_ID));
+        NavigationWidget::activateSubWidget(Constants::INCLUDE_HIERARCHY_ID, Side::Left);
         emit includeHierarchyRequested();
     }
 }

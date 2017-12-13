@@ -29,6 +29,12 @@
 
 #include <QtCore/qglobal.h>
 
+#include <utils/smallstringfwd.h>
+
+#ifdef UNIT_TESTS
+#include <gtest/gtest.h>
+#endif
+
 #if defined(CLANGBACKENDIPC_BUILD_LIB)
 #  define CMBIPC_EXPORT Q_DECL_EXPORT
 #elif defined(CLANGBACKENDIPC_BUILD_STATIC_LIB)
@@ -39,6 +45,12 @@
 
 #ifndef CLANGBACKENDPROCESSPATH
 # define CLANGBACKENDPROCESSPATH ""
+#endif
+
+#ifdef UNIT_TESTS
+#define unittest_public public
+#else
+#define unittest_public private
 #endif
 
 namespace ClangBackEnd {
@@ -62,6 +74,7 @@ enum class HighlightingType : quint8
     Function,
     VirtualFunction,
     Type,
+    PrimitiveType,
     LocalVariable,
     Field,
     GlobalVariable,
@@ -100,6 +113,9 @@ enum class MessageType : quint8 {
     RequestDocumentAnnotationsMessage,
     DocumentAnnotationsChangedMessage,
 
+    RequestReferencesMessage,
+    ReferencesMessage,
+
     UpdateVisibleTranslationUnitsMessage,
 
     CompleteCodeMessage,
@@ -109,7 +125,17 @@ enum class MessageType : quint8 {
     ProjectPartsDoNotExistMessage,
 
     SourceLocationsForRenamingMessage,
-    RequestSourceLocationsForRenamingMessage
+    RequestSourceLocationsForRenamingMessage,
+
+    RequestSourceRangesAndDiagnosticsForQueryMessage,
+    RequestSourceRangesForQueryMessage,
+    SourceRangesAndDiagnosticsForQueryMessage,
+    SourceRangesForQueryMessage,
+
+    CancelMessage,
+    UpdatePchProjectPartsMessage,
+    RemovePchProjectPartsMessage,
+    PrecompiledHeadersUpdatedMessage
 };
 
 template<MessageType messageEnumeration>

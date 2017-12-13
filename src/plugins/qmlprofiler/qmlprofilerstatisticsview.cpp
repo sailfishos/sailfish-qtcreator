@@ -29,6 +29,7 @@
 
 #include <coreplugin/minisplitter.h>
 #include <utils/qtcassert.h>
+#include <timeline/timelineformattime.h>
 
 #include <QUrl>
 #include <QHash>
@@ -67,22 +68,14 @@ Q_GLOBAL_STATIC(RootEventType, rootEventType)
 class StatisticsViewItem : public QStandardItem
 {
 public:
-    StatisticsViewItem(const QString &text) : QStandardItem(text) {}
+    StatisticsViewItem(const QString &text, const QVariant &sort) : QStandardItem(text)
+    {
+        setData(sort, SortRole);
+    }
 
     virtual bool operator<(const QStandardItem &other) const
     {
-        if (column() == 0) {
-            // first column is special
-            int filenameDiff = QUrl(data(FilenameRole).toString()).fileName().compare(
-                        QUrl(other.data(FilenameRole).toString()).fileName(), Qt::CaseInsensitive);
-            if (filenameDiff != 0)
-                return filenameDiff < 0;
-
-            return data(LineRole).toInt() == other.data(LineRole).toInt() ?
-                data(ColumnRole).toInt() < other.data(ColumnRole).toInt() :
-                data(LineRole).toInt() < other.data(LineRole).toInt();
-
-        } else if (data(SortRole).type() == QVariant::String) {
+        if (data(SortRole).type() == QVariant::String) {
             // Strings should be case-insensitive compared
             return data(SortRole).toString().compare(other.data(SortRole).toString(),
                                                       Qt::CaseInsensitive) < 0;
@@ -96,11 +89,6 @@ public:
 class QmlProfilerStatisticsView::QmlProfilerStatisticsViewPrivate
 {
 public:
-    QmlProfilerStatisticsViewPrivate(QmlProfilerStatisticsView *qq) : q(qq) {}
-    ~QmlProfilerStatisticsViewPrivate() {}
-
-    QmlProfilerStatisticsView *q;
-
     QmlProfilerStatisticsMainView *m_statsTree;
     QmlProfilerStatisticsRelativesView *m_statsChildren;
     QmlProfilerStatisticsRelativesView *m_statsParents;
@@ -171,9 +159,9 @@ static void getSourceLocation(QStandardItem *infoItem,
 
 QmlProfilerStatisticsView::QmlProfilerStatisticsView(QmlProfilerModelManager *profilerModelManager,
                                                      QWidget *parent)
-    : QmlProfilerEventsView(parent), d(new QmlProfilerStatisticsViewPrivate(this))
+    : QmlProfilerEventsView(parent), d(new QmlProfilerStatisticsViewPrivate)
 {
-    setObjectName(QLatin1String("QmlProfilerStatisticsView"));
+    setObjectName(QLatin1String("QmlProfiler.Statistics.Dock"));
     setWindowTitle(tr("Statistics"));
 
     d->model = new QmlProfilerStatisticsModel(profilerModelManager, this);
@@ -235,6 +223,53 @@ void QmlProfilerStatisticsView::clear()
     d->m_statsTree->clear();
     d->m_statsChildren->clear();
     d->m_statsParents->clear();
+}
+
+QString QmlProfilerStatisticsView::summary(const QVector<int> &typeIds) const
+{
+    const double cutoff = 0.1;
+    const double round = 0.05;
+    double maximum = 0;
+    double sum = 0;
+
+    for (int typeId : typeIds) {
+        const double percentage = d->model->durationPercent(typeId);
+        if (percentage > maximum)
+            maximum = percentage;
+        sum += percentage;
+    }
+
+    const QLatin1Char percent('%');
+
+    if (sum < cutoff)
+        return QLatin1Char('<') + QString::number(cutoff, 'f', 1) + percent;
+
+    if (typeIds.length() == 1)
+        return QLatin1Char('~') + QString::number(maximum, 'f', 1) + percent;
+
+    // add/subtract 0.05 to avoid problematic rounding
+    if (maximum < cutoff)
+        return QChar(0x2264) + QString::number(sum + round, 'f', 1) + percent;
+
+    return QChar(0x2265) + QString::number(qMax(maximum - round, cutoff), 'f', 1) + percent;
+}
+
+QStringList QmlProfilerStatisticsView::details(int typeId) const
+{
+    const QmlEventType &type = d->model->getTypes()[typeId];
+
+    const QChar ellipsisChar(0x2026);
+    const int maxColumnWidth = 32;
+
+    QString data = type.data();
+    if (data.length() > maxColumnWidth)
+        data = data.left(maxColumnWidth - 1) + ellipsisChar;
+
+    return QStringList({
+        QmlProfilerStatisticsMainView::nameForType(type.rangeType()),
+        data,
+        QString::number(d->model->durationPercent(typeId), 'f', 2) + QLatin1Char('%')
+    });
 }
 
 QModelIndex QmlProfilerStatisticsView::selectedModelIndex() const
@@ -541,9 +576,10 @@ void QmlProfilerStatisticsMainView::updateNotes(int typeIndex)
             if (it != noteList.end()) {
                 item->setBackground(colors()->noteBackground);
                 item->setToolTip(it.value());
-            } else if (stats.isBindingLoop) {
+            } else if (stats.durationRecursive > 0) {
                 item->setBackground(colors()->noteBackground);
-                item->setToolTip(tr("Binding loop detected."));
+                item->setToolTip(tr("+%1 in recursive calls")
+                                 .arg(Timeline::formatTime(stats.durationRecursive)));
             } else if (!item->toolTip().isEmpty()){
                 item->setBackground(colors()->defaultBackground);
                 item->setToolTip(QString());
@@ -566,66 +602,65 @@ void QmlProfilerStatisticsMainView::parseModel()
         QList<QStandardItem *> newRow;
 
         if (d->m_fieldShown[Name])
-            newRow << new StatisticsViewItem(type.displayName().isEmpty() ? tr("<bytecode>") :
-                                                                             type.displayName());
+            newRow << new StatisticsViewItem(
+                          type.displayName().isEmpty() ? tr("<bytecode>") : type.displayName(),
+                          type.displayName());
 
         if (d->m_fieldShown[Type]) {
             QString typeString = QmlProfilerStatisticsMainView::nameForType(type.rangeType());
-            newRow << new StatisticsViewItem(typeString);
-            newRow.last()->setData(QVariant(typeString));
+            newRow << new StatisticsViewItem(typeString, typeString);
         }
 
         if (d->m_fieldShown[TimeInPercent]) {
-            newRow << new StatisticsViewItem(QString::number(stats.percentOfTime,'f',2)
-                                             + QLatin1String(" %"));
-            newRow.last()->setData(QVariant(stats.percentOfTime));
+            const double percent = d->model->durationPercent(typeIndex);
+            newRow << new StatisticsViewItem(QString::number(percent, 'f', 2)
+                                             + QLatin1String(" %"), percent);
         }
 
         if (d->m_fieldShown[TotalTime]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.duration));
-            newRow.last()->setData(QVariant(stats.duration));
+            newRow << new StatisticsViewItem(
+                          Timeline::formatTime(stats.duration - stats.durationRecursive),
+                          stats.duration - stats.durationRecursive);
         }
 
         if (d->m_fieldShown[SelfTimeInPercent]) {
-            newRow << new StatisticsViewItem(QString::number(stats.percentSelf, 'f', 2)
-                                             + QLatin1String(" %"));
-            newRow.last()->setData(QVariant(stats.percentSelf));
+            const double percentSelf = d->model->durationSelfPercent(typeIndex);
+            newRow << new StatisticsViewItem(QString::number(percentSelf, 'f', 2)
+                                             + QLatin1String(" %"), percentSelf);
         }
 
         if (d->m_fieldShown[SelfTime]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.durationSelf));
-            newRow.last()->setData(QVariant(stats.durationSelf));
+            newRow << new StatisticsViewItem(Timeline::formatTime(stats.durationSelf),
+                                             stats.durationSelf);
         }
 
-        if (d->m_fieldShown[CallCount]) {
-            newRow << new StatisticsViewItem(QString::number(stats.calls));
-            newRow.last()->setData(QVariant(stats.calls));
-        }
+        if (d->m_fieldShown[CallCount])
+            newRow << new StatisticsViewItem(QString::number(stats.calls), stats.calls);
 
         if (d->m_fieldShown[TimePerCall]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.timePerCall));
-            newRow.last()->setData(QVariant(stats.timePerCall));
+            const qint64 timePerCall = stats.calls > 0 ? stats.duration / stats.calls : 0;
+            newRow << new StatisticsViewItem(Timeline::formatTime(timePerCall),
+                                             timePerCall);
         }
 
         if (d->m_fieldShown[MedianTime]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.medianTime));
-            newRow.last()->setData(QVariant(stats.medianTime));
+            newRow << new StatisticsViewItem(Timeline::formatTime(stats.medianTime),
+                                             stats.medianTime);
         }
 
         if (d->m_fieldShown[MaxTime]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.maxTime));
-            newRow.last()->setData(QVariant(stats.maxTime));
+            newRow << new StatisticsViewItem(Timeline::formatTime(stats.maxTime),
+                                             stats.maxTime);
         }
 
         if (d->m_fieldShown[MinTime]) {
-            newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.minTime));
-            newRow.last()->setData(QVariant(stats.minTime));
+            newRow << new StatisticsViewItem(Timeline::formatTime(stats.minTime),
+                                             stats.minTime);
         }
 
         if (d->m_fieldShown[Details]) {
-            newRow << new StatisticsViewItem(type.data().isEmpty() ?
-                                                 tr("Source code not available") : type.data());
-            newRow.last()->setData(type.data());
+            newRow << new StatisticsViewItem(type.data().isEmpty() ? tr("Source code not available")
+                                                                   : type.data(), type.data());
         }
 
 
@@ -636,11 +671,12 @@ void QmlProfilerStatisticsMainView::parseModel()
                 item->setEditable(false);
 
             // metadata
-            newRow.at(0)->setData(typeIndex, TypeIdRole);
+            QStandardItem *first = newRow.at(0);
+            first->setData(typeIndex, TypeIdRole);
             const QmlEventLocation location(type.location());
-            newRow.at(0)->setData(location.filename(), FilenameRole);
-            newRow.at(0)->setData(location.line(), LineRole);
-            newRow.at(0)->setData(location.column(), ColumnRole);
+            first->setData(location.filename(), FilenameRole);
+            first->setData(location.line(), LineRole);
+            first->setData(location.column(), ColumnRole);
 
             // append
             parentItem->appendRow(newRow);
@@ -661,11 +697,11 @@ QStandardItem *QmlProfilerStatisticsMainView::itemFromIndex(const QModelIndex &i
 QString QmlProfilerStatisticsMainView::nameForType(RangeType typeNumber)
 {
     switch (typeNumber) {
-    case Painting: return QmlProfilerStatisticsMainView::tr("Paint");
-    case Compiling: return QmlProfilerStatisticsMainView::tr("Compile");
-    case Creating: return QmlProfilerStatisticsMainView::tr("Create");
+    case Painting: return QmlProfilerStatisticsMainView::tr("Painting");
+    case Compiling: return QmlProfilerStatisticsMainView::tr("Compiling");
+    case Creating: return QmlProfilerStatisticsMainView::tr("Creating");
     case Binding: return QmlProfilerStatisticsMainView::tr("Binding");
-    case HandlingSignal: return QmlProfilerStatisticsMainView::tr("Signal");
+    case HandlingSignal: return QmlProfilerStatisticsMainView::tr("Handling Signal");
     case Javascript: return QmlProfilerStatisticsMainView::tr("JavaScript");
     default: return QString();
     }
@@ -855,29 +891,33 @@ void QmlProfilerStatisticsRelativesView::rebuildTree(
         // ToDo: here we were going to search for the data in the other model
         // maybe we should store the data in this model and get it here
         // no indirections at this level of abstraction!
-        newRow << new StatisticsViewItem(type.displayName().isEmpty() ? tr("<bytecode>") :
-                                                                        type.displayName());
-        newRow << new StatisticsViewItem(QmlProfilerStatisticsMainView::nameForType(
-                                             type.rangeType()));
-        newRow << new StatisticsViewItem(QmlProfilerDataModel::formatTime(stats.duration));
-        newRow << new StatisticsViewItem(QString::number(stats.calls));
+        newRow << new StatisticsViewItem(
+                      type.displayName().isEmpty() ? tr("<bytecode>") : type.displayName(),
+                      type.displayName());
+        const QString typeName = QmlProfilerStatisticsMainView::nameForType(type.rangeType());
+        newRow << new StatisticsViewItem(typeName, typeName);
+        newRow << new StatisticsViewItem(Timeline::formatTime(stats.duration),
+                                         stats.duration);
+        newRow << new StatisticsViewItem(QString::number(stats.calls), stats.calls);
         newRow << new StatisticsViewItem(type.data().isEmpty() ? tr("Source code not available") :
-                                                                 type.data());
+                                                                 type.data(), type.data());
 
-        newRow.at(0)->setData(typeIndex, TypeIdRole);
+        QStandardItem *first = newRow.at(0);
+        first->setData(typeIndex, TypeIdRole);
         const QmlEventLocation location(type.location());
-        newRow.at(0)->setData(location.filename(), FilenameRole);
-        newRow.at(0)->setData(location.line(), LineRole);
-        newRow.at(0)->setData(location.column(), ColumnRole);
+        first->setData(location.filename(), FilenameRole);
+        first->setData(location.line(), LineRole);
+        first->setData(location.column(), ColumnRole);
+
         newRow.at(1)->setData(QmlProfilerStatisticsMainView::nameForType(type.rangeType()));
         newRow.at(2)->setData(stats.duration);
         newRow.at(3)->setData(stats.calls);
         newRow.at(4)->setData(type.data());
 
-        if (stats.isBindingLoop) {
+        if (stats.isRecursive) {
             foreach (QStandardItem *item, newRow) {
                 item->setBackground(colors()->noteBackground);
-                item->setToolTip(tr("Part of binding loop."));
+                item->setToolTip(tr("called recursively"));
             }
         }
 

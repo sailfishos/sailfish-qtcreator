@@ -30,21 +30,24 @@
 namespace ClangBackEnd {
 
 class ClangCodeModelServerInterface;
-class RegisterTranslationUnitForEditorMessage;
-class UpdateTranslationUnitsForEditorMessage;
-class RegisterProjectPartsForEditorMessage;
-class UnregisterTranslationUnitsForEditorMessage;
-class UnregisterProjectPartsForEditorMessage;
-class EchoMessage;
-class CompleteCodeMessage;
+
 class CodeCompletedMessage;
-class TranslationUnitDoesNotExistMessage;
-class ProjectPartsDoNotExistMessage;
-class RegisterUnsavedFilesForEditorMessage;
-class UnregisterUnsavedFilesForEditorMessage;
-class UpdateVisibleTranslationUnitsMessage;
-class RequestDocumentAnnotationsMessage;
+class CompleteCodeMessage;
 class DocumentAnnotationsChangedMessage;
+class EchoMessage;
+class ProjectPartsDoNotExistMessage;
+class ReferencesMessage;
+class RegisterProjectPartsForEditorMessage;
+class RegisterTranslationUnitForEditorMessage;
+class RegisterUnsavedFilesForEditorMessage;
+class RequestDocumentAnnotationsMessage;
+class RequestReferencesMessage;
+class TranslationUnitDoesNotExistMessage;
+class UnregisterProjectPartsForEditorMessage;
+class UnregisterTranslationUnitsForEditorMessage;
+class UnregisterUnsavedFilesForEditorMessage;
+class UpdateTranslationUnitsForEditorMessage;
+class UpdateVisibleTranslationUnitsMessage;
 
 class CMBIPC_EXPORT ClangCodeModelClientInterface : public IpcClientInterface
 {
@@ -57,6 +60,7 @@ public:
     virtual void translationUnitDoesNotExist(const TranslationUnitDoesNotExistMessage &message) = 0;
     virtual void projectPartsDoNotExist(const ProjectPartsDoNotExistMessage &message) = 0;
     virtual void documentAnnotationsChanged(const DocumentAnnotationsChangedMessage &message) = 0;
+    virtual void references(const ReferencesMessage &message) = 0;
 };
 
 } // namespace ClangBackEnd

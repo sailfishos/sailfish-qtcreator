@@ -27,6 +27,7 @@
 
 #include "clangjobs.h"
 #include "clangtranslationunits.h"
+#include "projectpart.h"
 
 #include <utils/qtcassert.h>
 
@@ -40,11 +41,6 @@ SupportiveTranslationUnitInitializer::SupportiveTranslationUnitInitializer(
     : m_document(document)
     , m_jobs(jobs)
 {
-}
-
-void SupportiveTranslationUnitInitializer::setJobRequestCreator(const JobRequestCreator &creator)
-{
-    m_jobRequestCreator = creator;
 }
 
 void SupportiveTranslationUnitInitializer::setIsDocumentClosedChecker(
@@ -114,7 +110,7 @@ bool SupportiveTranslationUnitInitializer::abortIfDocumentIsClosed()
 {
     QTC_CHECK(m_isDocumentClosedChecker);
 
-    if (m_isDocumentClosedChecker(m_document.filePath(), m_document.projectPartId())) {
+    if (m_isDocumentClosedChecker(m_document.filePath(), m_document.projectPart().id())) {
         m_state = State::Aborted;
         return true;
     }
@@ -124,11 +120,8 @@ bool SupportiveTranslationUnitInitializer::abortIfDocumentIsClosed()
 
 void SupportiveTranslationUnitInitializer::addJob(JobRequest::Type jobRequestType)
 {
-    QTC_CHECK(m_jobRequestCreator);
-
-    const JobRequest jobRequest = m_jobRequestCreator(m_document,
-                                                      jobRequestType,
-                                                      PreferredTranslationUnit::LastUninitialized);
+    const JobRequest jobRequest = m_jobs.createJobRequest(
+                m_document, jobRequestType, PreferredTranslationUnit::LastUninitialized);
 
     m_jobs.add(jobRequest);
 }

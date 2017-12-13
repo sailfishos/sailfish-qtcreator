@@ -32,6 +32,7 @@
 #include "clangdocument.h"
 #include "clangtranslationunits.h"
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 namespace ClangBackEnd {
@@ -62,7 +63,6 @@ public:
     Jobs jobs;
 
     SupportiveTranslationUnitInitializer supportiveTranslationUnitInitializer;
-    JobRequestCreator jobRequestCreator;
 };
 
 DocumentProcessor::DocumentProcessor(const Document &document,
@@ -78,14 +78,21 @@ DocumentProcessor::DocumentProcessor(const Document &document,
 {
 }
 
-void DocumentProcessor::setJobRequestCreator(const JobRequestCreator &creator)
+JobRequest DocumentProcessor::createJobRequest(
+        JobRequest::Type type,
+        PreferredTranslationUnit preferredTranslationUnit) const
 {
-    d->supportiveTranslationUnitInitializer.setJobRequestCreator(creator);
+    return d->jobs.createJobRequest(d->document, type, preferredTranslationUnit);
 }
 
 void DocumentProcessor::addJob(const JobRequest &jobRequest)
 {
     d->jobs.add(jobRequest);
+}
+
+void DocumentProcessor::addJob(JobRequest::Type type, PreferredTranslationUnit preferredTranslationUnit)
+{
+    d->jobs.add(d->document, type, preferredTranslationUnit);
 }
 
 JobRequests DocumentProcessor::process()
@@ -113,6 +120,11 @@ bool DocumentProcessor::isSupportiveTranslationUnitInitialized() const
 {
     return d->supportiveTranslationUnitInitializer.state()
         == SupportiveTranslationUnitInitializer::State::Initialized;
+}
+
+JobRequests &DocumentProcessor::queue()
+{
+    return d->jobs.queue();
 }
 
 QList<Jobs::RunningJob> DocumentProcessor::runningJobs() const

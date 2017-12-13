@@ -291,6 +291,11 @@ QMap<QString, QTextCodec *> TextDocument::openedTextDocumentEncodings()
     return workingCopy;
 }
 
+TextDocument *TextDocument::currentTextDocument()
+{
+    return qobject_cast<TextDocument *>(EditorManager::currentDocument());
+}
+
 QString TextDocument::plainText() const
 {
     return document()->toPlainText();
@@ -614,8 +619,7 @@ Core::IDocument::OpenResult TextDocument::open(QString *errorString, const QStri
     emit aboutToOpen(fileName, realFileName);
     OpenResult success = openImpl(errorString, fileName, realFileName, /*reload =*/ false);
     if (success == OpenResult::Success) {
-        Utils::MimeDatabase mdb;
-        setMimeType(mdb.mimeTypeForFile(fileName).name());
+        setMimeType(Utils::mimeTypeForFile(fileName).name());
         emit openFinishedSuccessfully();
     }
     return success;
@@ -841,6 +845,13 @@ void TextDocument::modificationChanged(bool modified)
     emit changed();
 }
 
+void TextDocument::updateLayout() const
+{
+    auto documentLayout = qobject_cast<TextDocumentLayout*>(d->m_document.documentLayout());
+    QTC_ASSERT(documentLayout, return);
+    documentLayout->requestUpdate();
+}
+
 TextMarks TextDocument::marks() const
 {
     return d->m_marksCache;
@@ -949,14 +960,19 @@ void TextDocument::removeMark(TextMark *mark)
 
     removeMarkFromMarksCache(mark);
     mark->setBaseTextDocument(0);
+    updateLayout();
 }
 
 void TextDocument::updateMark(TextMark *mark)
 {
-    Q_UNUSED(mark)
-    auto documentLayout = qobject_cast<TextDocumentLayout*>(d->m_document.documentLayout());
-    QTC_ASSERT(documentLayout, return);
-    documentLayout->requestUpdate();
+    QTextBlock block = d->m_document.findBlockByNumber(mark->lineNumber() - 1);
+    if (block.isValid()) {
+        TextBlockUserData *userData = TextDocumentLayout::userData(block);
+        // re-evaluate priority
+        userData->removeMark(mark);
+        userData->addMark(mark);
+    }
+    updateLayout();
 }
 
 void TextDocument::moveMark(TextMark *mark, int previousLine)

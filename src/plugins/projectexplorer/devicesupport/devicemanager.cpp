@@ -147,88 +147,51 @@ void DeviceManager::load()
                 QLatin1String("QtCreatorDevices"));
 
     Utils::PersistentSettingsReader reader;
-
     // read devices file from global settings path
+    QHash<Core::Id, Core::Id> defaultDevices;
     QList<IDevice::Ptr> sdkDevices;
     if (reader.load(systemSettingsFilePath(QLatin1String("/qtcreator/devices.xml"))))
-        sdkDevices = fromMap(reader.restoreValues().value(QLatin1String(DeviceManagerKey)).toMap());
-
+        sdkDevices = fromMap(reader.restoreValues().value(DeviceManagerKey).toMap(), &defaultDevices);
     // read devices file from user settings path
     QList<IDevice::Ptr> userDevices;
     if (reader.load(settingsFilePath(QLatin1String("/devices.xml"))))
-        userDevices = fromMap(reader.restoreValues().value(QLatin1String(DeviceManagerKey)).toMap());
-
-//    //devices found in user settings to be added
-//    QList<IDevice::Ptr> devicesToRegister;
-//    //devices found in user settings, which came from sdk installer
-//    QList<IDevice::Ptr> devicesToBeChecked;
-//    foreach (IDevice::Ptr device, userDevices) {
-//        if(device->isSdkProvided())
-//            devicesToBeChecked.append(device);
-//        else
-//            devicesToRegister.append(device);
-//    }
-
-//    IDevice::Ptr deviceToAdd;
-//    foreach (IDevice::Ptr sdkDevice, sdkDevices) {
-//        deviceToAdd = sdkDevice;
-
-//        for(int i = 0; i < devicesToBeChecked.count(); ++i) {
-//            if(devicesToBeChecked.at(i)->id() == sdkDevice->id()) {
-//                if(devicesToBeChecked.at(i)->version() > sdkDevice->version())
-//                    deviceToAdd == devicesToBeChecked.at(i);
-
-//                devicesToBeChecked.removeAt(i);
-//                break;
-//            }
-//        }
-//        addDevice(deviceToAdd);
-//    }
-
-//    foreach (IDevice::Ptr device, devicesToBeChecked) {
-//        delete &device;
-//    }
-//    devicesToBeChecked.clear();
-
-//    foreach (IDevice::Ptr device, devicesToRegister) {
-//        addDevice(device);
-//    }
-
+        userDevices = fromMap(reader.restoreValues().value(DeviceManagerKey).toMap(), &defaultDevices);
     // Insert devices into the model. Prefer the higher device version when there are multiple
     // devices with the same id.
     foreach (IDevice::Ptr device, userDevices) {
-        if (hasDevice(device->displayName())) // HACK: Do not re-load "Desktop Device"
-            continue;
         foreach (const IDevice::Ptr &sdkDevice, sdkDevices) {
             if (device->id() == sdkDevice->id()) {
                 if (device->version() < sdkDevice->version())
                     device = sdkDevice;
-                addDevice(device);
                 sdkDevices.removeOne(sdkDevice);
                 break;
             }
         }
-
-        if(!device->isSdkProvided())
-            addDevice(device);
+        addDevice(device);
     }
-
     // Append the new SDK devices to the model.
     foreach (const IDevice::Ptr &sdkDevice, sdkDevices)
         addDevice(sdkDevice);
 
-    ensureOneDefaultDevicePerType();
+    // Overwrite with the saved default devices.
+    for (auto itr = defaultDevices.constBegin(); itr != defaultDevices.constEnd(); ++itr) {
+        IDevice::ConstPtr device = find(itr.value());
+        if (device)
+            d->defaultDevices[device->type()] = device->id();
+    }
 
     emit devicesLoaded();
 }
 
-QList<IDevice::Ptr> DeviceManager::fromMap(const QVariantMap &map)
+QList<IDevice::Ptr> DeviceManager::fromMap(const QVariantMap &map,
+                                           QHash<Core::Id, Core::Id> *defaultDevices)
 {
     QList<IDevice::Ptr> devices;
-    const QVariantMap defaultDevsMap = map.value(QLatin1String(DefaultDevicesKey)).toMap();
-    for (QVariantMap::ConstIterator it = defaultDevsMap.constBegin();
-         it != defaultDevsMap.constEnd(); ++it) {
-        d->defaultDevices.insert(Core::Id::fromString(it.key()), Core::Id::fromSetting(it.value()));
+
+    if (defaultDevices) {
+        const QVariantMap defaultDevsMap = map.value(DefaultDevicesKey).toMap();
+        for (auto it = defaultDevsMap.constBegin(); it != defaultDevsMap.constEnd(); ++it)
+            defaultDevices->insert(Core::Id::fromString(it.key()), Core::Id::fromSetting(it.value()));
     }
     const QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
     foreach (const QVariant &v, deviceList) {
@@ -394,7 +357,7 @@ DeviceManager::DeviceManager(bool isInstance) : d(new DeviceManagerPrivate)
         m_instance = this;
         d->hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
         const QString keyFilePath = hostKeysFilePath();
-        if (QFileInfo(keyFilePath).exists()) {
+        if (QFileInfo::exists(keyFilePath)) {
             QString error;
             if (!d->hostKeyDatabase->load(keyFilePath, &error))
                 Core::MessageManager::write(error);
@@ -443,34 +406,6 @@ IDevice::ConstPtr DeviceManager::defaultDevice(Core::Id deviceType) const
     return id.isValid() ? find(id) : IDevice::ConstPtr();
 }
 
-void DeviceManager::ensureOneDefaultDevicePerType()
-{
-    foreach (const IDevice::Ptr &device, d->devices) {
-        if (!defaultDevice(device->type()))
-            d->defaultDevices.insert(device->type(), device->id());
-    }
-}
-
-IDevice::Ptr DeviceManager::fromRawPointer(IDevice *device) const
-{
-    foreach (const IDevice::Ptr &devPtr, d->devices) {
-        if (devPtr == device)
-            return devPtr;
-    }
-
-    if (this == instance() && d->clonedInstance)
-        return d->clonedInstance->fromRawPointer(device);
-
-    qWarning("%s: Device not found.", Q_FUNC_INFO);
-    return IDevice::Ptr();
-}
-
-IDevice::ConstPtr DeviceManager::fromRawPointer(const IDevice *device) const
-{
-    // The const_cast is safe, because we convert the Ptr back to a ConstPtr before returning it.
-    return fromRawPointer(const_cast<IDevice *>(device));
-}
-
 QString DeviceManager::hostKeysFilePath()
 {
     return settingsFilePath(QLatin1String("/ssh-hostkeys")).toString();
@@ -506,6 +441,7 @@ private:
     {
         return DeviceProcessSignalOperation::Ptr();
     }
+    Utils::OsType osType() const override { return Utils::HostOsInfo::hostOs(); }
 };
 
 void ProjectExplorerPlugin::testDeviceManager()

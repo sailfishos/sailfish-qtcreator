@@ -29,15 +29,17 @@
 #include "ui_genericmakestep.h"
 #include "genericbuildconfiguration.h"
 
-#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/gnumakeparser.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
+
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtparser.h>
+
 #include <utils/stringutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -95,7 +97,7 @@ bool GenericMakeStep::init(QList<const BuildStep *> &earlierSteps)
     if (!bc)
         emit addTask(Task::buildConfigurationMissingTask());
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (!tc)
         emit addTask(Task::compilerMissingTask());
 
@@ -142,19 +144,19 @@ QVariantMap GenericMakeStep::toMap() const
 {
     QVariantMap map(AbstractProcessStep::toMap());
 
-    map.insert(QLatin1String(BUILD_TARGETS_KEY), m_buildTargets);
-    map.insert(QLatin1String(MAKE_ARGUMENTS_KEY), m_makeArguments);
-    map.insert(QLatin1String(MAKE_COMMAND_KEY), m_makeCommand);
-    map.insert(QLatin1String(CLEAN_KEY), m_clean);
+    map.insert(BUILD_TARGETS_KEY, m_buildTargets);
+    map.insert(MAKE_ARGUMENTS_KEY, m_makeArguments);
+    map.insert(MAKE_COMMAND_KEY, m_makeCommand);
+    map.insert(CLEAN_KEY, m_clean);
     return map;
 }
 
 bool GenericMakeStep::fromMap(const QVariantMap &map)
 {
-    m_buildTargets = map.value(QLatin1String(BUILD_TARGETS_KEY)).toStringList();
-    m_makeArguments = map.value(QLatin1String(MAKE_ARGUMENTS_KEY)).toString();
-    m_makeCommand = map.value(QLatin1String(MAKE_COMMAND_KEY)).toString();
-    m_clean = map.value(QLatin1String(CLEAN_KEY)).toBool();
+    m_buildTargets = map.value(BUILD_TARGETS_KEY).toStringList();
+    m_makeArguments = map.value(MAKE_ARGUMENTS_KEY).toString();
+    m_makeCommand = map.value(MAKE_COMMAND_KEY).toString();
+    m_clean = map.value(CLEAN_KEY).toBool();
 
     return BuildStep::fromMap(map);
 }
@@ -170,11 +172,11 @@ QString GenericMakeStep::makeCommand(const Utils::Environment &environment) cons
 {
     QString command = m_makeCommand;
     if (command.isEmpty()) {
-        ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
+        ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
         if (tc)
             command = tc->makeCommand(environment);
         else
-            command = QLatin1String("make");
+            command = "make";
     }
     return command;
 }
@@ -220,9 +222,10 @@ GenericMakeStepConfigWidget::GenericMakeStepConfigWidget(GenericMakeStep *makeSt
     m_ui = new Ui::GenericMakeStep;
     m_ui->setupUi(this);
 
-    GenericProject *pro = static_cast<GenericProject *>(m_makeStep->target()->project());
-    foreach (const QString &target, pro->buildTargets()) {
-        QListWidgetItem *item = new QListWidgetItem(target, m_ui->targetsList);
+    const auto pro = static_cast<GenericProject *>(m_makeStep->target()->project());
+    const auto buildTargets = pro->buildTargets();
+    for (const QString &target : buildTargets) {
+        auto item = new QListWidgetItem(target, m_ui->targetsList);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         item->setCheckState(m_makeStep->buildsTarget(item->text()) ? Qt::Checked : Qt::Unchecked);
     }
@@ -325,27 +328,27 @@ QList<BuildStepInfo> GenericMakeStepFactory::availableSteps(BuildStepList *paren
     if (parent->target()->project()->id() != Constants::GENERICPROJECT_ID)
         return {};
 
-    return {{ GENERIC_MS_ID,
-              QCoreApplication::translate("GenericProjectManager::Internal::GenericMakeStep",
-              GENERIC_MS_DISPLAY_NAME) }};
+    return {{GENERIC_MS_ID,
+             QCoreApplication::translate("GenericProjectManager::Internal::GenericMakeStep",
+             GENERIC_MS_DISPLAY_NAME)}};
 }
 
 BuildStep *GenericMakeStepFactory::create(BuildStepList *parent, const Id id)
 {
     Q_UNUSED(id)
-    GenericMakeStep *step = new GenericMakeStep(parent);
+    auto step = new GenericMakeStep(parent);
     if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {
         step->setClean(true);
-        step->setBuildTarget(QLatin1String("clean"), /* on = */ true);
+        step->setBuildTarget("clean", /* on = */ true);
     } else if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_BUILD) {
-        step->setBuildTarget(QLatin1String("all"), /* on = */ true);
+        step->setBuildTarget("all", /* on = */ true);
     }
     return step;
 }
 
 BuildStep *GenericMakeStepFactory::clone(BuildStepList *parent, BuildStep *source)
 {
-    GenericMakeStep *old(qobject_cast<GenericMakeStep *>(source));
+    auto old = qobject_cast<GenericMakeStep *>(source);
     Q_ASSERT(old);
     return new GenericMakeStep(parent, old);
 }

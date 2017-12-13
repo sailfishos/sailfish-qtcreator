@@ -45,12 +45,11 @@ namespace TextEditor {
 class BaseTextEditor;
 class TextDocument;
 
-namespace Internal { class TextMarkRegistry; }
-
 class TEXTEDITOR_EXPORT TextMark
 {
 public:
-    TextMark(const QString &fileName, int lineNumber, Core::Id category);
+    TextMark(const QString &fileName, int lineNumber, Core::Id category, double widthFactor = 1.0);
+    TextMark() = delete;
     virtual ~TextMark();
 
     // determine order on markers on the same line.
@@ -64,7 +63,20 @@ public:
     QString fileName() const;
     int lineNumber() const;
 
-    virtual void paint(QPainter *painter, const QRect &rect) const;
+    virtual void paintIcon(QPainter *painter, const QRect &rect) const;
+    virtual void paintAnnotation(QPainter &painter, QRectF *annotationRect,
+                                 const qreal fadeInOffset, const qreal fadeOutOffset) const;
+    struct AnnotationRects
+    {
+        QRectF fadeInRect;
+        QRectF annotationRect;
+        QRectF iconRect;
+        QRectF textRect;
+        QRectF fadeOutRect;
+        QString text;
+    };
+    AnnotationRects annotationRects(const QRectF &boundingRect, const QFontMetrics &fm,
+                                    const qreal fadeInOffset, const qreal fadeOutOffset) const;
     /// called if the filename of the document changed
     virtual void updateFileName(const QString &fileName);
     virtual void updateLineNumber(int lineNumber);
@@ -75,45 +87,53 @@ public:
     virtual void clicked();
     virtual bool isDraggable() const;
     virtual void dragToLine(int lineNumber);
-    void addToToolTipLayout(QGridLayout *target);
-    virtual bool addToolTipContent(QLayout *target);
+    void addToToolTipLayout(QGridLayout *target) const;
+    virtual bool addToolTipContent(QLayout *target) const;
 
-    static Utils::Theme::Color categoryColor(Core::Id category);
-    static bool categoryHasColor(Core::Id category);
-    static void setCategoryColor(Core::Id category, Utils::Theme::Color color);
-    static void setDefaultToolTip(Core::Id category, const QString &toolTip);
-    void setIcon(const QIcon &icon);
-    const QIcon &icon() const;
+    void setIcon(const QIcon &icon) { m_icon = icon; }
+    const QIcon &icon() const { return m_icon; }
     // call this if the icon has changed.
     void updateMarker();
-    Priority priority() const;
+    Priority priority() const { return m_priority;}
     void setPriority(Priority prioriy);
     bool isVisible() const;
     void setVisible(bool isVisible);
-    Core::Id category() const;
+    Core::Id category() const { return m_category; }
     double widthFactor() const;
     void setWidthFactor(double factor);
 
-    TextDocument *baseTextDocument() const;
-    void setBaseTextDocument(TextDocument *baseTextDocument);
+    Utils::Theme::Color color() const;
+    void setColor(const Utils::Theme::Color &color);
+    bool hasColor() const { return m_hasColor; }
 
-    QString toolTip() const;
-    void setToolTip(const QString &toolTip);
+    QString defaultToolTip() const { return m_defaultToolTip; }
+    void setDefaultToolTip(const QString &toolTip) { m_defaultToolTip = toolTip; }
+
+    TextDocument *baseTextDocument() const { return m_baseTextDocument; }
+    void setBaseTextDocument(TextDocument *baseTextDocument) { m_baseTextDocument = baseTextDocument; }
+
+    QString lineAnnotation() const { return m_lineAnnotation; }
+    void setLineAnnotation(const QString &lineAnnotation) { m_lineAnnotation = lineAnnotation; }
+
+    QString toolTip() const { return m_toolTip; }
+    void setToolTip(const QString &toolTip) { m_toolTip = toolTip; }
 
 private:
     Q_DISABLE_COPY(TextMark)
-    friend class Internal::TextMarkRegistry;
 
-    TextDocument *m_baseTextDocument;
+    TextDocument *m_baseTextDocument = nullptr;
     QString m_fileName;
-    int m_lineNumber;
-    Priority m_priority;
-    bool m_visible;
+    int m_lineNumber = 0;
+    Priority m_priority = LowPriority;
+    bool m_visible = false;
     QIcon m_icon;
-    QColor m_color;
+    Utils::Theme::Color m_color;
+    bool m_hasColor = false;
     Core::Id m_category;
-    double m_widthFactor;
+    double m_widthFactor = 1.0;
+    QString m_lineAnnotation;
     QString m_toolTip;
+    QString m_defaultToolTip;
 };
 
 } // namespace TextEditor

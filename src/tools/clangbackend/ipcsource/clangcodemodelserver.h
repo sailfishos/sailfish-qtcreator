@@ -58,6 +58,7 @@ public:
     void completeCode(const CompleteCodeMessage &message) override;
     void updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message) override;
     void requestDocumentAnnotations(const RequestDocumentAnnotationsMessage &message) override;
+    void requestReferences(const RequestReferencesMessage &message) override;
 
 public: // for tests
     const Documents &documentsForTestOnly() const;
@@ -72,20 +73,13 @@ private:
     void startDocumentAnnotationsTimerIfFileIsNotOpenAsDocument(const Utf8String &filePath);
 
     void processInitialJobsForDocuments(const std::vector<Document> &documents);
-    void delayStartInitializingSupportiveTranslationUnits(const std::vector<Document> &documents);
-    void startInitializingSupportiveTranslationUnits(const std::vector<Document> &documents);
-
     void processJobsForDirtyAndVisibleDocuments();
     void processJobsForDirtyCurrentDocument();
     void processTimerForVisibleButNotCurrentDocuments();
     void processJobsForDirtyAndVisibleButNotCurrentDocuments();
+    void processSuspendResumeJobs(const std::vector<Document> &documents);
 
-    void addAndRunUpdateJobs(const std::vector<Document> &documents);
-
-    JobRequest createJobRequest(const Document &document,
-                                JobRequest::Type type,
-                                PreferredTranslationUnit preferredTranslationUnit
-                                    = PreferredTranslationUnit::RecentlyParsed) const;
+    void addAndRunUpdateJobs(std::vector<Document> documents);
 
 private:
     ProjectParts projects;

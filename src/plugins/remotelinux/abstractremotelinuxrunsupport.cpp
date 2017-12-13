@@ -25,125 +25,36 @@
 
 #include "abstractremotelinuxrunsupport.h"
 
-#include <projectexplorer/devicesupport/deviceapplicationrunner.h>
-#include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 
 #include <utils/environment.h>
 #include <utils/portlist.h>
+#include <utils/qtcprocess.h>
+
+#include <qmldebug/qmldebugcommandlinearguments.h>
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace RemoteLinux {
-namespace Internal {
 
-class AbstractRemoteLinuxRunSupportPrivate
+// FifoGatherer
+
+FifoGatherer::FifoGatherer(RunControl *runControl)
+    : RunWorker(runControl)
 {
-public:
-    AbstractRemoteLinuxRunSupportPrivate(const RunConfiguration *runConfig)
-        : state(AbstractRemoteLinuxRunSupport::Inactive),
-          runnable(runConfig->runnable().as<StandardRunnable>()),
-          device(DeviceKitInformation::device(runConfig->target()->kit()))
-    {
-    }
+    setDisplayName("FifoGatherer");
+}
 
-    AbstractRemoteLinuxRunSupport::State state;
-    StandardRunnable runnable;
-    DeviceApplicationRunner appRunner;
-    DeviceUsedPortsGatherer portsGatherer;
-    DeviceApplicationRunner fifoCreator;
-    const IDevice::ConstPtr device;
-    Utils::PortList portList;
-    QString fifo;
-};
-
-} // namespace Internal
-
-using namespace Internal;
-
-AbstractRemoteLinuxRunSupport::AbstractRemoteLinuxRunSupport(RunConfiguration *runConfig, QObject *parent)
-    : QObject(parent),
-      d(new AbstractRemoteLinuxRunSupportPrivate(runConfig))
+FifoGatherer::~FifoGatherer()
 {
 }
 
-AbstractRemoteLinuxRunSupport::~AbstractRemoteLinuxRunSupport()
+void FifoGatherer::start()
 {
-    setFinished();
-    delete d;
-}
-
-void AbstractRemoteLinuxRunSupport::setState(AbstractRemoteLinuxRunSupport::State state)
-{
-    d->state = state;
-}
-
-AbstractRemoteLinuxRunSupport::State AbstractRemoteLinuxRunSupport::state() const
-{
-    return d->state;
-}
-
-void AbstractRemoteLinuxRunSupport::handleResourcesError(const QString &message)
-{
-    QTC_ASSERT(d->state == GatheringResources, return);
-    handleAdapterSetupFailed(message);
-}
-
-void AbstractRemoteLinuxRunSupport::handleResourcesAvailable()
-{
-    QTC_ASSERT(d->state == GatheringResources, return);
-
-    d->portList = d->device->freePorts();
-    startExecution();
-}
-
-void AbstractRemoteLinuxRunSupport::handleAdapterSetupFailed(const QString &)
-{
-    setFinished();
-    reset();
-}
-
-void AbstractRemoteLinuxRunSupport::handleAdapterSetupDone()
-{
-    d->state = Running;
-}
-
-void AbstractRemoteLinuxRunSupport::setFinished()
-{
-    if (d->state == Inactive)
-        return;
-    if (d->state == Running)
-        d->appRunner.stop();
-    d->state = Inactive;
-}
-
-Utils::Port AbstractRemoteLinuxRunSupport::findPort() const
-{
-    return d->portsGatherer.getNextFreePort(&d->portList);
-}
-
-QString AbstractRemoteLinuxRunSupport::fifo() const
-{
-    return d->fifo;
-}
-
-void AbstractRemoteLinuxRunSupport::startPortsGathering()
-{
-    QTC_ASSERT(d->state == Inactive, return);
-    d->state = GatheringResources;
-    connect(&d->portsGatherer, &DeviceUsedPortsGatherer::error,
-            this, &AbstractRemoteLinuxRunSupport::handleResourcesError);
-    connect(&d->portsGatherer, &DeviceUsedPortsGatherer::portListReady,
-            this, &AbstractRemoteLinuxRunSupport::handleResourcesAvailable);
-    d->portsGatherer.start(d->device);
-}
-
-void AbstractRemoteLinuxRunSupport::createRemoteFifo()
-{
-    QTC_ASSERT(d->state == Inactive, return);
-    d->state = GatheringResources;
+    appendMessage(tr("Creating remote socket...") + '\n', NormalMessageFormat);
 
     StandardRunnable r;
     r.executable = QLatin1String("/bin/sh");
@@ -151,52 +62,38 @@ void AbstractRemoteLinuxRunSupport::createRemoteFifo()
     r.workingDirectory = QLatin1String("/tmp");
     r.runMode = ApplicationLauncher::Console;
 
-    QSharedPointer<QByteArray> output(new QByteArray);
-    QSharedPointer<QByteArray> errors(new QByteArray);
+    QSharedPointer<QString> output(new QString);
+    QSharedPointer<QString> errors(new QString);
 
-    connect(&d->fifoCreator, &DeviceApplicationRunner::finished,
+    connect(&m_fifoCreator, &ApplicationLauncher::finished,
             this, [this, output, errors](bool success) {
         if (!success) {
-            handleResourcesError(QString("Failed to create fifo: %1").arg(QLatin1String(*errors)));
+            reportFailure(QString("Failed to create fifo: %1").arg(*errors));
         } else {
-            d->fifo = QString::fromLatin1(*output);
-            handleResourcesAvailable();
+            m_fifo = *output;
+            appendMessage(tr("Created fifo: %1").arg(m_fifo), NormalMessageFormat);
+            reportStarted();
         }
     });
 
-    connect(&d->fifoCreator, &DeviceApplicationRunner::remoteStdout,
-            this, [output](const QByteArray &data) {
+    connect(&m_fifoCreator, &ApplicationLauncher::remoteStdout,
+            this, [output](const QString &data) {
         output->append(data);
     });
 
-    connect(&d->fifoCreator, &DeviceApplicationRunner::remoteStderr,
-            this, [errors](const QByteArray &data) {
-        errors->append(data);
+    connect(&m_fifoCreator, &ApplicationLauncher::remoteStderr,
+            this, [this, errors](const QString &) {
+            reportFailure();
+//        errors->append(data);
     });
 
-    d->fifoCreator.start(d->device, r);
+    m_fifoCreator.start(r, device());
 }
 
-const IDevice::ConstPtr AbstractRemoteLinuxRunSupport::device() const
+void FifoGatherer::stop()
 {
-    return d->device;
-}
-
-const StandardRunnable &AbstractRemoteLinuxRunSupport::runnable() const
-{
-    return d->runnable;
-}
-
-void AbstractRemoteLinuxRunSupport::reset()
-{
-    d->portsGatherer.disconnect(this);
-    d->appRunner.disconnect(this);
-    d->state = Inactive;
-}
-
-DeviceApplicationRunner *AbstractRemoteLinuxRunSupport::appRunner() const
-{
-    return &d->appRunner;
+    m_fifoCreator.stop();
+    reportStopped();
 }
 
 } // namespace RemoteLinux

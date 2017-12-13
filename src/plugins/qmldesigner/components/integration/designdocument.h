@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef DesignDocument_h
-#define DesignDocument_h
+#pragma once
 
 #include <model.h>
 #include <rewriterview.h>
@@ -77,9 +76,9 @@ public:
     Model *documentModel() const;
 
     QString contextHelpId() const;
-    QList<RewriterError> qmlParseWarnings() const;
+    QList<DocumentMessage> qmlParseWarnings() const;
     bool hasQmlParseWarnings() const;
-    QList<RewriterError> qmlParseErrors() const;
+    QList<DocumentMessage> qmlParseErrors() const;
     bool hasQmlParseErrors() const;
 
     RewriterView *rewriterView() const;
@@ -104,9 +103,9 @@ signals:
     void undoAvailable(bool isAvailable);
     void redoAvailable(bool isAvailable);
     void designDocumentClosed();
-    void qmlErrorsChanged(const QList<RewriterError> &errors);
+    void qmlErrorsChanged(const QList<DocumentMessage> &errors);
 
-public slots:
+public:
     void deleteSelected();
     void copySelected();
     void cutSelected();
@@ -119,10 +118,9 @@ public slots:
     void changeToSubComponent(const ModelNode &componentNode);
     void changeToMaster();
 
-private slots:
+private: // functions
     void updateFileName(const Utils::FileName &oldFileName, const Utils::FileName &newFileName);
 
-private: // functions
     void changeToInFileComponentModel(ComponentTextModifier *textModifer);
 
     void updateQrcFiles();
@@ -156,6 +154,3 @@ private: // variables
 };
 
 } // namespace QmlDesigner
-
-
-#endif // DesignDocument_h

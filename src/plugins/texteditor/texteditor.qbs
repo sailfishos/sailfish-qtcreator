@@ -143,7 +143,6 @@ Project {
             "texteditorsettings.h",
             "textmark.cpp",
             "textmark.h",
-            "textmarkregistry.h",
             "textstyles.h",
             "typingsettings.cpp",
             "typingsettings.h",
@@ -247,10 +246,8 @@ Project {
             name: "Snippets"
             prefix: "snippets/"
             files: [
-                "isnippetprovider.cpp",
-                "isnippetprovider.h",
-                "plaintextsnippetprovider.cpp",
-                "plaintextsnippetprovider.h",
+                "snippetprovider.cpp",
+                "snippetprovider.h",
                 "reuse.h",
                 "snippet.cpp",
                 "snippet.h",

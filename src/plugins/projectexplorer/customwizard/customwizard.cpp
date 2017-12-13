@@ -130,7 +130,6 @@ void CustomWizard::setParameters(const CustomWizardParametersPtr &p)
     setCategory(p->category);
     setDisplayCategory(p->displayCategory);
     setRequiredFeatures(p->requiredFeatures);
-    setPreferredFeatures(p->preferredFeatures);
     setFlags(p->flags);
 }
 
@@ -544,8 +543,9 @@ bool CustomProjectWizard::postGenerateOpen(const Core::GeneratedFiles &l, QStrin
             ProjectExplorerPlugin::OpenProjectResult result
                     = ProjectExplorerPlugin::openProject(file.path());
             if (!result) {
+                if (errorMessage)
+                    *errorMessage = result.errorMessage();
                 return false;
-                *errorMessage = result.errorMessage();
             }
         }
     }

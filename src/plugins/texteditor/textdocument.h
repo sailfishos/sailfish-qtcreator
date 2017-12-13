@@ -65,6 +65,7 @@ public:
 
     static QMap<QString, QString> openedTextDocumentContents();
     static QMap<QString, QTextCodec *> openedTextDocumentEncodings();
+    static TextDocument *currentTextDocument();
 
     virtual QString plainText() const;
     virtual QString textAt(int pos, int length) const;
@@ -153,6 +154,7 @@ private:
     void cleanWhitespace(QTextCursor &cursor, bool cleanIndentation, bool inEntireDocument);
     void ensureFinalNewLine(QTextCursor &cursor);
     void modificationChanged(bool modified);
+    void updateLayout() const;
 
     TextDocumentPrivate *d;
 };

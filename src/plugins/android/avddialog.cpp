@@ -26,6 +26,7 @@
 #include "avddialog.h"
 #include "androidconfigurations.h"
 
+#include <utils/algorithm.h>
 #include <utils/tooltip/tooltip.h>
 #include <utils/utilsicons.h>
 
@@ -44,14 +45,12 @@ AvdDialog::AvdDialog(int minApiLevel, const QString &targetArch, const AndroidCo
     m_hideTipTimer.setInterval(2000);
     m_hideTipTimer.setSingleShot(true);
 
-    if (targetArch.isEmpty())
-        m_avdDialog.abiComboBox->addItems(QStringList()
-                                        << QLatin1String("armeabi-v7a")
-                                        << QLatin1String("armeabi")
-                                        << QLatin1String("x86")
-                                        << QLatin1String("mips"));
-    else
+    if (targetArch.isEmpty()) {
+        m_avdDialog.abiComboBox->addItems(QStringList({"armeabi-v7a", "armeabi", "x86", "mips",
+                                                       "arm64-v8a", "x86_64", "mips64"}));
+    } else {
         m_avdDialog.abiComboBox->addItems(QStringList(targetArch));
+    }
 
     QRegExpValidator *v = new QRegExpValidator(m_allowedNameChars, this);
     m_avdDialog.nameLineEdit->setValidator(v);
@@ -71,12 +70,12 @@ AvdDialog::AvdDialog(int minApiLevel, const QString &targetArch, const AndroidCo
 
 bool AvdDialog::isValid() const
 {
-    return !name().isEmpty() && !target().isEmpty() && !abi().isEmpty();
+    return !name().isEmpty() && target().isValid() && !abi().isEmpty();
 }
 
-QString AvdDialog::target() const
+SdkPlatform AvdDialog::target() const
 {
-    return m_avdDialog.targetComboBox->currentText();
+    return m_avdDialog.targetComboBox->currentData().value<SdkPlatform>();
 }
 
 QString AvdDialog::name() const
@@ -96,15 +95,23 @@ int AvdDialog::sdcardSize() const
 
 void AvdDialog::updateApiLevelComboBox()
 {
-    QList<SdkPlatform> filteredList;
-    QList<SdkPlatform> platforms = m_config->sdkTargets(m_minApiLevel);
-    foreach (const SdkPlatform &platform, platforms) {
-        if (platform.abis.contains(abi()))
-            filteredList << platform;
-    }
+    SdkPlatformList filteredList;
+    SdkPlatformList platforms = m_config->sdkTargets(m_minApiLevel);
+
+    QString selectedAbi = abi();
+    auto hasAbi = [selectedAbi](const SystemImage &image) {
+        return image.isValid() && (image.abiName == selectedAbi);
+    };
+
+    filteredList = Utils::filtered(platforms, [hasAbi](const SdkPlatform &platform) {
+        return Utils::anyOf(platform.systemImages,hasAbi);
+    });
 
     m_avdDialog.targetComboBox->clear();
-    m_avdDialog.targetComboBox->addItems(AndroidConfig::apiLevelNamesFor(filteredList));
+    foreach (const SdkPlatform &platform, filteredList) {
+        m_avdDialog.targetComboBox->addItem(AndroidConfig::apiLevelNameFor(platform),
+                                            QVariant::fromValue<SdkPlatform>(platform));
+    }
 
     if (platforms.isEmpty()) {
         m_avdDialog.warningIcon->setVisible(true);

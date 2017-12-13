@@ -53,14 +53,15 @@ QStringList QmakeAndroidSupport::soLibSearchPath(const ProjectExplorer::Target *
     if (!project)
         return res;
 
-    foreach (QmakeProFileNode *node, project->allProFiles()) {
-        TargetInformation info = node->targetInformation();
-        res << info.buildDir;
-        QString destDir = info.destDir;
+    foreach (QmakeProFile *file, project->allProFiles()) {
+        TargetInformation info = file->targetInformation();
+        res << info.buildDir.toString();
+        Utils::FileName destDir = info.destDir;
         if (!destDir.isEmpty()) {
-            if (QFileInfo(destDir).isRelative())
-                destDir = QDir::cleanPath(info.buildDir + QLatin1Char('/') + destDir);
-            res << destDir;
+            if (destDir.toFileInfo().isRelative())
+                destDir = Utils::FileName::fromString(QDir::cleanPath(info.buildDir.toString()
+                                                                      + '/' + destDir.toString()));
+            res << destDir.toString();
         }
     }
 
@@ -75,7 +76,7 @@ QStringList QmakeAndroidSupport::androidExtraLibs(const ProjectExplorer::Target 
         return QStringList();
     auto project = static_cast<QmakeProject *>(target->project());
     QmakeProFileNode *node = project->rootProjectNode()->findProFileFor(qarc->proFilePath());
-    return node->variableValue(QmakeProjectManager::AndroidExtraLibs);
+    return node->variableValue(QmakeProjectManager::Variable::AndroidExtraLibs);
 }
 
 QStringList QmakeAndroidSupport::projectTargetApplications(const ProjectExplorer::Target *target) const
@@ -84,8 +85,8 @@ QStringList QmakeAndroidSupport::projectTargetApplications(const ProjectExplorer
     QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(target->project());
     if (!qmakeProject)
         return apps;
-    foreach (QmakeProFileNode *proFile, qmakeProject->applicationProFiles()) {
-        if (proFile->projectType() == ApplicationTemplate) {
+    for (QmakeProFile *proFile : qmakeProject->applicationProFiles()) {
+        if (proFile->projectType() == ProjectType::ApplicationTemplate) {
             if (proFile->targetInformation().target.startsWith(QLatin1String("lib"))
                     && proFile->targetInformation().target.endsWith(QLatin1String(".so")))
                 apps << proFile->targetInformation().target.mid(3, proFile->targetInformation().target.lastIndexOf(QLatin1Char('.')) - 3);
@@ -124,7 +125,7 @@ Utils::FileName QmakeAndroidSupport::androiddeployJsonPath(ProjectExplorer::Targ
     if (!node) // should never happen
         return Utils::FileName();
 
-    QString inputFile = node->singleVariableValue(AndroidDeploySettingsFile);
+    QString inputFile = node->singleVariableValue(Variable::AndroidDeploySettingsFile);
     if (inputFile.isEmpty()) // should never happen
         return Utils::FileName();
 
@@ -142,15 +143,18 @@ Utils::FileName QmakeAndroidSupport::manifestSourcePath(const ProjectExplorer::T
 {
     ProjectExplorer::RunConfiguration *rc = target->activeRunConfiguration();
     if (auto qrc = qobject_cast<QmakeAndroidRunConfiguration *>(rc)) {
-        Utils::FileName proFilePath = qrc->proFilePath();
         const auto project = static_cast<QmakeProjectManager::QmakeProject *>(target->project());
-        const QmakeProFileNode *node = project->rootProjectNode()->findProFileFor(proFilePath);
-        if (node) {
-            QString packageSource = node->singleVariableValue(AndroidPackageSourceDir);
-            if (!packageSource.isEmpty()) {
-                Utils::FileName manifest = Utils::FileName::fromUserInput(packageSource + QLatin1String("/AndroidManifest.xml"));
-                if (manifest.exists())
-                    return manifest;
+        if (project->rootProjectNode()) {
+            const QmakeProFileNode *node =
+                    project->rootProjectNode()->findProFileFor(qrc->proFilePath());
+            if (node) {
+                QString packageSource = node->singleVariableValue(Variable::AndroidPackageSourceDir);
+                if (!packageSource.isEmpty()) {
+                    const auto manifest = Utils::FileName::fromUserInput(packageSource +
+                                                                         "/AndroidManifest.xml");
+                    if (manifest.exists())
+                        return manifest;
+                }
             }
         }
     }

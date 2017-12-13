@@ -37,7 +37,6 @@ namespace ClangBackEnd {
 class HighlightingMark
 {
     friend bool operator==(const HighlightingMark &first, const HighlightingMark &second);
-    friend void PrintTo(const HighlightingMark& highlightingMark, ::std::ostream *os);
 
     enum class Recursion {
         FirstPass,
@@ -48,9 +47,9 @@ public:
     HighlightingMark(const CXCursor &cxCursor,
                      CXToken *cxToken,
                      CXTranslationUnit cxTranslationUnit,
-                     std::vector<CXSourceRange> &currentOutputArgumentRanges);
-    HighlightingMark(uint line, uint column, uint length, HighlightingTypes types);
-    HighlightingMark(uint line, uint column, uint length, HighlightingType type);
+                     std::vector<CXSourceRange> &m_currentOutputArgumentRanges);
+    HighlightingMark(uint m_line, uint m_column, uint m_length, HighlightingTypes m_types);
+    HighlightingMark(uint m_line, uint m_column, uint m_length, HighlightingType type);
 
     bool hasInvalidMainType() const;
     bool hasMainType(HighlightingType type) const;
@@ -63,13 +62,14 @@ public:
 private:
     void identifierKind(const Cursor &cursor, Recursion recursion);
     void referencedTypeKind(const Cursor &cursor);
+    void overloadedDeclRefKind(const Cursor &cursor);
     void variableKind(const Cursor &cursor);
     void fieldKind(const Cursor &cursor);
     bool isVirtualMethodDeclarationOrDefinition(const Cursor &cursor) const;
     void functionKind(const Cursor &cursor, Recursion recursion);
     void memberReferenceKind(const Cursor &cursor);
     HighlightingType punctuationKind(const Cursor &cursor);
-    void collectKinds(CXToken *cxToken, const Cursor &cursor);
+    void collectKinds(CXTranslationUnit cxTranslationUnit, CXToken *cxToken, const Cursor &cursor);
     bool isRealDynamicCall(const Cursor &cursor) const;
     void addExtraTypeIfFirstPass(HighlightingType type, Recursion recursion);
     bool isOutputArgument() const;
@@ -77,24 +77,25 @@ private:
     void filterOutPreviousOutputArguments();
     bool isArgumentInCurrentOutputArgumentLocations() const;
 
+    friend std::ostream &operator<<(std::ostream &os, const HighlightingMark& highlightingMark);
+
 private:
-    std::vector<CXSourceRange> *currentOutputArgumentRanges = nullptr;
-    Cursor originalCursor;
-    uint line;
-    uint column;
-    uint length;
-    uint offset = 0;
-    HighlightingTypes types;
+    std::vector<CXSourceRange> *m_currentOutputArgumentRanges = nullptr;
+    Cursor m_originalCursor;
+    uint m_line;
+    uint m_column;
+    uint m_length;
+    uint m_offset = 0;
+    HighlightingTypes m_types;
 };
 
-void PrintTo(const HighlightingMark& highlightingMark, ::std::ostream *os);
 
 inline bool operator==(const HighlightingMark &first, const HighlightingMark &second)
 {
-    return first.line == second.line
-        && first.column == second.column
-        && first.length == second.length
-        && first.types == second.types;
+    return first.m_line == second.m_line
+        && first.m_column == second.m_column
+        && first.m_length == second.m_length
+        && first.m_types == second.m_types;
 }
 
 } // namespace ClangBackEnd

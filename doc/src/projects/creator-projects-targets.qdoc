@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2017 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -38,9 +38,9 @@
     \title Adding Kits
 
     \QC groups settings used for building and running projects as kits
-    to make cross-platform and cross-configuration
-    development easier. Each kit consists of a set of values that define one
-    environment, such as a device, compiler, Qt version, and debugger command
+    to make cross-platform and cross-configuration development easier. Each kit
+    consists of a set of values that define one environment, such as a
+    \l{glossary-device}{device}, compiler, Qt version, and debugger command
     to use, and some metadata, such as an icon and a name for the kit. Once
     you have defined kits, you can select them to build and run projects.
 
@@ -107,6 +107,9 @@
             add debuggers to the list. For more information, see
             \l{Adding Debuggers}.
 
+            For Android kits, the \uicontrol {Android GDB server} field will
+            display the path to GDB server executable.
+
         \li In the \uicontrol {Qt version} field, select the Qt version to use for
             building the project. You can add Qt versions to the list if they
             are installed on the development PC, but were not detected
@@ -126,7 +129,8 @@
             CMake tools to the list. For more information, see
             \l{Adding CMake Tools}.
 
-        \li In the \uicontrol {CMake Generator} field, select the CMake
+        \li In the \uicontrol {CMake generator} field, select \uicontrol Change
+            to edit the CMake
             Generator to use for producing project files. Only the generators
             with names beginning with the string \uicontrol CodeBlocks produce
             all the necessary data for the \QC code model. \QC displays a
@@ -135,6 +139,10 @@
         \li In the \uicontrol {CMake configuration} field, select
             \uicontrol Change to edit the variables of the CMake configuration
             for the kit.
+
+        \li In the \uicontrol {Additional Qbs profile settings} field, select
+            \uicontrol Change to add settings to Qbs build profiles. For more
+            information, see \l {Editing Build Profiles}.
 
     \endlist
 

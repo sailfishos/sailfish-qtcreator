@@ -54,7 +54,7 @@ namespace Internal { class DesignModeWidget; }
 class QMLDESIGNERCORE_EXPORT QmlDesignerPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/qmldesigner/QmlDesigner.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QmlDesigner.json")
 
 public:
     QmlDesignerPlugin();
@@ -62,6 +62,7 @@ public:
 
     //Plugin
     bool initialize(const QStringList &arguments, QString *errorMessage = 0) override;
+    bool delayedInitialize() override;
     void extensionsInitialized() override;
 
     static QmlDesignerPlugin *instance();
@@ -82,9 +83,12 @@ public:
     Internal::DesignModeWidget *mainWidget() const;
 
     void switchToTextModeDeferred();
+    void emitCurrentTextEditorChanged(Core::IEditor *editor);
+
+    static double formEditorDevicePixelRatio();
 
 private: // functions
-    void createDesignModeWidget();
+    void integrateIntoQtCreator(QWidget *modeWidget);
     void showDesigner();
     void hideDesigner();
     void changeEditor();

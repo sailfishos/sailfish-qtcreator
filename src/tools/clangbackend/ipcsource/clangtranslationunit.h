@@ -40,6 +40,7 @@ class DiagnosticContainer;
 class DiagnosticSet;
 class HighlightingMarkContainer;
 class HighlightingMarks;
+class ReferencesResult;
 class SkippedSourceRanges;
 class SourceLocation;
 class SourceRange;
@@ -70,6 +71,8 @@ public:
     CXIndex &cxIndex() const;
     CXTranslationUnit &cxTranslationUnit() const;
 
+    bool suspend() const;
+
     TranslationUnitUpdateResult update(const TranslationUnitUpdateInput &parseInput) const;
     TranslationUnitUpdateResult parse(const TranslationUnitUpdateInput &parseInput) const;
     TranslationUnitUpdateResult reparse(const TranslationUnitUpdateInput &parseInput) const;
@@ -83,6 +86,8 @@ public:
                                     QVector<HighlightingMarkContainer> &highlightingMarks,
                                     QVector<SourceRangeContainer> &skippedSourceRanges) const;
 
+
+    ReferencesResult references(uint line, uint column) const;
     DiagnosticSet diagnostics() const;
 
     SourceLocation sourceLocationAt(uint line, uint column) const;

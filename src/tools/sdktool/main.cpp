@@ -27,6 +27,7 @@
 
 #include "operation.h"
 
+#include "addcmakeoperation.h"
 #include "adddebuggeroperation.h"
 #include "adddeviceoperation.h"
 #include "addkeysoperation.h"
@@ -36,6 +37,7 @@
 #include "findkeyoperation.h"
 #include "findvalueoperation.h"
 #include "getoperation.h"
+#include "rmcmakeoperation.h"
 #include "rmdebuggeroperation.h"
 #include "rmdeviceoperation.h"
 #include "rmkeysoperation.h"
@@ -44,8 +46,6 @@
 #include "rmtoolchainoperation.h"
 
 #include <iostream>
-
-#include <app/app_version.h>
 
 #include <QCoreApplication>
 #include <QStringList>
@@ -69,7 +69,7 @@ const QString tabular(const Operation *o)
 void printHelp(const QList<Operation *> &operations)
 {
     std::cout << "Qt Creator SDK setup tool." << std::endl;
-    std::cout << "    Usage: " << qPrintable(qApp->arguments().at(0))
+    std::cout << "    Usage: " << qPrintable(QCoreApplication::arguments().at(0))
               << " <ARGS> <OPERATION> <OPERATION_ARGS>" << std::endl << std::endl;
     std::cout << "ARGS:" << std::endl;
     std::cout << "    --help|-h                Print this help text" << std::endl;
@@ -172,14 +172,12 @@ int main(int argc, char *argv[])
 
     QCoreApplication a(argc, argv);
 
-    QCoreApplication::setApplicationName(QLatin1String("sdktool"));
-    QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
-
     Settings settings;
 
     QList<Operation *> operations;
     operations << new AddKeysOperation
 
+               << new AddCMakeOperation
                << new AddDebuggerOperation
                << new AddDeviceOperation
                << new AddQtOperation
@@ -188,6 +186,8 @@ int main(int argc, char *argv[])
                << new AddKitOperation
 
                << new GetOperation
+
+               << new RmCMakeOperation
                << new RmKitOperation
                << new RmDebuggerOperation
                << new RmDeviceOperation

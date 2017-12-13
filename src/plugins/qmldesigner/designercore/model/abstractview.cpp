@@ -31,8 +31,15 @@
 #include "nodeinstanceview.h"
 #include <qmlstate.h>
 
+#ifndef QMLDESIGNER_TEST
+#include <qmldesignerplugin.h>
+#include <viewmanager.h>
+#endif
+
 #include <coreplugin/helpmanager.h>
 #include <utils/qtcassert.h>
+
+#include <QRegExp>
 
 namespace QmlDesigner {
 
@@ -122,7 +129,8 @@ WidgetInfo AbstractView::createWidgetInfo(QWidget *widget,
                                           const QString &uniqueId,
                                           WidgetInfo::PlacementHint placementHint,
                                           int placementPriority,
-                                          const QString &tabName)
+                                          const QString &tabName,
+                                          DesignerWidgetFlags widgetFlags)
 {
     WidgetInfo widgetInfo;
 
@@ -132,6 +140,7 @@ WidgetInfo AbstractView::createWidgetInfo(QWidget *widget,
     widgetInfo.placementHint = placementHint;
     widgetInfo.placementPriority = placementPriority;
     widgetInfo.tabName = tabName;
+    widgetInfo.widgetFlags = widgetFlags;
 
     return widgetInfo;
 }
@@ -188,11 +197,11 @@ void AbstractView::modelAboutToBeDetached(Model *)
             Empty properties were removed.
 */
 
-void AbstractView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &/*propertyList*/)
+void AbstractView::instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &/*propertyList*/)
 {
 }
 
-void AbstractView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
+void AbstractView::instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
 {
 }
 
@@ -224,7 +233,7 @@ void AbstractView::rewriterEndTransaction()
 {
 }
 
-void AbstractView::instanceErrorChange(const QVector<ModelNode> &/*errorNodeList*/)
+void AbstractView::instanceErrorChanged(const QVector<ModelNode> &/*errorNodeList*/)
 {
 }
 
@@ -325,6 +334,11 @@ void AbstractView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVersi
 {
 }
 
+void AbstractView::nodeTypeChanged(const ModelNode & /*node*/, const TypeName & /*type*/, int /*majorVersion*/, int /*minorVersion*/)
+{
+
+}
+
 void AbstractView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
 {
 }
@@ -338,6 +352,10 @@ void AbstractView::customNotification(const AbstractView * /*view*/, const QStri
 }
 
 void AbstractView::scriptFunctionsChanged(const ModelNode &/*node*/, const QStringList &/*scriptFunctionList*/)
+{
+}
+
+void AbstractView::documentMessagesChanged(const QList<DocumentMessage> &/*errors*/, const QList<DocumentMessage> &/*warnings*/)
 {
 }
 
@@ -375,7 +393,7 @@ void AbstractView::setSelectedModelNodes(const QList<ModelNode> &selectedNodeLis
 
 void AbstractView::setSelectedModelNode(const ModelNode &modelNode)
 {
-    setSelectedModelNodes(QList<ModelNode>() << modelNode);
+    setSelectedModelNodes({modelNode});
 }
 
 /*!
@@ -541,27 +559,25 @@ QString AbstractView::contextHelpId() const
 {
     QString helpId;
 
-    if (hasSelectedModelNodes()) {
-        QString className = firstSelectedModelNode().simplifiedTypeName();
-        helpId = QStringLiteral("QML.") + className;
-        if (Core::HelpManager::linksForIdentifier(helpId).isEmpty() && firstSelectedModelNode().metaInfo().isValid()) {
-
-            foreach (className, firstSelectedModelNode().metaInfo().superClassNames()) {
-                helpId = QStringLiteral("QML.") + className;
-                if (Core::HelpManager::linksForIdentifier(helpId).isEmpty())
-                    helpId = QString();
-                else
-                    break;
-            }
-        }
-    }
-
+#ifndef QMLDESIGNER_TEST
+    helpId = QmlDesignerPlugin::instance()->viewManager().qmlJSEditorHelpId();
+#endif
     return helpId;
 }
 
 QList<ModelNode> AbstractView::allModelNodes() const
 {
-   return toModelNodeList(model()->d->allNodes());
+    return toModelNodeList(model()->d->allNodes());
+}
+
+void AbstractView::emitDocumentMessage(const QString &error)
+{
+    emitDocumentMessage({DocumentMessage(error)});
+}
+
+void AbstractView::emitDocumentMessage(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings)
+{
+    model()->d->setDocumentMessages(errors, warnings);
 }
 
 void AbstractView::emitCustomNotification(const QString &identifier)
@@ -705,12 +721,9 @@ static int getMajorVersionFromImport(const Model *model)
 static int getMajorVersionFromNode(const ModelNode &modelNode)
 {
     if (modelNode.metaInfo().isValid()) {
-        if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
-            return modelNode.majorVersion();
-
-        foreach (const NodeMetaInfo &superClass,  modelNode.metaInfo().superClasses()) {
-            if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
-                return superClass.majorVersion();
+        foreach (const NodeMetaInfo &info,  modelNode.metaInfo().classHierarchy()) {
+            if (info.typeName() == "QtQuick.QtObject" || info.typeName() == "QtQuick.Item")
+                return info.majorVersion();
         }
     }
 
@@ -720,12 +733,9 @@ static int getMajorVersionFromNode(const ModelNode &modelNode)
 static int getMinorVersionFromNode(const ModelNode &modelNode)
 {
     if (modelNode.metaInfo().isValid()) {
-        if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
-            return modelNode.minorVersion();
-
-        foreach (const NodeMetaInfo &superClass,  modelNode.metaInfo().superClasses()) {
-            if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
-                return superClass.minorVersion();
+        foreach (const NodeMetaInfo &info,  modelNode.metaInfo().classHierarchy()) {
+            if (info.typeName() == "QtQuick.QtObject" || info.typeName() == "QtQuick.Item")
+                return info.minorVersion();
         }
     }
 

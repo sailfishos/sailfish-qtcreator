@@ -25,6 +25,7 @@
 
 #include "task.h"
 
+#include <texteditor/textmark.h>
 #include <utils/utilsicons.h>
 #include <utils/qtcassert.h>
 
@@ -35,9 +36,9 @@ namespace ProjectExplorer
 
 static QIcon taskTypeIcon(Task::TaskType t)
 {
-    static QIcon icons[3] = { QIcon(),
-                              Utils::Icons::ERROR.icon(),
-                              Utils::Icons::WARNING.icon()};
+    static QIcon icons[3] = {QIcon(),
+                             Utils::Icons::CRITICAL.icon(),
+                             Utils::Icons::WARNING.icon()};
 
     if (t < 0 || t > 2)
         t = Task::Unknown;

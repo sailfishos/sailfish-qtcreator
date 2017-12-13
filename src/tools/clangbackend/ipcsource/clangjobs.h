@@ -59,7 +59,15 @@ public:
          ClangCodeModelClientInterface &client);
     ~Jobs();
 
+    JobRequest createJobRequest(const Document &document, JobRequest::Type type,
+                                PreferredTranslationUnit preferredTranslationUnit
+                                    = PreferredTranslationUnit::RecentlyParsed) const;
+
     void add(const JobRequest &job);
+    void add(const Document &document,
+             JobRequest::Type type,
+             PreferredTranslationUnit preferredTranslationUnit
+                 = PreferredTranslationUnit::RecentlyParsed);
 
     JobRequests process();
 
@@ -67,11 +75,12 @@ public:
 
 public /*for tests*/:
     QList<RunningJob> runningJobs() const;
-    JobRequests queue() const;
+    JobRequests &queue();
     bool isJobRunningForTranslationUnit(const Utf8String &translationUnitId) const;
     bool isJobRunningForJobRequest(const JobRequest &jobRequest) const;
 
 private:
+    void cancelJobRequest(const JobRequest &jobRequest);
     JobRequests runJobs(const JobRequests &jobRequest);
     bool runJob(const JobRequest &jobRequest);
     void onJobFinished(IAsyncJob *asyncJob);
@@ -79,6 +88,7 @@ private:
 private:
     Documents &m_documents;
     UnsavedFiles &m_unsavedFiles;
+    ProjectParts &m_projectParts;
     ClangCodeModelClientInterface &m_client;
 
     JobQueue m_queue;

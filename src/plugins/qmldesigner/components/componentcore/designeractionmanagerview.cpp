@@ -27,6 +27,7 @@
 
 #include <selectioncontext.h>
 #include <actioninterface.h>
+#include <variantproperty.h>
 
 namespace QmlDesigner {
 
@@ -36,7 +37,6 @@ DesignerActionManagerView::DesignerActionManagerView()
       m_isInRewriterTransaction(false),
       m_setupContextDirty(false)
 {
-    m_designerActionManager.createDefaultDesignerActions();
 }
 
 void DesignerActionManagerView::modelAttached(Model *model)
@@ -99,9 +99,15 @@ void DesignerActionManagerView::currentStateChanged(const ModelNode &)
     setupContext();
 }
 
-void DesignerActionManagerView::selectedNodesChanged(const QList<ModelNode> &, const QList<ModelNode> &)
+void DesignerActionManagerView::selectedNodesChanged(const QList<ModelNode> &selectedNodes, const QList<ModelNode> &)
 {
     setupContext();
+
+    /* This breaks encapsulation, but the selection state is a very minor information.
+     * Without this signal the ShortcutManager would have to be refactored completely.
+     * This signal is only used to update the state of the cut/copy/delete actions.
+    */
+    emit selectionChanged(!selectedNodes.isEmpty(), singleSelectedModelNode().isRootNode());
 }
 
 void DesignerActionManagerView::nodeOrderChanged(const NodeListProperty &, const ModelNode &, int)
@@ -124,6 +130,26 @@ void DesignerActionManagerView::signalHandlerPropertiesChanged(const QVector<Sig
     setupContext();
 }
 
+void DesignerActionManagerView::variantPropertiesChanged(const QList<VariantProperty> &, AbstractView::PropertyChangeFlags propertyChangeFlag)
+{
+    if (propertyChangeFlag == AbstractView::PropertiesAdded)
+        setupContext();
+    else if (hasSingleSelectedModelNode())
+        setupContext();
+}
+
+void DesignerActionManagerView::bindingPropertiesChanged(const QList<BindingProperty> &, AbstractView::PropertyChangeFlags propertyChangeFlag)
+{
+    if (propertyChangeFlag == AbstractView::PropertiesAdded)
+        setupContext();
+}
+
+void DesignerActionManagerView::instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &)
+{
+    if (hasSingleSelectedModelNode())
+        setupContext();
+}
+
 DesignerActionManager &DesignerActionManagerView::designerActionManager()
 {
     return m_designerActionManager;
@@ -134,6 +160,8 @@ const DesignerActionManager &DesignerActionManagerView::designerActionManager() 
     return m_designerActionManager;
 }
 
+/* We should consider compressing this. */
+/* One update every 100ms should be enough. */
 void DesignerActionManagerView::setupContext()
 {
     if (m_isInRewriterTransaction) {

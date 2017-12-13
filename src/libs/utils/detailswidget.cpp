@@ -94,8 +94,8 @@ DetailsWidgetPrivate::DetailsWidgetPrivate(QWidget *parent) :
         m_summaryLabel(new QLabel(parent)),
         m_summaryCheckBox(new QCheckBox(parent)),
         m_additionalSummaryLabel(new QLabel(parent)),
-        m_toolWidget(0),
-        m_widget(0),
+        m_toolWidget(nullptr),
+        m_widget(nullptr),
         m_state(DetailsWidget::Collapsed),
         m_hovered(false),
         m_useCheckBox(false)
@@ -142,7 +142,7 @@ QPixmap DetailsWidget::createBackground(const QSize &size, int topHeight, QWidge
     QRect topRect(0, 0, size.width(), topHeight);
     QRect fullRect(0, 0, size.width(), size.height());
     if (HostOsInfo::isMacHost())
-        p.fillRect(fullRect, qApp->palette().window().color());
+        p.fillRect(fullRect, QApplication::palette().window().color());
     else
         p.fillRect(fullRect, creatorTheme()->color(Theme::DetailsWidgetBackgroundColor));
 

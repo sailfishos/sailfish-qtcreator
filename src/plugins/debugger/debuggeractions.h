@@ -116,12 +116,12 @@ enum DebuggerActionCode
     CdbBreakOnCrtDbgReport,
     UseCdbConsole,
     CdbBreakPointCorrection,
+    CdbUsePythonDumper,
     IgnoreFirstChanceAccessViolation,
 
     // Gdb
     LoadGdbInit,
     LoadGdbDumpers,
-    AttemptQuickStart,
     GdbStartupCommands,
     GdbPostAttachCommands,
     GdbWatchdogTimeout,

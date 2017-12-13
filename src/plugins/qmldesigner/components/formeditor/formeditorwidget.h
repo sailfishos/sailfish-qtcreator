@@ -24,6 +24,8 @@
 ****************************************************************************/
 #pragma once
 
+#include <documentwarningwidget.h>
+
 #include <QWidget>
 #include <QPointer>
 
@@ -72,11 +74,21 @@ public:
 
     void setFocus();
 
+    void showErrorMessageBox(const QList<DocumentMessage> &errors);
+    void hideErrorMessageBox();
+
+    void showWarningMessageBox(const QList<DocumentMessage> &warnings);
+
+    void exportAsImage(const QRectF &boundingRect);
+
+    FormEditorGraphicsView *graphicsView() const;
+
 protected:
     void wheelEvent(QWheelEvent *event);
     QActionGroup *toolActionGroup() const;
+    DocumentWarningWidget *errorWidget();
 
-private slots:
+private:
     void changeTransformTool(bool checked);
     void setZoomLevel(double zoomLevel);
     void changeRootItemWidth(const QString &widthText);
@@ -99,6 +111,7 @@ private:
     QPointer<LineEditAction> m_rootHeightAction;
     QPointer<BackgroundAction> m_backgroundAction;
     QPointer<QAction> m_resetAction;
+    QPointer<DocumentWarningWidget> m_documentErrorWidget;
 };
 
 } // namespace QmlDesigner

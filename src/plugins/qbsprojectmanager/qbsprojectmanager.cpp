@@ -100,28 +100,11 @@ QbsManager::~QbsManager()
     m_instance = nullptr;
 }
 
-QString QbsManager::mimeType() const
-{
-    return QLatin1String(QmlJSTools::Constants::QBS_MIMETYPE);
-}
-
-ProjectExplorer::Project *QbsManager::openProject(const QString &fileName, QString *errorString)
-{
-    if (!QFileInfo(fileName).isFile()) {
-        if (errorString)
-            *errorString = tr("Failed opening project \"%1\": Project is not a file.")
-                .arg(fileName);
-        return nullptr;
-    }
-
-    return new QbsProject(this, fileName);
-}
-
 QString QbsManager::profileForKit(const ProjectExplorer::Kit *k)
 {
     if (!k)
         return QString();
-    updateProfileIfNecessary(k);
+    m_instance->updateProfileIfNecessary(k);
     return settings()->value(qtcProfilePrefix() + k->id().toString()).toString();
 }
 
@@ -197,6 +180,8 @@ void QbsManager::addQtProfileFromKit(const QString &profileName, const ProjectEx
         if (qtEnv.qtConfigItems.contains(buildVariant))
             qtEnv.buildVariant << buildVariant;
     }
+    qtEnv.qmlPath = qt->qmakeProperty("QT_INSTALL_QML");
+    qtEnv.qmlImportPath = qt->qmakeProperty("QT_INSTALL_IMPORTS");
     const qbs::ErrorInfo errorInfo = qbs::setupQtProfile(profileName, settings(), qtEnv);
     if (errorInfo.hasError()) {
         Core::MessageManager::write(tr("Failed to set up kit for Qbs: %1")

@@ -65,7 +65,7 @@ class SearchTaskHandler;
 class HelpPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/help/Help.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Help.json")
 
 public:
     HelpPlugin();
@@ -76,6 +76,7 @@ public:
     ShutdownFlag aboutToShutdown();
 
     static HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
+    static void showInHelpViewer(const QUrl &url, HelpViewer *viewer);
 
     static HelpViewer *createHelpViewer(qreal zoom);
 
@@ -88,7 +89,7 @@ private:
 
     void saveExternalWindowSettings();
     void showLinkInHelpMode(const QUrl &source);
-    void showLinksInHelpMode(const QMap<QString, QUrl> &links, const QString &key);
+    void showLinksInCurrentViewer(const QMap<QString, QUrl> &links, const QString &key);
     void slotHideRightPane();
 
     void updateSideBarSource(const QUrl &newUrl);
@@ -98,8 +99,6 @@ private:
     void highlightSearchTermsInContextHelp();
     void handleHelpRequest(const QUrl &url, Core::HelpManager::HelpViewerLocation location);
 
-    void slotOpenSupportPage();
-    void slotReportBug();
     void slotSystemInformation();
 
     void resetFilter();
@@ -109,20 +108,22 @@ private:
     HelpWidget *createHelpWidget(const Core::Context &context, HelpWidget::WidgetStyle style);
     void createRightPaneContextViewer();
     HelpViewer *externalHelpViewer();
+    HelpViewer *helpModeHelpViewer();
+    HelpWidget *helpWidgetForWindow(QWidget *window);
 
     void doSetupIfNeeded();
 
-    HelpMode *m_mode;
-    CentralWidget *m_centralWidget;
-    HelpWidget *m_rightPaneSideBarWidget;
+    HelpMode *m_mode = nullptr;
+    CentralWidget *m_centralWidget = nullptr;
+    HelpWidget *m_rightPaneSideBarWidget = nullptr;
 
-    DocSettingsPage *m_docSettingsPage;
-    FilterSettingsPage *m_filterSettingsPage;
-    SearchTaskHandler *m_searchTaskHandler;
+    DocSettingsPage *m_docSettingsPage = nullptr;
+    FilterSettingsPage *m_filterSettingsPage = nullptr;
+    SearchTaskHandler *m_searchTaskHandler = nullptr;
 
-    bool m_setupNeeded;
-    LocalHelpManager *m_helpManager;
-    OpenPagesManager *m_openPagesManager;
+    bool m_setupNeeded = true;
+    LocalHelpManager *m_helpManager = nullptr;
+    OpenPagesManager *m_openPagesManager = nullptr;
 
     QString m_contextHelpHighlightId;
 

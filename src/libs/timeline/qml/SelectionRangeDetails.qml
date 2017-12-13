@@ -24,6 +24,8 @@
 ****************************************************************************/
 
 import QtQuick 2.1
+import TimelineTheme 1.0
+import TimelineTimeFormatter 1.0
 
 Item {
     id: selectionRangeDetails
@@ -31,9 +33,10 @@ Item {
     signal recenter
     signal close
 
-    property string startTime
-    property string endTime
-    property string duration
+    property double startTime
+    property double endTime
+    property double duration
+    property double referenceDuration
     property bool showDuration
     property bool hasContents
 
@@ -45,16 +48,6 @@ Item {
         target: selectionRangeDetails.parent
         onWidthChanged: fitInView();
         onHeightChanged: fitInView();
-    }
-
-    function detailedPrintTime( t )
-    {
-        if (t <= 0) return "0";
-        if (t<1000) return t+" ns";
-        t = Math.floor(t/1000);
-        if (t<1000) return t+" μs";
-        if (t<1e6) return (t/1000) + " ms";
-        return (t/1e6) + " s";
     }
 
     function fitInView() {
@@ -76,7 +69,7 @@ Item {
     Rectangle {
         width: parent.width
         height: 20
-        color: creatorTheme.Timeline_PanelHeaderColor
+        color: Theme.color(Theme.Timeline_PanelHeaderColor)
     }
 
     //title
@@ -87,12 +80,12 @@ Item {
         height: 20
         verticalAlignment: Text.AlignVCenter
         width: parent.width
-        color: creatorTheme.PanelTextColorLight
+        color: Theme.color(Theme.PanelTextColorLight)
     }
 
     // Details area
     Rectangle {
-        color: creatorTheme.Timeline_PanelBackgroundColor
+        color: Theme.color(Theme.Timeline_PanelBackgroundColor)
         width: parent.width
         height: col.height + 10
         y: 20
@@ -107,11 +100,11 @@ Item {
                 id: details
                 property var contents: [
                     qsTr("Start") + ":",
-                    detailedPrintTime(startTime),
+                    TimeFormatter.format(startTime, referenceDuration),
                     (qsTr("End") + ":"),
-                    detailedPrintTime(endTime),
+                    TimeFormatter.format(endTime, referenceDuration),
                     (qsTr("Duration") + ":"),
-                    detailedPrintTime(duration)
+                    TimeFormatter.format(duration, referenceDuration)
                 ]
 
                 model: showDuration ? 6 : 2

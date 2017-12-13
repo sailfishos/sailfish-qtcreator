@@ -42,6 +42,7 @@
 #include <utils/progressindicator.h>
 #include <utils/utilsicons.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <projectexplorer/buildmanager.h>
 
 #include <QAction>
 #include <QMenu>
@@ -109,20 +110,20 @@ TestNavigationWidget::TestNavigationWidget(QWidget *parent) :
 
 TestNavigationWidget::~TestNavigationWidget()
 {
-    m_model->disableParsing();
 }
 
 void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    const bool enabled = !TestRunner::instance()->isTestRunning()
-            && m_model->parser()->enabled() && m_model->parser()->state() == TestCodeParser::Idle;
+    const bool enabled = !ProjectExplorer::BuildManager::isBuilding()
+            && !TestRunner::instance()->isTestRunning()
+            && m_model->parser()->state() == TestCodeParser::Idle;
     const bool hasTests = m_model->hasTests();
 
     QMenu menu;
-    QAction *runThisTest = 0;
-    QAction *runWithoutDeploy = 0;
-    QAction *debugThisTest = 0;
-    QAction *debugWithoutDeploy = 0;
+    QAction *runThisTest = nullptr;
+    QAction *runWithoutDeploy = nullptr;
+    QAction *debugThisTest = nullptr;
+    QAction *debugWithoutDeploy = nullptr;
     const QModelIndexList list = m_view->selectionModel()->selectedIndexes();
     if (list.size() == 1) {
         const QModelIndex index = list.first();
@@ -171,8 +172,6 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
     connect(selectAll, &QAction::triggered, m_view, &TestTreeView::selectAll);
     connect(deselectAll, &QAction::triggered, m_view, &TestTreeView::deselectAll);
 
-    runAll->setEnabled(enabled && hasTests);
-    runSelected->setEnabled(enabled && hasTests);
     selectAll->setEnabled(enabled && hasTests);
     deselectAll->setEnabled(enabled && hasTests);
     rescan->setEnabled(enabled);
@@ -313,12 +312,12 @@ void TestNavigationWidget::onRunThisTestTriggered(TestRunner::Mode runMode)
         configuration = item->debugConfiguration();
         break;
     default:
-        configuration = 0;
+        configuration = nullptr;
     }
 
     if (configuration) {
         TestRunner *runner = TestRunner::instance();
-        runner->setSelectedTests( {configuration} );
+        runner->setSelectedTests({configuration});
         runner->prepareToRunTests(runMode);
     }
 }
@@ -336,7 +335,6 @@ Core::NavigationView TestNavigationWidgetFactory::createWidget()
     Core::NavigationView view;
     view.widget = treeViewWidget;
     view.dockToolBarWidgets = treeViewWidget->createToolButtons();
-    TestTreeModel::instance()->enableParsing();
     return view;
 }
 

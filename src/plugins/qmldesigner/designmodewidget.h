@@ -45,13 +45,14 @@ namespace QmlDesigner {
 
 class ItemLibraryWidget;
 class CrumbleBar;
+class DocumentWarningWidget;
+class SwitchSplitTabWidget;
 
 namespace Internal {
 
 class DesignMode;
 class DocumentWidget;
 class DesignModeWidget;
-class DocumentWarningWidget;
 
 class DesignModeWidget : public QWidget
 {
@@ -75,25 +76,20 @@ public:
 
     void enableWidgets();
     void disableWidgets();
-    void showErrorMessageBox(const QList<RewriterError> &errors);
-    void showWarningMessageBox(const QList<RewriterError> &warnings);
-    bool gotoCodeWasClicked();
+    void switchTextOrForm();
 
     CrumbleBar* crumbleBar() const;
+    void showInternalTextEditor();
 
-public slots:
-    void updateErrorStatus(const QList<RewriterError> &errors);
     void restoreDefaultView();
-    void toggleSidebars();
     void toggleLeftSidebar();
     void toggleRightSidebar();
 
-private slots:
-    void toolBarOnGoBackClicked();
-    void toolBarOnGoForwardClicked();
-
 private: // functions
     enum InitializeStatus { NotInitialized, Initializing, Initialized };
+
+    void toolBarOnGoBackClicked();
+    void toolBarOnGoForwardClicked();
 
     void setup();
     bool isInNodeDefinition(int nodeOffset, int nodeLength, int cursorPos) const;
@@ -104,11 +100,11 @@ private: // functions
 
 private: // variables
     QSplitter *m_mainSplitter = nullptr;
-    QPointer<DocumentWarningWidget> m_warningWidget;
+    SwitchSplitTabWidget* m_centralTabWidget = nullptr;
 
     QScopedPointer<Core::SideBar> m_leftSideBar;
     QScopedPointer<Core::SideBar> m_rightSideBar;
-    QPointer<QWidget> m_topSideBar;
+    QPointer<QWidget> m_bottomSideBar;
     Core::EditorToolBar *m_toolBar;
     CrumbleBar *m_crumbleBar;
     bool m_isDisabled = false;

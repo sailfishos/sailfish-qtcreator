@@ -43,13 +43,15 @@ public:
     ~BuiltinEditorDocumentProcessor();
 
     // BaseEditorDocumentProcessor interface
-    void run() override;
+    void runImpl(const BaseEditorDocumentParser::UpdateParams &updateParams) override;
     void recalculateSemanticInfoDetached(bool force) override;
     void semanticRehighlight() override;
     CppTools::SemanticInfo recalculateSemanticInfo() override;
     BaseEditorDocumentParser::Ptr parser() override;
     CPlusPlus::Snapshot snapshot() override;
     bool isParserRunning() const override;
+
+    QFuture<CursorInfo> cursorInfo(const CursorInfoParams &params) override;
 
 private:
     void onParserFinished(CPlusPlus::Document::Ptr document, CPlusPlus::Snapshot snapshot);

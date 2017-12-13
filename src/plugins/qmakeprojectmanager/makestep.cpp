@@ -32,6 +32,7 @@
 #include "qmakebuildconfiguration.h"
 #include "qmakeprojectmanagerconstants.h"
 
+#include <coreplugin/variablechooser.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
@@ -115,7 +116,7 @@ QString MakeStep::effectiveMakeCommand() const
         QmakeBuildConfiguration *bc = qmakeBuildConfiguration();
         if (!bc)
             bc = qobject_cast<QmakeBuildConfiguration *>(target()->activeBuildConfiguration());
-        ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
+        ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
         if (bc && tc)
             makeCmd = tc->makeCommand(bc->environment());
@@ -135,7 +136,7 @@ QVariantMap MakeStep::toMap() const
 
 QStringList MakeStep::automaticallyAddedArguments() const
 {
-    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (!tc || tc->targetAbi().binaryFormat() == Abi::PEFormat)
         return QStringList();
     return QStringList() << QLatin1String("-w") << QLatin1String("-r");
@@ -165,7 +166,7 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     if (!bc)
         emit addTask(Task::buildConfigurationMissingTask());
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (!tc)
         emit addTask(Task::compilerMissingTask());
 
@@ -194,14 +195,15 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     QString args;
 
     QmakeProjectManager::QmakeProFileNode *subNode = bc->subNodeBuild();
-    if (subNode) {
-        QString makefile = subNode->makefile();
+    QmakeProjectManager::QmakeProFile *subProFile = subNode ? subNode->proFile() : nullptr;
+    if (subProFile) {
+        QString makefile = subProFile->makefile();
         if (makefile.isEmpty())
             makefile = QLatin1String("Makefile");
         // Use Makefile.Debug and Makefile.Release
         // for file builds, since the rules for that are
         // only in those files.
-        if (subNode->isDebugAndRelease() && bc->fileNodeBuild()) {
+        if (subProFile->isDebugAndRelease() && bc->fileNodeBuild()) {
             if (bc->buildType() == QmakeBuildConfiguration::Debug)
                 makefile += QLatin1String(".Debug");
             else
@@ -223,11 +225,11 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     }
 
     Utils::QtcProcess::addArgs(&args, m_userArgs);
-    if (bc->fileNodeBuild() && subNode) {
-        QString objectsDir = subNode->objectsDirectory();
+    if (bc->fileNodeBuild() && subProFile) {
+        QString objectsDir = subProFile->objectsDirectory();
         if (objectsDir.isEmpty()) {
-            objectsDir = subNode->buildDir(bc);
-            if (subNode->isDebugAndRelease()) {
+            objectsDir = subProFile->buildDir(bc).toString();
+            if (subProFile->isDebugAndRelease()) {
                 if (bc->buildType() == QmakeBuildConfiguration::Debug)
                     objectsDir += QLatin1String("/debug");
                 else
@@ -241,7 +243,7 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
             relObjectsDir += QLatin1Char('/');
         QString objectFile = relObjectsDir +
                 bc->fileNodeBuild()->filePath().toFileInfo().baseName() +
-                subNode->objectExtension();
+                subProFile->objectExtension();
         Utils::QtcProcess::addArg(&args, objectFile);
     }
     Utils::Environment env = bc->environment();
@@ -269,7 +271,7 @@ bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
     appendOutputParser(new QMakeParser); // make may cause qmake to be run, add last to make sure
                                          // it has a low priority.
 
-    m_scriptTarget = (static_cast<QmakeProject *>(bc->target()->project())->rootProjectNode()->projectType() == ScriptTemplate);
+    m_scriptTarget = (static_cast<QmakeProject *>(bc->target()->project())->rootProjectNode()->projectType() == ProjectType::ScriptTemplate);
 
     return AbstractProcessStep::init(earlierSteps);
 }
@@ -283,7 +285,7 @@ void MakeStep::run(QFutureInterface<bool> & fi)
 
     if (!QFileInfo::exists(m_makeFileToCheck)) {
         if (!ignoreReturnValue())
-            emit addOutput(tr("Cannot find Makefile. Check your build settings."), BuildStep::MessageOutput);
+            emit addOutput(tr("Cannot find Makefile. Check your build settings."), BuildStep::OutputFormat::NormalMessage);
         const bool success = ignoreReturnValue();
         reportRunResult(fi, success);
         return;
@@ -356,6 +358,8 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::settingsChanged,
             this, &MakeStepConfigWidget::updateDetails);
     connect(m_makeStep->target(), &Target::kitChanged, this, &MakeStepConfigWidget::updateDetails);
+
+    Core::VariableChooser::addSupportForChildWidgets(this, m_makeStep->macroExpander());
 }
 
 void MakeStepConfigWidget::activeBuildConfigurationChanged()
@@ -394,7 +398,7 @@ MakeStepConfigWidget::~MakeStepConfigWidget()
 void MakeStepConfigWidget::updateDetails()
 {
     ToolChain *tc
-            = ToolChainKitInformation::toolChain(m_makeStep->target()->kit(), ToolChain::Language::Cxx);
+            = ToolChainKitInformation::toolChain(m_makeStep->target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     QmakeBuildConfiguration *bc = m_makeStep->qmakeBuildConfiguration();
     if (!bc)
         bc = qobject_cast<QmakeBuildConfiguration *>(m_makeStep->target()->activeBuildConfiguration());
@@ -489,7 +493,7 @@ QList<BuildStepInfo> MakeStepFactory::availableSteps(BuildStepList *parent) cons
     if (parent->target()->project()->id() != Constants::QMAKEPROJECT_ID)
         return {};
 
-    return {{ MAKESTEP_BS_ID, tr("Make") }};
+    return {{MAKESTEP_BS_ID, tr("Make")}};
 }
 
 BuildStep *MakeStepFactory::create(BuildStepList *parent, Core::Id id)

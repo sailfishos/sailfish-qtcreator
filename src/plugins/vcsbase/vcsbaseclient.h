@@ -39,6 +39,7 @@
 QT_BEGIN_NAMESPACE
 class QFileInfo;
 class QProcessEnvironment;
+class QToolBar;
 QT_END_NAMESPACE
 
 namespace Core { class Id; }
@@ -51,7 +52,7 @@ class VcsBaseClientSettings;
 class VcsJob;
 class VcsBaseClientImplPrivate;
 class VcsBaseClientPrivate;
-class VcsBaseEditorParameterWidget;
+class VcsBaseEditorConfig;
 
 class VCSBASE_EXPORT VcsBaseClientImpl : public QObject
 {
@@ -193,14 +194,13 @@ public:
 
     virtual QString findTopLevelForFile(const QFileInfo &file) const = 0;
 
+    virtual void view(const QString &source, const QString &id,
+                      const QStringList &extraOptions = QStringList());
+
 signals:
     void parsedStatus(const QList<VcsBase::VcsBaseClient::StatusItem> &statusList);
     // Passes on changed signals from VcsJob to Control
     void changed(const QVariant &v);
-
-public slots:
-    virtual void view(const QString &source, const QString &id,
-                      const QStringList &extraOptions = QStringList());
 
 protected:
     enum VcsCommandTag
@@ -227,9 +227,9 @@ protected:
 
     virtual QStringList revisionSpec(const QString &revision) const = 0;
 
-    typedef std::function<VcsBaseEditorParameterWidget *()> ParameterWidgetCreator;
-    void setDiffParameterWidgetCreator(ParameterWidgetCreator creator);
-    void setLogParameterWidgetCreator(ParameterWidgetCreator creator);
+    typedef std::function<VcsBaseEditorConfig *(QToolBar *)> ConfigCreator;
+    void setDiffConfigCreator(ConfigCreator creator);
+    void setLogConfigCreator(ConfigCreator creator);
 
     virtual StatusItem parseStatusLine(const QString &line) const = 0;
 

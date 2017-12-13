@@ -278,12 +278,12 @@ AnchorLineType QmlAnchors::possibleAnchorLines(AnchorLineType sourceAnchorLineTy
         return AnchorLineInvalid;
 
     if (AnchorLine::isHorizontalAnchorLine(sourceAnchorLineType)) {
-        if (!detectHorizontalCycle(targetQmlItemNode, QList<ModelNode>() << qmlItemNode().modelNode()))
+        if (!detectHorizontalCycle(targetQmlItemNode, {qmlItemNode().modelNode()}))
             return AnchorLineHorizontalMask;
     }
 
     if (AnchorLine::isVerticalAnchorLine(sourceAnchorLineType)) {
-        if (!detectVerticalCycle(targetQmlItemNode, QList<ModelNode>() << qmlItemNode().modelNode()))
+        if (!detectVerticalCycle(targetQmlItemNode, {qmlItemNode().modelNode()}))
             return AnchorLineVerticalMask;
     }
 
@@ -432,10 +432,8 @@ double QmlAnchors::instanceAnchorLine(AnchorLineType anchorLine) const
     case AnchorLineRight: return instanceRightAnchorLine();
     case AnchorLineHorizontalCenter: return instanceHorizontalCenterAnchorLine();
     case AnchorLineVerticalCenter: return instanceVerticalCenterAnchorLine();
-    default: return 0;
+    default: return 0.0;
     }
-
-    return 0.0;
 }
 
 void QmlAnchors::setMargin(AnchorLineType sourceAnchorLineType, double margin) const

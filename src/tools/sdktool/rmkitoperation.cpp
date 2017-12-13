@@ -110,7 +110,7 @@ bool RmKitOperation::test() const
     QVariantMap devMap = AddDeviceOperation::initializeDevices();
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,
                                            "HWplatform", "SWplatform",
-                                           "localhost", "10000-11000", "localhost", "", 42, false,
+                                           "localhost", "10000-11000", "localhost", "", 42,
                                            "desktop", "", 22, 10000, "uname", 1,
                                            KeyValuePairList());
 
@@ -119,15 +119,18 @@ bool RmKitOperation::test() const
 
     QVariantMap map =
             AddKitOperation::addKit(AddKitOperation::initializeKits(), tcMap, qtMap, devMap,
+                                    QVariantMap(),
                                     "testId", "Test Qt Version", "/tmp/icon.png", QString(), 1,
                                     "/usr/bin/gdb-test", "Desktop", QString(), QString(), tcs,
-                                    "{qt-id}", "unsupported/mkspec", QStringList(),
+                                    "{qt-id}", "unsupported/mkspec",
+                                    QString(), QString(), QString(), QString(), QString(), QStringList(), QStringList(),
                                     KeyValuePairList() << KeyValuePair("PE.Profile.Data/extraData", QVariant("extraValue")));
     map =
-            AddKitOperation::addKit(map, tcMap, qtMap, devMap, "testId2", "Test Qt Version",
+            AddKitOperation::addKit(map, tcMap, qtMap, devMap, QVariantMap(), "testId2", "Test Qt Version",
                                     "/tmp/icon2.png", QString(), 1, "/usr/bin/gdb-test2",
                                     "Desktop", QString(), QString(), tcs, "{qt-id}",
-                                    "unsupported/mkspec2", QStringList(),
+                                    "unsupported/mkspec2",
+                                    QString(), QString(), QString(), QString(), QString(), QStringList(), QStringList(),
                                     KeyValuePairList() << KeyValuePair("PE.Profile.Data/extraData", QVariant("extraValue2")));
 
     QVariantMap result = rmKit(map, "testId");
@@ -198,7 +201,7 @@ QVariantMap RmKitOperation::rmKit(const QVariantMap &map, const QString &id)
         defaultKit = (count > 1) ? 0 : -1;
 
     // remove data:
-    result = RmKeysOperation::rmKeys(result, { COUNT, DEFAULT });
+    result = RmKeysOperation::rmKeys(result, {COUNT, DEFAULT});
 
     // insert data:
     KeyValuePairList data;

@@ -30,15 +30,17 @@
 #include "qmleventlocation.h"
 #include "qmlevent.h"
 #include "qmleventtype.h"
+#include "qmlprofilertextmark.h"
 
 #include <utils/fileinprojectfinder.h>
 
 #include <QObject>
 #include <functional>
 
+namespace ProjectExplorer { class RunConfiguration; }
+
 namespace QmlProfiler {
 class QmlProfilerModelManager;
-class QmlProfilerDataModel;
 class QmlProfilerNotesModel;
 
 namespace Internal {
@@ -90,16 +92,17 @@ public:
     typedef std::function<void(const QmlEvent &, const QmlEventType &)> EventLoader;
     typedef std::function<void()> Finalizer;
 
-    explicit QmlProfilerModelManager(Utils::FileInProjectFinder *finder, QObject *parent = 0);
+    explicit QmlProfilerModelManager(QObject *parent = 0);
     ~QmlProfilerModelManager();
 
     State state() const;
     QmlProfilerTraceTime *traceTime() const;
-    QmlProfilerDataModel *qmlModel() const;
     QmlProfilerNotesModel *notesModel() const;
+    QmlProfilerTextMarkModel *textMarkModel() const;
 
     bool isEmpty() const;
     uint numLoadedEvents() const;
+    uint numLoadedEventTypes() const;
 
     int registerModelProxy();
     void announceFeatures(quint64 features, EventLoader eventLoader, Finalizer finalizer);
@@ -107,7 +110,14 @@ public:
     int numFinishedFinalizers() const;
     int numRegisteredFinalizers() const;
 
-    void dispatch(const QmlEvent &event, const QmlEventType &type);
+    void addEvents(const QVector<QmlEvent> &events);
+    void addEvent(const QmlEvent &event);
+
+    void addEventTypes(const QVector<QmlEventType> &types);
+    void addEventType(const QmlEventType &type);
+    const QVector<QmlEventType> &eventTypes() const;
+
+    bool replayEvents(qint64 rangeStart, qint64 rangeEnd, EventLoader loader) const;
 
     quint64 availableFeatures() const;
     quint64 visibleFeatures() const;
@@ -119,6 +129,9 @@ public:
 
     void acquiringDone();
     void processingDone();
+
+    void populateFileFinder(const ProjectExplorer::RunConfiguration *runConfiguration = nullptr);
+    QString findLocalFile(const QString &remoteFile);
 
     static const char *featureName(ProfileFeature feature);
 
@@ -144,6 +157,7 @@ public slots:
 
 private:
     void setState(State state);
+    void detailsChanged(int typeId, const QString &newString);
 
 private:
     class QmlProfilerModelManagerPrivate;

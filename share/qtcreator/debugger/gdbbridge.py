@@ -33,6 +33,7 @@ import os
 import os.path
 import sys
 import struct
+import tempfile
 import types
 
 from dumper import *
@@ -171,14 +172,14 @@ class OutputSafer:
 
     def __enter__(self):
         self.savedOutput = self.d.output
-        self.d.output = []
+        self.d.output = ''
 
     def __exit__(self, exType, exValue, exTraceBack):
         if self.d.passExceptions and not exType is None:
             showException('OUTPUTSAFER', exType, exValue, exTraceBack)
             self.d.output = self.savedOutput
         else:
-            self.savedOutput.extend(self.d.output)
+            self.savedOutput += self.d.output
             self.d.output = self.savedOutput
         return False
 
@@ -202,7 +203,7 @@ class Dumper(DumperBase):
         self.interpreterBreakpointResolvers = []
 
     def prepare(self, args):
-        self.output = []
+        self.output = ''
         self.setVariableFetchingOptions(args)
 
     def fromFrameValue(self, nativeValue):
@@ -220,8 +221,9 @@ class Dumper(DumperBase):
         nativeType = nativeValue.type
         code = nativeType.code
         if code == gdb.TYPE_CODE_REF:
-            targetType = self.fromNativeType(nativeType.target().unqualified(), nativeValue)
+            targetType = self.fromNativeType(nativeType.target().unqualified())
             val = self.createReferenceValue(toInteger(nativeValue.address), targetType)
+            val.nativeValue = nativeValue
             #warn('CREATED REF: %s' % val)
             return val
         if code == gdb.TYPE_CODE_PTR:
@@ -229,8 +231,9 @@ class Dumper(DumperBase):
                 nativeTargetValue = nativeValue.dereference()
             except:
                 nativeTargetValue = None
-            targetType = self.fromNativeType(nativeType.target().unqualified(), nativeTargetValue)
+            targetType = self.fromNativeType(nativeType.target().unqualified())
             val = self.createPointerValue(toInteger(nativeValue), targetType)
+            val.nativeValue = nativeValue
             #warn('CREATED PTR 1: %s' % val)
             if not nativeValue.address is None:
                 val.laddress = toInteger(nativeValue.address)
@@ -242,14 +245,17 @@ class Dumper(DumperBase):
             if targetType.code == gdb.TYPE_CODE_ARRAY:
                 val = self.Value(self)
                 val.laddress = toInteger(nativeValue.address)
+                val.nativeValue = nativeValue
             else:
                 # Cast may fail (e.g for arrays, see test for Bug5799)
                 val = self.fromNativeValue(nativeValue.cast(targetType))
-            val.type = self.fromNativeType(nativeType, nativeValue)
+            val.type = self.fromNativeType(nativeType)
+            val.nativeValue = nativeValue
             #warn('CREATED TYPEDEF: %s' % val)
             return val
 
         val = self.Value(self)
+        val.nativeValue = nativeValue
         if not nativeValue.address is None:
             val.laddress = toInteger(nativeValue.address)
         else:
@@ -258,10 +264,13 @@ class Dumper(DumperBase):
             y = nativeValue.cast(chars.array(0, int(nativeType.sizeof - 1)))
             buf = bytearray(struct.pack('x' * size))
             for i in range(size):
-                buf[i] = int(y[i])
+                try:
+                    buf[i] = int(y[i])
+                except:
+                    pass
             val.ldata = bytes(buf)
 
-        val.type = self.fromNativeType(nativeType, nativeValue)
+        val.type = self.fromNativeType(nativeType)
         val.lIsInScope = not nativeValue.is_optimized_out
         code = nativeType.code
         if code == gdb.TYPE_CODE_ENUM:
@@ -280,7 +289,7 @@ class Dumper(DumperBase):
         self.ptrSize = lambda: result
         return result
 
-    def fromNativeType(self, nativeType, nativeValue = None):
+    def fromNativeType(self, nativeType):
         self.check(isinstance(nativeType, gdb.Type))
         code = nativeType.code
         #warn('FROM NATIVE TYPE: %s' % nativeType)
@@ -288,9 +297,7 @@ class Dumper(DumperBase):
 
         if code == gdb.TYPE_CODE_PTR:
             #warn('PTR')
-            if nativeValue is not None:
-                nativeValue = nativeValue.dereference()
-            targetType = self.fromNativeType(nativeType.target().unqualified(), nativeValue)
+            targetType = self.fromNativeType(nativeType.target().unqualified())
             return self.createPointerType(targetType)
 
         if code == gdb.TYPE_CODE_REF:
@@ -311,7 +318,8 @@ class Dumper(DumperBase):
             while nativeTargetType.code == gdb.TYPE_CODE_TYPEDEF:
                 nativeTargetType = nativeTargetType.strip_typedefs().unqualified()
             targetType = self.fromNativeType(nativeTargetType)
-            return self.createTypedefedType(targetType, str(nativeType))
+            return self.createTypedefedType(targetType, str(nativeType),
+                                            self.nativeTypeId(nativeType))
 
         if code == gdb.TYPE_CODE_ERROR:
             warn('Type error: %s' % nativeType)
@@ -345,14 +353,13 @@ class Dumper(DumperBase):
                 gdb.TYPE_CODE_STRING : TypeCodeFortranString,
             }[code]
             if tdata.code == TypeCodeEnum:
-                tdata.enumDisplay = lambda intval : \
+                tdata.enumDisplay = lambda intval, addr : \
                     self.nativeTypeEnumDisplay(nativeType, intval)
             if tdata.code == TypeCodeStruct:
                 tdata.lalignment = lambda : \
                     self.nativeStructAlignment(nativeType)
-                tdata.lfields = self.listMembers(nativeType, nativeValue)
-                #tdata.lfieldByName = lambda name : \
-                #    self.nativeTypeFieldTypeByName(nativeType, name)
+                tdata.lfields = lambda value : \
+                    self.listMembers(value, nativeType)
             tdata.templateArguments = self.listTemplateParameters(nativeType)
             self.registerType(typeId, tdata) # Fix up fields and template args
         #    warn('CREATE TYPE: %s' % typeId)
@@ -375,16 +382,39 @@ class Dumper(DumperBase):
             else:
                 error('UNKNOWN TEMPLATE PARAMETER')
             pos += 1
-        return targs
+        targs2 = self.listTemplateParametersManually(str(nativeType))
+        return targs if len(targs) >= len(targs2) else targs2
 
     def nativeTypeEnumDisplay(self, nativeType, intval):
         try:
-            val = gdb.parse_and_eval('(%s)%d' % (nativeType, intval))
-            return  '%s (%d)' % (val, intval)
+            enumerators = []
+            for field in nativeType.fields():
+                # If we found an exact match, return it immediately
+                if field.enumval == intval:
+                    return '%s (%d)' % (field.name, intval)
+                enumerators.append((field.name, field.enumval))
+
+            # No match was found, try to return as flags
+            enumerators.sort(key = lambda x: x[1])
+            flags = []
+            v = intval
+            found = False
+            for (name, value) in enumerators:
+                if v & value != 0:
+                    flags.append(name)
+                    v = v & ~value
+                    found = True
+            if not found or v != 0:
+                # Leftover value
+                flags.append('unknown:%d' % v)
+            return "(%s) (%d)" % (" | ".join(flags), intval)
         except:
-            return '%d' % intval
+            pass
+        return '%d' % intval
 
     def nativeTypeId(self, nativeType):
+        if nativeType and (nativeType.code == gdb.TYPE_CODE_TYPEDEF):
+            return '%s{%s}' % (nativeType, nativeType.strip_typedefs())
         name = str(nativeType)
         if len(name) == 0:
             c = '0'
@@ -419,34 +449,27 @@ class Dumper(DumperBase):
 
         #yield value.extractField(field)
 
-    def fromNativeField(self, nativeField):
-        field = self.Field(self)
-        field.name = nativeField.name
-        field.isBaseClass = nativeField.is_base_class
-        # Something without a name.
-        # Anonymous union? We need a dummy name to distinguish
-        # multiple anonymous unions in the struct.
-        # Since GDB commit b5b08fb4 anonymous structs get also reported
-        # with a 'None' name.
-        if field.name is not None and len(field.name) == 0:
-            field.name = None
+
+    def memberFromNativeFieldAndValue(self, nativeField, nativeValue, fieldName, value):
+        nativeMember = self.nativeMemberFromField(nativeValue, nativeField)
+        if nativeMember is None:
+            val = self.Value(self)
+            val.name = fieldName
+            val.type = self.fromNativeType(nativeField.type)
+            val.lIsInScope = False
+            return val
+        val = self.fromNativeValue(nativeMember)
         nativeFieldType = nativeField.type.unqualified()
+        if nativeField.bitsize:
+            val.lvalue = int(nativeMember)
+            val.laddress = None
+            fieldType = self.fromNativeType(nativeFieldType)
+            val.type = self.createBitfieldType(fieldType, nativeField.bitsize)
+        val.isBaseClass = nativeField.is_base_class
+        val.name = fieldName
+        return val
 
-        if hasattr(nativeField, 'bitpos'):
-            field.lbitpos = nativeField.bitpos
-
-        if hasattr(nativeField, 'bitsize') and nativeField.bitsize != 0:
-            field.lbitsize = nativeField.bitsize
-        else:
-            field.lbitsize = 8 * nativeFieldType.sizeof
-
-        if field.lbitsize != nativeFieldType.sizeof * 8:
-            field.ltype = self.createBitfieldType(str(nativeFieldType), field.lbitsize)
-        else:
-            field.ltype = self.fromNativeType(nativeFieldType)
-        return field
-
-    def memberFromField(self, nativeValue, nativeField):
+    def nativeMemberFromField(self, nativeValue, nativeField):
         if nativeField.is_base_class:
             return nativeValue.cast(nativeField.type)
         try:
@@ -459,121 +482,71 @@ class Dumper(DumperBase):
             pass
         return None
 
-    def listMembers(self, nativeType, nativeValue):
-        #warn('LISTING MEMBERS OF %s' % nativeType)
-        try:
-            nativeValueAddress = toInteger(nativeValue.address)
-        except:
-            nativeValueAddress = None
+    def listMembers(self, value, nativeType):
+        nativeValue = value.nativeValue
 
-        if nativeValue is None or nativeValueAddress is None:
-            return lambda value : self.listDelayedMembers(nativeType, value)
+        anonNumber = 0
 
-        def needsDeep(someNativeType):
-            if someNativeType.sizeof >= ptrSize:
-                for nativeField in someNativeType.fields():
-                    if nativeField.is_base_class:
-                        if nativeField.bitpos < 0 or needsDeep(nativeField.type):
-                            return True
-            return False
-
-        ptrSize = self.ptrSize()
-        if needsDeep(nativeType):
-            return self.listDeepMembers(nativeType, nativeValue, nativeValueAddress)
-
-        return self.listSimpleMembers(nativeType, nativeValue, nativeValueAddress)
-
-    def listSimpleMembers(self, nativeType, nativeValue, nativeValueAddress):
-        #warn('SIMPLE FIELDS FOR %s' % nativeType)
-        fields = []
+        #warn('LISTING FIELDS FOR %s' % nativeType)
         for nativeField in nativeType.fields():
-            nativeFieldType = nativeField.type.unqualified()
-            #warn('SIMPLE FIELD: %s' % nativeField.name)
-            #warn('  BITSIZE: %s' % nativeField.bitsize)
-            #warn('  NAME: %s' % nativeField.name)
-            #warn('  TYPE: %s' % nativeFieldType)
-            #warn('  TYPEID: %s' % self.nativeTypeId(nativeFieldType))
-            field = self.fromNativeField(nativeField)
-            if field.ltype.code != TypeCodeBitfield:
-                nativeMember = self.memberFromField(nativeValue, nativeField)
-                if nativeMember is None:
-                    warn('CANNOT EXTRACT FIELD %s FROM %s' % (nativeField.name, nativeValue))
-                    #continue
-                if nativeMember.address is None: # Could be a static member.
-                    warn('NO ADDRESS OF %s' % nativeMember)
-                    continue
-                nativeMemberAddress = toInteger(nativeMember.address)
-                offset = nativeMemberAddress - nativeValueAddress
-                field.lbitpos = 8 * offset
-            fields.append(field)
-        return fields
+            fieldName = nativeField.name
+            # Something without a name.
+            # Anonymous union? We need a dummy name to distinguish
+            # multiple anonymous unions in the struct.
+            # Since GDB commit b5b08fb4 anonymous structs get also reported
+            # with a 'None' name.
+            if fieldName is None or len(fieldName) == 0:
+                # Something without a name.
+                # Anonymous union? We need a dummy name to distinguish
+                # multiple anonymous unions in the struct.
+                anonNumber += 1
+                fieldName = '#%s' % anonNumber
+            #warn('FIELD: %s' % fieldName)
+            # hasattr(nativeField, 'bitpos') == False indicates a static field,
+            # but if we have access to a nativeValue .fromNativeField will
+            # also succeed. We essentially skip only static members from
+            # artificial values, like array members constructed from address.
+            if hasattr(nativeField, 'bitpos') or nativeValue is not None:
+                yield self.fromNativeField(nativeField, nativeValue, fieldName)
 
-    def listDelayedMembers(self, nativeType, value):
-        #warn('DELAYED FIELDS FOR %s' % nativeType)
-        if value.laddress is None:
-            error('No address for object of type %s' % nativeType)
-        nativeTypePointer = nativeType.unqualified().pointer()
-        nativeValue = gdb.Value(value.laddress).cast(nativeTypePointer).dereference()
-        return self.listSimpleMembers(nativeType, nativeValue, value.laddress)
+    def fromNativeField(self, nativeField, nativeValue, fieldName):
+        nativeFieldType = nativeField.type.unqualified()
+        #warn('  TYPE: %s' % nativeFieldType)
+        #warn('  TYPEID: %s' % self.nativeTypeId(nativeFieldType))
 
-    # The is expensive as it recurses through all base classes. Ideally this
-    # should only be used if virtual inheritance is known to be involved.
-    def listDeepMembers(self, nativeType, nativeValue, nativeBaseAddress, bpbase = 0):
-        #warn('DEEP FIELDS FOR %s AT 0x%x' % (nativeType, nativeBaseAddress))
-        fields = []
-        for nativeField in nativeType.fields():
-            nativeFieldType = nativeField.type.unqualified()
-            #warn('DEEP FIELD: %s' % nativeField.name)
-            #warn('  SIZE: %s' % nativeField.bitsize)
-            #warn('  POS: %s' % nativeField.bitpos)
-            #warn('  BPBASE: %s' % bpbase)
-            #warn('  ARTIFICIAL: %s' % nativeField.artificial)
-            #warn('  NAME: %s' % nativeField.name)
-            #warn('  TYPE: %s' % nativeFieldType)
-            #warn('  TYPEID: %s' % self.nativeTypeId(nativeFieldType))
-            nativeMember = self.memberFromField(nativeValue, nativeField)
-            if nativeField.is_base_class:
-                #warn('  THIS IS VIRTUAL BASE OF TYPE %s' % nativeField.type)
-                # This is a virtual base, we need to recurse *now*, as later
-                # there is no way to generate a nativeValue with this type.
-                #warn('   NATIVE MEMBER: %s' % nativeMember)
-                pureFieldType = self.fromNativeType(nativeFieldType)
-                fieldTypeId = pureFieldType.typeId + ' in ' + str(nativeType)
-                fieldTypeData = pureFieldType.typeData().copy()
-                bp = - nativeField.bitpos
-                fieldTypeData.lfields = self.listDeepMembers(
-                    nativeField.type, nativeMember, nativeBaseAddress, bpbase + bp - 64)
-                self.registerType(fieldTypeId, fieldTypeData)
+        if hasattr(nativeField, 'bitpos'):
+            bitpos = nativeField.bitpos
+        else:
+            bitpos = 0
 
-                field = self.Field(self)
-                field.name = nativeField.name
-                #field.name = fieldTypeId
-                field.ltype = self.Type(self, fieldTypeId)
-                field.isBaseClass = True
-                field.isArtificial = True
-                field.lbitsize = None
-                field.lbitpos = None
+        if hasattr(nativeField, 'bitsize') and nativeField.bitsize != 0:
+            bitsize = nativeField.bitsize
+        else:
+            bitsize = 8 * nativeFieldType.sizeof
 
-                fields.append(field)
-            else:
-                # This is a normal field or non-virtual base.
-                field = self.fromNativeField(nativeField)
-                if field.ltype.code != TypeCodeBitfield:
-                    #if field.lbitpos is None:
-                    try:
-                        nativeMemberAddress = toInteger(nativeMember.address)
-                        #warn('  NATIVE MEMBER ADDRESS: 0x%x' % nativeMemberAddress)
-                        offset = nativeMemberAddress - nativeBaseAddress
-                        #offset = bpbase + nativeField.bitpos
-                        #warn('DEEP OFFSET: %s  POS: %s' % (offset // 8, field.lbitpos // 8))
-                        field.lbitpos = offset * 8
-                    except:
-                        field.lbitpos = None
-                        field.lvalue = 'XXX'
-                    #else:
-                    #    warn('REUSING BITPOS %s FOR %s' % (field.lbitpos, field.name))
-                fields.append(field)
-        return fields
+        fieldType = self.fromNativeType(nativeFieldType)
+        if bitsize != nativeFieldType.sizeof * 8:
+            fieldType = self.createBitfieldType(fieldType, bitsize)
+        else:
+            fieldType = fieldType
+
+        if nativeValue is None:
+            extractor = None
+        else:
+            extractor = lambda value, \
+                               capturedNativeField = nativeField, \
+                               capturedNativeValue = nativeValue, \
+                               capturedFieldName = fieldName : \
+                self.memberFromNativeFieldAndValue(capturedNativeField,
+                                                   capturedNativeValue,
+                                                   capturedFieldName,
+                                                   value)
+
+        #warn("FOUND NATIVE FIELD: %s bitpos: %s" % (fieldName, bitpos))
+        return self.Field(dumper=self, name=fieldName, isBase=nativeField.is_base_class,
+                           bitsize=bitsize, bitpos=bitpos, type=fieldType,
+                           extractor=extractor)
+
 
 
     def listLocals(self, partialVar):
@@ -664,6 +637,9 @@ class Dumper(DumperBase):
 
         return items
 
+    def reportToken(self, args):
+        pass
+
     # Hack to avoid QDate* dumper timeouts with GDB 7.4 on 32 bit
     # due to misaligned %ebx in SSE calls (qstring.cpp:findChar)
     # This seems to be fixed in 7.9 (or earlier)
@@ -684,7 +660,7 @@ class Dumper(DumperBase):
             safePrint(res)
             return
 
-        self.output.append('data=[')
+        self.output += 'data=['
 
         partialVar = args.get('partialvar', '')
         isPartial = len(partialVar) > 0
@@ -707,30 +683,27 @@ class Dumper(DumperBase):
         self.handleLocals(variables)
         self.handleWatches(args)
 
-        self.output.append('],typeinfo=[')
+        self.output += '],typeinfo=['
         for name in self.typesToReport.keys():
             typeobj = self.typesToReport[name]
             # Happens e.g. for '(anonymous namespace)::InsertDefOperation'
             #if not typeobj is None:
             #    self.output.append('{name="%s",size="%s"}'
             #        % (self.hexencode(name), typeobj.sizeof))
-        self.output.append(']')
+        self.output += ']'
         self.typesToReport = {}
 
         if self.forceQtNamespace:
             self.qtNamepaceToReport = self.qtNamespace()
 
         if self.qtNamespaceToReport:
-            self.output.append(',qtnamespace="%s"' % self.qtNamespaceToReport)
+            self.output += ',qtnamespace="%s"' % self.qtNamespaceToReport
             self.qtNamespaceToReport = None
 
-        self.output.append(',partial="%d"' % isPartial)
-        self.output.append(',counts=%s' % self.counts)
-        self.output.append(',timimgs=%s' % self.timings)
-
-        tt = time.time()
-        safePrint(''.join(self.output))
-        print(',time="%d"' % int(1000 * (tt - time.time())))
+        self.output += ',partial="%d"' % isPartial
+        self.output += ',counts=%s' % self.counts
+        self.output += ',timimgs=%s' % self.timings
+        self.reportResult(self.output)
 
     def parseAndEvaluate(self, exp):
         #warn('EVALUATE "%s"' % exp)
@@ -760,7 +733,7 @@ class Dumper(DumperBase):
             typeName = "'" + typeName + "'"
         # 'class' is needed, see http://sourceware.org/bugzilla/show_bug.cgi?id=11912
         #exp = '((class %s*)%s)->%s(%s)' % (typeName, value.laddress, function, arg)
-        addr = value.laddress
+        addr = value.address()
         if addr is None:
            addr = self.pokeValue(value)
         #warn('PTR: %s -> %s(%s)' % (value, function, addr))
@@ -769,7 +742,7 @@ class Dumper(DumperBase):
         result = gdb.parse_and_eval(exp)
         #warn('  -> %s' % result)
         res = self.fromNativeValue(result)
-        if value.laddress is None:
+        if value.address() is None:
             self.releaseValue(addr)
         return res
 
@@ -837,8 +810,8 @@ class Dumper(DumperBase):
         self.ping('readMem')
         return res
 
-    def findStaticMetaObject(self, typename):
-        symbolName = typename + '::staticMetaObject'
+    def findStaticMetaObject(self, type):
+        symbolName = type.name + '::staticMetaObject'
         symbol = gdb.lookup_global_symbol(symbolName, gdb.SYMBOL_VAR_DOMAIN)
         if not symbol:
             return 0
@@ -850,9 +823,6 @@ class Dumper(DumperBase):
 
         address = gdb.parse_and_eval("&'%s'" % symbolName)
         return toInteger(address)
-
-    def put(self, value):
-        self.output.append(value)
 
     def isArmArchitecture(self):
         return 'arm' in gdb.TARGET_CONFIG.lower()
@@ -1005,10 +975,8 @@ class Dumper(DumperBase):
                     self.importPlainDumper(printer)
 
     def qtNamespace(self):
-        self.preping('qtNamespace')
-        res = self.qtNamespaceX()
-        self.ping('qtNamespace')
-        return res
+        # This function is replaced by handleQtCoreLoaded()
+        return ''
 
     def findSymbol(self, symbolName):
         try:
@@ -1016,62 +984,55 @@ class Dumper(DumperBase):
         except:
             return 0
 
-    def qtNamespaceX(self):
-        if not self.currentQtNamespaceGuess is None:
-            return self.currentQtNamespaceGuess
+    def handleNewObjectFile(self, objfile):
+        name = objfile.filename
+        if self.isWindowsTarget():
+            isQtCoreObjFile = name.find('Qt5Cored.dll') >= 0 or name.find('Qt5Core.dll') >= 0
+        else:
+            isQtCoreObjFile = name.find('/libQt5Core') >= 0
+        if isQtCoreObjFile:
+            self.handleQtCoreLoaded(objfile)
 
-        for objfile in gdb.objfiles():
-            name = objfile.filename
-            if name.find('/libQt5Core') >= 0:
-                ns = ''
+    def handleQtCoreLoaded(self, objfile):
+        fd, tmppath = tempfile.mkstemp()
+        os.close(fd)
+        cmd = 'maint print msymbols %s "%s"' % (tmppath, objfile.filename)
+        try:
+            symbols = gdb.execute(cmd, to_string = True)
+        except:
+            pass
+        ns = ''
+        with open(tmppath) as f:
+            for line in f:
+                if line.find('msgHandlerGrabbed ') >= 0:
+                    # [11] b 0x7ffff683c000 _ZN4MynsL17msgHandlerGrabbedE
+                    # section .tbss Myns::msgHandlerGrabbed  qlogging.cpp
+                    ns = re.split('_ZN?(\d*)(\w*)L17msgHandlerGrabbedE? ', line)[2]
+                    if len(ns):
+                        ns += '::'
+                    break
+        os.remove(tmppath)
 
-                # This only works when called from a valid frame.
-                try:
-                    cand = 'QArrayData::shared_null'
-                    symbol = gdb.lookup_symbol(cand)[0]
-                    if symbol:
-                        ns = symbol.name[:-len(cand)]
-                except:
-                    symbol = None
+        lenns = len(ns)
+        strns = ('%d%s' % (lenns - 2, ns[:lenns - 2])) if lenns else ''
 
-                if symbol is None:
-                    try:
-                        # Some GDB 7.11.1 on Arch Linux.
-                        cand = 'QArrayData::shared_null[0]'
-                        val = gdb.parse_and_eval(cand)
-                        if val.type is not None:
-                            typeobj = val.type.unqualified()
-                            ns = typeobj.name[:-len('QArrayData')]
-                    except:
-                        pass
+        if lenns:
+            # This might be wrong, but we can't do better: We found
+            # a libQt5Core and could not extract a namespace.
+            # The best guess is that there isn't any.
+            self.qtNamespaceToReport = ns
+            self.qtNamespace = lambda: ns
 
-                lenns = len(ns)
-                strns = ('%d%s' % (lenns - 2, ns[:lenns - 2])) if lenns else ''
+            sym = '_ZN%s7QObject11customEventEPNS_6QEventE' % strns
+        else:
+            sym = '_ZN7QObject11customEventEP6QEvent'
+        self.qtCustomEventFunc = self.findSymbol(sym)
 
-                if lenns:
-                    sym = '_ZN%s7QObject11customEventEPNS_6QEventE' % strns
-                else:
-                    sym = '_ZN7QObject11customEventEP6QEvent'
-                self.qtCustomEventFunc = self.findSymbol(sym)
+        sym += '@plt'
+        self.qtCustomEventPltFunc = self.findSymbol(sym)
 
-                if lenns:
-                    sym = '_ZN%s7QObject11customEventEPNS_6QEventE@plt' % strns
-                else:
-                    sym = '_ZN7QObject11customEventEP6QEvent@plt'
-                self.qtCustomEventPltFunc = self.findSymbol(sym)
-
-                sym = '_ZNK%s7QObject8propertyEPKc' % strns
-                self.qtPropertyFunc = self.findSymbol(sym)
-
-                # This might be wrong, but we can't do better: We found
-                # a libQt5Core and could not extract a namespace.
-                # The best guess is that there isn't any.
-                self.qtNamespaceToReport = ns
-                self.qtNamespace = lambda: ns
-                return ns
-
-        self.currentQtNamespaceGuess = ''
-        return ''
+        sym = '_ZNK%s7QObject8propertyEPKc' % strns
+        self.qtPropertyFunc = self.findSymbol(sym)
 
     def assignValue(self, args):
         typeName = self.hexdecode(args['type'])
@@ -1087,11 +1048,36 @@ class Dumper(DumperBase):
             typeName = typeName[0:pos]
         if typeName in self.qqEditable and not simpleType:
             #self.qqEditable[typeName](self, expr, value)
-            expr = gdb.parse_and_eval(expr)
+            expr = self.parseAndEvaluate(expr)
             self.qqEditable[typeName](self, expr, value)
         else:
             cmd = 'set variable (%s)=%s' % (expr, value)
             gdb.execute(cmd)
+
+    def appendSolibSearchPath(self, args):
+        new = list(map(self.hexdecode, args['path']))
+        old = [gdb.parameter('solib-search-path')]
+        gdb.execute('set solib-search-path %s' % args['separator'].join(old + new))
+
+    def watchPoint(self, args):
+        self.reportToken(args)
+        ns = self.qtNamespace()
+        lenns = len(ns)
+        strns = ('%d%s' % (lenns - 2, ns[:lenns - 2])) if lenns else ''
+        sym = '_ZN%s12QApplication8widgetAtEii' % strns
+        expr = '%s(%s,%s)' % (sym, args['x'], args['y'])
+        res = self.parseAndEvaluate(expr)
+        p = 0 if res is None else res.pointer()
+        n = ("'%sQWidget'" % ns) if lenns else 'QWidget'
+        self.reportResult('selected="0x%x",expr="(%s*)0x%x"' % (p, n, p), args)
+
+    def nativeValueDereferencePointer(self, value):
+        deref = value.nativeValue.dereference()
+        return self.fromNativeValue(deref.cast(deref.dynamic_type))
+
+    def nativeValueDereferenceReference(self, value):
+        nativeValue = value.nativeValue
+        return self.fromNativeValue(nativeValue.cast(nativeValue.type.target()))
 
     def nativeDynamicTypeName(self, address, baseType):
         # Needed for Gdb13393 test.
@@ -1245,7 +1231,7 @@ class Dumper(DumperBase):
            limit = 10000
 
         self.prepare(args)
-        self.output = []
+        self.output = ''
 
         i = 0
         if extraQml:
@@ -1335,7 +1321,7 @@ class Dumper(DumperBase):
 
             frame = frame.older()
             i += 1
-        safePrint('frames=[' + ','.join(self.output) + ']')
+        self.reportResult('stack={frames=[' + self.output + '].report}')
 
     def createResolvePendingBreakpointsHookBreakpoint(self, args):
         class Resolver(gdb.Breakpoint):
@@ -1356,12 +1342,11 @@ class Dumper(DumperBase):
     def exitGdb(self, _):
         gdb.execute('quit')
 
-    def reportResult(self, msg, args):
-        print(msg)
+    def reportResult(self, result, args = {}):
+        print('result={token="%s",%s}' % (args.get("token", 0), result))
 
     def profile1(self, args):
         '''Internal profiling'''
-        import tempfile
         import cProfile
         tempDir = tempfile.gettempdir() + '/bbprof'
         cProfile.run('theDumper.fetchVariables(%s)' % args, tempDir)
@@ -1442,5 +1427,18 @@ class InterpreterMessageBreakpoint(gdb.Breakpoint):
     def stop(self):
         print('Interpreter event received.')
         return theDumper.handleInterpreterMessage()
+
+
+#######################################################################
+#
+# Shared objects
+#
+#######################################################################
+
+def new_objfile_handler(event):
+    return theDumper.handleNewObjectFile(event.new_objfile)
+
+gdb.events.new_objfile.connect(new_objfile_handler)
+
 
 #InterpreterMessageBreakpoint()

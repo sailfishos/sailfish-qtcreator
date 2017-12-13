@@ -28,12 +28,15 @@
 #include "../projectexplorer_export.h"
 
 #include <coreplugin/id.h>
+#include <utils/hostosinfo.h>
 
 #include <QAbstractSocket>
 #include <QList>
 #include <QObject>
 #include <QSharedPointer>
 #include <QVariantMap>
+
+#include <functional>
 
 QT_BEGIN_NAMESPACE
 class QWidget;
@@ -54,6 +57,9 @@ class Connection;
 class DeviceProcess;
 class DeviceProcessList;
 class Kit;
+class Runnable;
+class RunControl;
+class RunWorker;
 
 namespace Internal { class IDevicePrivate; }
 
@@ -105,12 +111,12 @@ public:
     typedef QSharedPointer<const PortsGatheringMethod> Ptr;
 
     virtual ~PortsGatheringMethod() = default;
-    virtual QByteArray commandLine(QAbstractSocket::NetworkLayerProtocol protocol) const = 0;
+    virtual Runnable runnable(QAbstractSocket::NetworkLayerProtocol protocol) const = 0;
     virtual QList<Utils::Port> usedPorts(const QByteArray &commandOutput) const = 0;
 };
 
 // See cpp file for documentation.
-class PROJECTEXPLORER_EXPORT IDevice
+class PROJECTEXPLORER_EXPORT IDevice : public QEnableSharedFromThis<IDevice>
 {
 public:
     typedef QSharedPointer<IDevice> Ptr;
@@ -138,7 +144,6 @@ public:
 
     Core::Id type() const;
     bool isAutoDetected() const;
-    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
@@ -157,19 +162,19 @@ public:
     virtual DeviceProcessList *createProcessListModel(QObject *parent = 0) const;
     virtual bool hasDeviceTester() const { return false; }
     virtual DeviceTester *createDeviceTester() const;
+    virtual Utils::OsType osType() const;
 
     virtual bool canCreateProcess() const { return false; }
     virtual DeviceProcess *createProcess(QObject *parent) const;
     virtual DeviceProcessSignalOperation::Ptr signalOperation() const = 0;
     virtual DeviceEnvironmentFetcher::Ptr environmentFetcher() const;
 
+    virtual std::function<RunWorker *(RunControl *)> workerCreator(Core::Id) const { return {}; }
+
     enum DeviceState { DeviceReadyToUse, DeviceConnected, DeviceDisconnected, DeviceStateUnknown };
     DeviceState deviceState() const;
     void setDeviceState(const DeviceState state);
     QString deviceStateToString() const;
-
-    void setDeviceIcon(const QList<Utils::Icon> &deviceIcon);
-    QIcon deviceIcon() const;
 
     virtual void fromMap(const QVariantMap &map);
     virtual QVariantMap toMap() const;
@@ -185,7 +190,7 @@ public:
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
 
     enum ControlChannelHint { QmlControlChannel };
-    virtual Connection toolControlChannel(const ControlChannelHint &) const;
+    virtual QUrl toolControlChannel(const ControlChannelHint &) const;
 
     Utils::PortList freePorts() const;
     void setFreePorts(const Utils::PortList &freePorts);
@@ -200,14 +205,10 @@ protected:
     IDevice(Core::Id type, Origin origin, MachineType machineType, Core::Id id = Core::Id());
     IDevice(const IDevice &other);
 
-    Ptr sharedFromThis();
-    ConstPtr sharedFromThis() const;
-
 private:
     IDevice &operator=(const IDevice &); // Unimplemented.
 
     int version() const;
-    void setSdkProvided(bool sdkProvided);
 
     Internal::IDevicePrivate *d;
     friend class DeviceManager;

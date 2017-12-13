@@ -45,10 +45,6 @@ AndroidDevice::AndroidDevice()
 {
     setDisplayName(QCoreApplication::translate("Android::Internal::AndroidDevice", "Run on Android"));
     setDeviceState(DeviceReadyToUse);
-    setDeviceIcon({Utils::Icon({{":/android/images/androiddevicesmall.png",
-                                 Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
-                   Utils::Icon({{":/android/images/androiddevice.png",
-                                 Utils::Theme::IconsBaseColor}})});
 }
 
 AndroidDevice::AndroidDevice(const AndroidDevice &other)
@@ -98,14 +94,21 @@ DeviceProcessSignalOperation::Ptr AndroidDevice::signalOperation() const
     return DeviceProcessSignalOperation::Ptr(new AndroidSignalOperation());
 }
 
+Utils::OsType AndroidDevice::osType() const
+{
+    return Utils::OsTypeOtherUnix;
+}
+
 IDevice::Ptr AndroidDevice::clone() const
 {
     return IDevice::Ptr(new AndroidDevice(*this));
 }
 
-Connection AndroidDevice::toolControlChannel(const ControlChannelHint &) const
+QUrl AndroidDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return HostName("localhost");
+    QUrl url;
+    url.setHost("localhost");
+    return url;
 }
 
 } // namespace Internal

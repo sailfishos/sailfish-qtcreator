@@ -36,7 +36,8 @@ namespace Internal {
 DebugViewWidget::DebugViewWidget(QWidget *parent) : QWidget(parent)
 {
     m_ui.setupUi(this);
-    connect(m_ui.enabledCheckBox, SIGNAL(toggled(bool)), this, SLOT(enabledCheckBoxToggled(bool)));
+    connect(m_ui.enabledCheckBox, &QAbstractButton::toggled,
+            this, &DebugViewWidget::enabledCheckBoxToggled);
 }
 
 void DebugViewWidget::addLogMessage(const QString &topic, const QString &message, bool highlight)
@@ -67,17 +68,28 @@ void DebugViewWidget::addErrorMessage(const QString &topic, const QString &messa
 void DebugViewWidget::addLogInstanceMessage(const QString &topic, const QString &message, bool highlight)
 {
     if (highlight) {
-        m_ui.instanceLog->appendHtml(QStringLiteral("<b><font color=\"blue\">")
-                                  + topic
-                                  + QStringLiteral("</b><br>")
-                                  + message);
+        m_ui.instanceLog->appendHtml("<b><font color=\"blue\">"
+                                     + topic
+                                     + "</b><br>"
+                                     + "<p>"
+                                     + message
+                                     + "</p>"
+                                     + "<br>");
 
     } else {
-        m_ui.instanceLog->appendHtml(QStringLiteral("<b>")
-                                  + topic
-                                  + QStringLiteral("</b><br>")
-                                  + message);
+        m_ui.instanceLog->appendHtml("<b>"
+                                     + topic
+                                     + "</b><br>"
+                                     + "<p>"
+                                     + message
+                                     + "</p>"
+                                     + "<br>");
     }
+}
+
+void DebugViewWidget::setPuppetStatus(const QString &text)
+{
+    m_ui.instanceStatus->setPlainText(text);
 }
 
 void DebugViewWidget::setDebugViewEnabled(bool b)
@@ -88,9 +100,7 @@ void DebugViewWidget::setDebugViewEnabled(bool b)
 
 void DebugViewWidget::enabledCheckBoxToggled(bool b)
 {
-    DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
-    settings.insert(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER, b);
-    QmlDesignerPlugin::instance()->setSettings(settings);
+    DesignerSettings::setValue(DesignerSettingsKey::WARNING_FOR_FEATURES_IN_DESIGNER, b);
 }
 
 } //namespace Internal

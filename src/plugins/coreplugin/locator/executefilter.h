@@ -50,9 +50,10 @@ class ExecuteFilter : public Core::ILocatorFilter
 public:
     ExecuteFilter();
     QList<LocatorFilterEntry> matchesFor(QFutureInterface<LocatorFilterEntry> &future,
-                                         const QString &entry);
-    void accept(LocatorFilterEntry selection) const;
-    void refresh(QFutureInterface<void> &) {}
+                                         const QString &entry) override;
+    void accept(LocatorFilterEntry selection,
+                QString *newText, int *selectionStart, int *selectionLength) const override;
+    void refresh(QFutureInterface<void> &) override {}
 
 private:
     void finished(int exitCode, QProcess::ExitStatus status);

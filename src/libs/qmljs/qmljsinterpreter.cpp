@@ -185,37 +185,23 @@ PropertyInfo::PropertyInfo(uint flags)
 
 QString PropertyInfo::toString() const
 {
-    bool join = false;
-    QString res;
-    if (isReadable()) {
-        res += QLatin1String("Readable");
-        join = true;
-    }
-    if (isWriteable()) {
-        if (join)
-            res += QLatin1Char('|');
-        res += QLatin1String("Writeable");
-        join = true;
-    }
-    if (isList()) {
-        if (join)
-            res += QLatin1Char('|');
-        res += QLatin1String("ListType");
-        join = true;
-    }
-    if (canBePointer()) {
-        if (join)
-            res += QLatin1Char('|');
-        res += QLatin1String("Pointer");
-        join = true;
-    }
-    if (canBeValue()) {
-        if (join)
-            res += QLatin1Char('|');
-        res += QLatin1String("Value");
-        join = true;
-    }
-    return res;
+    QStringList list;
+    if (isReadable())
+        list.append("Readable");
+
+    if (isWriteable())
+        list.append("Writeable");
+
+    if (isList())
+        list.append("ListType");
+
+    if (canBePointer())
+        list.append("Pointer");
+
+    if (canBeValue())
+        list.append("Value");
+
+    return list.join('|');
 }
 
 } // namespace QmlJS
@@ -1852,7 +1838,7 @@ ASTObjectValue::ASTObjectValue(UiQualifiedId *typeName,
         for (UiObjectMemberList *it = m_initializer->members; it; it = it->next) {
             UiObjectMember *member = it->member;
             if (UiPublicMember *def = cast<UiPublicMember *>(member)) {
-                if (def->type == UiPublicMember::Property && !def->name.isEmpty() && !def->memberType.isEmpty()) {
+                if (def->type == UiPublicMember::Property && !def->name.isEmpty() && def->isValid()) {
                     ASTPropertyReference *ref = new ASTPropertyReference(def, m_doc, valueOwner);
                     m_properties.append(ref);
                     if (def->defaultToken.isValid())
@@ -2117,10 +2103,10 @@ bool ASTPropertyReference::getSourceLocation(QString *fileName, int *line, int *
 const Value *ASTPropertyReference::value(ReferenceContext *referenceContext) const
 {
     if (m_ast->statement
-            && (m_ast->memberType.isEmpty()
-                || m_ast->memberType == QLatin1String("variant")
-                || m_ast->memberType == QLatin1String("var")
-                || m_ast->memberType == QLatin1String("alias"))) {
+            && (!m_ast->isValid()
+                || m_ast->memberTypeName() == QLatin1String("variant")
+                || m_ast->memberTypeName() == QLatin1String("var")
+                || m_ast->memberTypeName() == QLatin1String("alias"))) {
 
         // Adjust the context for the current location - expensive!
         // ### Improve efficiency by caching the 'use chain' constructed in ScopeBuilder.
@@ -2136,7 +2122,7 @@ const Value *ASTPropertyReference::value(ReferenceContext *referenceContext) con
         return evaluator(m_ast->statement);
     }
 
-    const QString memberType = m_ast->memberType.toString();
+    const QString memberType = m_ast->memberTypeName().toString();
 
     const Value *builtin = valueOwner()->defaultValueForBuiltinType(memberType);
     if (!builtin->asUndefinedValue())
@@ -2160,7 +2146,7 @@ ASTSignal::ASTSignal(UiPublicMember *ast, const Document *doc, ValueOwner *value
     ObjectValue *v = valueOwner->newObject(/*prototype=*/0);
     for (UiParameterList *it = ast->parameters; it; it = it->next) {
         if (!it->name.isEmpty())
-            v->setMember(it->name.toString(), valueOwner->defaultValueForBuiltinType(it->type.toString()));
+            v->setMember(it->name.toString(), valueOwner->defaultValueForBuiltinType(it->type->name.toString()));
     }
     m_bodyScope = v;
 }
@@ -2187,9 +2173,9 @@ const Value *ASTSignal::argument(int index) const
     UiParameterList *param = m_ast->parameters;
     for (int i = 0; param && i < index; ++i)
         param = param->next;
-    if (!param || param->type.isEmpty())
+    if (!param || param->type->name.isEmpty())
         return valueOwner()->unknownValue();
-    return valueOwner()->defaultValueForBuiltinType(param->type.toString());
+    return valueOwner()->defaultValueForBuiltinType(param->type->name.toString());
 }
 
 QString ASTSignal::argumentName(int index) const

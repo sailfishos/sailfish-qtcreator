@@ -27,6 +27,8 @@
 
 #include <QFileInfo>
 
+#include <ostream>
+
 namespace ClangBackEnd {
 
 #define RETURN_TEXT_FOR_CASE(enumValue) case JobRequest::Type::enumValue: return #enumValue
@@ -39,6 +41,9 @@ static const char *JobRequestTypeToText(JobRequest::Type type)
         RETURN_TEXT_FOR_CASE(CreateInitialDocumentPreamble);
         RETURN_TEXT_FOR_CASE(CompleteCode);
         RETURN_TEXT_FOR_CASE(RequestDocumentAnnotations);
+        RETURN_TEXT_FOR_CASE(RequestReferences);
+        RETURN_TEXT_FOR_CASE(SuspendDocument);
+        RETURN_TEXT_FOR_CASE(ResumeDocument);
     }
 
     return "UnhandledJobRequestType";
@@ -65,6 +70,16 @@ QDebug operator<<(QDebug debug, JobRequest::Type type)
     return debug;
 }
 
+std::ostream &operator<<(std::ostream &os, JobRequest::Type type)
+{
+    return os << JobRequestTypeToText(type);
+}
+
+std::ostream &operator<<(std::ostream &os, PreferredTranslationUnit preferredTranslationUnit)
+{
+    return os << preferredTranslationUnitToText(preferredTranslationUnit);
+}
+
 QDebug operator<<(QDebug debug, const JobRequest &jobRequest)
 {
     debug.nospace() << "Job<"
@@ -89,7 +104,8 @@ JobRequest::JobRequest()
 bool JobRequest::operator==(const JobRequest &other) const
 {
     return type == other.type
-        && requirements == other.requirements
+        && expirationReasons == other.expirationReasons
+        && conditions == other.conditions
 
         && filePath == other.filePath
         && projectPartId == other.projectPartId
@@ -103,22 +119,39 @@ bool JobRequest::operator==(const JobRequest &other) const
         && ticketNumber == other.ticketNumber;
 }
 
-JobRequest::Requirements JobRequest::requirementsForType(Type type)
+JobRequest::ExpirationReasons JobRequest::expirationReasonsForType(Type type)
 {
     switch (type) {
-    case JobRequest::Type::UpdateDocumentAnnotations:
-        return JobRequest::Requirements(JobRequest::All);
-    case JobRequest::Type::RequestDocumentAnnotations:
-        return JobRequest::Requirements(JobRequest::DocumentValid
-                                       |JobRequest::CurrentDocumentRevision);
-    case JobRequest::Type::CompleteCode:
-    case JobRequest::Type::CreateInitialDocumentPreamble:
-    case JobRequest::Type::ParseSupportiveTranslationUnit:
-    case JobRequest::Type::ReparseSupportiveTranslationUnit:
-        return JobRequest::Requirements(JobRequest::DocumentValid);
+    case Type::UpdateDocumentAnnotations:
+        return ExpirationReasons(ExpirationReason::AnythingChanged);
+    case Type::RequestReferences:
+    case Type::RequestDocumentAnnotations:
+        return ExpirationReasons(ExpirationReason::DocumentClosed)
+             | ExpirationReasons(ExpirationReason::DocumentRevisionChanged);
+    default:
+        return ExpirationReason::DocumentClosed;
+    }
+}
+
+JobRequest::Conditions JobRequest::conditionsForType(JobRequest::Type type)
+{
+    if (type == Type::SuspendDocument) {
+        return Conditions(Condition::DocumentUnsuspended)
+             | Conditions(Condition::DocumentNotVisible);
     }
 
-    return JobRequest::Requirements(JobRequest::DocumentValid);
+    if (type == Type::ResumeDocument) {
+        return Conditions(Condition::DocumentSuspended)
+             | Conditions(Condition::DocumentVisible);
+    }
+
+    Conditions conditions = Conditions(Condition::DocumentUnsuspended)
+                          | Conditions(Condition::DocumentVisible);
+
+    if (type == Type::RequestReferences)
+        conditions |= Condition::CurrentDocumentRevision;
+
+    return conditions;
 }
 
 } // namespace ClangBackEnd

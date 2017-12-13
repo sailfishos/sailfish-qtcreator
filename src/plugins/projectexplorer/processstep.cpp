@@ -30,6 +30,8 @@
 #include "target.h"
 #include "kit.h"
 
+#include <coreplugin/variablechooser.h>
+
 #include <utils/macroexpander.h>
 
 #include <QDebug>
@@ -62,7 +64,7 @@ void ProcessStep::ctor()
     //: Default ProcessStep display name
     setDefaultDisplayName(tr("Custom Process Step"));
     if (m_workingDirectory.isEmpty())
-        m_workingDirectory = QLatin1String(Constants::DEFAULT_WORKING_DIR);
+        m_workingDirectory = Constants::DEFAULT_WORKING_DIR;
 }
 
 bool ProcessStep::init(QList<const BuildStep *> &earlierSteps)
@@ -84,7 +86,7 @@ bool ProcessStep::init(QList<const BuildStep *> &earlierSteps)
 
 void ProcessStep::run(QFutureInterface<bool> & fi)
 {
-    return AbstractProcessStep::run(fi);
+    AbstractProcessStep::run(fi);
 }
 
 BuildStepConfigWidget *ProcessStep::createConfigWidget()
@@ -126,9 +128,9 @@ void ProcessStep::setWorkingDirectory(const QString &workingDirectory)
 {
     if (workingDirectory.isEmpty())
         if (target()->activeBuildConfiguration())
-            m_workingDirectory = QLatin1String(Constants::DEFAULT_WORKING_DIR);
+            m_workingDirectory = Constants::DEFAULT_WORKING_DIR;
         else
-            m_workingDirectory = QLatin1String(Constants::DEFAULT_WORKING_DIR_ALTERNATE);
+            m_workingDirectory = Constants::DEFAULT_WORKING_DIR_ALTERNATE;
     else
         m_workingDirectory = workingDirectory;
 }
@@ -136,17 +138,17 @@ void ProcessStep::setWorkingDirectory(const QString &workingDirectory)
 QVariantMap ProcessStep::toMap() const
 {
     QVariantMap map(AbstractProcessStep::toMap());
-    map.insert(QLatin1String(PROCESS_COMMAND_KEY), command());
-    map.insert(QLatin1String(PROCESS_ARGUMENTS_KEY), arguments());
-    map.insert(QLatin1String(PROCESS_WORKINGDIRECTORY_KEY), workingDirectory());
+    map.insert(PROCESS_COMMAND_KEY, command());
+    map.insert(PROCESS_ARGUMENTS_KEY, arguments());
+    map.insert(PROCESS_WORKINGDIRECTORY_KEY, workingDirectory());
     return map;
 }
 
 bool ProcessStep::fromMap(const QVariantMap &map)
 {
-    setCommand(map.value(QLatin1String(PROCESS_COMMAND_KEY)).toString());
-    setArguments(map.value(QLatin1String(PROCESS_ARGUMENTS_KEY)).toString());
-    setWorkingDirectory(map.value(QLatin1String(PROCESS_WORKINGDIRECTORY_KEY)).toString());
+    setCommand(map.value(PROCESS_COMMAND_KEY).toString());
+    setArguments(map.value(PROCESS_ARGUMENTS_KEY).toString());
+    setWorkingDirectory(map.value(PROCESS_WORKINGDIRECTORY_KEY).toString());
     return AbstractProcessStep::fromMap(map);
 }
 
@@ -157,7 +159,7 @@ bool ProcessStep::fromMap(const QVariantMap &map)
 QList<BuildStepInfo> ProcessStepFactory::availableSteps(BuildStepList *parent) const
 {
     Q_UNUSED(parent);
-    return {{ PROCESS_STEP_ID, ProcessStep::tr("Custom Process Step", "item in combobox") }};
+    return {{PROCESS_STEP_ID, ProcessStep::tr("Custom Process Step", "item in combobox")}};
 }
 
 BuildStep *ProcessStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -180,7 +182,7 @@ ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step) :
 {
     m_ui.setupUi(this);
     m_ui.command->setExpectedKind(Utils::PathChooser::Command);
-    m_ui.command->setHistoryCompleter(QLatin1String("PE.ProcessStepCommand.History"));
+    m_ui.command->setHistoryCompleter("PE.ProcessStepCommand.History");
     m_ui.workingDirectory->setExpectedKind(Utils::PathChooser::Directory);
 
     BuildConfiguration *bc = m_step->buildConfiguration();
@@ -204,6 +206,7 @@ ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step) :
 
     connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
             this, &ProcessStepConfigWidget::commandArgumentsLineEditTextEdited);
+    Core::VariableChooser::addSupportForChildWidgets(this, m_step->macroExpander());
 }
 
 void ProcessStepConfigWidget::updateDetails()

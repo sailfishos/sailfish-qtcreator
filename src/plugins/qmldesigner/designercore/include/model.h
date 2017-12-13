@@ -26,6 +26,9 @@
 #pragma once
 
 #include <qmldesignercorelib_global.h>
+
+#include <documentmessage.h>
+
 #include <QObject>
 #include <QPair>
 
@@ -108,6 +111,7 @@ public:
 
     TextModifier *textModifier() const;
     void setTextModifier(TextModifier *textModifier);
+    void setDocumentMessages(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings);
 
 protected:
     Model();

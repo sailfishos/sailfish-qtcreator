@@ -58,6 +58,8 @@ public:
 
     QString projectFilePath() const;
 
+    QString buildSystemTarget() const final;
+
     static const char *IdPrefix;
 
 signals:
@@ -70,13 +72,8 @@ protected:
     QString defaultDisplayName();
     void setDisabledReason(const QString &reason) const;
 
-protected slots:
-    void updateEnableState() { emit enabledChanged(); }
-
-private slots:
-    void handleBuildSystemDataUpdated();
-
 private:
+    void handleBuildSystemDataUpdated();
     void init();
 
     QString m_projectFilePath;

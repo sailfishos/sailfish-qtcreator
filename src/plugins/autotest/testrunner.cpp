@@ -41,7 +41,9 @@
 #include <projectexplorer/projectexplorersettings.h>
 #include <projectexplorer/target.h>
 
+#include <utils/outputformat.h>
 #include <utils/runextensions.h>
+#include <utils/hostosinfo.h>
 
 #include <QFuture>
 #include <QFutureInterface>
@@ -54,13 +56,13 @@
 namespace Autotest {
 namespace Internal {
 
-static TestRunner *m_instance = 0;
+static TestRunner *s_instance = nullptr;
 
 TestRunner *TestRunner::instance()
 {
-    if (!m_instance)
-        m_instance = new TestRunner;
-    return m_instance;
+    if (!s_instance)
+        s_instance = new TestRunner;
+    return s_instance;
 }
 
 TestRunner::TestRunner(QObject *parent) :
@@ -85,7 +87,7 @@ TestRunner::~TestRunner()
 {
     qDeleteAll(m_selectedTests);
     m_selectedTests.clear();
-    m_instance = 0;
+    s_instance = nullptr;
 }
 
 void TestRunner::setSelectedTests(const QList<TestConfiguration *> &selected)
@@ -95,17 +97,49 @@ void TestRunner::setSelectedTests(const QList<TestConfiguration *> &selected)
      m_selectedTests = selected;
 }
 
+static QString processInformation(const QProcess &proc)
+{
+    QString information("\nCommand line: " + proc.program() + ' ' + proc.arguments().join(' '));
+    QStringList important = { "PATH" };
+    if (Utils::HostOsInfo::isLinuxHost())
+        important.append("LD_LIBRARY_PATH");
+    else if (Utils::HostOsInfo::isMacHost())
+        important.append({ "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH" });
+    const QProcessEnvironment &environment = proc.processEnvironment();
+    for (const QString &var : important)
+        information.append('\n' + var + ": " + environment.value(var));
+    return information;
+}
+
+static QString rcInfo(const TestConfiguration * const config)
+{
+    QString info = '\n' + TestRunner::tr("Run configuration:") + ' ';
+    if (config->isGuessed())
+        info += TestRunner::tr("guessed from");
+    return info + " \"" + config->runConfigDisplayName() + '"';
+}
+
 static void performTestRun(QFutureInterface<TestResultPtr> &futureInterface,
                            const QList<TestConfiguration *> selectedTests,
                            const TestSettings &settings)
 {
     const int timeout = settings.timeout;
+    const bool omitRunConfigWarnings = settings.omitRunConfigWarn;
     QEventLoop eventLoop;
     int testCaseCount = 0;
-    foreach (TestConfiguration *config, selectedTests) {
+    for (TestConfiguration *config : selectedTests) {
         config->completeTestInformation(TestRunner::Run);
         if (config->project()) {
             testCaseCount += config->testCaseCount();
+            if (!omitRunConfigWarnings && config->isGuessed()) {
+                QString message = TestRunner::tr(
+                            "Project's run configuration was guessed for \"%1\".\n"
+                            "This might cause trouble during execution.\n"
+                            "(guessed from \"%2\")");
+                message = message.arg(config->displayName()).arg(config->runConfigDisplayName());
+                futureInterface.reportResult(
+                            TestResultPtr(new FaultyTestResult(Result::MessageWarn, message)));
+            }
         } else {
             futureInterface.reportResult(TestResultPtr(new FaultyTestResult(Result::MessageWarn,
                 TestRunner::tr("Project is null for \"%1\". Removing from test run.\n"
@@ -119,10 +153,12 @@ static void performTestRun(QFutureInterface<TestResultPtr> &futureInterface,
     futureInterface.setProgressRange(0, testCaseCount);
     futureInterface.setProgressValue(0);
 
-    foreach (const TestConfiguration *testConfiguration, selectedTests) {
+    for (const TestConfiguration *testConfiguration : selectedTests) {
         QScopedPointer<TestOutputReader> outputReader;
         outputReader.reset(testConfiguration->outputReader(futureInterface, &testProcess));
         QTC_ASSERT(outputReader, continue);
+        TestRunner::connect(outputReader.data(), &TestOutputReader::newOutputAvailable,
+                            TestResultsPane::instance(), &TestResultsPane::addOutput);
         if (futureInterface.isCanceled())
             break;
 
@@ -133,8 +169,7 @@ static void performTestRun(QFutureInterface<TestResultPtr> &futureInterface,
         QString commandFilePath = testConfiguration->executableFilePath();
         if (commandFilePath.isEmpty()) {
             futureInterface.reportResult(TestResultPtr(new FaultyTestResult(Result::MessageFatal,
-                TestRunner::tr("Could not find command \"%1\". (%2)")
-                                                   .arg(testConfiguration->targetFile())
+                TestRunner::tr("Executable path is empty. (%1)")
                                                    .arg(testConfiguration->displayName()))));
             continue;
         }
@@ -166,11 +201,15 @@ static void performTestRun(QFutureInterface<TestResultPtr> &futureInterface,
             }
         } else {
             futureInterface.reportResult(TestResultPtr(new FaultyTestResult(Result::MessageFatal,
-                QString::fromLatin1("Failed to start test for project \"%1\".").arg(testConfiguration->displayName()))));
+                TestRunner::tr("Failed to start test for project \"%1\".")
+                    .arg(testConfiguration->displayName()) + processInformation(testProcess)
+                                                           + rcInfo(testConfiguration))));
         }
         if (testProcess.exitStatus() == QProcess::CrashExit) {
             futureInterface.reportResult(TestResultPtr(new FaultyTestResult(Result::MessageFatal,
-                QString::fromLatin1("Test for project \"%1\" crashed.").arg(testConfiguration->displayName()))));
+                TestRunner::tr("Test for project \"%1\" crashed.")
+                    .arg(testConfiguration->displayName()) + processInformation(testProcess)
+                                                           + rcInfo(testConfiguration))));
         }
 
         if (canceledByTimeout) {
@@ -196,21 +235,11 @@ void TestRunner::prepareToRunTests(Mode mode)
             return;
     }
 
-    const bool omitRunConfigWarnings = AutotestPlugin::instance()->settings()->omitRunConfigWarn;
-
     m_executingTests = true;
     emit testRunStarted();
 
     // clear old log and output pane
     TestResultsPane::instance()->clearContents();
-
-    foreach (TestConfiguration *config, m_selectedTests) {
-        if (!omitRunConfigWarnings && config->guessedConfiguration()) {
-            emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageWarn,
-                tr("Project's run configuration was guessed for \"%1\".\n"
-                "This might cause trouble during execution.").arg(config->displayName()))));
-        }
-    }
 
     if (m_selectedTests.empty()) {
         emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageWarn,
@@ -250,10 +279,11 @@ void TestRunner::runTests()
 }
 
 static void processOutput(TestOutputReader *outputreader, const QString &msg,
-                          Debugger::OutputProcessor::OutputChannel channel)
+                          Utils::OutputFormat format)
 {
-    switch (channel) {
-    case Debugger::OutputProcessor::StandardOut: {
+    switch (format) {
+    case Utils::OutputFormat::StdOutFormatSameLine:
+    case Utils::OutputFormat::DebugFormat: {
         static const QString gdbSpecialOut = "Qt: gdb: -nograb added to command-line options.\n"
                                              "\t Use the -dograb option to enforce grabbing.";
         int start = msg.startsWith(gdbSpecialOut) ? gdbSpecialOut.length() + 1 : 0;
@@ -265,14 +295,14 @@ static void processOutput(TestOutputReader *outputreader, const QString &msg,
                 break;
         }
         for (const QString &line : msg.mid(start).split('\n'))
-            outputreader->processOutput(line.toUtf8() + '\n');
+            outputreader->processOutput(line.toUtf8());
         break;
     }
-    case Debugger::OutputProcessor::StandardError:
+    case Utils::OutputFormat::StdErrFormatSameLine:
         outputreader->processStdError(msg.toUtf8());
         break;
     default:
-        QTC_CHECK(false); // unexpected channel
+        break; // channels we're not caring about
     }
 }
 
@@ -294,7 +324,7 @@ void TestRunner::debugTests()
     if (commandFilePath.isEmpty()) {
         emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageFatal,
             TestRunner::tr("Could not find command \"%1\". (%2)")
-                                               .arg(config->targetFile())
+                                               .arg(config->executableFilePath())
                                                .arg(config->displayName()))));
         onFinished();
         return;
@@ -308,15 +338,16 @@ void TestRunner::debugTests()
     sp.displayName = config->displayName();
 
     QString errorMessage;
-    Debugger::DebuggerRunControl *runControl = Debugger::createDebuggerRunControl(
-                sp, config->runConfiguration(), &errorMessage);
-
+    auto runControl = new ProjectExplorer::RunControl(config->runConfiguration(),
+                                                      ProjectExplorer::Constants::DEBUG_RUN_MODE);
     if (!runControl) {
         emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageFatal,
             TestRunner::tr("Failed to create run configuration.\n%1").arg(errorMessage))));
         onFinished();
         return;
     }
+
+    (void) new Debugger::DebuggerRunTool(runControl, sp);
 
     bool useOutputProcessor = true;
     if (ProjectExplorer::Target *targ = config->project()->activeTarget()) {
@@ -335,23 +366,22 @@ void TestRunner::debugTests()
 
     if (useOutputProcessor) {
         TestOutputReader *outputreader = config->outputReader(*futureInterface, 0);
+        connect(outputreader, &TestOutputReader::newOutputAvailable,
+                TestResultsPane::instance(), &TestResultsPane::addOutput);
+        connect(runControl, &ProjectExplorer::RunControl::appendMessageRequested,
+                this, [this, outputreader]
+                (ProjectExplorer::RunControl *, const QString &msg, Utils::OutputFormat format) {
+            processOutput(outputreader, msg, format);
+        });
 
-        Debugger::OutputProcessor *processor = new Debugger::OutputProcessor;
-        processor->logToAppOutputPane = false;
-        processor->process = [outputreader] (const QString &msg,
-                                             Debugger::OutputProcessor::OutputChannel channel) {
-            processOutput(outputreader, msg, channel);
-        };
-        runControl->setOutputProcessor(processor);
-        connect(runControl, &Debugger::DebuggerRunControl::finished,
+        connect(runControl, &ProjectExplorer::RunControl::stopped,
                 outputreader, &QObject::deleteLater);
     }
 
-    connect(this, &TestRunner::requestStopTestRun, runControl, &Debugger::DebuggerRunControl::stop);
-    connect(runControl, &Debugger::DebuggerRunControl::finished, this, &TestRunner::onFinished);
-    ProjectExplorer::ProjectExplorerPlugin::startRunControl(
-                runControl, ProjectExplorer::Constants::DEBUG_RUN_MODE);
-
+    connect(this, &TestRunner::requestStopTestRun, runControl,
+            &ProjectExplorer::RunControl::initiateStop);
+    connect(runControl, &ProjectExplorer::RunControl::stopped, this, &TestRunner::onFinished);
+    ProjectExplorer::ProjectExplorerPlugin::startRunControl(runControl);
 }
 
 void TestRunner::runOrDebugTests()

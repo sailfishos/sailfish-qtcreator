@@ -37,10 +37,15 @@
 #include "settingsaccessor.h"
 
 #include <coreplugin/idocument.h>
+#include <coreplugin/documentmanager.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/iversioncontrol.h>
+#include <coreplugin/vcsmanager.h>
+
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitmanager.h>
+#include <projectexplorer/projecttree.h>
 
 #include <utils/algorithm.h>
 #include <utils/macroexpander.h>
@@ -79,19 +84,55 @@ const char PLUGIN_SETTINGS_KEY[] = "ProjectExplorer.Project.PluginSettings";
 } // namespace
 
 namespace ProjectExplorer {
+
+// --------------------------------------------------------------------
+// ProjectDocument:
+// --------------------------------------------------------------------
+
+ProjectDocument::ProjectDocument(const QString &mimeType, const Utils::FileName &fileName,
+                                 const ProjectDocument::ProjectCallback &callback) :
+    m_callback(callback)
+{
+    setFilePath(fileName);
+    setMimeType(mimeType);
+    if (m_callback)
+        Core::DocumentManager::addDocument(this);
+}
+
+Core::IDocument::ReloadBehavior
+ProjectDocument::reloadBehavior(Core::IDocument::ChangeTrigger state,
+                                Core::IDocument::ChangeType type) const
+{
+    Q_UNUSED(state);
+    Q_UNUSED(type);
+    return BehaviorSilent;
+}
+
+bool ProjectDocument::reload(QString *errorString, Core::IDocument::ReloadFlag flag,
+                             Core::IDocument::ChangeType type)
+{
+    Q_UNUSED(errorString);
+    Q_UNUSED(flag);
+    Q_UNUSED(type);
+
+    if (m_callback)
+        m_callback();
+    return true;
+}
+
 // -------------------------------------------------------------------------
 // Project
 // -------------------------------------------------------------------------
-
 class ProjectPrivate
 {
 public:
+    ProjectPrivate(Core::IDocument *document) : m_document(document) { }
     ~ProjectPrivate();
 
     Core::Id m_id;
     Core::IDocument *m_document = nullptr;
-    IProjectManager *m_manager = nullptr;
     ProjectNode *m_rootProjectNode = nullptr;
+    ContainerNode *m_containerNode = nullptr;
     QList<Target *> m_targets;
     Target *m_activeTarget = nullptr;
     EditorConfiguration m_editorConfiguration;
@@ -100,8 +141,10 @@ public:
     QVariantMap m_pluginSettings;
     Internal::UserFileAccessor *m_accessor = nullptr;
 
-    KitMatcher m_requiredKitMatcher;
-    KitMatcher m_preferredKitMatcher;
+    QString m_displayName;
+
+    Kit::Predicate m_requiredKitPredicate;
+    Kit::Predicate m_preferredKitPredicate;
 
     Utils::MacroExpander m_macroExpander;
 };
@@ -113,21 +156,33 @@ ProjectPrivate::~ProjectPrivate()
     m_rootProjectNode = nullptr;
     delete oldNode;
 
+    delete m_containerNode;
+
     delete m_document;
     delete m_accessor;
 }
 
-Project::Project() : d(new ProjectPrivate)
+Project::Project(const QString &mimeType, const Utils::FileName &fileName,
+                 const ProjectDocument::ProjectCallback &callback) :
+    d(new ProjectPrivate(new ProjectDocument(mimeType, fileName, callback)))
 {
     d->m_macroExpander.setDisplayName(tr("Project"));
     d->m_macroExpander.registerVariable("Project:Name", tr("Project Name"),
             [this] { return displayName(); });
+
+    // Only set up containernode after d is set so that it will find the project directory!
+    d->m_containerNode = new ContainerNode(this);
 }
 
 Project::~Project()
 {
     qDeleteAll(d->m_targets);
     delete d;
+}
+
+QString Project::displayName() const
+{
+    return d->m_displayName;
 }
 
 Core::Id Project::id() const
@@ -407,29 +462,44 @@ bool Project::setupTarget(Target *t)
     return true;
 }
 
+void Project::setDisplayName(const QString &name)
+{
+    if (name == d->m_displayName)
+        return;
+    d->m_displayName = name;
+    emit displayNameChanged();
+}
+
 void Project::setId(Core::Id id)
 {
     d->m_id = id;
 }
 
-void Project::setDocument(Core::IDocument *doc)
-{
-    QTC_ASSERT(doc, return);
-    QTC_ASSERT(!d->m_document, return);
-    d->m_document = doc;
-}
-
-void Project::setProjectManager(IProjectManager *manager)
-{
-    QTC_ASSERT(manager, return);
-    QTC_ASSERT(!d->m_manager, return);
-    d->m_manager = manager;
-}
-
 void Project::setRootProjectNode(ProjectNode *root)
 {
+    if (d->m_rootProjectNode == root)
+        return;
+
+    if (root && root->nodes().isEmpty()) {
+        // Something went wrong with parsing: At least the project file needs to be
+        // shown so that the user can fix the breakage.
+        // Do not leak root and use default project tree in this case.
+        delete root;
+        root = nullptr;
+    }
+
+    ProjectTree::applyTreeManager(root);
+
     ProjectNode *oldNode = d->m_rootProjectNode;
     d->m_rootProjectNode = root;
+    if (root) {
+        root->setParentFolderNode(d->m_containerNode);
+        // Only announce non-null root, null is only used when project is destroyed.
+        // In that case SessionManager::projectRemoved() triggers the update.
+        ProjectTree::emitSubtreeChanged(root);
+        emit fileListChanged();
+    }
+
     delete oldNode;
 }
 
@@ -442,7 +512,7 @@ Target *Project::restoreTarget(const QVariantMap &data)
         return nullptr;
     }
 
-    Kit *k = KitManager::find(id);
+    Kit *k = KitManager::kit(id);
     if (!k) {
         qWarning("Warning: No kit '%s' found. Continuing.", qPrintable(id.toString()));
         return nullptr;
@@ -474,6 +544,33 @@ Project::RestoreResult Project::restoreSettings(QString *errorMessage)
     RestoreResult result = fromMap(map, errorMessage);
     if (result == RestoreResult::Ok)
         emit settingsLoaded();
+    return result;
+}
+
+QStringList Project::files(Project::FilesMode fileMode,
+                           const std::function<bool(const Node *)> &filter) const
+{
+    QStringList result;
+
+    if (!rootProjectNode())
+        return result;
+
+    QSet<QString> alreadySeen;
+    rootProjectNode()->forEachGenericNode([&](const Node *n) {
+        const QString path = n->filePath().toString();
+        const int count = alreadySeen.count();
+        alreadySeen.insert(path);
+        if (count == alreadySeen.count())
+            return; // skip duplicates
+        if (!n->listInProject())
+            return;
+        if (filter && !filter(n))
+            return;
+        if ((fileMode == AllFiles)
+                || (fileMode == SourceFiles && !n->isGenerated())
+                || (fileMode == GeneratedFiles && n->isGenerated()))
+            result.append(path);
+    });
     return result;
 }
 
@@ -529,15 +626,14 @@ Utils::FileName Project::projectDirectory(const Utils::FileName &top)
     return Utils::FileName::fromString(top.toFileInfo().absoluteDir().path());
 }
 
-IProjectManager *Project::projectManager() const
-{
-    QTC_CHECK(d->m_manager);
-    return d->m_manager;
-}
-
 ProjectNode *Project::rootProjectNode() const
 {
     return d->m_rootProjectNode;
+}
+
+ContainerNode *Project::containerNode() const
+{
+    return d->m_containerNode;
 }
 
 Project::RestoreResult Project::fromMap(const QVariantMap &map, QString *errorMessage)
@@ -662,10 +758,9 @@ bool Project::needsConfiguration() const
     return false;
 }
 
-void Project::configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures)
+void Project::configureAsExampleProject(const QSet<Core::Id> &platforms)
 {
     Q_UNUSED(platforms);
-    Q_UNUSED(preferredFeatures);
 }
 
 bool Project::requiresTargetPanel() const
@@ -687,7 +782,7 @@ void Project::setup(QList<const BuildInfo *> infoList)
 {
     QList<Target *> toRegister;
     foreach (const BuildInfo *info, infoList) {
-        Kit *k = KitManager::find(info->kitId);
+        Kit *k = KitManager::kit(info->kitId);
         if (!k)
             continue;
         Target *t = target(k);
@@ -721,24 +816,24 @@ ProjectImporter *Project::projectImporter() const
     return nullptr;
 }
 
-KitMatcher Project::requiredKitMatcher() const
+Kit::Predicate Project::requiredKitPredicate() const
 {
-    return d->m_requiredKitMatcher;
+    return d->m_requiredKitPredicate;
 }
 
-void Project::setRequiredKitMatcher(const KitMatcher &matcher)
+void Project::setRequiredKitPredicate(const Kit::Predicate &predicate)
 {
-    d->m_requiredKitMatcher = matcher;
+    d->m_requiredKitPredicate = predicate;
 }
 
-KitMatcher Project::preferredKitMatcher() const
+Kit::Predicate Project::preferredKitPredicate() const
 {
-    return d->m_preferredKitMatcher;
+    return d->m_preferredKitPredicate;
 }
 
-void Project::setPreferredKitMatcher(const KitMatcher &matcher)
+void Project::setPreferredKitPredicate(const Kit::Predicate &predicate)
 {
-    d->m_preferredKitMatcher = matcher;
+    d->m_preferredKitPredicate = predicate;
 }
 
 void Project::onBuildDirectoryChanged()

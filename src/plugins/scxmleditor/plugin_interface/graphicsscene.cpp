@@ -216,6 +216,9 @@ void GraphicsScene::removeSelectedItems()
 
 void GraphicsScene::copy()
 {
+    if (!m_document->currentTag())
+        return;
+
     QPointF minPos;
     QVector<ScxmlTag*> tags;
     if (m_document->currentTag()->tagType() == Scxml) {
@@ -492,7 +495,7 @@ void GraphicsScene::endTagChange(ScxmlDocument::TagChange change, ScxmlTag *tag,
 
         if (childItem) {
             BaseItem *newParentItem = findItem(tag->parentTag());
-            BaseItem *oldParentItem = childItem ? childItem->parentBaseItem() : nullptr;
+            BaseItem *oldParentItem = childItem->parentBaseItem();
 
             QPointF sPos = childItem->scenePos();
             if (oldParentItem) {

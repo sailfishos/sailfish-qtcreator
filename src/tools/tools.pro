@@ -5,13 +5,15 @@ SUBDIRS = qtpromaker \
      sdktool \
      valgrindfake \
      3rdparty \
-     qml2puppet \
      buildoutputparser
+
+qtHaveModule(quick-private): SUBDIRS += qml2puppet
 
 win32 {
     SUBDIRS += qtcdebugger \
-        wininterrupt \
         winrtdebughelper
+
+    isEmpty(QTC_SKIP_WININTERRUPT): SUBDIRS += wininterrupt
 }
 
 mac {
@@ -21,7 +23,14 @@ mac {
 isEmpty(LLVM_INSTALL_DIR):LLVM_INSTALL_DIR=$$(LLVM_INSTALL_DIR)
 exists($$LLVM_INSTALL_DIR) {
     SUBDIRS += clangbackend
-#    SUBDIRS += clangrefactoringbackend
+
+    QTC_NO_CLANG_LIBTOOLING=$$(QTC_NO_CLANG_LIBTOOLING)
+    isEmpty(QTC_NO_CLANG_LIBTOOLING) {
+        SUBDIRS += clangrefactoringbackend
+        SUBDIRS += clangpchmanagerbackend
+    } else {
+        warning("Building the Clang refactoring back end and the pch manager plugins are disabled.")
+    }
 }
 
 isEmpty(BUILD_CPLUSPLUS_TOOLS):BUILD_CPLUSPLUS_TOOLS=$$(BUILD_CPLUSPLUS_TOOLS)

@@ -35,6 +35,25 @@
 
 namespace Core {
 
+struct CORE_EXPORT Highlight
+{
+    enum Priority {
+        Invalid = -1,
+        LowPriority = 0,
+        NormalPriority = 1,
+        HighPriority = 2,
+        HighestPriority = 3
+    };
+
+    Highlight(Id category, int position, Utils::Theme::Color color, Priority priority);
+    Highlight() = default;
+
+    Id category;
+    int position = -1;
+    Utils::Theme::Color color = Utils::Theme::TextColorNormal;
+    Priority priority = Invalid;
+};
+
 class HighlightScrollBarOverlay;
 
 class CORE_EXPORT HighlightScrollBar : public QScrollBar
@@ -47,19 +66,8 @@ public:
 
     void setVisibleRange(float visibleRange);
     void setRangeOffset(float offset);
-    void setColor(Id category, Utils::Theme::Color color);
 
-    enum Priority
-    {
-        LowPriority = 0,
-        NormalPriority = 1,
-        HighPriority = 2,
-        HighestPriority = 3
-    };
-
-    void setPriority(Id category, Priority prio);
-    void addHighlight(Id category, int highlight);
-    void addHighlights(Id category, QSet<int> highlights);
+    void addHighlight(Highlight highlight);
 
     void removeHighlights(Id id);
     void removeAllHighlights();
@@ -80,38 +88,6 @@ private:
     QWidget *m_widget;
     HighlightScrollBarOverlay *m_overlay;
     friend class HighlightScrollBarOverlay;
-};
-
-class HighlightScrollBarOverlay : public QWidget
-{
-    Q_OBJECT
-public:
-    HighlightScrollBarOverlay(HighlightScrollBar *scrollBar)
-        : QWidget(scrollBar)
-        , m_visibleRange(0.0)
-        , m_offset(0.0)
-        , m_cacheUpdateScheduled(false)
-        , m_scrollBar(scrollBar)
-    {}
-
-    void scheduleUpdate();
-    void updateCache();
-    void adjustPosition();
-
-    float m_visibleRange;
-    float m_offset;
-    QHash<Id, QSet<int> > m_highlights;
-    QHash<Id, Utils::Theme::Color> m_colors;
-    QHash<Id, HighlightScrollBar::Priority> m_priorities;
-
-    bool m_cacheUpdateScheduled;
-    QMap<int, Id> m_cache;
-
-protected:
-    void paintEvent(QPaintEvent *paintEvent) override;
-
-private:
-    HighlightScrollBar *m_scrollBar;
 };
 
 } // namespace Core

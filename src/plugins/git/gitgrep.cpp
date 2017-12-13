@@ -25,6 +25,7 @@
 
 #include "gitgrep.h"
 #include "gitclient.h"
+#include "gitconstants.h"
 #include "gitplugin.h"
 
 #include <coreplugin/editormanager/editormanager.h>
@@ -34,6 +35,8 @@
 #include <vcsbase/vcscommand.h>
 #include <vcsbase/vcsbaseconstants.h>
 
+#include <utils/algorithm.h>
+#include <utils/asconst.h>
 #include <utils/fancylineedit.h>
 #include <utils/filesearch.h>
 #include <utils/fileutils.h>
@@ -42,7 +45,6 @@
 #include <utils/synchronousprocess.h>
 #include <utils/textfileformat.h>
 
-#include <QCheckBox>
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QHBoxLayout>
@@ -58,7 +60,6 @@ class GitGrepParameters
 {
 public:
     QString ref;
-    bool isEnabled = false;
 };
 
 using namespace Core;
@@ -67,7 +68,6 @@ using VcsBase::VcsCommand;
 
 namespace {
 
-const char EnableGitGrep[] = "EnableGitGrep";
 const char GitGrepRef[] = "GitGrepRef";
 
 class GitGrepRunner : public QObject
@@ -121,7 +121,7 @@ public:
             QRegularExpressionMatch regexpMatch = regexp.match(line);
             single.regexpCapturedTexts = regexpMatch.capturedTexts();
         }
-        foreach (auto match, matches) {
+        for (auto match : Utils::asConst(matches)) {
             single.matchStart = match.first;
             single.matchLength = match.second;
             resultList->append(single);
@@ -141,11 +141,12 @@ public:
 
     void exec()
     {
-        QStringList arguments;
-        arguments << "-c" << "color.grep.match=bold red"
-                  << "grep" << "-zn"
-                  << "--no-full-name"
-                  << "--color=always";
+        GitClient *client = GitPlugin::client();
+        QStringList arguments = {
+            "-c", "color.grep.match=bold red",
+            "-c", "color.grep=always",
+            "grep", "-zn", "--no-full-name"
+        };
         if (!(m_parameters.flags & FindCaseSensitively))
             arguments << "-i";
         if (m_parameters.flags & FindWholeWords)
@@ -154,14 +155,23 @@ public:
             arguments << "-P";
         else
             arguments << "-F";
-        arguments << m_parameters.text;
-        GitGrepParameters params = m_parameters.extensionParameters.value<GitGrepParameters>();
+        if (client->gitVersion() >= 0x021300)
+            arguments << "--recurse-submodules";
+        arguments << "-e" << m_parameters.text;
+        GitGrepParameters params = m_parameters.searchEngineParameters.value<GitGrepParameters>();
         if (!params.ref.isEmpty()) {
             arguments << params.ref;
             m_ref = params.ref + ':';
         }
-        arguments << "--" << m_parameters.nameFilters;
-        QScopedPointer<VcsCommand> command(GitPlugin::client()->createCommand(m_directory));
+        const QStringList filterArgs =
+                m_parameters.nameFilters.isEmpty() ? QStringList("*") // needed for exclusion filters
+                                                   : m_parameters.nameFilters;
+        const QStringList exclusionArgs =
+                Utils::transform(m_parameters.exclusionFilters, [](const QString &filter) {
+                    return QString(":!" + filter);
+                });
+        arguments << "--" << filterArgs << exclusionArgs;
+        QScopedPointer<VcsCommand> command(client->createCommand(m_directory));
         command->addFlags(VcsCommand::SilentOutput | VcsCommand::SuppressFailMessage);
         command->setProgressiveOutput(true);
         QFutureWatcher<FileSearchResultList> watcher;
@@ -169,7 +179,7 @@ public:
         connect(&watcher, &QFutureWatcher<FileSearchResultList>::canceled,
                 command.data(), &VcsCommand::cancel);
         connect(command.data(), &VcsCommand::stdOutText, this, &GitGrepRunner::read);
-        SynchronousProcessResponse resp = command->runCommand(GitPlugin::client()->vcsBinary(), arguments, 0);
+        SynchronousProcessResponse resp = command->runCommand(client->vcsBinary(), arguments, 0);
         switch (resp.result) {
         case SynchronousProcessResponse::TerminatedAbnormally:
         case SynchronousProcessResponse::StartFailed:
@@ -201,7 +211,7 @@ private:
 
 } // namespace
 
-static bool validateDirectory(const QString &path)
+static bool isGitDirectory(const QString &path)
 {
     static IVersionControl *gitVc = VcsManager::versionControl(VcsBase::Constants::VCS_ID_GIT);
     QTC_ASSERT(gitVc, return false);
@@ -213,10 +223,6 @@ GitGrep::GitGrep()
     m_widget = new QWidget;
     auto layout = new QHBoxLayout(m_widget);
     layout->setMargin(0);
-    m_enabledCheckBox = new QCheckBox(tr("&Use Git Grep"));
-    m_enabledCheckBox->setToolTip(tr("Use Git Grep for searching. This includes only files "
-                                     "that are managed by Git."));
-    layout->addWidget(m_enabledCheckBox);
     m_treeLineEdit = new FancyLineEdit;
     m_treeLineEdit->setPlaceholderText(tr("Tree (optional)"));
     m_treeLineEdit->setToolTip(tr("Can be HEAD, tag, local or remote branch, or a commit hash.\n"
@@ -228,9 +234,10 @@ GitGrep::GitGrep()
     QTC_ASSERT(findInFiles, return);
     connect(findInFiles, &TextEditor::FindInFiles::pathChanged,
             m_widget, [this](const QString &path) {
-        m_widget->setEnabled(validateDirectory(path));
+        setEnabled(isGitDirectory(path));
     });
-    findInFiles->setFindExtension(this);
+    connect(this, &SearchEngine::enabledChanged, m_widget, &QWidget::setEnabled);
+    findInFiles->addSearchEngine(this);
 }
 
 GitGrep::~GitGrep()
@@ -256,38 +263,25 @@ QWidget *GitGrep::widget() const
     return m_widget;
 }
 
-bool GitGrep::isEnabled() const
-{
-    return m_widget->isEnabled() && m_enabledCheckBox->isChecked();
-}
-
-bool GitGrep::isEnabled(const TextEditor::FileFindParameters &parameters) const
-{
-    return parameters.extensionParameters.value<GitGrepParameters>().isEnabled;
-}
-
 QVariant GitGrep::parameters() const
 {
     GitGrepParameters params;
-    params.isEnabled = isEnabled();
     params.ref = m_treeLineEdit->text();
     return qVariantFromValue(params);
 }
 
 void GitGrep::readSettings(QSettings *settings)
 {
-    m_enabledCheckBox->setChecked(settings->value(EnableGitGrep, false).toBool());
     m_treeLineEdit->setText(settings->value(GitGrepRef).toString());
 }
 
 void GitGrep::writeSettings(QSettings *settings) const
 {
-    settings->setValue(EnableGitGrep, m_enabledCheckBox->isChecked());
     settings->setValue(GitGrepRef, m_treeLineEdit->text());
 }
 
-QFuture<FileSearchResultList> GitGrep::executeSearch(
-        const TextEditor::FileFindParameters &parameters)
+QFuture<FileSearchResultList> GitGrep::executeSearch(const TextEditor::FileFindParameters &parameters,
+        TextEditor::BaseFileFind * /*baseFileFind*/)
 {
     return Utils::runAsync(GitGrepRunner::run, parameters);
 }
@@ -295,8 +289,8 @@ QFuture<FileSearchResultList> GitGrep::executeSearch(
 IEditor *GitGrep::openEditor(const SearchResultItem &item,
                              const TextEditor::FileFindParameters &parameters)
 {
-    GitGrepParameters params = parameters.extensionParameters.value<GitGrepParameters>();
-    if (!params.isEnabled || params.ref.isEmpty() || item.path.isEmpty())
+    GitGrepParameters params = parameters.searchEngineParameters.value<GitGrepParameters>();
+    if (params.ref.isEmpty() || item.path.isEmpty())
         return nullptr;
     const QString path = QDir::fromNativeSeparators(item.path.first());
     QByteArray content;
@@ -313,10 +307,14 @@ IEditor *GitGrep::openEditor(const SearchResultItem &item,
         if (fileContent == content)
             return nullptr; // open the file for read/write
     }
+
+    const QString documentId = QLatin1String(Git::Constants::GIT_PLUGIN)
+            + QLatin1String(".GitShow.") + params.ref
+            + QLatin1String(".") + relativePath;
     QString title = tr("Git Show %1:%2").arg(params.ref).arg(relativePath);
-    IEditor *editor = EditorManager::openEditorWithContents(Id(), &title, content, title,
+    IEditor *editor = EditorManager::openEditorWithContents(Id(), &title, content, documentId,
                                                             EditorManager::DoNotSwitchToDesignMode);
-    editor->gotoLine(item.lineNumber, item.textMarkPos);
+    editor->gotoLine(item.mainRange.begin.line, item.mainRange.begin.column);
     editor->document()->setTemporary(true);
     return editor;
 }

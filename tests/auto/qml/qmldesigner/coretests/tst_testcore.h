@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef TESTCORE_H
-#define TESTCORE_H
+#pragma once
 
 #include <QObject>
 
@@ -87,6 +86,7 @@ private slots:
     void testModelPropertyValueTypes();
     void testModelNodeInHierarchy();
     void testModelNodeIsAncestorOf();
+    void testModelChangeType();
 
     //
     // unit tests Rewriter
@@ -138,6 +138,7 @@ private slots:
     void testRewriterActionCompression();
     void testRewriterImports();
     void testRewriterChangeImports();
+    void testRewriterUnicodeChars();
 
     //
     // unit tests QmlModelNodeFacade/QmlModelState
@@ -229,5 +230,3 @@ private slots:
     void loadGradient();
     void changeGradientId();
 };
-
-#endif // TESTCORE_H

@@ -43,12 +43,14 @@ public:
     ~RemoteHelpFilter();
 
     // ILocatorFilter
-    QList<Core::LocatorFilterEntry> matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry);
-    void accept(Core::LocatorFilterEntry selection) const;
-    void refresh(QFutureInterface<void> &future);
-    QByteArray saveState() const;
-    bool restoreState(const QByteArray &state);
-    bool openConfigDialog(QWidget *parent, bool &needsRefresh);
+    QList<Core::LocatorFilterEntry> matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future,
+                                               const QString &entry) override;
+    void accept(Core::LocatorFilterEntry selection,
+                QString *newText, int *selectionStart, int *selectionLength) const override;
+    void refresh(QFutureInterface<void> &future) override;
+    QByteArray saveState() const override;
+    void restoreState(const QByteArray &state) override;
+    bool openConfigDialog(QWidget *parent, bool &needsRefresh) override;
 
     QStringList remoteUrls() const;
 
@@ -72,7 +74,9 @@ public:
 private:
     void addNewItem();
     void removeItem();
-    void updateRemoveButton();
+    void moveItemUp();
+    void moveItemDown();
+    void updateActionButtons();
 
     RemoteHelpFilter *m_filter;
     Ui::RemoteFilterOptions m_ui;

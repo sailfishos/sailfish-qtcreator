@@ -28,7 +28,6 @@
 #include "iostoolhandler.h"
 
 #include <projectexplorer/kitinformation.h>
-#include <utils/icon.h>
 #include <utils/port.h>
 
 #include <QCoreApplication>
@@ -45,16 +44,6 @@ static const QLatin1String iosDeviceTypeDisplayNameKey = QLatin1String("displayN
 static const QLatin1String iosDeviceTypeTypeKey = QLatin1String("type");
 static const QLatin1String iosDeviceTypeIdentifierKey = QLatin1String("identifier");
 
-static const QList<Utils::Icon>& iosSimulatorIcon()
-{
-    static const QList<Utils::Icon> icon =
-        {Utils::Icon({{":/ios/images/iosdevicesmall.png",
-                       Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
-         Utils::Icon({{":/ios/images/iosdevice.png",
-                       Utils::Theme::IconsBaseColor}})};
-    return icon;
-}
-
 IosSimulator::IosSimulator(Core::Id id)
     : IDevice(Core::Id(Constants::IOS_SIMULATOR_TYPE),
               IDevice::AutoDetected,
@@ -64,7 +53,6 @@ IosSimulator::IosSimulator(Core::Id id)
 {
     setDisplayName(QCoreApplication::translate("Ios::Internal::IosSimulator", "iOS Simulator"));
     setDeviceState(DeviceReadyToUse);
-    setDeviceIcon(iosSimulatorIcon());
 }
 
 IosSimulator::IosSimulator()
@@ -76,7 +64,6 @@ IosSimulator::IosSimulator()
 {
     setDisplayName(QCoreApplication::translate("Ios::Internal::IosSimulator", "iOS Simulator"));
     setDeviceState(DeviceReadyToUse);
-    setDeviceIcon(iosSimulatorIcon());
 }
 
 IosSimulator::IosSimulator(const IosSimulator &other)
@@ -84,7 +71,6 @@ IosSimulator::IosSimulator(const IosSimulator &other)
 {
     setDisplayName(QCoreApplication::translate("Ios::Internal::IosSimulator", "iOS Simulator"));
     setDeviceState(DeviceReadyToUse);
-    setDeviceIcon(iosSimulatorIcon());
 }
 
 
@@ -150,9 +136,7 @@ Utils::Port IosSimulator::nextPort() const
         QProcess portVerifier;
         // this is a bit too broad (it does not check just listening sockets, but also connections
         // to that port from this computer)
-        portVerifier.start(QLatin1String("lsof"), QStringList() << QLatin1String("-n")
-                         << QLatin1String("-P") << QLatin1String("-i")
-                         << QString::fromLatin1(":%1").arg(m_lastPort));
+        portVerifier.start(QLatin1String("lsof"), {"-n", "-P", "-i", QString(":%1").arg(m_lastPort) });
         if (!portVerifier.waitForStarted())
             break;
         portVerifier.closeWriteChannel();
@@ -168,6 +152,11 @@ Utils::Port IosSimulator::nextPort() const
 bool IosSimulator::canAutoDetectPorts() const
 {
     return true;
+}
+
+Utils::OsType IosSimulator::osType() const
+{
+    return Utils::OsTypeMac;
 }
 
 IosSimulator::ConstPtr IosKitInformation::simulator(Kit *kit)

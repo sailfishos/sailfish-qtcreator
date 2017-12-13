@@ -366,7 +366,13 @@ QImage QuickItemNodeInstance::renderImage() const
 
     QRectF renderBoundingRect = boundingRect();
 
-    QImage renderImage = designerSupport()->renderImageForItem(quickItem(), renderBoundingRect, renderBoundingRect.size().toSize());
+    QSize size = renderBoundingRect.size().toSize();
+    static double devicePixelRatio = qgetenv("FORMEDITOR_DEVICE_PIXEL_RATIO").toDouble();
+    size *= devicePixelRatio;
+
+    QImage renderImage = designerSupport()->renderImageForItem(quickItem(), renderBoundingRect, size);
+
+    renderImage.setDevicePixelRatio(devicePixelRatio);
 
     return renderImage;
 }
@@ -466,6 +472,8 @@ static inline bool isRectangleSane(const QRectF &rect)
 QRectF QuickItemNodeInstance::boundingRectWithStepChilds(QQuickItem *parentItem) const
 {
     QRectF boundingRect = parentItem->boundingRect();
+
+    boundingRect = boundingRect.united(QRectF(QPointF(0, 0), size()));
 
     foreach (QQuickItem *childItem, parentItem->childItems()) {
         if (!nodeInstanceServer()->hasInstanceForObject(childItem)) {
@@ -761,7 +769,7 @@ QPair<PropertyName, ServerNodeInstance> QuickItemNodeInstance::anchor(const Prop
 
     while (targetObject) {
         if (nodeInstanceServer()->hasInstanceForObject(targetObject))
-            return qMakePair(targetName, nodeInstanceServer()->instanceForObject(targetObject));
+            return {targetName, nodeInstanceServer()->instanceForObject(targetObject)};
         else
             targetObject = parentObject(targetObject);
     }

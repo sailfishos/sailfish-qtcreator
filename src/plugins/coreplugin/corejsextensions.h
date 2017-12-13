@@ -39,13 +39,14 @@ class UtilsJsExtension : public QObject
     Q_OBJECT
 
 public:
-    UtilsJsExtension(QObject *parent = 0) : QObject(parent) { }
+    UtilsJsExtension(QObject *parent = nullptr) : QObject(parent) { }
 
     // File name conversions:
     Q_INVOKABLE QString toNativeSeparators(const QString &in) const;
     Q_INVOKABLE QString fromNativeSeparators(const QString &in) const;
 
     Q_INVOKABLE QString baseName(const QString &in) const;
+    Q_INVOKABLE QString fileName(const QString &in) const;
     Q_INVOKABLE QString completeBaseName(const QString &in) const;
     Q_INVOKABLE QString suffix(const QString &in) const;
     Q_INVOKABLE QString completeSuffix(const QString &in) const;
@@ -68,6 +69,9 @@ public:
 
     // Generate temporary file:
     Q_INVOKABLE QString mktemp(const QString &pattern) const;
+
+    // Generate a ascii-only string:
+    Q_INVOKABLE QString asciify(const QString &input) const;
 };
 
 } // namespace Internal

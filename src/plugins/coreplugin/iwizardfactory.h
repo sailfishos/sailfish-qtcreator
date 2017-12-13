@@ -60,28 +60,27 @@ public:
     Id id() const { return m_id; }
     WizardKind kind() const { return m_supportedProjectTypes.isEmpty() ? FileWizard : ProjectWizard; }
     QIcon icon() const { return m_icon; }
+    QString iconText() const { return m_iconText; }
     QString description() const { return m_description; }
     QString displayName() const { return m_displayName; }
     QString category() const { return m_category; }
     QString displayCategory() const { return m_displayCategory; }
     QString descriptionImage() const { return m_descriptionImage; }
     QSet<Id> requiredFeatures() const { return m_requiredFeatures; }
-    QSet<Id> preferredFeatures() const { return m_preferredFeatures; }
     WizardFlags flags() const { return m_flags; }
     QSet<Id> supportedProjectTypes() const { return m_supportedProjectTypes; }
 
     void setId(const Id id) { m_id = id; }
     void setSupportedProjectTypes(const QSet<Id> &projectTypes) { m_supportedProjectTypes = projectTypes; }
     void setIcon(const QIcon &icon) { m_icon = icon; }
+    void setIconText(const QString &iconText) { m_iconText = iconText; }
     void setDescription(const QString &description) { m_description = description; }
     void setDisplayName(const QString &displayName) { m_displayName = displayName; }
     void setCategory(const QString &category) { m_category = category; }
     void setDisplayCategory(const QString &displayCategory) { m_displayCategory = displayCategory; }
     void setDescriptionImage(const QString &descriptionImage) { m_descriptionImage = descriptionImage; }
     void setRequiredFeatures(const QSet<Id> &featureSet) { m_requiredFeatures = featureSet; }
-    void setPreferredFeatures(const QSet<Id> &featureSet) { m_preferredFeatures = featureSet; }
     void addRequiredFeature(const Id &feature) { m_requiredFeatures |= feature; }
-    void addPreferredFeature(const Id &feature) { m_preferredFeatures |= feature; }
     void setFlags(WizardFlags flags) { m_flags = flags; }
 
     QString runPath(const QString &defaultPath);
@@ -126,13 +125,13 @@ private:
 
     QAction *m_action = 0;
     QIcon m_icon;
+    QString m_iconText;
     QString m_description;
     QString m_displayName;
     QString m_category;
     QString m_displayCategory;
     QString m_descriptionImage;
     QSet<Id> m_requiredFeatures;
-    QSet<Id> m_preferredFeatures;;
     QSet<Id> m_supportedProjectTypes;
     WizardFlags m_flags = 0;
     Id m_id;

@@ -62,9 +62,9 @@ public:
         QByteArray dockId;
         QPointer<QWidget> widget;
         QByteArray anchorDockId;
-        OperationType operationType;
-        bool visibleByDefault;
-        Qt::DockWidgetArea area;
+        OperationType operationType = Raise;
+        bool visibleByDefault = true;
+        Qt::DockWidgetArea area = Qt::BottomDockWidgetArea;
     };
 
     Perspective() = default;
@@ -136,6 +136,8 @@ public:
 
     void onModeChanged(Core::Id mode);
 
+    void setPerspectiveEnabled(const QByteArray &perspectiveId, bool enabled);
+
 private:
     QDockWidget *registerDockWidget(const QByteArray &dockId, QWidget *widget);
     void loadPerspectiveHelper(const QByteArray &perspectiveId, bool fromStoredSettings = true);
@@ -146,7 +148,7 @@ private:
     QStackedWidget *m_centralWidgetStack;
     QWidget *m_editorPlaceHolder;
     Utils::StatusLabel *m_statusLabel;
-    QDockWidget *m_toolbarDock;
+    QDockWidget *m_toolbarDock = nullptr;
 
     QHash<QByteArray, QDockWidget *> m_dockForDockId;
     QHash<QByteArray, QWidget *> m_toolbarForPerspectiveId;

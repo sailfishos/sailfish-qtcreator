@@ -153,6 +153,23 @@ static QList<CMakeTool *> autoDetectCMakeTools()
     QStringList path = env.path();
     path.removeDuplicates();
 
+    if (HostOsInfo::isWindowsHost()) {
+        const QString progFiles = QLatin1String(qgetenv("ProgramFiles"));
+        path.append(progFiles + "/CMake");
+        path.append(progFiles + "/CMake/bin");
+        const QString progFilesX86 = QLatin1String(qgetenv("ProgramFiles(x86)"));
+        if (!progFilesX86.isEmpty()) {
+            path.append(progFilesX86 + "/CMake");
+            path.append(progFilesX86 + "/CMake/bin");
+        }
+    }
+
+    if (HostOsInfo::isMacHost()) {
+        path.append("/Applications/CMake.app/Contents/bin");
+        path.append("/usr/local/bin");
+        path.append("/opt/local/bin");
+    }
+
     QStringList execs = env.appendExeExtensions(QLatin1String("cmake"));
 
     foreach (QString base, path) {

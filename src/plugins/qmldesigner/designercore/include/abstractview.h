@@ -30,6 +30,7 @@
 #include <model.h>
 #include <modelnode.h>
 #include <abstractproperty.h>
+#include <documentmessage.h>
 #include <rewritertransaction.h>
 #include <commondefines.h>
 
@@ -54,6 +55,11 @@ namespace QmlDesigner {
 class NodeInstanceView;
 class RewriterView;
 class QmlModelState;
+
+enum DesignerWidgetFlags {
+    DisableOnError,
+    IgnoreErrors
+};
 
 class WidgetInfo {
 
@@ -88,23 +94,18 @@ public:
         NoPane,
         LeftPane,
         RightPane,
+        BottomPane,
         TopPane, // not used
-        BottomPane, // not used
-        CentralPane // not used
+        CentralPane
     };
-
-    WidgetInfo()
-        : widget(0),
-          toolBarWidgetFactory(0)
-    {
-    }
 
     QString uniqueId;
     QString tabName;
-    QWidget *widget;
+    QWidget *widget = nullptr;
     int placementPriority;
     PlacementHint placementHint;
-    ToolBarWidgetFactoryInterface *toolBarWidgetFactory;
+    ToolBarWidgetFactoryInterface *toolBarWidgetFactory = nullptr;
+    DesignerWidgetFlags widgetFlags = DesignerWidgetFlags::DisableOnError;
 };
 
 class QMLDESIGNERCORE_EXPORT AbstractView : public QObject
@@ -162,6 +163,8 @@ public:
 
     QList<ModelNode> allModelNodes() const;
 
+    void emitDocumentMessage(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings = QList<DocumentMessage>());
+    void emitDocumentMessage(const QString &error);
     void emitCustomNotification(const QString &identifier);
     void emitCustomNotification(const QString &identifier, const QList<ModelNode> &nodeList);
     void emitCustomNotification(const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
@@ -194,11 +197,12 @@ public:
     virtual void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange);
     virtual void signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty>& propertyList, PropertyChangeFlags propertyChange);
     virtual void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
+    virtual void nodeTypeChanged(const ModelNode& node, const TypeName &type, int majorVersion, int minorVersion);
 
-    virtual void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList);
-    virtual void instanceErrorChange(const QVector<ModelNode> &errorNodeList);
+    virtual void instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &propertyList);
+    virtual void instanceErrorChanged(const QVector<ModelNode> &errorNodeList);
     virtual void instancesCompleted(const QVector<ModelNode> &completedNodeList);
-    virtual void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
+    virtual void instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     virtual void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     virtual void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     virtual void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
@@ -226,6 +230,8 @@ public:
 
     virtual void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
 
+    virtual void documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings);
+
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
 
     NodeInstanceView *nodeInstanceView() const;
@@ -245,7 +251,7 @@ public:
     virtual bool hasWidget() const;
     virtual WidgetInfo widgetInfo();
 
-    QString contextHelpId() const;
+    virtual QString contextHelpId() const;
 
 protected:
     void setModel(Model * model);
@@ -255,7 +261,7 @@ protected:
                                        const QString &uniqueId = QString(),
                                        WidgetInfo::PlacementHint placementHint = WidgetInfo::NoPane,
                                        int placementPriority = 0,
-                                       const QString &tabName = QString());
+                                       const QString &tabName = QString(), DesignerWidgetFlags widgetFlags = DesignerWidgetFlags::DisableOnError);
 
 private: //functions
     QList<ModelNode> toModelNodeList(const QList<Internal::InternalNodePointer> &nodeList) const;

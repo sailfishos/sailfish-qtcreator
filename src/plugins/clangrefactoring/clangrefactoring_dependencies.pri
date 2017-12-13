@@ -6,4 +6,3 @@ QTC_PLUGIN_DEPENDS += \
     coreplugin \
     cpptools \
     texteditor
-
