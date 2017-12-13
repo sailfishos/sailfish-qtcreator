@@ -104,7 +104,7 @@ bool MerDeployConfiguration::isAmbienceProject(Project *project)
 
     QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
     return rootNode->projectType() == ProjectType::AuxTemplate &&
-        rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
+        rootNode->variableValue(Variable::Config).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
 }
 
 // TODO add BuildStepList::removeStep(Core::Id)
