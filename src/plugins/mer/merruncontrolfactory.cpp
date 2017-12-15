@@ -175,7 +175,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
         connection.analyzerHost = connection.connParams.host;
         runControl->setConnection(connection);
-        (void) new RemoteLinuxAnalyzeSupport(runControl, mode);
+        (void) new RemoteLinuxAnalyzeSupport(runControl);
         return runControl;
     } else {
         QTC_ASSERT(false, return 0);
