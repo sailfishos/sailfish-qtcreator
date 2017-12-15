@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2017 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,30 +20,31 @@
 **
 ****************************************************************************/
 
-#ifndef MERRUNCONTROLFACTORY_H
-#define MERRUNCONTROLFACTORY_H
+#ifndef MERDEVICEDEBUGSUPPORT_H
+#define MERDEVICEDEBUGSUPPORT_H
 
-#include <projectexplorer/runconfiguration.h>
+#include <debugger/debuggerruncontrol.h>
+
+namespace ProjectExplorer {
+    class RunControl;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
+// Based on RemoteLinux::LinuxDeviceDebugSupport
+class MerDeviceDebugSupport : public Debugger::DebuggerRunTool
 {
     Q_OBJECT
 
 public:
-    explicit MerRunControlFactory(QObject *parent = 0);
+    MerDeviceDebugSupport(ProjectExplorer::RunControl *runControl);
 
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                Core::Id mode) const override;
-    ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
-                                        Core::Id mode, QString *errorMessage) override;
-    ProjectExplorer::IRunConfigurationAspect
-        *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override;
+protected:
+    void start() override;
 };
 
 } // namespace Internal
 } // namespace Mer
 
-#endif // MERRUNCONTROLFACTORY_H
+#endif // MERDEVICEDEBUGSUPPORT_H

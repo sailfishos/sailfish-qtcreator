@@ -29,6 +29,7 @@
 #include "merconstants.h"
 #include "merdeployconfigurationfactory.h"
 #include "merdeploystepfactory.h"
+#include "merdevicedebugsupport.h"
 #include "merdevicefactory.h"
 #include "meremulatormodedialog.h"
 #include "mergeneraloptionspage.h"
@@ -38,7 +39,6 @@
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
 #include "merrunconfigurationfactory.h"
-#include "merruncontrolfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
@@ -50,6 +50,9 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
+#include <remotelinux/remotelinuxanalyzesupport.h>
+#include <remotelinux/remotelinuxcustomrunconfiguration.h>
+#include <remotelinux/remotelinuxrunconfiguration.h>
 #include <utils/mimetypes/mimedatabase.h>
 
 #include <QMenu>
@@ -59,6 +62,8 @@
 
 using namespace Core;
 using namespace ExtensionSystem;
+using namespace ProjectExplorer;
+using namespace RemoteLinux;
 
 namespace Mer {
 namespace Internal {
@@ -80,7 +85,22 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
+    using namespace ProjectExplorer::Constants;
+
     new MerSettings(this);
+
+    auto constraint = [](RunConfiguration *runConfig) {
+        const Core::Id id = runConfig->id();
+        return id == Constants::MER_QMLRUNCONFIGURATION
+            || id.name().startsWith(Constants::MER_RUNCONFIGURATION_PREFIX);
+    };
+
+    RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
+    RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
+    RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN,
+        constraint);
+    RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
+    //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
     addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerVirtualBoxManager);
@@ -94,7 +114,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerDeployConfigurationFactory);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerQmlRunConfigurationFactory);
-    addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
     addAutoReleasedObject(new MerQmlLiveBenchManager);
