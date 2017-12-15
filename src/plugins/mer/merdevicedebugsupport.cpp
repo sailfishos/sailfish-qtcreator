@@ -54,7 +54,7 @@ using namespace RemoteLinux;
 MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     : DebuggerRunTool(runControl)
 {
-    setDisplayName("DebugSupport");
+    setDisplayName("MerDeviceDebugSupport");
 
     auto portsGatherer = new GdbServerPortsGatherer(runControl);
     portsGatherer->setUseGdbServer(isCppDebugging());
@@ -64,10 +64,21 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     gdbServer->addDependency(portsGatherer);
 
     addDependency(gdbServer);
+
+    RunConfiguration *runConfig = runControl->runConfiguration();
+    if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
+        m_symbolFile = rc->localExecutableFilePath();
+    else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
+        m_symbolFile = rc->localExecutableFilePath();
 }
 
 void MerDeviceDebugSupport::start()
 {
+    if (m_symbolFile.isEmpty()) {
+        reportFailure(tr("Cannot debug: Local executable is not set."));
+        return;
+    }
+
     auto portsGatherer = runControl()->worker<GdbServerPortsGatherer>();
     QTC_ASSERT(portsGatherer, reportFailure(); return);
 
@@ -76,16 +87,6 @@ void MerDeviceDebugSupport::start()
     const Utils::Port qmlServerPort = portsGatherer->qmlServerPort();
 
     RunConfiguration *runConfig = runControl()->runConfiguration();
-
-    QString symbolFile;
-    if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
-        symbolFile = rc->localExecutableFilePath();
-    else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
-        symbolFile = rc->localExecutableFilePath();
-    if (symbolFile.isEmpty()) {
-        //*errorMessage = tr("Cannot debug: Local executable is not set.");
-        return;
-    }
 
     DebuggerStartParameters params;
     params.startMode = AttachToRemoteServer;
@@ -111,7 +112,7 @@ void MerDeviceDebugSupport::start()
         }
 
         params.remoteChannel = QString("%1:%2").arg(host).arg(gdbServerPort.number());
-        params.symbolFile = symbolFile;
+        params.symbolFile = m_symbolFile;
 
         QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
         QTC_ASSERT(project, return);

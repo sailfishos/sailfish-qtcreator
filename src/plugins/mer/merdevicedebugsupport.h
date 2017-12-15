@@ -42,6 +42,9 @@ public:
 
 protected:
     void start() override;
+
+private:
+    QString m_symbolFile;
 };
 
 } // namespace Internal
