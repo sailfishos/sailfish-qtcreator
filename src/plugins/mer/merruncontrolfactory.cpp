@@ -46,7 +46,6 @@
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
-#include <remotelinux/remotelinuxruncontrol.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
@@ -105,7 +104,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
     const auto stdRunnable = rcRunnable.as<StandardRunnable>();
 
     if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE) {
-        return new RemoteLinuxRunControl(runConfig);
+        return new SimpleRunControl(runConfig, mode);
     } else if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
                || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
         IDevice::ConstPtr dev = DeviceKitInformation::device(runConfig->target()->kit());
