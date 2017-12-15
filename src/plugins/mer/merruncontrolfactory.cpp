@@ -103,7 +103,9 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
     const auto stdRunnable = rcRunnable.as<StandardRunnable>();
 
     if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE) {
-        return new SimpleRunControl(runConfig, mode);
+        auto runControl = new RunControl(runConfig, mode);
+        (void) new SimpleTargetRunner(runControl);
+        return runControl;
     } else if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
                || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
         IDevice::ConstPtr dev = DeviceKitInformation::device(runConfig->target()->kit());
