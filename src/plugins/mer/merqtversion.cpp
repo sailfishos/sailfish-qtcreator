@@ -132,7 +132,7 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     BaseQtVersion *version = QtKitInformation::qtVersion(kit);
     QTC_ASSERT(version == this, return result);
 
-    ToolChain *tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
     if (!tc) {
         const QString message =

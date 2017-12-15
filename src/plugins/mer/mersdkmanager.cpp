@@ -43,6 +43,7 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
@@ -238,8 +239,8 @@ FileName MerSdkManager::checkLocalConfig(const FileName &local, const FileName &
         foreach (Kit *kit, KitManager::kits()) {
             if (!kit->isAutoDetected())
                 continue;
-            ToolChain *tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
-            ToolChain *tc_c = ToolChainKitInformation::toolChain(kit, ToolChain::Language::C);
+            ToolChain *tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+            ToolChain *tc_c = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
             if (!tc)
                 continue;
 
@@ -342,7 +343,7 @@ bool MerSdkManager::isMerKit(const Kit *kit)
     if (!MerSdkKitInformation::sdk(kit))
         return false;
 
-    ToolChain* tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+    ToolChain* tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     if (tc && tc->typeId() == Constants::MER_TOOLCHAIN_ID)
         return true;
@@ -356,7 +357,7 @@ QString MerSdkManager::targetNameForKit(const Kit *kit)
 {
     if (!kit || !isMerKit(kit))
         return QString();
-    ToolChain *toolchain = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+    ToolChain *toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     if (toolchain && toolchain->typeId() == Constants::MER_TOOLCHAIN_ID) {
         MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
         return mertoolchain->targetName();
@@ -535,7 +536,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
 {
     if (!kit)
         return false;
-    ToolChain* toolchain = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+    ToolChain* toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     BaseQtVersion* version = QtKitInformation::qtVersion(kit);
     Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     MerSdk* sdk = MerSdkKitInformation::sdk(kit);

@@ -59,7 +59,7 @@ public:
     QVariantMap toMap() const;
     ProjectExplorer::Kit* createKit() const;
     MerQtVersion* createQtVersion() const;
-    MerToolChain* createToolChain(ProjectExplorer::ToolChain::Language l) const;
+    MerToolChain* createToolChain(Core::Id l) const;
     bool createScripts() const;
     void deleteScripts() const;
     bool isValid() const;

@@ -32,6 +32,7 @@
 #include "mertoolchain.h"
 
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
@@ -426,10 +427,10 @@ bool MerSdk::addTarget(const MerTarget &target)
         return false;
     }
 
-    QScopedPointer<MerToolChain> toolchain(target.createToolChain(ProjectExplorer::ToolChain::Language::Cxx));
+    QScopedPointer<MerToolChain> toolchain(target.createToolChain(ProjectExplorer::Constants::CXX_LANGUAGE_ID));
     if (toolchain.isNull())
         return false;
-    QScopedPointer<MerToolChain> toolchain_c(target.createToolChain(ProjectExplorer::ToolChain::Language::C));
+    QScopedPointer<MerToolChain> toolchain_c(target.createToolChain(ProjectExplorer::Constants::C_LANGUAGE_ID));
     if (toolchain_c.isNull())
         return false;
     QScopedPointer<MerQtVersion> version(target.createQtVersion());
@@ -459,8 +460,8 @@ bool MerSdk::removeTarget(const MerTarget &target)
     foreach (Kit *kit, KitManager::kits()) {
         if (!kit->isAutoDetected())
             continue;
-        ToolChain* tc = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
-        ToolChain* tc_c = ToolChainKitInformation::toolChain(kit, ToolChain::Language::C);
+        ToolChain* tc = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+        ToolChain* tc_c = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::C_LANGUAGE_ID);
         if (!tc ) {
             continue;
         }
