@@ -163,7 +163,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         if (mersdk && !mersdk->sharedSrcPath().isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
-        auto runControl = new DebuggerRunControl(runConfig, mode);
+        auto runControl = new RunControl(runConfig, mode);
         (void) new AbstractRemoteLinuxRunSupport(runControl);
         (void) new LinuxDeviceDebugSupport(runControl, params, errorMessage);
         return runControl;
