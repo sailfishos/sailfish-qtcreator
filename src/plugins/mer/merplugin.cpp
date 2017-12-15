@@ -97,8 +97,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
     RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
-    RunControl::registerWorker<MerDeviceDebugSupport>(DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN,
-        constraint);
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
