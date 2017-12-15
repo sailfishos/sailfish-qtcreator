@@ -198,19 +198,13 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         auto runControl = new RunControl(runConfig, mode);
         (void) new MerDeviceDebugSupport(runControl);
         return runControl;
-    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
-//            || mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE
-            ) {
+    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
         auto runControl = new RunControl(runConfig, mode);
-//        AnalyzerConnection connection;
-//        connection.connParams =
-//            DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
-//        connection.analyzerHost = connection.connParams.host;
-//        runControl->setConnection(connection);
-//        (void) new SimpleTargetRunner(runControl);
-//        (void) new PortsGatherer(runControl);
-//        (void) new FifoGatherer(runControl);
-//        (void) new RemoteLinuxAnalyzeSupport(runControl);
+        (void) new RemoteLinuxQmlProfilerSupport(runControl);
+        return runControl;
+    } else if ( mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
+        auto runControl = new RunControl(runConfig, mode);
+        (void) new RemoteLinuxPerfSupport(runControl);
         return runControl;
     } else {
         QTC_ASSERT(false, return 0);
