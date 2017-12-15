@@ -56,12 +56,12 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 {
     setDisplayName("MerDeviceDebugSupport");
 
-    auto portsGatherer = new GdbServerPortsGatherer(runControl);
-    portsGatherer->setUseGdbServer(isCppDebugging());
-    portsGatherer->setUseQmlServer(isQmlDebugging());
+    m_portsGatherer = new GdbServerPortsGatherer(runControl);
+    m_portsGatherer->setUseGdbServer(isCppDebugging());
+    m_portsGatherer->setUseQmlServer(isQmlDebugging());
 
-    auto gdbServer = new GdbServerRunner(runControl);
-    gdbServer->addDependency(portsGatherer);
+    auto gdbServer = new GdbServerRunner(runControl, m_portsGatherer);
+    gdbServer->addDependency(m_portsGatherer);
 
     addDependency(gdbServer);
 
@@ -79,12 +79,9 @@ void MerDeviceDebugSupport::start()
         return;
     }
 
-    auto portsGatherer = runControl()->worker<GdbServerPortsGatherer>();
-    QTC_ASSERT(portsGatherer, reportFailure(); return);
-
     const QString host = device()->sshParameters().host;
-    const Utils::Port gdbServerPort = portsGatherer->gdbServerPort();
-    const Utils::Port qmlServerPort = portsGatherer->qmlServerPort();
+    const Utils::Port gdbServerPort = m_portsGatherer->gdbServerPort();
+    const Utils::Port qmlServerPort = m_portsGatherer->qmlServerPort();
 
     RunConfiguration *runConfig = runControl()->runConfiguration();
 

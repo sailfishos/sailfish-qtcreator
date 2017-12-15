@@ -45,6 +45,7 @@ protected:
 
 private:
     QString m_symbolFile;
+    Debugger::GdbServerPortsGatherer *m_portsGatherer = nullptr;
 };
 
 } // namespace Internal
