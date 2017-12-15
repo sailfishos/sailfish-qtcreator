@@ -163,11 +163,9 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         if (mersdk && !mersdk->sharedSrcPath().isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
-        DebuggerRunControl * const runControl
-                = Debugger::createDebuggerRunControl(params, runConfig, errorMessage, mode);
-        if (!runControl)
-            return 0;
-        (void) new LinuxDeviceDebugSupport(runControl);
+        auto runControl = new DebuggerRunControl(runConfig, mode);
+        (void) new AbstractRemoteLinuxRunSupport(runControl);
+        (void) new LinuxDeviceDebugSupport(runControl, params, errorMessage);
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
             mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
@@ -177,6 +175,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
         connection.analyzerHost = connection.connParams.host;
         runControl->setConnection(connection);
+        (void) new AbstractRemoteLinuxRunSupport(runControl);
         (void) new RemoteLinuxAnalyzeSupport(runControl);
         return runControl;
     } else {
