@@ -113,8 +113,8 @@ void MerDeviceDebugSupport::start()
 
         QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
         QTC_ASSERT(project, return);
-        foreach (QmakeProFileNode *node, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate))
-            params.solibSearchPath.append(node->targetInformation().destDir);
+        foreach (QmakeProFile *proFile, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate))
+            params.solibSearchPath.append(proFile->targetInformation().destDir);
     }
 
     MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
