@@ -32,13 +32,9 @@
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
 
-#include <debugger/analyzer/analyzermanager.h>
-#include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
-#include <debugger/debuggerrunconfigurationaspect.h>
 #include <debugger/debuggerruncontrol.h>
-#include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
@@ -55,39 +51,83 @@ using namespace Mer;
 using namespace Mer::Internal;
 using namespace RemoteLinux;
 
-class MerDeviceDebugSupport : public LinuxDeviceDebugSupport
+// Based on RemoteLinux::LinuxDeviceDebugSupport
+class MerDeviceDebugSupport : public DebuggerRunTool
 {
     Q_OBJECT
 
 public:
-    MerDeviceDebugSupport(RunControl *runControl, QString *errorMessage = nullptr)
-        : LinuxDeviceDebugSupport(runControl, errorMessage)
+    MerDeviceDebugSupport(RunControl *runControl)
+        : DebuggerRunTool(runControl)
     {
-        DebuggerStartParameters params = startParameters();
+        setDisplayName("DebugSupport");
 
+        auto portsGatherer = new GdbServerPortsGatherer(runControl);
+        portsGatherer->setUseGdbServer(isCppDebugging());
+        portsGatherer->setUseQmlServer(isQmlDebugging());
+
+        auto gdbServer = new GdbServerRunner(runControl);
+        gdbServer->addDependency(portsGatherer);
+
+        addDependency(gdbServer);
+    }
+
+protected:
+    void start() override
+    {
+        auto portsGatherer = runControl()->worker<GdbServerPortsGatherer>();
+        QTC_ASSERT(portsGatherer, reportFailure(); return);
+
+        const QString host = device()->sshParameters().host;
+        const Port gdbServerPort = portsGatherer->gdbServerPort();
+        const Port qmlServerPort = portsGatherer->qmlServerPort();
+
+        RunConfiguration *runConfig = runControl()->runConfiguration();
+
+        QString symbolFile;
+        if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
+            symbolFile = rc->localExecutableFilePath();
+        else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
+            symbolFile = rc->localExecutableFilePath();
+        if (symbolFile.isEmpty()) {
+            //*errorMessage = tr("Cannot debug: Local executable is not set.");
+            return;
+        }
+
+        DebuggerStartParameters params;
+        params.startMode = AttachToRemoteServer;
+        params.closeMode = KillAndExitMonitorAtClose;
         params.remoteSetupNeeded = true;
 
-        auto aspect = runConfiguration()->extraAspect<DebuggerRunConfigurationAspect>();
-        if (aspect->useCppDebugger()) {
-            QString symbolFile;
-            if (auto rc = qobject_cast<MerRunConfiguration *>(runConfiguration()))
-                symbolFile = rc->localExecutableFilePath();
-            else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfiguration()))
-                symbolFile = rc->localExecutableFilePath();
-            if (symbolFile.isEmpty()) {
-                *errorMessage = tr("Cannot debug: Local executable is not set.");
-                return 0;
+        if (isQmlDebugging()) {
+            params.qmlServer.host = host;
+            params.qmlServer.port = qmlServerPort;
+            params.inferior.commandLineArguments.replace("%qml_port%",
+                            QString::number(qmlServerPort.number()));
+        }
+        if (isCppDebugging()) {
+            Runnable r = runnable();
+            QTC_ASSERT(r.is<StandardRunnable>(), return);
+            auto stdRunnable = r.as<StandardRunnable>();
+            params.useExtendedRemote = true;
+            params.inferior.executable = stdRunnable.executable;
+            params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
+            if (isQmlDebugging()) {
+                params.inferior.commandLineArguments.prepend(' ');
+                params.inferior.commandLineArguments.prepend(
+                    QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices));
             }
 
+            params.remoteChannel = QString("%1:%2").arg(host).arg(gdbServerPort.number());
             params.symbolFile = symbolFile;
 
-            QmakeProject *project = qobject_cast<QmakeProject *>(runConfiguration()->target()->project());
+            QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
             QTC_ASSERT(project, return 0);
             foreach (QmakeProFileNode *node, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate))
                 params.solibSearchPath.append(node->targetInformation().destDir);
         }
 
-        MerSdk* mersdk = MerSdkKitInformation::sdk(runConfiguration()->target()->kit());
+        MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
 
         if (mersdk && !mersdk->sharedHomePath().isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
@@ -96,6 +136,7 @@ public:
 
         setStartParameters(params);
 
+        DebuggerRunTool::start();
     }
 };
 
@@ -110,7 +151,8 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
             && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
             && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
-            && mode != ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
+//            && mode != ProjectExplorer::Constants::PERFPROFILER_RUN_MODE
+            ) {
             return false;
     }
 
@@ -138,7 +180,7 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
 }
 
 RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id mode,
-                                         QString *errorMessage)
+                                         QString *)
 {
     QTC_ASSERT(canRun(runConfig, mode), return 0);
 
@@ -148,25 +190,27 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
 
     if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE) {
         auto runControl = new RunControl(runConfig, mode);
-        (void) new AbstractRemoteLinuxRunSupport(runControl);
+        (void) new SimpleTargetRunner(runControl);
         return runControl;
     } else if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
                || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
 
         auto runControl = new RunControl(runConfig, mode);
-        (void) new AbstractRemoteLinuxRunSupport(runControl);
-        (void) new MerDeviceDebugSupport(runControl, errorMessage);
+        (void) new MerDeviceDebugSupport(runControl);
         return runControl;
-    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
-            mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
-        Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
-        AnalyzerConnection connection;
-        connection.connParams =
-            DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
-        connection.analyzerHost = connection.connParams.host;
-        runControl->setConnection(connection);
-        (void) new AbstractRemoteLinuxRunSupport(runControl);
-        (void) new RemoteLinuxAnalyzeSupport(runControl);
+    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
+//            || mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE
+            ) {
+        auto runControl = new RunControl(runConfig, mode);
+//        AnalyzerConnection connection;
+//        connection.connParams =
+//            DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
+//        connection.analyzerHost = connection.connParams.host;
+//        runControl->setConnection(connection);
+//        (void) new SimpleTargetRunner(runControl);
+//        (void) new PortsGatherer(runControl);
+//        (void) new FifoGatherer(runControl);
+//        (void) new RemoteLinuxAnalyzeSupport(runControl);
         return runControl;
     } else {
         QTC_ASSERT(false, return 0);
