@@ -90,7 +90,6 @@ void MerDeviceDebugSupport::start()
     DebuggerStartParameters params;
     params.startMode = AttachToRemoteServer;
     params.closeMode = KillAndExitMonitorAtClose;
-    params.remoteSetupNeeded = true;
 
     if (isQmlDebugging()) {
         params.qmlServer.host = host;
