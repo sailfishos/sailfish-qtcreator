@@ -50,6 +50,7 @@ public:
     ~DebuggerRunTool();
 
     void setStartParameters(const DebuggerStartParameters &sp); // Use rarely.
+    DebuggerStartParameters startParameters() const { return m_runParameters; }
     void setRunParameters(const Internal::DebuggerRunParameters &rp); // FIXME: Don't use.
 
     Internal::DebuggerEngine *engine() const { return m_engine; }
