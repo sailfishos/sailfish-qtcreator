@@ -95,7 +95,7 @@ MerQtVersion *MerQtVersion::clone() const
 
 QList<Abi> MerQtVersion::detectQtAbis() const
 {
-    return qtAbisFromLibrary(qtCorePaths(versionInfo(), qtVersionString()));
+    return qtAbisFromLibrary(qtCorePaths());
 }
 
 QString MerQtVersion::description() const
