@@ -166,7 +166,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
                 = Debugger::createDebuggerRunControl(params, runConfig, errorMessage, mode);
         if (!runControl)
             return 0;
-        (void) new LinuxDeviceDebugSupport(runConfig, runControl);
+        (void) new LinuxDeviceDebugSupport(runControl);
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE ||
             mode == ProjectExplorer::Constants::PERFPROFILER_RUN_MODE) {
@@ -176,7 +176,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
         connection.analyzerHost = connection.connParams.host;
         runControl->setConnection(connection);
-        (void) new RemoteLinuxAnalyzeSupport(runConfig, runControl, mode);
+        (void) new RemoteLinuxAnalyzeSupport(runControl, mode);
         return runControl;
     } else {
         QTC_ASSERT(false, return 0);
