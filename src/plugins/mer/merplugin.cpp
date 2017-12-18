@@ -118,7 +118,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     addAutoReleasedObject(new MerMode);
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/mer/Mer.mimetypes.xml"));
+    Utils::addMimeTypes(QLatin1String(":/mer/Mer.mimetypes.xml"));
 
     Command *emulatorConnectionCommand =
         ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
