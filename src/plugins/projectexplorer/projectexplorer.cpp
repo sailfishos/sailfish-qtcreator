@@ -2435,6 +2435,8 @@ void ProjectExplorerPluginPrivate::executeRunConfiguration(RunConfiguration *run
         return;
     }
 
+    emit m_instance->aboutToExecuteProject(runControl);
+
     startRunControl(runControl);
 }
 
