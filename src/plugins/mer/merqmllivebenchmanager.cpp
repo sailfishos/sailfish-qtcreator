@@ -93,8 +93,8 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &MerQmlLiveBenchManager::onStartupProjectChanged);
 
-    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::runControlStarted,
-            this, &MerQmlLiveBenchManager::onRunControlStarted);
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::aboutToExecuteProject,
+            this, &MerQmlLiveBenchManager::onAboutToExecuteProject);
 }
 
 MerQmlLiveBenchManager::~MerQmlLiveBenchManager()
@@ -515,7 +515,7 @@ void MerQmlLiveBenchManager::onQmlLiveBenchWorkspaceChanged(const QString &bench
     enqueueCommand(openWorkspace);
 }
 
-void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc)
+void MerQmlLiveBenchManager::onAboutToExecuteProject(ProjectExplorer::RunControl *rc)
 {
     auto merAspect = rc->runConfiguration()->extraAspect<MerRunConfigurationAspect>();
     if (!merAspect)
