@@ -2012,7 +2012,7 @@ void ProjectExplorerPluginPrivate::executeRunConfiguration(RunConfiguration *run
     auto runControl = new RunControl(runConfiguration, runMode);
     (void) producer(runControl);
 
-    emit m_instance->aboutToExecuteProject(runConfiguration->target()->project(), runMode);
+    emit m_instance->aboutToExecuteProject(runControl);
 
     startRunControl(runControl);
 }
