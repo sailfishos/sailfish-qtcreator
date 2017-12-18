@@ -36,6 +36,7 @@
 #include <utils/qtcassert.h>
 
 #include <QFileInfo>
+#include <QIcon>
 #include <QInputDialog>
 #include <QMessageBox>
 
@@ -67,6 +68,12 @@ bool MerDeviceFactory::canCreate(Core::Id type)
 QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 {
     return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE);
+}
+
+QIcon MerDeviceFactory::iconForId(Core::Id type) const
+{
+    Q_UNUSED(type);
+    return QIcon();
 }
 
 IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
