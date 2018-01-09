@@ -53,7 +53,6 @@
 #include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
-#include <utils/mimetypes/mimedatabase.h>
 
 #include <QMenu>
 #include <QMessageBox>
@@ -117,8 +116,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerQmlLiveBenchManager);
 
     addAutoReleasedObject(new MerMode);
-
-    Utils::addMimeTypes(QLatin1String(":/mer/Mer.mimetypes.xml"));
 
     Command *emulatorConnectionCommand =
         ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
