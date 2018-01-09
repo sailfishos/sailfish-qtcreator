@@ -38,6 +38,7 @@
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
+#include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
@@ -87,6 +88,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     using namespace ProjectExplorer::Constants;
 
     new MerSettings(this);
+
+    RunConfiguration::registerAspect<MerRunConfigurationAspect>();
 
     auto constraint = [](RunConfiguration *runConfig) {
         const Core::Id id = runConfig->id();
