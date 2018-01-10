@@ -25,6 +25,7 @@
 
 #include "sidebysidediffeditorwidget.h"
 #include "selectabletexteditorwidget.h"
+#include "diffeditorconstants.h"
 #include "diffeditordocument.h"
 #include "diffutils.h"
 
@@ -40,6 +41,7 @@
 #include <texteditor/fontsettings.h>
 #include <texteditor/displaysettings.h>
 
+#include <coreplugin/icore.h>
 #include <coreplugin/minisplitter.h>
 
 #include <utils/tooltip/tooltip.h>
@@ -62,8 +64,8 @@ public:
 
     void setLineNumber(int blockNumber, int lineNumber);
     void setFileInfo(int blockNumber, const DiffFileInfo &fileInfo);
-    void setSkippedLines(int blockNumber, int skippedLines) {
-        m_skippedLines[blockNumber] = skippedLines;
+    void setSkippedLines(int blockNumber, int skippedLines, const QString &contextInfo = QString()) {
+        m_skippedLines[blockNumber] = qMakePair(skippedLines, contextInfo);
         setSeparator(blockNumber, true);
     }
     void setChunkIndex(int startBlockNumber, int blockCount, int chunkIndex);
@@ -87,7 +89,6 @@ public:
     void saveState();
     void restoreState();
 
-public slots:
     void setDisplaySettings(const DisplaySettings &ds) override;
 
 signals:
@@ -111,6 +112,7 @@ protected:
     QColor replacementPenColor(int blockNumber) const override;
     QString plainTextFromSelection(const QTextCursor &cursor) const override;
     void mouseDoubleClickEvent(QMouseEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void paintEvent(QPaintEvent *e) override;
     void scrollContentsBy(int dx, int dy) override;
@@ -125,8 +127,8 @@ private:
     int m_lineNumberDigits = 1;
     // block number, fileInfo. Set for file lines only.
     QMap<int, DiffFileInfo> m_fileInfo;
-    // block number, skipped lines. Set for chunk lines only.
-    QMap<int, int> m_skippedLines;
+    // block number, skipped lines and context info. Set for chunk lines only.
+    QMap<int, QPair<int, QString> > m_skippedLines;
     // start block number, block count of a chunk, chunk index inside a file.
     QMap<int, QPair<int, int> > m_chunkInfo;
     // block number, separator. Set for file, chunk or span line.
@@ -151,8 +153,8 @@ SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
     SelectableTextEditorWidget::setDisplaySettings(settings);
 
     connect(this, &TextEditorWidget::tooltipRequested, [this](const QPoint &point, int position) {
-        int block = document()->findBlock(position).blockNumber();
-        auto it = m_fileInfo.constFind(block);
+        const int block = document()->findBlock(position).blockNumber();
+        const auto it = m_fileInfo.constFind(block);
         if (it != m_fileInfo.constEnd())
             ToolTip::show(point, it.value().fileName, this);
         else
@@ -196,8 +198,9 @@ void SideDiffEditorWidget::applyFontSettings()
 
 QString SideDiffEditorWidget::lineNumber(int blockNumber) const
 {
-    if (m_lineNumbers.contains(blockNumber))
-        return QString::number(m_lineNumbers.value(blockNumber));
+    const auto it = m_lineNumbers.constFind(blockNumber);
+    if (it != m_lineNumbers.constEnd())
+        return QString::number(it.value());
     return QString();
 }
 
@@ -214,8 +217,7 @@ bool SideDiffEditorWidget::selectionVisible(int blockNumber) const
 bool SideDiffEditorWidget::replacementVisible(int blockNumber) const
 {
     return isChunkLine(blockNumber) || (isFileLine(blockNumber)
-           && TextDocumentLayout::isFolded(
-                                            document()->findBlockByNumber(blockNumber)));
+           && TextDocumentLayout::isFolded(document()->findBlockByNumber(blockNumber)));
 }
 
 QColor SideDiffEditorWidget::replacementPenColor(int blockNumber) const
@@ -231,8 +233,8 @@ QString SideDiffEditorWidget::plainTextFromSelection(const QTextCursor &cursor) 
     if (startPosition == endPosition)
         return QString(); // no selection
 
-    QTextBlock startBlock = document()->findBlock(startPosition);
-    QTextBlock endBlock = document()->findBlock(endPosition);
+    const QTextBlock startBlock = document()->findBlock(startPosition);
+    const QTextBlock endBlock = document()->findBlock(endPosition);
     QTextBlock block = startBlock;
     QString text;
     bool textInserted = false;
@@ -247,7 +249,7 @@ QString SideDiffEditorWidget::plainTextFromSelection(const QTextCursor &cursor) 
                 if (textInserted)
                     text += QLatin1Char('\n');
                 if (block == endBlock)
-                    text += block.text().left(endPosition - block.position());
+                    text += block.text().leftRef(endPosition - block.position());
                 else
                     text += block.text();
             }
@@ -282,26 +284,17 @@ int SideDiffEditorWidget::blockNumberForFileIndex(int fileIndex) const
     if (fileIndex < 0 || fileIndex >= m_fileInfo.count())
         return -1;
 
-    QMap<int, DiffFileInfo>::const_iterator it
-            = m_fileInfo.constBegin();
-    for (int i = 0; i < fileIndex; i++)
-        ++it;
-
-    return it.key();
+    return (m_fileInfo.constBegin() + fileIndex).key();
 }
 
 int SideDiffEditorWidget::fileIndexForBlockNumber(int blockNumber) const
 {
-    QMap<int, DiffFileInfo>::const_iterator it = m_fileInfo.constBegin();
-    QMap<int, DiffFileInfo>::const_iterator itEnd = m_fileInfo.constEnd();
-
     int i = -1;
-    while (it != itEnd) {
+    for (auto it = m_fileInfo.cbegin(), end = m_fileInfo.cend(); it != end; ++it, ++i) {
         if (it.key() > blockNumber)
             break;
-        ++it;
-        ++i;
     }
+
     return i;
 }
 
@@ -310,8 +303,7 @@ int SideDiffEditorWidget::chunkIndexForBlockNumber(int blockNumber) const
     if (m_chunkInfo.isEmpty())
         return -1;
 
-    QMap<int, QPair<int, int> >::const_iterator it
-            = m_chunkInfo.upperBound(blockNumber);
+    auto it = m_chunkInfo.upperBound(blockNumber);
     if (it == m_chunkInfo.constBegin())
         return -1;
 
@@ -402,6 +394,16 @@ void SideDiffEditorWidget::mouseDoubleClickEvent(QMouseEvent *e)
     SelectableTextEditorWidget::mouseDoubleClickEvent(e);
 }
 
+void SideDiffEditorWidget::keyPressEvent(QKeyEvent *e)
+{
+    if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+        jumpToOriginalFile(textCursor());
+        e->accept();
+        return;
+    }
+    SelectableTextEditorWidget::keyPressEvent(e);
+}
+
 void SideDiffEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 {
     QPointer<QMenu> menu = createStandardContextMenu();
@@ -464,9 +466,11 @@ void SideDiffEditorWidget::paintEvent(QPaintEvent *e)
             if (bottom >= e->rect().top()) {
                 const int blockNumber = currentBlock.blockNumber();
 
-                const int skippedBefore = m_skippedLines.value(blockNumber);
-                if (skippedBefore) {
-                    const QString skippedRowsText = skippedText(skippedBefore);
+                auto it = m_skippedLines.constFind(blockNumber);
+                if (it != m_skippedLines.constEnd()) {
+                    QString skippedRowsText = '[' + skippedText(it->first) + ']';
+                    if (!it->second.isEmpty())
+                        skippedRowsText += ' ' + it->second;
                     paintSeparator(painter, m_chunkLineForeground,
                                    skippedRowsText, currentBlock, top);
                 }
@@ -534,8 +538,6 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
 
     connect(m_leftEditor, &QPlainTextEdit::cursorPositionChanged,
             this, &SideBySideDiffEditorWidget::leftCursorPositionChanged);
-//    connect(m_leftEditor->document()->documentLayout(), SIGNAL(documentSizeChanged(QSizeF)),
-//            this, SLOT(leftDocumentSizeChanged()));
 
     connect(m_rightEditor->verticalScrollBar(), &QAbstractSlider::valueChanged,
             this, &SideBySideDiffEditorWidget::rightVSliderChanged);
@@ -557,11 +559,49 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
     l->setMargin(0);
     l->addWidget(m_splitter);
     setFocusProxy(m_rightEditor);
+
+    m_leftContext = new IContext(this);
+    m_leftContext->setWidget(m_leftEditor);
+    m_leftContext->setContext(Core::Context(Core::Id(Constants::SIDE_BY_SIDE_VIEW_ID).withSuffix(1)));
+    Core::ICore::addContextObject(m_leftContext);
+    m_rightContext = new IContext(this);
+    m_rightContext->setWidget(m_rightEditor);
+    m_rightContext->setContext(Core::Context(Core::Id(Constants::SIDE_BY_SIDE_VIEW_ID).withSuffix(2)));
+    Core::ICore::addContextObject(m_rightContext);
+}
+
+SideBySideDiffEditorWidget::~SideBySideDiffEditorWidget()
+{
+    Core::ICore::removeContextObject(m_leftContext);
+    Core::ICore::removeContextObject(m_rightContext);
+}
+
+TextEditorWidget *SideBySideDiffEditorWidget::leftEditorWidget() const
+{
+    return m_leftEditor;
+}
+
+TextEditorWidget *SideBySideDiffEditorWidget::rightEditorWidget() const
+{
+    return m_rightEditor;
 }
 
 void SideBySideDiffEditorWidget::setDocument(DiffEditorDocument *document)
 {
     m_controller.setDocument(document);
+    clear();
+    QList<FileData> diffFileList;
+    QString workingDirectory;
+    if (document) {
+        diffFileList = document->diffFiles();
+        workingDirectory = document->baseDirectory();
+    }
+    setDiff(diffFileList, workingDirectory);
+}
+
+DiffEditorDocument *SideBySideDiffEditorWidget::diffDocument() const
+{
+    return m_controller.document();
 }
 
 void SideBySideDiffEditorWidget::clear(const QString &message)
@@ -586,7 +626,7 @@ void SideBySideDiffEditorWidget::setDiff(const QList<FileData> &diffFileList,
 
     m_controller.m_contextFileData = diffFileList;
     if (m_controller.m_contextFileData.isEmpty()) {
-        const QString msg = tr("No difference");
+        const QString msg = tr("No difference.");
         m_leftEditor->setPlainText(msg);
         m_rightEditor->setPlainText(msg);
     } else {
@@ -645,9 +685,8 @@ void SideBySideDiffEditorWidget::showDiff()
     QString leftTexts, rightTexts;
     int blockNumber = 0;
     QChar separator = QLatin1Char('\n');
-    for (int i = 0; i < m_controller.m_contextFileData.count(); i++) {
+    for (const FileData &contextFileData : m_controller.m_contextFileData) {
         QString leftText, rightText;
-        const FileData &contextFileData = m_controller.m_contextFileData.at(i);
 
         leftFormats[blockNumber].append(DiffSelection(&m_controller.m_fileLineFormat));
         rightFormats[blockNumber].append(DiffSelection(&m_controller.m_fileLineFormat));
@@ -669,7 +708,7 @@ void SideBySideDiffEditorWidget::showDiff()
             blockNumber++;
         } else {
             for (int j = 0; j < contextFileData.chunks.count(); j++) {
-                ChunkData chunkData = contextFileData.chunks.at(j);
+                const ChunkData &chunkData = contextFileData.chunks.at(j);
 
                 int leftLineNumber = chunkData.leftStartingLineNumber;
                 int rightLineNumber = chunkData.rightStartingLineNumber;
@@ -679,8 +718,8 @@ void SideBySideDiffEditorWidget::showDiff()
                     if (skippedLines > 0) {
                         leftFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
                         rightFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
-                        m_leftEditor->setSkippedLines(blockNumber, skippedLines);
-                        m_rightEditor->setSkippedLines(blockNumber, skippedLines);
+                        m_leftEditor->setSkippedLines(blockNumber, skippedLines, chunkData.contextInfo);
+                        m_rightEditor->setSkippedLines(blockNumber, skippedLines, chunkData.contextInfo);
                         leftText += separator;
                         rightText += separator;
                         blockNumber++;
@@ -689,8 +728,7 @@ void SideBySideDiffEditorWidget::showDiff()
                     m_leftEditor->setChunkIndex(blockNumber, chunkData.rows.count(), j);
                     m_rightEditor->setChunkIndex(blockNumber, chunkData.rows.count(), j);
 
-                    for (int k = 0; k < chunkData.rows.count(); k++) {
-                        RowData rowData = chunkData.rows.at(k);
+                    for (const RowData &rowData : chunkData.rows) {
                         TextLineData leftLineData = rowData.leftLine;
                         TextLineData rightLineData = rowData.rightLine;
                         if (leftLineData.textLineType == TextLineData::TextLine) {
@@ -721,19 +759,17 @@ void SideBySideDiffEditorWidget::showDiff()
                                 rightFormats[blockNumber].append(DiffSelection(&m_spanLineFormat));
                         }
 
-                        QMapIterator<int, int> itLeft(leftLineData.changedPositions);
-                        while (itLeft.hasNext()) {
-                            itLeft.next();
+                        for (auto it = leftLineData.changedPositions.cbegin(),
+                                  end = leftLineData.changedPositions.cend(); it != end; ++it) {
                             leftFormats[blockNumber].append(
-                                        DiffSelection(itLeft.key(), itLeft.value(),
+                                        DiffSelection(it.key(), it.value(),
                                                       &m_controller.m_leftCharFormat));
                         }
 
-                        QMapIterator<int, int> itRight(rightLineData.changedPositions);
-                        while (itRight.hasNext()) {
-                            itRight.next();
+                        for (auto it = rightLineData.changedPositions.cbegin(),
+                                  end = rightLineData.changedPositions.cend(); it != end; ++it) {
                             rightFormats[blockNumber].append(
-                                        DiffSelection(itRight.key(), itRight.value(),
+                                        DiffSelection(it.key(), it.value(),
                                                       &m_controller.m_rightCharFormat));
                         }
 
@@ -810,8 +846,7 @@ void SideBySideDiffEditorWidget::slotLeftJumpToOriginalFileRequested(
         // The same file (e.g. in git diff), jump to the line number taken from the right editor.
         // Warning: git show SHA^ vs SHA or git diff HEAD vs Index
         // (when Working tree has changed in meantime) will not work properly.
-        for (int i = 0; i < fileData.chunks.count(); i++) {
-            const ChunkData chunkData = fileData.chunks.at(i);
+        for (const ChunkData &chunkData : fileData.chunks) {
 
             int leftLineNumber = chunkData.leftStartingLineNumber;
             int rightLineNumber = chunkData.rightStartingLineNumber;

@@ -29,6 +29,7 @@
 #include <debugger/debuggeractions.h>
 #include <debugger/debuggercore.h>
 #include <debugger/debuggerengine.h>
+#include <debugger/debuggerruncontrol.h>
 #include <debugger/watchhandler.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -93,8 +94,6 @@ QmlInspectorAgent::QmlInspectorAgent(QmlEngine *engine, QmlDebugConnection *conn
 
     if (!m_masterEngine->isMasterEngine())
         m_masterEngine = m_masterEngine->masterEngine();
-    connect(m_masterEngine, &DebuggerEngine::stateChanged,
-            this, &QmlInspectorAgent::onEngineStateChanged);
 
     auto engineClient1 = new DeclarativeEngineDebugClient(connection);
     connect(engineClient1, &BaseEngineDebugClient::newState,
@@ -606,7 +605,15 @@ void QmlInspectorAgent::addWatchData(const ObjectReference &obj,
             name = obj.className();
 
         if (name.isEmpty())
-            return;
+            name = obj.name();
+
+        if (name.isEmpty()) {
+            FileReference file = obj.source();
+            name = file.url().fileName() + ':' + QString::number(file.lineNumber());
+        }
+
+        if (name.isEmpty())
+            name = tr("<anonymous>");
 
         // object
         auto objWatch = new WatchItem;
@@ -751,7 +758,7 @@ void QmlInspectorAgent::toolsClientStateChanged(QmlDebugClient::State state)
         Core::ICore::addAdditionalContext(m_inspectorToolsContext);
 
         m_toolsClientConnected = true;
-        onEngineStateChanged(m_masterEngine->state());
+        enableTools(m_masterEngine->state() == InferiorRunOk);
         if (m_showAppOnTopAction->isChecked())
             m_toolsClient->showAppOnTop(true);
 
@@ -902,11 +909,6 @@ void QmlInspectorAgent::enableTools(const bool enable)
 void QmlInspectorAgent::onReloaded()
 {
     reloadEngines();
-}
-
-void QmlInspectorAgent::onEngineStateChanged(const DebuggerState state)
-{
-    enableTools(state == InferiorRunOk);
 }
 
 } // namespace Internal

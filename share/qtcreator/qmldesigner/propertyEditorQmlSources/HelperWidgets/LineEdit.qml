@@ -26,6 +26,7 @@
 import QtQuick 2.2
 import QtQuick.Controls 1.1 as Controls
 import QtQuick.Controls.Styles 1.0
+import QtQuickDesignerTheme 1.0
 
 Controls.TextField {
 
@@ -49,6 +50,19 @@ Controls.TextField {
     property bool showExtendedFunctionButton: true
 
     signal commitData
+
+    property string context
+
+    function setTranslateExpression()
+    {
+        if (translateFunction() === "qsTranslate") {
+            backendValue.expression = translateFunction()
+                    + "(\"" + backendValue.getTranslationContext()
+                    + "\", " + "\"" + trCheckbox.escapeString(text) + "\")"
+        } else {
+            backendValue.expression = translateFunction() + "(\"" + trCheckbox.escapeString(text) + "\")"
+        }
+    }
 
     ExtendedFunctionButton {
         x: 2
@@ -96,7 +110,7 @@ Controls.TextField {
             return
 
         if (backendValue.isTranslated) {
-            backendValue.expression = translateFunction() + "(\"" + trCheckbox.escapeString(text) + "\")"
+           setTranslateExpression()
         } else {
             if (lineEdit.backendValue.value !== text)
                 lineEdit.backendValue.value = text;
@@ -106,20 +120,20 @@ Controls.TextField {
 
     style: TextFieldStyle {
 
-        selectionColor: creatorTheme.PanelTextColorLight
-        selectedTextColor: creatorTheme.PanelTextColorMid
+        selectionColor: Theme.color(Theme.PanelTextColorLight)
+        selectedTextColor: Theme.color(Theme.PanelTextColorMid)
         textColor: lineEdit.textColor
-        placeholderTextColor: creatorTheme.PanelTextColorMid
+        placeholderTextColor: Theme.color(Theme.PanelTextColorMid)
 
-        padding.top: 3
-        padding.bottom: 3
+        padding.top: 2
+        padding.bottom: 2
         padding.left: 16
         padding.right: lineEdit.showTranslateCheckBox ? 16 : 1
         background: Rectangle {
             implicitWidth: 100
             implicitHeight: 24
-            color: creatorTheme.QmlDesignerBackgroundColorDarker
-            border.color: creatorTheme.QmlDesignerBorderColor
+            color: Theme.qmlDesignerBackgroundColorDarker()
+            border.color: Theme.qmlDesignerBorderColor()
         }
     }
 
@@ -142,7 +156,7 @@ Controls.TextField {
 
         onClicked: {
             if (trCheckbox.checked) {
-                lineEdit.backendValue.expression = translateFunction() + "(\"" + escapeString(lineEdit.text) + "\")"
+                setTranslateExpression()
             } else {
                 var textValue = lineEdit.text
                 lineEdit.backendValue.value = textValue
@@ -172,8 +186,8 @@ Controls.TextField {
                 y: 1
                 Rectangle {
                     anchors.fill: parent
-                    border.color: creatorTheme.QmlDesignerBorderColor
-                    color: creatorTheme.QmlDesignerBackgroundColorDarker
+                    border.color: Theme.qmlDesignerBorderColor()
+                    color: Theme.qmlDesignerBackgroundColorDarker()
                     opacity: control.hovered || control.pressed ? 1 : 0.75
                 }
                 Image {

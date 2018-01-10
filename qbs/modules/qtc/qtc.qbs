@@ -1,19 +1,23 @@
 import qbs
 import qbs.Environment
+import qbs.FileInfo
 import "qtc.js" as HelperFunctions
 
 Module {
+    property string qtcreator_display_version: '4.4.1'
     property string ide_version_major: '4'
-    property string ide_version_minor: '2'
+    property string ide_version_minor: '4'
     property string ide_version_release: '1'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '2'
+    property string ide_compat_version_minor: '4'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
+
+    property string qtcreator_copyright_year: '2017'
 
     property string libDirName: "lib"
     property string ide_app_path: qbs.targetOS.contains("macos") ? "" : "bin"
@@ -62,6 +66,13 @@ Module {
     property stringList generalDefines: [
         "QT_CREATOR",
         'IDE_LIBRARY_BASENAME="' + libDirName + '"',
+        'RELATIVE_PLUGIN_PATH="' + FileInfo.relativePath('/' + ide_bin_path,
+                                                         '/' + ide_plugin_path) + '"',
+        'RELATIVE_LIBEXEC_PATH="' + FileInfo.relativePath('/' + ide_bin_path,
+                                                          '/' + ide_libexec_path) + '"',
+        'RELATIVE_DATA_PATH="' + FileInfo.relativePath('/' + ide_bin_path,
+                                                       '/' + ide_data_path) + '"',
+        'RELATIVE_DOC_PATH="' + FileInfo.relativePath('/' + ide_bin_path, '/' + ide_doc_path) + '"',
         "QT_NO_CAST_TO_ASCII",
         "QT_RESTRICTED_CAST_FROM_ASCII",
         "QT_DISABLE_DEPRECATED_BEFORE=0x050600",

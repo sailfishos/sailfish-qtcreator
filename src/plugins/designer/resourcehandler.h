@@ -32,8 +32,6 @@ QT_BEGIN_NAMESPACE
 class QDesignerFormWindowInterface;
 QT_END_NAMESPACE
 
-namespace ProjectExplorer { class SessionNode; }
-
 namespace Designer {
 namespace Internal {
 
@@ -54,7 +52,6 @@ public:
     explicit ResourceHandler(QDesignerFormWindowInterface *fw);
     virtual ~ResourceHandler();
 
-public slots:
     void updateResources()        { updateResourcesHelper(false); }
     void updateProjectResources() { updateResourcesHelper(true); }
 

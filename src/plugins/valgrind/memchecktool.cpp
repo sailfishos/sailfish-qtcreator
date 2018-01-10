@@ -32,12 +32,10 @@
 
 #include <debugger/analyzer/analyzerconstants.h>
 #include <debugger/analyzer/analyzermanager.h>
-#include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/analyzer/analyzerutils.h>
 #include <debugger/analyzer/startremotedialog.h>
 
 #include <valgrind/valgrindsettings.h>
-#include <valgrind/valgrindruncontrolfactory.h>
 #include <valgrind/xmlprotocol/errorlistmodel.h>
 #include <valgrind/xmlprotocol/stackmodel.h>
 #include <valgrind/xmlprotocol/error.h>
@@ -57,6 +55,7 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/buildconfiguration.h>
 
+#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -87,6 +86,7 @@
 #include <QString>
 #include <QToolButton>
 
+using namespace Core;
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -195,7 +195,7 @@ bool MemcheckErrorFilterProxyModel::filterAcceptsRow(int sourceRow, const QModel
         // ALGORITHM: look at last five stack frames, if none of these is inside any open projects,
         // assume this error was created by an external library
         QSet<QString> validFolders;
-        foreach (Project *project, SessionManager::projects()) {
+        for (Project *project : SessionManager::projects()) {
             validFolders << project->projectDirectory().toString();
             foreach (Target *target, project->targets()) {
                 foreach (const DeployableFile &file,
@@ -240,16 +240,15 @@ class MemcheckTool : public QObject
     Q_DECLARE_TR_FUNCTIONS(Valgrind::Internal::MemcheckTool)
 
 public:
-    MemcheckTool(QObject *parent);
+    MemcheckTool();
 
-    AnalyzerRunControl *createRunControl(RunConfiguration *runConfiguration, Core::Id runMode);
+    RunWorker *createRunWorker(RunControl *runControl);
 
 private:
     void updateRunActions();
     void settingsDestroyed(QObject *settings);
     void maybeActiveRunConfigurationChanged();
 
-    void engineStarting(const MemcheckRunControl *engine);
     void engineFinished();
     void loadingExternalXmlLogFileFinished();
 
@@ -286,8 +285,7 @@ private:
     bool m_toolBusy = false;
 };
 
-MemcheckTool::MemcheckTool(QObject *parent)
-  : QObject(parent)
+MemcheckTool::MemcheckTool()
 {
     m_settings = ValgrindPlugin::globalSettings();
 
@@ -304,17 +302,17 @@ MemcheckTool::MemcheckTool(QObject *parent)
         tr("These suppression files were used in the last memory analyzer run."));
 
     QAction *a = new QAction(tr("Definite Memory Leaks"), this);
-    initKindFilterAction(a, { Leak_DefinitelyLost, Leak_IndirectlyLost });
+    initKindFilterAction(a, {Leak_DefinitelyLost, Leak_IndirectlyLost});
     m_errorFilterActions.append(a);
 
     a = new QAction(tr("Possible Memory Leaks"), this);
-    initKindFilterAction(a, { Leak_PossiblyLost, Leak_StillReachable });
+    initKindFilterAction(a, {Leak_PossiblyLost, Leak_StillReachable});
     m_errorFilterActions.append(a);
 
     a = new QAction(tr("Use of Uninitialized Memory"), this);
-    initKindFilterAction(a, { InvalidRead, InvalidWrite, InvalidJump, Overlap,
-                              InvalidMemPool, UninitCondition, UninitValue,
-                              SyscallParam, ClientCheck });
+    initKindFilterAction(a, {InvalidRead, InvalidWrite, InvalidJump, Overlap,
+                             InvalidMemPool, UninitCondition, UninitValue,
+                             SyscallParam, ClientCheck});
     m_errorFilterActions.append(a);
 
     a = new QAction(tr("Invalid Calls to \"free()\""), this);
@@ -338,7 +336,7 @@ MemcheckTool::MemcheckTool(QObject *parent)
     m_errorView->setWindowTitle(tr("Memory Issues"));
 
     Debugger::registerPerspective(MemcheckPerspectiveId, new Perspective (tr("Memcheck"), {
-        { MemcheckErrorDockId, m_errorView, {}, Perspective::SplitVertical }
+        {MemcheckErrorDockId, m_errorView, {}, Perspective::SplitVertical}
     }));
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
@@ -390,49 +388,70 @@ MemcheckTool::MemcheckTool(QObject *parent)
     connect(m_filterMenu, &QMenu::triggered, this, &MemcheckTool::updateErrorFilter);
     filterButton->setMenu(m_filterMenu);
 
-    ActionDescription desc;
-    desc.setToolTip(tr("Valgrind Analyze Memory uses the "
-         "Memcheck tool to find memory leaks."));
+    ActionContainer *menu = ActionManager::actionContainer(Debugger::Constants::M_DEBUG_ANALYZER);
+    QString toolTip = tr("Valgrind Analyze Memory uses the Memcheck tool to find memory leaks.");
 
     if (!Utils::HostOsInfo::isWindowsHost()) {
-        desc.setText(tr("Valgrind Memory Analyzer"));
-        desc.setPerspectiveId(MemcheckPerspectiveId);
-        desc.setRunControlCreator(std::bind(&MemcheckTool::createRunControl, this, _1, _2));
-        desc.setToolMode(DebugMode);
-        desc.setRunMode(MEMCHECK_RUN_MODE);
-        desc.setMenuGroup(Debugger::Constants::G_ANALYZER_TOOLS);
-        Debugger::registerAction("Memcheck.Local", desc, m_startAction);
+        action = new QAction(this);
+        action->setText(tr("Valgrind Memory Analyzer"));
+        action->setToolTip(toolTip);
+        menu->addAction(ActionManager::registerAction(action, "Memcheck.Local"),
+                        Debugger::Constants::G_ANALYZER_TOOLS);
+        QObject::connect(action, &QAction::triggered, this, [action] {
+            if (!Debugger::wantRunTool(DebugMode, action->text()))
+                return;
+            TaskHub::clearTasks(Debugger::Constants::ANALYZERTASK_ID);
+            Debugger::selectPerspective(MemcheckPerspectiveId);
+            ProjectExplorerPlugin::runStartupProject(MEMCHECK_RUN_MODE);
+        });
+        QObject::connect(m_startAction, &QAction::triggered, action, &QAction::triggered);
+        QObject::connect(m_startAction, &QAction::changed, action, [action, this] {
+            action->setEnabled(m_startAction->isEnabled());
+        });
 
-        desc.setText(tr("Valgrind Memory Analyzer with GDB"));
-        desc.setToolTip(tr("Valgrind Analyze Memory with GDB uses the "
+        action = new QAction(this);
+        action->setText(tr("Valgrind Memory Analyzer with GDB"));
+        action->setToolTip(tr("Valgrind Analyze Memory with GDB uses the "
             "Memcheck tool to find memory leaks.\nWhen a problem is detected, "
             "the application is interrupted and can be debugged."));
-        desc.setPerspectiveId(MemcheckPerspectiveId);
-        desc.setRunControlCreator(std::bind(&MemcheckTool::createRunControl, this, _1, _2));
-        desc.setToolMode(DebugMode);
-        desc.setRunMode(MEMCHECK_WITH_GDB_RUN_MODE);
-        desc.setMenuGroup(Debugger::Constants::G_ANALYZER_TOOLS);
-        Debugger::registerAction("MemcheckWithGdb.Local", desc, m_startWithGdbAction);
+        menu->addAction(ActionManager::registerAction(action, "MemcheckWithGdb.Local"),
+                        Debugger::Constants::G_ANALYZER_TOOLS);
+        QObject::connect(action, &QAction::triggered, this, [action] {
+            if (!Debugger::wantRunTool(DebugMode, action->text()))
+                return;
+            TaskHub::clearTasks(Debugger::Constants::ANALYZERTASK_ID);
+            Debugger::selectPerspective(MemcheckPerspectiveId);
+            ProjectExplorerPlugin::runStartupProject(MEMCHECK_WITH_GDB_RUN_MODE);
+        });
+        QObject::connect(m_startWithGdbAction, &QAction::triggered, action, &QAction::triggered);
+        QObject::connect(m_startWithGdbAction, &QAction::changed, action, [action, this] {
+            action->setEnabled(m_startWithGdbAction->isEnabled());
+        });
     }
 
-    desc.setText(tr("Valgrind Memory Analyzer (External Application)"));
-    desc.setPerspectiveId(MemcheckPerspectiveId);
-    desc.setCustomToolStarter([this](ProjectExplorer::RunConfiguration *runConfig) {
+    action = new QAction(this);
+    action->setText(tr("Valgrind Memory Analyzer (External Application)"));
+    action->setToolTip(toolTip);
+    menu->addAction(ActionManager::registerAction(action, "Memcheck.Remote"),
+                    Debugger::Constants::G_ANALYZER_REMOTE_TOOLS);
+    QObject::connect(action, &QAction::triggered, this, [this, action] {
+        auto runConfig = RunConfiguration::startupRunConfiguration();
+        if (!runConfig) {
+            showCannotStartDialog(action->text());
+            return;
+        }
         StartRemoteDialog dlg;
         if (dlg.exec() != QDialog::Accepted)
             return;
-        AnalyzerRunControl *rc = createRunControl(runConfig, MEMCHECK_RUN_MODE);
-        QTC_ASSERT(rc, return);
+        TaskHub::clearTasks(Debugger::Constants::ANALYZERTASK_ID);
+        Debugger::selectPerspective(MemcheckPerspectiveId);
+        RunControl *rc = new RunControl(runConfig, MEMCHECK_RUN_MODE);
+        rc->createWorker(MEMCHECK_RUN_MODE);
         const auto runnable = dlg.runnable();
         rc->setRunnable(runnable);
-        AnalyzerConnection connection;
-        connection.connParams = dlg.sshParams();
-        rc->setConnection(connection);
         rc->setDisplayName(runnable.executable);
-        ProjectExplorerPlugin::startRunControl(rc, MEMCHECK_RUN_MODE);
+        ProjectExplorerPlugin::startRunControl(rc);
     });
-    desc.setMenuGroup(Debugger::Constants::G_ANALYZER_REMOTE_TOOLS);
-    Debugger::registerAction("Memcheck.Remote", desc);
 
     ToolbarDescription toolbar;
     toolbar.addAction(m_startAction);
@@ -531,45 +550,37 @@ void MemcheckTool::maybeActiveRunConfigurationChanged()
     updateFromSettings();
 }
 
-AnalyzerRunControl *MemcheckTool::createRunControl(RunConfiguration *runConfiguration, Core::Id runMode)
+RunWorker *MemcheckTool::createRunWorker(RunControl *runControl)
 {
-    m_errorModel.setRelevantFrameFinder(makeFrameFinder(runConfiguration
-        ? runConfiguration->target()->project()->files(Project::AllFiles) : QStringList()));
+    RunConfiguration *runConfig = runControl->runConfiguration();
+    m_errorModel.setRelevantFrameFinder(makeFrameFinder(runConfig
+        ? runConfig->target()->project()->files(Project::AllFiles) : QStringList()));
 
-    MemcheckRunControl *runControl = 0;
-    if (runMode == MEMCHECK_RUN_MODE)
-        runControl = new MemcheckRunControl(runConfiguration, runMode);
-    else
-        runControl = new MemcheckWithGdbRunControl(runConfiguration, runMode);
-    connect(runControl, &MemcheckRunControl::starting,
-            this, [this, runControl]() { engineStarting(runControl); });
-    connect(runControl, &MemcheckRunControl::parserError, this, &MemcheckTool::parserError);
-    connect(runControl, &MemcheckRunControl::internalParserError, this, &MemcheckTool::internalParserError);
-    connect(runControl, &MemcheckRunControl::finished, this, &MemcheckTool::engineFinished);
+    auto runTool = new MemcheckToolRunner(runControl, runControl->runMode() == MEMCHECK_WITH_GDB_RUN_MODE);
 
-    connect(m_stopAction, &QAction::triggered, runControl, [runControl] { runControl->stop(); });
+    connect(runTool, &MemcheckToolRunner::parserError, this, &MemcheckTool::parserError);
+    connect(runTool, &MemcheckToolRunner::internalParserError, this, &MemcheckTool::internalParserError);
+    connect(runTool, &MemcheckToolRunner::stopped, this, &MemcheckTool::engineFinished);
+
+    m_stopAction->disconnect();
+    connect(m_stopAction, &QAction::triggered, runControl, &RunControl::initiateStop);
 
     m_toolBusy = true;
     updateRunActions();
 
-    return runControl;
-}
-
-void MemcheckTool::engineStarting(const MemcheckRunControl *runControl)
-{
     setBusyCursor(true);
     clearErrorView();
     m_loadExternalLogFile->setDisabled(true);
 
     QString dir;
-    if (RunConfiguration *rc = runControl->runConfiguration())
+    if (RunConfiguration *rc = runTool->runControl()->runConfiguration())
         dir = rc->target()->project()->projectDirectory().toString() + QLatin1Char('/');
 
-    const QString name = Utils::FileName::fromString(runControl->executable()).fileName();
+    const QString name = Utils::FileName::fromString(runTool->executable()).fileName();
 
     m_errorView->setDefaultSuppressionFile(dir + name + QLatin1String(".supp"));
 
-    foreach (const QString &file, runControl->suppressionFiles()) {
+    foreach (const QString &file, runTool->suppressionFiles()) {
         QAction *action = m_filterMenu->addAction(Utils::FileName::fromString(file).fileName());
         action->setToolTip(file);
         connect(action, &QAction::triggered, this, [this, file]() {
@@ -577,6 +588,8 @@ void MemcheckTool::engineStarting(const MemcheckRunControl *runControl)
         });
         m_suppressionActions.append(action);
     }
+
+    return runTool;
 }
 
 void MemcheckTool::loadExternalXmlLogFile()
@@ -694,47 +707,21 @@ void MemcheckTool::setBusyCursor(bool busy)
 }
 
 
-class MemcheckRunControlFactory : public IRunControlFactory
-{
-public:
-    MemcheckRunControlFactory() : m_tool(new MemcheckTool(this)) {}
-
-    bool canRun(RunConfiguration *runConfiguration, Core::Id mode) const override
-    {
-        Q_UNUSED(runConfiguration);
-        return mode == MEMCHECK_RUN_MODE || mode == MEMCHECK_WITH_GDB_RUN_MODE;
-    }
-
-    RunControl *create(RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage) override
-    {
-        Q_UNUSED(errorMessage);
-        return m_tool->createRunControl(runConfiguration, mode);
-    }
-
-    // Do not create an aspect, let the Callgrind tool create one and use that, too.
-//    IRunConfigurationAspect *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override
-//    {
-//        return createValgrindRunConfigurationAspect(rc);
-//    }
-
-public:
-    MemcheckTool *m_tool;
-};
-
-
-static MemcheckRunControlFactory *theMemcheckRunControlFactory;
+static MemcheckTool *theMemcheckTool;
 
 void initMemcheckTool()
 {
-    theMemcheckRunControlFactory = new MemcheckRunControlFactory;
-    ExtensionSystem::PluginManager::addObject(theMemcheckRunControlFactory);
+    theMemcheckTool = new MemcheckTool;
+
+    auto producer = std::bind(&MemcheckTool::createRunWorker, theMemcheckTool, _1);
+    RunControl::registerWorker(MEMCHECK_RUN_MODE, producer);
+    RunControl::registerWorker(MEMCHECK_WITH_GDB_RUN_MODE, producer);
 }
 
 void destroyMemcheckTool()
 {
-    ExtensionSystem::PluginManager::removeObject(theMemcheckRunControlFactory);
-    delete theMemcheckRunControlFactory;
-    theMemcheckRunControlFactory = 0;
+    delete theMemcheckTool;
+    theMemcheckTool = nullptr;
 }
 
 } // namespace Internal

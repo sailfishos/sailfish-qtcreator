@@ -59,29 +59,28 @@ public:
 
     void setTestCases(const QStringList &testCases);
     void setTestCaseCount(int count);
-    void setTargetFile(const QString &targetFile);
-    void setTargetName(const QString &targetName);
-    void setProFile(const QString &proFile);
+    void setExecutableFile(const QString &executableFile);
+    void setProjectFile(const QString &projectFile);
     void setWorkingDirectory(const QString &workingDirectory);
     void setBuildDirectory(const QString &buildDirectory);
     void setDisplayName(const QString &displayName);
     void setEnvironment(const Utils::Environment &env);
     void setProject(ProjectExplorer::Project *project);
-    void setGuessedConfiguration(bool guessed);
+    void setInternalTargets(const QSet<QString> &targets);
 
     QStringList testCases() const { return m_testCases; }
     int testCaseCount() const { return m_testCaseCount; }
-    QString proFile() const { return m_proFile; }
-    QString targetFile() const { return m_targetFile; }
     QString executableFilePath() const;
-    QString targetName() const { return m_targetName; }
     QString workingDirectory() const;
     QString buildDirectory() const { return m_buildDir; }
+    QString projectFile() const { return m_projectFile; }
     QString displayName() const { return m_displayName; }
     Utils::Environment environment() const { return m_environment; }
     ProjectExplorer::Project *project() const { return m_project.data(); }
     TestRunConfiguration *runConfiguration() const { return m_runConfig; }
-    bool guessedConfiguration() const { return m_guessedConfiguration; }
+    bool isGuessed() const { return m_guessedConfiguration; }
+    QString runConfigDisplayName() const { return m_guessedConfiguration ? m_guessedFrom
+                                                                         : m_displayName; }
 
     virtual TestOutputReader *outputReader(const QFutureInterface<TestResultPtr> &fi,
                                            QProcess *app) const = 0;
@@ -90,16 +89,17 @@ public:
 private:
     QStringList m_testCases;
     int m_testCaseCount = 0;
-    QString m_proFile;
-    QString m_targetFile;
-    QString m_targetName;
+    QString m_projectFile;
+    QString m_executableFile;
     QString m_workingDir;
     QString m_buildDir;
     QString m_displayName;
+    QString m_guessedFrom;
     Utils::Environment m_environment;
     QPointer<ProjectExplorer::Project> m_project;
     bool m_guessedConfiguration = false;
     TestRunConfiguration *m_runConfig = 0;
+    QSet<QString> m_buildTargets;
 };
 
 class DebuggableTestConfiguration : public TestConfiguration

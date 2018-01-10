@@ -41,13 +41,11 @@
 #include <valgrind/callgrind/callgrindproxymodel.h>
 #include <valgrind/callgrind/callgrindstackbrowser.h>
 #include <valgrind/valgrindplugin.h>
-#include <valgrind/valgrindruncontrolfactory.h>
 #include <valgrind/valgrindsettings.h>
 
 #include <debugger/debuggerconstants.h>
 #include <debugger/analyzer/analyzerconstants.h>
 #include <debugger/analyzer/analyzermanager.h>
-#include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/analyzer/analyzerutils.h>
 #include <debugger/analyzer/startremotedialog.h>
 
@@ -67,11 +65,6 @@
 
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
-
-#include <utils/fancymainwindow.h>
-#include <utils/qtcassert.h>
-#include <utils/styledbar.h>
-#include <utils/utilsicons.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
@@ -105,6 +98,7 @@ using namespace Valgrind::Callgrind;
 using namespace TextEditor;
 using namespace ProjectExplorer;
 using namespace Utils;
+using namespace std::placeholders;
 
 namespace Valgrind {
 namespace Internal {
@@ -124,10 +118,10 @@ class CallgrindTool : public QObject
     Q_OBJECT
 
 public:
-    CallgrindTool(QObject *parent);
+    CallgrindTool();
     ~CallgrindTool();
 
-    ValgrindRunControl *createRunControl(RunConfiguration *runConfiguration, Id runMode);
+    ValgrindToolRunner *createRunTool(RunControl *runControl);
 
     void setParseData(ParseData *data);
     CostDelegate::CostFormat costFormat() const;
@@ -141,7 +135,6 @@ signals:
     void pauseToggled(bool checked);
 
 public:
-    void slotClear();
     void slotRequestDump();
     void loadExternalLogFile();
 
@@ -164,7 +157,6 @@ public:
     void handleFilterProjectCosts();
     void handleShowCostsOfFunction();
 
-    void slotGoToOverview();
     void stackBrowserChanged();
 
     /// If \param busy is true, all widgets get a busy cursor when hovered
@@ -176,9 +168,8 @@ public:
     void visualisationFunctionSelected(const Function *function);
     void showParserResults(const ParseData *data);
 
-    void takeParserDataFromRunControl(CallgrindRunControl *rc);
+    void takeParserDataFromRunControl(CallgrindToolRunner *rc);
     void takeParserData(ParseData *data);
-    void engineStarting();
     void engineFinished();
 
     void editorOpened(IEditor *);
@@ -231,8 +222,7 @@ public:
     bool m_toolBusy = false;
 };
 
-CallgrindTool::CallgrindTool(QObject *parent)
-    : QObject(parent)
+CallgrindTool::CallgrindTool()
 {
     setObjectName(QLatin1String("CallgrindTool"));
 
@@ -256,40 +246,48 @@ CallgrindTool::CallgrindTool(QObject *parent)
     m_startAction = Debugger::createStartAction();
     m_stopAction = Debugger::createStopAction();
 
-    ActionDescription desc;
-    desc.setToolTip(tr("Valgrind Function Profiler uses the "
-        "Callgrind tool to record function calls when a program runs."));
+    ActionContainer *menu = ActionManager::actionContainer(Debugger::Constants::M_DEBUG_ANALYZER);
+    QString toolTip = tr("Valgrind Function Profiler uses the "
+        "Callgrind tool to record function calls when a program runs.");
 
     if (!Utils::HostOsInfo::isWindowsHost()) {
-        desc.setText(tr("Valgrind Function Profiler"));
-        desc.setPerspectiveId(CallgrindPerspectiveId);
-        desc.setRunControlCreator([this](RunConfiguration *runConfiguration, Id) {
-            return createRunControl(runConfiguration, CALLGRIND_RUN_MODE);
+        auto action = new QAction(tr("Valgrind Function Profiler"), this);
+        action->setToolTip(toolTip);
+        menu->addAction(ActionManager::registerAction(action, CallgrindLocalActionId),
+                        Debugger::Constants::G_ANALYZER_TOOLS);
+        QObject::connect(action, &QAction::triggered, this, [action] {
+            if (!Debugger::wantRunTool(OptimizedMode, action->text()))
+                return;
+            Debugger::selectPerspective(CallgrindPerspectiveId);
+            ProjectExplorerPlugin::runStartupProject(CALLGRIND_RUN_MODE);
         });
-        desc.setToolMode(OptimizedMode);
-        desc.setRunMode(CALLGRIND_RUN_MODE);
-        desc.setMenuGroup(Debugger::Constants::G_ANALYZER_TOOLS);
-        Debugger::registerAction(CallgrindLocalActionId, desc, m_startAction);
+        QObject::connect(m_startAction, &QAction::triggered, action, &QAction::triggered);
+        QObject::connect(m_startAction, &QAction::changed, action, [action, this] {
+            action->setEnabled(m_startAction->isEnabled());
+        });
     }
 
-    desc.setText(tr("Valgrind Function Profiler (External Application)"));
-    desc.setPerspectiveId(CallgrindPerspectiveId);
-    desc.setCustomToolStarter([this](RunConfiguration *runConfig) {
+    auto action = new QAction(tr("Valgrind Function Profiler (External Application)"), this);
+    action->setToolTip(toolTip);
+    menu->addAction(ActionManager::registerAction(action, CallgrindRemoteActionId),
+                    Debugger::Constants::G_ANALYZER_REMOTE_TOOLS);
+    QObject::connect(action, &QAction::triggered, this, [this, action] {
+        auto runConfig = RunConfiguration::startupRunConfiguration();
+        if (!runConfig) {
+            showCannotStartDialog(action->text());
+            return;
+        }
         StartRemoteDialog dlg;
         if (dlg.exec() != QDialog::Accepted)
             return;
-        ValgrindRunControl *rc = createRunControl(runConfig, CALLGRIND_RUN_MODE);
-        QTC_ASSERT(rc, return);
+        Debugger::selectPerspective(CallgrindPerspectiveId);
+        auto runControl = new RunControl(runConfig, CALLGRIND_RUN_MODE);
         const auto runnable = dlg.runnable();
-        rc->setRunnable(runnable);
-        AnalyzerConnection connection;
-        connection.connParams = dlg.sshParams();
-        rc->setConnection(connection);
-        rc->setDisplayName(runnable.executable);
-        ProjectExplorerPlugin::startRunControl(rc, CALLGRIND_RUN_MODE);
+        runControl->setRunnable(runnable);
+        runControl->setDisplayName(runnable.executable);
+        createRunTool(runControl);
+        ProjectExplorerPlugin::startRunControl(runControl);
     });
-    desc.setMenuGroup(Debugger::Constants::G_ANALYZER_REMOTE_TOOLS);
-    Debugger::registerAction(CallgrindRemoteActionId, desc);
 
     // If there is a CppEditor context menu add our own context menu actions.
     if (ActionContainer *editorContextMenu =
@@ -365,7 +363,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
     //
 
     // load external log file
-    auto action = m_loadExternalLogFile = new QAction(this);
+    action = m_loadExternalLogFile = new QAction(this);
     action->setIcon(Utils::Icons::OPENFILE.icon());
     action->setToolTip(tr("Load External Log File"));
     connect(action, &QAction::triggered, this, &CallgrindTool::loadExternalLogFile);
@@ -503,11 +501,11 @@ CallgrindTool::CallgrindTool(QObject *parent)
     Debugger::registerToolbar(CallgrindPerspectiveId, toolbar);
 
     Debugger::registerPerspective(CallgrindPerspectiveId, new Perspective(tr("Callgrind"), {
-        { CallgrindFlatDockId, m_flatView, {}, Perspective::SplitVertical },
-        { CallgrindCalleesDockId, m_calleesView, {}, Perspective::SplitVertical },
-        { CallgrindCallersDockId, m_callersView, CallgrindCalleesDockId, Perspective::SplitHorizontal },
-        { CallgrindVisualizationDockId, m_visualization, {}, Perspective::SplitVertical,
-          false, Qt::RightDockWidgetArea }
+        {CallgrindFlatDockId, m_flatView, {}, Perspective::SplitVertical},
+        {CallgrindCalleesDockId, m_calleesView, {}, Perspective::SplitVertical},
+        {CallgrindCallersDockId, m_callersView, CallgrindCalleesDockId, Perspective::SplitHorizontal},
+        {CallgrindVisualizationDockId, m_visualization, {}, Perspective::SplitVertical,
+         false, Qt::RightDockWidgetArea}
     }));
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
@@ -517,16 +515,6 @@ CallgrindTool::CallgrindTool(QObject *parent)
 CallgrindTool::~CallgrindTool()
 {
     qDeleteAll(m_textMarks);
-}
-
-void CallgrindTool::slotGoToOverview()
-{
-    selectFunction(0);
-}
-
-void CallgrindTool::slotClear()
-{
-    doClear(true);
 }
 
 void CallgrindTool::doClear(bool clearParseData)
@@ -748,44 +736,48 @@ void CallgrindTool::updateEventCombo()
         m_eventCombo->addItem(ParseData::prettyStringForEvent(event));
 }
 
-ValgrindRunControl *CallgrindTool::createRunControl(RunConfiguration *runConfiguration, Id runMode)
+ValgrindToolRunner *CallgrindTool::createRunTool(RunControl *runControl)
 {
-    auto runControl = new CallgrindRunControl(runConfiguration, runMode);
+    auto toolRunner = new CallgrindToolRunner(runControl);
 
-    connect(runControl, &CallgrindRunControl::parserDataReady, this, &CallgrindTool::takeParserDataFromRunControl);
-    connect(runControl, &AnalyzerRunControl::starting, this, &CallgrindTool::engineStarting);
-    connect(runControl, &RunControl::finished, this, &CallgrindTool::engineFinished);
+    connect(toolRunner, &CallgrindToolRunner::parserDataReady, this, &CallgrindTool::takeParserDataFromRunControl);
+    connect(runControl, &RunControl::stopped, this, &CallgrindTool::engineFinished);
 
-    connect(this, &CallgrindTool::dumpRequested, runControl, &CallgrindRunControl::dump);
-    connect(this, &CallgrindTool::resetRequested, runControl, &CallgrindRunControl::reset);
-    connect(this, &CallgrindTool::pauseToggled, runControl, &CallgrindRunControl::setPaused);
+    connect(this, &CallgrindTool::dumpRequested, toolRunner, &CallgrindToolRunner::dump);
+    connect(this, &CallgrindTool::resetRequested, toolRunner, &CallgrindToolRunner::reset);
+    connect(this, &CallgrindTool::pauseToggled, toolRunner, &CallgrindToolRunner::setPaused);
 
-    connect(m_stopAction, &QAction::triggered, runControl, [runControl] { runControl->stop(); });
+    connect(m_stopAction, &QAction::triggered, toolRunner, [runControl] { runControl->initiateStop(); });
 
     // initialize run control
-    runControl->setPaused(m_pauseAction->isChecked());
+    toolRunner->setPaused(m_pauseAction->isChecked());
 
     // we may want to toggle collect for one function only in this run
-    runControl->setToggleCollectFunction(m_toggleCollectFunction);
+    toolRunner->setToggleCollectFunction(m_toggleCollectFunction);
     m_toggleCollectFunction.clear();
 
-    QTC_ASSERT(m_visualization, return runControl);
+    QTC_ASSERT(m_visualization, return toolRunner);
 
     // apply project settings
-    if (runConfiguration) {
-        if (IRunConfigurationAspect *analyzerAspect = runConfiguration->extraAspect(ANALYZER_VALGRIND_SETTINGS)) {
-            if (const ValgrindBaseSettings *settings = qobject_cast<ValgrindBaseSettings *>(analyzerAspect->currentSettings())) {
-                m_visualization->setMinimumInclusiveCostRatio(settings->visualisationMinimumInclusiveCostRatio() / 100.0);
-                m_proxyModel.setMinimumInclusiveCostRatio(settings->minimumInclusiveCostRatio() / 100.0);
-                m_dataModel.setVerboseToolTipsEnabled(settings->enableEventToolTips());
-            }
+    if (IRunConfigurationAspect *analyzerAspect = runControl->runConfiguration()->extraAspect(ANALYZER_VALGRIND_SETTINGS)) {
+        if (const ValgrindBaseSettings *settings = qobject_cast<ValgrindBaseSettings *>(analyzerAspect->currentSettings())) {
+            m_visualization->setMinimumInclusiveCostRatio(settings->visualisationMinimumInclusiveCostRatio() / 100.0);
+            m_proxyModel.setMinimumInclusiveCostRatio(settings->minimumInclusiveCostRatio() / 100.0);
+            m_dataModel.setVerboseToolTipsEnabled(settings->enableEventToolTips());
         }
     }
 
     m_toolBusy = true;
     updateRunActions();
 
-    return runControl;
+    // enable/disable actions
+    m_resetAction->setEnabled(true);
+    m_dumpAction->setEnabled(true);
+    m_loadExternalLogFile->setEnabled(false);
+    clearTextMarks();
+    doClear(true);
+
+    return toolRunner;
 }
 
 void CallgrindTool::updateRunActions()
@@ -806,16 +798,6 @@ void CallgrindTool::clearTextMarks()
 {
     qDeleteAll(m_textMarks);
     m_textMarks.clear();
-}
-
-void CallgrindTool::engineStarting()
-{
-    // enable/disable actions
-    m_resetAction->setEnabled(true);
-    m_dumpAction->setEnabled(true);
-    m_loadExternalLogFile->setEnabled(false);
-    clearTextMarks();
-    slotClear();
 }
 
 void CallgrindTool::engineFinished()
@@ -924,7 +906,7 @@ void CallgrindTool::loadExternalLogFile()
     takeParserData(parser.takeData());
 }
 
-void CallgrindTool::takeParserDataFromRunControl(CallgrindRunControl *rc)
+void CallgrindTool::takeParserDataFromRunControl(CallgrindToolRunner *rc)
 {
     takeParserData(rc->takeParserData());
 }
@@ -938,7 +920,7 @@ void CallgrindTool::takeParserData(ParseData *data)
 
     // clear first
     clearTextMarks();
-    slotClear();
+    doClear(true);
 
     setParseData(data);
     createTextMarks();
@@ -979,46 +961,20 @@ void CallgrindTool::createTextMarks()
 }
 
 
-class CallgrindRunControlFactory : public IRunControlFactory
-{
-public:
-    CallgrindRunControlFactory() : m_tool(new CallgrindTool(this)) {}
-
-    bool canRun(RunConfiguration *runConfiguration, Core::Id runMode) const override
-    {
-        Q_UNUSED(runConfiguration);
-        return runMode == CALLGRIND_RUN_MODE;
-    }
-
-    RunControl *create(RunConfiguration *runConfiguration, Core::Id runMode, QString *errorMessage) override
-    {
-        Q_UNUSED(errorMessage);
-        return m_tool->createRunControl(runConfiguration, runMode);
-    }
-
-    IRunConfigurationAspect *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override
-    {
-        return createValgrindRunConfigurationAspect(rc);
-    }
-
-public:
-    CallgrindTool *m_tool;
-};
-
-
-static CallgrindRunControlFactory *theCallgrindRunControlFactory;
+static CallgrindTool *theCallgrindTool;
 
 void initCallgrindTool()
 {
-    theCallgrindRunControlFactory = new CallgrindRunControlFactory;
-    ExtensionSystem::PluginManager::addObject(theCallgrindRunControlFactory);
+    theCallgrindTool = new CallgrindTool;
+
+    auto producer = std::bind(&CallgrindTool::createRunTool, theCallgrindTool, _1);
+    RunControl::registerWorker(CALLGRIND_RUN_MODE, producer);
 }
 
 void destroyCallgrindTool()
 {
-    ExtensionSystem::PluginManager::removeObject(theCallgrindRunControlFactory);
-    delete theCallgrindRunControlFactory;
-    theCallgrindRunControlFactory = 0;
+    delete theCallgrindTool;
+    theCallgrindTool = nullptr;
 }
 
 } // namespace Internal

@@ -28,38 +28,39 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 
-#include <QFileSystemWatcher>
 #include <QElapsedTimer>
+#include <QFutureWatcher>
 #include <QTimer>
 
-namespace TextEditor { class TextDocument; }
-
 namespace Nim {
-
-class NimProjectManager;
-class NimProjectNode;
 
 class NimProject : public ProjectExplorer::Project
 {
     Q_OBJECT
 
 public:
-    NimProject(NimProjectManager *projectManager, const QString &fileName);
+    explicit NimProject(const Utils::FileName &fileName);
 
-    QString displayName() const override;
-    QStringList files(FilesMode) const override;
     bool needsConfiguration() const override;
     bool supportsKit(ProjectExplorer::Kit *k, QString *errorMessage) const override;
     Utils::FileNameList nimFiles() const;
+    QVariantMap toMap() const override;
+
+    bool addFiles(const QStringList &filePaths);
+    bool removeFiles(const QStringList &filePaths);
+    bool renameFile(const QString &filePath, const QString &newFilePath);
+
+protected:
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
 
 private:
     void scheduleProjectScan();
-    void populateProject();
-    void recursiveScanDirectory(const QDir &dir, QSet<QString> &container);
+    void collectProjectFiles();
+    void updateProject();
 
-    QSet<QString> m_files;
-    QFileSystemWatcher m_fsWatcher;
-
+    QStringList m_files;
+    QStringList m_excludedFiles;
+    QFutureWatcher<QList<ProjectExplorer::FileNode *>> m_futureWatcher;
     QElapsedTimer m_lastProjectScan;
     QTimer m_projectScanTimer;
 };

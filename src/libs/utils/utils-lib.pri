@@ -1,10 +1,19 @@
-dll {
-    DEFINES += QTCREATOR_UTILS_LIB
+shared {
+    DEFINES += UTILS_LIBRARY
 } else {
     DEFINES += QTCREATOR_UTILS_STATIC_LIB
 }
 
-QT += gui network qml
+!win32:{
+    isEmpty(IDE_LIBEXEC_PATH) | isEmpty(IDE_BIN_PATH): {
+        warning("using utils-lib.pri without IDE_LIBEXEC_PATH or IDE_BIN_PATH results in empty QTC_REL_TOOLS_PATH")
+        DEFINES += QTC_REL_TOOLS_PATH=$$shell_quote(\"\")
+    } else {
+        DEFINES += QTC_REL_TOOLS_PATH=$$shell_quote(\"$$relative_path($$IDE_LIBEXEC_PATH, $$IDE_BIN_PATH)\")
+    }
+}
+
+QT += widgets gui network qml
 
 CONFIG += exceptions # used by portlist.cpp, textfileformat.cpp, and ssh/*
 
@@ -22,6 +31,8 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/settingsselector.cpp \
     $$PWD/stringutils.cpp \
     $$PWD/templateengine.cpp \
+    $$PWD/temporarydirectory.cpp \
+    $$PWD/temporaryfile.cpp \
     $$PWD/textfieldcheckbox.cpp \
     $$PWD/textfieldcombobox.cpp \
     $$PWD/filesearch.cpp \
@@ -71,6 +82,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/completingtextedit.cpp \
     $$PWD/json.cpp \
     $$PWD/portlist.cpp \
+    $$PWD/processhandle.cpp \
     $$PWD/appmainwindow.cpp \
     $$PWD/basetreeview.cpp \
     $$PWD/qtcassert.cpp \
@@ -101,7 +113,8 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/port.cpp \
     $$PWD/runextensions.cpp \
     $$PWD/utilsicons.cpp \
-    $$PWD/guard.cpp
+    $$PWD/guard.cpp \
+    $$PWD/highlightingitemdelegate.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
@@ -118,6 +131,8 @@ HEADERS += \
     $$PWD/shellcommandpage.h \
     $$PWD/stringutils.h \
     $$PWD/templateengine.h \
+    $$PWD/temporarydirectory.h \
+    $$PWD/temporaryfile.h \
     $$PWD/textfieldcheckbox.h \
     $$PWD/textfieldcombobox.h \
     $$PWD/filesearch.h \
@@ -172,6 +187,7 @@ HEADERS += \
     $$PWD/json.h \
     $$PWD/runextensions.h \
     $$PWD/portlist.h \
+    $$PWD/processhandle.h \
     $$PWD/appmainwindow.h \
     $$PWD/basetreeview.h \
     $$PWD/elfreader.h \
@@ -210,6 +226,7 @@ HEADERS += \
     $$PWD/port.h \
     $$PWD/functiontraits.h \
     $$PWD/mapreduce.h \
+    $$PWD/objectpool.h \
     $$PWD/declarationmacros.h \
     $$PWD/smallstring.h \
     $$PWD/smallstringiterator.h \
@@ -219,7 +236,13 @@ HEADERS += \
     $$PWD/smallstringlayout.h \
     $$PWD/sizedarray.h \
     $$PWD/smallstringio.h \
-    $$PWD/guard.h
+    $$PWD/guard.h \
+    $$PWD/asconst.h \
+    $$PWD/smallstringfwd.h \
+    $$PWD/optional.h \
+    $$PWD/../3rdparty/optional/optional.hpp \
+    $$PWD/qtcfallthrough.h \
+    $$PWD/highlightingitemdelegate.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \
@@ -232,8 +255,9 @@ osx {
     HEADERS += \
         $$PWD/fileutils_mac.h
     OBJECTIVE_SOURCES += \
-        $$PWD/fileutils_mac.mm
-    LIBS += -framework Foundation
+        $$PWD/fileutils_mac.mm \
+        $$PWD/processhandle_mac.mm
+    LIBS += -framework Foundation -framework AppKit
 }
 
 include(mimetypes/mimetypes.pri)

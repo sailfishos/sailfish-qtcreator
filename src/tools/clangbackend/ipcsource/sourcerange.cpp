@@ -29,6 +29,8 @@
 
 #include <ostream>
 
+#include <utils/qtcassert.h>
+
 namespace ClangBackEnd {
 
 SourceRange::SourceRange()
@@ -61,6 +63,17 @@ SourceLocation SourceRange::end() const
     return SourceLocation(clang_getRangeEnd(cxSourceRange));
 }
 
+bool SourceRange::contains(unsigned line, unsigned column) const
+{
+    const SourceLocation start_ = start();
+    const SourceLocation end_ = end();
+
+    return start_.line() <= line
+        && start_.column() <= column
+        && line <= end_.line()
+        && column <= end_.column();
+}
+
 SourceRangeContainer SourceRange::toSourceRangeContainer() const
 {
     return SourceRangeContainer(start().toSourceLocationContainer(),
@@ -87,13 +100,14 @@ bool operator==(const SourceRange &first, const SourceRange &second)
     return clang_equalRanges(first.cxSourceRange, second.cxSourceRange);
 }
 
-void PrintTo(const SourceRange &sourceRange, ::std::ostream* os)
+std::ostream &operator<<(std::ostream &os, const SourceRange &sourceRange)
 {
-    *os << "[";
-    PrintTo(sourceRange.start(), os);
-    *os << ", ";
-    PrintTo(sourceRange.end(), os);
-    *os << "]";
+    os << "["
+       << sourceRange.start() << ", "
+       << sourceRange.end()
+       << "]";
+
+    return os;
 }
 } // namespace ClangBackEnd
 

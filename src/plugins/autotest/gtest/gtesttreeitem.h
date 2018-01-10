@@ -49,8 +49,6 @@ public:
     explicit GTestTreeItem(const QString &name = QString(), const QString &filePath = QString(),
                            Type type = Root) : TestTreeItem(name, filePath, type), m_state(Enabled) {}
 
-    static GTestTreeItem *createTestItem(const TestParseResult *result);
-
     QVariant data(int column, int role) const override;
     bool canProvideTestConfiguration() const override { return type() != Root; }
     bool canProvideDebugConfiguration() const override { return type() != Root; }
@@ -64,13 +62,14 @@ public:
     void setStates(TestStates states) { m_state = states; }
     void setState(TestState state) { m_state |= state; }
     TestStates state() const { return m_state; }
-    bool modifyTestSetContent(const GTestParseResult *result);
     TestTreeItem *findChildByNameStateAndFile(const QString &name,
                                               GTestTreeItem::TestStates state,
                                               const QString &proFile) const;
     QString nameSuffix() const;
+    QSet<QString> internalTargets() const override;
 
 private:
+    bool modifyTestSetContent(const GTestParseResult *result);
     GTestTreeItem::TestStates m_state;
 };
 

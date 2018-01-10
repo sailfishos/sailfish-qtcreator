@@ -60,7 +60,6 @@ public:
 
     qbs::InstallOptions installOptions() const;
     QString installRoot() const;
-    QString absoluteInstallRoot() const;
     bool removeFirst() const;
     bool dryRun() const;
     bool keepGoing() const;
@@ -69,6 +68,8 @@ signals:
     void changed();
 
 private:
+    void ctor();
+    const QbsBuildConfiguration *buildConfig() const;
     void installDone(bool success);
     void handleTaskStarted(const QString &desciption, int max);
     void handleProgress(int value);
@@ -76,10 +77,10 @@ private:
     void createTaskAndOutput(ProjectExplorer::Task::TaskType type,
                              const QString &message, const QString &file, int line);
 
-    void setInstallRoot(const QString &ir);
     void setRemoveFirst(bool rf);
     void setDryRun(bool dr);
     void setKeepGoing(bool kg);
+    void handleBuildConfigChanged();
 
     qbs::InstallOptions m_qbsInstallOptions;
 
@@ -106,7 +107,6 @@ public:
 private:
     void updateState();
 
-    void changeInstallRoot();
     void changeRemoveFirst(bool rf);
     void changeDryRun(bool dr);
     void changeKeepGoing(bool kg);

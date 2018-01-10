@@ -27,6 +27,8 @@
 
 #include <projectexplorer/kit.h>
 
+#include <utils/algorithm.h>
+#include <utils/fileutils.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
@@ -43,7 +45,7 @@ CMakeConfigItem::CMakeConfigItem() = default;
 CMakeConfigItem::CMakeConfigItem(const CMakeConfigItem &other) :
     key(other.key), type(other.type), isAdvanced(other.isAdvanced),
     value(other.value), documentation(other.documentation), values(other.values)
-{ }
+{}
 
 CMakeConfigItem::CMakeConfigItem(const QByteArray &k, Type t,
                                  const QByteArray &d, const QByteArray &v) :
@@ -134,9 +136,31 @@ QStringList CMakeConfigItem::cmakeSplitValue(const QString &in, bool keepEmpty)
     return newArgs;
 }
 
+CMakeConfigItem::Type CMakeConfigItem::typeStringToType(const QByteArray &type)
+{
+    if (type == "BOOL")
+        return CMakeConfigItem::BOOL;
+    if (type == "STRING")
+        return CMakeConfigItem::STRING;
+    if (type == "FILEPATH")
+        return CMakeConfigItem::FILEPATH;
+    if (type == "PATH")
+        return CMakeConfigItem::PATH;
+    if (type == "STATIC")
+        return CMakeConfigItem::STATIC;
+
+    QTC_CHECK(type == "INTERNAL" || type == "UNINITIALIZED");
+    return CMakeConfigItem::INTERNAL;
+}
+
 QString CMakeConfigItem::expandedValue(const ProjectExplorer::Kit *k) const
 {
-    return k->macroExpander()->expand(QString::fromUtf8(value));
+    return expandedValue(k->macroExpander());
+}
+
+QString CMakeConfigItem::expandedValue(const Utils::MacroExpander *expander) const
+{
+    return expander->expand(QString::fromUtf8(value));
 }
 
 std::function<bool (const CMakeConfigItem &a, const CMakeConfigItem &b)> CMakeConfigItem::sortOperator()
@@ -146,15 +170,20 @@ std::function<bool (const CMakeConfigItem &a, const CMakeConfigItem &b)> CMakeCo
 
 CMakeConfigItem CMakeConfigItem::fromString(const QString &s)
 {
-    // Strip comments:
+    // Strip comments (only at start of line!):
     int commentStart = s.count();
-    int pos = s.indexOf(QLatin1Char('#'));
-    if (pos >= 0)
-        commentStart = pos;
-    pos = s.indexOf(QLatin1String("//"));
-    if (pos >= 0 && pos < commentStart)
-        commentStart = pos;
-
+    for (int i = 0; i < s.count(); ++i) {
+        const QChar c = s.at(i);
+        if (c == ' ' || c == '\t')
+            continue;
+        else if ((c == '#')
+                 || (c == '/' && i < s.count() - 1 && s.at(i + 1) == '/')) {
+            commentStart = i;
+            break;
+        } else {
+            break;
+        }
+    }
     const QString line = s.mid(0, commentStart);
 
     // Split up line:
@@ -190,26 +219,99 @@ CMakeConfigItem CMakeConfigItem::fromString(const QString &s)
     // Fill in item:
     CMakeConfigItem item;
     if (!key.isEmpty()) {
-        CMakeConfigItem::Type t = CMakeConfigItem::STRING;
-        if (type == QLatin1String("FILEPATH"))
-            t = CMakeConfigItem::FILEPATH;
-        else if (type == QLatin1String("PATH"))
-            t = CMakeConfigItem::PATH;
-        else if (type == QLatin1String("BOOL"))
-            t = CMakeConfigItem::BOOL;
-        else if (type == QLatin1String("INTERNAL"))
-            t = CMakeConfigItem::INTERNAL;
-        else if (type == QLatin1String("STATIC"))
-            t = CMakeConfigItem::STATIC;
-
         item.key = key.toUtf8();
-        item.type = t;
+        item.type = CMakeConfigItem::typeStringToType(type.toUtf8());
         item.value = value.toUtf8();
     }
     return item;
 }
 
-QString CMakeConfigItem::toString() const
+static QByteArray trimCMakeCacheLine(const QByteArray &in) {
+    int start = 0;
+    while (start < in.count() && (in.at(start) == ' ' || in.at(start) == '\t'))
+        ++start;
+
+    return in.mid(start, in.count() - start - 1);
+}
+
+static QByteArrayList splitCMakeCacheLine(const QByteArray &line) {
+    const int colonPos = line.indexOf(':');
+    if (colonPos < 0)
+        return QByteArrayList();
+
+    const int equalPos = line.indexOf('=', colonPos + 1);
+    if (equalPos < colonPos)
+        return QByteArrayList();
+
+    return QByteArrayList() << line.mid(0, colonPos)
+                            << line.mid(colonPos + 1, equalPos - colonPos - 1)
+                            << line.mid(equalPos + 1);
+}
+
+QList<CMakeConfigItem> CMakeConfigItem::itemsFromFile(const Utils::FileName &cacheFile, QString *errorMessage)
+{
+    CMakeConfig result;
+    QFile cache(cacheFile.toString());
+    if (!cache.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (errorMessage)
+            *errorMessage = QCoreApplication::translate("CMakeProjectManager::CMakeConfigItem", "Failed to open %1 for reading.")
+                .arg(cacheFile.toUserOutput());
+        return CMakeConfig();
+    }
+
+    QSet<QByteArray> advancedSet;
+    QMap<QByteArray, QByteArray> valuesMap;
+    QByteArray documentation;
+    while (!cache.atEnd()) {
+        const QByteArray line = trimCMakeCacheLine(cache.readLine());
+
+        if (line.isEmpty() || line.startsWith('#'))
+            continue;
+
+        if (line.startsWith("//")) {
+            documentation = line.mid(2);
+            continue;
+        }
+
+        const QByteArrayList pieces = splitCMakeCacheLine(line);
+        if (pieces.isEmpty())
+            continue;
+
+        QTC_ASSERT(pieces.count() == 3, continue);
+        const QByteArray key = pieces.at(0);
+        const QByteArray type = pieces.at(1);
+        const QByteArray value = pieces.at(2);
+
+        if (key.endsWith("-ADVANCED") && value == "1") {
+            advancedSet.insert(key.left(key.count() - 9 /* "-ADVANCED" */));
+        } else if (key.endsWith("-STRINGS") && CMakeConfigItem::typeStringToType(type) == CMakeConfigItem::INTERNAL) {
+            valuesMap[key.left(key.count() - 8) /* "-STRINGS" */] = value;
+        } else {
+            CMakeConfigItem::Type t = CMakeConfigItem::typeStringToType(type);
+            result << CMakeConfigItem(key, t, documentation, value);
+        }
+    }
+
+    // Set advanced flags:
+    for (int i = 0; i < result.count(); ++i) {
+        CMakeConfigItem &item = result[i];
+        item.isAdvanced = advancedSet.contains(item.key);
+
+        if (valuesMap.contains(item.key)) {
+            item.values = CMakeConfigItem::cmakeSplitValue(QString::fromUtf8(valuesMap[item.key]));
+        } else if (item.key  == "CMAKE_BUILD_TYPE") {
+            // WA for known options
+            item.values << "" << "Debug" << "Release" << "MinSizeRel" << "RelWithDebInfo";
+        }
+    }
+
+    Utils::sort(result, CMakeConfigItem::sortOperator());
+
+    return result;
+
+}
+
+QString CMakeConfigItem::toString(const Utils::MacroExpander *expander) const
 {
     if (key.isEmpty() || type == CMakeProjectManager::CMakeConfigItem::STATIC)
         return QString();
@@ -235,7 +337,14 @@ QString CMakeConfigItem::toString() const
         break;
     }
 
-    return QString::fromUtf8(key) + QLatin1Char(':') + typeStr + QLatin1Char('=') + QString::fromUtf8(value);
+    const QString expandedValue
+            = expander ? expander->expand(QString::fromUtf8(value)) : QString::fromUtf8(value);
+    return QString::fromUtf8(key) + QLatin1Char(':') + typeStr + QLatin1Char('=') + expandedValue;
+}
+
+QString CMakeConfigItem::toArgument(const Utils::MacroExpander *expander) const
+{
+    return "-D" + toString(expander);
 }
 
 bool CMakeConfigItem::operator==(const CMakeConfigItem &o) const
@@ -268,34 +377,34 @@ void CMakeProjectPlugin::testCMakeSplitValue_data()
             << "" << true << QStringList();
 
     QTest::newRow("single path")
-            << "C:/something" << false << QStringList({ "C:/something" });
+            << "C:/something" << false << QStringList({"C:/something"});
     QTest::newRow("single path, keep empty")
-            << "C:/something" << true << QStringList({ "C:/something" });
+            << "C:/something" << true << QStringList({"C:/something"});
 
     QTest::newRow(";single path")
-            << ";C:/something" << false << QStringList({ "C:/something" });
+            << ";C:/something" << false << QStringList({"C:/something"});
     QTest::newRow(";single path, keep empty")
-            << ";C:/something" << true << QStringList({ "", "C:/something" });
+            << ";C:/something" << true << QStringList({"", "C:/something"});
 
     QTest::newRow("single path;")
-            << "C:/something;" << false << QStringList({ "C:/something" });
+            << "C:/something;" << false << QStringList({"C:/something"});
     QTest::newRow("single path;, keep empty")
-            << "C:/something;" << true << QStringList({ "C:/something", "" });
+            << "C:/something;" << true << QStringList({"C:/something", ""});
 
     QTest::newRow("single path\\;")
-            << "C:/something\\;" << false << QStringList({ "C:/something;" });
+            << "C:/something\\;" << false << QStringList({"C:/something;"});
     QTest::newRow("single path\\;, keep empty")
-            << "C:/something\\;" << true << QStringList({ "C:/something;" });
+            << "C:/something\\;" << true << QStringList({"C:/something;"});
 
     QTest::newRow("single path\\;;second path")
-            << "C:/something\\;;/second/path" << false << QStringList({ "C:/something;", "/second/path" });
+            << "C:/something\\;;/second/path" << false << QStringList({"C:/something;", "/second/path"});
     QTest::newRow("single path\\;;second path, keep empty")
-            << "C:/something\\;;/second/path" << true << QStringList({ "C:/something;", "/second/path" });
+            << "C:/something\\;;/second/path" << true << QStringList({"C:/something;", "/second/path"});
 
     QTest::newRow("single path;;second path")
-            << "C:/something;;/second/path" << false << QStringList({ "C:/something", "/second/path" });
+            << "C:/something;;/second/path" << false << QStringList({"C:/something", "/second/path"});
     QTest::newRow("single path;;second path, keep empty")
-            << "C:/something;;/second/path" << true << QStringList({ "C:/something", "", "/second/path" });
+            << "C:/something;;/second/path" << true << QStringList({"C:/something", "", "/second/path"});
 }
 
 void CMakeProjectPlugin::testCMakeSplitValue()

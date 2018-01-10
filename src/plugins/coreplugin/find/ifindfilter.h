@@ -50,6 +50,7 @@ public:
     virtual bool isValid() const { return true; }
     virtual QKeySequence defaultShortcut() const;
     virtual bool isReplaceSupported() const { return false; }
+    virtual bool showSearchTermInput() const { return true; }
     virtual FindFlags supportedFindFlags() const;
 
     virtual void findAll(const QString &txt, FindFlags findFlags) = 0;
@@ -64,6 +65,7 @@ public:
     static QString descriptionForFindFlags(FindFlags flags);
 signals:
     void enabledChanged(bool enabled);
+    void validChanged(bool valid);
     void displayNameChanged();
 };
 

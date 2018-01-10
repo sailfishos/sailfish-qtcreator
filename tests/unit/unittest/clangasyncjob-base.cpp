@@ -51,7 +51,8 @@ JobRequest ClangAsyncJobTest::createJobRequest(const Utf8String &filePath,
 {
     JobRequest jobRequest;
     jobRequest.type = type;
-    jobRequest.requirements = JobRequest::requirementsForType(type);
+    jobRequest.expirationReasons = JobRequest::expirationReasonsForType(type);
+    jobRequest.conditions = JobRequest::conditionsForType(type);
     jobRequest.filePath = filePath;
     jobRequest.projectPartId = projectPartId;
     jobRequest.unsavedFilesChangeTimePoint = unsavedFiles.lastChangeTimePoint();

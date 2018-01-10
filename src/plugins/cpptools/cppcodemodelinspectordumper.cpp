@@ -33,6 +33,7 @@
 #include <cpptools/cppprojectfile.h>
 #include <projectexplorer/project.h>
 #include <utils/algorithm.h>
+#include <utils/temporarydirectory.h>
 
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/Token.h>
@@ -87,6 +88,19 @@ QString Utils::toString(CPlusPlus::Document::DiagnosticMessage::Level level)
     return QString();
 }
 
+QString Utils::toString(ProjectPartHeaderPath::Type type)
+{
+#define CASE_LANGUAGEVERSION(x) case ProjectPartHeaderPath::x: return QLatin1String(#x)
+    switch (type) {
+    CASE_LANGUAGEVERSION(InvalidPath);
+    CASE_LANGUAGEVERSION(IncludePath);
+    CASE_LANGUAGEVERSION(FrameworkPath);
+    // no default to get a compiler warning if anything is added
+    }
+#undef CASE_LANGUAGEVERSION
+    return QString();
+}
+
 QString Utils::toString(ProjectPart::LanguageVersion languageVersion)
 {
 #define CASE_LANGUAGEVERSION(x) case ProjectPart::x: return QLatin1String(#x)
@@ -130,7 +144,8 @@ QString Utils::toString(ProjectPart::QtVersion qtVersion)
     switch (qtVersion) {
     CASE_QTVERSION(UnknownQt);
     CASE_QTVERSION(NoQt);
-    CASE_QTVERSION(Qt4);
+    CASE_QTVERSION(Qt4_8_6AndOlder);
+    CASE_QTVERSION(Qt4Latest);
     CASE_QTVERSION(Qt5);
     // no default to get a compiler warning if anything is added
     }
@@ -138,34 +153,9 @@ QString Utils::toString(ProjectPart::QtVersion qtVersion)
     return QString();
 }
 
-QString Utils::toString(const QVector<ProjectFile> &projectFiles)
-{
-    QStringList filesList;
-    foreach (const ProjectFile &projectFile, projectFiles)
-        filesList << QDir::toNativeSeparators(projectFile.path);
-    ::Utils::sort(filesList);
-    return filesList.join(QLatin1Char('\n'));
-}
-
 QString Utils::toString(ProjectFile::Kind kind)
 {
-#define CASE_PROFECTFILEKIND(x) case ProjectFile::x: return QLatin1String(#x)
-    switch (kind) {
-    CASE_PROFECTFILEKIND(Unclassified);
-    CASE_PROFECTFILEKIND(CHeader);
-    CASE_PROFECTFILEKIND(CSource);
-    CASE_PROFECTFILEKIND(CXXHeader);
-    CASE_PROFECTFILEKIND(CXXSource);
-    CASE_PROFECTFILEKIND(ObjCHeader);
-    CASE_PROFECTFILEKIND(ObjCSource);
-    CASE_PROFECTFILEKIND(ObjCXXHeader);
-    CASE_PROFECTFILEKIND(ObjCXXSource);
-    CASE_PROFECTFILEKIND(CudaSource);
-    CASE_PROFECTFILEKIND(OpenCLSource);
-    // no default to get a compiler warning if anything is added
-    }
-#undef CASE_PROFECTFILEKIND
-    return QString();
+    return QString::fromLatin1(projectFileKindToText(kind));
 }
 
 QString Utils::toString(CPlusPlus::Kind kind)
@@ -440,9 +430,10 @@ Dumper::Dumper(const CPlusPlus::Snapshot &globalSnapshot, const QString &logFile
     QString logFileId_ = logFileId;
     if (!logFileId_.isEmpty())
         logFileId_.prepend(QLatin1Char('_'));
-    const QString logFileName = QDir::tempPath() + QString::fromLatin1("/qtc-codemodelinspection")
+    const QString logFileName = ::Utils::TemporaryDirectory::masterDirectoryPath()
+            + "/qtc-codemodelinspection"
             + ideRevision_
-            + QDateTime::currentDateTime().toString(QLatin1String("_yyMMdd_hhmmss"))
+            + QDateTime::currentDateTime().toString("_yyMMdd_hhmmss")
             + logFileId_
             + QLatin1String(".txt");
 
@@ -476,7 +467,7 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
         m_out << i1 << "Project " << project->displayName()
               << " (" << project->projectFilePath().toUserOutput() << "){{{2\n";
 
-        const QList<ProjectPart::Ptr> projectParts = info.projectParts();
+        const QVector<ProjectPart::Ptr> projectParts = info.projectParts();
         foreach (const ProjectPart::Ptr &part, projectParts) {
             QString projectName = QLatin1String("<None>");
             QString projectFilePath = QLatin1String("<None>");
@@ -487,13 +478,14 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
             if (!part->projectConfigFile.isEmpty())
                 m_out << i3 << "Project Config File: " << part->projectConfigFile << "\n";
             m_out << i2 << "Project Part \"" << part->id() << "\"{{{3\n";
-            m_out << i3 << "Project Part Name   : " << part->displayName << "\n";
-            m_out << i3 << "Project Name        : " << projectName << "\n";
-            m_out << i3 << "Project File        : " << projectFilePath << "\n";
-            m_out << i3 << "Lanugage Version    : " << Utils::toString(part->languageVersion)<<"\n";
-            m_out << i3 << "Lanugage Extensions : " << Utils::toString(part->languageExtensions)
+            m_out << i3 << "Project Part Name    : " << part->displayName << "\n";
+            m_out << i3 << "Project Name         : " << projectName << "\n";
+            m_out << i3 << "Project File         : " << projectFilePath << "\n";
+            m_out << i3 << "Selected For Building: " << part->selectedForBuilding << "\n";
+            m_out << i3 << "Lanugage Version     : " << Utils::toString(part->languageVersion)<<"\n";
+            m_out << i3 << "Lanugage Extensions  : " << Utils::toString(part->languageExtensions)
                   << "\n";
-            m_out << i3 << "Qt Version          : " << Utils::toString(part->qtVersion) << "\n";
+            m_out << i3 << "Qt Version           : " << Utils::toString(part->qtVersion) << "\n";
 
             if (!part->files.isEmpty()) {
                 m_out << i3 << "Files:{{{4\n";

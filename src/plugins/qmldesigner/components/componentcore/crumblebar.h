@@ -46,16 +46,14 @@ public:
 
     Utils::CrumblePath *crumblePath();
 
-private slots:
-    void onCrumblePathElementClicked(const QVariant &data);
-
 private:
+    void onCrumblePathElementClicked(const QVariant &data);
     void updateVisibility();
     void showSaveDialog();
 
 private:
-    bool m_isInternalCalled;
-    Utils::CrumblePath *m_crumblePath;
+    bool m_isInternalCalled = false;
+    Utils::CrumblePath *m_crumblePath = nullptr;
 };
 
 class CrumbleBarInfo {

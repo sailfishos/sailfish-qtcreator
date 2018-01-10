@@ -71,38 +71,38 @@ public:
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange) override;
     void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange) override;
 
-    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) override;
+    void instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &informationChangedHash) override;
 
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId) override;
 
     void resetView();
     void currentStateChanged(const ModelNode &node) override;
-    void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList) override;
+    void instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &propertyList) override;
 
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) override;
+    void nodeTypeChanged(const ModelNode& node, const TypeName &type, int majorVersion, int minorVersion) override;
 
     void nodeReparented(const ModelNode &node,
                         const NodeAbstractProperty &newPropertyParent,
                         const NodeAbstractProperty &oldPropertyParent,
                         AbstractView::PropertyChangeFlags propertyChange) override;
 
-public slots:
     void changeValue(const QString &name);
     void changeExpression(const QString &name);
     void exportPopertyAsAlias(const QString &name);
     void removeAliasExport(const QString &name);
+
+    bool locked() const;
 
 protected:
     void timerEvent(QTimerEvent *event) override;
     void setupPane(const TypeName &typeName);
     void setValue(const QmlObjectNode &fxObjectNode, const PropertyName &name, const QVariant &value);
 
-private slots:
+private: //functions
     void reloadQml();
     void updateSize();
     void setupPanes();
-
-private: //functions
 
     void select(const ModelNode& node);
 

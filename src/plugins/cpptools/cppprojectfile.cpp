@@ -24,33 +24,35 @@
 ****************************************************************************/
 
 #include "cppprojectfile.h"
-
 #include "cpptoolsconstants.h"
 
 #include <coreplugin/icore.h>
 #include <utils/mimetypes/mimedatabase.h>
-#
+
 #include <QDebug>
 
 namespace CppTools {
 
-ProjectFile::ProjectFile()
-    : kind(CHeader)
-{
-}
-
-ProjectFile::ProjectFile(const QString &file, Kind kind)
-    : path(file)
+ProjectFile::ProjectFile(const QString &filePath, Kind kind)
+    : path(filePath)
     , kind(kind)
 {
 }
 
-ProjectFile::Kind ProjectFile::classify(const QString &file)
+bool ProjectFile::operator==(const ProjectFile &other) const
 {
-    Utils::MimeDatabase mdb;
-    const Utils::MimeType mimeType = mdb.mimeTypeForFile(file);
+    return path == other.path
+        && kind == other.kind;
+}
+
+ProjectFile::Kind ProjectFile::classify(const QString &filePath)
+{
+    if (isAmbiguousHeader(filePath))
+        return AmbiguousHeader;
+
+    const Utils::MimeType mimeType = Utils::mimeTypeForFile(filePath);
     if (!mimeType.isValid())
-        return Unclassified;
+        return Unsupported;
     const QString mt = mimeType.name();
     if (mt == QLatin1String(CppTools::Constants::C_SOURCE_MIMETYPE))
         return CSource;
@@ -68,10 +70,14 @@ ProjectFile::Kind ProjectFile::classify(const QString &file)
         return CXXSource;
     if (mt == QLatin1String(CppTools::Constants::MOC_MIMETYPE))
         return CXXSource;
-    return Unclassified;
+    return Unsupported;
 }
 
-/// @return True if file is header or cannot be classified (i.e has no file extension)
+bool ProjectFile::isAmbiguousHeader(const QString &filePath)
+{
+    return filePath.endsWith(".h");
+}
+
 bool ProjectFile::isHeader(ProjectFile::Kind kind)
 {
     switch (kind) {
@@ -79,14 +85,14 @@ bool ProjectFile::isHeader(ProjectFile::Kind kind)
     case ProjectFile::CXXHeader:
     case ProjectFile::ObjCHeader:
     case ProjectFile::ObjCXXHeader:
-    case ProjectFile::Unclassified:
+    case ProjectFile::Unsupported: // no file extension, e.g. stl headers
+    case ProjectFile::AmbiguousHeader:
         return true;
     default:
         return false;
     }
 }
 
-/// @return True if file is correctly classified source
 bool ProjectFile::isSource(ProjectFile::Kind kind)
 {
     switch (kind) {
@@ -102,25 +108,43 @@ bool ProjectFile::isSource(ProjectFile::Kind kind)
     }
 }
 
-QDebug operator<<(QDebug stream, const CppTools::ProjectFile &cxxFile)
+bool ProjectFile::isHeader() const
 {
-    const char *kind;
-    switch (cxxFile.kind) {
-    case CppTools::ProjectFile::CHeader: kind = "CHeader"; break;
-    case CppTools::ProjectFile::CSource: kind = "CSource"; break;
-    case CppTools::ProjectFile::CXXHeader: kind = "CXXHeader"; break;
-    case CppTools::ProjectFile::CXXSource: kind = "CXXSource"; break;
-    case CppTools::ProjectFile::ObjCHeader: kind = "ObjCHeader"; break;
-    case CppTools::ProjectFile::ObjCSource: kind = "ObjCSource"; break;
-    case CppTools::ProjectFile::ObjCXXHeader: kind = "ObjCXXHeader"; break;
-    case CppTools::ProjectFile::ObjCXXSource: kind = "ObjCXXSource"; break;
-    case CppTools::ProjectFile::CudaSource: kind = "CudaSource"; break;
-    case CppTools::ProjectFile::OpenCLSource: kind = "OpenCLSource"; break;
-    default: kind = "INVALID"; break;
+    return isHeader(kind);
+}
+
+bool ProjectFile::isSource() const
+{
+    return isSource(kind);
+}
+
+#define RETURN_TEXT_FOR_CASE(enumValue) case ProjectFile::enumValue: return #enumValue
+const char *projectFileKindToText(ProjectFile::Kind kind)
+{
+    switch (kind) {
+        RETURN_TEXT_FOR_CASE(Unclassified);
+        RETURN_TEXT_FOR_CASE(Unsupported);
+        RETURN_TEXT_FOR_CASE(AmbiguousHeader);
+        RETURN_TEXT_FOR_CASE(CHeader);
+        RETURN_TEXT_FOR_CASE(CSource);
+        RETURN_TEXT_FOR_CASE(CXXHeader);
+        RETURN_TEXT_FOR_CASE(CXXSource);
+        RETURN_TEXT_FOR_CASE(ObjCHeader);
+        RETURN_TEXT_FOR_CASE(ObjCSource);
+        RETURN_TEXT_FOR_CASE(ObjCXXHeader);
+        RETURN_TEXT_FOR_CASE(ObjCXXSource);
+        RETURN_TEXT_FOR_CASE(CudaSource);
+        RETURN_TEXT_FOR_CASE(OpenCLSource);
     }
-    stream << cxxFile.path << QLatin1String(", ") << kind;
+
+    return "UnhandledProjectFileKind";
+}
+#undef RETURN_TEXT_FOR_CASE
+
+QDebug operator<<(QDebug stream, const CppTools::ProjectFile &projectFile)
+{
+    stream << projectFile.path << QLatin1String(", ") << projectFileKindToText(projectFile.kind);
     return stream;
 }
 
 } // namespace CppTools
-

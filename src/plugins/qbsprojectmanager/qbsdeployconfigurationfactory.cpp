@@ -53,11 +53,6 @@ static Core::Id genericQbsDeployConfigurationId()
 // QbsDeployConfiguration:
 // --------------------------------------------------------------------
 
-QbsInstallStep *QbsDeployConfiguration::qbsInstallStep() const
-{
-    return stepList()->firstOfType<QbsInstallStep>();
-}
-
 QbsDeployConfiguration::QbsDeployConfiguration(ProjectExplorer::Target *target, Core::Id id) :
     ProjectExplorer::DeployConfiguration(target, id)
 { }

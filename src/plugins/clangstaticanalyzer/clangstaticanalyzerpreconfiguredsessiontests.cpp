@@ -69,12 +69,11 @@ static bool processEventsUntil(const std::function<bool()> condition, int timeOu
 class WaitForParsedProjects : public QObject
 {
 public:
-    WaitForParsedProjects(ProjectExplorer::SessionManager &sessionManager,
-                          const QStringList &projects)
-        : m_sessionManager(sessionManager)
-        , m_projectsToWaitFor(projects)
+    WaitForParsedProjects(const QStringList &projects)
+        : m_projectsToWaitFor(projects)
     {
-        connect(&m_sessionManager, &ProjectExplorer::SessionManager::projectFinishedParsing,
+        connect(SessionManager::instance(),
+                &ProjectExplorer::SessionManager::projectFinishedParsing,
                 this, &WaitForParsedProjects::onProjectFinishedParsing);
     }
 
@@ -91,35 +90,25 @@ public:
     }
 
 private:
-    ProjectExplorer::SessionManager &m_sessionManager;
     QStringList m_projectsToWaitFor;
 };
 
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
-ClangStaticAnalyzerPreconfiguredSessionTests::ClangStaticAnalyzerPreconfiguredSessionTests(
-        ClangStaticAnalyzerTool *analyzerTool,
-        QObject *parent)
-    : QObject(parent)
-    , m_sessionManager(*ProjectExplorer::SessionManager::instance())
-    , m_analyzerTool(*analyzerTool)
-{
-}
-
 void ClangStaticAnalyzerPreconfiguredSessionTests::initTestCase()
 {
     const QString preconfiguredSessionName = QLatin1String("ClangStaticAnalyzerPreconfiguredSession");
-    if (!m_sessionManager.sessions().contains(preconfiguredSessionName))
+    if (!SessionManager::sessions().contains(preconfiguredSessionName))
         QSKIP("Manually preconfigured session 'ClangStaticAnalyzerPreconfiguredSession' needed.");
 
-    if (m_sessionManager.activeSession() == preconfiguredSessionName)
+    if (SessionManager::activeSession() == preconfiguredSessionName)
         QSKIP("Session must not be already active.");
 
     // Load session
-    const QStringList projects = m_sessionManager.projectsForSessionName(preconfiguredSessionName);
-    WaitForParsedProjects waitForParsedProjects(m_sessionManager, projects);
-    QVERIFY(m_sessionManager.loadSession(preconfiguredSessionName));
+    const QStringList projects = SessionManager::projectsForSessionName(preconfiguredSessionName);
+    WaitForParsedProjects waitForParsedProjects(projects);
+    QVERIFY(SessionManager::loadSession(preconfiguredSessionName));
     QVERIFY(waitForParsedProjects.wait());
 }
 
@@ -130,13 +119,13 @@ void ClangStaticAnalyzerPreconfiguredSessionTests::testPreconfiguredSession()
 
     QVERIFY(switchToProjectAndTarget(project, target));
 
-    m_analyzerTool.startTool();
-    QSignalSpy waitUntilAnalyzerFinished(&m_analyzerTool, SIGNAL(finished(bool)));
+    ClangStaticAnalyzerTool::instance()->startTool();
+    QSignalSpy waitUntilAnalyzerFinished(ClangStaticAnalyzerTool::instance(), SIGNAL(finished(bool)));
     QVERIFY(waitUntilAnalyzerFinished.wait(30000));
     const QList<QVariant> arguments = waitUntilAnalyzerFinished.takeFirst();
     const bool analyzerFinishedSuccessfully = arguments.first().toBool();
     QVERIFY(analyzerFinishedSuccessfully);
-    QCOMPARE(m_analyzerTool.diagnostics().count(), 0);
+    QCOMPARE(ClangStaticAnalyzerTool::instance()->diagnostics().count(), 0);
 }
 
 static QList<Project *> validProjects(const QList<Project *> projectsOfSession)
@@ -175,7 +164,7 @@ static QList<Target *> validTargets(Project *project)
             return false;
         }
 
-        const ToolChain * const toolchain = ToolChainKitInformation::toolChain(kit, ToolChain::Language::Cxx);
+        const ToolChain * const toolchain = ToolChainKitInformation::toolChain(kit, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
         QTC_ASSERT(toolchain, return false);
         bool hasClangExecutable;
         clangExecutableFromSettings(toolchain->typeId(), &hasClangExecutable);
@@ -206,7 +195,7 @@ void ClangStaticAnalyzerPreconfiguredSessionTests::testPreconfiguredSession_data
 
     bool hasAddedTestData = false;
 
-    foreach (Project *project, validProjects(m_sessionManager.projects())) {
+    foreach (Project *project, validProjects(SessionManager::projects())) {
         foreach (Target *target, validTargets(project)) {
             hasAddedTestData = true;
             QTest::newRow(dataTagName(project, target)) << project << target;
@@ -220,17 +209,17 @@ void ClangStaticAnalyzerPreconfiguredSessionTests::testPreconfiguredSession_data
 bool ClangStaticAnalyzerPreconfiguredSessionTests::switchToProjectAndTarget(Project *project,
                                                                             Target *target)
 {
-    Project * const activeProject = m_sessionManager.startupProject();
+    Project * const activeProject = SessionManager::startupProject();
     if (project == activeProject && target == activeProject->activeTarget())
         return true; // OK, desired project/target already active.
 
     if (project != activeProject)
-        m_sessionManager.setStartupProject(project);
+        SessionManager::setStartupProject(project);
 
     if (target != project->activeTarget()) {
         QSignalSpy spyFinishedParsing(ProjectExplorer::SessionManager::instance(),
                                       &ProjectExplorer::SessionManager::projectFinishedParsing);
-        m_sessionManager.setActiveTarget(project, target, ProjectExplorer::SetActive::NoCascade);
+        SessionManager::setActiveTarget(project, target, ProjectExplorer::SetActive::NoCascade);
         QTC_ASSERT(spyFinishedParsing.wait(30000), return false);
 
         const QVariant projectArgument = spyFinishedParsing.takeFirst().takeFirst();

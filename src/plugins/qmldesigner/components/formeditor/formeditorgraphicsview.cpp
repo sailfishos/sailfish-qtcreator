@@ -102,7 +102,7 @@ void FormEditorGraphicsView::mousePressEvent(QMouseEvent *event)
 void FormEditorGraphicsView::mouseReleaseEvent(QMouseEvent *event)
 {
     // not sure why buttons() are empty here, but we have that information from the enum
-    if (/*event->buttons().testFlag(Qt::MiddleButton) && */m_isPanning == Panning::MouseWheelStarted)
+    if (m_isPanning == Panning::MouseWheelStarted)
         stopPanning(event);
     else
         QGraphicsView::mouseReleaseEvent(event);
@@ -140,6 +140,17 @@ void FormEditorGraphicsView::keyReleaseEvent(QKeyEvent *event)
         stopPanning(event);
 
     QGraphicsView::keyReleaseEvent(event);
+}
+
+void FormEditorGraphicsView::paintEvent(QPaintEvent *event)
+{
+    if (!m_blockPainting) {
+        QGraphicsView::paintEvent(event);
+    } else {
+        QWidget::paintEvent(event);
+        QPainter painter(viewport());
+        painter.drawPixmap(0, 0, m_lastUpdate);
+    }
 }
 
 void FormEditorGraphicsView::startPanning(QEvent *event)
@@ -200,6 +211,17 @@ void FormEditorGraphicsView::drawBackground(QPainter *painter, const QRectF &rec
     painter->setPen(Qt::black);
     painter->drawRect(rootItemRect());
     painter->restore();
+}
+
+void FormEditorGraphicsView::setBlockPainting(bool block)
+{
+    if (block)
+        m_lastUpdate = viewport()->grab();
+
+    m_blockPainting = block;
+
+    if (!block)
+        update();
 }
 
 } // namespace QmlDesigner

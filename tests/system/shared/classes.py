@@ -28,39 +28,38 @@ import operator
 
 # for easier re-usage (because Python hasn't an enum type)
 class Targets:
-    ALL_TARGETS = map(lambda x: 2 ** x , range(7))
+    ALL_TARGETS = tuple(map(lambda x: 2 ** x , range(5)))
 
-    (DESKTOP_474_GCC,
-     DESKTOP_480_DEFAULT,
-     SIMULATOR,
+    (DESKTOP_487_DEFAULT,
      EMBEDDED_LINUX,
      DESKTOP_531_DEFAULT,
      DESKTOP_541_GCC,
      DESKTOP_561_DEFAULT) = ALL_TARGETS
 
     @staticmethod
+    def availableTargetClasses():
+        availableTargets = list(Targets.ALL_TARGETS)
+        if platform.system() in ('Windows', 'Microsoft'):
+            availableTargets.remove(Targets.EMBEDDED_LINUX)
+        elif platform.system() == 'Darwin':
+            availableTargets.remove(Targets.DESKTOP_541_GCC)
+        return availableTargets
+
+    @staticmethod
     def desktopTargetClasses():
-        desktopTargets = (sum(Targets.ALL_TARGETS) & ~Targets.SIMULATOR & ~Targets.EMBEDDED_LINUX)
-        if platform.system() == 'Darwin':
-            desktopTargets &= ~Targets.DESKTOP_541_GCC
+        desktopTargets = Targets.availableTargetClasses()
+        if Targets.EMBEDDED_LINUX in desktopTargets:
+            desktopTargets.remove(Targets.EMBEDDED_LINUX)
         return desktopTargets
 
     @staticmethod
     def qt4Classes():
-        return (Targets.DESKTOP_474_GCC | Targets.DESKTOP_480_DEFAULT
-                | Targets.SIMULATOR | Targets.EMBEDDED_LINUX)
+        return (Targets.DESKTOP_487_DEFAULT | Targets.EMBEDDED_LINUX)
 
     @staticmethod
     def getStringForTarget(target):
-        if target == Targets.DESKTOP_474_GCC:
-            return "Desktop 474 GCC"
-        elif target == Targets.DESKTOP_480_DEFAULT:
-            if platform.system() in ('Windows', 'Microsoft'):
-                return "Desktop 480 MSVC2010"
-            else:
-                return "Desktop 480 GCC"
-        elif target == Targets.SIMULATOR:
-            return "Qt Simulator"
+        if target == Targets.DESKTOP_487_DEFAULT:
+            return "Desktop 487 default"
         elif target == Targets.EMBEDDED_LINUX:
             return "Embedded Linux"
         elif target == Targets.DESKTOP_531_DEFAULT:
@@ -81,14 +80,6 @@ class Targets:
         if None in result:
             test.fatal("You've passed at least one unknown target!")
         return result
-
-    @staticmethod
-    def intToArray(targets):
-        return filter(lambda x: x & targets, Targets.ALL_TARGETS)
-
-    @staticmethod
-    def arrayToInt(targetArr):
-        return reduce(operator.or_, targetArr, 0)
 
     @staticmethod
     def getDefaultKit():
@@ -240,3 +231,13 @@ class Qt5Path:
             path = "Docs/Qt-5.%d" % qtMinorVersion
 
         return os.path.join(Qt5Path.__createPlatformQtPath__(qtMinorVersion), path)
+
+class TestSection:
+    def __init__(self, description):
+        self.description = description
+
+    def __enter__(self):
+        test.startSection(self.description)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        test.endSection()

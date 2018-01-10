@@ -49,7 +49,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <extensionsystem/pluginmanager.h>
-#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -209,7 +208,14 @@ const char pp_configuration[] =
     "#define __finally\n"
     "#define __inline inline\n"
     "#define __forceinline inline\n"
-    "#define __pragma(x)\n";
+    "#define __pragma(x)\n"
+    "#define __w64\n"
+    "#define __int64 long long\n"
+    "#define __int32 long\n"
+    "#define __int16 short\n"
+    "#define __int8 char\n"
+    "#define __ptr32\n"
+    "#define __ptr64\n";
 
 QSet<QString> CppModelManager::timeStampModifiedFiles(const QList<Document::Ptr> &documentsToCheck)
 {
@@ -339,6 +345,8 @@ CppModelManager::CppModelManager(QObject *parent)
             this, &CppModelManager::onAboutToRemoveProject);
     connect(sessionManager, &ProjectExplorer::SessionManager::aboutToLoadSession,
             this, &CppModelManager::onAboutToLoadSession);
+    connect(sessionManager, &ProjectExplorer::SessionManager::startupProjectChanged,
+            this, &CppModelManager::onActiveProjectChanged);
 
     connect(Core::EditorManager::instance(), &Core::EditorManager::currentEditorChanged,
             this, &CppModelManager::onCurrentEditorChanged);
@@ -635,14 +643,22 @@ static QSet<QString> tooBigFilesRemoved(const QSet<QString> &files, int fileSize
 QFuture<void> CppModelManager::updateSourceFiles(const QSet<QString> &sourceFiles,
                                                  ProgressNotificationMode mode)
 {
+    const QFutureInterface<void> dummy;
+    return updateSourceFiles(dummy, sourceFiles, mode);
+}
+
+QFuture<void> CppModelManager::updateSourceFiles(const QFutureInterface<void> &superFuture,
+                                                 const QSet<QString> &sourceFiles,
+                                                 ProgressNotificationMode mode)
+{
     if (sourceFiles.isEmpty() || !d->m_indexerEnabled)
         return QFuture<void>();
 
     const QSet<QString> filteredFiles = tooBigFilesRemoved(sourceFiles, indexerFileSizeLimitInMb());
 
     if (d->m_indexingSupporter)
-        d->m_indexingSupporter->refreshSourceFiles(filteredFiles, mode);
-    return d->m_internalIndexingSupport->refreshSourceFiles(filteredFiles, mode);
+        d->m_indexingSupporter->refreshSourceFiles(superFuture, filteredFiles, mode);
+    return d->m_internalIndexingSupport->refreshSourceFiles(superFuture, filteredFiles, mode);
 }
 
 QList<ProjectInfo> CppModelManager::projectInfos() const
@@ -688,13 +704,6 @@ void CppModelManager::removeFilesFromSnapshot(const QSet<QString> &filesToRemove
         d->m_snapshot.remove(i.next());
 }
 
-static QSet<QString> projectPartIds(const QSet<ProjectPart::Ptr> &projectParts)
-{
-    return Utils::transform(projectParts, [](const ProjectPart::Ptr &projectPart) {
-        return projectPart->id();
-    });
-}
-
 class ProjectInfoComparer
 {
 public:
@@ -726,8 +735,8 @@ public:
 
     QStringList removedProjectParts()
     {
-        QSet<QString> removed = projectPartIds(m_old.projectParts().toSet());
-        removed.subtract(projectPartIds(m_new.projectParts().toSet()));
+        QSet<QString> removed = projectPartIds(m_old.projectParts());
+        removed.subtract(projectPartIds(m_new.projectParts()));
         return removed.toList();
     }
 
@@ -746,6 +755,17 @@ public:
         }
 
         return CppModelManager::timeStampModifiedFiles(documentsToCheck);
+    }
+
+private:
+    static QSet<QString> projectPartIds(const QVector<ProjectPart::Ptr> &projectParts)
+    {
+        QSet<QString> ids;
+
+        foreach (const ProjectPart::Ptr &projectPart, projectParts)
+            ids.insert(projectPart->id());
+
+        return ids;
     }
 
 private:
@@ -774,26 +794,28 @@ void CppModelManager::recalculateProjectPartMappings()
     d->m_symbolFinder.clearCache();
 }
 
-void CppModelManager::watchForCanceledProjectIndexer(QFuture<void> future,
+void CppModelManager::watchForCanceledProjectIndexer(const QVector<QFuture<void>> &futures,
                                                      ProjectExplorer::Project *project)
 {
     d->m_projectToIndexerCanceled.insert(project, false);
 
-    if (future.isCanceled() || future.isFinished())
-        return;
+    for (const QFuture<void> &future : futures) {
+        if (future.isCanceled() || future.isFinished())
+            continue;
 
-    QFutureWatcher<void> *watcher = new QFutureWatcher<void>();
-    connect(watcher, &QFutureWatcher<void>::canceled, this, [this, project]() {
-        if (d->m_projectToIndexerCanceled.contains(project)) // Project not yet removed
-            d->m_projectToIndexerCanceled.insert(project, true);
-    });
-    connect(watcher, &QFutureWatcher<void>::finished, this, [watcher]() {
-        watcher->deleteLater();
-    });
-    watcher->setFuture(future);
+        QFutureWatcher<void> *watcher = new QFutureWatcher<void>();
+        connect(watcher, &QFutureWatcher<void>::canceled, this, [this, project]() {
+            if (d->m_projectToIndexerCanceled.contains(project)) // Project not yet removed
+                d->m_projectToIndexerCanceled.insert(project, true);
+        });
+        connect(watcher, &QFutureWatcher<void>::finished, this, [watcher]() {
+            watcher->deleteLater();
+        });
+        watcher->setFuture(future);
+    }
 }
 
-void CppModelManager::updateCppEditorDocuments() const
+void CppModelManager::updateCppEditorDocuments(bool projectsUpdated) const
 {
     // Refresh visible documents
     QSet<Core::IDocument *> visibleCppEditorDocuments;
@@ -802,7 +824,7 @@ void CppModelManager::updateCppEditorDocuments() const
             const QString filePath = document->filePath().toString();
             if (CppEditorDocumentHandle *theCppEditorDocument = cppEditorDocument(filePath)) {
                 visibleCppEditorDocuments.insert(document);
-                theCppEditorDocument->processor()->run();
+                theCppEditorDocument->processor()->run(projectsUpdated);
             }
         }
     }
@@ -813,31 +835,45 @@ void CppModelManager::updateCppEditorDocuments() const
     invisibleCppEditorDocuments.subtract(visibleCppEditorDocuments);
     foreach (Core::IDocument *document, invisibleCppEditorDocuments) {
         const QString filePath = document->filePath().toString();
-        if (CppEditorDocumentHandle *theCppEditorDocument = cppEditorDocument(filePath))
-            theCppEditorDocument->setNeedsRefresh(true);
+        if (CppEditorDocumentHandle *theCppEditorDocument = cppEditorDocument(filePath)) {
+            const CppEditorDocumentHandle::RefreshReason refreshReason = projectsUpdated
+                    ? CppEditorDocumentHandle::ProjectUpdate
+                    : CppEditorDocumentHandle::Other;
+            theCppEditorDocument->setRefreshReason(refreshReason);
+        }
     }
 }
 
 QFuture<void> CppModelManager::updateProjectInfo(const ProjectInfo &newProjectInfo)
 {
+    QFutureInterface<void> dummy;
+    return updateProjectInfo(dummy, newProjectInfo);
+}
+
+QFuture<void> CppModelManager::updateProjectInfo(QFutureInterface<void> &futureInterface,
+                                                 const ProjectInfo &newProjectInfo)
+{
     if (!newProjectInfo.isValid())
         return QFuture<void>();
+
+    ProjectInfo theNewProjectInfo = newProjectInfo;
+    theNewProjectInfo.finish();
 
     QSet<QString> filesToReindex;
     QStringList removedProjectParts;
     bool filesRemoved = false;
-    ProjectExplorer::Project *project = newProjectInfo.project().data();
+    ProjectExplorer::Project *project = theNewProjectInfo.project().data();
 
     { // Only hold the mutex for a limited scope, so the dumping afterwards does not deadlock.
         QMutexLocker projectLocker(&d->m_projectMutex);
 
-        const QSet<QString> newSourceFiles = newProjectInfo.sourceFiles();
+        const QSet<QString> newSourceFiles = theNewProjectInfo.sourceFiles();
 
         // Check if we can avoid a full reindexing
         ProjectInfo oldProjectInfo = d->m_projectToProjectsInfo.value(project);
         const bool previousIndexerCanceled = d->m_projectToIndexerCanceled.value(project, false);
         if (!previousIndexerCanceled && oldProjectInfo.isValid()) {
-            ProjectInfoComparer comparer(oldProjectInfo, newProjectInfo);
+            ProjectInfoComparer comparer(oldProjectInfo, theNewProjectInfo);
 
             if (comparer.configurationOrFilesChanged()) {
                 d->m_dirty = true;
@@ -880,7 +916,7 @@ QFuture<void> CppModelManager::updateProjectInfo(const ProjectInfo &newProjectIn
         }
 
         // Update Project/ProjectInfo and File/ProjectPart table
-        d->m_projectToProjectsInfo.insert(project, newProjectInfo);
+        d->m_projectToProjectsInfo.insert(project, theNewProjectInfo);
         recalculateProjectPartMappings();
 
     } // Mutex scope
@@ -898,19 +934,19 @@ QFuture<void> CppModelManager::updateProjectInfo(const ProjectInfo &newProjectIn
         emit projectPartsRemoved(removedProjectParts);
 
     // Announce added project parts
-    emit projectPartsUpdated(newProjectInfo.project().data());
+    emit projectPartsUpdated(theNewProjectInfo.project().data());
 
     // Ideally, we would update all the editor documents that depend on the 'filesToReindex'.
     // However, on e.g. a session restore first the editor documents are created and then the
     // project updates come in. That is, there are no reasonable dependency tables based on
     // resolved includes that we could rely on.
-    updateCppEditorDocuments();
+    updateCppEditorDocuments(/*projectsUpdated = */ true);
 
     // Trigger reindexing
-    QFuture<void> indexerFuture = updateSourceFiles(filesToReindex, ForcedProgressNotification);
-    watchForCanceledProjectIndexer(indexerFuture, project);
-
-    return indexerFuture;
+    const QFuture<void> indexingFuture = updateSourceFiles(futureInterface, filesToReindex,
+                                                           ForcedProgressNotification);
+    watchForCanceledProjectIndexer({futureInterface.future(), indexingFuture}, project);
+    return indexingFuture;
 }
 
 ProjectInfo CppModelManager::updateCompilerCallDataForProject(
@@ -957,7 +993,6 @@ ProjectPart::Ptr CppModelManager::fallbackProjectPart()
 
     part->projectDefines = definedMacros();
     part->headerPaths = headerPaths();
-    part->languageVersion = ProjectPart::CXX14;
 
     // Do not activate ObjectiveCExtensions since this will lead to the
     // "objective-c++" language option for a project-less *.cpp file.
@@ -972,7 +1007,7 @@ ProjectPart::Ptr CppModelManager::fallbackProjectPart()
 
 bool CppModelManager::isCppEditor(Core::IEditor *editor)
 {
-    return editor->context().contains(ProjectExplorer::Constants::LANG_CXX);
+    return editor->context().contains(ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 }
 
 bool CppModelManager::isClangCodeModelActive() const
@@ -1041,6 +1076,20 @@ void CppModelManager::onAboutToRemoveProject(ProjectExplorer::Project *project)
     delayedGC();
 }
 
+void CppModelManager::onActiveProjectChanged(ProjectExplorer::Project *project)
+{
+    if (!project)
+        return; // Last project closed.
+
+    {
+        QMutexLocker locker(&d->m_projectMutex);
+        if (!d->m_projectToProjectsInfo.contains(project))
+            return; // Not yet known to us.
+    }
+
+    updateCppEditorDocuments();
+}
+
 void CppModelManager::onSourceFilesRefreshed() const
 {
     if (BuiltinIndexingSupport::isFindErrorsIndexingActive()) {
@@ -1056,9 +1105,12 @@ void CppModelManager::onCurrentEditorChanged(Core::IEditor *editor)
 
     const QString filePath = editor->document()->filePath().toString();
     if (CppEditorDocumentHandle *theCppEditorDocument = cppEditorDocument(filePath)) {
-        if (theCppEditorDocument->needsRefresh()) {
-            theCppEditorDocument->setNeedsRefresh(false);
-            theCppEditorDocument->processor()->run();
+        const CppEditorDocumentHandle::RefreshReason refreshReason
+                = theCppEditorDocument->refreshReason();
+        if (refreshReason != CppEditorDocumentHandle::None) {
+            const bool projectsChanged = refreshReason == CppEditorDocumentHandle::ProjectUpdate;
+            theCppEditorDocument->setRefreshReason(CppEditorDocumentHandle::None);
+            theCppEditorDocument->processor()->run(projectsChanged);
         }
     }
 }

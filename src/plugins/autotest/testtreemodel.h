@@ -46,10 +46,6 @@ class TestTreeModel : public Utils::TreeModel<>
 public:
     static TestTreeModel* instance();
     ~TestTreeModel();
-    void enableParsing();
-    void enableParsingFromSettings();
-    void disableParsing();
-    void disableParsingFromSettings();
 
     bool setData(const QModelIndex &index, const QVariant &value, int role) override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
@@ -87,6 +83,7 @@ private:
     void onParseResultReady(const TestParseResultPtr result);
     void handleParseResult(const TestParseResult *result, TestTreeItem *rootNode);
     void removeAllTestItems();
+    void removeTestRootNodes();
     void removeFiles(const QStringList &files);
     bool sweepChildren(TestTreeItem *item);
 
@@ -95,7 +92,6 @@ private:
 
     TestCodeParser *m_parser;
     bool m_connectionsInitialized = false;
-    QAtomicInt m_refCounter;
 };
 
 class TestTreeSortFilterModel : public QSortFilterProxyModel

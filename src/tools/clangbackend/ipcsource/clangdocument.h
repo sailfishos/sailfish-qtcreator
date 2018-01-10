@@ -54,9 +54,9 @@ class Documents;
 class Document
 {
 public:
-    enum FileExistsCheck {
-        CheckIfFileExists,
-        DoNotCheckIfFileExists
+    enum class FileExistsCheck {
+        Check,
+        DoNotCheck
     };
 
     Document() = default;
@@ -64,25 +64,25 @@ public:
              const ProjectPart &projectPart,
              const Utf8StringVector &fileArguments,
              Documents &documents,
-             FileExistsCheck fileExistsCheck = CheckIfFileExists);
+             FileExistsCheck fileExistsCheck = FileExistsCheck::Check);
     ~Document();
 
-    Document(const Document &cxTranslationUnit);
-    Document &operator=(const Document &cxTranslationUnit);
+    Document(const Document &document);
+    Document &operator=(const Document &document);
 
-    Document(Document &&cxTranslationUnit);
-    Document &operator=(Document &&cxTranslationUnit);
+    Document(Document &&document);
+    Document &operator=(Document &&document);
 
     void reset();
 
     bool isNull() const;
     bool isIntact() const;
+    bool isParsed() const;
 
     Utf8String filePath() const;
     Utf8StringVector fileArguments() const;
     FileContainer fileContainer() const;
 
-    Utf8String projectPartId() const;
     const ProjectPart &projectPart() const;
     const TimePoint lastProjectPartChangeTimePoint() const;
     bool isProjectPartOutdated() const;
@@ -90,14 +90,23 @@ public:
     uint documentRevision() const;
     void setDocumentRevision(uint revision);
 
+    bool isResponsivenessIncreased() const;
+    bool isResponsivenessIncreaseNeeded() const;
+    void setResponsivenessIncreaseNeeded(bool responsivenessIncreaseNeeded);
+
+    bool isSuspended() const;
+    void setIsSuspended(bool isSuspended);
+
     bool isUsedByCurrentEditor() const;
     void setIsUsedByCurrentEditor(bool isUsedByCurrentEditor);
 
     bool isVisibleInEditor() const;
-    void setIsVisibleInEditor(bool isVisibleInEditor);
+    void setIsVisibleInEditor(bool isVisibleInEditor, const TimePoint &timePoint);
+    TimePoint visibleTimePoint() const;
 
-    bool isNeedingReparse() const;
-    void setDirtyIfProjectPartIsOutdated();
+    bool isDirty() const;
+    TimePoint isDirtyTimeChangePoint() const;
+    bool setDirtyIfProjectPartIsOutdated();
     void setDirtyIfDependencyIsMet(const Utf8String &filePath);
 
     TranslationUnitUpdateInput createUpdateInput() const;
@@ -114,7 +123,6 @@ public: // for tests
     void setDependedFilePaths(const QSet<Utf8String> &filePaths);
     TranslationUnitUpdater createUpdater() const;
     void setHasParseOrReparseFailed(bool hasFailed);
-    TimePoint isNeededReparseChangeTimePoint() const;
 
 private:
     void setDirty();
@@ -130,5 +138,5 @@ private:
 };
 
 bool operator==(const Document &first, const Document &second);
-void PrintTo(const Document &document, ::std::ostream *os);
+std::ostream &operator<<(std::ostream &os, const Document &document);
 } // namespace ClangBackEnd

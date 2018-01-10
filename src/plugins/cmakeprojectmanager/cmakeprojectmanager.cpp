@@ -56,7 +56,8 @@ using namespace CMakeProjectManager::Internal;
 CMakeManager::CMakeManager() :
     m_runCMakeAction(new QAction(QIcon(), tr("Run CMake"), this)),
     m_clearCMakeCacheAction(new QAction(QIcon(), tr("Clear CMake Configuration"), this)),
-    m_runCMakeActionContextMenu(new QAction(QIcon(), tr("Run CMake"), this))
+    m_runCMakeActionContextMenu(new QAction(QIcon(), tr("Run CMake"), this)),
+    m_rescanProjectAction(new QAction(QIcon(), tr("Rescan Project"), this))
 {
     Core::ActionContainer *mbuild =
             Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_BUILDPROJECT);
@@ -93,6 +94,14 @@ CMakeManager::CMakeManager() :
         runCMake(ProjectTree::currentProject());
     });
 
+    command = Core::ActionManager::registerAction(m_rescanProjectAction,
+                                                  Constants::RESCANPROJECT, globalContext);
+    command->setAttribute(Core::Command::CA_Hide);
+    mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_DEPLOY);
+    connect(m_rescanProjectAction, &QAction::triggered, [this]() {
+        rescanProject(ProjectTree::currentProject());
+    });
+
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &CMakeManager::updateCmakeActions);
     connect(BuildManager::instance(), &BuildManager::buildStateChanged,
@@ -107,6 +116,7 @@ void CMakeManager::updateCmakeActions()
     const bool visible = project && !BuildManager::isBuilding(project);
     m_runCMakeAction->setVisible(visible);
     m_clearCMakeCacheAction->setVisible(visible);
+    m_rescanProjectAction->setVisible(visible);
 }
 
 void CMakeManager::clearCMakeCache(Project *project)
@@ -134,63 +144,14 @@ void CMakeManager::runCMake(Project *project)
     cmakeProject->runCMake();
 }
 
-Project *CMakeManager::openProject(const QString &fileName, QString *errorString)
+void CMakeManager::rescanProject(Project *project)
 {
-    Utils::FileName file = Utils::FileName::fromString(fileName);
-    if (!file.toFileInfo().isFile()) {
-        if (errorString)
-            *errorString = tr("Failed opening project \"%1\": Project is not a file")
-                .arg(file.toUserOutput());
-        return 0;
-    }
+    if (!project)
+        return;
+    CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(project);
+    if (!cmakeProject || !cmakeProject->activeTarget() || !cmakeProject->activeTarget()->activeBuildConfiguration())
+        return;
 
-    return new CMakeProject(this, file);
-}
-
-QString CMakeManager::mimeType() const
-{
-    return QLatin1String(Constants::CMAKEPROJECTMIMETYPE);
-}
-
-// need to refactor this out
-// we probably want the process instead of this function
-// cmakeproject then could even run the cmake process in the background, adding the files afterwards
-// sounds like a plan
-void CMakeManager::createXmlFile(Utils::QtcProcess *proc, const QString &executable,
-                                 const QString &arguments, const QString &sourceDirectory,
-                                 const QDir &buildDirectory, const Utils::Environment &env)
-{
-    QString buildDirectoryPath = buildDirectory.absolutePath();
-    buildDirectory.mkpath(buildDirectoryPath);
-    proc->setWorkingDirectory(buildDirectoryPath);
-    proc->setEnvironment(env);
-
-    const QString srcdir = buildDirectory.exists(QLatin1String("CMakeCache.txt")) ?
-                QString(QLatin1Char('.')) : sourceDirectory;
-    QString args;
-    Utils::QtcProcess::addArg(&args, srcdir);
-    Utils::QtcProcess::addArgs(&args, arguments);
-
-    proc->setCommand(executable, args);
-    proc->start();
-}
-
-QString CMakeManager::findCbpFile(const QDir &directory)
-{
-    // Find the cbp file
-    //   the cbp file is named like the project() command in the CMakeList.txt file
-    //   so this function below could find the wrong cbp file, if the user changes the project()
-    //   2name
-    QDateTime t;
-    QString file;
-    foreach (const QString &cbpFile , directory.entryList()) {
-        if (cbpFile.endsWith(QLatin1String(".cbp"))) {
-            QFileInfo fi(directory.path() + QLatin1Char('/') + cbpFile);
-            if (t.isNull() || fi.lastModified() > t) {
-                file = directory.path() + QLatin1Char('/') + cbpFile;
-                t = fi.lastModified();
-            }
-        }
-    }
-    return file;
+    cmakeProject->scanProjectTree();
+    cmakeProject->runCMake(); // by my experience: every rescan run requires cmake run too
 }

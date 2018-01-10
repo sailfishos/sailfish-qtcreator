@@ -26,7 +26,6 @@
 #pragma once
 
 #include "projectexplorer_export.h"
-#include "projectexplorerconstants.h"
 #include "runconfiguration.h"
 
 #include <extensionsystem/iplugin.h>
@@ -44,10 +43,11 @@ class IMode;
 class Id;
 } // namespace Core
 
+namespace Utils { class ProcessHandle; }
+
 namespace ProjectExplorer {
 class RunControl;
 class RunConfiguration;
-class IRunControlFactory;
 class Project;
 class Node;
 class FolderNode;
@@ -71,7 +71,7 @@ public:
     class OpenProjectResult
     {
     public:
-        OpenProjectResult(QList<Project *> projects, QList<Project *> alreadyOpen,
+        OpenProjectResult(const QList<Project *> &projects, const QList<Project *> &alreadyOpen,
                           const QString &errorMessage)
             : m_projects(projects), m_alreadyOpen(alreadyOpen),
               m_errorMessage(errorMessage)
@@ -126,7 +126,7 @@ public:
     static void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
     static Internal::ProjectExplorerSettings projectExplorerSettings();
 
-    static void startRunControl(RunControl *runControl, Core::Id runMode);
+    static void startRunControl(RunControl *runControl);
     static void showRunErrorMessage(const QString &errorMessage);
 
     // internal public for FlatModel
@@ -139,6 +139,7 @@ public:
     static void runStartupProject(Core::Id runMode, bool forceSkipDeploy = false);
     static void runRunConfiguration(RunConfiguration *rc, Core::Id runMode,
                              const bool forceSkipDeploy = false);
+    static QList<QPair<Runnable, Utils::ProcessHandle>> runningRunControlProcesses();
 
     static void addExistingFiles(FolderNode *folderNode, const QStringList &filePaths);
 
@@ -160,8 +161,6 @@ public:
 
 signals:
     void finishedInitialization();
-    void runControlStarted(ProjectExplorer::RunControl *rc);
-    void runControlFinished(ProjectExplorer::RunControl *rc);
 
     // Is emitted when a project has been added/removed,
     // or the file list of a specific project has changed.

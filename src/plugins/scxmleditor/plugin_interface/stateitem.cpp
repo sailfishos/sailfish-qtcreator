@@ -306,7 +306,7 @@ void StateItem::createContextMenu(QMenu *menu)
 
     if (type() == ParallelType) {
         data[Constants::C_SCXMLTAG_ACTIONTYPE] = TagUtils::Relayout;
-        menu->addAction(tr("Relayout"))->setData(data);
+        menu->addAction(tr("Re-Layout"))->setData(data);
     }
 
     menu->addSeparator();
@@ -329,7 +329,7 @@ void StateItem::selectedMenuAction(const QAction *action)
         case TagUtils::SetAsInitial: {
             ScxmlTag *parentTag = tag->parentTag();
             if (parentTag) {
-                document->undoStack()->beginMacro(tr("Change initial-state"));
+                document->undoStack()->beginMacro(tr("Change initial state"));
 
                 ScxmlTag *initialTag = parentTag->child("initial");
                 if (initialTag) {

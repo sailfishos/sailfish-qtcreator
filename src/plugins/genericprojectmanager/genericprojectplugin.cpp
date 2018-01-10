@@ -26,7 +26,6 @@
 #include "genericprojectplugin.h"
 
 #include "genericbuildconfiguration.h"
-#include "genericprojectmanager.h"
 #include "genericprojectwizard.h"
 #include "genericprojectconstants.h"
 #include "genericprojectfileseditor.h"
@@ -39,13 +38,14 @@
 #include <coreplugin/actionmanager/command.h>
 
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectmanager.h>
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/selectablefilesmodel.h>
 
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
-#include <utils/mimetypes/mimedatabase.h>
 
+#include <QAction>
 #include <QtPlugin>
 #include <QDebug>
 
@@ -58,9 +58,9 @@ namespace Internal {
 bool GenericProjectPlugin::initialize(const QStringList &, QString *errorMessage)
 {
     Q_UNUSED(errorMessage)
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":genericproject/GenericProjectManager.mimetypes.xml"));
 
-    addAutoReleasedObject(new Manager);
+    ProjectManager::registerProjectType<GenericProject>(Constants::GENERICMIMETYPE);
+
     addAutoReleasedObject(new ProjectFilesFactory);
     addAutoReleasedObject(new GenericMakeStepFactory);
     addAutoReleasedObject(new GenericBuildConfigurationFactory);
@@ -87,7 +87,8 @@ void GenericProjectPlugin::editFiles()
     if (!genericProject)
         return;
     SelectableFilesDialogEditFiles sfd(genericProject->projectDirectory(),
-                                       Utils::transform(genericProject->files(), [](const QString &f) { return Utils::FileName::fromString(f); }),
+                                       Utils::transform(genericProject->files(Project::AllFiles),
+                                                        [](const QString &f) { return Utils::FileName::fromString(f); }),
                                        ICore::mainWindow());
     if (sfd.exec() == QDialog::Accepted)
         genericProject->setFiles(Utils::transform(sfd.selectedFiles(), &Utils::FileName::toString));

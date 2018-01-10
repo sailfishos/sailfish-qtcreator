@@ -30,7 +30,6 @@
 #include "kitfeatureprovider.h"
 #include "kitmanagerconfigwidget.h"
 #include "project.h"
-#include "projectexplorerconstants.h"
 #include "task.h"
 
 #include <coreplugin/icore.h>
@@ -213,7 +212,7 @@ void KitManager::restoreKits()
         setDefaultKit(defaultKit);
     }
 
-    Kit *k = find(userKits.defaultKit);
+    Kit *k = kit(userKits.defaultKit);
     if (!k && !defaultKit())
         k = Utils::findOrDefault(kitsToRegister + sdkKits, &Kit::isValid);
     if (k)
@@ -254,7 +253,7 @@ void KitManager::saveKits()
     d->m_writer->save(data, ICore::mainWindow());
 }
 
-static bool isLoaded()
+bool KitManager::isLoaded()
 {
     return d->m_initialized;
 }
@@ -378,21 +377,14 @@ KitManager::KitList KitManager::restoreKits(const FileName &fileName)
     return result;
 }
 
-QList<Kit *> KitManager::kits()
+QList<Kit *> KitManager::kits(const Kit::Predicate &predicate)
 {
+    if (predicate)
+        return Utils::filtered(d->m_kitList, predicate);
     return d->m_kitList;
 }
 
-QList<Kit *> KitManager::matchingKits(const KitMatcher &matcher)
-{
-    QList<Kit *> result;
-    foreach (Kit *k, d->m_kitList)
-        if (matcher.matches(k))
-            result.append(k);
-    return result;
-}
-
-Kit *KitManager::find(Id id)
+Kit *KitManager::kit(Id id)
 {
     if (!id.isValid())
         return 0;
@@ -400,11 +392,9 @@ Kit *KitManager::find(Id id)
     return Utils::findOrDefault(kits(), Utils::equal(&Kit::id, id));
 }
 
-Kit *KitManager::find(const KitMatcher &matcher)
+Kit *KitManager::kit(const Kit::Predicate &predicate)
 {
-    return Utils::findOrDefault(d->m_kitList, [&matcher](Kit *k) {
-        return matcher.matches(k);
-    });
+    return Utils::findOrDefault(d->m_kitList, predicate);
 }
 
 Kit *KitManager::defaultKit()

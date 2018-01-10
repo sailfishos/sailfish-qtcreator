@@ -7,7 +7,7 @@ Project {
     QtcDevHeaders { }
 
     QtcLibrary {
-        cpp.defines: base.concat(["QSSH_LIBRARY"]).concat(botanDefines)
+        cpp.defines: base.concat(["QTCSSH_LIBRARY"]).concat(botanDefines)
         cpp.includePaths: botanIncludes
         cpp.dynamicLibraries: botanLibs
         cpp.enableExceptions: true
@@ -22,6 +22,7 @@ Project {
             "sftpoperation.cpp", "sftpoperation_p.h",
             "sftpoutgoingpacket.cpp", "sftpoutgoingpacket_p.h",
             "sftppacket.cpp", "sftppacket_p.h",
+            "sshagent.cpp", "sshagent_p.h",
             "sshbotanconversions_p.h",
             "sshcapabilities_p.h", "sshcapabilities.cpp",
             "sshchannel.cpp", "sshchannel_p.h",

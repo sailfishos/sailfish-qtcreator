@@ -44,6 +44,8 @@
 #include <QTime>
 #include <QTimer>
 
+#include <functional>
+
 namespace Debugger {
 namespace Internal {
 
@@ -64,7 +66,7 @@ class GdbEngine : public DebuggerEngine
     Q_OBJECT
 
 public:
-    explicit GdbEngine(const DebuggerRunParameters &runParameters);
+    explicit GdbEngine(bool useTerminal);
     ~GdbEngine() override;
 
 private: ////////// General Interface //////////
@@ -145,33 +147,7 @@ private:
     // known function return value.
     QString m_resultVarName;
 
-private: ////////// Gdb Command Management //////////
-
-    public: // Otherwise the Qt flag macros are unhappy.
-    enum GdbCommandFlag {
-        NoFlags = 0,
-        // The command needs a stopped inferior.
-        NeedsStop = 1,
-        // No need to wait for the reply before continuing inferior.
-        Discardable = 2,
-        // Needs a dummy extra command to force GDB output flushing.
-        NeedsFlush = 4,
-        // Callback expects ResultRunning instead of ResultDone.
-        RunRequest = 16,
-        // Callback expects ResultExit instead of ResultDone.
-        ExitRequest = 32,
-        // Auto-set inferior shutdown related states.
-        LosesChild = 64,
-        // Trigger breakpoint model rebuild when no such commands are pending anymore.
-        RebuildBreakpointModel = 128,
-        // This is a command that needs to be wrapped into -interpreter-exec console
-        ConsoleCommand = 512,
-        // This is the UpdateLocals commannd during which we ignore notifications
-        InUpdateLocals = 1024,
-        // This is a command using the python interface
-        PythonCommand = 2048
-    };
-    Q_DECLARE_FLAGS(GdbCommandFlags, GdbCommandFlag)
+protected: ////////// Gdb Command Management //////////
 
     void runCommand(const DebuggerCommand &command) override;
 
@@ -259,14 +235,13 @@ private: ////////// Inferior Management //////////
     void handleExecuteJumpToLine(const DebuggerResponse &response);
     void handleExecuteRunToLine(const DebuggerResponse &response);
 
-    void maybeHandleInferiorPidChanged(const QString &pid);
-    void handleInfoProc(const DebuggerResponse &response);
     QString msgPtraceError(DebuggerStartMode sm);
 
 private: ////////// View & Data Stuff //////////
 
     void selectThread(ThreadId threadId) override;
     void activateFrame(int index) override;
+    void handleAutoContinueInferior();
 
     //
     // Breakpoint specific stuff
@@ -378,9 +353,6 @@ protected:
     void changeMemory(MemoryAgent *agent, quint64 addr, const QByteArray &data) override;
     void handleFetchMemory(const DebuggerResponse &response, MemoryAgentCookie ac);
 
-    virtual void watchPoint(const QPoint &) override;
-    void handleWatchPoint(const DebuggerResponse &response);
-
     void showToolTip();
 
     void handleVarAssign(const DebuggerResponse &response);
@@ -402,7 +374,6 @@ protected:
     //
     // Convenience Functions
     //
-    QString errorMessage(QProcess::ProcessError error);
     void showExecutionError(const QString &message);
     QString failedToStartMessage();
 
@@ -420,9 +391,10 @@ protected:
     QString m_lastWinException;
     QString m_lastMissingDebugInfo;
     bool m_terminalTrap;
-    bool m_temporaryStopPending;
     bool usesExecInterrupt() const;
     bool usesTargetAsync() const;
+
+    DebuggerCommandSequence m_onStop;
 
     QHash<int, QString> m_scheduledTestResponses;
     QSet<int> m_testCases;
@@ -432,10 +404,6 @@ protected:
     void requestDebugInformation(const DebugInfoTask &task);
     DebugInfoTaskHandler *m_debugInfoTaskHandler;
 
-    // Indicates whether we had at least one full attempt to load
-    // debug information.
-    bool attemptQuickStart() const;
-    bool m_fullStartDone;
     bool m_systemDumpersLoaded;
 
     static QString msgGdbStopFailed(const QString &why);
@@ -449,10 +417,6 @@ protected:
     DebuggerCommand m_lastDebuggableCommand;
 
 protected:
-    virtual void write(const QByteArray &data);
-
-protected:
-    bool prepareCommand();
     void interruptLocalInferior(qint64 pid);
 
 protected:
@@ -463,5 +427,3 @@ protected:
 
 } // namespace Internal
 } // namespace Debugger
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(Debugger::Internal::GdbEngine::GdbCommandFlags)

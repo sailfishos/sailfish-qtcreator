@@ -25,72 +25,49 @@
 
 #pragma once
 
+#include "clangtool.h"
 #include "findusrforcursoraction.h"
 #include "symbollocationfinderaction.h"
-#include "sourcefilecallbacks.h"
+#include "locationsourcefilecallbacks.h"
 
 #include <sourcelocationscontainer.h>
 
 #if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-parameter"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning( disable : 4100 )
 #endif
 
 #include "clang/Tooling/Refactoring.h"
 
 #if defined(__GNUC__)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
-
-#include <string>
-#include <vector>
 
 namespace ClangBackEnd {
 
-struct FileContent
-{
-    FileContent(const std::string &directory,
-                const std::string &fileName,
-                const std::string &content,
-                const std::vector<std::string> &commandLine)
-        : directory(directory),
-          fileName(fileName),
-          filePath(directory + nativeSeperator + fileName),
-          content(content),
-          commandLine(commandLine)
-    {}
-
-    std::string directory;
-    std::string fileName;
-    std::string filePath;
-    std::string content;
-    std::vector<std::string> commandLine;
-};
-
-class SymbolFinder
+class SymbolFinder : public ClangTool
 {
 public:
     SymbolFinder(uint line, uint column);
-
-    void addFile(std::string &&directory,
-                 std::string &&fileName,
-                 std::string &&content,
-                 std::vector<std::string> &&commandLine);
-
 
     void findSymbol();
 
     Utils::SmallString takeSymbolName();
     const std::vector<USRName> &unifiedSymbolResolutions();
-    const ClangBackEnd::SourceLocationsContainer &sourceLocations() const;
-    ClangBackEnd::SourceLocationsContainer takeSourceLocations();
+    const SourceLocationsContainer &sourceLocations() const;
+    SourceLocationsContainer takeSourceLocations();
 
 private:
     Utils::SmallString symbolName;
     USRFindingAction usrFindingAction;
     SymbolLocationFinderAction symbolLocationFinderAction;
-    SourceFileCallbacks sourceFileCallbacks;
-    std::vector<FileContent> fileContents;
+    LocationSourceFileCallbacks sourceFileCallbacks;
+
     ClangBackEnd::SourceLocationsContainer sourceLocations_;
 };
 

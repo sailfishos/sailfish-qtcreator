@@ -39,7 +39,6 @@
 
 #include <QEventLoop>
 #include <QSignalSpy>
-#include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
 
@@ -49,21 +48,13 @@ using namespace Utils;
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
-ClangStaticAnalyzerUnitTests::ClangStaticAnalyzerUnitTests(ClangStaticAnalyzerTool *analyzerTool,
-                                                           QObject *parent)
-    : QObject(parent)
-    , m_analyzerTool(analyzerTool)
-    , m_tmpDir(0)
-{
-}
-
 void ClangStaticAnalyzerUnitTests::initTestCase()
 {
     const QList<Kit *> allKits = KitManager::kits();
     if (allKits.count() != 1)
         QSKIP("This test requires exactly one kit to be present");
     const ToolChain * const toolchain = ToolChainKitInformation::toolChain(allKits.first(),
-                                                                           ToolChain::Language::Cxx);
+                                                                           Constants::CXX_LANGUAGE_ID);
     if (!toolchain)
         QSKIP("This test requires that there is a kit with a toolchain.");
     bool hasClangExecutable;
@@ -84,16 +75,24 @@ void ClangStaticAnalyzerUnitTests::testProject()
 {
     QFETCH(QString, projectFilePath);
     QFETCH(int, expectedDiagCount);
+    if (projectFilePath.contains("mingw")) {
+        const ToolChain * const toolchain
+                = ToolChainKitInformation::toolChain(KitManager::kits().first(),
+                                                     Constants::CXX_LANGUAGE_ID);
+        if (toolchain->typeId() != ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID)
+            QSKIP("This test is mingw specific, does not run for other toolchais");
+    }
 
     CppTools::Tests::ProjectOpenerAndCloser projectManager;
     const CppTools::ProjectInfo projectInfo = projectManager.open(projectFilePath, true);
     QVERIFY(projectInfo.isValid());
-    m_analyzerTool->startTool();
-    QSignalSpy waiter(m_analyzerTool, SIGNAL(finished(bool)));
+    auto tool = ClangStaticAnalyzerTool::instance();
+    tool->startTool();
+    QSignalSpy waiter(tool, SIGNAL(finished(bool)));
     QVERIFY(waiter.wait(30000));
     const QList<QVariant> arguments = waiter.takeFirst();
     QVERIFY(arguments.first().toBool());
-    QCOMPARE(m_analyzerTool->diagnostics().count(), expectedDiagCount);
+    QCOMPARE(tool->diagnostics().count(), expectedDiagCount);
 }
 
 void ClangStaticAnalyzerUnitTests::testProject_data()
@@ -101,32 +100,32 @@ void ClangStaticAnalyzerUnitTests::testProject_data()
     QTest::addColumn<QString>("projectFilePath");
     QTest::addColumn<int>("expectedDiagCount");
 
-    QTest::newRow("simple qbs project")
-            << QString(m_tmpDir->absolutePath("simple/simple.qbs")) << 1;
-    QTest::newRow("simple qmake project")
-            << QString(m_tmpDir->absolutePath("simple/simple.pro")) << 1;
+    addTestRow("simple/simple.qbs", 1);
+    addTestRow("simple/simple.pro", 1);
 
-    QTest::newRow("simple qbs library project")
-            << QString(m_tmpDir->absolutePath("simple-library/simple-library.qbs")) << 0;
-    QTest::newRow("simple qmake library project")
-            << QString(m_tmpDir->absolutePath("simple-library/simple-library.pro")) << 0;
+    addTestRow("simple-library/simple-library.qbs", 0);
+    addTestRow("simple-library/simple-library.pro", 0);
 
-    QTest::newRow("stdc++11-includes qbs project")
-            << QString(m_tmpDir->absolutePath("stdc++11-includes/stdc++11-includes.qbs")) << 0;
-    QTest::newRow("stdc++11-includes qmake project")
-            << QString(m_tmpDir->absolutePath("stdc++11-includes/stdc++11-includes.pro")) << 0;
+    addTestRow("stdc++11-includes/stdc++11-includes.qbs", 0);
+    addTestRow("stdc++11-includes/stdc++11-includes.pro", 0);
 
-    QTest::newRow("qt-widgets-app qbs project")
-            << QString(m_tmpDir->absolutePath("qt-widgets-app/qt-widgets-app.qbs")) << 0;
-    QTest::newRow("qt-widgets-app qmake project")
-            << QString(m_tmpDir->absolutePath("qt-widgets-app/qt-widgets-app.pro")) << 0;
+    addTestRow("qt-widgets-app/qt-widgets-app.qbs", 0);
+    addTestRow("qt-widgets-app/qt-widgets-app.pro", 0);
 
-    QTest::newRow("qt-essential-includes qbs project")
-            << QString(m_tmpDir->absolutePath("qt-essential-includes/qt-essential-includes.qbs"))
-            << 0;
-    QTest::newRow("qt-essential-includes qmake project")
-            << QString(m_tmpDir->absolutePath("qt-essential-includes/qt-essential-includes.pro"))
-            << 0;
+    addTestRow("qt-essential-includes/qt-essential-includes.qbs", 0);
+    addTestRow("qt-essential-includes/qt-essential-includes.pro", 0);
+
+    addTestRow("mingw-includes/mingw-includes.qbs", 0);
+    addTestRow("mingw-includes/mingw-includes.pro", 0);
+}
+
+void ClangStaticAnalyzerUnitTests::addTestRow(const QByteArray &relativeFilePath,
+                                              int expectedDiagCount)
+{
+    const QString absoluteFilePath = m_tmpDir->absolutePath(relativeFilePath);
+    const QString fileName = QFileInfo(absoluteFilePath).fileName();
+
+    QTest::newRow(fileName.toUtf8().constData()) << absoluteFilePath << expectedDiagCount;
 }
 
 } // namespace Internal

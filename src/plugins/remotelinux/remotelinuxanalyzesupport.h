@@ -27,45 +27,46 @@
 
 #include "abstractremotelinuxrunsupport.h"
 
-#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <projectexplorer/runconfiguration.h>
 
 #include <utils/outputformat.h>
 
-namespace Debugger { class AnalyzerRunControl; }
+#include <qmldebug/qmloutputparser.h>
 
 namespace RemoteLinux {
 
-namespace Internal { class RemoteLinuxAnalyzeSupportPrivate; }
-
-class REMOTELINUX_EXPORT RemoteLinuxAnalyzeSupport : public AbstractRemoteLinuxRunSupport
+class REMOTELINUX_EXPORT RemoteLinuxQmlProfilerSupport
+        : public ProjectExplorer::SimpleTargetRunner
 {
     Q_OBJECT
-public:
-    RemoteLinuxAnalyzeSupport(ProjectExplorer::RunConfiguration *runConfig,
-            Debugger::AnalyzerRunControl *engine, Core::Id runMode);
-    ~RemoteLinuxAnalyzeSupport();
 
-protected:
-    void startExecution();
-    void handleAdapterSetupFailed(const QString &error);
+public:
+    RemoteLinuxQmlProfilerSupport(ProjectExplorer::RunControl *runControl);
 
 private:
-    void handleRemoteSetupRequested();
-    void handleAppRunnerError(const QString &error);
-    void handleRemoteOutput(const QByteArray &output);
-    void handleRemoteErrorOutput(const QByteArray &output);
-    void handleAppRunnerFinished(bool success);
-    void handleProgressReport(const QString &progressOutput);
+    void start() override;
 
-    void handleRemoteProcessStarted();
-    void handleProfilingFinished();
+    QmlDebug::QmlOutputParser m_outputParser;
+    ProjectExplorer::PortsGatherer *m_portsGatherer;
+    ProjectExplorer::RunWorker *m_profiler;
+};
 
-    void remoteIsRunning();
 
-    void showMessage(const QString &, Utils::OutputFormat);
+class REMOTELINUX_EXPORT RemoteLinuxPerfSupport : public ProjectExplorer::RunWorker
+{
+    Q_OBJECT
 
-    Internal::RemoteLinuxAnalyzeSupportPrivate * const d;
+public:
+    RemoteLinuxPerfSupport(ProjectExplorer::RunControl *runControl);
+
+private:
+    void start() override;
+
+    QString m_remoteFifo;
+    QString m_perfRecordArguments;
+
+    ProjectExplorer::ApplicationLauncher m_outputGatherer;
 };
 
 } // namespace RemoteLinux

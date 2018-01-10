@@ -63,7 +63,7 @@ QList<BuildStepInfo> AutogenStepFactory::availableSteps(BuildStepList *parent) c
         return {};
 
     QString display = tr("Autogen", "Display name for AutotoolsProjectManager::AutogenStep id.");
-    return {{ AUTOGEN_STEP_ID, display }};
+    return {{AUTOGEN_STEP_ID, display}};
 }
 
 BuildStep *AutogenStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -134,7 +134,7 @@ void AutogenStep::run(QFutureInterface<bool> &fi)
     }
 
     if (!m_runAutogen) {
-        emit addOutput(tr("Configuration unchanged, skipping autogen step."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration unchanged, skipping autogen step."), BuildStep::OutputFormat::NormalMessage);
         reportRunResult(fi, true);
         return;
     }

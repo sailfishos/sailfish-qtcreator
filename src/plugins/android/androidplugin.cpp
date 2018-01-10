@@ -25,22 +25,25 @@
 
 #include "androidplugin.h"
 
-#include "androidconstants.h"
+#include "androidanalyzesupport.h"
 #include "androidconfigurations.h"
+#include "androidconstants.h"
+#include "androiddebugsupport.h"
+#include "androiddeployconfiguration.h"
 #include "androiddeployqtstep.h"
 #include "androiddevice.h"
 #include "androiddevicefactory.h"
-#include "androidmanager.h"
-#include "androidrunfactories.h"
-#include "androidsettingspage.h"
-#include "androidtoolchain.h"
-#include "androidqtversionfactory.h"
-#include "androiddeployconfiguration.h"
 #include "androidgdbserverkitinformation.h"
+#include "androidmanager.h"
 #include "androidmanifesteditorfactory.h"
 #include "androidpotentialkit.h"
-#include "javacompletionassistprovider.h"
+#include "androidqtversionfactory.h"
+#include "androidrunconfiguration.h"
+#include "androidruncontrol.h"
+#include "androidsettingspage.h"
+#include "androidtoolchain.h"
 #include "javaeditor.h"
+
 #ifdef HAVE_QBS
 #  include "androidqbspropertyprovider.h"
 #endif
@@ -52,11 +55,11 @@
 
 #include <qtsupport/qtversionmanager.h>
 
-#include <utils/mimetypes/mimedatabase.h>
-
 #include <QtPlugin>
 
 using namespace ProjectExplorer;
+using namespace ProjectExplorer::Constants;
+using namespace Android::Internal;
 
 namespace Android {
 
@@ -68,9 +71,12 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
     Q_UNUSED(arguments);
     Q_UNUSED(errorMessage);
 
+    RunControl::registerWorker<AndroidRunConfiguration, AndroidRunSupport>(NORMAL_RUN_MODE);
+    RunControl::registerWorker<AndroidRunConfiguration, AndroidDebugSupport>(DEBUG_RUN_MODE);
+    RunControl::registerWorker<AndroidRunConfiguration, AndroidQmlProfilerSupport>(QML_PROFILER_RUN_MODE);
+
     new AndroidConfigurations(this);
 
-    addAutoReleasedObject(new Internal::AndroidRunControlFactory);
     addAutoReleasedObject(new Internal::AndroidDeployQtStepFactory);
     addAutoReleasedObject(new Internal::AndroidSettingsPage);
     addAutoReleasedObject(new Internal::AndroidQtVersionFactory);
@@ -80,8 +86,6 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
     addAutoReleasedObject(new Internal::AndroidPotentialKit);
     addAutoReleasedObject(new Internal::JavaEditorFactory);
     KitManager::registerKitInformation(new Internal::AndroidGdbServerKitInformation);
-
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/android/Android.mimetypes.xml"));
 
     addAutoReleasedObject(new Internal::AndroidManifestEditorFactory);
 

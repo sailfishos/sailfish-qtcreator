@@ -50,7 +50,7 @@
 
 using namespace CPlusPlus;
 
-static const bool debug = ! qgetenv("QTC_LOOKUPCONTEXT_DEBUG").isEmpty();
+static const bool debug = qEnvironmentVariableIsSet("QTC_LOOKUPCONTEXT_DEBUG");
 
 namespace {
 
@@ -192,7 +192,7 @@ private:
 
     const LookupContext &_context;
     // binding has to be remembered in case of resolving typedefs for templates
-    ClassOrNamespace *_binding;
+    ClassOrNamespace *_binding = nullptr;
 };
 
 static int evaluateFunctionArgument(const FullySpecifiedType &actualTy,
@@ -950,9 +950,8 @@ bool ResolveExpression::visit(ArrayAccessAST *ast)
                 foreach (const LookupItem &r, b->find(arrayAccessOp)) {
                     Symbol *overload = r.declaration();
                     if (Function *funTy = overload->type()->asFunctionType()) {
-                        if (Function *proto = instantiate(namedTy->name(), funTy)->asFunctionType())
-                            // ### TODO: check the actual arguments
-                            addResult(proto->returnType().simplified(), scope);
+                        // ### TODO: check the actual arguments
+                        addResult(funTy->returnType().simplified(), scope, b);
                     }
                 }
 

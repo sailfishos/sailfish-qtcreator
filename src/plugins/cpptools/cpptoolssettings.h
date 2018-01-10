@@ -66,9 +66,13 @@ public:
     bool showHeaderErrorInfoBar() const;
     void setShowHeaderErrorInfoBar(bool show);
 
+    bool showNoProjectInfoBar() const;
+    void setShowNoProjectInfoBar(bool show);
+
 signals:
     void editorDocumentOutlineSortingChanged(bool isSorted);
     void showHeaderErrorInfoBarChanged(bool isShown);
+    void showNoProjectInfoBarChanged(bool isShown);
 
 private:
     Internal::CppToolsSettingsPrivate *d;

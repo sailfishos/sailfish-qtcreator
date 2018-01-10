@@ -32,21 +32,25 @@
 #include "modemanager.h"
 #include "infobar.h"
 #include "iwizardfactory.h"
+#include "reaper_p.h"
 #include "themechooser.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/findplugin.h>
+#include <coreplugin/find/searchresultwindow.h>
 #include <coreplugin/locator/locator.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/fileutils.h>
 
 #include <extensionsystem/pluginerroroverview.h>
 #include <extensionsystem/pluginmanager.h>
+#include <extensionsystem/pluginspec.h>
 #include <utils/algorithm.h>
 #include <utils/pathchooser.h>
 #include <utils/macroexpander.h>
+#include <utils/mimetypes/mimedatabase.h>
 #include <utils/savefile.h>
 #include <utils/stringutils.h>
 #include <utils/theme/theme.h>
@@ -69,6 +73,7 @@ CorePlugin::CorePlugin()
   , m_locator(0)
 {
     qRegisterMetaType<Id>();
+    qRegisterMetaType<Core::Search::TextPosition>();
 }
 
 CorePlugin::~CorePlugin()
@@ -120,6 +125,17 @@ CoreArguments parseArguments(const QStringList &arguments)
 
 bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
+    // register all mime types from all plugins
+    for (ExtensionSystem::PluginSpec *plugin : ExtensionSystem::PluginManager::plugins()) {
+        if (!plugin->isEffectivelyEnabled())
+            continue;
+        const QJsonObject metaData = plugin->metaData();
+        const QJsonValue mimetypes = metaData.value("Mimetypes");
+        QString mimetypeString;
+        if (Utils::readMultiLineString(mimetypes, &mimetypeString))
+            Utils::addMimeTypes(plugin->name() + ".mimetypes", mimetypeString.trimmed().toUtf8());
+    }
+
     if (ThemeEntry::availableThemes().isEmpty()) {
         *errorMessage = tr("No themes found in installation.");
         return false;
@@ -178,6 +194,8 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
                                []() { return QVariant(Utils::HostOsInfo::isLinuxHost()).toString(); });
     expander->registerVariable("HostOs:isUnix", tr("Is Qt Creator running on any unix-based platform?"),
                                []() { return QVariant(Utils::HostOsInfo::isAnyUnixHost()).toString(); });
+    expander->registerVariable("IDE:ResourcePath", tr("The directory where Qt Creator finds its pre-installed resources."),
+                               []() { return ICore::resourcePath(); });
     expander->registerPrefix("CurrentDate:", tr("The current date (QDate formatstring)."),
                              [](const QString &fmt) { return QDate::currentDate().toString(fmt); });
     expander->registerPrefix("CurrentTime:", tr("The current time (QTime formatstring)."),

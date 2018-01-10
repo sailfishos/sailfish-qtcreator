@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "qmlprofileranimationsmodel_test.h"
+#include <timeline/timelineformattime.h>
 #include <QtTest>
 
 namespace QmlProfiler {
@@ -45,12 +46,13 @@ void QmlProfilerAnimationsModelTest::initTestCase()
 
     QmlEventType type(Event, MaximumRangeType, AnimationFrame);
     QmlEvent event;
-    event.setTypeIndex(manager.qmlModel()->addEventType(type));
+    event.setTypeIndex(manager.numLoadedEventTypes());
+    manager.addEventType(type);
 
     for (int i = 0; i < 10; ++i) {
         event.setTimestamp(i);
         event.setNumbers<int>({frameRate(i), 20 - i, (i % 2) ? RenderThread : GuiThread});
-        manager.qmlModel()->addEvent(event);
+        manager.addEvent(event);
     }
     manager.acquiringDone();
     QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
@@ -127,7 +129,7 @@ void QmlProfilerAnimationsModelTest::testDetails()
         QVariantMap details = model.details(i);
         QCOMPARE(details["displayName"].toString(), model.displayName());
         QCOMPARE(details[QmlProfilerAnimationsModel::tr("Duration")].toString(),
-                QmlProfilerDataModel::formatTime(1));
+                Timeline::formatTime(1));
         QCOMPARE(details[QmlProfilerAnimationsModel::tr("Framerate")].toString(),
                 QString::fromLatin1("%1 FPS").arg(frameRate(i)));
         QCOMPARE(details[QmlProfilerAnimationsModel::tr("Animations")].toString(),

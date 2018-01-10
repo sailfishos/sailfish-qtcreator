@@ -27,6 +27,8 @@
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilereventtypes.h"
 
+#include <timeline/timelineformattime.h>
+
 namespace QmlProfiler {
 namespace Internal {
 
@@ -60,7 +62,7 @@ int PixmapCacheModel::typeId(int index) const
     return m_data[index].typeId;
 }
 
-QColor PixmapCacheModel::color(int index) const
+QRgb PixmapCacheModel::color(int index) const
 {
     if (m_data[index].pixmapEventType == PixmapCacheCountChanged)
         return colorByHue(s_pixmapCacheCountHue);
@@ -115,14 +117,14 @@ QVariantMap PixmapCacheModel::details(int index) const
 
     if (ev->pixmapEventType == PixmapCacheCountChanged) {
         result.insert(QLatin1String("displayName"), tr("Image Cached"));
+        result.insert(tr("Cache Size"), QString::fromLatin1("%1 px").arg(ev->cacheSize));
     } else {
         result.insert(QLatin1String("displayName"), tr("Image Loaded"));
         if (m_pixmaps[ev->urlIndex].sizes[ev->sizeIndex].loadState != Finished)
             result.insert(tr("Result"), tr("Load Error"));
-        result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
+        result.insert(tr("Duration"), Timeline::formatTime(duration(index)));
     }
 
-    result.insert(tr("Cache Size"), QString::fromLatin1("%1 px").arg(ev->cacheSize));
     result.insert(tr("File"), getFilenameOnly(m_pixmaps[ev->urlIndex].url));
     result.insert(tr("Width"), QString::fromLatin1("%1 px")
                   .arg(m_pixmaps[ev->urlIndex].sizes[ev->sizeIndex].size.width()));
@@ -206,9 +208,10 @@ void PixmapCacheModel::loadEvent(const QmlEvent &event, const QmlEventType &type
 
         PixmapState &state = pixmap.sizes[newEvent.sizeIndex];
         if (state.cacheState == ToBeCached) {
-            m_lastCacheSizeEvent = updateCacheCount(m_lastCacheSizeEvent, pixmapStartTime,
-                                          state.size.width() * state.size.height(), newEvent,
-                                          event.typeIndex());
+            m_lastCacheSizeEvent = updateCacheCount(
+                        m_lastCacheSizeEvent, pixmapStartTime,
+                        (qint64) state.size.width() * (qint64) state.size.height(),
+                        newEvent, event.typeIndex());
             state.cacheState = Cached;
         }
         break;
@@ -228,7 +231,7 @@ void PixmapCacheModel::loadEvent(const QmlEvent &event, const QmlEventType &type
             } else if (!uncache && i->cacheState == Uncached) {
                 newEvent.sizeIndex = i - pixmap.sizes.begin();
                 if (i->size.isValid()) {
-                    pixSize = i->size.width() * i->size.height();
+                    pixSize = (qint64) i->size.width() * i->size.height();
                     i->cacheState = Cached;
                 } else {
                     i->cacheState = ToBeCached;
@@ -245,7 +248,7 @@ void PixmapCacheModel::loadEvent(const QmlEvent &event, const QmlEventType &type
                 if (uncache && (i->cacheState == Cached || i->cacheState == ToBeCached)) {
                     newEvent.sizeIndex = i - pixmap.sizes.begin();
                     if (i->size.isValid())
-                        pixSize = -i->size.width() * i->size.height();
+                        pixSize = (qint64) -i->size.width() * i->size.height();
                     i->cacheState = Uncached;
                     break;
                 } else if (!uncache && i->cacheState == Uncacheable) {
@@ -416,6 +419,12 @@ PixmapCacheModel::CacheState PixmapCacheModel::cacheState(int index) const
         return MaximumCacheState;
 
     return m_pixmaps[item.urlIndex].sizes[item.sizeIndex].cacheState;
+}
+
+QString PixmapCacheModel::fileName(int index) const
+{
+    const PixmapCacheItem &item = m_data[index];
+    return (item.urlIndex == -1) ? QString() : m_pixmaps[item.urlIndex].url;
 }
 #endif // WITH_TESTS
 

@@ -31,10 +31,12 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 
+#include <texteditor/behaviorsettings.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 
+#include <utils/fadingindicator.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -516,11 +518,16 @@ void BinEditorWidget::changeEvent(QEvent *e)
 void BinEditorWidget::wheelEvent(QWheelEvent *e)
 {
     if (e->modifiers() & Qt::ControlModifier) {
-        const int delta = e->delta();
-        if (delta < 0)
-            zoomOut();
-        else if (delta > 0)
-            zoomIn();
+        if (!TextEditor::TextEditorSettings::behaviorSettings().m_scrollWheelZooming) {
+            // When the setting is disabled globally,
+            // we have to skip calling QAbstractScrollArea::wheelEvent()
+            // that changes zoom in it.
+            return;
+        }
+
+        const float delta = e->angleDelta().y() / 120.f;
+        if (delta != 0)
+            zoomF(delta);
         return;
     }
     QAbstractScrollArea::wheelEvent(e);
@@ -638,7 +645,7 @@ int BinEditorWidget::dataLastIndexOf(const QByteArray &pattern, qint64 from, boo
     int block = from / m_blockSize;
     const int lowerBound = qMax(qint64(0), from - SearchStride);
     while (from > lowerBound) {
-        if (!requestDataAt(block * m_blockSize))
+        if (!requestDataAt(qint64(block) * m_blockSize))
             return -1;
         QByteArray data = blockData(block);
         ::memcpy(b + m_blockSize, b, trailing);
@@ -651,7 +658,7 @@ int BinEditorWidget::dataLastIndexOf(const QByteArray &pattern, qint64 from, boo
         if (pos >= 0)
             return pos + block * m_blockSize;
         --block;
-        from = block * m_blockSize + (m_blockSize-1) + trailing;
+        from = qint64(block) * m_blockSize + (m_blockSize-1) + trailing;
     }
     return lowerBound == 0 ? -1 : -2;
 }
@@ -810,7 +817,7 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
 
     QString itemString(m_bytesPerLine*3, QLatin1Char(' '));
     QChar *itemStringData = itemString.data();
-    char changedString[160] = { false };
+    char changedString[160] = {false};
     QTC_ASSERT((size_t)m_bytesPerLine < sizeof(changedString), return);
     const char *hex = "0123456789abcdef";
 
@@ -1419,19 +1426,25 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
     e->accept();
 }
 
-void BinEditorWidget::zoomIn(int range)
+static void showZoomIndicator(QWidget *editor, const int newZoom)
 {
-    QFont f = font();
-    const int newSize = f.pointSize() + range;
-    if (newSize <= 0)
-        return;
-    f.setPointSize(newSize);
-    setFont(f);
+    Utils::FadingIndicator::showText(editor,
+                                     QCoreApplication::translate("BinEditorWidget::TextEditorWidget",
+                                                                 "Zoom: %1%").arg(newZoom),
+                                     Utils::FadingIndicator::SmallText);
 }
 
-void BinEditorWidget::zoomOut(int range)
+void BinEditorWidget::zoomF(float delta)
 {
-    zoomIn(-range);
+    float step = 10.f * delta;
+    // Ensure we always zoom a minimal step in-case the resolution is more than 16x
+    if (step > 0 && step < 1)
+        step = 1;
+    else if (step < 0 && step > -1)
+        step = -1;
+
+    const int newZoom = TextEditor::TextEditorSettings::instance()->increaseFontZoom(int(step));
+    showZoomIndicator(this, newZoom);
 }
 
 void BinEditorWidget::copy(bool raw)

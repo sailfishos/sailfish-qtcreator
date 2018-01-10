@@ -29,18 +29,16 @@
 #include "qmlprofilerconstants.h"
 #include "qmlprofilereventtypes.h"
 
-#include <debugger/analyzer/analyzermanager.h>
-#include <debugger/analyzer/analyzerruncontrol.h>
-
-QT_BEGIN_NAMESPACE
-class QMessageBox;
-QT_END_NAMESPACE
+#include <QAction>
+#include <QObject>
 
 namespace QmlProfiler {
 
-class QmlProfilerRunControl;
+class QmlProfilerRunner;
 
 namespace Internal {
+
+class QmlProfilerClientManager;
 
 class QMLPROFILER_EXPORT QmlProfilerTool : public QObject
 {
@@ -50,11 +48,15 @@ public:
     explicit QmlProfilerTool(QObject *parent);
     ~QmlProfilerTool();
 
-    Debugger::AnalyzerRunControl *createRunControl(ProjectExplorer::RunConfiguration *runConfiguration = 0);
-    void finalizeRunControl(QmlProfilerRunControl *runControl);
+    static QmlProfilerTool *instance();
+
+    void finalizeRunControl(QmlProfilerRunner *runWorker);
 
     bool prepareTool();
-    void startRemoteTool(ProjectExplorer::RunConfiguration *rc);
+    void attachToWaitingApplication();
+
+    QString summary(const QVector<int> &typeIds) const;
+    QStringList details(int typeId) const;
 
     static QList <QAction *> profilerContextMenuActions();
 
@@ -63,18 +65,18 @@ public:
     static void logError(const QString &msg);
     static void showNonmodalWarning(const QString &warningMsg);
 
+    static QmlProfilerClientManager *clientManager();
+
 public slots:
     void profilerStateChanged();
-    void clientRecordingChanged();
     void serverRecordingChanged();
     void clientsDisconnected();
     void setAvailableFeatures(quint64 features);
     void setRecordedFeatures(quint64 features);
-
     void recordingButtonChanged(bool recording);
-    void setRecording(bool recording);
 
     void gotoSourceLocation(const QString &fileUrl, int lineNumber, int columnNumber);
+    void selectType(int typeId);
 
 private slots:
     void clearData();
@@ -95,12 +97,13 @@ private slots:
 private:
     void updateRunActions();
     void clearDisplay();
-    void populateFileFinder(QString projectDirectory = QString(), QString activeSysroot = QString());
     template<ProfileFeature feature>
     void updateFeatures(quint64 features);
     bool checkForUnsavedNotes();
     void restoreFeatureVisibility();
     void setButtonsEnabled(bool enable);
+    void createTextMarks();
+    void clearTextMarks();
 
     class QmlProfilerToolPrivate;
     QmlProfilerToolPrivate *d;

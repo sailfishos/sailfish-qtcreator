@@ -28,7 +28,7 @@
 #include "cmbalivemessage.h"
 #include "messageenvelop.h"
 #include "refactoringserverinterface.h"
-#include "sourcelocationsforrenamingmessage.h"
+#include "clangrefactoringclientmessages.h"
 
 #include <QDebug>
 #include <QIODevice>
@@ -77,6 +77,16 @@ void RefactoringClientProxy::alive()
 void RefactoringClientProxy::sourceLocationsForRenamingMessage(SourceLocationsForRenamingMessage &&message)
 {
     writeMessageBlock.write(message);
+}
+
+void RefactoringClientProxy::sourceRangesAndDiagnosticsForQueryMessage(SourceRangesAndDiagnosticsForQueryMessage &&message)
+{
+    writeMessageBlock.write(message);
+}
+
+void RefactoringClientProxy::sourceRangesForQueryMessage(SourceRangesForQueryMessage &&message)
+{
+     writeMessageBlock.write(message);
 }
 
 } // namespace ClangBackEnd

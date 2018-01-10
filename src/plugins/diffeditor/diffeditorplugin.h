@@ -44,6 +44,7 @@ class DiffEditorServiceImpl : public QObject, public Core::DiffService
 public:
     explicit DiffEditorServiceImpl(QObject *parent = nullptr);
 
+    void diffFiles(const QString &leftFileName, const QString &rightFileName) override;
     void diffModifiedFiles(const QStringList &fileNames) override;
 };
 
@@ -56,22 +57,23 @@ public:
     bool initialize(const QStringList &arguments, QString *errorMessage = 0);
     void extensionsInitialized();
 
-private slots:
+private:
     void updateDiffCurrentFileAction();
     void updateDiffOpenFilesAction();
     void diffCurrentFile();
     void diffOpenFiles();
     void diffExternalFiles();
 
+    QAction *m_diffCurrentFileAction = nullptr;
+    QAction *m_diffOpenFilesAction = nullptr;
+
 #ifdef WITH_TESTS
+private slots:
     void testMakePatch_data();
     void testMakePatch();
     void testReadPatch_data();
     void testReadPatch();
 #endif // WITH_TESTS
-private:
-    QAction *m_diffCurrentFileAction;
-    QAction *m_diffOpenFilesAction;
 };
 
 } // namespace Internal

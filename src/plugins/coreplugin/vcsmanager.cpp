@@ -77,9 +77,6 @@ public:
         QString topLevel;
     };
 
-    VcsManagerPrivate() : m_unconfiguredVcs(0), m_cachedAdditionalToolsPathsDirty(true)
-    { }
-
     ~VcsManagerPrivate()
     {
         qDeleteAll(m_vcsInfoList);
@@ -87,29 +84,14 @@ public:
 
     VcsInfo *findInCache(const QString &dir)
     {
-        QTC_ASSERT(QDir(dir).isAbsolute(), return 0);
-        QTC_ASSERT(!dir.endsWith(QLatin1Char('/')), return 0);
-        QTC_ASSERT(QDir::fromNativeSeparators(dir) == dir, return 0);
+        QTC_ASSERT(QDir(dir).isAbsolute(), return nullptr);
+        QTC_ASSERT(!dir.endsWith(QLatin1Char('/')), return nullptr);
+        QTC_ASSERT(QDir::fromNativeSeparators(dir) == dir, return nullptr);
 
         const QMap<QString, VcsInfo *>::const_iterator it = m_cachedMatches.constFind(dir);
         if (it != m_cachedMatches.constEnd())
             return it.value();
-        return 0;
-    }
-
-    VcsInfo *findUpInCache(const QString &directory)
-    {
-        VcsInfo *result = 0;
-        const QChar slash = QLatin1Char('/');
-        // Split the path, trying to find the matching repository. We start from the reverse
-        // in order to detected nested repositories correctly (say, a git checkout under SVN).
-        for (int pos = directory.size() - 1; pos >= 0; pos = directory.lastIndexOf(slash, pos) - 1) {
-            const QString directoryPart = directory.left(pos);
-            result = findInCache(directoryPart);
-            if (result != 0)
-                break;
-        }
-        return result;
+        return nullptr;
     }
 
     void clearCache()
@@ -171,14 +153,14 @@ public:
 
     QMap<QString, VcsInfo *> m_cachedMatches;
     QList<VcsInfo *> m_vcsInfoList;
-    IVersionControl *m_unconfiguredVcs;
+    IVersionControl *m_unconfiguredVcs = nullptr;
 
     QStringList m_cachedAdditionalToolsPaths;
-    bool m_cachedAdditionalToolsPathsDirty;
+    bool m_cachedAdditionalToolsPathsDirty = true;
 };
 
-static VcsManagerPrivate *d = 0;
-static VcsManager *m_instance = 0;
+static VcsManagerPrivate *d = nullptr;
+static VcsManager *m_instance = nullptr;
 
 VcsManager::VcsManager(QObject *parent) :
    QObject(parent)
@@ -191,7 +173,7 @@ VcsManager::VcsManager(QObject *parent) :
 
 VcsManager::~VcsManager()
 {
-    m_instance = 0;
+    m_instance = nullptr;
     delete d;
 }
 
@@ -249,7 +231,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
     if (inputDirectory.isEmpty()) {
         if (topLevelDirectory)
             topLevelDirectory->clear();
-        return 0;
+        return nullptr;
     }
 
     // Make sure we an absolute path:
@@ -282,12 +264,12 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
     });
 
     if (allThatCanManage.isEmpty()) {
-        d->cache(0, QString(), directory); // register that nothing was found!
+        d->cache(nullptr, QString(), directory); // register that nothing was found!
 
         // report result;
         if (topLevelDirectory)
             topLevelDirectory->clear();
-        return 0;
+        return nullptr;
     }
 
     // Register Vcs(s) with the cache
@@ -325,11 +307,11 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
         if (isVcsConfigured) {
             if (curDocument && d->m_unconfiguredVcs == versionControl) {
                 curDocument->infoBar()->removeInfo(vcsWarning);
-                d->m_unconfiguredVcs = 0;
+                d->m_unconfiguredVcs = nullptr;
             }
             return versionControl;
         } else {
-            InfoBar *infoBar = curDocument ? curDocument->infoBar() : 0;
+            InfoBar *infoBar = curDocument ? curDocument->infoBar() : nullptr;
             if (infoBar && infoBar->canInfoBeAdded(vcsWarning)) {
                 InfoBarEntry info(vcsWarning,
                                   tr("%1 repository was detected but %1 is not configured.")
@@ -343,7 +325,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
 
                 infoBar->addInfo(info);
             }
-            return 0;
+            return nullptr;
         }
     }
     return versionControl;
@@ -550,55 +532,46 @@ void CorePlugin::testVcsManager_data()
     QTest::addColumn<QStringList>("results");
 
     QTest::newRow("A and B next to each other")
-            << (QStringList()
-                << QLatin1String("a:a") << QLatin1String("a/1:a") << QLatin1String("a/2:a")
-                << QLatin1String("a/2/5:a") << QLatin1String("a/2/5/6:a"))
-            << (QStringList()
-                << QLatin1String("b:b") << QLatin1String("b/3:b") << QLatin1String("b/4:b"))
-            << (QStringList()
-                << QLatin1String(":::-") // empty directory to look up
-                << QLatin1String("c:::*") // Neither in A nor B
-                << QLatin1String("a:a:A:*") // in A
-                << QLatin1String("b:b:B:*") // in B
-                << QLatin1String("b/3:b:B:*") // in B
-                << QLatin1String("b/4:b:B:*") // in B
-                << QLatin1String("a/1:a:A:*") // in A
-                << QLatin1String("a/2:a:A:*") // in A
-                << QLatin1String(":::-") // empty directory to look up
-                << QLatin1String("a/2/5/6:a:A:*") // in A
-                << QLatin1String("a/2/5:a:A:-") // in A (cached from before!)
-                // repeat: These need to come from the cache now:
-                << QLatin1String("c:::-") // Neither in A nor B
-                << QLatin1String("a:a:A:-") // in A
-                << QLatin1String("b:b:B:-") // in B
-                << QLatin1String("b/3:b:B:-") // in B
-                << QLatin1String("b/4:b:B:-") // in B
-                << QLatin1String("a/1:a:A:-") // in A
-                << QLatin1String("a/2:a:A:-") // in A
-                << QLatin1String("a/2/5/6:a:A:-") // in A
-                << QLatin1String("a/2/5:a:A:-") // in A
-                );
+            << QStringList({"a:a", "a/1:a", "a/2:a", "a/2/5:a", "a/2/5/6:a"})
+            << QStringList({"b:b", "b/3:b", "b/4:b"})
+            << QStringList({":::-",          // empty directory to look up
+                            "c:::*",         // Neither in A nor B
+                            "a:a:A:*",       // in A
+                            "b:b:B:*",       // in B
+                            "b/3:b:B:*",     // in B
+                            "b/4:b:B:*",     // in B
+                            "a/1:a:A:*",     // in A
+                            "a/2:a:A:*",     // in A
+                            ":::-",          // empty directory to look up
+                            "a/2/5/6:a:A:*", // in A
+                            "a/2/5:a:A:-",   // in A (cached from before!)
+                            // repeat: These need to come from the cache now:
+                            "c:::-",         // Neither in A nor B
+                            "a:a:A:-",       // in A
+                            "b:b:B:-",       // in B
+                            "b/3:b:B:-",     // in B
+                            "b/4:b:B:-",     // in B
+                            "a/1:a:A:-",     // in A
+                            "a/2:a:A:-",     // in A
+                            "a/2/5/6:a:A:-", // in A
+                            "a/2/5:a:A:-"    // in A
+                });
     QTest::newRow("B in A")
-            << (QStringList()
-                << QLatin1String("a:a") << QLatin1String("a/1:a") << QLatin1String("a/2:a")
-                << QLatin1String("a/2/5:a") << QLatin1String("a/2/5/6:a"))
-            << (QStringList()
-                << QLatin1String("a/1/b:a/1/b") << QLatin1String("a/1/b/3:a/1/b")
-                << QLatin1String("a/1/b/4:a/1/b") << QLatin1String("a/1/b/3/5:a/1/b")
-                << QLatin1String("a/1/b/3/5/6:a/1/b"))
-            << (QStringList()
-                << QLatin1String("a:a:A:*") // in A
-                << QLatin1String("c:::*") // Neither in A nor B
-                << QLatin1String("a/3:::*") // Neither in A nor B
-                << QLatin1String("a/1/b/x:::*") // Neither in A nor B
-                << QLatin1String("a/1/b:a/1/b:B:*") // in B
-                << QLatin1String("a/1:a:A:*") // in A
-                << QLatin1String("a/1/b/../../2:a:A:*") // in A
-                );
+            << QStringList({"a:a", "a/1:a", "a/2:a", "a/2/5:a", "a/2/5/6:a"})
+            << QStringList({"a/1/b:a/1/b", "a/1/b/3:a/1/b", "a/1/b/4:a/1/b", "a/1/b/3/5:a/1/b",
+                            "a/1/b/3/5/6:a/1/b"})
+            << QStringList({"a:a:A:*",            // in A
+                            "c:::*",              // Neither in A nor B
+                            "a/3:::*",            // Neither in A nor B
+                            "a/1/b/x:::*",        // Neither in A nor B
+                            "a/1/b:a/1/b:B:*",    // in B
+                            "a/1:a:A:*",          // in A
+                            "a/1/b/../../2:a:A:*" // in A
+                });
     QTest::newRow("A and B") // first one wins...
-            << (QStringList() << QLatin1String("a:a") << QLatin1String("a/1:a") << QLatin1String("a/2:a"))
-            << (QStringList() << QLatin1String("a:a") << QLatin1String("a/1:a") << QLatin1String("a/2:a"))
-            << (QStringList() << QLatin1String("a/2:a:A:*"));
+            << QStringList({"a:a", "a/1:a", "a/2:a"})
+            << QStringList({"a:a", "a/1:a", "a/2:a"})
+            << QStringList({"a/2:a:A:*"});
 }
 
 void CorePlugin::testVcsManager()

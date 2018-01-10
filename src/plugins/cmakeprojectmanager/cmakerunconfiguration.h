@@ -39,13 +39,13 @@ class CMakeRunConfiguration : public ProjectExplorer::RunConfiguration
 
 public:
     CMakeRunConfiguration(ProjectExplorer::Target *parent, Core::Id id, const QString &target,
-                          const QString &workingDirectory, const QString &title);
+                          const Utils::FileName &workingDirectory, const QString &title);
 
     ProjectExplorer::Runnable runnable() const override;
     QWidget *createConfigurationWidget() override;
 
     void setExecutable(const QString &executable);
-    void setBaseWorkingDirectory(const QString &workingDirectory);
+    void setBaseWorkingDirectory(const Utils::FileName &workingDirectory);
 
     QString title() const;
 
@@ -56,6 +56,8 @@ public:
     bool isEnabled() const override;
     QString disabledReason() const override;
 
+    QString buildSystemTarget() const final { return m_buildSystemTarget; }
+
 protected:
     CMakeRunConfiguration(ProjectExplorer::Target *parent, CMakeRunConfiguration *source);
     bool fromMap(const QVariantMap &map) override;
@@ -65,7 +67,8 @@ private:
     QString baseWorkingDirectory() const;
     void ctor();
 
-    QString m_buildTarget;
+    const QString m_buildSystemTarget;
+    QString m_executable;
     QString m_title;
     bool m_enabled = true;
 };

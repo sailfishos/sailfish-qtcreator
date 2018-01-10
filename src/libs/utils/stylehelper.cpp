@@ -83,7 +83,7 @@ qreal StyleHelper::sidebarFontSize()
 
 QColor StyleHelper::notTooBrightHighlightColor()
 {
-    QColor highlightColor = qApp->palette().highlight().color();
+    QColor highlightColor = QApplication::palette().highlight().color();
     if (0.5 * highlightColor.saturationF() + 0.75 - highlightColor.valueF() < 0)
         highlightColor.setHsvF(highlightColor.hsvHueF(), 0.1 + highlightColor.saturationF() * 2.0, highlightColor.valueF());
     return highlightColor;
@@ -101,7 +101,6 @@ QPalette StyleHelper::sidebarFontPalette(const QPalette &original)
 
 QColor StyleHelper::panelTextColor(bool lightColored)
 {
-    //qApp->palette().highlightedText().color();
     if (!lightColored)
         return Qt::white;
     else
@@ -455,6 +454,7 @@ void StyleHelper::drawIconWithShadow(const QIcon &icon, const QRect &rect,
 
         // Draw the actual pixmap...
         cachePainter.drawPixmap(QRect(QPoint(radius, radius) + offset, QSize(px.width(), px.height())), px);
+        cachePainter.end();
         cache.setDevicePixelRatio(devicePixelRatio);
         QPixmapCache::insert(pixmapName, cache);
     }

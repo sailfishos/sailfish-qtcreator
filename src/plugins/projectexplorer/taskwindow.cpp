@@ -26,7 +26,6 @@
 #include "taskwindow.h"
 
 #include "itaskhandler.h"
-#include "projectexplorerconstants.h"
 #include "projectexplorericons.h"
 #include "session.h"
 #include "task.h"
@@ -210,7 +209,7 @@ public:
     QList<QAction *> m_actions;
 };
 
-static QToolButton *createFilterButton(QIcon icon, const QString &toolTip,
+static QToolButton *createFilterButton(const QIcon &icon, const QString &toolTip,
                                        QObject *receiver, std::function<void(bool)> lambda)
 {
     auto button = new QToolButton;
@@ -348,7 +347,7 @@ void TaskWindow::delayedInitialization()
 
 QList<QWidget*> TaskWindow::toolBarWidgets() const
 {
-    return { d->m_filterWarningsButton, d->m_categoriesButton };
+    return {d->m_filterWarningsButton, d->m_categoriesButton};
 }
 
 QWidget *TaskWindow::outputWidget(QWidget *)

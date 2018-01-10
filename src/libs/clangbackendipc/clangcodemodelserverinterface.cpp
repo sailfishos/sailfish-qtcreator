@@ -24,18 +24,8 @@
 ****************************************************************************/
 
 #include "clangcodemodelserverinterface.h"
-
-#include "cmbcompletecodemessage.h"
-#include "cmbregisterprojectsforeditormessage.h"
-#include "cmbregistertranslationunitsforeditormessage.h"
-#include "cmbunregisterprojectsforeditormessage.h"
-#include "cmbunregistertranslationunitsforeditormessage.h"
+#include "clangcodemodelservermessages.h"
 #include "messageenvelop.h"
-#include "registerunsavedfilesforeditormessage.h"
-#include "requestdocumentannotations.h"
-#include "unregisterunsavedfilesforeditormessage.h"
-#include "updatetranslationunitsforeditormessage.h"
-#include "updatevisibletranslationunitsmessage.h"
 
 #include <QDebug>
 #include <QVariant>
@@ -74,6 +64,9 @@ void ClangCodeModelServerInterface::dispatch(const MessageEnvelop &messageEnvelo
             break;
         case MessageType::RequestDocumentAnnotationsMessage:
             requestDocumentAnnotations(messageEnvelop.message<RequestDocumentAnnotationsMessage>());
+            break;
+        case MessageType::RequestReferencesMessage:
+            requestReferences(messageEnvelop.message<RequestReferencesMessage>());
             break;
         case MessageType::UpdateVisibleTranslationUnitsMessage:
             updateVisibleTranslationUnits(messageEnvelop.message<UpdateVisibleTranslationUnitsMessage>());

@@ -27,6 +27,9 @@
 #include "bookmarkmanager.h"
 #include "bookmarks_global.h"
 
+#include <utils/utilsicons.h>
+
+#include <QApplication>
 #include <QFileInfo>
 #include <QTextBlock>
 
@@ -36,13 +39,25 @@ Bookmark::Bookmark(int lineNumber, BookmarkManager *manager) :
     TextMark(QString(), lineNumber, Constants::BOOKMARKS_TEXT_MARK_CATEGORY),
     m_manager(manager)
 {
+    setColor(Utils::Theme::Bookmarks_TextMarkColor);
+    setIcon(Utils::Icons::BOOKMARK_TEXTEDITOR.icon());
+    setDefaultToolTip(QApplication::translate("BookmarkManager", "Bookmark"));
     setPriority(TextEditor::TextMark::NormalPriority);
-    setIcon(m_manager->bookmarkIcon());
 }
 
 void Bookmark::removedFromEditor()
 {
     m_manager->deleteBookmark(this);
+}
+
+bool Bookmark::isDraggable() const
+{
+    return true;
+}
+
+void Bookmark::dragToLine(int lineNumber)
+{
+    move(lineNumber);
 }
 
 void Bookmark::updateLineNumber(int line)
@@ -58,6 +73,7 @@ void Bookmark::move(int line)
     if (line != lineNumber()) {
         TextMark::move(line);
         m_manager->updateBookmark(this);
+        updateMarker();
     }
 }
 
@@ -79,6 +95,8 @@ void Bookmark::updateFileName(const QString &fileName)
 void Bookmark::setNote(const QString &note)
 {
     setToolTip(note);
+    setLineAnnotation(note);
+    updateMarker();
 }
 
 void Bookmark::updateNote(const QString &note)

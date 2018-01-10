@@ -34,7 +34,6 @@
 #include "../runnables.h"
 
 #include <ssh/sshconnection.h>
-#include <utils/algorithm.h>
 #include <utils/icon.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
@@ -182,7 +181,9 @@ IDevice::IDevice(Core::Id type, Origin origin, MachineType machineType, Core::Id
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-IDevice::IDevice(const IDevice &other) : d(new Internal::IDevicePrivate)
+IDevice::IDevice(const IDevice &other)
+    : QEnableSharedFromThis<IDevice>(other)
+    , d(new Internal::IDevicePrivate)
 {
     *d = *other.d;
 }
@@ -290,6 +291,11 @@ DeviceTester *IDevice::createDeviceTester() const
     return 0;
 }
 
+Utils::OsType IDevice::osType() const
+{
+    return Utils::OsTypeOther;
+}
+
 DeviceProcess *IDevice::createProcess(QObject * /* parent */) const
 {
     QTC_CHECK(false);
@@ -353,8 +359,10 @@ void IDevice::fromMap(const QVariantMap &map)
     if (optionsVariant.isValid())  // false for QtC < 3.4
         d->sshParameters.options = QSsh::SshConnectionOptions(optionsVariant.toInt());
 
-    d->freePorts = Utils::PortList::fromString(map.value(QLatin1String(PortsSpecKey),
-        QLatin1String("10000-10100")).toString());
+    QString portsSpec = map.value(PortsSpecKey).toString();
+    if (portsSpec.isEmpty())
+        portsSpec = "10000-10100";
+    d->freePorts = Utils::PortList::fromString(portsSpec);
     d->machineType = static_cast<MachineType>(map.value(QLatin1String(MachineTypeKey), DefaultMachineType).toInt());
     d->version = map.value(QLatin1String(VersionKey), 0).toInt();
 
@@ -395,16 +403,6 @@ QVariantMap IDevice::toMap() const
     return map;
 }
 
-IDevice::Ptr IDevice::sharedFromThis()
-{
-    return DeviceManager::instance()->fromRawPointer(this);
-}
-
-IDevice::ConstPtr IDevice::sharedFromThis() const
-{
-    return DeviceManager::instance()->fromRawPointer(this);
-}
-
 QString IDevice::deviceStateToString() const
 {
     const char context[] = "ProjectExplorer::IDevice";
@@ -415,18 +413,6 @@ QString IDevice::deviceStateToString() const
     case IDevice::DeviceStateUnknown: return QCoreApplication::translate(context, "Unknown");
     default: return QCoreApplication::translate(context, "Invalid");
     }
-}
-
-void IDevice::setDeviceIcon(const QList<Utils::Icon> &deviceIcon)
-{
-    d->deviceIcons = deviceIcon;
-}
-
-QIcon IDevice::deviceIcon() const
-{
-    const QList<QIcon> icons =
-            Utils::transform(d->deviceIcons, [](const Utils::Icon &icon){return icon.icon();});
-    return Utils::Icon::combinedIcon(icons);
 }
 
 QSsh::SshConnectionParameters IDevice::sshParameters() const
@@ -440,9 +426,11 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
     d->sshParameters.hostKeyDatabase = DeviceManager::instance()->hostKeyDatabase();
 }
 
-Connection IDevice::toolControlChannel(const ControlChannelHint &) const
+QUrl IDevice::toolControlChannel(const ControlChannelHint &) const
 {
-    return HostName(d->sshParameters.host);
+    QUrl url;
+    url.setHost(d->sshParameters.host);
+    return url;
 }
 
 void IDevice::setFreePorts(const Utils::PortList &freePorts)
@@ -498,7 +486,5 @@ DeviceProcessSignalOperation::DeviceProcessSignalOperation()
 DeviceEnvironmentFetcher::DeviceEnvironmentFetcher()
 {
 }
-
-void *HostName::staticTypeId = &HostName::staticTypeId;
 
 } // namespace ProjectExplorer

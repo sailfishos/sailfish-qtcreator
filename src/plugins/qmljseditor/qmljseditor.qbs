@@ -26,6 +26,9 @@ QtcPlugin {
         "qmljscomponentnamedialog.cpp",
         "qmljscomponentnamedialog.h",
         "qmljscomponentnamedialog.ui",
+        "qmljseditingsettingspage.cpp",
+        "qmljseditingsettingspage.h",
+        "qmljseditingsettingspage.ui",
         "qmljseditor.cpp",
         "qmljseditor.h",
         "qmljseditor_global.h",
@@ -58,8 +61,6 @@ QtcPlugin {
         "qmljssemantichighlighter.h",
         "qmljssemanticinfoupdater.cpp",
         "qmljssemanticinfoupdater.h",
-        "qmljssnippetprovider.cpp",
-        "qmljssnippetprovider.h",
         "qmljswrapinloader.cpp",
         "qmljswrapinloader.h",
         "qmloutlinemodel.cpp",
@@ -68,9 +69,6 @@ QtcPlugin {
         "qmltaskmanager.h",
         "quicktoolbar.cpp",
         "quicktoolbar.h",
-        "quicktoolbarsettingspage.cpp",
-        "quicktoolbarsettingspage.h",
-        "quicktoolbarsettingspage.ui",
     ]
 
     Export {

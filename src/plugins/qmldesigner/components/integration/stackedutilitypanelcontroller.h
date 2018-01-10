@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef StackedUtilityPanelController_h
-#define StackedUtilityPanelController_h
+#pragma once
 
 #include "utilitypanelcontroller.h"
 
@@ -43,7 +42,6 @@ class StackedUtilityPanelController : public UtilityPanelController
 public:
     StackedUtilityPanelController(QObject* parent = 0);
 
-public slots:
     void show(DesignDocument* DesignDocument);
     void close(DesignDocument* DesignDocument);
 
@@ -56,5 +54,3 @@ private:
 };
 
 } // namespace QmlDesigner
-
-#endif // StackedUtilityPanelController_h

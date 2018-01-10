@@ -7,21 +7,21 @@ Qt Creator is a cross-platform IDE for development with the Qt framework.
 The standalone binary packages support the following platforms:
 
 * Windows 7 or later
-* (K)Ubuntu Linux 14.04 (64-bit) or later
-* macOS 10.8 or later
+* (K)Ubuntu Linux 16.04 (64-bit) or later
+* macOS 10.10 or later
 
 ## Compiling Qt Creator
 
 Prerequisites:
 
-* Qt 5.6.0 or later
+* Qt 5.6.2 or later
 * Qt WebEngine module for QtWebEngine based help viewer
 * On Windows:
     * ActiveState Active Perl
-    * MinGW with g++ 4.8 or Visual Studio 2015 or later
+    * MinGW with g++ 4.9 or Visual Studio 2015 or later
     * jom
 * On Mac OS X: latest Xcode
-* On Linux: g++ 4.8 or later
+* On Linux: g++ 4.9 or later
 * LLVM/Clang 3.9.0 or later (optional, needed for the Clang Code Model, see the
   section "Get LLVM/Clang for the Clang Code Model")
     * CMake (only for manual builds of LLVM/Clang)
@@ -226,6 +226,23 @@ shipped together with Qt Creator. In addition, the packages for Windows are
 faster due to profile-guided optimization. If the prebuilt packages do not
 match your configuration, you need to build LLVM/Clang manually.
 
+If you use GCC 5 or higher on Linux, please do not use our LLVM package, but get
+the package for your distribution. Our LLVM package is compiled with GCC 4, so
+you get linking errors, because GCC 5 is using a C++ 11 conforming string
+implementation, which is not used by GCC 4. To sum it up, do not mix GCC 5 and
+GCC 4 binaries. On Ubuntu, you can download the package from
+http://apt.llvm.org/ with:
+
+   wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-3.9 main"
+   sudo apt-get update
+   sudo apt-get install llvm-3.9 libclang-3.9-dev
+
+There is a workaround to set _GLIBCXX_USE_CXX11_ABI to 1 or 0, but we recommend
+to download the package from http://apt.llvm.org/.
+
+   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
+
 ### Building LLVM/Clang manually
 
 You need to install CMake in order to build LLVM/Clang.
@@ -266,6 +283,21 @@ http://llvm.org/docs/GettingStarted.html#git-mirror:
 
 Qt Creator includes the following third-party components,
 we thank the authors who made this possible:
+
+### Reference implementation for std::experimental::optional
+
+  https://github.com/akrzemi1/Optional
+
+  QtCreator/src/libs/3rdparty/optional
+
+  Copyright (C) 2011-2012 Andrzej Krzemienski
+
+  Distributed under the Boost Software License, Version 1.0
+  (see accompanying file LICENSE_1_0.txt or a copy at
+  http://www.boost.org/LICENSE_1_0.txt)
+
+  The idea and interface is based on Boost.Optional library
+  authored by Fernando Luis Cacciola Carballal
 
 ### Open Source front-end for C++ (license MIT), enhanced for use in Qt Creator
 

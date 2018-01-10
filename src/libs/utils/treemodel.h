@@ -54,6 +54,10 @@ public:
     void prependChild(TreeItem *item);
     void appendChild(TreeItem *item);
     void insertChild(int pos, TreeItem *item);
+    void insertOrderedChild(TreeItem *item,
+        const std::function<bool(const TreeItem *, const TreeItem *)> &cmp);
+
+    void removeChildAt(int pos);
     void removeChildren();
     void sortChildren(const std::function<bool(const TreeItem *, const TreeItem *)> &cmp);
     void update();
@@ -64,16 +68,22 @@ public:
     TreeItem *lastChild() const;
     int level() const;
 
+    using const_iterator = QVector<TreeItem *>::const_iterator;
+    using value_type = TreeItem *;
     int childCount() const { return m_children.size(); }
     int indexInParent() const;
     TreeItem *childAt(int index) const;
-    QVector<TreeItem *> children() const { return m_children; }
+    int indexOf(const TreeItem *item) const;
+    const_iterator begin() const { return m_children.begin(); }
+    const_iterator end() const { return m_children.end(); }
     QModelIndex index() const;
     QAbstractItemModel *model() const;
 
     void forSelectedChildren(const std::function<bool(TreeItem *)> &pred) const;
     void forAllChildren(const std::function<void(TreeItem *)> &pred) const;
     TreeItem *findAnyChild(const std::function<bool(TreeItem *)> &pred) const;
+    // like findAnyChild() but processes children from bottom to top
+    TreeItem *reverseFindAnyChild(const std::function<bool(TreeItem *)> &pred) const;
 
     // Levels are 1-based: Child at Level 1 is an immediate child.
     void forChildrenAtLevel(int level, const std::function<void(TreeItem *)> &pred) const;
@@ -84,6 +94,7 @@ private:
     void operator=(const TreeItem &) = delete;
 
     void clear();
+    void removeItemAt(int pos);
     void propagateModel(BaseTreeModel *m);
 
     TreeItem *m_parent; // Not owned.
@@ -126,6 +137,14 @@ public:
 
     ParentType *parent() const {
         return static_cast<ParentType *>(TreeItem::parent());
+    }
+
+    void insertOrderedChild(ChildType *item, const std::function<bool(const ChildType *, const ChildType *)> &cmp)
+    {
+        const auto cmp0 = [cmp](const TreeItem *lhs, const TreeItem *rhs) {
+            return cmp(static_cast<const ChildType *>(lhs), static_cast<const ChildType *>(rhs));
+        };
+        TreeItem::insertOrderedChild(item, cmp0);
     }
 };
 
@@ -249,13 +268,16 @@ public:
     explicit TreeModel(QObject *parent = 0) : BaseTreeModel(new RootItem, parent) {}
     explicit TreeModel(RootItem *root, QObject *parent = 0) : BaseTreeModel(root, parent) {}
 
+    using BaseTreeModel::canFetchMore;
     using BaseTreeModel::clear;
     using BaseTreeModel::columnCount;
     using BaseTreeModel::data;
     using BaseTreeModel::destroyItem;
+    using BaseTreeModel::fetchMore;
     using BaseTreeModel::hasChildren;
     using BaseTreeModel::index;
     using BaseTreeModel::indexForItem;
+    using BaseTreeModel::parent;
     using BaseTreeModel::rowCount;
     using BaseTreeModel::setData;
     using BaseTreeModel::setHeader;

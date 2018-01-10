@@ -73,7 +73,8 @@ public:
     void registerFormEditorToolTakingOwnership(AbstractCustomTool *tool);
     void registerViewTakingOwnership(AbstractView *view);
 
-    QList<WidgetInfo> widgetInfos();
+    QList<WidgetInfo> widgetInfos() const;
+    QWidget *widget(const QString & uniqueId) const;
 
     void disableWidgets();
     void enableWidgets();
@@ -84,10 +85,17 @@ public:
 
     NodeInstanceView *nodeInstanceView() const;
 
+    void exportAsImage();
+    void reformatFileUsingTextEditorView();
+
     QWidgetAction *componentViewAction() const;
 
     DesignerActionManager &designerActionManager();
     const DesignerActionManager &designerActionManager() const;
+
+    void toggleStatesViewExpanded();
+
+    QString qmlJSEditorHelpId() const;
 
 private: // functions
     Q_DISABLE_COPY(ViewManager)

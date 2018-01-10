@@ -55,11 +55,11 @@ public:
 
     QString makePatch(bool revert, bool addPrefix = false) const;
 
-    static Core::IDocument *findOrCreateDocument(const QString &vcsId, const QString &displayName);
+    static Core::IDocument *findOrCreateDocument(const QString &vcsId,
+                                                 const QString &displayName);
     static DiffEditorController *controller(Core::IDocument *document);
 
-public slots:
-    void informationForCommitReceived(const QString &output);
+    void branchesReceived(const QString &branches);
 
 signals:
     void chunkActionsRequested(QMenu *menu, bool isValid);
@@ -70,7 +70,7 @@ protected:
     // inside reload() (for synchronous reload)
     // or later (for asynchronous reload)
     virtual void reload() = 0;
-    virtual void reloadFinished(bool success);
+    void reloadFinished(bool success);
 
     void setDiffFiles(const QList<FileData> &diffFileList,
                       const QString &baseDirectory = QString(),
@@ -82,8 +82,6 @@ protected:
 private:
     void requestMoreInformation();
     void requestChunkActions(QMenu *menu, int diffFileIndex, int chunkIndex);
-
-    QString prepareBranchesForCommit(const QString &output);
 
     Internal::DiffEditorDocument *const m_document;
 

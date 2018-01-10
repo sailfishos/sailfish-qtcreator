@@ -69,7 +69,7 @@ Uncrustify::~Uncrustify()
 bool Uncrustify::initialize()
 {
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::Uncrustify::MENU_ID);
-    menu->menu()->setTitle(tr(Constants::Uncrustify::DISPLAY_NAME));
+    menu->menu()->setTitle(tr("&Uncrustify"));
 
     m_formatFile = new QAction(BeautifierPlugin::msgFormatCurrentFile(), this);
     Core::Command *cmd
@@ -166,6 +166,12 @@ QString Uncrustify::configurationFile() const
                     return file;
             }
         }
+    }
+
+    if (m_settings->useSpecificConfigFile()) {
+        const Utils::FileName file = m_settings->specificConfigFile();
+        if (file.exists())
+            return file.toString();
     }
 
     if (m_settings->useHomeFile()) {

@@ -129,15 +129,8 @@ void FilesSelectionWizardPage::initializePage()
 
 SimpleProjectWizard::SimpleProjectWizard()
 {
-    setSupportedProjectTypes({ Constants::PROJECT_ID });
-    // TODO do something about the ugliness of standard icons in sizes different than 16, 32, 64, 128
-    {
-        QPixmap icon(22, 22);
-        icon.fill(Qt::transparent);
-        QPainter p(&icon);
-        p.drawPixmap(3, 3, 16, 16, qApp->style()->standardIcon(QStyle::SP_DirIcon).pixmap(16));
-        setIcon(icon);
-    }
+    setSupportedProjectTypes({Constants::PROJECT_ID});
+    setIcon(QIcon(QLatin1String(":/qmakeprojectmanager/images/qmakeprojectmanager.png")));
     setDisplayName(tr("Import as qmake Project (Limited Functionality)"));
     setId("Z.DummyProFile");
     setDescription(tr("Imports existing projects that do not use qmake, CMake or Autotools.<p>"
@@ -173,8 +166,7 @@ GeneratedFiles SimpleProjectWizard::generateFiles(const QWizard *w,
     const QString proFileName = QFileInfo(dir, projectName + ".pro").absoluteFilePath();
     const QStringList paths = Utils::transform(wizard->selectedPaths(), &FileName::toString);
 
-    MimeDatabase mdb;
-    MimeType headerType = mdb.mimeTypeForName("text/x-chdr");
+    MimeType headerType = Utils::mimeTypeForName("text/x-chdr");
 
     QStringList nameFilters = headerType.globPatterns();
 
@@ -194,7 +186,7 @@ GeneratedFiles SimpleProjectWizard::generateFiles(const QWizard *w,
 
     for (const FileName &fileName : wizard->selectedFiles()) {
         QString source = dir.relativeFilePath(fileName.toString());
-        MimeType mimeType = mdb.mimeTypeForFile(fileName.toFileInfo());
+        MimeType mimeType = Utils::mimeTypeForFile(fileName.toFileInfo());
         if (mimeType.matchesName("text/x-chdr") || mimeType.matchesName("text/x-c++hdr"))
             proHeaders += "   $$PWD/" + source + " \\\n";
         else
@@ -217,7 +209,7 @@ GeneratedFiles SimpleProjectWizard::generateFiles(const QWizard *w,
         "#DEFINES = \n\n"
     );
 
-    return GeneratedFiles { generatedProFile };
+    return GeneratedFiles{generatedProFile};
 }
 
 bool SimpleProjectWizard::postGenerateFiles(const QWizard *w, const GeneratedFiles &l,

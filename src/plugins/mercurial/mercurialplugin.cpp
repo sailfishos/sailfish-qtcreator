@@ -126,14 +126,17 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
 
     addAutoReleasedObject(new OptionsPage(versionControl()));
 
-    connect(m_client, SIGNAL(changed(QVariant)), versionControl(), SLOT(changed(QVariant)));
+    connect(m_client, &VcsBaseClient::changed,
+            static_cast<MercurialControl *>(versionControl()), &MercurialControl::changed);
     connect(m_client, &MercurialClient::needUpdate, this, &MercurialPlugin::update);
 
-    static const char *describeSlot = SLOT(view(QString,QString));
+    const auto describeFunc = [this](const QString &source, const QString &id) {
+        m_client->view(source, id);
+    };
     const int editorCount = sizeof(editorParameters)/sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new MercurialEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, m_client, describeSlot));
+        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
 
     addAutoReleasedObject(new VcsSubmitEditorFactory(&submitEditorParameters,
         []() { return new CommitEditor(&submitEditorParameters); }));
@@ -162,7 +165,6 @@ void MercurialPlugin::createMenu(const Core::Context &context)
     m_mercurialContainer->addSeparator(context);
     createRepositoryActions(context);
     m_mercurialContainer->addSeparator(context);
-    createRepositoryManagementActions(context);
 
     // Request the Tools menu and add the Mercurial menu to it
     Core::ActionContainer *toolsMenu = Core::ActionManager::actionContainer(Core::Id(Core::Constants::M_TOOLS));
@@ -599,18 +601,6 @@ bool MercurialPlugin::submitEditorAboutToClose()
                          extraOptions);
     }
     return true;
-}
-
-void MercurialPlugin::createRepositoryManagementActions(const Core::Context &context)
-{
-    //TODO create menu for these options
-    Q_UNUSED(context);
-    return;
-    //    auto action = new QAction(tr("Branch"), this);
-    //    actionList.append(action);
-    //    Core::Command *command = Core::ActionManager::registerAction(action, Constants::BRANCH, context);
-    //    //    connect(action, SIGNAL(triggered()), this, SLOT(branch()));
-    //    m_mercurialContainer->addAction(command);
 }
 
 void MercurialPlugin::updateActions(VcsBasePlugin::ActionState as)

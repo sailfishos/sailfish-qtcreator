@@ -30,10 +30,13 @@
 
 #include <vcsbase/vcsbaseplugin.h>
 #include <vcsbase/vcsoutputwindow.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
+
+#include <utils/hostosinfo.h>
 
 #include <QDir>
 #include <QFileInfo>
+#include <QRegExp>
 #include <QTextStream>
 #include <QDebug>
 
@@ -44,12 +47,12 @@ namespace Bazaar {
 namespace Internal {
 
 // Parameter widget controlling whitespace diff mode, associated with a parameter
-class BazaarDiffParameterWidget : public VcsBaseEditorParameterWidget
+class BazaarDiffConfig : public VcsBaseEditorConfig
 {
     Q_OBJECT
 public:
-    BazaarDiffParameterWidget(VcsBaseClientSettings &settings, QWidget *parent = 0) :
-        VcsBaseEditorParameterWidget(parent)
+    BazaarDiffConfig(VcsBaseClientSettings &settings, QToolBar *toolBar) :
+        VcsBaseEditorConfig(toolBar)
     {
         mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore Whitespace")),
                    settings.boolPointer(BazaarSettings::diffIgnoreWhiteSpaceKey));
@@ -61,7 +64,7 @@ public:
     {
         QStringList args;
         // Bazaar wants "--diff-options=-w -B.."
-        const QStringList formatArguments = VcsBaseEditorParameterWidget::arguments();
+        const QStringList formatArguments = VcsBaseEditorConfig::arguments();
         if (!formatArguments.isEmpty()) {
             const QString a = QLatin1String("--diff-options=")
                     + formatArguments.join(QString(QLatin1Char(' ')));
@@ -71,12 +74,12 @@ public:
     }
 };
 
-class BazaarLogParameterWidget : public VcsBaseEditorParameterWidget
+class BazaarLogConfig : public VcsBaseEditorConfig
 {
     Q_OBJECT
 public:
-    BazaarLogParameterWidget(VcsBaseClientSettings &settings, QWidget *parent = 0) :
-        VcsBaseEditorParameterWidget(parent)
+    BazaarLogConfig(VcsBaseClientSettings &settings, QToolBar *toolBar) :
+        VcsBaseEditorConfig(toolBar)
     {
         mapSetting(addToggleButton(QLatin1String("--verbose"), tr("Verbose"),
                                    tr("Show files changed in each revision.")),
@@ -100,8 +103,12 @@ public:
 
 BazaarClient::BazaarClient() : VcsBaseClient(new BazaarSettings)
 {
-    setDiffParameterWidgetCreator([this] { return new BazaarDiffParameterWidget(settings()); });
-    setLogParameterWidgetCreator([this] { return new BazaarLogParameterWidget(settings()); });
+    setDiffConfigCreator([this](QToolBar *toolBar) {
+        return new BazaarDiffConfig(settings(), toolBar);
+    });
+    setLogConfigCreator([this](QToolBar *toolBar) {
+        return new BazaarLogConfig(settings(), toolBar);
+    });
 }
 
 bool BazaarClient::synchronousSetUserId()
@@ -169,6 +176,12 @@ VcsBaseEditorWidget *BazaarClient::annotate(
 {
     return VcsBaseClient::annotate(workingDir, file, revision, lineNumber,
                                    QStringList(extraOptions) << QLatin1String("--long"));
+}
+
+bool BazaarClient::isVcsDirectory(const FileName &fileName) const
+{
+    return fileName.toFileInfo().isDir()
+            && !fileName.fileName().compare(Constants::BAZAARREPO, HostOsInfo::fileNameCaseSensitivity());
 }
 
 QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const

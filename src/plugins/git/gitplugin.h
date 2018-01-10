@@ -87,9 +87,9 @@ public:
 
     Gerrit::Internal::GerritPlugin *gerritPlugin() const;
     bool isCommitEditorOpen() const;
-
-public slots:
-    void startCommit();
+    static QString msgRepositoryLabel(const QString &repository);
+    static QString invalidBranchAndRemoteNamePattern();
+    void startCommit(CommitType commitType = SimpleCommit);
     void updateBranches(const QString &repository);
 
 protected:
@@ -128,8 +128,6 @@ private:
     void applyCurrentFilePatch();
     void promptApplyPatch();
 
-    void startAmendCommit();
-    void startFixupCommit();
     void stash(bool unstagedOnly = false);
     void stashUnstaged();
     void stashSnapshot();
@@ -160,11 +158,6 @@ private:
                               Core::Id id, const Core::Context &context, bool addToLocator,
                               const std::function<void()> &callback,
                               const QKeySequence &keys = QKeySequence());
-    QAction *createFileAction(Core::ActionContainer *ac,
-                              const QString &defaultText, const QString &parameterText,
-                              Core::Id id, const Core::Context &context, bool addToLocator,
-                              void (GitPlugin::*func)(),
-                              const QKeySequence &keys = QKeySequence());
 
     QAction *createProjectAction(Core::ActionContainer *ac,
                                  const QString &defaultText, const QString &parameterText,
@@ -188,7 +181,6 @@ private:
     void cleanCommitMessageFile();
     void cleanRepository(const QString &directory);
     void applyPatch(const QString &workingDirectory, QString file = QString());
-    void startCommit(CommitType commitType);
     void updateVersionWarning();
 
     Core::CommandLocator *m_commandLocator = nullptr;
@@ -205,6 +197,7 @@ private:
     QAction *m_abortRebaseAction = nullptr;
     QAction *m_abortCherryPickAction = nullptr;
     QAction *m_abortRevertAction = nullptr;
+    QAction *m_skipRebaseAction = nullptr;
     QAction *m_continueRebaseAction = nullptr;
     QAction *m_continueCherryPickAction = nullptr;
     QAction *m_continueRevertAction = nullptr;

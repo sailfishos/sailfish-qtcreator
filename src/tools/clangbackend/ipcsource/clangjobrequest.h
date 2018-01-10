@@ -52,22 +52,40 @@ public:
 
         CompleteCode,
         RequestDocumentAnnotations,
+        RequestReferences,
+
+        SuspendDocument,
+        ResumeDocument,
     };
 
-    enum Requirement {
-        None                    = 1 << 0,
-
-        DocumentValid           = 1 << 1,
-        CurrentDocumentRevision = 1 << 3, // Only effective if DocumentValid is also set
-        CurrentUnsavedFiles     = 1 << 2,
-        CurrentProject          = 1 << 4,
-
-        All = DocumentValid | CurrentUnsavedFiles | CurrentDocumentRevision | CurrentProject
+    enum class Condition {
+        NoCondition             = 1 << 0,
+        DocumentVisible         = 1 << 1,
+        DocumentNotVisible      = 1 << 2,
+        DocumentSuspended       = 1 << 3,
+        DocumentUnsuspended     = 1 << 4,
+        CurrentDocumentRevision = 1 << 5,
     };
-    Q_DECLARE_FLAGS(Requirements, Requirement)
+    Q_DECLARE_FLAGS(Conditions, Condition)
+
+    enum class ExpirationReason {
+        Never                   = 1 << 0,
+
+        DocumentClosed          = 1 << 1,
+        DocumentRevisionChanged = 1 << 2, // Only effective if DocumentIsClosed is also set
+        UnsavedFilesChanged     = 1 << 3,
+        ProjectChanged          = 1 << 4,
+
+        AnythingChanged = DocumentClosed
+                        | DocumentRevisionChanged
+                        | UnsavedFilesChanged
+                        | ProjectChanged,
+    };
+    Q_DECLARE_FLAGS(ExpirationReasons, ExpirationReason)
 
 public:
-    static Requirements requirementsForType(Type type);
+    static ExpirationReasons expirationReasonsForType(Type type);
+    static Conditions conditionsForType(Type type);
 
     JobRequest();
 
@@ -76,7 +94,8 @@ public:
 public:
     quint64 id = 0;
     Type type;
-    Requirements requirements;
+    ExpirationReasons expirationReasons;
+    Conditions conditions;
 
     // General
     Utf8String filePath;
@@ -86,17 +105,17 @@ public:
     uint documentRevision = 0;
     PreferredTranslationUnit preferredTranslationUnit = PreferredTranslationUnit::RecentlyParsed;
 
-    // For code completion
+    // Specific to some jobs
     quint32 line = 0;
     quint32 column = 0;
     quint64 ticketNumber = 0;
 };
 
 using JobRequests = QVector<JobRequest>;
-using JobRequestCreator = std::function<JobRequest(const Document &,
-                                                   JobRequest::Type ,
-                                                   PreferredTranslationUnit)>;
 
 QDebug operator<<(QDebug debug, const JobRequest &jobRequest);
+std::ostream &operator<<(std::ostream &os, JobRequest::Type type);
+std::ostream &operator<<(std::ostream &os, PreferredTranslationUnit preferredTranslationUnit);
+
 
 } // namespace ClangBackEnd

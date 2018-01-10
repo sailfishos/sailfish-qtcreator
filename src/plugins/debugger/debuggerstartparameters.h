@@ -31,6 +31,7 @@
 #include <ssh/sshconnection.h>
 #include <utils/environment.h>
 #include <utils/port.h>
+#include <utils/processhandle.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/runnables.h>
@@ -44,18 +45,6 @@ namespace Debugger {
 
 // Note: This is part of the "soft interface" of the debugger plugin.
 // Do not add anything that needs implementation in a .cpp file.
-
-const qint64 InvalidPid = -1;
-
-class DEBUGGER_EXPORT RemoteSetupResult
-{
-public:
-    Utils::Port gdbServerPort;
-    Utils::Port qmlServerPort;
-    qint64 inferiorPid = InvalidPid;
-    bool success = false;
-    QString reason;
-};
 
 class DEBUGGER_EXPORT TcpServerConnection
 {
@@ -73,17 +62,16 @@ public:
     ProjectExplorer::StandardRunnable inferior;
     QString displayName; // Used in the Snapshots view.
     Utils::Environment stubEnvironment;
-    qint64 attachPID = InvalidPid;
+    Utils::ProcessHandle attachPID;
     QStringList solibSearchPath;
     bool useTerminal = false;
+    bool needFixup = true; // FIXME: Make false the default...
 
     // Used by Qml debugging.
     TcpServerConnection qmlServer;
 
     // Used by general remote debugging.
     QString remoteChannel;
-    QSsh::SshConnectionParameters connParams;
-    bool remoteSetupNeeded = false;
     bool useExtendedRemote = false; // Whether to use GDB's target extended-remote or not.
     QString symbolFile;
 
@@ -114,9 +102,11 @@ public:
 
     // Used by general core file debugging. Public access requested in QTCREATORBUG-17158.
     QString coreFile;
+
+    // Macro-expanded and passed to debugger startup.
+    QString additionalStartupCommands;
 };
 
 } // namespace Debugger
 
-Q_DECLARE_METATYPE(Debugger::RemoteSetupResult)
 Q_DECLARE_METATYPE(Debugger::DebuggerStartParameters)

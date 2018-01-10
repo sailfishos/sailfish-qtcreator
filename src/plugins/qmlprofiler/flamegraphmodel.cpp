@@ -26,7 +26,6 @@
 #include "flamegraphmodel.h"
 
 #include "qmlprofilermodelmanager.h"
-#include "qmlprofilerdatamodel.h"
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
@@ -38,6 +37,11 @@
 
 namespace QmlProfiler {
 namespace Internal {
+
+static inline quint64 supportedFeatures()
+{
+    return Constants::QML_JS_RANGE_FEATURES | (1ULL << ProfileMemory);
+}
 
 FlameGraphModel::FlameGraphModel(QmlProfilerModelManager *modelManager,
                                  QObject *parent) : QAbstractItemModel(parent)
@@ -52,8 +56,9 @@ FlameGraphModel::FlameGraphModel(QmlProfilerModelManager *modelManager,
     connect(modelManager->notesModel(), &Timeline::TimelineNotesModel::changed,
             this, [this](int typeId, int, int){loadNotes(typeId, true);});
     m_modelId = modelManager->registerModelProxy();
+    m_acceptedFeatures = supportedFeatures();
 
-    modelManager->announceFeatures(Constants::QML_JS_RANGE_FEATURES | 1 << ProfileMemory,
+    modelManager->announceFeatures(m_acceptedFeatures,
                                    [this](const QmlEvent &event, const QmlEventType &type) {
         loadEvent(event, type);
     }, [this](){
@@ -64,7 +69,7 @@ FlameGraphModel::FlameGraphModel(QmlProfilerModelManager *modelManager,
 void FlameGraphModel::clear()
 {
     beginResetModel();
-    m_stackBottom = FlameGraphData(0, -1, 1);
+    m_stackBottom = FlameGraphData(0, -1, 0);
     m_callStack.clear();
     m_compileStack.clear();
     m_callStack.append(QmlEvent());
@@ -99,7 +104,8 @@ void FlameGraphModel::loadNotes(int typeIndex, bool emitSignal)
 
 void FlameGraphModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
 {
-    Q_UNUSED(type);
+    if (!(m_acceptedFeatures & (1ULL << type.feature())))
+        return;
 
     if (m_stackBottom.children.isEmpty())
         beginResetModel();
@@ -107,8 +113,8 @@ void FlameGraphModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
     const bool isCompiling = (type.rangeType() == Compiling);
     QStack<QmlEvent> &stack =  isCompiling ? m_compileStack : m_callStack;
     FlameGraphData *&stackTop = isCompiling ? m_compileStackTop : m_callStackTop;
+    QTC_ASSERT(stackTop, return);
 
-    const QmlEvent *potentialParent = &(stack.top());
     if (type.message() == MemoryAllocation) {
         if (type.detailType() == HeapPage)
             return; // We're only interested in actual allocations, not heap pages being mmap'd
@@ -123,20 +129,22 @@ void FlameGraphModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
         }
 
     } else if (event.rangeStage() == RangeEnd) {
-        stackTop->duration += event.timestamp() - potentialParent->timestamp();
+        QTC_ASSERT(stackTop != &m_stackBottom, return);
+        QTC_ASSERT(stackTop->typeIndex == event.typeIndex(), return);
+        stackTop->duration += event.timestamp() - stack.top().timestamp();
         stack.pop();
         stackTop = stackTop->parent;
-        potentialParent = &(stack.top());
     } else {
         QTC_ASSERT(event.rangeStage() == RangeStart, return);
         stack.push(event);
         stackTop = pushChild(stackTop, event);
     }
+    QTC_CHECK(stackTop);
 }
 
 void FlameGraphModel::finalize()
 {
-    foreach (FlameGraphData *child, m_stackBottom.children)
+    for (FlameGraphData *child : m_stackBottom.children)
         m_stackBottom.duration += child->duration;
 
     loadNotes(-1, false);
@@ -147,6 +155,31 @@ void FlameGraphModel::onModelManagerStateChanged()
 {
     if (m_modelManager->state() == QmlProfilerModelManager::ClearingData)
         clear();
+}
+
+void FlameGraphModel::restrictToFeatures(quint64 visibleFeatures)
+{
+    visibleFeatures = visibleFeatures & supportedFeatures();
+    if (visibleFeatures == m_acceptedFeatures)
+        return;
+
+    m_acceptedFeatures = visibleFeatures;
+    if (m_modelManager->state() != QmlProfilerModelManager::Done)
+        return;
+
+    clear();
+    beginResetModel();
+    if (!m_modelManager->replayEvents(m_modelManager->traceTime()->startTime(),
+                                      m_modelManager->traceTime()->endTime(),
+                                      std::bind(&FlameGraphModel::loadEvent,
+                                                this, std::placeholders::_1,
+                                                std::placeholders::_2))) {
+        emit m_modelManager->error(tr("Could not re-read events from temporary trace file."));
+        endResetModel();
+        clear();
+    } else {
+        finalize();
+    }
 }
 
 static QString nameForType(RangeType typeNumber)
@@ -188,7 +221,7 @@ QVariant FlameGraphModel::lookup(const FlameGraphData &stats, int role) const
     }
 
     if (stats.typeIndex != -1) {
-        const QVector<QmlEventType> &typeList = m_modelManager->qmlModel()->eventTypes();
+        const QVector<QmlEventType> &typeList = m_modelManager->eventTypes();
         const QmlEventType &type = typeList[stats.typeIndex];
 
         switch (role) {
@@ -217,9 +250,19 @@ FlameGraphData::~FlameGraphData()
 
 FlameGraphData *FlameGraphModel::pushChild(FlameGraphData *parent, const QmlEvent &data)
 {
-    foreach (FlameGraphData *child, parent->children) {
+    QVector<FlameGraphData *> &siblings = parent->children;
+
+    for (auto it = siblings.begin(), end = siblings.end(); it != end; ++it) {
+        FlameGraphData *child = *it;
         if (child->typeIndex == data.typeIndex()) {
             ++child->calls;
+            for (auto back = it, front = siblings.begin(); back != front;) {
+                 --back;
+                if ((*back)->calls >= (*it)->calls)
+                    break;
+                qSwap(*it, *back);
+                it = back;
+            }
             return child;
         }
     }

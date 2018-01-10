@@ -39,9 +39,14 @@ public:
 
     ~NimPlugin();
 
-    bool initialize(const QStringList &arguments, QString *errorMessage) override;
+    bool initialize(const QStringList &arguments, QString *errorMessage) final;
+    void extensionsInitialized() final;
 
-    void extensionsInitialized() override {}
+#ifdef WITH_TESTS
+private slots:
+    void testNimParser_data();
+    void testNimParser();
+#endif
 };
 
 }

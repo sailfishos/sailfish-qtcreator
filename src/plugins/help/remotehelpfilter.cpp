@@ -53,9 +53,13 @@ RemoteFilterOptions::RemoteFilterOptions(RemoteHelpFilter *filter, QWidget *pare
             this, &RemoteFilterOptions::addNewItem);
     connect(m_ui.remove, &QPushButton::clicked,
             this, &RemoteFilterOptions::removeItem);
+    connect(m_ui.moveUp, &QPushButton::clicked,
+            this, &RemoteFilterOptions::moveItemUp);
+    connect(m_ui.moveDown, &QPushButton::clicked,
+            this, &RemoteFilterOptions::moveItemDown);
     connect(m_ui.listWidget, &QListWidget::currentItemChanged,
-            this, &RemoteFilterOptions::updateRemoveButton);
-    updateRemoveButton();
+            this, &RemoteFilterOptions::updateActionButtons);
+    updateActionButtons();
 }
 
 void RemoteFilterOptions::addNewItem()
@@ -76,9 +80,32 @@ void RemoteFilterOptions::removeItem()
     }
 }
 
-void RemoteFilterOptions::updateRemoveButton()
+void RemoteFilterOptions::moveItemUp()
+{
+    const int row = m_ui.listWidget->currentRow();
+    if (row > 0) {
+        QListWidgetItem *item = m_ui.listWidget->takeItem(row);
+        m_ui.listWidget->insertItem(row - 1, item);
+        m_ui.listWidget->setCurrentRow(row - 1);
+    }
+}
+
+void RemoteFilterOptions::moveItemDown()
+{
+    const int row = m_ui.listWidget->currentRow();
+    if (row >= 0 && row < m_ui.listWidget->count() - 1) {
+        QListWidgetItem *item = m_ui.listWidget->takeItem(row);
+        m_ui.listWidget->insertItem(row + 1, item);
+        m_ui.listWidget->setCurrentRow(row + 1);
+    }
+}
+
+void RemoteFilterOptions::updateActionButtons()
 {
     m_ui.remove->setEnabled(m_ui.listWidget->currentItem());
+    const int row = m_ui.listWidget->currentRow();
+    m_ui.moveUp->setEnabled(row > 0);
+    m_ui.moveDown->setEnabled(row >= 0 && row < m_ui.listWidget->count() - 1);
 }
 
 // -- RemoteHelpFilter
@@ -102,21 +129,26 @@ RemoteHelpFilter::~RemoteHelpFilter()
 {
 }
 
-QList<Core::LocatorFilterEntry> RemoteHelpFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &pattern)
+QList<Core::LocatorFilterEntry> RemoteHelpFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry)
 {
     QList<Core::LocatorFilterEntry> entries;
     foreach (const QString &url, remoteUrls()) {
         if (future.isCanceled())
             break;
-
-        entries.append(Core::LocatorFilterEntry(this, url.arg(pattern), QVariant(),
-            m_icon));
+        const QString name = url.arg(entry);
+        Core::LocatorFilterEntry filterEntry(this, name, QVariant(), m_icon);
+        filterEntry.highlightInfo = {name.lastIndexOf(entry), entry.length()};
+        entries.append(filterEntry);
     }
     return entries;
 }
 
-void RemoteHelpFilter::accept(Core::LocatorFilterEntry selection) const
+void RemoteHelpFilter::accept(Core::LocatorFilterEntry selection,
+                              QString *newText, int *selectionStart, int *selectionLength) const
 {
+    Q_UNUSED(newText)
+    Q_UNUSED(selectionStart)
+    Q_UNUSED(selectionLength)
     const QString &url = selection.displayName;
     if (!url.isEmpty())
         emit linkActivated(url);
@@ -138,7 +170,7 @@ QByteArray RemoteHelpFilter::saveState() const
     return value;
 }
 
-bool RemoteHelpFilter::restoreState(const QByteArray &state)
+void RemoteHelpFilter::restoreState(const QByteArray &state)
 {
     QDataStream in(state);
 
@@ -153,8 +185,6 @@ bool RemoteHelpFilter::restoreState(const QByteArray &state)
     bool defaultFilter;
     in >> defaultFilter;
     setIncludedByDefault(defaultFilter);
-
-    return true;
 }
 
 bool RemoteHelpFilter::openConfigDialog(QWidget *parent, bool &needsRefresh)

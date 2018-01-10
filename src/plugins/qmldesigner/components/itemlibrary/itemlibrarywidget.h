@@ -26,7 +26,7 @@
 #pragma once
 
 #include "itemlibraryinfo.h"
-#include "itemlibrarytreeview.h"
+#include "itemlibraryresourceview.h"
 
 #include <utils/fancylineedit.h>
 
@@ -38,7 +38,6 @@
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
-class QFileSystemModel;
 class QStackedWidget;
 class QShortcut;
 QT_END_NAMESPACE
@@ -48,23 +47,11 @@ namespace QmlDesigner {
 class MetaInfo;
 class ItemLibraryEntry;
 class Model;
+class CustomFileSystemModel;
 
 
 class ItemLibraryModel;
-class ItemLibraryTreeView;
-
-
-class ItemLibraryFileIconProvider : public QFileIconProvider
-{
-public:
-    ItemLibraryFileIconProvider(const QSize &iconSize);
-
-    QIcon icon( const QFileInfo & info ) const;
-
-private:
-    QSize m_iconSize;
-};
-
+class ItemLibraryResourceView;
 
 class ItemLibraryWidget : public QFrame
 {
@@ -88,7 +75,6 @@ public:
     static QString qmlSourcesPath();
     void clearSearchFilter();
 
-public slots:
     void setSearchFilter(const QString &searchFilter);
     void delayedUpdateModel();
     void updateModel();
@@ -96,9 +82,9 @@ public slots:
 
     void setResourcePath(const QString &resourcePath);
 
-    void startDragAndDrop(QVariant itemLibId);
-
     void setModel(Model *model);
+
+    Q_INVOKABLE void startDragAndDrop(QQuickItem *mouseArea, QVariant itemLibId);
 
 protected:
     void removeImport(const QString &name);
@@ -107,26 +93,24 @@ protected:
 signals:
     void itemActivated(const QString& itemName);
 
-private slots:
+private:
     void setCurrentIndexOfStackedWidget(int index);
     void reloadQmlSource();
 
 private:
     QTimer m_compressionTimer;
     QSize m_itemIconSize;
-    QSize m_resIconSize;
-    ItemLibraryFileIconProvider m_iconProvider;
 
     QPointer<ItemLibraryInfo> m_itemLibraryInfo;
 
     QPointer<ItemLibraryModel> m_itemLibraryModel;
-    QPointer<QFileSystemModel> m_resourcesFileSystemModel;
+    QPointer<CustomFileSystemModel> m_resourcesFileSystemModel;
 
     QPointer<QStackedWidget> m_stackedWidget;
 
     QPointer<Utils::FancyLineEdit> m_filterLineEdit;
     QScopedPointer<QQuickWidget> m_itemViewQuickWidget;
-    QScopedPointer<ItemLibraryTreeView> m_resourcesView;
+    QScopedPointer<ItemLibraryResourceView> m_resourcesView;
     QShortcut *m_qmlSourceUpdateShortcut;
 
     QPointer<Model> m_model;

@@ -29,9 +29,11 @@
 #include "gitclient.h"
 
 #include <coreplugin/icore.h>
-#include <vcsbase/vcsbaseconstants.h>
-#include <utils/hostosinfo.h>
 #include <coreplugin/messagebox.h>
+#include <vcsbase/vcsbaseconstants.h>
+
+#include <utils/environment.h>
+#include <utils/hostosinfo.h>
 
 #include <QDir>
 #include <QDebug>
@@ -49,7 +51,7 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) : VcsClientOptionsPageWi
         const QByteArray currentHome = qgetenv("HOME");
         const QString toolTip
                 = tr("Set the environment variable HOME to \"%1\"\n(%2).\n"
-                     "This causes msysgit to look for the SSH-keys in that location\n"
+                     "This causes Git to look for the SSH-keys in that location\n"
                      "instead of its installation directory when run outside git bash.").
                 arg(QDir::homePath(),
                     currentHome.isEmpty() ? tr("not currently set") :
@@ -58,9 +60,13 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) : VcsClientOptionsPageWi
     } else {
         m_ui.winHomeCheckBox->setVisible(false);
     }
+    updateNoteField();
+
     m_ui.repBrowserCommandPathChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_ui.repBrowserCommandPathChooser->setHistoryCompleter("Git.RepoCommand.History");
     m_ui.repBrowserCommandPathChooser->setPromptDialogTitle(tr("Git Repository Browser Command"));
+
+    connect(m_ui.pathLineEdit, &QLineEdit::textChanged, this, &SettingsPageWidget::updateNoteField);
 }
 
 VcsBaseClientSettings SettingsPageWidget::settings() const
@@ -70,7 +76,6 @@ VcsBaseClientSettings SettingsPageWidget::settings() const
     rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
     rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
     rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
-    rc.setValue(GitSettings::showTagsKey, m_ui.showTagsCheckBox->isChecked());
     rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
     rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
     rc.setValue(GitSettings::repositoryBrowserCmd, m_ui.repBrowserCommandPathChooser->path().trimmed());
@@ -84,10 +89,20 @@ void SettingsPageWidget::setSettings(const VcsBaseClientSettings &s)
     m_ui.logCountSpinBox->setValue(s.intValue(GitSettings::logCountKey));
     m_ui.timeoutSpinBox->setValue(s.intValue(GitSettings::timeoutKey));
     m_ui.pullRebaseCheckBox->setChecked(s.boolValue(GitSettings::pullRebaseKey));
-    m_ui.showTagsCheckBox->setChecked(s.boolValue(GitSettings::showTagsKey));
     m_ui.winHomeCheckBox->setChecked(s.boolValue(GitSettings::winSetHomeEnvironmentKey));
     m_ui.gitkOptionsLineEdit->setText(s.stringValue(GitSettings::gitkOptionsKey));
     m_ui.repBrowserCommandPathChooser->setPath(s.stringValue(GitSettings::repositoryBrowserCmd));
+}
+
+void SettingsPageWidget::updateNoteField()
+{
+    Utils::Environment env = Utils::Environment::systemEnvironment();
+    env.prependOrSetPath(m_ui.pathLineEdit->text());
+
+    bool showNote = env.searchInPath("perl").isEmpty();
+
+    m_ui.noteFieldlabel->setVisible(showNote);
+    m_ui.noteLabel->setVisible(showNote);
 }
 
 // -------- SettingsPage

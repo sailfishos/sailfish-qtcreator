@@ -28,6 +28,7 @@
 #include "utils_global.h"
 
 QT_BEGIN_NAMESPACE
+class QJsonValue;
 class QStringList;
 QT_END_NAMESPACE
 
@@ -50,6 +51,11 @@ QTCREATOR_UTILS_EXPORT QString commonPath(const QStringList &files);
 // If path is not sub of home path, or when running on Windows, returns the input
 QTCREATOR_UTILS_EXPORT QString withTildeHomePath(const QString &path);
 
+// Removes first unescaped ampersand in text
+QTCREATOR_UTILS_EXPORT QString stripAccelerator(const QString &text);
+
+QTCREATOR_UTILS_EXPORT bool readMultiLineString(const QJsonValue &value, QString *out);
+
 class QTCREATOR_UTILS_EXPORT AbstractMacroExpander
 {
 public:
@@ -65,12 +71,14 @@ public:
     //! \param name The name of the expando
     //! \param ret Replacement string on output
     //! \return True if the expando was found
-    virtual bool resolveMacro(const QString &name, QString *ret) = 0;
+    virtual bool resolveMacro(const QString &name, QString *ret, QSet<AbstractMacroExpander *> &seen) = 0;
 private:
     bool expandNestedMacros(const QString &str, int *pos, QString *ret);
 };
 
 QTCREATOR_UTILS_EXPORT void expandMacros(QString *str, AbstractMacroExpander *mx);
 QTCREATOR_UTILS_EXPORT QString expandMacros(const QString &str, AbstractMacroExpander *mx);
+
+QTCREATOR_UTILS_EXPORT int parseUsedPortFromNetstatOutput(const QByteArray &line);
 
 } // namespace Utils

@@ -25,22 +25,11 @@
 
 #include "projectpart.h"
 
+#include <QFile>
 #include <QDir>
 #include <QTextStream>
 
 namespace CppTools {
-
-ProjectPart::ProjectPart()
-    : project(0)
-    , toolChainWordWidth(WordWidth32Bit)
-    , isMsvc2015Toolchain(false)
-    , languageVersion(CXX14)
-    , languageExtensions(NoExtensions)
-    , qtVersion(UnknownQt)
-    , warningFlags(ProjectExplorer::WarningFlags::Default)
-    , selectedForBuilding(true)
-{
-}
 
 void ProjectPart::updateLanguageFeatures()
 {
@@ -48,7 +37,7 @@ void ProjectPart::updateLanguageFeatures()
     languageFeatures.cxx11Enabled = languageVersion >= CXX11;
     languageFeatures.cxxEnabled = languageVersion >= CXX98;
     languageFeatures.c99Enabled = languageVersion >= C99;
-    languageFeatures.objCEnabled = languageExtensions & ObjectiveCExtensions;
+    languageFeatures.objCEnabled = languageExtensions.testFlag(ObjectiveCExtensions);
     languageFeatures.qtEnabled = hasQt;
     languageFeatures.qtMocRunEnabled = hasQt;
     if (!hasQt) {
@@ -74,17 +63,27 @@ ProjectPart::Ptr ProjectPart::copy() const
 
 QString ProjectPart::id() const
 {
-    QString projectPartId = QDir::fromNativeSeparators(projectFile);
+    QString projectPartId = projectFileLocation();
     if (!displayName.isEmpty())
         projectPartId.append(QLatin1Char(' ') + displayName);
     return projectPartId;
 }
 
-QByteArray ProjectPart::readProjectConfigFile(const ProjectPart::Ptr &part)
+QString ProjectPart::projectFileLocation() const
+{
+    QString location = QDir::fromNativeSeparators(projectFile);
+    if (projectFileLine > 0)
+        location += ":" + QString::number(projectFileLine);
+    if (projectFileColumn > 0)
+        location += ":" + QString::number(projectFileColumn);
+    return location;
+}
+
+QByteArray ProjectPart::readProjectConfigFile(const Ptr &projectPart)
 {
     QByteArray result;
 
-    QFile f(part->projectConfigFile);
+    QFile f(projectPart->projectConfigFile);
     if (f.open(QIODevice::ReadOnly)) {
         QTextStream is(&f);
         result = is.readAll().toUtf8();

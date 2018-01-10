@@ -24,11 +24,13 @@
 ****************************************************************************/
 
 #include "autotestconstants.h"
-#include "autotest_utils.h"
+#include "autotestplugin.h"
 #include "testcodeparser.h"
 #include "testframeworkmanager.h"
+#include "testsettings.h"
 
 #include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/messagemanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <cpptools/cpptoolsconstants.h>
@@ -52,9 +54,12 @@ static Q_LOGGING_CATEGORY(LOG, "qtc.autotest.testcodeparser")
 namespace Autotest {
 namespace Internal {
 
+using namespace ProjectExplorer;
+
 TestCodeParser::TestCodeParser(TestTreeModel *parent)
     : QObject(parent),
-      m_model(parent)
+      m_model(parent),
+      m_threadPool(new QThreadPool(this))
 {
     // connect to ProgressManager to postpone test parsing when CppModelManager is parsing
     auto progressManager = qobject_cast<Core::ProgressManager *>(Core::ProgressManager::instance());
@@ -73,6 +78,7 @@ TestCodeParser::TestCodeParser(TestTreeModel *parent)
     connect(this, &TestCodeParser::parsingFinished, this, &TestCodeParser::releaseParserInternals);
     m_reparseTimer.setSingleShot(true);
     connect(&m_reparseTimer, &QTimer::timeout, this, &TestCodeParser::parsePostponedFiles);
+    m_threadPool->setMaxThreadCount(std::max(QThread::idealThreadCount()/4, 1));
 }
 
 TestCodeParser::~TestCodeParser()
@@ -81,7 +87,7 @@ TestCodeParser::~TestCodeParser()
 
 void TestCodeParser::setState(State state)
 {
-    if (m_parserState == Shutdown || !m_enabled)
+    if (m_parserState == Shutdown)
         return;
     qCDebug(LOG) << "setState(" << state << "), currentState:" << m_parserState;
     // avoid triggering parse before code model parsing has finished, but mark as dirty
@@ -97,7 +103,7 @@ void TestCodeParser::setState(State state)
     }
     m_parserState = state;
 
-    if (m_parserState == Idle && ProjectExplorer::SessionManager::startupProject()) {
+    if (m_parserState == Idle && SessionManager::startupProject()) {
         if (m_fullUpdatePostponed || m_dirty) {
             emitUpdateTestTree();
         } else if (m_partialUpdatePostponed) {
@@ -111,7 +117,7 @@ void TestCodeParser::setState(State state)
 
 void TestCodeParser::syncTestFrameworks(const QVector<Core::Id> &frameworkIds)
 {
-    if (m_enabled && m_parserState != Idle) {
+    if (m_parserState != Idle) {
         // there's a running parse
         m_fullUpdatePostponed = m_partialUpdatePostponed = false;
         m_postponedFiles.clear();
@@ -120,43 +126,71 @@ void TestCodeParser::syncTestFrameworks(const QVector<Core::Id> &frameworkIds)
     m_testCodeParsers.clear();
     TestFrameworkManager *frameworkManager = TestFrameworkManager::instance();
     qCDebug(LOG) << "Setting" << frameworkIds << "as current parsers";
-    foreach (const Core::Id &id, frameworkIds) {
+    for (const Core::Id &id : frameworkIds) {
         ITestParser *testParser = frameworkManager->testParserForTestFramework(id);
         QTC_ASSERT(testParser, continue);
         m_testCodeParsers.append(testParser);
     }
-    if (m_enabled)
-        updateTestTree();
+    updateTestTree();
 }
 
-void TestCodeParser::emitUpdateTestTree()
+void TestCodeParser::emitUpdateTestTree(ITestParser *parser)
 {
+    if (m_testCodeParsers.isEmpty())
+        return;
     if (m_singleShotScheduled) {
+        if (m_updateParser && parser != m_updateParser)
+            m_updateParser = nullptr;
         qCDebug(LOG) << "not scheduling another updateTestTree";
         return;
     }
 
     qCDebug(LOG) << "adding singleShot";
     m_singleShotScheduled = true;
-    QTimer::singleShot(1000, this, &TestCodeParser::updateTestTree);
+    m_updateParser = parser;
+    QTimer::singleShot(1000, this, [this](){ updateTestTree(m_updateParser); });
 }
 
-void TestCodeParser::updateTestTree()
+void TestCodeParser::updateTestTree(ITestParser *parser)
 {
     m_singleShotScheduled = false;
     if (m_codeModelParsing) {
         m_fullUpdatePostponed = true;
         m_partialUpdatePostponed = false;
         m_postponedFiles.clear();
+        if (!parser || parser != m_updateParser)
+            m_updateParser = nullptr;
         return;
     }
 
-    if (!ProjectExplorer::SessionManager::startupProject())
+    if (!SessionManager::startupProject())
         return;
 
     m_fullUpdatePostponed = false;
     qCDebug(LOG) << "calling scanForTests (updateTestTree)";
-    scanForTests();
+    scanForTests(QStringList(), parser);
+}
+
+static QStringList filterFiles(const QString &projectDir, const QStringList &files)
+{
+    const QSharedPointer<TestSettings> &settings = AutotestPlugin::instance()->settings();
+    const QSet<QString> &filters = settings->whiteListFilters.toSet(); // avoid duplicates
+    if (!settings->filterScan || filters.isEmpty())
+        return files;
+    QStringList finalResult;
+    for (const QString &file : files) {
+        // apply filter only below project directory if file is part of a project
+        const QString &fileToProcess = file.startsWith(projectDir)
+                ? file.mid(projectDir.size())
+                : file;
+        for (const QString &filter : filters) {
+            if (fileToProcess.contains(filter)) {
+                finalResult.push_back(file);
+                break;
+            }
+        }
+    }
+    return finalResult;
 }
 
 // used internally to indicate a parse that failed due to having triggered a parse for a file that
@@ -165,15 +199,16 @@ static bool parsingHasFailed;
 
 /****** threaded parsing stuff *******/
 
-void TestCodeParser::onDocumentUpdated(const QString &fileName)
+void TestCodeParser::onDocumentUpdated(const QString &fileName, bool isQmlFile)
 {
     if (m_codeModelParsing || m_fullUpdatePostponed)
         return;
 
-    ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
+    Project *project = SessionManager::startupProject();
     if (!project)
         return;
-    if (!project->files(ProjectExplorer::Project::SourceFiles).contains(fileName))
+    // Quick tests: qml files aren't necessarily listed inside project files
+    if (!isQmlFile && !SessionManager::projectContainsFile(project, Utils::FileName::fromString(fileName)))
         return;
 
     scanForTests(QStringList(fileName));
@@ -188,10 +223,10 @@ void TestCodeParser::onQmlDocumentUpdated(const QmlJS::Document::Ptr &document)
 {
     const QString fileName = document->fileName();
     if (!fileName.endsWith(".qbs"))
-        onDocumentUpdated(fileName);
+        onDocumentUpdated(fileName, true);
 }
 
-void TestCodeParser::onStartupProjectChanged(ProjectExplorer::Project *project)
+void TestCodeParser::onStartupProjectChanged(Project *project)
 {
     if (m_parserState == FullParse || m_parserState == PartialParse) {
         qCDebug(LOG) << "Canceling scanForTest (startup project changed)";
@@ -202,11 +237,11 @@ void TestCodeParser::onStartupProjectChanged(ProjectExplorer::Project *project)
         emitUpdateTestTree();
 }
 
-void TestCodeParser::onProjectPartsUpdated(ProjectExplorer::Project *project)
+void TestCodeParser::onProjectPartsUpdated(Project *project)
 {
-    if (project != ProjectExplorer::SessionManager::startupProject())
+    if (project != SessionManager::startupProject())
         return;
-    if (m_codeModelParsing || !m_enabled)
+    if (m_codeModelParsing)
         m_fullUpdatePostponed = true;
     else
         emitUpdateTestTree();
@@ -266,7 +301,7 @@ bool TestCodeParser::postponed(const QStringList &fileList)
             if (m_fullUpdatePostponed)
                 return true;
             // partial parse triggered, postpone or add current files to already postponed partial
-            foreach (const QString &file, fileList)
+            for (const QString &file : fileList)
                 m_postponedFiles.insert(file);
             m_partialUpdatePostponed = true;
         }
@@ -281,7 +316,7 @@ static void parseFileForTests(const QVector<ITestParser *> &parsers,
                               QFutureInterface<TestParseResultPtr> &futureInterface,
                               const QString &fileName)
 {
-    foreach (ITestParser *parser, parsers) {
+    for (ITestParser *parser : parsers) {
         if (futureInterface.isCanceled())
             return;
         if (parser->processDocument(futureInterface, fileName))
@@ -289,23 +324,12 @@ static void parseFileForTests(const QVector<ITestParser *> &parsers,
     }
 }
 
-void TestCodeParser::scanForTests(const QStringList &fileList)
+void TestCodeParser::scanForTests(const QStringList &fileList, ITestParser *parser)
 {
-    if (m_parserState == Shutdown)
+    if (m_parserState == Shutdown || m_testCodeParsers.isEmpty())
         return;
-    if (!m_enabled) {
-        m_dirty = true;
-        if (fileList.isEmpty()) {
-            m_fullUpdatePostponed = true;
-            m_partialUpdatePostponed = false;
-            m_postponedFiles.clear();
-        } else if (!m_fullUpdatePostponed) {
-            m_partialUpdatePostponed = true;
-            foreach (const QString &file, fileList)
-                m_postponedFiles.insert(file);
-        }
+    if (parser && !m_testCodeParsers.contains(parser))
         return;
-    }
 
     if (postponed(fileList))
         return;
@@ -314,9 +338,12 @@ void TestCodeParser::scanForTests(const QStringList &fileList)
     m_reparseTimerTimedOut = false;
     m_postponedFiles.clear();
     bool isFullParse = fileList.isEmpty();
+    Project *project = SessionManager::startupProject();
+    if (!project)
+        return;
     QStringList list;
     if (isFullParse) {
-        list = ProjectExplorer::SessionManager::startupProject()->files(ProjectExplorer::Project::SourceFiles);
+        list = project->files(Project::SourceFiles);
         if (list.isEmpty()) {
             // at least project file should be there, but might happen if parsing current project
             // takes too long, especially when opening sessions holding multiple projects
@@ -339,21 +366,47 @@ void TestCodeParser::scanForTests(const QStringList &fileList)
         list = Utils::filtered(list, [] (const QString &fn) {
             return !fn.endsWith(".qml");
         });
-        m_model->markAllForRemoval();
+        if (parser)
+            TestFrameworkManager::instance()->rootNodeForTestFramework(parser->id())->markForRemovalRecursively(true);
+        else
+            m_model->markAllForRemoval();
+    } else if (parser) {
+        TestTreeItem *root = TestFrameworkManager::instance()->rootNodeForTestFramework(parser->id());
+        for (const QString &filePath : list)
+            root->markForRemovalRecursively(filePath);
     } else {
-        foreach (const QString &filePath, list)
+        for (const QString &filePath : list)
             m_model->markForRemoval(filePath);
     }
 
+    list = filterFiles(project->projectDirectory().toString(), list);
+    if (list.isEmpty()) {
+        if (isFullParse) {
+            Core::MessageManager::instance()->write(
+                        tr("AutoTest Plugin WARNING: No files left after filtering test scan "
+                           "folders. Check test filter settings."),
+                        Core::MessageManager::Flash);
+        }
+        onFinished();
+        return;
+    }
+
+    // use only a single parser or all current active?
+    QVector<ITestParser *> codeParsers;
+    if (parser)
+        codeParsers.append(parser);
+    else
+        codeParsers.append(m_testCodeParsers);
     qCDebug(LOG) << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "StartParsing";
-    foreach (ITestParser *parser, m_testCodeParsers)
+    for (ITestParser *parser : codeParsers)
         parser->init(list);
 
     QFuture<TestParseResultPtr> future = Utils::map(list,
-        [this](QFutureInterface<TestParseResultPtr> &fi, const QString &file) {
-            parseFileForTests(m_testCodeParsers, fi, file);
+        [this, codeParsers](QFutureInterface<TestParseResultPtr> &fi, const QString &file) {
+            parseFileForTests(codeParsers, fi, file);
         },
         Utils::MapReduceOption::Unordered,
+        m_threadPool,
         QThread::LowestPriority);
     m_futureWatcher.setFuture(future);
     if (list.size() > 5) {
@@ -411,6 +464,7 @@ void TestCodeParser::onFinished()
         } else {
             qCDebug(LOG) << "emitting parsingFinished"
                          << "(onFinished, FullParse, nothing postponed, parsing succeeded)";
+            m_updateParser = nullptr;
             emit parsingFinished();
             qCDebug(LOG) << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "ParsingFin";
         }
@@ -433,7 +487,7 @@ void TestCodeParser::onPartialParsingFinished()
     if (m_fullUpdatePostponed) {
         m_fullUpdatePostponed = false;
         qCDebug(LOG) << "calling updateTestTree (onPartialParsingFinished)";
-        updateTestTree();
+        updateTestTree(m_updateParser);
     } else if (m_partialUpdatePostponed) {
         m_partialUpdatePostponed = false;
         qCDebug(LOG) << "calling scanForTests with postponed files (onPartialParsingFinished)";
@@ -447,6 +501,7 @@ void TestCodeParser::onPartialParsingFinished()
         } else if (!m_singleShotScheduled) {
             qCDebug(LOG) << "emitting parsingFinished"
                          << "(onPartialParsingFinished, nothing postponed, not dirty)";
+            m_updateParser = nullptr;
             emit parsingFinished();
             qCDebug(LOG) << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "ParsingFin";
         } else {

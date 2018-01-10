@@ -39,6 +39,8 @@
 #include <qmldesignerplugin.h>
 #endif
 
+#include <QRegExp>
+
 namespace QmlDesigner {
 
 void QmlObjectNode::setVariantProperty(const PropertyName &name, const QVariant &value)
@@ -189,7 +191,7 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
     if (modelNode().metaInfo().isValid() && modelNode().metaInfo().hasProperty(name))
         if (modelNode().metaInfo().propertyTypeName(name) == "QString" || modelNode().metaInfo().propertyTypeName(name) == "string") {
             if (modelNode().hasBindingProperty(name)) {
-                static QRegExp regularExpressionPatter(QLatin1String("qsTr(?:|Id)\\((\".*\")\\)"));
+                static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id|anslate)\\(\".*\"\\)"));
                 return regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression());
             }
 
@@ -202,14 +204,12 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
 QString QmlObjectNode::stripedTranslatableText(const PropertyName &name) const
 {
     if (modelNode().hasBindingProperty(name)) {
-        static QRegExp regularExpressionPatter(QLatin1String("qsTr(?:|Id)\\(\"(.*)\"\\)"));
+        static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id|anslate)\\(\"(.*)\"\\)"));
         if (regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression()))
-            return regularExpressionPatter.cap(1);
-    } else {
-        return modelNode().variantProperty(name).value().toString();
+            return regularExpressionPatter.cap(2);
+        return instanceValue(name).toString();
     }
-
-    return QString();
+    return modelNode().variantProperty(name).value().toString();
 }
 
 QString QmlObjectNode::expression(const PropertyName &name) const
@@ -466,11 +466,20 @@ QVariant QmlObjectNode::instanceValue(const ModelNode &modelNode, const Property
 QString QmlObjectNode::generateTranslatableText(const QString &text)
 {
 #ifndef QMLDESIGNER_TEST
+
     if (QmlDesignerPlugin::instance()->settings().value(
-            DesignerSettingsKey::USE_QSTR_FUNCTION).toBool())
-        return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
-    else
-        return QString(QStringLiteral("qsTrId(\"%1\")")).arg(text);
+            DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt())
+
+        switch (QmlDesignerPlugin::instance()->settings().value(
+                    DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt()) {
+        case 0: return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
+        case 1: return QString(QStringLiteral("qsTrId(\"%1\")")).arg(text);
+        case 2: return QString(QStringLiteral("qsTranslate(\"\"\"%1\")")).arg(text);
+        default:
+            break;
+
+        }
+    return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
 #else
     Q_UNUSED(text);
     return QString();

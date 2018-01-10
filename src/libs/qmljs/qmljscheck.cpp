@@ -33,6 +33,7 @@
 
 #include <QColor>
 #include <QDir>
+#include <QRegExp>
 
 using namespace QmlJS;
 using namespace QmlJS::AST;
@@ -123,7 +124,7 @@ public:
                             fileName.prepend(QLatin1Char('/'));
                             fileName.prepend(_doc->path());
                         }
-                        if (!QFileInfo(fileName).exists())
+                        if (!QFileInfo::exists(fileName))
                             setMessage(WarnFileOrDirectoryDoesNotExist);
                     }
                 }
@@ -492,34 +493,34 @@ private:
 class IdsThatShouldNotBeUsedInDesigner  : public QStringList
 {
 public:
-    IdsThatShouldNotBeUsedInDesigner() : QStringList({ "top",
-                                                   "bottom",
-                                                   "left",
-                                                   "right",
-                                                   "width",
-                                                   "height",
-                                                   "x",
-                                                   "y",
-                                                   "opacity",
-                                                   "parent",
-                                                   "item",
-                                                   "flow",
-                                                   "color",
-                                                   "margin",
-                                                   "padding",
-                                                   "border",
-                                                   "font",
-                                                   "text",
-                                                   "source",
-                                                   "state",
-                                                   "visible",
-                                                   "focus",
-                                                   "data",
-                                                   "clip",
-                                                   "layer",
-                                                   "scale",
-                                                   "enabled",
-                                                   "anchors"})
+    IdsThatShouldNotBeUsedInDesigner() : QStringList({"top",
+                                                      "bottom",
+                                                      "left",
+                                                      "right",
+                                                      "width",
+                                                      "height",
+                                                      "x",
+                                                      "y",
+                                                      "opacity",
+                                                      "parent",
+                                                      "item",
+                                                      "flow",
+                                                      "color",
+                                                      "margin",
+                                                      "padding",
+                                                      "border",
+                                                      "font",
+                                                      "text",
+                                                      "source",
+                                                      "state",
+                                                      "visible",
+                                                      "focus",
+                                                      "data",
+                                                      "clip",
+                                                      "layer",
+                                                      "scale",
+                                                      "enabled",
+                                                      "anchors"})
     {
     }
 
@@ -550,13 +551,12 @@ class UnsupportedTypesByVisualDesigner : public QStringList
 {
 public:
     UnsupportedTypesByVisualDesigner() : QStringList({"Transform",
-                                                     "Timer",
-                                                     "Rotation",
-                                                     "Scale",
-                                                     "Translate",
-                                                     "Package",
-                                                     "Particles",
-                                                     "Dialog"})
+                                                      "Timer",
+                                                      "Rotation",
+                                                      "Scale",
+                                                      "Translate",
+                                                      "Package",
+                                                      "Particles"})
     {
 
     }
@@ -566,18 +566,17 @@ class UnsupportedTypesByQmlUi : public QStringList
 {
 public:
     UnsupportedTypesByQmlUi() : QStringList({"Binding",
-                                            "ShaderEffect",
-                                            "ShaderEffectSource",
-                                            "Component",
-                                            "Loader",
-                                            "Transition",
-                                            "PropertyAnimation",
-                                            "SequentialAnimation",
-                                            "PropertyAnimation",
-                                            "SequentialAnimation",
-                                            "ParallelAnimation",
-                                            "NumberAnimation",
-                                            "Drawer"})
+                                             "ShaderEffect",
+                                             "ShaderEffectSource",
+                                             "Component",
+                                             "Transition",
+                                             "PropertyAnimation",
+                                             "SequentialAnimation",
+                                             "PropertyAnimation",
+                                             "SequentialAnimation",
+                                             "ParallelAnimation",
+                                             "NumberAnimation",
+                                             "Drawer"})
     {
         append(UnsupportedTypesByVisualDesigner());
     }
@@ -1044,9 +1043,8 @@ bool Check::visit(UiArrayBinding *ast)
 bool Check::visit(UiPublicMember *ast)
 {
     if (ast->type == UiPublicMember::Property) {
-        // check if the member type is valid
-        if (!ast->memberType.isEmpty()) {
-            const QStringRef name = ast->memberType;
+        if (ast->isValid()) {
+            const QStringRef name = ast->memberTypeName();
             if (!name.isEmpty() && name.at(0).isLower()) {
                 const QString nameS = name.toString();
                 if (!isValidBuiltinPropertyType(nameS))
@@ -1398,11 +1396,11 @@ bool Check::visit(CaseBlock *ast)
 {
     QList< QPair<SourceLocation, StatementList *> > clauses;
     for (CaseClauses *it = ast->clauses; it; it = it->next)
-        clauses += qMakePair(it->clause->caseToken, it->clause->statements);
+        clauses += {it->clause->caseToken, it->clause->statements};
     if (ast->defaultClause)
-        clauses += qMakePair(ast->defaultClause->defaultToken, ast->defaultClause->statements);
+        clauses += {ast->defaultClause->defaultToken, ast->defaultClause->statements};
     for (CaseClauses *it = ast->moreClauses; it; it = it->next)
-        clauses += qMakePair(it->clause->caseToken, it->clause->statements);
+        clauses += {it->clause->caseToken, it->clause->statements};
 
     // check all but the last clause for fallthrough
     for (int i = 0; i < clauses.size() - 1; ++i) {
@@ -1625,11 +1623,14 @@ bool Check::visit(CallExpression *ast)
 
     const QString namespaceName = functionNamespace(ast->base);
 
-    // We have to allow the qsTr function for translation.
+    // We have to allow the translation functions
 
-    const bool isTranslationFunction = (name == QLatin1String("qsTr") || name == QLatin1String("qsTrId"));
+    const QStringList translationFunctions = {"qsTr", "qsTrId", "qsTranslate",
+                                              "qsTrNoOp", "qsTrIdNoOp", "qsTranslateNoOp"};
+
+    const bool isTranslationFunction = translationFunctions.contains(name);
+
     // We allow the Math. functions
-
     const bool isMathFunction = namespaceName == "Math";
     // allow adding connections with the help of the qt quick designer ui
     bool isDirectInConnectionsScope =
@@ -1780,6 +1781,9 @@ const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
             addMessage(ErrInvalidMember, idPart->identifierToken, propertyName, objectValue->className());
             return 0;
         }
+        // resolve references
+        if (const Reference *ref = value->asReference())
+            value = _context->lookupReference(ref);
     }
 
     return value;

@@ -126,21 +126,18 @@ QWidget *BindingDelegate::createEditor(QWidget *parent, const QStyleOptionViewIt
         QWidget *widget = QStyledItemDelegate::createEditor(parent, option, index);
 
         const BindingModel *model = qobject_cast<const BindingModel*>(index.model());
-
-        model->connectionView()->allModelNodes();
-
-        PropertiesComboBox *bindingComboBox = qobject_cast<PropertiesComboBox*>(widget);
-
         if (!model) {
             qWarning() << "BindingDelegate::createEditor no model";
             return widget;
         }
-
         if (!model->connectionView()) {
             qWarning() << "BindingDelegate::createEditor no connection view";
             return widget;
         }
 
+        model->connectionView()->allModelNodes();
+
+        PropertiesComboBox *bindingComboBox = qobject_cast<PropertiesComboBox*>(widget);
         if (!bindingComboBox) {
             qWarning() << "BindingDelegate::createEditor no bindingComboBox";
             return widget;
@@ -149,14 +146,8 @@ QWidget *BindingDelegate::createEditor(QWidget *parent, const QStyleOptionViewIt
         BindingProperty bindingProperty = model->bindingPropertyForRow(index.row());
 
         switch (index.column()) {
-        case BindingModel::TargetModelNodeRow: {
-            return 0; //no editor
-            foreach (const ModelNode &modelNode, model->connectionView()->allModelNodes()) {
-                if (!modelNode.id().isEmpty()) {
-                    bindingComboBox->addItem(modelNode.id());
-                }
-            }
-        } break;
+        case BindingModel::TargetModelNodeRow:
+            return nullptr; //no editor
         case BindingModel::TargetPropertyNameRow: {
             bindingComboBox->addItems(model->possibleTargetProperties(bindingProperty));
         } break;
@@ -202,15 +193,6 @@ QWidget *DynamicPropertiesDelegate::createEditor(QWidget *parent, const QStyleOp
         QWidget *widget = QStyledItemDelegate::createEditor(parent, option, index);
 
         const DynamicPropertiesModel *model = qobject_cast<const DynamicPropertiesModel*>(index.model());
-
-        model->connectionView()->allModelNodes();
-
-//        PropertiesComboBox *dynamicPropertiesComboBox = qobject_cast<DynamicPropertiesComboBox*>(widget);
-
-//        if (!dynamicPropertiesComboBox) {
-//            return widget;
-//        }
-
         if (!model) {
             qWarning() << "BindingDelegate::createEditor no model";
             return widget;
@@ -220,16 +202,15 @@ QWidget *DynamicPropertiesDelegate::createEditor(QWidget *parent, const QStyleOp
             qWarning() << "BindingDelegate::createEditor no connection view";
             return widget;
         }
-
-        BindingProperty bindingProperty = model->bindingPropertyForRow(index.row());
+        model->connectionView()->allModelNodes();
 
         switch (index.column()) {
         case DynamicPropertiesModel::TargetModelNodeRow: {
             return 0; //no editor
-        } break;
+        };
         case DynamicPropertiesModel::PropertyNameRow: {
             return QStyledItemDelegate::createEditor(parent, option, index);
-        } break;
+        };
         case DynamicPropertiesModel::PropertyTypeRow: {
 
             PropertiesComboBox *dynamicPropertiesComboBox = new PropertiesComboBox(parent);
@@ -248,10 +229,10 @@ QWidget *DynamicPropertiesDelegate::createEditor(QWidget *parent, const QStyleOp
             dynamicPropertiesComboBox->addItem(QLatin1String("color"));
             dynamicPropertiesComboBox->addItem(QLatin1String("variant"));
             return dynamicPropertiesComboBox;
-        } break;
+        };
         case DynamicPropertiesModel::PropertyValueRow: {
             return QStyledItemDelegate::createEditor(parent, option, index);
-        } break;
+        };
         default: qWarning() << "BindingDelegate::createEditor column" << index.column();
         }
 
@@ -359,16 +340,16 @@ QWidget *BackendDelegate::createEditor(QWidget *parent, const QStyleOptionViewIt
                 emit delegate->commitData(backendComboBox);
             });
             return backendComboBox;
-        } break;
+        };
         case BackendModel::PropertyNameColumn: {
             return widget;
-        } break;
+        };
         case BackendModel::IsSingletonColumn: {
             return 0;  //no editor
-        } break;
+        };
         case BackendModel::IsLocalColumn: {
             return 0;  //no editor
-        } break;
+        };
         default: qWarning() << "BackendDelegate::createEditor column" << index.column();
         }
 

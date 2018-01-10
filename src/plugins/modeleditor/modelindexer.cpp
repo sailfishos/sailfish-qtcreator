@@ -27,6 +27,7 @@
 
 #include "modeleditor_constants.h"
 
+#include "qmt/infrastructure/exceptions.h"
 #include "qmt/infrastructure/uid.h"
 
 #include "qmt/serializer/projectserializer.h"
@@ -292,7 +293,12 @@ void ModelIndexer::IndexerThread::onFilesQueued()
             // load model file
             qmt::ProjectSerializer projectSerializer;
             qmt::Project project;
-            projectSerializer.load(queuedFile.file(), &project);
+            try {
+                projectSerializer.load(queuedFile.file(), &project);
+            } catch (const qmt::Exception &e) {
+                qWarning() << e.errorMessage();
+                return;
+            }
             locker.relock();
             indexedModel->setModelUid(project.uid());
             // add indexedModel to set of indexedModelsByUid
@@ -382,6 +388,9 @@ void ModelIndexer::onProjectFileListChanged(ProjectExplorer::Project *project)
 
 void ModelIndexer::scanProject(ProjectExplorer::Project *project)
 {
+    if (!project->rootProjectNode())
+        return;
+
     // TODO harmonize following code with findFirstModel()?
     QStringList files = project->files(ProjectExplorer::Project::SourceFiles);
     QQueue<QueuedFile> filesQueue;
@@ -389,7 +398,7 @@ void ModelIndexer::scanProject(ProjectExplorer::Project *project)
 
     foreach (const QString &file, files) {
         QFileInfo fileInfo(file);
-        Utils::MimeType mimeType = Utils::MimeDatabase().mimeTypeForFile(fileInfo);
+        Utils::MimeType mimeType = Utils::mimeTypeForFile(fileInfo);
         if (mimeType.name() == QLatin1String(Constants::MIME_TYPE_MODEL)) {
             QueuedFile queuedFile(file, project, fileInfo.lastModified());
             filesQueue.append(queuedFile);
@@ -451,12 +460,11 @@ void ModelIndexer::scanProject(ProjectExplorer::Project *project)
 QString ModelIndexer::findFirstModel(ProjectExplorer::FolderNode *folderNode)
 {
     foreach (ProjectExplorer::FileNode *fileNode, folderNode->fileNodes()) {
-        Utils::MimeType mimeType = Utils::MimeDatabase().mimeTypeForFile(
-                    fileNode->filePath().toFileInfo());
+        Utils::MimeType mimeType = Utils::mimeTypeForFile(fileNode->filePath().toFileInfo());
         if (mimeType.name() == QLatin1String(Constants::MIME_TYPE_MODEL))
             return fileNode->filePath().toString();
     }
-    foreach (ProjectExplorer::FolderNode *subFolderNode, folderNode->subFolderNodes()) {
+    foreach (ProjectExplorer::FolderNode *subFolderNode, folderNode->folderNodes()) {
         QString modelFileName = findFirstModel(subFolderNode);
         if (!modelFileName.isEmpty())
             return modelFileName;

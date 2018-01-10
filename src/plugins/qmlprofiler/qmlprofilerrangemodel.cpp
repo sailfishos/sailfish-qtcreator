@@ -25,12 +25,12 @@
 
 #include "qmlprofilerrangemodel.h"
 #include "qmlprofilermodelmanager.h"
-#include "qmlprofilerdatamodel.h"
 #include "qmlprofilerbindingloopsrenderpass.h"
 
 #include "timeline/timelinenotesrenderpass.h"
 #include "timeline/timelineitemsrenderpass.h"
 #include "timeline/timelineselectionrenderpass.h"
+#include "timeline/timelineformattime.h"
 
 #include <QCoreApplication>
 #include <QVector>
@@ -72,13 +72,26 @@ void QmlProfilerRangeModel::loadEvent(const QmlEvent &event, const QmlEventType 
         m_stack.append(index);
         m_data.insert(index, QmlRangeEventStartInstance());
     } else if (event.rangeStage() == RangeEnd) {
-        int index = m_stack.pop();
-        insertEnd(index, event.timestamp() - startTime(index));
+        if (!m_stack.isEmpty()) {
+            int index = m_stack.pop();
+            insertEnd(index, event.timestamp() - startTime(index));
+        } else {
+            qWarning() << "Received inconsistent trace data from application.";
+        }
     }
 }
 
 void QmlProfilerRangeModel::finalize()
 {
+    if (!m_stack.isEmpty()) {
+        qWarning() << "End times for some events are missing.";
+        const qint64 endTime = modelManager()->traceTime()->endTime();
+        do {
+            int index = m_stack.pop();
+            insertEnd(index, endTime - startTime(index));
+        } while (!m_stack.isEmpty());
+    }
+
     // compute range nesting
     computeNesting();
 
@@ -180,7 +193,7 @@ int QmlProfilerRangeModel::bindingLoopDest(int index) const
     return m_data[index].bindingLoopHead;
 }
 
-QColor QmlProfilerRangeModel::color(int index) const
+QRgb QmlProfilerRangeModel::color(int index) const
 {
     return colorBySelectionId(index);
 }
@@ -189,7 +202,7 @@ QVariantList QmlProfilerRangeModel::labels() const
 {
     QVariantList result;
 
-    const QVector<QmlEventType> &types = modelManager()->qmlModel()->eventTypes();
+    const QVector<QmlEventType> &types = modelManager()->eventTypes();
     for (int i = 1; i < expandedRowCount(); i++) { // Ignore the -1 for the first row
         QVariantMap element;
         int typeId = m_expandedRowTypes[i];
@@ -206,11 +219,11 @@ QVariantMap QmlProfilerRangeModel::details(int index) const
 {
     QVariantMap result;
     int id = selectionId(index);
-    const QVector<QmlEventType> &types = modelManager()->qmlModel()->eventTypes();
+    const QVector<QmlEventType> &types = modelManager()->eventTypes();
 
     result.insert(QStringLiteral("displayName"),
                   tr(QmlProfilerModelManager::featureName(mainFeature())));
-    result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
+    result.insert(tr("Duration"), Timeline::formatTime(duration(index)));
 
     result.insert(tr("Details"), types[id].data());
     result.insert(tr("Location"), types[id].displayName());

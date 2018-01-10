@@ -31,12 +31,12 @@ namespace Autotest {
 namespace Icons {
 
 const Utils::Icon SORT_ALPHABETICALLY({
-        {QLatin1String(":/images/sort.png"), Utils::Theme::IconsBaseColor}});
+        {":/images/sort.png", Utils::Theme::IconsBaseColor}});
 const Utils::Icon SORT_NATURALLY({
-        {QLatin1String(":/images/leafsort.png"), Utils::Theme::IconsBaseColor}});
+        {":/images/leafsort.png", Utils::Theme::IconsBaseColor}});
 const Utils::Icon RUN_SELECTED_OVERLAY({
-        {QLatin1String(":/images/runselected_boxes.png"), Utils::Theme::BackgroundColorDark},
-        {QLatin1String(":/images/runselected_tickmarks.png"), Utils::Theme::IconsBaseColor}});
+        {":/images/runselected_boxes.png", Utils::Theme::BackgroundColorDark},
+        {":/images/runselected_tickmarks.png", Utils::Theme::IconsBaseColor}});
 
 const Utils::Icon RESULT_PASS({
         {":/utils/images/filledcircle.png", Utils::Theme::OutputPanes_TestPassTextColor}},
@@ -68,9 +68,19 @@ const Utils::Icon RESULT_MESSAGEDEBUG({
 const Utils::Icon RESULT_MESSAGEWARN({
         {":/utils/images/filledcircle.png", Utils::Theme::OutputPanes_TestWarnTextColor}},
         Utils::Icon::Tint);
+const Utils::Icon RESULT_MESSAGEPASSWARN({
+        {":/utils/images/filledcircle.png", Utils::Theme::OutputPanes_TestPassTextColor},
+        {":/utils/images/iconoverlay_warning.png", Utils::Theme::OutputPanes_TestWarnTextColor}},
+        Utils::Icon::Tint | Utils::Icon::PunchEdges);
+const Utils::Icon RESULT_MESSAGEFAILWARN({
+        {":/utils/images/filledcircle.png", Utils::Theme::OutputPanes_TestFailTextColor},
+        {":/utils/images/iconoverlay_warning.png", Utils::Theme::OutputPanes_TestWarnTextColor}},
+        Utils::Icon::Tint | Utils::Icon::PunchEdges);
 const Utils::Icon RESULT_MESSAGEFATAL({
         {":/utils/images/filledcircle.png", Utils::Theme::OutputPanes_TestFatalTextColor}},
         Utils::Icon::Tint);
+const Utils::Icon VISUAL_DISPLAY({{":/images/visual.png", Utils::Theme::IconsBaseColor}});
+const Utils::Icon TEXT_DISPLAY({{":/images/text.png", Utils::Theme::IconsBaseColor}});
 
 } // namespace Icons
 } // namespace Autotest

@@ -31,7 +31,6 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <coreplugin/helpmanager.h>
-#include <utils/icon.h>
 #include <utils/portlist.h>
 
 #include <QCoreApplication>
@@ -79,16 +78,6 @@ static QString CFStringRef2QString(CFStringRef s)
 namespace Ios {
 namespace Internal {
 
-static const QList<Utils::Icon>& iosDeviceIcon()
-{
-    static const QList<Utils::Icon> icon =
-        {Utils::Icon({{":/ios/images/iosdevicesmall.png",
-                       Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
-         Utils::Icon({{":/ios/images/iosdevice.png",
-                       Utils::Theme::IconsBaseColor}})};
-    return icon;
-}
-
 IosDevice::IosDevice()
     : IDevice(Core::Id(Constants::IOS_DEVICE_TYPE),
                              IDevice::AutoDetected,
@@ -102,7 +91,6 @@ IosDevice::IosDevice()
     ports.addRange(Utils::Port(Constants::IOS_DEVICE_PORT_START),
                    Utils::Port(Constants::IOS_DEVICE_PORT_END));
     setFreePorts(ports);
-    setDeviceIcon(iosDeviceIcon());
 }
 
 IosDevice::IosDevice(const IosDevice &other)
@@ -119,7 +107,6 @@ IosDevice::IosDevice(const QString &uid)
 {
     setDisplayName(IosDevice::name());
     setDeviceState(DeviceDisconnected);
-    setDeviceIcon(iosDeviceIcon());
 }
 
 
@@ -224,6 +211,11 @@ Utils::Port IosDevice::nextPort() const
 bool IosDevice::canAutoDetectPorts() const
 {
     return true;
+}
+
+Utils::OsType IosDevice::osType() const
+{
+    return Utils::OsTypeMac;
 }
 
 

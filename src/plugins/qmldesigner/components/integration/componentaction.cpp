@@ -46,15 +46,16 @@ void ComponentAction::setCurrentIndex(int index)
     dontEmitCurrentComponentChanged = false;
 }
 
-QWidget  *ComponentAction::createWidget(QWidget *parent)
+QWidget *ComponentAction::createWidget(QWidget *parent)
 {
     QComboBox *comboBox = new QComboBox(parent);
     comboBox->setMinimumWidth(120);
     comboBox->setToolTip(tr("Edit sub components defined in this file."));
     comboBox->setModel(m_componentView->standardItemModel());
     comboBox->setCurrentIndex(-1);
-    connect(comboBox, SIGNAL(activated(int)), SLOT(emitCurrentComponentChanged(int)));
-    connect(this, SIGNAL(currentIndexChanged(int)), comboBox, SLOT(setCurrentIndex(int)));
+    connect(comboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),
+            this, &ComponentAction::emitCurrentComponentChanged);
+    connect(this, &ComponentAction::currentIndexChanged, comboBox, &QComboBox::setCurrentIndex);
 
     return comboBox;
 }

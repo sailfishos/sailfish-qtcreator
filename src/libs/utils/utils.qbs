@@ -9,7 +9,7 @@ Project {
     QtcLibrary {
 
         cpp.defines: base.concat([
-            "QTCREATOR_UTILS_LIB",
+            "UTILS_LIBRARY",
             "QTC_REL_TOOLS_PATH=\"" + FileInfo.relativePath('/' + qtc.ide_bin_path,
                                                             '/' + qtc.ide_libexec_path) + "\""
         ])
@@ -30,7 +30,7 @@ Project {
 
         Properties {
             condition: qbs.targetOS.contains("macos")
-            cpp.frameworks: ["Foundation"]
+            cpp.frameworks: ["Foundation", "AppKit"]
         }
 
         Depends { name: "Qt"; submodules: ["concurrent", "network", "qml", "widgets"] }
@@ -38,6 +38,7 @@ Project {
 
         files: [
             "QtConcurrentTools",
+            "asconst.h",
             "algorithm.h",
             "annotateditemdelegate.cpp",
             "annotateditemdelegate.h",
@@ -116,6 +117,8 @@ Project {
             "functiontraits.h",
             "guard.cpp",
             "guard.h",
+            "highlightingitemdelegate.cpp",
+            "highlightingitemdelegate.h",
             "historycompleter.cpp",
             "historycompleter.h",
             "hostosinfo.h",
@@ -141,10 +144,13 @@ Project {
             "newclasswidget.cpp",
             "newclasswidget.h",
             "newclasswidget.ui",
+            "optional.h",
+            "../3rdparty/optional/optional.hpp",
             "osspecificaspects.h",
             "outputformat.h",
             "outputformatter.cpp",
             "outputformatter.h",
+            "objectpool.h",
             "overridecursor.cpp",
             "overridecursor.h",
             "parameteraction.cpp",
@@ -159,6 +165,8 @@ Project {
             "port.h",
             "portlist.cpp",
             "portlist.h",
+            "processhandle.cpp",
+            "processhandle.h",
             "progressindicator.cpp",
             "progressindicator.h",
             "projectintropage.cpp",
@@ -169,6 +177,7 @@ Project {
             "proxycredentialsdialog.cpp",
             "proxycredentialsdialog.h",
             "proxycredentialsdialog.ui",
+            "qtcfallthrough.h",
             "qtcassert.cpp",
             "qtcassert.h",
             "qtcolorbutton.cpp",
@@ -211,6 +220,10 @@ Project {
             "synchronousprocess.h",
             "templateengine.cpp",
             "templateengine.h",
+            "temporarydirectory.cpp",
+            "temporarydirectory.h",
+            "temporaryfile.cpp",
+            "temporaryfile.h",
             "textfieldcheckbox.cpp",
             "textfieldcheckbox.h",
             "textfieldcombobox.cpp",
@@ -284,6 +297,14 @@ Project {
             condition: qbs.targetOS.contains("macos")
             files: [
                 "fileutils_mac.h", "fileutils_mac.mm",
+            ]
+        }
+
+        Group {
+            name: "ProcessHandle_macos"
+            condition: qbs.targetOS.contains("macos")
+            files: [
+                "processhandle_mac.mm",
             ]
         }
 

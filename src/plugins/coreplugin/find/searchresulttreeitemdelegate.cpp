@@ -67,19 +67,20 @@ void SearchResultTreeItemDelegate::paint(QPainter *painter, const QStyleOptionVi
 
     // icon
     QIcon icon = index.model()->data(index, ItemDataRoles::ResultIconRole).value<QIcon>();
-    if (!icon.isNull())
-        pixmapRect = QRect(0, 0, iconSize, iconSize);
+    if (!icon.isNull()) {
+        const QSize size = icon.actualSize(QSize(iconSize, iconSize));
+        pixmapRect = QRect(0, 0, size.width(), size.height());
+    }
 
     // text
     textRect = opt.rect.adjusted(0, 0, checkRect.width() + pixmapRect.width(), 0);
 
     // do layout
     doLayout(opt, &checkRect, &pixmapRect, &textRect, false);
-
     // ---- draw the items
     // icon
     if (!icon.isNull())
-        QItemDelegate::drawDecoration(painter, opt, pixmapRect, icon.pixmap(iconSize));
+        icon.paint(painter, pixmapRect, option.decorationAlignment);
 
     // line numbers
     int lineNumberAreaWidth = drawLineNumber(painter, opt, textRect, index);
@@ -107,7 +108,7 @@ int SearchResultTreeItemDelegate::drawLineNumber(QPainter *painter, const QStyle
                                                  const QModelIndex &index) const
 {
     static const int lineNumberAreaHorizontalPadding = 4;
-    int lineNumber = index.model()->data(index, ItemDataRoles::ResultLineNumberRole).toInt();
+    int lineNumber = index.model()->data(index, ItemDataRoles::ResultBeginLineNumberRole).toInt();
     if (lineNumber < 1)
         return 0;
     const bool isSelected = option.state & QStyle::State_Selected;
@@ -154,7 +155,7 @@ void SearchResultTreeItemDelegate::drawText(QPainter *painter,
                 + QLatin1Char(')');
     }
 
-    const int searchTermStart = index.model()->data(index, ItemDataRoles::SearchTermStartRole).toInt();
+    const int searchTermStart = index.model()->data(index, ItemDataRoles::ResultBeginColumnNumberRole).toInt();
     int searchTermLength = index.model()->data(index, ItemDataRoles::SearchTermLengthRole).toInt();
     if (searchTermStart < 0 || searchTermStart >= text.length() || searchTermLength < 1) {
         QItemDelegate::drawDisplay(painter, option, rect, text.replace(QLatin1Char('\t'), m_tabString));

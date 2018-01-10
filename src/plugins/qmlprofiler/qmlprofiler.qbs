@@ -24,7 +24,6 @@ QtcPlugin {
             "flamegraphmodel.cpp", "flamegraphmodel.h",
             "flamegraphview.cpp", "flamegraphview.h",
             "inputeventsmodel.cpp", "inputeventsmodel.h",
-            "localqmlprofilerrunner.cpp", "localqmlprofilerrunner.h",
             "memoryusagemodel.cpp", "memoryusagemodel.h",
             "pixmapcachemodel.cpp", "pixmapcachemodel.h",
             "qmlevent.cpp", "qmlevent.h",
@@ -38,7 +37,6 @@ QtcPlugin {
             "qmlprofilerclientmanager.cpp", "qmlprofilerclientmanager.h",
             "qmlprofilerconfigwidget.cpp", "qmlprofilerconfigwidget.h",
             "qmlprofilerconfigwidget.ui", "qmlprofilerconstants.h",
-            "qmlprofilerdatamodel.cpp", "qmlprofilerdatamodel.h",
             "qmlprofilerdetailsrewriter.cpp", "qmlprofilerdetailsrewriter.h",
             "qmlprofilereventsview.h",
             "qmlprofilereventtypes.h",
@@ -47,7 +45,6 @@ QtcPlugin {
             "qmlprofileroptionspage.cpp", "qmlprofileroptionspage.h",
             "qmlprofilerplugin.cpp", "qmlprofilerplugin.h",
             "qmlprofilerrunconfigurationaspect.cpp", "qmlprofilerrunconfigurationaspect.h",
-            "qmlprofilerruncontrolfactory.cpp", "qmlprofilerruncontrolfactory.h",
             "qmlprofilerrangemodel.cpp", "qmlprofilerrangemodel.h",
             "qmlprofilerruncontrol.cpp", "qmlprofilerruncontrol.h",
             "qmlprofilersettings.cpp", "qmlprofilersettings.h",
@@ -55,6 +52,7 @@ QtcPlugin {
             "qmlprofilerstatewidget.cpp", "qmlprofilerstatewidget.h",
             "qmlprofilerstatisticsmodel.cpp", "qmlprofilerstatisticsmodel.h",
             "qmlprofilerstatisticsview.cpp", "qmlprofilerstatisticsview.h",
+            "qmlprofilertextmark.cpp", "qmlprofilertextmark.h",
             "qmlprofilertimelinemodel.cpp", "qmlprofilertimelinemodel.h",
             "qmlprofilertool.cpp", "qmlprofilertool.h",
             "qmlprofilertraceclient.cpp", "qmlprofilertraceclient.h",
@@ -94,6 +92,7 @@ QtcPlugin {
             "qmlprofilerbindingloopsrenderpass_test.h",
             "qmlprofilerclientmanager_test.cpp", "qmlprofilerclientmanager_test.h",
             "qmlprofilerconfigwidget_test.cpp", "qmlprofilerconfigwidget_test.h",
+            "qmlprofilertraceview_test.cpp", "qmlprofilertraceview_test.h",
         ]
     }
 }

@@ -73,6 +73,8 @@ public:
 
     bool initialize(const QStringList &arguments, QString *errorMessage);
 
+    bool isVcsDirectory(const Utils::FileName &fileName);
+
     SubversionClient *client() const;
 
     SubversionSubmitEditor *openSubversionSubmitEditor(const QString &fileName);
@@ -92,10 +94,6 @@ public:
     SubversionResponse runSvn(const QString &workingDir,
                               const QStringList &arguments, int timeOutS,
                               unsigned flags, QTextCodec *outputCodec = 0) const;
-
-public slots:
-    void annotateVersion(const QString &workingDirectory, const QString &file,
-                         const QString &revision, int lineNumber);
     void describe(const QString &source, const QString &changeNr);
     void vcsAnnotate(const QString &workingDir, const QString &file,
                      const QString &revision = QString(), int lineNumber = -1);

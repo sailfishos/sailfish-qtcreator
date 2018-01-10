@@ -30,9 +30,10 @@
 #include <vcsbase/vcsoutputwindow.h>
 #include <vcsbase/vcsbaseplugin.h>
 #include <vcsbase/vcsbaseeditor.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
 #include <utils/synchronousprocess.h>
 #include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QDateTime>
@@ -49,12 +50,12 @@ namespace Mercurial {
 namespace Internal  {
 
 // Parameter widget controlling whitespace diff mode, associated with a parameter
-class MercurialDiffParameterWidget : public VcsBaseEditorParameterWidget
+class MercurialDiffConfig : public VcsBaseEditorConfig
 {
     Q_OBJECT
 public:
-    MercurialDiffParameterWidget(VcsBaseClientSettings &settings, QWidget *parent = 0) :
-        VcsBaseEditorParameterWidget(parent)
+    MercurialDiffConfig(VcsBaseClientSettings &settings, QToolBar *toolBar) :
+        VcsBaseEditorConfig(toolBar)
     {
         mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore Whitespace")),
                    settings.boolPointer(MercurialSettings::diffIgnoreWhiteSpaceKey));
@@ -65,7 +66,9 @@ public:
 
 MercurialClient::MercurialClient() : VcsBaseClient(new MercurialSettings)
 {
-    setDiffParameterWidgetCreator([this] { return new MercurialDiffParameterWidget(settings()); });
+    setDiffConfigCreator([this](QToolBar *toolBar) {
+        return new MercurialDiffConfig(settings(), toolBar);
+    });
 }
 
 bool MercurialClient::manifestSync(const QString &repository, const QString &relativeFilename)
@@ -331,6 +334,12 @@ void MercurialClient::revertAll(const QString &workingDir, const QString &revisi
 {
     VcsBaseClient::revertAll(workingDir, revision,
                              QStringList(extraOptions) << QLatin1String("--all"));
+}
+
+bool MercurialClient::isVcsDirectory(const FileName &fileName) const
+{
+    return fileName.toFileInfo().isDir()
+            && !fileName.fileName().compare(Constants::MERCURIALREPO, HostOsInfo::fileNameCaseSensitivity());
 }
 
 void MercurialClient::view(const QString &source, const QString &id,

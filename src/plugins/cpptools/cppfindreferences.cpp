@@ -25,6 +25,7 @@
 
 #include "cppfindreferences.h"
 
+#include "cppfilesettingspage.h"
 #include "cpptoolsconstants.h"
 #include "cppmodelmanager.h"
 #include "cppworkingcopy.h"
@@ -33,6 +34,9 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/progressmanager/progressmanager.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/session.h>
 #include <texteditor/basefilefind.h>
 
 #include <utils/algorithm.h>
@@ -42,6 +46,7 @@
 
 #include <cplusplus/Overview.h>
 #include <QtConcurrentMap>
+#include <QCheckBox>
 #include <QDir>
 
 #include <functional>
@@ -50,6 +55,7 @@ using namespace Core;
 using namespace CppTools::Internal;
 using namespace CppTools;
 using namespace CPlusPlus;
+using namespace ProjectExplorer;
 
 static QByteArray getSource(const Utils::FileName &fileName,
                             const WorkingCopy &workingCopy)
@@ -276,7 +282,7 @@ static void find_helper(QFutureInterface<Usage> &future,
 
     const Utils::FileName sourceFile = Utils::FileName::fromUtf8(symbol->fileName(),
                                                                  symbol->fileNameLength());
-    Utils::FileNameList files {sourceFile};
+    Utils::FileNameList files{sourceFile};
 
     if (symbol->isClass()
         || symbol->isForwardClassDeclaration()
@@ -336,6 +342,12 @@ void CppFindReferences::findUsages(Symbol *symbol,
     CppFindReferencesParameters parameters;
     parameters.symbolId = fullIdForSymbol(symbol);
     parameters.symbolFileName = QByteArray(symbol->fileName());
+
+    if (symbol->isClass() || symbol->isForwardClassDeclaration()) {
+        Overview overview;
+        parameters.prettySymbolName = overview.prettyName(context.path(symbol).last());
+    }
+
     search->setUserData(qVariantFromValue(parameters));
     findAll_helper(search, symbol, context);
 }
@@ -373,6 +385,11 @@ void CppFindReferences::findAll_helper(SearchResult *search, Symbol *symbol,
     connect(progress, &FutureProgress::clicked, search, &SearchResult::popup);
 }
 
+static bool isAllLowerCase(const QString &text)
+{
+    return text.toLower() == text;
+}
+
 void CppFindReferences::onReplaceButtonClicked(const QString &text,
                                                const QList<SearchResultItem> &items,
                                                bool preserveCase)
@@ -382,12 +399,67 @@ void CppFindReferences::onReplaceButtonClicked(const QString &text,
         m_modelManager->updateSourceFiles(fileNames.toSet());
         SearchResultWindow::instance()->hide();
     }
+
+    auto search = qobject_cast<SearchResult *>(sender());
+    QTC_ASSERT(search, return);
+
+    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
+    if (parameters.filesToRename.isEmpty())
+        return;
+
+    auto renameFilesCheckBox = qobject_cast<QCheckBox *>(search->additionalReplaceWidget());
+    if (!renameFilesCheckBox || !renameFilesCheckBox->isChecked())
+        return;
+
+    CppFileSettings settings;
+    settings.fromSettings(Core::ICore::settings());
+
+    const QStringList newPaths =
+            Utils::transform<QList>(parameters.filesToRename,
+                                    [&parameters, text, &settings](const Node *node) -> QString {
+        const QFileInfo fi = node->filePath().toFileInfo();
+        const QString oldSymbolName = parameters.prettySymbolName;
+        const QString oldBaseName = fi.baseName();
+        const QString newSymbolName = text;
+        QString newBaseName = newSymbolName;
+
+        // 1) new symbol lowercase: new base name lowercase
+        if (isAllLowerCase(newSymbolName)) {
+            newBaseName = newSymbolName;
+
+        // 2) old base name mixed case: new base name is verbatim symbol name
+        } else if (!isAllLowerCase(oldBaseName)) {
+            newBaseName = newSymbolName;
+
+        // 3) old base name lowercase, old symbol mixed case: new base name lowercase
+        } else if (!isAllLowerCase(oldSymbolName)) {
+            newBaseName = newSymbolName.toLower();
+
+        // 4) old base name lowercase, old symbol lowercase, new symbol mixed case:
+        //    use the preferences setting for new base name case
+        } else if (settings.lowerCaseFiles) {
+            newBaseName = newSymbolName.toLower();
+        }
+
+        if (newBaseName == oldBaseName)
+            return QString();
+
+        return fi.absolutePath() + "/" + newBaseName + '.' + fi.completeSuffix();
+    });
+
+    for (int i = 0; i < parameters.filesToRename.size(); ++i) {
+        if (!newPaths.at(i).isEmpty()) {
+            Node *node = parameters.filesToRename.at(i);
+            ProjectExplorerPlugin::renameFile(node, newPaths.at(i));
+        }
+    }
 }
 
 void CppFindReferences::searchAgain()
 {
     SearchResult *search = qobject_cast<SearchResult *>(sender());
     CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
+    parameters.filesToRename.clear();
     Snapshot snapshot = CppModelManager::instance()->snapshot();
     search->restart();
     LookupContext context;
@@ -467,21 +539,62 @@ Symbol *CppFindReferences::findSymbol(const CppFindReferencesParameters &paramet
 static void displayResults(SearchResult *search, QFutureWatcher<Usage> *watcher,
                            int first, int last)
 {
+    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
+
     for (int index = first; index != last; ++index) {
         Usage result = watcher->future().resultAt(index);
-        search->addResult(result.path,
+        search->addResult(result.path.toString(),
                           result.line,
                           result.lineText,
                           result.col,
                           result.len);
+
+        if (parameters.prettySymbolName.isEmpty())
+            continue;
+
+        if (Utils::contains(parameters.filesToRename, Utils::equal(&Node::filePath, result.path)))
+            continue;
+
+        Node *node = SessionManager::nodeForFile(result.path);
+        if (!node) // Not part of any project
+            continue;
+
+        const QFileInfo fi = node->filePath().toFileInfo();
+        if (fi.baseName().compare(parameters.prettySymbolName, Qt::CaseInsensitive) == 0)
+            parameters.filesToRename.append(node);
     }
+
+    search->setUserData(qVariantFromValue(parameters));
+}
+
+static void searchFinished(SearchResult *search, QFutureWatcher<Usage> *watcher)
+{
+    search->finishSearch(watcher->isCanceled());
+
+    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
+    if (!parameters.filesToRename.isEmpty()) {
+        const QStringList filesToRename
+                = Utils::transform<QList>(parameters.filesToRename, [](const Node *node) {
+            return node->filePath().toUserOutput();
+        });
+
+        auto renameCheckBox = qobject_cast<QCheckBox *>(search->additionalReplaceWidget());
+        if (renameCheckBox) {
+            renameCheckBox->setText(CppFindReferences::tr("Re&name %1 files").arg(filesToRename.size()));
+            renameCheckBox->setToolTip(CppFindReferences::tr("Files:\n%1").arg(filesToRename.join('\n')));
+            renameCheckBox->setVisible(true);
+        }
+    }
+
+    watcher->deleteLater();
 }
 
 void CppFindReferences::openEditor(const SearchResultItem &item)
 {
     if (item.path.size() > 0) {
         EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
-                                              item.lineNumber, item.textMarkPos);
+                                    item.mainRange.begin.line,
+                                    item.mainRange.begin.column);
     } else {
         EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
     }
@@ -535,7 +648,7 @@ restart_search:
                 if (macro.name() == useMacro.name()) {
                     unsigned column;
                     const QString &lineSource = matchingLine(use.bytesBegin(), source, &column);
-                    usages.append(Usage(fileName.toString(), lineSource, use.beginLine(), column,
+                    usages.append(Usage(fileName, lineSource, use.beginLine(), column,
                                         useMacro.nameToQString().size()));
                 }
             }
@@ -577,7 +690,7 @@ static void findMacroUses_helper(QFutureInterface<Usage> &future,
                                  const Macro macro)
 {
     const Utils::FileName sourceFile = Utils::FileName::fromString(macro.fileName());
-    Utils::FileNameList files {sourceFile};
+    Utils::FileNameList files{sourceFile};
     files = Utils::filteredUnique(files + snapshot.filesDependingOn(sourceFile));
 
     future.setProgressRange(0, files.size());
@@ -650,7 +763,9 @@ void CppFindReferences::createWatcher(const QFuture<Usage> &future, SearchResult
 {
     QFutureWatcher<Usage> *watcher = new QFutureWatcher<Usage>();
     // auto-delete:
-    connect(watcher, &QFutureWatcherBase::finished, watcher, &QObject::deleteLater);
+    connect(watcher, &QFutureWatcherBase::finished, watcher, [search, watcher]() {
+                searchFinished(search, watcher);
+            });
 
     connect(watcher, &QFutureWatcherBase::resultsReadyAt, search,
             [search, watcher](int first, int last) {

@@ -35,8 +35,8 @@
 namespace ClangBackEnd {
 
 WriteMessageBlock::WriteMessageBlock(QIODevice *ioDevice)
-    : messageCounter(0),
-      ioDevice(ioDevice)
+    : m_messageCounter(0),
+      m_ioDevice(ioDevice)
 {
 }
 
@@ -48,26 +48,28 @@ void WriteMessageBlock::write(const MessageEnvelop &message)
     const qint32 dummyBockSize = 0;
     out << dummyBockSize;
 
-    out << messageCounter;
+    out << m_messageCounter;
 
     out << message;
 
     out.device()->seek(0);
     out << qint32(block.size() - sizeof(qint32));
 
-    ++messageCounter;
+    ++m_messageCounter;
 
-    ioDevice->write(block);
+    const qint64 bytesWritten = m_ioDevice->write(block);
+    if (bytesWritten == -1)
+        qWarning() << "Failed to write data:" << m_ioDevice->errorString();
 }
 
 qint64 WriteMessageBlock::counter() const
 {
-    return messageCounter;
+    return m_messageCounter;
 }
 
 void WriteMessageBlock::resetCounter()
 {
-    messageCounter = 0;
+    m_messageCounter = 0;
 }
 
 

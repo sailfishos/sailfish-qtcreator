@@ -25,23 +25,24 @@
 
 from dumper import *
 
+def typeTarget(type):
+    target = type.target()
+    if target:
+        return target
+    return type
+
 def stripTypeName(value):
-    type = value.type
-    try:
-        type = type.target()
-    except:
-        pass
-    return str(type.unqualified())
+    return typeTarget(value.type).unqualified().name
 
 def extractPointerType(d, value):
     postfix = ""
     while stripTypeName(value) == "CPlusPlus::PointerType":
         postfix += "*"
-        value = d.downcast(value["_elementType"]["_type"])
+        value = value["_elementType"]["_type"]
     try:
         return readLiteral(d, value["_name"]) + postfix
     except:
-        typeName = str(value.type.unqualified().target())
+        typeName = typeTarget(value.type.unqualified()).name
         if typeName == "CPlusPlus::IntegerType":
             return "int" + postfix
         elif typeName == "CPlusPlus::VoidType":
@@ -60,28 +61,22 @@ def readTemplateName(d, value):
         for i in range(int(size)):
             if i > 0:
                 name += ", "
-            name += extractPointerType(d, d.downcast(start[i]["_type"]))
+            name += extractPointerType(d, start[i]["_type"])
     except:
         return "<not accessible>"
     name += ">"
     return name
 
 def readLiteral(d, value):
-    if d.isNull(value):
+    if not value.integer():
         return "<null>"
-    value = d.downcast(value)
-    type = value.type.unqualified()
-    try:
-        type = type.target()
-    except:
-        pass
-    typestr = str(type)
-    if typestr == "CPlusPlus::TemplateNameId":
+    type = typeTarget(value.type.unqualified())
+    if type and (type.name == "CPlusPlus::TemplateNameId"):
         return readTemplateName(d, value)
-    elif typestr == "CPlusPlus::QualifiedNameId":
+    elif type and (type.name == "CPlusPlus::QualifiedNameId"):
         return readLiteral(d, value["_base"]) + "::" + readLiteral(d, value["_name"])
     try:
-        return d.extractBlob(value["_chars"], value["_size"]).toString()
+        return bytes(d.readRawMemory(value["_chars"], value["_size"])).decode('latin1')
     except:
         return "<unsupported>"
 
@@ -90,10 +85,13 @@ def dumpLiteral(d, value):
 
 def qdump__Core__Id(d, value):
     val = value.extractPointer()
-    try:
-        name = d.parseAndEvaluate("Core::nameForId(0x%x)" % val)
-        d.putSimpleCharArray(name.pointer())
-    except:
+    if True:
+        if d.isMsvcTarget():
+            name = d.nameForCoreId(val).address()
+        else:
+            name = d.parseAndEvaluate("Core::nameForId(0x%x)" % val).pointer()
+        d.putSimpleCharArray(name)
+    else:
         d.putValue(val)
     d.putPlainChildren(value)
 
@@ -116,7 +114,7 @@ def qdump__Debugger__Internal__WatchItem(d, value):
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__BreakpointModelId(d, value):
-    d.putValue("%s.%s" % (int(value["m_majorPart"]), int(value["m_minorPart"])))
+    d.putValue("%s.%s" % (value["m_majorPart"].integer(), value["m_minorPart"].integer()))
     d.putPlainChildren(value)
 
 def qdump__Debugger__Internal__ThreadId(d, value):
@@ -128,7 +126,10 @@ def qdump__CPlusPlus__ByteArrayRef(d, value):
     d.putPlainChildren(value)
 
 def qdump__CPlusPlus__Identifier(d, value):
-    d.putSimpleCharArray(value["_chars"], value["_size"])
+    try:
+        d.putSimpleCharArray(value["_chars"], value["_size"])
+    except:
+        pass
     d.putPlainChildren(value)
 
 def qdump__CPlusPlus__Symbol(d, value):
@@ -144,7 +145,7 @@ def qdump__CPlusPlus__IntegerType(d, value):
     d.putPlainChildren(value)
 
 def qdump__CPlusPlus__FullySpecifiedType(d, value):
-    type = d.downcast(value["_type"])
+    type = value["_type"]
     typeName = stripTypeName(type)
     if typeName == "CPlusPlus::NamedType":
         dumpLiteral(d, type["_name"])
@@ -190,10 +191,22 @@ def qdump__Utils__ElfSection(d, value):
     d.putByteArrayValue(value["name"])
     d.putPlainChildren(value)
 
+def qdump__Utils__Port(d, value):
+    d.putValue(d.extractInt(value))
+    d.putPlainChildren(value)
+
+def qdump__Utf8String(d, value):
+    d.putByteArrayValue(value['byteArray'])
+    d.putPlainChildren(value)
+
 def qdump__CPlusPlus__Token(d, value):
     k = value["f"]["kind"]
-    e = int(k)
-    type = str(k.cast(d.lookupType("CPlusPlus::Kind")))[11:] # Strip "CPlusPlus::"
+    e = k.lvalue
+    if e:
+        kindType = d.lookupType("CPlusPlus::Kind")
+        type = kindType.typeData().enumDisplay(e, k.address())[11:]
+    else:
+        type = ''
     try:
         if e == 6:
             type = readLiteral(d, value["identifier"]) + " (%s)" % type
@@ -206,8 +219,8 @@ def qdump__CPlusPlus__Token(d, value):
 
 def qdump__CPlusPlus__Internal__PPToken(d, value):
     data, size, alloc = d.byteArrayData(value["m_src"])
-    length = int(value["f"]["utf16chars"])
-    offset = int(value["utf16charOffset"])
+    length = value["f"]["utf16chars"].integer()
+    offset = value["utf16charOffset"].integer()
     #warn("size: %s, alloc: %s, offset: %s, length: %s, data: %s"
     #    % (size, alloc, offset, length, data))
     d.putValue(d.readMemory(data + offset, min(100, length)), "latin1")
@@ -217,8 +230,8 @@ def qdump__ProString(d, value):
     try:
         s = value["m_string"]
         data, size, alloc = d.stringData(s)
-        data += 2 * int(value["m_offset"])
-        size = int(value["m_length"])
+        data += 2 * value["m_offset"].integer()
+        size = value["m_length"].integer()
         s = d.readMemory(data, 2 * size)
         d.putValue(s, "utf16")
     except:

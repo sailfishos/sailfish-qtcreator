@@ -41,6 +41,7 @@ public:
 
     NimCompilerBuildStep(ProjectExplorer::BuildStepList *parentList);
 
+    bool init(QList<const ProjectExplorer::BuildStep *> &earlierSteps) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
     bool fromMap(const QVariantMap &map) override;
@@ -73,6 +74,8 @@ private:
     void updateWorkingDirectory();
     void updateArguments();
     void updateEnvironment();
+
+    void updateTargetNimFile();
 
     DefaultBuildOptions m_defaultOptions;
     QStringList m_userCompilerOptions;

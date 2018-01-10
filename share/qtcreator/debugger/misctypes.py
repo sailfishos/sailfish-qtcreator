@@ -94,6 +94,25 @@ def qdump____m512i(d, value):
 
 #######################################################################
 #
+# GSL
+#
+#######################################################################
+
+def qform__std__array():
+    return arrayForms()
+
+def qdump__gsl__span(d, value):
+    size, pointer = value.split('pp')
+    d.putItemCount(size)
+    if d.isExpanded():
+        d.putPlotData(pointer, size, value.type[0])
+
+def qdump__gsl__byte(d, value):
+    d.putNumChild(0)
+    d.putValue(value.integer())
+
+#######################################################################
+#
 # Eigen
 #
 #######################################################################
@@ -175,6 +194,21 @@ def qdump__NimGenericSequence__(d, value, regex = '^TY[\d]+$'):
     else:
         d.putEmptyValue()
         d.putPlainChildren(value)
+
+def qdump__TNimNode(d, value):
+    name = value['name'].pointer()
+    d.putSimpleCharArray(name) if name != 0 else d.putEmptyValue()
+    if d.isExpanded():
+        with Children(d):
+            sons = value['sons'].pointer()
+            size = value['len'].integer()
+            for i in range(size):
+                val = d.createValue(d.extractPointer(sons + i * d.ptrSize()), value.type)
+                with SubItem(d, '[%d]' % i):
+                    d.putItem(val)
+            with SubItem(d, '[raw]'):
+                d.putPlainChildren(value)
+
 
 #######################################################################
 #
@@ -333,4 +367,17 @@ def qdump__QtcDumperTest_PointerArray(d, value):
         with Children(d, 10):
             for i in d.childRange():
                 d.putSubItem(i, foos[i])
+
+def qdump__QtcDumperTest_BufArray(d, value):
+    maxItems = 1000
+    buffer = value['buffer']
+    count = int(value['count'])
+    objsize = int(value['objSize'])
+    valueType = value.type.templateArgument(0)
+    d.putItemCount(count, maxItems)
+    d.putNumChild(count)
+    if d.isExpanded():
+        with Children(d, count, maxNumChild=maxItems, childType=valueType):
+            for i in d.childRange():
+                d.putSubItem(i, (buffer + (i * objsize)).dereference().cast(valueType))
 

@@ -28,13 +28,14 @@
 #include "mockrefactoringserver.h"
 #include "mockrefactoringclient.h"
 
-#include <refactoringcompileroptionsbuilder.h>
 #include <refactoringengine.h>
 
-#include <requestsourcelocationforrenamingmessage.h>
-#include <sourcelocationsforrenamingmessage.h>
+#include <clangrefactoringmessages.h>
 
+#include <cpptools/clangcompileroptionsbuilder.h>
 #include <cpptools/projectpart.h>
+
+#include <utils/smallstringvector.h>
 
 #include <QTextCursor>
 #include <QTextDocument>
@@ -43,7 +44,7 @@ namespace {
 
 using testing::_;
 
-using ClangRefactoring::RefactoringCompilerOptionsBuilder;
+using CppTools::ClangCompilerOptionsBuilder;
 
 using ClangBackEnd::RequestSourceLocationsForRenamingMessage;
 
@@ -66,7 +67,7 @@ protected:
     QTextCursor cursor{&textDocument};
     QString qStringFilePath{QStringLiteral("/home/user/file.cpp")};
     Utils::FileName filePath{Utils::FileName::fromString(qStringFilePath)};
-    ClangBackEnd::FilePath clangBackEndFilePath{"/home/user", "file.cpp"};
+    ClangBackEnd::FilePath clangBackEndFilePath{qStringFilePath};
     SmallStringVector commandLine;
     CppTools::ProjectPart::Ptr projectPart;
     CppTools::ProjectFile projectFile{qStringFilePath, CppTools::ProjectFile::CXXSource};
@@ -97,6 +98,25 @@ TEST_F(RefactoringEngine, AfterSendRequestSourceLocationsForRenamingMessageIsUnu
     ASSERT_FALSE(engine.isUsable());
 }
 
+TEST_F(RefactoringEngine, EngineIsNotUsableForUnusableServer)
+{
+    ASSERT_FALSE(engine.isUsable());
+}
+
+TEST_F(RefactoringEngine, EngineIsUsableForUsableServer)
+{
+    mockRefactoringServer.setUsable(true);
+
+    ASSERT_TRUE(engine.isUsable());
+}
+
+TEST_F(RefactoringEngine, ServerIsUsableForUsableEngine)
+{
+    engine.setUsable(true);
+
+    ASSERT_TRUE(mockRefactoringServer.isUsable());
+}
+
 RefactoringEngine::RefactoringEngine()
     : engine(mockRefactoringServer, mockRefactoringClient)
 {
@@ -107,9 +127,12 @@ void RefactoringEngine::SetUp()
     projectPart = CppTools::ProjectPart::Ptr(new CppTools::ProjectPart);
     projectPart->files.push_back(projectFile);
 
-    commandLine = RefactoringCompilerOptionsBuilder::build(projectPart.data(),
-                                                           projectFile.kind,
-                                                           RefactoringCompilerOptionsBuilder::PchUsage::None);
+    commandLine = Utils::SmallStringVector(ClangCompilerOptionsBuilder::build(
+                                               projectPart.data(),
+                                               projectFile.kind,
+                                               CppTools::CompilerOptionsBuilder::PchUsage::None,
+                                               CLANG_VERSION,
+                                               CLANG_RESOURCE_DIR));
     commandLine.push_back(qStringFilePath);
 }
 

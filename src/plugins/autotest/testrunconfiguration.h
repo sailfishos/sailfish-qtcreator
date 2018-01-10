@@ -50,7 +50,6 @@ public:
         : ProjectExplorer::RunConfiguration(parent, "AutoTest.TestRunConfig")
     {
         setDefaultDisplayName(tr("AutoTest Debug"));
-        addExtraAspects();
 
         // disable QmlDebugger that is enabled by default
         // might change if debugging QuickTest gets enabled
@@ -63,7 +62,7 @@ public:
     {
         ProjectExplorer::StandardRunnable r;
         QTC_ASSERT(m_testConfig, return r);
-        r.executable = m_testConfig->targetFile();
+        r.executable = m_testConfig->executableFilePath();
         r.commandLineArguments = m_testConfig->argumentsForTestRunner().join(' ');
         r.workingDirectory = m_testConfig->workingDirectory();
         r.environment = m_testConfig->environment();

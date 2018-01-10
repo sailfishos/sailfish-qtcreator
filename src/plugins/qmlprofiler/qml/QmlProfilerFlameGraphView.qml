@@ -27,6 +27,7 @@ import QtQuick 2.0
 import QtQuick.Controls 1.3
 import FlameGraph 1.0
 import QmlProfilerFlameGraphModel 1.0
+import TimelineTheme 1.0
 import "../flamegraph/"
 
 ScrollView {
@@ -35,7 +36,6 @@ ScrollView {
     signal gotoSourceLocation(string filename, int line, int column)
 
     property int selectedTypeId: -1
-    property int visibleRangeTypes: -1
     property int sizeRole: QmlProfilerFlameGraphModel.DurationRole
 
     readonly property var trRoleNames: [
@@ -67,7 +67,7 @@ ScrollView {
             property color blue2: Qt.rgba(0.375, 0, 1, 1)
             property color grey1: "#B0B0B0"
             property color grey2: "#A0A0A0"
-            property color highlight: creatorTheme.Timeline_HighlightColor
+            property color highlight: Theme.color(Theme.Timeline_HighlightColor)
 
             function checkBindingLoop(otherTypeId) {return false;}
 
@@ -85,11 +85,9 @@ ScrollView {
 
                 property int typeId: FlameGraph.data(QmlProfilerFlameGraphModel.TypeIdRole) || -1
                 property bool isBindingLoop: parent.checkBindingLoop(typeId)
-                property bool rangeTypeVisible:
-                    root.visibleRangeTypes & (1 << FlameGraph.data(QmlProfilerFlameGraphModel.RangeTypeRole))
 
-                itemHeight: rangeTypeVisible ? flamegraph.delegateHeight : 0
-                isSelected: typeId !== -1 && typeId === root.selectedTypeId && rangeTypeVisible
+                itemHeight: flamegraph.delegateHeight
+                isSelected: typeId !== -1 && typeId === root.selectedTypeId
 
                 borderColor: {
                     if (isSelected)
@@ -146,8 +144,14 @@ ScrollView {
                 }
 
                 onMouseExited: {
-                    if (tooltip.hoveredNode === flamegraphItem)
+                    if (tooltip.hoveredNode === flamegraphItem) {
+                        // Keep the window around until something else is hovered or selected.
+                        if (tooltip.selectedNode === null
+                                || tooltip.selectedNode.typeId !== root.selectedTypeId) {
+                            tooltip.selectedNode = flamegraphItem;
+                        }
                         tooltip.hoveredNode = null;
+                    }
                 }
 
                 onClicked: {
@@ -199,6 +203,9 @@ ScrollView {
                     }
 
                     function printMemory(a) {
+                        if (a === 0)
+                            return "0b";
+
                         var units = ["b", "kb", "Mb", "Gb"];
                         var div = 1;
                         for (var i = 0; i < units.length; ++i, div *= 1024) {
@@ -217,7 +224,6 @@ ScrollView {
                         model.push(qsTr("Various Events"));
                     } else {
                         addDetail(QmlProfilerFlameGraphModel.DetailsRole, noop);
-                        addDetail(QmlProfilerFlameGraphModel.TypeRole, noop);
                         addDetail(QmlProfilerFlameGraphModel.CallCountRole, noop);
                         addDetail(QmlProfilerFlameGraphModel.DurationRole, printTime);
                         addDetail(QmlProfilerFlameGraphModel.TimePerCallRole, printTime);
@@ -239,13 +245,13 @@ ScrollView {
             minimumY: flickable.contentY
             maximumY: flickable.contentY + flickable.height
 
-            titleBarColor: creatorTheme.Timeline_PanelHeaderColor
-            titleBarTextColor: creatorTheme.PanelTextColorLight
-            contentColor: creatorTheme.Timeline_PanelBackgroundColor
-            contentTextColor: creatorTheme.Timeline_TextColor
-            noteTextColor: creatorTheme.Timeline_HighlightColor
-            buttonHoveredColor: creatorTheme.FancyToolButtonHoverColor
-            buttonSelectedColor: creatorTheme.FancyToolButtonSelectedColor
+            titleBarColor: Theme.color(Theme.Timeline_PanelHeaderColor)
+            titleBarTextColor: Theme.color(Theme.PanelTextColorLight)
+            contentColor: Theme.color(Theme.Timeline_PanelBackgroundColor)
+            contentTextColor: Theme.color(Theme.Timeline_TextColor)
+            noteTextColor: Theme.color(Theme.Timeline_HighlightColor)
+            buttonHoveredColor: Theme.color(Theme.FancyToolButtonHoverColor)
+            buttonSelectedColor: Theme.color(Theme.FancyToolButtonSelectedColor)
             borderWidth: 0
 
             property var hoveredNode: null;

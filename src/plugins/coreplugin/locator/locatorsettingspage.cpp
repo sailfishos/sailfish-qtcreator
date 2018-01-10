@@ -173,7 +173,7 @@ LocatorSettingsPage::LocatorSettingsPage(Locator *plugin)
 QWidget *LocatorSettingsPage::widget()
 {
     if (!m_widget) {
-        m_filters = m_plugin->filters();
+        m_filters = Locator::filters();
         m_customFilters = m_plugin->customFilters();
 
         m_widget = new QWidget;
@@ -281,7 +281,7 @@ void LocatorSettingsPage::restoreFilterStates()
 
 void LocatorSettingsPage::initializeModel()
 {
-    m_model->setHeader(QStringList({ tr("Name"), tr("Prefix"), tr("Default") }));
+    m_model->setHeader(QStringList({tr("Name"), tr("Prefix"), tr("Default")}));
     m_model->setHeaderToolTip(QStringList({
         QString(),
         ILocatorFilter::msgPrefixToolTip(),

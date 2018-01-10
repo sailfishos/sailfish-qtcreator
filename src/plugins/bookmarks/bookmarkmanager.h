@@ -52,8 +52,6 @@ public:
     BookmarkManager();
     ~BookmarkManager();
 
-    QIcon bookmarkIcon() const { return m_bookmarkIcon; }
-
     void updateBookmark(Bookmark *bookmark);
     void updateBookmarkFileName(Bookmark *bookmark, const QString &oldFileName);
     void deleteBookmark(Bookmark *bookmark); // Does not remove the mark
@@ -122,8 +120,6 @@ private:
 
     DirectoryFileBookmarksMap m_bookmarksMap;
 
-    const QIcon m_bookmarkIcon;
-
     QList<Bookmark *> m_bookmarksList;
     QItemSelectionModel *m_selectionModel;
 };
@@ -162,7 +158,7 @@ public:
     BookmarkViewFactory(BookmarkManager *bm);
 
 private:
-    Core::NavigationView createWidget();
+    Core::NavigationView createWidget() override;
 
     BookmarkManager *m_manager;
 };

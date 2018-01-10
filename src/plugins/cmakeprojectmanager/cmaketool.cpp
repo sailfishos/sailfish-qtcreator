@@ -172,19 +172,19 @@ TextEditor::Keywords CMakeTool::keywords()
 {
     if (m_functions.isEmpty()) {
         Utils::SynchronousProcessResponse response;
-        response = run({ "--help-command-list" });
+        response = run({"--help-command-list"});
         if (response.result == Utils::SynchronousProcessResponse::Finished)
             m_functions = response.stdOut().split('\n');
 
-        response = run({ "--help-commands" });
+        response = run({"--help-commands"});
         if (response.result == Utils::SynchronousProcessResponse::Finished)
             parseFunctionDetailsOutput(response.stdOut());
 
-        response = run({ "--help-property-list" });
+        response = run({"--help-property-list"});
         if (response.result == Utils::SynchronousProcessResponse::Finished)
             m_variables = parseVariableOutput(response.stdOut());
 
-        response = run({ "--help-variable-list" });
+        response = run({"--help-variable-list"});
         if (response.result == Utils::SynchronousProcessResponse::Finished) {
             m_variables.append(parseVariableOutput(response.stdOut()));
             m_variables = Utils::filteredUnique(m_variables);
@@ -228,11 +228,11 @@ void CMakeTool::setPathMapper(const CMakeTool::PathMapper &pathMapper)
     m_pathMapper = pathMapper;
 }
 
-QString CMakeTool::mapAllPaths(const ProjectExplorer::Kit *kit, const QString &in) const
+CMakeTool::PathMapper CMakeTool::pathMapper() const
 {
     if (m_pathMapper)
-        return m_pathMapper(kit, in);
-    return in;
+        return m_pathMapper;
+    return [](const Utils::FileName &fn) { return fn; };
 }
 
 void CMakeTool::readInformation(CMakeTool::QueryType type) const
@@ -354,7 +354,7 @@ QStringList CMakeTool::parseVariableOutput(const QString &output)
 
 void CMakeTool::fetchGeneratorsFromHelp() const
 {
-    Utils::SynchronousProcessResponse response = run({ "--help" });
+    Utils::SynchronousProcessResponse response = run({"--help"});
     if (response.result != Utils::SynchronousProcessResponse::Finished)
         return;
 
@@ -406,7 +406,7 @@ void CMakeTool::fetchGeneratorsFromHelp() const
 
 void CMakeTool::fetchVersionFromVersionOutput() const
 {
-    Utils::SynchronousProcessResponse response = run({ "--version" });
+    Utils::SynchronousProcessResponse response = run({"--version" });
     if (response.result != Utils::SynchronousProcessResponse::Finished)
         return;
 
@@ -427,7 +427,7 @@ void CMakeTool::fetchVersionFromVersionOutput() const
 
 void CMakeTool::fetchFromCapabilities() const
 {
-    Utils::SynchronousProcessResponse response = run({ "-E", "capabilities" }, true);
+    Utils::SynchronousProcessResponse response = run({"-E", "capabilities" }, true);
     if (response.result != Utils::SynchronousProcessResponse::Finished)
         return;
 

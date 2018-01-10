@@ -109,9 +109,9 @@ public:
     }
 
 private:
-    uint line_;
-    uint column_;
-    uint length_;
+    uint line_ = 0;
+    uint column_ = 0;
+    uint length_ = 0;
     HighlightingTypes types_;
 };
 
@@ -175,8 +175,8 @@ inline bool operator==(const HighlightingTypes &first, const HighlightingTypes &
 }
 
 CMBIPC_EXPORT QDebug operator<<(QDebug debug, const HighlightingMarkContainer &container);
-CMBIPC_EXPORT void PrintTo(HighlightingType highlightingType, ::std::ostream *os);
-CMBIPC_EXPORT void PrintTo(const HighlightingTypes &types, ::std::ostream *os);
-void PrintTo(const HighlightingMarkContainer &container, ::std::ostream *os);
+CMBIPC_EXPORT std::ostream &operator<<(std::ostream &os, HighlightingType highlightingType);
+CMBIPC_EXPORT std::ostream &operator<<(std::ostream &os, HighlightingTypes types);
+std::ostream &operator<<(std::ostream &os, const HighlightingMarkContainer &container);
 
 } // namespace ClangBackEnd

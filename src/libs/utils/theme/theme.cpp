@@ -52,14 +52,24 @@ Theme *creatorTheme()
     return m_creatorTheme;
 }
 
+Theme *proxyTheme()
+{
+    return new Theme(m_creatorTheme);
+}
+
+void setThemeApplicationPalette()
+{
+    if (m_creatorTheme && m_creatorTheme->flag(Theme::ApplyThemePaletteGlobally))
+        QApplication::setPalette(m_creatorTheme->palette());
+}
+
 void setCreatorTheme(Theme *theme)
 {
     if (m_creatorTheme == theme)
         return;
     delete m_creatorTheme;
     m_creatorTheme = theme;
-    if (theme && theme->flag(Theme::ApplyThemePaletteGlobally))
-        QApplication::setPalette(theme->palette());
+    setThemeApplicationPalette();
 }
 
 Theme::Theme(const QString &id, QObject *parent)
@@ -67,6 +77,12 @@ Theme::Theme(const QString &id, QObject *parent)
   , d(new ThemePrivate)
 {
     d->id = id;
+}
+
+Theme::Theme(Theme *originTheme, QObject *parent)
+    : QObject(parent)
+    , d(new ThemePrivate(*(originTheme->d)))
+{
 }
 
 Theme::~Theme()
@@ -139,29 +155,6 @@ QString Theme::displayName() const
 void Theme::setDisplayName(const QString &name)
 {
     d->displayName = name;
-}
-
-const QVariantMap &Theme::values() const
-{
-    if (d->values.isEmpty()) {
-        const QMetaObject &m = *metaObject();
-        {
-            const QMetaEnum e = m.enumerator(m.indexOfEnumerator("Color"));
-            for (int i = 0, total = e.keyCount(); i < total; ++i) {
-                const QString key = QLatin1String(e.key(i));
-                const QPair<QColor, QString> &var = d->colors.at(i);
-                d->values.insert(key, var.first);
-            }
-        }
-        {
-            const QMetaEnum e = m.enumerator(m.indexOfEnumerator("Flag"));
-            for (int i = 0, total = e.keyCount(); i < total; ++i) {
-                const QString key = QLatin1String(e.key(i));
-                d->values.insert(key, flag(static_cast<Theme::Flag>(i)));
-            }
-        }
-    }
-    return d->values;
 }
 
 static QColor readColor(const QString &color)
@@ -263,44 +256,44 @@ QPalette Theme::palette() const
         QPalette::ColorGroup paletteColorGroup;
         bool setColorRoleAsBrush;
     } mapping[] = {
-        { PaletteWindow,                    QPalette::Window,           QPalette::All,      false},
-        { PaletteWindowDisabled,            QPalette::Window,           QPalette::Disabled, false},
-        { PaletteWindowText,                QPalette::WindowText,       QPalette::All,      true},
-        { PaletteWindowTextDisabled,        QPalette::WindowText,       QPalette::Disabled, true},
-        { PaletteBase,                      QPalette::Base,             QPalette::All,      false},
-        { PaletteBaseDisabled,              QPalette::Base,             QPalette::Disabled, false},
-        { PaletteAlternateBase,             QPalette::AlternateBase,    QPalette::All,      false},
-        { PaletteAlternateBaseDisabled,     QPalette::AlternateBase,    QPalette::Disabled, false},
-        { PaletteToolTipBase,               QPalette::ToolTipBase,      QPalette::All,      true},
-        { PaletteToolTipBaseDisabled,       QPalette::ToolTipBase,      QPalette::Disabled, true},
-        { PaletteToolTipText,               QPalette::ToolTipText,      QPalette::All,      false},
-        { PaletteToolTipTextDisabled,       QPalette::ToolTipText,      QPalette::Disabled, false},
-        { PaletteText,                      QPalette::Text,             QPalette::All,      true},
-        { PaletteTextDisabled,              QPalette::Text,             QPalette::Disabled, true},
-        { PaletteButton,                    QPalette::Button,           QPalette::All,      false},
-        { PaletteButtonDisabled,            QPalette::Button,           QPalette::Disabled, false},
-        { PaletteButtonText,                QPalette::ButtonText,       QPalette::All,      true},
-        { PaletteButtonTextDisabled,        QPalette::ButtonText,       QPalette::Disabled, true},
-        { PaletteBrightText,                QPalette::BrightText,       QPalette::All,      false},
-        { PaletteBrightTextDisabled,        QPalette::BrightText,       QPalette::Disabled, false},
-        { PaletteHighlight,                 QPalette::Highlight,        QPalette::All,      true},
-        { PaletteHighlightDisabled,         QPalette::Highlight,        QPalette::Disabled, true},
-        { PaletteHighlightedText,           QPalette::HighlightedText,  QPalette::All,      true},
-        { PaletteHighlightedTextDisabled,   QPalette::HighlightedText,  QPalette::Disabled, true},
-        { PaletteLink,                      QPalette::Link,             QPalette::All,      false},
-        { PaletteLinkDisabled,              QPalette::Link,             QPalette::Disabled, false},
-        { PaletteLinkVisited,               QPalette::LinkVisited,      QPalette::All,      false},
-        { PaletteLinkVisitedDisabled,       QPalette::LinkVisited,      QPalette::Disabled, false},
-        { PaletteLight,                     QPalette::Light,            QPalette::All,      false},
-        { PaletteLightDisabled,             QPalette::Light,            QPalette::Disabled, false},
-        { PaletteMidlight,                  QPalette::Midlight,         QPalette::All,      false},
-        { PaletteMidlightDisabled,          QPalette::Midlight,         QPalette::Disabled, false},
-        { PaletteDark,                      QPalette::Dark,             QPalette::All,      false},
-        { PaletteDarkDisabled,              QPalette::Dark,             QPalette::Disabled, false},
-        { PaletteMid,                       QPalette::Mid,              QPalette::All,      false},
-        { PaletteMidDisabled,               QPalette::Mid,              QPalette::Disabled, false},
-        { PaletteShadow,                    QPalette::Shadow,           QPalette::All,      false},
-        { PaletteShadowDisabled,            QPalette::Shadow,           QPalette::Disabled, false}
+        {PaletteWindow,                    QPalette::Window,           QPalette::All,      false},
+        {PaletteWindowDisabled,            QPalette::Window,           QPalette::Disabled, false},
+        {PaletteWindowText,                QPalette::WindowText,       QPalette::All,      true},
+        {PaletteWindowTextDisabled,        QPalette::WindowText,       QPalette::Disabled, true},
+        {PaletteBase,                      QPalette::Base,             QPalette::All,      false},
+        {PaletteBaseDisabled,              QPalette::Base,             QPalette::Disabled, false},
+        {PaletteAlternateBase,             QPalette::AlternateBase,    QPalette::All,      false},
+        {PaletteAlternateBaseDisabled,     QPalette::AlternateBase,    QPalette::Disabled, false},
+        {PaletteToolTipBase,               QPalette::ToolTipBase,      QPalette::All,      true},
+        {PaletteToolTipBaseDisabled,       QPalette::ToolTipBase,      QPalette::Disabled, true},
+        {PaletteToolTipText,               QPalette::ToolTipText,      QPalette::All,      false},
+        {PaletteToolTipTextDisabled,       QPalette::ToolTipText,      QPalette::Disabled, false},
+        {PaletteText,                      QPalette::Text,             QPalette::All,      true},
+        {PaletteTextDisabled,              QPalette::Text,             QPalette::Disabled, true},
+        {PaletteButton,                    QPalette::Button,           QPalette::All,      false},
+        {PaletteButtonDisabled,            QPalette::Button,           QPalette::Disabled, false},
+        {PaletteButtonText,                QPalette::ButtonText,       QPalette::All,      true},
+        {PaletteButtonTextDisabled,        QPalette::ButtonText,       QPalette::Disabled, true},
+        {PaletteBrightText,                QPalette::BrightText,       QPalette::All,      false},
+        {PaletteBrightTextDisabled,        QPalette::BrightText,       QPalette::Disabled, false},
+        {PaletteHighlight,                 QPalette::Highlight,        QPalette::All,      true},
+        {PaletteHighlightDisabled,         QPalette::Highlight,        QPalette::Disabled, true},
+        {PaletteHighlightedText,           QPalette::HighlightedText,  QPalette::All,      true},
+        {PaletteHighlightedTextDisabled,   QPalette::HighlightedText,  QPalette::Disabled, true},
+        {PaletteLink,                      QPalette::Link,             QPalette::All,      false},
+        {PaletteLinkDisabled,              QPalette::Link,             QPalette::Disabled, false},
+        {PaletteLinkVisited,               QPalette::LinkVisited,      QPalette::All,      false},
+        {PaletteLinkVisitedDisabled,       QPalette::LinkVisited,      QPalette::Disabled, false},
+        {PaletteLight,                     QPalette::Light,            QPalette::All,      false},
+        {PaletteLightDisabled,             QPalette::Light,            QPalette::Disabled, false},
+        {PaletteMidlight,                  QPalette::Midlight,         QPalette::All,      false},
+        {PaletteMidlightDisabled,          QPalette::Midlight,         QPalette::Disabled, false},
+        {PaletteDark,                      QPalette::Dark,             QPalette::All,      false},
+        {PaletteDarkDisabled,              QPalette::Dark,             QPalette::Disabled, false},
+        {PaletteMid,                       QPalette::Mid,              QPalette::All,      false},
+        {PaletteMidDisabled,               QPalette::Mid,              QPalette::Disabled, false},
+        {PaletteShadow,                    QPalette::Shadow,           QPalette::All,      false},
+        {PaletteShadowDisabled,            QPalette::Shadow,           QPalette::Disabled, false}
     };
 
     for (auto entry: mapping) {

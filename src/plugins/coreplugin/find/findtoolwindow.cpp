@@ -35,12 +35,30 @@
 #include <QStringListModel>
 #include <QCompleter>
 #include <QKeyEvent>
+#include <QRegularExpression>
 #include <QScrollArea>
 
 using namespace Core;
 using namespace Core::Internal;
 
 static FindToolWindow *m_instance = 0;
+
+static bool validateRegExp(Utils::FancyLineEdit *edit, QString *errorMessage)
+{
+    if (edit->text().isEmpty()) {
+        if (errorMessage)
+            *errorMessage = FindToolWindow::tr("Empty search term");
+        return false;
+    }
+    if (Find::hasFindFlag(FindRegularExpression)) {
+        QRegularExpression regexp(edit->text());
+        bool regexpValid = regexp.isValid();
+        if (!regexpValid && errorMessage)
+            *errorMessage = regexp.errorString();
+        return regexpValid;
+    }
+    return true;
+}
 
 FindToolWindow::FindToolWindow(QWidget *parent)
     : QWidget(parent),
@@ -61,11 +79,17 @@ FindToolWindow::FindToolWindow(QWidget *parent)
     connect(m_ui.regExp, &QAbstractButton::toggled, Find::instance(), &Find::setRegularExpression);
     connect(m_ui.filterList, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
             this, static_cast<void (FindToolWindow::*)(int)>(&FindToolWindow::setCurrentFilter));
-    connect(m_ui.searchTerm, &QLineEdit::textChanged, this, &FindToolWindow::updateButtonStates);
 
     m_findCompleter->setModel(Find::findCompletionModel());
     m_ui.searchTerm->setSpecialCompleter(m_findCompleter);
     m_ui.searchTerm->installEventFilter(this);
+
+    m_ui.searchTerm->setValidationFunction(validateRegExp);
+    connect(Find::instance(), &Find::findFlagsChanged,
+            m_ui.searchTerm, &Utils::FancyLineEdit::validate);
+    connect(m_ui.searchTerm, &Utils::FancyLineEdit::validChanged,
+            this, &FindToolWindow::updateButtonStates);
+
     QVBoxLayout *layout = new QVBoxLayout;
     layout->setMargin(0);
     layout->setSpacing(0);
@@ -116,12 +140,20 @@ bool FindToolWindow::eventFilter(QObject *obj, QEvent *event)
 void FindToolWindow::updateButtonStates()
 {
     bool filterEnabled = m_currentFilter && m_currentFilter->isEnabled();
-    bool enabled = !m_ui.searchTerm->text().isEmpty() && filterEnabled && m_currentFilter->isValid();
+    bool enabled = filterEnabled && (!m_currentFilter->showSearchTermInput()
+                                     || m_ui.searchTerm->isValid()) && m_currentFilter->isValid();
     m_ui.searchButton->setEnabled(enabled);
     m_ui.replaceButton->setEnabled(m_currentFilter
                                    && m_currentFilter->isReplaceSupported() && enabled);
     if (m_configWidget)
         m_configWidget->setEnabled(filterEnabled);
+
+    if (m_currentFilter) {
+        m_ui.searchTerm->setVisible(m_currentFilter->showSearchTermInput());
+        m_ui.searchLabel->setVisible(m_currentFilter->showSearchTermInput());
+        m_ui.optionsWidget->setVisible(m_currentFilter->supportedFindFlags()
+                                       & (FindCaseSensitively | FindWholeWords | FindRegularExpression));
+    }
 
     m_ui.matchCase->setEnabled(filterEnabled
                                && (m_currentFilter->supportedFindFlags() & FindCaseSensitively));
@@ -144,25 +176,32 @@ void FindToolWindow::setFindFilters(const QList<IFindFilter *> &filters)
 {
     qDeleteAll(m_configWidgets);
     m_configWidgets.clear();
+    foreach (IFindFilter *filter, m_filters)
+        filter->disconnect(this);
     m_filters = filters;
     m_ui.filterList->clear();
     QStringList names;
     foreach (IFindFilter *filter, filters) {
         names << filter->displayName();
         m_configWidgets.append(filter->createConfigWidget());
+        connect(filter, &IFindFilter::displayNameChanged,
+                this, [this, filter]() { updateFindFilterName(filter); });
     }
     m_ui.filterList->addItems(names);
     if (m_filters.size() > 0)
         setCurrentFilter(0);
 }
 
-void FindToolWindow::updateFindFilterNames()
+QList<IFindFilter *> FindToolWindow::findFilters() const
 {
-    int currentIndex = m_ui.filterList->currentIndex();
-    m_ui.filterList->clear();
-    QStringList names = Utils::transform(m_filters, &IFindFilter::displayName);
-    m_ui.filterList->addItems(names);
-    m_ui.filterList->setCurrentIndex(currentIndex);
+    return m_filters;
+}
+
+void FindToolWindow::updateFindFilterName(IFindFilter *filter)
+{
+    int index = m_filters.indexOf(filter);
+    if (QTC_GUARD(index >= 0))
+        m_ui.filterList->setItemText(index, filter->displayName());
 }
 
 void FindToolWindow::setFindText(const QString &text)
@@ -189,11 +228,16 @@ void FindToolWindow::setCurrentFilter(int index)
         QWidget *configWidget = m_configWidgets.at(i);
         if (i == index) {
             m_configWidget = configWidget;
-            if (m_currentFilter)
+            if (m_currentFilter) {
                 disconnect(m_currentFilter, &IFindFilter::enabledChanged,
                            this, &FindToolWindow::updateButtonStates);
+                disconnect(m_currentFilter, &IFindFilter::validChanged,
+                           this, &FindToolWindow::updateButtonStates);
+            }
             m_currentFilter = m_filters.at(i);
             connect(m_currentFilter, &IFindFilter::enabledChanged,
+                    this, &FindToolWindow::updateButtonStates);
+            connect(m_currentFilter, &IFindFilter::validChanged,
                     this, &FindToolWindow::updateButtonStates);
             updateButtonStates();
             if (m_configWidget)
@@ -220,17 +264,17 @@ void FindToolWindow::setCurrentFilter(int index)
 
 void FindToolWindow::acceptAndGetParameters(QString *term, IFindFilter **filter)
 {
-    if (filter)
-        *filter = 0;
+    QTC_ASSERT(filter, return);
+    *filter = 0;
     Find::updateFindCompletion(m_ui.searchTerm->text());
     int index = m_ui.filterList->currentIndex();
     QString searchTerm = m_ui.searchTerm->text();
+    if (index >= 0)
+        *filter = m_filters.at(index);
     if (term)
         *term = searchTerm;
-    if (searchTerm.isEmpty() || index < 0)
-        return;
-    if (filter)
-        *filter = m_filters.at(index);
+    if (searchTerm.isEmpty() && *filter && !(*filter)->isValid())
+        *filter = 0;
 }
 
 void FindToolWindow::search()

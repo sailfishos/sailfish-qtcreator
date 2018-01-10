@@ -10,6 +10,8 @@ QtcPlugin {
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
 
+    cpp.includePaths: base.concat(["."])
+
     Group {
         name: "General"
         files: [
@@ -43,13 +45,12 @@ QtcPlugin {
             "nimcompilercleanstepconfigwidget.h", "nimcompilercleanstepconfigwidget.cpp", "nimcompilercleanstepconfigwidget.ui",
             "nimcompilercleanstepfactory.h", "nimcompilercleanstepfactory.cpp",
             "nimproject.h", "nimproject.cpp",
-            "nimprojectmanager.h", "nimprojectmanager.cpp",
             "nimprojectnode.h", "nimprojectnode.cpp",
             "nimrunconfiguration.h", "nimrunconfiguration.cpp",
             "nimrunconfigurationfactory.h", "nimrunconfigurationfactory.cpp",
             "nimrunconfigurationwidget.h", "nimrunconfigurationwidget.cpp",
-            "nimruncontrol.h", "nimruncontrol.cpp",
-            "nimruncontrolfactory.h", "nimruncontrolfactory.cpp"
+            "nimtoolchain.h", "nimtoolchain.cpp",
+            "nimtoolchainfactory.h", "nimtoolchainfactory.cpp",
         ]
     }
 
@@ -61,7 +62,6 @@ QtcPlugin {
             "nimcodestylepreferenceswidget.h", "nimcodestylepreferenceswidget.cpp", "nimcodestylepreferenceswidget.ui",
             "nimcodestylesettingspage.h", "nimcodestylesettingspage.cpp",
             "nimsettings.h", "nimsettings.cpp",
-            "nimsnippetprovider.h", "nimsnippetprovider.cpp",
         ]
     }
 

@@ -26,11 +26,15 @@
 #include "propertyeditorcontextobject.h"
 
 #include <abstractview.h>
-
-#include <QQmlContext>
+#include <nodemetainfo.h>
 #include <qmldesignerplugin.h>
 #include <qmlobjectnode.h>
 #include <rewritingexception.h>
+
+#include <coreplugin/messagebox.h>
+#include <utils/algorithm.h>
+
+#include <QQmlContext>
 
 static uchar fromHex(const uchar c, const uchar c2)
 {
@@ -107,15 +111,24 @@ QColor PropertyEditorContextObject::colorFromString(const QString &colorString)
 QString PropertyEditorContextObject::translateFunction()
 {
     if (QmlDesignerPlugin::instance()->settings().value(
-            DesignerSettingsKey::USE_QSTR_FUNCTION).toBool())
-        return QStringLiteral("qsTr");
-    return QStringLiteral("qsTrId");
+            DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt())
+
+        switch (QmlDesignerPlugin::instance()->settings().value(
+                    DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION).toInt()) {
+        case 0: return QLatin1String("qsTr");
+        case 1: return QLatin1String("qsTrId");
+        case 2: return QLatin1String("qsTranslate");
+        default:
+            break;
+        }
+    return QLatin1String("qsTr");
 }
 
-QStringList PropertyEditorContextObject::autoComplete(const QString &text, int pos, bool explicitComplete)
+QStringList PropertyEditorContextObject::autoComplete(const QString &text, int pos, bool explicitComplete, bool filter)
 {
     if (m_model && m_model->rewriterView())
-        return m_model->rewriterView()->autoComplete(text, pos, explicitComplete);
+        return  Utils::filtered(m_model->rewriterView()->autoComplete(text, pos, explicitComplete), [filter](const QString &string) {
+            return !filter || (!string.isEmpty() && string.at(0).isUpper()); });
 
     return QStringList();
 }
@@ -142,17 +155,56 @@ void PropertyEditorContextObject::toogleExportAlias()
 
         try {
             RewriterTransaction transaction =
-                    rewriterView->beginRewriterTransaction(QByteArrayLiteral("NavigatorTreeModel:exportItem"));
+                    rewriterView->beginRewriterTransaction(QByteArrayLiteral("PropertyEditorContextObject:toogleExportAlias"));
 
             if (!objectNode.isAliasExported())
                 objectNode.ensureAliasExport();
             else
                 if (rootModelNode.hasProperty(modelNodeId))
                     rootModelNode.removeProperty(modelNodeId);
+
+            transaction.commit();
         }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
             exception.showException();
         }
     }
+
+}
+
+void PropertyEditorContextObject::changeTypeName(const QString &typeName)
+{
+
+    if (!m_model || !m_model->rewriterView())
+        return;
+
+    /* Ideally we should not missuse the rewriterView
+     * If we add more code here we have to forward the property editor view */
+    RewriterView *rewriterView = m_model->rewriterView();
+
+    if (rewriterView->selectedModelNodes().isEmpty())
+        return;
+
+    ModelNode selectedNode = rewriterView->selectedModelNodes().first();
+
+    try {
+        RewriterTransaction transaction =
+                rewriterView->beginRewriterTransaction(QByteArrayLiteral("PropertyEditorContextObject:changeTypeName"));
+
+        NodeMetaInfo metaInfo = m_model->metaInfo(typeName.toLatin1());
+        if (!metaInfo.isValid()) {
+            Core::AsynchronousMessageBox::warning(tr("Invalid Type"),  tr("%1 is an invalid type.").arg(typeName));
+            return;
+        }
+        if (selectedNode.isRootNode())
+             rewriterView->changeRootNodeType(metaInfo.typeName(), metaInfo.majorVersion(), metaInfo.minorVersion());
+        else
+            selectedNode.changeType(metaInfo.typeName(), metaInfo.majorVersion(), metaInfo.minorVersion());
+
+        transaction.commit();
+    }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
+        exception.showException();
+    }
+
 
 }
 

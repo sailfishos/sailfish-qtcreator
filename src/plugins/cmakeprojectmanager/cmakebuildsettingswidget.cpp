@@ -27,15 +27,18 @@
 
 #include "configmodel.h"
 #include "configmodelitemdelegate.h"
+#include "cmakekitinformation.h"
 #include "cmakeproject.h"
 #include "cmakebuildconfiguration.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/find/itemviewfind.h>
+#include <projectexplorer/kitmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/target.h>
 
 #include <utils/detailswidget.h>
+#include <utils/fancylineedit.h>
 #include <utils/headerviewstretcher.h>
 #include <utils/pathchooser.h>
 #include <utils/itemviews.h>
@@ -61,7 +64,8 @@ namespace Internal {
 CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) :
     m_buildConfiguration(bc),
     m_configModel(new ConfigModel(this)),
-    m_configFilterModel(new QSortFilterProxyModel)
+    m_configFilterModel(new QSortFilterProxyModel),
+    m_configTextFilterModel(new QSortFilterProxyModel)
 {
     QTC_CHECK(bc);
 
@@ -101,7 +105,7 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
 
     ++row;
     m_errorLabel = new QLabel;
-    m_errorLabel->setPixmap(Utils::Icons::ERROR.pixmap());
+    m_errorLabel->setPixmap(Utils::Icons::CRITICAL.pixmap());
     m_errorLabel->setVisible(false);
     m_errorMessageLabel = new QLabel;
     m_errorMessageLabel->setVisible(false);
@@ -125,6 +129,12 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
     mainLayout->addItem(new QSpacerItem(20, 10), row, 0);
 
     ++row;
+    m_filterEdit = new Utils::FancyLineEdit;
+    m_filterEdit->setPlaceholderText(tr("Filter"));
+    m_filterEdit->setFiltering(true);
+    mainLayout->addWidget(m_filterEdit, row, 0, 1, 2);
+
+    ++row;
     auto tree = new Utils::TreeView;
     connect(tree, &Utils::TreeView::activated,
             tree, [tree](const QModelIndex &idx) { tree->edit(idx); });
@@ -132,7 +142,10 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
     m_configFilterModel->setSourceModel(m_configModel);
     m_configFilterModel->setFilterKeyColumn(2);
     m_configFilterModel->setFilterFixedString(QLatin1String("0"));
-    m_configView->setModel(m_configFilterModel);
+    m_configTextFilterModel->setSourceModel(m_configFilterModel);
+    m_configTextFilterModel->setFilterKeyColumn(-1);
+    m_configTextFilterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    m_configView->setModel(m_configTextFilterModel);
     m_configView->setMinimumHeight(300);
     m_configView->setRootIsDecorated(false);
     m_configView->setUniformRowHeights(true);
@@ -210,6 +223,11 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
         m_showProgressTimer.stop();
         m_progressIndicator->hide();
     });
+    connect(m_buildConfiguration, &CMakeBuildConfiguration::errorOccured,
+            this, [this]() {
+        m_showProgressTimer.stop();
+        m_progressIndicator->hide();
+    });
 
     connect(m_configModel, &QAbstractItemModel::dataChanged,
             this, &CMakeBuildSettingsWidget::updateButtonState);
@@ -218,6 +236,9 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
 
     connect(m_showAdvancedCheckBox, &QCheckBox::stateChanged,
             this, &CMakeBuildSettingsWidget::updateAdvancedCheckBox);
+
+    connect(m_filterEdit, &QLineEdit::textChanged,
+            m_configTextFilterModel, &QSortFilterProxyModel::setFilterFixedString);
 
     connect(m_resetButton, &QPushButton::clicked, m_configModel, &ConfigModel::resetAllChanges);
     connect(m_reconfigureButton, &QPushButton::clicked, this, [this]() {
@@ -247,6 +268,12 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
 
     connect(bc, &CMakeBuildConfiguration::errorOccured, this, &CMakeBuildSettingsWidget::setError);
     connect(bc, &CMakeBuildConfiguration::warningOccured, this, &CMakeBuildSettingsWidget::setWarning);
+
+    updateFromKit();
+    connect(m_buildConfiguration->target(), &ProjectExplorer::Target::kitChanged,
+            this, &CMakeBuildSettingsWidget::updateFromKit);
+    connect(m_buildConfiguration, &CMakeBuildConfiguration::enabledChanged,
+            this, [this]() { setError(m_buildConfiguration->disabledReason()); });
 }
 
 void CMakeBuildSettingsWidget::setError(const QString &message)
@@ -258,11 +285,10 @@ void CMakeBuildSettingsWidget::setError(const QString &message)
     m_errorMessageLabel->setText(message);
     m_errorMessageLabel->setToolTip(message);
 
-    m_configView->setVisible(!showError);
-    m_editButton->setVisible(!showError);
-    m_resetButton->setVisible(!showError);
-    m_showAdvancedCheckBox->setVisible(!showError);
-    m_reconfigureButton->setVisible(!showError);
+    m_editButton->setEnabled(!showError);
+    m_resetButton->setEnabled(!showError);
+    m_showAdvancedCheckBox->setEnabled(!showError);
+    m_filterEdit->setEnabled(!showError);
 }
 
 void CMakeBuildSettingsWidget::setWarning(const QString &message)
@@ -287,6 +313,18 @@ void CMakeBuildSettingsWidget::updateAdvancedCheckBox()
 {
     // Switch between Qt::DisplayRole (everything is "0") and Qt::EditRole (advanced is "1").
     m_configFilterModel->setFilterRole(m_showAdvancedCheckBox->isChecked() ? Qt::EditRole : Qt::DisplayRole);
+}
+
+void CMakeBuildSettingsWidget::updateFromKit()
+{
+    const ProjectExplorer::Kit *k = m_buildConfiguration->target()->kit();
+    const CMakeConfig config = CMakeConfigurationKitInformation::configuration(k);
+
+    QHash<QString, QString> configHash;
+    for (const CMakeConfigItem &i : config)
+        configHash.insert(QString::fromUtf8(i.key), i.expandedValue(k));
+
+    m_configModel->setKitConfiguration(configHash);
 }
 
 } // namespace Internal

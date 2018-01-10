@@ -55,6 +55,7 @@
 #include <modeltest.h>
 #endif
 
+#include <QApplication>
 #include <QTimerEvent>
 #include <QDir>
 #include <QDebug>
@@ -156,8 +157,10 @@ public:
     BreakpointMarker(BreakpointItem *b, const QString &fileName, int lineNumber)
         : TextMark(fileName, lineNumber, Constants::TEXT_MARK_CATEGORY_BREAKPOINT), m_bp(b)
     {
-        setIcon(b->icon());
+        setColor(Theme::Debugger_Breakpoint_TextMarkColor);
+        setDefaultToolTip(QApplication::translate("BreakHandler", "Breakpoint"));
         setPriority(TextEditor::TextMark::NormalPriority);
+        setIcon(b->icon());
     }
 
     void removedFromEditor()
@@ -363,19 +366,19 @@ BreakpointDialog::BreakpointDialog(Breakpoint b, QWidget *parent)
 
     // Match BreakpointType (omitting unknown type).
     const QStringList types = {
-        tr("File name and line number"),
-        tr("Function name"),
-        tr("Break on memory address"),
-        tr("Break when C++ exception is thrown"),
-        tr("Break when C++ exception is caught"),
-        tr("Break when function \"main\" starts"),
-        tr("Break when a new process is forked"),
-        tr("Break when a new process is executed"),
-        tr("Break when a system call is executed"),
-        tr("Break on data access at fixed address"),
-        tr("Break on data access at address given by expression"),
-        tr("Break on QML signal emit"),
-        tr("Break when JavaScript exception is thrown")
+        tr("File Name and Line Number"),
+        tr("Function Name"),
+        tr("Break on Memory Address"),
+        tr("Break When C++ Exception Is Thrown"),
+        tr("Break When C++ Exception Is Caught"),
+        tr("Break When Function \"main\" Starts"),
+        tr("Break When a New Process Is Forked"),
+        tr("Break When a New Process Is Executed"),
+        tr("Break When a System Call Is Executed"),
+        tr("Break on Data Access at Fixed Address"),
+        tr("Break on Data Access at Address Given by Expression"),
+        tr("Break on QML Signal Emit"),
+        tr("Break When JavaScript Exception Is Thrown")
     };
     // We don't list UnknownBreakpointType, so 1 less:
     QTC_CHECK(types.size() + 1 == LastBreakpointType);
@@ -894,17 +897,12 @@ BreakHandler::BreakHandler()
   : m_syncTimerId(-1)
 {
     qRegisterMetaType<BreakpointModelId>();
-    TextEditor::TextMark::setCategoryColor(Constants::TEXT_MARK_CATEGORY_BREAKPOINT,
-                                           Theme::Debugger_Breakpoint_TextMarkColor);
-    TextEditor::TextMark::setDefaultToolTip(Constants::TEXT_MARK_CATEGORY_BREAKPOINT,
-                                            tr("Breakpoint"));
 
 #if USE_BREAK_MODEL_TEST
     new ModelTest(this, 0);
 #endif
-    setHeader(QStringList()
-        << tr("Number") <<  tr("Function") << tr("File") << tr("Line")
-        << tr("Address") << tr("Condition") << tr("Ignore") << tr("Threads"));
+    setHeader(QStringList({tr("Number"), tr("Function"), tr("File"), tr("Line"), tr("Address"),
+                           tr("Condition"), tr("Ignore"), tr("Threads")}));
 }
 
 static inline bool fileNameMatch(const QString &f1, const QString &f2)
@@ -973,7 +971,7 @@ Breakpoint BreakHandler::findBreakpointByFunction(const QString &functionName) c
 Breakpoint BreakHandler::findBreakpointByAddress(quint64 address) const
 {
     return Breakpoint(findItemAtLevel<1>([address](BreakpointItem *b) {
-        return b->m_params.address == address || b->m_params.address == address;
+        return b->m_params.address == address;
     }));
 }
 
@@ -1937,7 +1935,7 @@ bool BreakHandler::setData(const QModelIndex &idx, const QVariant &value, int ro
         if (ev.as<QMouseEvent>(QEvent::MouseButtonDblClick)) {
             if (Breakpoint b = findBreakpointByIndex(idx)) {
                 if (idx.column() >= BreakpointAddressColumn)
-                    editBreakpoints({ b }, ev.view());
+                    editBreakpoints({b}, ev.view());
                 else
                     b.gotoLocation();
             } else {
@@ -1970,15 +1968,15 @@ bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
 
 
     // FIXME BP: m_engine->threadsHandler()->currentThreadId();
-    int threadId = 0;
-    addAction(menu,
-              threadId == -1 ? tr("Associate Breakpoint with All Threads")
-                             : tr("Associate Breakpoint with Thread %1").arg(threadId),
-              !selectedItems.isEmpty(),
-              [this, selectedItems, threadId] {
-                    for (Breakpoint bp : selectedItems)
-                        bp.setThreadSpec(threadId);
-              });
+    // int threadId = 0;
+    // addAction(menu,
+    //           threadId == -1 ? tr("Associate Breakpoint with All Threads")
+    //                          : tr("Associate Breakpoint with Thread %1").arg(threadId),
+    //           !selectedItems.isEmpty(),
+    //           [this, selectedItems, threadId] {
+    //                 for (Breakpoint bp : selectedItems)
+    //                     bp.setThreadSpec(threadId);
+    //           });
 
     addAction(menu,
               selectedItems.size() > 1

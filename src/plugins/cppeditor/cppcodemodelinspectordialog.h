@@ -49,6 +49,8 @@ class IncludesModel;
 class KeyValueModel;
 class MacrosModel;
 class ProjectPartsModel;
+class ProjectFilesModel;
+class ProjectHeaderPathsModel;
 class SnapshotModel;
 class SymbolsModel;
 class TokensModel;
@@ -110,6 +112,8 @@ private:
     ProjectPartsModel *m_projectPartsModel;
     QSortFilterProxyModel *m_proxyProjectPartsModel;
     KeyValueModel *m_partGenericInfoModel;
+    ProjectFilesModel *m_projectFilesModel;
+    ProjectHeaderPathsModel *m_projectHeaderPathsModel;
 
     // Working Copy
     FilterableView *m_workingCopyView;

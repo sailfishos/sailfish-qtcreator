@@ -26,6 +26,7 @@
 #include "clangdiagnosticfilter.h"
 #include "clangdiagnosticmanager.h"
 #include "clangisdiagnosticrelatedtolocation.h"
+#include "clangutils.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -40,6 +41,7 @@
 #include <utils/fileutils.h>
 #include <utils/proxyaction.h>
 #include <utils/qtcassert.h>
+#include <utils/theme/theme.h>
 
 #include <QFileInfo>
 #include <QTextBlock>
@@ -60,9 +62,11 @@ QTextEdit::ExtraSelection createExtraSelections(const QTextCharFormat &mainforma
 int positionInText(QTextDocument *textDocument,
                    const ClangBackEnd::SourceLocationContainer &sourceLocationContainer)
 {
-    auto textBlock = textDocument->findBlockByNumber(int(sourceLocationContainer.line()) - 1);
-
-    return textBlock.position() + int(sourceLocationContainer.column()) - 1;
+    auto textBlock = textDocument->findBlockByNumber(
+                static_cast<int>(sourceLocationContainer.line()) - 1);
+    int column = static_cast<int>(sourceLocationContainer.column()) - 1;
+    column -= ClangCodeModel::Utils::extraUtf8CharsShift(textBlock.text(), column);
+    return textBlock.position() + column;
 }
 
 void addRangeSelections(const ClangBackEnd::DiagnosticContainer &diagnostic,
@@ -81,12 +85,44 @@ void addRangeSelections(const ClangBackEnd::DiagnosticContainer &diagnostic,
     }
 }
 
+QChar selectionEndChar(const QChar startSymbol)
+{
+    if (startSymbol == '"')
+        return QLatin1Char('"');
+    if (startSymbol == '<')
+        return QLatin1Char('>');
+    return QChar();
+}
+
+void selectToLocationEnd(QTextCursor &cursor)
+{
+    const QTextBlock textBlock = cursor.document()->findBlock(cursor.position());
+    const QString simplifiedStr = textBlock.text().simplified();
+    if (!simplifiedStr.startsWith("#include") && !simplifiedStr.startsWith("# include")) {
+        // General case, not the line with #include
+        cursor.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+        return;
+    }
+
+    const QChar endChar = selectionEndChar(cursor.document()->characterAt(cursor.position()));
+    if (endChar.isNull()) {
+        cursor.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    } else {
+        const int endPosition = textBlock.text().indexOf(endChar, cursor.position()
+                                                         - textBlock.position() + 1);
+        if (endPosition >= 0)
+            cursor.setPosition(textBlock.position() + endPosition + 1, QTextCursor::KeepAnchor);
+        else
+            cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+    }
+}
+
 QTextCursor createSelectionCursor(QTextDocument *textDocument,
                                   const ClangBackEnd::SourceLocationContainer &sourceLocationContainer)
 {
     QTextCursor cursor(textDocument);
     cursor.setPosition(positionInText(textDocument, sourceLocationContainer));
-    cursor.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    selectToLocationEnd(cursor);
 
     if (!cursor.hasSelection()) {
         cursor.setPosition(positionInText(textDocument, sourceLocationContainer) - 1);
@@ -242,6 +278,8 @@ namespace Internal {
 ClangDiagnosticManager::ClangDiagnosticManager(TextEditor::TextDocument *textDocument)
     : m_textDocument(textDocument)
 {
+    m_textMarkDelay.setInterval(1500);
+    m_textMarkDelay.setSingleShot(true);
 }
 
 ClangDiagnosticManager::~ClangDiagnosticManager()
@@ -259,6 +297,7 @@ void ClangDiagnosticManager::cleanMarks()
 }
 void ClangDiagnosticManager::generateTextMarks()
 {
+    QObject::disconnect(&m_textMarkDelay, &QTimer::timeout, 0, 0);
     cleanMarks();
     m_clangTextMarks.reserve(m_warningDiagnostics.size() + m_errorDiagnostics.size());
     addClangTextMarks(m_warningDiagnostics);
@@ -312,6 +351,20 @@ ClangDiagnosticManager::diagnosticsAt(uint line, uint column) const
     return diagnostics;
 }
 
+void ClangDiagnosticManager::invalidateDiagnostics()
+{
+    m_textMarkDelay.start();
+    if (m_diagnosticsInvalidated)
+        return;
+
+    m_diagnosticsInvalidated = true;
+    for (ClangTextMark *textMark : m_clangTextMarks) {
+        textMark->setColor(::Utils::Theme::Color::IconsDisabledColor);
+        textMark->updateIcon(/*valid=*/ false);
+        textMark->updateMarker();
+    }
+}
+
 void ClangDiagnosticManager::clearDiagnosticsWithFixIts()
 {
     m_fixItdiagnostics.clear();
@@ -327,13 +380,25 @@ void ClangDiagnosticManager::generateEditorSelections()
 }
 
 void ClangDiagnosticManager::processNewDiagnostics(
-        const QVector<ClangBackEnd::DiagnosticContainer> &allDiagnostics)
+        const QVector<ClangBackEnd::DiagnosticContainer> &allDiagnostics,
+        bool showTextMarkAnnotations)
 {
+    m_diagnosticsInvalidated = false;
+    m_showTextMarkAnnotations = showTextMarkAnnotations;
     filterDiagnostics(allDiagnostics);
 
-    generateTextMarks();
     generateEditorSelections();
     generateFixItAvailableMarkers();
+    if (m_firstDiagnostics) {
+        m_firstDiagnostics = false;
+        generateTextMarks();
+    } else if (!m_textMarkDelay.isActive()) {
+        generateTextMarks();
+    } else {
+        QObject::connect(&m_textMarkDelay, &QTimer::timeout, [this]() {
+            generateTextMarks();
+        });
+    }
 }
 
 const QVector<ClangBackEnd::DiagnosticContainer> &
@@ -351,7 +416,8 @@ void ClangDiagnosticManager::addClangTextMarks(
             m_clangTextMarks.erase(it, m_clangTextMarks.end());
             delete mark;
          };
-        auto textMark = new ClangTextMark(filePath(), diagnostic, onMarkRemoved);
+        auto textMark = new ClangTextMark(filePath(), diagnostic, onMarkRemoved,
+                                          m_showTextMarkAnnotations);
         m_clangTextMarks.push_back(textMark);
         m_textDocument->addMark(textMark);
     }

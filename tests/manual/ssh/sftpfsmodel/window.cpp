@@ -82,7 +82,7 @@ void SftpFsWindow::downloadFile()
     const QModelIndexList selectedIndexes = m_ui->fsView->selectionModel()->selectedIndexes();
     if (selectedIndexes.count() != 2)
         return;
-    const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Choose target file"),
+    const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Choose Target File"),
         QDir::tempPath());
     if (targetFilePath.isEmpty())
         return;
@@ -114,5 +114,5 @@ void SftpFsWindow::handleConnectionError(const QString &errorMessage)
 {
     QMessageBox::warning(this, tr("Connection Error"),
         tr("Fatal SSH error: %1").arg(errorMessage));
-    qApp->quit();
+    QCoreApplication::quit();
 }

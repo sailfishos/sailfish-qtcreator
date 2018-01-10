@@ -23,22 +23,59 @@
 **
 ****************************************************************************/
 
-#ifndef CLANGBACKEND_REFACTORINGSERVER_H
-#define CLANGBACKEND_REFACTORINGSERVER_H
+#pragma once
+
+#include "clangquerygatherer.h"
 
 #include <refactoringserverinterface.h>
 
+#include <QTimer>
+#include <stringcache.h>
+
+#include <utils/smallstring.h>
+
+#include <future>
+#include <mutex>
+#include <vector>
+
 namespace ClangBackEnd {
+
+class SourceRangesForQueryMessage;
+
+namespace V2 {
+class FileContainer;
+}
 
 class RefactoringServer : public RefactoringServerInterface
 {
+    using Future = std::future<SourceRangesForQueryMessage>;
 public:
     RefactoringServer();
 
     void end() override;
     void requestSourceLocationsForRenamingMessage(RequestSourceLocationsForRenamingMessage &&message) override;
+    void requestSourceRangesAndDiagnosticsForQueryMessage(RequestSourceRangesAndDiagnosticsForQueryMessage &&message) override;
+    void requestSourceRangesForQueryMessage(RequestSourceRangesForQueryMessage &&message) override;
+    void cancel() override;
+
+    bool isCancelingJobs() const;
+
+    void pollSourceRangesForQueryMessages();
+    void waitThatSourceRangesForQueryMessagesAreFinished();
+
+    bool pollTimerIsActive() const;
+
+    void setGathererProcessingSlotCount(uint count);
+
+private:
+    void gatherSourceRangesForQueryMessages(std::vector<V2::FileContainer> &&sources,
+                                                          std::vector<V2::FileContainer> &&unsaved,
+                                                          Utils::SmallString &&query);
+
+private:
+    StringCache<Utils::PathString, std::mutex> m_filePathCache;
+    ClangQueryGatherer m_gatherer;
+    QTimer m_pollTimer;
 };
 
 } // namespace ClangBackEnd
-
-#endif // CLANGBACKEND_REFACTORINGSERVER_H

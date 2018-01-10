@@ -34,7 +34,6 @@
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/deployconfiguration.h>
-#include <projectexplorer/localapplicationruncontrol.h>
 #include <projectexplorer/localenvironmentaspect.h>
 #include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
@@ -114,9 +113,14 @@ QbsRunConfiguration::QbsRunConfiguration(Target *parent, Core::Id id) :
     m_currentInstallStep(0),
     m_currentBuildStepList(0)
 {
-    addExtraAspect(new LocalEnvironmentAspect(this, [](RunConfiguration *rc, Environment &env) {
-                       static_cast<QbsRunConfiguration *>(rc)->addToBaseEnvironment(env);
-                   }));
+    auto * const envAspect = new LocalEnvironmentAspect(this,
+            [](RunConfiguration *rc, Environment &env) {
+                static_cast<QbsRunConfiguration *>(rc)->addToBaseEnvironment(env);
+            }
+    );
+    addExtraAspect(envAspect);
+    connect(static_cast<QbsProject *>(parent->project()), &QbsProject::parsingFinished, this,
+            [envAspect]() { envAspect->buildEnvironmentHasChanged(); });
     addExtraAspect(new ArgumentsAspect(this, QStringLiteral("Qbs.RunConfiguration.CommandLineArguments")));
     addExtraAspect(new WorkingDirectoryAspect(this, QStringLiteral("Qbs.RunConfiguration.WorkingDirectory")));
 
@@ -184,10 +188,10 @@ QWidget *QbsRunConfiguration::createConfigurationWidget()
 
 void QbsRunConfiguration::installStepChanged()
 {
-    if (m_currentInstallStep)
+    if (m_currentInstallStep) {
         disconnect(m_currentInstallStep, &QbsInstallStep::changed,
                    this, &QbsRunConfiguration::targetInformationChanged);
-
+    }
     if (m_currentBuildStepList) {
         disconnect(m_currentBuildStepList, &BuildStepList::stepInserted,
                    this, &QbsRunConfiguration::installStepChanged);
@@ -199,12 +203,10 @@ void QbsRunConfiguration::installStepChanged()
 
     QbsDeployConfiguration *activeDc = qobject_cast<QbsDeployConfiguration *>(target()->activeDeployConfiguration());
     m_currentBuildStepList = activeDc ? activeDc->stepList() : 0;
-    m_currentInstallStep = activeDc ? activeDc->qbsInstallStep() : 0;
-
-    if (m_currentInstallStep)
+    if (m_currentInstallStep) {
         connect(m_currentInstallStep, &QbsInstallStep::changed,
                 this, &QbsRunConfiguration::targetInformationChanged);
-
+    }
     if (m_currentBuildStepList) {
         connect(m_currentBuildStepList, &BuildStepList::stepInserted,
                 this, &QbsRunConfiguration::installStepChanged);
@@ -276,8 +278,8 @@ void QbsRunConfiguration::addToBaseEnvironment(Utils::Environment &env) const
         if (product.isValid()) {
             QProcessEnvironment procEnv = env.toProcessEnvironment();
             procEnv.insert(QLatin1String("QBS_RUN_FILE_PATH"), executable());
-            qbs::RunEnvironment qbsRunEnv = project->qbsProject().getRunEnvironment(product, installOptions(),
-                    procEnv, QbsManager::settings());
+            qbs::RunEnvironment qbsRunEnv = project->qbsProject().getRunEnvironment(product,
+                    qbs::InstallOptions(), procEnv, QbsManager::settings());
             qbs::ErrorInfo error;
             procEnv = qbsRunEnv.runEnvironment(&error);
             if (error.hasError()) {
@@ -297,6 +299,11 @@ void QbsRunConfiguration::addToBaseEnvironment(Utils::Environment &env) const
         env.prependOrSetLibrarySearchPath(qtVersion->qmakeProperty("QT_INSTALL_LIBS"));
 }
 
+QString QbsRunConfiguration::buildSystemTarget() const
+{
+    return productDisplayNameFromId(id());
+}
+
 QString QbsRunConfiguration::uniqueProductName() const
 {
     return m_uniqueProductName;
@@ -308,20 +315,6 @@ QString QbsRunConfiguration::defaultDisplayName()
     if (defaultName.isEmpty())
         defaultName = tr("Qbs Run Configuration");
     return defaultName;
-}
-
-qbs::InstallOptions QbsRunConfiguration::installOptions() const
-{
-    if (m_currentInstallStep)
-        return m_currentInstallStep->installOptions();
-    return qbs::InstallOptions();
-}
-
-QString QbsRunConfiguration::installRoot() const
-{
-    if (m_currentInstallStep)
-        return m_currentInstallStep->absoluteInstallRoot();
-    return QString();
 }
 
 Utils::OutputFormatter *QbsRunConfiguration::createOutputFormatter() const

@@ -142,8 +142,8 @@ static QList<Document::Ptr> findDocumentsIncluding(const Snapshot &docTable,
 // Does klass inherit baseClass?
 static bool inherits(const Overview &o, const Class *klass, const QString &baseClass)
 {
-    const int baseClassCount = klass->baseClassCount();
-    for (int b = 0; b < baseClassCount; b++)
+    const unsigned int baseClassCount = klass->baseClassCount();
+    for (unsigned int b = 0; b < baseClassCount; ++b)
         if (o.prettyName(klass->baseClassAt(b)->name()) == baseClass)
             return true;
     return false;
@@ -155,13 +155,10 @@ QString fullyQualifiedName(const LookupContext &context, const Name *name, Scope
         return QString();
 
     const QList<LookupItem> items = context.lookup(name, scope);
-    if (items.isEmpty()) { // "ui_xxx.h" might not be generated and nothing is forward declared.
+    if (items.isEmpty()) // "ui_xxx.h" might not be generated and nothing is forward declared.
         return Overview().prettyName(name);
-    } else {
-        Symbol *symbol = items.first().declaration();
-        return Overview().prettyName(LookupContext::fullyQualifiedName(symbol));
-    }
-    return QString();
+    Symbol *symbol = items.first().declaration();
+    return Overview().prettyName(LookupContext::fullyQualifiedName(symbol));
 }
 
 // Find class definition in namespace (that is, the outer class
@@ -356,19 +353,9 @@ static QString addConstRefIfNeeded(const QString &argument)
         return argument;
 
     // for those types we don't want to add "const &"
-    static const QStringList nonConstRefs = QStringList()
-            << QLatin1String("bool")
-            << QLatin1String("int")
-            << QLatin1String("uint")
-            << QLatin1String("float")
-            << QLatin1String("double")
-            << QLatin1String("long")
-            << QLatin1String("short")
-            << QLatin1String("char")
-            << QLatin1String("signed")
-            << QLatin1String("unsigned")
-            << QLatin1String("qint64")
-            << QLatin1String("quint64");
+    static const QStringList nonConstRefs = QStringList({"bool", "int", "uint", "float", "double",
+                                                         "long", "short", "char", "signed",
+                                                         "unsigned", "qint64", "quint64"});
 
     for (int i = 0; i < nonConstRefs.count(); i++) {
         const QString nonConstRef = nonConstRefs.at(i);
@@ -640,7 +627,6 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
 void QtCreatorIntegration::slotSyncSettingsToDesigner()
 {
     // Set promotion-relevant parameters on integration.
-    Utils::MimeDatabase mdb;
-    setHeaderSuffix(mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)).preferredSuffix());
+    setHeaderSuffix(Utils::mimeTypeForName(CppTools::Constants::CPP_HEADER_MIMETYPE).preferredSuffix());
     setHeaderLowercase(FormClassWizardPage::lowercaseHeaderFiles());
 }

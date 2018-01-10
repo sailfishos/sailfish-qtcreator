@@ -27,6 +27,8 @@ import QtQuick 2.1
 import QtQuick.Controls 1.0
 import QtQuick.Controls.Styles 1.0
 
+import TimelineTheme 1.0
+
 Rectangle {
     id: root
 
@@ -44,12 +46,9 @@ Rectangle {
     property bool selectionRangeMode: false
     property bool selectionRangeReady: selectionRange.ready
     property int typeId: content.typeId
-    onWidthChanged: {
-        zoomSliderToolBar.updateZoomLevel();
-        content.scroll();
-    }
+    onWidthChanged: zoomSliderToolBar.updateZoomLevel();
 
-    color: creatorTheme.Timeline_BackgroundColor1
+    color: Theme.color(Theme.Timeline_BackgroundColor1)
 
     // ***** connections with external objects
     Connections {
@@ -93,7 +92,7 @@ Rectangle {
     // This is called from outside to synchronize the timeline to other views
     function selectByTypeId(typeId)
     {
-        if (lockItemSelection || typeId === -1)
+        if (lockItemSelection || typeId === -1 || content.typeId === typeId)
             return;
 
         var itemIndex = -1;
@@ -161,7 +160,7 @@ Rectangle {
         contentY: content.contentY
         selectedModel: root.selectedModel
         selectedItem: root.selectedItem
-        color: creatorTheme.PanelStatusBarBackgroundColor
+        color: Theme.color(Theme.PanelStatusBarBackgroundColor)
         modelProxy: timelineModelAggregator
         zoomer: zoomControl
         reverseSelect: shiftPressed
@@ -339,6 +338,7 @@ Rectangle {
         startTime: zoomControl.selectionStart
         duration: zoomControl.selectionDuration
         endTime: zoomControl.selectionEnd
+        referenceDuration: zoomControl.rangeDuration
         showDuration: selectionRange.rangeWidth > 1
         hasContents: selectionRangeMode &&
                      selectionRange.creationState !== selectionRange.creationInactive
@@ -382,7 +382,7 @@ Rectangle {
     Rectangle {
         id: zoomSliderToolBar
         objectName: "zoomSliderToolBar"
-        color: creatorTheme.Timeline_PanelBackgroundColor
+        color: Theme.color(Theme.Timeline_PanelBackgroundColor)
         enabled: buttonsBar.enabled
         visible: false
         width: buttonsBar.width

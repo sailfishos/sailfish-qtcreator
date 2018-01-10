@@ -614,8 +614,7 @@ void PropertiesView::MView::visitMDependency(const MDependency *dependency)
     bool isSingleSelection = selection.size() == 1;
     if (m_directionSelector == 0) {
         m_directionSelector = new QComboBox(m_topWidget);
-        m_directionSelector->addItems(QStringList()
-                                      << QStringLiteral("->") << QStringLiteral("<-") << QStringLiteral("<->"));
+        m_directionSelector->addItems(QStringList({ "->", "<-", "<->" }));
         addRow(tr("Direction:"), m_directionSelector, "direction");
         connect(m_directionSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onDependencyDirectionChanged);
@@ -698,7 +697,7 @@ void PropertiesView::MView::visitMAssociation(const MAssociation *association)
         m_endANavigable->setEnabled(isSingleSelection);
     if (m_endAKind == 0) {
         m_endAKind = new QComboBox(m_topWidget);
-        m_endAKind->addItems(QStringList() << tr("Association") << tr("Aggregation") << tr("Composition"));
+        m_endAKind->addItems({ tr("Association"), tr("Aggregation"), tr("Composition") });
         addRow(tr("Relationship:"), m_endAKind, "relationship a");
         connect(m_endAKind, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onAssociationEndAKindChanged);
@@ -763,13 +762,13 @@ void PropertiesView::MView::visitMAssociation(const MAssociation *association)
         m_endBNavigable->setEnabled(isSingleSelection);
     if (m_endBKind == 0) {
         m_endBKind = new QComboBox(m_topWidget);
-        m_endBKind->addItems(QStringList() << tr("Association") << tr("Aggregation") << tr("Composition"));
+        m_endBKind->addItems({ tr("Association"), tr("Aggregation"), tr("Composition") });
         addRow(tr("Relationship:"), m_endBKind, "relationship b");
         connect(m_endBKind, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onAssociationEndBKindChanged);
     }
     if (isSingleSelection) {
-        if ((!isValidAssociationKindIndex(m_endAKind->currentIndex())
+        if ((!isValidAssociationKindIndex(m_endBKind->currentIndex())
              || association->endB().kind() != translateIndexToAssociationKind(m_endBKind->currentIndex()))
                 && !m_endBKind->hasFocus()) {
             m_endBKind->setCurrentIndex(translateAssociationKindToIndex(association->endB().kind()));
@@ -862,9 +861,8 @@ void PropertiesView::MView::visitDObject(const DObject *object)
     }
     if (m_visualSecondaryRoleSelector == 0) {
         m_visualSecondaryRoleSelector = new QComboBox(m_topWidget);
-        m_visualSecondaryRoleSelector->addItems(QStringList() << tr("Normal")
-                                                  << tr("Lighter") << tr("Darker")
-                                                  << tr("Soften") << tr("Outline"));
+        m_visualSecondaryRoleSelector->addItems({ tr("Normal"), tr("Lighter"), tr("Darker"),
+                                                  tr("Soften"), tr("Outline") });
         addRow(tr("Role:"), m_visualSecondaryRoleSelector, "role");
         connect(m_visualSecondaryRoleSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onVisualSecondaryRoleChanged);
@@ -891,8 +889,8 @@ void PropertiesView::MView::visitDObject(const DObject *object)
     }
     if (m_stereotypeDisplaySelector == 0) {
         m_stereotypeDisplaySelector = new QComboBox(m_topWidget);
-        m_stereotypeDisplaySelector->addItems(QStringList() << tr("Smart") << tr("None") << tr("Label")
-                                               << tr("Decoration") << tr("Icon"));
+        m_stereotypeDisplaySelector->addItems({ tr("Smart"), tr("None"), tr("Label"),
+                                                tr("Decoration"), tr("Icon") });
         addRow(tr("Stereotype display:"), m_stereotypeDisplaySelector, "stereotype display");
         connect(m_stereotypeDisplaySelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onStereotypeDisplayChanged);
@@ -929,7 +927,7 @@ void PropertiesView::MView::visitDClass(const DClass *klass)
     visitDObject(klass);
     if (m_templateDisplaySelector == 0) {
         m_templateDisplaySelector = new QComboBox(m_topWidget);
-        m_templateDisplaySelector->addItems(QStringList() << tr("Smart") << tr("Box") << tr("Angle Brackets"));
+        m_templateDisplaySelector->addItems({ tr("Smart"), tr("Box"), tr("Angle Brackets") });
         addRow(tr("Template display:"), m_templateDisplaySelector, "template display");
         connect(m_templateDisplaySelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onTemplateDisplayChanged);
@@ -1052,9 +1050,9 @@ void PropertiesView::MView::visitDAnnotation(const DAnnotation *annotation)
     }
     if (m_annotationVisualRoleSelector == 0) {
         m_annotationVisualRoleSelector = new QComboBox(m_topWidget);
-        m_annotationVisualRoleSelector->addItems(QStringList()
-                                                 << tr("Normal") << tr("Title") << tr("Subtitle")
-                                                 << tr("Emphasized") << tr("Soften") << tr("Footnote"));
+        m_annotationVisualRoleSelector->addItems(QStringList({ tr("Normal"), tr("Title"),
+                                                               tr("Subtitle"), tr("Emphasized"),
+                                                               tr("Soften"), tr("Footnote") }));
         addRow(tr("Role:"), m_annotationVisualRoleSelector, "visual role");
         connect(m_annotationVisualRoleSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
                 this, &PropertiesView::MView::onAnnotationVisualRoleChanged);
@@ -1378,7 +1376,8 @@ void PropertiesView::MView::setTitle(const MItem *item, const QList<V *> &elemen
         if (filtered.size() == elements.size()) {
             if (elements.size() == 1) {
                 if (item && !item->isVarietyEditable()) {
-                    QString stereotypeIconId = m_propertiesView->stereotypeController()->findStereotypeIconId(StereotypeIcon::ElementItem, QStringList() << item->variety());
+                    QString stereotypeIconId = m_propertiesView->stereotypeController()
+                        ->findStereotypeIconId(StereotypeIcon::ElementItem, QStringList(item->variety()));
                     if (!stereotypeIconId.isEmpty()) {
                         StereotypeIcon stereotypeIcon = m_propertiesView->stereotypeController()->findStereotypeIcon(stereotypeIconId);
                         m_propertiesTitle = stereotypeIcon.title();

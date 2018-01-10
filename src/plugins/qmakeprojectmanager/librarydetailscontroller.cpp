@@ -25,9 +25,9 @@
 
 #include "librarydetailscontroller.h"
 #include "ui_librarydetailswidget.h"
-#include "findqmakeprofiles.h"
-#include "qmakenodes.h"
 #include "qmakebuildconfiguration.h"
+#include "qmakeparsernodes.h"
+#include "qmakeproject.h"
 
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
@@ -50,28 +50,12 @@ LibraryDetailsController::LibraryDetailsController(
     m_proFile(proFile),
     m_libraryDetailsWidget(libraryDetails)
 {
-    m_creatorPlatform = CreatorLinux;
-    switch (Utils::HostOsInfo::hostOs()) {
-    case Utils::OsTypeMac:
-        m_creatorPlatform = CreatorMac;
-        break;
-    case Utils::OsTypeWindows:
-        m_creatorPlatform = CreatorWindows;
-        break;
-    default:
-        break;
-    }
-
     setPlatformsVisible(true);
     setLinkageGroupVisible(true);
     setMacLibraryGroupVisible(true);
     setPackageLineEditVisible(false);
-
-    if (creatorPlatform() == CreatorMac)
-        setMacLibraryRadiosVisible(false);
-
-    if (creatorPlatform() != CreatorWindows)
-        setLinkageRadiosVisible(false);
+    setMacLibraryRadiosVisible(!Utils::HostOsInfo::isMacHost());
+    setLinkageRadiosVisible(Utils::HostOsInfo::isWindowsHost());
 
     connect(m_libraryDetailsWidget->includePathChooser, &Utils::PathChooser::rawPathChanged,
             this, &LibraryDetailsController::slotIncludePathChanged);
@@ -89,11 +73,6 @@ LibraryDetailsController::LibraryDetailsController(
             this, &LibraryDetailsController::slotPlatformChanged);
     connect(m_libraryDetailsWidget->winCheckBox, &QAbstractButton::clicked,
             this, &LibraryDetailsController::slotPlatformChanged);
-}
-
-LibraryDetailsController::CreatorPlatform LibraryDetailsController::creatorPlatform() const
-{
-    return m_creatorPlatform;
 }
 
 Ui::LibraryDetailsWidget *LibraryDetailsController::libraryDetailsWidget() const
@@ -599,7 +578,7 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
     setLibraryComboBoxVisible(false);
     setLibraryPathChooserVisible(true);
 
-    if (creatorPlatform() == CreatorWindows) {
+    if (Utils::HostOsInfo::isWindowsHost()) {
         libraryDetailsWidget()->libraryPathChooser->setPromptDialogFilter(
                 QLatin1String("Library file (*.lib lib*.a)"));
         setLinkageRadiosVisible(true);
@@ -609,11 +588,11 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
         setRemoveSuffixVisible(false);
     }
 
-    if (creatorPlatform() == CreatorLinux)
+    if (Utils::HostOsInfo::isLinuxHost())
         libraryDetailsWidget()->libraryPathChooser->setPromptDialogFilter(
                 QLatin1String("Library file (lib*.so lib*.a)"));
 
-    if (creatorPlatform() == CreatorMac) {
+    if (Utils::HostOsInfo::isMacHost()) {
         libraryDetailsWidget()->libraryPathChooser->setPromptDialogFilter(
                 QLatin1String("Library file (*.dylib *.a *.framework)"));
            // QLatin1String("Library file (lib*.dylib lib*.a *.framework)"));
@@ -637,7 +616,7 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
 AddLibraryWizard::LinkageType NonInternalLibraryDetailsController::suggestedLinkageType() const
 {
     AddLibraryWizard::LinkageType type = AddLibraryWizard::NoLinkage;
-    if (creatorPlatform() != CreatorWindows) {
+    if (!Utils::HostOsInfo::isWindowsHost()) {
         if (libraryDetailsWidget()->libraryPathChooser->isValid()) {
             QFileInfo fi(libraryDetailsWidget()->libraryPathChooser->path());
             if (fi.suffix() == QLatin1String("a"))
@@ -652,7 +631,7 @@ AddLibraryWizard::LinkageType NonInternalLibraryDetailsController::suggestedLink
 AddLibraryWizard::MacLibraryType NonInternalLibraryDetailsController::suggestedMacLibraryType() const
 {
     AddLibraryWizard::MacLibraryType type = AddLibraryWizard::NoLibraryType;
-    if (creatorPlatform() == CreatorMac) {
+    if (Utils::HostOsInfo::isMacHost()) {
         if (libraryDetailsWidget()->libraryPathChooser->isValid()) {
             QFileInfo fi(libraryDetailsWidget()->libraryPathChooser->path());
             if (fi.suffix() == QLatin1String("framework"))
@@ -686,7 +665,7 @@ QString NonInternalLibraryDetailsController::suggestedIncludePath() const
 void NonInternalLibraryDetailsController::updateWindowsOptionsEnablement()
 {
     bool ena = platforms() & (AddLibraryWizard::WindowsMinGWPlatform | AddLibraryWizard::WindowsMSVCPlatform);
-    if (creatorPlatform() == CreatorWindows) {
+    if (Utils::HostOsInfo::isWindowsHost()) {
         libraryDetailsWidget()->addSuffixCheckBox->setEnabled(ena);
         ena = true;
     }
@@ -718,7 +697,7 @@ void NonInternalLibraryDetailsController::slotRemoveSuffixChanged(bool ena)
 
 void NonInternalLibraryDetailsController::slotLibraryPathChanged()
 {
-    if (creatorPlatform() == CreatorWindows) {
+    if (Utils::HostOsInfo::isWindowsHost()) {
         bool subfoldersEnabled = true;
         bool removeSuffixEnabled = true;
         if (libraryDetailsWidget()->libraryPathChooser->isValid()) {
@@ -760,13 +739,13 @@ QString NonInternalLibraryDetailsController::snippet() const
     QString libName;
     const bool removeSuffix = isWindowsGroupVisible()
             && libraryDetailsWidget()->removeSuffixCheckBox->isChecked();
-    if (creatorPlatform() == CreatorWindows) {
+    if (Utils::HostOsInfo::isWindowsHost()) {
         libName = fi.completeBaseName();
         if (removeSuffix && !libName.isEmpty()) // remove last letter which needs to be "d"
             libName = libName.left(libName.size() - 1);
         if (fi.completeSuffix() == QLatin1String("a")) // the mingw lib case
             libName = libName.mid(3); // cut the "lib" prefix
-    } else if (creatorPlatform() == CreatorMac) {
+    } else if (Utils::HostOsInfo::isMacHost()) {
         if (macLibraryType() == AddLibraryWizard::FrameworkType)
             libName = fi.completeBaseName();
         else
@@ -780,7 +759,7 @@ QString NonInternalLibraryDetailsController::snippet() const
     if (isWindowsGroupVisible()) {
         // when we are on Win but we don't generate the code for Win
         // we still need to remove "debug" or "release" subfolder
-        const bool useSubfoldersCondition = (creatorPlatform() == CreatorWindows)
+        const bool useSubfoldersCondition = (Utils::HostOsInfo::isWindowsHost())
                                             ? true : platforms() & (AddLibraryWizard::WindowsMinGWPlatform
                                                                     | AddLibraryWizard::WindowsMSVCPlatform);
         if (useSubfoldersCondition)
@@ -795,7 +774,7 @@ QString NonInternalLibraryDetailsController::snippet() const
         QFileInfo pfi(proFile());
         QDir pdir = pfi.absoluteDir();
         QString absoluteLibraryPath = fi.absolutePath();
-        if (creatorPlatform() == CreatorWindows && useSubfolders) { // drop last subfolder which needs to be "debug" or "release"
+        if (Utils::HostOsInfo::isWindowsHost() && useSubfolders) { // drop last subfolder which needs to be "debug" or "release"
             QFileInfo libfi(absoluteLibraryPath);
             absoluteLibraryPath = libfi.absolutePath();
         }
@@ -873,7 +852,7 @@ bool PackageLibraryDetailsController::isLinkPackageGenerated() const
     if (!currentProject)
         return false;
 
-    const QStringList configVar = currentProject->variableValue(ConfigVar);
+    const QStringList configVar = currentProject->variableValue(Variable::Config);
     if (configVar.contains(QLatin1String("link_pkgconfig")))
         return true;
 
@@ -910,7 +889,7 @@ void ExternalLibraryDetailsController::updateWindowsOptionsEnablement()
 {
     NonInternalLibraryDetailsController::updateWindowsOptionsEnablement();
 
-    if (creatorPlatform() != CreatorWindows)
+    if (!Utils::HostOsInfo::isWindowsHost())
         return;
 
     bool subfoldersEnabled = true;
@@ -946,7 +925,7 @@ InternalLibraryDetailsController::InternalLibraryDetailsController(
     setWindowsGroupVisible(true);
     setRemoveSuffixVisible(false);
 
-    if (creatorPlatform() == CreatorWindows)
+    if (Utils::HostOsInfo::isWindowsHost())
         libraryDetailsWidget()->useSubfoldersCheckBox->setEnabled(true);
 
     connect(libraryDetailsWidget()->libraryComboBox,
@@ -962,8 +941,8 @@ AddLibraryWizard::LinkageType InternalLibraryDetailsController::suggestedLinkage
     const int currentIndex = libraryDetailsWidget()->libraryComboBox->currentIndex();
     AddLibraryWizard::LinkageType type = AddLibraryWizard::NoLinkage;
     if (currentIndex >= 0) {
-        QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-        const QStringList configVar = proFileNode->variableValue(ConfigVar);
+        QmakeProFile *proFile = m_proFiles.at(currentIndex);
+        const QStringList configVar = proFile->variableValue(Variable::Config);
         if (configVar.contains(QLatin1String("staticlib"))
                 || configVar.contains(QLatin1String("static")))
             type = AddLibraryWizard::StaticLinkage;
@@ -978,8 +957,8 @@ AddLibraryWizard::MacLibraryType InternalLibraryDetailsController::suggestedMacL
     const int currentIndex = libraryDetailsWidget()->libraryComboBox->currentIndex();
     AddLibraryWizard::MacLibraryType type = AddLibraryWizard::NoLibraryType;
     if (currentIndex >= 0) {
-        QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-        const QStringList configVar = proFileNode->variableValue(ConfigVar);
+        QmakeProFile *proFile = m_proFiles.at(currentIndex);
+        const QStringList configVar = proFile->variableValue(Variable::Config);
         if (configVar.contains(QLatin1String("lib_bundle")))
             type = AddLibraryWizard::FrameworkType;
         else
@@ -992,15 +971,15 @@ QString InternalLibraryDetailsController::suggestedIncludePath() const
 {
     const int currentIndex = libraryDetailsWidget()->libraryComboBox->currentIndex();
     if (currentIndex >= 0) {
-        QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-        return proFileNode->filePath().toFileInfo().absolutePath();
+        QmakeProFile *proFile = m_proFiles.at(currentIndex);
+        return proFile->filePath().toFileInfo().absolutePath();
     }
     return QString();
 }
 
 void InternalLibraryDetailsController::updateWindowsOptionsEnablement()
 {
-    if (creatorPlatform() == CreatorWindows)
+    if (Utils::HostOsInfo::isWindowsHost())
         libraryDetailsWidget()->addSuffixCheckBox->setEnabled(true);
     libraryDetailsWidget()->winGroupBox->setEnabled(platforms()
                                 & (AddLibraryWizard::WindowsMinGWPlatform | AddLibraryWizard::WindowsMSVCPlatform));
@@ -1009,35 +988,35 @@ void InternalLibraryDetailsController::updateWindowsOptionsEnablement()
 void InternalLibraryDetailsController::updateProFile()
 {
     m_rootProjectPath.clear();
-    m_proFileNodes.clear();
+    m_proFiles.clear();
     libraryDetailsWidget()->libraryComboBox->clear();
 
-    const Project *project = SessionManager::projectForFile(Utils::FileName::fromString(proFile()));
+    const QmakeProject *project
+            = dynamic_cast<QmakeProject *>(SessionManager::projectForFile(Utils::FileName::fromString(proFile())));
     if (!project)
         return;
 
     setIgnoreGuiSignals(true);
 
-    ProjectExplorer::ProjectNode *rootProject = project->rootProjectNode();
-    m_rootProjectPath = rootProject->filePath().toFileInfo().absolutePath();
+    m_rootProjectPath = project->projectDirectory().toString();
+
     QDir rootDir(m_rootProjectPath);
-    FindQmakeProFiles findQt4ProFiles;
-    QList<QmakeProFileNode *> proFiles = findQt4ProFiles(rootProject);
-    foreach (QmakeProFileNode *proFileNode, proFiles) {
-        const QString proFilePath = proFileNode->filePath().toString();
-        QmakeProjectManager::QmakeProjectType type = proFileNode->projectType();
-        if (type == SharedLibraryTemplate || type == StaticLibraryTemplate) {
-            const QStringList configVar = proFileNode->variableValue(ConfigVar);
-            if (!configVar.contains(QLatin1String("plugin"))) {
-                const QString relProFilePath = rootDir.relativeFilePath(proFilePath);
-                TargetInformation targetInfo = proFileNode->targetInformation();
-                const QString itemToolTip = QString::fromLatin1("%1 (%2)").arg(targetInfo.target).arg(relProFilePath);
-                m_proFileNodes.append(proFileNode);
-                libraryDetailsWidget()->libraryComboBox->addItem(targetInfo.target);
-                libraryDetailsWidget()->libraryComboBox->setItemData(
-                            libraryDetailsWidget()->libraryComboBox->count() - 1,
-                            itemToolTip, Qt::ToolTipRole);
-            }
+    foreach (QmakeProFile *proFile, project->rootProFile()->allProFiles()) {
+        QmakeProjectManager::ProjectType type = proFile->projectType();
+        if (type != ProjectType::SharedLibraryTemplate && type != ProjectType::StaticLibraryTemplate)
+            continue;
+
+        const QStringList configVar = proFile->variableValue(Variable::Config);
+        if (!configVar.contains(QLatin1String("plugin"))) {
+            const QString relProFilePath = rootDir.relativeFilePath(proFile->filePath().toString());
+            TargetInformation targetInfo = proFile->targetInformation();
+            const QString itemToolTip = QString::fromLatin1("%1 (%2)").arg(targetInfo.target).arg(relProFilePath);
+            m_proFiles.append(proFile);
+
+            libraryDetailsWidget()->libraryComboBox->addItem(targetInfo.target);
+            libraryDetailsWidget()->libraryComboBox->setItemData(
+                        libraryDetailsWidget()->libraryComboBox->count() - 1,
+                        itemToolTip, Qt::ToolTipRole);
         }
     }
 
@@ -1051,9 +1030,9 @@ void InternalLibraryDetailsController::slotCurrentLibraryChanged()
         libraryDetailsWidget()->libraryComboBox->setToolTip(
                     libraryDetailsWidget()->libraryComboBox->itemData(
                         currentIndex, Qt::ToolTipRole).toString());
-        QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-        const QStringList configVar = proFileNode->variableValue(ConfigVar);
-        if (creatorPlatform() == CreatorWindows) {
+        QmakeProFile *proFile = m_proFiles.at(currentIndex);
+        const QStringList configVar = proFile->variableValue(Variable::Config);
+        if (Utils::HostOsInfo::isWindowsHost()) {
             bool useSubfolders = false;
             if (configVar.contains(QLatin1String("debug_and_release"))
                 && configVar.contains(QLatin1String("debug_and_release_target")))
@@ -1113,10 +1092,9 @@ QString InternalLibraryDetailsController::snippet() const
     QDir projectSrcDir(fi.absolutePath());
 
     // project node which we want to link against
-    QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-    TargetInformation targetInfo = proFileNode->targetInformation();
+    TargetInformation targetInfo = m_proFiles.at(currentIndex)->targetInformation();
 
-    const QString targetRelativePath = appendSeparator(projectBuildDir.relativeFilePath(targetInfo.buildDir));
+    const QString targetRelativePath = appendSeparator(projectBuildDir.relativeFilePath(targetInfo.buildDir.toString()));
     const QString includeRelativePath = projectSrcDir.relativeFilePath(libraryDetailsWidget()->includePathChooser->path());
 
     const bool useSubfolders = libraryDetailsWidget()->useSubfoldersCheckBox->isChecked();

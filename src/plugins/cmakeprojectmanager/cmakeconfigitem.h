@@ -31,6 +31,10 @@
 #include <functional>
 
 namespace ProjectExplorer { class Kit; }
+namespace Utils {
+class FileName;
+class MacroExpander;
+} // namespace Utils
 
 namespace CMakeProjectManager {
 
@@ -46,19 +50,24 @@ public:
     static QString expandedValueOf(const ProjectExplorer::Kit *k, const QByteArray &key,
                                    const QList<CMakeConfigItem> &input);
     static QStringList cmakeSplitValue(const QString &in, bool keepEmpty = false);
+    static Type typeStringToType(const QByteArray &typeString);
     bool isNull() const { return key.isEmpty(); }
 
     QString expandedValue(const ProjectExplorer::Kit *k) const;
+    QString expandedValue(const Utils::MacroExpander *expander) const;
 
     static std::function<bool(const CMakeConfigItem &a, const CMakeConfigItem &b)> sortOperator();
     static CMakeConfigItem fromString(const QString &s);
-    QString toString() const;
+    static QList<CMakeConfigItem> itemsFromFile(const Utils::FileName &input, QString *errorMessage);
+    QString toString(const Utils::MacroExpander *expander = nullptr) const;
+    QString toArgument(const Utils::MacroExpander *expander = nullptr) const;
 
     bool operator==(const CMakeConfigItem &o) const;
 
     QByteArray key;
     Type type = STRING;
     bool isAdvanced = false;
+    bool inCMakeCache = false;
     QByteArray value; // converted to string as needed
     QByteArray documentation;
     QStringList values;

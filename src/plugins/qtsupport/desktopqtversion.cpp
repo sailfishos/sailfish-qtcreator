@@ -75,7 +75,7 @@ QStringList DesktopQtVersion::warningReason() const
 
 QList<ProjectExplorer::Abi> DesktopQtVersion::detectQtAbis() const
 {
-    return qtAbisFromLibrary(qtCorePaths(versionInfo(), qtVersionString()));
+    return qtAbisFromLibrary(qtCorePaths());
 }
 
 QString DesktopQtVersion::description() const
@@ -93,7 +93,7 @@ QSet<Core::Id> DesktopQtVersion::availableFeatures() const
 
 QSet<Core::Id> DesktopQtVersion::targetDeviceTypes() const
 {
-    QSet<Core::Id> result = { ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE };
+    QSet<Core::Id> result = {ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE};
     if (Utils::contains(qtAbis(), [](const ProjectExplorer::Abi a) { return a.os() == ProjectExplorer::Abi::LinuxOS; }))
         result.insert(RemoteLinux::Constants::GenericLinuxOsType);
     return result;

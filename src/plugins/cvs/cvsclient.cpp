@@ -29,7 +29,7 @@
 #include <vcsbase/vcsbaseplugin.h>
 #include <vcsbase/vcsbaseeditor.h>
 #include <vcsbase/vcsbaseconstants.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -43,20 +43,19 @@ namespace Cvs {
 namespace Internal {
 
 // Parameter widget controlling whitespace diff mode, associated with a parameter
-class CvsDiffParameterWidget : public VcsBaseEditorParameterWidget
+class CvsDiffConfig : public VcsBaseEditorConfig
 {
     Q_OBJECT
 public:
-    explicit CvsDiffParameterWidget(VcsBaseClientSettings &settings, QWidget *parent = 0);
+    CvsDiffConfig(VcsBaseClientSettings &settings, QToolBar *toolBar);
     QStringList arguments() const;
 
 private:
     VcsBaseClientSettings &m_settings;
 };
 
-CvsDiffParameterWidget::CvsDiffParameterWidget(VcsBaseClientSettings &settings,
-                                               QWidget *parent) :
-    VcsBaseEditorParameterWidget(parent),
+CvsDiffConfig::CvsDiffConfig(VcsBaseClientSettings &settings, QToolBar *toolBar) :
+    VcsBaseEditorConfig(toolBar),
     m_settings(settings)
 {
     mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore Whitespace")),
@@ -65,18 +64,20 @@ CvsDiffParameterWidget::CvsDiffParameterWidget(VcsBaseClientSettings &settings,
                settings.boolPointer(CvsSettings::diffIgnoreBlankLinesKey));
 }
 
-QStringList CvsDiffParameterWidget::arguments() const
+QStringList CvsDiffConfig::arguments() const
 {
     QStringList args;
     args = m_settings.stringValue(CvsSettings::diffOptionsKey).split(QLatin1Char(' '),
                                                                      QString::SkipEmptyParts);
-    args += VcsBaseEditorParameterWidget::arguments();
+    args += VcsBaseEditorConfig::arguments();
     return args;
 }
 
 CvsClient::CvsClient() : VcsBaseClient(new CvsSettings)
 {
-    setDiffParameterWidgetCreator([this] { return new CvsDiffParameterWidget(settings()); });
+    setDiffConfigCreator([this](QToolBar *toolBar) {
+        return new CvsDiffConfig(settings(), toolBar);
+    });
 }
 
 CvsSettings &CvsClient::settings() const

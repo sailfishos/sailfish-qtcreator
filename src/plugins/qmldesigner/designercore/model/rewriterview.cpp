@@ -38,6 +38,7 @@
 #include <customnotifications.h>
 #include <modelnodepositionstorage.h>
 #include <modelnode.h>
+#include <nodeproperty.h>
 
 #include <qmljs/parser/qmljsengine_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
@@ -53,6 +54,8 @@ RewriterView::RewriterView(DifferenceHandling differenceHandling, QObject *paren
         m_modelToTextMerger(new Internal::ModelToTextMerger(this)),
         m_textToModelMerger(new Internal::TextToModelMerger(this))
 {
+    m_amendTimer.setSingleShot(true);
+    connect(&m_amendTimer, &QTimer::timeout, this, &RewriterView::amendQmlText);
 }
 
 RewriterView::~RewriterView()
@@ -79,7 +82,15 @@ void RewriterView::modelAttached(Model *model)
     ModelAmender differenceHandler(m_textToModelMerger.data());
     const QString qmlSource = m_textModifier->text();
     if (m_textToModelMerger->load(qmlSource, differenceHandler))
-        lastCorrectQmlSource = qmlSource;
+        m_lastCorrectQmlSource = qmlSource;
+
+    if (!(m_errors.isEmpty() && m_warnings.isEmpty()))
+        notifyErrorsAndWarnings(m_errors);
+
+    if (hasIncompleteTypeInformation())
+        QTimer::singleShot(1000, this, [this, model](){
+            modelAttached(model);
+        });
 }
 
 void RewriterView::modelAboutToBeDetached(Model * /*model*/)
@@ -285,6 +296,18 @@ void RewriterView::rootNodeTypeChanged(const QString &type, int majorVersion, in
         applyChanges();
 }
 
+void RewriterView::nodeTypeChanged(const ModelNode &node, const TypeName &type, int majorVersion, int minorVersion)
+{
+    Q_ASSERT(textModifier());
+    if (textToModelMerger()->isActive())
+        return;
+
+    modelToTextMerger()->nodeTypeChanged(node, QString::fromLatin1(type), majorVersion, minorVersion);
+
+    if (!isModificationGroupActive())
+        applyChanges();
+}
+
 void RewriterView::customNotification(const AbstractView * /*view*/, const QString &identifier, const QList<ModelNode> & /* nodeList */, const QList<QVariant> & /*data */)
 {
     if (identifier == StartRewriterAmend || identifier == EndRewriterAmend)
@@ -326,12 +349,12 @@ TextModifier *RewriterView::textModifier() const
 void RewriterView::setTextModifier(TextModifier *textModifier)
 {
     if (m_textModifier)
-        disconnect(m_textModifier, SIGNAL(textChanged()), this, SLOT(qmlTextChanged()));
+        disconnect(m_textModifier, &TextModifier::textChanged, this, &RewriterView::qmlTextChanged);
 
     m_textModifier = textModifier;
 
     if (m_textModifier)
-        connect(m_textModifier, SIGNAL(textChanged()), this, SLOT(qmlTextChanged()));
+        connect(m_textModifier, &TextModifier::textChanged, this, &RewriterView::qmlTextChanged);
 }
 
 QString RewriterView::textModifierContent() const
@@ -399,17 +422,37 @@ void RewriterView::applyChanges()
     }
 }
 
+void RewriterView::amendQmlText()
+{
+    emitCustomNotification(StartRewriterAmend);
+
+    const QString newQmlText = m_textModifier->text();
+
+    ModelAmender differenceHandler(m_textToModelMerger.data());
+    if (m_textToModelMerger->load(newQmlText, differenceHandler))
+        m_lastCorrectQmlSource = newQmlText;
+    emitCustomNotification(EndRewriterAmend);
+}
+
+void RewriterView::notifyErrorsAndWarnings(const QList<DocumentMessage> &errors)
+{
+    if (m_setWidgetStatusCallback)
+        m_setWidgetStatusCallback(errors.isEmpty());
+
+    emitDocumentMessage(errors, m_warnings);
+}
+
 Internal::ModelNodePositionStorage *RewriterView::positionStorage() const
 {
     return m_positionStorage.data();
 }
 
-QList<RewriterError> RewriterView::warnings() const
+QList<DocumentMessage> RewriterView::warnings() const
 {
     return m_warnings;
 }
 
-QList<RewriterError> RewriterView::errors() const
+QList<DocumentMessage> RewriterView::errors() const
 {
     return m_errors;
 }
@@ -418,24 +461,35 @@ void RewriterView::clearErrorAndWarnings()
 {
     m_errors.clear();
     m_warnings.clear();
-    emit errorsChanged(m_errors);
+    notifyErrorsAndWarnings(m_errors);
 }
 
-void RewriterView::setWarnings(const QList<RewriterError> &warnings)
+void RewriterView::setWarnings(const QList<DocumentMessage> &warnings)
 {
     m_warnings = warnings;
+    notifyErrorsAndWarnings(m_errors);
 }
 
-void RewriterView::setErrors(const QList<RewriterError> &errors)
+void RewriterView::setIncompleteTypeInformation(bool b)
+{
+    m_hasIncompleteTypeInformation = b;
+}
+
+bool RewriterView::hasIncompleteTypeInformation() const
+{
+    return m_hasIncompleteTypeInformation;
+}
+
+void RewriterView::setErrors(const QList<DocumentMessage> &errors)
 {
     m_errors = errors;
-    emit errorsChanged(m_errors);
+    notifyErrorsAndWarnings(m_errors);
 }
 
-void RewriterView::addError(const RewriterError &error)
+void RewriterView::addError(const DocumentMessage &error)
 {
     m_errors.append(error);
-    emit errorsChanged(m_errors);
+    notifyErrorsAndWarnings(m_errors);
 }
 
 void RewriterView::enterErrorState(const QString &errorMessage)
@@ -518,24 +572,55 @@ static bool isInNodeDefinition(int nodeTextOffset, int nodeTextLength, int curso
     return (nodeTextOffset <= cursorPosition) && (nodeTextOffset + nodeTextLength > cursorPosition);
 }
 
-ModelNode RewriterView::nodeAtTextCursorPosition(int cursorPosition) const
+ModelNode RewriterView::nodeAtTextCursorPositionRekursive(const ModelNode &root, int cursorPosition) const
 {
-    const QList<ModelNode> allNodes = allModelNodes();
+    ModelNode node = root;
 
-    ModelNode nearestNode;
-    int nearestNodeTextOffset = -1;
+    int lastOffset = -1;
 
-    foreach (const ModelNode &currentNode, allNodes) {
-        const int nodeTextOffset = nodeOffset(currentNode);
-        const int nodeTextLength = nodeLength(currentNode);
-        if (isInNodeDefinition(nodeTextOffset, nodeTextLength, cursorPosition)
-            && (nodeTextOffset > nearestNodeTextOffset)) {
-            nearestNode = currentNode;
-            nearestNodeTextOffset = nodeTextOffset;
+    bool sorted = true;
+
+    if (!root.nodeProperties().isEmpty())
+        sorted = false;
+
+    foreach (const ModelNode &currentNode, node.directSubModelNodes()) {
+        const int offset = nodeOffset(currentNode);
+
+        if (offset < cursorPosition && offset > lastOffset) {
+            node = nodeAtTextCursorPositionRekursive(currentNode, cursorPosition);
+            lastOffset = offset;
+        } else {
+            if (sorted)
+                break;
         }
     }
 
-    return nearestNode;
+    const int nodeTextLength = nodeLength(node);
+    const int nodeTextOffset = nodeOffset(node);
+
+    if (nodeTextLength < 0)
+        return ModelNode();
+
+    if (isInNodeDefinition(nodeTextOffset, nodeTextLength, cursorPosition))
+        return node;
+
+    return root;
+}
+
+ModelNode RewriterView::nodeAtTextCursorPosition(int cursorPosition) const
+{
+    return nodeAtTextCursorPositionRekursive(rootModelNode(), cursorPosition);
+}
+
+bool RewriterView::nodeContainsCursor(const ModelNode &node, int cursorPosition) const
+{
+    const int nodeTextLength = nodeLength(node);
+    const int nodeTextOffset = nodeOffset(node);
+
+    if (isInNodeDefinition(nodeTextOffset, nodeTextLength, cursorPosition))
+        return true;
+
+    return false;
 }
 
 bool RewriterView::renameId(const QString& oldId, const QString& newId)
@@ -547,7 +632,12 @@ bool RewriterView::renameId(const QString& oldId, const QString& newId)
                 && rootModelNode().hasBindingProperty(propertyName)
                 && rootModelNode().bindingProperty(propertyName).isAliasExport();
 
+        bool instant = m_instantQmlTextUpdate;
+        m_instantQmlTextUpdate = true;
+
         bool refactoring =  textModifier()->renameId(oldId, newId);
+
+        m_instantQmlTextUpdate = instant;
 
         if (refactoring && hasAliasExport) { //Keep export alias properties
             rootModelNode().removeProperty(propertyName);
@@ -649,7 +739,12 @@ void RewriterView::moveToComponent(const ModelNode &modelNode)
 {
     int offset = nodeOffset(modelNode);
 
+    bool instant = m_instantQmlTextUpdate;
+    m_instantQmlTextUpdate = true;
+
     textModifier()->moveToComponent(offset);
+
+    m_instantQmlTextUpdate = instant;
 }
 
 QStringList RewriterView::autoComplete(const QString &text, int pos, bool explicitComplete)
@@ -657,7 +752,10 @@ QStringList RewriterView::autoComplete(const QString &text, int pos, bool explic
     QTextDocument textDocument;
     textDocument.setPlainText(text);
 
-    return textModifier()->autoComplete(&textDocument, pos, explicitComplete);
+    QStringList list = textModifier()->autoComplete(&textDocument, pos, explicitComplete);
+    list.removeDuplicates();
+
+    return list;
 }
 
 QList<CppTypeData> RewriterView::getCppTypes()
@@ -683,6 +781,11 @@ QList<CppTypeData> RewriterView::getCppTypes()
     return cppDataList;
 }
 
+void RewriterView::setWidgetStatusCallback(std::function<void (bool)> setWidgetStatusCallback)
+{
+    m_setWidgetStatusCallback = setWidgetStatusCallback;
+}
+
 void RewriterView::qmlTextChanged()
 {
     getCppTypes();
@@ -699,22 +802,25 @@ void RewriterView::qmlTextChanged()
 #endif
 
         switch (m_differenceHandling) {
-            case Validate: {
-                ModelValidator differenceHandler(m_textToModelMerger.data());
-                if (m_textToModelMerger->load(newQmlText, differenceHandler))
-                    lastCorrectQmlSource = newQmlText;
-                break;
-            }
+        case Validate: {
+            ModelValidator differenceHandler(m_textToModelMerger.data());
+            if (m_textToModelMerger->load(newQmlText, differenceHandler))
+                m_lastCorrectQmlSource = newQmlText;
+            break;
+        }
 
-            case Amend:
-            default: {
-                emitCustomNotification(StartRewriterAmend);
-                ModelAmender differenceHandler(m_textToModelMerger.data());
-                if (m_textToModelMerger->load(newQmlText, differenceHandler))
-                    lastCorrectQmlSource = newQmlText;
-                emitCustomNotification(EndRewriterAmend);
-                break;
-            }
+        case Amend: {
+            if (m_instantQmlTextUpdate)
+                amendQmlText();
+            else
+#ifndef QMLDESIGNER_TEST
+                m_amendTimer.start(400);
+#else
+                /*Keep test synchronous*/
+                amendQmlText();
+#endif
+            break;
+        }
         }
     }
 }

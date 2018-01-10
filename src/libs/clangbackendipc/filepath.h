@@ -27,63 +27,109 @@
 
 #include "clangbackendipc_global.h"
 
-#include <utils/smallstring.h>
 #include <utils/smallstringio.h>
+
+#include <QDataStream>
 
 namespace ClangBackEnd {
 
-struct FilePath
+class FilePath
 {
 public:
     FilePath() = default;
-    FilePath(Utils::SmallString &&directory, Utils::SmallString &&name)
-        : directory_(std::move(directory)),
-          name_(std::move(name))
-    {}
-
-    const Utils::SmallString &directory() const
+    explicit FilePath(Utils::PathString &&filePath)
+        : m_path(std::move(filePath))
     {
-        return directory_;
+        auto foundReverse = std::find(m_path.rbegin(), m_path.rend(), '/');
+        auto found = foundReverse.base();
+        --found;
+
+        m_slashIndex = std::size_t(std::distance(m_path.begin(), found));
     }
 
-    const Utils::SmallString &name() const
+    explicit FilePath(const Utils::PathString &filePath)
+        : FilePath(filePath.clone())
     {
-        return name_;
+    }
+
+    explicit FilePath(Utils::PathString &&filePath, std::size_t slashIndex)
+        : m_path(std::move(filePath)),
+          m_slashIndex(slashIndex)
+    {
+    }
+
+    explicit FilePath(const QString &filePath)
+        : FilePath(Utils::PathString(filePath))
+    {
+    }
+
+    FilePath(const Utils::PathString &directory, const Utils::PathString &name)
+        : m_path({std::move(directory), "/", std::move(name)}),
+          m_slashIndex(directory.size())
+    {}
+
+    Utils::SmallStringView directory() const
+    {
+        return m_path.mid(0, m_slashIndex);
+    }
+
+    Utils::SmallStringView name() const
+    {
+        return m_path.mid(m_slashIndex + 1, m_path.size() - m_slashIndex - 1);
+    }
+
+    const Utils::PathString &path()  const
+    {
+        return m_path;
     }
 
     friend QDataStream &operator<<(QDataStream &out, const FilePath &filePath)
     {
-        out << filePath.directory_;
-        out << filePath.name_;
+        out << filePath.m_path;
+        out << uint(filePath.m_slashIndex);
 
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FilePath &filePath)
     {
-        in >> filePath.directory_;
-        in >> filePath.name_;
+        uint slashIndex;
+
+        in >> filePath.m_path;
+        in >> slashIndex;
+
+        filePath.m_slashIndex = slashIndex;
 
         return in;
     }
 
+    friend std::ostream &operator<<(std::ostream &out, const FilePath &filePath)
+    {
+        out << filePath.directory() << "/" << filePath.name();
+
+        return out;
+    }
+
     friend bool operator==(const FilePath &first, const FilePath &second)
     {
-        return first.directory_ == second.directory_
-                && first.name_ == second.name_;
+        return first.m_path == second.m_path;
+    }
+
+    friend bool operator<(const FilePath &first, const FilePath &second)
+    {
+        return first.m_path < second.m_path;
     }
 
     FilePath clone() const
     {
-        return FilePath(directory_.clone(), name_.clone());
+        return *this;
     }
 
 private:
-    Utils::SmallString directory_;
-    Utils::SmallString name_;
+    Utils::PathString m_path = "/";
+    std::size_t m_slashIndex = 0;
 };
 
 CMBIPC_EXPORT QDebug operator<<(QDebug debug, const FilePath &filePath);
-void PrintTo(const FilePath &filePath, ::std::ostream* os);
 
 } // namespace ClangBackEnd

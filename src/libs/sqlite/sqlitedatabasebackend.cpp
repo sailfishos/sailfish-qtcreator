@@ -38,10 +38,8 @@
 
 #include "sqlite3.h"
 
-#if defined(Q_CC_GNU)
+#if defined(Q_OS_DARWIN) && defined(Q_CC_GNU)
 #define QTC_THREAD_LOCAL __thread
-#elif defined(Q_CC_MSVC)
-#define QTC_THREAD_LOCAL __declspec(thread)
 #else
 #define QTC_THREAD_LOCAL thread_local
 #endif

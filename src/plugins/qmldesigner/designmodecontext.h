@@ -35,6 +35,8 @@ namespace Internal {
   */
 class DesignModeContext : public Core::IContext
 {
+    Q_OBJECT
+
 public:
     DesignModeContext(QWidget *widget);
     QString contextHelpId() const;
@@ -42,6 +44,8 @@ public:
 
 class FormEditorContext : public Core::IContext
 {
+    Q_OBJECT
+
 public:
     FormEditorContext(QWidget *widget);
     QString contextHelpId() const;
@@ -49,8 +53,19 @@ public:
 
 class NavigatorContext : public Core::IContext
 {
+    Q_OBJECT
+
 public:
     NavigatorContext(QWidget *widget);
+    QString contextHelpId() const;
+};
+
+class TextEditorContext : public Core::IContext
+{
+    Q_OBJECT
+
+public:
+    TextEditorContext(QWidget *widget);
     QString contextHelpId() const;
 };
 

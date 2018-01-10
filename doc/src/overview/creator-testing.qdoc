@@ -47,7 +47,7 @@
             is installed automatically and you should be ready to start
             debugging after you create a new project. However, you can
             change the setup to use debugging tools for Windows, for
-            example. You can connect embedded or mobile devices to your
+            example. You can connect \l{glossary-device}{devices} to your
             development host and debug processes running on the devices.
 
         \li \l{Analyzing Code}
@@ -60,8 +60,9 @@
 
         \li \l{Running Autotests}
 
-            You can use an experimental Auto Test plugin to build and run
-            Qt tests, Qt Quick tests, and Google tests using \QC.
+            You can build and run Qt tests, Qt Quick tests, and Google tests
+            using \QC. In addition, you can use a wizard to create projects that
+            contain Qt or Google tests.
 
     \endlist
 

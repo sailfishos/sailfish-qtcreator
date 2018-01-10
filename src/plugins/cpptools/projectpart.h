@@ -34,8 +34,6 @@
 
 #include <coreplugin/id.h>
 
-#include <utils/fileutils.h>
-
 #include <cplusplus/Token.h>
 
 #include <QString>
@@ -49,16 +47,18 @@ namespace CppTools {
 
 class CPPTOOLS_EXPORT ProjectPart
 {
-public: // Types
+public:
     enum LanguageVersion {
         C89,
         C99,
         C11,
+        LatestCVersion = C11,
         CXX98,
         CXX03,
         CXX11,
         CXX14,
-        CXX17
+        CXX17,
+        LatestCxxVersion = CXX17,
     };
 
     enum LanguageExtension {
@@ -69,16 +69,20 @@ public: // Types
         OpenMPExtensions     = 1 << 3,
         ObjectiveCExtensions = 1 << 4,
 
-        AllExtensions = GnuExtensions | MicrosoftExtensions | BorlandExtensions | OpenMPExtensions
+        AllExtensions = GnuExtensions
+                      | MicrosoftExtensions
+                      | BorlandExtensions
+                      | OpenMPExtensions
                       | ObjectiveCExtensions
     };
     Q_DECLARE_FLAGS(LanguageExtensions, LanguageExtension)
 
     enum QtVersion {
         UnknownQt = -1,
-        NoQt = 0,
-        Qt4 = 1,
-        Qt5 = 2
+        NoQt,
+        Qt4_8_6AndOlder,
+        Qt4Latest,
+        Qt5
     };
 
     enum ToolChainWordWidth {
@@ -88,37 +92,47 @@ public: // Types
 
     using Ptr = QSharedPointer<ProjectPart>;
 
-
-public: // methods
-    ProjectPart();
-
-    void updateLanguageFeatures();
-    Ptr copy() const;
-
+public:
     QString id() const;
+    QString projectFileLocation() const;
 
-    static QByteArray readProjectConfigFile(const ProjectPart::Ptr &part);
+    Ptr copy() const;
+    void updateLanguageFeatures();
 
-public: // fields
+    static QByteArray readProjectConfigFile(const Ptr &projectPart);
+
+public:
+    ProjectExplorer::Project *project = nullptr;
+
     QString displayName;
+
     QString projectFile;
-    ProjectExplorer::Project *project;
-    QVector<ProjectFile> files;
+    int projectFileLine = -1;
+    int projectFileColumn = -1;
     QString projectConfigFile; // currently only used by the Generic Project Manager
-    QByteArray projectDefines;
-    QByteArray toolchainDefines;
-    Core::Id toolchainType;
-    ToolChainWordWidth toolChainWordWidth;
-    bool isMsvc2015Toolchain;
-    QString targetTriple;
-    ProjectPartHeaderPaths headerPaths;
+    QString callGroupId;
+    QString buildSystemTarget;
+
+    ProjectFiles files;
+
     QStringList precompiledHeaders;
-    LanguageVersion languageVersion;
-    LanguageExtensions languageExtensions;
+    ProjectPartHeaderPaths headerPaths;
+
+    QByteArray projectDefines;
+
+    LanguageVersion languageVersion = LatestCxxVersion;
+    LanguageExtensions languageExtensions = NoExtensions;
+    ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
+    QtVersion qtVersion = UnknownQt;
     CPlusPlus::LanguageFeatures languageFeatures;
-    QtVersion qtVersion;
-    ProjectExplorer::WarningFlags warningFlags;
-    bool selectedForBuilding;
+
+    bool selectedForBuilding = true;
+
+    Core::Id toolchainType;
+    bool isMsvc2015Toolchain = false;
+    QByteArray toolchainDefines;
+    ToolChainWordWidth toolChainWordWidth = WordWidth32Bit;
+    QString toolChainTargetTriple;
 };
 
 } // namespace CppTools

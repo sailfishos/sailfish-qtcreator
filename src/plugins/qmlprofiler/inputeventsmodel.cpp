@@ -27,6 +27,8 @@
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilereventtypes.h"
 
+#include <timeline/timelineformattime.h>
+
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QMetaEnum>
@@ -45,7 +47,7 @@ int InputEventsModel::typeId(int index) const
     return selectionId(index) == Mouse ? m_mouseTypeId : m_keyTypeId;
 }
 
-QColor InputEventsModel::color(int index) const
+QRgb InputEventsModel::color(int index) const
 {
     return colorBySelectionId(index);
 }
@@ -75,12 +77,14 @@ QMetaEnum InputEventsModel::metaEnum(const char *name)
 QVariantMap InputEventsModel::details(int index) const
 {
     QVariantMap result;
-    result.insert(tr("Timestamp"), QmlProfilerDataModel::formatTime(startTime(index)));
+    result.insert(tr("Timestamp"), Timeline::formatTime(startTime(index),
+                                                        modelManager()->traceTime()->duration()));
     QString type;
     const InputEvent &event = m_data[index];
     switch (event.type) {
     case InputKeyPress:
         type = tr("Key Press");
+        // fallthrough
     case InputKeyRelease:
         if (type.isEmpty())
             type = tr("Key Release");
@@ -94,9 +98,11 @@ QVariantMap InputEventsModel::details(int index) const
         break;
     case InputMouseDoubleClick:
         type = tr("Double Click");
+        // fallthrough
     case InputMousePress:
         if (type.isEmpty())
             type = tr("Mouse Press");
+        // fallthrough
     case InputMouseRelease:
         if (type.isEmpty())
             type = tr("Mouse Release");

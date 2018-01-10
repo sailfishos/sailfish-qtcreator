@@ -27,74 +27,28 @@
 
 #include "remotelinux_export.h"
 
-#include <projectexplorer/devicesupport/idevice.h>
-#include <utils/port.h>
-
-#include <QObject>
-
-namespace ProjectExplorer {
-class DeviceApplicationRunner;
-class RunConfiguration;
-class StandardRunnable;
-}
+#include <projectexplorer/runconfiguration.h>
 
 namespace RemoteLinux {
 
-namespace Internal { class AbstractRemoteLinuxRunSupportPrivate; }
-
-class REMOTELINUX_EXPORT AbstractRemoteLinuxRunSupport : public QObject
+class REMOTELINUX_EXPORT FifoGatherer : public ProjectExplorer::RunWorker
 {
     Q_OBJECT
-protected:
-    enum State
-    {
-        Inactive,
-        GatheringResources,
-        StartingRunner,
-        Running
-    };
+
 public:
-    AbstractRemoteLinuxRunSupport(ProjectExplorer::RunConfiguration *runConfig,
-                          QObject *parent = 0);
-    ~AbstractRemoteLinuxRunSupport();
+    explicit FifoGatherer(ProjectExplorer::RunControl *runControl);
+    ~FifoGatherer();
 
-protected:
-    void setState(State state);
-    State state() const;
-    ProjectExplorer::DeviceApplicationRunner *appRunner() const;
-
-    virtual void startExecution() = 0;
-
-    virtual void handleAdapterSetupFailed(const QString &error);
-    virtual void handleAdapterSetupDone();
-
-    void setFinished();
-
-    void startPortsGathering();
-    Utils::Port findPort() const;
-
-    void createRemoteFifo();
-    QString fifo() const;
-
-    const ProjectExplorer::IDevice::ConstPtr device() const;
-    const ProjectExplorer::StandardRunnable &runnable() const;
-
-    void reset();
-
-protected:
-    virtual void handleRemoteSetupRequested() = 0;
-    virtual void handleAppRunnerError(const QString &error) = 0;
-    virtual void handleRemoteOutput(const QByteArray &output) = 0;
-    virtual void handleRemoteErrorOutput(const QByteArray &output) = 0;
-    virtual void handleAppRunnerFinished(bool success) = 0;
-    virtual void handleProgressReport(const QString &progressOutput) = 0;
+    QString fifo() const { return m_fifo; }
 
 private:
-    void handleResourcesError(const QString &message);
-    void handleResourcesAvailable();
+    void start() override;
+    void stop() override;
 
-    friend class Internal::AbstractRemoteLinuxRunSupportPrivate;
-    Internal::AbstractRemoteLinuxRunSupportPrivate * const d;
+    void createRemoteFifo();
+
+    ProjectExplorer::ApplicationLauncher m_fifoCreator;
+    QString m_fifo;
 };
 
 } // namespace RemoteLinux

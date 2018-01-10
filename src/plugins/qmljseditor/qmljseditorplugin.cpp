@@ -23,18 +23,17 @@
 **
 ****************************************************************************/
 
-#include "qmljseditorplugin.h"
-#include "qmljshighlighter.h"
+#include "qmljseditingsettingspage.h"
 #include "qmljseditor.h"
 #include "qmljseditorconstants.h"
 #include "qmljseditordocument.h"
+#include "qmljseditorplugin.h"
+#include "qmljshighlighter.h"
 #include "qmljsoutline.h"
 #include "qmljspreviewrunner.h"
-#include "qmljssnippetprovider.h"
+#include "qmljsquickfixassist.h"
 #include "qmltaskmanager.h"
 #include "quicktoolbar.h"
-#include "quicktoolbarsettingspage.h"
-#include "qmljsquickfixassist.h"
 
 #include <qmljs/qmljsicons.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
@@ -50,7 +49,10 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/taskhub.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projecttree.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <texteditor/snippets/snippetprovider.h>
 #include <texteditor/texteditorconstants.h>
 #include <utils/qtcassert.h>
 #include <utils/json.h>
@@ -99,7 +101,9 @@ QmlJSEditorPlugin::~QmlJSEditorPlugin()
 bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
     m_modelManager = QmlJS::ModelManagerInterface::instance();
-    addAutoReleasedObject(new QmlJSSnippetProvider);
+    TextEditor::SnippetProvider::registerGroup(Constants::QML_SNIPPETS_GROUP_ID,
+                                               tr("QML", "SnippetProvider"),
+                                               &QmlJSEditorFactory::decorateEditor);
 
     // QML task updating manager
     m_qmlTaskManager = new QmlTaskManager;
@@ -193,10 +197,13 @@ bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *e
     addAutoReleasedObject(new QmlJSOutlineWidgetFactory);
 
     addAutoReleasedObject(new QuickToolBar);
-    addAutoReleasedObject(new QuickToolBarSettingsPage);
+    addAutoReleasedObject(new QmlJsEditingSettingsPage);
 
     connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
             this, &QmlJSEditorPlugin::currentEditorChanged);
+
+    connect(EditorManager::instance(), &Core::EditorManager::aboutToSave,
+            this, &QmlJSEditorPlugin::autoFormatOnSave);
 
     return true;
 }
@@ -234,13 +241,35 @@ void QmlJSEditorPlugin::renameUsages()
 void QmlJSEditorPlugin::reformatFile()
 {
     if (m_currentDocument) {
-        QTC_ASSERT(!m_currentDocument->isSemanticInfoOutdated(), return);
+        QmlJS::Document::Ptr document = m_currentDocument->semanticInfo().document;
+        QmlJS::Snapshot snapshot = QmlJS::ModelManagerInterface::instance()->snapshot();
 
-        const QString &newText = QmlJS::reformat(m_currentDocument->semanticInfo().document);
-        QTextCursor tc(m_currentDocument->document());
-        tc.movePosition(QTextCursor::Start);
-        tc.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-        tc.insertText(newText);
+        if (m_currentDocument->isSemanticInfoOutdated()) {
+            QmlJS::Document::MutablePtr latestDocument;
+
+            const QString fileName = m_currentDocument->filePath().toString();
+            latestDocument = snapshot.documentFromSource(QString::fromUtf8(m_currentDocument->contents()),
+                                                         fileName,
+                                                         QmlJS::ModelManagerInterface::guessLanguageOfFile(fileName));
+            latestDocument->parseQml();
+            snapshot.insert(latestDocument);
+            document = latestDocument;
+        }
+
+        if (!document->isParsedCorrectly())
+            return;
+
+        const QString &newText = QmlJS::reformat(document);
+        QmlJSEditorWidget *widget = EditorManager::currentEditor()
+                ? qobject_cast<QmlJSEditorWidget*>(EditorManager::currentEditor()->widget())
+                : nullptr;
+        if (widget) {
+            const int position = widget->position();
+            m_currentDocument->document()->setPlainText(newText);
+            widget->setCursorPosition(position);
+        } else {
+            m_currentDocument->document()->setPlainText(newText);
+        }
     }
 }
 
@@ -294,6 +323,27 @@ void QmlJSEditorPlugin::checkCurrentEditorSemanticInfoUpToDate()
 {
     const bool semanticInfoUpToDate = m_currentDocument && !m_currentDocument->isSemanticInfoOutdated();
     m_reformatFileAction->setEnabled(semanticInfoUpToDate);
+}
+
+void QmlJSEditorPlugin::autoFormatOnSave(Core::IDocument *document)
+{
+    if (!QmlJsEditingSettings::get().autoFormatOnSave())
+        return;
+
+    // Check that we are dealing with a QML/JS editor
+    if (document->id() != Constants::C_QMLJSEDITOR_ID)
+        return;
+
+    // Check if file is contained in the current project (if wished)
+    if (QmlJsEditingSettings::get().autoFormatOnlyCurrentProject()) {
+        const ProjectExplorer::Project *pro = ProjectExplorer::ProjectTree::currentProject();
+        if (!pro || !pro->files(ProjectExplorer::Project::SourceFiles).contains(
+                    document->filePath().toString())) {
+            return;
+        }
+    }
+
+    reformatFile();
 }
 
 } // namespace QmlJSEditor

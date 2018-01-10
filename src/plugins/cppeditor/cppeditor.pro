@@ -3,7 +3,6 @@ include(../../qtcreatorplugin.pri)
 
 HEADERS += \
     cppautocompleter.h \
-    cppcanonicalsymbol.h \
     cppcodemodelinspectordialog.h \
     cppdocumentationcommenthelper.h \
     cppeditor.h \
@@ -17,15 +16,16 @@ HEADERS += \
     cppfunctiondecldeflink.h \
     cpphighlighter.h \
     cpphoverhandler.h \
+    cppparsecontext.h \
     cppincludehierarchy.h \
     cppinsertvirtualmethods.h \
     cpplocalrenaming.h \
+    cppminimizableinfobars.h \
     cppoutline.h \
     cpppreprocessordialog.h \
     cppquickfix.h \
     cppquickfixassistant.h \
     cppquickfixes.h \
-    cppsnippetprovider.h \
     cpptypehierarchy.h \
     cppuseselectionsupdater.h \
     cppvirtualfunctionassistprovider.h \
@@ -34,7 +34,6 @@ HEADERS += \
 
 SOURCES += \
     cppautocompleter.cpp \
-    cppcanonicalsymbol.cpp \
     cppcodemodelinspectordialog.cpp \
     cppdocumentationcommenthelper.cpp \
     cppeditor.cpp \
@@ -45,15 +44,16 @@ SOURCES += \
     cppfunctiondecldeflink.cpp \
     cpphighlighter.cpp \
     cpphoverhandler.cpp \
+    cppparsecontext.cpp \
     cppincludehierarchy.cpp \
     cppinsertvirtualmethods.cpp \
     cpplocalrenaming.cpp \
+    cppminimizableinfobars.cpp \
     cppoutline.cpp \
     cpppreprocessordialog.cpp \
     cppquickfix.cpp \
     cppquickfixassistant.cpp \
     cppquickfixes.cpp \
-    cppsnippetprovider.cpp \
     cpptypehierarchy.cpp \
     cppuseselectionsupdater.cpp \
     cppvirtualfunctionassistprovider.cpp \

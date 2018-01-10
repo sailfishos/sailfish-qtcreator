@@ -26,7 +26,6 @@
 #pragma once
 
 #include "qmlprofilertimelinemodel.h"
-#include "qmlprofilerdatamodel.h"
 
 #include <QStringList>
 #include <QColor>
@@ -87,12 +86,12 @@ public:
     };
 
     struct PixmapCacheItem {
-        int typeId;
-        PixmapEventType pixmapEventType;
-        int urlIndex;
-        int sizeIndex;
-        int rowNumberCollapsed;
-        qint64 cacheSize;
+        int typeId = -1;
+        PixmapEventType pixmapEventType = MaximumPixmapEventType;
+        int urlIndex = -1;
+        int sizeIndex = -1;
+        int rowNumberCollapsed = -1;
+        qint64 cacheSize = 0;
     };
 
     PixmapCacheModel(QmlProfilerModelManager *manager, QObject *parent = 0);
@@ -102,7 +101,7 @@ public:
     int expandedRow(int index) const override;
     int collapsedRow(int index) const override;
     int typeId(int index) const override;
-    QColor color(int index) const override;
+    QRgb color(int index) const override;
     float relativeHeight(int index) const override;
 
     QVariantList labels() const override;
@@ -116,6 +115,7 @@ public:
 #ifdef WITH_TESTS
     LoadState loadState(int index) const;
     CacheState cacheState(int index) const;
+    QString fileName(int index) const;
 #endif
 
 private:

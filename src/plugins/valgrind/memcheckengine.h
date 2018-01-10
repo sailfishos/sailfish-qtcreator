@@ -28,22 +28,24 @@
 
 #include "valgrindengine.h"
 
-#include "memcheck/memcheckrunner.h"
+#include "valgrindrunner.h"
 #include "xmlprotocol/threadedparser.h"
+
+#include <QHostAddress>
 
 namespace Valgrind {
 namespace Internal {
 
-class MemcheckRunControl : public ValgrindRunControl
+class MemcheckToolRunner : public ValgrindToolRunner
 {
     Q_OBJECT
 
 public:
-    MemcheckRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
-                       Core::Id runMode);
+    explicit MemcheckToolRunner(ProjectExplorer::RunControl *runControl,
+                                bool withGdb = false);
 
     void start() override;
-    StopResult stop() override;
+    void stop() override;
 
     QStringList suppressionFiles() const;
 
@@ -52,28 +54,15 @@ signals:
     void parserError(const Valgrind::XmlProtocol::Error &error);
     void suppressionCount(const QString &name, qint64 count);
 
-protected:
+private:
     QString progressTitle() const override;
     QStringList toolArguments() const override;
-    ValgrindRunner *runner() override;
 
-protected:
-    XmlProtocol::ThreadedParser m_parser;
-    Memcheck::MemcheckRunner m_runner;
-};
-
-class MemcheckWithGdbRunControl : public MemcheckRunControl
-{
-    Q_OBJECT
-
-public:
-    MemcheckWithGdbRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
-                              Core::Id runMode);
-
-protected:
-    QStringList toolArguments() const override;
-    void startDebugger();
+    void startDebugger(qint64 valgrindPid);
     void appendLog(const QByteArray &data);
+
+    const bool m_withGdb;
+    QHostAddress m_localServerAddress;
 };
 
 } // namespace Internal

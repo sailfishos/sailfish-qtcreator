@@ -30,6 +30,7 @@
 #include <utf8string.h>
 
 #include <cstring>
+#include <ostream>
 
 namespace ClangBackEnd {
 
@@ -85,7 +86,47 @@ public:
         return cxString.data == nullptr;
     }
 
+    bool hasContent() const
+    {
+        return !isNull() && std::strlen(cString()) > 0;
+    }
 
+    friend bool operator==(const ClangString &first, const ClangString &second)
+    {
+        return std::strcmp(first.cString(), second.cString()) == 0;
+    }
+
+    template<std::size_t Size>
+    friend bool operator==(const ClangString &first, const char(&second)[Size])
+    {
+        return std::strncmp(first.cString(), second, Size) == 0; // Size includes \0
+    }
+
+    template<std::size_t Size>
+    friend bool operator==(const char(&first)[Size], const ClangString &second)
+    {
+        return second == first;
+    }
+    template<typename Type,
+             typename = typename std::enable_if<std::is_pointer<Type>::value>::type
+             >
+    friend bool operator==(const ClangString &first, Type second)
+    {
+        return std::strcmp(first.cString(), second) == 0;
+    }
+
+    template<typename Type,
+             typename = typename std::enable_if<std::is_pointer<Type>::value>::type
+             >
+    friend bool operator==(Type first, const ClangString &second)
+    {
+        return second == first;
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const ClangString &string)
+    {
+        return os << string.cString();
+    }
 
 private:
     CXString cxString;

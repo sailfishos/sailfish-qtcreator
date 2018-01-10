@@ -139,7 +139,7 @@ static ComponentTextModifier *createComponentTextModifier(TextModifier *original
 
 bool DesignDocument::loadInFileComponent(const ModelNode &componentNode)
 {
-    QString componentText = rewriterView()->extractText(QList<ModelNode>() << componentNode).value(componentNode);
+    QString componentText = rewriterView()->extractText({componentNode}).value(componentNode);
 
     if (componentText.isEmpty())
         return false;
@@ -165,7 +165,7 @@ Model* DesignDocument::createInFileComponentModel()
     return model;
 }
 
-QList<RewriterError> DesignDocument::qmlParseWarnings() const
+QList<DocumentMessage> DesignDocument::qmlParseWarnings() const
 {
     return m_rewriterView->warnings();
 }
@@ -175,7 +175,7 @@ bool DesignDocument::hasQmlParseWarnings() const
     return !m_rewriterView->warnings().isEmpty();
 }
 
-QList<RewriterError> DesignDocument::qmlParseErrors() const
+QList<DocumentMessage> DesignDocument::qmlParseErrors() const
 {
     return m_rewriterView->errors();
 }
@@ -196,8 +196,6 @@ QString DesignDocument::simplfiedDisplayName() const
         return rootModelNode().id();
     else
         return rootModelNode().simplifiedTypeName();
-
-    return fileName().fileName();
 }
 
 void DesignDocument::updateFileName(const Utils::FileName & /*oldFileName*/, const Utils::FileName &newFileName)
@@ -237,12 +235,12 @@ void DesignDocument::loadDocument(QPlainTextEdit *edit)
 {
     Q_CHECK_PTR(edit);
 
-    connect(edit, SIGNAL(undoAvailable(bool)),
-            this, SIGNAL(undoAvailable(bool)));
-    connect(edit, SIGNAL(redoAvailable(bool)),
-            this, SIGNAL(redoAvailable(bool)));
-    connect(edit, SIGNAL(modificationChanged(bool)),
-            this, SIGNAL(dirtyStateChanged(bool)));
+    connect(edit, &QPlainTextEdit::undoAvailable,
+            this, &DesignDocument::undoAvailable);
+    connect(edit, &QPlainTextEdit::redoAvailable,
+            this, &DesignDocument::redoAvailable);
+    connect(edit, &QPlainTextEdit::modificationChanged,
+            this, &DesignDocument::dirtyStateChanged);
 
     m_documentTextModifier.reset(new BaseTextEditModifier(dynamic_cast<TextEditor::TextEditorWidget*>(plainTextEdit())));
 
@@ -375,6 +373,7 @@ void DesignDocument::deleteSelected()
                 QmlObjectNode(node).destroy();
         }
 
+        transaction.commit();
     } catch (const RewritingException &e) {
         e.showException();
     }
@@ -384,7 +383,7 @@ void DesignDocument::copySelected()
 {
     QScopedPointer<Model> copyModel(Model::create("QtQuick.Rectangle", 1, 0, currentModel()));
     copyModel->setFileUrl(currentModel()->fileUrl());
-    copyModel->changeImports(currentModel()->imports(), QList<Import>());
+    copyModel->changeImports(currentModel()->imports(), {});
 
     Q_ASSERT(copyModel);
 
@@ -481,7 +480,7 @@ void DesignDocument::paste()
 {
     QScopedPointer<Model> pasteModel(Model::create("empty", 1, 0, currentModel()));
     pasteModel->setFileUrl(currentModel()->fileUrl());
-    pasteModel->changeImports(currentModel()->imports(), QList<Import>());
+    pasteModel->changeImports(currentModel()->imports(), {});
 
     Q_ASSERT(pasteModel);
 
@@ -538,6 +537,7 @@ void DesignDocument::paste()
             }
 
             view.setSelectedModelNodes(pastedNodeList);
+            transaction.commit();
         } catch (const RewritingException &e) {
             qWarning() << e.description(); //silent error
         }
@@ -575,7 +575,8 @@ void DesignDocument::paste()
             transaction.commit();
             NodeMetaInfo::clearCache();
 
-            view.setSelectedModelNodes(QList<ModelNode>() << pastedNode);
+            view.setSelectedModelNodes({pastedNode});
+            transaction.commit();
         } catch (const RewritingException &e) {
             qWarning() << e.description(); //silent error
         }

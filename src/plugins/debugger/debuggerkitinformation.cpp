@@ -59,14 +59,20 @@ DebuggerKitInformation::DebuggerKitInformation()
 QVariant DebuggerKitInformation::defaultValue(const Kit *k) const
 {
     const Abi toolChainAbi = ToolChainKitInformation::targetAbi(k);
+    const QStringList paths = Environment::systemEnvironment().path();
+    QVariant nextBestFit;
     foreach (const DebuggerItem &item, DebuggerItemManager::debuggers()) {
         foreach (const Abi targetAbi, item.abis()) {
-            if (targetAbi.isCompatibleWith(toolChainAbi))
-                return item.id();
+            if (targetAbi.isCompatibleWith(toolChainAbi)) {
+                if (paths.contains(item.command().toFileInfo().absolutePath()))
+                    return item.id(); // prefer debuggers found in PATH over those found elsewhere
+                if (nextBestFit.isNull())
+                    nextBestFit = item.id();
+            }
         }
     }
 
-    return QVariant();
+    return nextBestFit;
 }
 
 void DebuggerKitInformation::setup(Kit *k)
@@ -93,7 +99,7 @@ void DebuggerKitInformation::setup(Kit *k)
     // is stored in the kit information, but also accept item based
     // on toolchain matching as fallback with a lower priority.
 
-    const DebuggerItem *bestItem = 0;
+    DebuggerItem bestItem;
     DebuggerItem::MatchLevel bestLevel = DebuggerItem::DoesNotMatch;
 
     foreach (const DebuggerItem &item, DebuggerItemManager::debuggers()) {
@@ -140,12 +146,12 @@ void DebuggerKitInformation::setup(Kit *k)
 
         if (level > bestLevel) {
             bestLevel = level;
-            bestItem = &item;
+            bestItem = item;
         }
     }
 
     // Use the best id we found, or an invalid one.
-    k->setValue(DebuggerKitInformation::id(), bestItem ? bestItem->id() : QVariant());
+    k->setValue(DebuggerKitInformation::id(), bestLevel != DebuggerItem::DoesNotMatch ? bestItem.id() : QVariant());
 }
 
 

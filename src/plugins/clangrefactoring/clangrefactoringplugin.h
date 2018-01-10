@@ -27,6 +27,8 @@
 
 #include "refactoringengine.h"
 #include "refactoringclient.h"
+#include "qtcreatorclangqueryfindfilter.h"
+#include "qtcreatorsearch.h"
 
 #include <refactoringconnectionclient.h>
 #include <refactoringserverproxy.h>
@@ -37,12 +39,16 @@
 
 namespace ClangRefactoring {
 
+class ClangRefactoringPluginData;
+
 class ClangRefactoringPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "ClangRefactoring.json")
 
 public:
+    ClangRefactoringPlugin();
+    ~ClangRefactoringPlugin();
     bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
@@ -55,9 +61,7 @@ private:
     void backendIsConnected();
 
 private:
-    static std::unique_ptr<ClangBackEnd::RefactoringConnectionClient> connectionClient;
-    static std::unique_ptr<RefactoringClient> client;
-    static std::unique_ptr<RefactoringEngine> engine;
+    static std::unique_ptr<ClangRefactoringPluginData> d;
 };
 
 } // namespace ClangRefactoring

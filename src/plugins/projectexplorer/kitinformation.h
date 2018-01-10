@@ -92,12 +92,14 @@ public:
     void addToEnvironment(const Kit *k, Utils::Environment &env) const override;
     void addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const override;
     IOutputParser *createOutputParser(const Kit *k) const override;
+    QSet<Core::Id> availableFeatures(const Kit *k) const override;
 
     static Core::Id id();
-    static ToolChain *toolChain(const Kit *k, ToolChain::Language l);
+    static ToolChain *toolChain(const Kit *k, Core::Id language);
     static QList<ToolChain *> toolChains(const Kit *k);
     static void setToolChain(Kit *k, ToolChain *tc);
-    static void setToolChain(Kit *k, ToolChain::Language l, ToolChain *tc);
+    static void setAllToolChainsToMatch(Kit *k, ToolChain *tc);
+    static void clearToolChain(Kit *k, Core::Id language);
     static Abi targetAbi(const Kit *k);
 
     static QString msgNoToolChainInTarget();
@@ -131,7 +133,7 @@ public:
     static const Core::Id deviceTypeId(const Kit *k);
     static void setDeviceTypeId(Kit *k, Core::Id type);
 
-    static KitMatcher deviceTypeMatcher(Core::Id type);
+    static Kit::Predicate deviceTypePredicate(Core::Id type);
 
     QSet<Core::Id> supportedPlatforms(const Kit *k) const override;
     QSet<Core::Id> availableFeatures(const Kit *k) const override;

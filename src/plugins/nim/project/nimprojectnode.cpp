@@ -31,52 +31,36 @@ using namespace Utils;
 
 namespace Nim {
 
-NimProjectNode::NimProjectNode(const FileName &projectFilePath)
+NimProjectNode::NimProjectNode(NimProject &project,
+                               const FileName &projectFilePath)
     : ProjectNode(projectFilePath)
+    , m_project(project)
 {}
 
-QList<ProjectAction> NimProjectNode::supportedActions(Node *node) const
+bool NimProjectNode::supportsAction(ProjectAction action, Node *node) const
 {
-    static const QList<ProjectAction> fileActions = { ProjectAction::Rename,
-                                                      ProjectAction::RemoveFile
-                                                    };
-    static const QList<ProjectAction> folderActions = { ProjectAction::AddNewFile,
-                                                        ProjectAction::RemoveFile
-                                                      };
     switch (node->nodeType()) {
-    case FileNodeType:
-        return fileActions;
-    case FolderNodeType:
-    case ProjectNodeType:
-        return folderActions;
+    case NodeType::File:
+        return action == ProjectAction::Rename
+            || action == ProjectAction::RemoveFile;
+    case NodeType::Folder:
+    case NodeType::Project:
+        return action == ProjectAction::AddNewFile
+            || action == ProjectAction::RemoveFile
+            || action == ProjectAction::AddExistingFile;
     default:
-        return ProjectNode::supportedActions(node);
+        return ProjectNode::supportsAction(action, node);
     }
 }
 
-bool NimProjectNode::addSubProjects(const QStringList &)
+bool NimProjectNode::addFiles(const QStringList &filePaths, QStringList *)
 {
-    return false;
+    return m_project.addFiles(filePaths);
 }
 
-bool NimProjectNode::canAddSubProject(const QString &) const
+bool NimProjectNode::removeFiles(const QStringList &filePaths, QStringList *)
 {
-    return false;
-}
-
-bool NimProjectNode::removeSubProjects(const QStringList &)
-{
-    return false;
-}
-
-bool NimProjectNode::addFiles(const QStringList &, QStringList *)
-{
-    return true;
-}
-
-bool NimProjectNode::removeFiles(const QStringList &, QStringList *)
-{
-    return true;
+    return m_project.removeFiles(filePaths);
 }
 
 bool NimProjectNode::deleteFiles(const QStringList &)
@@ -84,9 +68,9 @@ bool NimProjectNode::deleteFiles(const QStringList &)
     return true;
 }
 
-bool NimProjectNode::renameFile(const QString &, const QString &)
+bool NimProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
 {
-    return true;
+    return m_project.renameFile(filePath, newFilePath);
 }
 
 }

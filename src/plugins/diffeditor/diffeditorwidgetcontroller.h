@@ -29,11 +29,13 @@
 
 #include <QObject>
 #include <QTextCharFormat>
+#include <QTimer>
 
 QT_FORWARD_DECLARE_CLASS(QMenu)
 
 namespace Core { class IDocument; }
 namespace TextEditor { class FontSettings; }
+namespace Utils { class ProgressIndicator; }
 
 namespace DiffEditor {
 
@@ -48,6 +50,7 @@ public:
     explicit DiffEditorWidgetController(QWidget *diffEditorWidget);
 
     void setDocument(DiffEditorDocument *document);
+    DiffEditorDocument *document() const;
 
     void patch(bool revert);
     void jumpToOriginalFile(const QString &fileName, int lineNumber,
@@ -74,12 +77,19 @@ private:
     bool setAndVerifyIndexes(QMenu *menu, int diffFileIndex, int chunkIndex);
     bool fileNamesAreDifferent() const;
 
+    void scheduleShowProgress();
+    void showProgress();
+    void hideProgress();
+
     QWidget *m_diffEditorWidget;
 
     DiffEditorDocument *m_document = nullptr;
 
     int m_contextMenuFileIndex = -1;
     int m_contextMenuChunkIndex = -1;
+
+    Utils::ProgressIndicator *m_progressIndicator = nullptr;
+    QTimer m_timer;
 };
 
 } // namespace Internal

@@ -46,14 +46,15 @@ class ClangProjectSettingsWidget: public QWidget
 public:
     explicit ClangProjectSettingsWidget(ProjectExplorer::Project *project);
 
-private slots:
+private:
     void onCurrentWarningConfigChanged(const Core::Id &currentConfigId);
     void onCustomWarningConfigsChanged(const CppTools::ClangDiagnosticConfigs &customConfigs);
-
-private:
+    void onDelayedTemplateParseClicked(bool);
+    void onClangSettingsChanged(int index);
     void refreshDiagnosticConfigsWidgetFromSettings();
     void connectToCppCodeModelSettingsChanged();
     void disconnectFromCppCodeModelSettingsChanged();
+    void syncOtherWidgetsToComboBox();
 
 private:
     Ui::ClangProjectSettingsWidget m_ui;

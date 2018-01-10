@@ -25,20 +25,8 @@
 
 #include "echoclangcodemodelserver.h"
 
-#include <clangbackendipc/cmbcodecompletedmessage.h>
-#include <clangbackendipc/cmbcompletecodemessage.h>
-#include <clangbackendipc/cmbechomessage.h>
-#include <clangbackendipc/cmbendmessage.h>
-#include <clangbackendipc/cmbregisterprojectsforeditormessage.h>
-#include <clangbackendipc/cmbregistertranslationunitsforeditormessage.h>
-#include <clangbackendipc/cmbunregisterprojectsforeditormessage.h>
-#include <clangbackendipc/cmbunregistertranslationunitsforeditormessage.h>
+#include <clangbackendipc/clangcodemodelservermessages.h>
 #include <clangbackendipc/connectionserver.h>
-#include <clangbackendipc/registerunsavedfilesforeditormessage.h>
-#include <requestdocumentannotations.h>
-#include <clangbackendipc/unregisterunsavedfilesforeditormessage.h>
-#include <clangbackendipc/updatetranslationunitsforeditormessage.h>
-#include <clangbackendipc/updatevisibletranslationunitsmessage.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -98,6 +86,11 @@ void EchoClangCodeModelServer::completeCode(const CompleteCodeMessage &message)
 }
 
 void EchoClangCodeModelServer::requestDocumentAnnotations(const RequestDocumentAnnotationsMessage &message)
+{
+    echoMessage(message);
+}
+
+void EchoClangCodeModelServer::requestReferences(const RequestReferencesMessage &message)
 {
     echoMessage(message);
 }

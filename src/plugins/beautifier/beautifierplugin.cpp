@@ -56,6 +56,7 @@
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 #include <utils/synchronousprocess.h>
+#include <utils/temporarydirectory.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -84,7 +85,8 @@ FormatTask format(FormatTask task)
     case Command::FileProcessing: {
         // Save text to temporary file
         const QFileInfo fi(task.filePath);
-        Utils::TempFileSaver sourceFile(QDir::tempPath() + "/qtc_beautifier_XXXXXXXX."
+        Utils::TempFileSaver sourceFile(Utils::TemporaryDirectory::masterDirectoryPath()
+                                        + "/qtc_beautifier_XXXXXXXX."
                                         + fi.suffix());
         sourceFile.setAutoRemove(true);
         sourceFile.write(task.sourceData.toUtf8());
@@ -146,17 +148,16 @@ FormatTask format(FormatTask task)
             return task;
         }
 
-        const bool addsNewline = task.command.pipeAddsNewline();
-        const bool returnsCRLF = task.command.returnsCRLF();
-        if (addsNewline || returnsCRLF) {
-            task.formattedData = QString::fromUtf8(process.readAllStandardOutput());
-            if (addsNewline)
-                task.formattedData.remove(QRegExp("(\\r\\n|\\n)$"));
-            if (returnsCRLF)
-                task.formattedData.replace("\r\n", "\n");
-            return task;
-        }
         task.formattedData = QString::fromUtf8(process.readAllStandardOutput());
+
+        if (task.command.pipeAddsNewline() && task.formattedData.endsWith('\n')) {
+            task.formattedData.chop(1);
+            if (task.formattedData.endsWith('\r'))
+                task.formattedData.chop(1);
+        }
+        if (task.command.returnsCRLF())
+            task.formattedData.replace("\r\n", "\n");
+
         return task;
     }
     }
@@ -180,8 +181,7 @@ bool isAutoFormatApplicable(const Core::IDocument *document,
     if (allowedMimeTypes.isEmpty())
         return true;
 
-    const Utils::MimeDatabase mdb;
-    const Utils::MimeType documentMimeType = mdb.mimeTypeForName(document->mimeType());
+    const Utils::MimeType documentMimeType = Utils::mimeTypeForName(document->mimeType());
     return Utils::anyOf(allowedMimeTypes, [&documentMimeType](const Utils::MimeType &mime) {
         return documentMimeType.inherits(mime.name());
     });
@@ -193,7 +193,7 @@ bool BeautifierPlugin::initialize(const QStringList &arguments, QString *errorSt
     Q_UNUSED(errorString)
 
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MENU_ID);
-    menu->menu()->setTitle(QCoreApplication::translate("Beautifier", Constants::OPTION_TR_CATEGORY));
+    menu->menu()->setTitle(QCoreApplication::translate("Beautifier", "Bea&utifier"));
     menu->setOnAllDisabledBehavior(Core::ActionContainer::Show);
     Core::ActionManager::actionContainer(Core::Constants::M_TOOLS)->addMenu(menu);
     return true;
@@ -201,9 +201,11 @@ bool BeautifierPlugin::initialize(const QStringList &arguments, QString *errorSt
 
 void BeautifierPlugin::extensionsInitialized()
 {
-    m_tools << new ArtisticStyle::ArtisticStyle(this);
-    m_tools << new ClangFormat::ClangFormat(this);
-    m_tools << new Uncrustify::Uncrustify(this);
+    m_tools = {
+        new ArtisticStyle::ArtisticStyle(this),
+        new ClangFormat::ClangFormat(this),
+        new Uncrustify::Uncrustify(this)
+    };
 
     QStringList toolIds;
     toolIds.reserve(m_tools.count());
@@ -215,7 +217,7 @@ void BeautifierPlugin::extensionsInitialized()
             addAutoReleasedObject(object);
     }
 
-    m_generalSettings = new GeneralSettings;
+    m_generalSettings.reset(new GeneralSettings);
     auto settingsPage = new GeneralOptionsPage(m_generalSettings, toolIds, this);
     addAutoReleasedObject(settingsPage);
 
@@ -226,11 +228,6 @@ void BeautifierPlugin::extensionsInitialized()
             this, &BeautifierPlugin::updateActions);
     connect(editorManager, &Core::EditorManager::aboutToSave,
             this, &BeautifierPlugin::autoFormatOnSave);
-}
-
-ExtensionSystem::IPlugin::ShutdownFlag BeautifierPlugin::aboutToShutdown()
-{
-    return SynchronousShutdown;
 }
 
 void BeautifierPlugin::updateActions(Core::IEditor *editor)
@@ -490,13 +487,13 @@ QString BeautifierPlugin::msgCannotGetConfigurationFile(const QString &command)
 QString BeautifierPlugin::msgFormatCurrentFile()
 {
     //: Menu entry
-    return tr("Format Current File");
+    return tr("Format &Current File");
 }
 
 QString BeautifierPlugin::msgFormatSelectedText()
 {
     //: Menu entry
-    return tr("Format Selected Text");
+    return tr("Format &Selected Text");
 }
 
 QString BeautifierPlugin::msgCommandPromptDialogTitle(const QString &command)
