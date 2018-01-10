@@ -25,6 +25,10 @@
 
 #include <projectexplorer/runconfiguration.h>
 
+namespace ProjectExplorer {
+    class StandardRunnable;
+}
+
 namespace Mer {
 namespace Internal {
 
