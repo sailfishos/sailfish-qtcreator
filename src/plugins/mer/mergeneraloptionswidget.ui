@@ -23,7 +23,10 @@
       <item>
        <widget class="QLabel" name="rpmValidationInfoLabel">
         <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Helpful for those who intend to distribute their applications via Jolla &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/&quot;&gt;&lt;span style=&quot; font-style:italic; text-decoration: underline; color:#0057ae;&quot;&gt;Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;.&lt;br/&gt;The &amp;quot;%1&amp;quot; step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your Sailfish&amp;nbsp;OS application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla&amp;nbsp;Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;br/&gt;The &amp;quot;%1&amp;quot; step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
         <property name="textInteractionFlags">
          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
