@@ -38,7 +38,7 @@ int RpmCommand::execute()
         ? QString()
         : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
     const QString targetParameter = QLatin1String(" -t ") +  targetName();
-    QString command = QLatin1String("mb2") +
+    QString command = QLatin1String("mb2 --pedantic") +
                       projectPathParameter +
                       targetParameter +
                       QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
