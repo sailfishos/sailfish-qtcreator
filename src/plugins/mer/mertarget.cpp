@@ -30,6 +30,7 @@
 #include "mertargetkitinformation.h"
 #include "mertoolchain.h"
 
+#include <coreplugin/icore.h>
 #include <debugger/debuggeritem.h>
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
@@ -272,13 +273,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     if (HostOsInfo::isWindowsHost())
         wrapperScriptCommand.chop(4); // remove the ".cmd"
 
-    QString wrapperBinaryPath = QCoreApplication::applicationDirPath();
-    if (HostOsInfo::isWindowsHost())
-        wrapperBinaryPath += QLatin1String("/merssh.exe");
-    else if (HostOsInfo::isMacHost())
-        wrapperBinaryPath += QLatin1String("/../Resources/merssh");
-    else
-        wrapperBinaryPath += QLatin1String("/merssh");
+    const QString wrapperBinaryPath = Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
 
     using namespace Utils;
     const QString scriptCopyPath = targetPath + QLatin1Char('/') + QLatin1String(wrapperScriptCopy);
