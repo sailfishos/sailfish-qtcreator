@@ -198,6 +198,7 @@ private:
     bool m_disconnectRequested;
     bool m_connectLaterRequested;
     ConnectOptions m_connectOptions;
+    bool m_cachedVmExists;
     bool m_cachedVmRunning;
     bool m_cachedSshConnected;
     QSsh::SshError m_cachedSshError;

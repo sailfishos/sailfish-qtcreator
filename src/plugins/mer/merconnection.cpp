@@ -199,6 +199,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
     , m_connectOptions(NoConnectOption)
+    , m_cachedVmExists(true)
     , m_cachedVmRunning(false)
     , m_cachedSshConnected(false)
     , m_cachedSshError(SshNoError)
@@ -230,6 +231,7 @@ void MerConnection::setVirtualMachine(const QString &virtualMachine)
     scheduleReset();
 
     // Do this right now to prevent unexpected behavior
+    m_cachedVmExists = true;
     m_cachedVmRunning = false;
     m_vmStatePollTimer.stop();
 
@@ -391,11 +393,6 @@ void MerConnection::connectTo(ConnectOptions options)
         return;
     } else if (m_disconnectRequested) {
         openAlreadyDisconnectingWarningBox();
-        return;
-    }
-
-    if (!MerVirtualBoxManager::isVirtualMachineRegistered(m_vmName)) {
-        openVmNotRegisteredWarningBox();
         return;
     }
 
@@ -686,6 +683,9 @@ bool MerConnection::vmStmStep()
 
         if (m_cachedVmRunning) {
             vmStmTransition(VmRunning, "successfully started");
+        } else if (!m_cachedVmExists) {
+            openVmNotRegisteredWarningBox();
+            vmStmTransition(VmStartingError, "VM does not exist");
         } else if (!m_vmStartingTimeoutTimer.isActive()) {
             vmStmTransition(VmStartingError, "timeout waiting to start");
         }
@@ -1137,13 +1137,24 @@ void MerConnection::vmPollState(bool async)
     if (!async)
         loop = new QEventLoop(this);
 
-    auto handler = [this, loop](bool vmRunning) {
+    auto handler = [this, loop](bool vmRunning, bool vmExists) {
+        bool changed = false;
+
         if (vmRunning != m_cachedVmRunning) {
             DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
             m_cachedVmRunning = vmRunning;
-            vmStmScheduleExec();
             emit virtualMachineOffChanged(!m_cachedVmRunning);
+            changed = true;
         }
+
+        if (vmExists != m_cachedVmExists) {
+            DBG << "VM exists:" << m_cachedVmExists << "-->" << vmExists;
+            m_cachedVmExists = vmExists;
+            changed = true;
+        }
+
+        if (changed)
+            vmStmScheduleExec();
 
         m_pollingVmState = false;
 
