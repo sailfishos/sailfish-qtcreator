@@ -460,8 +460,8 @@ QString ICore::versionString()
 {
     QString ideVersionDescription;
     if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))
-        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_LONG));
-    return tr("Qt Creator %1%2").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY),
+        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY));
+    return tr("Qt Creator %1%2").arg(QLatin1String(Constants::IDE_VERSION_LONG),
                                      ideVersionDescription);
 }
 
