@@ -51,6 +51,56 @@ using namespace Mer;
 using namespace Mer::Internal;
 using namespace RemoteLinux;
 
+namespace {
+const int GDB_SERVER_READY_TIMEOUT_MS = 10000;
+}
+
+class GdbServerReadyWatcher : public ProjectExplorer::RunWorker
+{
+    Q_OBJECT
+
+public:
+    explicit GdbServerReadyWatcher(ProjectExplorer::RunControl *runControl,
+                             GdbServerPortsGatherer *gdbServerPortsGatherer)
+        : RunWorker(runControl)
+        , m_gdbServerPortsGatherer(gdbServerPortsGatherer)
+    {
+        setDisplayName("GdbServerReadyWatcher");
+
+        connect(&m_usedPortsGatherer, &DeviceUsedPortsGatherer::error,
+                this, &RunWorker::reportFailure);
+        connect(&m_usedPortsGatherer, &DeviceUsedPortsGatherer::portListReady,
+                this, &GdbServerReadyWatcher::handlePortListReady);
+    }
+    ~GdbServerReadyWatcher()
+    {
+    }
+
+private:
+    void start() override
+    {
+        appendMessage(tr("Waiting for gdbserver..."), Utils::NormalMessageFormat);
+        m_usedPortsGatherer.start(device());
+        m_startTime.restart();
+    }
+
+    void handlePortListReady()
+    {
+        if (!m_usedPortsGatherer.usedPorts().contains(m_gdbServerPortsGatherer->gdbServerPort())) {
+            if (m_startTime.elapsed() > GDB_SERVER_READY_TIMEOUT_MS) {
+                reportFailure(tr("Timeout waiting for gdbserver to become ready."));
+                return;
+            }
+            m_usedPortsGatherer.start(device());
+        }
+        reportDone();
+    }
+
+    GdbServerPortsGatherer *m_gdbServerPortsGatherer;
+    DeviceUsedPortsGatherer m_usedPortsGatherer;
+    QTime m_startTime;
+};
+
 MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     : DebuggerRunTool(runControl)
 {
@@ -64,6 +114,12 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     gdbServer->addStartDependency(m_portsGatherer);
 
     addStartDependency(gdbServer);
+
+    if (isCppDebugging()) {
+        auto gdbServerReadyWatcher = new GdbServerReadyWatcher(runControl, m_portsGatherer);
+        gdbServerReadyWatcher->addStartDependency(gdbServer);
+        addStartDependency(gdbServerReadyWatcher);
+    }
 
     RunConfiguration *runConfig = runControl->runConfiguration();
     if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
@@ -128,3 +184,5 @@ void MerDeviceDebugSupport::start()
 
     DebuggerRunTool::start();
 }
+
+#include "merdevicedebugsupport.moc"
