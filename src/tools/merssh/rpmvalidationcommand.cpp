@@ -22,6 +22,8 @@
 
 #include "rpmvalidationcommand.h"
 
+#include "merremoteprocess.h"
+
 RpmValidationCommand::RpmValidationCommand()
 {
 

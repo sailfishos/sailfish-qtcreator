@@ -2,15 +2,10 @@ QTC_LIB_DEPENDS += \
  ssh \
  utils
 
-include(../../../qtcreator.pri)
-include(../../rpath.pri)
-
-CONFIG += console
-CONFIG -= app_bundle
+include(../../qtcreatortool.pri)
 
 QT += network
 QT -= gui
-
 
 SOURCES = \
     main.cpp \
@@ -35,8 +30,3 @@ HEADERS += \
     deploycommand.h \
     rpmcommand.h \
     rpmvalidationcommand.h
-
-DESTDIR = $$IDE_LIBEXEC_PATH
-
-target.path  = $$INSTALL_LIBEXEC_PATH
-INSTALLS += target

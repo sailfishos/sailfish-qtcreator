@@ -22,6 +22,8 @@
 
 #include "makecommand.h"
 
+#include "merremoteprocess.h"
+
 MakeCommand::MakeCommand()
 {
 

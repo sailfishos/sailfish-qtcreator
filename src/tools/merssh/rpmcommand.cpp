@@ -22,6 +22,8 @@
 
 #include "rpmcommand.h"
 
+#include "merremoteprocess.h"
+
 RpmCommand::RpmCommand()
 {
 

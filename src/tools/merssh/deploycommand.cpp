@@ -22,6 +22,8 @@
 
 #include "deploycommand.h"
 
+#include "merremoteprocess.h"
+
 DeployCommand::DeployCommand()
 {
 
