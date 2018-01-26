@@ -27,10 +27,6 @@
 
 #include <iostream>
 
-// <debug>
-#include <QDebug>
-// </debug>
-
 QString FindValueOperation::name() const
 {
     return QLatin1String("find");
@@ -43,7 +39,8 @@ QString FindValueOperation::helpText() const
 
 QString FindValueOperation::argumentsHelpText() const
 {
-    return QLatin1String("A file (profiles, qtversions or toolchains) followed by one or more type:value tupels to search for.\n");
+    return QLatin1String("A file (relative to top-level settings directory and without .xml extension)\n"
+                         "followed by one or more type:value tupels to search for.\n");
 }
 
 bool FindValueOperation::setArguments(const QStringList &args)

@@ -47,12 +47,15 @@
 #include "timeline/timelinerenderer.h"
 #include "timeline/timelineoverviewrenderer.h"
 #include "timeline/timelinetheme.h"
+#include "timeline/timelineformattime.h"
 
 #include <aggregation/aggregate.h>
 // Needed for the load&save actions in the context menu
 #include <debugger/analyzer/analyzermanager.h>
 #include <coreplugin/findplaceholder.h>
+#include <utils/qtcfallthrough.h>
 #include <utils/styledbar.h>
+#include <utils/algorithm.h>
 
 #include <QQmlContext>
 #include <QToolButton>
@@ -65,6 +68,7 @@
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QApplication>
+#include <QRegExp>
 #include <QTextCursor>
 
 #include <math.h>
@@ -80,6 +84,7 @@ public:
     QmlProfilerViewManager *m_viewContainer;
     QQuickWidget *m_mainView;
     QmlProfilerModelManager *m_modelManager;
+    QVariantList m_suspendedModels;
     Timeline::TimelineModelAggregator *m_modelProxy;
     Timeline::TimelineZoomControl *m_zoomControl;
 };
@@ -88,17 +93,39 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
                                            QmlProfilerModelManager *modelManager)
     : QWidget(parent), d(new QmlProfilerTraceViewPrivate(this))
 {
-    setObjectName(QLatin1String("QML Profiler"));
+    setWindowTitle(tr("Timeline"));
+    setObjectName("QmlProfiler.Timeline.Dock");
 
     d->m_zoomControl = new Timeline::TimelineZoomControl(this);
     connect(modelManager, &QmlProfilerModelManager::stateChanged, this, [modelManager, this]() {
-        if (modelManager->state() == QmlProfilerModelManager::Done) {
+        switch (modelManager->state()) {
+        case QmlProfilerModelManager::Done: {
             qint64 start = modelManager->traceTime()->startTime();
             qint64 end = modelManager->traceTime()->endTime();
             d->m_zoomControl->setTrace(start, end);
             d->m_zoomControl->setRange(start, start + (end - start) / 10);
-        } else if (modelManager->state() == QmlProfilerModelManager::ClearingData) {
+            Q_FALLTHROUGH();
+        }
+        case QmlProfilerModelManager::Empty:
+            d->m_modelProxy->setModels(d->m_suspendedModels);
+            d->m_suspendedModels.clear();
+            d->m_modelManager->notesModel()->loadData();
+            break;
+        case QmlProfilerModelManager::ProcessingData:
+            break;
+        case QmlProfilerModelManager::ClearingData:
             d->m_zoomControl->clear();
+            Q_FALLTHROUGH();
+        case QmlProfilerModelManager::AcquiringData:
+            if (d->m_suspendedModels.isEmpty()) {
+                // Temporarily remove the models, while we're changing them
+                d->m_suspendedModels = d->m_modelProxy->models();
+                d->m_modelProxy->setModels(QVariantList());
+            }
+            // Otherwise models are suspended already. This can happen if either acquiring was
+            // aborted or we're doing a "restrict to range" which consists of a partial clearing and
+            // then re-acquiring of data.
+            break;
         }
     });
 
@@ -130,21 +157,25 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
     d->m_modelProxy = new Timeline::TimelineModelAggregator(modelManager->notesModel(), this);
     d->m_modelManager = modelManager;
 
-    QList<Timeline::TimelineModel *> models;
-    models.append(new PixmapCacheModel(modelManager, d->m_modelProxy));
-    models.append(new SceneGraphTimelineModel(modelManager, d->m_modelProxy));
-    models.append(new MemoryUsageModel(modelManager, d->m_modelProxy));
-    models.append(new InputEventsModel(modelManager, d->m_modelProxy));
-    models.append(new DebugMessagesModel(modelManager, d->m_modelProxy));
-    models.append(new QmlProfilerAnimationsModel(modelManager, d->m_modelProxy));
-    for (int i = 0; i < MaximumRangeType; ++i)
-        models.append(new QmlProfilerRangeModel(modelManager, (RangeType)i, d->m_modelProxy));
+    QVariantList models;
+    models.append(QVariant::fromValue(new PixmapCacheModel(modelManager, d->m_modelProxy)));
+    models.append(QVariant::fromValue(new SceneGraphTimelineModel(modelManager, d->m_modelProxy)));
+    models.append(QVariant::fromValue(new MemoryUsageModel(modelManager, d->m_modelProxy)));
+    models.append(QVariant::fromValue(new InputEventsModel(modelManager, d->m_modelProxy)));
+    models.append(QVariant::fromValue(new DebugMessagesModel(modelManager, d->m_modelProxy)));
+    models.append(QVariant::fromValue(new QmlProfilerAnimationsModel(modelManager,
+                                                                     d->m_modelProxy)));
+    for (int i = 0; i < MaximumRangeType; ++i) {
+        models.append(QVariant::fromValue(new QmlProfilerRangeModel(modelManager, (RangeType)i,
+                                                                    d->m_modelProxy)));
+    }
     d->m_modelProxy->setModels(models);
 
     // Minimum height: 5 rows of 20 pixels + scrollbar of 50 pixels + 20 pixels margin
     setMinimumHeight(170);
 
     Timeline::TimelineTheme::setupTheme(d->m_mainView->engine());
+    Timeline::TimeFormatter::setupTimeFormatter();
 
     d->m_mainView->rootContext()->setContextProperty(QLatin1String("timelineModelAggregator"),
                                                      d->m_modelProxy);
@@ -244,11 +275,11 @@ void QmlProfilerTraceView::showContextMenu(QPoint position)
     menu.addSeparator();
 
     QAction *getLocalStatsAction = menu.addAction(tr("Analyze Current Range"));
-    if (!d->m_viewContainer->hasValidSelection())
+    if (!hasValidSelection())
         getLocalStatsAction->setEnabled(false);
 
     QAction *getGlobalStatsAction = menu.addAction(tr("Analyze Full Range"));
-    if (!d->m_viewContainer->isEventsRestrictedToRange())
+    if (!d->m_modelManager->isRestrictedToRange())
         getGlobalStatsAction->setEnabled(false);
 
     if (d->m_zoomControl->traceDuration() > 0) {
@@ -264,12 +295,26 @@ void QmlProfilerTraceView::showContextMenu(QPoint position)
                                        d->m_zoomControl->traceEnd());
         }
         if (selectedAction == getLocalStatsAction) {
-            d->m_viewContainer->restrictEventsToRange(d->m_viewContainer->selectionStart(),
-                                                      d->m_viewContainer->selectionEnd());
+            d->m_modelManager->restrictToRange(selectionStart(), selectionEnd());
         }
         if (selectedAction == getGlobalStatsAction)
-            d->m_viewContainer->restrictEventsToRange(-1, -1);
+            d->m_modelManager->restrictToRange(-1, -1);
     }
+}
+
+bool QmlProfilerTraceView::isUsable() const
+{
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
+    return d->m_mainView->quickWindow()->rendererInterface()->graphicsApi()
+            == QSGRendererInterface::OpenGL;
+#else
+    return true;
+#endif
+}
+
+bool QmlProfilerTraceView::isSuspended() const
+{
+    return !d->m_suspendedModels.isEmpty();
 }
 
 void QmlProfilerTraceView::changeEvent(QEvent *e)

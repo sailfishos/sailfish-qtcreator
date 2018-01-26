@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "navigatormodelinterface.h"
+
 #include <abstractview.h>
 
 #include <QPointer>
@@ -33,12 +35,19 @@ QT_BEGIN_NAMESPACE
 class QTreeView;
 class QItemSelection;
 class QModelIndex;
+class QAbstractItemModel;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
 class NavigatorWidget;
 class NavigatorTreeModel;
+
+enum NavigatorRoles {
+    ItemIsVisibleRole = Qt::UserRole,
+    RowIsPropertyRole = Qt::UserRole + 1,
+    ModelNodeRole = Qt::UserRole + 2
+};
 
 class NavigatorView : public AbstractView
 {
@@ -58,10 +67,12 @@ public:
     void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports) override;
 
     void nodeAboutToBeRemoved(const ModelNode &removedNode) override;
+    void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange) override;
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) override;
 
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange) override;
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) override;
+    void nodeTypeChanged(const ModelNode& node, const TypeName &type, int majorVersion, int minorVersion) override;
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId) override;
     void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList) override;
     void propertiesRemoved(const QList<AbstractProperty>& propertyList) override;
@@ -69,14 +80,20 @@ public:
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList ,
                                       const QList<ModelNode> &lastSelectedNodeList) override;
     void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data) override;
-    void instanceErrorChange(const QVector<ModelNode> &errorNodeList) override;
+    void instanceErrorChanged(const QVector<ModelNode> &errorNodeList) override;
 
     void bindingPropertiesChanged(const QList<BindingProperty> &propertyList, PropertyChangeFlags) override;
 
-private slots:
+    void handleChangedExport(const ModelNode &modelNode, bool exported);
+    bool isNodeInvisible(const ModelNode &modelNode) const;
+
+private:
+    ModelNode modelNodeForIndex(const QModelIndex &modelIndex) const;
     void changeSelection(const QItemSelection &selected, const QItemSelection &deselected);
     void updateItemSelection();
     void changeToComponent(const QModelIndex &index);
+    QModelIndex indexForModelNode(const ModelNode &modelNode) const;
+    QAbstractItemModel *currentModel() const;
 
     void leftButtonClicked();
     void rightButtonClicked();
@@ -84,7 +101,7 @@ private slots:
     void downButtonClicked();
 
 protected: //functions
-    QTreeView *treeWidget();
+    QTreeView *treeWidget() const;
     NavigatorTreeModel *treeModel();
     bool blockSelectionChangedSignal(bool block);
     void expandRecursively(const QModelIndex &index);
@@ -94,6 +111,8 @@ private:
 
     QPointer<NavigatorWidget> m_widget;
     QPointer<NavigatorTreeModel> m_treeModel;
+
+    NavigatorModelInterface *m_currentModelInterface = nullptr;
 
     friend class TestNavigator;
 };

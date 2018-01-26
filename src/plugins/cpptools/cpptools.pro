@@ -6,12 +6,14 @@ HEADERS += \
     abstracteditorsupport.h \
     baseeditordocumentparser.h \
     baseeditordocumentprocessor.h \
+    builtincursorinfo.h \
     builtineditordocumentparser.h \
     builtineditordocumentprocessor.h \
     builtinindexingsupport.h \
     clangdiagnosticconfig.h \
     clangdiagnosticconfigsmodel.h \
     clangdiagnosticconfigswidget.h \
+    cppcanonicalsymbol.h \
     cppchecksymbols.h \
     cppclassesfilter.h \
     cppcodeformatter.h \
@@ -25,6 +27,7 @@ HEADERS += \
     cppcompletionassist.h \
     cppcompletionassistprocessor.h \
     cppcompletionassistprovider.h \
+    cppcursorinfo.h \
     cppcurrentdocumentfilter.h \
     cppeditoroutline.h \
     cppdoxygen.h \
@@ -42,13 +45,16 @@ HEADERS += \
     cppmodelmanagersupportinternal.h \
     cpppointerdeclarationformatter.h \
     cppprojectfile.h \
+    cppprojectupdater.h \
     cppqtstyleindenter.h \
+    cpprawprojectpart.h \
     cpprefactoringchanges.h \
     cppselectionchanger.h \
     cppsemanticinfo.h \
     cppsemanticinfoupdater.h \
     cppsourceprocessor.h \
     cpptools_global.h \
+    cpptools_utils.h \
     cpptoolsconstants.h \
     cpptoolsjsextension.h \
     cpptoolsplugin.h \
@@ -75,19 +81,25 @@ HEADERS += \
     projectpart.h \
     projectpartheaderpath.h \
     projectinfo.h \
-    projectpartbuilder.h \
+    cppprojectinfogenerator.h \
     compileroptionsbuilder.h \
-    refactoringengineinterface.h
+    refactoringengineinterface.h \
+    cppprojectfilecategorizer.h \
+    clangcompileroptionsbuilder.h \
+    cppprojectpartchooser.h \
+
 SOURCES += \
     abstracteditorsupport.cpp \
     baseeditordocumentparser.cpp \
     baseeditordocumentprocessor.cpp \
+    builtincursorinfo.cpp \
     builtineditordocumentparser.cpp \
     builtineditordocumentprocessor.cpp \
     builtinindexingsupport.cpp \
     clangdiagnosticconfig.cpp \
     clangdiagnosticconfigsmodel.cpp \
     clangdiagnosticconfigswidget.cpp \
+    cppcanonicalsymbol.cpp \
     cppchecksymbols.cpp \
     cppclassesfilter.cpp \
     cppcodeformatter.cpp \
@@ -118,10 +130,11 @@ SOURCES += \
     cppmodelmanagersupportinternal.cpp \
     cpppointerdeclarationformatter.cpp \
     cppprojectfile.cpp \
+    cppprojectupdater.cpp \
     cppqtstyleindenter.cpp \
+    cpprawprojectpart.cpp \
     cpprefactoringchanges.cpp \
     cppselectionchanger.cpp \
-    cppsemanticinfo.cpp \
     cppsemanticinfoupdater.cpp \
     cppsourceprocessor.cpp \
     cpptoolsjsextension.cpp \
@@ -147,8 +160,11 @@ SOURCES += \
     cpptoolsbridgeqtcreatorimplementation.cpp \
     projectpart.cpp \
     projectinfo.cpp \
-    projectpartbuilder.cpp \
-    compileroptionsbuilder.cpp
+    cppprojectinfogenerator.cpp \
+    compileroptionsbuilder.cpp \
+    cppprojectfilecategorizer.cpp \
+    clangcompileroptionsbuilder.cpp \
+    cppprojectpartchooser.cpp \
 
 FORMS += \
     clangdiagnosticconfigswidget.ui \

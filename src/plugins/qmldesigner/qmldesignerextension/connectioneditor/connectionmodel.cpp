@@ -75,10 +75,7 @@ void ConnectionModel::resetModel()
 {
     beginResetModel();
     clear();
-    setHorizontalHeaderLabels(QStringList()
-                              << tr("Target")
-                              << tr("Signal Handler")
-                              << tr("Action"));
+    setHorizontalHeaderLabels(QStringList({ tr("Target"), tr("Signal Handler"), tr("Action") }));
 
     if (connectionView()->isAttached()) {
         foreach (const ModelNode modelNode, connectionView()->allModelNodes())
@@ -177,7 +174,7 @@ void ConnectionModel::updateSource(int row)
     }
     catch (Exception &e) {
         m_exceptionError = e.description();
-        QTimer::singleShot(200, this, SLOT(handleException()));
+        QTimer::singleShot(200, this, &ConnectionModel::handleException);
     }
 
 }

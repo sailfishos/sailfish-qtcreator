@@ -34,7 +34,6 @@
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsbaseeditor.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
 #include <vcsbase/vcscommand.h>
 #include <vcsbase/vcsoutputwindow.h>
 
@@ -57,7 +56,6 @@
 #include <coreplugin/locator/commandlocator.h>
 #include <coreplugin/vcsmanager.h>
 #include <utils/fileutils.h>
-#include <utils/mimetypes/mimedatabase.h>
 #include <utils/stringutils.h>
 
 #include <QDebug>
@@ -204,8 +202,6 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     m_cvsPluginInstance = this;
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/trolltech.cvs/CVS.mimetypes.xml"));
-
     m_client = new CvsClient;
 
     addAutoReleasedObject(new SettingsPage(versionControl()));
@@ -213,11 +209,15 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     addAutoReleasedObject(new VcsSubmitEditorFactory(&submitParameters,
         []() { return new CvsSubmitEditor(&submitParameters); }));
 
-    static const char *describeSlotC = SLOT(slotDescribe(QString,QString));
+    const auto describeFunc = [this](const QString &source, const QString &changeNr) {
+        QString errorMessage;
+        if (!describe(source, changeNr, &errorMessage))
+            VcsOutputWindow::appendError(errorMessage);
+    };
     const int editorCount = sizeof(editorParameters) / sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new CvsEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, this, describeSlotC));
+        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
 
     const QString prefix = QLatin1String("cvs");
     m_commandLocator = new CommandLocator("CVS", prefix, prefix);
@@ -965,13 +965,6 @@ void CvsPlugin::updateRepository()
 
 }
 
-void CvsPlugin::slotDescribe(const QString &source, const QString &changeNr)
-{
-    QString errorMessage;
-    if (!describe(source, changeNr, &errorMessage))
-        VcsOutputWindow::appendError(errorMessage);
-}
-
 bool CvsPlugin::describe(const QString &file, const QString &changeNr, QString *errorMessage)
 {
 
@@ -1170,11 +1163,10 @@ IEditor *CvsPlugin::showOutputInEditor(const QString& title, const QString &outp
     const Id id = params->id;
     QString s = title;
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, output.toUtf8());
-    connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,QString,int)),
-            this, SLOT(vcsAnnotate(QString,QString,QString,int)));
     CvsEditorWidget *e = qobject_cast<CvsEditorWidget*>(editor->widget());
     if (!e)
         return 0;
+    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &CvsPlugin::annotate);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
     e->textDocument()->setFallbackSaveAsFileName(s);
     e->setForceReadOnly(true);

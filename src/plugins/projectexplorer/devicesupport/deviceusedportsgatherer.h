@@ -27,13 +27,13 @@
 
 #include "idevice.h"
 
-namespace Utils {
-class Port;
-class PortList;
-} // namespace Utils
+#include <projectexplorer/runconfiguration.h>
+
+#include <utils/portlist.h>
 
 namespace ProjectExplorer {
 namespace Internal { class DeviceUsedPortsGathererPrivate; }
+class StandardRunnable;
 
 class PROJECTEXPLORER_EXPORT DeviceUsedPortsGatherer : public QObject
 {
@@ -43,7 +43,7 @@ public:
     DeviceUsedPortsGatherer(QObject *parent = 0);
     ~DeviceUsedPortsGatherer() override;
 
-    void start(const ProjectExplorer::IDevice::ConstPtr &device);
+    void start(const IDevice::ConstPtr &device);
     void stop();
     Utils::Port getNextFreePort(Utils::PortList *freePorts) const; // returns -1 if no more are left
     QList<Utils::Port> usedPorts() const;
@@ -53,15 +53,33 @@ signals:
     void portListReady();
 
 private:
-    void handleConnectionEstablished();
-    void handleConnectionError();
-    void handleProcessClosed(int exitStatus);
     void handleRemoteStdOut();
     void handleRemoteStdErr();
+    void handleProcessError();
+    void handleProcessFinished();
 
     void setupUsedPorts();
 
     Internal::DeviceUsedPortsGathererPrivate * const d;
+};
+
+class PROJECTEXPLORER_EXPORT PortsGatherer : public RunWorker
+{
+    Q_OBJECT
+
+public:
+    explicit PortsGatherer(RunControl *runControl);
+    ~PortsGatherer() override;
+
+    Utils::Port findPort();
+
+protected:
+    void start() override;
+    void stop() override;
+
+private:
+    DeviceUsedPortsGatherer m_portsGatherer;
+    Utils::PortList m_portList;
 };
 
 } // namespace ProjectExplorer

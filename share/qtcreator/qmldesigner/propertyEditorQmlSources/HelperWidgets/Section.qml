@@ -26,6 +26,7 @@
 import QtQuick 2.1
 import QtQuick.Controls 1.1 as Controls
 import QtQuick.Layouts 1.0
+import QtQuickDesignerTheme 1.0
 
 Item {
     id: section
@@ -34,7 +35,9 @@ Item {
     property int topPadding: 4
     property int rightPadding: 0
 
-    readonly property int animationDuration: 120
+    property int animationDuration: 0
+
+    property bool expanded: true
 
     clip: true
 
@@ -48,7 +51,7 @@ Item {
         Controls.Label {
             id: label
             anchors.verticalCenter: parent.verticalCenter
-            color: creatorTheme.PanelTextColorLight
+            color: Theme.color(Theme.PanelTextColorLight)
             x: 22
             font.bold: true
         }
@@ -67,9 +70,10 @@ Item {
                     duration: animationDuration
                 }
             }
+
         }
 
-        color: creatorTheme.BackgroundColorDark
+        color: Theme.color(Theme.BackgroundColorDark)
 
         Rectangle {
             visible: false
@@ -89,10 +93,8 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                if (section.state === "")
-                    section.state = "Collapsed";
-                else
-                    section.state = "";
+                section.animationDuration = 120
+                section.expanded = !section.expanded
             }
         }
     }
@@ -123,6 +125,7 @@ Item {
     states: [
         State {
             name: "Collapsed"
+            when: !section.expanded
             PropertyChanges {
                 target: section
                 implicitHeight: header.height

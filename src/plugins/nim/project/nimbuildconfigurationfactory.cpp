@@ -67,14 +67,14 @@ QList<BuildInfo *> NimBuildConfigurationFactory::availableBuilds(const Target *p
     info->displayName.clear(); // ask for a name
     info->buildDirectory.clear(); // This depends on the displayName
 
-    return { info };
+    return {info};
 }
 
 QList<BuildInfo *> NimBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
 {
     BuildInfo *debug = createBuildInfo(k, projectPath, BuildConfiguration::Debug);
     BuildInfo *release = createBuildInfo(k, projectPath, BuildConfiguration::Release);
-    return { debug, release };
+    return {debug, release};
 }
 
 BuildConfiguration *NimBuildConfigurationFactory::create(Target *parent, const BuildInfo *info) const
@@ -108,7 +108,9 @@ BuildConfiguration *NimBuildConfigurationFactory::create(Target *parent, const B
             break;
         }
         nimCompilerBuildStep->setDefaultCompilerOptions(defaultOption);
-        nimCompilerBuildStep->setTargetNimFile(project->nimFiles().first());
+        Utils::FileNameList nimFiles = project->nimFiles();
+        if (!nimFiles.isEmpty())
+            nimCompilerBuildStep->setTargetNimFile(nimFiles.first());
         buildSteps->appendStep(nimCompilerBuildStep);
     }
 
@@ -124,6 +126,8 @@ BuildConfiguration *NimBuildConfigurationFactory::create(Target *parent, const B
 bool NimBuildConfigurationFactory::canRestore(const Target *parent, const QVariantMap &map) const
 {
     Q_UNUSED(parent);
+    if (!canHandle(parent))
+        return false;
     return NimBuildConfiguration::canRestore(map);
 }
 
@@ -145,6 +149,8 @@ bool NimBuildConfigurationFactory::canClone(const Target *parent, BuildConfigura
 {
     QTC_ASSERT(parent, return false);
     QTC_ASSERT(product, return false);
+    if (!canHandle(parent))
+        return false;
     return product->id() == Constants::C_NIMBUILDCONFIGURATION_ID;
 }
 
@@ -160,8 +166,7 @@ BuildConfiguration *NimBuildConfigurationFactory::clone(Target *parent, BuildCon
 
 int NimBuildConfigurationFactory::priority(const Kit *k, const QString &projectPath) const
 {
-    MimeDatabase mdb;
-    if (k && mdb.mimeTypeForFile(projectPath).matchesName(Constants::C_NIM_PROJECT_MIMETYPE))
+    if (k && Utils::mimeTypeForFile(projectPath).matchesName(Constants::C_NIM_PROJECT_MIMETYPE))
         return 0;
     return -1;
 }

@@ -26,8 +26,6 @@
 #pragma once
 
 #include "qmlprojectmanager_global.h"
-
-#include "qmlprojectmanager.h"
 #include "qmlprojectnodes.h"
 
 #include <projectexplorer/project.h>
@@ -35,32 +33,22 @@
 #include <QPointer>
 
 namespace ProjectExplorer { class RunConfiguration; }
-namespace QmlJS { class ModelManagerInterface; }
-namespace Utils { class FileSystemWatcher; }
 
 namespace QmlProjectManager {
 
 class QmlProjectItem;
-
-namespace Internal { class QmlProjectFile; }
 
 class QMLPROJECTMANAGER_EXPORT QmlProject : public ProjectExplorer::Project
 {
     Q_OBJECT
 
 public:
-    QmlProject(Internal::Manager *manager, const Utils::FileName &filename);
+    explicit QmlProject(const Utils::FileName &filename);
     ~QmlProject() override;
-
-    Utils::FileName filesFileName() const;
-
-    QString displayName() const override;
-    Internal::Manager *projectManager() const override;
 
     bool supportsKit(ProjectExplorer::Kit *k, QString *errorMessage) const override;
 
     Internal::QmlProjectNode *rootProjectNode() const override;
-    QStringList files(FilesMode fileMode) const override;
 
     bool validProjectFile() const;
 
@@ -75,7 +63,6 @@ public:
     void refresh(RefreshOptions options);
 
     QDir projectDir() const;
-    QStringList files() const;
     QString mainFile() const;
     QStringList customImportPaths() const;
 
@@ -90,6 +77,7 @@ protected:
     RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
 
 private:
+    void generateProjectTree();
     void refreshFiles(const QSet<QString> &added, const QSet<QString> &removed);
     void addedTarget(ProjectExplorer::Target *target);
     void onActiveTargetChanged(ProjectExplorer::Target *target);
@@ -98,15 +86,9 @@ private:
 
     // plain format
     void parseProject(RefreshOptions options);
-    QStringList convertToAbsoluteFiles(const QStringList &paths) const;
-    QmlJS::ModelManagerInterface *modelManager() const;
 
-    QString m_projectName;
     QmlImport m_defaultImport;
-    ProjectExplorer::Target *m_activeTarget = 0;
-
-    // plain format
-    QStringList m_files;
+    ProjectExplorer::Target *m_activeTarget = nullptr;
 
     QPointer<QmlProjectItem> m_projectItem;
 };

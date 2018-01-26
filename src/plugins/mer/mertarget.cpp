@@ -239,7 +239,7 @@ MerQtVersion* MerTarget::createQtVersion() const
     return merqtv;
 }
 
-MerToolChain* MerTarget::createToolChain(ProjectExplorer::ToolChain::Language l) const
+MerToolChain* MerTarget::createToolChain(Core::Id l) const
 {
     const FileName gcc = FileName::fromString(targetPath() + QLatin1Char('/') +
             QLatin1String(Constants::MER_WRAPPER_GCC));

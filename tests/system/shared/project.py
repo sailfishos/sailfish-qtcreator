@@ -34,10 +34,11 @@ def openQbsProject(projectPath):
 def openQmakeProject(projectPath, targets=Targets.desktopTargetClasses(), fromWelcome=False):
     cleanUpUserFiles(projectPath)
     if fromWelcome:
-        welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
-        mouseClick(waitForObject("{clip='false' container='%s' enabled='true' text='Open Project' "
-                                 "type='Button' unnamed='1' visible='true'}" % welcomePage),
-                   5, 5, 0, Qt.LeftButton)
+        wsButtonFrame, wsButtonLabel = getWelcomeScreenMainButton('Open Project')
+        if not all((wsButtonFrame, wsButtonLabel)):
+            test.fatal("Could not find 'Open Project' button on Welcome Page.")
+            return []
+        mouseClick(wsButtonLabel)
     else:
         invokeMenuItem("File", "Open File or Project...")
     selectFromFileDialog(projectPath)
@@ -71,8 +72,8 @@ def openCmakeProject(projectPath, buildDir):
 
     invokeMenuItem("File", "Open File or Project...")
     selectFromFileDialog(projectPath)
-    __chooseTargets__(0) # uncheck all
-    __chooseTargets__(Targets.DESKTOP_480_DEFAULT, additionalFunc=additionalFunction)
+    __chooseTargets__([]) # uncheck all
+    __chooseTargets__([Targets.DESKTOP_487_DEFAULT], additionalFunc=additionalFunction)
     clickButton(waitForObject(":Qt Creator.Configure Project_QPushButton"))
     return True
 
@@ -82,10 +83,11 @@ def openCmakeProject(projectPath, buildDir):
 # this list can be used in __chooseTargets__()
 def __createProjectOrFileSelectType__(category, template, fromWelcome = False, isProject=True):
     if fromWelcome:
-        welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
-        mouseClick(waitForObject("{clip='false' container='%s' enabled='true' text='New Project' "
-                                 "type='Button' unnamed='1' visible='true'}" % welcomePage),
-                   5, 5, 0, Qt.LeftButton)
+        wsButtonFrame, wsButtonLabel = getWelcomeScreenMainButton("New Project")
+        if not all((wsButtonFrame, wsButtonLabel)):
+            test.fatal("Could not find 'New Project' button on Welcome Page")
+            return []
+        mouseClick(wsButtonLabel)
     else:
         invokeMenuItem("File", "New File or Project...")
     categoriesView = waitForObject(":New.templateCategoryView_QTreeView")
@@ -121,6 +123,24 @@ def __createProjectSetNameAndPath__(path, projectName = None, checks = True, lib
                         LibType.getStringForLib(libType))
     clickButton(waitForObject(":Next_QPushButton"))
     return str(projectName)
+
+def __handleBuildSystem__(buildSystem):
+    combo = "{name='BuildSystem' type='Utils::TextFieldComboBox' visible='1'}"
+    try:
+        comboObj = waitForObject(combo, 2000)
+    except:
+        test.warning("No build system combo box found at all.")
+        return
+    try:
+        if buildSystem is None:
+            test.log("Keeping default build system '%s'" % str(comboObj.currentText))
+        else:
+            test.log("Trying to select build system '%s'" % buildSystem)
+            selectFromCombo(combo, buildSystem)
+    except:
+        t, v = sys.exc_info()[:2]
+        test.warning("Exception while handling build system", "%s(%s)" % (str(t), str(v)))
+    clickButton(waitForObject(":Next_QPushButton"))
 
 def __createProjectHandleQtQuickSelection__(minimumQtVersion):
     comboBox = waitForObject("{leftWidget=':Minimal required Qt version:_QLabel' name='QtVersion' "
@@ -185,8 +205,8 @@ def __modifyAvailableTargets__(available, requiredQt, asStrings=False):
                 # so the least required version is 4.8, but 4.7.4 will be still listed
                 if not (requiredQtVersion == "480" and found.group(0) == "474"):
                     available.remove(currentItem)
-            if requiredQtVersion > "480":
-                toBeRemoved = [Targets.EMBEDDED_LINUX, Targets.SIMULATOR]
+            if requiredQtVersion > "487":
+                toBeRemoved = [Targets.EMBEDDED_LINUX]
                 if asStrings:
                     toBeRemoved = Targets.getTargetsAsStrings(toBeRemoved)
                 for t in toBeRemoved:
@@ -238,9 +258,10 @@ def createProject_Qt_GUI(path, projectName, checks = True, addToVersionControl =
 # param path specifies where to create the project
 # param projectName is the name for the new project
 # param checks turns tests in the function on if set to True
-def createProject_Qt_Console(path, projectName, checks = True):
+def createProject_Qt_Console(path, projectName, checks = True, buildSystem = None):
     available = __createProjectOrFileSelectType__("  Application", "Qt Console Application")
     __createProjectSetNameAndPath__(path, projectName, checks)
+    __handleBuildSystem__(buildSystem)
     checkedTargets = __selectQtVersionDesktop__(checks, available)
 
     expectedFiles = []
@@ -261,14 +282,21 @@ def createProject_Qt_Console(path, projectName, checks = True):
 
 def createNewQtQuickApplication(workingDir, projectName = None,
                                 targets=Targets.desktopTargetClasses(), minimumQtVersion="5.3",
-                                withControls = False, fromWelcome=False):
+                                withControls = False, fromWelcome = False, buildSystem = None):
     if withControls:
-        template = "Qt Quick Controls Application"
+        template = "Qt Quick Controls 2 Application"
     else:
         template = "Qt Quick Application"
     available = __createProjectOrFileSelectType__("  Application", template, fromWelcome)
     projectName = __createProjectSetNameAndPath__(workingDir, projectName)
-    requiredQt = __createProjectHandleQtQuickSelection__(minimumQtVersion)
+    __handleBuildSystem__(buildSystem)
+    if withControls:
+        requiredQt = "5.7"
+        # TODO use parameter to define style to choose
+        test.log("Using default controls style")
+        clickButton(waitForObject(":Next_QPushButton"))
+    else:
+        requiredQt = __createProjectHandleQtQuickSelection__(minimumQtVersion)
     __modifyAvailableTargets__(available, requiredQt)
     checkedTargets = __chooseTargets__(targets, available)
     snooze(1)
@@ -281,12 +309,8 @@ def createNewQtQuickApplication(workingDir, projectName = None,
 
     return checkedTargets, projectName
 
-def createNewQtQuickUI(workingDir, qtVersion = "5.3", withControls = False):
-    if withControls:
-        template = 'Qt Quick Controls UI'
-    else:
-        template = 'Qt Quick UI'
-    __createProjectOrFileSelectType__("  Other Project", template)
+def createNewQtQuickUI(workingDir, qtVersion = "5.3"):
+    __createProjectOrFileSelectType__("  Other Project", 'Qt Quick UI Prototype')
     if workingDir == None:
         workingDir = tempDir()
     projectName = __createProjectSetNameAndPath__(workingDir)
@@ -296,9 +320,8 @@ def createNewQtQuickUI(workingDir, qtVersion = "5.3", withControls = False):
 
     return projectName
 
-def createNewQmlExtension(workingDir, targets=Targets.DESKTOP_474_GCC, qtQuickVersion=1):
-    available = __createProjectOrFileSelectType__("  Library", "Qt Quick %d Extension Plugin"
-                                                  % qtQuickVersion)
+def createNewQmlExtension(workingDir, targets=[Targets.DESKTOP_531_DEFAULT]):
+    available = __createProjectOrFileSelectType__("  Library", "Qt Quick 2 Extension Plugin")
     if workingDir == None:
         workingDir = tempDir()
     __createProjectSetNameAndPath__(workingDir)
@@ -326,7 +349,7 @@ def createEmptyQtProject(workingDir=None, projectName=None, targets=Targets.desk
     __createProjectHandleLastPage__()
     return projectName, checkedTargets
 
-def createNewNonQtProject(workingDir=None, projectName=None, target=Targets.DESKTOP_474_GCC,
+def createNewNonQtProject(workingDir=None, projectName=None, target=[Targets.DESKTOP_487_DEFAULT],
                           plainC=False, cmake=False, qbs=False):
     if plainC:
         template = "Plain C Application"
@@ -355,7 +378,7 @@ def createNewNonQtProject(workingDir=None, projectName=None, target=Targets.DESK
     return projectName
 
 def createNewCPPLib(projectDir = None, projectName = None, className = None, fromWelcome = False,
-                    target = Targets.DESKTOP_474_GCC, isStatic = False, modules = ["QtCore"]):
+                    target = [Targets.DESKTOP_487_DEFAULT], isStatic = False, modules = ["QtCore"]):
     available = __createProjectOrFileSelectType__("  Library", "C++ Library", fromWelcome, True)
     if isStatic:
         libType = LibType.STATIC
@@ -373,7 +396,7 @@ def createNewCPPLib(projectDir = None, projectName = None, className = None, fro
     return checkedTargets, projectName, className
 
 def createNewQtPlugin(projectDir=None, projectName=None, className=None, fromWelcome=False,
-                      target=Targets.DESKTOP_474_GCC, baseClass="QGenericPlugin"):
+                      target=[Targets.DESKTOP_487_DEFAULT], baseClass="QGenericPlugin"):
     available = __createProjectOrFileSelectType__("  Library", "C++ Library", fromWelcome, True)
     if projectDir == None:
         projectDir = tempDir()
@@ -385,25 +408,21 @@ def createNewQtPlugin(projectDir=None, projectName=None, className=None, fromWel
     __createProjectHandleLastPage__()
     return checkedTargets, projectName, className
 
-# parameter target can be an OR'd value of Targets
+# parameter target can be a list of Targets
 # parameter availableTargets should be the result of __createProjectOrFileSelectType__()
 #           or use None as a fallback
 # parameter additionalFunc function to be executed inside the detailed view of each chosen kit
 #           if present, 'Details' button will be clicked, function will be executed,
 #           'Details' button will be clicked again
-def __chooseTargets__(targets=Targets.DESKTOP_474_GCC, availableTargets=None, additionalFunc=None):
+def __chooseTargets__(targets=[Targets.DESKTOP_487_DEFAULT], availableTargets=None, additionalFunc=None):
     if availableTargets != None:
         available = availableTargets
     else:
         # following targets depend on the build environment - added for further/later tests
-        available = list(Targets.ALL_TARGETS)
-        if platform.system() in ('Windows', 'Microsoft'):
-            available.remove(Targets.EMBEDDED_LINUX)
-        elif platform.system() == 'Darwin':
-            available.remove(Targets.DESKTOP_541_GCC)
+        available = Targets.availableTargetClasses()
     checkedTargets = []
     for current in available:
-        mustCheck = targets & current == current
+        mustCheck = current in targets
         try:
             ensureChecked("{type='QCheckBox' text='%s' visible='1'}" % Targets.getStringForTarget(current),
                           mustCheck, 3000)
@@ -424,9 +443,7 @@ def __chooseTargets__(targets=Targets.DESKTOP_474_GCC, availableTargets=None, ad
             if mustCheck:
                 test.fail("Failed to check target '%s'." % Targets.getStringForTarget(current))
             else:
-                # Simulator has been added without knowing whether configured or not - so skip warning here?
-                if current != Targets.SIMULATOR:
-                    test.warning("Target '%s' is not set up correctly." % Targets.getStringForTarget(current))
+                test.warning("Target '%s' is not set up correctly." % Targets.getStringForTarget(current))
     return checkedTargets
 
 def __createProjectHandleModuleSelection__(modules):
@@ -636,20 +653,14 @@ def __getSupportedPlatforms__(text, templateName, getAsStrings=False):
         result = []
         if 'Desktop' in supports:
             if version == None or version < "5.0":
-                result.append(Targets.DESKTOP_474_GCC)
-                result.append(Targets.DESKTOP_480_DEFAULT)
+                result.append(Targets.DESKTOP_487_DEFAULT)
                 if platform.system() in ("Linux", "Darwin"):
                     result.append(Targets.EMBEDDED_LINUX)
             result.extend([Targets.DESKTOP_531_DEFAULT, Targets.DESKTOP_561_DEFAULT])
             if platform.system() != 'Darwin':
                 result.append(Targets.DESKTOP_541_GCC)
-        if not templateName == "Qt Creator Plugin" and (version == None or version < "5.0"):
-            result.append(Targets.SIMULATOR)
     elif 'Platform independent' in text:
-        result = list(Targets.ALL_TARGETS)
-        result.remove(Targets.EMBEDDED_LINUX)
-        if platform.system() == 'Darwin':
-            result.remove(Targets.DESKTOP_541_GCC)
+        result = Targets.desktopTargetClasses()
     else:
         test.warning("Returning None (__getSupportedPlatforms__())",
                      "Parsed text: '%s'" % text)
@@ -737,13 +748,14 @@ def compareProjectTree(rootObject, dataset):
 # creates C++ file(s) and adds them to the current project if one is open
 # name                  name of the created object: filename for files, classname for classes
 # template              "C++ Class", "C++ Header File" or "C++ Source File"
+# projectName           None or name of open project that the files will be added to
 # forceOverwrite        bool: force overwriting existing files?
 # addToVCS              name of VCS to add the file(s) to
 # newBasePath           path to create the file(s) at
 # expectedSourceName    expected name of created source file
 # expectedHeaderName    expected name of created header file
-def addCPlusPlusFileToCurrentProject(name, template, forceOverwrite=False, addToVCS="<None>",
-                                     newBasePath=None, expectedSourceName=None, expectedHeaderName=None):
+def addCPlusPlusFile(name, template, projectName, forceOverwrite=False, addToVCS="<None>",
+                     newBasePath=None, expectedSourceName=None, expectedHeaderName=None):
     if name == None:
         test.fatal("File must have a name - got None.")
         return
@@ -773,6 +785,14 @@ def addCPlusPlusFileToCurrentProject(name, template, forceOverwrite=False, addTo
             test.compare(str(waitForObject("{name='HdrFileName' type='QLineEdit' visible='1'}").text),
                          expectedHeaderName)
     clickButton(waitForObject(":Next_QPushButton"))
+    projectComboBox = waitForObjectExists(":projectComboBox_Utils::TreeViewComboBox")
+    test.compare(projectComboBox.enabled, projectName != None,
+                 "Project combo box must be enabled when a project is open")
+    projectNameToDisplay = "<None>"
+    if projectName:
+        projectNameToDisplay = projectName
+    test.compare(str(projectComboBox.currentText), projectNameToDisplay,
+                 "The right project must be selected")
     fileExistedBefore = False
     if template == "C++ Class":
         fileExistedBefore = (os.path.exists(os.path.join(basePath, name.lower() + ".cpp"))

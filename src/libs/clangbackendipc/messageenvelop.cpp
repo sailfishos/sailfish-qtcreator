@@ -25,23 +25,8 @@
 
 #include "messageenvelop.h"
 
-#include "cmbcodecompletedmessage.h"
-#include "cmbcompletecodemessage.h"
-#include "cmbechomessage.h"
-#include "cmbregisterprojectsforeditormessage.h"
-#include "cmbregistertranslationunitsforeditormessage.h"
-#include "cmbunregisterprojectsforeditormessage.h"
-#include "cmbunregistertranslationunitsforeditormessage.h"
-#include "documentannotationschangedmessage.h"
-#include "messageenvelop.h"
-#include "messageenvelop.h"
-#include "projectpartsdonotexistmessage.h"
-#include "registerunsavedfilesforeditormessage.h"
-#include "requestdocumentannotations.h"
-#include "translationunitdoesnotexistmessage.h"
-#include "unregisterunsavedfilesforeditormessage.h"
-#include "updatetranslationunitsforeditormessage.h"
-#include "updatevisibletranslationunitsmessage.h"
+#include "clangcodemodelclientmessages.h"
+#include "clangcodemodelservermessages.h"
 
 namespace ClangBackEnd {
 
@@ -80,6 +65,9 @@ QDebug operator<<(QDebug debug, const MessageEnvelop &messageEnvelop)
         case MessageType::RequestDocumentAnnotationsMessage:
             qDebug() << messageEnvelop.message<RequestDocumentAnnotationsMessage>();
             break;
+        case MessageType::RequestReferencesMessage:
+            qDebug() << messageEnvelop.message<RequestReferencesMessage>();
+            break;
         case MessageType::UpdateVisibleTranslationUnitsMessage:
             qDebug() << messageEnvelop.message<UpdateVisibleTranslationUnitsMessage>();
             break;
@@ -91,6 +79,9 @@ QDebug operator<<(QDebug debug, const MessageEnvelop &messageEnvelop)
             break;
         case MessageType::CodeCompletedMessage:
             qDebug() << messageEnvelop.message<CodeCompletedMessage>();
+            break;
+        case MessageType::ReferencesMessage:
+            qDebug() << messageEnvelop.message<ReferencesMessage>();
             break;
         case MessageType::TranslationUnitDoesNotExistMessage:
             qDebug() << messageEnvelop.message<TranslationUnitDoesNotExistMessage>();

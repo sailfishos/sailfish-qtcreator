@@ -67,7 +67,7 @@ QList<BuildStepInfo> MakeStepFactory::availableSteps(BuildStepList *parent) cons
     if (parent->target()->project()->id() != AUTOTOOLS_PROJECT_ID)
         return {};
 
-    return {{ MAKE_STEP_ID, tr("Make", "Display name for AutotoolsProjectManager::MakeStep id.") }};
+    return {{MAKE_STEP_ID, tr("Make", "Display name for AutotoolsProjectManager::MakeStep id.")}};
 }
 
 BuildStep *MakeStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -262,14 +262,14 @@ void MakeStepConfigWidget::updateDetails()
         Utils::QtcProcess::addArgs(&arguments, m_makeStep->additionalArguments());
 
         ProcessParameters param;
-        param.setMacroExpander(bc->macroExpander());
+        param.setMacroExpander(m_makeStep->macroExpander());
         param.setEnvironment(bc->environment());
         param.setWorkingDirectory(bc->buildDirectory().toString());
         param.setCommand(tcList.at(0)->makeCommand(bc->environment()));
         param.setArguments(arguments);
         m_summaryText = param.summary(displayName());
     } else {
-        m_summaryText = QLatin1String("<b>") + ProjectExplorer::ToolChainKitInformation::msgNoToolChainInTarget()  + QLatin1String("</b>");
+        m_summaryText = QLatin1String("<b>") + ToolChainKitInformation::msgNoToolChainInTarget()  + QLatin1String("</b>");
     }
 
     emit updateSummary();

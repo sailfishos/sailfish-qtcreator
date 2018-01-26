@@ -31,6 +31,7 @@
 #include <bindingproperty.h>
 #include <signalhandlerproperty.h>
 #include <nodeabstractproperty.h>
+#include <nodelistproperty.h>
 #include <variantproperty.h>
 
 #include <qmlitemnode.h>
@@ -40,13 +41,13 @@ const QString lineBreak = QStringLiteral("<br>");
 
 bool isDebugViewEnabled()
 {
-    return QmlDesigner::QmlDesignerPlugin::instance()->settings().value(
+    return QmlDesigner::DesignerSettings::getValue(
         QmlDesigner::DesignerSettingsKey::ENABLE_DEBUGVIEW).toBool();
 }
 
 bool isDebugViewShown()
 {
-    return QmlDesigner::QmlDesignerPlugin::instance()->settings().value(
+    return QmlDesigner::DesignerSettings::getValue(
         QmlDesigner::DesignerSettingsKey::SHOW_DEBUGVIEW).toBool();
 }
 
@@ -68,7 +69,7 @@ DebugView::~DebugView()
 
 void DebugView::modelAttached(Model *model)
 {
-    log(tr("Model attached"), tr("Filename %1").arg(model->fileUrl().toLocalFile()));
+    log("::modelAttached:", QString("filename %1").arg(model->fileUrl().toLocalFile()));
     m_debugViewWidget->setDebugViewEnabled(isDebugViewEnabled());
     if (isDebugViewEnabled())
         qDebug() << tr("Debug view is enabled");
@@ -77,7 +78,7 @@ void DebugView::modelAttached(Model *model)
 
 void DebugView::modelAboutToBeDetached(Model *model)
 {
-    log(tr("Model detached"), tr("Filename %1").arg(model->fileUrl().toLocalFile()));
+    log("::modelAboutToBeDetached:", QString("filename %1").arg(model->fileUrl().toLocalFile()));
     AbstractView::modelAboutToBeDetached(model);
 }
 
@@ -85,17 +86,17 @@ void DebugView::importsChanged(const QList<Import> &addedImports, const QList<Im
 {
     if (isDebugViewEnabled()) {
         QString message;
-        message += tr("Added imports:") += lineBreak;
+        message += QString("added imports:") += lineBreak;
         foreach (const Import &import, addedImports) {
             message += import.toImportString() += lineBreak;
         }
 
-        message += tr("Removed imports:") += lineBreak;
+        message += QString("removed imports:") += lineBreak;
         foreach (const Import &import, removedImports) {
             message += import.toImportString() += lineBreak;
         }
 
-        log(tr("Imports changed:"), message);
+        log("::importsChanged:", message);
     }
 }
 
@@ -106,7 +107,7 @@ void DebugView::nodeCreated(const ModelNode &createdNode)
         QString string;
         message.setString(&string);
         message << createdNode;
-        log(tr("Node created:"), message.readAll());
+        log("::nodeCreated:", message.readAll());
     }
 }
 
@@ -118,10 +119,10 @@ void DebugView::nodeAboutToBeRemoved(const ModelNode &removedNode)
         message.setString(&string);
         message << removedNode << lineBreak;
         foreach (const ModelNode &modelNode, removedNode.allSubModelNodes()) {
-            message << tr("Child node:") << modelNode << lineBreak;
+            message << "child node:" << modelNode << lineBreak;
         }
 
-        log(tr("Node about to be removed:"), message.readAll());
+        log("::nodeAboutToBeRemoved:", message.readAll());
     }
 }
 
@@ -133,16 +134,16 @@ void DebugView::nodeReparented(const ModelNode &node, const NodeAbstractProperty
         QString string;
         message.setString(&string);
         message << node;
-        message << tr("New parent property:");
+        message << "new parent property:";
         message << lineBreak;
         message << newPropertyParent;
-        message << tr("Old parent property:");
+        message << "old parent property:";
         message << lineBreak;
         message << oldPropertyParent;
-        message << tr("Property change flag");
+        message << "property change flag";
         message << lineBreak;
         message << propertyChange;
-        log(tr("Node reparented:"), message.readAll());
+        log(tr("::nodeReparented:"), message.readAll());
     }
 }
 
@@ -153,9 +154,9 @@ void DebugView::nodeIdChanged(const ModelNode &node, const QString &newId, const
         QString string;
         message.setString(&string);
         message << node;
-        message << tr("New id:") << ' ' << newId << lineBreak;
-        message << tr("Old id:") << ' ' << oldId << lineBreak;
-        log(tr("Node id changed:"), string);
+        message << QString("new id:") << ' ' << newId << lineBreak;
+        message << QString("old id:") << ' ' << oldId << lineBreak;
+        log(tr("::nodeIdChanged:"), string);
     }
 }
 
@@ -173,7 +174,7 @@ void DebugView::variantPropertiesChanged(const QList<VariantProperty> &propertyL
         foreach (const VariantProperty &property, propertyList) {
             message << property;
         }
-        log(tr("Variant properties changed:"), string);
+        log("::variantPropertiesChanged:", string);
     }
 }
 
@@ -187,7 +188,7 @@ void DebugView::bindingPropertiesChanged(const QList<BindingProperty> &propertyL
         foreach (const BindingProperty &property, propertyList) {
             message << property;
         }
-        log(tr("Binding properties changed:"), string);
+        log("::Binding properties changed:", string);
     }
 }
 
@@ -200,7 +201,7 @@ void DebugView::signalHandlerPropertiesChanged(const QVector<SignalHandlerProper
         foreach (const SignalHandlerProperty &property, propertyList) {
             message << property;
         }
-        log(tr("Signal handler properties changed:"), string);
+        log("::signalHandlerPropertiesChanged:", string);
     }
 }
 
@@ -213,7 +214,7 @@ void DebugView::rootNodeTypeChanged(const QString &type, int majorVersion, int m
         message += QString::number(majorVersion);
         message += QStringLiteral(" ");
         message += QString::number(minorVersion);
-        log(tr("Node id changed:"), message);
+        log("::rootNodeTypeChanged:", message);
     }
 }
 
@@ -228,7 +229,7 @@ void DebugView::selectedNodesChanged(const QList<ModelNode> &selectedNodes /*sel
         foreach (const VariantProperty &property, selectedNode.variantProperties()) {
             message << property;
         }
-        log(tr("Node selected:"), string);
+        log("::selectedNodesChanged:", string);
     }
 }
 
@@ -245,7 +246,7 @@ void DebugView::propertiesRemoved(const QList<AbstractProperty> &propertyList)
         foreach (const AbstractProperty &property, propertyList) {
             message << property;
         }
-        log(tr("Properties removed:"), string);
+        log("::propertiesRemoved:", string);
     }
 }
 
@@ -260,20 +261,39 @@ void DebugView::auxiliaryDataChanged(const ModelNode &node, const PropertyName &
         message << name;
         message << data.toString();
 
-        log(tr("Auxiliary data changed:"), string);
+        log("::auxiliaryDataChanged:", string);
     }
+}
+
+void DebugView::documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings)
+{
+     if (isDebugViewEnabled()) {
+         QTextStream message;
+         QString string;
+         message.setString(&string);
+
+         foreach (const DocumentMessage &error, errors) {
+             message << error.toString();
+         }
+
+         foreach (const DocumentMessage &warning, warnings) {
+             message << warning.toString();
+         }
+
+         log("::documentMessageChanged:", string);
+     }
 }
 
 void DebugView::rewriterBeginTransaction()
 {
     if (isDebugViewEnabled())
-        log(tr("Begin rewriter transaction"), QString(), true);
+        log("::rewriterBeginTransaction:", QString(), true);
 }
 
 void DebugView::rewriterEndTransaction()
 {
     if (isDebugViewEnabled())
-        log(tr("End rewriter transaction"), QString(), true);
+        log("::rewriterEndTransaction:", QString(), true);
 }
 
 WidgetInfo DebugView::widgetInfo()
@@ -289,7 +309,7 @@ bool DebugView::hasWidget() const
     return false;
 }
 
-void DebugView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList)
+void DebugView::instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &propertyList)
 {
     if (isDebugViewEnabled()) {
         QTextStream message;
@@ -304,11 +324,11 @@ void DebugView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName
             message << pair.second;
         }
 
-        logInstance(tr("Instance property change"), string);
+        logInstance(":instancePropertyChanged::", string);
     }
 }
 
-void DebugView::instanceErrorChange(const QVector<ModelNode> &/*errorNodeList*/)
+void DebugView::instanceErrorChanged(const QVector<ModelNode> &/*errorNodeList*/)
 {
 }
 
@@ -322,27 +342,27 @@ void DebugView::instancesCompleted(const QVector<ModelNode> &completedNodeList)
         foreach (const ModelNode &modelNode, completedNodeList) {
             message << modelNode << lineBreak;
             if (QmlItemNode::isValidQmlItemNode(modelNode)) {
-                message << tr("parent: ") << QmlItemNode(modelNode).instanceParent() << lineBreak;
+                message << "parent: " << QmlItemNode(modelNode).instanceParent() << lineBreak;
             }
         }
 
-        logInstance(tr("Instance completed"), string);
+        logInstance(":instancesCompleted::", string);
     }
 }
 
-void DebugView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
+void DebugView::instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &informationChangedHash)
 {
     if (isDebugViewEnabled()) {
         QTextStream message;
         QString string;
         message.setString(&string);
 
-        foreach (const ModelNode &modelNode, informationChangeHash.keys()) {
+        foreach (const ModelNode &modelNode, informationChangedHash.keys()) {
             message << modelNode;
-            message << informationChangeHash.value(modelNode);
+            message << informationChangedHash.value(modelNode);
         }
 
-        logInstance(tr("Instance information change"), string);
+        logInstance("::instanceInformationsChanged:", string);
     }
 
 }
@@ -365,17 +385,20 @@ void DebugView::instancesChildrenChanged(const QVector<ModelNode> & nodeList)
         foreach (const ModelNode &modelNode, nodeList) {
             message << modelNode << lineBreak;
             if (QmlItemNode::isValidQmlItemNode(modelNode)) {
-                message << tr("parent: ") << QmlItemNode(modelNode).instanceParent() << lineBreak;
+                message << "parent: " << QmlItemNode(modelNode).instanceParent() << lineBreak;
             }
         }
 
-        logInstance(tr("Instance's children changed:"), string);
+        logInstance("::instancesChildrenChanged:", string);
     }
 }
 
 void DebugView::customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data)
 {
-    if (isDebugViewEnabled()) {
+    if (identifier == "PuppetStatus" && data.count() == 1) {
+        m_debugViewWidget->setPuppetStatus(data.first().toString());
+
+    } else if (isDebugViewEnabled()) {
         QTextStream message;
         QString string;
         message.setString(&string);
@@ -390,7 +413,7 @@ void DebugView::customNotification(const AbstractView *view, const QString &iden
             message << variant.toString();
         }
 
-        log(tr("Custom notification:"), string);
+        log("::customNotification:", string);
     }
 }
 
@@ -404,7 +427,7 @@ void DebugView::nodeSourceChanged(const ModelNode &modelNode, const QString &new
         message << modelNode;
         message << newNodeSource;
 
-        log(tr("Node source changed:"), string);
+        log("::nodeSourceChanged:", string);
     }
 }
 
@@ -417,7 +440,7 @@ void DebugView::nodeRemoved(const ModelNode &removedNode, const NodeAbstractProp
 
         message << removedNode;
 
-        log(tr("Node removed:"), string);
+        log("::nodeRemoved:", string);
     }
 }
 
@@ -436,9 +459,18 @@ void DebugView::currentStateChanged(const ModelNode &/*node*/)
 
 }
 
-void DebugView::nodeOrderChanged(const NodeListProperty &/*listProperty*/, const ModelNode &/*movedNode*/, int /*oldIndex*/)
+void DebugView::nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex)
 {
+    if (isDebugViewEnabled()) {
+        QTextStream message;
+        QString string;
+        message.setString(&string);
 
+        message << movedNode << listProperty;
+        message << oldIndex << "to" << listProperty.indexOf(movedNode);
+
+        log("::nodeSlide:", string);
+    }
 }
 
 void DebugView::log(const QString &title, const QString &message, bool highlight)

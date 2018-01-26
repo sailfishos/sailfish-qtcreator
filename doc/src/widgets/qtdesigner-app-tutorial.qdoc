@@ -31,9 +31,9 @@
 
 /*!
     \contentspage {Qt Creator Manual}
-    \previouspage transitions
+    \previouspage {Creating a Qt Quick Application}
     \page creator-writing-program.html
-    \nextpage accelbubble
+    \nextpage {Creating a Mobile Application}
 
     \title Creating a Qt Widget Based Application
 

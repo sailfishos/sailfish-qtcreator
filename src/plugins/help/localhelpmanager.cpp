@@ -266,7 +266,7 @@ QList<float> LocalHelpManager::lastShownPagesZoom()
 void LocalHelpManager::setLastShownPagesZoom(const QList<qreal> &zoom)
 {
     const QStringList stringValues = Utils::transform(zoom,
-                                                      [](float z) { return QString::number(z); });
+                                                      [](qreal z) { return QString::number(z); });
     Core::ICore::settings()->setValue(kLastShownPagesZoomKey,
                                       stringValues.join(Constants::ListSeparator));
 }
@@ -304,10 +304,8 @@ QHelpEngine &LocalHelpManager::helpEngine()
 {
     if (!m_guiEngine) {
         QMutexLocker _(&m_guiMutex);
-        if (!m_guiEngine) {
+        if (!m_guiEngine)
             m_guiEngine = new QHelpEngine(QString());
-            m_guiEngine->setAutoSaveFilter(false);
-        }
     }
     return *m_guiEngine;
 }

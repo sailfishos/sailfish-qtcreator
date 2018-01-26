@@ -91,6 +91,7 @@ public:
                         const NodeAbstractProperty &oldPropertyParent,
                         AbstractView::PropertyChangeFlags propertyChange) override;
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) override;
+    void nodeTypeChanged(const ModelNode& node, const TypeName &type, int majorVersion, int minorVersion) override;
     void fileUrlChanged(const QUrl &oldUrl, const QUrl &newUrl) override;
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId) override;
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) override;
@@ -131,10 +132,6 @@ public:
     void setProject(ProjectExplorer::Project *project);
 
     void sendToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
-
-signals:
-    void qmlPuppetCrashed();
-    void qmlPuppetError(const QString &errorMessage);
 
 protected:
     void timerEvent(QTimerEvent *event) override;
@@ -186,8 +183,8 @@ private: // functions
     void restartProcess();
     void delayedRestartProcess();
 
-private slots:
-    void handleChrash();
+private:
+    void handleCrash();
 
 private: //variables
     NodeInstance m_rootNodeInstance;

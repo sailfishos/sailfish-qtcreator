@@ -1,5 +1,5 @@
 DEFINES += QTSUPPORT_LIBRARY
-QT += network quick
+QT += network
 
 include(../../qtcreatorplugin.pri)
 
@@ -31,8 +31,6 @@ HEADERS += \
     copytolocationdialog.h \
     desktopqtversionfactory.h \
     desktopqtversion.h \
-    winceqtversionfactory.h \
-    winceqtversion.h \
     uicgenerator.h \
     qscxmlcgenerator.h
 
@@ -59,8 +57,6 @@ SOURCES += \
     copytolocationdialog.cpp \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
-    winceqtversionfactory.cpp \
-    winceqtversion.cpp \
     uicgenerator.cpp \
     qscxmlcgenerator.cpp
 

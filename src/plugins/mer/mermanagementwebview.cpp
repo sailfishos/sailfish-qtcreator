@@ -252,6 +252,9 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
 
 MerManagementWebView::~MerManagementWebView()
 {
+    // Prevent crash on exit
+    ui->webView->page()->disconnect(this);
+
     delete ui;
 }
 

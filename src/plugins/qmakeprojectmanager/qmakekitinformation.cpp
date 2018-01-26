@@ -33,6 +33,8 @@
 
 #include <qtsupport/qtkitinformation.h>
 
+#include <utils/algorithm.h>
+
 using namespace ProjectExplorer;
 using namespace Utils;
 
@@ -72,28 +74,29 @@ void QmakeKitInformation::setup(Kit *k)
     if (!version)
         return;
 
-    if (version->type() == "Boot2Qt.QtVersionType") // HACK: Ignore boot2Qt kits!
+    // HACK: Ignore Boot2Qt kits!
+    if (version->type() == "Boot2Qt.QtVersionType" || version->type() == "Qdb.EmbeddedLinuxQt")
         return;
 
     FileName spec = QmakeKitInformation::mkspec(k);
     if (spec.isEmpty())
         spec = version->mkspec();
 
-
-    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID);
 
     if (!tc || (!tc->suggestedMkspecList().empty() && !tc->suggestedMkspecList().contains(spec))) {
-        ToolChain *possibleTc = nullptr;
-        foreach (ToolChain *current, ToolChainManager::toolChains()) {
-            if (current->language() == ToolChain::Language::Cxx
-                    && version->qtAbis().contains(current->targetAbi())) {
-                possibleTc = current;
-                if (current->suggestedMkspecList().contains(spec))
-                    break;
-            }
+        const QList<ToolChain *> possibleTcs = ToolChainManager::toolChains([version, &spec](const ToolChain *t) {
+            return t->isValid()
+                && t->language() == Core::Id(Constants::CXX_LANGUAGE_ID)
+                && version->qtAbis().contains(t->targetAbi());
+        });
+        if (!possibleTcs.isEmpty()) {
+            ToolChain *possibleTc
+                    = Utils::findOr(possibleTcs, possibleTcs.last(),
+                                    [&spec](const ToolChain *t) { return t->suggestedMkspecList().contains(spec); });
+            if (possibleTc)
+                ToolChainKitInformation::setAllToolChainsToMatch(k, possibleTc);
         }
-        if (possibleTc)
-            ToolChainKitInformation::setToolChain(k, possibleTc);
     }
 }
 
@@ -148,7 +151,7 @@ FileName QmakeKitInformation::defaultMkspec(const Kit *k)
     if (!version) // No version, so no qmake
         return FileName();
 
-    return version->mkspecFor(ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx));
+    return version->mkspecFor(ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID));
 }
 
 } // namespace QmakeProjectManager

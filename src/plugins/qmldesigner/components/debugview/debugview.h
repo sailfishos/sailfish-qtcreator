@@ -65,6 +65,7 @@ public:
     void propertiesRemoved(const QList<AbstractProperty> &propertyList) override;
 
     void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data) override;
+    void documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings) override;
 
     void rewriterBeginTransaction() override;
     void rewriterEndTransaction() override;
@@ -72,10 +73,10 @@ public:
     WidgetInfo widgetInfo() override;
     bool hasWidget() const override;
 
-    void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList) override;
-    void instanceErrorChange(const QVector<ModelNode> &errorNodeList) override;
+    void instancePropertyChanged(const QList<QPair<ModelNode, PropertyName> > &propertyList) override;
+    void instanceErrorChanged(const QVector<ModelNode> &errorNodeList) override;
     void instancesCompleted(const QVector<ModelNode> &completedNodeList) override;
-    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) override;
+    void instanceInformationsChanged(const QMultiHash<ModelNode, InformationName> &informationChangedHash) override;
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) override;
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList) override;
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList) override;

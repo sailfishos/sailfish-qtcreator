@@ -70,7 +70,9 @@ bool QmakeAndroidRunConfigurationFactory::canCreate(Target *parent, Core::Id id)
 
 bool QmakeAndroidRunConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
 {
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
+    if (!canHandle(parent))
+        return false;
+    return ProjectExplorer::idFromMap(map).name().startsWith(ANDROID_RC_ID_PREFIX);
 }
 
 bool QmakeAndroidRunConfigurationFactory::canClone(Target *parent, RunConfiguration *source) const
@@ -83,16 +85,9 @@ QList<Core::Id> QmakeAndroidRunConfigurationFactory::availableCreationIds(Target
     if (!canHandle(parent))
         return QList<Core::Id>();
 
-    QmakeProject *project = static_cast<QmakeProject *>(parent->project());
-    QList<QmakeProFileNode *> nodes = project->allProFiles(QList<QmakeProjectType>()
-                                                           << ApplicationTemplate
-                                                           << SharedLibraryTemplate);
-
-    if (mode == AutoCreate)
-        nodes = QmakeProject::nodesWithQtcRunnable(nodes);
-
-    const Core::Id base = Core::Id(ANDROID_RC_ID_PREFIX);
-    return QmakeProject::idsForNodes(base, nodes);
+    auto project = static_cast<QmakeProject *>(parent->project());
+    return project->creationIds(ANDROID_RC_ID_PREFIX, mode,
+                                {ProjectType::ApplicationTemplate, ProjectType::SharedLibraryTemplate});
 }
 
 RunConfiguration *QmakeAndroidRunConfigurationFactory::doCreate(Target *parent, Core::Id id)

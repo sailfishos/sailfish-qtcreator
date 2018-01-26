@@ -26,20 +26,18 @@
 #pragma once
 
 #include <QObject>
-#include <QTemporaryDir>
 
 namespace CppTools { namespace Tests { class TemporaryCopiedDir; } }
 
 namespace ClangStaticAnalyzer {
 namespace Internal {
-class ClangStaticAnalyzerTool;
 
 class ClangStaticAnalyzerUnitTests : public QObject
 {
     Q_OBJECT
 
 public:
-    ClangStaticAnalyzerUnitTests(ClangStaticAnalyzerTool *analyzerTool, QObject *parent = 0);
+    ClangStaticAnalyzerUnitTests() {}
 
 private slots:
     void initTestCase();
@@ -48,8 +46,10 @@ private slots:
     void testProject_data();
 
 private:
-    ClangStaticAnalyzerTool * const m_analyzerTool;
-    CppTools::Tests::TemporaryCopiedDir *m_tmpDir;
+    void addTestRow(const QByteArray &relativeFilePath, int expectedDiagCount);
+
+private:
+    CppTools::Tests::TemporaryCopiedDir *m_tmpDir = nullptr;
 };
 
 } // namespace Internal

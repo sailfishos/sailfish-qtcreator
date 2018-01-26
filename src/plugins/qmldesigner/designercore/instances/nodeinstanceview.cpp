@@ -151,9 +151,10 @@ bool isSkippedNode(const ModelNode &node)
 void NodeInstanceView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
-    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
+    auto server = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
+    m_nodeInstanceServer = server;
     m_lastCrashTime.start();
-    connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
+    connect(server, &NodeInstanceServerProxy::processCrashed, this, &NodeInstanceView::handleCrash);
 
     if (!isSkippedRootNode(rootModelNode()))
         nodeInstanceServer()->createScene(createCreateSceneCommand());
@@ -181,30 +182,36 @@ void NodeInstanceView::modelAboutToBeDetached(Model * model)
     AbstractView::modelAboutToBeDetached(model);
 }
 
-void NodeInstanceView::handleChrash()
+void NodeInstanceView::handleCrash()
 {
     int elaspsedTimeSinceLastCrash = m_lastCrashTime.restart();
-
-    if (elaspsedTimeSinceLastCrash > 2000)
+    int forceRestartTime = 2000;
+#ifdef QT_DEBUG
+    forceRestartTime = 4000;
+#endif
+    if (elaspsedTimeSinceLastCrash > forceRestartTime)
         restartProcess();
     else
-        emit qmlPuppetCrashed();
+        emitDocumentMessage(tr("Qt Quick emulation layer crashed."));
 
     emitCustomNotification(QStringLiteral("puppet crashed"));
 }
 
-
-
 void NodeInstanceView::restartProcess()
 {
+    if (rootNodeInstance().isValid())
+        rootNodeInstance().setError({});
+    emitInstanceErrorChange({});
+
     if (m_restartProcessTimerId)
         killTimer(m_restartProcessTimerId);
 
     if (model()) {
         delete nodeInstanceServer();
 
-        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
-        connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
+        auto server = new NodeInstanceServerProxy(this, m_runModus, m_currentKit, m_currentProject);
+        m_nodeInstanceServer = server;
+        connect(server, &NodeInstanceServerProxy::processCrashed, this, &NodeInstanceView::handleCrash);
 
         if (!isSkippedRootNode(rootModelNode()))
             nodeInstanceServer()->createScene(createCreateSceneCommand());
@@ -237,9 +244,9 @@ void NodeInstanceView::nodeCreated(const ModelNode &createdNode)
     propertyList.append(createdNode.variantProperty("y"));
     updatePosition(propertyList);
 
-    nodeInstanceServer()->createInstances(createCreateInstancesCommand(QList<NodeInstance>() << instance));
+    nodeInstanceServer()->createInstances(createCreateInstancesCommand({instance}));
     nodeInstanceServer()->changePropertyValues(createChangeValueCommand(createdNode.variantProperties()));
-    nodeInstanceServer()->completeComponent(createComponentCompleteCommand(QList<NodeInstance>() << instance));
+    nodeInstanceServer()->completeComponent(createComponentCompleteCommand({instance}));
 }
 
 /*! Notifies the view that \a removedNode will be removed.
@@ -362,6 +369,11 @@ void NodeInstanceView::rootNodeTypeChanged(const QString &/*type*/, int /*majorV
     restartProcess();
 }
 
+void NodeInstanceView::nodeTypeChanged(const ModelNode &, const TypeName &, int, int)
+{
+    restartProcess();
+}
+
 void NodeInstanceView::bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags /*propertyChange*/)
 {
     nodeInstanceServer()->changePropertyBindings(createChangeBindingCommand(propertyList));
@@ -408,7 +420,7 @@ void NodeInstanceView::nodeIdChanged(const ModelNode& node, const QString& /*new
 {
     if (hasInstanceForModelNode(node)) {
         NodeInstance instance = instanceForModelNode(node);
-        nodeInstanceServer()->changeIds(createChangeIdsCommand(QList<NodeInstance>() << instance));
+        nodeInstanceServer()->changeIds(createChangeIdsCommand({instance}));
     }
 }
 
@@ -447,16 +459,16 @@ void NodeInstanceView::auxiliaryDataChanged(const ModelNode &node, const Propert
             QVariant value = data;
             if (value.isValid()) {
                 PropertyValueContainer container(instance.instanceId(), name, value, TypeName());
-                ChangeAuxiliaryCommand changeAuxiliaryCommand(QVector<PropertyValueContainer>() << container);
+                ChangeAuxiliaryCommand changeAuxiliaryCommand({container});
                 nodeInstanceServer()->changeAuxiliaryValues(changeAuxiliaryCommand);
             } else {
                 if (node.hasVariantProperty(name)) {
                     PropertyValueContainer container(instance.instanceId(), name, node.variantProperty(name).value(), TypeName());
-                    ChangeValuesCommand changeValueCommand(QVector<PropertyValueContainer>() << container);
+                    ChangeValuesCommand changeValueCommand({container});
                     nodeInstanceServer()->changePropertyValues(changeValueCommand);
                 } else if (node.hasBindingProperty(name)) {
                     PropertyBindingContainer container(instance.instanceId(), name, node.bindingProperty(name).expression(), TypeName());
-                    ChangeBindingsCommand changeValueCommand(QVector<PropertyBindingContainer>() << container);
+                    ChangeBindingsCommand changeValueCommand({container});
                     nodeInstanceServer()->changePropertyBindings(changeValueCommand);
                 }
             }
@@ -1070,7 +1082,7 @@ RemovePropertiesCommand NodeInstanceView::createRemovePropertiesCommand(const QL
 
 RemoveSharedMemoryCommand NodeInstanceView::createRemoveSharedMemoryCommand(const QString &sharedMemoryTypeName, quint32 keyNumber)
 {
-    return RemoveSharedMemoryCommand(sharedMemoryTypeName, QVector<qint32>() << keyNumber);
+    return RemoveSharedMemoryCommand(sharedMemoryTypeName, {static_cast<qint32>(keyNumber)});
 }
 
 RemoveSharedMemoryCommand NodeInstanceView::createRemoveSharedMemoryCommand(const QString &sharedMemoryTypeName, const QList<ModelNode> &nodeList)
@@ -1095,7 +1107,7 @@ void NodeInstanceView::valuesChanged(const ValuesChangedCommand &command)
             NodeInstance instance = instanceForId(container.instanceId());
             if (instance.isValid()) {
                 instance.setProperty(container.name(), container.value());
-                valuePropertyChangeList.append(qMakePair(instance.modelNode(), container.name()));
+                valuePropertyChangeList.append({instance.modelNode(), container.name()});
             }
         }
     }
@@ -1122,6 +1134,8 @@ void NodeInstanceView::pixmapChanged(const PixmapChangedCommand &command)
             }
         }
     }
+
+    m_nodeInstanceServer->benchmark(Q_FUNC_INFO + QString::number(renderImageChangeSet.count()));
 
     if (!renderImageChangeSet.isEmpty())
         emitInstancesRenderImageChanged(renderImageChangeSet.toList().toVector());
@@ -1151,6 +1165,8 @@ void NodeInstanceView::informationChanged(const InformationChangedCommand &comma
         return;
 
     QMultiHash<ModelNode, InformationName> informationChangeHash = informationChanged(command.informations());
+
+    m_nodeInstanceServer->benchmark(Q_FUNC_INFO + QString::number(informationChangeHash.count()));
 
     if (!informationChangeHash.isEmpty())
         emitInstanceInformationsChange(informationChangeHash);
@@ -1216,6 +1232,8 @@ void NodeInstanceView::componentCompleted(const ComponentCompletedCommand &comma
             nodeVector.append(modelNodeForInternalId(instanceId));
     }
 
+    m_nodeInstanceServer->benchmark(Q_FUNC_INFO + QString::number(nodeVector.count()));
+
     if (!nodeVector.isEmpty())
         emitInstancesCompleted(nodeVector);
 }
@@ -1231,10 +1249,9 @@ void NodeInstanceView::childrenChanged(const ChildrenChangedCommand &command)
     foreach (qint32 instanceId, command.childrenInstances()) {
         if (hasInstanceForId(instanceId)) {
             NodeInstance instance = instanceForId(instanceId);
-            if (instance.parentId() == -1 || !instance.directUpdates()) {
+            if (instance.parentId() == -1 || !instance.directUpdates())
                 instance.setParentId(command.parentInstanceId());
-                childNodeVector.append(instance.modelNode());
-            }
+            childNodeVector.append(instance.modelNode());
         }
     }
 
@@ -1259,14 +1276,14 @@ void NodeInstanceView::token(const TokenCommand &command)
             nodeVector.append(modelNodeForInternalId(instanceId));
     }
 
-
     emitInstanceToken(command.tokenName(), command.tokenNumber(), nodeVector);
 }
 
 void NodeInstanceView::debugOutput(const DebugOutputCommand & command)
 {
+    DocumentMessage error(tr("Qt Quick emulation layer crashed."));
     if (command.instanceIds().isEmpty()) {
-        qmlPuppetError(command.text()); // TODO: connect that somewhere to show that to the user
+        emitDocumentMessage(command.text());
     } else {
         QVector<qint32> instanceIdsWithChangedErrors;
         foreach (qint32 instanceId, command.instanceIds()) {
@@ -1275,7 +1292,7 @@ void NodeInstanceView::debugOutput(const DebugOutputCommand & command)
                 if (instance.setError(command.text()))
                     instanceIdsWithChangedErrors.append(instanceId);
             } else {
-                qmlPuppetError(command.text()); // TODO: connect that somewhere to show that to the user
+                emitDocumentMessage(command.text());
             }
         }
         emitInstanceErrorChange(instanceIdsWithChangedErrors);

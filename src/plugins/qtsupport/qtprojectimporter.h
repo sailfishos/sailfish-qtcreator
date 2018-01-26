@@ -29,8 +29,6 @@
 
 #include <projectexplorer/projectimporter.h>
 
-#include <QPair>
-
 namespace QtSupport {
 
 class BaseQtVersion;
@@ -39,7 +37,7 @@ class BaseQtVersion;
 class QTSUPPORT_EXPORT QtProjectImporter : public ProjectExplorer::ProjectImporter
 {
 public:
-    QtProjectImporter(const QString &path);
+    QtProjectImporter(const Utils::FileName &path);
 
     class QtVersionData
     {

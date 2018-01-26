@@ -22,13 +22,11 @@ SUBDIRS   = \
     qtsupport \
     qmakeprojectmanager \
     debugger \
-    help \
     cpaster \
     cmakeprojectmanager \
     autotoolsprojectmanager \
     fakevim \
     emacskeys \
-    designer \
     resourceeditor \
     genericprojectmanager \
     qmljseditor \
@@ -55,16 +53,42 @@ SUBDIRS   = \
     modeleditor \
     qmakeandroidsupport \
     winrt \
-    qmlprofiler \
     updateinfo \
     scxmleditor \
-    welcome
+    welcome \
+    silversearcher
+
+qtHaveModule(quick) {
+    SUBDIRS += qmlprofiler
+} else {
+    warning("QmlProfiler plugin has been disabled since the Qt Quick module is not available.")
+}
+
+qtHaveModule(help) {
+    SUBDIRS += help
+} else {
+    warning("Help plugin has been disabled since the Qt Help module is not available.")
+}
+
+qtHaveModule(designercomponents_private) {
+    SUBDIRS += designer
+} else {
+    warning("Qt Widget Designer plugin has been disabled since the Qt Designer module is not available.")
+}
 
 DO_NOT_BUILD_QMLDESIGNER = $$(DO_NOT_BUILD_QMLDESIGNER)
-isEmpty(DO_NOT_BUILD_QMLDESIGNER) {
-    SUBDIRS += qmldesigner
+isEmpty(DO_NOT_BUILD_QMLDESIGNER):qtHaveModule(quick-private) {
+    exists($$[QT_INSTALL_QML]/QtQuick/Controls/qmldir) {
+       SUBDIRS += qmldesigner
+    } else {
+        warning("QmlDesigner plugin has been disabled since Qt Quick Controls 1 are not installed.")
+    }
 } else {
-    warning("QmlDesigner plugin has been disabled.")
+    !qtHaveModule(quick-private) {
+        warning("QmlDesigner plugin has been disabled since the Qt Quick module is not available.")
+    } else {
+        warning("QmlDesigner plugin has been disabled since DO_NOT_BUILD_QMLDESIGNER is set.")
+    }
 }
 
 
@@ -77,7 +101,14 @@ exists(../shared/qbs/qbs.pro)|!isEmpty(QBS_INSTALL_DIR): \
 isEmpty(LLVM_INSTALL_DIR):LLVM_INSTALL_DIR=$$(LLVM_INSTALL_DIR)
 exists($$LLVM_INSTALL_DIR) {
     SUBDIRS += clangcodemodel
-#    SUBDIRS += clangrefactoring
+
+    QTC_NO_CLANG_LIBTOOLING=$$(QTC_NO_CLANG_LIBTOOLING)
+    isEmpty(QTC_NO_CLANG_LIBTOOLING) {
+        SUBDIRS += clangrefactoring
+        SUBDIRS += clangpchmanager
+    } else {
+        warning("Building the Clang refactoring and the pch manager plugins are disabled.")
+    }
 } else {
     warning("Set LLVM_INSTALL_DIR to build the Clang Code Model. " \
             "For details, see doc/src/editors/creator-clang-codemodel.qdoc.")

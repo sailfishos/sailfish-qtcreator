@@ -35,20 +35,24 @@ namespace V2 {
 QDebug operator<<(QDebug debug, const SourceLocationContainer &container)
 {
     debug.nospace() << "SourceLocationContainer("
-                    << container.fileHash() << ", "
                     << container.line() << ", "
-                    << container.column()
+                    << container.column() << ", "
+                    << container.offset() << ", "
+                    << container.fileHash()
                     << ")";
     return debug;
 }
 
-void PrintTo(const SourceLocationContainer &container, ::std::ostream* os)
+std::ostream &operator<<(std::ostream &os, const SourceLocationContainer &container)
 {
-    *os << "["
-        << container.fileHash() << ", "
-        << container.line() << ", "
-        << container.column()
-        << "]";
+    os << "("
+       << container.fileHash() << ", "
+       << container.line() << ", "
+       << container.column() << ", "
+       << container.offset()
+       << ")";
+
+    return os;
 }
 
 } // namespace V2

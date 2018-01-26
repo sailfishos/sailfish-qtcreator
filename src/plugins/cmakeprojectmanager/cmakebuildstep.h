@@ -27,6 +27,8 @@
 
 #include <projectexplorer/abstractprocessstep.h>
 
+#include <QRegExp>
+
 QT_BEGIN_NAMESPACE
 class QLineEdit;
 class QListWidget;
@@ -77,6 +79,9 @@ public:
 
     static QString cleanTarget();
     static QString allTarget();
+    static QString installTarget();
+    static QString testTarget();
+    static QStringList specialTargets();
 
 signals:
     void cmakeCommandChanged();
@@ -99,6 +104,8 @@ private:
     void ctor(ProjectExplorer::BuildStepList *bsl);
 
     void runImpl(QFutureInterface<bool> &fi);
+    void handleCMakeError(QFutureInterface<bool> &fi, const QString& errorMessage);
+    void disconnectTriggers();
 
     void handleBuildTargetChanges();
     CMakeRunConfiguration *targetsActiveRunConfiguration() const;

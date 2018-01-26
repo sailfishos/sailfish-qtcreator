@@ -27,8 +27,10 @@
 
 #include "qmleventlocation.h"
 #include "qmlprofilereventtypes.h"
-#include "qmlprofilerdatamodel.h"
 #include "qmlnote.h"
+#include "qmleventtype.h"
+#include "qmlevent.h"
+#include "qmlprofilermodelmanager.h"
 
 #include <QFutureInterface>
 #include <QObject>
@@ -51,8 +53,8 @@ public:
 
     void setFuture(QFutureInterface<void> *future);
 
-    bool loadQtd(QIODevice *device);
-    bool loadQzt(QIODevice *device);
+    void loadQtd(QIODevice *device);
+    void loadQzt(QIODevice *device);
 
     quint64 loadedFeatures() const;
 
@@ -62,9 +64,10 @@ public:
 signals:
     void typesLoaded(const QVector<QmlProfiler::QmlEventType> &types);
     void notesLoaded(const QVector<QmlProfiler::QmlNote> &notes);
-    void qmlEventLoaded(const QmlProfiler::QmlEvent &event);
+    void qmlEventsLoaded(const QVector<QmlProfiler::QmlEvent> &event);
     void error(const QString &error);
     void success();
+    void canceled();
 
 private:
     void loadEventTypes(QXmlStreamReader &reader);
@@ -89,23 +92,33 @@ public:
     explicit QmlProfilerFileWriter(QObject *parent = 0);
 
     void setTraceTime(qint64 startTime, qint64 endTime, qint64 measturedTime);
-    void setData(const QmlProfilerDataModel *model);
+    void setData(const QmlProfilerModelManager *model);
     void setNotes(const QVector<QmlNote> &notes);
     void setFuture(QFutureInterface<void> *future);
 
     void saveQtd(QIODevice *device);
     void saveQzt(QFile *file);
 
+signals:
+    void error(const QString &error);
+    void success();
+    void canceled();
+
 private:
-    void calculateMeasuredTime();
-    void incrementProgress();
+    void updateProgress(qint64 timestamp);
     bool isCanceled() const;
+
+    enum ProgressValues {
+        ProgressTypes  = -128,
+        ProgressNotes  = -32,
+        ProgressEvents = 1024,
+        ProgressTotal  = ProgressEvents - ProgressTypes - ProgressNotes
+    };
 
     qint64 m_startTime, m_endTime, m_measuredTime;
     QFutureInterface<void> *m_future;
-    const QmlProfilerDataModel *m_model;
+    const QmlProfilerModelManager *m_modelManager;
     QVector<QmlNote> m_notes;
-    int m_newProgressValue;
 };
 
 

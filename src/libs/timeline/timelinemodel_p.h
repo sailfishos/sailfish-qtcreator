@@ -30,8 +30,17 @@
 
 namespace Timeline {
 
+struct HueLookupTable {
+    QRgb table[360];
+    HueLookupTable();
+
+    QRgb operator[](int hue) const { return table[hue % 360]; }
+};
+
 class TIMELINE_EXPORT TimelineModel::TimelineModelPrivate {
 public:
+
+    static const HueLookupTable hueTable;
     static const int DefaultRowHeight = 30;
 
     enum BoxColorProperties {
@@ -68,9 +77,9 @@ public:
 
     void incrementStartIndices(int index)
     {
-        for (int i = 0; i < endTimes.size(); ++i) {
-            if (endTimes[i].startIndex >= index)
-                endTimes[i].startIndex++;
+        for (RangeEnd &endTime : endTimes) {
+            if (endTime.startIndex >= index)
+                ++(endTime.startIndex);
         }
     }
 

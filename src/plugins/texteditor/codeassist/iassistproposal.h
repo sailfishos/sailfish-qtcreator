@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "assistenums.h"
+
 #include <texteditor/texteditor_global.h>
 
 namespace TextEditor {
@@ -40,8 +42,9 @@ public:
     virtual ~IAssistProposal();
 
     int basePosition() const;
+    virtual bool hasItemsToPropose(const QString &, AssistReason) const { return true; }
     virtual bool isFragile() const = 0;
-    virtual bool isCorrective() const;
+    virtual bool isCorrective(TextEditorWidget *editorWidget) const;
     virtual void makeCorrection(TextEditorWidget *editorWidget);
     virtual IAssistProposalModel *model() const = 0;
     virtual IAssistProposalWidget *createWidget() const = 0;

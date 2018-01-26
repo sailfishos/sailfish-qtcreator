@@ -63,16 +63,22 @@ namespace Internal {
 // ToolChainManagerPrivate
 // --------------------------------------------------------------------------
 
+struct LanguageDisplayPair
+{
+    Core::Id id;
+    QString displayName;
+};
+
 class ToolChainManagerPrivate
 {
 public:
-    ToolChainManagerPrivate() : m_writer(nullptr) {}
     ~ToolChainManagerPrivate();
 
     QMap<QString, FileName> m_abiToDebugger;
-    PersistentSettingsWriter *m_writer;
+    PersistentSettingsWriter *m_writer = nullptr;
 
     QList<ToolChain *> m_toolChains; // prioritized List
+    QVector<LanguageDisplayPair> m_languages;
 };
 
 ToolChainManagerPrivate::~ToolChainManagerPrivate()
@@ -333,9 +339,16 @@ void ToolChainManager::saveToolChains()
     // Do not save default debuggers! Those are set by the SDK!
 }
 
-QList<ToolChain *> ToolChainManager::toolChains()
+QList<ToolChain *> ToolChainManager::toolChains(const ToolChain::Predicate &predicate)
 {
+    if (predicate)
+        return Utils::filtered(d->m_toolChains, predicate);
     return d->m_toolChains;
+}
+
+ToolChain *ToolChainManager::toolChain(const ToolChain::Predicate &predicate)
+{
+    return Utils::findOrDefault(d->m_toolChains, predicate);
 }
 
 QList<ToolChain *> ToolChainManager::findToolChains(const Abi &abi)
@@ -391,10 +404,11 @@ void ToolChainManager::notifyAboutUpdate(ToolChain *tc)
 
 bool ToolChainManager::registerToolChain(ToolChain *tc)
 {
-    QTC_ASSERT(tc->language() != ToolChain::Language::None, return false);
+    QTC_ASSERT(tc, return false);
+    QTC_ASSERT(isLanguageSupported(tc->language()), return false);
     QTC_ASSERT(d->m_writer, return false);
 
-    if (!tc || d->m_toolChains.contains(tc))
+    if (d->m_toolChains.contains(tc))
         return true;
     foreach (ToolChain *current, d->m_toolChains) {
         if (*tc == *current && !tc->isAutoDetected())
@@ -414,6 +428,35 @@ void ToolChainManager::deregisterToolChain(ToolChain *tc)
     d->m_toolChains.removeOne(tc);
     emit m_instance->toolChainRemoved(tc);
     delete tc;
+}
+
+QSet<Core::Id> ToolChainManager::allLanguages()
+{
+    return Utils::transform<QSet>(d->m_languages, [](const LanguageDisplayPair &pair) {
+        return pair.id;
+    });
+}
+
+bool ToolChainManager::registerLanguage(const Core::Id &language, const QString &displayName)
+{
+    QTC_ASSERT(language.isValid(), return false);
+    QTC_ASSERT(!isLanguageSupported(language), return false);
+    QTC_ASSERT(!displayName.isEmpty(), return false);
+    d->m_languages.push_back({language, displayName});
+    return true;
+}
+
+QString ToolChainManager::displayNameOfLanguageId(const Core::Id &id)
+{
+    QTC_ASSERT(id.isValid(), return tr("None"));
+    auto entry = Utils::findOrDefault(d->m_languages, Utils::equal(&LanguageDisplayPair::id, id));
+    QTC_ASSERT(entry.id.isValid(), return tr("None"));
+    return entry.displayName;
+}
+
+bool ToolChainManager::isLanguageSupported(const Core::Id &id)
+{
+    return Utils::contains(d->m_languages, Utils::equal(&LanguageDisplayPair::id, id));
 }
 
 } // namespace ProjectExplorer
@@ -439,7 +482,7 @@ public:
         m_valid(v)
     {
         m_toolChains.append(this);
-        setLanguage(ToolChain::Language::Cxx);
+        setLanguage(Constants::CXX_LANGUAGE_ID);
     }
 
     static QList<TTC *> toolChains();
@@ -448,9 +491,11 @@ public:
     QString typeDisplayName() const override { return QLatin1String("Test Tool Chain"); }
     Abi targetAbi() const override { return Abi::hostAbi(); }
     bool isValid() const override { return m_valid; }
+    PredefinedMacrosRunner createPredefinedMacrosRunner() const override { return PredefinedMacrosRunner(); }
     QByteArray predefinedMacros(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags); return QByteArray(); }
     CompilerFlags compilerFlags(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags); return NoFlags; }
     WarningFlags warningFlags(const QStringList &cflags) const override { Q_UNUSED(cflags); return WarningFlags::NoWarnings; }
+    SystemHeaderPathsRunner createSystemHeaderPathsRunner() const override { return SystemHeaderPathsRunner(); }
     QList<HeaderPath> systemHeaderPaths(const QStringList &cxxflags, const FileName &sysRoot) const override
     { Q_UNUSED(cxxflags); Q_UNUSED(sysRoot); return QList<HeaderPath>(); }
     void addToEnvironment(Environment &env) const override { Q_UNUSED(env); }
@@ -473,7 +518,7 @@ private:
         token(other.token)
     {}
 
-    bool m_valid;
+    bool m_valid = false;
 
     static QList<TTC *> m_toolChains;
 

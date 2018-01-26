@@ -100,7 +100,7 @@ private slots:
     void onActiveRunConfigurationChanged(ProjectExplorer::RunConfiguration *rc);
     void onQmlLiveEnabledChanged(bool enabled);
     void onQmlLiveBenchWorkspaceChanged(const QString &benchWorkspace);
-    void onRunControlStarted(ProjectExplorer::RunControl *rc);
+    void onAboutToExecuteProject(ProjectExplorer::RunControl *rc);
 
 private:
     static MerQmlLiveBenchManager *m_instance;

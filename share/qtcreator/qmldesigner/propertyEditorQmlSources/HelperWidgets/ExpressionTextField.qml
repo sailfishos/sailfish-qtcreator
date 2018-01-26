@@ -27,6 +27,7 @@ import QtQuick 2.1
 import QtQuick.Controls 1.0 as Controls
 import QtQuick.Controls.Styles 1.1
 import "Constants.js" as Constants
+import QtQuickDesignerTheme 1.0
 
 Controls.TextField {
 
@@ -34,10 +35,16 @@ Controls.TextField {
 
     signal rejected
 
+    property bool completeOnlyTypes: false
+
     property bool completionActive: listView.count > 0
     property bool dotCompletion: false
     property int dotCursorPos: 0
     property string prefix
+
+    property alias showButtons: buttonrow.visible
+
+    property bool fixedSize: false
 
     function commitCompletion() {
         var cursorPos = textField.cursorPosition
@@ -63,23 +70,33 @@ Controls.TextField {
         visible: textField.completionActive
         delegate: Text {
             text: modelData
-            color: creatorTheme.PanelTextColorLight
+            color: Theme.color(Theme.PanelTextColorLight)
             Rectangle {
                 visible: index === listView.currentIndex
                 z: -1
                 anchors.fill: parent
-                color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate
+                color: Theme.qmlDesignerBackgroundColorDarkAlternate()
             }
         }
 
         anchors.top: parent.top
         anchors.topMargin: 26
-        anchors.bottomMargin: 12
+        anchors.bottomMargin: textField.fixedSize ? -180 : 12
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        anchors.leftMargin: 6
         width: 200
         spacing: 2
+        children: [
+            Rectangle {
+                visible: textField.fixedSize
+                anchors.fill: parent
+                color: Theme.qmlDesignerBackgroundColorDarker()
+                border.color: Theme.qmlDesignerBorderColor()
+                anchors.rightMargin: 12
+                z: -1
+            }
+
+        ]
     }
 
     verticalAlignment: Text.AlignTop
@@ -89,7 +106,7 @@ Controls.TextField {
 
         if (event.key === Qt.Key_Period) {
             textField.dotCursorPos = textField.cursorPosition + 1
-            var list = autoComplete(textField.text+".", textField.dotCursorPos, false)
+            var list = autoComplete(textField.text+".", textField.dotCursorPos, false, textField.completeOnlyTypes)
             textField.prefix = list.pop()
             listView.model = list;
             textField.dotCompletion = true
@@ -97,7 +114,7 @@ Controls.TextField {
             if (textField.completionActive) {
                 var list2 = autoComplete(textField.text + event.text,
                                          textField.cursorPosition + event.text.length,
-                                         true)
+                                         true, textField.completeOnlyTypes)
                 textField.prefix = list2.pop()
                 listView.model = list2;
             }
@@ -106,7 +123,7 @@ Controls.TextField {
 
     Keys.onSpacePressed: {
         if (event.modifiers & Qt.ControlModifier) {
-            var list = autoComplete(textField.text, textField.cursorPosition, true)
+            var list = autoComplete(textField.text, textField.cursorPosition, true, textField.completeOnlyTypes)
             textField.prefix = list.pop()
             listView.model = list;
             textField.dotCompletion = false
@@ -149,21 +166,22 @@ Controls.TextField {
     }
 
     style: TextFieldStyle {
-        textColor: creatorTheme.PanelTextColorLight
+        textColor: Theme.color(Theme.PanelTextColorLight)
         padding.top: 6
         padding.bottom: 2
         padding.left: 6
-        placeholderTextColor: creatorTheme.PanelTextColorMid
+        placeholderTextColor: Theme.color(Theme.PanelTextColorMid)
         background: Rectangle {
             implicitWidth: 100
             implicitHeight: 23
             radius: 2
-            color: creatorTheme.QmlDesignerBackgroundColorDarker
-            border.color: creatorTheme.QmlDesignerBorderColor
+            color: Theme.qmlDesignerBackgroundColorDarker()
+            border.color: Theme.qmlDesignerBorderColor()
         }
     }
 
     Row {
+        id: buttonrow
         spacing: 2
         Button {
             width: 16
@@ -182,8 +200,8 @@ Controls.TextField {
                         Rectangle {
                             z: -1
                             anchors.fill: parent
-                            color: control.pressed || control.hovered ? creatorTheme.QmlDesignerBackgroundColorDarker : creatorTheme.QmlDesignerButtonColor
-                            border.color: creatorTheme.QmlDesignerBorderColor
+                            color: control.pressed || control.hovered ? Theme.qmlDesignerBackgroundColorDarker() : Theme.qmlDesignerButtonColor()
+                            border.color: Theme.qmlDesignerBorderColor()
                             radius: 2
                         }
                     }
@@ -208,8 +226,8 @@ Controls.TextField {
                         Rectangle {
                             z: -1
                             anchors.fill: parent
-                            color: control.pressed || control.hovered ? creatorTheme.QmlDesignerBackgroundColorDarker : creatorTheme.QmlDesignerButtonColor
-                            border.color: creatorTheme.QmlDesignerBorderColor
+                            color: control.pressed || control.hovered ? Theme.qmlDesignerBackgroundColorDarker() : Theme.qmlDesignerButtonColor()
+                            border.color: Theme.qmlDesignerBorderColor()
                             radius: 2
                         }
                     }

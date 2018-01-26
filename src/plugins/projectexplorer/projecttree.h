@@ -29,6 +29,8 @@
 
 #include <coreplugin/icontext.h>
 
+#include <functional>
+
 namespace ProjectExplorer {
 class FileNode;
 class FolderNode;
@@ -55,7 +57,6 @@ public:
     static void registerWidget(Internal::ProjectTreeWidget *widget);
     static void unregisterWidget(Internal::ProjectTreeWidget *widget);
     static void nodeChanged(Internal::ProjectTreeWidget *widget);
-    static Project *projectForNode(Node *node);
 
     static void aboutToShutDown();
 
@@ -63,68 +64,29 @@ public:
 
     static void highlightProject(Project *project, const QString &message);
 
+    using TreeManagerFunction = std::function<void(FolderNode *)>;
+    static void registerTreeManager(const TreeManagerFunction &treeChange);
+    static void applyTreeManager(FolderNode *folder);
+
+    static bool hasNode(const Node *node);
+
+    void collapseAll();
+
+    // for nodes to emit signals, do not call unless you are a node
+    static void emitSubtreeChanged(FolderNode *node);
+
 signals:
     void currentProjectChanged(ProjectExplorer::Project *project);
-    void currentNodeChanged(ProjectExplorer::Node *node, ProjectExplorer::Project *project);
+    void currentNodeChanged();
 
     // Emitted whenever the model needs to send a update signal.
-    void nodeUpdated(ProjectExplorer::Node *node);
-
-    // projects
-    void aboutToChangeShowInSimpleTree(ProjectExplorer::FolderNode*);
-    void showInSimpleTreeChanged(ProjectExplorer::FolderNode *node);
-
-    // folders & projects
-    void foldersAboutToBeAdded(FolderNode *parentFolder,
-                               const QList<FolderNode*> &newFolders);
-    void foldersAdded();
-
-    void foldersAboutToBeRemoved(FolderNode *parentFolder,
-                               const QList<FolderNode*> &staleFolders);
-    void foldersRemoved();
-
-    // files
-    void filesAboutToBeAdded(FolderNode *folder,
-                               const QList<FileNode*> &newFiles);
-    void filesAdded();
-
-    void filesAboutToBeRemoved(FolderNode *folder,
-                               const QList<FileNode*> &staleFiles);
-    void filesRemoved();
-    void nodeSortKeyAboutToChange(Node *node);
-    void nodeSortKeyChanged();
+    void subtreeChanged(ProjectExplorer::FolderNode *node);
 
     void aboutToShowContextMenu(ProjectExplorer::Project *project,
                                 ProjectExplorer::Node *node);
 
-public: // for nodes to emit signals, do not call unless you are a node
-    void emitNodeUpdated(ProjectExplorer::Node *node);
-
-    // projects
-    void emitAboutToChangeShowInSimpleTree(ProjectExplorer::FolderNode *node);
-    void emitShowInSimpleTreeChanged(ProjectExplorer::FolderNode *node);
-
-    // folders & projects
-    void emitFoldersAboutToBeAdded(FolderNode *parentFolder,
-                               const QList<FolderNode*> &newFolders);
-    void emitFoldersAdded(FolderNode *folder);
-
-    void emitFoldersAboutToBeRemoved(FolderNode *parentFolder,
-                               const QList<FolderNode*> &staleFolders);
-    void emitFoldersRemoved(FolderNode *folder);
-
-    // files
-    void emitFilesAboutToBeAdded(FolderNode *folder,
-                               const QList<FileNode*> &newFiles);
-    void emitFilesAdded(FolderNode *folder);
-
-    void emitFilesAboutToBeRemoved(FolderNode *folder,
-                               const QList<FileNode*> &staleFiles);
-    void emitFilesRemoved(FolderNode *folder);
-    void emitNodeSortKeyAboutToChange(Node *node);
-    void emitNodeSortKeyChanged(Node *node);
-
-    void collapseAll();
+    // Emitted on any change to the tree
+    void treeChanged();
 
 private:
     void sessionChanged();
@@ -141,18 +103,13 @@ private:
     void updateExternalFileWarning();
     static bool hasFocus(Internal::ProjectTreeWidget *widget);
     void hideContextMenu();
-    bool isInNodeHierarchy(Node *n);
 
 private:
     static ProjectTree *s_instance;
-    QList<Internal::ProjectTreeWidget *> m_projectTreeWidgets;
-    Node *m_currentNode = nullptr;
+    QList<QPointer<Internal::ProjectTreeWidget>> m_projectTreeWidgets;
+    QVector<TreeManagerFunction> m_treeManagers;
+    QPointer<Node> m_currentNode;
     Project *m_currentProject = nullptr;
-    QList<FileNode *> m_filesAdded;
-    QList<FolderNode *> m_foldersAdded;
-    bool m_resetCurrentNodeFolder = false;
-    bool m_resetCurrentNodeFile = false;
-    bool m_resetCurrentNodeProject = false;
     Internal::ProjectTreeWidget *m_focusForContextMenu = nullptr;
     Core::Context m_lastProjectContext;
 };

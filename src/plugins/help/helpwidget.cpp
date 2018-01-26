@@ -43,8 +43,10 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/findplaceholder.h>
+#include <coreplugin/locator/locatormanager.h>
 #include <coreplugin/minisplitter.h>
 #include <coreplugin/sidebar.h>
+#include <coreplugin/minisplitter.h>
 #include <texteditor/texteditorconstants.h>
 #include <utils/qtcassert.h>
 #include <utils/styledbar.h>
@@ -52,13 +54,11 @@
 
 #include <QCoreApplication>
 #include <QHBoxLayout>
-#include <QHelpEngine>
-#include <QHelpSearchEngine>
-#include <QHelpSearchQuery>
 #include <QMenu>
 #include <QPrinter>
 #include <QPrintDialog>
 #include <QStackedWidget>
+#include <QStatusBar>
 #include <QToolButton>
 
 static const char kWindowSideBarSettingsKey[] = "Help/WindowSideBar";
@@ -70,9 +70,7 @@ namespace Internal {
 static void openUrlInWindow(const QUrl &url)
 {
     HelpViewer *viewer = HelpPlugin::viewerForHelpViewerLocation(Core::HelpManager::ExternalHelpAlways);
-    if (QTC_GUARD(viewer))
-        viewer->setSource(url);
-    Core::ICore::raiseWindow(viewer);
+    HelpPlugin::showInHelpViewer(url, viewer);
 }
 
 static bool isBookmarkable(const QUrl &url)
@@ -86,9 +84,15 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
 {
     m_viewerStack = new QStackedWidget;
 
-    auto hLayout = new QHBoxLayout(this);
+    auto topLayout = new QVBoxLayout;
+    topLayout->setMargin(0);
+    topLayout->setSpacing(0);
+    setLayout(topLayout);
+
+    auto hLayout = new QHBoxLayout;
     hLayout->setMargin(0);
     hLayout->setSpacing(0);
+    topLayout->addLayout(hLayout, 10);
 
     m_sideBarSplitter = new Core::MiniSplitter(this);
     m_sideBarSplitter->setOpaqueResize(false);
@@ -127,19 +131,19 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
         setAttribute(Qt::WA_QuitOnClose, false); // don't prevent Qt Creator from closing
     }
     if (style != SideBarWidget) {
-        m_toggleSideBarAction = new QAction(Utils::Icons::TOGGLE_SIDEBAR_TOOLBAR.icon(),
-                                            QCoreApplication::translate("Core", Core::Constants::TR_SHOW_SIDEBAR),
+        m_toggleSideBarAction = new QAction(Utils::Icons::TOGGLE_LEFT_SIDEBAR_TOOLBAR.icon(),
+                                            QCoreApplication::translate("Core", Core::Constants::TR_SHOW_LEFT_SIDEBAR),
                                             toolBar);
         m_toggleSideBarAction->setCheckable(true);
         m_toggleSideBarAction->setChecked(false);
         cmd = Core::ActionManager::registerAction(m_toggleSideBarAction,
-                                                  Core::Constants::TOGGLE_SIDEBAR, context);
+                                                  Core::Constants::TOGGLE_LEFT_SIDEBAR, context);
         connect(m_toggleSideBarAction, &QAction::toggled, m_toggleSideBarAction,
                 [this](bool checked) {
                     m_toggleSideBarAction->setText(
                         QCoreApplication::translate("Core",
-                                                    checked ? Core::Constants::TR_HIDE_SIDEBAR
-                                                            : Core::Constants::TR_SHOW_SIDEBAR));
+                                                    checked ? Core::Constants::TR_HIDE_LEFT_SIDEBAR
+                                                            : Core::Constants::TR_SHOW_LEFT_SIDEBAR));
                 });
         addSideBar();
         m_toggleSideBarAction->setChecked(m_sideBar->isVisibleTo(this));
@@ -147,9 +151,23 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
         connect(m_sideBar, &Core::SideBar::sideBarClosed, m_toggleSideBarAction, [this]() {
             m_toggleSideBarAction->setChecked(false);
         });
+        if (style == ExternalWindow) {
+            auto statusBar = new QStatusBar;
+            topLayout->addWidget(statusBar);
+            auto splitter = new Core::NonResizingSplitter(statusBar);
+            statusBar->addPermanentWidget(splitter, 10);
+            auto statusBarWidget = new QWidget;
+            auto statusBarWidgetLayout = new QHBoxLayout;
+            statusBarWidgetLayout->setContentsMargins(0, 0, 3, 0);
+            statusBarWidget->setLayout(statusBarWidgetLayout);
+            splitter->addWidget(statusBarWidget);
+            splitter->addWidget(new QWidget);
+            auto locatorWidget = Core::LocatorManager::createLocatorInputWidget(window());
+            statusBarWidgetLayout->addWidget(Core::Command::toolButtonWithAppendedShortcut(
+                                                 m_toggleSideBarAction, cmd));
+            statusBarWidgetLayout->addWidget(locatorWidget);
+        }
     }
-    if (style == ExternalWindow)
-        layout->addWidget(Core::Command::toolButtonWithAppendedShortcut(m_toggleSideBarAction, cmd));
 
     if (style != ModeWidget) {
         m_switchToHelp = new QAction(tr("Open in Help Mode"), toolBar);
@@ -299,7 +317,7 @@ HelpWidget::~HelpWidget()
     Core::ActionManager::unregisterAction(m_copy, Core::Constants::COPY);
     Core::ActionManager::unregisterAction(m_printAction, Core::Constants::PRINT);
     if (m_toggleSideBarAction)
-        Core::ActionManager::unregisterAction(m_toggleSideBarAction, Core::Constants::TOGGLE_SIDEBAR);
+        Core::ActionManager::unregisterAction(m_toggleSideBarAction, Core::Constants::TOGGLE_LEFT_SIDEBAR);
     if (m_switchToHelp)
         Core::ActionManager::unregisterAction(m_switchToHelp, Constants::CONTEXT_HELP);
     Core::ActionManager::unregisterAction(m_homeAction, Constants::HELP_HOME);
@@ -336,10 +354,8 @@ void HelpWidget::addSideBar()
     auto indexItem = new Core::SideBarItem(indexWindow, Constants::HELP_INDEX);
     indexWindow->setOpenInNewPageActionVisible(supportsNewPages);
     indexWindow->setWindowTitle(HelpPlugin::tr(Constants::SB_INDEX));
-    connect(indexWindow, &IndexWindow::linkActivated,
-            this, &HelpWidget::open);
     connect(indexWindow, &IndexWindow::linksActivated,
-        this, &HelpWidget::showTopicChooser);
+        this, &HelpWidget::showLinks);
     m_indexAction = new QAction(HelpPlugin::tr(Constants::SB_INDEX), this);
     cmd = Core::ActionManager::registerAction(m_indexAction, Constants::HELP_INDEX, m_context->context());
     cmd->setDefaultKeySequence(QKeySequence(Core::UseMacShortcuts ? tr("Meta+I")
@@ -517,12 +533,18 @@ void HelpWidget::open(const QUrl &url, bool newPage)
         setSource(url);
 }
 
-void HelpWidget::showTopicChooser(const QMap<QString, QUrl> &links,
+void HelpWidget::showLinks(const QMap<QString, QUrl> &links,
     const QString &keyword, bool newPage)
 {
-    TopicChooser tc(this, keyword, links);
-    if (tc.exec() == QDialog::Accepted)
-        open(tc.link(), newPage);
+    if (links.size() < 1)
+        return;
+    if (links.size() == 1) {
+        open(links.first(), newPage);
+    } else {
+        TopicChooser tc(this, keyword, links);
+        if (tc.exec() == QDialog::Accepted)
+            open(tc.link(), newPage);
+    }
 }
 
 void HelpWidget::activateSideBarItem(const QString &id)

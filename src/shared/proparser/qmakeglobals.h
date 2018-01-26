@@ -123,10 +123,10 @@ public:
     void setQMakeProperty(QMakeProperty *prop) { property = prop; }
     ProString propertyValue(const ProKey &name) const { return property->value(name); }
 #else
+    static void parseProperties(const QByteArray &data, QHash<ProKey, ProString> &props);
 #  ifdef PROEVALUATOR_INIT_PROPS
     bool initProperties();
 #  else
-    void setProperties(const QHash<QString, QString> &props);
     void setProperties(const QHash<ProKey, ProString> &props) { properties = props; }
 #  endif
     ProString propertyValue(const ProKey &name) const { return properties.value(name); }

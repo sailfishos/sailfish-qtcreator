@@ -45,6 +45,7 @@
 #include <QDirIterator>
 #include <QFormLayout>
 #include <QLabel>
+#include <QRegExp>
 #include <QVBoxLayout>
 
 namespace {
@@ -63,15 +64,16 @@ static const char ANDROID_NDK_TC_VERION[] = "Qt4ProjectManager.Android.NDK_TC_VE
 QHash<Abi, QList<int> > AndroidToolChainFactory::m_newestVersionForAbi;
 FileName AndroidToolChainFactory::m_ndkLocation;
 
-AndroidToolChain::AndroidToolChain(const Abi &abi, const QString &ndkToolChainVersion, Language l, Detection d)
+AndroidToolChain::AndroidToolChain(const Abi &abi, const QString &ndkToolChainVersion, Core::Id l, Detection d)
     : GccToolChain(Constants::ANDROID_TOOLCHAIN_ID, d),
       m_ndkToolChainVersion(ndkToolChainVersion), m_secondaryToolChain(false)
 {
     setLanguage(l);
     setTargetAbi(abi);
-    setDisplayName(QString::fromLatin1("Android GCC (%1-%2)")
-                   .arg(AndroidConfig::displayName(targetAbi()))
-                   .arg(ndkToolChainVersion));
+    setDisplayName(QString::fromLatin1("Android GCC (%1, %2-%3)")
+                   .arg(ToolChainManager::displayNameOfLanguageId(l),
+                        AndroidConfig::displayName(targetAbi()),
+                        ndkToolChainVersion));
 }
 
 // for fromMap
@@ -201,7 +203,8 @@ bool AndroidToolChain::fromMap(const QVariantMap &data)
 
 FileNameList AndroidToolChain::suggestedMkspecList() const
 {
-    return FileNameList()<< FileName::fromLatin1("android-g++");
+    return FileNameList() << FileName::fromLatin1("android-g++")
+                          << FileName::fromLatin1("android-clang");
 }
 
 QString AndroidToolChain::makeCommand(const Environment &env) const
@@ -263,9 +266,9 @@ AndroidToolChainFactory::AndroidToolChainFactory()
     setDisplayName(tr("Android GCC"));
 }
 
-QSet<ToolChain::Language> Android::Internal::AndroidToolChainFactory::supportedLanguages() const
+QSet<Core::Id> Android::Internal::AndroidToolChainFactory::supportedLanguages() const
 {
-    return { ToolChain::Language::Cxx };
+    return {ProjectExplorer::Constants::CXX_LANGUAGE_ID};
 }
 
 QList<ToolChain *> AndroidToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
@@ -296,19 +299,20 @@ QList<AndroidToolChainFactory::AndroidToolChainInformation> AndroidToolChainFact
     QRegExp versionRegExp(NDKGccVersionRegExp);
     FileName path = ndkPath;
     QDirIterator it(path.appendPath(QLatin1String("toolchains")).toString(),
-                    QStringList() << QLatin1String("*"), QDir::Dirs);
+                    QStringList("*"), QDir::Dirs);
     while (it.hasNext()) {
         const QString &fileName = FileName::fromString(it.next()).fileName();
         int idx = versionRegExp.indexIn(fileName);
         if (idx == -1)
             continue;
-        for (const ToolChain::Language lang : { ToolChain::Language::Cxx, ToolChain::Language::C }) {
+        for (const Core::Id lang : {ProjectExplorer::Constants::CXX_LANGUAGE_ID,
+                                    ProjectExplorer::Constants::C_LANGUAGE_ID}) {
             AndroidToolChainInformation ati;
             ati.language = lang;
             ati.version = fileName.mid(idx + 1);
             QString platform = fileName.left(idx);
             ati.abi = AndroidConfig::abiForToolChainPrefix(platform);
-            if (ati.abi.architecture() == Abi::UnknownArchitecture) // e.g. mipsel which is not yet supported
+            if (ati.abi.architecture() == Abi::UnknownArchitecture)
                 continue;
             ati.compilerCommand = AndroidConfigurations::currentConfig().gccPath(ati.abi, lang, ati.version);
             result.append(ati);
@@ -363,7 +367,7 @@ bool AndroidToolChainFactory::versionCompareLess(QList<AndroidToolChain *> atc,
     return versionCompareLess(a, b);
 }
 
-static AndroidToolChain *findToolChain(Utils::FileName &compilerPath, ToolChain::Language lang,
+static AndroidToolChain *findToolChain(Utils::FileName &compilerPath, Core::Id lang,
                                        const QList<ToolChain *> &alreadyKnown)
 {
     return static_cast<AndroidToolChain *>(
@@ -385,7 +389,7 @@ AndroidToolChainFactory::autodetectToolChainsForNdk(const FileName &ndkPath,
     QRegExp versionRegExp(NDKGccVersionRegExp);
     FileName path = ndkPath;
     QDirIterator it(path.appendPath(QLatin1String("toolchains")).toString(),
-                    QStringList() << QLatin1String("*"), QDir::Dirs);
+                    QStringList("*"), QDir::Dirs);
     QHash<Abi, QList<AndroidToolChain *>> newestToolChainForArch;
 
     while (it.hasNext()) {
@@ -396,10 +400,10 @@ AndroidToolChainFactory::autodetectToolChainsForNdk(const FileName &ndkPath,
         QString version = fileName.mid(idx + 1);
         QString platform = fileName.left(idx);
         Abi abi = AndroidConfig::abiForToolChainPrefix(platform);
-        if (abi.architecture() == Abi::UnknownArchitecture) // e.g. mipsel which is not yet supported
+        if (abi.architecture() == Abi::UnknownArchitecture)
             continue;
         QList<AndroidToolChain *> toolChainBundle;
-        for (ToolChain::Language lang : { ToolChain::Language::Cxx, ToolChain::Language::C }) {
+        for (Core::Id lang : {ProjectExplorer::Constants::CXX_LANGUAGE_ID, ProjectExplorer::Constants::C_LANGUAGE_ID}) {
             FileName compilerPath = AndroidConfigurations::currentConfig().gccPath(abi, lang, version);
 
             AndroidToolChain *tc = findToolChain(compilerPath, lang, alreadyKnown);
@@ -435,7 +439,7 @@ QList<int> AndroidToolChainFactory::newestToolChainVersionForArch(const Abi &abi
         m_ndkLocation = AndroidConfigurations::currentConfig().ndkLocation();
         FileName path = m_ndkLocation;
         QDirIterator it(path.appendPath(QLatin1String("toolchains")).toString(),
-                        QStringList() << QLatin1String("*"), QDir::Dirs);
+                        QStringList("*"), QDir::Dirs);
         while (it.hasNext()) {
             const QString &fileName = FileName::fromString(it.next()).fileName();
             int idx = versionRegExp.indexIn(fileName);
@@ -444,7 +448,7 @@ QList<int> AndroidToolChainFactory::newestToolChainVersionForArch(const Abi &abi
             QList<int> version = versionNumberFromString(fileName.mid(idx + 1));
             QString platform = fileName.left(idx);
             Abi abi = AndroidConfig::abiForToolChainPrefix(platform);
-            if (abi.architecture() == Abi::UnknownArchitecture) // e.g. mipsel which is not yet supported
+            if (abi.architecture() == Abi::UnknownArchitecture)
                 continue;
             QHash<Abi, QList<int> >::const_iterator it
                     = m_newestVersionForAbi.constFind(abi);

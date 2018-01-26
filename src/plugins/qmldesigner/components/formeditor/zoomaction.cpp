@@ -33,7 +33,7 @@ namespace QmlDesigner {
 ZoomAction::ZoomAction(QObject *parent)
     :  QWidgetAction(parent),
     m_zoomLevel(1.0),
-    m_currentComboBoxIndex(3)
+    m_currentComboBoxIndex(8)
 {
 
 }
@@ -57,16 +57,9 @@ void ZoomAction::zoomOut()
 
 void ZoomAction::setZoomLevel(double zoomLevel)
 {
-    if (zoomLevel < .1)
-        m_zoomLevel = 0.1;
-    else if (zoomLevel > 16.0)
-        m_zoomLevel = 16.0;
-    else
-        m_zoomLevel = zoomLevel;
-
+    m_zoomLevel = qBound(0.1, zoomLevel, 16.0);
     emit zoomLevelChanged(m_zoomLevel);
 }
-
 
 QWidget *ZoomAction::createWidget(QWidget *parent)
 {
@@ -82,7 +75,7 @@ QWidget *ZoomAction::createWidget(QWidget *parent)
         comboBox->addItem(QLatin1String("66 %"), 0.66);
         comboBox->addItem(QLatin1String("75 %"), 0.75);
         comboBox->addItem(QLatin1String("90 %"), 0.90);
-        comboBox->addItem(QLatin1String("100 %"), 1.0);
+        comboBox->addItem(QLatin1String("100 %"), 1.0); // initial m_zoomLevel and m_currentComboBoxIndex
         comboBox->addItem(QLatin1String("125 %"), 1.25);
         comboBox->addItem(QLatin1String("150 %"), 1.5);
         comboBox->addItem(QLatin1String("175 %"), 1.75);
@@ -98,8 +91,9 @@ QWidget *ZoomAction::createWidget(QWidget *parent)
     }
 
     comboBox->setCurrentIndex(8);
-    connect(comboBox, SIGNAL(currentIndexChanged(int)), SLOT(emitZoomLevelChanged(int)));
-    connect(this, SIGNAL(indexChanged(int)), comboBox, SLOT(setCurrentIndex(int)));
+    connect(comboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &ZoomAction::emitZoomLevelChanged);
+    connect(this, &ZoomAction::indexChanged, comboBox, &QComboBox::setCurrentIndex);
 
     comboBox->setProperty("hideborder", true);
     return comboBox;

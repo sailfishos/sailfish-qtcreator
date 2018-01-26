@@ -35,7 +35,6 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
-#include <QHelpEngine>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QScrollBar>
@@ -57,6 +56,7 @@ TextBrowserHelpViewer::TextBrowserHelpViewer(QWidget *parent)
     setLayout(layout);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_textBrowser, 10);
+    setFocusProxy(m_textBrowser);
     QPalette p = palette();
     p.setColor(QPalette::Inactive, QPalette::Highlight,
         p.color(QPalette::Active, QPalette::Highlight));

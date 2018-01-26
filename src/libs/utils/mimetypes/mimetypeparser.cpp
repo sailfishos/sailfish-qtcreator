@@ -162,7 +162,8 @@ static bool parseNumber(const QString &n, int *target, QString *errorMessage)
     bool ok;
     *target = n.toInt(&ok);
     if (!ok) {
-        *errorMessage = QString::fromLatin1("Not a number '%1'.").arg(n);
+        if (errorMessage)
+            *errorMessage = QString::fromLatin1("Not a number '%1'.").arg(n);
         return false;
     }
     return true;
@@ -204,7 +205,7 @@ static bool createMagicMatchRule(const QXmlStreamAttributes &atts,
 }
 #endif
 
-bool MimeTypeParserBase::parse(QIODevice *dev, const QString &fileName, QString *errorMessage)
+bool MimeTypeParserBase::parse(const QByteArray &content, const QString &fileName, QString *errorMessage)
 {
 #ifdef QT_NO_XMLSTREAMREADER
     if (errorMessage)
@@ -215,7 +216,7 @@ bool MimeTypeParserBase::parse(QIODevice *dev, const QString &fileName, QString 
     int priority = 50;
     QStack<MimeMagicRule *> currentRules; // stack for the nesting of rules
     QList<MimeMagicRule> rules; // toplevel rules
-    QXmlStreamReader reader(dev);
+    QXmlStreamReader reader(content);
     ParseState ps = ParseBeginning;
     QXmlStreamAttributes atts;
     bool ignoreCurrentMimeType = false;

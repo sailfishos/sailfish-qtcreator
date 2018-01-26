@@ -27,31 +27,23 @@
 
 #include "qbsprojectmanager_global.h"
 
-#include <projectexplorer/iprojectmanager.h>
-
 #include <QList>
-
-namespace qbs {
-class Settings;
-class Preferences;
-} // namespace qbs
-
 #include <QString>
 #include <QVariantMap>
+
+namespace qbs { class Settings; }
 
 namespace ProjectExplorer {
 class Kit;
 class Project;
-class ProjectExplorerPlugin;
 } // namespace ProjectExplorer
 
 namespace QbsProjectManager {
 namespace Internal {
 class DefaultPropertyProvider;
 class QbsLogSink;
-class QbsProject;
 
-class QbsManager : public ProjectExplorer::IProjectManager
+class QbsManager : public QObject
 {
     Q_OBJECT
 
@@ -59,11 +51,8 @@ public:
     QbsManager();
     ~QbsManager();
 
-    QString mimeType() const override;
-    ProjectExplorer::Project *openProject(const QString &fileName, QString *errorString) override;
-
     // QBS profiles management:
-    QString profileForKit(const ProjectExplorer::Kit *k);
+    static QString profileForKit(const ProjectExplorer::Kit *k);
     void setProfileForKit(const QString &name, const ProjectExplorer::Kit *k);
 
     void updateProfileIfNecessary(const ProjectExplorer::Kit *kit);

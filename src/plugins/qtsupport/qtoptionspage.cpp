@@ -132,16 +132,6 @@ public:
         m_buildLog = buildLog;
     }
 
-    QByteArray toolChainId() const
-    {
-        return m_toolChainId;
-    }
-
-    void setToolChainId(const QByteArray &id)
-    {
-        m_toolChainId = id;
-    }
-
     void setChanged(bool changed)
     {
         if (changed == m_changed)
@@ -154,7 +144,6 @@ private:
     BaseQtVersion *m_version = 0;
     QIcon m_icon;
     QString m_buildLog;
-    QByteArray m_toolChainId;
     bool m_changed = false;
 };
 
@@ -201,7 +190,7 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
     , m_ui(new Internal::Ui::QtVersionManager())
     , m_versionUi(new Internal::Ui::QtVersionInfo())
     , m_infoBrowser(new QTextBrowser)
-    , m_invalidVersionIcon(Utils::Icons::ERROR.icon())
+    , m_invalidVersionIcon(Utils::Icons::CRITICAL.icon())
     , m_warningVersionIcon(Utils::Icons::WARNING.icon())
     , m_configurationWidget(0)
 {
@@ -309,7 +298,7 @@ void QtOptionsPageWidget::cleanUpQtVersions()
     QVector<QtVersionItem *> toRemove;
     QString text;
 
-    foreach (Utils::TreeItem *child, m_manualItem->children()) {
+    for (TreeItem *child : *m_manualItem) {
         auto item = static_cast<QtVersionItem *>(child);
         if (item->version() && !item->version()->isValid()) {
             toRemove.append(item);
@@ -370,6 +359,18 @@ void QtOptionsPageWidget::infoAnchorClicked(const QUrl &url)
     QDesktopServices::openUrl(url);
 }
 
+static QString formatAbiHtmlList(const QList<Abi> &abis)
+{
+    QString result = QStringLiteral("<ul><li>");
+    for (int i = 0, count = abis.size(); i < count; ++i) {
+        if (i)
+            result += QStringLiteral("</li><li>");
+        result += abis.at(i).toString();
+    }
+    result += QStringLiteral("</li></ul>");
+    return result;
+}
+
 QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const BaseQtVersion *version)
 {
     ValidityInfo info;
@@ -386,12 +387,18 @@ QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const Ba
     }
 
     // Do we have tool chain issues?
-    QStringList missingToolChains;
-    int abiCount = 0;
-    foreach (const Abi &abi, version->qtAbis()) {
-        if (ToolChainManager::findToolChains(abi).isEmpty())
-            missingToolChains.append(abi.toString());
-        ++abiCount;
+    QList<Abi> missingToolChains;
+    const QList<Abi> qtAbis = version->qtAbis();
+
+    for (const Abi &abi : qtAbis) {
+        const auto abiCompatePred = [&abi] (const ToolChain *tc)
+        {
+            return Utils::contains(tc->supportedAbis(),
+                                   [&abi](const Abi &sabi) { return sabi.isCompatibleWith(abi); });
+        };
+
+        if (!ToolChainManager::toolChain(abiCompatePred))
+            missingToolChains.append(abi);
     }
 
     bool useable = true;
@@ -400,16 +407,18 @@ QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const Ba
         warnings << tr("Display Name is not unique.");
 
     if (!missingToolChains.isEmpty()) {
-        if (missingToolChains.count() == abiCount) {
+        if (missingToolChains.count() == qtAbis.size()) {
             // Yes, this Qt version can't be used at all!
-            info.message = tr("No compiler can produce code for this Qt version. Please define one or more compilers.");
+            info.message =
+                tr("No compiler can produce code for this Qt version."
+                   " Please define one or more compilers for: %1").arg(formatAbiHtmlList(qtAbis));
             info.icon = m_invalidVersionIcon;
             useable = false;
         } else {
             // Yes, some ABIs are unsupported
             warnings << tr("Not all possible target environments can be supported due to missing compilers.");
-            info.toolTip = tr("The following ABIs are currently not supported:<ul><li>%1</li></ul>")
-                    .arg(missingToolChains.join(QLatin1String("</li><li>")));
+            info.toolTip = tr("The following ABIs are currently not supported: %1")
+                    .arg(formatAbiHtmlList(missingToolChains));
             info.icon = m_warningVersionIcon;
         }
     }
@@ -534,8 +543,6 @@ void QtOptionsPageWidget::updateQtVersions(const QList<int> &additions, const QL
         BaseQtVersion *version = QtVersionManager::version(a)->clone();
         auto *item = new QtVersionItem(version);
 
-        item->setToolChainId(defaultToolChainId(version));
-
         // Insert in the right place:
         Utils::TreeItem *parent = version->isAutodetected()? m_autoItem : m_manualItem;
         parent->appendChild(item);
@@ -598,8 +605,6 @@ void QtOptionsPageWidget::addQtDir()
         auto item = new QtVersionItem(version);
         item->setIcon(version->isValid()? m_validVersionIcon : m_invalidVersionIcon);
         m_manualItem->appendChild(item);
-        item->setToolChainId(defaultToolChainId(version));
-
         QModelIndex source = m_model->indexForItem(item);
         m_ui->qtdirList->setCurrentIndex(m_filterModel->mapFromSource(source)); // should update the rest of the ui
         m_versionUi->nameEdit->setFocus();
@@ -656,7 +661,6 @@ void QtOptionsPageWidget::editPath()
     // Update ui
     if (QtVersionItem *item = currentItem()) {
         item->setVersion(version);
-        item->setToolChainId(defaultToolChainId(version));
         item->setIcon(version->isValid()? m_validVersionIcon : m_invalidVersionIcon);
     }
     userChangedCurrentVersion();
@@ -668,7 +672,7 @@ void QtOptionsPageWidget::editPath()
 void QtOptionsPageWidget::updateCleanUpButton()
 {
     bool hasInvalidVersion = false;
-    foreach (Utils::TreeItem *child, m_manualItem->children()) {
+    for (TreeItem *child : *m_manualItem) {
         auto item = static_cast<QtVersionItem *>(child);
         if (item->version() && !item->version()->isValid()) {
             hasInvalidVersion = true;

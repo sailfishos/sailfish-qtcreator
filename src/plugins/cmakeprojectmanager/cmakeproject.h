@@ -26,6 +26,8 @@
 #pragma once
 
 #include "cmake_global.h"
+#include "cmakeprojectimporter.h"
+#include "treescanner.h"
 
 #include <projectexplorer/extracompiler.h>
 #include <projectexplorer/project.h>
@@ -33,19 +35,21 @@
 #include <utils/fileutils.h>
 
 #include <QFuture>
+#include <QHash>
+
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QFileSystemWatcher;
 QT_END_NAMESPACE
 
+namespace CppTools { class CppProjectUpdater; }
+
 namespace CMakeProjectManager {
 
 namespace Internal {
-class CMakeFile;
-class CMakeBuildSettingsWidget;
 class CMakeBuildConfiguration;
-class CMakeProjectNode;
-class CMakeManager;
+class CMakeBuildSettingsWidget;
 } // namespace Internal
 
 enum TargetType {
@@ -59,17 +63,17 @@ class CMAKE_EXPORT CMakeBuildTarget
 {
 public:
     QString title;
-    QString executable; // TODO: rename to output?
+    Utils::FileName executable; // TODO: rename to output?
     TargetType targetType = UtilityType;
-    QString workingDirectory;
-    QString sourceDirectory;
-    QString makeCommand;
+    Utils::FileName workingDirectory;
+    Utils::FileName sourceDirectory;
+    Utils::FileName makeCommand;
 
     // code model
-    QStringList includeFiles;
+    QList<Utils::FileName> includeFiles;
     QStringList compilerOptions;
     QByteArray defines;
-    QStringList files;
+    QList<Utils::FileName> files;
 
     void clear();
 };
@@ -77,15 +81,11 @@ public:
 class CMAKE_EXPORT CMakeProject : public ProjectExplorer::Project
 {
     Q_OBJECT
-    // for changeBuildDirectory
-    friend class Internal::CMakeBuildSettingsWidget;
+
 public:
-    CMakeProject(Internal::CMakeManager *manager, const Utils::FileName &filename);
+    explicit CMakeProject(const Utils::FileName &filename);
     ~CMakeProject() final;
 
-    QString displayName() const final;
-
-    QStringList files(FilesMode fileMode) const final;
     QStringList buildTargetTitles(bool runnable = false) const;
     bool hasBuildTarget(const QString &title) const;
 
@@ -98,6 +98,12 @@ public:
     bool supportsKit(ProjectExplorer::Kit *k, QString *errorMessage = 0) const final;
 
     void runCMake();
+    void scanProjectTree();
+
+    // Context menu actions:
+    void buildCMakeTarget(const QString &buildTarget);
+
+    ProjectExplorer::ProjectImporter *projectImporter() const final;
 
 signals:
     /// emitted when cmake is running:
@@ -113,7 +119,8 @@ private:
     void handleActiveTargetChanged();
     void handleActiveBuildConfigurationChanged();
     void handleParsingStarted();
-    void updateProjectData();
+    void handleTreeScanningFinished();
+    void updateProjectData(Internal::CMakeBuildConfiguration *cmakeBc);
     void updateQmlJSCodeModel();
 
     void createGeneratedCodeModelSupport();
@@ -125,11 +132,16 @@ private:
 
     // TODO probably need a CMake specific node structure
     QList<CMakeBuildTarget> m_buildTargets;
-    QFuture<void> m_codeModelFuture;
+    CppTools::CppProjectUpdater *m_cppCodeModelUpdater = nullptr;
     QList<ProjectExplorer::ExtraCompiler *> m_extraCompilers;
 
+    Internal::TreeScanner m_treeScanner;
+    QHash<QString, bool> m_mimeBinaryCache;
+    QList<const ProjectExplorer::FileNode *> m_allFiles;
+    mutable std::unique_ptr<Internal::CMakeProjectImporter> m_projectImporter;
+
     friend class Internal::CMakeBuildConfiguration;
-    friend class Internal::CMakeFile;
+    friend class Internal::CMakeBuildSettingsWidget;
 };
 
 } // namespace CMakeProjectManager

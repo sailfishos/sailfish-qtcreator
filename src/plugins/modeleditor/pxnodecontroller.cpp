@@ -113,6 +113,11 @@ PxNodeController::~PxNodeController()
     delete d;
 }
 
+ComponentViewController *PxNodeController::componentViewController() const
+{
+    return d->componentViewController;
+}
+
 void PxNodeController::setDiagramSceneController(
         qmt::DiagramSceneController *diagramSceneController)
 {
@@ -137,7 +142,7 @@ void PxNodeController::addExplorerNode(const ProjectExplorer::Node *node,
                 node->filePath().toString());
 
     switch (node->nodeType()) {
-    case ProjectExplorer::FileNodeType:
+    case ProjectExplorer::NodeType::File:
     {
         QStringList classNames = d->classViewController->findClassDeclarations(
                     node->filePath().toString()).toList();
@@ -162,16 +167,16 @@ void PxNodeController::addExplorerNode(const ProjectExplorer::Node *node,
         menu->popup(QCursor::pos());
         break;
     }
-    case ProjectExplorer::FolderNodeType:
-    case ProjectExplorer::VirtualFolderNodeType:
-    case ProjectExplorer::ProjectNodeType:
+    case ProjectExplorer::NodeType::Folder:
+    case ProjectExplorer::NodeType::VirtualFolder:
+    case ProjectExplorer::NodeType::Project:
     {
         QString stereotype;
         switch (node->nodeType()) {
-        case ProjectExplorer::VirtualFolderNodeType:
+        case ProjectExplorer::NodeType::VirtualFolder:
             stereotype = QStringLiteral("virtual folder");
             break;
-        case ProjectExplorer::ProjectNodeType:
+        case ProjectExplorer::NodeType::Project:
             stereotype = QStringLiteral("project");
             break;
         default:
@@ -198,8 +203,6 @@ void PxNodeController::addExplorerNode(const ProjectExplorer::Node *node,
         menu->popup(QCursor::pos());
         break;
     }
-    case ProjectExplorer::SessionNodeType:
-        break;
     }
 }
 
@@ -336,6 +339,8 @@ void PxNodeController::onMenuActionTriggered(PxNodeController::MenuAction *actio
             d->componentViewController->createComponentModel(folderNode, diagram, d->anchorFolder);
             d->componentViewController->updateIncludeDependencies(package);
             d->diagramSceneController->modelController()->undoController()->endMergeSequence();
+        } else {
+            delete package;
         }
         break;
     }

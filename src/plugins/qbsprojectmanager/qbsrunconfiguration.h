@@ -75,6 +75,7 @@ public:
 
     void addToBaseEnvironment(Utils::Environment &env) const;
 
+    QString buildSystemTarget() const final;
     QString uniqueProductName() const;
     bool isConsoleApplication() const;
 
@@ -90,16 +91,12 @@ private:
     void installStepToBeRemoved(int pos);
     QString baseWorkingDirectory() const;
     QString defaultDisplayName();
-    qbs::InstallOptions installOptions() const;
-    QString installRoot() const;
 
     void ctor();
 
     void updateTarget();
 
     QString m_uniqueProductName;
-
-    // Cached startup sub project information
 
     QbsInstallStep *m_currentInstallStep; // We do not take ownership!
     ProjectExplorer::BuildStepList *m_currentBuildStepList; // We do not take ownership!

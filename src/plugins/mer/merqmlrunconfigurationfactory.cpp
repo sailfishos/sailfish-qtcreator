@@ -63,9 +63,9 @@ QList<Core::Id> MerQmlRunConfigurationFactory::availableCreationIds(
     if (!qmakeProject)
         return result;
 
-    QmakeProFileNode *rootNode = qmakeProject->rootProjectNode();
-    if (rootNode->projectType() == AuxTemplate &&
-            rootNode->variableValue(ConfigVar).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
+    QmakeProFile *root = qmakeProject->rootProFile();
+    if (root->projectType() == ProjectType::AuxTemplate &&
+            root->variableValue(Variable::Config).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
         result << MER_QMLRUNCONFIGURATION;
     }
 

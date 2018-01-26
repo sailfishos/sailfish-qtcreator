@@ -25,6 +25,8 @@
 
 #include "qtkitinformation.h"
 
+#include <QRegExp>
+
 #include "qtkitconfigwidget.h"
 #include "qtsupportconstants.h"
 #include "qtversionmanager.h"
@@ -58,26 +60,14 @@ QVariant QtKitInformation::defaultValue(const Kit *k) const
     Q_UNUSED(k);
 
     // find "Qt in PATH":
-    QList<BaseQtVersion *> versionList = QtVersionManager::unsortedVersions();
-    BaseQtVersion *result = findOrDefault(versionList, equal(&BaseQtVersion::autodetectionSource,
-                                                             QString::fromLatin1("PATH")));
+    BaseQtVersion *result = QtVersionManager::version(equal(&BaseQtVersion::autodetectionSource,
+                                                            QString::fromLatin1("PATH")));
     if (result)
         return result->uniqueId();
 
-    // Legacy: Check for system qmake path: Remove in 3.5 (or later):
-    // This check is expensive as it will potentially run binaries (qmake --version)!
-    const FileName qmakePath
-            = BuildableHelperLibrary::findSystemQt(Utils::Environment::systemEnvironment());
-
-    if (!qmakePath.isEmpty()) {
-        result = findOrDefault(versionList, equal(&BaseQtVersion::qmakeCommand, qmakePath));
-        if (result)
-            return result->uniqueId();
-    }
-
     // Use *any* desktop Qt:
-    result = findOrDefault(versionList, equal(&BaseQtVersion::type,
-                                              QString::fromLatin1(QtSupport::Constants::DESKTOPQT)));
+    result = QtVersionManager::version(equal(&BaseQtVersion::type,
+                                             QString::fromLatin1(QtSupport::Constants::DESKTOPQT)));
     return result ? result->uniqueId() : -1;
 }
 
@@ -172,12 +162,9 @@ int QtKitInformation::qtVersionId(const ProjectExplorer::Kit *k)
             id = -1;
     } else {
         QString source = data.toString();
-        foreach (BaseQtVersion *v, QtVersionManager::unsortedVersions()) {
-            if (v->autodetectionSource() != source)
-                continue;
+        BaseQtVersion *v = QtVersionManager::version([source](const BaseQtVersion *v) { return v->autodetectionSource() == source; });
+        if (v)
             id = v->uniqueId();
-            break;
-        }
     }
     return id;
 }
@@ -223,18 +210,19 @@ void QtKitInformation::kitsWereLoaded()
             this, &QtKitInformation::qtVersionsChanged);
 }
 
-KitMatcher QtKitInformation::platformMatcher(Core::Id platform)
+Kit::Predicate QtKitInformation::platformPredicate(Core::Id platform)
 {
-    return KitMatcher(std::function<bool(const Kit *)>([platform](const Kit *kit) -> bool {
+    return [platform](const Kit *kit) -> bool {
         BaseQtVersion *version = QtKitInformation::qtVersion(kit);
         return version && version->targetDeviceTypes().contains(platform);
-    }));
+    };
 }
 
-KitMatcher QtKitInformation::qtVersionMatcher(const QSet<Core::Id> &required,
-    const QtVersionNumber &min, const QtVersionNumber &max)
+Kit::Predicate QtKitInformation::qtVersionPredicate(const QSet<Core::Id> &required,
+                                                    const QtVersionNumber &min,
+                                                    const QtVersionNumber &max)
 {
-    return KitMatcher(std::function<bool(const Kit *)>([required, min, max](const Kit *kit) -> bool {
+    return [required, min, max](const Kit *kit) -> bool {
         BaseQtVersion *version = QtKitInformation::qtVersion(kit);
         if (!version)
             return false;
@@ -244,7 +232,7 @@ KitMatcher QtKitInformation::qtVersionMatcher(const QSet<Core::Id> &required,
         if (max.majorVersion > -1 && current > max)
             return false;
         return version->availableFeatures().contains(required);
-    }));
+    };
 }
 
 QSet<Core::Id> QtKitInformation::supportedPlatforms(const Kit *k) const

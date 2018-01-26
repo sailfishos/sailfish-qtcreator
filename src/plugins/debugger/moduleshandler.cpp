@@ -196,7 +196,7 @@ bool ModulesModel::contextMenuEvent(const ItemViewEvent &ev)
     addAction(menu, tr("Show Dependencies of \"%1\"").arg(moduleName),
               tr("Show Dependencies"),
               moduleNameValid && !moduleName.isEmpty() && HostOsInfo::isWindowsHost(),
-              [this, modulePath] { QProcess::startDetached("depends", { modulePath }); });
+              [this, modulePath] { QProcess::startDetached("depends", {modulePath}); });
 
     addAction(menu, tr("Load Symbols for All Modules"),
               enabled && canLoadSymbols,
@@ -327,7 +327,8 @@ void ModulesHandler::endUpdateAll()
         if (!item->updated)
             toDestroy.append(item);
     });
-    qDeleteAll(toDestroy);
+    for (TreeItem *item : toDestroy)
+        m_model->destroyItem(item);
 }
 
 } // namespace Internal

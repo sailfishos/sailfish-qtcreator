@@ -26,12 +26,15 @@
 #pragma once
 
 #include "cpptools_global.h"
+#include "cpptools_utils.h"
 #include "cppworkingcopy.h"
 #include "projectpart.h"
 
 #include <QFutureInterface>
 #include <QObject>
 #include <QMutex>
+
+namespace ProjectExplorer { class Project; }
 
 namespace CppTools {
 
@@ -44,10 +47,27 @@ public:
     static Ptr get(const QString &filePath);
 
     struct Configuration {
-        bool stickToPreviousProjectPart = true;
         bool usePrecompiledHeaders = false;
         QByteArray editorDefines;
-        ProjectPart::Ptr manuallySetProjectPart;
+        QString preferredProjectPartId;
+    };
+
+    struct UpdateParams {
+        UpdateParams(const WorkingCopy &workingCopy,
+                     const ProjectExplorer::Project *activeProject,
+                     Language languagePreference,
+                     bool projectsUpdated)
+            : workingCopy(workingCopy)
+            , activeProject(activeProject)
+            , languagePreference(languagePreference)
+            , projectsUpdated(projectsUpdated)
+        {
+        }
+
+        WorkingCopy workingCopy;
+        const ProjectExplorer::Project *activeProject = nullptr;
+        Language languagePreference = Language::Cxx;
+        bool projectsUpdated = false;
     };
 
 public:
@@ -58,28 +78,34 @@ public:
     Configuration configuration() const;
     void setConfiguration(const Configuration &configuration);
 
-    void update(const WorkingCopy &workingCopy);
-    void update(const QFutureInterface<void> &future, const WorkingCopy &workingCopy);
+    void update(const UpdateParams &updateParams);
+    void update(const QFutureInterface<void> &future, const UpdateParams &updateParams);
 
-    ProjectPart::Ptr projectPart() const;
+    ProjectPartInfo projectPartInfo() const;
+
+signals:
+    void projectPartInfoUpdated(const CppTools::ProjectPartInfo &projectPartInfo);
 
 protected:
     struct State {
         QByteArray editorDefines;
-        ProjectPart::Ptr projectPart;
+        ProjectPartInfo projectPartInfo;
     };
     State state() const;
     void setState(const State &state);
 
-    static ProjectPart::Ptr determineProjectPart(const QString &filePath,
-                                                 const Configuration &config,
-                                                 const State &state);
+    static ProjectPartInfo determineProjectPart(const QString &filePath,
+            const QString &preferredProjectPartId,
+            const ProjectPartInfo &currentProjectPartInfo,
+            const ProjectExplorer::Project *activeProject,
+            Language languagePreference,
+            bool projectsUpdated);
 
     mutable QMutex m_stateAndConfigurationMutex;
 
 private:
-    virtual void updateHelper(const QFutureInterface<void> &future,
-                              const WorkingCopy &workingCopy) = 0;
+    virtual void updateImpl(const QFutureInterface<void> &future,
+                            const UpdateParams &updateParams) = 0;
 
     const QString m_filePath;
     Configuration m_configuration;

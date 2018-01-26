@@ -69,19 +69,16 @@ QString PxNodeUtilities::calcRelativePath(const ProjectExplorer::Node *node,
     QString nodePath;
 
     switch (node->nodeType()) {
-    case ProjectExplorer::FileNodeType:
+    case ProjectExplorer::NodeType::File:
     {
         QFileInfo fileInfo = node->filePath().toFileInfo();
         nodePath = fileInfo.path();
         break;
     }
-    case ProjectExplorer::FolderNodeType:
-    case ProjectExplorer::VirtualFolderNodeType:
-    case ProjectExplorer::ProjectNodeType:
+    case ProjectExplorer::NodeType::Folder:
+    case ProjectExplorer::NodeType::VirtualFolder:
+    case ProjectExplorer::NodeType::Project:
         nodePath = node->filePath().toString();
-        break;
-    case ProjectExplorer::SessionNodeType:
-        QTC_ASSERT(false, return QString());
         break;
     }
 

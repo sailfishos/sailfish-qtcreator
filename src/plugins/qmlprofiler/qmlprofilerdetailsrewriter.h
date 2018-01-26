@@ -27,6 +27,7 @@
 
 #include "qmleventlocation.h"
 
+#include <projectexplorer/runconfiguration.h>
 #include <qmljs/qmljsdocument.h>
 #include <utils/fileinprojectfinder.h>
 
@@ -39,26 +40,38 @@ class QmlProfilerDetailsRewriter : public QObject
 {
     Q_OBJECT
 public:
-    explicit QmlProfilerDetailsRewriter(QObject *parent, Utils::FileInProjectFinder *fileFinder);
-    ~QmlProfilerDetailsRewriter();
+    explicit QmlProfilerDetailsRewriter(QObject *parent = nullptr);
 
     void clearRequests();
-
-private:
-    void rewriteDetailsForLocation(QTextStream &textDoc, QmlJS::Document::Ptr doc, int requestId,
-                                   const QmlEventLocation &location);
-
-public slots:
-    void requestDetailsForLocation(int requestId, const QmlEventLocation &location);
+    void requestDetailsForLocation(int typeId, const QmlEventLocation &location);
+    QString getLocalFile(const QString &remoteFile);
     void reloadDocuments();
     void documentReady(QmlJS::Document::Ptr doc);
+    void populateFileFinder(const ProjectExplorer::RunConfiguration *runConfiguration);
+
+    struct PendingEvent {
+        QmlEventLocation location;
+        int typeId;
+    };
+
 signals:
-    void rewriteDetailsString(int requestId, const QString &details);
+    void rewriteDetailsString(int typeId, const QString &details);
     void eventDetailsChanged();
+
 private:
-    class QmlProfilerDetailsRewriterPrivate;
-    QmlProfilerDetailsRewriterPrivate *d;
+    QMultiHash<QString, PendingEvent> m_pendingEvents;
+    Utils::FileInProjectFinder m_projectFinder;
+    QHash<QString, QString> m_filesCache;
+
+    void rewriteDetailsForLocation(const QString &source, QmlJS::Document::Ptr doc, int typeId,
+                                   const QmlEventLocation &location);
+    void connectQmlModel();
+    void disconnectQmlModel();
 };
 
 } // namespace Internal
 } // namespace QmlProfiler
+
+QT_BEGIN_NAMESPACE
+Q_DECLARE_TYPEINFO(QmlProfiler::Internal::QmlProfilerDetailsRewriter::PendingEvent, Q_MOVABLE_TYPE);
+QT_END_NAMESPACE

@@ -18,8 +18,6 @@ QtcPlugin {
             "qmlproject.qrc",
             "qmlprojectconstants.h",
             "qmlprojectenvironmentaspect.cpp", "qmlprojectenvironmentaspect.h",
-            "qmlprojectfile.cpp", "qmlprojectfile.h",
-            "qmlprojectmanager.cpp", "qmlprojectmanager.h",
             "qmlprojectmanager_global.h",
             "qmlprojectmanagerconstants.h",
             "qmlprojectnodes.cpp", "qmlprojectnodes.h",

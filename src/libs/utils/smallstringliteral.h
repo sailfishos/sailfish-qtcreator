@@ -29,39 +29,29 @@
 #include "smallstringlayout.h"
 #include "smallstringview.h"
 
-#pragma push_macro("constexpr")
-#ifndef __cpp_constexpr
-#define constexpr
-#endif
-
-#pragma push_macro("noexcept")
-#ifndef __cpp_noexcept
-#define noexcept
-#endif
-
 namespace Utils {
 
-class SmallString;
-
-class SmallStringLiteral
+template <int Size>
+class BasicSmallStringLiteral
 {
-    friend class SmallString;
+    template<uint>
+    friend class BasicSmallString;
 
 public:
     using const_iterator = Internal::SmallStringIterator<std::random_access_iterator_tag, const char>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using size_type = std::size_t;
 
-    template<size_type Size>
+    template<size_type ArraySize>
     constexpr
-    SmallStringLiteral(const char(&string)[Size]) noexcept
+    BasicSmallStringLiteral(const char(&string)[ArraySize]) noexcept
         : m_data(string)
     {
-        static_assert(Size >= 1, "Invalid string literal! Length is zero!");
+        static_assert(ArraySize >= 1, "Invalid string literal! Length is zero!");
     }
 
     constexpr
-    SmallStringLiteral(const char *string, const size_type size) noexcept
+    BasicSmallStringLiteral(const char *string, const size_type size) noexcept
         : m_data(string, size)
     {
     }
@@ -99,7 +89,7 @@ public:
     constexpr static
     size_type shortStringCapacity() noexcept
     {
-        return sizeof(Internal::ShortStringLayout) - 2;
+        return Internal::StringDataLayout<Size>::shortStringCapacity();
     }
 
     bool isShortString() const noexcept
@@ -118,15 +108,14 @@ public:
     }
 
 private:
-    SmallStringLiteral(Internal::StringDataLayout data) noexcept
+    BasicSmallStringLiteral(const Internal::StringDataLayout<Size> &data) noexcept
         : m_data(data)
     {
     }
 private:
-    Internal::StringDataLayout m_data;
+    Internal::StringDataLayout<Size> m_data;
 };
 
-}  // namespace Utils
+using SmallStringLiteral = BasicSmallStringLiteral<31>;
 
-#pragma pop_macro("noexcept")
-#pragma pop_macro("constexpr")
+}  // namespace Utils

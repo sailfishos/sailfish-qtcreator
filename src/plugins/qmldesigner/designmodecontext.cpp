@@ -28,6 +28,7 @@
 #include "designmodewidget.h"
 #include "formeditorwidget.h"
 #include "navigatorwidget.h"
+#include "texteditorwidget.h"
 
 namespace QmlDesigner {
 namespace Internal {
@@ -66,6 +67,18 @@ NavigatorContext::NavigatorContext(QWidget *widget)
 QString NavigatorContext::contextHelpId() const
 {
     return qobject_cast<NavigatorWidget *>(m_widget)->contextHelpId();
+}
+
+TextEditorContext::TextEditorContext(QWidget *widget)
+  : IContext(widget)
+{
+    setWidget(widget);
+    setContext(Core::Context(Constants::C_QMLTEXTEDITOR, Constants::C_QT_QUICK_TOOLS_MENU));
+}
+
+QString TextEditorContext::contextHelpId() const
+{
+    return qobject_cast<TextEditorWidget *>(m_widget)->contextHelpId();
 }
 
 }

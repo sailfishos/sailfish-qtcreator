@@ -45,8 +45,8 @@ uint qHash(const AssistProposalItem &item)
 
 namespace {
 
-const int kMaxSort = 1000;
-const int kMaxPrefixFilter = 100;
+constexpr int kMaxSort = 1000;
+constexpr int kMaxPrefixFilter = 100;
 
 struct ContentLessThan
 {
@@ -141,12 +141,70 @@ void GenericProposalModel::loadContent(const QList<AssistProposalItemInterface *
 {
     m_originalItems = items;
     m_currentItems = items;
+    m_duplicatesRemoved = false;
     for (int i = 0; i < m_originalItems.size(); ++i)
         m_idByText.insert(m_originalItems.at(i)->text(), i);
 }
 
+bool GenericProposalModel::hasItemsToPropose(const QString &prefix, AssistReason reason) const
+{
+    return size() != 0 && (keepPerfectMatch(reason) || !isPerfectMatch(prefix));
+}
+
+static QString cleanText(const QString &original)
+{
+    QString clean = original;
+    int ignore = 0;
+    for (int i = clean.length() - 1; i >= 0; --i, ++ignore) {
+        const QChar &c = clean.at(i);
+        if (c.isLetterOrNumber() || c == QLatin1Char('_')
+                || c.isHighSurrogate() || c.isLowSurrogate()) {
+            break;
+        }
+    }
+    if (ignore)
+        clean.chop(ignore);
+    return clean;
+}
+
+bool GenericProposalModel::isPerfectMatch(const QString &prefix) const
+{
+    if (prefix.isEmpty())
+        return false;
+
+    for (int i = 0; i < size(); ++i) {
+        const QString &current = cleanText(text(i));
+        if (!current.isEmpty()) {
+            CaseSensitivity cs = TextEditorSettings::completionSettings().m_caseSensitivity;
+            if (cs == TextEditor::CaseSensitive) {
+                if (prefix == current)
+                    return true;
+            } else if (cs == TextEditor::CaseInsensitive) {
+                if (prefix.compare(current, Qt::CaseInsensitive) == 0)
+                    return true;
+            } else if (cs == TextEditor::FirstLetterCaseSensitive) {
+                if (prefix.at(0) == current.at(0)
+                        && prefix.midRef(1).compare(current.midRef(1), Qt::CaseInsensitive) == 0)
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool GenericProposalModel::isPrefiltered(const QString &prefix) const
+{
+    return !m_prefilterPrefix.isEmpty() && prefix == m_prefilterPrefix;
+}
+
+void GenericProposalModel::setPrefilterPrefix(const QString &prefix)
+{
+    m_prefilterPrefix = prefix;
+}
+
 void GenericProposalModel::reset()
 {
+    m_prefilterPrefix.clear();
     m_currentItems = m_originalItems;
 }
 
@@ -172,6 +230,9 @@ QString GenericProposalModel::detail(int index) const
 
 void GenericProposalModel::removeDuplicates()
 {
+    if (m_duplicatesRemoved)
+        return;
+
     QHash<QString, quint64> unique;
     auto it = m_originalItems.begin();
     while (it != m_originalItems.end()) {
@@ -185,6 +246,8 @@ void GenericProposalModel::removeDuplicates()
             ++it;
         }
     }
+
+    m_duplicatesRemoved = true;
 }
 
 void GenericProposalModel::filter(const QString &prefix)
@@ -246,9 +309,22 @@ void GenericProposalModel::filter(const QString &prefix)
     QRegExp regExp(keyRegExp);
 
     m_currentItems.clear();
+    const QString lowerPrefix = prefix.toLower();
     foreach (const auto &item, m_originalItems) {
-        if (regExp.indexIn(item->text()) == 0)
+        const QString &text = item->text();
+        if (regExp.indexIn(text) == 0) {
             m_currentItems.append(item);
+            if (text.startsWith(prefix)) {
+                // Direct match
+                item->setPrefixMatch(text.length() == prefix.length()
+                                     ? AssistProposalItemInterface::PrefixMatch::Full
+                                     : AssistProposalItemInterface::PrefixMatch::Exact);
+                continue;
+            }
+
+            if (text.startsWith(lowerPrefix, Qt::CaseInsensitive))
+                item->setPrefixMatch(AssistProposalItemInterface::PrefixMatch::Lower);
+        }
     }
 }
 

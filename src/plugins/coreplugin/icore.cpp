@@ -402,9 +402,7 @@ QString ICore::userInterfaceLanguage()
 
 QString ICore::resourcePath()
 {
-    const QString sharePath = QLatin1String(Utils::HostOsInfo::isMacHost()
-                                            ? "/../Resources" : "/../share/qtcreator");
-    return QDir::cleanPath(QCoreApplication::applicationDirPath() + sharePath);
+    return QDir::cleanPath(QCoreApplication::applicationDirPath() + '/' + RELATIVE_DATA_PATH);
 }
 
 QString ICore::userResourcePath()
@@ -424,9 +422,7 @@ QString ICore::userResourcePath()
 
 QString ICore::documentationPath()
 {
-    const QString docPath = QLatin1String(Utils::HostOsInfo::isMacHost()
-                                            ? "/../Resources/doc" : "/../share/doc/qtcreator");
-    return QDir::cleanPath(QCoreApplication::applicationDirPath() + docPath);
+    return QDir::cleanPath(QCoreApplication::applicationDirPath() + '/' + RELATIVE_DOC_PATH);
 }
 
 /*!
@@ -435,21 +431,7 @@ QString ICore::documentationPath()
  */
 QString ICore::libexecPath()
 {
-    QString path;
-    switch (Utils::HostOsInfo::hostOs()) {
-    case Utils::OsTypeWindows:
-        path = QCoreApplication::applicationDirPath();
-        break;
-    case Utils::OsTypeMac:
-        path = QCoreApplication::applicationDirPath() + QLatin1String("/../Resources");
-        break;
-    case Utils::OsTypeLinux:
-    case Utils::OsTypeOtherUnix:
-    case Utils::OsTypeOther:
-        path = QCoreApplication::applicationDirPath() + QLatin1String("/../libexec/qtcreator");
-        break;
-    }
-    return QDir::cleanPath(path);
+    return QDir::cleanPath(QApplication::applicationDirPath() + '/' + RELATIVE_LIBEXEC_PATH);
 }
 
 static QString compilerString()
@@ -466,12 +448,10 @@ static QString compilerString()
 #elif defined(Q_CC_MSVC)
     if (_MSC_VER > 1999)
         return QLatin1String("MSVC <unknown>");
-    if (_MSC_VER >= 1900) // 1900: MSVC 2015
+    if (_MSC_VER >= 1910)
+        return QLatin1String("MSVC 2017");
+    if (_MSC_VER >= 1900)
         return QLatin1String("MSVC 2015");
-    if (_MSC_VER >= 1800) // 1800: MSVC 2013 (yearly release cycle)
-        return QLatin1String("MSVC ") + QString::number(2008 + ((_MSC_VER / 100) - 13));
-    if (_MSC_VER >= 1500) // 1500: MSVC 2008, 1600: MSVC 2010, ... (2-year release cycle)
-        return QLatin1String("MSVC ") + QString::number(2008 + 2 * ((_MSC_VER / 100) - 15));
 #endif
     return QLatin1String("<unknown compiler>");
 }
@@ -479,9 +459,8 @@ static QString compilerString()
 QString ICore::versionString()
 {
     QString ideVersionDescription;
-#ifdef IDE_VERSION_DESCRIPTION
-    ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_DESCRIPTION_STR));
-#endif
+    if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))
+        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY));
     return tr("Qt Creator %1%2").arg(QLatin1String(Constants::IDE_VERSION_LONG),
                                      ideVersionDescription);
 }

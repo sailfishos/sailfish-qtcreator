@@ -23,8 +23,7 @@
 **
 ****************************************************************************/
 
-#ifndef EXPORTDIALOG_H
-#define EXPORTDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -49,12 +48,11 @@ public:
 
     void accept() override;
 
-private slots:
+private:
     void resetExportSize();
     void exportWidthChanged(int width);
     void exportHeightChanged(int height);
 
-private:
     void setExportWidthBlocked(int width);
     void setExportHeightBlocked(int height);
 
@@ -67,5 +65,3 @@ private:
 
 } // namespace Internal
 } // namespace ImageViewer
-
-#endif // EXPORTDIALOG_H

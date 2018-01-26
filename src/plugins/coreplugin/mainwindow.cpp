@@ -111,35 +111,19 @@ MainWindow::MainWindow() :
     m_settingsDatabase(new SettingsDatabase(QFileInfo(PluginManager::settings()->fileName()).path(),
                                             QLatin1String("QtCreator"),
                                             this)),
-    m_printer(0),
-    m_windowSupport(0),
-    m_editorManager(0),
-    m_externalToolManager(0),
     m_progressManager(new ProgressManagerPrivate),
     m_jsExpander(new JsExpander),
     m_vcsManager(new VcsManager),
-    m_statusBarManager(0),
-    m_modeManager(0),
     m_helpManager(new HelpManager),
     m_modeStack(new FancyTabWidget(this)),
-    m_navigationWidget(0),
-    m_rightPaneWidget(0),
-    m_versionDialog(0),
     m_generalSettings(new GeneralSettings),
     m_systemSettings(new SystemSettings),
     m_shortcutSettings(new ShortcutSettings),
     m_toolSettings(new ToolSettings),
     m_mimeTypeSettings(new MimeTypeSettings),
     m_systemEditor(new SystemEditor),
-    m_focusToEditor(0),
-    m_newAction(0),
-    m_openAction(0),
-    m_openWithAction(0),
-    m_saveAllAction(0),
-    m_exitAction(0),
-    m_optionsAction(0),
-    m_toggleSideBarAction(0),
-    m_toggleSideBarButton(new QToolButton)
+    m_toggleLeftSideBarButton(new QToolButton),
+    m_toggleRightSideBarButton(new QToolButton)
 {
     (void) new DocumentManager(this);
     OutputPaneManager::create();
@@ -188,7 +172,8 @@ MainWindow::MainWindow() :
     registerDefaultContainers();
     registerDefaultActions();
 
-    m_navigationWidget = new NavigationWidget(m_toggleSideBarAction);
+    m_leftNavigationWidget = new NavigationWidget(m_toggleLeftSideBarAction, Side::Left);
+    m_rightNavigationWidget = new NavigationWidget(m_toggleRightSideBarAction, Side::Right);
     m_rightPaneWidget = new RightPaneWidget();
 
     m_statusBarManager = new StatusBarManager(this);
@@ -201,8 +186,11 @@ MainWindow::MainWindow() :
     m_progressManager->progressView()->setReferenceWidget(m_modeStack->statusBar());
 
     connect(qApp, &QApplication::focusChanged, this, &MainWindow::updateFocusWidget);
-    // Add a small Toolbutton for toggling the navigation widget
-    statusBar()->insertPermanentWidget(0, m_toggleSideBarButton);
+
+    // Add small Toolbuttons for toggling the navigation widgets
+    statusBar()->insertPermanentWidget(0, m_toggleLeftSideBarButton);
+    int childsCount = statusBar()->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly).count();
+    statusBar()->insertPermanentWidget(childsCount - 1, m_toggleRightSideBarButton); // before QSizeGrip
 
 //    setUnifiedTitleAndToolBarOnMac(true);
     //if (HostOsInfo::isAnyUnixHost())
@@ -217,22 +205,15 @@ MainWindow::MainWindow() :
             this, &MainWindow::openDroppedFiles);
 }
 
-void MainWindow::setSidebarVisible(bool visible)
+NavigationWidget *MainWindow::navigationWidget(Side side) const
 {
-    if (NavigationWidgetPlaceHolder::current()) {
-        if (m_navigationWidget->isSuppressed() && visible) {
-            m_navigationWidget->setShown(true);
-            m_navigationWidget->setSuppressed(false);
-        } else {
-            m_navigationWidget->setShown(visible);
-        }
-    }
+    return side == Side::Left ? m_leftNavigationWidget : m_rightNavigationWidget;
 }
 
-void MainWindow::setSuppressNavigationWidget(bool suppress)
+void MainWindow::setSidebarVisible(bool visible, Side side)
 {
-    if (NavigationWidgetPlaceHolder::current())
-        m_navigationWidget->setSuppressed(suppress);
+    if (NavigationWidgetPlaceHolder::current(side))
+        navigationWidget(side)->setShown(visible);
 }
 
 void MainWindow::setOverrideColor(const QColor &color)
@@ -260,7 +241,7 @@ MainWindow::~MainWindow()
     // explicitly delete window support, because that calls methods from ICore that call methods
     // from mainwindow, so mainwindow still needs to be alive
     delete m_windowSupport;
-    m_windowSupport = 0;
+    m_windowSupport = nullptr;
 
     PluginManager::removeObject(m_shortcutSettings);
     PluginManager::removeObject(m_generalSettings);
@@ -269,25 +250,25 @@ MainWindow::~MainWindow()
     PluginManager::removeObject(m_mimeTypeSettings);
     PluginManager::removeObject(m_systemEditor);
     delete m_externalToolManager;
-    m_externalToolManager = 0;
+    m_externalToolManager = nullptr;
     delete m_messageManager;
-    m_messageManager = 0;
+    m_messageManager = nullptr;
     delete m_shortcutSettings;
-    m_shortcutSettings = 0;
+    m_shortcutSettings = nullptr;
     delete m_generalSettings;
-    m_generalSettings = 0;
+    m_generalSettings = nullptr;
     delete m_systemSettings;
-    m_systemSettings = 0;
+    m_systemSettings = nullptr;
     delete m_toolSettings;
-    m_toolSettings = 0;
+    m_toolSettings = nullptr;
     delete m_mimeTypeSettings;
-    m_mimeTypeSettings = 0;
+    m_mimeTypeSettings = nullptr;
     delete m_systemEditor;
-    m_systemEditor = 0;
+    m_systemEditor = nullptr;
     delete m_printer;
-    m_printer = 0;
+    m_printer = nullptr;
     delete m_vcsManager;
-    m_vcsManager = 0;
+    m_vcsManager = nullptr;
     //we need to delete editormanager and statusbarmanager explicitly before the end of the destructor,
     //because they might trigger stuff that tries to access data from editorwindow, like removeContextWidget
 
@@ -298,29 +279,31 @@ MainWindow::~MainWindow()
     PluginManager::removeObject(m_outputView);
     delete m_outputView;
 
-    delete m_navigationWidget;
-    m_navigationWidget = 0;
+    delete m_leftNavigationWidget;
+    delete m_rightNavigationWidget;
+    m_leftNavigationWidget = nullptr;
+    m_rightNavigationWidget = nullptr;
 
     delete m_editorManager;
-    m_editorManager = 0;
+    m_editorManager = nullptr;
     delete m_progressManager;
-    m_progressManager = 0;
+    m_progressManager = nullptr;
     delete m_statusBarManager;
-    m_statusBarManager = 0;
+    m_statusBarManager = nullptr;
     PluginManager::removeObject(m_coreImpl);
     delete m_coreImpl;
-    m_coreImpl = 0;
+    m_coreImpl = nullptr;
 
     delete m_rightPaneWidget;
-    m_rightPaneWidget = 0;
+    m_rightPaneWidget = nullptr;
 
     delete m_modeManager;
-    m_modeManager = 0;
+    m_modeManager = nullptr;
 
     delete m_helpManager;
-    m_helpManager = 0;
+    m_helpManager = nullptr;
     delete m_jsExpander;
-    m_jsExpander = 0;
+    m_jsExpander = nullptr;
 }
 
 bool MainWindow::init(QString *errorMessage)
@@ -358,7 +341,8 @@ void MainWindow::extensionsInitialized()
     m_statusBarManager->extensionsInitalized();
     OutputPaneManager::instance()->init();
     m_vcsManager->extensionsInitialized();
-    m_navigationWidget->setFactories(PluginManager::getObjects<INavigationWidgetFactory>());
+    m_leftNavigationWidget->setFactories(PluginManager::getObjects<INavigationWidgetFactory>());
+    m_rightNavigationWidget->setFactories(PluginManager::getObjects<INavigationWidgetFactory>());
 
     readSettings();
     updateContext();
@@ -371,6 +355,13 @@ void MainWindow::extensionsInitialized()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // work around QTBUG-43344
+    static bool alreadyClosed = false;
+    if (alreadyClosed) {
+        event->accept();
+        return;
+    }
+
     ICore::saveSettings();
 
     // Save opened files
@@ -390,9 +381,11 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
     saveWindowSettings();
 
-    m_navigationWidget->closeSubWidgets();
+    m_leftNavigationWidget->closeSubWidgets();
+    m_rightNavigationWidget->closeSubWidgets();
 
     event->accept();
+    alreadyClosed = true;
 }
 
 void MainWindow::openDroppedFiles(const QList<DropSupport::FileSpec> &files)
@@ -695,21 +688,37 @@ void MainWindow::registerDefaultActions()
         mwindow->addSeparator(Constants::G_WINDOW_SIZE);
     }
 
-    // Show Sidebar Action
-    m_toggleSideBarAction = new QAction(Utils::Icons::TOGGLE_SIDEBAR.icon(),
-                                        QCoreApplication::translate("Core", Constants::TR_SHOW_SIDEBAR),
-                                        this);
-    m_toggleSideBarAction->setCheckable(true);
-    cmd = ActionManager::registerAction(m_toggleSideBarAction, Constants::TOGGLE_SIDEBAR);
+    // Show Left Sidebar Action
+    m_toggleLeftSideBarAction = new QAction(Utils::Icons::TOGGLE_LEFT_SIDEBAR.icon(),
+                                            QCoreApplication::translate("Core", Constants::TR_SHOW_LEFT_SIDEBAR),
+                                            this);
+    m_toggleLeftSideBarAction->setCheckable(true);
+    cmd = ActionManager::registerAction(m_toggleLeftSideBarAction, Constants::TOGGLE_LEFT_SIDEBAR);
     cmd->setAttribute(Command::CA_UpdateText);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+0") : tr("Alt+0")));
-    connect(m_toggleSideBarAction, &QAction::triggered, this, &MainWindow::setSidebarVisible);
-    ProxyAction *toggleSideBarProxyAction =
-            ProxyAction::proxyActionWithIcon(cmd->action(),
-                                             Utils::Icons::TOGGLE_SIDEBAR_TOOLBAR.icon());
-    m_toggleSideBarButton->setDefaultAction(toggleSideBarProxyAction);
+    connect(m_toggleLeftSideBarAction, &QAction::triggered,
+            this, [this](bool visible) { setSidebarVisible(visible, Side::Left); });
+    ProxyAction *toggleLeftSideBarProxyAction =
+            ProxyAction::proxyActionWithIcon(cmd->action(), Utils::Icons::TOGGLE_LEFT_SIDEBAR_TOOLBAR.icon());
+    m_toggleLeftSideBarButton->setDefaultAction(toggleLeftSideBarProxyAction);
     mwindow->addAction(cmd, Constants::G_WINDOW_VIEWS);
-    m_toggleSideBarAction->setEnabled(false);
+    m_toggleLeftSideBarAction->setEnabled(false);
+
+    // Show Right Sidebar Action
+    m_toggleRightSideBarAction = new QAction(Utils::Icons::TOGGLE_RIGHT_SIDEBAR.icon(),
+                                             QCoreApplication::translate("Core", Constants::TR_SHOW_RIGHT_SIDEBAR),
+                                             this);
+    m_toggleRightSideBarAction->setCheckable(true);
+    cmd = ActionManager::registerAction(m_toggleRightSideBarAction, Constants::TOGGLE_RIGHT_SIDEBAR);
+    cmd->setAttribute(Command::CA_UpdateText);
+    cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+Shift+0") : tr("Alt+Shift+0")));
+    connect(m_toggleRightSideBarAction, &QAction::triggered,
+            this, [this](bool visible) { setSidebarVisible(visible, Side::Right); });
+    ProxyAction *toggleRightSideBarProxyAction =
+            ProxyAction::proxyActionWithIcon(cmd->action(), Utils::Icons::TOGGLE_RIGHT_SIDEBAR_TOOLBAR.icon());
+    m_toggleRightSideBarButton->setDefaultAction(toggleRightSideBarProxyAction);
+    mwindow->addAction(cmd, Constants::G_WINDOW_VIEWS);
+    m_toggleRightSideBarButton->setEnabled(false);
 
     // Show Mode Selector Action
     m_toggleModeSelectorAction = new QAction(tr("Show Mode Selector"), this);
@@ -771,8 +780,7 @@ void MainWindow::openFile()
 static IDocumentFactory *findDocumentFactory(const QList<IDocumentFactory*> &fileFactories,
                                      const QFileInfo &fi)
 {
-    MimeDatabase mdb;
-    const MimeType mt = mdb.mimeTypeForFile(fi);
+    const MimeType mt = Utils::mimeTypeForFile(fi);
     if (mt.isValid()) {
         const QString typeName = mt.name();
         foreach (IDocumentFactory *factory, fileFactories) {
@@ -801,7 +809,7 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames,
                                  const QString &workingDirectory)
 {
     QList<IDocumentFactory*> documentFactories = PluginManager::getObjects<IDocumentFactory>();
-    IDocument *res = 0;
+    IDocument *res = nullptr;
 
     foreach (const QString &fileName, fileNames) {
         const QDir workingDir(workingDirectory.isEmpty() ? QDir::currentPath() : workingDirectory);
@@ -916,8 +924,8 @@ void MainWindow::updateFocusWidget(QWidget *old, QWidget *now)
         return;
 
     QList<IContext *> newContext;
-    if (QWidget *p = qApp->focusWidget()) {
-        IContext *context = 0;
+    if (QWidget *p = QApplication::focusWidget()) {
+        IContext *context = nullptr;
         while (p) {
             context = m_contextWidgets.value(p);
             if (context)
@@ -927,7 +935,7 @@ void MainWindow::updateFocusWidget(QWidget *old, QWidget *now)
     }
 
     // ignore toplevels that define no context, like popups without parent
-    if (!newContext.isEmpty() || qApp->focusWidget() == focusWidget())
+    if (!newContext.isEmpty() || QApplication::focusWidget() == focusWidget())
         updateContextObject(newContext);
 }
 
@@ -977,7 +985,8 @@ void MainWindow::readSettings()
     settings->endGroup();
 
     EditorManagerPrivate::readSettings();
-    m_navigationWidget->restoreSettings(settings);
+    m_leftNavigationWidget->restoreSettings(settings);
+    m_rightNavigationWidget->restoreSettings(settings);
     m_rightPaneWidget->readSettings(settings);
 }
 
@@ -994,7 +1003,8 @@ void MainWindow::saveSettings()
     DocumentManager::saveSettings();
     ActionManager::saveSettings();
     EditorManagerPrivate::saveSettings();
-    m_navigationWidget->saveSettings(settings);
+    m_leftNavigationWidget->saveSettings(settings);
+    m_rightNavigationWidget->saveSettings(settings);
 }
 
 void MainWindow::saveWindowSettings()
@@ -1141,7 +1151,7 @@ bool MainWindow::showWarningWithOptions(const QString &title,
                        QMessageBox::Ok, parent);
     if (!details.isEmpty())
         msgBox.setDetailedText(details);
-    QAbstractButton *settingsButton = 0;
+    QAbstractButton *settingsButton = nullptr;
     if (settingsId.isValid())
         settingsButton = msgBox.addButton(tr("Settings..."), QMessageBox::AcceptRole);
     msgBox.exec();

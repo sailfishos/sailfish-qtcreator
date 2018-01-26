@@ -41,12 +41,12 @@ public:
 
     ClangTextMark(const QString &fileName,
                   const ClangBackEnd::DiagnosticContainer &diagnostic,
-                  const RemovedFromEditorHandler &removedHandler);
+                  const RemovedFromEditorHandler &removedHandler,
+                  bool showLineAnnotations);
 
+    void updateIcon(bool valid = true);
 private:
-    void setIcon(ClangBackEnd::DiagnosticSeverity severity);
-
-    bool addToolTipContent(QLayout *target) override;
+    bool addToolTipContent(QLayout *target) const override;
     void removedFromEditor() override;
 
 private:

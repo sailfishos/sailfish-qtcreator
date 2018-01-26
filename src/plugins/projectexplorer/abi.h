@@ -58,6 +58,7 @@ public:
         UnixOS,
         WindowsOS,
         VxWorks,
+        QnxOS,
         UnknownOS
     };
 
@@ -90,6 +91,9 @@ public:
         WindowsCEFlavor,
 
         VxWorksFlavor,
+
+        // QNX
+        GenericQnxFlavor,
 
         UnknownFlavor
     };
@@ -135,6 +139,7 @@ public:
     static QString toString(int w);
 
     static QList<OSFlavor> flavorsForOs(const OS &o);
+    static OSFlavor flavorForMsvcVersion(int version);
 
     static Abi hostAbi();
     static QList<Abi> abisOfBinary(const Utils::FileName &path);

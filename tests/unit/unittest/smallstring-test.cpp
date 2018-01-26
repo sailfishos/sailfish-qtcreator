@@ -31,12 +31,9 @@
 #include <utils/smallstringio.h>
 #include <utils/smallstringvector.h>
 
-#ifndef __cpp_constexpr
-#define constexpr
-#endif
-
 using namespace ::testing;
 
+using Utils::PathString;
 using Utils::SmallString;
 using Utils::SmallStringLiteral;
 using Utils::SmallStringView;
@@ -101,6 +98,15 @@ TEST(SmallString, CreateFromSmallStringIterators)
     SmallString sourceText = "this is very very very very very much text";
 
     SmallString text(sourceText.begin(), sourceText.end());
+
+    ASSERT_THAT(text, SmallString("this is very very very very very much text"));
+}
+
+TEST(SmallString, CreateFromStringView)
+{
+    SmallStringView sourceText = "this is very very very very very much text";
+
+    SmallString text(sourceText);
 
     ASSERT_THAT(text, SmallString("this is very very very very very much text"));
 }
@@ -197,6 +203,15 @@ TEST(SmallString, CopyLongConstExpressionSmallStringIsLongSmallString)
     auto longTextCopy = longText;
 
     ASSERT_FALSE(longTextCopy.isShortString());
+}
+
+TEST(SmallString, ShortPathStringIsShortString)
+{
+    const char *rawText = "very very very very very very very very very very very long path which fits in the short memory";
+
+    PathString text(rawText);
+
+    ASSERT_TRUE(text.isShortString());
 }
 
 TEST(SmallString, SmallStringFromCharacterArrayIsReference)
@@ -317,6 +332,29 @@ TEST(SmallString, RBeginPlusOneIsEqualREndForSmallStringWidthSizeOne)
     ASSERT_THAT(beginPlusOne, Eq(text.rend()));
 }
 
+TEST(SmallString, ConstRBeginIsEqualREndForEmptySmallString)
+{
+    const SmallString text;
+
+    ASSERT_THAT(text.rbegin(), Eq(text.rend()));
+}
+
+TEST(SmallString, ConstRBeginIsNotEqualREndForNonEmptySmallString)
+{
+    const SmallString text("x");
+
+    ASSERT_THAT(text.rbegin(), Ne(text.rend()));
+}
+
+TEST(SmallString, ConstRBeginPlusOneIsEqualREndForSmallStringWidthSizeOne)
+{
+    const SmallString text("x");
+
+    auto beginPlusOne = text.rbegin() + 1l;
+
+    ASSERT_THAT(beginPlusOne, Eq(text.rend()));
+}
+
 TEST(SmallString, ConstructorStandardString)
 {
     std::string stdStringText = "short string";
@@ -415,6 +453,15 @@ TEST(SmallString, SizeShortSmallString)
     auto size = shortText.size();
 
     ASSERT_THAT(size, 4);
+}
+
+TEST(SmallString, SizeShortPathString)
+{
+    SmallString shortPath("very very very very very very very very very very very long path which fits in the short memory");
+
+    auto size = shortPath.size();
+
+    ASSERT_THAT(size, 95);
 }
 
 TEST(SmallString, SizeLongSmallString)
@@ -523,6 +570,15 @@ TEST(SmallString, AppendShortSmallString)
     ASSERT_THAT(text, SmallString("some text"));
 }
 
+TEST(SmallString, AppendLongSmallStringToShortSmallString)
+{
+    SmallString text("some ");
+
+    text.append(SmallString("very very very very very long string"));
+
+    ASSERT_THAT(text, SmallString("some very very very very very long string"));
+}
+
 TEST(SmallString, AppendLongSmallString)
 {
     SmallString longText("some very very very very very very very very very very very long string");
@@ -562,6 +618,14 @@ TEST(SmallString, EqualSmallStringOperator)
     ASSERT_FALSE(SmallString() == SmallString("text"));
     ASSERT_TRUE(SmallString("text") == SmallString("text"));
     ASSERT_FALSE(SmallString("text") == SmallString("text2"));
+}
+
+TEST(SmallString, EqualSmallStringOperatorWithDifferenceClassSizes)
+{
+    ASSERT_TRUE(SmallString() == PathString(""));
+    ASSERT_FALSE(SmallString() == PathString("text"));
+    ASSERT_TRUE(SmallString("text") == PathString("text"));
+    ASSERT_FALSE(SmallString("text") == PathString("text2"));
 }
 
 TEST(SmallString, EqualCStringArrayOperator)
@@ -630,6 +694,36 @@ TEST(SmallString, SmallerOperator)
     ASSERT_FALSE(SmallString("text") < SmallString("text"));
 }
 
+TEST(SmallString, SmallerOperatorWithStringViewRight)
+{
+    ASSERT_TRUE(SmallString() < SmallStringView("text"));
+    ASSERT_TRUE(SmallString("some") < SmallStringView("text"));
+    ASSERT_TRUE(SmallString("text") < SmallStringView("texta"));
+    ASSERT_FALSE(SmallString("texta") < SmallStringView("text"));
+    ASSERT_FALSE(SmallString("text") < SmallStringView("some"));
+    ASSERT_FALSE(SmallString("text") < SmallStringView("text"));
+}
+
+TEST(SmallString, SmallerOperatorWithStringViewLeft)
+{
+    ASSERT_TRUE(SmallStringView("") < SmallString("text"));
+    ASSERT_TRUE(SmallStringView("some") < SmallString("text"));
+    ASSERT_TRUE(SmallStringView("text") < SmallString("texta"));
+    ASSERT_FALSE(SmallStringView("texta") < SmallString("text"));
+    ASSERT_FALSE(SmallStringView("text") < SmallString("some"));
+    ASSERT_FALSE(SmallStringView("text") < SmallString("text"));
+}
+
+TEST(SmallString, SmallerOperatorForDifferenceClassSizes)
+{
+    ASSERT_TRUE(SmallString() < PathString("text"));
+    ASSERT_TRUE(SmallString("some") < PathString("text"));
+    ASSERT_TRUE(SmallString("text") < PathString("texta"));
+    ASSERT_FALSE(SmallString("texta") < PathString("text"));
+    ASSERT_FALSE(SmallString("text") < PathString("some"));
+    ASSERT_FALSE(SmallString("text") < PathString("text"));
+}
+
 TEST(SmallString, IsEmpty)
 {
     ASSERT_FALSE(SmallString("text").isEmpty());
@@ -651,6 +745,15 @@ TEST(SmallString, Clear)
     text.clear();
 
     ASSERT_TRUE(text.isEmpty());
+}
+
+TEST(SmallString, ReplaceWithCharacter)
+{
+    SmallString text("here is some text, here is some text, here is some text");
+
+    text.replace('s', 'x');
+
+    ASSERT_THAT(text, SmallString("here ix xome text, here ix xome text, here ix xome text"));
 }
 
 TEST(SmallString, ReplaceWithEqualSizedText)
@@ -783,31 +886,67 @@ TEST(SmallString, EndsWithSmallString)
     ASSERT_TRUE(text.endsWith('h'));
 }
 
-TEST(SmallString, ReserveSmallerThanReference)
+TEST(SmallString, ReserveSmallerThanShortStringCapacity)
 {
     SmallString text("text");
 
     text.reserve(2);
 
-    ASSERT_THAT(text.capacity(), 30);
+    ASSERT_THAT(text.capacity(), AnyOf(30, 4));
 }
 
-TEST(SmallString, ReserveBiggerThanReference)
+TEST(SmallString, ReserveSmallerThanReference)
+{
+    SmallString text("some very very very very very very very very very very very long string");
+
+    text.reserve(35);
+
+    ASSERT_THAT(text.capacity(), 71);
+}
+
+TEST(SmallString, ReserveBiggerThanShortStringCapacity)
 {
     SmallString text("text");
 
     text.reserve(10);
 
-    ASSERT_THAT(text.capacity(), 30);
+    ASSERT_THAT(text.capacity(), AnyOf(30, 10));
 }
 
-TEST(SmallString, ReserveMuchBiggerThanReference)
+TEST(SmallString, ReserveBiggerThanReference)
+{
+    SmallString text("some very very very very very very very very very very very long string");
+
+    text.reserve(35);
+
+    ASSERT_THAT(text.capacity(), 71);
+}
+
+TEST(SmallString, ReserveMuchBiggerThanShortStringCapacity)
 {
     SmallString text("text");
 
     text.reserve(100);
 
     ASSERT_THAT(text.capacity(), 100);
+}
+
+TEST(SmallString, TextIsCopiedAfterReserveFromShortToLongString)
+{
+    SmallString text("text");
+
+    text.reserve(100);
+
+    ASSERT_THAT(text, "text");
+}
+
+TEST(SmallString, TextIsCopiedAfterReserveReferenceToLongString)
+{
+    SmallString text("some very very very very very very very very very very very long string");
+
+    text.reserve(100);
+
+    ASSERT_THAT(text, "some very very very very very very very very very very very long string");
 }
 
 TEST(SmallString, ReserveSmallerThanShortSmallString)
@@ -1027,3 +1166,93 @@ TEST(SmallString, ReplaceByPositionEqualSizedTexts)
     ASSERT_THAT(text, SmallString("this is very very very very very much text"));
 }
 
+TEST(SmallString, CompareTextWithDifferentLineEndings)
+{
+    SmallString unixText("some \ntext");
+    SmallString windowsText("some \n\rtext");
+
+    auto convertedText = windowsText.toCarriageReturnsStripped();
+
+    ASSERT_THAT(unixText, convertedText);
+}
+
+TEST(SmallString, ConstSubscriptOperator)
+{
+    const SmallString text = {"some text"};
+
+    auto &&sign = text[5];
+
+    ASSERT_THAT(sign, 't');
+}
+
+TEST(SmallString, NonConstSubscriptOperator)
+{
+    SmallString text = {"some text"};
+
+    auto &&sign = text[5];
+
+    ASSERT_THAT(sign, 't');
+}
+
+TEST(SmallString, ManipulateConstSubscriptOperator)
+{
+    const SmallString text = {"some text"};
+    auto &&sign = text[5];
+
+    sign = 'q';
+
+    ASSERT_THAT(text, SmallString{"some text"});
+}
+
+TEST(SmallString, ManipulateNonConstSubscriptOperator)
+{
+    char rawText[] = "some text";
+    SmallString text{rawText};
+    auto &&sign = text[5];
+
+    sign = 'q';
+
+    ASSERT_THAT(text, SmallString{"some qext"});
+}
+
+TEST(SmallString, EmptyInitializerListContent)
+{
+    SmallString text = {};
+
+    ASSERT_THAT(text, SmallString());
+}
+
+TEST(SmallString, EmptyInitializerListSize)
+{
+    SmallString text = {};
+
+    ASSERT_THAT(text, SizeIs(0));
+}
+
+TEST(SmallString, EmptyInitializerListNullTerminated)
+{
+    auto end = SmallString{{}}[0];
+
+    ASSERT_THAT(end, '\0');
+}
+
+TEST(SmallString, InitializerListContent)
+{
+    SmallString text = {"some", " ", "text"};
+
+    ASSERT_THAT(text, SmallString("some text"));
+}
+
+TEST(SmallString, InitializerListSize)
+{
+    SmallString text = {"some", " ", "text"};
+
+    ASSERT_THAT(text, SizeIs(9));
+}
+
+TEST(SmallString, InitializerListNullTerminated)
+{
+    auto end = SmallString{"some", " ", "text"}[9];
+
+    ASSERT_THAT(end, '\0');
+}

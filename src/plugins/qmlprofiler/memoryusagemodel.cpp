@@ -61,7 +61,7 @@ int MemoryUsageModel::typeId(int index) const
     return m_data[index].typeId;
 }
 
-QColor MemoryUsageModel::color(int index) const
+QRgb MemoryUsageModel::color(int index) const
 {
     return colorBySelectionId(index);
 }
@@ -121,8 +121,7 @@ QVariantMap MemoryUsageModel::details(int index) const
     }
     result.insert(tr("Type"), memoryTypeName);
 
-    result.insert(tr("Location"),
-                  modelManager()->qmlModel()->eventTypes().at(ev->typeId).displayName());
+    result.insert(tr("Location"), modelManager()->eventTypes().at(ev->typeId).displayName());
     return result;
 }
 
@@ -136,12 +135,14 @@ void MemoryUsageModel::loadEvent(const QmlEvent &event, const QmlEventType &type
 {
     if (type.message() != MemoryAllocation) {
         if (type.rangeType() != MaximumRangeType) {
+            m_continuation = ContinueNothing;
             if (event.rangeStage() == RangeStart)
                 m_rangeStack.push(RangeStackFrame(event.typeIndex(), event.timestamp()));
-            else if (event.rangeStage() == RangeEnd)
+            else if (event.rangeStage() == RangeEnd) {
+                QTC_ASSERT(!m_rangeStack.isEmpty(), return);
+                QTC_ASSERT(m_rangeStack.top().originTypeIndex == event.typeIndex(), return);
                 m_rangeStack.pop();
-
-            m_continuation = ContinueNothing;
+            }
         }
         return;
     }

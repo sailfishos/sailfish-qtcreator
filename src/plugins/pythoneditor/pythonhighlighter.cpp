@@ -38,6 +38,7 @@
 
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditorconstants.h>
+#include <utils/qtcassert.h>
 
 namespace PythonEditor {
 namespace Internal {
@@ -60,23 +61,34 @@ namespace Internal {
  * @endcode
  */
 
+static TextEditor::TextStyle styleForFormat(int format)
+{
+    using namespace TextEditor;
+    const auto f = Format(format);
+    switch (f) {
+    case Format_Number: return C_NUMBER;
+    case Format_String: return C_STRING;
+    case Format_Keyword: return C_KEYWORD;
+    case Format_Type: return C_TYPE;
+    case Format_ClassField: return C_FIELD;
+    case Format_MagicAttr: return C_JS_SCOPE_VAR;
+    case Format_Operator: return C_OPERATOR;
+    case Format_Comment: return C_COMMENT;
+    case Format_Doxygen: return C_DOXYGEN_COMMENT;
+    case Format_Identifier: return C_TEXT;
+    case Format_Whitespace: return C_VISUAL_WHITESPACE;
+    case Format_ImportedModule: return C_STRING;
+    case Format_FormatsAmount:
+        QTC_CHECK(false); // should never get here
+        return C_TEXT;
+    }
+    QTC_CHECK(false); // should never get here
+    return C_TEXT;
+}
+
 PythonHighlighter::PythonHighlighter()
 {
-    static const QVector<TextEditor::TextStyle> categories = {
-        TextEditor::C_NUMBER,
-        TextEditor::C_STRING,
-        TextEditor::C_KEYWORD,
-        TextEditor::C_TYPE,
-        TextEditor::C_FIELD,
-        TextEditor::C_JS_SCOPE_VAR,
-        TextEditor::C_OPERATOR,
-        TextEditor::C_COMMENT,
-        TextEditor::C_DOXYGEN_COMMENT,
-        TextEditor::C_TEXT,
-        TextEditor::C_VISUAL_WHITESPACE,
-        TextEditor::C_STRING
-    };
-    setTextFormatCategories(categories);
+    setTextFormatCategories(Format_FormatsAmount, styleForFormat);
 }
 
 /**
@@ -117,18 +129,18 @@ int PythonHighlighter::highlightLine(const QString &text, int initialState)
 
     FormatToken tk;
     bool hasOnlyWhitespace = true;
-    while ((tk = scanner.read()).format() != Format_EndOfBlock) {
+    while (!(tk = scanner.read()).isEndOfBlock()) {
         Format format = tk.format();
-        if (format == Format_Keyword) {
-            QString value = scanner.value(tk);
-            if (isImportKeyword(value) && hasOnlyWhitespace) {
-                setFormat(tk.begin(), tk.length(), formatForCategory(format));
-                highlightImport(scanner);
-                break;
-            }
+        if (format == Format_Keyword && isImportKeyword(scanner.value(tk)) && hasOnlyWhitespace) {
+            setFormat(tk.begin(), tk.length(), formatForCategory(format));
+            highlightImport(scanner);
+        } else if (format == Format_Comment
+                   || format == Format_String
+                   || format == Format_Doxygen) {
+            setFormatWithSpaces(text, tk.begin(), tk.length(), formatForCategory(format));
+        } else {
+            setFormat(tk.begin(), tk.length(), formatForCategory(format));
         }
-
-        setFormat(tk.begin(), tk.length(), formatForCategory(format));
         if (format != Format_Whitespace)
             hasOnlyWhitespace = false;
     }
@@ -141,7 +153,7 @@ int PythonHighlighter::highlightLine(const QString &text, int initialState)
 void PythonHighlighter::highlightImport(Scanner &scanner)
 {
     FormatToken tk;
-    while ((tk = scanner.read()).format() != Format_EndOfBlock) {
+    while (!(tk = scanner.read()).isEndOfBlock()) {
         Format format = tk.format();
         if (tk.format() == Format_Identifier)
             format = Format_ImportedModule;

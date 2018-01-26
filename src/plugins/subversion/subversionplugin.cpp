@@ -39,7 +39,6 @@
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsoutputwindow.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
 
 #include <texteditor/textdocument.h>
 
@@ -54,9 +53,9 @@
 #include <coreplugin/locator/commandlocator.h>
 #include <coreplugin/messagemanager.h>
 
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
-#include <utils/mimetypes/mimedatabase.h>
 #include <utils/parameteraction.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
@@ -215,8 +214,6 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
 
     m_subversionPluginInstance = this;
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/trolltech.subversion/Subversion.mimetypes.xml"));
-
     m_client = new SubversionClient;
 
     addAutoReleasedObject(new SettingsPage(versionControl()));
@@ -224,11 +221,13 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     addAutoReleasedObject(new VcsSubmitEditorFactory(&submitParameters,
         []() { return new SubversionSubmitEditor(&submitParameters); }));
 
-    static const char *describeSlot = SLOT(describe(QString,QString));
+    const auto describeFunc = [this](const QString &source, const QString &id) {
+        describe(source, id);
+    };
     const int editorCount = sizeof(editorParameters) / sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new SubversionEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, this, describeSlot));
+        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
 
     const QString prefix = QLatin1String("svn");
     m_commandLocator = new CommandLocator("Subversion", prefix, prefix);
@@ -406,6 +405,15 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     ActionManager::registerAction(m_submitRedoAction, Core::Constants::REDO, svncommitcontext);
 
     return true;
+}
+
+bool SubversionPlugin::isVcsDirectory(const FileName &fileName)
+{
+    const QString baseName = fileName.fileName();
+    return fileName.toFileInfo().isDir()
+            && contains(m_svnDirectories, [baseName](const QString &s) {
+        return !baseName.compare(s, HostOsInfo::fileNameCaseSensitivity());
+    });
 }
 
 SubversionClient *SubversionPlugin::client() const
@@ -766,14 +774,6 @@ void SubversionPlugin::annotateCurrentFile()
     vcsAnnotate(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void SubversionPlugin::annotateVersion(const QString &workingDirectory,
-                                       const QString &file,
-                                       const QString &revision,
-                                       int lineNr)
-{
-    vcsAnnotate(workingDirectory, file, revision, lineNr);
-}
-
 void SubversionPlugin::vcsAnnotate(const QString &workingDir, const QString &file,
                                    const QString &revision /* = QString() */,
                                    int lineNumber /* = -1 */)
@@ -907,11 +907,10 @@ IEditor *SubversionPlugin::showOutputInEditor(const QString &title, const QStrin
                  <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
     QString s = title;
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, output.toUtf8());
-    connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,QString,int)),
-            this, SLOT(annotateVersion(QString,QString,QString,int)));
     SubversionEditorWidget *e = qobject_cast<SubversionEditorWidget*>(editor->widget());
     if (!e)
         return 0;
+    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &SubversionPlugin::vcsAnnotate);
     e->setForceReadOnly(true);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
     e->textDocument()->setFallbackSaveAsFileName(s);

@@ -37,7 +37,7 @@ class QmlCppEngine : public DebuggerEngine
     Q_OBJECT
 
 public:
-    QmlCppEngine(const DebuggerRunParameters &sp, QStringList *errors);
+    QmlCppEngine(DebuggerEngine *cppEngine, bool useTerminal);
     ~QmlCppEngine() override;
 
     bool canDisplayTooltip() const override;
@@ -80,13 +80,10 @@ public:
 
     DebuggerEngine *cppEngine() override { return m_cppEngine; }
     DebuggerEngine *qmlEngine() const;
+    DebuggerEngine *activeEngine() override { return m_activeEngine; }
+    void setRunTool(DebuggerRunTool *runTool) override;
 
-    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result) override;
-
-    void showMessage(const QString &msg, int channel = LogDebug,
-        int timeout = -1) const override;
     void resetLocation() override;
-
     void notifyInferiorIll() override;
 
 protected:
@@ -107,6 +104,7 @@ protected:
     void executeRunToFunction(const QString &functionName) override;
     void executeJumpToLine(const ContextData &data) override;
     void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
+    void doUpdateLocals(const UpdateParameters &up) override;
 
     void setupEngine() override;
     void setupInferior() override;
@@ -122,7 +120,6 @@ protected:
     void notifyInferiorShutdownOk() override;
 
     void notifyInferiorSetupOk() override;
-    void notifyEngineRemoteServerRunning(const QString &, int pid) override;
     void loadAdditionalQmlStack() override;
 
 private:
@@ -133,9 +130,9 @@ private:
     void setActiveEngine(DebuggerEngine *engine);
 
 private:
-    QmlEngine *m_qmlEngine;
-    DebuggerEngine *m_cppEngine;
-    DebuggerEngine *m_activeEngine;
+    QPointer<QmlEngine> m_qmlEngine;
+    QPointer<DebuggerEngine> m_cppEngine;
+    QPointer<DebuggerEngine> m_activeEngine;
 };
 
 } // namespace Internal

@@ -43,10 +43,12 @@ class LineNumberFilter : public Core::ILocatorFilter
 public:
     explicit LineNumberFilter(QObject *parent = 0);
 
-    void prepareSearch(const QString &entry);
-    QList<Core::LocatorFilterEntry> matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry);
-    void accept(Core::LocatorFilterEntry selection) const;
-    void refresh(QFutureInterface<void> &) {}
+    void prepareSearch(const QString &entry) override;
+    QList<Core::LocatorFilterEntry> matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future,
+                                               const QString &entry) override;
+    void accept(Core::LocatorFilterEntry selection,
+                QString *newText, int *selectionStart, int *selectionLength) const override;
+    void refresh(QFutureInterface<void> &) override {}
 
 private:
     bool m_hasCurrentEditor;

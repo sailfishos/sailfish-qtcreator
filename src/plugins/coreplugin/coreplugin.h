@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "reaper_p.h"
+
 #include <extensionsystem/iplugin.h>
 
 QT_BEGIN_NAMESPACE
@@ -66,8 +68,8 @@ public:
 public slots:
     void fileOpenRequest(const QString&);
 
-private slots:
 #if defined(WITH_TESTS)
+private slots:
     void testVcsManager_data();
     void testVcsManager();
     void testSplitLineAndColumnNumber();
@@ -84,6 +86,7 @@ private:
     EditMode *m_editMode;
     DesignMode *m_designMode;
     Locator *m_locator;
+    ReaperPrivate m_reaper;
 };
 
 } // namespace Internal

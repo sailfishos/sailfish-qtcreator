@@ -28,6 +28,7 @@
 #include "clangstaticanalyzerlogfilereader.h"
 #include "clangstaticanalyzerrunner.h"
 #include "clangstaticanalyzersettings.h"
+#include "clangstaticanalyzertool.h"
 #include "clangstaticanalyzerutils.h"
 
 #include <debugger/analyzer/analyzerconstants.h>
@@ -55,9 +56,10 @@
 
 #include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
+#include <utils/temporarydirectory.h>
 
+#include <QAction>
 #include <QLoggingCategory>
-#include <QTemporaryDir>
 
 using namespace CppTools;
 using namespace ProjectExplorer;
@@ -67,27 +69,64 @@ static Q_LOGGING_CATEGORY(LOG, "qtc.clangstaticanalyzer.runcontrol")
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
-ClangStaticAnalyzerRunControl::ClangStaticAnalyzerRunControl(
-            RunConfiguration *runConfiguration,
-            Core::Id runMode,
-            const ProjectInfo &projectInfo)
-    : RunControl(runConfiguration, runMode)
-    , m_projectInfo(projectInfo)
-    , m_initialFilesToProcessSize(0)
-    , m_filesAnalyzed(0)
-    , m_filesNotAnalyzed(0)
+ClangStaticAnalyzerToolRunner::ClangStaticAnalyzerToolRunner(RunControl *runControl)
+    : RunWorker(runControl)
 {
-    setDisplayName(tr("Clang Static Analyzer"));
-    setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL_TOOLBAR);
+    setDisplayName("ClangStaticAnalyzerRunner");
+    runControl->setDisplayName(tr("Clang Static Analyzer"));
+    runControl->setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL_TOOLBAR);
+    setSupportsReRunning(false);
 
-    Target *target = runConfiguration->target();
+    RunConfiguration *runConfiguration = runControl->runConfiguration();
+    auto tool = ClangStaticAnalyzerTool::instance();
+    tool->stopAction()->disconnect();
+    connect(tool->stopAction(), &QAction::triggered, runControl, [&] {
+        initiateStop();
+        appendMessage(tr("Clang Static Analyzer stopped by user."),
+                      Utils::NormalMessageFormat);
+    });
+    tool->handleWorkerStart(this);
+
+    ProjectInfo projectInfoBeforeBuild = tool->projectInfoBeforeBuild();
+    QTC_ASSERT(projectInfoBeforeBuild.isValid(), return);
+
+    QTC_ASSERT(runConfiguration, return);
+    Target * const target = runConfiguration->target();
+    QTC_ASSERT(target, return);
+    Project * const project = target->project();
+    QTC_ASSERT(project, return);
+
+    // so pass on the updated Project Info unless no configuration change
+    // (defines/includes/files) happened.
+    const CppTools::ProjectInfo projectInfoAfterBuild
+            = CppTools::CppModelManager::instance()->projectInfo(project);
+
+    if (projectInfoAfterBuild.configurationOrFilesChanged(projectInfoBeforeBuild)) {
+        // If it's more than a release/debug build configuration change, e.g.
+        // a version control checkout, files might be not valid C++ anymore
+        // or even gone, so better stop here.
+
+        tool->resetCursorAndProjectInfoBeforeBuild();
+        reportFailure(tr(
+                "The project configuration changed since the start of the Clang Static Analyzer. "
+                "Please re-run with current configuration."));
+        return;
+    }
+
+    // Some projects provides CompilerCallData once a build is finished,
+    QTC_ASSERT(!projectInfoAfterBuild.configurationOrFilesChanged(projectInfoBeforeBuild),
+               return);
+
+    m_projectInfo = projectInfoAfterBuild;
+
     BuildConfiguration *buildConfiguration = target->activeBuildConfiguration();
     QTC_ASSERT(buildConfiguration, return);
     m_environment = buildConfiguration->environment();
 
-    ToolChain *toolChain = ToolChainKitInformation::toolChain(target->kit(), ToolChain::Language::Cxx);
+    ToolChain *toolChain = ToolChainKitInformation::toolChain(target->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     QTC_ASSERT(toolChain, return);
     m_targetTriple = toolChain->originalTargetTriple();
+    m_toolChainType = toolChain->typeId();
 }
 
 static void prependWordWidthArgumentIfNotIncluded(QStringList *arguments,
@@ -122,7 +161,8 @@ static void prependTargetTripleIfNotIncludedAndNotEmpty(QStringList *arguments,
 }
 
 // Removes (1) inputFile (2) -o <somePath>.
-QStringList inputAndOutputArgumentsRemoved(const QString &inputFile, const QStringList &arguments)
+QStringList inputAndOutputArgumentsRemoved(const QString &inputFile, const QStringList &arguments,
+                                           bool isMsvc)
 {
     QStringList newArguments;
 
@@ -132,6 +172,9 @@ QStringList inputAndOutputArgumentsRemoved(const QString &inputFile, const QStri
             skip = false;
             continue;
         } else if (argument == QLatin1String("-o")) {
+            skip = true;
+            continue;
+        } else if (isMsvc && argument == QLatin1String("-target")) {
             skip = true;
             continue;
         } else if (QDir::fromNativeSeparators(argument) == inputFile) {
@@ -189,19 +232,28 @@ public:
         optionsBuilder.addPrecompiledHeaderOptions(pchUsage);
         optionsBuilder.addMsvcCompatibilityVersion();
 
-        if (type != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
-            optionsBuilder.add(QLatin1String("-fPIC")); // TODO: Remove?
-
         return optionsBuilder.options();
     }
 
     ClangStaticAnalyzerOptionsBuilder(const CppTools::ProjectPart &projectPart)
         : CompilerOptionsBuilder(projectPart)
-        , m_isMsvcToolchain(m_projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
+        , m_isMsvcToolchain(m_projectPart.toolchainType
+                            == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
+        , m_isMinGWToolchain(m_projectPart.toolchainType
+                            == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID)
     {
     }
 
 public:
+    bool excludeHeaderPath(const QString &headerPath) const override
+    {
+        if (CompilerOptionsBuilder::excludeHeaderPath(headerPath))
+            return true;
+        if (m_isMinGWToolchain && headerPath.contains(m_projectPart.toolChainTargetTriple))
+            return true;
+        return false;
+    }
+
     void undefineClangVersionMacrosForMsvc()
     {
         if (m_projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
@@ -224,7 +276,7 @@ private:
         // For MSVC toolchains we use clang-cl.exe, so there is nothing to do here since
         //    1) clang-cl.exe does not understand the "-triple" option
         //    2) clang-cl.exe already hardcodes the right triple value (even if built with mingw)
-        if (m_projectPart.toolchainType != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
+        if (!m_isMsvcToolchain)
             CompilerOptionsBuilder::addTargetTriple();
     }
 
@@ -281,6 +333,7 @@ private:
 
 private:
     bool m_isMsvcToolchain;
+    bool m_isMinGWToolchain;
 };
 
 static QStringList createMsCompatibilityVersionOption(const ProjectPart &projectPart)
@@ -328,9 +381,12 @@ static QStringList tweakedArguments(const ProjectPart &projectPart,
                                     const QStringList &arguments,
                                     const QString &targetTriple)
 {
-    QStringList newArguments = inputAndOutputArgumentsRemoved(filePath, arguments);
+    const bool isMsvc = projectPart.toolchainType
+            == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    QStringList newArguments = inputAndOutputArgumentsRemoved(filePath, arguments, isMsvc);
     prependWordWidthArgumentIfNotIncluded(&newArguments, projectPart.toolChainWordWidth);
-    prependTargetTripleIfNotIncludedAndNotEmpty(&newArguments, targetTriple);
+    if (!isMsvc)
+        prependTargetTripleIfNotIncludedAndNotEmpty(&newArguments, targetTriple);
     newArguments.append(createHeaderPathsOptionsForClangOnMac(projectPart));
     newArguments.append(createMsCompatibilityVersionOption(projectPart));
     newArguments.append(createOptionsToUndefineClangVersionMacrosForMsvc(projectPart));
@@ -340,7 +396,7 @@ static QStringList tweakedArguments(const ProjectPart &projectPart,
 }
 
 static AnalyzeUnits unitsToAnalyzeFromCompilerCallData(
-            const QHash<QString, ProjectPart::Ptr> &projectFileToProjectPart,
+            const QHash<QString, ProjectPart::Ptr> &callGroupToProjectPart,
             const ProjectInfo::CompilerCallData &compilerCallData,
             const QString &targetTriple)
 {
@@ -350,7 +406,7 @@ static AnalyzeUnits unitsToAnalyzeFromCompilerCallData(
 
     foreach (const ProjectInfo::CompilerCallGroup &compilerCallGroup, compilerCallData) {
         const ProjectPart::Ptr projectPart
-                = projectFileToProjectPart.value(compilerCallGroup.groupId);
+                = callGroupToProjectPart.value(compilerCallGroup.groupId);
         QTC_ASSERT(projectPart, continue);
 
         QHashIterator<QString, QList<QStringList> > it(compilerCallGroup.callsPerSourceFile);
@@ -371,7 +427,7 @@ static AnalyzeUnits unitsToAnalyzeFromCompilerCallData(
     return unitsToAnalyze;
 }
 
-static AnalyzeUnits unitsToAnalyzeFromProjectParts(const QList<ProjectPart::Ptr> projectParts)
+static AnalyzeUnits unitsToAnalyzeFromProjectParts(const QVector<ProjectPart::Ptr> projectParts)
 {
     qCDebug(LOG) << "Taking arguments for analyzing from ProjectParts.";
 
@@ -385,6 +441,7 @@ static AnalyzeUnits unitsToAnalyzeFromProjectParts(const QList<ProjectPart::Ptr>
             if (file.path == CppModelManager::configurationFileName())
                 continue;
             QTC_CHECK(file.kind != ProjectFile::Unclassified);
+            QTC_CHECK(file.kind != ProjectFile::Unsupported);
             if (ProjectFile::isSource(file.kind)) {
                 const CompilerOptionsBuilder::PchUsage pchUsage = CppTools::getPchUsage();
                 const QStringList arguments
@@ -397,20 +454,20 @@ static AnalyzeUnits unitsToAnalyzeFromProjectParts(const QList<ProjectPart::Ptr>
     return unitsToAnalyze;
 }
 
-static QHash<QString, ProjectPart::Ptr> generateProjectFileToProjectPartMapping(
-            const QList<ProjectPart::Ptr> &projectParts)
+static QHash<QString, ProjectPart::Ptr> generateCallGroupToProjectPartMapping(
+            const QVector<ProjectPart::Ptr> &projectParts)
 {
     QHash<QString, ProjectPart::Ptr> mapping;
 
     foreach (const ProjectPart::Ptr &projectPart, projectParts) {
         QTC_ASSERT(projectPart, continue);
-        mapping[projectPart->projectFile] = projectPart;
+        mapping[projectPart->callGroupId] = projectPart;
     }
 
     return mapping;
 }
 
-AnalyzeUnits ClangStaticAnalyzerRunControl::sortedUnitsToAnalyze()
+AnalyzeUnits ClangStaticAnalyzerToolRunner::sortedUnitsToAnalyze()
 {
     QTC_ASSERT(m_projectInfo.isValid(), return AnalyzeUnits());
 
@@ -419,9 +476,9 @@ AnalyzeUnits ClangStaticAnalyzerRunControl::sortedUnitsToAnalyze()
     if (compilerCallData.isEmpty()) {
         units = unitsToAnalyzeFromProjectParts(m_projectInfo.projectParts());
     } else {
-        const QHash<QString, ProjectPart::Ptr> projectFileToProjectPart
-                = generateProjectFileToProjectPartMapping(m_projectInfo.projectParts());
-        units = unitsToAnalyzeFromCompilerCallData(projectFileToProjectPart,
+        const QHash<QString, ProjectPart::Ptr> callGroupToProjectPart
+                = generateCallGroupToProjectPartMapping(m_projectInfo.projectParts());
+        units = unitsToAnalyzeFromCompilerCallData(callGroupToProjectPart,
                                                    compilerCallData,
                                                    m_targetTriple);
     }
@@ -444,12 +501,6 @@ static QDebug operator<<(QDebug debug, const AnalyzeUnits &analyzeUnits)
     return debug;
 }
 
-static Core::Id toolchainType(ProjectExplorer::RunConfiguration *runConfiguration)
-{
-    QTC_ASSERT(runConfiguration, return Core::Id());
-    return ToolChainKitInformation::toolChain(runConfiguration->target()->kit(), ToolChain::Language::Cxx)->typeId();
-}
-
 static QString executableForVersionCheck(Core::Id toolchainType, const QString &executable)
 {
     if (toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
@@ -465,40 +516,43 @@ static QString executableForVersionCheck(Core::Id toolchainType, const QString &
     return executable;
 }
 
-void ClangStaticAnalyzerRunControl::start()
+void ClangStaticAnalyzerToolRunner::start()
 {
     m_success = false;
-    emit starting();
+    ClangStaticAnalyzerTool::instance()->onEngineIsStarting();
 
-    QTC_ASSERT(m_projectInfo.isValid(), emit finished(); return);
+    connect(runControl(), &RunControl::stopped, this, [this] {
+            ClangStaticAnalyzerTool::instance()->onEngineFinished(m_success);
+    });
+
+    QTC_ASSERT(m_projectInfo.isValid(), reportFailure(); return);
     const Utils::FileName projectFile = m_projectInfo.project()->projectFilePath();
-    appendMessage(tr("Running Clang Static Analyzer on %1").arg(projectFile.toUserOutput())
-                  + QLatin1Char('\n'), Utils::NormalMessageFormat);
+    appendMessage(tr("Running Clang Static Analyzer on %1").arg(projectFile.toUserOutput()),
+                  Utils::NormalMessageFormat);
 
     // Check clang executable
     bool isValidClangExecutable;
-    const Core::Id theToolchainType = toolchainType(runConfiguration());
-    const QString executable = clangExecutableFromSettings(theToolchainType,
+    const QString executable = clangExecutableFromSettings(m_toolChainType,
                                                            &isValidClangExecutable);
     if (!isValidClangExecutable) {
         const QString errorMessage = tr("Clang Static Analyzer: Invalid executable \"%1\", stop.")
                 .arg(executable);
-        appendMessage(errorMessage + QLatin1Char('\n'), Utils::ErrorMessageFormat);
+        appendMessage(errorMessage, Utils::ErrorMessageFormat);
         TaskHub::addTask(Task::Error, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
-        emit finished();
+        reportFailure();
         return;
     }
 
     // Check clang version
-    const QString versionCheckExecutable = executableForVersionCheck(theToolchainType, executable);
+    const QString versionCheckExecutable = executableForVersionCheck(m_toolChainType, executable);
     const ClangExecutableVersion version = clangExecutableVersion(versionCheckExecutable);
     if (!version.isValid()) {
         const QString warningMessage
             = tr("Clang Static Analyzer: Running with possibly unsupported version, "
                  "could not determine version from executable \"%1\".")
                     .arg(versionCheckExecutable);
-        appendMessage(warningMessage + QLatin1Char('\n'), Utils::StdErrFormat);
+        appendMessage(warningMessage, Utils::StdErrFormat);
         TaskHub::addTask(Task::Warning, warningMessage, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
     } else if (!version.isSupportedVersion()) {
@@ -507,7 +561,7 @@ void ClangStaticAnalyzerRunControl::start()
                  "supported version is %2.")
                     .arg(version.toString())
                     .arg(ClangExecutableVersion::supportedVersionAsString());
-        appendMessage(warningMessage + QLatin1Char('\n'), Utils::StdErrFormat);
+        appendMessage(warningMessage, Utils::StdErrFormat);
         TaskHub::addTask(Task::Warning, warningMessage, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
     }
@@ -515,15 +569,15 @@ void ClangStaticAnalyzerRunControl::start()
     m_clangExecutable = executable;
 
     // Create log dir
-    QTemporaryDir temporaryDir(QDir::tempPath() + QLatin1String("/qtc-clangstaticanalyzer-XXXXXX"));
+    Utils::TemporaryDirectory temporaryDir("qtc-clangstaticanalyzer-XXXXXX");
     temporaryDir.setAutoRemove(false);
     if (!temporaryDir.isValid()) {
         const QString errorMessage
                 = tr("Clang Static Analyzer: Failed to create temporary dir, stop.");
-        appendMessage(errorMessage + QLatin1Char('\n'), Utils::ErrorMessageFormat);
+        appendMessage(errorMessage, Utils::ErrorMessageFormat);
         TaskHub::addTask(Task::Error, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
-        emit finished();
+        reportFailure(errorMessage);
         return;
     }
     m_clangLogFileDir = temporaryDir.path();
@@ -543,7 +597,7 @@ void ClangStaticAnalyzerRunControl::start()
         = ProgressManager::addTask(m_progress.future(), tr("Analyzing"), "ClangStaticAnalyzer");
     futureProgress->setKeepOnFinish(FutureProgress::HideOnFinish);
     connect(futureProgress, &FutureProgress::canceled,
-            this, &ClangStaticAnalyzerRunControl::onProgressCanceled);
+            this, &ClangStaticAnalyzerToolRunner::onProgressCanceled);
     m_progress.setProgressRange(0, m_initialFilesToProcessSize);
     m_progress.reportStarted();
 
@@ -551,22 +605,21 @@ void ClangStaticAnalyzerRunControl::start()
     qCDebug(LOG) << "Environment:" << m_environment;
     m_runners.clear();
     const int parallelRuns = ClangStaticAnalyzerSettings::instance()->simultaneousProcesses();
-    QTC_ASSERT(parallelRuns >= 1, emit finished(); return);
+    QTC_ASSERT(parallelRuns >= 1, reportFailure(); return);
     m_success = true;
-    m_running = true;
 
     if (m_unitsToProcess.isEmpty()) {
         finalize();
         return;
     }
 
-    emit started();
+    reportStarted();
 
     while (m_runners.size() < parallelRuns && !m_unitsToProcess.isEmpty())
         analyzeNextFile();
 }
 
-RunControl::StopResult ClangStaticAnalyzerRunControl::stop()
+void ClangStaticAnalyzerToolRunner::stop()
 {
     QSetIterator<ClangStaticAnalyzerRunner *> i(m_runners);
     while (i.hasNext()) {
@@ -576,20 +629,12 @@ RunControl::StopResult ClangStaticAnalyzerRunControl::stop()
     }
     m_runners.clear();
     m_unitsToProcess.clear();
-    appendMessage(tr("Clang Static Analyzer stopped by user.") + QLatin1Char('\n'),
-                  Utils::NormalMessageFormat);
     m_progress.reportFinished();
-    m_running = false;
-    emit finished();
-    return RunControl::StoppedSynchronously;
+    ClangStaticAnalyzerTool::instance()->onEngineFinished(m_success);
+    reportStopped();
 }
 
-bool ClangStaticAnalyzerRunControl::isRunning() const
-{
-    return m_running;
-}
-
-void ClangStaticAnalyzerRunControl::analyzeNextFile()
+void ClangStaticAnalyzerToolRunner::analyzeNextFile()
 {
     if (m_progress.isFinished())
         return; // The previous call already reported that we are finished.
@@ -608,11 +653,11 @@ void ClangStaticAnalyzerRunControl::analyzeNextFile()
     QTC_ASSERT(runner->run(unit.file, unit.arguments), return);
 
     appendMessage(tr("Analyzing \"%1\".").arg(
-                      Utils::FileName::fromString(unit.file).toUserOutput()) + QLatin1Char('\n'),
+                      Utils::FileName::fromString(unit.file).toUserOutput()),
                   Utils::StdOutFormat);
 }
 
-ClangStaticAnalyzerRunner *ClangStaticAnalyzerRunControl::createRunner()
+ClangStaticAnalyzerRunner *ClangStaticAnalyzerToolRunner::createRunner()
 {
     QTC_ASSERT(!m_clangExecutable.isEmpty(), return 0);
     QTC_ASSERT(!m_clangLogFileDir.isEmpty(), return 0);
@@ -622,13 +667,13 @@ ClangStaticAnalyzerRunner *ClangStaticAnalyzerRunControl::createRunner()
                                                 m_environment,
                                                 this);
     connect(runner, &ClangStaticAnalyzerRunner::finishedWithSuccess,
-            this, &ClangStaticAnalyzerRunControl::onRunnerFinishedWithSuccess);
+            this, &ClangStaticAnalyzerToolRunner::onRunnerFinishedWithSuccess);
     connect(runner, &ClangStaticAnalyzerRunner::finishedWithFailure,
-            this, &ClangStaticAnalyzerRunControl::onRunnerFinishedWithFailure);
+            this, &ClangStaticAnalyzerToolRunner::onRunnerFinishedWithFailure);
     return runner;
 }
 
-void ClangStaticAnalyzerRunControl::onRunnerFinishedWithSuccess(const QString &logFilePath)
+void ClangStaticAnalyzerToolRunner::onRunnerFinishedWithSuccess(const QString &logFilePath)
 {
     qCDebug(LOG) << "onRunnerFinishedWithSuccess:" << logFilePath;
 
@@ -637,20 +682,19 @@ void ClangStaticAnalyzerRunControl::onRunnerFinishedWithSuccess(const QString &l
     if (!errorMessage.isEmpty()) {
         qCDebug(LOG) << "onRunnerFinishedWithSuccess: Error reading log file:" << errorMessage;
         const QString filePath = qobject_cast<ClangStaticAnalyzerRunner *>(sender())->filePath();
-        appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage)
-                        + QLatin1Char('\n')
-                      , Utils::StdErrFormat);
+        appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage),
+                      Utils::StdErrFormat);
     } else {
         ++m_filesAnalyzed;
         if (!diagnostics.isEmpty())
-            emit newDiagnosticsAvailable(diagnostics);
+            ClangStaticAnalyzerTool::instance()->onNewDiagnosticsAvailable(diagnostics);
     }
 
     handleFinished();
 }
 
-void ClangStaticAnalyzerRunControl::onRunnerFinishedWithFailure(const QString &errorMessage,
-                                                                const QString &errorDetails)
+void ClangStaticAnalyzerToolRunner::onRunnerFinishedWithFailure(const QString &errorMessage,
+                                                            const QString &errorDetails)
 {
     qCDebug(LOG).noquote() << "onRunnerFinishedWithFailure:"
                            << errorMessage << '\n' << errorDetails;
@@ -658,16 +702,15 @@ void ClangStaticAnalyzerRunControl::onRunnerFinishedWithFailure(const QString &e
     ++m_filesNotAnalyzed;
     m_success = false;
     const QString filePath = qobject_cast<ClangStaticAnalyzerRunner *>(sender())->filePath();
-    appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage)
-                  + QLatin1Char('\n')
-                  , Utils::StdErrFormat);
+    appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage),
+                  Utils::StdErrFormat);
     appendMessage(errorDetails, Utils::StdErrFormat);
     TaskHub::addTask(Task::Warning, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
     TaskHub::addTask(Task::Warning, errorDetails, Debugger::Constants::ANALYZERTASK_ID);
     handleFinished();
 }
 
-void ClangStaticAnalyzerRunControl::handleFinished()
+void ClangStaticAnalyzerToolRunner::handleFinished()
 {
     m_runners.remove(qobject_cast<ClangStaticAnalyzerRunner *>(sender()));
     updateProgressValue();
@@ -675,24 +718,22 @@ void ClangStaticAnalyzerRunControl::handleFinished()
     analyzeNextFile();
 }
 
-void ClangStaticAnalyzerRunControl::onProgressCanceled()
+void ClangStaticAnalyzerToolRunner::onProgressCanceled()
 {
     m_progress.reportCanceled();
-    stop();
+    runControl()->initiateStop();
 }
 
-void ClangStaticAnalyzerRunControl::updateProgressValue()
+void ClangStaticAnalyzerToolRunner::updateProgressValue()
 {
     m_progress.setProgressValue(m_initialFilesToProcessSize - m_unitsToProcess.size());
 }
 
-void ClangStaticAnalyzerRunControl::finalize()
+void ClangStaticAnalyzerToolRunner::finalize()
 {
     appendMessage(tr("Clang Static Analyzer finished: "
                      "Processed %1 files successfully, %2 failed.")
-                        .arg(m_filesAnalyzed)
-                        .arg(m_filesNotAnalyzed)
-                     + QLatin1Char('\n'),
+                        .arg(m_filesAnalyzed).arg(m_filesNotAnalyzed),
                   Utils::NormalMessageFormat);
 
     if (m_filesNotAnalyzed != 0) {
@@ -702,8 +743,7 @@ void ClangStaticAnalyzerRunControl::finalize()
     }
 
     m_progress.reportFinished();
-    m_running = false;
-    emit finished();
+    runControl()->initiateStop();
 }
 
 } // namespace Internal

@@ -1,9 +1,9 @@
 include(qtcreator.pri)
 
 #version check qt
-!minQtVersion(5, 6, 0) {
+!minQtVersion(5, 6, 2) {
     message("Cannot build Qt Creator with Qt version $${QT_VERSION}.")
-    error("Use at least Qt 5.6.0.")
+    error("Use at least Qt 5.6.2.")
 }
 
 include(doc/doc.pri)
@@ -77,6 +77,18 @@ exists(src/shared/qbs/qbs.pro) {
         QBS_CONFIG_ADDITION = qbs_no_dev_install qbs_enable_project_file_updates
         cache(CONFIG, add, QBS_CONFIG_ADDITION)
     }
+
+    # Create qbs documentation targets.
+    DOC_FILES =
+    DOC_TARGET_PREFIX = qbs_
+    include(src/shared/qbs/doc/doc_shared.pri)
+    include(src/shared/qbs/doc/doc_targets.pri)
+    docs.depends += qbs_docs
+    !build_online_docs {
+        install_docs.depends += install_qbs_docs
+    }
+    unset(DOC_FILES)
+    unset(DOC_TARGET_PREFIX)
 }
 
 contains(QT_ARCH, i386): ARCHITECTURE = x86

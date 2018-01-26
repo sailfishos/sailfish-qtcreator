@@ -41,6 +41,8 @@ class CMAKE_EXPORT CMakeKitInformation : public ProjectExplorer::KitInformation
 public:
     CMakeKitInformation();
 
+    static Core::Id id();
+
     static CMakeTool *cmakeTool(const ProjectExplorer::Kit *k);
     static void setCMakeTool(ProjectExplorer::Kit *k, const Core::Id id);
 
@@ -53,6 +55,8 @@ public:
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const final;
 
     void addToMacroExpander(ProjectExplorer::Kit *k, Utils::MacroExpander *expander) const final;
+
+    QSet<Core::Id> availableFeatures(const ProjectExplorer::Kit *k) const final;
 };
 
 class CMAKE_EXPORT CMakeGeneratorKitInformation : public ProjectExplorer::KitInformation

@@ -42,14 +42,13 @@ namespace Constants { const char CALLGRIND_TEXT_MARK_CATEGORY[] = "Callgrind.Tex
 
 CallgrindTextMark::CallgrindTextMark(const QPersistentModelIndex &index,
                                      const QString &fileName, int lineNumber)
-    : TextEditor::TextMark(fileName, lineNumber, Constants::CALLGRIND_TEXT_MARK_CATEGORY)
+    : TextEditor::TextMark(fileName, lineNumber, Constants::CALLGRIND_TEXT_MARK_CATEGORY, 4.0)
     , m_modelIndex(index)
 {
     setPriority(TextEditor::TextMark::HighPriority);
-    setWidthFactor(4.0);
 }
 
-void CallgrindTextMark::paint(QPainter *painter, const QRect &paintRect) const
+void CallgrindTextMark::paintIcon(QPainter *painter, const QRect &paintRect) const
 {
     if (!m_modelIndex.isValid())
         return;

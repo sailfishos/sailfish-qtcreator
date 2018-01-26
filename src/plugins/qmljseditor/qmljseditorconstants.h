@@ -30,6 +30,8 @@
 namespace QmlJSEditor {
 namespace Constants {
 
+const char QML_JS_EDITOR_PLUGIN[] = "QmlJSEditorPlugin";
+
 const char M_CONTEXT[] = "QML JS Editor.ContextMenu";
 
 const char M_REFACTORING_MENU_INSERTION_POINT[] = "QmlJSEditor.RefactorGroup";
@@ -56,6 +58,9 @@ const char QML_CONTEXTPANE_KEY[] = "QmlJSEditor.ContextPaneEnabled";
 const char QML_CONTEXTPANEPIN_KEY[] = "QmlJSEditor.ContextPanePinned";
 
 const char QML_UI_FILE_WARNING[] = "QmlJSEditor.QmlUiFileWarning";
+
+const char AUTO_FORMAT_ON_SAVE[] = "QmlJSEditor.AutoFormatOnSave";
+const char AUTO_FORMAT_ONLY_CURRENT_PROJECT[] = "QmlJSEditor.AutoFormatOnlyCurrentProject";
 
 } // namespace Constants
 } // namespace QmlJSEditor

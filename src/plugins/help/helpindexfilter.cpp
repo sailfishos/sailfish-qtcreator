@@ -127,21 +127,25 @@ QList<LocatorFilterEntry> HelpIndexFilter::matchesFor(QFutureInterface<LocatorFi
     keywords << unsortedKeywords;
     m_keywordCache = allresults;
     m_searchTermCache = entry;
-    foreach (const QString &keyword, keywords)
-        entries.append(LocatorFilterEntry(this, keyword, QVariant(), m_icon));
+    foreach (const QString &keyword, keywords) {
+        const int index = keyword.indexOf(entry, 0, cs);
+        LocatorFilterEntry filterEntry(this, keyword, QVariant(), m_icon);
+        filterEntry.highlightInfo = {index, entry.length()};
+        entries.append(filterEntry);
+    }
 
     return entries;
 }
 
-void HelpIndexFilter::accept(LocatorFilterEntry selection) const
+void HelpIndexFilter::accept(LocatorFilterEntry selection,
+                             QString *newText, int *selectionStart, int *selectionLength) const
 {
+    Q_UNUSED(newText)
+    Q_UNUSED(selectionStart)
+    Q_UNUSED(selectionLength)
     const QString &key = selection.displayName;
     const QMap<QString, QUrl> &links = HelpManager::linksForKeyword(key);
-
-    if (links.size() == 1)
-        emit linkActivated(links.begin().value());
-    else
-        emit linksActivated(links, key);
+    emit linksActivated(links, key);
 }
 
 void HelpIndexFilter::refresh(QFutureInterface<void> &future)

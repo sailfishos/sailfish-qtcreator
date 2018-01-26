@@ -33,18 +33,40 @@
 namespace Autotest {
 namespace Internal {
 
+class QtTestResult;
+
 class QtTestOutputReader : public TestOutputReader
 {
     Q_DECLARE_TR_FUNCTIONS(Autotest::Internal::QtTestOutputReader)
 
 public:
+    enum OutputMode
+    {
+        XML,
+        PlainText
+    };
+
     QtTestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
-                       QProcess *testApplication, const QString &buildDirectory);
+                       QProcess *testApplication, const QString &buildDirectory,
+                       OutputMode mode);
 
 protected:
     void processOutput(const QByteArray &outputLine) override;
 
 private:
+    void processXMLOutput(const QByteArray &outputLine);
+    void processPlainTextOutput(const QByteArray &outputLine);
+    void processResultOutput(const QString &result, const QString &message);
+    void processLocationOutput(const QString &fileWithLine);
+    void processSummaryFinishOutput();
+    // helper functions
+    QtTestResult *createDefaultResult() const;
+    void sendCompleteInformation();
+    void sendMessageCurrentTest();
+    void sendStartMessage(bool isFunction);
+    void sendFinishMessage(bool isFunction);
+    void handleAndSendConfigMessage(const QRegExp &config);
+
     enum CDATAMode
     {
         None,
@@ -56,8 +78,10 @@ private:
     };
 
     CDATAMode m_cdataMode = None;
+    QString m_executable;
     QString m_className;
     QString m_testCase;
+    QString m_formerTestCase;
     QString m_dataTag;
     Result::Type m_result = Result::Invalid;
     QString m_description;
@@ -65,6 +89,8 @@ private:
     int m_lineNumber = 0;
     QString m_duration;
     QXmlStreamReader m_xmlReader;
+    OutputMode m_mode = XML;
+
 };
 
 } // namespace Internal

@@ -28,6 +28,7 @@
 #include "constants.h"
 
 #include <coreplugin/coreconstants.h>
+#include <utils/theme/theme.h>
 
 #include <QSettings>
 
@@ -36,6 +37,9 @@ namespace Internal {
 
 void Settings::save(QSettings *settings) const
 {
+    if (!keywordsEdited)
+        return;
+
     settings->beginGroup(QLatin1String(Constants::SETTINGS_GROUP));
     settings->setValue(QLatin1String(Constants::SCANNING_SCOPE), scanningScope);
 
@@ -97,6 +101,7 @@ void Settings::load(QSettings *settings)
             newKeywords << keyword;
         }
         keywords = newKeywords;
+        keywordsEdited = true; // Otherwise they wouldn't have been saved
     }
     settings->endArray();
 
@@ -106,6 +111,7 @@ void Settings::load(QSettings *settings)
 void Settings::setDefault()
 {
     scanningScope = ScanningScopeCurrentFile;
+    Utils::Theme *theme = Utils::creatorTheme();
 
     keywords.clear();
 
@@ -113,34 +119,37 @@ void Settings::setDefault()
 
     keyword.name = QLatin1String("TODO");
     keyword.iconType = IconType::Todo;
-    keyword.color = QColor(QLatin1String(Constants::COLOR_TODO_BG));
+    keyword.color = theme->color(Utils::Theme::OutputPanes_NormalMessageTextColor);
     keywords.append(keyword);
 
     keyword.name = QLatin1String("NOTE");
     keyword.iconType = IconType::Info;
-    keyword.color = QColor(QLatin1String(Constants::COLOR_NOTE_BG));
+    keyword.color = theme->color(Utils::Theme::OutputPanes_NormalMessageTextColor);
     keywords.append(keyword);
 
     keyword.name = QLatin1String("FIXME");
     keyword.iconType = IconType::Error;
-    keyword.color = QColor(QLatin1String(Constants::COLOR_FIXME_BG));
+    keyword.color = theme->color(Utils::Theme::OutputPanes_ErrorMessageTextColor);
     keywords.append(keyword);
 
     keyword.name = QLatin1String("BUG");
     keyword.iconType = IconType::Bug;
-    keyword.color = QColor(QLatin1String(Constants::COLOR_BUG_BG));
+    keyword.color = theme->color(Utils::Theme::OutputPanes_ErrorMessageTextColor);
     keywords.append(keyword);
 
     keyword.name = QLatin1String("WARNING");
     keyword.iconType = IconType::Warning;
-    keyword.color = QColor(QLatin1String(Constants::COLOR_WARNING_BG));
+    keyword.color = theme->color(Utils::Theme::OutputPanes_WarningMessageTextColor);
     keywords.append(keyword);
+
+    keywordsEdited = false;
 }
 
 bool Settings::equals(const Settings &other) const
 {
     return (keywords == other.keywords)
-            && (scanningScope == other.scanningScope);
+            && (scanningScope == other.scanningScope)
+            && (keywordsEdited == other.keywordsEdited);
 }
 
 bool operator ==(Settings &s1, Settings &s2)

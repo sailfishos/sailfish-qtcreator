@@ -59,7 +59,7 @@ public:
     explicit WizardDialogParameters(const QString &defaultPath, Id platform,
                                     const QSet<Id> &requiredFeatures,
                                     const QSet<Id> &preferredFeatures, DialogParameterFlags flags,
-                                    QVariantMap extraValues)
+                                    const QVariantMap &extraValues)
         : m_defaultPath(defaultPath),
           m_selectedPlatform(platform),
           m_requiredFeatures(requiredFeatures),

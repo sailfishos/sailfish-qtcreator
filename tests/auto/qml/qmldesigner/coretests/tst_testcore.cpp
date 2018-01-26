@@ -205,7 +205,7 @@ void tst_TestCore::initTestCase()
 #endif
 
     qDebug() << pluginPath;
-    Q_ASSERT(QFileInfo(pluginPath).exists());
+    Q_ASSERT(QFileInfo::exists(pluginPath));
     MetaInfo::setPluginPaths(QStringList() << pluginPath);
 
     QFileInfo builtins(resourcePath() + "/qml-type-descriptions/builtins.qmltypes");
@@ -380,11 +380,6 @@ void tst_TestCore::saveEmptyCoreModel()
     testRewriterView1->setTextModifier(&modifier1);
     model1->attachView(testRewriterView1.data());
 
-
-    QBuffer buffer;
-    buffer.open(QIODevice::ReadWrite | QIODevice::Text);
-    modifier1.save(&buffer);
-
     QPlainTextEdit textEdit2;
     textEdit2.setPlainText("import QtQuick 1.1; Item{}");
     NotIndentingTextEditModifier modifier2(&textEdit2);
@@ -396,7 +391,6 @@ void tst_TestCore::saveEmptyCoreModel()
     model2->attachView(testRewriterView2.data());
 
     QVERIFY(compareTree(testRewriterView1->rootModelNode(), testRewriterView2->rootModelNode()));
-
 }
 
 void tst_TestCore::loadAttributesInCoreModel()
@@ -453,7 +447,7 @@ void tst_TestCore::saveAttributesInCoreModel()
 
     QBuffer buffer;
     buffer.open(QIODevice::ReadWrite | QIODevice::Text);
-    modifier1.save(&buffer);
+    buffer.write(modifier1.textDocument()->toPlainText().toUtf8());
 
     QPlainTextEdit textEdit2;
     textEdit2.setPlainText(QString::fromUtf8(buffer.data()));
@@ -999,6 +993,37 @@ void tst_TestCore::testRewriterChangeImports()
     QCOMPARE(model->imports().first(), Import::createLibraryImport("QtQuick", "1.1"));
 }
 
+void tst_TestCore::testRewriterUnicodeChars()
+{
+    const QLatin1String qmlString("\n"
+                                  "import QtQuick 2.1\n"
+                                  "\n"
+                                  "Text {\n"
+                                  "    text: \"test\""
+                                  "}\n");
+
+    QPlainTextEdit textEdit;
+    textEdit.setPlainText(qmlString);
+    NotIndentingTextEditModifier modifier(&textEdit);
+
+    QScopedPointer<Model> model(Model::create("QtQuick.Rectangle"));
+
+    QScopedPointer<TestRewriterView> testRewriterView(new TestRewriterView(0, RewriterView::Amend));
+    testRewriterView->setTextModifier(&modifier);
+    model->attachView(testRewriterView.data());
+
+    QVERIFY(testRewriterView->errors().isEmpty());
+
+    ModelNode rootModelNode = testRewriterView->rootModelNode();
+    QVERIFY(rootModelNode.isValid());
+
+    rootModelNode.variantProperty("text").setValue("\\u2795");
+
+    const QLatin1String unicodeChar("\nimport QtQuick 2.1\n\nText {\n    text: \"\\u2795\"}\n");
+
+     QCOMPARE(textEdit.toPlainText(), unicodeChar);
+}
+
 void tst_TestCore::testRewriterForGradientMagic()
 {
     const QLatin1String qmlString("\n"
@@ -1099,11 +1124,12 @@ void tst_TestCore::loadSubItems()
 
 void tst_TestCore::createInvalidCoreModel()
 {
+    QSKIP("no direct type checking in model atm", SkipAll);
     QScopedPointer<Model> invalidModel(createModel("ItemSUX"));
-    //QVERIFY(!invalidModel.data()); //#no direct ype checking in model atm
+    QVERIFY(!invalidModel.data());
 
     QScopedPointer<Model> invalidModel2(createModel("InvalidNode"));
-    //QVERIFY(!invalidModel2.data());
+    QVERIFY(!invalidModel2.data());
 }
 
 void tst_TestCore::testModelCreateSubNode()
@@ -3928,7 +3954,7 @@ char qmlString[] = "import QtQuick 2.1\n"
                                 "text: \"Hello World\"\n"
                                 "anchors.centerIn: parent\n"
                                 "Item {\n"
-                                    "id: item\n"
+                                    "id: item01\n"
                                  "}\n"
                             "}\n"
                             "Rectangle {\n"
@@ -3995,7 +4021,7 @@ char qmlString[] = "import QtQuick 2.1\n"
     QVERIFY(!textNode1.nodeListProperty("data").toModelNodeList().isEmpty());
     ModelNode itemNode = textNode1.nodeListProperty("data").toModelNodeList().first();
     QVERIFY(itemNode.isValid());
-    QCOMPARE(itemNode.id(), QString("item"));
+    QCOMPARE(itemNode.id(), QString("item01"));
     QVERIFY(!itemNode.hasProperty("data"));
 
     ModelNode rectNode = rootModelNode.nodeListProperty("data").toModelNodeList().at(1);
@@ -4184,7 +4210,7 @@ void tst_TestCore::testMetaInfoQtQuick1Vs2()
                                 "text: \"Hello World\"\n"
                                 "anchors.centerIn: parent\n"
                                 "Item {\n"
-                                    "id: item\n"
+                                    "id: item01\n"
                                  "}\n"
                             "}\n"
                             "Rectangle {\n"
@@ -6148,6 +6174,95 @@ void tst_TestCore::testModelNodeIsAncestorOf()
     QVERIFY(item3.isAncestorOf(item4));
 }
 
+void tst_TestCore::testModelChangeType()
+{
+    const QLatin1String qmlString("\n"
+                                  "import QtQuick 2.1\n"
+                                  "\n"
+                                  "Rectangle {\n"
+                                  "  id: rootItem\n"
+                                  "  Item {\n"
+                                  "    id: firstItem\n"
+                                  "    x: 10\n"
+                                  "  }\n"
+                                  "  Item {\n"
+                                  "    id: secondItem\n"
+                                  "    x: 20\n"
+                                  "  }\n"
+                                  "}");
+    QPlainTextEdit textEdit;
+    textEdit.setPlainText(qmlString);
+    NotIndentingTextEditModifier textModifier(&textEdit);
+
+    QScopedPointer<Model> model(Model::create("QtQuick.Item", 2, 1));
+    QVERIFY(model.data());
+
+    QScopedPointer<TestView> view(new TestView(model.data()));
+    model->attachView(view.data());
+
+    // read in
+    QScopedPointer<TestRewriterView> testRewriterView(new TestRewriterView());
+    testRewriterView->setTextModifier(&textModifier);
+    model->attachView(testRewriterView.data());
+
+    ModelNode rootNode = view->rootModelNode();
+    QVERIFY(rootNode.isValid());
+    QCOMPARE(rootNode.type(), QmlDesigner::TypeName("QtQuick.Rectangle"));
+    QCOMPARE(rootNode.id(), QLatin1String("rootItem"));
+
+    ModelNode childNode = rootNode.nodeListProperty(("data")).toModelNodeList().at(0);
+    QVERIFY(childNode.isValid());
+    QCOMPARE(childNode.type(), QmlDesigner::TypeName("QtQuick.Item"));
+    QCOMPARE(childNode.id(), QLatin1String("firstItem"));
+
+    childNode.changeType("QtQuick.Rectangle", 2, 0);
+
+    QCOMPARE(childNode.type(), QmlDesigner::TypeName("QtQuick.Rectangle"));
+
+    const QLatin1String expectedQmlCode1("\n"
+                                  "import QtQuick 2.1\n"
+                                  "\n"
+                                  "Rectangle {\n"
+                                  "  id: rootItem\n"
+                                  "  Rectangle {\n"
+                                  "    id: firstItem\n"
+                                  "    x: 10\n"
+                                  "  }\n"
+                                  "  Item {\n"
+                                  "    id: secondItem\n"
+                                  "    x: 20\n"
+                                  "  }\n"
+                                  "}");
+
+    QCOMPARE(textEdit.toPlainText(), expectedQmlCode1);
+
+    childNode = rootNode.nodeListProperty(("data")).toModelNodeList().at(1);
+    QVERIFY(childNode.isValid());
+    QCOMPARE(childNode.type(), QmlDesigner::TypeName("QtQuick.Item"));
+    QCOMPARE(childNode.id(), QLatin1String("secondItem"));
+
+    childNode.changeType("QtQuick.Rectangle", 2, 0);
+
+    QCOMPARE(childNode.type(), QmlDesigner::TypeName("QtQuick.Rectangle"));
+
+    const QLatin1String expectedQmlCode2("\n"
+                                  "import QtQuick 2.1\n"
+                                  "\n"
+                                  "Rectangle {\n"
+                                  "  id: rootItem\n"
+                                  "  Rectangle {\n"
+                                  "    id: firstItem\n"
+                                  "    x: 10\n"
+                                  "  }\n"
+                                  "  Rectangle {\n"
+                                  "    id: secondItem\n"
+                                  "    x: 20\n"
+                                  "  }\n"
+                                  "}");
+
+    QCOMPARE(textEdit.toPlainText(), expectedQmlCode2);
+}
+
 void tst_TestCore::testModelDefaultProperties()
 {
     QScopedPointer<Model> model(createModel("QtQuick.Rectangle", 2, 0));
@@ -7878,7 +7993,7 @@ void tst_TestCore::loadTestFiles()
 
         ModelNode textNode(rootModelNode.nodeListProperty("data").toModelNodeList().first());
         QVERIFY(textNode.isValid());
-        QCOMPARE(textNode.id(), QLatin1String("text"));
+        QCOMPARE(textNode.id(), QLatin1String("textElement"));
         QCOMPARE(textNode.type(), QmlDesigner::TypeName("QtQuick.Text"));
         QCOMPARE(textNode.variantProperty("x").value().toInt(), 66);
         QCOMPARE(textNode.variantProperty("y").value().toInt(), 93);

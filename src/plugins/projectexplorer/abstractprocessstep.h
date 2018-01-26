@@ -28,29 +28,29 @@
 #include "buildstep.h"
 #include "processparameters.h"
 
-#include <QString>
-#include <QProcess>
+#include <projectexplorer/ioutputparser.h>
 
-QT_BEGIN_NAMESPACE
-class QEventLoop;
-class QTimer;
-QT_END_NAMESPACE
+#include <utils/qtcprocess.h>
+
+#include <QString>
+#include <QTimer>
+
+#include <memory>
 
 namespace Utils { class QtcProcess; }
 namespace ProjectExplorer {
 
 class IOutputParser;
+
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT AbstractProcessStep : public BuildStep
 {
     Q_OBJECT
 
 public:
-    ~AbstractProcessStep() override;
-
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &) override;
-    bool runInGuiThread() const  override { return true; }
+    bool runInGuiThread() const final { return true; }
 
     ProcessParameters *processParameters() { return &m_param; }
 
@@ -82,20 +82,19 @@ private:
     void slotProcessFinished(int, QProcess::ExitStatus);
     void checkForCancel();
 
-    void cleanUp();
+    void cleanUp(QProcess *process);
 
     void taskAdded(const Task &task, int linkedOutputLines = 0, int skipLines = 0);
 
     void outputAdded(const QString &string, BuildStep::OutputFormat format);
 
-    QTimer *m_timer = nullptr;
+    QTimer m_timer;
     QFutureInterface<bool> *m_futureInterface = nullptr;
+    std::unique_ptr<Utils::QtcProcess> m_process;
+    std::unique_ptr<IOutputParser> m_outputParserChain;
     ProcessParameters m_param;
     bool m_ignoreReturnValue = false;
-    bool m_killProcess = false;
     bool m_skipFlush = false;
-    Utils::QtcProcess *m_process = nullptr;
-    IOutputParser *m_outputParserChain = nullptr;
 };
 
 } // namespace ProjectExplorer

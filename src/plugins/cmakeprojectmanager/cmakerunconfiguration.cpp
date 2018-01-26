@@ -60,9 +60,10 @@ const char TITLE_KEY[] = "CMakeProjectManager.CMakeRunConfiguation.Title";
 } // namespace
 
 CMakeRunConfiguration::CMakeRunConfiguration(Target *parent, Core::Id id, const QString &target,
-                                             const QString &workingDirectory, const QString &title) :
+                                             const Utils::FileName &workingDirectory, const QString &title) :
     RunConfiguration(parent, id),
-    m_buildTarget(target),
+    m_buildSystemTarget(target),
+    m_executable(target),
     m_title(title)
 {
     addExtraAspect(new LocalEnvironmentAspect(this, LocalEnvironmentAspect::BaseEnvironmentModifier()));
@@ -70,7 +71,7 @@ CMakeRunConfiguration::CMakeRunConfiguration(Target *parent, Core::Id id, const 
     addExtraAspect(new TerminalAspect(this, QStringLiteral("CMakeProjectManager.CMakeRunConfiguration.UseTerminal")));
 
     auto wd = new WorkingDirectoryAspect(this, QStringLiteral("CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"));
-    wd->setDefaultWorkingDirectory(Utils::FileName::fromString(workingDirectory));
+    wd->setDefaultWorkingDirectory(workingDirectory);
     addExtraAspect(wd);
 
     ctor();
@@ -78,7 +79,8 @@ CMakeRunConfiguration::CMakeRunConfiguration(Target *parent, Core::Id id, const 
 
 CMakeRunConfiguration::CMakeRunConfiguration(Target *parent, CMakeRunConfiguration *source) :
     RunConfiguration(parent, source),
-    m_buildTarget(source->m_buildTarget),
+    m_buildSystemTarget(source->m_buildSystemTarget),
+    m_executable(source->m_executable),
     m_title(source->m_title),
     m_enabled(source->m_enabled)
 {
@@ -93,7 +95,7 @@ void CMakeRunConfiguration::ctor()
 Runnable CMakeRunConfiguration::runnable() const
 {
     StandardRunnable r;
-    r.executable = m_buildTarget;
+    r.executable = m_executable;
     r.commandLineArguments = extraAspect<ArgumentsAspect>()->arguments();
     r.workingDirectory = extraAspect<WorkingDirectoryAspect>()->workingDirectory().toString();
     r.environment = extraAspect<LocalEnvironmentAspect>()->environment();
@@ -103,9 +105,9 @@ Runnable CMakeRunConfiguration::runnable() const
 
 QString CMakeRunConfiguration::baseWorkingDirectory() const
 {
-    const QString exe = m_buildTarget;
+    const QString exe = m_executable;
     if (!exe.isEmpty())
-        return QFileInfo(m_buildTarget).absolutePath();
+        return QFileInfo(m_executable).absolutePath();
     return QString();
 }
 
@@ -116,13 +118,12 @@ QString CMakeRunConfiguration::title() const
 
 void CMakeRunConfiguration::setExecutable(const QString &executable)
 {
-    m_buildTarget = executable;
+    m_executable = executable;
 }
 
-void CMakeRunConfiguration::setBaseWorkingDirectory(const QString &wd)
+void CMakeRunConfiguration::setBaseWorkingDirectory(const Utils::FileName &wd)
 {
-    extraAspect<WorkingDirectoryAspect>()
-        ->setDefaultWorkingDirectory(Utils::FileName::fromString(wd));
+    extraAspect<WorkingDirectoryAspect>()->setDefaultWorkingDirectory(wd);
 }
 
 QVariantMap CMakeRunConfiguration::toMap() const
@@ -246,7 +247,7 @@ RunConfiguration *CMakeRunConfigurationFactory::doCreate(Target *parent, Core::I
     CMakeProject *project = static_cast<CMakeProject *>(parent->project());
     const QString title(buildTargetFromId(id));
     const CMakeBuildTarget &ct = project->buildTargetForTitle(title);
-    return new CMakeRunConfiguration(parent, id, ct.executable, ct.workingDirectory, ct.title);
+    return new CMakeRunConfiguration(parent, id, title, ct.workingDirectory, ct.title);
 }
 
 bool CMakeRunConfigurationFactory::canClone(Target *parent, RunConfiguration *source) const
@@ -273,7 +274,8 @@ bool CMakeRunConfigurationFactory::canRestore(Target *parent, const QVariantMap 
 
 RunConfiguration *CMakeRunConfigurationFactory::doRestore(Target *parent, const QVariantMap &map)
 {
-    return new CMakeRunConfiguration(parent, idFromMap(map), QString(), QString(), QString());
+    const Core::Id id = idFromMap(map);
+    return new CMakeRunConfiguration(parent, id, buildTargetFromId(id), Utils::FileName(), QString());
 }
 
 QString CMakeRunConfigurationFactory::buildTargetFromId(Core::Id id)

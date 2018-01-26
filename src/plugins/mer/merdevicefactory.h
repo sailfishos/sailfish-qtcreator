@@ -37,6 +37,7 @@ public:
 
     QString displayNameForId(Core::Id type) const override;
     QList<Core::Id> availableCreationIds() const override;
+    QIcon iconForId(Core::Id type) const override;
     static bool canCreate(Core::Id id);
     ProjectExplorer::IDevice::Ptr create(Core::Id id) const override;
     bool canRestore(const QVariantMap &map) const override;

@@ -54,6 +54,7 @@ class TextEditorActionHandlerPrivate : public QObject
     Q_DECLARE_TR_FUNCTIONS(TextEditor::Internal::TextEditorActionHandler)
 public:
     TextEditorActionHandlerPrivate(TextEditorActionHandler *parent,
+                                   Core::Id editorId,
                                    Core::Id contextId,
                                    uint optionalActions);
 
@@ -120,129 +121,87 @@ public:
     void updateCurrentEditor(Core::IEditor *editor);
 
 public:
-    TextEditorActionHandler *q;
-    QAction *m_undoAction;
-    QAction *m_redoAction;
-    QAction *m_copyAction;
-    QAction *m_cutAction;
-    QAction *m_pasteAction;
-    QAction *m_circularPasteAction;
-    QAction *m_switchUtf8bomAction;
-    QAction *m_selectAllAction;
-    QAction *m_gotoAction;
-    QAction *m_printAction;
-    QAction *m_formatAction;
-    QAction *m_rewrapParagraphAction;
-    QAction *m_visualizeWhitespaceAction;
-    QAction *m_cleanWhitespaceAction;
-    QAction *m_textWrappingAction;
-    QAction *m_unCommentSelectionAction;
-    QAction *m_unfoldAllAction;
-    QAction *m_foldAction;
-    QAction *m_unfoldAction;
-    QAction *m_cutLineAction;
-    QAction *m_copyLineAction;
-    QAction *m_deleteLineAction;
-    QAction *m_deleteEndOfWordAction;
-    QAction *m_deleteEndOfWordCamelCaseAction;
-    QAction *m_deleteStartOfWordAction;
-    QAction *m_deleteStartOfWordCamelCaseAction;
-    QAction *m_selectEncodingAction;
-    QAction *m_increaseFontSizeAction;
-    QAction *m_decreaseFontSizeAction;
-    QAction *m_resetFontSizeAction;
-    QAction *m_gotoBlockStartAction;
-    QAction *m_gotoBlockEndAction;
-    QAction *m_gotoBlockStartWithSelectionAction;
-    QAction *m_gotoBlockEndWithSelectionAction;
-    QAction *m_selectBlockUpAction;
-    QAction *m_selectBlockDownAction;
-    QAction *m_viewPageUpAction;
-    QAction *m_viewPageDownAction;
-    QAction *m_viewLineUpAction;
-    QAction *m_viewLineDownAction;
-    QAction *m_moveLineUpAction;
-    QAction *m_moveLineDownAction;
-    QAction *m_copyLineUpAction;
-    QAction *m_copyLineDownAction;
-    QAction *m_joinLinesAction;
-    QAction *m_insertLineAboveAction;
-    QAction *m_insertLineBelowAction;
-    QAction *m_upperCaseSelectionAction;
-    QAction *m_lowerCaseSelectionAction;
-    QAction *m_indentAction;
-    QAction *m_unindentAction;
-    QAction *m_followSymbolAction;
-    QAction *m_followSymbolInNextSplitAction;
-    QAction *m_jumpToFileAction;
-    QAction *m_jumpToFileInNextSplitAction;
+    TextEditorActionHandler *q = nullptr;
+    TextEditorActionHandler::TextEditorWidgetResolver m_findTextWidget;
+    QAction *m_undoAction = nullptr;
+    QAction *m_redoAction = nullptr;
+    QAction *m_copyAction = nullptr;
+    QAction *m_cutAction = nullptr;
+    QAction *m_pasteAction = nullptr;
+    QAction *m_circularPasteAction = nullptr;
+    QAction *m_switchUtf8bomAction = nullptr;
+    QAction *m_selectAllAction = nullptr;
+    QAction *m_gotoAction = nullptr;
+    QAction *m_printAction = nullptr;
+    QAction *m_formatAction = nullptr;
+    QAction *m_rewrapParagraphAction = nullptr;
+    QAction *m_visualizeWhitespaceAction = nullptr;
+    QAction *m_cleanWhitespaceAction = nullptr;
+    QAction *m_textWrappingAction = nullptr;
+    QAction *m_unCommentSelectionAction = nullptr;
+    QAction *m_unfoldAllAction = nullptr;
+    QAction *m_foldAction = nullptr;
+    QAction *m_unfoldAction = nullptr;
+    QAction *m_cutLineAction = nullptr;
+    QAction *m_copyLineAction = nullptr;
+    QAction *m_duplicateSelectionAction = nullptr;
+    QAction *m_duplicateSelectionAndCommentAction = nullptr;
+    QAction *m_deleteLineAction = nullptr;
+    QAction *m_deleteEndOfLineAction = nullptr;
+    QAction *m_deleteEndOfWordAction = nullptr;
+    QAction *m_deleteEndOfWordCamelCaseAction = nullptr;
+    QAction *m_deleteStartOfLineAction = nullptr;
+    QAction *m_deleteStartOfWordAction = nullptr;
+    QAction *m_deleteStartOfWordCamelCaseAction = nullptr;
+    QAction *m_selectEncodingAction = nullptr;
+    QAction *m_increaseFontSizeAction = nullptr;
+    QAction *m_decreaseFontSizeAction = nullptr;
+    QAction *m_resetFontSizeAction = nullptr;
+    QAction *m_gotoBlockStartAction = nullptr;
+    QAction *m_gotoBlockEndAction = nullptr;
+    QAction *m_gotoBlockStartWithSelectionAction = nullptr;
+    QAction *m_gotoBlockEndWithSelectionAction = nullptr;
+    QAction *m_selectBlockUpAction = nullptr;
+    QAction *m_selectBlockDownAction = nullptr;
+    QAction *m_viewPageUpAction = nullptr;
+    QAction *m_viewPageDownAction = nullptr;
+    QAction *m_viewLineUpAction = nullptr;
+    QAction *m_viewLineDownAction = nullptr;
+    QAction *m_moveLineUpAction = nullptr;
+    QAction *m_moveLineDownAction = nullptr;
+    QAction *m_copyLineUpAction = nullptr;
+    QAction *m_copyLineDownAction = nullptr;
+    QAction *m_joinLinesAction = nullptr;
+    QAction *m_insertLineAboveAction = nullptr;
+    QAction *m_insertLineBelowAction = nullptr;
+    QAction *m_upperCaseSelectionAction = nullptr;
+    QAction *m_lowerCaseSelectionAction = nullptr;
+    QAction *m_indentAction = nullptr;
+    QAction *m_unindentAction = nullptr;
+    QAction *m_followSymbolAction = nullptr;
+    QAction *m_followSymbolInNextSplitAction = nullptr;
+    QAction *m_jumpToFileAction = nullptr;
+    QAction *m_jumpToFileInNextSplitAction = nullptr;
     QList<QAction *> m_modifyingActions;
 
-    uint m_optionalActions;
+    uint m_optionalActions = TextEditorActionHandler::None;
     QPointer<TextEditorWidget> m_currentEditorWidget;
+    Core::Id m_editorId;
     Core::Id m_contextId;
 };
 
+static TextEditorWidget *castWidgetToTextEditorWidget(Core::IEditor *editor)
+{
+    return qobject_cast<TextEditorWidget *>(editor->widget());
+}
+
 TextEditorActionHandlerPrivate::TextEditorActionHandlerPrivate
-    (TextEditorActionHandler *parent, Core::Id contextId, uint optionalActions)
-  : q(parent),
-    m_undoAction(0),
-    m_redoAction(0),
-    m_copyAction(0),
-    m_cutAction(0),
-    m_pasteAction(0),
-    m_circularPasteAction(0),
-    m_switchUtf8bomAction(0),
-    m_selectAllAction(0),
-    m_gotoAction(0),
-    m_printAction(0),
-    m_formatAction(0),
-    m_visualizeWhitespaceAction(0),
-    m_cleanWhitespaceAction(0),
-    m_textWrappingAction(0),
-    m_unCommentSelectionAction(0),
-    m_unfoldAllAction(0),
-    m_foldAction(0),
-    m_unfoldAction(0),
-    m_cutLineAction(0),
-    m_copyLineAction(0),
-    m_deleteLineAction(0),
-    m_deleteEndOfWordAction(0),
-    m_deleteEndOfWordCamelCaseAction(0),
-    m_deleteStartOfWordAction(0),
-    m_deleteStartOfWordCamelCaseAction(0),
-    m_selectEncodingAction(0),
-    m_increaseFontSizeAction(0),
-    m_decreaseFontSizeAction(0),
-    m_resetFontSizeAction(0),
-    m_gotoBlockStartAction(0),
-    m_gotoBlockEndAction(0),
-    m_gotoBlockStartWithSelectionAction(0),
-    m_gotoBlockEndWithSelectionAction(0),
-    m_selectBlockUpAction(0),
-    m_selectBlockDownAction(0),
-    m_viewPageUpAction(0),
-    m_viewPageDownAction(0),
-    m_viewLineUpAction(0),
-    m_viewLineDownAction(0),
-    m_moveLineUpAction(0),
-    m_moveLineDownAction(0),
-    m_copyLineUpAction(0),
-    m_copyLineDownAction(0),
-    m_joinLinesAction(0),
-    m_insertLineAboveAction(0),
-    m_insertLineBelowAction(0),
-    m_upperCaseSelectionAction(0),
-    m_lowerCaseSelectionAction(0),
-    m_indentAction(0),
-    m_unindentAction(0),
-    m_followSymbolAction(0),
-    m_followSymbolInNextSplitAction(0),
-    m_jumpToFileAction(0),
-    m_jumpToFileInNextSplitAction(0),
-    m_optionalActions(optionalActions),
-    m_currentEditorWidget(0),
-    m_contextId(contextId)
+    (TextEditorActionHandler *parent, Core::Id editorId, Core::Id contextId, uint optionalActions)
+  : q(parent)
+  , m_findTextWidget(castWidgetToTextEditorWidget)
+  , m_optionalActions(optionalActions)
+  , m_editorId(editorId)
+  , m_contextId(contextId)
 {
     createActions();
     connect(Core::EditorManager::instance(), &Core::EditorManager::currentEditorChanged,
@@ -277,10 +236,14 @@ void TextEditorActionHandlerPrivate::createActions()
             [this] (TextEditorWidget *widget) { widget->print(Core::ICore::printer()); });
     m_deleteLineAction = registerAction(DELETE_LINE,
             [this] (TextEditorWidget *w) { w->deleteLine(); }, true, tr("Delete &Line"));
+    m_deleteEndOfLineAction = registerAction(DELETE_END_OF_LINE,
+            [this] (TextEditorWidget *w) { w->deleteEndOfLine(); }, true, tr("Delete Line from Cursor On"));
     m_deleteEndOfWordAction = registerAction(DELETE_END_OF_WORD,
             [this] (TextEditorWidget *w) { w->deleteEndOfWord(); }, true, tr("Delete Word from Cursor On"));
     m_deleteEndOfWordCamelCaseAction = registerAction(DELETE_END_OF_WORD_CAMEL_CASE,
             [this] (TextEditorWidget *w) { w->deleteEndOfWordCamelCase(); }, true, tr("Delete Word Camel Case from Cursor On"));
+    m_deleteStartOfLineAction = registerAction(DELETE_START_OF_LINE,
+            [this] (TextEditorWidget *w) { w->deleteStartOfLine(); }, true, tr("Delete Line up to Cursor"));
     m_deleteStartOfWordAction = registerAction(DELETE_START_OF_WORD,
             [this] (TextEditorWidget *w) { w->deleteStartOfWord(); }, true, tr("Delete Word up to Cursor"));
     m_deleteStartOfWordCamelCaseAction = registerAction(DELETE_START_OF_WORD_CAMEL_CASE,
@@ -403,6 +366,14 @@ void TextEditorActionHandlerPrivate::createActions()
             [this] (TextEditorWidget *w) { w->copyLine(); }, false, tr("Copy &Line"),
             QKeySequence(tr("Ctrl+Ins")),
             G_EDIT_TEXT, advancedEditMenu);
+    m_duplicateSelectionAction = registerAction(DUPLICATE_SELECTION,
+            [this] (TextEditorWidget *w) { w->duplicateSelection(); }, false, tr("&Duplicate Selection"),
+            QKeySequence(),
+            G_EDIT_TEXT, advancedEditMenu);
+    m_duplicateSelectionAndCommentAction = registerAction(DUPLICATE_SELECTION_AND_COMMENT,
+            [this] (TextEditorWidget *w) { w->duplicateSelectionAndComment(); }, false, tr("&Duplicate Selection and Comment"),
+            QKeySequence(),
+            G_EDIT_TEXT, advancedEditMenu);
     m_upperCaseSelectionAction = registerAction(UPPERCASE_SELECTION,
             [this] (TextEditorWidget *w) { w->uppercaseSelection(); }, true, tr("Uppercase Selection"),
             QKeySequence(Core::UseMacShortcuts ? tr("Meta+Shift+U") : tr("Alt+Shift+U")),
@@ -501,30 +472,34 @@ void TextEditorActionHandlerPrivate::createActions()
 
     // Collect all modifying actions so we can check for them inside a readonly file
     // and disable them
-    m_modifyingActions << m_pasteAction;
-    m_modifyingActions << m_formatAction;
-    m_modifyingActions << m_rewrapParagraphAction;
+    m_modifyingActions << m_circularPasteAction;
     m_modifyingActions << m_cleanWhitespaceAction;
-    m_modifyingActions << m_unCommentSelectionAction;
+    m_modifyingActions << m_copyLineDownAction;
+    m_modifyingActions << m_copyLineUpAction;
     m_modifyingActions << m_cutLineAction;
-    m_modifyingActions << m_deleteLineAction;
+    m_modifyingActions << m_deleteEndOfLineAction;
     m_modifyingActions << m_deleteEndOfWordAction;
     m_modifyingActions << m_deleteEndOfWordCamelCaseAction;
+    m_modifyingActions << m_deleteLineAction;
+    m_modifyingActions << m_deleteStartOfLineAction;
     m_modifyingActions << m_deleteStartOfWordAction;
     m_modifyingActions << m_deleteStartOfWordCamelCaseAction;
-    m_modifyingActions << m_moveLineUpAction;
-    m_modifyingActions << m_moveLineDownAction;
-    m_modifyingActions << m_copyLineUpAction;
-    m_modifyingActions << m_copyLineDownAction;
-    m_modifyingActions << m_joinLinesAction;
+    m_modifyingActions << m_duplicateSelectionAction;
+    m_modifyingActions << m_duplicateSelectionAndCommentAction;
+    m_modifyingActions << m_formatAction;
+    m_modifyingActions << m_indentAction;
     m_modifyingActions << m_insertLineAboveAction;
     m_modifyingActions << m_insertLineBelowAction;
-    m_modifyingActions << m_upperCaseSelectionAction;
+    m_modifyingActions << m_joinLinesAction;
     m_modifyingActions << m_lowerCaseSelectionAction;
-    m_modifyingActions << m_circularPasteAction;
+    m_modifyingActions << m_moveLineDownAction;
+    m_modifyingActions << m_moveLineUpAction;
+    m_modifyingActions << m_pasteAction;
+    m_modifyingActions << m_rewrapParagraphAction;
     m_modifyingActions << m_switchUtf8bomAction;
-    m_modifyingActions << m_indentAction;
+    m_modifyingActions << m_unCommentSelectionAction;
     m_modifyingActions << m_unindentAction;
+    m_modifyingActions << m_upperCaseSelectionAction;
 
     // set enabled state of optional actions
     m_followSymbolAction->setEnabled(m_optionalActions & TextEditorActionHandler::FollowSymbolUnderCursor);
@@ -536,18 +511,22 @@ void TextEditorActionHandlerPrivate::createActions()
 
 void TextEditorActionHandlerPrivate::updateActions()
 {
-    QTC_ASSERT(m_currentEditorWidget, return);
-    bool isWritable = !m_currentEditorWidget->isReadOnly();
+    bool isWritable = m_currentEditorWidget && !m_currentEditorWidget->isReadOnly();
     foreach (QAction *a, m_modifyingActions)
         a->setEnabled(isWritable);
     m_formatAction->setEnabled((m_optionalActions & TextEditorActionHandler::Format) && isWritable);
     m_unCommentSelectionAction->setEnabled((m_optionalActions & TextEditorActionHandler::UnCommentSelection) && isWritable);
-    m_visualizeWhitespaceAction->setChecked(m_currentEditorWidget->displaySettings().m_visualizeWhitespace);
-    m_textWrappingAction->setChecked(m_currentEditorWidget->displaySettings().m_textWrapping);
+    m_visualizeWhitespaceAction->setEnabled(m_currentEditorWidget);
+    m_textWrappingAction->setEnabled(m_currentEditorWidget);
+    if (m_currentEditorWidget) {
+        m_visualizeWhitespaceAction->setChecked(
+                    m_currentEditorWidget->displaySettings().m_visualizeWhitespace);
+        m_textWrappingAction->setChecked(m_currentEditorWidget->displaySettings().m_textWrapping);
+    }
 
-    updateRedoAction(m_currentEditorWidget->document()->isRedoAvailable());
-    updateUndoAction(m_currentEditorWidget->document()->isUndoAvailable());
-    updateCopyAction(m_currentEditorWidget->textCursor().hasSelection());
+    updateRedoAction(m_currentEditorWidget && m_currentEditorWidget->document()->isRedoAvailable());
+    updateUndoAction(m_currentEditorWidget && m_currentEditorWidget->document()->isUndoAvailable());
+    updateCopyAction(m_currentEditorWidget && m_currentEditorWidget->textCursor().hasSelection());
 }
 
 void TextEditorActionHandlerPrivate::updateRedoAction(bool on)
@@ -562,9 +541,9 @@ void TextEditorActionHandlerPrivate::updateUndoAction(bool on)
 
 void TextEditorActionHandlerPrivate::updateCopyAction(bool hasCopyableText)
 {
-    QTC_ASSERT(m_currentEditorWidget, return);
     if (m_cutAction)
-        m_cutAction->setEnabled(hasCopyableText && !m_currentEditorWidget->isReadOnly());
+        m_cutAction->setEnabled(hasCopyableText && m_currentEditorWidget
+                                && !m_currentEditorWidget->isReadOnly());
     if (m_copyAction)
         m_copyAction->setEnabled(hasCopyableText);
 }
@@ -575,29 +554,28 @@ void TextEditorActionHandlerPrivate::updateCurrentEditor(Core::IEditor *editor)
         m_currentEditorWidget->disconnect(this);
     m_currentEditorWidget = 0;
 
-    // don't need to do anything if the editor's context doesn't match
-    // (our actions will be disabled because our context will not be active)
-    if (!editor || !editor->context().contains(m_contextId))
-        return;
-
-    TextEditorWidget *editorWidget = q->resolveTextEditorWidget(editor);
-    QTC_ASSERT(editorWidget, return); // editor has our context id, so shouldn't happen
-    m_currentEditorWidget = editorWidget;
-    connect(editorWidget, &QPlainTextEdit::undoAvailable,
-            this, &TextEditorActionHandlerPrivate::updateUndoAction);
-    connect(editorWidget, &QPlainTextEdit::redoAvailable,
-            this, &TextEditorActionHandlerPrivate::updateRedoAction);
-    connect(editorWidget, &QPlainTextEdit::copyAvailable,
-            this, &TextEditorActionHandlerPrivate::updateCopyAction);
-    connect(editorWidget, &TextEditorWidget::readOnlyChanged,
-            this, &TextEditorActionHandlerPrivate::updateActions);
+    if (editor && editor->document()->id() == m_editorId) {
+        TextEditorWidget *editorWidget = m_findTextWidget(editor);
+        QTC_ASSERT(editorWidget, return); // editor has our id, so shouldn't happen
+        m_currentEditorWidget = editorWidget;
+        connect(editorWidget, &QPlainTextEdit::undoAvailable,
+                this, &TextEditorActionHandlerPrivate::updateUndoAction);
+        connect(editorWidget, &QPlainTextEdit::redoAvailable,
+                this, &TextEditorActionHandlerPrivate::updateRedoAction);
+        connect(editorWidget, &QPlainTextEdit::copyAvailable,
+                this, &TextEditorActionHandlerPrivate::updateCopyAction);
+        connect(editorWidget, &TextEditorWidget::readOnlyChanged,
+                this, &TextEditorActionHandlerPrivate::updateActions);
+    }
     updateActions();
 }
 
 } // namespace Internal
 
-TextEditorActionHandler::TextEditorActionHandler(QObject *parent, Core::Id contextId, uint optionalActions)
-    : QObject(parent), d(new Internal::TextEditorActionHandlerPrivate(this, contextId, optionalActions))
+TextEditorActionHandler::TextEditorActionHandler(QObject *parent, Core::Id editorId,
+                                                 Core::Id contextId, uint optionalActions)
+    : QObject(parent), d(new Internal::TextEditorActionHandlerPrivate(this, editorId, contextId,
+                                                                      optionalActions))
 {
 }
 
@@ -606,9 +584,9 @@ TextEditorActionHandler::~TextEditorActionHandler()
     delete d;
 }
 
-TextEditorWidget *TextEditorActionHandler::resolveTextEditorWidget(Core::IEditor *editor) const
+void TextEditorActionHandler::setTextEditorWidgetResolver(const TextEditorWidgetResolver &resolver)
 {
-    return qobject_cast<TextEditorWidget *>(editor->widget());
+    d->m_findTextWidget = resolver;
 }
 
 } // namespace TextEditor

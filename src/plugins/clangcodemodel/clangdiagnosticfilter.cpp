@@ -45,15 +45,30 @@ bool isWarningOrNote(ClangBackEnd::DiagnosticSeverity severity)
     Q_UNREACHABLE();
 }
 
-bool isBlackListedDiagnostic(const ClangBackEnd::DiagnosticContainer &diagnostic,
-                             bool isHeaderFile)
+bool isBlackListedHeaderDiagnostic(const ClangBackEnd::DiagnosticContainer &diagnostic,
+                                   bool isHeaderFile)
 {
-    static const Utf8StringVector blackList {
+    static const Utf8StringVector blackList{
         Utf8StringLiteral("warning: #pragma once in main file"),
         Utf8StringLiteral("warning: #include_next in primary source file")
     };
 
     return isHeaderFile && blackList.contains(diagnostic.text());
+}
+
+bool isBlackListedQtDiagnostic(const ClangBackEnd::DiagnosticContainer &diagnostic)
+{
+    static const Utf8StringVector blackList{
+        // From Q_OBJECT:
+        Utf8StringLiteral("warning: "
+                          "'metaObject' overrides a member function but is not marked 'override'"),
+        Utf8StringLiteral("warning: "
+                          "'qt_metacast' overrides a member function but is not marked 'override'"),
+        Utf8StringLiteral("warning: "
+                          "'qt_metacall' overrides a member function but is not marked 'override'"),
+    };
+
+    return blackList.contains(diagnostic.text());
 }
 
 template <class Condition>
@@ -97,7 +112,8 @@ void ClangDiagnosticFilter::filterDocumentRelatedWarnings(
     const auto isLocalWarning = [this, isHeaderFile]
             (const ClangBackEnd::DiagnosticContainer &diagnostic) {
         return isWarningOrNote(diagnostic.severity())
-            && !isBlackListedDiagnostic(diagnostic, isHeaderFile)
+            && !isBlackListedHeaderDiagnostic(diagnostic, isHeaderFile)
+            && !isBlackListedQtDiagnostic(diagnostic)
             && diagnostic.location().filePath() == m_filePath;
     };
 

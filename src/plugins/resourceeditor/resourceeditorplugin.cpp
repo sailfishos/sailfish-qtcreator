@@ -44,7 +44,7 @@
 #include <projectexplorer/projectnodes.h>
 #include <extensionsystem/pluginmanager.h>
 
-#include <utils/mimetypes/mimedatabase.h>
+#include <utils/algorithm.h>
 #include <utils/parameteraction.h>
 #include <utils/qtcassert.h>
 
@@ -121,7 +121,6 @@ bool ResourceEditorPlugin::initialize(const QStringList &arguments, QString *err
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/resourceeditor/ResourceEditor.mimetypes.xml"));
 
     ResourceEditorFactory *editor = new ResourceEditorFactory(this);
     addAutoReleasedObject(editor);
@@ -212,6 +211,21 @@ bool ResourceEditorPlugin::initialize(const QStringList &arguments, QString *err
 
 void ResourceEditorPlugin::extensionsInitialized()
 {
+    ProjectTree::registerTreeManager([](FolderNode *folder) {
+        QList<FileNode *> toReplace;
+        folder->forEachNode([&toReplace](FileNode *fn) {
+            if (fn->fileType() == FileType::Resource)
+                toReplace.append(fn);
+        });
+
+        for (FileNode *file : toReplace) {
+            FolderNode *const pn = file->parentFolderNode();
+            QTC_ASSERT(pn, continue);
+            const Utils::FileName path = file->filePath();
+            pn->replaceSubtree(file, new ResourceTopLevelNode(path, file->isGenerated(),
+                                                              QString(), pn));
+        }
+    });
 }
 
 void ResourceEditorPlugin::onUndo()
@@ -231,7 +245,8 @@ void ResourceEditorPlugin::onRefresh()
 
 void ResourceEditorPlugin::addPrefixContextMenu()
 {
-    auto topLevel = static_cast<ResourceTopLevelNode *>(ProjectTree::currentNode());
+    auto topLevel = dynamic_cast<ResourceTopLevelNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(topLevel, return);
     PrefixLangDialog dialog(tr("Add Prefix"), QString(), QString(), Core::ICore::mainWindow());
     if (dialog.exec() != QDialog::Accepted)
         return;
@@ -243,7 +258,8 @@ void ResourceEditorPlugin::addPrefixContextMenu()
 
 void ResourceEditorPlugin::removePrefixContextMenu()
 {
-    ResourceFolderNode *rfn = static_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    auto rfn = dynamic_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(rfn, return);
     if (QMessageBox::question(Core::ICore::mainWindow(),
                               tr("Remove Prefix"),
                               tr("Remove prefix %1 and all its files?").arg(rfn->displayName()))
@@ -255,7 +271,8 @@ void ResourceEditorPlugin::removePrefixContextMenu()
 
 void ResourceEditorPlugin::removeNonExisting()
 {
-    ResourceTopLevelNode *topLevel = static_cast<ResourceTopLevelNode *>(ProjectTree::currentNode());
+    auto topLevel = dynamic_cast<ResourceTopLevelNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(topLevel, return);
     topLevel->removeNonExistingFiles();
 }
 
@@ -266,9 +283,11 @@ void ResourceEditorPlugin::renameFileContextMenu()
 
 void ResourceEditorPlugin::removeFileContextMenu()
 {
-    ResourceFolderNode *rfn = static_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    auto rfn = dynamic_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(rfn, return);
     QString path = rfn->filePath().toString();
     FolderNode *parent = rfn->parentFolderNode();
+    QTC_ASSERT(parent, return);
     if (!parent->removeFiles(QStringList() << path))
         QMessageBox::warning(Core::ICore::mainWindow(),
                              tr("File Removal Failed"),
@@ -282,19 +301,22 @@ void ResourceEditorPlugin::openEditorContextMenu()
 
 void ResourceEditorPlugin::copyPathContextMenu()
 {
-    ResourceFileNode *node = static_cast<ResourceFileNode *>(ProjectTree::currentNode());
+    auto node = dynamic_cast<ResourceFileNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(node, return);
     QApplication::clipboard()->setText(QLatin1String(resourcePrefix) + node->qrcPath());
 }
 
 void ResourceEditorPlugin::copyUrlContextMenu()
 {
-    ResourceFileNode *node = static_cast<ResourceFileNode *>(ProjectTree::currentNode());
+    auto node = dynamic_cast<ResourceFileNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(node, return);
     QApplication::clipboard()->setText(QLatin1String(urlPrefix) + node->qrcPath());
 }
 
 void ResourceEditorPlugin::renamePrefixContextMenu()
 {
-    ResourceFolderNode *node = static_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    auto node = dynamic_cast<ResourceFolderNode *>(ProjectTree::currentNode());
+    QTC_ASSERT(node, return);
 
     PrefixLangDialog dialog(tr("Rename Prefix"), node->prefix(), node->lang(), Core::ICore::mainWindow());
     if (dialog.exec() != QDialog::Accepted)
@@ -306,8 +328,9 @@ void ResourceEditorPlugin::renamePrefixContextMenu()
     node->renamePrefix(prefix, dialog.lang());
 }
 
-void ResourceEditorPlugin::updateContextActions(Node *node, Project *)
+void ResourceEditorPlugin::updateContextActions()
 {
+    Node *node = ProjectTree::currentNode();
     bool isResourceNode = dynamic_cast<ResourceTopLevelNode *>(node);
     m_addPrefix->setEnabled(isResourceNode);
     m_addPrefix->setVisible(isResourceNode);
@@ -317,8 +340,8 @@ void ResourceEditorPlugin::updateContextActions(Node *node, Project *)
 
     if (isResourceNode) {
         FolderNode *parent = node ? node->parentFolderNode() : 0;
-        enableRename = parent && parent->supportedActions(node).contains(Rename);
-        enableRemove = parent && parent->supportedActions(node).contains(RemoveFile);
+        enableRename = parent && parent->supportsAction(Rename, node);
+        enableRemove = parent && parent->supportsAction(RemoveFile, node);
     }
 
     m_renameResourceFile->setEnabled(isResourceNode && enableRename);
@@ -351,7 +374,8 @@ void ResourceEditorPlugin::updateContextActions(Node *node, Project *)
     m_copyUrl->setEnabled(isResourceFile);
     m_copyUrl->setVisible(isResourceFile);
     if (isResourceFile) {
-        ResourceFileNode *fileNode = static_cast<ResourceFileNode *>(node);
+        auto fileNode = dynamic_cast<ResourceFileNode *>(node);
+        QTC_ASSERT(fileNode, return);
         QString qrcPath = fileNode->qrcPath();
         m_copyPath->setParameter(QLatin1String(resourcePrefix) + qrcPath);
         m_copyUrl->setParameter(QLatin1String(urlPrefix) + qrcPath);

@@ -25,31 +25,21 @@
 
 #pragma once
 
-#include "androidrunconfiguration.h"
-#include <qmldebug/qmloutputparser.h>
-
-namespace Debugger { class AnalyzerRunControl; }
-namespace ProjectExplorer { class RunControl; }
+#include <projectexplorer/runconfiguration.h>
 
 namespace Android {
-class AndroidRunConfiguration;
-
 namespace Internal {
 
-class AndroidAnalyzeSupport : public QObject
+class AndroidQmlProfilerSupport : public ProjectExplorer::RunWorker
 {
     Q_OBJECT
 
 public:
-    AndroidAnalyzeSupport(AndroidRunConfiguration *runConfig,
-        Debugger::AnalyzerRunControl *runControl);
-
-    static ProjectExplorer::RunControl *createAnalyzeRunControl(AndroidRunConfiguration *runConfig,
-                                                                Core::Id runMode);
+    explicit AndroidQmlProfilerSupport(ProjectExplorer::RunControl *runControl);
 
 private:
-    QmlDebug::QmlOutputParser m_outputParser;
-    Utils::Port m_qmlPort;
+    void start() override;
+    void stop() override;
 };
 
 } // namespace Internal

@@ -24,6 +24,9 @@
 ****************************************************************************/
 
 #include "debugmessagesmodel_test.h"
+
+#include <timeline/timelineformattime.h>
+
 #include <QtTest>
 
 namespace QmlProfiler {
@@ -45,8 +48,9 @@ void DebugMessagesModelTest::initTestCase()
         event.setString(QString::fromLatin1("message %1").arg(i));
         QmlEventType type(DebugMessage, MaximumRangeType, i % (QtMsgType::QtInfoMsg + 1),
                           QmlEventLocation("somefile.js", i, 10 - i));
-        event.setTypeIndex(manager.qmlModel()->addEventType(type));
-        manager.qmlModel()->addEvent(event);
+        event.setTypeIndex(manager.numLoadedEventTypes());
+        manager.addEventType(type);
+        manager.addEvent(event);
     }
     manager.acquiringDone();
     QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
@@ -64,7 +68,7 @@ void DebugMessagesModelTest::testColor()
     // TimelineModel::colorBySelectionId ...
     for (int i = 0; i < 10; ++i) {
         QCOMPARE(model.color(i),
-                 QColor::fromHsl((i % (QtMsgType::QtInfoMsg + 1) * 25) % 360, 150, 166));
+                 QColor::fromHsl((i % (QtMsgType::QtInfoMsg + 1) * 25) % 360, 150, 166).rgb());
     }
 }
 
@@ -93,7 +97,7 @@ void DebugMessagesModelTest::testDetails()
         QCOMPARE(details.value(QLatin1String("displayName")).toString(),
                  model.tr(messageTypes[i % (QtMsgType::QtInfoMsg + 1)]));
         QCOMPARE(details.value(model.tr("Timestamp")).toString(),
-                 QmlProfilerDataModel::formatTime(i));
+                 Timeline::formatTime(i));
         QCOMPARE(details.value(model.tr("Message")).toString(),
                  QString::fromLatin1("message %1").arg(i));
         QCOMPARE(details.value(model.tr("Location")).toString(),

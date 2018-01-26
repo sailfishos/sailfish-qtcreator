@@ -23,70 +23,20 @@
 **
 ****************************************************************************/
 
-#include <QString>
-#include <QDebug>
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-
-#ifdef CLANG_UNIT_TESTS
-#include <clang/Basic/SourceLocation.h>
-#include <clang/Basic/SourceManager.h>
-#endif
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#include <gtest/gtest-printers.h>
-
-#include <iostream>
-
 #pragma once
+
+#include <QtGlobal>
+
+#include <iosfwd>
 
 QT_BEGIN_NAMESPACE
 
 class QVariant;
-inline void PrintTo(const QVariant &variant, ::std::ostream *os)
-{
-    QString output;
-    QDebug debug(&output);
+class QString;
+class QTextCharFormat;
 
-    debug << variant;
-
-    *os << output.toUtf8().constData();
-}
-
-inline void PrintTo(const QString &text, ::std::ostream *os)
-{
-    *os << text.toUtf8().constData();
-}
-
+std::ostream &operator<<(std::ostream &out, const QVariant &variant);
+std::ostream &operator<<(std::ostream &out, const QString &text);
+std::ostream &operator<<(std::ostream &out, const QByteArray &byteArray);
+std::ostream &operator<<(std::ostream &out, const QTextCharFormat &format);
 QT_END_NAMESPACE
-
-#ifdef CLANG_UNIT_TESTS
-namespace clang {
-
-inline void PrintTo(const clang::FullSourceLoc &sourceLocation, ::std::ostream *os)
-{
-    auto &&sourceManager = sourceLocation.getManager();
-    auto fileName = sourceManager.getFileEntryForID(sourceLocation.getFileID())->getName();
-
-    *os << "SourceLocation(\""
-        << fileName << ", "
-        << sourceLocation.getSpellingLineNumber() << ", "
-        << sourceLocation.getSpellingColumnNumber() << ")";
-}
-
-}
-#endif
-
-//namespace testing {
-//namespace internal {
-
-// void PrintTo(const QVariant &variant, ::std::ostream *os);
-
-//}
-//}

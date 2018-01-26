@@ -31,6 +31,7 @@
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/gnumakeparser.h>
@@ -65,7 +66,7 @@ bool AndroidPackageInstallationStep::init(QList<const BuildStep *> &earlierSteps
 
     ProjectExplorer::ToolChain *tc
             = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit(),
-                                                                  ProjectExplorer::ToolChain::Language::Cxx);
+                                                                  ProjectExplorer::Constants::CXX_LANGUAGE_ID);
 
     ProjectExplorer::ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
@@ -103,9 +104,9 @@ void AndroidPackageInstallationStep::run(QFutureInterface<bool> &fi)
     foreach (const QString &dir, m_androidDirsToClean) {
         Utils::FileName androidDir = Utils::FileName::fromString(dir);
         if (!dir.isEmpty() && androidDir.exists()) {
-            emit addOutput(tr("Removing directory %1").arg(dir), MessageOutput);
+            emit addOutput(tr("Removing directory %1").arg(dir), OutputFormat::NormalMessage);
             if (!Utils::FileUtils::removeRecursively(androidDir, &error)) {
-                emit addOutput(error, ErrorOutput);
+                emit addOutput(error, OutputFormat::Stderr);
                 reportRunResult(fi, false);
                 return;
             }

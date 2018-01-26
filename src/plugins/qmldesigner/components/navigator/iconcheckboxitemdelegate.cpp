@@ -43,57 +43,64 @@ namespace QmlDesigner {
 
 IconCheckboxItemDelegate::IconCheckboxItemDelegate(QObject *parent,
                                                    const QPixmap &checkedPixmap,
-                                                   const QPixmap &uncheckedPixmap,
-                                                   NavigatorTreeModel *treeModel)
+                                                   const QPixmap &uncheckedPixmap)
     : QStyledItemDelegate(parent),
       m_checkedPixmap(checkedPixmap),
-      m_uncheckedPixmap(uncheckedPixmap),
-      m_navigatorTreeModel(treeModel)
+      m_uncheckedPixmap(uncheckedPixmap)
 {}
 
-static bool indexIsHolingModelNode(const QModelIndex &modelIndex)
-{
-   return modelIndex.data(NavigatorTreeModel::InternalIdRole).isValid();
-}
-
 QSize IconCheckboxItemDelegate::sizeHint(const QStyleOptionViewItem & /*option*/,
-                                         const QModelIndex &modelIndex) const
+                                         const QModelIndex & /*modelIndex*/) const
 {
-    if (indexIsHolingModelNode(modelIndex))
-        return QSize(15, 20);
-
-    return QSize();
+    return QSize(15, 20);
 }
 
-static bool isChecked(NavigatorTreeModel *navigatorTreeMode, const QModelIndex &modelIndex)
+static bool isChecked(const QModelIndex &modelIndex)
 {
-    return navigatorTreeMode->itemFromIndex(modelIndex)->checkState() == Qt::Checked;
+    return modelIndex.model()->data(modelIndex, Qt::CheckStateRole) == Qt::Checked;
+}
+
+static bool isVisible(const QModelIndex &modelIndex)
+{
+    return modelIndex.model()->data(modelIndex, ItemIsVisibleRole).toBool();
+}
+
+static ModelNode getModelNode(const QModelIndex &modelIndex)
+{
+    return modelIndex.model()->data(modelIndex, ModelNodeRole).value<ModelNode>();
+}
+
+static bool rowIsPropertyRole(const QAbstractItemModel *model, const QModelIndex &modelIndex)
+{
+    return model->data(modelIndex, RowIsPropertyRole).toBool();
 }
 
 void IconCheckboxItemDelegate::paint(QPainter *painter,
                                      const QStyleOptionViewItem &styleOption,
                                      const QModelIndex &modelIndex) const
 {
+    if (rowIsPropertyRole(modelIndex.model(), modelIndex))
+        return; //Do not paint icons for property rows
+
     const int yOffset = (styleOption.rect.height()
                          - (m_checkedPixmap.height() / painter->device()->devicePixelRatio())) / 2;
     const int xOffset = 2;
-    if (indexIsHolingModelNode(modelIndex)) {
-        painter->save();
-        if (styleOption.state & QStyle::State_Selected)
-            NavigatorTreeView::drawSelectionBackground(painter, styleOption);
 
-        if (!m_navigatorTreeModel->nodeForIndex(modelIndex).isRootNode()) {
+    painter->save();
+    if (styleOption.state & QStyle::State_Selected)
+        NavigatorTreeView::drawSelectionBackground(painter, styleOption);
 
-            if (m_navigatorTreeModel->isNodeInvisible(modelIndex))
-                painter->setOpacity(0.5);
+    if (!getModelNode(modelIndex).isRootNode()) {
 
-            const bool checked = isChecked(m_navigatorTreeModel, modelIndex);
-            painter->drawPixmap(styleOption.rect.x() + xOffset, styleOption.rect.y() + yOffset,
-                                checked ? m_checkedPixmap : m_uncheckedPixmap);
-        }
+        if (!isVisible(modelIndex))
+            painter->setOpacity(0.5);
 
-        painter->restore();
+        const bool checked = isChecked(modelIndex);
+        painter->drawPixmap(styleOption.rect.x() + xOffset, styleOption.rect.y() + yOffset,
+                            checked ? m_checkedPixmap : m_uncheckedPixmap);
     }
+
+    painter->restore();
 }
 
 } // namespace QmlDesigner

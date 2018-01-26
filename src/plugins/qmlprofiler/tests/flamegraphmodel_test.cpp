@@ -33,14 +33,15 @@ namespace QmlProfiler {
 namespace Internal {
 
 FlameGraphModelTest::FlameGraphModelTest(QObject *parent) :
-    QObject(parent), manager(&finder), model(&manager)
+    QObject(parent), model(&manager)
 {
 }
 
-void FlameGraphModelTest::generateData(QmlProfilerModelManager *manager)
+int FlameGraphModelTest::generateData(QmlProfilerModelManager *manager)
 {
     // Notes only work with timeline models
     QmlProfilerRangeModel *rangeModel = new QmlProfilerRangeModel(manager, Javascript, manager);
+    int rangeModelId = rangeModel->modelId();
     manager->notesModel()->addTimelineModel(rangeModel);
 
     manager->startAcquiring();
@@ -56,30 +57,31 @@ void FlameGraphModelTest::generateData(QmlProfilerModelManager *manager)
             QmlEventType type(MaximumMessage,
                               static_cast<RangeType>(static_cast<int>(Javascript) - i),
                               -1, QmlEventLocation("somefile.js", i, 20 - i), QString("funcfunc"));
-            typeIndex = manager->qmlModel()->addEventType(type);
+            typeIndex = manager->numLoadedEventTypes();
+            manager->addEventType(type);
         } else {
             typeIndex = typeIndices[i - 5];
         }
         event.setTypeIndex(typeIndex);
         event.setTimestamp(++i);
         event.setRangeStage(RangeStart);
-        manager->qmlModel()->addEvent(event);
+        manager->addEvent(event);
         typeIndices.push(typeIndex);
     }
 
     event.setRangeStage(RangeEnd);
     event.setTimestamp(++i);
-    manager->qmlModel()->addEvent(event);
+    manager->addEvent(event);
 
     event.setRangeStage(RangeStart);
     event.setTimestamp(++i);
-    manager->qmlModel()->addEvent(event);
+    manager->addEvent(event);
 
     for (int j = 0; !typeIndices.isEmpty(); ++j) {
         event.setTimestamp(i + j);
         event.setRangeStage(RangeEnd);
         event.setTypeIndex(typeIndices.pop());
-        manager->qmlModel()->addEvent(event);
+        manager->addEvent(event);
     }
 
     manager->acquiringDone();
@@ -87,13 +89,14 @@ void FlameGraphModelTest::generateData(QmlProfilerModelManager *manager)
     manager->notesModel()->setNotes(QVector<QmlNote>({QmlNote(0, 2, 1, 20, "dings")}));
     manager->notesModel()->loadData();
 
-    QCOMPARE(manager->state(), QmlProfilerModelManager::Done);
+    return rangeModelId;
 }
 
 void FlameGraphModelTest::initTestCase()
 {
     QCOMPARE(model.modelManager(), &manager);
-    generateData(&manager);
+    rangeModelId = generateData(&manager);
+    QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
 }
 
 void FlameGraphModelTest::testIndex()
@@ -203,7 +206,7 @@ void FlameGraphModelTest::testRoleNames()
 
 void FlameGraphModelTest::testNotes()
 {
-    manager.notesModel()->add(2, 1, QString("blubb"));
+    manager.notesModel()->add(rangeModelId, 1, QString("blubb"));
     QCOMPARE(model.data(model.index(0, 0), FlameGraphModel::NoteRole).toString(),
              QString("dings\nblubb"));
     manager.notesModel()->remove(0);

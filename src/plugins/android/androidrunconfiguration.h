@@ -29,6 +29,10 @@
 
 #include <projectexplorer/runconfiguration.h>
 
+QT_BEGIN_NAMESPACE
+class QToolButton;
+QT_END_NAMESPACE
+
 namespace Android {
 
 class ANDROID_EXPORT AndroidRunConfiguration : public ProjectExplorer::RunConfiguration
@@ -39,10 +43,26 @@ public:
 
     QWidget *createConfigurationWidget() override;
     Utils::OutputFormatter *createOutputFormatter() const override;
-    const QString remoteChannel() const;
+
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
+
+    const QStringList &amStartExtraArgs() const;
+    const QStringList &preStartShellCommands() const;
+    const QStringList &postFinishShellCommands() const;
 
 protected:
     AndroidRunConfiguration(ProjectExplorer::Target *parent, AndroidRunConfiguration *source);
+
+private:
+    void setPreStartShellCommands(const QStringList &cmdList);
+    void setPostFinishShellCommands(const QStringList &cmdList);
+    void setAmStartExtraArgs(const QStringList &args);
+
+private:
+    QStringList m_amStartExtraArgs;
+    QStringList m_preStartShellCommands;
+    QStringList m_postFinishShellCommands;
 };
 
 } // namespace Android

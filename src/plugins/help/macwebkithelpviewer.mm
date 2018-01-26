@@ -393,42 +393,6 @@ static NSMenuItem *menuItem(NSURL *url, id target, SEL action, const QString &ti
 
 @end
 
-// #pragma mark -- MyWebView
-@interface MyWebView : WebView
-@end
-
-// work around Qt + WebView issue QTBUG-26593, that Qt does not pass mouseMoved: events up the event chain,
-// but the Web(HTML)View is only handling mouse moved for hovering etc if the event was passed up
-// to the NSWindow (arguably a bug in Web(HTML)View)
-@implementation MyWebView
-
-- (void)updateTrackingAreas
-{
-    [super updateTrackingAreas];
-    if (NSArray *trackingArray = [self trackingAreas]) {
-        NSUInteger size = [trackingArray count];
-        for (NSUInteger i = 0; i < size; ++i) {
-            NSTrackingArea *t = [trackingArray objectAtIndex:i];
-            [self removeTrackingArea:t];
-        }
-    }
-    NSUInteger trackingOptions = NSTrackingActiveInActiveApp | NSTrackingInVisibleRect
-            | NSTrackingMouseMoved;
-    NSTrackingArea *ta = [[[NSTrackingArea alloc] initWithRect:[self frame]
-                                                      options:trackingOptions
-                                                        owner:self
-                                                     userInfo:nil]
-                                                                autorelease];
-    [self addTrackingArea:ta];
-}
-
-- (void)mouseMoved:(NSEvent *)theEvent
-{
-    [self.window mouseMoved:theEvent];
-}
-
-@end
-
 namespace Help {
 namespace Internal {
 
@@ -469,7 +433,7 @@ MacWebKitHelpWidget::MacWebKitHelpWidget(MacWebKitHelpViewer *parent)
     d->m_toolTipTimer.setSingleShot(true);
     connect(&d->m_toolTipTimer, &QTimer::timeout, this, &MacWebKitHelpWidget::showToolTip);
     @autoreleasepool {
-        d->m_webView = [[MyWebView alloc] init];
+        d->m_webView = [[WebView alloc] init];
         // Turn layered rendering on.
         // Otherwise the WebView will render empty after any QQuickWidget was shown.
         d->m_webView.wantsLayer = YES;
@@ -530,6 +494,25 @@ void MacWebKitHelpWidget::showToolTip()
 
 // #pragma mark -- MacWebKitHelpViewer
 
+static void responderHack(QWidget *old, QWidget *now)
+{
+    // On focus change, Qt does not make the corresponding QNSView firstResponder.
+    // That breaks when embedding native NSView into a Qt hierarchy. When the focus is changed
+    // by clicking with the mouse into a widget, everything is fine, because Cocoa automatically
+    // adapts firstResponder in that case, but it breaks when setting the Qt focus from code.
+    Q_UNUSED(old)
+    if (!now)
+        return;
+    @autoreleasepool {
+        NSView *view;
+        if (QMacCocoaViewContainer *viewContainer = qobject_cast<QMacCocoaViewContainer *>(now))
+            view = viewContainer->cocoaView();
+        else
+            view = reinterpret_cast<NSView *>(now->effectiveWinId());
+        [view.window makeFirstResponder:view];
+    }
+}
+
 MacWebKitHelpViewer::MacWebKitHelpViewer(QWidget *parent)
     : HelpViewer(parent),
       m_widget(new MacWebKitHelpWidget(this))
@@ -537,7 +520,7 @@ MacWebKitHelpViewer::MacWebKitHelpViewer(QWidget *parent)
     static bool responderHackInstalled = false;
     if (!responderHackInstalled) {
         responderHackInstalled = true;
-        new MacResponderHack(qApp);
+        QObject::connect(qApp, &QApplication::focusChanged, &responderHack);
     }
 
     @autoreleasepool {
@@ -885,34 +868,6 @@ void MacWebKitHelpViewer::goToHistoryItem()
         [m_widget->webView() goToBackForwardItem:item];
         emit forwardAvailable(isForwardAvailable());
         emit backwardAvailable(isBackwardAvailable());
-    }
-}
-
-// #pragma mark -- MacResponderHack
-
-MacResponderHack::MacResponderHack(QObject *parent)
-    : QObject(parent)
-{
-    connect(qApp, &QApplication::focusChanged,
-            this, &MacResponderHack::responderHack);
-}
-
-void MacResponderHack::responderHack(QWidget *old, QWidget *now)
-{
-    // On focus change, Qt does not make the corresponding QNSView firstResponder.
-    // That breaks when embedding native NSView into a Qt hierarchy. When the focus is changed
-    // by clicking with the mouse into a widget, everything is fine, because Cocoa automatically
-    // adapts firstResponder in that case, but it breaks when setting the Qt focus from code.
-    Q_UNUSED(old)
-    if (!now)
-        return;
-    @autoreleasepool {
-        NSView *view;
-        if (QMacCocoaViewContainer *viewContainer = qobject_cast<QMacCocoaViewContainer *>(now))
-            view = viewContainer->cocoaView();
-        else
-            view = (NSView *)now->effectiveWinId();
-        [view.window makeFirstResponder:view];
     }
 }
 

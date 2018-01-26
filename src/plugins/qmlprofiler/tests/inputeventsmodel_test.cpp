@@ -25,6 +25,8 @@
 
 #include "inputeventsmodel_test.h"
 #include "timeline/timelinemodel_p.h"
+#include "timeline/timelineformattime.h"
+
 #include <QtTest>
 
 namespace QmlProfiler {
@@ -33,8 +35,10 @@ namespace Internal {
 InputEventsModelTest::InputEventsModelTest(QObject *parent) :
     QObject(parent), manager(nullptr), model(&manager)
 {
-    keyTypeId = manager.qmlModel()->addEventType(QmlEventType(Event, MaximumRangeType, Key));
-    mouseTypeId = manager.qmlModel()->addEventType(QmlEventType(Event, MaximumRangeType, Mouse));
+    keyTypeId = manager.numLoadedEventTypes();
+    manager.addEventType(QmlEventType(Event, MaximumRangeType, Key));
+    mouseTypeId = manager.numLoadedEventTypes();
+    manager.addEventType(QmlEventType(Event, MaximumRangeType, Mouse));
 }
 
 void InputEventsModelTest::initTestCase()
@@ -49,7 +53,7 @@ void InputEventsModelTest::initTestCase()
         event.setNumbers({static_cast<qint32>(type),
                           (i * 32) % 256,
                           static_cast<qint32>((i * 0x02000000) & Qt::KeyboardModifierMask)});
-        manager.qmlModel()->addEvent(event);
+        manager.addEvent(event);
     }
     manager.acquiringDone();
     QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
@@ -74,15 +78,15 @@ void InputEventsModelTest::testTypeId()
 
 void InputEventsModelTest::testColor()
 {
-    QColor keyColor;
-    QColor mouseColor;
+    QRgb keyColor = 0;
+    QRgb mouseColor = 0;
     for (int i = 0; i < 10; ++i) {
         InputEventType type = static_cast<InputEventType>(i % MaximumInputEventType);
         int selectionId = (type <= InputKeyUnknown ? Key : Mouse);
         QCOMPARE(selectionId, model.selectionId(i));
 
-        QColor &expectedColor = selectionId == Key ? keyColor : mouseColor;
-        if (expectedColor.isValid())
+        QRgb &expectedColor = selectionId == Key ? keyColor : mouseColor;
+        if (expectedColor != 0)
             QCOMPARE(model.color(i), expectedColor);
         else
             expectedColor = model.color(i);
@@ -105,7 +109,7 @@ void InputEventsModelTest::testDetails()
 {
     for (int i = 0; i < 10; ++i) {
         const QVariantMap details = model.details(i);
-        QCOMPARE(details[model.tr("Timestamp")].toString(), QmlProfilerDataModel::formatTime(i));
+        QCOMPARE(details[model.tr("Timestamp")].toString(), Timeline::formatTime(i));
         QString displayName = details[QString("displayName")].toString();
         QVERIFY(!displayName.isEmpty());
         switch (static_cast<InputEventType>(i % MaximumInputEventType)) {

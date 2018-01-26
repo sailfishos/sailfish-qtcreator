@@ -62,7 +62,7 @@ QList<BuildStepInfo> AutoreconfStepFactory::availableSteps(BuildStepList *parent
         return {};
 
     QString display = tr("Autoreconf", "Display name for AutotoolsProjectManager::AutoreconfStep id.");
-    return {{ AUTORECONF_STEP_ID, display }};
+    return {{AUTORECONF_STEP_ID, display}};
 }
 
 BuildStep *AutoreconfStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -129,7 +129,7 @@ void AutoreconfStep::run(QFutureInterface<bool> &fi)
         m_runAutoreconf = true;
 
     if (!m_runAutoreconf) {
-        emit addOutput(tr("Configuration unchanged, skipping autoreconf step."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration unchanged, skipping autoreconf step."), BuildStep::OutputFormat::NormalMessage);
         reportRunResult(fi, true);
         return;
     }

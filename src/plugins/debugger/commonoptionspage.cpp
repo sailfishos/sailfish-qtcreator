@@ -30,9 +30,12 @@
 #include "debuggercore.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/variablechooser.h>
+
 #include <utils/hostosinfo.h>
-#include <utils/savedaction.h>
+#include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
+#include <utils/savedaction.h>
 
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -40,6 +43,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSpinBox>
+#include <QTextEdit>
 #include <QTextStream>
 
 using namespace Core;
@@ -115,13 +119,11 @@ QWidget *CommonOptionsPage::widget()
                        "will automatically open views associated with the current location.") + QLatin1Char('\n');
         auto checkBoxCloseSourceBuffersOnExit = new QCheckBox(behaviorBox);
         checkBoxCloseSourceBuffersOnExit->setText(tr("Close temporary source views on debugger exit"));
-        checkBoxCloseSourceBuffersOnExit->setToolTip(t + tr("Select this option to close "
-                                                            "automatically opened source views when the debugger exits."));
+        checkBoxCloseSourceBuffersOnExit->setToolTip(t + tr("Closes automatically opened source views when the debugger exits."));
 
         auto checkBoxCloseMemoryBuffersOnExit = new QCheckBox(behaviorBox);
         checkBoxCloseMemoryBuffersOnExit->setText(tr("Close temporary memory views on debugger exit"));
-        checkBoxCloseMemoryBuffersOnExit->setToolTip(t + tr("Select this option to close "
-                                                            "automatically opened memory views when the debugger exits."));
+        checkBoxCloseMemoryBuffersOnExit->setToolTip(t + tr("Closes automatically opened memory views when the debugger exits."));
 
         auto checkBoxSwitchModeOnExit = new QCheckBox(behaviorBox);
         checkBoxSwitchModeOnExit->setText(tr("Switch to previous mode on debugger exit"));
@@ -309,6 +311,25 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
                 "std::map in the &quot;Locals and Expressions&quot; view. ")
             + QLatin1String("</p></body></html>"));
 
+        auto groupBoxCustomDumperCommands = new QGroupBox(debuggingHelperGroupBox);
+        groupBoxCustomDumperCommands->setTitle(tr("Debugging Helper Customization"));
+        groupBoxCustomDumperCommands->setToolTip(tr(
+            "<html><head/><body><p>Python commands entered here will be executed after Qt Creator's "
+            "debugging helpers have been loaded and fully initialized. You can load additional "
+            "debugging helpers or modify existing ones here.</p></body></html>"));
+
+        auto textEditCustomDumperCommands = new QTextEdit(groupBoxCustomDumperCommands);
+        textEditCustomDumperCommands->setAcceptRichText(false);
+        textEditCustomDumperCommands->setToolTip(groupBoxCustomDumperCommands->toolTip());
+
+        auto groupBoxExtraDumperFile = new QGroupBox(debuggingHelperGroupBox);
+        groupBoxExtraDumperFile->setTitle(tr("Extra Debugging Helpers"));
+        groupBoxExtraDumperFile->setToolTip(tr(
+            "Path to a Python file containing additional data dumpers."));
+
+        auto pathChooserExtraDumperFile = new Utils::PathChooser(groupBoxExtraDumperFile);
+        pathChooserExtraDumperFile->setExpectedKind(Utils::PathChooser::File);
+
         auto checkBoxUseCodeModel = new QCheckBox(debuggingHelperGroupBox);
         auto checkBoxShowThreadNames = new QCheckBox(debuggingHelperGroupBox);
         auto checkBoxShowStdNamespace = new QCheckBox(m_widget);
@@ -327,10 +348,16 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
         spinBoxDisplayStringLimit->setSingleStep(10);
         spinBoxDisplayStringLimit->setValue(100);
 
-        auto verticalLayout = new QVBoxLayout(debuggingHelperGroupBox);
-        verticalLayout->addWidget(label);
-        verticalLayout->addWidget(checkBoxUseCodeModel);
-        verticalLayout->addWidget(checkBoxShowThreadNames);
+        auto chooser = new VariableChooser(m_widget);
+        chooser->addSupportedWidget(textEditCustomDumperCommands);
+        chooser->addSupportedWidget(pathChooserExtraDumperFile->lineEdit());
+
+        auto gridLayout = new QGridLayout(debuggingHelperGroupBox);
+        gridLayout->addWidget(label, 0, 0, 1, 1);
+        gridLayout->addWidget(checkBoxUseCodeModel, 1, 0, 1, 1);
+        gridLayout->addWidget(checkBoxShowThreadNames, 2, 0, 1, 1);
+        gridLayout->addWidget(groupBoxExtraDumperFile, 3, 0, 1, 1);
+        gridLayout->addWidget(groupBoxCustomDumperCommands, 0, 1, 4, 1);
 
         auto layout1 = new QFormLayout;
         layout1->addItem(new QSpacerItem(10, 10));
@@ -350,8 +377,16 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
         layout->addLayout(lowerLayout);
         layout->addStretch();
 
+        auto customDumperLayout = new QGridLayout(groupBoxCustomDumperCommands);
+        customDumperLayout->addWidget(textEditCustomDumperCommands, 0, 0, 1, 1);
+
+        auto extraDumperLayout = new QGridLayout(groupBoxExtraDumperFile);
+        extraDumperLayout->addWidget(pathChooserExtraDumperFile, 0, 0, 1, 1);
+
         m_group.clear();
         m_group.insert(action(UseDebuggingHelpers), debuggingHelperGroupBox);
+        m_group.insert(action(ExtraDumperFile), pathChooserExtraDumperFile);
+        m_group.insert(action(ExtraDumperCommands), textEditCustomDumperCommands);
         m_group.insert(action(UseCodeModel), checkBoxUseCodeModel);
         m_group.insert(action(ShowThreadNames), checkBoxShowThreadNames);
         m_group.insert(action(ShowStdNamespace), checkBoxShowStdNamespace);
@@ -359,15 +394,6 @@ QWidget *LocalsAndExpressionsOptionsPage::widget()
         m_group.insert(action(ShowQObjectNames), checkBoxShowQObjectNames);
         m_group.insert(action(DisplayStringLimit), spinBoxDisplayStringLimit);
         m_group.insert(action(MaximalStringLength), spinBoxMaximalStringLength);
-
-#ifndef QT_DEBUG
-#if 0
-        cmd = am->registerAction(m_dumpLogAction, DUMP_LOG, globalcontext);
-        //cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+D,Ctrl+L")));
-        cmd->setDefaultKeySequence(QKeySequence(QCoreApplication::translate("Debugger", "Ctrl+Shift+F11")));
-        mdebug->addAction(cmd);
-#endif
-#endif
     }
     return m_widget;
 }

@@ -55,8 +55,8 @@ BuiltinEditorDocumentParser::BuiltinEditorDocumentParser(const QString &filePath
     qRegisterMetaType<CPlusPlus::Snapshot>("CPlusPlus::Snapshot");
 }
 
-void BuiltinEditorDocumentParser::updateHelper(const QFutureInterface<void> &future,
-                                               const WorkingCopy &theWorkingCopy)
+void BuiltinEditorDocumentParser::updateImpl(const QFutureInterface<void> &future,
+                                             const UpdateParams &updateParams)
 {
     if (filePath().isEmpty())
         return;
@@ -66,7 +66,7 @@ void BuiltinEditorDocumentParser::updateHelper(const QFutureInterface<void> &fut
 
     State baseState = state();
     ExtraState state = extraState();
-    WorkingCopy workingCopy = theWorkingCopy;
+    WorkingCopy workingCopy = updateParams.workingCopy;
 
     bool invalidateSnapshot = false, invalidateConfig = false, editorDefinesChanged_ = false;
 
@@ -77,14 +77,20 @@ void BuiltinEditorDocumentParser::updateHelper(const QFutureInterface<void> &fut
     QString projectConfigFile;
     LanguageFeatures features = LanguageFeatures::defaultFeatures();
 
-    baseState.projectPart = determineProjectPart(filePath(), baseConfig, baseState);
+    baseState.projectPartInfo = determineProjectPart(filePath(),
+                                                    baseConfig.preferredProjectPartId,
+                                                    baseState.projectPartInfo,
+                                                    updateParams.activeProject,
+                                                    updateParams.languagePreference,
+                                                    updateParams.projectsUpdated);
+    emit projectPartInfoUpdated(baseState.projectPartInfo);
 
     if (state.forceSnapshotInvalidation) {
         invalidateSnapshot = true;
         state.forceSnapshotInvalidation = false;
     }
 
-    if (const ProjectPart::Ptr part = baseState.projectPart) {
+    if (const ProjectPart::Ptr part = baseState.projectPartInfo.projectPart) {
         configFile += part->toolchainDefines;
         configFile += overwrittenToolchainDefines(*part.data());
         configFile += part->projectDefines;

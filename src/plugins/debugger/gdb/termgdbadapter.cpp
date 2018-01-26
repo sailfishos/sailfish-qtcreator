@@ -46,8 +46,8 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
-GdbTermEngine::GdbTermEngine(const DebuggerRunParameters &startParameters)
-    : GdbEngine(startParameters)
+GdbTermEngine::GdbTermEngine(bool useTerminal)
+    : GdbEngine(useTerminal)
 {
     if (HostOsInfo::isWindowsHost()) {
         // Windows up to xp needs a workaround for attaching to freshly started processes. see proc_stub_win
@@ -116,7 +116,7 @@ void GdbTermEngine::setupInferior()
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
     const qint64 attachedPID = m_stubProc.applicationPID();
     const qint64 attachedMainThreadID = m_stubProc.applicationMainThreadID();
-    notifyInferiorPid(attachedPID);
+    notifyInferiorPid(ProcessHandle(attachedPID));
     const QString msg = (attachedMainThreadID != -1)
             ? QString("Going to attach to %1 (%2)").arg(attachedPID).arg(attachedMainThreadID)
             : QString("Going to attach to %1").arg(attachedPID);
@@ -128,7 +128,7 @@ void GdbTermEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
     const qint64 attachedPID = m_stubProc.applicationPID();
-    runCommand({"attach " + QString::number(attachedPID), NoFlags,
+    runCommand({"attach " + QString::number(attachedPID),
                 [this](const DebuggerResponse &r) { handleStubAttached(r); }});
 }
 
@@ -186,6 +186,7 @@ void GdbTermEngine::interruptInferior2()
 void GdbTermEngine::stubError(const QString &msg)
 {
     Core::AsynchronousMessageBox::critical(tr("Debugger Error"), msg);
+    notifyEngineIll();
 }
 
 void GdbTermEngine::stubExited()

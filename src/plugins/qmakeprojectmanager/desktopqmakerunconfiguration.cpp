@@ -121,7 +121,7 @@ QString DesktopQmakeRunConfiguration::disabledReason() const
     return QString();
 }
 
-void DesktopQmakeRunConfiguration::proFileUpdated(QmakeProFileNode *pro, bool success, bool parseInProgress)
+void DesktopQmakeRunConfiguration::proFileUpdated(QmakeProFile *pro, bool success, bool parseInProgress)
 {
     if (m_proFilePath != pro->filePath())
         return;
@@ -132,17 +132,8 @@ void DesktopQmakeRunConfiguration::proFileUpdated(QmakeProFileNode *pro, bool su
     if (enabled != isEnabled() || reason != disabledReason())
         emit enabledChanged();
 
-    if (!parseInProgress) {
-        emit effectiveTargetInformationChanged();
-        setDefaultDisplayName(defaultDisplayName());
-        extraAspect<LocalEnvironmentAspect>()->buildEnvironmentHasChanged();
-
-        extraAspect<WorkingDirectoryAspect>()
-                ->setDefaultWorkingDirectory(FileName::fromString(baseWorkingDirectory()));
-        auto terminalAspect = extraAspect<TerminalAspect>();
-        if (!terminalAspect->isUserSet())
-            terminalAspect->setUseTerminal(isConsoleApplication());
-    }
+    if (!parseInProgress)
+        updateTargetInformation();
 }
 
 void DesktopQmakeRunConfiguration::proFileEvaluated()
@@ -150,6 +141,23 @@ void DesktopQmakeRunConfiguration::proFileEvaluated()
     // We depend on all .pro files for the LD_LIBRARY_PATH so we emit a signal for all .pro files
     // This can be optimized by checking whether LD_LIBRARY_PATH changed
     return extraAspect<LocalEnvironmentAspect>()->buildEnvironmentHasChanged();
+}
+
+void DesktopQmakeRunConfiguration::updateTargetInformation()
+{
+    setDefaultDisplayName(defaultDisplayName());
+    extraAspect<LocalEnvironmentAspect>()->buildEnvironmentHasChanged();
+
+    auto wda = extraAspect<WorkingDirectoryAspect>();
+
+    wda->setDefaultWorkingDirectory(FileName::fromString(baseWorkingDirectory()));
+    if (wda->pathChooser())
+        wda->pathChooser()->setBaseFileName(target()->project()->projectDirectory());
+    auto terminalAspect = extraAspect<TerminalAspect>();
+    if (!terminalAspect->isUserSet())
+        terminalAspect->setUseTerminal(isConsoleApplication());
+
+    emit effectiveTargetInformationChanged();
 }
 
 void DesktopQmakeRunConfiguration::ctor()
@@ -161,6 +169,8 @@ void DesktopQmakeRunConfiguration::ctor()
             this, &DesktopQmakeRunConfiguration::proFileUpdated);
     connect(project, &QmakeProject::proFilesEvaluated,
             this, &DesktopQmakeRunConfiguration::proFileEvaluated);
+
+    updateTargetInformation();
 }
 
 //////
@@ -240,7 +250,6 @@ DesktopQmakeRunConfigurationWidget::DesktopQmakeRunConfigurationWidget(DesktopQm
     }
 
     runConfigurationEnabledChange();
-    effectiveTargetInformationChanged();
 
     connect(qmakeRunConfiguration, &DesktopQmakeRunConfiguration::usingDyldImageSuffixChanged,
             this, &DesktopQmakeRunConfigurationWidget::usingDyldImageSuffixChanged);
@@ -253,6 +262,7 @@ DesktopQmakeRunConfigurationWidget::DesktopQmakeRunConfigurationWidget(DesktopQm
             this, &DesktopQmakeRunConfigurationWidget::runConfigurationEnabledChange);
 
     Core::VariableChooser::addSupportForChildWidgets(this, m_qmakeRunConfiguration->macroExpander());
+    effectiveTargetInformationChanged();
 }
 
 void DesktopQmakeRunConfigurationWidget::runConfigurationEnabledChange()
@@ -292,15 +302,6 @@ void DesktopQmakeRunConfigurationWidget::usingLibrarySearchPathChanged(bool stat
 void DesktopQmakeRunConfigurationWidget::effectiveTargetInformationChanged()
 {
     m_executableLineLabel->setText(QDir::toNativeSeparators(m_qmakeRunConfiguration->executable()));
-
-    m_ignoreChange = true;
-    auto aspect = m_qmakeRunConfiguration->extraAspect<WorkingDirectoryAspect>();
-    aspect->setDefaultWorkingDirectory(FileName::fromString(m_qmakeRunConfiguration->baseWorkingDirectory()));
-    aspect->pathChooser()->setBaseFileName(m_qmakeRunConfiguration->target()->project()->projectDirectory());
-    auto terminalAspect = m_qmakeRunConfiguration->extraAspect<TerminalAspect>();
-    if (!terminalAspect->isUserSet())
-        terminalAspect->setUseTerminal(m_qmakeRunConfiguration->isConsoleApplication());
-    m_ignoreChange = false;
 }
 
 QWidget *DesktopQmakeRunConfiguration::createConfigurationWidget()
@@ -344,8 +345,8 @@ bool DesktopQmakeRunConfiguration::fromMap(const QVariantMap &map)
 
 QString DesktopQmakeRunConfiguration::executable() const
 {
-    if (QmakeProFileNode *node = projectNode())
-        return extractWorkingDirAndExecutable(node).second;
+    if (QmakeProFile *pro = proFile())
+        return extractWorkingDirAndExecutable(pro).second;
     return QString();
 }
 
@@ -377,18 +378,18 @@ void DesktopQmakeRunConfiguration::setUsingLibrarySearchPath(bool state)
 
 QString DesktopQmakeRunConfiguration::baseWorkingDirectory() const
 {
-    if (QmakeProFileNode *node = projectNode())
-        return extractWorkingDirAndExecutable(node).first;
+    if (QmakeProFile *pro = proFile())
+        return extractWorkingDirAndExecutable(pro).first;
     return QString();
 }
 
 bool DesktopQmakeRunConfiguration::isConsoleApplication() const
 {
-    if (QmakeProFileNode *node = projectNode()) {
-        const QStringList config = node->variableValue(ConfigVar);
+    if (QmakeProFile *pro = proFile()) {
+        const QStringList config = pro->variableValue(Variable::Config);
         if (!config.contains("console") || config.contains("testcase"))
             return false;
-        const QStringList qt = node->variableValue(QtVar);
+        const QStringList qt = pro->variableValue(Variable::Qt);
         return !qt.contains("testlib") && !qt.contains("qmltest");
     }
     return false;
@@ -402,11 +403,11 @@ void DesktopQmakeRunConfiguration::addToBaseEnvironment(Environment &env) const
     // The user could be linking to a library found via a -L/some/dir switch
     // to find those libraries while actually running we explicitly prepend those
     // dirs to the library search path
-    const QmakeProFileNode *node = projectNode();
-    if (m_isUsingLibrarySearchPath && node) {
-        const QStringList libDirectories = node->variableValue(LibDirectoriesVar);
+    const QmakeProFile *pro = proFile();
+    if (m_isUsingLibrarySearchPath && pro) {
+        const QStringList libDirectories = pro->variableValue(Variable::LibDirectories);
         if (!libDirectories.isEmpty()) {
-            const QString proDirectory = node->buildDir();
+            const QString proDirectory = pro->buildDir().toString();
             foreach (QString dir, libDirectories) {
                 // Fix up relative entries like "LIBS+=-L.."
                 const QFileInfo fi(dir);
@@ -415,11 +416,16 @@ void DesktopQmakeRunConfiguration::addToBaseEnvironment(Environment &env) const
                 env.prependOrSetLibrarySearchPath(dir);
             } // foreach
         } // libDirectories
-    } // node
+    } // pro
 
     QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(target()->kit());
     if (qtVersion && m_isUsingLibrarySearchPath)
         env.prependOrSetLibrarySearchPath(qtVersion->qmakeProperty("QT_INSTALL_LIBS"));
+}
+
+QString DesktopQmakeRunConfiguration::buildSystemTarget() const
+{
+    return qmakeProject()->mapProFilePathToTarget(m_proFilePath);
 }
 
 Utils::FileName DesktopQmakeRunConfiguration::proFilePath() const
@@ -432,19 +438,18 @@ QmakeProject *DesktopQmakeRunConfiguration::qmakeProject() const
     return static_cast<QmakeProject *>(target()->project());
 }
 
-QmakeProFileNode *DesktopQmakeRunConfiguration::projectNode() const
+QmakeProFile *DesktopQmakeRunConfiguration::proFile() const
 {
     QmakeProject *project = qmakeProject();
     QTC_ASSERT(project, return nullptr);
-    QmakeProFileNode *rootNode = project->rootProjectNode();
-    QTC_ASSERT(rootNode, return nullptr);
-    return rootNode->findProFileFor(m_proFilePath);
+    QmakeProFile *rootProFile = project->rootProFile();
+    return rootProFile ? rootProFile->findProFile(m_proFilePath) : nullptr;
 }
 
 QString DesktopQmakeRunConfiguration::defaultDisplayName()
 {
-    if (QmakeProFileNode *node = projectNode())
-        return node->displayName();
+    if (QmakeProFile *pro = proFile())
+        return pro->displayName();
 
     QString defaultName;
     if (!m_proFilePath.isEmpty())
@@ -459,32 +464,33 @@ OutputFormatter *DesktopQmakeRunConfiguration::createOutputFormatter() const
     return new QtSupport::QtOutputFormatter(target()->project());
 }
 
-QPair<QString, QString> DesktopQmakeRunConfiguration::extractWorkingDirAndExecutable(const QmakeProFileNode *node) const
+QPair<QString, QString> DesktopQmakeRunConfiguration::extractWorkingDirAndExecutable(const QmakeProFile *proFile) const
 {
-    if (!node)
-        return qMakePair(QString(), QString());
-    TargetInformation ti = node->targetInformation();
+    if (!proFile)
+        return {};
+
+    TargetInformation ti = proFile->targetInformation();
     if (!ti.valid)
         return qMakePair(QString(), QString());
 
-    const QStringList &config = node->variableValue(ConfigVar);
+    const QStringList &config = proFile->variableValue(Variable::Config);
 
-    QString destDir = ti.destDir;
+    QString destDir = ti.destDir.toString();
     QString workingDir;
     if (!destDir.isEmpty()) {
         bool workingDirIsBaseDir = false;
         if (destDir == ti.buildTarget)
             workingDirIsBaseDir = true;
         if (QDir::isRelativePath(destDir))
-            destDir = QDir::cleanPath(ti.buildDir + QLatin1Char('/') + destDir);
+            destDir = QDir::cleanPath(ti.buildDir.toString() + '/' + destDir);
 
         if (workingDirIsBaseDir)
-            workingDir = ti.buildDir;
+            workingDir = ti.buildDir.toString();
         else
             workingDir = destDir;
     } else {
-        destDir = ti.buildDir;
-        workingDir = ti.buildDir;
+        destDir = ti.buildDir.toString();
+        workingDir = ti.buildDir.toString();
     }
 
     if (HostOsInfo::isMacHost() && config.contains(QLatin1String("app_bundle"))) {
@@ -555,10 +561,7 @@ QList<Core::Id> DesktopQmakeRunConfigurationFactory::availableCreationIds(Target
         return QList<Core::Id>();
 
     QmakeProject *project = static_cast<QmakeProject *>(parent->project());
-    QList<QmakeProFileNode *> nodes = project->applicationProFiles();
-    if (mode == AutoCreate)
-        nodes = QmakeProject::nodesWithQtcRunnable(nodes);
-    return QmakeProject::idsForNodes(Core::Id(QMAKE_RC_PREFIX), nodes);
+    return project->creationIds(QMAKE_RC_PREFIX, mode);
 }
 
 QString DesktopQmakeRunConfigurationFactory::displayNameForId(Core::Id id) const

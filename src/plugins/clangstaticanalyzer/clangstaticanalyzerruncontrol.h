@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <debugger/analyzer/analyzerruncontrol.h>
+#include <projectexplorer/runconfiguration.h>
 #include <cpptools/projectinfo.h>
 #include <utils/environment.h>
 
@@ -47,25 +47,17 @@ struct AnalyzeUnit {
 };
 typedef QList<AnalyzeUnit> AnalyzeUnits;
 
-class ClangStaticAnalyzerRunControl : public ProjectExplorer::RunControl
+class ClangStaticAnalyzerToolRunner : public ProjectExplorer::RunWorker
 {
     Q_OBJECT
 
 public:
-    ClangStaticAnalyzerRunControl(ProjectExplorer::RunConfiguration *runConfiguration,
-                                  Core::Id runMode,
-                                  const CppTools::ProjectInfo &projectInfo);
+    explicit ClangStaticAnalyzerToolRunner(ProjectExplorer::RunControl *runControl);
 
     void start() override;
-    StopResult stop() override;
-    bool isRunning() const override;
+    void stop() override;
 
     bool success() const { return m_success; } // For testing.
-    bool supportsReRunning() const override { return false; }
-
-signals:
-    void newDiagnosticsAvailable(const QList<Diagnostic> &diagnostics);
-    void starting();
 
 private:
     AnalyzeUnits sortedUnitsToAnalyze();
@@ -82,8 +74,9 @@ private:
     void finalize();
 
 private:
-    const CppTools::ProjectInfo m_projectInfo;
+    CppTools::ProjectInfo m_projectInfo;
     QString m_targetTriple;
+    Core::Id m_toolChainType;
 
     Utils::Environment m_environment;
     QString m_clangExecutable;
@@ -91,11 +84,10 @@ private:
     QFutureInterface<void> m_progress;
     AnalyzeUnits m_unitsToProcess;
     QSet<ClangStaticAnalyzerRunner *> m_runners;
-    int m_initialFilesToProcessSize;
-    int m_filesAnalyzed;
-    int m_filesNotAnalyzed;
-    bool m_success;
-    bool m_running = false;
+    int m_initialFilesToProcessSize = 0;
+    int m_filesAnalyzed = 0;
+    int m_filesNotAnalyzed = 0;
+    bool m_success = false;
 };
 
 } // namespace Internal

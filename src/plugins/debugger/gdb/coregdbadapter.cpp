@@ -34,9 +34,10 @@
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
+#include <utils/temporarydirectory.h>
+#include <utils/temporaryfile.h>
 
 #include <QDir>
-#include <QTemporaryFile>
 
 using namespace Utils;
 using namespace ProjectExplorer;
@@ -53,9 +54,8 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
-GdbCoreEngine::GdbCoreEngine(const DebuggerRunParameters &startParameters)
-    : GdbEngine(startParameters),
-      m_coreUnpackProcess(0)
+GdbCoreEngine::GdbCoreEngine(bool useTerminal)
+    : GdbEngine(useTerminal)
 {}
 
 GdbCoreEngine::~GdbCoreEngine()
@@ -208,7 +208,7 @@ void GdbCoreEngine::setupInferior()
     // Do that first, otherwise no symbols are loaded.
     QFileInfo fi(m_executable);
     QString path = fi.absoluteFilePath();
-    runCommand({"-file-exec-and-symbols \"" + path + '"', NoFlags,
+    runCommand({"-file-exec-and-symbols \"" + path + '"',
                 CB(handleFileExecAndSymbols)});
 }
 
@@ -232,8 +232,7 @@ void GdbCoreEngine::handleFileExecAndSymbols(const DebuggerResponse &response)
 void GdbCoreEngine::runEngine()
 {
     CHECK_STATE(EngineRunRequested);
-    runCommand({"target core " + coreFileName(), NoFlags,
-                CB(handleTargetCore)});
+    runCommand({"target core " + coreFileName(), CB(handleTargetCore)});
 }
 
 void GdbCoreEngine::handleTargetCore(const DebuggerResponse &response)
@@ -253,7 +252,7 @@ void GdbCoreEngine::handleTargetCore(const DebuggerResponse &response)
     // symbols yet. Load them in order of importance.
     reloadStack();
     reloadModulesInternal();
-    runCommand({"p 5", NoFlags, CB(handleRoundTrip)});
+    runCommand({"p 5", CB(handleRoundTrip)});
 }
 
 void GdbCoreEngine::handleRoundTrip(const DebuggerResponse &response)
@@ -278,8 +277,7 @@ void GdbCoreEngine::shutdownEngine()
 
 static QString tempCoreFilename()
 {
-    QString pattern = QDir::tempPath() + QLatin1String("/tmpcore-XXXXXX");
-    QTemporaryFile tmp(pattern);
+    Utils::TemporaryFile tmp("tmpcore-XXXXXX");
     tmp.open();
     return tmp.fileName();
 }
@@ -293,7 +291,7 @@ void GdbCoreEngine::unpackCoreIfNeeded()
         showMessage(msg.arg(m_tempCoreName));
         arguments << QLatin1String("-o") << m_tempCoreName << QLatin1String("-x") << m_coreName;
         m_coreUnpackProcess = new QProcess(this);
-        m_coreUnpackProcess->setWorkingDirectory(QDir::tempPath());
+        m_coreUnpackProcess->setWorkingDirectory(Utils::TemporaryDirectory::masterDirectoryPath());
         m_coreUnpackProcess->start(QLatin1String("lzop"), arguments);
         connect(m_coreUnpackProcess, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
                 this, &GdbCoreEngine::continueSetupEngine);
@@ -304,7 +302,7 @@ void GdbCoreEngine::unpackCoreIfNeeded()
         m_tempCoreFile.open(QFile::WriteOnly);
         arguments << QLatin1String("-c") << QLatin1String("-d") << m_coreName;
         m_coreUnpackProcess = new QProcess(this);
-        m_coreUnpackProcess->setWorkingDirectory(QDir::tempPath());
+        m_coreUnpackProcess->setWorkingDirectory(Utils::TemporaryDirectory::masterDirectoryPath());
         m_coreUnpackProcess->start(QLatin1String("gzip"), arguments);
         connect(m_coreUnpackProcess, &QProcess::readyRead, this, &GdbCoreEngine::writeCoreChunk);
         connect(m_coreUnpackProcess, static_cast<void (QProcess::*)(int)>(&QProcess::finished),

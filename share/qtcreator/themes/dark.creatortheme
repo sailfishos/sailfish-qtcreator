@@ -117,10 +117,10 @@ SplitterColor=ff313131
 TextColorDisabled=textDisabled
 TextColorError=ffff4040
 TextColorHighlight=ffff0000
+TextColorHighlightBackground=555500
 TextColorLink=textColorLink
 TextColorLinkVisited=textColorLinkVisited
 TextColorNormal=text
-TodoItemTextColor=ff000000
 ToggleButtonBackgroundColor=shadowBackground
 ToolBarBackgroundColor=shadowBackground
 TreeViewArrowColorNormal=hoverBackground
@@ -214,6 +214,8 @@ PaletteTextDisabled=textDisabled
 
 QmlDesigner_BackgroundColor=ff3c3e40
 QmlDesigner_HighlightColor=ff46a2da
+QmlDesigner_FormEditorSelectionColor=ff4ba2ff
+QmlDesigner_FormEditorForegroundColor=ffffffff
 
 [Flags]
 ComboBoxDrawTextShadow=false

@@ -99,7 +99,7 @@ bool MerQmlRunConfiguration::isEnabled() const
 Runnable MerQmlRunConfiguration::runnable() const
 {
     auto project = qobject_cast<QmakeProject *>(target()->project());
-    const QString appName{project->rootProjectNode()->targetInformation().target};
+    const QString appName{project->rootProFile()->targetInformation().target};
 
     StandardRunnable r;
     r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();

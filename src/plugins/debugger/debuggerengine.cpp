@@ -63,7 +63,9 @@
 
 #include <utils/fileinprojectfinder.h>
 #include <utils/macroexpander.h>
+#include <utils/processhandle.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 #include <utils/savedaction.h>
 
 #include <QDebug>
@@ -80,14 +82,12 @@ using namespace Core;
 using namespace Debugger::Internal;
 using namespace ProjectExplorer;
 using namespace TextEditor;
+using namespace Utils;
 
 //#define WITH_BENCHMARK
 #ifdef WITH_BENCHMARK
 #include <valgrind/callgrind.h>
 #endif
-
-// VariableManager Prefix
-const char PrefixDebugExecutable[]  = "DebuggedExecutable";
 
 namespace Debugger {
 
@@ -106,7 +106,7 @@ QDebug operator<<(QDebug str, const DebuggerRunParameters &sp)
             << " inferior environment=<" << sp.inferior.environment.size() << " variables>"
             << " debugger environment=<" << sp.debugger.environment.size() << " variables>"
             << " workingDir=" << sp.inferior.workingDirectory
-            << " attachPID=" << sp.attachPID
+            << " attachPID=" << sp.attachPID.pid()
             << " useTerminal=" << sp.useTerminal
             << " remoteChannel=" << sp.remoteChannel
             << " serverStartScript=" << sp.serverStartScript
@@ -210,23 +210,13 @@ private:
 //
 //////////////////////////////////////////////////////////////////////
 
-// transitions:
-//   None->Requested
-//   Requested->Succeeded
-//   Requested->Failed
-//   Requested->Cancelled
-enum RemoteSetupState { RemoteSetupNone, RemoteSetupRequested,
-                        RemoteSetupSucceeded, RemoteSetupFailed,
-                        RemoteSetupCancelled };
-
 class DebuggerEnginePrivate : public QObject
 {
     Q_OBJECT
 
 public:
-    DebuggerEnginePrivate(DebuggerEngine *engine, const DebuggerRunParameters &sp)
+    DebuggerEnginePrivate(DebuggerEngine *engine)
       : m_engine(engine),
-        m_runParameters(sp),
         m_modulesHandler(engine),
         m_registerHandler(engine),
         m_sourceFilesHandler(engine),
@@ -240,10 +230,6 @@ public:
                 this, &DebuggerEnginePrivate::resetLocation);
         connect(action(IntelFlavor), &Utils::SavedAction::valueChanged,
                 this, &DebuggerEnginePrivate::reloadDisassembly);
-
-        Utils::globalMacroExpander()->registerFileVariables(PrefixDebugExecutable,
-            tr("Debugged executable"),
-            [this] { return m_runParameters.inferior.executable; });
     }
 
     void doSetupEngine();
@@ -306,12 +292,6 @@ public:
         }
     }
 
-    void raiseApplication()
-    {
-        QTC_ASSERT(runControl(), return);
-        runControl()->bringApplicationToForeground(m_inferiorPid);
-    }
-
     void scheduleResetLocation()
     {
         m_stackHandler.scheduleResetLocation();
@@ -336,17 +316,14 @@ public:
 
 public:
     DebuggerState state() const { return m_state; }
-    RemoteSetupState remoteSetupState() const { return m_remoteSetupState; }
     bool isMasterEngine() const { return m_engine->isMasterEngine(); }
-    DebuggerRunControl *runControl() const
-        { return m_masterEngine ? m_masterEngine->runControl() : m_runControl; }
-    void setRemoteSetupState(RemoteSetupState state);
+    DebuggerRunTool *runTool() const
+        { return m_masterEngine ? m_masterEngine->runTool() : m_runTool.data(); }
+    RunControl *runControl() const;
 
     DebuggerEngine *m_engine = nullptr; // Not owned.
     DebuggerEngine *m_masterEngine = nullptr; // Not owned
-    DebuggerRunControl *m_runControl = nullptr;  // Not owned.
-
-    DebuggerRunParameters m_runParameters;
+    QPointer<DebuggerRunTool> m_runTool;  // Not owned.
 
     // The current state.
     DebuggerState m_state = DebuggerNotReady;
@@ -354,14 +331,8 @@ public:
     // The state we had before something unexpected happend.
     DebuggerState m_lastGoodState = DebuggerNotReady;
 
-    // The state we are aiming for.
-    DebuggerState m_targetState = DebuggerNotReady;
-
-    // State of RemoteSetup signal/slots.
-    RemoteSetupState m_remoteSetupState = RemoteSetupNone;
-
     Terminal m_terminal;
-    qint64 m_inferiorPid = 0;
+    ProcessHandle m_inferiorPid;
 
     ModulesHandler m_modulesHandler;
     RegisterHandler m_registerHandler;
@@ -393,9 +364,10 @@ public:
 //
 //////////////////////////////////////////////////////////////////////
 
-DebuggerEngine::DebuggerEngine(const DebuggerRunParameters &startParameters)
-  : d(new DebuggerEnginePrivate(this, startParameters))
-{}
+DebuggerEngine::DebuggerEngine()
+  : d(new DebuggerEnginePrivate(this))
+{
+}
 
 DebuggerEngine::~DebuggerEngine()
 {
@@ -454,11 +426,6 @@ void DebuggerEngine::frameDown()
 
 void DebuggerEngine::doUpdateLocals(const UpdateParameters &)
 {
-}
-
-void DebuggerEngine::setTargetState(DebuggerState state)
-{
-    d->m_targetState = state;
 }
 
 ModulesHandler *DebuggerEngine::modulesHandler() const
@@ -551,36 +518,15 @@ void DebuggerEngine::setRegisterValue(const QString &name, const QString &value)
     Q_UNUSED(value);
 }
 
-void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) const
+void DebuggerEngine::setRunTool(DebuggerRunTool *runTool)
 {
-    if (d->m_masterEngine) {
-        d->m_masterEngine->showMessage(msg, channel, timeout);
-        return;
-    }
-    //if (msg.size() && msg.at(0).isUpper() && msg.at(1).isUpper())
-    //    qDebug() << qPrintable(msg) << "IN STATE" << state();
-    if (channel == ConsoleOutput)
-        debuggerConsole()->printItem(ConsoleItem::DefaultType, msg);
-
-    Internal::showMessage(msg, channel, timeout);
-    switch (channel) {
-    case AppOutput:
-    case AppError:
-    case AppStuff:
-        if (d->m_runControl)
-            d->m_runControl->handleApplicationOutput(msg, channel);
-        else
-            qWarning("Warning: %s (no active run control)", qPrintable(msg));
-        break;
-    default:
-        break;
-    }
+    QTC_ASSERT(!d->m_runTool, notifyEngineSetupFailed(); return);
+    d->m_runTool = runTool;
 }
 
-void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
+void DebuggerEngine::start()
 {
-    QTC_ASSERT(runControl, notifyEngineSetupFailed(); return);
-    QTC_ASSERT(!d->m_runControl, notifyEngineSetupFailed(); return);
+    QTC_ASSERT(d->m_runTool, notifyEngineSetupFailed(); return);
 
     d->m_progress.setProgressRange(0, 1000);
     FutureProgress *fp = ProgressManager::addTask(d->m_progress.future(),
@@ -589,38 +535,36 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     fp->setKeepOnFinish(FutureProgress::HideOnFinish);
     d->m_progress.reportStarted();
 
-    d->m_runControl = runControl;
-
-    d->m_inferiorPid = d->m_runParameters.attachPID > 0
-        ? d->m_runParameters.attachPID : 0;
-    if (d->m_inferiorPid)
-        d->m_runControl->setApplicationProcessHandle(ProcessHandle(d->m_inferiorPid));
+    DebuggerRunParameters &rp = runParameters();
+    d->m_inferiorPid = rp.attachPID.isValid() ? rp.attachPID : ProcessHandle();
+    if (d->m_inferiorPid.isValid())
+        runControl()->setApplicationProcessHandle(d->m_inferiorPid);
 
     if (isNativeMixedActive())
-        d->m_runParameters.inferior.environment.set("QV4_FORCE_INTERPRETER", "1");
+        rp.inferior.environment.set("QV4_FORCE_INTERPRETER", "1");
 
     action(OperateByInstruction)->setEnabled(hasCapability(DisassemblerCapability));
 
     QTC_ASSERT(state() == DebuggerNotReady || state() == DebuggerFinished,
          qDebug() << state());
     d->m_lastGoodState = DebuggerNotReady;
-    d->m_targetState = DebuggerNotReady;
     d->m_progress.setProgressValue(200);
 
     d->m_terminal.setup();
     if (d->m_terminal.isUsable()) {
-        connect(&d->m_terminal, &Terminal::stdOutReady, [this, runControl](const QString &msg) {
-            runControl->appendMessage(msg, Utils::StdOutFormatSameLine);
+        connect(&d->m_terminal, &Terminal::stdOutReady, [this](const QString &msg) {
+            d->m_runTool->appendMessage(msg, Utils::StdOutFormatSameLine);
         });
-        connect(&d->m_terminal, &Terminal::stdErrReady, [this, runControl](const QString &msg) {
-            runControl->appendMessage(msg, Utils::StdErrFormatSameLine);
+        connect(&d->m_terminal, &Terminal::stdErrReady, [this](const QString &msg) {
+            d->m_runTool->appendMessage(msg, Utils::StdErrFormatSameLine);
         });
-        connect(&d->m_terminal, &Terminal::error, [this, runControl](const QString &msg) {
-            runControl->appendMessage(msg, Utils::ErrorMessageFormat);
+        connect(&d->m_terminal, &Terminal::error, [this](const QString &msg) {
+            d->m_runTool->appendMessage(msg, Utils::ErrorMessageFormat);
         });
     }
 
     d->queueSetupEngine();
+    QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
 }
 
 void DebuggerEngine::resetLocation()
@@ -665,7 +609,7 @@ void DebuggerEngine::gotoLocation(const Location &loc)
 void DebuggerEngine::handleStartFailed()
 {
     showMessage("HANDLE RUNCONTROL START FAILED");
-    d->m_runControl = 0;
+    d->m_runTool.clear();
     d->m_progress.setProgressValue(900);
     d->m_progress.reportCanceled();
     d->m_progress.reportFinished();
@@ -675,7 +619,7 @@ void DebuggerEngine::handleStartFailed()
 void DebuggerEngine::handleFinished()
 {
     showMessage("HANDLE RUNCONTROL FINISHED");
-    d->m_runControl = 0;
+    d->m_runTool.clear();
     d->m_progress.setProgressValue(1000);
     d->m_progress.reportFinished();
     modulesHandler()->removeAll();
@@ -686,12 +630,12 @@ void DebuggerEngine::handleFinished()
 
 const DebuggerRunParameters &DebuggerEngine::runParameters() const
 {
-    return d->m_runParameters;
+    return runTool()->runParameters();
 }
 
 DebuggerRunParameters &DebuggerEngine::runParameters()
 {
-    return d->m_runParameters;
+    return runTool()->runParameters();
 }
 
 DebuggerState DebuggerEngine::state() const
@@ -702,11 +646,6 @@ DebuggerState DebuggerEngine::state() const
 DebuggerState DebuggerEngine::lastGoodState() const
 {
     return d->m_lastGoodState;
-}
-
-DebuggerState DebuggerEngine::targetState() const
-{
-    return d->m_targetState;
 }
 
 static bool isAllowedTransition(DebuggerState from, DebuggerState to)
@@ -791,39 +730,29 @@ void DebuggerEnginePrivate::doSetupEngine()
 {
     m_engine->showMessage("CALL: SETUP ENGINE");
     QTC_ASSERT(state() == EngineSetupRequested, qDebug() << m_engine << state());
-    m_engine->validateExecutable(&m_runParameters);
+    m_engine->validateExecutable();
     m_engine->setupEngine();
 }
 
 void DebuggerEngine::notifyEngineSetupFailed()
 {
     showMessage("NOTE: ENGINE SETUP FAILED");
-    QTC_ASSERT(d->remoteSetupState() == RemoteSetupNone
-               || d->remoteSetupState() == RemoteSetupRequested
-               || d->remoteSetupState() == RemoteSetupSucceeded,
-               qDebug() << this << "remoteSetupState" << d->remoteSetupState());
-    if (d->remoteSetupState() == RemoteSetupRequested)
-        d->setRemoteSetupState(RemoteSetupCancelled);
-
     QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
     setState(EngineSetupFailed);
-    if (isMasterEngine() && runControl())
-        runControl()->startFailed();
+    if (isMasterEngine() && runTool())
+        runTool()->startFailed();
     setState(DebuggerFinished);
 }
 
 void DebuggerEngine::notifyEngineSetupOk()
 {
     showMessage("NOTE: ENGINE SETUP OK");
-    QTC_ASSERT(d->remoteSetupState() == RemoteSetupNone
-               || d->remoteSetupState() == RemoteSetupSucceeded,
-               qDebug() << this << "remoteSetupState" << d->remoteSetupState());
-
     QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
     setState(EngineSetupOk);
-    showMessage("QUEUE: SETUP INFERIOR");
-    if (isMasterEngine())
+    if (isMasterEngine() && runTool()) {
+        runTool()->reportStarted();
         d->queueSetupInferior();
+    }
 }
 
 void DebuggerEngine::setupSlaveInferior()
@@ -855,7 +784,8 @@ void DebuggerEngine::notifyInferiorSetupOk()
 #ifdef WITH_BENCHMARK
     CALLGRIND_START_INSTRUMENTATION;
 #endif
-    aboutToNotifyInferiorSetupOk();
+    if (isMasterEngine())
+        runTool()->aboutToNotifyInferiorSetupOk(); // FIXME: Remove, only used for Android.
     showMessage("NOTE: INFERIOR SETUP OK");
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << this << state());
     setState(InferiorSetupOk);
@@ -899,63 +829,6 @@ void DebuggerEngine::notifyEngineRunFailed()
     setState(EngineRunFailed);
     if (isMasterEngine())
         d->queueShutdownEngine();
-}
-
-void DebuggerEngine::notifyEngineRequestRemoteSetup()
-{
-    showMessage("NOTE: REQUEST REMOTE SETUP");
-    QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
-    QTC_ASSERT(d->remoteSetupState() == RemoteSetupNone, qDebug() << this
-               << "remoteSetupState" << d->remoteSetupState());
-
-    d->setRemoteSetupState(RemoteSetupRequested);
-    emit requestRemoteSetup();
-}
-
-void DebuggerEngine::notifyEngineRemoteServerRunning(const QString &, int /*pid*/)
-{
-    showMessage("NOTE: REMOTE SERVER RUNNING IN MULTIMODE");
-}
-
-void DebuggerEngine::notifyEngineRemoteSetupFinished(const RemoteSetupResult &result)
-{
-    QTC_ASSERT(state() == EngineSetupRequested
-               || state() == EngineSetupFailed
-               || state() == DebuggerFinished, qDebug() << this << state());
-
-    QTC_ASSERT(d->remoteSetupState() == RemoteSetupRequested
-               || d->remoteSetupState() == RemoteSetupCancelled,
-               qDebug() << this << "remoteSetupState" << d->remoteSetupState());
-
-    if (result.success) {
-        showMessage(QString("NOTE: REMOTE SETUP DONE: GDB SERVER PORT: %1  QML PORT %2")
-                    .arg(result.gdbServerPort.number()).arg(result.qmlServerPort.number()));
-
-        if (d->remoteSetupState() != RemoteSetupCancelled)
-            d->setRemoteSetupState(RemoteSetupSucceeded);
-
-        if (result.gdbServerPort.isValid()) {
-            QString &rc = d->m_runParameters.remoteChannel;
-            const int sepIndex = rc.lastIndexOf(':');
-            if (sepIndex != -1) {
-                rc.replace(sepIndex + 1, rc.count() - sepIndex - 1,
-                           QString::number(result.gdbServerPort.number()));
-            }
-        } else if (result.inferiorPid != InvalidPid && runParameters().startMode == AttachExternal) {
-            // e.g. iOS Simulator
-            runParameters().attachPID = result.inferiorPid;
-        }
-
-        if (result.qmlServerPort.isValid()) {
-            d->m_runParameters.qmlServer.port = result.qmlServerPort;
-            d->m_runParameters.inferior.commandLineArguments.replace("%qml_port%",
-                            QString::number(result.qmlServerPort.number()));
-        }
-
-    } else {
-        d->setRemoteSetupState(RemoteSetupFailed);
-        showMessage("NOTE: REMOTE SETUP FAILED: " + result.reason);
-    }
 }
 
 void DebuggerEngine::notifyEngineRunAndInferiorRunOk()
@@ -1068,7 +941,6 @@ void DebuggerEnginePrivate::doShutdownInferior()
     //QTC_ASSERT(isMasterEngine(), return);
     QTC_ASSERT(state() == InferiorShutdownRequested, qDebug() << m_engine << state());
     resetLocation();
-    m_targetState = DebuggerFinished;
     m_engine->showMessage("CALL: SHUTDOWN INFERIOR");
     m_engine->shutdownInferior();
 }
@@ -1097,7 +969,7 @@ void DebuggerEngine::notifyInferiorIll()
     showMessage("NOTE: INFERIOR ILL");
     // This can be issued in almost any state. The inferior could still be
     // alive as some previous notifications might have been bogus.
-    d->m_targetState = DebuggerFinished;
+    runTool()->startDying();
     d->m_lastGoodState = d->m_state;
     if (state() == InferiorRunRequested) {
         // We asked for running, but did not see a response.
@@ -1120,7 +992,8 @@ void DebuggerEnginePrivate::doShutdownEngine()
 {
     QTC_ASSERT(isMasterEngine(), qDebug() << m_engine; return);
     QTC_ASSERT(state() == EngineShutdownRequested, qDebug() << m_engine << state());
-    m_targetState = DebuggerFinished;
+    QTC_ASSERT(runTool(), return);
+    runTool()->startDying();
     m_engine->showMessage("CALL: SHUTDOWN ENGINE");
     m_engine->shutdownEngine();
 }
@@ -1145,39 +1018,24 @@ void DebuggerEnginePrivate::doFinishDebugger()
 {
     m_engine->showMessage("NOTE: FINISH DEBUGGER");
     QTC_ASSERT(state() == DebuggerFinished, qDebug() << m_engine << state());
-    if (isMasterEngine() && m_runControl)
-        m_runControl->debuggingFinished();
+    if (isMasterEngine() && m_runTool)
+        m_runTool->debuggingFinished();
 }
 
-void DebuggerEnginePrivate::setRemoteSetupState(RemoteSetupState state)
+RunControl *DebuggerEnginePrivate::runControl() const
 {
-    bool allowedTransition = false;
-    if (m_remoteSetupState == RemoteSetupNone) {
-        if (state == RemoteSetupRequested)
-            allowedTransition = true;
-    }
-    if (m_remoteSetupState == RemoteSetupRequested) {
-        if (state == RemoteSetupCancelled
-                || state == RemoteSetupSucceeded
-                || state == RemoteSetupFailed)
-            allowedTransition = true;
-    }
-
-
-    if (!allowedTransition)
-        qDebug() << "*** UNEXPECTED REMOTE SETUP TRANSITION from"
-                 << m_remoteSetupState << "to" << state;
-    m_remoteSetupState = state;
+    DebuggerRunTool *tool = runTool();
+    return tool ? tool->runControl() : nullptr;
 }
 
 void DebuggerEngine::notifyEngineIll()
 {
-#ifdef WITH_BENCHMARK
-    CALLGRIND_STOP_INSTRUMENTATION;
-    CALLGRIND_DUMP_STATS;
-#endif
+//#ifdef WITH_BENCHMARK
+//    CALLGRIND_STOP_INSTRUMENTATION;
+//    CALLGRIND_DUMP_STATS;
+//#endif
     showMessage("NOTE: ENGINE ILL ******");
-    d->m_targetState = DebuggerFinished;
+    runTool()->startDying();
     d->m_lastGoodState = d->m_state;
     switch (state()) {
         case InferiorRunRequested:
@@ -1317,8 +1175,6 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
     showMessage(msg, LogDebug);
     updateViews();
 
-    emit stateChanged(d->m_state);
-
     if (isSlaveEngine())
         masterEngine()->slaveEngineStateChanged(this, state);
 }
@@ -1327,8 +1183,7 @@ void DebuggerEngine::updateViews()
 {
     // The slave engines are not entitled to change the view. Their wishes
     // should be coordinated by their master engine.
-    if (isMasterEngine())
-        Internal::updateState(this);
+    Internal::updateState(runTool());
 }
 
 bool DebuggerEngine::isSlaveEngine() const
@@ -1375,7 +1230,37 @@ void DebuggerEngine::removeBreakpointMarker(const Breakpoint &bp)
 
 QString DebuggerEngine::expand(const QString &string) const
 {
-    return d->m_runParameters.macroExpander->expand(string);
+    return runParameters().macroExpander->expand(string);
+}
+
+QString DebuggerEngine::nativeStartupCommands() const
+{
+    return expand(QStringList({stringSetting(GdbStartupCommands),
+                               runParameters().additionalStartupCommands}).join('\n'));
+}
+
+bool DebuggerEngine::prepareCommand()
+{
+    if (HostOsInfo::isWindowsHost()) {
+        DebuggerRunParameters &rp = runParameters();
+        QtcProcess::SplitError perr;
+        rp.inferior.commandLineArguments =
+                QtcProcess::prepareArgs(rp.inferior.commandLineArguments, &perr,
+                                        HostOsInfo::hostOs(), nullptr,
+                                        &rp.inferior.workingDirectory).toWindowsArgs();
+        if (perr != QtcProcess::SplitOk) {
+            // perr == BadQuoting is never returned on Windows
+            // FIXME? QTCREATORBUG-2809
+            showMessage("ADAPTER START FAILED");
+            const QString title = tr("Adapter start failed");
+            const QString msg = tr("Debugging complex command lines "
+                                   "is currently not supported on Windows.");
+            ICore::showWarningWithOptions(title, msg);
+            notifyEngineSetupFailed();
+            return false;
+        }
+    }
+    return true;
 }
 
 void DebuggerEngine::updateBreakpointMarker(const Breakpoint &bp)
@@ -1420,23 +1305,23 @@ bool DebuggerEngine::debuggerActionsEnabled(DebuggerState state)
     return false;
 }
 
-void DebuggerEngine::notifyInferiorPid(qint64 pid)
+void DebuggerEngine::notifyInferiorPid(const ProcessHandle &pid)
 {
     if (d->m_inferiorPid == pid)
         return;
     d->m_inferiorPid = pid;
-    if (pid) {
-        showMessage(tr("Taking notice of pid %1").arg(pid));
-        if (d->m_runParameters.startMode == StartInternal
-            || d->m_runParameters.startMode == StartExternal
-            || d->m_runParameters.startMode == AttachExternal)
-        QTimer::singleShot(0, d, &DebuggerEnginePrivate::raiseApplication);
+    if (pid.isValid()) {
+        runControl()->setApplicationProcessHandle(pid);
+        showMessage(tr("Taking notice of pid %1").arg(pid.pid()));
+        DebuggerStartMode sm = runParameters().startMode;
+        if (sm == StartInternal || sm == StartExternal || sm == AttachExternal)
+            d->m_inferiorPid.activate();
     }
 }
 
 qint64 DebuggerEngine::inferiorPid() const
 {
-    return d->m_inferiorPid;
+    return d->m_inferiorPid.pid();
 }
 
 bool DebuggerEngine::isReverseDebugging() const
@@ -1444,14 +1329,22 @@ bool DebuggerEngine::isReverseDebugging() const
     return Internal::isReverseDebugging();
 }
 
+void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) const
+{
+    if (DebuggerRunTool *tool = runTool())
+        tool->showMessage(msg, channel, timeout);
+}
+
 // Called by DebuggerRunControl.
 void DebuggerEngine::quitDebugger()
 {
     showMessage(QString("QUIT DEBUGGER REQUESTED IN STATE %1").arg(state()));
-    d->m_targetState = DebuggerFinished;
+    QTC_ASSERT(runTool(), return);
+    runTool()->startDying();
     switch (state()) {
     case InferiorStopOk:
     case InferiorStopFailed:
+    case InferiorUnrunnable:
         d->queueShutdownInferior();
         break;
     case InferiorRunOk:
@@ -1468,6 +1361,7 @@ void DebuggerEngine::quitDebugger()
         notifyEngineRunFailed();
         break;
     case EngineShutdownRequested:
+    case InferiorShutdownRequested:
         break;
     case EngineRunFailed:
     case DebuggerFinished:
@@ -1500,9 +1394,14 @@ void DebuggerEngine::progressPing()
     d->m_progress.setProgressValue(progress);
 }
 
-DebuggerRunControl *DebuggerEngine::runControl() const
+RunControl *DebuggerEngine::runControl() const
 {
     return d->runControl();
+}
+
+DebuggerRunTool *DebuggerEngine::runTool() const
+{
+    return d->m_runTool.data();
 }
 
 Terminal *DebuggerEngine::terminal() const
@@ -1514,8 +1413,20 @@ void DebuggerEngine::selectWatchData(const QString &)
 {
 }
 
-void DebuggerEngine::watchPoint(const QPoint &)
+void DebuggerEngine::watchPoint(const QPoint &pnt)
 {
+    DebuggerCommand cmd("watchPoint", NeedsFullStop);
+    cmd.arg("x", pnt.x());
+    cmd.arg("y", pnt.y());
+    cmd.callback = [this](const DebuggerResponse &response) {
+        qulonglong addr = response.data["selected"].toAddress();
+        if (addr == 0)
+            showStatusMessage(tr("Could not find a widget."));
+        // Add the watcher entry nevertheless, as that's the place where
+        // the user expects visual feedback.
+        watchHandler()->watchExpression(response.data["expr"].data(), QString(), true);
+    };
+    runCommand(cmd);
 }
 
 void DebuggerEngine::runCommand(const DebuggerCommand &)
@@ -1726,13 +1637,6 @@ void DebuggerEngine::detachDebugger()
 {
 }
 
-void DebuggerEngine::exitDebugger()
-{
-    QTC_ASSERT(d->m_state == InferiorStopOk || d->m_state == InferiorUnrunnable
-        || d->m_state == InferiorRunOk, qDebug() << d->m_state);
-    quitDebugger();
-}
-
 void DebuggerEngine::executeStep()
 {
 }
@@ -1789,7 +1693,7 @@ BreakHandler *DebuggerEngine::breakHandler() const
 
 bool DebuggerEngine::isDying() const
 {
-    return targetState() == DebuggerFinished;
+    return !runTool() || runTool()->isDying();
 }
 
 QString DebuggerEngine::msgStopped(const QString &reason)
@@ -1867,8 +1771,9 @@ void DebuggerEngine::setStateDebugging(bool on)
     d->m_isStateDebugging = on;
 }
 
-void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
+void DebuggerEngine::validateExecutable()
 {
+    DebuggerRunParameters *sp = &runParameters();
     if (sp->skipExecutableValidation)
         return;
     if (sp->languages == QmlLanguage)
@@ -1885,14 +1790,23 @@ void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
     QString detailedWarning;
     switch (sp->toolChainAbi.binaryFormat()) {
     case Abi::PEFormat: {
-        if (sp->masterEngineType != CdbEngineType) {
+        QString preferredDebugger;
+        if (sp->toolChainAbi.osFlavor() == Abi::WindowsMSysFlavor) {
+            if (sp->cppEngineType == CdbEngineType)
+                preferredDebugger = "GDB";
+        } else if (sp->cppEngineType != CdbEngineType) {
+            // osFlavor() is MSVC, so the recommended debugger is CDB
+            preferredDebugger = "CDB";
+        }
+        if (!preferredDebugger.isEmpty()) {
             warnOnInappropriateDebugger = true;
             detailedWarning = tr(
                         "The inferior is in the Portable Executable format.\n"
-                        "Selecting CDB as debugger would improve the debugging "
-                        "experience for this binary format.");
-            return;
-        } else if (warnOnRelease) {
+                        "Selecting %1 as debugger would improve the debugging "
+                        "experience for this binary format.").arg(preferredDebugger);
+            break;
+        }
+        if (warnOnRelease && sp->cppEngineType == CdbEngineType) {
             if (!symbolFile.endsWith(".exe", Qt::CaseInsensitive))
                 symbolFile.append(".exe");
             QString errorMessage;
@@ -1909,13 +1823,13 @@ void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
         break;
     }
     case Abi::ElfFormat: {
-        if (sp->masterEngineType == CdbEngineType) {
+        if (sp->cppEngineType == CdbEngineType) {
             warnOnInappropriateDebugger = true;
             detailedWarning = tr(
                         "The inferior is in the ELF format.\n"
                         "Selecting GDB or LLDB as debugger would improve the debugging "
                         "experience for this binary format.");
-            return;
+            break;
         }
 
         Utils::ElfReader reader(symbolFile);
@@ -2013,7 +1927,7 @@ void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
     }
     if (warnOnInappropriateDebugger) {
         AsynchronousMessageBox::information(tr("Warning"),
-                tr("The selected debugger may be inappropiate for the inferior.\n"
+                tr("The selected debugger may be inappropriate for the inferior.\n"
                    "Examining symbols and setting breakpoints by file name and line number "
                    "may fail.\n")
                + '\n' + detailedWarning);
@@ -2106,7 +2020,7 @@ void DebuggerEngine::checkState(DebuggerState state, const char *file, int line)
         return;
 
     QString msg = QString("UNEXPECTED STATE: %1  WANTED: %2 IN %3:%4")
-                .arg(current).arg(state).arg(QLatin1String(file)).arg(line);
+                .arg(stateName(current)).arg(stateName(state)).arg(QLatin1String(file)).arg(line);
 
     showMessage(msg, LogError);
     qDebug("%s", qPrintable(msg));
@@ -2114,7 +2028,11 @@ void DebuggerEngine::checkState(DebuggerState state, const char *file, int line)
 
 bool DebuggerEngine::isNativeMixedEnabled() const
 {
-    return runParameters().nativeMixedEnabled && (runParameters().languages & QmlLanguage);
+    if (DebuggerRunTool *rt = runTool()) {
+        const DebuggerRunParameters &runParams = rt->runParameters();
+        return runParams.nativeMixedEnabled && (runParams.languages & QmlLanguage);
+    }
+    return false;
 }
 
 bool DebuggerEngine::isNativeMixedActive() const

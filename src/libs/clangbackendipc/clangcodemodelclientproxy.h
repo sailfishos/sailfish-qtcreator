@@ -57,16 +57,17 @@ public:
     void translationUnitDoesNotExist(const TranslationUnitDoesNotExistMessage &message) override;
     void projectPartsDoNotExist(const ProjectPartsDoNotExistMessage &message) override;
     void documentAnnotationsChanged(const DocumentAnnotationsChangedMessage &message) override;
+    void references(const ReferencesMessage &message) override;
 
     void readMessages();
 
     bool isUsingThatIoDevice(QIODevice *ioDevice) const;
 
 private:
-    ClangBackEnd::WriteMessageBlock writeMessageBlock;
-    ClangBackEnd::ReadMessageBlock readMessageBlock;
-    ClangCodeModelServerInterface *server = nullptr;
-    QIODevice *ioDevice = nullptr;
+    ClangBackEnd::WriteMessageBlock m_writeMessageBlock;
+    ClangBackEnd::ReadMessageBlock m_readMessageBlock;
+    ClangCodeModelServerInterface *m_server = nullptr;
+    QIODevice *m_ioDevice = nullptr;
 };
 
 } // namespace ClangBackEnd

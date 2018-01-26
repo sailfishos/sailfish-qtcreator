@@ -24,8 +24,9 @@
 ****************************************************************************/
 
 #include "qmlprofilerplugin.h"
-#include "qmlprofilerruncontrolfactory.h"
+#include "qmlprofilerrunconfigurationaspect.h"
 #include "qmlprofileroptionspage.h"
+#include "qmlprofilerruncontrol.h"
 #include "qmlprofilertool.h"
 #include "qmlprofilertimelinemodel.h"
 
@@ -47,6 +48,7 @@
 #include "tests/qmlprofilerbindingloopsrenderpass_test.h"
 #include "tests/qmlprofilerclientmanager_test.h"
 #include "tests/qmlprofilerconfigwidget_test.h"
+#include "tests/qmlprofilertraceview_test.h"
 
 // Force QML Debugging to be enabled, so that we can selftest the profiler
 #define QT_QML_DEBUG_NO_WARNING
@@ -57,9 +59,18 @@
 #endif // WITH_TESTS
 
 #include <extensionsystem/pluginmanager.h>
+
+#include <projectexplorer/environmentaspect.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/target.h>
+
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QtPlugin>
+
+using namespace ProjectExplorer;
 
 namespace QmlProfiler {
 namespace Internal {
@@ -78,14 +89,31 @@ bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorS
 
 void QmlProfilerPlugin::extensionsInitialized()
 {
-    (void) new QmlProfilerTool(this);
+    m_profilerTool = new QmlProfilerTool(this);
 
-    addAutoReleasedObject(new QmlProfilerRunControlFactory());
-    addAutoReleasedObject(new Internal::QmlProfilerOptionsPage());
+    addAutoReleasedObject(new QmlProfilerOptionsPage);
+
+    RunConfiguration::registerAspect<QmlProfilerRunConfigurationAspect>();
+
+    auto constraint = [](RunConfiguration *runConfiguration) {
+        Target *target = runConfiguration ? runConfiguration->target() : nullptr;
+        Kit *kit = target ? target->kit() : nullptr;
+        return DeviceTypeKitInformation::deviceTypeId(kit)
+                == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
+    };
+
+    RunControl::registerWorkerCreator(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
+        [this](RunControl *runControl) { return new QmlProfilerRunner(runControl); });
+
+    RunControl::registerWorker<LocalQmlProfilerSupport>
+            (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, constraint);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
 {
+    delete m_profilerTool;
+    m_profilerTool = nullptr;
+
     // Save settings.
     // Disconnect from signals that are not needed during shutdown
     // Hide UI (if you add UI that is not in the main window directly)
@@ -117,6 +145,7 @@ QList<QObject *> QmlProfiler::Internal::QmlProfilerPlugin::createTestObjects() c
     tests << new QmlProfilerBindingLoopsRenderPassTest;
     tests << new QmlProfilerClientManagerTest;
     tests << new QmlProfilerConfigWidgetTest;
+    tests << new QmlProfilerTraceViewTest;
 
     tests << new QQmlEngine; // Trigger debug connector to be started
 #endif

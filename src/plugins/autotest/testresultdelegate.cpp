@@ -31,7 +31,6 @@
 #include <utils/qtcassert.h>
 
 #include <QAbstractItemView>
-#include <QDebug>
 #include <QPainter>
 #include <QTextLayout>
 
@@ -39,6 +38,12 @@ namespace Autotest {
 namespace Internal {
 
 const static int outputLimit = 100000;
+
+static bool isSummaryItem(Result::Type type)
+{
+    return type == Result::MessageTestCaseSuccess || type == Result::MessageTestCaseSuccessWarn
+            || type == Result::MessageTestCaseFail || type == Result::MessageTestCaseFailWarn;
+}
 
 TestResultDelegate::TestResultDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -49,21 +54,19 @@ void TestResultDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
 {
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
-    // make sure we paint the complete delegate instead of keeping an offset
-    opt.rect.adjust(-opt.rect.x(), 0, 0, 0);
     painter->save();
 
     QFontMetrics fm(opt.font);
     QColor foreground;
 
     const QAbstractItemView *view = qobject_cast<const QAbstractItemView *>(opt.widget);
-    const bool selected = view->selectionModel()->currentIndex() == index;
+    const bool selected = opt.state & QStyle::State_Selected;
 
     if (selected) {
         painter->setBrush(opt.palette.highlight().color());
         foreground = opt.palette.highlightedText().color();
     } else {
-        painter->setBrush(opt.palette.background().color());
+        painter->setBrush(opt.palette.window().color());
         foreground = opt.palette.text().color();
     }
     painter->setPen(Qt::NoPen);
@@ -75,11 +78,6 @@ void TestResultDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
     const TestResult *testResult = resultFilterModel->testResult(index);
     QTC_ASSERT(testResult, painter->restore();return);
 
-    // draw the indicator by ourself as we paint across it with the delegate
-    QStyleOptionViewItem indicatorOpt = option;
-    indicatorOpt.rect = QRect(0, opt.rect.y(), positions.indentation(), opt.rect.height());
-    opt.widget->style()->drawPrimitive(QStyle::PE_IndicatorBranch, &indicatorOpt, painter);
-
     QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
     if (!icon.isNull())
         painter->drawPixmap(positions.left(), positions.top(),
@@ -90,7 +88,10 @@ void TestResultDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         painter->drawText(positions.typeAreaLeft(), positions.top() + fm.ascent(), typeStr);
     } else {
         QPen tmp = painter->pen();
-        painter->setPen(TestResult::colorForType(testResult->result()));
+        if (isSummaryItem(testResult->result()))
+            painter->setPen(opt.palette.mid().color());
+        else
+            painter->setPen(TestResult::colorForType(testResult->result()));
         painter->drawText(positions.typeAreaLeft(), positions.top() + fm.ascent(), typeStr);
         painter->setPen(tmp);
     }
@@ -140,7 +141,6 @@ QSize TestResultDelegate::sizeHint(const QStyleOptionViewItem &option, const QMo
     QStyleOptionViewItem opt = option;
     // make sure opt.rect is initialized correctly - otherwise we might get a width of 0
     opt.initFrom(opt.widget);
-    initStyleOption(&opt, index);
 
     const QAbstractItemView *view = qobject_cast<const QAbstractItemView *>(opt.widget);
     const bool selected = view->selectionModel()->currentIndex() == index;

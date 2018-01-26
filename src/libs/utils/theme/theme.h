@@ -116,10 +116,10 @@ public:
         TextColorDisabled,
         TextColorError,
         TextColorHighlight,
+        TextColorHighlightBackground,
         TextColorLink,
         TextColorLinkVisited,
         TextColorNormal,
-        TodoItemTextColor,
         ToggleButtonBackgroundColor,
         ToolBarBackgroundColor,
         TreeViewArrowColorNormal,
@@ -293,7 +293,9 @@ public:
 
         /* QmlDesigner */
         QmlDesigner_BackgroundColor,
-        QmlDesigner_HighlightColor
+        QmlDesigner_HighlightColor,
+        QmlDesigner_FormEditorSelectionColor,
+        QmlDesigner_FormEditorForegroundColor
     };
 
     enum Gradient {
@@ -328,8 +330,8 @@ public:
         WindowColorAsBase
     };
 
-    bool flag(Flag f) const;
-    QColor color(Color role) const;
+    Q_INVOKABLE bool flag(Flag f) const;
+    Q_INVOKABLE QColor color(Color role) const;
     QString imageFile(ImageFile imageFile, const QString &fallBack) const;
     QGradientStops gradient(Gradient role) const;
     QPalette palette() const;
@@ -341,18 +343,21 @@ public:
     QString displayName() const;
     void setDisplayName(const QString &displayName);
 
-    const QVariantMap &values() const;
-
     void readSettings(QSettings &settings);
 
     static QPalette initialPalette();
 
+protected:
+    Theme(Theme *originTheme, QObject *parent = nullptr);
     ThemePrivate *d;
 
 private:
+    friend QTCREATOR_UTILS_EXPORT Theme *creatorTheme();
+    friend QTCREATOR_UTILS_EXPORT Theme *proxyTheme();
     QPair<QColor, QString> readNamedColor(const QString &color) const;
 };
 
 QTCREATOR_UTILS_EXPORT Theme *creatorTheme();
+QTCREATOR_UTILS_EXPORT Theme *proxyTheme();
 
 } // namespace Utils

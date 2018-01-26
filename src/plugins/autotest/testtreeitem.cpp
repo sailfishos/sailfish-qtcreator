@@ -24,12 +24,12 @@
 ****************************************************************************/
 
 #include "autotestconstants.h"
-#include "autotest_utils.h"
 #include "itestparser.h"
 #include "testconfiguration.h"
 #include "testtreeitem.h"
 
 #include <cplusplus/Icons.h>
+#include <cpptools/cppmodelmanager.h>
 #include <texteditor/texteditor.h>
 
 #include <QIcon>
@@ -42,7 +42,8 @@ TestTreeItem::TestTreeItem(const QString &name, const QString &filePath, Type ty
       m_filePath(filePath),
       m_type(type)
 {
-    m_checked = (m_type == TestCase || m_type == TestFunctionOrSet) ? Qt::Checked : Qt::Unchecked;
+    m_checked = (m_type == TestCase || m_type == TestFunctionOrSet || m_type == Root)
+            ? Qt::Checked : Qt::Unchecked;
 }
 
 static QIcon testTreeIcon(TestTreeItem::Type type)
@@ -51,7 +52,7 @@ static QIcon testTreeIcon(TestTreeItem::Type type)
         QIcon(),
         CPlusPlus::Icons::iconForType(CPlusPlus::Icons::ClassIconType),
         CPlusPlus::Icons::iconForType(CPlusPlus::Icons::SlotPrivateIconType),
-        QIcon(QLatin1String(":/images/data.png"))
+        QIcon(":/images/data.png")
     };
 
     if (int(type) >= int(sizeof icons / sizeof *icons))
@@ -103,7 +104,7 @@ Qt::ItemFlags TestTreeItem::flags(int /*column*/) const
     static const Qt::ItemFlags defaultFlags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     switch (m_type) {
     case Root:
-        return Qt::ItemIsEnabled;
+        return Qt::ItemIsEnabled | Qt::ItemIsAutoTristate | Qt::ItemIsUserCheckable;
     case TestCase:
         return defaultFlags | Qt::ItemIsAutoTristate | Qt::ItemIsUserCheckable;
     case TestFunctionOrSet:
@@ -116,39 +117,37 @@ Qt::ItemFlags TestTreeItem::flags(int /*column*/) const
     }
 }
 
-bool TestTreeItem::modifyTestCaseContent(const QString &name, unsigned line, unsigned column)
+bool TestTreeItem::modifyTestCaseContent(const TestParseResult *result)
 {
-    bool hasBeenModified = modifyName(name);
-    hasBeenModified |= modifyLineAndColumn(line, column);
+    bool hasBeenModified = modifyName(result->name);
+    hasBeenModified |= modifyLineAndColumn(result);
     return hasBeenModified;
 }
 
 bool TestTreeItem::modifyTestFunctionContent(const TestParseResult *result)
 {
     bool hasBeenModified = modifyFilePath(result->fileName);
-    hasBeenModified |= modifyLineAndColumn(result->line, result->column);
+    hasBeenModified |= modifyLineAndColumn(result);
     return hasBeenModified;
 }
 
-// TODO pass TestParseResult * to all modifyXYZ() OR remove completely if possible
-bool TestTreeItem::modifyDataTagContent(const QString &name, const QString &fileName,
-                                        unsigned line, unsigned column)
+bool TestTreeItem::modifyDataTagContent(const TestParseResult *result)
 {
-    bool hasBeenModified = modifyFilePath(fileName);
-    hasBeenModified |= modifyName(name);
-    hasBeenModified |= modifyLineAndColumn(line, column);
+
+    bool hasBeenModified = modifyTestFunctionContent(result);
+    hasBeenModified |= modifyName(result->name);
     return hasBeenModified;
 }
 
-bool TestTreeItem::modifyLineAndColumn(unsigned line, unsigned column)
+bool TestTreeItem::modifyLineAndColumn(const TestParseResult *result)
 {
     bool hasBeenModified = false;
-    if (m_line != line) {
-        m_line = line;
+    if (m_line != result->line) {
+        m_line = result->line;
         hasBeenModified = true;
     }
-    if (m_column != column) {
-        m_column = column;
+    if (m_column != result->column) {
+        m_column = result->column;
         hasBeenModified = true;
     }
     return hasBeenModified;
@@ -163,13 +162,14 @@ void TestTreeItem::setChecked(const Qt::CheckState checkState)
             parent->revalidateCheckState();
         break;
     }
+    case Root:
     case TestFunctionOrSet:
     case TestCase: {
         Qt::CheckState usedState = (checkState == Qt::Unchecked ? Qt::Unchecked : Qt::Checked);
         for (int row = 0, count = childCount(); row < count; ++row)
             childItem(row)->setChecked(usedState);
         m_checked = usedState;
-        if (m_type == TestFunctionOrSet) {
+        if (m_type != Root) {
             if (auto parent = parentItem())
                 parent->revalidateCheckState();
         }
@@ -183,6 +183,7 @@ void TestTreeItem::setChecked(const Qt::CheckState checkState)
 Qt::CheckState TestTreeItem::checked() const
 {
     switch (m_type) {
+    case Root:
     case TestCase:
     case TestFunctionOrSet:
     case TestDataTag:
@@ -206,13 +207,11 @@ void TestTreeItem::markForRemovalRecursively(bool mark)
 
 void TestTreeItem::markForRemovalRecursively(const QString &filePath)
 {
-    if (m_filePath == filePath) {
-        markForRemovalRecursively(true);
-    } else {
-        for (int row = 0, count = childCount(); row < count; ++row) {
-            TestTreeItem *child = childItem(row);
-            child->markForRemovalRecursively(filePath);
-        }
+    if (m_filePath == filePath)
+        markForRemoval(true);
+    for (int row = 0, count = childCount(); row < count; ++row) {
+        TestTreeItem *child = childItem(row);
+        child->markForRemovalRecursively(filePath);
     }
 }
 
@@ -284,10 +283,20 @@ bool TestTreeItem::lessThan(const TestTreeItem *other, SortMode mode) const
     }
 }
 
+QSet<QString> TestTreeItem::internalTargets() const
+{
+    auto cppMM = CppTools::CppModelManager::instance();
+    const QList<CppTools::ProjectPart::Ptr> projectParts = cppMM->projectPart(filePath());
+    QSet<QString> targets;
+    for (const CppTools::ProjectPart::Ptr part : projectParts)
+        targets.insert(part->buildSystemTarget + '|' + part->projectFile);
+    return targets;
+}
+
 void TestTreeItem::revalidateCheckState()
 {
     const Type ttiType = type();
-    if (ttiType != TestCase && ttiType != TestFunctionOrSet)
+    if (ttiType != TestCase && ttiType != TestFunctionOrSet && ttiType != Root)
         return;
     if (childCount() == 0) // can this happen? (we're calling revalidateCS() on parentItem()
         return;
@@ -309,13 +318,13 @@ void TestTreeItem::revalidateCheckState()
         foundPartiallyChecked |= (child->checked() == Qt::PartiallyChecked);
         if (foundPartiallyChecked || (foundChecked && foundUnchecked)) {
             m_checked = Qt::PartiallyChecked;
-            if (ttiType == TestFunctionOrSet)
+            if (ttiType == TestFunctionOrSet || ttiType == TestCase)
                 parentItem()->revalidateCheckState();
             return;
         }
     }
     m_checked = (foundUnchecked ? Qt::Unchecked : Qt::Checked);
-    if (ttiType == TestFunctionOrSet)
+    if (ttiType == TestFunctionOrSet || ttiType == TestCase)
         parentItem()->revalidateCheckState();
 }
 
@@ -344,7 +353,7 @@ TestTreeItem *TestTreeItem::findChildBy(CompareFunction compare) const
         if (compare(child))
             return child;
     }
-    return 0;
+    return nullptr;
 }
 
 } // namespace Internal

@@ -788,91 +788,91 @@ static const QMap<QString, int> &vimKeyNames()
 {
     static const QMap<QString, int> k = {
         // FIXME: Should be value of mapleader.
-        { "LEADER", Key_Backslash },
+        {"LEADER", Key_Backslash},
 
-        { "SPACE", Key_Space },
-        { "TAB", Key_Tab },
-        { "NL", Key_Return },
-        { "NEWLINE", Key_Return },
-        { "LINEFEED", Key_Return },
-        { "LF", Key_Return },
-        { "CR", Key_Return },
-        { "RETURN", Key_Return },
-        { "ENTER", Key_Return },
-        { "BS", Key_Backspace },
-        { "BACKSPACE", Key_Backspace },
-        { "ESC", Key_Escape },
-        { "BAR", Key_Bar },
-        { "BSLASH", Key_Backslash },
-        { "DEL", Key_Delete },
-        { "DELETE", Key_Delete },
-        { "KDEL", Key_Delete },
-        { "UP", Key_Up },
-        { "DOWN", Key_Down },
-        { "LEFT", Key_Left },
-        { "RIGHT", Key_Right },
+        {"SPACE", Key_Space},
+        {"TAB", Key_Tab},
+        {"NL", Key_Return},
+        {"NEWLINE", Key_Return},
+        {"LINEFEED", Key_Return},
+        {"LF", Key_Return},
+        {"CR", Key_Return},
+        {"RETURN", Key_Return},
+        {"ENTER", Key_Return},
+        {"BS", Key_Backspace},
+        {"BACKSPACE", Key_Backspace},
+        {"ESC", Key_Escape},
+        {"BAR", Key_Bar},
+        {"BSLASH", Key_Backslash},
+        {"DEL", Key_Delete},
+        {"DELETE", Key_Delete},
+        {"KDEL", Key_Delete},
+        {"UP", Key_Up},
+        {"DOWN", Key_Down},
+        {"LEFT", Key_Left},
+        {"RIGHT", Key_Right},
 
-        { "LT", Key_Less },
-        { "GT", Key_Greater },
+        {"LT", Key_Less},
+        {"GT", Key_Greater},
 
-        { "F1", Key_F1 },
-        { "F2", Key_F2 },
-        { "F3", Key_F3 },
-        { "F4", Key_F4 },
-        { "F5", Key_F5 },
-        { "F6", Key_F6 },
-        { "F7", Key_F7 },
-        { "F8", Key_F8 },
-        { "F9", Key_F9 },
-        { "F10", Key_F10 },
+        {"F1", Key_F1},
+        {"F2", Key_F2},
+        {"F3", Key_F3},
+        {"F4", Key_F4},
+        {"F5", Key_F5},
+        {"F6", Key_F6},
+        {"F7", Key_F7},
+        {"F8", Key_F8},
+        {"F9", Key_F9},
+        {"F10", Key_F10},
 
-        { "F11", Key_F11 },
-        { "F12", Key_F12 },
-        { "F13", Key_F13 },
-        { "F14", Key_F14 },
-        { "F15", Key_F15 },
-        { "F16", Key_F16 },
-        { "F17", Key_F17 },
-        { "F18", Key_F18 },
-        { "F19", Key_F19 },
-        { "F20", Key_F20 },
+        {"F11", Key_F11},
+        {"F12", Key_F12},
+        {"F13", Key_F13},
+        {"F14", Key_F14},
+        {"F15", Key_F15},
+        {"F16", Key_F16},
+        {"F17", Key_F17},
+        {"F18", Key_F18},
+        {"F19", Key_F19},
+        {"F20", Key_F20},
 
-        { "F21", Key_F21 },
-        { "F22", Key_F22 },
-        { "F23", Key_F23 },
-        { "F24", Key_F24 },
-        { "F25", Key_F25 },
-        { "F26", Key_F26 },
-        { "F27", Key_F27 },
-        { "F28", Key_F28 },
-        { "F29", Key_F29 },
-        { "F30", Key_F30 },
+        {"F21", Key_F21},
+        {"F22", Key_F22},
+        {"F23", Key_F23},
+        {"F24", Key_F24},
+        {"F25", Key_F25},
+        {"F26", Key_F26},
+        {"F27", Key_F27},
+        {"F28", Key_F28},
+        {"F29", Key_F29},
+        {"F30", Key_F30},
 
-        { "F31", Key_F31 },
-        { "F32", Key_F32 },
-        { "F33", Key_F33 },
-        { "F34", Key_F34 },
-        { "F35", Key_F35 },
+        {"F31", Key_F31},
+        {"F32", Key_F32},
+        {"F33", Key_F33},
+        {"F34", Key_F34},
+        {"F35", Key_F35},
 
-        { "INSERT", Key_Insert },
-        { "INS", Key_Insert },
-        { "KINSERT", Key_Insert },
-        { "HOME", Key_Home },
-        { "END", Key_End },
-        { "PAGEUP", Key_PageUp },
-        { "PAGEDOWN", Key_PageDown },
+        {"INSERT", Key_Insert},
+        {"INS", Key_Insert},
+        {"KINSERT", Key_Insert},
+        {"HOME", Key_Home},
+        {"END", Key_End},
+        {"PAGEUP", Key_PageUp},
+        {"PAGEDOWN", Key_PageDown},
 
-        { "KPLUS", Key_Plus },
-        { "KMINUS", Key_Minus },
-        { "KDIVIDE", Key_Slash },
-        { "KMULTIPLY", Key_Asterisk },
-        { "KENTER", Key_Enter },
-        { "KPOINT", Key_Period },
+        {"KPLUS", Key_Plus},
+        {"KMINUS", Key_Minus},
+        {"KDIVIDE", Key_Slash},
+        {"KMULTIPLY", Key_Asterisk},
+        {"KENTER", Key_Enter},
+        {"KPOINT", Key_Period},
 
-        { "CAPS", Key_CapsLock },
-        { "NUM", Key_NumLock },
-        { "SCROLL", Key_ScrollLock },
-        { "ALTGR", Key_AltGr }
+        {"CAPS", Key_CapsLock},
+        {"NUM", Key_NumLock},
+        {"SCROLL", Key_ScrollLock},
+        {"ALTGR", Key_AltGr}
     };
 
     return k;
@@ -1871,7 +1871,7 @@ public:
             m_cursor.movePosition(Right, KeepAnchor, n);
         }
         if (atEndOfLine())
-            emit q->fold(1, false);
+            emit q->fold(q, 1, false);
         setTargetColumn();
     }
     void moveLeft(int n = 1) {
@@ -2141,6 +2141,8 @@ public:
     bool handleExShiftCommand(const ExCommand &cmd);
     bool handleExSourceCommand(const ExCommand &cmd);
     bool handleExSubstituteCommand(const ExCommand &cmd);
+    bool handleExTabNextCommand(const ExCommand &cmd);
+    bool handleExTabPreviousCommand(const ExCommand &cmd);
     bool handleExWriteCommand(const ExCommand &cmd);
     bool handleExEchoCommand(const ExCommand &cmd);
 
@@ -3187,9 +3189,9 @@ void FakeVimHandler::Private::commitCursor()
     updateCursorShape();
 
     if (isVisualBlockMode()) {
-        emit q->requestSetBlockSelection(tc);
+        emit q->requestSetBlockSelection(q, tc);
     } else  {
-        emit q->requestDisableBlockSelection();
+        emit q->requestDisableBlockSelection(q);
         if (editor())
             EDITOR(setTextCursor(tc));
     }
@@ -3205,10 +3207,10 @@ void FakeVimHandler::Private::pullCursor()
     QTextCursor oldCursor = m_cursor;
 
     bool visualBlockMode = false;
-    emit q->requestHasBlockSelection(&visualBlockMode);
+    emit q->requestHasBlockSelection(q, &visualBlockMode);
 
     if (visualBlockMode)
-        q->requestBlockSelection(&m_cursor);
+        q->requestBlockSelection(q, &m_cursor);
     else if (editor())
         m_cursor = editorCursor();
 
@@ -3325,7 +3327,7 @@ void FakeVimHandler::Private::moveToEndOfLineVisually(QTextCursor *tc)
 
 void FakeVimHandler::Private::moveBehindEndOfLine()
 {
-    emit q->fold(1, false);
+    emit q->fold(q, 1, false);
     int pos = qMin(block().position() + block().length() - 1,
         lastPositionInDocument() + 1);
     setPosition(pos);
@@ -3599,7 +3601,7 @@ void FakeVimHandler::Private::updateSelection()
         }
     }
     //qDebug() << "SELECTION: " << selections;
-    emit q->selectionChanged(selections);
+    emit q->selectionChanged(q, selections);
 }
 
 void FakeVimHandler::Private::updateHighlights()
@@ -3614,7 +3616,7 @@ void FakeVimHandler::Private::updateHighlights()
         return;
     }
 
-    emit q->highlightMatches(m_highlighted);
+    emit q->highlightMatches(q, m_highlighted);
 }
 
 void FakeVimHandler::Private::updateMiniBuffer()
@@ -3682,7 +3684,7 @@ void FakeVimHandler::Private::updateMiniBuffer()
     if (g.isRecording && msg.startsWith("--"))
         msg.append(' ').append("Recording");
 
-    emit q->commandBufferChanged(msg, cursorPos, anchorPos, messageLevel, q);
+    emit q->commandBufferChanged(q, msg, cursorPos, anchorPos, messageLevel);
 
     int linesInDoc = linesInDocument();
     int l = cursorLine();
@@ -3694,7 +3696,7 @@ void FakeVimHandler::Private::updateMiniBuffer()
         status = Tr::tr("%1%2%").arg(pos, -10).arg(l * 100 / linesInDoc, 4);
     else
         status = Tr::tr("%1All").arg(pos, -10);
-    emit q->statusDataChanged(status);
+    emit q->statusDataChanged(q, status);
 }
 
 void FakeVimHandler::Private::showMessage(MessageLevel level, const QString &msg)
@@ -3776,7 +3778,7 @@ bool FakeVimHandler::Private::handleCommandSubSubMode(const Input &input)
         handled = false;
         if (input.is('j') || input.is('k')) {
             int pos = position();
-            emit q->foldGoTo(input.is('j') ? count() : -count(), false);
+            emit q->foldGoTo(q, input.is('j') ? count() : -count(), false);
             if (pos != position()) {
                 handled = true;
                 finishMovement(QString("%1z%2")
@@ -3803,7 +3805,7 @@ bool FakeVimHandler::Private::handleCommandSubSubMode(const Input &input)
         else if (input.is(']') && g.subsubmode == CloseSquareSubSubMode)
             bracketSearchForward(&m_cursor, "^\\{", count(), g.submode != NoSubMode);
         else if (input.is('z'))
-            emit q->foldGoTo(g.subsubmode == OpenSquareSubSubMode ? -count() : count(), true);
+            emit q->foldGoTo(q, g.subsubmode == OpenSquareSubSubMode ? -count() : count(), true);
         handled = pos != position();
         if (handled) {
             if (lineForPosition(pos) != lineForPosition(position()))
@@ -3870,7 +3872,7 @@ bool FakeVimHandler::Private::handleMovement(const Input &input)
             m_findStartPosition = position();
             g.movetype = MoveExclusive;
             setAnchor(); // clear selection: otherwise, search is restricted to selection
-            emit q->findRequested(!g.lastSearchForward);
+            emit q->findRequested(q, !g.lastSearchForward);
         } else {
             // FIXME: make core find dialog sufficiently flexible to
             // produce the "default vi" behaviour too. For now, roll our own.
@@ -4042,10 +4044,10 @@ bool FakeVimHandler::Private::handleMovement(const Input &input)
         if (hasConfig(ConfigUseCoreSearch)) {
             bool forward = (input.is('n')) ? g.lastSearchForward : !g.lastSearchForward;
             int pos = position();
-            emit q->findNextRequested(!forward);
+            emit q->findNextRequested(q, !forward);
             if (forward && pos == m_cursor.selectionStart()) {
                 // if cursor is already positioned at the start of a find result, this is returned
-                emit q->findNextRequested(false);
+                emit q->findNextRequested(q, false);
             }
             setPosition(m_cursor.selectionStart());
         } else {
@@ -4383,7 +4385,7 @@ bool FakeVimHandler::Private::handleNoSubMode(const Input &input)
         if (block().blockNumber() > 0) {
             moveUp();
             if (line != lineNumber(block()))
-                emit q->fold(1, true);
+                emit q->fold(q, 1, true);
             moveDown();
         }
     } else if (input.isControl('o')) {
@@ -4420,7 +4422,7 @@ bool FakeVimHandler::Private::handleNoSubMode(const Input &input)
     } else if (g.gflag && input.is('t')) {
         handleExCommand("tabnext");
     } else if (g.gflag && input.is('T')) {
-        handleExCommand("tabprev");
+        handleExCommand("tabprevious");
     } else if (input.isControl('t')) {
         handleExCommand("pop");
     } else if (!g.gflag && input.is('u') && !isVisualMode()) {
@@ -4660,7 +4662,7 @@ bool FakeVimHandler::Private::handleWindowSubMode(const Input &input)
 
     leaveVisualMode();
     leaveCurrentMode();
-    emit q->windowCommandRequested(input.toString(), count());
+    emit q->windowCommandRequested(q, input.toString(), count());
 
     return true;
 }
@@ -4686,21 +4688,21 @@ bool FakeVimHandler::Private::handleZSubMode(const Input &input)
     } else if (input.is('o') || input.is('c')) {
         // Open/close current fold.
         foldMaybeClosed = input.is('c');
-        emit q->fold(count(), foldMaybeClosed);
+        emit q->fold(q, count(), foldMaybeClosed);
     } else if (input.is('O') || input.is('C')) {
         // Recursively open/close current fold.
         foldMaybeClosed = input.is('C');
-        emit q->fold(-1, foldMaybeClosed);
+        emit q->fold(q, -1, foldMaybeClosed);
     } else if (input.is('a') || input.is('A')) {
         // Toggle current fold.
         foldMaybeClosed = true;
-        emit q->foldToggle(input.is('a') ? count() : -1);
+        emit q->foldToggle(q, input.is('a') ? count() : -1);
     } else if (input.is('R') || input.is('M')) {
         // Open/close all folds in document.
         foldMaybeClosed = input.is('M');
-        emit q->foldAll(foldMaybeClosed);
+        emit q->foldAll(q, foldMaybeClosed);
     } else if (input.is('j') || input.is('k')) {
-        emit q->foldGoTo(input.is('j') ? count() : -count(), false);
+        emit q->foldGoTo(q, input.is('j') ? count() : -count(), false);
     } else {
         handled = false;
     }
@@ -5079,7 +5081,7 @@ void FakeVimHandler::Private::handleInsertMode(const Input &input)
         moveToNextWordStart(1, false, false);
         QString str = selectText(Range(position(), tc.position()));
         m_cursor = tc;
-        emit q->simpleCompletionRequested(str, input.isControl('n'));
+        emit q->simpleCompletionRequested(q, str, input.isControl('n'));
     } else if (input.isShift(Qt::Key_Insert)) {
         // Insert text from clipboard.
         QClipboard *clipboard = QApplication::clipboard();
@@ -5561,6 +5563,24 @@ bool FakeVimHandler::Private::handleExSubstituteCommand(const ExCommand &cmd)
     return true;
 }
 
+bool FakeVimHandler::Private::handleExTabNextCommand(const ExCommand &cmd)
+{
+    if (!cmd.matches("tabn", "tabnext"))
+        return false;
+
+    emit q->tabNextRequested(q);
+    return true;
+}
+
+bool FakeVimHandler::Private::handleExTabPreviousCommand(const ExCommand &cmd)
+{
+    if (!cmd.matches("tabp", "tabprevious"))
+        return false;
+
+    emit q->tabPreviousRequested(q);
+    return true;
+}
+
 bool FakeVimHandler::Private::handleExMapCommand(const ExCommand &cmd0) // :map
 {
     QByteArray modes;
@@ -5668,7 +5688,7 @@ bool FakeVimHandler::Private::handleExHistoryCommand(const ExCommand &cmd)
             ++i;
             info += QString("%1 %2\n").arg(i, -8).arg(item);
         }
-        emit q->extraInformationChanged(info);
+        emit q->extraInformationChanged(q, info);
     } else {
         notImplementedYet();
     }
@@ -5698,7 +5718,7 @@ bool FakeVimHandler::Private::handleExRegisterCommand(const ExCommand &cmd)
         QString value = quoteUnprintable(registerContents(reg));
         info += QString("\"%1   %2\n").arg(reg).arg(value);
     }
-    emit q->extraInformationChanged(info);
+    emit q->extraInformationChanged(q, info);
 
     return true;
 }
@@ -6017,7 +6037,7 @@ bool FakeVimHandler::Private::handleExBangCommand(const ExCommand &cmd) // :!
         showMessage(MessageInfo, Tr::tr("%n lines filtered.", 0,
             input.count('\n')));
     } else if (!result.isEmpty()) {
-        emit q->extraInformationChanged(result);
+        emit q->extraInformationChanged(q, result);
     }
 
     return true;
@@ -6212,6 +6232,8 @@ bool FakeVimHandler::Private::handleExCommandHelper(ExCommand &cmd)
         || handleExShiftCommand(cmd)
         || handleExSourceCommand(cmd)
         || handleExSubstituteCommand(cmd)
+        || handleExTabNextCommand(cmd)
+        || handleExTabPreviousCommand(cmd)
         || handleExWriteCommand(cmd)
         || handleExEchoCommand(cmd);
 }
@@ -6221,7 +6243,7 @@ bool FakeVimHandler::Private::handleExPluginCommand(const ExCommand &cmd)
     bool handled = false;
     int pos = m_cursor.position();
     commitCursor();
-    emit q->handleExCommandRequested(&handled, cmd);
+    emit q->handleExCommandRequested(q, &handled, cmd);
     //qDebug() << "HANDLER REQUEST: " << cmd.cmd << handled;
     if (handled && (m_textedit || m_plaintextedit)) {
         pullCursor();
@@ -6435,14 +6457,14 @@ void FakeVimHandler::Private::indentText(const Range &range, QChar typedChar)
 
     // Don't remember current indentation in last text insertion.
     const QString lastInsertion = m_buffer->lastInsertion;
-    emit q->indentRegion(beginBlock, endBlock, typedChar);
+    emit q->indentRegion(q, beginBlock, endBlock, typedChar);
     m_buffer->lastInsertion = lastInsertion;
 }
 
 bool FakeVimHandler::Private::isElectricCharacter(QChar c) const
 {
     bool result = false;
-    emit q->checkForElectricCharacter(&result, c);
+    emit q->checkForElectricCharacter(q, &result, c);
     return result;
 }
 
@@ -6566,7 +6588,7 @@ void FakeVimHandler::Private::miniBufferTextEdited(const QString &text, int curs
         // update command/search buffer
         cmdBuf.setContents(buffer.mid(1), pos - 1, anchor - 1);
         if (pos != cursorPos || anchor != anchorPos || buffer != text)
-            emit q->commandBufferChanged(buffer, pos, anchor, 0, q);
+            emit q->commandBufferChanged(q, buffer, pos, anchor, 0);
         // update search expression
         if (g.subsubmode == SearchSubSubMode) {
             updateFind(false);
@@ -6753,7 +6775,7 @@ void FakeVimHandler::Private::moveToMatchingParanthesis()
     if (tc.atBlockEnd())
         tc = m_cursor;
 
-    emit q->moveToMatchingParenthesis(&moved, &forward, &tc);
+    emit q->moveToMatchingParenthesis(q, &moved, &forward, &tc);
     if (moved) {
         if (forward)
             tc.movePosition(Left, KeepAnchor, 1);
@@ -7320,7 +7342,7 @@ bool FakeVimHandler::Private::handleInsertInEditor(const Input &input)
 bool FakeVimHandler::Private::passEventToEditor(QEvent &event, QTextCursor &tc)
 {
     removeEventFilter();
-    emit q->requestDisableBlockSelection();
+    emit q->requestDisableBlockSelection(q);
 
     setThinCursor();
     EDITOR(setTextCursor(tc));
@@ -7663,7 +7685,7 @@ void FakeVimHandler::Private::onContentsChanged(int position, int charsRemoved, 
     }
 
     if (!m_highlighted.isEmpty())
-        emit q->highlightMatches(m_highlighted);
+        emit q->highlightMatches(q, m_highlighted);
 }
 
 void FakeVimHandler::Private::onCursorPositionChanged()
@@ -8429,7 +8451,7 @@ bool FakeVimHandler::Private::jumpToMark(QChar mark, bool backTickMode)
         return false;
     }
     if (!m.isLocal(m_currentFileName)) {
-        emit q->jumpToGlobalMark(mark, backTickMode, m.fileName());
+        emit q->jumpToGlobalMark(q, mark, backTickMode, m.fileName());
         return false;
     }
 

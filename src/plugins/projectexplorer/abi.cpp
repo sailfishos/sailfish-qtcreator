@@ -30,6 +30,7 @@
 #include <QDebug>
 #include <QtEndian>
 #include <QFile>
+#include <QRegExp>
 #include <QString>
 #include <QStringList>
 #include <QSysInfo>
@@ -347,6 +348,11 @@ Abi::Abi(const Architecture &a, const OS &o,
     case Abi::VxWorks:
         if (m_osFlavor != VxWorksFlavor)
             m_osFlavor = VxWorksFlavor;
+        break;
+    case Abi::QnxOS:
+        if (m_osFlavor != GenericQnxFlavor)
+            m_osFlavor = UnknownFlavor;
+        break;
     }
 }
 
@@ -392,6 +398,8 @@ Abi::Abi(const QString &abiString) :
             m_os = WindowsOS;
         else if (abiParts.at(1) == QLatin1String("vxworks"))
             m_os = VxWorks;
+        else if (abiParts.at(1) == QLatin1String("qnx"))
+            m_os = QnxOS;
         else
             return;
     }
@@ -403,6 +411,8 @@ Abi::Abi(const QString &abiString) :
             m_osFlavor = GenericLinuxFlavor;
         else if (abiParts.at(2) == QLatin1String("android") && m_os == LinuxOS)
             m_osFlavor = AndroidLinuxFlavor;
+        else if (abiParts.at(2) == QLatin1String("generic") && m_os == QnxOS)
+            m_osFlavor = GenericQnxFlavor;
         else if (abiParts.at(2) == QLatin1String("freebsd") && m_os == BsdOS)
             m_osFlavor = FreeBsdFlavor;
         else if (abiParts.at(2) == QLatin1String("netbsd") && m_os == BsdOS)
@@ -535,7 +545,7 @@ Abi Abi::abiFromTargetTriplet(const QString &triple)
             format = Abi::ElfFormat;
         } else if (p == QLatin1String("mingw32") || p == QLatin1String("win32")
                    || p == QLatin1String("mingw32msvc") || p == QLatin1String("msys")
-                   || p == QLatin1String("cygwin")) {
+                   || p == QLatin1String("cygwin") || p == QLatin1String("windows")) {
             arch = Abi::X86Architecture;
             os = Abi::WindowsOS;
             flavor = Abi::WindowsMSysFlavor;
@@ -555,6 +565,10 @@ Abi Abi::abiFromTargetTriplet(const QString &triple)
         } else if (p == QLatin1String("vxworks")) {
             os = Abi::VxWorks;
             flavor = Abi::VxWorksFlavor;
+            format = Abi::ElfFormat;
+        } else if (p.startsWith(QLatin1String("qnx"))) {
+            os = Abi::QnxOS;
+            flavor = Abi::GenericQnxFlavor;
             format = Abi::ElfFormat;
         } else {
             ++unknownCount;
@@ -592,24 +606,36 @@ bool Abi::operator == (const Abi &other) const
 
 bool Abi::isCompatibleWith(const Abi &other) const
 {
-    bool isCompat = (architecture() == other.architecture() || other.architecture() == Abi::UnknownArchitecture)
-                     && (os() == other.os() || other.os() == Abi::UnknownOS)
-                     && (osFlavor() == other.osFlavor() || other.osFlavor() == Abi::UnknownFlavor)
-                     && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
+    // Generic match: If stuff is identical or the other side is unknown, then this is a match.
+    bool isCompat = (architecture() == other.architecture() || other.architecture() == UnknownArchitecture)
+                     && (os() == other.os() || other.os() == UnknownOS)
+                     && (osFlavor() == other.osFlavor() || other.osFlavor() == UnknownFlavor)
+                     && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == UnknownFormat)
                      && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0);
+
     // *-linux-generic-* is compatible with *-linux-* (both ways): This is for the benefit of
     // people building Qt themselves using e.g. a meego toolchain.
     //
-    // We leave it to the specific targets to catch filter out the tool chains that do not
+    // We leave it to the specific targets to filter out the tool chains that do not
     // work for them.
-    if (!isCompat && (architecture() == other.architecture() || other.architecture() == Abi::UnknownArchitecture)
+    if (!isCompat && (architecture() == other.architecture() || other.architecture() == UnknownArchitecture)
                   && ((os() == other.os()) && (os() == LinuxOS))
                   && (osFlavor() == GenericLinuxFlavor || other.osFlavor() == GenericLinuxFlavor)
-                  && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
-                  && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0))
+                  && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == UnknownFormat)
+                  && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0)) {
         isCompat = true;
-    if (osFlavor() == AndroidLinuxFlavor || other.osFlavor() == AndroidLinuxFlavor)
-        isCompat = (osFlavor() == other.osFlavor() && architecture() == other.architecture());
+    }
+
+    // Make Android matching more strict than the generic Linux matches so far:
+    if (isCompat && (osFlavor() == AndroidLinuxFlavor || other.osFlavor() == AndroidLinuxFlavor))
+        isCompat = (architecture() == other.architecture()) &&  (osFlavor() == other.osFlavor());
+
+    // MSVC2017 is compatible with MSVC2015
+    if (!isCompat
+            && ((osFlavor() == WindowsMsvc2015Flavor && other.osFlavor() == WindowsMsvc2017Flavor)
+                || (osFlavor() == WindowsMsvc2017Flavor && other.osFlavor() == WindowsMsvc2015Flavor))) {
+        isCompat = true;
+    }
     return isCompat;
 }
 
@@ -667,6 +693,8 @@ QString Abi::toString(const OS &o)
         return QLatin1String("windows");
     case VxWorks:
         return QLatin1String("vxworks");
+    case QnxOS:
+        return QLatin1String("qnx");
     case UnknownOS: // fall through!
     default:
         return QLatin1String("unknown");
@@ -712,6 +740,8 @@ QString Abi::toString(const OSFlavor &of)
         return QLatin1String("ce");
     case Abi::VxWorksFlavor:
         return QLatin1String("vxworks");
+    case Abi::GenericQnxFlavor:
+        return QLatin1String("generic");
     case Abi::UnknownFlavor: // fall through!
     default:
         return QLatin1String("unknown");
@@ -761,12 +791,36 @@ QList<Abi::OSFlavor> Abi::flavorsForOs(const Abi::OS &o)
                       << WindowsMSysFlavor << WindowsCEFlavor << UnknownFlavor;
     case VxWorks:
         return result << VxWorksFlavor << UnknownFlavor;
+    case QnxOS:
+        return result << GenericQnxFlavor << UnknownFlavor;
     case UnknownOS:
         return result << UnknownFlavor;
     default:
         break;
     }
     return result;
+}
+
+Abi::OSFlavor Abi::flavorForMsvcVersion(int version)
+{
+    if (version >= 1910)
+        return WindowsMsvc2017Flavor;
+    switch (version) {
+    case 1900:
+        return WindowsMsvc2015Flavor;
+    case 1800:
+        return WindowsMsvc2013Flavor;
+    case 1700:
+        return WindowsMsvc2012Flavor;
+    case 1600:
+        return WindowsMsvc2010Flavor;
+    case 1500:
+        return WindowsMsvc2008Flavor;
+    case 1400:
+        return WindowsMsvc2005Flavor;
+    default:
+        return WindowsMSysFlavor;
+    }
 }
 
 Abi Abi::hostAbi()
@@ -778,20 +832,8 @@ Abi Abi::hostAbi()
 
 #if defined (Q_OS_WIN)
     os = WindowsOS;
-#if _MSC_VER >= 1910
-    subos = WindowsMsvc2017Flavor;
-#elif _MSC_VER == 1900
-    subos = WindowsMsvc2015Flavor;
-#elif _MSC_VER == 1800
-    subos = WindowsMsvc2013Flavor;
-#elif _MSC_VER == 1700
-    subos = WindowsMsvc2012Flavor;
-#elif _MSC_VER == 1600
-    subos = WindowsMsvc2010Flavor;
-#elif _MSC_VER == 1500
-    subos = WindowsMsvc2008Flavor;
-#elif _MSC_VER == 1400
-    subos = WindowsMsvc2005Flavor;
+#ifdef _MSC_VER
+    subos = flavorForMsvcVersion(_MSC_VER);
 #elif defined (Q_CC_MINGW)
     subos = WindowsMSysFlavor;
 #endif
@@ -1113,6 +1155,10 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiFromTargetTriplet_data()
                                       << int(Abi::WindowsOS) << int(Abi::WindowsMSysFlavor)
                                       << int(Abi::PEFormat) << 64;
 
+    QTest::newRow("x86-pc-windows-msvc") << int(Abi::X86Architecture)
+                                         << int(Abi::WindowsOS) << int(Abi::WindowsMSysFlavor)
+                                         << int(Abi::PEFormat) << 32;
+
     QTest::newRow("mingw32") << int(Abi::X86Architecture)
                              << int(Abi::WindowsOS) << int(Abi::WindowsMSysFlavor)
                              << int(Abi::PEFormat) << 0;
@@ -1140,6 +1186,14 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiFromTargetTriplet_data()
     QTest::newRow("mips-linux-gnu") << int(Abi::MipsArchitecture)
                                     << int(Abi::LinuxOS) << int(Abi::GenericLinuxFlavor)
                                     << int(Abi::ElfFormat) << 32;
+
+    QTest::newRow("mips64el-linux-android") << int(Abi::MipsArchitecture)
+                                            << int(Abi::LinuxOS) << int(Abi::AndroidLinuxFlavor)
+                                            << int(Abi::ElfFormat) << 64;
+
+    QTest::newRow("mips64el-unknown-linux-android") << int(Abi::MipsArchitecture)
+                                                    << int(Abi::LinuxOS) << int(Abi::AndroidLinuxFlavor)
+                                                    << int(Abi::ElfFormat) << 64;
 
     QTest::newRow("mips64-linux-octeon-gnu") << int(Abi::MipsArchitecture)
                                              << int(Abi::LinuxOS) << int(Abi::GenericLinuxFlavor)

@@ -28,21 +28,12 @@
 #include <QtGlobal>
 
 #include <cstdint>
+#include <type_traits>
 
-#pragma push_macro("constexpr")
-#ifndef __cpp_constexpr
-#define constexpr
-#endif
-
-#pragma push_macro("noexcept")
-#ifndef __cpp_noexcept
-#define noexcept
-#endif
-
-#ifdef __cpp_alignas
-#define ALIGNAS_16 alignas(16)
+#if defined(Q_CC_MSVC) && !defined(_WIN64)
+#   define ALIGNAS_16
 #else
-#define ALIGNAS_16
+#   define ALIGNAS_16 alignas(16)
 #endif
 
 namespace Utils {
@@ -51,41 +42,62 @@ namespace Internal {
 
 using size_type = std::size_t;
 
-static const int smallStringLayoutByteSize = 32;
-static const int maximumShortStringDataAreaSize = smallStringLayoutByteSize - 1;
+template<bool Bool>
+struct block_type
+{
+    using type = uint8_t;
+};
 
+template<>
+struct block_type<false> {
+    using type = uint16_t;
+};
+
+template <uint MaximumShortStringDataAreaSize,
+          typename BlockType = typename block_type<(MaximumShortStringDataAreaSize < 64)>::type>
 struct AllocatedLayout {
     struct Data {
         char *pointer;
         size_type size;
         size_type capacity;
     } data;
-    char dummy[maximumShortStringDataAreaSize - sizeof(Data)];
-    std::uint8_t shortStringSize: 6;
-    std::uint8_t isReadOnlyReference : 1;
-    std::uint8_t isReference : 1;
+    char dummy[MaximumShortStringDataAreaSize - sizeof(Data)];
+    BlockType shortStringSize : (sizeof(BlockType) * 8) - 2;
+    BlockType isReadOnlyReference : 1;
+    BlockType isReference : 1;
 };
 
+template <uint MaximumShortStringDataAreaSize,
+          typename BlockType = typename block_type<(MaximumShortStringDataAreaSize < 64)>::type>
 struct ReferenceLayout {
     struct Data {
         const char *pointer;
         size_type size;
         size_type capacity;
     } data;
-    char dummy[maximumShortStringDataAreaSize - sizeof(Data)];
-    std::uint8_t shortStringSize: 6;
-    std::uint8_t isReadOnlyReference : 1;
-    std::uint8_t isReference : 1;
+    char dummy[MaximumShortStringDataAreaSize - sizeof(Data)];
+    BlockType shortStringSize : (sizeof(BlockType) * 8) - 2;
+    BlockType isReadOnlyReference : 1;
+    BlockType isReference : 1;
 };
 
+template <uint MaximumShortStringDataAreaSize,
+          typename BlockType = typename block_type<(MaximumShortStringDataAreaSize < 64)>::type>
 struct ShortStringLayout {
-    char string[maximumShortStringDataAreaSize];
-    std::uint8_t shortStringSize: 6;
-    std::uint8_t isReadOnlyReference : 1;
-    std::uint8_t isReference : 1;
+    char string[MaximumShortStringDataAreaSize];
+    BlockType shortStringSize : (sizeof(BlockType) * 8) - 2;
+    BlockType isReadOnlyReference : 1;
+    BlockType isReference : 1;
 };
 
+template <uint MaximumShortStringDataAreaSize>
 struct ALIGNAS_16 StringDataLayout {
+    static_assert( MaximumShortStringDataAreaSize >= 15, "Size must be greater equal than 15 bytes!");
+    static_assert(MaximumShortStringDataAreaSize < 64
+                ? ((MaximumShortStringDataAreaSize + 1) % 16) == 0
+                : ((MaximumShortStringDataAreaSize + 2) % 16) == 0,
+                  "Size + 1 must be dividable by 16 if under 64 and Size + 2 must be dividable by 16 if over 64!");
+
     StringDataLayout() noexcept = default;
 
     constexpr StringDataLayout(const char *string,
@@ -101,7 +113,7 @@ struct ALIGNAS_16 StringDataLayout {
 #endif
     {
 #if __cpp_constexpr >= 201304
-        if (Size <= maximumShortStringDataAreaSize) {
+        if (Size <= MaximumShortStringDataAreaSize) {
             for (size_type i = 0; i < Size; ++i)
                 shortString.string[i] = string[i];
 
@@ -124,15 +136,20 @@ struct ALIGNAS_16 StringDataLayout {
 #endif
     }
 
+    constexpr static
+    size_type shortStringCapacity() noexcept
+    {
+        return MaximumShortStringDataAreaSize < 64
+             ? MaximumShortStringDataAreaSize - 1
+             : MaximumShortStringDataAreaSize - 2;
+    }
+
     union {
-        AllocatedLayout allocated;
-        ReferenceLayout reference;
-        ShortStringLayout shortString = ShortStringLayout();
+        AllocatedLayout<MaximumShortStringDataAreaSize> allocated;
+        ReferenceLayout<MaximumShortStringDataAreaSize> reference;
+        ShortStringLayout<MaximumShortStringDataAreaSize> shortString = ShortStringLayout<MaximumShortStringDataAreaSize>();
     };
 };
 
 } // namespace Internal
 }  // namespace Utils
-
-#pragma pop_macro("noexcept")
-#pragma pop_macro("constexpr")

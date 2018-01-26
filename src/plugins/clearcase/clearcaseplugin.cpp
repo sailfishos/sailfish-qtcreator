@@ -52,10 +52,10 @@
 #include <texteditor/textdocument.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/iprojectmanager.h>
+#include <projectexplorer/projectmanager.h>
 #include <utils/algorithm.h>
-#include <utils/mimetypes/mimedatabase.h>
 #include <utils/synchronousprocess.h>
+#include <utils/temporarydirectory.h>
 #include <utils/parameteraction.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
@@ -64,7 +64,6 @@
 #include <vcsbase/basevcseditorfactory.h>
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseeditor.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
 #include <vcsbase/vcsoutputwindow.h>
 #include <vcsbase/vcsbasesubmiteditor.h>
 
@@ -86,7 +85,6 @@
 #include <QProcess>
 #include <QRegExp>
 #include <QSharedPointer>
-#include <QTemporaryFile>
 #include <QTextCodec>
 #include <QtPlugin>
 #include <QUrl>
@@ -259,7 +257,7 @@ FileStatus::Status ClearCasePlugin::getFileStatus(const QString &fileName) const
         const QString absFile =
                 viewRootDir.absoluteFilePath(
                     QDir::fromNativeSeparators(buffer.left(atatpos)));
-        QTC_CHECK(QFile(absFile).exists());
+        QTC_CHECK(QFileInfo::exists(absFile));
         QTC_CHECK(!absFile.isEmpty());
 
         // "cleartool ls" of a derived object looks like this:
@@ -276,7 +274,7 @@ FileStatus::Status ClearCasePlugin::getFileStatus(const QString &fileName) const
         else
             return FileStatus::CheckedIn;
     } else {
-        QTC_CHECK(QFile(fileName).exists());
+        QTC_CHECK(QFileInfo::exists(fileName));
         QTC_CHECK(!fileName.isEmpty());
         return FileStatus::NotManaged;
     }
@@ -419,8 +417,6 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     connect(ProgressManager::instance(), &ProgressManager::allTasksFinished,
             this, &ClearCasePlugin::tasksFinished);
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/clearcase/ClearCase.mimetypes.xml"));
-
     m_settings.fromSettings(ICore::settings());
 
     // update view name when changing active project
@@ -433,11 +429,13 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
         []() { return new ClearCaseSubmitEditor(&submitParameters); }));
 
     // any editor responds to describe (when clicking a version)
-    static const char *describeSlot = SLOT(describe(QString,QString));
+    const auto describeFunc = [this](const QString &source, const QString &changeNr) {
+        describe(source, changeNr);
+    };
     const int editorCount = sizeof(editorParameters)/sizeof(VcsBaseEditorParameters);
     const auto widgetCreator = []() { return new ClearCaseEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, this, describeSlot));
+        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
 
     const QString description = QLatin1String("ClearCase");
     const QString prefix = QLatin1String("cc");
@@ -1118,8 +1116,8 @@ void ClearCasePlugin::diffActivity()
         diffGraphical(pair.first, pair.second);
         return;
     }
-    rmdir(QDir::tempPath() + QLatin1String("/ccdiff/") + activity);
-    QDir(QDir::tempPath()).rmpath(QLatin1String("ccdiff/") + activity);
+    rmdir(Utils::TemporaryDirectory::masterDirectoryPath() + QLatin1String("/ccdiff/") + activity);
+    QDir(Utils::TemporaryDirectory::masterDirectoryPath()).rmpath(QLatin1String("ccdiff/") + activity);
     m_diffPrefix = activity;
     const FileVerIt fend = filever.end();
     for (FileVerIt it = filever.begin(); it != fend; ++it) {
@@ -1347,14 +1345,6 @@ void ClearCasePlugin::annotateCurrentFile()
     vcsAnnotate(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
-void ClearCasePlugin::annotateVersion(const QString &workingDirectory,
-                                      const QString &file,
-                                      const QString &revision,
-                                      int lineNr)
-{
-    vcsAnnotate(workingDirectory, file, revision, lineNr);
-}
-
 void ClearCasePlugin::vcsAnnotate(const QString &workingDir, const QString &file,
                                 const QString &revision /* = QString() */,
                                 int lineNumber /* = -1 */) const
@@ -1497,11 +1487,10 @@ IEditor *ClearCasePlugin::showOutputInEditor(const QString& title, const QString
                  <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
     QString s = title;
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, output.toUtf8());
-    connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,QString,int)),
-            this, SLOT(annotateVersion(QString,QString,QString,int)));
     ClearCaseEditorWidget *e = qobject_cast<ClearCaseEditorWidget*>(editor->widget());
     if (!e)
         return 0;
+    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &ClearCasePlugin::vcsAnnotate);
     e->setForceReadOnly(true);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
     e->textDocument()->setFallbackSaveAsFileName(s);
@@ -1608,7 +1597,7 @@ bool ClearCasePlugin::vcsOpen(const QString &workingDir, const QString &fileName
                 VersionSelector selector(file, response.stdErr);
                 if (selector.exec() == QDialog::Accepted) {
                     if (selector.isUpdate())
-                        ccUpdate(workingDir, QStringList() << file);
+                        ccUpdate(workingDir, QStringList(file));
                     else
                         args.removeOne(QLatin1String("-query"));
                     response = runCleartool(topLevel, args, m_settings.timeOutS,
@@ -1803,7 +1792,7 @@ static QString baseName(const QString &fileName)
 bool ClearCasePlugin::vcsAdd(const QString &workingDir, const QString &fileName)
 {
     return ccFileOp(workingDir, tr("ClearCase Add File %1").arg(baseName(fileName)),
-                    QStringList() << QLatin1String("mkelem") << QLatin1String("-ci"), fileName);
+                    QStringList({"mkelem", "-ci"}), fileName);
 }
 
 bool ClearCasePlugin::vcsDelete(const QString &workingDir, const QString &fileName)
@@ -1814,14 +1803,14 @@ bool ClearCasePlugin::vcsDelete(const QString &workingDir, const QString &fileNa
         return true;
 
     return ccFileOp(workingDir, tr("ClearCase Remove File %1").arg(baseName(fileName)),
-                    QStringList() << QLatin1String("rmname") << QLatin1String("-force"), fileName);
+                    QStringList({"rmname", "-force"}), fileName);
 }
 
 bool ClearCasePlugin::vcsMove(const QString &workingDir, const QString &from, const QString &to)
 {
     return ccFileOp(workingDir, tr("ClearCase Rename File %1 -> %2")
                     .arg(baseName(from)).arg(baseName(to)),
-                    QStringList() << QLatin1String("move"), from, to);
+                    QStringList("move"), from, to);
 }
 
 bool ClearCasePlugin::vcsCheckout(const QString & /*directory*/, const QByteArray & /*url*/)

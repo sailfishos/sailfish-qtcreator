@@ -54,9 +54,9 @@ public:
                     const QStringList &preambelMessage = QStringList());
     static bool buildList(BuildStepList *bsl, const QString &stepListName);
 
-    static bool isBuilding(Project *p);
-    static bool isBuilding(Target *t);
-    static bool isBuilding(ProjectConfiguration *p);
+    static bool isBuilding(const Project *p);
+    static bool isBuilding(const Target *t);
+    static bool isBuilding(const ProjectConfiguration *p);
     static bool isBuilding(BuildStep *step);
 
     // Append any build step to the list of build steps (currently only used to add the QMakeStep)
@@ -95,7 +95,7 @@ private:
     static void startBuildQueue();
     static void nextStep();
     static void clearBuildQueue();
-    static bool buildQueueAppend(QList<BuildStep *> steps, QStringList names, const QStringList &preambleMessage = QStringList());
+    static bool buildQueueAppend(const QList<BuildStep *> &steps, QStringList names, const QStringList &preambleMessage = QStringList());
     static void incrementActiveBuildSteps(BuildStep *bs);
     static void decrementActiveBuildSteps(BuildStep *bs);
     static void disconnectOutput(BuildStep *bs);

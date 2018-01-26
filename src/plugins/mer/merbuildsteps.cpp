@@ -50,7 +50,7 @@ bool MerSdkStartStep::init(QList<const BuildStep *> &earlierSteps)
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     if (!merSdk) {
         addOutput(tr("Cannot start SDK: Missing Sailfish OS build-engine information in the kit"),
-                ErrorMessageOutput);
+                OutputFormat::ErrorMessage);
         return false;
     }
 

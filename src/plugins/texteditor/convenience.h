@@ -37,6 +37,7 @@ QT_END_NAMESPACE
 namespace TextEditor {
 namespace Convenience {
 
+// line is 1-based, column is 0-based
 TEXTEDITOR_EXPORT bool convertPosition(const QTextDocument *document,
                                        int pos,
                                        int *line, int *column);
@@ -46,6 +47,8 @@ TEXTEDITOR_EXPORT QString textAt(QTextCursor tc, int pos, int length);
 TEXTEDITOR_EXPORT QTextCursor selectAt(QTextCursor textCursor, uint line, uint column, uint length);
 
 TEXTEDITOR_EXPORT QTextCursor flippedCursor(const QTextCursor &cursor);
+
+TEXTEDITOR_EXPORT QTextCursor wordStartCursor(const QTextCursor &cursor);
 
 } // Util
 } // TextEditor

@@ -89,7 +89,7 @@ bool QmakeAndroidRunConfiguration::fromMap(const QVariantMap &map)
     m_parseSuccess = project->validParse(m_proFilePath);
     m_parseInProgress = project->parseInProgress(m_proFilePath);
 
-    return RunConfiguration::fromMap(map);
+    return AndroidRunConfiguration::fromMap(map);
 }
 
 QVariantMap QmakeAndroidRunConfiguration::toMap() const
@@ -102,7 +102,7 @@ QVariantMap QmakeAndroidRunConfiguration::toMap() const
     }
 
     const QDir projectDir = QDir(project->projectDirectory().toString());
-    QVariantMap map(RunConfiguration::toMap());
+    QVariantMap map(AndroidRunConfiguration::toMap());
     map.insert(PRO_FILE_KEY, projectDir.relativeFilePath(m_proFilePath.toString()));
     return map;
 }
@@ -136,7 +136,13 @@ QString QmakeAndroidRunConfiguration::disabledReason() const
     return QString();
 }
 
-void QmakeAndroidRunConfiguration::proFileUpdated(QmakeProjectManager::QmakeProFileNode *pro, bool success, bool parseInProgress)
+QString QmakeAndroidRunConfiguration::buildSystemTarget() const
+{
+    return qmakeProject()->mapProFilePathToTarget(m_proFilePath);
+}
+
+void QmakeAndroidRunConfiguration::proFileUpdated(QmakeProjectManager::QmakeProFile *pro,
+                                                  bool success, bool parseInProgress)
 {
     QmakeProject *project = qmakeProject();
     if (m_proFilePath.isEmpty() && project->rootProjectNode())

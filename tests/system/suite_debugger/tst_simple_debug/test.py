@@ -30,7 +30,7 @@ def main():
     if not startedWithoutPluginError():
         return
     # Requires Qt 4.8
-    targets = Targets.desktopTargetClasses() & ~Targets.DESKTOP_474_GCC
+    targets = Targets.desktopTargetClasses()
     # using a temporary directory won't mess up a potentially existing
     workingDir = tempDir()
     checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=targets)
@@ -93,9 +93,3 @@ def main():
         else:
             test.fatal("Setting breakpoints failed - leaving without testing.")
     invokeMenuItem("File", "Exit")
-
-def init():
-    removeQmlDebugFolderIfExists()
-
-def cleanup():
-    removeQmlDebugFolderIfExists()

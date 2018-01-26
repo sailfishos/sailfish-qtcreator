@@ -27,6 +27,7 @@
 
 #include "algorithm.h"
 #include "qtcassert.h"
+#include "stringutils.h"
 
 #include <QAbstractButton>
 #include <QApplication>
@@ -290,7 +291,7 @@ bool DockWidget::eventFilter(QObject *, QEvent *event)
         QMouseEvent *me = static_cast<QMouseEvent *>(event);
         int y = me->pos().y();
         int x = me->pos().x();
-        int h = m_titleBar->m_floatButton->height();
+        int h = qMin(8, m_titleBar->m_floatButton->height());
         if (!isFloating() && widget() && 0 <= x && x < widget()->width() && 0 <= y && y <= h) {
             m_timer.start();
             m_startPos = mapToGlobal(me->pos());
@@ -532,7 +533,7 @@ void FancyMainWindow::addDockActionsToMenu(QMenu *menu)
     Utils::sort(actions, [](const QAction *action1, const QAction *action2) {
         QTC_ASSERT(action1, return true);
         QTC_ASSERT(action2, return false);
-        return action1->text().toLower() < action2->text().toLower();
+        return stripAccelerator(action1->text()).toLower() < stripAccelerator(action2->text()).toLower();
     });
     foreach (QAction *action, actions)
         menu->addAction(action);

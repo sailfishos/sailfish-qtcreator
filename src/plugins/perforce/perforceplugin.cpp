@@ -45,15 +45,15 @@
 #include <coreplugin/locator/commandlocator.h>
 #include <texteditor/textdocument.h>
 #include <utils/fileutils.h>
-#include <utils/mimetypes/mimedatabase.h>
 #include <utils/parameteraction.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
+#include <utils/temporarydirectory.h>
 #include <vcsbase/basevcseditorfactory.h>
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseeditor.h>
 #include <vcsbase/vcsoutputwindow.h>
-#include <vcsbase/vcsbaseeditorparameterwidget.h>
+#include <vcsbase/vcsbaseeditorconfig.h>
 
 #include <QAction>
 #include <QDebug>
@@ -185,8 +185,6 @@ bool PerforcePlugin::initialize(const QStringList & /* arguments */, QString *er
 
     initializeVcs(new PerforceVersionControl(this), context);
 
-    Utils::MimeDatabase::addMimeTypes(QLatin1String(":/trolltech.perforce/Perforce.mimetypes.xml"));
-
     m_instance = this;
 
     m_settings.fromSettings(ICore::settings());
@@ -197,11 +195,13 @@ bool PerforcePlugin::initialize(const QStringList & /* arguments */, QString *er
     addAutoReleasedObject(new VcsSubmitEditorFactory(&submitParameters,
         []() { return new PerforceSubmitEditor(&submitParameters); }));
 
-    static const char *describeSlot = SLOT(describe(QString,QString));
+    const auto describeFunc = [this](const QString &source, const QString &n) {
+        describe(source, n);
+    };
     const int editorCount = sizeof(editorParameters) / sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new PerforceEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, this, describeSlot));
+        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
 
     const QString prefix = QLatin1String("p4");
     m_commandLocator = new CommandLocator("Perforce", prefix, prefix);
@@ -631,9 +631,9 @@ IEditor *PerforcePlugin::openPerforceSubmitEditor(const QString &fileName, const
 
 void PerforcePlugin::printPendingChanges()
 {
-    qApp->setOverrideCursor(Qt::WaitCursor);
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
     PendingChangesDialog dia(pendingChangesData(), ICore::mainWindow());
-    qApp->restoreOverrideCursor();
+    QGuiApplication::restoreOverrideCursor();
     if (dia.exec() == QDialog::Accepted) {
         const int i = dia.changeNumber();
         QStringList args(QLatin1String("submit"));
@@ -932,11 +932,7 @@ PerforcePlugin::createTemporaryArgumentFile(const QStringList &extraArgs,
     // create pattern
     QString pattern = m_instance->m_tempFilePattern;
     if (pattern.isEmpty()) {
-        pattern = QDir::tempPath();
-        const QChar slash = QLatin1Char('/');
-        if (!pattern.endsWith(slash))
-            pattern += slash;
-        pattern += QLatin1String("qtc_p4_XXXXXX.args");
+        pattern = Utils::TemporaryDirectory::masterDirectoryPath() + "/qtc_p4_XXXXXX.args";
         m_instance->m_tempFilePattern = pattern;
     }
     QSharedPointer<TempFileSaver> rc(new TempFileSaver(pattern));
@@ -997,17 +993,23 @@ PerforceResponse PerforcePlugin::synchronousProcess(const QString &workingDir,
     // connect stderr to the output window if desired
     if (flags & StdErrToWindow) {
         process.setStdErrBufferedSignalsEnabled(true);
-        connect(&process, SIGNAL(stdErrBuffered(QString,bool)), outputWindow, SLOT(append(QString)));
+        connect(&process, &SynchronousProcess::stdErrBuffered,
+                outputWindow, [outputWindow](const QString &lines) {
+            outputWindow->append(lines);
+        });
     }
 
     // connect stdout to the output window if desired
     if (flags & StdOutToWindow) {
         process.setStdOutBufferedSignalsEnabled(true);
         if (flags & SilentStdOut) {
-            connect(&process, &SynchronousProcess::stdOutBuffered, outputWindow, &VcsOutputWindow::appendSilently);
-        }
-        else {
-            connect(&process, SIGNAL(stdOutBuffered(QString,bool)), outputWindow, SLOT(append(QString)));
+            connect(&process, &SynchronousProcess::stdOutBuffered,
+                    outputWindow, &VcsOutputWindow::appendSilently);
+        } else {
+            connect(&process, &SynchronousProcess::stdOutBuffered,
+                    outputWindow, [outputWindow](const QString &lines) {
+                outputWindow->append(lines);
+            });
         }
     }
     process.setTimeOutMessageBoxEnabled(true);
@@ -1168,11 +1170,10 @@ IEditor *PerforcePlugin::showOutputInEditor(const QString &title,
     }
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, content.toUtf8());
     QTC_ASSERT(editor, return 0);
-    connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,QString,int)),
-            this, SLOT(vcsAnnotate(QString,QString,QString,int)));
     auto e = qobject_cast<PerforceEditorWidget*>(editor->widget());
     if (!e)
         return 0;
+    connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &PerforcePlugin::annotate);
     e->setForceReadOnly(true);
     e->setSource(source);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
@@ -1195,11 +1196,11 @@ struct PerforceDiffParameters
 };
 
 // Parameter widget controlling whitespace diff mode, associated with a parameter
-class PerforceDiffParameterWidget : public VcsBaseEditorParameterWidget
+class PerforceDiffConfig : public VcsBaseEditorConfig
 {
     Q_OBJECT
 public:
-    explicit PerforceDiffParameterWidget(const PerforceDiffParameters &p, QWidget *parent = 0);
+    explicit PerforceDiffConfig(const PerforceDiffParameters &p, QToolBar *toolBar);
     void triggerReRun();
 
 signals:
@@ -1209,15 +1210,15 @@ private:
     const PerforceDiffParameters m_parameters;
 };
 
-PerforceDiffParameterWidget::PerforceDiffParameterWidget(const PerforceDiffParameters &p, QWidget *parent) :
-    VcsBaseEditorParameterWidget(parent), m_parameters(p)
+PerforceDiffConfig::PerforceDiffConfig(const PerforceDiffParameters &p, QToolBar *toolBar) :
+    VcsBaseEditorConfig(toolBar), m_parameters(p)
 {
     setBaseArguments(p.diffArguments);
     addToggleButton(QLatin1String("w"), tr("Ignore Whitespace"));
-    connect(this, &VcsBaseEditorParameterWidget::argumentsChanged, this, &PerforceDiffParameterWidget::triggerReRun);
+    connect(this, &VcsBaseEditorConfig::argumentsChanged, this, &PerforceDiffConfig::triggerReRun);
 }
 
-void PerforceDiffParameterWidget::triggerReRun()
+void PerforceDiffConfig::triggerReRun()
 {
     PerforceDiffParameters effectiveParameters = m_parameters;
     effectiveParameters.diffArguments = arguments();
@@ -1269,12 +1270,12 @@ void PerforcePlugin::p4Diff(const PerforceDiffParameters &p)
     auto diffEditorWidget = qobject_cast<VcsBaseEditorWidget *>(editor->widget());
     // Wire up the parameter widget to trigger a re-run on
     // parameter change and 'revert' from inside the diff editor.
-    auto pw = new PerforceDiffParameterWidget(p);
-    connect(pw, &PerforceDiffParameterWidget::reRunDiff,
+    auto pw = new PerforceDiffConfig(p, diffEditorWidget->toolBar());
+    connect(pw, &PerforceDiffConfig::reRunDiff,
             this, [this](const PerforceDiffParameters &p) { p4Diff(p); });
     connect(diffEditorWidget, &VcsBaseEditorWidget::diffChunkReverted,
-            pw, &PerforceDiffParameterWidget::triggerReRun);
-    diffEditorWidget->setConfigurationWidget(pw);
+            pw, &PerforceDiffConfig::triggerReRun);
+    diffEditorWidget->setEditorConfig(pw);
 }
 
 void PerforcePlugin::describe(const QString & source, const QString &n)

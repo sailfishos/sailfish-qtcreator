@@ -58,23 +58,20 @@ Utils::FileName Settings::getPath(const QString &file)
 {
     Utils::FileName result = sdkPath;
     const QString lowerFile = file.toLower();
-    const QStringList identical = QStringList()
-            << QLatin1String("profiles")
-            << QLatin1String("qtversion")
-            << QLatin1String("toolchains")
-            << QLatin1String("devices")
-            << QLatin1String("mersdk")
-            << QLatin1String("mersdk-device-models")
-            << QLatin1String("android")
-            << QLatin1String("debuggers");
-    if (lowerFile == QLatin1String("kits"))
-        result.appendPath(QLatin1String("profiles"));
-    else if (lowerFile == QLatin1String("qtversions"))
-        result.appendPath(QLatin1String("qtversion"));
+    const QStringList identical
+            = QStringList({ "android", "cmaketools", "debuggers", "devices",
+                            "mersdk", "mersdk-device-models",
+                            "profiles", "qtversions", "toolchains" });
+    if (lowerFile == "cmake")
+        result.appendPath("cmaketools");
+    else if (lowerFile == "kits")
+        result.appendPath("profiles");
+    else if (lowerFile == "qtversions")
+        result.appendPath("qtversion");
     else if (identical.contains(lowerFile))
         result.appendPath(lowerFile);
     else
-        return Utils::FileName();
-    result.appendString(QLatin1String(".xml"));
+        result.appendPath(file); // handle arbitrary file names not known yet
+    result.appendString(".xml");
     return result;
 }

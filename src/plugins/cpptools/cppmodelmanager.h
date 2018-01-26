@@ -27,7 +27,6 @@
 
 #include "cpptools_global.h"
 
-#include "cppmodelmanagersupport.h"
 #include "projectinfo.h"
 #include "projectpart.h"
 #include "projectpartheaderpath.h"
@@ -37,7 +36,6 @@
 #include <QFuture>
 #include <QObject>
 #include <QStringList>
-
 
 namespace Core {
 class IDocument;
@@ -54,6 +52,7 @@ class BaseEditorDocumentProcessor;
 class CppCompletionAssistProvider;
 class CppEditorDocumentHandle;
 class CppIndexingSupport;
+class ModelManagerSupportProvider;
 class RefactoringEngineInterface;
 class SymbolFinder;
 class WorkingCopy;
@@ -87,14 +86,20 @@ public:
     };
 
     QFuture<void> updateSourceFiles(const QSet<QString> &sourceFiles,
-        ProgressNotificationMode mode = ReservedProgressNotification);
-    void updateCppEditorDocuments() const;
+                                    ProgressNotificationMode mode = ReservedProgressNotification);
+    QFuture<void> updateSourceFiles(const QFutureInterface<void> &superFuture,
+                                    const QSet<QString> &sourceFiles,
+                                    ProgressNotificationMode mode = ReservedProgressNotification);
+    void updateCppEditorDocuments(bool projectsUpdated = false) const;
     WorkingCopy workingCopy() const;
     QByteArray codeModelConfiguration() const;
 
     QList<ProjectInfo> projectInfos() const;
     ProjectInfo projectInfo(ProjectExplorer::Project *project) const;
     QFuture<void> updateProjectInfo(const ProjectInfo &newProjectInfo);
+    QFuture<void> updateProjectInfo(QFutureInterface<void> &futureInterface,
+                                    const ProjectInfo &newProjectInfo);
+
     ProjectInfo updateCompilerCallDataForProject(ProjectExplorer::Project *project,
                                                  ProjectInfo::CompilerCallData &compilerCallData);
 
@@ -175,6 +180,8 @@ public:
     static void setRefactoringEngine(RefactoringEngineInterface *refactoringEngine);
     static RefactoringEngineInterface *refactoringEngine();
 
+    void renameIncludes(const QString &oldFileName, const QString &newFileName);
+
 signals:
     /// Project data might be locked while this is emitted.
     void aboutToRemoveFiles(const QStringList &files);
@@ -200,9 +207,9 @@ private:
     // This should be executed in the GUI thread.
     friend class Tests::ModelManagerTestHelper;
     void onAboutToLoadSession();
-    void renameIncludes(const QString &oldFileName, const QString &newFileName);
     void onProjectAdded(ProjectExplorer::Project *project);
     void onAboutToRemoveProject(ProjectExplorer::Project *project);
+    void onActiveProjectChanged(ProjectExplorer::Project *project);
     void onSourceFilesRefreshed() const;
     void onCurrentEditorChanged(Core::IEditor *editor);
     void onCoreAboutToClose();
@@ -210,7 +217,8 @@ private:
     void initializeBuiltinModelManagerSupport();
     void delayedGC();
     void recalculateProjectPartMappings();
-    void watchForCanceledProjectIndexer(QFuture<void> future, ProjectExplorer::Project *project);
+    void watchForCanceledProjectIndexer(const QVector<QFuture<void> > &futures,
+                                        ProjectExplorer::Project *project);
 
     void replaceSnapshot(const CPlusPlus::Snapshot &newSnapshot);
     void removeFilesFromSnapshot(const QSet<QString> &removedFiles);

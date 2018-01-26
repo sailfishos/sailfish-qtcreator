@@ -39,6 +39,7 @@ SOURCES += \
     merdeploystepfactory.cpp \
     merdeploysteps.cpp \
     merdevice.cpp \
+    merdevicedebugsupport.cpp \
     merdevicefactory.cpp \
     merdevicexmlparser.cpp \
     meremulatordevice.cpp \
@@ -72,7 +73,6 @@ SOURCES += \
     merrunconfiguration.cpp \
     merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
-    merruncontrolfactory.cpp \
     mersdk.cpp \
     mersdkdetailswidget.cpp \
     mersdkkitinformation.cpp \
@@ -102,6 +102,7 @@ HEADERS += \
     merdeploystepfactory.h \
     merdeploysteps.h \
     merdevice.h \
+    merdevicedebugsupport.h \
     merdevicefactory.h \
     merdevicexmlparser.h \
     meremulatordevice.h \
@@ -136,7 +137,6 @@ HEADERS += \
     merrunconfiguration.h \
     merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
-    merruncontrolfactory.h \
     mersdk.h \
     mersdkdetailswidget.h \
     mersdkkitinformation.h \

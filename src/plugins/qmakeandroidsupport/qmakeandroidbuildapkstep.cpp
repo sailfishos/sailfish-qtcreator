@@ -74,7 +74,7 @@ QList<ProjectExplorer::BuildStepInfo> QmakeAndroidBuildApkStepFactory::available
             || parent->contains(ANDROID_BUILD_APK_ID))
         return {};
 
-    return {{ ANDROID_BUILD_APK_ID, tr("Build Android APK") }};
+    return {{ANDROID_BUILD_APK_ID, tr("Build Android APK")}};
 }
 
 ProjectExplorer::BuildStep *QmakeAndroidBuildApkStepFactory::create(ProjectExplorer::BuildStepList *parent, const Core::Id id)
@@ -90,9 +90,7 @@ ProjectExplorer::BuildStep *QmakeAndroidBuildApkStepFactory::clone(ProjectExplor
 
 QmakeAndroidBuildApkStep::QmakeAndroidBuildApkStep(ProjectExplorer::BuildStepList *bc)
     :AndroidBuildApkStep(bc, ANDROID_BUILD_APK_ID)
-{
-    ctor();
-}
+{ }
 
 Utils::FileName QmakeAndroidBuildApkStep::proFilePathForInputFile() const
 {
@@ -104,9 +102,7 @@ Utils::FileName QmakeAndroidBuildApkStep::proFilePathForInputFile() const
 
 QmakeAndroidBuildApkStep::QmakeAndroidBuildApkStep(ProjectExplorer::BuildStepList *bc, QmakeAndroidBuildApkStep *other)
     : AndroidBuildApkStep(bc, other)
-{
-    ctor();
-}
+{ }
 
 Utils::FileName QmakeAndroidBuildApkStep::androidPackageSourceDir() const
 {
@@ -116,18 +112,14 @@ Utils::FileName QmakeAndroidBuildApkStep::androidPackageSourceDir() const
     if (!node)
         return Utils::FileName();
 
-    QFileInfo sourceDirInfo(node->singleVariableValue(QmakeProjectManager::AndroidPackageSourceDir));
+    QFileInfo sourceDirInfo(node->singleVariableValue(QmakeProjectManager::Variable::AndroidPackageSourceDir));
     return Utils::FileName::fromString(sourceDirInfo.canonicalFilePath());
-}
-
-void QmakeAndroidBuildApkStep::ctor()
-{
 }
 
 bool QmakeAndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 {
     if (AndroidManager::checkForQt51Files(project()->projectDirectory()))
-        emit addOutput(tr("Found old folder \"android\" in source directory. Qt 5.2 does not use that folder by default."), ErrorOutput);
+        emit addOutput(tr("Found old folder \"android\" in source directory. Qt 5.2 does not use that folder by default."), OutputFormat::Stderr);
 
     if (!AndroidBuildApkStep::init(earlierSteps))
         return false;
@@ -160,10 +152,17 @@ bool QmakeAndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
     if (m_skipBuilding)
         return true;
 
-    QString inputFile = node->singleVariableValue(QmakeProjectManager::AndroidDeploySettingsFile);
+    QString inputFile = node->singleVariableValue(QmakeProjectManager::Variable::AndroidDeploySettingsFile);
     if (inputFile.isEmpty()) {
         m_skipBuilding = true;
         return true;
+    }
+
+    QString buildTargetSdk = AndroidManager::buildTargetSDK(target());
+    if (buildTargetSdk.isEmpty()) {
+        emit addOutput(tr("Android build SDK not defined. Check Android settings."),
+                       OutputFormat::Stderr);
+        return false;
     }
 
     QStringList arguments;
@@ -190,13 +189,6 @@ bool QmakeAndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 
     QStringList argumentsPasswordConcealed = arguments;
 
-    if (version->qtVersion() >= QtSupport::QtVersionNumber(5, 6, 0)) {
-        if (bc->buildType() == ProjectExplorer::BuildConfiguration::Debug)
-            arguments << QLatin1String("--gdbserver");
-        else
-            arguments << QLatin1String("--no-gdbserver");
-    }
-
     if (m_signPackage) {
         arguments << QLatin1String("--sign")
                   << m_keystorePath.toString()
@@ -214,6 +206,15 @@ bool QmakeAndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 
     }
 
+    // Must be the last option, otherwise androiddeployqt might use the other
+    // params (e.g. --sign) to choose not to add gdbserver
+    if (version->qtVersion() >= QtSupport::QtVersionNumber(5, 6, 0)) {
+        if (m_addDebugger || bc->buildType() == ProjectExplorer::BuildConfiguration::Debug)
+            arguments << QLatin1String("--gdbserver");
+        else
+            arguments << QLatin1String("--no-gdbserver");
+    }
+
     ProjectExplorer::ProcessParameters *pp = processParameters();
     setupProcessParameters(pp, bc, arguments, command);
 
@@ -229,7 +230,7 @@ bool QmakeAndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 void QmakeAndroidBuildApkStep::run(QFutureInterface<bool> &fi)
 {
     if (m_skipBuilding) {
-        emit addOutput(tr("No application .pro file found, not building an APK."), BuildStep::ErrorMessageOutput);
+        emit addOutput(tr("No application .pro file found, not building an APK."), BuildStep::OutputFormat::ErrorMessage);
         reportRunResult(fi, true);
         return;
     }
@@ -255,7 +256,7 @@ void QmakeAndroidBuildApkStep::processStarted()
     emit addOutput(tr("Starting: \"%1\" %2")
                    .arg(QDir::toNativeSeparators(m_command),
                         m_argumentsPasswordConcealed),
-                   BuildStep::MessageOutput);
+                   BuildStep::OutputFormat::NormalMessage);
 }
 
 ProjectExplorer::BuildStepConfigWidget *QmakeAndroidBuildApkStep::createConfigWidget()

@@ -200,7 +200,7 @@ QVariant CppIncludeHierarchyItem::data(int column, int role) const
 
 bool CppIncludeHierarchyItem::canFetchMore() const
 {
-    if (m_isCyclic || m_checkedForChildren || !children().isEmpty())
+    if (m_isCyclic || m_checkedForChildren || childCount() > 0)
         return false;
 
     return !model()->m_searching || !model()->m_seen.contains(m_filePath);
@@ -314,10 +314,18 @@ public:
     {}
 
 private:
-    Result findIncremental(const QString &txt, FindFlags findFlags)
+    Result findIncremental(const QString &txt, FindFlags findFlags) override
     {
         m_model->setSearching(true);
         Result result = ItemViewFind::findIncremental(txt, findFlags);
+        m_model->setSearching(false);
+        return result;
+    }
+
+    Result findStep(const QString &txt, FindFlags findFlags) override
+    {
+        m_model->setSearching(true);
+        Result result = ItemViewFind::findStep(txt, findFlags);
         m_model->setSearching(false);
         return result;
     }

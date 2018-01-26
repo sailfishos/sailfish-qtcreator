@@ -34,10 +34,9 @@
 #include "linenumberfilter.h"
 #include "outlinefactory.h"
 #include "plaintexteditorfactory.h"
-#include "snippets/plaintextsnippetprovider.h"
+#include "snippets/snippetprovider.h"
 #include "texteditoractionhandler.h"
 #include "texteditorsettings.h"
-#include "textmarkregistry.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -54,7 +53,6 @@
 #include <QtPlugin>
 #include <QAction>
 #include <QDir>
-#include <QTemporaryFile>
 
 using namespace Core;
 
@@ -71,8 +69,6 @@ static const char kCurrentDocumentFontSize[] = "CurrentDocument:FontSize";
 static TextEditorPlugin *m_instance = 0;
 
 TextEditorPlugin::TextEditorPlugin()
-  : m_settings(0),
-    m_lineNumberFilter(0)
 {
     QTC_ASSERT(!m_instance, return);
     m_instance = this;
@@ -81,6 +77,11 @@ TextEditorPlugin::TextEditorPlugin()
 TextEditorPlugin::~TextEditorPlugin()
 {
     m_instance = 0;
+}
+
+TextEditorPlugin *TextEditorPlugin::instance()
+{
+    return m_instance;
 }
 
 // ExtensionSystem::PluginInterface
@@ -118,16 +119,24 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
             editor->editorWidget()->invokeAssist(QuickFix);
     });
 
+    QAction *showContextMenuAction = new QAction(tr("Show Context Menu"), this);
+    ActionManager::registerAction(showContextMenuAction,
+                                  Constants::SHOWCONTEXTMENU,
+                                  context);
+    connect(showContextMenuAction, &QAction::triggered, []() {
+        if (BaseTextEditor *editor = BaseTextEditor::currentTextEditor())
+            editor->editorWidget()->showContextMenu();
+    });
+
     // Generic highlighter.
     connect(ICore::instance(), &ICore::coreOpened, Manager::instance(), &Manager::registerHighlightingFiles);
 
     // Add text snippet provider.
-    addAutoReleasedObject(new PlainTextSnippetProvider);
+    SnippetProvider::registerGroup(Constants::TEXT_SNIPPET_GROUP_ID,
+                                    tr("Text", "SnippetProvider"));
 
     m_outlineFactory = new OutlineFactory;
     addAutoReleasedObject(m_outlineFactory);
-
-    m_baseTextMarkRegistry = new TextMarkRegistry(this);
 
     addAutoReleasedObject(new FindInFiles);
     addAutoReleasedObject(new FindInCurrentFile);
@@ -206,11 +215,6 @@ void TextEditorPlugin::extensionsInitialized()
 LineNumberFilter *TextEditorPlugin::lineNumberFilter()
 {
     return m_instance->m_lineNumberFilter;
-}
-
-TextMarkRegistry *TextEditorPlugin::baseTextMarkRegistry()
-{
-    return m_instance->m_baseTextMarkRegistry;
 }
 
 void TextEditorPlugin::updateSearchResultsFont(const FontSettings &settings)

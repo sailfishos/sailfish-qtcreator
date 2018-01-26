@@ -26,6 +26,7 @@
 #include "compileroptionsbuilder.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
+#include <utils/qtcfallthrough.h>
 
 #include <QDir>
 #include <QRegularExpression>
@@ -97,9 +98,9 @@ void CompilerOptionsBuilder::addWordWidth()
 
 void CompilerOptionsBuilder::addTargetTriple()
 {
-    if (!m_projectPart.targetTriple.isEmpty()) {
+    if (!m_projectPart.toolChainTargetTriple.isEmpty()) {
         m_options.append(QLatin1String("-target"));
-        m_options.append(m_projectPart.targetTriple);
+        m_options.append(m_projectPart.toolChainTargetTriple);
     }
 }
 
@@ -187,6 +188,7 @@ static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objc
 
     switch (fileKind) {
     case ProjectFile::Unclassified:
+    case ProjectFile::Unsupported:
         break;
     case ProjectFile::CHeader:
         if (objcExt)
@@ -200,7 +202,8 @@ static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objc
         if (!objcExt) {
             opts += QLatin1String("c++-header");
             break;
-        } // else: fall-through!
+        }
+        Q_FALLTHROUGH();
     case ProjectFile::ObjCHeader:
     case ProjectFile::ObjCXXHeader:
         opts += QLatin1String("objective-c++-header");
@@ -210,7 +213,8 @@ static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objc
         if (!objcExt) {
             opts += QLatin1String("c");
             break;
-        } // else: fall-through!
+        }
+        Q_FALLTHROUGH();
     case ProjectFile::ObjCSource:
         opts += QLatin1String("objective-c");
         break;
@@ -219,7 +223,8 @@ static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objc
         if (!objcExt) {
             opts += QLatin1String("c++");
             break;
-        } // else: fall-through!
+        }
+        Q_FALLTHROUGH();
     case ProjectFile::ObjCXXSource:
         opts += QLatin1String("objective-c++");
         break;
@@ -299,6 +304,7 @@ void CompilerOptionsBuilder::addDefineToAvoidIncludingGccOrMinGwIntrinsics()
     if (type == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID
             || type == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID) {
         addDefine("#define _X86INTRIN_H_INCLUDED");
+        addDefine("#define BOOST_UUID_NO_SIMD");
     }
 }
 
@@ -339,10 +345,11 @@ void CompilerOptionsBuilder::addMsvcCompatibilityVersion()
 
 static QStringList languageFeatureMacros()
 {
+    // CLANG-UPGRADE-CHECK: Update known language features macros.
     // Collected with:
     //  $ CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
     //  $ D:\usr\llvm-3.8.0\bin\clang++.exe -fms-compatibility-version=19 -std=c++1y -dM -E D:\empty.cpp | grep __cpp_
-    static QStringList macros {
+    static QStringList macros{
         QLatin1String("__cpp_aggregate_nsdmi"),
         QLatin1String("__cpp_alias_templates"),
         QLatin1String("__cpp_attributes"),
@@ -388,10 +395,10 @@ void CompilerOptionsBuilder::undefineCppLanguageFeatureMacrosForMsvc2015()
 
 void CompilerOptionsBuilder::addDefineFloat128ForMingw()
 {
-    // TODO: Remove once this is fixed in clang >= 3.9.
+    // CLANG-UPGRADE-CHECK: Workaround still needed?
     // https://llvm.org/bugs/show_bug.cgi?id=30685
     if (m_projectPart.toolchainType == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID)
-        addDefine("#define __float128 void");
+        addDefine("#define __float128 short");
 }
 
 QString CompilerOptionsBuilder::includeDirOption() const

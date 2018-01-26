@@ -27,6 +27,8 @@
 #include "scxmldocument.h"
 #include "scxmltag.h"
 
+#include <utils/qtcfallthrough.h>
+
 #include <QMimeData>
 #include <QUndoStack>
 
@@ -161,7 +163,7 @@ QModelIndex StructureModel::parent(const QModelIndex &index) const
         return QModelIndex();
 
     const ScxmlTag *child = getItem(index);
-    if (child != m_document->rootTag()) {
+    if (child && child != m_document->rootTag()) {
         ScxmlTag *parentTag = child->parentTag();
         if (parentTag)
             return createIndex(parentTag->index(), 0, parentTag);
@@ -245,6 +247,7 @@ Qt::ItemFlags StructureModel::flags(const QModelIndex &index) const
         case Final:
         case History:
             defaultFlags |= Qt::ItemIsDragEnabled;
+            Q_FALLTHROUGH();
         case Scxml:
             defaultFlags |= Qt::ItemIsDropEnabled;
             break;

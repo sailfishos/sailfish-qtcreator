@@ -69,17 +69,21 @@ void populateMenu(QSet<ActionInterface* > &actionInterfaces,
     });
 
     foreach (ActionInterface* actionInterface, matchingFactoriesList) {
-       if (actionInterface->type() == ActionInterface::Menu) {
-           actionInterface->currentContextChanged(selectionContext);
-           QMenu *newMenu = actionInterface->action()->menu();
-           menu->addMenu(newMenu);
+        if (actionInterface->type() == ActionInterface::ContextMenu) {
+            actionInterface->currentContextChanged(selectionContext);
+            QMenu *newMenu = actionInterface->action()->menu();
+            if (newMenu && !newMenu->title().isEmpty())
+                menu->addMenu(newMenu);
 
-           //recurse
+            //recurse
 
-           populateMenu(actionInterfaces, actionInterface->menuId(), newMenu, selectionContext);
-       } else if (actionInterface->type() == ActionInterface::Action) {
+            populateMenu(actionInterfaces, actionInterface->menuId(), newMenu, selectionContext);
+        } else if (actionInterface->type() == ActionInterface::ContextMenuAction
+                   || actionInterface->type() == ActionInterface::Action
+                   || actionInterface->type() == ActionInterface::FormEditorAction) {
            QAction* action = actionInterface->action();
            actionInterface->currentContextChanged(selectionContext);
+           action->setIconVisibleInMenu(false);
            menu->addAction(action);
        }
     }

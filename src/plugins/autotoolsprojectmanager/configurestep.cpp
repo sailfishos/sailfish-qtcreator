@@ -77,7 +77,7 @@ QList<BuildStepInfo> ConfigureStepFactory::availableSteps(BuildStepList *parent)
         return {};
 
     QString display = tr("Configure", "Display name for AutotoolsProjectManager::ConfigureStep id.");
-    return {{ CONFIGURE_STEP_ID, display }};
+    return {{CONFIGURE_STEP_ID, display}};
 }
 
 BuildStep *ConfigureStepFactory::create(BuildStepList *parent, Core::Id id)
@@ -147,7 +147,7 @@ void ConfigureStep::run(QFutureInterface<bool>& fi)
     }
 
     if (!m_runConfigure) {
-        emit addOutput(tr("Configuration unchanged, skipping configure step."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration unchanged, skipping configure step."), BuildStep::OutputFormat::NormalMessage);
         reportRunResult(fi, true);
         return;
     }

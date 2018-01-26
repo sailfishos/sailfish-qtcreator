@@ -46,6 +46,12 @@ public:
 
     DiffEditorController *controller() const;
 
+    enum State {
+        LoadOK,
+        Reloading,
+        LoadFailed
+    };
+
     QString makePatch(int fileIndex, int chunkIndex,
                       bool revert, bool addPrefix = false,
                       const QString &overriddenFileName = QString()) const;
@@ -70,12 +76,13 @@ public:
     QString fallbackSaveAsPath() const override;
     QString fallbackSaveAsFileName() const override;
 
-    bool isSaveAsAllowed() const override { return true; }
+    bool isSaveAsAllowed() const override;
     bool save(QString *errorString, const QString &fileName, bool autoSave) override;
     void reload();
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type) override;
     OpenResult open(QString *errorString, const QString &fileName,
                     const QString &realFileName) override;
+    State state() const { return m_state; }
 
     QString plainText() const;
 
@@ -86,11 +93,9 @@ signals:
     void chunkActionsRequested(QMenu *menu, int diffFileIndex, int chunkIndex);
     void requestMoreInformation();
 
-public slots:
+private:
     void beginReload();
     void endReload(bool success);
-
-private:
     void setController(DiffEditorController *controller);
 
     DiffEditorController *m_controller;
@@ -101,6 +106,7 @@ private:
     int m_contextLineCount;
     bool m_isContextLineCountForced;
     bool m_ignoreWhitespace;
+    State m_state = LoadOK;
 
     friend class ::DiffEditor::DiffEditorController;
 };

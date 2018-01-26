@@ -26,7 +26,6 @@
 #pragma once
 
 #include "qmlprofilertimelinemodel.h"
-#include "qmlprofilerdatamodel.h"
 #include "qmlprofilereventtypes.h"
 #include "qmleventlocation.h"
 #include "qmlprofilerconstants.h"
@@ -47,7 +46,7 @@ public:
 
     struct QmlRangeEventStartInstance {
         QmlRangeEventStartInstance() :
-                displayRowExpanded(Constants::QML_MIN_LEVEL),
+                displayRowExpanded(1),
                 displayRowCollapsed(Constants::QML_MIN_LEVEL),
                 bindingLoopHead(-1) {}
 
@@ -62,7 +61,7 @@ public:
     Q_INVOKABLE int expandedRow(int index) const override;
     Q_INVOKABLE int collapsedRow(int index) const override;
     int bindingLoopDest(int index) const;
-    QColor color(int index) const override;
+    QRgb color(int index) const override;
 
     QVariantList labels() const override;
     QVariantMap details(int index) const override;

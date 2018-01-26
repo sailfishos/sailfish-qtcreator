@@ -156,6 +156,13 @@ void QmakeBuildConfiguration::ctor()
             this, &QmakeBuildConfiguration::emitProFileEvaluateNeeded);
     connect(target(), &Target::kitChanged,
             this, &QmakeBuildConfiguration::kitChanged);
+    MacroExpander *expander = macroExpander();
+    expander->registerVariable("Qmake:Makefile", "Qmake makefile", [this]() -> QString {
+        const QString file = makefile();
+        if (!file.isEmpty())
+            return file;
+        return QLatin1String("Makefile");
+    });
 }
 
 void QmakeBuildConfiguration::kitChanged()
@@ -172,7 +179,7 @@ void QmakeBuildConfiguration::kitChanged()
 
 void QmakeBuildConfiguration::toolChainUpdated(ToolChain *tc)
 {
-    if (ToolChainKitInformation::toolChain(target()->kit(), ToolChain::Language::Cxx) == tc)
+    if (ToolChainKitInformation::toolChain(target()->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID) == tc)
         emitProFileEvaluateNeeded();
 }
 
@@ -227,7 +234,7 @@ bool QmakeBuildConfiguration::isShadowBuild() const
 
 QString QmakeBuildConfiguration::makefile() const
 {
-    return static_cast<QmakeProject *>(target()->project())->rootProjectNode()->makefile();
+    return static_cast<QmakeProject *>(target()->project())->rootProFile()->makefile();
 }
 
 BaseQtVersion::QmakeBuildConfigs QmakeBuildConfiguration::qmakeBuildConfiguration() const
@@ -584,7 +591,7 @@ QmakeBuildInfo *QmakeBuildConfigurationFactory::createBuildInfo(const Kit *k,
         QString projectDirectory = projectFilePath.toFileInfo().absolutePath();
         QDir qtSourceDir = QDir(version->sourcePath().toString());
         QString relativeProjectPath = qtSourceDir.relativeFilePath(projectDirectory);
-        QString qtBuildDir = version->versionInfo().value(QStringLiteral("QT_INSTALL_PREFIX"));
+        QString qtBuildDir = version->qmakeProperty("QT_INSTALL_PREFIX");
         QString absoluteBuildPath = QDir::cleanPath(qtBuildDir + QLatin1Char('/') + relativeProjectPath);
 
         info->buildDirectory = FileName::fromString(absoluteBuildPath);
@@ -628,8 +635,7 @@ QList<BuildInfo *> QmakeBuildConfigurationFactory::availableBuilds(const Target 
 
 int QmakeBuildConfigurationFactory::priority(const Kit *k, const QString &projectPath) const
 {
-    MimeDatabase mdb;
-    if (k && mdb.mimeTypeForFile(projectPath).matchesName(QLatin1String(Constants::PROFILE_MIMETYPE)))
+    if (k && Utils::mimeTypeForFile(projectPath).matchesName(Constants::PROFILE_MIMETYPE))
         return 0;
     return -1;
 }
@@ -750,17 +756,14 @@ BuildConfiguration::BuildType QmakeBuildConfiguration::buildType() const
         return Release;
 }
 
-QmakeBuildConfiguration::LastKitState::LastKitState()
-{
-
-}
+QmakeBuildConfiguration::LastKitState::LastKitState() { }
 
 QmakeBuildConfiguration::LastKitState::LastKitState(Kit *k)
     : m_qtVersion(QtKitInformation::qtVersionId(k)),
       m_sysroot(SysRootKitInformation::sysRoot(k).toString()),
       m_mkspec(QmakeKitInformation::mkspec(k).toString())
 {
-    ToolChain *tc = ToolChainKitInformation::toolChain(k, ToolChain::Language::Cxx);
+    ToolChain *tc = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
     m_toolchain = tc ? tc->id() : QByteArray();
 }
 

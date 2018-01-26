@@ -66,6 +66,7 @@
 #include <QMimeData>
 #include <QPainter>
 #include <QProcess>
+#include <QSet>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTableWidget>
@@ -89,6 +90,7 @@ enum { debugModel = 0 };
 #define MODEL_DEBUG(s) do { if (debugModel) qDebug() << s; } while (0)
 
 static QMap<QString, int> theWatcherNames; // Keep order, QTCREATORBUG-12308.
+static QSet<QString> theTemporaryWatchers; // Used for 'watched widgets'.
 static int theWatcherCount = 0;
 static QHash<QString, int> theTypeFormats;
 static QHash<QString, int> theIndividualFormats;
@@ -430,6 +432,11 @@ public:
     void removeWatchItem(WatchItem *item);
     void inputNewExpression();
 
+    void grabWidget();
+    void ungrabWidget();
+    void timerEvent(QTimerEvent *event) override;
+    int m_grabWidgetTimerId = -1;
+
 public:
     WatchHandler *m_handler; // Not owned.
     DebuggerEngine *m_engine; // Not owned.
@@ -446,7 +453,6 @@ public:
 
     QSet<QString> m_expandedINames;
     QTimer m_requestUpdateTimer;
-    bool m_grabbing = false;
 
     QHash<QString, TypeInfo> m_reportedTypeInfo;
     QHash<QString, DisplayFormats> m_reportedTypeFormats; // Type name -> Dumper Formats
@@ -460,7 +466,7 @@ WatchModel::WatchModel(WatchHandler *handler, DebuggerEngine *engine)
 
     m_contentsValid = true;
 
-    setHeader({ tr("Name"), tr("Value"), tr("Type") });
+    setHeader({tr("Name"), tr("Value"), tr("Type")});
     m_localsRoot = new WatchItem;
     m_localsRoot->iname = "local";
     m_localsRoot->name = tr("Locals");
@@ -621,7 +627,7 @@ static QString reformatCharacter(int code, int size, bool isSigned)
     if (isSigned) {
         out += QString::number(code);
         if (code < 0)
-            out += QString("/%1    ").arg((1 << (8*size)) + code).left(2 + 2 * size);
+            out += QString("/%1    ").arg((1ULL << (8*size)) + code).left(2 + 2 * size);
         else
             out += QString(2 + 2 * size, QLatin1Char(' '));
     } else {
@@ -964,9 +970,9 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
 
     if (role == BaseTreeView::ExtraIndicesForColumnWidth) {
         QModelIndexList l;
-        foreach (TreeItem *item, m_watchRoot->children())
+        for (const TreeItem *item : *m_watchRoot)
             l.append(indexForItem(item));
-        foreach (TreeItem *item, m_returnRoot->children())
+        for (const TreeItem *item : *m_returnRoot)
             l.append(indexForItem(item));
         return QVariant::fromValue(l);
     }
@@ -1067,13 +1073,6 @@ bool WatchModel::setData(const QModelIndex &idx, const QVariant &value, int role
             return true;
         }
 
-        if (ev.as<QMouseEvent>(QEvent::MouseButtonPress)) {
-            m_grabbing = false;
-            ev.view()->releaseMouse();
-            m_engine->watchPoint(ev.globalPos());
-            return true;
-        }
-
         if (ev.as<QMouseEvent>(QEvent::MouseButtonDblClick)) {
             if (item && !item->parent()) { // if item is the invisible root item
                 inputNewExpression();
@@ -1127,7 +1126,7 @@ bool WatchModel::setData(const QModelIndex &idx, const QVariant &value, int role
                 m_expandedINames.remove(item->iname);
             }
             if (item->iname.contains('.'))
-                emit columnAdjustmentRequested();
+                m_handler->updateWatchersWindow();
             return true;
 
         case LocalsTypeFormatRole:
@@ -1238,7 +1237,7 @@ void WatchModel::fetchMore(const QModelIndex &idx)
     WatchItem *item = nonRootItemForIndex(idx);
     if (item) {
         m_expandedINames.insert(item->iname);
-        if (item->children().isEmpty())
+        if (item->childCount() == 0)
             m_engine->expandItem(item->iname);
     }
 }
@@ -1266,6 +1265,46 @@ static QString variableToolTip(const QString &name, const QString &type, quint64
           WatchModel::tr("<i>%1</i> %2 at #%3").arg(type, name).arg(offset)
         : //: HTML tooltip of a variable in the memory editor
           WatchModel::tr("<i>%1</i> %2").arg(type, name);
+}
+
+void WatchModel::grabWidget()
+{
+   QGuiApplication::setOverrideCursor(Qt::CrossCursor);
+   m_grabWidgetTimerId = startTimer(30);
+   ICore::mainWindow()->grabMouse();
+}
+
+void WatchModel::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_grabWidgetTimerId) {
+        QPoint pnt = QCursor::pos();
+        Qt::KeyboardModifiers mods = QApplication::queryKeyboardModifiers();
+        QString msg;
+        if (mods == Qt::NoModifier) {
+            msg = tr("Press Ctrl to select widget at (%1, %2). "
+                     "Press any other keyboard modifier to stop selection.")
+                        .arg(pnt.x()).arg(pnt.y());
+        } else {
+            if (mods == Qt::CTRL) {
+                msg = tr("Selecting widget at (%1, %2).").arg(pnt.x()).arg(pnt.y());
+                m_engine->watchPoint(pnt);
+            } else {
+                msg = tr("Selection aborted.");
+            }
+            ungrabWidget();
+        }
+        showMessage(msg, StatusBar);
+    } else {
+        WatchModelBase::timerEvent(event);
+    }
+}
+
+void WatchModel::ungrabWidget()
+{
+    ICore::mainWindow()->releaseMouse();
+    QGuiApplication::restoreOverrideCursor();
+    killTimer(m_grabWidgetTimerId);
+    m_grabWidgetTimerId = -1;
 }
 
 int WatchModel::memberVariableRecursion(WatchItem *item,
@@ -1608,16 +1647,34 @@ bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
               canRemoveWatches && !m_handler->watchedExpressions().isEmpty(),
               [this] { clearWatches(); });
 
-// FIXME:
-//    addAction(menu, tr("Select Widget to Add into Expression Evaluator"),
-//              canHandleWatches && canInsertWatches && m_engine->hasCapability(WatchWidgetsCapability),
-//              [this, ev] { ev.view()->grabMouse(Qt::CrossCursor); m_grabbing = true; });
+    addAction(menu, tr("Select Widget to Add into Expression Evaluator"),
+              state == InferiorRunOk && m_engine->hasCapability(WatchWidgetsCapability),
+              [this] { grabWidget(); });
 
     menu->addSeparator();
     menu->addMenu(createFormatMenu(item));
     menu->addMenu(createMemoryMenu(item));
     menu->addMenu(createBreakpointMenu(item));
     menu->addSeparator();
+
+    addAction(menu, tr("Expand All Children"),
+              item,
+              [this, item] {
+                m_expandedINames.insert(item->iname);
+                item->forFirstLevelChildren([this](WatchItem *child) {
+                    m_expandedINames.insert(child->iname);
+                });
+                m_engine->updateLocals();
+              });
+
+    addAction(menu, tr("Collapse All Children"),
+              item,
+              [this, item] {
+                item->forFirstLevelChildren([this](WatchItem *child) {
+                    m_expandedINames.remove(child->iname);
+                });
+                m_engine->updateLocals();
+              });
 
     addAction(menu, tr("Close Editor Tooltips"),
               DebuggerToolTipManager::hasToolTips(),
@@ -1810,18 +1867,18 @@ QMenu *WatchModel::createFormatMenu(WatchItem *item)
     addAction(menu, tr("Change Display for Type \"%1\":").arg(item->type), false);
 
     addCheckableAction(menu, spacer + tr("Automatic"), true, typeFormat == AutomaticFormat,
-                       [this, iname] {
+                       [this, item] {
                             //const QModelIndexList active = activeRows();
                            //foreach (const QModelIndex &idx, active)
                            //    setModelData(LocalsTypeFormatRole, AutomaticFormat, idx);
-                           setTypeFormat(iname, AutomaticFormat);
+                           setTypeFormat(item->type, AutomaticFormat);
                            m_engine->updateLocals();
                        });
 
     for (int format : alternativeFormats) {
         addCheckableAction(menu, spacer + nameForFormat(format), true, format == typeFormat,
-                           [this, act, format, iname] {
-                                setTypeFormat(iname, format);
+                           [this, act, format, item] {
+                                setTypeFormat(item->type, format);
                                 m_engine->updateLocals();
                            });
     }
@@ -1901,6 +1958,9 @@ void WatchHandler::cleanup()
 {
     m_model->m_expandedINames.clear();
     theWatcherNames.remove(QString());
+    for (const QString &exp : theTemporaryWatchers)
+        theWatcherNames.remove(exp);
+    theTemporaryWatchers.clear();
     saveWatchers();
     m_model->reinitialize();
     emit m_model->updateFinished();
@@ -1947,10 +2007,10 @@ bool WatchHandler::insertItem(WatchItem *item)
     QTC_ASSERT(parent, return false);
 
     bool found = false;
-    const QVector<TreeItem *> siblings = parent->children();
-    for (int row = 0, n = siblings.size(); row < n; ++row) {
-        if (static_cast<WatchItem *>(siblings.at(row))->iname == item->iname) {
-            m_model->destroyItem(parent->children().at(row));
+    const std::vector<TreeItem *> siblings(parent->begin(), parent->end());
+    for (int row = 0, n = int(siblings.size()); row < n; ++row) {
+        if (static_cast<WatchItem *>(siblings[row])->iname == item->iname) {
+            m_model->destroyItem(parent->childAt(row));
             parent->insertChild(row, item);
             found = true;
             break;
@@ -2010,7 +2070,7 @@ void WatchHandler::notifyUpdateStarted(const UpdateParameters &updateParameters)
 {
     QStringList inames = updateParameters.partialVariables();
     if (inames.isEmpty())
-        inames = QStringList({ "local", "return" });
+        inames = QStringList({"local", "return"});
 
     auto marker = [](WatchItem *item) { item->outdated = true; };
 
@@ -2080,13 +2140,15 @@ QString WatchHandler::watcherName(const QString &exp)
 }
 
 // If \a name is empty, \a exp will be used as name.
-void WatchHandler::watchExpression(const QString &exp, const QString &name)
+void WatchHandler::watchExpression(const QString &exp, const QString &name, bool temporary)
 {
     // Do not insert the same entry more then once.
     if (exp.isEmpty() || theWatcherNames.contains(exp))
         return;
 
     theWatcherNames[exp] = theWatcherCount++;
+    if (temporary)
+        theTemporaryWatchers.insert(exp);
 
     auto item = new WatchItem;
     item->exp = exp;
@@ -2216,7 +2278,7 @@ void WatchModel::showEditValue(const WatchItem *item)
             str = QString::fromUtf8(ba.constData(), ba.size());
         else if (format == DisplayUtf16String)
             str = QString::fromUtf16((ushort *)ba.constData(), ba.size() / 2);
-        else if (format == DisplayUtf16String)
+        else if (format == DisplayUcs4String)
             str = QString::fromUcs4((uint *)ba.constData(), ba.size() / 4);
         m_separatedView->prepareObject<TextEdit>(item)->setPlainText(str);
     } else if (format == DisplayPlotData) {
@@ -2285,8 +2347,6 @@ void WatchModel::clearWatches()
 
 void WatchHandler::updateWatchersWindow()
 {
-    emit m_model->columnAdjustmentRequested();
-
     // Force show/hide of watchers and return view.
     int showWatch = !theWatcherNames.isEmpty();
     int showReturn = m_model->m_returnRoot->childCount() != 0;
@@ -2338,7 +2398,7 @@ void WatchHandler::fetchMore(const QString &iname) const
 {
     if (WatchItem *item = m_model->findItem(iname)) {
         m_model->m_expandedINames.insert(iname);
-        if (item->children().isEmpty())
+        if (item->childCount() == 0)
             m_model->m_engine->expandItem(iname);
     }
 }

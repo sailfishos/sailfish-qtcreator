@@ -25,10 +25,14 @@
 
 #include "baseeditordocumentprocessor.h"
 
+#include "cppcodemodelsettings.h"
 #include "cppmodelmanager.h"
 #include "cpptoolsbridge.h"
+#include "cpptoolsreuse.h"
+#include "cpptools_utils.h"
 #include "editordocumenthandle.h"
 
+#include <projectexplorer/session.h>
 #include <texteditor/quickfix.h>
 
 namespace CppTools {
@@ -52,6 +56,18 @@ BaseEditorDocumentProcessor::~BaseEditorDocumentProcessor()
 {
 }
 
+void BaseEditorDocumentProcessor::run(bool projectsUpdated)
+{
+    const Language languagePreference = codeModelSettings()->interpretAmbigiousHeadersAsCHeaders()
+            ? Language::C
+            : Language::Cxx;
+
+    runImpl({CppModelManager::instance()->workingCopy(),
+             ProjectExplorer::SessionManager::startupProject(),
+             languagePreference,
+             projectsUpdated});
+}
+
 TextEditor::QuickFixOperations
 BaseEditorDocumentProcessor::extraRefactoringOperations(const TextEditor::AssistInterface &)
 {
@@ -71,9 +87,19 @@ void BaseEditorDocumentProcessor::editorDocumentTimerRestarted()
 {
 }
 
+void BaseEditorDocumentProcessor::invalidateDiagnostics()
+{
+}
+
+void BaseEditorDocumentProcessor::setParserConfig(
+        const BaseEditorDocumentParser::Configuration config)
+{
+    parser()->setConfiguration(config);
+}
+
 void BaseEditorDocumentProcessor::runParser(QFutureInterface<void> &future,
                                             BaseEditorDocumentParser::Ptr parser,
-                                            const WorkingCopy workingCopy)
+                                            BaseEditorDocumentParser::UpdateParams updateParams)
 {
     future.setProgressRange(0, 1);
     if (future.isCanceled()) {
@@ -81,7 +107,7 @@ void BaseEditorDocumentProcessor::runParser(QFutureInterface<void> &future,
         return;
     }
 
-    parser->update(future, workingCopy);
+    parser->update(future, updateParams);
     CppToolsBridge::finishedRefreshingSourceFiles({parser->filePath()});
 
     future.setProgressValue(1);

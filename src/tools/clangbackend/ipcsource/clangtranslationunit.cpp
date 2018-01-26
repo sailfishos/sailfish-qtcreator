@@ -24,6 +24,9 @@
 ****************************************************************************/
 
 #include "clangtranslationunit.h"
+
+#include "clangbackend_global.h"
+#include "clangreferencescollector.h"
 #include "clangtranslationunitupdater.h"
 
 #include <codecompleter.h>
@@ -35,6 +38,8 @@
 #include <skippedsourceranges.h>
 #include <sourcelocation.h>
 #include <sourcerange.h>
+
+#include <utils/qtcassert.h>
 
 namespace ClangBackEnd {
 
@@ -98,6 +103,16 @@ TranslationUnitUpdateResult TranslationUnit::reparse(
     return updater.update(TranslationUnitUpdater::UpdateMode::ForceReparse);
 }
 
+bool TranslationUnit::suspend() const
+{
+#ifdef IS_SUSPEND_SUPPORTED
+    return clang_suspendTranslationUnit(cxTranslationUnit());
+#else
+    QTC_CHECK(false && "clang_suspendTranslationUnit() not supported.");
+    return false;
+#endif
+}
+
 TranslationUnit::CodeCompletionResult TranslationUnit::complete(
         UnsavedFiles &unsavedFiles,
         uint line,
@@ -120,6 +135,11 @@ void TranslationUnit::extractDocumentAnnotations(
     extractDiagnostics(firstHeaderErrorDiagnostic, mainFileDiagnostics);
     highlightingMarks = this->highlightingMarks().toHighlightingMarksContainers();
     skippedSourceRanges = this->skippedSourceRanges().toSourceRangeContainers();
+}
+
+ReferencesResult TranslationUnit::references(uint line, uint column) const
+{
+    return collectReferences(m_cxTranslationUnit, line, column);
 }
 
 DiagnosticSet TranslationUnit::diagnostics() const

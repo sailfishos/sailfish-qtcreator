@@ -24,6 +24,8 @@
 ****************************************************************************/
 
 #include "debugmessagesmodel.h"
+#include "qmlprofilerconstants.h"
+#include <timeline/timelineformattime.h>
 
 namespace QmlProfiler {
 namespace Internal {
@@ -39,7 +41,7 @@ int DebugMessagesModel::typeId(int index) const
     return m_data[index].typeId;
 }
 
-QColor DebugMessagesModel::color(int index) const
+QRgb DebugMessagesModel::color(int index) const
 {
     return colorBySelectionId(index);
 }
@@ -73,11 +75,13 @@ QVariantList DebugMessagesModel::labels() const
 
 QVariantMap DebugMessagesModel::details(int index) const
 {
-    const QmlEventType &type = modelManager()->qmlModel()->eventTypes()[m_data[index].typeId];
+    const QmlProfilerModelManager *manager = modelManager();
+    const QmlEventType &type = manager->eventTypes()[m_data[index].typeId];
 
     QVariantMap result;
     result.insert(QLatin1String("displayName"), messageType(type.detailType()));
-    result.insert(tr("Timestamp"), QmlProfilerDataModel::formatTime(startTime(index)));
+    result.insert(tr("Timestamp"), Timeline::formatTime(startTime(index),
+                                                        manager->traceTime()->duration()));
     result.insert(tr("Message"), m_data[index].text);
     result.insert(tr("Location"), type.displayName());
     return result;
@@ -91,7 +95,7 @@ int DebugMessagesModel::expandedRow(int index) const
 int DebugMessagesModel::collapsedRow(int index) const
 {
     Q_UNUSED(index);
-    return 1;
+    return Constants::QML_MIN_LEVEL;
 }
 
 void DebugMessagesModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
@@ -104,7 +108,7 @@ void DebugMessagesModel::loadEvent(const QmlEvent &event, const QmlEventType &ty
 
 void DebugMessagesModel::finalize()
 {
-    setCollapsedRowCount(2);
+    setCollapsedRowCount(Constants::QML_MIN_LEVEL + 1);
     setExpandedRowCount(m_maximumMsgType + 2);
 }
 

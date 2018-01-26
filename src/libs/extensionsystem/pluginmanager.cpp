@@ -49,6 +49,7 @@
 #include <utils/algorithm.h>
 #include <utils/executeondestruction.h>
 #include <utils/hostosinfo.h>
+#include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
 
@@ -105,7 +106,7 @@ enum { debugLeaks = 0 };
     loading.
     \code
         // 'plugins' and subdirs will be searched for plugins
-        PluginManager::setPluginPaths(QStringList() << "plugins");
+        PluginManager::setPluginPaths(QStringList("plugins"));
         PluginManager::loadPlugins(); // try to load all the plugins
     \endcode
     Additionally, it is possible to directly access the plugin specifications
@@ -271,9 +272,10 @@ enum { debugLeaks = 0 };
 */
 
 
-using namespace ExtensionSystem;
-using namespace ExtensionSystem::Internal;
 using namespace Utils;
+using namespace ExtensionSystem::Internal;
+
+namespace ExtensionSystem {
 
 static Internal::PluginManagerPrivate *d = 0;
 static PluginManager *m_instance = 0;
@@ -359,7 +361,7 @@ QReadWriteLock *PluginManager::listLock()
 */
 void PluginManager::loadPlugins()
 {
-    return d->loadPlugins();
+    d->loadPlugins();
 }
 
 /*!
@@ -1232,12 +1234,15 @@ void PluginManagerPrivate::removeObject(QObject *obj)
 void PluginManagerPrivate::loadPlugins()
 {
     QList<PluginSpec *> queue = loadQueue();
+    Utils::setMimeStartupPhase(MimeStartupPhase::PluginsLoading);
     foreach (PluginSpec *spec, queue) {
         loadPlugin(spec, PluginSpec::Loaded);
     }
+    Utils::setMimeStartupPhase(MimeStartupPhase::PluginsInitializing);
     foreach (PluginSpec *spec, queue) {
         loadPlugin(spec, PluginSpec::Initialized);
     }
+    Utils::setMimeStartupPhase(MimeStartupPhase::PluginsDelayedInitializing);
     Utils::reverseForeach(queue, [this](PluginSpec *spec) {
         loadPlugin(spec, PluginSpec::Running);
         if (spec->state() == PluginSpec::Running) {
@@ -1248,6 +1253,7 @@ void PluginManagerPrivate::loadPlugins()
         }
     });
     emit q->pluginsChanged();
+    Utils::setMimeStartupPhase(MimeStartupPhase::UpAndRunning);
 
     delayedInitializeTimer = new QTimer;
     delayedInitializeTimer->setInterval(DELAYED_INITIALIZE_INTERVAL);
@@ -1482,6 +1488,7 @@ void PluginManagerPrivate::readPluginPaths()
         pluginSpecs.append(spec);
     }
     resolveDependencies();
+    enableDependenciesIndirectly();
     // ensure deterministic plugin load order by sorting
     Utils::sort(pluginSpecs, &PluginSpec::name);
     emit q->pluginsChanged();
@@ -1489,42 +1496,19 @@ void PluginManagerPrivate::readPluginPaths()
 
 void PluginManagerPrivate::resolveDependencies()
 {
-    foreach (PluginSpec *spec, pluginSpecs) {
-        spec->d->enabledIndirectly = false; // reset, is recalculated below
+    foreach (PluginSpec *spec, pluginSpecs)
         spec->d->resolveDependencies(pluginSpecs);
-    }
-
-    Utils::reverseForeach(loadQueue(), [](PluginSpec *spec) {
-        spec->d->enableDependenciesIndirectly();
-    });
 }
 
-void PluginManagerPrivate::enableOnlyTestedSpecs()
+void PluginManagerPrivate::enableDependenciesIndirectly()
 {
-    if (testSpecs.isEmpty())
-        return;
-
-    QList<PluginSpec *> specsForTests;
-    foreach (const TestSpec &testSpec, testSpecs) {
-        QList<PluginSpec *> circularityCheckQueue;
-        loadQueue(testSpec.pluginSpec, specsForTests, circularityCheckQueue);
-        // add plugins that must be force loaded when running tests for the plugin
-        // (aka "test dependencies")
-        QHashIterator<PluginDependency, PluginSpec *> it(testSpec.pluginSpec->dependencySpecs());
-        while (it.hasNext()) {
-            it.next();
-            if (it.key().type != PluginDependency::Test)
-                continue;
-            PluginSpec *depSpec = it.value();
-            circularityCheckQueue.clear();
-            loadQueue(depSpec, specsForTests, circularityCheckQueue);
-        }
-    }
     foreach (PluginSpec *spec, pluginSpecs)
-        spec->d->setForceDisabled(true);
-    foreach (PluginSpec *spec, specsForTests) {
-        spec->d->setForceDisabled(false);
-        spec->d->setForceEnabled(true);
+        spec->d->enabledIndirectly = false;
+    // cannot use reverse loadQueue here, because test dependencies can introduce circles
+    QList<PluginSpec *> queue = Utils::filtered(pluginSpecs, &PluginSpec::isEffectivelyEnabled);
+    while (!queue.isEmpty()) {
+        PluginSpec *spec = queue.takeFirst();
+        queue += spec->d->enableDependenciesIndirectly(containsTestSpec(spec));
     }
 }
 
@@ -1699,3 +1683,5 @@ QObject *PluginManager::getObjectByClassName(const QString &className)
         return obj->inherits(ba.constData());
     });
 }
+
+} // ExtensionSystem

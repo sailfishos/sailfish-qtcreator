@@ -12,6 +12,7 @@ QtcPlugin {
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "CppTools" }
+    Depends { name: "DiffEditor" }
 
     pluginRecommends: [
         "CodePaster"
@@ -53,10 +54,12 @@ QtcPlugin {
         "vcsbaseclientsettings.cpp",
         "vcsbaseclientsettings.h",
         "vcsbaseconstants.h",
+        "vcsbasediffeditorcontroller.cpp",
+        "vcsbasediffeditorcontroller.h",
         "vcsbaseeditor.cpp",
         "vcsbaseeditor.h",
-        "vcsbaseeditorparameterwidget.cpp",
-        "vcsbaseeditorparameterwidget.h",
+        "vcsbaseeditorconfig.cpp",
+        "vcsbaseeditorconfig.h",
         "vcsbaseoptionspage.cpp",
         "vcsbaseoptionspage.h",
         "vcsbaseplugin.cpp",

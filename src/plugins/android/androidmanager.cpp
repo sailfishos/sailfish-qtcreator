@@ -34,6 +34,7 @@
 #include "androidqtsupport.h"
 #include "androidqtversion.h"
 #include "androidbuildapkstep.h"
+#include "androidavdmanager.h"
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/messagemanager.h>
@@ -56,14 +57,17 @@
 #include <QFileSystemWatcher>
 #include <QList>
 #include <QProcess>
+#include <QRegExp>
 #include <QMessageBox>
 #include <QApplication>
 #include <QDomDocument>
+#include <QVersionNumber>
 
 namespace {
     const QLatin1String AndroidManifestName("AndroidManifest.xml");
     const QLatin1String AndroidDefaultPropertiesName("project.properties");
     const QLatin1String AndroidDeviceSn("AndroidDeviceSerialNumber");
+    const QLatin1String ApiLevelKey("AndroidVersion.ApiLevel");
 
 } // anonymous namespace
 
@@ -237,7 +241,7 @@ void AndroidManager::setDeviceSerialNumber(ProjectExplorer::Target *target, cons
 
 QPair<int, int> AndroidManager::apiLevelRange()
 {
-    return qMakePair(9, 23);
+    return qMakePair(9, 26);
 }
 
 QString AndroidManager::androidNameForApiLevel(int x)
@@ -287,6 +291,8 @@ QString AndroidManager::androidNameForApiLevel(int x)
         return QLatin1String("Android 7.0");
     case 25:
         return QLatin1String("Android 7.1");
+    case 26:
+        return QLatin1String("Android 8.0");
     default:
         return tr("Unknown Android version. API Level: %1").arg(QString::number(x));
     }
@@ -342,7 +348,7 @@ void AndroidManager::cleanLibsOnDevice(ProjectExplorer::Target *target)
     QString deviceSerialNumber = info.serialNumber;
 
     if (info.type == AndroidDeviceInfo::Emulator) {
-        deviceSerialNumber = AndroidConfigurations::currentConfig().startAVD(info.avdname);
+        deviceSerialNumber = AndroidAvdManager().startAvd(info.avdname);
         if (deviceSerialNumber.isEmpty())
             Core::MessageManager::write(tr("Starting Android virtual device failed."));
     }
@@ -371,7 +377,7 @@ void AndroidManager::installQASIPackage(ProjectExplorer::Target *target, const Q
 
     QString deviceSerialNumber = info.serialNumber;
     if (info.type == AndroidDeviceInfo::Emulator) {
-        deviceSerialNumber = AndroidConfigurations::currentConfig().startAVD(info.avdname);
+        deviceSerialNumber = AndroidAvdManager().startAvd(info.avdname);
         if (deviceSerialNumber.isEmpty())
             Core::MessageManager::write(tr("Starting Android virtual device failed."));
     }
@@ -408,19 +414,26 @@ bool AndroidManager::checkKeystorePassword(const QString &keystorePath, const QS
 bool AndroidManager::checkCertificatePassword(const QString &keystorePath, const QString &keystorePasswd, const QString &alias, const QString &certificatePasswd)
 {
     // assumes that the keystore password is correct
-    QStringList arguments;
-    arguments << QLatin1String("-certreq")
-              << QLatin1String("-keystore")
-              << keystorePath
-              << QLatin1String("--storepass")
-              << keystorePasswd
-              << QLatin1String("-alias")
-              << alias
-              << QLatin1String("-keypass");
+    QStringList arguments = {"-certreq", "-keystore", keystorePath,
+                             "--storepass", keystorePasswd, "-alias", alias, "-keypass"};
     if (certificatePasswd.isEmpty())
         arguments << keystorePasswd;
     else
         arguments << certificatePasswd;
+
+    Utils::SynchronousProcess proc;
+    proc.setTimeoutS(10);
+    Utils::SynchronousProcessResponse response
+            = proc.run(AndroidConfigurations::currentConfig().keytoolPath().toString(), arguments);
+    return response.result == Utils::SynchronousProcessResponse::Finished && response.exitCode == 0;
+}
+
+bool AndroidManager::checkCertificateExists(const QString &keystorePath,
+                                            const QString &keystorePasswd, const QString &alias)
+{
+    // assumes that the keystore password is correct
+    QStringList arguments = { "-list", "-keystore", keystorePath,
+                              "--storepass", keystorePasswd, "-alias", alias };
 
     Utils::SynchronousProcess proc;
     proc.setTimeoutS(10);
@@ -538,8 +551,8 @@ bool AndroidManager::updateGradleProperties(ProjectExplorer::Target *target)
     if (wrapperProps.exists()) {
         GradleProperties wrapperProperties = readGradleProperties(wrapperProps.toString());
         QString distributionUrl = QString::fromLocal8Bit(wrapperProperties["distributionUrl"]);
-        QRegExp re(QLatin1String(".*services.gradle.org/distributions/gradle-2..*.zip"));
-        if (!re.exactMatch(distributionUrl)) {
+        // Update only old gradle distributionUrl
+        if (distributionUrl.endsWith(QLatin1String("distributions/gradle-1.12-all.zip"))) {
             wrapperProperties["distributionUrl"] = "https\\://services.gradle.org/distributions/gradle-2.2.1-all.zip";
             mergeGradleProperties(wrapperProps.toString(), wrapperProperties);
         }
@@ -557,18 +570,33 @@ bool AndroidManager::updateGradleProperties(ProjectExplorer::Target *target)
     gradleProperties["buildDir"] = ".build";
     gradleProperties["androidCompileSdkVersion"] = buildTargetSDK(target).split(QLatin1Char('-')).last().toLocal8Bit();
     if (gradleProperties["androidBuildToolsVersion"].isEmpty()) {
-        QString maxVersion;
+        QVersionNumber maxVersion;
         QDir buildToolsDir(AndroidConfigurations::currentConfig().sdkLocation().appendPath(QLatin1String("build-tools")).toString());
         foreach (const QFileInfo &file, buildToolsDir.entryList(QDir::Dirs|QDir::NoDotAndDotDot)) {
-            QString ver(file.fileName());
+            QVersionNumber ver = QVersionNumber::fromString(file.fileName());
             if (maxVersion < ver)
                 maxVersion = ver;
         }
-        if (maxVersion.isEmpty())
+        if (maxVersion.isNull())
             return false;
-        gradleProperties["androidBuildToolsVersion"] = maxVersion.toLocal8Bit();
+        gradleProperties["androidBuildToolsVersion"] = maxVersion.toString().toLocal8Bit();
     }
     return mergeGradleProperties(gradlePropertiesPath, gradleProperties);
+}
+
+int AndroidManager::findApiLevel(const Utils::FileName &platformPath)
+{
+    int apiLevel = -1;
+    Utils::FileName propertiesPath = platformPath;
+    propertiesPath.appendPath("/source.properties");
+    if (propertiesPath.exists()) {
+        QSettings sdkProperties(propertiesPath.toString(), QSettings::IniFormat);
+        bool validInt = false;
+        apiLevel = sdkProperties.value(ApiLevelKey).toInt(&validInt);
+        if (!validInt)
+            apiLevel = -1;
+    }
+    return apiLevel;
 }
 
 } // namespace Android

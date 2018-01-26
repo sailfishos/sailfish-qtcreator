@@ -9,7 +9,6 @@ SOURCES += \
     flamegraphmodel.cpp \
     flamegraphview.cpp \
     inputeventsmodel.cpp \
-    localqmlprofilerrunner.cpp \
     memoryusagemodel.cpp \
     pixmapcachemodel.cpp \
     qmlevent.cpp \
@@ -21,7 +20,6 @@ SOURCES += \
     qmlprofilerbindingloopsrenderpass.cpp \
     qmlprofilerclientmanager.cpp \
     qmlprofilerconfigwidget.cpp \
-    qmlprofilerdatamodel.cpp \
     qmlprofilerdetailsrewriter.cpp \
     qmlprofilermodelmanager.cpp \
     qmlprofilernotesmodel.cpp \
@@ -30,7 +28,6 @@ SOURCES += \
     qmlprofilerrangemodel.cpp \
     qmlprofilerrunconfigurationaspect.cpp \
     qmlprofilerruncontrol.cpp \
-    qmlprofilerruncontrolfactory.cpp \
     qmlprofilersettings.cpp \
     qmlprofilerstatemanager.cpp \
     qmlprofilerstatewidget.cpp \
@@ -43,14 +40,14 @@ SOURCES += \
     qmlprofilertraceview.cpp \
     qmlprofilerviewmanager.cpp \
     qmltypedevent.cpp \
-    scenegraphtimelinemodel.cpp
+    scenegraphtimelinemodel.cpp \
+    qmlprofilertextmark.cpp
 
 HEADERS += \
     debugmessagesmodel.h \
     flamegraphmodel.h \
     flamegraphview.h \
     inputeventsmodel.h \
-    localqmlprofilerrunner.h \
     memoryusagemodel.h \
     pixmapcachemodel.h \
     qmlevent.h \
@@ -64,7 +61,6 @@ HEADERS += \
     qmlprofilerclientmanager.h \
     qmlprofilerconfigwidget.h \
     qmlprofilerconstants.h \
-    qmlprofilerdatamodel.h \
     qmlprofilerdetailsrewriter.h \
     qmlprofilereventsview.h \
     qmlprofilereventtypes.h \
@@ -75,7 +71,6 @@ HEADERS += \
     qmlprofilerrangemodel.h \
     qmlprofilerrunconfigurationaspect.h \
     qmlprofilerruncontrol.h \
-    qmlprofilerruncontrolfactory.h \
     qmlprofilersettings.h \
     qmlprofilerstatemanager.h \
     qmlprofilerstatewidget.h \
@@ -88,7 +83,8 @@ HEADERS += \
     qmlprofilertraceview.h \
     qmlprofilerviewmanager.h \
     qmltypedevent.h \
-    scenegraphtimelinemodel.h
+    scenegraphtimelinemodel.h \
+    qmlprofilertextmark.h
 
 RESOURCES += \
     qml/qmlprofiler.qrc

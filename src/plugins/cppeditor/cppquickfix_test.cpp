@@ -236,7 +236,6 @@ QuickFixOperationTest::QuickFixOperationTest(const QList<QuickFixTestDocument::P
     QuickFixOperations operations;
     factory->match(quickFixInterface, operations);
     if (operations.isEmpty()) {
-        QEXPECT_FAIL("onBaseOfQualifiedClassName", "QTCREATORBUG-14499", Continue);
         QVERIFY(testDocuments.first()->m_expectedSource.isEmpty());
         return;
     }
@@ -1502,7 +1501,7 @@ void CppEditorPlugin::test_quickfix_data()
                  "            return;\n"
                  "\n"
                  "        m_it = it;\n"
-                 "        emit itChanged(it);\n"
+                 "        emit itChanged(m_it);\n"
                  "    }\n"
                  "\n"
                  "signals:\n"
@@ -3032,6 +3031,37 @@ void CppEditorPlugin::test_quickfix_AddIncludeForUndefinedIdentifier_data()
     // -------------------------------------------------------------------------------------------
 
     // Header File
+    original = "template <typename T> class Foo { static void bar() {} };\n";
+    expected = original;
+    testDocuments << QuickFixTestDocument::create("afile.h", original, expected);
+
+    // Source File
+    original =
+        "#include \"header.h\"\n"
+        "\n"
+        "void f()\n"
+        "{\n"
+        "    @Foo<int>::bar();\n"
+        "}\n"
+        ;
+    expected =
+        "#include \"afile.h\"\n"
+        "#include \"header.h\"\n"
+        "\n"
+        "void f()\n"
+        "{\n"
+        "    Foo<int>::bar();\n"
+        "}\n"
+        ;
+    testDocuments << QuickFixTestDocument::create("afile.cpp", original, expected);
+    QTest::newRow("onBaseOfQualifiedTemplateClassName")
+            << TestIncludePaths::globalIncludePath()
+            << testDocuments << firstRefactoringOperation << "";
+    testDocuments.clear();
+
+    // -------------------------------------------------------------------------------------------
+
+    // Header File
     original = "namespace N { template <typename T> class Foo {}; }\n";
     expected = original;
     testDocuments << QuickFixTestDocument::create("afile.h", original, expected);
@@ -3644,7 +3674,7 @@ void CppEditorPlugin::test_quickfix_AddIncludeForUndefinedIdentifier_noDoubleQtH
                                          ProjectPartHeaderPath::IncludePath);
 
     AddIncludeForUndefinedIdentifier factory;
-    const QStringList expectedOperations = QStringList() << QLatin1String("Add #include <QDir>");
+    const QStringList expectedOperations = QStringList("Add #include <QDir>");
     QuickFixOfferedOperationsTest(testDocuments, &factory, headerPaths, expectedOperations);
 }
 

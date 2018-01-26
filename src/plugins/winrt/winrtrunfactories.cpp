@@ -27,18 +27,16 @@
 #include "winrtrunconfiguration.h"
 #include "winrtruncontrol.h"
 #include "winrtconstants.h"
-#include "winrtdebugsupport.h"
 
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
-#include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
 using QmakeProjectManager::QmakeProject;
-using QmakeProjectManager::QmakeProFileNode;
+using QmakeProjectManager::QmakeProFile;
 
 namespace WinRt {
 namespace Internal {
@@ -66,10 +64,7 @@ QList<Core::Id> WinRtRunConfigurationFactory::availableCreationIds(Target *paren
         return QList<Core::Id>();
 
     QmakeProject *project = static_cast<QmakeProject *>(parent->project());
-    QList<QmakeProFileNode *> nodes = project->applicationProFiles();
-    if (mode == AutoCreate)
-        nodes = QmakeProject::nodesWithQtcRunnable(nodes);
-    return QmakeProject::idsForNodes(Core::Id(Constants::WINRT_RC_PREFIX), nodes);
+    return project->creationIds(Constants::WINRT_RC_PREFIX, mode);
 }
 
 QString WinRtRunConfigurationFactory::displayNameForId(Core::Id id) const
@@ -125,53 +120,6 @@ bool WinRtRunConfigurationFactory::canHandle(Target *parent) const
     if (!qobject_cast<QmakeProject *>(parent->project()))
         return false;
     return true;
-}
-
-WinRtRunControlFactory::WinRtRunControlFactory()
-{
-}
-
-bool WinRtRunControlFactory::canRun(RunConfiguration *runConfiguration,
-        Core::Id mode) const
-{
-    if (!runConfiguration)
-        return false;
-    IDevice::ConstPtr device = DeviceKitInformation::device(runConfiguration->target()->kit());
-    if (!device)
-        return false;
-
-    if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
-            || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
-        if (device->type() != Constants::WINRT_DEVICE_TYPE_LOCAL)
-            return false;
-        return qobject_cast<WinRtRunConfiguration *>(runConfiguration);
-    }
-
-    if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE)
-        return qobject_cast<WinRtRunConfiguration *>(runConfiguration);
-
-    return false;
-}
-
-RunControl *WinRtRunControlFactory::create(
-        RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage)
-{
-    WinRtRunConfiguration *rc = qobject_cast<WinRtRunConfiguration *>(runConfiguration);
-    QTC_ASSERT(rc, return 0);
-
-    if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE)
-        return new WinRtRunControl(rc, mode);
-
-    if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN)
-        return WinRtDebugSupport::createDebugRunControl(rc, mode, errorMessage);
-
-    *errorMessage = tr("Unsupported run mode %1.").arg(mode.toString());
-    return 0;
-}
-
-QString WinRtRunControlFactory::displayName() const
-{
-    return tr("WinRT Run Control Factory");
 }
 
 } // namespace Internal

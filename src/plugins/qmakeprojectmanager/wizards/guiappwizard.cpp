@@ -53,7 +53,7 @@ static const char mainWindowUiContentsC[] =
 static const char mainWindowMobileUiContentsC[] =
 "\n  <widget class=\"QWidget\" name=\"centralWidget\" />";
 
-static const char *baseClassesC[] = { "QMainWindow", "QWidget", "QDialog" };
+static const char *baseClassesC[] = {"QMainWindow", "QWidget", "QDialog"};
 
 static inline QStringList baseClasses()
 {
@@ -78,7 +78,7 @@ GuiAppWizard::GuiAppWizard()
                   "Includes a Qt Designer-based main window.\n\n"
                   "Preselects a desktop Qt for building the application if available."));
     setIcon(QIcon(QLatin1String(":/wizards/images/gui.png")));
-    setRequiredFeatures({ QtSupport::Constants::FEATURE_QWIDGETS });
+    setRequiredFeatures({QtSupport::Constants::FEATURE_QWIDGETS});
 }
 
 Core::BaseFileWizard *GuiAppWizard::create(QWidget *parent, const Core::WizardDialogParameters &parameters) const
@@ -187,11 +187,14 @@ Core::GeneratedFiles GuiAppWizard::generateFiles(const QWizard *w,
         QTextStream proStr(&contents);
         QtProjectParameters::writeProFileHeader(proStr);
         projectParams.writeProFile(proStr);
-        proStr << "\n\nSOURCES += " << Utils::FileName::fromString(mainSourceFileName).fileName()
-               << "\\\n        " << Utils::FileName::fromString(formSource.path()).fileName()
-               << "\n\nHEADERS  += " << Utils::FileName::fromString(formHeader.path()).fileName();
+        proStr << "\n\nSOURCES +="
+               << " \\\n        " << Utils::FileName::fromString(mainSourceFileName).fileName()
+               << " \\\n        " << Utils::FileName::fromString(formSource.path()).fileName()
+               << "\n\nHEADERS +="
+               << " \\\n        " << Utils::FileName::fromString(formHeader.path()).fileName();
         if (params.designerForm)
-            proStr << "\n\nFORMS    += " << Utils::FileName::fromString(form->path()).fileName();
+            proStr << "\n\nFORMS +="
+                   << " \\\n        " << Utils::FileName::fromString(form->path()).fileName();
         if (params.isMobileApplication) {
             proStr << "\n\nCONFIG += mobility"
                    << "\nMOBILITY = "

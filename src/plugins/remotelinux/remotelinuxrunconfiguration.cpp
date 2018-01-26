@@ -151,6 +151,11 @@ QVariantMap RemoteLinuxRunConfiguration::toMap() const
     return map;
 }
 
+QString RemoteLinuxRunConfiguration::buildSystemTarget() const
+{
+    return d->targetName;
+}
+
 bool RemoteLinuxRunConfiguration::fromMap(const QVariantMap &map)
 {
     if (!RunConfiguration::fromMap(map))
@@ -241,7 +246,7 @@ void RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated()
 {
     emit deploySpecsChanged();
     emit targetInformationChanged();
-    updateEnabledState();
+    emit enabledChanged();
 }
 
 const char *RemoteLinuxRunConfiguration::IdPrefix = "RemoteLinuxRunConfiguration:";

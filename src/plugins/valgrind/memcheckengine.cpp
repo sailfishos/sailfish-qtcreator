@@ -26,7 +26,6 @@
 
 #include "memcheckengine.h"
 #include "memchecktool.h"
-#include "valgrindprocess.h"
 #include "valgrindsettings.h"
 #include "xmlprotocol/error.h"
 #include "xmlprotocol/status.h"
@@ -51,122 +50,134 @@ using namespace Valgrind::XmlProtocol;
 namespace Valgrind {
 namespace Internal {
 
-MemcheckRunControl::MemcheckRunControl(RunConfiguration *runConfiguration, Core::Id runMode)
-    : ValgrindRunControl(runConfiguration, runMode)
+class LocalAddressFinder : public RunWorker
 {
-    connect(&m_parser, &XmlProtocol::ThreadedParser::error,
-            this, &MemcheckRunControl::parserError);
-    connect(&m_parser, &XmlProtocol::ThreadedParser::suppressionCount,
-            this, &MemcheckRunControl::suppressionCount);
-    connect(&m_parser, &XmlProtocol::ThreadedParser::internalError,
-            this, &MemcheckRunControl::internalParserError);
+public:
+    LocalAddressFinder(RunControl *runControl, QHostAddress *localServerAddress)
+        : RunWorker(runControl), connection(device()->sshParameters())
+    {
+        connect(&connection, &QSsh::SshConnection::connected, this, [this, localServerAddress] {
+            *localServerAddress = connection.connectionInfo().localAddress;
+            reportStarted();
+        });
+        connect(&connection, &QSsh::SshConnection::error, this, [this] {
+            reportFailure();
+        });
+    }
+
+    void start() override
+    {
+        connection.connectToHost();
+    }
+
+    QSsh::SshConnection connection;
+};
+
+MemcheckToolRunner::MemcheckToolRunner(RunControl *runControl, bool withGdb)
+    : ValgrindToolRunner(runControl),
+      m_withGdb(withGdb),
+      m_localServerAddress(QHostAddress::LocalHost)
+{
+    setDisplayName("MemcheckToolRunner");
+    connect(m_runner.parser(), &XmlProtocol::ThreadedParser::error,
+            this, &MemcheckToolRunner::parserError);
+    connect(m_runner.parser(), &XmlProtocol::ThreadedParser::suppressionCount,
+            this, &MemcheckToolRunner::suppressionCount);
+
+    if (withGdb) {
+        connect(&m_runner, &ValgrindRunner::valgrindStarted,
+                this, &MemcheckToolRunner::startDebugger);
+        connect(&m_runner, &ValgrindRunner::logMessageReceived,
+                this, &MemcheckToolRunner::appendLog);
+//        m_runner.disableXml();
+    } else {
+        connect(m_runner.parser(), &XmlProtocol::ThreadedParser::internalError,
+                this, &MemcheckToolRunner::internalParserError);
+    }
+
+    // We need a real address to connect to from the outside.
+    if (device()->type() != ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE)
+        addStartDependency(new LocalAddressFinder(runControl, &m_localServerAddress));
 }
 
-QString MemcheckRunControl::progressTitle() const
+QString MemcheckToolRunner::progressTitle() const
 {
     return tr("Analyzing Memory");
 }
 
-ValgrindRunner *MemcheckRunControl::runner()
+void MemcheckToolRunner::start()
 {
-    return &m_runner;
+    m_runner.setLocalServerAddress(m_localServerAddress);
+    ValgrindToolRunner::start();
 }
 
-void MemcheckRunControl::start()
+void MemcheckToolRunner::stop()
 {
-    m_runner.setParser(&m_parser);
-
-    appendMessage(tr("Analyzing memory of %1").arg(executable()) + QLatin1Char('\n'),
-                        Utils::NormalMessageFormat);
-    ValgrindRunControl::start();
+    disconnect(m_runner.parser(), &ThreadedParser::internalError,
+               this, &MemcheckToolRunner::internalParserError);
+    ValgrindToolRunner::stop();
 }
 
-RunControl::StopResult MemcheckRunControl::stop()
+QStringList MemcheckToolRunner::toolArguments() const
 {
-    disconnect(&m_parser, &ThreadedParser::internalError,
-               this, &MemcheckRunControl::internalParserError);
-    return ValgrindRunControl::stop();
-}
-
-QStringList MemcheckRunControl::toolArguments() const
-{
-    QStringList arguments;
-    arguments << QLatin1String("--gen-suppressions=all");
+    QStringList arguments = {"--tool=memcheck", "--gen-suppressions=all"};
 
     QTC_ASSERT(m_settings, return arguments);
 
     if (m_settings->trackOrigins())
-        arguments << QLatin1String("--track-origins=yes");
+        arguments << "--track-origins=yes";
 
     if (m_settings->showReachable())
-        arguments << QLatin1String("--show-reachable=yes");
+        arguments << "--show-reachable=yes";
 
     QString leakCheckValue;
     switch (m_settings->leakCheckOnFinish()) {
     case ValgrindBaseSettings::LeakCheckOnFinishNo:
-        leakCheckValue = QLatin1String("no");
+        leakCheckValue = "no";
         break;
     case ValgrindBaseSettings::LeakCheckOnFinishYes:
-        leakCheckValue = QLatin1String("full");
+        leakCheckValue = "full";
         break;
     case ValgrindBaseSettings::LeakCheckOnFinishSummaryOnly:
     default:
-        leakCheckValue = QLatin1String("summary");
+        leakCheckValue = "summary";
         break;
     }
-    arguments << QLatin1String("--leak-check=") + leakCheckValue;
+    arguments << "--leak-check=" + leakCheckValue;
 
     foreach (const QString &file, m_settings->suppressionFiles())
-        arguments << QString::fromLatin1("--suppressions=%1").arg(file);
+        arguments << QString("--suppressions=%1").arg(file);
 
-    arguments << QString::fromLatin1("--num-callers=%1").arg(m_settings->numCallers());
+    arguments << QString("--num-callers=%1").arg(m_settings->numCallers());
+
+    if (m_withGdb)
+        arguments << "--vgdb=yes" << "--vgdb-error=0";
+
     return arguments;
 }
 
-QStringList MemcheckRunControl::suppressionFiles() const
+QStringList MemcheckToolRunner::suppressionFiles() const
 {
     return m_settings->suppressionFiles();
 }
 
-MemcheckWithGdbRunControl::MemcheckWithGdbRunControl(RunConfiguration *runConfiguration, Core::Id runMode)
-    : MemcheckRunControl(runConfiguration, runMode)
+void MemcheckToolRunner::startDebugger(qint64 valgrindPid)
 {
-    connect(&m_runner, &Memcheck::MemcheckRunner::started,
-            this, &MemcheckWithGdbRunControl::startDebugger);
-    connect(&m_runner, &Memcheck::MemcheckRunner::logMessageReceived,
-            this, &MemcheckWithGdbRunControl::appendLog);
-    disconnect(&m_parser, &ThreadedParser::internalError,
-               this, &MemcheckRunControl::internalParserError);
-    m_runner.disableXml();
-}
-
-QStringList MemcheckWithGdbRunControl::toolArguments() const
-{
-    return MemcheckRunControl::toolArguments()
-            << QLatin1String("--vgdb=yes") << QLatin1String("--vgdb-error=0");
-}
-
-void MemcheckWithGdbRunControl::startDebugger()
-{
-    const qint64 valgrindPid = runner()->valgrindProcess()->pid();
-
     Debugger::DebuggerStartParameters sp;
     sp.inferior = runnable().as<StandardRunnable>();
     sp.startMode = Debugger::AttachToRemoteServer;
-    sp.displayName = QString::fromLatin1("VGdb %1").arg(valgrindPid);
-    sp.remoteChannel = QString::fromLatin1("| vgdb --pid=%1").arg(valgrindPid);
+    sp.displayName = QString("VGdb %1").arg(valgrindPid);
+    sp.remoteChannel = QString("| vgdb --pid=%1").arg(valgrindPid);
     sp.useContinueInsteadOfRun = true;
     sp.expectedSignals.append("SIGTRAP");
 
-    QString errorMessage;
-    RunControl *gdbRunControl = Debugger::createDebuggerRunControl(sp, runConfiguration(), &errorMessage);
-    QTC_ASSERT(gdbRunControl, return);
-    connect(gdbRunControl, &RunControl::finished,
-            gdbRunControl, &RunControl::deleteLater);
-    gdbRunControl->start();
+    auto gdbWorker = new Debugger::DebuggerRunTool(runControl());
+    gdbWorker->setStartParameters(sp);
+    gdbWorker->initiateStart();
+    connect(runControl(), &RunControl::stopped, gdbWorker, &RunControl::deleteLater);
 }
 
-void MemcheckWithGdbRunControl::appendLog(const QByteArray &data)
+void MemcheckToolRunner::appendLog(const QByteArray &data)
 {
     appendMessage(QString::fromUtf8(data), Utils::StdOutFormat);
 }

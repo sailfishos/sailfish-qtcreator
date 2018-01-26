@@ -32,12 +32,13 @@
 #include "gitutils.h"
 #include "gitconstants.h"
 #include "ui_branchdialog.h"
-#include "stashdialog.h" // Label helpers
 
-#include <utils/qtcassert.h>
-#include <utils/execmenu.h>
 #include <vcsbase/vcsoutputwindow.h>
 #include <coreplugin/documentmanager.h>
+
+#include <utils/asconst.h>
+#include <utils/execmenu.h>
+#include <utils/qtcassert.h>
 
 #include <QAction>
 #include <QItemSelectionModel>
@@ -65,6 +66,8 @@ BranchDialog::BranchDialog(QWidget *parent) :
     m_ui->includeOldCheckBox->setToolTip(
                 tr("Include branches and tags that have not been active for %n days.", 0,
                    Constants::OBSOLETE_COMMIT_AGE_IN_DAYS));
+    m_ui->includeTagsCheckBox->setChecked(GitPlugin::client()->settings().boolValue(
+                                              GitSettings::showTagsKey));
 
     connect(m_ui->refreshButton, &QAbstractButton::clicked, this, &BranchDialog::refreshCurrentRepository);
     connect(m_ui->addButton, &QAbstractButton::clicked, this, &BranchDialog::add);
@@ -82,6 +85,10 @@ BranchDialog::BranchDialog(QWidget *parent) :
         m_model->setOldBranchesIncluded(value);
         refreshCurrentRepository();
     });
+    connect(m_ui->includeTagsCheckBox, &QCheckBox::toggled, this, [this](bool value) {
+        GitPlugin::client()->settings().setValue(GitSettings::showTagsKey, value);
+        refreshCurrentRepository();
+    });
 
     m_ui->branchView->setModel(m_model);
     m_ui->branchView->setFocus();
@@ -91,7 +98,9 @@ BranchDialog::BranchDialog(QWidget *parent) :
     connect(m_model, &QAbstractItemModel::dataChanged, this, &BranchDialog::resizeColumns);
     connect(m_model, &QAbstractItemModel::rowsInserted, this, &BranchDialog::resizeColumns);
     connect(m_model, &QAbstractItemModel::rowsRemoved, this, &BranchDialog::resizeColumns);
+    connect(m_model, &QAbstractItemModel::modelReset, this, &BranchDialog::expandAndResize);
 
+    m_ui->branchView->selectionModel()->clear();
     enableButtons();
 }
 
@@ -106,11 +115,14 @@ void BranchDialog::refresh(const QString &repository, bool force)
         return;
 
     m_repository = repository;
-    m_ui->repositoryLabel->setText(StashDialog::msgRepositoryLabel(m_repository));
+    m_ui->repositoryLabel->setText(GitPlugin::msgRepositoryLabel(m_repository));
     QString errorMessage;
     if (!m_model->refresh(m_repository, &errorMessage))
         VcsOutputWindow::appendError(errorMessage);
+}
 
+void BranchDialog::expandAndResize()
+{
     m_ui->branchView->expandAll();
     resizeColumns();
 }
@@ -171,8 +183,7 @@ void BranchDialog::add()
 
     QString suggestedName;
     if (!isTag) {
-        QString suggestedNameBase;
-        suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf('/') + 1);
+        const QString suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf('/') + 1);
         suggestedName = suggestedNameBase;
         int i = 2;
         while (localNames.contains(suggestedName)) {
@@ -218,7 +229,7 @@ void BranchDialog::checkout()
 
     QList<Stash> stashes;
     client->synchronousStashList(m_repository, &stashes);
-    foreach (const Stash &stash, stashes) {
+    for (const Stash &stash : Utils::asConst(stashes)) {
         if (stash.message.startsWith(popMessageStart)) {
             branchCheckoutDialog.foundStashForNextBranch();
             break;
@@ -246,7 +257,7 @@ void BranchDialog::checkout()
 
         QString stashName;
         client->synchronousStashList(m_repository, &stashes);
-        foreach (const Stash &stash, stashes) {
+        for (const Stash &stash : Utils::asConst(stashes)) {
             if (stash.message.startsWith(popMessageStart)) {
                 stashName = stash.name;
                 break;
@@ -258,7 +269,7 @@ void BranchDialog::checkout()
         else if (branchCheckoutDialog.popStashOfNextBranch())
             client->synchronousStashRestore(m_repository, stashName, true);
     }
-    enableButtons();
+    m_ui->branchView->selectionModel()->clear();
 }
 
 /* Prompt to delete a local branch and do so. */
@@ -320,7 +331,7 @@ void BranchDialog::rename()
             m_model->renameBranch(oldName, branchAddDialog.branchName());
         refreshCurrentRepository();
     }
-    enableButtons();
+    m_ui->branchView->selectionModel()->clear();
 }
 
 void BranchDialog::diff()
@@ -336,7 +347,7 @@ void BranchDialog::log()
     QString branchName = m_model->fullName(selectedIndex(), true);
     if (branchName.isEmpty())
         return;
-    GitPlugin::client()->log(m_repository, QString(), false, { branchName });
+    GitPlugin::client()->log(m_repository, QString(), false, {branchName});
 }
 
 void BranchDialog::reset()

@@ -180,7 +180,7 @@ EnvironmentWidget::EnvironmentWidget(QWidget *parent, QWidget *additionalDetails
     auto buttonLayout = new QVBoxLayout();
 
     d->m_editButton = new QPushButton(this);
-    d->m_editButton->setText(tr("&Edit"));
+    d->m_editButton->setText(tr("Ed&it"));
     buttonLayout->addWidget(d->m_editButton);
 
     d->m_addButton = new QPushButton(this);
@@ -275,7 +275,7 @@ void EnvironmentWidget::updateSummaryText()
     foreach (const Utils::EnvironmentItem &item, list) {
         if (item.name != Utils::EnvironmentModel::tr("<VARIABLE>")) {
             text.append(QLatin1String("<br>"));
-            if (item.unset)
+            if (item.operation == Utils::EnvironmentItem::Unset)
                 text.append(tr("Unset <a href=\"%1\"><b>%1</b></a>").arg(item.name.toHtmlEscaped()));
             else
                 text.append(tr("Set <a href=\"%1\"><b>%1</b></a> to <b>%2</b>").arg(item.name.toHtmlEscaped(), item.value.toHtmlEscaped()));

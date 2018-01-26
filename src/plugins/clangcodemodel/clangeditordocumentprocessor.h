@@ -55,7 +55,7 @@ public:
     ~ClangEditorDocumentProcessor();
 
     // BaseEditorDocumentProcessor interface
-    void run() override;
+    void runImpl(const CppTools::BaseEditorDocumentParser::UpdateParams &updateParams) override;
     void semanticRehighlight() override;
     void recalculateSemanticInfoDetached(bool force) override;
     CppTools::SemanticInfo recalculateSemanticInfo() override;
@@ -77,10 +77,15 @@ public:
     TextEditor::QuickFixOperations
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface) override;
 
+    void invalidateDiagnostics() override;
     bool hasDiagnosticsAt(uint line, uint column) const override;
     void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *target) const override;
 
     void editorDocumentTimerRestarted() override;
+
+    void setParserConfig(const CppTools::BaseEditorDocumentParser::Configuration config) override;
+
+    QFuture<CppTools::CursorInfo> cursorInfo(const CppTools::CursorInfoParams &params) override;
 
     ClangBackEnd::FileContainer fileContainerWithArguments() const;
 
@@ -89,26 +94,27 @@ public:
 public:
     static ClangEditorDocumentProcessor *get(const QString &filePath);
 
-private slots:
-    void onParserFinished();
-
 private:
+    void onParserFinished();
     void updateProjectPartAndTranslationUnitForEditor();
     void registerTranslationUnitForEditor(CppTools::ProjectPart *projectPart);
     void updateTranslationUnitIfProjectPartExists();
     void requestDocumentAnnotations(const QString &projectpartId);
     HeaderErrorDiagnosticWidgetCreator creatorForHeaderErrorDiagnosticWidget(
             const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic);
+    ClangBackEnd::FileContainer simpleFileContainer() const;
     ClangBackEnd::FileContainer fileContainerWithArguments(CppTools::ProjectPart *projectPart) const;
     ClangBackEnd::FileContainer fileContainerWithArgumentsAndDocumentContent(
             CppTools::ProjectPart *projectPart) const;
     ClangBackEnd::FileContainer fileContainerWithDocumentContent(const QString &projectpartId) const;
 
 private:
+    TextEditor::TextDocument &m_document;
     ClangDiagnosticManager m_diagnosticManager;
     IpcCommunicator &m_ipcCommunicator;
     QSharedPointer<ClangEditorDocumentParser> m_parser;
     CppTools::ProjectPart::Ptr m_projectPart;
+    bool m_isProjectFile = false;
     QFutureWatcher<void> m_parserWatcher;
     QTimer m_updateTranslationUnitTimer;
     unsigned m_parserRevision;
