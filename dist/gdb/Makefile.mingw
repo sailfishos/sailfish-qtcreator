@@ -7,10 +7,10 @@ pyversion=2.7
 pydir=${broot}/python
 expatversion=2.0.1
 iconvversion=1.14
-version=7.5.1
+version=7.6.2
 targetdir=${broot}/qtcreator-gdb-${version}
-gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
-packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
+gdbtargets=$(addprefix ${targetdir}/bin/gdb-, ${targets})
+packageparts=${targetdir}/bin/lib ${targetdir}/bin/lib ${targetdir}/bin/libiconv-2.dll ${targetdir}/bin/python27.dll ${targetdir}/bin/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 
@@ -35,7 +35,7 @@ endif
 all: package
 
 clean:
-	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-*
+	rm -rf  ${broot}/qtcreator-gdb-* ${staging}/gdb-* sailfish-gdb-*.7z
 
 distclean:
 	rm -rf ${staging} ${source} ${broot}/qtcreator-gdb-*
@@ -45,6 +45,8 @@ makesourcedir:
 
 maketargetdir:
 	@test -e ${targetdir} || mkdir ${targetdir}
+	@test -e ${targetdir}/bin || mkdir ${targetdir}/bin
+	@test -e ${targetdir}/share || mkdir ${targetdir}/share
 
 makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
@@ -92,9 +94,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p2 < ${PATCHDIR}/gdb-ipv6.patch && \
-	patch -p2 < ${PATCHDIR}/mingw-compilation.patch && \
-	patch -p1 < ${PATCHDIR}/gdb-solib-search-path.patch
+	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
 	$(Q)cd ${staging} && \
@@ -112,7 +112,7 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingd
 	./configure -prefix=${staging} --enable-static && \
 	${MAKE} && ${MAKE} install
 
-${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
+${gdbtargets}: ${targetdir}/bin/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
 	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
 	$(Q)export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
@@ -122,15 +122,21 @@ ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libi
 	--with-libiconv-prefix=${staging} \
 	--with-expat --with-libexpat-prefix=${staging} \
 	--with-separate-debug-dir="" \
+	--with-gdb-datadir='$$prefix/share/gdb' \
 	--with-python=${pydir} && \
 	${MAKE} && \
-	strip -o ${targetdir}/gdb-$*.exe gdb/gdb.exe
+	strip -o ${targetdir}/bin/gdb-$*.exe gdb/gdb.exe
 
-package: ${gdbtargets} ${broot}/python/python.exe
-	$(Q)cp ${staging}/bin/libiconv* ${targetdir} && \
-	cp ${staging}/bin/libexpat* ${targetdir} && \
-	cp ${pydir}/python*.dll ${targetdir} && \
-	cp -r ${pydir}/lib ${targetdir} && \
-	mv ${targetdir} bin && \
+${targetdir}/share/gdb: ${gdbtargets} | maketargetdir
+	$(Q)! test -e ${targetdir}/share/gdb || rm -r ${targetdir}/share/gdb
+	$(Q)mkdir ${targetdir}/share/gdb
+	$(Q)cp -a ${staging}/gdb-${version}-$(word 1,${targets})/gdb/data-directory/{python,syscalls} ${targetdir}/share/gdb || \
+		{ rm -r ${targetdir}/share/gdb; false; }
+
+package: ${gdbtargets} ${broot}/python/python.exe ${targetdir}/share/gdb
+	$(Q)cp ${staging}/bin/libiconv* ${targetdir}/bin && \
+	cp ${staging}/bin/libexpat* ${targetdir}/bin && \
+	cp ${pydir}/python*.dll ${targetdir}/bin && \
+	cp -r ${pydir}/lib ${targetdir}/bin && \
 	echo "Packing..." && \
-	7z a ${packagename} bin
+	7z a ${packagename} ${targetdir}/*
