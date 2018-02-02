@@ -1081,6 +1081,8 @@ void DebuggerEngine::notifyInferiorExited()
     CALLGRIND_STOP_INSTRUMENTATION;
     CALLGRIND_DUMP_STATS;
 #endif
+    QTC_ASSERT(isAllowedTransition(state(), InferiorShutdownOk),
+            qDebug() << this << state(); return);
     showMessage("NOTE: INFERIOR EXITED");
     d->resetLocation();
     setState(InferiorShutdownOk);
