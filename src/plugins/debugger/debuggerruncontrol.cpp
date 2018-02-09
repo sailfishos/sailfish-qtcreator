@@ -1063,4 +1063,10 @@ void GdbServerRunner::start()
     SimpleTargetRunner::start();
 }
 
+void GdbServerRunner::stop()
+{
+    // gdbserver will be stopped by issuing the 'monitor exit' command in debugging session
+    reportStopped();
+}
+
 } // namespace Debugger
