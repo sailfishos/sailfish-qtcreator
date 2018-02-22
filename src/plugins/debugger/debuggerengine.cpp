@@ -454,6 +454,7 @@ public:
 
     DebuggerEngine *m_engine = nullptr; // Not owned.
     QString m_runId;
+    QPointer<DebuggerRunTool> m_runTool; // Not owned
     QPointer<RunConfiguration> m_runConfiguration;  // Not owned.
     QString m_debuggerName;
     QPointer<Perspective> m_perspective;
@@ -1009,6 +1010,7 @@ void DebuggerEngine::setRunId(const QString &id)
 
 void DebuggerEngine::setRunTool(DebuggerRunTool *runTool)
 {
+    d->m_runTool = runTool;
     RunControl *runControl = runTool->runControl();
     d->m_runConfiguration = runControl->runConfiguration();
     d->m_device = runControl->device();
@@ -1809,6 +1811,9 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
 
     if (oldState != d->m_state)
         emit EngineManager::instance()->engineStateChanged(this);
+
+    if (state == InferiorRunOk && isPrimaryEngine())
+        emit d->m_runTool->inferiorRunning();
 
     if (state == DebuggerFinished) {
         d->setBusyCursor(false);
