@@ -126,6 +126,9 @@ public:
 
     Internal::TerminalRunner *terminalRunner() const;
 
+signals:
+    void inferiorRunning();
+
 private:
     bool fixupParameters();
     void handleEngineStarted(Internal::DebuggerEngine *engine);
