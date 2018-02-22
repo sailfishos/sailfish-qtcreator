@@ -1179,6 +1179,8 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
 
     if (isSlaveEngine())
         masterEngine()->slaveEngineStateChanged(this, state);
+    if (state == InferiorRunOk && isMasterEngine())
+        runTool()->inferiorRunning();
 }
 
 void DebuggerEngine::updateViews()
