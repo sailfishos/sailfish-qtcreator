@@ -26,6 +26,7 @@
 #include "meremulatordevice.h"
 #include "merrunconfiguration.h"
 #include "merrunconfigurationaspect.h"
+#include "merqmllivebenchmanager.h"
 #include "merqmlrunconfiguration.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
@@ -126,6 +127,10 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
         m_symbolFile = rc->localExecutableFilePath();
     else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
         m_symbolFile = rc->localExecutableFilePath();
+
+    connect(this, &DebuggerRunTool::inferiorRunning, this, [runControl]() {
+        MerQmlLiveBenchManager::notifyInferiorRunning(runControl);
+    });
 }
 
 void MerDeviceDebugSupport::start()
