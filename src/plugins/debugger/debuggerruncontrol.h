@@ -138,6 +138,7 @@ public:
 
 signals:
     void aboutToNotifyInferiorSetupOk();
+    void inferiorRunning();
 
 private:
     bool fixupParameters();
