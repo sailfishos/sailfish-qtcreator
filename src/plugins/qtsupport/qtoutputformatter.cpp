@@ -46,7 +46,7 @@ namespace QtSupport {
 
 // Prefix added by the default QT_MESSAGE_PATTERN on Sailfish
 #define SAILFISH_PREFIX_REGEXP \
-    "(?:\\[[DWCF]\\] [^\\s]+ - )"
+    "(?:\\[[DIWCF]\\] [^\\s]+ - )"
 
 // "file" or "qrc", colon, optional '//', '/' and further characters
 #define QML_URL_REGEXP \
