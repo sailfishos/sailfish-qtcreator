@@ -26,6 +26,7 @@
 #include <functional>
 
 #include <QHash>
+#include <QMap>
 #include <QObject>
 #include <QQueue>
 #include <QSet>
@@ -33,6 +34,7 @@
 #include <coreplugin/id.h>
 
 QT_FORWARD_DECLARE_CLASS(QProcess)
+QT_FORWARD_DECLARE_CLASS(QTimer)
 
 namespace ProjectExplorer {
     class Project;
@@ -78,6 +80,7 @@ public:
 
     static void startBench();
     static void offerToStartBenchIfNotRunning();
+    static void notifyInferiorRunning(ProjectExplorer::RunControl *rc);
 
 private:
     MerQmlLiveBenchManager(QObject *parent = nullptr);
@@ -89,6 +92,7 @@ private:
     void letRunningBenchProbeHosts(const QString &merDeviceName, const QList<Utils::Port> &ports);
     void enqueueCommand(Command *command);
     void processCommandsQueue();
+    void startProbing(ProjectExplorer::RunControl *rc);
 
 private slots:
     void onBenchLocationChanged();
@@ -110,6 +114,7 @@ private:
     QHash<Core::Id, DeviceInfo *> m_deviceInfoCache;
     QQueue<Command *> m_commands;
     Command *m_currentCommand{};
+    QMap<ProjectExplorer::RunControl *, QTimer *> m_probeTimeouts;
 
     QMetaObject::Connection m_activeTargetChangedConnection;
     QMetaObject::Connection m_activeRunConfigurationChangedConnection;

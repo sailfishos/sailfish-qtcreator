@@ -84,6 +84,7 @@ public:
 
 signals:
     void aboutToNotifyInferiorSetupOk();
+    void inferiorRunning();
 
 private:
     void setupEngine();

@@ -61,7 +61,8 @@ const char REMOTE_ONLY_OPTION[] = "--remoteonly";
 const char RM_HOST_OPTION[] = "--rmhost";
 
 const char APP_READY_PATTERN[] = "qmlliveruntime-sailfish initialized";
-const int PROBE_LATEST_MS = 2500;
+const int PROBE_PERIOD_MS = 2000;
+const int PROBE_TIMEOUT_MS = 20000;
 }
 
 MerQmlLiveBenchManager *MerQmlLiveBenchManager::m_instance = nullptr;
@@ -159,6 +160,17 @@ void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
     };
 
     instance()->enqueueCommand(ping);
+}
+
+void MerQmlLiveBenchManager::notifyInferiorRunning(ProjectExplorer::RunControl *rc)
+{
+    auto merAspect = rc->runConfiguration()->extraAspect<MerRunConfigurationAspect>();
+    if (!merAspect)
+        return;
+    if (!merAspect->isQmlLiveEnabled())
+        return;
+
+    instance()->startProbing(rc);
 }
 
 void MerQmlLiveBenchManager::warnBenchLocationNotSet()
@@ -525,7 +537,16 @@ void MerQmlLiveBenchManager::onAboutToExecuteProject(ProjectExplorer::RunControl
 
     offerToStartBenchIfNotRunning();
 
-    // Remaining part is to call letRunningBenchProbeHosts() when app become ready
+    startProbing(rc);
+}
+
+/*
+ * Probe with PROBE_PERIOD_MS milliseconds period for PROBE_TIMEOUT_MS milliseconds. Promptly react
+ * to APP_READY_PATTERN appearing in application output, which signalizes qmlliveruntime-sailfish
+ * has been initialized.
+ */
+void MerQmlLiveBenchManager::startProbing(ProjectExplorer::RunControl *rc) { if
+    (m_probeTimeouts.contains(rc)) { m_probeTimeouts.value(rc)->start(); return; }
 
     auto merDevice = rc->device().dynamicCast<const MerDevice>();
     QTC_ASSERT(merDevice, return);
@@ -539,29 +560,34 @@ void MerQmlLiveBenchManager::onAboutToExecuteProject(ProjectExplorer::RunControl
         return;
     }
 
-    // Wait for APP_READY_PATTERN to appear in application output, signalizing
-    // qmlliveruntime-sailfish has been initialized. Do not wait longer than
-    // PROBE_LATEST_MS milliseconds.
+    auto rcDestroyed = connect(rc, &QObject::destroyed, this, [this, rc]() {
+        delete m_probeTimeouts.take(rc);
+    });
 
-    QPointer<QObject> guard = new QObject(this);
-    auto probe = [this, guard, merDeviceName, ports] {
-        Q_ASSERT(guard);
-        delete guard;
+    QTimer *timeout = new QTimer(this);
+    m_probeTimeouts.insert(rc, timeout);
+    timeout->setSingleShot(true);
+    timeout->start(PROBE_TIMEOUT_MS);
+    connect(timeout, &QTimer::timeout, this, [this, timeout, rc, rcDestroyed, merDeviceName, ports]() {
         letRunningBenchProbeHosts(merDeviceName, ports);
-    };
+        m_probeTimeouts.take(rc)->deleteLater();
+        disconnect(rcDestroyed);
+    });
+
+    QTimer *period = new QTimer(timeout);
+    period->start(PROBE_PERIOD_MS);
+    connect(period, &QTimer::timeout, this, [this, period, merDeviceName, ports]() {
+        period->setInterval(PROBE_PERIOD_MS);
+        letRunningBenchProbeHosts(merDeviceName, ports);
+    });
 
     auto RunControl_appendMessage = static_cast<
         void (RunControl::*)(RunControl *, const QString &, Utils::OutputFormat)
         >(&RunControl::appendMessageRequested);
-    connect(rc, RunControl_appendMessage, guard.data(), [probe](RunControl *rc, const QString &msg) {
+    connect(rc, RunControl_appendMessage, period, [period](RunControl *rc, const QString &msg) {
         Q_UNUSED(rc);
         if (msg.contains(QLatin1String(APP_READY_PATTERN)))
-            probe();
-    });
-
-    QTimer::singleShot(PROBE_LATEST_MS, guard.data(), [probe] {
-        qCWarning(Log::qmlLive) << "Timeout waiting for application to become ready.";
-        probe();
+            period->setInterval(0);
     });
 }
 
