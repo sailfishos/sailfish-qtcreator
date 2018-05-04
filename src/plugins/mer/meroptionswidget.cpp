@@ -234,6 +234,12 @@ void MerOptionsWidget::onStartVirtualMachineButtonClicked()
     sdk->connection()->connectTo();
 }
 
+void MerOptionsWidget::onStopVirtualMachineButtonClicked()
+{
+    const MerSdk *sdk = m_sdks[m_virtualMachine];
+    sdk->connection()->disconnectFrom();
+}
+
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
 {
     QString error;

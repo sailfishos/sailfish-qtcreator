@@ -83,6 +83,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="stopVirtualMachineButton">
+       <property name="text">
+        <string>Sto&amp;p Virtual Machine</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="verticalSpacer">
        <property name="orientation">
         <enum>Qt::Vertical</enum>

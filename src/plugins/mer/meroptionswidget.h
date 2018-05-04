@@ -61,6 +61,7 @@ private slots:
     void onRemoveButtonClicked();
     void onTestConnectionButtonClicked();
     void onStartVirtualMachineButtonClicked();
+    void onStopVirtualMachineButtonClicked();
     //void onLaunchSDKControlCenterClicked();
     void onGenerateSshKey(const QString &path);
     void onAuthorizeSshKey(const QString &file);
