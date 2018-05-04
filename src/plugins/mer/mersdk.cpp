@@ -184,8 +184,12 @@ QString MerSdk::sharedSrcPath() const
 void MerSdk::setSshPort(quint16 port)
 {
     SshConnectionParameters params = m_connection->sshParameters();
+    if (port == params.port)
+        return;
+
     params.port = port;
     m_connection->setSshParameters(params);
+    emit sshPortChanged(port);
 }
 
 quint16 MerSdk::sshPort() const
@@ -195,7 +199,11 @@ quint16 MerSdk::sshPort() const
 
 void MerSdk::setWwwPort(quint16 port)
 {
+    if (port == m_wwwPort)
+        return;
+
     m_wwwPort = port;
+    emit wwwPortChanged(port);
 }
 
 quint16 MerSdk::wwwPort() const

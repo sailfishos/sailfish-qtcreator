@@ -53,6 +53,9 @@ public:
 signals:
     void updateSearchKeys();
 
+private:
+    bool lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk *> *lockedDownSdks);
+
 private slots:
     // Ui
     void onSdksUpdated();
@@ -67,18 +70,23 @@ private slots:
     void onAuthorizeSshKey(const QString &file);
     void onSshKeyChanged(const QString &file);
     void onSshTimeoutChanged(int timeout);
+    void onSshPortChanged(quint16 port);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
+    void onWwwPortChanged(quint16 port);
     void update();
 
 private:
     Ui::MerOptionsWidget *m_ui;
     QString m_virtualMachine;
+    QMetaObject::Connection m_vmOffConnection;
     QString m_status;
     QMap<QString, MerSdk*> m_sdks;
     QMap<MerSdk*, QString> m_sshPrivKeys;
     QMap<MerSdk*, int> m_sshTimeout;
+    QMap<MerSdk*, quint16> m_sshPort;
     QMap<MerSdk*, bool> m_headless;
+    QMap<MerSdk*, quint16> m_wwwPort;
 };
 
 } // Internal

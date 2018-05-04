@@ -69,6 +69,8 @@ public:
     static void startVirtualMachine(const QString &vmName, bool headless);
     static void shutVirtualMachine(const QString &vmName);
     static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
+    static bool updateSdkSshPort(const QString &vmName, quint16 port);
+    static bool updateSdkWwwPort(const QString &vmName, quint16 port);
     static void setVideoMode(const QString &vmName, const QSize &size, int depth);
     static QString getExtraData(const QString &vmName, const QString &key);
 

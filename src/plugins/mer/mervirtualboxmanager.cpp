@@ -25,6 +25,8 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "merlogging.h"
+#include "mersdk.h"
+#include "mersdkmanager.h"
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/hostosinfo.h>
@@ -72,6 +74,10 @@ const char DELETE[] = "delete";
 const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
 const char QML_LIVE_NATPF_RULE_TEMPLATE[] = "qmllive_%1,tcp,127.0.0.1,%2,,%2";
+const char SDK_SSH_NATPF_RULE_NAME[] = "guestssh";
+const char SDK_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
+const char SDK_WWW_NATPF_RULE_NAME[] = "guestwww";
+const char SDK_WWW_NATPF_RULE_TEMPLATE[] = "guestwww,tcp,127.0.0.1,%1,,9292";
 
 namespace Mer {
 namespace Internal {
@@ -346,6 +352,62 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     return true;
 }
 
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
+{
+    qCDebug(Log::vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QLatin1String(DELETE));
+    arguments.append(QLatin1String(SDK_SSH_NATPF_RULE_NAME));
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QString::fromLatin1(SDK_SSH_NATPF_RULE_TEMPLATE).arg(port));
+
+    QTime timer;
+    timer.start();
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM;
+        return false;
+    }
+
+    qCDebug(Log::vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
+
+    return true;
+}
+
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
+{
+    qCDebug(Log::vms) << "Setting WWW port forwarding for" << vmName << "to" << port;
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QLatin1String(DELETE));
+    arguments.append(QLatin1String(SDK_WWW_NATPF_RULE_NAME));
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QString::fromLatin1(SDK_WWW_NATPF_RULE_TEMPLATE).arg(port));
+
+    QTime timer;
+    timer.start();
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM;
+        return false;
+    }
+
+    qCDebug(Log::vms) << "Setting WWW port forwarding took" << timer.elapsed() << "milliseconds";
+
+    return true;
+}
+
 VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
 {
     VirtualMachineInfo info;
@@ -438,7 +500,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
 
 void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports)
 {
-    qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
+    qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
     QTime timer;
     timer.start();
@@ -474,7 +536,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         ++i;
     }
 
-    qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
+    qCDebug(Log::vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
 }
 
 void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
@@ -555,9 +617,9 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
         pos += rexp.matchedLength();
         if (rexp.cap(0).startsWith(QLatin1String("Forwarding"))) {
             quint16 port = rexp.cap(4).toUInt();
-            if (rexp.cap(1).contains(QLatin1String("ssh")))
+            if (rexp.cap(1).contains(QLatin1String(SDK_SSH_NATPF_RULE_NAME)))
                 info.sshPort = port;
-            else if (rexp.cap(1).contains(QLatin1String("www")))
+            else if (rexp.cap(1).contains(QLatin1String(SDK_WWW_NATPF_RULE_NAME)))
                 info.wwwPort = port;
             else if (rexp.cap(1).contains(QLatin1String(QML_LIVE_NATPF_RULE_NAME_MATCH)))
                 info.qmlLivePorts << port;

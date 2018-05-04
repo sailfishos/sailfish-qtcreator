@@ -54,27 +54,31 @@ public:
     QString searchKeyWordMatchString() const;
     void setSdk(const MerSdk *sdk);
     void setStatus(const QString &status);
+    void setVmOffStatus(bool vmOff);
     void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
     void setSshTimeout(int timeout);
+    void setSshPort(quint16 port);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
+    void setWwwPort(quint16 port);
 
 signals:
     void generateSshKey(const QString &key);
     void sshKeyChanged(const QString &key);
     void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
+    void sshPortChanged(quint16 port);
     void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
+    void wwwPortChanged(quint16 port);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
-
 
 private:
     Ui::MerSdkDetailsWidget *m_ui;
