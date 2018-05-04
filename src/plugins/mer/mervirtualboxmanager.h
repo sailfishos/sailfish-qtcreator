@@ -75,8 +75,6 @@ public:
 private:
     MerVirtualBoxManager(QObject *parent = 0);
     void setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports);
-    QString qmlLivePortsForwardingRuleName(int index);
-    QString qmlLivePortsForwardingRule(int index, Utils::Port port);
 
 private slots:
     void onDeviceAdded(Core::Id id);

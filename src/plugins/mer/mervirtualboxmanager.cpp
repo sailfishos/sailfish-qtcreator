@@ -449,7 +449,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(vmName);
         arguments.append(QLatin1String(NATPF1));
         arguments.append(QLatin1String(DELETE));
-        arguments.append(qmlLivePortsForwardingRuleName(i));
+        arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(i));
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments))
@@ -465,7 +465,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(QLatin1String(MODIFYVM));
         arguments.append(vmName);
         arguments.append(QLatin1String(NATPF1));
-        arguments.append(qmlLivePortsForwardingRule(i, port));
+        arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(i).arg(port.number()));
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments))
@@ -475,16 +475,6 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
     }
 
     qCDebug(Log::qmlLive) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
-}
-
-QString MerVirtualBoxManager::qmlLivePortsForwardingRuleName(int index)
-{
-    return QString::fromLatin1(QML_LIVE_NATPF_RULE_NAME_TEMPLATE).arg(index);
-}
-
-QString MerVirtualBoxManager::qmlLivePortsForwardingRule(int index, Utils::Port port)
-{
-    return QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(index).arg(port.number());
 }
 
 void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
