@@ -428,7 +428,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     arguments.append(vmName);
     arguments.append(key);
     VBoxManageProcess process;
-    if (process.runSynchronously(arguments)) {
+    if (!process.runSynchronously(arguments)) {
         qWarning() << "VBoxManage failed to getextradata";
         return QString();
     }
@@ -468,7 +468,7 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(qmlLivePortsForwardingRule(i, port));
 
         VBoxManageProcess process;
-        if (process.runSynchronously(arguments))
+        if (!process.runSynchronously(arguments))
             qWarning() << "VBoxManage failed to" << MODIFYVM;
 
         ++i;
