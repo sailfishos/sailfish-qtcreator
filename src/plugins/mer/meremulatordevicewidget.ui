@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>680</width>
-    <height>251</height>
+    <height>323</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -88,14 +88,40 @@
     </widget>
    </item>
    <item row="3" column="1">
-    <widget class="QLabel" name="sshPortLabelEdit">
-     <property name="text">
-      <string>none</string>
-     </property>
-     <property name="textInteractionFlags">
-      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QSpinBox" name="sshPortSpinBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimum">
+        <number>1024</number>
+       </property>
+       <property name="maximum">
+        <number>65535</number>
+       </property>
+       <property name="value">
+        <number>2223</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="sshPortInfoLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item row="4" column="0">
     <widget class="QLabel" name="configFolderLabel">
@@ -305,7 +331,6 @@
   <zorder>configFolderLabelEdit</zorder>
   <zorder>sshFolderLabelEdit</zorder>
   <zorder>sshPortLabel</zorder>
-  <zorder>sshPortLabelEdit</zorder>
   <zorder>hostLabel</zorder>
   <zorder>hostLabelEdit</zorder>
   <zorder>macLabel</zorder>

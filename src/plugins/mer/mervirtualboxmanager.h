@@ -71,6 +71,7 @@ public:
     static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
     static bool updateSdkSshPort(const QString &vmName, quint16 port);
     static bool updateSdkWwwPort(const QString &vmName, quint16 port);
+    static bool updateEmulatorSshPort(const QString &vmName, quint16 port);
     static void setVideoMode(const QString &vmName, const QSize &size, int depth);
     static QString getExtraData(const QString &vmName, const QString &key);
 
@@ -87,6 +88,7 @@ private:
     static MerVirtualBoxManager *m_instance;
     friend class MerPlugin;
 
+    QHash<Core::Id, quint16> m_deviceSshPortCache;
     QHash<Core::Id, QList<Utils::Port>> m_deviceQmlLivePortsCache;
 };
 

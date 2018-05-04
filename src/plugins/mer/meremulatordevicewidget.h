@@ -44,6 +44,7 @@ private slots:
     void onVirtualMachineOffChanged(bool vmOff);
     void timeoutEditingFinished();
     void userNameEditingFinished();
+    void handleSshPortChanged();
     void handleFreePortsChanged();
     void handleQmlLivePortsChanged();
 

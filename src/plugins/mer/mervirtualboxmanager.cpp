@@ -78,6 +78,8 @@ const char SDK_SSH_NATPF_RULE_NAME[] = "guestssh";
 const char SDK_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
 const char SDK_WWW_NATPF_RULE_NAME[] = "guestwww";
 const char SDK_WWW_NATPF_RULE_TEMPLATE[] = "guestwww,tcp,127.0.0.1,%1,,9292";
+const char EMULATOR_SSH_NATPF_RULE_NAME[] = "guestssh";
+const char EMULATOR_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
 
 namespace Mer {
 namespace Internal {
@@ -408,6 +410,34 @@ bool MerVirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
     return true;
 }
 
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port)
+{
+    qCDebug(Log::vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QLatin1String(DELETE));
+    arguments.append(QLatin1String(EMULATOR_SSH_NATPF_RULE_NAME));
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QString::fromLatin1(EMULATOR_SSH_NATPF_RULE_TEMPLATE).arg(port));
+
+    QTime timer;
+    timer.start();
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM;
+        return false;
+    }
+
+    qCDebug(Log::vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
+
+    return true;
+}
+
 VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
 {
     VirtualMachineInfo info;
@@ -546,18 +576,23 @@ void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
     if (!merEmulator)
         return;
 
+    QTC_CHECK(!m_deviceSshPortCache.contains(id));
+    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
     QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
     m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsList());
 }
 
 void MerVirtualBoxManager::onDeviceRemoved(Core::Id id)
 {
+    m_deviceSshPortCache.remove(id);
     m_deviceQmlLivePortsCache.remove(id);
 }
 
 void MerVirtualBoxManager::onDeviceListReplaced()
 {
-    const auto oldCache = m_deviceQmlLivePortsCache;
+    const auto oldSshPortsCache = m_deviceSshPortCache;
+    m_deviceSshPortCache.clear();
+    const auto oldQmlLivePortsCache = m_deviceQmlLivePortsCache;
     m_deviceQmlLivePortsCache.clear();
 
     const int deviceCount = DeviceManager::instance()->deviceCount();
@@ -566,13 +601,15 @@ void MerVirtualBoxManager::onDeviceListReplaced()
         if (!merEmulator)
             continue;
 
-        const QList<Utils::Port> oldPorts = oldCache.value(merEmulator->id());
-        const QList<Utils::Port> nowPorts = merEmulator->qmlLivePortsList();
+        const quint16 nowSshPort = merEmulator->sshParameters().port;
+        if (nowSshPort != oldSshPortsCache.value(merEmulator->id()))
+            updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
+        m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
-        if (nowPorts != oldPorts)
-            setUpQmlLivePortsForwarding(merEmulator->virtualMachine(), nowPorts);
-
-        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowPorts);
+        const QList<Utils::Port> nowQmlLivePorts = merEmulator->qmlLivePortsList();
+        if (nowQmlLivePorts != oldQmlLivePortsCache.value(merEmulator->id()))
+            setUpQmlLivePortsForwarding(merEmulator->virtualMachine(), nowQmlLivePorts);
+        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
     }
 }
 
