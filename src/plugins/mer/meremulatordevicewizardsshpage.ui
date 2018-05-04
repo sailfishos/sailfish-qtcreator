@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>453</width>
-    <height>264</height>
+    <height>296</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -110,7 +110,7 @@
          <string>Username:</string>
         </property>
         <property name="buddy">
-         <cstring>userLineEdit</cstring>
+         <cstring>rootLineEdit</cstring>
         </property>
        </widget>
       </item>

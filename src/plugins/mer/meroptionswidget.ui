@@ -21,7 +21,10 @@
        <item row="0" column="0">
         <widget class="QLabel" name="sdkLabel">
          <property name="text">
-          <string>Virtual Machine:</string>
+          <string>Virtua&amp;l Machine:</string>
+         </property>
+         <property name="buddy">
+          <cstring>sdkComboBox</cstring>
          </property>
         </widget>
        </item>

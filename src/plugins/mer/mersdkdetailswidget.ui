@@ -104,6 +104,9 @@
             <property name="text">
              <string>SSH port:</string>
             </property>
+            <property name="buddy">
+             <cstring>sshPortSpinBox</cstring>
+            </property>
            </widget>
           </item>
           <item row="2" column="1">
@@ -146,6 +149,9 @@
            <widget class="QLabel" name="wwwPorLabel">
             <property name="text">
              <string>Web port:</string>
+            </property>
+            <property name="buddy">
+             <cstring>wwwPortSpinBox</cstring>
             </property>
            </widget>
           </item>
@@ -211,7 +217,10 @@
           <item row="5" column="0">
            <widget class="QLabel" name="headlessLabel">
             <property name="text">
-             <string>No window:</string>
+             <string>No win&amp;dow:</string>
+            </property>
+            <property name="buddy">
+             <cstring>headlessCheckBox</cstring>
             </property>
            </widget>
           </item>
@@ -498,7 +507,10 @@
           <item row="3" column="0">
            <widget class="QLabel" name="sshTimeoutLabel">
             <property name="text">
-             <string>SSH timeout:</string>
+             <string>SSH t&amp;imeout:</string>
+            </property>
+            <property name="buddy">
+             <cstring>sshTimeoutSpinBox</cstring>
             </property>
            </widget>
           </item>
@@ -573,6 +585,17 @@
    </slots>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>sshPortSpinBox</tabstop>
+  <tabstop>wwwPortSpinBox</tabstop>
+  <tabstop>headlessCheckBox</tabstop>
+  <tabstop>srcFolderApplyButton</tabstop>
+  <tabstop>generateSshKeyPushButton</tabstop>
+  <tabstop>authorizeSshKeyPushButton</tabstop>
+  <tabstop>sshTimeoutSpinBox</tabstop>
+  <tabstop>testConnectionPushButton</tabstop>
+  <tabstop>scrollArea</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
