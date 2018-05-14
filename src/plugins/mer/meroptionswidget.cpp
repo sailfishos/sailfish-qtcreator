@@ -33,7 +33,9 @@
 
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
+#include <utils/asconst.h>
 #include <utils/fileutils.h>
+#include <utils/qtcassert.h>
 
 #include <QDesktopServices>
 #include <QDir>
@@ -73,14 +75,20 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
             this, &MerOptionsWidget::onRemoveButtonClicked);
     connect(m_ui->startVirtualMachineButton, &QPushButton::clicked,
             this, &MerOptionsWidget::onStartVirtualMachineButtonClicked);
+    connect(m_ui->stopVirtualMachineButton, &QPushButton::clicked,
+            this, &MerOptionsWidget::onStopVirtualMachineButtonClicked);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::testConnectionButtonClicked,
             this, &MerOptionsWidget::onTestConnectionButtonClicked);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::sshTimeoutChanged,
             this, &MerOptionsWidget::onSshTimeoutChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::sshPortChanged,
+            this, &MerOptionsWidget::onSshPortChanged);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::headlessCheckBoxToggled,
             this, &MerOptionsWidget::onHeadlessCheckBoxToggled);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::srcFolderApplyButtonClicked,
             this, &MerOptionsWidget::onSrcFolderApplyButtonClicked);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::wwwPortChanged,
+            this, &MerOptionsWidget::onWwwPortChanged);
     onSdksUpdated();
 }
 
@@ -121,13 +129,44 @@ void MerOptionsWidget::store()
     QMap<QString, MerSdk*> sdks = m_sdks;
     QList<MerSdk*> currentSdks = MerSdkManager::sdks();
 
+    bool ok = true;
+
+    QList<MerSdk*> lockedDownSdks;
+    ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
+
     foreach (MerSdk *sdk, sdks) {
         if (m_sshPrivKeys.contains(sdk))
             sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
         if (m_sshTimeout.contains(sdk))
             sdk->setTimeout(m_sshTimeout[sdk]);
+        if (m_sshPort.contains(sdk)) {
+            if (MerVirtualBoxManager::updateSdkSshPort(sdk->virtualMachineName(), m_sshPort[sdk])) {
+                sdk->setSshPort(m_sshPort[sdk]);
+            } else {
+                m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
+                m_sshPort.remove(sdk);
+                ok = false;
+            }
+        }
         if (m_headless.contains(sdk))
             sdk->setHeadless(m_headless[sdk]);
+        if (m_wwwPort.contains(sdk)) {
+            if (MerVirtualBoxManager::updateSdkWwwPort(sdk->virtualMachineName(), m_wwwPort[sdk])) {
+                sdk->setWwwPort(m_wwwPort[sdk]);
+            } else {
+                m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
+                m_wwwPort.remove(sdk);
+                ok = false;
+            }
+        }
+    }
+
+    foreach (MerSdk *sdk, lockedDownSdks)
+        sdk->connection()->lockDown(false);
+
+    if (!ok) {
+        QMessageBox::warning(this, tr("Some changes could not be saved!"),
+                             tr("Failed to apply some of the changes to virtual machines"));
     }
 
     foreach (MerSdk *sdk, currentSdks) {
@@ -144,7 +183,56 @@ void MerOptionsWidget::store()
 
     m_sshPrivKeys.clear();
     m_sshTimeout.clear();
+    m_sshPort.clear();
     m_headless.clear();
+    m_wwwPort.clear();
+}
+
+bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk *> *lockedDownSdks)
+{
+    QTC_ASSERT(lockedDownSdks, return false);
+
+    QList<MerSdk *> failed;
+
+    for (MerSdk *sdk : Utils::asConst(m_sdks)) {
+        if (m_sshPort.value(sdk) == sdk->sshPort())
+            m_sshPort.remove(sdk);
+        if (m_wwwPort.value(sdk) == sdk->wwwPort())
+            m_wwwPort.remove(sdk);
+
+        if (!m_sshPort.contains(sdk) && !m_wwwPort.contains(sdk))
+            continue;
+
+        if (!sdk->connection()->isVirtualMachineOff()) {
+            QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
+                    tr("Close Virtual Machine"),
+                    tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                    QMessageBox::Yes | QMessageBox::No,
+                    this);
+            questionBox->setInformativeText(
+                    tr("Some of the changes require stopping the virtual machine before they can be applied."));
+            if (questionBox->exec() != QMessageBox::Yes) {
+                failed.append(sdk);
+                continue;
+            }
+        }
+
+        if (!sdk->connection()->lockDown(true)) {
+            failed.append(sdk);
+            continue;
+        }
+
+        lockedDownSdks->append(sdk);
+    }
+
+    for (MerSdk *sdk : Utils::asConst(failed)) {
+        m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
+        m_sshPort.remove(sdk);
+        m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
+        m_wwwPort.remove(sdk);
+    }
+
+    return failed.isEmpty();
 }
 
 void MerOptionsWidget::onSdkChanged(const QString &sdkName)
@@ -187,6 +275,12 @@ void MerOptionsWidget::onRemoveButtonClicked()
              m_virtualMachine = m_sdks.keys().last();
          else
              m_virtualMachine.clear();
+
+         m_sshPrivKeys.remove(removed);
+         m_sshTimeout.remove(removed);
+         m_sshPort.remove(removed);
+         m_headless.remove(removed);
+         m_wwwPort.remove(removed);
     }
     update();
 }
@@ -198,6 +292,8 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
         SshConnectionParameters params = sdk->connection()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
+        if (m_sshPort.contains(sdk))
+            params.port = m_sshPort[sdk];
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::testConnection(params);
@@ -232,6 +328,12 @@ void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
     sdk->connection()->connectTo();
+}
+
+void MerOptionsWidget::onStopVirtualMachineButtonClicked()
+{
+    const MerSdk *sdk = m_sdks[m_virtualMachine];
+    sdk->connection()->disconnectFrom();
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
@@ -322,6 +424,8 @@ void MerOptionsWidget::update()
     m_ui->sdkComboBox->addItems(m_sdks.keys());
     bool show = !m_virtualMachine.isEmpty();
 
+    disconnect(m_vmOffConnection);
+
     if (show && m_sdks.contains(m_virtualMachine)) {
         MerSdk *sdk = m_sdks[m_virtualMachine];
         m_ui->sdkDetailsWidget->setSdk(sdk);
@@ -335,10 +439,24 @@ void MerOptionsWidget::update()
         else
             m_ui->sdkDetailsWidget->setSshTimeout(sdk->timeout());
 
+        if (m_sshPort.contains(sdk))
+            m_ui->sdkDetailsWidget->setSshPort(m_sshPort[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
+
         if (m_headless.contains(sdk))
             m_ui->sdkDetailsWidget->setHeadless(m_headless[sdk]);
         else
             m_ui->sdkDetailsWidget->setHeadless(sdk->isHeadless());
+
+        if (m_wwwPort.contains(sdk))
+            m_ui->sdkDetailsWidget->setWwwPort(m_wwwPort[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
+
+        m_ui->sdkDetailsWidget->setVmOffStatus(sdk->connection()->isVirtualMachineOff());
+        m_vmOffConnection = connect(sdk->connection(), &MerConnection::virtualMachineOffChanged,
+                m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::setVmOffStatus);
 
         int index = m_ui->sdkComboBox->findText(m_virtualMachine);
         m_ui->sdkComboBox->setCurrentIndex(index);
@@ -362,10 +480,22 @@ void MerOptionsWidget::onSshTimeoutChanged(int timeout)
     m_sshTimeout[m_sdks[m_virtualMachine]] = timeout;
 }
 
+void MerOptionsWidget::onSshPortChanged(quint16 port)
+{
+    //store keys to be saved on save click
+    m_sshPort[m_sdks[m_virtualMachine]] = port;
+}
+
 void MerOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
 {
     //store keys to be saved on save click
     m_headless[m_sdks[m_virtualMachine]] = checked;
+}
+
+void MerOptionsWidget::onWwwPortChanged(quint16 port)
+{
+    //store keys to be saved on save click
+    m_wwwPort[m_sdks[m_virtualMachine]] = port;
 }
 
 } // Internal

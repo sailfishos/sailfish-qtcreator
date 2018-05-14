@@ -21,7 +21,10 @@
        <item row="0" column="0">
         <widget class="QLabel" name="sdkLabel">
          <property name="text">
-          <string>Virtual Machine:</string>
+          <string>Virtua&amp;l Machine:</string>
+         </property>
+         <property name="buddy">
+          <cstring>sdkComboBox</cstring>
          </property>
         </widget>
        </item>
@@ -79,6 +82,13 @@
        </property>
        <property name="text">
         <string>&amp;Start Virtual Machine</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="stopVirtualMachineButton">
+       <property name="text">
+        <string>Sto&amp;p Virtual Machine</string>
        </property>
       </widget>
      </item>

@@ -23,11 +23,13 @@
 #include "mersdkdetailswidget.h"
 #include "ui_mersdkdetailswidget.h"
 
+#include "merconnection.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
 #include <utils/hostosinfo.h>
+#include <utils/utilsicons.h>
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -44,6 +46,18 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
 {
     m_ui->setupUi(this);
 
+    m_ui->sshPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    m_ui->sshPortInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop the virtual machine to unlock this field for editing.")
+            + QLatin1String("</font>"));
+
+    m_ui->wwwPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    m_ui->wwwPortInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop the virtual machine to unlock this field for editing.")
+            + QLatin1String("</font>"));
+
     connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked);
     connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
@@ -54,12 +68,16 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
             this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
     connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::testConnectionButtonClicked);
+    connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerSdkDetailsWidget::sshPortChanged);
     connect(m_ui->sshTimeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerSdkDetailsWidget::sshTimeoutChanged);
     connect(m_ui->headlessCheckBox, &QCheckBox::toggled,
             this, &MerSdkDetailsWidget::headlessCheckBoxToggled);
     connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
+    connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerSdkDetailsWidget::wwwPortChanged);
 
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -87,8 +105,6 @@ void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
     m_ui->nameLabelText->setText(sdk->virtualMachineName());
-    m_ui->sshPortLabelText->setText(QString::number(sdk->sshPort()));
-    m_ui->wwwPortLabelText->setText(QString::number(sdk->wwwPort()));
     m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath()));
     m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
@@ -131,14 +147,32 @@ void MerSdkDetailsWidget::setStatus(const QString &status)
     m_ui->statusLabelText->setText(status);
 }
 
+void MerSdkDetailsWidget::setVmOffStatus(bool vmOff)
+{
+    m_ui->sshPortSpinBox->setEnabled(vmOff);
+    m_ui->sshPortInfoLabel->setVisible(!vmOff);
+    m_ui->wwwPortSpinBox->setEnabled(vmOff);
+    m_ui->wwwPortInfoLabel->setVisible(!vmOff);
+}
+
 void MerSdkDetailsWidget::setSshTimeout(int timeout)
 {
     m_ui->sshTimeoutSpinBox->setValue(timeout);
 }
 
+void MerSdkDetailsWidget::setSshPort(quint16 port)
+{
+    m_ui->sshPortSpinBox->setValue(port);
+}
+
 void MerSdkDetailsWidget::setHeadless(bool enabled)
 {
     m_ui->headlessCheckBox->setChecked(enabled);
+}
+
+void MerSdkDetailsWidget::setWwwPort(quint16 port)
+{
+    m_ui->wwwPortSpinBox->setValue(port);
 }
 
 void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()

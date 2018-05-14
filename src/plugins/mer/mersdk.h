@@ -110,6 +110,8 @@ signals:
     void targetsChanged(const QStringList &targets);
     void privateKeyChanged(const QString &file);
     void headlessChanged(bool);
+    void sshPortChanged(quint16 port);
+    void wwwPortChanged(quint16 port);
 
 private slots:
     void updateTargets();

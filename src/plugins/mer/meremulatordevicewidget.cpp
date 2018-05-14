@@ -57,6 +57,8 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
             this, &MerEmulatorDeviceWidget::timeoutEditingFinished);
     connect(m_ui->timeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerEmulatorDeviceWidget::timeoutEditingFinished);
+    connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerEmulatorDeviceWidget::handleSshPortChanged);
     connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
             this, &MerEmulatorDeviceWidget::handleFreePortsChanged);
     connect(m_ui->qmlLivePortsLineEdit, &QLineEdit::editingFinished,
@@ -71,6 +73,8 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 
 void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
 {
+    m_ui->sshPortSpinBox->setEnabled(vmOff);
+    m_ui->sshPortInfoLabel->setVisible(!vmOff);
     m_ui->qmlLivePortsLineEdit->setEnabled(vmOff);
     m_ui->qmlLivePortsInfoLabel->setVisible(!vmOff);
 }
@@ -106,6 +110,14 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         device->setSshParameters(sshParams);
         device->updateConnection();
     }
+}
+
+void MerEmulatorDeviceWidget::handleSshPortChanged()
+{
+    auto device = this->device().staticCast<MerDevice>();
+    auto sshParams = device->sshParameters();
+    sshParams.port = m_ui->sshPortSpinBox->value();
+    device->setSshParameters(sshParams);
 }
 
 void MerEmulatorDeviceWidget::handleFreePortsChanged()
@@ -155,6 +167,11 @@ void MerEmulatorDeviceWidget::initGui()
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
+    m_ui->sshPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
+    m_ui->sshPortInfoLabel->setToolTip(
+            QLatin1String("<font color=\"red\">")
+            + tr("Stop emulator to unlock this field for editing.")
+            + QLatin1String("</font>"));
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
@@ -169,10 +186,7 @@ void MerEmulatorDeviceWidget::initGui()
         m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     else
         m_ui->sshKeyLabelEdit->setText(tr("none"));
-    if(sshParams.port > 0)
-        m_ui->sshPortLabelEdit->setText(QString::number(sshParams.port));
-    else
-        m_ui->sshPortLabelEdit->setText(tr("none"));
+    m_ui->sshPortSpinBox->setValue(sshParams.port);
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());

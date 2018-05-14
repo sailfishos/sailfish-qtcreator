@@ -480,6 +480,10 @@ void MerSdkManager::addSdk(MerSdk *sdk)
             m_instance, &MerSdkManager::sdksUpdated);
     connect(sdk, &MerSdk::headlessChanged,
             m_instance, &MerSdkManager::sdksUpdated);
+    connect(sdk, &MerSdk::sshPortChanged,
+            m_instance, &MerSdkManager::sdksUpdated);
+    connect(sdk, &MerSdk::wwwPortChanged,
+            m_instance, &MerSdkManager::sdksUpdated);
     sdk->attach();
     emit m_instance->sdksUpdated();
 }
@@ -490,10 +494,7 @@ void MerSdkManager::removeSdk(MerSdk *sdk)
     if (!m_instance->m_sdks.contains(sdk->virtualMachineName()))
         return;
     m_instance->m_sdks.remove(sdk->virtualMachineName());
-    disconnect(sdk, &MerSdk::targetsChanged,
-               m_instance, &MerSdkManager::sdksUpdated);
-    disconnect(sdk, &MerSdk::privateKeyChanged,
-               m_instance, &MerSdkManager::sdksUpdated);
+    sdk->disconnect(m_instance);
     sdk->detach();
     emit m_instance->sdksUpdated();
 }

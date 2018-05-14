@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>398</width>
-    <height>250</height>
+    <height>300</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -31,7 +31,10 @@
      <item row="0" column="0">
       <widget class="QLabel" name="configNameLabel">
        <property name="text">
-        <string>Config Name:</string>
+        <string>&amp;Config Name:</string>
+       </property>
+       <property name="buddy">
+        <cstring>configNameLineEdit</cstring>
        </property>
       </widget>
      </item>
@@ -42,6 +45,9 @@
       <widget class="QLabel" name="emulatorLabel">
        <property name="text">
         <string>Virtual Machine</string>
+       </property>
+       <property name="buddy">
+        <cstring>emulatorComboBox</cstring>
        </property>
       </widget>
      </item>
