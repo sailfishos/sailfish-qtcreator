@@ -87,6 +87,11 @@ QString MerEmulatorDeviceWizard::freePorts() const
      return m_vmPage.freePorts();
 }
 
+QString MerEmulatorDeviceWizard::qmlLivePorts() const
+{
+     return m_vmPage.qmlLivePorts();
+}
+
 QString MerEmulatorDeviceWizard::sharedConfigPath() const
 {
      return m_vmPage.sharedConfigPath();

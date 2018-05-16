@@ -108,6 +108,11 @@ QString MerEmualtorVMPage::freePorts() const
     return m_ui->portsLineEdit->text();
 }
 
+QString MerEmualtorVMPage::qmlLivePorts() const
+{
+    return m_ui->qmlLivePortsLabelEdit->text();
+}
+
 QString MerEmualtorVMPage::sharedConfigPath() const
 {
     return trimNone(m_ui->configFolderLabelEdit->text());
@@ -136,10 +141,16 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         m_ui->sshPortLabelEdit->setText(tr("none"));
     else
         m_ui->sshPortLabelEdit->setText(QString::number(info.sshPort));
+
     QStringList freePorts;
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
     m_ui->portsLineEdit->setText(freePorts.join(QLatin1Char(',')));
+
+    QStringList qmlLivePorts;
+    foreach (quint16 port, info.qmlLivePorts)
+        qmlLivePorts << QString::number(port);
+    m_ui->qmlLivePortsLabelEdit->setText(qmlLivePorts.join(QLatin1Char(',')));
 
     QString configFolder(QDir::toNativeSeparators(info.sharedConfig));
     QString sshFolder(QDir::toNativeSeparators(info.sharedSsh));

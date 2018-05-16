@@ -50,6 +50,7 @@ public:
     QString rootPrivateKey() const;
     QString emulatorVm() const;
     QString freePorts() const;
+    QString qmlLivePorts() const;
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
     QString mac() const;

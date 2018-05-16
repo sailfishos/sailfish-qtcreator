@@ -109,6 +109,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setSubnet(QLatin1String("10.220.220"));
         device->setDisplayName(wizard.configName());
         device->setFreePorts(PortList::fromString(wizard.freePorts()));
+        device->setQmlLivePorts(PortList::fromString(wizard.qmlLivePorts()));
         device->setSshParameters(sshParams);
         device->updateConnection();
         device->setSharedConfigPath(wizard.sharedConfigPath());
