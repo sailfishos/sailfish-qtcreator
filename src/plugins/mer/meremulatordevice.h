@@ -114,13 +114,13 @@ public:
     void setViewScaled(bool viewScaled);
 
     MerConnection *connection() const;
-    // ATTENTION! Call this when sshParameters are changed! Unfortunately
-    // IDevice API does not allow to hook this.
-    void updateConnection();
 
 private:
     MerEmulatorDevice(Core::Id id);
     MerEmulatorDevice(const MerEmulatorDevice &other);
+
+    friend class MerEmulatorDeviceManager;
+    void updateConnection() const;
 
     void updateAvailableDeviceModels();
     void scheduleSetVideoMode();
@@ -161,6 +161,7 @@ private:
     MerEmulatorDeviceManager(QObject *parent = 0);
 
 private slots:
+    void onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device);
     void onDeviceAdded(Core::Id id);
     void onDeviceRemoved(Core::Id id);
     void onDeviceListReplaced();

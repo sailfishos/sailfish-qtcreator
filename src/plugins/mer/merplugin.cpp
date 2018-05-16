@@ -105,11 +105,11 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerVirtualBoxManager);
-    addAutoReleasedObject(new MerEmulatorDeviceManager);
     addAutoReleasedObject(new MerConnectionManager);
     addAutoReleasedObject(new MerOptionsPage);
     addAutoReleasedObject(new MerGeneralOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
+    addAutoReleasedObject(new MerEmulatorDeviceManager);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
     addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);

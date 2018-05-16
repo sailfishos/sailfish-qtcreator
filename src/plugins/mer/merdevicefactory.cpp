@@ -48,9 +48,23 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
+MerDeviceFactory *MerDeviceFactory::s_instance= 0;
+
+MerDeviceFactory *MerDeviceFactory::instance()
+{
+    return s_instance;
+}
+
 MerDeviceFactory::MerDeviceFactory()
 {
+    QTC_CHECK(!s_instance);
+    s_instance = this;
     setObjectName(QLatin1String("MerDeviceFactory"));
+}
+
+MerDeviceFactory::~MerDeviceFactory()
+{
+    s_instance = 0;
 }
 
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
@@ -111,7 +125,6 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setFreePorts(PortList::fromString(wizard.freePorts()));
         device->setQmlLivePorts(PortList::fromString(wizard.qmlLivePorts()));
         device->setSshParameters(sshParams);
-        device->updateConnection();
         device->setSharedConfigPath(wizard.sharedConfigPath());
         device->setSharedSshPath(wizard.sharedSshPath());
 
@@ -122,6 +135,8 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
             device->generateSshKey(wizard.rootName());
         }
+
+        emit const_cast<MerDeviceFactory *>(this)->deviceCreated(device);
 
         return device;
     } else {
@@ -175,6 +190,9 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setFreePorts(PortList::fromString(wizard.freePorts()));
         //device->setFreePorts(PortList::fromString(QLatin1String("10000-10100")));
         device->setSshParameters(sshParams);
+
+        emit const_cast<MerDeviceFactory *>(this)->deviceCreated(device);
+
         return device;
     }
 

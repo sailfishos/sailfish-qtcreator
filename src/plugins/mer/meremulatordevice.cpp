@@ -24,6 +24,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
+#include "merdevicefactory.h"
 #include "meremulatordevicetester.h"
 #include "meremulatordevicewidget.h"
 #include "mersdkmanager.h"
@@ -291,7 +292,6 @@ DeviceTester *MerEmulatorDevice::createDeviceTester() const
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
-    updateConnection();
     m_connection->setVirtualMachine(
             map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
@@ -454,7 +454,8 @@ MerConnection *MerEmulatorDevice::connection() const
     return m_connection.data();
 }
 
-void MerEmulatorDevice::updateConnection()
+// Hack, all clones share the connection
+void MerEmulatorDevice::updateConnection() const
 {
     m_connection->setSshParameters(sshParameters());
 }
@@ -631,6 +632,8 @@ MerEmulatorDeviceManager::MerEmulatorDeviceManager(QObject *parent)
     const int deviceCount = DeviceManager::instance()->deviceCount();
     for (int i = 0; i < deviceCount; ++i)
         onDeviceAdded(DeviceManager::instance()->deviceAt(i)->id());
+    connect(MerDeviceFactory::instance(), &MerDeviceFactory::deviceCreated,
+            this, &MerEmulatorDeviceManager::onDeviceCreated);
     connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
             this, &MerEmulatorDeviceManager::onDeviceAdded);
     connect(DeviceManager::instance(), &DeviceManager::deviceRemoved,
@@ -683,11 +686,19 @@ bool MerEmulatorDeviceManager::restorePorts(const MerEmulatorDevice::Ptr &device
     auto sshParameters = device->sshParameters();
     sshParameters.port = savedSshPort;
     device->setSshParameters(sshParameters);
-    device->updateConnection();
 
     device->setQmlLivePorts(savedQmlLivePorts);
 
     return true;
+}
+
+void MerEmulatorDeviceManager::onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device)
+{
+    auto merEmulator = device.dynamicCast<MerEmulatorDevice>();
+    if (!merEmulator)
+        return;
+
+    merEmulator->updateConnection();
 }
 
 void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
@@ -696,6 +707,8 @@ void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
     auto merEmulator = device.dynamicCast<const MerEmulatorDevice>();
     if (!merEmulator)
         return;
+
+    merEmulator->updateConnection();
 
     QTC_CHECK(!m_deviceSshPortCache.contains(id));
     m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
@@ -727,8 +740,10 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
             continue;
 
         const quint16 nowSshPort = merEmulator->sshParameters().port;
-        if (nowSshPort != oldSshPortsCache.value(merEmulator->id()))
+        if (nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
             MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
+            merEmulator->updateConnection();
+        }
         m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
         const Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
