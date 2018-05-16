@@ -267,6 +267,9 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
     Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
 
+    // Cancel any unsaved changes to SSH/QmlLive ports or it will blow up
+    MerEmulatorDeviceManager::restorePorts(sharedFromThis().staticCast<MerEmulatorDevice>());
+
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
         generateSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
         generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
@@ -611,6 +614,11 @@ QVariantMap MerEmulatorDeviceModel::toMap() const
 
 /*!
  * \class MerEmulatorDeviceManager
+ *
+ * The original purpose of this class was just to deal with the fact that IDevice is not a QObject
+ * and no substitute for property notification signals exist in DeviceManager API; it notifies just
+ * by emitting deviceListReplaced when changes are applied in options. More issues have been
+ * identified later with comments elsewhere.
  */
 
 MerEmulatorDeviceManager *MerEmulatorDeviceManager::s_instance = 0;
@@ -642,6 +650,46 @@ MerEmulatorDeviceManager::~MerEmulatorDeviceManager()
     s_instance = 0;
 }
 
+bool MerEmulatorDeviceManager::isStored(const MerEmulatorDevice::ConstPtr &device)
+{
+    Q_ASSERT(device);
+
+    if (!s_instance->m_deviceSshPortCache.contains(device->id()))
+        return false;
+    if (!s_instance->m_deviceQmlLivePortsCache.contains(device->id()))
+        return false;
+
+    return true;
+}
+
+/*
+ * DeviceManager implements device modification via options by cloning the list of devices, letting
+ * IDeviceWidget instances work on the cloned IDevice instances and then replacing the original
+ * devices with the modified clones.  Unfortunately for some reason (bug) on subsequent apply (while
+ * the options dialog remains open) the original instance and the instance used by the IDeviceWidget
+ * happen to be the same object, so it is no more possible to restore original values by reading
+ * properties of the original instance. That's why this function exists.
+ */
+bool MerEmulatorDeviceManager::restorePorts(const MerEmulatorDevice::Ptr &device)
+{
+    Q_ASSERT(device);
+
+    if (!isStored(device))
+        return false;
+
+    quint16 savedSshPort = s_instance->m_deviceSshPortCache.value(device->id());
+    Utils::PortList savedQmlLivePorts = s_instance->m_deviceQmlLivePortsCache.value(device->id());
+
+    auto sshParameters = device->sshParameters();
+    sshParameters.port = savedSshPort;
+    device->setSshParameters(sshParameters);
+    device->updateConnection();
+
+    device->setQmlLivePorts(savedQmlLivePorts);
+
+    return true;
+}
+
 void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
 {
     IDevice::ConstPtr device = DeviceManager::instance()->find(id);
@@ -652,13 +700,17 @@ void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
     QTC_CHECK(!m_deviceSshPortCache.contains(id));
     m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
     QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
-    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsList());
+    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePorts());
+
+    emit storedDevicesChanged();
 }
 
 void MerEmulatorDeviceManager::onDeviceRemoved(Core::Id id)
 {
     m_deviceSshPortCache.remove(id);
     m_deviceQmlLivePortsCache.remove(id);
+
+    emit storedDevicesChanged();
 }
 
 void MerEmulatorDeviceManager::onDeviceListReplaced()
@@ -679,11 +731,14 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
             MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
         m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
-        const QList<Utils::Port> nowQmlLivePorts = merEmulator->qmlLivePortsList();
-        if (nowQmlLivePorts != oldQmlLivePortsCache.value(merEmulator->id()))
-            MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(), nowQmlLivePorts);
+        const Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
+        if (nowQmlLivePorts.toString() != oldQmlLivePortsCache.value(merEmulator->id()).toString())
+            MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
+                    merEmulator->qmlLivePortsList());
         m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
     }
+
+    emit storedDevicesChanged();
 }
 
 #include "meremulatordevice.moc"

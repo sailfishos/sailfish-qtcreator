@@ -29,6 +29,7 @@
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
 #include <utils/fancylineedit.h>
@@ -71,12 +72,47 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
     delete m_ui;
 }
 
+void MerEmulatorDeviceWidget::onStoredDevicesChanged()
+{
+    updatePortInputsEnabledState();
+}
+
 void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
 {
-    m_ui->sshPortSpinBox->setEnabled(vmOff);
-    m_ui->sshPortInfoLabel->setVisible(!vmOff);
-    m_ui->qmlLivePortsLineEdit->setEnabled(vmOff);
-    m_ui->qmlLivePortsInfoLabel->setVisible(!vmOff);
+    updatePortInputsEnabledState();
+
+    // If the VM is started, cancel any unsaved changes to SSH/QmlLive ports to prevent inconsistencies
+    if (!vmOff) {
+        auto device = this->device().dynamicCast<MerEmulatorDevice>();
+        QTC_ASSERT(device, return);
+
+        bool restored = MerEmulatorDeviceManager::restorePorts(device);
+        if (restored) {
+            m_ui->sshPortSpinBox->setValue(device->sshParameters().port);
+            m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
+        }
+    }
+}
+
+void MerEmulatorDeviceWidget::updatePortInputsEnabledState()
+{
+    auto device = this->device().staticCast<MerEmulatorDevice>();
+    bool vmOff = device->connection()->isVirtualMachineOff();
+    bool isStored = MerEmulatorDeviceManager::isStored(device);
+
+    QString message = tr("Stop emulator to unlock this field for editing.");
+    if (!isStored)
+        message = tr("Finish adding the device to unlock this field for editing.");
+
+    m_ui->qmlLivePortsInfoLabel->setToolTip(QString("<font color=\"red\">%1</font>").arg(message));
+    m_ui->sshPortInfoLabel->setToolTip(QString("<font color=\"red\">%1</font>").arg(message));
+
+    bool canEdit = vmOff && isStored;
+
+    m_ui->sshPortSpinBox->setEnabled(canEdit);
+    m_ui->sshPortInfoLabel->setVisible(!canEdit);
+    m_ui->qmlLivePortsLineEdit->setEnabled(canEdit);
+    m_ui->qmlLivePortsInfoLabel->setVisible(!canEdit);
 }
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
@@ -158,20 +194,12 @@ void MerEmulatorDeviceWidget::initGui()
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
     m_ui->qmlLivePortsInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    m_ui->qmlLivePortsInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop emulator to unlock this field for editing.")
-            + QLatin1String("</font>"));
     m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
             + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
     m_ui->sshPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
-    m_ui->sshPortInfoLabel->setToolTip(
-            QLatin1String("<font color=\"red\">")
-            + tr("Stop emulator to unlock this field for editing.")
-            + QLatin1String("</font>"));
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
@@ -205,12 +233,17 @@ void MerEmulatorDeviceWidget::initGui()
         m_ui->macLabelEdit->setText(tr("none"));
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
+
+    updatePortInputsEnabledState();
     updatePortsWarningLabel();
     updateQmlLivePortsWarningLabel();
 
     onVirtualMachineOffChanged(device->connection()->isVirtualMachineOff());
     connect(device->connection(), &MerConnection::virtualMachineOffChanged,
             this, &MerEmulatorDeviceWidget::onVirtualMachineOffChanged);
+
+    connect(MerEmulatorDeviceManager::instance(), &MerEmulatorDeviceManager::storedDevicesChanged,
+            this, &MerEmulatorDeviceWidget::onStoredDevicesChanged);
 }
 
 } // Internal

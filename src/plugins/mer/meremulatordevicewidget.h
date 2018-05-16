@@ -41,6 +41,7 @@ public:
     ~MerEmulatorDeviceWidget() override;
 
 private slots:
+    void onStoredDevicesChanged();
     void onVirtualMachineOffChanged(bool vmOff);
     void timeoutEditingFinished();
     void userNameEditingFinished();
@@ -50,6 +51,7 @@ private slots:
 
 private:
     void updateDeviceFromUi();
+    void updatePortInputsEnabledState();
     void updatePortsWarningLabel();
     void updateQmlLivePortsWarningLabel();
     void initGui();

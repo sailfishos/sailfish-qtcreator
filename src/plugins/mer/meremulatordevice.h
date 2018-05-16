@@ -151,6 +151,12 @@ public:
     static MerEmulatorDeviceManager *instance();
     ~MerEmulatorDeviceManager() override;
 
+    static bool isStored(const MerEmulatorDevice::ConstPtr &device);
+    static bool restorePorts(const MerEmulatorDevice::Ptr &device);
+
+signals:
+    void storedDevicesChanged();
+
 private:
     MerEmulatorDeviceManager(QObject *parent = 0);
 
@@ -163,7 +169,7 @@ private:
     friend class MerPlugin;
     static MerEmulatorDeviceManager *s_instance;
     QHash<Core::Id, quint16> m_deviceSshPortCache;
-    QHash<Core::Id, QList<Utils::Port>> m_deviceQmlLivePortsCache;
+    QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
 };
 
 }
