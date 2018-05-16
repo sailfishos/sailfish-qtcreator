@@ -454,9 +454,9 @@ void MerOptionsWidget::update()
         else
             m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
 
-        m_ui->sdkDetailsWidget->setVmOffStatus(sdk->connection()->isVirtualMachineOff());
+        onVmOffChanged(sdk->connection()->isVirtualMachineOff());
         m_vmOffConnection = connect(sdk->connection(), &MerConnection::virtualMachineOffChanged,
-                m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::setVmOffStatus);
+                this, &MerOptionsWidget::onVmOffChanged);
 
         int index = m_ui->sdkComboBox->findText(m_virtualMachine);
         m_ui->sdkComboBox->setCurrentIndex(index);
@@ -466,6 +466,7 @@ void MerOptionsWidget::update()
     m_ui->sdkDetailsWidget->setVisible(show);
     m_ui->removeButton->setEnabled(show);
     m_ui->startVirtualMachineButton->setEnabled(show);
+    m_ui->stopVirtualMachineButton->setEnabled(show);
 }
 
 void MerOptionsWidget::onSshKeyChanged(const QString &file)
@@ -496,6 +497,21 @@ void MerOptionsWidget::onWwwPortChanged(quint16 port)
 {
     //store keys to be saved on save click
     m_wwwPort[m_sdks[m_virtualMachine]] = port;
+}
+
+void MerOptionsWidget::onVmOffChanged(bool vmOff)
+{
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+
+    // If the VM is started, cancel any unsaved changes to SSH/WWW ports to prevent inconsistencies
+    if (!vmOff) {
+        m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
+        m_sshPort.remove(sdk);
+        m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
+        m_wwwPort.remove(sdk);
+    }
+
+    m_ui->sdkDetailsWidget->setVmOffStatus(vmOff);
 }
 
 } // Internal

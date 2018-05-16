@@ -74,6 +74,7 @@ private slots:
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
     void onWwwPortChanged(quint16 port);
+    void onVmOffChanged(bool vmOff);
     void update();
 
 private:
