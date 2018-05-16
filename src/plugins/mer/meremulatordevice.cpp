@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/fileutils.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
@@ -606,6 +607,83 @@ QVariantMap MerEmulatorDeviceModel::toMap() const
     map.insert(QLatin1String(MER_DEVICE_MODEL_DISPLAY_SIZE), QRect(QPoint(0, 0), d->displaySize));
 
     return map;
+}
+
+/*!
+ * \class MerEmulatorDeviceManager
+ */
+
+MerEmulatorDeviceManager *MerEmulatorDeviceManager::s_instance = 0;
+
+MerEmulatorDeviceManager::MerEmulatorDeviceManager(QObject *parent)
+    : QObject(parent)
+{
+    s_instance = this;
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i)
+        onDeviceAdded(DeviceManager::instance()->deviceAt(i)->id());
+    connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
+            this, &MerEmulatorDeviceManager::onDeviceAdded);
+    connect(DeviceManager::instance(), &DeviceManager::deviceRemoved,
+            this, &MerEmulatorDeviceManager::onDeviceRemoved);
+    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
+            this, &MerEmulatorDeviceManager::onDeviceListReplaced);
+}
+
+MerEmulatorDeviceManager *MerEmulatorDeviceManager::instance()
+{
+    QTC_CHECK(s_instance);
+    return s_instance;
+}
+
+MerEmulatorDeviceManager::~MerEmulatorDeviceManager()
+{
+    s_instance = 0;
+}
+
+void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
+{
+    IDevice::ConstPtr device = DeviceManager::instance()->find(id);
+    auto merEmulator = device.dynamicCast<const MerEmulatorDevice>();
+    if (!merEmulator)
+        return;
+
+    QTC_CHECK(!m_deviceSshPortCache.contains(id));
+    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
+    QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
+    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsList());
+}
+
+void MerEmulatorDeviceManager::onDeviceRemoved(Core::Id id)
+{
+    m_deviceSshPortCache.remove(id);
+    m_deviceQmlLivePortsCache.remove(id);
+}
+
+void MerEmulatorDeviceManager::onDeviceListReplaced()
+{
+    const auto oldSshPortsCache = m_deviceSshPortCache;
+    m_deviceSshPortCache.clear();
+    const auto oldQmlLivePortsCache = m_deviceQmlLivePortsCache;
+    m_deviceQmlLivePortsCache.clear();
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i) {
+        auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
+        if (!merEmulator)
+            continue;
+
+        const quint16 nowSshPort = merEmulator->sshParameters().port;
+        if (nowSshPort != oldSshPortsCache.value(merEmulator->id()))
+            MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
+        m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
+
+        const QList<Utils::Port> nowQmlLivePorts = merEmulator->qmlLivePortsList();
+        if (nowQmlLivePorts != oldQmlLivePortsCache.value(merEmulator->id()))
+            MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(), nowQmlLivePorts);
+        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
+    }
 }
 
 #include "meremulatordevice.moc"

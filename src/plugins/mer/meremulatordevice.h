@@ -3,7 +3,7 @@
 
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -141,6 +141,29 @@ private:
     Qt::Orientation m_orientation;
     bool m_viewScaled;
     QPointer<QTimer> m_setVideoModeTimer;
+};
+
+class MerEmulatorDeviceManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    static MerEmulatorDeviceManager *instance();
+    ~MerEmulatorDeviceManager() override;
+
+private:
+    MerEmulatorDeviceManager(QObject *parent = 0);
+
+private slots:
+    void onDeviceAdded(Core::Id id);
+    void onDeviceRemoved(Core::Id id);
+    void onDeviceListReplaced();
+
+private:
+    friend class MerPlugin;
+    static MerEmulatorDeviceManager *s_instance;
+    QHash<Core::Id, quint16> m_deviceSshPortCache;
+    QHash<Core::Id, QList<Utils::Port>> m_deviceQmlLivePortsCache;
 };
 
 }

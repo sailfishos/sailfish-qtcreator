@@ -28,7 +28,6 @@
 #include "mersdk.h"
 #include "mersdkmanager.h"
 
-#include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
@@ -260,16 +259,6 @@ MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
 {
     m_instance = this;
     new CommandSerializer(this);
-
-    const int deviceCount = DeviceManager::instance()->deviceCount();
-    for (int i = 0; i < deviceCount; ++i)
-        onDeviceAdded(DeviceManager::instance()->deviceAt(i)->id());
-    connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
-            this, &MerVirtualBoxManager::onDeviceAdded);
-    connect(DeviceManager::instance(), &DeviceManager::deviceRemoved,
-            this, &MerVirtualBoxManager::onDeviceRemoved);
-    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
-            this, &MerVirtualBoxManager::onDeviceListReplaced);
 }
 
 MerVirtualBoxManager::~MerVirtualBoxManager()
@@ -528,7 +517,8 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
-void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports)
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
 {
     qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
@@ -560,57 +550,17 @@ void MerVirtualBoxManager::setUpQmlLivePortsForwarding(const QString &vmName, co
         arguments.append(QString::fromLatin1(QML_LIVE_NATPF_RULE_TEMPLATE).arg(i).arg(port.number()));
 
         VBoxManageProcess process;
-        if (!process.runSynchronously(arguments))
+        if (!process.runSynchronously(arguments)) {
             qWarning() << "VBoxManage failed to" << MODIFYVM;
+            return false;
+        }
 
         ++i;
     }
 
     qCDebug(Log::vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
-}
 
-void MerVirtualBoxManager::onDeviceAdded(Core::Id id)
-{
-    IDevice::ConstPtr device = DeviceManager::instance()->find(id);
-    auto merEmulator = device.dynamicCast<const MerEmulatorDevice>();
-    if (!merEmulator)
-        return;
-
-    QTC_CHECK(!m_deviceSshPortCache.contains(id));
-    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
-    QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
-    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePortsList());
-}
-
-void MerVirtualBoxManager::onDeviceRemoved(Core::Id id)
-{
-    m_deviceSshPortCache.remove(id);
-    m_deviceQmlLivePortsCache.remove(id);
-}
-
-void MerVirtualBoxManager::onDeviceListReplaced()
-{
-    const auto oldSshPortsCache = m_deviceSshPortCache;
-    m_deviceSshPortCache.clear();
-    const auto oldQmlLivePortsCache = m_deviceQmlLivePortsCache;
-    m_deviceQmlLivePortsCache.clear();
-
-    const int deviceCount = DeviceManager::instance()->deviceCount();
-    for (int i = 0; i < deviceCount; ++i) {
-        auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
-        if (!merEmulator)
-            continue;
-
-        const quint16 nowSshPort = merEmulator->sshParameters().port;
-        if (nowSshPort != oldSshPortsCache.value(merEmulator->id()))
-            updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
-        m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
-
-        const QList<Utils::Port> nowQmlLivePorts = merEmulator->qmlLivePortsList();
-        if (nowQmlLivePorts != oldQmlLivePortsCache.value(merEmulator->id()))
-            setUpQmlLivePortsForwarding(merEmulator->virtualMachine(), nowQmlLivePorts);
-        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
-    }
+    return true;
 }
 
 bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
