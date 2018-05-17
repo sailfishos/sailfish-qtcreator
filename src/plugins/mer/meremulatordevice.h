@@ -73,7 +73,7 @@ public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
     typedef QSharedPointer<const MerEmulatorDevice> ConstPtr;
 
-    static Ptr create();
+    static Ptr create(Core::Id id = Core::Id());
     ProjectExplorer::IDevice::Ptr clone() const;
     ~MerEmulatorDevice() override;
 
@@ -119,7 +119,7 @@ public:
     void updateConnection();
 
 private:
-    MerEmulatorDevice();
+    MerEmulatorDevice(Core::Id id);
     MerEmulatorDevice(const MerEmulatorDevice &other);
 
     void updateAvailableDeviceModels();

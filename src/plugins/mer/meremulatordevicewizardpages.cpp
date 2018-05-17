@@ -195,7 +195,7 @@ void MerEmualtorSshPage::initializePage()
    QTC_ASSERT(wizard,return);
    //TODO: fix me
    QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
-                      index.arg(wizard->emulatorVm()).replace(QLatin1Char(' '),QLatin1Char('_')) +
+                      index.arg(wizard->emulatorId().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) +
                       QLatin1String("%1")));
    if(!wizard->sharedConfigPath().isEmpty()) {
        m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));

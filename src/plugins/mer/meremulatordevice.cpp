@@ -184,9 +184,9 @@ private:
 };
 
 
-MerEmulatorDevice::Ptr MerEmulatorDevice::create()
+MerEmulatorDevice::Ptr MerEmulatorDevice::create(Core::Id id)
 {
-    return Ptr(new MerEmulatorDevice());
+    return Ptr(new MerEmulatorDevice(id));
 }
 
 
@@ -195,8 +195,8 @@ IDevice::Ptr MerEmulatorDevice::clone() const
     return Ptr(new MerEmulatorDevice(*this));
 }
 
-MerEmulatorDevice::MerEmulatorDevice():
-    MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
+MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
+    : MerDevice(QString(), Emulator, ManuallyAdded, id)
     , m_connection(new MerConnection(0 /* not bug */))
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)

@@ -27,6 +27,10 @@
 
 #include <QWizard>
 
+namespace Core {
+    class Id;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -36,6 +40,7 @@ class MerEmulatorDeviceWizard : public QWizard
 public:
     explicit MerEmulatorDeviceWizard(QWidget *parent = 0);
 
+    Core::Id emulatorId() const;
     QString configName() const;
     QString userName() const;
     QString rootName() const;

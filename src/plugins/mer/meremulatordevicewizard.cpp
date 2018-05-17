@@ -22,6 +22,8 @@
 
 #include "meremulatordevicewizard.h"
 
+#include <coreplugin/id.h>
+
 #include "mersdkmanager.h"
 
 namespace Mer {
@@ -33,6 +35,11 @@ MerEmulatorDeviceWizard::MerEmulatorDeviceWizard(QWidget *parent): QWizard(paren
     addPage(&m_vmPage);
     addPage(&m_sshPage);
     m_sshPage.setCommitPage(true);
+}
+
+Core::Id MerEmulatorDeviceWizard::emulatorId() const
+{
+    return Core::Id::fromString(m_vmPage.emulatorVm());
 }
 
 QString MerEmulatorDeviceWizard::configName() const

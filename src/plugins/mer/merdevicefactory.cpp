@@ -103,7 +103,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.privateKeyFile = wizard.userPrivateKey();
 
         //hardcoded values requested by customer;
-        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
+        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create(wizard.emulatorId());
         device->setVirtualMachine(wizard.emulatorVm());
         device->setMac(wizard.mac());
         device->setSubnet(QLatin1String("10.220.220"));
