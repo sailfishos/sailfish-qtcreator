@@ -45,6 +45,8 @@
 #include <utils/pathchooser.h>
 #include <utils/environmentdialog.h>
 
+#include <QAbstractItemView>
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -327,6 +329,7 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, c
     m_model(new DeviceManagerModel(DeviceManager::instance()))
 {
     m_comboBox->setSizePolicy(QSizePolicy::Ignored, m_comboBox->sizePolicy().verticalPolicy());
+    m_comboBox->view()->setPalette(QApplication::palette());
     m_comboBox->setModel(m_model);
 
     m_manageButton = new QPushButton(KitConfigWidget::msgManage());
