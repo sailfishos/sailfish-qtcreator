@@ -31,6 +31,7 @@
 #include "merdeploystepfactory.h"
 #include "merdevicedebugsupport.h"
 #include "merdevicefactory.h"
+#include "meremulatordevice.h"
 #include "meremulatormodedialog.h"
 #include "mergeneraloptionspage.h"
 #include "mermode.h"
@@ -108,6 +109,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerOptionsPage);
     addAutoReleasedObject(new MerGeneralOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
+    addAutoReleasedObject(new MerEmulatorDeviceManager);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
     addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);

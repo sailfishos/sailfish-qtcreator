@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +24,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
+#include "merdevicefactory.h"
 #include "meremulatordevicetester.h"
 #include "meremulatordevicewidget.h"
 #include "mersdkmanager.h"
@@ -31,6 +32,7 @@
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/fileutils.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
@@ -184,9 +186,9 @@ private:
 };
 
 
-MerEmulatorDevice::Ptr MerEmulatorDevice::create()
+MerEmulatorDevice::Ptr MerEmulatorDevice::create(Core::Id id)
 {
-    return Ptr(new MerEmulatorDevice());
+    return Ptr(new MerEmulatorDevice(id));
 }
 
 
@@ -195,8 +197,8 @@ IDevice::Ptr MerEmulatorDevice::clone() const
     return Ptr(new MerEmulatorDevice(*this));
 }
 
-MerEmulatorDevice::MerEmulatorDevice():
-    MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
+MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
+    : MerDevice(QString(), Emulator, ManuallyAdded, id)
     , m_connection(new MerConnection(0 /* not bug */))
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
@@ -266,6 +268,9 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
     Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
 
+    // Cancel any unsaved changes to SSH/QmlLive ports or it will blow up
+    MerEmulatorDeviceManager::restorePorts(sharedFromThis().staticCast<MerEmulatorDevice>());
+
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
         generateSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
         generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
@@ -287,7 +292,6 @@ DeviceTester *MerEmulatorDevice::createDeviceTester() const
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
-    updateConnection();
     m_connection->setVirtualMachine(
             map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
@@ -450,7 +454,8 @@ MerConnection *MerEmulatorDevice::connection() const
     return m_connection.data();
 }
 
-void MerEmulatorDevice::updateConnection()
+// Hack, all clones share the connection
+void MerEmulatorDevice::updateConnection() const
 {
     m_connection->setSshParameters(sshParameters());
 }
@@ -606,6 +611,149 @@ QVariantMap MerEmulatorDeviceModel::toMap() const
     map.insert(QLatin1String(MER_DEVICE_MODEL_DISPLAY_SIZE), QRect(QPoint(0, 0), d->displaySize));
 
     return map;
+}
+
+/*!
+ * \class MerEmulatorDeviceManager
+ *
+ * The original purpose of this class was just to deal with the fact that IDevice is not a QObject
+ * and no substitute for property notification signals exist in DeviceManager API; it notifies just
+ * by emitting deviceListReplaced when changes are applied in options. More issues have been
+ * identified later with comments elsewhere.
+ */
+
+MerEmulatorDeviceManager *MerEmulatorDeviceManager::s_instance = 0;
+
+MerEmulatorDeviceManager::MerEmulatorDeviceManager(QObject *parent)
+    : QObject(parent)
+{
+    s_instance = this;
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i)
+        onDeviceAdded(DeviceManager::instance()->deviceAt(i)->id());
+    connect(MerDeviceFactory::instance(), &MerDeviceFactory::deviceCreated,
+            this, &MerEmulatorDeviceManager::onDeviceCreated);
+    connect(DeviceManager::instance(), &DeviceManager::deviceAdded,
+            this, &MerEmulatorDeviceManager::onDeviceAdded);
+    connect(DeviceManager::instance(), &DeviceManager::deviceRemoved,
+            this, &MerEmulatorDeviceManager::onDeviceRemoved);
+    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
+            this, &MerEmulatorDeviceManager::onDeviceListReplaced);
+}
+
+MerEmulatorDeviceManager *MerEmulatorDeviceManager::instance()
+{
+    QTC_CHECK(s_instance);
+    return s_instance;
+}
+
+MerEmulatorDeviceManager::~MerEmulatorDeviceManager()
+{
+    s_instance = 0;
+}
+
+bool MerEmulatorDeviceManager::isStored(const MerEmulatorDevice::ConstPtr &device)
+{
+    Q_ASSERT(device);
+
+    if (!s_instance->m_deviceSshPortCache.contains(device->id()))
+        return false;
+    if (!s_instance->m_deviceQmlLivePortsCache.contains(device->id()))
+        return false;
+
+    return true;
+}
+
+/*
+ * DeviceManager implements device modification via options by cloning the list of devices, letting
+ * IDeviceWidget instances work on the cloned IDevice instances and then replacing the original
+ * devices with the modified clones.  Unfortunately for some reason (bug) on subsequent apply (while
+ * the options dialog remains open) the original instance and the instance used by the IDeviceWidget
+ * happen to be the same object, so it is no more possible to restore original values by reading
+ * properties of the original instance. That's why this function exists.
+ */
+bool MerEmulatorDeviceManager::restorePorts(const MerEmulatorDevice::Ptr &device)
+{
+    Q_ASSERT(device);
+
+    if (!isStored(device))
+        return false;
+
+    quint16 savedSshPort = s_instance->m_deviceSshPortCache.value(device->id());
+    Utils::PortList savedQmlLivePorts = s_instance->m_deviceQmlLivePortsCache.value(device->id());
+
+    auto sshParameters = device->sshParameters();
+    sshParameters.port = savedSshPort;
+    device->setSshParameters(sshParameters);
+
+    device->setQmlLivePorts(savedQmlLivePorts);
+
+    return true;
+}
+
+void MerEmulatorDeviceManager::onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device)
+{
+    auto merEmulator = device.dynamicCast<MerEmulatorDevice>();
+    if (!merEmulator)
+        return;
+
+    merEmulator->updateConnection();
+}
+
+void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
+{
+    IDevice::ConstPtr device = DeviceManager::instance()->find(id);
+    auto merEmulator = device.dynamicCast<const MerEmulatorDevice>();
+    if (!merEmulator)
+        return;
+
+    merEmulator->updateConnection();
+
+    QTC_CHECK(!m_deviceSshPortCache.contains(id));
+    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
+    QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
+    m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePorts());
+
+    emit storedDevicesChanged();
+}
+
+void MerEmulatorDeviceManager::onDeviceRemoved(Core::Id id)
+{
+    m_deviceSshPortCache.remove(id);
+    m_deviceQmlLivePortsCache.remove(id);
+
+    emit storedDevicesChanged();
+}
+
+void MerEmulatorDeviceManager::onDeviceListReplaced()
+{
+    const auto oldSshPortsCache = m_deviceSshPortCache;
+    m_deviceSshPortCache.clear();
+    const auto oldQmlLivePortsCache = m_deviceQmlLivePortsCache;
+    m_deviceQmlLivePortsCache.clear();
+
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    for (int i = 0; i < deviceCount; ++i) {
+        auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
+        if (!merEmulator)
+            continue;
+
+        const quint16 nowSshPort = merEmulator->sshParameters().port;
+        if (nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
+            MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
+            merEmulator->updateConnection();
+        }
+        m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
+
+        const Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
+        if (nowQmlLivePorts.toString() != oldQmlLivePortsCache.value(merEmulator->id()).toString())
+            MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
+                    merEmulator->qmlLivePortsList());
+        m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
+    }
+
+    emit storedDevicesChanged();
 }
 
 #include "meremulatordevice.moc"

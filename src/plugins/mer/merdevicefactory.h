@@ -33,7 +33,9 @@ class MerDeviceFactory : public ProjectExplorer::IDeviceFactory
     Q_OBJECT
 
 public:
+    static MerDeviceFactory *instance();
     MerDeviceFactory();
+    ~MerDeviceFactory();
 
     QString displayNameForId(Core::Id type) const override;
     QList<Core::Id> availableCreationIds() const override;
@@ -42,6 +44,12 @@ public:
     ProjectExplorer::IDevice::Ptr create(Core::Id id) const override;
     bool canRestore(const QVariantMap &map) const override;
     ProjectExplorer::IDevice::Ptr restore(const QVariantMap &map) const override;
+
+signals:
+    void deviceCreated(const ProjectExplorer::IDevice::Ptr &device);
+
+private:
+    static MerDeviceFactory *s_instance;
 };
 
 } // Internal

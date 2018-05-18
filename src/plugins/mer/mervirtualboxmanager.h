@@ -72,24 +72,16 @@ public:
     static bool updateSdkSshPort(const QString &vmName, quint16 port);
     static bool updateSdkWwwPort(const QString &vmName, quint16 port);
     static bool updateEmulatorSshPort(const QString &vmName, quint16 port);
+    static bool updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports);
     static void setVideoMode(const QString &vmName, const QSize &size, int depth);
     static QString getExtraData(const QString &vmName, const QString &key);
 
 private:
     MerVirtualBoxManager(QObject *parent = 0);
-    void setUpQmlLivePortsForwarding(const QString &vmName, const QList<Utils::Port> &ports);
-
-private slots:
-    void onDeviceAdded(Core::Id id);
-    void onDeviceRemoved(Core::Id id);
-    void onDeviceListReplaced();
 
 private:
     static MerVirtualBoxManager *m_instance;
     friend class MerPlugin;
-
-    QHash<Core::Id, quint16> m_deviceSshPortCache;
-    QHash<Core::Id, QList<Utils::Port>> m_deviceQmlLivePortsCache;
 };
 
 } // Internal

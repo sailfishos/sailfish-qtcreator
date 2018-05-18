@@ -3,7 +3,7 @@
 
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -73,7 +73,7 @@ public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
     typedef QSharedPointer<const MerEmulatorDevice> ConstPtr;
 
-    static Ptr create();
+    static Ptr create(Core::Id id = Core::Id());
     ProjectExplorer::IDevice::Ptr clone() const;
     ~MerEmulatorDevice() override;
 
@@ -114,13 +114,13 @@ public:
     void setViewScaled(bool viewScaled);
 
     MerConnection *connection() const;
-    // ATTENTION! Call this when sshParameters are changed! Unfortunately
-    // IDevice API does not allow to hook this.
-    void updateConnection();
 
 private:
-    MerEmulatorDevice();
+    MerEmulatorDevice(Core::Id id);
     MerEmulatorDevice(const MerEmulatorDevice &other);
+
+    friend class MerEmulatorDeviceManager;
+    void updateConnection() const;
 
     void updateAvailableDeviceModels();
     void scheduleSetVideoMode();
@@ -141,6 +141,36 @@ private:
     Qt::Orientation m_orientation;
     bool m_viewScaled;
     QPointer<QTimer> m_setVideoModeTimer;
+};
+
+class MerEmulatorDeviceManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    static MerEmulatorDeviceManager *instance();
+    ~MerEmulatorDeviceManager() override;
+
+    static bool isStored(const MerEmulatorDevice::ConstPtr &device);
+    static bool restorePorts(const MerEmulatorDevice::Ptr &device);
+
+signals:
+    void storedDevicesChanged();
+
+private:
+    MerEmulatorDeviceManager(QObject *parent = 0);
+
+private slots:
+    void onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device);
+    void onDeviceAdded(Core::Id id);
+    void onDeviceRemoved(Core::Id id);
+    void onDeviceListReplaced();
+
+private:
+    friend class MerPlugin;
+    static MerEmulatorDeviceManager *s_instance;
+    QHash<Core::Id, quint16> m_deviceSshPortCache;
+    QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
 };
 
 }
