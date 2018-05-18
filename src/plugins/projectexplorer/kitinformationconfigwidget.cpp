@@ -45,6 +45,8 @@
 #include <utils/pathchooser.h>
 #include <utils/environmentdialog.h>
 
+#include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -326,6 +328,7 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, c
     m_comboBox(new QComboBox),
     m_model(new DeviceManagerModel(DeviceManager::instance()))
 {
+    m_comboBox->view()->setPalette(QApplication::palette());
     m_comboBox->setModel(m_model);
 
     m_manageButton = new QPushButton(KitConfigWidget::msgManage());
