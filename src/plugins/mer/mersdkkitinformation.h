@@ -75,6 +75,9 @@ public:
     static Core::Id id();
     static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
     static MerSdk* sdk(const ProjectExplorer::Kit *kit);
+
+private:
+    void onSdksUpdated();
 };
 
 }

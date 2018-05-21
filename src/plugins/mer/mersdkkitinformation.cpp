@@ -47,6 +47,9 @@ MerSdkKitInformation::MerSdkKitInformation()
 {
     setId(MerSdkKitInformation::id());
     setPriority(24);
+
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerSdkKitInformation::onSdksUpdated);
 }
 
 QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
@@ -125,6 +128,12 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
         if (!sharedSrc.isEmpty())
             env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
     }
+}
+
+void MerSdkKitInformation::onSdksUpdated()
+{
+    for (Kit *k : KitManager::kits([](const Kit *k) { return k->hasValue(MerSdkKitInformation::id()); }))
+        notifyAboutUpdate(k);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
