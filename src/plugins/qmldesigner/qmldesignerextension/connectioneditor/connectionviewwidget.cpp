@@ -34,6 +34,9 @@
 #include "dynamicpropertiesmodel.h"
 #include "theme.h"
 
+#include <designersettings.h>
+#include <qmldesignerplugin.h>
+
 #include <coreplugin/coreconstants.h>
 #include <utils/fileutils.h>
 #include <utils/utilsicons.h>
@@ -66,20 +69,21 @@ ConnectionViewWidget::ConnectionViewWidget(QWidget *parent) :
     ui->tabBar->addTab(tr("Connections", "Title of connection view"));
     ui->tabBar->addTab(tr("Bindings", "Title of connection view"));
     ui->tabBar->addTab(tr("Properties", "Title of dynamic properties view"));
-    ui->tabBar->addTab(tr("Backends", "Title of dynamic properties view"));
+
+    auto settings = QmlDesignerPlugin::instance()->settings();
+
+    if (!settings.value(DesignerSettingsKey::STANDALONE_MODE).toBool())
+        ui->tabBar->addTab(tr("Backends", "Title of dynamic properties view"));
+
     ui->tabBar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
 
-    ui->connectionView->setStyleSheet(Theme::replaceCssColors(
-            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
+    const QString themedScrollBarCss = Theme::replaceCssColors(
+                QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
 
-    ui->bindingView->setStyleSheet(Theme::replaceCssColors(
-            QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
-
-    ui->dynamicPropertiesView->setStyleSheet(Theme::replaceCssColors(
-                QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
-
-    ui->backendView->setStyleSheet(Theme::replaceCssColors(
-                QLatin1String(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css")))));
+    ui->connectionView->setStyleSheet(themedScrollBarCss);
+    ui->bindingView->setStyleSheet(themedScrollBarCss);
+    ui->dynamicPropertiesView->setStyleSheet(themedScrollBarCss);
+    ui->backendView->setStyleSheet(themedScrollBarCss);
 
     connect(ui->tabBar, &QTabBar::currentChanged,
             ui->stackedWidget, &QStackedWidget::setCurrentIndex);
@@ -143,17 +147,17 @@ QList<QToolButton *> ConnectionViewWidget::createToolBarWidgets()
     QList<QToolButton *> buttons;
 
     buttons << new QToolButton();
-    buttons.last()->setIcon(Utils::Icons::PLUS_TOOLBAR.icon());
-    buttons.last()->setToolTip(tr("Add binding or connection."));
-    connect(buttons.last(), &QAbstractButton::clicked, this, &ConnectionViewWidget::addButtonClicked);
-    connect(this, &ConnectionViewWidget::setEnabledAddButton, buttons.last(), &QWidget::setEnabled);
+    buttons.constLast()->setIcon(Utils::Icons::PLUS_TOOLBAR.icon());
+    buttons.constLast()->setToolTip(tr("Add binding or connection."));
+    connect(buttons.constLast(), &QAbstractButton::clicked, this, &ConnectionViewWidget::addButtonClicked);
+    connect(this, &ConnectionViewWidget::setEnabledAddButton, buttons.constLast(), &QWidget::setEnabled);
 
     buttons << new QToolButton();
-    buttons.last()->setIcon(Utils::Icons::MINUS.icon());
-    buttons.last()->setToolTip(tr("Remove selected binding or connection."));
-    buttons.last()->setShortcut(QKeySequence(Qt::Key_Delete));
-    connect(buttons.last(), &QAbstractButton::clicked, this, &ConnectionViewWidget::removeButtonClicked);
-    connect(this, &ConnectionViewWidget::setEnabledRemoveButton, buttons.last(), &QWidget::setEnabled);
+    buttons.constLast()->setIcon(Utils::Icons::MINUS.icon());
+    buttons.constLast()->setToolTip(tr("Remove selected binding or connection."));
+    buttons.constLast()->setShortcut(QKeySequence(Qt::Key_Delete));
+    connect(buttons.constLast(), &QAbstractButton::clicked, this, &ConnectionViewWidget::removeButtonClicked);
+    connect(this, &ConnectionViewWidget::setEnabledRemoveButton, buttons.constLast(), &QWidget::setEnabled);
 
     return buttons;
 }
@@ -235,24 +239,30 @@ void ConnectionViewWidget::handleTabChanged(int)
 void ConnectionViewWidget::removeButtonClicked()
 {
     if (currentTab() == ConnectionTab) {
-        int currentRow =  ui->connectionView->selectionModel()->selectedRows().first().row();
+        if (ui->connectionView->selectionModel()->selectedRows().isEmpty())
+            return;
+        int currentRow =  ui->connectionView->selectionModel()->selectedRows().constFirst().row();
         ConnectionModel *connectionModel = qobject_cast<ConnectionModel*>(ui->connectionView->model());
         if (connectionModel) {
             connectionModel->deleteConnectionByRow(currentRow);
         }
     } else if (currentTab() == BindingTab) {
-        int currentRow =  ui->bindingView->selectionModel()->selectedRows().first().row();
+        if (ui->bindingView->selectionModel()->selectedRows().isEmpty())
+            return;
+        int currentRow =  ui->bindingView->selectionModel()->selectedRows().constFirst().row();
         BindingModel *bindingModel = qobject_cast<BindingModel*>(ui->bindingView->model());
         if (bindingModel) {
             bindingModel->deleteBindindByRow(currentRow);
         }
     } else if (currentTab() == DynamicPropertiesTab) {
-        int currentRow =  ui->dynamicPropertiesView->selectionModel()->selectedRows().first().row();
+        if (ui->dynamicPropertiesView->selectionModel()->selectedRows().isEmpty())
+            return;
+        int currentRow =  ui->dynamicPropertiesView->selectionModel()->selectedRows().constFirst().row();
         DynamicPropertiesModel *dynamicPropertiesModel = qobject_cast<DynamicPropertiesModel*>(ui->dynamicPropertiesView->model());
         if (dynamicPropertiesModel)
             dynamicPropertiesModel->deleteDynamicPropertyByRow(currentRow);
     }  else if (currentTab() == BackendTab) {
-        int currentRow =  ui->backendView->selectionModel()->selectedRows().first().row();
+        int currentRow =  ui->backendView->selectionModel()->selectedRows().constFirst().row();
         BackendModel *backendModel = qobject_cast<BackendModel*>(ui->backendView->model());
         if (backendModel)
             backendModel->deletePropertyByRow(currentRow);

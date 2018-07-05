@@ -67,7 +67,7 @@ WidgetInfo StatesEditorView::widgetInfo()
     if (!m_statesEditorWidget)
         m_statesEditorWidget = new StatesEditorWidget(this, m_statesEditorModel.data());
 
-    return createWidgetInfo(m_statesEditorWidget.data(), 0, QLatin1String("StatesEditor"), WidgetInfo::BottomPane, 0, tr("States Editor"));
+    return createWidgetInfo(m_statesEditorWidget.data(), 0, QLatin1String("StatesEditor"), WidgetInfo::BottomPane, 0, tr("States"));
 }
 
 void StatesEditorView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVersion*/, int /*minorVersion*/)
@@ -387,6 +387,19 @@ void StatesEditorView::bindingPropertiesChanged(const QList<BindingProperty> &pr
         if (property.name() == "when" && QmlModelState::isValidQmlModelState(property.parentModelNode()))
             resetModel();
     }
+}
+
+void StatesEditorView::variantPropertiesChanged(const QList<VariantProperty> &propertyList,
+                                                AbstractView::PropertyChangeFlags /*propertyChange*/)
+{
+    m_block = true;
+
+    for (const VariantProperty &property : propertyList) {
+        if (property.name() == "name" && QmlModelState::isValidQmlModelState(property.parentModelNode()))
+            resetModel();
+    }
+
+    m_block = false;
 }
 
 void StatesEditorView::currentStateChanged(const ModelNode &node)

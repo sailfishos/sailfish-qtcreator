@@ -39,7 +39,6 @@ class QSortFilterProxyModel;
 class QPushButton;
 class QStandardItem;
 class QStandardItemModel;
-class QStringList;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -82,7 +81,6 @@ private:
 
     Ui::NewDialog *m_ui;
     QStandardItemModel *m_model;
-    QAbstractProxyModel *m_twoLevelProxyModel;
     QSortFilterProxyModel *m_filterProxyModel;
     QPushButton *m_okButton;
     QIcon m_dummyIcon;

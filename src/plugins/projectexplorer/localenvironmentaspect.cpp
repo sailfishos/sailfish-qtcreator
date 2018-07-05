@@ -88,15 +88,10 @@ LocalEnvironmentAspect::LocalEnvironmentAspect(RunConfiguration *parent,
                                                const BaseEnvironmentModifier &modifier) :
     EnvironmentAspect(parent), m_baseEnvironmentModifier(modifier)
 {
-    connect(parent->target(), &Target::environmentChanged,
+    parent->target()->subscribeSignal(&BuildConfiguration::environmentChanged,
+                                      this, &LocalEnvironmentAspect::buildEnvironmentHasChanged);
+    connect(parent->target(), &Target::activeBuildConfigurationChanged,
             this, &LocalEnvironmentAspect::buildEnvironmentHasChanged);
-}
-
-LocalEnvironmentAspect *LocalEnvironmentAspect::create(RunConfiguration *parent) const
-{
-    auto result = new LocalEnvironmentAspect(parent, m_baseEnvironmentModifier);
-    result->setUserEnvironmentChanges(userEnvironmentChanges());
-    return result;
 }
 
 } // namespace ProjectExplorer

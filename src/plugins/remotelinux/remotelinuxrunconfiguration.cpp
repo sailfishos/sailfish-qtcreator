@@ -51,26 +51,12 @@ const char WorkingDirectoryKey[] = "RemoteLinux.RunConfig.WorkingDirectory";
 
 } // anonymous namespace
 
-class RemoteLinuxRunConfigurationPrivate {
+class RemoteLinuxRunConfigurationPrivate
+{
 public:
-    RemoteLinuxRunConfigurationPrivate(const QString &targetName)
-        : targetName(targetName),
-          useAlternateRemoteExecutable(false)
-    {
-    }
-
-    RemoteLinuxRunConfigurationPrivate(const RemoteLinuxRunConfigurationPrivate *other)
-        : targetName(other->targetName),
-          arguments(other->arguments),
-          useAlternateRemoteExecutable(other->useAlternateRemoteExecutable),
-          alternateRemoteExecutable(other->alternateRemoteExecutable),
-          workingDirectory(other->workingDirectory)
-    {
-    }
-
     QString targetName;
     QString arguments;
-    bool useAlternateRemoteExecutable;
+    bool useAlternateRemoteExecutable = false;
     QString alternateRemoteExecutable;
     QString workingDirectory;
 };
@@ -79,45 +65,33 @@ public:
 
 using namespace Internal;
 
-RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *parent, Core::Id id,
-        const QString &targetName)
-    : RunConfiguration(parent, id),
-      d(new RemoteLinuxRunConfigurationPrivate(targetName))
+RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target)
+    : RemoteLinuxRunConfiguration(target, IdPrefix)
 {
-    init();
 }
 
-RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *parent,
-        RemoteLinuxRunConfiguration *source)
-    : RunConfiguration(parent, source),
-      d(new RemoteLinuxRunConfigurationPrivate(source->d))
+RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target, Core::Id id)
+    : RunConfiguration(target, id), d(new RemoteLinuxRunConfigurationPrivate)
 {
-    init();
+    addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
+
+    connect(target, &Target::deploymentDataChanged,
+            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
+    connect(target, &Target::applicationTargetsChanged,
+            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
+    // Handles device changes, etc.
+    connect(target, &Target::kitChanged,
+            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
+}
+
+QString RemoteLinuxRunConfiguration::extraId() const
+{
+    return d->targetName;
 }
 
 RemoteLinuxRunConfiguration::~RemoteLinuxRunConfiguration()
 {
     delete d;
-}
-
-void RemoteLinuxRunConfiguration::init()
-{
-    setDefaultDisplayName(defaultDisplayName());
-
-    addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
-
-    connect(target(), &Target::deploymentDataChanged,
-            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
-    connect(target(), &Target::applicationTargetsChanged,
-            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
-    // Handles device changes, etc.
-    connect(target(), &Target::kitChanged,
-            this, &RemoteLinuxRunConfiguration::handleBuildSystemDataUpdated);
-}
-
-bool RemoteLinuxRunConfiguration::isEnabled() const
-{
-    return true;
 }
 
 QWidget *RemoteLinuxRunConfiguration::createConfigurationWidget()
@@ -142,7 +116,7 @@ Runnable RemoteLinuxRunConfiguration::runnable() const
 
 QVariantMap RemoteLinuxRunConfiguration::toMap() const
 {
-    QVariantMap map(RunConfiguration::toMap());
+    QVariantMap map = RunConfiguration::toMap();
     map.insert(QLatin1String(ArgumentsKey), d->arguments);
     map.insert(QLatin1String(TargetNameKey), d->targetName);
     map.insert(QLatin1String(UseAlternateExeKey), d->useAlternateRemoteExecutable);
@@ -171,8 +145,13 @@ bool RemoteLinuxRunConfiguration::fromMap(const QVariantMap &map)
     d->alternateRemoteExecutable = map.value(QLatin1String(AlternateExeKey)).toString();
     d->workingDirectory = map.value(QLatin1String(WorkingDirectoryKey)).toString();
 
-    setDefaultDisplayName(defaultDisplayName());
+    // Hack for old-style mangled ids. FIXME: Remove.
+    if (d->targetName.isEmpty()) {
+        QString extra = ProjectExplorer::idFromMap(map).suffixAfter(id());
+        d->targetName = extra;
+    }
 
+    setDefaultDisplayName(defaultDisplayName());
     return true;
 }
 

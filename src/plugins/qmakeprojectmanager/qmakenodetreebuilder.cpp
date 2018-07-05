@@ -37,9 +37,6 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
-#include <QApplication>
-#include <QStyle>
-
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace QtSupport;
@@ -106,23 +103,15 @@ QmakeStaticData::QmakeStaticData()
     const unsigned count = sizeof(fileTypeDataStorage)/sizeof(FileTypeDataStorage);
     fileTypeData.reserve(count);
 
-    // Overlay the SP_DirIcon with the custom icons
-    const QSize desiredSize = QSize(16, 16);
-
-    const QPixmap dirPixmap = QApplication::style()->standardIcon(QStyle::SP_DirIcon).pixmap(desiredSize);
     for (unsigned i = 0 ; i < count; ++i) {
-        const QIcon overlayIcon(QLatin1String(fileTypeDataStorage[i].icon));
-        QIcon folderIcon;
-        folderIcon.addPixmap(FileIconProvider::overlayIcon(dirPixmap, overlayIcon));
         const QString desc = QCoreApplication::translate("QmakeProjectManager::QmakePriFile", fileTypeDataStorage[i].typeName);
         const QString filter = QString::fromUtf8(fileTypeDataStorage[i].addFileFilter);
         fileTypeData.push_back(QmakeStaticData::FileTypeData(fileTypeDataStorage[i].type,
-                                                                 desc, filter, folderIcon));
+                                                             desc, filter,
+                                                             Core::FileIconProvider::directoryIcon(QLatin1String(fileTypeDataStorage[i].icon))));
     }
     // Project icon
-    const QIcon projectBaseIcon(ProjectExplorer::Constants::FILEOVERLAY_QT);
-    const QPixmap projectPixmap = FileIconProvider::overlayIcon(dirPixmap, projectBaseIcon);
-    projectIcon.addPixmap(projectPixmap);
+    projectIcon = Core::FileIconProvider::directoryIcon(ProjectExplorer::Constants::FILEOVERLAY_QT);
 
     qAddPostRoutine(clearQmakeStaticData);
 }
@@ -171,10 +160,13 @@ static void createTree(const QmakePriFile *pri, QmakePriFileNode *node, const Fi
                     QString errorMessage;
                     // Prefer the cumulative file if it's non-empty, based on the assumption
                     // that it contains more "stuff".
-                    vfs->readFile(file.toString(), QMakeVfs::VfsCumulative, &contents, &errorMessage);
+                    int cid = vfs->idForFileName(file.toString(), QMakeVfs::VfsCumulative);
+                    vfs->readFile(cid, &contents, &errorMessage);
                     // If the cumulative evaluation botched the file too much, try the exact one.
-                    if (contents.isEmpty())
-                        vfs->readFile(file.toString(), QMakeVfs::VfsExact, &contents, &errorMessage);
+                    if (contents.isEmpty()) {
+                        int eid = vfs->idForFileName(file.toString(), QMakeVfs::VfsExact);
+                        vfs->readFile(eid, &contents, &errorMessage);
+                    }
                     auto resourceNode = new ResourceEditor::ResourceTopLevelNode(file, false, contents, vfolder);
                     vfolder->addNode(resourceNode);
                 }
@@ -194,12 +186,12 @@ static void createTree(const QmakePriFile *pri, QmakePriFileNode *node, const Fi
     }
 
     // Virtual folders:
-    for (const QmakePriFile *c : pri->children()) {
+    for (QmakePriFile *c : pri->children()) {
         QmakePriFileNode *newNode = nullptr;
-        if (dynamic_cast<const QmakeProFile *>(c))
-            newNode = new QmakeProFileNode(c->project(), c->filePath());
+        if (auto pf = dynamic_cast<QmakeProFile *>(c))
+            newNode = new QmakeProFileNode(c->project(), c->filePath(), pf);
         else
-            newNode = new QmakePriFileNode(c->project(), node->proFileNode(), c->filePath());
+            newNode = new QmakePriFileNode(c->project(), node->proFileNode(), c->filePath(), c);
         createTree(c, newNode, toExclude);
         node->addNode(newNode);
     }
@@ -214,7 +206,7 @@ QmakeProFileNode *QmakeNodeTreeBuilder::buildTree(QmakeProject *project)
 
     const FileNameList toExclude = qt ? qt->directoriesToIgnoreInProjectTree() : FileNameList();
 
-    auto root = new QmakeProFileNode(project, project->projectFilePath());
+    auto root = new QmakeProFileNode(project, project->projectFilePath(), project->rootProFile());
     createTree(project->rootProFile(), root, toExclude);
 
     return root;

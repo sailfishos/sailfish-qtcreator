@@ -253,7 +253,7 @@ bool Node::isGenerated() const
     return (m_flags & FlagIsGenerated) == FlagIsGenerated;
 }
 
-bool Node::supportsAction(ProjectAction, Node *) const
+bool Node::supportsAction(ProjectAction, const Node *) const
 {
     return false;
 }
@@ -290,7 +290,8 @@ FileType Node::fileTypeForMimeType(const Utils::MimeType &mt)
             type = FileType::Resource;
         else if (mtName == Constants::SCXML_MIMETYPE)
             type = FileType::StateChart;
-        else if (mtName == Constants::QML_MIMETYPE)
+        else if (mtName == Constants::QML_MIMETYPE
+                 || mtName == Constants::QMLUI_MIMETYPE)
             type = FileType::QML;
     } else {
         type = FileType::Unknown;
@@ -408,7 +409,7 @@ FileNode::scanForFilesWithVersionControls(const Utils::FileName &directory,
     return scanForFilesRecursively(directory, factory, visited, future, 0.0, 1000000.0, versionControls);
 }
 
-bool FileNode::supportsAction(ProjectAction action, Node *node) const
+bool FileNode::supportsAction(ProjectAction action, const Node *node) const
 {
     if (action == InheritedFromParent)
         return true;
@@ -627,7 +628,7 @@ bool FolderNode::replaceSubtree(Node *oldNode, Node *newNode)
         }
         QTimer::singleShot(0, [oldNode]() { delete oldNode; });
     }
-    ProjectTree::emitSubtreeChanged(this);
+    handleSubTreeChanged(this);
     return true;
 }
 
@@ -643,13 +644,23 @@ void FolderNode::setIcon(const QIcon &icon)
     m_icon = icon;
 }
 
+void FolderNode::setLocationInfo(const QList<FolderNode::LocationInfo> &info)
+{
+    m_locations = info;
+}
+
+const QList<FolderNode::LocationInfo> FolderNode::locationInfo() const
+{
+    return m_locations;
+}
+
 QString FolderNode::addFileFilter() const
 {
     FolderNode *fn = parentFolderNode();
     return fn ? fn->addFileFilter() : QString();
 }
 
-bool FolderNode::supportsAction(ProjectAction action, Node *node) const
+bool FolderNode::supportsAction(ProjectAction action, const Node *node) const
 {
     if (action == InheritedFromParent)
         return true;
@@ -832,7 +843,7 @@ bool ProjectNode::renameFile(const QString &filePath, const QString &newFilePath
     return false;
 }
 
-bool ProjectNode::supportsAction(ProjectAction, Node *) const
+bool ProjectNode::supportsAction(ProjectAction, const Node *) const
 {
     return false;
 }
@@ -868,6 +879,12 @@ bool FolderNode::isEmpty() const
     return m_nodes.isEmpty();
 }
 
+void FolderNode::handleSubTreeChanged(FolderNode *node)
+{
+    if (FolderNode *parent = parentFolderNode())
+        parent->handleSubTreeChanged(node);
+}
+
 ContainerNode::ContainerNode(Project *project)
     : FolderNode(project->projectDirectory(), NodeType::Project), m_project(project)
 {}
@@ -887,15 +904,26 @@ QString ContainerNode::displayName() const
     return name;
 }
 
-bool ContainerNode::supportsAction(ProjectAction action, Node *node) const
+bool ContainerNode::supportsAction(ProjectAction action, const Node *node) const
 {
-    Node *rootNode = m_project->rootProjectNode();
+    const Node *rootNode = m_project->rootProjectNode();
     return rootNode && rootNode->supportsAction(action, node);
 }
 
 ProjectNode *ContainerNode::rootProjectNode() const
 {
     return m_project->rootProjectNode();
+}
+
+void ContainerNode::removeAllChildren()
+{
+    qDeleteAll(m_nodes);
+    m_nodes.clear();
+}
+
+void ContainerNode::handleSubTreeChanged(FolderNode *node)
+{
+    m_project->handleSubTreeChanged(node);
 }
 
 } // namespace ProjectExplorer

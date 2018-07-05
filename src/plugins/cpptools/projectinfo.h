@@ -54,8 +54,9 @@ public:
     bool isMsvc2015ToolChain = false;
     unsigned wordWidth = 0;
     QString targetTriple;
+    QStringList extraCodeModelFlags;
 
-    QString sysRoothPath; // For headerPathsRunner.
+    QString sysRootPath; // For headerPathsRunner.
     ProjectExplorer::ToolChain::SystemHeaderPathsRunner headerPathsRunner;
     ProjectExplorer::ToolChain::PredefinedMacrosRunner predefinedMacrosRunner;
 };
@@ -123,7 +124,7 @@ private:
     // The members below are (re)calculated from the project parts with finish()
     ProjectPartHeaderPaths m_headerPaths;
     QSet<QString> m_sourceFiles;
-    QByteArray m_defines;
+    ProjectExplorer::Macros m_defines;
 };
 
 } // namespace CppTools

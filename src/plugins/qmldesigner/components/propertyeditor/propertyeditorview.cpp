@@ -30,6 +30,7 @@
 #include "propertyeditortransaction.h"
 
 #include <qmldesignerconstants.h>
+#include <qmltimelinemutator.h>
 #include <nodemetainfo.h>
 
 #include <invalididexception.h>
@@ -194,7 +195,8 @@ void PropertyEditorView::changeValue(const QString &name)
         if (qmlObjectNode.modelNode().metaInfo().propertyTypeName(propertyName) == "QUrl"
                 || qmlObjectNode.modelNode().metaInfo().propertyTypeName(propertyName) == "url") { //turn absolute local file paths into relative paths
                 QString filePath = castedValue.toUrl().toString();
-            if (QFileInfo(filePath).exists() && QFileInfo(filePath).isAbsolute()) {
+            QFileInfo fi(filePath);
+            if (fi.exists() && fi.isAbsolute()) {
                 QDir fileDir(QFileInfo(model()->fileUrl().toLocalFile()).absolutePath());
                 castedValue = QUrl(fileDir.relativeFilePath(filePath));
             }
@@ -367,6 +369,14 @@ bool PropertyEditorView::locked() const
     return m_locked;
 }
 
+void PropertyEditorView::nodeCreated(const ModelNode &modelNode)
+{
+    if (!m_qmlBackEndForCurrentType->contextObject()->hasActiveTimeline()
+            && QmlTimelineMutator::isValidQmlTimelineMutator(modelNode)) {
+        m_qmlBackEndForCurrentType->contextObject()->setHasActiveTimeline(QmlTimelineMutator::hasActiveTimeline(this));
+    }
+}
+
 void PropertyEditorView::updateSize()
 {
     if (!m_qmlBackEndForCurrentType)
@@ -509,8 +519,8 @@ void PropertyEditorView::selectedNodesChanged(const QList<ModelNode> &selectedNo
 
     if (selectedNodeList.isEmpty() || selectedNodeList.count() > 1)
         select(ModelNode());
-    else if (m_selectedNode != selectedNodeList.first())
-        select(selectedNodeList.first());
+    else if (m_selectedNode != selectedNodeList.constFirst())
+        select(selectedNodeList.constFirst());
 }
 
 void PropertyEditorView::nodeAboutToBeRemoved(const ModelNode &removedNode)

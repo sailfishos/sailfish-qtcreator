@@ -32,12 +32,20 @@
 #include <QAction>
 #include <QObject>
 
+namespace ProjectExplorer {
+
+class RunControl;
+
+}
+
 namespace QmlProfiler {
 
-class QmlProfilerRunner;
+class QmlProfilerModelManager;
+class QmlProfilerStateManager;
 
 namespace Internal {
 
+class QmlProfilerRunner;
 class QmlProfilerClientManager;
 
 class QMLPROFILER_EXPORT QmlProfilerTool : public QObject
@@ -48,15 +56,10 @@ public:
     explicit QmlProfilerTool(QObject *parent);
     ~QmlProfilerTool();
 
-    static QmlProfilerTool *instance();
-
     void finalizeRunControl(QmlProfilerRunner *runWorker);
 
     bool prepareTool();
-    void attachToWaitingApplication();
-
-    QString summary(const QVector<int> &typeIds) const;
-    QStringList details(int typeId) const;
+    ProjectExplorer::RunControl *attachToWaitingApplication();
 
     static QList <QAction *> profilerContextMenuActions();
 
@@ -65,9 +68,10 @@ public:
     static void logError(const QString &msg);
     static void showNonmodalWarning(const QString &warningMsg);
 
-    static QmlProfilerClientManager *clientManager();
+    QmlProfilerClientManager *clientManager();
+    QmlProfilerModelManager *modelManager();
+    QmlProfilerStateManager *stateManager();
 
-public slots:
     void profilerStateChanged();
     void serverRecordingChanged();
     void clientsDisconnected();
@@ -76,9 +80,9 @@ public slots:
     void recordingButtonChanged(bool recording);
 
     void gotoSourceLocation(const QString &fileUrl, int lineNumber, int columnNumber);
-    void selectType(int typeId);
 
-private slots:
+private:
+    void clearEvents();
     void clearData();
     void showErrorDialog(const QString &error);
     void profilerDataModelStateChanged();
@@ -94,7 +98,6 @@ private slots:
     void toggleRequestedFeature(QAction *action);
     void toggleVisibleFeature(QAction *action);
 
-private:
     void updateRunActions();
     void clearDisplay();
     template<ProfileFeature feature>

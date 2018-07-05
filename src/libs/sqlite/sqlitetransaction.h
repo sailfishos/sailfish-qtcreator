@@ -27,35 +27,73 @@
 
 #include "sqliteglobal.h"
 
-class SQLITE_EXPORT SqliteAbstractTransaction
+#include <mutex>
+
+namespace Sqlite {
+
+class DatabaseBackend;
+class Database;
+
+template <typename Database>
+class AbstractTransaction
 {
 public:
-    virtual ~SqliteAbstractTransaction();
+    ~AbstractTransaction()
+    {
+        if (!m_isAlreadyCommited)
+            m_database.execute("ROLLBACK");
+    }
 
-    void commit();
+    void commit()
+    {
+        m_database.execute("COMMIT");
+        m_isAlreadyCommited = true;
+    }
+
+protected:
+    AbstractTransaction(Database &database)
+        : m_databaseLock(database.databaseMutex()),
+          m_database(database)
+    {
+    }
 
 private:
-    bool isAlreadyCommited = false;
+    std::lock_guard<typename Database::MutexType> m_databaseLock;
+    Database &m_database;
+    bool m_isAlreadyCommited = false;
 };
 
-
-class SQLITE_EXPORT SqliteTransaction final : public SqliteAbstractTransaction
+template <typename Database>
+class DeferredTransaction final : public AbstractTransaction<Database>
 {
 public:
-    SqliteTransaction();
-
+    DeferredTransaction(Database &database)
+        : AbstractTransaction<Database>(database)
+    {
+        database.execute("BEGIN");
+    }
 };
 
-class SQLITE_EXPORT SqliteImmediateTransaction final : public SqliteAbstractTransaction
+template <typename Database>
+class ImmediateTransaction final : public AbstractTransaction<Database>
 {
 public:
-    SqliteImmediateTransaction();
-
+    ImmediateTransaction(Database &database)
+        : AbstractTransaction<Database>(database)
+    {
+        database.execute("BEGIN IMMEDIATE");
+    }
 };
 
-class SQLITE_EXPORT SqliteExclusiveTransaction final : public SqliteAbstractTransaction
+template <typename Database>
+class ExclusiveTransaction final : public AbstractTransaction<Database>
 {
 public:
-    SqliteExclusiveTransaction();
-
+    ExclusiveTransaction(Database &database)
+        : AbstractTransaction<Database>(database)
+    {
+        database.execute("BEGIN EXCLUSIVE");
+    }
 };
+
+} // namespace Sqlite

@@ -28,9 +28,16 @@
 #include "testconfiguration.h"
 #include "testresult.h"
 
+#include <QDialog>
 #include <QFutureWatcher>
 #include <QObject>
 #include <QProcess>
+
+QT_BEGIN_NAMESPACE
+class QComboBox;
+class QDialogButtonBox;
+class QLabel;
+QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Project;
@@ -44,21 +51,14 @@ class TestRunner : public QObject
     Q_OBJECT
 
 public:
-    enum Mode
-    {
-        Run,
-        RunWithoutDeploy,
-        Debug,
-        DebugWithoutDeploy
-    };
-
     static TestRunner* instance();
     ~TestRunner();
 
     void setSelectedTests(const QList<TestConfiguration *> &selected);
+    void runTest(TestRunMode mode, const TestTreeItem *item);
     bool isTestRunning() const { return m_executingTests; }
 
-    void prepareToRunTests(Mode mode);
+    void prepareToRunTests(TestRunMode mode);
 
 signals:
     void testRunStarted();
@@ -79,10 +79,28 @@ private:
     QFutureWatcher<TestResultPtr> m_futureWatcher;
     QList<TestConfiguration *> m_selectedTests;
     bool m_executingTests;
-    Mode m_runMode = Run;
+    TestRunMode m_runMode = TestRunMode::Run;
 
     // temporarily used if building before running is necessary
     QMetaObject::Connection m_buildConnect;
+};
+
+class RunConfigurationSelectionDialog : public QDialog
+{
+    Q_OBJECT
+public:
+    explicit RunConfigurationSelectionDialog(const QString &testsInfo, QWidget *parent = nullptr);
+    QString displayName() const;
+    QString executable() const;
+private:
+    void populate();
+    void updateLabels();
+    QLabel *m_details;
+    QLabel *m_executable;
+    QLabel *m_arguments;
+    QLabel *m_workingDir;
+    QComboBox *m_rcCombo;
+    QDialogButtonBox *m_buttonBox;
 };
 
 } // namespace Internal

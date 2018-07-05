@@ -37,12 +37,12 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
+#include <coreplugin/documentmanager.h>
 #include <coreplugin/id.h>
 #include <coreplugin/vcsmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
-#include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <coreplugin/locator/commandlocator.h>
@@ -122,12 +122,11 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
     Core::Context context(Constants::MERCURIAL_CONTEXT);
 
     m_client = new MercurialClient;
-    initializeVcs(new MercurialControl(m_client), context);
+    auto vc = initializeVcs<MercurialControl>(context, m_client);
 
-    addAutoReleasedObject(new OptionsPage(versionControl()));
+    addAutoReleasedObject(new OptionsPage(vc));
 
-    connect(m_client, &VcsBaseClient::changed,
-            static_cast<MercurialControl *>(versionControl()), &MercurialControl::changed);
+    connect(m_client, &VcsBaseClient::changed, vc, &MercurialControl::changed);
     connect(m_client, &MercurialClient::needUpdate, this, &MercurialPlugin::update);
 
     const auto describeFunc = [this](const QString &source, const QString &id) {
@@ -495,6 +494,9 @@ void MercurialPlugin::createSubmitEditorActions()
 
 void MercurialPlugin::commit()
 {
+    if (!promptBeforeCommit())
+        return;
+
     if (raiseSubmitEditor())
         return;
 

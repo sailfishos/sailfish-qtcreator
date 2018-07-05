@@ -25,6 +25,7 @@
 
 #include "vcsbaseclientsettings.h"
 
+#include <utils/algorithm.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
@@ -201,9 +202,9 @@ const QLatin1String VcsBaseClientSettings::pathKey("Path");
 VcsBaseClientSettings::VcsBaseClientSettings() :
     d(new Internal::VcsBaseClientSettingsPrivate)
 {
-    declareKey(binaryPathKey, QLatin1String(""));
-    declareKey(userNameKey, QLatin1String(""));
-    declareKey(userEmailKey, QLatin1String(""));
+    declareKey(binaryPathKey, QString());
+    declareKey(userNameKey, QString());
+    declareKey(userEmailKey, QString());
     declareKey(logCountKey, 100);
     declareKey(promptOnSubmitKey, true);
     declareKey(timeoutKey, 30);
@@ -355,15 +356,17 @@ QVariant::Type VcsBaseClientSettings::valueType(const QString &key) const
 Utils::FileName VcsBaseClientSettings::binaryPath() const
 {
     if (d->m_binaryFullPath.isEmpty()) {
+        const Utils::FileNameList searchPaths
+                = Utils::transform(searchPathList(), [](const QString &s) { return Utils::FileName::fromString(s); });
         d->m_binaryFullPath = Utils::Environment::systemEnvironment().searchInPath(
-                    stringValue(binaryPathKey), searchPathList());
+                    stringValue(binaryPathKey), searchPaths);
     }
     return d->m_binaryFullPath;
 }
 
 QStringList VcsBaseClientSettings::searchPathList() const
 {
-    return stringValue(pathKey).split(Utils::HostOsInfo::pathListSeparator());
+    return stringValue(pathKey).split(Utils::HostOsInfo::pathListSeparator(), QString::SkipEmptyParts);
 }
 
 QString VcsBaseClientSettings::settingsGroup() const

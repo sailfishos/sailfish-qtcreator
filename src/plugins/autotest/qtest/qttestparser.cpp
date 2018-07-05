@@ -85,8 +85,11 @@ static bool qtTestLibDefined(const QString &fileName)
 {
     const QList<CppTools::ProjectPart::Ptr> parts =
             CppTools::CppModelManager::instance()->projectPart(fileName);
-    if (parts.size() > 0)
-        return parts.at(0)->projectDefines.contains("#define QT_TESTLIB_LIB");
+    if (parts.size() > 0) {
+        return Utils::anyOf(parts.at(0)->projectMacros, [] (const ProjectExplorer::Macro &macro) {
+            return macro.key == "QT_TESTLIB_LIB";
+        });
+    }
     return false;
 }
 
@@ -145,8 +148,8 @@ static CPlusPlus::Document::Ptr declaringDocument(CPlusPlus::Document::Ptr doc,
         }
     }
 
-    if (lookupItems.size()) {
-        if (CPlusPlus::Symbol *symbol = lookupItems.first().declaration()) {
+    for (const CPlusPlus::LookupItem &item : lookupItems) {
+        if (CPlusPlus::Symbol *symbol = item.declaration()) {
             if (CPlusPlus::Class *toeClass = symbol->asClass()) {
                 const QString declFileName = QLatin1String(toeClass->fileId()->chars(),
                                                            toeClass->fileId()->size());
@@ -268,6 +271,13 @@ static QtTestCodeLocationList tagLocationsFor(const QtTestParseResult *func,
     return QtTestCodeLocationList();
 }
 
+static bool isQObject(const CPlusPlus::Document::Ptr &declaringDoc)
+{
+    const QString file = declaringDoc->fileName();
+    return (Utils::HostOsInfo::isMacHost() && file.endsWith("QtCore.framework/Headers/qobject.h"))
+            || file.endsWith("QtCore/qobject.h")  || file.endsWith("kernel/qobject.h");
+}
+
 static bool handleQtTest(QFutureInterface<TestParseResultPtr> futureInterface,
                          CPlusPlus::Document::Ptr document,
                          const CPlusPlus::Snapshot &snapshot,
@@ -299,6 +309,10 @@ static bool handleQtTest(QFutureInterface<TestParseResultPtr> futureInterface,
         // functions - but only as far as QtTest can handle this appropriate
         fetchAndMergeBaseTestFunctions(
                     visitor.baseClasses(), testFunctions, declaringDoc, snapshot);
+
+        // handle tests that are not runnable without more information (plugin unit test of QC)
+        if (testFunctions.isEmpty() && testCaseName == "QObject" && isQObject(declaringDoc))
+            return true; // we did not handle it, but we do not expect any test defined there either
 
         const QSet<QString> &files = filesWithDataFunctionDefinitions(testFunctions);
 
@@ -355,11 +369,13 @@ static bool handleQtTest(QFutureInterface<TestParseResultPtr> futureInterface,
     return false;
 }
 
-void QtTestParser::init(const QStringList &filesToParse)
+void QtTestParser::init(const QStringList &filesToParse, bool fullParse)
 {
-    m_testCaseNames = QTestUtils::testCaseNamesForFiles(id(), filesToParse);
-    m_alternativeFiles = QTestUtils::alternativeFiles(id(), filesToParse);
-    CppParser::init(filesToParse);
+    if (!fullParse) { // in a full parse cached information might lead to wrong results
+        m_testCaseNames = QTestUtils::testCaseNamesForFiles(id(), filesToParse);
+        m_alternativeFiles = QTestUtils::alternativeFiles(id(), filesToParse);
+    }
+    CppParser::init(filesToParse, fullParse);
 }
 
 void QtTestParser::release()

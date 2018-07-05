@@ -80,7 +80,7 @@ void TextEditorWidget::setTextEditor(TextEditor::BaseTextEditor *textEditor)
         connect(textEditor->editorWidget(), &QPlainTextEdit::cursorPositionChanged,
                 this, [this]() {
             /* Cursor position is changed by rewriter */
-            if (!m_blockCurserSelectionSyncronisation)
+            if (!m_blockCursorSelectionSynchronisation)
                 m_updateSelectionTimer.start();
         });
 
@@ -94,9 +94,9 @@ void TextEditorWidget::setTextEditor(TextEditor::BaseTextEditor *textEditor)
         oldEditor->deleteLater();
 }
 
-QString TextEditorWidget::contextHelpId() const
+void TextEditorWidget::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
 {
-    return m_textEditorView->contextHelpId();
+    m_textEditorView->contextHelpId(callback);
 }
 
 void TextEditorWidget::updateSelectionByCursorPosition()
@@ -126,18 +126,16 @@ void TextEditorWidget::jumpTextCursorToSelectedModelNode()
         return;
 
     if (!m_textEditorView->selectedModelNodes().isEmpty())
-        selectedNode = m_textEditorView->selectedModelNodes().first();
+        selectedNode = m_textEditorView->selectedModelNodes().constFirst();
 
     if (selectedNode.isValid()) {
         RewriterView *rewriterView = m_textEditorView->model()->rewriterView();
 
         const int nodeOffset = rewriterView->nodeOffset(selectedNode);
         if (nodeOffset > 0) {
-            if (!rewriterView->nodeContainsCursor(selectedNode, m_textEditor->editorWidget()->textCursor().position())) {
                 int line, column;
                 m_textEditor->editorWidget()->convertPosition(nodeOffset, &line, &column);
                 m_textEditor->editorWidget()->gotoLine(line, column);
-            }
         }
     }
     m_updateSelectionTimer.stop();
@@ -168,9 +166,9 @@ int TextEditorWidget::currentLine() const
     return -1;
 }
 
-void TextEditorWidget::setBlockCurserSelectionSyncronisation(bool b)
+void TextEditorWidget::setBlockCursorSelectionSynchronisation(bool b)
 {
-    m_blockCurserSelectionSyncronisation = b;
+    m_blockCursorSelectionSynchronisation = b;
 }
 
 bool TextEditorWidget::eventFilter( QObject *, QEvent *event)
@@ -195,7 +193,12 @@ bool TextEditorWidget::eventFilter( QObject *, QEvent *event)
             return true;
         }
 
-        QKeySequence keySqeuence(keyEvent->key() | keyEvent->modifiers());
+        static const Qt::KeyboardModifiers relevantModifiers = Qt::ShiftModifier
+                | Qt::ControlModifier
+                | Qt::AltModifier
+                | Qt::MetaModifier;
+
+        QKeySequence keySqeuence(keyEvent->key() | (keyEvent->modifiers() & relevantModifiers));
         for (QKeySequence overrideSequence : overrideSequences)
             if (keySqeuence.matches(overrideSequence)) {
                 keyEvent->accept();

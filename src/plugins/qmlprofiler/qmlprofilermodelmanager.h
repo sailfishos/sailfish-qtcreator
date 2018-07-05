@@ -37,7 +37,7 @@
 #include <QObject>
 #include <functional>
 
-namespace ProjectExplorer { class RunConfiguration; }
+namespace ProjectExplorer { class Target; }
 
 namespace QmlProfiler {
 class QmlProfilerModelManager;
@@ -56,10 +56,9 @@ public:
     qint64 duration() const;
     bool isRestrictedToRange() const;
 
-public slots:
     void clear();
 
-    void setTime(qint64 startTime, qint64 endTime);
+    void update(qint64 time);
     void decreaseStartTime(qint64 time);
     void increaseEndTime(qint64 time);
     void restrictToRange(qint64 startTime, qint64 endTime);
@@ -130,10 +129,20 @@ public:
     void acquiringDone();
     void processingDone();
 
-    void populateFileFinder(const ProjectExplorer::RunConfiguration *runConfiguration = nullptr);
+    void populateFileFinder(const ProjectExplorer::Target *target = nullptr);
     QString findLocalFile(const QString &remoteFile);
 
     static const char *featureName(ProfileFeature feature);
+
+    void clearEvents();
+    void clear();
+    void restrictToRange(qint64 startTime, qint64 endTime);
+    bool isRestrictedToRange() const;
+
+    void startAcquiring();
+
+    void save(const QString &filename);
+    void load(const QString &filename);
 
 signals:
     void error(const QString &error);
@@ -145,21 +154,11 @@ signals:
     void visibleFeaturesChanged(quint64 features);
     void recordedFeaturesChanged(quint64 features);
 
-public slots:
-    void clear();
-    void restrictToRange(qint64 startTime, qint64 endTime);
-    bool isRestrictedToRange() const;
-
-    void startAcquiring();
-
-    void save(const QString &filename);
-    void load(const QString &filename);
-
 private:
     void setState(State state);
     void detailsChanged(int typeId, const QString &newString);
+    void doClearEvents();
 
-private:
     class QmlProfilerModelManagerPrivate;
     QmlProfilerModelManagerPrivate *d;
 };

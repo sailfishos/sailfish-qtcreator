@@ -78,7 +78,6 @@ IconsModeDebugActiveColor=ff99aaef
 IconsModeProjectActiveColor=ff80c342
 IconsModeAnalyzeActiveColor=ff43adee
 IconsModeHelpActiveColor=fff4be04
-IconsModeMerActiveColor=ff97f0ff
 IconsCodeModelKeywordColor=ffaaaaaa
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -104,7 +103,7 @@ MiniProjectTargetSelectorBorderColor=shadowBackground
 MiniProjectTargetSelectorSummaryBackgroundColor=shadowBackground
 MiniProjectTargetSelectorTextColor=text
 PanelStatusBarBackgroundColor=shadowBackground
-PanelsWidgetSeparatorLineColor=0
+PanelsWidgetSeparatorLineColor=000000
 PanelTextColorDark=text
 PanelTextColorMid=ffa0a0a0
 PanelTextColorLight=text
@@ -163,6 +162,7 @@ Welcome_ButtonBackgroundColor=normalBackground
 Welcome_DividerColor=ff555555
 Welcome_HoverColor=ff444444
 Welcome_LinkColor=ff78bb39
+Welcome_DisabledLinkColor=textDisabled
 
 Timeline_TextColor=text
 Timeline_BackgroundColor1=normalBackground
@@ -177,7 +177,7 @@ Timeline_RangeColor=selectedBackground
 VcsBase_FileStatusUnknown_TextColor=text
 VcsBase_FileAdded_TextColor=ff00ff00
 VcsBase_FileModified_TextColor=ff8ee0ff
-VcsBase_FileDeleted_TextColor=fffff6c6c
+VcsBase_FileDeleted_TextColor=ffff6c6c
 VcsBase_FileRenamed_TextColor=ffffa500
 VcsBase_FileUnmerged_TextColor=ffff4040
 
@@ -200,6 +200,7 @@ PaletteButton=shadowBackground
 PaletteBrightText=ffff0000
 PaletteText=text
 PaletteButtonText=text
+PaletteButtonTextDisabled=textDisabled
 PaletteToolTipBase=selectedBackground
 PaletteHighlight=selectedBackground
 PaletteDark=shadowBackground
@@ -234,7 +235,7 @@ ToolBarIconShadow=true
 WindowColorAsBase=false
 
 [Gradients]
-DetailsWidgetHeaderGradient\1\color=0
+DetailsWidgetHeaderGradient\1\color=00000000
 DetailsWidgetHeaderGradient\1\pos=1
 DetailsWidgetHeaderGradient\size=1
 

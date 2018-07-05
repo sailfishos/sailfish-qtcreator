@@ -51,7 +51,7 @@ namespace QmlDesigner {
 FormEditorScene::FormEditorScene(FormEditorWidget *view, FormEditorView *editorView)
         : QGraphicsScene(),
         m_editorView(editorView),
-        m_showBoundingRects(true)
+        m_showBoundingRects(false)
 {
     setupScene();
     view->setScene(this);
@@ -200,8 +200,8 @@ void FormEditorScene::dropEvent(QGraphicsSceneDragDropEvent * event)
 {
     currentTool()->dropEvent(removeLayerItems(itemsAt(event->scenePos())), event);
 
-    if (views().first())
-        views().first()->setFocus();
+    if (views().constFirst())
+        views().constFirst()->setFocus();
 }
 
 void FormEditorScene::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
@@ -237,7 +237,7 @@ QList<QGraphicsItem *> FormEditorScene::itemsAt(const QPointF &pos)
     QTransform transform;
 
     if (!views().isEmpty())
-        transform = views().first()->transform();
+        transform = views().constFirst()->transform();
 
     return items(pos,
                  Qt::IntersectsItemShape,

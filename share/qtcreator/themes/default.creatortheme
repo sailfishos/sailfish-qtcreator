@@ -70,7 +70,6 @@ IconsModeDebugActiveColor=ffffffff
 IconsModeProjectActiveColor=ffffffff
 IconsModeAnalyzeActiveColor=ffffffff
 IconsModeHelpActiveColor=ffffffff
-IconsModeMerActiveColor=ffffffff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -155,6 +154,7 @@ Welcome_ButtonBackgroundColor=ffdfdfdf
 Welcome_DividerColor=ffd6d6d6
 Welcome_HoverColor=ffe8e8e8
 Welcome_LinkColor=ff5caa15
+Welcome_DisabledLinkColor=textDisabled
 
 Timeline_TextColor=darkText
 Timeline_BackgroundColor1=ffffffff
@@ -206,6 +206,6 @@ ToolBarIconShadow=true
 WindowColorAsBase=false
 
 [Gradients]
-DetailsWidgetHeaderGradient\1\color=ffffff
+DetailsWidgetHeaderGradient\1\color=ffffffff
 DetailsWidgetHeaderGradient\1\pos=1
 DetailsWidgetHeaderGradient\size=1

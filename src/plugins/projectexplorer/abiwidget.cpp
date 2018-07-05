@@ -88,7 +88,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
         d->m_architectureComboBox->addItem(Abi::toString(static_cast<Abi::Architecture>(i)), i);
     d->m_architectureComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownArchitecture));
     connect(d->m_architectureComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &AbiWidget::customAbiChanged);
+            this, &AbiWidget::updateCustomItemData);
 
     QLabel *separator1 = new QLabel(this);
     separator1->setText(QLatin1String("-"));
@@ -111,7 +111,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     d->m_osFlavorComboBox = new QComboBox(this);
     layout->addWidget(d->m_osFlavorComboBox);
     connect(d->m_osFlavorComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &AbiWidget::customAbiChanged);
+            this, &AbiWidget::updateCustomItemData);
 
     QLabel *separator3 = new QLabel(this);
     separator3->setText(QLatin1String("-"));
@@ -124,7 +124,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
         d->m_binaryFormatComboBox->addItem(Abi::toString(static_cast<Abi::BinaryFormat>(i)), i);
     d->m_binaryFormatComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownFormat));
     connect(d->m_binaryFormatComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &AbiWidget::customAbiChanged);
+            this, &AbiWidget::updateCustomItemData);
 
     QLabel *separator4 = new QLabel(this);
     separator4->setText(QLatin1String("-"));
@@ -139,7 +139,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     d->m_wordWidthComboBox->addItem(Abi::toString(0), 0);
     d->m_wordWidthComboBox->setCurrentIndex(2);
     connect(d->m_wordWidthComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &AbiWidget::customAbiChanged);
+            this, &AbiWidget::updateCustomItemData);
 
     layout->setStretchFactor(d->m_abi, 1);
 
@@ -153,9 +153,15 @@ AbiWidget::~AbiWidget()
 
 void AbiWidget::setAbis(const QList<Abi> &abiList, const Abi &current)
 {
-    bool blocked = blockSignals(true);
-    d->m_abi->clear();
+    QSignalBlocker blocker(this);
 
+    // Initial setup of ABI combobox:
+    d->m_abi->clear();
+    d->m_abi->addItem(tr("<custom>"));
+    d->m_abi->setCurrentIndex(0);
+    d->m_abi->setVisible(!abiList.isEmpty());
+
+    // Set up custom ABI:
     Abi defaultAbi = current;
     if (defaultAbi.isNull()) {
         if (!abiList.isEmpty())
@@ -164,27 +170,24 @@ void AbiWidget::setAbis(const QList<Abi> &abiList, const Abi &current)
             defaultAbi = Abi::hostAbi();
     }
 
-    d->m_abi->addItem(tr("<custom>"), defaultAbi.toString());
-    d->m_abi->setCurrentIndex(0);
+    setCustomAbi(defaultAbi);
 
+    // Add supported ABIs:
     for (int i = 0; i < abiList.count(); ++i) {
-        int index = i + 1;
-        const QString abiString = abiList.at(i).toString();
+        const int index = i + 1;
+        const Abi abi = abiList.at(i);
+        const QString abiString = abi.toString();
+
         d->m_abi->insertItem(index, abiString, abiString);
-        if (abiList.at(i) == current)
+        if (abi == defaultAbi)
             d->m_abi->setCurrentIndex(index);
     }
 
-    d->m_abi->setVisible(!abiList.isEmpty());
-    if (d->isCustom()) {
-        if (!current.isValid() && !abiList.isEmpty())
-            d->m_abi->setCurrentIndex(1); // default to the first Abi if none is selected.
-        else
-            setCustomAbi(current);
-    }
-    modeChanged();
+    // Select a sensible ABI to start with if none was set yet.
+    if (d->isCustom() && !current.isValid() && !abiList.isEmpty())
+        d->m_abi->setCurrentIndex(1); // default to the first Abi if none is selected.
 
-    blockSignals(blocked);
+    modeChanged();
 }
 
 QList<Abi> AbiWidget::supportedAbis() const
@@ -208,15 +211,16 @@ Abi AbiWidget::currentAbi() const
 
 void AbiWidget::osChanged()
 {
-    bool blocked = d->m_osFlavorComboBox->blockSignals(true);
-    d->m_osFlavorComboBox->clear();
-    Abi::OS os = static_cast<Abi::OS>(d->m_osComboBox->itemData(d->m_osComboBox->currentIndex()).toInt());
-    QList<Abi::OSFlavor> flavors = Abi::flavorsForOs(os);
-    foreach (Abi::OSFlavor f, flavors)
-        d->m_osFlavorComboBox->addItem(Abi::toString(f), static_cast<int>(f));
-    d->m_osFlavorComboBox->setCurrentIndex(0); // default to generic flavor
-    d->m_osFlavorComboBox->blockSignals(blocked);
-    customAbiChanged();
+    {
+        QSignalBlocker blocker(d->m_osFlavorComboBox);
+        d->m_osFlavorComboBox->clear();
+        Abi::OS os = static_cast<Abi::OS>(d->m_osComboBox->itemData(d->m_osComboBox->currentIndex()).toInt());
+        QList<Abi::OSFlavor> flavors = Abi::flavorsForOs(os);
+        foreach (Abi::OSFlavor f, flavors)
+            d->m_osFlavorComboBox->addItem(Abi::toString(f), static_cast<int>(f));
+        d->m_osFlavorComboBox->setCurrentIndex(0); // default to generic flavor
+    }
+    updateCustomItemData();
 }
 
 void AbiWidget::modeChanged()
@@ -231,11 +235,8 @@ void AbiWidget::modeChanged()
     setCustomAbi(currentAbi());
 }
 
-void AbiWidget::customAbiChanged()
+void AbiWidget::updateCustomItemData()
 {
-    if (signalsBlocked())
-        return;
-
     Abi current(static_cast<Abi::Architecture>(d->m_architectureComboBox->currentIndex()),
                 static_cast<Abi::OS>(d->m_osComboBox->currentIndex()),
                 static_cast<Abi::OSFlavor>(d->m_osFlavorComboBox->itemData(d->m_osFlavorComboBox->currentIndex()).toInt()),
@@ -248,26 +249,26 @@ void AbiWidget::customAbiChanged()
 
 void AbiWidget::setCustomAbi(const Abi &current)
 {
-    bool blocked = blockSignals(true);
-    d->m_architectureComboBox->setCurrentIndex(static_cast<int>(current.architecture()));
-    d->m_osComboBox->setCurrentIndex(static_cast<int>(current.os()));
-    osChanged();
-    for (int i = 0; i < d->m_osFlavorComboBox->count(); ++i) {
-        if (d->m_osFlavorComboBox->itemData(i).toInt() == current.osFlavor()) {
-            d->m_osFlavorComboBox->setCurrentIndex(i);
-            break;
+    {
+        QSignalBlocker blocker(this);
+        d->m_architectureComboBox->setCurrentIndex(static_cast<int>(current.architecture()));
+        d->m_osComboBox->setCurrentIndex(static_cast<int>(current.os()));
+        osChanged();
+        for (int i = 0; i < d->m_osFlavorComboBox->count(); ++i) {
+            if (d->m_osFlavorComboBox->itemData(i).toInt() == current.osFlavor()) {
+                d->m_osFlavorComboBox->setCurrentIndex(i);
+                break;
+            }
         }
-    }
-    d->m_binaryFormatComboBox->setCurrentIndex(static_cast<int>(current.binaryFormat()));
-    for (int i = 0; i < d->m_wordWidthComboBox->count(); ++i) {
-        if (d->m_wordWidthComboBox->itemData(i).toInt() == current.wordWidth()) {
-            d->m_wordWidthComboBox->setCurrentIndex(i);
-            break;
+        d->m_binaryFormatComboBox->setCurrentIndex(static_cast<int>(current.binaryFormat()));
+        for (int i = 0; i < d->m_wordWidthComboBox->count(); ++i) {
+            if (d->m_wordWidthComboBox->itemData(i).toInt() == current.wordWidth()) {
+                d->m_wordWidthComboBox->setCurrentIndex(i);
+                break;
+            }
         }
+        updateCustomItemData();
     }
-    if (d->isCustom())
-        d->m_abi->setItemData(0, current.toString());
-    blockSignals(blocked);
 
     emit abiChanged();
 }

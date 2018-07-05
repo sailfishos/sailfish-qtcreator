@@ -107,7 +107,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_showBoundingRectAction->setShortcut(Qt::Key_A);
     m_showBoundingRectAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_showBoundingRectAction->setCheckable(true);
-    m_showBoundingRectAction->setChecked(true);
+    m_showBoundingRectAction->setChecked(false);
     m_showBoundingRectAction->setIcon(Utils::Icons::BOUNDING_RECT.icon());
 
     addAction(m_showBoundingRectAction.data());
@@ -131,13 +131,6 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
             this, &FormEditorWidget::changeRootItemHeight);
     addAction(m_rootHeightAction.data());
     upperActions.append(m_rootHeightAction.data());
-
-    static const QList<Utils::Icon> icon = {
-        Utils::Icon({{":/baremetal/images/baremetaldevicesmall.png",
-                      Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint),
-        Utils::Icon({{":/baremetal/images/baremetaldevice.png",
-                      Utils::Theme::IconsBaseColor}})};
-
 
     m_toolBox = new ToolBox(this);
     fillLayout->addWidget(m_toolBox.data());
@@ -341,12 +334,12 @@ double FormEditorWidget::containerPadding() const
 }
 
 
-QString FormEditorWidget::contextHelpId() const
+void FormEditorWidget::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
 {
     if (m_formEditorView)
-        return m_formEditorView->contextHelpId();
-
-    return QString();
+        m_formEditorView->contextHelpId(callback);
+    else
+        callback(QString());
 }
 
 void FormEditorWidget::setRootItemRect(const QRectF &rect)

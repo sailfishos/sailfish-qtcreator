@@ -57,7 +57,7 @@ HEADERS += \
     settings.h \
     $$UTILS/fileutils.h \
     $$UTILS/hostosinfo.h \
-    $$UTILS/persistentsettings.cpp \
+    $$UTILS/persistentsettings.h \
     $$UTILS/qtcassert.h \
     $$UTILS/savefile.h \
 
@@ -78,6 +78,10 @@ appversion.output = $$OUT_PWD/app/app_version.h
 QMAKE_SUBSTITUTES += appversion
 INCLUDEPATH += $$OUT_PWD
 
-macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""
-else:win32:DEFINES += "DATA_PATH=\"\\\"../share/qtcreator\\\"\""
-else:DEFINES += "DATA_PATH=\"\\\"../../share/qtcreator\\\"\""
+isEmpty(SDKTOOL_DATA_PATH) {
+    macos:DEFINES += $$shell_quote(DATA_PATH=\".\")
+    else:win32:DEFINES += $$shell_quote(DATA_PATH=\"../share/qtcreator\")
+    else:DEFINES += $$shell_quote(DATA_PATH=\"../../share/qtcreator\")
+} else {
+    DEFINES += $$shell_quote(DATA_PATH=\"$$SDKTOOL_DATA_PATH\")
+}

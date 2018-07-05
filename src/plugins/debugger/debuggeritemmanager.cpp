@@ -34,6 +34,8 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 
+#include <utils/algorithm.h>
+#include <utils/asconst.h>
 #include <utils/detailswidget.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>
@@ -69,9 +71,9 @@ namespace Internal {
 
 const char DEBUGGER_COUNT_KEY[] = "DebuggerItem.Count";
 const char DEBUGGER_DATA_KEY[] = "DebuggerItem.";
-const char DEBUGGER_LEGACY_FILENAME[] = "/qtcreator/profiles.xml";
+const char DEBUGGER_LEGACY_FILENAME[] = "/profiles.xml";
 const char DEBUGGER_FILE_VERSION_KEY[] = "Version";
-const char DEBUGGER_FILENAME[] = "/qtcreator/debuggers.xml";
+const char DEBUGGER_FILENAME[] = "/debuggers.xml";
 const char debuggingToolsWikiLinkC[] = "http://wiki.qt.io/Qt_Creator_Windows_Debugging";
 
 class DebuggerItemModel;
@@ -202,7 +204,7 @@ public:
     QPersistentModelIndex m_currentIndex;
 };
 
-template <class Predicate>
+template <typename Predicate>
 void forAllDebuggers(const Predicate &pred)
 {
     d->m_model->forItemsAtLevel<2>([pred](DebuggerTreeItem *titem) {
@@ -210,7 +212,7 @@ void forAllDebuggers(const Predicate &pred)
     });
 }
 
-template <class Predicate>
+template <typename Predicate>
 const DebuggerItem *findDebugger(const Predicate &pred)
 {
     DebuggerTreeItem *titem = d->m_model->findItemAtLevel<2>([pred](DebuggerTreeItem *titem) {
@@ -399,10 +401,11 @@ void DebuggerItemConfigWidget::load(const DebuggerItem *item)
         const bool is64bit = is64BitWindowsSystem();
         const QString versionString = is64bit ? tr("64-bit version") : tr("32-bit version");
         //: Label text for path configuration. %2 is "x-bit version".
-        text = tr("<html><body><p>Specify the path to the "
-                  "<a href=\"%1\">Windows Console Debugger executable</a>"
-                  " (%2) here.</p>""</body></html>").
-                arg(QLatin1String(debuggingToolsWikiLinkC), versionString);
+        text = "<html><body><p>"
+                + tr("Specify the path to the "
+                     "<a href=\"%1\">Windows Console Debugger executable</a>"
+                     " (%2) here.").arg(QLatin1String(debuggingToolsWikiLinkC), versionString)
+                + "</p></body></html>";
         versionCommand = QLatin1String("-version");
     } else {
         versionCommand = QLatin1String("--version");
@@ -624,77 +627,68 @@ void DebuggerOptionsPage::finish()
     d->m_model->cancel();
 }
 
-} // namespace Internal
-
-// --------------------------------------------------------------------------
-// DebuggerItemManager
-// --------------------------------------------------------------------------
-
-DebuggerItemManager::DebuggerItemManager()
-{
-    new DebuggerItemManagerPrivate;
-    connect(ICore::instance(), &ICore::saveSettingsRequested,
-            this, [] { d->saveDebuggers(); });
-}
-
-DebuggerItemManager::~DebuggerItemManager()
-{
-    delete d;
-}
-
-QList<DebuggerItem> DebuggerItemManager::debuggers()
-{
-    QList<DebuggerItem> result;
-    forAllDebuggers([&result](const DebuggerItem &item) { result.append(item); });
-    return result;
-}
-
 void DebuggerItemManagerPrivate::autoDetectCdbDebuggers()
 {
     FileNameList cdbs;
 
-    QStringList programDirs;
-    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramFiles")));
-    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramFiles(x86)")));
-    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramW6432")));
+    const QStringList programDirs = {
+        QString::fromLocal8Bit(qgetenv("ProgramFiles")),
+        QString::fromLocal8Bit(qgetenv("ProgramFiles(x86)")),
+        QString::fromLocal8Bit(qgetenv("ProgramW6432"))
+    };
 
-    foreach (const QString &dirName, programDirs) {
+    QFileInfoList kitFolders;
+
+    for (const QString &dirName : programDirs) {
         if (dirName.isEmpty())
             continue;
-        QDir dir(dirName);
+        const QDir dir(dirName);
         // Windows SDK's starting from version 8 live in
         // "ProgramDir\Windows Kits\<version>"
-        const QString windowsKitsFolderName = QLatin1String("Windows Kits");
+        const QString windowsKitsFolderName = "Windows Kits";
         if (dir.exists(windowsKitsFolderName)) {
             QDir windowKitsFolder = dir;
             if (windowKitsFolder.cd(windowsKitsFolderName)) {
                 // Check in reverse order (latest first)
-                const QFileInfoList kitFolders =
-                    windowKitsFolder.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot,
-                                                   QDir::Time | QDir::Reversed);
-                foreach (const QFileInfo &kitFolderFi, kitFolders) {
-                    const QString path = kitFolderFi.absoluteFilePath();
-                    const QFileInfo cdb32(path + QLatin1String("/Debuggers/x86/cdb.exe"));
-                    if (cdb32.isExecutable())
-                        cdbs.append(FileName::fromString(cdb32.absoluteFilePath()));
-                    const QFileInfo cdb64(path + QLatin1String("/Debuggers/x64/cdb.exe"));
-                    if (cdb64.isExecutable())
-                        cdbs.append(FileName::fromString(cdb64.absoluteFilePath()));
-                }
+                kitFolders.append(windowKitsFolder.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot,
+                                                                 QDir::Time | QDir::Reversed));
             }
         }
 
         // Pre Windows SDK 8: Check 'Debugging Tools for Windows'
-        foreach (const QFileInfo &fi, dir.entryInfoList(QStringList(QLatin1String("Debugging Tools for Windows*")),
-                                                        QDir::Dirs | QDir::NoDotAndDotDot)) {
+        for (const QFileInfo &fi : dir.entryInfoList({"Debugging Tools for Windows*"},
+                                                     QDir::Dirs | QDir::NoDotAndDotDot)) {
             FileName filePath(fi);
-            filePath.appendPath(QLatin1String("cdb.exe"));
+            filePath.appendPath("cdb.exe");
             if (!cdbs.contains(filePath))
                 cdbs.append(filePath);
         }
     }
 
-    foreach (const FileName &cdb, cdbs) {
+
+    constexpr char RootVal[]   = "KitsRoot";
+    constexpr char RootVal81[] = "KitsRoot81";
+    constexpr char RootVal10[] = "KitsRoot10";
+    const QSettings installedRoots(
+                "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots",
+                QSettings::NativeFormat);
+    for (auto rootVal : {RootVal, RootVal81, RootVal10}) {
+        QFileInfo root(installedRoots.value(QLatin1String(rootVal)).toString());
+        if (root.exists() && !kitFolders.contains(root))
+            kitFolders.append(root);
+    }
+
+    for (const QFileInfo &kitFolderFi : kitFolders) {
+        const QString path = kitFolderFi.absoluteFilePath();
+        const QFileInfo cdb32(path + "/Debuggers/x86/cdb.exe");
+        if (cdb32.isExecutable())
+            cdbs.append(FileName::fromString(cdb32.absoluteFilePath()));
+        const QFileInfo cdb64(path + "/Debuggers/x64/cdb.exe");
+        if (cdb64.isExecutable())
+            cdbs.append(FileName::fromString(cdb64.absoluteFilePath()));
+    }
+
+    for (const FileName &cdb : Utils::asConst(cdbs)) {
         if (DebuggerItemManager::findByCommand(cdb))
             continue;
         DebuggerItem item;
@@ -750,13 +744,13 @@ void DebuggerItemManagerPrivate::autoDetectGdbOrLldbDebuggers()
         }
     }
 
-    QStringList path = Environment::systemEnvironment().path();
-    path.removeDuplicates();
+    Utils::FileNameList path = Environment::systemEnvironment().path();
+    path = Utils::filteredUnique(path);
     QDir dir;
     dir.setNameFilters(filters);
     dir.setFilter(QDir::Files | QDir::Executable);
-    foreach (const QString &base, path) {
-        dir.setPath(base);
+    foreach (const Utils::FileName &base, path) {
+        dir.setPath(base.toFileInfo().absoluteFilePath());
         foreach (const QString &entry, dir.entryList()) {
             if (entry.startsWith(QLatin1String("lldb-platform-"))
                     || entry.startsWith(QLatin1String("lldb-gdbserver-"))) {
@@ -826,46 +820,9 @@ void DebuggerItemManagerPrivate::readLegacyDebuggers(const FileName &file)
     }
 }
 
-const DebuggerItem *DebuggerItemManager::findByCommand(const FileName &command)
-{
-    return findDebugger([command](const DebuggerItem &item) {
-        return item.command() == command;
-    });
-}
-
-const DebuggerItem *DebuggerItemManager::findById(const QVariant &id)
-{
-    return findDebugger([id](const DebuggerItem &item) {
-        return item.id() == id;
-    });
-}
-
-const DebuggerItem *DebuggerItemManager::findByEngineType(DebuggerEngineType engineType)
-{
-    return findDebugger([engineType](const DebuggerItem &item) {
-        return item.engineType() == engineType;
-    });
-}
-
-QVariant DebuggerItemManager::registerDebugger(const DebuggerItem &item)
-{
-    return d->registerDebugger(item);
-}
-
-void DebuggerItemManager::deregisterDebugger(const QVariant &id)
-{
-    d->m_model->forItemsAtLevel<2>([id](DebuggerTreeItem *titem) {
-        if (titem->m_item.id() == id)
-            d->m_model->destroyItem(titem);
-    });
-}
-
-namespace Internal {
-
 static FileName userSettingsFileName()
 {
-    QFileInfo settingsLocation(ICore::settings()->fileName());
-    return FileName::fromString(settingsLocation.absolutePath() + QLatin1String(DEBUGGER_FILENAME));
+    return FileName::fromString(ICore::userResourcePath() + DEBUGGER_FILENAME);
 }
 
 DebuggerItemManagerPrivate::DebuggerItemManagerPrivate()
@@ -961,8 +918,7 @@ void DebuggerItemManagerPrivate::readDebuggers(const FileName &fileName, bool is
 void DebuggerItemManagerPrivate::restoreDebuggers()
 {
     // Read debuggers from SDK
-    QFileInfo systemSettingsFile(ICore::settings(QSettings::SystemScope)->fileName());
-    readDebuggers(FileName::fromString(systemSettingsFile.absolutePath() + DEBUGGER_FILENAME), true);
+    readDebuggers(FileName::fromString(ICore::installerResourcePath() + DEBUGGER_FILENAME), true);
 
     // Read all debuggers from user file.
     readDebuggers(userSettingsFileName(), false);
@@ -972,10 +928,8 @@ void DebuggerItemManagerPrivate::restoreDebuggers()
     autoDetectGdbOrLldbDebuggers();
 
     // Add debuggers from pre-3.x profiles.xml
-    QFileInfo systemLocation(ICore::settings(QSettings::SystemScope)->fileName());
-    readLegacyDebuggers(FileName::fromString(systemLocation.absolutePath() + QLatin1String(DEBUGGER_LEGACY_FILENAME)));
-    QFileInfo userLocation(ICore::settings()->fileName());
-    readLegacyDebuggers(FileName::fromString(userLocation.absolutePath() + QLatin1String(DEBUGGER_LEGACY_FILENAME)));
+    readLegacyDebuggers(FileName::fromString(ICore::installerResourcePath() + DEBUGGER_LEGACY_FILENAME));
+    readLegacyDebuggers(FileName::fromString(ICore::userResourcePath() + DEBUGGER_LEGACY_FILENAME));
 }
 
 void DebuggerItemManagerPrivate::saveDebuggers()
@@ -1000,4 +954,62 @@ void DebuggerItemManagerPrivate::saveDebuggers()
 }
 
 } // namespace Internal
+
+// --------------------------------------------------------------------------
+// DebuggerItemManager
+// --------------------------------------------------------------------------
+
+DebuggerItemManager::DebuggerItemManager()
+{
+    new DebuggerItemManagerPrivate;
+    connect(ICore::instance(), &ICore::saveSettingsRequested,
+            this, [] { d->saveDebuggers(); });
+}
+
+DebuggerItemManager::~DebuggerItemManager()
+{
+    delete d;
+}
+
+QList<DebuggerItem> DebuggerItemManager::debuggers()
+{
+    QList<DebuggerItem> result;
+    forAllDebuggers([&result](const DebuggerItem &item) { result.append(item); });
+    return result;
+}
+
+const DebuggerItem *DebuggerItemManager::findByCommand(const FileName &command)
+{
+    return findDebugger([command](const DebuggerItem &item) {
+        return item.command() == command;
+    });
+}
+
+const DebuggerItem *DebuggerItemManager::findById(const QVariant &id)
+{
+    return findDebugger([id](const DebuggerItem &item) {
+        return item.id() == id;
+    });
+}
+
+const DebuggerItem *DebuggerItemManager::findByEngineType(DebuggerEngineType engineType)
+{
+    return findDebugger([engineType](const DebuggerItem &item) {
+        return item.engineType() == engineType;
+    });
+}
+
+QVariant DebuggerItemManager::registerDebugger(const DebuggerItem &item)
+{
+    return d->registerDebugger(item);
+}
+
+void DebuggerItemManager::deregisterDebugger(const QVariant &id)
+{
+    d->m_model->forItemsAtLevel<2>([id](DebuggerTreeItem *titem) {
+        if (titem->m_item.id() == id)
+            d->m_model->destroyItem(titem);
+    });
+}
+
 } // namespace Debugger

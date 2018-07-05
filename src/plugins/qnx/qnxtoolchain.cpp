@@ -125,8 +125,7 @@ ToolChainConfigWidget *QnxToolChain::configurationWidget()
 
 void QnxToolChain::addToEnvironment(Environment &env) const
 {
-    if (env.value(QLatin1String("QNX_HOST")).isEmpty()
-            || env.value(QLatin1String("QNX_TARGET")).isEmpty())
+    if (env.value("QNX_HOST").isEmpty() || env.value("QNX_TARGET").isEmpty())
         setQnxEnvironment(env, QnxUtils::qnxEnvironment(m_sdpPath));
 
     GccToolChain::addToEnvironment(env);
@@ -309,14 +308,13 @@ void QnxToolChainConfigWidget::applyImpl()
 void QnxToolChainConfigWidget::discardImpl()
 {
     // subwidgets are not yet connected!
-    bool blocked = blockSignals(true);
+    QSignalBlocker blocker(this);
     QnxToolChain *tc = static_cast<QnxToolChain *>(toolChain());
     m_compilerCommand->setFileName(tc->compilerCommand());
     m_sdpPath->setPath(tc->sdpPath());
     m_abiWidget->setAbis(tc->supportedAbis(), tc->targetAbi());
     if (!m_compilerCommand->path().isEmpty())
         m_abiWidget->setEnabled(true);
-    blockSignals(blocked);
 }
 
 bool QnxToolChainConfigWidget::isDirtyImpl() const

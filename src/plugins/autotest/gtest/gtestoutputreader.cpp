@@ -27,6 +27,7 @@
 #include "gtestresult.h"
 #include "../testtreemodel.h"
 #include "../testtreeitem.h"
+#include "utils/hostosinfo.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -47,6 +48,19 @@ GTestOutputReader::GTestOutputReader(const QFutureInterface<TestResultPtr> &futu
     , m_executable(testApplication ? testApplication->program() : QString())
     , m_projectFile(projectFile)
 {
+        connect(m_testApplication,
+                static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+                this, [this] (int exitCode, QProcess::ExitStatus /*exitStatus*/) {
+            if (exitCode == 1 && !m_description.isEmpty()) {
+                // TODO tr()
+                const QString message{"Running test(s) failed\n" + m_description
+                            + "\nExecutable: " + m_executable};
+                createAndReportResult(message, Result::MessageFatal);
+            }
+            // on Windows abort() will result in normal termination, but exit code will be set to 3
+            if (Utils::HostOsInfo::isWindowsHost() && exitCode == 3)
+                reportCrash();
+        });
 }
 
 void GTestOutputReader::processOutput(const QByteArray &outputLine)
@@ -55,7 +69,7 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
     static QRegExp testEnds("^\\[-{10}\\] \\d+ tests? from (.*) \\((.*)\\)$");
     static QRegExp newTestSetStarts("^\\[ RUN      \\] (.*)$");
     static QRegExp testSetSuccess("^\\[       OK \\] (.*) \\((.*)\\)$");
-    static QRegExp testSetFail("^\\[  FAILED  \\] (.*) \\((.*)\\)$");
+    static QRegExp testSetFail("^\\[  FAILED  \\] (.*) \\((\\d+ ms)\\)$");
     static QRegExp disabledTests("^  YOU HAVE (\\d+) DISABLED TESTS?$");
     static QRegExp failureLocation("^(.*):(\\d+): Failure$");
     static QRegExp errorLocation("^(.*)\\((\\d+)\\): error:.*$");
@@ -74,34 +88,33 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
             m_description = line;
             if (m_iteration > 1)
                 m_description.append(' ' + tr("(iteration %1)").arg(m_iteration));
-            TestResultPtr testResult = TestResultPtr(new GTestResult);
+            TestResultPtr testResult = TestResultPtr(new GTestResult(m_projectFile));
             testResult->setResult(Result::MessageInternal);
             testResult->setDescription(m_description);
-            m_futureInterface.reportResult(testResult);
+            reportResult(testResult);
             m_description.clear();
         } else if (disabledTests.exactMatch(line)) {
-            TestResultPtr testResult = TestResultPtr(new GTestResult);
+            TestResultPtr testResult = TestResultPtr(new GTestResult(m_projectFile));
             testResult->setResult(Result::MessageDisabledTests);
             int disabled = disabledTests.cap(1).toInt();
             testResult->setDescription(tr("You have %n disabled test(s).", 0, disabled));
             testResult->setLine(disabled); // misuse line property to hold number of disabled
-            m_futureInterface.reportResult(testResult);
+            reportResult(testResult);
             m_description.clear();
         }
         return;
     }
 
     if (testEnds.exactMatch(line)) {
-        GTestResult *testResult = createDefaultResult();
+        TestResultPtr testResult = createDefaultResult();
         testResult->setResult(Result::MessageTestCaseEnd);
         testResult->setDescription(tr("Test execution took %1").arg(testEnds.cap(2)));
-        m_futureInterface.reportResult(TestResultPtr(testResult));
+        reportResult(testResult);
         m_currentTestName.clear();
         m_currentTestSet.clear();
-        m_normalizedCurrentTestSet.clear();
     } else if (newTestStarts.exactMatch(line)) {
         setCurrentTestName(newTestStarts.cap(1));
-        TestResultPtr testResult = TestResultPtr(createDefaultResult());
+        TestResultPtr testResult = createDefaultResult();
         testResult->setResult(Result::MessageTestCaseStart);
         if (m_iteration > 1) {
             testResult->setDescription(tr("Repeating test case %1 (iteration %2)")
@@ -109,27 +122,27 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
         } else {
             testResult->setDescription(tr("Executing test case %1").arg(m_currentTestName));
         }
-        m_futureInterface.reportResult(testResult);
+        reportResult(testResult);
     } else if (newTestSetStarts.exactMatch(line)) {
         setCurrentTestSet(newTestSetStarts.cap(1));
-        TestResultPtr testResult = TestResultPtr(new GTestResult);
+        TestResultPtr testResult = TestResultPtr(new GTestResult(m_projectFile));
         testResult->setResult(Result::MessageCurrentTest);
         testResult->setDescription(tr("Entering test set %1").arg(m_currentTestSet));
-        m_futureInterface.reportResult(testResult);
+        reportResult(testResult);
         m_description.clear();
     } else if (testSetSuccess.exactMatch(line)) {
-        GTestResult *testResult = createDefaultResult();
+        TestResultPtr testResult = createDefaultResult();
         testResult->setResult(Result::Pass);
         testResult->setDescription(m_description);
-        m_futureInterface.reportResult(TestResultPtr(testResult));
+        reportResult(testResult);
         m_description.clear();
         testResult = createDefaultResult();
         testResult->setResult(Result::MessageInternal);
         testResult->setDescription(tr("Execution took %1.").arg(testSetSuccess.cap(2)));
-        m_futureInterface.reportResult(TestResultPtr(testResult));
+        reportResult(testResult);
         m_futureInterface.setProgressValue(m_futureInterface.progressValue() + 1);
     } else if (testSetFail.exactMatch(line)) {
-        GTestResult *testResult = createDefaultResult();
+        TestResultPtr testResult = createDefaultResult();
         testResult->setResult(Result::Fail);
         m_description.chop(1);
         testResult->setDescription(m_description);
@@ -150,96 +163,40 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
                 }
             }
         }
-        m_futureInterface.reportResult(TestResultPtr(testResult));
+        reportResult(testResult);
         m_description.clear();
         testResult = createDefaultResult();
         testResult->setResult(Result::MessageInternal);
         testResult->setDescription(tr("Execution took %1.").arg(testSetFail.cap(2)));
-        m_futureInterface.reportResult(TestResultPtr(testResult));
+        reportResult(testResult);
         m_futureInterface.setProgressValue(m_futureInterface.progressValue() + 1);
     }
 }
 
-void GTestOutputReader::setCurrentTestSet(const QString &testSet)
+TestResultPtr GTestOutputReader::createDefaultResult() const
 {
-    m_currentTestSet = testSet;
-    m_normalizedCurrentTestSet = normalizeName(testSet);
-}
-
-void GTestOutputReader::setCurrentTestName(const QString &testName)
-{
-    m_currentTestName = testName;
-    m_normalizedTestName = normalizeTestName(testName);
-}
-
-QString GTestOutputReader::normalizeName(const QString &name) const
-{
-    static QRegExp parameterIndex("/\\d+");
-
-    QString nameWithoutParameterIndices = name;
-    nameWithoutParameterIndices.remove(parameterIndex);
-
-    return nameWithoutParameterIndices.split('/').last();
-}
-
-QString GTestOutputReader::normalizeTestName(const QString &testname) const
-{
-    QString nameWithoutTypeParam = testname.split(',').first();
-
-    return normalizeName(nameWithoutTypeParam);
-}
-
-GTestResult *GTestOutputReader::createDefaultResult() const
-{
-    GTestResult *result = new GTestResult(m_executable, m_currentTestName);
+    GTestResult *result = new GTestResult(m_executable, m_projectFile, m_currentTestName);
     result->setTestSetName(m_currentTestSet);
     result->setIteration(m_iteration);
 
-    const TestTreeItem *testItem = findTestTreeItemForCurrentLine();
+    const TestTreeItem *testItem = result->findTestTreeItem();
+
     if (testItem && testItem->line()) {
         result->setFileName(testItem->filePath());
         result->setLine(static_cast<int>(testItem->line()));
     }
 
-    return result;
+    return TestResultPtr(result);
 }
 
-const TestTreeItem *GTestOutputReader::findTestTreeItemForCurrentLine() const
+void GTestOutputReader::setCurrentTestSet(const QString &testSet)
 {
-    const auto item = TestTreeModel::instance()->findNonRooItem([&](const Utils::TreeItem *item) {
-        const TestTreeItem &treeItem = static_cast<const TestTreeItem &>(*item);
-        return matches(treeItem);
-    });
-
-    return static_cast<const TestTreeItem *>(item);
+    m_currentTestSet = testSet;
 }
 
-bool GTestOutputReader::matches(const TestTreeItem &treeItem) const
+void GTestOutputReader::setCurrentTestName(const QString &testName)
 {
-    if (treeItem.proFile() != m_projectFile)
-        return false;
-
-    if (m_currentTestSet.isEmpty())
-        return matchesTestCase(treeItem);
-
-    return matchesTestFunctionOrSet(treeItem);
-}
-
-bool GTestOutputReader::matchesTestFunctionOrSet(const TestTreeItem &treeItem) const
-{
-    if (treeItem.type() != TestTreeItem::TestFunctionOrSet)
-        return false;
-
-    const QString testItemTestSet = treeItem.parentItem()->name() + '.' + treeItem.name();
-    return testItemTestSet == m_normalizedCurrentTestSet;
-}
-
-bool GTestOutputReader::matchesTestCase(const TestTreeItem &treeItem) const
-{
-    if (treeItem.type() != TestTreeItem::TestCase)
-        return false;
-
-    return treeItem.name() == m_normalizedTestName;
+    m_currentTestName = testName;
 }
 
 } // namespace Internal

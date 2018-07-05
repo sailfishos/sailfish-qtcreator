@@ -25,6 +25,7 @@ Project {
         Depends { name: "ProjectExplorer" }
         Depends { name: "LanguageUtils" }
         Depends { name: "QtSupport" }
+        Depends { name: "app_version_header" }
 
         cpp.defines: base.concat("DESIGNER_CORE_LIBRARY")
         cpp.enableExceptions: true
@@ -279,6 +280,8 @@ Project {
                 "include/subcomponentmanager.h",
                 "include/textmodifier.h",
                 "include/variantproperty.h",
+                "include/qmltimelinekeyframes.h",
+                "include/qmltimelinemutator.h",
                 "instances/nodeinstance.cpp",
                 "instances/nodeinstanceserverproxy.cpp",
                 "instances/nodeinstanceserverproxy.h",
@@ -356,6 +359,8 @@ Project {
                 "model/texttomodelmerger.h",
                 "model/variantproperty.cpp",
                 "model/viewmanager.cpp",
+                "model/qmltimelinekeyframes.cpp",
+                "model/qmltimelinemutator.cpp",
                 "pluginmanager/widgetpluginmanager.cpp",
                 "pluginmanager/widgetpluginmanager.h",
                 "pluginmanager/widgetpluginpath.cpp",
@@ -550,7 +555,6 @@ Project {
                 "propertyeditor/fileresourcesmodel.h",
                 "propertyeditor/gradientmodel.cpp",
                 "propertyeditor/gradientmodel.h",
-                "propertyeditor/propertyeditor.qrc",
                 "propertyeditor/propertyeditorcontextobject.cpp",
                 "propertyeditor/propertyeditorcontextobject.h",
                 "propertyeditor/propertyeditortransaction.cpp",

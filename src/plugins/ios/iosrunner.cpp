@@ -26,7 +26,6 @@
 #include "iosbuildstep.h"
 #include "iosconfigurations.h"
 #include "iosdevice.h"
-#include "iosmanager.h"
 #include "iosrunconfiguration.h"
 #include "iosrunner.h"
 #include "iossimulator.h"
@@ -48,6 +47,7 @@
 
 #include <utils/fileutils.h>
 #include <utils/qtcprocess.h>
+#include <utils/url.h>
 #include <utils/utilsicons.h>
 
 #include <QDateTime>
@@ -270,7 +270,7 @@ void IosRunner::handleGotInferiorPid(IosToolHandler *handler, const QString &bun
     if (prerequisiteOk)
         reportStarted();
     else
-        reportFailure(tr("Could not get necessary ports the debugger connection."));
+        reportFailure(tr("Could not get necessary ports for the debugger connection."));
 }
 
 void IosRunner::handleAppOutput(IosToolHandler *handler, const QString &output)
@@ -406,6 +406,7 @@ void IosQmlProfilerSupport::start()
     QTcpServer server;
     QTC_ASSERT(server.listen(QHostAddress::LocalHost)
                || server.listen(QHostAddress::LocalHostIPv6), return);
+    serverUrl.setScheme(Utils::urlTcpScheme());
     serverUrl.setHost(server.serverAddress().toString());
 
     Port qmlPort = m_runner->qmlServerPort();
@@ -440,11 +441,10 @@ void IosDebugSupport::start()
 
     RunConfiguration *runConfig = runControl()->runConfiguration();
 
-    DebuggerStartParameters params;
     if (device()->type() == Ios::Constants::IOS_DEVICE_TYPE) {
         IosDevice::ConstPtr dev = device().dynamicCast<const IosDevice>();
-        params.startMode = AttachToRemoteProcess;
-        params.platform = "remote-ios";
+        setStartMode(AttachToRemoteProcess);
+        setIosPlatform("remote-ios");
         QString osVersion = dev->osVersion();
         FileName deviceSdk1 = FileName::fromString(QDir::homePath()
                                              + "/Library/Developer/Xcode/iOS DeviceSupport/"
@@ -467,46 +467,31 @@ void IosDebugSupport::start()
                                  ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
             }
         }
-        params.deviceSymbolsRoot = deviceSdk;
+        setDeviceSymbolsRoot(deviceSdk);
     } else {
-        params.startMode = AttachExternal;
-        params.platform = "ios-simulator";
+        setStartMode(AttachExternal);
+        setIosPlatform("ios-simulator");
     }
 
     auto iosRunConfig = qobject_cast<IosRunConfiguration *>(runConfig);
-    params.displayName = iosRunConfig->applicationName();
-    params.continueAfterAttach = true;
+    setRunControlName(iosRunConfig->applicationName());
+    setContinueAfterAttach(true);
 
     Utils::Port gdbServerPort = m_runner->gdbServerPort();
     Utils::Port qmlServerPort = m_runner->qmlServerPort();
-    params.attachPID = ProcessHandle(m_runner->pid());
+    setAttachPid(ProcessHandle(m_runner->pid()));
 
     const bool cppDebug = isCppDebugging();
     const bool qmlDebug = isQmlDebugging();
     if (cppDebug) {
-        params.inferior.executable = iosRunConfig->localExecutable().toString();
-        params.remoteChannel = "connect://localhost:" + gdbServerPort.toString();
+        setInferiorExecutable(iosRunConfig->localExecutable().toString());
+        setRemoteChannel("connect://localhost:" + gdbServerPort.toString());
 
-        FileName xcodeInfo = IosConfigurations::developerPath().parentDir().appendPath("Info.plist");
-        bool buggyLldb = false;
-        if (xcodeInfo.exists()) {
-            QSettings settings(xcodeInfo.toString(), QSettings::NativeFormat);
-            QStringList version = settings.value(QLatin1String("CFBundleShortVersionString")).toString()
-                    .split('.');
-            if (version.value(0).toInt() == 5 && version.value(1, QString::number(1)).toInt() == 0)
-                buggyLldb = true;
-        }
         QString bundlePath = iosRunConfig->bundleDirectory().toString();
         bundlePath.chop(4);
         FileName dsymPath = FileName::fromString(bundlePath.append(".dSYM"));
-        if (!dsymPath.exists()) {
-            if (buggyLldb)
-                TaskHub::addTask(Task::Warning,
-                                 tr("Debugging with Xcode 5.0.x can be unreliable without a dSYM. "
-                                    "To create one, add a dsymutil deploystep."),
-                                 ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
-        } else if (dsymPath.toFileInfo().lastModified()
-                   < QFileInfo(iosRunConfig->localExecutable().toUserOutput()).lastModified()) {
+        if (dsymPath.exists() && dsymPath.toFileInfo().lastModified()
+                < QFileInfo(iosRunConfig->localExecutable().toUserOutput()).lastModified()) {
             TaskHub::addTask(Task::Warning,
                              tr("The dSYM %1 seems to be outdated, it might confuse the debugger.")
                              .arg(dsymPath.toUserOutput()),
@@ -514,21 +499,20 @@ void IosDebugSupport::start()
         }
     }
 
+    QUrl qmlServer;
     if (qmlDebug) {
         QTcpServer server;
         QTC_ASSERT(server.listen(QHostAddress::LocalHost)
                    || server.listen(QHostAddress::LocalHostIPv6), return);
-        params.qmlServer.host = server.serverAddress().toString();
+        qmlServer.setHost(server.serverAddress().toString());
         if (!cppDebug)
-            params.startMode = AttachToRemoteServer;
+            setStartMode(AttachToRemoteServer);
     }
 
-    if (qmlServerPort.isValid()) {
-        params.qmlServer.port = qmlServerPort;
-        params.inferior.commandLineArguments.replace("%qml_port%", qmlServerPort.toString());
-    }
+    if (qmlServerPort.isValid())
+        qmlServer.setPort(qmlServerPort.number());
 
-    setStartParameters(params);
+    setQmlServer(qmlServer);
 
     DebuggerRunTool::start();
 }

@@ -29,7 +29,7 @@
 
 namespace ClangBackEnd {
 
-ClangQueryGatherer::ClangQueryGatherer(StringCache<Utils::PathString, std::mutex> *filePathCache,
+ClangQueryGatherer::ClangQueryGatherer(FilePathCachingInterface *filePathCache,
                                        std::vector<V2::FileContainer> &&sources,
                                        std::vector<V2::FileContainer> &&unsaved,
                                        Utils::SmallString &&query)
@@ -43,17 +43,17 @@ ClangQueryGatherer::ClangQueryGatherer(StringCache<Utils::PathString, std::mutex
 
 SourceRangesForQueryMessage
 ClangQueryGatherer::createSourceRangesForSource(
-        StringCache<Utils::PathString, std::mutex> *filePathCache,
+        FilePathCachingInterface *filePathCache,
         V2::FileContainer &&source,
         const std::vector<V2::FileContainer> &unsaved,
         Utils::SmallString &&query)
 {
     ClangQuery clangQuery(*filePathCache, std::move(query));
 
-    clangQuery.addFile(source.filePath().directory(),
-                       source.filePath().name(),
-                       source.takeUnsavedFileContent(),
-                       source.takeCommandLineArguments());
+    clangQuery.addFile(std::string(source.filePath().directory()),
+                       std::string(source.filePath().name()),
+                       std::string(source.takeUnsavedFileContent()),
+                       std::vector<std::string>(source.takeCommandLineArguments()));
 
     clangQuery.addUnsavedFiles(unsaved);
 

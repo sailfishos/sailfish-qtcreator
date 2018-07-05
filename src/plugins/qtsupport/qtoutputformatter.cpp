@@ -27,6 +27,8 @@
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
+
+#include <utils/algorithm.h>
 #include <utils/ansiescapecodehandler.h>
 #include <utils/fileinprojectfinder.h>
 #include <utils/theme/theme.h>
@@ -42,10 +44,6 @@ using namespace Utils;
 
 namespace QtSupport {
 
-// Prefix added by the default QT_MESSAGE_PATTERN on Sailfish
-#define SAILFISH_PREFIX_REGEXP \
-    "(?:\\[[DIWCF]\\] [^\\s]+ - )"
-
 // "file" or "qrc", colon, optional '//', '/' and further characters
 #define QML_URL_REGEXP \
     "(?:file|qrc):(?://)?/.+"
@@ -56,10 +54,10 @@ class QtOutputFormatterPrivate
 {
 public:
     QtOutputFormatterPrivate(Project *proj)
-        : qmlError(QLatin1String("^" SAILFISH_PREFIX_REGEXP "(" QML_URL_REGEXP    // url
-                                   ":\\d+"           // colon, line
-                                   "(?::\\d+)?)"     // colon, column (optional)
-                                   "[: \t]"))        // colon, space or tab
+        : qmlError(QLatin1String("(" QML_URL_REGEXP    // url
+                                  ":\\d+"           // colon, line
+                                  "(?::\\d+)?)"     // colon, column (optional)
+                                  "[: \t]"))        // colon, space or tab
         , qtError(QLatin1String("Object::.*in (.*:\\d+)"))
         , qtAssert(QLatin1String("ASSERT: .* in file (.+, line \\d+)"))
         , qtAssertX(QLatin1String("ASSERT failure in .*: \".*\", file (.+, line \\d+)"))
@@ -89,7 +87,7 @@ QtOutputFormatter::QtOutputFormatter(Project *project)
     : d(new Internal::QtOutputFormatterPrivate(project))
 {
     if (project) {
-        d->projectFinder.setProjectFiles(project->files(Project::SourceFiles));
+        d->projectFinder.setProjectFiles(Utils::transform(project->files(Project::SourceFiles), &Utils::FileName::toString));
         d->projectFinder.setProjectDirectory(project->projectDirectory().toString());
 
         connect(project, &Project::fileListChanged,
@@ -283,7 +281,7 @@ void QtOutputFormatter::openEditor(const QString &fileName, int line, int column
 void QtOutputFormatter::updateProjectFileList()
 {
     if (d->project)
-        d->projectFinder.setProjectFiles(d->project.data()->files(Project::SourceFiles));
+        d->projectFinder.setProjectFiles(transform(d->project->files(Project::SourceFiles), &FileName::toString));
 }
 
 } // namespace QtSupport

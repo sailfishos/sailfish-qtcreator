@@ -32,9 +32,8 @@
 #include <QAbstractItemModel>
 #include <QFileInfo>
 #include <QMutexLocker>
-#include <QRegExp>
+#include <QRegularExpression>
 
-using namespace Core;
 using namespace Core;
 using namespace Core::Internal;
 using namespace Utils;
@@ -43,7 +42,7 @@ OpenDocumentsFilter::OpenDocumentsFilter()
 {
     setId("Open documents");
     setDisplayName(tr("Open Documents"));
-    setShortcutString(QString(QLatin1Char('o')));
+    setShortcutString("o");
     setPriority(High);
     setIncludedByDefault(true);
 
@@ -61,24 +60,26 @@ QList<LocatorFilterEntry> OpenDocumentsFilter::matchesFor(QFutureInterface<Locat
     QList<LocatorFilterEntry> goodEntries;
     QList<LocatorFilterEntry> betterEntries;
     const EditorManager::FilePathInfo fp = EditorManager::splitLineAndColumnNumber(entry);
-    QRegExp regexp(fp.filePath, caseSensitivity(fp.filePath), QRegExp::Wildcard);
+
+    const QRegularExpression regexp = createRegExp(fp.filePath);
     if (!regexp.isValid())
         return goodEntries;
 
-    foreach (const Entry &editorEntry, editors()) {
+    const QList<Entry> editorEntries = editors();
+    for (const Entry &editorEntry : editorEntries) {
         if (future.isCanceled())
             break;
         QString fileName = editorEntry.fileName.toString();
         if (fileName.isEmpty())
             continue;
         QString displayName = editorEntry.displayName;
-        const int index = regexp.indexIn(displayName);
-        if (index >= 0) {
+        const QRegularExpressionMatch match = regexp.match(displayName);
+        if (match.hasMatch()) {
             LocatorFilterEntry filterEntry(this, displayName, QString(fileName + fp.postfix));
             filterEntry.extraInfo = FileUtils::shortNativePath(FileName::fromString(fileName));
             filterEntry.fileName = fileName;
-            filterEntry.highlightInfo = {index, regexp.matchedLength()};
-            if (index == 0)
+            filterEntry.highlightInfo = highlightInfo(match);
+            if (match.capturedStart() == 0)
                 betterEntries.append(filterEntry);
             else
                 goodEntries.append(filterEntry);
@@ -92,7 +93,8 @@ void OpenDocumentsFilter::refreshInternally()
 {
     QMutexLocker lock(&m_mutex); Q_UNUSED(lock)
     m_editors.clear();
-    foreach (DocumentModel::Entry *e, DocumentModel::entries()) {
+    const QList<DocumentModel::Entry *> documentEntries = DocumentModel::entries();
+    for (DocumentModel::Entry *e : documentEntries) {
         Entry entry;
         // create copy with only the information relevant to use
         // to avoid model deleting entries behind our back

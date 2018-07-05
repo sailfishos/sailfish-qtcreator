@@ -25,7 +25,6 @@
 
 #include "iosrunconfiguration.h"
 #include "iosconstants.h"
-#include "iosmanager.h"
 #include "iosdeploystep.h"
 #include "simulatorcontrol.h"
 
@@ -94,65 +93,26 @@ private:
     QComboBox *m_deviceTypeComboBox;
 };
 
-IosRunConfiguration::IosRunConfiguration(Target *parent, Core::Id id, const FileName &path)
-    : RunConfiguration(parent, id)
-    , m_profilePath(path)
+IosRunConfiguration::IosRunConfiguration(Target *target)
+    : RunConfiguration(target, Constants::IOS_RC_ID_PREFIX)
 {
-    addExtraAspect(new ArgumentsAspect(this, QLatin1String("Ios.run_arguments")));
-    init();
-}
+    addExtraAspect(new ArgumentsAspect(this, "Ios.run_arguments"));
 
-IosRunConfiguration::IosRunConfiguration(Target *parent, IosRunConfiguration *source)
-    : RunConfiguration(parent, source)
-    , m_profilePath(source->m_profilePath)
-{
-    init();
-}
-
-void IosRunConfiguration::init()
-{
-    QmakeProject *project = static_cast<QmakeProject *>(target()->project());
-    m_parseSuccess = project->validParse(m_profilePath);
-    m_parseInProgress = project->parseInProgress(m_profilePath);
-    m_lastIsEnabled = isEnabled();
-    m_lastDisabledReason = disabledReason();
-    updateDisplayNames();
     connect(DeviceManager::instance(), &DeviceManager::updated,
             this, &IosRunConfiguration::deviceChanges);
     connect(KitManager::instance(), &KitManager::kitsChanged,
             this, &IosRunConfiguration::deviceChanges);
-    connect(project, &QmakeProject::proFileUpdated,
-            this, &IosRunConfiguration::proFileUpdated);
 }
 
-void IosRunConfiguration::enabledCheck()
+QString IosRunConfiguration::extraId() const
 {
-    bool newIsEnabled = isEnabled();
-    QString newDisabledReason = disabledReason();
-    if (newDisabledReason != m_lastDisabledReason || newIsEnabled != m_lastIsEnabled) {
-        m_lastDisabledReason = newDisabledReason;
-        m_lastIsEnabled = newIsEnabled;
-        emit enabledChanged();
-    }
+    return m_profilePath.toString();
 }
 
-void IosRunConfiguration::deviceChanges() {
+void IosRunConfiguration::deviceChanges()
+{
     updateDisplayNames();
-    enabledCheck();
-}
-
-void IosRunConfiguration::proFileUpdated(QmakeProFile *pro, bool success,
-                                         bool parseInProgress)
-{
-    if (m_profilePath != pro->filePath())
-        return;
-    m_parseSuccess = success;
-    m_parseInProgress = parseInProgress;
-    if (success && !parseInProgress) {
-        updateDisplayNames();
-        emit localExecutableChanged();
-    }
-    enabledCheck();
+    updateEnabledState();
 }
 
 QWidget *IosRunConfiguration::createConfigurationWidget()
@@ -180,6 +140,21 @@ void IosRunConfiguration::updateDisplayNames()
     const QString devName = dev.isNull() ? IosDevice::name() : dev->displayName();
     setDefaultDisplayName(tr("Run on %1").arg(devName));
     setDisplayName(tr("Run %1 on %2").arg(applicationName()).arg(devName));
+}
+
+void IosRunConfiguration::updateEnabledState()
+{
+    Core::Id devType = DeviceTypeKitInformation::deviceTypeId(target()->kit());
+    if (devType != Constants::IOS_DEVICE_TYPE && devType != Constants::IOS_SIMULATOR_TYPE) {
+        setEnabled(false);
+        return;
+    }
+    IDevice::ConstPtr dev = DeviceKitInformation::device(target()->kit());
+    if (dev.isNull() || dev->deviceState() != IDevice::DeviceReadyToUse) {
+        setEnabled(false);
+        return;
+    }
+    return RunConfiguration::updateEnabledState();
 }
 
 IosDeployStep *IosRunConfiguration::deployStep() const
@@ -264,6 +239,12 @@ FileName IosRunConfiguration::localExecutable() const
 
 bool IosRunConfiguration::fromMap(const QVariantMap &map)
 {
+    if (!RunConfiguration::fromMap(map))
+        return false;
+
+    QString extraId = idFromMap(map).suffixAfter(id());
+    m_profilePath = Utils::FileName::fromString(extraId);
+
     bool deviceTypeIsInt;
     map.value(deviceTypeKey).toInt(&deviceTypeIsInt);
     if (deviceTypeIsInt || !m_deviceType.fromMap(map.value(deviceTypeKey).toMap())) {
@@ -272,7 +253,9 @@ bool IosRunConfiguration::fromMap(const QVariantMap &map)
         else
             m_deviceType = IosDeviceType(IosDeviceType::SimulatedDevice);
     }
-    return RunConfiguration::fromMap(map);
+
+    updateDisplayNames();
+    return true;
 }
 
 QVariantMap IosRunConfiguration::toMap() const
@@ -284,29 +267,11 @@ QVariantMap IosRunConfiguration::toMap() const
 
 QString IosRunConfiguration::buildSystemTarget() const
 {
-    return static_cast<QmakeProject *>(target()->project())->mapProFilePathToTarget(m_profilePath);
-}
-
-bool IosRunConfiguration::isEnabled() const
-{
-    if (m_parseInProgress || !m_parseSuccess)
-        return false;
-    Core::Id devType = DeviceTypeKitInformation::deviceTypeId(target()->kit());
-    if (devType != Constants::IOS_DEVICE_TYPE && devType != Constants::IOS_SIMULATOR_TYPE)
-        return false;
-    IDevice::ConstPtr dev = DeviceKitInformation::device(target()->kit());
-    if (dev.isNull() || dev->deviceState() != IDevice::DeviceReadyToUse)
-        return false;
-    return RunConfiguration::isEnabled();
+    return m_profilePath.toString();
 }
 
 QString IosRunConfiguration::disabledReason() const
 {
-    if (m_parseInProgress)
-        return tr("The .pro file \"%1\" is currently being parsed.").arg(m_profilePath.fileName());
-    if (!m_parseSuccess)
-        return static_cast<QmakeProject *>(target()->project())
-                ->disabledReasonForRunConfiguration(m_profilePath);
     Core::Id devType = DeviceTypeKitInformation::deviceTypeId(target()->kit());
     if (devType != Constants::IOS_DEVICE_TYPE && devType != Constants::IOS_SIMULATOR_TYPE)
         return tr("Kit has incorrect device type for running on iOS devices.");

@@ -125,9 +125,26 @@ class Dumper(DumperBase):
 
     def fromNativeValue(self, nativeValue):
         self.check(isinstance(nativeValue, lldb.SBValue))
-        nativeValue.SetPreferSyntheticValue(False)
         nativeType = nativeValue.GetType()
+        typeName = nativeType.GetName()
         code = nativeType.GetTypeClass()
+
+        # Display the result of GetSummary() for Core Foundation string
+        # and string-like types.
+        summary = None
+        if self.useFancy:
+            if (typeName.startswith('CF')
+                    or typeName.startswith('__CF')
+                    or typeName.startswith('NS')
+                    or typeName.startswith('__NSCF')):
+                if code == lldb.eTypeClassPointer:
+                    summary = nativeValue.Dereference().GetSummary()
+                elif code == lldb.eTypeClassReference:
+                    summary = nativeValue.Dereference().GetSummary()
+                else:
+                    summary = nativeValue.GetSummary()
+
+        nativeValue.SetPreferSyntheticValue(False)
 
         if code == lldb.eTypeClassReference:
             nativeTargetType = nativeType.GetDereferencedType()
@@ -196,6 +213,7 @@ class Dumper(DumperBase):
             #elif code == lldb.eTypeClassVector:
             #    val.type.ltarget = self.fromNativeType(nativeType.GetVectorElementType())
 
+        val.summary = summary
         val.lIsInScope = nativeValue.IsInScope()
         val.name = nativeValue.GetName()
         return val
@@ -756,6 +774,9 @@ class Dumper(DumperBase):
             if typeobj is not None:
                 return typeobj
 
+        return self.lookupNativeTypeInAllModules(name)
+
+    def lookupNativeTypeInAllModules(self, name):
         needle = self.canonicalTypeName(name)
         #warn('NEEDLE: %s ' % needle)
         warn('Searching for type %s across all target modules, this could be very slow' % name)
@@ -887,7 +908,10 @@ class Dumper(DumperBase):
         elif self.startMode_ == AttachCore:
             coreFile = args.get('coreFile', '');
             self.process = self.target.LoadCore(coreFile)
-            self.reportState('enginerunokandinferiorunrunnable')
+            if self.process.IsValid():
+                self.reportState('enginerunokandinferiorunrunnable')
+            else:
+                self.reportState('enginerunfailed')
         else:
             launchInfo = lldb.SBLaunchInfo(self.processArgs_)
             launchInfo.SetWorkingDirectory(self.workingDirectory_)
@@ -1130,7 +1154,7 @@ class Dumper(DumperBase):
         #    values = [frame.FindVariable(partialVariable)]
         #else:
         if True:
-            values = list(frame.GetVariables(True, True, False, False))
+            values = list(frame.GetVariables(True, True, False, True))
             values.reverse() # To get shadowed vars numbered backwards.
 
         variables = []
@@ -1490,17 +1514,15 @@ class Dumper(DumperBase):
 
     def shutdownInferior(self, args):
         self.isShuttingDown_ = True
-        if self.process is None:
-            self.reportState('inferiorshutdownok')
-        else:
+        if self.process is not None:
             state = self.process.GetState()
             if state == lldb.eStateStopped:
                 self.process.Kill()
-            self.reportState('inferiorshutdownok')
+        self.reportState('inferiorshutdownfinished')
         self.reportResult('', args)
 
     def quit(self, args):
-        self.reportState('engineshutdownok')
+        self.reportState('engineshutdownfinished')
         self.process.Kill()
         self.reportResult('', args)
 
@@ -1859,6 +1881,10 @@ class SummaryDumper(Dumper, LogMixin):
 
     def report(self, stuff):
         return # Don't mess up lldb output
+
+    def lookupNativeTypeInAllModules(self, name):
+        warn('Failed to resolve type %s' % name)
+        return None
 
     def dump_summary(self, valobj, expanded = False):
         try:

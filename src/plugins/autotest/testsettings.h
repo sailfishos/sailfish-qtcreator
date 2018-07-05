@@ -48,7 +48,9 @@ struct TestSettings
     bool limitResultOutput = true;
     bool autoScroll = true;
     bool filterScan = false;
+    bool processArgs = false;
     QHash<Core::Id, bool> frameworks;
+    QHash<Core::Id, bool> frameworksGrouping;
     QStringList whiteListFilters;
 };
 

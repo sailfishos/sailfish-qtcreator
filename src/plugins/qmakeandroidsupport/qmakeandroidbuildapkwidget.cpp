@@ -30,26 +30,20 @@
 
 #include <android/androidbuildapkwidget.h>
 #include <android/androidmanager.h>
-#include <qmakeprojectmanager/qmakenodes.h>
-#include <qmakeprojectmanager/qmakeproject.h>
+
+#include <projectexplorer/project.h>
 
 #include <utils/utilsicons.h>
 
 #include <QFileDialog>
 #include <QLabel>
 
-using QmakeProjectManager::QmakeProject;
-using QmakeProjectManager::QmakeProFileNode;
-
 namespace QmakeAndroidSupport {
 namespace Internal {
 
-QmakeAndroidBuildApkWidget::QmakeAndroidBuildApkWidget(QmakeAndroidBuildApkStep *step) :
-    ProjectExplorer::BuildStepConfigWidget(),
+QmakeAndroidBuildApkWidget::QmakeAndroidBuildApkWidget(Android::AndroidBuildApkStep *step) :
     m_ui(new Ui::QmakeAndroidBuildApkWidget),
-    m_step(step),
-    m_extraLibraryListModel(0),
-    m_ignoreChange(false)
+    m_step(step)
 {
     QVBoxLayout *topLayout = new QVBoxLayout;
 

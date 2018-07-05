@@ -67,7 +67,7 @@ public:
 
     void setQtVersion(ProjectPart::QtVersion qtVersion);
 
-    void setDefines(const QByteArray &defines);
+    void setMacros(const ProjectExplorer::Macros &macros);
     void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
     void setIncludePaths(const QStringList &includePaths);
 
@@ -78,6 +78,7 @@ public:
     void setFlagsForC(const RawProjectPartFlags &flags);
     void setFlagsForCxx(const RawProjectPartFlags &flags);
 
+    void setBuildTargetType(ProjectPart::BuildTargetType type);
 public:
     QString displayName;
     QString projectFile;
@@ -88,7 +89,7 @@ public:
     QString buildSystemTarget;
     QStringList precompiledHeaders;
     ProjectPartHeaderPaths headerPaths;
-    QByteArray projectDefines;
+    ProjectExplorer::Macros projectMacros;
     ProjectPart::QtVersion qtVersion = ProjectPart::UnknownQt;
     bool selectedForBuilding = true;
 
@@ -97,6 +98,7 @@ public:
 
     QStringList files;
     FileClassifier fileClassifier;
+    ProjectPart::BuildTargetType buildTargetType = ProjectPart::BuildTargetType::Unknown;
 };
 
 using RawProjectParts = QVector<RawProjectPart>;

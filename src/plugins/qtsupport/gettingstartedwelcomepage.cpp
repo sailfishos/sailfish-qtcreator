@@ -27,7 +27,6 @@
 
 #include "exampleslistmodel.h"
 #include "screenshotcropper.h"
-#include "copytolocationdialog.h"
 
 #include <utils/fileutils.h>
 #include <utils/pathchooser.h>
@@ -100,24 +99,56 @@ Id ExamplesWelcomePage::id() const
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
+    QDialog d(ICore::mainWindow());
+    QGridLayout *lay = new QGridLayout(&d);
+    QLabel *descrLbl = new QLabel;
+    d.setWindowTitle(tr("Copy Project to writable Location?"));
+    descrLbl->setTextFormat(Qt::RichText);
+    descrLbl->setWordWrap(false);
+    const QString nativeProjectDir = QDir::toNativeSeparators(projectDir);
+    descrLbl->setText(QString::fromLatin1("<blockquote>%1</blockquote>").arg(nativeProjectDir));
+    descrLbl->setMinimumWidth(descrLbl->sizeHint().width());
+    descrLbl->setWordWrap(true);
+    descrLbl->setText(tr("<p>The project you are about to open is located in the "
+                         "write-protected location:</p><blockquote>%1</blockquote>"
+                         "<p>Please select a writable location below and click \"Copy Project and Open\" "
+                         "to open a modifiable copy of the project or click \"Keep Project and Open\" "
+                         "to open the project in location.</p><p><b>Note:</b> You will not "
+                         "be able to alter or compile your project in the current location.</p>")
+                      .arg(nativeProjectDir));
+    lay->addWidget(descrLbl, 0, 0, 1, 2);
+    QLabel *txt = new QLabel(tr("&Location:"));
+    PathChooser *chooser = new PathChooser;
+    txt->setBuddy(chooser);
+    chooser->setExpectedKind(PathChooser::ExistingDirectory);
+    chooser->setHistoryCompleter(QLatin1String("Qt.WritableExamplesDir.History"));
     QSettings *settings = ICore::settings();
-    CopyToLocationDialog d(ICore::mainWindow());
-    d.setSourcePath(projectDir);
-    d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                         DocumentManager::projectsDirectory()).toString());
-
-    while (QDialog::Accepted == d.exec()) {
+    chooser->setPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
+                                     DocumentManager::projectsDirectory().toString()).toString());
+    lay->addWidget(txt, 1, 0);
+    lay->addWidget(chooser, 1, 1);
+    enum { Copy = QDialog::Accepted + 1, Keep = QDialog::Accepted + 2 };
+    QDialogButtonBox *bb = new QDialogButtonBox;
+    QPushButton *copyBtn = bb->addButton(tr("&Copy Project and Open"), QDialogButtonBox::AcceptRole);
+    connect(copyBtn, &QAbstractButton::released, &d, [&d] { d.done(Copy); });
+    copyBtn->setDefault(true);
+    QPushButton *keepBtn = bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
+    connect(keepBtn, &QAbstractButton::released, &d, [&d] { d.done(Keep); });
+    lay->addWidget(bb, 2, 0, 1, 2);
+    connect(chooser, &PathChooser::validChanged, copyBtn, &QWidget::setEnabled);
+    int code = d.exec();
+    if (code == Copy) {
         QString exampleDirName = proFileInfo.dir().dirName();
-        QString destBaseDir = d.destinationPath();
+        QString destBaseDir = chooser->path();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way
             QMessageBox::warning(ICore::mainWindow(), tr("Cannot Use Location"),
-                                 tr("The specified location already contains \"%1\" directory. "
-                                    "Please specify a valid location.").arg(exampleDirName),
+                                 tr("The specified location already exists. "
+                                    "Please specify a valid location."),
                                  QMessageBox::Ok, QMessageBox::NoButton);
-            continue;
+            return QString();
         } else {
             QString error;
             QString targetDir = destBaseDir + QLatin1Char('/') + exampleDirName;
@@ -134,7 +165,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     if (!FileUtils::copyRecursively(FileName::fromString(dependency), targetFile,
                             &error)) {
                         QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                        continue;
+                        // do not fail, just warn;
                     }
                 }
 
@@ -142,11 +173,12 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                 return targetDir + QLatin1Char('/') + proFileInfo.fileName();
             } else {
                 QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                continue;
             }
 
         }
     }
+    if (code == Keep)
+        return proFileInfo.absoluteFilePath();
     return QString();
 }
 
@@ -168,7 +200,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     if (!proFileInfo.exists())
         return;
 
-#if 0
     // If the Qt is a distro Qt on Linux, it will not be writable, hence compilation will fail
     // Same if it is installed in non-writable location for other reasons
     const bool needsCopy = withNTFSPermissions<bool>([proFileInfo] {
@@ -178,7 +209,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
                 || !QFileInfo(pathInfo.path()).isWritable() /* shadow build directory */;
     });
     if (needsCopy)
-#endif
         proFile = copyToAlternativeLocation(proFileInfo, filesToOpen, item.dependencies);
 
     // don't try to load help and files if loading the help request is being cancelled
@@ -187,11 +217,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     ProjectExplorerPlugin::OpenProjectResult result = ProjectExplorerPlugin::openProject(proFile);
     if (result) {
         ICore::openFiles(filesToOpen);
-        if (result.project()->needsConfiguration()
-                && (!item.platforms.isEmpty() || !item.preferredFeatures.isEmpty())) {
-            result.project()->configureAsExampleProject(Core::Id::fromStringList(item.platforms),
-                                                        Core::Id::fromStringList(item.preferredFeatures));
-        }
         ModeManager::activateMode(Core::Constants::MODE_EDIT);
         QUrl docUrl = QUrl::fromUserInput(item.docUrl);
         if (docUrl.isValid())
@@ -232,18 +257,19 @@ public:
         QPalette pal;
         pal.setColor(QPalette::Base, themeColor(Theme::Welcome_BackgroundColor));
 
-        m_lineEdit = new QLineEdit;
+        m_lineEdit = new FancyLineEdit;
+        m_lineEdit->setFiltering(true);
         m_lineEdit->setFrame(false);
         m_lineEdit->setFont(sizedFont(14, this));
         m_lineEdit->setAttribute(Qt::WA_MacShowFocusRect, false);
         m_lineEdit->setPalette(pal);
 
         auto box = new QHBoxLayout(this);
-        box->setContentsMargins(15, 3, 15, 3);
+        box->setContentsMargins(10, 3, 3, 3);
         box->addWidget(m_lineEdit);
     }
 
-    QLineEdit *m_lineEdit;
+    FancyLineEdit *m_lineEdit;
 };
 
 class GridView : public QTableView
@@ -414,18 +440,17 @@ public:
             QRect pixmapRect = inner;
             if (!pm.isNull()) {
                 painter->setPen(foregroundColor2);
-                if (item.isVideo)
-                    pixmapRect = inner.adjusted(6, 10, -6, -25);
+                if (!m_showExamples)
+                    pixmapRect = inner.adjusted(6, 20, -6, -15);
                 QPoint pixmapPos = pixmapRect.center();
-                pixmapPos.rx() -= pm.width() / 2;
-                pixmapPos.ry() -= pm.height() / 2;
+                pixmapPos.rx() -= pm.width() / pm.devicePixelRatio() / 2;
+                pixmapPos.ry() -= pm.height() / pm.devicePixelRatio() / 2;
                 painter->drawPixmap(pixmapPos, pm);
                 if (item.isVideo) {
                     painter->setFont(sizedFont(13, option.widget));
-                    QRect lenRect(x, y + 120, w, 20);
                     QString videoLen = item.videoLength;
-                    lenRect = fm.boundingRect(lenRect, Qt::AlignHCenter, videoLen);
-                    painter->drawText(lenRect.adjusted(0, 0, 5, 0), videoLen);
+                    painter->drawText(pixmapRect.adjusted(0, 0, 0, painter->font().pixelSize() + 3),
+                                      videoLen, Qt::AlignBottom | Qt::AlignHCenter);
                 }
             } else {
                 // The description text as fallback.
@@ -536,6 +561,8 @@ public:
         return QAbstractItemDelegate::editorEvent(ev, model, option, idx);
     }
 
+    void setShowExamples(bool showExamples) { m_showExamples = showExamples; goon(); }
+
 signals:
     void tagClicked(const QString &tag);
 
@@ -551,6 +578,7 @@ private:
     mutable QPointer<QAbstractItemView> m_currentWidget;
     mutable QVector<QPair<QString, QRect>> m_currentTagRects;
     mutable QPixmapCache m_pixmapCache;
+    bool m_showExamples = true;
 };
 
 class ExamplesPageWidget : public QWidget
@@ -559,6 +587,7 @@ public:
     ExamplesPageWidget(bool isExamples)
         : m_isExamples(isExamples)
     {
+        m_exampleDelegate.setShowExamples(isExamples);
         const int sideMargin = 27;
         static ExamplesListModel *s_examplesModel = new ExamplesListModel(this);
         m_examplesModel = s_examplesModel;
@@ -573,7 +602,7 @@ public:
 
         auto hbox = new QHBoxLayout;
         if (m_isExamples) {
-            m_searcher->setPlaceholderText(tr("Search in Examples..."));
+            m_searcher->setPlaceholderText(ExamplesWelcomePage::tr("Search in Examples..."));
 
             auto exampleSetSelector = new QComboBox(this);
             exampleSetSelector->setMinimumWidth(itemWidth);
@@ -589,7 +618,7 @@ public:
             hbox->setSpacing(17);
             hbox->addWidget(exampleSetSelector);
         } else {
-            m_searcher->setPlaceholderText(tr("Search in Tutorials..."));
+            m_searcher->setPlaceholderText(ExamplesWelcomePage::tr("Search in Tutorials..."));
         }
         hbox->addWidget(searchBox);
         hbox->addSpacing(sideMargin);

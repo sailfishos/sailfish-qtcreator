@@ -34,17 +34,18 @@ class PchManagerConnectionClient  : public ClangBackEnd::ConnectionClient
 {
 public:
     PchManagerConnectionClient(ClangBackEnd::PchManagerClientInterface *client);
+    ~PchManagerConnectionClient();
 
     ClangBackEnd::PchManagerServerProxy &serverProxy();
 
 protected:
     void sendEndCommand() override;
     void resetCounter() override;
-    QString connectionName() const override;
     QString outputName() const override;
+    void newConnectedServer(QIODevice *ioDevice) override;
 
 private:
-    ClangBackEnd::PchManagerServerProxy serverProxy_;
+    ClangBackEnd::PchManagerServerProxy m_serverProxy;
 };
 
 } // namespace ClangPchManager

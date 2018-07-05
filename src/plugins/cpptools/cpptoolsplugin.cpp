@@ -57,6 +57,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projecttree.h>
 
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/macroexpander.h>
@@ -205,10 +206,10 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
     Utils::MacroExpander *expander = Utils::globalMacroExpander();
     expander->registerVariable("Cpp:LicenseTemplate",
                                tr("The license template."),
-                               [this]() { return CppToolsPlugin::licenseTemplate(); });
+                               []() { return CppToolsPlugin::licenseTemplate(); });
     expander->registerFileVariables("Cpp:LicenseTemplatePath",
                                     tr("The configured path to the license template"),
-                                    [this]() { return CppToolsPlugin::licenseTemplatePath().toString(); });
+                                    []() { return CppToolsPlugin::licenseTemplatePath().toString(); });
 
     return true;
 }
@@ -261,7 +262,8 @@ static QStringList findFilesInProject(const QString &name,
 
     QString pattern = QString(1, QLatin1Char('/'));
     pattern += name;
-    const QStringList projectFiles = project->files(ProjectExplorer::Project::AllFiles);
+    const QStringList projectFiles
+            = Utils::transform(project->files(ProjectExplorer::Project::AllFiles), &Utils::FileName::toString);
     const QStringList::const_iterator pcend = projectFiles.constEnd();
     QStringList candidateList;
     for (QStringList::const_iterator it = projectFiles.constBegin(); it != pcend; ++it) {
@@ -357,7 +359,8 @@ static int commonFilePathLength(const QString &s1, const QString &s2)
 
 static QString correspondingHeaderOrSourceInProject(const QFileInfo &fileInfo,
                                                     const QStringList &candidateFileNames,
-                                                    const ProjectExplorer::Project *project)
+                                                    const ProjectExplorer::Project *project,
+                                                    CacheUsage cacheUsage)
 {
     QString bestFileName;
     int compareValue = 0;
@@ -376,8 +379,10 @@ static QString correspondingHeaderOrSourceInProject(const QFileInfo &fileInfo,
     if (!bestFileName.isEmpty()) {
         const QFileInfo candidateFi(bestFileName);
         QTC_ASSERT(candidateFi.isFile(), return QString());
-        m_headerSourceMapping[fileInfo.absoluteFilePath()] = candidateFi.absoluteFilePath();
-        m_headerSourceMapping[candidateFi.absoluteFilePath()] = fileInfo.absoluteFilePath();
+        if (cacheUsage == CacheUsage::ReadWrite) {
+            m_headerSourceMapping[fileInfo.absoluteFilePath()] = candidateFi.absoluteFilePath();
+            m_headerSourceMapping[candidateFi.absoluteFilePath()] = fileInfo.absoluteFilePath();
+        }
         return candidateFi.absoluteFilePath();
     }
 
@@ -386,7 +391,7 @@ static QString correspondingHeaderOrSourceInProject(const QFileInfo &fileInfo,
 
 } // namespace Internal
 
-QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader)
+QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader, CacheUsage cacheUsage)
 {
     using namespace Internal;
 
@@ -437,9 +442,11 @@ QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader)
             const QString normalized = Utils::FileUtils::normalizePathName(candidateFilePath);
             const QFileInfo candidateFi(normalized);
             if (candidateFi.isFile()) {
-                m_headerSourceMapping[fi.absoluteFilePath()] = candidateFi.absoluteFilePath();
-                if (!isHeader || !baseName.endsWith(privateHeaderSuffix))
-                    m_headerSourceMapping[candidateFi.absoluteFilePath()] = fi.absoluteFilePath();
+                if (cacheUsage == CacheUsage::ReadWrite) {
+                    m_headerSourceMapping[fi.absoluteFilePath()] = candidateFi.absoluteFilePath();
+                    if (!isHeader || !baseName.endsWith(privateHeaderSuffix))
+                        m_headerSourceMapping[candidateFi.absoluteFilePath()] = fi.absoluteFilePath();
+                }
                 return candidateFi.absoluteFilePath();
             }
         }
@@ -449,7 +456,7 @@ QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader)
     ProjectExplorer::Project *currentProject = ProjectExplorer::ProjectTree::currentProject();
     if (currentProject) {
         const QString path = correspondingHeaderOrSourceInProject(fi, candidateFileNames,
-                                                                  currentProject);
+                                                                  currentProject, cacheUsage);
         if (!path.isEmpty())
             return path;
 
@@ -462,7 +469,8 @@ QString correspondingHeaderOrSource(const QString &fileName, bool *wasHeader)
             if (project == currentProject)
                 continue; // We have already checked the current project.
 
-            const QString path = correspondingHeaderOrSourceInProject(fi, candidateFileNames, project);
+            const QString path = correspondingHeaderOrSourceInProject(fi, candidateFileNames,
+                                                                      project, cacheUsage);
             if (!path.isEmpty())
                 return path;
         }

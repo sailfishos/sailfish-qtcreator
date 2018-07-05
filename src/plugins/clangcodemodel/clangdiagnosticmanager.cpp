@@ -33,11 +33,11 @@
 
 #include <cpptools/cpptoolsconstants.h>
 
-#include <texteditor/convenience.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditorsettings.h>
 
+#include <utils/textutils.h>
 #include <utils/fileutils.h>
 #include <utils/proxyaction.h>
 #include <utils/qtcassert.h>
@@ -64,8 +64,10 @@ int positionInText(QTextDocument *textDocument,
 {
     auto textBlock = textDocument->findBlockByNumber(
                 static_cast<int>(sourceLocationContainer.line()) - 1);
-    int column = static_cast<int>(sourceLocationContainer.column()) - 1;
-    column -= ClangCodeModel::Utils::extraUtf8CharsShift(textBlock.text(), column);
+    // 'sourceLocationContainer' already has the CppEditor column converted from
+    // the utf8 byte offset from the beginning of the line provided by clang.
+    // - 1 is required for 0-based columns.
+    const int column = static_cast<int>(sourceLocationContainer.column()) - 1;
     return textBlock.position() + column;
 }
 
@@ -176,7 +178,7 @@ void addErrorSelections(const QVector<ClangBackEnd::DiagnosticContainer> &diagno
 ClangBackEnd::SourceLocationContainer toSourceLocation(QTextDocument *textDocument, int position)
 {
     int line, column;
-    if (TextEditor::Convenience::convertPosition(textDocument, position, &line, &column))
+    if (Utils::Text::convertPosition(textDocument, position, &line, &column))
         return ClangBackEnd::SourceLocationContainer(Utf8String(), line, column);
 
     return ClangBackEnd::SourceLocationContainer();

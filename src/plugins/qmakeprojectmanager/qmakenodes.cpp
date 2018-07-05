@@ -38,35 +38,56 @@ using namespace Utils;
 
 namespace QmakeProjectManager {
 
+static QList<RunConfiguration *> qmakeRunConfigurationsForNode(Target *t, const Node *node)
+{
+    QList<RunConfiguration *> result;
+    QTC_ASSERT(t, return result);
+
+    const FileName file = node->filePath();
+    for (auto factory : IRunConfigurationFactory::allRunConfigurationFactories()) {
+        if (auto qmakeFactory = qobject_cast<QmakeRunConfigurationFactory *>(factory)) {
+            if (qmakeFactory->canHandle(t)) {
+                result.append(Utils::filtered(t->runConfigurations(), [qmakeFactory, file](RunConfiguration *rc) {
+                    return qmakeFactory->hasRunConfigForProFile(rc, file);
+                }));
+            }
+        }
+    }
+
+    return result;
+}
+
 /*!
   \class QmakePriFileNode
   Implements abstract ProjectNode class
   */
 
 QmakePriFileNode::QmakePriFileNode(QmakeProject *project, QmakeProFileNode *qmakeProFileNode,
-                                   const FileName &filePath) :
+                                   const FileName &filePath, QmakePriFile *pf) :
     ProjectNode(filePath),
     m_project(project),
-    m_qmakeProFileNode(qmakeProFileNode)
+    m_qmakeProFileNode(qmakeProFileNode),
+    m_qmakePriFile(pf)
 { }
 
 QmakePriFile *QmakePriFileNode::priFile() const
 {
+    if (!m_project->isParsing())
+        return m_qmakePriFile;
+    // During a parsing run the qmakePriFile tree will change, so search for the PriFile and
+    // do not depend on the cached value.
     return m_project->rootProFile()->findPriFile(filePath());
 }
 
 bool QmakePriFileNode::deploysFolder(const QString &folder) const
 {
-    QmakePriFile *pri = priFile();
+    const QmakePriFile *pri = priFile();
     return pri ? pri->deploysFolder(folder) : false;
 }
 
 QList<RunConfiguration *> QmakePriFileNode::runConfigurations() const
 {
-    QmakeRunConfigurationFactory *factory = QmakeRunConfigurationFactory::find(m_project->activeTarget());
-    if (factory)
-        return factory->runConfigurationsForNode(m_project->activeTarget(), this);
-    return QList<RunConfiguration *>();
+    return qmakeRunConfigurationsForNode(m_project->activeTarget(), this);
 }
 
 QmakeProFileNode *QmakePriFileNode::proFileNode() const
@@ -74,12 +95,12 @@ QmakeProFileNode *QmakePriFileNode::proFileNode() const
     return m_qmakeProFileNode;
 }
 
-bool QmakePriFileNode::supportsAction(ProjectAction action, Node *node) const
+bool QmakePriFileNode::supportsAction(ProjectAction action, const Node *node) const
 {
     if (action == Rename || action == DuplicateFile) {
-        FileNode *fileNode = node->asFileNode();
+        const FileNode *fileNode = node->asFileNode();
         return (fileNode && fileNode->fileType() != FileType::Project)
-                || dynamic_cast<ResourceEditor::ResourceTopLevelNode *>(node);
+                || dynamic_cast<const ResourceEditor::ResourceTopLevelNode *>(node);
     }
 
     const FolderNode *folderNode = this;
@@ -109,7 +130,7 @@ bool QmakePriFileNode::supportsAction(ProjectAction action, Node *node) const
         bool addExistingFiles = true;
         if (node->nodeType() == NodeType::VirtualFolder) {
             // A virtual folder, we do what the projectexplorer does
-            FolderNode *folder = node->asFolderNode();
+            const FolderNode *folder = node->asFolderNode();
             if (folder) {
                 QStringList list;
                 foreach (FolderNode *f, folder->folderNodes())
@@ -135,9 +156,7 @@ bool QmakePriFileNode::supportsAction(ProjectAction action, Node *node) const
     }
 
     if (action == HasSubProjectRunConfigurations) {
-        Target *target = m_project->activeTarget();
-        QmakeRunConfigurationFactory *factory = QmakeRunConfigurationFactory::find(target);
-        return factory && !factory->runConfigurationsForNode(target, node).isEmpty();
+        return !qmakeRunConfigurationsForNode(m_project->activeTarget(), node).isEmpty();
     }
 
     return false;
@@ -145,7 +164,7 @@ bool QmakePriFileNode::supportsAction(ProjectAction action, Node *node) const
 
 bool QmakePriFileNode::canAddSubProject(const QString &proFilePath) const
 {
-    QmakePriFile *pri = priFile();
+    const QmakePriFile *pri = priFile();
     return pri ? pri->canAddSubProject(proFilePath) : false;
 }
 
@@ -213,8 +232,8 @@ QmakeProFileNode *QmakeProFileNode::findProFileFor(const FileName &fileName) con
   \class QmakeProFileNode
   Implements abstract ProjectNode class
   */
-QmakeProFileNode::QmakeProFileNode(QmakeProject *project, const FileName &filePath) :
-    QmakePriFileNode(project, this, filePath)
+QmakeProFileNode::QmakeProFileNode(QmakeProject *project, const FileName &filePath, QmakeProFile *pf) :
+    QmakePriFileNode(project, this, filePath, pf)
 { }
 
 bool QmakeProFileNode::showInSimpleTree() const
@@ -224,7 +243,7 @@ bool QmakeProFileNode::showInSimpleTree() const
 
 QmakeProFile *QmakeProFileNode::proFile() const
 {
-    return m_project->rootProFile()->findProFile(filePath());
+    return static_cast<QmakeProFile*>(QmakePriFileNode::priFile());
 }
 
 FolderNode::AddNewInformation QmakeProFileNode::addNewInformation(const QStringList &files, Node *context) const

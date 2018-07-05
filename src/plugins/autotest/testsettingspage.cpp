@@ -126,7 +126,7 @@ TestSettingsWidget::TestSettingsWidget(QWidget *parent)
     m_ui.frameworksWarn->setText(tr("No active test frameworks."));
     m_ui.frameworksWarn->setToolTip(tr("You will not be able to use the AutoTest plugin without "
                                        "having at least one active test framework."));
-    connect(m_ui.frameworkListWidget, &QListWidget::itemChanged,
+    connect(m_ui.frameworkTreeWidget, &QTreeWidget::itemChanged,
             this, &TestSettingsWidget::onFrameworkItemChanged);
     connect(m_ui.addFilter, &QPushButton::clicked, this, &TestSettingsWidget::onAddFilterClicked);
     connect(m_ui.editFilter, &QPushButton::clicked, this, &TestSettingsWidget::onEditFilterClicked);
@@ -148,6 +148,7 @@ void TestSettingsWidget::setSettings(const TestSettings &settings)
     m_ui.omitRunConfigWarnCB->setChecked(settings.omitRunConfigWarn);
     m_ui.limitResultOutputCB->setChecked(settings.limitResultOutput);
     m_ui.autoScrollCB->setChecked(settings.autoScroll);
+    m_ui.processArgsCB->setChecked(settings.processArgs);
     m_ui.filterGroupBox->setChecked(settings.filterScan);
     populateFrameworksListWidget(settings.frameworks);
     populateFiltersWidget(settings.whiteListFilters);
@@ -161,8 +162,9 @@ TestSettings TestSettingsWidget::settings() const
     result.omitRunConfigWarn = m_ui.omitRunConfigWarnCB->isChecked();
     result.limitResultOutput = m_ui.limitResultOutputCB->isChecked();
     result.autoScroll = m_ui.autoScrollCB->isChecked();
+    result.processArgs = m_ui.processArgsCB->isChecked();
     result.filterScan = m_ui.filterGroupBox->isChecked();
-    result.frameworks = frameworks();
+    frameworkSettings(result);
     result.whiteListFilters = filters();
     return result;
 }
@@ -171,13 +173,18 @@ void TestSettingsWidget::populateFrameworksListWidget(const QHash<Core::Id, bool
 {
     TestFrameworkManager *frameworkManager = TestFrameworkManager::instance();
     const QList<Core::Id> &registered = frameworkManager->sortedRegisteredFrameworkIds();
-    m_ui.frameworkListWidget->clear();
+    m_ui.frameworkTreeWidget->clear();
     for (const Core::Id &id : registered) {
-        QListWidgetItem *item = new QListWidgetItem(frameworkManager->frameworkNameForId(id),
-                                                    m_ui.frameworkListWidget);
+        auto *item = new QTreeWidgetItem(m_ui.frameworkTreeWidget,
+                                         QStringList(frameworkManager->frameworkNameForId(id)));
         item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
-        item->setCheckState(frameworks.value(id) ? Qt::Checked : Qt::Unchecked);
-        item->setData(Qt::UserRole, id.toSetting());
+        item->setCheckState(0, frameworks.value(id) ? Qt::Checked : Qt::Unchecked);
+        item->setData(0, Qt::UserRole, id.toSetting());
+        item->setData(1, Qt::CheckStateRole, frameworkManager->groupingEnabled(id) ? Qt::Checked
+                                                                                   : Qt::Unchecked);
+        item->setToolTip(0, tr("Enable or disable test frameworks to be handled by the AutoTest "
+                               "plugin."));
+        item->setToolTip(1, tr("Enable or disable grouping of test cases by folder."));
     }
 }
 
@@ -187,17 +194,18 @@ void TestSettingsWidget::populateFiltersWidget(const QStringList &filters)
         new QTreeWidgetItem(m_ui.filterTreeWidget, {filter} );
 }
 
-QHash<Core::Id, bool> TestSettingsWidget::frameworks() const
+void TestSettingsWidget::frameworkSettings(TestSettings &settings) const
 {
-    const int itemCount = m_ui.frameworkListWidget->count();
-    QHash<Core::Id, bool> frameworks;
+    const QAbstractItemModel *model = m_ui.frameworkTreeWidget->model();
+    QTC_ASSERT(model, return);
+    const int itemCount = model->rowCount();
     for (int row = 0; row < itemCount; ++row) {
-        if (QListWidgetItem *item = m_ui.frameworkListWidget->item(row)) {
-            frameworks.insert(Core::Id::fromSetting(item->data(Qt::UserRole)),
-                              item->checkState() == Qt::Checked);
-        }
+        QModelIndex idx = model->index(row, 0);
+        const Core::Id id = Core::Id::fromSetting(idx.data(Qt::UserRole));
+        settings.frameworks.insert(id, idx.data(Qt::CheckStateRole) == Qt::Checked);
+        idx = model->index(row, 1);
+        settings.frameworksGrouping.insert(id, idx.data(Qt::CheckStateRole) == Qt::Checked);
     }
-    return frameworks;
 }
 
 QStringList TestSettingsWidget::filters() const
@@ -212,11 +220,13 @@ QStringList TestSettingsWidget::filters() const
 
 void TestSettingsWidget::onFrameworkItemChanged()
 {
-    for (int row = 0, count = m_ui.frameworkListWidget->count(); row < count; ++row) {
-        if (m_ui.frameworkListWidget->item(row)->checkState() == Qt::Checked) {
-            m_ui.frameworksWarn->setVisible(false);
-            m_ui.frameworksWarnIcon->setVisible(false);
-            return;
+    if (QAbstractItemModel *model = m_ui.frameworkTreeWidget->model()) {
+        for (int row = 0, count = model->rowCount(); row < count; ++row) {
+            if (model->index(row, 0).data(Qt::CheckStateRole) == Qt::Checked) {
+                m_ui.frameworksWarn->setVisible(false);
+                m_ui.frameworksWarnIcon->setVisible(false);
+                return;
+            }
         }
     }
     m_ui.frameworksWarn->setVisible(true);
@@ -227,8 +237,8 @@ void TestSettingsWidget::onAddFilterClicked()
 {
     TestFilterDialog dialog;
     dialog.setWindowTitle(tr("Add Filter"));
-    dialog.setDetailsText(tr("<p>Specify a filter expression to be added to the list of filters."
-                             "<br/>Wildcards are not supported.</p>"));
+    dialog.setDetailsText("<p>" + tr("Specify a filter expression to be added to the list of filters."
+                                     "<br/>Wildcards are not supported.") + "</p>");
     if (dialog.exec() == QDialog::Accepted) {
         const QString &filter = dialog.filterPath();
         if (!filter.isEmpty())
@@ -244,8 +254,8 @@ void TestSettingsWidget::onEditFilterClicked()
 
     TestFilterDialog dialog;
     dialog.setWindowTitle(tr("Edit Filter"));
-    dialog.setDetailsText(tr("<p>Specify a filter expression that will replace \"%1\"."
-                             "<br/>Wildcards are not supported.</p>").arg(oldFilter));
+    dialog.setDetailsText("<p>" + tr("Specify a filter expression that will replace \"%1\"."
+                                     "<br/>Wildcards are not supported.").arg(oldFilter) + "</p>");
     dialog.setDefaultFilterPath(oldFilter);
     if (dialog.exec() == QDialog::Accepted) {
         const QString &edited = dialog.filterPath();
@@ -291,14 +301,22 @@ void TestSettingsPage::apply()
         return;
     const TestSettings newSettings = m_widget->settings();
     bool frameworkSyncNecessary = newSettings.frameworks != m_settings->frameworks;
-    bool forceReparse = newSettings.whiteListFilters.toSet() != m_settings->whiteListFilters.toSet();
+    bool forceReparse = newSettings.filterScan != m_settings->filterScan ||
+            newSettings.whiteListFilters.toSet() != m_settings->whiteListFilters.toSet();
+    const QList<Core::Id> changedIds = Utils::filtered(newSettings.frameworksGrouping.keys(),
+                                                       [newSettings, this] (const Core::Id &id) {
+        return newSettings.frameworksGrouping[id] != m_settings->frameworksGrouping[id];
+    });
     *m_settings = newSettings;
     m_settings->toSettings(Core::ICore::settings());
-    TestFrameworkManager::instance()->activateFrameworksFromSettings(m_settings);
+    TestFrameworkManager *frameworkManager = TestFrameworkManager::instance();
+    frameworkManager->activateFrameworksFromSettings(m_settings);
     if (frameworkSyncNecessary)
         TestTreeModel::instance()->syncTestFrameworks();
     else if (forceReparse)
         TestTreeModel::instance()->parser()->emitUpdateTestTree();
+    else if (!changedIds.isEmpty())
+        TestTreeModel::instance()->rebuild(changedIds);
 }
 
 } // namespace Internal

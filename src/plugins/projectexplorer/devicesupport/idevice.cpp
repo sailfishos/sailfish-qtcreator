@@ -37,6 +37,7 @@
 #include <utils/icon.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
+#include <utils/url.h>
 
 #include <QCoreApplication>
 #include <QStandardPaths>
@@ -110,7 +111,6 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
-const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char VersionKey[] = "Version";
 
@@ -127,6 +127,7 @@ const char HostKeyCheckingKey[] = "HostKeyChecking";
 const char SshOptionsKey[] = "SshOptions";
 
 const char DebugServerKey[] = "DebugServerKey";
+const char QmlsceneKey[] = "QmlsceneKey";
 
 typedef QSsh::SshConnectionParameters::AuthenticationType AuthType;
 const AuthType DefaultAuthType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
@@ -140,7 +141,6 @@ class IDevicePrivate
 public:
     IDevicePrivate() :
         origin(IDevice::AutoDetected),
-        sdkProvided(false),
         deviceState(IDevice::DeviceStateUnknown),
         machineType(IDevice::Hardware),
         version(0)
@@ -149,7 +149,6 @@ public:
     QString displayName;
     Core::Id type;
     IDevice::Origin origin;
-    bool sdkProvided;
     Core::Id id;
     IDevice::DeviceState deviceState;
     IDevice::MachineType machineType;
@@ -158,6 +157,7 @@ public:
     QSsh::SshConnectionParameters sshParameters;
     Utils::PortList freePorts;
     QString debugServerPath;
+    QString qmlsceneCommand;
 
     QList<Utils::Icon> deviceIcons;
 };
@@ -238,16 +238,6 @@ Core::Id IDevice::type() const
 bool IDevice::isAutoDetected() const
 {
     return d->origin == AutoDetected;
-}
-
-bool IDevice::isSdkProvided() const
-{
-    return d->sdkProvided;
-}
-
-void IDevice::setSdkProvided(bool sdkProvided)
-{
-    d->sdkProvided = sdkProvided;
 }
 
 /*!
@@ -343,14 +333,13 @@ void IDevice::fromMap(const QVariantMap &map)
     if (!d->id.isValid())
         d->id = newId();
     d->origin = static_cast<Origin>(map.value(QLatin1String(OriginKey), ManuallyAdded).toInt());
-    d->sdkProvided = map.value(QLatin1String(SdkProvidedKey)).toBool();
 
-    d->sshParameters.host = map.value(QLatin1String(HostKey)).toString();
-    d->sshParameters.port = map.value(QLatin1String(SshPortKey), 22).toInt();
-    d->sshParameters.userName = map.value(QLatin1String(UserNameKey)).toString();
+    d->sshParameters.setHost(map.value(QLatin1String(HostKey)).toString());
+    d->sshParameters.setPort(map.value(QLatin1String(SshPortKey), 22).toInt());
+    d->sshParameters.setUserName(map.value(QLatin1String(UserNameKey)).toString());
     d->sshParameters.authenticationType
         = static_cast<AuthType>(map.value(QLatin1String(AuthKey), DefaultAuthType).toInt());
-    d->sshParameters.password = map.value(QLatin1String(PasswordKey)).toString();
+    d->sshParameters.setPassword(map.value(QLatin1String(PasswordKey)).toString());
     d->sshParameters.privateKeyFile = map.value(QLatin1String(KeyFileKey), defaultPrivateKeyFilePath()).toString();
     d->sshParameters.timeout = map.value(QLatin1String(TimeoutKey), DefaultTimeout).toInt();
     d->sshParameters.hostKeyCheckingMode = static_cast<QSsh::SshHostKeyCheckingMode>
@@ -367,6 +356,7 @@ void IDevice::fromMap(const QVariantMap &map)
     d->version = map.value(QLatin1String(VersionKey), 0).toInt();
 
     d->debugServerPath = map.value(QLatin1String(DebugServerKey)).toString();
+    d->qmlsceneCommand = map.value(QLatin1String(QmlsceneKey)).toString();
 }
 
 /*!
@@ -382,14 +372,13 @@ QVariantMap IDevice::toMap() const
     map.insert(QLatin1String(TypeKey), d->type.toString());
     map.insert(QLatin1String(IdKey), d->id.toSetting());
     map.insert(QLatin1String(OriginKey), d->origin);
-    map.insert(QLatin1String(SdkProvidedKey), d->sdkProvided);
 
     map.insert(QLatin1String(MachineTypeKey), d->machineType);
-    map.insert(QLatin1String(HostKey), d->sshParameters.host);
-    map.insert(QLatin1String(SshPortKey), d->sshParameters.port);
-    map.insert(QLatin1String(UserNameKey), d->sshParameters.userName);
+    map.insert(QLatin1String(HostKey), d->sshParameters.host());
+    map.insert(QLatin1String(SshPortKey), d->sshParameters.port());
+    map.insert(QLatin1String(UserNameKey), d->sshParameters.userName());
     map.insert(QLatin1String(AuthKey), d->sshParameters.authenticationType);
-    map.insert(QLatin1String(PasswordKey), d->sshParameters.password);
+    map.insert(QLatin1String(PasswordKey), d->sshParameters.password());
     map.insert(QLatin1String(KeyFileKey), d->sshParameters.privateKeyFile);
     map.insert(QLatin1String(TimeoutKey), d->sshParameters.timeout);
     map.insert(QLatin1String(HostKeyCheckingKey), d->sshParameters.hostKeyCheckingMode);
@@ -399,6 +388,7 @@ QVariantMap IDevice::toMap() const
     map.insert(QLatin1String(VersionKey), d->version);
 
     map.insert(QLatin1String(DebugServerKey), d->debugServerPath);
+    map.insert(QLatin1String(QmlsceneKey), d->qmlsceneCommand);
 
     return map;
 }
@@ -429,7 +419,8 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
 QUrl IDevice::toolControlChannel(const ControlChannelHint &) const
 {
     QUrl url;
-    url.setHost(d->sshParameters.host);
+    url.setScheme(Utils::urlTcpScheme());
+    url.setHost(d->sshParameters.host());
     return url;
 }
 
@@ -456,6 +447,16 @@ QString IDevice::debugServerPath() const
 void IDevice::setDebugServerPath(const QString &path)
 {
     d->debugServerPath = path;
+}
+
+QString IDevice::qmlsceneCommand() const
+{
+    return d->qmlsceneCommand;
+}
+
+void IDevice::setQmlsceneCommand(const QString &path)
+{
+    d->qmlsceneCommand = path;
 }
 
 int IDevice::version() const

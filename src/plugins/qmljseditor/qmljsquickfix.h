@@ -34,8 +34,6 @@
 
 #include <QSharedPointer>
 
-namespace QmlJS { class ModelManagerInterface; }
-
 namespace QmlJSEditor {
 
 namespace Internal { class QmlJSQuickFixAssistInterface; }
@@ -76,20 +74,6 @@ private:
     QmlJSQuickFixInterface m_interface;
 };
 
-class QmlJSQuickFixFactory: public TextEditor::QuickFixFactory
-{
-    Q_OBJECT
-
-protected:
-    QmlJSQuickFixFactory() {}
-
-    void matchingOperations(const QuickFixInterface &interface, QuickFixOperations &result);
-
-    /*!
-        Implement this function to match and create the appropriate
-        QmlJSQuickFixOperation objects.
-     */
-    virtual void match(const QmlJSQuickFixInterface &interface, TextEditor::QuickFixOperations &result) = 0;
-};
+TextEditor::QuickFixOperations findQmlJSQuickFixes(const TextEditor::AssistInterface *interface);
 
 } // namespace QmlJSEditor

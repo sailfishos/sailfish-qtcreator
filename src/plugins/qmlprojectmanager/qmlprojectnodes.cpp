@@ -32,8 +32,6 @@
 
 #include <utils/algorithm.h>
 
-#include <QStyle>
-
 using namespace ProjectExplorer;
 
 namespace QmlProjectManager {
@@ -43,13 +41,9 @@ QmlProjectNode::QmlProjectNode(QmlProject *project) : ProjectNode(project->proje
     m_project(project)
 {
     setDisplayName(project->projectFilePath().toFileInfo().completeBaseName());
-    // make overlay
-    const QSize desiredSize = QSize(16, 16);
-    const QIcon projectBaseIcon(QLatin1String(":/qmlproject/images/qmlfolder.png"));
-    const QPixmap projectPixmap = Core::FileIconProvider::overlayIcon(QStyle::SP_DirIcon,
-                                                                      projectBaseIcon,
-                                                                      desiredSize);
-    setIcon(QIcon(projectPixmap));
+
+    static QIcon qmlProjectIcon = Core::FileIconProvider::directoryIcon(":/projectexplorer/images/fileoverlay_qml.png");
+    setIcon(qmlProjectIcon);
 }
 
 bool QmlProjectNode::showInSimpleTree() const
@@ -57,13 +51,15 @@ bool QmlProjectNode::showInSimpleTree() const
     return true;
 }
 
-bool QmlProjectNode::supportsAction(ProjectAction action, Node *node) const
+bool QmlProjectNode::supportsAction(ProjectAction action, const Node *node) const
 {
     if (action == AddNewFile || action == EraseFile)
         return true;
+    QTC_ASSERT(node, return false);
 
     if (action == Rename && node->nodeType() == NodeType::File) {
-        FileNode *fileNode = static_cast<FileNode *>(node);
+        const FileNode *fileNode = node->asFileNode();
+        QTC_ASSERT(fileNode, return false);
         return fileNode->fileType() != FileType::Project;
     }
 

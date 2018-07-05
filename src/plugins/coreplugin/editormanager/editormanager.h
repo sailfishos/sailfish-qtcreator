@@ -41,15 +41,11 @@ namespace Utils { class MimeType; }
 
 namespace Core {
 
-class IContext;
 class IEditor;
 class IEditorFactory;
 class IExternalEditor;
 class IDocument;
-class IMode;
-class IVersionControl;
-
-class EditorToolBar;
+class SearchResultItem;
 
 enum MakeWritableResult {
     OpenedWithVersionControl,
@@ -59,13 +55,8 @@ enum MakeWritableResult {
 };
 
 namespace Internal {
-class EditorClosingCoreListener;
 class EditorManagerPrivate;
-class EditorView;
 class MainWindow;
-class OpenEditorsViewFactory;
-class OpenEditorsWindow;
-class SplitterOrView;
 } // namespace Internal
 
 class CORE_EXPORT EditorManagerPlaceHolder : public QWidget
@@ -114,6 +105,7 @@ public:
     static IEditor *openEditorAt(const QString &fileName,  int line, int column = 0,
                                  Id editorId = Id(), OpenEditorFlags flags = NoFlags,
                                  bool *newEditor = 0);
+    static void openEditorAtSearchResult(const SearchResultItem &item, OpenEditorFlags flags = NoFlags);
     static IEditor *openEditorWithContents(Id editorId, QString *titlePattern = 0,
                                            const QByteArray &contents = QByteArray(),
                                            const QString &uniqueId = QString(),

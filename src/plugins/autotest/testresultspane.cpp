@@ -144,7 +144,7 @@ TestResultsPane::TestResultsPane(QObject *parent) :
     connect(m_treeView, &Utils::TreeView::customContextMenuRequested,
             this, &TestResultsPane::onCustomContextMenuRequested);
     connect(m_treeView, &ResultsTreeView::copyShortcutTriggered, [this] () {
-       onCopyItemTriggered(m_treeView->currentIndex());
+        onCopyItemTriggered(getTestResult(m_treeView->currentIndex()));
     });
     connect(m_model, &TestResultModel::requestExpansion, [this] (QModelIndex idx) {
         m_treeView->expand(m_filterModel->mapFromSource(idx));
@@ -155,9 +155,6 @@ TestResultsPane::TestResultsPane(QObject *parent) :
             this, &TestResultsPane::onTestRunFinished);
     connect(TestRunner::instance(), &TestRunner::testResultReady,
             this, &TestResultsPane::addTestResult);
-    connect(ProjectExplorer::ProjectExplorerPlugin::instance(),
-            &ProjectExplorer::ProjectExplorerPlugin::updateRunActions,
-            this, &TestResultsPane::updateRunActions);
 }
 
 void TestResultsPane::createToolButtons()
@@ -175,19 +172,10 @@ void TestResultsPane::createToolButtons()
     });
 
     m_runAll = new QToolButton(m_treeView);
-    m_runAll->setIcon(Utils::Icons::RUN_SMALL_TOOLBAR.icon());
-    m_runAll->setToolTip(tr("Run All Tests"));
-    m_runAll->setEnabled(false);
-    connect(m_runAll, &QToolButton::clicked, this, &TestResultsPane::onRunAllTriggered);
+    m_runAll->setDefaultAction(Core::ActionManager::command(Constants::ACTION_RUN_ALL_ID)->action());
 
     m_runSelected = new QToolButton(m_treeView);
-    Utils::Icon runSelectedIcon = Utils::Icons::RUN_SMALL_TOOLBAR;
-    for (const Utils::IconMaskAndColor &maskAndColor : Icons::RUN_SELECTED_OVERLAY)
-        runSelectedIcon.append(maskAndColor);
-    m_runSelected->setIcon(runSelectedIcon.icon());
-    m_runSelected->setToolTip(tr("Run Selected Tests"));
-    m_runSelected->setEnabled(false);
-    connect(m_runSelected, &QToolButton::clicked, this, &TestResultsPane::onRunSelectedTriggered);
+    m_runSelected->setDefaultAction(Core::ActionManager::command(Constants::ACTION_RUN_SELECTED_ID)->action());
 
     m_stopTestRun = new QToolButton(m_treeView);
     m_stopTestRun->setIcon(Utils::Icons::STOP_SMALL_TOOLBAR.icon());
@@ -275,6 +263,8 @@ int TestResultsPane::priorityInStatusBar() const
 void TestResultsPane::clearContents()
 {
     m_filterModel->clearTestResults();
+    if (auto delegate = qobject_cast<TestResultDelegate *>(m_treeView->itemDelegate()))
+        delegate->clearCache();
     setIconBadgeNumber(0);
     navigateStateChanged();
     m_summaryWidget->setVisible(false);
@@ -284,20 +274,8 @@ void TestResultsPane::clearContents()
     m_textOutput->clear();
 }
 
-void TestResultsPane::visibilityChanged(bool visible)
+void TestResultsPane::visibilityChanged(bool /*visible*/)
 {
-    if (visible == m_wasVisibleBefore)
-        return;
-    if (visible) {
-        connect(TestTreeModel::instance(), &TestTreeModel::testTreeModelChanged,
-                this, &TestResultsPane::updateRunActions);
-        // make sure run/run all are in correct state
-        updateRunActions();
-    } else {
-        disconnect(TestTreeModel::instance(), &TestTreeModel::testTreeModelChanged,
-                   this, &TestResultsPane::updateRunActions);
-    }
-    m_wasVisibleBefore = visible;
 }
 
 void TestResultsPane::setFocus()
@@ -423,14 +401,14 @@ void TestResultsPane::onRunAllTriggered()
 {
     TestRunner *runner = TestRunner::instance();
     runner->setSelectedTests(TestTreeModel::instance()->getAllTestCases());
-    runner->prepareToRunTests(TestRunner::Run);
+    runner->prepareToRunTests(TestRunMode::Run);
 }
 
 void TestResultsPane::onRunSelectedTriggered()
 {
     TestRunner *runner = TestRunner::instance();
     runner->setSelectedTests(TestTreeModel::instance()->getSelectedTests());
-    runner->prepareToRunTests(TestRunner::Run);
+    runner->prepareToRunTests(TestRunMode::Run);
 }
 
 void TestResultsPane::initializeFilterMenu()
@@ -512,10 +490,7 @@ void TestResultsPane::onTestRunStarted()
 {
     m_testRunning = true;
     m_stopTestRun->setEnabled(true);
-    m_runAll->setEnabled(false);
-    Core::ActionManager::command(Constants::ACTION_RUN_ALL_ID)->action()->setEnabled(false);
-    m_runSelected->setEnabled(false);
-    Core::ActionManager::command(Constants::ACTION_RUN_SELECTED_ID)->action()->setEnabled(false);
+    AutotestPlugin::instance()->updateMenuItemsEnabledState();
     m_summaryWidget->setVisible(false);
 }
 
@@ -524,13 +499,7 @@ void TestResultsPane::onTestRunFinished()
     m_testRunning = false;
     m_stopTestRun->setEnabled(false);
 
-    const bool runEnabled = !ProjectExplorer::BuildManager::isBuilding()
-            && TestTreeModel::instance()->hasTests()
-            && TestTreeModel::instance()->parser()->state() == TestCodeParser::Idle;
-    m_runAll->setEnabled(runEnabled);  // TODO unify Run* actions
-    Core::ActionManager::command(Constants::ACTION_RUN_ALL_ID)->action()->setEnabled(runEnabled);
-    m_runSelected->setEnabled(runEnabled);
-    Core::ActionManager::command(Constants::ACTION_RUN_SELECTED_ID)->action()->setEnabled(runEnabled);
+    AutotestPlugin::instance()->updateMenuItemsEnabledState();
     updateSummaryLabel();
     m_summaryWidget->setVisible(true);
     m_model->removeCurrentTestMessage();
@@ -546,27 +515,16 @@ void TestResultsPane::onScrollBarRangeChanged(int, int max)
         m_treeView->verticalScrollBar()->setValue(max);
 }
 
-void TestResultsPane::updateRunActions()
-{
-    QString whyNot;
-    TestTreeModel *model = TestTreeModel::instance();
-    const bool enable = !m_testRunning && !model->parser()->isParsing() && model->hasTests()
-            && !ProjectExplorer::BuildManager::isBuilding()
-            && ProjectExplorer::ProjectExplorerPlugin::canRunStartupProject(
-                ProjectExplorer::Constants::NORMAL_RUN_MODE, &whyNot);
-    m_runAll->setEnabled(enable);
-    m_runSelected->setEnabled(enable);
-}
-
 void TestResultsPane::onCustomContextMenuRequested(const QPoint &pos)
 {
     const bool resultsAvailable = m_filterModel->hasResults();
     const bool enabled = !m_testRunning && resultsAvailable;
-    const QModelIndex clicked = m_treeView->indexAt(pos);
+    const TestResult *clicked = getTestResult(m_treeView->indexAt(pos));
     QMenu menu;
+
     QAction *action = new QAction(tr("Copy"), &menu);
     action->setShortcut(QKeySequence(QKeySequence::Copy));
-    action->setEnabled(resultsAvailable);
+    action->setEnabled(resultsAvailable && clicked);
     connect(action, &QAction::triggered, [this, clicked] () {
        onCopyItemTriggered(clicked);
     });
@@ -582,14 +540,37 @@ void TestResultsPane::onCustomContextMenuRequested(const QPoint &pos)
     connect(action, &QAction::triggered, this, &TestResultsPane::onSaveWholeTriggered);
     menu.addAction(action);
 
+    const auto correlatingItem = clicked ? clicked->findTestTreeItem() : nullptr;
+    action = new QAction(tr("Run This Test"), &menu);
+    action->setEnabled(correlatingItem && correlatingItem->canProvideTestConfiguration());
+    connect(action, &QAction::triggered, this, [this, clicked] {
+        onRunThisTestTriggered(TestRunMode::Run, clicked);
+    });
+    menu.addAction(action);
+
+    action = new QAction(tr("Debug This Test"), &menu);
+    action->setEnabled(correlatingItem && correlatingItem->canProvideDebugConfiguration());
+    connect(action, &QAction::triggered, this, [this, clicked] {
+        onRunThisTestTriggered(TestRunMode::Debug, clicked);
+    });
+    menu.addAction(action);
+
     menu.exec(m_treeView->mapToGlobal(pos));
 }
 
-void TestResultsPane::onCopyItemTriggered(const QModelIndex &idx)
+const TestResult *TestResultsPane::getTestResult(const QModelIndex &idx)
 {
     if (!idx.isValid())
-        return;
+        return nullptr;
+
     const TestResult *result = m_filterModel->testResult(idx);
+    QTC_CHECK(result);
+
+    return result;
+}
+
+void TestResultsPane::onCopyItemTriggered(const TestResult *result)
+{
     QTC_ASSERT(result, return);
     QApplication::clipboard()->setText(result->outputString(true));
 }
@@ -612,6 +593,16 @@ void TestResultsPane::onSaveWholeTriggered()
                               tr("Failed to write \"%1\".\n\n%2").arg(fileName)
                               .arg(saver.errorString()));
     }
+}
+
+void TestResultsPane::onRunThisTestTriggered(TestRunMode runMode, const TestResult *result)
+{
+    QTC_ASSERT(result, return);
+
+    const TestTreeItem *item = result->findTestTreeItem();
+
+    if (item)
+        TestRunner::instance()->runTest(runMode, item);
 }
 
 void TestResultsPane::toggleOutputStyle()

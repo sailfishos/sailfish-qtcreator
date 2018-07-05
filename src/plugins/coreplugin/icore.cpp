@@ -290,6 +290,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QStatusBar>
+#include <QTimer>
 
 using namespace Core::Internal;
 using namespace ExtensionSystem;
@@ -409,7 +410,7 @@ QString ICore::userResourcePath()
 {
     // Create qtcreator dir if it doesn't yet exist
     const QString configDir = QFileInfo(settings(QSettings::UserScope)->fileName()).path();
-    const QString urp = configDir + QLatin1String("/qtcreator");
+    const QString urp = configDir + '/' + QLatin1String(Constants::IDE_ID);
 
     if (!QFileInfo::exists(urp + QLatin1Char('/'))) {
         QDir dir;
@@ -418,6 +419,12 @@ QString ICore::userResourcePath()
     }
 
     return urp;
+}
+
+QString ICore::installerResourcePath()
+{
+    return QFileInfo(settings(QSettings::SystemScope)->fileName()).path() + '/'
+           + Constants::IDE_ID;
 }
 
 QString ICore::documentationPath()
@@ -460,9 +467,10 @@ QString ICore::versionString()
 {
     QString ideVersionDescription;
     if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))
-        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY));
-    return tr("Qt Creator %1%2").arg(QLatin1String(Constants::IDE_VERSION_LONG),
-                                     ideVersionDescription);
+        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_LONG));
+    return tr("%1 %2%3").arg(QLatin1String(Constants::IDE_DISPLAY_NAME),
+                             QLatin1String(Constants::IDE_VERSION_DISPLAY),
+                             ideVersionDescription);
 }
 
 QString ICore::buildCompatibilityString()
@@ -477,8 +485,14 @@ IContext *ICore::currentContextObject()
     return m_mainwindow->currentContextObject();
 }
 
+QWidget *ICore::currentContextWidget()
+{
+    IContext *context = currentContextObject();
+    return context ? context->widget() : nullptr;
+}
 
-QWidget *ICore::mainWindow()
+
+QMainWindow *ICore::mainWindow()
 {
     return m_mainwindow;
 }
@@ -575,6 +589,56 @@ QString ICore::systemInformation()
      result += QString("Built on %1 %2\n").arg(QLatin1String(__DATE__), QLatin1String(__TIME__));
 #endif
      return result;
+}
+
+static const QByteArray &screenShotsPath()
+{
+    static const QByteArray path = qgetenv("QTC_SCREENSHOTS_PATH");
+    return path;
+}
+
+class ScreenShooter : public QObject
+{
+public:
+    ScreenShooter(QWidget *widget, const QString &name, const QRect &rc)
+        : m_widget(widget), m_name(name), m_rc(rc)
+    {
+        m_widget->installEventFilter(this);
+    }
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        QTC_ASSERT(watched == m_widget, return false);
+        if (event->type() == QEvent::Show)
+            QTimer::singleShot(0, this, &ScreenShooter::helper);
+        return false;
+    }
+
+    void helper()
+    {
+        if (m_widget) {
+            QRect rc = m_rc.isValid() ? m_rc : m_widget->rect();
+            QPixmap pm = m_widget->grab(rc);
+            for (int i = 0; ; ++i) {
+                QString fileName = screenShotsPath() + '/' + m_name + QString("-%1.png").arg(i);
+                if (!QFileInfo::exists(fileName)) {
+                    pm.save(fileName);
+                    break;
+                }
+            }
+        }
+        deleteLater();
+    }
+
+    QPointer<QWidget> m_widget;
+    QString m_name;
+    QRect m_rc;
+};
+
+void ICore::setupScreenShooter(const QString &name, QWidget *w, const QRect &rc)
+{
+    if (!screenShotsPath().isEmpty())
+        new ScreenShooter(w, name, rc);
 }
 
 void ICore::saveSettings()

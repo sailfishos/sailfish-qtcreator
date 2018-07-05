@@ -86,18 +86,18 @@ public:
 
     Q_INVOKABLE void startDragAndDrop(QQuickItem *mouseArea, QVariant itemLibId);
 
-protected:
-    void removeImport(const QString &name);
-    void addImport(const QString &name, const QString &version);
-
 signals:
     void itemActivated(const QString& itemName);
 
 private:
     void setCurrentIndexOfStackedWidget(int index);
     void reloadQmlSource();
+    void setupImportTagWidget();
+    void removeImport(const QString &name);
+    void addImport(const QString &name, const QString &version);
+    void addPossibleImport(const QString &name);
+    void addResources();
 
-private:
     QTimer m_compressionTimer;
     QSize m_itemIconSize;
 
@@ -111,6 +111,9 @@ private:
     QPointer<Utils::FancyLineEdit> m_filterLineEdit;
     QScopedPointer<QQuickWidget> m_itemViewQuickWidget;
     QScopedPointer<ItemLibraryResourceView> m_resourcesView;
+    QScopedPointer<QWidget> m_importTagsWidget;
+    QScopedPointer<QWidget> m_addResourcesWidget;
+
     QShortcut *m_qmlSourceUpdateShortcut;
 
     QPointer<Model> m_model;

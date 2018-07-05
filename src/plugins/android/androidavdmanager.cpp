@@ -53,8 +53,7 @@ const char avdInfoPathKey[] = "Path:";
 const char avdInfoAbiKey[] = "abi.type";
 const char avdInfoTargetKey[] = "target";
 const char avdInfoErrorKey[] = "Error:";
-
-const QVersionNumber avdManagerIntroVersion(25, 3 ,0);
+const char googleApiTag[] = "google_apis";
 
 const int avdCreateTimeoutMs = 30000;
 
@@ -67,6 +66,8 @@ static bool avdManagerCommand(const AndroidConfig config, const QStringList &arg
 {
     QString avdManagerToolPath = config.avdManagerToolPath().toString();
     Utils::SynchronousProcess proc;
+    auto env = AndroidConfigurations::toolsEnvironment(config).toStringList();
+    proc.setEnvironment(env);
     Utils::SynchronousProcessResponse response = proc.runBlocking(avdManagerToolPath, args);
     if (response.result == Utils::SynchronousProcessResponse::Finished) {
         if (output)
@@ -101,37 +102,41 @@ static bool checkForTimeout(const chrono::steady_clock::time_point &start,
     return timedOut;
 }
 
-static AndroidConfig::CreateAvdInfo createAvdCommand(const AndroidConfig config,
-                                                     const AndroidConfig::CreateAvdInfo &info)
+static CreateAvdInfo createAvdCommand(const AndroidConfig config, const CreateAvdInfo &info)
 {
-    AndroidConfig::CreateAvdInfo result = info;
+    CreateAvdInfo result = info;
 
     if (!result.isValid()) {
         qCDebug(avdManagerLog) << "AVD Create failed. Invalid CreateAvdInfo" << result.name
-                               << result.target.name << result.target.apiLevel;
+                               << result.sdkPlatform->displayText() << result.sdkPlatform->apiLevel();
         result.error = QApplication::translate("AndroidAvdManager",
                                                "Cannot create AVD. Invalid input.");
         return result;
     }
 
-    QStringList arguments({"create", "avd", "-k", result.target.package, "-n", result.name});
+    QStringList arguments({"create", "avd", "-n", result.name});
 
     if (!result.abi.isEmpty()) {
-        SystemImage image = Utils::findOrDefault(result.target.systemImages,
+        SystemImage *image = Utils::findOrDefault(result.sdkPlatform->systemImages(),
                                                  Utils::equal(&SystemImage::abiName, result.abi));
-        if (image.isValid()) {
-            arguments << "-k" << image.package;
+        if (image && image->isValid()) {
+            arguments << "-k" << image->sdkStylePath();
+            // Google api system images requires explicit abi as
+            // google-apis/ABI or --tag "google-apis"
+            if (image->sdkStylePath().contains(googleApiTag))
+                arguments << "--tag" << googleApiTag;
         } else {
+            QString name = result.sdkPlatform->displayText();
             qCDebug(avdManagerLog) << "AVD Create failed. Cannot find system image for the platform"
-                                   << result.abi << result.target.name;
+                                   << result.abi << name;
             result.error = QApplication::translate("AndroidAvdManager",
                                                    "Cannot create AVD. Cannot find system image for "
-                                                   "the ABI %1(%2).").arg(result.abi).arg(result.target.name);
+                                                   "the ABI %1(%2).").arg(result.abi).arg(name);
             return result;
         }
 
     } else {
-        arguments << "-k" << result.target.package;
+        arguments << "-k" << result.sdkPlatform->sdkStylePath();
     }
 
     if (result.sdcardSize > 0)
@@ -219,14 +224,9 @@ AndroidAvdManager::~AndroidAvdManager()
 
 }
 
-bool AndroidAvdManager::avdManagerUiToolAvailable() const
-{
-    return m_config.sdkToolsVersion() < avdManagerIntroVersion;
-}
-
 void AndroidAvdManager::launchAvdManagerUiTool() const
 {
-    if (avdManagerUiToolAvailable()) {
+    if (m_config.useNativeUiTools()) {
         m_androidTool->launchAvdManager();
      } else {
         qCDebug(avdManagerLog) << "AVD Ui tool launch failed. UI tool not available"
@@ -234,10 +234,9 @@ void AndroidAvdManager::launchAvdManagerUiTool() const
     }
 }
 
-QFuture<AndroidConfig::CreateAvdInfo>
-AndroidAvdManager::createAvd(AndroidConfig::CreateAvdInfo info) const
+QFuture<CreateAvdInfo> AndroidAvdManager::createAvd(CreateAvdInfo info) const
 {
-    if (m_config.sdkToolsVersion() < avdManagerIntroVersion)
+    if (m_config.useNativeUiTools())
         return m_androidTool->createAvd(info);
 
     return Utils::runAsync(&createAvdCommand, m_config, info);
@@ -245,7 +244,7 @@ AndroidAvdManager::createAvd(AndroidConfig::CreateAvdInfo info) const
 
 bool AndroidAvdManager::removeAvd(const QString &name) const
 {
-    if (m_config.sdkToolsVersion() < avdManagerIntroVersion)
+    if (m_config.useNativeUiTools())
         return m_androidTool->removeAvd(name);
 
     Utils::SynchronousProcess proc;
@@ -258,7 +257,7 @@ bool AndroidAvdManager::removeAvd(const QString &name) const
 
 QFuture<AndroidDeviceInfoList> AndroidAvdManager::avdList() const
 {
-    if (m_config.sdkToolsVersion() < avdManagerIntroVersion)
+    if (m_config.useNativeUiTools())
         return m_androidTool->androidVirtualDevicesFuture();
 
     return Utils::runAsync(&AvdManagerOutputParser::listVirtualDevices, m_parser.get(), m_config);

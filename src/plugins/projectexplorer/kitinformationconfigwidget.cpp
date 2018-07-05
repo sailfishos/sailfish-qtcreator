@@ -36,7 +36,8 @@
 #include "environmentwidget.h"
 
 #include <coreplugin/icore.h>
-#include <extensionsystem/pluginmanager.h>
+#include <coreplugin/variablechooser.h>
+
 #include <utils/algorithm.h>
 #include <utils/fancylineedit.h>
 #include <utils/environment.h>
@@ -226,7 +227,7 @@ QWidget *ToolChainInformationConfigWidget::buttonWidget() const
 
 void ToolChainInformationConfigWidget::manageToolChains()
 {
-    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID, buttonWidget());
 }
 
 void ToolChainInformationConfigWidget::currentToolChainChanged(Id language, int idx)
@@ -260,9 +261,7 @@ int ToolChainInformationConfigWidget::indexOf(QComboBox *cb, const ToolChain *tc
 DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
     KitConfigWidget(workingCopy, ki), m_comboBox(new QComboBox)
 {
-    QList<IDeviceFactory *> factories
-            = ExtensionSystem::PluginManager::getObjects<IDeviceFactory>();
-    foreach (IDeviceFactory *factory, factories) {
+    for (IDeviceFactory *factory : IDeviceFactory::allDeviceFactories()) {
         foreach (Id id, factory->availableCreationIds())
             m_comboBox->addItem(factory->displayNameForId(id), id.toSetting());
     }
@@ -384,7 +383,7 @@ QWidget *DeviceInformationConfigWidget::buttonWidget() const
 
 void DeviceInformationConfigWidget::manageDevices()
 {
-    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID, buttonWidget());
 }
 
 void DeviceInformationConfigWidget::modelAboutToReset()
@@ -461,9 +460,16 @@ QList<Utils::EnvironmentItem> KitEnvironmentConfigWidget::currentEnvironment() c
 void KitEnvironmentConfigWidget::editEnvironmentChanges()
 {
     bool ok;
-    const QList<Utils::EnvironmentItem> changes = Utils::EnvironmentDialog::getEnvironmentItems(&ok,
-                                                                 m_summaryLabel,
-                                                                 currentEnvironment());
+    Utils::MacroExpander *expander = m_kit->macroExpander();
+    Utils::EnvironmentDialog::Polisher polisher = [expander](QWidget *w) {
+        Core::VariableChooser::addSupportForChildWidgets(w, expander);
+    };
+    const QList<Utils::EnvironmentItem>
+            changes = Utils::EnvironmentDialog::getEnvironmentItems(&ok,
+                                                                    m_summaryLabel,
+                                                                    currentEnvironment(),
+                                                                    QString(),
+                                                                    polisher);
     if (!ok)
         return;
 

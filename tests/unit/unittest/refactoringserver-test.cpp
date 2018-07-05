@@ -27,10 +27,14 @@
 
 #include "filesystem-utilities.h"
 #include "mockrefactoringclient.h"
+#include "mocksymbolindexing.h"
 #include "sourcerangecontainer-matcher.h"
 
-#include <refactoringserver.h>
 #include <clangrefactoringmessages.h>
+#include <filepathcaching.h>
+#include <refactoringdatabaseinitializer.h>
+#include <refactoringserver.h>
+#include <sqlitedatabase.h>
 
 #include <QDir>
 #include <QTemporaryFile>
@@ -57,6 +61,9 @@ using ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage;
 using ClangBackEnd::SourceRangesForQueryMessage;
 using ClangBackEnd::SourceRangesContainer;
 using ClangBackEnd::V2::FileContainer;
+using ClangBackEnd::V2::FileContainers;
+using ClangBackEnd::V2::ProjectPartContainer;
+using ClangBackEnd::V2::ProjectPartContainers;
 
 MATCHER_P2(IsSourceLocation, line, column,
            std::string(negation ? "isn't " : "is ")
@@ -76,8 +83,12 @@ protected:
     void TearDown() override;
 
 protected:
-    ClangBackEnd::RefactoringServer refactoringServer;
     NiceMock<MockRefactoringClient> mockRefactoringClient;
+    NiceMock<MockSymbolIndexing> mockSymbolIndexing;
+    Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
+    ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
+    ClangBackEnd::FilePathCaching filePathCache{database};
+    ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing, filePathCache};
     Utils::SmallString sourceContent{"void f()\n {}"};
     FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"},
                          sourceContent.clone(),
@@ -103,11 +114,9 @@ TEST_F(RefactoringServerSlowTest, RequestSourceLocationsForRenamingMessage)
                     AllOf(Property(&SourceLocationsForRenamingMessage::textDocumentRevision, 1),
                           Property(&SourceLocationsForRenamingMessage::symbolName, "v"),
                           Property(&SourceLocationsForRenamingMessage::sourceLocations,
-                                   AllOf(Property(&SourceLocationsContainer::sourceLocationContainers,
+                                   Property(&SourceLocationsContainer::sourceLocationContainers,
                                             AllOf(Contains(IsSourceLocation(1, 5)),
-                                                  Contains(IsSourceLocation(3, 9)))),
-                                         Property(&SourceLocationsContainer::filePaths,
-                                                  Contains(Pair(_, FilePath(TESTDATA_DIR, "renamevariable.cpp")))))))));
+                                                  Contains(IsSourceLocation(3, 9))))))));
 
     refactoringServer.requestSourceLocationsForRenamingMessage(std::move(message));
 }
@@ -281,6 +290,23 @@ TEST_F(RefactoringServerSlowTest, ForInvalidRequestSourceRangesAndDiagnosticsGet
                                  Not(IsEmpty())))));
 
     refactoringServer.requestSourceRangesAndDiagnosticsForQueryMessage(std::move(message));
+}
+
+TEST_F(RefactoringServer, UpdatePchProjectPartsCallsSymbolIndexingUpdateProjectParts)
+{
+    ProjectPartContainers projectParts{{{"projectPartId",
+                                        {"-I", TESTDATA_DIR},
+                                        {"header1.h"},
+                                        {"main.cpp"}}}};
+    FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            "void f();",
+                            {}}};
+
+
+    EXPECT_CALL(mockSymbolIndexing,
+                updateProjectParts(projectParts, unsaved));
+
+    refactoringServer.updatePchProjectParts({Utils::clone(projectParts), Utils::clone(unsaved)});
 }
 
 void RefactoringServer::SetUp()

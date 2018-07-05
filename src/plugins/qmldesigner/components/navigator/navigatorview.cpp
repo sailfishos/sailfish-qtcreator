@@ -34,6 +34,7 @@
 
 #include <bindingproperty.h>
 #include <designmodecontext.h>
+#include <designersettings.h>
 #include <nodeproperty.h>
 #include <nodelistproperty.h>
 #include <variantproperty.h>
@@ -88,22 +89,25 @@ NavigatorView::NavigatorView(QObject* parent) :
     connect(m_widget.data(), &NavigatorWidget::rightButtonClicked, this, &NavigatorView::rightButtonClicked);
     connect(m_widget.data(), &NavigatorWidget::downButtonClicked, this, &NavigatorView::downButtonClicked);
     connect(m_widget.data(), &NavigatorWidget::upButtonClicked, this, &NavigatorView::upButtonClicked);
+    connect(m_widget.data(), &NavigatorWidget::filterToggled, this, &NavigatorView::filterToggled);
 
 #ifndef QMLDESIGNER_TEST
     NameItemDelegate *idDelegate = new NameItemDelegate(this);
     IconCheckboxItemDelegate *showDelegate =
             new IconCheckboxItemDelegate(this,
-                                         Utils::Icons::EYE_OPEN_TOOLBAR.pixmap(),
-                                         Utils::Icons::EYE_CLOSED_TOOLBAR.pixmap());
+                                         Utils::Icons::EYE_OPEN_TOOLBAR.icon(),
+                                         Utils::Icons::EYE_CLOSED_TOOLBAR.icon());
 
     IconCheckboxItemDelegate *exportDelegate =
             new IconCheckboxItemDelegate(this,
-                                         Icons::EXPORT_CHECKED.pixmap(),
-                                         Icons::EXPORT_UNCHECKED.pixmap());
+                                         Icons::EXPORT_CHECKED.icon(),
+                                         Icons::EXPORT_UNCHECKED.icon());
 
 #ifdef _LOCK_ITEMS_
-    IconCheckboxItemDelegate *lockDelegate = new IconCheckboxItemDelegate(this,":/qmldesigner/images/lock.png",
-                                                                          ":/qmldesigner/images/hole.png",m_treeModel.data());
+    IconCheckboxItemDelegate *lockDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Utils::Icons::LOCKED_TOOLBAR.icon(),
+                                         Utils::Icons::UNLOCKED_TOOLBAR.icon());
 #endif
 
 
@@ -142,6 +146,9 @@ WidgetInfo NavigatorView::widgetInfo()
 void NavigatorView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
+
+    m_currentModelInterface->setFilter(
+                DesignerSettings::getValue(DesignerSettingsKey::NAVIGATOR_SHOW_ONLY_VISIBLE_ITEMS).toBool());
 
     QTreeView *treeView = treeWidget();
     treeView->expandAll();
@@ -320,11 +327,11 @@ void NavigatorView::leftButtonClicked()
         if (!node.isRootNode() && !node.parentProperty().parentModelNode().isRootNode()) {
             if (QmlItemNode::isValidQmlItemNode(node)) {
                 QPointF scenePos = QmlItemNode(node).instanceScenePosition();
-                node.parentProperty().parentProperty().reparentHere(node);
+                reparentAndCatch(node.parentProperty().parentProperty(), node);
                 if (!scenePos.isNull())
                     setScenePos(node, scenePos);
             } else {
-                node.parentProperty().parentProperty().reparentHere(node);
+                reparentAndCatch(node.parentProperty().parentProperty(), node);
             }
         }
     }
@@ -350,12 +357,12 @@ void NavigatorView::rightButtonClicked()
                         && QmlItemNode::isValidQmlItemNode(newParent)
                         && !newParent.metaInfo().defaultPropertyIsComponent()) {
                     QPointF scenePos = QmlItemNode(node).instanceScenePosition();
-                    newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
+                    reparentAndCatch(newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()), node);
                     if (!scenePos.isNull())
                         setScenePos(node, scenePos);
                 } else {
                     if (newParent.metaInfo().isValid() && !newParent.metaInfo().defaultPropertyIsComponent())
-                        newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
+                        reparentAndCatch(newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()), node);
                 }
             }
         }
@@ -396,6 +403,13 @@ void NavigatorView::downButtonClicked()
     }
     updateItemSelection();
     blockSelectionChangedSignal(blocked);
+}
+
+void NavigatorView::filterToggled(bool flag)
+{
+    m_currentModelInterface->setFilter(flag);
+    treeWidget()->expandAll();
+    DesignerSettings::setValue(DesignerSettingsKey::NAVIGATOR_SHOW_ONLY_VISIBLE_ITEMS, flag);
 }
 
 void NavigatorView::changeSelection(const QItemSelection & /*newSelection*/, const QItemSelection &/*deselected*/)
@@ -440,7 +454,7 @@ void NavigatorView::updateItemSelection()
     blockSelectionChangedSignal(blocked);
 
     if (!selectedModelNodes().isEmpty())
-        treeWidget()->scrollTo(indexForModelNode(selectedModelNodes().first()));
+        treeWidget()->scrollTo(indexForModelNode(selectedModelNodes().constFirst()));
 
     // make sure selected nodes a visible
     foreach (const QModelIndex &selectedIndex, itemSelection.indexes()) {
@@ -476,6 +490,15 @@ void NavigatorView::expandRecursively(const QModelIndex &index)
         if (!treeWidget()->isExpanded(currentIndex))
             treeWidget()->expand(currentIndex);
         currentIndex = currentIndex.parent();
+    }
+}
+
+void NavigatorView::reparentAndCatch(NodeAbstractProperty property, const ModelNode &modelNode)
+{
+    try {
+        property.reparentHere(modelNode);
+    }  catch (Exception &exception) {
+        exception.showException();
     }
 }
 

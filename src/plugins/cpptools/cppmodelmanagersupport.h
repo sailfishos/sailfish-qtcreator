@@ -30,12 +30,17 @@
 #include <QSharedPointer>
 #include <QString>
 
-namespace TextEditor { class TextDocument; }
+namespace TextEditor {
+class TextDocument;
+class BaseHoverHandler;
+} // namespace TextEditor
 
 namespace CppTools {
 
 class BaseEditorDocumentProcessor;
 class CppCompletionAssistProvider;
+class FollowSymbolInterface;
+class RefactoringEngineInterface;
 
 class CPPTOOLS_EXPORT ModelManagerSupport
 {
@@ -46,8 +51,11 @@ public:
     virtual ~ModelManagerSupport() = 0;
 
     virtual CppCompletionAssistProvider *completionAssistProvider() = 0;
-    virtual BaseEditorDocumentProcessor *editorDocumentProcessor(
+    virtual TextEditor::BaseHoverHandler *createHoverHandler() = 0;
+    virtual BaseEditorDocumentProcessor *createEditorDocumentProcessor(
                 TextEditor::TextDocument *baseTextDocument) = 0;
+    virtual FollowSymbolInterface &followSymbolInterface() = 0;
+    virtual RefactoringEngineInterface &refactoringEngineInterface() = 0;
 };
 
 class CPPTOOLS_EXPORT ModelManagerSupportProvider

@@ -173,6 +173,21 @@ DesignerActionManager &DesignerActionManager::instance()
     return QmlDesignerPlugin::instance()->viewManager().designerActionManager();
 }
 
+void DesignerActionManager::setupContext()
+{
+    m_designerActionManagerView->setupContext();
+}
+
+QList<AddResourceHandler> DesignerActionManager::addResourceHandler() const
+{
+    return m_addResourceHandler;
+}
+
+void DesignerActionManager::registerAddResourceHandler(const AddResourceHandler &handler)
+{
+    m_addResourceHandler.append(handler);
+}
+
 class VisiblityModelNodeAction : public ModelNodeContextMenuAction
 {
 public:
@@ -354,7 +369,7 @@ bool selectionHasSameParentAndInBaseState(const SelectionContext &context)
 bool isNotInLayout(const SelectionContext &context)
 {
     if (selectionNotEmpty(context)) {
-        ModelNode selectedModelNode = context.selectedModelNodes().first();
+        const ModelNode selectedModelNode = context.selectedModelNodes().constFirst();
         ModelNode parentModelNode;
 
         if (selectedModelNode.hasParentProperty())
@@ -597,6 +612,9 @@ bool raiseAvailable(const SelectionContext &selectionState)
     ModelNode modelNode = selectionState.currentSingleSelectedNode();
 
     if (modelNode.isRootNode())
+        return false;
+
+    if (!modelNode.hasParentProperty())
         return false;
 
     if (!modelNode.parentProperty().isNodeListProperty())
@@ -976,6 +994,22 @@ void DesignerActionManager::createDefaultDesignerActions()
                           priorityGenericToolBar));
 
     addDesignerAction(new ChangeStyleAction());
+}
+
+void DesignerActionManager::createDefaultAddResourceHandler()
+{
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
+                                                  "*.png",
+                                                  ModelNodeOperations::addImageToProject));
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
+                                                  "*.jpg",
+                                                  ModelNodeOperations::addImageToProject));
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
+                                                  "*.bmp",
+                                                  ModelNodeOperations::addImageToProject));
+    registerAddResourceHandler(AddResourceHandler(ComponentCoreConstants::addImagesDisplayString,
+                                                  "*.svg",
+                                                  ModelNodeOperations::addImageToProject));
 }
 
 void DesignerActionManager::addDesignerAction(ActionInterface *newAction)

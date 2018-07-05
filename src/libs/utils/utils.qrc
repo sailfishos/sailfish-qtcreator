@@ -1,19 +1,28 @@
 <RCC>
     <qresource prefix="/utils">
         <file>images/arrow.png</file>
-        <file>images/crumblepath-segment.png</file>
-        <file>images/crumblepath-segment-end.png</file>
-        <file>images/crumblepath-segment-hover-end.png</file>
-        <file>images/crumblepath-segment-hover.png</file>
-        <file>images/crumblepath-segment-selected-end.png</file>
-        <file>images/crumblepath-segment-selected.png</file>
+        <file>images/crumblepath-segment-first.png</file>
+        <file>images/crumblepath-segment-first-hover.png</file>
+        <file>images/crumblepath-segment-first@2x.png</file>
+        <file>images/crumblepath-segment-first-hover@2x.png</file>
+        <file>images/crumblepath-segment-middle.png</file>
+        <file>images/crumblepath-segment-middle-hover.png</file>
+        <file>images/crumblepath-segment-middle@2x.png</file>
+        <file>images/crumblepath-segment-middle-hover@2x.png</file>
+        <file>images/crumblepath-segment-last.png</file>
+        <file>images/crumblepath-segment-last-hover.png</file>
+        <file>images/crumblepath-segment-last@2x.png</file>
+        <file>images/crumblepath-segment-last-hover@2x.png</file>
+        <file>images/crumblepath-segment-single.png</file>
+        <file>images/crumblepath-segment-single-hover.png</file>
+        <file>images/crumblepath-segment-single@2x.png</file>
+        <file>images/crumblepath-segment-single-hover@2x.png</file>
         <file>images/progressindicator_big.png</file>
         <file>images/progressindicator_big@2x.png</file>
         <file>images/progressindicator_medium.png</file>
         <file>images/progressindicator_medium@2x.png</file>
         <file>images/progressindicator_small.png</file>
         <file>images/progressindicator_small@2x.png</file>
-        <file>images/triangle_vert.png</file>
         <file>images/next.png</file>
         <file>images/next@2x.png</file>
         <file>images/prev.png</file>
@@ -35,7 +44,6 @@
         <file>images/clean_pane_small@2x.png</file>
         <file>images/compile_error_taskbar.png</file>
         <file>images/compile_error_taskbar@2x.png</file>
-        <file>images/dir.png</file>
         <file>images/editcopy.png</file>
         <file>images/editcopy@2x.png</file>
         <file>images/editcut.png</file>
@@ -43,6 +51,7 @@
         <file>images/editpaste.png</file>
         <file>images/editpaste@2x.png</file>
         <file>images/empty14.png</file>
+        <file>images/empty16.png</file>
         <file>images/filenew.png</file>
         <file>images/filenew@2x.png</file>
         <file>images/fileopen.png</file>
@@ -88,12 +97,10 @@
         <file>images/splitbutton_horizontal@2x.png</file>
         <file>images/undo.png</file>
         <file>images/undo@2x.png</file>
-        <file>images/unknownfile.png</file>
         <file>images/extension.png</file>
         <file>images/extension@2x.png</file>
         <file>images/progressbar.png</file>
         <file>images/progressbar@2x.png</file>
-        <file>images/help.png</file>
         <file>images/editclear.png</file>
         <file>images/editclear@2x.png</file>
         <file>images/arrowdown.png</file>
@@ -178,5 +185,17 @@
         <file>images/pan@2x.png</file>
         <file>images/wizardicon-file.png</file>
         <file>images/wizardicon-file@2x.png</file>
+        <file>images/project.png</file>
+        <file>images/project@2x.png</file>
+        <file>images/home.png</file>
+        <file>images/home@2x.png</file>
+        <file>images/select.png</file>
+        <file>images/select@2x.png</file>
+        <file>images/app-on-top.png</file>
+        <file>images/app-on-top@2x.png</file>
+        <file>images/codemodelerror.png</file>
+        <file>images/codemodelerror@2x.png</file>
+        <file>images/codemodelwarning.png</file>
+        <file>images/codemodelwarning@2x.png</file>
     </qresource>
 </RCC>

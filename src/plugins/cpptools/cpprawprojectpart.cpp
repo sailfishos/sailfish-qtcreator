@@ -81,9 +81,9 @@ void RawProjectPart::setQtVersion(ProjectPart::QtVersion qtVersion)
     this->qtVersion = qtVersion;
 }
 
-void RawProjectPart::setDefines(const QByteArray &defines)
+void RawProjectPart::setMacros(const ProjectExplorer::Macros &macros)
 {
-    this->projectDefines = defines;
+    this->projectMacros = macros;
 }
 
 void RawProjectPart::setHeaderPaths(const ProjectPartHeaderPaths &headerPaths)
@@ -131,6 +131,11 @@ void RawProjectPart::setFlagsForC(const RawProjectPartFlags &flags)
 void RawProjectPart::setFlagsForCxx(const RawProjectPartFlags &flags)
 {
     flagsForCxx = flags;
+}
+
+void RawProjectPart::setBuildTargetType(ProjectPart::BuildTargetType type)
+{
+    buildTargetType = type;
 }
 
 } // namespace CppTools

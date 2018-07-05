@@ -32,21 +32,7 @@
 #include <filecontainerv2.h>
 #include <sourcelocationscontainer.h>
 
-#if defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wunused-parameter"
-#elif defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning( disable : 4100 )
-#endif
-
-#include "clang/Tooling/Refactoring.h"
-
-#if defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
+#include <clang/Tooling/Refactoring.h>
 
 #include <utils/smallstring.h>
 
@@ -63,7 +49,7 @@ struct FileContent
                 const std::vector<std::string> &commandLine)
         : directory(directory),
           fileName(fileName),
-          filePath(directory + nativeSeperator + fileName),
+          filePath(directory + nativeSeparator + fileName),
           content(content),
           commandLine(commandLine)
     {}
@@ -97,17 +83,24 @@ public:
 
     template <typename Container>
     void addFiles(const Container &filePaths,
-                 const Utils::SmallStringVector &arguments);
+                  const Utils::SmallStringVector &arguments);
 
     void addUnsavedFiles(const V2::FileContainers &unsavedFiles);
 
     clang::tooling::ClangTool createTool() const;
 
 private:
-    RefactoringCompilationDatabase compilationDatabase;
-    std::vector<FileContent> fileContents;
-    std::vector<std::string> sourceFilePaths;
-    std::vector<UnsavedFileContent> unsavedFileContents;
+    RefactoringCompilationDatabase m_compilationDatabase;
+    std::vector<FileContent> m_fileContents;
+    std::vector<std::string> m_sourceFilePaths;
+    std::vector<UnsavedFileContent> m_unsavedFileContents;
 };
+
+extern template
+void ClangTool::addFiles<Utils::SmallStringVector>(const Utils::SmallStringVector &filePaths,
+                                                   const Utils::SmallStringVector &arguments);
+extern template
+void ClangTool::addFiles<Utils::PathStringVector>(const Utils::PathStringVector &filePaths,
+                                                  const Utils::SmallStringVector &arguments);
 
 } // namespace ClangBackEnd

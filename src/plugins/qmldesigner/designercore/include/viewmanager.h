@@ -95,7 +95,8 @@ public:
 
     void toggleStatesViewExpanded();
 
-    QString qmlJSEditorHelpId() const;
+    void qmlJSEditorHelpId(const Core::IContext::HelpIdCallback &callback) const;
+    DesignDocument *currentDesignDocument() const;
 
 private: // functions
     Q_DISABLE_COPY(ViewManager)
@@ -107,7 +108,6 @@ private: // functions
 
     Model *currentModel() const;
     Model *documentModel() const;
-    DesignDocument *currentDesignDocument() const;
     QString pathToQt() const;
 
     void switchStateEditorViewToBaseState();

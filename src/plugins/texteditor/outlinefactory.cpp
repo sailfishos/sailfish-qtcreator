@@ -38,6 +38,19 @@
 #include <QDebug>
 
 namespace TextEditor {
+
+static QList<IOutlineWidgetFactory *> g_outlineWidgetFactories;
+
+IOutlineWidgetFactory::IOutlineWidgetFactory()
+{
+    g_outlineWidgetFactories.append(this);
+}
+
+IOutlineWidgetFactory::~IOutlineWidgetFactory()
+{
+    g_outlineWidgetFactories.removeOne(this);
+}
+
 namespace Internal {
 
 OutlineWidgetStack::OutlineWidgetStack(OutlineFactory *factory) :
@@ -55,14 +68,18 @@ OutlineWidgetStack::OutlineWidgetStack(OutlineFactory *factory) :
     addWidget(label);
 
     m_toggleSync = new QToolButton;
-    m_toggleSync->setIcon(Utils::Icons::LINK.icon());
+    m_toggleSync->setIcon(Utils::Icons::LINK_TOOLBAR.icon());
     m_toggleSync->setCheckable(true);
     m_toggleSync->setChecked(true);
     m_toggleSync->setToolTip(tr("Synchronize with Editor"));
     connect(m_toggleSync, &QAbstractButton::clicked,
             this, &OutlineWidgetStack::toggleCursorSynchronization);
 
-    m_filterButton = new QToolButton;
+    m_filterButton = new QToolButton(this);
+    // The ToolButton needs a parent because updateFilterMenu() sets
+    // it visible. That would open a top-level window if the button
+    // did not have a parent in that moment.
+
     m_filterButton->setIcon(Utils::Icons::FILTER.icon());
     m_filterButton->setToolTip(tr("Filter tree"));
     m_filterButton->setPopupMode(QToolButton::InstantPopup);
@@ -149,7 +166,7 @@ void OutlineWidgetStack::updateCurrentEditor(Core::IEditor *editor)
     IOutlineWidget *newWidget = 0;
 
     if (editor) {
-        foreach (IOutlineWidgetFactory *widgetFactory, m_factory->widgetFactories()) {
+        for (IOutlineWidgetFactory *widgetFactory : g_outlineWidgetFactories) {
             if (widgetFactory->supportsEditor(editor)) {
                 newWidget = widgetFactory->createWidget(editor);
                 break;
@@ -183,16 +200,6 @@ OutlineFactory::OutlineFactory()
     setDisplayName(tr("Outline"));
     setId("Outline");
     setPriority(600);
-}
-
-QList<IOutlineWidgetFactory*> OutlineFactory::widgetFactories() const
-{
-    return m_factories;
-}
-
-void OutlineFactory::setWidgetFactories(QList<IOutlineWidgetFactory*> factories)
-{
-    m_factories = factories;
 }
 
 Core::NavigationView OutlineFactory::createWidget()

@@ -30,7 +30,6 @@
 #include "debuggercore.h"
 #include "debuggerengine.h"
 #include "debuggerinternalconstants.h"
-#include "debuggerstartparameters.h"
 #include "disassemblerlines.h"
 #include "sourceutils.h"
 
@@ -45,6 +44,7 @@
 
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
+#include <utils/savedaction.h>
 
 #include <QTextBlock>
 #include <QDir>
@@ -175,7 +175,10 @@ int DisassemblerAgentPrivate::lineForAddress(quint64 address) const
 
 DisassemblerAgent::DisassemblerAgent(DebuggerEngine *engine)
     : d(new DisassemblerAgentPrivate(engine))
-{}
+{
+    connect(action(IntelFlavor), &Utils::SavedAction::valueChanged,
+            this, &DisassemblerAgent::reload);
+}
 
 DisassemblerAgent::~DisassemblerAgent()
 {

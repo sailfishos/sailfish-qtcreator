@@ -82,8 +82,8 @@ protected:
 
     Utils::Environment readEnvironmentSetting(const Utils::Environment& env) const final;
     // Function must be thread-safe!
-    QByteArray msvcPredefinedMacros(const QStringList cxxflags,
-                                    const Utils::Environment &env) const override;
+    Macros msvcPredefinedMacros(const QStringList cxxflags,
+                                const Utils::Environment &env) const override;
 
 private:
     QList<Utils::EnvironmentItem> environmentModifications() const;
@@ -107,7 +107,7 @@ public:
     QString typeDisplayName() const override;
     QList<Utils::FileName> suggestedMkspecList() const override;
     void addToEnvironment(Utils::Environment &env) const override;
-    Utils::FileName compilerCommand() const override { return m_compiler; }
+    Utils::FileName compilerCommand() const override;
     IOutputParser *outputParser() const override;
     ToolChain *clone() const override;
     QVariantMap toMap() const override;
@@ -118,7 +118,6 @@ public:
 
 private:
     QString m_llvmDir;
-    Utils::FileName m_compiler;
 };
 
 // --------------------------------------------------------------------------

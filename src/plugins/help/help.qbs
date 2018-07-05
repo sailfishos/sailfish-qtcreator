@@ -5,14 +5,7 @@ QtcPlugin {
 
     Depends { name: "Qt"; submodules: ["help", "network", "sql"]; }
     Depends { name: "Qt.printsupport" }
-    Depends {
-        name: "Qt.webkit"
-        required: false
-    }
-    Depends {
-        name: "Qt.webkitwidgets"
-        condition: Qt.webkit.present
-    }
+    Depends { name: "Qt.webenginewidgets"; required: false }
 
     Depends { name: "Aggregation" }
     Depends { name: "Utils" }
@@ -24,8 +17,8 @@ QtcPlugin {
 
     cpp.defines: {
         var defines = base.concat(["QT_CLUCENE_SUPPORT"]);
-        if (!Qt.webkit.present)
-            defines.push("QT_NO_WEBKIT");
+        if (Qt.webenginewidgets.present)
+            defines.push("QTC_WEBENGINE_HELPVIEWER");
         return defines;
     }
 
@@ -52,12 +45,19 @@ QtcPlugin {
             "openpagesmodel.cpp", "openpagesmodel.h",
             "openpagesswitcher.cpp", "openpagesswitcher.h",
             "openpageswidget.cpp", "openpageswidget.h",
-            "qtwebkithelpviewer.cpp", "qtwebkithelpviewer.h",
             "remotehelpfilter.cpp", "remotehelpfilter.h", "remotehelpfilter.ui",
             "searchtaskhandler.cpp", "searchtaskhandler.h",
             "searchwidget.cpp", "searchwidget.h",
             "textbrowserhelpviewer.cpp", "textbrowserhelpviewer.h",
             "xbelsupport.cpp", "xbelsupport.h",
+        ]
+    }
+
+    Group {
+        name: "WebEngine Sources"
+        condition: Qt.webenginewidgets.present
+        files: [
+            "webenginehelpviewer.cpp", "webenginehelpviewer.h"
         ]
     }
 

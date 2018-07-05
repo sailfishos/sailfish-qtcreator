@@ -15,12 +15,14 @@ HEADERS += projectexplorer.h \
     gcctoolchain.h \
     importwidget.h \
     runnables.h \
+    userfileaccessor.h \
     localenvironmentaspect.h \
     osparser.h \
     projectexplorer_export.h \
     projectimporter.h \
     projectwindow.h \
     removetaskhandler.h \
+    subscription.h \
     targetsetuppage.h \
     targetsetupwidget.h \
     kit.h \
@@ -33,11 +35,11 @@ HEADERS += projectexplorer.h \
     kitmanagerconfigwidget.h \
     kitmodel.h \
     kitoptionspage.h \
+    projectconfigurationmodel.h \
     buildmanager.h \
     buildsteplist.h \
     compileoutputwindow.h \
     deployconfiguration.h \
-    deployconfigurationmodel.h \
     namedwidget.h \
     target.h \
     targetsettingspanel.h \
@@ -94,8 +96,6 @@ HEADERS += projectexplorer.h \
     ldparser.h \
     linuxiccparser.h \
     runconfigurationaspects.h \
-    runconfigurationmodel.h \
-    buildconfigurationmodel.h \
     processparameters.h \
     abstractprocessstep.h \
     taskhub.h \
@@ -103,7 +103,6 @@ HEADERS += projectexplorer.h \
     gcctoolchainfactories.h \
     appoutputpane.h \
     codestylesettingspropertiespage.h \
-    settingsaccessor.h \
     deployablefile.h \
     devicesupport/idevice.h \
     devicesupport/desktopdevice.h \
@@ -150,7 +149,8 @@ HEADERS += projectexplorer.h \
     projectexplorer_global.h \
     extracompiler.h \
     customexecutableconfigurationwidget.h \
-    customexecutablerunconfiguration.h
+    customexecutablerunconfiguration.h \
+    projectmacro.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -163,12 +163,15 @@ SOURCES += projectexplorer.cpp \
     environmentaspectwidget.cpp \
     gcctoolchain.cpp \
     importwidget.cpp \
+    projectconfigurationmodel.cpp \
     runnables.cpp \
+    userfileaccessor.cpp \
     localenvironmentaspect.cpp \
     osparser.cpp \
     projectimporter.cpp \
     projectwindow.cpp \
     removetaskhandler.cpp \
+    subscription.cpp \
     targetsetuppage.cpp \
     targetsetupwidget.cpp \
     kit.cpp \
@@ -184,7 +187,6 @@ SOURCES += projectexplorer.cpp \
     buildsteplist.cpp \
     compileoutputwindow.cpp \
     deployconfiguration.cpp \
-    deployconfigurationmodel.cpp \
     namedwidget.cpp \
     target.cpp \
     targetsettingspanel.cpp \
@@ -238,13 +240,10 @@ SOURCES += projectexplorer.cpp \
     ldparser.cpp \
     linuxiccparser.cpp \
     runconfigurationaspects.cpp \
-    runconfigurationmodel.cpp \
-    buildconfigurationmodel.cpp \
     taskhub.cpp \
     processparameters.cpp \
     appoutputpane.cpp \
     codestylesettingspropertiespage.cpp \
-    settingsaccessor.cpp \
     devicesupport/idevice.cpp \
     devicesupport/desktopdevice.cpp \
     devicesupport/desktopdevicefactory.cpp \
@@ -286,7 +285,8 @@ SOURCES += projectexplorer.cpp \
     projectexplorericons.cpp \
     extracompiler.cpp \
     customexecutableconfigurationwidget.cpp \
-    customexecutablerunconfiguration.cpp
+    customexecutablerunconfiguration.cpp \
+    projectmacro.cpp
 
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \
@@ -331,12 +331,5 @@ journald {
 }
 
 RESOURCES += projectexplorer.qrc
-
-# Some way to override the architecture used in Abi:
-!isEmpty($$(QTC_CPU)) {
-    DEFINES += QTC_CPU=$$(QTC_CPU)
-} else {
-    DEFINES += QTC_CPU=X86Architecture
-}
 
 DEFINES += PROJECTEXPLORER_LIBRARY

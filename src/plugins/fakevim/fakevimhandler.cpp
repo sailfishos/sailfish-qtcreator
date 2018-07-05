@@ -60,6 +60,7 @@
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcfallthrough.h>
 
 #include <QDebug>
 #include <QFile>
@@ -2534,7 +2535,6 @@ EventResult FakeVimHandler::Private::handleEvent(QKeyEvent *ev)
     //    qDebug() << "Cursor at EOL before key handler");
 
     const Input input(key, mods, ev->text());
-    const QString text = ev->text();
     if (!input.isValid())
         return EventUnhandled;
 
@@ -5663,7 +5663,7 @@ bool FakeVimHandler::Private::handleExMapCommand(const ExCommand &cmd0) // :map
             foreach (char c, modes)
                 MappingsIterator(&g.mappings, c, key).remove();
             break;
-        case Map: // fall through
+        case Map: Q_FALLTHROUGH();
         case Noremap: {
             Inputs inputs(rhs, type == Noremap, silent);
             foreach (char c, modes)

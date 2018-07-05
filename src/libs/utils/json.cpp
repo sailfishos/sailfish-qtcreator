@@ -258,13 +258,14 @@ void JsonSchema::enterNestedTypeSchema()
 
 QStringList JsonSchema::properties(JsonObjectValue *v) const
 {
-    typedef QHash<QString, JsonValue *>::ConstIterator MemberConstIterator;
+    using Members = QHash<QString, JsonValue *>;
 
     QStringList all;
 
     if (JsonObjectValue *ov = getObjectValue(kProperties(), v)) {
-        const MemberConstIterator cend = ov->members().constEnd();
-        for (MemberConstIterator it = ov->members().constBegin(); it != cend; ++it)
+        const Members members = ov->members();
+        const Members::ConstIterator cend = members.constEnd();
+        for (Members::ConstIterator it = members.constBegin(); it != cend; ++it)
             if (hasPropertySchema(it.key()))
                 all.append(it.key());
     }
@@ -671,7 +672,7 @@ JsonSchemaManager::JsonSchemaManager(const QStringList &searchPaths)
 {
     foreach (const QString &path, m_searchPaths) {
         QDir dir(path);
-        if (!dir.exists() && !dir.mkpath(path))
+        if (!dir.exists())
             continue;
         dir.setNameFilters(QStringList(QLatin1String("*.json")));
         foreach (const QFileInfo &fi, dir.entryInfoList())

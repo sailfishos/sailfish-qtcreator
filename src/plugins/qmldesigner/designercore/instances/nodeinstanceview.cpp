@@ -34,6 +34,7 @@
 #include <model.h>
 #include <modelnode.h>
 #include <metainfo.h>
+#include <nodehints.h>
 #include <rewriterview.h>
 
 #include "abstractproperty.h"
@@ -43,6 +44,9 @@
 #include "nodelistproperty.h"
 #include "nodeproperty.h"
 #include "qmlchangeset.h"
+#include "qmlstate.h"
+#include "qmltimelinemutator.h"
+#include "qmltimelinekeyframes.h"
 
 #include "createscenecommand.h"
 #include "createinstancescommand.h"
@@ -122,7 +126,7 @@ NodeInstanceView::~NodeInstanceView()
 
 //\{
 
-bool isSkippedRootNode(const ModelNode &node)
+bool static isSkippedRootNode(const ModelNode &node)
 {
     static const PropertyNameList skipList({"Qt.ListModel", "QtQuick.ListModel", "Qt.ListModel", "QtQuick.ListModel"});
 
@@ -133,12 +137,28 @@ bool isSkippedRootNode(const ModelNode &node)
 }
 
 
-bool isSkippedNode(const ModelNode &node)
+bool static isSkippedNode(const ModelNode &node)
 {
     static const PropertyNameList skipList({"QtQuick.XmlRole", "Qt.XmlRole", "QtQuick.ListElement", "Qt.ListElement"});
 
     if (skipList.contains(node.type()))
         return true;
+
+    return false;
+}
+
+bool static parentTakesOverRendering(const ModelNode &modelNode)
+{
+    if (!modelNode.isValid())
+        return false;
+
+    ModelNode currentNode = modelNode;
+
+    while (currentNode.hasParentProperty()) {
+        currentNode = currentNode.parentProperty().parentModelNode();
+        if (NodeHints::fromModelNode(currentNode).takesOverRenderingOfChildren())
+            return true;
+    }
 
     return false;
 }
@@ -202,6 +222,7 @@ void NodeInstanceView::restartProcess()
     if (rootNodeInstance().isValid())
         rootNodeInstance().setError({});
     emitInstanceErrorChange({});
+    emitDocumentMessage({}, {});
 
     if (m_restartProcessTimerId)
         killTimer(m_restartProcessTimerId);
@@ -651,13 +672,13 @@ void NodeInstanceView::updateChildren(const NodeAbstractProperty &newPropertyPar
 void setXValue(NodeInstance &instance, const VariantProperty &variantProperty, QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     instance.setX(variantProperty.value().toDouble());
-    informationChangeHash.insert(variantProperty.parentModelNode(), Transform);
+    informationChangeHash.insert(instance.modelNode(), Transform);
 }
 
 void setYValue(NodeInstance &instance, const VariantProperty &variantProperty, QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     instance.setY(variantProperty.value().toDouble());
-    informationChangeHash.insert(variantProperty.parentModelNode(), Transform);
+    informationChangeHash.insert(instance.modelNode(), Transform);
 }
 
 
@@ -668,7 +689,7 @@ void NodeInstanceView::updatePosition(const QList<VariantProperty> &propertyList
     foreach (const VariantProperty &variantProperty, propertyList) {
         if (variantProperty.name() == "x") {
             const ModelNode modelNode = variantProperty.parentModelNode();
-            if (QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
+            if (!currentState().isBaseState() && QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
                 ModelNode targetModelNode = QmlPropertyChanges(modelNode).target();
                 if (targetModelNode.isValid()) {
                     NodeInstance instance = instanceForModelNode(targetModelNode);
@@ -680,7 +701,7 @@ void NodeInstanceView::updatePosition(const QList<VariantProperty> &propertyList
             }
         } else if (variantProperty.name() == "y") {
             const ModelNode modelNode = variantProperty.parentModelNode();
-            if (QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
+            if (!currentState().isBaseState() && QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
                 ModelNode targetModelNode = QmlPropertyChanges(modelNode).target();
                 if (targetModelNode.isValid()) {
                     NodeInstance instance = instanceForModelNode(targetModelNode);
@@ -690,6 +711,21 @@ void NodeInstanceView::updatePosition(const QList<VariantProperty> &propertyList
                 NodeInstance instance = instanceForModelNode(modelNode);
                 setYValue(instance, variantProperty, informationChangeHash);
             }
+        } else if (currentTimeline().isValid()
+                   && variantProperty.name() == "value"
+                   &&  QmlTimelineFrames::isValidKeyframe(variantProperty.parentModelNode())) {
+
+            QmlTimelineFrames frames = QmlTimelineFrames::keyframesForKeyframe(variantProperty.parentModelNode());
+
+            if (frames.isValid() && frames.propertyName() == "x" && frames.target().isValid()) {
+
+                NodeInstance instance = instanceForModelNode(frames.target());
+                setXValue(instance, variantProperty, informationChangeHash);
+            } else if (frames.isValid() && frames.propertyName() == "y" && frames.target().isValid()) {
+                NodeInstance instance = instanceForModelNode(frames.target());
+                setYValue(instance, variantProperty, informationChangeHash);
+            }
+
         }
     }
 
@@ -798,6 +834,11 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
         if (instance.modelNode().metaInfo().isSubclassOf("QtQuick.Item"))
             nodeMetaType = InstanceContainer::ItemMetaType;
 
+        InstanceContainer::NodeFlags nodeFlags;
+
+        if (parentTakesOverRendering(instance.modelNode()))
+            nodeFlags |= InstanceContainer::ParentTakesOverRendering;
+
         InstanceContainer container(instance.instanceId(),
                                     instance.modelNode().type(),
                                     instance.modelNode().majorVersion(),
@@ -805,8 +846,8 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
                                     instance.modelNode().metaInfo().componentFileName(),
                                     instance.modelNode().nodeSource(),
                                     nodeSourceType,
-                                    nodeMetaType
-                                   );
+                                    nodeMetaType,
+                                    nodeFlags);
 
         instanceContainerList.append(container);
     }
@@ -862,8 +903,8 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
 
         if (versionString.contains(QStringLiteral("."))) {
             const QStringList splittedString = versionString.split(QStringLiteral("."));
-            majorVersion = splittedString.first().toInt();
-            minorVersion = splittedString.last().toInt();
+            majorVersion = splittedString.constFirst().toInt();
+            minorVersion = splittedString.constLast().toInt();
         }
 
         bool isItem = false;
@@ -939,8 +980,20 @@ CreateInstancesCommand NodeInstanceView::createCreateInstancesCommand(const QLis
         if (instance.modelNode().metaInfo().isSubclassOf("QtQuick.Item"))
             nodeMetaType = InstanceContainer::ItemMetaType;
 
-        InstanceContainer container(instance.instanceId(), instance.modelNode().type(), instance.modelNode().majorVersion(), instance.modelNode().minorVersion(),
-                                    instance.modelNode().metaInfo().componentFileName(), instance.modelNode().nodeSource(), nodeSourceType, nodeMetaType);
+        InstanceContainer::NodeFlags nodeFlags;
+
+        if (parentTakesOverRendering(instance.modelNode()))
+            nodeFlags |= InstanceContainer::ParentTakesOverRendering;
+
+        InstanceContainer container(instance.instanceId(),
+                                    instance.modelNode().type(),
+                                    instance.modelNode().majorVersion(),
+                                    instance.modelNode().minorVersion(),
+                                    instance.modelNode().metaInfo().componentFileName(),
+                                    instance.modelNode().nodeSource(),
+                                    nodeSourceType,
+                                    nodeMetaType,
+                                    nodeFlags);
         containerList.append(container);
     }
 

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <qmldesignercorelib_global.h>
+
 #include <utils/theme/theme.h>
 
 #include <QColor>
@@ -36,13 +38,15 @@ QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
-class Theme : public Utils::Theme
+class QMLDESIGNERCORE_EXPORT Theme : public Utils::Theme
 {
     Q_OBJECT
 public:
     static Theme *instance();
     static QString replaceCssColors(const QString &input);
     static void setupTheme(QQmlEngine *engine);
+    static QColor getColor(Color role);
+    static QPixmap getPixmap(const QString &id);
 
     Q_INVOKABLE QColor qmlDesignerBackgroundColorDarker() const;
     Q_INVOKABLE QColor qmlDesignerBackgroundColorDarkAlternate() const;
@@ -50,7 +54,6 @@ public:
     Q_INVOKABLE QColor qmlDesignerTabDark() const;
     Q_INVOKABLE QColor qmlDesignerButtonColor() const;
     Q_INVOKABLE QColor qmlDesignerBorderColor() const;
-
 private:
     Theme(Utils::Theme *originTheme, QObject *parent);
     QColor evaluateColorAtThemeInstance(const QString &themeColorName);

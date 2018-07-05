@@ -126,7 +126,8 @@ void ObjectNodeInstance::initializePropertyWatcher(const ObjectNodeInstance::Poi
     m_signalSpy.setObjectNodeInstance(objectNodeInstance);
 }
 
-void ObjectNodeInstance::initialize(const ObjectNodeInstance::Pointer &objectNodeInstance)
+void ObjectNodeInstance::initialize(const ObjectNodeInstance::Pointer &objectNodeInstance,
+                                    InstanceContainer::NodeFlags /*flags*/)
 {
     initializePropertyWatcher(objectNodeInstance);
     QmlPrivateGate::registerNodeInstanceMetaObject(objectNodeInstance->object(), objectNodeInstance->nodeInstanceServer()->engine());
@@ -693,7 +694,7 @@ static inline QString fixComponentPathForIncompatibleQt(const QString &component
         //plugin directories might contain the version number
             fixedPath.chop(4);
             fixedPath += QLatin1Char('/') + QFileInfo(componentPath).fileName();
-            if (QFileInfo(fixedPath).exists())
+            if (QFileInfo::exists(fixedPath))
                 return fixedPath;
         }
     }

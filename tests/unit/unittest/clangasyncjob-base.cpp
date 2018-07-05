@@ -26,7 +26,7 @@
 #include "clangasyncjob-base.h"
 #include "processevents-utilities.h"
 
-#include <clangbackendipc/filecontainer.h>
+#include <clangsupport/filecontainer.h>
 
 using namespace ClangBackEnd;
 
@@ -49,10 +49,7 @@ void ClangAsyncJobTest::BaseSetUp(ClangBackEnd::JobRequest::Type jobRequestType,
 JobRequest ClangAsyncJobTest::createJobRequest(const Utf8String &filePath,
                                                JobRequest::Type type) const
 {
-    JobRequest jobRequest;
-    jobRequest.type = type;
-    jobRequest.expirationReasons = JobRequest::expirationReasonsForType(type);
-    jobRequest.conditions = JobRequest::conditionsForType(type);
+    JobRequest jobRequest(type);
     jobRequest.filePath = filePath;
     jobRequest.projectPartId = projectPartId;
     jobRequest.unsavedFilesChangeTimePoint = unsavedFiles.lastChangeTimePoint();

@@ -26,42 +26,23 @@
 #include "androidpackageinstallationfactory.h"
 #include "androidpackageinstallationstep.h"
 
+#include <android/androidconstants.h>
+
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/target.h>
-#include <android/androidmanager.h>
 
 using namespace ProjectExplorer;
 
 namespace QmakeAndroidSupport {
 namespace Internal {
 
-AndroidPackageInstallationFactory::AndroidPackageInstallationFactory(QObject *parent)
-    : IBuildStepFactory(parent)
+AndroidPackageInstallationFactory::AndroidPackageInstallationFactory()
 {
-}
-
-QList<BuildStepInfo> AndroidPackageInstallationFactory::availableSteps(BuildStepList *parent) const
-{
-    if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_BUILD)
-        return {};
-    if (!Android::AndroidManager::supportsAndroid(parent->target()))
-        return {};
-    if (parent->contains(AndroidPackageInstallationStep::Id))
-        return {};
-
-    return {{AndroidPackageInstallationStep::Id, tr("Deploy to device"), BuildStepInfo::Uncreatable}};
-}
-
-BuildStep *AndroidPackageInstallationFactory::create(BuildStepList *parent, Core::Id id)
-{
-    Q_UNUSED(id)
-    return new AndroidPackageInstallationStep(parent);
-}
-
-BuildStep *AndroidPackageInstallationFactory::clone(BuildStepList *parent, BuildStep *product)
-{
-    return new AndroidPackageInstallationStep(parent, static_cast<AndroidPackageInstallationStep*>(product));
+    registerStep<AndroidPackageInstallationStep>(AndroidPackageInstallationStep::Id);
+    setSupportedDeviceType(Android::Constants::ANDROID_DEVICE_TYPE);
+    setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    setRepeatable(false);
+    setDisplayName(tr("Deploy to device"));
 }
 
 } // namespace Internal

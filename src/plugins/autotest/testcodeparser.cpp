@@ -42,6 +42,7 @@
 #include <utils/algorithm.h>
 #include <utils/mapreduce.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcfallthrough.h>
 #include <utils/runextensions.h>
 
 #include <QDirIterator>
@@ -208,7 +209,7 @@ void TestCodeParser::onDocumentUpdated(const QString &fileName, bool isQmlFile)
     if (!project)
         return;
     // Quick tests: qml files aren't necessarily listed inside project files
-    if (!isQmlFile && !SessionManager::projectContainsFile(project, Utils::FileName::fromString(fileName)))
+    if (!isQmlFile && !project->isKnownFile(Utils::FileName::fromString(fileName)))
         return;
 
     scanForTests(QStringList(fileName));
@@ -276,7 +277,7 @@ bool TestCodeParser::postponed(const QStringList &fileList)
                     m_reparseTimer.start();
                     return true;
                 }
-                // intentional fall-through
+                Q_FALLTHROUGH();
             default:
                 m_postponedFiles.insert(fileList.first());
                 m_reparseTimer.stop();
@@ -343,7 +344,7 @@ void TestCodeParser::scanForTests(const QStringList &fileList, ITestParser *pars
         return;
     QStringList list;
     if (isFullParse) {
-        list = project->files(Project::SourceFiles);
+        list = Utils::transform(project->files(Project::SourceFiles), &Utils::FileName::toString);
         if (list.isEmpty()) {
             // at least project file should be there, but might happen if parsing current project
             // takes too long, especially when opening sessions holding multiple projects
@@ -399,10 +400,10 @@ void TestCodeParser::scanForTests(const QStringList &fileList, ITestParser *pars
         codeParsers.append(m_testCodeParsers);
     qCDebug(LOG) << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "StartParsing";
     for (ITestParser *parser : codeParsers)
-        parser->init(list);
+        parser->init(list, isFullParse);
 
     QFuture<TestParseResultPtr> future = Utils::map(list,
-        [this, codeParsers](QFutureInterface<TestParseResultPtr> &fi, const QString &file) {
+        [codeParsers](QFutureInterface<TestParseResultPtr> &fi, const QString &file) {
             parseFileForTests(codeParsers, fi, file);
         },
         Utils::MapReduceOption::Unordered,

@@ -22,7 +22,7 @@ Prerequisites:
     * jom
 * On Mac OS X: latest Xcode
 * On Linux: g++ 4.9 or later
-* LLVM/Clang 3.9.0 or later (optional, needed for the Clang Code Model, see the
+* LLVM/Clang 5.0.0 or later (optional, needed for the Clang Code Model, see the
   section "Get LLVM/Clang for the Clang Code Model")
     * CMake (only for manual builds of LLVM/Clang)
 * Qbs 1.7.x (optional, sources also contain Qbs itself)
@@ -31,7 +31,7 @@ The installed toolchains have to match the one Qt was compiled with.
 
 You can build Qt Creator with
 
-    # Optional, needed for the Clang Code Model:
+    # Optional, needed for the Clang Code Model if llvm-config is not in PATH:
     export LLVM_INSTALL_DIR=/path/to/llvm (or "set" on Windows)
     # Optional, needed to let the QbsProjectManager plugin use system Qbs:
     export QBS_INSTALL_DIR=/path/to/qbs
@@ -74,7 +74,7 @@ For detailed information on the supported compilers, see
        an outdated version 5.8 which cannot be used for Qt.
 
    5.  In the working directory, check out the respective branch of Qt from
-       <https://code.qt.io/cgit/qt/qt5.git> (we recommend the latest released version).
+       <https://code.qt.io/cgit/qt/qt5.git> (we recommend the highest released version).
 
    6.  Check out Qt Creator (master branch or latest version, see
        <https://code.qt.io/cgit/qt-creator/qt-creator.git>).
@@ -129,7 +129,7 @@ For detailed information on the supported compilers, see
        * Install LLVM/Clang - see the section "Get LLVM/Clang for the Clang
          Code Model".
        * Set the environment variable LLVM_INSTALL_DIR to the LLVM/Clang
-         installation directory.
+         installation directory if llvm-config is not in PATH.
        * When you launch Qt Creator, activate the Clang Code Model plugin as
          described in doc/src/editors/creator-clang-codemodel.qdoc.
 
@@ -203,7 +203,7 @@ or using shadow builds.
 ## Get LLVM/Clang for the Clang Code Model
 
 The Clang Code Model depends on the LLVM/Clang libraries. The currently
-supported LLVM/Clang version is 3.9.
+supported LLVM/Clang version is 5.0.
 
 ### Prebuilt LLVM/Clang packages
 
@@ -224,9 +224,9 @@ GCC 4 binaries. On Ubuntu, you can download the package from
 http://apt.llvm.org/ with:
 
    wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-3.9 main"
+   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-5.0 main"
    sudo apt-get update
-   sudo apt-get install llvm-3.9 libclang-3.9-dev
+   sudo apt-get install llvm-5.0 libclang-5.0-dev
 
 There is a workaround to set _GLIBCXX_USE_CXX11_ABI to 1 or 0, but we recommend
 to download the package from http://apt.llvm.org/.
@@ -240,22 +240,16 @@ You need to install CMake in order to build LLVM/Clang.
 Build LLVM/Clang by roughly following the instructions at
 http://llvm.org/docs/GettingStarted.html#git-mirror:
 
-   1. Clone LLVM and switch to a suitable branch
+   1. Clone LLVM and checkout a suitable branch
 
-          git clone http://llvm.org/git/llvm.git
-          cd llvm
-          git checkout release_39
+          git clone -b release_50 https://git.llvm.org/git/llvm
 
-   2. Clone Clang into llvm/tools/clang and switch to a suitable branch
+   2. Clone Clang into llvm/tools/clang and checkout a suitable branch
 
-          cd tools
-          git clone http://llvm.org/git/clang.git
-          cd clang
-          git checkout release_39
+          git clone -b release_50 https://git.llvm.org/git/clang llvm/tools/clang
 
    3. Build and install LLVM/Clang
 
-          cd ../../..
           mkdir build
           cd build
 
@@ -274,6 +268,29 @@ http://llvm.org/docs/GettingStarted.html#git-mirror:
 Qt Creator includes the following third-party components,
 we thank the authors who made this possible:
 
+### Clazy
+
+  https://github.com/KDE/clazy
+
+  Copyright (C) 2015-2018 Clazy Team
+
+  Distributed under GNU LIBRARY GENERAL PUBLIC LICENSE Version 2 (LGPL2).
+
+  Integrated with patches from QtCreator/dist/clang/patches, see README.md there.
+
+### LLVM/Clang
+
+  http://llvm.org/svn/llvm-project/llvm
+  http://llvm.org/svn/llvm-project/cfe/trunk
+  http://llvm.org/svn/llvm-project/clang-tools-extra/trunk
+
+  Copyright (C) 2003-2018 LLVM Team
+
+  Distributed under the University of Illinois/NCSA Open Source License (NCSA),
+  see https://github.com/llvm-mirror/llvm/blob/master/LICENSE.TXT
+
+  With additional patches from QtCreator/dist/clang/patches, see README.md there.
+
 ### Reference implementation for std::experimental::optional
 
   https://github.com/akrzemi1/Optional
@@ -288,6 +305,17 @@ we thank the authors who made this possible:
 
   The idea and interface is based on Boost.Optional library
   authored by Fernando Luis Cacciola Carballal
+
+### Implementation for std::variant
+
+  https://github.com/mpark/variant
+
+  QtCreator/src/libs/3rdparty/variant
+
+  Copyright Michael Park, 2015-2017
+
+  Distributed under the Boost Software License, Version 1.0.
+  (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
 ### Open Source front-end for C++ (license MIT), enhanced for use in Qt Creator
 

@@ -48,12 +48,8 @@ namespace ProjectExplorer { class DeploymentData; }
 namespace QtSupport { class ProFileReader; }
 
 namespace QmakeProjectManager {
-class QmakeBuildConfiguration;
 
-namespace Internal {
-class CentralizedFolderWatcher;
-class QmakeProjectFiles;
-}
+namespace Internal { class CentralizedFolderWatcher; }
 
 class  QMAKEPROJECTMANAGER_EXPORT QmakeProject : public ProjectExplorer::Project
 {
@@ -65,11 +61,9 @@ public:
 
     QmakeProFile *rootProFile() const;
 
-    bool supportsKit(ProjectExplorer::Kit *k, QString *errorMesage) const final;
+    bool supportsKit(const ProjectExplorer::Kit *k, QString *errorMesage) const final;
 
     QmakeProFileNode *rootProjectNode() const final;
-    bool validParse(const Utils::FileName &proFilePath) const;
-    bool parseInProgress(const Utils::FileName &proFilePath) const;
 
     virtual QStringList filesGeneratedFrom(const QString &file) const final;
 
@@ -79,9 +73,9 @@ public:
     QList<QmakeProFile *> applicationProFiles(Parsing parse = ExactParse) const;
     bool hasApplicationProFile(const Utils::FileName &path) const;
 
-    QList<Core::Id> creationIds(Core::Id base,
-                                ProjectExplorer::IRunConfigurationFactory::CreationMode mode,
-                                const QList<ProjectType> &projectTypes = {});
+    QList<ProjectExplorer::BuildTargetInfo>
+        buildTargets(ProjectExplorer::IRunConfigurationFactory::CreationMode mode,
+                     const QList<ProjectType> &projectTypes = {});
 
     static void notifyChanged(const Utils::FileName &name);
 
@@ -113,7 +107,7 @@ public:
 
     bool needsConfiguration() const final;
 
-    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) final;
+    void configureAsExampleProject(const QSet<Core::Id> &platforms) final;
 
     bool requiresTargetPanel() const final;
 
@@ -136,7 +130,6 @@ public:
 signals:
     void proFileUpdated(QmakeProjectManager::QmakeProFile *pro, bool, bool);
     void buildDirectoryInitialized();
-    void proFilesEvaluated();
 
 public:
     void scheduleAsyncUpdate(QmakeProFile::AsyncUpdateDelay delay = QmakeProFile::ParseLater);
@@ -186,8 +179,9 @@ private:
     QMakeVfs *m_qmakeVfs = nullptr;
 
     // cached data during project rescan
-    QMakeGlobals *m_qmakeGlobals = nullptr;
+    std::unique_ptr<QMakeGlobals> m_qmakeGlobals;
     int m_qmakeGlobalsRefCnt = 0;
+    bool m_invalidateQmakeVfsContents = false;
 
     QString m_qmakeSysroot;
 

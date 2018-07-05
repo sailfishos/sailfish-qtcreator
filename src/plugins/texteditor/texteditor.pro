@@ -77,12 +77,9 @@ SOURCES += texteditorplugin.cpp \
     snippets/snippetassistcollector.cpp \
     codeassist/assistinterface.cpp \
     codeassist/assistproposalitem.cpp \
-    convenience.cpp \
     codeassist/runner.cpp \
     codeassist/completionassistprovider.cpp \
     codeassist/genericproposalmodel.cpp \
-    codeassist/quickfixassistprovider.cpp \
-    codeassist/quickfixassistprocessor.cpp \
     codeassist/genericproposal.cpp \
     codeassist/genericproposalwidget.cpp \
     codeassist/iassistproposalmodel.cpp \
@@ -187,14 +184,11 @@ HEADERS += texteditorplugin.h \
     snippets/snippetassistcollector.h \
     codeassist/assistinterface.h \
     codeassist/assistproposalitem.h \
-    convenience.h \
     codeassist/assistenums.h \
     codeassist/runner.h \
     codeassist/assistproposaliteminterface.h \
     codeassist/completionassistprovider.h \
     codeassist/genericproposalmodel.h \
-    codeassist/quickfixassistprovider.h \
-    codeassist/quickfixassistprocessor.h \
     codeassist/genericproposal.h \
     codeassist/genericproposalwidget.h \
     codeassist/iassistproposalmodel.h \

@@ -25,8 +25,11 @@
 
 #include "pchmanagerconnectionclient.h"
 
+#include <coreplugin/icore.h>
+
+#include <utils/temporarydirectory.h>
+
 #include <QCoreApplication>
-#include <QTemporaryDir>
 
 namespace ClangPchManager {
 
@@ -41,35 +44,47 @@ QString currentProcessId()
 
 ClangPchManager::PchManagerConnectionClient::PchManagerConnectionClient(
         ClangBackEnd::PchManagerClientInterface *client)
-    : serverProxy_(client, ioDevice())
+    : ConnectionClient(Utils::TemporaryDirectory::masterDirectoryPath()
+                       + QStringLiteral("/ClangPchManagerBackEnd-")
+                       + currentProcessId()),
+      m_serverProxy(client, ioDevice())
 {
+    m_processCreator.setTemporaryDirectoryPattern("clangpchmanagerbackend-XXXXXX");
+    m_processCreator.setArguments({connectionName(),
+                                   Core::ICore::userResourcePath() + "/symbol-experimental-v1.db"});
+
     stdErrPrefixer().setPrefix("PchManagerConnectionClient.stderr: ");
     stdOutPrefixer().setPrefix("PchManagerConnectionClient.stdout: ");
 }
 
+PchManagerConnectionClient::~PchManagerConnectionClient()
+{
+    finishProcess();
+}
+
 ClangBackEnd::PchManagerServerProxy &ClangPchManager::PchManagerConnectionClient::serverProxy()
 {
-    return serverProxy_;
+    return m_serverProxy;
 }
 
 void ClangPchManager::PchManagerConnectionClient::sendEndCommand()
 {
-    serverProxy_.end();
+    m_serverProxy.end();
 }
 
 void PchManagerConnectionClient::resetCounter()
 {
-    serverProxy_.resetCounter();
-}
-
-QString ClangPchManager::PchManagerConnectionClient::connectionName() const
-{
-    return temporaryDirectory().path() + QStringLiteral("/ClangPchManagerBackEnd-") + currentProcessId();
+    m_serverProxy.resetCounter();
 }
 
 QString PchManagerConnectionClient::outputName() const
 {
     return QStringLiteral("PchManagerConnectionClient");
+}
+
+void PchManagerConnectionClient::newConnectedServer(QIODevice *ioDevice)
+{
+    m_serverProxy.setIoDevice(ioDevice);
 }
 
 } // namespace ClangPchManager

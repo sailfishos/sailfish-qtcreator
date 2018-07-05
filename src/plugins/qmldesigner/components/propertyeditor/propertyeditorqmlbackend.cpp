@@ -29,6 +29,7 @@
 #include "propertyeditortransaction.h"
 #include <qmldesignerconstants.h>
 #include <qmldesignerplugin.h>
+#include <qmltimelinemutator.h>
 
 #include <qmlobjectnode.h>
 #include <nodemetainfo.h>
@@ -94,12 +95,10 @@ PropertyEditorQmlBackend::PropertyEditorQmlBackend(PropertyEditorView *propertyE
         m_view(new Quick2PropertyEditorView), m_propertyEditorTransaction(new PropertyEditorTransaction(propertyEditor)), m_dummyPropertyEditorValue(new PropertyEditorValue()),
         m_contextObject(new PropertyEditorContextObject())
 {
-    Q_ASSERT(QFileInfo(QLatin1String(":/images/button_normal.png")).exists());
-
     m_view->engine()->setOutputWarningsToStandardError(QmlDesignerPlugin::instance()
         ->settings().value(DesignerSettingsKey::SHOW_PROPERTYEDITOR_WARNINGS).toBool());
 
-    m_view->engine()->addImportPath(propertyEditorResourcesPath());
+    m_view->engine()->addImportPath(propertyEditorResourcesPath() + "/imports");
     m_dummyPropertyEditorValue->setValue(QLatin1String("#000000"));
     context()->setContextProperty(QLatin1String("dummyBackendValue"), m_dummyPropertyEditorValue.data());
     m_contextObject->setBackendValues(&m_backendValuesPropertyMap);
@@ -330,6 +329,9 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         contextObject()->setIsBaseState(qmlObjectNode.isInBaseState());
 
         contextObject()->setHasAliasExport(qmlObjectNode.isAliasExported());
+
+        contextObject()->setHasActiveTimeline(QmlTimelineMutator::hasActiveTimeline(qmlObjectNode.view()));
+
         contextObject()->setSelectionChanged(false);
 
         contextObject()->setSelectionChanged(false);
@@ -552,12 +554,12 @@ QString PropertyEditorQmlBackend::locateQmlFile(const NodeMetaInfo &info, const 
 
     //Check for qml files with versions first
 
-    const QString withoutDir = relativePath.split(QStringLiteral("/")).last();
+    const QString withoutDir = relativePath.split(QStringLiteral("/")).constLast();
 
     if (importDirVersion.exists(withoutDir))
         return importDirVersion.absoluteFilePath(withoutDir);
 
-    const QString withoutDirWithVersion = relativePathWithVersion.split(QStringLiteral("/")).last();
+    const QString withoutDirWithVersion = relativePathWithVersion.split(QStringLiteral("/")).constLast();
 
     const QStringList possiblePaths = {
         importDir.absoluteFilePath(relativePathWithVersion),

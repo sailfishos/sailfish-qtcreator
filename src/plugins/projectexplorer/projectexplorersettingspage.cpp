@@ -109,6 +109,7 @@ ProjectExplorerSettings ProjectExplorerSettingsWidget::settings() const
     m_settings.useJom = m_ui.jomCheckbox->isChecked();
     m_settings.prompToStopRunControl = m_ui.promptToStopRunControlCheckBox->isChecked();
     m_settings.maxAppOutputLines = m_ui.maxAppOutputBox->value();
+    m_settings.maxBuildOutputLines = m_ui.maxBuildOutputBox->value();
     m_settings.stopBeforeBuild = static_cast<ProjectExplorerSettings::StopBeforeBuild>(m_ui.stopBeforeBuildComboBox->currentIndex());
     return m_settings;
 }
@@ -128,7 +129,8 @@ void ProjectExplorerSettingsWidget::setSettings(const ProjectExplorerSettings  &
     m_ui.jomCheckbox->setChecked(m_settings.useJom);
     m_ui.promptToStopRunControlCheckBox->setChecked(m_settings.prompToStopRunControl);
     m_ui.maxAppOutputBox->setValue(m_settings.maxAppOutputLines);
-    m_ui.stopBeforeBuildComboBox->setCurrentIndex(static_cast<int>(pes.stopBeforeBuild));
+    m_ui.maxBuildOutputBox->setValue(m_settings.maxBuildOutputLines);
+    m_ui.stopBeforeBuildComboBox->setCurrentIndex(static_cast<int>(m_settings.stopBeforeBuild));
 }
 
 QString ProjectExplorerSettingsWidget::projectsDirectory() const
@@ -196,7 +198,7 @@ QWidget *ProjectExplorerSettingsPage::widget()
     if (!m_widget) {
         m_widget = new ProjectExplorerSettingsWidget;
         m_widget->setSettings(ProjectExplorerPlugin::projectExplorerSettings());
-        m_widget->setProjectsDirectory(Core::DocumentManager::projectsDirectory());
+        m_widget->setProjectsDirectory(Core::DocumentManager::projectsDirectory().toString());
         m_widget->setUseProjectsDirectory(Core::DocumentManager::useProjectsDirectory());
         m_widget->setBuildDirectory(Core::DocumentManager::buildDirectory());
     }
@@ -207,7 +209,8 @@ void ProjectExplorerSettingsPage::apply()
 {
     if (m_widget) {
         ProjectExplorerPlugin::setProjectExplorerSettings(m_widget->settings());
-        Core::DocumentManager::setProjectsDirectory(m_widget->projectsDirectory());
+        Core::DocumentManager::setProjectsDirectory(
+            Utils::FileName::fromString(m_widget->projectsDirectory()));
         Core::DocumentManager::setUseProjectsDirectory(m_widget->useProjectsDirectory());
         Core::DocumentManager::setBuildDirectory(m_widget->buildDirectory());
     }

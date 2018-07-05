@@ -90,17 +90,20 @@ class Rewriter : protected Visitor
     QList<Split> _possibleSplits;
     QTextDocument _resultDocument;
     SimpleFormatter _formatter;
-    int _indent;
-    int _nextComment;
-    int _lastNewlineOffset;
-    bool _hadEmptyLine;
-    int _binaryExpDepth;
+    int _indent = 0;
+    int _nextComment = 0;
+    int _lastNewlineOffset = -1;
+    bool _hadEmptyLine = false;
+    int _binaryExpDepth = 0;
 
 public:
     Rewriter(Document::Ptr doc)
         : _doc(doc)
     {
     }
+
+    void setIndentSize(int size) { _formatter.setIndentSize(size); }
+    void setTabSize(int size) { _formatter.setTabSize(size); }
 
     QString operator()(Node *node)
     {
@@ -1099,7 +1102,8 @@ protected:
         out("case ", ast->caseToken);
         accept(ast->expression);
         out(ast->colonToken);
-        lnAcceptIndented(ast->statements);
+        if (ast->statements)
+            lnAcceptIndented(ast->statements);
         return false;
     }
 
@@ -1307,5 +1311,13 @@ protected:
 QString QmlJS::reformat(const Document::Ptr &doc)
 {
     Rewriter rewriter(doc);
+    return rewriter(doc->ast());
+}
+
+QString QmlJS::reformat(const Document::Ptr &doc, int indentSize, int tabSize)
+{
+    Rewriter rewriter(doc);
+    rewriter.setIndentSize(indentSize);
+    rewriter.setTabSize(tabSize);
     return rewriter(doc->ast());
 }

@@ -34,6 +34,7 @@
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/algorithm.h>
+#include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -85,17 +86,30 @@ void QmakeKitInformation::setup(Kit *k)
     ToolChain *tc = ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID);
 
     if (!tc || (!tc->suggestedMkspecList().empty() && !tc->suggestedMkspecList().contains(spec))) {
-        const QList<ToolChain *> possibleTcs = ToolChainManager::toolChains([version, &spec](const ToolChain *t) {
+        const QList<ToolChain *> possibleTcs = ToolChainManager::toolChains(
+                    [version](const ToolChain *t) {
             return t->isValid()
                 && t->language() == Core::Id(Constants::CXX_LANGUAGE_ID)
                 && version->qtAbis().contains(t->targetAbi());
         });
         if (!possibleTcs.isEmpty()) {
-            ToolChain *possibleTc
-                    = Utils::findOr(possibleTcs, possibleTcs.last(),
-                                    [&spec](const ToolChain *t) { return t->suggestedMkspecList().contains(spec); });
-            if (possibleTc)
-                ToolChainKitInformation::setAllToolChainsToMatch(k, possibleTc);
+            const QList<ToolChain *> goodTcs = Utils::filtered(possibleTcs,
+                                                               [&spec](const ToolChain *t) {
+                return t->suggestedMkspecList().contains(spec);
+            });
+            // Hack to prefer a tool chain from PATH (e.g. autodetected) over other matches.
+            // This improves the situation a bit if a cross-compilation tool chain has the
+            // same ABI as the host.
+            const Environment systemEnvironment = Environment::systemEnvironment();
+            ToolChain *bestTc = Utils::findOrDefault(goodTcs,
+                                                     [&systemEnvironment](const ToolChain *t) {
+                return systemEnvironment.path().contains(t->compilerCommand().parentDir());
+            });
+            if (!bestTc) {
+                bestTc = goodTcs.isEmpty() ? possibleTcs.last() : goodTcs.last();
+            }
+            if (bestTc)
+                ToolChainKitInformation::setAllToolChainsToMatch(k, bestTc);
         }
     }
 }
@@ -113,7 +127,7 @@ KitInformation::ItemList QmakeKitInformation::toUserOutput(const Kit *k) const
 void QmakeKitInformation::addToMacroExpander(Kit *kit, MacroExpander *expander) const
 {
     expander->registerVariable("Qmake:mkspec", tr("Mkspec configured for qmake by the Kit."),
-                [this, kit]() -> QString {
+                [kit]() -> QString {
                     return QmakeKitInformation::mkspec(kit).toUserOutput();
                 });
 }
@@ -142,6 +156,7 @@ FileName QmakeKitInformation::effectiveMkspec(const Kit *k)
 
 void QmakeKitInformation::setMkspec(Kit *k, const FileName &fn)
 {
+    QTC_ASSERT(k, return);
     k->setValue(QmakeKitInformation::id(), fn == defaultMkspec(k) ? QString() : fn.toString());
 }
 

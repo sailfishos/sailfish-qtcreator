@@ -63,7 +63,7 @@ VcsEditorFactory::VcsEditorFactory(const VcsBaseEditorParameters *parameters,
     setEditorActionHandlers(TextEditorActionHandler::None);
     setDuplicatedSupported(false);
 
-    setDocumentCreator([this, parameters]() -> TextDocument* {
+    setDocumentCreator([parameters]() -> TextDocument* {
         auto document = new TextDocument(parameters->id);
  //  if (QLatin1String(parameters->mimeType) != QLatin1String(DiffEditor::Constants::DIFF_EDITOR_MIMETYPE))
         document->setMimeType(QLatin1String(parameters->mimeType));
@@ -71,7 +71,7 @@ VcsEditorFactory::VcsEditorFactory(const VcsBaseEditorParameters *parameters,
         return document;
     });
 
-    setEditorWidgetCreator([this, parameters, editorWidgetCreator, describeFunc]() -> TextEditorWidget * {
+    setEditorWidgetCreator([parameters, editorWidgetCreator, describeFunc]() -> TextEditorWidget * {
         auto widget = qobject_cast<VcsBaseEditorWidget *>(editorWidgetCreator());
         widget->setDescribeFunc(describeFunc);
         widget->setParameters(parameters);
@@ -83,10 +83,13 @@ VcsEditorFactory::VcsEditorFactory(const VcsBaseEditorParameters *parameters,
 
 VcsBaseEditor *VcsEditorFactory::createEditorById(const char *id)
 {
-    auto factory =  ExtensionSystem::PluginManager::getObject<VcsEditorFactory>(
-        [id](QObject *ob) { return ob->property("VcsEditorFactoryName").toByteArray() == id; });
-    QTC_ASSERT(factory, return 0);
-    return qobject_cast<VcsBaseEditor *>(factory->createEditor());
+    for (IEditorFactory *factory : allEditorFactories()) {
+        if (auto vcsFactory = qobject_cast<VcsEditorFactory *>(factory)) {
+            if (vcsFactory->property("VcsEditorFactoryName").toByteArray() == id)
+                return qobject_cast<VcsBaseEditor *>(factory->createEditor());
+        }
+    }
+    return nullptr;
 }
 
 } // namespace VcsBase

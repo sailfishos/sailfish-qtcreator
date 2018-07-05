@@ -77,6 +77,9 @@ const char CUT[]                   = "QtCreator.Cut";
 const char SELECTALL[]             = "QtCreator.SelectAll";
 
 const char GOTO[]                  = "QtCreator.Goto";
+const char ZOOM_IN[]               = "QtCreator.ZoomIn";
+const char ZOOM_OUT[]              = "QtCreator.ZoomOut";
+const char ZOOM_RESET[]            = "QtCreator.ZoomReset";
 
 const char NEW[]                   = "QtCreator.New";
 const char OPEN[]                  = "QtCreator.Open";
@@ -145,6 +148,7 @@ const char G_FILE_NEW[]            = "QtCreator.Group.File.New";
 const char G_FILE_OPEN[]           = "QtCreator.Group.File.Open";
 const char G_FILE_PROJECT[]        = "QtCreator.Group.File.Project";
 const char G_FILE_SAVE[]           = "QtCreator.Group.File.Save";
+const char G_FILE_EXPORT[]         = "QtCreator.Group.File.Export";
 const char G_FILE_CLOSE[]          = "QtCreator.Group.File.Close";
 const char G_FILE_PRINT[]          = "QtCreator.Group.File.Print";
 const char G_FILE_OTHER[]          = "QtCreator.Group.File.Other";
@@ -207,7 +211,8 @@ const char TR_CLEAR_MENU[]         = QT_TRANSLATE_NOOP("Core", "Clear Menu");
 
 const char DEFAULT_BUILD_DIRECTORY[] = "../%{JS: Util.asciify(\"build-%{CurrentProject:Name}-%{CurrentKit:FileSystemName}-%{CurrentBuild:Name}\")}";
 
-const int TARGET_ICON_SIZE = 32;
+const int MODEBAR_ICON_SIZE = 34;
+const int DEFAULT_MAX_LINE_COUNT = 100000;
 
 } // namespace Constants
 } // namespace Core

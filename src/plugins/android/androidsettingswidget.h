@@ -42,6 +42,8 @@ QT_END_NAMESPACE
 namespace Android {
 namespace Internal {
 
+class AndroidSdkManagerWidget;
+
 class AndroidAvdManager;
 
 class AvdModel: public QAbstractTableModel
@@ -73,14 +75,12 @@ public:
     void saveSettings();
 
 private:
-    void sdkLocationEditingFinished();
-    void ndkLocationEditingFinished();
-    void searchForAnt(const Utils::FileName &location);
-    void antLocationEditingFinished();
-    void openJDKLocationEditingFinished();
+    void validateJdk();
+    void validateNdk();
+    void onSdkPathChanged();
+    void validateSdk();
     void openSDKDownloadUrl();
     void openNDKDownloadUrl();
-    void openAntDownloadUrl();
     void openOpenJDKDownloadUrl();
     void addAVD();
     void avdAdded();
@@ -90,41 +90,26 @@ private:
     void dataPartitionSizeEditingFinished();
     void manageAVD();
     void createKitToggled();
-    void useGradleToggled();
 
-    void checkGdbFinished();
-    void showGdbWarningDialog();
+    void checkMissingQtVersion();
+    void updateUI();
     void updateAvds();
-    void updateGradleBuildUi();
 
 private:
-    enum Mode { Sdk = 1, Ndk = 2, Java = 4, All = Sdk | Ndk | Java };
-    enum State { NotSet = 0, Okay = 1, Error = 2 };
-    void check(Mode mode);
-    void applyToUi(Mode mode);
-    bool sdkLocationIsValid() const;
-    bool sdkPlatformToolsInstalled() const;
     void startUpdateAvd();
     void enableAvdControls();
     void disableAvdControls();
 
-    State m_sdkState;
-    State m_ndkState;
-    QString m_ndkErrorMessage;
-    int m_ndkCompilerCount;
-    QString m_ndkMissingQtArchs;
-    State m_javaState;
-
     Ui_AndroidSettingsWidget *m_ui;
+    AndroidSdkManagerWidget *m_sdkManagerWidget = nullptr;
     AndroidConfig m_androidConfig;
     AvdModel m_AVDModel;
-    QFutureWatcher<AndroidConfig::CreateAvdInfo> m_futureWatcher;
-    QFutureWatcher<QPair<QStringList, bool>> m_checkGdbWatcher;
-    QStringList m_gdbCheckPaths;
+    QFutureWatcher<CreateAvdInfo> m_futureWatcher;
 
     QFutureWatcher<AndroidDeviceInfoList> m_virtualDevicesWatcher;
     QString m_lastAddedAvd;
     std::unique_ptr<AndroidAvdManager> m_avdManager;
+    std::unique_ptr<AndroidSdkManager> m_sdkManager;
 };
 
 } // namespace Internal

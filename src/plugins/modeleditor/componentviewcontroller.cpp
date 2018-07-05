@@ -64,7 +64,7 @@ private:
     QString m_elementName;
     QStringList m_elementsPath;
     int m_maxPathLength = 0;
-    qmt::MComponent *m_bestComponent = 0;
+    qmt::MComponent *m_bestComponent = nullptr;
 };
 
 void FindComponentFromFilePath::setFilePath(const QString &filePath)
@@ -131,8 +131,9 @@ private:
     bool haveDependency(const qmt::MObject *source, const QList<qmt::MPackage *> &targets);
 
 private:
-    qmt::ModelController *m_modelController = 0;
+    qmt::ModelController *m_modelController = nullptr;
     QMultiHash<QString, Node> m_filePaths;
+    QHash<QString, qmt::MComponent *> m_filePathComponentsMap;
 };
 
 void UpdateIncludeDependenciesVisitor::setModelController(qmt::ModelController *modelController)
@@ -161,13 +162,23 @@ void UpdateIncludeDependenciesVisitor::visitMComponent(qmt::MComponent *componen
         if (document) {
             foreach (const CPlusPlus::Document::Include &include, document->resolvedIncludes()) {
                 QString includeFilePath = include.resolvedFileName();
+                // replace proxy header with real one
+                CPlusPlus::Document::Ptr includeDocument = snapshot.document(includeFilePath);
+                if (includeDocument) {
+                    QList<CPlusPlus::Document::Include> includes = includeDocument->resolvedIncludes();
+                    if (includes.count() == 1 &&
+                            QFileInfo(includes.at(0).resolvedFileName()).fileName() == QFileInfo(includeFilePath).fileName())
+                    {
+                        includeFilePath = includes.at(0).resolvedFileName();
+                    }
+                }
                 qmt::MComponent *includeComponent = findComponentFromFilePath(includeFilePath);
                 if (includeComponent && includeComponent != component) {
                     // add dependency between components
                     if (!haveDependency(component, includeComponent)) {
                         auto dependency = new qmt::MDependency;
                         dependency->setFlags(qmt::MElement::ReverseEngineered);
-                        dependency->setStereotypes(QStringList() << QStringLiteral("include"));
+                        dependency->setStereotypes(QStringList() << "include");
                         dependency->setDirection(qmt::MDependency::AToB);
                         dependency->setSource(component->uid());
                         dependency->setTarget(includeComponent->uid());
@@ -190,7 +201,7 @@ void UpdateIncludeDependenciesVisitor::visitMComponent(qmt::MComponent *componen
 
                     int componentHighestAncestorIndex = componentAncestors.size() - 1;
                     int includeComponentHighestAncestorIndex = includeComponentAncestors.size() - 1;
-                    QTC_ASSERT(componentAncestors.at(componentHighestAncestorIndex) == includeComponentAncestors.at(includeComponentHighestAncestorIndex), return);
+                    QMT_ASSERT(componentAncestors.at(componentHighestAncestorIndex) == includeComponentAncestors.at(includeComponentHighestAncestorIndex), return);
                     while (componentHighestAncestorIndex > 0 && includeComponentHighestAncestorIndex > 0) {
                         if (componentAncestors.at(componentHighestAncestorIndex) != includeComponentAncestors.at(includeComponentHighestAncestorIndex))
                             break;
@@ -211,7 +222,7 @@ void UpdateIncludeDependenciesVisitor::visitMComponent(qmt::MComponent *componen
                                         auto dependency = new qmt::MDependency;
                                         dependency->setFlags(qmt::MElement::ReverseEngineered);
                                         // TODO set stereotype for testing purpose
-                                        dependency->setStereotypes(QStringList() << QStringLiteral("same stereotype"));
+                                        dependency->setStereotypes(QStringList() << "same stereotype");
                                         dependency->setDirection(qmt::MDependency::AToB);
                                         dependency->setSource(componentAncestors.at(index1)->uid());
                                         dependency->setTarget(includeComponentAncestors.at(index2)->uid());
@@ -232,7 +243,7 @@ void UpdateIncludeDependenciesVisitor::visitMComponent(qmt::MComponent *componen
                             auto dependency = new qmt::MDependency;
                             dependency->setFlags(qmt::MElement::ReverseEngineered);
                             // TODO set stereotype for testing purpose
-                            dependency->setStereotypes(QStringList() << QStringLiteral("ancestor"));
+                            dependency->setStereotypes(QStringList() << "ancestor");
                             dependency->setDirection(qmt::MDependency::AToB);
                             dependency->setSource(componentAncestors.at(componentHighestAncestorIndex)->uid());
                             dependency->setTarget(includeComponentAncestors.at(includeComponentHighestAncestorIndex)->uid());
@@ -247,7 +258,7 @@ void UpdateIncludeDependenciesVisitor::visitMComponent(qmt::MComponent *componen
                                 auto dependency = new qmt::MDependency;
                                 dependency->setFlags(qmt::MElement::ReverseEngineered);
                                 // TODO set stereotype for testing purpose
-                                dependency->setStereotypes(QStringList() << QStringLiteral("parents"));
+                                dependency->setStereotypes(QStringList() << "parents");
                                 dependency->setDirection(qmt::MDependency::AToB);
                                 dependency->setSource(componentAncestors.at(0)->uid());
                                 dependency->setTarget(includeComponentAncestors.at(0)->uid());
@@ -312,10 +323,16 @@ void UpdateIncludeDependenciesVisitor::collectElementPaths(const ProjectExplorer
 
 qmt::MComponent *UpdateIncludeDependenciesVisitor::findComponentFromFilePath(const QString &filePath)
 {
+    const auto it = m_filePathComponentsMap.find(filePath);
+    if (it != m_filePathComponentsMap.cend())
+        return it.value();
+
     FindComponentFromFilePath visitor;
     visitor.setFilePath(filePath);
     m_modelController->rootPackage()->accept(&visitor);
-    return visitor.component();
+    qmt::MComponent *component = visitor.component();
+    m_filePathComponentsMap.insert(filePath, component);
+    return component;
 }
 
 bool UpdateIncludeDependenciesVisitor::haveDependency(const qmt::MObject *source,
@@ -327,7 +344,7 @@ bool UpdateIncludeDependenciesVisitor::haveDependency(const qmt::MObject *source
         aToB = qmt::MDependency::BToA;
         bToA = qmt::MDependency::AToB;
     }
-    foreach (const qmt::Handle<qmt::MRelation> &handle, source->relations()) {
+    for (const qmt::Handle<qmt::MRelation> &handle : source->relations()) {
         if (auto dependency = dynamic_cast<qmt::MDependency *>(handle.target())) {
             if (dependency->source() == source->uid()
                     && dependency->target() == target->uid()
@@ -360,8 +377,8 @@ bool UpdateIncludeDependenciesVisitor::haveDependency(const qmt::MObject *source
 
 class ComponentViewController::ComponentViewControllerPrivate {
 public:
-    PxNodeUtilities *pxnodeUtilities = 0;
-    qmt::DiagramSceneController *diagramSceneController = 0;
+    PxNodeUtilities *pxnodeUtilities = nullptr;
+    qmt::DiagramSceneController *diagramSceneController = nullptr;
 };
 
 ComponentViewController::ComponentViewController(QObject *parent)
@@ -385,12 +402,13 @@ void ComponentViewController::setDiagramSceneController(qmt::DiagramSceneControl
     d->diagramSceneController = diagramSceneController;
 }
 
-void ComponentViewController::createComponentModel(const ProjectExplorer::FolderNode *folderNode,
+void ComponentViewController::createComponentModel(const QString &filePath,
                                                    qmt::MDiagram *diagram,
-                                                   const QString anchorFolder)
+                                                   const QString &anchorFolder)
 {
     d->diagramSceneController->modelController()->startResetModel();
-    doCreateComponentModel(folderNode, diagram, anchorFolder);
+    doCreateComponentModel(filePath, diagram, anchorFolder, false);
+    doCreateComponentModel(filePath, diagram, anchorFolder, true);
     d->diagramSceneController->modelController()->finishResetModel(true);
 }
 
@@ -404,26 +422,30 @@ void ComponentViewController::updateIncludeDependencies(qmt::MPackage *rootPacka
     d->diagramSceneController->modelController()->finishResetModel(true);
 }
 
-void ComponentViewController::doCreateComponentModel(const ProjectExplorer::FolderNode *folderNode, qmt::MDiagram *diagram, const QString anchorFolder)
+void ComponentViewController::doCreateComponentModel(const QString &filePath, qmt::MDiagram *diagram,
+                                                     const QString &anchorFolder, bool scanHeaders)
 {
-    foreach (const ProjectExplorer::FileNode *fileNode, folderNode->fileNodes()) {
-        QString componentName = qmt::NameController::convertFileNameToElementName(fileNode->filePath().toString());
-        qmt::MComponent *component = 0;
+    for (const QString &fileName : QDir(filePath).entryList(QDir::Files)) {
+        QString file = filePath + "/" + fileName;
+        QString componentName = qmt::NameController::convertFileNameToElementName(file);
+        qmt::MComponent *component = nullptr;
         bool isSource = false;
-        CppTools::ProjectFile::Kind kind = CppTools::ProjectFile::classify(fileNode->filePath().toString());
+        CppTools::ProjectFile::Kind kind = CppTools::ProjectFile::classify(file);
         switch (kind) {
-        case CppTools::ProjectFile::AmbiguousHeader:
-        case CppTools::ProjectFile::CHeader:
         case CppTools::ProjectFile::CSource:
-        case CppTools::ProjectFile::CXXHeader:
         case CppTools::ProjectFile::CXXSource:
         case CppTools::ProjectFile::ObjCSource:
-        case CppTools::ProjectFile::ObjCHeader:
         case CppTools::ProjectFile::ObjCXXSource:
-        case CppTools::ProjectFile::ObjCXXHeader:
         case CppTools::ProjectFile::CudaSource:
         case CppTools::ProjectFile::OpenCLSource:
-            isSource = true;
+            isSource = !scanHeaders;
+            break;
+        case CppTools::ProjectFile::AmbiguousHeader:
+        case CppTools::ProjectFile::CHeader:
+        case CppTools::ProjectFile::CXXHeader:
+        case CppTools::ProjectFile::ObjCHeader:
+        case CppTools::ProjectFile::ObjCXXHeader:
+            isSource = scanHeaders && !isProxyHeader(file);
             break;
         case CppTools::ProjectFile::Unclassified:
         case CppTools::ProjectFile::Unsupported:
@@ -437,22 +459,35 @@ void ComponentViewController::doCreateComponentModel(const ProjectExplorer::Fold
         }
         if (component) {
             QStringList relativeElements = qmt::NameController::buildElementsPath(
-                        d->pxnodeUtilities->calcRelativePath(fileNode, anchorFolder), false);
+                        d->pxnodeUtilities->calcRelativePath(file, anchorFolder), false);
             if (d->pxnodeUtilities->findSameObject(relativeElements, component)) {
                 delete component;
             } else {
-                qmt::MPackage *requestedRootPackage = d->diagramSceneController->findSuitableParentPackage(0, diagram);
+                qmt::MPackage *requestedRootPackage = d->diagramSceneController->findSuitableParentPackage(nullptr, diagram);
                 qmt::MPackage *bestParentPackage = d->pxnodeUtilities->createBestMatchingPackagePath(requestedRootPackage, relativeElements);
                 d->diagramSceneController->modelController()->addObject(bestParentPackage, component);
             }
         }
     }
+    for (const QString &fileName : QDir(filePath).entryList(QDir::Dirs|QDir::NoDotAndDotDot)) {
+        QString file = filePath + "/" + fileName;
+        doCreateComponentModel(file, diagram, anchorFolder, scanHeaders);
+    }
+}
 
-    foreach (const ProjectExplorer::FolderNode *subNode, folderNode->folderNodes())
-        doCreateComponentModel(subNode, diagram, anchorFolder);
-    auto containerNode = dynamic_cast<const ProjectExplorer::ContainerNode *>(folderNode);
-    if (containerNode)
-        doCreateComponentModel(containerNode->rootProjectNode(), diagram, anchorFolder);
+bool ComponentViewController::isProxyHeader(const QString &file) const
+{
+    CppTools::CppModelManager *cppModelManager = CppTools::CppModelManager::instance();
+    CPlusPlus::Snapshot snapshot = cppModelManager->snapshot();
+
+    CPlusPlus::Document::Ptr document = snapshot.document(file);
+    if (document) {
+        QList<CPlusPlus::Document::Include> includes = document->resolvedIncludes();
+        if (includes.count() != 1)
+            return false;
+        return QFileInfo(includes.at(0).resolvedFileName()).fileName() == QFileInfo(file).fileName();
+    }
+    return false;
 }
 
 } // namespace Internal

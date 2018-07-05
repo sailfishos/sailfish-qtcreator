@@ -40,11 +40,11 @@ class TextEditorWidget;
 QT_BEGIN_NAMESPACE
 class QMenu;
 class QSplitter;
+class QTextBlock;
 QT_END_NAMESPACE
 
 namespace DiffEditor {
 
-class DiffEditorController;
 class FileData;
 
 namespace Internal {
@@ -56,7 +56,7 @@ class SideBySideDiffEditorWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SideBySideDiffEditorWidget(QWidget *parent = 0);
+    explicit SideBySideDiffEditorWidget(QWidget *parent = nullptr);
     ~SideBySideDiffEditorWidget();
 
     TextEditor::TextEditorWidget *leftEditorWidget() const;
@@ -85,9 +85,9 @@ private:
                                              int lineNumber, int columnNumber);
     void slotRightJumpToOriginalFileRequested(int diffFileIndex,
                                               int lineNumber, int columnNumber);
-    void slotLeftContextMenuRequested(QMenu *menu, int diffFileIndex,
+    void slotLeftContextMenuRequested(QMenu *menu, int fileIndex,
                                       int chunkIndex);
-    void slotRightContextMenuRequested(QMenu *menu, int diffFileIndex,
+    void slotRightContextMenuRequested(QMenu *menu, int fileIndex,
                                        int chunkIndex);
     void leftVSliderChanged();
     void rightVSliderChanged();
@@ -95,20 +95,22 @@ private:
     void rightHSliderChanged();
     void leftCursorPositionChanged();
     void rightCursorPositionChanged();
+    void handlePositionChange(SideDiffEditorWidget *source, SideDiffEditorWidget *dest);
+    void syncCursor(SideDiffEditorWidget *source, SideDiffEditorWidget *dest);
 
     void showDiff();
 
-    SideDiffEditorWidget *m_leftEditor;
-    SideDiffEditorWidget *m_rightEditor;
-    QSplitter *m_splitter;
+    SideDiffEditorWidget *m_leftEditor = nullptr;
+    SideDiffEditorWidget *m_rightEditor = nullptr;
+    QSplitter *m_splitter = nullptr;
 
     DiffEditorWidgetController m_controller;
 
     bool m_horizontalSync = false;
 
     QTextCharFormat m_spanLineFormat;
-    Core::IContext *m_leftContext;
-    Core::IContext *m_rightContext;
+    Core::IContext *m_leftContext = nullptr;
+    Core::IContext *m_rightContext = nullptr;
 };
 
 } // namespace Internal

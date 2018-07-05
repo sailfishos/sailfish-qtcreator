@@ -296,10 +296,10 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     m_gitClient = new GitClient;
 
-    initializeVcs(new GitVersionControl(m_gitClient), context);
+    auto vc = initializeVcs<GitVersionControl>(context, m_gitClient);
 
     // Create the settings Page
-    auto settingsPage = new SettingsPage(versionControl());
+    auto settingsPage = new SettingsPage(vc);
     addAutoReleasedObject(settingsPage);
     connect(settingsPage, &SettingsPage::settingsChanged,
             this, &GitPlugin::updateRepositoryBrowserAction);
@@ -423,6 +423,9 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     createRepositoryAction(localRepositoryMenu, tr("Reset..."), "Git.Reset",
                            context, true, std::bind(&GitPlugin::resetRepository, this));
+
+    createRepositoryAction(localRepositoryMenu, tr("Recover Deleted Files"), "Git.RecoverDeleted",
+                           context, true, std::bind(&GitPlugin::recoverDeletedFiles, this));
 
     m_interactiveRebaseAction
             = createRepositoryAction(localRepositoryMenu,
@@ -807,6 +810,15 @@ void GitPlugin::resetRepository()
         m_gitClient->reset(topLevel, dialog.resetFlag(), dialog.commit());
 }
 
+void GitPlugin::recoverDeletedFiles()
+{
+    if (!DocumentManager::saveAllModifiedDocuments())
+        return;
+    const VcsBasePluginState state = currentState();
+    QTC_ASSERT(state.hasTopLevel(), return);
+    m_gitClient->recoverDeletedFiles(state.topLevel());
+}
+
 void GitPlugin::startRebase()
 {
     if (!DocumentManager::saveAllModifiedDocuments())
@@ -926,6 +938,9 @@ void GitPlugin::gitGui()
 
 void GitPlugin::startCommit(CommitType commitType)
 {
+    if (!promptBeforeCommit())
+        return;
+
     if (raiseSubmitEditor())
         return;
     if (isCommitEditorOpen()) {

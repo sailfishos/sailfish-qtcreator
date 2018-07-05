@@ -25,7 +25,6 @@
 
 #include "textdocument.h"
 
-#include "convenience.h"
 #include "extraencodingsettings.h"
 #include "fontsettings.h"
 #include "indenter.h"
@@ -37,11 +36,15 @@
 #include "texteditorconstants.h"
 #include "typingsettings.h"
 #include <texteditor/generichighlighter/highlighter.h>
+#include <coreplugin/diffservice.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/documentmodel.h>
+#include <extensionsystem/pluginmanager.h>
+#include <utils/textutils.h>
 #include <utils/guard.h>
 #include <utils/mimetypes/mimedatabase.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -128,7 +131,7 @@ QTextCursor TextDocumentPrivate::indentOrUnindent(const QTextCursor &textCursor,
     bool modified = true;
 
     QTextBlock startBlock = m_document.findBlock(start);
-    QTextBlock endBlock = m_document.findBlock(blockSelection ? end : end - 1).next();
+    QTextBlock endBlock = m_document.findBlock(blockSelection ? end : qMax(end - 1, 0)).next();
     const bool cursorAtBlockStart = (textCursor.position() == startBlock.position());
     const bool anchorAtBlockStart = (textCursor.anchor() == startBlock.position());
     const bool oneLinePartial = (startBlock.next() == endBlock)
@@ -303,7 +306,7 @@ QString TextDocument::plainText() const
 
 QString TextDocument::textAt(int pos, int length) const
 {
-    return Convenience::textAt(QTextCursor(document()), pos, length);
+    return Utils::Text::textAt(QTextCursor(document()), pos, length);
 }
 
 QChar TextDocument::characterAt(int pos) const
@@ -357,6 +360,22 @@ void TextDocument::setFontSettings(const FontSettings &fontSettings)
     emit fontSettingsChanged();
 }
 
+QAction *TextDocument::createDiffAgainstCurrentFileAction(
+    QObject *parent, const std::function<Utils::FileName()> &filePath)
+{
+    const auto diffAgainstCurrentFile = [filePath]() {
+        auto diffService = DiffService::instance();
+        auto textDocument = TextEditor::TextDocument::currentTextDocument();
+        const QString leftFilePath = textDocument ? textDocument->filePath().toString() : QString();
+        const QString rightFilePath = filePath().toString();
+        if (diffService && !leftFilePath.isEmpty() && !rightFilePath.isEmpty())
+            diffService->diffFiles(leftFilePath, rightFilePath);
+    };
+    auto diffAction = new QAction(tr("Diff Against Current File"), parent);
+    QObject::connect(diffAction, &QAction::triggered, parent, diffAgainstCurrentFile);
+    return diffAction;
+}
+
 void TextDocument::triggerPendingUpdates()
 {
     if (d->m_fontSettingsNeedsApply)
@@ -373,9 +392,9 @@ CompletionAssistProvider *TextDocument::completionAssistProvider() const
     return d->m_completionAssistProvider;
 }
 
-QuickFixAssistProvider *TextDocument::quickFixAssistProvider() const
+IAssistProvider *TextDocument::quickFixAssistProvider() const
 {
-    return 0;
+    return nullptr;
 }
 
 void TextDocument::applyFontSettings()
@@ -959,6 +978,7 @@ void TextDocument::removeMark(TextMark *mark)
     }
 
     removeMarkFromMarksCache(mark);
+    emit markRemoved(mark);
     mark->setBaseTextDocument(0);
     updateLayout();
 }

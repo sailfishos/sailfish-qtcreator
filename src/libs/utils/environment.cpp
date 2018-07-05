@@ -57,6 +57,31 @@ public:
 
 Q_GLOBAL_STATIC(SystemEnvironment, staticSystemEnvironment)
 
+static QMap<QString, QString>::iterator findKey(QMap<QString, QString> &input, Utils::OsType osType,
+                                                const QString &key)
+{
+    const Qt::CaseSensitivity casing
+            = (osType == Utils::OsTypeWindows) ? Qt::CaseInsensitive : Qt::CaseSensitive;
+    for (auto it = input.begin(); it != input.end(); ++it) {
+        if (key.compare(it.key(), casing) == 0)
+            return it;
+    }
+    return input.end();
+}
+
+static QMap<QString, QString>::const_iterator findKey(const QMap<QString, QString> &input,
+                                                      Utils::OsType osType,
+                                                      const QString &key)
+{
+    const Qt::CaseSensitivity casing
+            = (osType == Utils::OsTypeWindows) ? Qt::CaseInsensitive : Qt::CaseSensitive;
+    for (auto it = input.constBegin(); it != input.constEnd(); ++it) {
+        if (key.compare(it.key(), casing) == 0)
+            return it;
+    }
+    return input.constEnd();
+}
+
 namespace Utils {
 
 enum : char
@@ -88,14 +113,11 @@ QList<EnvironmentItem> EnvironmentItem::fromStringList(const QStringList &list)
 
 QStringList EnvironmentItem::toStringList(const QList<EnvironmentItem> &list)
 {
-    QStringList result;
-    for (const EnvironmentItem &item : list) {
+    return Utils::transform(list, [](const EnvironmentItem &item) {
         if (item.operation == EnvironmentItem::Unset)
-            result << QString(item.name);
-        else
-            result << QString(item.name + '=' + item.value);
-    }
-    return result;
+            return QString(item.name);
+        return QString(item.name + '=' + item.value);
+    });
 }
 
 static QString expand(const Environment *e, QString value)
@@ -207,10 +229,9 @@ Environment::Environment(const QStringList &env, OsType osType) : m_osType(osTyp
     for (const QString &s : env) {
         int i = s.indexOf('=', 1);
         if (i >= 0) {
-            if (m_osType == OsTypeWindows)
-                m_values.insert(s.left(i).toUpper(), s.mid(i+1));
-            else
-                m_values.insert(s.left(i), s.mid(i+1));
+            const QString key = s.left(i);
+            const QString value = s.mid(i + 1);
+            set(key, value);
         }
     }
 }
@@ -218,41 +239,40 @@ Environment::Environment(const QStringList &env, OsType osType) : m_osType(osTyp
 QStringList Environment::toStringList() const
 {
     QStringList result;
-    const QMap<QString, QString>::const_iterator end = m_values.constEnd();
-    for (QMap<QString, QString>::const_iterator it = m_values.constBegin(); it != end; ++it) {
-        QString entry = it.key();
-        entry += '=';
-        entry += it.value();
-        result.push_back(entry);
-    }
+    for (auto it = m_values.constBegin(); it != m_values.constEnd(); ++it)
+        result.append(it.key() + '=' + it.value());
     return result;
 }
 
 QProcessEnvironment Environment::toProcessEnvironment() const
 {
     QProcessEnvironment result;
-    const QMap<QString, QString>::const_iterator end = m_values.constEnd();
-    for (QMap<QString, QString>::const_iterator it = m_values.constBegin(); it != end; ++it)
+    for (auto it = m_values.constBegin(); it != m_values.constEnd(); ++it)
         result.insert(it.key(), it.value());
     return result;
 }
 
 void Environment::set(const QString &key, const QString &value)
 {
-    m_values.insert(m_osType == OsTypeWindows ? key.toUpper() : key, value);
+    auto it = findKey(m_values, m_osType, key);
+    if (it == m_values.end())
+        m_values.insert(key, value);
+    else
+        it.value() = value;
 }
 
 void Environment::unset(const QString &key)
 {
-    m_values.remove(m_osType == OsTypeWindows ? key.toUpper() : key);
+    auto it = findKey(m_values, m_osType, key);
+    if (it != m_values.end())
+        m_values.erase(it);
 }
 
 void Environment::appendOrSet(const QString &key, const QString &value, const QString &sep)
 {
-    const QString &_key = m_osType == OsTypeWindows ? key.toUpper() : key;
-    QMap<QString, QString>::iterator it = m_values.find(_key);
+    auto it = findKey(m_values, m_osType, key);
     if (it == m_values.end()) {
-        m_values.insert(_key, value);
+        m_values.insert(key, value);
     } else {
         // Append unless it is already there
         const QString toAppend = sep + value;
@@ -263,10 +283,9 @@ void Environment::appendOrSet(const QString &key, const QString &value, const QS
 
 void Environment::prependOrSet(const QString&key, const QString &value, const QString &sep)
 {
-    const QString &_key = m_osType == OsTypeWindows ? key.toUpper() : key;
-    QMap<QString, QString>::iterator it = m_values.find(_key);
+    auto it = findKey(m_values, m_osType, key);
     if (it == m_values.end()) {
-        m_values.insert(_key, value);
+        m_values.insert(key, value);
     } else {
         // Prepend unless it is already there
         const QString toPrepend = value + sep;
@@ -278,7 +297,7 @@ void Environment::prependOrSet(const QString&key, const QString &value, const QS
 void Environment::appendOrSetPath(const QString &value)
 {
     appendOrSet("PATH", QDir::toNativeSeparators(value),
-            QString(OsSpecificAspects(m_osType).pathListSeparator()));
+                QString(OsSpecificAspects(m_osType).pathListSeparator()));
 }
 
 void Environment::prependOrSetPath(const QString &value)
@@ -313,26 +332,40 @@ void Environment::prependOrSetLibrarySearchPath(const QString &value)
     }
 }
 
+void Environment::prependOrSetLibrarySearchPaths(const QStringList &values)
+{
+    Utils::reverseForeach(values, [this](const QString &value) {
+        prependOrSetLibrarySearchPath(value);
+    });
+}
+
 Environment Environment::systemEnvironment()
 {
     return *staticSystemEnvironment();
 }
 
 const char lcMessages[] = "LC_MESSAGES";
+const char language[] = "LANGUAGE";
 const char englishLocale[] = "en_US.utf8";
+const char languageEnglishLocales[] = "en_US:en";
 
 void Environment::setupEnglishOutput(Environment *environment)
 {
+    QTC_ASSERT(environment, return);
     environment->set(lcMessages, englishLocale);
+    environment->set(language, languageEnglishLocales);
 }
 
 void Environment::setupEnglishOutput(QProcessEnvironment *environment)
 {
+    QTC_ASSERT(environment, return);
     environment->insert(lcMessages, englishLocale);
+    environment->insert(language, languageEnglishLocales);
 }
 
 void Environment::setupEnglishOutput(QStringList *environment)
 {
+    QTC_ASSERT(environment, return);
     Environment env(*environment);
     setupEnglishOutput(&env);
     *environment = env.toStringList();
@@ -343,21 +376,20 @@ void Environment::clear()
     m_values.clear();
 }
 
-FileName Environment::searchInDirectory(const QStringList &execs, QString directory,
-                                        QSet<QString> &alreadyChecked) const
+FileName Environment::searchInDirectory(const QStringList &execs, const FileName &directory,
+                                        QSet<FileName> &alreadyChecked) const
 {
-    const QChar slash = '/';
-    // Avoid turing / into // on windows which triggers windows to check
-    // for network drives!
-    const QString dir = directory.endsWith(slash) ? directory : directory + slash;
+    const int checkedCount = alreadyChecked.count();
+    alreadyChecked.insert(directory);
 
-    if (directory.isEmpty() || alreadyChecked.contains(dir))
-        return {};
+    if (directory.isEmpty() || alreadyChecked.count() == checkedCount)
+        return FileName();
 
-    alreadyChecked.insert(dir);
+    const QString dir = directory.toString();
 
+    QFileInfo fi;
     for (const QString &exec : execs) {
-        QFileInfo fi(dir + exec);
+        fi.setFile(dir, exec);
         if (fi.isFile() && fi.isExecutable())
             return FileName::fromString(fi.absoluteFilePath());
     }
@@ -387,7 +419,7 @@ bool Environment::isSameExecutable(const QString &exe1, const QString &exe2) con
     const QStringList exe2List = appendExeExtensions(exe2);
     for (const QString &i1 : exe1List) {
         for (const QString &i2 : exe2List) {
-            if (Utils::FileName::fromString(i1) == Utils::FileName::fromString(i2))
+            if (FileName::fromString(i1) == FileName::fromString(i2))
                 return true;
         }
     }
@@ -395,7 +427,7 @@ bool Environment::isSameExecutable(const QString &exe1, const QString &exe2) con
 }
 
 FileName Environment::searchInPath(const QString &executable,
-                                   const QStringList &additionalDirs,
+                                   const FileNameList &additionalDirs,
                                    const PathFilter &func) const
 {
     if (executable.isEmpty())
@@ -415,33 +447,35 @@ FileName Environment::searchInPath(const QString &executable,
         return FileName::fromString(exec);
     }
 
-    QSet<QString> alreadyChecked;
-    for (const QString &dir : additionalDirs) {
+    QSet<FileName> alreadyChecked;
+    for (const FileName &dir : additionalDirs) {
         FileName tmp = searchInDirectory(execs, dir, alreadyChecked);
-        if (!tmp.isEmpty() && (!func || func(tmp.toString())))
+        if (!tmp.isEmpty() && (!func || func(tmp)))
             return tmp;
     }
 
     if (executable.contains('/'))
         return FileName();
 
-    for (const QString &p : path()) {
-        FileName tmp = searchInDirectory(execs, QDir::fromNativeSeparators(p), alreadyChecked);
-        if (!tmp.isEmpty() && (!func || func(tmp.toString())))
+    for (const FileName &p : path()) {
+        FileName tmp = searchInDirectory(execs, p, alreadyChecked);
+        if (!tmp.isEmpty() && (!func || func(tmp)))
             return tmp;
     }
     return FileName();
 }
 
-QStringList Environment::path() const
+FileNameList Environment::path() const
 {
-    return m_values.value("PATH")
+    const QStringList pathComponents = value("PATH")
             .split(OsSpecificAspects(m_osType).pathListSeparator(), QString::SkipEmptyParts);
+    return Utils::transform(pathComponents, &FileName::fromUserInput);
 }
 
 QString Environment::value(const QString &key) const
 {
-    return m_values.value(key);
+    const auto it = findKey(m_values, m_osType, key);
+    return it != m_values.end() ? it.value() : QString();
 }
 
 QString Environment::key(Environment::const_iterator it) const
@@ -466,7 +500,7 @@ Environment::const_iterator Environment::constEnd() const
 
 Environment::const_iterator Environment::constFind(const QString &name) const
 {
-    return m_values.constFind(name);
+    return findKey(m_values, m_osType, name);
 }
 
 int Environment::size() const
@@ -533,6 +567,11 @@ bool Environment::hasKey(const QString &key) const
     return m_values.contains(key);
 }
 
+OsType Environment::osType() const
+{
+    return m_osType;
+}
+
 QString Environment::userName() const
 {
     return value(QString::fromLatin1(m_osType == OsTypeWindows ? "USERNAME" : "USER"));
@@ -563,7 +602,7 @@ QString Environment::expandVariables(const QString &input) const
         for (int vStart = -1, i = 0; i < result.length(); ) {
             if (result.at(i++) == '%') {
                 if (vStart > 0) {
-                    const_iterator it = m_values.constFind(result.mid(vStart, i - vStart - 1).toUpper());
+                    const_iterator it = findKey(m_values, m_osType, result.mid(vStart, i - vStart - 1));
                     if (it != m_values.constEnd()) {
                         result.replace(vStart - 1, i - vStart + 1, *it);
                         i = vStart - 1 + it->length();

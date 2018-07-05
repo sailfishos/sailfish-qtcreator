@@ -26,14 +26,18 @@
 #include "cppquickfixassistant.h"
 
 #include "cppeditorconstants.h"
-#include "cppeditor.h"
+#include "cppeditorwidget.h"
+#include "cppquickfixes.h"
 
 #include <cpptools/cppmodelmanager.h>
+
+#include <texteditor/codeassist/genericproposal.h>
+#include <texteditor/codeassist/iassistprocessor.h>
 #include <texteditor/textdocument.h>
 
 #include <cplusplus/ASTPath.h>
 
-#include <extensionsystem/pluginmanager.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 using namespace TextEditor;
@@ -42,6 +46,26 @@ using namespace CPlusPlus;
 
 namespace CppEditor {
 namespace Internal {
+
+// -------------------------
+// CppQuickFixAssistProcessor
+// -------------------------
+class CppQuickFixAssistProcessor : public IAssistProcessor
+{
+    IAssistProposal *perform(const AssistInterface *interface) override
+    {
+        QSharedPointer<const AssistInterface> assistInterface(interface);
+        auto cppInterface = assistInterface.staticCast<const CppQuickFixInterface>();
+        if (cppInterface->path().isEmpty())
+            return nullptr;
+
+        QuickFixOperations quickFixes;
+        for (CppQuickFixFactory *factory : CppQuickFixFactory::cppQuickFixFactories())
+            factory->match(*cppInterface, quickFixes);
+
+        return GenericProposal::createProposal(interface, quickFixes);
+    }
+};
 
 // -------------------------
 // CppQuickFixAssistProvider
@@ -53,15 +77,7 @@ IAssistProvider::RunType CppQuickFixAssistProvider::runType() const
 
 IAssistProcessor *CppQuickFixAssistProvider::createProcessor() const
 {
-    return new QuickFixAssistProcessor(this);
-}
-
-QList<QuickFixFactory *> CppQuickFixAssistProvider::quickFixFactories() const
-{
-    QList<QuickFixFactory *> results;
-    foreach (CppQuickFixFactory *f, ExtensionSystem::PluginManager::getObjects<CppQuickFixFactory>())
-        results.append(f);
-    return results;
+    return new CppQuickFixAssistProcessor;
 }
 
 // --------------------------

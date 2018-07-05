@@ -26,6 +26,7 @@
 #pragma once
 
 #include <abstractview.h>
+#include <selectioncontext.h>
 
 #include "designeractionmanager.h"
 
@@ -68,12 +69,11 @@ public:
     void setDesignerActionList(const QList<ActionInterface* > &designerActionList);
     DesignerActionManager &designerActionManager();
     const DesignerActionManager &designerActionManager() const;
+    void emitSelectionChanged();
+    void setupContext(SelectionContext::UpdateMode updateMode = SelectionContext::UpdateMode::Normal);
 
 signals:
     void selectionChanged(bool itemsSelected, bool rootItemIsSelected);
-
-protected:
-    void setupContext();
 
 private:
     DesignerActionManager m_designerActionManager;

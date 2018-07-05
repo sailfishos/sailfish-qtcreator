@@ -46,10 +46,6 @@
 #include <QApplication>
 #include <QFileDialog>
 
-#if !defined(QT_NO_WEBKIT)
-#include <QWebSettings>
-#endif
-
 using namespace Core;
 using namespace Help::Internal;
 
@@ -236,7 +232,7 @@ void GeneralSettingsPage::updateFontSizeSelector()
     if (pointSizes.empty())
         pointSizes = QFontDatabase::standardSizes();
 
-    bool blocked = m_ui->sizeComboBox->blockSignals(true);
+    QSignalBlocker blocker(m_ui->sizeComboBox);
     m_ui->sizeComboBox->clear();
     m_ui->sizeComboBox->setCurrentIndex(-1);
     m_ui->sizeComboBox->setEnabled(!pointSizes.empty());
@@ -250,7 +246,6 @@ void GeneralSettingsPage::updateFontSizeSelector()
         if (closestIndex != -1)
             m_ui->sizeComboBox->setCurrentIndex(closestIndex);
     }
-    m_ui->sizeComboBox->blockSignals(blocked);
 }
 
 void GeneralSettingsPage::updateFontStyleSelector()
@@ -258,7 +253,7 @@ void GeneralSettingsPage::updateFontStyleSelector()
     const QString &fontStyle = m_fontDatabase.styleString(m_font);
     const QStringList &styles = m_fontDatabase.styles(m_font.family());
 
-    bool blocked = m_ui->styleComboBox->blockSignals(true);
+    QSignalBlocker blocker(m_ui->styleComboBox);
     m_ui->styleComboBox->clear();
     m_ui->styleComboBox->setCurrentIndex(-1);
     m_ui->styleComboBox->setEnabled(!styles.empty());
@@ -280,7 +275,6 @@ void GeneralSettingsPage::updateFontStyleSelector()
         if (m_ui->styleComboBox->currentIndex() == -1 && normalIndex != -1)
             m_ui->styleComboBox->setCurrentIndex(normalIndex);
     }
-    m_ui->styleComboBox->blockSignals(blocked);
 }
 
 void GeneralSettingsPage::updateFontFamilySelector()

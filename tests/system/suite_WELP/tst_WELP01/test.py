@@ -79,7 +79,7 @@ def main():
     if not startedWithoutPluginError():
         return
 
-    setAlwaysStartFullHelp()
+    setFixedHelpViewer(HelpViewer.HELPMODE)
     addCurrentCreatorDocumentation()
 
     buttonsAndState = {'Projects':True, 'Examples':False, 'Tutorials':False}
@@ -103,17 +103,16 @@ def main():
         if clickItemVerifyHelpCombo(wsButtonLabel, "Qt Creator Manual",
                                     "Verifying: Help with Creator Documentation is being opened."):
 
-            textUrls = {'Online Community':'http://forum.qt.io',
-                        'Blogs':'http://planet.qt.io',
+            textUrls = {'Online Community':'https://forum.qt.io',
+                        'Blogs':'https://planet.qt.io',
                         'Qt Account':'https://account.qt.io',
                         'User Guide':'qthelp://org.qt-project.qtcreator/doc/index.html'
                         }
             for text, url in textUrls.items():
-                test.verify(checkIfObjectExists("{type='QLabel' text='%s' unnamed='1' visible='1' "
-                                                "window=':Qt Creator_Core::Internal::MainWindow'}"
-                                                % text),
-                            "Verifying whether link button (%s) exists." % text)
-                # TODO find way to verify URLs (or tweak source code of Welcome page to become able)
+                button, label = getWelcomeScreenSideBarButton(text, True)
+                if test.verify(all((button, label)),
+                               "Verifying whether link button (%s) exists." % text):
+                    test.compare(str(button.toolTip), url, "Verifying URL for %s" % text)
     wsButtonFrame, wsButtonLabel = getWelcomeScreenSideBarButton(getStarted)
     if wsButtonLabel is not None:
         mouseClick(wsButtonLabel)
@@ -159,7 +158,7 @@ def main():
     for (qType, prop, info) in expect:
         test.verify(checkIfObjectExists(search % (qType, prop)),
                     "Verifying whether %s is shown" % info)
-    checkTableViewForContent(search % (expect[0][0], expect[0][1]), "Creating.*", "Tutorials",
+    checkTableViewForContent(search % (expect[0][0], expect[0][1]), "Help: Create .*", "Tutorials",
                              "Verifying that at least one tutorial is displayed.")
     # exit Qt Creator
     invokeMenuItem("File", "Exit")

@@ -30,6 +30,7 @@
 #include <dynamicastmatcherdiagnosticmessagecontainer.h>
 
 #include <texteditor/texteditor.h>
+#include <utils/executeondestruction.h>
 
 namespace ClangRefactoring {
 
@@ -38,8 +39,12 @@ ClangQueryHoverHandler::ClangQueryHoverHandler(ClangQueryHighlighter *highligher
 {
 }
 
-void ClangQueryHoverHandler::identifyMatch(TextEditor::TextEditorWidget *editorWidget, int position)
+void ClangQueryHoverHandler::identifyMatch(TextEditor::TextEditorWidget *editorWidget,
+                                           int position,
+                                           ReportPriority report)
 {
+    Utils::ExecuteOnDestruction reportPriority([this, report](){ report(priority()); });
+
     using Messages = ClangBackEnd::DynamicASTMatcherDiagnosticMessageContainers;
     using Contexts = ClangBackEnd::DynamicASTMatcherDiagnosticContextContainers;
 
@@ -52,9 +57,9 @@ void ClangQueryHoverHandler::identifyMatch(TextEditor::TextEditorWidget *editorW
     Contexts contexts = m_highligher->contextsForLineAndColumn(uint(line), uint(column));
 
     if (!messages.empty())
-        setToolTip(QString("%1: %2").arg(messages[0].errorTypeText()).arg(messages[0].arguments().join(", ")));
+        setToolTip(QString("%1: %2").arg(QString(messages[0].errorTypeText())).arg(QString(messages[0].arguments().join(", "))));
     else if (!contexts.empty())
-        setToolTip(QString("%1: %2").arg(contexts[0].contextTypeText()).arg(contexts[0].arguments().join(", ")));
+        setToolTip(QString("%1: %2").arg(QString(contexts[0].contextTypeText())).arg(QString(contexts[0].arguments().join(", "))));
 }
 
 } // namespace ClangRefactoring

@@ -321,7 +321,7 @@ void AppOutputPane::updateCloseActions()
 bool AppOutputPane::aboutToClose() const
 {
     return Utils::allOf(m_runControlTabs, [](const RunControlTab &rt) {
-        return !rt.runControl->isRunning() || rt.runControl->promptToStop();
+        return !rt.runControl || !rt.runControl->isRunning() || rt.runControl->promptToStop();
     });
 }
 
@@ -397,6 +397,8 @@ void AppOutputPane::updateBehaviorSettings()
 
 void AppOutputPane::createNewOutputWindow(RunControl *rc)
 {
+    QTC_ASSERT(rc, return);
+
     connect(rc, &RunControl::aboutToStart,
             this, &AppOutputPane::slotRunControlChanged);
     connect(rc, &RunControl::started,
@@ -418,7 +420,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
         if (tab.runControl)
             tab.runControl->initiateFinish();
         tab.runControl = rc;
-        tab.window->setFormatter(rc ? rc->outputFormatter() : nullptr);
+        tab.window->setFormatter(rc->outputFormatter());
 
         handleOldOutput(tab.window);
 
@@ -505,9 +507,9 @@ void AppOutputPane::setBehaviorOnOutput(RunControl *rc, AppOutputPane::BehaviorO
 void AppOutputPane::reRunRunControl()
 {
     const int index = currentIndex();
-    QTC_ASSERT(index != -1 && !m_runControlTabs.at(index).runControl->isRunning(), return);
-
-    RunControlTab &tab = m_runControlTabs[index];
+    const RunControlTab &tab = m_runControlTabs.at(index);
+    QTC_ASSERT(tab.runControl, return);
+    QTC_ASSERT(index != -1 && !tab.runControl->isRunning(), return);
 
     handleOldOutput(tab.window);
     tab.window->scrollToBottom();
@@ -519,7 +521,7 @@ void AppOutputPane::attachToRunControl()
     const int index = currentIndex();
     QTC_ASSERT(index != -1, return);
     RunControl *rc = m_runControlTabs.at(index).runControl;
-    QTC_ASSERT(rc->isRunning(), return);
+    QTC_ASSERT(rc && rc->isRunning(), return);
     ExtensionSystem::Invoker<void>(debuggerPlugin(), "attachExternalApplication", rc);
 }
 
@@ -532,9 +534,9 @@ void AppOutputPane::stopRunControl()
 
     if (rc->isRunning() && optionallyPromptToStop(rc))
         rc->initiateStop();
-    else if (rc->isStarting()) {
+    else {
         QTC_CHECK(false);
-        rc->initiateStop();
+        rc->forceStop();
     }
 
     if (debug)
@@ -549,9 +551,10 @@ void AppOutputPane::closeTabs(CloseTabMode mode)
 
 QList<RunControl *> AppOutputPane::allRunControls() const
 {
-    return Utils::transform<QList>(m_runControlTabs,[](const RunControlTab &tab) {
+    const QList<RunControl *> list = Utils::transform<QList>(m_runControlTabs,[](const RunControlTab &tab) {
         return tab.runControl.data();
     });
+    return Utils::filtered(list, [](RunControl *rc) { return rc; });
 }
 
 void AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
@@ -566,7 +569,7 @@ void AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
     // Prompt user to stop
     if (closeTabMode == CloseTabWithPrompt) {
         QWidget *tabWidget = m_tabWidget->widget(tabIndex);
-        if (!runControl->promptToStop())
+        if (runControl && runControl->isRunning() && !runControl->promptToStop())
             return;
         // The event loop has run, thus the ordering might have changed, a tab might
         // have been closed, so do some strange things...
@@ -579,7 +582,8 @@ void AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
     m_tabWidget->removeTab(tabIndex);
     delete window;
 
-    runControl->initiateFinish(); // Will self-destruct.
+    if (runControl)
+        runControl->initiateFinish(); // Will self-destruct.
     m_runControlTabs.removeAt(index);
     updateCloseActions();
 
@@ -723,7 +727,7 @@ void AppOutputPane::slotRunControlFinished2(RunControl *sender)
 
 #ifdef Q_OS_WIN
     const bool isRunning = Utils::anyOf(m_runControlTabs, [](const RunControlTab &rt) {
-        return rt.runControl->isRunning();
+        return rt.runControl && rt.runControl->isRunning();
     });
     if (!isRunning)
         WinDebugInterface::instance()->stop();

@@ -21,11 +21,14 @@ win32: LIBS += -luser32 -lshell32
 # PortsGatherer
 win32: LIBS += -liphlpapi -lws2_32
 
-SOURCES += $$PWD/environment.cpp \
+SOURCES += \
+    $$PWD/benchmarker.cpp \
+    $$PWD/environment.cpp \
     $$PWD/environmentmodel.cpp \
     $$PWD/environmentdialog.cpp \
     $$PWD/qtcprocess.cpp \
     $$PWD/reloadpromptutils.cpp \
+    $$PWD/settingsaccessor.cpp \
     $$PWD/shellcommand.cpp \
     $$PWD/shellcommandpage.cpp \
     $$PWD/settingsselector.cpp \
@@ -47,7 +50,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/codegeneration.cpp \
     $$PWD/newclasswidget.cpp \
     $$PWD/classnamevalidatinglineedit.cpp \
-    $$PWD/linecolumnlabel.cpp \
     $$PWD/fancylineedit.cpp \
     $$PWD/qtcolorbutton.cpp \
     $$PWD/savedaction.cpp \
@@ -87,7 +89,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/basetreeview.cpp \
     $$PWD/qtcassert.cpp \
     $$PWD/elfreader.cpp \
-    $$PWD/bracematcher.cpp \
     $$PWD/proxyaction.cpp \
     $$PWD/elidinglabel.cpp \
     $$PWD/hostosinfo.cpp \
@@ -114,18 +115,26 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/runextensions.cpp \
     $$PWD/utilsicons.cpp \
     $$PWD/guard.cpp \
-    $$PWD/highlightingitemdelegate.cpp
+    $$PWD/highlightingitemdelegate.cpp \
+    $$PWD/fuzzymatcher.cpp \
+    $$PWD/textutils.cpp \
+    $$PWD/url.cpp \
+    $$PWD/filecrumblabel.cpp \
+    $$PWD/fixedsizeclicklabel.cpp \
+    $$PWD/removefiledialog.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
 
 HEADERS += \
+    $$PWD/benchmarker.h \
     $$PWD/environment.h \
     $$PWD/environmentmodel.h \
     $$PWD/environmentdialog.h \
     $$PWD/qtcprocess.h \
     $$PWD/utils_global.h \
     $$PWD/reloadpromptutils.h \
+    $$PWD/settingsaccessor.h \
     $$PWD/settingsselector.h \
     $$PWD/shellcommand.h \
     $$PWD/shellcommandpage.h \
@@ -148,7 +157,6 @@ HEADERS += \
     $$PWD/codegeneration.h \
     $$PWD/newclasswidget.h \
     $$PWD/classnamevalidatinglineedit.h \
-    $$PWD/linecolumnlabel.h \
     $$PWD/fancylineedit.h \
     $$PWD/qtcolorbutton.h \
     $$PWD/savedaction.h \
@@ -191,7 +199,6 @@ HEADERS += \
     $$PWD/appmainwindow.h \
     $$PWD/basetreeview.h \
     $$PWD/elfreader.h \
-    $$PWD/bracematcher.h \
     $$PWD/proxyaction.h \
     $$PWD/hostosinfo.h \
     $$PWD/osspecificaspects.h \
@@ -241,13 +248,25 @@ HEADERS += \
     $$PWD/smallstringfwd.h \
     $$PWD/optional.h \
     $$PWD/../3rdparty/optional/optional.hpp \
+    $$PWD/variant.h \
+    $$PWD/../3rdparty/variant/variant.hpp \
     $$PWD/qtcfallthrough.h \
-    $$PWD/highlightingitemdelegate.h
+    $$PWD/highlightingitemdelegate.h \
+    $$PWD/fuzzymatcher.h \
+    $$PWD/textutils.h \
+    $$PWD/predicates.h \
+    $$PWD/url.h \
+    $$PWD/filecrumblabel.h \
+    $$PWD/linecolumn.h \
+    $$PWD/link.h \
+    $$PWD/fixedsizeclicklabel.h \
+    $$PWD/removefiledialog.h
 
 FORMS += $$PWD/filewizardpage.ui \
-    $$PWD/projectintropage.ui \
     $$PWD/newclasswidget.ui \
-    $$PWD/proxycredentialsdialog.ui
+    $$PWD/projectintropage.ui \
+    $$PWD/proxycredentialsdialog.ui \
+    $$PWD/removefiledialog.ui
 
 RESOURCES += $$PWD/utils.qrc
 

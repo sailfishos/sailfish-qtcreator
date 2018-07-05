@@ -31,7 +31,8 @@
 #include "pchgeneratornotifierinterface.h"
 #include "pchmanagerserverinterface.h"
 #include "projectpartsinterface.h"
-#include "stringcache.h"
+
+#include <ipcclientprovider.h>
 
 namespace ClangBackEnd {
 
@@ -39,11 +40,12 @@ class SourceRangesAndDiagnosticsForQueryMessage;
 
 class PchManagerServer : public PchManagerServerInterface,
                          public ClangPathWatcherNotifier,
-                         public PchGeneratorNotifierInterface
+                         public PchGeneratorNotifierInterface,
+                         public IpcClientProvider<PchManagerClientInterface>
+
 {
 public:
-    PchManagerServer(StringCache<Utils::PathString> &filePathCache,
-                     ClangPathWatcherInterface &fileSystemWatcher,
+    PchManagerServer(ClangPathWatcherInterface &fileSystemWatcher,
                      PchCreatorInterface &pchCreator,
                      ProjectPartsInterface &projectParts);
 
@@ -53,10 +55,10 @@ public:
     void removePchProjectParts(RemovePchProjectPartsMessage &&message) override;
 
     void pathsWithIdsChanged(const Utils::SmallStringVector &ids) override;
+    void pathsChanged(const FilePathIds &filePathIds) override;
     void taskFinished(TaskFinishStatus status, const ProjectPartPch &projectPartPch) override;
 
 private:
-    StringCache<Utils::PathString> &m_filePathCache;
     ClangPathWatcherInterface &m_fileSystemWatcher;
     PchCreatorInterface &m_pchCreator;
     ProjectPartsInterface &m_projectParts;

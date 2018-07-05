@@ -480,19 +480,26 @@ struct DumperOptions
     QString options;
 };
 
+struct Watcher : DumperOptions
+{
+    Watcher(const QString &iname, const QString &exp)
+        : DumperOptions(QString("\"watchers\":[{\"exp\":\"%2\",\"iname\":\"%1\"}]").arg(iname, toHex(exp)))
+    {}
+};
+
 struct Check
 {
     Check() {}
 
-    Check(const QString &iname, const Value &value, const Type &type)
-        : iname(iname), expectedName(nameFromIName(iname)),
-          expectedValue(value), expectedType(type)
+    Check(const QString &iname, const Name &name, const Value &value, const Type &type)
+        : iname(iname.startsWith("watch") ? iname : "local." + iname),
+          expectedName(name),
+          expectedValue(value),
+          expectedType(type)
     {}
 
-    Check(const QString &iname, const Name &name,
-         const Value &value, const Type &type)
-        : iname(iname), expectedName(name),
-          expectedValue(value), expectedType(type)
+    Check(const QString &iname, const Value &value, const Type &type)
+        : Check(iname, nameFromIName(iname), value, type)
     {}
 
     bool matches(DebuggerEngine engine, int debuggerVersion, const Context &context) const
@@ -671,6 +678,7 @@ struct ForceC {};
 struct EigenProfile {};
 struct UseDebugImage {};
 struct DwarfProfile { explicit DwarfProfile(int v) : version(v) {} int version; };
+struct CoreFoundationProfile {};
 
 struct CoreProfile {};
 struct CorePrivateProfile {};
@@ -903,6 +911,19 @@ public:
         return *this;
     }
 
+    const Data &operator+(const CoreFoundationProfile &) const
+    {
+        profileExtra +=
+            "CXX_FLAGS += -g -O0\n"
+            "LIBS += -framework CoreFoundation -framework Foundation\n"
+            "CONFIG -= app_bundle qt\n";
+
+        useQt = false;
+        useQHash = false;
+        mainFile = "main.mm";
+        return *this;
+    }
+
     const Data &operator+(const ForceC &) const
     {
         mainFile = "main.c";
@@ -945,9 +966,10 @@ public:
 
 struct TempStuff
 {
-    TempStuff(const char *tag) : buildTemp(QString("qt_tst_dumpers_") + tag + '_')
+    TempStuff(const char *tag)
+        : buildTemp(QDir::currentPath() + "/qt_tst_dumpers_" + tag + "_XXXXXX")
     {
-        buildPath = QDir::currentPath() + '/' + buildTemp.path();
+        buildPath = buildTemp.path();
         buildTemp.setAutoRemove(false);
         QVERIFY(!buildPath.isEmpty());
     }
@@ -1297,13 +1319,7 @@ void tst_Dumpers::dumper()
                 "\n#define BREAK qtcDebugBreakFunction();"
                 "\n\nvoid unused(const void *first,...) { (void) first; }"
             "\n#else"
-                "\n#include <stdint.h>"
-                "\n#ifndef _WIN32"
-                    "\ntypedef char CHAR;"
-                    "\ntypedef char *PCHAR;"
-                    "\ntypedef wchar_t WCHAR;"
-                    "\ntypedef wchar_t *PWCHAR;"
-                "\n#endif\n";
+                "\n#include <stdint.h>";
 
     if (m_debuggerEngine == LldbEngine)
 //#ifdef Q_OS_MAC
@@ -1440,7 +1456,7 @@ void tst_Dumpers::dumper()
             parent = parentIName(parent);
             if (parent.isEmpty())
                 break;
-            expandedINames.insert("local." + parent);
+            expandedINames.insert(parent);
         }
     }
 
@@ -1502,7 +1518,8 @@ void tst_Dumpers::dumper()
              << "-c"
              << "bm doit!qtcDebugBreakFunction;g"
              << "debug\\doit.exe";
-        cmds += "!qtcreatorcdbext.script sys.path.insert(1, '" + dumperDir + "')\n"
+        cmds += ".symopt+0x8000\n"
+                "!qtcreatorcdbext.script sys.path.insert(1, '" + dumperDir + "')\n"
                 "!qtcreatorcdbext.script from cdbbridge import *\n"
                 "!qtcreatorcdbext.script theDumper = Dumper()\n"
                 "!qtcreatorcdbext.script theDumper.setupDumpers()\n"
@@ -1654,7 +1671,7 @@ void tst_Dumpers::dumper()
 
     for (int i = data.checks.size(); --i >= 0; ) {
         Check check = data.checks.at(i);
-        QString iname = "local." + check.iname;
+        const QString iname = check.iname;
         WatchItem *item = static_cast<WatchItem *>(local.findAnyChild([iname](Utils::TreeItem *item) {
             return static_cast<WatchItem *>(item)->internalName() == iname;
         }));
@@ -4159,6 +4176,17 @@ void tst_Dumpers::dumper_data()
                + Check("a", "0 + 0i", "_Complex double") % LldbEngine
                + Check("b", "0 + 0i", "_Complex double") % LldbEngine;
 
+    QTest::newRow("StdFunction")
+            << Data("#include <functional>\n"
+                    "void bar(int) {}",
+
+                    "std::function<void(int)> x;\n"
+                    "std::function<void(int)> y = bar;\n"
+                    "std::function<void(int)> z = [](int) {};\n")
+            + GdbEngine
+            + Check("x", "(null)", "std::function<void(int)>")
+            + Check("y", ValuePattern(".* <bar(int)>"), "std::function<void(int)>");
+
 
     QTest::newRow("StdDeque")
             << Data("#include <deque>\n",
@@ -5196,7 +5224,11 @@ void tst_Dumpers::dumper_data()
 
 
     QTest::newRow("CharArrays")
-            << Data("",
+            << Data("#ifndef _WIN32\n"
+                    "#include <wchar.h>\n"
+                    "typedef char CHAR;\n"
+                    "typedef wchar_t WCHAR;\n"
+                    "#endif\n",
                     "char s[] = \"aöa\";\n"
                     "char t[] = \"aöax\";\n"
                     "wchar_t w[] = L\"aöa\";\n"
@@ -5321,6 +5353,22 @@ void tst_Dumpers::dumper_data()
                + Check("fbad", "(unknown:24) (24)", "Flags");
 
 
+    QTest::newRow("EnumInClass")
+            << Data("struct E {\n"
+                    "    enum Enum1 { a1, b1, c1 };\n"
+                    "    typedef enum Enum2 { a2, b2, c2 } Enum2;\n"
+                    "    typedef enum { a3, b3, c3 } Enum3;\n"
+                    "    Enum1 e1 = Enum1(c1 | b1);\n"
+                    "    Enum2 e2 = Enum2(c2 | b2);\n"
+                    "    Enum3 e3 = Enum3(c3 | b3);\n"
+                    "};\n",
+                    "E e;\n")
+                + GdbEngine
+                + Check("e.e1", "E::b1 | E::c1 (0x0003)", "E::Enum1")
+                + Check("e.e2", "E::b2 | E::c2 (0x0003)", "E::Enum2")
+                + Check("e.e3", "E::b3 | E::c3 (0x0003)", "E::Enum3");
+
+
     QTest::newRow("Array")
             << Data("",
                     "double a1[3][3];\n"
@@ -5426,7 +5474,7 @@ void tst_Dumpers::dumper_data()
                + Check("s.x", "2", "unsigned int : 3") % NoCdbEngine
                + Check("s.y", "3", "unsigned int : 4") % NoCdbEngine
                + Check("s.z", "39", "unsigned int : 18") % NoCdbEngine
-               + Check("s.e", "V2 (1)", "E : 3") % NoCdbEngine
+               + Check("s.e", "V2 (1)", "E : 3") % GdbEngine
                + Check("s.x", "2", "unsigned int") % CdbEngine
                + Check("s.y", "3", "unsigned int") % CdbEngine
                + Check("s.z", "39", "unsigned int") % CdbEngine
@@ -6830,6 +6878,55 @@ void tst_Dumpers::dumper_data()
         + Check("s.storage_.@1.size_", "4", "int");
 
 
+    QTest::newRow("Internal4")
+            << Data("template<class T>\n"
+                    "struct QtcDumperTest_List\n"
+                    "{\n"
+                    "    struct Node\n"
+                    "    {\n"
+                    "        virtual ~Node() {}\n"
+                    "        Node *prev = nullptr;\n"
+                    "        Node *next = nullptr;\n"
+                    "    };\n\n"
+                    "    QtcDumperTest_List()\n"
+                    "    {\n"
+                    "        root.prev = &root;\n"
+                    "        root.next = &root;\n"
+                    "    }\n\n"
+                    "    void insert(Node *n)\n"
+                    "    {\n"
+                    "        if (n->next)\n"
+                    "            return;\n"
+                    "        Node *r = root.prev;\n"
+                    "        Node *node = r->next;\n"
+                    "        n->next = node;\n"
+                    "        node->prev = n;\n"
+                    "        r->next = n;\n"
+                    "        n->prev = r;\n"
+                    "    }\n"
+                    "    Node root;\n"
+                    "};\n\n"
+                    "struct Base\n"
+                    "{\n"
+                    "    virtual ~Base() {}\n"
+                    "    int foo = 42;\n"
+                    "};\n\n"
+                    "struct Derived : Base, QtcDumperTest_List<Derived>::Node\n"
+                    "{\n"
+                    "    int baz = 84;\n"
+                    "};\n\n",
+                    "Derived d1, d2; unused(&d1, &d2);\n"
+                    "QtcDumperTest_List<Derived> list; unused(&list);\n"
+                    "list.insert(&d1);\n"
+                    "list.insert(&d2);\n")
+            + Cxx11Profile()
+            + Check("d1.@1.foo", "42", "int")
+            + Check("d1.baz", "84", "int")
+            + Check("d2.@1.foo", "42", "int")
+            + Check("d2.baz", "84", "int")
+            //+ Check("list.1.baz", "15", "int")
+            ;
+
     QTest::newRow("BufArray")
             << Data("#include <new>\n"
                     "static int c = 0;\n"
@@ -6856,6 +6953,25 @@ void tst_Dumpers::dumper_data()
                + Check("arr.2.baz", "5", "int");
 
 
+    QTest::newRow("StringDisplay")
+            << Data("#include <string.h>\n"
+                    "struct QtcDumperTest_String\n"
+                    "{\n"
+                    "   char *first;\n"
+                    "   const char *second = \"second\";\n"
+                    "   const char third[6] = {'t','h','i','r','d','\\0'};\n"
+                    "   QtcDumperTest_String()\n"
+                    "   {\n"
+                    "      first = new char[6];\n"
+                    "      strcpy(first, \"first\");\n"
+                    "   }\n"
+                    "   ~QtcDumperTest_String() { delete[] first; }\n"
+                    "};\n\n",
+                    "QtcDumperTest_String str; unused(&str);\n")
+               + Cxx11Profile()
+               + Check("str", "first, second, third", "QtcDumperTest_String");
+
+
     QTest::newRow("UndefinedStaticMembers")
             << Data("struct Foo { int a = 15; static int b; }; \n",
                     "Foo f; unused(&f);\n")
@@ -6874,6 +6990,14 @@ void tst_Dumpers::dumper_data()
             + Check("c", FloatValue("0"), TypeDef("double", "long double"))
             + Check("d", FloatValue("0.5"), TypeDef("double", "long double"));
 
+    QTest::newRow("WatchList")
+            << Data("", "")
+            + Watcher("watch.1", "42;43")
+            + Check("watch.1", "42;43", "<2 items>", "")
+            + Check("watch.1.0", "42", "42", "int")
+            + Check("watch.1.1", "43", "43", "int");
+
+
 #ifdef Q_OS_LINUX
     QTest::newRow("StaticMembersInLib")
             // We don't seem to have such in the public interface.
@@ -6887,6 +7011,40 @@ void tst_Dumpers::dumper_data()
             + Check("d.Log10_2_100000", "30103", "int")
             + Check("p.FlagBit", "<optimized out>", "") % NoCdbEngine
             + Check("p.FlagBit", "", "<Value unavailable error>", "") % CdbEngine;
+#endif
+
+#ifdef Q_OS_MAC
+    QTest::newRow("CFStrings")
+            << Data("#include <CoreFoundation/CoreFoundation.h>\n"
+                    "#include <string>\n"
+                    "#import <Foundation/Foundation.h>\n",
+                    "std::string stdString = \"A std::string\"; (void)stdString;\n\n"
+                    "std::string &stdStringReference = stdString; (void)stdStringReference;\n\n"
+                    "CFStringRef cfStringRef = CFSTR(\"A cfstringref\"); (void)cfStringRef;\n\n"
+                    "NSString *aNSString = (NSString *)cfStringRef; (void)aNSString;\n\n"
+                    "NSString *nsString = @\"A nsstring\"; (void)nsString;\n\n"
+
+                    "NSURL *nsUrl = [NSURL URLWithString:@\"http://example.com\"];\n"
+                    "CFURLRef url = (__bridge CFURLRef)nsUrl; (void)url;\n\n"
+
+                    "CFStringRef& cfStringRefReference = cfStringRef; (void)cfStringRefReference;\n"
+                    "NSString *&aNSStringReference = aNSString; (void)aNSStringReference;\n"
+                    "NSURL *&nsUrlReference = nsUrl; (void)nsUrlReference;\n"
+                    "CFURLRef &urlReference = url; (void)urlReference;\n")
+            + CoreFoundationProfile()
+            + Check("stdString", "\"A std::string\"", "std::string")
+            + Check("stdStringReference", "\"A std::string\"", "std::string &")
+            + Check("cfStringRef", "\"A cfstringref\"", "CFStringRef")
+            + Check("aNSString", "\"A cfstringref\"", "__NSCFConstantString *")
+            + Check("nsString", "\"A nsstring\"", "__NSCFConstantString *")
+            + Check("nsUrl", "\"http://example.com\"", "NSURL *")
+            + Check("url", "\"http://example.com\"", "CFURLRef")
+            + Check("cfStringRefReference", "\"A cfstringref\"", "CFStringRef &")
+            + Check("aNSStringReference", "\"A cfstringref\"", "NSString * &")
+            + Check("nsUrlReference", "\"http://example.com\"", "NSURL * &")
+            // FIXME: Fails.
+            // + Check("urlReference", "\"http://example.com\"", "CFURLRef &")
+            ;
 #endif
 
     QTest::newRow("ArrayOfFunctionPointers")

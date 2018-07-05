@@ -37,15 +37,12 @@ class BareMetalRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
     Q_DISABLE_COPY(BareMetalRunConfiguration)
 
-    friend class BareMetalRunConfigurationFactory;
+    friend class ProjectExplorer::IRunConfigurationFactory;
     friend class BareMetalRunConfigurationWidget;
 
 public:
-    explicit BareMetalRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
-                                       const QString &projectFilePath);
+    explicit BareMetalRunConfiguration(ProjectExplorer::Target *target);
 
-    bool isEnabled() const override;
-    QString disabledReason() const override;
     QWidget *createConfigurationWidget() override;
     Utils::OutputFormatter *createOutputFormatter() const override;
 
@@ -67,17 +64,15 @@ signals:
     void targetInformationChanged() const;
 
 protected:
-    BareMetalRunConfiguration(ProjectExplorer::Target *parent, BareMetalRunConfiguration *source);
     bool fromMap(const QVariantMap &map) override;
+    QString extraId() const final;
+
     QString defaultDisplayName();
-    void setDisabledReason(const QString &reason) const;
 
 private:
     void handleBuildSystemDataUpdated();
-    void init();
 
     QString m_projectFilePath;
-    mutable QString m_disabledReason;
     QString m_workingDirectory;
 };
 

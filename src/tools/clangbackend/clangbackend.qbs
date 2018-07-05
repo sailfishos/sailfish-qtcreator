@@ -3,11 +3,11 @@ import qbs 1.0
 QtcTool {
     name: "clangbackend"
 
-    Depends { name: "ClangBackEndIpc" }
+    Depends { name: "ClangSupport" }
     Depends { name: "libclang"; required: false }
 
     Group {
-        prefix: "ipcsource/"
+        prefix: "source/"
         files: [
             "*.h",
             "*.cpp"
@@ -26,7 +26,7 @@ QtcTool {
 
     condition: libclang.present
 
-    cpp.includePaths: base.concat(["ipcsource", libclang.llvmIncludeDir])
+    cpp.includePaths: base.concat(["source", libclang.llvmIncludeDir])
     cpp.libraryPaths: base.concat(libclang.llvmLibDir)
     cpp.dynamicLibraries: base.concat(libclang.llvmLibs)
     cpp.rpaths: base.concat(libclang.llvmLibDir)

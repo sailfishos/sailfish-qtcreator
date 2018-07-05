@@ -39,6 +39,8 @@
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/session.h>
 
+#include <utils/algorithm.h>
+
 #include <QRegExp>
 #include <QTimer>
 
@@ -120,16 +122,18 @@ void TodoItemsProvider::createScanners()
 void TodoItemsProvider::setItemsListWithinStartupProject()
 {
     QHashIterator<QString, QList<TodoItem> > it(m_itemsHash);
-    QSet<QString> fileNames = QSet<QString>::fromList(m_startupProject->files(Project::SourceFiles));
+    const QSet<QString> fileNames
+            = QSet<QString>::fromList(Utils::transform(m_startupProject->files(Project::SourceFiles),
+                                                       &Utils::FileName::toString));
 
-    QVariantMap settings = m_startupProject->namedSettings(QLatin1String(Constants::SETTINGS_NAME_KEY)).toMap();
+    QVariantMap settings = m_startupProject->namedSettings(Constants::SETTINGS_NAME_KEY).toMap();
 
     while (it.hasNext()) {
         it.next();
         QString fileName = it.key();
         if (fileNames.contains(fileName)) {
             bool skip = false;
-            for (const QVariant &pattern : settings[QLatin1String(Constants::EXCLUDES_LIST_KEY)].toList()) {
+            for (const QVariant &pattern : settings[Constants::EXCLUDES_LIST_KEY].toList()) {
                 QRegExp re(pattern.toString());
                 if (re.indexIn(fileName) != -1) {
                     skip = true;
@@ -145,7 +149,7 @@ void TodoItemsProvider::setItemsListWithinStartupProject()
 void TodoItemsProvider::setItemsListWithinSubproject()
 {
     // TODO prefer current editor as source of sub-project
-    Node *node = ProjectTree::currentNode();
+    const Node *node = ProjectTree::findCurrentNode();
     if (node) {
         ProjectNode *projectNode = node->parentProjectNode();
         if (projectNode) {
@@ -156,8 +160,9 @@ void TodoItemsProvider::setItemsListWithinSubproject()
             });
 
             // files must be both in the current subproject and the startup-project.
-            QSet<QString> fileNames = QSet<QString>::fromList(
-                        m_startupProject->files(ProjectExplorer::Project::SourceFiles));
+            const QSet<QString> fileNames
+                    = QSet<QString>::fromList(Utils::transform(m_startupProject->files(Project::SourceFiles),
+                                                               &Utils::FileName::toString));
             QHashIterator<QString, QList<TodoItem> > it(m_itemsHash);
             while (it.hasNext()) {
                 it.next();

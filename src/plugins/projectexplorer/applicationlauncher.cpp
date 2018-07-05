@@ -57,9 +57,11 @@
 */
 
 using namespace Utils;
-using namespace ProjectExplorer::Internal;
 
 namespace ProjectExplorer {
+
+using namespace Internal;
+
 namespace Internal {
 
 enum State { Inactive, Run };
@@ -85,6 +87,7 @@ public:
     void bringToForeground();
     qint64 applicationPID() const;
     bool isRunning() const;
+    bool isRemoteRunning() const;
 
     // Remote
     void doReportError(const QString &message);
@@ -218,11 +221,21 @@ bool ApplicationLauncher::isRunning() const
     return d->isRunning();
 }
 
+bool ApplicationLauncher::isRemoteRunning() const
+{
+    return d->isRemoteRunning();
+}
+
 bool ApplicationLauncherPrivate::isRunning() const
 {
     if (m_currentMode == ApplicationLauncher::Gui)
         return m_guiProcess.state() != QProcess::NotRunning;
     return m_consoleProcess.isRunning();
+}
+
+bool ApplicationLauncherPrivate::isRemoteRunning() const
+{
+    return m_isLocal ? false : m_deviceProcess->state() == QProcess::Running;
 }
 
 ProcessHandle ApplicationLauncher::applicationPID() const
@@ -272,7 +285,7 @@ void ApplicationLauncherPrivate::localGuiProcessError()
     default:
         error = ApplicationLauncher::tr("Some error has occurred while running the program.");
     }
-    emit q->appendMessage(error + QLatin1Char('\n'), ErrorMessageFormat);
+    emit q->appendMessage(error, ErrorMessageFormat);
     if (m_processRunning && !isRunning()) {
         m_processRunning = false;
         emit q->processExited(-1, status);
@@ -281,7 +294,7 @@ void ApplicationLauncherPrivate::localGuiProcessError()
 
 void ApplicationLauncherPrivate::localConsoleProcessError(const QString &error)
 {
-    emit q->appendMessage(error + QLatin1Char('\n'), ErrorMessageFormat);
+    emit q->appendMessage(error, ErrorMessageFormat);
     if (m_processRunning && m_consoleProcess.applicationPID() == 0) {
         m_processRunning = false;
         emit q->processExited(-1, QProcess::NormalExit);
@@ -293,7 +306,7 @@ void ApplicationLauncherPrivate::readLocalStandardOutput()
     QByteArray data = m_guiProcess.readAllStandardOutput();
     QString msg = m_outputCodec->toUnicode(
             data.constData(), data.length(), &m_outputCodecState);
-    emit q->appendMessage(msg, StdOutFormatSameLine);
+    emit q->appendMessage(msg, StdOutFormatSameLine, false);
 }
 
 void ApplicationLauncherPrivate::readLocalStandardError()
@@ -301,7 +314,7 @@ void ApplicationLauncherPrivate::readLocalStandardError()
     QByteArray data = m_guiProcess.readAllStandardError();
     QString msg = m_outputCodec->toUnicode(
             data.constData(), data.length(), &m_errorCodecState);
-    emit q->appendMessage(msg, StdErrFormatSameLine);
+    emit q->appendMessage(msg, StdErrFormatSameLine, false);
 }
 
 void ApplicationLauncherPrivate::cannotRetrieveLocalDebugOutput()

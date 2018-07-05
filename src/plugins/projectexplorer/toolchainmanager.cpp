@@ -31,8 +31,6 @@
 
 #include <coreplugin/icore.h>
 
-#include <extensionsystem/pluginmanager.h>
-
 #include <utils/fileutils.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
@@ -46,14 +44,13 @@
 static const char TOOLCHAIN_DATA_KEY[] = "ToolChain.";
 static const char TOOLCHAIN_COUNT_KEY[] = "ToolChain.Count";
 static const char TOOLCHAIN_FILE_VERSION_KEY[] = "Version";
-static const char TOOLCHAIN_FILENAME[] = "/qtcreator/toolchains.xml";
+static const char TOOLCHAIN_FILENAME[] = "/toolchains.xml";
 
 using namespace Utils;
 
 static FileName settingsFileName(const QString &path)
 {
-    QFileInfo settingsLocation(Core::ICore::settings()->fileName());
-    return FileName::fromString(settingsLocation.absolutePath() + path);
+    return FileName::fromString(Core::ICore::userResourcePath() + path);
 }
 
 namespace ProjectExplorer {
@@ -139,7 +136,7 @@ static QList<ToolChain *> restoreFromFile(const FileName &fileName)
     if (version < 1)
         return result;
 
-    QList<ToolChainFactory *> factories = ExtensionSystem::PluginManager::getObjects<ToolChainFactory>();
+    const QList<ToolChainFactory *> factories = ToolChainFactory::allToolChainFactories();
 
     int count = data.value(QLatin1String(TOOLCHAIN_COUNT_KEY), 0).toInt();
     for (int i = 0; i < count; ++i) {
@@ -150,7 +147,7 @@ static QList<ToolChain *> restoreFromFile(const FileName &fileName)
         const QVariantMap tcMap = data.value(key).toMap();
 
         bool restored = false;
-        foreach (ToolChainFactory *f, factories) {
+        for (ToolChainFactory *f : factories) {
             if (f->canRestore(tcMap)) {
                 if (ToolChain *tc = f->restore(tcMap)) {
                     result.append(tc);
@@ -172,9 +169,7 @@ static QList<ToolChain *> restoreFromFile(const FileName &fileName)
 static QList<ToolChain *> autoDetectToolChains(const QList<ToolChain *> alreadyKnownTcs)
 {
     QList<ToolChain *> result;
-    const QList<ToolChainFactory *> factories
-            = ExtensionSystem::PluginManager::getObjects<ToolChainFactory>();
-    foreach (ToolChainFactory *f, factories)
+    for (ToolChainFactory *f : ToolChainFactory::allToolChainFactories())
         result.append(f->autoDetect(alreadyKnownTcs));
 
     // Remove invalid toolchains that might have sneaked in.
@@ -308,9 +303,8 @@ void ToolChainManager::restoreToolChains()
 
 QList<ToolChain *> ToolChainManager::readSystemFileToolChains()
 {
-    QFileInfo systemSettingsFile(Core::ICore::settings(QSettings::SystemScope)->fileName());
-    QList<ToolChain *> systemTcs
-            = restoreFromFile(FileName::fromString(systemSettingsFile.absolutePath() + QLatin1String(TOOLCHAIN_FILENAME)));
+    QList<ToolChain *> systemTcs = restoreFromFile(
+        FileName::fromString(Core::ICore::installerResourcePath() + TOOLCHAIN_FILENAME));
 
     foreach (ToolChain *tc, systemTcs)
         tc->setDetection(ToolChain::AutoDetection);
@@ -492,7 +486,7 @@ public:
     Abi targetAbi() const override { return Abi::hostAbi(); }
     bool isValid() const override { return m_valid; }
     PredefinedMacrosRunner createPredefinedMacrosRunner() const override { return PredefinedMacrosRunner(); }
-    QByteArray predefinedMacros(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags); return QByteArray(); }
+    Macros predefinedMacros(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags); return Macros(); }
     CompilerFlags compilerFlags(const QStringList &cxxflags) const override { Q_UNUSED(cxxflags); return NoFlags; }
     WarningFlags warningFlags(const QStringList &cflags) const override { Q_UNUSED(cflags); return WarningFlags::NoWarnings; }
     SystemHeaderPathsRunner createSystemHeaderPathsRunner() const override { return SystemHeaderPathsRunner(); }

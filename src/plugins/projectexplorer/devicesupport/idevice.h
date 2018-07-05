@@ -34,6 +34,7 @@
 #include <QList>
 #include <QObject>
 #include <QSharedPointer>
+#include <QUrl>
 #include <QVariantMap>
 
 #include <functional>
@@ -144,7 +145,6 @@ public:
 
     Core::Id type() const;
     bool isAutoDetected() const;
-    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
@@ -201,6 +201,9 @@ public:
     QString debugServerPath() const;
     void setDebugServerPath(const QString &path);
 
+    QString qmlsceneCommand() const;
+    void setQmlsceneCommand(const QString &path);
+
 protected:
     IDevice();
     IDevice(Core::Id type, Origin origin, MachineType machineType, Core::Id id = Core::Id());
@@ -210,7 +213,6 @@ private:
     IDevice &operator=(const IDevice &); // Unimplemented.
 
     int version() const;
-    void setSdkProvided(bool sdkProvided);
 
     Internal::IDevicePrivate *d;
     friend class DeviceManager;

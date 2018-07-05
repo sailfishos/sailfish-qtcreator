@@ -133,7 +133,7 @@ TextEditor::CompletionAssistProvider *CppEditorDocument::completionAssistProvide
     return m_completionAssistProvider;
 }
 
-TextEditor::QuickFixAssistProvider *CppEditorDocument::quickFixAssistProvider() const
+TextEditor::IAssistProvider *CppEditorDocument::quickFixAssistProvider() const
 {
     return CppEditorPlugin::instance()->quickFixProvider();
 }
@@ -394,7 +394,7 @@ const MinimizableInfoBars &CppEditorDocument::minimizableInfoBars() const
 CppTools::BaseEditorDocumentProcessor *CppEditorDocument::processor()
 {
     if (!m_processor) {
-        m_processor.reset(mm()->editorDocumentProcessor(this));
+        m_processor.reset(mm()->createEditorDocumentProcessor(this));
         connect(m_processor.data(), &CppTools::BaseEditorDocumentProcessor::projectPartInfoUpdated,
                 [this] (const CppTools::ProjectPartInfo &info)
         {

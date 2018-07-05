@@ -43,29 +43,19 @@ class NimRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
 
 public:
-    NimRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    explicit NimRunConfiguration(ProjectExplorer::Target *target);
 
     QWidget *createConfigurationWidget() override;
     ProjectExplorer::Runnable runnable() const override;
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &map) override;
 
-signals:
-    void executableChanged(const QString &args);
-    void runModeChanged(ProjectExplorer::ApplicationLauncher::Mode);
-    void workingDirectoryChanged(const QString &workingDirectory);
-    void commandLineArgumentsChanged(const QString &args);
-    void runInTerminalChanged(bool);
-
 private:
-    void setExecutable(const QString &path);
-    void setWorkingDirectory(const QString &path);
-    void setCommandLineArguments(const QString &args);
     void updateConfiguration();
     void setActiveBuildConfiguration(NimBuildConfiguration *activeBuildConfiguration);
 
     QString m_executable;
-    NimBuildConfiguration *m_buildConfiguration;
+    NimBuildConfiguration *m_buildConfiguration = nullptr;
     ProjectExplorer::WorkingDirectoryAspect* m_workingDirectoryAspect;
     ProjectExplorer::ArgumentsAspect* m_argumentAspect;
     ProjectExplorer::TerminalAspect* m_terminalAspect;
