@@ -145,6 +145,15 @@ void MerSdkManager::initialize()
             }
         }
 
+        // If debugger became available
+        foreach (MerSdk *sdk, m_sdks) {
+            foreach (const MerTarget &target, sdk->targets()) {
+                foreach (Kit *kit, kitsForTarget(target.name())) {
+                    target.ensureDebuggerIsSet(kit);
+                }
+            }
+        }
+
         m_intialized = true;
         updateDevices();
         emit initialized();
