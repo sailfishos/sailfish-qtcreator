@@ -916,6 +916,11 @@ void DebuggerRunTool::addSolibSearchDir(const QString &str)
     m_runParameters.solibSearchPath.append(path);
 }
 
+void DebuggerRunTool::addSourcePathMap(const QString &installPath, const QString &buildPath)
+{
+    m_runParameters.sourcePathMap.insert(installPath, buildPath);
+}
+
 DebuggerRunTool::~DebuggerRunTool()
 {
     disconnect();
