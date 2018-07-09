@@ -107,12 +107,11 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 {
     setDisplayName("MerDeviceDebugSupport");
 
-    m_portsGatherer = new GdbServerPortsGatherer(runControl);
-    m_portsGatherer->setUseGdbServer(isCppDebugging());
-    m_portsGatherer->setUseQmlServer(isQmlDebugging());
+    setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
+    addQmlServerInferiorCommandLineArgumentIfNeeded();
 
-    auto gdbServer = new GdbServerRunner(runControl, m_portsGatherer);
-    gdbServer->addStartDependency(m_portsGatherer);
+    auto gdbServer = new GdbServerRunner(runControl, portsGatherer());
+    gdbServer->addStartDependency(portsGatherer());
 
     addStartDependency(gdbServer);
 
@@ -121,7 +120,7 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     setUseExtendedRemote(true);
 
     if (isCppDebugging()) {
-        auto gdbServerReadyWatcher = new GdbServerReadyWatcher(runControl, m_portsGatherer);
+        auto gdbServerReadyWatcher = new GdbServerReadyWatcher(runControl, portsGatherer());
         gdbServerReadyWatcher->addStartDependency(gdbServer);
         addStartDependency(gdbServerReadyWatcher);
     }
@@ -154,10 +153,6 @@ void MerDeviceDebugSupport::start()
         addSourcePathMap(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
     if (mersdk && !mersdk->sharedSrcPath().isEmpty())
         addSourcePathMap(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
-
-    setGdbServerChannel(m_portsGatherer->gdbServerChannel());
-    setQmlServer(m_portsGatherer->qmlServer());
-    addQmlServerInferiorCommandLineArgumentIfNeeded();
 
     DebuggerRunTool::start();
 }

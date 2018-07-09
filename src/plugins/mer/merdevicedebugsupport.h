@@ -40,9 +40,6 @@ public:
 
 protected:
     void start() override;
-
-private:
-    Debugger::GdbServerPortsGatherer *m_portsGatherer = nullptr;
 };
 
 } // namespace Internal
