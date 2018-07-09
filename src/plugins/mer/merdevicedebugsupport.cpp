@@ -140,7 +140,7 @@ void MerDeviceDebugSupport::start()
         return;
     }
 
-    const QString host = device()->sshParameters().host;
+    const QString host = device()->sshParameters().host();
     const Utils::Port gdbServerPort = m_portsGatherer->gdbServerPort();
     const Utils::Port qmlServerPort = m_portsGatherer->qmlServerPort();
 

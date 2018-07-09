@@ -140,12 +140,12 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     completeChanged();
 
     SshConnectionParameters sshParams;
-    sshParams.host = hostName();
-    sshParams.userName = userName();
-    sshParams.port = sshPort();
+    sshParams.setHost(hostName());
+    sshParams.setUserName(userName());
+    sshParams.setPort(sshPort());
     sshParams.timeout = timeout();
     sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-    sshParams.password = password();
+    sshParams.setPassword(password());
 
     m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(hostName()));
     m_ui->connectionTestLabel->setText(MerConnectionManager::testConnection(sshParams,

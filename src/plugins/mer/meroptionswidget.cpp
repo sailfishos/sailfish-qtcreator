@@ -293,7 +293,7 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         if (m_sshPort.contains(sdk))
-            params.port = m_sshPort[sdk];
+            params.setPort(m_sshPort[sdk]);
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::testConnection(params);

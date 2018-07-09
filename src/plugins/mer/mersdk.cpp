@@ -184,17 +184,17 @@ QString MerSdk::sharedSrcPath() const
 void MerSdk::setSshPort(quint16 port)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    if (port == params.port)
+    if (port == params.port())
         return;
 
-    params.port = port;
+    params.setPort(port);
     m_connection->setSshParameters(params);
     emit sshPortChanged(port);
 }
 
 quint16 MerSdk::sshPort() const
 {
-    return m_connection->sshParameters().port;
+    return m_connection->sshParameters().port();
 }
 
 void MerSdk::setWwwPort(quint16 port)
@@ -229,25 +229,25 @@ QString MerSdk::privateKeyFile() const
 void MerSdk::setHost(const QString &host)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    params.host = host;
+    params.setHost(host);
     m_connection->setSshParameters(params);
 }
 
 QString MerSdk::host() const
 {
-    return m_connection->sshParameters().host;
+    return m_connection->sshParameters().host();
 }
 
 void MerSdk::setUserName(const QString &username)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    params.userName = username;
+    params.setUserName(username);
     m_connection->setSshParameters(params);
 }
 
 QString MerSdk::userName() const
 {
-    return m_connection->sshParameters().userName;
+    return m_connection->sshParameters().userName();
 }
 
 void MerSdk::setTimeout(int timeout)

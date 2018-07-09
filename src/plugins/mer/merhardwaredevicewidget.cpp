@@ -87,14 +87,14 @@ MerHardwareDeviceWidget::~MerHardwareDeviceWidget()
 void MerHardwareDeviceWidget::hostNameEditingFinished()
 {
     SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.host = m_ui->hostLineEdit->text().trimmed();
+    sshParams.setHost(m_ui->hostLineEdit->text().trimmed());
     device()->setSshParameters(sshParams);
 }
 
 void MerHardwareDeviceWidget::sshPortEditingFinished()
 {
     SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.port = m_ui->sshPortSpinBox->value();
+    sshParams.setPort(m_ui->sshPortSpinBox->value());
     device()->setSshParameters(sshParams);
 }
 
@@ -108,7 +108,7 @@ void MerHardwareDeviceWidget::timeoutEditingFinished()
 void MerHardwareDeviceWidget::userNameEditingFinished()
 {
     SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.userName = m_ui->userLineEdit->text();
+    sshParams.setUserName(m_ui->userLineEdit->text());
     device()->setSshParameters(sshParams);
 }
 
@@ -130,7 +130,7 @@ void MerHardwareDeviceWidget::authorizePrivateKey()
     auto *ui = new Ui::MerHardwareDeviceWidget_AuthorizeDialog;
     ui->setupUi(dialog);
     ui->deviceLineEdit->setText(device()->displayName());
-    ui->userNameLineEdit->setText(device()->sshParameters().userName);
+    ui->userNameLineEdit->setText(device()->sshParameters().userName());
     ui->progressBar->setVisible(false);
     ui->progressLabel->setText(QString());
 
@@ -174,7 +174,7 @@ void MerHardwareDeviceWidget::authorizePrivateKey()
 
         SshConnectionParameters sshParameters = device()->sshParameters();
         sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-        sshParameters.password = ui->passwordLineEdit->text();
+        sshParameters.setPassword(ui->passwordLineEdit->text());
         QString publicKeyPath = sshParameters.privateKeyFile + QLatin1String(".pub");
 
         deployer.deployPublicKey(sshParameters, publicKeyPath);
@@ -258,11 +258,11 @@ void MerHardwareDeviceWidget::initGui()
 
     m_ui->autheticationTypeLabelEdit->setText(tr("SSH Key"));
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
-    m_ui->hostLineEdit->setText(sshParams.host);
+    m_ui->hostLineEdit->setText(sshParams.host());
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
-    m_ui->userLineEdit->setText(sshParams.userName);
+    m_ui->userLineEdit->setText(sshParams.userName());
     m_ui->privateKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
-    m_ui->sshPortSpinBox->setValue(sshParams.port);
+    m_ui->sshPortSpinBox->setValue(sshParams.port());
     m_ui->portsLineEdit->setText(device()->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device().staticCast<MerDevice>()->qmlLivePorts().toString());
     updatePortsWarningLabel();

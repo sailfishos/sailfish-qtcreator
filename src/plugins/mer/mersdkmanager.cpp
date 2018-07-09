@@ -625,7 +625,7 @@ void MerSdkManager::updateDevices()
             if (d->machineType() == IDevice::Hardware) {
                 Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);
                 const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
-                xmlData.m_ip = device->sshParameters().host;
+                xmlData.m_ip = device->sshParameters().host();
                 xmlData.m_name = device->displayName();
                 xmlData.m_type = QLatin1String("real");
                 QFileInfo file(device->sshParameters().privateKeyFile);

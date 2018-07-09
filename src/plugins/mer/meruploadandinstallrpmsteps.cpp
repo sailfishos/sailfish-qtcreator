@@ -63,7 +63,7 @@ public:
 private:
     QString uploadDir() const
     {
-        const QString uname = deviceConfiguration()->sshParameters().userName;
+        const QString uname = deviceConfiguration()->sshParameters().userName();
         return uname == QLatin1String("root")
             ? QString::fromLatin1("/root") : QLatin1String("/home/") + uname;
     }

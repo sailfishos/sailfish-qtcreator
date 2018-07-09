@@ -88,7 +88,7 @@ void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
 
         bool restored = MerEmulatorDeviceManager::restorePorts(device);
         if (restored) {
-            m_ui->sshPortSpinBox->setValue(device->sshParameters().port);
+            m_ui->sshPortSpinBox->setValue(device->sshParameters().port());
             m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
         }
     }
@@ -139,7 +139,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
                 index.arg(device->id().toString()).replace(QLatin1Char(' '),QLatin1Char('_'))
                 + user;
 
-        sshParams.userName = user;
+        sshParams.setUserName(user);
         sshParams.privateKeyFile = privKey;
         m_ui->sshKeyLabelEdit->setText(privKey);
         device->setSshParameters(sshParams);
@@ -150,7 +150,7 @@ void MerEmulatorDeviceWidget::handleSshPortChanged()
 {
     auto device = this->device().staticCast<MerDevice>();
     auto sshParams = device->sshParameters();
-    sshParams.port = m_ui->sshPortSpinBox->value();
+    sshParams.setPort(m_ui->sshPortSpinBox->value());
     device->setSshParameters(sshParams);
 }
 
@@ -207,12 +207,12 @@ void MerEmulatorDeviceWidget::initGui()
     const MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
-    m_ui->userLineEdit->setText(sshParams.userName);
+    m_ui->userLineEdit->setText(sshParams.userName());
     if (!sshParams.privateKeyFile.isEmpty())
         m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     else
         m_ui->sshKeyLabelEdit->setText(tr("none"));
-    m_ui->sshPortSpinBox->setValue(sshParams.port);
+    m_ui->sshPortSpinBox->setValue(sshParams.port());
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
