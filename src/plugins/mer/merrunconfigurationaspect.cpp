@@ -231,12 +231,6 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(ProjectExplorer::RunConfigu
     setRunConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
 }
 
-ProjectExplorer::IRunConfigurationAspect *MerRunConfigurationAspect::create(
-        ProjectExplorer::RunConfiguration *runConfig) const
-{
-    return new MerRunConfigurationAspect(runConfig);
-}
-
 QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
 {
     Project *project = runConfiguration()->target()->project();
