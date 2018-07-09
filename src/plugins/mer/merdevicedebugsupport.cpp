@@ -146,7 +146,7 @@ void MerDeviceDebugSupport::start()
 
     RunConfiguration *runConfig = runControl()->runConfiguration();
 
-    DebuggerStartParameters params;
+    DebuggerRunParameters params;
     params.startMode = AttachToRemoteServer;
     params.closeMode = KillAndExitMonitorAtClose;
 
