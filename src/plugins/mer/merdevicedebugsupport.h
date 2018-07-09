@@ -35,8 +35,6 @@ namespace Internal {
 // Based on RemoteLinux::LinuxDeviceDebugSupport
 class MerDeviceDebugSupport : public Debugger::DebuggerRunTool
 {
-    Q_OBJECT
-
 public:
     MerDeviceDebugSupport(ProjectExplorer::RunControl *runControl);
 
@@ -44,7 +42,6 @@ protected:
     void start() override;
 
 private:
-    QString m_symbolFile;
     Debugger::GdbServerPortsGatherer *m_portsGatherer = nullptr;
 };
 

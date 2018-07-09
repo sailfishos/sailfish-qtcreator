@@ -116,6 +116,10 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 
     addStartDependency(gdbServer);
 
+    setStartMode(AttachToRemoteServer);
+    setCloseMode(KillAndExitMonitorAtClose);
+    setUseExtendedRemote(true);
+
     if (isCppDebugging()) {
         auto gdbServerReadyWatcher = new GdbServerReadyWatcher(runControl, m_portsGatherer);
         gdbServerReadyWatcher->addStartDependency(gdbServer);
@@ -124,9 +128,9 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 
     RunConfiguration *runConfig = runControl->runConfiguration();
     if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
-        m_symbolFile = rc->localExecutableFilePath();
+        setSymbolFile(rc->localExecutableFilePath());
     else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
-        m_symbolFile = rc->localExecutableFilePath();
+        setSymbolFile(rc->localExecutableFilePath());
 
     connect(this, &DebuggerRunTool::inferiorRunning, this, [runControl]() {
         MerQmlLiveBenchManager::notifyInferiorRunning(runControl);
@@ -135,56 +139,25 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
 
 void MerDeviceDebugSupport::start()
 {
-    if (m_symbolFile.isEmpty()) {
-        reportFailure(tr("Cannot debug: Local executable is not set."));
-        return;
-    }
-
-    const QString host = device()->sshParameters().host();
-    const Utils::Port gdbServerPort = m_portsGatherer->gdbServerPort();
-    const int qmlServerPort = m_portsGatherer->qmlServerPort().number();
-
     RunConfiguration *runConfig = runControl()->runConfiguration();
 
-    DebuggerRunParameters params;
-    params.startMode = AttachToRemoteServer;
-    params.closeMode = KillAndExitMonitorAtClose;
-
-    if (isQmlDebugging()) {
-        params.qmlServer.setHost(host);
-        params.qmlServer.setPort(qmlServerPort);
-        params.inferior.commandLineArguments.replace("%qml_port%", QString::number(qmlServerPort));
-    }
     if (isCppDebugging()) {
-        Runnable r = runnable();
-        QTC_ASSERT(r.is<StandardRunnable>(), return);
-        auto stdRunnable = r.as<StandardRunnable>();
-        params.useExtendedRemote = true;
-        params.inferior.executable = stdRunnable.executable;
-        params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
-        if (isQmlDebugging()) {
-            params.inferior.commandLineArguments.prepend(' ');
-            params.inferior.commandLineArguments.prepend(
-                QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices));
-        }
-
-        params.remoteChannel = QString("%1:%2").arg(host).arg(gdbServerPort.number());
-        params.symbolFile = m_symbolFile;
-
         QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
         QTC_ASSERT(project, return);
         foreach (QmakeProFile *proFile, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate))
-            params.solibSearchPath.append(proFile->targetInformation().destDir.toString());
+            addSolibSearchDir(proFile->targetInformation().destDir.toString());
     }
 
     MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
 
     if (mersdk && !mersdk->sharedHomePath().isEmpty())
-        params.sourcePathMap.insert(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
+        addSourcePathMap(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
     if (mersdk && !mersdk->sharedSrcPath().isEmpty())
-        params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
+        addSourcePathMap(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
-    setStartParameters(params);
+    setGdbServerChannel(m_portsGatherer->gdbServerChannel());
+    setQmlServer(m_portsGatherer->qmlServer());
+    addQmlServerInferiorCommandLineArgumentIfNeeded();
 
     DebuggerRunTool::start();
 }
