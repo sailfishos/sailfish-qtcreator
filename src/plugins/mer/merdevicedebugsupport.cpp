@@ -142,7 +142,7 @@ void MerDeviceDebugSupport::start()
 
     const QString host = device()->sshParameters().host();
     const Utils::Port gdbServerPort = m_portsGatherer->gdbServerPort();
-    const Utils::Port qmlServerPort = m_portsGatherer->qmlServerPort();
+    const int qmlServerPort = m_portsGatherer->qmlServerPort().number();
 
     RunConfiguration *runConfig = runControl()->runConfiguration();
 
@@ -151,10 +151,9 @@ void MerDeviceDebugSupport::start()
     params.closeMode = KillAndExitMonitorAtClose;
 
     if (isQmlDebugging()) {
-        params.qmlServer.host = host;
-        params.qmlServer.port = qmlServerPort;
-        params.inferior.commandLineArguments.replace("%qml_port%",
-                        QString::number(qmlServerPort.number()));
+        params.qmlServer.setHost(host);
+        params.qmlServer.setPort(qmlServerPort);
+        params.inferior.commandLineArguments.replace("%qml_port%", QString::number(qmlServerPort));
     }
     if (isCppDebugging()) {
         Runnable r = runnable();
