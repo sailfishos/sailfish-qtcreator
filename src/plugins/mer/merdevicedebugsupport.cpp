@@ -111,7 +111,6 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     addQmlServerInferiorCommandLineArgumentIfNeeded();
 
     auto gdbServer = new GdbServerRunner(runControl, portsGatherer());
-    gdbServer->addStartDependency(portsGatherer());
 
     addStartDependency(gdbServer);
 
