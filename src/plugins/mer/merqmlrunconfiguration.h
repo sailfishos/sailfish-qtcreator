@@ -34,7 +34,6 @@ class MerQmlRunConfiguration : public ProjectExplorer::RunConfiguration
 
 public:
     MerQmlRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
-    bool isEnabled() const override;
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;
@@ -48,6 +47,8 @@ protected:
 
     MerQmlRunConfiguration(ProjectExplorer::Target *parent, MerQmlRunConfiguration *source);
     void ctor();
+
+    void updateEnabledState() override;
 
 private:
     mutable QString m_disabledReason;

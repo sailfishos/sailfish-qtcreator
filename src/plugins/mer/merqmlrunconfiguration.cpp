@@ -80,7 +80,7 @@ QString MerQmlRunConfiguration::disabledReason() const
         return m_disabledReason;
 }
 
-bool MerQmlRunConfiguration::isEnabled() const
+void MerQmlRunConfiguration::updateEnabledState()
 {
     //TODO Hack
 
@@ -89,11 +89,12 @@ bool MerQmlRunConfiguration::isEnabled() const
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
-            return false;
+            setEnabled(false);
+            return;
         }
     }
 
-    return RunConfiguration::isEnabled();
+    RunConfiguration::updateEnabledState();
 }
 
 Runnable MerQmlRunConfiguration::runnable() const

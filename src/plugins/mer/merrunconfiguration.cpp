@@ -70,7 +70,7 @@ QString MerRunConfiguration::disabledReason() const
         return m_disabledReason;
 }
 
-bool MerRunConfiguration::isEnabled() const
+void MerRunConfiguration::updateEnabledState()
 {   
     //TODO Hack
 
@@ -79,11 +79,12 @@ bool MerRunConfiguration::isEnabled() const
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
-            return false;
+            setEnabled(false);
+            return;
         }
     }
 
-    return RemoteLinuxRunConfiguration::isEnabled();
+    RemoteLinuxRunConfiguration::updateEnabledState();
 }
 
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const

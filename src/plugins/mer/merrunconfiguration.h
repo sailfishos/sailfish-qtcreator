@@ -34,7 +34,6 @@ class MerRunConfiguration : public RemoteLinux::RemoteLinuxRunConfiguration
 public:
     MerRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
                         const QString &targetName);
-    bool isEnabled() const override;
 
     ProjectExplorer::Runnable runnable() const override;
     QString defaultRemoteExecutableFilePath() const override;
@@ -45,6 +44,8 @@ protected:
     MerRunConfiguration(ProjectExplorer::Target *parent,
                         MerRunConfiguration *source);    
     void ctor();
+
+    void updateEnabledState() override;
 private:
     mutable QString m_disabledReason;
 };
