@@ -70,10 +70,8 @@ MerDeployConfiguration::MerDeployConfiguration(Target *target, MerDeployConfigur
 
 void MerDeployConfiguration::init()
 {
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(target()->project());
-    QTC_ASSERT(qmakeProject, return);
-    connect(qmakeProject, &QmakeProject::proFilesEvaluated, this,
-            &MerMb2RpmBuildConfiguration::addRemoveSpecialSteps);
+    connect(target()->project(), &Project::parsingFinished,
+            this, &MerMb2RpmBuildConfiguration::addRemoveSpecialSteps);
 }
 
 void MerDeployConfiguration::addRemoveSpecialSteps()
