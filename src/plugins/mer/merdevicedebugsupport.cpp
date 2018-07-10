@@ -40,7 +40,6 @@
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmldebug/qmldebugcommandlinearguments.h>
 #include <qtsupport/qtkitinformation.h>
-#include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>

@@ -52,8 +52,8 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
-#include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
+#include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
 
 #include <QMenu>
