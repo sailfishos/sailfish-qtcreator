@@ -79,7 +79,6 @@ SOURCES += \
     mersdkmanager.cpp \
     mersdkselectiondialog.cpp \
     mersettings.cpp \
-    mersftpdeployconfiguration.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
     mertarget.cpp \
@@ -143,7 +142,6 @@ HEADERS += \
     mersdkmanager.h \
     mersdkselectiondialog.h \
     mersettings.h \
-    mersftpdeployconfiguration.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
     mertarget.h \
