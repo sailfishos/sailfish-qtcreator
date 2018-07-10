@@ -33,7 +33,6 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace RemoteLinux {
-namespace Internal {
 
 // RemoteLinuxQmlProfilerSupport
 
@@ -74,5 +73,4 @@ void RemoteLinuxQmlToolingSupport::start()
     SimpleTargetRunner::start();
 }
 
-} // namespace Internal
 } // namespace RemoteLinux
