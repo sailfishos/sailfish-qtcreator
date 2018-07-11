@@ -25,6 +25,8 @@
 
 #include "merabstractvmstartstep.h"
 
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
+
 namespace Mer {
 namespace Internal {
 
@@ -36,12 +38,23 @@ class MerSdkStartStep : public MerAbstractVmStartStep
 
 public:
     explicit MerSdkStartStep(ProjectExplorer::BuildStepList *bsl);
-    MerSdkStartStep(ProjectExplorer::BuildStepList *bsl, MerSdkStartStep *bs);
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
 
     static Core::Id stepId();
     static QString displayName();
+};
+
+template<class Step>
+class MerBuildStepFactory : public ProjectExplorer::BuildStepFactory
+{
+public:
+    MerBuildStepFactory()
+    {
+        registerStep<Step>(Step::stepId());
+        setDisplayName(Step::displayName());
+        setSupportedProjectType(QmakeProjectManager::Constants::QMAKEPROJECT_ID);
+    }
 };
 
 } // namespace Internal

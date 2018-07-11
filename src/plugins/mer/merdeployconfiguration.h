@@ -30,8 +30,9 @@
 #ifndef MERDEPLOYCONFIGURATION_H
 #define MERDEPLOYCONFIGURATION_H
 
-//#include <projectexplorer/deployconfiguration.h>
-#include <remotelinux/remotelinuxdeployconfiguration.h>
+#include "merconstants.h"
+
+#include <projectexplorer/deployconfiguration.h>
 
 #include <QBasicTimer>
 
@@ -46,12 +47,25 @@ class Project;
 namespace Mer {
 namespace Internal {
 
-class MerDeployConfiguration : public RemoteLinux::RemoteLinuxDeployConfiguration
+class MerDeployConfiguration : public ProjectExplorer::DeployConfiguration
 {
     Q_OBJECT
 public:
     MerDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id,const QString& displayName);
-    MerDeployConfiguration(ProjectExplorer::Target *target, MerDeployConfiguration *source);
+    ProjectExplorer::NamedWidget *createConfigWidget() override;
+
+    // copied from RemoteLinuxDeployConfiguration
+    template<class T> T *earlierBuildStep(const ProjectExplorer::BuildStep *laterBuildStep) const
+    {
+        const QList<ProjectExplorer::BuildStep *> &buildSteps = stepList()->steps();
+        for (int i = 0; i < buildSteps.count(); ++i) {
+            if (buildSteps.at(i) == laterBuildStep)
+                return 0;
+            if (T * const step = dynamic_cast<T *>(buildSteps.at(i)))
+                return step;
+        }
+        return 0;
+    }
 
 public slots:
     void addRemoveSpecialSteps();
@@ -64,8 +78,6 @@ protected:
     static void removeStep(ProjectExplorer::BuildStepList *stepList, Core::Id stepId);
 
 private:
-    void init();
-
     QBasicTimer m_addRemoveSpecialStepsTimer;
 };
 
@@ -74,17 +86,14 @@ class MerRpmDeployConfiguration : public MerDeployConfiguration
     Q_OBJECT
 
 public:
+    MerRpmDeployConfiguration(ProjectExplorer::Target *parent);
+    void initialize() override;
+
     static QString displayName();
     static Core::Id configurationId();
 
 protected:
     void doAddRemoveSpecialSteps() override;
-
-private:
-    MerRpmDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
-    MerRpmDeployConfiguration(ProjectExplorer::Target *target, MerRpmDeployConfiguration *source);
-    void init();
-    friend class MerDeployConfigurationFactory;
 };
 
 class MerRsyncDeployConfiguration : public  MerDeployConfiguration
@@ -92,47 +101,54 @@ class MerRsyncDeployConfiguration : public  MerDeployConfiguration
     Q_OBJECT
 
 public:
+    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent);
+    void initialize() override;
+
     static QString displayName();
     static Core::Id configurationId();
 
 protected:
     void doAddRemoveSpecialSteps() override;
-
-private:
-    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
-    MerRsyncDeployConfiguration(ProjectExplorer::Target *target, MerRsyncDeployConfiguration *source);
-    friend class MerDeployConfigurationFactory;
 };
+
 //TODO: Hack
 class MerMb2RpmBuildConfiguration : public  MerDeployConfiguration
 {
     Q_OBJECT
 
 public:
+    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent);
+    void initialize() override;
+
     static QString displayName();
     static Core::Id configurationId();
 
 protected:
     void doAddRemoveSpecialSteps() override;
-
-private:
-    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
-    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *target, MerMb2RpmBuildConfiguration *source);
-    friend class MerDeployConfigurationFactory;
 };
 
 class MerRpmBuildDeployConfiguration : public MerDeployConfiguration
 {
     Q_OBJECT
 
-    public:
-        static QString displayName();
-        static Core::Id configurationId();
+public:
+    MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent);
+    void initialize() override;
 
-    private:
-        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
-        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *target, MerRpmBuildDeployConfiguration *source);
-        friend class MerDeployConfigurationFactory;
+    static QString displayName();
+    static Core::Id configurationId();
+};
+
+template<class Configuration>
+class MerDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
+{
+public:
+    MerDeployConfigurationFactory()
+    {
+        registerDeployConfiguration<Configuration>(Configuration::configurationId());
+        setSupportedTargetDeviceTypes({Constants::MER_DEVICE_TYPE});
+        setDefaultDisplayName(Configuration::displayName());
+    }
 };
 
 } // namespace Internal

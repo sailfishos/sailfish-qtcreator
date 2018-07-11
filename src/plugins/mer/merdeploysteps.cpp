@@ -122,12 +122,6 @@ MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
 
 }
 
-MerProcessStep::MerProcessStep(BuildStepList *bsl, MerProcessStep *bs)
-    :AbstractProcessStep(bsl,bs)
-{
-
-}
-
 bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps)
 {
     return init(earlierSteps, NoInitOption);
@@ -232,12 +226,6 @@ MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl, MerEmulatorStartStep *bs)
-    : MerAbstractVmStartStep(bsl, bs)
-{
-    setDefaultDisplayName(displayName());
-}
-
 bool MerEmulatorStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
@@ -266,13 +254,6 @@ QString MerConnectionTestStep::displayName()
 
 MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
-{
-    setDefaultDisplayName(displayName());
-}
-
-MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl,
-        MerConnectionTestStep *bs)
-    : BuildStep(bsl, bs)
 {
     setDefaultDisplayName(displayName());
 }
@@ -379,18 +360,6 @@ QString MerPrepareTargetStep::displayName()
 MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
-    ctor();
-}
-
-MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl,
-        MerPrepareTargetStep *bs)
-    : BuildStep(bsl, bs)
-{
-    ctor();
-}
-
-void MerPrepareTargetStep::ctor()
-{
     setDefaultDisplayName(displayName());
     connect(&m_watcher, &QFutureWatcherBase::finished,
             this, &MerPrepareTargetStep::onImplFinished);
@@ -470,13 +439,6 @@ MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl)
     setArguments(QLatin1String("--rsync"));
 }
 
-MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, MerMb2RsyncDeployStep *bs)
-    :MerProcessStep(bsl,bs)
-{
-    setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--rsync"));
-}
-
 bool MerMb2RsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
     return MerProcessStep::init(earlierSteps);
@@ -515,12 +477,6 @@ QString MerLocalRsyncDeployStep::displayName()
 
 MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
-{
-    setDefaultDisplayName(displayName());
-}
-
-MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, MerLocalRsyncDeployStep *bs)
-    :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
 }
@@ -609,13 +565,6 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
 }
 
 
-MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, MerMb2RpmDeployStep *bs)
-    :MerProcessStep(bsl,bs)
-{
-    setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--sdk"));
-}
-
 bool MerMb2RpmDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
     return MerProcessStep::init(earlierSteps);
@@ -660,12 +609,6 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-
-MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, MerMb2RpmBuildStep *bs)
-    :MerProcessStep(bsl,bs)
-{
-    setDefaultDisplayName(displayName());
-}
 
 bool MerMb2RpmBuildStep::init(QList<const BuildStep *> &earlierSteps)
 {
@@ -794,13 +737,6 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-
-MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, MerRpmValidationStep *bs)
-    :MerProcessStep(bsl,bs)
-{
-    setEnabled(MerSettings::rpmValidationByDefault());
-    setDefaultDisplayName(displayName());
-}
 
 bool MerRpmValidationStep::init(QList<const BuildStep *> &earlierSteps)
 {
@@ -1007,14 +943,6 @@ MerNamedCommandDeployStep::MerNamedCommandDeployStep(ProjectExplorer::BuildStepL
 {
 }
 
-MerNamedCommandDeployStep::MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, MerNamedCommandDeployStep *bs)
-    : AbstractRemoteLinuxDeployStep(bsl, bs)
-    , m_deployService(new MerNamedCommandDeployService(this))
-{
-    m_deployService->setDescription(bs->m_deployService->description());
-    m_deployService->setCommand(bs->m_deployService->command());
-}
-
 AbstractRemoteLinuxDeployService *MerNamedCommandDeployStep::deployService() const
 {
     return m_deployService;
@@ -1046,11 +974,6 @@ MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildSte
     script.prepend(QStringLiteral("AMBIENCE_URL='file:///usr/share/ambience/%1/%1.ambience'\n").arg(ambienceName));
 
     setCommand(tr("Starting remote command to reset ambience '%1'...").arg(ambienceName), script);
-}
-
-MerResetAmbienceDeployStep::MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, MerResetAmbienceDeployStep *bs)
-    : MerNamedCommandDeployStep(bsl, bs)
-{
 }
 
 Core::Id MerResetAmbienceDeployStep::stepId()

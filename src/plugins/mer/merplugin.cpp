@@ -23,12 +23,12 @@
 #include "merplugin.h"
 
 #include "meraddvmstartbuildstepprojectlistener.h"
-#include "merbuildstepfactory.h"
+#include "merbuildsteps.h"
 #include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
-#include "merdeployconfigurationfactory.h"
-#include "merdeploystepfactory.h"
+#include "merdeployconfiguration.h"
+#include "merdeploysteps.h"
 #include "merdevicedebugsupport.h"
 #include "merdevicefactory.h"
 #include "meremulatordevice.h"
@@ -39,11 +39,13 @@
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
+#include "merrpmpackagingstep.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
+#include "meruploadandinstallrpmsteps.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -113,11 +115,21 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
     addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
-    addAutoReleasedObject(new MerDeployConfigurationFactory);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration>);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRsyncDeployConfiguration>);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRpmDeployConfiguration>);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerQmlRunConfigurationFactory);
-    addAutoReleasedObject(new MerBuildStepFactory);
-    addAutoReleasedObject(new MerDeployStepFactory);
+    addAutoReleasedObject(new MerBuildStepFactory<MerSdkStartStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerPrepareTargetStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RsyncDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmBuildStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerRpmPackagingStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerRpmValidationStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerUploadAndInstallRpmStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerLocalRsyncDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerResetAmbienceDeployStep>);
     addAutoReleasedObject(new MerQmlLiveBenchManager);
 
     addAutoReleasedObject(new MerMode);

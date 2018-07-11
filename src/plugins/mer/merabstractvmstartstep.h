@@ -38,7 +38,6 @@ class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
 
 public:
     explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
-    MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, MerAbstractVmStartStep *bs);
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;

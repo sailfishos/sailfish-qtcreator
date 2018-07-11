@@ -39,12 +39,6 @@ MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl, MerSdkStartStep *bs)
-    : MerAbstractVmStartStep(bsl, bs)
-{
-    setDefaultDisplayName(displayName());
-}
-
 bool MerSdkStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());

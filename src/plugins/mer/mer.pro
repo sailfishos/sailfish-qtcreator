@@ -30,13 +30,10 @@ FORMS += \
 SOURCES += \
     merabstractvmstartstep.cpp \
     meraddvmstartbuildstepprojectlistener.cpp \
-    merbuildstepfactory.cpp \
     merbuildsteps.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
-    merdeployconfigurationfactory.cpp \
-    merdeploystepfactory.cpp \
     merdeploysteps.cpp \
     merdevice.cpp \
     merdevicedebugsupport.cpp \
@@ -91,14 +88,11 @@ SOURCES += \
 HEADERS += \
     merabstractvmstartstep.h \
     meraddvmstartbuildstepprojectlistener.h \
-    merbuildstepfactory.h \
     merbuildsteps.h \
     merconnection.h \
     merconnectionmanager.h \
     merconstants.h \
     merdeployconfiguration.h \
-    merdeployconfigurationfactory.h \
-    merdeploystepfactory.h \
     merdeploysteps.h \
     merdevice.h \
     merdevicedebugsupport.h \

@@ -34,6 +34,8 @@
 #include "merabstractvmstartstep.h"
 
 #include <projectexplorer/abstractprocessstep.h>
+#include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <remotelinux/abstractremotelinuxdeploystep.h>
 #include <ssh/sshconnection.h>
 
@@ -60,7 +62,6 @@ public:
     Q_DECLARE_FLAGS(InitOptions, InitOption)
 
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
-    MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool init(QList<const BuildStep *> &earlierSteps, InitOptions options);
     QString arguments() const;
@@ -80,11 +81,9 @@ class MerEmulatorStartStep : public MerAbstractVmStartStep
     Q_OBJECT
 public:
     explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
-    MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     static Core::Id stepId();
     static QString displayName();
-    friend class MerDeployStepFactory;
 };
 
 class MerConnectionTestStep : public ProjectExplorer::BuildStep
@@ -93,7 +92,6 @@ class MerConnectionTestStep : public ProjectExplorer::BuildStep
 
 public:
     explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
-    MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl, MerConnectionTestStep *bs);
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
@@ -124,7 +122,6 @@ class MerPrepareTargetStep : public ProjectExplorer::BuildStep
 
 public:
     explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
-    MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl, MerPrepareTargetStep *bs);
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
@@ -139,9 +136,6 @@ private slots:
     void onImplFinished();
 
 private:
-    void ctor();
-
-private:
     ProjectExplorer::BuildStep *m_impl;
     QFutureWatcher<bool> m_watcher;
 };
@@ -151,15 +145,12 @@ class MerMb2RsyncDeployStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RsyncDeployStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
-private:
-    friend class MerDeployStepFactory;
 };
 
 class MerLocalRsyncDeployStep : public MerProcessStep
@@ -167,14 +158,12 @@ class MerLocalRsyncDeployStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerLocalRsyncDeployStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
-    friend class MerDeployStepFactory;
 };
 
 class MerMb2RpmDeployStep : public MerProcessStep
@@ -182,14 +171,12 @@ class MerMb2RpmDeployStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmDeployStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
-    friend class MerDeployStepFactory;
 };
 
 //TODO: HACK
@@ -198,14 +185,12 @@ class MerMb2RpmBuildStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
-    MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmBuildStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
-    friend class MerDeployStepFactory;
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     void stdOutput(const QString &line) override;
     QStringList packagesFilePath() const;
@@ -234,14 +219,12 @@ class MerRpmValidationStep : public MerProcessStep
     Q_OBJECT
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
-    MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs);
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
-    friend class MerDeployStepFactory;
 private:
     MerMb2RpmBuildStep *m_packagingStep;
 };
@@ -271,7 +254,6 @@ class MerNamedCommandDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployS
     Q_OBJECT
 public:
     MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
-    MerNamedCommandDeployStep(ProjectExplorer::BuildStepList *bsl, MerNamedCommandDeployStep *bs);
     RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const override;
 protected:
     bool initInternal(QString *error = 0) override;
@@ -285,9 +267,31 @@ class MerResetAmbienceDeployStep : public MerNamedCommandDeployStep
     Q_OBJECT
 public:
     explicit MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerResetAmbienceDeployStep(ProjectExplorer::BuildStepList *bsl, MerResetAmbienceDeployStep *bs);
     static Core::Id stepId();
     static QString displayName();
+};
+
+template <class Step>
+class MerDeployStepFactory : public ProjectExplorer::BuildStepFactory
+{
+public:
+    MerDeployStepFactory()
+    {
+        registerStep<Step>(Step::stepId());
+        setDisplayName(Step::displayName());
+        setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY);
+    }
+
+    bool canHandle(ProjectExplorer::BuildStepList *bsl) const override
+    {
+        if (!BuildStepFactory::canHandle(bsl))
+            return false;
+
+        if (!qobject_cast<MerDeployConfiguration *>(bsl->parent()))
+            return false;
+
+        return true;
+    }
 };
 
 } // namespace Internal

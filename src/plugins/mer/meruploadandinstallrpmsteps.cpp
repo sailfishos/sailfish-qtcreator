@@ -78,17 +78,6 @@ private:
 MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl)
     : AbstractRemoteLinuxDeployStep(bsl, stepId())
 {
-    ctor();
-}
-
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl,
-     MerUploadAndInstallRpmStep *other) : AbstractRemoteLinuxDeployStep(bsl, other)
-{
-    ctor();
-}
-
-void MerUploadAndInstallRpmStep::ctor()
-{
     setDefaultDisplayName(displayName());
     m_packagingStep = 0;
     m_deployService = new MerUploadAndInstallPackageService(this);

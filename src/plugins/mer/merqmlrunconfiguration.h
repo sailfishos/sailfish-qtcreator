@@ -33,7 +33,7 @@ class MerQmlRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
 
 public:
-    MerQmlRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    MerQmlRunConfiguration(ProjectExplorer::Target *parent);
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;
@@ -43,14 +43,10 @@ public:
     QString localExecutableFilePath() const;
 
 protected:
-    friend class MerQmlRunConfigurationFactory;
-
-    MerQmlRunConfiguration(ProjectExplorer::Target *parent, MerQmlRunConfiguration *source);
-    void ctor();
-
     void updateEnabledState() override;
 
 private:
+    QString defaultDisplayName() const;
     mutable QString m_disabledReason;
 };
 

@@ -58,8 +58,6 @@ class MerRpmPackagingStep : public RemoteLinux::AbstractPackagingStep
     Q_OBJECT
 public:
     MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl);
-    MerRpmPackagingStep(ProjectExplorer::BuildStepList *buildConfig,
-                             MerRpmPackagingStep *other);
     ~MerRpmPackagingStep() override;
     static Core::Id stepId();
     static QString displayName();

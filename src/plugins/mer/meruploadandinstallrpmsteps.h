@@ -46,8 +46,6 @@ class MerUploadAndInstallRpmStep : public RemoteLinux::AbstractRemoteLinuxDeploy
     Q_OBJECT
 public:
     MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl);
-    MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl,
-        MerUploadAndInstallRpmStep *other);
 
     bool initInternal(QString *error = 0) override;
     void  run(QFutureInterface<bool> &fi) override;
