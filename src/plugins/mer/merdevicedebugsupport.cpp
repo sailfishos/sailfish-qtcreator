@@ -107,7 +107,6 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     setDisplayName("MerDeviceDebugSupport");
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
-    addQmlServerInferiorCommandLineArgumentIfNeeded();
 
     auto gdbServer = new GdbServerRunner(runControl, portsGatherer());
 
