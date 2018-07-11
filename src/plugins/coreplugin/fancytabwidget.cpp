@@ -25,6 +25,7 @@
 
 #include "fancytabwidget.h"
 #include "fancyactionbar.h"
+#include "coreconstants.h"
 
 #include <utils/hostosinfo.h>
 #include <utils/stylehelper.h>
@@ -47,9 +48,6 @@
 using namespace Core;
 using namespace Internal;
 using namespace Utils;
-
-const int FancyTabBar::m_rounding = 22;
-const int FancyTabBar::m_textPadding = 4;
 
 static const int kMenuButtonWidth = 16;
 
@@ -81,16 +79,10 @@ FancyTabBar::FancyTabBar(QWidget *parent)
     m_hoverIndex = -1;
     m_currentIndex = -1;
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-    setStyle(QStyleFactory::create(QLatin1String("windows")));
-    setMinimumWidth(qMax(2 * m_rounding, 40));
+    setMinimumWidth(44);
     setAttribute(Qt::WA_Hover, true);
     setFocusPolicy(Qt::NoFocus);
     setMouseTracking(true); // Needed for hover events
-}
-
-FancyTabBar::~FancyTabBar()
-{
-    delete style();
 }
 
 QSize FancyTabBar::tabSizeHint(bool minimum) const
@@ -333,7 +325,10 @@ void FancyTabBar::paintTab(QPainter *painter, int tabIndex) const
         tabIconRect.adjust(0, 4, 0, -textHeight);
         const QIcon::Mode iconMode = enabled ? (selected ? QIcon::Active : QIcon::Normal)
                                              : QIcon::Disabled;
-        StyleHelper::drawIconWithShadow(tab->icon, tabIconRect, painter, iconMode);
+        QRect iconRect(0, 0, Core::Constants::MODEBAR_ICON_SIZE, Core::Constants::MODEBAR_ICON_SIZE);
+        iconRect.moveCenter(tabIconRect.center());
+        iconRect = iconRect.intersected(tabIconRect);
+        StyleHelper::drawIconWithShadow(tab->icon, iconRect, painter, iconMode);
     }
 
     painter->setOpacity(1.0); //FIXME: was 0.7 before?

@@ -44,8 +44,10 @@ class CORE_EXPORT IOptionsPage : public QObject
     Q_OBJECT
 
 public:
-    IOptionsPage(QObject *parent = 0);
+    IOptionsPage(QObject *parent = nullptr, bool registerGlobally = true);
     virtual ~IOptionsPage();
+
+    static const QList<IOptionsPage *> allOptionsPages();
 
     Id id() const { return m_id; }
     QString displayName() const { return m_displayName; }
@@ -71,7 +73,7 @@ protected:
     QString m_displayCategory;
     Utils::Icon m_categoryIcon;
 
-    mutable bool m_keywordsInitialized;
+    mutable bool m_keywordsInitialized = false;
     mutable QStringList m_keywords;
 };
 
@@ -88,7 +90,10 @@ class CORE_EXPORT IOptionsPageProvider : public QObject
     Q_OBJECT
 
 public:
-    IOptionsPageProvider(QObject *parent = 0) : QObject(parent) {}
+    IOptionsPageProvider(QObject *parent = nullptr);
+    ~IOptionsPageProvider();
+
+    static const QList<IOptionsPageProvider *> allOptionsPagesProviders();
 
     Id category() const { return m_category; }
     QString displayCategory() const { return m_displayCategory; }

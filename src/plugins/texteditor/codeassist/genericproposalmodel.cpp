@@ -30,7 +30,7 @@
 #include <texteditor/completionsettings.h>
 
 #include <QDebug>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QtAlgorithms>
 #include <QHash>
 
@@ -255,64 +255,15 @@ void GenericProposalModel::filter(const QString &prefix)
     if (prefix.isEmpty())
         return;
 
-    /*
-     * This code builds a regular expression in order to more intelligently match
-     * camel-case and underscore names.
-     *
-     * For any but the first letter, the following replacements are made:
-     *   A => [a-z0-9_]*A
-     *   a => (?:[a-zA-Z0-9]*_)?a
-     *
-     * That means any sequence of lower-case or underscore characters can preceed an
-     * upper-case character. And any sequence of lower-case or upper case characters -
-     * followed by an underscore can preceed a lower-case character.
-     *
-     * Examples: (case sensitive mode)
-     *   gAC matches getActionController
-     *   gac matches get_action_controller
-     *
-     * It also implements the fully and first-letter-only case sensitivity.
-     */
-    const CaseSensitivity caseSensitivity =
-        TextEditorSettings::completionSettings().m_caseSensitivity;
-
-    QString keyRegExp;
-    keyRegExp += QLatin1Char('^');
-    bool first = true;
-    const QLatin1String uppercaseWordContinuation("[a-z0-9_]*");
-    const QLatin1String lowercaseWordContinuation("(?:[a-zA-Z0-9]*_)?");
-    foreach (const QChar &c, prefix) {
-        if (caseSensitivity == CaseInsensitive ||
-            (caseSensitivity == FirstLetterCaseSensitive && !first)) {
-
-            keyRegExp += QLatin1String("(?:");
-            if (!first)
-                keyRegExp += uppercaseWordContinuation;
-            keyRegExp += QRegExp::escape(c.toUpper());
-            keyRegExp += QLatin1Char('|');
-            if (!first)
-                keyRegExp += lowercaseWordContinuation;
-            keyRegExp += QRegExp::escape(c.toLower());
-            keyRegExp += QLatin1Char(')');
-        } else {
-            if (!first) {
-                if (c.isUpper())
-                    keyRegExp += uppercaseWordContinuation;
-                else
-                    keyRegExp += lowercaseWordContinuation;
-            }
-            keyRegExp += QRegExp::escape(c);
-        }
-
-        first = false;
-    }
-    QRegExp regExp(keyRegExp);
+    const FuzzyMatcher::CaseSensitivity caseSensitivity =
+        convertCaseSensitivity(TextEditorSettings::completionSettings().m_caseSensitivity);
+    const QRegularExpression regExp = FuzzyMatcher::createRegExp(prefix, caseSensitivity);
 
     m_currentItems.clear();
     const QString lowerPrefix = prefix.toLower();
     foreach (const auto &item, m_originalItems) {
         const QString &text = item->text();
-        if (regExp.indexIn(text) == 0) {
+        if (regExp.match(text).capturedStart() == 0) {
             m_currentItems.append(item);
             if (text.startsWith(prefix)) {
                 // Direct match
@@ -325,6 +276,19 @@ void GenericProposalModel::filter(const QString &prefix)
             if (text.startsWith(lowerPrefix, Qt::CaseInsensitive))
                 item->setPrefixMatch(AssistProposalItemInterface::PrefixMatch::Lower);
         }
+    }
+}
+
+FuzzyMatcher::CaseSensitivity
+    GenericProposalModel::convertCaseSensitivity(TextEditor::CaseSensitivity textEditorCaseSensitivity)
+{
+    switch (textEditorCaseSensitivity) {
+    case TextEditor::CaseSensitive:
+        return FuzzyMatcher::CaseSensitivity::CaseSensitive;
+    case TextEditor::FirstLetterCaseSensitive:
+        return FuzzyMatcher::CaseSensitivity::FirstLetterCaseSensitive;
+    default:
+        return FuzzyMatcher::CaseSensitivity::CaseInsensitive;
     }
 }
 

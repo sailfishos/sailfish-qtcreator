@@ -132,7 +132,6 @@ public:
     int firstDefinitionInsideLength(const ModelNode &node) const;
     bool modificationGroupActive();
     ModelNode nodeAtTextCursorPosition(int cursorPosition) const;
-    bool nodeContainsCursor(const ModelNode &node, int cursorPosition) const;
 
     bool renameId(const QString& oldId, const QString& newId);
 
@@ -163,6 +162,12 @@ public:
 
     void qmlTextChanged();
     void delayedSetup();
+
+    void writeAuxiliaryData();
+    void restoreAuxiliaryData();
+
+    QString getRawAuxiliaryData() const;
+    QString auxiliaryDataAsQML() const;
 
 protected: // functions
     void importAdded(const Import &import);

@@ -25,6 +25,7 @@
 
 #include "qttestoutputreader.h"
 #include "qttestresult.h"
+#include "../testtreeitem.h"
 
 #include <utils/qtcassert.h>
 
@@ -130,10 +131,12 @@ static QString constructSourceFilePath(const QString &path, const QString &fileP
 
 QtTestOutputReader::QtTestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
                                        QProcess *testApplication, const QString &buildDirectory,
-                                       OutputMode mode)
+                                       const QString &projectFile, OutputMode mode, TestType type)
     : TestOutputReader(futureInterface, testApplication, buildDirectory)
     , m_executable(testApplication ? testApplication->program() : QString())
+    , m_projectFile(projectFile)
     , m_mode(mode)
+    , m_testType(type)
 {
 }
 
@@ -149,6 +152,14 @@ void QtTestOutputReader::processOutput(const QByteArray &outputLine)
     }
 }
 
+TestResultPtr QtTestOutputReader::createDefaultResult() const
+{
+    QtTestResult *result = new QtTestResult(m_executable, m_projectFile, m_testType, m_className);
+    result->setFunctionName(m_testCase);
+    result->setDataTag(m_dataTag);
+    return TestResultPtr(result);
+}
+
 void QtTestOutputReader::processXMLOutput(const QByteArray &outputLine)
 {
     static QStringList validEndTags = {QStringLiteral("Incident"),
@@ -161,7 +172,9 @@ void QtTestOutputReader::processXMLOutput(const QByteArray &outputLine)
     if (m_className.isEmpty() && outputLine.trimmed().isEmpty())
         return;
 
-    m_xmlReader.addData(outputLine);
+    // avoid encoding problems for Quick tests
+    m_xmlReader.addData(m_testType == TestType::QuickTest ? QString::fromLatin1(outputLine)
+                                                          : QString::fromLocal8Bit(outputLine));
     while (!m_xmlReader.atEnd()) {
         if (m_futureInterface.isCanceled())
             return;
@@ -269,12 +282,7 @@ void QtTestOutputReader::processXMLOutput(const QByteArray &outputLine)
             } else if (currentTag == QStringLiteral("TestCase")) {
                 sendFinishMessage(false);
             } else if (validEndTags.contains(currentTag.toString())) {
-                QtTestResult *testResult = createDefaultResult();
-                testResult->setResult(m_result);
-                testResult->setFileName(m_file);
-                testResult->setLine(m_lineNumber);
-                testResult->setDescription(m_description);
-                m_futureInterface.reportResult(TestResultPtr(testResult));
+                sendCompleteInformation();
                 if (currentTag == QStringLiteral("Incident"))
                     m_dataTag.clear();
             }
@@ -320,7 +328,7 @@ void QtTestOutputReader::processPlainTextOutput(const QByteArray &outputLine)
     static QRegExp finish("^[*]{9} Finished testing of (.*) [*]{9}$");
 
     static QRegExp result("^(PASS   |FAIL!  |XFAIL  |XPASS  |SKIP   |BPASS   |BFAIL   |RESULT "
-                          "|INFO   |QWARN  |WARNING|QDEBUG ): (.*)$");
+                          "|INFO   |QWARN  |WARNING|QDEBUG |QSYSTEM): (.*)$");
 
     static QRegExp benchDetails("^\\s+([\\d,.]+ .* per iteration \\(total: [\\d,.]+, iterations: \\d+\\))$");
     static QRegExp locationUnix("^   Loc: \\[(.*)\\]$");
@@ -418,44 +426,50 @@ void QtTestOutputReader::processSummaryFinishOutput()
     m_lineNumber = 0;
 }
 
-QtTestResult *QtTestOutputReader::createDefaultResult() const
-{
-    QtTestResult *result = new QtTestResult(m_executable, m_className);
-    result->setFunctionName(m_testCase);
-    result->setDataTag(m_dataTag);
-    return result;
-}
-
 void QtTestOutputReader::sendCompleteInformation()
 {
-    TestResultPtr testResult = TestResultPtr(createDefaultResult());
+    TestResultPtr testResult = createDefaultResult();
     testResult->setResult(m_result);
-    testResult->setFileName(m_file);
-    testResult->setLine(m_lineNumber);
+
+    if (m_lineNumber) {
+        testResult->setFileName(m_file);
+        testResult->setLine(m_lineNumber);
+    } else {
+        const TestTreeItem *testItem = testResult->findTestTreeItem();
+        if (testItem && testItem->line()) {
+            testResult->setFileName(testItem->filePath());
+            testResult->setLine(static_cast<int>(testItem->line()));
+        }
+    }
     testResult->setDescription(m_description);
-    m_futureInterface.reportResult(testResult);
+    reportResult(testResult);
 }
 
 void QtTestOutputReader::sendMessageCurrentTest()
 {
-    TestResultPtr testResult = TestResultPtr(new QtTestResult);
+    TestResultPtr testResult = TestResultPtr(new QtTestResult(m_projectFile, m_testType));
     testResult->setResult(Result::MessageCurrentTest);
     testResult->setDescription(tr("Entering test function %1::%2").arg(m_className, m_testCase));
-    m_futureInterface.reportResult(testResult);
+    reportResult(testResult);
 }
 
 void QtTestOutputReader::sendStartMessage(bool isFunction)
 {
-    TestResultPtr testResult = TestResultPtr(createDefaultResult());
+    TestResultPtr testResult = createDefaultResult();
     testResult->setResult(Result::MessageTestCaseStart);
     testResult->setDescription(isFunction ? tr("Executing test function %1").arg(m_testCase)
                                           : tr("Executing test case %1").arg(m_className));
-    m_futureInterface.reportResult(testResult);
+    const TestTreeItem *testItem = testResult->findTestTreeItem();
+    if (testItem && testItem->line()) {
+        testResult->setFileName(testItem->filePath());
+        testResult->setLine(static_cast<int>(testItem->line()));
+    }
+    reportResult(testResult);
 }
 
 void QtTestOutputReader::sendFinishMessage(bool isFunction)
 {
-    TestResultPtr testResult = TestResultPtr(createDefaultResult());
+    TestResultPtr testResult = createDefaultResult();
     testResult->setResult(Result::MessageTestCaseEnd);
     if (!m_duration.isEmpty()) {
         testResult->setDescription(isFunction ? tr("Execution took %1 ms.").arg(m_duration)
@@ -464,24 +478,24 @@ void QtTestOutputReader::sendFinishMessage(bool isFunction)
         testResult->setDescription(isFunction ? tr("Test function finished.")
                                               : tr("Test finished."));
     }
-    m_futureInterface.reportResult(testResult);
+    reportResult(testResult);
 }
 
 // TODO factor out tr() strings to avoid duplication (see XML processing of Characters)
 void QtTestOutputReader::handleAndSendConfigMessage(const QRegExp &config)
 {
-    QtTestResult *testResult = createDefaultResult();
+    TestResultPtr testResult = createDefaultResult();
     testResult->setResult(Result::MessageInternal);
     testResult->setDescription(tr("Qt version: %1").arg(config.cap(3)));
-    m_futureInterface.reportResult(TestResultPtr(testResult));
+    reportResult(testResult);
     testResult = createDefaultResult();
     testResult->setResult(Result::MessageInternal);
     testResult->setDescription(tr("Qt build: %1").arg(config.cap(2)));
-    m_futureInterface.reportResult(TestResultPtr(testResult));
+    reportResult(testResult);
     testResult = createDefaultResult();
     testResult->setResult(Result::MessageInternal);
     testResult->setDescription(tr("QTest version: %1").arg(config.cap(1)));
-    m_futureInterface.reportResult(TestResultPtr(testResult));
+    reportResult(testResult);
 }
 
 } // namespace Internal

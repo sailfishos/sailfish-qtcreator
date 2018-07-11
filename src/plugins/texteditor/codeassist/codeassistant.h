@@ -34,7 +34,6 @@
 namespace TextEditor {
 
 class CodeAssistantPrivate;
-class CompletionSettings;
 class IAssistProvider;
 class TextEditorWidget;
 
@@ -52,6 +51,9 @@ public:
     void notifyChange();
     bool hasContext() const;
     void destroyContext();
+
+    QVariant userData() const;
+    void setUserData(const QVariant &data);
 
     void invoke(AssistKind assistKind, IAssistProvider *provider = 0);
 

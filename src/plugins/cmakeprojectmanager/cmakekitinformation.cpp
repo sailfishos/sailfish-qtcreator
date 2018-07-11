@@ -29,6 +29,7 @@
 #include "cmaketoolmanager.h"
 #include "cmaketool.h"
 
+#include <app/app_version.h>
 #include <projectexplorer/task.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/kit.h>
@@ -85,7 +86,7 @@ Core::Id CMakeKitInformation::id()
 CMakeTool *CMakeKitInformation::cmakeTool(const Kit *k)
 {
     if (!k)
-        return 0;
+        return nullptr;
 
     const QVariant id = k->value(TOOL_ID);
     return CMakeToolManager::findById(Core::Id::fromSetting(id));
@@ -141,13 +142,15 @@ KitInformation::ItemList CMakeKitInformation::toUserOutput(const Kit *k) const
 
 KitConfigWidget *CMakeKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::CMakeKitConfigWidget(k, this);
 }
 
 void CMakeKitInformation::addToMacroExpander(Kit *k, Utils::MacroExpander *expander) const
 {
+    QTC_ASSERT(k, return);
     expander->registerFileVariables("CMake:Executable", tr("Path to the cmake executable"),
-                                    [this, k]() -> QString {
+                                    [k]() -> QString {
                                         CMakeTool *tool = CMakeKitInformation::cmakeTool(k);
                                         return tool ? tool->cmakeExecutable().toString() : QString();
     });
@@ -303,6 +306,8 @@ QStringList CMakeGeneratorKitInformation::generatorArguments(const Kit *k)
 
 QVariant CMakeGeneratorKitInformation::defaultValue(const Kit *k) const
 {
+    QTC_ASSERT(k, return QVariant());
+
     CMakeTool *tool = CMakeKitInformation::cmakeTool(k);
     if (!tool)
         return QVariant();
@@ -383,7 +388,8 @@ QList<Task> CMakeGeneratorKitInformation::validate(const Kit *k) const
             if (!tool->hasServerMode() && info.extraGenerator != "CodeBlocks") {
                 result << Task(Task::Warning, tr("The selected CMake binary has no server-mode and the CMake "
                                                  "generator does not generate a CodeBlocks file. "
-                                                 "Qt Creator will not be able to parse CMake projects."),
+                                                 "%1 will not be able to parse CMake projects.")
+                               .arg(Core::Constants::IDE_DISPLAY_NAME),
                                Utils::FileName(), -1, Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
             }
         }
@@ -424,6 +430,8 @@ void CMakeGeneratorKitInformation::fix(Kit *k)
 
 void CMakeGeneratorKitInformation::upgrade(Kit *k)
 {
+    QTC_ASSERT(k, return);
+
     const QVariant value = k->value(GENERATOR_ID);
     if (value.type() != QVariant::Map) {
         GeneratorInfo info;
@@ -448,9 +456,9 @@ KitInformation::ItemList CMakeGeneratorKitInformation::toUserOutput(const Kit *k
     } else {
         message = tr("Generator: %1<br>Extra generator: %2").arg(info.generator).arg(info.extraGenerator);
         if (!info.platform.isEmpty())
-            message += tr("<br>Platform: %1").arg(info.platform);
+            message += "<br/>" + tr("Platform: %1").arg(info.platform);
         if (!info.toolset.isEmpty())
-            message += tr("<br>Toolset: %1").arg(info.toolset);
+            message += "<br/>" + tr("Toolset: %1").arg(info.toolset);
     }
     return ItemList() << qMakePair(tr("CMake Generator"), message);
 }
@@ -543,6 +551,8 @@ QVariant CMakeConfigurationKitInformation::defaultValue(const Kit *k) const
 
 QList<Task> CMakeConfigurationKitInformation::validate(const Kit *k) const
 {
+    QTC_ASSERT(k, return QList<Task>());
+
     const QtSupport::BaseQtVersion *const version = QtSupport::QtKitInformation::qtVersion(k);
     const ToolChain *const tcC = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::C_LANGUAGE_ID);
     const ToolChain *const tcCxx = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
@@ -657,7 +667,7 @@ KitInformation::ItemList CMakeConfigurationKitInformation::toUserOutput(const Ki
 KitConfigWidget *CMakeConfigurationKitInformation::createConfigWidget(Kit *k) const
 {
     if (!k)
-        return 0;
+        return nullptr;
     return new Internal::CMakeConfigurationKitConfigWidget(k, this);
 }
 

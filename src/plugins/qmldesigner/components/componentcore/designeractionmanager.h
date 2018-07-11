@@ -42,6 +42,28 @@ namespace QmlDesigner {
 
 class DesignerActionManagerView;
 
+typedef std::function<bool (const QString &filename, const QString &targetDirectory)> AddResourceOperation;
+
+struct AddResourceHandler
+{
+public:
+    AddResourceHandler( const QString &_category,
+                        const QString &_filter,
+                        AddResourceOperation _operation,
+                        int _priority = 0)
+        : category(_category)
+        ,filter(_filter)
+        ,operation(_operation)
+        ,piority(_priority)
+    {
+    }
+
+    QString category;
+    QString filter;
+    AddResourceOperation operation;
+    int piority;
+};
+
 class DesignerActionToolBar : public Utils::StyledBar
 {
 public:
@@ -64,6 +86,7 @@ public:
     QList<ActionInterface* > designerActions() const;
 
     void createDefaultDesignerActions();
+    void createDefaultAddResourceHandler();
     DesignerActionManagerView *view();
 
     DesignerActionToolBar *createToolBar(QWidget *parent = 0) const;
@@ -71,10 +94,18 @@ public:
     QGraphicsWidget *createFormEditorToolBar(QGraphicsItem *parent);
 
     static DesignerActionManager &instance();
+    void setupContext();
+
+    DesignerActionManager(const DesignerActionManager&) = delete;
+    DesignerActionManager & operator=(const DesignerActionManager&) = delete;
+
+    QList<AddResourceHandler> addResourceHandler() const;
+    void registerAddResourceHandler(const AddResourceHandler &handler);
 
 private:
     QList<QSharedPointer<ActionInterface> > m_designerActions;
     DesignerActionManagerView *m_designerActionManagerView;
+    QList<AddResourceHandler> m_addResourceHandler;
 };
 
 } //QmlDesigner

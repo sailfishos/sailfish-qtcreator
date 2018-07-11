@@ -107,15 +107,7 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
     : NodeInstanceServerInterface(nodeInstanceView),
       m_localServer(new QLocalServer(this)),
       m_nodeInstanceView(nodeInstanceView),
-      m_firstBlockSize(0),
-      m_secondBlockSize(0),
-      m_thirdBlockSize(0),
-      m_writeCommandCounter(0),
-      m_firstLastReadCommandCounter(0),
-      m_secondLastReadCommandCounter(0),
-      m_thirdLastReadCommandCounter(0),
-      m_runModus(runModus),
-      m_synchronizeId(-1)
+      m_runModus(runModus)
 {
     if (instanceViewBenchmark().isInfoEnabled())
         m_benchmarkTimer.start();
@@ -124,10 +116,10 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
    m_localServer->listen(socketToken);
    m_localServer->setMaxPendingConnections(3);
 
-   PuppetCreator puppetCreator(kit, project, QString(), nodeInstanceView->model());
+   PuppetCreator puppetCreator(kit, project, nodeInstanceView->model());
    puppetCreator.setQrcMappingString(qrcMappingString());
 
-   puppetCreator.createPuppetExecutableIfMissing();
+   puppetCreator.createQml2PuppetExecutableIfMissing();
 
    m_qmlPuppetEditorProcess = puppetCreator.createPuppetProcess("editormode",
                                                               socketToken,
@@ -233,6 +225,8 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
 
 NodeInstanceServerProxy::~NodeInstanceServerProxy()
 {
+    m_destructing = true;
+
     disconnect(this, SLOT(processFinished(int,QProcess::ExitStatus)));
 
     writeCommand(QVariant::fromValue(EndPuppetCommand()));
@@ -280,6 +274,9 @@ void NodeInstanceServerProxy::dispatchCommand(const QVariant &command, PuppetStr
     static const int tokenCommandType = QMetaType::type("TokenCommand");
     static const int debugOutputCommandType = QMetaType::type("DebugOutputCommand");
     static const int puppetAliveCommandType = QMetaType::type("PuppetAliveCommand");
+
+    if (m_destructing)
+        return;
 
     qCInfo(instanceViewBenchmark) << "dispatching command" << command.userType() << command.typeName();
     if (command.userType() ==  informationChangedCommandType) {

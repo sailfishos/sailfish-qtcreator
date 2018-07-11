@@ -66,5 +66,27 @@ void TestOutputReader::processStdError(const QByteArray &output)
     qWarning() << "AutoTest.Run: Ignored plain output:" << output;
 }
 
+void TestOutputReader::reportCrash()
+{
+    TestResultPtr result = createDefaultResult();
+    result->setDescription(tr("Test executable crashed."));
+    result->setResult(Result::MessageFatal);
+    m_futureInterface.reportResult(result);
+}
+
+void TestOutputReader::createAndReportResult(const QString &message, Result::Type type)
+{
+    TestResultPtr result = createDefaultResult();
+    result->setDescription(message);
+    result->setResult(type);
+    reportResult(result);
+}
+
+void TestOutputReader::reportResult(const TestResultPtr &result)
+{
+    m_futureInterface.reportResult(result);
+    m_hadValidOutput = true;
+}
+
 } // namespace Internal
 } // namespace Autotest

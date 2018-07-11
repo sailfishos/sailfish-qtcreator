@@ -29,7 +29,6 @@
 #include "debuggerconstants.h"
 #include "debuggeritem.h"
 #include "debuggerprotocol.h"
-#include "debuggerstartparameters.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
 #include <projectexplorer/runnables.h>
@@ -46,10 +45,7 @@ QT_END_NAMESPACE
 
 namespace Core { class IOptionsPage; }
 
-namespace Utils {
-class MacroExpander;
-class ProcessHandle;
-} // Utils
+namespace Utils { class MacroExpander; }
 
 namespace Debugger {
 
@@ -78,18 +74,63 @@ class QmlCppEngine;
 class DebuggerToolTipContext;
 class MemoryViewSetupData;
 class Terminal;
+class TerminalRunner;
 class ThreadId;
 
-class DebuggerRunParameters : public DebuggerStartParameters
+class DebuggerRunParameters
 {
 public:
-    DebuggerRunParameters() {}
-    DebuggerRunParameters(const DebuggerStartParameters &sp) : DebuggerStartParameters(sp) {}
+    DebuggerStartMode startMode = NoStartMode;
+    DebuggerCloseMode closeMode = KillAtClose;
 
-    DebuggerEngineType masterEngineType = NoEngineType;
+    ProjectExplorer::StandardRunnable inferior;
+    QString displayName; // Used in the Snapshots view.
+    Utils::ProcessHandle attachPID;
+    QStringList solibSearchPath;
+
+    // Used by Qml debugging.
+    QUrl qmlServer;
+
+    // Used by general remote debugging.
+    QString remoteChannel;
+    bool useExtendedRemote = false; // Whether to use GDB's target extended-remote or not.
+    QString symbolFile;
+
+    // Used by Mer plugin (3rd party)
+    QMap<QString, QString> sourcePathMap;
+
+    // Used by baremetal plugin
+    QString commandsForReset; // commands used for resetting the inferior
+    bool useContinueInsteadOfRun = false; // if connected to a hw debugger run is not possible but continue is used
+    QString commandsAfterConnect; // additional commands to post after connection to debug target
+
+    // Used by Valgrind
+    QStringList expectedSignals;
+
+    // For QNX debugging
+    bool useCtrlCStub = false;
+
+    // Used by Android to avoid false positives on warnOnRelease
+    bool skipExecutableValidation = false;
+    bool useTargetAsync = false;
+    QStringList additionalSearchDirectories;
+
+    // Used by iOS.
+    QString platform;
+    QString deviceSymbolsRoot;
+    bool continueAfterAttach = false;
+    QString sysRoot;
+
+    // Used by general core file debugging. Public access requested in QTCREATORBUG-17158.
+    QString coreFile;
+
+    // Macro-expanded and passed to debugger startup.
+    QString additionalStartupCommands;
+
     DebuggerEngineType cppEngineType = NoEngineType;
 
-    DebuggerLanguages languages = NoLanguage;
+    bool isCppDebugging = true;
+    bool isQmlDebugging = false;
     bool breakOnMain = false;
     bool multiProcess = false; // Whether to set detach-on-fork off.
 
@@ -98,7 +139,7 @@ public:
     QString startMessage; // First status message shown.
     QString debugInfoLocation; // Gdb "set-debug-file-directory".
     QStringList debugSourceLocation; // Gdb "directory"
-    QString serverStartScript;
+    QString qtPackageSourceLocation;
     bool isSnapshot = false; // Set if created internally.
     ProjectExplorer::Abi toolChainAbi;
 
@@ -114,10 +155,15 @@ public:
 
     bool nativeMixedEnabled = false;
 
+    bool isNativeMixedDebugging() const;
+    void validateExecutable();
+
     Utils::MacroExpander *macroExpander = 0;
 
     // For Debugger testing.
     int testCase = 0;
+
+    QStringList validationErrors;
 };
 
 class UpdateParameters
@@ -195,7 +241,7 @@ public:
     virtual ~DebuggerEngine();
 
     const DebuggerRunParameters &runParameters() const;
-    DebuggerRunParameters &runParameters();
+
     virtual void setRunTool(DebuggerRunTool *runTool);
     DebuggerRunTool *runTool() const;
 
@@ -292,13 +338,10 @@ public:
     virtual QAbstractItemModel *sourceFilesModel() const;
 
     void progressPing();
-    void handleFinished();
-    void handleStartFailed();
     bool debuggerActionsEnabled() const;
     static bool debuggerActionsEnabled(DebuggerState state);
 
     DebuggerState state() const;
-    DebuggerState lastGoodState() const;
     bool isDying() const;
 
     static QString stateName(int s);
@@ -316,12 +359,13 @@ public:
     virtual void resetLocation();
     virtual void gotoLocation(const Internal::Location &location);
     virtual void quitDebugger(); // called when pressing the stop button
-    virtual void abortDebugger(); // called from the debug menu action
+
+    void abortDebugger(); // called from the debug menu action
 
     void updateViews();
     bool isSlaveEngine() const;
     bool isMasterEngine() const;
-    DebuggerEngine *masterEngine() const;
+    DebuggerEngine *masterEngine();
     virtual DebuggerEngine *activeEngine() { return this; }
     virtual DebuggerEngine *cppEngine() { return 0; }
 
@@ -336,53 +380,46 @@ public:
     QString expand(const QString &string) const;
     QString nativeStartupCommands() const;
 
-    bool prepareCommand();
-
 protected:
     // The base notify*() function implementation should be sufficient
     // in most cases, but engines are free to override them to do some
     // engine specific cleanup like stopping timers etc.
-    virtual void notifyEngineSetupOk();
-    virtual void notifyEngineSetupFailed();
-    virtual void notifyEngineRunFailed();
+    void notifyEngineSetupOk();
+    void notifyEngineSetupFailed();
+    void notifyEngineRunFailed();
 
-    virtual void notifyInferiorSetupOk();
-    virtual void notifyInferiorSetupFailed();
-
-    virtual void notifyEngineRunAndInferiorRunOk();
-    virtual void notifyEngineRunAndInferiorStopOk();
-    virtual void notifyEngineRunOkAndInferiorUnrunnable(); // Called by CoreAdapter.
+    void notifyEngineRunAndInferiorRunOk();
+    void notifyEngineRunAndInferiorStopOk();
+    void notifyEngineRunOkAndInferiorUnrunnable(); // Called by CoreAdapter.
 
     // Use notifyInferiorRunRequested() plus notifyInferiorRunOk() instead.
-    //virtual void notifyInferiorSpontaneousRun();
+    // void notifyInferiorSpontaneousRun();
 
-    virtual void notifyInferiorRunRequested();
-    virtual void notifyInferiorRunOk();
-    virtual void notifyInferiorRunFailed();
+    void notifyInferiorRunRequested();
+    void notifyInferiorRunOk();
+    void notifyInferiorRunFailed();
 
-    virtual void notifyInferiorStopOk();
-    virtual void notifyInferiorSpontaneousStop();
-    virtual void notifyInferiorStopFailed();
+    void notifyInferiorStopOk();
+    void notifyInferiorSpontaneousStop();
+    void notifyInferiorStopFailed();
 
-    public:
-    virtual void notifyInferiorExited();
+    public: // FIXME: Remove, currently needed for Android.
+    void notifyInferiorExited();
+
+    protected:
     void notifyDebuggerProcessFinished(int exitCode, QProcess::ExitStatus exitStatus,
                                        const QString &backendName);
 
-protected:
     virtual void setState(DebuggerState state, bool forced = false);
 
-    virtual void notifyInferiorShutdownOk();
-    virtual void notifyInferiorShutdownFailed();
+    void notifyInferiorShutdownFinished();
 
-    virtual void notifyEngineSpontaneousShutdown();
-    virtual void notifyEngineShutdownOk();
-    virtual void notifyEngineShutdownFailed();
+    void notifyEngineSpontaneousShutdown();
+    void notifyEngineShutdownFinished();
 
-    virtual void notifyEngineIll();
+    void notifyEngineIll();
 
     virtual void setupEngine() = 0;
-    virtual void setupInferior() = 0;
     virtual void runEngine() = 0;
     virtual void shutdownInferior() = 0;
     virtual void shutdownEngine() = 0;
@@ -398,7 +435,7 @@ protected:
 
     virtual void continueInferior();
     virtual void interruptInferior();
-    virtual void requestInterruptInferior();
+    void requestInterruptInferior();
 
     virtual void executeRunToLine(const Internal::ContextData &data);
     virtual void executeRunToFunction(const QString &functionName);
@@ -407,12 +444,13 @@ protected:
     virtual void frameUp();
     virtual void frameDown();
 
+    virtual void abortDebuggerProcess() {} // second attempt
+
     virtual void doUpdateLocals(const UpdateParameters &params);
 
     void setMasterEngine(DebuggerEngine *masterEngine);
 
-    ProjectExplorer::RunControl *runControl() const;
-    Terminal *terminal() const;
+    TerminalRunner *terminal() const;
 
     static QString msgStopped(const QString &reason = QString());
     static QString msgStoppedBySignal(const QString &meaning, const QString &name);
@@ -422,12 +460,6 @@ protected:
     bool showStoppedBySignalMessageBox(const QString meaning, QString name);
     void showStoppedByExceptionMessageBox(const QString &description);
 
-    bool isStateDebugging() const;
-    void setStateDebugging(bool on);
-
-    void validateExecutable();
-
-    virtual void setupSlaveInferior();
     virtual void setupSlaveEngine();
     virtual void runSlaveEngine();
     virtual void shutdownSlaveEngine();
@@ -463,8 +495,6 @@ private:
 
     QPointer<DebuggerEngine> m_engine;
 };
-
-ProjectExplorer::RunControl *createAndScheduleRun(const DebuggerRunParameters &rp, ProjectExplorer::Kit *kit);
 
 } // namespace Internal
 } // namespace Debugger

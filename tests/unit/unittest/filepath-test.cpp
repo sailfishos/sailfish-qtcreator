@@ -37,6 +37,31 @@ TEST(FilePath, CreateFromPathString)
     ASSERT_THAT(filePath.name(), "pathOne");
 }
 
+TEST(FilePath, CreateFromDirectoryAndFileName)
+{
+    ClangBackEnd::FilePath filePath{Utils::PathString{"/file"}, Utils::PathString{"pathOne"}};
+
+    ASSERT_THAT(filePath.directory(), "/file");
+    ASSERT_THAT(filePath.name(), "pathOne");
+    ASSERT_THAT(filePath.path(), "/file/pathOne");
+}
+
+TEST(FilePath, CreateFromCString)
+{
+    ClangBackEnd::FilePath filePath{"/file/pathOne"};
+
+    ASSERT_THAT(filePath.directory(), "/file");
+    ASSERT_THAT(filePath.name(), "pathOne");
+}
+
+TEST(FilePath, CreateFromFilePathView)
+{
+    ClangBackEnd::FilePath filePath{ClangBackEnd::FilePathView{"/file/pathOne"}};
+
+    ASSERT_THAT(filePath.directory(), "/file");
+    ASSERT_THAT(filePath.name(), "pathOne");
+}
+
 TEST(FilePath, CreateFromQString)
 {
     ClangBackEnd::FilePath filePath{QString{"/file/pathOne"}};
@@ -45,9 +70,17 @@ TEST(FilePath, CreateFromQString)
     ASSERT_THAT(filePath.name(), "pathOne");
 }
 
-TEST(FilePath, EmptyFilePath)
+TEST(FilePath, DefaultFilePath)
 {
     ClangBackEnd::FilePath filePath;
+
+    ASSERT_THAT(filePath.directory(), "");
+    ASSERT_THAT(filePath.name(), "");
+}
+
+TEST(FilePath, EmptyFilePath)
+{
+    ClangBackEnd::FilePath filePath("");
 
     ASSERT_THAT(filePath.directory(), "");
     ASSERT_THAT(filePath.name(), "");

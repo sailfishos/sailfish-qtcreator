@@ -31,7 +31,7 @@
 #include <removepchprojectpartsmessage.h>
 #include <updatepchprojectpartsmessage.h>
 
-#include <cpptools/clangcompileroptionsbuilder.h>
+#include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/projectpart.h>
 
 #include <algorithm>
@@ -52,10 +52,8 @@ public:
     Utils::PathStringVector sources;
 };
 
-ProjectUpdater::ProjectUpdater(ClangBackEnd::PchManagerServerInterface &server,
-                               PchManagerClient &client)
-    : m_server(server),
-      m_client(client)
+ProjectUpdater::ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server)
+    : m_server(server)
 {
 }
 
@@ -75,9 +73,6 @@ void ProjectUpdater::removeProjectParts(const QStringList &projectPartIds)
     ClangBackEnd::RemovePchProjectPartsMessage message{Utils::SmallStringVector(projectPartIds)};
 
     m_server.removePchProjectParts(std::move(message));
-
-    for (const QString &projectPartiId : projectPartIds)
-        m_client.precompiledHeaderRemoved(projectPartiId);
 }
 
 void ProjectUpdater::setExcludedPaths(Utils::PathStringVector &&excludedPaths)
@@ -113,35 +108,9 @@ HeaderAndSources ProjectUpdater::headerAndSourcesFromProjectPart(
 
 QStringList ProjectUpdater::compilerArguments(CppTools::ProjectPart *projectPart)
 {
-    using CppTools::ClangCompilerOptionsBuilder;
-
-        ClangCompilerOptionsBuilder builder(*projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR);
-
-        builder.addWordWidth();
-        builder.addTargetTriple();
-        builder.addLanguageOption(CppTools::ProjectFile::CXXHeader);
-        builder.addOptionsForLanguage(/*checkForBorlandExtensions*/ true);
-        builder.enableExceptions();
-
-        builder.addDefineToAvoidIncludingGccOrMinGwIntrinsics();
-        builder.addDefineFloat128ForMingw();
-        builder.addToolchainAndProjectDefines();
-        builder.undefineCppLanguageFeatureMacrosForMsvc2015();
-
-        builder.addPredefinedMacrosAndHeaderPathsOptions();
-        builder.addWrappedQtHeadersIncludePath();
-        builder.addPrecompiledHeaderOptions(ClangCompilerOptionsBuilder::PchUsage::None);
-        builder.addHeaderPathOptions();
-        builder.addProjectConfigFileInclude();
-
-        builder.addMsvcCompatibilityVersion();
-
-        builder.add("-fmessage-length=0");
-        builder.add("-fmacro-backtrace-limit=0");
-        builder.add("-w");
-        builder.add("-ferror-limit=100000");
-
-        return builder.options();
+    using CppTools::CompilerOptionsBuilder;
+    CompilerOptionsBuilder builder(*projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR);
+    return builder.build(CppTools::ProjectFile::CXXHeader, CompilerOptionsBuilder::PchUsage::None);
 }
 
 ClangBackEnd::V2::ProjectPartContainer ProjectUpdater::toProjectPartContainer(

@@ -31,16 +31,19 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <cpptools/baseeditordocumentparser.h>
-#include <cpptools/clangcompileroptionsbuilder.h>
+#include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/cppmodelmanager.h>
 #include <cpptools/editordocumenthandle.h>
 #include <cpptools/projectpart.h>
+#include <cpptools/cppcodemodelsettings.h>
+#include <cpptools/cpptoolsreuse.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
 
 #include <QDir>
 #include <QFile>
 #include <QStringList>
+#include <QTextBlock>
 
 using namespace ClangCodeModel;
 using namespace ClangCodeModel::Internal;
@@ -70,51 +73,68 @@ QStringList createClangOptions(const ProjectPart::Ptr &pPart, const QString &fil
     return createClangOptions(pPart, fileKind);
 }
 
-class LibClangOptionsBuilder : public ClangCompilerOptionsBuilder
+static QString creatorResourcePath()
+{
+#ifndef UNIT_TESTS
+    return Core::ICore::instance()->resourcePath();
+#else
+    return QString();
+#endif
+}
+
+class LibClangOptionsBuilder final : public CompilerOptionsBuilder
 {
 public:
-    static QStringList build(const ProjectPart::Ptr &projectPart, ProjectFile::Kind fileKind)
+    LibClangOptionsBuilder(const ProjectPart &projectPart)
+        : CompilerOptionsBuilder(projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR)
     {
-        if (projectPart.isNull())
-            return QStringList();
+    }
 
-        LibClangOptionsBuilder optionsBuilder(*projectPart.data());
+    void addPredefinedHeaderPathsOptions() final
+    {
+        CompilerOptionsBuilder::addPredefinedHeaderPathsOptions();
+        addWrappedQtHeadersIncludePath();
+    }
 
-        optionsBuilder.addWordWidth();
-        optionsBuilder.addTargetTriple();
-        optionsBuilder.addLanguageOption(fileKind);
-        optionsBuilder.addOptionsForLanguage(/*checkForBorlandExtensions*/ true);
-        optionsBuilder.enableExceptions();
+    void addToolchainAndProjectMacros() final
+    {
+        addMacros({ProjectExplorer::Macro("Q_CREATOR_RUN", "1")});
+        CompilerOptionsBuilder::addToolchainAndProjectMacros();
+    }
 
-        optionsBuilder.addDefineToAvoidIncludingGccOrMinGwIntrinsics();
-        optionsBuilder.addDefineFloat128ForMingw();
-        optionsBuilder.addToolchainAndProjectDefines();
-        optionsBuilder.undefineCppLanguageFeatureMacrosForMsvc2015();
-
-        optionsBuilder.addPredefinedMacrosAndHeaderPathsOptions();
-        optionsBuilder.addWrappedQtHeadersIncludePath();
-        optionsBuilder.addHeaderPathOptions();
-        optionsBuilder.addDummyUiHeaderOnDiskIncludePath();
-        optionsBuilder.addProjectConfigFileInclude();
-
-        optionsBuilder.addMsvcCompatibilityVersion();
-
-        optionsBuilder.addExtraOptions();
-
-        return optionsBuilder.options();
+    void addExtraOptions() final
+    {
+        addDummyUiHeaderOnDiskIncludePath();
+        add("-fmessage-length=0");
+        add("-fdiagnostics-show-note-include-stack");
+        add("-fmacro-backtrace-limit=0");
+        add("-fretain-comments-from-system-headers");
+        add("-ferror-limit=1000");
     }
 
 private:
-    LibClangOptionsBuilder(const CppTools::ProjectPart &projectPart)
-        : ClangCompilerOptionsBuilder(projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR)
+    void addWrappedQtHeadersIncludePath()
     {
+        static const QString resourcePath = creatorResourcePath();
+        static QString wrappedQtHeadersPath = resourcePath + "/cplusplus/wrappedQtHeaders";
+        QTC_ASSERT(QDir(wrappedQtHeadersPath).exists(), return;);
+
+        if (m_projectPart.qtVersion != CppTools::ProjectPart::NoQt) {
+            const QString wrappedQtCoreHeaderPath = wrappedQtHeadersPath + "/QtCore";
+            add(includeDirOption());
+            add(QDir::toNativeSeparators(wrappedQtHeadersPath));
+            add(includeDirOption());
+            add(QDir::toNativeSeparators(wrappedQtCoreHeaderPath));
+        }
     }
 
     void addDummyUiHeaderOnDiskIncludePath()
     {
         const QString path = ModelManagerSupportClang::instance()->dummyUiHeaderOnDiskDirPath();
-        if (!path.isEmpty())
-            add(includeDirOption() + QDir::toNativeSeparators(path));
+        if (!path.isEmpty()) {
+            add(includeDirOption());
+            add(QDir::toNativeSeparators(path));
+        }
     }
 };
 
@@ -125,7 +145,9 @@ private:
  */
 QStringList createClangOptions(const ProjectPart::Ptr &pPart, ProjectFile::Kind fileKind)
 {
-    return LibClangOptionsBuilder::build(pPart, fileKind);
+    if (!pPart)
+        return QStringList();
+    return LibClangOptionsBuilder(*pPart).build(fileKind, CompilerOptionsBuilder::PchUsage::None);
 }
 
 ProjectPart::Ptr projectPartForFile(const QString &filePath)
@@ -169,31 +191,15 @@ void setLastSentDocumentRevision(const QString &filePath, uint revision)
         document->sendTracker().setLastSentRevision(int(revision));
 }
 
-// CLANG-UPGRADE-CHECK: Workaround still needed?
-// Remove once clang reports correct columns for lines with multi-byte utf8.
-int extraUtf8CharsShift(const QString &str, int column)
+int clangColumn(const QTextBlock &line, int cppEditorColumn)
 {
-    int shift = 0;
-    const QByteArray byteArray = str.toUtf8();
-    for (int i = 0; i < qMin(str.length(), column); ++i) {
-        const uchar firstByte = static_cast<uchar>(byteArray.at(i));
-        // Skip different amount of bytes depending on value
-        if (firstByte < 0xC0) {
-            continue;
-        } else if (firstByte < 0xE0) {
-            ++shift;
-            ++i;
-        } else if (firstByte < 0xF0) {
-            shift += 2;
-            i += 2;
-        } else {
-            shift += 3;
-            i += 3;
-        }
-    }
-    return shift;
+    // (1) cppEditorColumn is the actual column shown by CppEditor.
+    // (2) The return value is the column in Clang which is the utf8 byte offset from the beginning
+    //     of the line.
+    // Here we convert column from (1) to (2).
+    // '+ 1' is for 1-based columns
+    return line.text().left(cppEditorColumn).toUtf8().size() + 1;
 }
-
 
 } // namespace Utils
 } // namespace Clang

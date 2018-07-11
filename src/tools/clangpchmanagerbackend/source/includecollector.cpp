@@ -33,7 +33,7 @@
 
 namespace ClangBackEnd {
 
-IncludeCollector::IncludeCollector(StringCache<Utils::PathString> &filePathCache)
+IncludeCollector::IncludeCollector(FilePathCachingInterface &filePathCache)
     :  m_filePathCache(filePathCache)
 {
 }
@@ -69,7 +69,7 @@ void IncludeCollector::setExcludedIncludes(Utils::PathStringVector &&excludedInc
 #endif
 }
 
-std::vector<uint> IncludeCollector::takeIncludeIds()
+FilePathIds IncludeCollector::takeIncludeIds()
 {
     std::sort(m_includeIds.begin(), m_includeIds.end());
 

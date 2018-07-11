@@ -29,10 +29,7 @@
 
 #include <utils/fileutils.h>
 
-namespace QmakeProjectManager {
-class QmakeProFile;
-class QmakeProject;
-} // namespace QmakeProjectManager
+namespace QmakeProjectManager { class QmakeProject; }
 
 namespace QmakeAndroidSupport {
 namespace Internal {
@@ -40,34 +37,23 @@ namespace Internal {
 class QmakeAndroidRunConfiguration : public Android::AndroidRunConfiguration
 {
     Q_OBJECT
-    friend class QmakeAndroidRunConfigurationFactory;
 
 public:
-    QmakeAndroidRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
-                                 const Utils::FileName &path = Utils::FileName());
+    explicit QmakeAndroidRunConfiguration(ProjectExplorer::Target *target);
 
     Utils::FileName proFilePath() const;
 
-    bool isEnabled() const override;
+private:
     QString disabledReason() const override;
-
     QString buildSystemTarget() const final;
-
-protected:
-    QmakeAndroidRunConfiguration(ProjectExplorer::Target *parent, QmakeAndroidRunConfiguration *source);
-
+    QString extraId() const final;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-    QString defaultDisplayName();
+    void updateDisplayName();
 
-private:
-    void proFileUpdated(QmakeProjectManager::QmakeProFile *pro, bool success, bool parseInProgress);
     QmakeProjectManager::QmakeProject *qmakeProject() const;
-    void init();
 
     mutable Utils::FileName m_proFilePath;
-    bool m_parseSuccess;
-    bool m_parseInProgress;
 };
 
 } // namespace Internal

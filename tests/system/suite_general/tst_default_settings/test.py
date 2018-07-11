@@ -184,11 +184,14 @@ def __getExpectedCompilers__():
         expected.extend(__getWinCompilers__())
     compilers = ["g++", "gcc"]
     if platform.system() in ('Linux', 'Darwin'):
-        compilers.extend(["g++-4.0", "g++-4.2", "clang++", "clang"])
+        compilers.extend(["clang++", "clang"])
+        compilers.extend(findAllFilesInPATH("*g++*"))
+        compilers.extend(findAllFilesInPATH("*gcc*"))
     if platform.system() == 'Darwin':
-        xcodeClang = getOutputFromCmdline(["xcrun", "--find", "clang++"]).strip("\n")
-        if xcodeClang and os.path.exists(xcodeClang) and xcodeClang not in expected:
-            expected.append(xcodeClang)
+        for compilerExe in ('clang++', 'clang'):
+            xcodeClang = getOutputFromCmdline(["xcrun", "--find", compilerExe]).strip("\n")
+            if xcodeClang and os.path.exists(xcodeClang) and xcodeClang not in expected:
+                expected.append(xcodeClang)
     for compiler in compilers:
         compilerPath = which(compiler)
         if compilerPath:
@@ -333,7 +336,6 @@ def __checkCreatedSettings__(settingsFolder):
                   {os.path.join(folders[0], "qtversion.xml"):0},
                   {os.path.join(folders[0], "toolchains.xml"):0}])
     folders.extend([os.path.join(folders[0], "generic-highlighter"),
-                    os.path.join(folders[0], "json"),
                     os.path.join(folders[0], "macros")])
     for f in folders:
         test.verify(os.path.isdir(f),

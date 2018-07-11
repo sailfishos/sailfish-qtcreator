@@ -145,7 +145,7 @@ void PropertyEditorContextObject::toogleExportAlias()
     if (rewriterView->selectedModelNodes().isEmpty())
         return;
 
-    ModelNode selectedNode = rewriterView->selectedModelNodes().first();
+    const ModelNode selectedNode = rewriterView->selectedModelNodes().constFirst();
 
     if (QmlObjectNode::isValidQmlObjectNode(selectedNode)) {
         QmlObjectNode objectNode(selectedNode);
@@ -184,7 +184,7 @@ void PropertyEditorContextObject::changeTypeName(const QString &typeName)
     if (rewriterView->selectedModelNodes().isEmpty())
         return;
 
-    ModelNode selectedNode = rewriterView->selectedModelNodes().first();
+    ModelNode selectedNode = rewriterView->selectedModelNodes().constFirst();
 
     try {
         RewriterTransaction transaction =
@@ -206,6 +206,25 @@ void PropertyEditorContextObject::changeTypeName(const QString &typeName)
     }
 
 
+}
+
+void PropertyEditorContextObject::insertKeyframe(const QString &propertyName)
+{
+    if (!m_model || !m_model->rewriterView())
+        return;
+
+    /* Ideally we should not missuse the rewriterView
+     * If we add more code here we have to forward the property editor view */
+    RewriterView *rewriterView = m_model->rewriterView();
+
+    if (rewriterView->selectedModelNodes().isEmpty())
+        return;
+
+    ModelNode selectedNode = rewriterView->selectedModelNodes().constFirst();
+
+    rewriterView->emitCustomNotification("INSERT_KEYFRAME",
+                                         { selectedNode },
+                                         { propertyName });
 }
 
 int PropertyEditorContextObject::majorVersion() const
@@ -268,6 +287,20 @@ void PropertyEditorContextObject::setMinorVersion(int minorVersion)
     m_minorVersion = minorVersion;
 
     emit minorVersionChanged();
+}
+
+bool PropertyEditorContextObject::hasActiveTimeline() const
+{
+    return m_setHasActiveTimeline;
+}
+
+void PropertyEditorContextObject::setHasActiveTimeline(bool b)
+{
+    if (b == m_setHasActiveTimeline)
+        return;
+
+    m_setHasActiveTimeline = b;
+    emit hasActiveTimelineChanged();
 }
 
 void PropertyEditorContextObject::insertInQmlContext(QQmlContext *context)

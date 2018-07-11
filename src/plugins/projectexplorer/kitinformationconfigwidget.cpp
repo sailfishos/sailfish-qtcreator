@@ -36,7 +36,8 @@
 #include "environmentwidget.h"
 
 #include <coreplugin/icore.h>
-#include <extensionsystem/pluginmanager.h>
+#include <coreplugin/variablechooser.h>
+
 #include <utils/algorithm.h>
 #include <utils/fancylineedit.h>
 #include <utils/environment.h>
@@ -262,9 +263,7 @@ int ToolChainInformationConfigWidget::indexOf(QComboBox *cb, const ToolChain *tc
 DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
     KitConfigWidget(workingCopy, ki), m_comboBox(new QComboBox)
 {
-    QList<IDeviceFactory *> factories
-            = ExtensionSystem::PluginManager::getObjects<IDeviceFactory>();
-    foreach (IDeviceFactory *factory, factories) {
+    for (IDeviceFactory *factory : IDeviceFactory::allDeviceFactories()) {
         foreach (Id id, factory->availableCreationIds())
             m_comboBox->addItem(factory->displayNameForId(id), id.toSetting());
     }
@@ -464,9 +463,16 @@ QList<Utils::EnvironmentItem> KitEnvironmentConfigWidget::currentEnvironment() c
 void KitEnvironmentConfigWidget::editEnvironmentChanges()
 {
     bool ok;
-    const QList<Utils::EnvironmentItem> changes = Utils::EnvironmentDialog::getEnvironmentItems(&ok,
-                                                                 m_summaryLabel,
-                                                                 currentEnvironment());
+    Utils::MacroExpander *expander = m_kit->macroExpander();
+    Utils::EnvironmentDialog::Polisher polisher = [expander](QWidget *w) {
+        Core::VariableChooser::addSupportForChildWidgets(w, expander);
+    };
+    const QList<Utils::EnvironmentItem>
+            changes = Utils::EnvironmentDialog::getEnvironmentItems(&ok,
+                                                                    m_summaryLabel,
+                                                                    currentEnvironment(),
+                                                                    QString(),
+                                                                    polisher);
     if (!ok)
         return;
 

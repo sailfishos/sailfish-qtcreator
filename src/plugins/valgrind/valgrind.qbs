@@ -27,16 +27,15 @@ QtcPlugin {
             "callgrindtextmark.cpp", "callgrindtextmark.h",
             "callgrindtool.cpp", "callgrindtool.h",
             "callgrindvisualisation.cpp", "callgrindvisualisation.h",
-            "memcheckengine.cpp", "memcheckengine.h",
             "memcheckerrorview.cpp", "memcheckerrorview.h",
             "memchecktool.cpp", "memchecktool.h",
             "suppressiondialog.cpp", "suppressiondialog.h",
+            "valgrind.qrc",
             "valgrindconfigwidget.cpp", "valgrindconfigwidget.h", "valgrindconfigwidget.ui",
             "valgrindengine.cpp", "valgrindengine.h",
             "valgrindplugin.cpp", "valgrindplugin.h",
             "valgrindrunner.cpp", "valgrindrunner.h",
             "valgrindsettings.cpp", "valgrindsettings.h",
-            "workarounds.cpp", "workarounds.h",
         ]
     }
 

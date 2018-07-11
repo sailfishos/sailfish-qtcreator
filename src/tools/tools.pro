@@ -8,6 +8,8 @@ SUBDIRS = qtpromaker \
      3rdparty \
      buildoutputparser
 
+isEmpty(QTC_SKIP_SDKTOOL): SUBDIRS += sdktool
+
 qtHaveModule(quick-private): SUBDIRS += qml2puppet
 
 win32 {
@@ -21,17 +23,14 @@ mac {
     SUBDIRS += iostool
 }
 
-isEmpty(LLVM_INSTALL_DIR):LLVM_INSTALL_DIR=$$(LLVM_INSTALL_DIR)
-exists($$LLVM_INSTALL_DIR) {
-    SUBDIRS += clangbackend
+SUBDIRS += clangbackend
 
-    QTC_NO_CLANG_LIBTOOLING=$$(QTC_NO_CLANG_LIBTOOLING)
-    isEmpty(QTC_NO_CLANG_LIBTOOLING) {
-        SUBDIRS += clangrefactoringbackend
-        SUBDIRS += clangpchmanagerbackend
-    } else {
-        warning("Building the Clang refactoring back end and the pch manager plugins are disabled.")
-    }
+QTC_NO_CLANG_LIBTOOLING=$$(QTC_NO_CLANG_LIBTOOLING)
+isEmpty(QTC_NO_CLANG_LIBTOOLING) {
+    SUBDIRS += clangrefactoringbackend
+    SUBDIRS += clangpchmanagerbackend
+} else {
+    warning("Not building the clang refactoring backend and the pch manager backend.")
 }
 
 isEmpty(BUILD_CPLUSPLUS_TOOLS):BUILD_CPLUSPLUS_TOOLS=$$(BUILD_CPLUSPLUS_TOOLS)
@@ -42,8 +41,7 @@ isEmpty(BUILD_CPLUSPLUS_TOOLS):BUILD_CPLUSPLUS_TOOLS=$$(BUILD_CPLUSPLUS_TOOLS)
         cplusplus-update-frontend
 }
 
-QT_BREAKPAD_ROOT_PATH = $$(QT_BREAKPAD_ROOT_PATH)
-!isEmpty(QT_BREAKPAD_ROOT_PATH) {
+!isEmpty(BREAKPAD_SOURCE_DIR) {
     SUBDIRS += qtcrashhandler
 } else {
     linux-* {

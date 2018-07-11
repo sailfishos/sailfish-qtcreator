@@ -27,31 +27,22 @@
 
 #include "androidextralibrarylistmodel.h"
 
-#include <QWidget>
-
 #include <projectexplorer/buildstep.h>
+#include <android/androidbuildapkstep.h>
 
-QT_BEGIN_NAMESPACE
-class QLabel;
-QT_END_NAMESPACE
-
-namespace QmakeProjectManager { class QmakeBuildConfiguration; }
+#include <QWidget>
 
 namespace QmakeAndroidSupport {
 namespace Internal {
 
-namespace Ui {
-class QmakeAndroidBuildApkWidget;
-}
-
-class QmakeAndroidBuildApkStep;
+namespace Ui { class QmakeAndroidBuildApkWidget; }
 
 class QmakeAndroidBuildApkWidget : public ProjectExplorer::BuildStepConfigWidget
 {
     Q_OBJECT
 
 public:
-    explicit QmakeAndroidBuildApkWidget(QmakeAndroidBuildApkStep *step);
+    explicit QmakeAndroidBuildApkWidget(Android::AndroidBuildApkStep *step);
     ~QmakeAndroidBuildApkWidget();
 
 private:
@@ -61,15 +52,14 @@ private:
     void checkEnableRemoveButton();
 
 private:
-    Ui::QmakeAndroidBuildApkWidget *m_ui;
-    QmakeAndroidBuildApkStep *m_step;
-    AndroidExtraLibraryListModel *m_extraLibraryListModel;
-    bool m_ignoreChange;
+    Ui::QmakeAndroidBuildApkWidget *m_ui = nullptr;
+    Android::AndroidBuildApkStep *m_step = nullptr;
+    AndroidExtraLibraryListModel *m_extraLibraryListModel = nullptr;
+    bool m_ignoreChange = false;
 
     // BuildStepConfigWidget interface
-public:
-    QString summaryText() const;
-    QString displayName() const;
+    QString summaryText() const final;
+    QString displayName() const final;
 };
 
 } // namespace Internal

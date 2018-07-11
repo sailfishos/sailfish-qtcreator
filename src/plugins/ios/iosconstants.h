@@ -41,6 +41,7 @@ const char IOS_DEVICE_TYPE[] = "Ios.Device.Type";
 const char IOS_SIMULATOR_TYPE[] = "Ios.Simulator.Type";
 const char IOS_DEVICE_ID[] = "iOS Device ";
 const char IOS_SIMULATOR_DEVICE_ID[] = "iOS Simulator Device ";
+const char IOS_PRESET_BUILD_STEP_ID[] = "Ios.IosPresetBuildStep";
 const char IOS_DSYM_BUILD_STEP_ID[] = "Ios.IosDsymBuildStep";
 
 const quint16 IOS_DEVICE_PORT_START = 30000;
@@ -49,6 +50,8 @@ const quint16 IOS_SIMULATOR_PORT_START = 30000;
 const quint16 IOS_SIMULATOR_PORT_END = 31000;
 
 const char EXTRA_INFO_KEY[] = "extraInfo";
+
+const char IOS_RC_ID_PREFIX[] = "Qt4ProjectManager.IosRunConfiguration:";
 
 } // namespace Constants;
 } // namespace Ios

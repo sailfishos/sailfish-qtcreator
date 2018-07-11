@@ -42,6 +42,7 @@
 #include <texteditor/displaysettings.h>
 
 #include <coreplugin/icore.h>
+#include <coreplugin/find/highlightscrollbarcontroller.h>
 #include <coreplugin/minisplitter.h>
 
 #include <utils/tooltip/tooltip.h>
@@ -57,7 +58,7 @@ class SideDiffEditorWidget : public SelectableTextEditorWidget
 {
     Q_OBJECT
 public:
-    SideDiffEditorWidget(QWidget *parent = 0);
+    SideDiffEditorWidget(QWidget *parent = nullptr);
 
     // block number, file info
     QMap<int, DiffFileInfo> fileInfo() const { return m_fileInfo; }
@@ -83,11 +84,10 @@ public:
     }
     void clearAll(const QString &message);
     void clearAllData();
-    QTextBlock firstVisibleBlock() const {
-        return TextEditorWidget::firstVisibleBlock();
-    }
     void saveState();
     void restoreState();
+
+    void setFolded(int blockNumber, bool folded);
 
     void setDisplaySettings(const DisplaySettings &ds) override;
 
@@ -98,9 +98,12 @@ signals:
     void contextMenuRequested(QMenu *menu,
                               int diffFileIndex,
                               int chunkIndex);
+    void foldChanged(int blockNumber, bool folded);
+    void gotDisplaySettings();
+    void gotFocus();
 
 protected:
-    int extraAreaWidth(int *markWidthPtr = 0) const override {
+    int extraAreaWidth(int *markWidthPtr = nullptr) const override {
         return SelectableTextEditorWidget::extraAreaWidth(markWidthPtr);
     }
     void applyFontSettings() override;
@@ -116,6 +119,15 @@ protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
     void paintEvent(QPaintEvent *e) override;
     void scrollContentsBy(int dx, int dy) override;
+    void customDrawCollapsedBlockPopup(QPainter &painter,
+                                       const QTextBlock &block,
+                                       QPointF offset,
+                                       const QRect &clip);
+    void drawCollapsedBlockPopup(QPainter &painter,
+                                 const QTextBlock &block,
+                                 QPointF offset,
+                                 const QRect &clip) override;
+    void focusInEvent(QFocusEvent *e) override;
 
 private:
     void paintSeparator(QPainter &painter, QColor &color, const QString &text,
@@ -133,11 +145,15 @@ private:
     QMap<int, QPair<int, int> > m_chunkInfo;
     // block number, separator. Set for file, chunk or span line.
     QMap<int, bool> m_separators;
-    bool m_inPaintEvent = false;
     QColor m_fileLineForeground;
     QColor m_chunkLineForeground;
     QColor m_textForeground;
     QByteArray m_state;
+
+    QTextBlock m_drawCollapsedBlock;
+    QPointF m_drawCollapsedOffset;
+    QRect m_drawCollapsedClip;
+
 };
 
 SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
@@ -146,13 +162,11 @@ SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
     DisplaySettings settings = displaySettings();
     settings.m_textWrapping = false;
     settings.m_displayLineNumbers = true;
-    settings.m_highlightCurrentLine = false;
-    settings.m_displayFoldingMarkers = true;
     settings.m_markTextChanges = false;
     settings.m_highlightBlocks = false;
     SelectableTextEditorWidget::setDisplaySettings(settings);
 
-    connect(this, &TextEditorWidget::tooltipRequested, [this](const QPoint &point, int position) {
+    connect(this, &TextEditorWidget::tooltipRequested, this, [this](const QPoint &point, int position) {
         const int block = document()->findBlock(position).blockNumber();
         const auto it = m_fileInfo.constFind(block);
         if (it != m_fileInfo.constEnd())
@@ -160,6 +174,12 @@ SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
         else
             ToolTip::hide();
     });
+
+    TextDocumentLayout *documentLayout = qobject_cast<TextDocumentLayout*>(document()->documentLayout());
+    if (documentLayout)
+        connect(documentLayout, &TextDocumentLayout::foldChanged,
+                this, &SideDiffEditorWidget::foldChanged);
+    setCodeFoldingSupported(true);
 }
 
 void SideDiffEditorWidget::saveState()
@@ -179,11 +199,31 @@ void SideDiffEditorWidget::restoreState()
     m_state.clear();
 }
 
+void SideDiffEditorWidget::setFolded(int blockNumber, bool folded)
+{
+    QTextBlock block = document()->findBlockByNumber(blockNumber);
+    if (!block.isValid())
+        return;
+
+    if (TextDocumentLayout::isFolded(block) == folded)
+        return;
+
+    TextDocumentLayout::doFoldOrUnfold(block, !folded);
+
+    TextDocumentLayout *documentLayout = qobject_cast<TextDocumentLayout*>(document()->documentLayout());
+    documentLayout->requestUpdate();
+    documentLayout->emitDocumentSizeChanged();
+}
+
 void SideDiffEditorWidget::setDisplaySettings(const DisplaySettings &ds)
 {
     DisplaySettings settings = displaySettings();
     settings.m_visualizeWhitespace = ds.m_visualizeWhitespace;
+    settings.m_displayFoldingMarkers = ds.m_displayFoldingMarkers;
+    settings.m_scrollBarHighlights = ds.m_scrollBarHighlights;
+    settings.m_highlightCurrentLine = ds.m_highlightCurrentLine;
     SelectableTextEditorWidget::setDisplaySettings(settings);
+    emit gotDisplaySettings();
 }
 
 void SideDiffEditorWidget::applyFontSettings()
@@ -247,7 +287,7 @@ QString SideDiffEditorWidget::plainTextFromSelection(const QTextCursor &cursor) 
                     text = block.text().mid(startPosition - block.position());
             } else {
                 if (textInserted)
-                    text += QLatin1Char('\n');
+                    text += '\n';
                 if (block == endBlock)
                     text += block.text().leftRef(endPosition - block.position());
                 else
@@ -360,14 +400,12 @@ void SideDiffEditorWidget::paintSeparator(QPainter &painter,
 
     painter.setPen(foreground);
 
-    const QString replacementText = QLatin1String(" {")
-            + foldReplacementText(block)
-            + QLatin1String("}; ");
+    const QString replacementText = " {" + foldReplacementText(block) + "}; ";
     const int replacementTextWidth = fontMetrics().width(replacementText) + 24;
-    int x = replacementTextWidth + offset.x();
+    int x = replacementTextWidth + int(offset.x());
     if (x < document()->documentMargin()
             || !TextDocumentLayout::isFolded(block)) {
-        x = document()->documentMargin();
+        x = int(document()->documentMargin());
     }
     const QString elidedText = fontMetrics().elidedText(text,
                                                         Qt::ElideRight,
@@ -446,14 +484,11 @@ static QString skippedText(int skippedNumber)
 
 void SideDiffEditorWidget::paintEvent(QPaintEvent *e)
 {
-    m_inPaintEvent = true;
     SelectableTextEditorWidget::paintEvent(e);
-    m_inPaintEvent = false;
 
     QPainter painter(viewport());
     QPointF offset = contentOffset();
-    QTextBlock firstBlock = firstVisibleBlock();
-    QTextBlock currentBlock = firstBlock;
+    QTextBlock currentBlock = firstVisibleBlock();
 
     while (currentBlock.isValid()) {
         if (currentBlock.isVisible()) {
@@ -488,6 +523,97 @@ void SideDiffEditorWidget::paintEvent(QPaintEvent *e)
         }
         currentBlock = currentBlock.next();
     }
+
+    if (m_drawCollapsedBlock.isValid()) {
+        // draw it now
+        customDrawCollapsedBlockPopup(painter,
+                                      m_drawCollapsedBlock,
+                                      m_drawCollapsedOffset,
+                                      m_drawCollapsedClip);
+        // reset the data for the drawing
+        m_drawCollapsedBlock = QTextBlock();
+    }
+}
+
+void SideDiffEditorWidget::customDrawCollapsedBlockPopup(QPainter &painter,
+                                                   const QTextBlock &block,
+                                                   QPointF offset,
+                                                   const QRect &clip)
+{
+    int margin = block.document()->documentMargin();
+    qreal maxWidth = 0;
+    qreal blockHeight = 0;
+    QTextBlock b = block;
+
+    while (!b.isVisible()) {
+        const int blockNumber = b.blockNumber();
+        if (!m_skippedLines.contains(blockNumber) && !m_separators.contains(blockNumber)) {
+            b.setVisible(true); // make sure block bounding rect works
+            QRectF r = blockBoundingRect(b).translated(offset);
+
+            QTextLayout *layout = b.layout();
+            for (int i = layout->lineCount()-1; i >= 0; --i)
+                maxWidth = qMax(maxWidth, layout->lineAt(i).naturalTextWidth() + 2*margin);
+
+            blockHeight += r.height();
+
+            b.setVisible(false); // restore previous state
+            b.setLineCount(0); // restore 0 line count for invisible block
+        }
+        b = b.next();
+    }
+
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.translate(.5, .5);
+    QBrush brush = palette().base();
+    const QTextCharFormat &ifdefedOutFormat
+            = textDocument()->fontSettings().toTextCharFormat(C_DISABLED_CODE);
+    if (ifdefedOutFormat.hasProperty(QTextFormat::BackgroundBrush))
+        brush = ifdefedOutFormat.background();
+    painter.setBrush(brush);
+    painter.drawRoundedRect(QRectF(offset.x(),
+                                   offset.y(),
+                                   maxWidth, blockHeight).adjusted(0, 0, 0, 0), 3, 3);
+    painter.restore();
+
+    QTextBlock end = b;
+    b = block;
+    while (b != end) {
+        const int blockNumber = b.blockNumber();
+        if (!m_skippedLines.contains(blockNumber) && !m_separators.contains(blockNumber)) {
+            b.setVisible(true); // make sure block bounding rect works
+            QRectF r = blockBoundingRect(b).translated(offset);
+            QTextLayout *layout = b.layout();
+            QVector<QTextLayout::FormatRange> selections;
+            layout->draw(&painter, offset, selections, clip);
+
+            b.setVisible(false); // restore previous state
+            b.setLineCount(0); // restore 0 line count for invisible block
+            offset.ry() += r.height();
+        }
+        b = b.next();
+    }
+}
+
+void SideDiffEditorWidget::drawCollapsedBlockPopup(QPainter &painter,
+                                                   const QTextBlock &block,
+                                                   QPointF offset,
+                                                   const QRect &clip)
+{
+    Q_UNUSED(painter)
+    // Called from inside SelectableTextEditorWidget::paintEvent().
+    // Postpone the drawing for now, do it after our paintEvent's
+    // custom painting. Store the data for the future redraw.
+    m_drawCollapsedBlock = block;
+    m_drawCollapsedOffset = offset;
+    m_drawCollapsedClip = clip;
+}
+
+void SideDiffEditorWidget::focusInEvent(QFocusEvent *e)
+{
+    SelectableTextEditorWidget::focusInEvent(e);
+    emit gotFocus();
 }
 
 //////////////////
@@ -499,9 +625,6 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
     m_leftEditor = new SideDiffEditorWidget(this);
     m_leftEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_leftEditor->setReadOnly(true);
-    connect(TextEditorSettings::instance(), &TextEditorSettings::displaySettingsChanged,
-            m_leftEditor, &SideDiffEditorWidget::setDisplaySettings);
-    m_leftEditor->setDisplaySettings(TextEditorSettings::displaySettings());
     m_leftEditor->setCodeStyle(TextEditorSettings::codeStyle());
     connect(m_leftEditor, &SideDiffEditorWidget::jumpToOriginalFileRequested,
             this, &SideBySideDiffEditorWidget::slotLeftJumpToOriginalFileRequested);
@@ -511,15 +634,50 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
 
     m_rightEditor = new SideDiffEditorWidget(this);
     m_rightEditor->setReadOnly(true);
-    connect(TextEditorSettings::instance(), &TextEditorSettings::displaySettingsChanged,
-            m_rightEditor, &SideDiffEditorWidget::setDisplaySettings);
-    m_rightEditor->setDisplaySettings(TextEditorSettings::displaySettings());
     m_rightEditor->setCodeStyle(TextEditorSettings::codeStyle());
     connect(m_rightEditor, &SideDiffEditorWidget::jumpToOriginalFileRequested,
             this, &SideBySideDiffEditorWidget::slotRightJumpToOriginalFileRequested);
     connect(m_rightEditor, &SideDiffEditorWidget::contextMenuRequested,
             this, &SideBySideDiffEditorWidget::slotRightContextMenuRequested,
             Qt::DirectConnection);
+
+    auto setupHighlightController = [this]() {
+        HighlightScrollBarController *highlightController = m_leftEditor->highlightScrollBarController();
+        if (highlightController)
+            highlightController->setScrollArea(m_rightEditor);
+    };
+
+    setupHighlightController();
+    connect(m_leftEditor, &SideDiffEditorWidget::gotDisplaySettings, this, setupHighlightController);
+
+    m_rightEditor->verticalScrollBar()->setFocusProxy(m_leftEditor);
+    connect(m_leftEditor, &SideDiffEditorWidget::gotFocus, this, [this]() {
+        if (m_rightEditor->verticalScrollBar()->focusProxy() == m_leftEditor)
+            return; // We already did it before.
+
+        // Hack #1. If the left editor got a focus last time
+        // we don't want to focus right editor when clicking the right
+        // scrollbar.
+        m_rightEditor->verticalScrollBar()->setFocusProxy(m_leftEditor);
+
+        // Hack #2. If the focus is currently not on the scrollbar's proxy
+        // and we click on the scrollbar, the focus will go to the parent
+        // of the scrollbar. In order to give the focus to the proxy
+        // we need to set a click focus policy on the scrollbar.
+        // See QApplicationPrivate::giveFocusAccordingToFocusPolicy().
+        m_rightEditor->verticalScrollBar()->setFocusPolicy(Qt::ClickFocus);
+
+        // Hack #3. Setting the focus policy is not orthogonal to setting
+        // the focus proxy and unfortuantely it changes the policy of the proxy
+        // too. We bring back the original policy to keep tab focus working.
+        m_leftEditor->setFocusPolicy(Qt::StrongFocus);
+    });
+    connect(m_rightEditor, &SideDiffEditorWidget::gotFocus, this, [this]() {
+        // Unhack #1.
+        m_rightEditor->verticalScrollBar()->setFocusProxy(nullptr);
+        // Unhack #2.
+        m_rightEditor->verticalScrollBar()->setFocusPolicy(Qt::NoFocus);
+    });
 
     connect(TextEditorSettings::instance(),
             &TextEditorSettings::fontSettingsChanged,
@@ -552,13 +710,19 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
     connect(m_rightEditor, &QPlainTextEdit::cursorPositionChanged,
             this, &SideBySideDiffEditorWidget::rightCursorPositionChanged);
 
+    connect(m_leftEditor, &SideDiffEditorWidget::foldChanged,
+            m_rightEditor, &SideDiffEditorWidget::setFolded);
+    connect(m_rightEditor, &SideDiffEditorWidget::foldChanged,
+            m_leftEditor, &SideDiffEditorWidget::setFolded);
+
+
     m_splitter = new MiniSplitter(this);
     m_splitter->addWidget(m_leftEditor);
     m_splitter->addWidget(m_rightEditor);
     QVBoxLayout *l = new QVBoxLayout(this);
     l->setMargin(0);
     l->addWidget(m_splitter);
-    setFocusProxy(m_rightEditor);
+    setFocusProxy(m_leftEditor);
 
     m_leftContext = new IContext(this);
     m_leftContext->setWidget(m_leftEditor);
@@ -684,10 +848,12 @@ void SideBySideDiffEditorWidget::showDiff()
 
     QString leftTexts, rightTexts;
     int blockNumber = 0;
-    QChar separator = QLatin1Char('\n');
+    QChar separator = '\n';
+    QHash<int, int> foldingIndent;
     for (const FileData &contextFileData : m_controller.m_contextFileData) {
         QString leftText, rightText;
 
+        foldingIndent.insert(blockNumber, 1);
         leftFormats[blockNumber].append(DiffSelection(&m_controller.m_fileLineFormat));
         rightFormats[blockNumber].append(DiffSelection(&m_controller.m_fileLineFormat));
         m_leftEditor->setFileInfo(blockNumber, contextFileData.leftFileInfo);
@@ -699,6 +865,7 @@ void SideBySideDiffEditorWidget::showDiff()
         int lastLeftLineNumber = -1;
 
         if (contextFileData.binaryFiles) {
+            foldingIndent.insert(blockNumber, 2);
             leftFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
             rightFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
             m_leftEditor->setSkippedLines(blockNumber, -2);
@@ -716,6 +883,7 @@ void SideBySideDiffEditorWidget::showDiff()
                 if (!chunkData.contextChunk) {
                     const int skippedLines = leftLineNumber - lastLeftLineNumber - 1;
                     if (skippedLines > 0) {
+                        foldingIndent.insert(blockNumber, 2);
                         leftFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
                         rightFormats[blockNumber].append(DiffSelection(&m_controller.m_chunkLineFormat));
                         m_leftEditor->setSkippedLines(blockNumber, skippedLines, chunkData.contextInfo);
@@ -803,8 +971,8 @@ void SideBySideDiffEditorWidget::showDiff()
                 }
             }
         }
-        leftText.replace(QLatin1Char('\r'), QLatin1Char(' '));
-        rightText.replace(QLatin1Char('\r'), QLatin1Char(' '));
+        leftText.replace('\r', ' ');
+        rightText.replace('\r', ' ');
         leftTexts += leftText;
         rightTexts += rightText;
     }
@@ -819,6 +987,13 @@ void SideBySideDiffEditorWidget::showDiff()
     m_rightEditor->clear();
     m_rightEditor->setPlainText(rightTexts);
     m_controller.m_ignoreCurrentIndexChange = oldIgnore;
+
+    QTextBlock block = m_leftEditor->document()->firstBlock();
+    for (int b = 0; block.isValid(); block = block.next(), ++b)
+        SelectableTextEditorWidget::setFoldingIndent(block, foldingIndent.value(b, 3));
+    block = m_rightEditor->document()->firstBlock();
+    for (int b = 0; block.isValid(); block = block.next(), ++b)
+        SelectableTextEditorWidget::setFoldingIndent(block, foldingIndent.value(b, 3));
 
     m_leftEditor->setSelections(leftFormats);
     m_rightEditor->setSelections(rightFormats);
@@ -884,75 +1059,109 @@ void SideBySideDiffEditorWidget::slotRightJumpToOriginalFileRequested(
 }
 
 void SideBySideDiffEditorWidget::slotLeftContextMenuRequested(QMenu *menu,
-                                                              int diffFileIndex,
+                                                              int fileIndex,
                                                               int chunkIndex)
 {
     menu->addSeparator();
 
-    m_controller.addCodePasterAction(menu);
-    m_controller.addApplyAction(menu, diffFileIndex, chunkIndex);
+    m_controller.addCodePasterAction(menu, fileIndex, chunkIndex);
+    m_controller.addApplyAction(menu, fileIndex, chunkIndex);
+    m_controller.addExtraActions(menu, fileIndex, chunkIndex);
 }
 
 void SideBySideDiffEditorWidget::slotRightContextMenuRequested(QMenu *menu,
-                                                               int diffFileIndex,
+                                                               int fileIndex,
                                                                int chunkIndex)
 {
     menu->addSeparator();
 
-    m_controller.addCodePasterAction(menu);
-    m_controller.addRevertAction(menu, diffFileIndex, chunkIndex);
+    m_controller.addCodePasterAction(menu, fileIndex, chunkIndex);
+    m_controller.addRevertAction(menu, fileIndex, chunkIndex);
+    m_controller.addExtraActions(menu, fileIndex, chunkIndex);
 }
 
 void SideBySideDiffEditorWidget::leftVSliderChanged()
 {
+    if (m_controller.m_ignoreCurrentIndexChange)
+        return;
+
     m_rightEditor->verticalScrollBar()->setValue(m_leftEditor->verticalScrollBar()->value());
 }
 
 void SideBySideDiffEditorWidget::rightVSliderChanged()
 {
+    if (m_controller.m_ignoreCurrentIndexChange)
+        return;
+
     m_leftEditor->verticalScrollBar()->setValue(m_rightEditor->verticalScrollBar()->value());
 }
 
 void SideBySideDiffEditorWidget::leftHSliderChanged()
 {
+    if (m_controller.m_ignoreCurrentIndexChange)
+        return;
+
     if (m_horizontalSync)
         m_rightEditor->horizontalScrollBar()->setValue(m_leftEditor->horizontalScrollBar()->value());
 }
 
 void SideBySideDiffEditorWidget::rightHSliderChanged()
 {
+    if (m_controller.m_ignoreCurrentIndexChange)
+        return;
+
     if (m_horizontalSync)
         m_leftEditor->horizontalScrollBar()->setValue(m_rightEditor->horizontalScrollBar()->value());
 }
 
 void SideBySideDiffEditorWidget::leftCursorPositionChanged()
 {
-    leftVSliderChanged();
-    leftHSliderChanged();
-
     if (m_controller.m_ignoreCurrentIndexChange)
         return;
 
-    const bool oldIgnore = m_controller.m_ignoreCurrentIndexChange;
-    m_controller.m_ignoreCurrentIndexChange = true;
-    emit currentDiffFileIndexChanged(
-                m_leftEditor->fileIndexForBlockNumber(m_leftEditor->textCursor().blockNumber()));
-    m_controller.m_ignoreCurrentIndexChange = oldIgnore;
+    handlePositionChange(m_leftEditor, m_rightEditor);
+    leftVSliderChanged();
+    leftHSliderChanged();
 }
 
 void SideBySideDiffEditorWidget::rightCursorPositionChanged()
 {
+    if (m_controller.m_ignoreCurrentIndexChange)
+        return;
+
+    handlePositionChange(m_rightEditor, m_leftEditor);
     rightVSliderChanged();
     rightHSliderChanged();
+}
 
+void SideBySideDiffEditorWidget::handlePositionChange(SideDiffEditorWidget *source, SideDiffEditorWidget *dest)
+{
     if (m_controller.m_ignoreCurrentIndexChange)
         return;
 
     const bool oldIgnore = m_controller.m_ignoreCurrentIndexChange;
     m_controller.m_ignoreCurrentIndexChange = true;
+    syncCursor(source, dest);
     emit currentDiffFileIndexChanged(
-                m_rightEditor->fileIndexForBlockNumber(m_rightEditor->textCursor().blockNumber()));
+                source->fileIndexForBlockNumber(source->textCursor().blockNumber()));
     m_controller.m_ignoreCurrentIndexChange = oldIgnore;
+}
+
+void SideBySideDiffEditorWidget::syncCursor(SideDiffEditorWidget *source, SideDiffEditorWidget *dest)
+{
+    const int oldHSliderPos = dest->horizontalScrollBar()->value();
+
+    const QTextCursor sourceCursor = source->textCursor();
+    const int sourceLine = sourceCursor.blockNumber();
+    const int sourceColumn = sourceCursor.positionInBlock();
+    QTextCursor destCursor = dest->textCursor();
+    const QTextBlock destBlock = dest->document()->findBlockByNumber(sourceLine);
+    const int destColumn = qMin(sourceColumn, destBlock.length());
+    const int destPosition = destBlock.position() + destColumn;
+    destCursor.setPosition(destPosition);
+    dest->setTextCursor(destCursor);
+
+    dest->horizontalScrollBar()->setValue(oldHSliderPos);
 }
 
 } // namespace Internal

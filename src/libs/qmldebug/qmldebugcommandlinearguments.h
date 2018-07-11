@@ -35,7 +35,8 @@ enum QmlDebugServicesPreset {
     NoQmlDebugServices,
     QmlDebuggerServices,
     QmlProfilerServices,
-    QmlNativeDebuggerServices
+    QmlNativeDebuggerServices,
+    QmlPreviewServices
 };
 
 static inline QString qmlDebugServices(QmlDebugServicesPreset preset)
@@ -49,6 +50,8 @@ static inline QString qmlDebugServices(QmlDebugServicesPreset preset)
         return QStringLiteral("CanvasFrameRate,EngineControl,DebugMessages");
     case QmlNativeDebuggerServices:
         return QStringLiteral("NativeQmlDebugger");
+    case QmlPreviewServices:
+        return QStringLiteral("QmlPreview");
     default:
         Q_ASSERT(false);
         return QString();
@@ -66,12 +69,9 @@ static inline QString qmlDebugCommandLineArguments(QmlDebugServicesPreset servic
 }
 
 static inline QString qmlDebugTcpArguments(QmlDebugServicesPreset services,
-                                           Utils::Port port = Utils::Port(),
-                                           bool block = true)
+                                           Utils::Port port, bool block = true)
 {
-    return qmlDebugCommandLineArguments(services, port.isValid() ?
-                                            QString::fromLatin1("port:%1").arg(port.number()) :
-                                            QStringLiteral("port:%qml_port%"), block);
+    return qmlDebugCommandLineArguments(services, QString("port:%1").arg(port.number()), block);
 }
 
 static inline QString qmlDebugNativeArguments(QmlDebugServicesPreset services, bool block = true)
@@ -83,17 +83,6 @@ static inline QString qmlDebugLocalArguments(QmlDebugServicesPreset services, co
                                              bool block = true)
 {
     return qmlDebugCommandLineArguments(services, QLatin1String("file:") + socket, block);
-}
-
-static inline QString qmlDebugArguments(QmlDebugServicesPreset services, const QUrl &serverUrl,
-                                             bool block = true)
-{
-    if (serverUrl.scheme() == "socket")
-        return qmlDebugCommandLineArguments(services, "file:" + serverUrl.path(), block);
-    else
-        return qmlDebugCommandLineArguments(services, serverUrl.port() != -1 ?
-                                            QString("port:%1").arg(serverUrl.port()) :
-                                            "port:%qml_port%", block);
 }
 
 } // namespace QmlDebug

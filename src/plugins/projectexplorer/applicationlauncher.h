@@ -61,6 +61,7 @@ public:
     void stop();
     bool isRunning() const;
     Utils::ProcessHandle applicationPID() const;
+    bool isRemoteRunning() const;
 
     QString errorString() const;
     QProcess::ProcessError processError() const;
@@ -69,7 +70,7 @@ public:
     static QString msgWinCannotRetrieveDebuggingOutput();
 
 signals:
-    void appendMessage(const QString &message, Utils::OutputFormat format);
+    void appendMessage(const QString &message, Utils::OutputFormat format, bool appendNewLine = true);
     void processStarted();
     void processExited(int exitCode, QProcess::ExitStatus);
     void error(QProcess::ProcessError error);

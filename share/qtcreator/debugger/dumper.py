@@ -2245,6 +2245,11 @@ class DumperBase:
                         p += 1
 
     def extractPointer(self, value):
+        try:
+            if value.type.code == TypeCodeArray:
+                return value.address()
+        except:
+            pass
         code = 'I' if self.ptrSize() == 4 else 'Q'
         return self.extractSomething(value, code, 8 * self.ptrSize())
 
@@ -2714,6 +2719,8 @@ class DumperBase:
 
         if typeobj.code == TypeCodePointer:
             self.putFormattedPointer(value)
+            if value.summary and self.useFancy:
+                self.putValue(self.hexencode(value.summary), 'utf8:1:0')
             return
 
         self.putAddress(value.address())
@@ -2741,7 +2748,10 @@ class DumperBase:
             #warn('BITFIELD VALUE: %s %d %s' % (value.name, value.lvalue, typeName))
             self.putNumChild(0)
             if typeobj.ltarget and typeobj.ltarget.code == TypeCodeEnum:
-                self.putValue(typeobj.ltarget.typeData().enumDisplay(value.lvalue, value.laddress))
+                if hasattr(typeobj.ltarget.typeData(), 'enumHexDisplay'):
+                    self.putValue(typeobj.ltarget.typeData().enumHexDisplay(value.lvalue, value.laddress))
+                else:
+                    self.putValue(typeobj.ltarget.typeData().enumDisplay(value.lvalue, value.laddress))
             else:
                 self.putValue(value.lvalue)
             self.putType(typeName)
@@ -2797,6 +2807,12 @@ class DumperBase:
         #warn('INAMES: %s ' % self.expandedINames)
         #warn('EXPANDED: %s ' % (self.currentIName in self.expandedINames))
         self.putType(typeName)
+
+        if value.summary is not None and self.useFancy:
+            self.putValue(self.hexencode(value.summary), 'utf8:1:0')
+            self.putNumChild(0)
+            return
+
         self.putNumChild(1)
         self.putEmptyValue()
         #warn('STRUCT GUTS: %s  ADDRESS: 0x%x ' % (value.name, value.address()))
@@ -2858,6 +2874,7 @@ class DumperBase:
             self.laddress = None    # Own address.
             self.lIsInScope = True
             self.ldisplay = None
+            self.summary = None     # Always hexencoded UTF-8.
             self.lbitpos = None
             self.lbitsize = None
             self.targetValue = None # For references.
@@ -2873,6 +2890,7 @@ class DumperBase:
             val.laddress = self.laddress
             val.lIsInScope = self.lIsInScope
             val.ldisplay = self.ldisplay
+            val.summary = self.summary
             val.lbitpos = self.lbitpos
             val.lbitsize = self.lbitsize
             val.targetValue = self.targetValue
@@ -2898,9 +2916,11 @@ class DumperBase:
                     % (self.name, self.type.name, self.lbitsize, self.lbitpos,
                        self.dumper.hexencode(self.ldata), addr)
 
-        def display(self):
+        def display(self, useHex = 1):
             if self.type.code == TypeCodeEnum:
                 intval = self.integer()
+                if useHex and hasattr(self.type.typeData(), 'enumHexDisplay'):
+                    return self.type.typeData().enumHexDisplay(intval, self.laddress)
                 return self.type.typeData().enumDisplay(intval, self.laddress)
             simple = self.value()
             if simple is not None:
@@ -3188,6 +3208,7 @@ class DumperBase:
                 return self.detypedef().dereference()
             val = self.dumper.Value(self.dumper)
             if self.type.code == TypeCodeReference:
+                val.summary = self.summary
                 if self.nativeValue is None:
                     val.laddress = self.pointer()
                     if val.laddress is None and self.laddress is not None:

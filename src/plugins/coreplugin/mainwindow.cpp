@@ -109,7 +109,7 @@ MainWindow::MainWindow() :
     m_coreImpl(new ICore(this)),
     m_lowPrioAdditionalContexts(Constants::C_GLOBAL),
     m_settingsDatabase(new SettingsDatabase(QFileInfo(PluginManager::settings()->fileName()).path(),
-                                            QLatin1String("QtCreator"),
+                                            QLatin1String(Constants::IDE_CASED_ID),
                                             this)),
     m_progressManager(new ProgressManagerPrivate),
     m_jsExpander(new JsExpander),
@@ -130,10 +130,10 @@ MainWindow::MainWindow() :
 
     HistoryCompleter::setSettings(PluginManager::settings());
 
-    setWindowTitle(tr("Qt Creator"));
+    setWindowTitle(Constants::IDE_DISPLAY_NAME);
     if (HostOsInfo::isLinuxHost())
         QApplication::setWindowIcon(Icons::QTCREATORLOGO_BIG.icon());
-    QCoreApplication::setApplicationName(QLatin1String("QtCreator"));
+    QCoreApplication::setApplicationName(QLatin1String(Constants::IDE_CASED_ID));
     QCoreApplication::setApplicationVersion(QLatin1String(Constants::IDE_VERSION_LONG));
     QCoreApplication::setOrganizationName(QLatin1String(Constants::IDE_SETTINGSVARIANT_STR));
     QString baseName = QApplication::style()->objectName();
@@ -183,7 +183,6 @@ MainWindow::MainWindow() :
     setCentralWidget(m_modeStack);
 
     m_progressManager->progressView()->setParent(this);
-    m_progressManager->progressView()->setReferenceWidget(m_modeStack->statusBar());
 
     connect(qApp, &QApplication::focusChanged, this, &MainWindow::updateFocusWidget);
 
@@ -341,8 +340,8 @@ void MainWindow::extensionsInitialized()
     m_statusBarManager->extensionsInitalized();
     OutputPaneManager::instance()->init();
     m_vcsManager->extensionsInitialized();
-    m_leftNavigationWidget->setFactories(PluginManager::getObjects<INavigationWidgetFactory>());
-    m_rightNavigationWidget->setFactories(PluginManager::getObjects<INavigationWidgetFactory>());
+    m_leftNavigationWidget->setFactories(INavigationWidgetFactory::allNavigationFactories());
+    m_rightNavigationWidget->setFactories(INavigationWidgetFactory::allNavigationFactories());
 
     readSettings();
     updateContext();
@@ -429,6 +428,7 @@ void MainWindow::registerDefaultContainers()
     filemenu->appendGroup(Constants::G_FILE_OPEN);
     filemenu->appendGroup(Constants::G_FILE_PROJECT);
     filemenu->appendGroup(Constants::G_FILE_SAVE);
+    filemenu->appendGroup(Constants::G_FILE_EXPORT);
     filemenu->appendGroup(Constants::G_FILE_CLOSE);
     filemenu->appendGroup(Constants::G_FILE_PRINT);
     filemenu->appendGroup(Constants::G_FILE_OTHER);
@@ -483,6 +483,7 @@ void MainWindow::registerDefaultActions()
 
     // File menu separators
     mfile->addSeparator(Constants::G_FILE_SAVE);
+    mfile->addSeparator(Constants::G_FILE_EXPORT);
     mfile->addSeparator(Constants::G_FILE_PRINT);
     mfile->addSeparator(Constants::G_FILE_CLOSE);
     mfile->addSeparator(Constants::G_FILE_OTHER);
@@ -505,7 +506,7 @@ void MainWindow::registerDefaultActions()
     cmd = ActionManager::registerAction(m_newAction, Constants::NEW);
     cmd->setDefaultKeySequence(QKeySequence::New);
     mfile->addAction(cmd, Constants::G_FILE_NEW);
-    connect(m_newAction, &QAction::triggered, this, [this]() {
+    connect(m_newAction, &QAction::triggered, this, []() {
         if (!ICore::isNewItemDialogRunning()) {
             ICore::showNewItemDialog(tr("New File or Project", "Title of dialog"),
                                      IWizardFactory::allWizardFactories(), QString());
@@ -638,6 +639,30 @@ void MainWindow::registerDefaultActions()
     medit->addAction(cmd, Constants::G_EDIT_OTHER);
     tmpaction->setEnabled(false);
 
+    // Zoom In Action
+    icon = QIcon::hasThemeIcon("zoom-in") ? QIcon::fromTheme("zoom-in")
+                                          : Utils::Icons::ZOOMIN_TOOLBAR.icon();
+    tmpaction = new QAction(icon, tr("Zoom In"), this);
+    cmd = ActionManager::registerAction(tmpaction, Constants::ZOOM_IN);
+    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl++")));
+    tmpaction->setEnabled(false);
+
+    // Zoom Out Action
+    icon = QIcon::hasThemeIcon("zoom-out") ? QIcon::fromTheme("zoom-out")
+                                           : Utils::Icons::ZOOMOUT_TOOLBAR.icon();
+    tmpaction = new QAction(icon, tr("Zoom Out"), this);
+    cmd = ActionManager::registerAction(tmpaction, Constants::ZOOM_OUT);
+    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+-")));
+    tmpaction->setEnabled(false);
+
+    // Zoom Reset Action
+    icon = QIcon::hasThemeIcon("zoom-original") ? QIcon::fromTheme("zoom-original")
+                                                : Utils::Icons::EYE_OPEN_TOOLBAR.icon();
+    tmpaction = new QAction(icon, tr("Original Size"), this);
+    cmd = ActionManager::registerAction(tmpaction, Constants::ZOOM_RESET);
+    cmd->setDefaultKeySequence(QKeySequence(Core::UseMacShortcuts ? tr("Meta+0") : tr("Ctrl+0")));
+    tmpaction->setEnabled(false);
+
     // Options Action
     mtools->appendGroup(Constants::G_TOOLS_OPTIONS);
     mtools->addSeparator(Constants::G_TOOLS_OPTIONS);
@@ -741,9 +766,9 @@ void MainWindow::registerDefaultActions()
     // About IDE Action
     icon = QIcon::fromTheme(QLatin1String("help-about"));
     if (HostOsInfo::isMacHost())
-        tmpaction = new QAction(icon, tr("About &Qt Creator"), this); // it's convention not to add dots to the about menu
+        tmpaction = new QAction(icon, tr("About &%1").arg(Constants::IDE_DISPLAY_NAME), this); // it's convention not to add dots to the about menu
     else
-        tmpaction = new QAction(icon, tr("About &Qt Creator..."), this);
+        tmpaction = new QAction(icon, tr("About &%1...").arg(Constants::IDE_DISPLAY_NAME), this);
     tmpaction->setMenuRole(QAction::AboutRole);
     cmd = ActionManager::registerAction(tmpaction, Constants::ABOUT_QTCREATOR);
     mhelp->addAction(cmd, Constants::G_HELP_ABOUT);
@@ -808,7 +833,7 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames,
                                  ICore::OpenFilesFlags flags,
                                  const QString &workingDirectory)
 {
-    QList<IDocumentFactory*> documentFactories = PluginManager::getObjects<IDocumentFactory>();
+    const QList<IDocumentFactory*> documentFactories = IDocumentFactory::allDocumentFactories();
     IDocument *res = nullptr;
 
     foreach (const QString &fileName, fileNames) {

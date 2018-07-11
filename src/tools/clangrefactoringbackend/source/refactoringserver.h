@@ -29,10 +29,12 @@
 
 #include <refactoringserverinterface.h>
 
-#include <QTimer>
-#include <stringcache.h>
+#include <ipcclientprovider.h>
+#include <filepathcachinginterface.h>
 
 #include <utils/smallstring.h>
+
+#include <QTimer>
 
 #include <future>
 #include <mutex>
@@ -41,21 +43,26 @@
 namespace ClangBackEnd {
 
 class SourceRangesForQueryMessage;
+class SymbolIndexingInterface;
 
 namespace V2 {
 class FileContainer;
 }
 
-class RefactoringServer : public RefactoringServerInterface
+class RefactoringServer : public RefactoringServerInterface,
+                          public IpcClientProvider<RefactoringClientInterface>
 {
     using Future = std::future<SourceRangesForQueryMessage>;
 public:
-    RefactoringServer();
+    RefactoringServer(SymbolIndexingInterface &symbolIndexing,
+                      FilePathCachingInterface &filePathCache);
 
     void end() override;
     void requestSourceLocationsForRenamingMessage(RequestSourceLocationsForRenamingMessage &&message) override;
     void requestSourceRangesAndDiagnosticsForQueryMessage(RequestSourceRangesAndDiagnosticsForQueryMessage &&message) override;
     void requestSourceRangesForQueryMessage(RequestSourceRangesForQueryMessage &&message) override;
+    void updatePchProjectParts(UpdatePchProjectPartsMessage &&message) override;
+    void removePchProjectParts(RemovePchProjectPartsMessage &&message) override;
     void cancel() override;
 
     bool isCancelingJobs() const;
@@ -73,9 +80,10 @@ private:
                                                           Utils::SmallString &&query);
 
 private:
-    StringCache<Utils::PathString, std::mutex> m_filePathCache;
     ClangQueryGatherer m_gatherer;
     QTimer m_pollTimer;
+    SymbolIndexingInterface &m_symbolIndexing;
+    FilePathCachingInterface &m_filePathCache;
 };
 
 } // namespace ClangBackEnd

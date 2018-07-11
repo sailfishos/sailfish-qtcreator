@@ -23,11 +23,12 @@
 **
 ****************************************************************************/
 
-#include "locator.h"
 #include "locatorwidget.h"
+
+#include "ilocatorfilter.h"
+#include "locator.h"
 #include "locatorconstants.h"
 #include "locatorsearchutils.h"
-#include "ilocatorfilter.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
@@ -84,9 +85,9 @@ public:
         ColumnCount
     };
 
-    LocatorModel(QObject *parent = 0)
+    LocatorModel(QObject *parent = nullptr)
         : QAbstractListModel(parent)
-        , mBackgroundColor(Utils::creatorTheme()->color(Utils::Theme::TextColorHighlightBackground).name())
+        , mBackgroundColor(Utils::creatorTheme()->color(Utils::Theme::TextColorHighlightBackground))
     {}
 
     void clear();
@@ -113,7 +114,7 @@ public:
 class CompletionList : public Utils::TreeView
 {
 public:
-    CompletionList(QWidget *parent = 0);
+    CompletionList(QWidget *parent = nullptr);
 
     void setModel(QAbstractItemModel *model);
 
@@ -193,7 +194,7 @@ QVariant LocatorModel::data(const QModelIndex &index, int role) const
             return QVariant(mEntries.at(index.row()).displayName);
         else
             return QVariant(mEntries.at(index.row()).displayName
-                            + QLatin1String("\n\n") + mEntries.at(index.row()).extraInfo);
+                            + "\n\n" + mEntries.at(index.row()).extraInfo);
         break;
     case Qt::DecorationRole:
         if (index.column() == DisplayNameColumn) {
@@ -217,7 +218,8 @@ QVariant LocatorModel::data(const QModelIndex &index, int role) const
                                                                  : ExtraInfoColumn;
         if (highlightColumn == index.column()) {
             const bool startIndexRole = role == int(HighlightingItemRole::StartColumn);
-            return startIndexRole ? entry.highlightInfo.startIndex : entry.highlightInfo.length;
+            return startIndexRole ? QVariant::fromValue(entry.highlightInfo.starts)
+                                  : QVariant::fromValue(entry.highlightInfo.lengths);
         }
         break;
     }
@@ -340,8 +342,11 @@ bool LocatorPopup::event(QEvent *event)
 {
     if (event->type() == QEvent::ParentChange)
         updateWindow();
-    // completion list resizes after first items are shown --> LayoutRequest
-    else if (event->type() == QEvent::Show || event->type() == QEvent::LayoutRequest)
+    else if (event->type() == QEvent::Show)
+        // make sure the popup has correct position before it becomes visible
+        updateGeometry();
+    else if (event->type() == QEvent::LayoutRequest)
+        // completion list resizes after first items are shown --> LayoutRequest
         QTimer::singleShot(0, this, &LocatorPopup::updateGeometry);
     return QWidget::event(event);
 }
@@ -538,9 +543,9 @@ LocatorWidget::LocatorWidget(Locator *locator) :
     layout->setMargin(0);
     layout->addWidget(m_fileLineEdit);
 
-    const QPixmap pixmap = Utils::Icons::MAGNIFIER.pixmap();
+    const QIcon icon = Utils::Icons::MAGNIFIER.icon();
     m_fileLineEdit->setFiltering(true);
-    m_fileLineEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
+    m_fileLineEdit->setButtonIcon(Utils::FancyLineEdit::Left, icon);
     m_fileLineEdit->setButtonToolTip(Utils::FancyLineEdit::Left, tr("Options"));
     m_fileLineEdit->setFocusPolicy(Qt::ClickFocus);
     m_fileLineEdit->setButtonVisible(Utils::FancyLineEdit::Left, true);
@@ -572,7 +577,7 @@ LocatorWidget::LocatorWidget(Locator *locator) :
     m_showPopupTimer.setSingleShot(true);
     connect(&m_showPopupTimer, &QTimer::timeout, this, &LocatorWidget::showPopupNow);
 
-    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Small,
+    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicatorSize::Small,
                                                        m_fileLineEdit);
     m_progressIndicator->raise();
     m_progressIndicator->hide();
@@ -751,7 +756,7 @@ QList<ILocatorFilter *> LocatorWidget::filtersFor(const QString &text, QString &
     if (whiteSpace >= 0) {
         const QString prefix = text.mid(firstNonSpace, whiteSpace - firstNonSpace).toLower();
         QList<ILocatorFilter *> prefixFilters;
-        foreach (ILocatorFilter *filter, filters) {
+        for (ILocatorFilter *filter : filters) {
             if (prefix == filter->shortcutString()) {
                 searchText = text.mid(whiteSpace).trimmed();
                 prefixFilters << filter;
@@ -797,7 +802,7 @@ void LocatorWidget::updateCompletionList(const QString &text)
     QString searchText;
     const QList<ILocatorFilter *> filters = filtersFor(text, searchText);
 
-    foreach (ILocatorFilter *filter, filters)
+    for (ILocatorFilter *filter : filters)
         filter->prepareSearch(searchText);
     QFuture<LocatorFilterEntry> future = Utils::runAsync(&runSearch, filters, searchText);
     m_entriesWatcher->setFuture(future);

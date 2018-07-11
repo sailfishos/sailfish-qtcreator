@@ -25,9 +25,13 @@
 
 #include "clangdiagnosticconfigswidget.h"
 #include "ui_clangdiagnosticconfigswidget.h"
+#include "ui_clangbasechecks.h"
+#include "ui_clazychecks.h"
+#include "ui_tidychecks.h"
 
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QDebug>
 #include <QInputDialog>
@@ -44,6 +48,7 @@ ClangDiagnosticConfigsWidget::ClangDiagnosticConfigsWidget(
     , m_diagnosticConfigsModel(diagnosticConfigsModel)
 {
     m_ui->setupUi(this);
+    setupTabs();
 
     connectConfigChooserCurrentIndex();
     connect(m_ui->copyButton, &QPushButton::clicked,
@@ -95,7 +100,7 @@ void ClangDiagnosticConfigsWidget::onCopyButtonClicked()
         emit customConfigsChanged(customConfigs());
 
         syncConfigChooserToModel(customConfig.id());
-        m_ui->diagnosticOptionsTextEdit->setFocus();
+        m_clangBaseChecks->diagnosticOptionsTextEdit->setFocus();
     }
 }
 
@@ -107,18 +112,97 @@ void ClangDiagnosticConfigsWidget::onRemoveButtonClicked()
     syncConfigChooserToModel();
 }
 
+void ClangDiagnosticConfigsWidget::onClangTidyItemChanged(QListWidgetItem *item)
+{
+    const QString prefix = item->text();
+    ClangDiagnosticConfig config = currentConfig();
+    QString checks = config.clangTidyChecks();
+    item->checkState() == Qt::Checked
+            ? checks.append(',' + prefix)
+            : checks.remove(',' + prefix);
+    config.setClangTidyChecks(checks);
+    updateConfig(config);
+}
+
+void ClangDiagnosticConfigsWidget::onClazyRadioButtonChanged(bool checked)
+{
+    if (!checked)
+        return;
+
+    QString checks;
+    if (m_clazyChecks->clazyRadioDisabled->isChecked())
+        checks = QString();
+    else if (m_clazyChecks->clazyRadioLevel0->isChecked())
+        checks = "level0";
+    else if (m_clazyChecks->clazyRadioLevel1->isChecked())
+        checks = "level1";
+    else if (m_clazyChecks->clazyRadioLevel2->isChecked())
+        checks = "level2";
+    else if (m_clazyChecks->clazyRadioLevel3->isChecked())
+        checks = "level3";
+
+    ClangDiagnosticConfig config = currentConfig();
+    config.setClazyChecks(checks);
+    updateConfig(config);
+}
+
+static bool isAcceptedWarningOption(const QString &option)
+{
+    return option == "-w"
+        || option == "-pedantic"
+        || option == "-pedantic-errors";
+}
+
+// Reference:
+// https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
+// https://clang.llvm.org/docs/DiagnosticsReference.html
+static bool isValidOption(const QString &option)
+{
+    if (option == "-Werror")
+        return false; // Avoid errors due to unknown or misspelled warnings.
+    return option.startsWith("-W") || isAcceptedWarningOption(option);
+}
+
+static QString validateDiagnosticOptions(const QStringList &options)
+{
+    // This is handy for testing, allow disabling validation.
+    if (qEnvironmentVariableIntValue("QTC_CLANG_NO_DIAGNOSTIC_CHECK"))
+        return QString();
+
+    for (const QString &option : options) {
+        if (!isValidOption(option))
+            return ClangDiagnosticConfigsWidget::tr("Option \"%1\" is invalid.").arg(option);
+    }
+
+    return QString();
+}
+
+static QStringList normalizeDiagnosticInputOptions(const QString &options)
+{
+    return options.simplified().split(QLatin1Char(' '), QString::SkipEmptyParts);
+}
+
 void ClangDiagnosticConfigsWidget::onDiagnosticOptionsEdited()
 {
-    const QString diagnosticOptions
-            = m_ui->diagnosticOptionsTextEdit->document()->toPlainText().trimmed();
-    const QStringList updatedCommandLine
-            = diagnosticOptions.trimmed().split(QLatin1Char(' '), QString::SkipEmptyParts);
+    // Clean up input
+    const QString diagnosticOptions = m_clangBaseChecks->diagnosticOptionsTextEdit->document()
+                                          ->toPlainText();
+    const QStringList normalizedOptions = normalizeDiagnosticInputOptions(diagnosticOptions);
 
+    // Validate
+    const QString errorMessage = validateDiagnosticOptions(normalizedOptions);
+    updateValidityWidgets(errorMessage);
+    if (!errorMessage.isEmpty()) {
+        // Remember the entered options in case the user will switch back.
+        m_notAcceptedOptions.insert(currentConfigId(), diagnosticOptions);
+        return;
+    }
+    m_notAcceptedOptions.remove(currentConfigId());
+
+    // Commit valid changes
     ClangDiagnosticConfig updatedConfig = currentConfig();
-    updatedConfig.setCommandLineWarnings(updatedCommandLine);
-
-    m_diagnosticConfigsModel.appendOrUpdate(updatedConfig);
-    emit customConfigsChanged(customConfigs());
+    updatedConfig.setClangOptions(normalizedOptions);
+    updateConfig(updatedConfig);
 }
 
 void ClangDiagnosticConfigsWidget::syncWidgetsToModel(const Core::Id &configToSelect)
@@ -166,10 +250,72 @@ void ClangDiagnosticConfigsWidget::syncOtherWidgetsToComboBox()
     // Update main button row
     m_ui->removeButton->setEnabled(!config.isReadOnly());
 
-    // Update child widgets
-    const QString commandLineWarnings = config.commandLineWarnings().join(QLatin1Char(' '));
-    setDiagnosticOptions(commandLineWarnings);
-    m_ui->diagnosticOptionsTextEdit->setReadOnly(config.isReadOnly());
+    // Update Text Edit
+    const QString options = m_notAcceptedOptions.contains(config.id())
+            ? m_notAcceptedOptions.value(config.id())
+            : config.clangOptions().join(QLatin1Char(' '));
+    setDiagnosticOptions(options);
+    m_clangBaseChecksWidget->setEnabled(!config.isReadOnly());
+
+    if (config.isReadOnly()) {
+        m_ui->infoIcon->setPixmap(Utils::Icons::INFO.pixmap());
+        m_ui->infoLabel->setText(tr("Copy this configuration to customize it."));
+        m_ui->infoLabel->setStyleSheet(QString());
+    }
+
+    syncClangTidyWidgets(config);
+    syncClazyWidgets(config);
+}
+
+void ClangDiagnosticConfigsWidget::syncClangTidyWidgets(const ClangDiagnosticConfig &config)
+{
+    disconnectClangTidyItemChanged();
+
+    const QString tidyChecks = config.clangTidyChecks();
+    for (int row = 0; row < m_tidyChecks->checksList->count(); ++row) {
+        QListWidgetItem *item = m_tidyChecks->checksList->item(row);
+
+        Qt::ItemFlags flags = item->flags();
+        flags |= Qt::ItemIsUserCheckable;
+        if (config.isReadOnly())
+            flags &= ~Qt::ItemIsEnabled;
+        else
+            flags |= Qt::ItemIsEnabled;
+        item->setFlags(flags);
+
+        if (tidyChecks.indexOf(item->text()) != -1)
+            item->setCheckState(Qt::Checked);
+        else
+            item->setCheckState(Qt::Unchecked);
+    }
+
+    connectClangTidyItemChanged();
+}
+
+void ClangDiagnosticConfigsWidget::syncClazyWidgets(const ClangDiagnosticConfig &config)
+{
+    const QString clazyChecks = config.clazyChecks();
+
+    QRadioButton *button = m_clazyChecks->clazyRadioDisabled;
+    if (clazyChecks.isEmpty())
+        button = m_clazyChecks->clazyRadioDisabled;
+    else if (clazyChecks == "level0")
+        button = m_clazyChecks->clazyRadioLevel0;
+    else if (clazyChecks == "level1")
+        button = m_clazyChecks->clazyRadioLevel1;
+    else if (clazyChecks == "level2")
+        button = m_clazyChecks->clazyRadioLevel2;
+    else if (clazyChecks == "level3")
+        button = m_clazyChecks->clazyRadioLevel3;
+
+    button->setChecked(true);
+    m_clazyChecksWidget->setEnabled(!config.isReadOnly());
+}
+
+void ClangDiagnosticConfigsWidget::updateConfig(const ClangDiagnosticConfig &config)
+{
+    m_diagnosticConfigsModel.appendOrUpdate(config);
+    emit customConfigsChanged(customConfigs());
 }
 
 bool ClangDiagnosticConfigsWidget::isConfigChooserEmpty() const
@@ -184,11 +330,54 @@ const ClangDiagnosticConfig &ClangDiagnosticConfigsWidget::currentConfig() const
 
 void ClangDiagnosticConfigsWidget::setDiagnosticOptions(const QString &options)
 {
-    if (options != m_ui->diagnosticOptionsTextEdit->document()->toPlainText()) {
+    if (options != m_clangBaseChecks->diagnosticOptionsTextEdit->document()->toPlainText()) {
         disconnectDiagnosticOptionsChanged();
-        m_ui->diagnosticOptionsTextEdit->document()->setPlainText(options);
+        m_clangBaseChecks->diagnosticOptionsTextEdit->document()->setPlainText(options);
         connectDiagnosticOptionsChanged();
     }
+
+    const QString errorMessage
+            = validateDiagnosticOptions(normalizeDiagnosticInputOptions(options));
+    updateValidityWidgets(errorMessage);
+}
+
+void ClangDiagnosticConfigsWidget::updateValidityWidgets(const QString &errorMessage)
+{
+    QString validationResult;
+    const Utils::Icon *icon = nullptr;
+    QString styleSheet;
+    if (errorMessage.isEmpty()) {
+        icon = &Utils::Icons::INFO;
+        validationResult = tr("Configuration passes sanity checks.");
+    } else {
+        icon = &Utils::Icons::CRITICAL;
+        validationResult = tr("%1").arg(errorMessage);
+        styleSheet = "color: red;";
+    }
+
+    m_ui->infoIcon->setPixmap(icon->pixmap());
+    m_ui->infoLabel->setText(validationResult);
+    m_ui->infoLabel->setStyleSheet(styleSheet);
+}
+
+void ClangDiagnosticConfigsWidget::connectClangTidyItemChanged()
+{
+    connect(m_tidyChecks->checksList, &QListWidget::itemChanged,
+            this, &ClangDiagnosticConfigsWidget::onClangTidyItemChanged);
+}
+
+void ClangDiagnosticConfigsWidget::disconnectClangTidyItemChanged()
+{
+    disconnect(m_tidyChecks->checksList, &QListWidget::itemChanged,
+               this, &ClangDiagnosticConfigsWidget::onClangTidyItemChanged);
+}
+
+void ClangDiagnosticConfigsWidget::connectClazyRadioButtonClicked(QRadioButton *button)
+{
+    connect(button,
+            &QRadioButton::clicked,
+            this,
+            &ClangDiagnosticConfigsWidget::onClazyRadioButtonChanged);
 }
 
 void ClangDiagnosticConfigsWidget::connectConfigChooserCurrentIndex()
@@ -209,14 +398,18 @@ void ClangDiagnosticConfigsWidget::disconnectConfigChooserCurrentIndex()
 
 void ClangDiagnosticConfigsWidget::connectDiagnosticOptionsChanged()
 {
-    connect(m_ui->diagnosticOptionsTextEdit->document(), &QTextDocument::contentsChanged,
-               this, &ClangDiagnosticConfigsWidget::onDiagnosticOptionsEdited);
+    connect(m_clangBaseChecks->diagnosticOptionsTextEdit->document(),
+            &QTextDocument::contentsChanged,
+            this,
+            &ClangDiagnosticConfigsWidget::onDiagnosticOptionsEdited);
 }
 
 void ClangDiagnosticConfigsWidget::disconnectDiagnosticOptionsChanged()
 {
-    disconnect(m_ui->diagnosticOptionsTextEdit->document(), &QTextDocument::contentsChanged,
-               this, &ClangDiagnosticConfigsWidget::onDiagnosticOptionsEdited);
+    disconnect(m_clangBaseChecks->diagnosticOptionsTextEdit->document(),
+               &QTextDocument::contentsChanged,
+               this,
+               &ClangDiagnosticConfigsWidget::onDiagnosticOptionsEdited);
 }
 
 Core::Id ClangDiagnosticConfigsWidget::currentConfigId() const
@@ -239,6 +432,33 @@ void ClangDiagnosticConfigsWidget::refresh(
 {
     m_diagnosticConfigsModel = diagnosticConfigsModel;
     syncWidgetsToModel(configToSelect);
+}
+
+void ClangDiagnosticConfigsWidget::setupTabs()
+{
+    m_clangBaseChecks.reset(new CppTools::Ui::ClangBaseChecks);
+    m_clangBaseChecksWidget = new QWidget();
+    m_clangBaseChecks->setupUi(m_clangBaseChecksWidget);
+
+    m_clazyChecks.reset(new CppTools::Ui::ClazyChecks);
+    m_clazyChecksWidget = new QWidget();
+    m_clazyChecks->setupUi(m_clazyChecksWidget);
+
+    connectClazyRadioButtonClicked(m_clazyChecks->clazyRadioDisabled);
+    connectClazyRadioButtonClicked(m_clazyChecks->clazyRadioLevel0);
+    connectClazyRadioButtonClicked(m_clazyChecks->clazyRadioLevel1);
+    connectClazyRadioButtonClicked(m_clazyChecks->clazyRadioLevel2);
+    connectClazyRadioButtonClicked(m_clazyChecks->clazyRadioLevel3);
+
+    m_tidyChecks.reset(new CppTools::Ui::TidyChecks);
+    m_tidyChecksWidget = new QWidget();
+    m_tidyChecks->setupUi(m_tidyChecksWidget);
+    connectClangTidyItemChanged();
+
+    m_ui->tabWidget->addTab(m_clangBaseChecksWidget, tr("Clang"));
+    m_ui->tabWidget->addTab(m_tidyChecksWidget, tr("Clang-Tidy"));
+    m_ui->tabWidget->addTab(m_clazyChecksWidget, tr("Clazy"));
+    m_ui->tabWidget->setCurrentIndex(0);
 }
 
 } // CppTools namespace

@@ -3,13 +3,18 @@ include(../../shared/clang/clang_installation.pri)
 
 include(../../shared/clang/clang_defines.pri)
 
+requires(!isEmpty(LLVM_VERSION))
+
 SOURCES += \
     clangactivationsequencecontextprocessor.cpp \
     clangactivationsequenceprocessor.cpp \
     clangassistproposal.cpp \
     clangassistproposalitem.cpp \
     clangassistproposalmodel.cpp \
-    clangbackendipcintegration.cpp \
+    clangbackendcommunicator.cpp \
+    clangbackendlogging.cpp \
+    clangbackendreceiver.cpp \
+    clangbackendsender.cpp \
     clangcodemodelplugin.cpp \
     clangcompletionassistinterface.cpp \
     clangcompletionassistprocessor.cpp \
@@ -23,12 +28,15 @@ SOURCES += \
     clangeditordocumentprocessor.cpp \
     clangfixitoperation.cpp \
     clangfixitoperationsextractor.cpp \
+    clangfollowsymbol.cpp \
     clangfunctionhintmodel.cpp \
-    clanghighlightingmarksreporter.cpp \
+    clanghoverhandler.cpp \
+    clangtokeninfosreporter.cpp \
     clangmodelmanagersupport.cpp \
     clangpreprocessorassistproposalitem.cpp \
     clangprojectsettings.cpp \
     clangprojectsettingswidget.cpp \
+    clangrefactoringengine.cpp \
     clangtextmark.cpp \
     clanguiheaderondiskmanager.cpp \
     clangutils.cpp
@@ -39,7 +47,10 @@ HEADERS += \
     clangassistproposal.h \
     clangassistproposalitem.h \
     clangassistproposalmodel.h \
-    clangbackendipcintegration.h \
+    clangbackendcommunicator.h \
+    clangbackendlogging.h \
+    clangbackendreceiver.h \
+    clangbackendsender.h \
     clangcodemodelplugin.h \
     clangcompletionassistinterface.h \
     clangcompletionassistprocessor.h \
@@ -54,21 +65,21 @@ HEADERS += \
     clangeditordocumentprocessor.h \
     clangfixitoperation.h \
     clangfixitoperationsextractor.h \
+    clangfollowsymbol.h \
     clangfunctionhintmodel.h \
-    clanghighlightingmarksreporter.h \
+    clanghoverhandler.h \
     clangisdiagnosticrelatedtolocation.h \
     clangmodelmanagersupport.h \
     clangpreprocessorassistproposalitem.h \
     clangprojectsettings.h \
     clangprojectsettingswidget.h \
+    clangrefactoringengine.h \
     clangtextmark.h \
     clanguiheaderondiskmanager.h \
-    clangutils.h
+    clangutils.h \
+    clangtokeninfosreporter.h
 
 FORMS += clangprojectsettingswidget.ui
-
-RESOURCES += \
-    clangcodemodel.qrc
 
 DISTFILES += \
     README \

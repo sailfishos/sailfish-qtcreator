@@ -29,7 +29,7 @@
 #include <clangcodemodelservermessages.h>
 
 #include <diagnosticcontainer.h>
-#include <highlightingmarkcontainer.h>
+#include <tokeninfocontainer.h>
 #include <messageenvelop.h>
 #include <readmessageblock.h>
 #include <writemessageblock.h>
@@ -119,7 +119,7 @@ TEST_F(ReadAndWriteMessageBlock, ReadThreeMessagesAndTestCount)
     writeMessageBlock.write(ClangBackEnd::EndMessage());
     buffer.seek(0);
 
-    ASSERT_EQ(3, readMessageBlock.readAll().count());
+    ASSERT_THAT(readMessageBlock.readAll(), SizeIs(3));
 }
 
 TEST_F(ReadAndWriteMessageBlock, CompareEndMessage)
@@ -174,12 +174,12 @@ TEST_F(ReadAndWriteMessageBlock, CompareDocumentAnnotationsChangedMessage)
                                                 {},
                                                 {});
 
-    ClangBackEnd::HighlightingMarkContainer highlightingMark(1, 1, 1, ClangBackEnd::HighlightingType::Keyword);
+    ClangBackEnd::TokenInfoContainer tokenInfo(1, 1, 1, ClangBackEnd::HighlightingType::Keyword);
 
     CompareMessage(ClangBackEnd::DocumentAnnotationsChangedMessage(fileContainer,
                                                                    {diagnostic},
                                                                    {},
-                                                                   {highlightingMark},
+                                                                   {tokenInfo},
                                                                    QVector<ClangBackEnd::SourceRangeContainer>()));
 }
 
@@ -201,6 +201,11 @@ TEST_F(ReadAndWriteMessageBlock, CompareRequestDocumentAnnotations)
 TEST_F(ReadAndWriteMessageBlock, CompareRequestReferences)
 {
     CompareMessage(ClangBackEnd::RequestReferencesMessage{fileContainer, 13, 37});
+}
+
+TEST_F(ReadAndWriteMessageBlock, CompareRequestFollowSymbol)
+{
+    CompareMessage(ClangBackEnd::RequestFollowSymbolMessage{fileContainer, 13, 37});
 }
 
 TEST_F(ReadAndWriteMessageBlock, CompareReferences)

@@ -88,6 +88,10 @@ void ValgrindToolRunner::start()
 
     connect(&m_runner, &ValgrindRunner::processOutputReceived,
             this, &ValgrindToolRunner::receiveProcessOutput);
+    connect(&m_runner, &ValgrindRunner::valgrindExecuted,
+            this, [this](const QString &commandLine) {
+        appendMessage(commandLine, NormalMessageFormat);
+    });
     connect(&m_runner, &ValgrindRunner::processErrorReceived,
             this, &ValgrindToolRunner::receiveProcessError);
     connect(&m_runner, &ValgrindRunner::finished,
@@ -177,7 +181,7 @@ void ValgrindToolRunner::receiveProcessError(const QString &message, QProcess::P
     } else if (m_isStopping && error == QProcess::Crashed) { // process gets killed on stop
         appendMessage(tr("Process terminated."), ErrorMessageFormat);
     } else {
-        appendMessage(QString("** %1 **\n").arg(message), ErrorMessageFormat);
+        appendMessage(tr("Process exited with return value %1\n").arg(message), NormalMessageFormat);
     }
 
     if (m_isStopping)

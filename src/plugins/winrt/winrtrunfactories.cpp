@@ -28,11 +28,11 @@
 #include "winrtruncontrol.h"
 #include "winrtconstants.h"
 
-#include <projectexplorer/kit.h>
-#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
+
 #include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 
 using namespace ProjectExplorer;
 using QmakeProjectManager::QmakeProject;
@@ -41,85 +41,25 @@ using QmakeProjectManager::QmakeProFile;
 namespace WinRt {
 namespace Internal {
 
-static bool isKitCompatible(Kit *kit)
-{
-    IDevice::ConstPtr device = DeviceKitInformation::device(kit);
-    if (!device)
-        return false;
-    if (device->type() == Constants::WINRT_DEVICE_TYPE_LOCAL
-            || device->type() == Constants::WINRT_DEVICE_TYPE_PHONE
-            || device->type() == Constants::WINRT_DEVICE_TYPE_EMULATOR)
-        return true;
-    return false;
-}
-
 WinRtRunConfigurationFactory::WinRtRunConfigurationFactory()
 {
+    registerRunConfiguration<WinRtRunConfiguration>(Constants::WINRT_RC_PREFIX);
+    addSupportedProjectType(QmakeProjectManager::Constants::QMAKEPROJECT_ID);
+    setSupportedTargetDeviceTypes({Constants::WINRT_DEVICE_TYPE_LOCAL,
+                                   Constants::WINRT_DEVICE_TYPE_PHONE,
+                                   Constants::WINRT_DEVICE_TYPE_EMULATOR});
 }
 
-QList<Core::Id> WinRtRunConfigurationFactory::availableCreationIds(Target *parent,
-                                                                   CreationMode mode) const
+QList<BuildTargetInfo>
+    WinRtRunConfigurationFactory::availableBuildTargets(Target *parent, CreationMode mode) const
 {
-    if (!canHandle(parent))
-        return QList<Core::Id>();
-
-    QmakeProject *project = static_cast<QmakeProject *>(parent->project());
-    return project->creationIds(Constants::WINRT_RC_PREFIX, mode);
-}
-
-QString WinRtRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    Q_UNUSED(id);
-    return tr("Run App Package");
-}
-
-bool WinRtRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
-{
-    Q_UNUSED(id);
-    return canHandle(parent);
-}
-
-RunConfiguration *WinRtRunConfigurationFactory::doCreate(Target *parent, Core::Id id)
-{
-    return new WinRtRunConfiguration(parent, id);
-}
-
-bool WinRtRunConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
-{
-    if (!canHandle(parent))
-        return false;
-
-    return idFromMap(map).toString().startsWith(QLatin1String(Constants::WINRT_RC_PREFIX));
-}
-
-RunConfiguration *WinRtRunConfigurationFactory::doRestore(Target *parent, const QVariantMap &map)
-{
-    RunConfiguration *config = new WinRtRunConfiguration(parent, idFromMap(map));
-    config->fromMap(map);
-    return config;
-}
-
-bool WinRtRunConfigurationFactory::canClone(Target *parent, RunConfiguration *product) const
-{
-    Q_UNUSED(parent);
-    Q_UNUSED(product);
-    return false;
-}
-
-RunConfiguration *WinRtRunConfigurationFactory::clone(Target *parent, RunConfiguration *product)
-{
-    Q_UNUSED(parent);
-    Q_UNUSED(product);
-    return 0;
-}
-
-bool WinRtRunConfigurationFactory::canHandle(Target *parent) const
-{
-    if (!isKitCompatible(parent->kit()))
-        return false;
-    if (!qobject_cast<QmakeProject *>(parent->project()))
-        return false;
-    return true;
+    QmakeProject *project = qobject_cast<QmakeProject *>(parent->project());
+    QTC_ASSERT(project, return {});
+    const QList<BuildTargetInfo> buildTargets = project->buildTargets(mode);
+    return Utils::transform(buildTargets, [](BuildTargetInfo bti) {
+        bti.displayName = tr("Run App Package");
+        return bti;
+    });
 }
 
 } // namespace Internal

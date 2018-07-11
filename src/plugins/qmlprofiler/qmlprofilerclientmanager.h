@@ -28,6 +28,7 @@
 #include "qmlprofilertraceclient.h"
 
 #include <qmldebug/qmldebugclient.h>
+#include <qmldebug/qmldebugconnectionmanager.h>
 
 #include <QPointer>
 #include <QTimer>
@@ -39,62 +40,28 @@ class QmlProfilerStateManager;
 
 namespace Internal {
 
-class QmlProfilerClientManager : public QObject
+class QmlProfilerClientManager : public QmlDebug::QmlDebugConnectionManager
 {
     Q_OBJECT
 public:
     explicit QmlProfilerClientManager(QObject *parent = 0);
-    ~QmlProfilerClientManager();
-
     void setProfilerStateManager(QmlProfilerStateManager *profilerState);
-    void setServerUrl(const QUrl &server);
-    void clearConnection();
-
-    void clearBufferedData();
-    bool isConnected() const;
-
-    void setModelManager(QmlProfilerModelManager *m);
+    void clearEvents();
+    void setModelManager(QmlProfilerModelManager *modelManager);
     void setFlushInterval(quint32 flushInterval);
-
-    void setRetryParams(int interval, int maxAttempts);
-    void retryConnect();
-    void connectToTcpServer();
-    void startLocalServer();
-
+    void clearBufferedData();
     void stopRecording();
 
-signals:
-    void connectionOpened();
-    void connectionFailed();
-    void connectionClosed();
+protected:
+    void createClients() override;
+    void destroyClients() override;
+    void logState(const QString &message) override;
 
 private:
+    QPointer<QmlProfilerTraceClient> m_clientPlugin;
     QPointer<QmlProfilerStateManager> m_profilerState;
     QPointer<QmlProfilerModelManager> m_modelManager;
-    QScopedPointer<QmlDebug::QmlDebugConnection> m_connection;
-    QScopedPointer<QmlProfilerTraceClient> m_qmlclientplugin;
-
-    QTimer m_connectionTimer;
-
-    QUrl m_server;
     quint32 m_flushInterval = 0;
-
-    int m_retryInterval = 200;
-    int m_maximumRetries = 50;
-    int m_numRetries = 0;
-
-    void disconnectClient();
-    void stopConnectionTimer();
-
-    void qmlDebugConnectionOpened();
-    void qmlDebugConnectionClosed();
-    void qmlDebugConnectionFailed();
-
-    void logState(const QString &);
-
-    void createConnection();
-    void connectClientSignals();
-    void disconnectClientSignals();
 };
 
 } // namespace Internal

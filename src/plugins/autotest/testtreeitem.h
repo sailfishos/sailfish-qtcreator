@@ -28,6 +28,7 @@
 #include <utils/treemodel.h>
 
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QMetaType>
 
@@ -39,6 +40,8 @@ namespace {
         EnabledRole
     };
 }
+
+namespace CppTools { class CppModelManager; }
 
 namespace Autotest {
 namespace Internal {
@@ -52,6 +55,7 @@ public:
     enum Type
     {
         Root,
+        GroupNode,
         TestCase,
         TestFunctionOrSet,
         TestDataTag,
@@ -85,12 +89,12 @@ public:
     unsigned column() const { return m_column; }
     QString proFile() const { return m_proFile; }
     void setProFile(const QString &proFile) { m_proFile = proFile; }
-    virtual void setChecked(const Qt::CheckState checked);
     virtual Qt::CheckState checked() const;
     Type type() const { return m_type; }
     void markForRemoval(bool mark);
     void markForRemovalRecursively(bool mark);
     virtual void markForRemovalRecursively(const QString &filePath);
+    virtual bool removeOnSweepIfEmpty() const { return m_type == GroupNode; }
     bool markedForRemoval() const { return m_status == MarkedForRemoval; }
     bool newlyAdded() const { return m_status == NewlyAdded; }
     TestTreeItem *parentItem() const;
@@ -109,14 +113,16 @@ public:
     virtual bool lessThan(const TestTreeItem *other, SortMode mode) const;
     virtual TestTreeItem *find(const TestParseResult *result) = 0;
     virtual bool modify(const TestParseResult *result) = 0;
-
+    virtual bool isGroupNodeFor(const TestTreeItem *other) const;
+    virtual TestTreeItem *createParentGroupNode() const = 0;
     virtual QSet<QString> internalTargets() const;
 protected:
     typedef std::function<bool(const TestTreeItem *)> CompareFunction;
     TestTreeItem *findChildBy(CompareFunction compare) const;
+    static QSet<QString> dependingInternalTargets(CppTools::CppModelManager *cppMM,
+                                                  const QString &file);
 
 private:
-    void revalidateCheckState();
     bool modifyFilePath(const QString &filePath);
     bool modifyName(const QString &name);
 
@@ -136,7 +142,7 @@ private:
     QString m_proFile;
     Status m_status = NewlyAdded;
 
-    friend class TestTreeModel; // grant access to (private) revalidateCheckState()
+    friend class TestTreeModel; // grant access to (protected) findChildBy()
 };
 
 class TestCodeLocationAndType

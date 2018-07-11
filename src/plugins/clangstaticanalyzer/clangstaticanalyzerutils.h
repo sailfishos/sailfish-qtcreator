@@ -41,7 +41,7 @@ namespace Internal {
 
 bool isClangExecutableUsable(const QString &filePath, QString *errorMessage = 0);
 
-QString clangExecutableFromSettings(Core::Id toolchainType, bool *isValid);
+QString clangExecutableFromSettings(bool *isValid);
 
 QString createFullLocationString(const Debugger::DiagnosticLocation &location);
 
@@ -59,12 +59,12 @@ public:
 
     bool isSupportedVersion() const
     {
-        return majorVersion() == 3 && minorVersion() == 9;
+        return majorVersion() == 5 && minorVersion() == 0;
     }
 
     static QString supportedVersionAsString()
     {
-        return QLatin1String("3.9");
+        return QLatin1String("5.0");
     }
 };
 

@@ -526,6 +526,13 @@ void TextDocumentLayout::setFolded(const QTextBlock &block, bool folded)
         userData(block)->setFolded(true);
     else if (TextBlockUserData *userData = testUserData(block))
         userData->setFolded(false);
+    else
+        return;
+
+    TextDocumentLayout *layout = qobject_cast<TextDocumentLayout *>(
+                block.document()->documentLayout());
+    if (layout)
+        emit layout->foldChanged(block.blockNumber(), folded);
 }
 
 void TextDocumentLayout::requestExtraAreaUpdate()
@@ -625,6 +632,14 @@ void TextDocumentLayout::updateMarksBlock(const QTextBlock &block)
     if (const TextBlockUserData *userData = testUserData(block))
         foreach (TextMark *mrk, userData->marks())
             mrk->updateBlock(block);
+}
+
+QRectF TextDocumentLayout::blockBoundingRect(const QTextBlock &block) const
+{
+    QRectF boundingRect = QPlainTextDocumentLayout::blockBoundingRect(block);
+    if (TextBlockUserData *userData = testUserData(block))
+        boundingRect.adjust(0, 0, 0, userData->additionalAnnotationHeight());
+    return boundingRect;
 }
 
 TextDocumentLayout::FoldValidator::FoldValidator()

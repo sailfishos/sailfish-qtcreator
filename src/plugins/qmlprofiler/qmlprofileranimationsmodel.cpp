@@ -85,7 +85,6 @@ void QmlProfilerAnimationsModel::loadEvent(const QmlEvent &event, const QmlEvent
     lastEvent.typeId = event.typeIndex();
     lastEvent.framerate = event.number<qint32>(0);
     lastEvent.animationcount = event.number<qint32>(1);
-    QTC_ASSERT(lastEvent.animationcount > 0, return);
 
     m_data.insert(insert(realStartTime, realEndTime - realStartTime, lastThread), lastEvent);
 
@@ -110,7 +109,7 @@ int QmlProfilerAnimationsModel::rowFromThreadId(int threadId) const
     return (threadId == GuiThread || m_maxGuiThreadAnimations == 0) ? 1 : 2;
 }
 
-int QmlProfilerAnimationsModel::rowMaxValue(int rowNumber) const
+qint64 QmlProfilerAnimationsModel::rowMaxValue(int rowNumber) const
 {
     switch (rowNumber) {
     case 1:

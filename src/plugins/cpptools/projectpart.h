@@ -31,6 +31,7 @@
 #include "projectpartheaderpath.h"
 
 #include <projectexplorer/projectexplorer_global.h>
+#include <projectexplorer/projectmacro.h>
 
 #include <coreplugin/id.h>
 
@@ -90,6 +91,12 @@ public:
         WordWidth64Bit,
     };
 
+    enum BuildTargetType {
+        Unknown,
+        Executable,
+        Library
+    };
+
     using Ptr = QSharedPointer<ProjectPart>;
 
 public:
@@ -118,7 +125,7 @@ public:
     QStringList precompiledHeaders;
     ProjectPartHeaderPaths headerPaths;
 
-    QByteArray projectDefines;
+    ProjectExplorer::Macros projectMacros;
 
     LanguageVersion languageVersion = LatestCxxVersion;
     LanguageExtensions languageExtensions = NoExtensions;
@@ -130,9 +137,11 @@ public:
 
     Core::Id toolchainType;
     bool isMsvc2015Toolchain = false;
-    QByteArray toolchainDefines;
+    ProjectExplorer::Macros toolChainMacros;
     ToolChainWordWidth toolChainWordWidth = WordWidth32Bit;
     QString toolChainTargetTriple;
+    QStringList extraCodeModelFlags;
+    BuildTargetType buildTargetType = Unknown;
 };
 
 } // namespace CppTools

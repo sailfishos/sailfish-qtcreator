@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>629</width>
-    <height>374</height>
+    <height>440</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,10 +30,10 @@
       <item>
        <widget class="QCheckBox" name="ignorePCHCheckBox">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When pre-compiled headers are not ignored, the parsing for code completion and semantic highlighting will process the pre-compiled header before processing any file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When precompiled headers are not ignored, the parsing for code completion and semantic highlighting will process the precompiled header before processing any file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="text">
-         <string>Ignore pre-compiled headers</string>
+         <string>Ignore precompiled headers</string>
         </property>
        </widget>
       </item>
@@ -99,27 +99,20 @@
    </item>
    <item>
     <widget class="QGroupBox" name="clangSettingsGroupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="title">
-      <string>Clang Code Model Warnings</string>
+      <string>Clang Diagnostics</string>
      </property>
      <property name="checkable">
       <bool>false</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3"/>
     </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>151</height>
-      </size>
-     </property>
-    </spacer>
    </item>
   </layout>
  </widget>

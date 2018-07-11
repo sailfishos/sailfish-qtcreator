@@ -37,16 +37,14 @@
 
 #include <QDir>
 #include <QFileInfo>
-#include <QVariantMap>
 
 using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace Nim {
 
-NimRunConfiguration::NimRunConfiguration(Target *parent, Core::Id id)
-    : RunConfiguration(parent, id)
-    , m_buildConfiguration(nullptr)
+NimRunConfiguration::NimRunConfiguration(Target *target)
+    : RunConfiguration(target, Constants::C_NIMRUNCONFIGURATION_ID)
     , m_workingDirectoryAspect(new WorkingDirectoryAspect(this, Nim::Constants::C_NIMRUNCONFIGURATION_WORKINGDIRECTORYASPECT_ID))
     , m_argumentAspect(new ArgumentsAspect(this, Nim::Constants::C_NIMRUNCONFIGURATION_ARGUMENTASPECT_ID))
     , m_terminalAspect(new TerminalAspect(this, Nim::Constants::C_NIMRUNCONFIGURATION_TERMINALASPECT_ID))
@@ -62,9 +60,8 @@ NimRunConfiguration::NimRunConfiguration(Target *parent, Core::Id id)
     setDefaultDisplayName(tr(Constants::C_NIMRUNCONFIGURATION_DEFAULT_DISPLAY));
 
     // Connect target signals
-    connect(this->target(), &Target::activeBuildConfigurationChanged,
+    connect(target, &Target::activeBuildConfigurationChanged,
             this, &NimRunConfiguration::updateConfiguration);
-
     updateConfiguration();
 }
 
@@ -84,7 +81,6 @@ Runnable NimRunConfiguration::runnable() const
     return result;
 }
 
-
 QVariantMap NimRunConfiguration::toMap() const
 {
     auto result = RunConfiguration::toMap();
@@ -101,27 +97,15 @@ bool NimRunConfiguration::fromMap(const QVariantMap &map)
     return true;
 }
 
-void NimRunConfiguration::setExecutable(const QString &executable)
-{
-    if (m_executable == executable)
-        return;
-    m_executable = executable;
-    emit executableChanged(executable);
-}
-
-void NimRunConfiguration::setWorkingDirectory(const QString &workingDirectory)
-{
-    m_workingDirectoryAspect->setDefaultWorkingDirectory(FileName::fromString(workingDirectory));
-}
-
 void NimRunConfiguration::updateConfiguration()
 {
     auto buildConfiguration = qobject_cast<NimBuildConfiguration *>(activeBuildConfiguration());
     QTC_ASSERT(buildConfiguration, return);
     setActiveBuildConfiguration(buildConfiguration);
     const QFileInfo outFileInfo = buildConfiguration->outFilePath().toFileInfo();
-    setExecutable(outFileInfo.absoluteFilePath());
-    setWorkingDirectory(outFileInfo.absoluteDir().absolutePath());
+    m_executable = outFileInfo.absoluteFilePath();
+    const QString workingDirectory = outFileInfo.absoluteDir().absolutePath();
+    m_workingDirectoryAspect->setDefaultWorkingDirectory(FileName::fromString(workingDirectory));
 }
 
 void NimRunConfiguration::setActiveBuildConfiguration(NimBuildConfiguration *activeBuildConfiguration)

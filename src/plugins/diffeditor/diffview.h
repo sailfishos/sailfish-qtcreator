@@ -37,7 +37,6 @@ namespace TextEditor { class TextEditorWidget; }
 
 namespace DiffEditor {
 
-class DiffEditorController;
 class FileData;
 
 namespace Internal {
@@ -51,7 +50,7 @@ class IDiffView : public QObject
     Q_OBJECT
 
 public:
-    explicit IDiffView(QObject *parent = 0);
+    explicit IDiffView(QObject *parent = nullptr);
 
     QIcon icon() const;
     QString toolTip() const;
@@ -83,7 +82,7 @@ private:
     QIcon m_icon;
     QString m_toolTip;
     Core::Id m_id;
-    bool m_supportsSync;
+    bool m_supportsSync = false;
     QString m_syncToolTip;
 };
 

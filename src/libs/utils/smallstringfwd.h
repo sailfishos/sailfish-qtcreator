@@ -25,13 +25,19 @@
 
 #pragma once
 
-namespace Utils {
-
 using uint = unsigned int;
 
+namespace Utils {
+
+class SmallStringView;
 template <uint Size>
 class BasicSmallString;
 using SmallString = BasicSmallString<31>;
 using PathString = BasicSmallString<190>;
+
+inline
+int compare(SmallStringView first, SmallStringView second) noexcept;
+inline
+int reverseCompare(SmallStringView first, SmallStringView second) noexcept;
 
 } // namespace Utils

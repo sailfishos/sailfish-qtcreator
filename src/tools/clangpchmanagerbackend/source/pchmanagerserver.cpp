@@ -36,12 +36,10 @@
 
 namespace ClangBackEnd {
 
-PchManagerServer::PchManagerServer(StringCache<Utils::PathString> &filePathCache,
-                                   ClangPathWatcherInterface &fileSystemWatcher,
+PchManagerServer::PchManagerServer(ClangPathWatcherInterface &fileSystemWatcher,
                                    PchCreatorInterface &pchCreator,
                                    ProjectPartsInterface &projectParts)
-    : m_filePathCache(filePathCache),
-      m_fileSystemWatcher(fileSystemWatcher),
+    : m_fileSystemWatcher(fileSystemWatcher),
       m_pchCreator(pchCreator),
       m_projectParts(projectParts)
 {
@@ -75,6 +73,10 @@ void PchManagerServer::pathsWithIdsChanged(const Utils::SmallStringVector &ids)
     m_pchCreator.generatePchs(m_projectParts.projects(ids));
 
     m_fileSystemWatcher.updateIdPaths(m_pchCreator.takeProjectsIncludes());
+}
+
+void PchManagerServer::pathsChanged(const FilePathIds &/*filePathIds*/)
+{
 }
 
 void PchManagerServer::taskFinished(TaskFinishStatus status, const ProjectPartPch &projectPartPch)

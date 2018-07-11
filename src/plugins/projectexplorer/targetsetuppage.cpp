@@ -36,12 +36,14 @@
 #include "targetsetupwidget.h"
 
 #include <coreplugin/icore.h>
-#include <extensionsystem/pluginmanager.h>
+
 #include <projectexplorer/ipotentialkit.h>
+
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 #include <utils/wizard.h>
 #include <utils/algorithm.h>
+#include <utils/fancylineedit.h>
 
 #include <QFileInfo>
 #include <QLabel>
@@ -51,7 +53,29 @@
 #include <QCheckBox>
 
 namespace ProjectExplorer {
+
+static QList<IPotentialKit *> g_potentialKits;
+
+IPotentialKit::IPotentialKit()
+{
+    g_potentialKits.append(this);
+}
+
+IPotentialKit::~IPotentialKit()
+{
+    g_potentialKits.removeOne(this);
+}
+
 namespace Internal {
+static Utils::FileName importDirectory(const QString &projectPath)
+{
+    // Setup import widget:
+    auto path = Utils::FileName::fromString(projectPath);
+    path = path.parentDir(); // base dir
+    path = path.parentDir(); // parent dir
+
+    return path;
+}
 
 class TargetSetupPageUi
 {
@@ -64,6 +88,7 @@ public:
     QLabel *noValidKitLabel;
     QLabel *optionHintLabel;
     QCheckBox *allKitsCheckBox;
+    Utils::FancyLineEdit *kitFilterLineEdit;
 
     void setupUi(TargetSetupPage *q)
     {
@@ -93,6 +118,10 @@ public:
         allKitsCheckBox->setTristate(true);
         allKitsCheckBox->setText(TargetSetupPage::tr("Select all kits"));
 
+        kitFilterLineEdit = new Utils::FancyLineEdit(setupTargetPage);
+        kitFilterLineEdit->setFiltering(true);
+        kitFilterLineEdit->setPlaceholderText(TargetSetupPage::tr("Type to filter kits by name..."));
+
         centralWidget = new QWidget(setupTargetPage);
         QSizePolicy policy(QSizePolicy::Preferred, QSizePolicy::Fixed);
         policy.setHorizontalStretch(0);
@@ -115,8 +144,9 @@ public:
 
         auto verticalLayout_2 = new QVBoxLayout(setupTargetPage);
         verticalLayout_2->addWidget(headerLabel);
-        verticalLayout_2->addWidget(noValidKitLabel);
         verticalLayout_2->addWidget(descriptionLabel);
+        verticalLayout_2->addWidget(kitFilterLineEdit);
+        verticalLayout_2->addWidget(noValidKitLabel);
         verticalLayout_2->addWidget(optionHintLabel);
         verticalLayout_2->addWidget(allKitsCheckBox);
         verticalLayout_2->addWidget(centralWidget);
@@ -131,6 +161,9 @@ public:
 
         QObject::connect(allKitsCheckBox, &QAbstractButton::clicked,
                          q, &TargetSetupPage::changeAllKitsSelections);
+
+        QObject::connect(kitFilterLineEdit, &Utils::FancyLineEdit::filterChanged,
+                         q, &TargetSetupPage::kitFilterChanged);
     }
 };
 
@@ -164,9 +197,7 @@ TargetSetupPage::TargetSetupPage(QWidget *parent) :
 
     setTitle(tr("Kit Selection"));
 
-    QList<IPotentialKit *> potentialKits =
-            ExtensionSystem::PluginManager::instance()->getObjects<IPotentialKit>();
-    foreach (IPotentialKit *pk, potentialKits)
+    for (IPotentialKit *pk : g_potentialKits)
         if (pk->isEnabled())
             m_potentialWidgets.append(pk->createWidget(this));
 
@@ -246,20 +277,16 @@ bool TargetSetupPage::isComplete() const
 void TargetSetupPage::setupWidgets()
 {
     // Known profiles:
-    QList<Kit *> kitList;
-    kitList = KitManager::kits(m_requiredPredicate);
-    kitList = KitManager::sortKits(kitList);
+    auto kitList = sortedKitList(m_requiredPredicate);
 
     foreach (Kit *k, kitList)
         addWidget(k);
 
     // Setup import widget:
-    Utils::FileName path = Utils::FileName::fromString(m_projectPath);
-    path = path.parentDir(); // base dir
-    path = path.parentDir(); // parent dir
-    m_importWidget->setCurrentDirectory(path);
+    m_importWidget->setCurrentDirectory(Internal::importDirectory(m_projectPath));
 
     updateVisibility();
+    selectAtLeastOneKit();
 }
 
 void TargetSetupPage::reset()
@@ -274,7 +301,7 @@ void TargetSetupPage::reset()
     }
 
     m_widgets.clear();
-    m_firstWidget = 0;
+    m_firstWidget = nullptr;
 
     m_ui->allKitsCheckBox->setChecked(false);
 }
@@ -285,7 +312,7 @@ void TargetSetupPage::setProjectPath(const QString &path)
     if (!m_projectPath.isEmpty()) {
         QFileInfo fileInfo(QDir::cleanPath(path));
         QStringList subDirsList = fileInfo.absolutePath().split('/');
-        m_ui->headerLabel->setText(tr("Qt Creator can use the following kits for project <b>%1</b>:",
+        m_ui->headerLabel->setText(tr("The following kits can be used for project <b>%1</b>:",
                                       "%1: Project name").arg(subDirsList.last()));
     }
     m_ui->headerLabel->setVisible(!m_projectPath.isEmpty());
@@ -302,10 +329,11 @@ void TargetSetupPage::setProjectImporter(ProjectImporter *importer)
     if (importer == m_importer)
         return;
 
+    reset(); // Reset before changing the importer!
+
     m_importer = importer;
     m_importWidget->setVisible(m_importer);
 
-    reset();
     setupWidgets();
 }
 
@@ -343,11 +371,11 @@ void TargetSetupPage::handleKitAddition(Kit *k)
 
 void TargetSetupPage::handleKitRemoval(Kit *k)
 {
-    if (m_importer)
-        m_importer->cleanupKit(k);
-
     if (isUpdating())
         return;
+
+    if (m_importer)
+        m_importer->cleanupKit(k);
 
     removeWidget(k);
     updateVisibility();
@@ -392,7 +420,7 @@ void TargetSetupPage::selectAtLeastOneKit()
             widget->setKitSelected(true);
             kitSelectionChanged();
         }
-        m_firstWidget = 0;
+        m_firstWidget = nullptr;
     }
     emit completeChanged(); // Is this necessary?
 }
@@ -432,6 +460,35 @@ void TargetSetupPage::kitSelectionChanged()
         m_ui->allKitsCheckBox->setCheckState(Qt::Checked);
     else
         m_ui->allKitsCheckBox->setCheckState(Qt::Unchecked);
+}
+
+QList<Kit *> TargetSetupPage::sortedKitList(const Kit::Predicate &predicate)
+{
+    const auto kitList = KitManager::kits(predicate);
+
+    return KitManager::sortKits(kitList);
+}
+
+void TargetSetupPage::kitFilterChanged(const QString &filterText)
+{
+    // Reset current shown kits
+    reset();
+
+    if (filterText.isEmpty()) {
+        setupWidgets();
+    } else {
+        const auto kitList = sortedKitList(m_requiredPredicate);
+
+        foreach (Kit *kit, kitList) {
+            if (kit->displayName().contains(filterText, Qt::CaseInsensitive))
+                addWidget(kit);
+        }
+
+        m_importWidget->setCurrentDirectory(Internal::importDirectory(m_projectPath));
+
+        updateVisibility();
+        selectAtLeastOneKit();
+    }
 }
 
 void TargetSetupPage::changeAllKitsSelections()
@@ -484,7 +541,7 @@ void TargetSetupPage::removeWidget(Kit *k)
     if (!widget)
         return;
     if (widget == m_firstWidget)
-        m_firstWidget = 0;
+        m_firstWidget = nullptr;
     widget->deleteLater();
     m_widgets.remove(k->id());
     kitSelectionChanged();
@@ -493,17 +550,17 @@ void TargetSetupPage::removeWidget(Kit *k)
 TargetSetupWidget *TargetSetupPage::addWidget(Kit *k)
 {
     if (!k || (m_requiredPredicate && !m_requiredPredicate(k)))
-        return 0;
+        return nullptr;
 
     IBuildConfigurationFactory *factory
             = IBuildConfigurationFactory::find(k, m_projectPath);
     if (!factory)
-        return 0;
+        return nullptr;
 
     QList<BuildInfo *> infoList = factory->availableSetups(k, m_projectPath);
     TargetSetupWidget *widget = infoList.isEmpty() ? nullptr : new TargetSetupWidget(k, m_projectPath, infoList);
     if (!widget)
-        return 0;
+        return nullptr;
 
     m_baseLayout->removeWidget(m_importWidget);
     foreach (QWidget *widget, m_potentialWidgets)
@@ -550,7 +607,7 @@ bool TargetSetupPage::setupProject(Project *project)
 
     toSetUp.clear();
 
-    Target *activeTarget = 0;
+    Target *activeTarget = nullptr;
     if (m_importer)
         activeTarget = m_importer->preferredTarget(project->targets());
     if (activeTarget)

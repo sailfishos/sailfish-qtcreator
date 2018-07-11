@@ -82,32 +82,12 @@ private:
     CustomExecutableConfigurationWidget *m_widget;
 };
 
-
-void CustomExecutableRunConfiguration::ctor()
-{
-    setDefaultDisplayName(defaultDisplayName());
-}
-
-CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *parent) :
-    RunConfiguration(parent, CUSTOM_EXECUTABLE_ID)
+CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *target)
+    : RunConfiguration(target, CUSTOM_EXECUTABLE_ID)
 {
     addExtraAspect(new LocalEnvironmentAspect(this, LocalEnvironmentAspect::BaseEnvironmentModifier()));
     addExtraAspect(new ArgumentsAspect(this, "ProjectExplorer.CustomExecutableRunConfiguration.Arguments"));
     addExtraAspect(new TerminalAspect(this, "ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal"));
-    if (parent->activeBuildConfiguration())
-        m_workingDirectory = Constants::DEFAULT_WORKING_DIR;
-    else
-        m_workingDirectory = Constants::DEFAULT_WORKING_DIR_ALTERNATE;
-    ctor();
-}
-
-CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *parent,
-                                                                   CustomExecutableRunConfiguration *source) :
-    RunConfiguration(parent, source),
-    m_executable(source->m_executable),
-    m_workingDirectory(source->m_workingDirectory)
-{
-    ctor();
 }
 
 // Note: Qt4Project deletes all empty customexecrunconfigs for which isConfigured() == false.
@@ -203,7 +183,7 @@ bool CustomExecutableRunConfiguration::validateExecutable(QString *executable, Q
     if (aspect)
         env = aspect->environment();
     const Utils::FileName exec = env.searchInPath(macroExpander()->expand(m_executable),
-                                                  QStringList(workingDirectory()));
+                                                  {Utils::FileName::fromString(workingDirectory())});
     if (exec.isEmpty()) {
         if (errorMessage)
             *errorMessage = tr("The executable\n%1\ncannot be found in the path.").
@@ -323,70 +303,10 @@ Abi CustomExecutableRunConfiguration::abi() const
 
 CustomExecutableRunConfigurationFactory::CustomExecutableRunConfigurationFactory(QObject *parent) :
     IRunConfigurationFactory(parent)
-{ setObjectName(QLatin1String("CustomExecutableRunConfigurationFactory")); }
-
-bool CustomExecutableRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
 {
-    if (!canHandle(parent))
-        return false;
-    return id == CUSTOM_EXECUTABLE_ID;
-}
-
-RunConfiguration *
-CustomExecutableRunConfigurationFactory::doCreate(Target *parent, Core::Id id)
-{
-    Q_UNUSED(id);
-    return new CustomExecutableRunConfiguration(parent);
-}
-
-bool CustomExecutableRunConfigurationFactory::canRestore(Target *parent,
-                                                         const QVariantMap &map) const
-{
-    if (!canHandle(parent))
-        return false;
-    Core::Id id(idFromMap(map));
-    return canCreate(parent, id);
-}
-
-RunConfiguration *
-CustomExecutableRunConfigurationFactory::doRestore(Target *parent, const QVariantMap &map)
-{
-    Q_UNUSED(map);
-    return new CustomExecutableRunConfiguration(parent);
-}
-
-bool CustomExecutableRunConfigurationFactory::canClone(Target *parent,
-                                                       RunConfiguration *source) const
-{
-    return canCreate(parent, source->id());
-}
-
-RunConfiguration *
-CustomExecutableRunConfigurationFactory::clone(Target *parent, RunConfiguration *source)
-{
-    if (!canClone(parent, source))
-        return 0;
-    return new CustomExecutableRunConfiguration(parent, static_cast<CustomExecutableRunConfiguration*>(source));
-}
-
-bool CustomExecutableRunConfigurationFactory::canHandle(Target *parent) const
-{
-    return parent->project()->supportsKit(parent->kit());
-}
-
-QList<Core::Id> CustomExecutableRunConfigurationFactory::availableCreationIds(Target *parent, CreationMode mode) const
-{
-    Q_UNUSED(mode)
-    if (!canHandle(parent))
-        return QList<Core::Id>();
-    return QList<Core::Id>() << Core::Id(CUSTOM_EXECUTABLE_ID);
-}
-
-QString CustomExecutableRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    if (id == CUSTOM_EXECUTABLE_ID)
-        return tr("Custom Executable");
-    return QString();
+    setObjectName("CustomExecutableRunConfigurationFactory");
+    registerRunConfiguration<CustomExecutableRunConfiguration>(CUSTOM_EXECUTABLE_ID);
+    addFixedBuildTarget(tr("Custom Executable"));
 }
 
 } // namespace ProjectExplorer

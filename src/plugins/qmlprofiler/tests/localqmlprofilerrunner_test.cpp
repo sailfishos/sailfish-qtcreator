@@ -28,6 +28,10 @@
 #include <debugger/analyzer/analyzermanager.h>
 #include <projectexplorer/runnables.h>
 #include <qmlprofiler/qmlprofilerruncontrol.h>
+#include <qmlprofiler/qmlprofilertool.h>
+
+#include <utils/url.h>
+#include <utils/temporaryfile.h>
 
 #include <QtTest>
 #include <QTcpServer>
@@ -41,6 +45,7 @@ LocalQmlProfilerRunnerTest::LocalQmlProfilerRunnerTest(QObject *parent) : QObjec
 
 void LocalQmlProfilerRunnerTest::testRunner()
 {
+    QmlProfilerTool tool(nullptr);
     QPointer<ProjectExplorer::RunControl> runControl;
     QPointer<LocalQmlProfilerSupport> profiler;
     ProjectExplorer::StandardRunnable debuggee;
@@ -56,12 +61,13 @@ void LocalQmlProfilerRunnerTest::testRunner()
     debuggee.environment = Utils::Environment::systemEnvironment();
 
     // should not be used anywhere but cannot be empty
+    serverUrl.setScheme(Utils::urlSocketScheme());
     serverUrl.setPath("invalid");
 
     runControl = new ProjectExplorer::RunControl(nullptr,
                                                  ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
     runControl->setRunnable(debuggee);
-    profiler = new LocalQmlProfilerSupport(runControl, serverUrl);
+    profiler = new LocalQmlProfilerSupport(&tool, runControl, serverUrl);
 
     auto connectRunner = [&]() {
         connect(runControl, &ProjectExplorer::RunControl::aboutToStart, this, [&]() {
@@ -92,8 +98,8 @@ void LocalQmlProfilerRunnerTest::testRunner()
 
     runControl->initiateStart();
 
-    QTRY_COMPARE_WITH_TIMEOUT(startCount, 1, 20000);
-    QTRY_VERIFY_WITH_TIMEOUT(!started, 20000);
+    QTRY_COMPARE_WITH_TIMEOUT(startCount, 1, 30000);
+    QTRY_VERIFY_WITH_TIMEOUT(!started, 30000);
     QCOMPARE(stopCount, 1);
     QCOMPARE(runCount, 0);
 
@@ -101,7 +107,7 @@ void LocalQmlProfilerRunnerTest::testRunner()
     QTRY_VERIFY(runControl.isNull());
     QVERIFY(profiler.isNull());
 
-    serverUrl = ProjectExplorer::urlFromLocalSocket();
+    serverUrl = Utils::urlFromLocalSocket();
     debuggee.executable = qApp->applicationFilePath();
 
     // comma is used to specify a test function. In this case, an invalid one.
@@ -109,12 +115,12 @@ void LocalQmlProfilerRunnerTest::testRunner()
     runControl = new ProjectExplorer::RunControl(nullptr,
                                                  ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
     runControl->setRunnable(debuggee);
-    profiler = new LocalQmlProfilerSupport(runControl, serverUrl);
+    profiler = new LocalQmlProfilerSupport(&tool, runControl, serverUrl);
     connectRunner();
     runControl->initiateStart();
 
-    QTRY_VERIFY_WITH_TIMEOUT(running, 20000);
-    QTRY_VERIFY_WITH_TIMEOUT(!running, 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(running, 30000);
+    QTRY_VERIFY_WITH_TIMEOUT(!running, 30000);
     QCOMPARE(startCount, 2);
     QCOMPARE(stopCount, 2);
     QCOMPARE(runCount, 1);
@@ -125,20 +131,45 @@ void LocalQmlProfilerRunnerTest::testRunner()
 
     debuggee.commandLineArguments.clear();
     serverUrl.clear();
-    serverUrl = ProjectExplorer::urlFromLocalHostAndFreePort();
+    serverUrl = Utils::urlFromLocalHostAndFreePort();
     runControl = new ProjectExplorer::RunControl(nullptr,
                                                  ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
     runControl->setRunnable(debuggee);
-    profiler = new LocalQmlProfilerSupport(runControl, serverUrl);
+    profiler = new LocalQmlProfilerSupport(&tool, runControl, serverUrl);
     connectRunner();
     runControl->initiateStart();
 
-    QTRY_VERIFY_WITH_TIMEOUT(running, 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(running, 30000);
     runControl->initiateStop();
-    QTRY_VERIFY_WITH_TIMEOUT(!running, 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(!running, 30000);
     QCOMPARE(startCount, 3);
     QCOMPARE(stopCount, 3);
     QCOMPARE(runCount, 2);
+
+    runControl->initiateFinish();
+    QTRY_VERIFY(runControl.isNull());
+    QVERIFY(profiler.isNull());
+
+    debuggee.commandLineArguments = QString("-test QmlProfiler,");
+    serverUrl.setScheme(Utils::urlSocketScheme());
+    {
+        Utils::TemporaryFile file("file with spaces");
+        if (file.open())
+            serverUrl.setPath(file.fileName());
+    }
+
+    runControl = new ProjectExplorer::RunControl(nullptr,
+                                                 ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
+    runControl->setRunnable(debuggee);
+    profiler = new LocalQmlProfilerSupport(&tool, runControl, serverUrl);
+    connectRunner();
+    runControl->initiateStart();
+
+    QTRY_VERIFY_WITH_TIMEOUT(running, 30000);
+    QTRY_VERIFY_WITH_TIMEOUT(!running, 30000);
+    QCOMPARE(startCount, 4);
+    QCOMPARE(stopCount, 4);
+    QCOMPARE(runCount, 3);
 
     runControl->initiateFinish();
     QTRY_VERIFY(runControl.isNull());
@@ -147,7 +178,7 @@ void LocalQmlProfilerRunnerTest::testRunner()
 
 void LocalQmlProfilerRunnerTest::testFindFreePort()
 {
-    QUrl serverUrl = ProjectExplorer::urlFromLocalHostAndFreePort();
+    QUrl serverUrl = Utils::urlFromLocalHostAndFreePort();
     QVERIFY(serverUrl.port() != -1);
     QVERIFY(!serverUrl.host().isEmpty());
     QTcpServer server;
@@ -156,7 +187,7 @@ void LocalQmlProfilerRunnerTest::testFindFreePort()
 
 void LocalQmlProfilerRunnerTest::testFindFreeSocket()
 {
-    QUrl serverUrl = ProjectExplorer::urlFromLocalSocket();
+    QUrl serverUrl = Utils::urlFromLocalSocket();
     QString socket = serverUrl.path();
     QVERIFY(!socket.isEmpty());
     QVERIFY(!QFile::exists(socket));

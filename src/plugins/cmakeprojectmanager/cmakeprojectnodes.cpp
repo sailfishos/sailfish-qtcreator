@@ -31,8 +31,6 @@
 
 #include <utils/algorithm.h>
 
-#include <QApplication>
-
 using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
 
@@ -42,6 +40,7 @@ CMakeInputsNode::CMakeInputsNode(const Utils::FileName &cmakeLists) :
     setPriority(Node::DefaultPriority - 10); // Bottom most!
     setDisplayName(QCoreApplication::translate("CMakeFilesProjectNode", "CMake Modules"));
     setIcon(QIcon(":/projectexplorer/images/session.png")); // TODO: Use a better icon!
+    setListInProject(false);
 }
 
 QByteArray CMakeInputsNode::generateId(const Utils::FileName &inputFile)
@@ -51,20 +50,15 @@ QByteArray CMakeInputsNode::generateId(const Utils::FileName &inputFile)
 
 bool CMakeInputsNode::showInSimpleTree() const
 {
-    return false;
+    return true;
 }
 
 CMakeListsNode::CMakeListsNode(const Utils::FileName &cmakeListPath) :
     ProjectExplorer::ProjectNode(cmakeListPath)
 {
-    static QIcon folderIcon;
-    if (folderIcon.isNull()) {
-        const QIcon overlayIcon(Constants::FILEOVERLAY_CMAKE);
-        QPixmap dirPixmap = QApplication::style()->standardIcon(QStyle::SP_DirIcon).pixmap(QSize(16, 16));
-
-        folderIcon.addPixmap(Core::FileIconProvider::overlayIcon(dirPixmap, overlayIcon));
-    }
+    static QIcon folderIcon = Core::FileIconProvider::directoryIcon(Constants::FILEOVERLAY_CMAKE);
     setIcon(folderIcon);
+    setListInProject(false);
 }
 
 bool CMakeListsNode::showInSimpleTree() const
@@ -77,6 +71,7 @@ CMakeProjectNode::CMakeProjectNode(const Utils::FileName &directory) :
 {
     setPriority(Node::DefaultProjectPriority + 1000);
     setIcon(QIcon(":/projectexplorer/images/projectexplorer.png")); // TODO: Use proper icon!
+    setListInProject(false);
 }
 
 bool CMakeProjectNode::showInSimpleTree() const
@@ -94,6 +89,7 @@ CMakeTargetNode::CMakeTargetNode(const Utils::FileName &directory, const QString
 {
     setPriority(Node::DefaultProjectPriority + 900);
     setIcon(QIcon(":/projectexplorer/images/build.png")); // TODO: Use proper icon!
+    setListInProject(false);
 }
 
 QByteArray CMakeTargetNode::generateId(const Utils::FileName &directory, const QString &target)
@@ -119,7 +115,7 @@ void CMakeTargetNode::setTargetInformation(const QList<Utils::FileName> &artifac
         m_tooltip += QCoreApplication::translate("CMakeTargetNode", "No build artifacts");
     } else {
         const QStringList tmp = Utils::transform(artifacts, &Utils::FileName::toUserOutput);
-        m_tooltip += QCoreApplication::translate("CMakeTargetNode", "Build artifacts:<br>")
+        m_tooltip += QCoreApplication::translate("CMakeTargetNode", "Build artifacts:") + "<br>"
                 + tmp.join("<br>");
     }
 }

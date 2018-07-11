@@ -34,6 +34,8 @@
 #include "documentmodel_p.h"
 #include "ieditor.h"
 
+#include <app/app_version.h>
+
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -46,6 +48,7 @@
 #include <coreplugin/editortoolbar.h>
 #include <coreplugin/fileutils.h>
 #include <coreplugin/findplaceholder.h>
+#include <coreplugin/find/searchresultitem.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/imode.h>
 #include <coreplugin/infobar.h>
@@ -183,17 +186,6 @@ static void setFocusToEditorViewAndUnmaximizePanes(EditorView *view)
     }
 }
 
-/* For something that has a 'QString id' (IEditorFactory
- * or IExternalEditor), find the one matching a id. */
-template <class EditorFactoryLike>
-EditorFactoryLike *findById(Id id)
-{
-    return ExtensionSystem::PluginManager::getObject<EditorFactoryLike>(
-        [&id](EditorFactoryLike *efl) {
-            return id == efl->id();
-        });
-}
-
 EditorManagerPrivate::EditorManagerPrivate(QObject *parent) :
     QObject(parent),
     m_revertToSavedAction(new QAction(EditorManager::tr("Revert to Saved"), this)),
@@ -248,6 +240,11 @@ void EditorManagerPrivate::init()
     DocumentModel::init();
     connect(ICore::instance(), &ICore::contextAboutToChange,
             this, &EditorManagerPrivate::handleContextChange);
+    connect(qApp, &QApplication::applicationStateChanged,
+            this, [](Qt::ApplicationState state) {
+                if (state == Qt::ApplicationActive)
+                    EditorManager::updateWindowTitles();
+            });
 
     const Context editManagerContext(Constants::C_EDITORMANAGER);
     // combined context for edit & design modes
@@ -380,7 +377,7 @@ void EditorManagerPrivate::init()
     cmd = ActionManager::registerAction(m_splitAction, Constants::SPLIT, editManagerContext);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+E,2") : tr("Ctrl+E,2")));
     mwindow->addAction(cmd, Constants::G_WINDOW_SPLIT);
-    connect(m_splitAction, &QAction::triggered, this, [this]() { split(Qt::Vertical); });
+    connect(m_splitAction, &QAction::triggered, this, []() { split(Qt::Vertical); });
 
     m_splitSideBySideAction = new QAction(Utils::Icons::SPLIT_VERTICAL.icon(),
                                           tr("Split Side by Side"), this);
@@ -394,7 +391,7 @@ void EditorManagerPrivate::init()
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+E,4") : tr("Ctrl+E,4")));
     mwindow->addAction(cmd, Constants::G_WINDOW_SPLIT);
     connect(m_splitNewWindowAction, &QAction::triggered,
-            this, [this]() { splitNewWindow(currentEditorView()); });
+            this, []() { splitNewWindow(currentEditorView()); });
 
     m_removeCurrentSplitAction = new QAction(tr("Remove Current Split"), this);
     cmd = ActionManager::registerAction(m_removeCurrentSplitAction, Constants::REMOVE_CURRENT_SPLIT, editManagerContext);
@@ -598,7 +595,9 @@ IEditor *EditorManagerPrivate::openEditor(EditorView *view, const QString &fileN
         return 0;
     }
     if (editorId.isValid()) {
-        if (IEditorFactory *factory = findById<IEditorFactory>(editorId)) {
+        IEditorFactory *factory = Utils::findOrDefault(IEditorFactory::allEditorFactories(),
+                                                       Utils::equal(&IEditorFactory::id, editorId));
+        if (factory) {
             factories.removeOne(factory);
             factories.push_front(factory);
         }
@@ -1131,7 +1130,9 @@ EditorManager::EditorFactoryList EditorManagerPrivate::findFactories(Id editorId
         factories = EditorManager::editorFactories(mimeType, false);
     } else {
         // Find by editor id
-        if (IEditorFactory *factory = findById<IEditorFactory>(editorId))
+        IEditorFactory *factory = Utils::findOrDefault(IEditorFactory::allEditorFactories(),
+                                                       Utils::equal(&IEditorFactory::id, editorId));
+        if (factory)
             factories.push_back(factory);
     }
     if (factories.empty()) {
@@ -1242,11 +1243,8 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
 {
     Q_ASSERT(view);
 
-    if (!editor) {
-        if (!d->m_currentEditor)
-            setCurrentEditor(0, (flags & EditorManager::IgnoreNavigationHistory));
-        return 0;
-    }
+    if (!editor)
+        return nullptr;
 
     editor = placeEditor(view, editor);
 
@@ -1758,7 +1756,7 @@ void EditorManagerPrivate::updateWindowTitleForDocument(IDocument *document, QWi
     if (!documentName.isEmpty())
         windowTitle.append(documentName);
 
-    QString filePath = document ? document->filePath().toFileInfo().absoluteFilePath()
+    const QString filePath = document ? document->filePath().toFileInfo().absoluteFilePath()
                               : QString();
     const QString windowTitleAddition = d->m_titleAdditionHandler
             ? d->m_titleAdditionHandler(filePath)
@@ -1789,7 +1787,7 @@ void EditorManagerPrivate::updateWindowTitleForDocument(IDocument *document, QWi
 
     if (!windowTitle.isEmpty())
         windowTitle.append(dashSep);
-    windowTitle.append(tr("Qt Creator"));
+    windowTitle.append(Core::Constants::IDE_DISPLAY_NAME);
     window->window()->setWindowTitle(windowTitle);
     window->window()->setWindowFilePath(filePath);
 
@@ -2172,7 +2170,7 @@ void EditorManagerPrivate::revertToSaved(IDocument *document)
         msgBox.button(QMessageBox::No)->setText(tr("Cancel"));
 
         QPushButton *diffButton = nullptr;
-        auto diffService = ExtensionSystem::PluginManager::getObject<DiffService>();
+        auto diffService = DiffService::instance();
         if (diffService)
             diffButton = msgBox.addButton(tr("Cancel && &Diff"), QMessageBox::RejectRole);
 
@@ -2601,7 +2599,7 @@ EditorManager::EditorFactoryList
     EditorManager::editorFactories(const Utils::MimeType &mimeType, bool bestMatchOnly)
 {
     EditorFactoryList rc;
-    const EditorFactoryList allFactories = ExtensionSystem::PluginManager::getObjects<IEditorFactory>();
+    const EditorFactoryList allFactories = IEditorFactory::allEditorFactories();
     mimeTypeFactoryLookup(mimeType, allFactories, bestMatchOnly, &rc);
     if (debugEditorManager)
         qDebug() << Q_FUNC_INFO << mimeType.name() << " returns " << rc;
@@ -2612,7 +2610,7 @@ EditorManager::ExternalEditorList
         EditorManager::externalEditors(const Utils::MimeType &mimeType, bool bestMatchOnly)
 {
     ExternalEditorList rc;
-    const ExternalEditorList allEditors = ExtensionSystem::PluginManager::getObjects<IExternalEditor>();
+    const ExternalEditorList allEditors = IExternalEditor::allExternalEditors();
     mimeTypeFactoryLookup(mimeType, allEditors, bestMatchOnly, &rc);
     if (debugEditorManager)
         qDebug() << Q_FUNC_INFO << mimeType.name() << " returns " << rc;
@@ -2637,6 +2635,17 @@ IEditor *EditorManager::openEditorAt(const QString &fileName, int line, int colu
 
     return EditorManagerPrivate::openEditorAt(EditorManagerPrivate::currentEditorView(),
                                               fileName, line, column, editorId, flags, newEditor);
+}
+
+void EditorManager::openEditorAtSearchResult(const SearchResultItem &item, OpenEditorFlags flags)
+{
+    if (item.path.empty()) {
+        openEditor(QDir::fromNativeSeparators(item.text), Id(), flags);
+        return;
+    }
+
+    openEditorAt(QDir::fromNativeSeparators(item.path.first()), item.mainRange.begin.line,
+                 item.mainRange.begin.column, Id(), flags);
 }
 
 EditorManager::FilePathInfo EditorManager::splitLineAndColumnNumber(const QString &fullFilePath)
@@ -2676,7 +2685,8 @@ bool EditorManager::isAutoSaveFile(const QString &fileName)
 
 bool EditorManager::openExternalEditor(const QString &fileName, Id editorId)
 {
-    IExternalEditor *ee = findById<IExternalEditor>(editorId);
+    IExternalEditor *ee = Utils::findOrDefault(IExternalEditor::allExternalEditors(),
+                                               Utils::equal(&IExternalEditor::id, editorId));
     if (!ee)
         return false;
     QString errorMessage;
@@ -2707,7 +2717,7 @@ void EditorManager::addCloseEditorListener(const std::function<bool (IEditor *)>
 QStringList EditorManager::getOpenFileNames()
 {
     QString selectedFilter;
-    const QString &fileFilters = Utils::allFiltersString(&selectedFilter);
+    const QString &fileFilters = DocumentManager::allDocumentFactoryFiltersString(&selectedFilter);
     return DocumentManager::getOpenFileNames(fileFilters, QString(), &selectedFilter);
 }
 

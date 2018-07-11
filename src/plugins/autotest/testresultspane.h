@@ -52,6 +52,7 @@ namespace Internal {
 
 class TestResultModel;
 class TestResultFilterModel;
+class TestResult;
 
 class ResultsTreeView : public Utils::TreeView
 {
@@ -107,11 +108,12 @@ private:
     void onTestRunStarted();
     void onTestRunFinished();
     void onScrollBarRangeChanged(int, int max);
-    void updateRunActions();
     void onCustomContextMenuRequested(const QPoint &pos);
-    void onCopyItemTriggered(const QModelIndex &idx);
+    const TestResult *getTestResult(const QModelIndex &idx);
+    void onCopyItemTriggered(const TestResult *result);
     void onCopyWholeTriggered();
     void onSaveWholeTriggered();
+    void onRunThisTestTriggered(TestRunMode runMode, const TestResult *result);
     void toggleOutputStyle();
     QString getWholeOutput(const QModelIndex &parent = QModelIndex());
 
@@ -130,7 +132,6 @@ private:
     QToolButton *m_outputToggleButton;
     QPlainTextEdit *m_textOutput;
     QMenu *m_filterMenu;
-    bool m_wasVisibleBefore = false;
     bool m_autoScroll = false;
     bool m_atEnd = false;
     bool m_testRunning = false;

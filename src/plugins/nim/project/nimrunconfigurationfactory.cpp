@@ -32,78 +32,15 @@
 #include <debugger/debuggerrunconfigurationaspect.h>
 #include <projectexplorer/target.h>
 
-#include <memory>
-
 using namespace ProjectExplorer;
 
 namespace Nim {
 
 NimRunConfigurationFactory::NimRunConfigurationFactory()
-{}
-
-QList<Core::Id> NimRunConfigurationFactory::availableCreationIds(Target *parent,
-                                                                 IRunConfigurationFactory::CreationMode mode) const
 {
-    Q_UNUSED(mode);
-    QList<Core::Id> result;
-    if (canHandle(parent))
-        result.append(Constants::C_NIMRUNCONFIGURATION_ID);
-    return result;
-}
-
-QString NimRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    return id.toString() + QStringLiteral("-TempRunConf");
-}
-
-bool NimRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
-{
-    Q_UNUSED(id);
-    return canHandle(parent);
-}
-
-bool NimRunConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
-{
-    Q_UNUSED(parent);
-    Q_UNUSED(map);
-    return canHandle(parent);
-}
-
-bool NimRunConfigurationFactory::canClone(Target *parent, RunConfiguration *product) const
-{
-    QTC_ASSERT(parent, return false);
-    QTC_ASSERT(product, return false);
-    return canHandle(parent);
-}
-
-RunConfiguration *NimRunConfigurationFactory::clone(Target *parent, RunConfiguration *product)
-{
-    QTC_ASSERT(parent, return nullptr);
-    QTC_ASSERT(product, return nullptr);
-    std::unique_ptr<NimRunConfiguration> result(new NimRunConfiguration(parent, Constants::C_NIMRUNCONFIGURATION_ID));
-    return result->fromMap(product->toMap()) ? result.release() : nullptr;
-}
-
-bool NimRunConfigurationFactory::canHandle(Target *parent) const
-{
-    Q_UNUSED(parent);
-    if (!parent->project()->supportsKit(parent->kit()))
-        return false;
-    return qobject_cast<NimProject *>(parent->project());
-}
-
-RunConfiguration *NimRunConfigurationFactory::doCreate(Target *parent, Core::Id id)
-{
-    Q_UNUSED(id);
-    return new NimRunConfiguration(parent, id);
-}
-
-RunConfiguration *NimRunConfigurationFactory::doRestore(Target *parent, const QVariantMap &map)
-{
-    Q_UNUSED(map);
-    auto result = new NimRunConfiguration(parent, idFromMap(map));
-    result->fromMap(map);
-    return result;
+    registerRunConfiguration<NimRunConfiguration>(Constants::C_NIMRUNCONFIGURATION_ID);
+    addSupportedProjectType(Constants::C_NIMPROJECT_ID);
+    addFixedBuildTarget("-TempRunConf");
 }
 
 }

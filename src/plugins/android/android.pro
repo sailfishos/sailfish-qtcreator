@@ -18,6 +18,7 @@ HEADERS += \
     androiderrormessage.h \
     androidglobal.h \
     androidrunner.h \
+    androidrunnerworker.h \
     androiddebugsupport.h \
     androidqtversionfactory.h \
     androidqtversion.h \
@@ -28,7 +29,7 @@ HEADERS += \
     androiddevicefactory.h \
     androiddevice.h \
     androidgdbserverkitinformation.h \
-    androidanalyzesupport.h \
+    androidqmltoolingsupport.h \
     androidmanifesteditorfactory.h \
     androidmanifesteditor.h \
     androidmanifesteditorwidget.h \
@@ -50,7 +51,11 @@ HEADERS += \
     androidsdkmanager.h \
     androidavdmanager.h \
     androidrunconfigurationwidget.h \
-    adbcommandswidget.h
+    adbcommandswidget.h \
+    androidsdkpackage.h \
+    androidsdkmodel.h \
+    androidsdkmanagerwidget.h \
+    androidpackageinstallationstep.h
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -62,6 +67,7 @@ SOURCES += \
     androidtoolchain.cpp \
     androiderrormessage.cpp \
     androidrunner.cpp \
+    androidrunnerworker.cpp \
     androiddebugsupport.cpp \
     androidqtversionfactory.cpp \
     androidqtversion.cpp \
@@ -72,7 +78,7 @@ SOURCES += \
     androiddevicefactory.cpp \
     androiddevice.cpp \
     androidgdbserverkitinformation.cpp \
-    androidanalyzesupport.cpp \
+    androidqmltoolingsupport.cpp \
     androidmanifesteditorfactory.cpp \
     androidmanifesteditor.cpp \
     androidmanifesteditorwidget.cpp \
@@ -94,7 +100,11 @@ SOURCES += \
     androidsdkmanager.cpp \
     androidavdmanager.cpp \
     androidrunconfigurationwidget.cpp \
-    adbcommandswidget.cpp
+    adbcommandswidget.cpp \
+    androidsdkpackage.cpp \
+    androidsdkmodel.cpp \
+    androidsdkmanagerwidget.cpp \
+    androidpackageinstallationstep.cpp
 
 FORMS += \
     androidsettingswidget.ui \
@@ -104,7 +114,8 @@ FORMS += \
     androiddeployqtwidget.ui \
     androidbuildapkwidget.ui \
     androidrunconfigurationwidget.ui \
-    adbcommandswidget.ui
+    adbcommandswidget.ui \
+    androidsdkmanagerwidget.ui
 
 RESOURCES = android.qrc
 

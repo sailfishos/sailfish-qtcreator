@@ -31,9 +31,9 @@
 
 #include <utils/persistentsettings.h>
 
+#include <QDateTime>
 #include <QString>
 #include <QStringList>
-#include <QDateTime>
 
 namespace Core { class IEditor; }
 
@@ -43,8 +43,6 @@ class Project;
 class Target;
 class BuildConfiguration;
 class DeployConfiguration;
-class Node;
-
 enum class SetActive { Cascade, NoCascade };
 
 class PROJECTEXPLORER_EXPORT SessionManager : public QObject
@@ -78,7 +76,7 @@ public:
 
     static void addProject(Project *project);
     static void removeProject(Project *project);
-    static void removeProjects(QList<Project *> remove);
+    static void removeProjects(const QList<Project *> &remove);
 
     static void setStartupProject(Project *startupProject);
 
@@ -110,12 +108,9 @@ public:
     static QVariant value(const QString &name);
 
     // NBS rewrite projectOrder (dependency management)
-    static QList<Project *> projectOrder(const Project *project = 0);
+    static QList<Project *> projectOrder(const Project *project = nullptr);
 
-    static Project *projectForNode(Node *node);
-    static Node *nodeForFile(const Utils::FileName &fileName);
     static Project *projectForFile(const Utils::FileName &fileName);
-    static bool projectContainsFile(Project *p, const Utils::FileName &fileName);
 
     static QStringList projectsForSessionName(const QString &session);
 
@@ -140,7 +135,6 @@ signals: // for tests only
 
 private:
     static void saveActiveMode(Core::Id mode);
-    void clearProjectFileCache();
     static void configureEditor(Core::IEditor *editor, const QString &fileName);
     static void markSessionFileDirty(bool makeDefaultVirginDirty = true);
     static void configureEditors(Project *project);

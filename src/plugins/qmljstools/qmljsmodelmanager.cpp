@@ -33,8 +33,9 @@
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
+
 #include <cpptools/cppmodelmanager.h>
-#include <extensionsystem/pluginmanager.h>
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -49,6 +50,8 @@
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <texteditor/textdocument.h>
+
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/mimetypes/mimedatabase.h>
 
@@ -84,15 +87,14 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
                                              Constants::QMLPROJECT_MIMETYPE,
                                              Constants::QMLTYPES_MIMETYPE,
                                              Constants::QMLUI_MIMETYPE };
-        projectInfo.sourceFiles = project->files(Project::SourceFiles,
-                                                 [&qmlTypeNames](const Node *n) {
-            if (const FileNode *fn = n->asFileNode()) {
-                return fn->fileType() == FileType::QML
-                        && qmlTypeNames.contains(Utils::mimeTypeForFile(fn->filePath().toString(),
-                                                                        MimeMatchMode::MatchExtension).name());
-            }
-            return false;
-        });
+        projectInfo.sourceFiles = Utils::transform(project->files([&qmlTypeNames](const Node *n) {
+            if (!Project::SourceFiles(n))
+                return false;
+            const FileNode *fn = n->asFileNode();
+            return fn && fn->fileType() == FileType::QML
+                    && qmlTypeNames.contains(Utils::mimeTypeForFile(fn->filePath().toString(),
+                                                                    MimeMatchMode::MatchExtension).name());
+        }), &FileName::toString);
         activeTarget = project->activeTarget();
     }
     Kit *activeKit = activeTarget ? activeTarget->kit() : KitManager::defaultKit();
@@ -116,7 +118,7 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
         preferDebugDump = (qtVersion->defaultBuildConfig() & QtSupport::BaseQtVersion::DebugBuild);
     if (qtVersion && qtVersion->isValid()) {
         projectInfo.tryQmlDump = project && qtVersion->type() == QLatin1String(QtSupport::Constants::DESKTOPQT);
-        projectInfo.qtQmlPath = QFileInfo(qtVersion->qmakeProperty("QT_INSTALL_QML")).canonicalFilePath();
+        projectInfo.qtQmlPath = qtVersion->qmlPath().toFileInfo().canonicalFilePath();
         projectInfo.qtImportsPath = QFileInfo(qtVersion->qmakeProperty("QT_INSTALL_IMPORTS")).canonicalFilePath();
         projectInfo.qtVersionString = qtVersion->qtVersionString();
     } else {
@@ -151,25 +153,19 @@ void setupProjectInfoQmlBundles(ModelManagerInterface::ProjectInfo &projectInfo)
     replacements.insert(QLatin1String("$(QT_INSTALL_IMPORTS)"), projectInfo.qtImportsPath);
     replacements.insert(QLatin1String("$(QT_INSTALL_QML)"), projectInfo.qtQmlPath);
 
-    QList<IBundleProvider *> bundleProviders =
-            ExtensionSystem::PluginManager::getObjects<IBundleProvider>();
+    for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
+        bp->mergeBundlesForKit(activeKit, projectInfo.activeBundle, replacements);
 
-    foreach (IBundleProvider *bp, bundleProviders) {
-        if (bp)
-            bp->mergeBundlesForKit(activeKit, projectInfo.activeBundle, replacements);
-    }
     projectInfo.extendedBundle = projectInfo.activeBundle;
 
     if (projectInfo.project) {
         QSet<Kit *> currentKits;
         foreach (const Target *t, projectInfo.project->targets())
-            if (t->kit())
-                currentKits.insert(t->kit());
+            currentKits.insert(t->kit());
         currentKits.remove(activeKit);
         foreach (Kit *kit, currentKits) {
-            foreach (IBundleProvider *bp, bundleProviders)
-                if (bp)
-                    bp->mergeBundlesForKit(kit, projectInfo.extendedBundle, replacements);
+            for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
+                bp->mergeBundlesForKit(kit, projectInfo.extendedBundle, replacements);
         }
     }
 }

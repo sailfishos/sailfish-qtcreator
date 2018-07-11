@@ -62,7 +62,7 @@ private:
     bool applyClangCodeModelWidgetsToSettings() const;
 
 private:
-    Ui::CppCodeModelSettingsPage *m_ui;
+    Ui::CppCodeModelSettingsPage *m_ui = nullptr;
     QPointer<ClangDiagnosticConfigsWidget> m_clangDiagnosticConfigsWidget;
     QSharedPointer<CppCodeModelSettings> m_settings;
 };

@@ -126,7 +126,7 @@ public:
 
     bool showInSimpleTree() const override { return true; }
 
-    bool supportsAction(ProjectAction action, Node *) const override
+    bool supportsAction(ProjectAction action, const Node *) const override
     {
         return action == AddNewFile
                 || action == AddExistingFile
@@ -166,7 +166,6 @@ GenericProject::GenericProject(const Utils::FileName &fileName) :
     m_cppCodeModelUpdater(new CppTools::CppProjectUpdater(this))
 {
     setId(Constants::GENERICPROJECT_ID);
-    setProjectContext(Context(GenericProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguages(Context(ProjectExplorer::Constants::CXX_LANGUAGE_ID));
     setDisplayName(fileName.toFileInfo().completeBaseName());
 
@@ -336,6 +335,7 @@ void GenericProject::parseProject(RefreshOptions options)
 
 void GenericProject::refresh(RefreshOptions options)
 {
+    emitParsingStarted();
     parseProject(options);
 
     if (options & Files) {
@@ -362,7 +362,7 @@ void GenericProject::refresh(RefreshOptions options)
     }
 
     refreshCppCodeModel();
-    emit parsingFinished();
+    emitParsingFinished(true);
 }
 
 /**

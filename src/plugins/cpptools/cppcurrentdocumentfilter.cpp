@@ -27,12 +27,11 @@
 
 #include "cppmodelmanager.h"
 
-#include <coreplugin/idocument.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
+#include <coreplugin/idocument.h>
 
-#include <QRegExp>
-#include <QStringMatcher>
+#include <QRegularExpression>
 
 using namespace CppTools::Internal;
 using namespace CPlusPlus;
@@ -44,7 +43,7 @@ CppCurrentDocumentFilter::CppCurrentDocumentFilter(CppTools::CppModelManager *ma
 {
     setId("Methods in current Document");
     setDisplayName(tr("C++ Symbols in Current Document"));
-    setShortcutString(QString(QLatin1Char('.')));
+    setShortcutString(".");
     setPriority(High);
     setIncludedByDefault(false);
 
@@ -66,14 +65,13 @@ QList<Core::LocatorFilterEntry> CppCurrentDocumentFilter::matchesFor(
 {
     QList<Core::LocatorFilterEntry> goodEntries;
     QList<Core::LocatorFilterEntry> betterEntries;
-    const Qt::CaseSensitivity cs = caseSensitivity(entry);
-    QStringMatcher matcher(entry, cs);
-    QRegExp regexp(entry, cs, QRegExp::Wildcard);
+
+    const QRegularExpression regexp = createRegExp(entry);
     if (!regexp.isValid())
         return goodEntries;
-    bool hasWildcard = containsWildcard(entry);
 
-    foreach (IndexItem::Ptr info, itemsOfCurrentDocument()) {
+    const QList<IndexItem::Ptr> items = itemsOfCurrentDocument();
+    for (IndexItem::Ptr info : items) {
         if (future.isCanceled())
             break;
 
@@ -83,29 +81,29 @@ QList<Core::LocatorFilterEntry> CppCurrentDocumentFilter::matchesFor(
         else if (info->type() == IndexItem::Function)
             matchString += info->symbolType();
 
-        int index = hasWildcard ? regexp.indexIn(matchString) : matcher.indexIn(matchString);
-        if (index >= 0) {
-            const bool betterMatch = index == 0;
+        QRegularExpressionMatch match = regexp.match(matchString);
+        if (match.hasMatch()) {
+            const bool betterMatch = match.capturedStart() == 0;
             QVariant id = qVariantFromValue(info);
             QString name = matchString;
             QString extraInfo = info->symbolScope();
             if (info->type() == IndexItem::Function) {
                 if (info->unqualifiedNameAndScope(matchString, &name, &extraInfo)) {
                     name += info->symbolType();
-                    index = hasWildcard ? regexp.indexIn(name) : matcher.indexIn(name);
+                    match = regexp.match(name);
                 }
             }
 
             Core::LocatorFilterEntry filterEntry(this, name, id, info->icon());
             filterEntry.extraInfo = extraInfo;
-            if (index < 0) {
-                index = hasWildcard ? regexp.indexIn(extraInfo) : matcher.indexIn(extraInfo);
-                filterEntry.highlightInfo.dataType = Core::LocatorFilterEntry::HighlightInfo::ExtraInfo;
+            if (match.hasMatch()) {
+                filterEntry.highlightInfo = highlightInfo(match);
+            } else {
+                match = regexp.match(extraInfo);
+                filterEntry.highlightInfo =
+                        highlightInfo(match, Core::LocatorFilterEntry::HighlightInfo::ExtraInfo);
             }
-            if (index >= 0) {
-                filterEntry.highlightInfo.startIndex = index;
-                filterEntry.highlightInfo.length = hasWildcard ? regexp.matchedLength() : entry.length();
-            }
+
             if (betterMatch)
                 betterEntries.append(filterEntry);
             else

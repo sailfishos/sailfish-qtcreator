@@ -11,11 +11,9 @@ HEADERS += \
     cppeditorconstants.h \
     cppeditorenums.h \
     cppeditorplugin.h \
-    cppelementevaluator.h \
-    cppfollowsymbolundercursor.h \
+    cppeditorwidget.h \
     cppfunctiondecldeflink.h \
     cpphighlighter.h \
-    cpphoverhandler.h \
     cppparsecontext.h \
     cppincludehierarchy.h \
     cppinsertvirtualmethods.h \
@@ -28,8 +26,6 @@ HEADERS += \
     cppquickfixes.h \
     cpptypehierarchy.h \
     cppuseselectionsupdater.h \
-    cppvirtualfunctionassistprovider.h \
-    cppvirtualfunctionproposalitem.h \
     resourcepreviewhoverhandler.h
 
 SOURCES += \
@@ -39,11 +35,9 @@ SOURCES += \
     cppeditor.cpp \
     cppeditordocument.cpp \
     cppeditorplugin.cpp \
-    cppelementevaluator.cpp \
-    cppfollowsymbolundercursor.cpp \
+    cppeditorwidget.cpp \
     cppfunctiondecldeflink.cpp \
     cpphighlighter.cpp \
-    cpphoverhandler.cpp \
     cppparsecontext.cpp \
     cppincludehierarchy.cpp \
     cppinsertvirtualmethods.cpp \
@@ -56,8 +50,6 @@ SOURCES += \
     cppquickfixes.cpp \
     cpptypehierarchy.cpp \
     cppuseselectionsupdater.cpp \
-    cppvirtualfunctionassistprovider.cpp \
-    cppvirtualfunctionproposalitem.cpp \
     resourcepreviewhoverhandler.cpp
 
 FORMS += \

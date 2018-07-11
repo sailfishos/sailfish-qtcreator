@@ -31,6 +31,7 @@
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <cpptools/cppprojectfile.h>
+#include <projectexplorer/projectmacro.h>
 #include <projectexplorer/project.h>
 #include <utils/algorithm.h>
 #include <utils/temporarydirectory.h>
@@ -150,6 +151,18 @@ QString Utils::toString(ProjectPart::QtVersion qtVersion)
     // no default to get a compiler warning if anything is added
     }
 #undef CASE_QTVERSION
+    return QString();
+}
+
+QString Utils::toString(ProjectPart::BuildTargetType buildTargetType)
+{
+#define CASE_BUILDTARGETTYPE(x) case ProjectPart::x: return QLatin1String(#x)
+    switch (buildTargetType) {
+    CASE_BUILDTARGETTYPE(Unknown);
+    CASE_BUILDTARGETTYPE(Executable);
+    CASE_BUILDTARGETTYPE(Library);
+    }
+#undef CASE_BUILDTARGETTYPE
     return QString();
 }
 
@@ -482,6 +495,7 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
             m_out << i3 << "Project Name         : " << projectName << "\n";
             m_out << i3 << "Project File         : " << projectFilePath << "\n";
             m_out << i3 << "Selected For Building: " << part->selectedForBuilding << "\n";
+            m_out << i3 << "Build Target Type    : " << Utils::toString(part->buildTargetType) << "\n";
             m_out << i3 << "Lanugage Version     : " << Utils::toString(part->languageVersion)<<"\n";
             m_out << i3 << "Lanugage Extensions  : " << Utils::toString(part->languageExtensions)
                   << "\n";
@@ -495,15 +509,17 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
                 }
             }
 
-            if (!part->toolchainDefines.isEmpty()) {
+            if (!part->toolChainMacros.isEmpty()) {
                 m_out << i3 << "Toolchain Defines:{{{4\n";
-                const QList<QByteArray> defineLines = part->toolchainDefines.split('\n');
+                const QList<QByteArray> defineLines =
+                        ProjectExplorer::Macro::toByteArray(part->toolChainMacros).split('\n');
                 foreach (const QByteArray &defineLine, defineLines)
                     m_out << i4 << defineLine << "\n";
             }
-            if (!part->projectDefines.isEmpty()) {
+            if (!part->projectMacros.isEmpty()) {
                 m_out << i3 << "Project Defines:{{{4\n";
-                const QList<QByteArray> defineLines = part->projectDefines.split('\n');
+                const QList<QByteArray> defineLines =
+                        ProjectExplorer::Macro::toByteArray(part->projectMacros).split('\n');
                 foreach (const QByteArray &defineLine, defineLines)
                     m_out << i4 << defineLine << "\n";
             }

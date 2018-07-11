@@ -33,7 +33,6 @@
 #include "cpptoolsreuse.h"
 #include "cppworkingcopy.h"
 
-#include <texteditor/convenience.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/refactoroverlay.h>
 #include <texteditor/texteditorsettings.h>
@@ -41,6 +40,7 @@
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/SimpleLexer.h>
 
+#include <utils/textutils.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 
@@ -105,7 +105,7 @@ CppTools::CheckSymbols *createHighlighter(const CPlusPlus::Document::Ptr &doc,
     typedef TextEditor::HighlightingResult Result;
     QList<Result> macroUses;
 
-    using TextEditor::Convenience::convertPosition;
+    using Utils::Text::convertPosition;
 
     // Get macro definitions
     foreach (const CPlusPlus::Macro& macro, doc->definedMacros()) {
@@ -258,6 +258,24 @@ QFuture<CursorInfo>
 BuiltinEditorDocumentProcessor::cursorInfo(const CursorInfoParams &params)
 {
     return BuiltinCursorInfo::run(params);
+}
+
+QFuture<CursorInfo> BuiltinEditorDocumentProcessor::requestLocalReferences(const QTextCursor &)
+{
+    QFutureInterface<CppTools::CursorInfo> futureInterface;
+    futureInterface.reportResult(CppTools::CursorInfo());
+    futureInterface.reportFinished();
+
+    return futureInterface.future();
+}
+
+QFuture<SymbolInfo> BuiltinEditorDocumentProcessor::requestFollowSymbol(int, int)
+{
+    QFutureInterface<CppTools::SymbolInfo> futureInterface;
+    futureInterface.reportResult(CppTools::SymbolInfo());
+    futureInterface.reportFinished();
+
+    return futureInterface.future();
 }
 
 void BuiltinEditorDocumentProcessor::onParserFinished(CPlusPlus::Document::Ptr document,

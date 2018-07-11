@@ -28,6 +28,7 @@
 
 #include <coreplugin/icontext.h>
 
+#include <utils/asconst.h>
 #include <utils/stringutils.h>
 
 #include <QDesignerOptionsPageInterface>
@@ -36,6 +37,7 @@
 using namespace Designer::Internal;
 
 SettingsPage::SettingsPage(QDesignerOptionsPageInterface *designerPage) :
+    Core::IOptionsPage(nullptr, false),
     m_designerPage(designerPage)
 {
     setId(Core::Id::fromString(m_designerPage->name()));
@@ -74,7 +76,7 @@ SettingsPageProvider::SettingsPageProvider(QObject *parent)
     setCategory(Designer::Constants::SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("Designer",
         Designer::Constants::SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Designer::Constants::SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(Designer::Constants::SETTINGS_CATEGORY_ICON);
 }
 
 QList<Core::IOptionsPage *> SettingsPageProvider::pages() const
@@ -120,7 +122,7 @@ bool SettingsPageProvider::matches(const QString &searchKeyWord) const
         for (size_t i = 0; i < itemCount; ++i)
             m_keywords << Utils::stripAccelerator(QCoreApplication::translate(uitext[i].context, uitext[i].value));
     }
-    foreach (const QString &key, m_keywords) {
+    for (const QString &key : Utils::asConst(m_keywords)) {
         if (key.contains(searchKeyWord, Qt::CaseInsensitive))
             return true;
     }

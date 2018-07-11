@@ -31,6 +31,8 @@
 
 #include <functional>
 
+namespace Utils { class FileName; }
+
 namespace ProjectExplorer {
 class FileNode;
 class FolderNode;
@@ -51,7 +53,8 @@ public:
     static ProjectTree *instance();
 
     static Project *currentProject();
-    static Node *currentNode();
+    static Node *findCurrentNode();
+    static Utils::FileName currentFilePath();
 
     // Integration with ProjectTreeWidget
     static void registerWidget(Internal::ProjectTreeWidget *widget);
@@ -68,7 +71,12 @@ public:
     static void registerTreeManager(const TreeManagerFunction &treeChange);
     static void applyTreeManager(FolderNode *folder);
 
+    // Nodes:
     static bool hasNode(const Node *node);
+    static void forEachNode(const std::function<void(Node *)> &task);
+
+    static Project *projectForNode(Node *node);
+    static Node *nodeForFile(const Utils::FileName &fileName);
 
     void collapseAll();
 
@@ -89,16 +97,16 @@ signals:
     void treeChanged();
 
 private:
+    void sessionAndTreeChanged();
     void sessionChanged();
-    void focusChanged();
+    void update();
     void updateFromProjectTreeWidget(Internal::ProjectTreeWidget *widget);
-    void documentManagerCurrentFileChanged();
-    void updateFromDocumentManager(bool invalidCurrentNode = false);
+    void updateFromDocumentManager();
     void updateFromNode(Node *node);
-    void update(Node *node, Project *project);
+    void setCurrent(Node *node, Project *project);
     void updateContext();
 
-    void updateFromFocus(bool invalidCurrentNode = false);
+    void updateFromFocus();
 
     void updateExternalFileWarning();
     static bool hasFocus(Internal::ProjectTreeWidget *widget);
@@ -108,7 +116,7 @@ private:
     static ProjectTree *s_instance;
     QList<QPointer<Internal::ProjectTreeWidget>> m_projectTreeWidgets;
     QVector<TreeManagerFunction> m_treeManagers;
-    QPointer<Node> m_currentNode;
+    Node *m_currentNode = nullptr;
     Project *m_currentProject = nullptr;
     Internal::ProjectTreeWidget *m_focusForContextMenu = nullptr;
     Core::Context m_lastProjectContext;

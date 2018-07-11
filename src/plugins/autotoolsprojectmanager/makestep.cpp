@@ -56,53 +56,20 @@ const char CLEAN_KEY[]  = "AutotoolsProjectManager.MakeStep.Clean";
 const char BUILD_TARGETS_KEY[] = "AutotoolsProjectManager.MakeStep.BuildTargets";
 const char MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY[] = "AutotoolsProjectManager.MakeStep.AdditionalArguments";
 
-//////////////////////////
-// MakeStepFactory class
-//////////////////////////
-MakeStepFactory::MakeStepFactory(QObject *parent) : IBuildStepFactory(parent)
-{ setObjectName(QLatin1String("Autotools::MakeStepFactory")); }
 
-QList<BuildStepInfo> MakeStepFactory::availableSteps(BuildStepList *parent) const
+// MakeStepFactory
+
+MakeStepFactory::MakeStepFactory()
 {
-    if (parent->target()->project()->id() != AUTOTOOLS_PROJECT_ID)
-        return {};
-
-    return {{MAKE_STEP_ID, tr("Make", "Display name for AutotoolsProjectManager::MakeStep id.")}};
+    setObjectName("Autotools::MakeStepFactory");
+    registerStep<MakeStep>(MAKE_STEP_ID);
+    setDisplayName(tr("Make", "Display name for AutotoolsProjectManager::MakeStep id."));
+    setSupportedProjectType(AUTOTOOLS_PROJECT_ID);
 }
 
-BuildStep *MakeStepFactory::create(BuildStepList *parent, Core::Id id)
-{
-    Q_UNUSED(id)
-    return new MakeStep(parent);
-}
+// MakeStep
 
-BuildStep *MakeStepFactory::clone(BuildStepList *parent, BuildStep *source)
-{
-    return new MakeStep(parent, static_cast<MakeStep *>(source));
-}
-
-/////////////////////
-// MakeStep class
-/////////////////////
-MakeStep::MakeStep(BuildStepList* bsl) : AbstractProcessStep(bsl, Core::Id(MAKE_STEP_ID))
-{
-    ctor();
-}
-
-MakeStep::MakeStep(BuildStepList *bsl, Core::Id id) : AbstractProcessStep(bsl, id)
-{
-    ctor();
-}
-
-MakeStep::MakeStep(BuildStepList *bsl, MakeStep *bs) : AbstractProcessStep(bsl, bs),
-    m_buildTargets(bs->m_buildTargets),
-    m_additionalArguments(bs->additionalArguments()),
-    m_clean(bs->m_clean)
-{
-    ctor();
-}
-
-void MakeStep::ctor()
+MakeStep::MakeStep(BuildStepList *bsl) : AbstractProcessStep(bsl, MAKE_STEP_ID)
 {
     setDefaultDisplayName(tr("Make"));
 }
@@ -198,17 +165,17 @@ QVariantMap MakeStep::toMap() const
 {
     QVariantMap map = AbstractProcessStep::toMap();
 
-    map.insert(QLatin1String(BUILD_TARGETS_KEY), m_buildTargets);
-    map.insert(QLatin1String(MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY), m_additionalArguments);
-    map.insert(QLatin1String(CLEAN_KEY), m_clean);
+    map.insert(BUILD_TARGETS_KEY, m_buildTargets);
+    map.insert(MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY, m_additionalArguments);
+    map.insert(CLEAN_KEY, m_clean);
     return map;
 }
 
 bool MakeStep::fromMap(const QVariantMap &map)
 {
-    m_buildTargets = map.value(QLatin1String(BUILD_TARGETS_KEY)).toStringList();
-    m_additionalArguments = map.value(QLatin1String(MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY)).toString();
-    m_clean = map.value(QLatin1String(CLEAN_KEY)).toBool();
+    m_buildTargets = map.value(BUILD_TARGETS_KEY).toStringList();
+    m_additionalArguments = map.value(MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY).toString();
+    m_clean = map.value(CLEAN_KEY).toBool();
 
     return BuildStep::fromMap(map);
 }
@@ -236,8 +203,15 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep) :
             makeStep, &MakeStep::setAdditionalArguments);
     connect(makeStep, &MakeStep::additionalArgumentsChanged,
             this, &MakeStepConfigWidget::updateDetails);
-    connect(m_makeStep->project(), &Project::environmentChanged,
-            this, &MakeStepConfigWidget::updateDetails);
+    m_makeStep->project()->subscribeSignal(&BuildConfiguration::environmentChanged, this, [this]() {
+        if (static_cast<BuildConfiguration *>(sender())->isActive())
+            updateDetails();
+    });
+    connect(makeStep->project(), &Project::activeProjectConfigurationChanged,
+            this, [this](ProjectConfiguration *pc) {
+        if (pc && pc->isActive())
+            updateDetails();
+    });
 }
 
 QString MakeStepConfigWidget::displayName() const
@@ -269,7 +243,7 @@ void MakeStepConfigWidget::updateDetails()
         param.setArguments(arguments);
         m_summaryText = param.summary(displayName());
     } else {
-        m_summaryText = QLatin1String("<b>") + ToolChainKitInformation::msgNoToolChainInTarget()  + QLatin1String("</b>");
+        m_summaryText = "<b>" + ToolChainKitInformation::msgNoToolChainInTarget()  + "</b>";
     }
 
     emit updateSummary();

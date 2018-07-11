@@ -210,7 +210,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
 
     Context context(SUBVERSION_CONTEXT);
 
-    initializeVcs(new SubversionControl(this), context);
+    initializeVcs<SubversionControl>(context, this);
 
     m_subversionPluginInstance = this;
 
@@ -642,6 +642,9 @@ void SubversionPlugin::startCommitProject()
  * commit will start. */
 void SubversionPlugin::startCommit(const QString &workingDir, const QStringList &files)
 {
+    if (!promptBeforeCommit())
+        return;
+
     if (raiseSubmitEditor())
         return;
     if (isCommitEditorOpen()) {

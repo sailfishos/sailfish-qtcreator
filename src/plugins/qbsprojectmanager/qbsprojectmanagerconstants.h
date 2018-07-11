@@ -58,16 +58,17 @@ const char ACTION_REBUILD_SUBPROJECT[] = "Qbs.RebuildSubproject";
 const char QBS_BUILDSTEP_ID[] = "Qbs.BuildStep";
 const char QBS_CLEANSTEP_ID[] = "Qbs.CleanStep";
 const char QBS_INSTALLSTEP_ID[] = "Qbs.InstallStep";
+const char QBS_BC_ID[] = "Qbs.QbsBuildConfiguration";
 
 // QBS strings:
 const char QBS_VARIANT_DEBUG[] = "debug";
 const char QBS_VARIANT_RELEASE[] = "release";
 
-const char QBS_CONFIG_VARIANT_KEY[] = "qbs.buildVariant";
+const char QBS_CONFIG_VARIANT_KEY[] = "qbs.defaultBuildVariant";
 const char QBS_CONFIG_PROFILE_KEY[] = "qbs.profile";
 const char QBS_INSTALL_ROOT_KEY[] = "qbs.installRoot";
-const char QBS_CONFIG_DECLARATIVE_DEBUG_KEY[] = "Qt.declarative.qmlDebugging";
-const char QBS_CONFIG_QUICK_DEBUG_KEY[] = "Qt.quick.qmlDebugging";
+const char QBS_CONFIG_DECLARATIVE_DEBUG_KEY[] = "modules.Qt.declarative.qmlDebugging";
+const char QBS_CONFIG_QUICK_DEBUG_KEY[] = "modules.Qt.quick.qmlDebugging";
 const char QBS_FORCE_PROBES_KEY[] = "qbspm.forceProbes";
 
 // Icons:
@@ -75,7 +76,7 @@ const char QBS_GROUP_ICON[] = ":/qbsprojectmanager/images/groups.png";
 const char QBS_PRODUCT_OVERLAY_ICON[] = ":/qbsprojectmanager/images/productgear.png";
 
 // Toolchain related settings:
-const char QBS_TARGETOS[] = "qbs.targetOS";
+const char QBS_TARGETPLATFORM[] = "qbs.targetPlatform";
 const char QBS_SYSROOT[] = "qbs.sysroot";
 const char QBS_ARCHITECTURES[] = "qbs.architectures";
 const char QBS_ARCHITECTURE[] = "qbs.architecture";
@@ -83,6 +84,7 @@ const char QBS_TOOLCHAIN[] = "qbs.toolchain";
 const char CPP_TOOLCHAINPATH[] = "cpp.toolchainInstallPath";
 const char CPP_TOOLCHAINPREFIX[] = "cpp.toolchainPrefix";
 const char CPP_COMPILERNAME[] = "cpp.compilerName";
+const char CPP_CCOMPILERNAME[] = "cpp.cCompilerName";
 const char CPP_CXXCOMPILERNAME[] = "cpp.cxxCompilerName";
 const char CPP_PLATFORMCOMMONCOMPILERFLAGS[] = "cpp.platformCommonCompilerFlags";
 const char CPP_PLATFORMLINKERFLAGS[] = "cpp.platformLinkerFlags";

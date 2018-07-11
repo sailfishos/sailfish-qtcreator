@@ -72,12 +72,9 @@ public:
     int indexerFileSizeLimitInMb() const;
     void setIndexerFileSizeLimitInMb(int sizeInMB);
 
-public: // for tests
-    void emitChanged();
-
 signals:
+    void clangDiagnosticConfigsInvalidated(const QVector<Core::Id> &configId);
     void changed();
-    void clangDiagnosticConfigIdChanged();
 
 private:
     PCHUsage m_pchUsage = PchUse_None;

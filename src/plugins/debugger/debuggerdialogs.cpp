@@ -26,7 +26,6 @@
 #include "debuggerdialogs.h"
 
 #include "debuggerkitinformation.h"
-#include "debuggerstartparameters.h"
 #include "debuggerruncontrol.h"
 #include "cdb/cdbengine.h"
 
@@ -34,9 +33,13 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/runnables.h>
 #include <projectexplorer/toolchain.h>
+
+#include <app/app_version.h>
 #include <utils/pathchooser.h>
 #include <utils/fancylineedit.h>
 #include <utils/qtcassert.h>
+
+#include <ssh/sshconnection.h>
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -226,7 +229,7 @@ StartApplicationDialog::StartApplicationDialog(QWidget *parent)
     setWindowTitle(tr("Start Debugger"));
 
     d->kitChooser = new KitChooser(this);
-    d->kitChooser->setKitPredicate([this](const Kit *k) {
+    d->kitChooser->setKitPredicate([](const Kit *k) {
         return !DebuggerKitInformation::configurationErrors(k);
     });
     d->kitChooser->populate();
@@ -264,7 +267,7 @@ StartApplicationDialog::StartApplicationDialog(QWidget *parent)
     d->serverStartScriptPathChooser->setPromptDialogTitle(tr("Select Server Start Script"));
     d->serverStartScriptPathChooser->setToolTip(tr(
         "This option can be used to point to a script that will be used "
-        "to start a debug server. If the field is empty, Qt Creator's "
+        "to start a debug server. If the field is empty, "
         "default methods to set up debug servers will be used."));
     d->serverStartScriptLabel = new QLabel(tr("&Server start script:"), this);
     d->serverStartScriptLabel->setBuddy(d->serverStartScriptPathChooser);
@@ -365,9 +368,8 @@ void StartApplicationDialog::updateState()
     d->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(okEnabled);
 }
 
-bool StartApplicationDialog::run(QWidget *parent, DebuggerRunParameters *rp, Kit **kit)
+void StartApplicationDialog::run(bool attachRemote)
 {
-    const bool attachRemote = rp->startMode == AttachToRemoteServer;
     const QString settingsGroup = QLatin1String("DebugMode");
     const QString arrayName = QLatin1String("StartApplication");
 
@@ -387,7 +389,7 @@ bool StartApplicationDialog::run(QWidget *parent, DebuggerRunParameters *rp, Kit
     settings->endArray();
     settings->endGroup();
 
-    StartApplicationDialog dialog(parent);
+    StartApplicationDialog dialog(ICore::dialogParent());
     dialog.setHistory(history);
     dialog.setParameters(history.back());
     if (!attachRemote) {
@@ -399,10 +401,13 @@ bool StartApplicationDialog::run(QWidget *parent, DebuggerRunParameters *rp, Kit
         dialog.d->channelOverrideEdit->setVisible(false);
     }
     if (dialog.exec() != QDialog::Accepted)
-        return false;
+        return;
 
     Kit *k = dialog.d->kitChooser->currentKit();
     IDevice::ConstPtr dev = DeviceKitInformation::device(k);
+
+    auto runControl = new RunControl(nullptr, ProjectExplorer::Constants::DEBUG_RUN_MODE);
+    auto debugger = new DebuggerRunTool(runControl, k);
 
     const StartApplicationParameters newParameters = dialog.parameters();
     if (newParameters != history.back()) {
@@ -419,29 +424,38 @@ bool StartApplicationDialog::run(QWidget *parent, DebuggerRunParameters *rp, Kit
         settings->endGroup();
     }
 
-    rp->inferior.executable = newParameters.runnable.executable;
+    StandardRunnable inferior = newParameters.runnable;
     const QString inputAddress = dialog.d->channelOverrideEdit->text();
     if (!inputAddress.isEmpty())
-        rp->remoteChannel = inputAddress;
+        debugger->setRemoteChannel(inputAddress);
     else
-        rp->remoteChannel = QString("%1:%2").arg(dev->sshParameters().host).arg(newParameters.serverPort);
-    rp->displayName = newParameters.displayName();
-    rp->inferior.workingDirectory = newParameters.runnable.workingDirectory;
-    rp->inferior.runMode = newParameters.runnable.runMode;
-    rp->needFixup = false;
-    rp->useTerminal = newParameters.runnable.runMode == ApplicationLauncher::Console;
-    if (!newParameters.runnable.commandLineArguments.isEmpty())
-        rp->inferior.commandLineArguments = newParameters.runnable.commandLineArguments;
-    rp->breakOnMain = newParameters.breakAtMain;
-    rp->serverStartScript = newParameters.serverStartScript;
-    rp->debugInfoLocation = newParameters.debugInfoLocation;
+        debugger->setRemoteChannel(dev->sshParameters().host(), newParameters.serverPort);
+    debugger->setRunControlName(newParameters.displayName());
+    debugger->setBreakOnMain(newParameters.breakAtMain);
+    debugger->setDebugInfoLocation(newParameters.debugInfoLocation);
+    debugger->setInferior(inferior);
+    debugger->setServerStartScript(newParameters.serverStartScript); // Note: This requires inferior.
 
     bool isLocal = !dev || (dev->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE);
     if (!attachRemote)
-        rp->startMode = isLocal ? StartExternal : StartRemoteProcess;
-    if (kit)
-        *kit = k;
-    return true;
+        debugger->setStartMode(isLocal ? StartExternal : StartRemoteProcess);
+
+    if (attachRemote) {
+        debugger->setStartMode(AttachToRemoteServer);
+        debugger->setCloseMode(KillAtClose);
+        debugger->setUseContinueInsteadOfRun(true);
+    }
+    debugger->startRunControl();
+}
+
+void StartApplicationDialog::attachToRemoteServer()
+{
+    run(true);
+}
+
+void StartApplicationDialog::startAndDebugApplication()
+{
+    run(false);
 }
 
 StartApplicationParameters StartApplicationDialog::parameters() const
@@ -560,15 +574,16 @@ static QString cdbRemoteHelp()
     const QString ext32 = QDir::toNativeSeparators(CdbEngine::extensionLibraryName(false));
     const QString ext64 = QDir::toNativeSeparators(CdbEngine::extensionLibraryName(true));
     return  StartRemoteCdbDialog::tr(
-                "<html><body><p>The remote CDB needs to load the matching Qt Creator CDB extension "
-                "(<code>%1</code> or <code>%2</code>, respectively).</p><p>Copy it onto the remote machine and set the "
-                "environment variable <code>%3</code> to point to its folder.</p><p>"
-                "Launch the remote CDB as <code>%4 &lt;executable&gt;</code> "
+                "<html><body><p>The remote CDB needs to load the matching %1 CDB extension "
+                "(<code>%2</code> or <code>%3</code>, respectively).</p><p>Copy it onto the remote machine and set the "
+                "environment variable <code>%4</code> to point to its folder.</p><p>"
+                "Launch the remote CDB as <code>%5 &lt;executable&gt;</code> "
                 "to use TCP/IP as communication protocol.</p><p>Enter the connection parameters as:</p>"
-                "<pre>%5</pre></body></html>").
-            arg(ext32, ext64, QLatin1String("_NT_DEBUGGER_EXTENSION_PATH"),
-                QLatin1String("cdb.exe -server tcp:port=1234"),
-                QLatin1String(cdbConnectionSyntax));
+                "<pre>%6</pre></body></html>")
+            .arg(Core::Constants::IDE_DISPLAY_NAME,
+                 ext32, ext64, QLatin1String("_NT_DEBUGGER_EXTENSION_PATH"),
+                 QLatin1String("cdb.exe -server tcp:port=1234"),
+                 QLatin1String(cdbConnectionSyntax));
 }
 
 StartRemoteCdbDialog::StartRemoteCdbDialog(QWidget *parent) :

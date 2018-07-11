@@ -48,6 +48,9 @@
 #include "tests/qmlprofilerbindingloopsrenderpass_test.h"
 #include "tests/qmlprofilerclientmanager_test.h"
 #include "tests/qmlprofilerconfigwidget_test.h"
+#include "tests/qmlprofilerdetailsrewriter_test.h"
+#include "tests/qmlprofilertool_test.h"
+#include "tests/qmlprofilertraceclient_test.h"
 #include "tests/qmlprofilertraceview_test.h"
 
 // Force QML Debugging to be enabled, so that we can selftest the profiler
@@ -103,10 +106,17 @@ void QmlProfilerPlugin::extensionsInitialized()
     };
 
     RunControl::registerWorkerCreator(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
-        [this](RunControl *runControl) { return new QmlProfilerRunner(runControl); });
+                                      [this](RunControl *runControl) {
+        QmlProfilerRunner *runner = new QmlProfilerRunner(runControl);
+        connect(runner, &QmlProfilerRunner::starting,
+                m_profilerTool, &QmlProfilerTool::finalizeRunControl);
+        return runner;
+    });
 
-    RunControl::registerWorker<LocalQmlProfilerSupport>
-            (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, constraint);
+    RunControl::registerWorker(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
+                               [this](ProjectExplorer::RunControl *runControl) {
+        return new LocalQmlProfilerSupport(m_profilerTool, runControl);
+    }, constraint);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
@@ -145,6 +155,9 @@ QList<QObject *> QmlProfiler::Internal::QmlProfilerPlugin::createTestObjects() c
     tests << new QmlProfilerBindingLoopsRenderPassTest;
     tests << new QmlProfilerClientManagerTest;
     tests << new QmlProfilerConfigWidgetTest;
+    tests << new QmlProfilerDetailsRewriterTest;
+    tests << new QmlProfilerToolTest;
+    tests << new QmlProfilerTraceClientTest;
     tests << new QmlProfilerTraceViewTest;
 
     tests << new QQmlEngine; // Trigger debug connector to be started

@@ -26,116 +26,109 @@
 #include "sqlitedatabase.h"
 
 #include "sqlitetable.h"
+#include "sqlitetransaction.h"
 
-SqliteDatabase::SqliteDatabase()
-    : readDatabaseConnection(QStringLiteral("ReadWorker")),
-      writeDatabaseConnection(QStringLiteral("WriterWorker")),
-      journalMode_(JournalMode::Wal)
+namespace Sqlite {
+
+Database::Database()
+    : m_databaseBackend(*this)
 {
-    connect(&readDatabaseConnection, &SqliteDatabaseConnectionProxy::connectionIsOpened, this, &SqliteDatabase::handleReadDatabaseConnectionIsOpened);
-    connect(&writeDatabaseConnection, &SqliteDatabaseConnectionProxy::connectionIsOpened, this, &SqliteDatabase::handleWriteDatabaseConnectionIsOpened);
-    connect(&readDatabaseConnection, &SqliteDatabaseConnectionProxy::connectionIsClosed, this, &SqliteDatabase::handleReadDatabaseConnectionIsClosed);
-    connect(&writeDatabaseConnection, &SqliteDatabaseConnectionProxy::connectionIsClosed, this, &SqliteDatabase::handleWriteDatabaseConnectionIsClosed);
 }
 
-SqliteDatabase::~SqliteDatabase()
+Database::Database(Utils::PathString &&databaseFilePath, JournalMode journalMode)
+    : m_databaseBackend(*this)
 {
-    qDeleteAll(sqliteTables);
+    setJournalMode(journalMode);
+    open(std::move(databaseFilePath));
 }
 
-void SqliteDatabase::open()
+void Database::open()
 {
-    writeDatabaseConnection.setDatabaseFilePath(databaseFilePath());
-    writeDatabaseConnection.setJournalMode(journalMode());
+    m_databaseBackend.open(m_databaseFilePath, m_openMode);
+    m_databaseBackend.setJournalMode(m_journalMode);
+    initializeTables();
+    m_isOpen = true;
 }
 
-void SqliteDatabase::close()
+void Database::open(Utils::PathString &&databaseFilePath)
 {
-    writeDatabaseConnection.close();
+    setDatabaseFilePath(std::move(databaseFilePath));
+    open();
 }
 
-bool SqliteDatabase::isOpen() const
+void Database::close()
 {
-    return readDatabaseConnection.isOpen() && writeDatabaseConnection.isOpen();
+    m_isOpen = false;
+    m_databaseBackend.close();
 }
 
-void SqliteDatabase::addTable(SqliteTable *newSqliteTable)
+bool Database::isOpen() const
 {
-    newSqliteTable->setSqliteDatabase(this);
-    sqliteTables.append(newSqliteTable);
+    return m_isOpen;
 }
 
-const QVector<SqliteTable *> &SqliteDatabase::tables() const
+Table &Database::addTable()
 {
-    return sqliteTables;
+    m_sqliteTables.emplace_back();
+
+    return m_sqliteTables.back();
 }
 
-void SqliteDatabase::setDatabaseFilePath(const QString &databaseFilePath)
+const std::vector<Table> &Database::tables() const
 {
-    databaseFilePath_ = databaseFilePath;
+    return m_sqliteTables;
 }
 
-const QString &SqliteDatabase::databaseFilePath() const
+void Database::setDatabaseFilePath(Utils::PathString &&databaseFilePath)
 {
-    return databaseFilePath_;
+    m_databaseFilePath = std::move(databaseFilePath);
 }
 
-void SqliteDatabase::setJournalMode(JournalMode journalMode)
+const Utils::PathString &Database::databaseFilePath() const
 {
-    journalMode_ = journalMode;
+    return m_databaseFilePath;
 }
 
-JournalMode SqliteDatabase::journalMode() const
+void Database::setJournalMode(JournalMode journalMode)
 {
-    return journalMode_;
+    m_journalMode = journalMode;
 }
 
-QThread *SqliteDatabase::writeWorkerThread() const
+JournalMode Database::journalMode() const
 {
-    return writeDatabaseConnection.connectionThread();
+    return m_journalMode;
 }
 
-QThread *SqliteDatabase::readWorkerThread() const
+void Database::setOpenMode(OpenMode openMode)
 {
-    return readDatabaseConnection.connectionThread();
+    m_openMode = openMode;
 }
 
-void SqliteDatabase::handleReadDatabaseConnectionIsOpened()
+OpenMode Database::openMode() const
 {
-    if (writeDatabaseConnection.isOpen() && readDatabaseConnection.isOpen()) {
-        initializeTables();
-        emit databaseIsOpened();
-    }
+    return m_openMode;
 }
 
-void SqliteDatabase::handleWriteDatabaseConnectionIsOpened()
+void Database::execute(Utils::SmallStringView sqlStatement)
 {
-    readDatabaseConnection.setDatabaseFilePath(databaseFilePath());
+    m_databaseBackend.execute(sqlStatement);
 }
 
-void SqliteDatabase::handleReadDatabaseConnectionIsClosed()
+void Database::initializeTables()
 {
-    if (!writeDatabaseConnection.isOpen() && !readDatabaseConnection.isOpen()) {
-        shutdownTables();
-        emit databaseIsClosed();
-    }
+    ImmediateTransaction<Database> transaction(*this);
+
+    for (Table &table : m_sqliteTables)
+        table.initialize(*this);
+
+    transaction.commit();
 }
 
-void SqliteDatabase::handleWriteDatabaseConnectionIsClosed()
+DatabaseBackend &Database::backend()
 {
-    readDatabaseConnection.close();
-}
-
-void SqliteDatabase::initializeTables()
-{
-    for (SqliteTable *table: tables())
-        table->initialize();
-}
-
-void SqliteDatabase::shutdownTables()
-{
-    for (SqliteTable *table: tables())
-        table->shutdown();
+    return m_databaseBackend;
 }
 
 
+
+} // namespace Sqlite

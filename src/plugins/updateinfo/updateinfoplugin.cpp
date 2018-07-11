@@ -42,6 +42,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMetaEnum>
+#include <QPointer>
 #include <QProcessEnvironment>
 #include <QTimer>
 #include <QtPlugin>
@@ -68,7 +69,7 @@ public:
     { }
 
     QString m_maintenanceTool;
-    ShellCommand *m_checkUpdatesCommand = 0;
+    QPointer<ShellCommand> m_checkUpdatesCommand;
     QString m_collectedOutput;
     QTimer *m_checkUpdatesTimer = 0;
 
@@ -164,8 +165,8 @@ void UpdateInfoPlugin::checkForUpdatesFinished()
 
     if (!document.isNull() && document.firstChildElement().hasChildNodes()) {
         emit newUpdatesAvailable(true);
-        if (QMessageBox::question(0, tr("Updater"),
-                                  tr("New updates are available. Do you want to start update?"))
+        if (QMessageBox::question(ICore::dialogParent(), tr("Qt Updater"),
+                                  tr("New updates are available. Do you want to start the update?"))
                 == QMessageBox::Yes)
             startUpdater();
     } else {

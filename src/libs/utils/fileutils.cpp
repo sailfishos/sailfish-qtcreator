@@ -238,7 +238,7 @@ FileName FileUtils::resolveSymlinks(const FileName &path)
 */
 FileName FileUtils::canonicalPath(const FileName &path)
 {
-    const QString result = QFileInfo(path.toString()).canonicalFilePath();
+    const QString result = path.toFileInfo().canonicalFilePath();
     if (result.isEmpty())
         return path;
     return FileName::fromString(result);
@@ -592,7 +592,6 @@ QString FileName::fileName(int pathComponents) const
     if (pathComponents < 0)
         return *this;
     const QChar slash = QLatin1Char('/');
-    QTC_CHECK(!endsWith(slash));
     int i = lastIndexOf(slash);
     if (pathComponents == 0 || i == -1)
         return mid(i + 1);

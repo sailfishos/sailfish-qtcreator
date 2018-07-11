@@ -29,12 +29,6 @@
 
 #include <projectexplorer/abstractprocessstep.h>
 
-namespace ProjectExplorer {
-class BuildStep;
-class IBuildStepFactory;
-class Task;
-}
-
 namespace QmakeProjectManager {
 
 class QmakeBuildConfiguration;
@@ -44,19 +38,12 @@ namespace Internal {
 
 namespace Ui { class MakeStep; }
 
-class MakeStepFactory : public ProjectExplorer::IBuildStepFactory
+class MakeStepFactory : public ProjectExplorer::BuildStepFactory
 {
     Q_OBJECT
 
 public:
-    explicit MakeStepFactory(QObject *parent = 0);
-
-    QList<ProjectExplorer::BuildStepInfo>
-        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
-
-    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
-    ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) override;
+    MakeStepFactory();
 };
 
 } //namespace Internal
@@ -81,7 +68,6 @@ public:
     bool immutable() const override;
     QString userArguments();
     void setUserArguments(const QString &arguments);
-    void setClean(bool clean);
     bool isClean() const;
     QString makeCommand() const;
 
@@ -92,13 +78,9 @@ public:
 signals:
     void userArgumentsChanged();
 
-protected:
-    MakeStep(ProjectExplorer::BuildStepList *bsl, MakeStep *bs);
-    MakeStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
+private:
     bool fromMap(const QVariantMap &map) override;
 
-private:
-    void ctor();
     void setMakeCommand(const QString &make);
     QStringList automaticallyAddedArguments() const;
     bool m_clean = false;

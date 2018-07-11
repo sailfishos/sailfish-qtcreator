@@ -213,9 +213,9 @@ static QStringList allUiQmlFilesforCurrentProject(const Utils::FileName &fileNam
     ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(fileName);
 
     if (currentProject) {
-        foreach (const QString &fileName, currentProject->files(ProjectExplorer::Project::SourceFiles)) {
+        foreach (const Utils::FileName &fileName, currentProject->files(ProjectExplorer::Project::SourceFiles)) {
             if (fileName.endsWith(".ui.qml"))
-                list.append(fileName);
+                list.append(fileName.toString());
         }
     }
 
@@ -361,7 +361,7 @@ void QmlDesignerPlugin::jumpTextCursorToSelectedModelNode()
     // visual editor -> text editor
     ModelNode selectedNode;
     if (!rewriterView()->selectedModelNodes().isEmpty())
-        selectedNode = rewriterView()->selectedModelNodes().first();
+        selectedNode = rewriterView()->selectedModelNodes().constFirst();
 
     if (selectedNode.isValid()) {
         const int nodeOffset = rewriterView()->nodeOffset(selectedNode);
@@ -413,7 +413,6 @@ void QmlDesignerPlugin::deactivateAutoSynchronization()
     viewManager().detachViewsExceptRewriterAndComponetView();
     viewManager().detachComponentView();
     viewManager().detachRewriterView();
-    emitCurrentTextEditorChanged(documentManager().currentDesignDocument()->textEditor());
     documentManager().currentDesignDocument()->resetToDocumentModel();
 }
 
@@ -456,6 +455,11 @@ Internal::DesignModeWidget *QmlDesignerPlugin::mainWidget() const
     return nullptr;
 }
 
+QWidget *QmlDesignerPlugin::createProjectExplorerWidget(QWidget *parent) const
+{
+    return Internal::DesignModeWidget::createProjectExplorerWidget(parent);
+}
+
 void QmlDesignerPlugin::switchToTextModeDeferred()
 {
     QTimer::singleShot(0, this, [] () {
@@ -478,7 +482,7 @@ double QmlDesignerPlugin::formEditorDevicePixelRatio()
     const QList<QWindow *> topLevelWindows = QApplication::topLevelWindows();
     if (topLevelWindows.isEmpty())
         return 1;
-    return topLevelWindows.first()->screen()->devicePixelRatio();
+    return topLevelWindows.constFirst()->screen()->devicePixelRatio();
 }
 
 QmlDesignerPlugin *QmlDesignerPlugin::instance()

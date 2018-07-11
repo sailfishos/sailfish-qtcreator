@@ -47,6 +47,28 @@
 namespace QmlProfiler {
 namespace Internal {
 
+const int DEFAULT_SORT_COLUMN = 2;
+
+struct SortPreserver {
+    SortPreserver(Utils::TreeView *view) : view(view)
+    {
+        const QHeaderView *header = view->header();
+        column = header->sortIndicatorSection();
+        order = header->sortIndicatorOrder();
+        view->setSortingEnabled(false);
+    }
+
+    ~SortPreserver()
+    {
+        view->setSortingEnabled(true);
+        view->sortByColumn(column, order);
+    }
+
+    int column;
+    Qt::SortOrder order;
+    Utils::TreeView *view;
+};
+
 struct Colors {
     Colors () : noteBackground(QColor("orange")), defaultBackground(QColor("white")) {}
     QColor noteBackground;
@@ -107,41 +129,39 @@ static void setViewDefaults(Utils::TreeView *view)
 
 static QString displayHeader(Fields header)
 {
-    static const char ctxt[] = "QmlProfiler::Internal::QmlProfilerEventsMainView";
-
     switch (header) {
     case Callee:
-        return QCoreApplication::translate(ctxt, "Callee");
+        return QmlProfilerStatisticsMainView::tr("Callee");
     case CalleeDescription:
-        return QCoreApplication::translate(ctxt, "Callee Description");
+        return QmlProfilerStatisticsMainView::tr("Callee Description");
     case Caller:
-        return QCoreApplication::translate(ctxt, "Caller");
+        return QmlProfilerStatisticsMainView::tr("Caller");
     case CallerDescription:
-        return QCoreApplication::translate(ctxt, "Caller Description");
+        return QmlProfilerStatisticsMainView::tr("Caller Description");
     case CallCount:
-        return QCoreApplication::translate(ctxt, "Calls");
+        return QmlProfilerStatisticsMainView::tr("Calls");
     case Details:
-        return QCoreApplication::translate(ctxt, "Details");
+        return QmlProfilerStatisticsMainView::tr("Details");
     case Location:
-        return QCoreApplication::translate(ctxt, "Location");
+        return QmlProfilerStatisticsMainView::tr("Location");
     case MaxTime:
-        return QCoreApplication::translate(ctxt, "Longest Time");
+        return QmlProfilerStatisticsMainView::tr("Longest Time");
     case TimePerCall:
-        return QCoreApplication::translate(ctxt, "Mean Time");
+        return QmlProfilerStatisticsMainView::tr("Mean Time");
     case SelfTime:
-        return QCoreApplication::translate(ctxt, "Self Time");
+        return QmlProfilerStatisticsMainView::tr("Self Time");
     case SelfTimeInPercent:
-        return QCoreApplication::translate(ctxt, "Self Time in Percent");
+        return QmlProfilerStatisticsMainView::tr("Self Time in Percent");
     case MinTime:
-        return QCoreApplication::translate(ctxt, "Shortest Time");
+        return QmlProfilerStatisticsMainView::tr("Shortest Time");
     case TimeInPercent:
-        return QCoreApplication::translate(ctxt, "Time in Percent");
+        return QmlProfilerStatisticsMainView::tr("Time in Percent");
     case TotalTime:
-        return QCoreApplication::translate(ctxt, "Total Time");
+        return QmlProfilerStatisticsMainView::tr("Total Time");
     case Type:
-        return QCoreApplication::translate(ctxt, "Type");
+        return QmlProfilerStatisticsMainView::tr("Type");
     case MedianTime:
-        return QCoreApplication::translate(ctxt, "Median Time");
+        return QmlProfilerStatisticsMainView::tr("Median Time");
     default:
         return QString();
     }
@@ -376,7 +396,6 @@ public:
     QList<bool> m_fieldShown;
     QHash<int, int> m_columnIndex; // maps field enum to column index
     bool m_showExtendedStatistics;
-    int m_firstNumericColumn;
 };
 
 QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainView(
@@ -385,8 +404,6 @@ QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainView(
 {
     setViewDefaults(this);
     setObjectName(QLatin1String("QmlProfilerEventsTable"));
-
-    setSortingEnabled(false);
 
     d->m_model = new QStandardItemModel(this);
     d->m_model->setSortRole(SortRole);
@@ -398,7 +415,6 @@ QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainView(
             this, &QmlProfilerStatisticsMainView::buildModel);
     connect(d->model, &QmlProfilerStatisticsModel::notesAvailable,
             this, &QmlProfilerStatisticsMainView::updateNotes);
-    d->m_firstNumericColumn = 0;
     d->m_showExtendedStatistics = false;
 
     setFieldViewable(Name, true);
@@ -413,6 +429,9 @@ QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainView(
     setFieldViewable(MinTime, true);
     setFieldViewable(MedianTime, true);
     setFieldViewable(Details, true);
+
+    setSortingEnabled(true);
+    sortByColumn(DEFAULT_SORT_COLUMN, Qt::DescendingOrder);
 
     buildModel();
 }
@@ -440,18 +459,15 @@ void QmlProfilerStatisticsMainView::setFieldViewable(Fields field, bool show)
 void QmlProfilerStatisticsMainView::setHeaderLabels()
 {
     int fieldIndex = 0;
-    d->m_firstNumericColumn = 0;
 
     d->m_columnIndex.clear();
     if (d->m_fieldShown[Name]) {
         d->m_columnIndex[Name] = fieldIndex;
         d->m_model->setHeaderData(fieldIndex++, Qt::Horizontal, QVariant(displayHeader(Location)));
-        d->m_firstNumericColumn++;
     }
     if (d->m_fieldShown[Type]) {
         d->m_columnIndex[Type] = fieldIndex;
         d->m_model->setHeaderData(fieldIndex++, Qt::Horizontal, QVariant(displayHeader(Type)));
-        d->m_firstNumericColumn++;
     }
     if (d->m_fieldShown[TimeInPercent]) {
         d->m_columnIndex[TimeInPercent] = fieldIndex;
@@ -523,11 +539,10 @@ bool QmlProfilerStatisticsMainView::showExtendedStatistics() const
 
 void QmlProfilerStatisticsMainView::clear()
 {
+    SortPreserver sorter(this);
     d->m_model->clear();
     d->m_model->setColumnCount(d->getFieldCount());
-
     setHeaderLabels();
-    setSortingEnabled(false);
 }
 
 int QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainViewPrivate::getFieldCount()
@@ -542,12 +557,13 @@ int QmlProfilerStatisticsMainView::QmlProfilerStatisticsMainViewPrivate::getFiel
 void QmlProfilerStatisticsMainView::buildModel()
 {
     clear();
-    parseModel();
-    setShowExtendedStatistics(d->m_showExtendedStatistics);
 
-    setRootIsDecorated(false);
-    setSortingEnabled(true);
-    sortByColumn(d->m_firstNumericColumn,Qt::DescendingOrder);
+    {
+        SortPreserver sorter(this);
+        parseModel();
+        setShowExtendedStatistics(d->m_showExtendedStatistics);
+        setRootIsDecorated(false);
+    }
 
     expandAll();
     if (d->m_fieldShown[Name])
@@ -841,13 +857,15 @@ QmlProfilerStatisticsRelativesView::QmlProfilerStatisticsRelativesView(
     Utils::TreeView(parent), d(new QmlProfilerStatisticsRelativesViewPrivate(this))
 {
     setViewDefaults(this);
-    setSortingEnabled(false);
     d->model = model;
     QStandardItemModel *itemModel = new QStandardItemModel(this);
     itemModel->setSortRole(SortRole);
     setModel(itemModel);
     setRootIsDecorated(false);
     updateHeader();
+
+    setSortingEnabled(true);
+    sortByColumn(DEFAULT_SORT_COLUMN, Qt::DescendingOrder);
 
     connect(this, &QAbstractItemView::activated,
             this, &QmlProfilerStatisticsRelativesView::jumpToItem);
@@ -864,12 +882,11 @@ QmlProfilerStatisticsRelativesView::~QmlProfilerStatisticsRelativesView()
 
 void QmlProfilerStatisticsRelativesView::displayType(int typeIndex)
 {
+    SortPreserver sorter(this);
     rebuildTree(d->model->getData(typeIndex));
 
     updateHeader();
     resizeColumnToContents(0);
-    setSortingEnabled(true);
-    sortByColumn(2);
 }
 
 void QmlProfilerStatisticsRelativesView::rebuildTree(
@@ -931,6 +948,7 @@ void QmlProfilerStatisticsRelativesView::rebuildTree(
 void QmlProfilerStatisticsRelativesView::clear()
 {
     if (treeModel()) {
+        SortPreserver sorter(this);
         treeModel()->clear();
         updateHeader();
     }

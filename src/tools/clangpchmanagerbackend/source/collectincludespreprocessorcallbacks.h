@@ -25,15 +25,17 @@
 
 #pragma once
 
-#include "stringcache.h"
+#include "sourcelocationsutils.h"
+#include <filepathcachinginterface.h>
+#include <filepathid.h>
+
+#include <utils/smallstringvector.h>
 
 #include <clang/Basic/SourceManager.h>
 #include <clang/Lex/MacroInfo.h>
 #include <clang/Lex/HeaderSearch.h>
 #include <clang/Lex/PPCallbacks.h>
 #include <clang/Lex/Preprocessor.h>
-
-#include <utils/smallstringvector.h>
 
 #include <QFile>
 #include <QDir>
@@ -47,18 +49,20 @@ class CollectIncludesPreprocessorCallbacks final : public clang::PPCallbacks
 {
 public:
     CollectIncludesPreprocessorCallbacks(clang::HeaderSearch &headerSearch,
-                                         std::vector<uint> &includeIds,
-                                         StringCache<Utils::PathString> &filePathCache,
+                                         FilePathIds &includeIds,
+                                         FilePathCachingInterface &filePathCache,
                                          const std::vector<uint> &excludedIncludeUID,
-                                         std::vector<uint>  &alreadyIncludedFileUIDs)
+                                         std::vector<uint> &alreadyIncludedFileUIDs,
+                                         clang::SourceManager &sourceManager)
         : m_headerSearch(headerSearch),
           m_includeIds(includeIds),
           m_filePathCache(filePathCache),
           m_excludedIncludeUID(excludedIncludeUID),
-          m_alreadyIncludedFileUIDs(alreadyIncludedFileUIDs)
+          m_alreadyIncludedFileUIDs(alreadyIncludedFileUIDs),
+          m_sourceManager(sourceManager)
     {}
 
-    void InclusionDirective(clang::SourceLocation /*hashLocation*/,
+    void InclusionDirective(clang::SourceLocation hashLocation,
                             const clang::Token &/*includeToken*/,
                             llvm::StringRef /*fileName*/,
                             bool /*isAngled*/,
@@ -70,15 +74,16 @@ public:
     {
         if (!m_skipInclude && file) {
             auto fileUID = file->getUID();
-            if (isNotInExcludedIncludeUID(fileUID)) {
-                flagIncludeAlreadyRead(file);
+            auto sourceFileID = m_sourceManager.getFileID(hashLocation);
+            auto sourceFileUID = m_sourceManager.getFileEntryForID(sourceFileID)->getUID();
+            if (isNotInExcludedIncludeUID(fileUID) && isNotAlreadyIncluded(sourceFileUID).first) {
 
                 auto notAlreadyIncluded = isNotAlreadyIncluded(fileUID);
                 if (notAlreadyIncluded.first) {
                     m_alreadyIncludedFileUIDs.insert(notAlreadyIncluded.second, fileUID);
-                    Utils::PathString filePath = filePathFromFile(file);
-                    if (!filePath.isEmpty()) {
-                        uint includeId = m_filePathCache.stringId(filePath);
+                    FilePath filePath = filePathFromFile(file);
+                    if (!filePath.empty()) {
+                        FilePathId includeId = m_filePathCache.filePathId(filePath);
                         m_includeIds.emplace_back(includeId);
                     }
                 }
@@ -141,43 +146,18 @@ public:
         return {range.first == range.second, range.first};
     }
 
-    void flagIncludeAlreadyRead(const clang::FileEntry *file)
+    static FilePath filePathFromFile(const clang::FileEntry *file)
     {
-        auto &headerFileInfo = m_headerSearch.getFileInfo(file);
-
-        headerFileInfo.isImport = true;
-        ++headerFileInfo.NumIncludes;
-    }
-
-    static Utils::PathString fromNativePath(Utils::PathString &&filePath)
-    {
-#ifdef _WIN32
-        if (filePath.startsWith("\\\\?\\"))
-            filePath = Utils::PathString(filePath.mid(4));
-        filePath.replace('\\', '/');
-#endif
-        return std::move(filePath);
-    }
-
-    static Utils::PathString filePathFromFile(const clang::FileEntry *file)
-    {
-        clang::StringRef realPath = file->tryGetRealPathName();
-        if (!realPath.empty())
-            return fromNativePath({realPath.data(), realPath.size()});
-
-#if LLVM_VERSION_MAJOR >= 4
-        return fromNativePath({file->getName().data(), file->getName().size()});
-#else
-        return fromNativePath(file->getName());
-#endif
+        return FilePath::fromNativeFilePath(absolutePath(file->getName()));
     }
 
 private:
     clang::HeaderSearch &m_headerSearch;
-    std::vector<uint> &m_includeIds;
-    StringCache<Utils::PathString> &m_filePathCache;
+    FilePathIds &m_includeIds;
+    FilePathCachingInterface &m_filePathCache;
     const std::vector<uint> &m_excludedIncludeUID;
     std::vector<uint> &m_alreadyIncludedFileUIDs;
+    clang::SourceManager &m_sourceManager;
     bool m_skipInclude = false;
 };
 

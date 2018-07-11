@@ -42,18 +42,19 @@
 #include <texteditor/codeassist/assistproposalitem.h>
 #include <texteditor/codeassist/functionhintproposal.h>
 #include <texteditor/codeassist/ifunctionhintproposalmodel.h>
-#include <texteditor/convenience.h>
 
 #include <cplusplus/BackwardsScanner.h>
 #include <cplusplus/ExpressionUnderCursor.h>
 #include <cplusplus/Icons.h>
 #include <cplusplus/SimpleLexer.h>
 
-#include <clangbackendipc/filecontainer.h>
+#include <clangsupport/filecontainer.h>
 
 #include <utils/algorithm.h>
+#include <utils/textutils.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcfallthrough.h>
 
 #include <QDirIterator>
 #include <QTextDocument>
@@ -242,7 +243,7 @@ IAssistProposal *ClangCompletionAssistProcessor::startCompletionHelper()
     case ClangCompletionContextAnalyzer::CompleteSlot:
         modifiedFileContent = modifyInput(m_interface->textDocument(),
                                           analyzer.positionEndOfExpression());
-        // Fall through!
+        Q_FALLTHROUGH();
     case ClangCompletionContextAnalyzer::PassThroughToLibClang: {
         m_addSnippets = m_completionOperator == T_EOF_SYMBOL;
         m_sentRequestType = NormalCompletion;
@@ -253,7 +254,8 @@ IAssistProposal *ClangCompletionAssistProcessor::startCompletionHelper()
     }
     case ClangCompletionContextAnalyzer::PassThroughToLibClangAfterLeftParen: {
         m_sentRequestType = FunctionHintCompletion;
-        const bool requestSent = sendCompletionRequest(analyzer.positionForClang(), QByteArray());
+        const bool requestSent = sendCompletionRequest(analyzer.positionForClang(), QByteArray(),
+                                                       analyzer.functionNameStart());
         setPerformWasApplicable(requestSent);
         break;
     }
@@ -494,12 +496,12 @@ void ClangCompletionAssistProcessor::sendFileContent(const QByteArray &customFil
     // TODO: Revert custom modification after the completions
     const UnsavedFileContentInfo info = unsavedFileContent(customFileContent);
 
-    IpcCommunicator &ipcCommunicator = m_interface->ipcCommunicator();
-    ipcCommunicator.updateTranslationUnitsForEditor({{m_interface->fileName(),
-                                                      Utf8String(),
-                                                      Utf8String::fromByteArray(info.unsavedContent),
-                                                      info.isDocumentModified,
-                                                      uint(m_interface->textDocument()->revision())}});
+    BackendCommunicator &communicator = m_interface->communicator();
+    communicator.updateTranslationUnitsForEditor({{m_interface->fileName(),
+                                                   Utf8String(),
+                                                   Utf8String::fromByteArray(info.unsavedContent),
+                                                   info.isDocumentModified,
+                                                   uint(m_interface->textDocument()->revision())}});
 }
 namespace {
 bool shouldSendDocumentForCompletion(const QString &filePath,
@@ -548,27 +550,39 @@ void setLastCompletionPosition(const QString &filePath,
 
 }
 
-bool ClangCompletionAssistProcessor::sendCompletionRequest(int position,
-                                                           const QByteArray &customFileContent)
+ClangCompletionAssistProcessor::Position
+ClangCompletionAssistProcessor::extractLineColumn(int position)
 {
-    int line, column;
-    TextEditor::Convenience::convertPosition(m_interface->textDocument(), position, &line, &column);
-    const QTextBlock block = m_interface->textDocument()->findBlock(position);
-    column += ClangCodeModel::Utils::extraUtf8CharsShift(block.text(), column) + 1;
+    if (position < 0)
+        return {-1, -1};
 
+    int line = -1, column = -1;
+    ::Utils::Text::convertPosition(m_interface->textDocument(), position, &line, &column);
+
+    column = Utils::clangColumn(m_interface->textDocument()->findBlock(position), column);
+    return {line, column};
+}
+
+bool ClangCompletionAssistProcessor::sendCompletionRequest(int position,
+                                                           const QByteArray &customFileContent,
+                                                           int functionNameStartPosition)
+{
     const QString filePath = m_interface->fileName();
 
-    auto &ipcCommunicator = m_interface->ipcCommunicator();
+    auto &communicator = m_interface->communicator();
 
-    if (shouldSendCodeCompletion(filePath, position)
-            || ipcCommunicator.isNotWaitingForCompletion()) {
+    if (shouldSendCodeCompletion(filePath, position) || communicator.isNotWaitingForCompletion()) {
         if (shouldSendDocumentForCompletion(filePath, position)) {
             sendFileContent(customFileContent);
             setLastDocumentRevision(filePath);
         }
 
+        const Position cursorPosition = extractLineColumn(position);
+        const Position functionNameStart = extractLineColumn(functionNameStartPosition);
         const QString projectPartId = CppTools::CppToolsBridge::projectPartIdForFile(filePath);
-        ipcCommunicator.completeCode(this, filePath, uint(line), uint(column), projectPartId);
+        communicator.completeCode(this, filePath, uint(cursorPosition.line),
+                                  uint(cursorPosition.column), projectPartId,
+                                  functionNameStart.line, functionNameStart.column);
         setLastCompletionPosition(filePath, position);
         return true;
     }

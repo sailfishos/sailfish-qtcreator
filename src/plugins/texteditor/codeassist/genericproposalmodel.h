@@ -28,8 +28,9 @@
 #include "iassistproposalmodel.h"
 #include "assistenums.h"
 
+#include <texteditor/completionsettings.h>
 #include <texteditor/texteditor_global.h>
-
+#include <utils/fuzzymatcher.h>
 
 #include <QHash>
 #include <QList>
@@ -70,6 +71,8 @@ public:
 
     bool isPrefiltered(const QString &prefix) const;
     void setPrefilterPrefix(const QString &prefix);
+
+    FuzzyMatcher::CaseSensitivity convertCaseSensitivity(TextEditor::CaseSensitivity textEditorCaseSensitivity);
 
 protected:
     QList<AssistProposalItemInterface *> m_currentItems;

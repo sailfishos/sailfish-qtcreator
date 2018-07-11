@@ -13,8 +13,7 @@ Project {
 
         Depends { name: "Core" }
         Depends { name: "TextEditor" }
-
-        cpp.defines: base.concat("QTC_CPU=X86Architecture")
+        Depends { name: "app_version_header" }
 
         Group {
             name: "General"
@@ -29,7 +28,6 @@ Project {
                 "appoutputpane.cpp", "appoutputpane.h",
                 "baseprojectwizarddialog.cpp", "baseprojectwizarddialog.h",
                 "buildconfiguration.cpp", "buildconfiguration.h",
-                "buildconfigurationmodel.cpp", "buildconfigurationmodel.h",
                 "buildenvironmentwidget.cpp", "buildenvironmentwidget.h",
                 "buildinfo.cpp", "buildinfo.h",
                 "buildmanager.cpp", "buildmanager.h",
@@ -54,7 +52,6 @@ Project {
                 "dependenciespanel.cpp", "dependenciespanel.h",
                 "deployablefile.cpp", "deployablefile.h",
                 "deployconfiguration.cpp", "deployconfiguration.h",
-                "deployconfigurationmodel.cpp", "deployconfigurationmodel.h",
                 "deploymentdata.h",
                 "deploymentdataview.cpp",
                 "deploymentdataview.h",
@@ -100,6 +97,7 @@ Project {
                 "processstep.cpp", "processstep.h", "processstep.ui",
                 "project.cpp", "project.h",
                 "projectconfiguration.cpp", "projectconfiguration.h",
+                "projectconfigurationmodel.cpp", "projectconfigurationmodel.h",
                 "projectexplorer.cpp", "projectexplorer.h",
                 "projectexplorer.qrc",
                 "projectexplorer_export.h",
@@ -110,6 +108,7 @@ Project {
                 "projectexplorersettingspage.cpp", "projectexplorersettingspage.h", "projectexplorersettingspage.ui",
                 "projectfilewizardextension.cpp", "projectfilewizardextension.h",
                 "projectimporter.cpp", "projectimporter.h",
+                "projectmacro.cpp", "projectmacro.h",
                 "projectmacroexpander.cpp", "projectmacroexpander.h",
                 "projectmanager.h",
                 "projectmodels.cpp", "projectmodels.h",
@@ -124,16 +123,15 @@ Project {
                 "runnables.cpp", "runnables.h",
                 "runconfiguration.cpp", "runconfiguration.h",
                 "runconfigurationaspects.cpp", "runconfigurationaspects.h",
-                "runconfigurationmodel.cpp", "runconfigurationmodel.h",
                 "runsettingspropertiespage.cpp", "runsettingspropertiespage.h",
                 "selectablefilesmodel.cpp", "selectablefilesmodel.h",
                 "session.cpp", "session.h",
                 "sessionmodel.cpp", "sessionmodel.h",
                 "sessionview.cpp", "sessionview.h",
                 "sessiondialog.cpp", "sessiondialog.h", "sessiondialog.ui",
-                "settingsaccessor.cpp", "settingsaccessor.h",
                 "showineditortaskhandler.cpp", "showineditortaskhandler.h",
                 "showoutputtaskhandler.cpp", "showoutputtaskhandler.h",
+                "subscription.cpp", "subscription.h",
                 "target.cpp", "target.h",
                 "targetsettingspanel.cpp", "targetsettingspanel.h",
                 "targetsetuppage.cpp", "targetsetuppage.h",
@@ -146,6 +144,7 @@ Project {
                 "toolchainconfigwidget.cpp", "toolchainconfigwidget.h",
                 "toolchainmanager.cpp", "toolchainmanager.h",
                 "toolchainoptionspage.cpp", "toolchainoptionspage.h",
+                "userfileaccessor.cpp", "userfileaccessor.h",
                 "vcsannotatetaskhandler.cpp", "vcsannotatetaskhandler.h",
                 "waitforstopdialog.cpp", "waitforstopdialog.h",
                 "xcodebuildparser.cpp", "xcodebuildparser.h"

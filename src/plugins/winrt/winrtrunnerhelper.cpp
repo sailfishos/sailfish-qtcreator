@@ -37,6 +37,7 @@
 #include <projectexplorer/target.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+#include <utils/qtcfallthrough.h>
 #include <utils/qtcprocess.h>
 
 #include <QDir>
@@ -169,7 +170,7 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
             QtcProcess::addArg(&runnerArgs, QStringLiteral("--debugger-arguments"));
             QtcProcess::addArg(&runnerArgs, m_debuggerArguments);
         }
-        // fall through
+        Q_FALLTHROUGH();
     case Start:
         QtcProcess::addArgs(&runnerArgs, QStringLiteral("--start --stop --install --wait 0"));
         connectProcess = true;
@@ -185,7 +186,8 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
 
     if (m_device->type() == Constants::WINRT_DEVICE_TYPE_LOCAL)
         QtcProcess::addArgs(&runnerArgs, QStringLiteral("--profile appx"));
-    else if (m_device->type() == Constants::WINRT_DEVICE_TYPE_PHONE)
+    else if (m_device->type() == Constants::WINRT_DEVICE_TYPE_PHONE ||
+             m_device->type() == Constants::WINRT_DEVICE_TYPE_EMULATOR)
         QtcProcess::addArgs(&runnerArgs, QStringLiteral("--profile appxphone"));
 
     QtcProcess::addArg(&runnerArgs, m_executableFilePath);

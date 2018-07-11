@@ -32,7 +32,7 @@
 #include <refactoringserverinterface.h>
 #include <clangrefactoringservermessages.h>
 
-#include <cpptools/clangcompileroptionsbuilder.h>
+#include <cpptools/compileroptionsbuilder.h>
 
 #include <QPointer>
 
@@ -127,14 +127,14 @@ void ClangQueryProjectsFindFilter::setProjectParts(const std::vector<CppTools::P
     this->m_projectParts = projectParts;
 }
 
-bool ClangQueryProjectsFindFilter::isUsable() const
+bool ClangQueryProjectsFindFilter::isAvailable() const
 {
-    return m_server.isUsable();
+    return m_server.isAvailable();
 }
 
-void ClangQueryProjectsFindFilter::setUsable(bool isUsable)
+void ClangQueryProjectsFindFilter::setAvailable(bool isAvailable)
 {
-    m_server.setUsable(isUsable);
+    m_server.setAvailable(isAvailable);
 }
 
 SearchHandle *ClangQueryProjectsFindFilter::searchHandleForTestOnly() const
@@ -151,35 +151,12 @@ void ClangQueryProjectsFindFilter::setUnsavedContent(
 Utils::SmallStringVector ClangQueryProjectsFindFilter::compilerArguments(CppTools::ProjectPart *projectPart,
                                                                          CppTools::ProjectFile::Kind fileKind)
 {
-    using CppTools::ClangCompilerOptionsBuilder;
+    using CppTools::CompilerOptionsBuilder;
 
-    ClangCompilerOptionsBuilder builder(*projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR);
+    CompilerOptionsBuilder builder(*projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR);
 
-    builder.addWordWidth();
-    builder.addTargetTriple();
-    builder.addLanguageOption(fileKind);
-    builder.addOptionsForLanguage(/*checkForBorlandExtensions*/ true);
-    builder.enableExceptions();
-
-    builder.addDefineToAvoidIncludingGccOrMinGwIntrinsics();
-    builder.addDefineFloat128ForMingw();
-    builder.addToolchainAndProjectDefines();
-    builder.undefineCppLanguageFeatureMacrosForMsvc2015();
-
-    builder.addPredefinedMacrosAndHeaderPathsOptions();
-    builder.addWrappedQtHeadersIncludePath();
-    builder.addPrecompiledHeaderOptions(ClangCompilerOptionsBuilder::PchUsage::None);
-    builder.addHeaderPathOptions();
-    builder.addProjectConfigFileInclude();
-
-    builder.addMsvcCompatibilityVersion();
-
-    builder.add("-fmessage-length=0");
-    builder.add("-fmacro-backtrace-limit=0");
-    builder.add("-w");
-    builder.add("-ferror-limit=1000000");
-
-    return Utils::SmallStringVector(builder.options());
+    return Utils::SmallStringVector(builder.build(fileKind,
+                                                  CompilerOptionsBuilder::PchUsage::None));
 }
 
 QWidget *ClangQueryProjectsFindFilter::widget() const
@@ -193,7 +170,7 @@ Utils::SmallStringVector createCommandLine(CppTools::ProjectPart *projectPart,
                                            const QString &documentFilePath,
                                            CppTools::ProjectFile::Kind fileKind)
 {
-    using CppTools::ClangCompilerOptionsBuilder;
+    using CppTools::CompilerOptionsBuilder;
 
     Utils::SmallStringVector commandLine = ClangQueryProjectsFindFilter::compilerArguments(projectPart, fileKind);
 

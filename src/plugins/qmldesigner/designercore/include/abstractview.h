@@ -34,6 +34,8 @@
 #include <rewritertransaction.h>
 #include <commondefines.h>
 
+#include <coreplugin/icontext.h>
+
 #include <QObject>
 #include <QPointer>
 
@@ -55,6 +57,7 @@ namespace QmlDesigner {
 class NodeInstanceView;
 class RewriterView;
 class QmlModelState;
+class QmlTimelineMutator;
 
 enum DesignerWidgetFlags {
     DisableOnError,
@@ -232,6 +235,8 @@ public:
 
     virtual void documentMessagesChanged(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings);
 
+    virtual void currentTimelineChanged(const ModelNode &node);
+
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
 
     NodeInstanceView *nodeInstanceView() const;
@@ -240,6 +245,7 @@ public:
     void setCurrentStateNode(const ModelNode &node);
     ModelNode currentStateNode() const;
     QmlModelState currentState() const;
+    QmlTimelineMutator currentTimeline() const;
 
     int majorQtQuickVersion() const;
     int minorQtQuickVersion() const;
@@ -251,7 +257,10 @@ public:
     virtual bool hasWidget() const;
     virtual WidgetInfo widgetInfo();
 
-    virtual QString contextHelpId() const;
+    virtual void contextHelpId(const Core::IContext::HelpIdCallback &callback) const;
+
+    void activateTimelineRecording(const ModelNode &mutator);
+    void deactivateTimelineRecording();
 
 protected:
     void setModel(Model * model);

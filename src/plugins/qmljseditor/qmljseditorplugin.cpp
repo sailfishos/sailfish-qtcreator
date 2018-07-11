@@ -54,6 +54,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <texteditor/snippets/snippetprovider.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/tabsettings.h>
 #include <utils/qtcassert.h>
 #include <utils/json.h>
 
@@ -76,8 +77,6 @@ enum {
 
 namespace QmlJSEditor {
 using namespace Internal;
-
-void registerQuickFixes(ExtensionSystem::IPlugin *plugIn);
 
 QmlJSEditorPlugin *QmlJSEditorPlugin::m_instance = 0;
 
@@ -192,8 +191,6 @@ bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *e
 
     FileIconProvider::registerIconOverlayForSuffix(ProjectExplorer::Constants::FILEOVERLAY_QML, "qml");
 
-    registerQuickFixes(this);
-
     addAutoReleasedObject(new QmlJSOutlineWidgetFactory);
 
     addAutoReleasedObject(new QuickToolBar);
@@ -259,16 +256,27 @@ void QmlJSEditorPlugin::reformatFile()
         if (!document->isParsedCorrectly())
             return;
 
-        const QString &newText = QmlJS::reformat(document);
-        QmlJSEditorWidget *widget = EditorManager::currentEditor()
-                ? qobject_cast<QmlJSEditorWidget*>(EditorManager::currentEditor()->widget())
-                : nullptr;
-        if (widget) {
-            const int position = widget->position();
-            m_currentDocument->document()->setPlainText(newText);
-            widget->setCursorPosition(position);
+        TextEditor::TabSettings tabSettings = m_currentDocument->tabSettings();
+        const QString &newText = QmlJS::reformat(document,
+                                                 tabSettings.m_indentSize,
+                                                 tabSettings.m_tabSize);
+
+        //  QTextDocument::setPlainText cannot be used, as it would reset undo/redo history
+        const auto setNewText = [this, &newText]() {
+            QTextCursor tc(m_currentDocument->document());
+            tc.movePosition(QTextCursor::Start);
+            tc.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+            tc.insertText(newText);
+        };
+
+        IEditor *ed = EditorManager::currentEditor();
+        if (ed) {
+            int line = ed->currentLine();
+            int column = ed->currentColumn();
+            setNewText();
+            ed->gotoLine(line, column);
         } else {
-            m_currentDocument->document()->setPlainText(newText);
+            setNewText();
         }
     }
 }
@@ -337,10 +345,8 @@ void QmlJSEditorPlugin::autoFormatOnSave(Core::IDocument *document)
     // Check if file is contained in the current project (if wished)
     if (QmlJsEditingSettings::get().autoFormatOnlyCurrentProject()) {
         const ProjectExplorer::Project *pro = ProjectExplorer::ProjectTree::currentProject();
-        if (!pro || !pro->files(ProjectExplorer::Project::SourceFiles).contains(
-                    document->filePath().toString())) {
+        if (!pro || !pro->files(ProjectExplorer::Project::SourceFiles).contains(document->filePath()))
             return;
-        }
     }
 
     reformatFile();

@@ -29,7 +29,7 @@
 #include "processevents-utilities.h"
 
 #include <clangcodemodelserver.h>
-#include <highlightingmarkcontainer.h>
+#include <tokeninfocontainer.h>
 #include <clangcodemodelclientproxy.h>
 #include <clangcodemodelserverproxy.h>
 #include <clangtranslationunits.h>
@@ -102,6 +102,7 @@ protected:
     bool waitUntilAllJobsFinished(int timeOutInMs = 10000);
 
     void registerProjectPart();
+    void registerProjectPart(const Utf8String &projectPartId);
     void changeProjectPartArguments();
 
     void registerProjectAndFile(const Utf8String &filePath,
@@ -110,6 +111,8 @@ protected:
                                                   int expectedDocumentAnnotationsChangedMessages = 1);
     void registerProjectAndFilesAndWaitForFinished(int expectedDocumentAnnotationsChangedMessages = 2);
     void registerFile(const Utf8String &filePath,
+                      int expectedDocumentAnnotationsChangedMessages = 1);
+    void registerFile(const Utf8String &filePath, const Utf8String &projectPartId,
                       int expectedDocumentAnnotationsChangedMessages = 1);
     void registerFiles(int expectedDocumentAnnotationsChangedMessages);
     void registerFileWithUnsavedContent(const Utf8String &filePath, const Utf8String &content);
@@ -126,6 +129,7 @@ protected:
 
     void requestDocumentAnnotations(const Utf8String &filePath);
     void requestReferences(quint32 documentRevision = 0);
+    void requestFollowSymbol(quint32 documentRevision = 0);
 
     void completeCode(const Utf8String &filePath, uint line = 1, uint column = 1,
                       const Utf8String &projectPartId = Utf8String());
@@ -144,6 +148,7 @@ protected:
     void expectCompletionFromFileAUnsavedMethodVersion2();
     void expectNoCompletionWithUnsavedMethod();
     void expectReferences();
+    void expectFollowSymbol();
     void expectDocumentAnnotationsChangedForFileBWithSpecificHighlightingMark();
 
     static const Utf8String unsavedContent(const QString &unsavedFilePath);
@@ -153,6 +158,7 @@ protected:
     ClangBackEnd::ClangCodeModelServer clangServer;
     const ClangBackEnd::Documents &documents = clangServer.documentsForTestOnly();
     const Utf8String projectPartId = Utf8StringLiteral("pathToProjectPart.pro");
+    const Utf8String projectPartId2 = Utf8StringLiteral("otherPathToProjectPart.pro");
 
     const Utf8String filePathA = Utf8StringLiteral(TESTDATA_DIR"/complete_extractor_function.cpp");
     const QString filePathAUnsavedVersion1
@@ -202,7 +208,30 @@ TEST_F(ClangCodeModelServerSlowTest, RequestReferencesTakesRevisionFromMessage)
     requestReferences(/*documentRevision=*/ 99);
 
     JobRequests &queue = documentProcessorForFile(filePathC).queue();
-    Utils::anyOf(queue, [](const JobRequest &request) { return request.documentRevision == 99; });
+    ASSERT_TRUE(Utils::anyOf(queue, [](const JobRequest &request) {
+        return request.documentRevision == 99;
+    }));
+    queue.clear(); // Avoid blocking
+}
+
+TEST_F(ClangCodeModelServerSlowTest, RequestFollowSymbolForCurrentDocumentRevision)
+{
+    registerProjectAndFileAndWaitForFinished(filePathC);
+
+    expectFollowSymbol();
+    requestFollowSymbol();
+}
+
+TEST_F(ClangCodeModelServerSlowTest, RequestFollowSymbolTakesRevisionFromMessage)
+{
+    registerProjectAndFileAndWaitForFinished(filePathC);
+
+    requestFollowSymbol(/*documentRevision=*/ 99);
+
+    JobRequests &queue = documentProcessorForFile(filePathC).queue();
+    ASSERT_TRUE(Utils::anyOf(queue, [](const JobRequest &request) {
+        return request.documentRevision == 99;
+    }));
     queue.clear(); // Avoid blocking
 }
 
@@ -381,6 +410,30 @@ TEST_F(ClangCodeModelServerSlowTest, TranslationUnitAfterUpdateNeedsReparse)
     ASSERT_THAT(clangServer, HasDirtyDocument(filePathA, projectPartId, 1U, true, true));
 }
 
+TEST_F(ClangCodeModelServerSlowTest, TakeOverJobsOnProjectPartChange)
+{
+    registerProjectAndFileAndWaitForFinished(filePathC, 2);
+    updateVisibilty(filePathB, filePathB); // Disable processing jobs
+    requestReferences();
+
+    expectReferences();
+
+    changeProjectPartArguments(); // Here we do not want to loose the RequestReferences job
+    updateVisibilty(filePathC, filePathC); // Enable processing jobs
+}
+
+TEST_F(ClangCodeModelServerSlowTest, TakeOverJobsOnProjectPartIdChange)
+{
+    registerProjectPart(projectPartId);
+    registerProjectPart(projectPartId2);
+    registerFile(filePathC, projectPartId, 0);
+    requestReferences();
+
+    expectReferences();
+
+    registerFile(filePathC, projectPartId2); // Here we do not want to loose the RequestReferences job
+}
+
 void ClangCodeModelServer::SetUp()
 {
     clangServer.setClient(&mockClangCodeModelClient);
@@ -415,6 +468,13 @@ void ClangCodeModelServer::registerProjectAndFilesAndWaitForFinished(
 
 void ClangCodeModelServer::registerFile(const Utf8String &filePath,
                                   int expectedDocumentAnnotationsChangedMessages)
+{
+    registerFile(filePath, projectPartId, expectedDocumentAnnotationsChangedMessages);
+}
+
+void ClangCodeModelServer::registerFile(const Utf8String &filePath,
+                                        const Utf8String &projectPartId,
+                                        int expectedDocumentAnnotationsChangedMessages)
 {
     const FileContainer fileContainer(filePath, projectPartId);
     const RegisterTranslationUnitForEditorMessage message({fileContainer}, filePath, {filePath});
@@ -555,6 +615,20 @@ void ClangCodeModelServer::expectReferences()
         .Times(1);
 }
 
+void ClangCodeModelServer::expectFollowSymbol()
+{
+    const ClangBackEnd::SourceRangeContainer classDefinition{
+         {filePathC, 40, 7},
+         {filePathC, 40, 10}
+     };
+
+    EXPECT_CALL(mockClangCodeModelClient,
+                followSymbol(
+                    Property(&FollowSymbolMessage::sourceRange,
+                             Eq(classDefinition))))
+        .Times(1);
+}
+
 void ClangCodeModelServer::expectCompletionFromFileA()
 {
     const CodeCompletion completion(Utf8StringLiteral("Function"),
@@ -580,17 +654,28 @@ void ClangCodeModelServer::requestReferences(quint32 documentRevision)
     clangServer.requestReferences(message);
 }
 
+void ClangCodeModelServer::requestFollowSymbol(quint32 documentRevision)
+{
+    const FileContainer fileContainer{filePathC, projectPartId, Utf8StringVector(),
+                                      documentRevision};
+    const RequestFollowSymbolMessage message{fileContainer, 43, 9};
+
+    clangServer.requestFollowSymbol(message);
+}
+
 void ClangCodeModelServer::expectDocumentAnnotationsChangedForFileBWithSpecificHighlightingMark()
 {
     HighlightingTypes types;
     types.mainHighlightingType = ClangBackEnd::HighlightingType::Function;
     types.mixinHighlightingTypes.push_back(ClangBackEnd::HighlightingType::Declaration);
-    const HighlightingMarkContainer highlightingMark(1, 6, 8, types);
+    types.mixinHighlightingTypes.push_back(ClangBackEnd::HighlightingType::FunctionDefinition);
+    const TokenInfoContainer tokenInfo(1, 6, 8, types, Utf8String("function", 8),
+                                       Utf8String("void (int)", 10), true, false, true, true);
 
     EXPECT_CALL(mockClangCodeModelClient,
                 documentAnnotationsChanged(
-                    Property(&DocumentAnnotationsChangedMessage::highlightingMarks,
-                             Contains(highlightingMark))))
+                    Property(&DocumentAnnotationsChangedMessage::tokenInfos,
+                             Contains(tokenInfo))))
         .Times(1);
 }
 
@@ -621,6 +706,11 @@ void ClangCodeModelServer::unregisterFile(const Utf8String &filePath)
 }
 
 void ClangCodeModelServer::registerProjectPart()
+{
+    registerProjectPart(projectPartId);
+}
+
+void ClangCodeModelServer::registerProjectPart(const Utf8String &projectPartId)
 {
     RegisterProjectPartsForEditorMessage message({ProjectPartContainer(projectPartId)});
 

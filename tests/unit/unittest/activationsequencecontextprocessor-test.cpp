@@ -144,6 +144,16 @@ TEST(ActivationSequenceContextProcessor, TemplateFunctionLeftParen)
     ASSERT_THAT(processor.completionKind(), CPlusPlus::T_LPAREN);
 }
 
+TEST(ActivationSequenceContextProcessor, TemplateFunctionSecondParameter)
+{
+    ClangCompletionAssistInterface interface("foo<X>(", 7);
+    int startOfname = ContextProcessor::findStartOfName(&interface,
+                                                        6,
+                                                        ContextProcessor::NameCategory::Function);
+
+    ASSERT_THAT(startOfname, 0);
+}
+
 TEST(ActivationSequenceContextProcessor, ExpressionLeftParen)
 {
     ClangCompletionAssistInterface interface("x * (", 5);

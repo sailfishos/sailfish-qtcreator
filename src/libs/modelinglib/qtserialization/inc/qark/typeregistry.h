@@ -59,8 +59,8 @@ public:
     static MapType &uidToNameMap() { return *typeidUidToNameMap; }
 
 #if !defined(QT_NO_DEBUG)
-    static bool hasNameToUidMap() { return typeidNameToUidMap != 0; }
-    static bool hasUidToNameMap() { return typeidUidToNameMap != 0; }
+    static bool hasNameToUidMap() { return typeidNameToUidMap != nullptr; }
+    static bool hasUidToNameMap() { return typeidUidToNameMap != nullptr; }
 #endif
 
 protected:
@@ -119,8 +119,6 @@ public:
         typedef Archive &(*LoadFuncType)(Archive &, BASE * &p);
 
         explicit TypeInfo()
-            : m_saveFunc(0),
-              m_loadFunc(0)
         {
         }
 
@@ -135,8 +133,8 @@ public:
             return m_saveFunc == rhs.m_saveFunc && m_loadFunc == rhs.m_loadFunc;
         }
 
-        SaveFuncType m_saveFunc;
-        LoadFuncType m_loadFunc;
+        SaveFuncType m_saveFunc = nullptr;
+        LoadFuncType m_loadFunc = nullptr;
     };
 
     typedef QHash<QString, TypeInfo> MapType;
@@ -144,7 +142,7 @@ public:
     static MapType &map() { return *m_map; }
 
 #if !defined(QT_NO_DEBUG)
-    static bool hasMap() { return m_map != 0; }
+    static bool hasMap() { return m_map != nullptr; }
 #endif
 
 protected:

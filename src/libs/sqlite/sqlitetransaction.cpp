@@ -25,31 +25,10 @@
 
 #include "sqlitetransaction.h"
 
+#include "sqlitedatabase.h"
+#include "sqlitedatabasebackend.h"
 #include "sqlitewritestatement.h"
 
-SqliteAbstractTransaction::~SqliteAbstractTransaction()
-{
-    if (!isAlreadyCommited)
-        SqliteWriteStatement::execute(Utf8StringLiteral("ROLLBACK"));
-}
+namespace Sqlite {
 
-void SqliteAbstractTransaction::commit()
-{
-    SqliteWriteStatement::execute(Utf8StringLiteral("COMMIT"));
-    isAlreadyCommited = true;
-}
-
-SqliteTransaction::SqliteTransaction()
-{
-    SqliteWriteStatement::execute(Utf8StringLiteral("BEGIN"));
-}
-
-SqliteImmediateTransaction::SqliteImmediateTransaction()
-{
-    SqliteWriteStatement::execute(Utf8StringLiteral("BEGIN IMMEDIATE"));
-}
-
-SqliteExclusiveTransaction::SqliteExclusiveTransaction()
-{
-    SqliteWriteStatement::execute(Utf8StringLiteral("BEGIN EXCLUSIVE"));
-}
+} // namespace Sqlite

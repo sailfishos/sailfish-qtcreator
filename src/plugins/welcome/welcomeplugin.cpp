@@ -26,6 +26,8 @@
 #include <extensionsystem/iplugin.h>
 #include <extensionsystem/pluginmanager.h>
 
+#include <app/app_version.h>
+
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
@@ -88,6 +90,15 @@ static QPalette lightText()
     return pal;
 }
 
+static void addWeakVerticalSpacerToLayout(QVBoxLayout *layout, int maximumSize)
+{
+    auto weakSpacer = new QWidget;
+    weakSpacer->setMaximumHeight(maximumSize);
+    weakSpacer->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Maximum);
+    layout->addWidget(weakSpacer);
+    layout->setStretchFactor(weakSpacer, 1);
+}
+
 class WelcomeMode : public IMode
 {
     Q_OBJECT
@@ -145,6 +156,7 @@ public:
     {
         setAutoFillBackground(true);
         setMinimumHeight(30);
+        setToolTip(m_openUrl);
 
         const QString fileName = QString(":/welcome/images/%1.png").arg(iconSource);
         const Icon icon({{fileName, Theme::Welcome_ForegroundPrimaryColor}}, Icon::Tint);
@@ -189,7 +201,7 @@ public:
 
     QString m_iconSource;
     QString m_title;
-    QString m_openUrl;
+    const QString m_openUrl;
 
     QLabel *m_icon;
     QLabel *m_label;
@@ -215,20 +227,22 @@ public:
             l->setContentsMargins(lrPadding, 0, lrPadding, 0);
             l->setSpacing(19);
             vbox->addItem(l);
-            vbox->addSpacing(62);
         }
+
+        addWeakVerticalSpacerToLayout(vbox, 62);
 
         {
             auto l = new QVBoxLayout;
             l->setContentsMargins(lrPadding, 0, lrPadding, 0);
-            l->setSpacing(8);
+            l->setSpacing(12);
 
             auto newLabel = new QLabel(tr("New to Qt?"), this);
             newLabel->setFont(sizedFont(18, this));
             l->addWidget(newLabel);
 
             auto learnLabel = new QLabel(tr("Learn how to develop your own applications "
-                                            "and explore Qt Creator."), this);
+                                            "and explore %1.")
+                                         .arg(Core::Constants::IDE_DISPLAY_NAME), this);
             learnLabel->setMaximumWidth(200);
             learnLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
             learnLabel->setWordWrap(true);
@@ -236,7 +250,7 @@ public:
             learnLabel->setPalette(lightText());
             l->addWidget(learnLabel);
 
-            l->addSpacing(12);
+            l->addSpacing(8);
 
             auto getStartedButton = new WelcomePageButton(this);
             getStartedButton->setText(tr("Get Started Now"));
@@ -246,22 +260,23 @@ public:
             l->addWidget(getStartedButton);
 
             vbox->addItem(l);
-            vbox->addSpacing(77);
         }
+
+        vbox->addStretch(1);
 
         {
             auto l = new QVBoxLayout;
             l->setContentsMargins(0, 0, 0, 0);
             l->setSpacing(5);
             l->addWidget(new IconAndLink("qtaccount", tr("Qt Account"), "https://account.qt.io", this));
-            l->addWidget(new IconAndLink("community", tr("Online Community"), "http://forum.qt.io", this));
-            l->addWidget(new IconAndLink("blogs", tr("Blogs"), "http://planet.qt.io", this));
+            l->addWidget(new IconAndLink("community", tr("Online Community"), "https://forum.qt.io", this));
+            l->addWidget(new IconAndLink("blogs", tr("Blogs"), "https://planet.qt.io", this));
             l->addWidget(new IconAndLink("userguide", tr("User Guide"),
                                          "qthelp://org.qt-project.qtcreator/doc/index.html", this));
             vbox->addItem(l);
         }
 
-        vbox->addStretch(1);
+        addWeakVerticalSpacerToLayout(vbox, vbox->contentsMargins().top());
     }
 
     QVBoxLayout *m_pluginButtons = nullptr;
@@ -339,8 +354,7 @@ void WelcomeMode::initPlugins()
     QSettings *settings = ICore::settings();
     m_activePage = Id::fromSetting(settings->value(currentPageSettingsKeyC));
 
-    const QList<IWelcomePage *> availablePages = PluginManager::getObjects<IWelcomePage>();
-    for (IWelcomePage *page : availablePages)
+    for (IWelcomePage *page : IWelcomePage::allWelcomePages())
         addPage(page);
 
     // make sure later added pages are made available too:
@@ -398,7 +412,7 @@ void WelcomeMode::addPage(IWelcomePage *page)
     stackPage->setAutoFillBackground(true);
     m_pageStack->insertWidget(idx, stackPage);
 
-    auto onClicked = [this, page, pageId, stackPage] {
+    auto onClicked = [this, pageId, stackPage] {
         m_activePage = pageId;
         m_pageStack->setCurrentWidget(stackPage);
         for (WelcomePageButton *pageButton : m_pageButtons)

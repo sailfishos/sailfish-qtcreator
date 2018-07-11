@@ -36,7 +36,7 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
-#include <extensionsystem/pluginmanager.h>
+
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/itemviews.h>
@@ -56,6 +56,19 @@ const char SESSION_FILTER_WARNINGS[] = "TaskWindow.IncludeWarnings";
 }
 
 namespace ProjectExplorer {
+
+static QList<ITaskHandler *> g_taskHandlers;
+
+ITaskHandler::ITaskHandler()
+{
+    g_taskHandlers.append(this);
+}
+
+ITaskHandler::~ITaskHandler()
+{
+    g_taskHandlers.removeOne(this);
+}
+
 namespace Internal {
 
 class TaskView : public Utils::ListView
@@ -197,11 +210,18 @@ void TaskView::resizeEvent(QResizeEvent *e)
 class TaskWindowPrivate
 {
 public:
+    ITaskHandler *handler(const QAction *action)
+    {
+        ITaskHandler *handler = m_actionToHandlerMap.value(action, nullptr);
+        return g_taskHandlers.contains(handler) ? handler : nullptr;
+    }
+
     Internal::TaskModel *m_model;
     Internal::TaskFilterModel *m_filter;
     Internal::TaskView *m_listview;
     Internal::TaskWindowContext *m_taskWindowContext;
     QMenu *m_contextMenu;
+    QMap<const QAction *, ITaskHandler *> m_actionToHandlerMap;
     ITaskHandler *m_defaultHandler = nullptr;
     QToolButton *m_filterWarningsButton;
     QToolButton *m_categoriesButton;
@@ -305,14 +325,6 @@ TaskWindow::~TaskWindow()
     delete d;
 }
 
-static ITaskHandler *handler(QAction *action)
-{
-    QVariant prop = action->property("ITaskHandler");
-    ITaskHandler *handler = qobject_cast<ITaskHandler *>(prop.value<QObject *>());
-    QTC_CHECK(handler);
-    return handler;
-}
-
 void TaskWindow::delayedInitialization()
 {
     static bool alreadyDone = false;
@@ -321,14 +333,13 @@ void TaskWindow::delayedInitialization()
 
     alreadyDone = true;
 
-    QList<ITaskHandler *> handlers = ExtensionSystem::PluginManager::getObjects<ITaskHandler>();
-    foreach (ITaskHandler *h, handlers) {
+    for (ITaskHandler *h : g_taskHandlers) {
         if (h->isDefaultHandler() && !d->m_defaultHandler)
             d->m_defaultHandler = h;
 
         QAction *action = h->createAction(this);
         QTC_ASSERT(action, continue);
-        action->setProperty("ITaskHandler", qVariantFromValue(qobject_cast<QObject*>(h)));
+        d->m_actionToHandlerMap.insert(action, h);
         connect(action, &QAction::triggered, this, &TaskWindow::actionTriggered);
         d->m_actions << action;
 
@@ -383,7 +394,7 @@ void TaskWindow::currentChanged(const QModelIndex &index)
 {
     const Task task = index.isValid() ? d->m_filter->task(index) : Task();
     foreach (QAction *action, d->m_actions) {
-        ITaskHandler *h = handler(action);
+        ITaskHandler *h = d->handler(action);
         action->setEnabled((task.isNull() || !h) ? false : h->canHandle(task));
     }
 }
@@ -499,7 +510,7 @@ void TaskWindow::actionTriggered()
     auto action = qobject_cast<QAction *>(sender());
     if (!action || !action->isEnabled())
         return;
-    ITaskHandler *h = handler(action);
+    ITaskHandler *h = d->handler(action);
     if (!h)
         return;
 

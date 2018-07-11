@@ -34,6 +34,7 @@
 #include <QList>
 #include <QObject>
 #include <QSharedPointer>
+#include <QUrl>
 #include <QVariantMap>
 
 #include <functional>
@@ -200,6 +201,9 @@ public:
 
     QString debugServerPath() const;
     void setDebugServerPath(const QString &path);
+
+    QString qmlsceneCommand() const;
+    void setQmlsceneCommand(const QString &path);
 
 protected:
     IDevice();

@@ -33,7 +33,6 @@
 #include <utils/utilsicons.h>
 #include <utils/itemviews.h>
 #include <utils/qtcassert.h>
-#include <utils/treemodel.h>
 
 #include <QDebug>
 #include <QDir>
@@ -42,7 +41,6 @@
 #include <QItemSelectionModel>
 #include <QMessageBox>
 #include <QSet>
-#include <QSortFilterProxyModel>
 
 /*!
     \class ExtensionSystem::PluginView
@@ -86,7 +84,6 @@ static const int HiddenByDefaultRole = Qt::UserRole + 2;
 
 static const QIcon &icon(IconIndex icon)
 {
-    using namespace Utils;
     switch (icon) {
     case OkIcon: {
         static const QIcon ok = Utils::Icons::OK.icon();
@@ -201,7 +198,7 @@ public:
 
         if (column == LoadedColumn) {
             if (m_spec->isAvailableForHostPlatform() && !m_spec->isRequired())
-                ret |= Qt::ItemIsEditable | Qt ::ItemIsUserCheckable;
+                ret |= Qt::ItemIsUserCheckable;
         }
 
         return ret;
@@ -280,7 +277,7 @@ public:
     {
         Qt::ItemFlags ret = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
         if (column == LoadedColumn)
-            ret |= Qt::ItemIsEditable | Qt::ItemIsUserCheckable;
+            ret |= Qt::ItemIsUserCheckable;
         return ret;
     }
 
@@ -424,8 +421,9 @@ void PluginView::updatePlugins()
 
 
     QList<CollectionItem *> collections;
-    auto end = PluginManager::pluginCollections().cend();
-    for (auto it = PluginManager::pluginCollections().cbegin(); it != end; ++it) {
+    const QHash<QString, QList<PluginSpec *>> pluginCollections = PluginManager::pluginCollections();
+    const auto end = pluginCollections.cend();
+    for (auto it = pluginCollections.cbegin(); it != end; ++it) {
         const QString name = it.key().isEmpty() ? tr("Utilities") : it.key();
         collections.append(new CollectionItem(name, it.value(), this));
     }

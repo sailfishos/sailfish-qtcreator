@@ -26,9 +26,6 @@
 source("../../shared/qtcreator.py")
 
 def main():
-    if platform.system() == 'Darwin':
-        test.warning("This needs a Qt 5.4 kit. Skipping it.")
-        return
     pathCreator = os.path.join(srcPath, "creator", "qtcreator.qbs")
     if not neededFilePresent(pathCreator):
         return
@@ -37,8 +34,8 @@ def main():
     if not startedWithoutPluginError():
         return
     openQbsProject(pathCreator)
-    if not addAndActivateKit(Targets.DESKTOP_541_GCC):
-        test.fatal("Failed to activate '%s'" % Targets.getStringForTarget(Targets.DESKTOP_541_GCC))
+    if not addAndActivateKit(Targets.DESKTOP_5_10_1_DEFAULT):
+        test.fatal("Failed to activate '%s'" % Targets.getStringForTarget(Targets.DESKTOP_5_10_1_DEFAULT))
         invokeMenuItem("File", "Exit")
         return
     test.log("Start parsing project")

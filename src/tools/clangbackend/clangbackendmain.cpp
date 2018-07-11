@@ -55,7 +55,7 @@ QString processArguments(QCoreApplication &application)
 
 int main(int argc, char *argv[])
 {
-    QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
+    QLoggingCategory::setFilterRules(QStringLiteral("qtc.*.debug=false"));
 
     QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("qt-project.org"));
@@ -72,9 +72,9 @@ int main(int argc, char *argv[])
     clang_enableStackTraces();
 
     ClangCodeModelServer clangCodeModelServer;
-    ConnectionServer<ClangCodeModelServer, ClangCodeModelClientProxy> connectionServer(connection);
-    connectionServer.start();
+    ConnectionServer<ClangCodeModelServer, ClangCodeModelClientProxy> connectionServer;
     connectionServer.setServer(&clangCodeModelServer);
+    connectionServer.start(connection);
 
     return application.exec();
 }
