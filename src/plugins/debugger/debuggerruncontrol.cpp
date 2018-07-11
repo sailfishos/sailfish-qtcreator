@@ -537,7 +537,7 @@ void DebuggerRunTool::start()
             QTC_ASSERT(qmlServerPort > 0, reportFailure(); return);
             QString mode = QString("port:%1").arg(qmlServerPort);
             QString qmlServerArg = qmlDebugCommandLineArguments(QmlDebuggerServices, mode, true);
-            prependInferiorCommandLineArgument(qmlServerArg);
+            appendInferiorCommandLineArgument(qmlServerArg);
         }
     }
 
@@ -1123,7 +1123,7 @@ void GdbServerRunner::start()
     const bool isCppDebugging = m_portsGatherer->useGdbServer();
 
     if (isQmlDebugging) {
-        args.prepend(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices,
+        args.append(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices,
                                                     m_portsGatherer->qmlServerPort()));
     }
     if (isQmlDebugging && !isCppDebugging) {
