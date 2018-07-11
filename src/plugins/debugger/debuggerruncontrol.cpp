@@ -540,8 +540,8 @@ void DebuggerRunTool::start()
             QString mode = QString("port:%1").arg(qmlServerPort);
 
             CommandLine cmd{m_runParameters.inferior.executable};
-            cmd.addArg(qmlDebugCommandLineArguments(QmlDebug::QmlDebuggerServices, mode, true));
             cmd.addArgs(m_runParameters.inferior.commandLineArguments, CommandLine::Raw);
+            cmd.addArg(qmlDebugCommandLineArguments(QmlDebug::QmlDebuggerServices, mode, true));
 
             m_runParameters.inferior.setCommandLine(cmd);
         }
@@ -1098,7 +1098,7 @@ DebugServerRunner::DebugServerRunner(RunControl *runControl, DebugServerPortsGat
         const bool isCppDebugging = portsGatherer->useGdbServer();
 
         if (isQmlDebugging) {
-            args.prepend(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices,
+            args.append(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices,
                                                         portsGatherer->qmlServer()));
         }
         if (isQmlDebugging && !isCppDebugging) {
