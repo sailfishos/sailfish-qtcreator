@@ -193,7 +193,6 @@ public:
 
 private:
     void start() override;
-    void stop() override;
 
     GdbServerPortsGatherer *m_portsGatherer;
     ProjectExplorer::StandardRunnable m_runnable;
