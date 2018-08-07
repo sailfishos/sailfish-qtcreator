@@ -46,6 +46,9 @@ public:
     void setCommand(const QString& command);
     static QString shellSafeArgument(const QString &argument);
 
+private:
+    static QString forwardEnvironment(const QString &command);
+
 private slots:
     void onProcessStarted();
     void onStandardOutput();
