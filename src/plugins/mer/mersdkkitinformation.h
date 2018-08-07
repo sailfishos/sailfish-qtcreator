@@ -77,7 +77,7 @@ public:
     static MerSdk* sdk(const ProjectExplorer::Kit *kit);
 
 private:
-    void onSdksUpdated();
+    void onUpdated();
 };
 
 }
