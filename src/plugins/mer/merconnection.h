@@ -153,7 +153,8 @@ private:
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();
     void openRetryLockDownQuestionBox();
-    void deleteMessageBox(QPointer<QMessageBox> &messageBox);
+    template<class Dialog>
+    void deleteDialog(QPointer<Dialog> &dialog);
 
     static bool isRecoverable(QSsh::SshError sshError);
 

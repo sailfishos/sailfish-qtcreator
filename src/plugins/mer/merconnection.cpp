@@ -669,7 +669,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_startVmQuestionBox);
+            deleteDialog(m_startVmQuestionBox);
         }
         break;
 
@@ -761,8 +761,8 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_resetVmQuestionBox);
-            deleteMessageBox(m_closeVmQuestionBox);
+            deleteDialog(m_resetVmQuestionBox);
+            deleteDialog(m_closeVmQuestionBox);
             sshStmScheduleExec();
         }
         break;
@@ -784,7 +784,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_unableToCloseVmWarningBox);
+            deleteDialog(m_unableToCloseVmWarningBox);
         }
         break;
 
@@ -869,7 +869,7 @@ bool MerConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
-            deleteMessageBox(m_retryLockDownQuestionBox);
+            deleteDialog(m_retryLockDownQuestionBox);
         }
         break;
     }
@@ -984,7 +984,7 @@ bool MerConnection::sshStmStep()
 
         ON_EXIT {
             m_sshTryConnectTimer.stop();
-            deleteMessageBox(m_retrySshConnectionQuestionBox);
+            deleteDialog(m_retrySshConnectionQuestionBox);
         }
         break;
 
@@ -1344,18 +1344,19 @@ void MerConnection::openRetryLockDownQuestionBox()
     m_retryLockDownQuestionBox->raise();
 }
 
-void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
+template<class Dialog>
+void MerConnection::deleteDialog(QPointer<Dialog> &dialog)
 {
-    if (!messageBox)
+    if (!dialog)
         return;
 
-    if (!messageBox->isVisible()) {
-        delete messageBox;
+    if (!dialog->isVisible()) {
+        delete dialog;
     } else {
-        messageBox->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox.data(), &QObject::deleteLater);
-        messageBox->disconnect(this);
-        messageBox = 0;
+        dialog->setEnabled(false);
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, dialog.data(), &QObject::deleteLater);
+        dialog->disconnect(this);
+        dialog = 0;
     }
 }
 
