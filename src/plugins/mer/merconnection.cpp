@@ -1370,6 +1370,7 @@ bool MerConnection::isRecoverable(QSsh::SshError sshError)
     case SshKeyFileError:        return false;
     case SshAuthenticationError: return false;
     case SshClosedByServerError: return true;
+    case SshAgentError:          return false;
     case SshInternalError:       return true;
     }
 
