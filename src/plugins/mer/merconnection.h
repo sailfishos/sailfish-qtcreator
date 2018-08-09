@@ -33,6 +33,7 @@
 
 QT_BEGIN_NAMESPACE
 class QMessageBox;
+class QProgressDialog;
 QT_END_NAMESPACE
 
 namespace Mer {
@@ -151,8 +152,8 @@ private:
     void openResetVmQuestionBox();
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
-    void openRetrySshConnectionQuestionBox();
-    void openRetryLockDownQuestionBox();
+    void openConnectingProgressDialog();
+    void openLockingDownProgressDialog();
     template<class Dialog>
     void deleteDialog(QPointer<Dialog> &dialog);
 
@@ -229,8 +230,8 @@ private:
     QPointer<QMessageBox> m_resetVmQuestionBox;
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
-    QPointer<QMessageBox> m_retrySshConnectionQuestionBox;
-    QPointer<QMessageBox> m_retryLockDownQuestionBox;
+    QPointer<QProgressDialog> m_connectingProgressDialog;
+    QPointer<QProgressDialog> m_lockingDownProgressDialog;
 
     QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
