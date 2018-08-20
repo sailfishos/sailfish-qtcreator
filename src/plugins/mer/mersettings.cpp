@@ -40,6 +40,8 @@ const char SETTINGS_CATEGORY[] = "Mer";
 const char ENVIRONMENT_FILTER_KEY[] = "EnvironmentFilter";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
+const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
+const char ASK_BEFORE_CLOSING_VM[] = "AskBeforeClosingVm";
 }
 
 MerSettings *MerSettings::s_instance = 0;
@@ -158,6 +160,44 @@ void MerSettings::setSyncQmlLiveWorkspaceEnabled(bool enable)
     emit s_instance->syncQmlLiveWorkspaceEnabledChanged(s_instance->m_syncQmlLiveWorkspaceEnabled);
 }
 
+bool MerSettings::isAskBeforeStartingVmEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_askBeforeStartingVmEnabled;
+}
+
+void MerSettings::setAskBeforeStartingVmEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_askBeforeStartingVmEnabled == enabled)
+        return;
+
+    s_instance->m_askBeforeStartingVmEnabled = enabled;
+
+    emit s_instance->askBeforeStartingVmEnabledChanged(s_instance->m_askBeforeStartingVmEnabled);
+}
+
+bool MerSettings::isAskBeforeClosingVmEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_askBeforeClosingVmEnabled;
+}
+
+void MerSettings::setAskBeforeClosingVmEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_askBeforeClosingVmEnabled == enabled)
+        return;
+
+    s_instance->m_askBeforeClosingVmEnabled = enabled;
+
+    emit s_instance->askBeforeClosingVmEnabledChanged(s_instance->m_askBeforeClosingVmEnabled);
+}
+
 void MerSettings::read()
 {
     QSettings *settings = ICore::settings();
@@ -168,6 +208,8 @@ void MerSettings::read()
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
             true).toBool();
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
+    m_askBeforeStartingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
+    m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
 
     settings->endGroup();
 
@@ -186,6 +228,8 @@ void MerSettings::save()
         settings->remove(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY));
     else
         settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
+    settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeStartingVmEnabled);
+    settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeClosingVmEnabled);
 
     settings->endGroup();
 }

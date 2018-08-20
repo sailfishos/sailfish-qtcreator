@@ -24,12 +24,15 @@
 
 #include "merconstants.h"
 #include "merlogging.h"
+#include "mersettings.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
+#include <utils/checkablemessagebox.h>
 
+#include <QCheckBox>
 #include <QEventLoop>
 #include <QMessageBox>
 #include <QProgressDialog>
@@ -41,6 +44,7 @@
 
 using namespace Core;
 using namespace QSsh;
+using Utils::CheckableMessageBox;
 
 namespace Mer {
 namespace Internal {
@@ -379,6 +383,9 @@ void MerConnection::connectTo(ConnectOptions options)
 {
     DBG << "Connect requested";
 
+    if (!MerSettings::isAskBeforeStartingVmEnabled())
+        options &= ~AskStartVm;
+
     // Turning AskStartVm off always overrides
     if ((m_connectOptions & AskStartVm) && !(options & AskStartVm)) {
         m_connectOptions &= ~AskStartVm;
@@ -660,6 +667,8 @@ bool MerConnection::vmStmStep()
         } else if (!m_startVmQuestionBox) {
             openStartVmQuestionBox();
         } else if (QAbstractButton *button = m_startVmQuestionBox->clickedButton()) {
+            if (m_startVmQuestionBox->checkBox() && m_startVmQuestionBox->checkBox()->isChecked())
+                MerSettings::setAskBeforeStartingVmEnabled(false);
             if (button == m_startVmQuestionBox->button(QMessageBox::Yes)) {
                 vmStmTransition(VmStarting, "start VM allowed");
             } else {
@@ -1237,6 +1246,8 @@ void MerConnection::openStartVmQuestionBox()
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
+    if (MerSettings::isAskBeforeStartingVmEnabled())
+        m_startVmQuestionBox->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
     m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
     connect(m_startVmQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
