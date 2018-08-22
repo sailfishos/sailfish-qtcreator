@@ -31,6 +31,7 @@
 #include "mertargetsxmlparser.h"
 #include "mertoolchain.h"
 
+#include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -64,12 +65,17 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
             this, &MerSdk::handleTargetsFileChanged);
 
-    // Fired from handleTargetsFileChanged(), used to prevent removing and
-    // re-adding all targets due to non atomic targets file change.
-    m_updateTargetsTimer.setInterval(1000);
+    // Fired from handleTargetsFileChanged(), used to prevent (1) removing and
+    // re-adding all targets due to non atomic targets file change
+    // and (2) crashing Qt Creator by removing targets during build.
+    m_updateTargetsTimer.setInterval(3000);
     m_updateTargetsTimer.setSingleShot(true);
-    connect(&m_updateTargetsTimer, &QTimer::timeout,
-            this, &MerSdk::updateTargets);
+    connect(&m_updateTargetsTimer, &QTimer::timeout, this, [this] {
+        if (!BuildManager::isBuilding())
+            updateTargets();
+        else
+            m_updateTargetsTimer.start();
+    });
 }
 
 MerSdk::~MerSdk()
