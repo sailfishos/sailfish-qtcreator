@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>901</width>
-    <height>341</height>
+    <height>432</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,1">
+  <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,0,1">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
@@ -112,6 +112,35 @@
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>Virtual Machines</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_4">
+      <item>
+       <widget class="QCheckBox" name="askBeforeStartingVmCheckBox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Ask before starting a virtual machine</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="askBeforeClosingVmCheckBox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Ask before closing a virtual machine</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="qmlLiveGroupBox">
      <property name="title">
       <string>QmlLive</string>
@@ -120,7 +149,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="benchLocationLabel">
         <property name="text">
-         <string>Bench loca&amp;tion:</string>
+         <string>Bench &amp;location:</string>
         </property>
         <property name="buddy">
          <cstring>benchLocationPathChooser</cstring>
@@ -131,25 +160,18 @@
        <widget class="Utils::PathChooser" name="benchLocationPathChooser" native="true"/>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="benchSyncWorkspaceLabel">
-        <property name="toolTip">
-         <string>Allow Qt Creator to automatically change QmlLive Bench's workspace to match the active run configuration.</string>
-        </property>
-        <property name="text">
-         <string>Contro&amp;l workspace:</string>
-        </property>
-        <property name="buddy">
-         <cstring>benchSyncWorkspaceCheckBox</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
        <widget class="QCheckBox" name="benchSyncWorkspaceCheckBox">
         <property name="sizePolicy">
          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allow Qt Creator to automatically change QmlLive Bench's workspace to match the active run configuration.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Control workspace</string>
         </property>
        </widget>
       </item>
@@ -184,7 +206,9 @@
   </customwidget>
  </customwidgets>
  <tabstops>
+  <tabstop>environmentFilterTextEdit</tabstop>
   <tabstop>rpmValidationByDefaultCheckBox</tabstop>
+  <tabstop>askBeforeStartingVmCheckBox</tabstop>
   <tabstop>benchSyncWorkspaceCheckBox</tabstop>
  </tabstops>
  <resources/>

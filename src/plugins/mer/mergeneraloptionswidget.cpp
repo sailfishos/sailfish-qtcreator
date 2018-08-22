@@ -52,6 +52,9 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
             .arg(MerMb2RpmBuildConfiguration::displayName()));
     m_ui->rpmValidationByDefaultCheckBox->setChecked(MerSettings::rpmValidationByDefault());
 
+    m_ui->askBeforeStartingVmCheckBox->setChecked(MerSettings::isAskBeforeStartingVmEnabled());
+    m_ui->askBeforeClosingVmCheckBox->setChecked(MerSettings::isAskBeforeClosingVmEnabled());
+
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
     m_ui->benchSyncWorkspaceCheckBox->setChecked(MerSettings::isSyncQmlLiveWorkspaceEnabled());
@@ -67,6 +70,8 @@ void MerGeneralOptionsWidget::store()
     if (!MerSettings::isEnvironmentFilterFromEnvironment())
         MerSettings::setEnvironmentFilter(m_ui->environmentFilterTextEdit->toPlainText());
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
+    MerSettings::setAskBeforeStartingVmEnabled(m_ui->askBeforeStartingVmCheckBox->isChecked());
+    MerSettings::setAskBeforeClosingVmEnabled(m_ui->askBeforeClosingVmCheckBox->isChecked());
     MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
     MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
 }
@@ -78,6 +83,7 @@ QString MerGeneralOptionsWidget::searchKeywords() const
     QTextStream(&keywords) << sep << m_ui->environmentFilterLabel->text()
                            << sep << m_ui->rpmValidationInfoLabel->text()
                            << sep << m_ui->rpmValidationByDefaultCheckBox->text()
+                           << sep << m_ui->askBeforeStartingVmCheckBox->text()
                            << sep << m_ui->qmlLiveGroupBox->title()
                            << sep << m_ui->benchLocationLabel->text()
                            ;

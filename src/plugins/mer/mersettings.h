@@ -51,11 +51,18 @@ public:
     static bool isSyncQmlLiveWorkspaceEnabled();
     static void setSyncQmlLiveWorkspaceEnabled(bool enable);
 
+    static bool isAskBeforeStartingVmEnabled();
+    static void setAskBeforeStartingVmEnabled(bool enabled);
+    static bool isAskBeforeClosingVmEnabled();
+    static void setAskBeforeClosingVmEnabled(bool enabled);
+
 signals:
     void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
     void syncQmlLiveWorkspaceEnabledChanged(bool enabled);
+    void askBeforeStartingVmEnabledChanged(bool enabled);
+    void askBeforeClosingVmEnabledChanged(bool enabled);
 
 private:
     void read();
@@ -68,6 +75,8 @@ private:
     bool m_rpmValidationByDefault;
     QString m_qmlLiveBenchLocation;
     bool m_syncQmlLiveWorkspaceEnabled;
+    bool m_askBeforeStartingVmEnabled;
+    bool m_askBeforeClosingVmEnabled;
 };
 
 } // Internal

@@ -57,7 +57,9 @@
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
+#include <utils/checkablemessagebox.h>
 
+#include <QCheckBox>
 #include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
@@ -67,6 +69,7 @@ using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using Utils::CheckableMessageBox;
 
 namespace Mer {
 namespace Internal {
@@ -187,11 +190,16 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
                         "Close the virtual machine now?").arg(connection->virtualMachine()),
                     QMessageBox::Yes | QMessageBox::No,
                     ICore::mainWindow());
+            prompt->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
             prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
             connect(prompt, &QMessageBox::finished,
                     this, &MerPlugin::handlePromptClosed);
             m_stopList.insert(connection->virtualMachine(), connection);
-            prompt->open();
+            if (MerSettings::isAskBeforeClosingVmEnabled()) {
+                prompt->open();
+            } else {
+                QTimer::singleShot(0, prompt, [prompt] { prompt->done(QMessageBox::Yes); });
+            }
         }
     }
     if(m_stopList.isEmpty())
@@ -206,6 +214,9 @@ void MerPlugin::handlePromptClosed(int result)
     prompt->deleteLater();
 
     QString vm = prompt->property(VM_NAME_PROPERTY).toString();
+
+    if (prompt->checkBox() && prompt->checkBox()->isChecked())
+        MerSettings::setAskBeforeClosingVmEnabled(false);
 
     if (result == QMessageBox::Yes) {
         MerConnection *connection = m_stopList.value(vm);
