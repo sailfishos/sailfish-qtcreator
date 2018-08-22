@@ -146,7 +146,10 @@ void MerSettings::save()
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
-    settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
+    if (m_qmlLiveBenchLocation.isEmpty())
+        settings->remove(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY));
+    else
+        settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
 
     settings->endGroup();
 }

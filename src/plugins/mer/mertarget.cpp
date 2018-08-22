@@ -23,6 +23,7 @@
 #include "mertarget.h"
 
 #include "merconstants.h"
+#include "merlogging.h"
 #include "merqtversion.h"
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
@@ -66,8 +67,7 @@ const char* wrapperScripts[] =
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
-    m_sdk(mersdk),
-    m_defaultGdb(QLatin1String(Constants::MER_DEBUGGER_DEFAULT_FILENAME))
+    m_sdk(mersdk)
 {
 }
 
@@ -186,6 +186,17 @@ Kit* MerTarget::createKit() const
     DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
     k->setMutable(DeviceKitInformation::id(), true);
 
+    ensureDebuggerIsSet(k);
+
+    MerSdkKitInformation::setSdk(k,m_sdk);
+    MerTargetKitInformation::setTargetName(k,name());
+    return k;
+}
+
+void MerTarget::ensureDebuggerIsSet(Kit *k) const
+{
+    QTC_ASSERT(!m_defaultGdb.isEmpty(), return);
+
     const QString gdb = HostOsInfo::withExecutableSuffix(m_defaultGdb);
     QString gdbDir = QCoreApplication::applicationDirPath();
     if (HostOsInfo::isMacHost()) {
@@ -197,19 +208,24 @@ Kit* MerTarget::createKit() const
     }
     FileName gdbFileName = FileName::fromString(gdbDir + QLatin1Char('/') + gdb);
 
-    DebuggerItem debugger;
-    debugger.setCommand(gdbFileName);
-    debugger.setEngineType(GdbEngineType);
-    const QString vmName = m_sdk->virtualMachineName();
-    debugger.setUnexpandedDisplayName(QObject::tr("GDB for %1 in %2").arg(m_name, vmName));
-    debugger.setAutoDetected(true);
-    debugger.setAbi(Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
-    QVariant id = DebuggerItemManager::registerDebugger(debugger);
-    DebuggerKitInformation::setDebugger(k, id);
-
-    MerSdkKitInformation::setSdk(k,m_sdk);
-    MerTargetKitInformation::setTargetName(k,name());
-    return k;
+    if (gdbFileName.toFileInfo().exists()) {
+        if (const DebuggerItem *existing = DebuggerItemManager::findByCommand(gdbFileName)) {
+            DebuggerKitInformation::setDebugger(k, existing->id());
+        } else {
+            DebuggerItem debugger;
+            debugger.setCommand(gdbFileName);
+            debugger.setEngineType(GdbEngineType);
+            debugger.setUnexpandedDisplayName(QObject::tr("GDB (%1)").arg(m_defaultGdb));
+            debugger.setAutoDetected(true);
+            const int prefixLength = QString(Constants::MER_DEBUGGER_FILENAME_PREFIX).length();
+            debugger.setAbi(Abi::abiFromTargetTriplet(m_defaultGdb.mid(prefixLength)));
+            QVariant id = DebuggerItemManager::registerDebugger(debugger);
+            DebuggerKitInformation::setDebugger(k, id);
+        }
+    } else {
+        qCWarning(Log::sdks) << "Debugger binary" << gdb << "not found";
+        k->setValue(DebuggerKitInformation::id(), QVariant(QString()));
+    }
 }
 
 MerQtVersion* MerTarget::createQtVersion() const

@@ -139,7 +139,7 @@ const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
 const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
-const char MER_DEBUGGER_DEFAULT_FILENAME[] = "gdb";
+const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
