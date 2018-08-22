@@ -49,7 +49,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="userNameLabel">
         <property name="text">
-         <string>User name:</string>
+         <string>Username:</string>
         </property>
         <property name="buddy">
          <cstring>userNameLineEdit</cstring>
