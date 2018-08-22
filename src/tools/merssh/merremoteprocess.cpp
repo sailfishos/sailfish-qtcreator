@@ -24,11 +24,13 @@
 
 #include <mer/merconstants.h>
 #include <ssh/sshremoteprocessrunner.h>
+#include <utils/qtcprocess.h>
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSocketNotifier>
 
@@ -74,12 +76,41 @@ int MerRemoteProcess::executeAndWait()
             &loop, &QEventLoop::quit);
     connect(this, &MerRemoteProcess::processClosed,
             &loop, &QEventLoop::quit);
-    QSsh::SshRemoteProcessRunner::run(m_command.toUtf8(), m_sshConnectionParams);
+    QSsh::SshRemoteProcessRunner::run(forwardEnvironment(m_command).toUtf8(), m_sshConnectionParams);
     loop.exec();
     if(processExitStatus() == QSsh::SshRemoteProcess::NormalExit)
         return processExitCode();
     else
         return 1;
+}
+
+QString MerRemoteProcess::forwardEnvironment(const QString &command)
+{
+    const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();
+
+    const QStringList patterns = systemEnvironment.value(Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
+        .split("[[:space:]]\\+", QString::SkipEmptyParts);
+    if (patterns.isEmpty())
+        return command;
+
+    QStringList regExps;
+    for (const QString &pattern : patterns) {
+        const QString asRegExp = QRegularExpression::escape(pattern).replace("\\*", ".*");
+        regExps.append(asRegExp);
+    }
+    const QRegularExpression filter("^(" + regExps.join("|") + ")$");
+
+    QStringList environmentToForward;
+    for (const QString key : systemEnvironment.keys()) {
+        if (filter.match(key).hasMatch()) {
+            const QString assignment = key + "=" + systemEnvironment.value(key);
+            environmentToForward.append(Utils::QtcProcess::quoteArgUnix(assignment));
+        }
+    }
+    if (environmentToForward.isEmpty())
+        return command;
+
+    return "export " + environmentToForward.join(" ") + "; " + command;
 }
 
 void MerRemoteProcess::onProcessStarted()

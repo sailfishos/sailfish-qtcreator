@@ -38,10 +38,20 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     , m_ui(new Ui::MerGeneralOptionsWidget)
 {
     m_ui->setupUi(this);
-    m_ui->rpmValidationInfoLabel->setText(m_ui->rpmValidationInfoLabel->text()
+
+    m_ui->environmentFilterTextEdit->setPlainText(MerSettings::environmentFilter());
+    m_ui->environmentFilterTextEdit->setEnabled(!MerSettings::isEnvironmentFilterFromEnvironment());
+    m_ui->environmentFilterTextEdit->setToolTip(m_ui->environmentFilterTextEdit->toolTip()
+            .arg(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER));
+    m_ui->environmentFilterOverriddenLabel->setVisible(MerSettings::isEnvironmentFilterFromEnvironment());
+    m_ui->environmentFilterOverriddenLabel->setText(m_ui->environmentFilterOverriddenLabel->text()
+            .arg(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER));
+
+    m_ui->rpmValidationByDefaultCheckBox->setToolTip(m_ui->rpmValidationByDefaultCheckBox->toolTip()
             .arg(MerRpmValidationStep::displayName())
             .arg(MerMb2RpmBuildConfiguration::displayName()));
     m_ui->rpmValidationByDefaultCheckBox->setChecked(MerSettings::rpmValidationByDefault());
+
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
     m_ui->benchSyncWorkspaceCheckBox->setChecked(MerSettings::isSyncQmlLiveWorkspaceEnabled());
@@ -54,6 +64,8 @@ MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
 
 void MerGeneralOptionsWidget::store()
 {
+    if (!MerSettings::isEnvironmentFilterFromEnvironment())
+        MerSettings::setEnvironmentFilter(m_ui->environmentFilterTextEdit->toPlainText());
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
     MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
     MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
@@ -63,7 +75,8 @@ QString MerGeneralOptionsWidget::searchKeywords() const
 {
     QString keywords;
     const QLatin1Char sep(' ');
-    QTextStream(&keywords) << sep << m_ui->rpmValidationInfoLabel->text()
+    QTextStream(&keywords) << sep << m_ui->environmentFilterLabel->text()
+                           << sep << m_ui->rpmValidationInfoLabel->text()
                            << sep << m_ui->rpmValidationByDefaultCheckBox->text()
                            << sep << m_ui->qmlLiveGroupBox->title()
                            << sep << m_ui->benchLocationLabel->text()

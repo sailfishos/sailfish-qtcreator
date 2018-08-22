@@ -23,8 +23,12 @@
 #include "mersettings.h"
 
 #include <QFileInfo>
+#include <QProcessEnvironment>
 
 #include <coreplugin/icore.h>
+#include <utils/qtcassert.h>
+
+#include "merconstants.h"
 
 using Core::ICore;
 
@@ -33,6 +37,7 @@ namespace Internal {
 
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
+const char ENVIRONMENT_FILTER_KEY[] = "EnvironmentFilter";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
 }
@@ -62,6 +67,31 @@ MerSettings *MerSettings::instance()
     Q_ASSERT(s_instance != 0);
 
     return s_instance;
+}
+
+QString MerSettings::environmentFilter()
+{
+    if (!s_instance->m_environmentFilterFromEnvironment.isNull())
+        return s_instance->m_environmentFilterFromEnvironment;
+    else
+        return s_instance->m_environmentFilter;
+}
+
+void MerSettings::setEnvironmentFilter(const QString &filter)
+{
+    QTC_CHECK(!isEnvironmentFilterFromEnvironment());
+
+    if (s_instance->m_environmentFilter == filter)
+        return;
+
+    s_instance->m_environmentFilter = filter;
+
+    emit s_instance->environmentFilterChanged(s_instance->m_environmentFilter);
+}
+
+bool MerSettings::isEnvironmentFilterFromEnvironment()
+{
+    return !s_instance->m_environmentFilterFromEnvironment.isNull();
 }
 
 bool MerSettings::rpmValidationByDefault()
@@ -133,11 +163,16 @@ void MerSettings::read()
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
+    m_environmentFilter = settings->value(QLatin1String(ENVIRONMENT_FILTER_KEY))
+        .toString();
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
             true).toBool();
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
 
     settings->endGroup();
+
+    m_environmentFilterFromEnvironment =
+        QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER);
 }
 
 void MerSettings::save()
@@ -145,6 +180,7 @@ void MerSettings::save()
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
+    settings->setValue(QLatin1String(ENVIRONMENT_FILTER_KEY), m_environmentFilter);
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
     if (m_qmlLiveBenchLocation.isEmpty())
         settings->remove(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY));

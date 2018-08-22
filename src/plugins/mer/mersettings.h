@@ -37,6 +37,10 @@ public:
 
     static MerSettings *instance();
 
+    static QString environmentFilter();
+    static void setEnvironmentFilter(const QString &filter);
+    static bool isEnvironmentFilterFromEnvironment();
+
     static bool rpmValidationByDefault();
     static void setRpmValidationByDefault(bool byDefault);
 
@@ -48,6 +52,7 @@ public:
     static void setSyncQmlLiveWorkspaceEnabled(bool enable);
 
 signals:
+    void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
     void syncQmlLiveWorkspaceEnabledChanged(bool enabled);
@@ -58,6 +63,8 @@ private:
 
 private:
     static MerSettings *s_instance;
+    QString m_environmentFilter;
+    QString m_environmentFilterFromEnvironment;
     bool m_rpmValidationByDefault;
     QString m_qmlLiveBenchLocation;
     bool m_syncQmlLiveWorkspaceEnabled;

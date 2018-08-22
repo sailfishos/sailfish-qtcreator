@@ -28,8 +28,12 @@
 #include "buildconfiguration.h"
 #include "environmentwidget.h"
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/target.h>
+#include <mer/merconstants.h>
+#include <utils/utilsicons.h>
 
+#include <QLabel>
 #include <QVBoxLayout>
 #include <QCheckBox>
 
@@ -40,6 +44,25 @@ BuildEnvironmentWidget::BuildEnvironmentWidget(BuildConfiguration *bc) :
 {
     auto vbox = new QVBoxLayout(this);
     vbox->setMargin(0);
+
+    auto filterInfoHBox = new QHBoxLayout;
+    filterInfoHBox->setSpacing(6);
+
+    QLabel *filterInfoIcon = new QLabel(this);
+    filterInfoIcon->setPixmap(Utils::Icons::INFO.pixmap());
+    filterInfoHBox->addWidget(filterInfoIcon);
+
+    QLabel *filterInfoLabel = new QLabel(this);
+    filterInfoLabel->setWordWrap(true);
+    filterInfoLabel->setText(tr("Not all variables will be forwarded to a Sailfish OS build engine. "
+                "<a href='environment-filter'>Configure…</a>"));
+    filterInfoLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connect(filterInfoLabel, &QLabel::linkActivated, [] {
+        Core::ICore::showOptionsDialog(Mer::Constants::MER_GENERAL_OPTIONS_ID, Core::ICore::dialogParent());
+    });
+    filterInfoHBox->addWidget(filterInfoLabel, 1);
+    vbox->addItem(filterInfoHBox);
+
     m_clearSystemEnvironmentCheckBox = new QCheckBox(this);
     m_clearSystemEnvironmentCheckBox->setText(tr("Clear system environment"));
 

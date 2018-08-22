@@ -6,45 +6,110 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>554</width>
-    <height>300</height>
+    <width>901</width>
+    <height>341</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,1">
    <item>
-    <widget class="QGroupBox" name="rpmValidationGroupBox">
-     <property name="title">
-      <string>RPM Validation</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <item>
-       <widget class="QLabel" name="rpmValidationInfoLabel">
-        <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your Sailfish&amp;nbsp;OS application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla&amp;nbsp;Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;br/&gt;The &amp;quot;%1&amp;quot; step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-        <property name="textInteractionFlags">
-         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="rpmValidationByDefaultCheckBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Influences the initial enabled state of the respective &lt;span style=&quot; font-style:italic;&quot;&gt;deploy step&lt;/span&gt; for new project configurations. Does not affect existing project configurations.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="text">
-         <string>Enable RPM validation step initially</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QGroupBox" name="buildEnvironmentGroupBox">
+       <property name="title">
+        <string>Build Environment</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QLabel" name="environmentFilterLabel">
+          <property name="text">
+           <string>Environment variables &amp;to forward:</string>
+          </property>
+          <property name="buddy">
+           <cstring>environmentFilterTextEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="environmentFilterTextEdit">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The build environment is isolated from the host environment. List here the environment variables to be forwarded to the build environment.&lt;/p&gt;&lt;p&gt;Any white space works as a separator. Pattern matching is possible with the '*' character.&lt;/p&gt;&lt;p&gt;This option may be overridden with the %1 environment variable, in which case it becomes read-only here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="environmentFilterOverriddenLabel">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;This option is currently overridden with the %1 environment variable.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="rpmValidationGroupBox">
+       <property name="title">
+        <string>RPM Validation</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QLabel" name="rpmValidationInfoLabel">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Use the RPM Validator tool to do a quick quality criteria check for your Sailfish OS application package before publishing it. The tool runs checks similar to the &lt;/span&gt;&lt;a href=&quot;https://harbour.jolla.com/faq&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Jolla Harbour&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-style:italic;&quot;&gt; package validation process.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="rpmValidationByDefaultCheckBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The &amp;quot;%1&amp;quot; deploy step is implicit to the &amp;quot;%2&amp;quot; method.&lt;/p&gt;&lt;p&gt;This option influences the initial enabled state of this step for new project configurations. It does not affect existing project configurations.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Enable RPM validation step initially</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QGroupBox" name="qmlLiveGroupBox">
@@ -55,7 +120,10 @@
       <item row="1" column="0">
        <widget class="QLabel" name="benchLocationLabel">
         <property name="text">
-         <string>Bench location:</string>
+         <string>Bench loca&amp;tion:</string>
+        </property>
+        <property name="buddy">
+         <cstring>benchLocationPathChooser</cstring>
         </property>
        </widget>
       </item>
@@ -68,14 +136,20 @@
          <string>Allow Qt Creator to automatically change QmlLive Bench's workspace to match the active run configuration.</string>
         </property>
         <property name="text">
-         <string>Control workspace:</string>
+         <string>Contro&amp;l workspace:</string>
+        </property>
+        <property name="buddy">
+         <cstring>benchSyncWorkspaceCheckBox</cstring>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
        <widget class="QCheckBox" name="benchSyncWorkspaceCheckBox">
-        <property name="text">
-         <string> </string>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </item>
@@ -83,14 +157,14 @@
     </widget>
    </item>
    <item>
-    <spacer name="verticalSpacer">
+    <spacer name="verticalSpacer_2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>319</height>
       </size>
      </property>
     </spacer>
@@ -109,6 +183,10 @@
    </slots>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>rpmValidationByDefaultCheckBox</tabstop>
+  <tabstop>benchSyncWorkspaceCheckBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
