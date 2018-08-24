@@ -106,6 +106,8 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
 
     QStringList environmentToForward;
     for (const QString key : keys) {
+        if (key == Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
+            continue;
         if (filter.match(key).hasMatch()) {
             const QString value = Utils::QtcProcess::quoteArgUnix(systemEnvironment.value(key));
             environmentToForward.append(key + "=" + value);
