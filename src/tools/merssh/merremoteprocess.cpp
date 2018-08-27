@@ -33,6 +33,7 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSocketNotifier>
+#include <QTextStream>
 
 MerRemoteProcess::MerRemoteProcess(QObject *parent)
     : QSsh::SshRemoteProcessRunner(parent)
@@ -100,15 +101,24 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
     }
     const QRegularExpression filter("^(" + regExps.join("|") + ")$");
 
+    QStringList keys = systemEnvironment.keys();
+    keys.sort();
+
     QStringList environmentToForward;
-    for (const QString key : systemEnvironment.keys()) {
+    for (const QString key : keys) {
+        if (key == Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
+            continue;
         if (filter.match(key).hasMatch()) {
-            const QString assignment = key + "=" + systemEnvironment.value(key);
-            environmentToForward.append(Utils::QtcProcess::quoteArgUnix(assignment));
+            const QString value = Utils::QtcProcess::quoteArgUnix(systemEnvironment.value(key));
+            environmentToForward.append(key + "=" + value);
         }
     }
     if (environmentToForward.isEmpty())
         return command;
+
+    QTextStream qout(stdout);
+    QLatin1String delim("\n    ");
+    qout << tr("Adding to environment:") << delim << environmentToForward.join(delim) << endl;
 
     return "export " + environmentToForward.join(" ") + "; " + command;
 }
