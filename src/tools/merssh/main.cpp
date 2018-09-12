@@ -44,8 +44,10 @@ void printUsage()
 {
     qCritical()
             << "merssh usage:" << endl
-            << "merssh <command>" << endl
-            << "environment project parameters:" << endl
+            << "merssh [name=value]... <command> [args]..." << endl
+            << "commands:" << endl
+            << CommandFactory::commands().join(' ') << endl
+            << "environment variables - project parameters:" << endl
             << Mer::Constants::MER_SSH_TARGET_NAME << endl
             << Mer::Constants::MER_SSH_SHARED_HOME << endl
             << Mer::Constants::MER_SSH_SHARED_TARGET << endl
@@ -53,10 +55,12 @@ void printUsage()
             << Mer::Constants::MER_SSH_SDK_TOOLS << endl
             << Mer::Constants::MER_SSH_PROJECT_PATH << endl
             << Mer::Constants::MER_SSH_DEVICE_NAME << endl
-            << "evironment connection parameters:" << endl
+            << "evironment variables - connection parameters:" << endl
             << Mer::Constants::MER_SSH_USERNAME << endl
             << Mer::Constants::MER_SSH_PORT << endl
-            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl;
+            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl
+            << "evironment variables - used by enginectl only:" << endl
+            << Mer::Constants::MER_SSH_ENGINE_NAME << endl;
 }
 
 QStringList unquoteArguments(QStringList args) {
