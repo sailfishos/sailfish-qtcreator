@@ -85,6 +85,7 @@ public:
     enum ConnectOption {
         NoConnectOption = 0x00,
         AskStartVm = 0x01,
+        Block = 0x02,
     };
     Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
 
@@ -117,7 +118,7 @@ public:
 
 public slots:
     void refresh();
-    void connectTo(Mer::Internal::MerConnection::ConnectOptions options = NoConnectOption);
+    bool connectTo(Mer::Internal::MerConnection::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
 signals:
