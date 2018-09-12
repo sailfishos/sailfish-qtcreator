@@ -22,6 +22,7 @@
 
 #include "commandfactory.h"
 #include "deploycommand.h"
+#include "enginectlcommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
 #include "makecommand.h"
@@ -101,6 +102,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
+    CommandFactory::registerCommand<EngineCtlCommand>(QLatin1String("enginectl"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
@@ -121,6 +123,9 @@ int main(int argc, char *argv[])
          return 1;
     }
 
+    if (!qobject_cast<EngineCtlCommand *>(command.data()))
+        arguments = unquoteArguments(arguments);
+
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     command->setTargetName(environment.value(QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME)));
     command->setSharedHomePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME)));
@@ -129,6 +134,7 @@ int main(int argc, char *argv[])
     command->setSdkToolsPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS)));
     command->setProjectPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH)));
     command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
+    command->setEngineName(environment.value(QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
     parameters.setHost(QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST));
@@ -138,7 +144,7 @@ int main(int argc, char *argv[])
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
-    command->setArguments(unquoteArguments(arguments));
+    command->setArguments(arguments);
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;
