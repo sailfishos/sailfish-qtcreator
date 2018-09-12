@@ -58,6 +58,7 @@ class MerVirtualBoxManager : public QObject
 {
     Q_OBJECT
 public:
+    MerVirtualBoxManager(QObject *parent = 0);
     static MerVirtualBoxManager* instance();
     ~MerVirtualBoxManager() override;
     static void isVirtualMachineRunning(const QString &vmName, QObject *context,
@@ -75,11 +76,7 @@ public:
     static QString getExtraData(const QString &vmName, const QString &key);
 
 private:
-    MerVirtualBoxManager(QObject *parent = 0);
-
-private:
     static MerVirtualBoxManager *m_instance;
-    friend class MerPlugin;
 };
 
 } // Internal
