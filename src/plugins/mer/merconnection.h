@@ -31,6 +31,8 @@
 #include <QTime>
 #include <QtGlobal>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
 class QMessageBox;
 class QProgressDialog;
@@ -86,7 +88,12 @@ public:
     };
     Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
 
+    class Ui;
+
+#ifdef MER_LIBRARY
     explicit MerConnection(QObject *parent = 0);
+#endif
+    MerConnection(Ui *ui, QObject *parent);
     ~MerConnection() override;
 
     void setVirtualMachine(const QString &virtualMachine);
@@ -143,19 +150,6 @@ private:
     void vmWantFastPollState(bool want);
     void vmPollState(bool async = false);
     void sshTryConnect();
-
-    // dialogs
-    void openAlreadyConnectingWarningBox();
-    void openAlreadyDisconnectingWarningBox();
-    void openVmNotRegisteredWarningBox();
-    void openStartVmQuestionBox();
-    void openResetVmQuestionBox();
-    void openCloseVmQuestionBox();
-    void openUnableToCloseVmWarningBox();
-    void openConnectingProgressDialog();
-    void openLockingDownProgressDialog();
-    template<class Dialog>
-    void deleteDialog(QPointer<Dialog> &dialog);
 
     static bool isRecoverable(QSsh::SshError sshError);
 
@@ -225,18 +219,55 @@ private:
     // auto invoke reset after properties are changed
     QBasicTimer m_resetTimer;
 
-    // dialogs
-    QPointer<QMessageBox> m_startVmQuestionBox;
-    QPointer<QMessageBox> m_resetVmQuestionBox;
-    QPointer<QMessageBox> m_closeVmQuestionBox;
-    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
-    QPointer<QProgressDialog> m_connectingProgressDialog;
-    QPointer<QProgressDialog> m_lockingDownProgressDialog;
-
+    Ui *m_ui;
     QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(MerConnection::ConnectOptions)
+
+class MerConnection::Ui : public QObject
+{
+    Q_OBJECT
+
+public:
+    enum Warning {
+        AlreadyConnecting,
+        AlreadyDisconnecting,
+        UnableToCloseVm,
+        VmNotRegistered,
+    };
+
+    enum Question {
+        StartVm,
+        ResetVm,
+        CloseVm,
+        CancelConnecting,
+        CancelLockingDown,
+    };
+
+    enum QuestionStatus {
+        NotAsked,
+        Asked,
+        Yes,
+        No,
+    };
+
+    using OnStatusChanged = void (MerConnection::*)();
+
+    virtual void warn(Warning which) = 0;
+    virtual void dismissWarning(Warning which) = 0;
+
+    virtual bool shouldAsk(Question which) const = 0;
+    virtual void ask(Question which, OnStatusChanged onStatusChanged) = 0;
+    virtual void dismissQuestion(Question which) = 0;
+    virtual QuestionStatus status(Question which) const = 0;
+
+    void ask(Question which, OnStatusChanged onStatusChanged,
+            std::function<void()> ifYes, std::function<void()> ifNo);
+
+protected:
+    MerConnection *connection() const { return static_cast<MerConnection *>(parent()); }
+};
 
 }
 }

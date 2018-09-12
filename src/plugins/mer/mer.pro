@@ -6,6 +6,8 @@ QT += gui xmlpatterns
 
 include(../../qtcreatorplugin.pri)
 
+DEFINES += MER_LIBRARY
+
 RESOURCES += \
     mer.qrc
 

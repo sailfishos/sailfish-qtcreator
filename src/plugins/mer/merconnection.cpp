@@ -186,9 +186,55 @@ private:
     bool m_finished;
 };
 
+#ifdef MER_LIBRARY
+class MerConnectionWidgetUi : public MerConnection::Ui
+{
+    Q_OBJECT
+
+public:
+    using MerConnection::Ui::Ui;
+
+    void warn(Warning which) override;
+    void dismissWarning(Warning which) override;
+
+    bool shouldAsk(Question which) const override;
+    void ask(Question which, OnStatusChanged onStatusChanged) override;
+    void dismissQuestion(Question which) override;
+    QuestionStatus status(Question which) const override;
+
+private:
+    QMessageBox *openWarningBox(const QString &title, const QString &text);
+    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
+            const QString &title, const QString &text,
+            const QString &informativeText = QString(),
+            std::function<void()> setDoNotAskAgain = nullptr);
+    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
+            const QString &title, const QString &text);
+    template<class Dialog>
+    void deleteDialog(QPointer<Dialog> &dialog);
+    QuestionStatus status(QMessageBox *box) const;
+    QuestionStatus status(QProgressDialog *dialog) const;
+
+private:
+    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
+    QPointer<QMessageBox> m_startVmQuestionBox;
+    QPointer<QMessageBox> m_resetVmQuestionBox;
+    QPointer<QMessageBox> m_closeVmQuestionBox;
+    QPointer<QProgressDialog> m_connectingProgressDialog;
+    QPointer<QProgressDialog> m_lockingDownProgressDialog;
+};
+#endif // MER_LIBRARY
+
 QMap<QString, int> MerConnection::s_usedVmNames;
 
+#ifdef MER_LIBRARY
 MerConnection::MerConnection(QObject *parent)
+    : MerConnection(new MerConnectionWidgetUi, parent)
+{
+}
+#endif // MER_LIBRARY
+
+MerConnection::MerConnection(Ui *ui, QObject *parent)
     : QObject(parent)
     , m_headless(false)
     , m_state(Disconnected)
@@ -210,8 +256,11 @@ MerConnection::MerConnection(QObject *parent)
     , m_cachedSshError(SshNoError)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
+    , m_ui(ui)
 {
+    Q_ASSERT(ui);
     m_vmStateEntryTime.start();
+    m_ui->setParent(this);
 }
 
 MerConnection::~MerConnection()
@@ -383,7 +432,7 @@ void MerConnection::connectTo(ConnectOptions options)
 {
     DBG << "Connect requested";
 
-    if (!MerSettings::isAskBeforeStartingVmEnabled())
+    if (!m_ui->shouldAsk(Ui::StartVm))
         options &= ~AskStartVm;
 
     // Turning AskStartVm off always overrides
@@ -400,7 +449,7 @@ void MerConnection::connectTo(ConnectOptions options)
     } else if (m_connectRequested || m_connectLaterRequested) {
         return;
     } else if (m_disconnectRequested) {
-        openAlreadyDisconnectingWarningBox();
+        m_ui->warn(Ui::AlreadyDisconnecting);
         return;
     }
 
@@ -431,7 +480,7 @@ void MerConnection::disconnectFrom()
     } else if (m_disconnectRequested && !m_connectLaterRequested) {
         return;
     } else if (m_connectRequested || m_connectLaterRequested) {
-        openAlreadyConnectingWarningBox();
+        m_ui->warn(Ui::AlreadyConnecting);
         return;
     }
 
@@ -664,22 +713,20 @@ bool MerConnection::vmStmStep()
             vmStmTransition(VmRunning, "started outside");
         } else if (m_lockDownRequested) {
             vmStmTransition(VmOff, "lock down requested");
-        } else if (!m_startVmQuestionBox) {
-            openStartVmQuestionBox();
-        } else if (QAbstractButton *button = m_startVmQuestionBox->clickedButton()) {
-            if (m_startVmQuestionBox->checkBox() && m_startVmQuestionBox->checkBox()->isChecked())
-                MerSettings::setAskBeforeStartingVmEnabled(false);
-            if (button == m_startVmQuestionBox->button(QMessageBox::Yes)) {
-                vmStmTransition(VmStarting, "start VM allowed");
-            } else {
-                m_connectRequested = false;
-                m_connectOptions = NoConnectOption;
-                vmStmTransition(VmOff, "start VM denied");
-            }
+        } else {
+            m_ui->ask(Ui::StartVm, &MerConnection::vmStmScheduleExec,
+                    [=] {
+                        vmStmTransition(VmStarting, "start VM allowed");
+                    },
+                    [=] {
+                        m_connectRequested = false;
+                        m_connectOptions = NoConnectOption;
+                        vmStmTransition(VmOff, "start VM denied");
+                    });
         }
 
         ON_EXIT {
-            deleteDialog(m_startVmQuestionBox);
+            m_ui->dismissQuestion(Ui::StartVm);
         }
         break;
 
@@ -694,7 +741,7 @@ bool MerConnection::vmStmStep()
         if (m_cachedVmRunning) {
             vmStmTransition(VmRunning, "successfully started");
         } else if (!m_cachedVmExists) {
-            openVmNotRegisteredWarningBox();
+            m_ui->warn(Ui::VmNotRegistered);
             vmStmTransition(VmStartingError, "VM does not exist");
         } else if (!m_vmStartingTimeoutTimer.isActive()) {
             vmStmTransition(VmStartingError, "timeout waiting to start");
@@ -743,25 +790,13 @@ bool MerConnection::vmStmStep()
                 if (!m_vmStartedOutside && !m_connectLaterRequested) {
                     vmStmTransition(VmSoftClosing, "disconnect requested");
                 } else if (m_connectLaterRequested) {
-                    if (!m_resetVmQuestionBox) {
-                        openResetVmQuestionBox();
-                    } else if (QAbstractButton *button = m_resetVmQuestionBox->clickedButton()) {
-                        if (button == m_resetVmQuestionBox->button(QMessageBox::Yes)) {
-                            vmStmTransition(VmSoftClosing, "disconnect&connect later requested+reset allowed");
-                        } else {
-                            vmStmTransition(VmZombie, "disconnect&connect later requested+reset denied");
-                        }
-                    }
+                    m_ui->ask(Ui::ResetVm, &MerConnection::vmStmScheduleExec,
+                            [=] { vmStmTransition(VmSoftClosing, "disconnect&connect later requested+reset allowed"); },
+                            [=] { vmStmTransition(VmZombie, "disconnect&connect later requested+reset denied"); });
                 } else {
-                    if (!m_closeVmQuestionBox) {
-                        openCloseVmQuestionBox();
-                    } else if (QAbstractButton *button = m_closeVmQuestionBox->clickedButton()) {
-                        if (button == m_closeVmQuestionBox->button(QMessageBox::Yes)) {
-                            vmStmTransition(VmSoftClosing, "disconnect requested+close allowed");
-                        } else {
-                            vmStmTransition(VmZombie, "disconnect requested+close denied");
-                        }
-                    }
+                    m_ui->ask(Ui::CloseVm, &MerConnection::vmStmScheduleExec,
+                            [=] { vmStmTransition(VmSoftClosing, "disconnect requested+close allowed"); },
+                            [=] { vmStmTransition(VmZombie, "disconnect requested+close denied"); });
                 }
             }
         } else if (m_vmStartedOutside && !m_autoConnectEnabled) {
@@ -771,8 +806,8 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteDialog(m_resetVmQuestionBox);
-            deleteDialog(m_closeVmQuestionBox);
+            m_ui->dismissQuestion(Ui::ResetVm);
+            m_ui->dismissQuestion(Ui::CloseVm);
             sshStmScheduleExec();
         }
         break;
@@ -794,7 +829,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteDialog(m_unableToCloseVmWarningBox);
+            m_ui->dismissWarning(Ui::UnableToCloseVm);
         }
         break;
 
@@ -859,19 +894,17 @@ bool MerConnection::vmStmStep()
             qWarning() << "MerConnection: timeout waiting for the" << m_vmName
                 << "virtual machine to hard-close.";
             if (m_lockDownRequested) {
-                if (!m_lockingDownProgressDialog) {
-                    openLockingDownProgressDialog();
-                } else if (!m_lockingDownProgressDialog->isVisible()) {
-                    if (!m_lockingDownProgressDialog->wasCanceled()) {
-                        vmStmTransition(VmHardClosing, "lock down error+retry allowed");
-                    } else {
-                        m_lockDownFailed = true;
-                        emit lockDownFailed();
-                        vmStmTransition(VmZombie, "lock down error+retry denied");
-                    }
-                }
+                m_ui->ask(Ui::CancelLockingDown, &MerConnection::vmStmScheduleExec,
+                        [=] {
+                            m_lockDownFailed = true;
+                            emit lockDownFailed();
+                            vmStmTransition(VmZombie, "lock down error+retry denied");
+                        },
+                        [=] {
+                            vmStmTransition(VmHardClosing, "lock down error+retry allowed");
+                        });
             } else {
-                openUnableToCloseVmWarningBox(); // Keep open until leaving VmZombie
+                m_ui->warn(Ui::UnableToCloseVm); // Keep open until leaving VmZombie
                 vmStmTransition(VmZombie, "timeout waiting to hard-close");
             }
         }
@@ -879,7 +912,7 @@ bool MerConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
-            deleteDialog(m_lockingDownProgressDialog);
+            m_ui->dismissQuestion(Ui::CancelLockingDown);
         }
         break;
     }
@@ -977,21 +1010,15 @@ bool MerConnection::sshStmStep()
                        isRecoverable(m_cachedSshError)) {
                 ; // Do not report possibly recoverable boot-time failure
             } else {
-                if (!m_connectingProgressDialog) {
-                    openConnectingProgressDialog();
-                } else if (!m_connectingProgressDialog->isVisible()) {
-                    if (!m_connectingProgressDialog->wasCanceled()) {
-                        sshStmTransition(SshConnecting, "connecting error+retry allowed");
-                    } else {
-                        sshStmTransition(SshConnectingError, "connecting error+retry denied");
-                    }
-                }
+                m_ui->ask(Ui::CancelConnecting, &MerConnection::sshStmScheduleExec,
+                        [=] { sshStmTransition(SshConnectingError, "connecting error+retry denied"); },
+                        [=] { sshStmTransition(SshConnecting, "connecting error+retry allowed"); });
             }
         }
 
         ON_EXIT {
             m_sshTryConnectTimer.stop();
-            deleteDialog(m_connectingProgressDialog);
+            m_ui->dismissQuestion(Ui::CancelConnecting);
         }
         break;
 
@@ -1193,170 +1220,6 @@ void MerConnection::sshTryConnect()
     }
 }
 
-void MerConnection::openAlreadyConnectingWarningBox()
-{
-    QMessageBox *box = new QMessageBox(
-            QMessageBox::Warning,
-            tr("Already Connecting to Virtual Machine"),
-            tr("Already connecting to the \"%1\" virtual machine - please repeat later.")
-            .arg(m_vmName),
-            QMessageBox::Ok,
-            ICore::mainWindow());
-    box->setAttribute(Qt::WA_DeleteOnClose);
-    box->show();
-    box->raise();
-}
-
-void MerConnection::openAlreadyDisconnectingWarningBox()
-{
-    QMessageBox *box = new QMessageBox(
-            QMessageBox::Warning,
-            tr("Already Disconnecting from Virtual Machine"),
-            tr("Already disconnecting from the \"%1\" virtual machine - please repeat later.")
-            .arg(m_vmName),
-            QMessageBox::Ok,
-            ICore::mainWindow());
-    box->setAttribute(Qt::WA_DeleteOnClose);
-    box->show();
-    box->raise();
-}
-
-void MerConnection::openVmNotRegisteredWarningBox()
-{
-    QMessageBox *box = new QMessageBox(
-            QMessageBox::Warning,
-            tr("Virtual Machine Not Found"),
-            tr("No virtual machine with the name \"%1\" found. Check your installation.")
-            .arg(m_vmName),
-            QMessageBox::Ok,
-            ICore::mainWindow());
-    box->setAttribute(Qt::WA_DeleteOnClose);
-    box->show();
-    box->raise();
-}
-
-void MerConnection::openStartVmQuestionBox()
-{
-    QTC_CHECK(!m_startVmQuestionBox);
-
-    m_startVmQuestionBox = new QMessageBox(
-            QMessageBox::Question,
-            tr("Start Virtual Machine"),
-            tr("The \"%1\" virtual machine is not running. Do you want to start it now?")
-            .arg(m_vmName),
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    if (MerSettings::isAskBeforeStartingVmEnabled())
-        m_startVmQuestionBox->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
-    m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_startVmQuestionBox.data(), &QMessageBox::finished,
-            this, &MerConnection::vmStmScheduleExec);
-    m_startVmQuestionBox->show();
-    m_startVmQuestionBox->raise();
-}
-
-void MerConnection::openResetVmQuestionBox()
-{
-    QTC_CHECK(!m_resetVmQuestionBox);
-
-    m_resetVmQuestionBox = new QMessageBox(
-            QMessageBox::Question,
-            tr("Reset Virtual Machine"),
-            tr("Connection to the \"%1\" virtual machine failed recently. "
-                "Do you want to reset the virtual machine first?").arg(m_vmName),
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    if (m_vmStartedOutside) {
-        m_resetVmQuestionBox->setInformativeText(tr("This virtual machine has "
-                    "been started outside of Qt Creator."));
-    }
-    m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_resetVmQuestionBox.data(), &QMessageBox::finished,
-            this, &MerConnection::vmStmScheduleExec);
-    m_resetVmQuestionBox->show();
-    m_resetVmQuestionBox->raise();
-}
-
-void MerConnection::openCloseVmQuestionBox()
-{
-    QTC_CHECK(!m_closeVmQuestionBox);
-
-    m_closeVmQuestionBox = new QMessageBox(
-            QMessageBox::Question,
-            tr("Close Virtual Machine"),
-            tr("Do you really want to close the \"%1\" virtual machine?").arg(m_vmName),
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    m_closeVmQuestionBox->setInformativeText(tr("This virtual machine has "
-                "been started outside of Qt Creator. Answer \"No\" to "
-                "disconnect and leave the virtual machine running."));
-    m_closeVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_closeVmQuestionBox.data(), &QMessageBox::finished,
-            this, &MerConnection::vmStmScheduleExec);
-    m_closeVmQuestionBox->show();
-    m_closeVmQuestionBox->raise();
-}
-
-void MerConnection::openUnableToCloseVmWarningBox()
-{
-    QTC_CHECK(!m_unableToCloseVmWarningBox);
-
-    m_unableToCloseVmWarningBox = new QMessageBox(
-            QMessageBox::Warning,
-            tr("Unable to Close Virtual Machine"),
-            tr("Timeout waiting for the \"%1\" virtual machine to close.").arg(m_vmName),
-            QMessageBox::Ok,
-            ICore::mainWindow());
-    m_unableToCloseVmWarningBox->show();
-    m_unableToCloseVmWarningBox->raise();
-}
-
-void MerConnection::openConnectingProgressDialog()
-{
-    QTC_CHECK(!m_connectingProgressDialog);
-
-    m_connectingProgressDialog = new QProgressDialog(ICore::mainWindow());
-    m_connectingProgressDialog->setMaximum(0);
-    m_connectingProgressDialog->setWindowTitle(tr("Connecting to Virtual Machine"));
-    m_connectingProgressDialog->setLabelText(tr("Connecting to the \"%1\" virtual machine…")
-            .arg(m_vmName));
-    connect(m_connectingProgressDialog.data(), &QDialog::finished,
-            this, &MerConnection::sshStmScheduleExec);
-    m_connectingProgressDialog->show();
-    m_connectingProgressDialog->raise();
-}
-
-void MerConnection::openLockingDownProgressDialog()
-{
-    QTC_CHECK(!m_lockingDownProgressDialog);
-
-    m_lockingDownProgressDialog = new QProgressDialog(ICore::mainWindow());
-    m_lockingDownProgressDialog->setMaximum(0);
-    m_lockingDownProgressDialog->setWindowTitle(tr("Closing Virtual Machine"));
-    m_lockingDownProgressDialog->setLabelText(tr("Waiting for the \"%1\" virtual machine to close…")
-            .arg(m_vmName));
-    connect(m_lockingDownProgressDialog.data(), &QDialog::finished,
-            this, &MerConnection::vmStmScheduleExec);
-    m_lockingDownProgressDialog->show();
-    m_lockingDownProgressDialog->raise();
-}
-
-template<class Dialog>
-void MerConnection::deleteDialog(QPointer<Dialog> &dialog)
-{
-    if (!dialog)
-        return;
-
-    if (!dialog->isVisible()) {
-        delete dialog;
-    } else {
-        dialog->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, dialog.data(), &QObject::deleteLater);
-        dialog->disconnect(this);
-        dialog = 0;
-    }
-}
-
 bool MerConnection::isRecoverable(QSsh::SshError sshError)
 {
     switch (sshError) {
@@ -1464,6 +1327,264 @@ void MerConnection::onRemoteShutdownProcessFinished()
     DBG << "Remote shutdown process finished. Succeeded:" << !m_remoteShutdownProcess->isError();
     vmStmScheduleExec();
 }
+
+void MerConnection::Ui::ask(Question which, OnStatusChanged onStatusChanged,
+        std::function<void()> ifYes, std::function<void()> ifNo)
+{
+    switch (status(which)) {
+    case Ui::NotAsked:
+        ask(which, onStatusChanged);
+        break;
+    case Ui::Asked:
+        break;
+    case Ui::Yes:
+        ifYes();
+        break;
+    case Ui::No:
+        ifNo();
+        break;
+    }
+}
+
+#ifdef MER_LIBRARY
+void MerConnectionWidgetUi::warn(Warning which)
+{
+    switch (which) {
+    case Ui::AlreadyConnecting:
+        openWarningBox(tr("Already Connecting to Virtual Machine"),
+                tr("Already connecting to the \"%1\" virtual machine - please repeat later."))
+            ->setAttribute(Qt::WA_DeleteOnClose);
+        break;
+    case Ui::AlreadyDisconnecting:
+        openWarningBox(tr("Already Disconnecting from Virtual Machine"),
+                tr("Already disconnecting from the \"%1\" virtual machine - please repeat later."))
+            ->setAttribute(Qt::WA_DeleteOnClose);
+        break;
+    case Ui::UnableToCloseVm:
+        QTC_CHECK(!m_unableToCloseVmWarningBox);
+        m_unableToCloseVmWarningBox = openWarningBox(
+                tr("Unable to Close Virtual Machine"),
+                tr("Timeout waiting for the \"%1\" virtual machine to close."));
+        break;
+    case Ui::VmNotRegistered:
+        openWarningBox(tr("Virtual Machine Not Found"),
+                tr("No virtual machine with the name \"%1\" found. Check your installation."))
+            ->setAttribute(Qt::WA_DeleteOnClose);
+        break;
+    }
+}
+
+void MerConnectionWidgetUi::dismissWarning(Warning which)
+{
+    switch (which) {
+    case Ui::UnableToCloseVm:
+        deleteDialog(m_unableToCloseVmWarningBox);
+        break;
+    default:
+        QTC_CHECK(false);
+    }
+}
+
+bool MerConnectionWidgetUi::shouldAsk(Question which) const
+{
+    switch (which) {
+    case Ui::StartVm:
+        return MerSettings::isAskBeforeStartingVmEnabled();
+        break;
+    default:
+        QTC_CHECK(false);
+        return false;
+    }
+}
+
+void MerConnectionWidgetUi::ask(Question which, OnStatusChanged onStatusChanged)
+{
+    switch (which) {
+    case Ui::StartVm:
+        QTC_CHECK(!m_startVmQuestionBox);
+        m_startVmQuestionBox = openQuestionBox(
+                onStatusChanged,
+                tr("Start Virtual Machine"),
+                tr("The \"%1\" virtual machine is not running. Do you want to start it now?"),
+                QString(),
+                MerSettings::isAskBeforeStartingVmEnabled()
+                    ? [] { MerSettings::setAskBeforeStartingVmEnabled(false); }
+                    : std::function<void()>());
+        break;
+    case Ui::ResetVm:
+        QTC_CHECK(!m_resetVmQuestionBox);
+        bool startedOutside;
+        connection()->isVirtualMachineOff(0, &startedOutside);
+        m_resetVmQuestionBox = openQuestionBox(
+                onStatusChanged,
+                tr("Reset Virtual Machine"),
+                tr("Connection to the \"%1\" virtual machine failed recently. "
+                    "Do you want to reset the virtual machine first?"),
+                startedOutside ?
+                    tr("This virtual machine has been started outside of Qt Creator.")
+                    : QString());
+        break;
+    case Ui::CloseVm:
+        QTC_CHECK(!m_closeVmQuestionBox);
+        m_closeVmQuestionBox = openQuestionBox(
+                onStatusChanged,
+                tr("Close Virtual Machine"),
+                tr("Do you really want to close the \"%1\" virtual machine?"),
+                tr("This virtual machine has been started outside of Qt Creator. "
+                    "Answer \"No\" to disconnect and leave the virtual machine running."));
+        break;
+    case Ui::CancelConnecting:
+        QTC_CHECK(!m_connectingProgressDialog);
+        m_connectingProgressDialog = openProgressDialog(
+                onStatusChanged,
+                tr("Connecting to Virtual Machine"),
+                tr("Connecting to the \"%1\" virtual machine…"));
+        break;
+    case Ui::CancelLockingDown:
+        QTC_CHECK(!m_lockingDownProgressDialog);
+        m_lockingDownProgressDialog = openProgressDialog(
+                onStatusChanged,
+                tr("Closing Virtual Machine"),
+                tr("Waiting for the \"%1\" virtual machine to close…"));
+        break;
+    }
+}
+
+void MerConnectionWidgetUi::dismissQuestion(Question which)
+{
+    switch (which) {
+    case Ui::StartVm:
+        deleteDialog(m_startVmQuestionBox);
+        break;
+    case Ui::ResetVm:
+        deleteDialog(m_resetVmQuestionBox);
+        break;
+    case Ui::CloseVm:
+        deleteDialog(m_closeVmQuestionBox);
+        break;
+    case Ui::CancelConnecting:
+        deleteDialog(m_connectingProgressDialog);
+        break;
+    case Ui::CancelLockingDown:
+        deleteDialog(m_lockingDownProgressDialog);
+        break;
+    }
+}
+
+MerConnection::Ui::QuestionStatus MerConnectionWidgetUi::status(Question which) const
+{
+    switch (which) {
+    case Ui::StartVm:
+        return status(m_startVmQuestionBox);
+        break;
+    case Ui::ResetVm:
+        return status(m_resetVmQuestionBox);
+        break;
+    case Ui::CloseVm:
+        return status(m_closeVmQuestionBox);
+        break;
+    case Ui::CancelConnecting:
+        return status(m_connectingProgressDialog);
+        break;
+    case Ui::CancelLockingDown:
+        return status(m_lockingDownProgressDialog);
+        break;
+    }
+
+    QTC_CHECK(false);
+    return NotAsked;
+}
+
+QMessageBox *MerConnectionWidgetUi::openWarningBox(const QString &title, const QString &text)
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Warning,
+            title,
+            text.arg(connection()->virtualMachine()),
+            QMessageBox::Ok,
+            ICore::mainWindow());
+    box->show();
+    box->raise();
+    return box;
+}
+
+
+QMessageBox *MerConnectionWidgetUi::openQuestionBox(OnStatusChanged onStatusChanged,
+        const QString &title, const QString &text, const QString &informativeText,
+        std::function<void()> setDoNotAskAgain)
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Question,
+            title,
+            text.arg(connection()->virtualMachine()),
+            QMessageBox::Yes | QMessageBox::No,
+            ICore::mainWindow());
+    box->setInformativeText(informativeText);
+    if (setDoNotAskAgain) {
+        box->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
+        connect(box, &QMessageBox::finished, [=] {
+            if (box->checkBox()->isChecked())
+                setDoNotAskAgain();
+        });
+    }
+    box->setEscapeButton(QMessageBox::No);
+    connect(box, &QMessageBox::finished,
+            connection(), onStatusChanged);
+    box->show();
+    box->raise();
+    return box;
+}
+
+QProgressDialog *MerConnectionWidgetUi::openProgressDialog(OnStatusChanged onStatusChanged,
+        const QString &title, const QString &text)
+{
+    QProgressDialog *dialog = new QProgressDialog(ICore::mainWindow());
+    dialog->setMaximum(0);
+    dialog->setWindowTitle(title);
+    dialog->setLabelText(text.arg(connection()->virtualMachine()));
+    connect(dialog, &QDialog::finished,
+            connection(), onStatusChanged);
+    dialog->show();
+    dialog->raise();
+    return dialog;
+}
+
+template<class Dialog>
+void MerConnectionWidgetUi::deleteDialog(QPointer<Dialog> &dialog)
+{
+    if (!dialog)
+        return;
+
+    if (!dialog->isVisible()) {
+        delete dialog;
+    } else {
+        dialog->setEnabled(false);
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, dialog.data(), &QObject::deleteLater);
+        dialog->disconnect();
+        dialog = 0;
+    }
+}
+
+MerConnection::Ui::QuestionStatus MerConnectionWidgetUi::status(QMessageBox *box) const
+{
+    if (!box)
+        return NotAsked;
+    else if (QAbstractButton *button = box->clickedButton())
+        return button == box->button(QMessageBox::Yes) ? Yes : No;
+    else
+        return Asked;
+}
+
+MerConnection::Ui::QuestionStatus MerConnectionWidgetUi::status(QProgressDialog *dialog) const
+{
+    if (!dialog)
+        return NotAsked;
+    else if (!dialog->isVisible())
+        return dialog->wasCanceled() ? Yes : No;
+    else
+        return Asked;
+}
+#endif // MER_LIBRARY
 
 } // Internal
 } // Mer
