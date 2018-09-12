@@ -23,12 +23,10 @@
 #include "mervirtualboxmanager.h"
 
 #include "merconstants.h"
-#include "meremulatordevice.h"
 #include "merlogging.h"
-#include "mersdk.h"
-#include "mersdkmanager.h"
 
 #include <utils/hostosinfo.h>
+#include <utils/port.h>
 #include <utils/qtcassert.h>
 
 #include <QBasicTimer>
@@ -40,10 +38,10 @@
 #include <QSettings>
 #include <QSize>
 #include <QTime>
+#include <QTimerEvent>
 
 #include <algorithm>
 
-using namespace ProjectExplorer;
 using namespace Utils;
 
 const char VBOXMANAGE[] = "VBoxManage";

@@ -30,8 +30,6 @@
 #include <QString>
 #include <QStringList>
 
-#include <coreplugin/id.h>
-
 namespace Utils {
     class Port;
 }
