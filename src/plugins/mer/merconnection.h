@@ -110,7 +110,7 @@ public:
     bool isAutoConnectEnabled() const;
     void setAutoConnectEnabled(bool autoConnectEnabled);
 
-    bool isVirtualMachineOff(bool *runningHeadless = 0) const;
+    bool isVirtualMachineOff(bool *runningHeadless = 0, bool *startedOutside = 0) const;
     bool lockDown(bool lockDown);
 
     static QStringList usedVirtualMachines();

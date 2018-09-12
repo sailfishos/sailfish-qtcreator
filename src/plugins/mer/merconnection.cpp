@@ -356,7 +356,7 @@ void MerConnection::setAutoConnectEnabled(bool autoConnectEnabled)
     sshStmScheduleExec();
 }
 
-bool MerConnection::isVirtualMachineOff(bool *runningHeadless) const
+bool MerConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOutside) const
 {
     if (runningHeadless) {
         if (m_cachedVmRunning)
@@ -366,6 +366,9 @@ bool MerConnection::isVirtualMachineOff(bool *runningHeadless) const
         else
             *runningHeadless = false;
     }
+
+    if (startedOutside)
+        *startedOutside = m_vmStartedOutside;
 
     return !m_cachedVmRunning && m_vmState != VmStarting;
 }
