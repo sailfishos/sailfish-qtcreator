@@ -27,6 +27,8 @@
 
 class GccCommand: public Command
 {
+    Q_OBJECT
+
 public:
     GccCommand();
     QString name() const override;

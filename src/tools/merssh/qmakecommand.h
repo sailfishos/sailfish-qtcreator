@@ -27,6 +27,8 @@
 
 class QMakeCommand : public Command
 {
+    Q_OBJECT
+
 public:
     QMakeCommand();
     QString name() const override;

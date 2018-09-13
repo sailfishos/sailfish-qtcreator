@@ -27,6 +27,8 @@
 
 class RpmCommand: public Command
 {
+    Q_OBJECT
+
 public:
     RpmCommand();
     QString name() const override;

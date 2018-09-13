@@ -29,8 +29,10 @@
 #include <QStringList>
 #include <QTimer>
 
-class Command
+class Command : public QObject
 {
+    Q_OBJECT
+
 public:
     Command();
     virtual ~Command();
@@ -60,8 +62,6 @@ public:
     virtual bool isValid() const;
     virtual QString name() const = 0;
     virtual int execute() = 0;
-
-
 
 private:
     QStringList m_args;
