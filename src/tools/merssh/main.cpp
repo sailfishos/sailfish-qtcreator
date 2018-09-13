@@ -109,6 +109,33 @@ int main(int argc, char *argv[])
     //remove merssh
     arguments.takeFirst();
 
+    // Allow to pass variable on command line instead of in environment. Used by installer where
+    // environment variables cannot be set.
+    const QSet<QString> environmentVariables{
+        QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC),
+        QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS),
+        QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH),
+        QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_USERNAME),
+        QLatin1String(Mer::Constants::MER_SSH_PORT),
+        QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY),
+    };
+    while (!arguments.isEmpty()) {
+        const int equalPosition = arguments.first().indexOf('=');
+        if (equalPosition == -1)
+            break;
+        const QString name = arguments.first().left(equalPosition);
+        if (!environmentVariables.contains(name))
+            break;
+        const QString value = arguments.first().mid(equalPosition + 1);
+        qputenv(name.toLocal8Bit(), value.toLocal8Bit());
+        arguments.takeFirst();
+    }
+
     if(arguments.isEmpty()) {
         qCritical() << "No arguments" << endl;
         printUsage();
