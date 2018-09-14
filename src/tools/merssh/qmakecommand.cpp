@@ -65,15 +65,44 @@ int QMakeCommand::execute()
         return 1;
     }
 
+    QString evalCommand;
+    QString filterCommand; 
+    const int evalIndex = arguments().indexOf(QLatin1String("-env"));
+    if (evalIndex != -1) {
+        //Creating special pro file
+        const QString ppath = QString("/home/%1/query_var").arg(sshParameters().userName);
+        const int varIndex = evalIndex + 1;
+
+        auto args = arguments();
+        evalCommand = QString("echo \'%1\' > %2;").
+                arg((args.size() > varIndex) ?
+                        //Evaluate var in second parameter
+                        QLatin1String("log($$escape_expand($$eval($$VAR)\\n))") :
+                        //Evaluate all vars
+                        QLatin1String("for(var, $$list($$enumerate_vars())) log($$escape_expand($$var=$$eval($$var)\\n\\r))")).
+                arg(ppath);
+
+        //Tansforming args
+        args.replace(evalIndex, ppath);
+
+        if (args.size() > varIndex)
+            args.replace(varIndex, "VAR=" + args.at(varIndex));
+
+        setArguments(args);
+
+        //Redirect stderr to stdout and suppress stdout
+        filterCommand = "2>&1>/dev/null";
+    }
+
     const QString projectPathParameter = projectPath().isEmpty()
         ? QString()
         : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
 
-    QString command = QLatin1String("mb2 --pedantic") +
+    QString command = evalCommand + QLatin1String("mb2 --pedantic") +
                       projectPathParameter +
                       QLatin1String(" -t ") +
                       targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
+                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ') + filterCommand;
 
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());
