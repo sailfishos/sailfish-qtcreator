@@ -90,7 +90,7 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
     const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();
 
     const QStringList patterns = systemEnvironment.value(Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
-        .split("[[:space:]]\\+", QString::SkipEmptyParts);
+        .split(QRegularExpression("[[:space:]]+"), QString::SkipEmptyParts);
     if (patterns.isEmpty())
         return command;
 
