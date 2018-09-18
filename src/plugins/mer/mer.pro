@@ -6,6 +6,7 @@ QT += gui xmlpatterns
 
 include(../../qtcreatorplugin.pri)
 
+
 RESOURCES += \
     mer.qrc
 
@@ -88,6 +89,7 @@ SOURCES += \
     mertoolchain.cpp \
     meruploadandinstallrpmsteps.cpp \
     mervirtualboxmanager.cpp \
+    merqmakebuildconfigurationfactory.cpp
 
 HEADERS += \
     merabstractvmstartstep.h \
@@ -153,6 +155,7 @@ HEADERS += \
     mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
     mervirtualboxmanager.h \
+    merqmakebuildconfigurationfactory.h
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit
@@ -163,3 +166,4 @@ contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
 } else {
     DEFINES += QT_NO_WEBKIT
 }
+

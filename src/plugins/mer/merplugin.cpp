@@ -45,6 +45,7 @@
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
 #include "mervirtualboxmanager.h"
+#include "merqmakebuildconfigurationfactory.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -119,6 +120,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
     addAutoReleasedObject(new MerQmlLiveBenchManager);
+    addAutoReleasedObject(new MerQmakeBuildConfigurationFactory);
 
     addAutoReleasedObject(new MerMode);
 
