@@ -3,6 +3,10 @@
 
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 
+namespace QmakeProjectManager {
+class QmakeProFile;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -26,12 +30,19 @@ public:
 
 class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguration
 {
+    Q_OBJECT
     friend class MerQmakeBuildConfigurationFactory;    
 public:
     explicit MerQmakeBuildConfiguration(ProjectExplorer::Target *target);
     MerQmakeBuildConfiguration(ProjectExplorer::Target *target, MerQmakeBuildConfiguration *source);
     MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     void addToEnvironment(Utils::Environment &env) const override;
+
+private slots:
+    void updateEnvironment(QmakeProjectManager::QmakeProFile *pro, bool validParse, bool parseInProgress);
+
+private:
+    QStringList queryBuildEngineVariables(bool *ok = Q_NULLPTR) const;
 };
 
 } // namespace Internal

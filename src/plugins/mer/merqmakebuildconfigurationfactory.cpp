@@ -81,38 +81,60 @@ BuildConfiguration *MerQmakeBuildConfigurationFactory::restore(Target *parent, c
 
 
 
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target)
-    : QmakeBuildConfiguration(target)
-{        
+MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target):
+    QmakeBuildConfiguration(target)
+{
+    auto project = qobject_cast<QmakeProject *>(target->project());
+    if (project)
+        connect(project, SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
+                this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
 }
 
 
 
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, MerQmakeBuildConfiguration *source)
-    : QmakeBuildConfiguration(target, source)
-{    
+MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, MerQmakeBuildConfiguration *source):
+    QmakeBuildConfiguration(target, source)
+{
 }
 
 
 
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id)
-    : QmakeBuildConfiguration(target, id)
-{ 
+MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id):
+    QmakeBuildConfiguration(target, id)
+{
 }
 
 
 
-void MerQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
-{    
+void MerQmakeBuildConfiguration::updateEnvironment(QmakeProjectManager::QmakeProFile *pro, bool validParse, bool parseInProgress)
+{
+    if (sender() != pro->project() || !validParse || !parseInProgress)
+        return;
+
+    disconnect(pro->project(), SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
+               this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
+
+    emitEnvironmentChanged();
+
+    connect(pro->project(), SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
+            this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
+}
+
+
+
+QStringList MerQmakeBuildConfiguration::queryBuildEngineVariables(bool *ok) const
+{
+    QStringList result;
+    if (ok) *ok = false;
 
     if (!target() || !target()->project() || !target()->kit())
-        return;
+        return result;
 
     const auto kit = target()->kit();
     const auto sdk = MerSdkKitInformation::sdk(kit);
     const auto qtVersion = QtSupport::QtKitInformation::qtVersion(kit);
     if (!sdk || !qtVersion)
-        return;
+        return result;
 
     const QString sshPort = QString::number(sdk->sshPort());
     const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
@@ -147,15 +169,28 @@ void MerQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
     p.start(QDir::toNativeSeparators(mersshPath) + " qmake -env");
     p.waitForFinished();
 
-    const auto envList = QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts);
-
-    foreach (const QString &var, envList) {
-        const auto parts = var.split("=");
-        if (parts.size() == 2) {
-            env.appendOrSet(parts.first(), parts.last());
-        }
+    if (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0) {
+        result = QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts);
+        if (ok) *ok = true;
     }
 
+    return result;
+}
+
+
+
+void MerQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
+{    
+    bool ok = false;
+    const auto vars = queryBuildEngineVariables(&ok);
+    if (!ok)
+        return;
+
+    foreach (const QString &var, vars) {
+        const auto parts = var.split("=");
+        if (parts.size() == 2)
+            env.appendOrSet(parts.first(), parts.last());
+    }
 }
 
 
