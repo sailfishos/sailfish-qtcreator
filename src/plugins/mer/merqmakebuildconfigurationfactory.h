@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <QProcess>
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 
 namespace QmakeProjectManager {
@@ -30,7 +31,6 @@ public:
 
 class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguration
 {
-    Q_OBJECT
     friend class MerQmakeBuildConfigurationFactory;    
 public:
     explicit MerQmakeBuildConfiguration(ProjectExplorer::Target *target);
@@ -38,11 +38,13 @@ public:
     MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
     void addToEnvironment(Utils::Environment &env) const override;
 
-private slots:
-    void updateEnvironment(QmakeProjectManager::QmakeProFile *pro, bool validParse, bool parseInProgress);
-
 private:
-    QStringList queryBuildEngineVariables(bool *ok = Q_NULLPTR) const;
+    QProcess m_MerSsh;
+    QStringList m_BuildEngineVariables;
+
+    void init();
+    void queryBuildEngineVariables();
+    QStringList merSshEnvironment() const;
 };
 
 } // namespace Internal

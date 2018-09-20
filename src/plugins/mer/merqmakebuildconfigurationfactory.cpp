@@ -17,6 +17,18 @@
 
 
 
+namespace {
+
+QStringList readFromProcess(QProcess &p) {
+    return (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0) ?
+                QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts) :
+                QStringList();
+}
+
+}
+
+
+
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 
@@ -84,10 +96,7 @@ BuildConfiguration *MerQmakeBuildConfigurationFactory::restore(Target *parent, c
 MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target):
     QmakeBuildConfiguration(target)
 {
-    auto project = qobject_cast<QmakeProject *>(target->project());
-    if (project)
-        connect(project, SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
-                this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
+    init();
 }
 
 
@@ -95,6 +104,7 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target):
 MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, MerQmakeBuildConfiguration *source):
     QmakeBuildConfiguration(target, source)
 {
+    init();
 }
 
 
@@ -102,39 +112,69 @@ MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, MerQmakeB
 MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id):
     QmakeBuildConfiguration(target, id)
 {
+    init();
 }
 
 
 
-void MerQmakeBuildConfiguration::updateEnvironment(QmakeProjectManager::QmakeProFile *pro, bool validParse, bool parseInProgress)
+void MerQmakeBuildConfiguration::init()
 {
-    if (sender() != pro->project() || !validParse || !parseInProgress)
-        return;
+    const auto kit = target()->kit();
+    const auto sdk = MerSdkKitInformation::sdk(kit);
+    const auto project = qobject_cast<QmakeProject *>(target()->project());
 
-    disconnect(pro->project(), SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
-               this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
+    Q_ASSERT(kit);
+    Q_ASSERT(sdk);
+    Q_ASSERT(project);
 
-    emitEnvironmentChanged();
 
-    connect(pro->project(), SIGNAL(proFileUpdated(QmakeProjectManager::QmakeProFile*, bool, bool)),
-            this, SLOT(updateEnvironment(QmakeProjectManager::QmakeProFile*, bool, bool)));
+    const QString mersshPath = Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
+
+    m_MerSsh.setProgram(QDir::toNativeSeparators(mersshPath));
+    m_MerSsh.setArguments({"qmake", "-env"});
+
+    //For the first time query build engine vars synchronously
+    m_MerSsh.setEnvironment(merSshEnvironment());
+    m_MerSsh.start();
+    m_MerSsh.waitForFinished();
+    m_BuildEngineVariables = readFromProcess(m_MerSsh);
+
+    //The rest queries are asynchronous
+    connect(&m_MerSsh, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            [this](int exitCode, QProcess::ExitStatus exitStatus){
+        if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+            const auto buildEngineVariables = readFromProcess(m_MerSsh);
+            if (buildEngineVariables != m_BuildEngineVariables) {
+                m_BuildEngineVariables = buildEngineVariables;
+                emitEnvironmentChanged();
+            }
+        }
+        m_MerSsh.close();
+    });
+
+    connect(&m_MerSsh, &QProcess::errorOccurred, [this]{
+        m_MerSsh.close();
+    });
+
+    connect(project, &QmakeProject::proFileUpdated,
+            [this, project](QmakeProjectManager::QmakeProFile *pro, bool validParse, bool parseInProgress){
+        if (project == pro->project() && validParse == true && parseInProgress == true)
+            queryBuildEngineVariables();
+    });
 }
 
 
 
-QStringList MerQmakeBuildConfiguration::queryBuildEngineVariables(bool *ok) const
+QStringList MerQmakeBuildConfiguration::merSshEnvironment() const
 {
-    QStringList result;
-    if (ok) *ok = false;
-
     if (!target() || !target()->project() || !target()->kit())
-        return result;
+        return QStringList();
 
     const auto kit = target()->kit();
     const auto sdk = MerSdkKitInformation::sdk(kit);
     const auto qtVersion = QtSupport::QtKitInformation::qtVersion(kit);
     if (!sdk || !qtVersion)
-        return result;
+        return QStringList();
 
     const QString sshPort = QString::number(sdk->sshPort());
     const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
@@ -161,32 +201,24 @@ QStringList MerQmakeBuildConfiguration::queryBuildEngineVariables(bool *ok) cons
     if (!sharedSrc.isEmpty())
         sysenv << item(Constants::MER_SSH_SHARED_SRC, sharedSrc);
 
+    return sysenv;
+}
 
-    const QString mersshPath = Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
 
-    QProcess p;
-    p.setEnvironment(sysenv);
-    p.start(QDir::toNativeSeparators(mersshPath) + " qmake -env");
-    p.waitForFinished();
 
-    if (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0) {
-        result = QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts);
-        if (ok) *ok = true;
+void MerQmakeBuildConfiguration::queryBuildEngineVariables()
+{
+    if (m_MerSsh.state() == QProcess::NotRunning) {
+        m_MerSsh.setEnvironment(merSshEnvironment());
+        m_MerSsh.start();
     }
-
-    return result;
 }
 
 
 
 void MerQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 {    
-    bool ok = false;
-    const auto vars = queryBuildEngineVariables(&ok);
-    if (!ok)
-        return;
-
-    foreach (const QString &var, vars) {
+    foreach (const QString &var, m_BuildEngineVariables) {
         const auto parts = var.split("=");
         if (parts.size() == 2)
             env.appendOrSet(parts.first(), parts.last());
