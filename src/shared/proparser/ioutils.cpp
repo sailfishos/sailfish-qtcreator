@@ -64,22 +64,21 @@ IoUtils::FileType IoUtils::fileType(const QString &fileName)
 
 bool IoUtils::isRelativePath(const QString &path)
 {
+    if (path.startsWith(QLatin1Char('/')))
+        return false;
 #ifdef QMAKE_BUILTIN_PRFS
     if (path.startsWith(QLatin1String(":/")))
         return false;
 #endif
 #ifdef Q_OS_WIN
-    // Unlike QFileInfo, this considers only paths with both a drive prefix and
-    // a subsequent (back-)slash absolute:
+    if (path.startsWith(QLatin1Char('\\')))
+        return false;
+    // Unlike QFileInfo, this won't accept a relative path with a drive letter.
+    // Such paths result in a royal mess anyway ...
     if (path.length() >= 3 && path.at(1) == QLatin1Char(':') && path.at(0).isLetter()
-        && (path.at(2) == QLatin1Char('/') || path.at(2) == QLatin1Char('\\'))) {
+        && (path.at(2) == QLatin1Char('/') || path.at(2) == QLatin1Char('\\')))
         return false;
-    }
-    // (... unless, of course, they're UNC, which qmake fails on anyway)
-#else
-    if (path.startsWith(QLatin1Char('/')))
-        return false;
-#endif // Q_OS_WIN
+#endif
     return true;
 }
 
@@ -99,12 +98,6 @@ QString IoUtils::resolvePath(const QString &baseDir, const QString &fileName)
         return QString();
     if (isAbsolutePath(fileName))
         return QDir::cleanPath(fileName);
-#ifdef Q_OS_WIN // Add drive to otherwise-absolute path:
-    if (fileName.at(0).unicode() == '/' || fileName.at(0).unicode() == '\\') {
-        Q_ASSERT(isAbsolutePath(baseDir));
-        return QDir::cleanPath(baseDir.left(2) + fileName);
-    }
-#endif // Q_OS_WIN
     return QDir::cleanPath(baseDir + QLatin1Char('/') + fileName);
 }
 
