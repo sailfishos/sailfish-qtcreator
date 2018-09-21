@@ -198,7 +198,7 @@ bool CvsPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     Context context(CVS_CONTEXT);
 
-    initializeVcs(new CvsControl(this), context);
+    initializeVcs<CvsControl>(context, this);
 
     m_cvsPluginInstance = this;
 
@@ -651,6 +651,9 @@ void CvsPlugin::startCommitAll()
  * commit will start. */
 void CvsPlugin::startCommit(const QString &workingDir, const QString &file)
 {
+    if (!promptBeforeCommit())
+        return;
+
     if (raiseSubmitEditor())
         return;
     if (isCommitEditorOpen()) {

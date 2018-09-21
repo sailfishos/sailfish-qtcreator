@@ -20,6 +20,7 @@ Project {
         Depends { name: "ProjectExplorer" }
         Depends { name: "QtSupport" }
         Depends { name: "TextEditor" }
+        Depends { name: "app_version_header" }
 
         pluginTestDepends: [
             "QmakeProjectManager"
@@ -58,7 +59,6 @@ Project {
                 "debuggerrunconfigurationaspect.cpp", "debuggerrunconfigurationaspect.h",
                 "debuggerruncontrol.cpp", "debuggerruncontrol.h",
                 "debuggersourcepathmappingwidget.cpp", "debuggersourcepathmappingwidget.h",
-                "debuggerstartparameters.h",
                 "debuggertooltipmanager.cpp", "debuggertooltipmanager.h",
                 "disassembleragent.cpp", "disassembleragent.h",
                 "disassemblerlines.cpp", "disassemblerlines.h",
@@ -108,14 +108,8 @@ Project {
             name: "gdb"
             prefix: "gdb/"
             files: [
-                "attachgdbadapter.cpp", "attachgdbadapter.h",
-                "coregdbadapter.cpp", "coregdbadapter.h",
                 "gdbengine.cpp", "gdbengine.h",
                 "gdboptionspage.cpp",
-                "gdbplainengine.cpp", "gdbplainengine.h",
-                "remotegdbserveradapter.cpp", "remotegdbserveradapter.h",
-                "startgdbserverdialog.cpp", "startgdbserverdialog.h",
-                "termgdbadapter.cpp", "termgdbadapter.h"
             ]
         }
 

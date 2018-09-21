@@ -92,9 +92,6 @@ protected:
     void processStarted() override;
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
 
-    CMakeBuildStep(ProjectExplorer::BuildStepList *bsl, CMakeBuildStep *bs);
-    CMakeBuildStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
-
     bool fromMap(const QVariantMap &map) override;
 
     // For parsing [ 76%]
@@ -104,14 +101,12 @@ private:
     void ctor(ProjectExplorer::BuildStepList *bsl);
 
     void runImpl(QFutureInterface<bool> &fi);
-    void handleCMakeError(QFutureInterface<bool> &fi, const QString& errorMessage);
-    void disconnectTriggers();
+    void handleProjectWasParsed(QFutureInterface<bool> &fi, bool success);
 
     void handleBuildTargetChanges();
     CMakeRunConfiguration *targetsActiveRunConfiguration() const;
 
     QMetaObject::Connection m_runTrigger;
-    QMetaObject::Connection m_errorTrigger;
 
     QRegExp m_percentProgress;
     QRegExp m_ninjaProgress;
@@ -142,18 +137,12 @@ private:
     QString m_summaryText;
 };
 
-class CMakeBuildStepFactory : public ProjectExplorer::IBuildStepFactory
+class CMakeBuildStepFactory : public ProjectExplorer::BuildStepFactory
 {
     Q_OBJECT
 
 public:
-    explicit CMakeBuildStepFactory(QObject *parent = 0);
-
-    QList<ProjectExplorer::BuildStepInfo>
-        availableSteps(ProjectExplorer::BuildStepList *parent) const override;
-
-    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id) override;
-    ProjectExplorer::BuildStep *clone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) override;
+    CMakeBuildStepFactory();
 };
 
 } // namespace Internal

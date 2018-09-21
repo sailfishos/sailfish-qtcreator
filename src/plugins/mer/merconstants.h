@@ -121,8 +121,6 @@ const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfigurat
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";
 
-const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
-
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 const char MER_EMULATOR_STOP_ACTION_ID[] = "Mer.MerEmulatorStopAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
@@ -141,7 +139,7 @@ const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_EMULATOR_DCONF_DB_FILENAME[] = "device-model.txt";
 const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
-const char MER_DEBUGGER_DEFAULT_FILENAME[] = "gdb";
+const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
@@ -165,6 +163,7 @@ const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
 const char MER_SSH_PORT[] = "MER_SSH_PORT";
+const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_OS_SDK_ENVIRONMENT_FILTER";
 const char MER_DEVICE_VIRTUAL_MACHINE[] = "MER_DEVICE_VIRTUAL_MACHINE";
 const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";

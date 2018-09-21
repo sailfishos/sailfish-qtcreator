@@ -46,13 +46,19 @@ struct LocatorFilterEntry
         };
 
         HighlightInfo(int startIndex, int length, DataType type = DataType::DisplayName)
-            : startIndex(startIndex)
-            , length(length)
+            : starts{startIndex}
+            , lengths{length}
             , dataType(type)
         {}
 
-        int startIndex;
-        int length;
+        HighlightInfo(QVector<int> startIndex, QVector<int> length, DataType type = DataType::DisplayName)
+            : starts(startIndex)
+            , lengths(length)
+            , dataType(type)
+        {}
+
+        QVector<int> starts;
+        QVector<int> lengths;
         DataType dataType;
     };
 
@@ -101,8 +107,10 @@ class CORE_EXPORT ILocatorFilter : public QObject
 public:
     enum Priority {Highest = 0, High = 1, Medium = 2, Low = 3};
 
-    ILocatorFilter(QObject *parent = 0);
-    virtual ~ILocatorFilter() {}
+    ILocatorFilter(QObject *parent = nullptr);
+    virtual ~ILocatorFilter();
+
+    static const QList<ILocatorFilter *> allLocatorFilters();
 
     Id id() const;
     Id actionId() const;
@@ -137,7 +145,9 @@ public:
     bool isEnabled() const;
 
     static Qt::CaseSensitivity caseSensitivity(const QString &str);
-    static bool containsWildcard(const QString &str);
+    static QRegularExpression createRegExp(const QString &text);
+    LocatorFilterEntry::HighlightInfo highlightInfo(const QRegularExpressionMatch &match,
+        LocatorFilterEntry::HighlightInfo::DataType dataType = LocatorFilterEntry::HighlightInfo::DisplayName);
 
     static QString msgConfigureDialogTitle();
     static QString msgPrefixLabel();

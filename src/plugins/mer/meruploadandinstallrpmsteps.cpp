@@ -63,7 +63,7 @@ public:
 private:
     QString uploadDir() const
     {
-        const QString uname = deviceConfiguration()->sshParameters().userName;
+        const QString uname = deviceConfiguration()->sshParameters().userName();
         return uname == QLatin1String("root")
             ? QString::fromLatin1("/root") : QLatin1String("/home/") + uname;
     }
@@ -77,17 +77,6 @@ private:
 
 MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl)
     : AbstractRemoteLinuxDeployStep(bsl, stepId())
-{
-    ctor();
-}
-
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl,
-     MerUploadAndInstallRpmStep *other) : AbstractRemoteLinuxDeployStep(bsl, other)
-{
-    ctor();
-}
-
-void MerUploadAndInstallRpmStep::ctor()
 {
     setDefaultDisplayName(displayName());
     m_packagingStep = 0;

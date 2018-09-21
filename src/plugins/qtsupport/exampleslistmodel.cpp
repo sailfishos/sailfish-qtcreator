@@ -40,6 +40,7 @@
 #include <utils/algorithm.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
+#include <utils/stylehelper.h>
 
 #include <algorithm>
 
@@ -399,7 +400,8 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.hasSourceCode = !item.projectPath.isEmpty();
                 item.projectPath.prepend(slash);
                 item.projectPath.prepend(projectsOffset);
-                item.imageUrl = attributes.value(QLatin1String("imageUrl")).toString();
+                item.imageUrl = Utils::StyleHelper::dpiSpecificImageFile(
+                            attributes.value(QLatin1String("imageUrl")).toString());
                 item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
                 item.isVideo = attributes.value(QLatin1String("isVideo")).toString() == QLatin1String("true");
                 item.videoUrl = attributes.value(QLatin1String("videoUrl")).toString();

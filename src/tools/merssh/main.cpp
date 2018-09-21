@@ -131,9 +131,9 @@ int main(int argc, char *argv[])
     command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
-    parameters.host = QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST);
-    parameters.userName = environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME));
-    parameters.port = environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt();
+    parameters.setHost(QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST));
+    parameters.setUserName(environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME)));
+    parameters.setPort(environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt());
     parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
     parameters.timeout = 10;

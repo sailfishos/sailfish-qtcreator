@@ -23,12 +23,12 @@
 #include "merplugin.h"
 
 #include "meraddvmstartbuildstepprojectlistener.h"
-#include "merbuildstepfactory.h"
+#include "merbuildsteps.h"
 #include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
-#include "merdeployconfigurationfactory.h"
-#include "merdeploystepfactory.h"
+#include "merdeployconfiguration.h"
+#include "merdeploysteps.h"
 #include "merdevicedebugsupport.h"
 #include "merdevicefactory.h"
 #include "meremulatordevice.h"
@@ -39,11 +39,13 @@
 #include "merqmllivebenchmanager.h"
 #include "merqmlrunconfigurationfactory.h"
 #include "merqtversionfactory.h"
+#include "merrpmpackagingstep.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
+#include "meruploadandinstallrpmsteps.h"
 #include "mervirtualboxmanager.h"
 #include "merqmakebuildconfigurationfactory.h"
 
@@ -53,10 +55,12 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
-#include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
+#include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
+#include <utils/checkablemessagebox.h>
 
+#include <QCheckBox>
 #include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
@@ -66,6 +70,7 @@ using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using Utils::CheckableMessageBox;
 
 namespace Mer {
 namespace Internal {
@@ -114,11 +119,21 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
     addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
-    addAutoReleasedObject(new MerDeployConfigurationFactory);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration>);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRsyncDeployConfiguration>);
+    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRpmDeployConfiguration>);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerQmlRunConfigurationFactory);
-    addAutoReleasedObject(new MerBuildStepFactory);
-    addAutoReleasedObject(new MerDeployStepFactory);
+    addAutoReleasedObject(new MerBuildStepFactory<MerSdkStartStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerPrepareTargetStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RsyncDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmBuildStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerRpmPackagingStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerRpmValidationStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerUploadAndInstallRpmStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerLocalRsyncDeployStep>);
+    addAutoReleasedObject(new MerDeployStepFactory<MerResetAmbienceDeployStep>);
     addAutoReleasedObject(new MerQmlLiveBenchManager);
     addAutoReleasedObject(new MerQmakeBuildConfigurationFactory);
 
@@ -177,11 +192,16 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
                         "Close the virtual machine now?").arg(connection->virtualMachine()),
                     QMessageBox::Yes | QMessageBox::No,
                     ICore::mainWindow());
+            prompt->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
             prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
             connect(prompt, &QMessageBox::finished,
                     this, &MerPlugin::handlePromptClosed);
             m_stopList.insert(connection->virtualMachine(), connection);
-            prompt->open();
+            if (MerSettings::isAskBeforeClosingVmEnabled()) {
+                prompt->open();
+            } else {
+                QTimer::singleShot(0, prompt, [prompt] { prompt->done(QMessageBox::Yes); });
+            }
         }
     }
     if(m_stopList.isEmpty())
@@ -196,6 +216,9 @@ void MerPlugin::handlePromptClosed(int result)
     prompt->deleteLater();
 
     QString vm = prompt->property(VM_NAME_PROPERTY).toString();
+
+    if (prompt->checkBox() && prompt->checkBox()->isChecked())
+        MerSettings::setAskBeforeClosingVmEnabled(false);
 
     if (result == QMessageBox::Yes) {
         MerConnection *connection = m_stopList.value(vm);

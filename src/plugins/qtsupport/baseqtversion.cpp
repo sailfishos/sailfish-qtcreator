@@ -37,6 +37,9 @@
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/headerpath.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 
@@ -47,6 +50,7 @@
 #include <utils/runextensions.h>
 #include <utils/synchronousprocess.h>
 #include <utils/winutils.h>
+#include <utils/fileinprojectfinder.h>
 
 #include <QDir>
 #include <QUrl>
@@ -65,8 +69,10 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 static const char QTVERSIONAUTODETECTED[] = "isAutodetected";
-static const char QTVERSIONAUTODETECTIONSOURCE []= "autodetectionSource";
+static const char QTVERSIONAUTODETECTIONSOURCE[] = "autodetectionSource";
+static const char QTVERSION_OVERRIDE_FEATURES[] = "overrideFeatures";
 static const char QTVERSIONQMAKEPATH[] = "QMakePath";
+static const char QTVERSIONSOURCEPATH[] = "SourcePath";
 
 static const char MKSPEC_VALUE_LIBINFIX[] = "QT_LIBINFIX";
 static const char MKSPEC_VALUE_NAMESPACE[] = "QT_NAMESPACE";
@@ -222,6 +228,7 @@ BaseQtVersion::BaseQtVersion(const BaseQtVersion &other) :
     m_qtConfigValues(other.m_qtConfigValues),
     m_unexpandedDisplayName(other.m_unexpandedDisplayName),
     m_autodetectionSource(other.m_autodetectionSource),
+    m_overrideFeatures(other.m_overrideFeatures),
     m_sourcePath(other.m_sourcePath),
     m_mkspec(other.m_mkspec),
     m_mkspecFullPath(other.m_mkspecFullPath),
@@ -232,8 +239,6 @@ BaseQtVersion::BaseQtVersion(const BaseQtVersion &other) :
     m_uicCommand(other.m_uicCommand),
     m_designerCommand(other.m_designerCommand),
     m_linguistCommand(other.m_linguistCommand),
-    m_qmlsceneCommand(other.m_qmlsceneCommand),
-    m_qmlviewerCommand(other.m_qmlviewerCommand),
     m_qscxmlcCommand(other.m_qscxmlcCommand),
     m_qtAbis(other.m_qtAbis)
 {
@@ -264,7 +269,6 @@ void BaseQtVersion::ctor(const FileName &qmakePath)
     m_qmakeCommand = qmakePath;
     m_designerCommand.clear();
     m_linguistCommand.clear();
-    m_qmlviewerCommand.clear();
     m_uicCommand.clear();
     m_qscxmlcCommand.clear();
     m_mkspecUpToDate = false;
@@ -278,87 +282,7 @@ void BaseQtVersion::ctor(const FileName &qmakePath)
 
 void BaseQtVersion::setupExpander()
 {
-    m_expander.setDisplayName(
-        QtKitInformation::tr("Qt version"));
-
-    m_expander.registerVariable("Qt:Version",
-        QtKitInformation::tr("The version string of the current Qt version."),
-        [this] { return qtVersionString(); });
-
-    m_expander.registerVariable("Qt:Type",
-        QtKitInformation::tr("The type of the current Qt version."),
-        [this] { return type(); });
-
-    m_expander.registerVariable("Qt:Mkspec",
-        QtKitInformation::tr("The mkspec of the current Qt version."),
-        [this] { return mkspec().toUserOutput(); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_PREFIX",
-        QtKitInformation::tr("The installation prefix of the current Qt version."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_PREFIX"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_DATA",
-        QtKitInformation::tr("The installation location of the current Qt version's data."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_DATA"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_HEADERS",
-        QtKitInformation::tr("The installation location of the current Qt version's header files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_HEADERS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_LIBS",
-        QtKitInformation::tr("The installation location of the current Qt version's library files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_LIBS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_DOCS",
-        QtKitInformation::tr("The installation location of the current Qt version's documentation files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_DOCS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_BINS",
-        QtKitInformation::tr("The installation location of the current Qt version's executable files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_BINS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_PLUGINS",
-        QtKitInformation::tr("The installation location of the current Qt version's plugins."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_PLUGINS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_IMPORTS",
-        QtKitInformation::tr("The installation location of the current Qt version's imports."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_IMPORTS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_TRANSLATIONS",
-        QtKitInformation::tr("The installation location of the current Qt version's translation files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_TRANSLATIONS"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_CONFIGURATION",
-        QtKitInformation::tr("The installation location of the current Qt version's translation files."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_CONFIGURATION"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_EXAMPLES",
-        QtKitInformation::tr("The installation location of the current Qt version's examples."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_EXAMPLES"); });
-
-    m_expander.registerVariable("Qt:QT_INSTALL_DEMOS",
-        QtKitInformation::tr("The installation location of the current Qt version's demos."),
-        [this] { return qmakeProperty(m_versionInfo, "QT_INSTALL_DEMOS"); });
-
-    m_expander.registerVariable("Qt:QMAKE_MKSPECS",
-        QtKitInformation::tr("The current Qt version's default mkspecs (Qt 4)."),
-        [this] { return qmakeProperty(m_versionInfo, "QMAKE_MKSPECS"); });
-    m_expander.registerVariable("Qt:QMAKE_SPEC",
-        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; host system)."),
-        [this] { return qmakeProperty(m_versionInfo, "QMAKE_SPEC"); });
-    m_expander.registerVariable("Qt:QMAKE_XSPEC",
-        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; target system)."),
-        [this] { return qmakeProperty(m_versionInfo, "QMAKE_XSPEC"); });
-
-    m_expander.registerVariable("Qt:QMAKE_VERSION",
-        QtKitInformation::tr("The current Qt's qmake version."),
-        [this] { return qmakeProperty(m_versionInfo, "QMAKE_VERSION"); });
-
-//    FIXME: Re-enable once we can detect expansion loops.
-//    m_expander.registerVariable("Qt:Name",
-//        QtKitInformation::tr("The display name of the current Qt version."),
-//        [this] { return displayName(); });
+    m_expander = createMacroExpander([this]{ return this; });
 }
 
 BaseQtVersion::~BaseQtVersion()
@@ -376,15 +300,15 @@ QString BaseQtVersion::defaultUnexpandedDisplayName(const FileName &qmakePath, b
         QDir dir = qmakePath.toFileInfo().absoluteDir();
         do {
             const QString dirName = dir.dirName();
-            if (dirName == QLatin1String("usr")) { // System-installed Qt.
+            if (dirName == "usr") { // System-installed Qt.
                 location = QCoreApplication::translate("QtVersion", "System");
                 break;
             }
             location = dirName;
             // Also skip default checkouts named 'qt'. Parent dir might have descriptive name.
-            if (dirName.compare(QLatin1String("bin"), Qt::CaseInsensitive)
-                && dirName.compare(QLatin1String("qtbase"), Qt::CaseInsensitive)
-                && dirName.compare(QLatin1String("qt"), Qt::CaseInsensitive)) {
+            if (dirName.compare("bin", Qt::CaseInsensitive)
+                && dirName.compare("qtbase", Qt::CaseInsensitive)
+                && dirName.compare("qt", Qt::CaseInsensitive)) {
                 break;
             }
         } while (!dir.isRoot() && dir.cdUp());
@@ -478,8 +402,21 @@ QSet<Id> BaseQtVersion::availableFeatures() const
         return features;
 
     features.unite(versionedIds(Constants::FEATURE_QT_QUICK_PREFIX, 2, 9));
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_CONTROLS_2_PREFIX, 2, 2));
 
     if (qtVersion().matches(5, 9))
+        return features;
+
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_PREFIX, 2, 10));
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_CONTROLS_2_PREFIX, 2, 3));
+
+    if (qtVersion().matches(5, 10))
+        return features;
+
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_PREFIX, 2, 11));
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_CONTROLS_2_PREFIX, 2, 4));
+
+    if (qtVersion().matches(5, 11))
         return features;
 
     return features;
@@ -514,7 +451,7 @@ QList<Task> BaseQtVersion::validateKit(const Kit *k)
         QString qtAbiString;
         foreach (const Abi &qtAbi, qtAbis) {
             if (!qtAbiString.isEmpty())
-                qtAbiString.append(QLatin1Char(' '));
+                qtAbiString.append(' ');
             qtAbiString.append(qtAbi.toString());
 
             if (!fullMatch)
@@ -560,6 +497,11 @@ FileName BaseQtVersion::pluginPath() const
     return FileName::fromUserInput(qmakeProperty("QT_INSTALL_PLUGINS"));
 }
 
+FileName BaseQtVersion::qmlPath() const
+{
+    return FileName::fromUserInput(qmakeProperty("QT_INSTALL_QML"));
+}
+
 FileName BaseQtVersion::binPath() const
 {
     return FileName::fromUserInput(qmakeProperty("QT_HOST_BINS"));
@@ -571,8 +513,19 @@ FileName BaseQtVersion::mkspecsPath() const
     if (result.isEmpty())
         result = FileName::fromUserInput(qmakeProperty("QMAKE_MKSPECS"));
     else
-        result.appendPath(QLatin1String("mkspecs"));
+        result.appendPath("mkspecs");
     return result;
+}
+
+FileName BaseQtVersion::qmlBinPath() const
+{
+    return FileName::fromUserInput(m_mkspecValues.value("QT.qml.bins"));
+}
+
+FileName BaseQtVersion::librarySearchPath() const
+{
+    return HostOsInfo::isWindowsHost()
+            ? FileName::fromUserInput(qmakeProperty("QT_INSTALL_BINS")) : libraryPath();
 }
 
 FileNameList BaseQtVersion::directoriesToIgnoreInProjectTree() const
@@ -594,13 +547,13 @@ FileNameList BaseQtVersion::directoriesToIgnoreInProjectTree() const
 QString BaseQtVersion::qtNamespace() const
 {
     ensureMkSpecParsed();
-    return m_mkspecValues.value(QLatin1String(MKSPEC_VALUE_NAMESPACE));
+    return m_mkspecValues.value(MKSPEC_VALUE_NAMESPACE);
 }
 
 QString BaseQtVersion::qtLibInfix() const
 {
     ensureMkSpecParsed();
-    return m_mkspecValues.value(QLatin1String(MKSPEC_VALUE_LIBINFIX));
+    return m_mkspecValues.value(MKSPEC_VALUE_LIBINFIX);
 }
 
 bool BaseQtVersion::isFrameworkBuild() const
@@ -626,16 +579,20 @@ void BaseQtVersion::setId(int id)
 
 void BaseQtVersion::fromMap(const QVariantMap &map)
 {
-    m_id = map.value(QLatin1String(Constants::QTVERSIONID)).toInt();
+    m_id = map.value(Constants::QTVERSIONID).toInt();
     if (m_id == -1) // this happens on adding from installer, see updateFromInstaller => get a new unique id
         m_id = QtVersionManager::getUniqueId();
-    m_unexpandedDisplayName = map.value(QLatin1String(Constants::QTVERSIONNAME)).toString();
-    m_isAutodetected = map.value(QLatin1String(QTVERSIONAUTODETECTED)).toBool();
+    m_unexpandedDisplayName = map.value(Constants::QTVERSIONNAME).toString();
+    m_isAutodetected = map.value(QTVERSIONAUTODETECTED).toBool();
     if (m_isAutodetected)
-        m_autodetectionSource = map.value(QLatin1String(QTVERSIONAUTODETECTIONSOURCE)).toString();
-    QString string = map.value(QLatin1String(QTVERSIONQMAKEPATH)).toString();
-    if (string.startsWith(QLatin1Char('~')))
+        m_autodetectionSource = map.value(QTVERSIONAUTODETECTIONSOURCE).toString();
+    m_overrideFeatures = Core::Id::fromStringList(map.value(QTVERSION_OVERRIDE_FEATURES).toStringList());
+    QString string = map.value(QTVERSIONQMAKEPATH).toString();
+    if (string.startsWith('~'))
         string.remove(0, 1).prepend(QDir::homePath());
+
+    m_qtSources = Utils::FileName::fromUserInput(
+                map.value(QTVERSIONSOURCEPATH).toString());
 
     QFileInfo fi(string);
     if (BuildableHelperLibrary::isQtChooser(fi)) {
@@ -651,12 +608,15 @@ void BaseQtVersion::fromMap(const QVariantMap &map)
 QVariantMap BaseQtVersion::toMap() const
 {
     QVariantMap result;
-    result.insert(QLatin1String(Constants::QTVERSIONID), uniqueId());
-    result.insert(QLatin1String(Constants::QTVERSIONNAME), unexpandedDisplayName());
-    result.insert(QLatin1String(QTVERSIONAUTODETECTED), isAutodetected());
+    result.insert(Constants::QTVERSIONID, uniqueId());
+    result.insert(Constants::QTVERSIONNAME, unexpandedDisplayName());
+    result.insert(QTVERSIONAUTODETECTED, isAutodetected());
     if (isAutodetected())
-        result.insert(QLatin1String(QTVERSIONAUTODETECTIONSOURCE), autodetectionSource());
-    result.insert(QLatin1String(QTVERSIONQMAKEPATH), qmakeCommand().toString());
+        result.insert(QTVERSIONAUTODETECTIONSOURCE, autodetectionSource());
+    if (!m_overrideFeatures.isEmpty())
+        result.insert(QTVERSION_OVERRIDE_FEATURES, Core::Id::toStringList(m_overrideFeatures));
+
+    result.insert(QTVERSIONQMAKEPATH, qmakeCommand().toString());
     return result;
 }
 
@@ -763,7 +723,7 @@ void BaseQtVersion::setAutoDetectionSource(const QString &autodetectionSource)
 
 QString BaseQtVersion::displayName() const
 {
-    return m_expander.expand(m_unexpandedDisplayName);
+    return m_expander->expand(m_unexpandedDisplayName);
 }
 
 QString BaseQtVersion::unexpandedDisplayName() const
@@ -826,16 +786,16 @@ QString BaseQtVersion::toHtml(bool verbose) const
                 foreach (const ProKey &key, keys) {
                     const QString &value = vInfo.value(key).toQString();
                     QString variableName = key.toQString();
-                    if (variableName != QLatin1String("QMAKE_MKSPECS")
-                        && !variableName.endsWith(QLatin1String("/raw"))) {
+                    if (variableName != "QMAKE_MKSPECS"
+                        && !variableName.endsWith("/raw")) {
                         bool isPath = false;
-                        if (variableName.contains(QLatin1String("_HOST_"))
-                            || variableName.contains(QLatin1String("_INSTALL_"))) {
-                            if (!variableName.endsWith(QLatin1String("/get")))
+                        if (variableName.contains("_HOST_")
+                            || variableName.contains("_INSTALL_")) {
+                            if (!variableName.endsWith("/get"))
                                 continue;
                             variableName.chop(4);
                             isPath = true;
-                        } else if (variableName == QLatin1String("QT_SYSROOT")) {
+                        } else if (variableName == "QT_SYSROOT") {
                             isPath = true;
                         }
                         str << "<tr><td><pre>" << variableName <<  "</pre></td><td>";
@@ -871,12 +831,17 @@ FileName BaseQtVersion::sourcePath() const
     return m_sourcePath;
 }
 
+FileName BaseQtVersion::qtPackageSourcePath() const
+{
+    return m_qtSources;
+}
+
 QString BaseQtVersion::designerCommand() const
 {
     if (!isValid())
         return QString();
     if (m_designerCommand.isNull())
-        m_designerCommand = findQtBinary(Designer);
+        m_designerCommand = findHostBinary(Designer);
     return m_designerCommand;
 }
 
@@ -885,28 +850,8 @@ QString BaseQtVersion::linguistCommand() const
     if (!isValid())
         return QString();
     if (m_linguistCommand.isNull())
-        m_linguistCommand = findQtBinary(Linguist);
+        m_linguistCommand = findHostBinary(Linguist);
     return m_linguistCommand;
-}
-
-QString BaseQtVersion::qmlsceneCommand() const
-{
-    if (!isValid())
-        return QString();
-
-    if (m_qmlsceneCommand.isNull())
-        m_qmlsceneCommand = findQtBinary(QmlScene);
-    return m_qmlsceneCommand;
-}
-
-QString BaseQtVersion::qmlviewerCommand() const
-{
-    if (!isValid())
-        return QString();
-
-    if (m_qmlviewerCommand.isNull())
-        m_qmlviewerCommand = findQtBinary(QmlViewer);
-    return m_qmlviewerCommand;
 }
 
 QString BaseQtVersion::qscxmlcCommand() const
@@ -915,11 +860,11 @@ QString BaseQtVersion::qscxmlcCommand() const
         return QString();
 
     if (m_qscxmlcCommand.isNull())
-        m_qscxmlcCommand = findQtBinary(QScxmlc);
+        m_qscxmlcCommand = findHostBinary(QScxmlc);
     return m_qscxmlcCommand;
 }
 
-QString BaseQtVersion::findQtBinary(Binaries binary) const
+QString BaseQtVersion::findHostBinary(HostBinaries binary) const
 {
     QString baseDir;
     if (qtVersion() < QtVersionNumber(5, 0, 0)) {
@@ -927,15 +872,9 @@ QString BaseQtVersion::findQtBinary(Binaries binary) const
     } else {
         ensureMkSpecParsed();
         switch (binary) {
-        case QmlScene:
-            baseDir = m_mkspecValues.value(QLatin1String("QT.qml.bins"));
-            break;
-        case QmlViewer:
-            baseDir = m_mkspecValues.value(QLatin1String("QT.declarative.bins"));
-            break;
         case Designer:
         case Linguist:
-            baseDir = m_mkspecValues.value(QLatin1String("QT.designer.bins"));
+            baseDir = m_mkspecValues.value("QT.designer.bins");
             break;
         case Uic:
         case QScxmlc:
@@ -949,43 +888,32 @@ QString BaseQtVersion::findQtBinary(Binaries binary) const
 
     if (baseDir.isEmpty())
         return QString();
-    if (!baseDir.endsWith(QLatin1Char('/')))
-        baseDir += QLatin1Char('/');
+    if (!baseDir.endsWith('/'))
+        baseDir += '/';
 
     QStringList possibleCommands;
     switch (binary) {
-    case QmlScene:
-        possibleCommands << HostOsInfo::withExecutableSuffix(QLatin1String("qmlscene"));
-        break;
-    case QmlViewer: {
-        if (HostOsInfo::isMacHost())
-            possibleCommands << QLatin1String("QMLViewer.app/Contents/MacOS/QMLViewer");
-        else
-            possibleCommands << HostOsInfo::withExecutableSuffix(QLatin1String("qmlviewer"));
-    }
-        break;
     case Designer:
         if (HostOsInfo::isMacHost())
-            possibleCommands << QLatin1String("Designer.app/Contents/MacOS/Designer");
+            possibleCommands << "Designer.app/Contents/MacOS/Designer";
         else
-            possibleCommands << HostOsInfo::withExecutableSuffix(QLatin1String("designer"));
+            possibleCommands << HostOsInfo::withExecutableSuffix("designer");
         break;
     case Linguist:
         if (HostOsInfo::isMacHost())
-            possibleCommands << QLatin1String("Linguist.app/Contents/MacOS/Linguist");
+            possibleCommands << "Linguist.app/Contents/MacOS/Linguist";
         else
-            possibleCommands << HostOsInfo::withExecutableSuffix(QLatin1String("linguist"));
+            possibleCommands << HostOsInfo::withExecutableSuffix("linguist");
         break;
     case Uic:
         if (HostOsInfo::isWindowsHost()) {
-            possibleCommands << QLatin1String("uic.exe");
+            possibleCommands << "uic.exe";
         } else {
-            possibleCommands << QLatin1String("uic-qt4") << QLatin1String("uic4")
-                             << QLatin1String("uic");
+            possibleCommands << "uic-qt4" << "uic4" << "uic";
         }
         break;
     case QScxmlc:
-        possibleCommands << HostOsInfo::withExecutableSuffix(QLatin1String("qscxmlc"));
+        possibleCommands << HostOsInfo::withExecutableSuffix("qscxmlc");
         break;
     default:
         Q_ASSERT(false);
@@ -1004,7 +932,7 @@ QString BaseQtVersion::uicCommand() const
         return QString();
     if (!m_uicCommand.isNull())
         return m_uicCommand;
-    m_uicCommand = findQtBinary(Uic);
+    m_uicCommand = findHostBinary(Uic);
     return m_uicCommand;
 }
 
@@ -1026,7 +954,7 @@ void BaseQtVersion::updateMkspec() const
         m_mkspec = m_mkspec.relativeChildPath(baseMkspecDir);
 //        qDebug() << "Setting mkspec to"<<mkspec;
     } else {
-        FileName sourceMkSpecPath = sourcePath().appendPath(QLatin1String("mkspecs"));
+        FileName sourceMkSpecPath = sourcePath().appendPath("mkspecs");
         if (m_mkspec.isChildOf(sourceMkSpecPath)) {
             m_mkspec = m_mkspec.relativeChildPath(sourceMkSpecPath);
         } else {
@@ -1061,25 +989,25 @@ void BaseQtVersion::ensureMkSpecParsed() const
 
 void BaseQtVersion::parseMkSpec(ProFileEvaluator *evaluator) const
 {
-    m_configValues = evaluator->values(QLatin1String("CONFIG"));
-    m_qtConfigValues = evaluator->values(QLatin1String("QT_CONFIG"));
+    m_configValues = evaluator->values("CONFIG");
+    m_qtConfigValues = evaluator->values("QT_CONFIG");
     m_defaultConfigIsDebugAndRelease = false;
     m_frameworkBuild = false;
     foreach (const QString &value, m_configValues) {
-        if (value == QLatin1String("debug"))
+        if (value == "debug")
             m_defaultConfigIsDebug = true;
-        else if (value == QLatin1String("release"))
+        else if (value == "release")
             m_defaultConfigIsDebug = false;
-        else if (value == QLatin1String("build_all"))
+        else if (value == "build_all")
             m_defaultConfigIsDebugAndRelease = true;
-        else if (value == QLatin1String("qt_framework"))
+        else if (value == "qt_framework")
             m_frameworkBuild = true;
     }
-    const QString designerBins = QLatin1String("QT.designer.bins");
-    const QString qmlBins = QLatin1String("QT.qml.bins");
-    const QString declarativeBins = QLatin1String("QT.declarative.bins");
-    const QString libinfix = QLatin1String(MKSPEC_VALUE_LIBINFIX);
-    const QString ns = QLatin1String(MKSPEC_VALUE_NAMESPACE);
+    const QString designerBins = "QT.designer.bins";
+    const QString qmlBins = "QT.qml.bins";
+    const QString declarativeBins = "QT.declarative.bins";
+    const QString libinfix = MKSPEC_VALUE_LIBINFIX;
+    const QString ns = MKSPEC_VALUE_NAMESPACE;
     m_mkspecValues.insert(designerBins, evaluator->value(designerBins));
     m_mkspecValues.insert(qmlBins, evaluator->value(qmlBins));
     m_mkspecValues.insert(declarativeBins, evaluator->value(declarativeBins));
@@ -1122,11 +1050,11 @@ bool BaseQtVersion::hasMkspec(const FileName &spec) const
         return true; // default spec of a Qt version
 
     QDir mkspecDir = QDir(QDir::fromNativeSeparators(qmakeProperty("QT_HOST_DATA"))
-                          + QLatin1String("/mkspecs/"));
+                          + "/mkspecs/");
     const QString absSpec = mkspecDir.absoluteFilePath(spec.toString());
     if (QFileInfo(absSpec).isDir() && QFileInfo(absSpec + "/qmake.conf").isFile())
         return true;
-    mkspecDir.setPath(sourcePath().toString() + QLatin1String("/mkspecs/"));
+    mkspecDir.setPath(sourcePath().toString() + "/mkspecs/");
     const QString absSrcSpec = mkspecDir.absoluteFilePath(spec.toString());
     return absSrcSpec != absSpec
             && QFileInfo(absSrcSpec).isDir()
@@ -1238,7 +1166,7 @@ QString BaseQtVersion::qmakeProperty(const QHash<ProKey,ProString> &versionInfo,
                     variant == PropertyVariantGet ? "/get" : "/src")))).toQString();
     if (!val.isNull())
         return val;
-    return versionInfo.value(ProKey(QString::fromLatin1(name))).toQString();
+    return versionInfo.value(ProKey(name)).toQString();
 }
 
 QString BaseQtVersion::qmakeProperty(const QByteArray &name, PropertyVariant variant) const
@@ -1306,14 +1234,232 @@ QStringList BaseQtVersion::qtConfigValues() const
 
 MacroExpander *BaseQtVersion::macroExpander() const
 {
-    return &m_expander;
+    return m_expander.get();
+}
+
+std::unique_ptr<MacroExpander> BaseQtVersion::createMacroExpander(const std::function<BaseQtVersion *()> &qtVersion)
+{
+    const auto versionProperty =
+        [qtVersion](const std::function<QString(BaseQtVersion *)> &property) {
+            return [property, qtVersion]() -> QString {
+                BaseQtVersion *version = qtVersion();
+                return version ? property(version) : QString();
+            };
+        };
+    std::unique_ptr<Utils::MacroExpander> expander(new Utils::MacroExpander);
+    expander->setDisplayName(QtKitInformation::tr("Qt version"));
+
+    expander->registerVariable(
+        "Qt:Version",
+        QtKitInformation::tr("The version string of the current Qt version."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qtVersionString();
+        }));
+
+    expander->registerVariable(
+        "Qt:Type",
+        QtKitInformation::tr("The type of the current Qt version."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->type();
+        }));
+
+    expander->registerVariable(
+        "Qt:Mkspec",
+        QtKitInformation::tr("The mkspec of the current Qt version."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->mkspec().toUserOutput();
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_PREFIX",
+        QtKitInformation::tr("The installation prefix of the current Qt version."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_PREFIX");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_DATA",
+        QtKitInformation::tr("The installation location of the current Qt version's data."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_DATA");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_HEADERS",
+        QtKitInformation::tr("The installation location of the current Qt version's header files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_HEADERS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_LIBS",
+        QtKitInformation::tr("The installation location of the current Qt version's library files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_LIBS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_DOCS",
+        QtKitInformation::tr("The installation location of the current Qt version's documentation files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_DOCS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_BINS",
+        QtKitInformation::tr("The installation location of the current Qt version's executable files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_BINS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_PLUGINS",
+        QtKitInformation::tr("The installation location of the current Qt version's plugins."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_PLUGINS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_QML",
+        QtKitInformation::tr("The installation location of the current Qt version's QML files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_QML");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_IMPORTS",
+        QtKitInformation::tr("The installation location of the current Qt version's imports."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_IMPORTS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_TRANSLATIONS",
+        QtKitInformation::tr("The installation location of the current Qt version's translation files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_TRANSLATIONS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_CONFIGURATION",
+        QtKitInformation::tr("The installation location of the current Qt version's translation files."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_CONFIGURATION");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_EXAMPLES",
+        QtKitInformation::tr("The installation location of the current Qt version's examples."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_EXAMPLES");
+        }));
+
+    expander->registerVariable(
+        "Qt:QT_INSTALL_DEMOS",
+        QtKitInformation::tr("The installation location of the current Qt version's demos."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QT_INSTALL_DEMOS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QMAKE_MKSPECS",
+        QtKitInformation::tr("The current Qt version's default mkspecs (Qt 4)."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QMAKE_MKSPECS");
+        }));
+
+    expander->registerVariable(
+        "Qt:QMAKE_SPEC",
+        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; host system)."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QMAKE_SPEC");
+        }));
+
+    expander->registerVariable(
+        "Qt:QMAKE_XSPEC",
+        QtKitInformation::tr("The current Qt version's default mkspec (Qt 5; target system)."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QMAKE_XSPEC");
+        }));
+
+    expander->registerVariable(
+        "Qt:QMAKE_VERSION",
+        QtKitInformation::tr("The current Qt's qmake version."),
+        versionProperty([](BaseQtVersion *version) {
+            return version->qmakeProperty(version->m_versionInfo, "QMAKE_VERSION");
+        }));
+
+    //    FIXME: Re-enable once we can detect expansion loops.
+    //    expander->registerVariable("Qt:Name",
+    //        QtKitInformation::tr("The display name of the current Qt version."),
+    //        versionProperty([](BaseQtVersion *version) {
+    //            return version->displayName();
+    //        }));
+
+    return expander;
+}
+
+void BaseQtVersion::populateQmlFileFinder(FileInProjectFinder *finder, const Target *target)
+{
+    // If target given, then use the project associated with that ...
+    const ProjectExplorer::Project *startupProject = target ? target->project() : nullptr;
+
+    // ... else try the session manager's global startup project ...
+    if (!startupProject)
+        startupProject = ProjectExplorer::SessionManager::startupProject();
+
+    // ... and if that is null, use the first project available.
+    const QList<ProjectExplorer::Project *> projects = ProjectExplorer::SessionManager::projects();
+    QTC_CHECK(projects.isEmpty() || startupProject);
+
+    QString projectDirectory;
+    QStringList sourceFiles;
+
+    // Sort files from startupProject to the front of the list ...
+    if (startupProject) {
+        projectDirectory = startupProject->projectDirectory().toString();
+        sourceFiles.append(Utils::transform(startupProject->files(ProjectExplorer::Project::SourceFiles),
+                                            &Utils::FileName::toString));
+    }
+
+    // ... then add all the other projects' files.
+    for (const ProjectExplorer::Project *project : projects) {
+        if (project != startupProject)
+            sourceFiles.append(Utils::transform(project->files(ProjectExplorer::Project::SourceFiles),
+                                                &Utils::FileName::toString));
+    }
+
+    // If no target was given, but we've found a startupProject, then try to deduce a
+    // target from that.
+    if (!target && startupProject)
+        target = startupProject->activeTarget();
+
+    // ... and find the sysroot and qml directory if we have any target at all.
+    const ProjectExplorer::Kit *kit = target ? target->kit() : nullptr;
+    QString activeSysroot = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
+    const QtSupport::BaseQtVersion *qtVersion = QtVersionManager::isLoaded()
+            ? QtSupport::QtKitInformation::qtVersion(kit) : nullptr;
+    QStringList additionalSearchDirectories = qtVersion
+            ? QStringList(qtVersion->qmlPath().toString()) : QStringList();
+
+    // Finally, do populate m_projectFinder
+    finder->setProjectDirectory(projectDirectory);
+    finder->setProjectFiles(sourceFiles);
+    finder->setSysroot(activeSysroot);
+    finder->setAdditionalSearchDirectories(additionalSearchDirectories);
+}
+
+QSet<Id> BaseQtVersion::features() const
+{
+    if (m_overrideFeatures.isEmpty())
+        return availableFeatures();
+    return m_overrideFeatures;
 }
 
 void BaseQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 {
     Q_UNUSED(k);
-    env.set(QLatin1String("QTDIR"), QDir::toNativeSeparators(qmakeProperty("QT_HOST_DATA")));
-    env.prependOrSetPath(qmakeProperty("QT_HOST_BINS"));
+    env.set("QTDIR", QDir::toNativeSeparators(qmakeProperty("QT_HOST_DATA")));
 }
 
 // Some Qt versions may require environment settings for qmake to work
@@ -1356,11 +1502,9 @@ void BaseQtVersion::recheckDumper()
 
 QList<Task> BaseQtVersion::reportIssuesImpl(const QString &proFile, const QString &buildDir) const
 {
+    Q_UNUSED(proFile);
+    Q_UNUSED(buildDir);
     QList<Task> results;
-
-    QString tmpBuildDir = QDir(buildDir).absolutePath();
-    if (!tmpBuildDir.endsWith(QLatin1Char('/')))
-        tmpBuildDir.append(QLatin1Char('/'));
 
     if (!isValid()) {
         //: %1: Reason for being invalid
@@ -1376,18 +1520,6 @@ QList<Task> BaseQtVersion::reportIssuesImpl(const QString &proFile, const QStrin
         const QString msg = QCoreApplication::translate("QmakeProjectManager::QtVersion",
                                                         "The qmake command \"%1\" was not found or is not executable.").arg(qmakeCommand().toUserOutput());
         results.append(Task(Task::Error, msg, FileName(), -1,
-                            ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-    }
-
-    QString sourcePath = QFileInfo(proFile).absolutePath();
-    const QChar slash = QLatin1Char('/');
-    if (!sourcePath.endsWith(slash))
-        sourcePath.append(slash);
-    if (tmpBuildDir.count(slash) != sourcePath.count(slash)) {
-        const QString msg = QCoreApplication::translate("QmakeProjectManager::QtVersion",
-                                                        "The build directory needs to be at the same level as the source directory.");
-
-        results.append(Task(Task::Warning, msg, FileName(), -1,
                             ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
 
@@ -1418,7 +1550,7 @@ static QByteArray runQmakeQuery(const FileName &binary, const Environment &env,
 
     QProcess process;
     process.setEnvironment(env.toStringList());
-    process.start(binary.toString(), QStringList(QLatin1String("-query")), QIODevice::ReadOnly);
+    process.start(binary.toString(), QStringList("-query"), QIODevice::ReadOnly);
 
     if (!process.waitForStarted()) {
         *error = QCoreApplication::translate("QtVersion", "Cannot start \"%1\": %2").arg(binary.toUserOutput()).arg(process.errorString());
@@ -1485,7 +1617,7 @@ FileName BaseQtVersion::mkspecDirectoryFromVersionInfo(const QHash<ProKey, ProSt
     QString dataDir = qmakeProperty(versionInfo, "QT_HOST_DATA", PropertyVariantSrc);
     if (dataDir.isEmpty())
         return FileName();
-    return FileName::fromUserInput(dataDir + QLatin1String("/mkspecs"));
+    return FileName::fromUserInput(dataDir + "/mkspecs");
 }
 
 FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &versionInfo)
@@ -1497,7 +1629,7 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
     bool qt5 = false;
     QString theSpec = qmakeProperty(versionInfo, "QMAKE_XSPEC");
     if (theSpec.isEmpty())
-        theSpec = QLatin1String("default");
+        theSpec = "default";
     else
         qt5 = true;
 
@@ -1508,7 +1640,7 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
 
     if (HostOsInfo::isWindowsHost()) {
         if (!qt5) {
-            QFile f2(mkspecFullPath.toString() + QLatin1String("/qmake.conf"));
+            QFile f2(mkspecFullPath.toString() + "/qmake.conf");
             if (f2.exists() && f2.open(QIODevice::ReadOnly)) {
                 while (!f2.atEnd()) {
                     QByteArray line = f2.readLine();
@@ -1516,16 +1648,16 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
                         const QList<QByteArray> &temp = line.split('=');
                         if (temp.size() == 2) {
                             QString possibleFullPath = QString::fromLocal8Bit(temp.at(1).trimmed().constData());
-                            if (possibleFullPath.contains(QLatin1Char('$'))) { // QTBUG-28792
-                                const QRegularExpression rex(QLatin1String("\\binclude\\(([^)]+)/qmake\\.conf\\)"));
+                            if (possibleFullPath.contains('$')) { // QTBUG-28792
+                                const QRegularExpression rex("\\binclude\\(([^)]+)/qmake\\.conf\\)");
                                 const QRegularExpressionMatch match = rex.match(QString::fromLocal8Bit(f2.readAll()));
                                 if (match.hasMatch()) {
-                                    possibleFullPath = mkspecFullPath.toString() + QLatin1Char('/')
+                                    possibleFullPath = mkspecFullPath.toString() + '/'
                                             + match.captured(1);
                                 }
                             }
                             // We sometimes get a mix of different slash styles here...
-                            possibleFullPath = possibleFullPath.replace(QLatin1Char('\\'), QLatin1Char('/'));
+                            possibleFullPath = possibleFullPath.replace('\\', '/');
                             if (QFileInfo::exists(possibleFullPath)) // Only if the path exists
                                 mkspecFullPath = FileName::fromUserInput(possibleFullPath);
                         }
@@ -1537,7 +1669,7 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
         }
     } else {
         if (HostOsInfo::isMacHost()) {
-            QFile f2(mkspecFullPath.toString() + QLatin1String("/qmake.conf"));
+            QFile f2(mkspecFullPath.toString() + "/qmake.conf");
             if (f2.exists() && f2.open(QIODevice::ReadOnly)) {
                 while (!f2.atEnd()) {
                     QByteArray line = f2.readLine();
@@ -1548,7 +1680,7 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
                             if (value.contains("XCODE")) {
                                 // we don't want to generate xcode projects...
                                 // qDebug() << "default mkspec is xcode, falling back to g++";
-                                return baseMkspecDir.appendPath(QLatin1String("macx-g++"));
+                                return baseMkspecDir.appendPath("macx-g++");
                             }
                         }
                         break;
@@ -1576,14 +1708,14 @@ FileName BaseQtVersion::sourcePath(const QHash<ProKey, ProString> &versionInfo)
 
     const QString installData = qmakeProperty(versionInfo, "QT_INSTALL_PREFIX");
     QString sourcePath = installData;
-    QFile qmakeCache(installData + QLatin1String("/.qmake.cache"));
+    QFile qmakeCache(installData + "/.qmake.cache");
     if (qmakeCache.exists() && qmakeCache.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream stream(&qmakeCache);
         while (!stream.atEnd()) {
             QString line = stream.readLine().trimmed();
-            if (line.startsWith(QLatin1String("QT_SOURCE_TREE"))) {
-                sourcePath = line.split(QLatin1Char('=')).at(1).trimmed();
-                if (sourcePath.startsWith(QLatin1String("$$quote("))) {
+            if (line.startsWith("QT_SOURCE_TREE")) {
+                sourcePath = line.split('=').at(1).trimmed();
+                if (sourcePath.startsWith("$$quote(")) {
                     sourcePath.remove(0, 8);
                     sourcePath.chop(1);
                 }
@@ -1600,7 +1732,7 @@ bool BaseQtVersion::isInSourceDirectory(const Utils::FileName &filePath)
     if (source.isEmpty())
         return false;
     QDir dir = QDir(source.toString());
-    if (dir.dirName() == QLatin1String("qtbase"))
+    if (dir.dirName() == "qtbase")
         dir.cdUp();
     return filePath.isChildOf(dir);
 }
@@ -1610,7 +1742,7 @@ bool BaseQtVersion::isSubProject(const Utils::FileName &filePath) const
     const Utils::FileName &source = sourcePath();
     if (!source.isEmpty()) {
         QDir dir = QDir(source.toString());
-        if (dir.dirName() == QLatin1String("qtbase"))
+        if (dir.dirName() == "qtbase")
             dir.cdUp();
 
         if (filePath.isChildOf(dir))
@@ -1683,9 +1815,8 @@ bool BaseQtVersion::isQtQuickCompilerSupported(QString *reason) const
         return false;
     }
 
-    const QString qtQuickCompilerExecutable =
-            HostOsInfo::withExecutableSuffix(binPath().toString() + QLatin1String("/qtquickcompiler"));
-    if (!QFileInfo::exists(qtQuickCompilerExecutable)) {
+    const QString qtQuickCompilerPrf = mkspecsPath().toString() + "/features/qtquickcompiler.prf";
+    if (!QFileInfo::exists(qtQuickCompilerPrf)) {
         if (reason)
             *reason = QCoreApplication::translate("BaseQtVersion", "This Qt Version does not contain Qt Quick Compiler.");
         return false;
@@ -1708,26 +1839,26 @@ FileNameList BaseQtVersion::qtCorePaths() const
         if (dir.isEmpty())
             continue;
         QDir d(dir);
-        QFileInfoList infoList = d.entryInfoList();
+        QFileInfoList infoList = d.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
         foreach (const QFileInfo &info, infoList) {
             const QString file = info.fileName();
             if (info.isDir()
-                    && file.startsWith(QLatin1String("QtCore"))
-                    && file.endsWith(QLatin1String(".framework"))) {
+                    && file.startsWith("QtCore")
+                    && file.endsWith(".framework")) {
                 // handle Framework
                 FileName lib(info);
-                dynamicLibs.append(lib.appendPath(file.left(file.lastIndexOf(QLatin1Char('.')))));
+                dynamicLibs.append(lib.appendPath(file.left(file.lastIndexOf('.'))));
             } else if (info.isReadable()) {
-                if (file.startsWith(QLatin1String("libQtCore"))
-                        || file.startsWith(QLatin1String("libQt5Core"))
-                        || file.startsWith(QLatin1String("QtCore"))
-                        || file.startsWith(QLatin1String("Qt5Core"))) {
-                    if (file.endsWith(QLatin1String(".a")) || file.endsWith(QLatin1String(".lib")))
+                if (file.startsWith("libQtCore")
+                        || file.startsWith("libQt5Core")
+                        || file.startsWith("QtCore")
+                        || file.startsWith("Qt5Core")) {
+                    if (file.endsWith(".a") || file.endsWith(".lib"))
                         staticLibs.append(FileName(info));
-                    else if (file.endsWith(QLatin1String(".dll"))
+                    else if (file.endsWith(".dll")
                              || file.endsWith(QString::fromLatin1(".so.") + versionString)
-                             || file.endsWith(QLatin1String(".so"))
-                             || file.endsWith(QLatin1Char('.') + versionString + QLatin1String(".dylib")))
+                             || file.endsWith(".so")
+                             || file.endsWith(QLatin1Char('.') + versionString + ".dylib"))
                         dynamicLibs.append(FileName(info));
                 }
             }

@@ -93,6 +93,7 @@ void QtKitInformation::fix(ProjectExplorer::Kit *k)
 
 ProjectExplorer::KitConfigWidget *QtKitInformation::createConfigWidget(ProjectExplorer::Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::QtKitConfigWidget(k, this);
 }
 
@@ -120,24 +121,37 @@ ProjectExplorer::IOutputParser *QtKitInformation::createOutputParser(const Proje
 {
     if (qtVersion(k))
         return new QtParser;
-    return 0;
+    return nullptr;
 }
+
+class QtMacroSubProvider
+{
+public:
+    QtMacroSubProvider(Kit *kit)
+        : expander(BaseQtVersion::createMacroExpander(
+              [kit] { return QtKitInformation::qtVersion(kit); }))
+    {}
+
+    MacroExpander *operator()() const
+    {
+        return expander.get();
+    }
+
+    std::shared_ptr<MacroExpander> expander;
+};
 
 void QtKitInformation::addToMacroExpander(Kit *kit, MacroExpander *expander) const
 {
-    expander->registerSubProvider(
-                [this, kit]() -> MacroExpander * {
-                    BaseQtVersion *version = qtVersion(kit);
-                    return version ? version->macroExpander() : 0;
-                });
+    QTC_ASSERT(kit, return);
+    expander->registerSubProvider(QtMacroSubProvider(kit));
 
     expander->registerVariable("Qt:Name", tr("Name of Qt Version"),
-                [this, kit]() -> QString {
+                [kit]() -> QString {
                    BaseQtVersion *version = qtVersion(kit);
                    return version ? version->displayName() : tr("unknown");
                 });
     expander->registerVariable("Qt:qmakeExecutable", tr("Path to the qmake executable"),
-                [this, kit]() -> QString {
+                [kit]() -> QString {
                     BaseQtVersion *version = qtVersion(kit);
                     return version ? version->qmakeCommand().toString() : QString();
                 });
@@ -171,6 +185,7 @@ int QtKitInformation::qtVersionId(const ProjectExplorer::Kit *k)
 
 void QtKitInformation::setQtVersionId(ProjectExplorer::Kit *k, const int id)
 {
+    QTC_ASSERT(k, return);
     k->setValue(QtKitInformation::id(), id);
 }
 
@@ -231,7 +246,7 @@ Kit::Predicate QtKitInformation::qtVersionPredicate(const QSet<Core::Id> &requir
             return false;
         if (max.majorVersion > -1 && current > max)
             return false;
-        return version->availableFeatures().contains(required);
+        return version->features().contains(required);
     };
 }
 
@@ -244,7 +259,7 @@ QSet<Core::Id> QtKitInformation::supportedPlatforms(const Kit *k) const
 QSet<Core::Id> QtKitInformation::availableFeatures(const Kit *k) const
 {
     BaseQtVersion *version = QtKitInformation::qtVersion(k);
-    return version ? version->availableFeatures() : QSet<Core::Id>();
+    return version ? version->features() : QSet<Core::Id>();
 }
 
 } // namespace QtSupport

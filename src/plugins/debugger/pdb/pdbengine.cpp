@@ -30,7 +30,6 @@
 #include <debugger/debuggerdialogs.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerprotocol.h>
-#include <debugger/debuggerstartparameters.h>
 #include <debugger/debuggertooltipmanager.h>
 #include <debugger/threaddata.h>
 
@@ -103,7 +102,7 @@ void PdbEngine::runCommand(const DebuggerCommand &cmd)
 void PdbEngine::shutdownInferior()
 {
     QTC_ASSERT(state() == InferiorShutdownRequested, qDebug() << state());
-    notifyInferiorShutdownOk();
+    notifyInferiorShutdownFinished();
 }
 
 void PdbEngine::shutdownEngine()
@@ -152,13 +151,6 @@ void PdbEngine::setupEngine()
         return;
     }
     notifyEngineSetupOk();
-}
-
-void PdbEngine::setupInferior()
-{
-    QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
-
-    notifyInferiorSetupOk();
 }
 
 void PdbEngine::runEngine()

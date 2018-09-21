@@ -265,4 +265,20 @@
     compilers and tools need. Therefore, the environment is never totally empty,
     even after you clear it.
 
+    \section2 Build Environment and Sailfish OS Projects
+
+    Building software for Sailfish OS is done with the help of a Sailfish OS build engine.  A
+    Sailfish OS build engine is a virtual machine running a minimal Sailfish OS installation
+    tailored specifically for building software.
+
+    Initially the build environment inside a build engine is fully isolated from that of the host
+    system, i.e., from that presented under \uicontrol Projects > \uicontrol {Build & Run}.
+    Forwarding environment variables from the host to the build engine is an explicit task,
+    supported by an environment filtering feature. Any environment variable whose name passes the
+    configured filter will be forwarded from the host environment to the build environment inside
+    the build engine.
+
+    The filter can be configured either under \uicontrol {Tools} > \uicontrol {Options} > \uicontrol
+    {Sailfish OS} > \uicontrol {General} > \uicontrol {Build Environment} or (with higher
+    precedence) by setting the \c SAILFISH_OS_SDK_ENVIRONMENT_FILTER environment variable.
 */

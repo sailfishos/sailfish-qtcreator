@@ -109,9 +109,9 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             return IDevice::Ptr();
 
         SshConnectionParameters sshParams;
-        sshParams.host = QLatin1String("localhost");
-        sshParams.userName = wizard.userName();
-        sshParams.port = wizard.sshPort();
+        sshParams.setHost(QLatin1String("localhost"));
+        sshParams.setUserName(wizard.userName());
+        sshParams.setPort(wizard.sshPort());
         sshParams.timeout = wizard.timeout();
         sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
         sshParams.privateKeyFile = wizard.userPrivateKey();
@@ -161,12 +161,12 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 
         {
             SshConnectionParameters sshParams;
-            sshParams.host = wizard.hostName();
-            sshParams.userName = wizard.userName();
-            sshParams.port = wizard.sshPort();
+            sshParams.setHost(wizard.hostName());
+            sshParams.setUserName(wizard.userName());
+            sshParams.setPort(wizard.sshPort());
             sshParams.timeout = wizard.timeout();
             sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-            sshParams.password = wizard.password();
+            sshParams.setPassword(wizard.password());
             MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
             dlg.setSShParameters(sshParams);
             dlg.setPublicKeyPath(wizard.publicKeyFilePath());
@@ -177,9 +177,9 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 
         SshConnectionParameters sshParams;
         //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
-        sshParams.host = wizard.hostName();
-        sshParams.userName = wizard.userName();
-        sshParams.port = wizard.sshPort();
+        sshParams.setHost(wizard.hostName());
+        sshParams.setUserName(wizard.userName());
+        sshParams.setPort(wizard.sshPort());
         sshParams.timeout = wizard.timeout();
         sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
         sshParams.privateKeyFile = wizard.privateKeyFilePath();

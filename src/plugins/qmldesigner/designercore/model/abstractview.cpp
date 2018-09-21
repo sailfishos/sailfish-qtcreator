@@ -30,6 +30,7 @@
 #include "internalnode_p.h"
 #include "nodeinstanceview.h"
 #include <qmlstate.h>
+#include <qmltimelinemutator.h>
 
 #ifndef QMLDESIGNER_TEST
 #include <qmldesignerplugin.h>
@@ -359,6 +360,11 @@ void AbstractView::documentMessagesChanged(const QList<DocumentMessage> &/*error
 {
 }
 
+void AbstractView::currentTimelineChanged(const ModelNode & /*node*/)
+{
+
+}
+
 QList<ModelNode> AbstractView::toModelNodeList(const QList<Internal::InternalNode::Pointer> &nodeList) const
 {
     return QmlDesigner::toModelNodeList(nodeList, const_cast<AbstractView*>(this));
@@ -431,7 +437,7 @@ QList<ModelNode> AbstractView::selectedModelNodes() const
 ModelNode AbstractView::firstSelectedModelNode() const
 {
     if (hasSelectedModelNodes())
-        return ModelNode(model()->d->selectedNodes().first(), model(), this);
+        return ModelNode(model()->d->selectedNodes().constFirst(), model(), this);
 
     return ModelNode();
 }
@@ -439,7 +445,7 @@ ModelNode AbstractView::firstSelectedModelNode() const
 ModelNode AbstractView::singleSelectedModelNode() const
 {
     if (hasSingleSelectedModelNode())
-        return ModelNode(model()->d->selectedNodes().first(), model(), this);
+        return ModelNode(model()->d->selectedNodes().constFirst(), model(), this);
 
     return ModelNode();
 }
@@ -555,14 +561,28 @@ WidgetInfo AbstractView::widgetInfo()
     return createWidgetInfo();
 }
 
-QString AbstractView::contextHelpId() const
+void AbstractView::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
 {
-    QString helpId;
-
 #ifndef QMLDESIGNER_TEST
-    helpId = QmlDesignerPlugin::instance()->viewManager().qmlJSEditorHelpId();
+    QmlDesignerPlugin::instance()->viewManager().qmlJSEditorHelpId(callback);
+#else
+    callback(QString());
 #endif
-    return helpId;
+}
+
+void AbstractView::activateTimelineRecording(const ModelNode &mutator)
+{
+    Internal::WriteLocker locker(m_model.data());
+    if (model())
+        model()->d->notifyCurrentTimelineChanged(mutator);
+
+}
+
+void AbstractView::deactivateTimelineRecording()
+{
+    Internal::WriteLocker locker(m_model.data());
+    if (model())
+        model()->d->notifyCurrentTimelineChanged(ModelNode());
 }
 
 QList<ModelNode> AbstractView::allModelNodes() const
@@ -577,7 +597,8 @@ void AbstractView::emitDocumentMessage(const QString &error)
 
 void AbstractView::emitDocumentMessage(const QList<DocumentMessage> &errors, const QList<DocumentMessage> &warnings)
 {
-    model()->d->setDocumentMessages(errors, warnings);
+    if (model())
+        model()->d->setDocumentMessages(errors, warnings);
 }
 
 void AbstractView::emitCustomNotification(const QString &identifier)
@@ -688,13 +709,23 @@ QmlModelState AbstractView::currentState() const
     return QmlModelState(currentStateNode());
 }
 
+QmlTimelineMutator AbstractView::currentTimeline() const
+{
+    if (model())
+        return QmlTimelineMutator(ModelNode(m_model.data()->d->currentTimelineNode(),
+                                            m_model.data(),
+                                            const_cast<AbstractView*>(this)));
+
+    return QmlTimelineMutator();
+}
+
 static int getMinorVersionFromImport(const Model *model)
 {
     foreach (const Import &import, model->imports()) {
         if (import.isLibraryImport() && import.url() == "QtQuick") {
             const QString versionString = import.version();
             if (versionString.contains(".")) {
-                const QString minorVersionString = versionString.split(".").last();
+                const QString minorVersionString = versionString.split(".").constLast();
                 return minorVersionString.toInt();
             }
         }
@@ -709,7 +740,7 @@ static int getMajorVersionFromImport(const Model *model)
         if (import.isLibraryImport() && import.url() == QStringLiteral("QtQuick")) {
             const QString versionString = import.version();
             if (versionString.contains(QStringLiteral("."))) {
-                const QString majorVersionString = versionString.split(QStringLiteral(".")).first();
+                const QString majorVersionString = versionString.split(QStringLiteral(".")).constFirst();
                 return majorVersionString.toInt();
             }
         }

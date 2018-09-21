@@ -32,6 +32,8 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/runconfigurationaspects.h>
+#include <projectexplorer/runnables.h>
+
 #include <qmakeprojectmanager/qmakeproject.h>
 
 namespace WinRt {
@@ -39,19 +41,16 @@ namespace Internal {
 
 static const char uninstallAfterStopIdC[] = "WinRtRunConfigurationUninstallAfterStopId";
 
-static QString pathFromId(Core::Id id)
-{
-    return id.suffixAfter(Constants::WINRT_RC_PREFIX);
-}
-
-WinRtRunConfiguration::WinRtRunConfiguration(ProjectExplorer::Target *parent, Core::Id id)
-    : RunConfiguration(parent, id)
-    , m_proFilePath(pathFromId(id))
-    , m_uninstallAfterStop(false)
+WinRtRunConfiguration::WinRtRunConfiguration(ProjectExplorer::Target *target)
+    : RunConfiguration(target, Constants::WINRT_RC_PREFIX)
 {
     setDisplayName(tr("Run App Package"));
-    addExtraAspect(new ProjectExplorer::ArgumentsAspect(this,
-                   QLatin1String("WinRtRunConfigurationArgumentsId")));
+    addExtraAspect(new ProjectExplorer::ArgumentsAspect(this, "WinRtRunConfigurationArgumentsId"));
+}
+
+QString WinRtRunConfiguration::extraId() const
+{
+    return m_proFilePath;
 }
 
 QWidget *WinRtRunConfiguration::createConfigurationWidget()
@@ -70,7 +69,9 @@ bool WinRtRunConfiguration::fromMap(const QVariantMap &map)
 {
     if (!RunConfiguration::fromMap(map))
         return false;
+
     setUninstallAfterStop(map.value(QLatin1String(uninstallAfterStopIdC)).toBool());
+    m_proFilePath = ProjectExplorer::idFromMap(map).suffixAfter(id());
     return true;
 }
 
@@ -87,8 +88,46 @@ void WinRtRunConfiguration::setUninstallAfterStop(bool b)
 
 QString WinRtRunConfiguration::buildSystemTarget() const
 {
-    return static_cast<QmakeProjectManager::QmakeProject *>(target()->project())
-            ->mapProFilePathToTarget(Utils::FileName::fromString(m_proFilePath));
+    return m_proFilePath;
+}
+
+ProjectExplorer::Runnable WinRtRunConfiguration::runnable() const
+{
+    ProjectExplorer::StandardRunnable r;
+    r.executable = executable();
+    r.commandLineArguments = arguments();
+    return r;
+}
+
+QString WinRtRunConfiguration::executable() const
+{
+    QmakeProjectManager::QmakeProject *project
+            = static_cast<QmakeProjectManager::QmakeProject *>(target()->project());
+    if (!project)
+        return QString();
+
+    QmakeProjectManager::QmakeProFile *rootProFile = project->rootProFile();
+    if (!rootProFile)
+        return QString();
+
+    const QmakeProjectManager::QmakeProFile *pro
+            = rootProFile->findProFile(Utils::FileName::fromString(m_proFilePath));
+    if (!pro)
+        return QString();
+
+    QmakeProjectManager::TargetInformation ti = pro->targetInformation();
+    if (!ti.valid)
+        return QString();
+
+    QString destDir = ti.destDir.toString();
+    if (destDir.isEmpty())
+        destDir = ti.buildDir.toString();
+    else if (QDir::isRelativePath(destDir))
+        destDir = QDir::cleanPath(ti.buildDir.toString() + '/' + destDir);
+
+    QString executable = QDir::cleanPath(destDir + '/' + ti.target);
+    executable = Utils::HostOsInfo::withExecutableSuffix(executable);
+    return executable;
 }
 
 } // namespace Internal

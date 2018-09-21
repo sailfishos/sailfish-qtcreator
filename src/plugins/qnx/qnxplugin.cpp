@@ -26,12 +26,10 @@
 #include "qnxplugin.h"
 
 #include "qnxanalyzesupport.h"
-#include "qnxattachdebugsupport.h"
 #include "qnxconfigurationmanager.h"
 #include "qnxconstants.h"
 #include "qnxdebugsupport.h"
-#include "qnxdeployconfigurationfactory.h"
-#include "qnxdeploystepfactory.h"
+#include "qnxdeployconfiguration.h"
 #include "qnxdevice.h"
 #include "qnxdevicefactory.h"
 #include "qnxqtversion.h"
@@ -48,6 +46,7 @@
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 
+#include <projectexplorer/devicesupport/devicecheckbuildstep.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -59,6 +58,9 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 
+#include <remotelinux/genericdirectuploadstep.h>
+#include <remotelinux/remotelinuxcheckforfreediskspacestep.h>
+
 #include <qtsupport/qtkitinformation.h>
 
 #include <QAction>
@@ -69,6 +71,19 @@ using namespace ProjectExplorer;
 namespace Qnx {
 namespace Internal {
 
+template <class Step>
+class GenericQnxDeployStepFactory : public BuildStepFactory
+{
+public:
+    GenericQnxDeployStepFactory()
+    {
+        registerStep<Step>(Step::stepId());
+        setDisplayName(Step::displayName());
+        setSupportedConfiguration(Constants::QNX_QNX_DEPLOYCONFIGURATION_ID);
+        setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY);
+    }
+};
+
 bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
@@ -78,10 +93,16 @@ bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new QnxConfigurationManager);
     addAutoReleasedObject(new QnxQtVersionFactory);
     addAutoReleasedObject(new QnxDeviceFactory);
-    addAutoReleasedObject(new QnxDeployStepFactory);
     addAutoReleasedObject(new QnxDeployConfigurationFactory);
     addAutoReleasedObject(new QnxRunConfigurationFactory);
     addAutoReleasedObject(new QnxSettingsPage);
+
+    addAutoReleasedObject(new GenericQnxDeployStepFactory
+                                <RemoteLinux::GenericDirectUploadStep>);
+    addAutoReleasedObject(new GenericQnxDeployStepFactory
+                                <RemoteLinux::RemoteLinuxCheckForFreeDiskSpaceStep>);
+    addAutoReleasedObject(new GenericQnxDeployStepFactory
+                                <DeviceCheckBuildStep>);
 
     auto constraint = [](RunConfiguration *runConfig) {
         if (!runConfig->isEnabled()
@@ -108,12 +129,10 @@ bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
 
 void QnxPlugin::extensionsInitialized()
 {
-    // Debug support
-    QnxAttachDebugSupport *debugSupport = new QnxAttachDebugSupport(this);
-
+    // Attach support
     m_attachToQnxApplication = new QAction(this);
     m_attachToQnxApplication->setText(tr("Attach to remote QNX application..."));
-    connect(m_attachToQnxApplication, &QAction::triggered, debugSupport, &QnxAttachDebugSupport::showProcessesDialog);
+    connect(m_attachToQnxApplication, &QAction::triggered, this, [] { QnxAttachDebugSupport::showProcessesDialog(); });
 
     Core::ActionContainer *mstart = Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_DEBUG_STARTDEBUGGING);
     mstart->appendGroup(Constants::QNX_DEBUGGING_GROUP);
@@ -142,8 +161,8 @@ void QnxPlugin::updateDebuggerActions()
         }
     }
 
-    m_attachToQnxApplication->setVisible(false && hasValidQnxKit); // FIXME
-    m_debugSeparator->setVisible(false && hasValidQnxKit); // FIXME QTCREATORBUG-16608
+    m_attachToQnxApplication->setVisible(hasValidQnxKit);
+    m_debugSeparator->setVisible(hasValidQnxKit);
 }
 
 } // Internal

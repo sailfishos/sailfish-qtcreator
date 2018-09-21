@@ -40,119 +40,18 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-namespace {
-QString stringFromId(Core::Id id)
-{
-    return id.suffixAfter(MER_RUNCONFIGURATION_PREFIX);
-}
-} // Anonymous
-
 MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
     : IRunConfigurationFactory(parent)
 {
+    setObjectName("MerRunConfigurationFactory");
+    registerRunConfiguration<MerRunConfiguration>(MER_RUNCONFIGURATION_PREFIX);
+    setSupportedTargetDeviceTypes({MER_DEVICE_TYPE});
+    setDisplayNamePattern(tr("%1 (on Sailfish OS Device)"));
 }
 
-QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
-        Target *parent, CreationMode mode) const
+bool MerRunConfigurationFactory::canCreateHelper(Target *parent, const QString &buildTarget) const
 {
-    Q_UNUSED(mode);
-
-    QList<Core::Id>result;
-    if (!canHandle(parent))
-        return result;
-
-    QmakeProject *qmakeProject =
-            qobject_cast<QmakeProject *>(parent->project());
-    if (!qmakeProject)
-        return result;
-
-    const Core::Id base = Core::Id(MER_RUNCONFIGURATION_PREFIX);
-    foreach (const BuildTargetInfo &bti, parent->applicationTargets().list)
-        result << base.withSuffix(bti.targetName);
-
-    return result;
-}
-
-QString MerRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return tr("%1 (on Sailfish OS Device)").arg(stringFromId(id));
-
-    return QString();
-}
-
-bool MerRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
-{
-    if (!canHandle(parent))
-        return false;
-
-    return parent->applicationTargets().hasTarget(stringFromId(id));
-}
-
-RunConfiguration *MerRunConfigurationFactory::doCreate(
-        Target *parent, Core::Id id)
-{
-    if (!canCreate(parent, id))
-        return 0;
-
-    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX))) {
-        MerRunConfiguration *config = new MerRunConfiguration(parent, id, stringFromId(id));
-        config->setDefaultDisplayName(displayNameForId(id));
-        return config;
-    }
-
-    return 0;
-}
-
-bool MerRunConfigurationFactory::canRestore(Target *parent,
-                                            const QVariantMap &map) const
-{
-    if (!canHandle(parent))
-        return false;
-
-    return ProjectExplorer::idFromMap(map).toString().startsWith(
-                QLatin1String(MER_RUNCONFIGURATION_PREFIX));
-}
-
-RunConfiguration *MerRunConfigurationFactory::doRestore(
-        Target *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-
-    Core::Id id = ProjectExplorer::idFromMap(map);
-    RunConfiguration *rc = new MerRunConfiguration(parent, id, stringFromId(id));
-    QTC_ASSERT(rc, return 0);
-    if (rc->fromMap(map))
-        return rc;
-
-    delete rc;
-    return 0;
-}
-
-bool MerRunConfigurationFactory::canClone(Target *parent,
-                                          RunConfiguration *source) const
-{
-    return canCreate(parent, source->id());
-}
-
-RunConfiguration *MerRunConfigurationFactory::clone(
-        Target *parent, RunConfiguration *source)
-{
-    if (!canClone(parent, source))
-        return 0;
-
-    MerRunConfiguration *old = qobject_cast<MerRunConfiguration *>(source);
-
-    if (!old)
-        return 0;
-
-    return new MerRunConfiguration(parent, old);
-}
-
-bool MerRunConfigurationFactory::canHandle(Target *t) const
-{
-    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(t->kit()));
+    return parent->applicationTargets().hasTarget(buildTarget);
 }
 
 } // Internal

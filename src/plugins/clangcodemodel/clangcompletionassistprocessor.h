@@ -29,7 +29,7 @@
 
 #include <cpptools/cppcompletionassistprocessor.h>
 
-#include <clangbackendipc/codecompletion.h>
+#include <clangsupport/codecompletion.h>
 
 #include <QCoreApplication>
 #include <QTextCursor>
@@ -46,7 +46,7 @@ class ClangCompletionAssistProcessor : public CppTools::CppCompletionAssistProce
 
 public:
     ClangCompletionAssistProcessor();
-    ~ClangCompletionAssistProcessor();
+    ~ClangCompletionAssistProcessor() override;
 
     TextEditor::IAssistProposal *perform(const TextEditor::AssistInterface *interface) override;
 
@@ -82,9 +82,14 @@ private:
     UnsavedFileContentInfo unsavedFileContent(const QByteArray &customFileContent) const;
 
     void sendFileContent(const QByteArray &customFileContent);
-    bool sendCompletionRequest(int position, const QByteArray &customFileContent);
+    bool sendCompletionRequest(int position,
+                               const QByteArray &customFileContent,
+                               int functionNameStartPosition = -1);
 
 private:
+    struct Position { int line; int column; };
+    Position extractLineColumn(int position);
+
     QScopedPointer<const ClangCompletionAssistInterface> m_interface;
     unsigned m_completionOperator;
     enum CompletionRequestType { NormalCompletion, FunctionHintCompletion } m_sentRequestType;

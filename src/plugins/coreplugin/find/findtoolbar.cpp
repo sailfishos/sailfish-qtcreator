@@ -36,8 +36,6 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/findplaceholder.h>
 
-#include <extensionsystem/pluginmanager.h>
-
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 #include <utils/stylehelper.h>
@@ -47,6 +45,7 @@
 #include <QDebug>
 #include <QSettings>
 
+#include <QAbstractItemView>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QCompleter>
@@ -118,6 +117,9 @@ FindToolBar::FindToolBar(CurrentDocumentFind *currentDocumentFind)
             this, &FindToolBar::invokeFindEnter, Qt::QueuedConnection);
     connect(m_ui.replaceEdit, &Utils::FancyLineEdit::returnPressed,
             this, &FindToolBar::invokeReplaceEnter, Qt::QueuedConnection);
+    connect(m_findCompleter,
+            static_cast<void (QCompleter::*)(const QModelIndex &)>(&QCompleter::activated),
+            this, &FindToolBar::findCompleterActivated);
 
     QAction *shiftEnterAction = new QAction(m_ui.findEdit);
     shiftEnterAction->setShortcut(QKeySequence(tr("Shift+Enter")));
@@ -313,6 +315,17 @@ FindToolBar::FindToolBar(CurrentDocumentFind *currentDocumentFind)
 
 FindToolBar::~FindToolBar()
 {
+}
+
+void FindToolBar::findCompleterActivated(const QModelIndex &index)
+{
+    const int findFlagsI = index.data(Find::CompletionModelFindFlagsRole).toInt();
+    const FindFlags findFlags(findFlagsI);
+    setFindFlag(FindCaseSensitively, findFlags.testFlag(FindCaseSensitively));
+    setFindFlag(FindBackward, findFlags.testFlag(FindBackward));
+    setFindFlag(FindWholeWords, findFlags.testFlag(FindWholeWords));
+    setFindFlag(FindRegularExpression, findFlags.testFlag(FindRegularExpression));
+    setFindFlag(FindPreserveCase, findFlags.testFlag(FindPreserveCase));
 }
 
 void FindToolBar::installEventFilters()
@@ -529,9 +542,10 @@ void FindToolBar::invokeFindStep()
     m_findStepTimer.stop();
     m_findIncrementalTimer.stop();
     if (m_currentDocumentFind->isEnabled()) {
-        Find::updateFindCompletion(getFindText());
+        const FindFlags ef = effectiveFindFlags();
+        Find::updateFindCompletion(getFindText(), ef);
         IFindSupport::Result result =
-            m_currentDocumentFind->findStep(getFindText(), effectiveFindFlags());
+            m_currentDocumentFind->findStep(getFindText(), ef);
         indicateSearchState(result);
         if (result == IFindSupport::NotYetFound)
             m_findStepTimer.start(50);
@@ -558,9 +572,10 @@ void FindToolBar::invokeReplace()
 {
     setFindFlag(FindBackward, false);
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace()) {
-        Find::updateFindCompletion(getFindText());
+        const FindFlags ef = effectiveFindFlags();
+        Find::updateFindCompletion(getFindText(), ef);
         Find::updateReplaceCompletion(getReplaceText());
-        m_currentDocumentFind->replace(getFindText(), getReplaceText(), effectiveFindFlags());
+        m_currentDocumentFind->replace(getFindText(), getReplaceText(), ef);
     }
 }
 
@@ -597,18 +612,20 @@ void FindToolBar::invokeGlobalReplacePrevious()
 void FindToolBar::invokeReplaceStep()
 {
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace()) {
-        Find::updateFindCompletion(getFindText());
+        const FindFlags ef = effectiveFindFlags();
+        Find::updateFindCompletion(getFindText(), ef);
         Find::updateReplaceCompletion(getReplaceText());
-        m_currentDocumentFind->replaceStep(getFindText(), getReplaceText(), effectiveFindFlags());
+        m_currentDocumentFind->replaceStep(getFindText(), getReplaceText(), ef);
     }
 }
 
 void FindToolBar::invokeReplaceAll()
 {
-    Find::updateFindCompletion(getFindText());
+    const FindFlags ef = effectiveFindFlags();
+    Find::updateFindCompletion(getFindText(), ef);
     Find::updateReplaceCompletion(getReplaceText());
     if (m_currentDocumentFind->isEnabled() && m_currentDocumentFind->supportsReplace())
-        m_currentDocumentFind->replaceAll(getFindText(), getReplaceText(), effectiveFindFlags());
+        m_currentDocumentFind->replaceAll(getFindText(), getReplaceText(), ef);
 }
 
 void FindToolBar::invokeGlobalReplaceAll()
@@ -637,9 +654,8 @@ void FindToolBar::putSelectionToFindClipboard()
 void FindToolBar::updateFromFindClipboard()
 {
     if (QApplication::clipboard()->supportsFindBuffer()) {
-        const bool blocks = m_ui.findEdit->blockSignals(true);
+        QSignalBlocker blocker(m_ui.findEdit);
         setFindText(QApplication::clipboard()->text(QClipboard::FindBuffer));
-        m_ui.findEdit->blockSignals(blocks);
     }
 }
 
@@ -666,11 +682,11 @@ void FindToolBar::updateIcons()
     bool regexp = effectiveFlags & FindRegularExpression;
     bool preserveCase = effectiveFlags & FindPreserveCase;
     if (!casesensitive && !wholewords && !regexp && !preserveCase) {
-        const QPixmap pixmap = Utils::Icons::MAGNIFIER.pixmap();
-        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
+        const QIcon icon = Utils::Icons::MAGNIFIER.icon();
+        m_ui.findEdit->setButtonIcon(Utils::FancyLineEdit::Left, icon);
     } else {
-        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left,
-                                       IFindFilter::pixmapForFindFlags(effectiveFlags));
+        m_ui.findEdit->setButtonIcon(Utils::FancyLineEdit::Left,
+                                     IFindFilter::pixmapForFindFlags(effectiveFlags));
     }
 }
 
@@ -728,10 +744,10 @@ void FindToolBar::hideAndResetFocus()
 
 FindToolBarPlaceHolder *FindToolBar::findToolBarPlaceHolder() const
 {
-    QList<FindToolBarPlaceHolder*> placeholders = ExtensionSystem::PluginManager::getObjects<FindToolBarPlaceHolder>();
+    const QList<FindToolBarPlaceHolder*> placeholders = FindToolBarPlaceHolder::allFindToolbarPlaceHolders();
     QWidget *candidate = QApplication::focusWidget();
     while (candidate) {
-        foreach (FindToolBarPlaceHolder *ph, placeholders) {
+        for (FindToolBarPlaceHolder *ph : placeholders) {
             if (ph->owner() == candidate)
                 return ph;
         }
@@ -957,16 +973,12 @@ void FindToolBar::setBackward(bool backward)
 void FindToolBar::setLightColoredIcon(bool lightColored)
 {
     if (lightColored) {
-        m_ui.findNextButton->setIcon(QIcon());
-        m_ui.findNextButton->setArrowType(Qt::RightArrow);
-        m_ui.findPreviousButton->setIcon(QIcon());
-        m_ui.findPreviousButton->setArrowType(Qt::LeftArrow);
+        m_ui.findNextButton->setIcon(Utils::Icons::NEXT.icon());
+        m_ui.findPreviousButton->setIcon(Utils::Icons::PREV.icon());
         m_ui.close->setIcon(Utils::Icons::CLOSE_FOREGROUND.icon());
     } else {
         m_ui.findNextButton->setIcon(Utils::Icons::NEXT_TOOLBAR.icon());
-        m_ui.findNextButton->setArrowType(Qt::NoArrow);
         m_ui.findPreviousButton->setIcon(Utils::Icons::PREV_TOOLBAR.icon());
-        m_ui.findPreviousButton->setArrowType(Qt::NoArrow);
         m_ui.close->setIcon(Utils::Icons::CLOSE_TOOLBAR.icon());
     }
 }

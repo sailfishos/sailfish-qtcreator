@@ -72,9 +72,9 @@ FormEditorView::~FormEditorView()
 void FormEditorView::modelAttached(Model *model)
 {
     Q_ASSERT(model);
+    temporaryBlockView();
 
     AbstractView::modelAttached(model);
-    temporaryBlockView();
 
     Q_ASSERT(m_scene->formLayerItem());
 
@@ -167,11 +167,13 @@ void FormEditorView::createFormEditorWidget()
 
 void FormEditorView::temporaryBlockView()
 {
-    formEditorWidget()->graphicsView()->setBlockPainting(true);
+    formEditorWidget()->graphicsView()->setUpdatesEnabled(false);
+    static QTimer *timer = new QTimer(qApp);
+    timer->setSingleShot(true);
+    timer->start(1000);
 
-    QTimer::singleShot(1000, this, [this]() {
-        formEditorWidget()->graphicsView()->setBlockPainting(false);
-
+    connect(timer, &QTimer::timeout, this, [this]() {
+        formEditorWidget()->graphicsView()->setUpdatesEnabled(true);
     });
 }
 
@@ -289,9 +291,15 @@ void FormEditorView::nodeIdChanged(const ModelNode& node, const QString &/*newId
 
     if (itemNode.isValid() && node.nodeSourceType() == ModelNode::NodeWithoutSource) {
         FormEditorItem *item = m_scene->itemForQmlItemNode(itemNode);
-        if (item)
+        if (item) {
+            if (node.isSelected()) {
+                m_currentTool->setItems(scene()->itemsForQmlItemNodes(toQmlItemNodeList(selectedModelNodes())));
+                m_scene->update();
+             }
             item->update();
+        }
     }
+
 }
 
 void FormEditorView::selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
@@ -389,7 +397,7 @@ void FormEditorView::changeToCustomTool()
         int handlingRank = 0;
         AbstractCustomTool *selectedCustomTool = 0;
 
-        ModelNode selectedModelNode = selectedModelNodes().first();
+        const ModelNode selectedModelNode = selectedModelNodes().constFirst();
 
         foreach (AbstractCustomTool *customTool, m_customToolList) {
             if (customTool->wantHandleItem(selectedModelNode) > handlingRank) {

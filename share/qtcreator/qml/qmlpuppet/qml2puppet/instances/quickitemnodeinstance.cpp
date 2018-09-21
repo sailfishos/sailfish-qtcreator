@@ -156,7 +156,8 @@ void QuickItemNodeInstance::createEffectItem(bool createEffectItem)
     s_createEffectItem = createEffectItem;
 }
 
-void QuickItemNodeInstance::initialize(const ObjectNodeInstance::Pointer &objectNodeInstance)
+void QuickItemNodeInstance::initialize(const ObjectNodeInstance::Pointer &objectNodeInstance,
+                                       InstanceContainer::NodeFlags flags)
 {
 
     if (instanceId() == 0) {
@@ -167,10 +168,11 @@ void QuickItemNodeInstance::initialize(const ObjectNodeInstance::Pointer &object
 
     if (quickItem()->window()) {
         if (s_createEffectItem || instanceId() == 0)
-            designerSupport()->refFromEffectItem(quickItem());
+            designerSupport()->refFromEffectItem(quickItem(),
+                                                 !flags.testFlag(InstanceContainer::ParentTakesOverRendering));
     }
 
-    ObjectNodeInstance::initialize(objectNodeInstance);
+    ObjectNodeInstance::initialize(objectNodeInstance, flags);
     quickItem()->update();
 }
 
@@ -191,13 +193,13 @@ void QuickItemNodeInstance::doComponentComplete()
 {
     ObjectNodeInstance::doComponentComplete();
 
-    QQmlProperty contentItemProperty(quickItem(), "contentItem", engine());
-    if (contentItemProperty.isValid())
-        m_contentItem = contentItemProperty.read().value<QQuickItem*>();
-
     QmlPrivateGate::disableTextCursor(quickItem());
 
     DesignerSupport::emitComponentCompleteSignalForAttachedProperty(quickItem());
+
+    QQmlProperty contentItemProperty(quickItem(), "contentItem", engine());
+    if (contentItemProperty.isValid())
+        m_contentItem = contentItemProperty.read().value<QQuickItem*>();
 
     quickItem()->update();
 }

@@ -35,11 +35,6 @@ class DisplaySettings;
 class FontSettings;
 }
 
-QT_BEGIN_NAMESPACE
-class QSplitter;
-class QTextCharFormat;
-QT_END_NAMESPACE
-
 namespace DiffEditor {
 
 class ChunkData;
@@ -53,7 +48,7 @@ class UnifiedDiffEditorWidget : public SelectableTextEditorWidget
 {
     Q_OBJECT
 public:
-    UnifiedDiffEditorWidget(QWidget *parent = 0);
+    UnifiedDiffEditorWidget(QWidget *parent = nullptr);
     ~UnifiedDiffEditorWidget();
 
     void setDocument(DiffEditorDocument *document);
@@ -101,7 +96,7 @@ private:
     int chunkIndexForBlockNumber(int blockNumber) const;
     void jumpToOriginalFile(const QTextCursor &cursor);
     void addContextMenuActions(QMenu *menu,
-                               int diffFileIndex,
+                               int fileIndex,
                                int chunkIndex);
 
     // block number, visual line number.
@@ -118,7 +113,7 @@ private:
     QMap<int, QPair<int, int> > m_chunkInfo;
 
     QByteArray m_state;
-    Core::IContext *m_context;
+    Core::IContext *m_context = nullptr;
 };
 
 } // namespace Internal

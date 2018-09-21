@@ -26,6 +26,7 @@
 #include "androiddevicedialog.h"
 #include "androidmanager.h"
 #include "androidavdmanager.h"
+#include "avddialog.h"
 #include "ui_androiddevicedialog.h"
 
 #include <utils/environment.h>
@@ -237,7 +238,7 @@ class AndroidDeviceModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
-    AndroidDeviceModel(int apiLevel, const QString &abi, AndroidConfigurations::Options options);
+    AndroidDeviceModel(int apiLevel, const QString &abi);
     QModelIndex index(int row, int column,
                       const QModelIndex &parent = QModelIndex()) const;
     QModelIndex parent(const QModelIndex &child) const;
@@ -253,7 +254,6 @@ public:
 private:
     int m_apiLevel;
     QString m_abi;
-    AndroidConfigurations::Options m_options;
     AndroidDeviceModelNode *m_root;
 };
 
@@ -262,8 +262,8 @@ private:
 /////////////////
 // AndroidDeviceModel
 /////////////////
-AndroidDeviceModel::AndroidDeviceModel(int apiLevel, const QString &abi, AndroidConfigurations::Options options)
-    : m_apiLevel(apiLevel), m_abi(abi), m_options(options), m_root(0)
+AndroidDeviceModel::AndroidDeviceModel(int apiLevel, const QString &abi)
+    : m_apiLevel(apiLevel), m_abi(abi), m_root(0)
 {
 }
 
@@ -372,8 +372,6 @@ void AndroidDeviceModel::setDevices(const QVector<AndroidDeviceInfo> &devices)
         } else if (device.sdk < m_apiLevel) {
             error = AndroidDeviceDialog::tr("API Level of device is: %1.")
                     .arg(device.sdk);
-        } else if (device.sdk > 20 && (m_options & AndroidConfigurations::FilterAndroid5)) {
-            error = AndroidDeviceDialog::tr("Android 5 devices are incompatible with deploying Qt to a temporary directory.");
         } else {
             new AndroidDeviceModelNode(compatibleDevices, device);
             continue;
@@ -417,10 +415,10 @@ static inline QString msgAdbListDevices()
     return AndroidDeviceDialog::tr("<p>The adb tool in the Android SDK lists all connected devices if run via &quot;adb devices&quot;.</p>");
 }
 
-AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi, AndroidConfigurations::Options options,
+AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi,
                                          const QString &serialNumber, QWidget *parent) :
     QDialog(parent),
-    m_model(new AndroidDeviceModel(apiLevel, abi, options)),
+    m_model(new AndroidDeviceModel(apiLevel, abi)),
     m_ui(new Ui::AndroidDeviceDialog),
     m_apiLevel(apiLevel),
     m_abi(abi),
@@ -462,7 +460,7 @@ AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi, Andro
 
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 
-    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Large, this);
+    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicatorSize::Large, this);
     m_progressIndicator->attachToWidget(m_ui->deviceView);
 
     if (serialNumber.isEmpty()) {
@@ -583,9 +581,10 @@ void AndroidDeviceDialog::devicesRefreshed()
 void AndroidDeviceDialog::createAvd()
 {
     m_ui->createAVDButton->setEnabled(false);
-    AndroidConfig::CreateAvdInfo info = AndroidConfigurations::currentConfig().gatherCreateAVDInfo(this, m_apiLevel, m_abi);
+    CreateAvdInfo info = AvdDialog::gatherCreateAVDInfo(this, AndroidConfigurations::sdkManager(),
+                                                        m_apiLevel, m_abi);
 
-    if (!info.target.isValid()) {
+    if (!info.isValid()) {
         m_ui->createAVDButton->setEnabled(true);
         return;
     }
@@ -596,7 +595,7 @@ void AndroidDeviceDialog::createAvd()
 void AndroidDeviceDialog::avdAdded()
 {
     m_ui->createAVDButton->setEnabled(true);
-    AndroidConfig::CreateAvdInfo info = m_futureWatcherAddDevice.result();
+    CreateAvdInfo info = m_futureWatcherAddDevice.result();
     if (!info.error.isEmpty()) {
         QMessageBox::critical(this, QApplication::translate("AndroidConfig", "Error Creating AVD"), info.error);
         return;

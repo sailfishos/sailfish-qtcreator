@@ -104,7 +104,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
     CopyToLocationDialog d(ICore::mainWindow());
     d.setSourcePath(projectDir);
     d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                         DocumentManager::projectsDirectory()).toString());
+                                         DocumentManager::projectsDirectory().toString()).toString());
 
     while (QDialog::Accepted == d.exec()) {
         QString exampleDirName = proFileInfo.dir().dirName();
@@ -232,18 +232,19 @@ public:
         QPalette pal;
         pal.setColor(QPalette::Base, themeColor(Theme::Welcome_BackgroundColor));
 
-        m_lineEdit = new QLineEdit;
+        m_lineEdit = new FancyLineEdit;
+        m_lineEdit->setFiltering(true);
         m_lineEdit->setFrame(false);
         m_lineEdit->setFont(sizedFont(14, this));
         m_lineEdit->setAttribute(Qt::WA_MacShowFocusRect, false);
         m_lineEdit->setPalette(pal);
 
         auto box = new QHBoxLayout(this);
-        box->setContentsMargins(15, 3, 15, 3);
+        box->setContentsMargins(10, 3, 3, 3);
         box->addWidget(m_lineEdit);
     }
 
-    QLineEdit *m_lineEdit;
+    FancyLineEdit *m_lineEdit;
 };
 
 class GridView : public QTableView
@@ -414,18 +415,17 @@ public:
             QRect pixmapRect = inner;
             if (!pm.isNull()) {
                 painter->setPen(foregroundColor2);
-                if (item.isVideo)
-                    pixmapRect = inner.adjusted(6, 10, -6, -25);
+                if (!m_showExamples)
+                    pixmapRect = inner.adjusted(6, 20, -6, -15);
                 QPoint pixmapPos = pixmapRect.center();
-                pixmapPos.rx() -= pm.width() / 2;
-                pixmapPos.ry() -= pm.height() / 2;
+                pixmapPos.rx() -= pm.width() / pm.devicePixelRatio() / 2;
+                pixmapPos.ry() -= pm.height() / pm.devicePixelRatio() / 2;
                 painter->drawPixmap(pixmapPos, pm);
                 if (item.isVideo) {
                     painter->setFont(sizedFont(13, option.widget));
-                    QRect lenRect(x, y + 120, w, 20);
                     QString videoLen = item.videoLength;
-                    lenRect = fm.boundingRect(lenRect, Qt::AlignHCenter, videoLen);
-                    painter->drawText(lenRect.adjusted(0, 0, 5, 0), videoLen);
+                    painter->drawText(pixmapRect.adjusted(0, 0, 0, painter->font().pixelSize() + 3),
+                                      videoLen, Qt::AlignBottom | Qt::AlignHCenter);
                 }
             } else {
                 // The description text as fallback.
@@ -536,6 +536,8 @@ public:
         return QAbstractItemDelegate::editorEvent(ev, model, option, idx);
     }
 
+    void setShowExamples(bool showExamples) { m_showExamples = showExamples; goon(); }
+
 signals:
     void tagClicked(const QString &tag);
 
@@ -551,6 +553,7 @@ private:
     mutable QPointer<QAbstractItemView> m_currentWidget;
     mutable QVector<QPair<QString, QRect>> m_currentTagRects;
     mutable QPixmapCache m_pixmapCache;
+    bool m_showExamples = true;
 };
 
 class ExamplesPageWidget : public QWidget
@@ -559,6 +562,7 @@ public:
     ExamplesPageWidget(bool isExamples)
         : m_isExamples(isExamples)
     {
+        m_exampleDelegate.setShowExamples(isExamples);
         const int sideMargin = 27;
         static ExamplesListModel *s_examplesModel = new ExamplesListModel(this);
         m_examplesModel = s_examplesModel;
@@ -573,7 +577,7 @@ public:
 
         auto hbox = new QHBoxLayout;
         if (m_isExamples) {
-            m_searcher->setPlaceholderText(tr("Search in Examples..."));
+            m_searcher->setPlaceholderText(ExamplesWelcomePage::tr("Search in Examples..."));
 
             auto exampleSetSelector = new QComboBox(this);
             exampleSetSelector->setMinimumWidth(itemWidth);
@@ -589,7 +593,7 @@ public:
             hbox->setSpacing(17);
             hbox->addWidget(exampleSetSelector);
         } else {
-            m_searcher->setPlaceholderText(tr("Search in Tutorials..."));
+            m_searcher->setPlaceholderText(ExamplesWelcomePage::tr("Search in Tutorials..."));
         }
         hbox->addWidget(searchBox);
         hbox->addSpacing(sideMargin);

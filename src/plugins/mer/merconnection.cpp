@@ -24,14 +24,18 @@
 
 #include "merconstants.h"
 #include "merlogging.h"
+#include "mersettings.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
+#include <utils/checkablemessagebox.h>
 
+#include <QCheckBox>
 #include <QEventLoop>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QTime>
 #include <QTimer>
 #include <QTimerEvent>
@@ -40,6 +44,7 @@
 
 using namespace Core;
 using namespace QSsh;
+using Utils::CheckableMessageBox;
 
 namespace Mer {
 namespace Internal {
@@ -378,6 +383,9 @@ void MerConnection::connectTo(ConnectOptions options)
 {
     DBG << "Connect requested";
 
+    if (!MerSettings::isAskBeforeStartingVmEnabled())
+        options &= ~AskStartVm;
+
     // Turning AskStartVm off always overrides
     if ((m_connectOptions & AskStartVm) && !(options & AskStartVm)) {
         m_connectOptions &= ~AskStartVm;
@@ -659,6 +667,8 @@ bool MerConnection::vmStmStep()
         } else if (!m_startVmQuestionBox) {
             openStartVmQuestionBox();
         } else if (QAbstractButton *button = m_startVmQuestionBox->clickedButton()) {
+            if (m_startVmQuestionBox->checkBox() && m_startVmQuestionBox->checkBox()->isChecked())
+                MerSettings::setAskBeforeStartingVmEnabled(false);
             if (button == m_startVmQuestionBox->button(QMessageBox::Yes)) {
                 vmStmTransition(VmStarting, "start VM allowed");
             } else {
@@ -669,7 +679,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_startVmQuestionBox);
+            deleteDialog(m_startVmQuestionBox);
         }
         break;
 
@@ -761,8 +771,8 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_resetVmQuestionBox);
-            deleteMessageBox(m_closeVmQuestionBox);
+            deleteDialog(m_resetVmQuestionBox);
+            deleteDialog(m_closeVmQuestionBox);
             sshStmScheduleExec();
         }
         break;
@@ -784,7 +794,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
-            deleteMessageBox(m_unableToCloseVmWarningBox);
+            deleteDialog(m_unableToCloseVmWarningBox);
         }
         break;
 
@@ -849,10 +859,10 @@ bool MerConnection::vmStmStep()
             qWarning() << "MerConnection: timeout waiting for the" << m_vmName
                 << "virtual machine to hard-close.";
             if (m_lockDownRequested) {
-                if (!m_retryLockDownQuestionBox) {
-                    openRetryLockDownQuestionBox();
-                } else if (QAbstractButton *button = m_retryLockDownQuestionBox->clickedButton()) {
-                    if (button == m_retryLockDownQuestionBox->button(QMessageBox::Yes)) {
+                if (!m_lockingDownProgressDialog) {
+                    openLockingDownProgressDialog();
+                } else if (!m_lockingDownProgressDialog->isVisible()) {
+                    if (!m_lockingDownProgressDialog->wasCanceled()) {
                         vmStmTransition(VmHardClosing, "lock down error+retry allowed");
                     } else {
                         m_lockDownFailed = true;
@@ -869,7 +879,7 @@ bool MerConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
-            deleteMessageBox(m_retryLockDownQuestionBox);
+            deleteDialog(m_lockingDownProgressDialog);
         }
         break;
     }
@@ -967,13 +977,10 @@ bool MerConnection::sshStmStep()
                        isRecoverable(m_cachedSshError)) {
                 ; // Do not report possibly recoverable boot-time failure
             } else {
-                // To be accurate, the question to the user should be "Wait longer?" instead of "Try
-                // again?" - the m_sshTryConnectTimer is active so we are already trying again. But
-                // why to bother the user with implementation details?
-                if (!m_retrySshConnectionQuestionBox) {
-                    openRetrySshConnectionQuestionBox();
-                } else if (QAbstractButton *button = m_retrySshConnectionQuestionBox->clickedButton()) {
-                    if (button == m_retrySshConnectionQuestionBox->button(QMessageBox::Yes)) {
+                if (!m_connectingProgressDialog) {
+                    openConnectingProgressDialog();
+                } else if (!m_connectingProgressDialog->isVisible()) {
+                    if (!m_connectingProgressDialog->wasCanceled()) {
                         sshStmTransition(SshConnecting, "connecting error+retry allowed");
                     } else {
                         sshStmTransition(SshConnectingError, "connecting error+retry denied");
@@ -984,7 +991,7 @@ bool MerConnection::sshStmStep()
 
         ON_EXIT {
             m_sshTryConnectTimer.stop();
-            deleteMessageBox(m_retrySshConnectionQuestionBox);
+            deleteDialog(m_connectingProgressDialog);
         }
         break;
 
@@ -1239,6 +1246,8 @@ void MerConnection::openStartVmQuestionBox()
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
+    if (MerSettings::isAskBeforeStartingVmEnabled())
+        m_startVmQuestionBox->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
     m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
     connect(m_startVmQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
@@ -1302,60 +1311,49 @@ void MerConnection::openUnableToCloseVmWarningBox()
     m_unableToCloseVmWarningBox->raise();
 }
 
-void MerConnection::openRetrySshConnectionQuestionBox()
+void MerConnection::openConnectingProgressDialog()
 {
-    QTC_CHECK(!m_retrySshConnectionQuestionBox);
+    QTC_CHECK(!m_connectingProgressDialog);
 
-    m_retrySshConnectionQuestionBox = new QMessageBox(
-            QMessageBox::Question,
-            tr("Cannot Connect to Virtual Machine"),
-            tr("Could not connect to the \"%1\" virtual machine. Do you want to try again?")
-            .arg(m_vmName),
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    QString informativeText = tr("Connection error: %1 %2")
-        .arg(m_cachedSshError)
-        .arg(m_cachedSshErrorString);
-    if (isRecoverable(m_cachedSshError)) {
-        informativeText += QString::fromLatin1("\n\n(%1)")
-            .arg(tr("Consider increasing SSH connection timeout in options."));
-    }
-    m_retrySshConnectionQuestionBox->setInformativeText(informativeText);
-    connect(m_retrySshConnectionQuestionBox.data(), &QMessageBox::finished,
+    m_connectingProgressDialog = new QProgressDialog(ICore::mainWindow());
+    m_connectingProgressDialog->setMaximum(0);
+    m_connectingProgressDialog->setWindowTitle(tr("Connecting to Virtual Machine"));
+    m_connectingProgressDialog->setLabelText(tr("Connecting to the \"%1\" virtual machine…")
+            .arg(m_vmName));
+    connect(m_connectingProgressDialog.data(), &QDialog::finished,
             this, &MerConnection::sshStmScheduleExec);
-    m_retrySshConnectionQuestionBox->show();
-    m_retrySshConnectionQuestionBox->raise();
+    m_connectingProgressDialog->show();
+    m_connectingProgressDialog->raise();
 }
 
-void MerConnection::openRetryLockDownQuestionBox()
+void MerConnection::openLockingDownProgressDialog()
 {
-    QTC_CHECK(!m_retryLockDownQuestionBox);
+    QTC_CHECK(!m_lockingDownProgressDialog);
 
-    m_retryLockDownQuestionBox = new QMessageBox(
-            QMessageBox::Question,
-            tr("Unable to Close Virtual Machine"),
-            tr("Timeout waiting for the \"%1\" virtual machine to close. Do you want to try again?")
-            .arg(m_vmName),
-            QMessageBox::Yes | QMessageBox::No,
-            ICore::mainWindow());
-    connect(m_retryLockDownQuestionBox.data(), &QMessageBox::finished,
+    m_lockingDownProgressDialog = new QProgressDialog(ICore::mainWindow());
+    m_lockingDownProgressDialog->setMaximum(0);
+    m_lockingDownProgressDialog->setWindowTitle(tr("Closing Virtual Machine"));
+    m_lockingDownProgressDialog->setLabelText(tr("Waiting for the \"%1\" virtual machine to close…")
+            .arg(m_vmName));
+    connect(m_lockingDownProgressDialog.data(), &QDialog::finished,
             this, &MerConnection::vmStmScheduleExec);
-    m_retryLockDownQuestionBox->show();
-    m_retryLockDownQuestionBox->raise();
+    m_lockingDownProgressDialog->show();
+    m_lockingDownProgressDialog->raise();
 }
 
-void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
+template<class Dialog>
+void MerConnection::deleteDialog(QPointer<Dialog> &dialog)
 {
-    if (!messageBox)
+    if (!dialog)
         return;
 
-    if (!messageBox->isVisible()) {
-        delete messageBox;
+    if (!dialog->isVisible()) {
+        delete dialog;
     } else {
-        messageBox->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox.data(), &QObject::deleteLater);
-        messageBox->disconnect(this);
-        messageBox = 0;
+        dialog->setEnabled(false);
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, dialog.data(), &QObject::deleteLater);
+        dialog->disconnect(this);
+        dialog = 0;
     }
 }
 
@@ -1370,6 +1368,7 @@ bool MerConnection::isRecoverable(QSsh::SshError sshError)
     case SshKeyFileError:        return false;
     case SshAuthenticationError: return false;
     case SshClosedByServerError: return true;
+    case SshAgentError:          return false;
     case SshInternalError:       return true;
     }
 

@@ -28,7 +28,6 @@
 #include "iosbuildstep.h"
 #include "iosconstants.h"
 #include "iosrunconfiguration.h"
-#include "iosmanager.h"
 #include "iostoolhandler.h"
 
 #include <coreplugin/messagemanager.h>
@@ -59,24 +58,7 @@ const Core::Id IosDeployStep::Id("Qt4ProjectManager.IosDeployStep");
 
 IosDeployStep::IosDeployStep(BuildStepList *parent)
     : BuildStep(parent, Id)
-    , m_expectFail(false)
 {
-    ctor();
-}
-
-IosDeployStep::IosDeployStep(BuildStepList *parent,
-    IosDeployStep *other)
-    : BuildStep(parent, other)
-    , m_expectFail(false)
-{
-    ctor();
-}
-
-void IosDeployStep::ctor()
-{
-    m_toolHandler = 0;
-    m_transferStatus = NoTransfer;
-    cleanup();
     updateDisplayNames();
     connect(DeviceManager::instance(), &DeviceManager::updated,
             this, &IosDeployStep::updateDisplayNames);

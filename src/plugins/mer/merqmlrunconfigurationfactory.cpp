@@ -47,105 +47,27 @@ const char SAILFISHAPP_QML_CONFIG[] = "sailfishapp_qml";
 MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory(QObject *parent)
     : IRunConfigurationFactory(parent)
 {
+    setObjectName("MerQmlRunConfigurationFactory");
+    registerRunConfiguration<MerQmlRunConfiguration>(MER_QMLRUNCONFIGURATION);
+    setSupportedTargetDeviceTypes({MER_DEVICE_TYPE});
+    addFixedBuildTarget(tr("QML Scene (on Sailfish OS Device)"));
 }
 
-QList<Core::Id> MerQmlRunConfigurationFactory::availableCreationIds(
-        Target *parent, CreationMode mode) const
+bool MerQmlRunConfigurationFactory::canCreateHelper(Target *parent, const QString &buildTarget) const
 {
-    Q_UNUSED(mode);
-
-    QList<Core::Id>result;
-
-    if (!canHandle(parent))
-        return result;
+    Q_UNUSED(buildTarget);
 
     QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(parent->project());
     if (!qmakeProject)
-        return result;
+        return false;
 
     QmakeProFile *root = qmakeProject->rootProFile();
-    if (root->projectType() == ProjectType::AuxTemplate &&
-            root->variableValue(Variable::Config).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
-        result << MER_QMLRUNCONFIGURATION;
+    if (root->projectType() != ProjectType::AuxTemplate ||
+            ! root->variableValue(Variable::Config).contains(QLatin1String(SAILFISHAPP_QML_CONFIG))) {
+        return false;
     }
 
-    return result;
-}
-
-QString MerQmlRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    if (id == MER_QMLRUNCONFIGURATION)
-        return tr("QML Scene (on Sailfish OS Device)");
-
-    return QString{};
-}
-
-bool MerQmlRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
-{
-    if (!canHandle(parent))
-        return false;
-
-    return id == MER_QMLRUNCONFIGURATION;
-}
-
-RunConfiguration *MerQmlRunConfigurationFactory::doCreate(Target *parent, Core::Id id)
-{
-    if (!canCreate(parent, id))
-        return nullptr;
-
-    if (id == MER_QMLRUNCONFIGURATION) {
-        MerQmlRunConfiguration *config = new MerQmlRunConfiguration{parent, id};
-        config->setDefaultDisplayName(displayNameForId(id));
-        return config;
-    }
-
-    return nullptr;
-}
-
-bool MerQmlRunConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
-{
-    if (!canHandle(parent))
-        return false;
-
-    return ProjectExplorer::idFromMap(map) == MER_QMLRUNCONFIGURATION;
-}
-
-RunConfiguration *MerQmlRunConfigurationFactory::doRestore(Target *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return nullptr;
-
-    Core::Id id = ProjectExplorer::idFromMap(map);
-    RunConfiguration *rc = new MerQmlRunConfiguration{parent, id};
-    QTC_ASSERT(rc, return nullptr);
-    if (rc->fromMap(map))
-        return rc;
-
-    delete rc;
-    return nullptr;
-}
-
-bool MerQmlRunConfigurationFactory::canClone(Target *parent, RunConfiguration *source) const
-{
-    return canCreate(parent, source->id());
-}
-
-RunConfiguration *MerQmlRunConfigurationFactory::clone(Target *parent, RunConfiguration *source)
-{
-    if (!canClone(parent, source))
-        return nullptr;
-
-    MerQmlRunConfiguration *old = qobject_cast<MerQmlRunConfiguration *>(source);
-
-    if (!old)
-        return nullptr;
-
-    return new MerQmlRunConfiguration{parent, old};
-}
-
-bool MerQmlRunConfigurationFactory::canHandle(Target *t) const
-{
-    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(t->kit()));
+    return true;
 }
 
 } // Internal

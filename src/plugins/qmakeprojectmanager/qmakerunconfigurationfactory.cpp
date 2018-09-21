@@ -25,23 +25,12 @@
 
 #include "qmakerunconfigurationfactory.h"
 
-#include <extensionsystem/pluginmanager.h>
+using namespace ProjectExplorer;
 
 namespace QmakeProjectManager {
 
 QmakeRunConfigurationFactory::QmakeRunConfigurationFactory(QObject *parent) :
     ProjectExplorer::IRunConfigurationFactory(parent)
 { }
-
-QmakeRunConfigurationFactory *QmakeRunConfigurationFactory::find(ProjectExplorer::Target *t)
-{
-    if (!t)
-        return 0;
-
-    return ExtensionSystem::PluginManager::getObject<QmakeRunConfigurationFactory>(
-        [&t](QmakeRunConfigurationFactory *factory) {
-            return factory->canHandle(t);
-        });
-}
 
 } // namespace QmakeProjectManager

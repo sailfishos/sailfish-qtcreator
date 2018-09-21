@@ -46,6 +46,7 @@
 
 #include <texteditor/syntaxhighlighter.h>
 
+#include <app/app_version.h>
 #include <utils/algorithm.h>
 #include <utils/basetreeview.h>
 #include <utils/checkablemessagebox.h>
@@ -271,7 +272,7 @@ public:
         setTabsClosable(true);
         connect(this, &QTabWidget::tabCloseRequested, this, &SeparatedView::closeTab);
         setWindowFlags(windowFlags() | Qt::Window);
-        setWindowTitle(WatchHandler::tr("Debugger - Qt Creator"));
+        setWindowTitle(WatchHandler::tr("Debugger - %1").arg(Core::Constants::IDE_DISPLAY_NAME));
 
         QVariant geometry = sessionValue("DebuggerSeparateWidgetGeometry");
         if (geometry.isValid()) {
@@ -516,7 +517,7 @@ void WatchModel::reinitialize(bool includeInspectData)
 
 WatchItem *WatchModel::findItem(const QString &iname) const
 {
-    return findNonRooItem([iname](WatchItem *item) { return item->iname == iname; });
+    return findNonRootItem([iname](WatchItem *item) { return item->iname == iname; });
 }
 
 static QString parentName(const QString &iname)
@@ -1126,7 +1127,7 @@ bool WatchModel::setData(const QModelIndex &idx, const QVariant &value, int role
                 m_expandedINames.remove(item->iname);
             }
             if (item->iname.contains('.'))
-                m_handler->updateWatchersWindow();
+                m_handler->updateLocalsWindow();
             return true;
 
         case LocalsTypeFormatRole:
@@ -1678,7 +1679,7 @@ bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
 
     addAction(menu, tr("Close Editor Tooltips"),
               DebuggerToolTipManager::hasToolTips(),
-              [this] { DebuggerToolTipManager::closeAllToolTips(); });
+              [] { DebuggerToolTipManager::closeAllToolTips(); });
 
     addAction(menu, tr("Copy View Contents to Clipboard"),
               true,
@@ -1686,7 +1687,7 @@ bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
 
     addAction(menu, tr("Copy Current Value to Clipboard"),
               item,
-              [this, item] { copyToClipboard(item->value); });
+              [item] { copyToClipboard(item->value); });
 
 //    addAction(menu, tr("Copy Selected Rows to Clipboard"),
 //              selectionModel()->hasSelection(),
@@ -1790,7 +1791,7 @@ QMenu *WatchModel::createMemoryMenu(WatchItem *item)
 
     addAction(menu, tr("Open Memory Editor Showing Stack Layout"),
               item && item->isLocal(),
-              [this, item, pos] { addStackLayoutMemoryView(false, pos); });
+              [this, pos] { addStackLayoutMemoryView(false, pos); });
 
     addAction(menu, tr("Open Memory Editor..."),
               true,
@@ -1834,8 +1835,6 @@ QMenu *WatchModel::createFormatMenu(WatchItem *item)
     addBaseChangeAction(tr("Show Unprintable Characters as Octal"), 8);
     addBaseChangeAction(tr("Show Unprintable Characters as Hexadecimal"), 16);
 
-    QAction *act = 0;
-
     const QString spacer = "     ";
     menu->addSeparator();
 
@@ -1857,7 +1856,7 @@ QMenu *WatchModel::createFormatMenu(WatchItem *item)
 
     for (int format : alternativeFormats) {
         addCheckableAction(menu, spacer + nameForFormat(format), true, format == individualFormat,
-                           [this, act, format, iname] {
+                           [this, format, iname] {
                                 setIndividualFormat(iname, format);
                                 m_engine->updateLocals();
                            });
@@ -1877,7 +1876,7 @@ QMenu *WatchModel::createFormatMenu(WatchItem *item)
 
     for (int format : alternativeFormats) {
         addCheckableAction(menu, spacer + nameForFormat(format), true, format == typeFormat,
-                           [this, act, format, item] {
+                           [this, format, item] {
                                 setTypeFormat(item->type, format);
                                 m_engine->updateLocals();
                            });
@@ -2087,13 +2086,13 @@ void WatchHandler::notifyUpdateStarted(const UpdateParameters &updateParameters)
 
     m_model->m_requestUpdateTimer.start(80);
     m_model->m_contentsValid = false;
-    updateWatchersWindow();
+    updateLocalsWindow();
 }
 
 void WatchHandler::notifyUpdateFinished()
 {
     QList<WatchItem *> toRemove;
-    m_model->forSelectedItems([this, &toRemove](WatchItem *item) {
+    m_model->forSelectedItems([&toRemove](WatchItem *item) {
         if (item->outdated) {
             toRemove.append(item);
             return false;
@@ -2112,7 +2111,7 @@ void WatchHandler::notifyUpdateFinished()
     });
 
     m_model->m_contentsValid = true;
-    updateWatchersWindow();
+    updateLocalsWindow();
     m_model->reexpandItems();
     m_model->m_requestUpdateTimer.stop();
     emit m_model->updateFinished();
@@ -2131,7 +2130,7 @@ void WatchModel::removeWatchItem(WatchItem *item)
         saveWatchers();
     }
     destroyItem(item);
-    m_handler->updateWatchersWindow();
+    m_handler->updateLocalsWindow();
 }
 
 QString WatchHandler::watcherName(const QString &exp)
@@ -2163,7 +2162,8 @@ void WatchHandler::watchExpression(const QString &exp, const QString &name, bool
     } else {
         m_model->m_engine->updateWatchData(item->iname);
     }
-    updateWatchersWindow();
+    updateLocalsWindow();
+    Internal::raiseWatchersWindow();
 }
 
 void WatchHandler::updateWatchExpression(WatchItem *item, const QString &newExp)
@@ -2185,7 +2185,7 @@ void WatchHandler::updateWatchExpression(WatchItem *item, const QString &newExp)
     } else {
         m_model->m_engine->updateWatchData(item->iname);
     }
-    updateWatchersWindow();
+    updateLocalsWindow();
 }
 
 // Watch something obtained from the editor.
@@ -2341,16 +2341,14 @@ void WatchModel::clearWatches()
     m_watchRoot->removeChildren();
     theWatcherNames.clear();
     theWatcherCount = 0;
-    m_handler->updateWatchersWindow();
     saveWatchers();
 }
 
-void WatchHandler::updateWatchersWindow()
+void WatchHandler::updateLocalsWindow()
 {
-    // Force show/hide of watchers and return view.
-    int showWatch = !theWatcherNames.isEmpty();
-    int showReturn = m_model->m_returnRoot->childCount() != 0;
-    Internal::updateWatchersWindow(showWatch, showReturn);
+    // Force show/hide of return view.
+    bool showReturn = m_model->m_returnRoot->childCount() != 0;
+    Internal::updateLocalsWindow(showReturn);
 }
 
 QStringList WatchHandler::watchedExpressions()

@@ -22,9 +22,13 @@ QtcProduct {
 
     property bool isBundle: qbs.targetOS.contains("darwin") && bundle.isBundle
     installDir: isBundle ? qtc.ide_app_path : qtc.ide_bin_path
-    installTags: isBundle ? ["bundle.content"] : base
-    installSourceBase: isBundle ? buildDirectory : base
+    installTags: (isBundle ? ["bundle.content"] : base).concat(["debuginfo_app"])
     property bool qtcRunnable: true
+
+    bundle.identifier: qtc.ide_bundle_identifier
+    bundle.infoPlist: ({
+        "NSHumanReadableCopyright": qtc.qtcreator_copyright_string
+    })
 
     cpp.rpaths: qbs.targetOS.contains("macos") ? ["@executable_path/../Frameworks"]
                                              : ["$ORIGIN/../" + qtc.libDirName + "/qtcreator"]
@@ -39,7 +43,7 @@ QtcProduct {
     Depends { name: "ExtensionSystem" }
 
     files: [
-        "Info.plist",
+        "app-Info.plist",
         "main.cpp",
         "qtcreator.xcassets",
         "../shared/qtsingleapplication/qtsingleapplication.h",

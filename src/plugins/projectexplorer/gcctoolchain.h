@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2017 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
@@ -32,10 +32,13 @@
 #include "headerpath.h"
 
 #include <utils/fileutils.h>
+#include <utils/optional.h>
+
 #include <QMutex>
 #include <QStringList>
 
 #include <functional>
+#include <memory>
 
 namespace ProjectExplorer {
 
@@ -51,40 +54,77 @@ class LinuxIccToolChainFactory;
 // GccToolChain
 // --------------------------------------------------------------------------
 
-class PROJECTEXPLORER_EXPORT HeaderPathsCache
+template<class T, int Size = 16>
+class Cache
 {
 public:
-    HeaderPathsCache() : m_mutex(QMutex::Recursive) {}
-    HeaderPathsCache(const HeaderPathsCache &other);
-    void insert(const QStringList &compilerCommand, const QList<HeaderPath> &headerPaths);
-    QList<HeaderPath> check(const QStringList &compilerCommand, bool *cacheHit) const;
+    Cache() { m_cache.reserve(Size); }
+    Cache(const Cache &other) = delete;
+    Cache &operator =(const Cache &other) = delete;
 
-protected:
-    using CacheItem = QPair<QStringList, QList<HeaderPath>>;
-    using Cache = QList<CacheItem>;
-    Cache cache() const;
+    Cache(Cache &&other)
+    {
+        using std::swap;
+
+        QMutexLocker otherLocker(&other.m_mutex);
+        swap(m_cache, other.m_cache);
+    }
+
+    Cache &operator =(Cache &&other)
+    {
+        using std::swap;
+
+        QMutexLocker locker(&m_mutex);
+        QMutexLocker otherLocker(&other.m_mutex);
+        auto temporay(std::move(other.m_cache)); // Make sure other.m_cache is empty!
+        swap(m_cache, temporay);
+        return *this;
+    }
+
+    void insert(const QStringList &compilerArguments, const T &values)
+    {
+        CacheItem runResults;
+        runResults.first = compilerArguments;
+        runResults.second = values;
+
+        QMutexLocker locker(&m_mutex);
+        if (!checkImpl(compilerArguments)) {
+            if (m_cache.size() < Size) {
+                m_cache.push_back(runResults);
+            } else {
+                std::rotate(m_cache.begin(), std::next(m_cache.begin()), m_cache.end());
+                m_cache.back() = runResults;
+            }
+        }
+    }
+
+    Utils::optional<T> check(const QStringList &compilerArguments)
+    {
+        QMutexLocker locker(&m_mutex);
+        return checkImpl(compilerArguments);
+    }
+
+    void invalidate()
+    {
+        QMutexLocker locker(&m_mutex);
+        m_cache.clear();
+    }
 
 private:
-    mutable QMutex m_mutex;
-    mutable Cache m_cache;
-};
+    Utils::optional<T> checkImpl(const QStringList &compilerArguments)
+    {
+        auto it = std::stable_partition(m_cache.begin(), m_cache.end(), [&](const CacheItem &ci) {
+            return ci.first != compilerArguments;
+        });
+        if (it != m_cache.end())
+            return m_cache.back().second;
+        return {};
+    }
 
-class PROJECTEXPLORER_EXPORT MacroCache
-{
-public:
-    MacroCache() : m_mutex(QMutex::Recursive) {}
-    MacroCache(const MacroCache &other);
-    void insert(const QStringList &compilerCommand, const QByteArray &macros);
-    QByteArray check(const QStringList &compilerCommand) const;
+    using CacheItem = QPair<QStringList, T>;
 
-protected:
-    using CacheItem = QPair<QStringList, QByteArray>;
-    using Cache = QList<CacheItem>;
-    Cache cache() const;
-
-private:
-    mutable QMutex m_mutex;
-    mutable Cache m_cache;
+    QMutex m_mutex;
+    QVector<CacheItem> m_cache;
 };
 
 class PROJECTEXPLORER_EXPORT GccToolChain : public ToolChain
@@ -104,10 +144,10 @@ public:
     WarningFlags warningFlags(const QStringList &cflags) const override;
 
     PredefinedMacrosRunner createPredefinedMacrosRunner() const override;
-    QByteArray predefinedMacros(const QStringList &cxxflags) const override;
+    Macros predefinedMacros(const QStringList &cxxflags) const override;
 
     SystemHeaderPathsRunner createSystemHeaderPathsRunner() const override;
-    QList<HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
+    QList<HeaderPath> systemHeaderPaths(const QStringList &flags,
                                         const Utils::FileName &sysRoot) const override;
 
     void addToEnvironment(Utils::Environment &env) const override;
@@ -125,6 +165,7 @@ public:
     void resetToolChain(const Utils::FileName &);
     Utils::FileName compilerCommand() const override;
     void setPlatformCodeGenFlags(const QStringList &);
+    QStringList extraCodeModelFlags() const override;
     QStringList platformCodeGenFlags() const;
     void setPlatformLinkerFlags(const QStringList &);
     QStringList platformLinkerFlags() const;
@@ -147,14 +188,16 @@ public:
     };
 
 protected:
-    GccToolChain(const GccToolChain &) = default;
+    using CacheItem = QPair<QStringList, Macros>;
+    using GccCache = QVector<CacheItem>;
+
+    GccToolChain(const GccToolChain &);
 
     void setCompilerCommand(const Utils::FileName &path);
     void setSupportedAbis(const QList<Abi> &m_abis);
     void setOriginalTargetTriple(const QString &targetTriple);
-
-    void setMacroCache(const QStringList &allCxxflags, const QByteArray &macros) const;
-    QByteArray macroCache(const QStringList &allCxxflags) const;
+    void setMacroCache(const QStringList &allCxxflags, const Macros &macroCache) const;
+    Macros macroCache(const QStringList &allCxxflags) const;
 
     virtual QString defaultDisplayName() const;
     virtual CompilerFlags defaultCompilerFlags() const;
@@ -166,6 +209,10 @@ protected:
     // that passes the initial options directly down to the gcc compiler
     using OptionsReinterpreter = std::function<QStringList(const QStringList &options)>;
     void setOptionsReinterpreter(const OptionsReinterpreter &optionsReinterpreter);
+
+    using ExtraHeaderPathsFunction = std::function<void(QList<HeaderPath> &)>;
+    void initExtraHeaderPathsFunction(ExtraHeaderPathsFunction &&extraHeaderPathsFunction) const;
+
     static QList<HeaderPath> gccHeaderPaths(const Utils::FileName &gcc, const QStringList &args, const QStringList &env);
 
     class WarningFlagAdder
@@ -181,11 +228,17 @@ protected:
         bool m_doesEnable = false;
         bool m_triggered = false;
     };
+    void toolChainUpdated() override;
 
 private:
     explicit GccToolChain(Detection d);
 
     void updateSupportedAbis() const;
+    static QStringList gccPrepareArguments(const QStringList &flags,
+                                           const QString &sysRoot,
+                                           const QStringList &platformCodeGenFlags,
+                                           Core::Id languageId,
+                                           OptionsReinterpreter reinterpretOptions);
 
     Utils::FileName m_compilerCommand;
     QStringList m_platformCodeGenFlags;
@@ -199,8 +252,9 @@ private:
     mutable QList<HeaderPath> m_headerPaths;
     mutable QString m_version;
 
-    mutable MacroCache m_predefinedMacrosCache;
-    mutable HeaderPathsCache m_headerPathsCache;
+    mutable std::shared_ptr<Cache<QVector<Macro>, 64>> m_predefinedMacrosCache;
+    mutable std::shared_ptr<Cache<QList<HeaderPath>>> m_headerPathsCache;
+    mutable ExtraHeaderPathsFunction m_extraHeaderPathsFunction = [](QList<HeaderPath> &) {};
 
     friend class Internal::GccToolChainConfigWidget;
     friend class Internal::GccToolChainFactory;

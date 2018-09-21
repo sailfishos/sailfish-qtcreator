@@ -113,14 +113,7 @@ private:
 };
 
 BareMetalCustomRunConfiguration::BareMetalCustomRunConfiguration(ProjectExplorer::Target *parent)
-    : BareMetalRunConfiguration(parent, runConfigId(), QString())
-{
-}
-
-BareMetalCustomRunConfiguration::BareMetalCustomRunConfiguration(ProjectExplorer::Target *parent,
-        BareMetalCustomRunConfiguration *source)
-    : BareMetalRunConfiguration(parent, source)
-    , m_localExecutable(source->m_localExecutable)
+    : BareMetalRunConfiguration(parent)
 {
 }
 
@@ -150,16 +143,6 @@ QWidget *BareMetalCustomRunConfiguration::createConfigurationWidget()
 Utils::OutputFormatter *BareMetalCustomRunConfiguration::createOutputFormatter() const
 {
     return new QtSupport::QtOutputFormatter(target()->project());
-}
-
-Core::Id BareMetalCustomRunConfiguration::runConfigId()
-{
-    return "BareMetal.CustomRunConfig";
-}
-
-QString BareMetalCustomRunConfiguration::runConfigDefaultDisplayName()
-{
-    return tr("Custom Executable (on GDB server or hardware debugger)");
 }
 
 static QString exeKey()

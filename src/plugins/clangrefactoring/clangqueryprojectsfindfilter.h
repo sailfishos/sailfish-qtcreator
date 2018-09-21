@@ -50,6 +50,8 @@ class SearchInterface;
 
 class ClangQueryProjectsFindFilter : public Core::IFindFilter
 {
+    Q_OBJECT
+
 public:
     ClangQueryProjectsFindFilter(ClangBackEnd::RefactoringServerInterface &server,
                                 SearchInterface &searchInterface,
@@ -66,8 +68,8 @@ public:
 
     void setProjectParts(const std::vector<CppTools::ProjectPart::Ptr> &m_projectParts);
 
-    bool isUsable() const;
-    void setUsable(bool isUsable);
+    bool isAvailable() const;
+    void setAvailable(bool isAvailable);
 
     SearchHandle* searchHandleForTestOnly() const;
 

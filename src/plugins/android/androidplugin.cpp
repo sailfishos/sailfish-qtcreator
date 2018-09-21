@@ -25,7 +25,6 @@
 
 #include "androidplugin.h"
 
-#include "androidanalyzesupport.h"
 #include "androidconfigurations.h"
 #include "androidconstants.h"
 #include "androiddebugsupport.h"
@@ -36,7 +35,9 @@
 #include "androidgdbserverkitinformation.h"
 #include "androidmanager.h"
 #include "androidmanifesteditorfactory.h"
+#include "androidpackageinstallationstep.h"
 #include "androidpotentialkit.h"
+#include "androidqmltoolingsupport.h"
 #include "androidqtversionfactory.h"
 #include "androidrunconfiguration.h"
 #include "androidruncontrol.h"
@@ -73,7 +74,10 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
 
     RunControl::registerWorker<AndroidRunConfiguration, AndroidRunSupport>(NORMAL_RUN_MODE);
     RunControl::registerWorker<AndroidRunConfiguration, AndroidDebugSupport>(DEBUG_RUN_MODE);
-    RunControl::registerWorker<AndroidRunConfiguration, AndroidQmlProfilerSupport>(QML_PROFILER_RUN_MODE);
+    RunControl::registerWorker<AndroidRunConfiguration, AndroidQmlToolingSupport>(
+                QML_PROFILER_RUN_MODE);
+    RunControl::registerWorker<AndroidRunConfiguration, AndroidQmlToolingSupport>(
+                QML_PREVIEW_RUN_MODE);
 
     new AndroidConfigurations(this);
 
@@ -85,6 +89,7 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
     addAutoReleasedObject(new Internal::AndroidDeviceFactory);
     addAutoReleasedObject(new Internal::AndroidPotentialKit);
     addAutoReleasedObject(new Internal::JavaEditorFactory);
+    addAutoReleasedObject(new Internal::AndroidPackageInstallationFactory);
     KitManager::registerKitInformation(new Internal::AndroidGdbServerKitInformation);
 
     addAutoReleasedObject(new Internal::AndroidManifestEditorFactory);

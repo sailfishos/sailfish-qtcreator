@@ -25,9 +25,10 @@
 
 #pragma once
 
-#include "stringcache.h"
-
 #include "collectincludesaction.h"
+
+#include <filepathcachingfwd.h>
+#include <filepathid.h>
 
 #include <clang/Tooling/Tooling.h>
 
@@ -36,8 +37,8 @@ namespace ClangBackEnd {
 class CollectIncludesToolAction final : public clang::tooling::FrontendActionFactory
 {
 public:
-    CollectIncludesToolAction(std::vector<uint> &includeIds,
-                              StringCache<Utils::PathString> &filePathCache,
+    CollectIncludesToolAction(FilePathIds &includeIds,
+                              FilePathCachingInterface &filePathCache,
                               const Utils::PathStringVector &excludedIncludes)
         : m_includeIds(includeIds),
           m_filePathCache(filePathCache),
@@ -45,12 +46,7 @@ public:
     {}
 
 
-    bool runInvocation(
-#if LLVM_VERSION_MAJOR >= 4
-                       std::shared_ptr<clang::CompilerInvocation> invocation,
-#else
-                       clang::CompilerInvocation *invocation,
-#endif
+    bool runInvocation(std::shared_ptr<clang::CompilerInvocation> invocation,
                        clang::FileManager *fileManager,
                        std::shared_ptr<clang::PCHContainerOperations> pchContainerOperations,
                        clang::DiagnosticConsumer *diagnosticConsumer) override
@@ -92,8 +88,8 @@ public:
 private:
     std::vector<uint> m_alreadyIncludedFileUIDs;
     std::vector<uint> m_excludedIncludeUIDs;
-    std::vector<uint> &m_includeIds;
-    StringCache<Utils::PathString> &m_filePathCache;
+    FilePathIds &m_includeIds;
+    FilePathCachingInterface &m_filePathCache;
     const Utils::PathStringVector &m_excludedIncludes;
 };
 

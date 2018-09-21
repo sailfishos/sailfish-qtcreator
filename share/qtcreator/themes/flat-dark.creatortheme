@@ -108,7 +108,7 @@ MiniProjectTargetSelectorBorderColor=shadowBackground
 MiniProjectTargetSelectorSummaryBackgroundColor=shadowBackground
 MiniProjectTargetSelectorTextColor=fancyBarsNormalTextColor
 PanelStatusBarBackgroundColor=shadowBackground
-PanelsWidgetSeparatorLineColor=0
+PanelsWidgetSeparatorLineColor=000000
 PanelTextColorDark=text
 PanelTextColorMid=ffa0a0a0
 PanelTextColorLight=text
@@ -167,6 +167,7 @@ Welcome_ButtonBackgroundColor=normalBackground
 Welcome_DividerColor=ff555555
 Welcome_HoverColor=ff444444
 Welcome_LinkColor=ff7fc63c
+Welcome_DisabledLinkColor=textDisabled
 
 Timeline_TextColor=text
 Timeline_BackgroundColor1=normalBackground
@@ -206,9 +207,10 @@ PaletteWindowText=text
 PaletteBase=normalBackground
 PaletteAlternateBase=alternateBackground
 PaletteButton=shadowBackground
-PaletteBrightText=ffff0000
+PaletteBrightText=ffff3333
 PaletteText=text
 PaletteButtonText=text
+PaletteButtonTextDisabled=textDisabled
 PaletteToolTipBase=selectedBackground
 PaletteHighlight=selectedBackground
 PaletteDark=shadowBackground
@@ -238,6 +240,6 @@ ToolBarIconShadow=true
 WindowColorAsBase=false
 
 [Gradients]
-DetailsWidgetHeaderGradient\1\color=0
+DetailsWidgetHeaderGradient\1\color=00000000
 DetailsWidgetHeaderGradient\1\pos=1
 DetailsWidgetHeaderGradient\size=1

@@ -385,7 +385,7 @@ SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnect
     QString privateKeyFile = sharedConfigPath()  +
             index.arg(id().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
     SshConnectionParameters m_sshParams = sshParams;
-    m_sshParams.userName = user;
+    m_sshParams.setUserName(user);
     m_sshParams.privateKeyFile = privateKeyFile;
 
     return m_sshParams;
@@ -684,7 +684,7 @@ bool MerEmulatorDeviceManager::restorePorts(const MerEmulatorDevice::Ptr &device
     Utils::PortList savedQmlLivePorts = s_instance->m_deviceQmlLivePortsCache.value(device->id());
 
     auto sshParameters = device->sshParameters();
-    sshParameters.port = savedSshPort;
+    sshParameters.setPort(savedSshPort);
     device->setSshParameters(sshParameters);
 
     device->setQmlLivePorts(savedQmlLivePorts);
@@ -711,7 +711,7 @@ void MerEmulatorDeviceManager::onDeviceAdded(Core::Id id)
     merEmulator->updateConnection();
 
     QTC_CHECK(!m_deviceSshPortCache.contains(id));
-    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port);
+    m_deviceSshPortCache.insert(id, merEmulator->sshParameters().port());
     QTC_CHECK(!m_deviceQmlLivePortsCache.contains(id));
     m_deviceQmlLivePortsCache.insert(id, merEmulator->qmlLivePorts());
 
@@ -739,7 +739,7 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         if (!merEmulator)
             continue;
 
-        const quint16 nowSshPort = merEmulator->sshParameters().port;
+        const quint16 nowSshPort = merEmulator->sshParameters().port();
         if (nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
             MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
             merEmulator->updateConnection();

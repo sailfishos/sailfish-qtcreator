@@ -50,7 +50,7 @@ static bool isFileExecutable(const QString &executablePath)
 namespace ClangStaticAnalyzer {
 namespace Internal {
 
-QString clangExecutableFromSettings(Core::Id toolchainType, bool *isValid)
+QString clangExecutableFromSettings(bool *isValid)
 {
     QString executable = ClangStaticAnalyzerSettings::instance()->clangExecutable();
     if (executable.isEmpty()) {
@@ -61,14 +61,6 @@ QString clangExecutableFromSettings(Core::Id toolchainType, bool *isValid)
     const QString hostExeSuffix = QLatin1String(QTC_HOST_EXE_SUFFIX);
     const Qt::CaseSensitivity caseSensitivity = Utils::HostOsInfo::fileNameCaseSensitivity();
     const bool hasSuffix = executable.endsWith(hostExeSuffix, caseSensitivity);
-
-    if (toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
-        if (hasSuffix)
-            executable.chop(hostExeSuffix.length());
-        executable.append(QLatin1String("-cl"));
-        if (hasSuffix)
-            executable.append(hostExeSuffix);
-    }
 
     const QFileInfo fileInfo = QFileInfo(executable);
     if (fileInfo.isAbsolute()) {
@@ -126,7 +118,9 @@ ClangExecutableVersion clangExecutableVersion(const QString &executable)
     Utils::SynchronousProcess runner;
     runner.setEnvironment(environment.toStringList());
     runner.setTimeoutS(10);
-    // We would prefer "-dumpversion", but that one returns some old version number.
+    // We would prefer "-dumpversion", but that one is only there for GCC compatibility
+    // and returns some static/old version.
+    // See also https://bugs.llvm.org/show_bug.cgi?id=28597
     const QStringList arguments(QLatin1String(("--version")));
     const Utils::SynchronousProcessResponse response = runner.runBlocking(executable, arguments);
     if (response.result != Utils::SynchronousProcessResponse::Finished)

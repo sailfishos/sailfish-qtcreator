@@ -54,11 +54,11 @@ public:
     std::vector<clang::tooling::CompileCommand> getAllCompileCommands() const override;
 
     void addFile(const std::string &directory,
-                            const std::string &fileName,
-                            const std::vector<std::string> &commandLine);
+                 const std::string &fileName,
+                 const std::vector<std::string> &commandLine);
 
 private:
-    std::vector<clang::tooling::CompileCommand> compileCommands;
+    std::vector<clang::tooling::CompileCommand> m_compileCommands;
 };
 
 } // namespace ClangBackEnd

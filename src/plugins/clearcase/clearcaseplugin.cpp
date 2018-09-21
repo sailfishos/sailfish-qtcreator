@@ -410,7 +410,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
 
     Context context(CLEARCASE_CONTEXT);
 
-    initializeVcs(new ClearCaseControl(this), context);
+    initializeVcs<ClearCaseControl>(context, this);
 
     m_clearcasePluginInstance = this;
     connect(ICore::instance(), &ICore::coreAboutToClose, this, &ClearCasePlugin::closing);
@@ -837,6 +837,11 @@ void ClearCasePlugin::updateActions(VcsBasePlugin::ActionState as)
     updateStatusActions();
 }
 
+QString ClearCasePlugin::commitDisplayName() const
+{
+    return tr("check in", "\"commit\" action for ClearCase.");
+}
+
 void ClearCasePlugin::checkOutCurrentFile()
 {
     const VcsBasePluginState state = currentState();
@@ -1206,6 +1211,9 @@ void ClearCasePlugin::startCheckInActivity()
  * check in will start. */
 void ClearCasePlugin::startCheckIn(const QString &workingDir, const QStringList &files)
 {
+    if (!promptBeforeCommit())
+        return;
+
     if (raiseSubmitEditor())
         return;
 
@@ -1660,10 +1668,12 @@ bool ClearCasePlugin::vcsCheckIn(const QString &messageFile, const QStringList &
     replaceActivity &= (activity != QLatin1String(Constants::KEEP_ACTIVITY));
     if (replaceActivity && !vcsSetActivity(m_checkInView, title, activity))
         return false;
+    QString message;
     QFile msgFile(messageFile);
-    msgFile.open(QFile::ReadOnly | QFile::Text);
-    QString message = QString::fromLocal8Bit(msgFile.readAll().trimmed().constData());
-    msgFile.close();
+    if (msgFile.open(QFile::ReadOnly | QFile::Text)) {
+        message = QString::fromLocal8Bit(msgFile.readAll().trimmed());
+        msgFile.close();
+    }
     QStringList args;
     args << QLatin1String("checkin");
     if (message.isEmpty())
@@ -2034,7 +2044,7 @@ void ClearCasePlugin::updateIndex()
         return;
     m_checkInAllAction->setEnabled(false);
     m_statusMap->clear();
-    QFuture<void> result = Utils::runAsync(sync, project->files(Project::SourceFiles));
+    QFuture<void> result = Utils::runAsync(sync, transform(project->files(Project::SourceFiles), &FileName::toString));
     if (!m_settings.disableIndexer)
         ProgressManager::addTask(result, tr("Updating ClearCase Index"), ClearCase::Constants::TASK_INDEX);
 }
@@ -2315,7 +2325,7 @@ public:
         m_editor(0)
     {
         ClearCasePlugin::instance()->setFakeCleartool(true);
-        VcsManager::instance()->clearVersionControlCache();
+        VcsManager::clearVersionControlCache();
 
         FileSaver srcSaver(fileName);
         srcSaver.write(QByteArray());

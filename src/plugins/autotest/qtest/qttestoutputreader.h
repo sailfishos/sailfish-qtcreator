@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "qttestconstants.h"
 #include "../testoutputreader.h"
 
 #include <QCoreApplication>
@@ -48,10 +49,10 @@ public:
 
     QtTestOutputReader(const QFutureInterface<TestResultPtr> &futureInterface,
                        QProcess *testApplication, const QString &buildDirectory,
-                       OutputMode mode);
-
+                       const QString &projectFile, OutputMode mode, TestType type);
 protected:
     void processOutput(const QByteArray &outputLine) override;
+    TestResultPtr createDefaultResult() const override;
 
 private:
     void processXMLOutput(const QByteArray &outputLine);
@@ -60,7 +61,6 @@ private:
     void processLocationOutput(const QString &fileWithLine);
     void processSummaryFinishOutput();
     // helper functions
-    QtTestResult *createDefaultResult() const;
     void sendCompleteInformation();
     void sendMessageCurrentTest();
     void sendStartMessage(bool isFunction);
@@ -79,6 +79,7 @@ private:
 
     CDATAMode m_cdataMode = None;
     QString m_executable;
+    QString m_projectFile;
     QString m_className;
     QString m_testCase;
     QString m_formerTestCase;
@@ -90,6 +91,7 @@ private:
     QString m_duration;
     QXmlStreamReader m_xmlReader;
     OutputMode m_mode = XML;
+    TestType m_testType = TestType::QtTest;
 
 };
 

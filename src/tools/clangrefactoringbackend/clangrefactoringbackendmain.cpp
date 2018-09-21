@@ -26,16 +26,23 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QLoggingCategory>
+#include <QApplication>
+#include <QDir>
 
 #include <connectionserver.h>
+#include <filepathcaching.h>
 #include <refactoringserver.h>
 #include <refactoringclientproxy.h>
+#include <symbolindexing.h>
 
+using ClangBackEnd::FilePathCaching;
 using ClangBackEnd::RefactoringClientProxy;
 using ClangBackEnd::RefactoringServer;
+using ClangBackEnd::RefactoringDatabaseInitializer;
 using ClangBackEnd::ConnectionServer;
+using ClangBackEnd::SymbolIndexing;
 
-QString processArguments(QCoreApplication &application)
+QStringList processArguments(QCoreApplication &application)
 {
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Qt Creator Clang Refactoring Backend"));
@@ -48,11 +55,11 @@ QString processArguments(QCoreApplication &application)
     if (parser.positionalArguments().isEmpty())
         parser.showHelp(1);
 
-    return parser.positionalArguments().first();
+    return parser.positionalArguments();
 }
 
 int main(int argc, char *argv[])
-{
+try {
     //QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
 
     QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
@@ -62,15 +69,23 @@ int main(int argc, char *argv[])
 
     QCoreApplication application(argc, argv);
 
-    const QString connection =  processArguments(application);
+    const QStringList arguments = processArguments(application);
+    const QString connectionName = arguments[0];
+    const QString databasePath = arguments[1];
 
-    RefactoringServer clangCodeModelServer;
-    ConnectionServer<RefactoringServer, RefactoringClientProxy> connectionServer(connection);
-    connectionServer.start();
+    Sqlite::Database database{Utils::PathString{databasePath}};
+    RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
+    FilePathCaching filePathCache{database};
+    SymbolIndexing symbolIndexing{database, filePathCache};
+    RefactoringServer clangCodeModelServer{symbolIndexing, filePathCache};
+    ConnectionServer<RefactoringServer, RefactoringClientProxy> connectionServer;
     connectionServer.setServer(&clangCodeModelServer);
+    connectionServer.start(connectionName);
 
 
     return application.exec();
+} catch (const Sqlite::Exception &exception) {
+    exception.printWarning();
 }
 
 

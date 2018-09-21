@@ -37,6 +37,10 @@ public:
 
     static MerSettings *instance();
 
+    static QString environmentFilter();
+    static void setEnvironmentFilter(const QString &filter);
+    static bool isEnvironmentFilterFromEnvironment();
+
     static bool rpmValidationByDefault();
     static void setRpmValidationByDefault(bool byDefault);
 
@@ -47,10 +51,18 @@ public:
     static bool isSyncQmlLiveWorkspaceEnabled();
     static void setSyncQmlLiveWorkspaceEnabled(bool enable);
 
+    static bool isAskBeforeStartingVmEnabled();
+    static void setAskBeforeStartingVmEnabled(bool enabled);
+    static bool isAskBeforeClosingVmEnabled();
+    static void setAskBeforeClosingVmEnabled(bool enabled);
+
 signals:
+    void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
     void syncQmlLiveWorkspaceEnabledChanged(bool enabled);
+    void askBeforeStartingVmEnabledChanged(bool enabled);
+    void askBeforeClosingVmEnabledChanged(bool enabled);
 
 private:
     void read();
@@ -58,9 +70,13 @@ private:
 
 private:
     static MerSettings *s_instance;
+    QString m_environmentFilter;
+    QString m_environmentFilterFromEnvironment;
     bool m_rpmValidationByDefault;
     QString m_qmlLiveBenchLocation;
     bool m_syncQmlLiveWorkspaceEnabled;
+    bool m_askBeforeStartingVmEnabled;
+    bool m_askBeforeClosingVmEnabled;
 };
 
 } // Internal

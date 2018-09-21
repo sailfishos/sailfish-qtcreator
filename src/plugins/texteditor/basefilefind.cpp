@@ -64,7 +64,7 @@ class InternalEngine : public TextEditor::SearchEngine
 public:
     InternalEngine() : m_widget(new QWidget) {}
     ~InternalEngine() override { delete m_widget;}
-    QString title() const override { return tr("Internal"); }
+    QString title() const override { return TextEditor::SearchEngine::tr("Internal"); }
     QString toolTip() const override { return QString(); }
     QWidget *widget() const override { return m_widget; }
     QVariant parameters() const override { return QVariant(); }
@@ -448,16 +448,8 @@ void BaseFileFind::openEditor(const SearchResultItem &item)
     FileFindParameters parameters = result->userData().value<FileFindParameters>();
     IEditor *openedEditor =
             d->m_searchEngines[parameters.searchEngineIndex]->openEditor(item, parameters);
-    if (!openedEditor) {
-        if (item.path.size() > 0) {
-            openedEditor = EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
-                                                       item.mainRange.begin.line,
-                                                       item.mainRange.begin.column, Id(),
-                                                       EditorManager::DoNotSwitchToDesignMode);
-        } else {
-            openedEditor = EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
-        }
-    }
+    if (!openedEditor)
+        EditorManager::openEditorAtSearchResult(item, EditorManager::DoNotSwitchToDesignMode);
     if (d->m_currentFindSupport)
         d->m_currentFindSupport->clearHighlights();
     d->m_currentFindSupport = 0;

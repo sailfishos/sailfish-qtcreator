@@ -62,7 +62,8 @@ bool GenericProjectPlugin::initialize(const QStringList &, QString *errorMessage
     ProjectManager::registerProjectType<GenericProject>(Constants::GENERICMIMETYPE);
 
     addAutoReleasedObject(new ProjectFilesFactory);
-    addAutoReleasedObject(new GenericMakeStepFactory);
+    addAutoReleasedObject(new GenericMakeAllStepFactory);
+    addAutoReleasedObject(new GenericMakeCleanStepFactory);
     addAutoReleasedObject(new GenericBuildConfigurationFactory);
 
     IWizardFactory::registerFactoryCreator([]() { return QList<IWizardFactory *>() << new GenericProjectWizard; });
@@ -72,7 +73,7 @@ bool GenericProjectPlugin::initialize(const QStringList &, QString *errorMessage
 
     auto editFilesAction = new QAction(tr("Edit Files..."), this);
     Command *command = ActionManager::registerAction(editFilesAction,
-        "GenericProjectManager.EditFiles", Context(Constants::PROJECTCONTEXT));
+        "GenericProjectManager.EditFiles", Context(Constants::GENERICPROJECT_ID));
     command->setAttribute(Command::CA_Hide);
     mproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_FILES);
 
@@ -87,8 +88,7 @@ void GenericProjectPlugin::editFiles()
     if (!genericProject)
         return;
     SelectableFilesDialogEditFiles sfd(genericProject->projectDirectory(),
-                                       Utils::transform(genericProject->files(Project::AllFiles),
-                                                        [](const QString &f) { return Utils::FileName::fromString(f); }),
+                                       genericProject->files(Project::AllFiles),
                                        ICore::mainWindow());
     if (sfd.exec() == QDialog::Accepted)
         genericProject->setFiles(Utils::transform(sfd.selectedFiles(), &Utils::FileName::toString));

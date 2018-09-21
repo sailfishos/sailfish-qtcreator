@@ -26,57 +26,34 @@
 #pragma once
 
 #include "cmake_global.h"
+
+#include "builddirmanager.h"
+#include "cmakebuildtarget.h"
 #include "cmakeprojectimporter.h"
 #include "treescanner.h"
 
 #include <projectexplorer/extracompiler.h>
+#include <projectexplorer/projectmacro.h>
 #include <projectexplorer/project.h>
 
 #include <utils/fileutils.h>
 
 #include <QFuture>
 #include <QHash>
+#include <QTimer>
 
 #include <memory>
 
-QT_BEGIN_NAMESPACE
-class QFileSystemWatcher;
-QT_END_NAMESPACE
-
 namespace CppTools { class CppProjectUpdater; }
+namespace ProjectExplorer { class FileNode; }
 
 namespace CMakeProjectManager {
 
 namespace Internal {
 class CMakeBuildConfiguration;
 class CMakeBuildSettingsWidget;
+class CMakeProjectNode;
 } // namespace Internal
-
-enum TargetType {
-    ExecutableType = 0,
-    StaticLibraryType = 2,
-    DynamicLibraryType = 3,
-    UtilityType = 64
-};
-
-class CMAKE_EXPORT CMakeBuildTarget
-{
-public:
-    QString title;
-    Utils::FileName executable; // TODO: rename to output?
-    TargetType targetType = UtilityType;
-    Utils::FileName workingDirectory;
-    Utils::FileName sourceDirectory;
-    Utils::FileName makeCommand;
-
-    // code model
-    QList<Utils::FileName> includeFiles;
-    QStringList compilerOptions;
-    QByteArray defines;
-    QList<Utils::FileName> files;
-
-    void clear();
-};
 
 class CMAKE_EXPORT CMakeProject : public ProjectExplorer::Project
 {
@@ -95,19 +72,19 @@ public:
     bool requiresTargetPanel() const final;
     bool knowsAllBuildExecutables() const final;
 
-    bool supportsKit(ProjectExplorer::Kit *k, QString *errorMessage = 0) const final;
+    bool supportsKit(const ProjectExplorer::Kit *k, QString *errorMessage = 0) const final;
 
     void runCMake();
-    void scanProjectTree();
+    void runCMakeAndScanProjectTree();
 
     // Context menu actions:
     void buildCMakeTarget(const QString &buildTarget);
 
     ProjectExplorer::ProjectImporter *projectImporter() const final;
 
-signals:
-    /// emitted when cmake is running:
-    void parsingStarted();
+    bool persistCMakeState();
+    void clearCMakeCache();
+    bool mustUpdateCMakeStateBeforeBuild();
 
 protected:
     RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) final;
@@ -116,19 +93,24 @@ protected:
 private:
     QList<CMakeBuildTarget> buildTargets() const;
 
-    void handleActiveTargetChanged();
-    void handleActiveBuildConfigurationChanged();
-    void handleParsingStarted();
+    void handleReparseRequest(int reparseParameters);
+
+    void startParsing(int reparseParameters);
+
     void handleTreeScanningFinished();
-    void updateProjectData(Internal::CMakeBuildConfiguration *cmakeBc);
+    void handleParsingSuccess(Internal::CMakeBuildConfiguration *bc);
+    void handleParsingError(Internal::CMakeBuildConfiguration *bc);
+    void combineScanAndParse(Internal::CMakeBuildConfiguration *bc);
+    void updateProjectData(Internal::CMakeBuildConfiguration *bc);
     void updateQmlJSCodeModel();
+
+    Internal::CMakeProjectNode *
+    generateProjectTree(const QList<const ProjectExplorer::FileNode*> &allFiles) const;
 
     void createGeneratedCodeModelSupport();
     QStringList filesGeneratedFrom(const QString &sourceFile) const final;
     void updateTargetRunConfigurations(ProjectExplorer::Target *t);
     void updateApplicationAndDeploymentTargets();
-
-    ProjectExplorer::Target *m_connectedTarget = nullptr;
 
     // TODO probably need a CMake specific node structure
     QList<CMakeBuildTarget> m_buildTargets;
@@ -136,9 +118,18 @@ private:
     QList<ProjectExplorer::ExtraCompiler *> m_extraCompilers;
 
     Internal::TreeScanner m_treeScanner;
+    Internal::BuildDirManager m_buildDirManager;
+
+    bool m_waitingForScan = false;
+    bool m_waitingForParse = false;
+    bool m_combinedScanAndParseResult = false;
+
     QHash<QString, bool> m_mimeBinaryCache;
     QList<const ProjectExplorer::FileNode *> m_allFiles;
     mutable std::unique_ptr<Internal::CMakeProjectImporter> m_projectImporter;
+
+    QTimer m_delayedParsingTimer;
+    int m_delayedParsingParameters = 0;
 
     friend class Internal::CMakeBuildConfiguration;
     friend class Internal::CMakeBuildSettingsWidget;

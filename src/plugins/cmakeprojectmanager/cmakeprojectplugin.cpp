@@ -58,7 +58,7 @@ using namespace ProjectExplorer;
 bool CMakeProjectPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
     Q_UNUSED(errorMessage)
-    const Context projectContext(Constants::PROJECTCONTEXT);
+    const Context projectContext(CMakeProjectManager::Constants::CMAKEPROJECT_ID);
 
     Core::FileIconProvider::registerIconOverlayForSuffix(Constants::FILEOVERLAY_CMAKE, "cmake");
     Core::FileIconProvider::registerIconOverlayForFilename(Constants::FILEOVERLAY_CMAKE, "CMakeLists.txt");
@@ -114,8 +114,8 @@ void CMakeProjectPlugin::extensionsInitialized()
 void CMakeProjectPlugin::updateContextActions()
 {
     Project *project = ProjectTree::currentProject();
-    Node *node = ProjectTree::currentNode();
-    CMakeTargetNode *targetNode = dynamic_cast<CMakeTargetNode *>(node);
+    const Node *node = ProjectTree::findCurrentNode();
+    const CMakeTargetNode *targetNode = dynamic_cast<const CMakeTargetNode *>(node);
     // as targetNode can be deleted while the menu is open, we keep only the
     const QString targetDisplayName = targetNode ? targetNode->displayName() : QString();
     CMakeProject *cmProject = dynamic_cast<CMakeProject *>(project);

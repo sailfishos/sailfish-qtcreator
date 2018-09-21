@@ -66,7 +66,7 @@ def main():
     for p in Qt5Path.getPaths(Qt5Path.DOCS):
         qchs.extend([os.path.join(p, "qtopengl.qch"), os.path.join(p, "qtwidgets.qch")])
     addHelpDocumentation(qchs)
-    setAlwaysStartFullHelp()
+    setFixedHelpViewer(HelpViewer.HELPMODE)
     wsButtonFrame, wsButtonLabel = getWelcomeScreenSideBarButton('Get Started Now')
     if not test.verify(all((wsButtonFrame, wsButtonLabel)),
                        "Verifying: Qt Creator displays Welcome Page with Getting Started."):
@@ -80,7 +80,7 @@ def main():
     expect = (("QTableView", "unnamed='1' visible='1' window=':Qt Creator_Core::Internal::MainWindow'",
                "examples list"),
               ("QLineEdit", "placeholderText='Search in Examples...'", "examples search line edit"),
-              ("QComboBox", "text~='.*Qt.*' visible='1'", "Qt version combo box"))
+              ("QComboBox", "currentText~='.*Qt.*' visible='1'", "Qt version combo box"))
     search = "{type='%s' %s}"
     test.verify(all(map(checkIfObjectExists, (search % (exp[0], exp[1]) for exp in expect))),
                 "Verifying: 'Examples' topic is opened and the examples are shown.")
@@ -123,7 +123,7 @@ def main():
     for p in proFiles:
         removePackagingDirectory(os.path.dirname(p))
     examplesLineEdit = waitForObject(search %(expect[1][0], expect[1][1]))
-    example = openExample(examplesLineEdit, "address book", "Address Book.*",
+    example = openExample(examplesLineEdit, "address book", "(0000 )?Address Book.*",
                           "Address Book Example")
     if example is not None:
         # close second example application

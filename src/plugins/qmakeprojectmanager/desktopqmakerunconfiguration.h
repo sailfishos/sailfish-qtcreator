@@ -42,7 +42,6 @@ QT_END_NAMESPACE
 namespace QmakeProjectManager {
 
 class QmakeProFile;
-class QmakeProFileNode;
 class QmakeProject;
 
 namespace Internal {
@@ -53,13 +52,10 @@ class DesktopQmakeRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
     // to change the display name and arguments and set the userenvironmentchanges
     friend class DesktopQmakeRunConfigurationWidget;
-    friend class DesktopQmakeRunConfigurationFactory;
 
 public:
-    DesktopQmakeRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    explicit DesktopQmakeRunConfiguration(ProjectExplorer::Target *target);
 
-    bool isEnabled() const override;
-    QString disabledReason() const override;
     QWidget *createConfigurationWidget() override;
 
     ProjectExplorer::Runnable runnable() const override;
@@ -90,12 +86,10 @@ signals:
     void effectiveTargetInformationChanged();
 
 protected:
-    DesktopQmakeRunConfiguration(ProjectExplorer::Target *parent, DesktopQmakeRunConfiguration *source);
     bool fromMap(const QVariantMap &map) override;
+    QString extraId() const override;
 
 private:
-    void proFileUpdated(QmakeProjectManager::QmakeProFile *pro, bool success, bool parseInProgress);
-    void proFileEvaluated();
     void updateTargetInformation();
 
     QPair<QString, QString> extractWorkingDirAndExecutable(const QmakeProFile *proFile) const;
@@ -105,16 +99,12 @@ private:
     QmakeProject *qmakeProject() const;
     QmakeProFile *proFile() const;
 
-    void ctor();
-
     void updateTarget();
     Utils::FileName m_proFilePath; // Full path to the Application Pro File
 
     // Cached startup sub project information
     bool m_isUsingDyldImageSuffix = false;
     bool m_isUsingLibrarySearchPath = true;
-    bool m_parseSuccess = false;
-    bool m_parseInProgress = false;
 };
 
 class DesktopQmakeRunConfigurationWidget : public QWidget
@@ -125,7 +115,6 @@ public:
     explicit DesktopQmakeRunConfigurationWidget(DesktopQmakeRunConfiguration *qmakeRunConfiguration);
 
 private:
-    void runConfigurationEnabledChange();
     void effectiveTargetInformationChanged();
     void usingDyldImageSuffixToggled(bool);
     void usingDyldImageSuffixChanged(bool);
@@ -135,8 +124,6 @@ private:
 private:
     DesktopQmakeRunConfiguration *m_qmakeRunConfiguration = nullptr;
     bool m_ignoreChange = false;
-    QLabel *m_disabledIcon = nullptr;
-    QLabel *m_disabledReason = nullptr;
     QLabel *m_executableLineLabel = nullptr;
     QCheckBox *m_useQvfbCheck = nullptr;
     QCheckBox *m_usingDyldImageSuffix = nullptr;
@@ -151,24 +138,12 @@ class DesktopQmakeRunConfigurationFactory : public QmakeRunConfigurationFactory
 public:
     explicit DesktopQmakeRunConfigurationFactory(QObject *parent = 0);
 
-    bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const override;
-    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const override;
-    bool canClone(ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *source) const override;
-    ProjectExplorer::RunConfiguration *clone(ProjectExplorer::Target *parent,
-                                             ProjectExplorer::RunConfiguration *source) override;
+    bool canCreateHelper(ProjectExplorer::Target *parent, const QString &suffix) const override;
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent, CreationMode mode) const override;
-    QString displayNameForId(Core::Id id) const override;
+    QList<ProjectExplorer::BuildTargetInfo>
+        availableBuildTargets(ProjectExplorer::Target *parent, CreationMode mode) const override;
 
-    QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Target *t,
-                                                                        const ProjectExplorer::Node *n) override;
-
-private:
-    bool canHandle(ProjectExplorer::Target *t) const override;
-
-    ProjectExplorer::RunConfiguration *doCreate(ProjectExplorer::Target *parent, Core::Id id) override;
-    ProjectExplorer::RunConfiguration *doRestore(ProjectExplorer::Target *parent,
-                                                 const QVariantMap &map) override;
+    bool hasRunConfigForProFile(ProjectExplorer::RunConfiguration *rc, const Utils::FileName &n) const override;
 };
 
 } // namespace Internal

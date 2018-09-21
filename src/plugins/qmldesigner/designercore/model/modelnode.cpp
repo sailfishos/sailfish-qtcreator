@@ -310,7 +310,7 @@ QString ModelNode::simplifiedTypeName() const
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
     }
 
-    return QString::fromUtf8(type().split('.').last());
+    return QString::fromUtf8(type().split('.').constLast());
 }
 
 QString ModelNode::displayName() const
@@ -749,10 +749,6 @@ bool operator <(const ModelNode &firstNode, const ModelNode &secondNode)
 
 Internal::InternalNodePointer ModelNode::internalNode() const
 {
-    if (!isValid()) {
-        Q_ASSERT_X(isValid(), Q_FUNC_INFO, "model node is invalid");
-        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
-    }
     return m_internalNode;
 }
 
@@ -1111,6 +1107,9 @@ bool ModelNode::isComponent() const
     if (!isValid())
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 
+    if (!metaInfo().isValid())
+        return false;
+
     if (metaInfo().isFileComponent())
         return true;
 
@@ -1118,11 +1117,16 @@ bool ModelNode::isComponent() const
         return true;
 
     if (metaInfo().isView() && hasNodeProperty("delegate")) {
-        if (nodeProperty("delegate").modelNode().metaInfo().isFileComponent())
-            return true;
-
-        if (nodeProperty("delegate").modelNode().nodeSourceType() == ModelNode::NodeWithComponentSource)
-            return true;
+        const ModelNode delegateNode = nodeProperty("delegate").modelNode();
+        if (delegateNode.isValid()) {
+            if (delegateNode.hasMetaInfo()) {
+                const NodeMetaInfo delegateMetaInfo = delegateNode.metaInfo();
+                if (delegateMetaInfo.isValid() && delegateMetaInfo.isFileComponent())
+                    return true;
+            }
+            if (delegateNode.nodeSourceType() == ModelNode::NodeWithComponentSource)
+                return true;
+        }
     }
 
     if (metaInfo().isSubclassOf("QtQuick.Loader")) {
@@ -1134,7 +1138,7 @@ bool ModelNode::isComponent() const
          * the default property is always implcitly a NodeListProperty. This is something that has to be fixed.
          */
 
-            ModelNode componentNode = nodeListProperty("component").toModelNodeList().first();
+            ModelNode componentNode = nodeListProperty("component").toModelNodeList().constFirst();
             if (componentNode.nodeSourceType() == ModelNode::NodeWithComponentSource)
                 return true;
             if (componentNode.metaInfo().isFileComponent())
@@ -1171,7 +1175,7 @@ QIcon ModelNode::typeIcon() const
         QList <ItemLibraryEntry> itemLibraryEntryList = libraryInfo->entriesForType(
                     type(), majorVersion(), minorVersion());
         if (!itemLibraryEntryList.isEmpty())
-            return itemLibraryEntryList.first().typeIcon();
+            return itemLibraryEntryList.constFirst().typeIcon();
         else if (metaInfo().isValid())
             return QIcon(QStringLiteral(":/ItemLibrary/images/item-default-icon.png"));
     }

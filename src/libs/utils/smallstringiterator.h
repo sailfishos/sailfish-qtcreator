@@ -39,8 +39,10 @@ template <class Category,
           typename Reference = Type&>
 struct SmallStringIterator : public  std::iterator<Category, Type, DistanceType, Pointer, Reference>
 {
+    constexpr
     SmallStringIterator() noexcept = default;
 
+    constexpr
     SmallStringIterator(Pointer ptr) noexcept : pointer_(ptr)
     {
     }

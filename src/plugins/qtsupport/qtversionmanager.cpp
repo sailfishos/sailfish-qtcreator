@@ -63,7 +63,7 @@ using namespace Internal;
 const char QTVERSION_DATA_KEY[] = "QtVersion.";
 const char QTVERSION_TYPE_KEY[] = "QtVersion.Type";
 const char QTVERSION_FILE_VERSION_KEY[] = "Version";
-const char QTVERSION_FILENAME[] = "/qtcreator/qtversion.xml";
+const char QTVERSION_FILENAME[] = "/qtversion.xml";
 
 static QMap<int, BaseQtVersion *> m_versions;
 static int m_idcount = 0;
@@ -77,16 +77,12 @@ enum { debug = 0 };
 
 static FileName globalSettingsFileName()
 {
-    QSettings *globalSettings = ExtensionSystem::PluginManager::globalSettings();
-    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
-                                       + QLatin1String(QTVERSION_FILENAME));
+    return FileName::fromString(Core::ICore::installerResourcePath() + QTVERSION_FILENAME);
 }
 
 static FileName settingsFileName(const QString &path)
 {
-    QSettings *settings = ExtensionSystem::PluginManager::settings();
-    QFileInfo settingsLocation(settings->fileName());
-    return FileName::fromString(settingsLocation.absolutePath() + path);
+    return FileName::fromString(Core::ICore::userResourcePath() + path);
 }
 
 
@@ -179,7 +175,7 @@ static bool restoreQtVersions()
     m_writer = new PersistentSettingsWriter(settingsFileName(QLatin1String(QTVERSION_FILENAME)),
                                                    QLatin1String("QtCreatorQtVersions"));
 
-    QList<QtVersionFactory *> factories = ExtensionSystem::PluginManager::getObjects<QtVersionFactory>();
+    const QList<QtVersionFactory *> factories = QtVersionFactory::allQtVersionFactories();
 
     PersistentSettingsReader reader;
     FileName filename = settingsFileName(QLatin1String(QTVERSION_FILENAME));
@@ -208,7 +204,7 @@ static bool restoreQtVersions()
         const QString type = qtversionMap.value(QLatin1String(QTVERSION_TYPE_KEY)).toString();
 
         bool restored = false;
-        foreach (QtVersionFactory *f, factories) {
+        for (QtVersionFactory *f : factories) {
             if (f->canRestore(type)) {
                 if (BaseQtVersion *qtv = f->restore(type, qtversionMap)) {
                     if (m_versions.contains(qtv->uniqueId())) {
@@ -249,7 +245,7 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
     QList<int> removed;
     QList<int> changed;
 
-    QList<QtVersionFactory *> factories = ExtensionSystem::PluginManager::getObjects<QtVersionFactory>();
+    const QList<QtVersionFactory *> factories = QtVersionFactory::allQtVersionFactories();
     PersistentSettingsReader reader;
     QVariantMap data;
     if (reader.load(path))

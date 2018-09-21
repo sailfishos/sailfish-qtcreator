@@ -32,20 +32,16 @@ class MerRunConfiguration : public RemoteLinux::RemoteLinuxRunConfiguration
 {
     Q_OBJECT
 public:
-    MerRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
-                        const QString &targetName);
-    bool isEnabled() const override;
+    MerRunConfiguration(ProjectExplorer::Target *parent);
 
     ProjectExplorer::Runnable runnable() const override;
     QString defaultRemoteExecutableFilePath() const override;
     QString disabledReason() const override;
 protected:
-    friend class MerRunConfigurationFactory;
-
-    MerRunConfiguration(ProjectExplorer::Target *parent,
-                        MerRunConfiguration *source);    
-    void ctor();
+    void updateEnabledState() override;
+    bool fromMap(const QVariantMap &map) override;
 private:
+    QString defaultDisplayName() const;
     mutable QString m_disabledReason;
 };
 

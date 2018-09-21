@@ -36,11 +36,8 @@ class BareMetalCustomRunConfiguration : public BareMetalRunConfiguration
 {
     Q_OBJECT
 public:
-    BareMetalCustomRunConfiguration(ProjectExplorer::Target *parent);
-    BareMetalCustomRunConfiguration(ProjectExplorer::Target *parent,
-                                    BareMetalCustomRunConfiguration *source);
+    explicit BareMetalCustomRunConfiguration(ProjectExplorer::Target *parent);
 
-    bool isEnabled() const override { return true; }
     bool isConfigured() const override;
     ConfigurationState ensureConfigured(QString *errorMessage) override;
     QWidget *createConfigurationWidget() override;
@@ -49,9 +46,6 @@ public:
     virtual QString localExecutableFilePath() const override { return m_localExecutable; }
 
     void setLocalExecutableFilePath(const QString &executable) { m_localExecutable = executable; }
-
-    static Core::Id runConfigId();
-    static QString runConfigDefaultDisplayName();
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;

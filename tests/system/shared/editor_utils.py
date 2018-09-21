@@ -362,6 +362,7 @@ def invokeFindUsage(editor, line, typeOperation, n=1):
         return False
     for i in range(n):
         type(editor, typeOperation)
+    snooze(1)
     invokeContextMenuItem(editor, "Find Usages")
     return True
 
@@ -423,3 +424,14 @@ def replaceLine(fileSpec, oldLine, newLine):
         type(editor, "<Backspace>")
     type(editor, newLine)
     return True
+
+def addTestableCodeAfterLine(editorObject, line, newCodeLines):
+    if not placeCursorToLine(editorObject, line):
+        return False
+    type(editorObject, "<Return>")
+    typeLines(editorObject, newCodeLines)
+    return True
+
+def saveAndExit():
+    invokeMenuItem("File", "Save All")
+    invokeMenuItem("File", "Exit")

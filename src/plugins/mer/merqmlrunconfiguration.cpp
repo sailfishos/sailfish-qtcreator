@@ -53,23 +53,13 @@ namespace {
 const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGING";
 } // anonymous namespace
 
-MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent, Core::Id id)
-    : RunConfiguration(parent, id)
-{
-    ctor();
-}
-
-MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent, MerQmlRunConfiguration *source)
-    : RunConfiguration(parent, source)
-{
-    ctor();
-}
-
-void MerQmlRunConfiguration::ctor()
+MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent)
+    : RunConfiguration(parent, Constants::MER_QMLRUNCONFIGURATION)
 {
     addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
     connect(target(), &Target::activeDeployConfigurationChanged,
-            this, &MerQmlRunConfiguration::enabledChanged);
+            this, &MerQmlRunConfiguration::updateEnabledState);
+    setDisplayName(defaultDisplayName());
 }
 
 QString MerQmlRunConfiguration::disabledReason() const
@@ -80,7 +70,7 @@ QString MerQmlRunConfiguration::disabledReason() const
         return m_disabledReason;
 }
 
-bool MerQmlRunConfiguration::isEnabled() const
+void MerQmlRunConfiguration::updateEnabledState()
 {
     //TODO Hack
 
@@ -89,11 +79,12 @@ bool MerQmlRunConfiguration::isEnabled() const
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
-            return false;
+            setEnabled(false);
+            return;
         }
     }
 
-    return RunConfiguration::isEnabled();
+    RunConfiguration::updateEnabledState();
 }
 
 Runnable MerQmlRunConfiguration::runnable() const
@@ -137,6 +128,12 @@ QString MerQmlRunConfiguration::localExecutableFilePath() const
     const QString path = merSdk->sharedTargetsPath() + QLatin1Char('/') + merTargetName +
         QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
     return QDir::cleanPath(path);
+}
+
+QString MerQmlRunConfiguration::defaultDisplayName() const
+{
+    //: Mer qml-only run configuration default display name
+    return tr("QML Scene (on Sailfish OS Device)");
 }
 
 } // Internal

@@ -39,9 +39,7 @@
 #include <functional>
 
 QT_BEGIN_NAMESPACE
-class QFile;
 class QAction;
-class QFileInfo;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -61,7 +59,6 @@ namespace Internal {
 
 class GitVersionControl;
 class GitClient;
-class GitSubmitEditor;
 class CommitData;
 class StashDialog;
 class BranchDialog;
@@ -115,6 +112,7 @@ private:
     void logRepository();
     void undoFileChanges(bool revertStaging);
     void resetRepository();
+    void recoverDeletedFiles();
     void startRebase();
     void startChangeRelatedAction(const Core::Id &id);
     void stageFile();

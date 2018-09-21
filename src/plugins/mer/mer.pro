@@ -31,13 +31,10 @@ FORMS += \
 SOURCES += \
     merabstractvmstartstep.cpp \
     meraddvmstartbuildstepprojectlistener.cpp \
-    merbuildstepfactory.cpp \
     merbuildsteps.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
-    merdeployconfigurationfactory.cpp \
-    merdeploystepfactory.cpp \
     merdeploysteps.cpp \
     merdevice.cpp \
     merdevicedebugsupport.cpp \
@@ -80,7 +77,6 @@ SOURCES += \
     mersdkmanager.cpp \
     mersdkselectiondialog.cpp \
     mersettings.cpp \
-    mersftpdeployconfiguration.cpp \
     mersshkeydeploymentdialog.cpp \
     mersshparser.cpp \
     mertarget.cpp \
@@ -94,14 +90,11 @@ SOURCES += \
 HEADERS += \
     merabstractvmstartstep.h \
     meraddvmstartbuildstepprojectlistener.h \
-    merbuildstepfactory.h \
     merbuildsteps.h \
     merconnection.h \
     merconnectionmanager.h \
     merconstants.h \
     merdeployconfiguration.h \
-    merdeployconfigurationfactory.h \
-    merdeploystepfactory.h \
     merdeploysteps.h \
     merdevice.h \
     merdevicedebugsupport.h \
@@ -145,7 +138,6 @@ HEADERS += \
     mersdkmanager.h \
     mersdkselectiondialog.h \
     mersettings.h \
-    mersftpdeployconfiguration.h \
     mersshkeydeploymentdialog.h \
     mersshparser.h \
     mertarget.h \

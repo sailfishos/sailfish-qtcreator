@@ -29,12 +29,20 @@
 
 #include <sqlitedatabase.h>
 #include <sqlitetable.h>
+#include <sqlitewritestatement.h>
 #include <utf8string.h>
 
 #include <QSignalSpy>
 #include <QVariant>
 
 namespace {
+
+using testing::Contains;
+
+using Sqlite::ColumnType;
+using Sqlite::JournalMode;
+using Sqlite::OpenMode;
+using Sqlite::Table;
 
 class SqliteDatabase : public ::testing::Test
 {
@@ -44,7 +52,7 @@ protected:
 
     SpyDummy spyDummy;
     QString databaseFilePath = QStringLiteral(":memory:");
-    ::SqliteDatabase database;
+    Sqlite::Database database;
 };
 
 TEST_F(SqliteDatabase, SetDatabaseFilePath)
@@ -59,46 +67,93 @@ TEST_F(SqliteDatabase, SetJournalMode)
     ASSERT_THAT(database.journalMode(), JournalMode::Memory);
 }
 
+TEST_F(SqliteDatabase, SetOpenlMode)
+{
+    database.setOpenMode(OpenMode::ReadOnly);
+
+    ASSERT_THAT(database.openMode(), OpenMode::ReadOnly);
+}
+
 TEST_F(SqliteDatabase, OpenDatabase)
 {
     database.close();
-    QSignalSpy signalSpy(&spyDummy, &SpyDummy::databaseIsOpened);
+
     database.open();
 
-    ASSERT_TRUE(signalSpy.wait(100000));
     ASSERT_TRUE(database.isOpen());
 }
 
 TEST_F(SqliteDatabase, CloseDatabase)
 {
-    QSignalSpy signalSpy(&spyDummy, &SpyDummy::databaseIsClosed);
-
     database.close();
 
-    ASSERT_TRUE(signalSpy.wait(100000));
     ASSERT_FALSE(database.isOpen());
 }
 
 TEST_F(SqliteDatabase, AddTable)
 {
-    SqliteTable *sqliteTable = new SqliteTable;
+    auto sqliteTable = database.addTable();
 
-    database.addTable(sqliteTable);
+    ASSERT_THAT(database.tables(), Contains(sqliteTable));
+}
 
-    ASSERT_THAT(database.tables().first(), sqliteTable);
+TEST_F(SqliteDatabase, GetChangesCount)
+{
+    Sqlite::WriteStatement statement("INSERT INTO test(name) VALUES (?)", database);
+    statement.write(42);
+
+    ASSERT_THAT(database.changesCount(), 1);
+}
+
+TEST_F(SqliteDatabase, GetTotalChangesCount)
+{
+    Sqlite::WriteStatement statement("INSERT INTO test(name) VALUES (?)", database);
+    statement.write(42);
+
+    ASSERT_THAT(database.lastInsertedRowId(), 1);
+}
+
+TEST_F(SqliteDatabase, GetLastInsertedRowId)
+{
+    Sqlite::WriteStatement statement("INSERT INTO test(name) VALUES (?)", database);
+    statement.write(42);
+
+    ASSERT_THAT(database.lastInsertedRowId(), 1);
+}
+
+TEST_F(SqliteDatabase, TableIsReadyAfterOpenDatabase)
+{
+    database.close();
+    auto &table = database.addTable();
+    table.setName("foo");
+    table.addColumn("name");
+
+    database.open();
+
+    ASSERT_TRUE(table.isReady());
+}
+
+TEST_F(SqliteDatabase, LastRowId)
+{
+    database.setLastInsertedRowId(42);
+
+    ASSERT_THAT(database.lastInsertedRowId(), 42);
 }
 
 void SqliteDatabase::SetUp()
 {
-    QObject::connect(&database, &::SqliteDatabase::databaseIsOpened, &spyDummy, &SpyDummy::databaseIsOpened);
-    QObject::connect(&database, &::SqliteDatabase::databaseIsClosed, &spyDummy, &SpyDummy::databaseIsClosed);
-
     database.setJournalMode(JournalMode::Memory);
     database.setDatabaseFilePath(databaseFilePath);
+    auto &table = database.addTable();
+    table.setName("test");
+    table.addColumn("name");
+
+    database.open();
 }
 
 void SqliteDatabase::TearDown()
 {
-    database.close();
+    if (database.isOpen())
+        database.close();
 }
 }

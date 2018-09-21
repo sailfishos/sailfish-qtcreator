@@ -31,6 +31,7 @@ except:
 import gdb
 import os
 import os.path
+import re
 import sys
 import struct
 import tempfile
@@ -354,7 +355,9 @@ class Dumper(DumperBase):
             }[code]
             if tdata.code == TypeCodeEnum:
                 tdata.enumDisplay = lambda intval, addr : \
-                    self.nativeTypeEnumDisplay(nativeType, intval)
+                    self.nativeTypeEnumDisplay(nativeType, intval, 0)
+                tdata.enumHexDisplay = lambda intval, addr : \
+                    self.nativeTypeEnumDisplay(nativeType, intval, 1)
             if tdata.code == TypeCodeStruct:
                 tdata.lalignment = lambda : \
                     self.nativeStructAlignment(nativeType)
@@ -385,13 +388,17 @@ class Dumper(DumperBase):
         targs2 = self.listTemplateParametersManually(str(nativeType))
         return targs if len(targs) >= len(targs2) else targs2
 
-    def nativeTypeEnumDisplay(self, nativeType, intval):
+    def nativeTypeEnumDisplay(self, nativeType, intval, useHex):
+        if useHex:
+            format = lambda text, intval: '%s (0x%04x)' % (text, intval)
+        else:
+            format = lambda text, intval: '%s (%d)' % (text, intval)
         try:
             enumerators = []
             for field in nativeType.fields():
                 # If we found an exact match, return it immediately
                 if field.enumval == intval:
-                    return '%s (%d)' % (field.name, intval)
+                    return format(field.name, intval)
                 enumerators.append((field.name, field.enumval))
 
             # No match was found, try to return as flags
@@ -407,9 +414,11 @@ class Dumper(DumperBase):
             if not found or v != 0:
                 # Leftover value
                 flags.append('unknown:%d' % v)
-            return "(%s) (%d)" % (" | ".join(flags), intval)
+            return format(" | ".join(flags), intval)
         except:
             pass
+        if useHex:
+            return '0x%04x' % intval;
         return '%d' % intval
 
     def nativeTypeId(self, nativeType):
@@ -694,7 +703,7 @@ class Dumper(DumperBase):
         self.typesToReport = {}
 
         if self.forceQtNamespace:
-            self.qtNamepaceToReport = self.qtNamespace()
+            self.qtNamespaceToReport = self.qtNamespace()
 
         if self.qtNamespaceToReport:
             self.output += ',qtnamespace="%s"' % self.qtNamespaceToReport
@@ -702,7 +711,7 @@ class Dumper(DumperBase):
 
         self.output += ',partial="%d"' % isPartial
         self.output += ',counts=%s' % self.counts
-        self.output += ',timimgs=%s' % self.timings
+        self.output += ',timings=%s' % self.timings
         self.reportResult(self.output)
 
     def parseAndEvaluate(self, exp):
@@ -987,10 +996,11 @@ class Dumper(DumperBase):
     def handleNewObjectFile(self, objfile):
         name = objfile.filename
         if self.isWindowsTarget():
-            isQtCoreObjFile = name.find('Qt5Cored.dll') >= 0 or name.find('Qt5Core.dll') >= 0
+            qtCoreMatch = re.match('.*Qt5?Core[^/.]*d?\.dll', name)
         else:
-            isQtCoreObjFile = name.find('/libQt5Core') >= 0
-        if isQtCoreObjFile:
+            qtCoreMatch = re.match('.*/libQt5?Core[^/.]\.so', name)
+
+        if qtCoreMatch is not None:
             self.handleQtCoreLoaded(objfile)
 
     def handleQtCoreLoaded(self, objfile):
@@ -1008,6 +1018,13 @@ class Dumper(DumperBase):
                     # [11] b 0x7ffff683c000 _ZN4MynsL17msgHandlerGrabbedE
                     # section .tbss Myns::msgHandlerGrabbed  qlogging.cpp
                     ns = re.split('_ZN?(\d*)(\w*)L17msgHandlerGrabbedE? ', line)[2]
+                    if len(ns):
+                        ns += '::'
+                    break
+                if line.find('currentThreadData ') >= 0:
+                    # [ 0] b 0x7ffff67d3000 _ZN2UUL17currentThreadDataE
+                    # section .tbss  UU::currentThreadData qthread_unix.cpp\\n
+                    ns = re.split('_ZN?(\d*)(\w*)L17currentThreadDataE? ', line)[2]
                     if len(ns):
                         ns += '::'
                     break

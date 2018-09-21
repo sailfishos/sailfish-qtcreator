@@ -35,10 +35,9 @@ class WinRtRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
 
 public:
-    explicit WinRtRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
+    explicit WinRtRunConfiguration(ProjectExplorer::Target *target);
 
     QWidget *createConfigurationWidget() override;
-    bool isEnabled() const override { return true; } // Always enabled like DLL run control
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &map) override;
 
@@ -49,13 +48,19 @@ public:
 
     QString buildSystemTarget() const final;
 
+    ProjectExplorer::Runnable runnable() const override;
+
 signals:
     void argumentsChanged(QString);
     void uninstallAfterStopChanged(bool);
 
 private:
+    QString extraId() const final;
+
     QString m_proFilePath;
-    bool m_uninstallAfterStop;
+    bool m_uninstallAfterStop = false;
+
+    QString executable() const;
 };
 
 } // namespace Internal

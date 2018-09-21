@@ -51,6 +51,8 @@
 #include "addmersdkoperation.h"
 #include "rmmersdkoperation.h"
 
+#include <app/app_version.h>
+
 #include <iostream>
 
 #include <app/app_version.h>
@@ -60,7 +62,7 @@
 
 void printHelp(const Operation *op)
 {
-    std::cout << "Qt Creator SDK setup tool." << std::endl;
+    std::cout << Core::Constants::IDE_DISPLAY_NAME << " SDK setup tool." << std::endl;
 
     std::cout << "Help for operation " << qPrintable(op->name()) << std::endl;
     std::cout << std::endl;
@@ -76,7 +78,7 @@ const QString tabular(const Operation *o)
 
 void printHelp(const QList<Operation *> &operations)
 {
-    std::cout << "Qt Creator SDK setup tool." << std::endl;
+    std::cout << Core::Constants::IDE_DISPLAY_NAME << "SDK setup tool." << std::endl;
     std::cout << "    Usage: " << qPrintable(QCoreApplication::arguments().at(0))
               << " <ARGS> <OPERATION> <OPERATION_ARGS>" << std::endl << std::endl;
     std::cout << "ARGS:" << std::endl;

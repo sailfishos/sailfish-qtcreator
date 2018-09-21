@@ -324,7 +324,7 @@ protected:
 class MarkUnreachableCode : protected ReachesEndCheck
 {
     QList<Message> _messages;
-    bool _emittedWarning;
+    bool _emittedWarning = false;
 
 public:
     QList<Message> operator()(Node *ast)
@@ -575,7 +575,6 @@ public:
                                              "PropertyAnimation",
                                              "SequentialAnimation",
                                              "ParallelAnimation",
-                                             "NumberAnimation",
                                              "Drawer"})
     {
         append(UnsupportedTypesByVisualDesigner());
@@ -855,6 +854,10 @@ static bool checkTopLevelBindingForParentReference(ExpressionStatement *expStmt,
 void Check::visitQmlObject(Node *ast, UiQualifiedId *typeId,
                            UiObjectInitializer *initializer)
 {
+    // TODO: currently Qbs checks are not working properly
+    if (_doc->language() == Dialect::QmlQbs)
+        return;
+
     // Don't do type checks if it's a grouped property binding.
     // For instance: anchors { ... }
     if (_doc->bind()->isGroupedPropertyBinding(ast)) {
@@ -1044,15 +1047,20 @@ bool Check::visit(UiPublicMember *ast)
 {
     if (ast->type == UiPublicMember::Property) {
         if (ast->isValid()) {
-            const QStringRef name = ast->memberTypeName();
-            if (!name.isEmpty() && name.at(0).isLower()) {
-                const QString nameS = name.toString();
-                if (!isValidBuiltinPropertyType(nameS))
-                    addMessage(ErrInvalidPropertyType, ast->typeToken, nameS);
+            const QStringRef typeName = ast->memberTypeName();
+            if (!typeName.isEmpty() && typeName.at(0).isLower()) {
+                const QString typeNameS = typeName.toString();
+                if (!isValidBuiltinPropertyType(typeNameS))
+                    addMessage(ErrInvalidPropertyType, ast->typeToken, typeNameS);
             }
 
+            const QStringRef name = ast->name;
+
+            if (name == "data")
+                addMessage(ErrInvalidPropertyName, ast->identifierToken, name.toString());
+
             // warn about dubious use of var/variant
-            if (name == QLatin1String("variant") || name == QLatin1String("var")) {
+            if (typeName == QLatin1String("variant") || typeName == QLatin1String("var")) {
                 Evaluate evaluator(&_scopeChain);
                 const Value *init = evaluator(ast->statement);
                 QString preferredType;
@@ -1709,12 +1717,24 @@ bool Check::visit(TypeOfExpression *ast)
 /// ### Maybe put this into the context as a helper function.
 const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
 {
+
     if (!_importsOk)
         return 0;
 
     QList<const ObjectValue *> scopeObjects = _scopeChain.qmlScopeObjects();
     if (scopeObjects.isEmpty())
         return 0;
+
+    const auto getAttachedTypes = [this, &scopeObjects](const QString &propertyName) {
+        bool isAttachedProperty = false;
+        if (! propertyName.isEmpty() && propertyName[0].isUpper()) {
+            isAttachedProperty = true;
+            if (const ObjectValue *qmlTypes = _scopeChain.qmlTypes())
+                scopeObjects += qmlTypes;
+        }
+        return isAttachedProperty;
+    };
+
 
     if (! id)
         return 0; // ### error?
@@ -1728,12 +1748,7 @@ const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
         return 0; // ### should probably be a special value
 
     // attached properties
-    bool isAttachedProperty = false;
-    if (! propertyName.isEmpty() && propertyName[0].isUpper()) {
-        isAttachedProperty = true;
-        if (const ObjectValue *qmlTypes = _scopeChain.qmlTypes())
-            scopeObjects += qmlTypes;
-    }
+    bool isAttachedProperty = getAttachedTypes(propertyName);
 
     if (scopeObjects.isEmpty())
         return 0;
@@ -1775,6 +1790,9 @@ const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
 
         idPart = idPart->next;
         propertyName = idPart->name.toString();
+        isAttachedProperty = getAttachedTypes(propertyName);
+        if (isAttachedProperty)
+            return 0;
 
         value = objectValue->lookupMember(propertyName, _context);
         if (! value) {

@@ -98,11 +98,18 @@ QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
             this, &QmakeProjectConfigWidget::shadowBuildEdited);
 
     QmakeProject *project = static_cast<QmakeProject *>(bc->target()->project());
-    connect(project, &QmakeProject::environmentChanged,
-            this, &QmakeProjectConfigWidget::environmentChanged);
+    project->subscribeSignal(&BuildConfiguration::environmentChanged, this, [this]() {
+        if (static_cast<BuildConfiguration *>(sender())->isActive())
+            environmentChanged();
+    });
+    connect(project, &Project::activeProjectConfigurationChanged,
+            this, [this](ProjectConfiguration *pc) {
+        if (pc && pc->isActive())
+            environmentChanged();
+    });
     connect(project, &QmakeProject::buildDirectoryInitialized,
             this, &QmakeProjectConfigWidget::updateProblemLabel);
-    connect(project, &QmakeProject::proFilesEvaluated,
+    connect(project, &Project::parsingFinished,
             this, &QmakeProjectConfigWidget::updateProblemLabel);
 
     connect(bc->target(), &Target::kitChanged, this, &QmakeProjectConfigWidget::updateProblemLabel);

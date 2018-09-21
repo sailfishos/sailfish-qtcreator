@@ -49,9 +49,6 @@ public:
 public:
     MerRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc);
 
-    ProjectExplorer::IRunConfigurationAspect *create(
-            ProjectExplorer::RunConfiguration *runConfig) const override;
-
     bool isQmlLiveEnabled() const { return m_qmlLiveEnabled; }
     int qmlLiveIpcPort() const { return m_qmlLiveIpcPort; }
     QString qmlLiveBenchWorkspace() const { return m_qmlLiveBenchWorkspace; }

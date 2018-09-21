@@ -28,7 +28,9 @@
 #include "core_global.h"
 #include "id.h"
 
+#include <QMainWindow>
 #include <QObject>
+#include <QRect>
 #include <QSettings>
 
 #include <functional>
@@ -44,9 +46,7 @@ namespace Core {
 class IWizardFactory;
 class Context;
 class IContext;
-class ProgressManager;
 class SettingsDatabase;
-class VcsManager;
 
 namespace Internal { class MainWindow; }
 
@@ -94,19 +94,21 @@ public:
 
     static QString resourcePath();
     static QString userResourcePath();
+    static QString installerResourcePath();
     static QString documentationPath();
     static QString libexecPath();
 
     static QString versionString();
     static QString buildCompatibilityString();
 
-    static QWidget *mainWindow();
+    static QMainWindow *mainWindow();
     static QWidget *dialogParent();
     static QStatusBar *statusBar();
     /* Raises and activates the window for the widget. This contains workarounds for X11. */
     static void raiseWindow(QWidget *widget);
 
     static IContext *currentContextObject();
+    static QWidget *currentContextWidget();
     // Adds and removes additional active contexts, these contexts are appended
     // to the currently active contexts.
     static void updateAdditionalContexts(const Context &remove, const Context &add,
@@ -132,6 +134,7 @@ public:
     static void addPreCloseListener(const std::function<bool()> &listener);
 
     static QString systemInformation();
+    static void setupScreenShooter(const QString &name, QWidget *w, const QRect &rc = QRect());
 
 public slots:
     static void saveSettings();

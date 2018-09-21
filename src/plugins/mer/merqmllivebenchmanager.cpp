@@ -351,7 +351,7 @@ void MerQmlLiveBenchManager::onDeviceAdded(Core::Id id)
     DeviceInfo *info = new DeviceInfo;
     info->name = device->displayName();
     info->ports = merDevice->qmlLivePortsList();
-    const QString address = device->sshParameters().host;
+    const QString address = device->sshParameters().host();
 
     if (info->ports.isEmpty()) {
         qCWarning(Log::qmlLive) << "Not adding QmlLive host with empty port list:" << info->name;
@@ -418,7 +418,7 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
 
         const QList<Utils::Port> removedPorts = difference(cachedInfo->ports, info->ports);
         const QList<Utils::Port> addedPorts = difference(info->ports, cachedInfo->ports);
-        const QString address = merDevice->sshParameters().host;
+        const QString address = merDevice->sshParameters().host();
 
         if (info->name != cachedInfo->name)
             removeHostsFromBench(cachedInfo->name, cachedInfo->ports);

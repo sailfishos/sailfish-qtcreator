@@ -24,6 +24,8 @@
 ****************************************************************************/
 
 #include "bookmarksplugin.h"
+
+#include "bookmarkfilter.h"
 #include "bookmarkmanager.h"
 #include "bookmarks_global.h"
 
@@ -109,10 +111,12 @@ bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
 
     m_bookmarkManager = new BookmarkManager;
 
+    addAutoReleasedObject(new BookmarkFilter(m_bookmarkManager));
+
     connect(m_toggleAction, &QAction::triggered, [this]() {
         BaseTextEditor *editor = BaseTextEditor::currentTextEditor();
         if (editor && !editor->document()->isTemporary())
-            m_bookmarkManager->toggleBookmark(editor->document()->filePath().toString(), editor->currentLine());
+            m_bookmarkManager->toggleBookmark(editor->document()->filePath(), editor->currentLine());
     });
 
     connect(m_prevAction, &QAction::triggered, m_bookmarkManager, &BookmarkManager::prev);
@@ -167,7 +171,7 @@ void BookmarksPlugin::editorOpened(IEditor *editor)
         connect(widget, &TextEditorWidget::markRequested, m_bookmarkManager,
                 [this, editor](TextEditorWidget *, int line, TextMarkRequestKind kind) {
                     if (kind == BookmarkRequest && !editor->document()->isTemporary())
-                        m_bookmarkManager->toggleBookmark(editor->document()->filePath().toString(), line);
+                        m_bookmarkManager->toggleBookmark(editor->document()->filePath(), line);
                 });
 
         connect(widget, &TextEditorWidget::markContextMenuRequested,
@@ -190,7 +194,7 @@ void BookmarksPlugin::requestContextMenu(TextEditorWidget *widget,
         return;
 
     m_bookmarkMarginActionLineNumber = lineNumber;
-    m_bookmarkMarginActionFileName = widget->textDocument()->filePath().toString();
+    m_bookmarkMarginActionFileName = widget->textDocument()->filePath();
 
     menu->addAction(m_bookmarkMarginAction);
     if (m_bookmarkManager->hasBookmarkInPosition(m_bookmarkMarginActionFileName, m_bookmarkMarginActionLineNumber))

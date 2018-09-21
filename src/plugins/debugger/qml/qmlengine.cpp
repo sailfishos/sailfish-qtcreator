@@ -52,11 +52,13 @@
 
 #include <qmljseditor/qmljseditorconstants.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
+#include <qmldebug/qmldebugconnection.h>
 #include <qmldebug/qpacketprotocol.h>
 
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditor.h>
 
+#include <app/app_version.h>
 #include <utils/treemodel.h>
 #include <utils/basetreeview.h>
 #include <utils/qtcassert.h>
@@ -66,6 +68,7 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QFileInfo>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -84,6 +87,7 @@
 # define XSDEBUG(s) qDebug() << s
 
 #define CB(callback) [this](const QVariantMap &r) { callback(r); }
+#define CHECK_STATE(s) do { checkState(s, __FILE__, __LINE__); } while (0)
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -139,15 +143,14 @@ typedef QHash<int, LookupData> LookupItems; // id -> (iname, exp)
 class QmlEnginePrivate : public QmlDebugClient
 {
 public:
-    QmlEnginePrivate(QmlEngine *engine_, QmlDebugConnection *connection_)
-        : QmlDebugClient("V8Debugger", connection_),
+    QmlEnginePrivate(QmlEngine *engine_, QmlDebugConnection *connection)
+        : QmlDebugClient("V8Debugger", connection),
           engine(engine_),
-          inspectorAgent(engine, connection_),
-          connection(connection_)
+          inspectorAgent(engine, connection)
     {}
 
-    void messageReceived(const QByteArray &data);
-    void stateChanged(State state);
+    void messageReceived(const QByteArray &data) override;
+    void stateChanged(State state) override;
 
     void continueDebugging(StepAction stepAction);
 
@@ -189,17 +192,6 @@ public:
     void checkForFinishedUpdate();
     ConsoleItem *constructLogItemTree(const QmlV8ObjectData &objectData);
 
-    void filterApplicationMessage(ProjectExplorer::RunControl *runControl,
-                                  const QString &msg, Utils::OutputFormat format)
-    {
-        if (runControl != engine->runControl())
-            return;
-        if (format == StdErrFormatSameLine
-                || format == StdOutFormatSameLine
-                || format == DebugFormat)
-            outputParser.processOutput(msg);
-    }
-
 public:
     QHash<int, QmlV8ObjectData> refVals; // The mapping of target object handles to retrieved values.
     int sequence = -1;
@@ -223,9 +215,7 @@ public:
     InteractiveInterpreter interpreter;
     ApplicationLauncher applicationLauncher;
     QmlInspectorAgent inspectorAgent;
-    QmlOutputParser outputParser;
 
-    QTimer noDebugOutputTimer;
     QList<quint32> queryIds;
     bool retryOnConnectFail = false;
     bool automaticConnect = false;
@@ -233,7 +223,6 @@ public:
     bool contextEvaluate = false;
 
     QTimer connectionTimer;
-    QmlDebug::QmlDebugConnection *connection;
     QmlDebug::QDebugMessageClient *msgClient = 0;
 
     QHash<int, QmlCallback> callbackForToken;
@@ -258,10 +247,11 @@ static void updateDocument(IDocument *document, const QTextDocument *textDocumen
 //
 ///////////////////////////////////////////////////////////////////////
 
-QmlEngine::QmlEngine(bool useTerminal)
+QmlEngine::QmlEngine()
   :  d(new QmlEnginePrivate(this, new QmlDebugConnection(this)))
 {
     setObjectName("QmlEngine");
+    QmlDebugConnection *connection = d->connection();
 
     connect(stackHandler(), &StackHandler::stackChanged,
             this, &QmlEngine::updateCurrentContext);
@@ -277,28 +267,6 @@ QmlEngine::QmlEngine(bool useTerminal)
     connect(&d->applicationLauncher, &ApplicationLauncher::processStarted,
             this, &QmlEngine::handleLauncherStarted);
 
-    d->outputParser.setNoOutputText(ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput());
-    connect(&d->outputParser, &QmlOutputParser::waitingForConnectionOnPort,
-            this, &QmlEngine::beginConnection);
-    connect(&d->outputParser, &QmlOutputParser::noOutputMessage,
-            this, [this] { tryToConnect(); });
-    connect(&d->outputParser, &QmlOutputParser::errorMessage,
-            this, &QmlEngine::appStartupFailed);
-
-    // Only wait 8 seconds for the 'Waiting for connection' on application output,
-    // then just try to connect (application output might be redirected / blocked)
-    d->noDebugOutputTimer.setSingleShot(true);
-    d->noDebugOutputTimer.setInterval(8000);
-    connect(&d->noDebugOutputTimer, &QTimer::timeout,
-            this, [this] { tryToConnect(); });
-
-    // we won't get any debug output
-    if (useTerminal) {
-        d->noDebugOutputTimer.setInterval(0);
-        d->retryOnConnectFail = true;
-        d->automaticConnect = true;
-    }
-
     debuggerConsole()->setScriptEvaluator([this](const QString &expr) {
         executeDebuggerCommand(expr, QmlLanguage);
     });
@@ -308,21 +276,21 @@ QmlEngine::QmlEngine(bool useTerminal)
     connect(&d->connectionTimer, &QTimer::timeout,
             this, &QmlEngine::checkConnectionState);
 
-    connect(d->connection, &QmlDebugConnection::logStateChange,
+    connect(connection, &QmlDebugConnection::logStateChange,
             this, &QmlEngine::showConnectionStateMessage);
-    connect(d->connection, &QmlDebugConnection::logError, this,
+    connect(connection, &QmlDebugConnection::logError, this,
             [this](const QString &error) { showMessage("QML Debugger: " + error, LogWarning); });
 
-    connect(d->connection, &QmlDebugConnection::connectionFailed,
+    connect(connection, &QmlDebugConnection::connectionFailed,
             this, &QmlEngine::connectionFailed);
-    connect(d->connection, &QmlDebugConnection::connected,
+    connect(connection, &QmlDebugConnection::connected,
             &d->connectionTimer, &QTimer::stop);
-    connect(d->connection, &QmlDebugConnection::connected,
+    connect(connection, &QmlDebugConnection::connected,
             this, &QmlEngine::connectionEstablished);
-    connect(d->connection, &QmlDebugConnection::disconnected,
+    connect(connection, &QmlDebugConnection::disconnected,
             this, &QmlEngine::disconnected);
 
-    d->msgClient = new QDebugMessageClient(d->connection);
+    d->msgClient = new QDebugMessageClient(connection);
     connect(d->msgClient, &QDebugMessageClient::newState,
             this, [this](QmlDebugClient::State state) {
         logServiceStateChange(d->msgClient->name(), d->msgClient->serviceVersion(), state);
@@ -354,31 +322,12 @@ void QmlEngine::setState(DebuggerState state, bool forced)
     updateCurrentContext();
 }
 
-void QmlEngine::setRunTool(DebuggerRunTool *runTool)
-{
-    DebuggerEngine::setRunTool(runTool);
-
-    d->startupMessageFilterConnection = connect(
-                runTool->runControl(), &RunControl::appendMessageRequested,
-                d, &QmlEnginePrivate::filterApplicationMessage);
-}
-
-void QmlEngine::setupInferior()
-{
-    QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
-
-    notifyInferiorSetupOk();
-
-    if (d->automaticConnect)
-        beginConnection();
-}
-
 void QmlEngine::handleLauncherStarted()
 {
     // FIXME: The QmlEngine never calls notifyInferiorPid() triggering the
     // raising, so do it here manually for now.
-    runControl()->applicationProcessHandle().activate();
-    d->noDebugOutputTimer.start();
+    runTool()->runControl()->applicationProcessHandle().activate();
+    tryToConnect();
 }
 
 void QmlEngine::appMessage(const QString &msg, Utils::OutputFormat /* format */)
@@ -394,29 +343,24 @@ void QmlEngine::connectionEstablished()
         notifyEngineRunAndInferiorRunOk();
 }
 
-void QmlEngine::tryToConnect(Utils::Port port)
+void QmlEngine::tryToConnect()
 {
-    showMessage("QML Debugger: No application output received in time, trying to connect ...", LogStatus);
+    showMessage("QML Debugger: Trying to connect ...", LogStatus);
     d->retryOnConnectFail = true;
     if (state() == EngineRunRequested) {
-        if (isSlaveEngine()) {
+        if (isDying()) {
             // Probably cpp is being debugged and hence we did not get the output yet.
-            if (!masterEngine()->isDying())
-                beginConnection(port);
-            else
-                appStartupFailed(tr("No application output received in time"));
+            appStartupFailed(tr("No application output received in time"));
         } else {
-            beginConnection(port);
+            beginConnection();
         }
     } else {
         d->automaticConnect = true;
     }
 }
 
-void QmlEngine::beginConnection(Utils::Port port)
+void QmlEngine::beginConnection()
 {
-    d->noDebugOutputTimer.stop();
-
     if (state() != EngineRunRequested && d->retryOnConnectFail)
         return;
 
@@ -424,11 +368,12 @@ void QmlEngine::beginConnection(Utils::Port port)
 
     QObject::disconnect(d->startupMessageFilterConnection);
 
-    QString host = runParameters().qmlServer.host;
+    QString host = runParameters().qmlServer.host();
     // Use localhost as default
     if (host.isEmpty())
         host = QHostAddress(QHostAddress::LocalHost).toString();
 
+    // FIXME: Not needed?
     /*
      * Let plugin-specific code override the port printed by the application. This is necessary
      * in the case of port forwarding, when the port the application listens on is not the same that
@@ -440,13 +385,13 @@ void QmlEngine::beginConnection(Utils::Port port)
      * the connection will be closed again (instead of returning the "connection refused"
      * error that we expect).
      */
-    if (runParameters().qmlServer.port.isValid())
-        port = runParameters().qmlServer.port;
+    int port = runParameters().qmlServer.port();
 
-    if (!d->connection || d->connection->isConnected())
+    QmlDebugConnection *connection = d->connection();
+    if (!connection || connection->isConnected())
         return;
 
-    d->connection->connectToHost(host, port.number());
+    connection->connectToHost(host, port);
 
     //A timeout to check the connection state
     d->connectionTimer.start();
@@ -462,7 +407,7 @@ void QmlEngine::connectionStartupFailed()
 
     QMessageBox *infoBox = new QMessageBox(ICore::mainWindow());
     infoBox->setIcon(QMessageBox::Critical);
-    infoBox->setWindowTitle(tr("Qt Creator"));
+    infoBox->setWindowTitle(Core::Constants::IDE_DISPLAY_NAME);
     infoBox->setText(tr("Could not connect to the in-process QML debugger."
                         "\nDo you want to retry?"));
     infoBox->setStandardButtons(QMessageBox::Retry | QMessageBox::Cancel |
@@ -483,7 +428,7 @@ void QmlEngine::appStartupFailed(const QString &errorMessage)
     if (isMasterEngine()) {
         QMessageBox *infoBox = new QMessageBox(ICore::mainWindow());
         infoBox->setIcon(QMessageBox::Critical);
-        infoBox->setWindowTitle(tr("Qt Creator"));
+        infoBox->setWindowTitle(Core::Constants::IDE_DISPLAY_NAME);
         infoBox->setText(error);
         infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
         infoBox->setDefaultButton(QMessageBox::Ok);
@@ -552,24 +497,30 @@ void QmlEngine::closeConnection()
     if (d->connectionTimer.isActive()) {
         d->connectionTimer.stop();
     } else {
-        if (d->connection)
-            d->connection->close();
+        if (QmlDebugConnection *connection = d->connection())
+            connection->close();
     }
 }
 
 void QmlEngine::runEngine()
 {
+    // we won't get any debug output
+    if (!terminal()) {
+        d->retryOnConnectFail = true;
+        d->automaticConnect = true;
+    }
+
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
 
     if (!isSlaveEngine()) {
         if (runParameters().startMode == AttachToRemoteServer)
-            d->noDebugOutputTimer.start();
+            tryToConnect();
         else if (runParameters().startMode == AttachToRemoteProcess)
             beginConnection();
         else
             startApplicationLauncher();
     } else {
-        d->noDebugOutputTimer.start();
+        tryToConnect();
     }
 }
 
@@ -594,41 +545,9 @@ void QmlEngine::stopApplicationLauncher()
     }
 }
 
-// FIXME: Is the timeout raise still needed? Since the RunWorker conversion,
-// the debugger tool only starts when the remote setup has all interesting
-// ports gathered, so much less chance for waiting on longer operations.
-//void QmlEngine::notifyEngineRemoteSetupFinished()
-//{
-//    QObject::disconnect(d->startupMessageFilterConnection);
-//    switch (state()) {
-//    case InferiorSetupOk:
-//        // FIXME: This is not a legal transition, but we need to
-//        // get to EngineSetupOk somehow from InferiorSetupOk.
-//        // fallthrough. QTCREATORBUG-14089.
-//    case EngineSetupRequested:
-//        notifyEngineSetupOk();
-//        break;
-//    case EngineSetupOk:
-//    case EngineRunRequested:
-//        // QTCREATORBUG-17718: On Android while doing debugging in mixed mode, the QML debug engine
-//        // sometimes reports EngineSetupOK after the EngineRunRequested thus overwriting the state
-//        // which eventually results into app to waiting for the QML engine connection.
-//        // Skipping the EngineSetupOK in aforementioned case.
-//        // Nothing to do here. The setup is already done.
-//        break;
-//    default:
-//        QTC_ASSERT(false, qDebug() << "Unexpected state" << state());
-//    }
-
-//    // The remote setup can take while especialy with mixed debugging.
-//    // Just waiting for 8 seconds is not enough. Increase the timeout
-//    // to 60 s
-//    // In case we get an output the d->outputParser will start the connection.
-//    d->noDebugOutputTimer.setInterval(60000);
-//}
-
 void QmlEngine::shutdownInferior()
 {
+    CHECK_STATE(InferiorShutdownRequested);
     // End session.
     //    { "seq"     : <number>,
     //      "type"    : "request",
@@ -641,7 +560,7 @@ void QmlEngine::shutdownInferior()
     stopApplicationLauncher();
     closeConnection();
 
-    notifyInferiorShutdownOk();
+    notifyInferiorShutdownFinished();
 }
 
 void QmlEngine::shutdownEngine()
@@ -649,12 +568,11 @@ void QmlEngine::shutdownEngine()
     clearExceptionSelection();
 
     debuggerConsole()->setScriptEvaluator(ScriptEvaluator());
-    d->noDebugOutputTimer.stop();
 
    // double check (ill engine?):
     stopApplicationLauncher();
 
-    notifyEngineShutdownOk();
+    notifyEngineShutdownFinished();
     if (!isSlaveEngine())
         showMessage(QString(), StatusBar);
 }
@@ -662,6 +580,9 @@ void QmlEngine::shutdownEngine()
 void QmlEngine::setupEngine()
 {
     notifyEngineSetupOk();
+
+    if (d->automaticConnect)
+        beginConnection();
 }
 
 void QmlEngine::continueInferior()
@@ -855,7 +776,7 @@ void QmlEngine::attemptBreakpointSynchronization()
 
     BreakHandler *handler = breakHandler();
 
-    DebuggerEngine *bpOwner = isSlaveEngine() ? masterEngine() : this;
+    DebuggerEngine *bpOwner = masterEngine();
     foreach (Breakpoint bp, handler->unclaimedBreakpoints()) {
         // Take ownership of the breakpoint. Requests insertion.
         if (acceptsBreakpoint(bp))
@@ -942,9 +863,13 @@ bool QmlEngine::canHandleToolTip(const DebuggerToolTipContext &) const
 }
 
 void QmlEngine::assignValueInDebugger(WatchItem *item,
-    const QString &expression, const QVariant &value)
+    const QString &expression, const QVariant &editValue)
 {
     if (!expression.isEmpty()) {
+        QVariant value = (editValue.type() == QVariant::String)
+                ? QVariant('"' + editValue.toString().replace('"', "\\\"") + '"')
+                : editValue;
+
         if (item->isInspect()) {
             d->inspectorAgent.assignValue(item, expression, value);
         } else {
@@ -953,7 +878,7 @@ void QmlEngine::assignValueInDebugger(WatchItem *item,
             if (handler->isContentsValid() && handler->currentFrame().isUsable()) {
                 d->evaluate(exp, -1, [this](const QVariantMap &) { d->updateLocals(); });
             } else {
-                showMessage(QString("Cannot evaluate %1 in current stack frame")
+                showMessage(tr("Cannot evaluate %1 in current stack frame.")
                             .arg(expression), ConsoleOutput);
             }
         }
@@ -1095,10 +1020,10 @@ bool QmlEngine::hasCapability(unsigned cap) const
 
 void QmlEngine::quitDebugger()
 {
-    d->noDebugOutputTimer.stop();
     d->automaticConnect = false;
     d->retryOnConnectFail = false;
-    shutdownInferior();
+    stopApplicationLauncher();
+    closeConnection();
 }
 
 void QmlEngine::doUpdateLocals(const UpdateParameters &params)
@@ -1268,7 +1193,10 @@ void QmlEngine::checkConnectionState()
 
 bool QmlEngine::isConnected() const
 {
-    return d->connection->isConnected();
+    if (QmlDebugConnection *connection = d->connection())
+        return connection->isConnected();
+    else
+        return false;
 }
 
 void QmlEngine::showConnectionStateMessage(const QString &message)
@@ -1391,7 +1319,7 @@ void QmlEnginePrivate::handleEvaluateExpression(const QVariantMap &response,
     }
     insertSubItems(item, body.properties);
     watchHandler->insertItem(item);
-    watchHandler->updateWatchersWindow();
+    watchHandler->updateLocalsWindow();
 }
 
 void QmlEnginePrivate::lookup(const LookupItems &items)
@@ -1526,7 +1454,7 @@ void QmlEnginePrivate::setBreakpoint(const QString type, const QString target,
     //                    }
     //    }
     if (type == EVENT) {
-        QPacket rs(connection->currentDataStreamVersion());
+        QPacket rs(dataStreamVersion());
         rs <<  target.toUtf8() << enabled;
         engine->showMessage(QString("%1 %2 %3")
                             .arg(BREAKONSIGNAL, target, QLatin1String(enabled ? "enabled" : "disabled")), LogInput);
@@ -1746,7 +1674,7 @@ void QmlEnginePrivate::runDirectCommand(const QString &type, const QByteArray &m
 
     engine->showMessage(QString("%1 %2").arg(type, QString::fromLatin1(msg)), LogInput);
 
-    QPacket rs(connection->currentDataStreamVersion());
+    QPacket rs(dataStreamVersion());
     rs << cmd << type.toLatin1() << msg;
 
     if (state() == Enabled)
@@ -1768,7 +1696,7 @@ void QmlEnginePrivate::memorizeRefs(const QVariant &refs)
 
 void QmlEnginePrivate::messageReceived(const QByteArray &data)
 {
-    QPacket ds(connection->currentDataStreamVersion(), data);
+    QPacket ds(dataStreamVersion(), data);
     QByteArray command;
     ds >> command;
 
@@ -2239,6 +2167,10 @@ void QmlEnginePrivate::handleFrame(const QVariantMap &response)
         watchHandler->insertItem(item);
         evaluate(exp, -1, [this, iname, exp](const QVariantMap &response) {
             handleEvaluateExpression(response, iname, exp);
+
+            // If there are no scopes, "this" may be the only thing to look up.
+            if (currentFrameScopes.isEmpty())
+                checkForFinishedUpdate();
         });
     }
 
@@ -2550,9 +2482,9 @@ void QmlEnginePrivate::flushSendBuffer()
     sendBuffer.clear();
 }
 
-DebuggerEngine *createQmlEngine(bool useTerminal)
+DebuggerEngine *createQmlEngine()
 {
-    return new QmlEngine(useTerminal);
+    return new QmlEngine;
 }
 
 } // Internal

@@ -233,7 +233,10 @@ protected:
 class SessionDelegate : public BaseDelegate
 {
 protected:
-    QString entryType() override { return tr("session", "Appears in \"Open session <name>\""); }
+    QString entryType() override
+    {
+        return ProjectWelcomePage::tr("session", "Appears in \"Open session <name>\"");
+    }
     QRect toolTipArea(const QRect &itemRect, const QModelIndex &idx) const override
     {
         // in expanded state bottom contains 'Clone', 'Rename', etc links, where the tool tip
@@ -333,8 +336,9 @@ public:
                 const QString &action = actions.at(i);
                 const int ww = fm.width(action);
                 const QRect actionRect(xx, yy - 10, ww, 15);
-                const bool isActive = actionRect.contains(mousePos);
-                painter->setPen(linkColor);
+                const bool isForcedDisabled = (i != 0 && sessionName == "default");
+                const bool isActive = actionRect.contains(mousePos) && !isForcedDisabled;
+                painter->setPen(isForcedDisabled ? disabledLinkColor : linkColor);
                 painter->setFont(sizedFont(12, option.widget, isActive));
                 painter->drawText(xx, yy, action);
                 if (i < 2) {
@@ -382,9 +386,9 @@ public:
             if (m_activeSwitchToRect.contains(pos))
                 sessionModel->switchToSession(sessionName);
             else if (m_activeActionRects[0].contains(pos))
-                sessionModel->cloneSession(sessionName);
+                sessionModel->cloneSession(ICore::mainWindow(), sessionName);
             else if (m_activeActionRects[1].contains(pos))
-                sessionModel->renameSession(sessionName);
+                sessionModel->renameSession(ICore::mainWindow(), sessionName);
             else if (m_activeActionRects[2].contains(pos))
                 sessionModel->deleteSession(sessionName);
             return true;
@@ -401,6 +405,7 @@ private:
     const QColor hoverColor = themeColor(Theme::Welcome_HoverColor);
     const QColor textColor = themeColor(Theme::Welcome_TextColor);
     const QColor linkColor = themeColor(Theme::Welcome_LinkColor);
+    const QColor disabledLinkColor = themeColor(Theme::Welcome_DisabledLinkColor);
     const QColor backgroundColor = themeColor(Theme::Welcome_BackgroundColor);
     const QColor foregroundColor1 = themeColor(Theme::Welcome_ForegroundPrimaryColor); // light-ish.
     const QColor foregroundColor2 = themeColor(Theme::Welcome_ForegroundSecondaryColor); // blacker.
@@ -413,7 +418,10 @@ private:
 
 class ProjectDelegate : public BaseDelegate
 {
-    QString entryType() override { return tr("project", "Appears in \"Open project <name>\""); }
+    QString entryType() override
+    {
+        return ProjectWelcomePage::tr("project", "Appears in \"Open project <name>\"");
+    }
     int shortcutRole() const override { return ProjectModel::ShortcutRole; }
 
 public:

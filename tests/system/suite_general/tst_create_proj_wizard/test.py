@@ -27,10 +27,7 @@ source("../../shared/qtcreator.py")
 
 def main():
     global tmpSettingsDir, availableBuildSystems
-    qtVersionsForQuick = ["5.3"]
     availableBuildSystems = ["qmake", "Qbs"]
-    if platform.system() != 'Darwin':
-        qtVersionsForQuick.append("5.4")
     if which("cmake"):
         availableBuildSystems.append("CMake")
     else:
@@ -73,7 +70,8 @@ def main():
         category = current.keys()[0]
         template = current.values()[0]
         displayedPlatforms = __createProject__(category, template)
-        if template == "Qt Quick Application" or template == "Qt Quick Controls Application":
+        if template.startswith("Qt Quick Application - "):
+            qtVersionsForQuick = ["5.6", "5.10"] if template == "Qt Quick Application - Empty" else ["5.10"]
             for counter, qtVersion in enumerate(qtVersionsForQuick):
                 def additionalFunc(displayedPlatforms, qtVersion):
                     requiredQtVersion = __createProjectHandleQtQuickSelection__(qtVersion)
@@ -84,15 +82,6 @@ def main():
                 if counter < len(qtVersionsForQuick) - 1:
                     displayedPlatforms = __createProject__(category, template)
             continue
-        elif template == "Qt Quick Controls 2 Application": # needs a Qt5.7
-            def additionalFunc(displayedPlatforms):
-                clickButton(waitForObject(":Next_QPushButton")) # ignore this details page for now
-            handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms, additionalFunc)
-            continue
-        elif template.startswith("Plain C"):
-            handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms)
-            continue
-
         handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms)
 
     invokeMenuItem("File", "Exit")
@@ -120,7 +109,7 @@ def verifyKitCheckboxes(kits, displayedPlatforms):
 def handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms,
                                 specialHandlingFunc = None, *args):
     global availableBuildSystems
-    combo = "{name='BuildSystem' type='Utils::TextFieldComboBox' visible='1'}"
+    combo = "{name='BuildSystem' type='QComboBox' visible='1'}"
     try:
         waitForObject(combo, 2000)
         skipBuildsystemChooser = False
@@ -139,7 +128,9 @@ def handleBuildSystemVerifyKits(category, template, kits, displayedPlatforms,
         test.log("Using build system '%s'" % buildSystem)
         selectFromCombo(combo, buildSystem)
         clickButton(waitForObject(":Next_QPushButton"))
-        if specialHandlingFunc:
+        if template == "Qt Quick Application - Scroll":
+            clickButton(waitForObject(":Next_QPushButton"))
+        elif specialHandlingFunc:
             specialHandlingFunc(displayedPlatforms, *args)
         verifyKitCheckboxes(kits, displayedPlatforms)
         safeClickButton("Cancel")

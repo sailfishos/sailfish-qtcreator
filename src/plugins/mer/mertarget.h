@@ -58,6 +58,7 @@ public:
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
     ProjectExplorer::Kit* createKit() const;
+    void ensureDebuggerIsSet(ProjectExplorer::Kit *k) const;
     MerQtVersion* createQtVersion() const;
     MerToolChain* createToolChain(Core::Id l) const;
     bool createScripts() const;

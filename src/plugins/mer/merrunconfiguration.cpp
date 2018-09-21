@@ -42,24 +42,11 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerRunConfiguration::MerRunConfiguration(Target *parent, Core::Id id,
-                                         const QString &targetName)
-    : RemoteLinuxRunConfiguration(parent, id, targetName)
-{
-    ctor();
-}
-
-MerRunConfiguration::MerRunConfiguration(Target *parent,
-                                         MerRunConfiguration *source)
-    : RemoteLinuxRunConfiguration(parent, source)
-{
-    ctor();
-}
-
-void MerRunConfiguration::ctor()
+MerRunConfiguration::MerRunConfiguration(Target *parent)
+    : RemoteLinuxRunConfiguration(parent, Constants::MER_RUNCONFIGURATION_PREFIX)
 {
     connect(target(), &Target::activeDeployConfigurationChanged,
-            this, &MerRunConfiguration::enabledChanged);
+            this, &MerRunConfiguration::updateEnabledState);
 }
 
 QString MerRunConfiguration::disabledReason() const
@@ -70,7 +57,7 @@ QString MerRunConfiguration::disabledReason() const
         return m_disabledReason;
 }
 
-bool MerRunConfiguration::isEnabled() const
+void MerRunConfiguration::updateEnabledState()
 {   
     //TODO Hack
 
@@ -79,11 +66,12 @@ bool MerRunConfiguration::isEnabled() const
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
-            return false;
+            setEnabled(false);
+            return;
         }
     }
 
-    return RemoteLinuxRunConfiguration::isEnabled();
+    RemoteLinuxRunConfiguration::updateEnabledState();
 }
 
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
@@ -118,6 +106,24 @@ Runnable MerRunConfiguration::runnable() const
     merAspect->applyTo(&r);
 
     return r;
+}
+
+bool MerRunConfiguration::fromMap(const QVariantMap &map)
+{
+    if (!RemoteLinuxRunConfiguration::fromMap(map))
+        return false;
+
+    setDefaultDisplayName(defaultDisplayName());
+    return true;
+}
+
+QString MerRunConfiguration::defaultDisplayName() const
+{
+    if (!buildSystemTarget().isEmpty())
+        //: %1 is the name of a project which is being run on Mer device
+        return tr("%1 (on Sailfish OS Device)").arg(buildSystemTarget());
+    //: Mer run configuration default display name
+    return tr("Run on Sailfish OS Device");
 }
 
 } // Internal

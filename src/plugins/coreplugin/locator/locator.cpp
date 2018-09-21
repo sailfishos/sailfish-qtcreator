@@ -24,20 +24,22 @@
 ****************************************************************************/
 
 #include "locator.h"
+
+#include "externaltoolsfilter.h"
+#include "filesystemfilter.h"
+#include "javascriptfilter.h"
 #include "locatorconstants.h"
 #include "locatorfiltersfilter.h"
 #include "locatormanager.h"
+#include "locatorsettingspage.h"
 #include "locatorwidget.h"
 #include "opendocumentsfilter.h"
-#include "filesystemfilter.h"
-#include "locatorsettingspage.h"
-#include "externaltoolsfilter.h"
 
 #include <coreplugin/coreplugin.h>
-#include <coreplugin/statusbarwidget.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/settingsdatabase.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/settingsdatabase.h>
+#include <coreplugin/statusbarwidget.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -46,14 +48,15 @@
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/algorithm.h>
+#include <utils/asconst.h>
 #include <utils/mapreduce.h>
 #include <utils/qtcassert.h>
 #include <utils/utilsicons.h>
 
+#include <QAction>
+#include <QFuture>
 #include <QSettings>
 #include <QtPlugin>
-#include <QFuture>
-#include <QAction>
 
 #ifdef Q_OS_OSX
 #include "spotlightlocatorfilter.h"
@@ -73,11 +76,15 @@ Locator::Locator()
 
 Locator::~Locator()
 {
+#ifdef WITH_JAVASCRIPTFILTER
+    m_corePlugin->removeObject(m_javaScriptFilter);
+#endif
     m_corePlugin->removeObject(m_openDocumentsFilter);
     m_corePlugin->removeObject(m_fileSystemFilter);
     m_corePlugin->removeObject(m_executeFilter);
     m_corePlugin->removeObject(m_settingsPage);
     m_corePlugin->removeObject(m_externalToolsFilter);
+    delete m_javaScriptFilter;
     delete m_openDocumentsFilter;
     delete m_fileSystemFilter;
     delete m_executeFilter;
@@ -117,6 +124,11 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
 
     new LocatorManager(this);
 
+#ifdef WITH_JAVASCRIPTFILTER
+    m_javaScriptFilter = new JavaScriptFilter;
+    m_corePlugin->addObject(m_javaScriptFilter);
+#endif
+
     m_openDocumentsFilter = new OpenDocumentsFilter;
     m_corePlugin->addObject(m_openDocumentsFilter);
 
@@ -139,7 +151,7 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
 
 void Locator::extensionsInitialized()
 {
-    m_filters = ExtensionSystem::PluginManager::getObjects<ILocatorFilter>();
+    m_filters = ILocatorFilter::allLocatorFilters();
     Utils::sort(m_filters, [](const ILocatorFilter *first, const ILocatorFilter *second) -> bool {
         if (first->priority() != second->priority())
             return first->priority() < second->priority();
@@ -165,22 +177,22 @@ bool Locator::delayedInitialize()
 void Locator::loadSettings()
 {
     SettingsDatabase *settings = ICore::settingsDatabase();
-    settings->beginGroup(QLatin1String("QuickOpen"));
-    m_refreshTimer.setInterval(settings->value(QLatin1String("RefreshInterval"), 60).toInt() * 60000);
+    settings->beginGroup("QuickOpen");
+    m_refreshTimer.setInterval(settings->value("RefreshInterval", 60).toInt() * 60000);
 
-    foreach (ILocatorFilter *filter, m_filters) {
+    for (ILocatorFilter *filter : Utils::asConst(m_filters)) {
         if (settings->contains(filter->id().toString())) {
             const QByteArray state = settings->value(filter->id().toString()).toByteArray();
             if (!state.isEmpty())
                 filter->restoreState(state);
         }
     }
-    settings->beginGroup(QLatin1String("CustomFilters"));
+    settings->beginGroup("CustomFilters");
     QList<ILocatorFilter *> customFilters;
     const QStringList keys = settings->childKeys();
     int count = 0;
     Id baseId(Constants::CUSTOM_FILTER_BASEID);
-    foreach (const QString &key, keys) {
+    for (const QString &key : keys) {
         ILocatorFilter *filter = new DirectoryFilter(baseId.withSuffix(++count));
         filter->restoreState(settings->value(key).toByteArray());
         customFilters.append(filter);
@@ -200,7 +212,7 @@ void Locator::updateFilterActions()
     QMap<Id, QAction *> actionCopy = m_filterActionMap;
     m_filterActionMap.clear();
     // register new actions, update existent
-    for (ILocatorFilter *filter : m_filters) {
+    for (ILocatorFilter *filter : Utils::asConst(m_filters)) {
         if (filter->shortcutString().isEmpty() || filter->isHidden())
             continue;
         Id filterId = filter->id();
@@ -274,29 +286,29 @@ void Locator::updateEditorManagerPlaceholderText()
     EditorManagerPrivate::setPlaceholderText(placeholderText.arg(classes, methods));
 }
 
-void Locator::saveSettings()
+void Locator::saveSettings() const
 {
-    if (m_settingsInitialized) {
-        SettingsDatabase *s = ICore::settingsDatabase();
-        s->beginTransaction();
-        s->beginGroup(QLatin1String("QuickOpen"));
-        s->remove(QString());
-        s->setValue(QLatin1String("RefreshInterval"), refreshInterval());
-        foreach (ILocatorFilter *filter, m_filters) {
-            if (!m_customFilters.contains(filter))
-                s->setValue(filter->id().toString(), filter->saveState());
-        }
-        s->beginGroup(QLatin1String("CustomFilters"));
-        int i = 0;
-        foreach (ILocatorFilter *filter, m_customFilters) {
-            s->setValue(QLatin1String("directory") + QString::number(i),
-                        filter->saveState());
-            ++i;
-        }
-        s->endGroup();
-        s->endGroup();
-        s->endTransaction();
+    if (!m_settingsInitialized)
+        return;
+
+    SettingsDatabase *s = ICore::settingsDatabase();
+    s->beginTransaction();
+    s->beginGroup("QuickOpen");
+    s->remove(QString());
+    s->setValue("RefreshInterval", refreshInterval());
+    for (ILocatorFilter *filter : m_filters) {
+        if (!m_customFilters.contains(filter))
+            s->setValue(filter->id().toString(), filter->saveState());
     }
+    s->beginGroup("CustomFilters");
+    int i = 0;
+    for (ILocatorFilter *filter : m_customFilters) {
+        s->setValue("directory" + QString::number(i), filter->saveState());
+        ++i;
+    }
+    s->endGroup();
+    s->endGroup();
+    s->endTransaction();
 }
 
 /*!
@@ -329,7 +341,7 @@ void Locator::setCustomFilters(QList<ILocatorFilter *> filters)
     m_customFilters = filters;
 }
 
-int Locator::refreshInterval()
+int Locator::refreshInterval() const
 {
     return m_refreshTimer.interval() / 60000;
 }

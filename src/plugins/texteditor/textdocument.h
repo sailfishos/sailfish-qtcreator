@@ -34,7 +34,10 @@
 #include <QMap>
 #include <QSharedPointer>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
+class QAction;
 class QTextCursor;
 class QTextDocument;
 QT_END_NAMESPACE
@@ -45,7 +48,7 @@ class CompletionAssistProvider;
 class ExtraEncodingSettings;
 class FontSettings;
 class Indenter;
-class QuickFixAssistProvider;
+class IAssistProvider;
 class StorageSettings;
 class SyntaxHighlighter;
 class TabSettings;
@@ -133,10 +136,13 @@ public:
 
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
     virtual CompletionAssistProvider *completionAssistProvider() const;
-    virtual QuickFixAssistProvider *quickFixAssistProvider() const;
+    virtual IAssistProvider *quickFixAssistProvider() const;
 
     void setTabSettings(const TextEditor::TabSettings &tabSettings);
     void setFontSettings(const TextEditor::FontSettings &fontSettings);
+
+    static QAction *createDiffAgainstCurrentFileAction(QObject *parent,
+        const std::function<Utils::FileName()> &filePath);
 
 signals:
     void aboutToOpen(const QString &fileName, const QString &realFileName);
@@ -144,6 +150,7 @@ signals:
     void contentsChangedWithPosition(int position, int charsRemoved, int charsAdded);
     void tabSettingsChanged();
     void fontSettingsChanged();
+    void markRemoved(TextMark *mark);
 
 protected:
     virtual void applyFontSettings();

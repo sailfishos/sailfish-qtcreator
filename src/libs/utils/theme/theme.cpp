@@ -133,13 +133,12 @@ QPair<QColor, QString> Theme::readNamedColor(const QString &color) const
     if (color == QLatin1String("style"))
         return qMakePair(QColor(), QString());
 
-    bool ok = true;
-    const QRgb rgba = color.toLongLong(&ok, 16);
-    if (!ok) {
+    const QColor col('#' + color);
+    if (!col.isValid()) {
         qWarning("Color \"%s\" is neither a named color nor a valid color", qPrintable(color));
         return qMakePair(Qt::black, QString());
     }
-    return qMakePair(QColor::fromRgba(rgba), QString());
+    return qMakePair(col, QString());
 }
 
 QString Theme::filePath() const
@@ -157,13 +156,6 @@ void Theme::setDisplayName(const QString &name)
     d->displayName = name;
 }
 
-static QColor readColor(const QString &color)
-{
-    bool ok = true;
-    const QRgb rgba = color.toLongLong(&ok, 16);
-    return QColor::fromRgba(rgba);
-}
-
 void Theme::readSettings(QSettings &settings)
 {
     d->fileName = settings.fileName();
@@ -172,7 +164,7 @@ void Theme::readSettings(QSettings &settings)
     {
         d->displayName = settings.value(QLatin1String("ThemeName"), QLatin1String("unnamed")).toString();
         d->preferredStyles = settings.value(QLatin1String("PreferredStyles")).toStringList();
-        d->preferredStyles.removeAll(QLatin1String(""));
+        d->preferredStyles.removeAll(QString());
         d->defaultTextEditorColorScheme =
                 settings.value(QLatin1String("DefaultTextEditorColorScheme")).toString();
     }
@@ -215,10 +207,10 @@ void Theme::readSettings(QSettings &settings)
             int size = settings.beginReadArray(key);
             for (int j = 0; j < size; ++j) {
                 settings.setArrayIndex(j);
-                QTC_ASSERT(settings.contains(QLatin1String("pos")), return);;
-                double pos = settings.value(QLatin1String("pos")).toDouble();
-                QTC_ASSERT(settings.contains(QLatin1String("color")), return);;
-                QColor c = readColor(settings.value(QLatin1String("color")).toString());
+                QTC_ASSERT(settings.contains(QLatin1String("pos")), return);
+                const double pos = settings.value(QLatin1String("pos")).toDouble();
+                QTC_ASSERT(settings.contains(QLatin1String("color")), return);
+                const QColor c('#' + settings.value(QLatin1String("color")).toString());
                 stops.append(qMakePair(pos, c));
             }
             settings.endArray();

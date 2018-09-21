@@ -29,9 +29,13 @@
 
 #include "merdeployconfiguration.h"
 
+#include "merconstants.h"
 #include "merdeploysteps.h"
+#include "merrpmpackagingstep.h"
+#include "meruploadandinstallrpmsteps.h"
 
 #include <coreplugin/idocument.h>
+#include <projectexplorer/deploymentdataview.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/target.h>
@@ -54,26 +58,18 @@ const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
 } // anonymous namespace
 
 MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
-    : RemoteLinuxDeployConfiguration(parent, id, displayName)
+    : DeployConfiguration(parent, id)
 {
     setDisplayName(displayName);
     setDefaultDisplayName(displayName);
-    init();
+
+    connect(target()->project(), &Project::parsingFinished,
+            this, &MerDeployConfiguration::addRemoveSpecialSteps);
 }
 
-MerDeployConfiguration::MerDeployConfiguration(Target *target, MerDeployConfiguration *source)
-    : RemoteLinuxDeployConfiguration(target, source)
+NamedWidget *MerDeployConfiguration::createConfigWidget()
 {
-    cloneSteps(source);
-    init();
-}
-
-void MerDeployConfiguration::init()
-{
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(target()->project());
-    QTC_ASSERT(qmakeProject, return);
-    connect(qmakeProject, &QmakeProject::proFilesEvaluated, this,
-            &MerMb2RpmBuildConfiguration::addRemoveSpecialSteps);
+    return new DeploymentDataView(target());
 }
 
 void MerDeployConfiguration::addRemoveSpecialSteps()
@@ -93,7 +89,7 @@ void MerDeployConfiguration::timerEvent(QTimerEvent *event)
         m_addRemoveSpecialStepsTimer.stop();
         doAddRemoveSpecialSteps();
     } else {
-        RemoteLinuxDeployConfiguration::timerEvent(event);
+        DeployConfiguration::timerEvent(event);
     }
 }
 
@@ -120,20 +116,17 @@ void MerDeployConfiguration::removeStep(BuildStepList *stepList, Core::Id stepId
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id,displayName())
+MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *parent)
+    : MerDeployConfiguration(parent, configurationId(), displayName())
 {
-    init();
 }
 
-MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *target, MerRpmDeployConfiguration *source)
-    : MerDeployConfiguration(target, source)
+void MerRpmDeployConfiguration::initialize()
 {
-    init();
-}
+    MerDeployConfiguration::initialize();
 
-void MerRpmDeployConfiguration::init()
-{
+    stepList()->insertStep(0, new MerPrepareTargetStep(stepList()));
+    stepList()->insertStep(1, new MerMb2RpmDeployStep(stepList()));
 }
 
 QString MerRpmDeployConfiguration::displayName()
@@ -158,14 +151,17 @@ void MerRpmDeployConfiguration::doAddRemoveSpecialSteps()
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id,displayName())
+MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent)
+    : MerDeployConfiguration(parent, configurationId() ,displayName())
 {
 }
 
-MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *target, MerRsyncDeployConfiguration *source)
-    : MerDeployConfiguration(target, source)
+void MerRsyncDeployConfiguration::initialize()
 {
+    MerDeployConfiguration::initialize();
+
+    stepList()->insertStep(0, new MerPrepareTargetStep(stepList()));
+    stepList()->insertStep(1, new MerMb2RsyncDeployStep(stepList()));
 }
 
 QString MerRsyncDeployConfiguration::displayName()
@@ -190,14 +186,17 @@ void MerRsyncDeployConfiguration::doAddRemoveSpecialSteps()
 
 /////////////////////////////////////////////////////////////////////////////////////
 //TODO:HACK
-MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id,displayName())
+MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent)
+    : MerDeployConfiguration(parent, configurationId(), displayName())
 {
 }
 
-MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *target, MerMb2RpmBuildConfiguration *source)
-    : MerDeployConfiguration(target, source)
+void MerMb2RpmBuildConfiguration::initialize()
 {
+    MerDeployConfiguration::initialize();
+
+    stepList()->insertStep(0, new MerMb2RpmBuildStep(stepList()));
+    //stepList()->insertStep(2, new MerUploadAndInstallRpmStep(stepList()));
 }
 
 QString MerMb2RpmBuildConfiguration::displayName()
@@ -222,16 +221,17 @@ void MerMb2RpmBuildConfiguration::doAddRemoveSpecialSteps()
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id, displayName())
+MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent)
+    : MerDeployConfiguration(parent, configurationId(), displayName())
 {
-
 }
 
-MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *target, MerRpmBuildDeployConfiguration *source)
-    : MerDeployConfiguration(target, source)
+void MerRpmBuildDeployConfiguration::initialize()
 {
+    MerDeployConfiguration::initialize();
 
+    stepList()->insertStep(1, new MerRpmPackagingStep(stepList()));
+    stepList()->insertStep(2, new MerUploadAndInstallRpmStep(stepList()));
 }
 
 QString MerRpmBuildDeployConfiguration::displayName()

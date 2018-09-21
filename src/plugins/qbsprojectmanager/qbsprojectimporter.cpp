@@ -106,7 +106,8 @@ static bool hasBuildGraph(const QString &dir)
 static QStringList candidatesForDirectory(const QString &dir)
 {
     QStringList candidates;
-    for (const QString &subDir : QDir(dir).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+    const QStringList &subDirs = QDir(dir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &subDir : subDirs) {
         const QString absSubDir = dir + QLatin1Char('/') + subDir;
         if (hasBuildGraph(absSubDir))
             candidates << absSubDir;
@@ -116,12 +117,13 @@ static QStringList candidatesForDirectory(const QString &dir)
 
 QStringList QbsProjectImporter::importCandidates()
 {
-    const QString projectDir = QFileInfo(projectFilePath().toString()).absolutePath();
+    const QString projectDir = projectFilePath().toFileInfo().absolutePath();
     QStringList candidates = candidatesForDirectory(projectDir);
 
     QSet<QString> seenCandidates;
     seenCandidates.insert(projectDir);
-    for (Kit * const k : KitManager::kits()) {
+    const auto &kits = KitManager::kits();
+    for (Kit * const k : kits) {
         QFileInfo fi(buildDir(projectFilePath().toString(), k));
         const QString candidate = fi.absolutePath();
         if (!seenCandidates.contains(candidate)) {

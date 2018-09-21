@@ -40,7 +40,10 @@ QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
-namespace Internal { class ModelPrivate; }
+namespace Internal {
+class ModelPrivate;
+class WriteLocker;
+} //Internal
 
 class AnchorLine;
 class ModelNode;
@@ -61,12 +64,10 @@ typedef QList<QPair<PropertyName, QVariant> > PropertyListType;
 class QMLDESIGNERCORE_EXPORT Model : public QObject
 {
     friend class QmlDesigner::ModelNode;
-    friend class QmlDesigner::NodeState;
-    friend class QmlDesigner::ModelState;
-    friend class QmlDesigner::NodeAnchors;
     friend class QmlDesigner::AbstractProperty;
     friend class QmlDesigner::AbstractView;
     friend class Internal::ModelPrivate;
+    friend class Internal::WriteLocker;
 
     Q_OBJECT
 
@@ -98,8 +99,10 @@ public:
     void setPossibleImports(const QList<Import> &possibleImports);
     void setUsedImports(const QList<Import> &usedImports);
     bool hasImport(const Import &import, bool ignoreAlias = true, bool allowHigherVersion = false);
+    bool isImportPossible(const Import &import, bool ignoreAlias = true, bool allowHigherVersion = false);
     QString pathForImport(const Import &import);
     QStringList importPaths() const;
+    Import highestPossibleImport(const QString &importPath);
 
     RewriterView *rewriterView() const;
     void setRewriterView(RewriterView *rewriterView);
@@ -116,7 +119,7 @@ public:
 protected:
     Model();
 
-public:
+private:
     Internal::ModelPrivate *d;
 };
 

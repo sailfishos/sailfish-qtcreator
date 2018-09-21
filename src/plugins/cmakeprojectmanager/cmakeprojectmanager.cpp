@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "cmakeprojectmanager.h"
-#include "builddirmanager.h"
 #include "cmakebuildconfiguration.h"
 #include "cmakekitinformation.h"
 #include "cmakeprojectconstants.h"
@@ -42,9 +41,6 @@
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
-
-#include <utils/qtcprocess.h>
-#include <utils/synchronousprocess.h>
 
 #include <QAction>
 #include <QDateTime>
@@ -66,7 +62,7 @@ CMakeManager::CMakeManager() :
     Core::ActionContainer *msubproject =
             Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_SUBPROJECTCONTEXT);
 
-    const Core::Context projectContext(CMakeProjectManager::Constants::PROJECTCONTEXT);
+    const Core::Context projectContext(CMakeProjectManager::Constants::CMAKEPROJECT_ID);
     const Core::Context globalContext(Core::Constants::C_GLOBAL);
 
     Core::Command *command = Core::ActionManager::registerAction(m_runCMakeAction,
@@ -121,19 +117,15 @@ void CMakeManager::updateCmakeActions()
 
 void CMakeManager::clearCMakeCache(Project *project)
 {
-    if (!project || !project->activeTarget())
-        return;
-    auto bc = qobject_cast<CMakeBuildConfiguration *>(project->activeTarget()->activeBuildConfiguration());
-    if (!bc)
+    CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(project);
+    if (!cmakeProject || !cmakeProject->activeTarget() || !cmakeProject->activeTarget()->activeBuildConfiguration())
         return;
 
-    bc->clearCache();
+    cmakeProject->clearCMakeCache();
 }
 
 void CMakeManager::runCMake(Project *project)
 {
-    if (!project)
-        return;
     CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(project);
     if (!cmakeProject || !cmakeProject->activeTarget() || !cmakeProject->activeTarget()->activeBuildConfiguration())
         return;
@@ -146,12 +138,9 @@ void CMakeManager::runCMake(Project *project)
 
 void CMakeManager::rescanProject(Project *project)
 {
-    if (!project)
-        return;
     CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(project);
     if (!cmakeProject || !cmakeProject->activeTarget() || !cmakeProject->activeTarget()->activeBuildConfiguration())
         return;
 
-    cmakeProject->scanProjectTree();
-    cmakeProject->runCMake(); // by my experience: every rescan run requires cmake run too
+    cmakeProject->runCMakeAndScanProjectTree();// by my experience: every rescan run requires cmake run too
 }

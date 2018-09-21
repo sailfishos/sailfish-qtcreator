@@ -60,16 +60,6 @@ namespace Internal {
 
 MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl) : AbstractPackagingStep(bsl, stepId())
 {
-    ctor();
-}
-
-MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl, MerRpmPackagingStep *other) : AbstractPackagingStep(bsl, other)
-{
-    ctor();
-}
-
-void MerRpmPackagingStep::ctor()
-{
     //TODO: write better pattern
     m_regExp = QRegExp(QLatin1String("Wrote: .*/(rpmbuild/.*\\.rpm)"));
     setDefaultDisplayName(displayName());

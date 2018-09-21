@@ -100,7 +100,6 @@ SOURCES += corejsextensions.cpp \
     idocumentfactory.cpp \
     textdocument.cpp \
     documentmanager.cpp \
-    removefiledialog.cpp \
     iversioncontrol.cpp \
     dialogs/addtovcsdialog.cpp \
     ioutputpane.cpp \
@@ -111,7 +110,9 @@ SOURCES += corejsextensions.cpp \
     iwelcomepage.cpp \
     externaltoolmanager.cpp \
     systemsettings.cpp \
-    coreicons.cpp
+    coreicons.cpp \
+    diffservice.cpp \
+    menubarfilter.cpp
 
 HEADERS += corejsextensions.h \
     mainwindow.h \
@@ -213,7 +214,6 @@ HEADERS += corejsextensions.h \
     idocumentfactory.h \
     textdocument.h \
     documentmanager.h \
-    removefiledialog.h \
     dialogs/addtovcsdialog.h \
     patchtool.h \
     windowsupport.h \
@@ -223,7 +223,8 @@ HEADERS += corejsextensions.h \
     systemsettings.h \
     coreicons.h \
     editormanager/documentmodel_p.h \
-    diffservice.h
+    diffservice.h \
+    menubarfilter.h
 
 FORMS += dialogs/newdialog.ui \
     dialogs/saveitemsdialog.ui \
@@ -233,7 +234,6 @@ FORMS += dialogs/newdialog.ui \
     dialogs/externaltoolconfig.ui \
     mimetypesettingspage.ui \
     mimetypemagicdialog.ui \
-    removefiledialog.ui \
     dialogs/addtovcsdialog.ui \
     systemsettings.ui
 

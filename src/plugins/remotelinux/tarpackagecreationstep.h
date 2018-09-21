@@ -43,7 +43,6 @@ class REMOTELINUX_EXPORT TarPackageCreationStep : public AbstractPackagingStep
     Q_OBJECT
 public:
     TarPackageCreationStep(ProjectExplorer::BuildStepList *bsl);
-    TarPackageCreationStep(ProjectExplorer::BuildStepList *bsl, TarPackageCreationStep *other);
 
     static Core::Id stepId();
     static QString displayName();
@@ -69,7 +68,6 @@ private:
 
     QString packageFileName() const override;
 
-    void ctor();
     bool doPackage(QFutureInterface<bool> &fi);
     bool appendFile(QFile &tarFile, const QFileInfo &fileInfo,
         const QString &remoteFilePath, const QFutureInterface<bool> &fi);
@@ -78,9 +76,9 @@ private:
 
     DeploymentTimeInfo m_deployTimes;
 
-    bool m_incrementalDeployment;
-    bool m_ignoreMissingFiles;
-    bool m_packagingNeeded;
+    bool m_incrementalDeployment = false;
+    bool m_ignoreMissingFiles = false;
+    bool m_packagingNeeded = false;
     QList<ProjectExplorer::DeployableFile> m_files;
 };
 

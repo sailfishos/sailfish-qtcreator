@@ -29,6 +29,7 @@
 #include "includecollector.h"
 #include "pchnotcreatederror.h"
 
+#include <filepathcachinginterface.h>
 #include <projectpartpch.h>
 
 #include <QCryptographicHash>
@@ -37,7 +38,7 @@
 
 namespace ClangBackEnd {
 
-PchCreator::PchCreator(Environment &environment, StringCache<Utils::PathString> &filePathCache)
+PchCreator::PchCreator(Environment &environment, FilePathCachingInterface &filePathCache)
    : m_environment(environment),
      m_filePathCache(filePathCache)
 {
@@ -45,7 +46,7 @@ PchCreator::PchCreator(Environment &environment, StringCache<Utils::PathString> 
 
 PchCreator::PchCreator(V2::ProjectPartContainers &&projectsParts,
                        Environment &environment,
-                       StringCache<Utils::PathString> &filePathCache,
+                       FilePathCachingInterface &filePathCache,
                        PchGeneratorInterface *pchGenerator,
                        V2::FileContainers &&generatedFiles)
     : m_projectParts(std::move(projectsParts)),
@@ -66,24 +67,24 @@ template <typename Source,
           typename Target>
 void append(Target &target, const Source &source)
 {
+    using ValueType = typename Target::value_type;
     Source clonedSource = source.clone();
 
     target.reserve(target.size() + source.size());
 
-    std::move(clonedSource.begin(),
-              clonedSource.end(),
-              std::back_inserter(target));
+    for (auto &&entry : clonedSource)
+        target.push_back(ValueType(std::move(entry)));
 }
 
 template <typename Source,
           typename Target>
 void append(Target &target, Source &source)
 {
+    using ValueType = typename Target::value_type;
     target.reserve(target.size() + source.size());
 
-    std::move(source.begin(),
-              source.end(),
-              std::back_inserter(target));
+    for (auto &&entry : source)
+        target.push_back(ValueType(entry));
 }
 
 template <typename GetterFunction>
@@ -239,7 +240,7 @@ Utils::SmallStringVector PchCreator::generateGlobalClangCompilerArguments() cons
     return compilerArguments;
 }
 
-std::vector<uint> PchCreator::generateGlobalPchIncludeIds() const
+FilePathIds PchCreator::generateGlobalPchIncludeIds() const
 {
     IncludeCollector collector(m_filePathCache);
 
@@ -256,7 +257,7 @@ std::vector<uint> PchCreator::generateGlobalPchIncludeIds() const
 
 namespace {
 
-std::size_t contentSize(const std::vector<Utils::PathString> &includes)
+std::size_t contentSize(const FilePaths &includes)
 {
     auto countIncludeSize = [] (std::size_t size, const Utils::PathString &include) {
         return size + include.size();
@@ -266,20 +267,16 @@ std::size_t contentSize(const std::vector<Utils::PathString> &includes)
 }
 }
 
-Utils::SmallString PchCreator::generatePchIncludeFileContent(
-        const std::vector<uint> &includeIds) const
+Utils::SmallString PchCreator::generatePchIncludeFileContent(const FilePathIds &includeIds) const
 {
     Utils::SmallString fileContent;
     const std::size_t lineTemplateSize = 12;
-    auto includes = m_filePathCache.strings(includeIds);
+    auto includes = m_filePathCache.filePaths(includeIds);
 
     fileContent.reserve(includes.size() * lineTemplateSize + contentSize(includes));
 
-    for (const Utils::PathString &include : includes) {
-        fileContent += "#include \"";
-        fileContent += include;
-        fileContent += "\"\n";
-    }
+    for (const Utils::PathString &include : includes)
+        fileContent += {"#include \"", include, "\"\n"};
 
     return fileContent;
 }
@@ -461,7 +458,7 @@ Utils::PathStringVector PchCreator::generateProjectPartHeaderAndSourcePaths(
     return includeAndSources;
 }
 
-std::vector<uint> PchCreator::generateProjectPartPchIncludes(
+FilePathIds PchCreator::generateProjectPartPchIncludes(
         const V2::ProjectPartContainer &projectPart) const
 {
     Utils::SmallString jointedFileContent = generateProjectPartHeaderAndSourcesContent(projectPart);
@@ -469,14 +466,14 @@ std::vector<uint> PchCreator::generateProjectPartPchIncludes(
     auto jointFile = generateFileWithContent(jointedFilePath, jointedFileContent);
     Utils::SmallStringVector arguments = generateProjectPartCommandLine(projectPart);
     arguments.push_back(jointedFilePath);
-    FilePath filePath(jointedFilePath.clone());
+    FilePath filePath{Utils::PathString(jointedFilePath)};
 
     IncludeCollector collector(m_filePathCache);
 
     collector.setExcludedIncludes(generateProjectPartHeaderAndSourcePaths(projectPart));
 
-    collector.addFile(filePath.directory(),
-                      filePath.name(),
+    collector.addFile(std::string(filePath.directory()),
+                      std::string(filePath.name()),
                       {},
                       arguments);
 
@@ -581,11 +578,11 @@ std::unique_ptr<QFile> PchCreator::generateFileWithContent(
         const Utils::SmallString &filePath,
         const Utils::SmallString &content)
 {
-    std::unique_ptr<QFile> precompiledIncludeFile(new QFile(filePath));
+    std::unique_ptr<QFile> precompiledIncludeFile(new QFile(QString(filePath)));
 
     precompiledIncludeFile->open(QIODevice::WriteOnly);
 
-    precompiledIncludeFile->write(content.data(), content.size());
+    precompiledIncludeFile->write(content.data(), qint64(content.size()));
     precompiledIncludeFile->close();
 
     return precompiledIncludeFile;

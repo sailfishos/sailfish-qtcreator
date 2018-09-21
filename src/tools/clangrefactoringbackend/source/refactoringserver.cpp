@@ -27,6 +27,7 @@
 
 #include "symbolfinder.h"
 #include "clangquery.h"
+#include "symbolindexing.h"
 
 #include <refactoringclientinterface.h>
 #include <clangrefactoringmessages.h>
@@ -38,7 +39,10 @@
 
 namespace ClangBackEnd {
 
-RefactoringServer::RefactoringServer()
+RefactoringServer::RefactoringServer(SymbolIndexingInterface &symbolIndexing,
+                                     FilePathCachingInterface &filePathCache)
+    : m_symbolIndexing(symbolIndexing),
+      m_filePathCache(filePathCache)
 {
     m_pollTimer.setInterval(100);
 
@@ -54,12 +58,12 @@ void RefactoringServer::end()
 
 void RefactoringServer::requestSourceLocationsForRenamingMessage(RequestSourceLocationsForRenamingMessage &&message)
 {
-    SymbolFinder symbolFinder(message.line(), message.column());
+    SymbolFinder symbolFinder(message.line(), message.column(), m_filePathCache);
 
-    symbolFinder.addFile(message.filePath().directory(),
-                         message.filePath().name(),
-                         message.unsavedContent(),
-                         message.commandLine());
+    symbolFinder.addFile(std::string(message.filePath().directory()),
+                         std::string(message.filePath().name()),
+                         std::string(message.unsavedContent()),
+                         std::vector<std::string>(message.commandLine()));
 
     symbolFinder.findSymbol();
 
@@ -73,10 +77,10 @@ void RefactoringServer::requestSourceRangesAndDiagnosticsForQueryMessage(
 {
     ClangQuery clangQuery(m_filePathCache, message.takeQuery());
 
-    clangQuery.addFile(message.source().filePath().directory(),
-                       message.source().filePath().name(),
-                       message.source().unsavedFileContent(),
-                       message.source().commandLineArguments());
+    clangQuery.addFile(std::string(message.source().filePath().directory()),
+                       std::string(message.source().filePath().name()),
+                       std::string(message.source().unsavedFileContent()),
+                       std::vector<std::string>(message.source().commandLineArguments()));
 
     clangQuery.findLocations();
 
@@ -88,7 +92,17 @@ void RefactoringServer::requestSourceRangesForQueryMessage(RequestSourceRangesFo
 {
     gatherSourceRangesForQueryMessages(message.takeSources(),
                                                      message.takeUnsavedContent(),
-                                                     message.takeQuery());
+                                       message.takeQuery());
+}
+
+void RefactoringServer::updatePchProjectParts(UpdatePchProjectPartsMessage &&message)
+{
+    m_symbolIndexing.updateProjectParts(message.takeProjectsParts(), message.takeGeneratedFiles());
+}
+
+void RefactoringServer::removePchProjectParts(RemovePchProjectPartsMessage &&)
+{
+
 }
 
 void RefactoringServer::cancel()

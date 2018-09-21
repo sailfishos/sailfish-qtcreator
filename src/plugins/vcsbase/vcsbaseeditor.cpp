@@ -943,9 +943,8 @@ void VcsBaseEditorWidget::slotCursorPositionChanged()
     if (section != -1) {
         QComboBox *entriesComboBox = d->entriesComboBox();
         if (entriesComboBox->currentIndex() != section) {
-            const bool blocked = entriesComboBox->blockSignals(true);
+            QSignalBlocker blocker(entriesComboBox);
             entriesComboBox->setCurrentIndex(section);
-            entriesComboBox->blockSignals(blocked);
         }
     }
 }
@@ -1398,7 +1397,7 @@ void VcsBaseEditorWidget::setCommand(VcsCommand *command)
     }
     d->m_command = command;
     if (command) {
-        d->m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Large);
+        d->m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicatorSize::Large);
         d->m_progressIndicator->attachToWidget(this);
         connect(command, &VcsCommand::finished, this, &VcsBaseEditorWidget::reportCommandFinished);
         QTimer::singleShot(100, this, &VcsBaseEditorWidget::showProgressIndicator);

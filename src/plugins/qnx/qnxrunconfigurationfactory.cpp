@@ -32,105 +32,40 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
-#include <qmakeprojectmanager/qmakenodes.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
+
+using namespace ProjectExplorer;
 
 namespace Qnx {
 namespace Internal {
 
-static Utils::FileName pathFromId(Core::Id id)
-{
-    return Utils::FileName::fromString(id.suffixAfter(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX));
-}
-
 QnxRunConfigurationFactory::QnxRunConfigurationFactory(QObject *parent) :
     ProjectExplorer::IRunConfigurationFactory(parent)
 {
+    registerRunConfiguration<QnxRunConfiguration>(Qnx::Constants::QNX_QNX_RUNCONFIGURATION_PREFIX);
+    setSupportedTargetDeviceTypes({Qnx::Constants::QNX_QNX_OS_TYPE});
+    addSupportedProjectType(QmakeProjectManager::Constants::QMAKEPROJECT_ID);
 }
 
-QList<Core::Id> QnxRunConfigurationFactory::availableCreationIds(ProjectExplorer::Target *parent, CreationMode mode) const
+QList<ProjectExplorer::BuildTargetInfo>
+   QnxRunConfigurationFactory::availableBuildTargets(Target *parent, CreationMode mode) const
 {
-    using QmakeProjectManager::QmakeProject;
-    if (!canHandle(parent))
-        return QList<Core::Id>();
-
-    auto project = qobject_cast<QmakeProject *>(parent->project());
-    if (!project)
-        return QList<Core::Id>();
-
-    return project->creationIds(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX, mode);
-}
-
-QString QnxRunConfigurationFactory::displayNameForId(Core::Id id) const
-{
-    const Utils::FileName path = pathFromId(id);
-    if (path.isEmpty())
-        return QString();
-
-    if (id.name().startsWith(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX))
-        return tr("%1 on QNX Device").arg(path.toFileInfo().completeBaseName());
-
-    return QString();
-}
-
-bool QnxRunConfigurationFactory::canCreate(ProjectExplorer::Target *parent, Core::Id id) const
-{
-    if (!canHandle(parent) || !id.name().startsWith(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX))
-        return false;
-
-    QmakeProjectManager::QmakeProject *qt4Project = qobject_cast<QmakeProjectManager::QmakeProject *>(parent->project());
-    if (!qt4Project)
-        return false;
-
-    return qt4Project->hasApplicationProFile(pathFromId(id));
-}
-
-ProjectExplorer::RunConfiguration *QnxRunConfigurationFactory::doCreate(ProjectExplorer::Target *parent, Core::Id id)
-{
-    const Utils::FileName projectFilePath = pathFromId(id);
     auto project = qobject_cast<QmakeProjectManager::QmakeProject *>(parent->project());
-    QTC_ASSERT(project, return nullptr);
-    for (const QmakeProjectManager::QmakeProFile *file : project->applicationProFiles()) {
-        if (file->filePath() == projectFilePath)
-            return new QnxRunConfiguration(parent, id, file->targetInformation().target);
-    }
-    QTC_CHECK(false);
-    return nullptr;
+    QTC_ASSERT(project, return {});
+
+    const QList<BuildTargetInfo> buildTargets = project->buildTargets(mode);
+    return Utils::transform(buildTargets, [](BuildTargetInfo bti) {
+        bti.displayName = tr("%1 on QNX Device").arg(QFileInfo(bti.targetName).completeBaseName());
+        return bti;
+    });
 }
 
-bool QnxRunConfigurationFactory::canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const
+bool QnxRunConfigurationFactory::canCreateHelper(ProjectExplorer::Target *parent,
+                                                 const QString &buildTarget) const
 {
-    return canHandle(parent)
-            && ProjectExplorer::idFromMap(map).name().startsWith(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX);
-}
-
-ProjectExplorer::RunConfiguration *QnxRunConfigurationFactory::doRestore(ProjectExplorer::Target *parent,
-                                                                         const QVariantMap &map)
-{
-    Q_UNUSED(map);
-    return new QnxRunConfiguration(parent, Core::Id(Constants::QNX_QNX_RUNCONFIGURATION_PREFIX), QString());
-}
-
-bool QnxRunConfigurationFactory::canClone(ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *source) const
-{
-    return canCreate(parent, source->id());
-}
-
-ProjectExplorer::RunConfiguration *QnxRunConfigurationFactory::clone(ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *source)
-{
-    if (!canClone(parent, source))
-        return 0;
-
-    QnxRunConfiguration *old = static_cast<QnxRunConfiguration *>(source);
-    return new QnxRunConfiguration(parent, old);
-}
-
-bool QnxRunConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
-{
-    Core::Id deviceType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit());
-    if (deviceType != QnxDeviceFactory::deviceType())
-        return false;
-
-    return true;
+    auto project = qobject_cast<QmakeProjectManager::QmakeProject *>(parent->project());
+    QTC_ASSERT(project, return false);
+    return project->hasApplicationProFile(Utils::FileName::fromString(buildTarget));
 }
 
 } // namespace Internal

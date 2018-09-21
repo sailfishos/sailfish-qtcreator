@@ -86,7 +86,7 @@ TestNavigationWidget::TestNavigationWidget(QWidget *parent) :
 
     connect(m_view, &TestTreeView::activated, this, &TestNavigationWidget::onItemActivated);
 
-    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Medium, this);
+    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicatorSize::Medium, this);
     m_progressIndicator->attachToWidget(m_view);
     m_progressIndicator->hide();
 
@@ -101,7 +101,7 @@ TestNavigationWidget::TestNavigationWidget(QWidget *parent) :
     connect(m_model->parser(), &TestCodeParser::parsingFailed,
             this, &TestNavigationWidget::onParsingFinished);
     connect(m_model, &TestTreeModel::updatedActiveFrameworks,
-            [this] (int numberOfActive) {
+            this, [this] (int numberOfActive) {
         m_missingFrameworksWidget->setVisible(numberOfActive == 0);
     });
     connect(m_progressTimer, &QTimer::timeout,
@@ -117,7 +117,6 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
     const bool enabled = !ProjectExplorer::BuildManager::isBuilding()
             && !TestRunner::instance()->isTestRunning()
             && m_model->parser()->state() == TestCodeParser::Idle;
-    const bool hasTests = m_model->hasTests();
 
     QMenu menu;
     QAction *runThisTest = nullptr;
@@ -136,13 +135,13 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
                 runThisTest->setEnabled(enabled);
                 connect(runThisTest, &QAction::triggered,
                         this, [this] () {
-                    onRunThisTestTriggered(TestRunner::Run);
+                    onRunThisTestTriggered(TestRunMode::Run);
                 });
                 runWithoutDeploy = new QAction(tr("Run Without Deployment"), &menu);
                 runWithoutDeploy->setEnabled(enabled);
                 connect(runWithoutDeploy, &QAction::triggered,
                         this, [this] () {
-                    onRunThisTestTriggered(TestRunner::RunWithoutDeploy);
+                    onRunThisTestTriggered(TestRunMode::RunWithoutDeploy);
                 });
             }
             if (item->canProvideDebugConfiguration()) {
@@ -150,13 +149,13 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
                 debugThisTest->setEnabled(enabled);
                 connect(debugThisTest, &QAction::triggered,
                         this, [this] () {
-                    onRunThisTestTriggered(TestRunner::Debug);
+                    onRunThisTestTriggered(TestRunMode::Debug);
                 });
                 debugWithoutDeploy = new QAction(tr("Debug Without Deployment"), &menu);
                 debugWithoutDeploy->setEnabled(enabled);
                 connect(debugWithoutDeploy, &QAction::triggered,
                         this, [this] () {
-                    onRunThisTestTriggered(TestRunner::DebugWithoutDeploy);
+                    onRunThisTestTriggered(TestRunMode::DebugWithoutDeploy);
                 });
             }
         }
@@ -171,10 +170,6 @@ void TestNavigationWidget::contextMenuEvent(QContextMenuEvent *event)
 
     connect(selectAll, &QAction::triggered, m_view, &TestTreeView::selectAll);
     connect(deselectAll, &QAction::triggered, m_view, &TestTreeView::deselectAll);
-
-    selectAll->setEnabled(enabled && hasTests);
-    deselectAll->setEnabled(enabled && hasTests);
-    rescan->setEnabled(enabled);
 
     if (runThisTest) {
         menu.addAction(runThisTest);
@@ -236,8 +231,7 @@ QList<QToolButton *> TestNavigationWidget::createToolButtons()
 
 void TestNavigationWidget::onItemActivated(const QModelIndex &index)
 {
-    const TextEditor::TextEditorWidget::Link link
-            = index.data(LinkRole).value<TextEditor::TextEditorWidget::Link>();
+    const Utils::Link link = index.data(LinkRole).value<Utils::Link>();
     if (link.hasValidTarget()) {
         Core::EditorManager::openEditorAt(link.targetFileName, link.targetLine,
             link.targetColumn);
@@ -291,7 +285,7 @@ void TestNavigationWidget::initializeFilterMenu()
     m_filterMenu->addAction(action);
 }
 
-void TestNavigationWidget::onRunThisTestTriggered(TestRunner::Mode runMode)
+void TestNavigationWidget::onRunThisTestTriggered(TestRunMode runMode)
 {
     const QModelIndexList selected = m_view->selectionModel()->selectedIndexes();
     if (selected.isEmpty())
@@ -301,25 +295,7 @@ void TestNavigationWidget::onRunThisTestTriggered(TestRunner::Mode runMode)
         return;
 
     TestTreeItem *item = static_cast<TestTreeItem *>(sourceIndex.internalPointer());
-    TestConfiguration *configuration;
-    switch (runMode) {
-    case TestRunner::Run:
-    case TestRunner::RunWithoutDeploy:
-        configuration = item->testConfiguration();
-        break;
-    case TestRunner::Debug:
-    case TestRunner::DebugWithoutDeploy:
-        configuration = item->debugConfiguration();
-        break;
-    default:
-        configuration = nullptr;
-    }
-
-    if (configuration) {
-        TestRunner *runner = TestRunner::instance();
-        runner->setSelectedTests({configuration});
-        runner->prepareToRunTests(runMode);
-    }
+    TestRunner::instance()->runTest(runMode, item);
 }
 
 TestNavigationWidgetFactory::TestNavigationWidgetFactory()

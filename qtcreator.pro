@@ -2,7 +2,7 @@ include(qtcreator.pri)
 
 #version check qt
 !minQtVersion(5, 6, 2) {
-    message("Cannot build Qt Creator with Qt version $${QT_VERSION}.")
+    message("Cannot build $$IDE_DISPLAY_NAME with Qt version $${QT_VERSION}.")
     error("Use at least Qt 5.6.2.")
 }
 
@@ -20,11 +20,6 @@ DISTFILES += dist/copyright_template.txt \
     $$files(dist/changes-*) \
     qtcreator.qbs \
     qbs/pluginjson/pluginjson.qbs \
-    $$files(dist/installer/ifw/config/config-*) \
-    dist/installer/ifw/packages/org.qtproject.qtcreator/meta/package.xml.in \
-    dist/installer/ifw/packages/org.qtproject.qtcreator.application/meta/installscript.qs \
-    dist/installer/ifw/packages/org.qtproject.qtcreator.application/meta/package.xml.in \
-    dist/installer/ifw/packages/org.qtproject.qtcreator.application/meta/license.txt \
     $$files(scripts/*.py) \
     $$files(scripts/*.sh) \
     $$files(scripts/*.pl)
@@ -102,9 +97,6 @@ else: PLATFORM = "unknown"
 BASENAME = $$(INSTALL_BASENAME)
 isEmpty(BASENAME): BASENAME = qt-creator-$${PLATFORM}$(INSTALL_EDITION)-$${QTCREATOR_VERSION}$(INSTALL_POSTFIX)
 
-macx:INSTALLER_NAME = "qt-creator-$${QTCREATOR_VERSION}"
-else:INSTALLER_NAME = "$${BASENAME}"
-
 linux {
     appstream.files = dist/org.qt-project.qtcreator.appdata.xml
     appstream.path = $$QTC_PREFIX/share/metainfo/
@@ -116,18 +108,17 @@ linux {
 }
 
 macx {
-    APPBUNDLE = "$$OUT_PWD/bin/Qt Creator.app"
-    BINDIST_SOURCE = "$$OUT_PWD/bin/Qt Creator.app"
-    BINDIST_INSTALLER_SOURCE = "$$OUT_PWD/bin"
+    APPBUNDLE = "$$OUT_PWD/bin/$${IDE_APP_TARGET}.app"
+    BINDIST_SOURCE = "$$OUT_PWD/bin"
     deployqt.commands = $$PWD/scripts/deployqtHelper_mac.sh \"$${APPBUNDLE}\" \"$$[QT_INSTALL_BINS]\" \"$$[QT_INSTALL_TRANSLATIONS]\" \"$$[QT_INSTALL_PLUGINS]\" \"$$[QT_INSTALL_IMPORTS]\" \"$$[QT_INSTALL_QML]\"
     codesign.commands = codesign --deep -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${APPBUNDLE}\"
-    dmg.commands = $$PWD/scripts/makedmg.sh $$OUT_PWD/bin $${BASENAME}.dmg
+    dmg.commands = python -u \"$$PWD/scripts/makedmg.py\" \"$${BASENAME}.dmg\" \"Qt Creator\" \"$$IDE_SOURCE_TREE\" \"$$OUT_PWD/bin\"
     #dmg.depends = deployqt
     QMAKE_EXTRA_TARGETS += codesign dmg
 } else {
     BINDIST_SOURCE = "$(INSTALL_ROOT)$$QTC_PREFIX"
-    BINDIST_INSTALLER_SOURCE = "$$BINDIST_SOURCE/*"
-    deployqt.commands = python -u $$PWD/scripts/deployqt.py -i \"$(INSTALL_ROOT)$$QTC_PREFIX\" \"$(QMAKE)\"
+    BINDIST_EXCLUDE_ARG = "--exclude-toplevel"
+    deployqt.commands = python -u $$PWD/scripts/deployqt.py -i \"$(INSTALL_ROOT)$$QTC_PREFIX/bin/$${IDE_APP_TARGET}\" \"$(QMAKE)\"
     deployqt.depends = install
     win32 {
         deployartifacts.depends = install
@@ -146,24 +137,17 @@ isEmpty(INSTALLER_ARCHIVE_FROM_ENV) {
     INSTALLER_ARCHIVE = $$OUT_PWD/$$(INSTALLER_ARCHIVE)
 }
 
-#bindist.depends = deployqt
-bindist.commands = 7z a -mx9 $$OUT_PWD/$${BASENAME}.7z \"$$BINDIST_SOURCE\"
-#bindist_installer.depends = deployqt
-bindist_installer.commands = 7z a -mx9 $${INSTALLER_ARCHIVE} \"$$BINDIST_INSTALLER_SOURCE\"
-installer.depends = bindist_installer
-installer.commands = python -u $$PWD/scripts/packageIfw.py -i \"$(IFW_PATH)\" -v $${QTCREATOR_VERSION} -a \"$${INSTALLER_ARCHIVE}\" "$$INSTALLER_NAME"
+INSTALLER_ARCHIVE_DEBUG = $$INSTALLER_ARCHIVE
+INSTALLER_ARCHIVE_DEBUG ~= s/(.*)[.]7z/\1-debug.7z
 
-macx {
-    codesign_installer.commands = codesign -s \"$(SIGNING_IDENTITY)\" $(SIGNING_FLAGS) \"$${INSTALLER_NAME}.app\"
-    dmg_installer.commands = hdiutil create -srcfolder "$${INSTALLER_NAME}.app" -volname \"Qt Creator\" -format UDBZ "$${BASENAME}-installer.dmg" -ov -scrub -size 1g -verbose
-    QMAKE_EXTRA_TARGETS += codesign_installer dmg_installer
-}
+bindist.commands = python -u $$PWD/scripts/createDistPackage.py $$OUT_PWD/$${BASENAME}.7z \"$$BINDIST_SOURCE\"
+bindist_installer.commands = python -u $$PWD/scripts/createDistPackage.py $$BINDIST_EXCLUDE_ARG $${INSTALLER_ARCHIVE} \"$$BINDIST_SOURCE\"
+bindist_debug.commands = python -u $$PWD/scripts/createDistPackage.py --debug $$BINDIST_EXCLUDE_ARG $${INSTALLER_ARCHIVE_DEBUG} \"$$BINDIST_SOURCE\"
 
 win32 {
     deployqt.commands ~= s,/,\\\\,g
     bindist.commands ~= s,/,\\\\,g
     bindist_installer.commands ~= s,/,\\\\,g
-    installer.commands ~= s,/,\\\\,g
 }
 
-QMAKE_EXTRA_TARGETS += deployqt bindist bindist_installer installer
+QMAKE_EXTRA_TARGETS += deployqt bindist bindist_installer bindist_debug

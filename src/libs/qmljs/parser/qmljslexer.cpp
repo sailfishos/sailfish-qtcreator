@@ -32,6 +32,8 @@
 #include <QtCore/qvarlengtharray.h>
 #include <QtCore/qdebug.h>
 
+#include <utils/qtcfallthrough.h>
+
 QT_BEGIN_NAMESPACE
 Q_CORE_EXPORT double qstrtod(const char *s00, char const **se, bool *ok);
 QT_END_NAMESPACE
@@ -72,6 +74,7 @@ static inline QChar convertUnicode(QChar c1, QChar c2, QChar c3, QChar c4)
 Lexer::Lexer(Engine *engine)
     : _engine(engine)
     , _codePtr(0)
+    , _endPtr(0)
     , _lastLinePtr(0)
     , _tokenLinePtr(0)
     , _tokenStartPtr(0)
@@ -753,7 +756,7 @@ again:
                         u = QLatin1Char('\0');
                         break;
                     }
-                    // fall through
+                    Q_FALLTHROUGH();
                 case '1':
                 case '2':
                 case '3':

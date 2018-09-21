@@ -49,7 +49,7 @@ class WrapperNode : public Utils::TypedTreeItem<WrapperNode>
 {
 public:
     explicit WrapperNode(Node *node) : m_node(node) {}
-    QPointer<Node> m_node;
+    Node *m_node = nullptr;
 };
 
 class FlatModel : public Utils::TreeModel<WrapperNode, WrapperNode>
@@ -102,8 +102,10 @@ private:
     void saveExpandData();
     void handleProjectAdded(Project *project);
     void handleProjectRemoved(Project *project);
-    WrapperNode *nodeForProject(Project *project);
+    WrapperNode *nodeForProject(const Project *project) const;
     void addOrRebuildProjectModel(Project *project);
+
+    void parsingStateChanged(Project *project);
 
     QTimer m_timer;
     QSet<ExpandData> m_toExpand;

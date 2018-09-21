@@ -42,6 +42,7 @@ namespace Internal {
 class CorePlugin;
 class OpenDocumentsFilter;
 class FileSystemFilter;
+class JavaScriptFilter;
 class LocatorSettingsPage;
 class ExternalToolsFilter;
 
@@ -63,7 +64,7 @@ public:
     QList<ILocatorFilter *> customFilters();
     void setFilters(QList<ILocatorFilter *> f);
     void setCustomFilters(QList<ILocatorFilter *> f);
-    int refreshInterval();
+    int refreshInterval() const;
     void setRefreshInterval(int interval);
 
 signals:
@@ -71,26 +72,26 @@ signals:
 
 public slots:
     void refresh(QList<ILocatorFilter *> filters = QList<ILocatorFilter *>());
-    void saveSettings();
+    void saveSettings() const;
 
 private:
     void loadSettings();
     void updateFilterActions();
     void updateEditorManagerPlaceholderText();
 
-    LocatorSettingsPage *m_settingsPage;
+    LocatorSettingsPage *m_settingsPage = nullptr;
 
     bool m_settingsInitialized = false;
     QList<ILocatorFilter *> m_filters;
     QList<ILocatorFilter *> m_customFilters;
     QMap<Id, QAction *> m_filterActionMap;
-    int m_refreshInterval;
     QTimer m_refreshTimer;
-    OpenDocumentsFilter *m_openDocumentsFilter;
-    FileSystemFilter *m_fileSystemFilter;
-    ExecuteFilter *m_executeFilter;
+    JavaScriptFilter *m_javaScriptFilter = nullptr;
+    OpenDocumentsFilter *m_openDocumentsFilter = nullptr;
+    FileSystemFilter *m_fileSystemFilter = nullptr;
+    ExecuteFilter *m_executeFilter = nullptr;
     CorePlugin *m_corePlugin = nullptr;
-    ExternalToolsFilter *m_externalToolsFilter;
+    ExternalToolsFilter *m_externalToolsFilter = nullptr;
 };
 
 } // namespace Internal

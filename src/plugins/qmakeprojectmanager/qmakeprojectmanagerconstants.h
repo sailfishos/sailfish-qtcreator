@@ -34,7 +34,6 @@ namespace Constants {
 const char M_CONTEXT[] = "ProFileEditor.ContextMenu";
 
 // Kinds
-const char PROJECT_ID[] = "Qt4.Qt4Project";
 const char PROFILE_EDITOR_ID[] = "Qt4.proFileEditor";
 const char PROFILE_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("OpenWith::Editors", ".pro File Editor");
 const char PROFILE_MIMETYPE[] = "application/vnd.qt.qmakeprofile";
@@ -62,6 +61,8 @@ const char PROFILE_EVALUATE[] = "Qt4ProjectManager.ProFileEvaluate";
 
 // Project
 const char QMAKEPROJECT_ID[] = "Qt4ProjectManager.Qt4Project";
+
+const char QMAKE_BC_ID[] = "Qt4ProjectManager.Qt4BuildConfiguration";
 
 // ICONS
 const char ICON_QTQUICK_APP[] = ":/wizards/images/qtquickapp.png";

@@ -23,17 +23,33 @@
 **
 ****************************************************************************/
 
-#include <utils/algorithm.h>
-
 #include <QtTest>
+
+#include <array>
+#include <deque>
+#include <list>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <valarray>
+
+// must get included after the containers above or gcc4.9 will have a problem using
+// initializer_list related code on the templates inside algorithm.h
+#include <utils/algorithm.h>
 
 class tst_Algorithm : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void anyOf();
     void transform();
     void sort();
+    void contains();
+    void findOr();
+    void findOrDefault();
+    void toRawPointer();
+    void toReferences();
 };
 
 
@@ -43,13 +59,47 @@ int stringToInt(const QString &s)
 }
 
 namespace {
-struct Struct
+
+struct BaseStruct
 {
-    Struct(int m) : member(m) {}
-    bool operator==(const Struct &other) const { return member == other.member; }
+    BaseStruct(int m) : member(m) {}
+    bool operator==(const BaseStruct &other) const { return member == other.member; }
 
     int member;
 };
+
+struct Struct : public BaseStruct
+{
+    Struct(int m) : BaseStruct(m) {}
+    bool isOdd() const { return member % 2 == 1; }
+    bool isEven() const { return !isOdd(); }
+
+    int getMember() const { return member; }
+
+};
+}
+
+void tst_Algorithm::anyOf()
+{
+    {
+        const QList<QString> strings({"1", "3", "132"});
+        QVERIFY(Utils::anyOf(strings, [](const QString &s) { return s == "132"; }));
+        QVERIFY(!Utils::anyOf(strings, [](const QString &s) { return s == "1324"; }));
+    }
+    {
+        const QList<Struct> list({2, 4, 6, 8});
+        QVERIFY(Utils::anyOf(list, &Struct::isEven));
+        QVERIFY(!Utils::anyOf(list, &Struct::isOdd));
+    }
+    {
+        const QList<Struct> list({0, 0, 0, 0, 1, 0, 0});
+        QVERIFY(Utils::anyOf(list, &Struct::member));
+    }
+    {
+        const QList<Struct> list({0, 0, 0, 0, 0, 0, 0});
+        QVERIFY(!Utils::anyOf(list, &Struct::member));
+    }
+
 }
 
 void tst_Algorithm::transform()
@@ -125,6 +175,255 @@ void tst_Algorithm::transform()
         const QList<int> trans = Utils::transform(list, &Struct::member);
         QCOMPARE(trans, QList<int>({4, 3, 2, 1, 2}));
     }
+    {
+        // QList -> std::vector
+        const QList<int> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::vector<int>({2, 3, 4, 5}));
+    }
+    {
+        // QList -> std::vector
+        const QList<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, &Struct::getMember);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // QList -> std::vector
+        const QList<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, &Struct::member);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::vector -> QList
+        const std::vector<int> v({1, 2, 3, 4});
+        const QList<int> trans = Utils::transform<QList>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, QList<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::vector -> QList
+        const std::vector<Struct> v({1, 2, 3, 4});
+        const QList<int> trans = Utils::transform<QList>(v, &Struct::getMember);
+        QCOMPARE(trans, QList<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::vector -> QList
+        const std::vector<Struct> v({1, 2, 3, 4});
+        const QList<int> trans = Utils::transform<QList>(v, &Struct::member);
+        QCOMPARE(trans, QList<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::deque -> std::vector
+        const std::deque<int> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::vector<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::deque -> std::vector
+        const std::deque<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, &Struct::getMember);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::deque -> std::vector
+        const std::deque<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform<std::vector>(v, &Struct::member);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::vector -> std::vector
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::vector<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::vector -> std::vector
+        const std::vector<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform(v, &Struct::getMember);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::vector -> std::vector
+        const std::vector<Struct> v({1, 2, 3, 4});
+        const std::vector<int> trans = Utils::transform(v, &Struct::member);
+        QCOMPARE(trans, std::vector<int>({1, 2, 3, 4}));
+    }
+    {
+        // std::unordered_map -> QList
+        std::unordered_map<int, double> m;
+        m.emplace(1, 1.5);
+        m.emplace(3, 2.5);
+        m.emplace(5, 3.5);
+        QList<double> trans = Utils::transform<QList>(m, [](const std::pair<int, double> &in) {
+            return in.first * in.second;
+        });
+        Utils::sort(trans);
+        QCOMPARE(trans, QList<double>({1.5, 7.5, 17.5}));
+    }
+    {
+        // specific result container with one template parameter (QVector)
+        std::vector<int> v({1, 2, 3, 4});
+        const QVector<BaseStruct *> trans = Utils::transform<QVector<BaseStruct *>>(v, [](int i) {
+            return new Struct(i);
+        });
+        QCOMPARE(trans.size(), 4);
+        QCOMPARE(trans.at(0)->member, 1);
+        QCOMPARE(trans.at(1)->member, 2);
+        QCOMPARE(trans.at(2)->member, 3);
+        QCOMPARE(trans.at(3)->member, 4);
+        qDeleteAll(trans);
+    }
+    {
+        // specific result container with one of two template parameters (std::vector)
+        std::vector<int> v({1, 2, 3, 4});
+        const std::vector<BaseStruct *> trans
+            = Utils::transform<std::vector<BaseStruct *>>(v, [](int i) { return new Struct(i); });
+        QCOMPARE(trans.size(), static_cast<std::vector<int>::size_type>(4ul));
+        QCOMPARE(trans.at(0)->member, 1);
+        QCOMPARE(trans.at(1)->member, 2);
+        QCOMPARE(trans.at(2)->member, 3);
+        QCOMPARE(trans.at(3)->member, 4);
+        qDeleteAll(trans);
+    }
+    {
+        // specific result container with two template parameters (std::vector)
+        std::vector<int> v({1, 2, 3, 4});
+        const std::vector<BaseStruct *, std::allocator<BaseStruct *>> trans
+            = Utils::transform<std::vector<BaseStruct *, std::allocator<BaseStruct *>>>(v, [](int i) {
+                  return new Struct(i);
+              });
+        QCOMPARE(trans.size(), static_cast<std::vector<int>::size_type>(4ul));
+        QCOMPARE(trans.at(0)->member, 1);
+        QCOMPARE(trans.at(1)->member, 2);
+        QCOMPARE(trans.at(2)->member, 3);
+        QCOMPARE(trans.at(3)->member, 4);
+        qDeleteAll(trans);
+    }
+    {
+        // specific result container with member function
+        QList<Struct> v({1, 2, 3, 4});
+        const QVector<double> trans = Utils::transform<QVector<double>>(v, &Struct::getMember);
+        QCOMPARE(trans, QVector<double>({1.0, 2.0, 3.0, 4.0}));
+    }
+    {
+        // specific result container with member
+        QList<Struct> v({1, 2, 3, 4});
+        const QVector<double> trans = Utils::transform<QVector<double>>(v, &Struct::member);
+        QCOMPARE(trans, QVector<double>({1.0, 2.0, 3.0, 4.0}));
+    }
+    {
+        // non-const container and function parameter
+        // same container type
+        std::vector<Struct> v({1, 2, 3, 4});
+        const std::vector<std::reference_wrapper<Struct>> trans
+            = Utils::transform(v, [](Struct &s) { return std::ref(s); });
+        // different container type
+        QVector<Struct> v2({1, 2, 3, 4});
+        const std::vector<std::reference_wrapper<Struct>> trans2
+            = Utils::transform<std::vector>(v, [](Struct &s) { return std::ref(s); });
+        // temporaries
+        const auto tempv = [] { return QList<Struct>({1, 2, 3, 4}); };
+        // temporary with member function
+        const QList<int> trans3 = Utils::transform(tempv(), &Struct::getMember);
+        const std::vector<int> trans4 = Utils::transform<std::vector>(tempv(), &Struct::getMember);
+        const std::vector<int> trans5 = Utils::transform<std::vector<int>>(tempv(), &Struct::getMember);
+        // temporary with member
+        const QList<int> trans6 = Utils::transform(tempv(), &Struct::member);
+        const std::vector<int> trans7 = Utils::transform<std::vector>(tempv(), &Struct::member);
+        const std::vector<int> trans8 = Utils::transform<std::vector<int>>(tempv(), &Struct::member);
+        // temporary with function
+        const QList<int> trans9 = Utils::transform(tempv(),
+                                                   [](const Struct &s) { return s.getMember(); });
+        const std::vector<int> trans10 = Utils::transform<std::vector>(tempv(), [](const Struct &s) {
+            return s.getMember();
+        });
+        const std::vector<int> trans11 = Utils::transform<std::vector<int>>(tempv(),
+                                                                            [](const Struct &s) {
+                                                                                return s.getMember();
+                                                                            });
+    }
+    // target containers without reserve(...)
+    {
+        // std::vector -> std::deque
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::deque<int> trans = Utils::transform<std::deque>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::deque<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::vector -> std::list
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::list<int> trans = Utils::transform<std::list>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::list<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::vector -> std::set
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::set<int> trans = Utils::transform<std::set<int>>(v, [](int i) { return i + 1; });
+        QCOMPARE(trans, std::set<int>({2, 3, 4, 5}));
+    }
+    // various map/set/hash without push_back
+    {
+        // std::vector -> std::map
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::map<int, int> trans = Utils::transform<std::map<int, int>>(v, [](int i) {
+            return std::make_pair(i, i + 1);
+        });
+        const std::map<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
+    {
+        // std::vector -> std::unordered_set
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::unordered_set<int> trans = Utils::transform<std::unordered_set<int>>(v, [](int i) {
+            return i + 1;
+        });
+        QCOMPARE(trans, std::unordered_set<int>({2, 3, 4, 5}));
+    }
+    {
+        // std::vector -> std::unordered_map
+        const std::vector<int> v({1, 2, 3, 4});
+        const std::unordered_map<int, int> trans
+            = Utils::transform<std::unordered_map<int, int>>(v, [](int i) {
+                  return std::make_pair(i, i + 1);
+              });
+        const std::unordered_map<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
+    {
+        // std::vector -> QMap using std::pair
+        const std::vector<int> v({1, 2, 3, 4});
+        const QMap<int, int> trans = Utils::transform<QMap<int, int>>(v, [](int i) {
+            return std::make_pair(i, i + 1);
+        });
+        const QMap<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
+    {
+        // std::vector -> QMap using QPair
+        const std::vector<int> v({1, 2, 3, 4});
+        const QMap<int, int> trans = Utils::transform<QMap<int, int>>(v, [](int i) {
+            return qMakePair(i, i + 1);
+        });
+        const QMap<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
+    {
+        // std::vector -> QHash using std::pair
+        const std::vector<int> v({1, 2, 3, 4});
+        const QHash<int, int> trans = Utils::transform<QHash<int, int>>(v, [](int i) {
+            return std::make_pair(i, i + 1);
+        });
+        const QHash<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
+    {
+        // std::vector -> QHash using QPair
+        const std::vector<int> v({1, 2, 3, 4});
+        const QHash<int, int> trans = Utils::transform<QHash<int, int>>(v, [](int i) {
+            return qMakePair(i, i + 1);
+        });
+        const QHash<int, int> expected({{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+        QCOMPARE(trans, expected);
+    }
 }
 
 void tst_Algorithm::sort()
@@ -151,6 +450,166 @@ void tst_Algorithm::sort()
     QList<Struct *> s6({&arr2[0], &arr2[1], &arr2[2]});
     Utils::sort(s6, &Struct::member);
     QCOMPARE(s6, QList<Struct *>({&arr2[1], &arr2[2], &arr2[0]}));
+    // std::array:
+    std::array<int, 4> array = {{4, 10, 8, 1}};
+    Utils::sort(array);
+    std::array<int, 4> arrayResult = {{1, 4, 8, 10}};
+    QCOMPARE(array, arrayResult);
+    // valarray (no begin/end member functions):
+    std::valarray<int> valarray(array.data(), array.size());
+    std::valarray<int> valarrayResult(arrayResult.data(), arrayResult.size());
+    Utils::sort(valarray);
+    QCOMPARE(valarray.size(), valarrayResult.size());
+    for (size_t i = 0; i < valarray.size(); ++i)
+        QCOMPARE(valarray[i], valarrayResult[i]);
+}
+
+void tst_Algorithm::contains()
+{
+    std::vector<int> v1{1, 2, 3, 4};
+    QVERIFY(Utils::contains(v1, [](int i) { return i == 2; }));
+    QVERIFY(!Utils::contains(v1, [](int i) { return i == 5; }));
+    std::vector<Struct> structs = {2, 4, 6, 8};
+    QVERIFY(Utils::contains(structs, &Struct::isEven));
+    QVERIFY(!Utils::contains(structs, &Struct::isOdd));
+    QList<Struct> structQlist = {2, 4, 6, 8};
+    QVERIFY(Utils::contains(structQlist, &Struct::isEven));
+    QVERIFY(!Utils::contains(structQlist, &Struct::isOdd));
+    std::vector<std::unique_ptr<int>> v2;
+    v2.emplace_back(std::make_unique<int>(1));
+    v2.emplace_back(std::make_unique<int>(2));
+    v2.emplace_back(std::make_unique<int>(3));
+    v2.emplace_back(std::make_unique<int>(4));
+    QVERIFY(Utils::contains(v2, [](const std::unique_ptr<int> &ip) { return *ip == 2; }));
+    QVERIFY(!Utils::contains(v2, [](const std::unique_ptr<int> &ip) { return *ip == 5; }));
+    // Find pointers in unique_ptrs:
+    QVERIFY(Utils::contains(v2, v2.back().get()));
+    int foo = 42;
+    QVERIFY(!Utils::contains(v2, &foo));
+}
+
+void tst_Algorithm::findOr()
+{
+    std::vector<int> v1{1, 2, 3, 4};
+    QCOMPARE(Utils::findOr(v1, 6, [](int i) { return i == 2; }), 2);
+    QCOMPARE(Utils::findOr(v1, 6, [](int i) { return i == 5; }), 6);
+    std::vector<std::unique_ptr<int>> v2;
+    v2.emplace_back(std::make_unique<int>(1));
+    v2.emplace_back(std::make_unique<int>(2));
+    v2.emplace_back(std::make_unique<int>(3));
+    v2.emplace_back(std::make_unique<int>(4));
+    int def = 6;
+    QCOMPARE(Utils::findOr(v2, &def, [](const std::unique_ptr<int> &ip) { return *ip == 2; }), v2.at(1).get());
+    QCOMPARE(Utils::findOr(v2, &def, [](const std::unique_ptr<int> &ip) { return *ip == 5; }), &def);
+    std::vector<std::unique_ptr<Struct>> v3;
+    v3.emplace_back(std::make_unique<Struct>(1));
+    v3.emplace_back(std::make_unique<Struct>(3));
+    v3.emplace_back(std::make_unique<Struct>(5));
+    v3.emplace_back(std::make_unique<Struct>(7));
+    Struct defS(6);
+    QCOMPARE(Utils::findOr(v3, &defS, &Struct::isOdd), v3.at(0).get());
+    QCOMPARE(Utils::findOr(v3, &defS, &Struct::isEven), &defS);
+
+    std::vector<std::shared_ptr<Struct>> v4;
+    v4.emplace_back(std::make_shared<Struct>(1));
+    v4.emplace_back(std::make_shared<Struct>(3));
+    v4.emplace_back(std::make_shared<Struct>(5));
+    v4.emplace_back(std::make_shared<Struct>(7));
+    std::shared_ptr<Struct> sharedDefS = std::make_shared<Struct>(6);
+    QCOMPARE(Utils::findOr(v4, sharedDefS, &Struct::isOdd), v4.at(0));
+    QCOMPARE(Utils::findOr(v4, sharedDefS, &Struct::isEven), sharedDefS);
+}
+
+void tst_Algorithm::findOrDefault()
+{
+    std::vector<int> v1{1, 2, 3, 4};
+    QCOMPARE(Utils::findOrDefault(v1, [](int i) { return i == 2; }), 2);
+    QCOMPARE(Utils::findOrDefault(v1, [](int i) { return i == 5; }), 0);
+    std::vector<std::unique_ptr<int>> v2;
+    v2.emplace_back(std::make_unique<int>(1));
+    v2.emplace_back(std::make_unique<int>(2));
+    v2.emplace_back(std::make_unique<int>(3));
+    v2.emplace_back(std::make_unique<int>(4));
+    QCOMPARE(Utils::findOrDefault(v2, [](const std::unique_ptr<int> &ip) { return *ip == 2; }), v2.at(1).get());
+    QCOMPARE(Utils::findOrDefault(v2, [](const std::unique_ptr<int> &ip) { return *ip == 5; }), static_cast<int*>(0));
+    std::vector<std::unique_ptr<Struct>> v3;
+    v3.emplace_back(std::make_unique<Struct>(1));
+    v3.emplace_back(std::make_unique<Struct>(3));
+    v3.emplace_back(std::make_unique<Struct>(5));
+    v3.emplace_back(std::make_unique<Struct>(7));
+    QCOMPARE(Utils::findOrDefault(v3, &Struct::isOdd), v3.at(0).get());
+    QCOMPARE(Utils::findOrDefault(v3, &Struct::isEven), static_cast<Struct*>(nullptr));
+
+    std::vector<std::shared_ptr<Struct>> v4;
+    v4.emplace_back(std::make_shared<Struct>(1));
+    v4.emplace_back(std::make_shared<Struct>(3));
+    v4.emplace_back(std::make_shared<Struct>(5));
+    v4.emplace_back(std::make_shared<Struct>(7));
+    QCOMPARE(Utils::findOrDefault(v4, &Struct::isOdd), v4.at(0));
+    QCOMPARE(Utils::findOrDefault(v4, &Struct::isEven), std::shared_ptr<Struct>());
+}
+
+void tst_Algorithm::toRawPointer()
+{
+    const std::vector<std::unique_ptr<Struct>> v;
+
+    // same result container
+    const std::vector<Struct *> x1 = Utils::toRawPointer(v);
+    // different result container
+    const std::vector<Struct *> x2 = Utils::toRawPointer<std::vector>(v);
+    const QVector<Struct *> x3 = Utils::toRawPointer<QVector>(v);
+    const std::list<Struct *> x4 = Utils::toRawPointer<std::list>(v);
+    // different fully specified result container
+    const std::vector<BaseStruct *> x5 = Utils::toRawPointer<std::vector<BaseStruct *>>(v);
+    const QVector<BaseStruct *> x6 = Utils::toRawPointer<QVector<BaseStruct *>>(v);
+}
+
+void tst_Algorithm::toReferences()
+{
+    // toReference
+    {
+        // std::vector -> std::vector
+        std::vector<Struct> v;
+        const std::vector<std::reference_wrapper<Struct>> x = Utils::toReferences(v);
+    }
+    {
+        // QList -> std::vector
+        QList<Struct> v;
+        const std::vector<std::reference_wrapper<Struct>> x = Utils::toReferences<std::vector>(v);
+    }
+    {
+        // std::vector -> QList
+        std::vector<Struct> v;
+        const QList<std::reference_wrapper<Struct>> x = Utils::toReferences<QList>(v);
+    }
+    {
+        // std::vector -> std::list
+        std::vector<Struct> v;
+        const std::list<std::reference_wrapper<Struct>> x = Utils::toReferences<std::list>(v);
+    }
+    // toConstReference
+    {
+        // std::vector -> std::vector
+        const std::vector<Struct> v;
+        const std::vector<std::reference_wrapper<const Struct>> x = Utils::toConstReferences(v);
+    }
+    {
+        // QList -> std::vector
+        const QList<Struct> v;
+        const std::vector<std::reference_wrapper<const Struct>> x
+            = Utils::toConstReferences<std::vector>(v);
+    }
+    {
+        // std::vector -> QList
+        const std::vector<Struct> v;
+        const QList<std::reference_wrapper<const Struct>> x = Utils::toConstReferences<QList>(v);
+    }
+    {
+        // std::vector -> std::list
+        const std::vector<Struct> v;
+        const std::list<std::reference_wrapper<const Struct>> x
+            = Utils::toConstReferences<std::list>(v);
+    }
 }
 
 QTEST_MAIN(tst_Algorithm)

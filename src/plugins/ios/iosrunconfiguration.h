@@ -32,8 +32,6 @@
 #include <projectexplorer/runconfiguration.h>
 #include <utils/fileutils.h>
 
-namespace QmakeProjectManager { class QmakeProFile; }
-
 namespace Ios {
 namespace Internal {
 
@@ -44,10 +42,9 @@ class IosRunConfigurationWidget;
 class IosRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    friend class IosRunConfigurationFactory;
 
 public:
-    IosRunConfiguration(ProjectExplorer::Target *parent, Core::Id id, const Utils::FileName &path);
+    explicit IosRunConfiguration(ProjectExplorer::Target *target);
 
     QWidget *createConfigurationWidget() override;
     Utils::OutputFormatter *createOutputFormatter() const override;
@@ -58,7 +55,6 @@ public:
     QString applicationName() const;
     Utils::FileName bundleDirectory() const;
     Utils::FileName localExecutable() const;
-    bool isEnabled() const override;
     QString disabledReason() const override;
     IosDeviceType deviceType() const;
     void setDeviceType(const IosDeviceType &deviceType);
@@ -68,25 +64,18 @@ public:
 
     QString buildSystemTarget() const final;
 
-protected:
-    IosRunConfiguration(ProjectExplorer::Target *parent, IosRunConfiguration *source);
-
 signals:
     void localExecutableChanged();
 
 private:
-    void proFileUpdated(QmakeProjectManager::QmakeProFile *pro, bool success, bool parseInProgress);
+    QString extraId() const final;
+
     void deviceChanges();
-    void init();
-    void enabledCheck();
     friend class IosRunConfigurationWidget;
     void updateDisplayNames();
+    void updateEnabledState() final;
 
     Utils::FileName m_profilePath;
-    QString m_lastDisabledReason;
-    bool m_lastIsEnabled;
-    bool m_parseInProgress;
-    bool m_parseSuccess;
     IosDeviceType m_deviceType;
 };
 

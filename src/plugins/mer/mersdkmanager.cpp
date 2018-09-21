@@ -145,6 +145,15 @@ void MerSdkManager::initialize()
             }
         }
 
+        // If debugger became available
+        foreach (MerSdk *sdk, m_sdks) {
+            foreach (const MerTarget &target, sdk->targets()) {
+                foreach (Kit *kit, kitsForTarget(target.name())) {
+                    target.ensureDebuggerIsSet(kit);
+                }
+            }
+        }
+
         m_intialized = true;
         updateDevices();
         emit initialized();
@@ -625,7 +634,7 @@ void MerSdkManager::updateDevices()
             if (d->machineType() == IDevice::Hardware) {
                 Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);
                 const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
-                xmlData.m_ip = device->sshParameters().host;
+                xmlData.m_ip = device->sshParameters().host();
                 xmlData.m_name = device->displayName();
                 xmlData.m_type = QLatin1String("real");
                 QFileInfo file(device->sshParameters().privateKeyFile);

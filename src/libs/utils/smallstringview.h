@@ -27,7 +27,7 @@
 
 #include "smallstringiterator.h"
 
-#include <QtGlobal>
+#include <QString>
 
 #include <cstring>
 #include <string>
@@ -67,6 +67,12 @@ public:
     {
     }
 
+    SmallStringView(const std::string &string) noexcept
+        : m_pointer(string.data()),
+          m_size(string.size())
+    {
+    }
+
     static
     SmallStringView fromUtf8(const char *const characterPointer)
     {
@@ -74,22 +80,48 @@ public:
     }
 
     constexpr
-    const char *data() const
+    const char *data() const noexcept
     {
         return m_pointer;
     }
 
     constexpr
-    size_type size() const
+    size_type size() const noexcept
     {
         return m_size;
     }
 
+    constexpr
+    size_type isEmpty() const noexcept
+    {
+        return m_size == 0;
+    }
+
+    constexpr
+    size_type empty() const noexcept
+    {
+        return m_size == 0;
+    }
+
+    constexpr
+    SmallStringView mid(size_type position) const noexcept
+    {
+        return SmallStringView(data() + position, size() - position);
+    }
+
+    constexpr
+    SmallStringView mid(size_type position, size_type length) const noexcept
+    {
+        return SmallStringView(data() + position, length);
+    }
+
+    constexpr
     const_iterator begin() const noexcept
     {
         return data();
     }
 
+    constexpr
     const_iterator end() const noexcept
     {
         return data() + size();
@@ -97,17 +129,35 @@ public:
 
     const_reverse_iterator rbegin() const noexcept
     {
-        return const_reverse_iterator(end() - static_cast<std::size_t>(1));
+        return const_reverse_iterator(end());
     }
 
     const_reverse_iterator rend() const noexcept
     {
-        return const_reverse_iterator(begin() - static_cast<std::size_t>(1));
+        return const_reverse_iterator(begin());
     }
 
     operator std::string() const
     {
         return std::string(data(), size());
+    }
+
+    explicit operator QString() const
+    {
+        return QString::fromUtf8(data(), int(size()));
+    }
+
+    bool startsWith(SmallStringView subStringToSearch) const noexcept
+    {
+        if (size() >= subStringToSearch.size())
+            return !std::memcmp(m_pointer, subStringToSearch.data(), subStringToSearch.size());
+
+        return false;
+    }
+
+    bool startsWith(char characterToSearch) const noexcept
+    {
+        return m_pointer[0] == characterToSearch;
     }
 
 private:
@@ -116,18 +166,82 @@ private:
 };
 
 inline
-bool operator==(const SmallStringView& first, const SmallStringView& second) noexcept
+bool operator==(SmallStringView first, SmallStringView second) noexcept
 {
-    if (Q_LIKELY(first.size() != second.size()))
-        return false;
-
-    return !std::memcmp(first.data(), second.data(), first.size());
+    return first.size() == second.size() && std::memcmp(first.data(), second.data(), first.size()) == 0;
 }
 
 inline
-bool operator!=(const SmallStringView& first, const SmallStringView& second) noexcept
+bool operator!=(SmallStringView first, SmallStringView second) noexcept
 {
     return !(first == second);
 }
 
+inline
+int compare(SmallStringView first, SmallStringView second) noexcept
+{
+    int sizeDifference = int(first.size() - second.size());
+
+    if (sizeDifference == 0)
+        return std::memcmp(first.data(), second.data(), first.size());
+
+    return sizeDifference;
+}
+
+inline
+bool operator<(SmallStringView first, SmallStringView second) noexcept
+{
+    return compare(first, second) < 0;
+}
+
+inline
+bool operator>(SmallStringView first, SmallStringView second) noexcept
+{
+    return second < first;
+}
+
+namespace Internal {
+inline
+int reverse_memcmp(const char *first, const char *second, size_t n)
+{
+
+    const char *currentFirst = first + n - 1;
+    const char *currentSecond = second + n - 1;
+
+    while (n > 0)
+    {
+        // If the current characters differ, return an appropriately signed
+        // value; otherwise, keep searching backwards
+        int difference = *currentFirst - *currentSecond;
+        if (difference != 0)
+            return difference;
+
+        --currentFirst;
+        --currentSecond;
+        --n;
+    }
+
+    return 0;
+}
+}
+
+inline
+int reverseCompare(SmallStringView first, SmallStringView second) noexcept
+{
+    int sizeDifference = int(first.size() - second.size());
+
+    if (sizeDifference == 0)
+        return Internal::reverse_memcmp(first.data(), second.data(), first.size());
+
+    return sizeDifference;
+}
+
 } // namespace Utils
+
+#ifdef __cpp_user_defined_literals
+inline
+constexpr Utils::SmallStringView operator""_sv(const char *const string, size_t size)
+{
+    return Utils::SmallStringView(string, size);
+}
+#endif

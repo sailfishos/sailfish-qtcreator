@@ -25,6 +25,7 @@
 
 #include "kitinformation.h"
 
+#include "abi.h"
 #include "devicesupport/desktopdevice.h"
 #include "devicesupport/devicemanager.h"
 #include "projectexplorerconstants.h"
@@ -33,8 +34,6 @@
 #include "toolchain.h"
 #include "toolchainmanager.h"
 
-#include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/abi.h>
 #include <ssh/sshconnection.h>
 
 #include <utils/algorithm.h>
@@ -74,16 +73,19 @@ QList<Task> SysRootKitInformation::validate(const Kit *k) const
     if (dir.isEmpty())
         return result;
 
+    if (dir.toString().startsWith("target:") || dir.toString().startsWith("remote:"))
+        return result;
+
     const QFileInfo fi = dir.toFileInfo();
 
     if (!fi.exists()) {
-        result << Task(Task::Error, tr("Sys Root \"%1\" does not exist in the file system.").arg(dir.toUserOutput()),
+        result << Task(Task::Warning, tr("Sys Root \"%1\" does not exist in the file system.").arg(dir.toUserOutput()),
                        Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
     } else if (!fi.isDir()) {
-        result << Task(Task::Error, tr("Sys Root \"%1\" is not a directory.").arg(dir.toUserOutput()),
+        result << Task(Task::Warning, tr("Sys Root \"%1\" is not a directory.").arg(dir.toUserOutput()),
                        Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
     } else if (QDir(dir.toString()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty()) {
-        result << Task(Task::Error, tr("Sys Root \"%1\" is empty.").arg(dir.toUserOutput()),
+        result << Task(Task::Warning, tr("Sys Root \"%1\" is empty.").arg(dir.toUserOutput()),
                        Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
@@ -91,6 +93,8 @@ QList<Task> SysRootKitInformation::validate(const Kit *k) const
 
 KitConfigWidget *SysRootKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
+
     return new Internal::SysRootInformationConfigWidget(k, this);
 }
 
@@ -101,7 +105,9 @@ KitInformation::ItemList SysRootKitInformation::toUserOutput(const Kit *k) const
 
 void SysRootKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const
 {
-    expander->registerFileVariables("SysRoot", tr("Sys Root"), [this, kit]() -> QString {
+    QTC_ASSERT(kit, return);
+
+    expander->registerFileVariables("SysRoot", tr("Sys Root"), [kit]() -> QString {
         return SysRootKitInformation::sysRoot(kit).toString();
     });
 }
@@ -190,7 +196,8 @@ QList<Task> ToolChainKitInformation::validate(const Kit *k) const
             result << tc->validateKit(k);
         }
         if (targetAbis.count() != 1) {
-            result << Task(Task::Error, tr("Compilers produce code for different ABIs."),
+            result << Task(Task::Error, tr("Compilers produce code for different ABIs: %1")
+                           .arg(Utils::transform(targetAbis, &Abi::toString).toList().join(", ")),
                            Utils::FileName(), -1, Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
     }
@@ -199,6 +206,8 @@ QList<Task> ToolChainKitInformation::validate(const Kit *k) const
 
 void ToolChainKitInformation::upgrade(Kit *k)
 {
+    QTC_ASSERT(k, return);
+
     const Core::Id oldIdV1 = KITINFORMATION_ID_V1;
     const Core::Id oldIdV2 = KITINFORMATION_ID_V2;
 
@@ -282,6 +291,8 @@ static Core::Id findLanguage(const QString &ls)
 void ToolChainKitInformation::setup(Kit *k)
 {
     QTC_ASSERT(ToolChainManager::isLoaded(), return);
+    QTC_ASSERT(k, return);
+
     const QVariantMap value = k->value(ToolChainKitInformation::id()).toMap();
 
     for (auto i = value.constBegin(); i != value.constEnd(); ++i) {
@@ -309,6 +320,7 @@ void ToolChainKitInformation::setup(Kit *k)
 
 KitConfigWidget *ToolChainKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::ToolChainInformationConfigWidget(k, this);
 }
 
@@ -333,26 +345,28 @@ void ToolChainKitInformation::addToEnvironment(const Kit *k, Utils::Environment 
 
 void ToolChainKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const
 {
+    QTC_ASSERT(kit, return);
+
     // Compatibility with Qt Creator < 4.2:
     expander->registerVariable("Compiler:Name", tr("Compiler"),
-                               [this, kit]() -> QString {
+                               [kit]() -> QString {
                                    const ToolChain *tc = toolChain(kit, Constants::CXX_LANGUAGE_ID);
                                    return tc ? tc->displayName() : tr("None");
                                });
 
     expander->registerVariable("Compiler:Executable", tr("Path to the compiler executable"),
-                               [this, kit]() -> QString {
+                               [kit]() -> QString {
                                    const ToolChain *tc = toolChain(kit, Constants::CXX_LANGUAGE_ID);
                                    return tc ? tc->compilerCommand().toString() : QString();
                                });
 
     expander->registerPrefix("Compiler:Name", tr("Compiler for different languages"),
-                             [this, kit](const QString &ls) -> QString {
+                             [kit](const QString &ls) -> QString {
                                  const ToolChain *tc = toolChain(kit, findLanguage(ls));
                                  return tc ? tc->displayName() : tr("None");
                              });
     expander->registerPrefix("Compiler:Executable", tr("Compiler executable for different languages"),
-                             [this, kit](const QString &ls) -> QString {
+                             [kit](const QString &ls) -> QString {
                                  const ToolChain *tc = toolChain(kit, findLanguage(ls));
                                  return tc ? tc->compilerCommand().toString() : QString();
                              });
@@ -362,9 +376,7 @@ void ToolChainKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander 
 IOutputParser *ToolChainKitInformation::createOutputParser(const Kit *k) const
 {
     ToolChain *tc = toolChain(k, Constants::CXX_LANGUAGE_ID);
-    if (tc)
-        return tc->outputParser();
-    return 0;
+    return tc ? tc->outputParser() : nullptr;
 }
 
 QSet<Core::Id> ToolChainKitInformation::availableFeatures(const Kit *k) const
@@ -382,9 +394,9 @@ Core::Id ToolChainKitInformation::id()
 
 ToolChain *ToolChainKitInformation::toolChain(const Kit *k, Core::Id language)
 {
-    QTC_ASSERT(ToolChainManager::isLoaded(), return 0);
+    QTC_ASSERT(ToolChainManager::isLoaded(), return nullptr);
     if (!k)
-        return 0;
+        return nullptr;
     QVariantMap value = k->value(ToolChainKitInformation::id()).toMap();
     const QByteArray id = value.value(language.toString(), QByteArray()).toByteArray();
     return ToolChainManager::findToolChain(id);
@@ -392,6 +404,8 @@ ToolChain *ToolChainKitInformation::toolChain(const Kit *k, Core::Id language)
 
 QList<ToolChain *> ToolChainKitInformation::toolChains(const Kit *k)
 {
+    QTC_ASSERT(k, return QList<ToolChain *>());
+
     const QVariantMap value = k->value(ToolChainKitInformation::id()).toMap();
     const QList<ToolChain *> tcList
             = Utils::transform(ToolChainManager::allLanguages().toList(),
@@ -404,6 +418,7 @@ QList<ToolChain *> ToolChainKitInformation::toolChains(const Kit *k)
 void ToolChainKitInformation::setToolChain(Kit *k, ToolChain *tc)
 {
     QTC_ASSERT(tc, return);
+    QTC_ASSERT(k, return);
     QVariantMap result = k->value(ToolChainKitInformation::id()).toMap();
     result.insert(tc->language().toString(), tc->id());
 
@@ -423,6 +438,7 @@ void ToolChainKitInformation::setToolChain(Kit *k, ToolChain *tc)
 void ToolChainKitInformation::setAllToolChainsToMatch(Kit *k, ToolChain *tc)
 {
     QTC_ASSERT(tc, return);
+    QTC_ASSERT(k, return);
 
     const QList<ToolChain *> allTcList = ToolChainManager::toolChains();
     QTC_ASSERT(allTcList.contains(tc), return);
@@ -461,6 +477,7 @@ void ToolChainKitInformation::setAllToolChainsToMatch(Kit *k, ToolChain *tc)
 void ToolChainKitInformation::clearToolChain(Kit *k, Core::Id language)
 {
     QTC_ASSERT(language.isValid(), return);
+    QTC_ASSERT(k, return);
 
     QVariantMap result = k->value(ToolChainKitInformation::id()).toMap();
     result.insert(language.toString(), QByteArray());
@@ -518,7 +535,7 @@ void ToolChainKitInformation::kitsWereLoaded()
 
 void ToolChainKitInformation::toolChainUpdated(ToolChain *tc)
 {
-    for (Kit *k : KitManager::kits([tc, this](const Kit *k) { return toolChain(k, tc->language()) == tc; }))
+    for (Kit *k : KitManager::kits([tc](const Kit *k) { return toolChain(k, tc->language()) == tc; }))
         notifyAboutUpdate(k);
 }
 
@@ -554,15 +571,17 @@ QList<Task> DeviceTypeKitInformation::validate(const Kit *k) const
 
 KitConfigWidget *DeviceTypeKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::DeviceTypeInformationConfigWidget(k, this);
 }
 
 KitInformation::ItemList DeviceTypeKitInformation::toUserOutput(const Kit *k) const
 {
+    QTC_ASSERT(k, return {});
     Core::Id type = deviceTypeId(k);
     QString typeDisplayName = tr("Unknown device type");
     if (type.isValid()) {
-        IDeviceFactory *factory = ExtensionSystem::PluginManager::getObject<IDeviceFactory>(
+        IDeviceFactory *factory = Utils::findOrDefault(IDeviceFactory::allDeviceFactories(),
             [&type](IDeviceFactory *factory) {
                 return factory->availableCreationIds().contains(type);
             });
@@ -585,6 +604,7 @@ const Core::Id DeviceTypeKitInformation::deviceTypeId(const Kit *k)
 
 void DeviceTypeKitInformation::setDeviceTypeId(Kit *k, Core::Id type)
 {
+    QTC_ASSERT(k, return);
     k->setValue(DeviceTypeKitInformation::id(), type.toSetting());
 }
 
@@ -673,6 +693,7 @@ void DeviceKitInformation::setup(Kit *k)
 
 KitConfigWidget *DeviceKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::DeviceInformationConfigWidget(k, this);
 }
 
@@ -690,28 +711,29 @@ KitInformation::ItemList DeviceKitInformation::toUserOutput(const Kit *k) const
 
 void DeviceKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const
 {
+    QTC_ASSERT(kit, return);
     expander->registerVariable("Device:HostAddress", tr("Host address"),
-        [this, kit]() -> QString {
+        [kit]() -> QString {
             const IDevice::ConstPtr device = DeviceKitInformation::device(kit);
-            return device ? device->sshParameters().host : QString();
+            return device ? device->sshParameters().host() : QString();
     });
     expander->registerVariable("Device:SshPort", tr("SSH port"),
-        [this, kit]() -> QString {
+        [kit]() -> QString {
             const IDevice::ConstPtr device = DeviceKitInformation::device(kit);
-            return device ? QString::number(device->sshParameters().port) : QString();
+            return device ? QString::number(device->sshParameters().port()) : QString();
     });
     expander->registerVariable("Device:UserName", tr("User name"),
-        [this, kit]() -> QString {
+        [kit]() -> QString {
             const IDevice::ConstPtr device = DeviceKitInformation::device(kit);
-            return device ? device->sshParameters().userName : QString();
+            return device ? device->sshParameters().userName() : QString();
     });
     expander->registerVariable("Device:KeyFile", tr("Private key file"),
-        [this, kit]() -> QString {
+        [kit]() -> QString {
             const IDevice::ConstPtr device = DeviceKitInformation::device(kit);
             return device ? device->sshParameters().privateKeyFile : QString();
     });
     expander->registerVariable("Device:Name", tr("Device name"),
-        [this, kit]() -> QString {
+        [kit]() -> QString {
             const IDevice::ConstPtr device = DeviceKitInformation::device(kit);
             return device ? device->displayName() : QString();
     });
@@ -740,6 +762,7 @@ void DeviceKitInformation::setDevice(Kit *k, IDevice::ConstPtr dev)
 
 void DeviceKitInformation::setDeviceId(Kit *k, Core::Id id)
 {
+    QTC_ASSERT(k, return);
     k->setValue(DeviceKitInformation::id(), id.toSetting());
 }
 
@@ -799,6 +822,8 @@ QVariant EnvironmentKitInformation::defaultValue(const Kit *k) const
 QList<Task> EnvironmentKitInformation::validate(const Kit *k) const
 {
     QList<Task> result;
+    QTC_ASSERT(k, return result);
+
     const QVariant variant = k->value(EnvironmentKitInformation::id());
     if (!variant.isNull() && !variant.canConvert(QVariant::List)) {
         result.append(Task(Task::Error, tr("The environment setting value is invalid."),
@@ -809,6 +834,8 @@ QList<Task> EnvironmentKitInformation::validate(const Kit *k) const
 
 void EnvironmentKitInformation::fix(Kit *k)
 {
+    QTC_ASSERT(k, return);
+
     const QVariant variant = k->value(EnvironmentKitInformation::id());
     if (!variant.isNull() && !variant.canConvert(QVariant::List)) {
         qWarning("Kit \"%s\" has a wrong environment value set.", qPrintable(k->displayName()));
@@ -818,24 +845,22 @@ void EnvironmentKitInformation::fix(Kit *k)
 
 void EnvironmentKitInformation::addToEnvironment(const Kit *k, Utils::Environment &env) const
 {
-    const QVariant envValue = k->value(EnvironmentKitInformation::id());
-    if (envValue.isValid())
-        env.modify(Utils::EnvironmentItem::fromStringList(envValue.toStringList()));
+    const QStringList values
+            = Utils::transform(Utils::EnvironmentItem::toStringList(environmentChanges(k)),
+                               [k](const QString &v) { return k->macroExpander()->expand(v); });
+    env.modify(Utils::EnvironmentItem::fromStringList(values));
 }
 
 KitConfigWidget *EnvironmentKitInformation::createConfigWidget(Kit *k) const
 {
+    QTC_ASSERT(k, return nullptr);
     return new Internal::KitEnvironmentConfigWidget(k, this);
 }
 
 KitInformation::ItemList EnvironmentKitInformation::toUserOutput(const Kit *k) const
 {
-    ItemList retVal;
-    QVariant envValue = k->value(EnvironmentKitInformation::id());
-    if (envValue.isValid())
-        retVal << qMakePair(QLatin1Literal("Environment"), envValue.toStringList().join(QLatin1Literal("<br>")));
-
-    return retVal;
+    return { qMakePair(tr("Environment"),
+             Utils::EnvironmentItem::toStringList(environmentChanges(k)).join("<br>")) };
 }
 
 Core::Id EnvironmentKitInformation::id()

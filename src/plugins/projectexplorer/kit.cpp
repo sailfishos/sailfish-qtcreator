@@ -32,8 +32,6 @@
 #include "osparser.h"
 #include "projectexplorerconstants.h"
 
-#include <extensionsystem/pluginmanager.h>
-
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/icon.h>
@@ -369,7 +367,7 @@ Id Kit::id() const
 
 static QIcon iconForDeviceType(Core::Id deviceType)
 {
-    const IDeviceFactory *factory = ExtensionSystem::PluginManager::getObject<IDeviceFactory>(
+    const IDeviceFactory *factory = Utils::findOrDefault(IDeviceFactory::allDeviceFactories(),
         [&deviceType](const IDeviceFactory *factory) {
             return factory->availableCreationIds().contains(deviceType);
         });
@@ -381,7 +379,7 @@ QIcon Kit::icon() const
     if (!d->m_cachedIcon.isNull())
         return d->m_cachedIcon;
 
-    if (d->m_iconPath.exists()) {
+    if (!d->m_iconPath.isEmpty() && d->m_iconPath.exists()) {
         d->m_cachedIcon = QIcon(d->m_iconPath.toString());
         return d->m_cachedIcon;
     }

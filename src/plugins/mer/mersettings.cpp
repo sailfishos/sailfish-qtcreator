@@ -23,8 +23,12 @@
 #include "mersettings.h"
 
 #include <QFileInfo>
+#include <QProcessEnvironment>
 
 #include <coreplugin/icore.h>
+#include <utils/qtcassert.h>
+
+#include "merconstants.h"
 
 using Core::ICore;
 
@@ -33,8 +37,11 @@ namespace Internal {
 
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
+const char ENVIRONMENT_FILTER_KEY[] = "EnvironmentFilter";
 const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
+const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
+const char ASK_BEFORE_CLOSING_VM[] = "AskBeforeClosingVm";
 }
 
 MerSettings *MerSettings::s_instance = 0;
@@ -62,6 +69,31 @@ MerSettings *MerSettings::instance()
     Q_ASSERT(s_instance != 0);
 
     return s_instance;
+}
+
+QString MerSettings::environmentFilter()
+{
+    if (!s_instance->m_environmentFilterFromEnvironment.isNull())
+        return s_instance->m_environmentFilterFromEnvironment;
+    else
+        return s_instance->m_environmentFilter;
+}
+
+void MerSettings::setEnvironmentFilter(const QString &filter)
+{
+    QTC_CHECK(!isEnvironmentFilterFromEnvironment());
+
+    if (s_instance->m_environmentFilter == filter)
+        return;
+
+    s_instance->m_environmentFilter = filter;
+
+    emit s_instance->environmentFilterChanged(s_instance->m_environmentFilter);
+}
+
+bool MerSettings::isEnvironmentFilterFromEnvironment()
+{
+    return !s_instance->m_environmentFilterFromEnvironment.isNull();
 }
 
 bool MerSettings::rpmValidationByDefault()
@@ -128,16 +160,61 @@ void MerSettings::setSyncQmlLiveWorkspaceEnabled(bool enable)
     emit s_instance->syncQmlLiveWorkspaceEnabledChanged(s_instance->m_syncQmlLiveWorkspaceEnabled);
 }
 
+bool MerSettings::isAskBeforeStartingVmEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_askBeforeStartingVmEnabled;
+}
+
+void MerSettings::setAskBeforeStartingVmEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_askBeforeStartingVmEnabled == enabled)
+        return;
+
+    s_instance->m_askBeforeStartingVmEnabled = enabled;
+
+    emit s_instance->askBeforeStartingVmEnabledChanged(s_instance->m_askBeforeStartingVmEnabled);
+}
+
+bool MerSettings::isAskBeforeClosingVmEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_askBeforeClosingVmEnabled;
+}
+
+void MerSettings::setAskBeforeClosingVmEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_askBeforeClosingVmEnabled == enabled)
+        return;
+
+    s_instance->m_askBeforeClosingVmEnabled = enabled;
+
+    emit s_instance->askBeforeClosingVmEnabledChanged(s_instance->m_askBeforeClosingVmEnabled);
+}
+
 void MerSettings::read()
 {
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
+    m_environmentFilter = settings->value(QLatin1String(ENVIRONMENT_FILTER_KEY))
+        .toString();
     m_rpmValidationByDefault = settings->value(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY),
             true).toBool();
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
+    m_askBeforeStartingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
+    m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
 
     settings->endGroup();
+
+    m_environmentFilterFromEnvironment =
+        QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER);
 }
 
 void MerSettings::save()
@@ -145,8 +222,14 @@ void MerSettings::save()
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
+    settings->setValue(QLatin1String(ENVIRONMENT_FILTER_KEY), m_environmentFilter);
     settings->setValue(QLatin1String(RPM_VALIDATION_BY_DEFAULT_KEY), m_rpmValidationByDefault);
-    settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
+    if (m_qmlLiveBenchLocation.isEmpty())
+        settings->remove(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY));
+    else
+        settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
+    settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeStartingVmEnabled);
+    settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeClosingVmEnabled);
 
     settings->endGroup();
 }

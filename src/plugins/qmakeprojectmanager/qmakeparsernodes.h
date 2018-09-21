@@ -64,6 +64,7 @@ enum class Variable {
     Defines = 1,
     IncludePath,
     CppFlags,
+    CFlags,
     Source,
     ExactResource,
     CumulativeResource,
@@ -121,6 +122,7 @@ public:
     QVector<QmakePriFile *> children() const;
 
     QmakePriFile *findPriFile(const Utils::FileName &fileName);
+    const QmakePriFile *findPriFile(const Utils::FileName &fileName) const;
 
     bool knowsFile(const Utils::FileName &filePath) const;
 
@@ -130,17 +132,16 @@ public:
 
     void update(const Internal::QmakePriFileEvalResult &result);
 
-    // ProjectNode interface
-    virtual bool canAddSubProject(const QString &proFilePath) const;
+    bool canAddSubProject(const QString &proFilePath) const;
 
-    virtual bool addSubProject(const QString &proFile);
-    virtual bool removeSubProjects(const QString &proFilePath);
+    bool addSubProject(const QString &proFile);
+    bool removeSubProjects(const QString &proFilePath);
 
-    virtual bool addFiles(const QStringList &filePaths, QStringList *notAdded = nullptr);
-    virtual bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = nullptr);
-    virtual bool deleteFiles(const QStringList &filePaths);
-    virtual bool canRenameFile(const QString &filePath, const QString &newFilePath);
-    virtual bool renameFile(const QString &filePath, const QString &newFilePath);
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = nullptr);
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = nullptr);
+    bool deleteFiles(const QStringList &filePaths);
+    bool canRenameFile(const QString &filePath, const QString &newFilePath);
+    bool renameFile(const QString &filePath, const QString &newFilePath);
 
     bool setProVariable(const QString &var, const QStringList &values,
                         const QString &scope = QString(),
@@ -148,7 +149,7 @@ public:
 
     bool folderChanged(const QString &changedFolder, const QSet<Utils::FileName> &newFiles);
 
-    virtual bool deploysFolder(const QString &folder) const;
+    bool deploysFolder(const QString &folder) const;
 
     QmakeProFile *proFile() const;
     QVector<QmakePriFile *> subPriFilesExact() const;
@@ -200,11 +201,11 @@ private:
     static QStringList baseVPaths(QtSupport::ProFileReader *reader, const QString &projectDir, const QString &buildDir);
     static QStringList fullVPaths(const QStringList &baseVPaths, QtSupport::ProFileReader *reader, const QString &qmakeVariable, const QString &projectDir);
     static void extractSources(
-            QHash<const ProFile *, Internal::QmakePriFileEvalResult *> proToResult,
+            QHash<int, Internal::QmakePriFileEvalResult *> proToResult,
             Internal::QmakePriFileEvalResult *fallback,
             QVector<ProFileEvaluator::SourceFile> sourceFiles, ProjectExplorer::FileType type);
     static void extractInstalls(
-            QHash<const ProFile *, Internal::QmakePriFileEvalResult *> proToResult,
+            QHash<int, Internal::QmakePriFileEvalResult *> proToResult,
             Internal::QmakePriFileEvalResult *fallback,
             const InstallsList &installList);
     static void processValues(Internal::QmakePriFileEvalResult &result);
@@ -280,6 +281,7 @@ public:
 
     QList<QmakeProFile *> allProFiles();
     QmakeProFile *findProFile(const Utils::FileName &fileName);
+    const QmakeProFile *findProFile(const Utils::FileName &fileName) const;
 
     ProjectType projectType() const;
 

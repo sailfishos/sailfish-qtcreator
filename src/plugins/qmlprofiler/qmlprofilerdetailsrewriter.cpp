@@ -34,6 +34,7 @@
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljstools/qmljsmodelmanager.h>
+#include <qtsupport/baseqtversion.h>
 
 #include <utils/qtcassert.h>
 
@@ -42,52 +43,52 @@ namespace Internal {
 
 class PropertyVisitor: protected QmlJS::AST::Visitor
 {
-    QmlJS::AST::Node * _lastValidNode;
-    unsigned _line;
-    unsigned _col;
 public:
-    QmlJS::AST::Node * operator()(QmlJS::AST::Node *node, unsigned line, unsigned col)
+    QmlJS::AST::Node *operator()(QmlJS::AST::Node *node, int line, int column)
     {
-        _line = line;
-        _col = col;
-        _lastValidNode = 0;
-        accept(node);
-        return _lastValidNode;
+        QTC_ASSERT(line >= 0, return nullptr);
+        QTC_ASSERT(column >= 0, return nullptr);
+        QTC_ASSERT(node, return nullptr);
+        m_line = line;
+        m_column = column;
+        m_lastValidNode = nullptr;
+        node->accept(this);
+        return m_lastValidNode;
     }
 
 protected:
     using QmlJS::AST::Visitor::visit;
 
-    void accept(QmlJS::AST::Node *node)
-    {
-        if (node)
-            node->accept(this);
-    }
-
-    bool containsLocation(QmlJS::AST::SourceLocation start, QmlJS::AST::SourceLocation end)
-    {
-        return (_line > start.startLine || (_line == start.startLine && _col >= start.startColumn))
-                && (_line < end.startLine || (_line == end.startLine && _col <= end.startColumn));
-    }
-
-
-    virtual bool preVisit(QmlJS::AST::Node *node)
+    bool preVisit(QmlJS::AST::Node *node) override
     {
         if (QmlJS::AST::cast<QmlJS::AST::UiQualifiedId *>(node))
             return false;
         return containsLocation(node->firstSourceLocation(), node->lastSourceLocation());
     }
 
-    virtual bool visit(QmlJS::AST::UiScriptBinding *ast)
+    bool visit(QmlJS::AST::UiScriptBinding *ast) override
     {
-        _lastValidNode = ast;
+        m_lastValidNode = ast;
         return true;
     }
 
-    virtual bool visit(QmlJS::AST::UiPublicMember *ast)
+    bool visit(QmlJS::AST::UiPublicMember *ast) override
     {
-        _lastValidNode = ast;
+        m_lastValidNode = ast;
         return true;
+    }
+
+private:
+    QmlJS::AST::Node *m_lastValidNode = nullptr;
+    quint32 m_line = 0;
+    quint32 m_column = 0;
+
+    bool containsLocation(QmlJS::AST::SourceLocation start, QmlJS::AST::SourceLocation end)
+    {
+        return (m_line > start.startLine
+                    || (m_line == start.startLine && m_column >= start.startColumn))
+                && (m_line < end.startLine
+                    || (m_line == end.startLine && m_column <= end.startColumn));
     }
 };
 
@@ -148,7 +149,6 @@ void QmlProfilerDetailsRewriter::rewriteDetailsForLocation(
 {
     PropertyVisitor propertyVisitor;
     QmlJS::AST::Node *node = propertyVisitor(doc->ast(), location.line(), location.column());
-
     if (!node)
         return;
 
@@ -174,7 +174,7 @@ void QmlProfilerDetailsRewriter::disconnectQmlModel()
     }
 }
 
-void QmlProfilerDetailsRewriter::clearRequests()
+void QmlProfilerDetailsRewriter::clear()
 {
     m_filesCache.clear();
     m_pendingEvents.clear();
@@ -207,56 +207,10 @@ void QmlProfilerDetailsRewriter::documentReady(QmlJS::Document::Ptr doc)
     }
 }
 
-void QmlProfilerDetailsRewriter::populateFileFinder(
-        const ProjectExplorer::RunConfiguration *runConfiguration)
+void QmlProfilerDetailsRewriter::populateFileFinder(const ProjectExplorer::Target *target)
 {
-    // Prefer the given runConfiguration's target if available
-    const ProjectExplorer::Target *target = runConfiguration ? runConfiguration->target() : nullptr;
-
-    // If runConfiguration given, then use the project associated with that ...
-    const ProjectExplorer::Project *startupProject = target ? target->project() : nullptr;
-
-    // ... else try the session manager's global startup project ...
-    if (!startupProject)
-        startupProject = ProjectExplorer::SessionManager::startupProject();
-
-    // ... and if that is null, use the first project available.
-    const QList<ProjectExplorer::Project *> projects = ProjectExplorer::SessionManager::projects();
-    if (!startupProject && !projects.isEmpty())
-        startupProject = projects.first();
-
-    QString projectDirectory;
-    QStringList sourceFiles;
-
-    // Sort files from startupProject to the front of the list ...
-    if (startupProject) {
-        projectDirectory = startupProject->projectDirectory().toString();
-        sourceFiles.append(startupProject->files(ProjectExplorer::Project::SourceFiles));
-    }
-
-    // ... then add all the other projects' files.
-    for (const ProjectExplorer::Project *project : projects) {
-        if (project != startupProject)
-            sourceFiles.append(project->files(ProjectExplorer::Project::SourceFiles));
-    }
-
-    // If no runConfiguration was given, but we've found a startupProject, then try to deduct a
-    // target from that.
-    if (!target && startupProject)
-        target = startupProject->activeTarget();
-
-    // ... and find the sysroot if we have any target at all.
-    QString activeSysroot;
-    if (target) {
-        const ProjectExplorer::Kit *kit = target->kit();
-        if (kit && ProjectExplorer::SysRootKitInformation::hasSysRoot(kit))
-            activeSysroot = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
-    }
-
-    // Finally, do populate m_projectFinder
-    m_projectFinder.setProjectDirectory(projectDirectory);
-    m_projectFinder.setProjectFiles(sourceFiles);
-    m_projectFinder.setSysroot(activeSysroot);
+    QtSupport::BaseQtVersion::populateQmlFileFinder(&m_projectFinder, target);
+    m_filesCache.clear();
 }
 
 } // namespace Internal

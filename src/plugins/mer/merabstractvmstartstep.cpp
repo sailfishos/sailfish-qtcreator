@@ -70,14 +70,6 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
 {
 }
 
-MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, MerAbstractVmStartStep *bs)
-    : BuildStep(bsl, bs)
-    , m_connection(bs->m_connection)
-    , m_futureInterface(0)
-    , m_checkForCancelTimer(0)
-{
-}
-
 bool MerAbstractVmStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     Q_UNUSED(earlierSteps);

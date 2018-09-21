@@ -127,7 +127,6 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
         static int windowId = 0;
         Core::ICore::registerWindow(this,
                                     Core::Context(Core::Id("Help.Window.").withSuffix(++windowId)));
-        setAttribute(Qt::WA_DeleteOnClose);
         setAttribute(Qt::WA_QuitOnClose, false); // don't prevent Qt Creator from closing
     }
     if (style != SideBarWidget) {
@@ -176,7 +175,7 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
         layout->addWidget(Core::Command::toolButtonWithAppendedShortcut(m_switchToHelp, cmd));
     }
 
-    m_homeAction = new QAction(Icons::HOME_TOOLBAR.icon(), tr("Home"), this);
+    m_homeAction = new QAction(Utils::Icons::HOME_TOOLBAR.icon(), tr("Home"), this);
     cmd = Core::ActionManager::registerAction(m_homeAction, Constants::HELP_HOME, context);
     connect(m_homeAction, &QAction::triggered, this, &HelpWidget::goHome);
     layout->addWidget(Core::Command::toolButtonWithAppendedShortcut(m_homeAction, cmd));

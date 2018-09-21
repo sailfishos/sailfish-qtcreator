@@ -56,6 +56,7 @@
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 #include <utils/synchronousprocess.h>
+#include <utils/environment.h>
 
 #include <QApplication>
 #include <QDirIterator>
@@ -84,16 +85,14 @@ using namespace Internal;
 
 namespace {
     const char jdkSettingsPath[] = "HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit";
-    const QVersionNumber sdkToolsAntMissingVersion(25, 3, 0);
 
     const QLatin1String SettingsGroup("AndroidConfigurations");
     const QLatin1String SDKLocationKey("SDKLocation");
+    const QLatin1String SDKManagerToolArgsKey("SDKManagerToolArgs");
     const QLatin1String NDKLocationKey("NDKLocation");
-    const QLatin1String AntLocationKey("AntLocation");
     const QLatin1String OpenJDKLocationKey("OpenJDKLocation");
     const QLatin1String KeystoreLocationKey("KeystoreLocation");
     const QLatin1String AutomaticKitCreationKey("AutomatiKitCreation");
-    const QLatin1String UseGradleKey("UseGradle");
     const QLatin1String MakeExtraSearchDirectory("MakeExtraSearchDirectory");
     const QLatin1String PartitionSizeKey("PartitionSize");
     const QLatin1String ToolchainHostKey("ToolchainHost");
@@ -128,8 +127,7 @@ namespace {
 
     static QString sdkSettingsFileName()
     {
-        return QFileInfo(Core::ICore::settings(QSettings::SystemScope)->fileName()).absolutePath()
-                + QLatin1String("/qtcreator/android.xml");
+        return Core::ICore::installerResourcePath() + "/android.xml";
     }
 
     static bool is32BitUserSpace()
@@ -249,9 +247,8 @@ void AndroidConfig::load(const QSettings &settings)
     // user settings
     m_partitionSize = settings.value(PartitionSizeKey, 1024).toInt();
     m_sdkLocation = FileName::fromString(settings.value(SDKLocationKey).toString());
+    m_sdkManagerToolArgs = settings.value(SDKManagerToolArgsKey).toStringList();
     m_ndkLocation = FileName::fromString(settings.value(NDKLocationKey).toString());
-    m_antLocation = FileName::fromString(settings.value(AntLocationKey).toString());
-    m_useGradle = settings.value(UseGradleKey, false).toBool();
     m_openJDKLocation = FileName::fromString(settings.value(OpenJDKLocationKey).toString());
     m_keystoreLocation = FileName::fromString(settings.value(KeystoreLocationKey).toString());
     m_toolchainHost = settings.value(ToolchainHostKey).toString();
@@ -266,8 +263,8 @@ void AndroidConfig::load(const QSettings &settings)
             && settings.value(changeTimeStamp).toInt() != QFileInfo(sdkSettingsFileName()).lastModified().toMSecsSinceEpoch() / 1000) {
         // persisten settings
         m_sdkLocation = FileName::fromString(reader.restoreValue(SDKLocationKey, m_sdkLocation.toString()).toString());
+        m_sdkManagerToolArgs = reader.restoreValue(SDKManagerToolArgsKey, m_sdkManagerToolArgs).toStringList();
         m_ndkLocation = FileName::fromString(reader.restoreValue(NDKLocationKey, m_ndkLocation.toString()).toString());
-        m_antLocation = FileName::fromString(reader.restoreValue(AntLocationKey, m_antLocation.toString()).toString());
         m_openJDKLocation = FileName::fromString(reader.restoreValue(OpenJDKLocationKey, m_openJDKLocation.toString()).toString());
         m_keystoreLocation = FileName::fromString(reader.restoreValue(KeystoreLocationKey, m_keystoreLocation.toString()).toString());
         m_toolchainHost = reader.restoreValue(ToolchainHostKey, m_toolchainHost).toString();
@@ -278,7 +275,6 @@ void AndroidConfig::load(const QSettings &settings)
             m_makeExtraSearchDirectories << extraDirectory;
         // persistent settings
     }
-    m_availableSdkPlatformsUpToDate = false;
     m_NdkInformationUpToDate = false;
 }
 
@@ -290,9 +286,8 @@ void AndroidConfig::save(QSettings &settings) const
 
     // user settings
     settings.setValue(SDKLocationKey, m_sdkLocation.toString());
+    settings.setValue(SDKManagerToolArgsKey, m_sdkManagerToolArgs);
     settings.setValue(NDKLocationKey, m_ndkLocation.toString());
-    settings.setValue(AntLocationKey, m_antLocation.toString());
-    settings.setValue(UseGradleKey, m_useGradle);
     settings.setValue(OpenJDKLocationKey, m_openJDKLocation.toString());
     settings.setValue(KeystoreLocationKey, m_keystoreLocation.toString());
     settings.setValue(PartitionSizeKey, m_partitionSize);
@@ -341,40 +336,15 @@ void AndroidConfig::updateNdkInformation() const
     m_NdkInformationUpToDate = true;
 }
 
-void AndroidConfig::updateAvailableSdkPlatforms() const
-{
-    if (m_availableSdkPlatformsUpToDate)
-        return;
-
-    m_availableSdkPlatforms.clear();
-    AndroidSdkManager sdkManager(*this);
-    bool success = false;
-    m_availableSdkPlatforms = sdkManager.availableSdkPlatforms(&success);
-    if (success)
-        m_availableSdkPlatformsUpToDate = true;
-}
-
-QStringList AndroidConfig::apiLevelNamesFor(const QList<SdkPlatform> &platforms)
+QStringList AndroidConfig::apiLevelNamesFor(const SdkPlatformList &platforms)
 {
     return Utils::transform(platforms, AndroidConfig::apiLevelNameFor);
 }
 
-QString AndroidConfig::apiLevelNameFor(const SdkPlatform &platform)
+QString AndroidConfig::apiLevelNameFor(const SdkPlatform *platform)
 {
-    return platform.apiLevel > 0 ? QString("android-%1").arg(platform.apiLevel) : "";
-}
-
-QList<SdkPlatform> AndroidConfig::sdkTargets(int minApiLevel) const
-{
-    updateAvailableSdkPlatforms();
-    QList<SdkPlatform> result;
-    for (int i = 0; i < m_availableSdkPlatforms.size(); ++i) {
-        if (m_availableSdkPlatforms.at(i).apiLevel >= minApiLevel)
-            result << m_availableSdkPlatforms.at(i);
-        else
-            break;
-    }
-    return result;
+    return platform && platform->apiLevel() > 0 ?
+                QString("android-%1").arg(platform->apiLevel()) : "";
 }
 
 FileName AndroidConfig::adbToolPath() const
@@ -398,14 +368,6 @@ FileName AndroidConfig::androidToolPath() const
         FileName path = m_sdkLocation;
         return path.appendPath(QLatin1String("tools/android"));
     }
-}
-
-FileName AndroidConfig::antToolPath() const
-{
-    if (!m_antLocation.isEmpty())
-        return m_antLocation;
-    else
-        return FileName::fromLatin1("ant");
 }
 
 FileName AndroidConfig::emulatorToolPath() const
@@ -462,6 +424,13 @@ FileName AndroidConfig::gdbPath(const Abi &abi, const QString &ndkToolChainVersi
         return FileName::fromString(gdbPath);
 
     return toolPath(abi, ndkToolChainVersion).appendString(QLatin1String("-gdb" QTC_HOST_EXE_SUFFIX));
+}
+
+FileName AndroidConfig::makePath() const
+{
+    const QString makePath = QString::fromLatin1("%1/prebuilt/%2/bin/make" QTC_HOST_EXE_SUFFIX)
+            .arg(m_ndkLocation.toString()).arg(toolchainHost());
+    return FileName::fromString(makePath);
 }
 
 FileName AndroidConfig::openJDKBinPath() const
@@ -537,20 +506,6 @@ QVector<AndroidDeviceInfo> AndroidConfig::connectedDevices(const QString &adbToo
                                          "No devices found in output of: %1")
             .arg(adbToolPath + QLatin1String(" devices"));
     return devices;
-}
-
-AndroidConfig::CreateAvdInfo AndroidConfig::gatherCreateAVDInfo(QWidget *parent, int minApiLevel, QString targetArch) const
-{
-    CreateAvdInfo result;
-    AvdDialog d(minApiLevel, targetArch, this, parent);
-    if (d.exec() != QDialog::Accepted || !d.isValid())
-        return result;
-
-    result.target = d.target();
-    result.name = d.name();
-    result.abi = d.abi();
-    result.sdcardSize = d.sdcardSize();
-    return result;
 }
 
 bool AndroidConfig::isConnected(const QString &serialNumber) const
@@ -732,12 +687,10 @@ QStringList AndroidConfig::getAbis(const QString &adbToolPath, const QString &de
     return result;
 }
 
-SdkPlatform AndroidConfig::highestAndroidSdk() const
+bool AndroidConfig::useNativeUiTools() const
 {
-    updateAvailableSdkPlatforms();
-    if (m_availableSdkPlatforms.isEmpty())
-        return SdkPlatform();
-    return m_availableSdkPlatforms.first();
+    const QVersionNumber version = sdkToolsVersion();
+    return !version.isNull() && version <= QVersionNumber(25, 3 ,0);
 }
 
 QString AndroidConfig::bestNdkPlatformMatch(int target) const
@@ -759,7 +712,6 @@ FileName AndroidConfig::sdkLocation() const
 void AndroidConfig::setSdkLocation(const FileName &sdkLocation)
 {
     m_sdkLocation = sdkLocation;
-    m_availableSdkPlatformsUpToDate = false;
 }
 
 QVersionNumber AndroidConfig::sdkToolsVersion() const
@@ -773,6 +725,28 @@ QVersionNumber AndroidConfig::sdkToolsVersion() const
         version = QVersionNumber::fromString(versionStr);
     }
     return version;
+}
+
+QVersionNumber AndroidConfig::buildToolsVersion() const
+{
+    QVersionNumber maxVersion;
+    Utils::FileName buildtoolsDir = m_sdkLocation;
+    buildtoolsDir.appendPath("build-tools");
+    QDir buildToolsDir(buildtoolsDir.toString());
+    for (const QFileInfo &file: buildToolsDir.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
+        maxVersion = qMax(maxVersion, QVersionNumber::fromString(file.fileName()));
+    return maxVersion;
+}
+
+
+QStringList AndroidConfig::sdkManagerToolArgs() const
+{
+    return m_sdkManagerToolArgs;
+}
+
+void AndroidConfig::setSdkManagerToolArgs(const QStringList &args)
+{
+    m_sdkManagerToolArgs = args;
 }
 
 FileName AndroidConfig::ndkLocation() const
@@ -833,16 +807,6 @@ void AndroidConfig::setNdkLocation(const FileName &ndkLocation)
     m_NdkInformationUpToDate = false;
 }
 
-FileName AndroidConfig::antLocation() const
-{
-    return m_antLocation;
-}
-
-void AndroidConfig::setAntLocation(const FileName &antLocation)
-{
-    m_antLocation = antLocation;
-}
-
 FileName AndroidConfig::openJDKLocation() const
 {
     return m_openJDKLocation;
@@ -851,7 +815,6 @@ FileName AndroidConfig::openJDKLocation() const
 void AndroidConfig::setOpenJDKLocation(const FileName &openJDKLocation)
 {
     m_openJDKLocation = openJDKLocation;
-    m_availableSdkPlatformsUpToDate = false;
 }
 
 FileName AndroidConfig::keystoreLocation() const
@@ -895,25 +858,6 @@ void AndroidConfig::setAutomaticKitCreation(bool b)
     m_automaticKitCreation = b;
 }
 
-bool AndroidConfig::antScriptsAvailable() const
-{
-    return sdkToolsVersion() < sdkToolsAntMissingVersion;
-}
-
-bool AndroidConfig::useGrandle() const
-{
-    if (antScriptsAvailable()) {
-        return m_useGradle;
-    }
-    // Force gradle builds.
-    return true;
-}
-
-void AndroidConfig::setUseGradle(bool b)
-{
-    m_useGradle = b;
-}
-
 ///////////////////////////////////
 // AndroidConfigurations
 ///////////////////////////////////
@@ -930,11 +874,10 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 }
 
 AndroidDeviceInfo AndroidConfigurations::showDeviceDialog(Project *project,
-                                                          int apiLevel, const QString &abi,
-                                                          Options options)
+                                                          int apiLevel, const QString &abi)
 {
     QString serialNumber = defaultDevice(project, abi);
-    AndroidDeviceDialog dialog(apiLevel, abi, options, serialNumber, Core::ICore::mainWindow());
+    AndroidDeviceDialog dialog(apiLevel, abi, serialNumber, Core::ICore::mainWindow());
     AndroidDeviceInfo info = dialog.device();
     if (dialog.saveDeviceSelection() && info.isValid()) {
         const QString serialNumber = info.type == AndroidDeviceInfo::Hardware ?
@@ -1134,6 +1077,19 @@ bool AndroidConfigurations::force32bitEmulator()
     return m_instance->m_force32bit;
 }
 
+QProcessEnvironment AndroidConfigurations::toolsEnvironment(const AndroidConfig &config)
+{
+    Environment env = Environment::systemEnvironment();
+    Utils::FileName jdkLocation = config.openJDKLocation();
+    if (!jdkLocation.isEmpty()) {
+        env.set("JAVA_HOME", jdkLocation.toUserOutput());
+        Utils::FileName binPath = jdkLocation;
+        binPath.appendPath("bin");
+        env.prependOrSetPath(binPath.toUserOutput());
+    }
+    return env.toProcessEnvironment();
+}
+
 /**
  * Workaround for '????????????' serial numbers
  * @return ("-d") for buggy devices, ("-s", <serial no>) for normal
@@ -1164,6 +1120,11 @@ const AndroidConfig &AndroidConfigurations::currentConfig()
     return m_instance->m_config; // ensure that m_instance is initialized
 }
 
+AndroidSdkManager *AndroidConfigurations::sdkManager()
+{
+    return m_instance->m_sdkManager.get();
+}
+
 AndroidConfigurations *AndroidConfigurations::instance()
 {
     return m_instance;
@@ -1178,7 +1139,8 @@ void AndroidConfigurations::save()
 }
 
 AndroidConfigurations::AndroidConfigurations(QObject *parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_sdkManager(new AndroidSdkManager(m_config))
 {
     load();
 
@@ -1188,6 +1150,11 @@ AndroidConfigurations::AndroidConfigurations(QObject *parent)
     m_force32bit = is32BitUserSpace();
 
     m_instance = this;
+}
+
+AndroidConfigurations::~AndroidConfigurations()
+{
+
 }
 
 static FileName javaHomeForJavac(const FileName &location)
@@ -1214,16 +1181,6 @@ void AndroidConfigurations::load()
     QSettings *settings = Core::ICore::settings();
     settings->beginGroup(SettingsGroup);
     m_config.load(*settings);
-
-    if (m_config.antLocation().isEmpty()) {
-        Environment env = Environment::systemEnvironment();
-        FileName location = env.searchInPath(QLatin1String("ant"));
-        QFileInfo fi = location.toFileInfo();
-        if (fi.exists() && fi.isExecutable() && !fi.isDir()) {
-            m_config.setAntLocation(location);
-            saveSettings = true;
-        }
-    }
 
     if (m_config.openJDKLocation().isEmpty()) {
         if (HostOsInfo::isLinuxHost()) {
@@ -1309,14 +1266,5 @@ void AndroidConfigurations::updateAndroidDevice()
 }
 
 AndroidConfigurations *AndroidConfigurations::m_instance = 0;
-
-bool SdkPlatform::operator <(const SdkPlatform &other) const
-{
-    if (apiLevel != other.apiLevel)
-        return apiLevel > other.apiLevel;
-    if (name != other.name)
-        return name < other.name;
-    return false;
-}
 
 } // namespace Android

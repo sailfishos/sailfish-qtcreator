@@ -58,6 +58,11 @@ const QString TestResult::outputString(bool selected) const
     return selected ? m_description : m_description.split('\n').first();
 }
 
+const TestTreeItem *TestResult::findTestTreeItem() const
+{
+    return nullptr;
+}
+
 Result::Type TestResult::resultFromString(const QString &resultString)
 {
     if (resultString == "pass")
@@ -80,7 +85,7 @@ Result::Type TestResult::resultFromString(const QString &resultString)
         return Result::MessageWarn;
     if (resultString == "qfatal")
         return Result::MessageFatal;
-    if (resultString == "system")
+    if ((resultString == "system") || (resultString == "qsystem"))
         return Result::MessageSystem;
     if (resultString == "bpass")
         return Result::BlacklistedPass;

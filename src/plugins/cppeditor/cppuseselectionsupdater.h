@@ -49,11 +49,12 @@ public:
     void scheduleUpdate();
     void abortSchedule();
 
-    enum CallType { Synchronous, Asynchronous };
-    void update(CallType callType = Asynchronous);
+    enum class CallType { Synchronous, Asynchronous };
+    enum class RunnerInfo { AlreadyUpToDate, Started, FailedToStart, Invalid }; // For async case.
+    RunnerInfo update(CallType callType = CallType::Asynchronous);
 
 signals:
-    void finished(CppTools::SemanticInfo::LocalUseMap localUses);
+    void finished(CppTools::SemanticInfo::LocalUseMap localUses, bool success);
     void selectionsForVariableUnderCursorUpdated(const QList<QTextEdit::ExtraSelection> &);
 
 private:

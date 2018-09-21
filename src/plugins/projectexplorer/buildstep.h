@@ -28,17 +28,20 @@
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
 
+#include <utils/qtcassert.h>
+
 #include <QFutureInterface>
 #include <QWidget>
 
 namespace ProjectExplorer {
-class Task;
+
 class BuildConfiguration;
+class BuildStepConfigWidget;
+class BuildStepFactory;
 class BuildStepList;
 class DeployConfiguration;
 class Target;
-
-class BuildStepConfigWidget;
+class Task;
 
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT BuildStep : public ProjectConfiguration
@@ -46,14 +49,12 @@ class PROJECTEXPLORER_EXPORT BuildStep : public ProjectConfiguration
     Q_OBJECT
 
 protected:
-    BuildStep(BuildStepList *bsl, Core::Id id);
-    BuildStep(BuildStepList *bsl, BuildStep *bs);
+    friend class BuildStepFactory;
+    explicit BuildStep(BuildStepList *bsl, Core::Id id);
 
 public:
     virtual bool init(QList<const BuildStep *> &earlierSteps) = 0;
-
     virtual void run(QFutureInterface<bool> &fi) = 0;
-
     virtual BuildStepConfigWidget *createConfigWidget() = 0;
 
     virtual bool immutable() const;
@@ -70,7 +71,7 @@ public:
     DeployConfiguration *deployConfiguration() const;
     ProjectConfiguration *projectConfiguration() const;
     Target *target() const;
-    Project *project() const;
+    Project *project() const override;
 
     enum class OutputFormat {
         Stdout, Stderr, // These are for forwarded output from external tools
@@ -80,6 +81,8 @@ public:
     enum OutputNewlineSetting { DoAppendNewline, DontAppendNewline };
 
     static void reportRunResult(QFutureInterface<bool> &fi, bool success);
+
+    bool isActive() const override;
 
 signals:
     /// Adds a \p task to the Issues pane.
@@ -95,9 +98,7 @@ signals:
     void enabledChanged();
 
 private:
-    void ctor();
-
-    bool m_enabled;
+    bool m_enabled = true;
 };
 
 class PROJECTEXPLORER_EXPORT BuildStepInfo
@@ -109,27 +110,61 @@ public:
         UniqueStep  = 1 << 8    // Can't be used twice in a BuildStepList
     };
 
-    BuildStepInfo() {}
-    BuildStepInfo(Core::Id id, const QString &displayName, Flags flags = Flags())
-        : id(id), displayName(displayName), flags(flags)
-    {}
+    using BuildStepCreator = std::function<BuildStep *(BuildStepList *)>;
 
     Core::Id id;
     QString displayName;
     Flags flags = Flags();
+    BuildStepCreator creator;
 };
 
-class PROJECTEXPLORER_EXPORT IBuildStepFactory : public QObject
+class PROJECTEXPLORER_EXPORT BuildStepFactory : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit IBuildStepFactory(QObject *parent = nullptr);
+    BuildStepFactory();
+    ~BuildStepFactory();
 
-    virtual QList<BuildStepInfo> availableSteps(BuildStepList *parent) const = 0;
-    virtual BuildStep *create(BuildStepList *parent, Core::Id id) = 0;
-    virtual BuildStep *restore(BuildStepList *parent, const QVariantMap &map);
-    virtual BuildStep *clone(BuildStepList *parent, BuildStep *product) = 0;
+    static const QList<BuildStepFactory *> allBuildStepFactories();
+
+    BuildStepInfo stepInfo() const;
+    Core::Id stepId() const;
+    BuildStep *create(BuildStepList *parent, Core::Id id);
+    BuildStep *restore(BuildStepList *parent, const QVariantMap &map);
+    BuildStep *clone(BuildStepList *parent, BuildStep *product);
+
+    virtual bool canHandle(BuildStepList *bsl) const;
+
+protected:
+    using BuildStepCreator = std::function<BuildStep *(BuildStepList *)>;
+
+    template <class BuildStepType>
+    void registerStep(Core::Id id)
+    {
+        QTC_CHECK(!m_info.creator);
+        m_info.id = id;
+        m_info.creator = [](BuildStepList *bsl) { return new BuildStepType(bsl); };
+    }
+
+    void setSupportedStepList(Core::Id id);
+    void setSupportedStepLists(const QList<Core::Id> &ids);
+    void setSupportedConfiguration(Core::Id id);
+    void setSupportedProjectType(Core::Id id);
+    void setSupportedDeviceType(Core::Id id);
+    void setSupportedDeviceTypes(const QList<Core::Id> &ids);
+    void setRepeatable(bool on) { m_isRepeatable = on; }
+    void setDisplayName(const QString &displayName);
+    void setFlags(BuildStepInfo::Flags flags);
+
+private:
+    BuildStepInfo m_info;
+
+    Core::Id m_supportedProjectType;
+    QList<Core::Id> m_supportedDeviceTypes;
+    QList<Core::Id> m_supportedStepLists;
+    Core::Id m_supportedConfiguration;
+    bool m_isRepeatable = true;
 };
 
 class PROJECTEXPLORER_EXPORT BuildStepConfigWidget : public QWidget

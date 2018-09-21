@@ -31,6 +31,7 @@
 #include "mertargetsxmlparser.h"
 #include "mertoolchain.h"
 
+#include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -64,12 +65,17 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
             this, &MerSdk::handleTargetsFileChanged);
 
-    // Fired from handleTargetsFileChanged(), used to prevent removing and
-    // re-adding all targets due to non atomic targets file change.
-    m_updateTargetsTimer.setInterval(1000);
+    // Fired from handleTargetsFileChanged(), used to prevent (1) removing and
+    // re-adding all targets due to non atomic targets file change
+    // and (2) crashing Qt Creator by removing targets during build.
+    m_updateTargetsTimer.setInterval(3000);
     m_updateTargetsTimer.setSingleShot(true);
-    connect(&m_updateTargetsTimer, &QTimer::timeout,
-            this, &MerSdk::updateTargets);
+    connect(&m_updateTargetsTimer, &QTimer::timeout, this, [this] {
+        if (!BuildManager::isBuilding())
+            updateTargets();
+        else
+            m_updateTargetsTimer.start();
+    });
 }
 
 MerSdk::~MerSdk()
@@ -184,17 +190,17 @@ QString MerSdk::sharedSrcPath() const
 void MerSdk::setSshPort(quint16 port)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    if (port == params.port)
+    if (port == params.port())
         return;
 
-    params.port = port;
+    params.setPort(port);
     m_connection->setSshParameters(params);
     emit sshPortChanged(port);
 }
 
 quint16 MerSdk::sshPort() const
 {
-    return m_connection->sshParameters().port;
+    return m_connection->sshParameters().port();
 }
 
 void MerSdk::setWwwPort(quint16 port)
@@ -229,25 +235,25 @@ QString MerSdk::privateKeyFile() const
 void MerSdk::setHost(const QString &host)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    params.host = host;
+    params.setHost(host);
     m_connection->setSshParameters(params);
 }
 
 QString MerSdk::host() const
 {
-    return m_connection->sshParameters().host;
+    return m_connection->sshParameters().host();
 }
 
 void MerSdk::setUserName(const QString &username)
 {
     SshConnectionParameters params = m_connection->sshParameters();
-    params.userName = username;
+    params.setUserName(username);
     m_connection->setSshParameters(params);
 }
 
 QString MerSdk::userName() const
 {
-    return m_connection->sshParameters().userName;
+    return m_connection->sshParameters().userName();
 }
 
 void MerSdk::setTimeout(int timeout)

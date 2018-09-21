@@ -26,6 +26,7 @@
 #include "merdevicefactory.h"
 #include "meroptionspage.h"
 #include "mersdkmanager.h"
+#include "mersettings.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -49,7 +50,9 @@ MerSdkKitInformation::MerSdkKitInformation()
     setPriority(24);
 
     connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
-            this, &MerSdkKitInformation::onSdksUpdated);
+            this, &MerSdkKitInformation::onUpdated);
+    connect(MerSettings::instance(), &MerSettings::environmentFilterChanged,
+            this, &MerSdkKitInformation::onUpdated);
 }
 
 QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
@@ -127,10 +130,15 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
         env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
         if (!sharedSrc.isEmpty())
             env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
+                !MerSettings::environmentFilter().isEmpty()) {
+            env.appendOrSet(QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER),
+                    MerSettings::environmentFilter());
+        }
     }
 }
 
-void MerSdkKitInformation::onSdksUpdated()
+void MerSdkKitInformation::onUpdated()
 {
     for (Kit *k : KitManager::kits([](const Kit *k) { return k->hasValue(MerSdkKitInformation::id()); }))
         notifyAboutUpdate(k);

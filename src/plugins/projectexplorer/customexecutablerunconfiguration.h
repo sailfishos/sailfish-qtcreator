@@ -35,17 +35,15 @@ class CustomExecutableDialog;
 
 namespace Internal { class CustomExecutableConfigurationWidget; }
 
-class CustomExecutableRunConfigurationFactory;
-
 class PROJECTEXPLORER_EXPORT CustomExecutableRunConfiguration : public RunConfiguration
 {
     Q_OBJECT
     // the configuration widget needs to setExecutable setWorkingDirectory and setCommandLineArguments
     friend class Internal::CustomExecutableConfigurationWidget;
-    friend class CustomExecutableRunConfigurationFactory;
+    friend class ProjectExplorer::IRunConfigurationFactory;
 
 public:
-    explicit CustomExecutableRunConfiguration(Target *parent);
+    explicit CustomExecutableRunConfiguration(Target *target);
     ~CustomExecutableRunConfiguration() override;
 
     /**
@@ -67,14 +65,9 @@ public:
 signals:
     void changed();
 
-protected:
-    CustomExecutableRunConfiguration(Target *parent,
-                                     CustomExecutableRunConfiguration *source);
-    virtual bool fromMap(const QVariantMap &map) override;
-    QString defaultDisplayName() const;
-
 private:
-    void ctor();
+    bool fromMap(const QVariantMap &map) override;
+    QString defaultDisplayName() const;
 
     void configurationDialogFinished();
     void setExecutable(const QString &executable);
@@ -97,20 +90,6 @@ class CustomExecutableRunConfigurationFactory : public IRunConfigurationFactory
 
 public:
     explicit CustomExecutableRunConfigurationFactory(QObject *parent = 0);
-
-    QList<Core::Id> availableCreationIds(Target *parent, CreationMode mode) const override;
-    QString displayNameForId(Core::Id id) const override;
-
-    bool canCreate(Target *parent, Core::Id id) const override;
-    bool canRestore(Target *parent, const QVariantMap &map) const override;
-    bool canClone(Target *parent, RunConfiguration *product) const override;
-    RunConfiguration *clone(Target *parent, RunConfiguration *source) override;
-
-private:
-    bool canHandle(Target *parent) const;
-
-    RunConfiguration *doCreate(Target *parent, Core::Id id) override;
-    RunConfiguration *doRestore(Target *parent, const QVariantMap &map) override;
 };
 
 } // namespace ProjectExplorer

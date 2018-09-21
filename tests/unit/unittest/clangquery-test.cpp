@@ -29,11 +29,19 @@
 #include "filesystem-utilities.h"
 
 #include <clangquery.h>
+#include <refactoringdatabaseinitializer.h>
+
+#include <sqlitedatabase.h>
+
+#include <filepathcaching.h>
+
+#include <QDir>
 
 #include <mutex>
 
 using ClangBackEnd::ClangQuery;
-using ClangBackEnd::StringCache;
+using ClangBackEnd::FilePathCaching;
+using ClangBackEnd::RefactoringDatabaseInitializer;
 
 using testing::AllOf;
 using testing::Contains;
@@ -48,7 +56,9 @@ protected:
     void SetUp() override;
 
 protected:
-    StringCache<Utils::PathString, std::mutex> filePathCache;
+    Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
+    RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
+    FilePathCaching filePathCache{database};
     ::ClangQuery simpleFunctionQuery{filePathCache};
     ::ClangQuery simpleClassQuery{filePathCache};
 };

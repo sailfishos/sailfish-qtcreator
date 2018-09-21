@@ -10,7 +10,7 @@ QtcPlugin {
     Depends { name: "ProjectExplorer" }
     Depends { name: "TextEditor" }
     Depends { name: "Utils" }
-    Depends { name: "ClangBackEndIpc" }
+    Depends { name: "ClangSupport" }
     Depends { name: "libclang"; required: false }
 
     pluginTestDepends: [
@@ -41,11 +41,16 @@ QtcPlugin {
         "clangassistproposalitem.h",
         "clangassistproposalmodel.cpp",
         "clangassistproposalmodel.h",
-        "clangbackendipcintegration.cpp",
-        "clangbackendipcintegration.h",
+        "clangbackendcommunicator.cpp",
+        "clangbackendcommunicator.h",
+        "clangbackendlogging.cpp",
+        "clangbackendlogging.h",
+        "clangbackendreceiver.cpp",
+        "clangbackendreceiver.h",
+        "clangbackendsender.cpp",
+        "clangbackendsender.h",
         "clangcodemodelplugin.cpp",
         "clangcodemodelplugin.h",
-        "clangcodemodel.qrc",
         "clangcompletionassistinterface.cpp",
         "clangcompletionassistinterface.h",
         "clangcompletionassistprocessor.cpp",
@@ -71,10 +76,14 @@ QtcPlugin {
         "clangfixitoperation.h",
         "clangfixitoperationsextractor.cpp",
         "clangfixitoperationsextractor.h",
+        "clangfollowsymbol.cpp",
+        "clangfollowsymbol.h",
         "clangfunctionhintmodel.cpp",
         "clangfunctionhintmodel.h",
-        "clanghighlightingmarksreporter.cpp",
-        "clanghighlightingmarksreporter.h",
+        "clanghoverhandler.cpp",
+        "clanghoverhandler.h",
+        "clangtokeninfosreporter.cpp",
+        "clangtokeninfosreporter.h",
         "clangisdiagnosticrelatedtolocation.h",
         "clangmodelmanagersupport.cpp",
         "clangmodelmanagersupport.h",
@@ -85,6 +94,8 @@ QtcPlugin {
         "clangprojectsettingswidget.cpp",
         "clangprojectsettingswidget.h",
         "clangprojectsettingswidget.ui",
+        "clangrefactoringengine.cpp",
+        "clangrefactoringengine.h",
         "clangtextmark.cpp",
         "clangtextmark.h",
         "clanguiheaderondiskmanager.cpp",
