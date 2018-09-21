@@ -14,36 +14,31 @@ namespace Internal {
 class MerQmakeBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory
 {
 public:
-    explicit MerQmakeBuildConfigurationFactory(QObject *parent = 0)
-        : QmakeBuildConfigurationFactory(parent)
-    { }
+    explicit MerQmakeBuildConfigurationFactory();
 
-    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const override;
-    int priority(const ProjectExplorer::Target *parent) const override;
-
-    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent,
-                                                const ProjectExplorer::BuildInfo *info) const override;
-    ProjectExplorer::BuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) override;
-    ProjectExplorer::BuildConfiguration *restore(ProjectExplorer::Target *parent, const QVariantMap &map) override;
+    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const Q_DECL_OVERRIDE;
+    int priority(const ProjectExplorer::Target *parent) const Q_DECL_OVERRIDE;
 };
 
 
 
 class MerQmakeBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguration
 {
-    friend class MerQmakeBuildConfigurationFactory;    
+    Q_OBJECT
+    friend class MerQmakeBuildConfigurationFactory;
+
 public:
-    explicit MerQmakeBuildConfiguration(ProjectExplorer::Target *target);
-    MerQmakeBuildConfiguration(ProjectExplorer::Target *target, MerQmakeBuildConfiguration *source);
-    MerQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
-    void addToEnvironment(Utils::Environment &env) const override;
+    explicit MerQmakeBuildConfiguration(ProjectExplorer::Target *target);    
+    void addToEnvironment(Utils::Environment &env) const Q_DECL_OVERRIDE;
+
+private slots:
+    void onMerSshFinished();
 
 private:
     QProcess m_MerSsh;
     QStringList m_BuildEngineVariables;
 
-    void init();
-    void queryBuildEngineVariables();
+    void queryBuildEngineVariables();    
     QStringList merSshEnvironment() const;
 };
 

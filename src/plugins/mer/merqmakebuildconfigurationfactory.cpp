@@ -4,25 +4,22 @@
 #include "merconstants.h"
 #include "mersdkkitinformation.h"
 
-#include <qtsupport/qtkitinformation.h>
-#include <qtsupport/baseqtversion.h>
 #include <coreplugin/icore.h>
-#include <projectexplorer/buildmanager.h>
-#include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
-#include <qmakeprojectmanager/qmakebuildinfo.h>
+#include <qtsupport/qtkitinformation.h>
 #include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 
 
 
 namespace {
 
-QStringList readFromProcess(QProcess &p) {
-    return (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0) ?
-                QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts) :
-                QStringList();
+bool isFinished(const QProcess &p) {
+    return (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0);
+}
+
+QStringList readFrom(QProcess &p) {
+    return QString::fromUtf8(p.readAllStandardOutput()).split("\n\r", QString::SkipEmptyParts);
 }
 
 }
@@ -34,6 +31,16 @@ using namespace QmakeProjectManager;
 
 namespace Mer {
 namespace Internal {
+
+
+
+MerQmakeBuildConfigurationFactory::MerQmakeBuildConfigurationFactory():
+    QmakeBuildConfigurationFactory()
+{
+    registerBuildConfiguration<MerQmakeBuildConfiguration>(QmakeProjectManager::Constants::QMAKE_BC_ID);
+    setSupportedTargetDeviceTypes({Mer::Constants::MER_DEVICE_TYPE});
+    //setBasePriority(1);
+}
 
 
 
@@ -58,70 +65,12 @@ int MerQmakeBuildConfigurationFactory::priority(const Target *parent) const
 
 
 
-BuildConfiguration *MerQmakeBuildConfigurationFactory::create(Target *parent,
-                                                                  const BuildInfo *info) const
-{
-    auto qmakeInfo = static_cast<const QmakeBuildInfo *>(info);
-    auto bc = new MerQmakeBuildConfiguration(parent);
-    configureBuildConfiguration(parent, bc, qmakeInfo);
-
-    return bc;
-}
-
-
-
-BuildConfiguration *MerQmakeBuildConfigurationFactory::clone(Target *parent, BuildConfiguration *source)
-{
-    if (!canClone(parent, source))
-        return 0;
-    auto *oldbc = static_cast<MerQmakeBuildConfiguration *>(source);
-    return new MerQmakeBuildConfiguration(parent, oldbc);
-}
-
-
-
-BuildConfiguration *MerQmakeBuildConfigurationFactory::restore(Target *parent, const QVariantMap &map)
-{
-    if (!canRestore(parent, map))
-        return 0;
-    auto bc = new MerQmakeBuildConfiguration(parent);
-    if (bc->fromMap(map))
-        return bc;
-    delete bc;
-    return 0;
-}
-
-
-
 MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target):
     QmakeBuildConfiguration(target)
 {
-    init();
-}
-
-
-
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, MerQmakeBuildConfiguration *source):
-    QmakeBuildConfiguration(target, source)
-{
-    init();
-}
-
-
-
-MerQmakeBuildConfiguration::MerQmakeBuildConfiguration(Target *target, Core::Id id):
-    QmakeBuildConfiguration(target, id)
-{
-    init();
-}
-
-
-
-void MerQmakeBuildConfiguration::init()
-{
-    const auto kit = target()->kit();
+    const auto kit = target->kit();
     const auto sdk = MerSdkKitInformation::sdk(kit);
-    const auto project = qobject_cast<QmakeProject *>(target()->project());
+    const auto project = qobject_cast<QmakeProject *>(target->project());
 
     Q_ASSERT(kit);
     Q_ASSERT(sdk);
@@ -137,21 +86,11 @@ void MerQmakeBuildConfiguration::init()
     m_MerSsh.setEnvironment(merSshEnvironment());
     m_MerSsh.start();
     m_MerSsh.waitForFinished();
-    m_BuildEngineVariables = readFromProcess(m_MerSsh);
+    if (isFinished(m_MerSsh))
+        m_BuildEngineVariables = readFrom(m_MerSsh);
 
     //The rest queries are asynchronous
-    connect(&m_MerSsh, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-            [this](int exitCode, QProcess::ExitStatus exitStatus){
-        if (exitStatus == QProcess::NormalExit && exitCode == 0) {
-            const auto buildEngineVariables = readFromProcess(m_MerSsh);
-            if (buildEngineVariables != m_BuildEngineVariables) {
-                m_BuildEngineVariables = buildEngineVariables;
-                emitEnvironmentChanged();
-            }
-        }
-        m_MerSsh.close();
-    });
-
+    connect(&m_MerSsh, SIGNAL(finished(int)), SLOT(onMerSshFinished()));
     connect(&m_MerSsh, &QProcess::errorOccurred, [this]{
         m_MerSsh.close();
     });
@@ -202,6 +141,20 @@ QStringList MerQmakeBuildConfiguration::merSshEnvironment() const
         sysenv << item(Constants::MER_SSH_SHARED_SRC, sharedSrc);
 
     return sysenv;
+}
+
+
+
+void MerQmakeBuildConfiguration::onMerSshFinished()
+{
+    if (isFinished(m_MerSsh)) {
+        const auto buildEngineVariables = readFrom(m_MerSsh);
+        if (buildEngineVariables != m_BuildEngineVariables) {
+            m_BuildEngineVariables = buildEngineVariables;
+            updateCacheAndEmitEnvironmentChanged();
+        }
+    }
+    m_MerSsh.close();
 }
 
 

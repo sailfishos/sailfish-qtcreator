@@ -70,7 +70,7 @@ int QMakeCommand::execute()
     const int evalIndex = arguments().indexOf(QLatin1String("-env"));
     if (evalIndex != -1) {
         //Creating special pro file
-        const QString ppath = QString("/home/%1/query_var").arg(sshParameters().userName);
+        const QString ppath = QString("/home/%1/query_var").arg(sshParameters().userName());
         const int varIndex = evalIndex + 1;
 
         auto args = arguments();
