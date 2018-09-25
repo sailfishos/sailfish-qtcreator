@@ -47,6 +47,8 @@
 #include <utils/outputformatter.h>
 #include <utils/qtcassert.h>
 #include <utils/utilsicons.h>
+#include <utils/fancylineedit.h>
+#include <utils/styledbar.h>
 
 #include <QAction>
 #include <QVBoxLayout>
@@ -150,8 +152,10 @@ void TabWidget::slotContextMenuRequested(const QPoint &pos)
 AppOutputPane::RunControlTab::RunControlTab(RunControl *rc, Core::OutputWindow *w) :
     runControl(rc), window(w)
 {
-    if (rc && w)
+    if (rc && w) {
         w->setFormatter(rc->outputFormatter());
+        w->setReadOnly(true);
+    }
 }
 
 AppOutputPane::AppOutputPane() :
@@ -166,6 +170,9 @@ AppOutputPane::AppOutputPane() :
     m_attachButton(new QToolButton),
     m_zoomInButton(new QToolButton),
     m_zoomOutButton(new QToolButton),
+    m_spacer(new Utils::StyledSeparator),
+    m_filterOutputLineEdit(new Utils::FancyLineEdit),
+    m_filterSettingsButton(new QToolButton),
     m_formatterWidget(new QWidget)
 {
     setObjectName(QLatin1String("AppOutputPane")); // Used in valgrind engine
@@ -214,6 +221,22 @@ AppOutputPane::AppOutputPane() :
 
     connect(m_zoomOutButton, &QToolButton::clicked,
             this, &AppOutputPane::zoomOut);
+
+    m_filterSettingsButton->setIcon(Utils::Icons::PROJECT.icon());
+    m_filterSettingsButton->setToolTip(tr("Filter options"));
+    m_filterSettingsButton->setAutoRaise(true);
+    m_filterSettingsButton->setPopupMode(QToolButton::InstantPopup);
+
+    m_filterOutputLineEdit->setPlaceholderText(tr("Filter output..."));
+    m_filterOutputLineEdit->setStyleSheet("border-radius: 2;");
+    m_filterOutputLineEdit->setFiltering(true);
+    connect(m_filterOutputLineEdit, &QLineEdit::textChanged, this, &AppOutputPane::updateFilter);
+    connect(m_filterOutputLineEdit, &QLineEdit::returnPressed, this, &AppOutputPane::updateFilter);
+
+    m_filterSettingsMenu = new QMenu(m_filterSettingsButton);
+    connect(m_filterSettingsMenu, &QMenu::aboutToShow, this, &AppOutputPane::updateFilterSettingsMenu);
+
+    m_filterSettingsButton->setMenu(m_filterSettingsMenu);
 
     auto formatterWidgetsLayout = new QHBoxLayout;
     formatterWidgetsLayout->setContentsMargins(QMargins());
@@ -336,9 +359,9 @@ QWidget *AppOutputPane::outputWidget(QWidget *)
 }
 
 QList<QWidget*> AppOutputPane::toolBarWidgets() const
-{
-    return { m_reRunButton, m_stopButton, m_attachButton, m_zoomInButton,
-                m_zoomOutButton, m_formatterWidget };
+{    
+    return { m_reRunButton, m_stopButton, m_attachButton, m_zoomInButton, m_zoomOutButton,
+                m_spacer, m_filterSettingsButton, m_filterOutputLineEdit, m_formatterWidget };
 }
 
 QString AppOutputPane::displayName() const
@@ -395,6 +418,54 @@ void AppOutputPane::updateBehaviorSettings()
         rcTab.window->setWheelZoomEnabled(zoomEnabled);
 }
 
+void AppOutputPane::updateFilter()
+{
+    QString filter = m_filterOutputLineEdit->text();
+    const int index = currentIndex();
+    if (index != -1)
+        m_runControlTabs.at(index).window->setFilterText(filter);
+}
+
+void AppOutputPane::updateFilterSettingsMenu()
+{
+    m_filterSettingsMenu->clear();
+
+    auto *actionRegexp = new QAction(m_filterSettingsMenu);
+    actionRegexp->setCheckable(true);
+    actionRegexp->setEnabled(currentIndex() >= 0);
+    actionRegexp->setText(tr("Use regular expressions"));
+    actionRegexp->setChecked(this->m_filterMenuRegexp);
+    connect(actionRegexp, &QAction::triggered, this, [=]() {
+        m_filterMenuRegexp = actionRegexp->isChecked();
+        configureCurrentWindow();
+    });
+    m_filterSettingsMenu->addAction(actionRegexp);
+
+    auto *actionCaseSensitive = new QAction(m_filterSettingsMenu);
+    actionCaseSensitive->setCheckable(true);
+    actionCaseSensitive->setEnabled(currentIndex() >= 0);
+    actionCaseSensitive->setText("Case sensitive");
+    actionCaseSensitive->setChecked(this->m_filterMenuCaseSensitive);
+    connect(actionCaseSensitive, &QAction::triggered, this, [=]() {
+        m_filterMenuCaseSensitive = actionCaseSensitive->isChecked();
+        configureCurrentWindow();
+    });
+    m_filterSettingsMenu->addAction(actionCaseSensitive);
+}
+
+void AppOutputPane::configureCurrentWindow()
+{
+    using Core::OutputWindow;
+    const QString filter = m_filterOutputLineEdit->text();
+    const int index = currentIndex();
+    if (index != -1) {
+        Core::OutputWindow *currWindow = m_runControlTabs.at(index).window;
+        currWindow->setFilterText(filter);
+        currWindow->setFilterMode(OutputWindow::FilterModeFlag::RegExp, m_filterMenuRegexp);
+        currWindow->setFilterMode(OutputWindow::FilterModeFlag::CaseSensitive, m_filterMenuCaseSensitive);
+    }
+}
+
 void AppOutputPane::createNewOutputWindow(RunControl *rc)
 {
     QTC_ASSERT(rc, return);
@@ -421,6 +492,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
             tab.runControl->initiateFinish();
         tab.runControl = rc;
         tab.window->setFormatter(rc->outputFormatter());
+        tab.window->setReadOnly(true);
 
         handleOldOutput(tab.window);
 
@@ -666,8 +738,10 @@ void AppOutputPane::enableButtons(const RunControl *rc)
 void AppOutputPane::tabChanged(int i)
 {
     const int index = indexOf(m_tabWidget->widget(i));
-    if (i != -1 && index != -1) {
-        enableButtons(m_runControlTabs.at(index).runControl);
+    if (i != -1 && index != -1) {        
+        RunControlTab &controlTab = m_runControlTabs[index];
+        controlTab.window->setFilterText(m_filterOutputLineEdit->text());
+        enableButtons(controlTab.runControl);
     } else {
         enableDefaultButtons();
     }

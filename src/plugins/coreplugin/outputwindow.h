@@ -45,6 +45,13 @@ class CORE_EXPORT OutputWindow : public QPlainTextEdit
     Q_OBJECT
 
 public:
+    enum class FilterModeFlag {
+        Default       = 0x00, // Plain text, non case sensitive, for initialization
+        RegExp        = 0x01,
+        CaseSensitive = 0x02,
+    };
+    Q_DECLARE_FLAGS(FilterModeFlags, FilterModeFlag)
+
     OutputWindow(Context context, QWidget *parent = 0);
     ~OutputWindow();
 
@@ -65,10 +72,19 @@ public:
     void setMaxLineCount(int count);
     int maxLineCount() const;
 
+    bool isReadOnly() const;
+    void setReadOnly(bool readOnly);
+
     void setBaseFont(const QFont &newFont);
     float fontZoom() const;
     void setFontZoom(float zoom);
     void setWheelZoomEnabled(bool enabled);
+
+    QString filterText() const;
+    void setFilterText(const QString &filterText);
+
+    FilterModeFlags filterMode() const;
+    void setFilterMode(FilterModeFlag filterMode, bool enabled);
 
 signals:
     void wheelZoom();
@@ -92,6 +108,7 @@ private:
     QTime m_lastMessage;
     void enableUndoRedo();
     QString doNewlineEnforcement(const QString &out);
+    void filterNewContent();
 
     Internal::OutputWindowPrivate *d;
 };

@@ -94,6 +94,8 @@ void OutputFormatter::appendMessage(const QString &text, const QTextCharFormat &
         if (startPos < output.text.count())
             append(d->cursor, output.text.mid(startPos), output.format);
     }
+
+    emit contentChanged();
 }
 
 QTextCharFormat OutputFormatter::charFormat(OutputFormat format) const

@@ -33,7 +33,9 @@
 #include <utils/synchronousprocess.h>
 
 #include <QAction>
+#include <QTextBlock>
 #include <QScrollBar>
+#include <QRegularExpression>
 
 using namespace Utils;
 
@@ -66,6 +68,9 @@ public:
     float m_originalFontSize = 0.;
     int maxLineCount = Core::Constants::DEFAULT_MAX_LINE_COUNT;
     QTextCursor cursor;
+    QString filterText;
+    QTextBlock lastFilteredBlock;
+    OutputWindow::FilterModeFlags filterMode = OutputWindow::FilterModeFlag::Default;
 };
 
 } // namespace Internal
@@ -195,8 +200,10 @@ OutputFormatter *OutputWindow::formatter() const
 void OutputWindow::setFormatter(OutputFormatter *formatter)
 {
     d->formatter = formatter;
-    if (d->formatter)
+    if (d->formatter) {
         d->formatter->setPlainTextEdit(this);
+        connect(d->formatter, &OutputFormatter::contentChanged, this, &OutputWindow::filterNewContent);
+    }
 }
 
 void OutputWindow::showEvent(QShowEvent *e)
@@ -251,6 +258,87 @@ void OutputWindow::setWheelZoomEnabled(bool enabled)
     d->m_zoomEnabled = enabled;
 }
 
+QString OutputWindow::filterText() const
+{
+    return d->filterText;
+}
+
+void OutputWindow::setFilterText(const QString &filterText)
+{
+    if (d->filterText != filterText) {
+        d->lastFilteredBlock = {};
+        d->filterText = filterText;
+
+        // Update textedit's background color
+        if (filterText.isEmpty()) {
+            d->formatter->plainTextEdit()->setPalette({});
+        }
+        else {
+            QPalette pal;
+            pal.setColor(QPalette::Active, QPalette::Base, QColor(Qt::GlobalColor::yellow).lighter());
+            pal.setColor(QPalette::Inactive, QPalette::Base, QColor(Qt::GlobalColor::yellow).lighter());
+            d->formatter->plainTextEdit()->setPalette(pal);
+        }
+
+        filterNewContent();
+    }
+}
+
+OutputWindow::FilterModeFlags OutputWindow::filterMode() const
+{
+    return d->filterMode;
+}
+
+void OutputWindow::setFilterMode(OutputWindow::FilterModeFlag filterMode, bool enabled)
+{
+    if (d->filterMode.testFlag(filterMode) != enabled) {
+        d->filterMode |= filterMode;
+        d->lastFilteredBlock = {};
+        filterNewContent();
+    }
+}
+
+void OutputWindow::filterNewContent()
+{
+    bool atBottom = isScrollbarAtBottom();
+    QPlainTextEdit *textEdit = d->formatter->plainTextEdit();
+    if (!textEdit)
+        return;
+
+    QTextDocument *document = textEdit->document();
+
+    auto &lastBlock = d->lastFilteredBlock;
+
+    if (!lastBlock.isValid())
+        lastBlock = document->begin();
+
+    if (d->filterMode.testFlag(OutputWindow::FilterModeFlag::RegExp)) {
+        QRegularExpression regExp(d->filterText);
+        if (!d->filterMode.testFlag(OutputWindow::FilterModeFlag::CaseSensitive))
+            regExp.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
+
+        for (; lastBlock != document->end(); lastBlock = lastBlock.next())
+            lastBlock.setVisible(d->filterText.isEmpty()
+                                 || regExp.match(lastBlock.text()).hasMatch());
+    } else {
+        if (d->filterMode.testFlag(OutputWindow::FilterModeFlag::CaseSensitive)) {
+            for (; lastBlock != document->end(); lastBlock = lastBlock.next())
+                lastBlock.setVisible(d->filterText.isEmpty()
+                                     || lastBlock.text().contains(d->filterText));
+        } else {
+            for (; lastBlock != document->end(); lastBlock = lastBlock.next())
+                lastBlock.setVisible(d->filterText.isEmpty()
+                                     || lastBlock.text().toLower().contains(d->filterText.toLower()));
+        }
+    }
+
+    lastBlock = document->lastBlock();
+    textEdit->setDocument(document);
+
+    if (atBottom)
+        scrollToBottom();
+}
+
 QString OutputWindow::doNewlineEnforcement(const QString &out)
 {
     d->scrollToBottom = true;
@@ -277,6 +365,19 @@ void OutputWindow::setMaxLineCount(int count)
 int OutputWindow::maxLineCount() const
 {
     return d->maxLineCount;
+}
+
+bool OutputWindow::isReadOnly() const
+{
+    if (d->formatter)
+        return d->formatter->plainTextEdit()->isReadOnly();
+    return false;
+}
+
+void OutputWindow::setReadOnly(bool readOnly)
+{
+    if (d->formatter)
+        d->formatter->plainTextEdit()->setReadOnly(readOnly);
 }
 
 void OutputWindow::appendMessage(const QString &output, OutputFormat format)

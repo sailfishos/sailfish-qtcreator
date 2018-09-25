@@ -62,6 +62,9 @@ public:
     virtual QList<QWidget *> toolbarWidgets() const { return {}; }
     virtual void clear() {}
 
+signals:
+    void contentChanged();
+
 protected:
     void initFormats();
     virtual void clearLastLine();

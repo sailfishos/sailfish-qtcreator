@@ -37,9 +37,12 @@ class QTabWidget;
 class QToolButton;
 class QAction;
 class QPoint;
+class QMenu;
 QT_END_NAMESPACE
 
 namespace Core { class OutputWindow; }
+
+namespace Utils {class FancyLineEdit; class StyledSeparator;}
 
 namespace ProjectExplorer {
 
@@ -139,6 +142,9 @@ private:
     void updateFontSettings();
     void saveSettings();
     void updateBehaviorSettings();
+    void updateFilter();
+    void updateFilterSettingsMenu();
+    void configureCurrentWindow();
 
     QWidget *m_mainWidget;
     TabWidget *m_tabWidget;
@@ -153,6 +159,12 @@ private:
     QToolButton *m_attachButton;
     QToolButton *m_zoomInButton;
     QToolButton *m_zoomOutButton;
+    Utils::StyledSeparator *m_spacer = Q_NULLPTR;
+    Utils::FancyLineEdit *m_filterOutputLineEdit = nullptr;
+    QToolButton *m_filterSettingsButton = nullptr;
+    QMenu *m_filterSettingsMenu = nullptr;
+    bool m_filterMenuRegexp = false;
+    bool m_filterMenuCaseSensitive = false;
     QWidget *m_formatterWidget;
     float m_zoom;
 };
