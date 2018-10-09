@@ -47,7 +47,8 @@ using namespace QSsh;
 using Utils::CheckableMessageBox;
 
 namespace Mer {
-namespace Internal {
+
+using namespace Internal;
 
 namespace {
 const int VM_STATE_POLLING_INTERVAL_NORMAL = 10000;
@@ -1465,7 +1466,6 @@ void MerConnection::onRemoteShutdownProcessFinished()
     vmStmScheduleExec();
 }
 
-} // Internal
 } // Mer
 
 #include "merconnection.moc"

@@ -37,11 +37,10 @@ class QProgressDialog;
 QT_END_NAMESPACE
 
 namespace Mer {
-namespace Internal {
 
 class MerConnectionRemoteShutdownProcess;
 
-class MerConnection : public QObject
+class Q_DECL_EXPORT MerConnection : public QObject
 {
     Q_OBJECT
     Q_ENUMS(State)
@@ -110,7 +109,7 @@ public:
 
 public slots:
     void refresh();
-    void connectTo(Mer::Internal::MerConnection::ConnectOptions options = NoConnectOption);
+    void connectTo(Mer::MerConnection::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
 signals:
@@ -238,6 +237,5 @@ private:
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(MerConnection::ConnectOptions)
 
-}
 }
 #endif

@@ -30,12 +30,13 @@
 #include <QSharedPointer>
 #include <QSize>
 
+#include "merplugin.h"
+
 QT_BEGIN_NAMESPACE
 class QTimer;
 QT_END_NAMESPACE
 
-namespace Mer {
-namespace Internal {
+namespace Mer{
 
 class MerConnection;
 
@@ -65,9 +66,9 @@ private:
     QSharedDataPointer<Data> d;
 };
 
-class MerEmulatorDevice : public MerDevice
+class Q_DECL_EXPORT MerEmulatorDevice : public MerDevice
 {
-    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerEmulatorDevice)
+    Q_DECLARE_TR_FUNCTIONS(Mer::MerEmulatorDevice)
 
 public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
@@ -114,6 +115,9 @@ public:
     void setViewScaled(bool viewScaled);
 
     MerConnection *connection() const;
+
+    void setPortForwardingRule(const QString &ruleName, quint16 hostPort, quint16 emulatorVmPort) const;
+    bool isPortForwardingSet(quint16 hostPort) const;
 
 private:
     MerEmulatorDevice(Core::Id id);
@@ -167,13 +171,12 @@ private slots:
     void onDeviceListReplaced();
 
 private:
-    friend class MerPlugin;
+    friend class Mer::Internal::MerPlugin;
     static MerEmulatorDeviceManager *s_instance;
     QHash<Core::Id, quint16> m_deviceSshPortCache;
     QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
 };
 
-}
 }
 
 #endif // MEREMULATORDEVICE_H

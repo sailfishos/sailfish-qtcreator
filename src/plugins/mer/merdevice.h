@@ -30,7 +30,6 @@
 #include <QSharedPointer>
 
 namespace Mer {
-namespace Internal {
 
 class MerDevice : public RemoteLinux::LinuxDevice
 {
@@ -69,7 +68,6 @@ private:
     Utils::PortList m_qmlLivePorts;
 };
 
-}
 }
 
 #endif // MERDEVICE_H

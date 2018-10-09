@@ -52,6 +52,7 @@ public:
     quint16 wwwPort;
     QList<quint16> freePorts;
     QList<quint16> qmlLivePorts;
+    QList<quint16> otherPorts;
     QStringList macs;
     bool headless;
 };
@@ -75,6 +76,9 @@ public:
     static bool updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports);
     static void setVideoMode(const QString &vmName, const QSize &size, int depth);
     static QString getExtraData(const QString &vmName, const QString &key);
+    static bool deletePortForwardingRule(const QString &vmName, const QString &ruleName);
+    static bool updatePortForwardingRule(const QString &vmName, const QString &ruleName,
+                                         quint16 hostPort, quint16 vmPort);
 
 private:
     MerVirtualBoxManager(QObject *parent = 0);

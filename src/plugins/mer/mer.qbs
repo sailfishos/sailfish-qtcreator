@@ -3,7 +3,7 @@ import qbs.base 1.0
 import "../QtcPlugin.qbs" as QtcPlugin
 
 QtcPlugin {
-    name: "Mer"
+    name: "SailfishOS"
 
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }

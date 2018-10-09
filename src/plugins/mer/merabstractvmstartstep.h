@@ -28,9 +28,10 @@
 #include <QPointer>
 
 namespace Mer {
-namespace Internal {
 
 class MerConnection;
+
+namespace Internal {
 
 class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
 {

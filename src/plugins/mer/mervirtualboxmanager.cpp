@@ -71,6 +71,7 @@ const char MODIFYVM[] = "modifyvm";
 const char NATPF1[] = "--natpf1";
 const char DELETE[] = "delete";
 const char QML_LIVE_NATPF_RULE_NAME_MATCH[] = "qmllive_";
+const char FREE_PORT_NATPF_RULE_NAME_MATCH[] = "freeport_";
 const char QML_LIVE_NATPF_RULE_NAME_TEMPLATE[] = "qmllive_%1";
 const char QML_LIVE_NATPF_RULE_TEMPLATE[] = "qmllive_%1,tcp,127.0.0.1,%2,,%2";
 const char SDK_SSH_NATPF_RULE_NAME[] = "guestssh";
@@ -518,6 +519,53 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
 }
 
 // It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QString &ruleName) {
+    qCDebug(Log::vms) << "Deleting port forwarding rule" << ruleName << "from" << vmName;
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QLatin1String(DELETE));
+    arguments.append(ruleName);
+    QTime timer;
+    timer.start();
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM;
+        return false;
+    }
+    qCDebug(Log::vms) << "Deleting port forwarding for rule" << ruleName
+                      <<  "took" << timer.elapsed() << "milliseconds";
+    return true;
+}
+
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QString &ruleName,
+                                                    quint16 newHostPort, quint16 newVmPort) {
+    if (deletePortForwardingRule(vmName, ruleName)) return false;
+
+    qCDebug(Log::vms) << "Setting port forwarding for" << vmName << "from"
+                          << newHostPort << "to" << newVmPort;
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(NATPF1));
+    arguments.append(QString::fromLatin1("%1,tcp,,%2,,%3")
+                     .arg(ruleName).arg(newHostPort).arg(newVmPort));
+    QTime timer;
+    timer.start();
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM;
+        return false;
+    }
+    qCDebug(Log::vms) << "Setting port forwarding for rule" << ruleName
+                      <<  "took" << timer.elapsed() << "milliseconds";
+    return true;
+}
+
+
+// It is an error to call this function when the VM vmName is running
 bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
 {
     qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
@@ -610,8 +658,10 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.wwwPort = port;
             else if (rexp.cap(1).contains(QLatin1String(QML_LIVE_NATPF_RULE_NAME_MATCH)))
                 info.qmlLivePorts << port;
-            else
+            else if (rexp.cap(1).contains(QLatin1String(FREE_PORT_NATPF_RULE_NAME_MATCH)))
                 info.freePorts << port;
+            else
+                info.otherPorts << port;
         } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
             if (rexp.cap(7) == QLatin1String("home"))
                 info.sharedHome = rexp.cap(8);

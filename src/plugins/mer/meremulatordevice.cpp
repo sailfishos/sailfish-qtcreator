@@ -43,6 +43,7 @@
 #include <QProgressDialog>
 #include <QTextStream>
 #include <QTimer>
+#include <QEventLoop>
 
 #include <functional>
 
@@ -53,8 +54,8 @@ using namespace QSsh;
 using namespace Utils;
 
 namespace Mer {
-namespace Internal {
 
+using namespace Internal;
 using namespace Constants;
 
 namespace {
@@ -454,6 +455,24 @@ MerConnection *MerEmulatorDevice::connection() const
     return m_connection.data();
 }
 
+void MerEmulatorDevice::setPortForwardingRule(const QString &ruleName, quint16 hostPort,
+                                              quint16 emulatorVmPort) const {
+    MerVirtualBoxManager::updatePortForwardingRule(m_connection->virtualMachine(), ruleName,
+                                                   hostPort, emulatorVmPort);
+}
+
+/*!
+ * \brief Checks whether the port forwarding rule with the given host machine port is set on the
+ * emulator virtual machine or not.
+ * \param hostPort Port of the host machine to check.
+ * \return True if the port forwarding rule with the given host port is set on the emulator,
+ *         false — otherwise.
+ */
+bool MerEmulatorDevice::isPortForwardingSet(quint16 hostPort) const {
+    return MerVirtualBoxManager::fetchVirtualMachineInfo(m_connection->virtualMachine())
+            .otherPorts.contains(hostPort);
+}
+
 // Hack, all clones share the connection
 void MerEmulatorDevice::updateConnection() const
 {
@@ -758,5 +777,4 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
 
 #include "meremulatordevice.moc"
 
-}
 }
