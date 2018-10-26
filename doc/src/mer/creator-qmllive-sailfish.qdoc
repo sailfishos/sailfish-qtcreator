@@ -155,6 +155,12 @@
             {http://doc.qt.io/qt-5/qqmlabstracturlinterceptor.html}{QQmlAbstractUrlInterceptor}
             mechanism.
 
+        \li \gui {Allow to create missing} Without this option enabled, updates
+            are only accepted for documents that already exist in target
+            workspace. This applies to all files found under the workspace of
+            the QmlLive bench - newly added source files as well as files that
+            are not intended for (direct) deployment.
+
         \li \gui {Load dummy data} enables loading of dummy QML data - QML
             documents located in the "dummydata" subdirectory of \gui {Target
             workspace} directory. These will be exposed as context properties
