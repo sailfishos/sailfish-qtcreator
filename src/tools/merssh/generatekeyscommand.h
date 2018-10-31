@@ -5,6 +5,8 @@
 
 class GenerateKeysCommand: public Command
 {
+    Q_OBJECT
+
 public:
     GenerateKeysCommand();
     QString name() const override;

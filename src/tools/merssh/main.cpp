@@ -22,6 +22,7 @@
 
 #include "commandfactory.h"
 #include "deploycommand.h"
+#include "enginectlcommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
 #include "makecommand.h"
@@ -43,8 +44,10 @@ void printUsage()
 {
     qCritical()
             << "merssh usage:" << endl
-            << "merssh <command>" << endl
-            << "environment project parameters:" << endl
+            << "merssh [name=value]... <command> [args]..." << endl
+            << "commands:" << endl
+            << CommandFactory::commands().join(' ') << endl
+            << "environment variables - project parameters:" << endl
             << Mer::Constants::MER_SSH_TARGET_NAME << endl
             << Mer::Constants::MER_SSH_SHARED_HOME << endl
             << Mer::Constants::MER_SSH_SHARED_TARGET << endl
@@ -52,10 +55,12 @@ void printUsage()
             << Mer::Constants::MER_SSH_SDK_TOOLS << endl
             << Mer::Constants::MER_SSH_PROJECT_PATH << endl
             << Mer::Constants::MER_SSH_DEVICE_NAME << endl
-            << "evironment connection parameters:" << endl
+            << "evironment variables - connection parameters:" << endl
             << Mer::Constants::MER_SSH_USERNAME << endl
             << Mer::Constants::MER_SSH_PORT << endl
-            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl;
+            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl
+            << "evironment variables - used by enginectl only:" << endl
+            << Mer::Constants::MER_SSH_ENGINE_NAME << endl;
 }
 
 QStringList unquoteArguments(QStringList args) {
@@ -101,11 +106,39 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
+    CommandFactory::registerCommand<EngineCtlCommand>(QLatin1String("enginectl"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
     //remove merssh
     arguments.takeFirst();
+
+    // Allow to pass variable on command line instead of in environment. Used by installer where
+    // environment variables cannot be set.
+    const QSet<QString> environmentVariables{
+        QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET),
+        QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC),
+        QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS),
+        QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH),
+        QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME),
+        QLatin1String(Mer::Constants::MER_SSH_USERNAME),
+        QLatin1String(Mer::Constants::MER_SSH_PORT),
+        QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY),
+    };
+    while (!arguments.isEmpty()) {
+        const int equalPosition = arguments.first().indexOf('=');
+        if (equalPosition == -1)
+            break;
+        const QString name = arguments.first().left(equalPosition);
+        if (!environmentVariables.contains(name))
+            break;
+        const QString value = arguments.first().mid(equalPosition + 1);
+        qputenv(name.toLocal8Bit(), value.toLocal8Bit());
+        arguments.takeFirst();
+    }
 
     if(arguments.isEmpty()) {
         qCritical() << "No arguments" << endl;
@@ -121,6 +154,9 @@ int main(int argc, char *argv[])
          return 1;
     }
 
+    if (!qobject_cast<EngineCtlCommand *>(command.data()))
+        arguments = unquoteArguments(arguments);
+
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     command->setTargetName(environment.value(QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME)));
     command->setSharedHomePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME)));
@@ -129,6 +165,7 @@ int main(int argc, char *argv[])
     command->setSdkToolsPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS)));
     command->setProjectPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH)));
     command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
+    command->setEngineName(environment.value(QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME)));
 
     QSsh::SshConnectionParameters parameters;
     parameters.setHost(QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST));
@@ -138,7 +175,7 @@ int main(int argc, char *argv[])
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
-    command->setArguments(unquoteArguments(arguments));
+    command->setArguments(arguments);
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;

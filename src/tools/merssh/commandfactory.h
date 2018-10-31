@@ -51,6 +51,11 @@ public:
     template<typename T>
     static void registerCommand(const QString& command);
 
+    static QList<QString> commands()
+    {
+        return instance()->m_map->keys();
+    }
+
 private:
     CommandFactory():m_map(new CommandMap()){}
     template<typename T>  static Command *createCommand();

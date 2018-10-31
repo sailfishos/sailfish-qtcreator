@@ -27,6 +27,8 @@
 
 class RpmValidationCommand: public Command
 {
+    Q_OBJECT
+
 public:
     RpmValidationCommand();
     QString name() const override;

@@ -27,6 +27,8 @@
 
 class DeployCommand : public Command
 {
+    Q_OBJECT
+
 public:
     DeployCommand();
     QString name() const override;

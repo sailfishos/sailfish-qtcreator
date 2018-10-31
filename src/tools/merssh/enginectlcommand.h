@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,20 +20,21 @@
 **
 ****************************************************************************/
 
-#ifndef RPMCOMMAND_H
-#define RPMCOMMAND_H
+#ifndef ENGINECTLCOMMAND_H
+#define ENGINECTLCOMMAND_H
 
 #include "command.h"
 
-class RpmCommand: public Command
+class EngineCtlCommand: public Command
 {
     Q_OBJECT
 
 public:
-    RpmCommand();
+    EngineCtlCommand();
     QString name() const override;
     int execute() override;
     bool isValid() const override;
+    static void printUsage();
 };
 
-#endif // RPMCOMMAND_H
+#endif // ENGINECTLCOMMAND_H

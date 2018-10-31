@@ -29,8 +29,10 @@
 #include <QStringList>
 #include <QTimer>
 
-class Command
+class Command : public QObject
 {
+    Q_OBJECT
+
 public:
     Command();
     virtual ~Command();
@@ -52,6 +54,8 @@ public:
     void setSshParameters(const QSsh::SshConnectionParameters& params);
     QString deviceName() const;
     void setDeviceName(const QString& device);
+    QString engineName() const;
+    void setEngineName(const QString& name);
 
     //helpers
     QString shellSafeArgument(const QString &argument) const;
@@ -60,8 +64,6 @@ public:
     virtual bool isValid() const;
     virtual QString name() const = 0;
     virtual int execute() = 0;
-
-
 
 private:
     QStringList m_args;
@@ -72,6 +74,7 @@ private:
     QString m_projectPath;
     QString m_toolsPath;
     QString m_deviceName;
+    QString m_engineName;
     QSsh::SshConnectionParameters m_sshConnectionParams;
 };
 
