@@ -179,17 +179,49 @@ bool QmlJSHoverHandler::setQmlTypeHelp(const ScopeChain &scopeChain, const Docum
         return false;
     } while (0);
 
-    // Check if the module name contains a major version.
+    // Check if the module name contains a major version and
+    // check that the documentation is selected for the appropriate module
     QRegularExpression version("^([^\\d]*)(\\d+)\\.*\\d*$");
     QRegularExpressionMatch m = version.match(moduleName);
     if (m.hasMatch()) {
         QMap<QString, QUrl> filteredUrlMap;
+        QMap<QString, QUrl> moduleUrlMap;
+
         QStringRef maj = m.capturedRef(2);
+
+        const QString moduleBaseName = m.capturedRef(1).toString().remove(QLatin1Char('.'));
+
         for (auto x = urlMap.begin(); x != urlMap.end(); ++x) {
             QString urlModuleName = x.value().path().split('/')[1];
-            if (urlModuleName.contains(maj))
-                filteredUrlMap.insert(x.key(), x.value());
+
+            if (urlModuleName.startsWith(moduleBaseName, Qt::CaseInsensitive)) {
+                if (urlModuleName.contains(maj)) {
+                    filteredUrlMap.insert(x.key(), x.value());
+                    continue;
+                }
+
+                if (moduleUrlMap.isEmpty()) {
+                    moduleUrlMap.insert(x.key(), x.value());
+                } else {
+                    int currentVersion = 0, version = 0;
+
+                    QRegularExpression exp("(\\d+)");
+                    QRegularExpressionMatch currentVersionMatch = exp.match(x.value().authority());
+                    QRegularExpressionMatch versionMatch = exp.match(moduleUrlMap.first().authority());
+                    if (currentVersionMatch.hasMatch()) {
+                        currentVersion = currentVersionMatch.capturedRef(1).toInt();
+                    }
+                    if (versionMatch.hasMatch()) {
+                        version = versionMatch.capturedRef(1).toInt();
+                    }
+                    if (currentVersion > version) {
+                        moduleUrlMap.insert(x.key(), x.value());
+                        break;
+                    }
+                }
+            }
         }
+
         if (!filteredUrlMap.isEmpty()) {
             // Use the url as helpId, to disambiguate different versions
             helpId = filteredUrlMap.first().toString();
@@ -197,7 +229,15 @@ bool QmlJSHoverHandler::setQmlTypeHelp(const ScopeChain &scopeChain, const Docum
             setLastHelpItemIdentified(helpItem);
             return true;
         }
+
+        if (!moduleUrlMap.isEmpty()) {
+            helpId = moduleUrlMap.first().toString();
+            const HelpItem helpItem(helpId, qName.join(QLatin1Char('.')), HelpItem::QmlComponent, moduleUrlMap);
+            setLastHelpItemIdentified(helpItem);
+            return true;
+        }
     }
+
     setLastHelpItemIdentified(HelpItem(helpId, qName.join(QLatin1Char('.')), HelpItem::QmlComponent));
     return true;
 }
