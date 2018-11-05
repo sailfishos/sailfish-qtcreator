@@ -40,6 +40,7 @@
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
+#include <QAction>
 #include <QDesktopWidget>
 #include <QPushButton>
 
