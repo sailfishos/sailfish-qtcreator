@@ -1,0 +1,14 @@
+[Unit]
+Description=%{Description}
+
+[Service]
+ExecStart=/usr/bin/%{ProjectName}
+Type=%{ServiceType}
+
+@if '%{ServiceType}' === 'dbus'
+BusName=%{CompanyName}.%{ProjectName}
+@elsif '%{ServiceType}' === 'forking'
+#PIDFile=
+@endif
+[Install]
+WantedBy=multi-user.target

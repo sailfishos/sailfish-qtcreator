@@ -47,7 +47,8 @@ HEADERS += \
     qmakeprojectmanager_global.h \
     desktopqmakerunconfiguration.h \
     profilecompletionassist.h \
-    makefileparse.h
+    makefileparse.h \
+    wizards/existprojectpage.h
 
 SOURCES += \
     qmakekitconfigwidget.cpp \
@@ -89,7 +90,8 @@ SOURCES += \
     librarydetailscontroller.cpp \
     desktopqmakerunconfiguration.cpp \
     profilecompletionassist.cpp \
-    makefileparse.cpp
+    makefileparse.cpp \
+    wizards/existprojectpage.cpp
 
 FORMS += makestep.ui \
     qmakestep.ui \

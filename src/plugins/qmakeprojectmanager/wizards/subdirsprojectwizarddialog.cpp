@@ -26,6 +26,8 @@
 #include "subdirsprojectwizarddialog.h"
 #include <projectexplorer/projectexplorerconstants.h>
 
+#include "existprojectpage.h"
+
 namespace QmakeProjectManager {
 namespace Internal {
 
@@ -44,6 +46,9 @@ SubdirsProjectWizardDialog::SubdirsProjectWizardDialog(const Core::BaseFileWizar
     if (!parameters.extraValues().contains(QLatin1String(ProjectExplorer::Constants::PROJECT_KIT_IDS)))
         addTargetSetupPage();
 
+    existProjectPage = new ProjectExplorer::Internal::ExistProjectPage(path(), this);
+    addExtensionPages(QList<QWizardPage *>{existProjectPage});
+
     addExtensionPages(extensionPages());
 }
 
@@ -54,6 +59,11 @@ QtProjectParameters SubdirsProjectWizardDialog::parameters() const
     rc.fileName = projectName();
     rc.path = path();
     return rc;
+}
+
+QVector<QString> SubdirsProjectWizardDialog::getSubprojects() const
+{
+    return existProjectPage->projects();
 }
 
 } // namespace Internal

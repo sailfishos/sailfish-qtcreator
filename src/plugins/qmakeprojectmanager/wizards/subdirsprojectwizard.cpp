@@ -31,6 +31,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <coreplugin/icore.h>
 #include <qtsupport/qtsupportconstants.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 
 #include <utils/algorithm.h>
 
@@ -74,9 +75,23 @@ Core::GeneratedFiles SubdirsProjectWizard::generateFiles(const QWizard *w,
     const QString profileName = Core::BaseFileWizardFactory::buildFileName(projectPath, params.fileName, profileSuffix());
 
     Core::GeneratedFile profile(profileName);
-    profile.setAttributes(Core::GeneratedFile::OpenProjectAttribute | Core::GeneratedFile::OpenEditorAttribute);
+    const auto attributs = static_cast<Core::GeneratedFile::Attribute>(Core::GeneratedFile::OpenProjectAttribute | Core::GeneratedFile::OpenEditorAttribute);
+    profile.setAttributes(attributs);
     profile.setContents(QLatin1String("TEMPLATE = subdirs\n"));
     return Core::GeneratedFiles() << profile;
+}
+
+void SubdirsProjectWizard::addExistedSubproject(const QString &proFilePath, const QVector<QString> &subprojects) const
+{
+
+    QmakeProject project (Utils::FileName::fromString(proFilePath));
+    QmakePriFile priFile (&project,
+                          nullptr,
+                          Utils::FileName::fromString(proFilePath));
+
+    for (const auto &project : subprojects) {
+        priFile.addSubProject(project);
+    }
 }
 
 bool SubdirsProjectWizard::postGenerateFiles(const QWizard *w, const Core::GeneratedFiles &files,
@@ -87,6 +102,7 @@ bool SubdirsProjectWizard::postGenerateFiles(const QWizard *w, const Core::Gener
         const QtProjectParameters params = wizard->parameters();
         const QString projectPath = params.projectPath();
         const QString profileName = Core::BaseFileWizardFactory::buildFileName(projectPath, params.fileName, profileSuffix());
+
         QVariantMap map;
         map.insert(QLatin1String(ProjectExplorer::Constants::PREFERRED_PROJECT_NODE), profileName);
         map.insert(QLatin1String(ProjectExplorer::Constants::PROJECT_KIT_IDS), QVariant::fromValue(wizard->selectedKits()));
@@ -96,6 +112,8 @@ bool SubdirsProjectWizard::postGenerateFiles(const QWizard *w, const Core::Gener
                                                                  return f->supportedProjectTypes().contains(Constants::QMAKEPROJECT_ID);
                                                              }),
                                              wizard->parameters().projectPath(), map);
+
+        addExistedSubproject(profileName, wizard->getSubprojects());
     } else {
         return false;
     }

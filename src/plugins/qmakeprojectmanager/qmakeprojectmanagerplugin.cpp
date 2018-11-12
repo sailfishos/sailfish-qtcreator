@@ -94,7 +94,7 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
         return QList<IWizardFactory *> {
             new SubdirsProjectWizard,
             //new GuiAppWizard,
-            //new LibraryWizard,
+            new LibraryWizard,
             //new TestWizard,
             //new CustomWidgetWizard,
             //new SimpleProjectWizard

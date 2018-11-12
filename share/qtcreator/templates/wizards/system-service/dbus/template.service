@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=%{CompanyName}.%{ProjectName}.service
+Exec=/bin/false
+SystemdService=%{ProjectName}.service

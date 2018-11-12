@@ -44,6 +44,8 @@ private:
     Core::GeneratedFiles generateFiles(const QWizard *w, QString *errorMessage) const override;
     bool postGenerateFiles(const QWizard *, const Core::GeneratedFiles &l,
                            QString *errorMessage) const override;
+
+    void addExistedSubproject(const QString &proFilePath, const QVector<QString> &subprojects) const;
 };
 
 } // namespace Internal

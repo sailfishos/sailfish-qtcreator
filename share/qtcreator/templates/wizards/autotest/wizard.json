@@ -7,7 +7,6 @@
     "trDisplayName": "Auto Test Project",
     "trDisplayCategory": "Other Project",
     "icon": "autotest.png",
-    "featuresRequired": [ "QtSupport.Wizards.FeatureQt", "QtSupport.Wizards.FeatureDesktop" ],
     "enabled": "%{JS: [ %{Plugins} ].indexOf('AutoTest') >= 0}",
 
     "options":

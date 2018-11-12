@@ -35,6 +35,8 @@
 #include <QTextStream>
 #include <QCoreApplication>
 
+#include "mer/merconstants.h"
+
 static const char sharedHeaderPostfixC[] = "_global";
 
 namespace QmakeProjectManager {

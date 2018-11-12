@@ -38,6 +38,7 @@
     <description>Creates a Sailfish OS Qt Quick Application using Sailfish Silica components.</description>
     <displayname>Sailfish OS Qt Quick Application</displayname>;
     <displaycategory>Application</displaycategory>
+    <icon>template.png</icon>
     <files>
         <file source="src/template.cpp" target="src/%ProjectName%.cpp"/>
         <file source="template.desktop" target="%ProjectName%.desktop"/>

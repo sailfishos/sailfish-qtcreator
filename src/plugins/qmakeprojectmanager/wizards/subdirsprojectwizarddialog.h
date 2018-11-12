@@ -27,6 +27,12 @@
 
 #include "qtwizard.h"
 
+namespace ProjectExplorer{
+    namespace Internal{
+        class ExistProjectPage;
+    }
+}
+
 namespace QmakeProjectManager {
 namespace Internal {
 
@@ -42,6 +48,9 @@ public:
                                     const Core::WizardDialogParameters &parameters);
 
     QtProjectParameters parameters() const;
+    QVector<QString> getSubprojects() const;
+private:
+    ProjectExplorer::Internal::ExistProjectPage *existProjectPage;
 };
 
 } // namespace Internal
