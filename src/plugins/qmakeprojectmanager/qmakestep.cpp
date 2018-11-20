@@ -489,14 +489,25 @@ QString QMakeStep::effectiveQMakeCall() const
 
 QStringList QMakeStep::parserArguments()
 {
-    QStringList result;
+    // NOTE: extra parser args placed before the other args intentionally
+    QStringList result = m_extraParserArgs;
     BaseQtVersion *qt = QtKitInformation::qtVersion(target()->kit());
-    QTC_ASSERT(qt, return QStringList());
+    QTC_ASSERT(qt, return result);
     for (QtcProcess::ConstArgIterator ait(allArguments(qt, ArgumentFlag::Expand)); ait.next(); ) {
         if (ait.isSimple())
             result << ait.value();
     }
     return result;
+}
+
+QStringList QMakeStep::extraParserArguments() const
+{
+    return m_extraParserArgs;
+}
+
+void QMakeStep::setExtraParserArguments(const QStringList &args)
+{
+    m_extraParserArgs = args;
 }
 
 QString QMakeStep::userArguments()
