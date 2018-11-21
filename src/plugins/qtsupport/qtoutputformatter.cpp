@@ -59,9 +59,9 @@ class QtOutputFormatterPrivate
 public:
     QtOutputFormatterPrivate(Project *proj)
         : qmlError(QLatin1String("^" SAILFISH_PREFIX_REGEXP "(" QML_URL_REGEXP    // url
-                                   ":\\d+"           // colon, line
-                                   "(?::\\d+)?)"     // colon, column (optional)
-                                   "[: \t]"))        // colon, space or tab
+                                  ":\\d+"           // colon, line
+                                  "(?::\\d+)?)"     // colon, column (optional)
+                                  "[: \t)]"))       // colon, space, tab or brace
         , qtError(QLatin1String("Object::.*in (.*:\\d+)"))
         , qtAssert(QLatin1String("ASSERT: .* in file (.+, line \\d+)"))
         , qtAssertX(QLatin1String("ASSERT failure in .*: \".*\", file (.+, line \\d+)"))
@@ -91,7 +91,7 @@ QtOutputFormatter::QtOutputFormatter(Project *project)
     : d(new Internal::QtOutputFormatterPrivate(project))
 {
     if (project) {
-        d->projectFinder.setProjectFiles(Utils::transform(project->files(Project::SourceFiles), &Utils::FileName::toString));
+        d->projectFinder.setProjectFiles(project->files(Project::SourceFiles));
         d->projectFinder.setProjectDirectory(project->projectDirectory().toString());
 
         connect(project, &Project::fileListChanged,
@@ -285,7 +285,7 @@ void QtOutputFormatter::openEditor(const QString &fileName, int line, int column
 void QtOutputFormatter::updateProjectFileList()
 {
     if (d->project)
-        d->projectFinder.setProjectFiles(transform(d->project->files(Project::SourceFiles), &FileName::toString));
+        d->projectFinder.setProjectFiles(d->project->files(Project::SourceFiles));
 }
 
 } // namespace QtSupport
@@ -355,6 +355,11 @@ void QtSupportPlugin::testQtOutputFormatter_data()
     QTest::newRow("qrc:///main.qml:20")
             << QString::fromLatin1("qrc:///main.qml:20 Unexpected token `identifier'")
             << 0 << 18 << QString::fromLatin1("qrc:///main.qml:20")
+            << QString::fromLatin1("/main.qml") << 20 << -1;
+
+    QTest::newRow("onClicked (qrc:/main.qml:20)")
+            << QString::fromLatin1("onClicked (qrc:/main.qml:20)")
+            << 11 << 27 << QString::fromLatin1("qrc:/main.qml:20")
             << QString::fromLatin1("/main.qml") << 20 << -1;
 
     QTest::newRow("file:///main.qml:20")

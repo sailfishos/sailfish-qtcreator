@@ -39,11 +39,9 @@ namespace ClangBackEnd {
 template <typename StatementFactory>
 class FilePathStorage
 {
-    using DeferredTransaction = Sqlite::DeferredTransaction<typename StatementFactory::DatabaseType>;
-    using ImmediateTransaction = Sqlite::ImmediateTransaction<typename StatementFactory::DatabaseType>;
-    using ReadStatement = typename StatementFactory::ReadStatementType;
-    using WriteStatement = typename StatementFactory::WriteStatementType;
-    using Database = typename StatementFactory::DatabaseType;
+    using ReadStatement = typename StatementFactory::ReadStatement;
+    using WriteStatement = typename StatementFactory::WriteStatement;
+    using Database = typename StatementFactory::Database;
 
 public:
     FilePathStorage(StatementFactory &statementFactory)
@@ -51,23 +49,27 @@ public:
     {}
 
     int fetchDirectoryId(Utils::SmallStringView directoryPath)
-    try {
-        DeferredTransaction transaction{m_statementFactory.database};
+    {
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        Utils::optional<int> optionalDirectoryId = readDirectoryId(directoryPath);
+            Utils::optional<int> optionalDirectoryId = readDirectoryId(directoryPath);
 
-        int directoryId = -1;
+            int directoryId = -1;
 
-        if (optionalDirectoryId)
-            directoryId = optionalDirectoryId.value();
-        else
-            directoryId = writeDirectoryId(directoryPath);
+            if (optionalDirectoryId)
+                directoryId = optionalDirectoryId.value();
+            else
+                directoryId = writeDirectoryId(directoryPath);
 
-        transaction.commit();
+            transaction.commit();
 
-        return directoryId;
-    } catch (Sqlite::StatementIsBusy &) {
-        return fetchDirectoryId(directoryPath);
+            return directoryId;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchDirectoryId(directoryPath);
+        } catch (const Sqlite::ConstraintPreventsModification &) {
+            return fetchDirectoryId(directoryPath);
+        }
     }
 
     Utils::optional<int> readDirectoryId(Utils::SmallStringView directoryPath)
@@ -88,51 +90,63 @@ public:
 
     Utils::PathString fetchDirectoryPath(int directoryPathId)
     {
-        DeferredTransaction transaction{m_statementFactory.database};
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        ReadStatement &statement = m_statementFactory.selectDirectoryPathFromDirectoriesByDirectoryId;
+            ReadStatement &statement = m_statementFactory.selectDirectoryPathFromDirectoriesByDirectoryId;
 
-        auto optionalDirectoryPath = statement.template value<Utils::PathString>(directoryPathId);
+            auto optionalDirectoryPath = statement.template value<Utils::PathString>(directoryPathId);
 
-        if (!optionalDirectoryPath)
-            throw DirectoryPathIdDoesNotExists();
+            if (!optionalDirectoryPath)
+                throw DirectoryPathIdDoesNotExists();
 
-        transaction.commit();
+            transaction.commit();
 
-        return optionalDirectoryPath.value();
+            return optionalDirectoryPath.value();
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchDirectoryPath(directoryPathId);
+        }
     }
 
     std::vector<Sources::Directory> fetchAllDirectories()
     {
-        DeferredTransaction transaction{m_statementFactory.database};
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        ReadStatement &statement = m_statementFactory.selectAllDirectories;
+            ReadStatement &statement = m_statementFactory.selectAllDirectories;
 
-        auto directories =  statement.template values<Sources::Directory, 2>(256);
+            auto directories =  statement.template values<Sources::Directory, 2>(256);
 
-        transaction.commit();
+            transaction.commit();
 
-        return directories;
+            return directories;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchAllDirectories();
+        }
     }
 
     int fetchSourceId(int directoryId, Utils::SmallStringView sourceName)
-    try {
-        DeferredTransaction transaction{m_statementFactory.database};
+    {
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        Utils::optional<int> optionalSourceId = readSourceId(directoryId, sourceName);
+            Utils::optional<int> optionalSourceId = readSourceId(directoryId, sourceName);
 
-        int sourceId = -1;
+            int sourceId = -1;
 
-        if (optionalSourceId)
-            sourceId = optionalSourceId.value();
-        else
-            sourceId = writeSourceId(directoryId, sourceName);
+            if (optionalSourceId)
+                sourceId = optionalSourceId.value();
+            else
+                sourceId = writeSourceId(directoryId, sourceName);
 
-        transaction.commit();
+            transaction.commit();
 
-        return sourceId;
-    } catch (Sqlite::StatementIsBusy &) {
-        return fetchSourceId(directoryId, sourceName);
+            return sourceId;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchSourceId(directoryId, sourceName);
+        } catch (const Sqlite::ConstraintPreventsModification &) {
+            return fetchSourceId(directoryId, sourceName);
+        }
     }
 
     int writeSourceId(int directoryId, Utils::SmallStringView sourceName)
@@ -153,31 +167,39 @@ public:
 
     Utils::SmallString fetchSourceName(int sourceId)
     {
-        DeferredTransaction transaction{m_statementFactory.database};
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        ReadStatement &statement = m_statementFactory.selectSourceNameFromSourcesBySourceId;
+            ReadStatement &statement = m_statementFactory.selectSourceNameFromSourcesBySourceId;
 
-        auto optionalSourceName = statement.template value<Utils::SmallString>(sourceId);
+            auto optionalSourceName = statement.template value<Utils::SmallString>(sourceId);
 
-        if (!optionalSourceName)
-            throw SourceNameIdDoesNotExists();
+            if (!optionalSourceName)
+                throw SourceNameIdDoesNotExists();
 
-        transaction.commit();
+            transaction.commit();
 
-        return optionalSourceName.value();
+            return optionalSourceName.value();
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchSourceName(sourceId);
+        }
     }
 
     std::vector<Sources::Source> fetchAllSources()
     {
-        DeferredTransaction transaction{m_statementFactory.database};
+        try {
+            Sqlite::DeferredTransaction transaction{m_statementFactory.database};
 
-        ReadStatement &statement = m_statementFactory.selectAllSources;
+            ReadStatement &statement = m_statementFactory.selectAllSources;
 
-        auto sources =  statement.template values<Sources::Source, 2>(8192);
+            auto sources =  statement.template values<Sources::Source, 2>(8192);
 
-        transaction.commit();
+            transaction.commit();
 
-        return sources;
+            return sources;
+        } catch (const Sqlite::StatementIsBusy &) {
+            return fetchAllSources();
+        }
     }
 
 private:

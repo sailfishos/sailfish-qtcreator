@@ -38,7 +38,6 @@
 #include <coreplugin/mainwindow.h>
 #include <utils/algorithm.h>
 #include <utils/appmainwindow.h>
-#include <utils/asconst.h>
 #include <utils/fancylineedit.h>
 #include <utils/highlightingitemdelegate.h>
 #include <utils/hostosinfo.h>
@@ -511,6 +510,13 @@ bool CompletionList::eventFilter(QObject *watched, QEvent *event)
         switch (ke->key()) {
         case Qt::Key_Escape:
             if (!ke->modifiers()) {
+                event->accept();
+                return true;
+            }
+            break;
+        case Qt::Key_P:
+        case Qt::Key_N:
+            if (ke->modifiers() == Qt::KeyboardModifiers(Utils::HostOsInfo::controlModifier())) {
                 event->accept();
                 return true;
             }

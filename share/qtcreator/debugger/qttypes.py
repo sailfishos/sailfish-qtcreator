@@ -492,7 +492,7 @@ def qdump__QFile(d, value):
     if qtVersion >= 0x050700:
         if d.isWindowsTarget():
             if d.isMsvcTarget():
-                offset = 184 if is32bit else 248
+                offset = 176 if is32bit else 248
             else:
                 offset = 172 if is32bit else 248
         else:
@@ -644,10 +644,8 @@ def qdump__QFiniteStack(d, value):
 def qdump__QFlags(d, value):
     i = value.split('{int}')[0]
     enumType = value.type[0]
-    if d.isGdb:
-        d.putValue(i.cast('enum ' + enumType.name).display(useHex = 1))
-    else:
-        d.putValue(i.cast(enumType.name).display())
+    v = i.cast(enumType.name)
+    d.putValue(v.displayEnum('0x%04x'))
     d.putNumChild(0)
 
 

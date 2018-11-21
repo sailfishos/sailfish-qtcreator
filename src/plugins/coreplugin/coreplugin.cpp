@@ -31,7 +31,6 @@
 #include "infobar.h"
 #include "iwizardfactory.h"
 #include "mainwindow.h"
-#include "menubarfilter.h"
 #include "modemanager.h"
 #include "reaper_p.h"
 #include "themechooser.h"
@@ -71,7 +70,6 @@ using namespace Utils;
 CorePlugin::CorePlugin()
   : m_mainWindow(0)
   , m_editMode(0)
-  , m_designMode(0)
   , m_locator(0)
 {
     qRegisterMetaType<Id>();
@@ -84,17 +82,9 @@ CorePlugin::~CorePlugin()
     Find::destroy();
 
     delete m_locator;
+    delete m_editMode;
 
-    if (m_editMode) {
-        removeObject(m_editMode);
-        delete m_editMode;
-    }
-
-    if (m_designMode) {
-        if (m_designMode->designModeIsRequired())
-            removeObject(m_designMode);
-        delete m_designMode;
-    }
+    DesignMode::destroyModeIfRequired();
 
     delete m_mainWindow;
     setCreatorTheme(0);
@@ -154,16 +144,10 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
         m_mainWindow->setOverrideColor(args.overrideColor);
     m_locator = new Locator;
     qsrand(QDateTime::currentDateTime().toTime_t());
-    const bool success = m_mainWindow->init(errorMessage);
-    if (success) {
-        m_editMode = new EditMode;
-        addObject(m_editMode);
-        ModeManager::activateMode(m_editMode->id());
-        m_designMode = new DesignMode;
-        InfoBar::initialize(ICore::settings(), creatorTheme());
-    }
-
-    addAutoReleasedObject(new MenuBarFilter);
+    m_mainWindow->init();
+    m_editMode = new EditMode;
+    ModeManager::activateMode(m_editMode->id());
+    InfoBar::initialize(ICore::settings(), creatorTheme());
 
     IWizardFactory::initialize();
 
@@ -171,7 +155,7 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     SaveFile::initializeUmask();
 
     Find::initialize();
-    m_locator->initialize(this, arguments, errorMessage);
+    m_locator->initialize();
 
     MacroExpander *expander = Utils::globalMacroExpander();
     expander->registerVariable("CurrentDate:ISO", tr("The current date (ISO)."),
@@ -216,18 +200,14 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     expander->registerPrefix("#:", tr("A comment."), [](const QString &) { return QString(); });
 
-    // Make sure all wizards are there when the user might access the keyboard shortcuts:
-    connect(ICore::instance(), &ICore::optionsDialogRequested, []() { IWizardFactory::allWizardFactories(); });
-
     Utils::PathChooser::setAboutToShowContextMenuHandler(&CorePlugin::addToPathChooserContextMenu);
 
-    return success;
+    return true;
 }
 
 void CorePlugin::extensionsInitialized()
 {
-    if (m_designMode->designModeIsRequired())
-        addObject(m_designMode);
+    DesignMode::createModeIfRequired();
     Find::extensionsInitialized();
     m_locator->extensionsInitialized();
     m_mainWindow->extensionsInitialized();
@@ -295,5 +275,6 @@ ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()
 {
     Find::aboutToShutdown();
     m_mainWindow->aboutToShutdown();
+    HelpManager::aboutToShutdown();
     return SynchronousShutdown;
 }

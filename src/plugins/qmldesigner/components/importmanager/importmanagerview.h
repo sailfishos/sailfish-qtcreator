@@ -36,8 +36,8 @@ class ImportManagerView : public AbstractView
 {
     Q_OBJECT
 public:
-    explicit ImportManagerView(QObject *parent = 0);
-    ~ImportManagerView();
+    explicit ImportManagerView(QObject *parent = nullptr);
+    ~ImportManagerView() override;
 
     bool hasWidget() const override;
     WidgetInfo widgetInfo() override;

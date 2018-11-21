@@ -58,7 +58,7 @@ class CORE_EXPORT ICore : public QObject
     friend class IWizardFactory;
 
     explicit ICore(Internal::MainWindow *mw);
-    ~ICore();
+    ~ICore() override;
 
 public:
     enum class ContextPriority {
@@ -78,14 +78,14 @@ public:
                                   const QString &defaultLocation = QString(),
                                   const QVariantMap &extraVariables = QVariantMap());
 
-    static bool showOptionsDialog(Id page, QWidget *parent = 0);
+    static bool showOptionsDialog(Id page, QWidget *parent = nullptr);
     static QString msgShowOptionsDialog();
     static QString msgShowOptionsDialogToolTip();
 
     static bool showWarningWithOptions(const QString &title, const QString &text,
                                        const QString &details = QString(),
                                        Id settingsId = Id(),
-                                       QWidget *parent = 0);
+                                       QWidget *parent = nullptr);
 
     static QSettings *settings(QSettings::Scope scope = QSettings::UserScope);
     static SettingsDatabase *settingsDatabase();
@@ -144,7 +144,6 @@ signals:
     void coreOpened();
     void newItemDialogStateChanged();
     void saveSettingsRequested();
-    void optionsDialogRequested();
     void coreAboutToClose();
     void contextAboutToChange(const QList<Core::IContext *> &context);
     void contextChanged(const Core::Context &context);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -25,7 +25,7 @@
 
     /*!
 
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-developing-android.html
     \page creator-developing-baremetal.html
     \nextpage creator-developing-generic-linux.html
@@ -90,9 +90,9 @@
 
             \endlist
 
-        \li Select \uicontrol Tools > \uicontrol Options >
-            \uicontrol {Build & Run} > \uicontrol Kits > \uicontrol Add to add a
-            kit for building applications and running them on bare metal devices:
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
+            \uicontrol Add to add a kit for building applications and running
+            them on bare metal devices:
 
             \image creator-baremetal-kits.png "Bare Metal Device kits"
 

@@ -48,7 +48,6 @@
 #include <projectexplorer/projecttree.h>
 
 #include <utils/algorithm.h>
-#include <utils/asconst.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
@@ -162,7 +161,7 @@ public:
     bool m_isParsing = false;
     bool m_hasParsingData = false;
     std::unique_ptr<Core::IDocument> m_document;
-    ProjectNode *m_rootProjectNode = nullptr;
+    std::unique_ptr<ProjectNode> m_rootProjectNode;
     std::unique_ptr<ContainerNode> m_containerNode;
     QList<Target *> m_targets;
     Target *m_activeTarget = nullptr;
@@ -184,10 +183,8 @@ ProjectPrivate::~ProjectPrivate()
 {
     qDeleteAll(m_targets);
 
-    // Make sure our root node is null when deleting
-    ProjectNode *oldNode = m_rootProjectNode;
-    m_rootProjectNode = nullptr;
-    delete oldNode;
+    // Make sure our root node is null when deleting the actual node
+    std::unique_ptr<ProjectNode> oldNode = std::move(m_rootProjectNode);
 }
 
 Project::Project(const QString &mimeType, const Utils::FileName &fileName,
@@ -200,6 +197,10 @@ Project::Project(const QString &mimeType, const Utils::FileName &fileName,
 
     // Only set up containernode after d is set so that it will find the project directory!
     d->m_containerNode = std::make_unique<ContainerNode>(this);
+
+    setRequiredKitPredicate([this](const Kit *k) {
+        return !containsType(projectIssues(k), Task::TaskType::Error);
+    });
 }
 
 Project::~Project()
@@ -238,17 +239,6 @@ Utils::FileName Project::projectFilePath() const
 bool Project::hasActiveBuildSettings() const
 {
     return activeTarget() && IBuildConfigurationFactory::find(activeTarget());
-}
-
-QString Project::makeUnique(const QString &preferredName, const QStringList &usedNames)
-{
-    if (!usedNames.contains(preferredName))
-        return preferredName;
-    int i = 2;
-    QString tryName = preferredName + QString::number(i);
-    while (usedNames.contains(tryName))
-        tryName = preferredName + QString::number(++i);
-    return tryName;
 }
 
 void Project::addTarget(Target *t)
@@ -329,11 +319,12 @@ Target *Project::target(Kit *k) const
     return Utils::findOrDefault(d->m_targets, Utils::equal(&Target::kit, k));
 }
 
-bool Project::supportsKit(const Kit *k, QString *errorMessage) const
+QList<Task> Project::projectIssues(const Kit *k) const
 {
-    Q_UNUSED(k);
-    Q_UNUSED(errorMessage);
-    return true;
+    QList<Task> result;
+    if (!k->isValid())
+        result.append(createProjectTask(Task::TaskType::Error, tr("Kit is not valid.")));
+    return {};
 }
 
 Target *Project::createTarget(Kit *k)
@@ -358,12 +349,7 @@ bool Project::copySteps(Target *sourceTarget, Target *newTarget)
     QStringList runconfigurationError;
 
     foreach (BuildConfiguration *sourceBc, sourceTarget->buildConfigurations()) {
-        IBuildConfigurationFactory *factory = IBuildConfigurationFactory::find(newTarget, sourceBc);
-        if (!factory) {
-            buildconfigurationError << sourceBc->displayName();
-            continue;
-        }
-        BuildConfiguration *newBc = factory->clone(newTarget, sourceBc);
+        BuildConfiguration *newBc = IBuildConfigurationFactory::clone(newTarget, sourceBc);
         if (!newBc) {
             buildconfigurationError << sourceBc->displayName();
             continue;
@@ -380,12 +366,7 @@ bool Project::copySteps(Target *sourceTarget, Target *newTarget)
     }
 
     foreach (DeployConfiguration *sourceDc, sourceTarget->deployConfigurations()) {
-        DeployConfigurationFactory *factory = DeployConfigurationFactory::find(newTarget, sourceDc);
-        if (!factory) {
-            deployconfigurationError << sourceDc->displayName();
-            continue;
-        }
-        DeployConfiguration *newDc = factory->clone(newTarget, sourceDc);
+        DeployConfiguration *newDc = DefaultDeployConfigurationFactory::clone(newTarget, sourceDc);
         if (!newDc) {
             deployconfigurationError << sourceDc->displayName();
             continue;
@@ -402,12 +383,7 @@ bool Project::copySteps(Target *sourceTarget, Target *newTarget)
     }
 
     foreach (RunConfiguration *sourceRc, sourceTarget->runConfigurations()) {
-        IRunConfigurationFactory *factory = IRunConfigurationFactory::find(newTarget, sourceRc);
-        if (!factory) {
-            runconfigurationError << sourceRc->displayName();
-            continue;
-        }
-        RunConfiguration *newRc = factory->clone(newTarget, sourceRc);
+        RunConfiguration *newRc = RunConfigurationFactory::clone(newTarget, sourceRc);
         if (!newRc) {
             runconfigurationError << sourceRc->displayName();
             continue;
@@ -476,7 +452,8 @@ bool Project::copySteps(Target *sourceTarget, Target *newTarget)
 
 bool Project::setupTarget(Target *t)
 {
-    t->updateDefaultBuildConfigurations();
+    if (needsBuildConfigurations())
+        t->updateDefaultBuildConfigurations();
     t->updateDefaultDeployConfigurations();
     t->updateDefaultRunConfigurations();
     return true;
@@ -514,31 +491,27 @@ void Project::setId(Core::Id id)
     d->m_id = id;
 }
 
-void Project::setRootProjectNode(ProjectNode *root)
+void Project::setRootProjectNode(std::unique_ptr<ProjectNode> &&root)
 {
-    if (d->m_rootProjectNode == root)
-        return;
+    QTC_ASSERT(d->m_rootProjectNode.get() != root.get() || !root, return);
 
-    if (root && root->nodes().isEmpty()) {
+    if (root && root->isEmpty()) {
         // Something went wrong with parsing: At least the project file needs to be
         // shown so that the user can fix the breakage.
         // Do not leak root and use default project tree in this case.
-        delete root;
-        root = nullptr;
+        root.reset();
     }
 
     if (root) {
-        ProjectTree::applyTreeManager(root);
+        ProjectTree::applyTreeManager(root.get());
         root->setParentFolderNode(d->m_containerNode.get());
     }
 
-    ProjectNode *oldNode = d->m_rootProjectNode;
+    std::unique_ptr<ProjectNode> oldNode = std::move(d->m_rootProjectNode);
 
-    d->m_rootProjectNode = root;
-    if (oldNode || root)
+    d->m_rootProjectNode = std::move(root);
+    if (oldNode || d->m_rootProjectNode)
         handleSubTreeChanged(d->m_containerNode.get());
-
-    delete oldNode;
 }
 
 void Project::handleSubTreeChanged(FolderNode *node)
@@ -610,7 +583,7 @@ Utils::FileNameList Project::files(const Project::NodeMatcher &filter) const
         result.append(projectFilePath());
 
     Utils::FileName lastAdded;
-    for (const Node *n : Utils::asConst(d->m_sortedNodeList)) {
+    for (const Node *n : qAsConst(d->m_sortedNodeList)) {
         if (filter && !filter(n))
             continue;
 
@@ -678,7 +651,7 @@ Utils::FileName Project::projectDirectory(const Utils::FileName &top)
 
 ProjectNode *Project::rootProjectNode() const
 {
-    return d->m_rootProjectNode;
+    return d->m_rootProjectNode.get();
 }
 
 ContainerNode *Project::containerNode() const
@@ -728,6 +701,11 @@ void Project::createTargetFromMap(const QVariantMap &map, int index)
     Target *t = restoreTarget(targetMap);
     if (!t)
         return;
+    if (t->runConfigurations().isEmpty() && t->buildConfigurations().isEmpty()) {
+        delete t;
+        return;
+    }
+
 
     addTarget(t);
 }
@@ -791,6 +769,11 @@ void Project::projectLoaded()
 {
 }
 
+Task Project::createProjectTask(Task::TaskType type, const QString &description)
+{
+    return Task(type, description, Utils::FileName(), -1, Core::Id());
+}
+
 Core::Context Project::projectContext() const
 {
     return Core::Context(d->m_id);
@@ -816,18 +799,18 @@ void Project::setNamedSettings(const QString &name, const QVariant &value)
 
 bool Project::needsConfiguration() const
 {
-    return false;
+    return d->m_targets.isEmpty();
+}
+
+bool Project::needsBuildConfigurations() const
+{
+    return true;
 }
 
 void Project::configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures)
 {
     Q_UNUSED(platforms);
     Q_UNUSED(preferredFeatures);
-}
-
-bool Project::requiresTargetPanel() const
-{
-    return true;
 }
 
 bool Project::needsSpecialDeployment() const
@@ -855,6 +838,9 @@ void Project::setup(QList<const BuildInfo *> infoList)
             t = new Target(this, k);
             toRegister << t;
         }
+
+        if (!info->factory())
+            continue;
 
         BuildConfiguration *bc = info->factory()->create(t, info);
         if (!bc)
@@ -942,6 +928,8 @@ public:
     void testParsingFinished(bool success) {
         emitParsingFinished(success);
     }
+
+    bool needsConfiguration() const final { return false; }
 };
 
 class TestProjectNode : public ProjectNode
@@ -1047,11 +1035,11 @@ void ProjectExplorerPlugin::testProject_parsingFail()
 std::unique_ptr<ProjectNode> createFileTree(Project *project)
 {
     std::unique_ptr<ProjectNode> root = std::make_unique<TestProjectNode>(project->projectDirectory());
-    QList<FileNode *> nodes;
-    nodes.append(new FileNode(TEST_PROJECT_PATH, FileType::Project, false));
-    nodes.append(new FileNode(TEST_PROJECT_CPP_FILE, FileType::Source, false));
-    nodes.append(new FileNode(TEST_PROJECT_GENERATED_FILE, FileType::Source, true));
-    root->addNestedNodes(nodes);
+    std::vector<std::unique_ptr<FileNode>> nodes;
+    nodes.emplace_back(std::make_unique<FileNode>(TEST_PROJECT_PATH, FileType::Project, false));
+    nodes.emplace_back(std::make_unique<FileNode>(TEST_PROJECT_CPP_FILE, FileType::Source, false));
+    nodes.emplace_back(std::make_unique<FileNode>(TEST_PROJECT_GENERATED_FILE, FileType::Source, true));
+    root->addNestedNodes(std::move(nodes));
 
     return root;
 }
@@ -1065,13 +1053,13 @@ void ProjectExplorerPlugin::testProject_projectTree()
     QCOMPARE(fileSpy.count(), 0);
     QVERIFY(!project.rootProjectNode());
 
-    project.setRootProjectNode(new TestProjectNode(project.projectDirectory())); // will delete the fileNode...
+    project.setRootProjectNode(std::make_unique<TestProjectNode>(project.projectDirectory()));
     QCOMPARE(fileSpy.count(), 0);
     QVERIFY(!project.rootProjectNode());
 
     std::unique_ptr<ProjectNode> root = createFileTree(&project);
     ProjectNode *rootNode = root.get();
-    project.setRootProjectNode(root.release());
+    project.setRootProjectNode(std::move(root));
     QCOMPARE(fileSpy.count(), 1);
     QCOMPARE(project.rootProjectNode(), rootNode);
 
@@ -1092,10 +1080,6 @@ void ProjectExplorerPlugin::testProject_projectTree()
     QCOMPARE(sourceFiles.count(), 2);
     QVERIFY(sourceFiles.contains(TEST_PROJECT_PATH));
     QVERIFY(sourceFiles.contains(TEST_PROJECT_CPP_FILE));
-
-    project.setRootProjectNode(rootNode);
-    QCOMPARE(fileSpy.count(), 1);
-    QCOMPARE(project.rootProjectNode(), rootNode);
 
     project.setRootProjectNode(nullptr);
     QCOMPARE(fileSpy.count(), 2);

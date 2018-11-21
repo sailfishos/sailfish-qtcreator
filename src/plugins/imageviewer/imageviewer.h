@@ -55,6 +55,7 @@ public:
     IEditor *duplicate() override;
 
     void exportImage();
+    void exportMultiImages();
     void imageSizeUpdated(const QSize &size);
     void scaleFactorUpdate(qreal factor);
 

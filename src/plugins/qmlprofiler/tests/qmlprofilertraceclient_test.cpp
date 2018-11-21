@@ -69,7 +69,13 @@ void QmlProfilerTraceClientTest::testMessageReceived()
         }
         traceClient.stateChanged(QmlDebug::QmlDebugClient::NotConnected);
 
-        modelManager.replayEvents(-1, -1, [&](const QmlEvent &event, const QmlEventType &type) {
+        QFutureInterface<void> future;
+
+        QString lastError;
+        connect(&modelManager, &Timeline::TimelineTraceManager::error,
+                this, [&](const QString &message) { lastError = message; });
+
+        modelManager.replayQmlEvents([&](const QmlEvent &event, const QmlEventType &type) {
             qint64 timestamp;
             qint32 message;
             qint32 rangeType;
@@ -77,10 +83,21 @@ void QmlProfilerTraceClientTest::testMessageReceived()
             QCOMPARE(event.timestamp(), timestamp);
             QCOMPARE(type.message(), static_cast<Message>(message));
             QCOMPARE(type.rangeType(), static_cast<RangeType>(rangeType));
-        });
-
-        modelManager.clear();
-        traceClient.clear();
+        }, nullptr, [this]() {
+            modelManager.clearAll();
+            traceClient.clear();
+        }, [this, &lastError](const QString &message) {
+            QVERIFY(!message.isEmpty());
+            if (lastError == QmlProfilerModelManager::tr("Read past end in temporary trace file.")) {
+                // Ignore read-past-end errors: Our test traces are somewhat dirty and don't end on
+                //                              packet boundaries
+                modelManager.clearAll();
+                traceClient.clear();
+                lastError.clear();
+            } else {
+                QFAIL((message + " " + lastError).toUtf8().constData());
+            }
+        }, future);
     }
 
     QVERIFY(checkStream.atEnd());

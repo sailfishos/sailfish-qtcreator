@@ -93,11 +93,11 @@ unittest_public:
             const V2::ProjectPartContainer &projectPart) const;
     Utils::PathStringVector generateProjectPartHeaders(
             const V2::ProjectPartContainer &projectPart) const;
-    static Utils::SmallString generateProjectPartHeaderAndSourcesContent(
-            const V2::ProjectPartContainer &projectPart);
-    static Utils::PathStringVector generateProjectPartHeaderAndSourcePaths(
-            const V2::ProjectPartContainer &projectPart);
-    FilePathIds generateProjectPartPchIncludes(
+    Utils::SmallString generateProjectPartHeaderAndSourcesContent(
+            const V2::ProjectPartContainer &projectPart) const;
+    Utils::PathStringVector generateProjectPartHeaderAndSourcePaths(
+            const V2::ProjectPartContainer &projectPart) const;
+    std::pair<FilePathIds,FilePathIds> generateProjectPartPchIncludes(
             const V2::ProjectPartContainer &projectPart) const;
     Utils::SmallString generateProjectPathPchHeaderFilePath(
             const V2::ProjectPartContainer &projectPart) const;

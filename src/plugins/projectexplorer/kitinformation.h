@@ -95,6 +95,7 @@ public:
     QSet<Core::Id> availableFeatures(const Kit *k) const override;
 
     static Core::Id id();
+    static QByteArray toolChainId(const Kit *k, Core::Id language);
     static ToolChain *toolChain(const Kit *k, Core::Id language);
     static QList<ToolChain *> toolChains(const Kit *k);
     static void setToolChain(Kit *k, ToolChain *tc);
@@ -162,7 +163,7 @@ public:
 
     ItemList toUserOutput(const Kit *k) const override;
 
-    virtual void addToMacroExpander(ProjectExplorer::Kit *kit, Utils::MacroExpander *expander) const override;
+    void addToMacroExpander(ProjectExplorer::Kit *kit, Utils::MacroExpander *expander) const override;
 
     static Core::Id id();
     static IDevice::ConstPtr device(const Kit *k);

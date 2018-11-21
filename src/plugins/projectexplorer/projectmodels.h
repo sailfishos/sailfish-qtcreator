@@ -109,9 +109,9 @@ private:
 
     QTimer m_timer;
     QSet<ExpandData> m_toExpand;
+    QColor m_enabledTextColor;
+    QColor m_disabledTextColor;
 };
-
-int caseFriendlyCompare(const QString &a, const QString &b);
 
 } // namespace Internal
 } // namespace ProjectExplorer

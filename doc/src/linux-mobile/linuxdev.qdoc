@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -25,10 +25,15 @@
 
     /*!
 
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-developing-baremetal.html
+    \contentspage index.html
     \page creator-developing-generic-linux.html
+    \if defined(qtdesignstudio)
+    \previouspage creator-developing-android.html
+    \nextpage creator-build-process-customizing.html
+    \else
+    \previouspage creator-developing-baremetal.html
     \nextpage creator-developing-ios.html
+    \endif
 
     \title Connecting Embedded Linux Devices
 
@@ -60,13 +65,13 @@
 
         \li Make sure that your device can be reached via an IP address.
 
-        \li Select \uicontrol {Tools > Options > Build & Run > Qt Versions > Add} to
-            add the Qt version
-            for the embedded Linux.
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
+            \uicontrol {Qt Versions} > \uicontrol Add to add the Qt version
+            for embedded Linux.
 
-        \li Select \uicontrol {Tools > Options > Build & Run > Compilers > Add} to
-            add the compiler
-            for building the applications.
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
+            \uicontrol Compilers > \uicontrol Add to add the compiler for
+            building the applications.
 
         \li To deploy applications and run them remotely on devices, specify
             parameters for accessing the devices:
@@ -106,9 +111,8 @@
             the SSH port number, which is available in the variable \c %{Device:SshPort}.
 
 
-        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol {Build & Run}
-            > \uicontrol Kits > \uicontrol Add to add a kit for building for the device.
-            Select the
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
+            \uicontrol Add to add a kit for building for the device. Select the
             Qt version, compiler, and device that you added above, and choose
             \uicontrol {Generic Linux Device} for the device type.
 

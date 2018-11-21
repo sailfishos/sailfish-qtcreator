@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,10 +30,10 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-running-targets.html
     \page creator-deployment.html
-    \nextpage creator-deploying-android.html
+    \nextpage creator-deployment-mer.html
 
     \title Deploying to Devices
 
@@ -45,6 +45,11 @@
 
     \list
 
+        \li \l{Deploying Applications to Sailfish OS Devices}
+
+            When you deploy an application to a Sailfish OS device or emulator,
+            \QC copies the binary files to the device or to the emulator.
+
         \li \l{Deploying Applications to Android Devices}
 
             When you deploy the application to an Android device, \QC copies
@@ -55,14 +60,14 @@
             When you deploy the application to a generic Linux-based device, \QC
             copies the application files to the connected device. You can test
             and debug the application on the device.
+
+        \if defined(qtcreator)
         \li  \l{Deploying Applications to QNX Neutrino Devices}
 
             When you deploy the application to a QNX Neutrino device, \QC copies
             the application files to the connected device. You can test and
             debug the application on the device.
-        \li \l{Deploying Applications to Sailfish OS Devices}
+        \endif
 
-            When you deploy an application to a Sailfish OS device or emulator,
-            \QC copies the binary files to the device or to the emulator.
     \endlist
 */

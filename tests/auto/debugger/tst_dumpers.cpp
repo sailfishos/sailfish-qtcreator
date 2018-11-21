@@ -37,8 +37,6 @@
 #endif // Q_CC_MSVC
 #endif // Q_OS_WIN
 
-#include <utils/asconst.h>
-
 #include <QtTest>
 #include <math.h>
 
@@ -1341,6 +1339,7 @@ void tst_Dumpers::dumper()
             "\n\n" + data.includes +
             "\n\n" + (data.useQHash ?
                 "\n#include <QByteArray>"
+                "\n#include <QtGlobal>"
                 "\n#if QT_VERSION >= 0x050900"
                 "\n#include <QHash>"
                 "\nvoid initHashSeed() { qSetGlobalQHashSeed(0); }"
@@ -1450,7 +1449,7 @@ void tst_Dumpers::dumper()
 
     QSet<QString> expandedINames;
     expandedINames.insert("local");
-    for (const Check &check : Utils::asConst(data.checks)) {
+    for (const Check &check : qAsConst(data.checks)) {
         QString parent = check.iname;
         while (true) {
             parent = parentIName(parent);
@@ -1462,7 +1461,7 @@ void tst_Dumpers::dumper()
 
     QString expanded;
     QString expandedq;
-    for (const QString &iname : Utils::asConst(expandedINames)) {
+    for (const QString &iname : qAsConst(expandedINames)) {
         if (!expanded.isEmpty()) {
             expanded.append(',');
             expandedq.append(',');
@@ -1641,7 +1640,7 @@ void tst_Dumpers::dumper()
     WatchItem local;
     local.iname = "local";
 
-    for (const GdbMi &child : Utils::asConst(actual.children())) {
+    for (const GdbMi &child : qAsConst(actual.children())) {
         const QString iname = child["iname"].data();
         if (iname == "local.qtversion")
             context.qtVersion = child["value"].toInt();
@@ -1719,7 +1718,7 @@ void tst_Dumpers::dumper()
 
     if (!data.checks.isEmpty()) {
         qDebug() << "SOME TESTS NOT EXECUTED: ";
-        for (const Check &check : Utils::asConst(data.checks)) {
+        for (const Check &check : qAsConst(data.checks)) {
             if (check.optionallyPresent) {
                 qDebug() << "  OPTIONAL TEST NOT FOUND FOR INAME: " << check.iname << " IGNORED.";
             } else {
@@ -1938,8 +1937,9 @@ void tst_Dumpers::dumper_data()
                     "FooFlags f1(a);\n"
                     "FooFlags f2(a | b);\n")
                + CoreProfile()
-               + Check("f1", "a (1)", TypeDef("QFlags<enum Foo>", "FooFlags"))
-               + Check("f2", "(a | b) (3)", "FooFlags") % GdbEngine;
+               + Check("f1", "a (1)", TypeDef("QFlags<enum Foo>", "FooFlags")) % CdbEngine
+               + Check("f1", "a (0x0001)", "FooFlags") % NoCdbEngine
+               + Check("f2", "a | b (0x0003)", "FooFlags") % GdbEngine;
 
     QTest::newRow("QDateTime")
             << Data("#include <QDateTime>\n",
@@ -6837,12 +6837,14 @@ void tst_Dumpers::dumper_data()
 
 
     QTest::newRow("Internal2")
-            << Data("struct Foo { int bar = 15; }; \n"
+            << Data("enum E { V1, V2 };\n"
+                    "struct Foo { int bar = 15; E e = V1; };\n"
                     "struct QtcDumperTest_PointerArray {\n"
                     "   Foo *foos = new Foo[10];\n"
                     "};\n\n",
                     "QtcDumperTest_PointerArray tc; unused(&tc);\n")
             + Check("tc.0.bar", "15", "int")
+            + Check("tc.0.e", "V1 (0)", "E")
             + Check("tc.1.bar", "15", "int")
             + Check("tc.2.bar", "15", "int")
             + Check("tc.3.bar", "15", "int");

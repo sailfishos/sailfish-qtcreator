@@ -36,19 +36,19 @@ def main():
     # copy example project to temp directory
     templateDir = prepareTemplate(sourceExample, "/../shared")
     examplePath = os.path.join(templateDir, proFile)
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     # open example project, supports only Qt 5
     targets = Targets.desktopTargetClasses()
-    targets.remove(Targets.DESKTOP_4_8_7_DEFAULT)
-    checkedTargets = openQmakeProject(examplePath, targets)
+    targets.discard(Targets.DESKTOP_4_8_7_DEFAULT)
+    openQmakeProject(examplePath, targets)
     # build and wait until finished - on all build configurations
-    availableConfigs = iterateBuildConfigs(len(checkedTargets))
+    availableConfigs = iterateBuildConfigs()
     if not availableConfigs:
         test.fatal("Haven't found a suitable Qt version - leaving without building.")
     for kit, config in availableConfigs:
-        selectBuildConfig(len(checkedTargets), kit, config)
+        selectBuildConfig(kit, config)
         # try to build project
         test.log("Testing build configuration: " + config)
         invokeMenuItem("Build", "Build All")

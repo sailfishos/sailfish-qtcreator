@@ -57,7 +57,7 @@ namespace QmlDesigner {
 class NodeInstanceView;
 class RewriterView;
 class QmlModelState;
-class QmlTimelineMutator;
+class QmlTimeline;
 
 enum DesignerWidgetFlags {
     DisableOnError,
@@ -84,7 +84,7 @@ public:
         ToolBarWidgetDefaultFactory(T *t ) : m_t(t)
         {}
 
-        QList<QToolButton*> createToolBarWidgets()
+        QList<QToolButton*> createToolBarWidgets() override
         {
             return m_t->createToolBarWidgets();
         }
@@ -123,10 +123,10 @@ public:
       EmptyPropertiesRemoved = 0x2
     };
     Q_DECLARE_FLAGS(PropertyChangeFlags, PropertyChangeFlag)
-    AbstractView(QObject *parent = 0)
+    AbstractView(QObject *parent = nullptr)
             : QObject(parent) {}
 
-    virtual ~AbstractView();
+    ~AbstractView() override;
 
     Model* model() const;
     bool isAttached() const;
@@ -245,7 +245,7 @@ public:
     void setCurrentStateNode(const ModelNode &node);
     ModelNode currentStateNode() const;
     QmlModelState currentState() const;
-    QmlTimelineMutator currentTimeline() const;
+    QmlTimeline currentTimeline() const;
 
     int majorQtQuickVersion() const;
     int minorQtQuickVersion() const;
@@ -256,17 +256,19 @@ public:
 
     virtual bool hasWidget() const;
     virtual WidgetInfo widgetInfo();
+    virtual void disableWidget();
+    virtual void enableWidget();
 
     virtual void contextHelpId(const Core::IContext::HelpIdCallback &callback) const;
 
-    void activateTimelineRecording(const ModelNode &mutator);
+    void activateTimelineRecording(const ModelNode &timeline);
     void deactivateTimelineRecording();
 
 protected:
     void setModel(Model * model);
     void removeModel();
-    static WidgetInfo createWidgetInfo(QWidget *widget = 0,
-                                       WidgetInfo::ToolBarWidgetFactoryInterface *toolBarWidgetFactory = 0,
+    static WidgetInfo createWidgetInfo(QWidget *widget = nullptr,
+                                       WidgetInfo::ToolBarWidgetFactoryInterface *toolBarWidgetFactory = nullptr,
                                        const QString &uniqueId = QString(),
                                        WidgetInfo::PlacementHint placementHint = WidgetInfo::NoPane,
                                        int placementPriority = 0,

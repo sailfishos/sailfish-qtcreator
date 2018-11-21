@@ -25,8 +25,10 @@
 
 #include "modelnodeoperations.h"
 #include "modelnodecontextmenu_helper.h"
+#include "addimagesdialog.h"
 #include "layoutingridlayout.h"
 #include "findimplementation.h"
+
 
 #include "addsignalhandlerdialog.h"
 
@@ -569,22 +571,6 @@ void layoutGridLayout(const SelectionContext &selectionContext)
     }
 }
 
-/*
-bool optionsPageLessThan(const IOptionsPage *p1, const IOptionsPage *p2)
-{
-    if (p1->category() != p2->category())
-        return p1->category().alphabeticallyBefore(p2->category());
-    return p1->id().alphabeticallyBefore(p2->id());
-}
-
-static inline QList<IOptionsPage*> sortedOptionsPages()
-{
-    QList<IOptionsPage*> rc = ExtensionSystem::PluginManager::getObjects<IOptionsPage>();
-    qStableSort(rc.begin(), rc.end(), optionsPageLessThan);
-    return rc;
-}
-
-*/
 static PropertyNameList sortedPropertyNameList(const PropertyNameList &nameList)
 {
     PropertyNameList sortedPropertyNameList = nameList;
@@ -1024,25 +1010,35 @@ void addTabBarToStackedContainer(const SelectionContext &selectionContext)
     }
 }
 
-bool addImageToProject(const QString &fileName, const QString &directory)
+bool addImageToProject(const QStringList &fileNames, const QString &defaultDirectory)
 {
-    const QString targetFile = directory + "/" + QFileInfo(fileName).fileName();
-    const bool success = QFile::copy(fileName, targetFile);
+    QString directory = AddImagesDialog::getDirectory(fileNames, defaultDirectory);
 
-    auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
+    if (directory.isEmpty())
+        return true;
 
-    QTC_ASSERT(document, return false);
+    bool allSuccessful = true;
+    for (const QString &fileName : fileNames) {
+        const QString targetFile = directory + "/" + QFileInfo(fileName).fileName();
+        const bool success = QFile::copy(fileName, targetFile);
 
-    if (success) {
-        ProjectExplorer::Node *node = ProjectExplorer::ProjectTree::nodeForFile(document->fileName());
-        if (node) {
-            ProjectExplorer::FolderNode *containingFolder = node->parentFolderNode();
-            if (containingFolder)
-                containingFolder->addFiles(QStringList(targetFile));
+        auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
+
+        QTC_ASSERT(document, return false);
+
+        if (success) {
+            ProjectExplorer::Node *node = ProjectExplorer::ProjectTree::nodeForFile(document->fileName());
+            if (node) {
+                ProjectExplorer::FolderNode *containingFolder = node->parentFolderNode();
+                if (containingFolder)
+                    containingFolder->addFiles(QStringList(targetFile));
+            }
+        } else {
+            allSuccessful = false;
         }
     }
 
-    return success;
+    return allSuccessful;
 }
 
 } // namespace Mode

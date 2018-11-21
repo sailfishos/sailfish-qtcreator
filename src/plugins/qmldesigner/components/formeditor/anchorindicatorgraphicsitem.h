@@ -34,11 +34,11 @@ class AnchorIndicatorGraphicsItem : public QGraphicsObject
 {
     Q_OBJECT
 public:
-    explicit AnchorIndicatorGraphicsItem(QGraphicsItem *parent = 0);
+    explicit AnchorIndicatorGraphicsItem(QGraphicsItem *parent = nullptr);
 
 
-    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
-    QRectF boundingRect() const;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+    QRectF boundingRect() const override;
 
     void updateAnchorIndicator(const AnchorLine &sourceAnchorLine, const AnchorLine &targetAnchorLine);
 

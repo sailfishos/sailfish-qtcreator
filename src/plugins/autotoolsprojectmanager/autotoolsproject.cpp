@@ -206,12 +206,13 @@ void AutotoolsProject::makefileParsingFinished()
         m_watchedFiles.append(absConfigureAc);
     }
 
-    auto newRoot = new AutotoolsProjectNode(projectDirectory());
+    auto newRoot = std::make_unique<AutotoolsProjectNode>(projectDirectory());
     for (const QString &f : m_files) {
         const Utils::FileName path = Utils::FileName::fromString(f);
-        newRoot->addNestedNode(new FileNode(path, FileNode::fileTypeForFileName(path), false));
+        newRoot->addNestedNode(std::make_unique<FileNode>(path, FileNode::fileTypeForFileName(path),
+                                                          false));
     }
-    setRootProjectNode(newRoot);
+    setRootProjectNode(std::move(newRoot));
 
     updateCppCodeModel();
 

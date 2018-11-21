@@ -85,11 +85,11 @@ public:
         : QAbstractTableModel(parent) {}
     virtual ~MimeTypeSettingsModel() {}
 
-    virtual int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    virtual int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-    virtual QVariant headerData(int section, Qt::Orientation orientation,
-                                int role = Qt::DisplayRole) const override;
-    virtual QVariant data(const QModelIndex &modelIndex, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
+    QVariant data(const QModelIndex &modelIndex, int role = Qt::DisplayRole) const override;
 
     void load();
 
@@ -562,9 +562,6 @@ MimeTypeSettings::MimeTypeSettings(QObject *parent)
     setId(Constants::SETTINGS_ID_MIMETYPES);
     setDisplayName(tr("MIME Types"));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
-    setDisplayCategory(QCoreApplication::translate("Core",
-        Constants::SETTINGS_TR_CATEGORY_CORE));
-    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CORE_ICON));
 }
 
 MimeTypeSettings::~MimeTypeSettings()

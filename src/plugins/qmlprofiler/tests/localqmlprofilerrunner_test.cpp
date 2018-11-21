@@ -26,7 +26,7 @@
 #include "localqmlprofilerrunner_test.h"
 
 #include <debugger/analyzer/analyzermanager.h>
-#include <projectexplorer/runnables.h>
+
 #include <qmlprofiler/qmlprofilerruncontrol.h>
 #include <qmlprofiler/qmlprofilertool.h>
 
@@ -45,10 +45,10 @@ LocalQmlProfilerRunnerTest::LocalQmlProfilerRunnerTest(QObject *parent) : QObjec
 
 void LocalQmlProfilerRunnerTest::testRunner()
 {
-    QmlProfilerTool tool(nullptr);
+    QmlProfilerTool tool;
     QPointer<ProjectExplorer::RunControl> runControl;
     QPointer<LocalQmlProfilerSupport> profiler;
-    ProjectExplorer::StandardRunnable debuggee;
+    ProjectExplorer::Runnable debuggee;
     QUrl serverUrl;
 
     bool running = false;
@@ -96,6 +96,9 @@ void LocalQmlProfilerRunnerTest::testRunner()
 
     connectRunner();
 
+    QTest::ignoreMessage(
+                QtDebugMsg, "Invalid run control state transition from  "
+                            "\"RunControlState::Starting\"  to  \"RunControlState::Stopped\"");
     runControl->initiateStart();
 
     QTRY_COMPARE_WITH_TIMEOUT(startCount, 1, 30000);

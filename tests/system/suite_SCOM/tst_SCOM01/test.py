@@ -27,17 +27,17 @@ source("../../shared/qtcreator.py")
 
 # entry of test
 def main():
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     # create qt quick application
-    checkedTargets, projectName = createNewQtQuickApplication(tempDir(), "SampleApp")
+    createNewQtQuickApplication(tempDir(), "SampleApp")
     # build it - on all build configurations
-    availableConfigs = iterateBuildConfigs(len(checkedTargets))
+    availableConfigs = iterateBuildConfigs()
     if not availableConfigs:
         test.fatal("Haven't found a suitable Qt version - leaving without building.")
     for kit, config in availableConfigs:
-        selectBuildConfig(len(checkedTargets), kit, config)
+        selectBuildConfig(kit, config)
         # try to compile
         test.log("Testing build configuration: " + config)
         clickButton(waitForObject(":*Qt Creator.Build Project_Core::Internal::FancyToolButton"))

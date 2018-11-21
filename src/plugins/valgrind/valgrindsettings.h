@@ -59,10 +59,10 @@ public:
         LeakCheckOnFinishYes
     };
 
-    ValgrindBaseSettings() {}
+    ValgrindBaseSettings(ProjectExplorer::RunConfiguration *runConfiguration = nullptr);
 
-    void toMap(QVariantMap &map) const;
-    void fromMap(const QVariantMap &map);
+    void toMap(QVariantMap &map) const override;
+    void fromMap(const QVariantMap &map) override;
 
 signals:
     void changed(); // sent when multiple values have changed simulatenously (e.g. fromMap)
@@ -183,20 +183,18 @@ class ValgrindGlobalSettings : public ValgrindBaseSettings
 public:
     ValgrindGlobalSettings();
 
-    QWidget *createConfigWidget(QWidget *parent);
-    void toMap(QVariantMap &map) const;
-    void fromMap(const QVariantMap &map);
-    ISettingsAspect *create() const { return new ValgrindGlobalSettings; }
-
+    QWidget *createConfigWidget(QWidget *parent) override;
+    void toMap(QVariantMap &map) const override;
+    void fromMap(const QVariantMap &map) override;
 
     /*
      * Global memcheck settings
      */
 public:
-    QStringList suppressionFiles() const;
+    QStringList suppressionFiles() const override;
     // in the global settings we change the internal list directly
-    void addSuppressionFiles(const QStringList &);
-    void removeSuppressionFiles(const QStringList &);
+    void addSuppressionFiles(const QStringList &) override;
+    void removeSuppressionFiles(const QStringList &) override;
 
     // internal settings which don't require any UI
     void setLastSuppressionDialogDirectory(const QString &directory);
@@ -241,21 +239,20 @@ class ValgrindProjectSettings : public ValgrindBaseSettings
     Q_OBJECT
 
 public:
-    ValgrindProjectSettings() {}
+    ValgrindProjectSettings(ProjectExplorer::RunConfiguration *runConfiguration);
 
-    QWidget *createConfigWidget(QWidget *parent);
-    void toMap(QVariantMap &map) const;
-    void fromMap(const QVariantMap &map);
-    ISettingsAspect *create() const { return new ValgrindProjectSettings; }
+    QWidget *createConfigWidget(QWidget *parent) override;
+    void toMap(QVariantMap &map) const override;
+    void fromMap(const QVariantMap &map) override;
 
     /**
      * Per-project memcheck settings, saves a diff to the global suppression files list
      */
 public:
-    QStringList suppressionFiles() const;
+    QStringList suppressionFiles() const override;
     // in the project-specific settings we store a diff to the global list
-    void addSuppressionFiles(const QStringList &suppressions);
-    void removeSuppressionFiles(const QStringList &suppressions);
+    void addSuppressionFiles(const QStringList &suppressions) override;
+    void removeSuppressionFiles(const QStringList &suppressions) override;
 
 private:
     QStringList m_disabledGlobalSuppressionFiles;

@@ -27,8 +27,6 @@
 #include "ObjectiveCTypeQualifiers.h"
 #include "QtContextKeywords.h"
 
-#include <utils/qtcfallthrough.h>
-
 #include <unordered_map>
 #include <utility>
 
@@ -863,7 +861,8 @@ bool Parser::parseStaticAssertDeclaration(DeclarationAST *&node)
 bool Parser::parseNamespace(DeclarationAST *&node)
 {
     DEBUG_THIS_RULE();
-    if (LA() != T_NAMESPACE && !(_languageFeatures.cxx11Enabled && LA() == T_INLINE && LA(2) == T_NAMESPACE))
+    if (LA() != T_NAMESPACE && !(_languageFeatures.cxx11Enabled && LA() == T_INLINE && LA(2) == T_NAMESPACE)
+            && !isNestedNamespace())
         return false;
 
     unsigned inline_token = 0;
@@ -892,7 +891,9 @@ bool Parser::parseNamespace(DeclarationAST *&node)
     if (LA() == T_IDENTIFIER)
         ast->identifier_token = consumeToken();
     parseOptionalAttributeSpecifierSequence(ast->attribute_list);
-    if (LA() == T_LBRACE) {
+    if (isNestedNamespace()) {
+        parseNestedNamespace(ast->linkage_body);
+    } else if (LA() == T_LBRACE) {
         parseLinkageBody(ast->linkage_body);
     } else { // attempt to do error recovery
         unsigned pos = cursor();
@@ -921,6 +922,22 @@ bool Parser::parseNamespace(DeclarationAST *&node)
     }
     node = ast;
     return true;
+}
+
+bool Parser::isNestedNamespace() const
+{
+    return _languageFeatures.cxx11Enabled && LA() == T_COLON_COLON && LA(2) == T_IDENTIFIER;
+}
+
+bool Parser::parseNestedNamespace(DeclarationAST *&node)
+{
+    DEBUG_THIS_RULE();
+    DeclarationAST *ast = 0;
+    if (isNestedNamespace() && parseNamespace(ast)) {
+        node = ast;
+        return true;
+    }
+    return false;
 }
 
 bool Parser::parseUsing(DeclarationAST *&node)
@@ -4981,7 +4998,7 @@ bool Parser::parseNameId(NameAST *&name)
         return parseName(name, false);
 
     default:
-        if (tok().isLiteral() || tok().isOperator()) {
+        if (tok().isLiteral() || tok().isPunctuationOrOperator()) {
             rewind(start);
             return parseName(name, false);
         }

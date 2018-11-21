@@ -29,6 +29,10 @@
 #include "abi.h"
 #include "toolchainconfigwidget.h"
 
+#include <QFutureWatcher>
+
+#include <utils/optional.h>
+
 QT_FORWARD_DECLARE_CLASS(QLabel)
 QT_FORWARD_DECLARE_CLASS(QVersionNumber)
 
@@ -57,6 +61,7 @@ public:
     explicit MsvcToolChain(const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
                            Core::Id l, Detection d = ManualDetection);
+    MsvcToolChain(const MsvcToolChain &other);
     MsvcToolChain();
 
     Utils::FileNameList suggestedMkspecList() const override;
@@ -74,6 +79,8 @@ public:
 
     bool operator == (const ToolChain &) const override;
 
+    static void cancelMsvcToolChainDetection();
+
 protected:
     explicit MsvcToolChain(Core::Id typeId, const QString &name, const Abi &abi,
                            const QString &varsBat, const QString &varsBatArg,
@@ -86,9 +93,18 @@ protected:
                                 const Utils::Environment &env) const override;
 
 private:
-    QList<Utils::EnvironmentItem> environmentModifications() const;
+    struct GenerateEnvResult
+    {
+        Utils::optional<QString> error;
+        QList<Utils::EnvironmentItem> environmentItems;
+    };
+    static void environmentModifications(QFutureInterface<GenerateEnvResult> &future,
+                                         QString vcvarsBat, QString varsBatArg);
+    void initEnvModWatcher(const QFuture<GenerateEnvResult> &future);
+    void updateEnvironmentModifications(QList<Utils::EnvironmentItem> modifications);
 
     mutable QList<Utils::EnvironmentItem> m_environmentModifications;
+    mutable QFutureWatcher<GenerateEnvResult> m_envModWatcher;
 
     QString m_varsBatArg; // Argument
 };

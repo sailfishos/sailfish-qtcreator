@@ -57,6 +57,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QSpinBox>
+#include <QToolButton>
 
 Q_DECLARE_METATYPE(Bookmarks::Internal::Bookmark*)
 
@@ -168,33 +169,6 @@ void BookmarkDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
                 0.7 * textColor.greenF() + 0.3 * backgroundColor.greenF(),
                 0.7 * textColor.blueF()  + 0.3 * backgroundColor.blueF());
     painter->setPen(mix);
-//
-//    QString directory = index.data(BookmarkManager::Directory).toString();
-//    int availableSpace = opt.rect.width() - 12;
-//    if (fm.width(directory) > availableSpace) {
-//        // We need a shorter directory
-//        availableSpace -= fm.width("...");
-//
-//        int pos = directory.size();
-//        int idx;
-//        forever {
-//            idx = directory.lastIndexOf("/", pos-1);
-//            if (idx == -1) {
-//                // Can't happen, this means the string did fit after all?
-//                break;
-//            }
-//            int width = fm.width(directory.mid(idx, pos-idx));
-//            if (width > availableSpace) {
-//                directory = "..." + directory.mid(pos);
-//                break;
-//            } else {
-//                pos = idx;
-//                availableSpace -= width;
-//            }
-//        }
-//    }
-//
-//    painter->drawText(3, opt.rect.top() + fm.ascent() + fm.height() + 6, directory);
 
     QString lineText = index.data(BookmarkManager::Note).toString().trimmed();
     if (lineText.isEmpty())
@@ -239,6 +213,20 @@ BookmarkView::BookmarkView(BookmarkManager *manager)  :
 BookmarkView::~BookmarkView()
 {
     ICore::removeContextObject(m_bookmarkContext);
+}
+
+QList<QToolButton *> BookmarkView::createToolBarWidgets() const
+{
+    Command *prevCmd = ActionManager::command(Constants::BOOKMARKS_PREV_ACTION);
+    Command *nextCmd = ActionManager::command(Constants::BOOKMARKS_NEXT_ACTION);
+    QTC_ASSERT(prevCmd && nextCmd, return {});
+    auto prevButton = new QToolButton;
+    prevButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    prevButton->setDefaultAction(prevCmd->action());
+    auto nextButton = new QToolButton;
+    nextButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    nextButton->setDefaultAction(nextCmd->action());
+    return {prevButton, nextButton};
 }
 
 void BookmarkView::contextMenuEvent(QContextMenuEvent *event)
@@ -382,17 +370,17 @@ QVariant BookmarkManager::data(const QModelIndex &index, int role) const
 
     Bookmark *bookMark = m_bookmarksList.at(index.row());
     if (role == BookmarkManager::Filename)
-        return FileName::fromString(bookMark->fileName()).fileName();
+        return bookMark->fileName().fileName();
     if (role == BookmarkManager::LineNumber)
         return bookMark->lineNumber();
     if (role == BookmarkManager::Directory)
-        return QFileInfo(bookMark->fileName()).path();
+        return bookMark->fileName().toFileInfo().path();
     if (role == BookmarkManager::LineText)
         return bookMark->lineText();
     if (role == BookmarkManager::Note)
         return bookMark->note();
     if (role == Qt::ToolTipRole)
-        return QDir::toNativeSeparators(bookMark->fileName());
+        return bookMark->fileName().toUserOutput();
     return QVariant();
 }
 
@@ -420,7 +408,7 @@ QMimeData *BookmarkManager::mimeData(const QModelIndexList &indexes) const
         if (!index.isValid() || index.column() != 0 || index.row() < 0 || index.row() >= m_bookmarksList.count())
             continue;
         Bookmark *bookMark = m_bookmarksList.at(index.row());
-        data->addFile(bookMark->fileName(), bookMark->lineNumber());
+        data->addFile(bookMark->fileName().toString(), bookMark->lineNumber());
     }
     return data;
 }
@@ -439,8 +427,11 @@ void BookmarkManager::toggleBookmark(const FileName &fileName, int lineNumber)
 
     // Add a new bookmark if no bookmark existed on this line
     Bookmark *mark = new Bookmark(lineNumber, this);
-    mark->updateFileName(fileName.toString());
-    addBookmark(mark);
+    mark->updateFileName(fileName);
+    const QModelIndex currentIndex = selectionModel()->currentIndex();
+    const int insertionIndex = currentIndex.isValid() ? currentIndex.row() + 1
+                                                      : m_bookmarksList.size();
+    insertBookmark(insertionIndex, mark);
 }
 
 void BookmarkManager::updateBookmark(Bookmark *bookmark)
@@ -455,11 +446,11 @@ void BookmarkManager::updateBookmark(Bookmark *bookmark)
 
 void BookmarkManager::updateBookmarkFileName(Bookmark *bookmark, const QString &oldFileName)
 {
-    if (oldFileName == bookmark->fileName())
+    if (oldFileName == bookmark->fileName().toString())
         return;
 
     m_bookmarksMap[Utils::FileName::fromString(oldFileName)].removeAll(bookmark);
-    m_bookmarksMap[Utils::FileName::fromString(bookmark->fileName())].append(bookmark);
+    m_bookmarksMap[bookmark->fileName()].append(bookmark);
     updateBookmark(bookmark);
 }
 
@@ -480,7 +471,7 @@ void BookmarkManager::deleteBookmark(Bookmark *bookmark)
     int idx = m_bookmarksList.indexOf(bookmark);
     beginRemoveRows(QModelIndex(), idx, idx);
 
-    m_bookmarksMap[Utils::FileName::fromString(bookmark->fileName())].removeAll(bookmark);
+    m_bookmarksMap[bookmark->fileName()].removeAll(bookmark);
     delete bookmark;
 
     m_bookmarksList.removeAt(idx);
@@ -496,13 +487,14 @@ void BookmarkManager::deleteBookmark(Bookmark *bookmark)
 Bookmark *BookmarkManager::bookmarkForIndex(const QModelIndex &index) const
 {
     if (!index.isValid() || index.row() >= m_bookmarksList.size())
-        return 0;
+        return nullptr;
     return m_bookmarksList.at(index.row());
 }
 
 bool BookmarkManager::gotoBookmark(const Bookmark *bookmark) const
 {
-    if (IEditor *editor = EditorManager::openEditorAt(bookmark->fileName(), bookmark->lineNumber()))
+    if (IEditor *editor = EditorManager::openEditorAt(bookmark->fileName().toString(),
+                                                      bookmark->lineNumber()))
         return editor->currentLine() == bookmark->lineNumber();
     return false;
 }
@@ -588,7 +580,8 @@ void BookmarkManager::prev()
     QModelIndex current = selectionModel()->currentIndex();
     if (!current.isValid())
         return;
-
+    if (!isAtCurrentBookmark() && gotoBookmark(bookmarkForIndex(current)))
+        return;
     int row = current.row();
     while (true) {
         if (row == 0)
@@ -715,23 +708,30 @@ Bookmark *BookmarkManager::findBookmark(const FileName &filePath, int lineNumber
                                 Utils::equal(&Bookmark::lineNumber, lineNumber));
 }
 
-/* Adds a bookmark to the internal data structures. The 'userset' parameter
- * determines whether action status should be updated and whether the bookmarks
- * should be saved to the session settings.
- */
-void BookmarkManager::addBookmark(Bookmark *bookmark, bool userset)
+void BookmarkManager::insertBookmark(int idx, Bookmark *bookmark, bool userset)
 {
-    beginInsertRows(QModelIndex(), m_bookmarksList.size(), m_bookmarksList.size());
+    idx = qBound(0, idx, m_bookmarksList.size());
+    beginInsertRows(QModelIndex(), idx, idx);
 
-    m_bookmarksMap[FileName::fromString(bookmark->fileName())].append(bookmark);
-    m_bookmarksList.append(bookmark);
+    m_bookmarksMap[bookmark->fileName()].append(bookmark);
+    m_bookmarksList.insert(idx, bookmark);
 
     endInsertRows();
     if (userset) {
         updateActionStatus();
         saveBookmarks();
     }
-    selectionModel()->setCurrentIndex(index(m_bookmarksList.size()-1 , 0, QModelIndex()), QItemSelectionModel::Select | QItemSelectionModel::Clear);
+    selectionModel()->setCurrentIndex(index(idx, 0, QModelIndex()),
+                                      QItemSelectionModel::Select | QItemSelectionModel::Clear);
+}
+
+/* Adds a bookmark to the internal data structures. The 'userset' parameter
+ * determines whether action status should be updated and whether the bookmarks
+ * should be saved to the session settings.
+ */
+void BookmarkManager::addBookmark(Bookmark *bookmark, bool userset)
+{
+    insertBookmark(m_bookmarksList.size(), bookmark, userset);
 }
 
 /* Adds a new bookmark based on information parsed from the string. */
@@ -750,7 +750,7 @@ void BookmarkManager::addBookmark(const QString &s)
         const int lineNumber = s.midRef(index2 + 1, index3 - index2 - 1).toInt();
         if (!filePath.isEmpty() && !findBookmark(FileName::fromString(filePath), lineNumber)) {
             Bookmark *b = new Bookmark(lineNumber, this);
-            b->updateFileName(filePath);
+            b->updateFileName(FileName::fromString(filePath));
             b->setNote(note);
             addBookmark(b, false);
         }
@@ -765,7 +765,7 @@ QString BookmarkManager::bookmarkToString(const Bookmark *b)
     const QLatin1Char colon(':');
     // Using \t as delimiter because any another symbol can be a part of note.
     const QLatin1Char noteDelimiter('\t');
-    return colon + b->fileName() +
+    return colon + b->fileName().toString() +
             colon + QString::number(b->lineNumber()) +
             noteDelimiter + b->note();
 }
@@ -791,6 +791,17 @@ void BookmarkManager::loadBookmarks()
     updateActionStatus();
 }
 
+bool BookmarkManager::isAtCurrentBookmark() const
+{
+    Bookmark *bk = bookmarkForIndex(selectionModel()->currentIndex());
+    if (!bk)
+        return true;
+    IEditor *currentEditor = EditorManager::currentEditor();
+    return currentEditor
+           && currentEditor->document()->filePath() == bk->fileName()
+           && currentEditor->currentLine() == bk->lineNumber();
+}
+
 // BookmarkViewFactory
 
 BookmarkViewFactory::BookmarkViewFactory(BookmarkManager *bm)
@@ -799,12 +810,15 @@ BookmarkViewFactory::BookmarkViewFactory(BookmarkManager *bm)
     setDisplayName(BookmarkView::tr("Bookmarks"));
     setPriority(300);
     setId("Bookmarks");
-    setActivationSequence(QKeySequence(UseMacShortcuts ? tr("Alt+Meta+M") : tr("Alt+M")));
+    setActivationSequence(QKeySequence(useMacShortcuts ? tr("Alt+Meta+M") : tr("Alt+M")));
 }
 
 NavigationView BookmarkViewFactory::createWidget()
 {
-    return NavigationView(new BookmarkView(m_manager));
+    auto view = new BookmarkView(m_manager);
+    auto navview = NavigationView(view);
+    navview.dockToolBarWidgets = view->createToolBarWidgets();
+    return navview;
 }
 
 } // namespace Internal

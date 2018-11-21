@@ -122,7 +122,7 @@ class PROJECTEXPLORER_EXPORT IBuildConfigurationFactory : public QObject
 
 protected:
     IBuildConfigurationFactory();
-    ~IBuildConfigurationFactory();
+    ~IBuildConfigurationFactory() override;
 
 public:
     // The priority is negative if this factory can not create anything for the target.
@@ -139,18 +139,11 @@ public:
 
     BuildConfiguration *create(Target *parent, const BuildInfo *info) const;
 
-    // used to recreate the runConfigurations when restoring settings
-    bool canRestore(const Target *parent, const QVariantMap &map) const;
-    BuildConfiguration *restore(Target *parent, const QVariantMap &map);
-    bool canClone(const Target *parent, BuildConfiguration *product) const;
-    BuildConfiguration *clone(Target *parent, BuildConfiguration *product);
+    static BuildConfiguration *restore(Target *parent, const QVariantMap &map);
+    static BuildConfiguration *clone(Target *parent, const BuildConfiguration *source);
 
-    static IBuildConfigurationFactory *find(Target *parent, const QVariantMap &map);
     static IBuildConfigurationFactory *find(const Kit *k, const QString &projectPath);
     static IBuildConfigurationFactory *find(Target *parent);
-    static IBuildConfigurationFactory *find(Target *parent, BuildConfiguration *bc);
-
-    virtual bool canHandle(const ProjectExplorer::Target *t) const;
 
 protected:
     bool supportsTargetDeviceType(Core::Id id) const;
@@ -166,11 +159,13 @@ protected:
     void registerBuildConfiguration(Core::Id buildConfigId)
     {
         setObjectName(buildConfigId.toString() + "BuildConfigurationFactory");
-        m_creator = [](Target *t) { return new BuildConfig(t); };
+        m_creator = [buildConfigId](Target *t) { return new BuildConfig(t, buildConfigId); };
         m_buildConfigId = buildConfigId;
     }
 
 private:
+    bool canHandle(const ProjectExplorer::Target *t) const;
+
     BuildConfigurationCreator m_creator;
     Core::Id m_buildConfigId;
     Core::Id m_supportedProjectType;

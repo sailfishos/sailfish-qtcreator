@@ -353,6 +353,15 @@ bool QbsGroupNode::renameFile(const QString &filePath, const QString &newFilePat
                                                    prdNode->qbsProductData(), m_qbsGroupData);
 }
 
+FolderNode::AddNewInformation QbsGroupNode::addNewInformation(const QStringList &files,
+                                                              Node *context) const
+{
+    AddNewInformation info = QbsBaseProjectNode::addNewInformation(files, context);
+    if (context != this)
+        --info.priority;
+    return info;
+}
+
 // --------------------------------------------------------------------
 // QbsProductNode:
 // --------------------------------------------------------------------
@@ -427,24 +436,6 @@ bool QbsProductNode::renameFile(const QString &filePath, const QString &newFileP
     const qbs::GroupData grp = findMainQbsGroup(m_qbsProductData);
     QTC_ASSERT(grp.isValid(), return false);
     return prjNode->project()->renameFileInProduct(filePath, newFilePath, m_qbsProductData, grp);
-}
-
-QList<ProjectExplorer::RunConfiguration *> QbsProductNode::runConfigurations() const
-{
-    QList<ProjectExplorer::RunConfiguration *> result;
-    auto pn = dynamic_cast<const QbsProjectNode *>(managingProject());
-    if (!isEnabled() || !pn || m_qbsProductData.targetExecutable().isEmpty())
-        return result;
-
-    foreach (ProjectExplorer::RunConfiguration *rc, pn->project()->activeTarget()->runConfigurations()) {
-        QbsRunConfiguration *qbsRc = qobject_cast<QbsRunConfiguration *>(rc);
-        if (!qbsRc)
-            continue;
-        if (qbsRc->uniqueProductName() == QbsProject::uniqueProductName(qbsProductData()))
-            result << qbsRc;
-    }
-
-    return result;
 }
 
 // --------------------------------------------------------------------

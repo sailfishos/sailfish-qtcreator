@@ -45,13 +45,11 @@
 
 namespace Core { class IDocument; }
 namespace CppTools { class CppProjectUpdater; }
-namespace ProjectExplorer { class BuildConfiguration; }
 
 namespace QbsProjectManager {
 namespace Internal {
 
 class QbsProjectParser;
-class QbsBuildConfiguration;
 
 class QbsProject : public ProjectExplorer::Project
 {
@@ -124,7 +122,6 @@ private:
     void prepareForParsing();
     void updateDocuments(const QSet<QString> &files);
     void updateCppCodeModel();
-    void updateCppCompilerCallData();
     void updateQmlJsCodeModel();
     void updateApplicationTargets();
     void updateDeploymentInfo();
@@ -134,11 +131,10 @@ private:
     void updateAfterParse();
     void delayedUpdateAfterParse();
     void updateProjectNodes();
+    Utils::FileName installRoot();
 
     void projectLoaded() override;
     ProjectExplorer::ProjectImporter *projectImporter() const override;
-    bool needsConfiguration() const override { return targets().isEmpty(); }
-    bool requiresTargetPanel() const override { return !targets().isEmpty(); }
 
     static bool ensureWriteableQbsFile(const QString &file);
 
@@ -146,8 +142,8 @@ private:
             const QStringList &productNames, QString &error);
 
     QHash<ProjectExplorer::Target *, qbs::Project> m_qbsProjects;
-    qbs::Project m_qbsProject;
-    qbs::ProjectData m_projectData;
+    qbs::Project m_qbsProject; // for activeTarget()
+    qbs::ProjectData m_projectData; // Cached m_qbsProject.projectData()
     QSet<Core::IDocument *> m_qbsDocuments;
 
     QbsProjectParser *m_qbsProjectParser;

@@ -35,6 +35,7 @@
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectexplorericons.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
@@ -71,10 +72,7 @@ QbsProfilesSettingsPage::QbsProfilesSettingsPage(QObject *parent)
 {
     setId("Y.QbsProfiles");
     setDisplayName(QCoreApplication::translate("QbsProjectManager", "Qbs"));
-    setCategory(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
-       ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
+    setCategory(ProjectExplorer::Constants::KITS_SETTINGS_CATEGORY);
 }
 
 QWidget *QbsProfilesSettingsPage::widget()
@@ -102,7 +100,7 @@ void QbsProfilesSettingsPage::finish()
 
 QbsProfilesSettingsWidget::QbsProfilesSettingsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_model(QbsProjectManagerSettings::qbsSettingsBaseDir())
+    , m_model(QbsProjectManagerSettings::qbsSettingsBaseDir(), qbs::Settings::UserScope)
 {
     m_model.setEditable(false);
     m_ui.setupUi(this);
@@ -167,7 +165,7 @@ void QbsProfilesSettingsWidget::displayCurrentProfile()
     const Core::Id kitId = Core::Id::fromSetting(m_ui.kitsComboBox->currentData());
     const ProjectExplorer::Kit * const kit = ProjectExplorer::KitManager::kit(kitId);
     QTC_ASSERT(kit, return);
-    const QString profileName = QbsManager::instance()->profileForKit(kit);
+    const QString profileName = QbsManager::profileForKit(kit);
     m_ui.profileValueLabel->setText(profileName);
     for (int i = 0; i < m_model.rowCount(); ++i) {
         const QModelIndex profilesIndex = m_model.index(i, 0);

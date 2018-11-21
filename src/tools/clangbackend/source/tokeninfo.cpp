@@ -23,8 +23,6 @@
 **
 ****************************************************************************/
 
-#include <tokeninfocontainer.h>
-
 #include "clangstring.h"
 #include "cursor.h"
 #include "tokeninfo.h"
@@ -32,7 +30,7 @@
 #include "sourcerange.h"
 #include "sourcerangecontainer.h"
 
-#include <QDebug>
+#include <array>
 
 namespace ClangBackEnd {
 
@@ -40,8 +38,10 @@ TokenInfo::TokenInfo(const CXCursor &cxCursor,
                      CXToken *cxToken,
                      CXTranslationUnit cxTranslationUnit,
                      std::vector<CXSourceRange> &currentOutputArgumentRanges)
-    : m_currentOutputArgumentRanges(&currentOutputArgumentRanges),
-      m_originalCursor(cxCursor)
+    : m_originalCursor(cxCursor),
+      m_cxToken(cxToken),
+      m_cxTranslationUnit(cxTranslationUnit),
+      m_currentOutputArgumentRanges(&currentOutputArgumentRanges)
 {
     const SourceRange sourceRange {cxTranslationUnit,
                                    clang_getTokenExtent(cxTranslationUnit, *cxToken)};
@@ -52,24 +52,6 @@ TokenInfo::TokenInfo(const CXCursor &cxCursor,
     m_column = start.column();
     m_offset = start.offset();
     m_length = end.offset() - start.offset();
-    collectKinds(cxTranslationUnit, cxToken, m_originalCursor);
-}
-
-TokenInfo::TokenInfo(uint line, uint column, uint length, HighlightingTypes types)
-    : m_line(line),
-      m_column(column),
-      m_length(length),
-      m_types(types)
-{
-}
-
-TokenInfo::TokenInfo(uint line, uint column, uint length, HighlightingType type)
-    : m_line(line),
-      m_column(column),
-      m_length(length),
-      m_types(HighlightingTypes())
-{
-    m_types.mainHighlightingType = type;
 }
 
 bool TokenInfo::hasInvalidMainType() const
@@ -113,14 +95,10 @@ bool TokenInfo::hasFunctionArguments() const
 
 TokenInfo::operator TokenInfoContainer() const
 {
-    return TokenInfoContainer(m_line, m_column, m_length, m_types, m_token, m_typeSpelling,
-                              m_isIdentifier, m_isInclusion,
-                              m_isDeclaration, m_isDefinition);
+    return TokenInfoContainer(m_line, m_column, m_length, m_types);
 }
 
-namespace {
-
-bool isFinalFunction(const Cursor &cursor)
+static bool isFinalFunction(const Cursor &cursor)
 {
     auto referencedCursor = cursor.referenced();
     if (referencedCursor.hasFinalFunctionAttribute())
@@ -129,14 +107,13 @@ bool isFinalFunction(const Cursor &cursor)
         return false;
 }
 
-bool isFunctionInFinalClass(const Cursor &cursor)
+static bool isFunctionInFinalClass(const Cursor &cursor)
 {
     auto functionBase = cursor.functionBaseDeclaration();
     if (functionBase.isValid() && functionBase.hasFinalClassAttribute())
         return true;
 
     return false;
-}
 }
 
 void TokenInfo::memberReferenceKind(const Cursor &cursor)
@@ -148,22 +125,6 @@ void TokenInfo::memberReferenceKind(const Cursor &cursor)
             m_types.mainHighlightingType = HighlightingType::VirtualFunction;
     } else {
         identifierKind(cursor.referenced(), Recursion::RecursivePass);
-    }
-}
-
-void TokenInfo::referencedTypeKind(const Cursor &cursor)
-{
-    const Cursor referencedCursor = cursor.referenced();
-
-    switch (referencedCursor.kind()) {
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
-        case CXCursor_TypedefDecl:
-        case CXCursor_TemplateTypeParameter:
-        case CXCursor_TypeAliasDecl:
-        case CXCursor_EnumDecl:              m_types.mainHighlightingType = HighlightingType::Type; break;
-        default:                             m_types.mainHighlightingType = HighlightingType::Invalid; break;
     }
 }
 
@@ -192,12 +153,33 @@ void TokenInfo::variableKind(const Cursor &cursor)
         m_types.mixinHighlightingTypes.push_back(HighlightingType::OutputArgument);
 }
 
-void TokenInfo::fieldKind(const Cursor &)
+void TokenInfo::fieldKind(const Cursor &cursor)
 {
     m_types.mainHighlightingType = HighlightingType::Field;
 
-    if (isOutputArgument())
-        m_types.mixinHighlightingTypes.push_back(HighlightingType::OutputArgument);
+    const CXCursorKind kind = cursor.kind();
+    switch (kind) {
+        default:
+            m_types.mainHighlightingType = HighlightingType::Invalid;
+            return;
+        case CXCursor_ObjCPropertyDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCProperty);
+            Q_FALLTHROUGH();
+        case CXCursor_FieldDecl:
+        case CXCursor_MemberRef:
+            if (isOutputArgument())
+                m_types.mixinHighlightingTypes.push_back(HighlightingType::OutputArgument);
+            return;
+        case CXCursor_ObjCClassMethodDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCMethod);
+            return;
+        case CXCursor_ObjCIvarDecl:
+        case CXCursor_ObjCInstanceMethodDecl:
+        case CXCursor_ObjCSynthesizeDecl:
+        case CXCursor_ObjCDynamicDecl:
+            return;
+    }
+
 }
 
 bool TokenInfo::isDefinition() const
@@ -211,12 +193,11 @@ bool TokenInfo::isVirtualMethodDeclarationOrDefinition(const Cursor &cursor) con
         && (m_originalCursor.isDeclaration() || m_originalCursor.isDefinition());
 }
 
-namespace {
-bool isNotFinalFunction(const Cursor &cursor)
+static bool isNotFinalFunction(const Cursor &cursor)
 {
     return !cursor.hasFinalFunctionAttribute();
 }
-}
+
 bool TokenInfo::isRealDynamicCall(const Cursor &cursor) const
 {
     return m_originalCursor.isDynamicCall() && isNotFinalFunction(cursor);
@@ -261,9 +242,7 @@ void TokenInfo::collectOutputArguments(const Cursor &cursor)
     filterOutPreviousOutputArguments();
 }
 
-namespace {
-
-uint getEnd(CXSourceRange cxSourceRange)
+static uint getEnd(CXSourceRange cxSourceRange)
 {
     CXSourceLocation startSourceLocation = clang_getRangeEnd(cxSourceRange);
 
@@ -272,7 +251,6 @@ uint getEnd(CXSourceRange cxSourceRange)
     clang_getFileLocation(startSourceLocation, nullptr, nullptr, nullptr, &endOffset);
 
     return endOffset;
-}
 }
 
 void TokenInfo::filterOutPreviousOutputArguments()
@@ -304,47 +282,135 @@ void TokenInfo::functionKind(const Cursor &cursor, Recursion recursion)
         addExtraTypeIfFirstPass(HighlightingType::FunctionDefinition, recursion);
 }
 
+void TokenInfo::referencedTypeKind(const Cursor &cursor)
+{
+    typeKind(cursor.referenced());
+}
+
+void TokenInfo::typeKind(const Cursor &cursor)
+{
+    m_types.mainHighlightingType = HighlightingType::Type;
+    const CXCursorKind kind = cursor.kind();
+    switch (kind) {
+        default:
+            m_types.mainHighlightingType = HighlightingType::Invalid;
+            return;
+        case CXCursor_TemplateRef:
+        case CXCursor_NamespaceRef:
+        case CXCursor_TypeRef:
+            referencedTypeKind(cursor);
+            return;
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplatePartialSpecialization:
+        case CXCursor_ClassDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Class);
+            return;
+        case CXCursor_UnionDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Union);
+            return;
+        case CXCursor_StructDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Struct);
+            return;
+        case CXCursor_EnumDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Enum);
+            return;
+        case CXCursor_NamespaceAlias:
+        case CXCursor_Namespace:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Namespace);
+            return;
+        case CXCursor_TypeAliasDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::TypeAlias);
+            return;
+        case CXCursor_TypedefDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Typedef);
+            return;
+        case CXCursor_ObjCClassRef:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCClass);
+            return;
+        case CXCursor_ObjCProtocolDecl:
+        case CXCursor_ObjCProtocolRef:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCProtocol);
+            return;
+        case CXCursor_ObjCInterfaceDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCInterface);
+            return;
+        case CXCursor_ObjCImplementationDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCImplementation);
+            return;
+        case CXCursor_ObjCCategoryDecl:
+        case CXCursor_ObjCCategoryImplDecl:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::ObjectiveCCategory);
+            return;
+        case CXCursor_TemplateTypeParameter:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::TemplateTypeParameter);
+            return;
+        case CXCursor_TemplateTemplateParameter:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::TemplateTemplateParameter);
+            return;
+        case CXCursor_ObjCSuperClassRef:
+        case CXCursor_CXXStaticCastExpr:
+        case CXCursor_CXXReinterpretCastExpr:
+            break;
+    }
+}
+
 void TokenInfo::identifierKind(const Cursor &cursor, Recursion recursion)
 {
-    m_isIdentifier = (cursor.kind() != CXCursor_PreprocessingDirective);
-
     if (cursor.isInvalidDeclaration())
         return;
 
-    switch (cursor.kind()) {
+    const CXCursorKind kind = cursor.kind();
+    switch (kind) {
         case CXCursor_Destructor:
         case CXCursor_Constructor:
         case CXCursor_FunctionDecl:
+        case CXCursor_FunctionTemplate:
         case CXCursor_CallExpr:
-        case CXCursor_CXXMethod:                 functionKind(cursor, recursion); break;
-        case CXCursor_NonTypeTemplateParameter:  m_types.mainHighlightingType = HighlightingType::LocalVariable; break;
+        case CXCursor_CXXMethod:
+            functionKind(cursor, recursion);
+            break;
+        case CXCursor_NonTypeTemplateParameter:
+            m_types.mainHighlightingType = HighlightingType::LocalVariable;
+            break;
         case CXCursor_ParmDecl:
-        case CXCursor_VarDecl:                   variableKind(cursor); break;
-        case CXCursor_DeclRefExpr:               identifierKind(cursor.referenced(), Recursion::RecursivePass); break;
-        case CXCursor_MemberRefExpr:             memberReferenceKind(cursor); break;
+        case CXCursor_VarDecl:
+            variableKind(cursor);
+            break;
+        case CXCursor_DeclRefExpr:
+            identifierKind(cursor.referenced(), Recursion::RecursivePass);
+            break;
+        case CXCursor_MemberRefExpr:
+            memberReferenceKind(cursor);
+            break;
         case CXCursor_FieldDecl:
-        case CXCursor_MemberRef:                 fieldKind(cursor); break;
-        case CXCursor_ObjCIvarDecl:
+        case CXCursor_MemberRef:
         case CXCursor_ObjCPropertyDecl:
+        case CXCursor_ObjCIvarDecl:
         case CXCursor_ObjCClassMethodDecl:
         case CXCursor_ObjCInstanceMethodDecl:
         case CXCursor_ObjCSynthesizeDecl:
-        case CXCursor_ObjCDynamicDecl:           m_types.mainHighlightingType = HighlightingType::Field; break;
-        case CXCursor_TypeRef:                   referencedTypeKind(cursor); break;
+        case CXCursor_ObjCDynamicDecl:
+            fieldKind(cursor);
+            break;
+        case CXCursor_TemplateRef:
+        case CXCursor_NamespaceRef:
+        case CXCursor_TypeRef:
+            referencedTypeKind(cursor);
+            break;
         case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
         case CXCursor_ClassTemplatePartialSpecialization:
-        case CXCursor_TemplateTypeParameter:
-        case CXCursor_TemplateTemplateParameter:
         case CXCursor_UnionDecl:
         case CXCursor_StructDecl:
-        case CXCursor_TemplateRef:
+        case CXCursor_EnumDecl:
         case CXCursor_Namespace:
-        case CXCursor_NamespaceRef:
+            m_types.mixinHighlightingTypes.push_back(HighlightingType::Declaration);
+            Q_FALLTHROUGH();
+        case CXCursor_TemplateTypeParameter:
+        case CXCursor_TemplateTemplateParameter:
         case CXCursor_NamespaceAlias:
         case CXCursor_TypeAliasDecl:
         case CXCursor_TypedefDecl:
-        case CXCursor_ClassTemplate:
-        case CXCursor_EnumDecl:
         case CXCursor_CXXStaticCastExpr:
         case CXCursor_CXXReinterpretCastExpr:
         case CXCursor_ObjCCategoryDecl:
@@ -354,80 +420,295 @@ void TokenInfo::identifierKind(const Cursor &cursor, Recursion recursion)
         case CXCursor_ObjCProtocolDecl:
         case CXCursor_ObjCProtocolRef:
         case CXCursor_ObjCClassRef:
-        case CXCursor_ObjCSuperClassRef:         m_types.mainHighlightingType = HighlightingType::Type; break;
-        case CXCursor_OverloadedDeclRef:         overloadedDeclRefKind(cursor); break;
-        case CXCursor_FunctionTemplate:          m_types.mainHighlightingType = HighlightingType::Function; break;
-        case CXCursor_EnumConstantDecl:          m_types.mainHighlightingType = HighlightingType::Enumeration; break;
-        case CXCursor_PreprocessingDirective:    m_types.mainHighlightingType = HighlightingType::Preprocessor; break;
-        case CXCursor_MacroExpansion:            m_types.mainHighlightingType = HighlightingType::PreprocessorExpansion; break;
-        case CXCursor_MacroDefinition:           m_types.mainHighlightingType = HighlightingType::PreprocessorDefinition; break;
-        case CXCursor_InclusionDirective:        m_types.mainHighlightingType = HighlightingType::StringLiteral; break;
+        case CXCursor_ObjCSuperClassRef:
+            typeKind(cursor);
+            break;
+        case CXCursor_OverloadedDeclRef:
+            overloadedDeclRefKind(cursor);
+            break;
+        case CXCursor_EnumConstantDecl:
+            m_types.mainHighlightingType = HighlightingType::Enumeration;
+            break;
+        case CXCursor_PreprocessingDirective:
+            m_types.mainHighlightingType = HighlightingType::Preprocessor;
+            break;
+        case CXCursor_MacroExpansion:
+            m_types.mainHighlightingType = HighlightingType::PreprocessorExpansion;
+            break;
+        case CXCursor_MacroDefinition:
+            m_types.mainHighlightingType = HighlightingType::PreprocessorDefinition;
+            break;
+        case CXCursor_InclusionDirective:
+            m_types.mainHighlightingType = HighlightingType::StringLiteral;
+            break;
         case CXCursor_LabelRef:
-        case CXCursor_LabelStmt:                 m_types.mainHighlightingType = HighlightingType::Label; break;
-        default:                                 break;
+        case CXCursor_LabelStmt:
+            m_types.mainHighlightingType = HighlightingType::Label;
+            break;
+        case CXCursor_InvalidFile:
+            invalidFileKind();
+            break;
+        default:
+            break;
     }
 }
 
-namespace {
-HighlightingType literalKind(const Cursor &cursor)
+static HighlightingType literalKind(const Cursor &cursor)
 {
     switch (cursor.kind()) {
         case CXCursor_CharacterLiteral:
         case CXCursor_StringLiteral:
         case CXCursor_InclusionDirective:
-        case CXCursor_ObjCStringLiteral: return HighlightingType::StringLiteral;
+        case CXCursor_ObjCStringLiteral:
+            return HighlightingType::StringLiteral;
         case CXCursor_IntegerLiteral:
         case CXCursor_ImaginaryLiteral:
-        case CXCursor_FloatingLiteral:   return HighlightingType::NumberLiteral;
-        default:                         return HighlightingType::Invalid;
+        case CXCursor_FloatingLiteral:
+            return HighlightingType::NumberLiteral;
+        default:
+            return HighlightingType::Invalid;
     }
 
     Q_UNREACHABLE();
 }
 
-bool hasOperatorName(const char *operatorString)
+static bool isTokenPartOfOperator(const Cursor &declarationCursor, CXToken *token)
 {
-    return std::strncmp(operatorString, "operator", 8) == 0;
+    Q_ASSERT(declarationCursor.isDeclaration());
+    const CXTranslationUnit cxTranslationUnit = declarationCursor.cxTranslationUnit();
+    const ClangString tokenName = clang_getTokenSpelling(cxTranslationUnit, *token);
+    if (tokenName == "operator")
+        return true;
+
+    if (tokenName == "(") {
+        // Valid operator declarations have at least one token after '(' so
+        // it's safe to proceed to token + 1 without extra checks.
+        const ClangString nextToken = clang_getTokenSpelling(cxTranslationUnit, *(token + 1));
+        if (nextToken != ")") {
+            // Argument lists' parentheses are not operator tokens.
+            // This '('-token opens a (non-empty) argument list.
+            return false;
+        }
+    }
+
+    // It's safe to evaluate the preceding token because we will at least have
+    // the 'operator'-keyword's token to the left.
+    CXToken *prevToken = token - 1;
+    if (clang_getTokenKind(*prevToken) == CXToken_Punctuation) {
+        if (tokenName == "(") {
+            // In an operator declaration, when a '(' follows another punctuation
+            // then this '(' opens an argument list. Ex: operator*()|operator()().
+            return false;
+        }
+
+        // This token is preceded by another punctuation token so this token
+        // could be the second token of a two-tokened operator such as
+        // operator+=|-=|*=|/=|<<|==|<=|++ or the third token of operator
+        // new[]|delete[]. We decrement one more time to hit one of the keywords:
+        // "operator" / "delete" / "new".
+        --prevToken;
+    }
+
+    const ClangString precedingKeyword =
+            clang_getTokenSpelling(cxTranslationUnit, *prevToken);
+
+    return precedingKeyword == "operator" ||
+           precedingKeyword == "new" ||
+           precedingKeyword == "delete";
 }
 
-HighlightingType operatorKind(const Cursor &cursor)
+void TokenInfo::overloadedOperatorKind()
 {
-    if (hasOperatorName(cursor.spelling().cString()))
-        return HighlightingType::Operator;
-    else
-        return HighlightingType::Invalid;
+    bool inOperatorDeclaration = m_originalCursor.isDeclaration();
+    Cursor declarationCursor =
+            inOperatorDeclaration ? m_originalCursor :
+                                    m_originalCursor.referenced();
+    if (!declarationCursor.displayName().startsWith("operator"))
+        return;
+
+    if (inOperatorDeclaration && !isTokenPartOfOperator(declarationCursor, m_cxToken))
+        return;
+
+    if (m_types.mainHighlightingType == HighlightingType::Invalid)
+        m_types.mainHighlightingType = HighlightingType::Operator;
+    m_types.mixinHighlightingTypes.push_back(HighlightingType::OverloadedOperator);
 }
 
-}
-
-HighlightingType TokenInfo::punctuationKind(const Cursor &cursor)
+void TokenInfo::punctuationOrOperatorKind()
 {
-    HighlightingType highlightingType = HighlightingType::Invalid;
-
-    switch (cursor.kind()) {
-        case CXCursor_DeclRefExpr: highlightingType = operatorKind(cursor); break;
+    auto kind = m_originalCursor.kind();
+    switch (kind) {
+        case CXCursor_CallExpr:
+            collectOutputArguments(m_originalCursor);
+            Q_FALLTHROUGH();
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_DeclRefExpr:
+            // TODO(QTCREATORBUG-19948): Mark calls to overloaded new and delete.
+            // Today we can't because libclang sets these cursors' spelling to "".
+            // case CXCursor_CXXNewExpr:
+            // case CXCursor_CXXDeleteExpr:
+            overloadedOperatorKind();
+            break;
         case CXCursor_Constructor:
-        case CXCursor_CallExpr:    collectOutputArguments(cursor); break;
-        default:                   break;
+            collectOutputArguments(m_originalCursor);
+            break;
+        case CXCursor_UnaryOperator:
+        case CXCursor_BinaryOperator:
+        case CXCursor_CompoundAssignOperator:
+        case CXCursor_ConditionalOperator:
+            m_types.mainHighlightingType = HighlightingType::Operator;
+            break;
+        default:
+            break;
     }
 
     if (isOutputArgument())
         m_types.mixinHighlightingTypes.push_back(HighlightingType::OutputArgument);
-
-    return highlightingType;
 }
 
-static HighlightingType highlightingTypeForKeyword(CXTranslationUnit cxTranslationUnit,
-                                                   CXToken *cxToken,
-                                                   const Cursor &cursor)
+enum class QtMacroPart
 {
-    switch (cursor.kind()) {
-        case CXCursor_PreprocessingDirective: return HighlightingType::Preprocessor;
-        case CXCursor_InclusionDirective: return HighlightingType::StringLiteral;
-        default: break;
+    None,
+    SignalFunction,
+    SignalType,
+    SlotFunction,
+    SlotType,
+    Type,
+    Property,
+    Keyword,
+    FunctionOrPrimitiveType
+};
+
+static bool isFirstTokenOfCursor(const Cursor &cursor, CXToken *token)
+{
+    const CXTranslationUnit cxTranslationUnit = cursor.cxTranslationUnit();
+    const SourceLocation tokenLocation = SourceLocation(cxTranslationUnit,
+                                                        clang_getTokenLocation(cxTranslationUnit,
+                                                                               *token));
+    return cursor.sourceLocation() == tokenLocation;
+}
+
+static bool isLastTokenOfCursor(const Cursor &cursor, CXToken *token)
+{
+    const CXTranslationUnit cxTranslationUnit = cursor.cxTranslationUnit();
+    const SourceLocation tokenLocation = SourceLocation(cxTranslationUnit,
+                                                        clang_getTokenLocation(cxTranslationUnit,
+                                                                               *token));
+    return cursor.sourceRange().end() == tokenLocation;
+}
+
+static bool isValidMacroToken(const Cursor &cursor, CXToken *token)
+{
+    // Proper macro token has at least '(' and ')' around it.
+    return !isFirstTokenOfCursor(cursor, token) && !isLastTokenOfCursor(cursor, token);
+}
+
+static QtMacroPart propertyPart(CXTranslationUnit cxTranslationUnit, CXToken *token)
+{
+    static constexpr const char *propertyKeywords[]
+            = {"READ", "WRITE", "MEMBER", "RESET", "NOTIFY", "REVISION", "DESIGNABLE",
+               "SCRIPTABLE", "STORED", "USER", "CONSTANT", "FINAL"
+              };
+
+    const ClangString currentToken = clang_getTokenSpelling(cxTranslationUnit, *token);
+    if (std::find(std::begin(propertyKeywords), std::end(propertyKeywords), currentToken)
+            != std::end(propertyKeywords)) {
+        return QtMacroPart::Keyword;
     }
 
-    const ClangString spelling = clang_getTokenSpelling(cxTranslationUnit, *cxToken);
+    const ClangString nextToken = clang_getTokenSpelling(cxTranslationUnit, *(token + 1));
+    const ClangString previousToken = clang_getTokenSpelling(cxTranslationUnit, *(token - 1));
+    if (std::find(std::begin(propertyKeywords), std::end(propertyKeywords), nextToken)
+            != std::end(propertyKeywords)) {
+        if (std::find(std::begin(propertyKeywords), std::end(propertyKeywords), previousToken)
+                == std::end(propertyKeywords)) {
+            return QtMacroPart::Property;
+        }
+
+        return QtMacroPart::FunctionOrPrimitiveType;
+    }
+
+    if (std::find(std::begin(propertyKeywords), std::end(propertyKeywords), previousToken)
+            != std::end(propertyKeywords)) {
+        return QtMacroPart::FunctionOrPrimitiveType;
+    }
+    return QtMacroPart::Type;
+}
+
+static QtMacroPart signalSlotPart(CXTranslationUnit cxTranslationUnit, CXToken *token, bool signal)
+{
+    // We are inside macro so current token has at least '(' and macro name before it.
+    const ClangString prevToken = clang_getTokenSpelling(cxTranslationUnit, *(token - 2));
+    if (signal)
+        return (prevToken == "SIGNAL") ? QtMacroPart::SignalFunction : QtMacroPart::SignalType;
+    return (prevToken == "SLOT") ? QtMacroPart::SlotFunction : QtMacroPart::SlotType;
+}
+
+static QtMacroPart qtMacroPart(CXTranslationUnit cxTranslationUnit, CXToken *token)
+{
+    CXSourceLocation location = clang_getTokenLocation(cxTranslationUnit, *token);
+
+    // If current token is inside macro then the cursor from token's position will be
+    // the whole macro cursor.
+    Cursor possibleQtMacroCursor = clang_getCursor(cxTranslationUnit, location);
+    if (!isValidMacroToken(possibleQtMacroCursor, token))
+        return QtMacroPart::None;
+
+    ClangString spelling = possibleQtMacroCursor.spelling();
+    if (spelling == "Q_PROPERTY")
+        return propertyPart(cxTranslationUnit, token);
+
+    if (spelling == "SIGNAL")
+        return signalSlotPart(cxTranslationUnit, token, true);
+    if (spelling == "SLOT")
+        return signalSlotPart(cxTranslationUnit, token, false);
+    return QtMacroPart::None;
+}
+
+void TokenInfo::invalidFileKind()
+{
+    const QtMacroPart macroPart = qtMacroPart(m_cxTranslationUnit, m_cxToken);
+
+    switch (macroPart) {
+    case QtMacroPart::None:
+    case QtMacroPart::Keyword:
+        m_types.mainHighlightingType = HighlightingType::Invalid;
+        return;
+    case QtMacroPart::SignalFunction:
+    case QtMacroPart::SlotFunction:
+        m_types.mainHighlightingType = HighlightingType::Function;
+        break;
+    case QtMacroPart::SignalType:
+    case QtMacroPart::SlotType:
+        m_types.mainHighlightingType = HighlightingType::Type;
+        break;
+    case QtMacroPart::Property:
+        m_types.mainHighlightingType = HighlightingType::QtProperty;
+        return;
+    case QtMacroPart::Type:
+        m_types.mainHighlightingType = HighlightingType::Type;
+        return;
+    case QtMacroPart::FunctionOrPrimitiveType:
+        m_types.mainHighlightingType = HighlightingType::Function;
+        return;
+    }
+}
+
+void TokenInfo::keywordKind()
+{
+    switch (m_originalCursor.kind()) {
+        case CXCursor_PreprocessingDirective:
+            m_types.mainHighlightingType = HighlightingType::Preprocessor;
+            return;
+        case CXCursor_InclusionDirective:
+            m_types.mainHighlightingType = HighlightingType::StringLiteral;
+            return;
+        default:
+            break;
+    }
+
+    const ClangString spelling = clang_getTokenSpelling(m_cxTranslationUnit, *m_cxToken);
     if (spelling == "bool"
             || spelling == "char"
             || spelling == "char16_t"
@@ -441,35 +722,39 @@ static HighlightingType highlightingTypeForKeyword(CXTranslationUnit cxTranslati
             || spelling == "unsigned"
             || spelling == "void"
             || spelling == "wchar_t") {
-        return HighlightingType::PrimitiveType;
+        m_types.mainHighlightingType =  HighlightingType::PrimitiveType;
+        return;
     }
 
-    return HighlightingType::Keyword;
+    m_types.mainHighlightingType = HighlightingType::Keyword;
+
+    if (spelling == "new" || spelling == "delete" || spelling == "operator")
+        overloadedOperatorKind();
 }
 
-void TokenInfo::collectKinds(CXTranslationUnit cxTranslationUnit,
-                                    CXToken *cxToken, const Cursor &cursor)
+void TokenInfo::evaluate()
 {
-    auto cxTokenKind = clang_getTokenKind(*cxToken);
+    auto cxTokenKind = clang_getTokenKind(*m_cxToken);
 
     m_types = HighlightingTypes();
-    m_token = ClangString(clang_getTokenSpelling(cxTranslationUnit, *cxToken));
-    m_typeSpelling = cursor.type().utf8Spelling();
-
-    if (cxTokenKind == CXToken_Identifier) {
-        m_isDeclaration = cursor.isDeclaration();
-        m_isDefinition = cursor.isDefinition();
-    }
 
     switch (cxTokenKind) {
-        case CXToken_Keyword:     m_types.mainHighlightingType = highlightingTypeForKeyword(cxTranslationUnit, cxToken, m_originalCursor); break;
-        case CXToken_Punctuation: m_types.mainHighlightingType = punctuationKind(cursor); break;
-        case CXToken_Identifier:  identifierKind(cursor, Recursion::FirstPass); break;
-        case CXToken_Comment:     m_types.mainHighlightingType = HighlightingType::Comment; break;
-        case CXToken_Literal:     m_types.mainHighlightingType = literalKind(cursor); break;
+        case CXToken_Keyword:
+            keywordKind();
+            break;
+        case CXToken_Punctuation:
+            punctuationOrOperatorKind();
+            break;
+        case CXToken_Identifier:
+            identifierKind(m_originalCursor, Recursion::FirstPass);
+            break;
+        case CXToken_Comment:
+            m_types.mainHighlightingType = HighlightingType::Comment;
+            break;
+        case CXToken_Literal:
+            m_types.mainHighlightingType = literalKind(m_originalCursor);
+            break;
     }
-
-    m_isInclusion = (cursor.kind() == CXCursor_InclusionDirective);
 }
 
 } // namespace ClangBackEnd

@@ -38,7 +38,6 @@ Project {
 
         files: [
             "QtConcurrentTools",
-            "asconst.h",
             "algorithm.h",
             "annotateditemdelegate.cpp",
             "annotateditemdelegate.h",
@@ -156,7 +155,6 @@ Project {
             "outputformat.h",
             "outputformatter.cpp",
             "outputformatter.h",
-            "objectpool.h",
             "overridecursor.cpp",
             "overridecursor.h",
             "parameteraction.cpp",
@@ -168,6 +166,7 @@ Project {
             "persistentsettings.cpp",
             "persistentsettings.h",
             "predicates.h",
+            "pointeralgorithm.h",
             "port.cpp",
             "port.h",
             "portlist.cpp",
@@ -184,7 +183,6 @@ Project {
             "proxycredentialsdialog.cpp",
             "proxycredentialsdialog.h",
             "proxycredentialsdialog.ui",
-            "qtcfallthrough.h",
             "qtcassert.cpp",
             "qtcassert.h",
             "qtcolorbutton.cpp",

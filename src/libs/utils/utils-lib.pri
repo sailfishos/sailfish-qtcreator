@@ -131,6 +131,7 @@ HEADERS += \
     $$PWD/environment.h \
     $$PWD/environmentmodel.h \
     $$PWD/environmentdialog.h \
+    $$PWD/pointeralgorithm.h \
     $$PWD/qtcprocess.h \
     $$PWD/utils_global.h \
     $$PWD/reloadpromptutils.h \
@@ -233,7 +234,6 @@ HEADERS += \
     $$PWD/port.h \
     $$PWD/functiontraits.h \
     $$PWD/mapreduce.h \
-    $$PWD/objectpool.h \
     $$PWD/declarationmacros.h \
     $$PWD/smallstring.h \
     $$PWD/smallstringiterator.h \
@@ -244,13 +244,11 @@ HEADERS += \
     $$PWD/sizedarray.h \
     $$PWD/smallstringio.h \
     $$PWD/guard.h \
-    $$PWD/asconst.h \
     $$PWD/smallstringfwd.h \
     $$PWD/optional.h \
     $$PWD/../3rdparty/optional/optional.hpp \
     $$PWD/variant.h \
     $$PWD/../3rdparty/variant/variant.hpp \
-    $$PWD/qtcfallthrough.h \
     $$PWD/highlightingitemdelegate.h \
     $$PWD/fuzzymatcher.h \
     $$PWD/textutils.h \

@@ -32,8 +32,8 @@
 #include <pchmanagerclientproxy.h>
 #include <pchmanagerserverproxy.h>
 #include <precompiledheadersupdatedmessage.h>
-#include <removepchprojectpartsmessage.h>
-#include <updatepchprojectpartsmessage.h>
+#include <removeprojectpartsmessage.h>
+#include <updateprojectpartsmessage.h>
 
 #include <QBuffer>
 #include <QString>
@@ -41,10 +41,10 @@
 
 #include <vector>
 
-using ClangBackEnd::UpdatePchProjectPartsMessage;
+using ClangBackEnd::UpdateProjectPartsMessage;
 using ClangBackEnd::V2::FileContainer;
 using ClangBackEnd::V2::ProjectPartContainer;
-using ClangBackEnd::RemovePchProjectPartsMessage;
+using ClangBackEnd::RemoveProjectPartsMessage;
 using ClangBackEnd::PrecompiledHeadersUpdatedMessage;
 
 using ::testing::Args;
@@ -90,34 +90,36 @@ TEST_F(PchManagerClientServerInProcess, SendAliveMessage)
     scheduleClientMessages();
 }
 
-TEST_F(PchManagerClientServerInProcess, SendUpdatePchProjectPartsMessage)
+TEST_F(PchManagerClientServerInProcess, SendUpdateProjectPartsMessage)
 {
     ProjectPartContainer projectPart2{"projectPartId",
                                       {"-x", "c++-header", "-Wno-pragma-once-outside-header"},
-                                      {TESTDATA_DIR "/includecollector_header.h"},
-                                      {TESTDATA_DIR "/includecollector_main.cpp"}};
+                                      {{"DEFINE", "1"}},
+                                      {"/includes"},
+                                      {{1, 1}},
+                                      {{1, 2}}};
     FileContainer fileContainer{{"/path/to/", "file"}, "content", {}};
-    UpdatePchProjectPartsMessage message{{projectPart2}, {fileContainer}};
+    UpdateProjectPartsMessage message{{projectPart2}, {fileContainer}};
 
-    EXPECT_CALL(mockPchManagerServer, updatePchProjectParts(message));
+    EXPECT_CALL(mockPchManagerServer, updateProjectParts(message));
 
-    serverProxy.updatePchProjectParts(message.clone());
+    serverProxy.updateProjectParts(message.clone());
     scheduleServerMessages();
 }
 
-TEST_F(PchManagerClientServerInProcess, SendRemovePchProjectPartsMessage)
+TEST_F(PchManagerClientServerInProcess, SendRemoveProjectPartsMessage)
 {
-    RemovePchProjectPartsMessage message{{"projectPartId1", "projectPartId2"}};
+    RemoveProjectPartsMessage message{{"projectPartId1", "projectPartId2"}};
 
-    EXPECT_CALL(mockPchManagerServer, removePchProjectParts(message));
+    EXPECT_CALL(mockPchManagerServer, removeProjectParts(message));
 
-    serverProxy.removePchProjectParts(message.clone());
+    serverProxy.removeProjectParts(message.clone());
     scheduleServerMessages();
 }
 
 TEST_F(PchManagerClientServerInProcess, SendPrecompiledHeaderUpdatedMessage)
 {
-    PrecompiledHeadersUpdatedMessage message{{{"projectPartId", "/path/to/pch"}}};
+    PrecompiledHeadersUpdatedMessage message{{{"projectPartId", "/path/to/pch", 1}}};
 
 
     EXPECT_CALL(mockPchManagerClient, precompiledHeadersUpdated(message));

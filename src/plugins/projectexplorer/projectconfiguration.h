@@ -46,7 +46,7 @@ protected:
     explicit ProjectConfiguration(QObject *parent, Core::Id id);
 
 public:
-    ~ProjectConfiguration() = default;
+    ~ProjectConfiguration() override = default;
 
     Core::Id id() const;
 
@@ -71,9 +71,6 @@ public:
     virtual Project *project() const = 0;
 
     virtual bool isActive() const = 0;
-
-    // Used in settings to mangle in build targets in RunConfigurations.
-    virtual QString extraId() const;
 
     static QString settingsIdKey();
 

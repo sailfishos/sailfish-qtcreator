@@ -112,7 +112,7 @@ public:
     int m_nestedBlockingLevel = 0;
     bool m_autodetected = false;
     bool m_sdkProvided = false;
-    bool m_isValid = true;
+    bool m_hasError = false;
     bool m_hasWarning = false;
     bool m_hasValidityInfo = false;
     bool m_mustNotify = false;
@@ -162,21 +162,16 @@ Kit::Kit(const QVariantMap &data) :
     QVariantMap extra = data.value(QLatin1String(DATA_KEY)).toMap();
     d->m_data.clear(); // remove default values
     const QVariantMap::ConstIterator cend = extra.constEnd();
-    for (QVariantMap::ConstIterator it = extra.constBegin(); it != cend; ++it) {
-        const QString key = it.key();
-        if (!key.isEmpty())
-            d->m_data.insert(Id::fromString(key), it.value());
-    }
+    for (QVariantMap::ConstIterator it = extra.constBegin(); it != cend; ++it)
+        d->m_data.insert(Id::fromString(it.key()), it.value());
 
     QStringList mutableInfoList = data.value(QLatin1String(MUTABLE_INFO_KEY)).toStringList();
     foreach (const QString &mutableInfo, mutableInfoList)
-        if (!mutableInfo.isEmpty())
-            d->m_mutable.insert(Id::fromString(mutableInfo));
+        d->m_mutable.insert(Id::fromString(mutableInfo));
 
     QStringList stickyInfoList = data.value(QLatin1String(STICKY_INFO_KEY)).toStringList();
     foreach (const QString &stickyInfo, stickyInfoList)
-        if (!stickyInfo.isEmpty())
-            d->m_sticky.insert(Id::fromString(stickyInfo));
+        d->m_sticky.insert(Id::fromString(stickyInfo));
 }
 
 Kit::~Kit()
@@ -209,7 +204,7 @@ Kit *Kit::clone(bool keepName) const
     k->d->m_autodetected = false;
     k->d->m_data = d->m_data;
     // Do not clone m_fileSystemFriendlyName, needs to be unique
-    k->d->m_isValid = d->m_isValid;
+    k->d->m_hasError = d->m_hasError;
     k->d->m_cachedIcon = d->m_cachedIcon;
     k->d->m_iconPath = d->m_iconPath;
     k->d->m_sticky = d->m_sticky;
@@ -240,7 +235,7 @@ bool Kit::isValid() const
     if (!d->m_hasValidityInfo)
         validate();
 
-    return d->m_isValid;
+    return !d->m_hasError;
 }
 
 bool Kit::hasWarning() const
@@ -255,18 +250,13 @@ QList<Task> Kit::validate() const
 {
     QList<Task> result;
     QList<KitInformation *> infoList = KitManager::kitInformation();
-    d->m_isValid = true;
-    d->m_hasWarning = false;
-    foreach (KitInformation *i, infoList) {
+    for (KitInformation *i : infoList) {
         QList<Task> tmp = i->validate(this);
-        foreach (const Task &t, tmp) {
-            if (t.type == Task::Error)
-                d->m_isValid = false;
-            if (t.type == Task::Warning)
-                d->m_hasWarning = true;
-        }
         result.append(tmp);
     }
+    d->m_hasError = containsType(result, Task::TaskType::Error);
+    d->m_hasWarning = containsType(result, Task::TaskType::Warning);
+
     Utils::sort(result);
     d->m_hasValidityInfo = true;
     return result;
@@ -532,34 +522,15 @@ IOutputParser *Kit::createOutputParser() const
 
 QString Kit::toHtml(const QList<Task> &additional) const
 {
-    QString rc;
-    QTextStream str(&rc);
+    QString result;
+    QTextStream str(&result);
     str << "<html><body>";
     str << "<h3>" << displayName() << "</h3>";
+
+    if (!isValid() || hasWarning() || !additional.isEmpty())
+        str << "<p>" << ProjectExplorer::toHtml(additional + validate()) << "</p>";
+
     str << "<table>";
-
-    if (!isValid() || hasWarning() || !additional.isEmpty()) {
-        QList<Task> issues = additional;
-        issues.append(validate());
-        str << "<p>";
-        foreach (const Task &t, issues) {
-            str << "<b>";
-            switch (t.type) {
-            case Task::Error:
-                str << QCoreApplication::translate("ProjectExplorer::Kit", "Error:") << " ";
-                break;
-            case Task::Warning:
-                str << QCoreApplication::translate("ProjectExplorer::Kit", "Warning:") << " ";
-                break;
-            case Task::Unknown:
-            default:
-                break;
-            }
-            str << "</b>" << t.description << "<br>";
-        }
-        str << "</p>";
-    }
-
     QList<KitInformation *> infoList = KitManager::kitInformation();
     foreach (KitInformation *ki, infoList) {
         KitInformation::ItemList list = ki->toUserOutput(this);
@@ -576,7 +547,7 @@ QString Kit::toHtml(const QList<Task> &additional) const
         }
     }
     str << "</table></body></html>";
-    return rc;
+    return result;
 }
 
 void Kit::setAutoDetected(bool detected)

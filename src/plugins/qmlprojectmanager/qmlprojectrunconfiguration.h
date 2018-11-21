@@ -27,11 +27,9 @@
 
 #include "qmlprojectmanager_global.h"
 
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfiguration.h>
 
 namespace Core { class IEditor; }
-
-namespace QtSupport { class BaseQtVersion; }
 
 namespace QmlProjectManager {
 class QmlProject;
@@ -41,12 +39,11 @@ namespace Internal { class QmlProjectRunConfigurationWidget; }
 class QMLPROJECTMANAGER_EXPORT QmlProjectRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    friend class ProjectExplorer::IRunConfigurationFactory;
     friend class Internal::QmlProjectRunConfigurationWidget;
     friend class QmlProject; // to call updateEnabled()
 
 public:
-    explicit QmlProjectRunConfiguration(ProjectExplorer::Target *target);
+    QmlProjectRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     ProjectExplorer::Runnable runnable() const override;
 
@@ -60,10 +57,8 @@ public:
 
     QString mainScript() const;
 
-    // RunConfiguration
     QString disabledReason() const override;
-    virtual QWidget *createConfigurationWidget() override;
-    Utils::OutputFormatter *createOutputFormatter() const override;
+    QWidget *createConfigurationWidget() override;
     QVariantMap toMap() const override;
 
     ProjectExplorer::Abi abi() const override;
@@ -89,4 +84,13 @@ private:
     QString m_qmlViewerArgs;
 };
 
+namespace Internal {
+
+class QmlProjectRunConfigurationFactory : public ProjectExplorer::FixedRunConfigurationFactory
+{
+public:
+    QmlProjectRunConfigurationFactory();
+};
+
+} // namespace Internal
 } // namespace QmlProjectManager

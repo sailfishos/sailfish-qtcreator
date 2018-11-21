@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <ostream>
@@ -52,6 +53,13 @@ public:
     using std::array<T, MaxSize>::cbegin;
     using std::array<T, MaxSize>::rend;
     using std::array<T, MaxSize>::crend;
+
+    constexpr SizedArray() = default;
+    SizedArray(std::initializer_list<T> list)
+        : m_size(std::uint8_t(list.size()))
+    {
+        std::copy(list.begin(), list.end(), begin());
+    }
 
     constexpr size_type size() const
     {
@@ -108,6 +116,13 @@ public:
     void initializeElements()
     {
         std::array<T, MaxSize>::fill(T{});
+    }
+
+    bool contains(const T &item) const
+    {
+        return std::any_of(begin(), end(), [&item](const T &current) {
+            return item == current;
+        });
     }
 
     friend std::ostream &operator<<(std::ostream &out, SizedArray array)

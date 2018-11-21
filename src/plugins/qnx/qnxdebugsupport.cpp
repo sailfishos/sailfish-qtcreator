@@ -45,7 +45,7 @@
 #include <projectexplorer/kitchooser.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 
@@ -105,7 +105,7 @@ public:
 private:
     void start() final
     {
-        StandardRunnable r = runnable().as<StandardRunnable>();
+        Runnable r = runnable();
         QStringList arguments;
         if (m_portsGatherer->useGdbServer()) {
             Port pdebugPort = m_portsGatherer->gdbServerPort();
@@ -157,7 +157,6 @@ QnxDebugSupport::QnxDebugSupport(RunControl *runControl)
     setSolibSearchPath(searchPaths(k));
     if (auto qtVersion = dynamic_cast<QnxQtVersion *>(QtSupport::QtKitInformation::qtVersion(k)))
         setSysRoot(qtVersion->qnxTarget());
-    setSymbolFile(runConfig->localExecutableFilePath());
 }
 
 
@@ -212,7 +211,7 @@ private:
     {
         Port pdebugPort = m_portsGatherer->gdbServerPort();
 
-        StandardRunnable r;
+        Runnable r;
         r.executable = Constants::QNX_DEBUG_EXECUTABLE;
         r.commandLineArguments = pdebugPort.toString();
         setRunnable(r);
@@ -263,8 +262,10 @@ void QnxAttachDebugSupport::showProcessesDialog()
     const int pid = process.pid;
 //    QString projectSourceDirectory = dlg.projectSource();
     QString localExecutable = dlg.localExecutable();
-    if (localExecutable.isEmpty())
-        localExecutable = runConfig->localExecutableFilePath();
+    if (localExecutable.isEmpty()) {
+        if (auto aspect = runConfig->extraAspect<SymbolFileAspect>())
+            localExecutable = aspect->fileName().toString();
+    }
 
     auto runControl = new RunControl(runConfig, ProjectExplorer::Constants::DEBUG_RUN_MODE);
     auto debugger = new QnxAttachDebugSupport(runControl);

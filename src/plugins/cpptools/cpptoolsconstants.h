@@ -66,14 +66,40 @@ const char CPP_FILE_SETTINGS_ID[] = "B.Cpp.File Naming";
 const char CPP_FILE_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "File Naming");
 const char CPP_CODE_MODEL_SETTINGS_ID[] = "C.Cpp.Code Model";
 const char CPP_CODE_MODEL_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Code Model");
+const char CPP_DIAGNOSTIC_CONFIG_SETTINGS_ID[] = "C.Cpp.Diagnostic Config";
+const char CPP_DIAGNOSTIC_CONFIG_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Diagnostic Configurations");
 const char CPP_SETTINGS_CATEGORY[] = "I.C++";
-const char CPP_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("CppTools", "C++");
-const char SETTINGS_CATEGORY_CPP_ICON[] = ":/cpptools/images/category_cpp.png";
 
 const char CPP_CLANG_FIXIT_AVAILABLE_MARKER_ID[] = "ClangFixItAvailableMarker";
 
 const char CPP_SETTINGS_ID[] = "Cpp";
 const char CPP_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++");
+
+const char CURRENT_DOCUMENT_FILTER_ID[] = "Methods in current Document";
+const char CURRENT_DOCUMENT_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++ Symbols in Current Document");
+
+const char CLASSES_FILTER_ID[] = "Classes";
+const char CLASSES_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++ Classes");
+
+const char FUNCTIONS_FILTER_ID[] = "Methods";
+const char FUNCTIONS_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++ Functions");
+
+const char INCLUDES_FILTER_ID[] = "All Included C/C++ Files";
+const char INCLUDES_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "All Included C/C++ Files");
+
+const char LOCATOR_FILTER_ID[] = "Classes and Methods";
+const char LOCATOR_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++ Classes, Enums and Functions");
+
+const char SYMBOLS_FIND_FILTER_ID[] = "Symbols";
+const char SYMBOLS_FIND_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++ Symbols");
+
+// CLANG-UPGRADE-CHECK: Checks/update URLs.
+//
+// Upgrade the version in the URL. Note that we cannot use the macro
+// CLANG_VERSION here because it might denote a version that was not yet
+// released (e.g. 6.0.1, but only 6.0.0 was released).
+constexpr const char TIDY_DOCUMENTATION_URL_TEMPLATE[]
+    = "https://releases.llvm.org/6.0.0/tools/clang/tools/extra/docs/clang-tidy/checks/%1.html";
 
 } // namespace Constants
 } // namespace CppTools

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,10 +30,15 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-debugging-helpers.html
+    \contentspage index.html
     \page creator-debugging-qml.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-debugging.html
+    \nextpage creator-qml-debugging-example.html
+    \else
+    \previouspage creator-debugging-helpers.html
     \nextpage creator-debugging-example.html
+    \endif
 
     \title Debugging Qt Quick Projects
 
@@ -56,9 +61,6 @@
         \list 1
 
         \li Debugging is enabled by default for Qt 5.0, or later.
-
-            You might have to compile the library first, by selecting the
-            \uicontrol Compile link.
 
             \image qml-link-debugging-library.png "Build Steps"
 
@@ -155,6 +157,13 @@
         \li \l{Evaluating Expressions}{Evaluating expressions at run time}
 
     \endlist
+
+    \if defined(qtdesignstudio)
+    \include creator-debugger-common.qdocinc debugger-breakpoints
+    \include creator-debugger-common.qdocinc debugger-call-stack-trace
+    \include creator-debugger-common.qdocinc debugger-locals
+    \include creator-debugger-common.qdocinc debugger-expressions
+    \endif
 
     \section1 Executing JavaScript Expressions
 

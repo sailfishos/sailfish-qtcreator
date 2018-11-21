@@ -25,125 +25,40 @@
 
 #pragma once
 
-#include <qmakeprojectmanager/qmakerunconfigurationfactory.h>
-
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfiguration.h>
 
 #include <utils/fileutils.h>
 
-#include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QCheckBox;
-class QLabel;
-class QLineEdit;
-QT_END_NAMESPACE
-
 namespace QmakeProjectManager {
-
-class QmakeProFile;
-class QmakeProject;
-
 namespace Internal {
-class DesktopQmakeRunConfigurationFactory;
 
 class DesktopQmakeRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    // to change the display name and arguments and set the userenvironmentchanges
-    friend class DesktopQmakeRunConfigurationWidget;
 
 public:
-    explicit DesktopQmakeRunConfiguration(ProjectExplorer::Target *target);
-
-    QWidget *createConfigurationWidget() override;
-
-    ProjectExplorer::Runnable runnable() const override;
-    QString executable() const;
-
-    bool isUsingDyldImageSuffix() const;
-    void setUsingDyldImageSuffix(bool state);
-
-    bool isUsingLibrarySearchPath() const;
-    void setUsingLibrarySearchPath(bool state);
-
-    Utils::FileName proFilePath() const;
+    DesktopQmakeRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     QVariantMap toMap() const override;
 
-    Utils::OutputFormatter *createOutputFormatter() const override;
-
     void addToBaseEnvironment(Utils::Environment &env) const;
 
-    QString buildSystemTarget() const final;
-
-signals:
-    void baseWorkingDirectoryChanged(const QString&);
-    void usingDyldImageSuffixChanged(bool);
-    void usingLibrarySearchPathChanged(bool);
-
-    // Note: These signals might not get emitted for every change!
-    void effectiveTargetInformationChanged();
-
-protected:
+private:
     bool fromMap(const QVariantMap &map) override;
-    QString extraId() const override;
 
-private:
     void updateTargetInformation();
+    void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &info) final;
 
-    QPair<QString, QString> extractWorkingDirAndExecutable(const QmakeProFile *proFile) const;
-    QString baseWorkingDirectory() const;
     QString defaultDisplayName();
-    bool isConsoleApplication() const;
-    QmakeProject *qmakeProject() const;
-    QmakeProFile *proFile() const;
+    bool canRunForNode(const ProjectExplorer::Node *node) const final;
 
-    void updateTarget();
-    Utils::FileName m_proFilePath; // Full path to the Application Pro File
-
-    // Cached startup sub project information
-    bool m_isUsingDyldImageSuffix = false;
-    bool m_isUsingLibrarySearchPath = true;
+    Utils::FileName proFilePath() const;
 };
 
-class DesktopQmakeRunConfigurationWidget : public QWidget
+class DesktopQmakeRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
 {
-    Q_OBJECT
-
 public:
-    explicit DesktopQmakeRunConfigurationWidget(DesktopQmakeRunConfiguration *qmakeRunConfiguration);
-
-private:
-    void effectiveTargetInformationChanged();
-    void usingDyldImageSuffixToggled(bool);
-    void usingDyldImageSuffixChanged(bool);
-    void usingLibrarySearchPathToggled(bool state);
-    void usingLibrarySearchPathChanged(bool state);
-
-private:
-    DesktopQmakeRunConfiguration *m_qmakeRunConfiguration = nullptr;
-    bool m_ignoreChange = false;
-    QLabel *m_executableLineLabel = nullptr;
-    QCheckBox *m_useQvfbCheck = nullptr;
-    QCheckBox *m_usingDyldImageSuffix = nullptr;
-    QCheckBox *m_usingLibrarySearchPath = nullptr;
-    QLineEdit *m_qmlDebugPort = nullptr;
-};
-
-class DesktopQmakeRunConfigurationFactory : public QmakeRunConfigurationFactory
-{
-    Q_OBJECT
-
-public:
-    explicit DesktopQmakeRunConfigurationFactory(QObject *parent = 0);
-
-    bool canCreateHelper(ProjectExplorer::Target *parent, const QString &suffix) const override;
-
-    QList<ProjectExplorer::BuildTargetInfo>
-        availableBuildTargets(ProjectExplorer::Target *parent, CreationMode mode) const override;
-
-    bool hasRunConfigForProFile(ProjectExplorer::RunConfiguration *rc, const Utils::FileName &n) const override;
+    DesktopQmakeRunConfigurationFactory();
 };
 
 } // namespace Internal

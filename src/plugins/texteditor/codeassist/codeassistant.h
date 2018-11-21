@@ -43,7 +43,7 @@ class CodeAssistant : public QObject
 
 public:
     CodeAssistant();
-    ~CodeAssistant();
+    ~CodeAssistant() override;
 
     void configure(TextEditorWidget *editorWidget);
 
@@ -55,7 +55,7 @@ public:
     QVariant userData() const;
     void setUserData(const QVariant &data);
 
-    void invoke(AssistKind assistKind, IAssistProvider *provider = 0);
+    void invoke(AssistKind assistKind, IAssistProvider *provider = nullptr);
 
 signals:
     void finished();

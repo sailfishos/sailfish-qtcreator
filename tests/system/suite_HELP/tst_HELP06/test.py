@@ -46,7 +46,7 @@ def textForQtVersion(text):
     return text
 
 def main():
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     # goto help mode and click on topic
@@ -107,7 +107,7 @@ def main():
                 checkIfObjectExists(manualQModelIndex, verboseOnFail = True),
                 "Verifying if all folders and bookmarks are present")
     mouseClick(waitForObject(":Qt Creator_Bookmarks_TreeView"), 5, 5, 0, Qt.LeftButton)
-    for i in range(6):
+    for _ in range(6):
         type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Right>")
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Return>")
     test.verify(textForQtVersion("Building and Running an Example") in getHelpTitle(),

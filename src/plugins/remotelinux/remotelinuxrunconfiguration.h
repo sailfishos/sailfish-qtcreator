@@ -29,61 +29,27 @@
 
 #include <projectexplorer/runconfiguration.h>
 
-#include <QStringList>
-
 namespace RemoteLinux {
-class RemoteLinuxRunConfigurationWidget;
-
-namespace Internal { class RemoteLinuxRunConfigurationPrivate; }
 
 class REMOTELINUX_EXPORT RemoteLinuxRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    friend class RemoteLinuxRunConfigurationWidget;
 
 public:
-    explicit RemoteLinuxRunConfiguration(ProjectExplorer::Target *target);
-    ~RemoteLinuxRunConfiguration() override;
-
-    QWidget *createConfigurationWidget() override;
-    Utils::OutputFormatter *createOutputFormatter() const override;
-
-    ProjectExplorer::Runnable runnable() const override;
-
-    QString localExecutableFilePath() const;
-    virtual QString defaultRemoteExecutableFilePath() const;
-    QString remoteExecutableFilePath() const;
-    QString arguments() const;
-    void setArguments(const QString &args);
-    QString workingDirectory() const;
-    void setWorkingDirectory(const QString &wd);
-    void setAlternateRemoteExecutable(const QString &exe);
-    QString alternateRemoteExecutable() const;
-    void setUseAlternateExecutable(bool useAlternate);
-    bool useAlternateExecutable() const;
-
-    QVariantMap toMap() const override;
-
-    QString buildSystemTarget() const final;
-
+    RemoteLinuxRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
     static const char *IdPrefix;
 
-signals:
-    void deploySpecsChanged();
-    void targetInformationChanged() const;
-
-protected:
-    // FIXME: Used by QNX, remove.
-    RemoteLinuxRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
-
-    bool fromMap(const QVariantMap &map) override;
-    QString extraId() const override;
-
 private:
-    QString defaultDisplayName();
-    void handleBuildSystemDataUpdated();
+    void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &) override;
 
-    Internal::RemoteLinuxRunConfigurationPrivate * const d;
+    QString defaultDisplayName() const;
+    void updateTargetInformation();
+};
+
+class RemoteLinuxRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+{
+public:
+    RemoteLinuxRunConfigurationFactory();
 };
 
 } // namespace RemoteLinux

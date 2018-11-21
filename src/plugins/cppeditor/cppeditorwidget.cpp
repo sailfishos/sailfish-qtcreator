@@ -220,9 +220,6 @@ void CppEditorWidget::finalizeInitialization()
         d->m_cppSelectionChanger.onCursorPositionChanged(textCursor());
     });
 
-    // Toolbar: Outline/Overview combo box
-    insertExtraToolBarWidget(TextEditorWidget::Left, d->m_cppEditorOutline->widget());
-
     // Toolbar: Parse context
     ParseContextModel &parseContextModel = cppEditorDocument()->parseContextModel();
     d->m_parseContextWidget = new ParseContextWidget(parseContextModel, this);
@@ -233,6 +230,10 @@ void CppEditorWidget::finalizeInitialization()
             this, [this](bool areMultipleAvailable) {
         d->m_parseContextAction->setVisible(areMultipleAvailable);
     });
+
+    // Toolbar: Outline/Overview combo box
+    insertExtraToolBarWidget(TextEditorWidget::Left, d->m_cppEditorOutline->widget());
+
     // clang-format on
     // Toolbar: '#' Button
     // TODO: Make "Additional Preprocessor Directives" also useful with Clang Code Model.
@@ -580,8 +581,8 @@ QList<QTextEdit::ExtraSelection> sourceLocationsToExtraSelections(
         QTextEdit::ExtraSelection selection;
 
         selection.cursor = selectAt(cppEditorWidget->textCursor(),
-                                    sourceLocation.line(),
-                                    sourceLocation.column(),
+                                    sourceLocation.line,
+                                    sourceLocation.column,
                                     selectionLength);
         selection.format = textCharFormat;
 
@@ -689,9 +690,10 @@ void CppEditorWidget::switchDeclarationDefinition(bool inNextSplit)
     // Link to function definition/declaration
     Utils::Link symbolLink;
     if (functionDeclarationSymbol) {
-        symbolLink = linkToSymbol(
-            d->m_modelManager->symbolFinder()
-                ->findMatchingDefinition(functionDeclarationSymbol, d->m_modelManager->snapshot()));
+        Symbol *symbol = d->m_modelManager->symbolFinder()
+                ->findMatchingDefinition(functionDeclarationSymbol, d->m_modelManager->snapshot());
+        if (symbol)
+            symbolLink = symbol->toLink();
     } else if (functionDefinitionSymbol) {
         const Snapshot snapshot = d->m_modelManager->snapshot();
         LookupContext context(d->m_lastSemanticInfo.doc, snapshot);
@@ -716,7 +718,7 @@ void CppEditorWidget::switchDeclarationDefinition(bool inNextSplit)
 
         if (best.isEmpty())
             return;
-        symbolLink = linkToSymbol(best.first());
+        symbolLink = best.first()->toLink();
     }
 
     // Open Editor at link position
@@ -724,21 +726,23 @@ void CppEditorWidget::switchDeclarationDefinition(bool inNextSplit)
         openLink(symbolLink, inNextSplit != alwaysOpenLinksInNextSplit());
 }
 
-Utils::Link CppEditorWidget::findLinkAt(const QTextCursor &cursor,
-                                        bool resolveTarget,
-                                        bool inNextSplit)
+void CppEditorWidget::findLinkAt(const QTextCursor &cursor,
+                                 Utils::ProcessLinkCallback &&processLinkCallback,
+                                 bool resolveTarget,
+                                 bool inNextSplit)
 {
     if (!d->m_modelManager)
-        return Utils::Link();
+        return processLinkCallback(Utils::Link());
 
     const Utils::FileName &filePath = textDocument()->filePath();
 
-    return followSymbolInterface().findLink(CppTools::CursorInEditor{cursor, filePath, this},
-                                            resolveTarget,
-                                            d->m_modelManager->snapshot(),
-                                            d->m_lastSemanticInfo.doc,
-                                            d->m_modelManager->symbolFinder(),
-                                            inNextSplit);
+    followSymbolInterface().findLink(CppTools::CursorInEditor{cursor, filePath, this},
+                                     std::move(processLinkCallback),
+                                     resolveTarget,
+                                     d->m_modelManager->snapshot(),
+                                     d->m_lastSemanticInfo.doc,
+                                     d->m_modelManager->symbolFinder(),
+                                     inNextSplit);
 }
 
 unsigned CppEditorWidget::documentRevision() const
@@ -821,12 +825,11 @@ static void addRefactoringActions(QMenu *menu, AssistInterface *iface)
 
     using Processor = QScopedPointer<IAssistProcessor>;
     using Proposal = QScopedPointer<IAssistProposal>;
-    using Model = QScopedPointer<GenericProposalModel>;
 
     const Processor processor(CppEditorPlugin::instance()->quickFixProvider()->createProcessor());
     const Proposal proposal(processor->perform(iface)); // OK, perform() takes ownership of iface.
     if (proposal) {
-        Model model(static_cast<GenericProposalModel *>(proposal->model()));
+        auto model = proposal->model().staticCast<GenericProposalModel>();
         for (int index = 0; index < model->size(); ++index) {
             const auto item = static_cast<AssistProposalItem *>(model->proposalItem(index));
             const QuickFixOperation::Ptr op = item->data().value<QuickFixOperation::Ptr>();

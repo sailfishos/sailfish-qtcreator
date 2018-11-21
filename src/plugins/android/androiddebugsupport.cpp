@@ -44,6 +44,7 @@
 #include <utils/hostosinfo.h>
 
 #include <QDirIterator>
+#include <QHostAddress>
 
 using namespace Debugger;
 using namespace ProjectExplorer;
@@ -93,11 +94,13 @@ static QString toNdkArch(const QString &arch)
     return QLatin1String("arch-") + arch;
 }
 
-AndroidDebugSupport::AndroidDebugSupport(RunControl *runControl)
+AndroidDebugSupport::AndroidDebugSupport(RunControl *runControl, const QString &intentName,
+                                         const QString &extraAppParams,
+                                         const Utils::Environment &extraEnvVars)
     : Debugger::DebuggerRunTool(runControl)
 {
     setDisplayName("AndroidDebugger");
-    m_runner = new AndroidRunner(runControl);
+    m_runner = new AndroidRunner(runControl, intentName, extraAppParams, extraEnvVars);
     addStartDependency(m_runner);
 }
 
@@ -129,7 +132,10 @@ void AndroidDebugSupport::start()
                       + "/app_process");
         setSkipExecutableValidation(true);
         setUseExtendedRemote(true);
-        setRemoteChannel(":" + m_runner->gdbServerPort().toString());
+        QUrl gdbServer;
+        gdbServer.setHost(QHostAddress(QHostAddress::LocalHost).toString());
+        gdbServer.setPort(m_runner->gdbServerPort().number());
+        setRemoteChannel(gdbServer);
         setSysRoot(AndroidConfigurations::currentConfig().ndkLocation().appendPath("platforms")
                    .appendPath(QString("android-%1").arg(AndroidManager::minimumSDK(target)))
                    .appendPath(toNdkArch(AndroidManager::targetArch(target))).toString());
@@ -140,10 +146,6 @@ void AndroidDebugSupport::start()
         if (qtVersion)
             addSearchDirectory(qtVersion->qmlPath().toString());
     }
-
-    // FIXME: Move signal to base class and generalize handling.
-    connect(this, &DebuggerRunTool::aboutToNotifyInferiorSetupOk,
-            m_runner, &AndroidRunner::remoteDebuggerRunning);
 
     DebuggerRunTool::start();
 }

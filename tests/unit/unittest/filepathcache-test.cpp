@@ -68,11 +68,11 @@ TEST_F(FilePathCache, DirectoryIdOfFilePathIdWithOutAnyEntry)
     ASSERT_THAT(filePathId.directoryId, 5);
 }
 
-TEST_F(FilePathCache, FileNameIdOfFilePathIdWithOutAnyEntry)
+TEST_F(FilePathCache, FilePathIdOfFilePathIdWithOutAnyEntry)
 {
     auto filePathId = cache.filePathId(FilePathView("/path/to/file.cpp"));
 
-    ASSERT_THAT(filePathId.fileNameId, 42);
+    ASSERT_THAT(filePathId.filePathId, 42);
 }
 
 TEST_F(FilePathCache,  IfEntryExistsDontCallInStrorage)
@@ -95,22 +95,22 @@ TEST_F(FilePathCache,  IfDirectoryEntryExistsDontCallFetchDirectoryIdButStillCal
     cache.filePathId(FilePathView("/path/to/file.cpp"));
 }
 
-TEST_F(FilePathCache, GetFileNameIdWithCachedValue)
+TEST_F(FilePathCache, GetFilePathIdWithCachedValue)
 {
     cache.filePathId(FilePathView("/path/to/file.cpp"));
 
     auto filePathId = cache.filePathId(FilePathView("/path/to/file.cpp"));
 
-    ASSERT_THAT(filePathId.fileNameId, 42);
+    ASSERT_THAT(filePathId.filePathId, 42);
 }
 
-TEST_F(FilePathCache, GetFileNameIdWithDirectoryIdCached)
+TEST_F(FilePathCache, GetFilePathIdWithDirectoryIdCached)
 {
     cache.filePathId(FilePathView("/path/to/file.cpp"));
 
     auto filePathId = cache.filePathId(FilePathView("/path/to/file2.cpp"));
 
-    ASSERT_THAT(filePathId.fileNameId, 63);
+    ASSERT_THAT(filePathId.filePathId, 63);
 }
 
 TEST_F(FilePathCache, GetDirectyIdWithCachedValue)
@@ -156,14 +156,36 @@ TEST_F(FilePathCache, GetAFilePathWithCachedFilePathId)
     ASSERT_THAT(filePath, Eq(FilePathView{"/path/to/file.cpp"}));
 }
 
+TEST_F(FilePathCache, FileNamesAreUniqueForEveryDirectory)
+{
+    FilePathId filePathId = cache.filePathId(FilePathView("/path/to/file.cpp"));
+
+    FilePathId filePath2Id = cache.filePathId(FilePathView("/path2/to/file.cpp"));
+
+    ASSERT_THAT(filePath2Id.filePathId, Ne(filePathId.filePathId));
+}
+
+TEST_F(FilePathCache, DuplicateFilePathsAreEqual)
+{
+    FilePathId filePath1Id = cache.filePathId(FilePathView("/path/to/file.cpp"));
+
+    FilePathId filePath2Id = cache.filePathId(FilePathView("/path/to/file.cpp"));
+
+    ASSERT_THAT(filePath2Id, Eq(filePath1Id));
+}
+
 void FilePathCache::SetUp()
 {
     ON_CALL(mockStorage, fetchDirectoryId(Eq("/path/to")))
             .WillByDefault(Return(5));
+    ON_CALL(mockStorage, fetchDirectoryId(Eq("/path2/to")))
+            .WillByDefault(Return(6));
     ON_CALL(mockStorage, fetchSourceId(5, Eq("file.cpp")))
             .WillByDefault(Return(42));
     ON_CALL(mockStorage, fetchSourceId(5, Eq("file2.cpp")))
             .WillByDefault(Return(63));
+    ON_CALL(mockStorage, fetchSourceId(6, Eq("file.cpp")))
+            .WillByDefault(Return(72));
     ON_CALL(mockStorage, fetchDirectoryPath(5))
             .WillByDefault(Return(Utils::PathString("/path/to")));
     ON_CALL(mockStorage, fetchSourceName(42))

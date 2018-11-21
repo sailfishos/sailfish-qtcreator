@@ -41,9 +41,9 @@ class GeneralSettingsPage : public Core::IOptionsPage
 public:
     GeneralSettingsPage();
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 signals:
     void fontChanged();
@@ -71,7 +71,7 @@ private:
     bool m_returnOnClose;
 
     QPointer<QWidget> m_widget;
-    Ui::GeneralSettingsPage *m_ui;
+    Ui::GeneralSettingsPage *m_ui = nullptr;
 };
 
     }   // Internal

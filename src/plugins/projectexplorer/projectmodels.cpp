@@ -30,11 +30,13 @@
 #include "projectexplorer.h"
 #include "projecttree.h"
 #include "session.h"
+#include "target.h"
 
 #include <coreplugin/fileiconprovider.h>
 #include <utils/utilsicons.h>
 #include <utils/algorithm.h>
 #include <utils/dropsupport.h>
+#include <utils/stringutils.h>
 #include <utils/theme/theme.h>
 
 #include <QFileInfo>
@@ -88,14 +90,20 @@ FlatModel::FlatModel(QObject *parent)
 
     for (Project *project : SessionManager::projects())
         handleProjectAdded(project);
+
+    m_disabledTextColor = Utils::creatorTheme()->color(Utils::Theme::TextColorDisabled);
+    m_enabledTextColor = Utils::creatorTheme()->color(Utils::Theme::TextColorNormal);
 }
 
 QVariant FlatModel::data(const QModelIndex &index, int role) const
 {
     QVariant result;
 
-    if (Node *node = nodeForIndex(index)) {
-        FolderNode *folderNode = node->asFolderNode();
+    if (const Node *node = nodeForIndex(index)) {
+        const FolderNode *folderNode = node->asFolderNode();
+        const ContainerNode *containerNode = node->asContainerNode();
+        const Project *project = containerNode ? containerNode->project() : nullptr;
+
         switch (role) {
         case Qt::DisplayRole: {
             result = node->displayName();
@@ -106,16 +114,31 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
             break;
         }
         case Qt::ToolTipRole: {
-            result = node->tooltip();
+            QString tooltip = node->tooltip();
+
+            if (project) {
+                if (project->activeTarget()) {
+                    QString projectIssues = toHtml(project->projectIssues(project->activeTarget()->kit()));
+                    if (!projectIssues.isEmpty())
+                        tooltip += "<p>" + projectIssues;
+                } else {
+                    tooltip += "<p>" + tr("No kits are enabled for this project. "
+                                          "Enable kits in the \"Projects\" mode.");
+                }
+            }
+            result = tooltip;
             break;
         }
         case Qt::DecorationRole: {
             if (folderNode) {
+                static QIcon warnIcon = Utils::Icons::WARNING.icon();
                 static QIcon emptyIcon = Utils::Icons::EMPTY16.icon();
-                if (ContainerNode *containerNode = folderNode->asContainerNode()) {
-                    Project *project = containerNode->project();
-                    if (project && project->isParsing())
+                if (project) {
+                    if (project->isParsing())
                         result = emptyIcon;
+                    else if (!project->activeTarget()
+                             || !project->projectIssues(project->activeTarget()->kit()).isEmpty())
+                        result = warnIcon;
                     else
                         result = containerNode->rootProjectNode() ? containerNode->rootProjectNode()->icon() :
                                                                     folderNode->icon();
@@ -129,29 +152,20 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
         }
         case Qt::FontRole: {
             QFont font;
-            if (Project *project = SessionManager::startupProject()) {
-                if (node == project->containerNode())
-                    font.setBold(true);
-            }
+            if (project == SessionManager::startupProject())
+                font.setBold(true);
             result = font;
+            break;
+        }
+        case Qt::TextColorRole: {
+            result = node->isEnabled() ? m_enabledTextColor : m_disabledTextColor;
             break;
         }
         case Project::FilePathRole: {
             result = node->filePath().toString();
             break;
         }
-        case Project::EnabledRole: {
-            result = node->isEnabled();
-            break;
-        }
         case Project::isParsingRole: {
-            const Project *project = nullptr;
-            if (node->asContainerNode()) {
-                WrapperNode *wn = wrapperForNode(node);
-                project = Utils::findOrDefault(SessionManager::projects(), [this, wn](const Project *p) {
-                    return nodeForProject(p) == wn;
-                });
-            }
             result = project ? project->isParsing() : false;
             break;
         }
@@ -226,10 +240,11 @@ void FlatModel::addOrRebuildProjectModel(Project *project)
             trimEmptyDirectories(container);
     }
     if (container->childCount() == 0) {
-        FileNode *projectFileNode = new FileNode(project->projectFilePath(), FileType::Project, false);
-        project->containerNode()->addNestedNode(projectFileNode);
-        seen.insert(projectFileNode);
-        container->appendChild(new WrapperNode(projectFileNode));
+        auto projectFileNode = std::make_unique<FileNode>(project->projectFilePath(),
+                                                          FileType::Project, false);
+        seen.insert(projectFileNode.get());
+        container->appendChild(new WrapperNode(projectFileNode.get()));
+        project->containerNode()->addNestedNode(std::move(projectFileNode));
     }
 
     container->sortChildren(&sortWrapperNodes);
@@ -299,9 +314,15 @@ void FlatModel::handleProjectAdded(Project *project)
     QTC_ASSERT(project, return);
 
     connect(project, &Project::parsingStarted,
-            this, [this, project]() { parsingStateChanged(project); });
+            this, [this, project]() {
+        if (nodeForProject(project))
+            parsingStateChanged(project);
+    });
     connect(project, &Project::parsingFinished,
-            this, [this, project]() { parsingStateChanged(project); });
+            this, [this, project]() {
+        if (nodeForProject(project))
+            parsingStateChanged(project);
+    });
     addOrRebuildProjectModel(project);
 }
 
@@ -323,7 +344,7 @@ WrapperNode *FlatModel::nodeForProject(const Project *project) const
 void FlatModel::loadExpandData()
 {
     const QList<QVariant> data = SessionManager::value("ProjectTree.ExpandData").value<QList<QVariant>>();
-    m_toExpand = Utils::transform<QSet>(data, [](const QVariant &v) { return ExpandData::fromSettings(v); });
+    m_toExpand = Utils::transform<QSet>(data, &ExpandData::fromSettings);
     m_toExpand.remove(ExpandData());
 }
 
@@ -451,18 +472,6 @@ const QLoggingCategory &FlatModel::logger()
 {
     static QLoggingCategory logger("qtc.projectexplorer.flatmodel");
     return logger;
-}
-
-namespace Internal {
-
-int caseFriendlyCompare(const QString &a, const QString &b)
-{
-    int result = a.compare(b, Qt::CaseInsensitive);
-    if (result != 0)
-        return result;
-    return a.compare(b, Qt::CaseSensitive);
-}
-
 }
 
 } // namespace ProjectExplorer

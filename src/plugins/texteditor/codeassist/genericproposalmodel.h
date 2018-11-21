@@ -45,7 +45,7 @@ class TEXTEDITOR_EXPORT GenericProposalModel : public IAssistProposalModel
 {
 public:
     GenericProposalModel();
-    ~GenericProposalModel();
+    ~GenericProposalModel() override;
 
     void reset() override;
     int size() const override;
@@ -83,4 +83,7 @@ private:
     QString m_prefilterPrefix;
     bool m_duplicatesRemoved = false;
 };
+
+using GenericProposalModelPtr = QSharedPointer<GenericProposalModel>;
+
 } // TextEditor

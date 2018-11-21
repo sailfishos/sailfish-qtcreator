@@ -37,10 +37,12 @@ class TEXTEDITOR_EXPORT IFunctionHintProposalModel : public IAssistProposalModel
 {
 public:
     IFunctionHintProposalModel();
-    ~IFunctionHintProposalModel();
+    ~IFunctionHintProposalModel() override;
 
     virtual int activeArgument(const QString &prefix) const = 0;
     virtual QString id(int index) const;
 };
+
+using FunctionHintProposalModelPtr = QSharedPointer<IFunctionHintProposalModel>;
 
 } // TextEditor

@@ -27,30 +27,14 @@
 
 #include <filepathid.h>
 
+#include <utils/linecolumn.h>
+
 #include <limits>
 #include <vector>
 
 using uint = unsigned int;
 
 namespace ClangBackEnd {
-
-enum class SymbolType
-{
-    Declaration,
-    DeclarationReference
-};
-
-class LineColumn
-{
-public:
-    LineColumn(uint line, uint column)
-        : line(line),
-          column(column)
-    {}
-
-    uint line =  0;
-    uint column = 0;
-};
 
 using SymbolIndex = long long;
 
@@ -59,28 +43,25 @@ class SourceLocationEntry
 public:
     SourceLocationEntry(SymbolIndex symbolId,
                         FilePathId filePathId,
-                        LineColumn lineColumn,
-                        SymbolType symbolType)
+                        Utils::LineColumn lineColumn,
+                        SourceLocationKind kind)
         : symbolId(symbolId),
           filePathId(filePathId),
-          line(lineColumn.line),
-          column(lineColumn.column),
-          symbolType(symbolType)
+          lineColumn(lineColumn),
+          kind(kind)
     {}
 
     SymbolIndex symbolId = 0;
     FilePathId filePathId;
-    uint line =  0;
-    uint column = 0;
-    SymbolType symbolType;
+    Utils::LineColumn lineColumn;
+    SourceLocationKind kind;
 
     friend bool operator==(const SourceLocationEntry &first, const SourceLocationEntry &second)
     {
         return first.symbolId == second.symbolId
             && first.filePathId == second.filePathId
-            && first.line == second.line
-            && first.column == second.column
-            && first.symbolType == second.symbolType;
+            && first.lineColumn == second.lineColumn
+            && first.kind == second.kind;
     }
 };
 

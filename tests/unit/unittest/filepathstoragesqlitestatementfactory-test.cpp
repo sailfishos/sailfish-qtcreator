@@ -34,15 +34,12 @@
 
 namespace {
 
-using StatementFactory = ClangBackEnd::FilePathStorageSqliteStatementFactory<NiceMock<MockSqliteDatabase>,
-                                                                             MockSqliteReadStatement,
-                                                                             MockSqliteWriteStatement>;
+using StatementFactory = ClangBackEnd::FilePathStorageSqliteStatementFactory<NiceMock<MockSqliteDatabase>>;
 
 class FilePathStorageSqliteStatementFactory : public testing::Test
 {
 protected:
-    NiceMock<MockMutex> mockMutex;
-    NiceMock<MockSqliteDatabase> mockDatabase{mockMutex};
+    NiceMock<MockSqliteDatabase> mockDatabase;
     StatementFactory factory{mockDatabase};
 };
 

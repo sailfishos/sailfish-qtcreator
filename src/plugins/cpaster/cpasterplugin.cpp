@@ -116,8 +116,7 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
 
     // Create the settings Page
     m_settings->fromSettings(ICore::settings());
-    SettingsPage *settingsPage = new SettingsPage(m_settings);
-    addAutoReleasedObject(settingsPage);
+    SettingsPage *settingsPage = new SettingsPage(m_settings, this);
 
     // Create the protocols and append them to the Settings
     Protocol *protos[] =  {new PasteBinDotComProtocol,
@@ -130,8 +129,6 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
         connect(protos[i], &Protocol::pasteDone, this, &CodepasterPlugin::finishPost);
         connect(protos[i], &Protocol::fetchDone, this, &CodepasterPlugin::finishFetch);
         settingsPage->addProtocol(protos[i]->name());
-        if (protos[i]->hasSettings())
-            addAutoReleasedObject(protos[i]->settingsPage());
         m_protocols.append(protos[i]);
     }
 
@@ -152,13 +149,13 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
 
     m_postEditorAction = new QAction(tr("Paste Snippet..."), this);
     command = ActionManager::registerAction(m_postEditorAction, "CodePaster.Post");
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+C,Meta+P") : tr("Alt+C,Alt+P")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+C,Meta+P") : tr("Alt+C,Alt+P")));
     connect(m_postEditorAction, &QAction::triggered, this, &CodepasterPlugin::pasteSnippet);
     cpContainer->addAction(command);
 
     m_fetchAction = new QAction(tr("Fetch Snippet..."), this);
     command = ActionManager::registerAction(m_fetchAction, "CodePaster.Fetch");
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+C,Meta+F") : tr("Alt+C,Alt+F")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+C,Meta+F") : tr("Alt+C,Alt+F")));
     connect(m_fetchAction, &QAction::triggered, this, &CodepasterPlugin::fetch);
     cpContainer->addAction(command);
 
@@ -167,7 +164,7 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
     connect(m_fetchUrlAction, &QAction::triggered, this, &CodepasterPlugin::fetchUrl);
     cpContainer->addAction(command);
 
-    addAutoReleasedObject(new CodePasterServiceImpl);
+    new CodePasterServiceImpl(this);
 
     return true;
 }

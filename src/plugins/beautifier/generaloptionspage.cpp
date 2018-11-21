@@ -82,8 +82,9 @@ GeneralOptionsPage::GeneralOptionsPage(const QSharedPointer<GeneralSettings> &se
     setId(Constants::OPTION_GENERAL_ID);
     setDisplayName(tr("General"));
     setCategory(Constants::OPTION_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("Beautifier", Constants::OPTION_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(Constants::OPTION_CATEGORY_ICON));
+    setDisplayCategory(QCoreApplication::translate("Beautifier", "Beautifier"));
+    setCategoryIcon(Utils::Icon({{":/beautifier/images/settingscategory_beautifier.png",
+                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
 }
 
 QWidget *GeneralOptionsPage::widget()

@@ -58,6 +58,19 @@ void ClangTool::addFile(std::string &&directory,
     m_sourceFilePaths.push_back(fileContent.filePath);
 }
 
+void ClangTool::addFiles(const FilePaths &filePaths, const Utils::SmallStringVector &arguments)
+{
+    for (const FilePath &filePath : filePaths) {
+        std::vector<std::string> commandLine(arguments.begin(), arguments.end());
+        commandLine.push_back(std::string(filePath.name()));
+
+        addFile(filePath.directory(),
+                filePath.name(),
+                {},
+                std::move(commandLine));
+    }
+}
+
 template <typename Container>
 void ClangTool::addFiles(const Container &filePaths,
                          const Utils::SmallStringVector &arguments)
@@ -89,8 +102,8 @@ void ClangTool::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
     m_unsavedFileContents.reserve(m_unsavedFileContents.size() + unsavedFiles.size());
 
     auto convertToUnsavedFileContent = [] (const V2::FileContainer &unsavedFile) {
-        return UnsavedFileContent{toNativePath(unsavedFile.filePath().path().clone()),
-                                  unsavedFile.unsavedFileContent().clone()};
+        return UnsavedFileContent{toNativePath(unsavedFile.filePath.path().clone()),
+                                  unsavedFile.unsavedFileContent.clone()};
     };
 
     std::transform(unsavedFiles.begin(),

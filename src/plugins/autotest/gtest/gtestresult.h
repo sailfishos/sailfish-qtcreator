@@ -33,8 +33,8 @@ namespace Internal {
 class GTestResult : public TestResult
 {
 public:
-    GTestResult(const QString &projectFile, const QString &name = QString());
-    GTestResult(const QString &executable, const QString &projectFile, const QString &name);
+    explicit GTestResult(const QString &projectFile, const QString &name = QString());
+    GTestResult(const QString &id, const QString &projectFile, const QString &name);
     const QString outputString(bool selected) const override;
 
     void setTestSetName(const QString &testSetName) { m_testSetName = testSetName; }

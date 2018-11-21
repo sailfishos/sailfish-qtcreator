@@ -85,8 +85,8 @@ public:
 
     //only enable if node has parent
 
-    QmlAnchorBindingProxy(QObject *parent = 0);
-    ~QmlAnchorBindingProxy();
+    QmlAnchorBindingProxy(QObject *parent = nullptr);
+    ~QmlAnchorBindingProxy() override;
 
     void setup(const QmlItemNode &itemNode);
     void invalidate(const QmlItemNode &itemNode);

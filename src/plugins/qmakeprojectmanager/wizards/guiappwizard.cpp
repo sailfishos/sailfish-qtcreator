@@ -109,7 +109,7 @@ static inline bool generateFormClass(const GuiAppParameters &params,
     QString headerContents;
     QString sourceContents;
     // Invoke code generation service of Qt Designer plugin.
-    if (QObject *codeGenerator = ExtensionSystem::PluginManager::getObjectByClassName(QLatin1String("Designer::QtDesignerFormClassCodeGenerator"))) {
+    if (QObject *codeGenerator = ExtensionSystem::PluginManager::getObjectByName("QtDesignerFormClassCodeGenerator")) {
         const QVariant code =  ExtensionSystem::invoke<QVariant>(codeGenerator, "generateFormClassCode", fp);
         if (code.type() == QVariant::List) {
             const QVariantList vl = code.toList();
@@ -187,6 +187,7 @@ Core::GeneratedFiles GuiAppWizard::generateFiles(const QWizard *w,
         QTextStream proStr(&contents);
         QtProjectParameters::writeProFileHeader(proStr);
         projectParams.writeProFile(proStr);
+        proStr << "\nCONFIG += c++11"; // ensure all Qt5 versions can handle the source
         proStr << "\n\nSOURCES +="
                << " \\\n        " << Utils::FileName::fromString(mainSourceFileName).fileName()
                << " \\\n        " << Utils::FileName::fromString(formSource.path()).fileName()
@@ -200,7 +201,10 @@ Core::GeneratedFiles GuiAppWizard::generateFiles(const QWizard *w,
                    << "\nMOBILITY = "
                    << "\n";
         }
-        proStr << '\n';
+        proStr << "\n\n# Default rules for deployment.\n"
+                  "qnx: target.path = /tmp/$${TARGET}/bin\n"
+                  "else: unix:!android: target.path = /opt/$${TARGET}/bin\n"
+                  "!isEmpty(target.path): INSTALLS += target\n";
     }
     profile.setContents(contents);
     // List

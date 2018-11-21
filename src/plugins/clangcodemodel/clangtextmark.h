@@ -39,10 +39,10 @@ class ClangTextMark : public TextEditor::TextMark
 public:
     using RemovedFromEditorHandler = std::function<void(ClangTextMark *)>;
 
-    ClangTextMark(const QString &fileName,
+    ClangTextMark(const ::Utils::FileName &fileName,
                   const ClangBackEnd::DiagnosticContainer &diagnostic,
                   const RemovedFromEditorHandler &removedHandler,
-                  bool showLineAnnotations);
+                  bool fullVisualization);
 
     void updateIcon(bool valid = true);
 private:

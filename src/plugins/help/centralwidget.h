@@ -38,8 +38,8 @@ class CentralWidget : public HelpWidget
     Q_OBJECT
 
 public:
-    CentralWidget(const Core::Context &context, QWidget *parent = 0);
-    ~CentralWidget();
+    CentralWidget(const Core::Context &context, QWidget *parent = nullptr);
+    ~CentralWidget() override;
 
     static CentralWidget *instance();
 };

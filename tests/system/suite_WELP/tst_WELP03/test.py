@@ -59,7 +59,7 @@ def openExample(examplesLineEdit, input, exampleRegex, exampleName):
 
 def main():
     # open Qt Creator
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     qchs = []
@@ -74,9 +74,7 @@ def main():
         invokeMenuItem("File", "Exit")
         return
     # select "Examples" topic
-    wsButtonFrame, wsButtonLabel = getWelcomeScreenSideBarButton('Examples')
-    if all((wsButtonFrame, wsButtonLabel)):
-        mouseClick(wsButtonLabel)
+    switchToSubMode('Examples')
     expect = (("QTableView", "unnamed='1' visible='1' window=':Qt Creator_Core::Internal::MainWindow'",
                "examples list"),
               ("QLineEdit", "placeholderText='Search in Examples...'", "examples search line edit"),
@@ -108,7 +106,7 @@ def main():
                     "Verifying: The project is shown in 'Edit' mode.")
         invokeContextMenuOnProject('2dpainting', 'Close Project "2dpainting"')
         navTree = waitForObject(":Qt Creator_Utils::NavigationTreeView")
-        res = waitFor("navTree.model().rowCount(navTree.rootIndex()) == 0", 2000)
+        waitFor("navTree.model().rowCount(navTree.rootIndex()) == 0", 2000)
         test.verify(not checkIfObjectItemExists(":Qt Creator_Utils::NavigationTreeView", "2dpainting"),
                     "Verifying: The first example is closed.")
     # clean up created packaging directories
@@ -134,7 +132,7 @@ def main():
                     "Verifying: The project is shown in 'Edit' mode while old project isn't.")
         invokeContextMenuOnProject('addressbook', 'Close Project "addressbook"')
         navTree = waitForObject(":Qt Creator_Utils::NavigationTreeView")
-        res = waitFor("navTree.model().rowCount(navTree.rootIndex()) == 0", 2000)
+        waitFor("navTree.model().rowCount(navTree.rootIndex()) == 0", 2000)
         test.verify(not checkIfObjectItemExists(":Qt Creator_Utils::NavigationTreeView", "addressbook"),
                     "Verifying: The second example is closed.")
     # clean up created packaging directories

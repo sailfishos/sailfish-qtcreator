@@ -30,7 +30,6 @@
 #include "fontsettings.h"
 
 #include <utils/algorithm.h>
-#include <utils/asconst.h>
 #include <utils/qtcassert.h>
 
 #include <QTextDocument>
@@ -837,8 +836,12 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
 
 void SyntaxHighlighterPrivate::updateFormats(const FontSettings &fontSettings)
 {
-    for (const auto &pair : Utils::asConst(formatCategories))
-        formats[pair.first] = fontSettings.toTextCharFormat(pair.second);
+    // C_TEXT is handled by text editor's foreground and background color,
+    // so use empty format for that
+    for (const auto &pair : qAsConst(formatCategories)) {
+        formats[pair.first] = pair.second == C_TEXT ? QTextCharFormat()
+                                                    : fontSettings.toTextCharFormat(pair.second);
+    }
     whitespaceFormat = fontSettings.toTextCharFormat(C_VISUAL_WHITESPACE);
 }
 

@@ -42,8 +42,6 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 
-#include <extensionsystem/pluginmanager.h>
-
 #include <utils/algorithm.h>
 #include <utils/basetreeview.h>
 #include <utils/navigationtreeview.h>
@@ -369,7 +367,7 @@ public:
 
         m_selectorTree = new SelectorTree;
         m_selectorTree->setModel(&m_projectsModel);
-        m_selectorTree->setItemDelegate(new SelectorDelegate);
+        m_selectorTree->setItemDelegate(&m_selectorDelegate);
         m_selectorTree->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_selectorTree, &QAbstractItemView::activated,
                 this, &ProjectWindowPrivate::itemActivated);
@@ -421,10 +419,10 @@ public:
         innerLayout->setSpacing(10);
         innerLayout->setContentsMargins(14, innerLayout->spacing(), 14, 0);
         innerLayout->addWidget(m_manageKits);
-        innerLayout->addWidget(m_importBuild);
         innerLayout->addSpacerItem(new QSpacerItem(10, 30, QSizePolicy::Maximum, QSizePolicy::Maximum));
         innerLayout->addWidget(activeLabel);
         innerLayout->addWidget(m_projectSelection);
+        innerLayout->addWidget(m_importBuild);
         innerLayout->addWidget(m_selectorTree);
 
         auto selectorLayout = new QVBoxLayout(selectorView);
@@ -531,8 +529,8 @@ public:
     void handleManageKits()
     {
         if (ProjectItem *projectItem = m_projectsModel.rootItem()->childAt(0)) {
-            if (KitOptionsPage *page = ExtensionSystem::PluginManager::getObject<KitOptionsPage>())
-                page->showKit(KitManager::kit(Id::fromSetting(projectItem->data(0, KitIdRole))));
+            if (auto kitPage = KitOptionsPage::instance())
+                kitPage->showKit(KitManager::kit(Id::fromSetting(projectItem->data(0, KitIdRole))));
         }
         ICore::showOptionsDialog(Constants::KITS_SETTINGS_PAGE_ID, ICore::mainWindow());
     }
@@ -595,6 +593,7 @@ public:
     ProjectWindow *q;
     ProjectsModel m_projectsModel;
     ComboBoxModel m_comboBoxModel;
+    SelectorDelegate m_selectorDelegate;
     QComboBox *m_projectSelection;
     SelectorTree *m_selectorTree;
     QPushButton *m_importBuild;

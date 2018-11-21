@@ -43,7 +43,7 @@ Item {
 
     Rectangle {
         id: header
-        height: 18
+        height: 20
 
         anchors.left: parent.left
         anchors.right: parent.right

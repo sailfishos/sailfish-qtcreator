@@ -28,10 +28,7 @@
     \contentspage {Qt Creator}
     \page qtcreator-toc.html
 
-    \title Qt Creator TOC
-
-    This file is used only for generating the TOC for the help file to be
-    displayed in the Qt Creator Help mode Contents view.
+    \title All Topics
 
     \list
         \li \l{Getting Started}
@@ -91,13 +88,23 @@
             \list
                 \li \l {Creating Qt Quick Projects}
                 \li \l {Qt Quick UI Forms}
-                \li \l {Using Qt Quick Designer}
+                \li \l {Editing QML Files in Design Mode}
+                \li \l {Creating Components}
+                    \list
+                        \li \l {Creating Buttons}
+                        \li \l {Creating Scalable Buttons and Borders}
+                    \endlist
+                \li \l {Managing Item Hierarchy}
+                \li \l {Specifying Item Properties}
                 \li \l {Editing PathView Properties}
                 \li \l {Adding Connections}
-                \li \l {Creating Components}
-                \li \l {Creating Buttons}
-                \li \l {Creating Scalable Buttons and Borders}
-                \li \l {Creating Screens}
+                \list
+                    \li \l{Connecting Objects to Signals}
+                    \li \l{Specifying Dynamic Properties}
+                    \li \l{Adding Bindings Between Properties}
+                    \li \l{Managing C++ Backend Objects}
+                \endlist
+                \li \l {Adding States}
                 \li \l {Browsing ISO 7000 Icons}
                 \li \l {Exporting Designs from Graphics Software}
                 \li \l {Using QML Modules with Plugins}
@@ -147,19 +154,19 @@
             \li \l{Running on Multiple Platforms}
             \li \l{Deploying to Devices}
             \list
+                \li \l{Deploying Applications to Sailfish OS Devices}
                 \li \l{Deploying Applications to Android Devices}
                 \li \l{Deploying Applications to Embedded Linux Devices}
                 \li \l{Deploying Applications to QNX Neutrino Devices}
-                \li \l{Deploying Applications to Sailfish OS Devices}
             \endlist
             \li \l{Connecting Devices}
             \list
+                \li \l{Connecting Sailfish OS Devices}
                 \li \l{Connecting Android Devices}
                 \li \l{Connecting Bare Metal Devices}
                 \li \l{Connecting Embedded Linux Devices}
                 \li \l{Connecting iOS Devices}
                 \li \l{Connecting QNX Devices}
-                \li \l{Connecting Sailfish OS Devices}
             \endlist
             \li \l{Customizing the Build Process}
         \endlist
@@ -185,7 +192,7 @@
                     \li \l{Profiling Function Execution}
                     \li \l{Running Valgrind Tools on External Applications}
                 \endlist
-                \li \l{Using Clang Static Analyzer}
+                \li \l{Using Clang Tools}
                 \li \l{Detecting Memory Leaks with Heob}
                 \li \l{Analyzing CPU Usage}
             \endlist

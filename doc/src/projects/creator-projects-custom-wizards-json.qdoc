@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-project-wizards.html
     \page creator-project-wizards-json.html
     \nextpage creator-project-wizards-xml.html
@@ -76,7 +76,7 @@
 
     \image qtcreator-custom-wizard.png
 
-    \section1 Integrating Wizards into Qt Creator Builds
+    \section1 Integrating Wizards into Builds
 
     To integrate the wizard into \QC and to deliver it as part of the \QC build,
     place the wizard files in the \QC sources. Then select \uicontrol Build >

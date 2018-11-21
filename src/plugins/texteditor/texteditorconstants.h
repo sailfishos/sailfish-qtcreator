@@ -59,6 +59,7 @@ enum TextStyle : quint8 {
     C_KEYWORD,
     C_PRIMITIVE_TYPE,
     C_OPERATOR,
+    C_OVERLOADED_OPERATOR,
     C_PREPROCESSOR,
     C_LABEL,
     C_COMMENT,
@@ -109,6 +110,11 @@ enum TextStyle : quint8 {
 namespace Constants {
 
 const char C_TEXTEDITOR[]          = "Text Editor";
+const char M_STANDARDCONTEXTMENU[] = "TextEditor.StandardContextMenu";
+const char G_UNDOREDO[]            = "TextEditor.UndoRedoGroup";
+const char G_COPYPASTE[]           = "TextEditor.CopyPasteGroup";
+const char G_SELECT[]              = "TextEditor.SelectGroup";
+const char G_BOM[]                 = "TextEditor.BomGroup";
 const char COMPLETE_THIS[]         = "TextEditor.CompleteThis";
 const char QUICKFIX_THIS[]         = "TextEditor.QuickFix";
 const char SHOWCONTEXTMENU[]       = "TextEditor.ShowContextMenu";
@@ -199,8 +205,6 @@ const char *nameForStyle(TextStyle style);
 TextStyle styleFromName(const char *name);
 
 const char TEXT_EDITOR_SETTINGS_CATEGORY[] = "C.TextEditor";
-const char TEXT_EDITOR_SETTINGS_CATEGORY_ICON[] = ":/core/images/category_texteditor.png";
-const char TEXT_EDITOR_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("TextEditor", "Text Editor");
 const char TEXT_EDITOR_FONT_SETTINGS[] = "A.FontSettings";
 const char TEXT_EDITOR_BEHAVIOR_SETTINGS[] = "B.BehaviourSettings";
 const char TEXT_EDITOR_DISPLAY_SETTINGS[] = "D.DisplaySettings";

@@ -32,11 +32,7 @@
 #include <QAction>
 #include <QObject>
 
-namespace ProjectExplorer {
-
-class RunControl;
-
-}
+namespace ProjectExplorer { class RunControl; }
 
 namespace QmlProfiler {
 
@@ -53,8 +49,8 @@ class QMLPROFILER_EXPORT QmlProfilerTool : public QObject
     Q_OBJECT
 
 public:
-    explicit QmlProfilerTool(QObject *parent);
-    ~QmlProfilerTool();
+    QmlProfilerTool();
+    ~QmlProfilerTool() override;
 
     void finalizeRunControl(QmlProfilerRunner *runWorker);
 
@@ -81,6 +77,14 @@ public:
 
     void gotoSourceLocation(const QString &fileUrl, int lineNumber, int columnNumber);
 
+    void showSaveDialog();
+    void showLoadDialog();
+
+    void profileStartupProject();
+
+    QAction *startAction() const;
+    QAction *stopAction() const;
+
 private:
     void clearEvents();
     void clearData();
@@ -89,10 +93,6 @@ private:
     void updateTimeDisplay();
     void showTimeLineSearch();
 
-    void showSaveOption();
-    void showLoadOption();
-    void showSaveDialog();
-    void showLoadDialog();
     void onLoadSaveFinished();
 
     void toggleRequestedFeature(QAction *action);
@@ -103,10 +103,12 @@ private:
     template<ProfileFeature feature>
     void updateFeatures(quint64 features);
     bool checkForUnsavedNotes();
-    void restoreFeatureVisibility();
     void setButtonsEnabled(bool enable);
-    void createTextMarks();
-    void clearTextMarks();
+    void createInitialTextMarks();
+
+    void initialize();
+    void finalize();
+    void clear();
 
     class QmlProfilerToolPrivate;
     QmlProfilerToolPrivate *d;

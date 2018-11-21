@@ -26,6 +26,7 @@
 #include "pathchooser.h"
 
 #include "environment.h"
+#include "optional.h"
 #include "qtcassert.h"
 
 #include "synchronousprocess.h"
@@ -147,7 +148,7 @@ public:
         BinaryVersionToolTipEventFilter(pe->lineEdit()), m_pathChooser(pe) {}
 
 private:
-    virtual QString defaultToolTip() const
+    QString defaultToolTip() const override
         { return m_pathChooser->errorMessage(); }
 
     const PathChooser *m_pathChooser = nullptr;
@@ -223,7 +224,7 @@ PathChooser::PathChooser(QWidget *parent) :
             [this] { emit rawPathChanged(rawPath()); });
     connect(d->m_lineEdit, &FancyLineEdit::validChanged, this, &PathChooser::validChanged);
     connect(d->m_lineEdit, &QLineEdit::editingFinished, this, &PathChooser::editingFinished);
-    connect(d->m_lineEdit, &QLineEdit::textChanged, this, [this] { emit pathChanged(path()); });
+    connect(d->m_lineEdit, &QLineEdit::textChanged, this, [this] { emit pathChanged(d->m_lineEdit->text()); });
 
     d->m_lineEdit->setMinimumWidth(120);
     d->m_lineEdit->setErrorColor(creatorTheme()->color(Theme::TextColorError));
@@ -340,14 +341,22 @@ QString PathChooser::expandedDirectory(const QString &input, const Environment &
     return path;
 }
 
+void setTextKeepingActiveCursor(QLineEdit *edit, const QString &text)
+{
+    optional<int> cursor = edit->hasFocus() ? make_optional(edit->cursorPosition()) : nullopt;
+    edit->setText(text);
+    if (cursor)
+        edit->setCursorPosition(*cursor);
+}
+
 void PathChooser::setPath(const QString &path)
 {
-    d->m_lineEdit->setText(QDir::toNativeSeparators(path));
+    setTextKeepingActiveCursor(d->m_lineEdit, QDir::toNativeSeparators(path));
 }
 
 void PathChooser::setFileName(const FileName &fn)
 {
-    d->m_lineEdit->setText(fn.toUserOutput());
+    setTextKeepingActiveCursor(d->m_lineEdit, fn.toUserOutput());
 }
 
 void PathChooser::setErrorColor(const QColor &errorColor)
@@ -521,7 +530,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
 
     // Check if existing
     switch (d->m_acceptingKind) {
-    case PathChooser::ExistingDirectory: // fall through
+    case PathChooser::ExistingDirectory:
         if (!fi.exists()) {
             if (errorMessage)
                 *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
@@ -533,7 +542,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
             return false;
         }
         break;
-    case PathChooser::File: // fall through
+    case PathChooser::File:
         if (!fi.exists()) {
             if (errorMessage)
                 *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
@@ -576,7 +585,7 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
             return false;
         }
         break;
-    case PathChooser::Command: // fall through
+    case PathChooser::Command:
         if (fi.exists() && !fi.isExecutable()) {
             if (errorMessage)
                 *errorMessage = tr("Cannot execute \"%1\".").arg(QDir::toNativeSeparators(expandedPath));

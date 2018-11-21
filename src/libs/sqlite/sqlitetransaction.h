@@ -27,6 +27,7 @@
 
 #include "sqliteglobal.h"
 
+#include <exception>
 #include <mutex>
 
 namespace Sqlite {
@@ -34,66 +35,152 @@ namespace Sqlite {
 class DatabaseBackend;
 class Database;
 
-template <typename Database>
+class TransactionInterface
+{
+public:
+    TransactionInterface() = default;
+    TransactionInterface(const TransactionInterface &) = delete;
+    TransactionInterface &operator=(const TransactionInterface &) = delete;
+
+    virtual void deferredBegin() = 0;
+    virtual void immediateBegin() = 0;
+    virtual void exclusiveBegin() = 0;
+    virtual void commit() = 0;
+    virtual void rollback() = 0;
+    virtual void lock() = 0;
+    virtual void unlock() = 0;
+
+protected:
+    ~TransactionInterface() = default;
+};
+
 class AbstractTransaction
 {
 public:
-    ~AbstractTransaction()
-    {
-        if (!m_isAlreadyCommited)
-            m_database.execute("ROLLBACK");
-    }
+    AbstractTransaction(const AbstractTransaction &) = delete;
+    AbstractTransaction &operator=(const AbstractTransaction &) = delete;
 
     void commit()
     {
-        m_database.execute("COMMIT");
+        m_interface.commit();
         m_isAlreadyCommited = true;
+        m_locker.unlock();
     }
 
 protected:
-    AbstractTransaction(Database &database)
-        : m_databaseLock(database.databaseMutex()),
-          m_database(database)
+    ~AbstractTransaction() = default;
+    AbstractTransaction(TransactionInterface &interface)
+        : m_interface(interface)
     {
     }
 
-private:
-    std::lock_guard<typename Database::MutexType> m_databaseLock;
-    Database &m_database;
+
+protected:
+    TransactionInterface &m_interface;
+    std::unique_lock<TransactionInterface> m_locker{m_interface};
     bool m_isAlreadyCommited = false;
+    bool m_rollback = false;
 };
 
-template <typename Database>
-class DeferredTransaction final : public AbstractTransaction<Database>
+class AbstractThrowingTransaction : public AbstractTransaction
 {
 public:
-    DeferredTransaction(Database &database)
-        : AbstractTransaction<Database>(database)
+    AbstractThrowingTransaction(const AbstractThrowingTransaction &) = delete;
+    AbstractThrowingTransaction &operator=(const AbstractThrowingTransaction &) = delete;
+    ~AbstractThrowingTransaction() noexcept(false)
     {
-        database.execute("BEGIN");
+        try {
+            if (m_rollback)
+                m_interface.rollback();
+        } catch (...) {
+            if (!std::uncaught_exception())
+                throw;
+        }
+    }
+
+protected:
+    AbstractThrowingTransaction(TransactionInterface &interface)
+        : AbstractTransaction(interface)
+    {
     }
 };
 
-template <typename Database>
-class ImmediateTransaction final : public AbstractTransaction<Database>
+class AbstractNonThrowingDestructorTransaction : public AbstractTransaction
 {
 public:
-    ImmediateTransaction(Database &database)
-        : AbstractTransaction<Database>(database)
+    AbstractNonThrowingDestructorTransaction(const AbstractNonThrowingDestructorTransaction &) = delete;
+    AbstractNonThrowingDestructorTransaction &operator=(const AbstractNonThrowingDestructorTransaction &) = delete;
+    ~AbstractNonThrowingDestructorTransaction()
     {
-        database.execute("BEGIN IMMEDIATE");
+        try {
+            if (m_rollback)
+                m_interface.rollback();
+        } catch (...) {
+        }
+    }
+
+protected:
+    AbstractNonThrowingDestructorTransaction(TransactionInterface &interface)
+        : AbstractTransaction(interface)
+    {
     }
 };
 
-template <typename Database>
-class ExclusiveTransaction final : public AbstractTransaction<Database>
+template <typename BaseTransaction>
+class BasicDeferredTransaction final : public BaseTransaction
 {
 public:
-    ExclusiveTransaction(Database &database)
-        : AbstractTransaction<Database>(database)
+    BasicDeferredTransaction(TransactionInterface &interface)
+        : BaseTransaction(interface)
     {
-        database.execute("BEGIN EXCLUSIVE");
+        interface.deferredBegin();
+    }
+
+    ~BasicDeferredTransaction()
+    {
+        BaseTransaction::m_rollback = !BaseTransaction::m_isAlreadyCommited;
     }
 };
+
+using DeferredTransaction = BasicDeferredTransaction<AbstractThrowingTransaction>;
+using DeferredNonThrowingDestructorTransaction = BasicDeferredTransaction<AbstractNonThrowingDestructorTransaction>;
+
+template <typename BaseTransaction>
+class BasicImmediateTransaction final : public BaseTransaction
+{
+public:
+    BasicImmediateTransaction(TransactionInterface &interface)
+        : BaseTransaction(interface)
+    {
+        interface.immediateBegin();
+    }
+
+    ~BasicImmediateTransaction()
+    {
+        BaseTransaction::m_rollback = !BaseTransaction::m_isAlreadyCommited;
+    }
+};
+
+using ImmediateTransaction = BasicImmediateTransaction<AbstractThrowingTransaction>;
+using ImmediateNonThrowingDestructorTransaction = BasicImmediateTransaction<AbstractNonThrowingDestructorTransaction>;
+
+template <typename BaseTransaction>
+class BasicExclusiveTransaction final : public BaseTransaction
+{
+public:
+    BasicExclusiveTransaction(TransactionInterface &interface)
+        : BaseTransaction(interface)
+    {
+        interface.exclusiveBegin();
+    }
+
+    ~BasicExclusiveTransaction()
+    {
+        BaseTransaction::m_rollback = !BaseTransaction::m_isAlreadyCommited;
+    }
+};
+
+using ExclusiveTransaction = BasicExclusiveTransaction<AbstractThrowingTransaction>;
+using ExclusiveNonThrowingDestructorTransaction = BasicExclusiveTransaction<AbstractNonThrowingDestructorTransaction>;
 
 } // namespace Sqlite

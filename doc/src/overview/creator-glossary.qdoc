@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-known-issues.html
     \page creator-glossary.html
     \nextpage technical-support.html
@@ -97,7 +97,7 @@
                 cross-platform development easier. Each kit consists of a set
                 of values that define one environment, such as a \l{glossary-device}{device},
                 tool chain, Qt version, and debugger command to use. Configure kits at
-                \uicontrol {Tools > Options > Build & Run > Kits}.
+                \uicontrol Tools > \uicontrol Options > \uicontrol Kits.
 
         \row
             \li Mode

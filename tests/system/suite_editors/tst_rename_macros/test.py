@@ -35,7 +35,7 @@ def main():
         test.fatal("Could not prepare test files - leaving test")
         return
     proFile = os.path.join(folder, "testfiles.pro")
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     openQmakeProject(proFile)
@@ -118,7 +118,7 @@ def testRenameMacroAfterSourceMoving():
     return True
 
 def performMacroRenaming(newMacroName):
-    for i in range(10):
+    for _ in range(10):
         type(cppEditorStr, "<Left>")
     invokeContextMenuItem(waitForObject(cppEditorStr), "Refactor",
                           "Rename Symbol Under Cursor")

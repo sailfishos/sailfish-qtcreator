@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-building-running.html
     \page creator-building-targets.html
     \nextpage creator-running-targets.html
@@ -66,6 +66,10 @@
              the application after building it.
 
     \endlist
+
+    While the application is being built, the \uicontrol Build button changes to
+    a \uicontrol {Cancel Build} button (3). To cancel the build, select the
+    button or press \key {Alt+Backspace}.
 
     For more information on the options you have, see
     \l{Specifying Build Settings}.

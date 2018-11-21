@@ -27,7 +27,7 @@
 
 #include <texteditor/texteditor_global.h>
 
-#include <QObject>
+#include <QString>
 
 #include <functional>
 
@@ -35,28 +35,23 @@ namespace TextEditor {
 
 class TextEditorWidget;
 
-class TEXTEDITOR_EXPORT SnippetProvider : public QObject
+class TEXTEDITOR_EXPORT SnippetProvider
 {
-    Q_OBJECT
 public:
+    SnippetProvider() = default;
+
     using EditorDecorator = std::function<void(TextEditorWidget *)>;
 
-    static const QList<SnippetProvider *> snippetProviders();
-    static SnippetProvider *snippetProviderForGroupId(const QString &groupId);
-
+    static const QList<SnippetProvider> &snippetProviders();
     static void registerGroup(const QString &groupId, const QString &displayName,
                               EditorDecorator editorDecorator = EditorDecorator());
 
     QString groupId() const;
     QString displayName() const;
-    EditorDecorator editorDecorator() const;
 
-    void decorateEditor(TextEditorWidget *editor) const;
+    static void decorateEditor(TextEditorWidget *editor, const QString &groupId);
 
 private:
-    SnippetProvider();
-    ~SnippetProvider() override;
-
     QString m_groupId;
     QString m_displayName;
     EditorDecorator m_editorDecorator;

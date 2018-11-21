@@ -183,7 +183,7 @@ QString GdbEngine::failedToStartMessage()
 
 // Parse "~:gdb: unknown target exception 0xc0000139 at 0x77bef04e\n"
 // and return an exception message
-static QString msgWinException(const QString &data, unsigned *exCodeIn = 0)
+static QString msgWinException(const QString &data, unsigned *exCodeIn = nullptr)
 {
     if (exCodeIn)
         *exCodeIn = 0;
@@ -740,15 +740,6 @@ void GdbEngine::runCommand(const DebuggerCommand &command)
         return;
     }
 
-    if (cmd.flags & RebuildBreakpointModel) {
-        ++m_pendingBreakpointRequests;
-        PENDING_DEBUG("   BREAKPOINT MODEL:" << cmd.function
-                      << "INCREMENTS PENDING TO" << m_pendingBreakpointRequests);
-    } else {
-        PENDING_DEBUG("   OTHER (IN):" << cmd.function
-                      << "LEAVES PENDING BREAKPOINT AT" << m_pendingBreakpointRequests);
-    }
-
     if (cmd.flags & (NeedsTemporaryStop|NeedsFullStop)) {
         showMessage("RUNNING NEEDS-STOP COMMAND " + cmd.function);
         const bool wantContinue = bool(cmd.flags & NeedsTemporaryStop);
@@ -770,7 +761,8 @@ void GdbEngine::runCommand(const DebuggerCommand &command)
             requestInterruptInferior();
             return;
         }
-        showMessage("UNSAFE STATE FOR QUEUED COMMAND. EXECUTING IMMEDIATELY");
+        if (state() != InferiorStopOk)
+            showMessage("UNSAFE STATE FOR QUEUED COMMAND. EXECUTING IMMEDIATELY");
     }
 
     if (!(cmd.flags & Discardable))
@@ -1008,18 +1000,6 @@ void GdbEngine::handleResultRecord(DebuggerResponse *response)
 
     if (cmd.callback)
         cmd.callback(*response);
-
-    if (flags & RebuildBreakpointModel) {
-        --m_pendingBreakpointRequests;
-        PENDING_DEBUG("   BREAKPOINT" << cmd.function);
-        if (m_pendingBreakpointRequests <= 0) {
-            PENDING_DEBUG("\n\n ... AND TRIGGERS BREAKPOINT MODEL UPDATE\n");
-            attemptBreakpointSynchronization();
-        }
-    } else {
-        PENDING_DEBUG("   OTHER (OUT):" << cmd.function
-                      << "LEAVES PENDING BREAKPOINT AT" << m_pendingBreakpointRequests);
-    }
 
     // Continue only if there are no commands wire anymore, so this will
     // be fully synchronous.
@@ -1782,6 +1762,7 @@ bool GdbEngine::hasCapability(unsigned cap) const
         | ReloadModuleSymbolsCapability
         | BreakOnThrowAndCatchCapability
         | BreakConditionCapability
+        | BreakIndividualLocationsCapability
         | TracePointCapability
         | ReturnFromFunctionCapability
         | CreateFullBacktraceCapability
@@ -2368,7 +2349,7 @@ void GdbEngine::handleBreakInsert1(const DebuggerResponse &response, Breakpoint 
             const GdbMi mainbkpt = response.data["bkpt"];
             bp.notifyBreakpointRemoveProceeding();
             DebuggerCommand cmd("-break-delete " + mainbkpt["number"].data());
-            cmd.flags = NeedsTemporaryStop | RebuildBreakpointModel;
+            cmd.flags = NeedsTemporaryStop;
             runCommand(cmd);
             bp.notifyBreakpointRemoveOk();
             return;
@@ -2395,14 +2376,14 @@ void GdbEngine::handleBreakInsert1(const DebuggerResponse &response, Breakpoint 
         const int lineNumber = bp.lineNumber();
         DebuggerCommand cmd("trace \"" + GdbMi::escapeCString(fileName) + "\":"
                             + QString::number(lineNumber),
-                            NeedsTemporaryStop | RebuildBreakpointModel);
+                            NeedsTemporaryStop);
         runCommand(cmd);
     } else {
         // Some versions of gdb like "GNU gdb (GDB) SUSE (6.8.91.20090930-2.4)"
         // know how to do pending breakpoints using CLI but not MI. So try
         // again with MI.
         DebuggerCommand cmd("break " + breakpointLocation2(bp.parameters()),
-                            NeedsTemporaryStop | RebuildBreakpointModel);
+                            NeedsTemporaryStop);
         cmd.callback = [this, bp](const DebuggerResponse &r) { handleBreakInsert2(r, bp); };
         runCommand(cmd);
     }
@@ -2561,7 +2542,7 @@ void GdbEngine::insertBreakpoint(Breakpoint bp)
     } else if (type == BreakpointAtFork) {
         cmd.function = "catch fork";
         cmd.callback = handleCatch;
-        cmd.flags = NeedsTemporaryStop | RebuildBreakpointModel;
+        cmd.flags = NeedsTemporaryStop;
         runCommand(cmd);
         // Another one...
         cmd.function = "catch vfork";
@@ -2598,7 +2579,7 @@ void GdbEngine::insertBreakpoint(Breakpoint bp)
         cmd.function += breakpointLocation(bp.parameters());
         cmd.callback = [this, bp](const DebuggerResponse &r) { handleBreakInsert1(r, bp); };
     }
-    cmd.flags = NeedsTemporaryStop | RebuildBreakpointModel;
+    cmd.flags = NeedsTemporaryStop;
     runCommand(cmd);
 }
 
@@ -2626,9 +2607,13 @@ void GdbEngine::changeBreakpoint(Breakpoint bp)
         cmd.callback = [this, bp](const DebuggerResponse &r) { handleBreakLineNumber(r, bp); };
     } else if (data.command != response.command) {
         cmd.function = "-break-commands " + bpnr;
-        foreach (const QString &command, data.command.split(QLatin1String("\n"))) {
-            if (!command.isEmpty())
+        for (QString command : data.command.split('\n')) {
+            if (!command.isEmpty()) {
+                // escape backslashes and quotes
+                command.replace('\\', "\\\\");
+                command.replace('"', "\\\"");
                 cmd.function +=  " \"" + command + '"';
+            }
         }
         cmd.callback = [this, bp](const DebuggerResponse &r) { handleBreakIgnore(r, bp); };
     } else if (!data.conditionsMatch(response.condition)) {
@@ -2647,7 +2632,13 @@ void GdbEngine::changeBreakpoint(Breakpoint bp)
         bp.notifyBreakpointChangeOk();
         return;
     }
-    cmd.flags = NeedsTemporaryStop | RebuildBreakpointModel;
+    cmd.flags = NeedsTemporaryStop;
+    runCommand(cmd);
+}
+
+void GdbEngine::enableSubBreakpoint(const QString &locId, bool on)
+{
+    DebuggerCommand cmd((on ? "-break-enable " : "-break-disable ") + locId);
     runCommand(cmd);
 }
 
@@ -2669,7 +2660,7 @@ void GdbEngine::removeBreakpoint(Breakpoint bp)
         // We already have a fully inserted breakpoint.
         bp.notifyBreakpointRemoveProceeding();
         showMessage(QString("DELETING BP %1 IN %2").arg(br.id.toString()).arg(bp.fileName()));
-        DebuggerCommand cmd("-break-delete " + br.id.toString(), NeedsTemporaryStop | RebuildBreakpointModel);
+        DebuggerCommand cmd("-break-delete " + br.id.toString(), NeedsTemporaryStop);
         runCommand(cmd);
 
         // Pretend it succeeds without waiting for response. Feels better.
@@ -4051,7 +4042,7 @@ void GdbEngine::handleDebugInfoLocation(const DebuggerResponse &response)
 {
     if (response.resultClass == ResultDone) {
         const QString debugInfoLocation = runParameters().debugInfoLocation;
-        if (QFile::exists(debugInfoLocation)) {
+        if (!debugInfoLocation.isEmpty() && QFile::exists(debugInfoLocation)) {
             const QString curDebugInfoLocations = response.consoleStreamOutput.split('"').value(1);
             QString cmd = "set debug-file-directory " + debugInfoLocation;
             if (!curDebugInfoLocations.isEmpty())
@@ -4848,7 +4839,7 @@ static QString findExecutableFromName(const QString &fileNameFromCore, const QSt
     return QString();
 }
 
-CoreInfo CoreInfo::readExecutableNameFromCore(const StandardRunnable &debugger, const QString &coreFile)
+CoreInfo CoreInfo::readExecutableNameFromCore(const Runnable &debugger, const QString &coreFile)
 {
     CoreInfo cinfo;
 #if 0
@@ -4918,8 +4909,6 @@ void GdbEngine::handleCoreRoundTrip(const DebuggerResponse &response)
 
 void GdbEngine::doUpdateLocals(const UpdateParameters &params)
 {
-    m_pendingBreakpointRequests = 0;
-
     watchHandler()->notifyUpdateStarted(params);
 
     DebuggerCommand cmd("fetchVariables", Discardable|InUpdateLocals);

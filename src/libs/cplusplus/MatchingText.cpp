@@ -35,6 +35,7 @@
 #include <QDebug>
 
 #include <utils/algorithm.h>
+#include <utils/optional.h>
 
 using namespace CPlusPlus;
 
@@ -97,7 +98,7 @@ static bool insertQuote(const QChar ch, const BackwardsScanner &tk)
         return true;
 
     // Insert a matching quote after an operator.
-    if (token.isOperator())
+    if (token.isPunctuationOrOperator())
         return true;
 
     if (token.isKeyword())
@@ -137,50 +138,73 @@ static const Token tokenAtPosition(const Tokens &tokens, const unsigned pos)
     return Token();
 }
 
-static int tokenIndexBeforePosition(const Tokens &tokens, unsigned pos)
+static LanguageFeatures languageFeatures()
 {
-    for (int i = tokens.size() - 1; i >= 0; --i) {
-        if (tokens[i].utf16charsBegin() < pos)
-            return i;
-    }
-    return -1;
+    LanguageFeatures features;
+    features.qtEnabled = false;
+    features.qtKeywordsEnabled = false;
+    features.qtMocRunEnabled = false;
+    features.cxx11Enabled = true;
+    features.cxxEnabled = true;
+    features.c99Enabled = true;
+    features.objCEnabled = true;
+
+    return features;
 }
 
-static bool isCursorAtEndOfLineButMaybeBeforeComment(const Tokens &tokens, int pos)
+static Tokens getTokens(const QTextCursor &cursor, int &prevState)
 {
-    int index = tokenIndexBeforePosition(tokens, uint(pos));
-    if (index == -1 || index >= tokens.size())
-        return false;
+    SimpleLexer tokenize;
+    tokenize.setLanguageFeatures(languageFeatures());
 
-    do {
-        ++index;
-    } while (index < tokens.size() && tokens[index].isComment());
-
-    return index >= tokens.size();
+    prevState = BackwardsScanner::previousBlockState(cursor.block()) & 0xFF;
+    return tokenize(cursor.block().text(), prevState);
 }
+
+static int isEmptyOrWhitespace(const QString &text)
+{
+    return Utils::allOf(text, [](const QChar &c) {return c.isSpace(); });
+}
+
+static bool isCursorAtEndOfLineButMaybeBeforeComment(const QTextCursor &cursor)
+{
+    const QString textAfterCursor = cursor.block().text().mid(cursor.positionInBlock());
+    if (isEmptyOrWhitespace(textAfterCursor))
+        return true;
+
+    SimpleLexer tokenize;
+    tokenize.setLanguageFeatures(languageFeatures());
+    const Tokens tokens = tokenize(textAfterCursor);
+    return Utils::allOf(tokens, [](const Token &token) { return token.isComment(); });
+}
+
+using TokenIndexResult = Utils::optional<int>;
 
 // 10.6.1 Attribute syntax and semantics
 // This does not handle alignas() since it is not needed for the namespace case.
-static int skipAttributeSpecifierSequence(const Tokens &tokens, int index)
+static TokenIndexResult skipAttributeSpecifierSequence(const BackwardsScanner &tokens, int index)
 {
+    if (tokens[index].is(T_EOF_SYMBOL))
+        return {};
+
     // [[ attribute-using-prefixopt attribute-list ]]
-    if (index >= 1 && tokens[index].is(T_RBRACKET) && tokens[index - 1].is(T_RBRACKET)) {
+    if (tokens[index].is(T_RBRACKET) && tokens[index - 1].is(T_RBRACKET)) {
         // Skip everything within [[ ]]
-        for (int i = index - 2; i >= 0; --i) {
-            if (i >= 1 && tokens[i].is(T_LBRACKET) && tokens[i - 1].is(T_LBRACKET))
+        for (int i = index - 2; !tokens[i].is(T_EOF_SYMBOL); --i) {
+            if (tokens[i].is(T_LBRACKET) && tokens[i - 1].is(T_LBRACKET))
                 return i - 2;
         }
 
-        return -1;
+        return {};
     }
 
     return index;
 }
 
-static int skipNamespaceName(const Tokens &tokens, int index)
+static TokenIndexResult skipNamespaceName(const BackwardsScanner &tokens, int index)
 {
-    if (index >= tokens.size())
-        return -1;
+    if (tokens[index].is(T_EOF_SYMBOL))
+        return {};
 
     if (!tokens[index].is(T_IDENTIFIER))
         return index;
@@ -189,12 +213,12 @@ static int skipNamespaceName(const Tokens &tokens, int index)
     //  SomeName
     //  Some::Nested::Name
     bool expectIdentifier = false;
-    for (int i = index - 1; i >= 0; --i) {
+    for (int i = index - 1; !tokens[i].is(T_EOF_SYMBOL); --i) {
         if (expectIdentifier) {
             if (tokens[i].is(T_IDENTIFIER))
                 expectIdentifier = false;
             else
-                return -1;
+                return {};
         } else if (tokens[i].is(T_COLON_COLON)) {
             expectIdentifier = true;
         } else {
@@ -206,28 +230,22 @@ static int skipNamespaceName(const Tokens &tokens, int index)
 }
 
 // 10.3.1 Namespace definition
-static bool isAfterNamespaceDefinition(const Tokens &tokens, int position)
+static bool isAfterNamespaceDefinition(const BackwardsScanner &tokens, int index)
 {
-    int index = tokenIndexBeforePosition(tokens, uint(position));
-    if (index == -1)
+    if (tokens[index].is(T_EOF_SYMBOL))
         return false;
 
     // Handle optional name
-    index = skipNamespaceName(tokens, index);
-    if (index == -1)
+    TokenIndexResult newIndex = skipNamespaceName(tokens, index);
+    if (!newIndex)
         return false;
 
     // Handle optional attribute specifier sequence
-    index = skipAttributeSpecifierSequence(tokens, index);
-    if (index == -1)
+    newIndex = skipAttributeSpecifierSequence(tokens, newIndex.value());
+    if (!newIndex)
         return false;
 
-    return index >= 0 && tokens[index].is(T_NAMESPACE);
-}
-
-static int isEmptyOrWhitespace(const QString &text)
-{
-    return Utils::allOf(text, [](const QChar &c) {return c.isSpace(); });
+    return tokens[newIndex.value()].is(T_NAMESPACE);
 }
 
 static QTextBlock previousNonEmptyBlock(const QTextBlock &currentBlock)
@@ -271,24 +289,6 @@ static bool allowAutoClosingBraceAtEmptyLine(
         && !trimmedText.endsWith('}');
 }
 
-static Tokens getTokens(const QTextCursor &cursor, int &prevState)
-{
-    LanguageFeatures features;
-    features.qtEnabled = false;
-    features.qtKeywordsEnabled = false;
-    features.qtMocRunEnabled = false;
-    features.cxx11Enabled = true;
-    features.cxxEnabled = true;
-    features.c99Enabled = true;
-    features.objCEnabled = true;
-
-    SimpleLexer tokenize;
-    tokenize.setLanguageFeatures(features);
-
-    prevState = BackwardsScanner::previousBlockState(cursor.block()) & 0xFF;
-    return tokenize(cursor.block().text(), prevState);
-}
-
 static QChar firstNonSpace(const QTextCursor &cursor)
 {
     int position = cursor.position();
@@ -314,27 +314,73 @@ static bool allowAutoClosingBraceByLookahead(const QTextCursor &cursor)
     return false;
 }
 
+static bool isRecordLikeToken(const Token &token)
+{
+    return token.is(T_CLASS)
+        || token.is(T_STRUCT)
+        || token.is(T_UNION)
+        || token.is(T_ENUM);
+}
+
+static bool isRecordLikeToken(const BackwardsScanner &tokens, int index)
+{
+    if (index + tokens.offset() < tokens.size() - 1)
+        return isRecordLikeToken(tokens[index]);
+    return false;
+}
+
+static bool recordLikeHasToFollowToken(const Token &token)
+{
+    return token.is(T_SEMICOLON)
+        || token.is(T_LBRACE) // e.g. class X {
+        || token.is(T_RBRACE) // e.g. function definition
+        || token.is(T_EOF_SYMBOL);
+}
+
+static bool recordLikeMightFollowToken(const Token &token)
+{
+    return token.is(T_IDENTIFIER) // e.g. macro like QT_END_NAMESPACE
+        || token.is(T_ANGLE_STRING_LITERAL) // e.g. #include directive
+        || token.is(T_STRING_LITERAL) // e.g. #include directive
+        || token.isComment();
+}
+
+static bool isAfterRecordLikeDefinition(const BackwardsScanner &tokens, int index)
+{
+    for (;; --index) {
+        if (recordLikeHasToFollowToken(tokens[index]))
+            return isRecordLikeToken(tokens, index + 1);
+
+        if (recordLikeMightFollowToken(tokens[index]) && isRecordLikeToken(tokens, index + 1))
+            return true;
+    }
+
+    return false;
+}
+
 static bool allowAutoClosingBrace(const QTextCursor &cursor,
                                   MatchingText::IsNextBlockDeeperIndented isNextIndented)
 {
     if (MatchingText::isInCommentHelper(cursor))
         return false;
 
+    BackwardsScanner tokens(cursor, languageFeatures(), /*maxBlockCount=*/ 5);
+    const int index = tokens.startToken() - 1;
+
+    if (tokens[index].isStringLiteral())
+        return false;
+
+    if (isAfterNamespaceDefinition(tokens, index))
+        return false;
+
+    if (isAfterRecordLikeDefinition(tokens, index))
+        return false;
+
     const QTextBlock block = cursor.block();
     if (isEmptyOrWhitespace(block.text()))
         return allowAutoClosingBraceAtEmptyLine(cursor.block(), isNextIndented);
 
-    int prevState;
-    const Tokens tokens = getTokens(cursor, prevState);
-
-    const Token token = tokenAtPosition(tokens, cursor.positionInBlock());
-    if (token.isStringLiteral())
-        return false;
-
-    if (isAfterNamespaceDefinition(tokens, cursor.positionInBlock()))
-        return false;
-
-    if (isCursorAtEndOfLineButMaybeBeforeComment(tokens, cursor.positionInBlock()))
+    if (isCursorAtEndOfLineButMaybeBeforeComment(cursor))
         return !(isNextIndented && isNextIndented(block));
 
     return allowAutoClosingBraceByLookahead(cursor);
@@ -556,7 +602,7 @@ QString MatchingText::insertParagraphSeparator(const QTextCursor &cursor)
             if (current.is(T_EOF_SYMBOL))
                 break;
 
-            if (current.is(T_CLASS) || current.is(T_STRUCT) || current.is(T_UNION) || current.is(T_ENUM)) {
+            if (isRecordLikeToken(current)) {
                 // found a class key.
                 QString str = QLatin1String("};");
 

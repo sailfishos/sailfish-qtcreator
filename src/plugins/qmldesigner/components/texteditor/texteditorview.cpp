@@ -66,7 +66,7 @@ const char TEXTEDITOR_CONTEXT_ID[] = "QmlDesigner.TextEditorContext";
 TextEditorView::TextEditorView(QObject *parent)
     : AbstractView(parent)
     , m_widget(new TextEditorWidget(this))
-    , m_textEditorContext(new Internal::TextEditorContext(m_widget.get()))
+    , m_textEditorContext(new Internal::TextEditorContext(m_widget))
 {
     Core::ICore::addContextObject(m_textEditorContext);
 
@@ -79,7 +79,7 @@ TextEditorView::TextEditorView(QObject *parent)
 
     QAction *completionAction = new QAction(tr("Trigger Completion"), this);
     Core::Command *command = Core::ActionManager::registerAction(completionAction, TextEditor::Constants::COMPLETE_THIS, context);
-    command->setDefaultKeySequence(QKeySequence(Core::UseMacShortcuts ? tr("Meta+Space") : tr("Ctrl+Space")));
+    command->setDefaultKeySequence(QKeySequence(Core::useMacShortcuts ? tr("Meta+Space") : tr("Ctrl+Space")));
 
     connect(completionAction, &QAction::triggered, [this]() {
         if (m_widget->textEditor())
@@ -89,6 +89,7 @@ TextEditorView::TextEditorView(QObject *parent)
 
 TextEditorView::~TextEditorView()
 {
+    // m_textEditorContext is responsible for deleting the widget
 }
 
 void TextEditorView::modelAttached(Model *model)
@@ -148,7 +149,7 @@ void TextEditorView::nodeReparented(const ModelNode &/*node*/, const NodeAbstrac
 
 WidgetInfo TextEditorView::widgetInfo()
 {
-    return createWidgetInfo(m_widget.get(), 0, "TextEditor", WidgetInfo::CentralPane, 0, tr("Text Editor"), DesignerWidgetFlags::IgnoreErrors);
+    return createWidgetInfo(m_widget, 0, "TextEditor", WidgetInfo::CentralPane, 0, tr("Text Editor"), DesignerWidgetFlags::IgnoreErrors);
 }
 
 void TextEditorView::contextHelpId(const Core::IContext::HelpIdCallback &callback) const

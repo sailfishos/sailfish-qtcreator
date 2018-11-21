@@ -23,10 +23,12 @@
 **
 ****************************************************************************/
 
-#include "androidconfigurations.h"
 #include "androidrunnerworker.h"
 
-#include <QThread>
+#include "androidconfigurations.h"
+#include "androidconstants.h"
+#include "androidmanager.h"
+#include "androidrunconfiguration.h"
 
 #include <debugger/debuggerrunconfigurationaspect.h>
 #include <projectexplorer/target.h>
@@ -39,6 +41,8 @@
 #include <utils/url.h>
 
 #include <QTcpServer>
+#include <QThread>
+
 #include <chrono>
 
 using namespace std;
@@ -97,49 +101,47 @@ static qint64 extractPID(const QByteArray &output, const QString &packageName)
     return pid;
 }
 
-void findProcessPIDPreNougat(QFutureInterface<qint64> &fi, const QString &adbPath,
-                    QStringList selector, const QString &packageName)
+static void findProcessPID(QFutureInterface<qint64> &fi, const QString &adbPath,
+                           QStringList selector, const QString &packageName,
+                           bool preNougat)
 {
     if (packageName.isEmpty())
         return;
 
     qint64 processPID = -1;
     chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
+
+    selector.append("shell");
+    selector.append(preNougat ? pidScriptPreNougat : pidScript.arg(packageName));
+
     do {
         QThread::msleep(200);
-        const QByteArray out = Utils::SynchronousProcess()
-                .runBlocking(adbPath, selector << QStringLiteral("shell") << pidScriptPreNougat)
-                .allRawOutput();
-        processPID = extractPID(out, packageName);
+        const QByteArray out = Utils::SynchronousProcess().runBlocking(adbPath, selector).allRawOutput();
+        if (preNougat) {
+            processPID = extractPID(out, packageName);
+        } else {
+            if (!out.isEmpty())
+                processPID = out.trimmed().toLongLong();
+        }
     } while (processPID == -1 && !isTimedOut(start) && !fi.isCanceled());
 
     if (!fi.isCanceled())
         fi.reportResult(processPID);
 }
 
-void findProcessPID(QFutureInterface<qint64> &fi, const QString &adbPath,
-                    QStringList selector, const QString &packageName)
+static void deleter(QProcess *p)
 {
-    if (packageName.isEmpty())
-        return;
-
-    qint64 processPID = -1;
-    chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
-    do {
-        QThread::msleep(200);
-        const QByteArray out = Utils::SynchronousProcess()
-                .runBlocking(adbPath, selector << QStringLiteral("shell") << pidScript.arg(packageName))
-                .allRawOutput();
-        if (!out.isEmpty())
-            processPID = out.trimmed().toLongLong();
-    } while (processPID == -1 && !isTimedOut(start) && !fi.isCanceled());
-
-    if (!fi.isCanceled())
-        fi.reportResult(processPID);
+    p->terminate();
+    if (!p->waitForFinished(1000)) {
+        p->kill();
+        p->waitForFinished();
+    }
+    // Might get deleted from its own signal handler.
+    p->deleteLater();
 }
 
-AndroidRunnerWorkerBase::AndroidRunnerWorkerBase(RunControl *runControl, const AndroidRunnable &runnable)
-    : m_androidRunnable(runnable)
+AndroidRunnerWorker::AndroidRunnerWorker(RunWorker *runner, const QString &packageName)
+    : m_packageName(packageName)
     , m_adbLogcatProcess(nullptr, deleter)
     , m_psIsAlive(nullptr, deleter)
     , m_logCatRegExp(regExpLogcat)
@@ -147,9 +149,9 @@ AndroidRunnerWorkerBase::AndroidRunnerWorkerBase(RunControl *runControl, const A
     , m_jdbProcess(nullptr, deleter)
 
 {
-    auto runConfig = runControl->runConfiguration();
+    auto runConfig = runner->runControl()->runConfiguration();
     auto aspect = runConfig->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
-    Core::Id runMode = runControl->runMode();
+    Core::Id runMode = runner->runMode();
     const bool debuggingMode = runMode == ProjectExplorer::Constants::DEBUG_RUN_MODE;
     m_useCppDebugger = debuggingMode && aspect->useCppDebugger();
     if (debuggingMode && aspect->useQmlDebugger())
@@ -164,8 +166,7 @@ AndroidRunnerWorkerBase::AndroidRunnerWorkerBase(RunControl *runControl, const A
     QTC_CHECK(m_localGdbServerPort.isValid());
     if (m_qmlDebugServices != QmlDebug::NoQmlDebugServices) {
         QTcpServer server;
-        QTC_ASSERT(server.listen(QHostAddress::LocalHost)
-                   || server.listen(QHostAddress::LocalHostIPv6),
+        QTC_ASSERT(server.listen(QHostAddress::LocalHost),
                    qDebug() << tr("No free ports available on host for QML debugging."));
         m_qmlServer.setScheme(Utils::urlTcpScheme());
         m_qmlServer.setHost(server.serverAddress().toString());
@@ -174,9 +175,30 @@ AndroidRunnerWorkerBase::AndroidRunnerWorkerBase(RunControl *runControl, const A
     m_adb = AndroidConfigurations::currentConfig().adbToolPath().toString();
     m_localJdbServerPort = Utils::Port(5038);
     QTC_CHECK(m_localJdbServerPort.isValid());
+
+    auto target = runConfig->target();
+    m_deviceSerialNumber = AndroidManager::deviceSerialNumber(target);
+    m_apiLevel = AndroidManager::deviceApiLevel(target);
+
+    if (auto aspect = runConfig->extraAspect(Constants::ANDROID_AMSTARTARGS))
+        m_amStartExtraArgs = static_cast<BaseStringAspect *>(aspect)->value().split(' ');
+
+    if (auto aspect = runConfig->extraAspect(Constants::ANDROID_PRESTARTSHELLCMDLIST)) {
+        for (const QString &shellCmd : static_cast<BaseStringListAspect *>(aspect)->value())
+            m_beforeStartAdbCommands.append(QString("shell %1").arg(shellCmd));
+    }
+    for (const QString &shellCmd : runner->recordedData(Constants::ANDROID_PRESTARTSHELLCMDLIST).toStringList())
+        m_beforeStartAdbCommands.append(QString("shell %1").arg(shellCmd));
+
+    if (auto aspect = runConfig->extraAspect(Constants::ANDROID_POSTFINISHSHELLCMDLIST)) {
+        for (const QString &shellCmd : static_cast<BaseStringListAspect *>(aspect)->value())
+            m_afterFinishAdbCommands.append(QString("shell %1").arg(shellCmd));
+    }
+    for (const QString &shellCmd : runner->recordedData(Constants::ANDROID_POSTFINISHSHELLCMDLIST).toStringList())
+        m_afterFinishAdbCommands.append(QString("shell %1").arg(shellCmd));
 }
 
-AndroidRunnerWorkerBase::~AndroidRunnerWorkerBase()
+AndroidRunnerWorker::~AndroidRunnerWorker()
 {
     if (m_processPID != -1)
         forceStop();
@@ -185,7 +207,7 @@ AndroidRunnerWorkerBase::~AndroidRunnerWorkerBase()
         m_pidFinder.cancel();
 }
 
-bool AndroidRunnerWorkerBase::adbShellAmNeedsQuotes()
+bool AndroidRunnerWorker::adbShellAmNeedsQuotes()
 {
     // Between Android SDK Tools version 24.3.1 and 24.3.4 the quoting
     // needs for the 'adb shell am start ...' parameters changed.
@@ -207,7 +229,7 @@ bool AndroidRunnerWorkerBase::adbShellAmNeedsQuotes()
     return !oldSdk;
 }
 
-bool AndroidRunnerWorkerBase::runAdb(const QStringList &args, int timeoutS)
+bool AndroidRunnerWorker::runAdb(const QStringList &args, int timeoutS)
 {
     Utils::SynchronousProcess adb;
     adb.setTimeoutS(timeoutS);
@@ -217,46 +239,45 @@ bool AndroidRunnerWorkerBase::runAdb(const QStringList &args, int timeoutS)
     return response.result == Utils::SynchronousProcessResponse::Finished;
 }
 
-void AndroidRunnerWorkerBase::adbKill(qint64 pid)
+void AndroidRunnerWorker::adbKill(qint64 pid)
 {
     runAdb({"shell", "kill", "-9", QString::number(pid)});
-    runAdb({"shell", "run-as", m_androidRunnable.packageName, "kill", "-9", QString::number(pid)});
+    runAdb({"shell", "run-as", m_packageName, "kill", "-9", QString::number(pid)});
 }
 
-
-QStringList AndroidRunnerWorkerBase::selector() const
+QStringList AndroidRunnerWorker::selector() const
 {
-    return AndroidDeviceInfo::adbSelector(m_androidRunnable.deviceSerialNumber);
+    return AndroidDeviceInfo::adbSelector(m_deviceSerialNumber);
 }
 
-void AndroidRunnerWorkerBase::forceStop()
+void AndroidRunnerWorker::forceStop()
 {
-    runAdb({"shell", "am", "force-stop", m_androidRunnable.packageName}, 30);
+    runAdb({"shell", "am", "force-stop", m_packageName}, 30);
 
     // try killing it via kill -9
     const QByteArray out = Utils::SynchronousProcess()
             .runBlocking(m_adb, selector() << QStringLiteral("shell") << pidScriptPreNougat)
             .allRawOutput();
 
-    qint64 pid = extractPID(out.simplified(), m_androidRunnable.packageName);
+    qint64 pid = extractPID(out.simplified(), m_packageName);
     if (pid != -1) {
         adbKill(pid);
     }
 }
 
-void AndroidRunnerWorkerBase::logcatReadStandardError()
+void AndroidRunnerWorker::logcatReadStandardError()
 {
     if (m_processPID != -1)
         logcatProcess(m_adbLogcatProcess->readAllStandardError(), m_stderrBuffer, true);
 }
 
-void AndroidRunnerWorkerBase::logcatReadStandardOutput()
+void AndroidRunnerWorker::logcatReadStandardOutput()
 {
     if (m_processPID != -1)
         logcatProcess(m_adbLogcatProcess->readAllStandardOutput(), m_stdoutBuffer, false);
 }
 
-void AndroidRunnerWorkerBase::logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError)
+void AndroidRunnerWorker::logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError)
 {
     QList<QByteArray> lines = text.split('\n');
     // lines always contains at least one item
@@ -317,44 +338,45 @@ void AndroidRunnerWorkerBase::logcatProcess(const QByteArray &text, QByteArray &
     }
 }
 
-void AndroidRunnerWorkerBase::setAndroidRunnable(const AndroidRunnable &runnable)
+void AndroidRunnerWorker::setAndroidDeviceInfo(const AndroidDeviceInfo &info)
 {
-    m_androidRunnable = runnable;
+    m_deviceSerialNumber = info.serialNumber;
+    m_apiLevel = info.sdk;
 }
 
-void AndroidRunnerWorkerBase::asyncStart()
+void AndroidRunnerWorker::asyncStartHelper()
 {
     forceStop();
 
     // Start the logcat process before app starts.
-    std::unique_ptr<QProcess, decltype(&deleter)> logcatProcess(new QProcess, deleter);
+    std::unique_ptr<QProcess, Deleter> logcatProcess(new QProcess, deleter);
     connect(logcatProcess.get(), &QProcess::readyReadStandardOutput,
-            this, &AndroidRunnerWorkerBase::logcatReadStandardOutput);
+            this, &AndroidRunnerWorker::logcatReadStandardOutput);
     connect(logcatProcess.get(), &QProcess::readyReadStandardError,
-            this, &AndroidRunnerWorkerBase::logcatReadStandardError);
+            this, &AndroidRunnerWorker::logcatReadStandardError);
     // Its assumed that the device or avd returned by selector() is online.
     logcatProcess->start(m_adb, selector() << "logcat");
     QTC_ASSERT(!m_adbLogcatProcess, /**/);
     m_adbLogcatProcess = std::move(logcatProcess);
 
-    for (const QString &entry: m_androidRunnable.beforeStartAdbCommands)
+    for (const QString &entry : m_beforeStartAdbCommands)
         runAdb(entry.split(' ', QString::SkipEmptyParts));
 
     QStringList args({"shell", "am", "start"});
-    args << m_androidRunnable.amStartExtraArgs;
-    args << "-n" << m_androidRunnable.intentName;
+    args << m_amStartExtraArgs;
+    args << "-n" << m_intentName;
     if (m_useCppDebugger) {
         args << "-D";
         QString gdbServerSocket;
         // run-as <package-name> pwd fails on API 22 so route the pwd through shell.
-        if (!runAdb({"shell", "run-as", m_androidRunnable.packageName, "/system/bin/sh", "-c", "pwd"})) {
+        if (!runAdb({"shell", "run-as", m_packageName, "/system/bin/sh", "-c", "pwd"})) {
             emit remoteProcessFinished(tr("Failed to get process path. Reason: %1.").arg(m_lastRunAdbError));
             return;
         }
         gdbServerSocket = QString::fromUtf8(m_lastRunAdbRawOutput.trimmed()) + "/debug-socket";
 
         QString gdbServerExecutable;
-        if (!runAdb({"shell", "run-as", m_androidRunnable.packageName, "ls", "lib/"})) {
+        if (!runAdb({"shell", "run-as", m_packageName, "ls", "lib/"})) {
             emit remoteProcessFinished(tr("Failed to get process path. Reason: %1.").arg(m_lastRunAdbError));
             return;
         }
@@ -367,15 +389,15 @@ void AndroidRunnerWorkerBase::asyncStart()
         }
 
         if (gdbServerExecutable.isEmpty()) {
-            emit remoteProcessFinished(tr("Can't find C++ debugger."));
+            emit remoteProcessFinished(tr("Cannot find C++ debugger."));
             return;
         }
 
-        runAdb({"shell", "run-as", m_androidRunnable.packageName, "killall", gdbServerExecutable});
-        runAdb({"shell", "run-as", m_androidRunnable.packageName, "rm", gdbServerSocket});
-        std::unique_ptr<QProcess, decltype(&deleter)> gdbServerProcess(new QProcess, deleter);
+        runAdb({"shell", "run-as", m_packageName, "killall", gdbServerExecutable});
+        runAdb({"shell", "run-as", m_packageName, "rm", gdbServerSocket});
+        std::unique_ptr<QProcess, Deleter> gdbServerProcess(new QProcess, deleter);
         gdbServerProcess->start(m_adb, selector() << "shell" << "run-as"
-                                    << m_androidRunnable.packageName << "lib/" + gdbServerExecutable
+                                    << m_packageName << "lib/" + gdbServerExecutable
                                     << "--multi" << "+" + gdbServerSocket);
         if (!gdbServerProcess->waitForStarted()) {
             emit remoteProcessFinished(tr("Failed to start C++ debugger."));
@@ -389,7 +411,7 @@ void AndroidRunnerWorkerBase::asyncStart()
             emit remoteProcessFinished(tr("Failed to forward C++ debugging ports. Reason: %1.").arg(m_lastRunAdbError));
             return;
         }
-        m_androidRunnable.afterFinishAdbCommands.push_back(removeForward.join(' '));
+        m_afterFinishAdbCommands.push_back(removeForward.join(' '));
     }
 
     if (m_qmlDebugServices != QmlDebug::NoQmlDebugServices) {
@@ -399,15 +421,26 @@ void AndroidRunnerWorkerBase::asyncStart()
         runAdb(removeForward);
         if (!runAdb({"forward", port, port})) {
             emit remoteProcessFinished(tr("Failed to forward QML debugging ports. Reason: %1.")
-                                       .arg(m_lastRunAdbError));
+                                       .arg(m_lastRunAdbError) + "\n" + m_lastRunAdbRawOutput);
             return;
         }
-        m_androidRunnable.afterFinishAdbCommands.push_back(removeForward.join(' '));
+        m_afterFinishAdbCommands.push_back(removeForward.join(' '));
 
         args << "-e" << "qml_debug" << "true"
              << "-e" << "qmljsdebugger"
              << QString("port:%1,block,services:%2")
                 .arg(m_qmlServer.port()).arg(QmlDebug::qmlDebugServices(m_qmlDebugServices));
+    }
+
+    if (!m_extraAppParams.isEmpty()) {
+        args << "-e" << "extraappparams"
+             << QString::fromLatin1(m_extraAppParams.toUtf8().toBase64());
+    }
+
+    if (m_extraEnvVars.size() > 0) {
+        args << "-e" << "extraenvvars"
+             << QString::fromLatin1(m_extraEnvVars.toStringList().join('\t')
+                                    .toUtf8().toBase64());
     }
 
     if (!runAdb(args)) {
@@ -417,7 +450,16 @@ void AndroidRunnerWorkerBase::asyncStart()
     }
 }
 
-void AndroidRunnerWorkerBase::asyncStop()
+void AndroidRunnerWorker::asyncStart()
+{
+    asyncStartHelper();
+
+    m_pidFinder = Utils::onResultReady(Utils::runAsync(findProcessPID, m_adb, selector(),
+                                                       m_packageName, m_isPreNougat),
+                                       bind(&AndroidRunnerWorker::onProcessIdChanged, this, _1));
+}
+
+void AndroidRunnerWorker::asyncStop()
 {
     if (!m_pidFinder.isFinished())
         m_pidFinder.cancel();
@@ -429,10 +471,7 @@ void AndroidRunnerWorkerBase::asyncStop()
     m_gdbServerProcess.reset();
 }
 
-void AndroidRunnerWorkerBase::handleRemoteDebuggerRunning()
-{}
-
-void AndroidRunnerWorkerBase::handleJdbWaiting()
+void AndroidRunnerWorker::handleJdbWaiting()
 {
     QStringList removeForward{"forward", "--remove", "tcp:" + m_localJdbServerPort.toString()};
     runAdb(removeForward);
@@ -441,7 +480,7 @@ void AndroidRunnerWorkerBase::handleJdbWaiting()
         emit remoteProcessFinished(tr("Failed to forward jdb debugging ports. Reason: %1.").arg(m_lastRunAdbError));
         return;
     }
-    m_androidRunnable.afterFinishAdbCommands.push_back(removeForward.join(' '));
+    m_afterFinishAdbCommands.push_back(removeForward.join(' '));
 
     auto jdbPath = AndroidConfigurations::currentConfig().openJDKLocation().appendPath("bin");
     if (Utils::HostOsInfo::isWindowsHost())
@@ -449,19 +488,19 @@ void AndroidRunnerWorkerBase::handleJdbWaiting()
     else
         jdbPath.appendPath("jdb");
 
-    std::unique_ptr<QProcess, decltype(&deleter)> jdbProcess(new QProcess, deleter);
+    std::unique_ptr<QProcess, Deleter> jdbProcess(new QProcess, &deleter);
     jdbProcess->setProcessChannelMode(QProcess::MergedChannels);
     jdbProcess->start(jdbPath.toString(), QStringList() << "-connect" <<
                       QString("com.sun.jdi.SocketAttach:hostname=localhost,port=%1")
                       .arg(m_localJdbServerPort.toString()));
     if (!jdbProcess->waitForStarted()) {
-        emit remoteProcessFinished(tr("Failed to start JDB"));
+        emit remoteProcessFinished(tr("Failed to start jdb"));
         return;
     }
     m_jdbProcess = std::move(jdbProcess);
 }
 
-void AndroidRunnerWorkerBase::handleJdbSettled()
+void AndroidRunnerWorker::handleJdbSettled()
 {
     auto waitForCommand = [&]() {
         for (int i= 0; i < 5 && m_jdbProcess->state() == QProcess::Running; ++i) {
@@ -491,17 +530,17 @@ void AndroidRunnerWorkerBase::handleJdbSettled()
             }
         }
     }
-    emit remoteProcessFinished(tr("Can't attach jdb to the running application").arg(m_lastRunAdbError));
+    emit remoteProcessFinished(tr("Cannot attach jdb to the running application").arg(m_lastRunAdbError));
 }
 
-void AndroidRunnerWorkerBase::onProcessIdChanged(qint64 pid)
+void AndroidRunnerWorker::onProcessIdChanged(qint64 pid)
 {
     // Don't write to m_psProc from a different thread
     QTC_ASSERT(QThread::currentThread() == thread(), return);
     m_processPID = pid;
     if (pid == -1) {
         emit remoteProcessFinished(QLatin1String("\n\n") + tr("\"%1\" died.")
-                                   .arg(m_androidRunnable.packageName));
+                                   .arg(m_packageName));
         // App died/killed. Reset log, monitor, jdb & gdb processes.
         m_adbLogcatProcess.reset();
         m_psIsAlive.reset();
@@ -509,7 +548,7 @@ void AndroidRunnerWorkerBase::onProcessIdChanged(qint64 pid)
         m_gdbServerProcess.reset();
 
         // Run adb commands after application quit.
-        for (const QString &entry: m_androidRunnable.afterFinishAdbCommands)
+        for (const QString &entry: m_afterFinishAdbCommands)
             runAdb(entry.split(' ', QString::SkipEmptyParts));
     } else {
         // In debugging cases this will be funneled to the engine to actually start
@@ -520,39 +559,22 @@ void AndroidRunnerWorkerBase::onProcessIdChanged(qint64 pid)
         m_psIsAlive.reset(new QProcess);
         m_psIsAlive->setProcessChannelMode(QProcess::MergedChannels);
         connect(m_psIsAlive.get(), static_cast<void(QProcess::*)(int)>(&QProcess::finished),
-                this, bind(&AndroidRunnerWorkerBase::onProcessIdChanged, this, -1));
+                this, bind(&AndroidRunnerWorker::onProcessIdChanged, this, -1));
         m_psIsAlive->start(m_adb, selector() << QStringLiteral("shell")
                            << pidPollingScript.arg(m_processPID));
     }
 }
 
-
-AndroidRunnerWorker::AndroidRunnerWorker(RunControl *runControl, const AndroidRunnable &runnable)
-    : AndroidRunnerWorkerBase(runControl, runnable)
+void AndroidRunnerWorker::setExtraEnvVars(const Utils::Environment &extraEnvVars)
 {
+    m_extraEnvVars = extraEnvVars;
 }
 
-void AndroidRunnerWorker::asyncStart()
+void AndroidRunnerWorker::setExtraAppParams(const QString &extraAppParams)
 {
-    AndroidRunnerWorkerBase::asyncStart();
-    m_pidFinder = Utils::onResultReady(Utils::runAsync(&findProcessPID, m_adb, selector(),
-                                                       m_androidRunnable.packageName),
-                                       bind(&AndroidRunnerWorker::onProcessIdChanged, this, _1));
+    m_extraAppParams = extraAppParams;
 }
 
-AndroidRunnerWorkerPreNougat::AndroidRunnerWorkerPreNougat(RunControl *runControl, const AndroidRunnable &runnable)
-    : AndroidRunnerWorkerBase(runControl, runnable)
-{
-}
-
-void AndroidRunnerWorkerPreNougat::asyncStart()
-{
-    AndroidRunnerWorkerBase::asyncStart();
-    m_pidFinder = Utils::onResultReady(Utils::runAsync(&findProcessPIDPreNougat, m_adb, selector(),
-                                                       m_androidRunnable.packageName),
-                                       bind(&AndroidRunnerWorkerPreNougat::onProcessIdChanged, this, _1));
-
-}
 
 } // namespace Internal
 } // namespace Android

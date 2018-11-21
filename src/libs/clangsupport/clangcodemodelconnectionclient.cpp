@@ -25,6 +25,7 @@
 
 #include "clangcodemodelconnectionclient.h"
 
+#include <utils/environment.h>
 #include <utils/temporarydirectory.h>
 
 #include <QCoreApplication>
@@ -50,6 +51,11 @@ ClangCodeModelConnectionClient::ClangCodeModelConnectionClient(
     m_processCreator.setTemporaryDirectoryPattern("clangbackend-XXXXXX");
     m_processCreator.setArguments({connectionName()});
 
+    Utils::Environment environment;
+    environment.set(QStringLiteral("LIBCLANG_NOTHREADS"), QString());
+    environment.set(QStringLiteral("LIBCLANG_DISABLE_CRASH_RECOVERY"), QString());
+    m_processCreator.setEnvironment(environment);
+
     stdErrPrefixer().setPrefix("clangbackend.stderr: ");
     stdOutPrefixer().setPrefix("clangbackend.stdout: ");
 }
@@ -69,9 +75,9 @@ void ClangCodeModelConnectionClient::sendEndCommand()
     m_serverProxy.end();
 }
 
-void ClangCodeModelConnectionClient::resetCounter()
+void ClangCodeModelConnectionClient::resetState()
 {
-    m_serverProxy.resetCounter();
+    m_serverProxy.resetState();
 }
 
 QString ClangCodeModelConnectionClient::outputName() const

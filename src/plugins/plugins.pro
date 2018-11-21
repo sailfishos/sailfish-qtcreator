@@ -4,7 +4,7 @@ TEMPLATE  = subdirs
 
 SUBDIRS   = \
     autotest \
-    clangstaticanalyzer \
+    clangtools \
     coreplugin \
     texteditor \
     cppeditor \
@@ -57,6 +57,12 @@ SUBDIRS   = \
     scxmleditor \
     welcome \
     silversearcher
+
+qtHaveModule(serialport) {
+    SUBDIRS += serialterminal
+} else {
+    warning("SerialTerminal plugin has been disabled since the Qt SerialPort module is not available.")
+}
 
 qtHaveModule(quick) {
     SUBDIRS += qmlprofiler

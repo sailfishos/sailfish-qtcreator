@@ -69,6 +69,8 @@ public:
     static void expectFileChange(const QString &fileName);
     static void unexpectFileChange(const QString &fileName);
 
+    static void setAutoReloadPostponed(bool enabled);
+
     // recent files
     static void addToRecentFiles(const QString &fileName, Id editorId = Id());
     Q_SLOT void clearRecentFiles();
@@ -123,6 +125,7 @@ public:
                                      const QString &alwaysSaveMessage = QString(),
                                      bool *alwaysSave = nullptr,
                                      QList<IDocument *> *failedToClose = nullptr);
+    static void showFilePropertiesDialog(const Utils::FileName &filePath);
 
     static QString fileDialogLastVisitedDirectory();
     static void setFileDialogLastVisitedDirectory(const QString &);
@@ -156,11 +159,11 @@ signals:
     void projectsDirectoryChanged(const Utils::FileName &directory);
 
 protected:
-    bool eventFilter(QObject *obj, QEvent *e);
+    bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
     explicit DocumentManager(QObject *parent);
-    ~DocumentManager();
+    ~DocumentManager() override;
 
     void documentDestroyed(QObject *obj);
     void checkForNewFileName();

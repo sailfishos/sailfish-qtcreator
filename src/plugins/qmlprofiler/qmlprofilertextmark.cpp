@@ -33,11 +33,13 @@
 #include <QLayout>
 #include <QPainter>
 
+using namespace Utils;
+
 namespace QmlProfiler {
 namespace Internal {
 
 QmlProfilerTextMark::QmlProfilerTextMark(QmlProfilerViewManager *viewManager, int typeId,
-                                         const QString &fileName, int lineNumber) :
+                                         const FileName &fileName, int lineNumber) :
     TextMark(fileName, lineNumber, Constants::TEXT_MARK_CATEGORY, 3.5), m_viewManager(viewManager),
     m_typeIds(1, typeId)
 {
@@ -109,9 +111,24 @@ void QmlProfilerTextMarkModel::createMarks(QmlProfilerViewManager *viewManager,
             m_marks.last()->addTypeId(it->typeId);
         } else {
             lineNumber = it->lineNumber;
-            m_marks << new QmlProfilerTextMark(viewManager, it->typeId, fileName, it->lineNumber);
+            m_marks << new QmlProfilerTextMark(viewManager,
+                                               it->typeId,
+                                               FileName::fromString(fileName),
+                                               it->lineNumber);
         }
     }
+}
+
+void QmlProfilerTextMarkModel::showTextMarks()
+{
+    for (QmlProfilerTextMark *mark : qAsConst(m_marks))
+        mark->setVisible(true);
+}
+
+void QmlProfilerTextMarkModel::hideTextMarks()
+{
+    for (QmlProfilerTextMark *mark : qAsConst(m_marks))
+        mark->setVisible(false);
 }
 
 bool QmlProfilerTextMark::addToolTipContent(QLayout *target) const

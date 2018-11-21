@@ -476,6 +476,8 @@ private:
 #ifdef Q_OS_WIN
 class HeobDialog : public QDialog
 {
+    Q_DECLARE_TR_FUNCTIONS(HeobDialog)
+
 public:
     HeobDialog(QWidget *parent);
 
@@ -506,6 +508,8 @@ private:
 
 class HeobData : public QObject
 {
+    Q_DECLARE_TR_FUNCTIONS(HeobData)
+
 public:
     HeobData(MemcheckTool *mcTool, const QString &xmlPath, Kit *kit, bool attach);
     ~HeobData();
@@ -727,7 +731,7 @@ MemcheckTool::MemcheckTool()
 void MemcheckTool::heobAction()
 {
 #ifdef Q_OS_WIN
-    StandardRunnable sr;
+    Runnable sr;
     Abi abi;
     bool hasLocalRc = false;
     Kit *kit = nullptr;
@@ -739,13 +743,11 @@ void MemcheckTool::heobAction()
                     abi = ToolChainKitInformation::targetAbi(kit);
 
                     const Runnable runnable = rc->runnable();
-                    if (runnable.is<StandardRunnable>()) {
-                        sr = runnable.as<StandardRunnable>();
-                        const IDevice::ConstPtr device = sr.device;
-                        hasLocalRc = device && device->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
-                        if (!hasLocalRc)
-                            hasLocalRc = DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
-                    }
+                    sr = runnable;
+                    const IDevice::ConstPtr device = sr.device;
+                    hasLocalRc = device && device->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
+                    if (!hasLocalRc)
+                        hasLocalRc = DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
                 }
             }
         }
@@ -778,6 +780,8 @@ void MemcheckTool::heobAction()
         TaskHub::requestPopup();
         return;
     }
+    if (!QFile::exists(executable))
+        executable = Utils::HostOsInfo::withExecutableSuffix(executable);
     if (!QFile::exists(executable)) {
         const QString msg = tr("Heob: Cannot find %1.").arg(executable);
         TaskHub::addTask(Task::Error, msg, Debugger::Constants::ANALYZERTASK_ID);
@@ -1426,7 +1430,7 @@ void HeobDialog::saveOptions()
 }
 
 HeobData::HeobData(MemcheckTool *mcTool, const QString &xmlPath, Kit *kit, bool attach)
-    : m_mcTool(mcTool), m_xmlPath(xmlPath), m_kit(kit), m_attach(attach), m_ov(), m_data()
+    : m_ov(), m_data(), m_mcTool(mcTool), m_xmlPath(xmlPath), m_kit(kit), m_attach(attach)
 {
 }
 

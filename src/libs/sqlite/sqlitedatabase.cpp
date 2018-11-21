@@ -27,8 +27,29 @@
 
 #include "sqlitetable.h"
 #include "sqlitetransaction.h"
+#include "sqlitereadwritestatement.h"
+
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 namespace Sqlite {
+
+class Database::Statements
+{
+public:
+    Statements(Database &database)
+        : database(database)
+    {}
+
+public:
+    Database &database;
+    ReadWriteStatement deferredBegin{"BEGIN", database};
+    ReadWriteStatement immediateBegin{"BEGIN IMMEDIATE", database};
+    ReadWriteStatement exclusiveBegin{"BEGIN EXCLUSIVE", database};
+    ReadWriteStatement commitBegin{"COMMIT", database};
+    ReadWriteStatement rollbackBegin{"ROLLBACK", database};
+};
 
 Database::Database()
     : m_databaseBackend(*this)
@@ -36,16 +57,28 @@ Database::Database()
 }
 
 Database::Database(Utils::PathString &&databaseFilePath, JournalMode journalMode)
-    : m_databaseBackend(*this)
+    : Database(std::move(databaseFilePath), 1000ms, journalMode)
+{
+}
+
+Database::Database(Utils::PathString &&databaseFilePath,
+                   std::chrono::milliseconds busyTimeout,
+                   JournalMode journalMode)
+    : m_databaseBackend(*this),
+      m_busyTimeout(busyTimeout)
 {
     setJournalMode(journalMode);
     open(std::move(databaseFilePath));
 }
 
+Database::~Database() = default;
+
 void Database::open()
 {
     m_databaseBackend.open(m_databaseFilePath, m_openMode);
     m_databaseBackend.setJournalMode(m_journalMode);
+    m_databaseBackend.setBusyTimeout(m_busyTimeout);
+    registerTransactionStatements();
     initializeTables();
     m_isOpen = true;
 }
@@ -59,6 +92,7 @@ void Database::open(Utils::PathString &&databaseFilePath)
 void Database::close()
 {
     m_isOpen = false;
+    deleteTransactionStatements();
     m_databaseBackend.close();
 }
 
@@ -116,19 +150,65 @@ void Database::execute(Utils::SmallStringView sqlStatement)
 
 void Database::initializeTables()
 {
-    ImmediateTransaction<Database> transaction(*this);
+    try {
+        ImmediateTransaction transaction(*this);
 
-    for (Table &table : m_sqliteTables)
-        table.initialize(*this);
+        for (Table &table : m_sqliteTables)
+            table.initialize(*this);
 
-    transaction.commit();
+        transaction.commit();
+    } catch (const StatementIsBusy &) {
+        initializeTables();
+    }
+}
+
+void Database::registerTransactionStatements()
+{
+    m_statements = std::make_unique<Statements>(*this);
+}
+
+void Database::deleteTransactionStatements()
+{
+    m_statements.reset();
+}
+
+void Database::deferredBegin()
+{
+    m_statements->deferredBegin.execute();
+}
+
+void Database::immediateBegin()
+{
+    m_statements->immediateBegin.execute();
+}
+
+void Database::exclusiveBegin()
+{
+    m_statements->exclusiveBegin.execute();
+}
+
+void Database::commit()
+{
+    m_statements->commitBegin.execute();
+}
+
+void Database::rollback()
+{
+    m_statements->rollbackBegin.execute();
+}
+
+void Database::lock()
+{
+    m_databaseMutex.lock();
+}
+void Database::unlock()
+{
+    m_databaseMutex.unlock();
 }
 
 DatabaseBackend &Database::backend()
 {
     return m_databaseBackend;
 }
-
-
 
 } // namespace Sqlite

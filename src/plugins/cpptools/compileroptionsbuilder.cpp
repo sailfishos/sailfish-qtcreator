@@ -26,13 +26,13 @@
 #include "compileroptionsbuilder.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/vcsmanager.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-#include <utils/qtcfallthrough.h>
 
 #include <QDir>
 #include <QRegularExpression>
@@ -129,23 +129,10 @@ void CompilerOptionsBuilder::enableExceptions()
     add(QLatin1String("-fexceptions"));
 }
 
-static Utils::FileName absoluteDirectory(const QString &filePath)
-{
-    return Utils::FileName::fromString(QFileInfo(filePath + '/').absolutePath());
-}
-
-static Utils::FileName projectTopLevelDirectory(const ProjectPart &projectPart)
-{
-    if (!projectPart.project)
-        return Utils::FileName();
-    return projectPart.project->projectDirectory();
-}
-
 void CompilerOptionsBuilder::addHeaderPathOptions()
 {
     typedef ProjectPartHeaderPath HeaderPath;
     const QString defaultPrefix = includeDirOption();
-    const Utils::FileName projectDirectory = projectTopLevelDirectory(m_projectPart);
 
     QStringList result;
 
@@ -165,11 +152,7 @@ void CompilerOptionsBuilder::addHeaderPathOptions()
         default: // This shouldn't happen, but let's be nice..:
             // intentional fall-through:
         case HeaderPath::IncludePath:
-            path = absoluteDirectory(headerPath.path);
-            if (path == projectDirectory || path.isChildOf(projectDirectory))
-                prefix = defaultPrefix;
-            else
-                prefix = SYSTEM_INCLUDE_PREFIX;
+            prefix = defaultPrefix;
             break;
         }
 
@@ -479,10 +462,6 @@ QString CompilerOptionsBuilder::includeOption() const
 
 bool CompilerOptionsBuilder::excludeDefineDirective(const ProjectExplorer::Macro &macro) const
 {
-    // TODO: Remove in QtCreator 4.7
-    if (macro.key == "__cplusplus")
-        return true;
-
     // Ignore for all compiler toolchains since LLVM has it's own implementation for
     // __has_include(STR) and __has_include_next(STR)
     if (macro.key.startsWith("__has_include"))
@@ -534,8 +513,8 @@ void CompilerOptionsBuilder::addPredefinedHeaderPathsOptions()
 void CompilerOptionsBuilder::addClangIncludeFolder()
 {
     QTC_CHECK(!m_clangVersion.isEmpty());
-    add(SYSTEM_INCLUDE_PREFIX);
-    add(clangIncludeDirectory());
+    add(includeDirOption());
+    add(clangIncludeDirectory(m_clangVersion, m_clangResourceDirectory));
 }
 
 void CompilerOptionsBuilder::addProjectConfigFileInclude()
@@ -555,12 +534,21 @@ static QString creatorLibexecPath()
 #endif
 }
 
-QString CompilerOptionsBuilder::clangIncludeDirectory() const
+QString clangIncludeDirectory(const QString &clangVersion, const QString &clangResourceDirectory)
 {
-    QDir dir(creatorLibexecPath() + "/clang" + clangIncludePath(m_clangVersion));
+    QDir dir(creatorLibexecPath() + "/clang" + clangIncludePath(clangVersion));
     if (!dir.exists() || !QFileInfo(dir, "stdint.h").exists())
-        dir = QDir(m_clangResourceDirectory);
+        dir = QDir(clangResourceDirectory);
     return QDir::toNativeSeparators(dir.canonicalPath());
+}
+
+QString clangExecutable(const QString &clangBinDirectory)
+{
+    const QString hostExeSuffix(QTC_HOST_EXE_SUFFIX);
+    QFileInfo executable(creatorLibexecPath() + "/clang/bin/clang" + hostExeSuffix);
+    if (!executable.exists())
+        executable = QFileInfo(clangBinDirectory + "/clang" + hostExeSuffix);
+    return QDir::toNativeSeparators(executable.canonicalFilePath());
 }
 
 void CompilerOptionsBuilder::undefineClangVersionMacrosForMsvc()

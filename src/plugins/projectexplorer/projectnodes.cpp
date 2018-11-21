@@ -39,6 +39,7 @@
 #include <utils/hostosinfo.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/mimetypes/mimetype.h>
+#include <utils/pointeralgorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QFileInfo>
@@ -53,9 +54,8 @@ namespace ProjectExplorer {
 
 static FolderNode *folderNode(const FolderNode *folder, const Utils::FileName &directory)
 {
-    return static_cast<FolderNode *>(Utils::findOrDefault(folder->nodes(),
-                                                          [&directory](const Node *n) {
-        const FolderNode *fn = n->asFolderNode();
+    return static_cast<FolderNode *>(Utils::findOrDefault(folder->folderNodes(),
+                                                          [&directory](const FolderNode *fn) {
         return fn && fn->filePath() == directory;
     }));
 }
@@ -96,8 +96,8 @@ static FolderNode *recursiveFindOrCreateFolderNode(FolderNode *folder,
             // No FolderNode yet, so create it
             auto tmp = factory(path);
             tmp->setDisplayName(part);
-            parent->addNode(tmp);
-            next = tmp;
+            next = tmp.get();
+            parent->addNode(std::move(tmp));
         }
         parent = next;
     }
@@ -131,17 +131,17 @@ void Node::setPriority(int p)
 void Node::setListInProject(bool l)
 {
     if (l)
-        m_flags |= FlagListInProject;
+        m_flags = static_cast<NodeFlag>(m_flags | FlagListInProject);
     else
-        m_flags &= ~FlagListInProject;
+        m_flags = static_cast<NodeFlag>(m_flags & ~FlagListInProject);
 }
 
 void Node::setIsGenerated(bool g)
 {
     if (g)
-        m_flags |= FlagIsGenerated;
+        m_flags = static_cast<NodeFlag>(m_flags | FlagIsGenerated);
     else
-        m_flags &= ~FlagIsGenerated;
+        m_flags = static_cast<NodeFlag>(m_flags & ~FlagIsGenerated);
 }
 
 void Node::setAbsoluteFilePathAndLine(const Utils::FileName &path, int line)
@@ -170,7 +170,7 @@ int Node::priority() const
   */
 bool Node::listInProject() const
 {
-    return m_flags.testFlag(FlagListInProject);
+    return (m_flags & FlagListInProject) == FlagListInProject;
 }
 
 /*!
@@ -239,7 +239,7 @@ QString Node::tooltip() const
 
 bool Node::isEnabled() const
 {
-    if (!m_flags.testFlag(FlagIsEnabled))
+    if ((m_flags & FlagIsEnabled) == 0)
         return false;
     FolderNode *parent = parentFolderNode();
     return parent ? parent->isEnabled() : true;
@@ -261,9 +261,9 @@ bool Node::supportsAction(ProjectAction, const Node *) const
 void Node::setEnabled(bool enabled)
 {
     if (enabled)
-        m_flags |= FlagIsEnabled;
+        m_flags = static_cast<NodeFlag>(m_flags | FlagIsEnabled);
     else
-        m_flags &= ~FlagIsEnabled;
+        m_flags = static_cast<NodeFlag>(m_flags & ~FlagIsEnabled);
 }
 
 bool Node::sortByPath(const Node *a, const Node *b)
@@ -389,14 +389,6 @@ static QList<FileNode *> scanForFilesRecursively(const Utils::FileName &director
     return result;
 }
 
-
-QList<FileNode *> FileNode::scanForFiles(const Utils::FileName &directory,
-                                         const std::function<FileNode *(const Utils::FileName &)> factory,
-                                         QFutureInterface<QList<FileNode *> > *future)
-{
-    return FileNode::scanForFilesWithVersionControls(directory, factory, QList<Core::IVersionControl *>(), future);
-}
-
 QList<FileNode *>
 FileNode::scanForFilesWithVersionControls(const Utils::FileName &directory,
                                           const std::function<FileNode *(const Utils::FileName &)> factory,
@@ -436,11 +428,6 @@ FolderNode::FolderNode(const Utils::FileName &folderPath, NodeType nodeType,
         m_displayName = folderPath.toUserOutput();
 }
 
-FolderNode::~FolderNode()
-{
-    qDeleteAll(m_nodes);
-}
-
 /*!
     Contains the display name that should be used in a view.
     \sa setFolderName()
@@ -469,9 +456,9 @@ Node *FolderNode::findNode(const std::function<bool(Node *)> &filter)
     if (filter(this))
         return this;
 
-    for (Node *n : m_nodes) {
-        if (n->asFileNode() && filter(n)) {
-            return n;
+    for (const std::unique_ptr<Node> &n : m_nodes) {
+        if (n->asFileNode() && filter(n.get())) {
+            return n.get();
         } else if (FolderNode *folder = n->asFolderNode()) {
             Node *result = folder->findNode(filter);
             if (result)
@@ -486,9 +473,9 @@ QList<Node *> FolderNode::findNodes(const std::function<bool(Node *)> &filter)
     QList<Node *> result;
     if (filter(this))
         result.append(this);
-    for (Node *n : m_nodes) {
-        if (n->asFileNode() && filter(n))
-            result.append(n);
+    for (const std::unique_ptr<Node> &n  : m_nodes) {
+        if (n->asFileNode() && filter(n.get()))
+            result.append(n.get());
         else if (FolderNode *folder = n->asFolderNode())
             result.append(folder->findNode(filter));
     }
@@ -504,12 +491,12 @@ void FolderNode::forEachNode(const std::function<void(FileNode *)> &fileTask,
             return;
     }
     if (fileTask) {
-        for (Node *n : m_nodes) {
+        for (const std::unique_ptr<Node> &n : m_nodes) {
             if (FileNode *fn = n->asFileNode())
                 fileTask(fn);
         }
     }
-    for (Node *n : m_nodes) {
+    for (const std::unique_ptr<Node> &n : m_nodes) {
         if (FolderNode *fn = n->asFolderNode()) {
             if (folderTask)
                 folderTask(fn);
@@ -520,17 +507,22 @@ void FolderNode::forEachNode(const std::function<void(FileNode *)> &fileTask,
 
 void FolderNode::forEachGenericNode(const std::function<void(Node *)> &genericTask) const
 {
-    for (Node *n : m_nodes) {
-        genericTask(n);
+    for (const std::unique_ptr<Node> &n : m_nodes) {
+        genericTask(n.get());
         if (FolderNode *fn = n->asFolderNode())
             fn->forEachGenericNode(genericTask);
     }
 }
 
+const QList<Node *> FolderNode::nodes() const
+{
+    return Utils::toRawPointer<QList>(m_nodes);
+}
+
 QList<FileNode*> FolderNode::fileNodes() const
 {
     QList<FileNode *> result;
-    for (Node *n : m_nodes) {
+    for (const std::unique_ptr<Node> &n : m_nodes) {
         if (FileNode *fn = n->asFileNode())
             result.append(fn);
     }
@@ -539,7 +531,8 @@ QList<FileNode*> FolderNode::fileNodes() const
 
 FileNode *FolderNode::fileNode(const Utils::FileName &file) const
 {
-    return static_cast<FileNode *>(Utils::findOrDefault(m_nodes, [&file](const Node *n) {
+    return static_cast<FileNode *>(Utils::findOrDefault(m_nodes,
+                                                        [&file](const std::unique_ptr<Node> &n) {
         const FileNode *fn = n->asFileNode();
         return fn && fn->filePath() == file;
     }));
@@ -548,28 +541,28 @@ FileNode *FolderNode::fileNode(const Utils::FileName &file) const
 QList<FolderNode*> FolderNode::folderNodes() const
 {
     QList<FolderNode *> result;
-    for (Node *n : m_nodes) {
+    for (const std::unique_ptr<Node> &n : m_nodes) {
         if (FolderNode *fn = n->asFolderNode())
             result.append(fn);
     }
     return result;
 }
 
-void FolderNode::addNestedNode(FileNode *fileNode, const Utils::FileName &overrideBaseDir,
+void FolderNode::addNestedNode(std::unique_ptr<FileNode> &&fileNode,
+                               const Utils::FileName &overrideBaseDir,
                                const FolderNodeFactory &factory)
 {
-    // Get relative path to rootNode
     FolderNode *folder = recursiveFindOrCreateFolderNode(this, fileNode->filePath().parentDir(),
                                                          overrideBaseDir, factory);
-    folder->addNode(fileNode);
-
+    folder->addNode(std::move(fileNode));
 }
 
-void FolderNode::addNestedNodes(const QList<FileNode *> &files, const Utils::FileName &overrideBaseDir,
-                                const FolderNodeFactory &factory)
+void FolderNode::addNestedNodes(std::vector<std::unique_ptr<FileNode> > &&files,
+                                const Utils::FileName &overrideBaseDir,
+                                const FolderNode::FolderNodeFactory &factory)
 {
-    for (FileNode *fn : files)
-        addNestedNode(fn, overrideBaseDir, factory);
+    for (std::unique_ptr<FileNode> &f : files)
+        addNestedNode(std::move(f), overrideBaseDir, factory);
 }
 
 // "Compress" a tree of foldernodes such that foldernodes with exactly one foldernode as a child
@@ -578,21 +571,19 @@ void FolderNode::addNestedNodes(const QList<FileNode *> &files, const Utils::Fil
 // files.
 void FolderNode::compress()
 {
-    QList<Node *> children = nodes();
-    if (auto subFolder = children.count() == 1 ? children.at(0)->asFolderNode() : nullptr) {
+    if (auto subFolder = m_nodes.size() == 1 ? m_nodes.at(0)->asFolderNode() : nullptr) {
         if (subFolder->nodeType() != nodeType())
             return;
         // Only one subfolder: Compress!
         setDisplayName(QDir::toNativeSeparators(displayName() + "/" + subFolder->displayName()));
         for (Node *n : subFolder->nodes()) {
-            subFolder->removeNode(n);
-            n->setParentFolderNode(nullptr);
-            addNode(n);
+            std::unique_ptr<Node> toMove = subFolder->takeNode(n);
+            toMove->setParentFolderNode(nullptr);
+            addNode(std::move(toMove));
         }
         setAbsoluteFilePathAndLine(subFolder->filePath(), -1);
 
-        removeNode(subFolder);
-        delete subFolder;
+        takeNode(subFolder);
 
         compress();
     } else {
@@ -611,22 +602,24 @@ bool FolderNode::isAncesterOf(Node *n)
     return p == this;
 }
 
-bool FolderNode::replaceSubtree(Node *oldNode, Node *newNode)
+bool FolderNode::replaceSubtree(Node *oldNode, std::unique_ptr<Node> &&newNode)
 {
-    std::unique_ptr<Node> nn(newNode);
+    std::unique_ptr<Node> keepAlive;
     if (!oldNode) {
-        addNode(nn.release()); // Happens e.g. when a project is registered
+        addNode(std::move(newNode)); // Happens e.g. when a project is registered
     } else {
         auto it = std::find_if(m_nodes.begin(), m_nodes.end(),
-                               [oldNode](const Node *n) { return oldNode == n; });
+                               [oldNode](const std::unique_ptr<Node> &n) {
+            return oldNode == n.get();
+        });
         QTC_ASSERT(it != m_nodes.end(), return false);
-        if (nn) {
-            nn->setParentFolderNode(this);
-            *it = nn.release();
+        if (newNode) {
+            newNode->setParentFolderNode(this);
+            keepAlive = std::move(*it);
+            *it = std::move(newNode);
         } else {
-            removeNode(oldNode); // Happens e.g. when project is shutting down
+            keepAlive = takeNode(oldNode); // Happens e.g. when project is shutting down
         }
-        QTimer::singleShot(0, [oldNode]() { delete oldNode; });
     }
     handleSubTreeChanged(this);
     return true;
@@ -718,22 +711,21 @@ FolderNode::AddNewInformation FolderNode::addNewInformation(const QStringList &f
   Adds a node specified by \a node to the internal list of nodes.
 */
 
-void FolderNode::addNode(Node *node)
+void FolderNode::addNode(std::unique_ptr<Node> &&node)
 {
     QTC_ASSERT(node, return);
-    QTC_ASSERT(!node->parentFolderNode(), qDebug("File node has already a parent folder"));
+    QTC_ASSERT(!node->parentFolderNode(), qDebug("Node has already a parent folder"));
     node->setParentFolderNode(this);
-    m_nodes.append(node);
+    m_nodes.emplace_back(std::move(node));
 }
 
 /*!
-  Removes a node specified by \a node from the internal list of nodes.
-  The node object itself is not deleted.
+  Return a node specified by \a node from the internal list.
 */
 
-void FolderNode::removeNode(Node *node)
+std::unique_ptr<Node> FolderNode::takeNode(Node *node)
 {
-    m_nodes.removeOne(node);
+    return Utils::takeOrDefault(m_nodes, node);
 }
 
 bool FolderNode::showInSimpleTree() const
@@ -854,20 +846,10 @@ bool ProjectNode::deploysFolder(const QString &folder) const
     return false;
 }
 
-/*!
-  \function bool ProjectNode::runConfigurations() const
-
-  Returns a list of \c RunConfiguration suitable for this node.
-  */
-QList<RunConfiguration *> ProjectNode::runConfigurations() const
-{
-    return QList<RunConfiguration *>();
-}
-
 ProjectNode *ProjectNode::projectNode(const Utils::FileName &file) const
 {
-    for (Node *node : m_nodes) {
-        if (ProjectNode *pnode = node->asProjectNode())
+    for (const std::unique_ptr<Node> &n: m_nodes) {
+        if (ProjectNode *pnode = n->asProjectNode())
             if (pnode->filePath() == file)
                 return pnode;
     }
@@ -876,7 +858,7 @@ ProjectNode *ProjectNode::projectNode(const Utils::FileName &file) const
 
 bool FolderNode::isEmpty() const
 {
-    return m_nodes.isEmpty();
+    return m_nodes.size() == 0;
 }
 
 void FolderNode::handleSubTreeChanged(FolderNode *node)
@@ -917,7 +899,6 @@ ProjectNode *ContainerNode::rootProjectNode() const
 
 void ContainerNode::removeAllChildren()
 {
-    qDeleteAll(m_nodes);
     m_nodes.clear();
 }
 

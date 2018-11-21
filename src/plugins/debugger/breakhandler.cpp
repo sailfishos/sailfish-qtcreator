@@ -73,11 +73,16 @@ using namespace Utils;
 namespace Debugger {
 namespace Internal {
 
-class LocationItem : public TreeItem
+class LocationItem : public TypedTreeItem<TreeItem, BreakpointItem>
 {
 public:
-    QVariant data(int column, int role) const
+    QVariant data(int column, int role) const final
     {
+        if (role == Qt::DecorationRole && column == 0) {
+            return params.enabled ? Icons::BREAKPOINT.icon()
+                                  : Icons::BREAKPOINT_DISABLED.icon();
+        }
+
         if (role == Qt::DisplayRole) {
             switch (column) {
                 case BreakpointNumberColumn:
@@ -154,7 +159,7 @@ private:
 class BreakpointMarker : public TextEditor::TextMark
 {
 public:
-    BreakpointMarker(BreakpointItem *b, const QString &fileName, int lineNumber)
+    BreakpointMarker(BreakpointItem *b, const FileName &fileName, int lineNumber)
         : TextMark(fileName, lineNumber, Constants::TEXT_MARK_CATEGORY_BREAKPOINT), m_bp(b)
     {
         setColor(Theme::Debugger_Breakpoint_TextMarkColor);
@@ -175,10 +180,10 @@ public:
         m_bp->updateLineNumberFromMarker(lineNumber);
     }
 
-    void updateFileName(const QString &fileName)
+    void updateFileName(const FileName &fileName)
     {
         TextMark::updateFileName(fileName);
-        m_bp->updateFileNameFromMarker(fileName);
+        m_bp->updateFileNameFromMarker(fileName.toString());
     }
 
     bool isDraggable() const { return true; }
@@ -299,7 +304,7 @@ class BreakpointDialog : public QDialog
     Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::BreakHandler)
 
 public:
-    explicit BreakpointDialog(Breakpoint b, QWidget *parent = 0);
+    explicit BreakpointDialog(Breakpoint b, QWidget *parent = nullptr);
     bool showDialog(BreakpointParameters *data, BreakpointParts *parts);
 
     void setParameters(const BreakpointParameters &data);
@@ -845,7 +850,7 @@ class MultiBreakPointsDialog : public QDialog
     Q_DECLARE_TR_FUNCTIONS(Debugger::Internal::BreakHandler)
 
 public:
-    MultiBreakPointsDialog(QWidget *parent = 0);
+    MultiBreakPointsDialog(QWidget *parent = nullptr);
 
     QString condition() const { return m_lineEditCondition->text(); }
     int ignoreCount() const { return m_spinBoxIgnoreCount->value(); }
@@ -1938,6 +1943,8 @@ bool BreakHandler::setData(const QModelIndex &idx, const QVariant &value, int ro
                     editBreakpoints({b}, ev.view());
                 else
                     b.gotoLocation();
+            } else if (LocationItem *l = itemForIndexAtLevel<2>(idx)) {
+                Breakpoint(l->parent()).gotoLocation();
             } else {
                 addBreakpoint();
             }
@@ -1951,20 +1958,35 @@ bool BreakHandler::setData(const QModelIndex &idx, const QVariant &value, int ro
 bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
 {
     const QModelIndexList selectedIndices = ev.selectedRows();
-    const Breakpoints selectedItems = findBreakpointsByIndex(selectedIndices);
-    const bool enabled = selectedItems.isEmpty() || selectedItems.at(0).isEnabled();
+
+    const Breakpoints selectedBreakpoints = findBreakpointsByIndex(selectedIndices);
+    const bool breakpointsEnabled = selectedBreakpoints.isEmpty() || selectedBreakpoints.at(0).isEnabled();
+
+    QList<LocationItem *> selectedLocations;
+    bool handlesIndividualLocations = false;
+    for (const QModelIndex &index : selectedIndices) {
+        if (LocationItem *location = itemForIndexAtLevel<2>(index)) {
+            if (selectedLocations.contains(location))
+                continue;
+            selectedLocations.append(location);
+            DebuggerEngine *engine = location->parent()->m_engine;
+            if (engine && engine->hasCapability(BreakIndividualLocationsCapability))
+                handlesIndividualLocations = true;
+        }
+    }
+    const bool locationsEnabled = selectedLocations.isEmpty() || selectedLocations.at(0)->params.enabled;
 
     auto menu = new QMenu;
 
     addAction(menu, tr("Add Breakpoint..."), true, [this] { addBreakpoint(); });
 
     addAction(menu, tr("Delete Selected Breakpoints"),
-              !selectedItems.isEmpty(),
-              [this, selectedItems] { deleteBreakpoints(selectedItems); });
+              !selectedBreakpoints.isEmpty(),
+              [this, selectedBreakpoints] { deleteBreakpoints(selectedBreakpoints); });
 
     addAction(menu, tr("Edit Selected Breakpoints..."),
-              !selectedItems.isEmpty(),
-              [this, selectedItems, ev] { editBreakpoints(selectedItems, ev.view()); });
+              !selectedBreakpoints.isEmpty(),
+              [this, selectedBreakpoints, ev] { editBreakpoints(selectedBreakpoints, ev.view()); });
 
 
     // FIXME BP: m_engine->threadsHandler()->currentThreadId();
@@ -1979,11 +2001,30 @@ bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
     //           });
 
     addAction(menu,
-              selectedItems.size() > 1
-                  ? enabled ? tr("Disable Selected Breakpoints") : tr("Enable Selected Breakpoints")
-                  : enabled ? tr("Disable Breakpoint") : tr("Enable Breakpoint"),
-              !selectedItems.isEmpty(),
-              [this, selectedItems, enabled] { setBreakpointsEnabled(selectedItems, !enabled); });
+              selectedBreakpoints.size() > 1
+                  ? breakpointsEnabled ? tr("Disable Selected Breakpoints") : tr("Enable Selected Breakpoints")
+                  : breakpointsEnabled ? tr("Disable Breakpoint") : tr("Enable Breakpoint"),
+              !selectedBreakpoints.isEmpty(),
+              [this, selectedBreakpoints, breakpointsEnabled] {
+                    setBreakpointsEnabled(selectedBreakpoints, !breakpointsEnabled);
+              }
+    );
+
+    addAction(menu,
+              selectedLocations.size() > 1
+                  ? locationsEnabled ? tr("Disable Selected Locations") : tr("Enable Selected Locations")
+                  : locationsEnabled ? tr("Disable Location") : tr("Enable Location"),
+              !selectedLocations.isEmpty() && handlesIndividualLocations,
+              [selectedLocations, locationsEnabled] {
+                   for (LocationItem *location : selectedLocations) {
+                       location->params.enabled = !locationsEnabled;
+                       location->update();
+                       BreakpointItem *bp = location->parent();
+                       if (bp->m_engine)
+                           bp->m_engine->enableSubBreakpoint(location->params.id.toString(), !locationsEnabled);
+                   }
+              }
+    );
 
     menu->addSeparator();
 
@@ -2215,7 +2256,7 @@ void BreakpointItem::updateMarkerIcon()
 
 void BreakpointItem::updateMarker()
 {
-    QString file = markerFileName();
+    FileName file = FileName::fromString(markerFileName());
     int line = markerLineNumber();
     if (m_marker && (file != m_marker->fileName() || line != m_marker->lineNumber()))
         destroyMarker();

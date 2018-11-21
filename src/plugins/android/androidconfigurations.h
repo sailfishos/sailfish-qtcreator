@@ -50,12 +50,13 @@ class Abi;
 class Project;
 }
 
-namespace Utils { class Environment; }
-
 namespace Android {
 
-class AndroidPlugin;
-namespace Internal { class AndroidSdkManager; }
+
+namespace Internal {
+class AndroidSdkManager;
+class AndroidPluginPrivate;
+}
 
 class AndroidDeviceInfo
 {
@@ -123,11 +124,15 @@ public:
     bool automaticKitCreation() const;
     void setAutomaticKitCreation(bool b);
 
+    QString deviceQmlsceneCommand() const;
+    void setDeviceQmlsceneCommand(const QString &qmlsceneCommand);
+
     Utils::FileName adbToolPath() const;
     Utils::FileName androidToolPath() const;
     Utils::FileName emulatorToolPath() const;
     Utils::FileName sdkManagerToolPath() const;
     Utils::FileName avdManagerToolPath() const;
+    Utils::FileName aaptToolPath() const;
 
     Utils::FileName gccPath(const ProjectExplorer::Abi &abi, Core::Id lang,
                             const QString &ndkToolChainVersion) const;
@@ -137,8 +142,8 @@ public:
 
     Utils::FileName keytoolPath() const;
 
-    QVector<AndroidDeviceInfo> connectedDevices(QString *error = 0) const;
-    static QVector<AndroidDeviceInfo> connectedDevices(const QString &adbToolPath, QString *error = 0);
+    QVector<AndroidDeviceInfo> connectedDevices(QString *error = nullptr) const;
+    static QVector<AndroidDeviceInfo> connectedDevices(const QString &adbToolPath, QString *error = nullptr);
 
     QString bestNdkPlatformMatch(int target) const;
 
@@ -177,6 +182,7 @@ private:
     QStringList m_makeExtraSearchDirectories;
     unsigned m_partitionSize = 1024;
     bool m_automaticKitCreation = true;
+    QString m_deviceQmlsceneCommand;
 
     //caches
     mutable bool m_NdkInformationUpToDate = false;
@@ -188,7 +194,6 @@ private:
 
 class ANDROID_EXPORT AndroidConfigurations : public QObject
 {
-    friend class Android::AndroidPlugin;
     Q_OBJECT
 
 public:
@@ -197,7 +202,6 @@ public:
     static void setConfig(const AndroidConfig &config);
     static AndroidConfigurations *instance();
 
-    static void updateAndroidDevice();
     static AndroidDeviceInfo showDeviceDialog(ProjectExplorer::Project *project, int apiLevel, const QString &abi);
     static void setDefaultDevice(ProjectExplorer::Project *project, const QString &abi, const QString &serialNumber); // serial number or avd name
     static QString defaultDevice(ProjectExplorer::Project *project, const QString &abi); // serial number or avd name
@@ -212,11 +216,13 @@ signals:
     void updated();
 
 private:
-    AndroidConfigurations(QObject *parent);
-    ~AndroidConfigurations();
+    friend class Android::Internal::AndroidPluginPrivate;
+    AndroidConfigurations();
+    ~AndroidConfigurations() override;
     void load();
     void save();
 
+    static void updateAndroidDevice();
     static AndroidConfigurations *m_instance;
     AndroidConfig m_config;
     std::unique_ptr<Internal::AndroidSdkManager> m_sdkManager;
@@ -227,3 +233,4 @@ private:
 
 } // namespace Android
 
+Q_DECLARE_METATYPE(Android::AndroidDeviceInfo)

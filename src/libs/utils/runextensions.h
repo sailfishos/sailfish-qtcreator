@@ -26,6 +26,7 @@
 #pragma once
 
 #include "functiontraits.h"
+#include "optional.h"
 #include "utils_global.h"
 
 #include <QCoreApplication>
@@ -53,10 +54,13 @@ static testCallOperatorNo testCallOperator(...);
 template<typename T>
 struct hasCallOperator
 {
-    static const bool value = (sizeof(testCallOperator<T>(0)) == sizeof(testCallOperatorYes));
+    static const bool value = (sizeof(testCallOperator<T>(nullptr)) == sizeof(testCallOperatorYes));
 };
 
 namespace Utils {
+
+using StackSizeInBytes = Utils::optional<uint>;
+
 namespace Internal {
 
 /*
@@ -325,7 +329,7 @@ public:
         futureInterface.reportStarted();
     }
 
-    ~AsyncJob()
+    ~AsyncJob() override
     {
         // QThreadPool can delete runnables even if they were never run (e.g. QThreadPool::clear).
         // Since we reported them as started, we make sure that we always report them as finished.
@@ -379,14 +383,42 @@ private:
 class QTCREATOR_UTILS_EXPORT RunnableThread : public QThread
 {
 public:
-    explicit RunnableThread(QRunnable *runnable, QObject *parent = 0);
+    explicit RunnableThread(QRunnable *runnable, QObject *parent = nullptr);
 
 protected:
-    void run();
+    void run() override;
 
 private:
     QRunnable *m_runnable;
 };
+
+template<typename Function,
+         typename... Args,
+         typename ResultType = typename Internal::resultType<Function>::type>
+QFuture<ResultType> runAsync_internal(QThreadPool *pool,
+                                      StackSizeInBytes stackSize,
+                                      QThread::Priority priority,
+                                      Function &&function,
+                                      Args &&... args)
+{
+    Q_ASSERT(!(pool && stackSize)); // stack size cannot be changed once a thread is started
+    auto job = new Internal::AsyncJob<ResultType,Function,Args...>
+            (std::forward<Function>(function), std::forward<Args>(args)...);
+    job->setThreadPriority(priority);
+    QFuture<ResultType> future = job->future();
+    if (pool) {
+        job->setThreadPool(pool);
+        pool->start(job);
+    } else {
+        auto thread = new Internal::RunnableThread(job);
+        if (stackSize)
+            thread->setStackSize(stackSize.value());
+        thread->moveToThread(qApp->thread()); // make sure thread gets deleteLater on main thread
+        QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+        thread->start(priority);
+    }
+    return future;
+}
 
 } // Internal
 
@@ -418,20 +450,11 @@ template <typename Function, typename... Args,
 QFuture<ResultType>
 runAsync(QThreadPool *pool, QThread::Priority priority, Function &&function, Args&&... args)
 {
-    auto job = new Internal::AsyncJob<ResultType,Function,Args...>
-            (std::forward<Function>(function), std::forward<Args>(args)...);
-    job->setThreadPriority(priority);
-    QFuture<ResultType> future = job->future();
-    if (pool) {
-        job->setThreadPool(pool);
-        pool->start(job);
-    } else {
-        auto thread = new Internal::RunnableThread(job);
-        thread->moveToThread(qApp->thread()); // make sure thread gets deleteLater on main thread
-        QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-        thread->start(priority);
-    }
-    return future;
+    return Internal::runAsync_internal(pool,
+                                       StackSizeInBytes(),
+                                       priority,
+                                       std::forward<Function>(function),
+                                       std::forward<Args>(args)...);
 }
 
 /*!
@@ -446,6 +469,47 @@ runAsync(QThread::Priority priority, Function &&function, Args&&... args)
 {
     return runAsync(static_cast<QThreadPool *>(nullptr), priority,
                     std::forward<Function>(function), std::forward<Args>(args)...);
+}
+
+/*!
+    Runs \a function with \a args in a new thread with given thread \a stackSize and
+    thread priority QThread::InheritPriority .
+    \sa runAsync(QThreadPool*,QThread::Priority,Function&&,Args&&...)
+    \sa QThread::Priority
+    \sa QThread::setStackSize
+*/
+template<typename Function,
+         typename... Args,
+         typename ResultType = typename Internal::resultType<Function>::type>
+QFuture<ResultType> runAsync(Utils::StackSizeInBytes stackSize, Function &&function, Args &&... args)
+{
+    return Internal::runAsync_internal(static_cast<QThreadPool *>(nullptr),
+                                       stackSize,
+                                       QThread::InheritPriority,
+                                       std::forward<Function>(function),
+                                       std::forward<Args>(args)...);
+}
+
+/*!
+    Runs \a function with \a args in a new thread with given thread \a stackSize and
+    given thread \a priority.
+    \sa runAsync(QThreadPool*,QThread::Priority,Function&&,Args&&...)
+    \sa QThread::Priority
+    \sa QThread::setStackSize
+*/
+template<typename Function,
+         typename... Args,
+         typename ResultType = typename Internal::resultType<Function>::type>
+QFuture<ResultType> runAsync(Utils::StackSizeInBytes stackSize,
+                             QThread::Priority priority,
+                             Function &&function,
+                             Args &&... args)
+{
+    return Internal::runAsync_internal(static_cast<QThreadPool *>(nullptr),
+                                       stackSize,
+                                       priority,
+                                       std::forward<Function>(function),
+                                       std::forward<Args>(args)...);
 }
 
 /*!

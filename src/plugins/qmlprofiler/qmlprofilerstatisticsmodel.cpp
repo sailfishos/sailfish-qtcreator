@@ -26,79 +26,60 @@
 #include "qmlprofilerstatisticsmodel.h"
 #include "qmlprofilermodelmanager.h"
 
+#include <tracing/timelineformattime.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
-
-#include <QHash>
-#include <QSet>
-#include <QString>
-#include <QPointer>
 
 #include <functional>
 
 namespace QmlProfiler {
 
-class QmlProfilerStatisticsModel::QmlProfilerStatisticsModelPrivate
+QString nameForType(RangeType typeNumber)
 {
-public:
-    QHash<int, QmlProfilerStatisticsModel::QmlEventStats> data;
-
-    QPointer<QmlProfilerStatisticsRelativesModel> childrenModel;
-    QPointer<QmlProfilerStatisticsRelativesModel> parentsModel;
-
-    QmlProfilerModelManager *modelManager;
-
-    int modelId;
-
-    QList<RangeType> acceptedTypes;
-    QHash<int, QString> notes;
-
-    QStack<QmlEvent> callStack;
-    QStack<QmlEvent> compileStack;
-    QHash <int, QVector<qint64> > durations;
-};
+    switch (typeNumber) {
+    case Painting: return QmlProfilerStatisticsModel::tr("Painting");
+    case Compiling: return QmlProfilerStatisticsModel::tr("Compiling");
+    case Creating: return QmlProfilerStatisticsModel::tr("Creating");
+    case Binding: return QmlProfilerStatisticsModel::tr("Binding");
+    case HandlingSignal: return QmlProfilerStatisticsModel::tr("Handling Signal");
+    case Javascript: return QmlProfilerStatisticsModel::tr("JavaScript");
+    default: return QString();
+    }
+}
 
 double QmlProfilerStatisticsModel::durationPercent(int typeId) const
 {
-    const QmlEventStats &global = d->data[-1];
-    const QmlEventStats &stats = d->data[typeId];
-    return double(stats.duration - stats.durationRecursive) / double(global.duration) * 100l;
+    if (typeId < 0)
+        return 0;
+    else if (typeId >= m_data.length())
+        return 100;
+    return double(m_data[typeId].totalNonRecursive()) / double(m_rootDuration) * 100;
 }
 
 double QmlProfilerStatisticsModel::durationSelfPercent(int typeId) const
 {
-    const QmlEventStats &global = d->data[-1];
-    const QmlEventStats &stats = d->data[typeId];
-    return double(stats.durationSelf) / double(global.duration) * 100l;
+    if (typeId < 0 || typeId >= m_data.length())
+        return 0;
+    return double(m_data[typeId].self) / double(m_rootDuration) * 100;
 }
 
-QmlProfilerStatisticsModel::QmlProfilerStatisticsModel(QmlProfilerModelManager *modelManager,
-                                               QObject *parent) :
-    QObject(parent), d(new QmlProfilerStatisticsModelPrivate)
+QmlProfilerStatisticsModel::QmlProfilerStatisticsModel(QmlProfilerModelManager *modelManager)
+    : m_modelManager(modelManager)
 {
-    d->modelManager = modelManager;
-    connect(modelManager, &QmlProfilerModelManager::stateChanged,
-            this, &QmlProfilerStatisticsModel::dataChanged);
     connect(modelManager->notesModel(), &Timeline::TimelineNotesModel::changed,
             this, &QmlProfilerStatisticsModel::notesChanged);
-    d->modelId = modelManager->registerModelProxy();
 
-    d->acceptedTypes << Compiling << Creating << Binding << HandlingSignal << Javascript;
+    m_acceptedTypes << Compiling << Creating << Binding << HandlingSignal << Javascript;
 
-    modelManager->announceFeatures(Constants::QML_JS_RANGE_FEATURES,
-                                   [this](const QmlEvent &event, const QmlEventType &type) {
-        loadEvent(event, type);
-    }, [this]() {
-        finalize();
-    });
+    modelManager->registerFeatures(Constants::QML_JS_RANGE_FEATURES,
+                                   std::bind(&QmlProfilerStatisticsModel::loadEvent, this,
+                                             std::placeholders::_1, std::placeholders::_2),
+                                   std::bind(&QmlProfilerStatisticsModel::beginResetModel, this),
+                                   std::bind(&QmlProfilerStatisticsModel::finalize, this),
+                                   std::bind(&QmlProfilerStatisticsModel::clear, this));
 }
 
-QmlProfilerStatisticsModel::~QmlProfilerStatisticsModel()
-{
-    delete d;
-}
-
-void QmlProfilerStatisticsModel::restrictToFeatures(qint64 features)
+void QmlProfilerStatisticsModel::restrictToFeatures(quint64 features)
 {
     bool didChange = false;
     for (int i = 0; i < MaximumRangeType; ++i) {
@@ -106,98 +87,330 @@ void QmlProfilerStatisticsModel::restrictToFeatures(qint64 features)
         quint64 featureFlag = 1ULL << featureFromRangeType(type);
         if (Constants::QML_JS_RANGE_FEATURES & featureFlag) {
             bool accepted = features & featureFlag;
-            if (accepted && !d->acceptedTypes.contains(type)) {
-                d->acceptedTypes << type;
+            if (accepted && !m_acceptedTypes.contains(type)) {
+                m_acceptedTypes << type;
                 didChange = true;
-            } else if (!accepted && d->acceptedTypes.contains(type)) {
-                d->acceptedTypes.removeOne(type);
+            } else if (!accepted && m_acceptedTypes.contains(type)) {
+                m_acceptedTypes.removeOne(type);
                 didChange = true;
             }
         }
     }
-    if (!didChange || d->modelManager->state() != QmlProfilerModelManager::Done)
+
+    if (!didChange)
         return;
 
     clear();
-    if (!d->modelManager->replayEvents(d->modelManager->traceTime()->startTime(),
-                                       d->modelManager->traceTime()->endTime(),
-                                       std::bind(&QmlProfilerStatisticsModel::loadEvent,
-                                                 this, std::placeholders::_1,
-                                                 std::placeholders::_2))) {
-        emit d->modelManager->error(tr("Could not re-read events from temporary trace file."));
-        clear();
-    } else {
+    QFutureInterface<void> future;
+    auto filter = m_modelManager->rangeFilter(m_modelManager->traceStart(),
+                                              m_modelManager->traceEnd());
+    m_modelManager->replayQmlEvents(filter(std::bind(&QmlProfilerStatisticsModel::loadEvent, this,
+                                                     std::placeholders::_1, std::placeholders::_2)),
+                                    std::bind(&QmlProfilerStatisticsModel::beginResetModel, this),
+                                    [this]() {
         finalize();
-        notesChanged(-1); // Reload notes
+        notesChanged(QmlProfilerStatisticsModel::s_invalidTypeId); // Reload notes
+    }, [this](const QString &message) {
+        endResetModel();
+        if (!message.isEmpty()) {
+            emit m_modelManager->error(tr("Could not re-read events from temporary trace file: %1")
+                                        .arg(message));
+        }
+        clear();
+    }, future);
+}
+
+bool QmlProfilerStatisticsModel::isRestrictedToRange() const
+{
+    return m_modelManager->isRestrictedToRange();
+}
+
+QStringList QmlProfilerStatisticsModel::details(int typeIndex) const
+{
+    QString data;
+    QString displayName;
+
+    if (typeIndex >= 0 && typeIndex < m_modelManager->numEventTypes()) {
+        const QmlEventType &type = m_modelManager->eventType(typeIndex);
+        displayName = nameForType(type.rangeType());
+
+        const QChar ellipsisChar(0x2026);
+        const int maxColumnWidth = 32;
+
+        data = type.data();
+        if (data.length() > maxColumnWidth)
+            data = data.left(maxColumnWidth - 1) + ellipsisChar;
     }
+
+    return QStringList({
+        displayName,
+        data,
+        QString::number(durationPercent(typeIndex), 'f', 2) + QLatin1Char('%')
+    });
 }
 
-const QHash<int, QmlProfilerStatisticsModel::QmlEventStats> &QmlProfilerStatisticsModel::getData() const
+QString QmlProfilerStatisticsModel::summary(const QVector<int> &typeIds) const
 {
-    return d->data;
-}
+    const double cutoff = 0.1;
+    const double round = 0.05;
+    double maximum = 0;
+    double sum = 0;
 
-const QVector<QmlEventType> &QmlProfilerStatisticsModel::getTypes() const
-{
-    return d->modelManager->eventTypes();
-}
+    for (int typeId : typeIds) {
+        const double percentage = durationPercent(typeId);
+        if (percentage > maximum)
+            maximum = percentage;
+        sum += percentage;
+    }
 
-const QHash<int, QString> &QmlProfilerStatisticsModel::getNotes() const
-{
-    return d->notes;
+    const QLatin1Char percent('%');
+
+    if (sum < cutoff)
+        return QLatin1Char('<') + QString::number(cutoff, 'f', 1) + percent;
+
+    if (typeIds.length() == 1)
+        return QLatin1Char('~') + QString::number(maximum, 'f', 1) + percent;
+
+    // add/subtract 0.05 to avoid problematic rounding
+    if (maximum < cutoff)
+        return QChar(0x2264) + QString::number(sum + round, 'f', 1) + percent;
+
+    return QChar(0x2265) + QString::number(qMax(maximum - round, cutoff), 'f', 1) + percent;
 }
 
 void QmlProfilerStatisticsModel::clear()
 {
-    d->data.clear();
-    d->notes.clear();
-    d->callStack.clear();
-    d->compileStack.clear();
-    d->durations.clear();
-    if (!d->childrenModel.isNull())
-        d->childrenModel->clear();
-    if (!d->parentsModel.isNull())
-        d->parentsModel->clear();
+    beginResetModel();
+    m_rootDuration = 0;
+    m_data.clear();
+    m_notes.clear();
+    m_callStack.clear();
+    m_compileStack.clear();
+    if (!m_calleesModel.isNull())
+        m_calleesModel->clear();
+    if (!m_callersModel.isNull())
+        m_callersModel->clear();
+    endResetModel();
 }
 
 void QmlProfilerStatisticsModel::setRelativesModel(QmlProfilerStatisticsRelativesModel *relative,
                                                    QmlProfilerStatisticsRelation relation)
 {
-    if (relation == QmlProfilerStatisticsParents)
-        d->parentsModel = relative;
+    if (relation == QmlProfilerStatisticsCallers)
+        m_callersModel = relative;
     else
-        d->childrenModel = relative;
+        m_calleesModel = relative;
 }
 
-QmlProfilerModelManager *QmlProfilerStatisticsModel::modelManager() const
+int QmlProfilerStatisticsModel::rowCount(const QModelIndex &parent) const
 {
-    return d->modelManager;
+    return parent.isValid() ? 0 : m_data.count() + 1;
 }
 
-void QmlProfilerStatisticsModel::dataChanged()
+int QmlProfilerStatisticsModel::columnCount(const QModelIndex &parent) const
 {
-    if (d->modelManager->state() == QmlProfilerModelManager::ClearingData)
-        clear();
+    return parent.isValid() ? 0 : MaxMainField;
+}
+
+QVariant QmlProfilerStatisticsModel::dataForMainEntry(const QModelIndex &index, int role) const
+{
+    switch (role) {
+    case FilterRole:
+        return m_rootDuration > 0 ? "+" : "-";
+    case TypeIdRole:
+        return s_mainEntryTypeId;
+    case Qt::TextColorRole:
+        return Utils::creatorTheme()->color(Utils::Theme::Timeline_TextColor);
+    case SortRole:
+        switch (index.column()) {
+        case MainTimeInPercent:
+            return 100;
+        case MainSelfTimeInPercent:
+        case MainSelfTime:
+            return 0;
+        case MainTotalTime:
+        case MainTimePerCall:
+        case MainMedianTime:
+        case MainMaxTime:
+        case MainMinTime:
+            return m_rootDuration;
+        }
+        Q_FALLTHROUGH();
+    case Qt::DisplayRole:
+        switch (index.column()) {
+        case MainLocation:
+            return "<program>";
+        case MainTimeInPercent:
+            return "100 %";
+        case MainSelfTimeInPercent:
+            return "0.00 %";
+        case MainSelfTime:
+            return Timeline::formatTime(0);
+        case MainCallCount:
+            return m_rootDuration > 0 ? 1 : 0;
+        case MainTotalTime:
+        case MainTimePerCall:
+        case MainMedianTime:
+        case MainMaxTime:
+        case MainMinTime:
+            return Timeline::formatTime(m_rootDuration);
+        case MainDetails:
+            return tr("Main program");
+        default:
+            break;
+        }
+        Q_FALLTHROUGH();
+    default:
+        return QVariant();
+    }
+}
+
+QVariant QmlProfilerStatisticsModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid())
+        return QVariant();
+
+    if (index.row() == m_data.count())
+        return dataForMainEntry(index, role);
+
+    const int typeIndex = index.row();
+    const QmlEventType &type = m_modelManager->eventType(typeIndex);
+    const QmlEventStats &stats = m_data.at(typeIndex);
+
+    switch (role) {
+    case FilterRole:
+        return stats.calls > 0 ? "+" : "-";
+    case TypeIdRole:
+        return typeIndex;
+    case FilenameRole:
+        return type.location().filename();
+    case LineRole:
+        return type.location().line();
+    case ColumnRole:
+        return type.location().column();
+    case Qt::ToolTipRole:
+        if (stats.recursive > 0) {
+            return (tr("+%1 in recursive calls")
+                    .arg(Timeline::formatTime(stats.recursive)));
+        } else {
+            auto it = m_notes.constFind(typeIndex);
+            return it == m_notes.constEnd() ? QString() : it.value();
+        }
+    case Qt::TextColorRole:
+        return (stats.recursive > 0 || m_notes.contains(typeIndex))
+                ? Utils::creatorTheme()->color(Utils::Theme::Timeline_HighlightColor)
+                : Utils::creatorTheme()->color(Utils::Theme::Timeline_TextColor);
+    case SortRole:
+        switch (index.column()) {
+        case MainLocation:
+            return type.displayName();
+        case MainTimeInPercent:
+            return durationPercent(typeIndex);
+        case MainTotalTime:
+            return stats.totalNonRecursive();
+        case MainSelfTimeInPercent:
+            return durationSelfPercent(typeIndex);
+        case MainSelfTime:
+            return stats.self;
+        case MainTimePerCall:
+            return stats.average();
+        case MainMedianTime:
+            return stats.median;
+        case MainMaxTime:
+            return stats.maximum;
+        case MainMinTime:
+            return stats.minimum;
+        case MainDetails:
+            return type.data();
+        default:
+            break;
+        }
+        Q_FALLTHROUGH(); // Rest is same as Qt::DisplayRole
+    case Qt::DisplayRole:
+        switch (index.column()) {
+        case MainLocation:
+            return type.displayName().isEmpty() ? tr("<bytecode>") : type.displayName();
+        case MainType:
+            return nameForType(type.rangeType());
+        case MainTimeInPercent:
+            return QString::fromLatin1("%1 %").arg(durationPercent(typeIndex), 0, 'f', 2);
+        case MainTotalTime:
+            return Timeline::formatTime(stats.totalNonRecursive());
+        case MainSelfTimeInPercent:
+            return QString::fromLatin1("%1 %").arg(durationSelfPercent(typeIndex), 0, 'f', 2);
+        case MainSelfTime:
+            return Timeline::formatTime(stats.self);
+        case MainCallCount:
+            return stats.calls;
+        case MainTimePerCall:
+            return Timeline::formatTime(stats.average());
+        case MainMedianTime:
+            return Timeline::formatTime(stats.median);
+        case MainMaxTime:
+            return Timeline::formatTime(stats.maximum);
+        case MainMinTime:
+            return Timeline::formatTime(stats.minimum);
+        case MainDetails:
+            return type.data().isEmpty() ? tr("Source code not available")
+                                         : type.data();
+        default:
+            QTC_ASSERT(false, return QVariant());
+        }
+    default:
+        return QVariant();
+    }
+}
+
+QVariant QmlProfilerStatisticsModel::headerData(int section, Qt::Orientation orientation,
+                                                int role) const
+{
+    if (role != Qt::DisplayRole || orientation != Qt::Horizontal)
+        return QAbstractTableModel::headerData(section, orientation, role);
+
+    switch (section) {
+    case MainCallCount: return tr("Calls");
+    case MainDetails: return tr("Details");
+    case MainLocation: return tr("Location");
+    case MainMaxTime: return tr("Longest Time");
+    case MainTimePerCall: return tr("Mean Time");
+    case MainSelfTime: return tr("Self Time");
+    case MainSelfTimeInPercent: return tr("Self Time in Percent");
+    case MainMinTime: return tr("Shortest Time");
+    case MainTimeInPercent: return tr("Time in Percent");
+    case MainTotalTime: return tr("Total Time");
+    case MainType: return tr("Type");
+    case MainMedianTime: return tr("Median Time");
+    case MaxMainField:
+    default: QTC_ASSERT(false, return QString());
+    }
+}
+
+void QmlProfilerStatisticsModel::typeDetailsChanged(int typeIndex)
+{
+    const QModelIndex index = createIndex(typeIndex, MainDetails);
+    emit dataChanged(index, index, QVector<int>({SortRole, Qt::DisplayRole}));
 }
 
 void QmlProfilerStatisticsModel::notesChanged(int typeIndex)
 {
-    const QmlProfilerNotesModel *notesModel = d->modelManager->notesModel();
-    if (typeIndex == -1) {
-        d->notes.clear();
+    static const QVector<int> noteRoles({Qt::ToolTipRole, Qt::TextColorRole});
+    const Timeline::TimelineNotesModel *notesModel = m_modelManager->notesModel();
+    if (typeIndex == s_invalidTypeId) {
+        m_notes.clear();
         for (int noteId = 0; noteId < notesModel->count(); ++noteId) {
             int noteType = notesModel->typeId(noteId);
-            if (noteType != -1) {
-                QString &note = d->notes[noteType];
+            if (noteType != s_invalidTypeId) {
+                QString &note = m_notes[noteType];
                 if (note.isEmpty()) {
                     note = notesModel->text(noteId);
                 } else {
                     note.append(QStringLiteral("\n")).append(notesModel->text(noteId));
                 }
+                emit dataChanged(index(noteType, 0), index(noteType, MainDetails), noteRoles);
             }
         }
     } else {
-        d->notes.remove(typeIndex);
+        m_notes.remove(typeIndex);
         const QVariantList changedNotes = notesModel->byTypeId(typeIndex);
         if (!changedNotes.isEmpty()) {
             QStringList newNotes;
@@ -205,124 +418,93 @@ void QmlProfilerStatisticsModel::notesChanged(int typeIndex)
                  ++it) {
                 newNotes << notesModel->text(it->toInt());
             }
-            d->notes[typeIndex] = newNotes.join(QStringLiteral("\n"));
+            m_notes[typeIndex] = newNotes.join(QStringLiteral("\n"));
+            emit dataChanged(index(typeIndex, 0), index(typeIndex, MainDetails), noteRoles);
         }
     }
-
-    emit notesAvailable(typeIndex);
 }
 
 void QmlProfilerStatisticsModel::loadEvent(const QmlEvent &event, const QmlEventType &type)
 {
-    if (!d->acceptedTypes.contains(type.rangeType()))
+    if (!m_acceptedTypes.contains(type.rangeType()))
         return;
 
+    const int typeIndex = event.typeIndex();
     bool isRecursive = false;
-    QStack<QmlEvent> &stack = type.rangeType() == Compiling ? d->compileStack : d->callStack;
+    QStack<QmlEvent> &stack = type.rangeType() == Compiling ? m_compileStack : m_callStack;
     switch (event.rangeStage()) {
     case RangeStart:
         stack.push(event);
+        if (m_data.length() <= typeIndex)
+            m_data.resize(m_modelManager->numEventTypes());
         break;
     case RangeEnd: {
         // update stats
         QTC_ASSERT(!stack.isEmpty(), return);
-        QTC_ASSERT(stack.top().typeIndex() == event.typeIndex(), return);
-        QmlEventStats *stats = &d->data[event.typeIndex()];
+        QTC_ASSERT(stack.top().typeIndex() == typeIndex, return);
+        QmlEventStats &stats = m_data[typeIndex];
         qint64 duration = event.timestamp() - stack.top().timestamp();
-        stats->duration += duration;
-        stats->durationSelf += duration;
-        if (duration < stats->minTime)
-            stats->minTime = duration;
-        if (duration > stats->maxTime)
-            stats->maxTime = duration;
-        stats->calls++;
-        // for median computing
-        d->durations[event.typeIndex()].append(duration);
+        stats.total += duration;
+        stats.self += duration;
+        stats.durations.push_back(duration);
         stack.pop();
 
         // recursion detection: check whether event was already in stack
         for (int ii = 0; ii < stack.size(); ++ii) {
-            if (stack.at(ii).typeIndex() == event.typeIndex()) {
+            if (stack.at(ii).typeIndex() == typeIndex) {
                 isRecursive = true;
-                stats->durationRecursive += duration;
+                stats.recursive += duration;
                 break;
             }
         }
 
         if (!stack.isEmpty())
-            d->data[stack.top().typeIndex()].durationSelf -= duration;
+            m_data[stack.top().typeIndex()].self -= duration;
         else
-            d->data[-1].duration += duration;
+            m_rootDuration += duration;
+
         break;
     }
     default:
         return;
     }
 
-    if (!d->childrenModel.isNull())
-        d->childrenModel->loadEvent(type.rangeType(), event, isRecursive);
-    if (!d->parentsModel.isNull())
-        d->parentsModel->loadEvent(type.rangeType(), event, isRecursive);
+    if (!m_calleesModel.isNull())
+        m_calleesModel->loadEvent(type.rangeType(), event, isRecursive);
+    if (!m_callersModel.isNull())
+        m_callersModel->loadEvent(type.rangeType(), event, isRecursive);
 }
-
 
 void QmlProfilerStatisticsModel::finalize()
 {
-    // post-process: calc mean time, median time, percentoftime
-    for (QHash<int, QmlEventStats>::iterator it = d->data.begin(); it != d->data.end(); ++it) {
-        QVector<qint64> eventDurations = d->durations[it.key()];
-        if (!eventDurations.isEmpty()) {
-            Utils::sort(eventDurations);
-            it->medianTime = eventDurations.at(eventDurations.count()/2);
-        }
-    }
-
-    // insert root event
-    QmlEventStats &rootEvent = d->data[-1];
-    rootEvent.minTime = rootEvent.maxTime = rootEvent.medianTime = rootEvent.duration;
-    rootEvent.durationSelf = 0;
-    rootEvent.calls = 1;
-
-    emit dataAvailable();
-}
-
-int QmlProfilerStatisticsModel::count() const
-{
-    return d->data.count();
+    for (QmlEventStats &stats : m_data)
+        stats.finalize();
+    endResetModel();
 }
 
 QmlProfilerStatisticsRelativesModel::QmlProfilerStatisticsRelativesModel(
-        QmlProfilerModelManager *modelManager, QmlProfilerStatisticsModel *statisticsModel,
-        QmlProfilerStatisticsRelation relation, QObject *parent) :
-    QObject(parent), m_relation(relation)
+        QmlProfilerModelManager *modelManager,
+        QmlProfilerStatisticsModel *statisticsModel,
+        QmlProfilerStatisticsRelation relation) :
+    m_modelManager(modelManager), m_relation(relation)
 {
     QTC_CHECK(modelManager);
-    m_modelManager = modelManager;
-
     QTC_CHECK(statisticsModel);
     statisticsModel->setRelativesModel(this, relation);
-
-    // Load the child models whenever the parent model is done to get the filtering for JS/QML
-    // right.
-    connect(statisticsModel, &QmlProfilerStatisticsModel::dataAvailable,
-            this, &QmlProfilerStatisticsRelativesModel::dataAvailable);
+    connect(m_modelManager, &QmlProfilerModelManager::typeDetailsChanged,
+            this, &QmlProfilerStatisticsRelativesModel::typeDetailsChanged);
 }
 
-const QmlProfilerStatisticsRelativesModel::QmlStatisticsRelativesMap &
-QmlProfilerStatisticsRelativesModel::getData(int typeId) const
+bool operator<(const QmlProfilerStatisticsRelativesModel::QmlStatisticsRelativesData &a,
+               const QmlProfilerStatisticsRelativesModel::QmlStatisticsRelativesData &b)
 {
-    QHash <int, QmlStatisticsRelativesMap>::ConstIterator it = m_data.find(typeId);
-    if (it != m_data.end()) {
-        return it.value();
-    } else {
-        static const QmlStatisticsRelativesMap emptyMap;
-        return emptyMap;
-    }
+    return a.typeIndex < b.typeIndex;
 }
 
-const QVector<QmlEventType> &QmlProfilerStatisticsRelativesModel::getTypes() const
+bool operator<(const QmlProfilerStatisticsRelativesModel::QmlStatisticsRelativesData &a,
+               int typeIndex)
 {
-    return m_modelManager->eventTypes();
+    return a.typeIndex < typeIndex;
 }
 
 void QmlProfilerStatisticsRelativesModel::loadEvent(RangeType type, const QmlEvent &event,
@@ -332,28 +514,26 @@ void QmlProfilerStatisticsRelativesModel::loadEvent(RangeType type, const QmlEve
 
     switch (event.rangeStage()) {
     case RangeStart:
-        stack.push({event.timestamp(), event.typeIndex()});
+        stack.push(Frame(event.timestamp(), event.typeIndex()));
         break;
     case RangeEnd: {
-        int parentTypeIndex = stack.count() > 1 ? stack[stack.count() - 2].typeId : -1;
-        int relativeTypeIndex = (m_relation == QmlProfilerStatisticsParents) ? parentTypeIndex :
+        int callerTypeIndex = stack.count() > 1 ? stack[stack.count() - 2].typeId
+                                                : QmlProfilerStatisticsModel::s_mainEntryTypeId;
+        int relativeTypeIndex = (m_relation == QmlProfilerStatisticsCallers) ? callerTypeIndex :
                                                                                event.typeIndex();
-        int selfTypeIndex = (m_relation == QmlProfilerStatisticsParents) ? event.typeIndex() :
-                                                                           parentTypeIndex;
+        int selfTypeIndex = (m_relation == QmlProfilerStatisticsCallers) ? event.typeIndex() :
+                                                                           callerTypeIndex;
 
-        QmlStatisticsRelativesMap &relativesMap = m_data[selfTypeIndex];
-        QmlStatisticsRelativesMap::Iterator it = relativesMap.find(relativeTypeIndex);
-        if (it != relativesMap.end()) {
+        QVector<QmlStatisticsRelativesData> &relatives = m_data[selfTypeIndex];
+        auto it = std::lower_bound(relatives.begin(), relatives.end(), relativeTypeIndex);
+        if (it != relatives.end() && it->typeIndex == relativeTypeIndex) {
             it->calls++;
             it->duration += event.timestamp() - stack.top().startTime;
             it->isRecursive = isRecursive || it->isRecursive;
         } else {
-            QmlStatisticsRelativesData relative = {
-                event.timestamp() - stack.top().startTime,
-                1,
-                isRecursive
-            };
-            relativesMap.insert(relativeTypeIndex, relative);
+            relatives.insert(it, QmlStatisticsRelativesData(
+                                 event.timestamp() - stack.top().startTime, 1, relativeTypeIndex,
+                                 isRecursive));
         }
         stack.pop();
         break;
@@ -363,21 +543,176 @@ void QmlProfilerStatisticsRelativesModel::loadEvent(RangeType type, const QmlEve
     }
 }
 
-QmlProfilerStatisticsRelation QmlProfilerStatisticsRelativesModel::relation() const
+int QmlProfilerStatisticsRelativesModel::rowCount(const QModelIndex &parent) const
 {
-    return m_relation;
+    if (parent.isValid()) {
+        return 0;
+    } else {
+        auto it = m_data.constFind(m_relativeTypeIndex);
+        return it == m_data.constEnd() ? 0 : it->count();
+    }
 }
 
-int QmlProfilerStatisticsRelativesModel::count() const
+int QmlProfilerStatisticsRelativesModel::columnCount(const QModelIndex &parent) const
 {
-    return m_data.count();
+    return parent.isValid() ? 0 : MaxRelativeField;
+}
+
+QVariant QmlProfilerStatisticsRelativesModel::dataForMainEntry(qint64 totalDuration, int role,
+                                                               int column) const
+{
+    switch (role) {
+    case TypeIdRole:
+        return QmlProfilerStatisticsModel::s_mainEntryTypeId;
+    case Qt::TextColorRole:
+        return Utils::creatorTheme()->color(Utils::Theme::Timeline_TextColor);
+    case SortRole:
+        if (column == RelativeTotalTime)
+            return totalDuration;
+        Q_FALLTHROUGH(); // rest is same as Qt::DisplayRole
+    case Qt::DisplayRole:
+        switch (column) {
+        case RelativeLocation: return "<program>";
+        case RelativeTotalTime: return Timeline::formatTime(totalDuration);
+        case RelativeCallCount: return 1;
+        case RelativeDetails: return tr("Main Program");
+        }
+    }
+    return QVariant();
+}
+
+QVariant QmlProfilerStatisticsRelativesModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid())
+        return QVariant();
+
+    const int row = index.row();
+
+    auto main_it = m_data.find(m_relativeTypeIndex);
+    QTC_ASSERT(main_it != m_data.end(), return QVariant());
+
+    const QVector<QmlStatisticsRelativesData> &data = main_it.value();
+    QTC_ASSERT(row >= 0 && row < data.length(), return QVariant());
+
+    const QmlStatisticsRelativesData &stats = data.at(row);
+    QTC_ASSERT(stats.typeIndex >= 0, return QVariant());
+
+    if (stats.typeIndex == QmlProfilerStatisticsModel::s_mainEntryTypeId)
+        return dataForMainEntry(stats.duration, role, index.column());
+
+    QTC_ASSERT(stats.typeIndex < m_modelManager->numEventTypes(), return QVariant());
+    const QmlEventType &type = m_modelManager->eventType(stats.typeIndex);
+
+    switch (role) {
+    case TypeIdRole:
+        return stats.typeIndex;
+    case FilenameRole:
+        return type.location().filename();
+    case LineRole:
+        return type.location().line();
+    case ColumnRole:
+        return type.location().column();
+    case Qt::ToolTipRole:
+        return stats.isRecursive ? tr("called recursively") : QString();
+    case Qt::TextColorRole:
+        return stats.isRecursive
+                ? Utils::creatorTheme()->color(Utils::Theme::Timeline_HighlightColor)
+                : Utils::creatorTheme()->color(Utils::Theme::Timeline_TextColor);
+    case SortRole:
+        switch (index.column()) {
+        case RelativeLocation:
+            return type.displayName();
+        case RelativeTotalTime:
+            return stats.duration;
+        case RelativeDetails:
+            return type.data();
+        default: break;
+        }
+        Q_FALLTHROUGH(); // rest is same as Qt::DisplayRole
+    case Qt::DisplayRole:
+        switch (index.column()) {
+        case RelativeLocation:
+            return type.displayName().isEmpty() ? tr("<bytecode>") : type.displayName();
+        case RelativeType:
+            return nameForType(type.rangeType());
+        case RelativeTotalTime:
+            return Timeline::formatTime(stats.duration);
+        case RelativeCallCount:
+            return stats.calls;
+        case RelativeDetails:
+            return type.data().isEmpty() ? tr("Source code not available")
+                                         : type.data();
+        default:
+            QTC_ASSERT(false, return QVariant());
+        }
+    default:
+        return QVariant();
+    }
+}
+
+QVariant QmlProfilerStatisticsRelativesModel::headerData(int section, Qt::Orientation orientation,
+                                                         int role) const
+{
+    if (role != Qt::DisplayRole || orientation != Qt::Horizontal)
+        return QAbstractTableModel::headerData(section, orientation, role);
+
+    switch (section) {
+    case RelativeLocation:
+        return m_relation == QmlProfilerStatisticsCallees ? tr("Callee") : tr("Caller");
+    case RelativeType:
+        return tr("Type");
+    case RelativeTotalTime:
+        return tr("Total Time");
+    case RelativeCallCount:
+        return tr("Calls");
+    case RelativeDetails:
+        return m_relation == QmlProfilerStatisticsCallees ? tr("Callee Description")
+                                                          : tr("Caller Description");
+    case MaxRelativeField:
+    default:
+        QTC_ASSERT(false, return QString());
+    }
+}
+
+bool QmlProfilerStatisticsRelativesModel::setData(const QModelIndex &index, const QVariant &value,
+                                                  int role)
+{
+    bool ok = false;
+    const int typeIndex = value.toInt(&ok);
+    if (index.isValid() || !ok || role != TypeIdRole) {
+        return QAbstractTableModel::setData(index, value, role);
+    } else {
+        beginResetModel();
+        m_relativeTypeIndex = typeIndex;
+        endResetModel();
+        return true;
+    }
+}
+
+void QmlProfilerStatisticsRelativesModel::typeDetailsChanged(int typeId)
+{
+    auto main_it = m_data.constFind(m_relativeTypeIndex);
+    if (main_it == m_data.constEnd())
+        return;
+
+    const QVector<QmlStatisticsRelativesData> &rows = main_it.value();
+    for (int row = 0, end = rows.length(); row != end; ++row) {
+        if (rows[row].typeIndex == typeId) {
+            const QModelIndex index = createIndex(row, RelativeDetails);
+            emit dataChanged(index, index, QVector<int>({SortRole, Qt::DisplayRole}));
+            return;
+        }
+    }
 }
 
 void QmlProfilerStatisticsRelativesModel::clear()
 {
+    beginResetModel();
+    m_relativeTypeIndex = QmlProfilerStatisticsModel::s_invalidTypeId;
     m_data.clear();
     m_callStack.clear();
     m_compileStack.clear();
+    endResetModel();
 }
 
 } // namespace QmlProfiler

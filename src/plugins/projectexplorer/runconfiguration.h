@@ -31,6 +31,7 @@
 #include "buildtargetinfo.h"
 #include "devicesupport/idevice.h"
 
+#include <utils/environment.h>
 #include <utils/port.h>
 #include <utils/processhandle.h>
 #include <utils/qtcassert.h>
@@ -42,14 +43,20 @@
 #include <functional>
 #include <memory>
 
+QT_BEGIN_NAMESPACE
+class QFormLayout;
+QT_END_NAMESPACE
+
 namespace Utils { class OutputFormatter; }
 
 namespace ProjectExplorer {
 class Abi;
 class BuildConfiguration;
 class IRunConfigurationAspect;
-class IRunConfigurationFactory;
+class Node;
+class RunConfigurationFactory;
 class RunConfiguration;
+class RunConfigurationCreationInfo;
 class RunConfigWidget;
 class RunControl;
 class Target;
@@ -71,14 +78,12 @@ class PROJECTEXPLORER_EXPORT ISettingsAspect : public QObject
     Q_OBJECT
 
 public:
-    ISettingsAspect() { }
+    ISettingsAspect(RunConfiguration *runConfiguration);
 
     /// Create a configuration widget for this settings aspect.
     virtual QWidget *createConfigWidget(QWidget *parent) = 0;
-    /// "Virtual default constructor"
-    virtual ISettingsAspect *create() const = 0;
-    /// "Virtual copy constructor"
-    ISettingsAspect *clone() const;
+
+    RunConfiguration *runConfiguration() const;
 
 protected:
     ///
@@ -87,6 +92,9 @@ protected:
     virtual void toMap(QVariantMap &map) const = 0;
     /// Read object state from @p map.
     virtual void fromMap(const QVariantMap &map) = 0;
+
+private:
+    RunConfiguration *m_runConfiguration;
 };
 
 
@@ -127,6 +135,11 @@ public:
     ISettingsAspect *currentSettings() const;
     RunConfiguration *runConfiguration() const { return m_runConfiguration; }
 
+    virtual void addToConfigurationLayout(QFormLayout *layout);
+
+signals:
+    void changed();
+
 protected:
     friend class RunConfiguration;
     virtual void fromMap(const QVariantMap &map);
@@ -145,60 +158,18 @@ private:
 
 class PROJECTEXPLORER_EXPORT Runnable
 {
-    struct Concept
-    {
-        virtual ~Concept() {}
-        virtual Concept *clone() const = 0;
-        virtual bool canReUseOutputPane(const std::unique_ptr<Concept> &other) const = 0;
-        virtual QString displayName() const = 0;
-        virtual void *typeId() const = 0;
-    };
-
-    template <class T>
-    struct Model : public Concept
-    {
-        Model(const T &data) : m_data(data) {}
-
-        Concept *clone() const override { return new Model(*this); }
-
-        bool canReUseOutputPane(const std::unique_ptr<Concept> &other) const override
-        {
-            if (!other.get())
-                return false;
-            if (other->typeId() != typeId())
-                return false;
-            auto that = static_cast<const Model<T> *>(other.get());
-            return m_data == that->m_data;
-        }
-
-        QString displayName() const override { return m_data.displayName(); }
-
-        void *typeId() const override { return T::staticTypeId; }
-
-        T m_data;
-    };
-
 public:
     Runnable() = default;
-    Runnable(const Runnable &other) : d(other.d ? other.d->clone() : nullptr) { }
-    Runnable(Runnable &&other) : d(std::move(other.d)) {}
-    template <class T> Runnable(const T &data) : d(new Model<T>(data)) {}
 
-    void operator=(Runnable other) { d = std::move(other.d); }
+    QString executable;
+    QString commandLineArguments;
+    QString workingDirectory;
+    Utils::Environment environment;
+    ApplicationLauncher::Mode runMode = ApplicationLauncher::Gui;
+    IDevice::ConstPtr device; // Override the kit's device. Keep unset by default.
 
-    template <class T> bool is() const {
-        return d.get() && (d.get()->typeId() == T::staticTypeId);
-    }
-
-    template <class T> const T &as() const {
-        return static_cast<Model<T> *>(d.get())->m_data;
-    }
-
-    bool canReUseOutputPane(const Runnable &other) const;
-    QString displayName() const { return d ? d->displayName() : QString(); }
-
-private:
-    std::unique_ptr<Concept> d;
+    // FIXME: Not necessarily a display name
+    QString displayName() const { return executable; }
 };
 
 // Documentation inside.
@@ -213,7 +184,8 @@ public:
 
     QString disabledReason() const override;
 
-    virtual QWidget *createConfigurationWidget() = 0;
+    virtual QWidget *createConfigurationWidget();
+    virtual void fillConfigurationLayout(QFormLayout *layout) const;
 
     virtual bool isConfigured() const;
     // Pop up configuration dialog in case for example the executable is missing.
@@ -224,7 +196,7 @@ public:
     Target *target() const;
     Project *project() const override;
 
-    virtual Utils::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
@@ -243,13 +215,16 @@ public:
     virtual Runnable runnable() const;
     virtual Abi abi() const;
 
-    // Return the name of the build system target that created this run configuration.
+    // Return a handle to the build system target that created this run configuration.
     // May return an empty string if no target built the executable!
-    virtual QString buildSystemTarget() const { return QString(); }
+    QString buildKey() const { return m_buildKey; }
+    // The BuildTargetInfo corresponding to the buildKey.
+    BuildTargetInfo buildTargetInfo() const;
 
     void addExtraAspect(IRunConfigurationAspect *aspect);
 
     static RunConfiguration *startupRunConfiguration();
+    virtual bool canRunForNode(const ProjectExplorer::Node *) const { return false; }
 
     using AspectFactory = std::function<IRunConfigurationAspect *(RunConfiguration *)>;
     template <class T> static void registerAspect()
@@ -266,83 +241,97 @@ protected:
 
     /// convenience function to get current build configuration.
     BuildConfiguration *activeBuildConfiguration() const;
+    QWidget *wrapWidget(QWidget *inner) const;
+
+    template<class T> void setOutputFormatter()
+    {
+        m_outputFormatterCreator = [](Project *project) { return new T(project); };
+    }
 
     virtual void updateEnabledState();
+    virtual void doAdditionalSetup(const RunConfigurationCreationInfo &) {}
 
 private:
     static void addAspectFactory(const AspectFactory &aspectFactory);
 
-    friend class IRunConfigurationFactory;
+    friend class RunConfigurationCreationInfo;
 
     QList<IRunConfigurationAspect *> m_aspects;
+    QString m_buildKey;
+    std::function<Utils::OutputFormatter *(Project *)> m_outputFormatterCreator;
 };
 
 class RunConfigurationCreationInfo
 {
 public:
-    RunConfigurationCreationInfo(const IRunConfigurationFactory *factory, Core::Id id,
-                                 QString extra, QString displayName)
-        : factory(factory) , id(id) , extra(extra) , displayName(displayName) {}
+    enum CreationMode {AlwaysCreate, ManualCreationOnly};
+    RunConfiguration *create(Target *target) const;
 
-    const IRunConfigurationFactory *factory = nullptr;
+    const RunConfigurationFactory *factory = nullptr;
     Core::Id id;
-    QString extra;
+    QString buildKey;
     QString displayName;
+    CreationMode creationMode = AlwaysCreate;
+    bool useTerminal = false;
 };
 
-class PROJECTEXPLORER_EXPORT IRunConfigurationFactory : public QObject
+class PROJECTEXPLORER_EXPORT RunConfigurationFactory
 {
-    Q_OBJECT
-
 public:
-    explicit IRunConfigurationFactory(QObject *parent = nullptr);
-    ~IRunConfigurationFactory();
+    RunConfigurationFactory();
+    virtual ~RunConfigurationFactory();
 
-    static const QList<IRunConfigurationFactory *> allRunConfigurationFactories();
+    static RunConfiguration *restore(Target *parent, const QVariantMap &map);
+    static RunConfiguration *clone(Target *parent, RunConfiguration *source);
+    static const QList<RunConfigurationCreationInfo> creatorsForTarget(Target *parent);
 
-    enum CreationMode {UserCreate, AutoCreate};
+    Core::Id runConfigurationBaseId() const { return m_runConfigBaseId; }
 
-    QList<RunConfigurationCreationInfo> availableCreators(Target *parent,
-                                                          CreationMode mode = UserCreate) const;
-
-    virtual bool canHandle(Target *target) const;
-
-    RunConfiguration *create(Target *parent, Core::Id id, const QString &extra) const;
-    bool canRestore(Target *parent, const QVariantMap &map) const;
-    RunConfiguration *restore(Target *parent, const QVariantMap &map) const;
-    bool canClone(Target *parent, RunConfiguration *product) const;
-    RunConfiguration *clone(Target *parent, RunConfiguration *product) const;
-
-    static IRunConfigurationFactory *find(Target *parent, const QVariantMap &map);
-    static IRunConfigurationFactory *find(Target *parent, RunConfiguration *rc);
-    static QList<IRunConfigurationFactory *> find(Target *parent);
+    static QString decoratedTargetName(const QString targetName, Target *kit);
 
 protected:
-    virtual QList<BuildTargetInfo> availableBuildTargets(Target *parent, CreationMode mode = UserCreate) const;
-
-    virtual bool canCreateHelper(Target *parent, const QString &buildTarget) const;
+    virtual QList<RunConfigurationCreationInfo> availableCreators(Target *parent) const;
 
     using RunConfigurationCreator = std::function<RunConfiguration *(Target *)>;
 
     template <class RunConfig>
     void registerRunConfiguration(Core::Id runConfigBaseId)
     {
-        m_creator = [](Target *t) -> RunConfiguration * { return new RunConfig(t); };
+        m_creator = [runConfigBaseId](Target *t) -> RunConfiguration * {
+            return new RunConfig(t, runConfigBaseId);
+        };
         m_runConfigBaseId = runConfigBaseId;
     }
 
     void addSupportedProjectType(Core::Id id);
-    void setSupportedTargetDeviceTypes(const QList<Core::Id> &ids);
-    void addFixedBuildTarget(const QString &displayName);
-    void setDisplayNamePattern(const QString &pattern);
+    void addSupportedTargetDeviceType(Core::Id id);
+    void setDecorateDisplayNames(bool on);
 
 private:
+    RunConfigurationFactory(const RunConfigurationFactory &) = delete;
+    RunConfigurationFactory operator=(const RunConfigurationFactory &) = delete;
+
+    bool canHandle(Target *target) const;
+
+    friend class RunConfigurationCreationInfo;
     RunConfigurationCreator m_creator;
     Core::Id m_runConfigBaseId;
     QList<Core::Id> m_supportedProjectTypes;
     QList<Core::Id> m_supportedTargetDeviceTypes;
-    QList<BuildTargetInfo> m_fixedBuildTargets;
-    QString m_displayNamePattern;
+    bool m_decorateDisplayNames = false;
+};
+
+class PROJECTEXPLORER_EXPORT FixedRunConfigurationFactory : public RunConfigurationFactory
+{
+public:
+    explicit FixedRunConfigurationFactory(const QString &displayName,
+                                          bool addDeviceName = false);
+
+    QList<RunConfigurationCreationInfo> availableCreators(Target *parent) const override;
+
+private:
+    const QString m_fixedBuildTarget;
+    const bool m_decorateTargetName;
 };
 
 class PROJECTEXPLORER_EXPORT RunConfigWidget : public QWidget
@@ -417,6 +406,27 @@ private:
     Internal::RunWorkerPrivate *d;
 };
 
+class PROJECTEXPLORER_EXPORT RunWorkerFactory
+{
+public:
+    using WorkerCreator = std::function<RunWorker *(RunControl *)>;
+    using Constraint = std::function<bool(RunConfiguration *)>;
+
+    RunWorkerFactory(Core::Id mode, Constraint constr, const WorkerCreator &prod,
+                     int prio = 0);
+
+    bool canRun(RunConfiguration *runConfiguration, Core::Id m_runMode) const;
+
+    int priority() const { return m_priority; }
+    WorkerCreator producer() const { return m_producer; }
+
+private:
+    Core::Id m_runMode;
+    Constraint m_constraint;
+    WorkerCreator m_producer;
+    int m_priority = 0;
+};
+
 /**
  * A RunControl controls the running of an application or tool
  * on a target device. It controls start and stop, and handles
@@ -480,8 +490,8 @@ public:
 
     RunWorker *createWorker(Core::Id id);
 
-    using WorkerCreator = std::function<RunWorker *(RunControl *)>;
-    using Constraint = std::function<bool(RunConfiguration *)>;
+    using WorkerCreator = RunWorkerFactory::WorkerCreator;
+    using Constraint = RunWorkerFactory::Constraint;
 
     static void registerWorkerCreator(Core::Id id, const WorkerCreator &workerCreator);
 
@@ -504,18 +514,6 @@ public:
         addWorkerFactory({runMode, constraint, producer, priority});
     }
 
-    struct WorkerFactory {
-        Core::Id runMode;
-        Constraint constraint;
-        WorkerCreator producer;
-        int priority = 0;
-
-        WorkerFactory(const Core::Id &mode, Constraint constr, const WorkerCreator &prod,
-                      int prio = 0)
-            : runMode(mode), constraint(constr), producer(prod), priority(prio) {}
-        bool canRun(RunConfiguration *runConfiguration, Core::Id runMode) const;
-    };
-
     static WorkerCreator producer(RunConfiguration *runConfiguration, Core::Id runMode);
 
 signals:
@@ -531,7 +529,7 @@ private:
     friend class RunWorker;
     friend class Internal::RunWorkerPrivate;
 
-    static void addWorkerFactory(const WorkerFactory &workerFactory);
+    static void addWorkerFactory(const RunWorkerFactory &workerFactory);
     Internal::RunControlPrivate *d;
 };
 

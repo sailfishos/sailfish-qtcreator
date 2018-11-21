@@ -40,13 +40,13 @@ class StackedUtilityPanelController : public UtilityPanelController
     Q_OBJECT
 
 public:
-    StackedUtilityPanelController(QObject* parent = 0);
+    StackedUtilityPanelController(QObject* parent = nullptr);
 
     void show(DesignDocument* DesignDocument);
     void close(DesignDocument* DesignDocument);
 
 protected:
-    virtual QWidget* contentWidget() const;
+    QWidget* contentWidget() const override;
     virtual QWidget* stackedPageWidget(DesignDocument* DesignDocument) const = 0;
 
 private:

@@ -49,7 +49,7 @@ public:
     explicit DebuggerRunTool(ProjectExplorer::RunControl *runControl,
                              ProjectExplorer::Kit *kit = nullptr,
                              bool allowTerminal = true);
-    ~DebuggerRunTool();
+    ~DebuggerRunTool() override;
 
     Internal::DebuggerEngine *engine() const { return m_engine; }
     Internal::DebuggerEngine *activeEngine() const;
@@ -139,7 +139,6 @@ public:
     Internal::TerminalRunner *terminalRunner() const;
 
 signals:
-    void aboutToNotifyInferiorSetupOk();
     void inferiorRunning();
 
 private:
@@ -157,7 +156,7 @@ class DEBUGGER_EXPORT GdbServerPortsGatherer : public ProjectExplorer::ChannelPr
 
 public:
     explicit GdbServerPortsGatherer(ProjectExplorer::RunControl *runControl);
-    ~GdbServerPortsGatherer();
+    ~GdbServerPortsGatherer() override;
 
     void setUseGdbServer(bool useIt) { m_useGdbServer = useIt; }
     bool useGdbServer() const { return m_useGdbServer; }
@@ -185,9 +184,9 @@ public:
     explicit GdbServerRunner(ProjectExplorer::RunControl *runControl,
                              GdbServerPortsGatherer *portsGatherer);
 
-    ~GdbServerRunner();
+    ~GdbServerRunner() override;
 
-    void setRunnable(const ProjectExplorer::StandardRunnable &runnable);
+    void setRunnable(const ProjectExplorer::Runnable &runnable);
     void setUseMulti(bool on);
     void setAttachPid(Utils::ProcessHandle pid);
 
@@ -195,7 +194,7 @@ private:
     void start() override;
 
     GdbServerPortsGatherer *m_portsGatherer;
-    ProjectExplorer::StandardRunnable m_runnable;
+    ProjectExplorer::Runnable m_runnable;
     Utils::ProcessHandle m_pid;
     bool m_useMulti = true;
 };

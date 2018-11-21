@@ -93,8 +93,6 @@ SourceLocation::SourceLocation(CXTranslationUnit cxTranslationUnit,
         return;
 
     filePath_ = ClangString(clang_getFileName(cxFile));
-// CLANG-UPGRADE-CHECK: Remove HAS_GETFILECONTENTS_BACKPORTED check once we require clang >= 7.0
-#if defined(CINDEX_VERSION_HAS_GETFILECONTENTS_BACKPORTED) || CINDEX_VERSION_MINOR >= 47
     if (column_ > 1) {
         const uint lineStart = offset_ + 1 - column_;
         const char *contents = clang_getFileContents(cxTranslationUnit, cxFile, nullptr);
@@ -106,7 +104,6 @@ SourceLocation::SourceLocation(CXTranslationUnit cxTranslationUnit,
         column_ = static_cast<uint>(QString::fromUtf8(&contents[lineStart],
                                                       static_cast<int>(column_)).size());
     }
-#endif
 }
 
 SourceLocation::SourceLocation(CXTranslationUnit cxTranslationUnit,
@@ -125,11 +122,6 @@ SourceLocation::SourceLocation(CXTranslationUnit cxTranslationUnit,
       isFilePathNormalized_(true)
 {
     clang_getFileLocation(cxSourceLocation, 0, 0, 0, &offset_);
-}
-
-bool operator==(const SourceLocation &first, const SourceLocation &second)
-{
-    return clang_equalLocations(first.cxSourceLocation, second.cxSourceLocation);
 }
 
 SourceLocation::operator CXSourceLocation() const

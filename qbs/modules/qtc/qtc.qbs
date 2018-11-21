@@ -4,15 +4,15 @@ import qbs.FileInfo
 import "qtc.js" as HelperFunctions
 
 Module {
-    property string qtcreator_display_version: '4.6.2'
+    property string qtcreator_display_version: '4.7.2'
     property string ide_version_major: '4'
-    property string ide_version_minor: '6'
+    property string ide_version_minor: '7'
     property string ide_version_release: '2'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '6'
+    property string ide_compat_version_minor: '7'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
@@ -69,6 +69,7 @@ Module {
     property string export_data_base: project.ide_source_tree + "/share/qtcreator"
 
     property bool testsEnabled: Environment.getEnv("TEST") || qbs.buildVariant === "debug"
+    property bool useSystemBotan: Environment.getEnv("USE_SYSTEM_BOTAN") === "1"
     property stringList generalDefines: [
         "QT_CREATOR",
         'IDE_LIBRARY_BASENAME="' + libDirName + '"',

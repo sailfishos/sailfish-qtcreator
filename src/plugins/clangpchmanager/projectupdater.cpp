@@ -27,12 +27,15 @@
 
 #include "pchmanagerclient.h"
 
+#include <filepathid.h>
 #include <pchmanagerserverinterface.h>
-#include <removepchprojectpartsmessage.h>
-#include <updatepchprojectpartsmessage.h>
+#include <removeprojectpartsmessage.h>
+#include <updateprojectpartsmessage.h>
 
 #include <cpptools/compileroptionsbuilder.h>
 #include <cpptools/projectpart.h>
+
+#include <utils/algorithm.h>
 
 #include <algorithm>
 #include <functional>
@@ -48,12 +51,14 @@ public:
         sources.reserve(size);
     }
 
-    Utils::PathStringVector headers;
-    Utils::PathStringVector sources;
+    ClangBackEnd::FilePathIds headers;
+    ClangBackEnd::FilePathIds sources;
 };
 
-ProjectUpdater::ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server)
-    : m_server(server)
+ProjectUpdater::ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
+                               ClangBackEnd::FilePathCachingInterface &filePathCache)
+    : m_server(server),
+    m_filePathCache(filePathCache)
 {
 }
 
@@ -62,17 +67,17 @@ void ProjectUpdater::updateProjectParts(const std::vector<CppTools::ProjectPart 
 {
     m_excludedPaths = createExcludedPaths(generatedFiles);
 
-    ClangBackEnd::UpdatePchProjectPartsMessage message{toProjectPartContainers(projectParts),
+    ClangBackEnd::UpdateProjectPartsMessage message{toProjectPartContainers(projectParts),
                                                        std::move(generatedFiles)};
 
-    m_server.updatePchProjectParts(std::move(message));
+    m_server.updateProjectParts(std::move(message));
 }
 
 void ProjectUpdater::removeProjectParts(const QStringList &projectPartIds)
 {
-    ClangBackEnd::RemovePchProjectPartsMessage message{Utils::SmallStringVector(projectPartIds)};
+    ClangBackEnd::RemoveProjectPartsMessage message{Utils::SmallStringVector(projectPartIds)};
 
-    m_server.removePchProjectParts(std::move(message));
+    m_server.removeProjectParts(std::move(message));
 }
 
 void ProjectUpdater::setExcludedPaths(Utils::PathStringVector &&excludedPaths)
@@ -83,14 +88,17 @@ void ProjectUpdater::setExcludedPaths(Utils::PathStringVector &&excludedPaths)
 void ProjectUpdater::addToHeaderAndSources(HeaderAndSources &headerAndSources,
                                            const CppTools::ProjectFile &projectFile) const
 {
+    using ClangBackEnd::FilePathView;
+
     Utils::PathString path = projectFile.path;
     bool exclude = std::binary_search(m_excludedPaths.begin(), m_excludedPaths.end(), path);
 
     if (!exclude) {
+        ClangBackEnd::FilePathId filePathId = m_filePathCache.filePathId(FilePathView(path));
         if (projectFile.isSource())
-            headerAndSources.sources.push_back(path);
+            headerAndSources.sources.push_back(filePathId);
         else if (projectFile.isHeader())
-            headerAndSources.headers.push_back(path);
+            headerAndSources.headers.push_back(filePathId);
     }
 }
 
@@ -113,6 +121,31 @@ QStringList ProjectUpdater::compilerArguments(CppTools::ProjectPart *projectPart
     return builder.build(CppTools::ProjectFile::CXXHeader, CompilerOptionsBuilder::PchUsage::None);
 }
 
+ClangBackEnd::CompilerMacros ProjectUpdater::createCompilerMacros(const ProjectExplorer::Macros &projectMacros)
+{
+    auto macros =  Utils::transform<ClangBackEnd::CompilerMacros>(projectMacros,
+                                                                  [] (const ProjectExplorer::Macro &macro) {
+        return ClangBackEnd::CompilerMacro{macro.key, macro.value};
+    });
+
+    std::sort(macros.begin(), macros.end());
+
+    return macros;
+}
+
+Utils::SmallStringVector ProjectUpdater::createIncludeSearchPaths(
+        const CppTools::ProjectPartHeaderPaths &projectPartHeaderPaths)
+{
+    Utils::SmallStringVector includePaths;
+
+    for (const CppTools::ProjectPartHeaderPath &projectPartHeaderPath : projectPartHeaderPaths) {
+        if (projectPartHeaderPath.isValid())
+            includePaths.emplace_back(projectPartHeaderPath.path);
+    }
+
+    return includePaths;
+}
+
 ClangBackEnd::V2::ProjectPartContainer ProjectUpdater::toProjectPartContainer(
         CppTools::ProjectPart *projectPart) const
 {
@@ -123,6 +156,8 @@ ClangBackEnd::V2::ProjectPartContainer ProjectUpdater::toProjectPartContainer(
 
     return ClangBackEnd::V2::ProjectPartContainer(projectPart->displayName,
                                                   Utils::SmallStringVector(arguments),
+                                                  createCompilerMacros(projectPart->projectMacros),
+                                                  createIncludeSearchPaths(projectPart->headerPaths),
                                                   std::move(headerAndSources.headers),
                                                   std::move(headerAndSources.sources));
 }
@@ -150,7 +185,7 @@ Utils::PathStringVector ProjectUpdater::createExcludedPaths(
     excludedPaths.reserve(generatedFiles.size());
 
     auto convertToPath = [] (const ClangBackEnd::V2::FileContainer &fileContainer) {
-        return fileContainer.filePath().path();
+        return fileContainer.filePath.path();
     };
 
     std::transform(generatedFiles.begin(),

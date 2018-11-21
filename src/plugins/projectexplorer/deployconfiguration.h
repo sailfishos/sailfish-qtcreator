@@ -72,38 +72,30 @@ private:
     BuildStepList m_stepList;
 };
 
-class PROJECTEXPLORER_EXPORT DeployConfigurationFactory : public QObject
+class PROJECTEXPLORER_EXPORT DeployConfigurationFactory
 {
-    Q_OBJECT
-
 public:
     DeployConfigurationFactory();
-    ~DeployConfigurationFactory();
+    virtual ~DeployConfigurationFactory();
 
     // used to show the list of possible additons to a target, returns a list of types
     QList<Core::Id> availableCreationIds(Target *parent) const;
     // used to translate the types to names to display to the user
     QString displayNameForId(Core::Id id) const;
 
-    virtual bool canHandle(ProjectExplorer::Target *target) const;
-
     bool canCreate(Target *parent, Core::Id id) const;
     virtual DeployConfiguration *create(Target *parent, Core::Id id);
-    // used to recreate the runConfigurations when restoring settings
-    bool canRestore(Target *parent, const QVariantMap &map) const;
-    DeployConfiguration *restore(Target *parent, const QVariantMap &map);
-    bool canClone(Target *parent, DeployConfiguration *product) const;
-    DeployConfiguration *clone(Target *parent, DeployConfiguration *product);
 
-    static DeployConfigurationFactory *find(Target *parent, const QVariantMap &map);
     static QList<DeployConfigurationFactory *> find(Target *parent);
-    static DeployConfigurationFactory *find(Target *parent, DeployConfiguration *dc);
+    static DeployConfiguration *restore(Target *parent, const QVariantMap &map);
+    static DeployConfiguration *clone(Target *parent, const DeployConfiguration *dc);
 
-    void setSupportedTargetDeviceTypes(const QList<Core::Id> &ids);
+    void addSupportedTargetDeviceType(Core::Id id);
     void setDefaultDisplayName(const QString &defaultDisplayName);
     void setSupportedProjectType(Core::Id id);
 
 protected:
+    virtual bool canHandle(ProjectExplorer::Target *target) const;
     virtual QList<QString> availableBuildTargets(Target *parent) const;
     virtual QString displayNameForBuildTarget(const QString &buildTarget) const;
 
@@ -112,8 +104,8 @@ protected:
     template <class DeployConfig>
     void registerDeployConfiguration(Core::Id deployConfigBaseId)
     {
-        m_creator = [this](Target *t) {
-            auto dc = new DeployConfig(t);
+        m_creator = [this, deployConfigBaseId](Target *t) {
+            auto dc = new DeployConfig(t, deployConfigBaseId);
             dc->setDefaultDisplayName(m_defaultDisplayName);
             return dc;
         };
@@ -121,6 +113,9 @@ protected:
     }
 
 private:
+    DeployConfigurationFactory(const DeployConfigurationFactory &) = delete;
+    DeployConfigurationFactory operator=(const DeployConfigurationFactory &) = delete;
+
     DeployConfigurationCreator m_creator;
     Core::Id m_deployConfigBaseId;
     Core::Id m_supportedProjectType;

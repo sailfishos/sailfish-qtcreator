@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (C) 2016 Blackberry
+** Copyright (C) 2018 Blackberry
 **
 ** Contact: Blackberry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
@@ -34,10 +34,10 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-deployment-embedded-linux.html
     \page creator-deployment-qnx.html
-    \nextpage creator-deployment-mer.html
+    \nextpage creator-connecting-mobile.html
 
     \title Deploying Applications to QNX Neutrino Devices
 

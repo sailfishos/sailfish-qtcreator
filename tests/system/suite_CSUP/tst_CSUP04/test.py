@@ -39,7 +39,7 @@ def main():
     examplePath = os.path.join(templateDir, proFile)
     for useClang in [False, True]:
         with TestSection(getCodeModelString(useClang)):
-            if not startCreator(useClang):
+            if not startCreatorVerifyingClang(useClang):
                 continue
             # open example project
             openQmakeProject(examplePath)
@@ -70,7 +70,7 @@ def main():
             openDocument("openglwindow.Sources.main\\.cpp")
             if not placeCursorToLine(editorWidget, 'm_posAttr = m_program->attributeLocation("posAttr");'):
                 return
-            for i in range(13):
+            for _ in range(13):
                 type(editorWidget, "<Left>")
             type(editorWidget, "<Ctrl+Shift+u>")
             # wait until search finished and verify search results
@@ -78,3 +78,4 @@ def main():
             validateSearchResult(5 if JIRA.isBugStillOpen(2863) else 3)
             invokeMenuItem("File", "Close All")
             invokeMenuItem("File", "Exit")
+            waitForCleanShutdown()

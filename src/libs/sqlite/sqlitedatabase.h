@@ -28,32 +28,42 @@
 #include "sqlitedatabasebackend.h"
 #include "sqliteglobal.h"
 #include "sqlitetable.h"
+#include "sqlitetransaction.h"
 
 #include <utils/smallstring.h>
 
+#include <chrono>
 #include <mutex>
 #include <vector>
 
 namespace Sqlite {
 
-class SQLITE_EXPORT Database
+using namespace std::chrono_literals;
+
+class ReadStatement;
+class WriteStatement;
+
+class SQLITE_EXPORT Database final : public TransactionInterface
 {
     template <typename Database>
-    friend class AbstractTransaction;
     friend class Statement;
     friend class Backend;
 
 public:
     using MutexType = std::mutex;
+    using ReadStatement = Sqlite::ReadStatement;
+    using WriteStatement = Sqlite::WriteStatement;
 
     Database();
-    Database(Utils::PathString &&databaseFilePath, JournalMode journalMode=JournalMode::Wal);
+    Database(Utils::PathString &&databaseFilePath,
+             JournalMode journalMode=JournalMode::Wal);
+    Database(Utils::PathString &&databaseFilePath,
+             std::chrono::milliseconds busyTimeout = 1000ms,
+             JournalMode journalMode=JournalMode::Wal);
+    ~Database();
 
     Database(const Database &) = delete;
-    bool operator=(const Database &) = delete;
-
-    Database(Database &&) = delete;
-    bool operator=(Database &&) = delete;
+    Database &operator=(const Database &) = delete;
 
     void open();
     void open(Utils::PathString &&databaseFilePath);
@@ -98,14 +108,28 @@ public:
     }
 
 private:
+    void deferredBegin();
+    void immediateBegin();
+    void exclusiveBegin();
+    void commit();
+    void rollback();
+    void lock();
+    void unlock();
+
     void initializeTables();
+    void registerTransactionStatements();
+    void deleteTransactionStatements();
     std::mutex &databaseMutex() { return m_databaseMutex; }
+
+    class Statements;
 
 private:
     Utils::PathString m_databaseFilePath;
     DatabaseBackend m_databaseBackend;
     std::vector<Table> m_sqliteTables;
     std::mutex m_databaseMutex;
+    std::unique_ptr<Statements> m_statements;
+    std::chrono::milliseconds m_busyTimeout;
     JournalMode m_journalMode = JournalMode::Wal;
     OpenMode m_openMode = OpenMode::ReadWrite;
     bool m_isOpen = false;

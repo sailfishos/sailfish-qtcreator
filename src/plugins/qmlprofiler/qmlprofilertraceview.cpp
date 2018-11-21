@@ -42,18 +42,17 @@
 // Communication with the other views (limit events to range)
 #include "qmlprofilerviewmanager.h"
 
-#include "timeline/timelinezoomcontrol.h"
-#include "timeline/timelinemodelaggregator.h"
-#include "timeline/timelinerenderer.h"
-#include "timeline/timelineoverviewrenderer.h"
-#include "timeline/timelinetheme.h"
-#include "timeline/timelineformattime.h"
+#include <tracing/timelinezoomcontrol.h>
+#include <tracing/timelinemodelaggregator.h>
+#include <tracing/timelinerenderer.h>
+#include <tracing/timelineoverviewrenderer.h>
+#include <tracing/timelinetheme.h>
+#include <tracing/timelineformattime.h>
 
 #include <aggregation/aggregate.h>
 // Needed for the load&save actions in the context menu
 #include <debugger/analyzer/analyzermanager.h>
 #include <coreplugin/findplaceholder.h>
-#include <utils/qtcfallthrough.h>
 #include <utils/styledbar.h>
 #include <utils/algorithm.h>
 
@@ -97,35 +96,27 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
     setObjectName("QmlProfiler.Timeline.Dock");
 
     d->m_zoomControl = new Timeline::TimelineZoomControl(this);
-    connect(modelManager, &QmlProfilerModelManager::stateChanged, this, [modelManager, this]() {
-        switch (modelManager->state()) {
-        case QmlProfilerModelManager::Done: {
-            qint64 start = modelManager->traceTime()->startTime();
-            qint64 end = modelManager->traceTime()->endTime();
-            d->m_zoomControl->setTrace(start, end);
-            d->m_zoomControl->setRange(start, start + (end - start) / 10);
-            Q_FALLTHROUGH();
+    modelManager->registerFeatures(0, QmlProfilerModelManager::QmlEventLoader(), [this]() {
+        if (d->m_suspendedModels.isEmpty()) {
+            // Temporarily remove the models, while we're changing them
+            d->m_suspendedModels = d->m_modelProxy->models();
+            d->m_modelProxy->setModels(QVariantList());
         }
-        case QmlProfilerModelManager::Empty:
+        // Otherwise models are suspended already. This can happen if either acquiring was
+        // aborted or we're doing a "restrict to range" which consists of a partial clearing and
+        // then re-acquiring of data.
+    }, [this, modelManager]() {
+        const qint64 start = modelManager->traceStart();
+        const qint64 end = modelManager->traceEnd();
+        d->m_zoomControl->setTrace(start, end);
+        d->m_zoomControl->setRange(start, start + (end - start) / 10);
+        d->m_modelProxy->setModels(d->m_suspendedModels);
+        d->m_suspendedModels.clear();
+    }, [this]() {
+        d->m_zoomControl->clear();
+        if (!d->m_suspendedModels.isEmpty()) {
             d->m_modelProxy->setModels(d->m_suspendedModels);
             d->m_suspendedModels.clear();
-            d->m_modelManager->notesModel()->loadData();
-            break;
-        case QmlProfilerModelManager::ProcessingData:
-            break;
-        case QmlProfilerModelManager::ClearingData:
-            d->m_zoomControl->clear();
-            Q_FALLTHROUGH();
-        case QmlProfilerModelManager::AcquiringData:
-            if (d->m_suspendedModels.isEmpty()) {
-                // Temporarily remove the models, while we're changing them
-                d->m_suspendedModels = d->m_modelProxy->models();
-                d->m_modelProxy->setModels(QVariantList());
-            }
-            // Otherwise models are suspended already. This can happen if either acquiring was
-            // aborted or we're doing a "restrict to range" which consists of a partial clearing and
-            // then re-acquiring of data.
-            break;
         }
     });
 
@@ -154,7 +145,8 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
     setLayout(groupLayout);
 
     d->m_viewContainer = container;
-    d->m_modelProxy = new Timeline::TimelineModelAggregator(modelManager->notesModel(), this);
+    d->m_modelProxy = new Timeline::TimelineModelAggregator(this);
+    d->m_modelProxy->setNotes(modelManager->notesModel());
     d->m_modelManager = modelManager;
 
     QVariantList models;
@@ -181,7 +173,7 @@ QmlProfilerTraceView::QmlProfilerTraceView(QWidget *parent, QmlProfilerViewManag
                                                      d->m_modelProxy);
     d->m_mainView->rootContext()->setContextProperty(QLatin1String("zoomControl"),
                                                      d->m_zoomControl);
-    d->m_mainView->setSource(QUrl(QLatin1String("qrc:/timeline/MainView.qml")));
+    d->m_mainView->setSource(QUrl(QLatin1String("qrc:/tracing/MainView.qml")));
 
     connect(d->m_modelProxy, &Timeline::TimelineModelAggregator::updateCursorPosition,
             this, &QmlProfilerTraceView::updateCursorPosition);
@@ -269,7 +261,7 @@ void QmlProfilerTraceView::contextMenuEvent(QContextMenuEvent *ev)
 void QmlProfilerTraceView::showContextMenu(QPoint position)
 {
     QMenu menu;
-    QAction *viewAllAction = 0;
+    QAction *viewAllAction = nullptr;
 
     menu.addActions(QmlProfilerTool::profilerContextMenuActions());
     menu.addSeparator();
@@ -304,12 +296,8 @@ void QmlProfilerTraceView::showContextMenu(QPoint position)
 
 bool QmlProfilerTraceView::isUsable() const
 {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
     return d->m_mainView->quickWindow()->rendererInterface()->graphicsApi()
             == QSGRendererInterface::OpenGL;
-#else
-    return true;
-#endif
 }
 
 bool QmlProfilerTraceView::isSuspended() const
@@ -428,7 +416,7 @@ bool TraceViewFindSupport::findOne(const QString &txt, Core::FindFlags findFlags
     bool forwardSearch = !(findFlags & Core::FindBackward);
     int increment = forwardSearch ? +1 : -1;
     int current = forwardSearch ? start : start - 1;
-    QmlProfilerNotesModel *model = m_modelManager->notesModel();
+    Timeline::TimelineNotesModel *model = m_modelManager->notesModel();
     while (current >= 0 && current < model->count()) {
         QTextDocument doc(model->text(current)); // for automatic handling of WholeWords option
         if (!doc.find(regexp, 0, flags).isNull()) {

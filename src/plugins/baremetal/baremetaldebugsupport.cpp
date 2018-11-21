@@ -24,7 +24,6 @@
 ****************************************************************************/
 
 #include "baremetaldebugsupport.h"
-#include "baremetalrunconfiguration.h"
 #include "baremetaldevice.h"
 #include "baremetalgdbcommandsdeploystep.h"
 
@@ -38,8 +37,8 @@
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 
@@ -65,13 +64,12 @@ BareMetalDebugSupport::BareMetalDebugSupport(RunControl *runControl)
     const QString providerId = dev->gdbServerProviderId();
     const GdbServerProvider *p = GdbServerProviderManager::findProvider(providerId);
     if (!p) {
-        // FIXME: Translate.
-        reportFailure(QString("No GDB server provider found for %1").arg(providerId));
+        reportFailure(tr("No GDB server provider found for %1").arg(providerId));
         return;
     }
 
     if (p->startupMode() == GdbServerProvider::StartupOnNetwork) {
-        StandardRunnable r;
+        Runnable r;
         r.executable = p->executable();
         // We need to wrap the command arguments depending on a host OS,
         // as the bare metal's GDB servers are launched on a host,
@@ -85,10 +83,12 @@ BareMetalDebugSupport::BareMetalDebugSupport(RunControl *runControl)
 
 void BareMetalDebugSupport::start()
 {
-    const auto rc = qobject_cast<BareMetalRunConfiguration *>(runControl()->runConfiguration());
+    const auto rc = runControl()->runConfiguration();
     QTC_ASSERT(rc, reportFailure(); return);
+    const auto exeAspect = rc->extraAspect<ExecutableAspect>();
+    QTC_ASSERT(exeAspect, reportFailure(); return);
 
-    const QString bin = rc->localExecutableFilePath();
+    const QString bin = exeAspect->executable().toString();
     if (bin.isEmpty()) {
         reportFailure(tr("Cannot debug: Local executable is not set."));
         return;
@@ -122,9 +122,10 @@ void BareMetalDebugSupport::start()
     setCommandsAfterConnect(commands);
 #endif
 
-    StandardRunnable inferior;
+    Runnable inferior;
     inferior.executable = bin;
-    inferior.commandLineArguments = rc->arguments();
+    if (auto aspect = rc->extraAspect<ArgumentsAspect>())
+        inferior.commandLineArguments = aspect->arguments();
     setInferior(inferior);
     setSymbolFile(bin);
     setStartMode(AttachToRemoteServer);

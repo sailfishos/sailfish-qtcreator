@@ -32,6 +32,7 @@
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/buildconfiguration.h>
 
 #include <QLibraryInfo>
 #include <QTest>
@@ -53,16 +54,40 @@ public:
     DummyProject(const Utils::FileName &file) :
         ProjectExplorer::Project(QString(), file, {})
     {
-        ProjectExplorer::FileNode *fileNode
-                = new ProjectExplorer::FileNode(file, ProjectExplorer::FileType::Source, false);
-        DummyProjectNode *root = new DummyProjectNode(file);
-        root->addNode(fileNode);
-        fileNode = new ProjectExplorer::FileNode(
+        auto fileNode
+                = std::make_unique<ProjectExplorer::FileNode>(file, ProjectExplorer::FileType::Source, false);
+        auto root = std::make_unique<DummyProjectNode>(file);
+        root->addNode(std::move(fileNode));
+        fileNode = std::make_unique<ProjectExplorer::FileNode>(
                     Utils::FileName::fromLatin1(
                         ":/qmlprofiler/tests/qmlprofilerdetailsrewriter_test.cpp"),
                     ProjectExplorer::FileType::Source, false);
-        root->addNode(fileNode);
-        setRootProjectNode(root);
+        root->addNode(std::move(fileNode));
+        setRootProjectNode(std::move(root));
+        setDisplayName(file.toString());
+        setId("QmlProfilerDetailsRewriterTest.DummyProject");
+    }
+
+    bool needsConfiguration() const final { return false; }
+};
+
+class DummyBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
+{
+public:
+    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *) const final
+    {
+        return QList<ProjectExplorer::BuildInfo *>();
+    }
+
+    QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *,
+                                                        const QString &) const final
+    {
+        return QList<ProjectExplorer::BuildInfo *>();
+    }
+
+    int priority(const ProjectExplorer::Kit *, const QString &) const final
+    {
+        return 0;
     }
 };
 
@@ -76,6 +101,9 @@ QmlProfilerDetailsRewriterTest::QmlProfilerDetailsRewriterTest(QObject *parent) 
 
 void QmlProfilerDetailsRewriterTest::testMissingModelManager()
 {
+    DummyBuildConfigurationFactory factory;
+    Q_UNUSED(factory);
+
     seedRewriter();
     delete m_modelManager;
     m_modelManager = nullptr;
@@ -97,6 +125,9 @@ void QmlProfilerDetailsRewriterTest::testMissingModelManager()
 
 void QmlProfilerDetailsRewriterTest::testRequestDetailsForLocation()
 {
+    DummyBuildConfigurationFactory factory;
+    Q_UNUSED(factory);
+
     seedRewriter();
     QVERIFY(!m_rewriterDone);
     bool found1 = false;
@@ -145,6 +176,9 @@ void QmlProfilerDetailsRewriterTest::testRequestDetailsForLocation()
 
 void QmlProfilerDetailsRewriterTest::testGetLocalFile()
 {
+    DummyBuildConfigurationFactory factory;
+    Q_UNUSED(factory);
+
     seedRewriter();
     QCOMPARE(m_rewriter.getLocalFile("notthere.qml"), QString());
     QCOMPARE(m_rewriter.getLocalFile("Test.qml"),
@@ -179,8 +213,9 @@ void QmlProfilerDetailsRewriterTest::seedRewriter()
 
     QFutureInterface<void> result;
     QmlJS::PathsAndLanguages lPaths;
-    for (auto p : QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath))
-        lPaths.maybeInsert(Utils::FileName::fromString(p), QmlJS::Dialect::Qml);
+    lPaths.maybeInsert(
+                Utils::FileName::fromString(QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath)),
+                QmlJS::Dialect::Qml);
     QmlJS::ModelManagerInterface::importScan(result, QmlJS::ModelManagerInterface::workingCopy(),
                                              lPaths, m_modelManager, false);
 

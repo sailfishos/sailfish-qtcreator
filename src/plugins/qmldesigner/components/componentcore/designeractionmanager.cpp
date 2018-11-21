@@ -73,8 +73,9 @@ DesignerActionToolBar *DesignerActionManager::createToolBar(QWidget *parent) con
 {
     DesignerActionToolBar *toolBar = new DesignerActionToolBar(parent);
 
-    QList<ActionInterface* > categories = Utils::filtered(designerActions(),
-                                                          [](ActionInterface *action) { return action->type() ==  ActionInterface::ContextMenu; });
+    QList<ActionInterface* > categories = Utils::filtered(designerActions(), [](ActionInterface *action) {
+            return action->type() ==  ActionInterface::ContextMenu;
+    });
 
     Utils::sort(categories, [](ActionInterface *l, ActionInterface *r) {
         return l->priority() > r->priority();
@@ -1015,7 +1016,6 @@ void DesignerActionManager::createDefaultAddResourceHandler()
 void DesignerActionManager::addDesignerAction(ActionInterface *newAction)
 {
     m_designerActions.append(QSharedPointer<ActionInterface>(newAction));
-    m_designerActionManagerView->setDesignerActionList(designerActions());
 }
 
 void DesignerActionManager::addCreatorCommand(Core::Command *command, const QByteArray &category, int priority,
@@ -1026,12 +1026,9 @@ void DesignerActionManager::addCreatorCommand(Core::Command *command, const QByt
 
 QList<ActionInterface* > DesignerActionManager::designerActions() const
 {
-    QList<ActionInterface* > list;
-    foreach (const QSharedPointer<ActionInterface> &pointer, m_designerActions) {
-        list.append(pointer.data());
-    }
-
-    return list;
+    return Utils::transform(m_designerActions, [](const QSharedPointer<ActionInterface> &pointer) {
+        return pointer.data();
+    });
 }
 
 DesignerActionManager::DesignerActionManager(DesignerActionManagerView *designerActionManagerView)

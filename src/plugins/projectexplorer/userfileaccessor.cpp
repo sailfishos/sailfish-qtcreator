@@ -324,12 +324,137 @@ static QVariantMap processHandlerNodes(const HandlerNode &node, const QVariantMa
 }
 
 // --------------------------------------------------------------------
+// Helpers:
+// --------------------------------------------------------------------
+
+namespace {
+
+static QString generateSuffix(const QString &suffix)
+{
+    QString result = suffix;
+    result.replace(QRegExp("[^a-zA-Z0-9_.-]"), QString('_')); // replace fishy character
+    if (!result.startsWith('.'))
+        result.prepend('.');
+    return result;
+}
+
+// Return path to shared directory for .user files, create if necessary.
+static inline Utils::optional<QString> defineExternalUserFileDir()
+{
+    static const char userFilePathVariable[] = "QTC_USER_FILE_PATH";
+    if (Q_LIKELY(!qEnvironmentVariableIsSet(userFilePathVariable)))
+        return nullopt;
+    const QFileInfo fi(QFile::decodeName(qgetenv(userFilePathVariable)));
+    const QString path = fi.absoluteFilePath();
+    if (fi.isDir() || fi.isSymLink())
+        return path;
+    if (fi.exists()) {
+        qWarning() << userFilePathVariable << '=' << QDir::toNativeSeparators(path)
+            << " points to an existing file";
+        return nullopt;
+    }
+    QDir dir;
+    if (!dir.mkpath(path)) {
+        qWarning() << "Cannot create: " << QDir::toNativeSeparators(path);
+        return nullopt;
+    }
+    return path;
+}
+
+// Return a suitable relative path to be created under the shared .user directory.
+static QString makeRelative(QString path)
+{
+    const QChar slash('/');
+    // Windows network shares: "//server.domain-a.com/foo' -> 'serverdomainacom/foo'
+    if (path.startsWith("//")) {
+        path.remove(0, 2);
+        const int nextSlash = path.indexOf(slash);
+        if (nextSlash > 0) {
+            for (int p = nextSlash; p >= 0; --p) {
+                if (!path.at(p).isLetterOrNumber())
+                    path.remove(p, 1);
+            }
+        }
+        return path;
+    }
+    // Windows drives: "C:/foo' -> 'c/foo'
+    if (path.size() > 3 && path.at(1) == ':') {
+        path.remove(1, 1);
+        path[0] = path.at(0).toLower();
+        return path;
+    }
+    if (path.startsWith(slash)) // Standard UNIX paths: '/foo' -> 'foo'
+        path.remove(0, 1);
+    return path;
+}
+
+// Return complete file path of the .user file.
+static FileName externalUserFilePath(const Utils::FileName &projectFilePath, const QString &suffix)
+{
+    FileName result;
+    static const optional<QString> externalUserFileDir = defineExternalUserFileDir();
+
+    if (externalUserFileDir) {
+        // Recreate the relative project file hierarchy under the shared directory.
+        // PersistentSettingsWriter::write() takes care of creating the path.
+        result = FileName::fromString(externalUserFileDir.value());
+        result.appendString('/' + makeRelative(projectFilePath.toString()));
+        result.appendString(suffix);
+    }
+    return result;
+}
+
+} // namespace
+
+// --------------------------------------------------------------------
+// UserFileBackupStrategy:
+// --------------------------------------------------------------------
+
+class UserFileBackUpStrategy : public Utils::VersionedBackUpStrategy
+{
+public:
+    UserFileBackUpStrategy(UserFileAccessor *accessor) : Utils::VersionedBackUpStrategy(accessor)
+    { }
+
+    FileNameList readFileCandidates(const Utils::FileName &baseFileName) const final;
+};
+
+FileNameList UserFileBackUpStrategy::readFileCandidates(const FileName &baseFileName) const
+{
+    const UserFileAccessor *const ac = static_cast<const UserFileAccessor *>(accessor());
+    const FileName externalUser = ac->externalUserFile();
+    const FileName projectUser = ac->projectUserFile();
+    QTC_CHECK(!baseFileName.isEmpty());
+    QTC_CHECK(baseFileName == externalUser || baseFileName == projectUser);
+
+    FileNameList result = Utils::VersionedBackUpStrategy::readFileCandidates(projectUser);
+    if (!externalUser.isEmpty())
+        result.append(Utils::VersionedBackUpStrategy::readFileCandidates(externalUser));
+
+    return result;
+}
+
+// --------------------------------------------------------------------
 // UserFileAccessor:
 // --------------------------------------------------------------------
+
 UserFileAccessor::UserFileAccessor(Project *project) :
-    SettingsAccessor(project->projectFilePath(), "QtCreatorProject", project->displayName(), Core::Constants::IDE_DISPLAY_NAME),
+    MergingSettingsAccessor(std::make_unique<VersionedBackUpStrategy>(this),
+                            "QtCreatorProject", project->displayName(),
+                            Core::Constants::IDE_DISPLAY_NAME),
     m_project(project)
 {
+    // Setup:
+    const FileName externalUser = externalUserFile();
+    const FileName projectUser = projectUserFile();
+    setBaseFilePath(externalUser.isEmpty() ? projectUser : externalUser);
+
+    auto secondary
+            = std::make_unique<SettingsAccessor>(docType, displayName, applicationDisplayName);
+    secondary->setBaseFilePath(sharedFile());
+    secondary->setReadOnly();
+    setSecondaryAccessor(std::move(secondary));
+
     setSettingsId(ProjectExplorerPlugin::projectExplorerSettings().environmentId.toByteArray());
 
     // Register Upgraders:
@@ -357,37 +482,133 @@ Project *UserFileAccessor::project() const
     return m_project;
 }
 
-QVariantMap UserFileAccessor::preprocessReadSettings(const QVariantMap &data) const
+
+SettingsMergeResult
+UserFileAccessor::merge(const MergingSettingsAccessor::SettingsMergeData &global,
+                        const MergingSettingsAccessor::SettingsMergeData &local) const
 {
-    // Move from old Version field to new one:
-    // This can not be done in a normal upgrader since the version information is needed
-    // to decide which upgraders to run
-    QVariantMap result = SettingsAccessor::preprocessReadSettings(data);
-    const QString obsoleteKey = OBSOLETE_VERSION_KEY;
-    if (data.contains(obsoleteKey)) {
-        result = setVersionInMap(result, data.value(obsoleteKey, versionFromMap(data)).toInt());
-        result.remove(obsoleteKey);
-    }
-    return result;
+    const QStringList stickyKeys = global.main.value(USER_STICKY_KEYS_KEY).toStringList();
+
+    const QString key = local.key;
+    const QVariant mainValue = local.main.value(key);
+    const QVariant secondaryValue = local.secondary.value(key);
+
+    if (mainValue.isNull() && secondaryValue.isNull())
+        return nullopt;
+
+    if (isHouseKeepingKey(key) || global.key == USER_STICKY_KEYS_KEY)
+        return qMakePair(key, mainValue);
+
+    if (!stickyKeys.contains(global.key) && secondaryValue != mainValue && !secondaryValue.isNull())
+        return qMakePair(key, secondaryValue);
+    if (!mainValue.isNull())
+        return qMakePair(key, mainValue);
+    return qMakePair(key, secondaryValue);
 }
 
-QVariantMap UserFileAccessor::prepareToWriteSettings(const QVariantMap &data) const
+// When saving settings...
+//   If a .shared file was considered in the previous restoring step, we check whether for
+//   any of the current .shared settings there's a .user one which is different. If so, this
+//   means the user explicitly changed it and we mark this setting as sticky.
+//   Note that settings are considered sticky only when they differ from the .shared ones.
+//   Although this approach is more flexible than permanent/forever sticky settings, it has
+//   the side-effect that if a particular value unintentionally becomes the same in both
+//   the .user and .shared files, this setting will "unstick".
+SettingsMergeFunction UserFileAccessor::userStickyTrackerFunction(QStringList &stickyKeys) const
 {
-    QVariantMap tmp = SettingsAccessor::prepareToWriteSettings(data);
+    return [this, &stickyKeys](const SettingsMergeData &global, const SettingsMergeData &local)
+           -> SettingsMergeResult {
+        const QString key = local.key;
+        const QVariant main = local.main.value(key);
+        const QVariant secondary = local.secondary.value(key);
 
-    // for compatibility with QtC 3.1 and older:
-    tmp.insert(OBSOLETE_VERSION_KEY, currentVersion());
-    return tmp;
-}
+        if (main.isNull()) // skip stuff not in main!
+            return nullopt;
 
-void UserFileAccessor::storeSharedSettings(const QVariantMap &data) const
-{
-    project()->setProperty(SHARED_SETTINGS, data);
+        if (isHouseKeepingKey(key))
+            return qMakePair(key, main);
+
+        // Ignore house keeping keys:
+        if (key == USER_STICKY_KEYS_KEY)
+            return nullopt;
+
+        // Track keys that changed in main from the value in secondary:
+        if (main != secondary && !secondary.isNull() && !stickyKeys.contains(global.key))
+            stickyKeys.append(global.key);
+        return qMakePair(key, main);
+    };
 }
 
 QVariant UserFileAccessor::retrieveSharedSettings() const
 {
     return project()->property(SHARED_SETTINGS);
+}
+
+FileName UserFileAccessor::projectUserFile() const
+{
+    static const QString qtcExt = QLatin1String(qgetenv("QTC_SHARED_EXTENSION"));
+    FileName projectUserFile = m_project->projectFilePath();
+    projectUserFile.appendString(generateSuffix(qtcExt.isEmpty() ? ".user" : qtcExt));
+    return projectUserFile;
+}
+
+FileName UserFileAccessor::externalUserFile() const
+{
+    static const QString qtcExt = QFile::decodeName(qgetenv("QTC_EXTENSION"));
+    return externalUserFilePath(m_project->projectFilePath(),
+                                generateSuffix(qtcExt.isEmpty() ? ".user" : qtcExt));
+}
+
+FileName UserFileAccessor::sharedFile() const
+{
+    static const QString qtcExt = QLatin1String(qgetenv("QTC_SHARED_EXTENSION"));
+    FileName sharedFile = m_project->projectFilePath();
+    sharedFile.appendString(generateSuffix(qtcExt.isEmpty() ? ".shared" : qtcExt));
+    return sharedFile;
+}
+
+QVariantMap UserFileAccessor::postprocessMerge(const QVariantMap &main,
+                                               const QVariantMap &secondary,
+                                               const QVariantMap &result) const
+{
+    project()->setProperty(SHARED_SETTINGS, secondary);
+    return MergingSettingsAccessor::postprocessMerge(main, secondary, result);
+}
+
+QVariantMap UserFileAccessor::preprocessReadSettings(const QVariantMap &data) const
+{
+    QVariantMap tmp = MergingSettingsAccessor::preprocessReadSettings(data);
+
+    // Move from old Version field to new one:
+    // This can not be done in a normal upgrader since the version information is needed
+    // to decide which upgraders to run
+    const QString obsoleteKey = OBSOLETE_VERSION_KEY;
+    const int obsoleteVersion = tmp.value(obsoleteKey, -1).toInt();
+
+    if (obsoleteVersion > versionFromMap(tmp))
+        setVersionInMap(tmp, obsoleteVersion);
+
+    tmp.remove(obsoleteKey);
+    return tmp;
+}
+
+QVariantMap UserFileAccessor::prepareToWriteSettings(const QVariantMap &data) const
+{
+    const QVariantMap tmp = MergingSettingsAccessor::prepareToWriteSettings(data);
+    const QVariantMap shared = retrieveSharedSettings().toMap();
+    QVariantMap result;
+    if (!shared.isEmpty()) {
+        QStringList stickyKeys;
+        SettingsMergeFunction merge = userStickyTrackerFunction(stickyKeys);
+        result = mergeQVariantMaps(tmp, shared, merge).toMap();
+        result.insert(USER_STICKY_KEYS_KEY, stickyKeys);
+    } else {
+        result = tmp;
+    }
+
+    // for compatibility with QtC 3.1 and older:
+    result.insert(OBSOLETE_VERSION_KEY, currentVersion());
+    return result;
 }
 
 // -------------------------------------------------------------------------
@@ -1979,8 +2200,8 @@ class TestUserFileAccessor : public UserFileAccessor
 public:
     TestUserFileAccessor(Project *project) : UserFileAccessor(project) { }
 
-    void storeSharedSettings(const QVariantMap &data) const final { m_storedSettings = data; }
-    QVariant retrieveSharedSettings() const final { return m_storedSettings; }
+    void storeSharedSettings(const QVariantMap &data) const { m_storedSettings = data; }
+    QVariant retrieveSharedSettings() const { return m_storedSettings; }
 
     using UserFileAccessor::preprocessReadSettings;
     using UserFileAccessor::prepareToWriteSettings;
@@ -1998,6 +2219,8 @@ public:
     TestProject() : Project("x-test/testproject", Utils::FileName::fromString("/test/project")) {
         setDisplayName("Test Project");
     }
+
+    bool needsConfiguration() const final { return false; }
 };
 
 } // namespace
@@ -2046,8 +2269,7 @@ void ProjectExplorerPlugin::testUserFileAccessor_prepareToReadSettingsObsoleteVe
 
     QCOMPARE(result.count(), data.count() - 1);
     QCOMPARE(result.value("Foo"), data.value("Foo"));
-    // TODO: Does this make sense? Shouldn't the Version stay unchanged?
-    QCOMPARE(result.value("Version"), data.value("ProjectExplorer.Project.Updater.FileVersion"));
+    QCOMPARE(result.value("Version"), data.value("Version"));
 }
 
 void ProjectExplorerPlugin::testUserFileAccessor_prepareToWriteSettings()
@@ -2075,6 +2297,7 @@ void ProjectExplorerPlugin::testUserFileAccessor_prepareToWriteSettings()
              projectExplorerSettings().environmentId.toByteArray());
     QCOMPARE(result.value("UserStickyKeys"), QVariant(QStringList({"shared1"})));
     QCOMPARE(result.value("Version").toInt(), accessor.currentVersion());
+    QCOMPARE(result.value("ProjectExplorer.Project.Updater.FileVersion").toInt(), accessor.currentVersion());
     QCOMPARE(result.value("shared1"), data.value("shared1"));
     QCOMPARE(result.value("shared3"), data.value("shared3"));
     QCOMPARE(result.value("unique1"), data.value("unique1"));
@@ -2087,10 +2310,10 @@ void ProjectExplorerPlugin::testUserFileAccessor_mergeSettings()
 
     QVariantMap sharedData;
     sharedData.insert("Version", accessor.currentVersion());
-    sharedData.insert("EnvironmentId", "foobar");
     sharedData.insert("shared1", "bar");
     sharedData.insert("shared2", "baz");
     sharedData.insert("shared3", "foooo");
+    TestUserFileAccessor::RestoreData shared(FileName::fromString("/shared/data"), sharedData);
 
     QVariantMap data;
     data.insert("Version", accessor.currentVersion());
@@ -2099,19 +2322,20 @@ void ProjectExplorerPlugin::testUserFileAccessor_mergeSettings()
     data.insert("shared1", "bar1");
     data.insert("unique1", 1234);
     data.insert("shared3", "foo");
-    QVariantMap result = accessor.mergeSettings(data, sharedData);
+    TestUserFileAccessor::RestoreData user(FileName::fromString("/user/data"), data);
+    TestUserFileAccessor::RestoreData result = accessor.mergeSettings(user, shared);
 
-    QCOMPARE(result.count(), data.count() + 1);
-    QCOMPARE(result.value("OriginalVersion").toInt(), accessor.currentVersion());
-    QCOMPARE(result.value("EnvironmentId").toByteArray(),
+    QVERIFY(!result.hasIssue());
+    QCOMPARE(result.data.count(), data.count() + 1);
+    // mergeSettings does not run updateSettings, so no OriginalVersion will be set
+    QCOMPARE(result.data.value("EnvironmentId").toByteArray(),
              projectExplorerSettings().environmentId.toByteArray()); // unchanged
-    QCOMPARE(result.value("UserStickyKeys"), QVariant(QStringList({"shared1"}))); // unchanged
-    QCOMPARE(result.value("Version").toInt(), accessor.currentVersion()); // forced
-    QCOMPARE(result.value("shared1"), data.value("shared1")); // from data
-    // FIXME: Why is this missing?
-    // QCOMPARE(result.value("shared2"), sharedData.value("shared2")); // from shared, missing!
-    QCOMPARE(result.value("shared3"), sharedData.value("shared3")); // from shared
-    QCOMPARE(result.value("unique1"), data.value("unique1"));
+    QCOMPARE(result.data.value("UserStickyKeys"), QVariant(QStringList({"shared1"}))); // unchanged
+    QCOMPARE(result.data.value("Version").toInt(), accessor.currentVersion()); // forced
+    QCOMPARE(result.data.value("shared1"), data.value("shared1")); // from data
+    QCOMPARE(result.data.value("shared2"), sharedData.value("shared2")); // from shared, missing!
+    QCOMPARE(result.data.value("shared3"), sharedData.value("shared3")); // from shared
+    QCOMPARE(result.data.value("unique1"), data.value("unique1"));
 }
 
 void ProjectExplorerPlugin::testUserFileAccessor_mergeSettingsEmptyUser()
@@ -2121,15 +2345,18 @@ void ProjectExplorerPlugin::testUserFileAccessor_mergeSettingsEmptyUser()
 
     QVariantMap sharedData;
     sharedData.insert("Version", accessor.currentVersion());
-    sharedData.insert("EnvironmentId", "foobar");
     sharedData.insert("shared1", "bar");
     sharedData.insert("shared2", "baz");
     sharedData.insert("shared3", "foooo");
+    TestUserFileAccessor::RestoreData shared(FileName::fromString("/shared/data"), sharedData);
 
     QVariantMap data;
-    QVariantMap result = accessor.mergeSettings(data, sharedData);
+    TestUserFileAccessor::RestoreData user(FileName::fromString("/shared/data"), data);
 
-    QCOMPARE(result, sharedData);
+    TestUserFileAccessor::RestoreData result = accessor.mergeSettings(user, shared);
+
+    QVERIFY(!result.hasIssue());
+    QCOMPARE(result.data, sharedData);
 }
 
 void ProjectExplorerPlugin::testUserFileAccessor_mergeSettingsEmptyShared()
@@ -2138,20 +2365,22 @@ void ProjectExplorerPlugin::testUserFileAccessor_mergeSettingsEmptyShared()
     TestUserFileAccessor accessor(&project);
 
     QVariantMap sharedData;
+    TestUserFileAccessor::RestoreData shared(FileName::fromString("/shared/data"), sharedData);
 
     QVariantMap data;
     data.insert("Version", accessor.currentVersion());
+    data.insert("OriginalVersion", accessor.currentVersion());
     data.insert("EnvironmentId", projectExplorerSettings().environmentId.toByteArray());
     data.insert("UserStickyKeys", QStringList({"shared1"}));
     data.insert("shared1", "bar1");
     data.insert("unique1", 1234);
     data.insert("shared3", "foo");
-    QVariantMap result = accessor.mergeSettings(data, sharedData);
+    TestUserFileAccessor::RestoreData user(FileName::fromString("/shared/data"), data);
 
-    // FIXME: OriginalVersion should not have been added by merge!
-    QCOMPARE(result.value("OriginalVersion").toInt(), accessor.currentVersion());
-    result.remove("OriginalVersion");
-    QCOMPARE(result, data);
+    TestUserFileAccessor::RestoreData result = accessor.mergeSettings(user, shared);
+
+    QVERIFY(!result.hasIssue());
+    QCOMPARE(result.data, data);
 }
 
 #endif // WITH_TESTS

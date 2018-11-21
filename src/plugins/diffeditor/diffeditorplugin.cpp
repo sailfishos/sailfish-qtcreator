@@ -65,53 +65,62 @@ public:
     DiffFileInfo leftFileInfo;
     DiffFileInfo rightFileInfo;
     FileData::FileOperation fileOperation = FileData::ChangeFile;
+    bool binaryFiles = false;
 };
 
 class DiffFile
 {
 public:
     DiffFile(bool ignoreWhitespace, int contextLineCount)
-        : m_ignoreWhitespace(ignoreWhitespace),
-          m_contextLineCount(contextLineCount)
+        : m_contextLineCount(contextLineCount),
+          m_ignoreWhitespace(ignoreWhitespace)
     {}
 
     void operator()(QFutureInterface<FileData> &futureInterface,
                     const ReloadInput &reloadInfo) const
     {
+        if (reloadInfo.leftText == reloadInfo.rightText)
+            return; // We show "No difference" in this case, regardless if it's binary or not
+
         Differ differ(&futureInterface);
-        const QList<Diff> diffList = differ.cleanupSemantics(
-                    differ.diff(reloadInfo.leftText, reloadInfo.rightText));
 
-        QList<Diff> leftDiffList;
-        QList<Diff> rightDiffList;
-        Differ::splitDiffList(diffList, &leftDiffList, &rightDiffList);
-        QList<Diff> outputLeftDiffList;
-        QList<Diff> outputRightDiffList;
+        FileData fileData;
+        if (!reloadInfo.binaryFiles) {
+            const QList<Diff> diffList = differ.cleanupSemantics(
+                        differ.diff(reloadInfo.leftText, reloadInfo.rightText));
 
-        if (m_ignoreWhitespace) {
-            const QList<Diff> leftIntermediate
-                    = Differ::moveWhitespaceIntoEqualities(leftDiffList);
-            const QList<Diff> rightIntermediate
-                    = Differ::moveWhitespaceIntoEqualities(rightDiffList);
-            Differ::ignoreWhitespaceBetweenEqualities(leftIntermediate, rightIntermediate,
-                                                      &outputLeftDiffList, &outputRightDiffList);
-        } else {
-            outputLeftDiffList = leftDiffList;
-            outputRightDiffList = rightDiffList;
+            QList<Diff> leftDiffList;
+            QList<Diff> rightDiffList;
+            Differ::splitDiffList(diffList, &leftDiffList, &rightDiffList);
+            QList<Diff> outputLeftDiffList;
+            QList<Diff> outputRightDiffList;
+
+            if (m_ignoreWhitespace) {
+                const QList<Diff> leftIntermediate
+                        = Differ::moveWhitespaceIntoEqualities(leftDiffList);
+                const QList<Diff> rightIntermediate
+                        = Differ::moveWhitespaceIntoEqualities(rightDiffList);
+                Differ::ignoreWhitespaceBetweenEqualities(leftIntermediate, rightIntermediate,
+                                                          &outputLeftDiffList, &outputRightDiffList);
+            } else {
+                outputLeftDiffList = leftDiffList;
+                outputRightDiffList = rightDiffList;
+            }
+
+            const ChunkData chunkData = DiffUtils::calculateOriginalData(
+                        outputLeftDiffList, outputRightDiffList);
+            fileData = DiffUtils::calculateContextData(chunkData, m_contextLineCount, 0);
         }
-
-        const ChunkData chunkData = DiffUtils::calculateOriginalData(
-                    outputLeftDiffList, outputRightDiffList);
-        FileData fileData = DiffUtils::calculateContextData(chunkData, m_contextLineCount, 0);
         fileData.leftFileInfo = reloadInfo.leftFileInfo;
         fileData.rightFileInfo = reloadInfo.rightFileInfo;
         fileData.fileOperation = reloadInfo.fileOperation;
+        fileData.binaryFiles = reloadInfo.binaryFiles;
         futureInterface.reportResult(fileData);
     }
 
 private:
-    const bool m_ignoreWhitespace;
     const int m_contextLineCount;
+    const bool m_ignoreWhitespace;
 };
 
 class DiffFilesController : public DiffEditorController
@@ -201,13 +210,9 @@ QList<ReloadInput> DiffCurrentFileController::reloadInputList() const
         Utils::TextFileFormat format = textDocument->format();
 
         QString leftText;
-        bool leftFileExists = true;
-        if (Utils::TextFileFormat::readFile(m_fileName,
-                                            format.codec,
-                                            &leftText, &format, &errorString)
-                != Utils::TextFileFormat::ReadSuccess) {
-            leftFileExists = false;
-        }
+        const Utils::TextFileFormat::ReadResult leftResult
+                = Utils::TextFileFormat::readFile(m_fileName, format.codec,
+                                        &leftText, &format, &errorString);
 
         const QString rightText = textDocument->plainText();
 
@@ -219,8 +224,9 @@ QList<ReloadInput> DiffCurrentFileController::reloadInputList() const
         reloadInput.leftFileInfo.typeInfo = tr("Saved");
         reloadInput.rightFileInfo.typeInfo = tr("Modified");
         reloadInput.rightFileInfo.patchBehaviour = DiffFileInfo::PatchEditor;
+        reloadInput.binaryFiles = (leftResult == Utils::TextFileFormat::ReadEncodingError);
 
-        if (!leftFileExists)
+        if (leftResult == Utils::TextFileFormat::ReadIOError)
             reloadInput.fileOperation = FileData::NewFile;
 
         result << reloadInput;
@@ -259,14 +265,10 @@ QList<ReloadInput> DiffOpenFilesController::reloadInputList() const
             Utils::TextFileFormat format = textDocument->format();
 
             QString leftText;
-            bool leftFileExists = true;
             const QString fileName = textDocument->filePath().toString();
-            if (Utils::TextFileFormat::readFile(fileName,
-                                                format.codec,
-                                                &leftText, &format, &errorString)
-                    != Utils::TextFileFormat::ReadSuccess) {
-                leftFileExists = false;
-            }
+            const Utils::TextFileFormat::ReadResult leftResult
+                    = Utils::TextFileFormat::readFile(fileName, format.codec,
+                                            &leftText, &format, &errorString);
 
             const QString rightText = textDocument->plainText();
 
@@ -278,8 +280,9 @@ QList<ReloadInput> DiffOpenFilesController::reloadInputList() const
             reloadInput.leftFileInfo.typeInfo = tr("Saved");
             reloadInput.rightFileInfo.typeInfo = tr("Modified");
             reloadInput.rightFileInfo.patchBehaviour = DiffFileInfo::PatchEditor;
+            reloadInput.binaryFiles = (leftResult == Utils::TextFileFormat::ReadEncodingError);
 
-            if (!leftFileExists)
+            if (leftResult == Utils::TextFileFormat::ReadIOError)
                 reloadInput.fileOperation = FileData::NewFile;
 
             result << reloadInput;
@@ -321,14 +324,10 @@ QList<ReloadInput> DiffModifiedFilesController::reloadInputList() const
             Utils::TextFileFormat format = textDocument->format();
 
             QString leftText;
-            bool leftFileExists = true;
             const QString fileName = textDocument->filePath().toString();
-            if (Utils::TextFileFormat::readFile(fileName,
-                                                format.codec,
-                                                &leftText, &format, &errorString)
-                    != Utils::TextFileFormat::ReadSuccess) {
-                leftFileExists = false;
-            }
+            const Utils::TextFileFormat::ReadResult leftResult
+                    = Utils::TextFileFormat::readFile(fileName, format.codec,
+                                            &leftText, &format, &errorString);
 
             const QString rightText = textDocument->plainText();
 
@@ -340,8 +339,9 @@ QList<ReloadInput> DiffModifiedFilesController::reloadInputList() const
             reloadInput.leftFileInfo.typeInfo = tr("Saved");
             reloadInput.rightFileInfo.typeInfo = tr("Modified");
             reloadInput.rightFileInfo.patchBehaviour = DiffFileInfo::PatchEditor;
+            reloadInput.binaryFiles = (leftResult == Utils::TextFileFormat::ReadEncodingError);
 
-            if (!leftFileExists)
+            if (leftResult == Utils::TextFileFormat::ReadIOError)
                 reloadInput.fileOperation = FileData::NewFile;
 
             result << reloadInput;
@@ -380,28 +380,25 @@ QList<ReloadInput> DiffExternalFilesController::reloadInputList() const
     format.codec = EditorManager::defaultTextCodec();
 
     QString leftText;
-    bool leftFileExists = true;
-    if (Utils::TextFileFormat::readFile(m_leftFileName,
-                                    format.codec,
-                                    &leftText, &format, &errorString)
-            != Utils::TextFileFormat::ReadSuccess) {
-        leftFileExists = false;
-    }
-
     QString rightText;
-    bool rightFileExists = true;
-    if (Utils::TextFileFormat::readFile(m_rightFileName,
-                                    format.codec,
-                                    &rightText, &format, &errorString)
-            != Utils::TextFileFormat::ReadSuccess) {
-        rightFileExists = false;
-    }
+
+    const Utils::TextFileFormat::ReadResult leftResult
+            = Utils::TextFileFormat::readFile(m_leftFileName, format.codec,
+                                    &leftText, &format, &errorString);
+    const Utils::TextFileFormat::ReadResult rightResult
+            = Utils::TextFileFormat::readFile(m_rightFileName, format.codec,
+                                    &rightText, &format, &errorString);
 
     ReloadInput reloadInput;
     reloadInput.leftText = leftText;
     reloadInput.rightText = rightText;
     reloadInput.leftFileInfo.fileName = m_leftFileName;
     reloadInput.rightFileInfo.fileName = m_rightFileName;
+    reloadInput.binaryFiles = (leftResult == Utils::TextFileFormat::ReadEncodingError
+            || rightResult == Utils::TextFileFormat::ReadEncodingError);
+
+    const bool leftFileExists = (leftResult != Utils::TextFileFormat::ReadIOError);
+    const bool rightFileExists = (rightResult != Utils::TextFileFormat::ReadIOError);
     if (!leftFileExists && rightFileExists)
         reloadInput.fileOperation = FileData::NewFile;
     else if (leftFileExists && !rightFileExists)
@@ -475,13 +472,13 @@ bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
 
     m_diffCurrentFileAction = new QAction(tr("Diff Current File"), this);
     Command *diffCurrentFileCommand = ActionManager::registerAction(m_diffCurrentFileAction, "DiffEditor.DiffCurrentFile");
-    diffCurrentFileCommand->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+H") : tr("Ctrl+H")));
+    diffCurrentFileCommand->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+H") : tr("Ctrl+H")));
     connect(m_diffCurrentFileAction, &QAction::triggered, this, &DiffEditorPlugin::diffCurrentFile);
     diffContainer->addAction(diffCurrentFileCommand);
 
     m_diffOpenFilesAction = new QAction(tr("Diff Open Files"), this);
     Command *diffOpenFilesCommand = ActionManager::registerAction(m_diffOpenFilesAction, "DiffEditor.DiffOpenFiles");
-    diffOpenFilesCommand->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+Shift+H") : tr("Ctrl+Shift+H")));
+    diffOpenFilesCommand->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Shift+H") : tr("Ctrl+Shift+H")));
     connect(m_diffOpenFilesAction, &QAction::triggered, this, &DiffEditorPlugin::diffOpenFiles);
     diffContainer->addAction(diffOpenFilesCommand);
 
@@ -504,8 +501,8 @@ bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
     updateDiffCurrentFileAction();
     updateDiffOpenFilesAction();
 
-    addAutoReleasedObject(new DiffEditorFactory(this));
-    addAutoReleasedObject(new DiffEditorServiceImpl(this));
+    new DiffEditorFactory(this);
+    new DiffEditorServiceImpl(this);
 
     return true;
 }

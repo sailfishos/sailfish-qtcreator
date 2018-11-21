@@ -163,8 +163,7 @@ static const char *builtinTypeToText(CXTypeKind kind)
 
     // https://gcc.gnu.org/onlinedocs/gcc/Floating-Types.html
     case CXType_Float128: return "__float128";
-    // CLANG-UPGRADE-CHECK: CXType_Float16 available with >= clang-6.0:
-//    case CXType_Float16: return "_Float16";
+    case CXType_Float16: return "_Float16";
 
     // https://www.khronos.org/registry/OpenCL/sdk/2.1/docs/man/xhtml/scalarDataTypes.html
     case CXType_Half:
@@ -178,7 +177,7 @@ static const char *builtinTypeToText(CXTypeKind kind)
 Utf8String Type::builtinTypeToString() const
 {
     const char *text = builtinTypeToText(cxType.kind);
-    return Utf8String::fromByteArray(QByteArray::fromRawData(text, strlen(text)));
+    return Utf8String::fromByteArray(QByteArray::fromRawData(text, int(strlen(text))));
 }
 
 int Type::argumentCount() const
@@ -204,6 +203,11 @@ Type Type::classType() const
 Type Type::pointeeType() const
 {
     return clang_getPointeeType(cxType);
+}
+
+Type Type::resultType() const
+{
+    return clang_getResultType(cxType);
 }
 
 Type Type::argument(int index) const

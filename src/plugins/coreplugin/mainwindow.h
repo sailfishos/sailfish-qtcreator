@@ -43,7 +43,6 @@ QT_END_NAMESPACE
 
 namespace Core {
 
-class StatusBarWidget;
 class EditorManager;
 class ExternalToolManager;
 class HelpManager;
@@ -66,7 +65,6 @@ class ProgressManagerPrivate;
 class ShortcutSettings;
 class ToolSettings;
 class MimeTypeSettings;
-class StatusBarManager;
 class VersionDialog;
 class WindowSupport;
 class SystemEditor;
@@ -78,9 +76,9 @@ class MainWindow : public Utils::AppMainWindow
 
 public:
     MainWindow();
-    ~MainWindow();
+    ~MainWindow() override;
 
-    bool init(QString *errorMessage);
+    void init();
     void extensionsInitialized();
     void aboutToShutdown();
 
@@ -113,15 +111,8 @@ public slots:
     void openFileWith();
     void exit();
 
-    bool showOptionsDialog(Id page = Id(), QWidget *parent = 0);
-
-    bool showWarningWithOptions(const QString &title, const QString &text,
-                                const QString &details = QString(),
-                                Id settingsId = Id(),
-                                QWidget *parent = 0);
-
 protected:
-    virtual void closeEvent(QCloseEvent *event);
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     void openFile();
@@ -142,9 +133,12 @@ private:
 
     void registerDefaultContainers();
     void registerDefaultActions();
+    void registerModeSelectorStyleActions();
 
     void readSettings();
     void saveWindowSettings();
+
+    void updateModeSelectorStyleMenu();
 
     ICore *m_coreImpl = nullptr;
     QStringList m_aboutInformation;
@@ -159,14 +153,12 @@ private:
     ProgressManagerPrivate *m_progressManager = nullptr;
     JsExpander *m_jsExpander = nullptr;
     VcsManager *m_vcsManager = nullptr;
-    StatusBarManager *m_statusBarManager = nullptr;
     ModeManager *m_modeManager = nullptr;
     HelpManager *m_helpManager = nullptr;
     FancyTabWidget *m_modeStack = nullptr;
     NavigationWidget *m_leftNavigationWidget = nullptr;
     NavigationWidget *m_rightNavigationWidget = nullptr;
     RightPaneWidget *m_rightPaneWidget = nullptr;
-    StatusBarWidget *m_outputView = nullptr;
     VersionDialog *m_versionDialog = nullptr;
 
     QList<IContext *> m_activeContext;
@@ -190,7 +182,10 @@ private:
     QAction *m_optionsAction = nullptr;
     QAction *m_toggleLeftSideBarAction = nullptr;
     QAction *m_toggleRightSideBarAction = nullptr;
-    QAction *m_toggleModeSelectorAction = nullptr;
+    QAction *m_cycleModeSelectorStyleAction = nullptr;
+    QAction *m_setModeSelectorStyleIconsAndTextAction = nullptr;
+    QAction *m_setModeSelectorStyleHiddenAction = nullptr;
+    QAction *m_setModeSelectorStyleIconsOnlyAction = nullptr;
     QAction *m_themeAction = nullptr;
 
     QToolButton *m_toggleLeftSideBarButton = nullptr;

@@ -27,13 +27,16 @@
 
 #include "mockpchmanagernotifier.h"
 #include "mockpchmanagerserver.h"
+#include "mockprecompiledheaderstorage.h"
 
 #include <pchmanagerclient.h>
 #include <pchmanagerprojectupdater.h>
 
+#include <filepathcaching.h>
+#include <refactoringdatabaseinitializer.h>
 #include <precompiledheadersupdatedmessage.h>
-#include <removepchprojectpartsmessage.h>
-#include <updatepchprojectpartsmessage.h>
+#include <removeprojectpartsmessage.h>
+#include <updateprojectpartsmessage.h>
 
 namespace {
 
@@ -46,13 +49,20 @@ using testing::Not;
 class PchManagerClient : public ::testing::Test
 {
 protected:
-    MockPchManagerServer mockPchManagerServer;
-    ClangPchManager::PchManagerClient client;
-    MockPchManagerNotifier mockPchManagerNotifier{client};
-    ClangPchManager::PchManagerProjectUpdater projectUpdater{mockPchManagerServer, client};
+    NiceMock<MockPchManagerServer> mockPchManagerServer;
+    NiceMock<MockPrecompiledHeaderStorage> mockPrecompiledHeaderStorage;
+    ClangPchManager::PchManagerClient client{mockPrecompiledHeaderStorage};
+    NiceMock<MockPchManagerNotifier> mockPchManagerNotifier{client};
+    Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
+    ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
+    ClangBackEnd::FilePathCaching filePathCache{database};
+    ClangPchManager::PchManagerProjectUpdater projectUpdater{mockPchManagerServer, client, filePathCache};
     Utils::SmallString projectPartId{"projectPartId"};
     Utils::SmallString pchFilePath{"/path/to/pch"};
-    PrecompiledHeadersUpdatedMessage message{{{projectPartId.clone(), pchFilePath.clone()}}};
+    PrecompiledHeadersUpdatedMessage message{{{projectPartId.clone(), pchFilePath.clone(), 1}}};
+    Utils::SmallString projectPartId2{"projectPartId2"};
+    Utils::SmallString pchFilePath2{"/path/to/pch2"};
+    PrecompiledHeadersUpdatedMessage message2{{{projectPartId2.clone(), pchFilePath2.clone(), 1}}};
 };
 
 TEST_F(PchManagerClient, NotifierAttached)
@@ -76,7 +86,7 @@ TEST_F(PchManagerClient, NotifierDetached)
 
 TEST_F(PchManagerClient, Update)
 {
-    EXPECT_CALL(mockPchManagerNotifier, precompiledHeaderUpdated(projectPartId.toQString(), pchFilePath.toQString()));
+    EXPECT_CALL(mockPchManagerNotifier, precompiledHeaderUpdated(projectPartId.toQString(), pchFilePath.toQString(), Eq(1)));
 
     client.precompiledHeadersUpdated(message.clone());
 }
@@ -88,6 +98,77 @@ TEST_F(PchManagerClient, Remove)
 
     projectUpdater.removeProjectParts({QString(projectPartId.clone()),
                                        QString(projectPartId.clone())});
+}
+
+TEST_F(PchManagerClient, GetNoProjectPartPchForWrongProjectPartId)
+{
+    auto optional = client.projectPartPch("foo");
+
+    ASSERT_FALSE(optional);
+}
+
+TEST_F(PchManagerClient, GetProjectPartPchForProjectPartId)
+{
+    client.precompiledHeadersUpdated(std::move(message));
+
+    auto optional = client.projectPartPch(projectPartId);
+
+    ASSERT_TRUE(optional);
+}
+
+TEST_F(PchManagerClient, ProjectPartPchRemoved)
+{
+    client.precompiledHeadersUpdated(std::move(message));
+
+    client.precompiledHeaderRemoved(QString(projectPartId));
+
+    ASSERT_FALSE(client.projectPartPch(projectPartId));
+}
+
+TEST_F(PchManagerClient, ProjectPartPchHasNoDublicateEntries)
+{
+    client.precompiledHeadersUpdated(message.clone());
+    client.precompiledHeadersUpdated(message2.clone());
+
+    client.precompiledHeadersUpdated(message.clone());
+
+    ASSERT_THAT(client.projectPartPchs(), SizeIs(2));
+}
+
+TEST_F(PchManagerClient, ProjectPartPchForProjectPartIdLastModified)
+{
+    client.precompiledHeadersUpdated(std::move(message));
+
+    ASSERT_THAT(client.projectPartPch(projectPartId).value().lastModified,
+                1);
+}
+
+TEST_F(PchManagerClient, ProjectPartPchForProjectPartIdIsUpdated)
+{
+    client.precompiledHeadersUpdated(message.clone());
+    PrecompiledHeadersUpdatedMessage updateMessage{{{projectPartId.clone(), pchFilePath.clone(), 42}}};
+
+    client.precompiledHeadersUpdated(updateMessage.clone());
+
+    ASSERT_THAT(client.projectPartPch(projectPartId).value().lastModified,
+                42);
+}
+
+TEST_F(PchManagerClient, ProjectPartPchAddedToDatabase)
+{
+    EXPECT_CALL(mockPrecompiledHeaderStorage, insertPrecompiledHeader(TypedEq<Utils::SmallStringView>(projectPartId),
+                                                                      TypedEq<Utils::SmallStringView>(pchFilePath),
+                                                                      TypedEq<long long>(1)));
+
+    client.precompiledHeadersUpdated(message.clone());
+}
+
+TEST_F(PchManagerClient, ProjectPartPchRemovedFromDatabase)
+{
+    EXPECT_CALL(mockPrecompiledHeaderStorage, deletePrecompiledHeader(TypedEq<Utils::SmallStringView>(projectPartId)));
+
+
+    projectUpdater.removeProjectParts({QString(projectPartId)});
 }
 
 }

@@ -26,6 +26,7 @@
 
 #include "androidrunner.h"
 
+#include "androidconstants.h"
 #include "androiddeployqtstep.h"
 #include "androidconfigurations.h"
 #include "androidrunconfiguration.h"
@@ -33,9 +34,11 @@
 #include "androidavdmanager.h"
 #include "androidrunnerworker.h"
 
+#include <QHostAddress>
 #include <coreplugin/messagemanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorersettings.h>
+#include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 #include <utils/url.h>
 
@@ -108,53 +111,47 @@ using namespace Utils;
 
 namespace Android {
 namespace Internal {
-AndroidRunner::AndroidRunner(RunControl *runControl)
+
+AndroidRunner::AndroidRunner(RunControl *runControl,
+                             const QString &intentName,
+                             const QString &extraAppParams,
+                             const Utils::Environment &extraEnvVars)
     : RunWorker(runControl), m_target(runControl->runConfiguration()->target())
 {
     setDisplayName("AndroidRunner");
     static const int metaTypes[] = {
         qRegisterMetaType<QVector<QStringList> >("QVector<QStringList>"),
-        qRegisterMetaType<Utils::Port>("Utils::Port")
+        qRegisterMetaType<Utils::Port>("Utils::Port"),
+        qRegisterMetaType<AndroidDeviceInfo>("Android::AndroidDeviceInfo")
     };
     Q_UNUSED(metaTypes);
 
     m_checkAVDTimer.setInterval(2000);
     connect(&m_checkAVDTimer, &QTimer::timeout, this, &AndroidRunner::checkAVD);
 
-    m_androidRunnable.intentName = AndroidManager::intentName(m_target);
-    m_androidRunnable.packageName = m_androidRunnable.intentName.left(
-                m_androidRunnable.intentName.indexOf(QLatin1Char('/')));
-    m_androidRunnable.deviceSerialNumber = AndroidManager::deviceSerialNumber(m_target);
-    m_androidRunnable.apiLevel = AndroidManager::deviceApiLevel(m_target);
+    QString intent = intentName.isEmpty() ? AndroidManager::intentName(m_target) : intentName;
+    m_packageName = intent.left(intent.indexOf('/'));
 
-    auto androidRunConfig = qobject_cast<AndroidRunConfiguration *>(runControl->runConfiguration());
-    m_androidRunnable.amStartExtraArgs = androidRunConfig->amStartExtraArgs();
-    for (QString shellCmd: androidRunConfig->preStartShellCommands())
-        m_androidRunnable.beforeStartAdbCommands.append(QString("shell %1").arg(shellCmd));
+    const int apiLevel = AndroidManager::deviceApiLevel(m_target);
+    m_worker.reset(new AndroidRunnerWorker(this, m_packageName));
+    m_worker->setIntentName(intent);
+    m_worker->setIsPreNougat(apiLevel <= 23);
+    m_worker->setExtraAppParams(extraAppParams);
+    m_worker->setExtraEnvVars(extraEnvVars);
 
-    for (QString shellCmd: androidRunConfig->postFinishShellCommands())
-        m_androidRunnable.afterFinishAdbCommands.append(QString("shell %1").arg(shellCmd));
-
-    if (m_androidRunnable.apiLevel > 23)
-        m_worker.reset(new AndroidRunnerWorker(runControl, m_androidRunnable));
-    else
-        m_worker.reset(new AndroidRunnerWorkerPreNougat(runControl, m_androidRunnable));
     m_worker->moveToThread(&m_thread);
 
-    connect(this, &AndroidRunner::asyncStart, m_worker.data(), &AndroidRunnerWorkerBase::asyncStart);
-    connect(this, &AndroidRunner::asyncStop, m_worker.data(), &AndroidRunnerWorkerBase::asyncStop);
-    connect(this, &AndroidRunner::androidRunnableChanged,
-            m_worker.data(), &AndroidRunnerWorkerBase::setAndroidRunnable);
-    connect(this, &AndroidRunner::remoteDebuggerRunning,
-            m_worker.data(), &AndroidRunnerWorkerBase::handleRemoteDebuggerRunning);
-
-    connect(m_worker.data(), &AndroidRunnerWorkerBase::remoteProcessStarted,
+    connect(this, &AndroidRunner::asyncStart, m_worker.data(), &AndroidRunnerWorker::asyncStart);
+    connect(this, &AndroidRunner::asyncStop, m_worker.data(), &AndroidRunnerWorker::asyncStop);
+    connect(this, &AndroidRunner::androidDeviceInfoChanged,
+            m_worker.data(), &AndroidRunnerWorker::setAndroidDeviceInfo);
+    connect(m_worker.data(), &AndroidRunnerWorker::remoteProcessStarted,
             this, &AndroidRunner::handleRemoteProcessStarted);
-    connect(m_worker.data(), &AndroidRunnerWorkerBase::remoteProcessFinished,
+    connect(m_worker.data(), &AndroidRunnerWorker::remoteProcessFinished,
             this, &AndroidRunner::handleRemoteProcessFinished);
-    connect(m_worker.data(), &AndroidRunnerWorkerBase::remoteOutput,
+    connect(m_worker.data(), &AndroidRunnerWorker::remoteOutput,
             this, &AndroidRunner::remoteOutput);
-    connect(m_worker.data(), &AndroidRunnerWorkerBase::remoteErrorOutput,
+    connect(m_worker.data(), &AndroidRunnerWorker::remoteErrorOutput,
             this, &AndroidRunner::remoteErrorOutput);
 
     connect(&m_outputParser, &QmlDebug::QmlOutputParser::waitingForConnectionOnPort,
@@ -187,7 +184,7 @@ void AndroidRunner::stop()
 {
     if (m_checkAVDTimer.isActive()) {
         m_checkAVDTimer.stop();
-        appendMessage("\n\n" + tr("\"%1\" terminated.").arg(m_androidRunnable.packageName),
+        appendMessage("\n\n" + tr("\"%1\" terminated.").arg(m_packageName),
                       Utils::DebugFormat);
         return;
     }
@@ -201,6 +198,7 @@ void AndroidRunner::qmlServerPortReady(Port port)
     // device side. It only happens to work since we redirect
     // host port n to target port n via adb.
     QUrl serverUrl;
+    serverUrl.setHost(QHostAddress(QHostAddress::LocalHost).toString());
     serverUrl.setPort(port.number());
     serverUrl.setScheme(urlTcpScheme());
     emit qmlServerReady(serverUrl);
@@ -237,14 +235,6 @@ void AndroidRunner::handleRemoteProcessFinished(const QString &errString)
     reportStopped();
 }
 
-void AndroidRunner::setRunnable(const AndroidRunnable &runnable)
-{
-    if (runnable != m_androidRunnable) {
-        m_androidRunnable = runnable;
-        emit androidRunnableChanged(m_androidRunnable);
-    }
-}
-
 void AndroidRunner::launchAVD()
 {
     if (!m_target || !m_target->project())
@@ -257,12 +247,10 @@ void AndroidRunner::launchAVD()
     AndroidDeviceInfo info = AndroidConfigurations::showDeviceDialog(
                 m_target->project(), deviceAPILevel, targetArch);
     AndroidManager::setDeviceSerialNumber(m_target, info.serialNumber);
-    m_androidRunnable.deviceSerialNumber = info.serialNumber;
-    m_androidRunnable.apiLevel = info.sdk;
-    emit androidRunnableChanged(m_androidRunnable);
+    emit androidDeviceInfoChanged(info);
     if (info.isValid()) {
         AndroidAvdManager avdManager;
-        if (avdManager.findAvd(info.avdname).isEmpty()) {
+        if (!info.avdname.isEmpty() && avdManager.findAvd(info.avdname).isEmpty()) {
             bool launched = avdManager.startAvdAsync(info.avdname);
             m_launchedAVDName = launched ? info.avdname:"";
         } else {

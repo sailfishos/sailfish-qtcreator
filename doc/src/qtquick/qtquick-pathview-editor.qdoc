@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -24,10 +24,15 @@
 ****************************************************************************/
 
 /*!
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-using-qt-quick-designer.html
+    \contentspage index.html
     \page qmldesigner-pathview-editor.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-fonts.html
+    \nextpage qtquick-iso-icon-browser.html
+    \else
+    \previouspage qtquick-properties.html
     \nextpage qmldesigner-connections.html
+    \endif
 
     \title Editing PathView Properties
 

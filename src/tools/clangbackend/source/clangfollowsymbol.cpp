@@ -61,39 +61,6 @@ private:
     CXTranslationUnit tu;
 };
 
-class FollowSymbolData {
-public:
-    FollowSymbolData() = delete;
-    FollowSymbolData(const Utf8String &usr, const Utf8String &tokenSpelling, bool isFunctionLike,
-                     std::atomic<bool> &ready)
-        : m_usr(usr)
-        , m_spelling(tokenSpelling)
-        , m_isFunctionLike(isFunctionLike)
-        , m_ready(ready)
-    {}
-    FollowSymbolData(const FollowSymbolData &other)
-        : m_usr(other.m_usr)
-        , m_spelling(other.m_spelling)
-        , m_isFunctionLike(other.m_isFunctionLike)
-        , m_ready(other.m_ready)
-    {}
-
-    const Utf8String &usr() const { return m_usr; }
-    const Utf8String &spelling() const { return m_spelling; }
-    bool isFunctionLike() const { return m_isFunctionLike; }
-    bool ready() const { return m_ready; }
-    const SourceRangeContainer &result() const { return m_result; }
-
-    void setReady(bool ready = true) { m_ready = ready; }
-    void setResult(const SourceRangeContainer &result) { m_result = result; }
-private:
-    const Utf8String &m_usr;
-    const Utf8String &m_spelling;
-    SourceRangeContainer m_result;
-    bool m_isFunctionLike;
-    std::atomic<bool> &m_ready;
-};
-
 } // anonymous namespace
 
 static SourceRange getOperatorRange(const CXTranslationUnit tu,
@@ -146,10 +113,10 @@ static int getTokenIndex(CXTranslationUnit tu, const Tokens &tokens, uint line, 
     return tokenIndex;
 }
 
-SourceRangeContainer FollowSymbol::followSymbol(CXTranslationUnit tu,
-                                                const Cursor &fullCursor,
-                                                uint line,
-                                                uint column)
+FollowSymbolResult FollowSymbol::followSymbol(CXTranslationUnit tu,
+                                              const Cursor &fullCursor,
+                                              uint line,
+                                              uint column)
 {
     std::unique_ptr<Tokens> tokens(new Tokens(fullCursor));
 
@@ -175,7 +142,12 @@ SourceRangeContainer FollowSymbol::followSymbol(CXTranslationUnit tu,
         CXFile file = clang_getIncludedFile(cursors[tokenIndex]);
         const ClangString filename(clang_getFileName(file));
         const SourceLocation loc(tu, filename, 1, 1);
-        return SourceRange(loc, loc);
+        FollowSymbolResult result;
+        result.range = SourceRangeContainer(SourceRange(loc, loc));
+        // CLANG-UPGRADE-CHECK: Remove if we don't use empty generated ui_* headers anymore.
+        if (Utf8String(filename).contains("ui_"))
+            result.isResultOnlyForFallBack = true;
+        return result;
     }
 
     // For definitions we can always find a declaration in current TU
@@ -186,11 +158,16 @@ SourceRangeContainer FollowSymbol::followSymbol(CXTranslationUnit tu,
         // This is the symbol usage
         // We want to return definition
         cursor = cursor.referenced();
-        if (cursor.isNull() || !cursor.isDefinition()) {
-            // We can't find definition in this TU
+        if (cursor.isNull())
             return SourceRangeContainer();
-        }
-        return extractMatchingTokenRange(cursor, tokenSpelling);
+
+        FollowSymbolResult result;
+        // We can't find definition in this TU or it's a virtual method call
+        if (!cursor.isDefinition() || cursor.isVirtualMethod())
+            result.isResultOnlyForFallBack = true;
+
+        result.range = extractMatchingTokenRange(cursor, tokenSpelling);
+        return result;
     }
 
     cursor = cursor.definition();

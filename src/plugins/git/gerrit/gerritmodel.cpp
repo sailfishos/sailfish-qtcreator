@@ -32,7 +32,6 @@
 #include <vcsbase/vcsoutputwindow.h>
 
 #include <utils/algorithm.h>
-#include <utils/asconst.h>
 #include <utils/synchronousprocess.h>
 
 #include <QJsonArray>
@@ -481,19 +480,19 @@ static QStandardItem *numberSearchRecursion(QStandardItem *item, int number)
         if (QStandardItem *i = numberSearchRecursion(item->child(r, 0), number))
             return i;
     }
-    return 0;
+    return nullptr;
 }
 
 QStandardItem *GerritModel::itemForNumber(int number) const
 {
     if (!number)
-        return 0;
+        return nullptr;
     const int numRows = rowCount();
     for (int r = 0; r < numRows; ++r) {
         if (QStandardItem *i = numberSearchRecursion(item(r, 0), number))
             return i;
     }
-    return 0;
+    return nullptr;
 }
 
 void GerritModel::refresh(const QSharedPointer<GerritServer> &server, const QString &query)
@@ -933,7 +932,7 @@ void GerritModel::resultRetrieved(const QByteArray &output)
     std::stable_sort(changes.begin(), changes.end(), gerritChangeLessThan);
     numberIndexHash.clear();
 
-    for (const GerritChangePtr &c : Utils::asConst(changes)) {
+    for (const GerritChangePtr &c : qAsConst(changes)) {
         // Avoid duplicate entries for example in the (unlikely)
         // case people do self-reviews.
         if (!itemForNumber(c->number)) {

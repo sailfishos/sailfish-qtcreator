@@ -45,7 +45,7 @@ class CORE_EXPORT IOptionsPage : public QObject
 
 public:
     IOptionsPage(QObject *parent = nullptr, bool registerGlobally = true);
-    virtual ~IOptionsPage();
+    ~IOptionsPage() override;
 
     static const QList<IOptionsPage *> allOptionsPages();
 
@@ -91,7 +91,7 @@ class CORE_EXPORT IOptionsPageProvider : public QObject
 
 public:
     IOptionsPageProvider(QObject *parent = nullptr);
-    ~IOptionsPageProvider();
+    ~IOptionsPageProvider() override;
 
     static const QList<IOptionsPageProvider *> allOptionsPagesProviders();
 
@@ -105,11 +105,11 @@ public:
 protected:
     void setCategory(Id category) { m_category = category; }
     void setDisplayCategory(const QString &displayCategory) { m_displayCategory = displayCategory; }
-    void setCategoryIcon(const QString &categoryIcon) { m_categoryIcon = categoryIcon; }
+    void setCategoryIcon(const Utils::Icon &categoryIcon) { m_categoryIcon = categoryIcon; }
 
     Id m_category;
     QString m_displayCategory;
-    QString m_categoryIcon;
+    Utils::Icon m_categoryIcon;
 };
 
 } // namespace Core

@@ -70,10 +70,11 @@ def main():
     if not neededFilePresent(sourceExample):
         return
     # open Qt Creator
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
 
+    switchToSubMode('Projects')
     typePropDet = (("QPushButton", "Get Started Now", "Get Started Now button"),
                    ("QTreeView", "Sessions", "Sessions section"),
                    ("SessionModelIndex", ("default", False), "default session listed"),

@@ -30,7 +30,7 @@
 #include "internalnode_p.h"
 #include "nodeinstanceview.h"
 #include <qmlstate.h>
-#include <qmltimelinemutator.h>
+#include <qmltimeline.h>
 
 #ifndef QMLDESIGNER_TEST
 #include <qmldesignerplugin.h>
@@ -561,6 +561,18 @@ WidgetInfo AbstractView::widgetInfo()
     return createWidgetInfo();
 }
 
+void AbstractView::disableWidget()
+{
+    if (hasWidget() && widgetInfo().widgetFlags == DesignerWidgetFlags::DisableOnError)
+        widgetInfo().widget->setEnabled(false);
+}
+
+void AbstractView::enableWidget()
+{
+    if (hasWidget() && widgetInfo().widgetFlags == DesignerWidgetFlags::DisableOnError)
+        widgetInfo().widget->setEnabled(true);
+}
+
 void AbstractView::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
 {
 #ifndef QMLDESIGNER_TEST
@@ -570,11 +582,11 @@ void AbstractView::contextHelpId(const Core::IContext::HelpIdCallback &callback)
 #endif
 }
 
-void AbstractView::activateTimelineRecording(const ModelNode &mutator)
+void AbstractView::activateTimelineRecording(const ModelNode &timeline)
 {
     Internal::WriteLocker locker(m_model.data());
     if (model())
-        model()->d->notifyCurrentTimelineChanged(mutator);
+        model()->d->notifyCurrentTimelineChanged(timeline);
 
 }
 
@@ -709,14 +721,14 @@ QmlModelState AbstractView::currentState() const
     return QmlModelState(currentStateNode());
 }
 
-QmlTimelineMutator AbstractView::currentTimeline() const
+QmlTimeline AbstractView::currentTimeline() const
 {
     if (model())
-        return QmlTimelineMutator(ModelNode(m_model.data()->d->currentTimelineNode(),
+        return QmlTimeline(ModelNode(m_model.data()->d->currentTimelineNode(),
                                             m_model.data(),
                                             const_cast<AbstractView*>(this)));
 
-    return QmlTimelineMutator();
+    return QmlTimeline();
 }
 
 static int getMinorVersionFromImport(const Model *model)

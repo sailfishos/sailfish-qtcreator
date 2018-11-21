@@ -49,6 +49,7 @@ public:
         PowerPCArchitecture,
         ShArchitecture,
         AvrArchitecture,
+        XtensaArchitecture,
         UnknownArchitecture
     };
 
@@ -97,6 +98,9 @@ public:
         GenericQnxFlavor,
         GenericBareMetalFlavor,
 
+        // Generic:
+        RtosFlavor,
+
         UnknownFlavor
     };
 
@@ -139,6 +143,12 @@ public:
     static QString toString(const OSFlavor &of);
     static QString toString(const BinaryFormat &bf);
     static QString toString(int w);
+
+    static Architecture architectureFromString(const QStringRef &a);
+    static OS osFromString(const QStringRef &o);
+    static OSFlavor osFlavorFromString(const QStringRef &of, const OS os);
+    static BinaryFormat binaryFormatFromString(const QStringRef &bf);
+    static unsigned char wordWidthFromString(const QStringRef &w);
 
     static QList<OSFlavor> flavorsForOs(const OS &o);
     static OSFlavor flavorForMsvcVersion(int version);

@@ -433,8 +433,8 @@ def iterateQtVersions(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
     additionalResult = []
     if not alreadyOnOptionsDialog:
         invokeMenuItem("Tools", "Options...")
-    waitForObjectItem(":Options_QListView", "Build & Run")
-    clickItem(":Options_QListView", "Build & Run", 14, 15, 0, Qt.LeftButton)
+    waitForObjectItem(":Options_QListView", "Kits")
+    clickItem(":Options_QListView", "Kits", 14, 15, 0, Qt.LeftButton)
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Qt Versions")
     pattern = re.compile("Qt version (?P<version>.*?) for (?P<target>.*)")
     treeView = waitForObject(":qtdirList_QTreeView")
@@ -457,8 +457,7 @@ def iterateQtVersions(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
                         else:
                             currResult = additionalFunction(target, version, *argsForAdditionalFunc)
                     except:
-                        import sys
-                        t,v,tb = sys.exc_info()
+                        t,v,_ = sys.exc_info()
                         currResult = None
                         test.fatal("Function to additionally execute on Options Dialog could not be found or "
                                    "an exception occurred while executing it.", "%s(%s)" % (str(t), str(v)))
@@ -495,7 +494,7 @@ def iterateKits(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
     if not alreadyOnOptionsDialog:
         invokeMenuItem("Tools", "Options...")
     waitForObjectItem(":Options_QListView", "Build & Run")
-    clickItem(":Options_QListView", "Build & Run", 14, 15, 0, Qt.LeftButton)
+    clickItem(":Options_QListView", "Kits", 14, 15, 0, Qt.LeftButton)
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Kits")
     treeView = waitForObject(":BuildAndRun_QTreeView")
     model = treeView.model()
@@ -520,8 +519,7 @@ def iterateKits(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
                     else:
                         currResult = additionalFunction(item, kitName, *argsForAdditionalFunc)
                 except:
-                    import sys
-                    t,v,tb = sys.exc_info()
+                    t,v,_ = sys.exc_info()
                     currResult = None
                     test.fatal("Function to additionally execute on Options Dialog could not be "
                                "found or an exception occurred while executing it.", "%s(%s)" %
@@ -605,10 +603,8 @@ def progressBarWait(timeout=60000, warn=True):
     checkIfObjectExists(":Qt Creator_Core::Internal::ProgressBar", False, timeout)
 
 def readFile(filename):
-    f = open(filename, "r")
-    content = f.read()
-    f.close()
-    return content
+    with open(filename, "r") as f:
+        return f.read()
 
 def simpleFileName(navigatorFileName):
     # try to find the last part of the given name, assume it's inside a (folder) structure

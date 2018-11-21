@@ -23,20 +23,24 @@
 **
 ****************************************************************************/
 
-#include "highlighter.h"
-#include "highlightdefinition.h"
 #include "context.h"
-#include "rule.h"
-#include "itemdata.h"
+#include "highlightdefinition.h"
+#include "highlighter.h"
 #include "highlighterexception.h"
+#include "itemdata.h"
 #include "progressdata.h"
 #include "reuse.h"
+#include "rule.h"
 #include "tabsettings.h"
 
 #include <coreplugin/messagemanager.h>
+#include <texteditor/fontsettings.h>
+#include <texteditor/texteditorsettings.h>
 #include <utils/qtcassert.h>
 
 #include <QCoreApplication>
+
+#include <cmath>
 
 using namespace TextEditor;
 using namespace Internal;
@@ -498,6 +502,43 @@ void Highlighter::handleContextChange(const QString &contextName,
         changeContext(contextName, definition, setCurrent);
 }
 
+
+static double luminance(const QColor &color)
+{
+    // calculate the luminance based on
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
+    auto val = [](const double &colorVal) {
+        return colorVal < 0.03928 ? colorVal / 12.92 : std::pow((colorVal + 0.055) / 1.055, 2.4);
+    };
+
+    static QHash<QRgb, double> cache;
+    QHash<QRgb, double>::iterator it = cache.find(color.rgb());
+    if (it == cache.end()) {
+        it = cache.insert(color.rgb(), 0.2126 * val(color.redF())
+                          + 0.7152 * val(color.greenF())
+                          + 0.0722 * val(color.blueF()));
+    }
+    return it.value();
+}
+
+static float contrastRatio(const QColor &color1, const QColor &color2)
+{
+    // calculate the contrast ratio based on
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef
+    auto contrast = (luminance(color1) + 0.05) / (luminance(color2) + 0.05);
+    if (contrast < 1)
+        return 1 / contrast;
+    return contrast;
+}
+
+
+static bool isReadableOn(const QColor &background, const QColor &foreground)
+{
+    // following the W3C Recommendation on contrast for large Text
+    // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef
+    return contrastRatio(background, foreground) > 3;
+}
+
 void Highlighter::applyFormat(int offset,
                               int count,
                               const QString &itemDataName,
@@ -526,7 +567,10 @@ void Highlighter::applyFormat(int offset,
             // strategy). This is because the highlighter does not really know on which
             // definition(s) it is working. Since not many item data specify customizations I
             // think this approach would fit better. If there are other ideas...
-            if (itemData->color().isValid())
+            QBrush bg = format.background();
+            if (bg.style() == Qt::NoBrush)
+                bg = TextEditorSettings::fontSettings().toTextCharFormat(C_TEXT).background();
+            if (itemData->color().isValid() && isReadableOn(bg.color(), itemData->color()))
                 format.setForeground(itemData->color());
             if (itemData->isItalicSpecified())
                 format.setFontItalic(itemData->isItalic());

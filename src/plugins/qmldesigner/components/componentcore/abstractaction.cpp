@@ -32,10 +32,10 @@ namespace QmlDesigner {
 AbstractAction::AbstractAction(const QString &description)
     : m_defaultAction(new DefaultAction(description))
 {
-    const Utils::Icon prevIcon({
+    const Utils::Icon defaultIcon({
             {QLatin1String(":/utils/images/select.png"), Utils::Theme::QmlDesigner_FormEditorForegroundColor}}, Utils::Icon::MenuTintedStyle);
 
-    action()->setIcon(prevIcon.icon());
+    action()->setIcon(defaultIcon.icon());
 }
 
 AbstractAction::AbstractAction(DefaultAction *action)

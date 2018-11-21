@@ -28,27 +28,20 @@
 #include "cpptools_global.h"
 #include "cppmodelmanager.h"
 #include "searchsymbols.h"
-#include "stringtable.h"
 
 #include <cplusplus/CppDocument.h>
 
 #include <QHash>
 
-#include <functional>
-
 namespace CppTools {
-
-namespace Internal {
-class CppToolsPlugin;
-} // namespace Internal
 
 class CppLocatorData : public QObject
 {
     Q_OBJECT
 
-    // Only one instance, created by the CppToolsPlugin.
+    // Only one instance, created by the CppModelManager.
     CppLocatorData();
-    friend class Internal::CppToolsPlugin;
+    friend class Internal::CppModelManagerPrivate;
 
 public:
     void filterAllFiles(IndexItem::Visitor func) const
@@ -69,12 +62,6 @@ public slots:
 private:
     void flushPendingDocument(bool force) const;
     QList<IndexItem::Ptr> allIndexItems(const QHash<QString, QList<IndexItem::Ptr>> &items) const;
-
-    QString findOrInsertFilePath(const QString &path) const
-    { return m_strings->insert(path); }
-
-private:
-    Internal::StringTable *m_strings = nullptr; // Used to avoid QString duplication
 
     mutable SearchSymbols m_search;
     mutable QHash<QString, IndexItem::Ptr> m_infosByFile;

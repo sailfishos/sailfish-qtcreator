@@ -35,7 +35,6 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/kitinformation.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -60,8 +59,8 @@ TestConfiguration::~TestConfiguration()
 
 static bool isLocal(RunConfiguration *runConfiguration)
 {
-    Target *target = runConfiguration ? runConfiguration->target() : 0;
-    Kit *kit = target ? target->kit() : 0;
+    Target *target = runConfiguration ? runConfiguration->target() : nullptr;
+    Kit *kit = target ? target->kit() : nullptr;
     return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
 }
 
@@ -76,12 +75,14 @@ void TestConfiguration::completeTestInformation(ProjectExplorer::RunConfiguratio
                                                 TestRunMode runMode)
 {
     QTC_ASSERT(rc, return);
+    QTC_ASSERT(m_project, return);
+
     if (hasExecutable()) {
         qCDebug(LOG) << "Executable has been set already - not completing configuration again.";
         return;
     }
     Project *project = SessionManager::startupProject();
-    if (!project)
+    if (!project || project != m_project)
         return;
 
     Target *target = project->activeTarget();
@@ -93,19 +94,11 @@ void TestConfiguration::completeTestInformation(ProjectExplorer::RunConfiguratio
         return;
     }
 
-    Runnable runnable = rc->runnable();
-    if (!runnable.is<StandardRunnable>())
-        return;
-    m_runnable = runnable.as<StandardRunnable>();
+    m_runnable = rc->runnable();
     m_displayName = rc->displayName();
-    m_project = rc->project();
 
-    const QString buildSystemTarget = rc->buildSystemTarget();
-    BuildTargetInfo targetInfo
-            = Utils::findOrDefault(target->applicationTargets().list,
-                                   [&buildSystemTarget] (const BuildTargetInfo &bti) {
-        return bti.targetName == buildSystemTarget;
-    });
+    const QString buildKey = rc->buildKey();
+    BuildTargetInfo targetInfo = target->applicationTargets().buildTargetInfo(buildKey);
     if (!targetInfo.targetFilePath.isEmpty())
         m_runnable.executable = ensureExeEnding(targetInfo.targetFilePath.toString());
 
@@ -124,6 +117,7 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
 {
     QTC_ASSERT(!m_projectFile.isEmpty(), return);
     QTC_ASSERT(!m_buildTargets.isEmpty(), return);
+    QTC_ASSERT(m_project, return);
 
     if (m_origRunConfig) {
         qCDebug(LOG) << "Using run configuration specified by user or found by first call";
@@ -137,8 +131,10 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
         qCDebug(LOG) << "Failed to complete - using 'normal' way.";
     }
     Project *project = SessionManager::startupProject();
-    if (!project)
+    if (!project || project != m_project) {
+        m_project = nullptr;
         return;
+    }
 
     Target *target = project->activeTarget();
     if (!target)
@@ -152,13 +148,7 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
     BuildTargetInfo targetInfo
             = Utils::findOrDefault(target->applicationTargets().list,
                                    [&buildSystemTargets] (const BuildTargetInfo &bti) {
-        return Utils::anyOf(buildSystemTargets, [&bti](const QString &b) {
-            const QStringList targWithProjectFile = b.split('|');
-            if (targWithProjectFile.size() != 2) // some build targets might miss the project file
-                return false;
-            return !bti.targetFilePath.isEmpty() && targWithProjectFile.at(0) == bti.targetName
-                    && targWithProjectFile.at(1).startsWith(bti.projectFilePath.toString());
-        });
+        return buildSystemTargets.contains(bti.buildKey);
     });
     // we might end up with an empty targetFilePath - e.g. when having a library we just link to
     // there would be no BuildTargetInfo that could match
@@ -169,7 +159,7 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
         if (buildTargets.size() == 1) {
             targetInfo = buildTargets.first();
             m_guessedConfiguration = true;
-            m_guessedFrom = targetInfo.targetName;
+            m_guessedFrom = targetInfo.buildKey;
         }
     }
 
@@ -203,30 +193,21 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
             continue;
         }
 
-        Runnable runnable = runConfig->runnable();
-        if (!runnable.is<StandardRunnable>()) {
-            qCDebug(LOG) << " Skipped as not being a StandardRunnable";
-            continue;
-        }
-        StandardRunnable stdRunnable = runnable.as<StandardRunnable>();
+        const Runnable runnable = runConfig->runnable();
         // not the best approach - but depending on the build system and whether the executables
         // are going to get installed or not we have to soften the condition...
-        const QString &currentExecutable = ensureExeEnding(stdRunnable.executable);
-        const QString currentBST = runConfig->buildSystemTarget() + '|';
+        const QString currentExecutable = ensureExeEnding(runnable.executable);
+        const QString currentBST = runConfig->buildKey();
         qCDebug(LOG) << " CurrentExecutable" << currentExecutable;
         qCDebug(LOG) << " BST of RunConfig" << currentBST;
-        const bool isQbs = runConfig->id().toString().startsWith("Qbs.RunConfiguration:"); // BAD!
         if ((localExecutable == currentExecutable)
                 || (deployedExecutable == currentExecutable)
-                || (isQbs && Utils::anyOf(buildSystemTargets, [currentBST] (const QString &b) {
-                                              return b.startsWith(currentBST);
-                                          }))) {
+                || (buildSystemTargets.contains(currentBST))) {
             qCDebug(LOG) << "  Using this RunConfig.";
             m_origRunConfig = runConfig;
-            m_runnable = stdRunnable;
+            m_runnable = runnable;
             m_runnable.executable = currentExecutable;
             m_displayName = runConfig->displayName();
-            m_project = project;
             if (runMode == TestRunMode::Debug || runMode == TestRunMode::DebugWithoutDeploy)
                 m_runConfig = new TestRunConfiguration(runConfig->target(), this);
             break;
@@ -244,16 +225,12 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
         // we failed to find a valid runconfiguration - but we've got the executable already
         if (auto rc = target->activeRunConfiguration()) {
             if (isLocal(rc)) { // FIXME for now only Desktop support
-                Runnable runnable = rc->runnable();
-                if (runnable.is<StandardRunnable>()) {
-                    StandardRunnable stdRunnable = runnable.as<StandardRunnable>();
-                    m_runnable.environment = stdRunnable.environment;
-                    m_project = project;
-                    m_guessedConfiguration = true;
-                    m_guessedFrom = rc->displayName();
-                    if (runMode == TestRunMode::Debug)
-                        m_runConfig = new TestRunConfiguration(rc->target(), this);
-                }
+                const Runnable runnable = rc->runnable();
+                m_runnable.environment = runnable.environment;
+                m_guessedConfiguration = true;
+                m_guessedFrom = rc->displayName();
+                if (runMode == TestRunMode::Debug)
+                    m_runConfig = new TestRunConfiguration(rc->target(), this);
             } else {
                 qCDebug(LOG) << "not using the fallback as the current active run configuration "
                                 "appears to be non-Desktop";
@@ -262,7 +239,7 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
     }
 
     if (m_displayName.isEmpty()) // happens e.g. when guessing the TestConfiguration or error
-        m_displayName = (*buildSystemTargets.begin()).split('|').first();
+        m_displayName = (*buildSystemTargets.begin());
 }
 
 /**

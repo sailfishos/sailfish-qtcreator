@@ -31,13 +31,11 @@
 namespace QmlProjectManager {
 namespace Internal {
 
-QmlProjectRunConfigurationFactory::QmlProjectRunConfigurationFactory(QObject *parent) :
-    ProjectExplorer::IRunConfigurationFactory(parent)
+QmlProjectRunConfigurationFactory::QmlProjectRunConfigurationFactory() :
+    ProjectExplorer::FixedRunConfigurationFactory(QmlProjectRunConfiguration::tr("QML Scene"), false)
 {
-    setObjectName("QmlProjectRunConfigurationFactory");
     registerRunConfiguration<QmlProjectRunConfiguration>(Constants::QML_SCENE_RC_ID);
     addSupportedProjectType(QmlProjectManager::Constants::QML_PROJECT_ID);
-    addFixedBuildTarget(tr("QML Scene"));
 }
 
 } // namespace Internal

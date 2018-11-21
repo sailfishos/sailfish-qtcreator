@@ -254,6 +254,11 @@ void Console::setScriptEvaluator(const ScriptEvaluator &evaluator)
         setContext(QString());
 }
 
+void Console::populateFileFinder()
+{
+    m_consoleView->populateFileFinder();
+}
+
 void Console::printItem(ConsoleItem::ItemType itemType, const QString &text)
 {
     printItem(new ConsoleItem(itemType, text));
@@ -283,10 +288,19 @@ void Console::evaluate(const QString &expression)
     }
 }
 
+static Console *theConsole = nullptr;
+
 Console *debuggerConsole()
 {
-    static Console *theConsole = new Console;
+    if (!theConsole)
+        theConsole = new Console;
     return theConsole;
+}
+
+void destroyDebuggerConsole()
+{
+    delete theConsole;
+    theConsole = nullptr;
 }
 
 } // Internal

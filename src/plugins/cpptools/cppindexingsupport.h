@@ -67,8 +67,8 @@ public:
 
 
 public:
-    SymbolSearcher(QObject *parent = 0);
-    virtual ~SymbolSearcher() = 0;
+    SymbolSearcher(QObject *parent = nullptr);
+    ~SymbolSearcher() override = 0;
     virtual void runSearch(QFutureInterface<Core::SearchResultItem> &future) = 0;
 };
 

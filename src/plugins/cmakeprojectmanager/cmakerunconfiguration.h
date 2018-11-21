@@ -25,8 +25,7 @@
 
 #pragma once
 
-#include <projectexplorer/runnables.h>
-#include <utils/environment.h>
+#include <projectexplorer/runconfiguration.h>
 
 namespace CMakeProjectManager {
 namespace Internal {
@@ -34,58 +33,24 @@ namespace Internal {
 class CMakeRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    friend class CMakeRunConfigurationWidget;
 
 public:
-    explicit CMakeRunConfiguration(ProjectExplorer::Target *target);
-
-    ProjectExplorer::Runnable runnable() const override;
-    QWidget *createConfigurationWidget() override;
-
-    void setExecutable(const QString &executable);
-    void setBaseWorkingDirectory(const Utils::FileName &workingDirectory);
-    QString title() const;
-
-    QVariantMap toMap() const override;
-
-    QString disabledReason() const override;
-
-    QString buildSystemTarget() const final { return m_buildSystemTarget; }
-
-    Utils::OutputFormatter *createOutputFormatter() const final;
+    CMakeRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
 private:
-    bool fromMap(const QVariantMap &map) override;
-    QString defaultDisplayName() const;
+    QString disabledReason() const override;
+
+    void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &) override;
+    bool isBuildTargetValid() const;
+    void updateTargetInformation();
 
     void updateEnabledState() final;
-    QString extraId() const final;
-
-    QString baseWorkingDirectory() const;
-
-    QString m_buildSystemTarget;
-    QString m_executable;
-    QString m_title;
 };
 
-class CMakeRunConfigurationWidget : public QWidget
+class CMakeRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
 {
-    Q_OBJECT
-
 public:
-    explicit CMakeRunConfigurationWidget(CMakeRunConfiguration *cmakeRunConfiguration, QWidget *parent = 0);
-};
-
-class CMakeRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFactory
-{
-    Q_OBJECT
-
-public:
-    explicit CMakeRunConfigurationFactory(QObject *parent = 0);
-
-    QList<ProjectExplorer::BuildTargetInfo>
-        availableBuildTargets(ProjectExplorer::Target *parent, CreationMode mode) const override;
-    bool canCreateHelper(ProjectExplorer::Target *parent, const QString &suffix) const override;
+    CMakeRunConfigurationFactory();
 };
 
 } // namespace Internal

@@ -89,7 +89,6 @@ public:
     enum ModelRoles {
         // Absolute file path
         FilePathRole = QFileSystemModel::FilePathRole,
-        EnabledRole,
         isParsingRole
     };
 
@@ -124,7 +123,7 @@ public:
     Target *activeTarget() const;
     Target *target(Core::Id id) const;
     Target *target(Kit *k) const;
-    virtual bool supportsKit(const Kit *k, QString *errorMessage = nullptr) const;
+    virtual QList<Task> projectIssues(const Kit *k) const;
 
     Target *createTarget(Kit *k);
     static bool copySteps(Target *sourceTarget, Target *newTarget);
@@ -143,8 +142,6 @@ public:
     virtual QStringList filesGeneratedFrom(const QString &sourceFile) const;
     bool isKnownFile(const Utils::FileName &filename) const;
 
-    static QString makeUnique(const QString &preferredName, const QStringList &usedNames);
-
     virtual QVariantMap toMap() const;
 
     Core::Context projectContext() const;
@@ -154,10 +151,10 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     virtual bool needsConfiguration() const;
+    virtual bool needsBuildConfigurations() const;
     virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
                                            const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
 
-    virtual bool requiresTargetPanel() const;
     virtual ProjectImporter *projectImporter() const;
 
     Kit::Predicate requiredKitPredicate() const;
@@ -232,18 +229,25 @@ protected:
     void emitParsingFinished(bool success);
 
     void setDisplayName(const QString &name);
-    void setRequiredKitPredicate(const Kit::Predicate &predicate);
+    // Used to pre-check kits in the TargetSetupPage. RequiredKitPredicate
+    // is used to select kits available in the TargetSetupPage
     void setPreferredKitPredicate(const Kit::Predicate &predicate);
 
     void setId(Core::Id id);
-    void setRootProjectNode(ProjectNode *root); // takes ownership!
+    void setRootProjectNode(std::unique_ptr<ProjectNode> &&root); // takes ownership!
     void setProjectLanguages(Core::Context language);
     void addProjectLanguage(Core::Id id);
     void removeProjectLanguage(Core::Id id);
     void setProjectLanguage(Core::Id id, bool enabled);
     virtual void projectLoaded(); // Called when the project is fully loaded.
 
+    static ProjectExplorer::Task createProjectTask(ProjectExplorer::Task::TaskType type,
+                                                   const QString &description);
+
 private:
+    // The predicate used to select kits available in TargetSetupPage.
+    void setRequiredKitPredicate(const Kit::Predicate &predicate);
+
     void handleSubTreeChanged(FolderNode *node);
     void setActiveTarget(Target *target);
     ProjectPrivate *d;

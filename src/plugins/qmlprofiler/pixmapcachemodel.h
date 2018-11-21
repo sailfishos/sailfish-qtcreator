@@ -85,7 +85,7 @@ public:
         MaximumPixmapEventType
     };
 
-    struct PixmapCacheItem {
+    struct Item {
         int typeId = -1;
         PixmapEventType pixmapEventType = MaximumPixmapEventType;
         int urlIndex = -1;
@@ -94,7 +94,7 @@ public:
         qint64 cacheSize = 0;
     };
 
-    PixmapCacheModel(QmlProfilerModelManager *manager, QObject *parent = 0);
+    PixmapCacheModel(QmlProfilerModelManager *manager, Timeline::TimelineModelAggregator *parent);
 
     qint64 rowMaxValue(int rowNumber) const override;
 
@@ -123,9 +123,9 @@ private:
     void resizeUnfinishedLoads();
     void flattenLoads();
     int updateCacheCount(int m_lastCacheSizeEvent, qint64 startTime, qint64 pixSize,
-                         PixmapCacheItem &newEvent, int typeId);
+                         Item &newEvent, int typeId);
 
-    QVector<PixmapCacheItem> m_data;
+    QVector<Item> m_data;
     QVector<Pixmap> m_pixmaps;
 
     qint64 m_maxCacheSize = 1;

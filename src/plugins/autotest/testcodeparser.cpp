@@ -42,7 +42,6 @@
 #include <utils/algorithm.h>
 #include <utils/mapreduce.h>
 #include <utils/qtcassert.h>
-#include <utils/qtcfallthrough.h>
 #include <utils/runextensions.h>
 
 #include <QDirIterator>
@@ -174,7 +173,7 @@ void TestCodeParser::updateTestTree(ITestParser *parser)
 
 static QStringList filterFiles(const QString &projectDir, const QStringList &files)
 {
-    const QSharedPointer<TestSettings> &settings = AutotestPlugin::instance()->settings();
+    const QSharedPointer<TestSettings> &settings = AutotestPlugin::settings();
     const QSet<QString> &filters = settings->whiteListFilters.toSet(); // avoid duplicates
     if (!settings->filterScan || filters.isEmpty())
         return files;

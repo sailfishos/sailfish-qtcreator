@@ -51,8 +51,8 @@ class PropertyEditorView: public AbstractView
     Q_OBJECT
 
 public:
-    PropertyEditorView(QWidget *parent = 0);
-    ~PropertyEditorView();
+    PropertyEditorView(QWidget *parent = nullptr);
+    ~PropertyEditorView() override;
 
     bool hasWidget() const override;
     WidgetInfo widgetInfo() override;
@@ -93,7 +93,7 @@ public:
 
     bool locked() const;
 
-    void nodeCreated(const ModelNode &createdNode);
+    void nodeCreated(const ModelNode &createdNode) override;
 
 protected:
     void timerEvent(QTimerEvent *event) override;

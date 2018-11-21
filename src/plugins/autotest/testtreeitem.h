@@ -42,16 +42,18 @@ namespace {
 }
 
 namespace CppTools { class CppModelManager; }
+namespace Utils { class FileName; }
 
 namespace Autotest {
 namespace Internal {
 
 class TestParseResult;
 class TestConfiguration;
-
-class TestTreeItem : public Utils::TreeItem
+enum class TestRunMode;
+class TestTreeItem : public Utils::TypedTreeItem<TestTreeItem>
 {
 public:
+
     enum Type
     {
         Root,
@@ -71,6 +73,7 @@ public:
     explicit TestTreeItem(const QString &name = QString(), const QString &filePath = QString(),
                           Type type = Root);
 
+    virtual TestTreeItem *copyWithoutChildren() = 0;
     virtual QVariant data(int column, int role) const override;
     virtual bool setData(int column, const QVariant &data, int role) override;
     virtual Qt::ItemFlags flags(int column) const override;
@@ -98,27 +101,34 @@ public:
     bool markedForRemoval() const { return m_status == MarkedForRemoval; }
     bool newlyAdded() const { return m_status == NewlyAdded; }
     TestTreeItem *parentItem() const;
-    TestTreeItem *childItem(int row) const;
 
     TestTreeItem *findChildByName(const QString &name);
     TestTreeItem *findChildByFile(const QString &filePath);
+    TestTreeItem *findChildByFileAndType(const QString &filePath, Type type);
     TestTreeItem *findChildByNameAndFile(const QString &name, const QString &filePath);
 
     virtual bool canProvideTestConfiguration() const { return false; }
     virtual bool canProvideDebugConfiguration() const { return false; }
-    virtual TestConfiguration *testConfiguration() const { return 0; }
-    virtual TestConfiguration *debugConfiguration() const { return 0; }
+    virtual TestConfiguration *testConfiguration() const { return nullptr; }
+    virtual TestConfiguration *debugConfiguration() const { return nullptr; }
+    TestConfiguration *asConfiguration(TestRunMode mode) const;
     virtual QList<TestConfiguration *> getAllTestConfigurations() const;
     virtual QList<TestConfiguration *> getSelectedTestConfigurations() const;
+    virtual QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FileName &fileName) const;
     virtual bool lessThan(const TestTreeItem *other, SortMode mode) const;
     virtual TestTreeItem *find(const TestParseResult *result) = 0;
+    virtual TestTreeItem *findChild(const TestTreeItem *other) = 0;
     virtual bool modify(const TestParseResult *result) = 0;
     virtual bool isGroupNodeFor(const TestTreeItem *other) const;
+    virtual bool isGroupable() const;
     virtual TestTreeItem *createParentGroupNode() const = 0;
+    // based on (internal) filters this will be used to filter out sub items (and remove them)
+    // returns a copy of the item that contains the filtered out children or nullptr
+    virtual TestTreeItem *applyFilters() { return nullptr; }
     virtual QSet<QString> internalTargets() const;
 protected:
+    void copyBasicDataFrom(const TestTreeItem *other);
     typedef std::function<bool(const TestTreeItem *)> CompareFunction;
-    TestTreeItem *findChildBy(CompareFunction compare) const;
     static QSet<QString> dependingInternalTargets(CppTools::CppModelManager *cppMM,
                                                   const QString &file);
 

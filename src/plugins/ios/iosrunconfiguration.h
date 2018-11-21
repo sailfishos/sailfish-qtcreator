@@ -44,13 +44,11 @@ class IosRunConfiguration : public ProjectExplorer::RunConfiguration
     Q_OBJECT
 
 public:
-    explicit IosRunConfiguration(ProjectExplorer::Target *target);
+    IosRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     QWidget *createConfigurationWidget() override;
-    Utils::OutputFormatter *createOutputFormatter() const override;
     IosDeployStep *deployStep() const;
 
-    QString commandLineArguments() const;
     Utils::FileName profilePath() const;
     QString applicationName() const;
     Utils::FileName bundleDirectory() const;
@@ -59,24 +57,28 @@ public:
     IosDeviceType deviceType() const;
     void setDeviceType(const IosDeviceType &deviceType);
 
+    void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &) override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
-
-    QString buildSystemTarget() const final;
 
 signals:
     void localExecutableChanged();
 
 private:
-    QString extraId() const final;
-
     void deviceChanges();
     friend class IosRunConfigurationWidget;
+    void updateDeviceType();
     void updateDisplayNames();
     void updateEnabledState() final;
+    bool canRunForNode(const ProjectExplorer::Node *node) const final;
 
-    Utils::FileName m_profilePath;
     IosDeviceType m_deviceType;
+};
+
+class IosRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+{
+public:
+    IosRunConfigurationFactory();
 };
 
 } // namespace Internal

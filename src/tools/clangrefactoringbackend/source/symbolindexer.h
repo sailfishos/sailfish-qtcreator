@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "filestatuscache.h"
 #include "symbolscollectorinterface.h"
 #include "symbolstorageinterface.h"
 #include "clangpathwatcher.h"
@@ -39,18 +40,42 @@ class SymbolIndexer : public ClangPathWatcherNotifier
 public:
     SymbolIndexer(SymbolsCollectorInterface &symbolsCollector,
                   SymbolStorageInterface &symbolStorage,
-                  ClangPathWatcherInterface &pathWatcher);
+                  ClangPathWatcherInterface &pathWatcher,
+                  FilePathCachingInterface &filePathCache,
+                  FileStatusCache &fileStatusCache,
+                  Sqlite::TransactionInterface &transactionInterface);
 
     void updateProjectParts(V2::ProjectPartContainers &&projectParts,
                             V2::FileContainers &&generatedFiles);
+    void updateProjectPart(V2::ProjectPartContainer &&projectPart,
+                           const V2::FileContainers &generatedFiles);
 
     void pathsWithIdsChanged(const Utils::SmallStringVector &ids) override;
     void pathsChanged(const FilePathIds &filePathIds) override;
+    void updateChangedPath(FilePathId filePath);
+
+    bool compilerMacrosOrIncludeSearchPathsAreDifferent(
+            const V2::ProjectPartContainer &projectPart,
+            const Utils::optional<ProjectPartArtefact> &optionalArtefact) const;
+
+    FilePathIds filterChangedFiles(
+            const V2::ProjectPartContainer &projectPart) const;
+
+    FilePathIds updatableFilePathIds(const V2::ProjectPartContainer &projectPart,
+                                     const Utils::optional<ProjectPartArtefact> &optionalArtefact) const;
+
+    Utils::SmallStringVector compilerArguments(const V2::ProjectPartContainer &projectPart,
+                                               const Utils::optional<ProjectPartArtefact> &optionalArtefact) const;
+    Utils::SmallStringVector compilerArguments(Utils::SmallStringVector arguments,
+                                               int projectPartId) const;
 
 private:
     SymbolsCollectorInterface &m_symbolsCollector;
     SymbolStorageInterface &m_symbolStorage;
     ClangPathWatcherInterface &m_pathWatcher;
+    FilePathCachingInterface &m_filePathCache;
+    FileStatusCache &m_fileStatusCache;
+    Sqlite::TransactionInterface &m_transactionInterface;
 };
 
 } // namespace ClangBackEnd

@@ -166,8 +166,6 @@ Project {
                 "sidebarwidget.h",
                 "statusbarmanager.cpp",
                 "statusbarmanager.h",
-                "statusbarwidget.cpp",
-                "statusbarwidget.h",
                 "styleanimator.cpp",
                 "styleanimator.h",
                 "systemsettings.cpp",
@@ -209,6 +207,7 @@ Project {
             files: [
                 "addtovcsdialog.cpp", "addtovcsdialog.h", "addtovcsdialog.ui",
                 "externaltoolconfig.cpp", "externaltoolconfig.h", "externaltoolconfig.ui",
+                "filepropertiesdialog.cpp", "filepropertiesdialog.h", "filepropertiesdialog.ui",
                 "ioptionspage.cpp", "ioptionspage.h",
                 "newdialog.cpp", "newdialog.h", "newdialog.ui",
                 "openwithdialog.cpp", "openwithdialog.h", "openwithdialog.ui",

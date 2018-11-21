@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2017 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-coding-navigating.html
     \page creator-highlighting.html
     \nextpage creator-checking-code-syntax.html
@@ -157,7 +157,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-highlighting.html
     \page creator-checking-code-syntax.html
     \nextpage creator-completing-code.html
@@ -570,44 +570,45 @@
     \row
         \li M203
         \li Warning
-        \li Imperative code is not supported in the Qt Quick Designer
+        \li Imperative code is not supported in the Design mode
         \li
 
     \row
         \li M204
         \li Warning
-        \li This QML type is not supported in the Qt Quick Designer
+        \li This QML type is not supported in the Design mode
         \li
     \row
         \li M205
         \li Warning
-        \li Reference to parent QML type cannot be resolved correctly by the Qt
-            Quick Designer
+        \li Reference to parent QML type cannot be resolved correctly by the
+            Design mode
         \li
 
     \row
         \li M206
         \li Warning
         \li This visual property binding cannot be evaluated in the local
-            context and might not show up in Qt Quick Designer as expected
+            context and might not show up in Design mode as expected
         \li
 
     \row
         \li M207
         \li Warning
-        \li Qt Quick Designer only supports states in the root QML type
+        \li Design mode only supports states in the root QML type
         \li
 
     \row
         \li M208
         \li Error
-        \li This id might be ambiguous and is not supported in the \QMLD.
+        \li This id might be ambiguous and is not supported in the Design mode.
         \li
 
     \row
         \li M209
         \li Error
-        \li This type (type name) is not supported as a root element by \QMLD.
+        \li This type (type name) is not supported as a root element in the
+            Design mode.
         \li
 
     \row
@@ -803,16 +804,6 @@
             \l{http://linterrors.com/js/the-array-literal-notation-is-preferrable}
             {The array literal notation [] is preferable}.
 
-    \row
-        \li M324
-        \li Warning
-        \li Using Qt Quick 1 code model instead of Qt Quick 2
-        \li The code model might be corrupt or the QML emulation layer might
-            have been built with a different Qt version than the one selected in
-            the build and run kit. For more information, see
-            \l {Resetting the Code Model} and
-            \l {Running QML Modules in Qt Quick Designer}.
-
     \endtable
 
     \section1 Resetting the Code Model
@@ -823,15 +814,15 @@
     instead of Qt Quick 2}.
 
     You can see the error message when you move the mouse pointer over code that
-    \QC underlines in the code editor or when you open a QML file in the
-    \uicontrol Design mode.
+    \QC underlines in the code editor or when you open a QML file in the Design
+    mode.
 
     To reset the code model, select \uicontrol Tools > \uicontrol {QML/JS} >
     \uicontrol {Reset Code Model}.
 
     If this does not help, try changing the QML emulation layer to the one that
     was built with the same Qt version as the one selected in the build and run
-    kit. For more information, see \l{Running QML Modules in Qt Quick Designer}.
+    kit. For more information, see \l{Running QML Modules in Design Mode}.
 
     \section1 Inspecting QML and JavaScript
 
@@ -848,7 +839,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-checking-code-syntax.html
     \page creator-completing-code.html
     \nextpage creator-indenting-code.html
@@ -1075,7 +1066,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage qt-quick-toolbars.html
     \page creator-editor-codepasting.html
     \nextpage creator-macros.html
@@ -1168,7 +1159,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-editor-codepasting.html
     \page creator-macros.html
     \nextpage creator-diff-editor.html
@@ -1205,7 +1196,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-editor-options-text.html
     \page creator-editor-fakevim.html
     \nextpage creator-mime-types.html
@@ -1278,6 +1269,7 @@
         \li \c :substitute substitutes an expression in a range
         \li \c :'<,'>!cmd filters through an external command (for example,
             sorts the lines in a file with \c :%!sort)
+        \li \c :<range>sor[t][!]
         \li \c :.!cmd inserts the standard output of an external command
         \li \c :read
         \li \c :yank, \c :delete, \c :change
@@ -1409,7 +1401,7 @@
     */
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-completing-code.html
     \page creator-indenting-code.html
     \nextpage qt-quick-toolbars.html
@@ -1676,7 +1668,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-finding-overview.html
     \page creator-editor-finding.html
     \nextpage creator-editor-locator.html
@@ -1858,6 +1850,12 @@
     The search results are stored in the search history from which you can
     select earlier searches.
 
+    To clear the search results, select the \inlineimage clean_pane_small.png
+    (\uicontrol Clear) button.
+
+    To start a new search, select the \inlineimage qtcreator-new-search-icon.png
+    (\uicontrol {New Search}) button.
+
     \note You can use \uicontrol {Advanced Find} also to search for symbols. For
     more information, see \l{Finding Symbols}.
 
@@ -1919,7 +1917,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-editor-locator.html
     \page creator-editor-refactoring.html
     \nextpage creator-beautifier.html
@@ -2009,6 +2007,9 @@
             \inlineimage clean_pane_small.png
             (\uicontrol Clear) button.
 
+        \li To start a new search, click the
+            \inlineimage qtcreator-new-search-icon.png
+            (\uicontrol {New Search}) button.
     \endlist
 
     \section1 Renaming Symbols
@@ -2729,7 +2730,7 @@
                 \image qtcreator-move-component-into-separate-file.png
 
             \li QML type name. This action is also available in the
-                \uicontrol {Form Editor} in \QMLD.
+                \uicontrol {Form Editor} in the Design mode.
         \row
             \li Split Initializer
             \li Reformats a one-line type into a multi-line type. For example,
@@ -2766,7 +2767,7 @@
 
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-editor-finding.html
     \page creator-editor-locator.html
     \nextpage creator-editor-refactoring.html

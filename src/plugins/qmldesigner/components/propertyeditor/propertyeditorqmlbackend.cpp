@@ -29,7 +29,7 @@
 #include "propertyeditortransaction.h"
 #include <qmldesignerconstants.h>
 #include <qmldesignerplugin.h>
-#include <qmltimelinemutator.h>
+#include <qmltimeline.h>
 
 #include <qmlobjectnode.h>
 #include <nodemetainfo.h>
@@ -271,6 +271,8 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
 
     if (qmlObjectNode.isValid()) {
 
+        m_contextObject->setModel(propertyEditor->model());
+
         qCInfo(propertyEditorBenchmark) << Q_FUNC_INFO;
 
         QTime time;
@@ -330,7 +332,7 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
 
         contextObject()->setHasAliasExport(qmlObjectNode.isAliasExported());
 
-        contextObject()->setHasActiveTimeline(QmlTimelineMutator::hasActiveTimeline(qmlObjectNode.view()));
+        contextObject()->setHasActiveTimeline(QmlTimeline::hasActiveTimeline(qmlObjectNode.view()));
 
         contextObject()->setSelectionChanged(false);
 
@@ -506,7 +508,8 @@ QString PropertyEditorQmlBackend::fileFromUrl(const QUrl &url)
 
 bool PropertyEditorQmlBackend::checkIfUrlExists(const QUrl &url)
 {
-    return QFileInfo::exists(fileFromUrl(url));
+    const QString &file = fileFromUrl(url);
+    return !file.isEmpty() && QFileInfo::exists(file);
 }
 
 void PropertyEditorQmlBackend::emitSelectionToBeChanged()

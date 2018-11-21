@@ -59,8 +59,8 @@ public:
         InvalidTab
     };
 
-    explicit ConnectionViewWidget(QWidget *parent = 0);
-    ~ConnectionViewWidget();
+    explicit ConnectionViewWidget(QWidget *parent = nullptr);
+    ~ConnectionViewWidget() override;
 
     void setBindingModel(BindingModel *model);
     void setConnectionModel(ConnectionModel *model);

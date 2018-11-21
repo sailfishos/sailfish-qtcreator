@@ -4,6 +4,7 @@ include(../../qtcreatorplugin.pri)
 
 HEADERS += \
     abstracteditorsupport.h \
+    abstractoverviewmodel.h \
     baseeditordocumentparser.h \
     baseeditordocumentprocessor.h \
     builtincursorinfo.h \
@@ -12,6 +13,7 @@ HEADERS += \
     builtinindexingsupport.h \
     clangdiagnosticconfig.h \
     clangdiagnosticconfigsmodel.h \
+    clangdiagnosticconfigsselectionwidget.h \
     clangdiagnosticconfigswidget.h \
     cppcanonicalsymbol.h \
     cppchecksymbols.h \
@@ -47,6 +49,7 @@ HEADERS += \
     cppmodelmanager.h \
     cppmodelmanagersupport.h \
     cppmodelmanagersupportinternal.h \
+    cppoverviewmodel.h \
     cpppointerdeclarationformatter.h \
     cppprojectfile.h \
     cppprojectupdater.h \
@@ -97,7 +100,8 @@ HEADERS += \
     cppsymbolinfo.h \
     cursorineditor.h \
     wrappablelineedit.h \
-    usages.h
+    usages.h \
+    cpptools_clangtidychecks.h
 
 SOURCES += \
     abstracteditorsupport.cpp \
@@ -109,6 +113,7 @@ SOURCES += \
     builtinindexingsupport.cpp \
     clangdiagnosticconfig.cpp \
     clangdiagnosticconfigsmodel.cpp \
+    clangdiagnosticconfigsselectionwidget.cpp \
     clangdiagnosticconfigswidget.cpp \
     cppcanonicalsymbol.cpp \
     cppchecksymbols.cpp \
@@ -142,6 +147,7 @@ SOURCES += \
     cppmodelmanager.cpp \
     cppmodelmanagersupport.cpp \
     cppmodelmanagersupportinternal.cpp \
+    cppoverviewmodel.cpp \
     cpppointerdeclarationformatter.cpp \
     cppprojectfile.cpp \
     cppprojectupdater.cpp \
@@ -181,7 +187,7 @@ SOURCES += \
     compileroptionsbuilder.cpp \
     cppprojectfilecategorizer.cpp \
     cppprojectpartchooser.cpp \
-    wrappablelineedit.cpp \
+    wrappablelineedit.cpp
 
 FORMS += \
     clangdiagnosticconfigswidget.ui \
