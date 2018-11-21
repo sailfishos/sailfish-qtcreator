@@ -282,11 +282,11 @@ protected:
         return addRunWorkerFactoryHelper(runMode, [](RunControl *rc) { return new Worker(rc); });
     }
 
+    virtual bool canHandle(Target *target) const;
+
 private:
     RunWorkerFactory *addRunWorkerFactoryHelper
         (Core::Id runMode, const std::function<RunWorker *(RunControl *)> &creator);
-
-    bool canHandle(Target *target) const;
 
     friend class RunConfigurationCreationInfo;
     RunConfigurationCreator m_creator;
