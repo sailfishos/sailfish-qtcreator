@@ -211,6 +211,7 @@ private:
         };
         setupQmlLiveOption(m_qmlLiveDetailsUi->updateOnConnect, MerRunConfigurationAspect::UpdateOnConnect);
         setupQmlLiveOption(m_qmlLiveDetailsUi->updatesAsOverlay, MerRunConfigurationAspect::UpdatesAsOverlay);
+        setupQmlLiveOption(m_qmlLiveDetailsUi->allowCreateMissing, MerRunConfigurationAspect::AllowCreateMissing);
         setupQmlLiveOption(m_qmlLiveDetailsUi->loadDummyData, MerRunConfigurationAspect::LoadDummyData);
     }
 
@@ -262,6 +263,11 @@ void MerRunConfigurationAspect::applyTo(ProjectExplorer::StandardRunnable *r) co
 
         if (!(qmlLiveOptions() & MerRunConfigurationAspect::UpdatesAsOverlay)) {
             r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_NO_UPDATES_AS_OVERLAY"),
+                               QLatin1String("1"));
+        }
+
+        if (qmlLiveOptions() & MerRunConfigurationAspect::AllowCreateMissing) {
+            r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_ALLOW_CREATE_MISSING"),
                                QLatin1String("1"));
         }
 

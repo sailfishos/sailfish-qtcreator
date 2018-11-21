@@ -41,7 +41,8 @@ public:
         NoQmlLiveOption = 0x0,
         UpdateOnConnect = 0x1,
         UpdatesAsOverlay = 0x2,
-        LoadDummyData = 0x4
+        LoadDummyData = 0x4,
+        AllowCreateMissing = 0x8
     };
     Q_DECLARE_FLAGS(QmlLiveOptions, QmlLiveOption)
     Q_FLAG(QmlLiveOptions)
