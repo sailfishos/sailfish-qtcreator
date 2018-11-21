@@ -28,7 +28,7 @@
 namespace Mer {
 namespace Internal {
 
-class MerQmlRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFactory
+class MerQmlRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
 {
     Q_OBJECT
 

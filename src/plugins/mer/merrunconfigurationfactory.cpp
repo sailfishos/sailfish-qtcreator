@@ -41,7 +41,7 @@ namespace Mer {
 namespace Internal {
 
 MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
-    : IRunConfigurationFactory(parent)
+    : RunConfigurationFactory(parent)
 {
     setObjectName("MerRunConfigurationFactory");
     registerRunConfiguration<MerRunConfiguration>(MER_RUNCONFIGURATION_PREFIX);

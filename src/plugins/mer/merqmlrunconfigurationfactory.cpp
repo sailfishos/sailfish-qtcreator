@@ -45,7 +45,7 @@ const char SAILFISHAPP_QML_CONFIG[] = "sailfishapp_qml";
 } // anonymous namespace
 
 MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory(QObject *parent)
-    : IRunConfigurationFactory(parent)
+    : RunConfigurationFactory(parent)
 {
     setObjectName("MerQmlRunConfigurationFactory");
     registerRunConfiguration<MerQmlRunConfiguration>(MER_QMLRUNCONFIGURATION);
