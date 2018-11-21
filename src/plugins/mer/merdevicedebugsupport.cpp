@@ -122,12 +122,6 @@ MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
         addStartDependency(gdbServerReadyWatcher);
     }
 
-    RunConfiguration *runConfig = runControl->runConfiguration();
-    if (auto rc = qobject_cast<MerRunConfiguration *>(runConfig))
-        setSymbolFile(rc->localExecutableFilePath());
-    else if (auto rc = qobject_cast<MerQmlRunConfiguration *>(runConfig))
-        setSymbolFile(rc->localExecutableFilePath());
-
     connect(this, &DebuggerRunTool::inferiorRunning, this, [runControl]() {
         MerQmlLiveBenchManager::notifyInferiorRunning(runControl);
     });
