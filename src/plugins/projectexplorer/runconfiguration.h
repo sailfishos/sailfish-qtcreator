@@ -307,11 +307,11 @@ protected:
     void addSupportedTargetDeviceType(Core::Id id);
     void setDecorateDisplayNames(bool on);
 
+    virtual bool canHandle(Target *target) const;
+
 private:
     RunConfigurationFactory(const RunConfigurationFactory &) = delete;
     RunConfigurationFactory operator=(const RunConfigurationFactory &) = delete;
-
-    bool canHandle(Target *target) const;
 
     friend class RunConfigurationCreationInfo;
     RunConfigurationCreator m_creator;
