@@ -53,10 +53,8 @@ MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory(QObject *parent)
     addFixedBuildTarget(tr("QML Scene (on Sailfish OS Device)"));
 }
 
-bool MerQmlRunConfigurationFactory::canCreateHelper(Target *parent, const QString &buildTarget) const
+bool MerQmlRunConfigurationFactory::canHandle(Target *parent) const
 {
-    Q_UNUSED(buildTarget);
-
     QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(parent->project());
     if (!qmakeProject)
         return false;

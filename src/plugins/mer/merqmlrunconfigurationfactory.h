@@ -35,7 +35,7 @@ class MerQmlRunConfigurationFactory : public ProjectExplorer::RunConfigurationFa
 public:
     explicit MerQmlRunConfigurationFactory(QObject *parent = nullptr);
 
-    bool canCreateHelper(ProjectExplorer::Target *parent, const QString &suffix) const override;
+    bool canHandle(ProjectExplorer::Target *parent) const override;
 };
 
 } // namespace Internal

@@ -49,10 +49,5 @@ MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
     setDisplayNamePattern(tr("%1 (on Sailfish OS Device)"));
 }
 
-bool MerRunConfigurationFactory::canCreateHelper(Target *parent, const QString &buildTarget) const
-{
-    return parent->applicationTargets().hasTarget(buildTarget);
-}
-
 } // Internal
 } // Mer

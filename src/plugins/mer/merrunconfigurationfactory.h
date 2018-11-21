@@ -34,8 +34,6 @@ class MerRunConfigurationFactory : public ProjectExplorer::RunConfigurationFacto
 
 public:
     explicit MerRunConfigurationFactory(QObject *parent = 0);
-
-    bool canCreateHelper(ProjectExplorer::Target *parent, const QString &suffix) const override;
 };
 
 } // namespace Internal
