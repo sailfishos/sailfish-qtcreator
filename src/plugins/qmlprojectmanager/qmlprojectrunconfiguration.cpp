@@ -48,16 +48,15 @@ using namespace Core;
 using namespace ProjectExplorer;
 using namespace QtSupport;
 
-using namespace QmlProjectManager::Internal;
-
 namespace QmlProjectManager {
 
 const char M_CURRENT_FILE[] = "CurrentFile";
 
-QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *target)
-    : RunConfiguration(target, Constants::QML_SCENE_RC_ID)
+QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *target, Id id)
+    : RunConfiguration(target, id)
 {
     addExtraAspect(new QmlProjectEnvironmentAspect(this));
+    setOutputFormatter<QtSupport::QtOutputFormatter>();
 
     // reset default settings in constructor
     connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
@@ -75,7 +74,7 @@ QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *target)
 
 Runnable QmlProjectRunConfiguration::runnable() const
 {
-    StandardRunnable r;
+    Runnable r;
     r.executable = executable();
     r.commandLineArguments = commandLineArguments();
     r.runMode = ApplicationLauncher::Gui;
@@ -146,12 +145,7 @@ QString QmlProjectRunConfiguration::commandLineArguments() const
 
 QWidget *QmlProjectRunConfiguration::createConfigurationWidget()
 {
-    return new QmlProjectRunConfigurationWidget(this);
-}
-
-Utils::OutputFormatter *QmlProjectRunConfiguration::createOutputFormatter() const
-{
-    return new QtSupport::QtOutputFormatter(target()->project());
+    return wrapWidget(new Internal::QmlProjectRunConfigurationWidget(this));
 }
 
 QmlProjectRunConfiguration::MainScriptSource QmlProjectRunConfiguration::mainScriptSource() const
@@ -297,4 +291,15 @@ void QmlProjectRunConfiguration::updateEnabledState()
     }
 }
 
+namespace Internal {
+
+QmlProjectRunConfigurationFactory::QmlProjectRunConfigurationFactory()
+    : FixedRunConfigurationFactory(QmlProjectRunConfiguration::tr("QML Scene"), false)
+{
+    registerRunConfiguration<QmlProjectRunConfiguration>
+            ("QmlProjectManager.QmlRunConfiguration.QmlScene");
+    addSupportedProjectType(QmlProjectManager::Constants::QML_PROJECT_ID);
+}
+
+} // namespace Internal
 } // namespace QmlProjectManager

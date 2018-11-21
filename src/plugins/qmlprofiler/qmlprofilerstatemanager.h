@@ -40,8 +40,8 @@ public:
         AppDying,
     };
 
-    explicit QmlProfilerStateManager(QObject *parent = 0);
-    ~QmlProfilerStateManager();
+    explicit QmlProfilerStateManager(QObject *parent = nullptr);
+    ~QmlProfilerStateManager() override;
 
     QmlProfilerState currentState();
     bool clientRecording();

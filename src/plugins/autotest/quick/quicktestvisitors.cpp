@@ -25,6 +25,7 @@
 
 #include "quicktestvisitors.h"
 
+#include <cplusplus/Overview.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljslink.h>
@@ -84,7 +85,9 @@ static bool isDerivedFromTestCase(QmlJS::AST::UiQualifiedId *id, const QmlJS::Do
 bool TestQmlVisitor::visit(QmlJS::AST::UiObjectDefinition *ast)
 {
     const QStringRef name = ast->qualifiedTypeNameId->name;
+    m_objectStack.push(name.toString());
     if (name != "TestCase") {
+        m_insideTestCase = false;
         if (!isDerivedFromTestCase(ast->qualifiedTypeNameId, m_currentDoc, m_snapshot))
             return true;
     } else if (!documentImportsQtTest(m_currentDoc.data())) {
@@ -92,6 +95,7 @@ bool TestQmlVisitor::visit(QmlJS::AST::UiObjectDefinition *ast)
     }
 
     m_typeIsTestCase = true;
+    m_insideTestCase = true;
     m_currentTestCaseName.clear();
     const auto sourceLocation = ast->firstSourceLocation();
     m_testCaseLocation.m_name = m_currentDoc->fileName();
@@ -99,6 +103,11 @@ bool TestQmlVisitor::visit(QmlJS::AST::UiObjectDefinition *ast)
     m_testCaseLocation.m_column = sourceLocation.startColumn - 1;
     m_testCaseLocation.m_type = TestTreeItem::TestCase;
     return true;
+}
+
+void TestQmlVisitor::endVisit(QmlJS::AST::UiObjectDefinition *)
+{
+    m_insideTestCase = m_objectStack.pop() == "TestCase";
 }
 
 bool TestQmlVisitor::visit(QmlJS::AST::ExpressionStatement *ast)
@@ -109,8 +118,15 @@ bool TestQmlVisitor::visit(QmlJS::AST::ExpressionStatement *ast)
 
 bool TestQmlVisitor::visit(QmlJS::AST::UiScriptBinding *ast)
 {
-    const QStringRef name = ast->qualifiedId->name;
-    return name == "name";
+    if (m_insideTestCase)
+        m_expectTestCaseName = ast->qualifiedId->name == "name";
+    return m_expectTestCaseName;
+}
+
+void TestQmlVisitor::endVisit(QmlJS::AST::UiScriptBinding *)
+{
+    if (m_expectTestCaseName)
+        m_expectTestCaseName = false;
 }
 
 bool TestQmlVisitor::visit(QmlJS::AST::FunctionDeclaration *ast)
@@ -139,8 +155,53 @@ bool TestQmlVisitor::visit(QmlJS::AST::FunctionDeclaration *ast)
 
 bool TestQmlVisitor::visit(QmlJS::AST::StringLiteral *ast)
 {
-    if (m_typeIsTestCase)
+    if (m_expectTestCaseName && m_currentTestCaseName.isEmpty()) {
         m_currentTestCaseName = ast->value.toString();
+        m_expectTestCaseName = false;
+    }
+    return false;
+}
+
+/************************************** QuickTestAstVisitor *************************************/
+
+QuickTestAstVisitor::QuickTestAstVisitor(CPlusPlus::Document::Ptr doc,
+                                         const CPlusPlus::Snapshot &snapshot)
+    : ASTVisitor(doc->translationUnit())
+    , m_currentDoc(doc)
+    , m_snapshot(snapshot)
+{
+}
+
+bool QuickTestAstVisitor::visit(CPlusPlus::CallAST *ast)
+{
+    if (m_currentDoc.isNull())
+        return false;
+
+    if (const auto expressionAST = ast->base_expression) {
+        if (const auto idExpressionAST = expressionAST->asIdExpression()) {
+            if (const auto simpleNameAST = idExpressionAST->name->asSimpleName()) {
+                const CPlusPlus::Overview o;
+                const QString prettyName = o.prettyName(simpleNameAST->name);
+                if (prettyName == "quick_test_main" || prettyName == "quick_test_main_with_setup") {
+                    if (auto expressionListAST = ast->expression_list) {
+                        // third argument is the one we need, so skip current and next
+                        expressionListAST = expressionListAST->next; // argv
+                        expressionListAST = expressionListAST ? expressionListAST->next : nullptr; // testcase literal
+
+                        if (expressionListAST && expressionListAST->value) {
+                            const auto *stringLitAST = expressionListAST->value->asStringLiteral();
+                            const auto *string
+                                    = translationUnit()->stringLiteral(stringLitAST->literal_token);
+                            if (string) {
+                                m_testBaseName = QString::fromUtf8(string->chars(),
+                                                                   int(string->size()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     return false;
 }
 

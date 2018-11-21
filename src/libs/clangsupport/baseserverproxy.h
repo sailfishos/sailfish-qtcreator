@@ -41,9 +41,12 @@ public:
 
     void readMessages();
 
-    void resetCounter();
+    void resetState();
 
     void setIoDevice(QIODevice *ioDevice);
+
+protected:
+    ~BaseServerProxy() = default;
 
 protected:
     ClangBackEnd::WriteMessageBlock m_writeMessageBlock;

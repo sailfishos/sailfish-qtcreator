@@ -79,8 +79,8 @@ signals:
     void commandAdded(Core::Id id);
 
 private:
-    ActionManager(QObject *parent = 0);
-    ~ActionManager();
+    ActionManager(QObject *parent = nullptr);
+    ~ActionManager() override;
     static void saveSettings();
     static void setContext(const Context &context);
 

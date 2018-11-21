@@ -30,7 +30,7 @@
 #include "clangfixitoperation.h"
 #include "clangfixitoperationsextractor.h"
 #include "clangmodelmanagersupport.h"
-#include "clangtokeninfosreporter.h"
+#include "clanghighlightingresultreporter.h"
 #include "clangprojectsettings.h"
 #include "clangutils.h"
 
@@ -85,10 +85,10 @@ ClangEditorDocumentProcessor::ClangEditorDocumentProcessor(
     , m_semanticHighlighter(document)
     , m_builtinProcessor(document, /*enableSemanticHighlighter=*/ false)
 {
-    m_updateTranslationUnitTimer.setSingleShot(true);
-    m_updateTranslationUnitTimer.setInterval(350);
-    connect(&m_updateTranslationUnitTimer, &QTimer::timeout,
-            this, &ClangEditorDocumentProcessor::updateTranslationUnitIfProjectPartExists);
+    m_updateBackendDocumentTimer.setSingleShot(true);
+    m_updateBackendDocumentTimer.setInterval(350);
+    connect(&m_updateBackendDocumentTimer, &QTimer::timeout,
+            this, &ClangEditorDocumentProcessor::updateBackendDocumentIfProjectPartExists);
 
     connect(m_parser.data(), &ClangEditorDocumentParser::projectPartInfoUpdated,
             this, &BaseEditorDocumentProcessor::projectPartInfoUpdated);
@@ -103,19 +103,19 @@ ClangEditorDocumentProcessor::ClangEditorDocumentProcessor(
 
 ClangEditorDocumentProcessor::~ClangEditorDocumentProcessor()
 {
-    m_updateTranslationUnitTimer.stop();
+    m_updateBackendDocumentTimer.stop();
 
     m_parserWatcher.cancel();
     m_parserWatcher.waitForFinished();
 
     if (m_projectPart)
-        unregisterTranslationUnitForEditor();
+        closeBackendDocument();
 }
 
 void ClangEditorDocumentProcessor::runImpl(
         const CppTools::BaseEditorDocumentParser::UpdateParams &updateParams)
 {
-    m_updateTranslationUnitTimer.start();
+    m_updateBackendDocumentTimer.start();
 
     // Run clang parser
     disconnect(&m_parserWatcher, &QFutureWatcher<void>::finished,
@@ -143,7 +143,7 @@ void ClangEditorDocumentProcessor::semanticRehighlight()
     m_semanticHighlighter.updateFormatMapFromFontSettings();
 
     if (m_projectPart)
-        requestDocumentAnnotations(m_projectPart->id());
+        requestAnnotationsFromBackend(m_projectPart->id());
 }
 
 CppTools::SemanticInfo ClangEditorDocumentProcessor::recalculateSemanticInfo()
@@ -205,20 +205,16 @@ void ClangEditorDocumentProcessor::updateCodeWarnings(
 }
 namespace {
 
-int positionInText(QTextDocument *textDocument,
-                   const ClangBackEnd::SourceLocationContainer &sourceLocationContainer)
-{
-    auto textBlock = textDocument->findBlockByNumber(int(sourceLocationContainer.line()) - 1);
-
-    return textBlock.position() + int(sourceLocationContainer.column()) - 1;
-}
-
 TextEditor::BlockRange
 toTextEditorBlock(QTextDocument *textDocument,
                   const ClangBackEnd::SourceRangeContainer &sourceRangeContainer)
 {
-    return TextEditor::BlockRange(positionInText(textDocument, sourceRangeContainer.start()),
-                                  positionInText(textDocument, sourceRangeContainer.end()));
+    return TextEditor::BlockRange(::Utils::Text::positionInText(textDocument,
+                                                                sourceRangeContainer.start.line,
+                                                                sourceRangeContainer.start.column),
+                                  ::Utils::Text::positionInText(textDocument,
+                                                                sourceRangeContainer.end.line,
+                                                                sourceRangeContainer.end.column));
 }
 
 QList<TextEditor::BlockRange>
@@ -241,6 +237,16 @@ const QVector<ClangBackEnd::TokenInfoContainer>
     return m_tokenInfos;
 }
 
+void ClangEditorDocumentProcessor::clearTaskHubIssues()
+{
+    ClangDiagnosticManager::clearTaskHubIssues();
+}
+
+void ClangEditorDocumentProcessor::generateTaskHubIssues()
+{
+    m_diagnosticManager.generateTaskHubIssues();
+}
+
 void ClangEditorDocumentProcessor::updateHighlighting(
         const QVector<ClangBackEnd::TokenInfoContainer> &tokenInfos,
         const QVector<ClangBackEnd::SourceRangeContainer> &skippedPreprocessorRanges,
@@ -250,14 +256,23 @@ void ClangEditorDocumentProcessor::updateHighlighting(
         const auto skippedPreprocessorBlocks = toTextEditorBlocks(textDocument(), skippedPreprocessorRanges);
         emit ifdefedOutBlocksUpdated(documentRevision, skippedPreprocessorBlocks);
 
-        m_tokenInfos = tokenInfos;
         m_semanticHighlighter.setHighlightingRunner(
             [tokenInfos]() {
-                auto *reporter = new TokenInfosReporter(tokenInfos);
+                auto *reporter = new HighlightingResultReporter(tokenInfos);
                 return reporter->start();
             });
         m_semanticHighlighter.run();
     }
+}
+
+void ClangEditorDocumentProcessor::updateTokenInfos(
+        const QVector<ClangBackEnd::TokenInfoContainer> &tokenInfos,
+        uint documentRevision)
+{
+    if (documentRevision != revision())
+        return;
+    m_tokenInfos = tokenInfos;
+    emit tokenInfosUpdated();
 }
 
 static int currentLine(const TextEditor::AssistInterface &assistInterface)
@@ -298,7 +313,7 @@ void ClangEditorDocumentProcessor::addDiagnosticToolTipToLayout(uint line,
 
 void ClangEditorDocumentProcessor::editorDocumentTimerRestarted()
 {
-    m_updateTranslationUnitTimer.stop(); // Wait for the next call to run().
+    m_updateBackendDocumentTimer.stop(); // Wait for the next call to run().
 }
 
 void ClangEditorDocumentProcessor::invalidateDiagnostics()
@@ -408,12 +423,12 @@ static bool isProjectPartLoadedOrIsFallback(CppTools::ProjectPart::Ptr projectPa
         && (projectPart->id().isEmpty() || ClangCodeModel::Utils::isProjectPartLoaded(projectPart));
 }
 
-void ClangEditorDocumentProcessor::updateProjectPartAndTranslationUnitForEditor()
+void ClangEditorDocumentProcessor::updateBackendProjectPartAndDocument()
 {
     const CppTools::ProjectPart::Ptr projectPart = m_parser->projectPartInfo().projectPart;
 
     if (isProjectPartLoadedOrIsFallback(projectPart)) {
-        registerTranslationUnitForEditor(*projectPart.data());
+        updateBackendDocument(*projectPart.data());
 
         m_projectPart = projectPart;
         m_isProjectFile = m_parser->projectPartInfo().hints
@@ -426,7 +441,7 @@ void ClangEditorDocumentProcessor::onParserFinished()
     if (revision() != m_parserRevision)
         return;
 
-    updateProjectPartAndTranslationUnitForEditor();
+    updateBackendProjectPartAndDocument();
 }
 
 namespace {
@@ -488,7 +503,7 @@ private:
         m_diagnosticConfigId = diagnosticConfig.id();
 
         m_options.append(diagnosticConfig.clangOptions());
-        addClangTidyOptions(diagnosticConfig.clangTidyChecks());
+        addClangTidyOptions(diagnosticConfig);
         addClazyOptions(diagnosticConfig.clazyChecks());
     }
 
@@ -502,13 +517,21 @@ private:
         }
     }
 
-    void addClangTidyOptions(const QString &checks)
+    void addClangTidyOptions(const CppTools::ClangDiagnosticConfig &diagnosticConfig)
     {
-        if (checks.isEmpty())
+        using Mode = CppTools::ClangDiagnosticConfig::TidyMode;
+        Mode tidyMode = diagnosticConfig.clangTidyMode();
+        if (tidyMode == Mode::Disabled)
             return;
 
         addXclangArg("-add-plugin", "clang-tidy");
-        addXclangArg("-plugin-arg-clang-tidy", "-checks='-*" + checks + "'");
+
+        if (tidyMode == Mode::File)
+            return;
+
+        const QString checks = diagnosticConfig.clangTidyChecks();
+        if (!checks.isEmpty())
+            addXclangArg("-plugin-arg-clang-tidy", "-checks=" + checks);
     }
 
     void addClazyOptions(const QString &checks)
@@ -517,16 +540,19 @@ private:
             return;
 
         addXclangArg("-add-plugin", "clang-lazy");
+        addXclangArg("-plugin-arg-clang-lazy", "enable-all-fixits");
+        addXclangArg("-plugin-arg-clang-lazy", "no-autowrite-fixits");
         addXclangArg("-plugin-arg-clang-lazy", checks);
+
+        // NOTE: we already use -isystem for all include paths to make libclang skip diagnostics for
+        // all of them. That means that ignore-included-files will not change anything unless we decide
+        // to return the original -I prefix for some include paths.
+        addXclangArg("-plugin-arg-clang-lazy", "ignore-included-files");
     }
 
     void addGlobalDiagnosticOptions()
     {
-        m_options.append({
-            // Avoid undesired warnings from e.g. Q_OBJECT
-            QStringLiteral("-Wno-unknown-pragmas"),
-            QStringLiteral("-Wno-unknown-warning-option")
-        });
+        m_options += CppTools::ClangDiagnosticConfigsModel::globalDiagnosticOptions();
     }
 
     void addGlobalOptions()
@@ -562,7 +588,7 @@ private:
 };
 } // namespace
 
-void ClangEditorDocumentProcessor::registerTranslationUnitForEditor(
+void ClangEditorDocumentProcessor::updateBackendDocument(
     CppTools::ProjectPart &projectPart)
 {
     // On registration we send the document content immediately as an unsaved
@@ -581,39 +607,38 @@ void ClangEditorDocumentProcessor::registerTranslationUnitForEditor(
 
     const FileOptionsBuilder fileOptions(filePath(), projectPart);
     m_diagnosticConfigId = fileOptions.diagnosticConfigId();
-    m_communicator.registerTranslationUnitsForEditor(
+    m_communicator.documentsOpened(
         {fileContainerWithOptionsAndDocumentContent(projectPart, fileOptions.options())});
     ClangCodeModel::Utils::setLastSentDocumentRevision(filePath(), revision());
 }
 
-void ClangEditorDocumentProcessor::unregisterTranslationUnitForEditor()
+void ClangEditorDocumentProcessor::closeBackendDocument()
 {
     QTC_ASSERT(m_projectPart, return);
-    m_communicator.unregisterTranslationUnitsForEditor(
-        {ClangBackEnd::FileContainer(filePath(), m_projectPart->id())});
+    m_communicator.documentsClosed({ClangBackEnd::FileContainer(filePath(), m_projectPart->id())});
 }
 
-void ClangEditorDocumentProcessor::updateTranslationUnitIfProjectPartExists()
+void ClangEditorDocumentProcessor::updateBackendDocumentIfProjectPartExists()
 {
     if (m_projectPart) {
-        const ClangBackEnd::FileContainer fileContainer = fileContainerWithDocumentContent(m_projectPart->id());
-
-        m_communicator.updateTranslationUnitWithRevisionCheck(fileContainer);
+        const ClangBackEnd::FileContainer fileContainer = fileContainerWithDocumentContent(
+            m_projectPart->id());
+        m_communicator.documentsChangedWithRevisionCheck(fileContainer);
     }
 }
 
-void ClangEditorDocumentProcessor::requestDocumentAnnotations(const QString &projectpartId)
+void ClangEditorDocumentProcessor::requestAnnotationsFromBackend(const QString &projectpartId)
 {
     const auto fileContainer = fileContainerWithDocumentContent(projectpartId);
 
-    m_communicator.requestDocumentAnnotations(fileContainer);
+    m_communicator.requestAnnotations(fileContainer);
 }
 
 CppTools::BaseEditorDocumentProcessor::HeaderErrorDiagnosticWidgetCreator
 ClangEditorDocumentProcessor::creatorForHeaderErrorDiagnosticWidget(
         const ClangBackEnd::DiagnosticContainer &firstHeaderErrorDiagnostic)
 {
-    if (firstHeaderErrorDiagnostic.text().isEmpty())
+    if (firstHeaderErrorDiagnostic.text.isEmpty())
         return CppTools::BaseEditorDocumentProcessor::HeaderErrorDiagnosticWidgetCreator();
 
     return [firstHeaderErrorDiagnostic]() {

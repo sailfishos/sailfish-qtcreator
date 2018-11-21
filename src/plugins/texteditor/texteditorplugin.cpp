@@ -40,6 +40,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/externaltoolmanager.h>
 #include <extensionsystem/pluginmanager.h>
@@ -66,7 +67,28 @@ static const char kCurrentDocumentRowCount[] = "CurrentDocument:RowCount";
 static const char kCurrentDocumentColumnCount[] = "CurrentDocument:ColumnCount";
 static const char kCurrentDocumentFontSize[] = "CurrentDocument:FontSize";
 
-static TextEditorPlugin *m_instance = 0;
+class TextEditorPluginPrivate : public QObject
+{
+public:
+    void extensionsInitialized();
+    void updateSearchResultsFont(const TextEditor::FontSettings &);
+    void updateSearchResultsTabWidth(const TextEditor::TabSettings &tabSettings);
+    void updateCurrentSelection(const QString &text);
+
+    void createStandardContextMenu();
+
+    TextEditorSettings settings;
+    LineNumberFilter lineNumberFilter; // Goto line functionality for quick open
+    OutlineFactory outlineFactory;
+
+    FindInFiles findInFilesFilter;
+    FindInCurrentFile findInCurrentFileFilter;
+    FindInOpenFiles findInOpenFilesFilter;
+
+    PlainTextEditorFactory plainTextEditorFactory;
+};
+
+static TextEditorPlugin *m_instance = nullptr;
 
 TextEditorPlugin::TextEditorPlugin()
 {
@@ -76,7 +98,9 @@ TextEditorPlugin::TextEditorPlugin()
 
 TextEditorPlugin::~TextEditorPlugin()
 {
-    m_instance = 0;
+    delete d;
+    d = nullptr;
+    m_instance = nullptr;
 }
 
 TextEditorPlugin *TextEditorPlugin::instance()
@@ -84,27 +108,19 @@ TextEditorPlugin *TextEditorPlugin::instance()
     return m_instance;
 }
 
-// ExtensionSystem::PluginInterface
 bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
 
-    m_settings = new TextEditorSettings(this);
-
-    // Add plain text editor factory
-    addAutoReleasedObject(new PlainTextEditorFactory);
-
-    // Goto line functionality for quick open
-    m_lineNumberFilter = new LineNumberFilter;
-    addAutoReleasedObject(m_lineNumberFilter);
+    d = new TextEditorPluginPrivate;
 
     Context context(TextEditor::Constants::C_TEXTEDITOR);
 
     // Add shortcut for invoking automatic completion
     QAction *completionAction = new QAction(tr("Trigger Completion"), this);
     Command *command = ActionManager::registerAction(completionAction, Constants::COMPLETE_THIS, context);
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+Space") : tr("Ctrl+Space")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+Space") : tr("Ctrl+Space")));
     connect(completionAction, &QAction::triggered, []() {
         if (BaseTextEditor *editor = BaseTextEditor::currentTextEditor())
             editor->editorWidget()->invokeAssist(Completion);
@@ -135,27 +151,29 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
     SnippetProvider::registerGroup(Constants::TEXT_SNIPPET_GROUP_ID,
                                     tr("Text", "SnippetProvider"));
 
-    m_outlineFactory = new OutlineFactory;
-    addAutoReleasedObject(m_outlineFactory);
-
-    addAutoReleasedObject(new FindInFiles);
-    addAutoReleasedObject(new FindInCurrentFile);
-    addAutoReleasedObject(new FindInOpenFiles);
-
+    d->createStandardContextMenu();
     return true;
+}
+
+void TextEditorPluginPrivate::extensionsInitialized()
+{
+    connect(&settings, &TextEditorSettings::fontSettingsChanged,
+            this, &TextEditorPluginPrivate::updateSearchResultsFont);
+
+    updateSearchResultsFont(settings.fontSettings());
+
+    connect(settings.codeStyle(), &ICodeStylePreferences::currentTabSettingsChanged,
+            this, &TextEditorPluginPrivate::updateSearchResultsTabWidth);
+
+    updateSearchResultsTabWidth(settings.codeStyle()->currentTabSettings());
+
+    connect(ExternalToolManager::instance(), &ExternalToolManager::replaceSelectionRequested,
+            this, &TextEditorPluginPrivate::updateCurrentSelection);
 }
 
 void TextEditorPlugin::extensionsInitialized()
 {
-    connect(m_settings, &TextEditorSettings::fontSettingsChanged,
-            this, &TextEditorPlugin::updateSearchResultsFont);
-
-    updateSearchResultsFont(m_settings->fontSettings());
-
-    connect(m_settings->codeStyle(), &ICodeStylePreferences::currentTabSettingsChanged,
-            this, &TextEditorPlugin::updateSearchResultsTabWidth);
-
-    updateSearchResultsTabWidth(m_settings->codeStyle()->currentTabSettings());
+    d->extensionsInitialized();
 
     Utils::MacroExpander *expander = Utils::globalMacroExpander();
 
@@ -204,18 +222,14 @@ void TextEditorPlugin::extensionsInitialized()
             BaseTextEditor *editor = BaseTextEditor::currentTextEditor();
             return editor ? editor->widget()->font().pointSize() : 0;
         });
-
-
-    connect(ExternalToolManager::instance(), &ExternalToolManager::replaceSelectionRequested,
-            this, &TextEditorPlugin::updateCurrentSelection);
 }
 
 LineNumberFilter *TextEditorPlugin::lineNumberFilter()
 {
-    return m_instance->m_lineNumberFilter;
+    return &m_instance->d->lineNumberFilter;
 }
 
-void TextEditorPlugin::updateSearchResultsFont(const FontSettings &settings)
+void TextEditorPluginPrivate::updateSearchResultsFont(const FontSettings &settings)
 {
     if (auto window = SearchResultWindow::instance()) {
         window->setTextEditorFont(QFont(settings.family(), settings.fontSize() * settings.fontZoom() / 100),
@@ -226,13 +240,13 @@ void TextEditorPlugin::updateSearchResultsFont(const FontSettings &settings)
     }
 }
 
-void TextEditorPlugin::updateSearchResultsTabWidth(const TabSettings &tabSettings)
+void TextEditorPluginPrivate::updateSearchResultsTabWidth(const TabSettings &tabSettings)
 {
     if (auto window = SearchResultWindow::instance())
         window->setTabWidth(tabSettings.m_tabSize);
 }
 
-void TextEditorPlugin::updateCurrentSelection(const QString &text)
+void TextEditorPluginPrivate::updateCurrentSelection(const QString &text)
 {
     if (BaseTextEditor *editor = BaseTextEditor::currentTextEditor()) {
         const int pos = editor->position();
@@ -250,6 +264,33 @@ void TextEditorPlugin::updateCurrentSelection(const QString &text)
         editor->setCursorPosition(selectionInTextDirection ? start : replacementEnd);
         editor->select(selectionInTextDirection ? replacementEnd : start);
     }
+}
+
+void TextEditorPluginPrivate::createStandardContextMenu()
+{
+    ActionContainer *contextMenu = ActionManager::createMenu(Constants::M_STANDARDCONTEXTMENU);
+    contextMenu->appendGroup(Constants::G_UNDOREDO);
+    contextMenu->appendGroup(Constants::G_COPYPASTE);
+    contextMenu->appendGroup(Constants::G_SELECT);
+    contextMenu->appendGroup(Constants::G_BOM);
+
+    const auto add = [contextMenu](const Id &id, const Id &group) {
+        Command *cmd = ActionManager::command(id);
+        if (cmd)
+            contextMenu->addAction(cmd, group);
+    };
+
+    add(Core::Constants::UNDO, Constants::G_UNDOREDO);
+    add(Core::Constants::REDO, Constants::G_UNDOREDO);
+    contextMenu->addSeparator(Constants::G_COPYPASTE);
+    add(Core::Constants::CUT, Constants::G_COPYPASTE);
+    add(Core::Constants::COPY, Constants::G_COPYPASTE);
+    add(Core::Constants::PASTE, Constants::G_COPYPASTE);
+    add(Constants::CIRCULAR_PASTE, Constants::G_COPYPASTE);
+    contextMenu->addSeparator(Constants::G_SELECT);
+    add(Core::Constants::SELECTALL, Constants::G_SELECT);
+    contextMenu->addSeparator(Constants::G_BOM);
+    add(Constants::SWITCH_UTF8BOM, Constants::G_BOM);
 }
 
 } // namespace Internal

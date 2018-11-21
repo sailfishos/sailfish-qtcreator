@@ -68,7 +68,6 @@ def debuggerHasStopped():
 
 def getQmlJSConsoleOutput():
     try:
-        result = []
         consoleView = waitForObject(":DebugModeWidget_Debugger::Internal::ConsoleView")
         model = consoleView.model()
         # old input, output, new input > 2
@@ -120,7 +119,7 @@ def main():
         return
     qmlProjFile = os.path.join(qmlProjDir, projName)
     # start Creator by passing a .qmlproject file
-    startApplication('qtcreator' + SettingsPath + ' "%s"' % qmlProjFile)
+    startQC(['"%s"' % qmlProjFile])
     if not startedWithoutPluginError():
         return
 
@@ -129,13 +128,13 @@ def main():
     if test.verify(waitFor('fancyDebugButton.enabled', 5000), "Start Debugging is enabled."):
         # make sure QML Debugging is enabled
         switchViewTo(ViewConstants.PROJECTS)
-        switchToBuildOrRunSettingsFor(1, 0, ProjectSettings.RUN)
+        switchToBuildOrRunSettingsFor(Targets.getDefaultKit(), ProjectSettings.RUN)
         ensureChecked("{container=':Qt Creator.scrollArea_QScrollArea' text='Enable QML' "
                       "type='QCheckBox' unnamed='1' visible='1'}")
         switchViewTo(ViewConstants.EDIT)
         # start debugging
         clickButton(fancyDebugButton)
-        locAndExprTV = waitForObject(":Locals and Expressions_Debugger::Internal::WatchTreeView")
+        waitForObject(":Locals and Expressions_Debugger::Internal::WatchTreeView")
         rootIndex = getQModelIndexStr("text='Rectangle'",
                                       ":Locals and Expressions_Debugger::Internal::WatchTreeView")
         # make sure the items inside the root item are visible

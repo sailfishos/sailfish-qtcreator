@@ -159,13 +159,13 @@ private:
     void handleNewRows(const QModelIndex &index, int first, int last);
     void handleRowsAboutToBeRemoved(const QModelIndex &index, int first, int last);
     void handleDataChanged(const QModelIndex &top, const QModelIndex &bottom);
-    void handleReset();
 
     QModelIndex mapToSource(const QModelIndex &index) const;
     void invalidateFilter();
     void updateMapping() const;
     bool filterAcceptsTask(const Task &task) const;
 
+    bool m_beginRemoveRowsSent = false;
     bool m_includeUnknowns;
     bool m_includeWarnings;
     bool m_includeErrors;

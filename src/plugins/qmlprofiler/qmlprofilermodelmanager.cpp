@@ -30,9 +30,9 @@
 #include "qmlprofilerdetailsrewriter.h"
 
 #include <coreplugin/progressmanager/progressmanager.h>
+#include <tracing/tracestashfile.h>
 #include <utils/runextensions.h>
 #include <utils/qtcassert.h>
-#include <utils/temporaryfile.h>
 
 #include <QDebug>
 #include <QFile>
@@ -43,7 +43,6 @@
 #include <functional>
 
 namespace QmlProfiler {
-namespace Internal {
 
 static const char *ProfileFeatureNames[] = {
     QT_TRANSLATE_NOOP("MainView", "JavaScript"),
@@ -62,138 +61,75 @@ static const char *ProfileFeatureNames[] = {
 
 Q_STATIC_ASSERT(sizeof(ProfileFeatureNames) == sizeof(char *) * MaximumProfileFeature);
 
-/////////////////////////////////////////////////////////////////////
-QmlProfilerTraceTime::QmlProfilerTraceTime(QObject *parent) :
-    QObject(parent), m_startTime(-1), m_endTime(-1),
-    m_restrictedStartTime(-1), m_restrictedEndTime(-1)
+class QmlProfilerEventTypeStorage : public Timeline::TraceEventTypeStorage
 {
-}
+public:
+    const Timeline::TraceEventType &get(int typeId) const override;
+    void set(int typeId, Timeline::TraceEventType &&type) override;
+    int append(Timeline::TraceEventType &&type) override;
+    int size() const override;
+    void clear() override;
 
-qint64 QmlProfilerTraceTime::startTime() const
+private:
+    std::vector<QmlEventType> m_types;
+};
+
+class QmlProfilerEventStorage : public Timeline::TraceEventStorage
 {
-    return m_restrictedStartTime != -1 ? m_restrictedStartTime : m_startTime;
-}
+    Q_DECLARE_TR_FUNCTIONS(QmlProfilerEventStorage)
+public:
+    using ErrorHandler = std::function<void(const QString &)>;
 
-qint64 QmlProfilerTraceTime::endTime() const
-{
-    return m_restrictedEndTime != -1 ? m_restrictedEndTime : m_endTime;
-}
+    QmlProfilerEventStorage(const ErrorHandler &errorHandler);
 
-qint64 QmlProfilerTraceTime::duration() const
-{
-    return endTime() - startTime();
-}
+    int append(Timeline::TraceEvent &&event) override;
+    int size() const override;
+    void clear() override;
+    bool replay(const std::function<bool(Timeline::TraceEvent &&)> &receiver) const override;
+    void finalize() override;
 
-bool QmlProfilerTraceTime::isRestrictedToRange() const
-{
-    return m_restrictedStartTime != -1 || m_restrictedEndTime != -1;
-}
+    ErrorHandler errorHandler() const;
+    void setErrorHandler(const ErrorHandler &errorHandler);
 
-void QmlProfilerTraceTime::clear()
-{
-    restrictToRange(-1, -1);
-    m_startTime = -1;
-    m_endTime = -1;
-}
-
-void QmlProfilerTraceTime::update(qint64 time)
-{
-    QTC_ASSERT(time >= 0, return);
-    if (m_startTime > time || m_startTime == -1)
-        m_startTime = time;
-    if (m_endTime < time || m_endTime == -1)
-        m_endTime = time;
-    QTC_ASSERT(m_endTime >= m_startTime, m_startTime = m_endTime);
-}
-
-void QmlProfilerTraceTime::decreaseStartTime(qint64 time)
-{
-    QTC_ASSERT(time >= 0, return);
-    if (m_startTime > time || m_startTime == -1) {
-        m_startTime = time;
-        if (m_endTime == -1)
-            m_endTime = m_startTime;
-        else
-            QTC_ASSERT(m_endTime >= m_startTime, m_endTime = m_startTime);
-    }
-}
-
-void QmlProfilerTraceTime::increaseEndTime(qint64 time)
-{
-    QTC_ASSERT(time >= 0, return);
-    if (m_endTime < time || m_endTime == -1) {
-        m_endTime = time;
-        if (m_startTime == -1)
-            m_startTime = m_endTime;
-        else
-            QTC_ASSERT(m_endTime >= m_startTime, m_startTime = m_endTime);
-    }
-}
-
-void QmlProfilerTraceTime::restrictToRange(qint64 startTime, qint64 endTime)
-{
-    QTC_ASSERT(endTime == -1 || startTime <= endTime, endTime = startTime);
-    m_restrictedStartTime = startTime;
-    m_restrictedEndTime = endTime;
-}
-
-
-} // namespace Internal
-
-/////////////////////////////////////////////////////////////////////
+private:
+    Timeline::TraceStashFile<QmlEvent> m_file;
+    std::function<void(const QString &)> m_errorHandler;
+    int m_size = 0;
+};
 
 class QmlProfilerModelManager::QmlProfilerModelManagerPrivate
 {
 public:
-    QmlProfilerModelManagerPrivate() : file("qmlprofiler-data") {}
+    Internal::QmlProfilerTextMarkModel *textMarkModel = nullptr;
+    Internal::QmlProfilerDetailsRewriter *detailsRewriter = nullptr;
 
-    QmlProfilerNotesModel *notesModel = nullptr;
-    QmlProfilerTextMarkModel *textMarkModel = nullptr;
+    bool isRestrictedToRange = false;
 
-    QmlProfilerModelManager::State state = Empty;
-    QmlProfilerTraceTime *traceTime = nullptr;
+    void addEventType(const QmlEventType &eventType);
+    void handleError(const QString &message);
 
-    int numRegisteredModels = 0;
-    int numFinishedFinalizers = 0;
-
-    uint numLoadedEvents = 0;
-    quint64 availableFeatures = 0;
-    quint64 visibleFeatures = 0;
-    quint64 recordedFeatures = 0;
-    bool aggregateTraces = false;
-
-    QHash<ProfileFeature, QVector<EventLoader> > eventLoaders;
-    QVector<Finalizer> finalizers;
-
-    QVector<QmlEventType> eventTypes;
-    QmlProfilerDetailsRewriter *detailsRewriter = nullptr;
-
-    Utils::TemporaryFile file;
-    QDataStream eventStream;
-
-    void dispatch(const QmlEvent &event, const QmlEventType &type);
-    void rewriteType(int typeIndex);
     int resolveStackTop();
 };
 
-
 QmlProfilerModelManager::QmlProfilerModelManager(QObject *parent) :
-    QObject(parent), d(new QmlProfilerModelManagerPrivate)
+    Timeline::TimelineTraceManager(
+        std::make_unique<QmlProfilerEventStorage>(
+            std::bind(&Timeline::TimelineTraceManager::error, this, std::placeholders::_1)),
+        std::make_unique<QmlProfilerEventTypeStorage>(), parent),
+    d(new QmlProfilerModelManagerPrivate)
 {
-    d->traceTime = new QmlProfilerTraceTime(this);
-    d->notesModel = new QmlProfilerNotesModel(this);
-    d->textMarkModel = new QmlProfilerTextMarkModel(this);
+    setNotesModel(new QmlProfilerNotesModel(this));
+    d->textMarkModel = new Internal::QmlProfilerTextMarkModel(this);
 
-    d->detailsRewriter = new QmlProfilerDetailsRewriter(this);
-    connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::rewriteDetailsString,
-            this, &QmlProfilerModelManager::detailsChanged);
-    connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::eventDetailsChanged,
-            this, &QmlProfilerModelManager::processingDone);
+    d->detailsRewriter = new Internal::QmlProfilerDetailsRewriter(this);
+    connect(d->detailsRewriter, &Internal::QmlProfilerDetailsRewriter::rewriteDetailsString,
+            this, &QmlProfilerModelManager::setTypeDetails);
+    connect(d->detailsRewriter, &Internal::QmlProfilerDetailsRewriter::eventDetailsChanged,
+            this, &QmlProfilerModelManager::typeDetailsFinished);
 
-    if (d->file.open())
-        d->eventStream.setDevice(&d->file);
-    else
-        emit error(tr("Cannot open temporary trace file to store events."));
+    quint64 allFeatures = 0;
+    for (quint8 i = 0; i <= MaximumProfileFeature; ++i)
+        allFeatures |= (1ull << i);
 }
 
 QmlProfilerModelManager::~QmlProfilerModelManager()
@@ -201,100 +137,36 @@ QmlProfilerModelManager::~QmlProfilerModelManager()
     delete d;
 }
 
-QmlProfilerTraceTime *QmlProfilerModelManager::traceTime() const
-{
-    return d->traceTime;
-}
-
-QmlProfilerNotesModel *QmlProfilerModelManager::notesModel() const
-{
-    return d->notesModel;
-}
-
-QmlProfilerTextMarkModel *QmlProfilerModelManager::textMarkModel() const
+Internal::QmlProfilerTextMarkModel *QmlProfilerModelManager::textMarkModel() const
 {
     return d->textMarkModel;
 }
 
-bool QmlProfilerModelManager::isEmpty() const
+void QmlProfilerModelManager::registerFeatures(quint64 features, QmlEventLoader eventLoader,
+                                               Initializer initializer, Finalizer finalizer,
+                                               Clearer clearer)
 {
-    return d->file.pos() == 0;
+    const TraceEventLoader traceEventLoader = eventLoader ? [eventLoader](
+            const Timeline::TraceEvent &event, const Timeline::TraceEventType &type) {
+        return eventLoader(static_cast<const QmlEvent &>(event),
+                           static_cast<const QmlEventType &>(type));
+    } : TraceEventLoader();
+
+    Timeline::TimelineTraceManager::registerFeatures(features, traceEventLoader, initializer,
+                                                     finalizer, clearer);
 }
 
-uint QmlProfilerModelManager::numLoadedEvents() const
+const QmlEventType &QmlProfilerModelManager::eventType(int typeId) const
 {
-    return d->numLoadedEvents;
+    return static_cast<const QmlEventType &>(TimelineTraceManager::eventType(typeId));
 }
 
-uint QmlProfilerModelManager::numLoadedEventTypes() const
+void QmlProfilerModelManager::replayEvents(TraceEventLoader loader, Initializer initializer,
+                                           Finalizer finalizer, ErrorHandler errorHandler,
+                                           QFutureInterface<void> &future) const
 {
-    return d->eventTypes.count();
-}
-
-int QmlProfilerModelManager::registerModelProxy()
-{
-    return d->numRegisteredModels++;
-}
-
-int QmlProfilerModelManager::numFinishedFinalizers() const
-{
-    return d->numFinishedFinalizers;
-}
-
-int QmlProfilerModelManager::numRegisteredFinalizers() const
-{
-    return d->finalizers.count();
-}
-
-void QmlProfilerModelManager::addEvents(const QVector<QmlEvent> &events)
-{
-    for (const QmlEvent &event : events) {
-        d->eventStream << event;
-        d->traceTime->update(event.timestamp());
-        d->dispatch(event, d->eventTypes[event.typeIndex()]);
-    }
-}
-
-void QmlProfilerModelManager::addEvent(const QmlEvent &event)
-{
-    d->eventStream << event;
-    d->traceTime->update(event.timestamp());
-    QTC_ASSERT(event.typeIndex() < d->eventTypes.size(),
-               d->eventTypes.resize(event.typeIndex() + 1));
-    d->dispatch(event, d->eventTypes.at(event.typeIndex()));
-}
-
-void QmlProfilerModelManager::addEventTypes(const QVector<QmlEventType> &types)
-{
-    const int firstTypeId = d->eventTypes.length();;
-    d->eventTypes.append(types);
-    for (int typeId = firstTypeId, end = d->eventTypes.length(); typeId < end; ++typeId) {
-        d->rewriteType(typeId);
-        const QmlEventLocation &location = d->eventTypes[typeId].location();
-        if (location.isValid()) {
-            d->textMarkModel->addTextMarkId(typeId, QmlEventLocation(
-                            findLocalFile(location.filename()), location.line(),
-                            location.column()));
-        }
-    }
-}
-
-void QmlProfilerModelManager::addEventType(const QmlEventType &type)
-{
-    const int typeId = d->eventTypes.count();
-    d->eventTypes.append(type);
-    d->rewriteType(typeId);
-    const QmlEventLocation &location = type.location();
-    if (location.isValid()) {
-        d->textMarkModel->addTextMarkId(
-                    typeId, QmlEventLocation(findLocalFile(location.filename()),
-                                             location.line(), location.column()));
-    }
-}
-
-const QVector<QmlEventType> &QmlProfilerModelManager::eventTypes() const
-{
-    return d->eventTypes;
+    replayQmlEvents(static_cast<QmlEventLoader>(loader), initializer, finalizer, errorHandler,
+                    future);
 }
 
 static bool isStateful(const QmlEventType &type)
@@ -306,80 +178,46 @@ static bool isStateful(const QmlEventType &type)
     return message == PixmapCacheEvent || message == MemoryAllocation;
 }
 
-bool QmlProfilerModelManager::replayEvents(qint64 rangeStart, qint64 rangeEnd,
-                                           EventLoader loader) const
+void QmlProfilerModelManager::replayQmlEvents(QmlEventLoader loader,
+                                              Initializer initializer, Finalizer finalizer,
+                                              ErrorHandler errorHandler,
+                                              QFutureInterface<void> &future) const
 {
-    QStack<QmlEvent> stack;
-    QmlEvent event;
-    QFile file(d->file.fileName());
-    if (!file.open(QIODevice::ReadOnly))
-        return false;
+    if (initializer)
+        initializer();
 
-    QDataStream stream(&file);
-    bool crossedRangeStart = false;
-    while (!stream.atEnd()) {
-        stream >> event;
-        if (stream.status() == QDataStream::ReadPastEnd)
-            break;
+    const auto result = eventStorage()->replay([&](Timeline::TraceEvent &&event) {
+        if (future.isCanceled())
+            return false;
 
-        const QmlEventType &type = d->eventTypes[event.typeIndex()];
-        if (rangeStart != -1 && rangeEnd != -1) {
-            // Double-check if rangeStart has been crossed. Some versions of Qt send dirty data.
-            if (event.timestamp() < rangeStart && !crossedRangeStart) {
-                if (type.rangeType() != MaximumRangeType) {
-                    if (event.rangeStage() == RangeStart)
-                        stack.push(event);
-                    else if (event.rangeStage() == RangeEnd)
-                        stack.pop();
-                    continue;
-                } else if (isStateful(type)) {
-                    event.setTimestamp(rangeStart);
-                } else {
-                    continue;
-                }
-            } else {
-                if (!crossedRangeStart) {
-                    foreach (QmlEvent stashed, stack) {
-                        stashed.setTimestamp(rangeStart);
-                        loader(stashed, d->eventTypes[stashed.typeIndex()]);
-                    }
-                    stack.clear();
-                    crossedRangeStart = true;
-                }
-                if (event.timestamp() > rangeEnd) {
-                    if (type.rangeType() != MaximumRangeType) {
-                        if (event.rangeStage() == RangeEnd) {
-                            if (stack.isEmpty()) {
-                                QmlEvent endEvent(event);
-                                endEvent.setTimestamp(rangeEnd);
-                                loader(endEvent, d->eventTypes[event.typeIndex()]);
-                            } else {
-                                stack.pop();
-                            }
-                        } else if (event.rangeStage() == RangeStart) {
-                            stack.push(event);
-                        }
-                        continue;
-                    } else if (isStateful(type)) {
-                        event.setTimestamp(rangeEnd);
-                    } else {
-                        continue;
-                    }
-                }
-            }
-        }
+        loader(static_cast<QmlEvent &&>(event), eventType(event.typeIndex()));
+        return true;
+    });
 
-        loader(event, type);
+    if (!result && errorHandler) {
+        errorHandler(future.isCanceled() ? QString()
+                                         : tr("Failed to replay QML events from stash file."));
+    } else if (result && finalizer) {
+        finalizer();
     }
-    return true;
 }
 
-void QmlProfilerModelManager::QmlProfilerModelManagerPrivate::dispatch(const QmlEvent &event,
-                                                                       const QmlEventType &type)
+void QmlProfilerModelManager::initialize()
 {
-    for (const EventLoader &loader : eventLoaders.value(type.feature()))
-        loader(event, type);
-    ++numLoadedEvents;
+    d->textMarkModel->hideTextMarks();
+    TimelineTraceManager::initialize();
+}
+
+void QmlProfilerModelManager::clearEventStorage()
+{
+    TimelineTraceManager::clearEventStorage();
+    emit traceChanged();
+}
+
+void QmlProfilerModelManager::clearTypeStorage()
+{
+    d->textMarkModel->clear();
+    TimelineTraceManager::clearTypeStorage();
 }
 
 static QString getDisplayName(const QmlEventType &event)
@@ -411,117 +249,32 @@ static QString getInitialDetails(const QmlEventType &event)
                     details.startsWith(QLatin1String("qrc:/")))
                 details = details.mid(details.lastIndexOf(QLatin1Char('/')) + 1);
         }
-    } else if (event.rangeType() == Painting) {
-        // QtQuick1 animations always run in GUI thread.
-        details = QmlProfilerModelManager::tr("GUI Thread");
     }
 
     return details;
 }
 
-void QmlProfilerModelManager::QmlProfilerModelManagerPrivate::rewriteType(int typeIndex)
+void QmlProfilerModelManager::QmlProfilerModelManagerPrivate::handleError(const QString &message)
 {
-    QmlEventType &type = eventTypes[typeIndex];
-    type.setDisplayName(getDisplayName(type));
-    type.setData(getInitialDetails(type));
-
-    const QmlEventLocation &location = type.location();
-    // There is no point in looking for invalid locations
-    if (!location.isValid())
-        return;
-
-    // Only bindings and signal handlers need rewriting
-    if (type.rangeType() == Binding || type.rangeType() == HandlingSignal)
-        detailsRewriter->requestDetailsForLocation(typeIndex, location);
+    // What to do here?
+    qWarning() << message;
 }
-
-void QmlProfilerModelManager::announceFeatures(quint64 features, EventLoader eventLoader,
-                                               Finalizer finalizer)
-{
-    if ((features & d->availableFeatures) != features) {
-        d->availableFeatures |= features;
-        emit availableFeaturesChanged(d->availableFeatures);
-    }
-    if ((features & d->visibleFeatures) != features) {
-        d->visibleFeatures |= features;
-        emit visibleFeaturesChanged(d->visibleFeatures);
-    }
-
-    for (int feature = 0; feature != MaximumProfileFeature; ++feature) {
-        if (features & (1ULL << feature))
-            d->eventLoaders[static_cast<ProfileFeature>(feature)].append(eventLoader);
-    }
-
-    d->finalizers.append(finalizer);
-}
-
-quint64 QmlProfilerModelManager::availableFeatures() const
-{
-    return d->availableFeatures;
-}
-
-quint64 QmlProfilerModelManager::visibleFeatures() const
-{
-    return d->visibleFeatures;
-}
-
-void QmlProfilerModelManager::setVisibleFeatures(quint64 features)
-{
-    if (d->visibleFeatures != features) {
-        d->visibleFeatures = features;
-        emit visibleFeaturesChanged(d->visibleFeatures);
-    }
-}
-
-quint64 QmlProfilerModelManager::recordedFeatures() const
-{
-    return d->recordedFeatures;
-}
-
-void QmlProfilerModelManager::setRecordedFeatures(quint64 features)
-{
-    if (d->recordedFeatures != features) {
-        d->recordedFeatures = features;
-        emit recordedFeaturesChanged(d->recordedFeatures);
-    }
-}
-
-bool QmlProfilerModelManager::aggregateTraces() const
-{
-    return d->aggregateTraces;
-}
-
-void QmlProfilerModelManager::setAggregateTraces(bool aggregateTraces)
-{
-    d->aggregateTraces = aggregateTraces;
-}
-
 
 const char *QmlProfilerModelManager::featureName(ProfileFeature feature)
 {
     return ProfileFeatureNames[feature];
 }
 
-void QmlProfilerModelManager::acquiringDone()
+void QmlProfilerModelManager::finalize()
 {
-    QTC_ASSERT(state() == AcquiringData, /**/);
-    setState(ProcessingData);
-    d->file.flush();
     d->detailsRewriter->reloadDocuments();
-}
 
-void QmlProfilerModelManager::processingDone()
-{
-    QTC_ASSERT(state() == ProcessingData, /**/);
     // Load notes after the timeline models have been initialized ...
     // which happens on stateChanged(Done).
 
-    foreach (const Finalizer &finalizer, d->finalizers) {
-        finalizer();
-        ++d->numFinishedFinalizers;
-    }
-
-    setState(Done);
+    TimelineTraceManager::finalize();
+    d->textMarkModel->showTextMarks();
+    emit traceChanged();
 }
 
 void QmlProfilerModelManager::populateFileFinder(const ProjectExplorer::Target *target)
@@ -534,226 +287,265 @@ QString QmlProfilerModelManager::findLocalFile(const QString &remoteFile)
     return d->detailsRewriter->getLocalFile(remoteFile);
 }
 
-void QmlProfilerModelManager::save(const QString &filename)
+void QmlProfilerModelManager::setTypeDetails(int typeId, const QString &details)
 {
-    QFile *file = new QFile(filename);
-    if (!file->open(QIODevice::WriteOnly)) {
-        emit error(tr("Could not open %1 for writing.").arg(filename));
-        delete file;
-        emit saveFinished();
-        return;
-    }
+    QTC_ASSERT(typeId < numEventTypes(), return);
+    QmlEventType type = eventType(typeId);
+    type.setData(details);
+    // Don't rewrite the details again, but directly push the type into the type storage.
+    Timeline::TimelineTraceManager::setEventType(typeId, std::move(type));
+    emit typeDetailsChanged(typeId);
+}
 
-    d->notesModel->saveData();
+void QmlProfilerModelManager::restrictByFilter(QmlProfilerModelManager::QmlEventFilter filter)
+{
+    return Timeline::TimelineTraceManager::restrictByFilter([filter](TraceEventLoader loader) {
+        const auto filteredQmlLoader = filter([loader](const QmlEvent &event,
+                                                       const QmlEventType &type) {
+            loader(event, type);
+        });
 
-    QmlProfilerFileWriter *writer = new QmlProfilerFileWriter(this);
-    writer->setTraceTime(traceTime()->startTime(), traceTime()->endTime(),
-                        traceTime()->duration());
-    writer->setData(this);
-    writer->setNotes(d->notesModel->notes());
-
-    connect(writer, &QObject::destroyed, this, &QmlProfilerModelManager::saveFinished,
-            Qt::QueuedConnection);
-
-    connect(writer, &QmlProfilerFileWriter::error, this, [this, file](const QString &message) {
-        file->close();
-        file->remove();
-        delete file;
-        emit error(message);
-    }, Qt::QueuedConnection);
-
-    connect(writer, &QmlProfilerFileWriter::success, this, [file]() {
-        file->close();
-        delete file;
-    }, Qt::QueuedConnection);
-
-    connect(writer, &QmlProfilerFileWriter::canceled, this, [file]() {
-        file->close();
-        file->remove();
-        delete file;
-    }, Qt::QueuedConnection);
-
-    QFuture<void> result = Utils::runAsync([file, writer] (QFutureInterface<void> &future) {
-        writer->setFuture(&future);
-        if (file->fileName().endsWith(QLatin1String(Constants::QtdFileExtension)))
-            writer->saveQtd(file);
-        else
-            writer->saveQzt(file);
-        writer->deleteLater();
+        return [filteredQmlLoader](const Timeline::TraceEvent &event,
+                                   const Timeline::TraceEventType &type) {
+            filteredQmlLoader(static_cast<const QmlEvent &>(event),
+                              static_cast<const QmlEventType &>(type));
+        };
     });
-
-    Core::ProgressManager::addTask(result, tr("Saving Trace Data"), Constants::TASK_SAVE,
-                                   Core::ProgressManager::ShowInApplicationIcon);
 }
 
-void QmlProfilerModelManager::load(const QString &filename)
+int QmlProfilerModelManager::appendEventType(QmlEventType &&type)
 {
-    bool isQtd = filename.endsWith(QLatin1String(Constants::QtdFileExtension));
-    QFile *file = new QFile(filename, this);
-    if (!file->open(isQtd ? (QIODevice::ReadOnly | QIODevice::Text) : QIODevice::ReadOnly)) {
-        emit error(tr("Could not open %1 for reading.").arg(filename));
-        delete file;
-        emit loadFinished();
-        return;
-    }
+    type.setDisplayName(getDisplayName(type));
+    type.setData(getInitialDetails(type));
 
-    clear();
-    setState(AcquiringData);
-    QmlProfilerFileReader *reader = new QmlProfilerFileReader(this);
+    const QmlEventLocation &location = type.location();
+    if (location.isValid()) {
+        const RangeType rangeType = type.rangeType();
+        const QmlEventLocation localLocation(d->detailsRewriter->getLocalFile(location.filename()),
+                                             location.line(), location.column());
 
-    connect(reader, &QObject::destroyed, this, &QmlProfilerModelManager::loadFinished,
-            Qt::QueuedConnection);
+        // location and type are invalid after this
+        const int typeIndex = TimelineTraceManager::appendEventType(std::move(type));
 
-    connect(reader, &QmlProfilerFileReader::typesLoaded,
-            this, &QmlProfilerModelManager::addEventTypes);
-
-    connect(reader, &QmlProfilerFileReader::notesLoaded,
-            d->notesModel, &QmlProfilerNotesModel::setNotes);
-
-    connect(reader, &QmlProfilerFileReader::qmlEventsLoaded,
-            this, &QmlProfilerModelManager::addEvents);
-
-    connect(reader, &QmlProfilerFileReader::success, this, [this, reader]() {
-        if (reader->traceStart() >= 0)
-            d->traceTime->decreaseStartTime(reader->traceStart());
-        if (reader->traceEnd() >= 0)
-            d->traceTime->increaseEndTime(reader->traceEnd());
-        setRecordedFeatures(reader->loadedFeatures());
-        delete reader;
-        acquiringDone();
-    }, Qt::QueuedConnection);
-
-    connect(reader, &QmlProfilerFileReader::error, this, [this, reader](const QString &message) {
-        clear();
-        delete reader;
-        emit error(message);
-    }, Qt::QueuedConnection);
-
-    connect(reader, &QmlProfilerFileReader::canceled, this, [this, reader]() {
-        clear();
-        delete reader;
-    }, Qt::QueuedConnection);
-
-    QFuture<void> result = Utils::runAsync([isQtd, file, reader] (QFutureInterface<void> &future) {
-        reader->setFuture(&future);
-        if (isQtd)
-            reader->loadQtd(file);
-        else
-            reader->loadQzt(file);
-        file->close();
-        file->deleteLater();
-    });
-
-    Core::ProgressManager::addTask(result, tr("Loading Trace Data"), Constants::TASK_LOAD);
-}
-
-void QmlProfilerModelManager::setState(QmlProfilerModelManager::State state)
-{
-    // It's not an error, we are continuously calling "AcquiringData" for example
-    if (d->state == state)
-        return;
-
-    switch (state) {
-        case ClearingData:
-            QTC_ASSERT(d->state == Done || d->state == Empty || d->state == AcquiringData, /**/);
-        break;
-        case Empty:
-            // if it's not empty, complain but go on
-            QTC_ASSERT(isEmpty(), /**/);
-        break;
-        case AcquiringData:
-            // we're not supposed to receive new data while processing older data
-            QTC_ASSERT(d->state != ProcessingData, return);
-        break;
-        case ProcessingData:
-            QTC_ASSERT(d->state == AcquiringData, return);
-        break;
-        case Done:
-            QTC_ASSERT(d->state == ProcessingData || d->state == Empty, return);
-        break;
-        default:
-            emit error(tr("Trying to set unknown state in events list."));
-        break;
-    }
-
-    d->state = state;
-    emit stateChanged();
-}
-
-void QmlProfilerModelManager::detailsChanged(int typeId, const QString &newString)
-{
-    QTC_ASSERT(typeId < d->eventTypes.count(), return);
-    d->eventTypes[typeId].setData(newString);
-}
-
-QmlProfilerModelManager::State QmlProfilerModelManager::state() const
-{
-    return d->state;
-}
-
-void QmlProfilerModelManager::doClearEvents()
-{
-    d->numLoadedEvents = 0;
-    d->numFinishedFinalizers = 0;
-    d->file.remove();
-    d->eventStream.unsetDevice();
-    if (d->file.open())
-        d->eventStream.setDevice(&d->file);
-    else
-        emit error(tr("Cannot open temporary trace file to store events."));
-    d->traceTime->clear();
-    d->notesModel->clear();
-    setVisibleFeatures(0);
-    setRecordedFeatures(0);
-}
-
-void QmlProfilerModelManager::clearEvents()
-{
-    setState(ClearingData);
-    doClearEvents();
-    setState(Empty);
-}
-
-void QmlProfilerModelManager::clear()
-{
-    setState(ClearingData);
-    doClearEvents();
-    d->eventTypes.clear();
-    d->detailsRewriter->clear();
-    setState(Empty);
-}
-
-void QmlProfilerModelManager::restrictToRange(qint64 startTime, qint64 endTime)
-{
-    d->notesModel->saveData();
-    const QVector<QmlNote> notes = d->notesModel->notes();
-    d->notesModel->clear();
-
-    setState(ClearingData);
-    setVisibleFeatures(0);
-
-    startAcquiring();
-    if (!replayEvents(startTime, endTime,
-                      std::bind(&QmlProfilerModelManagerPrivate::dispatch, d, std::placeholders::_1,
-                                std::placeholders::_2))) {
-        emit error(tr("Could not re-read events from temporary trace file. "
-                      "The trace data is lost."));
-        clear();
+        // Only bindings and signal handlers need rewriting
+        if (rangeType == Binding || rangeType == HandlingSignal)
+            d->detailsRewriter->requestDetailsForLocation(typeIndex, location);
+        d->textMarkModel->addTextMarkId(typeIndex, localLocation);
+        return typeIndex;
     } else {
-        d->notesModel->setNotes(notes);
-        d->traceTime->restrictToRange(startTime, endTime);
-        acquiringDone();
+        // There is no point in looking for invalid locations; just add the type
+        return TimelineTraceManager::appendEventType(std::move(type));
     }
+}
+
+void QmlProfilerModelManager::setEventType(int typeIndex, QmlEventType &&type)
+{
+    type.setDisplayName(getDisplayName(type));
+    type.setData(getInitialDetails(type));
+
+    const QmlEventLocation &location = type.location();
+    if (location.isValid()) {
+        // Only bindings and signal handlers need rewriting
+        if (type.rangeType() == Binding || type.rangeType() == HandlingSignal)
+            d->detailsRewriter->requestDetailsForLocation(typeIndex, location);
+        d->textMarkModel->addTextMarkId(typeIndex, QmlEventLocation(
+                                            d->detailsRewriter->getLocalFile(location.filename()),
+                                            location.line(), location.column()));
+    }
+
+    TimelineTraceManager::setEventType(typeIndex, std::move(type));
+}
+
+
+void QmlProfilerModelManager::appendEvent(QmlEvent &&event)
+{
+    TimelineTraceManager::appendEvent(std::move(event));
+}
+
+void QmlProfilerModelManager::restrictToRange(qint64 start, qint64 end)
+{
+    d->isRestrictedToRange = (start != -1 || end != -1);
+    restrictByFilter(rangeFilter(start, end));
 }
 
 bool QmlProfilerModelManager::isRestrictedToRange() const
 {
-    return d->traceTime->isRestrictedToRange();
+    return d->isRestrictedToRange;
 }
 
-void QmlProfilerModelManager::startAcquiring()
+QmlProfilerModelManager::QmlEventFilter
+QmlProfilerModelManager::rangeFilter(qint64 rangeStart, qint64 rangeEnd) const
 {
-    setState(AcquiringData);
+    return [rangeStart, rangeEnd, this] (QmlEventLoader loader) {
+        QStack<QmlEvent> stack;
+        bool crossedRangeStart = false;
+
+        return [=](const QmlEvent &event, const QmlEventType &type) mutable {
+
+            // No restrictions: load all events
+            if (rangeStart == -1 || rangeEnd == -1) {
+                loader(event, type);
+                return true;
+            }
+
+            // Double-check if rangeStart has been crossed. Some versions of Qt send dirty data.
+            qint64 adjustedTimestamp = event.timestamp();
+            if (event.timestamp() < rangeStart && !crossedRangeStart) {
+                if (type.rangeType() != MaximumRangeType) {
+                    if (event.rangeStage() == RangeStart)
+                        stack.push(event);
+                    else if (event.rangeStage() == RangeEnd)
+                        stack.pop();
+                    return true;
+                } else if (isStateful(type)) {
+                    adjustedTimestamp = rangeStart;
+                } else {
+                    return true;
+                }
+            } else {
+                if (!crossedRangeStart) {
+                    for (auto stashed : stack) {
+                        stashed.setTimestamp(rangeStart);
+                        loader(stashed, eventType(stashed.typeIndex()));
+                    }
+                    stack.clear();
+                    crossedRangeStart = true;
+                }
+                if (event.timestamp() > rangeEnd) {
+                    if (type.rangeType() != MaximumRangeType) {
+                        if (event.rangeStage() == RangeEnd) {
+                            if (stack.isEmpty()) {
+                                QmlEvent endEvent(event);
+                                endEvent.setTimestamp(rangeEnd);
+                                loader(endEvent, type);
+                            } else {
+                                stack.pop();
+                            }
+                        } else if (event.rangeStage() == RangeStart) {
+                            stack.push(event);
+                        }
+                        return true;
+                    } else if (isStateful(type)) {
+                        adjustedTimestamp = rangeEnd;
+                    } else {
+                        return true;
+                    }
+                }
+            }
+
+            if (adjustedTimestamp != event.timestamp()) {
+                QmlEvent adjusted(event);
+                adjusted.setTimestamp(adjustedTimestamp);
+                loader(adjusted, type);
+            } else {
+                loader(event, type);
+            }
+            return true;
+        };
+    };
+}
+
+Timeline::TimelineTraceFile *QmlProfilerModelManager::createTraceFile()
+{
+    return new Internal::QmlProfilerTraceFile(this);
+}
+
+const Timeline::TraceEventType &QmlProfilerEventTypeStorage::get(int typeId) const
+{
+    Q_ASSERT(typeId >= 0);
+    return m_types.at(static_cast<size_t>(typeId));
+}
+
+void QmlProfilerEventTypeStorage::set(int typeId, Timeline::TraceEventType &&type)
+{
+    Q_ASSERT(typeId >= 0);
+    const size_t index = static_cast<size_t>(typeId);
+    if (m_types.size() <= index)
+        m_types.resize(index + 1);
+    m_types[index] = std::move(static_cast<QmlEventType &&>(type));
+}
+
+int QmlProfilerEventTypeStorage::append(Timeline::TraceEventType &&type)
+{
+    const size_t index = m_types.size();
+    m_types.push_back(std::move(static_cast<QmlEventType &&>(type)));
+    QTC_ASSERT(index <= std::numeric_limits<int>::max(), return std::numeric_limits<int>::max());
+    return static_cast<int>(index);
+}
+
+int QmlProfilerEventTypeStorage::size() const
+{
+    const size_t size = m_types.size();
+    QTC_ASSERT(size <= std::numeric_limits<int>::max(), return std::numeric_limits<int>::max());
+    return static_cast<int>(size);
+}
+
+void QmlProfilerEventTypeStorage::clear()
+{
+    m_types.clear();
+}
+
+QmlProfilerEventStorage::QmlProfilerEventStorage(
+        const std::function<void (const QString &)> &errorHandler)
+    : m_file("qmlprofiler-data"), m_errorHandler(errorHandler)
+{
+    if (!m_file.open())
+        errorHandler(tr("Cannot open temporary trace file to store events."));
+}
+
+int QmlProfilerEventStorage::append(Timeline::TraceEvent &&event)
+{
+    m_file.append(std::move(static_cast<QmlEvent &&>(event)));
+    return m_size++;
+}
+
+int QmlProfilerEventStorage::size() const
+{
+    return m_size;
+}
+
+void QmlProfilerEventStorage::clear()
+{
+    m_size = 0;
+    m_file.clear();
+    if (!m_file.open())
+        m_errorHandler(tr("Failed to reset temporary trace file."));
+}
+
+void QmlProfilerEventStorage::finalize()
+{
+    if (!m_file.flush())
+        m_errorHandler(tr("Failed to flush temporary trace file."));
+}
+
+QmlProfilerEventStorage::ErrorHandler QmlProfilerEventStorage::errorHandler() const
+{
+    return m_errorHandler;
+}
+
+void QmlProfilerEventStorage::setErrorHandler(
+        const QmlProfilerEventStorage::ErrorHandler &errorHandler)
+{
+    m_errorHandler = errorHandler;
+}
+
+bool QmlProfilerEventStorage::replay(
+        const std::function<bool (Timeline::TraceEvent &&)> &receiver) const
+{
+    switch (m_file.replay(receiver)) {
+    case Timeline::TraceStashFile<QmlEvent>::ReplaySuccess:
+        return true;
+    case Timeline::TraceStashFile<QmlEvent>::ReplayOpenFailed:
+        m_errorHandler(tr("Could not re-open temporary trace file."));
+        break;
+    case Timeline::TraceStashFile<QmlEvent>::ReplayLoadFailed:
+        // Happens if the loader rejects an event. Not an actual error
+        break;
+    case Timeline::TraceStashFile<QmlEvent>::ReplayReadPastEnd:
+        m_errorHandler(tr("Read past end in temporary trace file."));
+        break;
+    }
+    return false;
 }
 
 } // namespace QmlProfiler

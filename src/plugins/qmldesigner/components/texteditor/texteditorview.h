@@ -47,8 +47,8 @@ class QMLDESIGNERCORE_EXPORT TextEditorView : public AbstractView
     Q_OBJECT
 
 public:
-    TextEditorView(QObject *parent = 0);
-    ~TextEditorView();
+    TextEditorView(QObject *parent = nullptr);
+    ~TextEditorView() override;
 
     // AbstractView
     void modelAttached(Model *model) override;
@@ -101,7 +101,7 @@ public:
     void reformatFile();
 
 private:
-    std::unique_ptr<TextEditorWidget> m_widget;
+    QPointer<TextEditorWidget> m_widget;
     Internal::TextEditorContext *m_textEditorContext;
 };
 

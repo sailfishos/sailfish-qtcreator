@@ -32,7 +32,6 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/runconfiguration.h>
-#include <projectexplorer/runnables.h>
 #include <utils/qtcassert.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
 
@@ -62,7 +61,7 @@ public:
 
     ProjectExplorer::Runnable runnable() const override
     {
-        ProjectExplorer::StandardRunnable r;
+        ProjectExplorer::Runnable r;
         QTC_ASSERT(m_testConfig, return r);
         r.executable = m_testConfig->executableFilePath();
         r.commandLineArguments = m_testConfig->argumentsForTestRunner().join(' ');
@@ -75,8 +74,8 @@ public:
     }
 
 private:
-    QWidget *createConfigurationWidget() override { return 0; }
-    TestConfiguration *m_testConfig = 0;
+    QWidget *createConfigurationWidget() override { return nullptr; }
+    TestConfiguration *m_testConfig = nullptr;
 };
 
 } // namespace Internal

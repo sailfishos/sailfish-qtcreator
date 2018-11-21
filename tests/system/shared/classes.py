@@ -24,11 +24,10 @@
 ############################################################################
 
 import __builtin__
-import operator
 
 # for easier re-usage (because Python hasn't an enum type)
 class Targets:
-    ALL_TARGETS = tuple(map(lambda x: 2 ** x , range(5)))
+    ALL_TARGETS = tuple(range(5))
 
     (DESKTOP_4_8_7_DEFAULT,
      EMBEDDED_LINUX,
@@ -36,9 +35,16 @@ class Targets:
      DESKTOP_5_6_1_DEFAULT,
      DESKTOP_5_10_1_DEFAULT) = ALL_TARGETS
 
+    __TARGET_NAME_DICT__ = dict(zip(ALL_TARGETS,
+                                    ["Desktop 4.8.7 default",
+                                     "Embedded Linux",
+                                     "Desktop 5.4.1 GCC",
+                                     "Desktop 5.6.1 default",
+                                     "Desktop 5.10.1 default"]))
+
     @staticmethod
     def availableTargetClasses():
-        availableTargets = list(Targets.ALL_TARGETS)
+        availableTargets = set(Targets.ALL_TARGETS)
         if platform.system() in ('Windows', 'Microsoft'):
             availableTargets.remove(Targets.EMBEDDED_LINUX)
         elif platform.system() == 'Darwin':
@@ -48,38 +54,20 @@ class Targets:
     @staticmethod
     def desktopTargetClasses():
         desktopTargets = Targets.availableTargetClasses()
-        if Targets.EMBEDDED_LINUX in desktopTargets:
-            desktopTargets.remove(Targets.EMBEDDED_LINUX)
+        desktopTargets.discard(Targets.EMBEDDED_LINUX)
         return desktopTargets
 
     @staticmethod
-    def qt4Classes():
-        return (Targets.DESKTOP_4_8_7_DEFAULT | Targets.EMBEDDED_LINUX)
-
-    @staticmethod
     def getStringForTarget(target):
-        if target == Targets.DESKTOP_4_8_7_DEFAULT:
-            return "Desktop 4.8.7 default"
-        elif target == Targets.EMBEDDED_LINUX:
-            return "Embedded Linux"
-        elif target == Targets.DESKTOP_5_4_1_GCC:
-            return "Desktop 5.4.1 GCC"
-        elif target == Targets.DESKTOP_5_6_1_DEFAULT:
-            return "Desktop 5.6.1 default"
-        elif target == Targets.DESKTOP_5_10_1_DEFAULT:
-            return "Desktop 5.10.1 default"
-        else:
-            return None
+        return Targets.__TARGET_NAME_DICT__[target]
 
     @staticmethod
     def getTargetsAsStrings(targets):
-        if not isinstance(targets, (tuple,list)):
-            test.fatal("Wrong usage... This function handles only tuples or lists.")
-            return None
-        result = map(Targets.getStringForTarget, targets)
-        if None in result:
-            test.fatal("You've passed at least one unknown target!")
-        return result
+        return set(map(Targets.getStringForTarget, targets))
+
+    @staticmethod
+    def getIdForTargetName(targetName):
+        return {v:k for k, v in Targets.__TARGET_NAME_DICT__.items()}[targetName]
 
     @staticmethod
     def getDefaultKit():

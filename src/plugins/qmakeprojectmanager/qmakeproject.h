@@ -31,7 +31,6 @@
 #include "qmakeparsernodes.h"
 
 #include <projectexplorer/project.h>
-#include <projectexplorer/runconfiguration.h>
 
 #include <QStringList>
 #include <QFutureInterface>
@@ -61,21 +60,16 @@ public:
 
     QmakeProFile *rootProFile() const;
 
-    bool supportsKit(const ProjectExplorer::Kit *k, QString *errorMesage) const final;
+    QList<ProjectExplorer::Task> projectIssues(const ProjectExplorer::Kit *k) const final;
 
     QmakeProFileNode *rootProjectNode() const final;
 
-    virtual QStringList filesGeneratedFrom(const QString &file) const final;
+    QStringList filesGeneratedFrom(const QString &file) const final;
 
     enum Parsing {ExactParse, ExactAndCumulativeParse };
     QList<QmakeProFile *> allProFiles(const QList<ProjectType> &projectTypes = QList<ProjectType>(),
                                       Parsing parse = ExactParse) const;
     QList<QmakeProFile *> applicationProFiles(Parsing parse = ExactParse) const;
-    bool hasApplicationProFile(const Utils::FileName &path) const;
-
-    QList<ProjectExplorer::BuildTargetInfo>
-        buildTargets(ProjectExplorer::IRunConfigurationFactory::CreationMode mode,
-                     const QList<ProjectType> &projectTypes = {});
 
     static void notifyChanged(const Utils::FileName &name);
 
@@ -105,17 +99,7 @@ public:
     void watchFolders(const QStringList &l, QmakePriFile *file);
     void unwatchFolders(const QStringList &l, QmakePriFile *file);
 
-    bool needsConfiguration() const final;
-
-    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) final;
-
-    bool requiresTargetPanel() const final;
-
-    /// \internal
-    QString disabledReasonForRunConfiguration(const Utils::FileName &proFilePath);
-
-    /// used by the default implementation of shadowBuildDirectory
-    static QString buildNameFor(const ProjectExplorer::Kit *k);
+    void configureAsExampleProject(const QSet<Core::Id> &platforms) final;
 
     void emitBuildDirectoryInitialized();
     static void proFileParseError(const QString &errorMessage);

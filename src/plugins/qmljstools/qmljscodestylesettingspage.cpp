@@ -82,12 +82,9 @@ void QmlJSCodeStylePreferencesWidget::setPreferences(ICodeStylePreferences *pref
 
 void QmlJSCodeStylePreferencesWidget::decorateEditor(const FontSettings &fontSettings)
 {
-    const SnippetProvider *provider =
-            SnippetProvider::snippetProviderForGroupId(QmlJSEditor::Constants::QML_SNIPPETS_GROUP_ID);
-
     m_ui->previewTextEdit->textDocument()->setFontSettings(fontSettings);
-    if (provider)
-        provider->decorateEditor(m_ui->previewTextEdit);
+    SnippetProvider::decorateEditor(m_ui->previewTextEdit,
+                                    QmlJSEditor::Constants::QML_SNIPPETS_GROUP_ID);
 }
 
 void QmlJSCodeStylePreferencesWidget::setVisualizeWhitespace(bool on)
@@ -134,8 +131,9 @@ QmlJSCodeStyleSettingsPage::QmlJSCodeStyleSettingsPage(/*QSharedPointer<CppFileS
     setId(Constants::QML_JS_CODE_STYLE_SETTINGS_ID);
     setDisplayName(QCoreApplication::translate("QmlJSTools", Constants::QML_JS_CODE_STYLE_SETTINGS_NAME));
     setCategory(QmlJSEditor::Constants::SETTINGS_CATEGORY_QML);
-    setDisplayCategory(QCoreApplication::translate("QmlJSEditor", QmlJSEditor::Constants::SETTINGS_TR_CATEGORY_QML));
-    setCategoryIcon(Utils::Icon(QmlJSTools::Constants::SETTINGS_CATEGORY_QML_ICON));
+    setDisplayCategory(QCoreApplication::translate("QmlJSEditor", "Qt Quick"));
+    setCategoryIcon(Utils::Icon({{":/qmljstools/images/settingscategory_qml.png",
+                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
 }
 
 QWidget *QmlJSCodeStyleSettingsPage::widget()

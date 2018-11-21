@@ -21,6 +21,7 @@ SOURCES += \
     clangcompletionassistprovider.cpp \
     clangcompletionchunkstotextconverter.cpp \
     clangcompletioncontextanalyzer.cpp \
+    clangcurrentdocumentfilter.cpp \
     clangdiagnosticfilter.cpp \
     clangdiagnosticmanager.cpp \
     clangdiagnostictooltipwidget.cpp \
@@ -30,8 +31,8 @@ SOURCES += \
     clangfixitoperationsextractor.cpp \
     clangfollowsymbol.cpp \
     clangfunctionhintmodel.cpp \
+    clanghighlightingresultreporter.cpp \
     clanghoverhandler.cpp \
-    clangtokeninfosreporter.cpp \
     clangmodelmanagersupport.cpp \
     clangpreprocessorassistproposalitem.cpp \
     clangprojectsettings.cpp \
@@ -39,7 +40,8 @@ SOURCES += \
     clangrefactoringengine.cpp \
     clangtextmark.cpp \
     clanguiheaderondiskmanager.cpp \
-    clangutils.cpp
+    clangutils.cpp \
+    clangoverviewmodel.cpp
 
 HEADERS += \
     clangactivationsequencecontextprocessor.h \
@@ -58,6 +60,7 @@ HEADERS += \
     clangcompletionchunkstotextconverter.h \
     clangcompletioncontextanalyzer.h \
     clangconstants.h \
+    clangcurrentdocumentfilter.h \
     clangdiagnosticfilter.h \
     clangdiagnosticmanager.h \
     clangdiagnostictooltipwidget.h \
@@ -67,6 +70,7 @@ HEADERS += \
     clangfixitoperationsextractor.h \
     clangfollowsymbol.h \
     clangfunctionhintmodel.h \
+    clanghighlightingresultreporter.h \
     clanghoverhandler.h \
     clangisdiagnosticrelatedtolocation.h \
     clangmodelmanagersupport.h \
@@ -77,7 +81,7 @@ HEADERS += \
     clangtextmark.h \
     clanguiheaderondiskmanager.h \
     clangutils.h \
-    clangtokeninfosreporter.h
+    clangoverviewmodel.h
 
 FORMS += clangprojectsettingswidget.ui
 

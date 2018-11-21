@@ -40,8 +40,8 @@ class ItemLibraryView : public AbstractView
     Q_OBJECT
 
 public:
-    ItemLibraryView(QObject* parent = 0);
-    ~ItemLibraryView();
+    ItemLibraryView(QObject* parent = nullptr);
+    ~ItemLibraryView() override;
 
     bool hasWidget() const override;
     WidgetInfo widgetInfo() override;

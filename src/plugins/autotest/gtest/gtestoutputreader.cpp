@@ -45,22 +45,21 @@ GTestOutputReader::GTestOutputReader(const QFutureInterface<TestResultPtr> &futu
                                      QProcess *testApplication, const QString &buildDirectory,
                                      const QString &projectFile)
     : TestOutputReader(futureInterface, testApplication, buildDirectory)
-    , m_executable(testApplication ? testApplication->program() : QString())
     , m_projectFile(projectFile)
 {
+    if (m_testApplication) {
         connect(m_testApplication,
                 static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
                 this, [this] (int exitCode, QProcess::ExitStatus /*exitStatus*/) {
             if (exitCode == 1 && !m_description.isEmpty()) {
-                // TODO tr()
-                const QString message{"Running test(s) failed\n" + m_description
-                            + "\nExecutable: " + m_executable};
-                createAndReportResult(message, Result::MessageFatal);
+                createAndReportResult(tr("Running tests failed.\n %1\nExecutable: %2")
+                        .arg(m_description).arg(id()), Result::MessageFatal);
             }
             // on Windows abort() will result in normal termination, but exit code will be set to 3
             if (Utils::HostOsInfo::isWindowsHost() && exitCode == 3)
                 reportCrash();
         });
+    }
 }
 
 void GTestOutputReader::processOutput(const QByteArray &outputLine)
@@ -155,12 +154,13 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
                 match = &errorLocation;
 
             if (match) {
+                testResult->setLine(match->cap(2).toInt());
+
                 QString file = constructSourceFilePath(m_buildDir, match->cap(1));
-                if (!file.isEmpty()) {
+                if (!file.isEmpty())
                     testResult->setFileName(file);
-                    testResult->setLine(match->cap(2).toInt());
-                    break;
-                }
+
+                break;
             }
         }
         reportResult(testResult);
@@ -175,7 +175,7 @@ void GTestOutputReader::processOutput(const QByteArray &outputLine)
 
 TestResultPtr GTestOutputReader::createDefaultResult() const
 {
-    GTestResult *result = new GTestResult(m_executable, m_projectFile, m_currentTestName);
+    GTestResult *result = new GTestResult(id(), m_projectFile, m_currentTestName);
     result->setTestSetName(m_currentTestSet);
     result->setIteration(m_iteration);
 

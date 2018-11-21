@@ -27,6 +27,8 @@
 
 #include "sourcelocations.h"
 
+#include "symbol.h"
+
 #include <cpptools/usages.h>
 
 namespace ClangRefactoring {
@@ -34,8 +36,23 @@ namespace ClangRefactoring {
 class SymbolQueryInterface
 {
 public:
-    virtual SourceLocations locationsAt(ClangBackEnd::FilePathId filePathId, int line, int utf8Column) const = 0;
-    virtual CppTools::Usages sourceUsagesAt(ClangBackEnd::FilePathId filePathId, int line, int utf8Column) const = 0;
+    SymbolQueryInterface() = default;
+    SymbolQueryInterface(const SymbolQueryInterface &) = delete;
+    SymbolQueryInterface &operator=(const SymbolQueryInterface &) = delete;
+
+    virtual SourceLocations locationsAt(ClangBackEnd::FilePathId filePathId,
+                                        int line,
+                                        int utf8Column) const = 0;
+    virtual CppTools::Usages sourceUsagesAt(ClangBackEnd::FilePathId filePathId,
+                                            int line,
+                                            int utf8Column) const = 0;
+    virtual Symbols symbols(const ClangBackEnd::SymbolKinds &symbolKinds,
+                            Utils::SmallStringView searchTerm) const = 0;
+    virtual Utils::optional<SourceLocation> locationForSymbolId(SymbolId symbolId,
+                                                                ClangBackEnd::SourceLocationKind kind) const = 0;
+
+protected:
+    ~SymbolQueryInterface() = default;
 };
 
 } // namespace ClangRefactoring

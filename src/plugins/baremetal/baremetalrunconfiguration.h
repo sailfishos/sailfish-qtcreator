@@ -30,50 +30,23 @@
 namespace BareMetal {
 namespace Internal {
 
-class BareMetalRunConfigurationWidget;
-
 class BareMetalRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
-    Q_DISABLE_COPY(BareMetalRunConfiguration)
-
-    friend class ProjectExplorer::IRunConfigurationFactory;
-    friend class BareMetalRunConfigurationWidget;
 
 public:
-    explicit BareMetalRunConfiguration(ProjectExplorer::Target *target);
-
-    QWidget *createConfigurationWidget() override;
-    Utils::OutputFormatter *createOutputFormatter() const override;
-
-    virtual QString localExecutableFilePath() const;
-    QString arguments() const;
-    QString workingDirectory() const;
-    void setWorkingDirectory(const QString &wd);
-
-    QVariantMap toMap() const override;
-
-    QString projectFilePath() const;
-
-    QString buildSystemTarget() const final;
+    BareMetalRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     static const char *IdPrefix;
 
-signals:
-    void deploySpecsChanged();
-    void targetInformationChanged() const;
-
-protected:
-    bool fromMap(const QVariantMap &map) override;
-    QString extraId() const final;
-
-    QString defaultDisplayName();
-
 private:
-    void handleBuildSystemDataUpdated();
+    void updateTargetInformation();
+};
 
-    QString m_projectFilePath;
-    QString m_workingDirectory;
+class BareMetalRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
+{
+public:
+    BareMetalRunConfigurationFactory();
 };
 
 } // namespace Internal

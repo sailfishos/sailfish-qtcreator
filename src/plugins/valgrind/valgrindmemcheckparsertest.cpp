@@ -33,7 +33,7 @@
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfiguration.h>
 
 #include <QFile>
 #include <QFileInfo>
@@ -457,7 +457,8 @@ void ValgrindMemcheckParserTest::testParserStop()
 {
     ValgrindRunner runner;
     runner.setValgrindExecutable(fakeValgrindExecutable());
-    runner.setValgrindArguments({"-i", dataFile("memcheck-output-sample1.xml"), "--wait", "5" });
+    runner.setValgrindArguments({QString("--xml-socket=127.0.0.1:%1").arg(m_server->serverPort()),
+                                 "-i", dataFile("memcheck-output-sample1.xml"), "--wait", "5" });
     runner.setProcessChannelMode(QProcess::ForwardedChannels);
 
     runner.setDevice(ProjectExplorer::DeviceManager::instance()->defaultDevice(
@@ -476,7 +477,7 @@ void ValgrindMemcheckParserTest::testRealValgrind()
     QString executable = QProcessEnvironment::systemEnvironment().value("VALGRIND_TEST_BIN", fakeValgrindExecutable());
     qDebug() << "running exe:" << executable << " HINT: set VALGRIND_TEST_BIN to change this";
 
-    ProjectExplorer::StandardRunnable debuggee;
+    ProjectExplorer::Runnable debuggee;
     debuggee.executable = executable;
     debuggee.environment = sysEnv;
     ValgrindRunner runner;
@@ -513,7 +514,7 @@ void ValgrindMemcheckParserTest::testValgrindStartError()
     QFETCH(QString, debuggee);
     QFETCH(QString, debuggeeArgs);
 
-    ProjectExplorer::StandardRunnable debuggeeExecutable;
+    ProjectExplorer::Runnable debuggeeExecutable;
     debuggeeExecutable.executable = debuggee;
     debuggeeExecutable.environment = Utils::Environment::systemEnvironment();
     debuggeeExecutable.commandLineArguments = debuggeeArgs;

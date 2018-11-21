@@ -25,8 +25,7 @@
 
 #include "remotelinuxdebugsupport.h"
 
-#include "remotelinuxcustomrunconfiguration.h"
-#include "remotelinuxrunconfiguration.h"
+#include <projectexplorer/runconfigurationaspects.h>
 
 using namespace Debugger;
 using namespace ProjectExplorer;
@@ -49,12 +48,6 @@ LinuxDeviceDebugSupport::LinuxDeviceDebugSupport(RunControl *runControl)
     setStartMode(AttachToRemoteServer);
     setCloseMode(KillAndExitMonitorAtClose);
     setUseExtendedRemote(true);
-
-    RunConfiguration *runConfig = runControl->runConfiguration();
-    if (auto rlrc = qobject_cast<RemoteLinuxRunConfiguration *>(runConfig))
-        setSymbolFile(rlrc->localExecutableFilePath());
-    else if (auto rlrc = qobject_cast<Internal::RemoteLinuxCustomRunConfiguration *>(runConfig))
-        setSymbolFile(rlrc->localExecutableFilePath());
 }
 
 } // namespace Internal

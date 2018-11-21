@@ -32,12 +32,12 @@
 class MockPchManagerNotifier : public ClangPchManager::PchManagerNotifierInterface
 {
 public:
-    MockPchManagerNotifier(ClangPchManager::PchManagerClient &pchManagerClient)
-        : ClangPchManager::PchManagerNotifierInterface(pchManagerClient)
+    MockPchManagerNotifier(const ClangPchManager::PchManagerClient &pchManagerClient)
+        : ClangPchManager::PchManagerNotifierInterface(const_cast<ClangPchManager::PchManagerClient&>(pchManagerClient))
     {}
 
-    MOCK_METHOD2(precompiledHeaderUpdated,
-                 void (const QString &projectPartId, const QString &pchFilePath));
+    MOCK_METHOD3(precompiledHeaderUpdated,
+                 void (const QString &projectPartId, const QString &pchFilePath, long long lastModified));
     MOCK_METHOD1(precompiledHeaderRemoved,
                  void (const QString &projectPartId));
 };

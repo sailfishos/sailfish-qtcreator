@@ -26,14 +26,12 @@
 source("../../shared/qtcreator.py")
 
 def main():
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     # using a temporary directory won't mess up a potentially existing
     workingDir = tempDir()
-    # we need a Qt >= 5.3 - we use checkedTargets, so we should get only valid targets
-    analyzerTargets = Targets.desktopTargetClasses()
-    checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=analyzerTargets)
+    projectName = createNewQtQuickApplication(workingDir)[1]
     editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
     if placeCursorToLine(editor, "}"):
         type(editor, '<Left>')
@@ -52,14 +50,14 @@ def main():
                            'var j = i * i;',
                            'console.log(j);'])
         invokeMenuItem("File", "Save All")
-        availableConfigs = iterateBuildConfigs(len(checkedTargets), "Debug")
+        availableConfigs = iterateBuildConfigs("Debug")
         if not availableConfigs:
             test.fatal("Haven't found a suitable Qt version (need Qt 5.3+) - leaving without debugging.")
         else:
-            performTest(workingDir, projectName, len(checkedTargets), availableConfigs)
+            performTest(workingDir, projectName, availableConfigs)
     invokeMenuItem("File", "Exit")
 
-def performTest(workingDir, projectName, targetCount, availableConfigs):
+def performTest(workingDir, projectName, availableConfigs):
     def __elapsedTime__(elapsedTimeLabelText):
         return float(re.search("Elapsed:\s+(-?\d+\.\d+) s", elapsedTimeLabelText).group(1))
 
@@ -67,7 +65,8 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
         # switching from MSVC to MinGW build will fail on the clean step of 'Rebuild All' because
         # of differences between MSVC's and MinGW's Makefile (so clean before switching kits)
         invokeMenuItem('Build', 'Clean Project "%s"' % projectName)
-        qtVersion = verifyBuildConfig(targetCount, kit, config, True, True, True)
+        verifyBuildConfig(kit, config, True, True, True)
+        qtVersion = "5.6.1" if kit == Targets.DESKTOP_5_6_1_DEFAULT else "5.10.1"
         test.log("Selected kit using Qt %s" % qtVersion)
         # explicitly build before start debugging for adding the executable as allowed program to WinFW
         invokeMenuItem("Build", "Rebuild All")
@@ -102,7 +101,7 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
             model = waitForObject(":Events.QmlProfilerEventsTable_QmlProfiler::"
                                   "Internal::QmlProfilerStatisticsMainView").model()
             compareEventsTab(model, "events_qt%s.tsv" % qtVersion)
-            test.compare(dumpItems(model, column=colPercent)[0], '100.00 %')
+            test.compare(dumpItems(model, column=colPercent)[0], '100 %')
             # cannot run following test on colShortest (unstable)
             for i in [colTotal, colMean, colMedian, colLongest]:
                 for item in dumpItems(model, column=i)[2:5]:
@@ -122,8 +121,8 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
                         test.compare(model.index(row, colMean).data(), model.index(row, col).data(),
                                      "For just one call, no differences in execution time may be shown.")
                 elif str(model.index(row, colCalls).data()) == "2":
-                    test.compare(model.index(row, colMedian).data(), model.index(row, colLongest).data(),
-                                 "For two calls, median and longest time must be the same.")
+                    test.compare(model.index(row, colMedian).data(), model.index(row, colMean).data(),
+                                 "For two calls, median and mean time must be the same.")
         progressBarWait(15000, False)   # wait for "Build" progressbar to disappear
         clickButton(waitForObject(":Analyzer Toolbar.Clear_QToolButton"))
         test.verify(waitFor("model.rowCount() == 0", 3000), "Analyzer results cleared.")

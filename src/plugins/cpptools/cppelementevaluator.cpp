@@ -134,7 +134,7 @@ CppDeclarableElement::CppDeclarableElement(Symbol *declaration)
     }
 
     tooltip = overview.prettyType(declaration->type(), qualifiedName);
-    link = CppTools::linkToSymbol(declaration);
+    link = declaration->toLink();
     helpMark = name;
 }
 

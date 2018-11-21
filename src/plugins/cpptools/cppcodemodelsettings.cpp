@@ -58,6 +58,9 @@ static QString clangDiagnosticConfigsArrayWarningsKey()
 static QString clangDiagnosticConfigsArrayClangTidyChecksKey()
 { return QLatin1String("clangTidyChecks"); }
 
+static QString clangDiagnosticConfigsArrayClangTidyModeKey()
+{ return QLatin1String("clangTidyMode"); }
+
 static QString clangDiagnosticConfigsArrayClazyChecksKey()
 { return QLatin1String("clazyChecks"); }
 
@@ -88,7 +91,10 @@ static ClangDiagnosticConfigs customDiagnosticConfigsFromSettings(QSettings *s)
         config.setId(Core::Id::fromSetting(s->value(clangDiagnosticConfigsArrayIdKey())));
         config.setDisplayName(s->value(clangDiagnosticConfigsArrayDisplayNameKey()).toString());
         config.setClangOptions(s->value(clangDiagnosticConfigsArrayWarningsKey()).toStringList());
-        config.setClangTidyChecks(s->value(clangDiagnosticConfigsArrayClangTidyChecksKey()).toString());
+        config.setClangTidyMode(static_cast<ClangDiagnosticConfig::TidyMode>(
+                                    s->value(clangDiagnosticConfigsArrayClangTidyModeKey()).toInt()));
+        config.setClangTidyChecks(
+                    s->value(clangDiagnosticConfigsArrayClangTidyChecksKey()).toString());
         config.setClazyChecks(s->value(clangDiagnosticConfigsArrayClazyChecksKey()).toString());
         configs.append(config);
     }
@@ -144,7 +150,10 @@ void CppCodeModelSettings::toSettings(QSettings *s)
         s->setValue(clangDiagnosticConfigsArrayIdKey(), config.id().toSetting());
         s->setValue(clangDiagnosticConfigsArrayDisplayNameKey(), config.displayName());
         s->setValue(clangDiagnosticConfigsArrayWarningsKey(), config.clangOptions());
-        s->setValue(clangDiagnosticConfigsArrayClangTidyChecksKey(), config.clangTidyChecks());
+        s->setValue(clangDiagnosticConfigsArrayClangTidyModeKey(),
+                    static_cast<int>(config.clangTidyMode()));
+        s->setValue(clangDiagnosticConfigsArrayClangTidyChecksKey(),
+                    config.clangTidyChecks());
         s->setValue(clangDiagnosticConfigsArrayClazyChecksKey(), config.clazyChecks());
     }
     s->endArray();

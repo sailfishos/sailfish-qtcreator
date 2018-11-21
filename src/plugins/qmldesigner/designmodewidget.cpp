@@ -48,7 +48,6 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/idocument.h>
 #include <coreplugin/inavigationwidgetfactory.h>
-#include <extensionsystem/pluginmanager.h>
 
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -134,9 +133,8 @@ QList<QToolButton *> DesignerSideBarItem::createToolBarWidgets()
 }
 
 // ---------- DesignModeWidget
-DesignModeWidget::DesignModeWidget(QWidget *parent)
-    : QWidget(parent)
-    , m_toolBar(new Core::EditorToolBar(this))
+DesignModeWidget::DesignModeWidget()
+    : m_toolBar(new Core::EditorToolBar(this))
     , m_crumbleBar(new CrumbleBar(this))
 {
 }
@@ -177,8 +175,8 @@ void DesignModeWidget::toggleRightSidebar()
 
 QWidget *DesignModeWidget::createProjectExplorerWidget(QWidget *parent)
 {
-    QList<Core::INavigationWidgetFactory *> factories =
-            ExtensionSystem::PluginManager::getObjects<Core::INavigationWidgetFactory>();
+    const QList<Core::INavigationWidgetFactory *> factories =
+            Core::INavigationWidgetFactory::allNavigationFactories();
 
     Core::NavigationView navigationView;
     navigationView.widget = nullptr;
@@ -261,7 +259,7 @@ void DesignModeWidget::setup()
     actionManager.polishActions();
 
     QList<Core::INavigationWidgetFactory *> factories =
-            ExtensionSystem::PluginManager::getObjects<Core::INavigationWidgetFactory>();
+            Core::INavigationWidgetFactory::allNavigationFactories();
 
     QWidget *openDocumentsWidget = nullptr;
     QWidget *projectsExplorer = nullptr;
@@ -475,7 +473,7 @@ static QWidget *createbottomSideBarWidget(const QList<WidgetInfo> &widgetInfos)
         background->setProperty("designerBackgroundColor", true);
 
         QString sheet = QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css"));
-        sheet.prepend("QWidget[designerBackgroundColor=\"true\"] {background-color: creatorTheme.QmlDesignerBackgroundColorDarkAlternate;}");
+        sheet.prepend("QWidget[designerBackgroundColor=\"true\"] {background-color: creatorTheme.QmlDesigner_BackgroundColorDarkAlternate;}");
 
         background->setStyleSheet(Theme::replaceCssColors(sheet));
         background->setLayout(new QVBoxLayout);
@@ -491,8 +489,6 @@ static Core::MiniSplitter *createCentralSplitter(const QList<WidgetInfo> &widget
 {
     // editor and output panes
     Core::MiniSplitter *outputPlaceholderSplitter = new Core::MiniSplitter;
-    outputPlaceholderSplitter->setStretchFactor(0, 10);
-    outputPlaceholderSplitter->setStretchFactor(1, 0);
     outputPlaceholderSplitter->setOrientation(Qt::Vertical);
 
     SwitchSplitTabWidget *switchSplitTabWidget = new SwitchSplitTabWidget();
@@ -511,6 +507,8 @@ static Core::MiniSplitter *createCentralSplitter(const QList<WidgetInfo> &widget
     auto outputPanePlaceholder = new Core::OutputPanePlaceHolder(Core::Constants::MODE_DESIGN, outputPlaceholderSplitter);
     outputPlaceholderSplitter->addWidget(outputPanePlaceholder);
 
+    outputPlaceholderSplitter->setStretchFactor(0, 10);
+    outputPlaceholderSplitter->setStretchFactor(1, 1);
     return outputPlaceholderSplitter;
 }
 

@@ -49,8 +49,10 @@ public:
             toReplace.append(':');
             toReplace.append(lib.path());
 
-            if (ldLibraryPath.startsWith(toReplace))
-                set("LD_LIBRARY_PATH", ldLibraryPath.remove(0, toReplace.length()));
+            if (ldLibraryPath.startsWith(toReplace + ':'))
+                set("LD_LIBRARY_PATH", ldLibraryPath.remove(0, toReplace.length() + 1));
+            else if (ldLibraryPath == toReplace)
+                unset("LD_LIBRARY_PATH");
         }
     }
 };
@@ -118,6 +120,34 @@ QStringList EnvironmentItem::toStringList(const QList<EnvironmentItem> &list)
             return QString(item.name);
         return QString(item.name + '=' + item.value);
     });
+}
+
+QList<EnvironmentItem> EnvironmentItem::itemsFromVariantList(const QVariantList &list)
+{
+    return Utils::transform(list, [](const QVariant &item) {
+        return itemFromVariantList(item.toList());
+    });
+}
+
+QVariantList EnvironmentItem::toVariantList(const QList<EnvironmentItem> &list)
+{
+    return Utils::transform(list, [](const EnvironmentItem &item) {
+        return QVariant(toVariantList(item));
+    });
+}
+
+EnvironmentItem EnvironmentItem::itemFromVariantList(const QVariantList &list)
+{
+    QTC_ASSERT(list.size() == 3, return EnvironmentItem("", ""));
+    QString name = list.value(0).toString();
+    Operation operation = Operation(list.value(1).toInt());
+    QString value = list.value(2).toString();
+    return EnvironmentItem(name, value, operation);
+}
+
+QVariantList EnvironmentItem::toVariantList(const EnvironmentItem &item)
+{
+    return QVariantList() << item.name << item.operation << item.value;
 }
 
 static QString expand(const Environment *e, QString value)
@@ -297,13 +327,13 @@ void Environment::prependOrSet(const QString&key, const QString &value, const QS
 void Environment::appendOrSetPath(const QString &value)
 {
     appendOrSet("PATH", QDir::toNativeSeparators(value),
-                QString(OsSpecificAspects(m_osType).pathListSeparator()));
+                QString(OsSpecificAspects::pathListSeparator(m_osType)));
 }
 
 void Environment::prependOrSetPath(const QString &value)
 {
     prependOrSet("PATH", QDir::toNativeSeparators(value),
-            QString(OsSpecificAspects(m_osType).pathListSeparator()));
+            QString(OsSpecificAspects::pathListSeparator(m_osType)));
 }
 
 void Environment::prependOrSetLibrarySearchPath(const QString &value)
@@ -419,7 +449,11 @@ bool Environment::isSameExecutable(const QString &exe1, const QString &exe2) con
     const QStringList exe2List = appendExeExtensions(exe2);
     for (const QString &i1 : exe1List) {
         for (const QString &i2 : exe2List) {
-            if (FileName::fromString(i1) == FileName::fromString(i2))
+            const FileName f1 = FileName::fromString(i1);
+            const FileName f2 = FileName::fromString(i2);
+            if (f1 == f2)
+                return true;
+            if (FileUtils::resolveSymlinks(f1) == FileUtils::resolveSymlinks(f2))
                 return true;
         }
     }
@@ -468,7 +502,7 @@ FileName Environment::searchInPath(const QString &executable,
 FileNameList Environment::path() const
 {
     const QStringList pathComponents = value("PATH")
-            .split(OsSpecificAspects(m_osType).pathListSeparator(), QString::SkipEmptyParts);
+            .split(OsSpecificAspects::pathListSeparator(m_osType), QString::SkipEmptyParts);
     return Utils::transform(pathComponents, &FileName::fromUserInput);
 }
 

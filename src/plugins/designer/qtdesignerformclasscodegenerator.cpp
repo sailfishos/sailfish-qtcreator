@@ -32,6 +32,7 @@
 #include <cpptools/abstracteditorsupport.h>
 #include <qtsupport/codegenerator.h>
 #include <qtsupport/codegensettings.h>
+#include <extensionsystem/pluginmanager.h>
 
 #include <QTextStream>
 #include <QSettings>
@@ -147,7 +148,7 @@ bool QtDesignerFormClassCodeGenerator::generateCpp(const FormClassWizardParamete
         headerStr << ", private " << uiClassName;
     headerStr << "\n{\n" << namespaceIndent << indent << "Q_OBJECT\n\n"
               << namespaceIndent << "public:\n"
-              << namespaceIndent << indent << "explicit " << unqualifiedClassName << "(QWidget *parent = 0);\n";
+              << namespaceIndent << indent << "explicit " << unqualifiedClassName << "(QWidget *parent = nullptr);\n";
     if (generationParameters.embedding == QtSupport::CodeGenSettings::PointerAggregatedUiClass)
         headerStr << namespaceIndent << indent << "~" << unqualifiedClassName << "();\n";
     // retranslation
@@ -208,9 +209,15 @@ bool QtDesignerFormClassCodeGenerator::generateCpp(const FormClassWizardParamete
     return true;
 }
 
-QtDesignerFormClassCodeGenerator::QtDesignerFormClassCodeGenerator(QObject *parent) :
-    QObject(parent)
+QtDesignerFormClassCodeGenerator::QtDesignerFormClassCodeGenerator()
 {
+    setObjectName("QtDesignerFormClassCodeGenerator");
+    ExtensionSystem::PluginManager::addObject(this);
+}
+
+QtDesignerFormClassCodeGenerator::~QtDesignerFormClassCodeGenerator()
+{
+    ExtensionSystem::PluginManager::removeObject(this);
 }
 
 QVariant QtDesignerFormClassCodeGenerator::generateFormClassCode(const FormClassWizardParameters &parameters)

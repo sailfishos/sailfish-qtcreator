@@ -5,11 +5,10 @@ QtcPlugin {
 
     Depends { name: "Qt"; submodules: ["widgets", "network", "quick", "quickwidgets"] }
 
-    Depends { name: "FlameGraph" }
     Depends { name: "QmlJS" }
     Depends { name: "QmlDebug" }
     Depends { name: "Utils" }
-    Depends { name: "Timeline" }
+    Depends { name: "Tracing" }
 
     Depends { name: "Core" }
     Depends { name: "Debugger" }
@@ -32,6 +31,7 @@ QtcPlugin {
             "qmleventtype.cpp", "qmleventtype.h",
             "qmlnote.cpp", "qmlnote.h",
             "qmlprofiler_global.h",
+            "qmlprofileractions.h", "qmlprofileractions.cpp",
             "qmlprofileranimationsmodel.h", "qmlprofileranimationsmodel.cpp",
             "qmlprofilerattachdialog.cpp", "qmlprofilerattachdialog.h",
             "qmlprofilerbindingloopsrenderpass.cpp","qmlprofilerbindingloopsrenderpass.h",

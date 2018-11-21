@@ -27,69 +27,40 @@
 
 #include "projectexplorer_global.h"
 
-#include "projectexplorer/runnables.h"
+#include "projectexplorer/runconfigurationaspects.h"
 
 namespace ProjectExplorer {
-
-class CustomExecutableDialog;
-
-namespace Internal { class CustomExecutableConfigurationWidget; }
 
 class PROJECTEXPLORER_EXPORT CustomExecutableRunConfiguration : public RunConfiguration
 {
     Q_OBJECT
-    // the configuration widget needs to setExecutable setWorkingDirectory and setCommandLineArguments
-    friend class Internal::CustomExecutableConfigurationWidget;
-    friend class ProjectExplorer::IRunConfigurationFactory;
 
 public:
+    CustomExecutableRunConfiguration(Target *target, Core::Id id);
     explicit CustomExecutableRunConfiguration(Target *target);
     ~CustomExecutableRunConfiguration() override;
 
-    /**
-     * Returns the executable, looks in the environment for it and might even
-     * ask the user if none is specified
-     */
-    QString executable() const;
-    QString workingDirectory() const;
     Runnable runnable() const override;
 
     /** Returns whether this runconfiguration ever was configured with an executable
      */
     bool isConfigured() const override;
-    QWidget *createConfigurationWidget() override;
     Abi abi() const override;
-    QVariantMap toMap() const override;
     ConfigurationState ensureConfigured(QString *errorMessage) override;
 
-signals:
-    void changed();
-
-private:
-    bool fromMap(const QVariantMap &map) override;
     QString defaultDisplayName() const;
 
+private:
     void configurationDialogFinished();
-    void setExecutable(const QString &executable);
     QString rawExecutable() const;
-    void setCommandLineArguments(const QString &commandLineArguments);
-    void setBaseWorkingDirectory(const QString &workingDirectory);
-    QString baseWorkingDirectory() const;
-    void setUserName(const QString &name);
-    void setRunMode(ApplicationLauncher::Mode runMode);
-    bool validateExecutable(QString *executable = 0, QString *errorMessage = 0) const;
 
-    QString m_executable;
-    QString m_workingDirectory;
-    CustomExecutableDialog *m_dialog = nullptr;
+    class CustomExecutableDialog *m_dialog = nullptr;
 };
 
-class CustomExecutableRunConfigurationFactory : public IRunConfigurationFactory
+class CustomExecutableRunConfigurationFactory : public FixedRunConfigurationFactory
 {
-    Q_OBJECT
-
 public:
-    explicit CustomExecutableRunConfigurationFactory(QObject *parent = 0);
+    CustomExecutableRunConfigurationFactory();
 };
 
 } // namespace ProjectExplorer

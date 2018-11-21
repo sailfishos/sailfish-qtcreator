@@ -55,8 +55,6 @@ SystemSettings::SystemSettings()
     setId(Constants::SETTINGS_ID_SYSTEM);
     setDisplayName(tr("System"));
     setCategory(Constants::SETTINGS_CATEGORY_CORE);
-    setDisplayCategory(QCoreApplication::translate("Core", Constants::SETTINGS_TR_CATEGORY_CORE));
-    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CORE_ICON));
 
     connect(VcsManager::instance(), &VcsManager::configurationChanged,
             this, &SystemSettings::updatePath);
@@ -123,7 +121,7 @@ QWidget *SystemSettings::widget()
 
         if (HostOsInfo::isMacHost()) {
             Qt::CaseSensitivity defaultSensitivity
-                    = OsSpecificAspects(HostOsInfo::hostOs()).fileNameCaseSensitivity();
+                    = OsSpecificAspects::fileNameCaseSensitivity(HostOsInfo::hostOs());
             if (defaultSensitivity == Qt::CaseSensitive) {
                 m_page->fileSystemCaseSensitivityChooser->addItem(tr("Case Sensitive (Default)"),
                                                                   Qt::CaseSensitive);
@@ -175,7 +173,7 @@ void SystemSettings::apply()
 
     if (HostOsInfo::isMacHost()) {
         Qt::CaseSensitivity defaultSensitivity
-                = OsSpecificAspects(HostOsInfo::hostOs()).fileNameCaseSensitivity();
+                = OsSpecificAspects::fileNameCaseSensitivity(HostOsInfo::hostOs());
         Qt::CaseSensitivity selectedSensitivity = Qt::CaseSensitivity(
                 m_page->fileSystemCaseSensitivityChooser->currentData().toInt());
         if (defaultSensitivity == selectedSensitivity)

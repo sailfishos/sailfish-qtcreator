@@ -45,7 +45,7 @@ namespace Internal {
 class TestFilterDialog : public QDialog
 {
 public:
-    explicit TestFilterDialog(QWidget *parent = 0, Qt::WindowFlags f = 0);
+    explicit TestFilterDialog(QWidget *parent = nullptr, Qt::WindowFlags f = 0);
     QString filterPath() const;
     void setDetailsText(const QString &details) { m_details->setText(details); }
     void setDefaultFilterPath(const QString &defaultPath);
@@ -184,7 +184,10 @@ void TestSettingsWidget::populateFrameworksListWidget(const QHash<Core::Id, bool
                                                                                    : Qt::Unchecked);
         item->setToolTip(0, tr("Enable or disable test frameworks to be handled by the AutoTest "
                                "plugin."));
-        item->setToolTip(1, tr("Enable or disable grouping of test cases by folder."));
+        QString toolTip = frameworkManager->groupingToolTip(id);
+        if (toolTip.isEmpty())
+            toolTip = tr("Enable or disable grouping of test cases by folder.");
+        item->setToolTip(1, toolTip);
     }
 }
 
@@ -273,13 +276,14 @@ void TestSettingsWidget::onRemoveFilterClicked()
 }
 
 TestSettingsPage::TestSettingsPage(const QSharedPointer<TestSettings> &settings)
-    : m_settings(settings), m_widget(0)
+    : m_settings(settings)
 {
     setId("A.AutoTest.0.General");
     setDisplayName(tr("General"));
     setCategory(Constants::AUTOTEST_SETTINGS_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("AutoTest", Constants::AUTOTEST_SETTINGS_TR));
-    setCategoryIcon(Utils::Icon(":/images/autotest.png"));
+    setCategoryIcon(Utils::Icon({{":/autotest/images/settingscategory_autotest.png",
+                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
 }
 
 TestSettingsPage::~TestSettingsPage()

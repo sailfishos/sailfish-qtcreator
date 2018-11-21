@@ -45,10 +45,8 @@ class QmakeAndroidBuildApkStep : public Android::AndroidBuildApkStep
 public:
     QmakeAndroidBuildApkStep(ProjectExplorer::BuildStepList *bc);
     Utils::FileName proFilePathForInputFile() const;
-    void setProFilePathForInputFile(const QString &path);
 
 protected:
-    Utils::FileName androidPackageSourceDir() const override;
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
     void processStarted() override;

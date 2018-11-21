@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2017 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-project-managing.html
     \page creator-project-creating.html
     \nextpage creator-project-opening.html
@@ -90,7 +90,7 @@
     files, as defined by the wizard.
 
     For example, if you choose to create a Qt Quick application, \QC generates a
-    QML file that you can modify with the integrated \QMLD.
+    QML file that you can modify in the Design mode.
 
     \section1 Selecting Project Type
 
@@ -156,10 +156,6 @@
         \li Other Projects
 
         \list
-
-            \li Qt Unit Test
-
-                Qt unit tests for features or classes
 
             \li Auto Test Project
 

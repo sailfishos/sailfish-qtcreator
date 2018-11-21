@@ -10,7 +10,6 @@ HEADERS += \
     qmakekitconfigwidget.h \
     qmakeparsernodes.h \
     qmakeprojectimporter.h \
-    qmakerunconfigurationfactory.h \
     qmakeprojectmanagerplugin.h \
     qmakeprojectmanager.h \
     qmakeproject.h \
@@ -25,9 +24,6 @@ HEADERS += \
     wizards/librarywizard.h \
     wizards/librarywizarddialog.h \
     wizards/guiappwizarddialog.h \
-    wizards/testwizard.h \
-    wizards/testwizarddialog.h \
-    wizards/testwizardpage.h \
     wizards/modulespage.h \
     wizards/filespage.h \
     wizards/qtwizard.h \
@@ -54,7 +50,6 @@ SOURCES += \
     qmakekitinformation.cpp \
     qmakeparsernodes.cpp \
     qmakeprojectimporter.cpp \
-    qmakerunconfigurationfactory.cpp \
     qmakeprojectmanagerplugin.cpp \
     qmakeprojectmanager.cpp \
     qmakeproject.cpp \
@@ -69,9 +64,6 @@ SOURCES += \
     wizards/librarywizard.cpp \
     wizards/librarywizarddialog.cpp \
     wizards/guiappwizarddialog.cpp \
-    wizards/testwizard.cpp \
-    wizards/testwizarddialog.cpp \
-    wizards/testwizardpage.cpp \
     wizards/modulespage.cpp \
     wizards/filespage.cpp \
     wizards/qtwizard.cpp \
@@ -94,8 +86,7 @@ SOURCES += \
 FORMS += makestep.ui \
     qmakestep.ui \
     qmakeprojectconfigwidget.ui \
-    librarydetailswidget.ui \
-    wizards/testwizardpage.ui
+    librarydetailswidget.ui
 
 RESOURCES += qmakeprojectmanager.qrc \
     wizards/wizards.qrc

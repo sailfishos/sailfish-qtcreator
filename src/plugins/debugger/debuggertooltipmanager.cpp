@@ -292,6 +292,7 @@ QVariant ToolTipWatchItem::data(int column, int role) const
                 case 2:
                     return type;
             }
+            break;
         }
 
         case LocalsINameRole:
@@ -946,7 +947,7 @@ void DebuggerToolTipHolder::saveSessionData(QXmlStreamWriter &w) const
     (by file name and function) acquire the engine, others release.
 */
 
-static DebuggerToolTipManager *m_instance = 0;
+static DebuggerToolTipManager *m_instance = nullptr;
 
 DebuggerToolTipManager::DebuggerToolTipManager()
 {
@@ -955,7 +956,7 @@ DebuggerToolTipManager::DebuggerToolTipManager()
 
 DebuggerToolTipManager::~DebuggerToolTipManager()
 {
-    m_instance = 0;
+    m_instance = nullptr;
 }
 
 void DebuggerToolTipManager::updateVisibleToolTips()

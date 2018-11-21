@@ -107,6 +107,7 @@ ProjectExplorerSettings ProjectExplorerSettingsWidget::settings() const
     m_settings.mergeStdErrAndStdOut = m_ui.mergeStdErrAndStdOutCheckBox->isChecked();
     m_settings.wrapAppOutput = m_ui.wrapAppOutputCheckBox->isChecked();
     m_settings.useJom = m_ui.jomCheckbox->isChecked();
+    m_settings.addLibraryPathsToRunEnv = m_ui.addLibraryPathsToRunEnvCheckBox->isChecked();
     m_settings.prompToStopRunControl = m_ui.promptToStopRunControlCheckBox->isChecked();
     m_settings.maxAppOutputLines = m_ui.maxAppOutputBox->value();
     m_settings.maxBuildOutputLines = m_ui.maxBuildOutputBox->value();
@@ -127,6 +128,7 @@ void ProjectExplorerSettingsWidget::setSettings(const ProjectExplorerSettings  &
     m_ui.mergeStdErrAndStdOutCheckBox->setChecked(m_settings.mergeStdErrAndStdOut);
     m_ui.wrapAppOutputCheckBox->setChecked(m_settings.wrapAppOutput);
     m_ui.jomCheckbox->setChecked(m_settings.useJom);
+    m_ui.addLibraryPathsToRunEnvCheckBox->setChecked(m_settings.addLibraryPathsToRunEnv);
     m_ui.promptToStopRunControlCheckBox->setChecked(m_settings.prompToStopRunControl);
     m_ui.maxAppOutputBox->setValue(m_settings.maxAppOutputLines);
     m_ui.maxBuildOutputBox->setValue(m_settings.maxBuildOutputLines);
@@ -185,12 +187,12 @@ void ProjectExplorerSettingsWidget::updateResetButton()
 // ------------------ ProjectExplorerSettingsPage
 ProjectExplorerSettingsPage::ProjectExplorerSettingsPage()
 {
-    setId(Constants::PROJECTEXPLORER_SETTINGS_ID);
+    setId(Constants::BUILD_AND_RUN_SETTINGS_PAGE_ID);
     setDisplayName(tr("General"));
-    setCategory(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
-        Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
+    setCategory(Constants::BUILD_AND_RUN_SETTINGS_CATEGORY);
+    setDisplayCategory(QCoreApplication::translate("ProjectExplorer", "Build & Run"));
+    setCategoryIcon(Utils::Icon({{":/projectexplorer/images/settingscategory_buildrun.png",
+                    Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
 }
 
 QWidget *ProjectExplorerSettingsPage::widget()

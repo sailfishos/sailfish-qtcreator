@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "linecolumn.h"
 #include "utils_global.h"
 
 #include <QString>
@@ -39,6 +40,11 @@ namespace Text {
 QTCREATOR_UTILS_EXPORT bool convertPosition(const QTextDocument *document,
                                             int pos,
                                             int *line, int *column);
+QTCREATOR_UTILS_EXPORT
+Utils::OptionalLineColumn convertPosition(const QTextDocument *document, int pos);
+
+// line and column are 1-based
+QTCREATOR_UTILS_EXPORT int positionInText(QTextDocument *textDocument, int line, int column);
 
 QTCREATOR_UTILS_EXPORT QString textAt(QTextCursor tc, int pos, int length);
 

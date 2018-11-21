@@ -40,10 +40,16 @@
 #include <modelnode.h>
 #include <nodeproperty.h>
 
+#ifndef QMLDESIGNER_TEST
+#include <qmldesignerplugin.h>
+#include <viewmanager.h>
+#endif
+
 #include <qmljs/parser/qmljsengine_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljssimplereader.h>
 
+#include <utils/algorithm.h>
 #include <utils/changeset.h>
 #include <utils/qtcassert.h>
 
@@ -448,6 +454,15 @@ void RewriterView::notifyErrorsAndWarnings(const QList<DocumentMessage> &errors)
     emitDocumentMessage(errors, m_warnings);
 }
 
+static QString replaceIllegalPropertyNameChars(const QString &str)
+{
+    QString ret = str;
+
+    ret.replace("@", "__AT__");
+
+    return ret;
+}
+
 QString RewriterView::auxiliaryDataAsQML() const
 {
     bool hasAuxData = false;
@@ -469,14 +484,20 @@ QString RewriterView::auxiliaryDataAsQML() const
             str += QString::number(node.internalId());
             str += ";";
 
-            for (auto i = data.begin(); i != data.end(); ++i) {
-                const QVariant value = i.value();
+            QStringList keys = Utils::transform(data.keys(), [](const PropertyName &name) {
+                return QString::fromUtf8(name);
+            });
+
+            keys.sort();
+
+            for (const QString &key : keys) {
+                const QVariant value = data.value(key.toUtf8());
                 QString strValue = value.toString();
                 if (static_cast<QMetaType::Type>(value.type()) == QMetaType::QString)
                     strValue = "\"" + strValue + "\"";
 
                 if (!strValue.isEmpty()) {
-                    str += QString::fromUtf8(i.key()) + ":";
+                    str += replaceIllegalPropertyNameChars(key) + ":";
                     str += strValue;
                     str += ";";
                 }
@@ -855,15 +876,20 @@ void RewriterView::qmlTextChanged()
         }
 
         case Amend: {
-            if (m_instantQmlTextUpdate)
+            if (m_instantQmlTextUpdate) {
                 amendQmlText();
-            else
+            } else {
 #ifndef QMLDESIGNER_TEST
-                m_amendTimer.start(400);
+                auto &viewManager = QmlDesignerPlugin::instance()->viewManager();
+                if (viewManager.usesRewriterView(this)) {
+                    QmlDesignerPlugin::instance()->viewManager().disableWidgets();
+                    m_amendTimer.start(400);
+                }
 #else
                 /*Keep test synchronous*/
                 amendQmlText();
 #endif
+            }
             break;
         }
         }
@@ -925,21 +951,32 @@ void RewriterView::writeAuxiliaryData()
         auxData.prepend(annotationsStart());
         auxData.append(annotationsEnd());
         newText.append(auxData);
-
-        QTextCursor tc(m_textModifier->textDocument());
-        Utils::ChangeSet changeSet;
-        changeSet.replace(0, oldText.length(), newText);
-        changeSet.apply(&tc);
     }
+
+    QTextCursor tc(m_textModifier->textDocument());
+    Utils::ChangeSet changeSet;
+    changeSet.replace(0, oldText.length(), newText);
+    changeSet.apply(&tc);
 }
 
 static void checkNode(QmlJS::SimpleReaderNode::Ptr node, RewriterView *view);
 
 static void checkChildNodes(QmlJS::SimpleReaderNode::Ptr node, RewriterView *view)
 {
+    if (!node)
+        return;
+
     for (auto child : node->children())
         checkNode(child, view);
 }
+
+static QString fixUpIllegalChars(const QString &str)
+{
+    QString ret = str;
+    ret.replace("__AT__", "@");
+    return ret;
+}
+
 static void checkNode(QmlJS::SimpleReaderNode::Ptr node, RewriterView *view)
 {
     if (!node)
@@ -957,7 +994,7 @@ static void checkNode(QmlJS::SimpleReaderNode::Ptr node, RewriterView *view)
 
     for (auto i = properties.begin(); i != properties.end(); ++i) {
         if (i.key() != "i")
-            modelNode.setAuxiliaryData(i.key().toUtf8(), i.value());
+            modelNode.setAuxiliaryData(fixUpIllegalChars(i.key()).toUtf8(), i.value());
     }
 
     checkChildNodes(node, view);

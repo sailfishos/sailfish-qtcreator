@@ -25,6 +25,7 @@
 
 #include "quicktesttreeitem.h"
 #include "quicktestconfiguration.h"
+#include "quicktestframework.h"
 #include "quicktestparser.h"
 #include "../testframeworkmanager.h"
 
@@ -34,6 +35,13 @@
 
 namespace Autotest {
 namespace Internal {
+
+TestTreeItem *QuickTestTreeItem::copyWithoutChildren()
+{
+    QuickTestTreeItem *copied = new QuickTestTreeItem;
+    copied->copyBasicDataFrom(this);
+    return copied;
+}
 
 QVariant QuickTestTreeItem::data(int column, int role) const
 {
@@ -123,13 +131,12 @@ TestConfiguration *QuickTestTreeItem::testConfiguration() const
     QuickTestConfiguration *config = nullptr;
     switch (type()) {
     case TestCase: {
+        const QString testName = name();
         QStringList testFunctions;
-        for (int row = 0, count = childCount(); row < count; ++row) {
-            const TestTreeItem *child = childItem(row);
-            if (child->type() == TestTreeItem::TestSpecialFunction)
-                continue;
-            testFunctions << name() + "::" + child->name();
-        }
+        forFirstLevelChildren([&testFunctions, &testName](TestTreeItem *child) {
+            if (child->type() == TestTreeItem::TestFunctionOrSet)
+                testFunctions << testName + "::" + child->name();
+        });
         config = new QuickTestConfiguration;
         config->setTestCases(testFunctions);
         config->setProjectFile(proFile());
@@ -159,7 +166,7 @@ static void testConfigurationFromCheckState(const TestTreeItem *item,
     QTC_ASSERT(item, return);
     if (item->type() == TestTreeItem::GroupNode) {
         for (int row = 0, count = item->childCount(); row < count; ++row)
-            testConfigurationFromCheckState(item->childItem(row), foundProFiles);
+            testConfigurationFromCheckState(item->childAt(row), foundProFiles);
         return;
     }
     QTC_ASSERT(item->type() == TestTreeItem::TestCase, return);
@@ -167,14 +174,12 @@ static void testConfigurationFromCheckState(const TestTreeItem *item,
     if (item->checked() == Qt::Unchecked)
         return;
 
+    const QString testName = item->name();
     QStringList testFunctions;
-    const int childCount = item->childCount();
-    for (int childRow = 0; childRow < childCount; ++childRow) {
-        const TestTreeItem *child = item->childItem(childRow);
-        if (child->checked() != Qt::Checked || child->type() != TestTreeItem::TestFunctionOrSet)
-            continue;
-        testFunctions << item->name() + "::" + child->name();
-    }
+    item->forFirstLevelChildren([&testFunctions, &testName](TestTreeItem *child) {
+        if (child->checked() == Qt::Checked && child->type() == TestTreeItem::TestFunctionOrSet)
+            testFunctions << testName + "::" + child->name();
+    });
     if (foundProFiles.contains(item->proFile())) {
         tc = foundProFiles[item->proFile()];
         QStringList oldFunctions(tc->testCases());
@@ -218,29 +223,25 @@ QList<TestConfiguration *> QuickTestTreeItem::getAllTestConfigurations() const
         return result;
 
     QHash<QString, Tests> testsForProfile;
-    for (int row = 0, count = childCount(); row < count; ++row) {
-        const TestTreeItem *child = childItem(row);
+    forFirstLevelChildren([&testsForProfile](TestTreeItem *child) {
         // unnamed Quick Tests must be handled separately
         if (child->name().isEmpty()) {
-            for (int childRow = 0, ccount = child->childCount(); childRow < ccount; ++ childRow) {
-                const TestTreeItem *grandChild = child->childItem(childRow);
+            child->forFirstLevelChildren([&testsForProfile](TestTreeItem *grandChild) {
                 const QString &proFile = grandChild->proFile();
                 ++(testsForProfile[proFile].testCount);
                 testsForProfile[proFile].internalTargets = grandChild->internalTargets();
-            }
-            continue;
+            });
+            return;
         }
         // named Quick Test
         if (child->type() == TestCase) {
             addTestsForItem(testsForProfile[child->proFile()], child);
         } else if (child->type() == GroupNode) {
-            const int groupCount = child->childCount();
-            for (int groupRow = 0; groupRow < groupCount; ++groupRow) {
-                const TestTreeItem *grandChild = child->childItem(groupRow);
+            child->forFirstLevelChildren([&testsForProfile](TestTreeItem *grandChild) {
                 addTestsForItem(testsForProfile[grandChild->proFile()], grandChild);
-            }
+            });
         }
-    }
+    });
     // create TestConfiguration for each project file
     for (auto it = testsForProfile.begin(), end = testsForProfile.end(); it != end; ++it) {
         QuickTestConfiguration *tc = new QuickTestConfiguration;
@@ -262,15 +263,11 @@ QList<TestConfiguration *> QuickTestTreeItem::getSelectedTestConfigurations() co
 
     QHash<QString, QuickTestConfiguration *> foundProFiles;
 
-    for (int row = 0, count = childCount(); row < count; ++row) {
-        const TestTreeItem *child = childItem(row);
-        // unnamed Quick Tests cannot get selected explicitly
-        if (child->name().isEmpty())
-            continue;
-
-        // named Quick Tests
-        testConfigurationFromCheckState(child, foundProFiles);
-    }
+    forFirstLevelChildren([&foundProFiles](TestTreeItem *child) {
+        // unnamed Quick Tests cannot get selected explicitly - only handle named Quick Tests
+        if (!child->name().isEmpty())
+            testConfigurationFromCheckState(child, foundProFiles);
+    });
 
     for (auto it = foundProFiles.begin(), end = foundProFiles.end(); it != end; ++it) {
         QuickTestConfiguration *config = it.value();
@@ -278,6 +275,36 @@ QList<TestConfiguration *> QuickTestTreeItem::getSelectedTestConfigurations() co
             result << config;
         else
             delete config;
+    }
+
+    return result;
+}
+
+QList<TestConfiguration *> QuickTestTreeItem::getTestConfigurationsForFile(const Utils::FileName &fileName) const
+{
+    QList<TestConfiguration *> result;
+    ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
+    if (!project || type() != Root)
+        return result;
+
+    QHash<TestTreeItem *, QStringList> testFunctions;
+    const QString &file = fileName.toString();
+    forAllChildren([&testFunctions, &file](TestTreeItem *node) {
+        if (node->type() == Type::TestFunctionOrSet && node->filePath() == file) {
+            QTC_ASSERT(node->parentItem(), return);
+            TestTreeItem *testCase = node->parentItem();
+            QTC_ASSERT(testCase->type() == Type::TestCase, return);
+            if (testCase->name().isEmpty())
+                return;
+            testFunctions[testCase] << testCase->name() + "::" + node->name();
+        }
+    });
+
+    for (auto it = testFunctions.cbegin(), end = testFunctions.cend(); it != end; ++it) {
+        TestConfiguration *tc = it.key()->testConfiguration();
+        QTC_ASSERT(tc, continue);
+        tc->setTestCases(it.value());
+        result << tc;
     }
 
     return result;
@@ -293,14 +320,10 @@ TestTreeItem *QuickTestTreeItem::find(const TestParseResult *result)
             return unnamedQuickTests();
         if (TestFrameworkManager::instance()->groupingEnabled(result->frameworkId)) {
             const QString path = QFileInfo(result->fileName).absolutePath();
-            for (int row = 0; row < childCount(); ++row) {
-                TestTreeItem *group = childItem(row);
-                if (group->filePath() != path)
-                    continue;
-                if (auto groupChild = group->findChildByFile(result->fileName))
-                    return groupChild;
-            }
-            return nullptr;
+            TestTreeItem *group = findFirstLevelChild([path](TestTreeItem *group) {
+                    return group->filePath() == path;
+            });
+            return group ? group->findChildByFile(result->fileName) : nullptr;
         }
         return findChildByFile(result->fileName);
     case GroupNode:
@@ -308,6 +331,28 @@ TestTreeItem *QuickTestTreeItem::find(const TestParseResult *result)
     case TestCase:
         return name().isEmpty() ? findChildByNameAndFile(result->name, result->fileName)
                                 : findChildByName(result->name);
+    default:
+        return nullptr;
+    }
+}
+
+TestTreeItem *QuickTestTreeItem::findChild(const TestTreeItem *other)
+{
+    QTC_ASSERT(other, return nullptr);
+    const Type otherType = other->type();
+
+    switch (type()) {
+    case Root:
+        if (otherType == TestCase && other->name().isEmpty())
+            return unnamedQuickTests();
+        return findChildByFileAndType(other->filePath(), otherType);
+    case GroupNode:
+        return findChildByFileAndType(other->filePath(), otherType);
+    case TestCase:
+        if (otherType != TestFunctionOrSet && otherType != TestDataFunction && otherType != TestSpecialFunction)
+            return nullptr;
+        return name().isEmpty() ? findChildByNameAndFile(other->name(), other->filePath())
+                                : findChildByName(other->name());
     default:
         return nullptr;
     }
@@ -356,14 +401,14 @@ bool QuickTestTreeItem::removeOnSweepIfEmpty() const
 
 TestTreeItem *QuickTestTreeItem::createParentGroupNode() const
 {
-    if (filePath().isEmpty() || name().isEmpty())
-        return nullptr;
-    if (type() == TestFunctionOrSet)
-        return nullptr;
-
     const QFileInfo fileInfo(filePath());
     const QFileInfo base(fileInfo.absolutePath());
     return new QuickTestTreeItem(base.baseName(), fileInfo.absolutePath(), TestTreeItem::GroupNode);
+}
+
+bool QuickTestTreeItem::isGroupable() const
+{
+    return type() == TestCase && !name().isEmpty() && !filePath().isEmpty();
 }
 
 QSet<QString> QuickTestTreeItem::internalTargets() const
@@ -375,11 +420,28 @@ QSet<QString> QuickTestTreeItem::internalTargets() const
         if (projectPart->buildTargetType != CppTools::ProjectPart::Executable)
             continue;
         if (projectPart->projectFile == proFile()) {
-            result.insert(projectPart->buildSystemTarget + '|' + projectPart->projectFile);
+            result.insert(projectPart->buildSystemTarget);
             break;
         }
     }
     return result;
+}
+
+void QuickTestTreeItem::markForRemovalRecursively(const QString &filePath)
+{
+    static const Core::Id id = Core::Id(Constants::FRAMEWORK_PREFIX).withSuffix(
+                QuickTest::Constants::FRAMEWORK_NAME);
+    TestTreeItem::markForRemovalRecursively(filePath);
+    auto parser = dynamic_cast<QuickTestParser *>(TestFrameworkManager::instance()
+                                                   ->testParserForTestFramework(id));
+    const QString proFile = parser->projectFileForMainCppFile(filePath);
+    if (!proFile.isEmpty()) {
+        TestTreeItem *root = TestFrameworkManager::instance()->rootNodeForTestFramework(id);
+        root->forAllChildren([proFile](TestTreeItem *it) {
+            if (it->proFile() == proFile)
+                it->markForRemoval(true);
+        });
+    }
 }
 
 TestTreeItem *QuickTestTreeItem::unnamedQuickTests() const
@@ -387,12 +449,7 @@ TestTreeItem *QuickTestTreeItem::unnamedQuickTests() const
     if (type() != Root)
         return nullptr;
 
-    for (int row = 0, count = childCount(); row < count; ++row) {
-        TestTreeItem *child = childItem(row);
-        if (child->name().isEmpty())
-            return child;
-    }
-    return nullptr;
+    return findFirstLevelChild([](TestTreeItem *child) { return child->name().isEmpty(); });
 }
 
 } // namespace Internal

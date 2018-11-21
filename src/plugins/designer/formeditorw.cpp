@@ -132,6 +132,7 @@ public:
         setEditorWidgetCreator([]() { return new Internal::DesignerXmlEditorWidget; });
         setUseGenericHighlighter(true);
         setDuplicatedSupported(false);
+        setMarksVisible(false);
     }
 
     FormWindowEditor *create(QDesignerFormWindowInterface *form)
@@ -215,7 +216,6 @@ public:
     QList<Id> m_toolActionIds;
     QWidget *m_modeWidget = nullptr;
     EditorWidget *m_editorWidget = nullptr;
-    DesignMode *m_designMode = nullptr;
 
     QWidget *m_editorToolBar = nullptr;
     EditorToolBar *m_toolBar = nullptr;
@@ -283,7 +283,7 @@ FormEditorData::~FormEditorData()
         m_editorWidget->saveSettings(s);
         s->endGroup();
 
-        m_designMode->unregisterDesignWidget(m_modeWidget);
+        DesignMode::unregisterDesignWidget(m_modeWidget);
         delete m_modeWidget;
         m_modeWidget = nullptr;
     }
@@ -406,7 +406,6 @@ void FormEditorData::fullInit()
     m_toolBar->setNavigationVisible(false);
     m_toolBar->addCenterToolBar(m_editorToolBar);
 
-    m_designMode = DesignMode::instance();
     m_modeWidget = new QWidget;
     m_modeWidget->setObjectName("DesignerModeWidget");
     QVBoxLayout *layout = new QVBoxLayout;
@@ -417,7 +416,7 @@ void FormEditorData::fullInit()
     // 'Run' in 'Design' mode emits output.
     MiniSplitter *splitter = new MiniSplitter(Qt::Vertical);
     splitter->addWidget(m_editorWidget);
-    QWidget *outputPane = new OutputPanePlaceHolder(m_designMode->id(), splitter);
+    QWidget *outputPane = new OutputPanePlaceHolder(Core::Constants::MODE_DESIGN, splitter);
     outputPane->setObjectName("DesignerOutputPanePlaceHolder");
     splitter->addWidget(outputPane);
     layout->addWidget(splitter);
@@ -428,7 +427,7 @@ void FormEditorData::fullInit()
     m_context = new DesignerContext(designerContexts, m_modeWidget, m_instance);
     ICore::addContextObject(m_context);
 
-    m_designMode->registerDesignWidget(m_modeWidget, QStringList(FORM_MIMETYPE), m_contexts);
+    DesignMode::registerDesignWidget(m_modeWidget, QStringList(FORM_MIMETYPE), m_contexts);
 
     setupViewActions();
 
@@ -560,12 +559,12 @@ void FormEditorData::setupActions()
 
     //tool actions
     m_toolActionIds.push_back("FormEditor.LayoutHorizontally");
-    const QString horizLayoutShortcut = UseMacShortcuts ? tr("Meta+Shift+H") : tr("Ctrl+H");
+    const QString horizLayoutShortcut = useMacShortcuts ? tr("Meta+Shift+H") : tr("Ctrl+H");
     addToolAction(m_fwm->actionHorizontalLayout(), m_contexts,
                   m_toolActionIds.back(), mformtools, horizLayoutShortcut);
 
     m_toolActionIds.push_back("FormEditor.LayoutVertically");
-    const QString vertLayoutShortcut = UseMacShortcuts ? tr("Meta+L") : tr("Ctrl+L");
+    const QString vertLayoutShortcut = useMacShortcuts ? tr("Meta+L") : tr("Ctrl+L");
     addToolAction(m_fwm->actionVerticalLayout(), m_contexts,
                   m_toolActionIds.back(),  mformtools, vertLayoutShortcut);
 
@@ -582,7 +581,7 @@ void FormEditorData::setupActions()
                   m_toolActionIds.back(),  mformtools);
 
     m_toolActionIds.push_back("FormEditor.LayoutGrid");
-    const QString gridShortcut = UseMacShortcuts ? tr("Meta+Shift+G") : tr("Ctrl+G");
+    const QString gridShortcut = useMacShortcuts ? tr("Meta+Shift+G") : tr("Ctrl+G");
     addToolAction(m_fwm->actionGridLayout(), m_contexts,
                   m_toolActionIds.back(),  mformtools, gridShortcut);
 
@@ -591,7 +590,7 @@ void FormEditorData::setupActions()
                   m_toolActionIds.back(), mformtools);
 
     m_toolActionIds.push_back("FormEditor.LayoutAdjustSize");
-    const QString adjustShortcut = UseMacShortcuts ? tr("Meta+J") : tr("Ctrl+J");
+    const QString adjustShortcut = useMacShortcuts ? tr("Meta+J") : tr("Ctrl+J");
     addToolAction(m_fwm->actionAdjustSize(), m_contexts,
                   m_toolActionIds.back(),  mformtools, adjustShortcut);
 

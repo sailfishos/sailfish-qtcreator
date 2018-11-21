@@ -26,7 +26,7 @@
 #include "qmlobjectnode.h"
 #include "qmlitemnode.h"
 #include "qmlstate.h"
-#include "qmltimelinekeyframes.h"
+#include "qmltimelinekeyframegroup.h"
 #include "variantproperty.h"
 #include "nodeproperty.h"
 #include <invalidmodelnodeexception.h>
@@ -37,7 +37,7 @@
 #include "nodelistproperty.h"
 #include "nodeinstanceview.h"
 
-#include <qmltimelinemutator.h>
+#include <qmltimeline.h>
 
 #ifndef QMLDESIGNER_TEST
 #include <qmldesignerplugin.h>
@@ -55,7 +55,7 @@ void QmlObjectNode::setVariantProperty(const PropertyName &name, const QVariant 
     if (timelineIsActive()) {
         modelNode().validId();
 
-        QmlTimelineFrames timelineFrames(currentTimeline().timelineFrames(modelNode(), name));
+        QmlTimelineKeyframeGroup timelineFrames(currentTimeline().keyframeGroup(modelNode(), name));
 
         Q_ASSERT(timelineFrames.isValid());
 
@@ -100,12 +100,12 @@ QmlModelState QmlObjectNode::currentState() const
         return QmlModelState();
 }
 
-QmlTimelineMutator QmlObjectNode::currentTimeline() const
+QmlTimeline QmlObjectNode::currentTimeline() const
 {
     if (isValid())
         return view()->currentTimeline();
     else
-        return QmlTimelineMutator();
+        return QmlTimeline();
 }
 
 bool QmlObjectNode::isRootModelNode() const
@@ -201,7 +201,7 @@ QVariant QmlObjectNode::modelValue(const PropertyName &name) const
         throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 
     if (timelineIsActive() && currentTimeline().hasTimeline(modelNode(), name)) {
-        QmlTimelineFrames timelineFrames(currentTimeline().timelineFrames(modelNode(), name));
+        QmlTimelineKeyframeGroup timelineFrames(currentTimeline().keyframeGroup(modelNode(), name));
 
         Q_ASSERT(timelineFrames.isValid());
 
@@ -355,10 +355,10 @@ void QmlObjectNode::destroy()
         stateOperation.modelNode().destroy(); //remove of belonging StatesOperations
     }
 
-    for (const ModelNode &mutatorNode : view()->allModelNodes()) {
-        if (QmlTimelineMutator::isValidQmlTimelineMutator(mutatorNode)) {
-            QmlTimelineMutator mutator(mutatorNode);
-            mutator.destroyFramesForTarget(modelNode());
+    for (const ModelNode &timelineNode : view()->allModelNodes()) {
+        if (QmlTimeline::isValidQmlTimeline(timelineNode)) {
+            QmlTimeline timeline(timelineNode);
+            timeline.destroyKeyframesForTarget(modelNode());
         }
     }
 

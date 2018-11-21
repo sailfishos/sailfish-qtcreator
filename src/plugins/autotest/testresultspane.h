@@ -53,12 +53,13 @@ namespace Internal {
 class TestResultModel;
 class TestResultFilterModel;
 class TestResult;
+class TestEditorMark;
 
 class ResultsTreeView : public Utils::TreeView
 {
     Q_OBJECT
 public:
-    explicit ResultsTreeView(QWidget *parent = 0);
+    explicit ResultsTreeView(QWidget *parent = nullptr);
 
 signals:
     void copyShortcutTriggered();
@@ -92,9 +93,10 @@ public:
 
     void addTestResult(const TestResultPtr &result);
     void addOutput(const QByteArray &output);
+    void showTestResult(const QModelIndex &index);
 
 private:
-    explicit TestResultsPane(QObject *parent = 0);
+    explicit TestResultsPane(QObject *parent = nullptr);
 
     void onItemActivated(const QModelIndex &index);
     void onRunAllTriggered();
@@ -117,6 +119,9 @@ private:
     void toggleOutputStyle();
     QString getWholeOutput(const QModelIndex &parent = QModelIndex());
 
+    void createMarks(const QModelIndex& parent = QModelIndex());
+    void clearMarks();
+
     QStackedWidget *m_outputWidget;
     QFrame *m_summaryWidget;
     QLabel *m_summaryLabel;
@@ -127,6 +132,7 @@ private:
     QToolButton *m_expandCollapse;
     QToolButton *m_runAll;
     QToolButton *m_runSelected;
+    QToolButton *m_runFile;
     QToolButton *m_stopTestRun;
     QToolButton *m_filterButton;
     QToolButton *m_outputToggleButton;
@@ -135,6 +141,7 @@ private:
     bool m_autoScroll = false;
     bool m_atEnd = false;
     bool m_testRunning = false;
+    QVector<TestEditorMark *> m_marks;
 };
 
 } // namespace Internal

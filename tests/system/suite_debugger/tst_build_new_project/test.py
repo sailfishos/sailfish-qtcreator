@@ -28,15 +28,15 @@ source("../../shared/qtcreator.py")
 project = "SquishProject"
 
 def main():
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
-    checkedTargets = createProject_Qt_Console(tempDir(), project)
-    availableConfigs = iterateBuildConfigs(len(checkedTargets))
+    createProject_Qt_Console(tempDir(), project)
+    availableConfigs = iterateBuildConfigs()
     if not availableConfigs:
         test.fatal("Haven't found a suitable Qt version - leaving without building.")
     for kit, config in availableConfigs:
-        selectBuildConfig(len(checkedTargets), kit, config)
+        selectBuildConfig(kit, config)
         test.log("Testing build configuration: " + config)
         if runAndCloseApp() == None:
             checkCompile()

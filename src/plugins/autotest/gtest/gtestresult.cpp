@@ -38,9 +38,9 @@ GTestResult::GTestResult(const QString &projectFile, const QString &name)
 {
 }
 
-GTestResult::GTestResult(const QString &executable, const QString &projectFile,
+GTestResult::GTestResult(const QString &id, const QString &projectFile,
                          const QString &name)
-    : TestResult(executable, name), m_projectFile(projectFile)
+    : TestResult(id, name), m_projectFile(projectFile)
 {
 }
 
@@ -69,6 +69,8 @@ bool GTestResult::isDirectParentOf(const TestResult *other, bool *needsIntermedi
         return false;
 
     const GTestResult *gtOther = static_cast<const GTestResult *>(other);
+    if (m_testSetName == gtOther->m_testSetName && other->result() == Result::MessageInternal)
+        return true;
     if (m_iteration != gtOther->m_iteration)
         return false;
     return isTest() && gtOther->isTestSet();

@@ -42,7 +42,7 @@ class CORE_EXPORT IFindFilter : public QObject
 
 public:
     IFindFilter();
-    virtual ~IFindFilter();
+    ~IFindFilter() override;
 
     static const QList<IFindFilter *> allFindFilters();
 
@@ -60,7 +60,7 @@ public:
     virtual void replaceAll(const QString &txt, FindFlags findFlags)
     { Q_UNUSED(txt) Q_UNUSED(findFlags) }
 
-    virtual QWidget *createConfigWidget() { return 0; }
+    virtual QWidget *createConfigWidget() { return nullptr; }
     virtual void writeSettings(QSettings *settings) { Q_UNUSED(settings) }
     virtual void readSettings(QSettings *settings) { Q_UNUSED(settings) }
 

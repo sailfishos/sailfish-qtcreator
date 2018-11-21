@@ -28,7 +28,7 @@ source("../../shared/qtcreator.py")
 def main():
     for useClang in [False, True]:
         with TestSection(getCodeModelString(useClang)):
-            if not startCreator(useClang):
+            if not startCreatorVerifyingClang(useClang):
                 continue
             createProject_Qt_Console(tempDir(), "SquishProject")
             checkCodeModelSettings(useClang)
@@ -54,3 +54,4 @@ def main():
             snooze(1)
             invokeMenuItem("File", "Close All")
             invokeMenuItem("File", "Exit")
+            waitForCleanShutdown()

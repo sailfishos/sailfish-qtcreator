@@ -26,39 +26,26 @@
 
 #pragma once
 
+#include <projectexplorer/runconfiguration.h>
+
 #include <qmldebug/qmldebugcommandlinearguments.h>
 
 #include <QFuture>
-#include <QTcpSocket>
-
-#include "androidrunnable.h"
-
-namespace ProjectExplorer {
-class RunControl;
-}
 
 namespace Android {
+
+class AndroidDeviceInfo;
+
 namespace Internal {
 
 const int MIN_SOCKET_HANDSHAKE_PORT = 20001;
 
-static inline void deleter(QProcess *p)
-{
-    p->terminate();
-    if (!p->waitForFinished(1000)) {
-        p->kill();
-        p->waitForFinished();
-    }
-    // Might get deleted from its own signal handler.
-    p->deleteLater();
-}
-
-class AndroidRunnerWorkerBase : public QObject
+class AndroidRunnerWorker : public QObject
 {
     Q_OBJECT
 public:
-    AndroidRunnerWorkerBase(ProjectExplorer::RunControl *runControl, const AndroidRunnable &runnable);
-    ~AndroidRunnerWorkerBase() override;
+    AndroidRunnerWorker(ProjectExplorer::RunWorker *runner, const QString &packageName);
+    ~AndroidRunnerWorker() override;
     bool adbShellAmNeedsQuotes();
     bool runAdb(const QStringList &args, int timeoutS = 10);
     void adbKill(qint64 pid);
@@ -67,13 +54,16 @@ public:
     void logcatReadStandardError();
     void logcatReadStandardOutput();
     void logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError);
-    void setAndroidRunnable(const AndroidRunnable &runnable);
+    void setAndroidDeviceInfo(const AndroidDeviceInfo &info);
+    void setExtraEnvVars(const Utils::Environment &extraEnvVars);
+    void setExtraAppParams(const QString &extraAppParams);
+    void setIsPreNougat(bool isPreNougat) { m_isPreNougat = isPreNougat; }
+    void setIntentName(const QString &intentName) { m_intentName = intentName; }
 
-    virtual void asyncStart();
-    virtual void asyncStop();
-    virtual void handleRemoteDebuggerRunning();
-    virtual void handleJdbWaiting();
-    virtual void handleJdbSettled();
+    void asyncStart();
+    void asyncStop();
+    void handleJdbWaiting();
+    void handleJdbSettled();
 
 signals:
     void remoteProcessStarted(Utils::Port gdbServerPort, const QUrl &qmlServer, int pid);
@@ -83,19 +73,27 @@ signals:
     void remoteErrorOutput(const QString &output);
 
 protected:
+    void asyncStartHelper();
+
     enum class JDBState {
         Idle,
         Waiting,
         Settled
     };
-    virtual void onProcessIdChanged(qint64 pid);
+    void onProcessIdChanged(qint64 pid);
+    using Deleter = void (*)(QProcess *);
 
     // Create the processes and timer in the worker thread, for correct thread affinity
-    AndroidRunnable m_androidRunnable;
+    bool m_isPreNougat = false;
+    QString m_packageName;
+    QString m_intentName;
+    QStringList m_beforeStartAdbCommands;
+    QStringList m_afterFinishAdbCommands;
     QString m_adb;
+    QStringList m_amStartExtraArgs;
     qint64 m_processPID = -1;
-    std::unique_ptr<QProcess, decltype(&deleter)> m_adbLogcatProcess;
-    std::unique_ptr<QProcess, decltype(&deleter)> m_psIsAlive;
+    std::unique_ptr<QProcess, Deleter> m_adbLogcatProcess;
+    std::unique_ptr<QProcess, Deleter> m_psIsAlive;
     QByteArray m_stdoutBuffer;
     QByteArray m_stderrBuffer;
     QRegExp m_logCatRegExp;
@@ -108,26 +106,12 @@ protected:
     QString m_lastRunAdbError;
     JDBState m_jdbState = JDBState::Idle;
     Utils::Port m_localJdbServerPort;
-    std::unique_ptr<QProcess, decltype(&deleter)> m_gdbServerProcess;
-    std::unique_ptr<QProcess, decltype(&deleter)> m_jdbProcess;
-};
-
-
-class AndroidRunnerWorker : public AndroidRunnerWorkerBase
-{
-    Q_OBJECT
-public:
-    AndroidRunnerWorker(ProjectExplorer::RunControl *runControl, const AndroidRunnable &runnable);
-    void asyncStart() override;
-};
-
-
-class AndroidRunnerWorkerPreNougat : public AndroidRunnerWorkerBase
-{
-    Q_OBJECT
-public:
-    AndroidRunnerWorkerPreNougat(ProjectExplorer::RunControl *runControl, const AndroidRunnable &runnable);
-    void asyncStart() override;
+    std::unique_ptr<QProcess, Deleter> m_gdbServerProcess;
+    std::unique_ptr<QProcess, Deleter> m_jdbProcess;
+    QString m_deviceSerialNumber;
+    int m_apiLevel = -1;
+    QString m_extraAppParams;
+    Utils::Environment m_extraEnvVars;
 };
 
 } // namespace Internal

@@ -4,7 +4,6 @@ SUBDIRS += \
     algorithm \
     aggregation \
     changeset \
-    clangstaticanalyzer \
     cplusplus \
     debugger \
     diff \
@@ -12,6 +11,7 @@ SUBDIRS += \
     externaltool \
     environment \
     generichighlighter \
+    pointeralgorithm \
     profilewriter \
     treeviewfind \
     toolchaincache \
@@ -25,4 +25,4 @@ SUBDIRS += \
     valgrind
 
 qtHaveModule(qml): SUBDIRS += qml
-qtHaveModule(quick): SUBDIRS += flamegraph timeline
+qtHaveModule(quick): SUBDIRS += tracing

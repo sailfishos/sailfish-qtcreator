@@ -54,8 +54,8 @@ class NavigatorView : public AbstractView
     Q_OBJECT
 
 public:
-    NavigatorView(QObject* parent = 0);
-    ~NavigatorView();
+    NavigatorView(QObject* parent = nullptr);
+    ~NavigatorView() override;
 
     bool hasWidget() const override;
     WidgetInfo widgetInfo() override;
@@ -86,6 +86,9 @@ public:
 
     void handleChangedExport(const ModelNode &modelNode, bool exported);
     bool isNodeInvisible(const ModelNode &modelNode) const;
+
+    void disableWidget() override;
+    void enableWidget() override;
 
 private:
     ModelNode modelNodeForIndex(const QModelIndex &modelIndex) const;

@@ -125,7 +125,7 @@ Location::Location(const StackFrame &frame, bool marker)
 }
 
 
-LocationMark::LocationMark(DebuggerEngine *engine, const QString &file, int line)
+LocationMark::LocationMark(DebuggerEngine *engine, const FileName &file, int line)
     : TextMark(file, line, Constants::TEXT_MARK_CATEGORY_LOCATION), m_engine(engine)
 {
     setIcon(Icons::LOCATION.icon());
@@ -486,6 +486,7 @@ void DebuggerEngine::start()
         d->m_runTool->runControl()->setApplicationProcessHandle(d->m_inferiorPid);
 
     action(OperateByInstruction)->setEnabled(hasCapability(DisassemblerCapability));
+    action(OperateByInstruction)->setChecked(boolSetting(OperateByInstruction));
 
     QTC_ASSERT(state() == DebuggerNotReady || state() == DebuggerFinished,
          qDebug() << state());
@@ -534,8 +535,10 @@ void DebuggerEngine::gotoLocation(const Location &loc)
     const QString file = QDir::cleanPath(loc.fileName());
     const int line = loc.lineNumber();
     bool newEditor = false;
-    IEditor *editor = EditorManager::openEditor(file, Id(),
-                                                EditorManager::IgnoreNavigationHistory, &newEditor);
+    IEditor *editor = EditorManager::openEditor(
+                file, Id(),
+                EditorManager::IgnoreNavigationHistory | EditorManager::DoNotSwitchToDesignMode,
+                &newEditor);
     QTC_ASSERT(editor, return); // Unreadable file?
 
     editor->gotoLine(line, 0, !boolSetting(StationaryEditorWhileStepping));
@@ -544,7 +547,7 @@ void DebuggerEngine::gotoLocation(const Location &loc)
         editor->document()->setProperty(Constants::OPENED_BY_DEBUGGER, true);
 
     if (loc.needsMarker())
-        d->m_locationMark.reset(new LocationMark(this, file, line));
+        d->m_locationMark.reset(new LocationMark(this, FileName::fromString(file), line));
 }
 
 const DebuggerRunParameters &DebuggerEngine::runParameters() const
@@ -650,12 +653,9 @@ void DebuggerEngine::notifyEngineSetupOk()
     d->m_progress.setProgressValue(250);
     QTC_ASSERT(state() == EngineSetupRequested, qDebug() << this << state());
     setState(EngineSetupOk);
-    if (isMasterEngine() && runTool()) {
-        runTool()->aboutToNotifyInferiorSetupOk(); // FIXME: Remove, only used for Android.
-        runTool()->reportStarted();
-    }
-
     if (isMasterEngine()) {
+        if (runTool())
+            runTool()->reportStarted();
         // Slaves will get called setupSlaveInferior() below.
         setState(EngineRunRequested);
         showMessage("CALL: RUN ENGINE");
@@ -901,8 +901,6 @@ void DebuggerEngine::notifyInferiorExited()
     CALLGRIND_STOP_INSTRUMENTATION;
     CALLGRIND_DUMP_STATS;
 #endif
-    QTC_ASSERT(isAllowedTransition(state(), InferiorShutdownFinished),
-            qDebug() << this << state(); return);
     showMessage("NOTE: INFERIOR EXITED");
     d->resetLocation();
     setState(InferiorShutdownFinished);
@@ -993,8 +991,6 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
 
     if (isSlaveEngine())
         masterEngine()->slaveEngineStateChanged(this, state);
-    if (state == InferiorRunOk && isMasterEngine())
-        runTool()->inferiorRunning();
 }
 
 void DebuggerEngine::updateViews()
@@ -1422,6 +1418,11 @@ void DebuggerEngine::changeBreakpoint(Breakpoint bp)
     BreakpointState state = bp.state();
     QTC_ASSERT(state == BreakpointChangeRequested,
                qDebug() << bp.id() << this << state);
+    QTC_CHECK(false);
+}
+
+void DebuggerEngine::enableSubBreakpoint(const QString &, bool)
+{
     QTC_CHECK(false);
 }
 

@@ -35,6 +35,12 @@
 #include <refactoringclientproxy.h>
 #include <symbolindexing.h>
 
+#include <sqliteexception.h>
+
+#include <chrono>
+
+using namespace std::chrono_literals;
+
 using ClangBackEnd::FilePathCaching;
 using ClangBackEnd::RefactoringClientProxy;
 using ClangBackEnd::RefactoringServer;
@@ -58,34 +64,52 @@ QStringList processArguments(QCoreApplication &application)
     return parser.positionalArguments();
 }
 
+class RefactoringApplication : public QCoreApplication
+{
+public:
+    using QCoreApplication::QCoreApplication;
+
+    bool notify(QObject *object, QEvent *event) override
+    {
+        try {
+            return QCoreApplication::notify(object, event);
+        } catch (Sqlite::Exception &exception) {
+            exception.printWarning();
+        }
+
+        return false;
+    }
+};
+
 int main(int argc, char *argv[])
-try {
-    //QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
+{
+    try {
+        //QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
 
-    QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
-    QCoreApplication::setOrganizationDomain(QStringLiteral("qt-project.org"));
-    QCoreApplication::setApplicationName(QStringLiteral("ClangRefactoringBackend"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+        QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
+        QCoreApplication::setOrganizationDomain(QStringLiteral("qt-project.org"));
+        QCoreApplication::setApplicationName(QStringLiteral("ClangRefactoringBackend"));
+        QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 
-    QCoreApplication application(argc, argv);
+        RefactoringApplication application(argc, argv);
 
-    const QStringList arguments = processArguments(application);
-    const QString connectionName = arguments[0];
-    const QString databasePath = arguments[1];
+        const QStringList arguments = processArguments(application);
+        const QString connectionName = arguments[0];
+        const QString databasePath = arguments[1];
 
-    Sqlite::Database database{Utils::PathString{databasePath}};
-    RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
-    FilePathCaching filePathCache{database};
-    SymbolIndexing symbolIndexing{database, filePathCache};
-    RefactoringServer clangCodeModelServer{symbolIndexing, filePathCache};
-    ConnectionServer<RefactoringServer, RefactoringClientProxy> connectionServer;
-    connectionServer.setServer(&clangCodeModelServer);
-    connectionServer.start(connectionName);
+        Sqlite::Database database{Utils::PathString{databasePath}, 100000ms};
+        RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
+        FilePathCaching filePathCache{database};
+        SymbolIndexing symbolIndexing{database, filePathCache};
+        RefactoringServer clangCodeModelServer{symbolIndexing, filePathCache};
+        ConnectionServer<RefactoringServer, RefactoringClientProxy> connectionServer;
+        connectionServer.setServer(&clangCodeModelServer);
+        connectionServer.start(connectionName);
 
-
-    return application.exec();
-} catch (const Sqlite::Exception &exception) {
-    exception.printWarning();
+        return application.exec();
+    } catch (const Sqlite::Exception &exception) {
+        exception.printWarning();
+    }
 }
 
 

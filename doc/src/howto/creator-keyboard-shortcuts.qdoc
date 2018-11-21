@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,10 +30,15 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-cli.html
+    \contentspage index.html
     \page creator-keyboard-shortcuts.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-advanced.html
+    \nextpage creator-coding.html
+    \else
+    \previouspage creator-cli.html
     \nextpage creator-editor-external.html
+    \endif
 
     \title Keyboard Shortcuts
 
@@ -539,7 +544,10 @@
             \li  Ctrl+0
     \endtable
 
-    \section2 Qt Quick Designer Keyboard Shortcuts
+    \section2 Design Mode Keyboard Shortcuts
+
+    You can use the following keyboard shortcuts when editing QML files in the
+    Design mode.
 
     \table
         \header

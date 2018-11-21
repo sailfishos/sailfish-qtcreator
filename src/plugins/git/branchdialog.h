@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "branchutils.h"
+
 #include <QDialog>
 
 QT_BEGIN_NAMESPACE
@@ -43,7 +45,7 @@ class BranchModel;
  * branches below. Offers to checkout/delete local branches.
  *
  */
-class BranchDialog : public QDialog
+class BranchDialog : public QDialog, public BranchUtils
 {
     Q_OBJECT
 
@@ -59,23 +61,13 @@ private:
     void resizeColumns();
     void enableButtons();
     void refreshCurrentRepository();
-    void add();
-    void checkout();
-    void remove();
     void rename();
     void diff();
     void log();
-    void reset();
     void merge();
-    void rebase();
-    void cherryPick();
     void setRemoteTracking();
 
-    QModelIndex selectedIndex();
-
     Ui::BranchDialog *m_ui;
-    BranchModel *m_model;
-    QString m_repository;
 };
 
 } // namespace Internal

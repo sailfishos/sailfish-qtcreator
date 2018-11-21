@@ -31,7 +31,6 @@
 
 #include <QAction>
 #include <QCoreApplication>
-#include <QDebug>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -39,7 +38,6 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/id.h>
-#include <extensionsystem/pluginmanager.h>
 
 namespace ImageViewer {
 namespace Internal {
@@ -51,8 +49,8 @@ bool ImageViewerPlugin::initialize(const QStringList &arguments, QString *errorM
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
 
-    m_factory = new ImageViewerFactory(this);
-    addAutoReleasedObject(m_factory);
+    (void) new ImageViewerFactory(this);
+
     return true;
 }
 
@@ -115,6 +113,14 @@ void ImageViewerPlugin::extensionsInitialized()
         if (ImageViewer *iv = currentImageViewer())
             iv->exportImage();
     });
+
+    a = registerNewAction(Constants::ACTION_EXPORT_MULTI_IMAGES, tr("Export Multiple Images"),
+                          QKeySequence());
+    connect(a, &QAction::triggered, this, []() {
+        if (ImageViewer *iv = currentImageViewer())
+            iv->exportMultiImages();
+    });
+
 }
 
 QAction *ImageViewerPlugin::registerNewAction(Core::Id id,

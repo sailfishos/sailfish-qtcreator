@@ -49,8 +49,8 @@ class ColorSchemeEdit : public QWidget
     Q_OBJECT
 
 public:
-    ColorSchemeEdit(QWidget *parent = 0);
-    ~ColorSchemeEdit();
+    ColorSchemeEdit(QWidget *parent = nullptr);
+    ~ColorSchemeEdit() override;
 
     void setFormatDescriptions(const FormatDescriptions &descriptions);
     void setBaseFont(const QFont &font);

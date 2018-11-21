@@ -35,7 +35,6 @@
 #include "qnxqtversion.h"
 #include "qnxqtversionfactory.h"
 #include "qnxrunconfiguration.h"
-#include "qnxrunconfigurationfactory.h"
 #include "qnxsettingspage.h"
 #include "qnxtoolchain.h"
 #include "qnxutils.h"
@@ -50,7 +49,6 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/taskhub.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -64,7 +62,6 @@
 #include <qtsupport/qtkitinformation.h>
 
 #include <QAction>
-#include <QtPlugin>
 
 using namespace ProjectExplorer;
 
@@ -84,25 +81,39 @@ public:
     }
 };
 
+class QnxPluginPrivate
+{
+public:
+    void updateDebuggerActions();
+
+    QAction *m_debugSeparator = nullptr;
+    QAction m_attachToQnxApplication{QnxPlugin::tr("Attach to remote QNX application..."), nullptr};
+
+    QnxConfigurationManager configurationFactory;
+    QnxQtVersionFactory qtVersionFactory;
+    QnxDeviceFactory deviceFactory;
+    QnxDeployConfigurationFactory deployConfigFactory;
+    GenericQnxDeployStepFactory<RemoteLinux::GenericDirectUploadStep> directUploadDeployFactory;
+    GenericQnxDeployStepFactory<RemoteLinux::RemoteLinuxCheckForFreeDiskSpaceStep> checkForFreeDiskSpaceDeployFactory;
+    GenericQnxDeployStepFactory<DeviceCheckBuildStep> checkBuildDeployFactory;
+    QnxRunConfigurationFactory runConfigFactory;
+    QnxSettingsPage settingsPage;
+    QnxToolChainFactory toolChainFactory;
+};
+
+static QnxPluginPrivate *dd = nullptr;
+
+QnxPlugin::~QnxPlugin()
+{
+    delete dd;
+}
+
 bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
-    // Handles QNX
-    addAutoReleasedObject(new QnxConfigurationManager);
-    addAutoReleasedObject(new QnxQtVersionFactory);
-    addAutoReleasedObject(new QnxDeviceFactory);
-    addAutoReleasedObject(new QnxDeployConfigurationFactory);
-    addAutoReleasedObject(new QnxRunConfigurationFactory);
-    addAutoReleasedObject(new QnxSettingsPage);
-
-    addAutoReleasedObject(new GenericQnxDeployStepFactory
-                                <RemoteLinux::GenericDirectUploadStep>);
-    addAutoReleasedObject(new GenericQnxDeployStepFactory
-                                <RemoteLinux::RemoteLinuxCheckForFreeDiskSpaceStep>);
-    addAutoReleasedObject(new GenericQnxDeployStepFactory
-                                <DeviceCheckBuildStep>);
+    dd = new QnxPluginPrivate;
 
     auto constraint = [](RunConfiguration *runConfig) {
         if (!runConfig->isEnabled()
@@ -122,34 +133,29 @@ bool QnxPlugin::initialize(const QStringList &arguments, QString *errorString)
     RunControl::registerWorker<QnxQmlProfilerSupport>
             (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, constraint);
 
-    addAutoReleasedObject(new QnxToolChainFactory);
-
     return true;
 }
 
 void QnxPlugin::extensionsInitialized()
 {
     // Attach support
-    m_attachToQnxApplication = new QAction(this);
-    m_attachToQnxApplication->setText(tr("Attach to remote QNX application..."));
-    connect(m_attachToQnxApplication, &QAction::triggered, this, [] { QnxAttachDebugSupport::showProcessesDialog(); });
+    connect(&dd->m_attachToQnxApplication, &QAction::triggered,
+            this, [] { QnxAttachDebugSupport::showProcessesDialog(); });
 
     Core::ActionContainer *mstart = Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_DEBUG_STARTDEBUGGING);
     mstart->appendGroup(Constants::QNX_DEBUGGING_GROUP);
-    mstart->addSeparator(Core::Context(Core::Constants::C_GLOBAL), Constants::QNX_DEBUGGING_GROUP, &m_debugSeparator);
+    mstart->addSeparator(Core::Context(Core::Constants::C_GLOBAL), Constants::QNX_DEBUGGING_GROUP,
+                         &dd->m_debugSeparator);
 
-    Core::Command *cmd = Core::ActionManager::registerAction(m_attachToQnxApplication, "Debugger.AttachToQnxApplication");
+    Core::Command *cmd = Core::ActionManager::registerAction
+            (&dd->m_attachToQnxApplication, "Debugger.AttachToQnxApplication");
     mstart->addAction(cmd, Constants::QNX_DEBUGGING_GROUP);
 
-    connect(KitManager::instance(), &KitManager::kitsChanged, this, &QnxPlugin::updateDebuggerActions);
+    connect(KitManager::instance(), &KitManager::kitsChanged,
+            this, [] { dd->updateDebuggerActions(); });
 }
 
-ExtensionSystem::IPlugin::ShutdownFlag QnxPlugin::aboutToShutdown()
-{
-    return SynchronousShutdown;
-}
-
-void QnxPlugin::updateDebuggerActions()
+void QnxPluginPrivate::updateDebuggerActions()
 {
     bool hasValidQnxKit = false;
 
@@ -161,7 +167,7 @@ void QnxPlugin::updateDebuggerActions()
         }
     }
 
-    m_attachToQnxApplication->setVisible(hasValidQnxKit);
+    m_attachToQnxApplication.setVisible(hasValidQnxKit);
     m_debugSeparator->setVisible(hasValidQnxKit);
 }
 

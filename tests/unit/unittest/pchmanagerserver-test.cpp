@@ -30,21 +30,14 @@
 #include "mockpchcreator.h"
 #include "mockprojectparts.h"
 
+#include <filepathcaching.h>
 #include <pchmanagerserver.h>
 #include <precompiledheadersupdatedmessage.h>
-#include <removepchprojectpartsmessage.h>
-#include <updatepchprojectpartsmessage.h>
+#include <refactoringdatabaseinitializer.h>
+#include <removeprojectpartsmessage.h>
+#include <updateprojectpartsmessage.h>
 
 namespace {
-
-using testing::ElementsAre;
-using testing::UnorderedElementsAre;
-using testing::ByMove;
-using testing::NiceMock;
-using testing::Return;
-using testing::_;
-using testing::IsEmpty;
-
 using Utils::PathString;
 using Utils::SmallString;
 using ClangBackEnd::V2::FileContainer;
@@ -54,12 +47,18 @@ using ClangBackEnd::TaskFinishStatus;
 class PchManagerServer : public ::testing::Test
 {
     void SetUp() override;
+    ClangBackEnd::FilePathId id(Utils::SmallStringView path) const
+    {
+        return filePathCache.filePathId(ClangBackEnd::FilePathView(path));
+    }
 
 protected:
     NiceMock<MockPchCreator> mockPchCreator;
     NiceMock<MockClangPathWatcher> mockClangPathWatcher;
     NiceMock<MockProjectParts> mockProjectParts;
-
+    Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
+    ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
+    ClangBackEnd::FilePathCaching filePathCache{database};
     ClangBackEnd::PchManagerServer server{mockClangPathWatcher, mockPchCreator, mockProjectParts};
     NiceMock<MockPchManagerClient> mockPchManagerClient;
     SmallString projectPartId1 = "project1";
@@ -71,23 +70,27 @@ protected:
     std::vector<ClangBackEnd::IdPaths> idPaths = {{projectPartId1, {{1, 1}, {1, 2}}}};
     ProjectPartContainer projectPart1{projectPartId1.clone(),
                                       {"-I", TESTDATA_DIR, "-Wno-pragma-once-outside-header"},
-                                      {header1Path.clone()},
-                                      {main1Path.clone()}};
+                                      {{"DEFINE", "1"}},
+                                      {"/includes"},
+                                      {id(header1Path)},
+                                      {id(main1Path)}};
     ProjectPartContainer projectPart2{projectPartId2.clone(),
                                       {"-x", "c++-header", "-Wno-pragma-once-outside-header"},
-                                      {header2Path.clone()},
-                                      {main2Path.clone()}};
+                                      {{"DEFINE", "1"}},
+                                      {"/includes"},
+                                      {id(header2Path)},
+                                      {id(main2Path)}};
     std::vector<ProjectPartContainer> projectParts{projectPart1, projectPart2};
     FileContainer generatedFile{{"/path/to/", "file"}, "content", {}};
-    ClangBackEnd::UpdatePchProjectPartsMessage updatePchProjectPartsMessage{Utils::clone(projectParts),
+    ClangBackEnd::UpdateProjectPartsMessage UpdateProjectPartsMessage{Utils::clone(projectParts),
                                                                             {generatedFile}};
-    ClangBackEnd::ProjectPartPch projectPartPch1{projectPart1.projectPartId().clone(), "/path1/to/pch"};
-    ClangBackEnd::ProjectPartPch projectPartPch2{projectPart2.projectPartId().clone(), "/path2/to/pch"};
+    ClangBackEnd::ProjectPartPch projectPartPch1{projectPart1.projectPartId.clone(), "/path1/to/pch", 1};
+    ClangBackEnd::ProjectPartPch projectPartPch2{projectPart2.projectPartId.clone(), "/path2/to/pch", 1};
     std::vector<ClangBackEnd::ProjectPartPch> projectPartPchs{projectPartPch1, projectPartPch2};
     ClangBackEnd::PrecompiledHeadersUpdatedMessage precompiledHeaderUpdatedMessage1{{projectPartPch1}};
     ClangBackEnd::PrecompiledHeadersUpdatedMessage precompiledHeaderUpdatedMessage2{{projectPartPch2}};
-    ClangBackEnd::RemovePchProjectPartsMessage removePchProjectPartsMessage{{projectPart1.projectPartId().clone(),
-                                                                             projectPart2.projectPartId().clone()}};
+    ClangBackEnd::RemoveProjectPartsMessage RemoveProjectPartsMessage{{projectPart1.projectPartId.clone(),
+                                                                       projectPart2.projectPartId.clone()}};
 };
 
 TEST_F(PchManagerServer, CallPrecompiledHeadersForSuccessfullyFinishedTask)
@@ -108,39 +111,39 @@ TEST_F(PchManagerServer, DoNotCallPrecompiledHeadersForUnsuccessfullyFinishedTas
 TEST_F(PchManagerServer, CallBuildInPchCreator)
 {
     auto &&callSetGeneratedFiles = EXPECT_CALL(mockPchCreator,
-                                               setGeneratedFiles(updatePchProjectPartsMessage.generatedFiles()));
-    EXPECT_CALL(mockPchCreator, generatePchs(updatePchProjectPartsMessage.projectsParts()))
+                                               setGeneratedFiles(UpdateProjectPartsMessage.generatedFiles));
+    EXPECT_CALL(mockPchCreator, generatePchs(UpdateProjectPartsMessage.projectsParts))
             .After(callSetGeneratedFiles);
 
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 }
 
 TEST_F(PchManagerServer, UpdateIncludesOfFileWatcher)
 {
     EXPECT_CALL(mockClangPathWatcher, updateIdPaths(idPaths));
 
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 }
 
 TEST_F(PchManagerServer, GetChangedProjectPartsFromProjectParts)
 {
     EXPECT_CALL(mockProjectParts, update(_));
 
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 }
 
 TEST_F(PchManagerServer, RemoveIncludesFromFileWatcher)
 {
-    EXPECT_CALL(mockClangPathWatcher, removeIds(removePchProjectPartsMessage.projectsPartIds()));
+    EXPECT_CALL(mockClangPathWatcher, removeIds(RemoveProjectPartsMessage.projectsPartIds));
 
-    server.removePchProjectParts(removePchProjectPartsMessage.clone());
+    server.removeProjectParts(RemoveProjectPartsMessage.clone());
 }
 
 TEST_F(PchManagerServer, RemoveProjectPartsFromProjectParts)
 {
-    EXPECT_CALL(mockProjectParts, remove(removePchProjectPartsMessage.projectsPartIds()));
+    EXPECT_CALL(mockProjectParts, remove(RemoveProjectPartsMessage.projectsPartIds));
 
-    server.removePchProjectParts(removePchProjectPartsMessage.clone());
+    server.removeProjectParts(RemoveProjectPartsMessage.clone());
 }
 
 TEST_F(PchManagerServer, SetPathWatcherNotifier)
@@ -152,16 +155,16 @@ TEST_F(PchManagerServer, SetPathWatcherNotifier)
 
 TEST_F(PchManagerServer, CallProjectsInProjectPartsForIncludeChange)
 {
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 
-    EXPECT_CALL(mockProjectParts, projects(ElementsAre(projectPart1.projectPartId())));
+    EXPECT_CALL(mockProjectParts, projects(ElementsAre(projectPart1.projectPartId)));
 
     server.pathsWithIdsChanged({projectPartId1});
 }
 
 TEST_F(PchManagerServer, CallGeneratePchsInPchCreatorForIncludeChange)
 {
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 
     EXPECT_CALL(mockPchCreator, generatePchs(ElementsAre(projectPart1)));
 
@@ -170,7 +173,7 @@ TEST_F(PchManagerServer, CallGeneratePchsInPchCreatorForIncludeChange)
 
 TEST_F(PchManagerServer, CallUpdateIdPathsInFileSystemWatcherForIncludeChange)
 {
-    server.updatePchProjectParts(updatePchProjectPartsMessage.clone());
+    server.updateProjectParts(UpdateProjectPartsMessage.clone());
 
     EXPECT_CALL(mockClangPathWatcher, updateIdPaths(idPaths));
 

@@ -42,7 +42,6 @@ public:
     int size() const;
     const ClangDiagnosticConfig &at(int index) const;
 
-    void prepend(const ClangDiagnosticConfig &config);
     void appendOrUpdate(const ClangDiagnosticConfig &config);
     void removeConfigWithId(const Core::Id &id);
 
@@ -54,6 +53,7 @@ public:
     static QString displayNameWithBuiltinIndication(const ClangDiagnosticConfig &config);
     static QVector<Core::Id> changedOrRemovedConfigs(const ClangDiagnosticConfigs &oldConfigs,
                                                      const ClangDiagnosticConfigs &newConfigs);
+    static QStringList globalDiagnosticOptions();
 
 private:
     ClangDiagnosticConfigs m_diagnosticConfigs;

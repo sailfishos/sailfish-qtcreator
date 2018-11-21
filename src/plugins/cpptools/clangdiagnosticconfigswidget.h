@@ -37,6 +37,7 @@
 
 QT_BEGIN_NAMESPACE
 class QListWidgetItem;
+class QPushButton;
 class QRadioButton;
 QT_END_NAMESPACE
 
@@ -49,34 +50,30 @@ class ClazyChecks;
 class TidyChecks;
 }
 
+class TidyChecksTreeModel;
+
 class CPPTOOLS_EXPORT ClangDiagnosticConfigsWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ClangDiagnosticConfigsWidget(
-            const ClangDiagnosticConfigsModel &diagnosticConfigsModel = ClangDiagnosticConfigsModel(),
-            const Core::Id &configToSelect = Core::Id(),
-            QWidget *parent = 0);
-    ~ClangDiagnosticConfigsWidget();
+    explicit ClangDiagnosticConfigsWidget(const Core::Id &configToSelect, QWidget *parent = nullptr);
+    ~ClangDiagnosticConfigsWidget() override;
 
-    Core::Id currentConfigId() const;
     ClangDiagnosticConfigs customConfigs() const;
 
-    void refresh(const ClangDiagnosticConfigsModel &diagnosticConfigsModel,
-                 const Core::Id &configToSelect);
-
 signals:
-    void currentConfigChanged(const Core::Id &currentConfigId);
     void customConfigsChanged(const CppTools::ClangDiagnosticConfigs &customConfigs);
 
 private:
     void setupTabs();
 
-    void onCurrentConfigChanged(int);
+    void onCurrentConfigChanged(int index);
     void onCopyButtonClicked();
     void onRemoveButtonClicked();
-    void onClangTidyItemChanged(QListWidgetItem *item);
+    void onClangTidyModeChanged(int index);
+    void onClangTidyTreeChanged();
+    void onClangTidyTreeItemClicked(const QModelIndex &index);
     void onClazyRadioButtonChanged(bool checked);
 
     void onDiagnosticOptionsEdited();
@@ -86,11 +83,13 @@ private:
     void syncOtherWidgetsToComboBox();
     void syncClangTidyWidgets(const ClangDiagnosticConfig &config);
     void syncClazyWidgets(const ClangDiagnosticConfig &config);
+    void syncTidyChecksToTree(const ClangDiagnosticConfig &config);
 
     void updateConfig(const CppTools::ClangDiagnosticConfig &config);
 
     bool isConfigChooserEmpty() const;
-    const ClangDiagnosticConfig &currentConfig() const;
+    const ClangDiagnosticConfig &selectedConfig() const;
+    Core::Id selectedConfigId() const;
 
     void setDiagnosticOptions(const QString &options);
     void updateValidityWidgets(const QString &errorMessage);
@@ -118,6 +117,9 @@ private:
 
     std::unique_ptr<CppTools::Ui::TidyChecks> m_tidyChecks;
     QWidget *m_tidyChecksWidget = nullptr;
+    std::unique_ptr<TidyChecksTreeModel> m_tidyTreeModel;
+
+    int m_selectedConfigIndex = 0;
 };
 
 } // CppTools namespace

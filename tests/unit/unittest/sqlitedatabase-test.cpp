@@ -47,12 +47,27 @@ using Sqlite::Table;
 class SqliteDatabase : public ::testing::Test
 {
 protected:
-    void SetUp() override;
-    void TearDown() override;
+    void SetUp() override
+    {
+        database.setJournalMode(JournalMode::Memory);
+        database.setDatabaseFilePath(databaseFilePath);
+        auto &table = database.addTable();
+        table.setName("test");
+        table.addColumn("name");
+
+        database.open();
+    }
+
+    void TearDown() override
+    {
+        if (database.isOpen())
+            database.close();
+    }
 
     SpyDummy spyDummy;
-    QString databaseFilePath = QStringLiteral(":memory:");
+    QString databaseFilePath{":memory:"};
     Sqlite::Database database;
+    Sqlite::TransactionInterface &transactionInterface = database;
 };
 
 TEST_F(SqliteDatabase, SetDatabaseFilePath)
@@ -140,20 +155,39 @@ TEST_F(SqliteDatabase, LastRowId)
     ASSERT_THAT(database.lastInsertedRowId(), 42);
 }
 
-void SqliteDatabase::SetUp()
+TEST_F(SqliteDatabase, DeferredBegin)
 {
-    database.setJournalMode(JournalMode::Memory);
-    database.setDatabaseFilePath(databaseFilePath);
-    auto &table = database.addTable();
-    table.setName("test");
-    table.addColumn("name");
+    ASSERT_NO_THROW(transactionInterface.deferredBegin());
 
-    database.open();
+    transactionInterface.commit();
 }
 
-void SqliteDatabase::TearDown()
+TEST_F(SqliteDatabase, ImmediateBegin)
 {
-    if (database.isOpen())
-        database.close();
+    ASSERT_NO_THROW(transactionInterface.immediateBegin());
+
+    transactionInterface.commit();
 }
+
+TEST_F(SqliteDatabase, ExclusiveBegin)
+{
+    ASSERT_NO_THROW(transactionInterface.exclusiveBegin());
+
+    transactionInterface.commit();
+}
+
+TEST_F(SqliteDatabase, Commit)
+{
+    transactionInterface.deferredBegin();
+
+    ASSERT_NO_THROW(transactionInterface.commit());
+}
+
+TEST_F(SqliteDatabase, Rollback)
+{
+    transactionInterface.deferredBegin();
+
+    ASSERT_NO_THROW(transactionInterface.rollback());
+}
+
 }

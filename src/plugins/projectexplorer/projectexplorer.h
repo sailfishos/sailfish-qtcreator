@@ -170,7 +170,6 @@ signals:
     // or the file list of a specific project has changed.
     void fileListChanged();
 
-    void aboutToExecuteProject(ProjectExplorer::RunControl *runControl);
     void recentProjectsChanged();
 
     void settingsChanged();
@@ -223,6 +222,7 @@ private slots:
     void testGccAbiGuessing_data();
     void testGccAbiGuessing();
 
+    void testAbiRoundTrips();
     void testAbiOfBinary_data();
     void testAbiOfBinary();
     void testFlavorForOs();
@@ -231,8 +231,8 @@ private slots:
 
     void testDeviceManager();
 
-    void testToolChainManager_data();
-    void testToolChainManager();
+    void testToolChainMerging_data();
+    void testToolChainMerging();
 
     void testUserFileAccessor_prepareToReadSettings();
     void testUserFileAccessor_prepareToReadSettingsObsoleteVersion();

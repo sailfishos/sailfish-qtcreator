@@ -14,7 +14,6 @@ HEADERS += projectexplorer.h \
     environmentaspectwidget.h \
     gcctoolchain.h \
     importwidget.h \
-    runnables.h \
     userfileaccessor.h \
     localenvironmentaspect.h \
     osparser.h \
@@ -88,6 +87,7 @@ HEADERS += projectexplorer.h \
     toolchainconfigwidget.h \
     toolchainmanager.h \
     toolchainoptionspage.h \
+    toolchainsettingsaccessor.h \
     gccparser.h \
     projectexplorersettingspage.h \
     baseprojectwizarddialog.h \
@@ -148,7 +148,6 @@ HEADERS += projectexplorer.h \
     projectexplorericons.h \
     projectexplorer_global.h \
     extracompiler.h \
-    customexecutableconfigurationwidget.h \
     customexecutablerunconfiguration.h \
     projectmacro.h
 
@@ -164,7 +163,6 @@ SOURCES += projectexplorer.cpp \
     gcctoolchain.cpp \
     importwidget.cpp \
     projectconfigurationmodel.cpp \
-    runnables.cpp \
     userfileaccessor.cpp \
     localenvironmentaspect.cpp \
     osparser.cpp \
@@ -232,6 +230,7 @@ SOURCES += projectexplorer.cpp \
     toolchainconfigwidget.cpp \
     toolchainmanager.cpp \
     toolchainoptionspage.cpp \
+    toolchainsettingsaccessor.cpp \
     gccparser.cpp \
     projectexplorersettingspage.cpp \
     baseprojectwizarddialog.cpp \
@@ -284,7 +283,6 @@ SOURCES += projectexplorer.cpp \
     waitforstopdialog.cpp \
     projectexplorericons.cpp \
     extracompiler.cpp \
-    customexecutableconfigurationwidget.cpp \
     customexecutablerunconfiguration.cpp \
     projectmacro.cpp
 

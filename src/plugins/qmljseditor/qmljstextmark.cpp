@@ -32,6 +32,7 @@
 
 using namespace QmlJSEditor;
 using namespace QmlJSEditor::Internal;
+using namespace Utils;
 
 using namespace TextEditor;
 
@@ -58,7 +59,7 @@ static Core::Id cartegoryForSeverity(QmlJS::Severity::Enum kind)
     return isWarning(kind) ? QMLJS_WARNING : QMLJS_ERROR;
 }
 
-QmlJSTextMark::QmlJSTextMark(const QString &fileName,
+QmlJSTextMark::QmlJSTextMark(const FileName &fileName,
                              const QmlJS::DiagnosticMessage &diagnostic,
                              const QmlJSTextMark::RemovedFromEditorHandler &removedHandler)
     : TextEditor::TextMark(fileName, int(diagnostic.loc.startLine),
@@ -69,7 +70,7 @@ QmlJSTextMark::QmlJSTextMark(const QString &fileName,
     init(isWarning(diagnostic.kind), diagnostic.message);
 }
 
-QmlJSTextMark::QmlJSTextMark(const QString &fileName,
+QmlJSTextMark::QmlJSTextMark(const FileName &fileName,
                              const QmlJS::StaticAnalysis::Message &message,
                              const QmlJSTextMark::RemovedFromEditorHandler &removedHandler)
     : TextEditor::TextMark(fileName, int(message.location.startLine),
@@ -89,8 +90,8 @@ void QmlJSTextMark::init(bool warning, const QString message)
 {
     setIcon(warning ? Utils::Icons::CODEMODEL_WARNING.icon()
                     : Utils::Icons::CODEMODEL_ERROR.icon());
-    setColor(warning ? Utils::Theme::ClangCodeModel_Warning_TextMarkColor
-                     : Utils::Theme::ClangCodeModel_Error_TextMarkColor);
+    setColor(warning ? Utils::Theme::CodeModel_Warning_TextMarkColor
+                     : Utils::Theme::CodeModel_Error_TextMarkColor);
     setDefaultToolTip(warning ? QApplication::translate("QmlJS Code Model Marks", "Code Model Warning")
                               : QApplication::translate("QmlJS Code Model Marks", "Code Model Error"));
     setToolTip(message);

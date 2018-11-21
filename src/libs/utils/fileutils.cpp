@@ -726,6 +726,13 @@ bool FileName::operator>=(const FileName &other) const
     return other <= *this;
 }
 
+FileName FileName::operator+(const QString &s) const
+{
+    FileName result(*this);
+    result.appendString(s);
+    return result;
+}
+
 /// \returns whether FileName is a child of \a s
 bool FileName::isChildOf(const FileName &s) const
 {
@@ -791,6 +798,16 @@ QTextStream &operator<<(QTextStream &s, const FileName &fn)
 {
     return s << fn.toString();
 }
+
+#ifdef Q_OS_WIN
+template <>
+void withNtfsPermissions(const std::function<void()> &task)
+{
+    qt_ntfs_permission_lookup++;
+    task();
+    qt_ntfs_permission_lookup--;
+}
+#endif
 
 } // namespace Utils
 

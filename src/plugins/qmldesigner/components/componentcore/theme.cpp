@@ -30,46 +30,16 @@
 
 #include <utils/stylehelper.h>
 
+#include <QApplication>
 #include <QRegExp>
+#include <QScreen>
 #include <QPointer>
 #include <qqml.h>
-
-namespace {
-QMap<QString, QColor> createDerivedDesignerColors()
-{
-    /* Define QmlDesigner colors and remove alpha channels */
-    const QColor backgroundColor = Utils::creatorTheme()->color(Utils::Theme::QmlDesigner_BackgroundColor);
-    const QColor panelStatusBarBackgroundColor = Utils::creatorTheme()->color(Utils::Theme::PanelStatusBarBackgroundColor);
-    const QColor fancyToolButtonSelectedColor  = Utils::creatorTheme()->color(Utils::Theme::FancyToolButtonSelectedColor);
-    const QColor darkerBackground = Utils::StyleHelper::alphaBlendedColors(panelStatusBarBackgroundColor, fancyToolButtonSelectedColor);
-    const QColor fancyToolButtonHoverColor  = Utils::creatorTheme()->color(Utils::Theme::FancyToolButtonHoverColor);
-    const QColor buttonColor = Utils::StyleHelper::alphaBlendedColors(panelStatusBarBackgroundColor, fancyToolButtonHoverColor);
-
-    QColor tabLight = Utils::creatorTheme()->color(Utils::Theme::PanelTextColorLight);
-    QColor tabDark = Utils::creatorTheme()->color(Utils::Theme::BackgroundColorDark);
-
-    /* hack for light themes */
-    /* The selected tab is always supposed to be lighter */
-    if (tabDark.value() > tabLight.value()) {
-        tabLight = tabDark.darker(110);
-        tabDark = tabDark.darker(260);
-    }
-    return {{"QmlDesignerBackgroundColorDarker", darkerBackground},
-            {"QmlDesignerBackgroundColorDarkAlternate", backgroundColor},
-            {"QmlDesignerTabLight", tabLight},
-            {"QmlDesignerTabDark", tabDark},
-            {"QmlDesignerButtonColor", buttonColor},
-            {"QmlDesignerBorderColor", Utils::creatorTheme()->color(Utils::Theme::SplitterColor)}
-    };
-}
-
-} // namespace
 
 namespace QmlDesigner {
 
 Theme::Theme(Utils::Theme *originTheme, QObject *parent)
     : Utils::Theme(originTheme, parent)
-    , m_derivedColors(createDerivedDesignerColors())
 {
 }
 
@@ -82,7 +52,7 @@ QColor Theme::evaluateColorAtThemeInstance(const QString &themeColorName)
             return color(static_cast<Utils::Theme::Color>(i)).name();
     }
 
-    qWarning() << "error while evaluate " << themeColorName;
+    qWarning() << Q_FUNC_INFO << "error while evaluating" << themeColorName;
     return QColor();
 }
 
@@ -95,7 +65,6 @@ Theme *Theme::instance()
 
 QString Theme::replaceCssColors(const QString &input)
 {
-    const QMap<QString, QColor> &map = instance()->m_derivedColors;
     QRegExp rx("creatorTheme\\.(\\w+)");
 
     int pos = 0;
@@ -103,12 +72,15 @@ QString Theme::replaceCssColors(const QString &input)
 
     while ((pos = rx.indexIn(input, pos)) != -1) {
         const QString themeColorName = rx.cap(1);
-        QColor color;
-        if (map.contains(themeColorName))
-            color = map.value(themeColorName);
-        else
-            color = instance()->evaluateColorAtThemeInstance(themeColorName);
-        output.replace("creatorTheme." + rx.cap(1), color.name());
+
+        if (themeColorName == "smallFontPixelSize") {
+            output.replace("creatorTheme." + themeColorName, QString::number(instance()->smallFontPixelSize()) + "px");
+        } else if (themeColorName == "captionFontPixelSize") {
+            output.replace("creatorTheme." + themeColorName, QString::number(instance()->captionFontPixelSize()) + "px");
+        } else {
+            const QColor color = instance()->evaluateColorAtThemeInstance(themeColorName);
+            output.replace("creatorTheme." + rx.cap(1), color.name());
+        }
         pos += rx.matchedLength();
     }
 
@@ -128,7 +100,28 @@ void Theme::setupTheme(QQmlEngine *engine)
 
 QColor Theme::getColor(Theme::Color role)
 {
+
     return instance()->color(role);
+
+}
+
+int Theme::smallFontPixelSize() const
+{
+    if (highPixelDensity())
+        return 13;
+    return 9;
+}
+
+int Theme::captionFontPixelSize() const
+{
+    if (highPixelDensity())
+        return 14;
+    return 11;
+}
+
+bool Theme::highPixelDensity() const
+{
+    return qApp->primaryScreen()->logicalDotsPerInch() > 100;
 }
 
 QPixmap Theme::getPixmap(const QString &id)
@@ -138,32 +131,32 @@ QPixmap Theme::getPixmap(const QString &id)
 
 QColor Theme::qmlDesignerBackgroundColorDarker() const
 {
-    return m_derivedColors.value("QmlDesignerBackgroundColorDarker");
+    return getColor(QmlDesigner_BackgroundColorDarker);
 }
 
 QColor Theme::qmlDesignerBackgroundColorDarkAlternate() const
 {
-    return m_derivedColors.value("QmlDesignerBackgroundColorDarkAlternate");
+    return getColor(QmlDesigner_BackgroundColorDarkAlternate);
 }
 
 QColor Theme::qmlDesignerTabLight() const
 {
-    return m_derivedColors.value("QmlDesignerTabLight");
+    return getColor(QmlDesigner_TabLight);
 }
 
 QColor Theme::qmlDesignerTabDark() const
 {
-    return m_derivedColors.value("QmlDesignerTabDark");
+    return getColor(QmlDesigner_TabDark);
 }
 
 QColor Theme::qmlDesignerButtonColor() const
 {
-    return m_derivedColors.value("QmlDesignerButtonColor");
+    return getColor(QmlDesigner_ButtonColor);
 }
 
 QColor Theme::qmlDesignerBorderColor() const
 {
-    return m_derivedColors.value("QmlDesignerBorderColor");
+    return getColor(QmlDesigner_BorderColor);
 }
 
 } // namespace QmlDesigner

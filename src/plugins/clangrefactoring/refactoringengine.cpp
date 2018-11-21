@@ -94,13 +94,20 @@ void RefactoringEngine::startLocalRenaming(const CppTools::CursorInEditor &data,
 
 CppTools::Usages RefactoringEngine::locationsAt(const CppTools::CursorInEditor &data) const
 {
-    int line = 0, column = 0;
-    QTextCursor cursor = Utils::Text::wordStartCursor(data.cursor());
-    Utils::Text::convertPosition(cursor.document(), cursor.position(), &line, &column);
+    CppTools::Usages usages;
 
-    const QByteArray filePath = data.filePath().toString().toUtf8();
-    const ClangBackEnd::FilePathId filePathId = m_filePathCache.filePathId(ClangBackEnd::FilePathView(filePath));
-    return m_symbolQuery.sourceUsagesAt(filePathId, line, column + 1);
+    QTextCursor cursor = Utils::Text::wordStartCursor(data.cursor());
+    Utils::OptionalLineColumn lineColumn = Utils::Text::convertPosition(cursor.document(),
+                                                                        cursor.position());
+
+    if (lineColumn) {
+        const QByteArray filePath = data.filePath().toString().toUtf8();
+        const ClangBackEnd::FilePathId filePathId = m_filePathCache.filePathId(ClangBackEnd::FilePathView(filePath));
+
+        usages = m_symbolQuery.sourceUsagesAt(filePathId, lineColumn->line, lineColumn->column + 1);
+    }
+
+    return usages;
 }
 
 void RefactoringEngine::globalRename(const CppTools::CursorInEditor &data,
@@ -116,11 +123,12 @@ void RefactoringEngine::findUsages(const CppTools::CursorInEditor &data,
     showUsagesCallback(locationsAt(data));
 }
 
-RefactoringEngine::Link RefactoringEngine::globalFollowSymbol(const CppTools::CursorInEditor &data,
-                                                              const CPlusPlus::Snapshot &,
-                                                              const CPlusPlus::Document::Ptr &,
-                                                              CppTools::SymbolFinder *,
-                                                              bool) const
+void RefactoringEngine::globalFollowSymbol(const CppTools::CursorInEditor &data,
+                                           Utils::ProcessLinkCallback &&processLinkCallback,
+                                           const CPlusPlus::Snapshot &,
+                                           const CPlusPlus::Document::Ptr &,
+                                           CppTools::SymbolFinder *,
+                                           bool) const
 {
     // TODO: replace that with specific followSymbol query
     const CppTools::Usages usages = locationsAt(data);
@@ -131,7 +139,7 @@ RefactoringEngine::Link RefactoringEngine::globalFollowSymbol(const CppTools::Cu
         return true;
     });
 
-    return Link(usage.path, usage.line, usage.column);
+    processLinkCallback(Link(usage.path, usage.line, usage.column));
 }
 
 bool RefactoringEngine::isRefactoringEngineAvailable() const

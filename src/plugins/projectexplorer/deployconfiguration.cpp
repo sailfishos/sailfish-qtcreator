@@ -38,7 +38,6 @@ namespace ProjectExplorer {
 
 const char BUILD_STEP_LIST_COUNT[] = "ProjectExplorer.BuildConfiguration.BuildStepListCount";
 const char BUILD_STEP_LIST_PREFIX[] = "ProjectExplorer.BuildConfiguration.BuildStepList.";
-const char DEFAULT_DEPLOYCONFIGURATION_ID[] = "ProjectExplorer.DefaultDeployConfiguration";
 
 DeployConfiguration::DeployConfiguration(Target *target, Core::Id id)
     : ProjectConfiguration(target, id),
@@ -144,7 +143,6 @@ static QList<DeployConfigurationFactory *> g_deployConfigurationFactories;
 
 DeployConfigurationFactory::DeployConfigurationFactory()
 {
-    setObjectName("DeployConfigurationFactory");
     g_deployConfigurationFactories.append(this);
 }
 
@@ -184,7 +182,7 @@ bool DeployConfigurationFactory::canHandle(Target *target) const
             return false;
     }
 
-    if (!target->project()->supportsKit(target->kit()))
+    if (containsType(target->project()->projectIssues(target->kit()), Task::TaskType::Error))
         return false;
 
     if (!m_supportedTargetDeviceTypes.isEmpty()) {
@@ -217,55 +215,31 @@ DeployConfiguration *DeployConfigurationFactory::create(Target *parent, Core::Id
     return dc;
 }
 
-bool DeployConfigurationFactory::canClone(Target *parent, DeployConfiguration *product) const
+DeployConfiguration *DeployConfigurationFactory::clone(Target *parent,
+                                                       const DeployConfiguration *source)
 {
-    if (!canHandle(parent))
-        return false;
-    const Core::Id id = product->id();
-    if (!id.name().startsWith(m_deployConfigBaseId.name()))
-        return false;
-    return true;
-}
-
-DeployConfiguration *DeployConfigurationFactory::clone(Target *parent, DeployConfiguration *product)
-{
-    QTC_ASSERT(m_creator, return nullptr);
-    if (!canClone(parent, product))
-        return nullptr;
-    DeployConfiguration *dc = m_creator(parent);
-    QVariantMap data = product->toMap();
-    dc->fromMap(data);
-    return dc;
+    return restore(parent, source->toMap());
 }
 
 DeployConfiguration *DeployConfigurationFactory::restore(Target *parent, const QVariantMap &map)
 {
-    if (!canRestore(parent, map))
+    const Core::Id id = idFromMap(map);
+    DeployConfigurationFactory *factory = Utils::findOrDefault(g_deployConfigurationFactories,
+        [parent, id](DeployConfigurationFactory *f) {
+            if (!f->canHandle(parent))
+                return false;
+            return id.name().startsWith(f->m_deployConfigBaseId.name());
+        });
+    if (!factory)
         return nullptr;
-    QTC_ASSERT(m_creator, return nullptr);
-    DeployConfiguration *dc = m_creator(parent);
+    QTC_ASSERT(factory->m_creator, return nullptr);
+    DeployConfiguration *dc = factory->m_creator(parent);
     QTC_ASSERT(dc, return nullptr);
     if (!dc->fromMap(map)) {
         delete dc;
         dc = nullptr;
     }
     return dc;
-}
-
-bool DeployConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
-{
-    if (!canHandle(parent))
-        return false;
-    const Core::Id id = idFromMap(map);
-    return id.name().startsWith(m_deployConfigBaseId.name());
-}
-
-DeployConfigurationFactory *DeployConfigurationFactory::find(Target *parent, const QVariantMap &map)
-{
-    return Utils::findOrDefault(g_deployConfigurationFactories,
-        [&parent, &map](DeployConfigurationFactory *factory) {
-            return factory->canRestore(parent, map);
-        });
 }
 
 QList<DeployConfigurationFactory *> DeployConfigurationFactory::find(Target *parent)
@@ -276,17 +250,9 @@ QList<DeployConfigurationFactory *> DeployConfigurationFactory::find(Target *par
         });
 }
 
-DeployConfigurationFactory *DeployConfigurationFactory::find(Target *parent, DeployConfiguration *dc)
+void DeployConfigurationFactory::addSupportedTargetDeviceType(Core::Id id)
 {
-    return Utils::findOrDefault(g_deployConfigurationFactories,
-        [&parent, &dc](DeployConfigurationFactory *factory) {
-            return factory->canClone(parent, dc);
-    });
-}
-
-void DeployConfigurationFactory::setSupportedTargetDeviceTypes(const QList<Core::Id> &ids)
-{
-    m_supportedTargetDeviceTypes = ids;
+    m_supportedTargetDeviceTypes.append(id);
 }
 
 void DeployConfigurationFactory::setDefaultDisplayName(const QString &defaultDisplayName)
@@ -305,17 +271,10 @@ void DeployConfigurationFactory::setSupportedProjectType(Core::Id id)
 
 DefaultDeployConfigurationFactory::DefaultDeployConfigurationFactory()
 {
-    struct DefaultDeployConfiguration : DeployConfiguration
-    {
-        DefaultDeployConfiguration(Target *t)
-            : DeployConfiguration(t, DEFAULT_DEPLOYCONFIGURATION_ID)
-        {}
-    };
-
-    registerDeployConfiguration<DefaultDeployConfiguration>(DEFAULT_DEPLOYCONFIGURATION_ID);
-    setSupportedTargetDeviceTypes({Constants::DESKTOP_DEVICE_TYPE});
+    registerDeployConfiguration<DeployConfiguration>("ProjectExplorer.DefaultDeployConfiguration");
+    addSupportedTargetDeviceType(Constants::DESKTOP_DEVICE_TYPE);
     //: Display name of the default deploy configuration
-    setDefaultDisplayName(DeployConfigurationFactory::tr("Deploy Configuration"));
+    setDefaultDisplayName(DeployConfiguration::tr("Deploy Configuration"));
 }
 
 bool DefaultDeployConfigurationFactory::canHandle(Target *parent) const

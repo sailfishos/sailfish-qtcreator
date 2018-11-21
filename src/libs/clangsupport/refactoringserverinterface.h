@@ -36,8 +36,8 @@ class RequestSourceLocationsForRenamingMessage;
 class RequestSourceRangesAndDiagnosticsForQueryMessage;
 class RequestSourceRangesForQueryMessage;
 class CancelMessage;
-class UpdatePchProjectPartsMessage;
-class RemovePchProjectPartsMessage;
+class UpdateProjectPartsMessage;
+class RemoveProjectPartsMessage;
 
 class CLANGSUPPORT_EXPORT RefactoringServerInterface : public ProjectManagementServerInterface
 
@@ -59,6 +59,9 @@ public:
     {
         isAvailable_ = isAvailable;
     }
+
+protected:
+    ~RefactoringServerInterface() = default;
 
 private:
     bool isAvailable_ = false;

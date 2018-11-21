@@ -72,11 +72,6 @@ NimProject::NimProject(const FileName &fileName) : Project(Constants::C_NIM_MIME
     collectProjectFiles();
 }
 
-bool NimProject::needsConfiguration() const
-{
-    return targets().empty();
-}
-
 void NimProject::scheduleProjectScan()
 {
     auto elapsedTime = m_lastProjectScan.elapsed();
@@ -134,45 +129,45 @@ void NimProject::updateProject()
     const QStringList oldFiles = m_files;
     m_files.clear();
 
-    QList<FileNode *> fileNodes = Utils::filtered(m_futureWatcher.future().result(),
-                                                  [&](const FileNode *fn) {
+    std::vector<std::unique_ptr<FileNode>> fileNodes
+            = transform<std::vector>(m_futureWatcher.future().result(),
+                                     [](FileNode *fn) { return std::unique_ptr<FileNode>(fn); });
+    std::remove_if(std::begin(fileNodes), std::end(fileNodes),
+                   [this](const std::unique_ptr<FileNode> &fn) {
         const FileName path = fn->filePath();
         const QString fileName = path.fileName();
-        const bool keep = !m_excludedFiles.contains(path.toString())
-                && !fileName.endsWith(".nimproject", HostOsInfo::fileNameCaseSensitivity())
-                && !fileName.contains(".nimproject.user", HostOsInfo::fileNameCaseSensitivity());
-        if (!keep)
-            delete fn;
-        return keep;
+        return m_excludedFiles.contains(path.toString())
+                || fileName.endsWith(".nimproject", HostOsInfo::fileNameCaseSensitivity())
+                || fileName.contains(".nimproject.user", HostOsInfo::fileNameCaseSensitivity());
     });
 
-    m_files = Utils::transform(fileNodes, [](const FileNode *fn) { return fn->filePath().toString(); });
+    m_files = transform<QList>(fileNodes, [](const std::unique_ptr<FileNode> &fn) {
+        return fn->filePath().toString();
+    });
     Utils::sort(m_files, [](const QString &a, const QString &b) { return a < b; });
 
     if (oldFiles == m_files)
         return;
 
-    auto newRoot = new NimProjectNode(*this, projectDirectory());
+    auto newRoot = std::make_unique<NimProjectNode>(*this, projectDirectory());
     newRoot->setDisplayName(displayName());
-    newRoot->addNestedNodes(fileNodes);
-    setRootProjectNode(newRoot);
+    newRoot->addNestedNodes(std::move(fileNodes));
+    setRootProjectNode(std::move(newRoot));
     emitParsingFinished(true);
 }
 
-bool NimProject::supportsKit(const Kit *k, QString *errorMessage) const
+QList<Task> NimProject::projectIssues(const Kit *k) const
 {
+    QList<Task> result = Project::projectIssues(k);
     auto tc = dynamic_cast<NimToolChain*>(ToolChainKitInformation::toolChain(k, Constants::C_NIMLANGUAGE_ID));
     if (!tc) {
-        if (errorMessage)
-            *errorMessage = tr("No Nim compiler set.");
-        return false;
+        result.append(createProjectTask(Task::TaskType::Error, tr("No Nim compiler set.")));
+        return result;
     }
-    if (!tc->compilerCommand().exists()) {
-        if (errorMessage)
-            *errorMessage = tr("Nim compiler does not exist.");
-        return false;
-    }
-    return true;
+    if (!tc->compilerCommand().exists())
+        result.append(createProjectTask(Task::TaskType::Error, tr("Nim compiler does not exist.")));
+
+    return result;
 }
 
 FileNameList NimProject::nimFiles() const

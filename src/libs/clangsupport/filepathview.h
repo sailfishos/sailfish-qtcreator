@@ -29,11 +29,12 @@
 #include <utils/smallstringview.h>
 
 #include <algorithm>
+#include <vector>
 
 namespace ClangBackEnd {
 
 template <char WindowsSlash>
-class AbstractFilePathView : protected Utils::SmallStringView
+class AbstractFilePathView : public Utils::SmallStringView
 {
 public:
     explicit AbstractFilePathView(const char *const string, const size_type size) noexcept
@@ -105,4 +106,6 @@ private:
 
 using FilePathView = AbstractFilePathView<'/'>;
 using NativeFilePathView = AbstractFilePathView<'\\'>;
+using FilePathViews = std::vector<FilePathView>;
+using NativeFilePathViews = std::vector<NativeFilePathView>;
 }

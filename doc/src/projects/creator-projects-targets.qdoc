@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2017 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-configuring-projects.html
     \page creator-targets.html
     \nextpage creator-project-qmake.html
@@ -67,14 +67,22 @@
 
     \list 1
 
-        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol {Build & Run}
-            > \uicontrol Kits > \uicontrol Add.
+        \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Kits >
+            \uicontrol Add.
 
             \image qtcreator-kits.png
 
             To clone the selected kit, select \uicontrol Clone.
 
-        \li In the \uicontrol Name column, double-click the kit name to change it.
+        \li In the \uicontrol Name column, enter a name for the kit.
+
+        \li Select the \inlineimage qtcreator-desktopdevice-button.png
+            button to select an image to use as an icon for the kit.
+
+        \li In the \uicontrol {File system name} field, enter a name for the kit
+            to use as a part of directory names. This value is used for the
+            \e CurrentKit:FileSystemName variable, which determines the name of
+            the shadow build directory, for example.
 
         \li In the \uicontrol{Device type} field, select the type of the device.
 
@@ -100,6 +108,11 @@
             environment variable values for build environments in
             the \uicontrol {Edit Environment Changes} dialog. For more information
             about how to add and remove variable values, see \l{Batch Editing}.
+
+        \li Select the \uicontrol {Force UTF-8 MSVC compiler output} check box
+            to either switch the language of MSVC to English or to keep the
+            language setting and just force UTF-8 output, depending on the
+            MSVC compiler used.
 
         \li In the \uicontrol Debugger field, select the debugger to debug the project
             on the target platform. \QC automatically detects available
@@ -153,7 +166,7 @@
     \section1 Editing Qbs Profiles
 
     To view the Qbs profile associated with the kit, select \uicontrol Tools >
-    \uicontrol Options > \uicontrol {Build & Run} > \uicontrol Qbs.
+    \uicontrol Options > \uicontrol Kits > \uicontrol Qbs.
 
     You can add keys and values to the profile or remove them from it, as well
     as modify existing values. For a list of available keys and values, see

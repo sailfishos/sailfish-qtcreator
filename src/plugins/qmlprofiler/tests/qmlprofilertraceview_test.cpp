@@ -37,29 +37,29 @@ QmlProfilerTraceViewTest::QmlProfilerTraceViewTest(QObject *parent) :
 void QmlProfilerTraceViewTest::testStateChanges()
 {
     // Standard acquire-process-clear work flow
-    modelManager.startAcquiring();
+    modelManager.initialize();
     QVERIFY(traceView.isSuspended());
-    modelManager.acquiringDone();
+    modelManager.finalize();
     QVERIFY(!traceView.isSuspended());
-    modelManager.clear();
+    modelManager.clearAll();
     QVERIFY(!traceView.isSuspended());
 
     // Restrict to range
-    modelManager.startAcquiring();
+    modelManager.initialize();
     QVERIFY(traceView.isSuspended());
-    modelManager.acquiringDone();
+    modelManager.finalize();
     QVERIFY(!traceView.isSuspended());
     modelManager.restrictToRange(10, 14);
     QVERIFY(!traceView.isSuspended());
     modelManager.restrictToRange(-1, -1);
     QVERIFY(!traceView.isSuspended());
-    modelManager.clear();
+    modelManager.clearAll();
     QVERIFY(!traceView.isSuspended());
 
     // Abort Acquiring
-    modelManager.startAcquiring();
+    modelManager.initialize();
     QVERIFY(traceView.isSuspended());
-    modelManager.clear();
+    modelManager.clearAll();
     QVERIFY(!traceView.isSuspended());
 }
 

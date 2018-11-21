@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-tips.html
     \page creator-known-issues.html
     \nextpage creator-glossary.html
@@ -149,11 +149,11 @@
 
     \endlist
 
-    \section1 Qt Quick Designer Issues
+    \section1 Design Mode Issues
 
     \list
 
-        \li  \QMLD uses a QML emulation layer (QML Puppet) to render and preview
+        \li The Design mode uses a QML emulation layer (QML Puppet) to render and preview
             images and to collect data. Executing C++ code might cause the QML
             emulation layer to crash. If it crashes, an error message is displayed and
             you can continue editing the QML file in the code editor.

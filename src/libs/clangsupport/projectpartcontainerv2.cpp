@@ -31,10 +31,10 @@ namespace V2 {
 QDebug operator<<(QDebug debug, const ProjectPartContainer &container)
 {
     debug.nospace() << "ProjectPartContainer("
-                    << container.projectPartId() << ","
-                    << container.arguments() << ", "
-                    << container.headerPaths() << ", "
-                    << container.sourcePaths()
+                    << container.projectPartId << ","
+                    << container.arguments << ", "
+                    << container.headerPathIds << ", "
+                    << container.sourcePathIds
                     << ")";
 
     return debug;

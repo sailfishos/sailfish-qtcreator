@@ -47,7 +47,7 @@
 
     This manual also describes features that are only available if you have the
     appropriate \l{http://qt.io/licensing/}{Qt license}. For more information,
-    see \l{Qt Creator Commercial Features}.
+    see \l{Commercial Features}.
 
     \table
         \row
@@ -122,6 +122,8 @@
                     \li \l{Glossary}
                 \endlist
         \row
+            \li {4,1} \l{All Topics}
+        \row
             \li {4,1} \note To report bugs and suggestions to the Qt Bug
                 Tracker, select \uicontrol {Help > Report Bug}.
                 To copy and paste detailed information about your system to the
@@ -131,5 +133,8 @@
                 You can also join the \QC mailing list at:
                 \l{http://lists.qt-project.org/mailman/listinfo/}
                 {lists.qt-project.org Mailing Lists}.
+
+                For credits and a list of third-party libraries, see
+                \l {Acknowledgements}.
     \endtable
 */

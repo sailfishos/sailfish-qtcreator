@@ -27,8 +27,8 @@
 
 #include <pchmanagerclientinterface.h>
 #include <precompiledheadersupdatedmessage.h>
-#include <removepchprojectpartsmessage.h>
-#include <updatepchprojectpartsmessage.h>
+#include <removeprojectpartsmessage.h>
+#include <updateprojectpartsmessage.h>
 
 #include <utils/smallstring.h>
 
@@ -52,7 +52,7 @@ void PchManagerServer::end()
 
 }
 
-void PchManagerServer::updatePchProjectParts(UpdatePchProjectPartsMessage &&message)
+void PchManagerServer::updateProjectParts(UpdateProjectPartsMessage &&message)
 {
     m_pchCreator.setGeneratedFiles(message.takeGeneratedFiles());
 
@@ -61,11 +61,11 @@ void PchManagerServer::updatePchProjectParts(UpdatePchProjectPartsMessage &&mess
     m_fileSystemWatcher.updateIdPaths(m_pchCreator.takeProjectsIncludes());
 }
 
-void PchManagerServer::removePchProjectParts(RemovePchProjectPartsMessage &&message)
+void PchManagerServer::removeProjectParts(RemoveProjectPartsMessage &&message)
 {
-    m_fileSystemWatcher.removeIds(message.projectsPartIds());
+    m_fileSystemWatcher.removeIds(message.projectsPartIds);
 
-    m_projectParts.remove(message.projectsPartIds());
+    m_projectParts.remove(message.projectsPartIds);
 }
 
 void PchManagerServer::pathsWithIdsChanged(const Utils::SmallStringVector &ids)

@@ -26,6 +26,7 @@
 #pragma once
 
 #include <utils/utils_global.h>
+#include <utils/fileutils.h>
 
 #include <QHash>
 #include <QStringList>
@@ -48,7 +49,7 @@ public:
     void setProjectDirectory(const QString &absoluteProjectPath);
     QString projectDirectory() const;
 
-    void setProjectFiles(const QStringList &projectFiles);
+    void setProjectFiles(const Utils::FileNameList &projectFiles);
     void setSysroot(const QString &sysroot);
 
     QString findFile(const QUrl &fileUrl, bool *success = nullptr) const;
@@ -59,18 +60,21 @@ public:
     void setAdditionalSearchDirectories(const QStringList &searchDirectories);
 
 private:
-    QString findInSearchPaths(const QString filePath, FindMode findMode, bool *success) const;
+    QString findInSearchPaths(const QString &filePath, FindMode findMode, bool *success) const;
     static QString findInSearchPath(const QString &searchPath, const QString &filePath,
                                     FindMode findMode, bool *success);
     QStringList filesWithSameFileName(const QString &fileName) const;
     QStringList pathSegmentsWithSameName(const QString &path) const;
+
+    QString handleSuccess(const QString &originalPath, const QString &found, bool *success,
+                          const char *where, bool doCache = true) const;
 
     static int rankFilePath(const QString &candidatePath, const QString &filePathToFind);
     static QString bestMatch(const QStringList &filePaths, const QString &filePathToFind);
 
     QString m_projectDir;
     QString m_sysroot;
-    QStringList m_projectFiles;
+    Utils::FileNameList m_projectFiles;
     QStringList m_searchDirectories;
     mutable QHash<QString,QString> m_cache;
 };

@@ -155,7 +155,6 @@ void CustomWizard::setParameters(const CustomWizardParametersPtr &p)
     setCategory(p->category);
     setDisplayCategory(p->displayCategory);
     setRequiredFeatures(p->requiredFeatures);
-    setPreferredFeatures(p->preferredFeatures);
     setFlags(p->flags);
 }
 

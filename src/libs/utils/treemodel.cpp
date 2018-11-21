@@ -899,6 +899,12 @@ void TreeItem::expand()
     m_model->requestExpansion(index());
 }
 
+void TreeItem::collapse()
+{
+    QTC_ASSERT(m_model, return);
+    m_model->requestCollapse(index());
+}
+
 void TreeItem::propagateModel(BaseTreeModel *m)
 {
     QTC_ASSERT(m, return);
@@ -1024,6 +1030,8 @@ QVariant BaseTreeModel::headerData(int section, Qt::Orientation orientation,
 
 bool BaseTreeModel::hasChildren(const QModelIndex &idx) const
 {
+    if (idx.column() > 0)
+        return false;
     TreeItem *item = itemForIndex(idx);
     return !item || item->hasChildren();
 }

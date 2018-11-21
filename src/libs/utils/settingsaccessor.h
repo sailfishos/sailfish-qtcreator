@@ -39,28 +39,58 @@
 
 namespace Utils {
 
+// -----------------------------------------------------------------------------
+// Helper:
+// -----------------------------------------------------------------------------
+
+QTCREATOR_UTILS_EXPORT int versionFromMap(const QVariantMap &data);
+QTCREATOR_UTILS_EXPORT int originalVersionFromMap(const QVariantMap &data);
+QTCREATOR_UTILS_EXPORT QByteArray settingsIdFromMap(const QVariantMap &data);
+
+QTCREATOR_UTILS_EXPORT void setVersionInMap(QVariantMap &data, int version);
+QTCREATOR_UTILS_EXPORT void setOriginalVersionInMap(QVariantMap &data, int version);
+QTCREATOR_UTILS_EXPORT void setSettingsIdInMap(QVariantMap &data, const QByteArray &id);
+
 // --------------------------------------------------------------------
-// BasicSettingsAccessor:
+// Helpers:
+// --------------------------------------------------------------------
+
+QTCREATOR_UTILS_EXPORT int versionFromMap(const QVariantMap &data);
+QTCREATOR_UTILS_EXPORT int originalVersionFromMap(const QVariantMap &data);
+QTCREATOR_UTILS_EXPORT QByteArray settingsIdFromMap(const QVariantMap &data);
+
+QTCREATOR_UTILS_EXPORT void setVersionInMap(QVariantMap &data, int version);
+QTCREATOR_UTILS_EXPORT void setOriginalVersionInMap(QVariantMap &data, int version);
+QTCREATOR_UTILS_EXPORT void setSettingsIdInMap(QVariantMap &data, const QByteArray &id);
+
+using SettingsMergeResult = Utils::optional<QPair<QString, QVariant>>;
+
+// --------------------------------------------------------------------
+// SettingsAccessor:
 // --------------------------------------------------------------------
 
 // Read/write files incl. error handling suitable for the UI:
-class QTCREATOR_UTILS_EXPORT BasicSettingsAccessor
+class QTCREATOR_UTILS_EXPORT SettingsAccessor
 {
 public:
-    BasicSettingsAccessor(const QString &docType, const QString &displayName,
-                          const QString &applicationDisplayName);
-    virtual ~BasicSettingsAccessor() = default;
+    SettingsAccessor(const QString &docType, const QString &displayName,
+                     const QString &applicationDisplayName);
+    virtual ~SettingsAccessor() = default;
 
     enum ProceedInfo { Continue, DiscardAndContinue };
     typedef QHash<QMessageBox::StandardButton, ProceedInfo> ButtonMap;
     class Issue {
     public:
-        Issue(const QString &title, const QString &message) : title{title}, message{message} { }
+        enum class Type { ERROR, WARNING };
+        Issue(const QString &title, const QString &message, const Type type) :
+            title{title}, message{message}, type{type}
+        { }
 
         QMessageBox::StandardButtons allButtons() const;
 
         QString title;
         QString message;
+        Type type;
         QMessageBox::StandardButton defaultButton = QMessageBox::NoButton;
         QMessageBox::StandardButton escapeButton = QMessageBox::Ok;
         QHash<QMessageBox::StandardButton, ProceedInfo> buttons = {{QMessageBox::Ok, ProceedInfo::Continue}};
@@ -70,8 +100,15 @@ public:
     public:
         RestoreData() = default;
         RestoreData(const Utils::FileName &path, const QVariantMap &data) : path{path}, data{data} { }
-        RestoreData(const QString &title, const QString &message) : RestoreData(Issue(title, message)) { }
+        RestoreData(const QString &title, const QString &message, const Issue::Type type) :
+            RestoreData(Issue(title, message, type))
+        { }
         RestoreData(const Issue &issue) : issue{issue} { }
+
+        bool hasIssue() const { return bool(issue); }
+        bool hasError() const { return hasIssue() && issue.value().type == Issue::Type::ERROR; }
+        bool hasWarning() const { return hasIssue() && issue.value().type == Issue::Type::WARNING; }
+
         Utils::FileName path;
         QVariantMap data;
         Utils::optional<Issue> issue;
@@ -85,29 +122,94 @@ public:
     const QString applicationDisplayName;
 
     void setBaseFilePath(const Utils::FileName &baseFilePath) { m_baseFilePath = baseFilePath; }
+    void setReadOnly() { m_readOnly = true; }
     Utils::FileName baseFilePath() const { return m_baseFilePath; }
 
     virtual RestoreData readData(const Utils::FileName &path, QWidget *parent) const;
-    virtual Utils::optional<Issue> writeData(const Utils::FileName &path, const QVariantMap &data) const;
+    virtual Utils::optional<Issue> writeData(const Utils::FileName &path, const QVariantMap &data, QWidget *parent) const;
 
 protected:
     // Report errors:
+    QVariantMap restoreSettings(const Utils::FileName &settingsPath, QWidget *parent) const;
     ProceedInfo reportIssues(const Issue &issue, const FileName &path, QWidget *parent) const;
 
     virtual QVariantMap preprocessReadSettings(const QVariantMap &data) const;
     virtual QVariantMap prepareToWriteSettings(const QVariantMap &data) const;
 
-    RestoreData readFile(const Utils::FileName &path) const;
-    Utils::optional<Issue> writeFile(const Utils::FileName &path, const QVariantMap &data) const;
+    virtual RestoreData readFile(const Utils::FileName &path) const;
+    virtual Utils::optional<Issue> writeFile(const Utils::FileName &path, const QVariantMap &data) const;
 
 private:
     Utils::FileName m_baseFilePath;
     mutable std::unique_ptr<PersistentSettingsWriter> m_writer;
+    bool m_readOnly = false;
 };
 
 // --------------------------------------------------------------------
-// VersionUpgrader:
+// BackingUpSettingsAccessor:
 // --------------------------------------------------------------------
+
+class QTCREATOR_UTILS_EXPORT BackUpStrategy
+{
+public:
+    virtual ~BackUpStrategy() = default;
+
+    virtual FileNameList readFileCandidates(const Utils::FileName &baseFileName) const;
+    // Return -1 if data1 is better that data2, 0 if both are equally worthwhile
+    // and 1 if data2 is better than data1
+    virtual int compare(const SettingsAccessor::RestoreData &data1,
+                        const SettingsAccessor::RestoreData &data2) const;
+
+    virtual optional<FileName>
+    backupName(const QVariantMap &oldData, const FileName &path, const QVariantMap &data) const;
+};
+
+class QTCREATOR_UTILS_EXPORT BackingUpSettingsAccessor : public SettingsAccessor
+{
+public:
+    BackingUpSettingsAccessor(const QString &docType, const QString &displayName,
+                              const QString &applicationDisplayName);
+    BackingUpSettingsAccessor(std::unique_ptr<BackUpStrategy> &&strategy, const QString &docType,
+                              const QString &displayName, const QString &applicationDisplayName);
+
+    RestoreData readData(const Utils::FileName &path, QWidget *parent) const override;
+    Utils::optional<Issue> writeData(const Utils::FileName &path, const QVariantMap &data,
+                                     QWidget *parent) const override;
+
+    BackUpStrategy *strategy() const { return m_strategy.get(); }
+
+private:
+    Utils::FileNameList readFileCandidates(const FileName &path) const;
+    RestoreData bestReadFileData(const FileNameList &candidates, QWidget *parent) const;
+    void backupFile(const FileName &path, const QVariantMap &data, QWidget *parent) const;
+
+    std::unique_ptr<BackUpStrategy> m_strategy;
+};
+
+// --------------------------------------------------------------------
+// UpgradingSettingsAccessor:
+// --------------------------------------------------------------------
+
+class UpgradingSettingsAccessor;
+
+class QTCREATOR_UTILS_EXPORT VersionedBackUpStrategy : public BackUpStrategy
+{
+public:
+    VersionedBackUpStrategy(const UpgradingSettingsAccessor *accessor);
+
+    // Return -1 if data1 is better that data2, 0 if both are equally worthwhile
+    // and 1 if data2 is better than data1
+    int compare(const SettingsAccessor::RestoreData &data1,
+                const SettingsAccessor::RestoreData &data2) const override;
+
+    optional<FileName>
+    backupName(const QVariantMap &oldData, const FileName &path, const QVariantMap &data) const override;
+
+    const UpgradingSettingsAccessor *accessor() const { return m_accessor; }
+
+protected:
+    const UpgradingSettingsAccessor *m_accessor = nullptr;
+};
 
 // Handles updating a QVariantMap from version() to version() + 1
 class QTCREATOR_UTILS_EXPORT VersionUpgrader
@@ -130,61 +232,80 @@ private:
     const QString m_extension;
 };
 
-class SettingsAccessorPrivate;
+class MergingSettingsAccessor;
 
-class QTCREATOR_UTILS_EXPORT SettingsAccessor : public BasicSettingsAccessor
+class QTCREATOR_UTILS_EXPORT UpgradingSettingsAccessor : public BackingUpSettingsAccessor
 {
 public:
-    explicit SettingsAccessor(const Utils::FileName &baseFile, const QString &docType,
+    UpgradingSettingsAccessor(const QString &docType,
+                              const QString &displayName, const QString &applicationDisplayName);
+    UpgradingSettingsAccessor(std::unique_ptr<BackUpStrategy> &&strategy, const QString &docType,
                               const QString &displayName, const QString &appDisplayName);
-    ~SettingsAccessor() override;
-
-    static QVariantMap setVersionInMap(const QVariantMap &data, int version);
-    static int versionFromMap(const QVariantMap &data);
-    static int originalVersionFromMap(const QVariantMap &data);
-    static QVariantMap setOriginalVersionInMap(const QVariantMap &data, int version);
 
     int currentVersion() const;
     int firstSupportedVersion() const;
+    int lastSupportedVersion() const;
 
-    bool addVersionUpgrader(std::unique_ptr<VersionUpgrader> upgrader);
+    QByteArray settingsId() const { return m_id; }
+
+    bool isValidVersionAndId(const int version, const QByteArray &id) const;
+    VersionUpgrader *upgrader(const int version) const;
+
+    RestoreData readData(const Utils::FileName &path, QWidget *parent) const override;
 
 protected:
-    RestoreData readData(const Utils::FileName &path, QWidget *parent) const final;
-    Utils::optional<Issue> writeData(const Utils::FileName &path, const QVariantMap &data) const final;
-
-    void setSettingsId(const QByteArray &id);
-    QVariantMap upgradeSettings(const QVariantMap &data) const;
-    QVariantMap upgradeSettings(const QVariantMap &data, const int targetVersion) const;
-
     QVariantMap prepareToWriteSettings(const QVariantMap &data) const override;
 
-    virtual bool isBetterMatch(const QVariantMap &origData, const QVariantMap &newData) const;
-    virtual bool isValidVersionAndId(const int version, const QByteArray &id) const;
+    void setSettingsId(const QByteArray &id) { m_id = id; }
 
-    virtual Utils::FileName backupName(const QVariantMap &data) const;
-
-    virtual void storeSharedSettings(const QVariantMap &data) const;
-    virtual QVariant retrieveSharedSettings() const;
-
-    QVariantMap mergeSettings(const QVariantMap &userMap, const QVariantMap &sharedMap) const;
-
-    Utils::optional<Issue> findIssues(const QVariantMap &data, const Utils::FileName &path) const;
+    bool addVersionUpgrader(std::unique_ptr<VersionUpgrader> &&upgrader);
+    RestoreData upgradeSettings(const RestoreData &data, const int targetVersion) const;
+    RestoreData validateVersionRange(const RestoreData &data) const;
 
 private:
-    Utils::FileNameList settingsFiles() const;
-    QByteArray settingsId() const;
-    void backupUserFile() const;
-
-    RestoreData readUserSettings(QWidget *parent) const;
-    RestoreData readSharedSettings(QWidget *parent) const;
-
-    static QByteArray settingsIdFromMap(const QVariantMap &data);
-    static QString differentEnvironmentMsg(const QString &projectName);
-
-    SettingsAccessorPrivate *d;
-
-    friend class SettingsAccessorPrivate;
+    QByteArray m_id;
+    std::vector<std::unique_ptr<VersionUpgrader>> m_upgraders;
 };
+
+// --------------------------------------------------------------------
+// MergingSettingsAccessor:
+// --------------------------------------------------------------------
+
+class QTCREATOR_UTILS_EXPORT MergingSettingsAccessor : public UpgradingSettingsAccessor
+{
+public:
+    struct SettingsMergeData {
+        QVariantMap main;
+        QVariantMap secondary;
+        QString key;
+    };
+
+    MergingSettingsAccessor(std::unique_ptr<BackUpStrategy> &&strategy,
+                            const QString &docType, const QString &displayName,
+                            const QString &applicationDisplayName);
+
+    RestoreData readData(const Utils::FileName &path, QWidget *parent) const final;
+
+    void setSecondaryAccessor(std::unique_ptr<SettingsAccessor> &&secondary);
+
+protected:
+
+    RestoreData mergeSettings(const RestoreData &main, const RestoreData &secondary) const;
+
+    virtual SettingsMergeResult merge(const SettingsMergeData &global,
+                                      const SettingsMergeData &local) const = 0;
+    bool isHouseKeepingKey(const QString &key) const;
+
+    virtual QVariantMap postprocessMerge(const QVariantMap &main, const QVariantMap &secondary,
+                                         const QVariantMap &result) const;
+
+private:
+    std::unique_ptr<SettingsAccessor> m_secondaryAccessor;
+};
+
+using SettingsMergeFunction = std::function<SettingsMergeResult(const MergingSettingsAccessor::SettingsMergeData &,
+                                                                const MergingSettingsAccessor::SettingsMergeData &)>;
+QTCREATOR_UTILS_EXPORT QVariant mergeQVariantMaps(const QVariantMap &mainTree, const QVariantMap &secondaryTree,
+                                                  const SettingsMergeFunction &merge);
 
 } // namespace Utils

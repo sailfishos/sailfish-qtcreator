@@ -27,6 +27,8 @@
 #include "qpacketprotocol.h"
 #include "utils/qtcassert.h"
 
+#include <functional>
+
 namespace QmlDebug {
 
 QmlEngineControlClient::QmlEngineControlClient(QmlDebugConnection *client)
@@ -65,6 +67,11 @@ void QmlEngineControlClient::releaseEngine(int engineId)
     }
 }
 
+QList<int> QmlEngineControlClient::blockedEngines() const
+{
+    return m_blockedEngines.keys();
+}
+
 void QmlEngineControlClient::messageReceived(const QByteArray &data)
 {
     QPacket stream(dataStreamVersion(), data);
@@ -77,29 +84,35 @@ void QmlEngineControlClient::messageReceived(const QByteArray &data)
     if (!stream.atEnd())
         stream >> name;
 
-    EngineState &state = m_blockedEngines[id];
-    QTC_ASSERT(state.blockers == 0 && state.releaseCommand == InvalidCommand, /**/);
+    auto handleWaiting = [&](CommandType command, std::function<void()> emitter) {
+        EngineState &state = m_blockedEngines[id];
+        QTC_CHECK(state.blockers == 0);
+        QTC_CHECK(state.releaseCommand == InvalidCommand);
+        state.releaseCommand = command;
+        emitter();
+        if (state.blockers == 0) {
+            sendCommand(state.releaseCommand, id);
+            m_blockedEngines.remove(id);
+        }
+    };
 
     switch (message) {
     case EngineAboutToBeAdded:
-        state.releaseCommand = StartWaitingEngine;
-        emit engineAboutToBeAdded(id, name);
+        handleWaiting(StartWaitingEngine, [&](){
+            emit engineAboutToBeAdded(id, name);
+        });
         break;
     case EngineAdded:
         emit engineAdded(id, name);
         break;
     case EngineAboutToBeRemoved:
-        state.releaseCommand = StopWaitingEngine;
-        emit engineAboutToBeRemoved(id, name);
+        handleWaiting(StopWaitingEngine, [&](){
+            emit engineAboutToBeRemoved(id, name);
+        });
         break;
     case EngineRemoved:
         emit engineRemoved(id, name);
         break;
-    }
-
-    if (state.blockers == 0 && state.releaseCommand != InvalidCommand) {
-        sendCommand(state.releaseCommand, id);
-        m_blockedEngines.remove(id);
     }
 }
 

@@ -74,9 +74,9 @@ class QMLDESIGNERCORE_EXPORT Model : public QObject
 public:
     enum ViewNotification { NotifyView, DoNotNotifyView };
 
-    virtual ~Model();
+    ~Model() override;
 
-    static Model *create(TypeName type, int major = 1, int minor = 1, Model *metaInfoPropxyModel = 0);
+    static Model *create(TypeName type, int major = 1, int minor = 1, Model *metaInfoPropxyModel = nullptr);
 
     QUrl fileUrl() const;
     void setFileUrl(const QUrl &url);

@@ -28,7 +28,6 @@
 #include "qmakeproject.h"
 #include "qmakeprojectmanagerconstants.h"
 #include "qmakebuildconfiguration.h"
-#include "qmakerunconfigurationfactory.h"
 
 #include <coreplugin/dialogs/readonlyfilesdialog.h>
 #include <coreplugin/documentmanager.h>
@@ -43,10 +42,10 @@
 #include <qtsupport/profilereader.h>
 
 #include <utils/algorithm.h>
-#include <utils/asconst.h>
 #include <utils/qtcprocess.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/stringutils.h>
+#include <utils/temporarydirectory.h>
 #include <utils/QtConcurrentTools>
 
 #include <QLoggingCategory>
@@ -200,7 +199,7 @@ QmakePriFile *QmakePriFile::findPriFile(const FileName &fileName)
 {
     if (fileName == filePath())
         return this;
-    for (QmakePriFile *n : Utils::asConst(m_children)) {
+    for (QmakePriFile *n : qAsConst(m_children)) {
         if (QmakePriFile *result = n->findPriFile(fileName))
             return result;
     }
@@ -211,7 +210,7 @@ const QmakePriFile *QmakePriFile::findPriFile(const FileName &fileName) const
 {
     if (fileName == filePath())
         return this;
-    for (const QmakePriFile *n : Utils::asConst(m_children)) {
+    for (const QmakePriFile *n : qAsConst(m_children)) {
         if (const QmakePriFile *result = n->findPriFile(fileName))
             return result;
     }
@@ -364,7 +363,7 @@ void QmakePriFile::update(const Internal::QmakePriFileEvalResult &result)
 void QmakePriFile::watchFolders(const QSet<FileName> &folders)
 {
     const QSet<QString> folderStrings =
-            Utils::transform(folders, [] (const FileName &f) { return f.toString(); });
+            Utils::transform(folders, &FileName::toString);
     QSet<QString> toUnwatch = m_watchedFolders;
     toUnwatch.subtract(folderStrings);
 
@@ -1678,9 +1677,16 @@ QStringList QmakeProFile::includePaths(QtSupport::ProFileReader *reader, const F
                                            const FileName &buildDir, const QString &projectDir)
 {
     QStringList paths;
+    bool nextIsAnIncludePath = false;
     foreach (const QString &cxxflags, reader->values(QLatin1String("QMAKE_CXXFLAGS"))) {
-        if (cxxflags.startsWith(QLatin1String("-I")))
+        if (nextIsAnIncludePath) {
+            nextIsAnIncludePath = false;
+            paths.append(cxxflags);
+        } else if (cxxflags.startsWith(QLatin1String("-I"))) {
             paths.append(cxxflags.mid(2));
+        } else if (cxxflags.startsWith(QLatin1String("-isystem"))) {
+            nextIsAnIncludePath = true;
+        }
     }
 
     foreach (const ProFileEvaluator::SourceFile &el,
@@ -1865,9 +1871,11 @@ FileName QmakeProFile::buildDir(QmakeBuildConfiguration *bc) const
     const QString relativeDir = srcDirRoot.relativeFilePath(directoryPath().toString());
     if (!bc && m_project->activeTarget())
         bc = static_cast<QmakeBuildConfiguration *>(m_project->activeTarget()->activeBuildConfiguration());
-    if (!bc)
-        return { };
-    return FileName::fromString(QDir::cleanPath(QDir(bc->buildDirectory().toString()).absoluteFilePath(relativeDir)));
+    const QString buildConfigBuildDir = bc ? bc->buildDirectory().toString() : QString();
+    const QString buildDir = buildConfigBuildDir.isEmpty()
+                                 ? m_project->projectDirectory().toString()
+                                 : buildConfigBuildDir;
+    return FileName::fromString(QDir::cleanPath(QDir(buildDir).absoluteFilePath(relativeDir)));
 }
 
 FileNameList QmakeProFile::generatedFiles(const FileName &buildDir,

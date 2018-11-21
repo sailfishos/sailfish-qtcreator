@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2017 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,7 +30,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
+    \contentspage index.html
     \previouspage creator-build-example-application.html
     \page creator-tutorials.html
     \nextpage {Creating a Qt Quick Application}
@@ -47,7 +47,7 @@
 
         \li \l{Creating a Qt Quick Application}
 
-            Learn how to use \QMLD to create a Qt Quick application.
+            Learn how to use the Design mode to create a Qt Quick application.
 
         \li \l{Creating a Qt Widget Based Application}
 

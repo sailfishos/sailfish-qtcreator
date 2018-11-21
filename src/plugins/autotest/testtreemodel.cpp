@@ -158,6 +158,46 @@ QList<TestConfiguration *> TestTreeModel::getSelectedTests() const
     return result;
 }
 
+QList<TestConfiguration *> TestTreeModel::getTestsForFile(const Utils::FileName &fileName) const
+{
+    QList<TestConfiguration *> result;
+    for (Utils::TreeItem *frameworkRoot : *rootItem())
+        result.append(static_cast<TestTreeItem *>(frameworkRoot)->getTestConfigurationsForFile(fileName));
+    return result;
+}
+
+QList<TestTreeItem *> TestTreeModel::testItemsByName(TestTreeItem *root, const QString &testName)
+{
+    QList<TestTreeItem *> result;
+
+    root->forFirstLevelChildren([&testName, &result, this](TestTreeItem *node) {
+        if (node->type() == TestTreeItem::TestCase) {
+            if (node->name() == testName) {
+                result << node;
+                return; // prioritize Tests over TestCases
+            }
+            TestTreeItem *testCase = node->findFirstLevelChild([&testName](TestTreeItem *it) {
+                QTC_ASSERT(it, return false);
+                return it->type() == TestTreeItem::TestFunctionOrSet && it->name() == testName;
+            }); // collect only actual tests, not special functions like init, cleanup etc.
+            if (testCase)
+                result << testCase;
+        } else {
+            result << testItemsByName(node, testName);
+        }
+    });
+    return result;
+}
+
+QList<TestTreeItem *> TestTreeModel::testItemsByName(const QString &testName)
+{
+    QList<TestTreeItem *> result;
+    for (Utils::TreeItem *frameworkRoot : *rootItem())
+        result << testItemsByName(static_cast<TestTreeItem *>(frameworkRoot), testName);
+
+    return result;
+}
+
 void TestTreeModel::syncTestFrameworks()
 {
     // remove all currently registered
@@ -172,6 +212,17 @@ void TestTreeModel::syncTestFrameworks()
     emit updatedActiveFrameworks(sortedIds.size());
 }
 
+void TestTreeModel::filterAndInsert(TestTreeItem *item, TestTreeItem *root, bool groupingEnabled)
+{
+    TestTreeItem *filtered = item->applyFilters();
+    if (item->type() != TestTreeItem::TestCase || item->childCount())
+        insertItemInParent(item, root, groupingEnabled);
+    else // might be that all children have been filtered out
+        delete item;
+    if (filtered)
+        insertItemInParent(filtered, root, groupingEnabled);
+}
+
 void TestTreeModel::rebuild(const QList<Core::Id> &frameworkIds)
 {
     TestFrameworkManager *frameworkManager = TestFrameworkManager::instance();
@@ -179,21 +230,23 @@ void TestTreeModel::rebuild(const QList<Core::Id> &frameworkIds)
         TestTreeItem *frameworkRoot = frameworkManager->rootNodeForTestFramework(id);
         const bool groupingEnabled = TestFrameworkManager::instance()->groupingEnabled(id);
         for (int row = frameworkRoot->childCount() - 1; row >= 0; --row) {
-            auto testItem = frameworkRoot->childItem(row);
-            if (!groupingEnabled && testItem->type() == TestTreeItem::GroupNode) {
-                // do not re-insert the GroupNode, but process its children and delete it afterwards
+            auto testItem = frameworkRoot->childAt(row);
+            if (testItem->type() == TestTreeItem::GroupNode) {
+                // process children of group node and delete it afterwards if necessary
                 for (int childRow = testItem->childCount() - 1; childRow >= 0; --childRow) {
                     // FIXME should this be done recursively until we have a non-GroupNode?
-                    TestTreeItem *childTestItem = testItem->childItem(childRow);
+                    TestTreeItem *childTestItem = testItem->childAt(childRow);
                     takeItem(childTestItem);
-                    insertItemInParent(childTestItem, frameworkRoot, groupingEnabled);
+                    filterAndInsert(childTestItem, frameworkRoot, groupingEnabled);
                 }
-                delete takeItem(testItem);
+                if (!groupingEnabled || testItem->childCount() == 0)
+                    delete takeItem(testItem);
             } else {
                 takeItem(testItem);
-                insertItemInParent(testItem, frameworkRoot, groupingEnabled);
+                filterAndInsert(testItem, frameworkRoot, groupingEnabled);
             }
         }
+        revalidateCheckState(frameworkRoot);
     }
 }
 
@@ -220,7 +273,7 @@ void TestTreeModel::markForRemoval(const QString &filePath)
     for (Utils::TreeItem *frameworkRoot : *rootItem()) {
         TestTreeItem *root = static_cast<TestTreeItem *>(frameworkRoot);
         for (int childRow = root->childCount() - 1; childRow >= 0; --childRow) {
-            TestTreeItem *child = root->childItem(childRow);
+            TestTreeItem *child = root->childAt(childRow);
             child->markForRemovalRecursively(filePath);
         }
     }
@@ -231,6 +284,7 @@ void TestTreeModel::sweep()
     for (Utils::TreeItem *frameworkRoot : *rootItem()) {
         TestTreeItem *root = static_cast<TestTreeItem *>(frameworkRoot);
         sweepChildren(root);
+        revalidateCheckState(root);
     }
     // even if nothing has changed by the sweeping we might had parse which added or modified items
     emit testTreeModelChanged();
@@ -247,7 +301,7 @@ bool TestTreeModel::sweepChildren(TestTreeItem *item)
 {
     bool hasChanged = false;
     for (int row = item->childCount() - 1; row >= 0; --row) {
-        TestTreeItem *child = item->childItem(row);
+        TestTreeItem *child = item->childAt(row);
 
         if (child->type() != TestTreeItem::Root && child->markedForRemoval()) {
             destroyItem(child);
@@ -266,24 +320,58 @@ bool TestTreeModel::sweepChildren(TestTreeItem *item)
     return hasChanged;
 }
 
+static TestTreeItem *fullCopyOf(TestTreeItem *other)
+{
+    QTC_ASSERT(other, return nullptr);
+    TestTreeItem *result = other->copyWithoutChildren();
+    for (int row = 0, count = other->childCount(); row < count; ++row)
+        result->appendChild(fullCopyOf(other->childAt(row)));
+    return result;
+}
+
+static void applyParentCheckState(TestTreeItem *parent, TestTreeItem *newItem)
+{
+    QTC_ASSERT(parent && newItem, return);
+
+    if (parent->checked() != newItem->checked()) {
+        const Qt::CheckState checkState = parent->checked() == Qt::Unchecked ? Qt::Unchecked
+                                                                             : Qt::Checked;
+        newItem->setData(0, checkState, Qt::CheckStateRole);
+        newItem->forAllChildren([checkState](Utils::TreeItem *it) {
+            it->setData(0, checkState, Qt::CheckStateRole);
+        });
+    }
+}
+
 void TestTreeModel::insertItemInParent(TestTreeItem *item, TestTreeItem *root, bool groupingEnabled)
 {
     TestTreeItem *parentNode = root;
-    if (groupingEnabled) {
-        parentNode = root->findChildBy([item] (const TestTreeItem *it) {
+    if (groupingEnabled && item->isGroupable()) {
+        parentNode = root->findFirstLevelChild([item] (const TestTreeItem *it) {
             return it->isGroupNodeFor(item);
         });
         if (!parentNode) {
             parentNode = item->createParentGroupNode();
-            if (!parentNode) // we might not get a group node at all
+            if (!QTC_GUARD(parentNode)) // we might not get a group node at all
                 parentNode = root;
             else
                 root->appendChild(parentNode);
         }
     }
-    parentNode->appendChild(item);
-    if (item->checked() != parentNode->checked())
-        revalidateCheckState(parentNode);
+    // check if a similar item is already present (can happen for rebuild())
+    if (auto otherItem = parentNode->findChild(item)) {
+        // only handle item's children and add them to the already present one
+        for (int row = 0, count = item->childCount(); row < count; ++row) {
+            TestTreeItem *child = fullCopyOf(item->childAt(row));
+            applyParentCheckState(otherItem, child);
+            otherItem->appendChild(child);
+        }
+        delete item;
+    } else {
+        // we could try to add a non-checked item to a checked group or vice versa
+        applyParentCheckState(parentNode, item);
+        parentNode->appendChild(item);
+    }
 }
 
 void TestTreeModel::revalidateCheckState(TestTreeItem *item)
@@ -301,7 +389,7 @@ void TestTreeModel::revalidateCheckState(TestTreeItem *item)
     bool foundUnchecked = false;
     bool foundPartiallyChecked = false;
     for (int row = 0, count = item->childCount(); row < count; ++row) {
-        TestTreeItem *child = item->childItem(row);
+        TestTreeItem *child = item->childAt(row);
         switch (child->type()) {
         case TestTreeItem::TestDataFunction:
         case TestTreeItem::TestSpecialFunction:
@@ -365,7 +453,8 @@ void TestTreeModel::handleParseResult(const TestParseResult *result, TestTreeIte
     TestTreeItem *newItem = result->createTestTreeItem();
     QTC_ASSERT(newItem, return);
 
-    insertItemInParent(newItem, parentNode, groupingEnabled);
+    // it might be necessary to "split" created item
+    filterAndInsert(newItem, parentNode, groupingEnabled);
 }
 
 void TestTreeModel::removeAllTestItems()
@@ -419,7 +508,7 @@ int TestTreeModel::autoTestsCount() const
 bool TestTreeModel::hasUnnamedQuickTests(const TestTreeItem *rootNode) const
 {
     for (int row = 0, count = rootNode->childCount(); row < count; ++row) {
-        if (rootNode->childItem(row)->name().isEmpty())
+        if (rootNode->childAt(row)->name().isEmpty())
             return true;
     }
     return false;
@@ -431,12 +520,7 @@ TestTreeItem *TestTreeModel::unnamedQuickTests() const
     if (!rootNode)
         return nullptr;
 
-    for (int row = 0, count = rootNode->childCount(); row < count; ++row) {
-        TestTreeItem *child = rootNode->childItem(row);
-        if (child->name().isEmpty())
-            return child;
-    }
-    return nullptr;
+    return rootNode->findFirstLevelChild([](TestTreeItem *it) { return it->name().isEmpty(); });
 }
 
 int TestTreeModel::namedQuickTestsCount() const
@@ -461,11 +545,11 @@ int TestTreeModel::dataTagsCount() const
         return 0;
 
     int dataTagCount = 0;
-    for (Utils::TreeItem *item : *rootNode) {
-        TestTreeItem *classItem = static_cast<TestTreeItem *>(item);
-        for (Utils::TreeItem *functionItem : *classItem)
+    rootNode->forFirstLevelChildren([&dataTagCount](TestTreeItem *classItem) {
+        classItem->forFirstLevelChildren([&dataTagCount](TestTreeItem *functionItem) {
             dataTagCount += functionItem->childCount();
-   }
+        });
+    });
     return dataTagCount;
 }
 
@@ -480,10 +564,9 @@ QMultiMap<QString, int> TestTreeModel::gtestNamesAndSets() const
     QMultiMap<QString, int> result;
 
     if (TestTreeItem *rootNode = gtestRootNode()) {
-        for (int row = 0, count = rootNode->childCount(); row < count; ++row) {
-            const TestTreeItem *current = rootNode->childItem(row);
-            result.insert(current->name(), current->childCount());
-        }
+        rootNode->forFirstLevelChildren([&result](TestTreeItem *child) {
+            result.insert(child->name(), child->childCount());
+        });
     }
     return result;
 }

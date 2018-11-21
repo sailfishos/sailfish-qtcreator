@@ -227,11 +227,9 @@ bool QmlProject::validProjectFile() const
 
 QStringList QmlProject::customImportPaths() const
 {
-    QStringList importPaths;
     if (m_projectItem)
-        importPaths = m_projectItem.data()->importPaths();
-
-    return importPaths;
+        return m_projectItem.data()->importPaths();
+    return {};
 }
 
 bool QmlProject::addFiles(const QStringList &filePaths)
@@ -247,6 +245,11 @@ bool QmlProject::addFiles(const QStringList &filePaths)
 void QmlProject::refreshProjectFile()
 {
     refresh(QmlProject::ProjectFile | Files);
+}
+
+bool QmlProject::needsBuildConfigurations() const
+{
+    return false;
 }
 
 QStringList QmlProject::makeAbsolute(const Utils::FileName &path, const QStringList &relativePaths)
@@ -277,52 +280,42 @@ void QmlProject::refreshTargetDirectory()
         updateDeploymentData(target);
 }
 
-bool QmlProject::supportsKit(const Kit *k, QString *errorMessage) const
+QList<Task> QmlProject::projectIssues(const Kit *k) const
 {
-    if (!k->isValid()) {
-        if (errorMessage)
-            *errorMessage = tr("Kit is not valid.");
-        return false;
-    }
+    QList<Task> result = Project::projectIssues(k);
+
+    const QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(k);
+    if (!version)
+        result.append(createProjectTask(Task::TaskType::Error, tr("No Qt version set in kit.")));
 
     IDevice::ConstPtr dev = DeviceKitInformation::device(k);
-    if (dev.isNull()) {
-        if (errorMessage)
-            *errorMessage = tr("Kit has no device.");
-        return false;
-    }
+    if (dev.isNull())
+        result.append(createProjectTask(Task::TaskType::Error, tr("Kit has no device.")));
 
-    QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(k);
-    if (!version) {
-        if (errorMessage)
-            *errorMessage = tr("No Qt version set in kit.");
-        return false;
-    }
-    if (version->qtVersion() < QtSupport::QtVersionNumber(5, 0, 0)) {
-        if (errorMessage)
-            *errorMessage = tr("Qt version is too old.");
-        return false;
-    }
+    if (version && version->qtVersion() < QtSupport::QtVersionNumber(5, 0, 0))
+        result.append(createProjectTask(Task::TaskType::Error, tr("Qt version is too old.")));
+
+    if (dev.isNull() || !version)
+        return result; // No need to check deeper than this
 
     if (dev->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE) {
         if (version->type() == QtSupport::Constants::DESKTOPQT) {
-            if (static_cast<QtSupport::DesktopQtVersion *>(version)->qmlsceneCommand().isEmpty()) {
-                if (errorMessage)
-                    *errorMessage = tr("Qt version has no qmlscene command.");
-                return false;
+            if (static_cast<const QtSupport::DesktopQtVersion *>(version)->qmlsceneCommand().isEmpty()) {
+                result.append(createProjectTask(Task::TaskType::Error,
+                                                tr("Qt version has no qmlscene command.")));
             }
         } else {
             // Non-desktop Qt on a desktop device? We don't support that.
-            if (errorMessage)
-                *errorMessage = tr("Non-desktop Qt is used with a Desktop device.");
-            return false;
+            result.append(createProjectTask(Task::TaskType::Error,
+                                            tr("Non-desktop Qt is used with a desktop device.")));
         }
+    } else {
+        // If not a desktop device, don't check the Qt version for qmlscene.
+        // The device is responsible for providing it and we assume qmlscene can be found
+        // in $PATH if it's not explicitly given.
     }
 
-    // If not a desktop device, don't check the Qt version for qmlscene.
-    // The device is responsible for providing it and we assume qmlscene can be found
-    // in $PATH if it's not explicitly given.
-    return true;
+    return result;
 }
 
 Project::RestoreResult QmlProject::fromMap(const QVariantMap &map, QString *errorMessage)
@@ -336,7 +329,9 @@ Project::RestoreResult QmlProject::fromMap(const QVariantMap &map, QString *erro
 
     if (!activeTarget()) {
         // find a kit that matches prerequisites (prefer default one)
-        const QList<Kit*> kits = KitManager::kits([this](const Kit *k) { return supportsKit(k, nullptr); });
+        const QList<Kit*> kits = KitManager::kits([this](const Kit *k) {
+            return !containsType(projectIssues(k), Task::TaskType::Error);
+        });
 
         if (!kits.isEmpty()) {
             Kit *kit = kits.contains(KitManager::defaultKit()) ? KitManager::defaultKit() : kits.first();
@@ -359,29 +354,22 @@ Project::RestoreResult QmlProject::fromMap(const QVariantMap &map, QString *erro
     return RestoreResult::Ok;
 }
 
-bool QmlProject::setupTarget(Target *target)
-{
-    target->updateDefaultDeployConfigurations();
-    target->updateDefaultRunConfigurations();
-    return true;
-}
-
 void QmlProject::generateProjectTree()
 {
     if (!m_projectItem)
         return;
 
-    auto newRoot = new Internal::QmlProjectNode(this);
+    auto newRoot = std::make_unique<Internal::QmlProjectNode>(this);
 
     for (const QString &f : m_projectItem.data()->files()) {
         const Utils::FileName fileName = Utils::FileName::fromString(f);
         const FileType fileType = (fileName == projectFilePath())
                 ? FileType::Project : FileNode::fileTypeForFileName(fileName);
-        newRoot->addNestedNode(new FileNode(fileName, fileType, false));
+        newRoot->addNestedNode(std::make_unique<FileNode>(fileName, fileType, false));
     }
-    newRoot->addNestedNode(new FileNode(projectFilePath(), FileType::Project, false));
+    newRoot->addNestedNode(std::make_unique<FileNode>(projectFilePath(), FileType::Project, false));
 
-    setRootProjectNode(newRoot);
+    setRootProjectNode(std::move(newRoot));
     refreshTargetDirectory();
 }
 

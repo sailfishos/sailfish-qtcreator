@@ -60,8 +60,8 @@ class Highlighter : public TextEditor::SyntaxHighlighter
     Q_OBJECT
 
 public:
-    Highlighter(QTextDocument *parent = 0);
-    virtual ~Highlighter();
+    Highlighter(QTextDocument *parent = nullptr);
+    ~Highlighter() override;
 
     enum TextFormatId {
         Normal,
@@ -103,7 +103,7 @@ public:
     void setDefaultContext(const QSharedPointer<Internal::Context> &defaultContext);
 
 protected:
-    virtual void highlightBlock(const QString &text);
+    void highlightBlock(const QString &text) override;
 
 private:
 

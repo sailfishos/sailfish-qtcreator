@@ -72,6 +72,7 @@ bool ClangDiagnosticConfig::operator==(const ClangDiagnosticConfig &other) const
     return m_id == other.m_id
         && m_displayName == other.m_displayName
         && m_clangOptions == other.m_clangOptions
+        && m_clangTidyMode == other.m_clangTidyMode
         && m_clangTidyChecks == other.m_clangTidyChecks
         && m_clazyChecks == other.m_clazyChecks
         && m_isReadOnly == other.m_isReadOnly;
@@ -80,6 +81,16 @@ bool ClangDiagnosticConfig::operator==(const ClangDiagnosticConfig &other) const
 bool ClangDiagnosticConfig::operator!=(const ClangDiagnosticConfig &other) const
 {
     return !(*this == other);
+}
+
+ClangDiagnosticConfig::TidyMode ClangDiagnosticConfig::clangTidyMode() const
+{
+    return m_clangTidyMode;
+}
+
+void ClangDiagnosticConfig::setClangTidyMode(TidyMode mode)
+{
+    m_clangTidyMode = mode;
 }
 
 QString ClangDiagnosticConfig::clangTidyChecks() const

@@ -44,8 +44,8 @@ class CORE_EXPORT RightPanePlaceHolder : public QWidget
     Q_OBJECT
 
 public:
-    explicit RightPanePlaceHolder(Id mode, QWidget *parent = 0);
-    ~RightPanePlaceHolder();
+    explicit RightPanePlaceHolder(Id mode, QWidget *parent = nullptr);
+    ~RightPanePlaceHolder() override;
     static RightPanePlaceHolder *current();
 
 private:
@@ -61,7 +61,7 @@ class CORE_EXPORT RightPaneWidget : public QWidget
 
 public:
     RightPaneWidget();
-    ~RightPaneWidget();
+    ~RightPaneWidget() override;
 
     void saveSettings(QSettings *settings);
     void readSettings(QSettings *settings);
@@ -76,7 +76,7 @@ public:
     int storedWidth();
 
 protected:
-    void resizeEvent(QResizeEvent *);
+    void resizeEvent(QResizeEvent *) override;
 
 private:
     void clearWidget();

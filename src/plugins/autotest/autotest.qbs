@@ -11,6 +11,7 @@ QtcPlugin {
     Depends { name: "QmlJSTools" }
     Depends { name: "Utils" }
     Depends { name: "Debugger" }
+    Depends { name: "TextEditor" }
 
     pluginTestDepends: [
         "QbsProjectManager",
@@ -40,6 +41,8 @@ QtcPlugin {
         "testcodeparser.h",
         "testconfiguration.cpp",
         "testconfiguration.h",
+        "testeditormark.cpp",
+        "testeditormark.h",
         "testnavigationwidget.cpp",
         "testnavigationwidget.h",
         "testresult.cpp",

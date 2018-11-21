@@ -493,13 +493,9 @@ void CppCodeStylePreferencesWidget::updatePreview()
 
 void CppCodeStylePreferencesWidget::decorateEditors(const FontSettings &fontSettings)
 {
-    const SnippetProvider *provider =
-            SnippetProvider::snippetProviderForGroupId(CppEditor::Constants::CPP_SNIPPETS_GROUP_ID);
-
     foreach (SnippetEditorWidget *editor, m_previews) {
         editor->textDocument()->setFontSettings(fontSettings);
-        if (provider)
-            provider->decorateEditor(editor);
+        SnippetProvider::decorateEditor(editor, CppEditor::Constants::CPP_SNIPPETS_GROUP_ID);
     }
 }
 
@@ -522,8 +518,6 @@ CppCodeStyleSettingsPage::CppCodeStyleSettingsPage(QWidget *parent) :
     setId(Constants::CPP_CODE_STYLE_SETTINGS_ID);
     setDisplayName(QCoreApplication::translate("CppTools", Constants::CPP_CODE_STYLE_SETTINGS_NAME));
     setCategory(Constants::CPP_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("CppTools", Constants::CPP_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(Constants::SETTINGS_CATEGORY_CPP_ICON));
 }
 
 QWidget *CppCodeStyleSettingsPage::widget()

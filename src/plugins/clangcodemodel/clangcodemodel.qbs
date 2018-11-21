@@ -27,6 +27,7 @@ QtcPlugin {
         var resourceDir = FileInfo.joinPaths(libclang.llvmLibDir, "clang", libclang.llvmVersion,
                                              "include");
         defines.push('CLANG_RESOURCE_DIR="' + resourceDir + '"');
+        defines.push('CLANG_BINDIR="' + libclang.llvmBinDir + '"');
         return defines;
     }
 
@@ -62,6 +63,8 @@ QtcPlugin {
         "clangcompletioncontextanalyzer.cpp",
         "clangcompletioncontextanalyzer.h",
         "clangconstants.h",
+        "clangcurrentdocumentfilter.cpp",
+        "clangcurrentdocumentfilter.h",
         "clangdiagnosticfilter.cpp",
         "clangdiagnosticfilter.h",
         "clangdiagnosticmanager.cpp",
@@ -80,13 +83,15 @@ QtcPlugin {
         "clangfollowsymbol.h",
         "clangfunctionhintmodel.cpp",
         "clangfunctionhintmodel.h",
+        "clanghighlightingresultreporter.cpp",
+        "clanghighlightingresultreporter.h",
         "clanghoverhandler.cpp",
         "clanghoverhandler.h",
-        "clangtokeninfosreporter.cpp",
-        "clangtokeninfosreporter.h",
         "clangisdiagnosticrelatedtolocation.h",
         "clangmodelmanagersupport.cpp",
         "clangmodelmanagersupport.h",
+        "clangoverviewmodel.cpp",
+        "clangoverviewmodel.h",
         "clangpreprocessorassistproposalitem.cpp",
         "clangpreprocessorassistproposalitem.h",
         "clangprojectsettings.cpp",

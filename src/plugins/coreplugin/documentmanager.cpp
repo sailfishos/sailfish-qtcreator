@@ -31,6 +31,7 @@
 #include "coreconstants.h"
 
 #include <coreplugin/diffservice.h>
+#include <coreplugin/dialogs/filepropertiesdialog.h>
 #include <coreplugin/dialogs/readonlyfilesdialog.h>
 #include <coreplugin/dialogs/saveitemsdialog.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -156,6 +157,7 @@ public:
 
     QFileSystemWatcher *m_fileWatcher = nullptr; // Delayed creation.
     QFileSystemWatcher *m_linkWatcher = nullptr; // Delayed creation (only UNIX/if a link is seen).
+    bool m_postponeAutoReload = false;
     bool m_blockActivated = false;
     bool m_checkOnFocusChange = false;
     QString m_lastVisitedDirectory = QDir::currentPath();
@@ -449,7 +451,7 @@ void DocumentManager::filePathChanged(const FileName &oldName, const FileName &n
 */
 void DocumentManager::addDocument(IDocument *document, bool addWatcher)
 {
-    addDocuments(QList<IDocument *>() << document, addWatcher);
+    addDocuments({document}, addWatcher);
 }
 
 void DocumentManager::documentDestroyed(QObject *obj)
@@ -594,6 +596,13 @@ void DocumentManager::unexpectFileChange(const QString &fileName)
     const QString resolvedCleanAbsFilePath = cleanAbsoluteFilePath(fileName, ResolveLinks);
     if (cleanAbsFilePath != resolvedCleanAbsFilePath)
         updateExpectedState(filePathKey(fileName, ResolveLinks));
+}
+
+void DocumentManager::setAutoReloadPostponed(bool postponed)
+{
+    d->m_postponeAutoReload = postponed;
+    if (!postponed)
+        QTimer::singleShot(500, m_instance, &DocumentManager::checkForReload);
 }
 
 static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
@@ -948,6 +957,12 @@ bool DocumentManager::saveModifiedDocument(IDocument *document, const QString &m
                                  alwaysSaveMessage, alwaysSave, failedToClose);
 }
 
+void DocumentManager::showFilePropertiesDialog(const FileName &filePath)
+{
+    FilePropertiesDialog properties(filePath);
+    properties.exec();
+}
+
 /*!
     Asks the user for a set of file names to be opened. The \a filters
     and \a selectedFilter arguments are interpreted like in
@@ -983,7 +998,7 @@ void DocumentManager::changedFile(const QString &fileName)
 
 void DocumentManager::checkForReload()
 {
-    if (d->m_changedFiles.isEmpty())
+    if (d->m_postponeAutoReload || d->m_changedFiles.isEmpty())
         return;
     if (QApplication::applicationState() != Qt::ApplicationActive)
         return;

@@ -58,8 +58,8 @@ public:
         ExternalWindow
     };
 
-    HelpWidget(const Core::Context &context, WidgetStyle style, QWidget *parent = 0);
-    ~HelpWidget();
+    HelpWidget(const Core::Context &context, WidgetStyle style, QWidget *parent = nullptr);
+    ~HelpWidget() override;
 
     HelpViewer *currentViewer() const;
     void setCurrentViewer(HelpViewer *viewer);
@@ -82,7 +82,7 @@ public:
     void updateCloseButton();
 
 protected:
-    void closeEvent(QCloseEvent *);
+    void closeEvent(QCloseEvent *) override;
 
 signals:
     void openHelpMode(const QUrl &url);

@@ -25,6 +25,7 @@
 
 #include "clangtranslationunitupdater.h"
 
+#include "clangbackend_global.h"
 #include "clangfilepath.h"
 #include "clangstring.h"
 #include "clangunsavedfilesshallowarguments.h"
@@ -175,6 +176,14 @@ uint TranslationUnitUpdater::defaultParseOptions()
 {
     return CXTranslationUnit_CacheCompletionResults
          | CXTranslationUnit_PrecompiledPreamble
+         | CXTranslationUnit_CreatePreambleOnFirstParse
+#ifdef IS_LIMITSKIPFUNCTIONBODIESTOPREAMBLE_SUPPORTED
+         | CXTranslationUnit_SkipFunctionBodies
+         | CXTranslationUnit_LimitSkipFunctionBodiesToPreamble
+#endif
+#ifdef IS_SKIPWARNINGSFROMINCLUDEDFILES_SUPPORTED
+         | CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles
+#endif
          | CXTranslationUnit_IncludeBriefCommentsInCodeCompletion
          | CXTranslationUnit_DetailedPreprocessingRecord
          | CXTranslationUnit_KeepGoing;

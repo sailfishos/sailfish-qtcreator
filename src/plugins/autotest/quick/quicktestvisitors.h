@@ -27,8 +27,12 @@
 
 #include "quicktesttreeitem.h"
 
+#include <cplusplus/ASTVisitor.h>
+#include <cplusplus/CppDocument.h>
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/qmljsdocument.h>
+
+#include <QStack>
 
 namespace Autotest {
 namespace Internal {
@@ -38,11 +42,13 @@ class TestQmlVisitor : public QmlJS::AST::Visitor
 public:
     explicit TestQmlVisitor(QmlJS::Document::Ptr doc, const QmlJS::Snapshot &snapshot);
 
-    bool visit(QmlJS::AST::UiObjectDefinition *ast);
-    bool visit(QmlJS::AST::ExpressionStatement *ast);
-    bool visit(QmlJS::AST::UiScriptBinding *ast);
-    bool visit(QmlJS::AST::FunctionDeclaration *ast);
-    bool visit(QmlJS::AST::StringLiteral *ast);
+    bool visit(QmlJS::AST::UiObjectDefinition *ast) override;
+    void endVisit(QmlJS::AST::UiObjectDefinition *ast) override;
+    bool visit(QmlJS::AST::ExpressionStatement *ast) override;
+    bool visit(QmlJS::AST::UiScriptBinding *ast) override;
+    void endVisit(QmlJS::AST::UiScriptBinding *ast) override;
+    bool visit(QmlJS::AST::FunctionDeclaration *ast) override;
+    bool visit(QmlJS::AST::StringLiteral *ast) override;
 
     QString testCaseName() const { return m_currentTestCaseName; }
     TestCodeLocationAndType testCaseLocation() const { return m_testCaseLocation; }
@@ -55,7 +61,24 @@ private:
     QString m_currentTestCaseName;
     TestCodeLocationAndType m_testCaseLocation;
     QMap<QString, TestCodeLocationAndType> m_testFunctions;
+    QStack<QString> m_objectStack;
     bool m_typeIsTestCase = false;
+    bool m_insideTestCase = false;
+    bool m_expectTestCaseName = false;
+};
+
+class QuickTestAstVisitor : public CPlusPlus::ASTVisitor
+{
+public:
+    QuickTestAstVisitor(CPlusPlus::Document::Ptr doc, const CPlusPlus::Snapshot &snapshot);
+
+    bool visit(CPlusPlus::CallAST *ast) override;
+
+    QString testBaseName() const { return m_testBaseName; }
+private:
+    QString m_testBaseName;
+    CPlusPlus::Document::Ptr m_currentDoc;
+    CPlusPlus::Snapshot m_snapshot;
 };
 
 } // namespace Internal

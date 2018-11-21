@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfiguration.h>
 
 #include <utils/outputformat.h>
 
@@ -41,12 +41,12 @@ class ValgrindRunner : public QObject
     Q_OBJECT
 
 public:
-    explicit ValgrindRunner(QObject *parent = 0);
-    ~ValgrindRunner();
+    explicit ValgrindRunner(QObject *parent = nullptr);
+    ~ValgrindRunner() override;
 
     void setValgrindExecutable(const QString &executable);
     void setValgrindArguments(const QStringList &toolArguments);
-    void setDebuggee(const ProjectExplorer::StandardRunnable &debuggee);
+    void setDebuggee(const ProjectExplorer::Runnable &debuggee);
     void setProcessChannelMode(QProcess::ProcessChannelMode mode);
     void setLocalServerAddress(const QHostAddress &localServerAddress);
     void setDevice(const ProjectExplorer::IDevice::ConstPtr &device);

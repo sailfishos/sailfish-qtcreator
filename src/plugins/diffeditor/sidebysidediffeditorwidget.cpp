@@ -136,7 +136,6 @@ private:
 
     // block number, visual line number.
     QMap<int, int> m_lineNumbers;
-    int m_lineNumberDigits = 1;
     // block number, fileInfo. Set for file lines only.
     QMap<int, DiffFileInfo> m_fileInfo;
     // block number, skipped lines and context info. Set for chunk lines only.
@@ -153,7 +152,7 @@ private:
     QTextBlock m_drawCollapsedBlock;
     QPointF m_drawCollapsedOffset;
     QRect m_drawCollapsedClip;
-
+    int m_lineNumberDigits = 1;
 };
 
 SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
@@ -180,6 +179,7 @@ SideDiffEditorWidget::SideDiffEditorWidget(QWidget *parent)
         connect(documentLayout, &TextDocumentLayout::foldChanged,
                 this, &SideDiffEditorWidget::foldChanged);
     setCodeFoldingSupported(true);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 }
 
 void SideDiffEditorWidget::saveState()
@@ -476,7 +476,7 @@ void SideDiffEditorWidget::jumpToOriginalFile(const QTextCursor &cursor)
 static QString skippedText(int skippedNumber)
 {
     if (skippedNumber > 0)
-        return SideBySideDiffEditorWidget::tr("Skipped %n lines...", 0, skippedNumber);
+        return SideBySideDiffEditorWidget::tr("Skipped %n lines...", nullptr, skippedNumber);
     if (skippedNumber == -2)
         return SideBySideDiffEditorWidget::tr("Binary files differ");
     return SideBySideDiffEditorWidget::tr("Skipped unknown number of lines...");
@@ -715,6 +715,13 @@ SideBySideDiffEditorWidget::SideBySideDiffEditorWidget(QWidget *parent)
     connect(m_rightEditor, &SideDiffEditorWidget::foldChanged,
             m_leftEditor, &SideDiffEditorWidget::setFolded);
 
+    connect(m_leftEditor->horizontalScrollBar(), &QAbstractSlider::rangeChanged,
+            this, &SideBySideDiffEditorWidget::syncHorizontalScrollBarPolicy);
+
+    connect(m_rightEditor->horizontalScrollBar(), &QAbstractSlider::rangeChanged,
+            this, &SideBySideDiffEditorWidget::syncHorizontalScrollBarPolicy);
+
+    syncHorizontalScrollBarPolicy();
 
     m_splitter = new MiniSplitter(this);
     m_splitter->addWidget(m_leftEditor);
@@ -1132,6 +1139,18 @@ void SideBySideDiffEditorWidget::rightCursorPositionChanged()
     handlePositionChange(m_rightEditor, m_leftEditor);
     rightVSliderChanged();
     rightHSliderChanged();
+}
+
+void SideBySideDiffEditorWidget::syncHorizontalScrollBarPolicy()
+{
+    const bool alwaysOn = m_leftEditor->horizontalScrollBar()->maximum()
+            || m_rightEditor->horizontalScrollBar()->maximum();
+    const Qt::ScrollBarPolicy newPolicy = alwaysOn
+            ? Qt::ScrollBarAlwaysOn : Qt::ScrollBarAsNeeded;
+    if (m_leftEditor->horizontalScrollBarPolicy() != newPolicy)
+        m_leftEditor->setHorizontalScrollBarPolicy(newPolicy);
+    if (m_rightEditor->horizontalScrollBarPolicy() != newPolicy)
+        m_rightEditor->setHorizontalScrollBarPolicy(newPolicy);
 }
 
 void SideBySideDiffEditorWidget::handlePositionChange(SideDiffEditorWidget *source, SideDiffEditorWidget *dest)

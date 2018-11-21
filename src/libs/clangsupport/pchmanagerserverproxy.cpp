@@ -25,11 +25,11 @@
 
 #include "pchmanagerserverproxy.h"
 
-#include "cmbendmessage.h"
+#include "endmessage.h"
 #include "messageenvelop.h"
 #include "pchmanagerclientinterface.h"
-#include "removepchprojectpartsmessage.h"
-#include "updatepchprojectpartsmessage.h"
+#include "removeprojectpartsmessage.h"
+#include "updateprojectpartsmessage.h"
 
 #include <QIODevice>
 #include <QVector>
@@ -46,12 +46,12 @@ void PchManagerServerProxy::end()
     m_writeMessageBlock.write(EndMessage());
 }
 
-void PchManagerServerProxy::updatePchProjectParts(UpdatePchProjectPartsMessage &&message)
+void PchManagerServerProxy::updateProjectParts(UpdateProjectPartsMessage &&message)
 {
     m_writeMessageBlock.write(message);
 }
 
-void PchManagerServerProxy::removePchProjectParts(RemovePchProjectPartsMessage &&message)
+void PchManagerServerProxy::removeProjectParts(RemoveProjectPartsMessage &&message)
 {
     m_writeMessageBlock.write(message);
 }

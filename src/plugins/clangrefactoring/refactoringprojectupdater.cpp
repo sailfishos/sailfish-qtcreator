@@ -28,8 +28,9 @@
 namespace ClangRefactoring {
 
 RefactoringProjectUpdater::RefactoringProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
-                                                     RefactoringClient &)
-    : ClangPchManager::ProjectUpdater(server)
+                                                     RefactoringClient &,
+                                                     ClangBackEnd::FilePathCachingInterface &filePathCache)
+    : ClangPchManager::ProjectUpdater(server, filePathCache)
 {
 
 }

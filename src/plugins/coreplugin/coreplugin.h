@@ -38,9 +38,6 @@ class PathChooser;
 }
 
 namespace Core {
-
-class DesignMode;
-
 namespace Internal {
 
 class EditMode;
@@ -54,15 +51,15 @@ class CorePlugin : public ExtensionSystem::IPlugin
 
 public:
     CorePlugin();
-    ~CorePlugin();
+    ~CorePlugin() override;
 
-    bool initialize(const QStringList &arguments, QString *errorMessage = 0);
-    void extensionsInitialized();
-    bool delayedInitialize();
-    ShutdownFlag aboutToShutdown();
+    bool initialize(const QStringList &arguments, QString *errorMessage = nullptr) override;
+    void extensionsInitialized() override;
+    bool delayedInitialize() override;
+    ShutdownFlag aboutToShutdown() override;
     QObject *remoteCommand(const QStringList & /* options */,
                            const QString &workingDirectory,
-                           const QStringList &args);
+                           const QStringList &args) override;
 
 public slots:
     void fileOpenRequest(const QString&);
@@ -83,7 +80,6 @@ private:
 
     MainWindow *m_mainWindow;
     EditMode *m_editMode;
-    DesignMode *m_designMode;
     Locator *m_locator;
     ReaperPrivate m_reaper;
 };

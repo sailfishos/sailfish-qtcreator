@@ -81,9 +81,10 @@ def main():
                 and JIRA.isBugStillOpen(18607)):
                 test.warning("Skipping unstable tests on Windows", "See QTCREATORBUG-18607")
                 continue
-            if not startCreator(useClang):
+            if not startCreatorVerifyingClang(useClang):
                 continue
-            projectName = createNewNonQtProject()
+            projectName = createNewNonQtProject(tempDir(), "project_csup03",
+                                                [Targets.DESKTOP_4_8_7_DEFAULT])
             checkCodeModelSettings(useClang)
             openDocument("%s.Sources.main\\.cpp" % projectName)
             editor = getEditorForFileSuffix("main.cpp")
@@ -122,3 +123,4 @@ def main():
             snooze(1)   # "Close All" might be disabled
             invokeMenuItem('File', 'Close All')
             invokeMenuItem('File', 'Exit')
+            waitForCleanShutdown()

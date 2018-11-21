@@ -8,23 +8,25 @@ The standalone binary packages support the following platforms:
 
 * Windows 7 or later
 * (K)Ubuntu Linux 16.04 (64-bit) or later
-* macOS 10.10 or later
+* macOS 10.11 or later
 
 ## Compiling Qt Creator
 
 Prerequisites:
 
-* Qt 5.6.2 or later
+* Qt 5.9.0 or later
 * Qt WebEngine module for QtWebEngine based help viewer
 * On Windows:
     * ActiveState Active Perl
     * MinGW with g++ 4.9 or Visual Studio 2015 or later
     * jom
+    * Python 3.5 or later (optional, needed for the python enabled debug helper)
 * On Mac OS X: latest Xcode
 * On Linux: g++ 4.9 or later
-* LLVM/Clang 5.0.0 or later (optional, needed for the Clang Code Model, see the
+* LLVM/Clang 6.0.0 or later (optional, needed for the Clang Code Model, see the
   section "Get LLVM/Clang for the Clang Code Model")
     * CMake (only for manual builds of LLVM/Clang)
+* Python 2.6 or later (needed for building the bundled Botan library)
 * Qbs 1.7.x (optional, sources also contain Qbs itself)
 
 The installed toolchains have to match the one Qt was compiled with.
@@ -35,6 +37,8 @@ You can build Qt Creator with
     export LLVM_INSTALL_DIR=/path/to/llvm (or "set" on Windows)
     # Optional, needed to let the QbsProjectManager plugin use system Qbs:
     export QBS_INSTALL_DIR=/path/to/qbs
+    # Optional, needed for the Python enabled dumper on Windows
+    set PYTHON_INSTALL_DIR=C:\path\to\python
 
     cd $SOURCE_DIRECTORY
     qmake -r
@@ -66,7 +70,7 @@ For detailed information on the supported compilers, see
        for example, `c:\work`. If you plan to use MinGW and Microsoft Visual
        Studio simultaneously or mix different Qt versions, we recommend
        creating a directory structure which reflects that. For example:
-       `C:\work\qt5.6.0-vs12, C:\work\qt5.6.0-mingw`.
+       `C:\work\qt5.9.0-vs12, C:\work\qt5.9.0-mingw`.
 
    4.  Download and install Perl from <https://www.activestate.com/activeperl>
        and check that perl.exe is added to the path. Run `perl -v` to verify
@@ -130,6 +134,9 @@ For detailed information on the supported compilers, see
          Code Model".
        * Set the environment variable LLVM_INSTALL_DIR to the LLVM/Clang
          installation directory if llvm-config is not in PATH.
+       * Before you launch Qt Creator you may prepend the PATH with
+         the location of libclang.dll/.so that you want to be used.
+         See more info in the section "Prebuilt LLVM/Clang packages".
        * When you launch Qt Creator, activate the Clang Code Model plugin as
          described in doc/src/editors/creator-clang-codemodel.qdoc.
 
@@ -203,7 +210,7 @@ or using shadow builds.
 ## Get LLVM/Clang for the Clang Code Model
 
 The Clang Code Model depends on the LLVM/Clang libraries. The currently
-supported LLVM/Clang version is 5.0.
+supported LLVM/Clang version is 6.0.
 
 ### Prebuilt LLVM/Clang packages
 
@@ -212,9 +219,15 @@ Prebuilt packages of LLVM/Clang can be downloaded from
     https://download.qt.io/development_releases/prebuilt/libclang/
 
 This should be your preferred option because you will use the version that is
-shipped together with Qt Creator. In addition, the packages for Windows are
+shipped together with Qt Creator. In addition, MinGW packages for Windows are
 faster due to profile-guided optimization. If the prebuilt packages do not
 match your configuration, you need to build LLVM/Clang manually.
+
+If you use the MSVC compiler to build Qt Creator the suggested way is:
+    1. Download both MSVC and MinGW packages of libclang.
+    2. Use the MSVC version of libclang during the Qt Creator build.
+    3. Prepend PATH variable used for the run time with the location of MinGW version of libclang.dll.
+    4. Launch Qt Creator.
 
 If you use GCC 5 or higher on Linux, please do not use our LLVM package, but get
 the package for your distribution. Our LLVM package is compiled with GCC 4, so
@@ -224,9 +237,9 @@ GCC 4 binaries. On Ubuntu, you can download the package from
 http://apt.llvm.org/ with:
 
    wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-5.0 main"
+   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-6.0 main"
    sudo apt-get update
-   sudo apt-get install llvm-5.0 libclang-5.0-dev
+   sudo apt-get install llvm-6.0 libclang-6.0-dev
 
 There is a workaround to set _GLIBCXX_USE_CXX11_ABI to 1 or 0, but we recommend
 to download the package from http://apt.llvm.org/.
@@ -242,11 +255,11 @@ http://llvm.org/docs/GettingStarted.html#git-mirror:
 
    1. Clone LLVM and checkout a suitable branch
 
-          git clone -b release_50 https://git.llvm.org/git/llvm
+          git clone -b release_60-based https://code.qt.io/clang/llvm
 
    2. Clone Clang into llvm/tools/clang and checkout a suitable branch
 
-          git clone -b release_50 https://git.llvm.org/git/clang llvm/tools/clang
+          git clone -b release_60-based https://code.qt.io/clang/clang llvm/tools/clang
 
    3. Build and install LLVM/Clang
 
@@ -276,7 +289,8 @@ we thank the authors who made this possible:
 
   Distributed under GNU LIBRARY GENERAL PUBLIC LICENSE Version 2 (LGPL2).
 
-  Integrated with patches from QtCreator/dist/clang/patches, see README.md there.
+  Integrated with patches from
+  http://code.qt.io/cgit/clang/clang-tools-extra.git/.
 
 ### LLVM/Clang
 
@@ -289,7 +303,9 @@ we thank the authors who made this possible:
   Distributed under the University of Illinois/NCSA Open Source License (NCSA),
   see https://github.com/llvm-mirror/llvm/blob/master/LICENSE.TXT
 
-  With additional patches from QtCreator/dist/clang/patches, see README.md there.
+  With backported/additional patches from
+      http://code.qt.io/cgit/clang/llvm.git/
+      http://code.qt.io/cgit/clang/clang.git/
 
 ### Reference implementation for std::experimental::optional
 
@@ -467,4 +483,3 @@ SQLite (https://www.sqlite.org) is in the Public Domain.
   This Font Software is licensed under the SIL Open Font License, Version 1.1.
 
   The font and license files can be found in QtCreator/src/libs/3rdparty/fonts.
-

@@ -25,37 +25,20 @@
 
 #include "qmakenodes.h"
 #include "qmakeproject.h"
-#include "qmakerunconfigurationfactory.h"
 
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
+
 #include <resourceeditor/resourcenode.h>
 
+#include <utils/qtcassert.h>
 #include <utils/stringutils.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace QmakeProjectManager {
-
-static QList<RunConfiguration *> qmakeRunConfigurationsForNode(Target *t, const Node *node)
-{
-    QList<RunConfiguration *> result;
-    QTC_ASSERT(t, return result);
-
-    const FileName file = node->filePath();
-    for (auto factory : IRunConfigurationFactory::allRunConfigurationFactories()) {
-        if (auto qmakeFactory = qobject_cast<QmakeRunConfigurationFactory *>(factory)) {
-            if (qmakeFactory->canHandle(t)) {
-                result.append(Utils::filtered(t->runConfigurations(), [qmakeFactory, file](RunConfiguration *rc) {
-                    return qmakeFactory->hasRunConfigForProFile(rc, file);
-                }));
-            }
-        }
-    }
-
-    return result;
-}
 
 /*!
   \class QmakePriFileNode
@@ -83,11 +66,6 @@ bool QmakePriFileNode::deploysFolder(const QString &folder) const
 {
     const QmakePriFile *pri = priFile();
     return pri ? pri->deploysFolder(folder) : false;
-}
-
-QList<RunConfiguration *> QmakePriFileNode::runConfigurations() const
-{
-    return qmakeRunConfigurationsForNode(m_project->activeTarget(), this);
 }
 
 QmakeProFileNode *QmakePriFileNode::proFileNode() const
@@ -156,7 +134,11 @@ bool QmakePriFileNode::supportsAction(ProjectAction action, const Node *node) co
     }
 
     if (action == HasSubProjectRunConfigurations) {
-        return !qmakeRunConfigurationsForNode(m_project->activeTarget(), node).isEmpty();
+        if (Target *t = m_project->activeTarget())  {
+            auto canRunForNode = [node](RunConfiguration *rc) { return rc->canRunForNode(node); };
+            if (Utils::anyOf(t->runConfigurations(), canRunForNode))
+                return true;
+        }
     }
 
     return false;

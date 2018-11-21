@@ -33,7 +33,6 @@
 #include "remotelinuxdebugsupport.h"
 #include "remotelinuxdeployconfiguration.h"
 #include "remotelinuxrunconfiguration.h"
-#include "remotelinuxrunconfigurationfactory.h"
 
 #include "genericdirectuploadstep.h"
 #include "remotelinuxcheckforfreediskspacestep.h"
@@ -46,16 +45,16 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 
-#include <QtPlugin>
+using namespace ProjectExplorer;
 
 namespace RemoteLinux {
 namespace Internal {
 
 template <class Step>
-class GenericLinuxDeployStepFactory : public ProjectExplorer::BuildStepFactory
+class GenericDeployStepFactory : public ProjectExplorer::BuildStepFactory
 {
 public:
-    GenericLinuxDeployStepFactory()
+    GenericDeployStepFactory()
     {
         registerStep<Step>(Step::stepId());
         setDisplayName(Step::displayName());
@@ -64,9 +63,34 @@ public:
     }
 };
 
+class RemoteLinuxPluginPrivate
+{
+public:
+    GenericLinuxDeviceConfigurationFactory deviceConfigurationFactory;
+    RemoteLinuxRunConfigurationFactory runConfigurationFactory;
+    RemoteLinuxCustomRunConfigurationFactory customRunConfigurationFactory;
+    RemoteLinuxDeployConfigurationFactory deployConfigurationFactory;
+    GenericDeployStepFactory<TarPackageCreationStep> tarPackageCreationStepFactory;
+    GenericDeployStepFactory<UploadAndInstallTarPackageStep> uploadAndInstallTarPackageStepFactory;
+    GenericDeployStepFactory<GenericDirectUploadStep> genericDirectUploadStepFactory;
+    GenericDeployStepFactory<GenericRemoteLinuxCustomCommandDeploymentStep>
+        customCommandDeploymentStepFactory;
+    GenericDeployStepFactory<RemoteLinuxCheckForFreeDiskSpaceStep>
+        checkForFreeDiskSpaceStepFactory;
+    GenericDeployStepFactory<RemoteLinuxKillAppStep> remoteLinuxKillAppStepFactory;
+    EmbeddedLinuxQtVersionFactory embeddedLinuxQtVersionFactory;
+};
+
+static RemoteLinuxPluginPrivate *dd = nullptr;
+
 RemoteLinuxPlugin::RemoteLinuxPlugin()
 {
     setObjectName(QLatin1String("RemoteLinuxPlugin"));
+}
+
+RemoteLinuxPlugin::~RemoteLinuxPlugin()
+{
+    delete dd;
 }
 
 bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
@@ -75,8 +99,7 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
 
-    using namespace ProjectExplorer;
-    using namespace ProjectExplorer::Constants;
+    dd = new RemoteLinuxPluginPrivate;
 
     auto constraint = [](RunConfiguration *runConfig) {
         const Core::Id devType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(
@@ -91,34 +114,13 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
             || id.name().startsWith("QmlProjectManager.QmlRunConfiguration");
     };
 
+    using namespace ProjectExplorer::Constants;
     RunControl::registerWorker<SimpleTargetRunner>(NORMAL_RUN_MODE, constraint);
     RunControl::registerWorker<LinuxDeviceDebugSupport>(DEBUG_RUN_MODE, constraint);
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     RunControl::registerWorker<RemoteLinuxQmlPreviewSupport>(QML_PREVIEW_RUN_MODE, constraint);
 
-    addAutoReleasedObject(new GenericLinuxDeviceConfigurationFactory);
-    addAutoReleasedObject(new RemoteLinuxRunConfigurationFactory);
-    addAutoReleasedObject(new RemoteLinuxCustomRunConfigurationFactory);
-    addAutoReleasedObject(new RemoteLinuxDeployConfigurationFactory);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory<TarPackageCreationStep>);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory<UploadAndInstallTarPackageStep>);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory<GenericDirectUploadStep>);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory
-                                <GenericRemoteLinuxCustomCommandDeploymentStep>);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory<RemoteLinuxCheckForFreeDiskSpaceStep>);
-    addAutoReleasedObject(new GenericLinuxDeployStepFactory<RemoteLinuxKillAppStep>);
-
-    addAutoReleasedObject(new EmbeddedLinuxQtVersionFactory);
-
     return true;
-}
-
-RemoteLinuxPlugin::~RemoteLinuxPlugin()
-{
-}
-
-void RemoteLinuxPlugin::extensionsInitialized()
-{
 }
 
 } // namespace Internal

@@ -39,9 +39,9 @@ QtTestResult::QtTestResult(const QString &projectFile, TestType type, const QStr
 {
 }
 
-QtTestResult::QtTestResult(const QString &executable, const QString &projectFile, TestType type,
+QtTestResult::QtTestResult(const QString &id, const QString &projectFile, TestType type,
                            const QString &className)
-    : TestResult(executable, className), m_projectFile(projectFile), m_type(type)
+    : TestResult(id, className), m_projectFile(projectFile), m_type(type)
 {
 }
 
@@ -111,7 +111,7 @@ bool QtTestResult::isIntermediateFor(const TestResult *other) const
     QTC_ASSERT(other, return false);
     const QtTestResult *qtOther = static_cast<const QtTestResult *>(other);
     return m_dataTag == qtOther->m_dataTag && m_function == qtOther->m_function
-            && name() == qtOther->name() && executable() == qtOther->executable()
+            && name() == qtOther->name() && id() == qtOther->id()
             && m_projectFile == qtOther->m_projectFile;
 }
 
@@ -119,7 +119,7 @@ TestResult *QtTestResult::createIntermediateResultFor(const TestResult *other)
 {
     QTC_ASSERT(other, return nullptr);
     const QtTestResult *qtOther = static_cast<const QtTestResult *>(other);
-    QtTestResult *intermediate = new QtTestResult(qtOther->executable(), qtOther->m_projectFile,
+    QtTestResult *intermediate = new QtTestResult(qtOther->id(), qtOther->m_projectFile,
                                                   m_type, qtOther->name());
     intermediate->m_function = qtOther->m_function;
     intermediate->m_dataTag = qtOther->m_dataTag;
@@ -205,7 +205,8 @@ bool QtTestResult::matchesTestFunction(const TestTreeItem *item) const
     }
     if (type == TestTreeItem::TestDataTag) {
         TestTreeItem *grandParentItem = parentItem->parentItem();
-        return parentItem->name() == m_function && grandParentItem->name() == name();
+        return parentItem->name() == m_function && grandParentItem->name() == name()
+                && item->name() == m_dataTag;
     }
     return item->name() == m_function && parentItem->name() == name();
 }

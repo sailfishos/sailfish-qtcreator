@@ -127,12 +127,11 @@ class WelcomePlugin : public ExtensionSystem::IPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Welcome.json")
 
 public:
-    WelcomePlugin() {}
+    ~WelcomePlugin() final { delete m_welcomeMode; }
 
     bool initialize(const QStringList &, QString *) final
     {
         m_welcomeMode = new WelcomeMode;
-        addAutoReleasedObject(m_welcomeMode);
         return true;
     }
 
@@ -357,15 +356,13 @@ void WelcomeMode::initPlugins()
     for (IWelcomePage *page : IWelcomePage::allWelcomePages())
         addPage(page);
 
-    // make sure later added pages are made available too:
-    connect(PluginManager::instance(), &PluginManager::objectAdded, this, [this](QObject *obj) {
-        if (IWelcomePage *page = qobject_cast<IWelcomePage*>(obj))
-            addPage(page);
-    });
-
     if (!m_activePage.isValid() && !m_pageButtons.isEmpty()) {
-        m_activePage = m_pluginList.at(0)->id();
-        m_pageButtons.at(0)->click();
+        const int welcomeIndex = Utils::indexOf(m_pluginList,
+                                                Utils::equal(&IWelcomePage::id,
+                                                             Core::Id("Examples")));
+        const int defaultIndex = welcomeIndex >= 0 ? welcomeIndex : 0;
+        m_activePage = m_pluginList.at(defaultIndex)->id();
+        m_pageButtons.at(defaultIndex)->click();
     }
 }
 

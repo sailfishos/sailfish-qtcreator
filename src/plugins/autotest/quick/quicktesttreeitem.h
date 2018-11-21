@@ -36,6 +36,7 @@ public:
     explicit QuickTestTreeItem(const QString &name = QString(), const QString &filePath = QString(),
                                Type type = Root) : TestTreeItem(name, filePath, type) {}
 
+    TestTreeItem *copyWithoutChildren() override;
     QVariant data(int column, int role) const override;
     Qt::ItemFlags flags(int column) const override;
     bool canProvideTestConfiguration() const override;
@@ -44,13 +45,17 @@ public:
     TestConfiguration *debugConfiguration() const override;
     QList<TestConfiguration *> getAllTestConfigurations() const override;
     QList<TestConfiguration *> getSelectedTestConfigurations() const override;
+    QList<TestConfiguration *> getTestConfigurationsForFile(const Utils::FileName &fileName) const override;
     TestTreeItem *find(const TestParseResult *result) override;
+    TestTreeItem *findChild(const TestTreeItem *other) override;
     bool modify(const TestParseResult *result) override;
     bool lessThan(const TestTreeItem *other, SortMode mode) const override;
     bool isGroupNodeFor(const TestTreeItem *other) const override;
     bool removeOnSweepIfEmpty() const override;
     TestTreeItem *createParentGroupNode() const override;
+    bool isGroupable() const override;
     QSet<QString> internalTargets() const override;
+    void markForRemovalRecursively(const QString &filePath) override;
 private:
     TestTreeItem *unnamedQuickTests() const;
 };

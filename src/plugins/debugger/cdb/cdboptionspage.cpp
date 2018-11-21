@@ -80,12 +80,12 @@ CdbBreakEventWidget::CdbBreakEventWidget(QWidget *parent) : QWidget(parent)
     QHBoxLayout *mainLayout = new QHBoxLayout;
     mainLayout->setMargin(0);
     QVBoxLayout *leftLayout = new QVBoxLayout;
-    QFormLayout *parameterLayout = 0;
+    QFormLayout *parameterLayout = nullptr;
     mainLayout->addLayout(leftLayout);
     const size_t eventCount = sizeof(eventDescriptions) / sizeof(EventsDescription);
     for (size_t e = 0; e < eventCount; e++) {
         QCheckBox *cb = new QCheckBox(tr(eventDescriptions[e].description));
-        QLineEdit *le = 0;
+        QLineEdit *le = nullptr;
         if (eventDescriptions[e].hasParameter) {
             if (!parameterLayout) {
                 parameterLayout = new QFormLayout;
@@ -201,9 +201,6 @@ CdbOptionsPage::CdbOptionsPage()
     setId("F.Debugger.Cda");
     setDisplayName(tr("CDB"));
     setCategory(Debugger::Constants::DEBUGGER_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("Debugger",
-        Constants::DEBUGGER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(Constants::DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON));
 }
 
 CdbOptionsPage::~CdbOptionsPage()
@@ -245,7 +242,7 @@ public:
     CdbSymbolPathListEditor *m_symbolPathListEditor;
     Utils::PathListEditor *m_sourcePathListEditor;
 
-    CdbPathsPageWidget(QWidget *parent = 0);
+    CdbPathsPageWidget(QWidget *parent = nullptr);
 };
 
 CdbPathsPageWidget::CdbPathsPageWidget(QWidget *parent) :
@@ -280,9 +277,6 @@ CdbPathsPage::CdbPathsPage()
     setId("F.Debugger.Cdb");
     setDisplayName(tr("CDB Paths"));
     setCategory(Debugger::Constants::DEBUGGER_SETTINGS_CATEGORY);
-    setDisplayCategory(QCoreApplication::translate("Debugger",
-        Constants::DEBUGGER_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(Utils::Icon(Constants::DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON));
 }
 
 CdbPathsPage::~CdbPathsPage()

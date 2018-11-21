@@ -216,10 +216,10 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
 
     m_client = new SubversionClient;
 
-    addAutoReleasedObject(new SettingsPage(versionControl()));
+    new SettingsPage(versionControl(), this);
 
-    addAutoReleasedObject(new VcsSubmitEditorFactory(&submitParameters,
-        []() { return new SubversionSubmitEditor(&submitParameters); }));
+    new VcsSubmitEditorFactory(&submitParameters,
+        []() { return new SubversionSubmitEditor(&submitParameters); }, this);
 
     const auto describeFunc = [this](const QString &source, const QString &id) {
         describe(source, id);
@@ -227,11 +227,10 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     const int editorCount = sizeof(editorParameters) / sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new SubversionEditorWidget; };
     for (int i = 0; i < editorCount; i++)
-        addAutoReleasedObject(new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc));
+        new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc, this);
 
     const QString prefix = QLatin1String("svn");
-    m_commandLocator = new CommandLocator("Subversion", prefix, prefix);
-    addAutoReleasedObject(m_commandLocator);
+    m_commandLocator = new CommandLocator("Subversion", prefix, prefix, this);
 
     // Register actions
     ActionContainer *toolsContainer = ActionManager::actionContainer(M_TOOLS);
@@ -246,7 +245,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     command = ActionManager::registerAction(m_diffCurrentAction,
         CMD_ID_DIFF_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+S,Meta+D") : tr("Alt+S,Alt+D")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+S,Meta+D") : tr("Alt+S,Alt+D")));
     connect(m_diffCurrentAction, &QAction::triggered, this, &SubversionPlugin::diffCurrentFile);
     subversionMenu->addAction(command);
     m_commandLocator->appendCommand(command);
@@ -273,7 +272,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     command = ActionManager::registerAction(m_addAction, CMD_ID_ADD,
         context);
     command->setAttribute(Command::CA_UpdateText);
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+S,Meta+A") : tr("Alt+S,Alt+A")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+S,Meta+A") : tr("Alt+S,Alt+A")));
     connect(m_addAction, &QAction::triggered, this, &SubversionPlugin::addCurrentFile);
     subversionMenu->addAction(command);
     m_commandLocator->appendCommand(command);
@@ -282,7 +281,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     command = ActionManager::registerAction(m_commitCurrentAction,
         CMD_ID_COMMIT_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
-    command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+S,Meta+C") : tr("Alt+S,Alt+C")));
+    command->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Meta+S,Meta+C") : tr("Alt+S,Alt+C")));
     connect(m_commitCurrentAction, &QAction::triggered, this, &SubversionPlugin::startCommitCurrentFile);
     subversionMenu->addAction(command);
     m_commandLocator->appendCommand(command);

@@ -46,9 +46,7 @@ namespace ClangBackEnd {
 class SymbolIndexing final : public SymbolIndexingInterface
 {
 public:
-    using StatementFactory = ClangBackEnd::StorageSqliteStatementFactory<Sqlite::Database,
-                                                                         Sqlite::ReadStatement,
-                                                                         Sqlite::WriteStatement>;
+    using StatementFactory = ClangBackEnd::StorageSqliteStatementFactory<Sqlite::Database>;
     using Storage = ClangBackEnd::SymbolStorage<StatementFactory>;
 
     SymbolIndexing(Sqlite::Database &database,
@@ -64,10 +62,7 @@ public:
     }
 
     void updateProjectParts(V2::ProjectPartContainers &&projectParts,
-                            V2::FileContainers &&generatedFiles)
-    {
-        m_indexer.updateProjectParts(std::move(projectParts), std::move(generatedFiles));
-    }
+                            V2::FileContainers &&generatedFiles);
 
 private:
     FilePathCachingInterface &m_filePathCache;
@@ -75,7 +70,13 @@ private:
     StatementFactory m_statementFactory;
     Storage m_symbolStorage{m_statementFactory, m_filePathCache};
     ClangPathWatcher<QFileSystemWatcher, QTimer> m_sourceWatcher{m_filePathCache};
-    SymbolIndexer m_indexer{m_collector, m_symbolStorage, m_sourceWatcher};
+    FileStatusCache m_fileStatusCache{m_filePathCache};
+    SymbolIndexer m_indexer{m_collector,
+                            m_symbolStorage,
+                            m_sourceWatcher,
+                            m_filePathCache,
+                            m_fileStatusCache,
+                            m_statementFactory.database};
 };
 
 } // namespace ClangBackEnd

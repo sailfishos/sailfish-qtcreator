@@ -24,14 +24,14 @@
 ****************************************************************************/
 
 #include "qmlprofileranimationsmodel_test.h"
-#include <timeline/timelineformattime.h>
+#include <tracing/timelineformattime.h>
 #include <QtTest>
 
 namespace QmlProfiler {
 namespace Internal {
 
 QmlProfilerAnimationsModelTest::QmlProfilerAnimationsModelTest(QObject *parent) :
-    QObject(parent), manager(nullptr), model(&manager)
+    QObject(parent), model(&manager, &aggregator)
 {
 }
 
@@ -42,28 +42,18 @@ static int frameRate(int i)
 
 void QmlProfilerAnimationsModelTest::initTestCase()
 {
-    manager.startAcquiring();
+    manager.initialize();
 
-    QmlEventType type(Event, MaximumRangeType, AnimationFrame);
     QmlEvent event;
-    event.setTypeIndex(manager.numLoadedEventTypes());
-    manager.addEventType(type);
+    event.setTypeIndex(manager.appendEventType(
+                           QmlEventType(Event, MaximumRangeType, AnimationFrame)));
 
     for (int i = 0; i < 10; ++i) {
         event.setTimestamp(i);
         event.setNumbers<int>({frameRate(i), 9 - i, (i % 2) ? RenderThread : GuiThread});
-        manager.addEvent(event);
+        manager.appendEvent(QmlEvent(event));
     }
-    manager.acquiringDone();
-    QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
-}
-
-void QmlProfilerAnimationsModelTest::testAccepted()
-{
-    QVERIFY(!model.accepted(QmlEventType()));
-    QVERIFY(!model.accepted(QmlEventType(Event)));
-    QVERIFY(!model.accepted(QmlEventType(Event, MaximumRangeType)));
-    QVERIFY(model.accepted(QmlEventType(Event, MaximumRangeType, AnimationFrame)));
+    manager.finalize();
 }
 
 void QmlProfilerAnimationsModelTest::testRowMaxValue()

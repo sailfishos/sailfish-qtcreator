@@ -14,8 +14,6 @@ HEADERS += \
     publickeydeploymentdialog.h \
     genericlinuxdeviceconfigurationwizard.h \
     genericlinuxdeviceconfigurationfactory.h \
-    remotelinuxrunconfigurationwidget.h \
-    remotelinuxrunconfigurationfactory.h \
     remotelinuxdebugsupport.h \
     genericlinuxdeviceconfigurationwizardpages.h \
     abstractremotelinuxdeploystep.h \
@@ -59,8 +57,6 @@ SOURCES += \
     publickeydeploymentdialog.cpp \
     genericlinuxdeviceconfigurationwizard.cpp \
     genericlinuxdeviceconfigurationfactory.cpp \
-    remotelinuxrunconfigurationwidget.cpp \
-    remotelinuxrunconfigurationfactory.cpp \
     remotelinuxdebugsupport.cpp \
     genericlinuxdeviceconfigurationwizardpages.cpp \
     abstractremotelinuxdeploystep.cpp \
@@ -95,8 +91,7 @@ SOURCES += \
 FORMS += \
     genericlinuxdeviceconfigurationwizardsetuppage.ui \
     genericlinuxdeviceconfigurationwidget.ui \
-    remotelinuxcheckforfreediskspacestepwidget.ui \
-    remotelinuxcustomrunconfigurationwidget.ui
+    remotelinuxcheckforfreediskspacestepwidget.ui
 
 RESOURCES += remotelinux.qrc
 

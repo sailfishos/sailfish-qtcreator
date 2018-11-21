@@ -27,6 +27,8 @@
 
 #include "clangtype.h"
 
+#include <clangsupport/clangsupport_global.h>
+
 #include <clang-c/Index.h>
 
 #include <iosfwd>
@@ -108,6 +110,8 @@ public:
     unsigned overloadedDeclarationsCount() const;
     Cursor overloadedDeclaration(unsigned index) const;
     Cursor specializedCursorTemplate() const;
+    AccessSpecifier accessSpecifier() const;
+    StorageClass storageClass() const;
 
     CXFile includedFile() const;
 

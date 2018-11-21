@@ -40,8 +40,8 @@ class TEXTEDITOR_EXPORT CodeStyleSelectorWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit CodeStyleSelectorWidget(ICodeStylePreferencesFactory *factory, QWidget *parent = 0);
-    ~CodeStyleSelectorWidget();
+    explicit CodeStyleSelectorWidget(ICodeStylePreferencesFactory *factory, QWidget *parent = nullptr);
+    ~CodeStyleSelectorWidget() override;
 
     void setCodeStyle(TextEditor::ICodeStylePreferences *codeStyle);
 

@@ -148,7 +148,8 @@ bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
     JavaParser *parser = new JavaParser;
     parser->setProjectFileList(Utils::transform(target()->project()->files(ProjectExplorer::Project::AllFiles),
                                                 &Utils::FileName::toString));
-    parser->setSourceDirectory(androidPackageSourceDir());
+
+    parser->setSourceDirectory(AndroidManager::androidQtSupport(target())->packageSourceDir(target()));
     parser->setBuildDirectory(Utils::FileName::fromString(bc->buildDirectory().appendPath(Constants::ANDROID_BUILDDIRECTORY).toString()));
     setOutputParser(parser);
 
@@ -164,7 +165,7 @@ bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 
 void AndroidBuildApkStep::showInGraphicalShell()
 {
-    Core::FileUtils::showInGraphicalShell(Core::ICore::instance()->mainWindow(), m_apkPath);
+    Core::FileUtils::showInGraphicalShell(Core::ICore::mainWindow(), m_apkPath);
 }
 
 ProjectExplorer::BuildStepConfigWidget *AndroidBuildApkStep::createConfigWidget()

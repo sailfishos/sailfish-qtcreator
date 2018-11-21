@@ -43,12 +43,6 @@ QmlDebugConnectionManager::~QmlDebugConnectionManager()
         disconnectConnectionSignals();
 }
 
-void QmlDebugConnectionManager::setRetryParams(int interval, int maxAttempts)
-{
-    m_retryInterval = interval;
-    m_maximumRetries = maxAttempts;
-}
-
 void QmlDebugConnectionManager::connectToServer(const QUrl &server)
 {
     if (m_server != server) {
@@ -69,6 +63,11 @@ void QmlDebugConnectionManager::disconnectFromServer()
     m_server.clear();
     destroyConnection();
     stopConnectionTimer();
+}
+
+bool QmlDebugConnectionManager::isConnecting() const
+{
+    return m_connectionTimer.isActive();
 }
 
 static quint16 port16(const QUrl &url)

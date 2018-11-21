@@ -39,7 +39,6 @@
 #include "devicesupport/deviceprocess.h"
 #include "projectexplorer.h"
 #include "projectexplorersettings.h"
-#include "runnables.h"
 
 #include <QTextCodec>
 #include <QTimer>
@@ -64,11 +63,11 @@ using namespace Internal;
 
 namespace Internal {
 
-enum State { Inactive, Run };
 
 class ApplicationLauncherPrivate : public QObject
 {
 public:
+    enum State { Inactive, Run };
     explicit ApplicationLauncherPrivate(ApplicationLauncher *parent);
     ~ApplicationLauncherPrivate() { setFinished(); }
 
@@ -161,7 +160,7 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate(ApplicationLauncher *pare
     connect(WinDebugInterface::instance(), &WinDebugInterface::cannotRetrieveDebugOutput,
             this, &ApplicationLauncherPrivate::cannotRetrieveLocalDebugOutput);
     connect(WinDebugInterface::instance(), &WinDebugInterface::debugOutput,
-            this, &ApplicationLauncherPrivate::checkLocalDebugOutput, Qt::BlockingQueuedConnection);
+            this, &ApplicationLauncherPrivate::checkLocalDebugOutput);
 #endif
 }
 
@@ -365,15 +364,12 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
     m_isLocal = local;
 
     if (m_isLocal) {
-        QTC_ASSERT(runnable.is<StandardRunnable>(), return);
-        StandardRunnable stdRunnable = runnable.as<StandardRunnable>();
-
         // Work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch' ...)
-        const QString fixedPath = FileUtils::normalizePathName(stdRunnable.workingDirectory);
+        const QString fixedPath = FileUtils::normalizePathName(runnable.workingDirectory);
         m_guiProcess.setWorkingDirectory(fixedPath);
         m_consoleProcess.setWorkingDirectory(fixedPath);
-        m_guiProcess.setEnvironment(stdRunnable.environment);
-        m_consoleProcess.setEnvironment(stdRunnable.environment);
+        m_guiProcess.setEnvironment(runnable.environment);
+        m_consoleProcess.setEnvironment(runnable.environment);
 
         m_processRunning = true;
     #ifdef Q_OS_WIN
@@ -381,12 +377,13 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
             WinDebugInterface::instance()->start(); // Try to start listener again...
     #endif
 
-        m_currentMode = stdRunnable.runMode;
+        m_currentMode = runnable.runMode;
         if (m_currentMode == ApplicationLauncher::Gui) {
-            m_guiProcess.setCommand(stdRunnable.executable, stdRunnable.commandLineArguments);
+            m_guiProcess.setCommand(runnable.executable, runnable.commandLineArguments);
+            m_guiProcess.closeWriteChannel();
             m_guiProcess.start();
         } else {
-            m_consoleProcess.start(stdRunnable.executable, stdRunnable.commandLineArguments);
+            m_consoleProcess.start(runnable.executable, runnable.commandLineArguments);
         }
     } else {
         QTC_ASSERT(m_state == Inactive, return);
@@ -404,7 +401,7 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
             return;
         }
 
-        if (runnable.is<StandardRunnable>() && runnable.as<StandardRunnable>().executable.isEmpty()) {
+        if (runnable.executable.isEmpty()) {
             doReportError(ApplicationLauncher::tr("Cannot run: No command given."));
             setFinished();
             return;

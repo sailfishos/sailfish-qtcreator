@@ -83,7 +83,7 @@ protected:
 
     void showProposal(const QString &prefix) override
     {
-        GenericProposalModel *proposalModel = model();
+        GenericProposalModelPtr proposalModel = model();
         if (proposalModel && proposalModel->size() == 1) {
             emit proposalItemActivated(proposalModel->proposalItem(0));
             deleteLater();
@@ -173,7 +173,7 @@ private:
 
     VirtualFunctionProposalItem *itemFromFunction(Function *func) const
     {
-        const Utils::Link link = CppTools::linkToSymbol(maybeDefinitionFor(func));
+        const Utils::Link link = maybeDefinitionFor(func)->toLink();
         QString text = m_overview.prettyName(LookupContext::fullyQualifiedName(func));
         if (func->isPureVirtual())
             text += QLatin1String(" = 0");

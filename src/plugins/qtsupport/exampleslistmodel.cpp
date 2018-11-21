@@ -25,9 +25,15 @@
 
 #include "exampleslistmodel.h"
 
+#include "screenshotcropper.h"
+
+#include <QBuffer>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFutureWatcher>
+#include <QImageReader>
+#include <QPixmapCache>
 #include <QUrl>
 #include <QXmlStreamReader>
 
@@ -39,6 +45,7 @@
 
 #include <utils/algorithm.h>
 #include <utils/environment.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/stylehelper.h>
 
@@ -46,6 +53,8 @@
 
 namespace QtSupport {
 namespace Internal {
+
+const QSize ExamplesListModel::exampleImageSize(188, 145);
 
 static bool debugExamples()
 {
@@ -227,6 +236,8 @@ ExamplesListModel::ExamplesListModel(QObject *parent)
 {
     connect(&m_exampleSetModel, &ExampleSetModel::selectedExampleSetChanged,
             this, &ExamplesListModel::updateExamples);
+    connect(Core::HelpManager::instance(), &Core::HelpManager::documentationChanged,
+            this, &ExamplesListModel::updateExamples);
 }
 
 static QString fixStringForTags(const QString &string)
@@ -302,6 +313,7 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 item.hasSourceCode = !item.projectPath.isEmpty();
                 item.projectPath = relativeOrInstallPath(item.projectPath, projectsOffset, examplesInstallPath);
                 item.imageUrl = attributes.value(QLatin1String("imageUrl")).toString();
+                QPixmapCache::remove(item.imageUrl);
                 item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
                 item.isHighlighted = attributes.value(QLatin1String("isHighlighted")).toString() == QLatin1String("true");
 
@@ -322,8 +334,6 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 item.tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -357,6 +367,7 @@ void ExamplesListModel::parseDemos(QXmlStreamReader *reader,
                 item.hasSourceCode = !item.projectPath.isEmpty();
                 item.projectPath = relativeOrInstallPath(item.projectPath, projectsOffset, demosInstallPath);
                 item.imageUrl = attributes.value(QLatin1String("imageUrl")).toString();
+                QPixmapCache::remove(item.imageUrl);
                 item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
                 item.isHighlighted = attributes.value(QLatin1String("isHighlighted")).toString() == QLatin1String("true");
             } else if (reader->name() == QLatin1String("fileToOpen")) {
@@ -402,6 +413,7 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.projectPath.prepend(projectsOffset);
                 item.imageUrl = Utils::StyleHelper::dpiSpecificImageFile(
                             attributes.value(QLatin1String("imageUrl")).toString());
+                QPixmapCache::remove(item.imageUrl);
                 item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
                 item.isVideo = attributes.value(QLatin1String("isVideo")).toString() == QLatin1String("true");
                 item.videoUrl = attributes.value(QLatin1String("videoUrl")).toString();
@@ -414,10 +426,6 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
-            }  else if (reader->name() == QLatin1String("platforms")) {
-                item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -430,6 +438,12 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
             break;
         }
     }
+}
+
+static QString resourcePath()
+{
+    // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
+    return Utils::FileUtils::normalizePathName(Core::ICore::resourcePath());
 }
 
 void ExamplesListModel::updateExamples()
@@ -542,27 +556,9 @@ BaseQtVersion *ExampleSetModel::findHighestQtVersion(const QList<BaseQtVersion *
 QStringList ExampleSetModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
-    QSettings *settings = Core::ICore::settings();
 
-    // read extra tutorials settings
-    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
-                                                 QString()).toString();
-    if (installedTutorials.isEmpty()) {
-        // Qt Creator shipped tutorials
-        sources << ":/qtsupport/qtcreator_tutorials.xml";
-    } else {
-        if (debugExamples())
-            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
-        QFileInfo fi(installedTutorials);
-        if (fi.isFile() && fi.isReadable()) {
-            sources.append(installedTutorials);
-            if (debugExamples())
-                qWarning() << "Adding tutorials set " << installedTutorials;
-        } else {
-            if (debugExamples())
-                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
-        }
-    }
+    // Qt Creator shipped tutorials
+    sources << ":/qtsupport/qtcreator_tutorials.xml";
 
     QString examplesPath;
     QString demosPath;
@@ -629,8 +625,30 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
     {
     case Qt::DisplayRole: // for search only
         return QString(prefixForItem(item) + item.name + ' ' + item.tags.join(' '));
-    case Qt::UserRole:
+    case ExampleItemRole:
         return QVariant::fromValue<ExampleItem>(item);
+    case ExampleImageRole: {
+        QPixmap pixmap;
+        if (QPixmapCache::find(item.imageUrl, &pixmap))
+            return pixmap;
+        pixmap.load(item.imageUrl);
+        if (pixmap.isNull())
+            pixmap.load(resourcePath() + "/welcomescreen/widgets/" + item.imageUrl);
+        if (pixmap.isNull()) {
+            QByteArray fetchedData = Core::HelpManager::fileData(item.imageUrl);
+            if (!fetchedData.isEmpty()) {
+                QBuffer imgBuffer(&fetchedData);
+                imgBuffer.open(QIODevice::ReadOnly);
+                QImageReader reader(&imgBuffer);
+                QImage img = reader.read();
+                img = ScreenshotCropper::croppedImage(img, item.imageUrl,
+                                                      ExamplesListModel::exampleImageSize);
+                pixmap = QPixmap::fromImage(img);
+            }
+        }
+        QPixmapCache::insert(item.imageUrl, pixmap);
+        return pixmap;
+    }
     default:
         return QVariant();
     }
@@ -690,7 +708,8 @@ ExamplesListModelFilter::ExamplesListModelFilter(ExamplesListModel *sourceModel,
 
 bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    const ExampleItem item = sourceModel()->index(sourceRow, 0, sourceParent).data(Qt::UserRole).value<ExampleItem>();
+    const ExampleItem item = sourceModel()->index(sourceRow, 0, sourceParent).data(
+                ExamplesListModel::ExampleItemRole).value<ExampleItem>();
 
     if (m_showTutorialsOnly && item.type != Tutorial)
         return false;

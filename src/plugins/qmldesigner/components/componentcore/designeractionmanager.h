@@ -42,7 +42,7 @@ namespace QmlDesigner {
 
 class DesignerActionManagerView;
 
-typedef std::function<bool (const QString &filename, const QString &targetDirectory)> AddResourceOperation;
+typedef std::function<bool (const QStringList &filenames, const QString &defaulTargetDirectory)> AddResourceOperation;
 
 struct AddResourceHandler
 {
@@ -89,7 +89,7 @@ public:
     void createDefaultAddResourceHandler();
     DesignerActionManagerView *view();
 
-    DesignerActionToolBar *createToolBar(QWidget *parent = 0) const;
+    DesignerActionToolBar *createToolBar(QWidget *parent = nullptr) const;
     void polishActions() const;
     QGraphicsWidget *createFormEditorToolBar(QGraphicsItem *parent);
 

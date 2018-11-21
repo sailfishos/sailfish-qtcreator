@@ -26,7 +26,7 @@
 source("../../shared/qtcreator.py")
 
 def main():
-    startApplication("qtcreator" + SettingsPath)
+    startQC()
     if not startedWithoutPluginError():
         return
     # using a temporary directory won't mess up a potentially existing
@@ -44,7 +44,6 @@ def prepareQmlFile():
     editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
     isDarwin = platform.system() == 'Darwin'
     for i in range(3):
-        content = "%s" % editor.plainText
         if not placeCursorToLine(editor, 'title: qsTr("Hello World")'):
             test.fatal("Couldn't find line(s) I'm looking for - QML file seems to "
                        "have changed!\nLeaving test...")

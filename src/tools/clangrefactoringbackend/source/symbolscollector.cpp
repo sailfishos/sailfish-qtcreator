@@ -25,18 +25,23 @@
 
 #include "symbolscollector.h"
 
+#include <clang/Frontend/FrontendActions.h>
+
 namespace ClangBackEnd {
 
 SymbolsCollector::SymbolsCollector(FilePathCachingInterface &filePathCache)
-    : m_collectSymbolsAction(filePathCache),
-      m_collectMacrosSourceFileCallbacks(filePathCache)
+    : m_indexDataConsumer(std::make_shared<IndexDataConsumer>(m_symbolEntries, m_sourceLocationEntries, filePathCache)),
+      m_collectSymbolsAction(m_indexDataConsumer),
+      m_collectMacrosSourceFileCallbacks(m_symbolEntries, m_sourceLocationEntries, filePathCache),
+      m_filePathCache(filePathCache)
 {
 }
 
-void SymbolsCollector::addFiles(const Utils::PathStringVector &filePaths, const Utils::SmallStringVector &arguments)
+void SymbolsCollector::addFiles(const FilePathIds &filePathIds,
+                                const Utils::SmallStringVector &arguments)
 {
-    m_clangTool.addFiles(filePaths, arguments);
-    m_collectMacrosSourceFileCallbacks.addSourceFiles(filePaths);
+    m_clangTool.addFiles(m_filePathCache.filePaths(filePathIds), arguments);
+    m_collectMacrosSourceFileCallbacks.addSourceFiles(filePathIds);
 }
 
 void SymbolsCollector::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
@@ -46,33 +51,106 @@ void SymbolsCollector::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
 
 void SymbolsCollector::clear()
 {
-    m_collectMacrosSourceFileCallbacks.clearSourceFiles();
-    m_collectSymbolsAction.clear();
-
+    m_collectMacrosSourceFileCallbacks.clear();
+    m_symbolEntries.clear();
+    m_sourceLocationEntries.clear();
     m_clangTool = ClangTool();
+}
+
+template <typename Factory>
+std::unique_ptr<clang::tooling::FrontendActionFactory>
+newFrontendActionFactory(Factory *consumerFactory,
+                         clang::tooling::SourceFileCallbacks *sourceFileCallbacks)
+{
+    class FrontendActionFactoryAdapter : public clang::tooling::FrontendActionFactory
+    {
+    public:
+        explicit FrontendActionFactoryAdapter(Factory *consumerFactory,
+                                              clang::tooling::SourceFileCallbacks *sourceFileCallbacks)
+            : m_consumerFactory(consumerFactory),
+              m_sourceFileCallbacks(sourceFileCallbacks)
+        {}
+
+        clang::FrontendAction *create() override {
+            return new ConsumerFactoryAdaptor(m_consumerFactory, m_sourceFileCallbacks);
+        }
+
+    private:
+        class ConsumerFactoryAdaptor : public clang::ASTFrontendAction {
+        public:
+            ConsumerFactoryAdaptor(Factory *consumerFactory,
+                                   clang::tooling::SourceFileCallbacks *sourceFileCallbacks)
+                : m_consumerFactory(consumerFactory),
+                  m_sourceFileCallbacks(sourceFileCallbacks)
+            {}
+
+            std::unique_ptr<clang::ASTConsumer>
+                    CreateASTConsumer(clang::CompilerInstance &instance, StringRef inFile) override {
+                return m_consumerFactory->newASTConsumer(instance, inFile);
+            }
+
+        protected:
+            bool BeginSourceFileAction(clang::CompilerInstance &CI) override {
+                if (!clang::ASTFrontendAction::BeginSourceFileAction(CI))
+                    return false;
+                if (m_sourceFileCallbacks)
+                    return m_sourceFileCallbacks->handleBeginSource(CI);
+                return true;
+            }
+            void EndSourceFileAction() override {
+                if (m_sourceFileCallbacks)
+                    m_sourceFileCallbacks->handleEndSource();
+                clang::ASTFrontendAction::EndSourceFileAction();
+            }
+
+        private:
+            Factory *m_consumerFactory;
+            clang::tooling::SourceFileCallbacks *m_sourceFileCallbacks;
+        };
+        Factory *m_consumerFactory;
+        clang::tooling::SourceFileCallbacks *m_sourceFileCallbacks;
+    };
+
+  return std::unique_ptr<clang::tooling::FrontendActionFactory>(
+      new FrontendActionFactoryAdapter(consumerFactory, sourceFileCallbacks));
 }
 
 void SymbolsCollector::collectSymbols()
 {
     auto tool = m_clangTool.createTool();
 
-    tool.run(clang::tooling::newFrontendActionFactory(&m_collectSymbolsAction,
-                                                      &m_collectMacrosSourceFileCallbacks).get());
+    tool.run(ClangBackEnd::newFrontendActionFactory(&m_collectSymbolsAction,
+                                                    &m_collectMacrosSourceFileCallbacks).get());
 }
 
 const SymbolEntries &SymbolsCollector::symbols() const
 {
-    return m_collectSymbolsAction.symbols();
+    return m_symbolEntries;
 }
 
 const SourceLocationEntries &SymbolsCollector::sourceLocations() const
 {
-    return m_collectSymbolsAction.sourceLocations();
+    return m_sourceLocationEntries;
 }
 
 const FilePathIds &SymbolsCollector::sourceFiles() const
 {
     return m_collectMacrosSourceFileCallbacks.sourceFiles();
+}
+
+const UsedMacros &SymbolsCollector::usedMacros() const
+{
+    return m_collectMacrosSourceFileCallbacks.usedMacros();
+}
+
+const FileStatuses &SymbolsCollector::fileStatuses() const
+{
+    return m_collectMacrosSourceFileCallbacks.fileStatuses();
+}
+
+const SourceDependencies &SymbolsCollector::sourceDependencies() const
+{
+    return m_collectMacrosSourceFileCallbacks.sourceDependencies();
 }
 
 } // namespace ClangBackEnd

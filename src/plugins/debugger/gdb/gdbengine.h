@@ -61,7 +61,7 @@ struct CoreInfo
     QString foundExecutableName; // empty if no corresponding exec could be found
     bool isCore = false;
 
-    static CoreInfo readExecutableNameFromCore(const ProjectExplorer::StandardRunnable &debugger,
+    static CoreInfo readExecutableNameFromCore(const ProjectExplorer::Runnable &debugger,
                                                const QString &coreFile);
 };
 
@@ -159,8 +159,6 @@ private: ////////// General Interface //////////
     int m_oldestAcceptableToken = -1;
     int m_nonDiscardableCount = 0;
 
-    int m_pendingBreakpointRequests = 0; // Watch updating commands in flight
-
     typedef void (GdbEngine::*CommandsDoneCallback)();
     // This function is called after all previous responses have been received.
     CommandsDoneCallback m_commandsDoneCallback = nullptr;
@@ -197,6 +195,7 @@ private: ////////// General Interface //////////
     void insertBreakpoint(Breakpoint bp) final;
     void removeBreakpoint(Breakpoint bp) final;
     void changeBreakpoint(Breakpoint bp) final;
+    void enableSubBreakpoint(const QString &locId, bool on) final;
 
     void executeStep() final;
     void executeStepOut() final;

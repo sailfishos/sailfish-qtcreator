@@ -64,14 +64,6 @@
 
 #include <QPlainTextEdit>
 
-#if  QT_VERSION >= 0x050000
-#define MSKIP_SINGLE(x) QSKIP(x)
-#define MSKIP_ALL(x) QSKIP(x);
-#else
-#define MSKIP_SINGLE(x) QSKIP(x, SkipSingle)
-#define MSKIP_ALL(x) QSKIP(x, SkipAll)
-#endif
-
 //TESTED_COMPONENT=src/plugins/qmldesigner/designercore
 
 using namespace QmlDesigner;
@@ -1392,7 +1384,7 @@ void tst_TestCore::testBasicStatesQtQuick20()
     qDebug() << rootModelNode.nodeListProperty("states").toModelNodeList().first().metaInfo().majorVersion();
     qDebug() << rootModelNode.nodeListProperty("states").toModelNodeList().first().metaInfo().typeName();
 
-    MSKIP_ALL("No qml2puppet");
+    QSKIP("No qml2puppet");
 
     QScopedPointer<TestView> view(new TestView(model.data()));
     QVERIFY(view.data());
@@ -4198,7 +4190,7 @@ void tst_TestCore::testMetaInfoEnums()
     QApplication::processEvents();
 }
 
-void tst_TestCore::testMetaInfoQtQuick1Vs2()
+void tst_TestCore::testMetaInfoQtQuickVersion2()
 {
     char qmlString[] = "import QtQuick 2.0\n"
                        "Rectangle {\n"
@@ -8013,7 +8005,7 @@ void tst_TestCore::loadTestFiles()
         QCOMPARE(rootModelNode.nodeListProperty("states").toModelNodeList().count(), 2);
     }
 
-    MSKIP_ALL("Fails because the text editor model doesn't know about components");
+    QSKIP("Fails because the text editor model doesn't know about components");
     { //usingbutton.qml
         QFile file(":/fx/usingbutton.qml");
         QVERIFY(file.open(QIODevice::ReadOnly | QIODevice::Text));

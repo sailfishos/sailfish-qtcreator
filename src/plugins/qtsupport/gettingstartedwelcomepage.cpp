@@ -27,7 +27,6 @@
 
 #include "exampleslistmodel.h"
 #include "screenshotcropper.h"
-#include "copytolocationdialog.h"
 
 #include <utils/fileutils.h>
 #include <utils/pathchooser.h>
@@ -56,7 +55,6 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPixmapCache>
 #include <QPointer>
 #include <QPushButton>
 #include <QStyledItemDelegate>
@@ -72,8 +70,8 @@ namespace Internal {
 
 const char C_FALLBACK_ROOT[] = "ProjectsFallbackRoot";
 
-const int itemWidth = 240;
-const int itemHeight = 240;
+const int itemWidth = 230;
+const int itemHeight = 230;
 const int itemGap = 10;
 const int tagsSeparatorY = itemHeight - 60;
 
@@ -100,24 +98,56 @@ Id ExamplesWelcomePage::id() const
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
+    QDialog d(ICore::mainWindow());
+    QGridLayout *lay = new QGridLayout(&d);
+    QLabel *descrLbl = new QLabel;
+    d.setWindowTitle(tr("Copy Project to writable Location?"));
+    descrLbl->setTextFormat(Qt::RichText);
+    descrLbl->setWordWrap(false);
+    const QString nativeProjectDir = QDir::toNativeSeparators(projectDir);
+    descrLbl->setText(QString::fromLatin1("<blockquote>%1</blockquote>").arg(nativeProjectDir));
+    descrLbl->setMinimumWidth(descrLbl->sizeHint().width());
+    descrLbl->setWordWrap(true);
+    descrLbl->setText(tr("<p>The project you are about to open is located in the "
+                         "write-protected location:</p><blockquote>%1</blockquote>"
+                         "<p>Please select a writable location below and click \"Copy Project and Open\" "
+                         "to open a modifiable copy of the project or click \"Keep Project and Open\" "
+                         "to open the project in location.</p><p><b>Note:</b> You will not "
+                         "be able to alter or compile your project in the current location.</p>")
+                      .arg(nativeProjectDir));
+    lay->addWidget(descrLbl, 0, 0, 1, 2);
+    QLabel *txt = new QLabel(tr("&Location:"));
+    PathChooser *chooser = new PathChooser;
+    txt->setBuddy(chooser);
+    chooser->setExpectedKind(PathChooser::ExistingDirectory);
+    chooser->setHistoryCompleter(QLatin1String("Qt.WritableExamplesDir.History"));
     QSettings *settings = ICore::settings();
-    CopyToLocationDialog d(ICore::mainWindow());
-    d.setSourcePath(projectDir);
-    d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                         DocumentManager::projectsDirectory().toString()).toString());
-
-    while (QDialog::Accepted == d.exec()) {
+    chooser->setPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
+                                     DocumentManager::projectsDirectory().toString()).toString());
+    lay->addWidget(txt, 1, 0);
+    lay->addWidget(chooser, 1, 1);
+    enum { Copy = QDialog::Accepted + 1, Keep = QDialog::Accepted + 2 };
+    QDialogButtonBox *bb = new QDialogButtonBox;
+    QPushButton *copyBtn = bb->addButton(tr("&Copy Project and Open"), QDialogButtonBox::AcceptRole);
+    connect(copyBtn, &QAbstractButton::released, &d, [&d] { d.done(Copy); });
+    copyBtn->setDefault(true);
+    QPushButton *keepBtn = bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
+    connect(keepBtn, &QAbstractButton::released, &d, [&d] { d.done(Keep); });
+    lay->addWidget(bb, 2, 0, 1, 2);
+    connect(chooser, &PathChooser::validChanged, copyBtn, &QWidget::setEnabled);
+    int code = d.exec();
+    if (code == Copy) {
         QString exampleDirName = proFileInfo.dir().dirName();
-        QString destBaseDir = d.destinationPath();
+        QString destBaseDir = chooser->path();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way
             QMessageBox::warning(ICore::mainWindow(), tr("Cannot Use Location"),
-                                 tr("The specified location already contains \"%1\" directory. "
-                                    "Please specify a valid location.").arg(exampleDirName),
+                                 tr("The specified location already exists. "
+                                    "Please specify a valid location."),
                                  QMessageBox::Ok, QMessageBox::NoButton);
-            continue;
+            return QString();
         } else {
             QString error;
             QString targetDir = destBaseDir + QLatin1Char('/') + exampleDirName;
@@ -134,7 +164,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     if (!FileUtils::copyRecursively(FileName::fromString(dependency), targetFile,
                             &error)) {
                         QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                        continue;
+                        // do not fail, just warn;
                     }
                 }
 
@@ -142,11 +172,12 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                 return targetDir + QLatin1Char('/') + proFileInfo.fileName();
             } else {
                 QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                continue;
             }
 
         }
     }
+    if (code == Keep)
+        return proFileInfo.absoluteFilePath();
     return QString();
 }
 
@@ -168,17 +199,15 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     if (!proFileInfo.exists())
         return;
 
-#if 0
     // If the Qt is a distro Qt on Linux, it will not be writable, hence compilation will fail
     // Same if it is installed in non-writable location for other reasons
-    const bool needsCopy = withNTFSPermissions<bool>([proFileInfo] {
+    const bool needsCopy = withNtfsPermissions<bool>([proFileInfo] {
         QFileInfo pathInfo(proFileInfo.path());
         return !proFileInfo.isWritable()
                 || !pathInfo.isWritable() /* path of .pro file */
                 || !QFileInfo(pathInfo.path()).isWritable() /* shadow build directory */;
     });
     if (needsCopy)
-#endif
         proFile = copyToAlternativeLocation(proFileInfo, filesToOpen, item.dependencies);
 
     // don't try to load help and files if loading the help request is being cancelled
@@ -187,11 +216,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     ProjectExplorerPlugin::OpenProjectResult result = ProjectExplorerPlugin::openProject(proFile);
     if (result) {
         ICore::openFiles(filesToOpen);
-        if (result.project()->needsConfiguration()
-                && (!item.platforms.isEmpty() || !item.preferredFeatures.isEmpty())) {
-            result.project()->configureAsExampleProject(Core::Id::fromStringList(item.platforms),
-                                                        Core::Id::fromStringList(item.preferredFeatures));
-        }
         ModeManager::activateMode(Core::Constants::MODE_EDIT);
         QUrl docUrl = QUrl::fromUserInput(item.docUrl);
         if (docUrl.isValid())
@@ -215,12 +239,6 @@ static QFont sizedFont(int size, const QWidget *widget, bool underline = false)
     f.setPixelSize(size);
     f.setUnderline(underline);
     return f;
-}
-
-static QString resourcePath()
-{
-    // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
-    return FileUtils::normalizePathName(ICore::resourcePath());
 }
 
 class SearchBox : public WelcomePageFrame
@@ -275,11 +293,69 @@ public:
     }
 };
 
-class GridProxyModel : public QIdentityProxyModel
+class GridProxyModel : public QAbstractItemModel
 {
 public:
+    using OptModelIndex = Utils::optional<QModelIndex>;
+
     GridProxyModel()
     {}
+
+    void setSourceModel(QAbstractItemModel *newModel)
+    {
+        if (m_sourceModel == newModel)
+            return;
+        if (m_sourceModel)
+            disconnect(m_sourceModel, nullptr, this, nullptr);
+        m_sourceModel = newModel;
+        if (newModel) {
+            connect(newModel, &QAbstractItemModel::layoutAboutToBeChanged, this, [this] {
+                layoutAboutToBeChanged();
+            });
+            connect(newModel, &QAbstractItemModel::layoutChanged, this, [this] { layoutChanged(); });
+            connect(newModel, &QAbstractItemModel::modelAboutToBeReset, this, [this] {
+                beginResetModel();
+            });
+            connect(newModel, &QAbstractItemModel::modelReset, this, [this] { endResetModel(); });
+            connect(newModel, &QAbstractItemModel::rowsAboutToBeInserted, this, [this] {
+                beginResetModel();
+            });
+            connect(newModel, &QAbstractItemModel::rowsInserted, this, [this] { endResetModel(); });
+            connect(newModel, &QAbstractItemModel::rowsAboutToBeRemoved, this, [this] {
+                beginResetModel();
+            });
+            connect(newModel, &QAbstractItemModel::rowsRemoved, this, [this] { endResetModel(); });
+        }
+    }
+
+    QAbstractItemModel *sourceModel() const
+    {
+        return m_sourceModel;
+    }
+
+    QVariant data(const QModelIndex &index, int role) const final
+    {
+        const OptModelIndex sourceIndex = mapToSource(index);
+        if (sourceIndex)
+            return sourceModel()->data(*sourceIndex, role);
+        return QVariant();
+    }
+
+    Qt::ItemFlags flags(const QModelIndex &index) const final
+    {
+        const OptModelIndex sourceIndex = mapToSource(index);
+        if (sourceIndex)
+            return sourceModel()->flags(*sourceIndex);
+        return Qt::ItemFlags();
+    }
+
+    bool hasChildren(const QModelIndex &parent) const final
+    {
+        const OptModelIndex sourceParent = mapToSource(parent);
+        if (sourceParent)
+            return sourceModel()->hasChildren(*sourceParent);
+        return false;
+    }
 
     void setColumnCount(int columnCount)
     {
@@ -315,15 +391,19 @@ public:
         return QModelIndex();
     }
 
-    QModelIndex mapToSource(const QModelIndex &proxyIndex) const final
+    // The items at the lower right of the grid might not correspond to source items, if
+    // source's row count is not N*columnCount
+    OptModelIndex mapToSource(const QModelIndex &proxyIndex) const
     {
         if (!proxyIndex.isValid())
             return QModelIndex();
         int sourceRow = proxyIndex.row() * m_columnCount + proxyIndex.column();
-        return sourceModel()->index(sourceRow, 0);
+        if (sourceRow < sourceModel()->rowCount())
+            return sourceModel()->index(sourceRow, 0);
+        return OptModelIndex();
     }
 
-    QModelIndex mapFromSource(const QModelIndex &sourceIndex) const final
+    QModelIndex mapFromSource(const QModelIndex &sourceIndex) const
     {
         if (!sourceIndex.isValid())
             return QModelIndex();
@@ -334,6 +414,7 @@ public:
     }
 
 private:
+    QAbstractItemModel *m_sourceModel = nullptr;
     int m_columnCount = 1;
 };
 
@@ -344,7 +425,7 @@ class ExampleDelegate : public QStyledItemDelegate
 public:
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const final
     {
-        const ExampleItem item = index.data(Qt::UserRole).value<ExampleItem>();
+        const ExampleItem item = index.data(ExamplesListModel::ExampleItemRole).value<ExampleItem>();
         const QRect rc = option.rect;
 
         // Quick hack for empty items in the last row.
@@ -389,29 +470,9 @@ public:
 
         // The pixmap.
         if (offset == 0) {
-            const QSize requestSize(188, 145);
-
-            QPixmap pm;
-            if (QPixmap *foundPixmap = m_pixmapCache.find(item.imageUrl)) {
-                pm = *foundPixmap;
-            } else {
-                pm.load(item.imageUrl);
-                if (pm.isNull())
-                    pm.load(resourcePath() + "/welcomescreen/widgets/" + item.imageUrl);
-                if (pm.isNull()) {
-                    // FIXME: Make async
-                    QByteArray fetchedData = HelpManager::fileData(item.imageUrl);
-                    QBuffer imgBuffer(&fetchedData);
-                    imgBuffer.open(QIODevice::ReadOnly);
-                    QImageReader reader(&imgBuffer);
-                    QImage img = reader.read();
-                    img = ScreenshotCropper::croppedImage(img, item.imageUrl, requestSize);
-                    pm = QPixmap::fromImage(img);
-                }
-                m_pixmapCache.insert(item.imageUrl, pm);
-            }
-
-            QRect inner(x + 11, y - offset, requestSize.width(), requestSize.height());
+            QPixmap pm = index.data(ExamplesListModel::ExampleImageRole).value<QPixmap>();
+            QRect inner(x + 11, y - offset, ExamplesListModel::exampleImageSize.width(),
+                        ExamplesListModel::exampleImageSize.height());
             QRect pixmapRect = inner;
             if (!pm.isNull()) {
                 painter->setPen(foregroundColor2);
@@ -552,7 +613,6 @@ private:
     mutable QRect m_currentArea;
     mutable QPointer<QAbstractItemView> m_currentWidget;
     mutable QVector<QPair<QString, QRect>> m_currentTagRects;
-    mutable QPixmapCache m_pixmapCache;
     bool m_showExamples = true;
 };
 

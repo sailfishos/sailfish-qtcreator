@@ -98,8 +98,8 @@ const char BUILD_CONFIGURATION_KEY[] = "Qt4ProjectManager.Qt4BuildConfiguration.
 
 enum { debug = 0 };
 
-QmakeBuildConfiguration::QmakeBuildConfiguration(Target *target)
-    : BuildConfiguration(target, Constants::QMAKE_BC_ID)
+QmakeBuildConfiguration::QmakeBuildConfiguration(Target *target, Core::Id id)
+    : BuildConfiguration(target, id)
 {
     connect(this, &BuildConfiguration::buildDirectoryChanged,
             this, &QmakeBuildConfiguration::emitProFileEvaluateNeeded);
@@ -357,9 +357,11 @@ QmakeBuildConfiguration::MakefileState QmakeBuildConfiguration::compareToImportF
         return MakefileForWrongProject;
     }
 
-    if (parse.srcProFile() != qs->project()->projectFilePath().toString()) {
+    const Utils::FileName projectPath =
+            m_subNodeBuild ? m_subNodeBuild->filePath() : qs->project()->projectFilePath();
+    if (parse.srcProFile() != projectPath.toString()) {
         qCDebug(logs) << "**Different profile used to generate the Makefile:"
-                      << parse.srcProFile() << " expected profile:" << qs->project()->projectFilePath();
+                      << parse.srcProFile() << " expected profile:" << projectPath;
         if (errorString)
             *errorString = tr("The Makefile is for a different project.");
         return MakefileIncompatible;
@@ -387,7 +389,7 @@ QmakeBuildConfiguration::MakefileState QmakeBuildConfiguration::compareToImportF
     // and compare that on its own
     QString workingDirectory = QFileInfo(makefile).absolutePath();
     QStringList actualArgs;
-    QString userArgs = qs->userArguments();
+    QString userArgs = macroExpander()->expandProcessArgs(qs->userArguments());
     // This copies the settings from userArgs to actualArgs (minus some we
     // are not interested in), splitting them up into individual strings:
     extractSpecFromArguments(&userArgs, workingDirectory, version, &actualArgs);

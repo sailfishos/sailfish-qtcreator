@@ -68,6 +68,8 @@ private:
     void handleProgress(int min, int cur, int max, const QString &inReplyTo);
     void handleSignal(const QString &signal, const QVariantMap &data);
 
+    void reportError();
+
     int calculateProgress(const int minRange, const int min,
                           const int cur,
                           const int max, const int maxRange);
@@ -144,7 +146,7 @@ private:
     void fixTarget(Target *target) const;
 
     QHash<Utils::FileName, ProjectExplorer::ProjectNode *>
-    addCMakeLists(CMakeProjectNode *root, const QList<ProjectExplorer::FileNode *> &cmakeLists);
+    addCMakeLists(CMakeProjectNode *root, std::vector<std::unique_ptr<ProjectExplorer::FileNode> > &&cmakeLists);
     void addProjects(const QHash<Utils::FileName, ProjectExplorer::ProjectNode *> &cmakeListsNodes,
                      const QList<Project *> &projects,
                      QList<ProjectExplorer::FileNode *> &knownHeaderNodes);
@@ -166,10 +168,12 @@ private:
     int m_progressStepMinimum = 0;
     int m_progressStepMaximum = 1000;
 
+    QString m_delayedErrorMessage;
+
     CMakeConfig m_cmakeConfiguration;
 
     QSet<Utils::FileName> m_cmakeFiles;
-    QList<ProjectExplorer::FileNode *> m_cmakeInputsFileNodes;
+    std::vector<std::unique_ptr<ProjectExplorer::FileNode>> m_cmakeInputsFileNodes;
 
     QList<Project *> m_projects;
     QList<Target *> m_targets;

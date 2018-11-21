@@ -31,8 +31,9 @@
 #include "debuggerprotocol.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
-#include <projectexplorer/runnables.h>
+#include <projectexplorer/runconfiguration.h>
 #include <texteditor/textmark.h>
+#include <utils/fileutils.h>
 
 #include <QObject>
 #include <QProcess>
@@ -73,7 +74,6 @@ class Breakpoint;
 class QmlCppEngine;
 class DebuggerToolTipContext;
 class MemoryViewSetupData;
-class Terminal;
 class TerminalRunner;
 class ThreadId;
 
@@ -83,7 +83,7 @@ public:
     DebuggerStartMode startMode = NoStartMode;
     DebuggerCloseMode closeMode = KillAtClose;
 
-    ProjectExplorer::StandardRunnable inferior;
+    ProjectExplorer::Runnable inferior;
     QString displayName; // Used in the Snapshots view.
     Utils::ProcessHandle attachPID;
     QStringList solibSearchPath;
@@ -134,7 +134,7 @@ public:
     bool breakOnMain = false;
     bool multiProcess = false; // Whether to set detach-on-fork off.
 
-    ProjectExplorer::StandardRunnable debugger;
+    ProjectExplorer::Runnable debugger;
     QString overrideStartScript; // Used in attach to core and remote debugging
     QString startMessage; // First status message shown.
     QString debugInfoLocation; // Gdb "set-debug-file-directory".
@@ -144,7 +144,7 @@ public:
     ProjectExplorer::Abi toolChainAbi;
 
     QString projectSourceDirectory;
-    QStringList projectSourceFiles;
+    Utils::FileNameList projectSourceFiles;
 
     // Used by Script debugging
     QString interpreter;
@@ -158,7 +158,7 @@ public:
     bool isNativeMixedDebugging() const;
     void validateExecutable();
 
-    Utils::MacroExpander *macroExpander = 0;
+    Utils::MacroExpander *macroExpander = nullptr;
 
     // For Debugger testing.
     int testCase = 0;
@@ -238,7 +238,7 @@ class DebuggerEngine : public QObject
 
 public:
     explicit DebuggerEngine();
-    virtual ~DebuggerEngine();
+    ~DebuggerEngine() override;
 
     const DebuggerRunParameters &runParameters() const;
 
@@ -257,7 +257,6 @@ public:
         ExitRequest = DebuggerCommand::ExitRequest,
         RunRequest = DebuggerCommand::RunRequest,
         LosesChild = DebuggerCommand::LosesChild,
-        RebuildBreakpointModel = DebuggerCommand::RebuildBreakpointModel,
         InUpdateLocals = DebuggerCommand::InUpdateLocals,
         NativeCommand = DebuggerCommand::NativeCommand,
         Silent = DebuggerCommand::Silent
@@ -314,6 +313,7 @@ public:
     virtual void insertBreakpoint(Breakpoint bp);  // FIXME: make pure
     virtual void removeBreakpoint(Breakpoint bp);  // FIXME: make pure
     virtual void changeBreakpoint(Breakpoint bp);  // FIXME: make pure
+    virtual void enableSubBreakpoint(const QString &locid, bool on);
 
     virtual bool acceptsDebuggerCommands() const { return true; }
     virtual void executeDebuggerCommand(const QString &command, DebuggerLanguages languages);
@@ -486,7 +486,7 @@ private:
 class LocationMark : public TextEditor::TextMark
 {
 public:
-    LocationMark(DebuggerEngine *engine, const QString &file, int line);
+    LocationMark(DebuggerEngine *engine, const Utils::FileName &file, int line);
     void removedFromEditor() override { updateLineNumber(0); }
 
 private:

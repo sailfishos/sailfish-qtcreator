@@ -24,8 +24,9 @@
 ****************************************************************************/
 
 #include "inputeventsmodel_test.h"
-#include "timeline/timelinemodel_p.h"
-#include "timeline/timelineformattime.h"
+
+#include <tracing/timelinemodel_p.h>
+#include <tracing/timelineformattime.h>
 
 #include <QtTest>
 
@@ -38,40 +39,28 @@ static InputEventType inputType(int i)
 }
 
 InputEventsModelTest::InputEventsModelTest(QObject *parent) :
-    QObject(parent), manager(nullptr), model(&manager)
+    QObject(parent), model(&manager, &aggregator)
 {
-    keyTypeId = manager.numLoadedEventTypes();
-    manager.addEventType(QmlEventType(Event, MaximumRangeType, Key));
-    mouseTypeId = manager.numLoadedEventTypes();
-    manager.addEventType(QmlEventType(Event, MaximumRangeType, Mouse));
+    keyTypeId = manager.appendEventType(QmlEventType(Event, MaximumRangeType, Key));
+    mouseTypeId = manager.appendEventType(QmlEventType(Event, MaximumRangeType, Mouse));
 }
 
 void InputEventsModelTest::initTestCase()
 {
-    manager.startAcquiring();
-    QmlEvent event;
+    manager.initialize();
 
     for (int i = 0; i < 10; ++i) {
+        QmlEvent event;
         event.setTimestamp(i);
         InputEventType type = inputType(i);
         event.setTypeIndex(type <= InputKeyUnknown ? keyTypeId : mouseTypeId);
         event.setNumbers({static_cast<qint32>(type),
                           (i * 32) % 256,
                           static_cast<qint32>((i * 0x02000000) & Qt::KeyboardModifierMask)});
-        manager.addEvent(event);
+        manager.appendEvent(std::move(event));
     }
 
-    manager.acquiringDone();
-    QCOMPARE(manager.state(), QmlProfilerModelManager::Done);
-}
-
-void InputEventsModelTest::testAccepted()
-{
-    QVERIFY(!model.accepted(QmlEventType()));
-    QVERIFY(!model.accepted(QmlEventType(Event)));
-    QVERIFY(!model.accepted(QmlEventType(Event, MaximumRangeType)));
-    QVERIFY(model.accepted(QmlEventType(Event, MaximumRangeType, Key)));
-    QVERIFY(model.accepted(QmlEventType(Event, MaximumRangeType, Mouse)));
+    manager.finalize();
 }
 
 void InputEventsModelTest::testTypeId()

@@ -25,8 +25,6 @@
 
 #include "remotelinuxqmltoolingsupport.h"
 
-#include <projectexplorer/runnables.h>
-
 #include <ssh/sshconnection.h>
 #include <utils/qtcprocess.h>
 #include <utils/url.h>
@@ -35,6 +33,7 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace RemoteLinux {
+namespace Internal {
 
 // RemoteLinuxQmlProfilerSupport
 
@@ -66,7 +65,7 @@ void RemoteLinuxQmlToolingSupport::start()
     serverUrl.setPort(qmlPort.number());
     m_runworker->recordData("QmlServerUrl", serverUrl);
 
-    auto r = runnable().as<StandardRunnable>();
+    Runnable r = runnable();
     QtcProcess::addArg(&r.commandLineArguments, QmlDebug::qmlDebugTcpArguments(m_services, qmlPort),
                        device()->osType());
 
@@ -75,4 +74,5 @@ void RemoteLinuxQmlToolingSupport::start()
     SimpleTargetRunner::start();
 }
 
+} // namespace Internal
 } // namespace RemoteLinux

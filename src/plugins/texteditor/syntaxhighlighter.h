@@ -55,10 +55,10 @@ class TEXTEDITOR_EXPORT SyntaxHighlighter : public QObject
     Q_OBJECT
     Q_DECLARE_PRIVATE(SyntaxHighlighter)
 public:
-    SyntaxHighlighter(QObject *parent = 0);
+    SyntaxHighlighter(QObject *parent = nullptr);
     SyntaxHighlighter(QTextDocument *parent);
     SyntaxHighlighter(QTextEdit *parent);
-    virtual ~SyntaxHighlighter();
+    ~SyntaxHighlighter() override;
 
     void setDocument(QTextDocument *doc);
     QTextDocument *document() const;

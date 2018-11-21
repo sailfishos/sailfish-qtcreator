@@ -30,14 +30,14 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 
-#include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <ssh/sshhostkeydatabase.h>
+#include <utils/algorithm.h>
 #include <utils/fileutils.h>
 #include <utils/persistentsettings.h>
-#include <utils/qtcassert.h>
 #include <utils/portlist.h>
-#include <utils/algorithm.h>
+#include <utils/qtcassert.h>
+#include <utils/stringutils.h>
 
 #include <QFileInfo>
 #include <QHash>
@@ -147,7 +147,6 @@ void DeviceManager::load()
                 QLatin1String("QtCreatorDevices"));
 
     Utils::PersistentSettingsReader reader;
-
     // read devices file from global settings path
     QHash<Core::Id, Core::Id> defaultDevices;
     QList<IDevice::Ptr> sdkDevices;
@@ -157,62 +156,19 @@ void DeviceManager::load()
     QList<IDevice::Ptr> userDevices;
     if (reader.load(settingsFilePath(QLatin1String("/devices.xml"))))
         userDevices = fromMap(reader.restoreValues().value(DeviceManagerKey).toMap(), &defaultDevices);
-
-//    //devices found in user settings to be added
-//    QList<IDevice::Ptr> devicesToRegister;
-//    //devices found in user settings, which came from sdk installer
-//    QList<IDevice::Ptr> devicesToBeChecked;
-//    foreach (IDevice::Ptr device, userDevices) {
-//        if(device->isSdkProvided())
-//            devicesToBeChecked.append(device);
-//        else
-//            devicesToRegister.append(device);
-//    }
-
-//    IDevice::Ptr deviceToAdd;
-//    foreach (IDevice::Ptr sdkDevice, sdkDevices) {
-//        deviceToAdd = sdkDevice;
-
-//        for(int i = 0; i < devicesToBeChecked.count(); ++i) {
-//            if(devicesToBeChecked.at(i)->id() == sdkDevice->id()) {
-//                if(devicesToBeChecked.at(i)->version() > sdkDevice->version())
-//                    deviceToAdd == devicesToBeChecked.at(i);
-
-//                devicesToBeChecked.removeAt(i);
-//                break;
-//            }
-//        }
-//        addDevice(deviceToAdd);
-//    }
-
-//    foreach (IDevice::Ptr device, devicesToBeChecked) {
-//        delete &device;
-//    }
-//    devicesToBeChecked.clear();
-
-//    foreach (IDevice::Ptr device, devicesToRegister) {
-//        addDevice(device);
-//    }
-
     // Insert devices into the model. Prefer the higher device version when there are multiple
     // devices with the same id.
     foreach (IDevice::Ptr device, userDevices) {
-        if (hasDevice(device->displayName())) // HACK: Do not re-load "Desktop Device"
-            continue;
         foreach (const IDevice::Ptr &sdkDevice, sdkDevices) {
             if (device->id() == sdkDevice->id()) {
                 if (device->version() < sdkDevice->version())
                     device = sdkDevice;
-                addDevice(device);
                 sdkDevices.removeOne(sdkDevice);
                 break;
             }
         }
-
-        if(!device->isSdkProvided())
-            addDevice(device);
+        addDevice(device);
     }
-
     // Append the new SDK devices to the model.
     foreach (const IDevice::Ptr &sdkDevice, sdkDevices)
         addDevice(sdkDevice);
@@ -288,7 +244,7 @@ void DeviceManager::addDevice(const IDevice::ConstPtr &_device)
             names << tmp->displayName();
     }
 
-    device->setDisplayName(Project::makeUnique(device->displayName(), names));
+    device->setDisplayName(Utils::makeUniquelyNumbered(device->displayName(), names));
 
     const int pos = d->indexForId(device->id());
 

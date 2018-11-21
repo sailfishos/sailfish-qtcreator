@@ -46,30 +46,65 @@ static const char *highlightingTypeToCStringLiteral(HighlightingType type)
         RETURN_TEXT_FOR_CASE(Field);
         RETURN_TEXT_FOR_CASE(Enumeration);
         RETURN_TEXT_FOR_CASE(Operator);
+        RETURN_TEXT_FOR_CASE(OverloadedOperator);
         RETURN_TEXT_FOR_CASE(Preprocessor);
         RETURN_TEXT_FOR_CASE(Label);
         RETURN_TEXT_FOR_CASE(FunctionDefinition);
         RETURN_TEXT_FOR_CASE(OutputArgument);
         RETURN_TEXT_FOR_CASE(PreprocessorDefinition);
         RETURN_TEXT_FOR_CASE(PreprocessorExpansion);
+        RETURN_TEXT_FOR_CASE(Namespace);
+        RETURN_TEXT_FOR_CASE(Class);
+        RETURN_TEXT_FOR_CASE(Struct);
+        RETURN_TEXT_FOR_CASE(Enum);
+        RETURN_TEXT_FOR_CASE(Union);
+        RETURN_TEXT_FOR_CASE(TypeAlias);
+        RETURN_TEXT_FOR_CASE(Typedef);
+        RETURN_TEXT_FOR_CASE(QtProperty);
+        RETURN_TEXT_FOR_CASE(ObjectiveCClass);
+        RETURN_TEXT_FOR_CASE(ObjectiveCCategory);
+        RETURN_TEXT_FOR_CASE(ObjectiveCProtocol);
+        RETURN_TEXT_FOR_CASE(ObjectiveCInterface);
+        RETURN_TEXT_FOR_CASE(ObjectiveCImplementation);
+        RETURN_TEXT_FOR_CASE(ObjectiveCProperty);
+        RETURN_TEXT_FOR_CASE(ObjectiveCMethod);
+        RETURN_TEXT_FOR_CASE(PrimitiveType);
+        RETURN_TEXT_FOR_CASE(Declaration);
+        RETURN_TEXT_FOR_CASE(TemplateTypeParameter);
+        RETURN_TEXT_FOR_CASE(TemplateTemplateParameter);
         default: return "UnhandledHighlightingType";
     }
 }
 #undef RETURN_TEXT_FOR_CASE
 
+QDebug operator<<(QDebug debug, const ExtraInfo &extraInfo)
+{
+    debug.nospace() << "ExtraInfo("
+                    << extraInfo.token << ", "
+                    << extraInfo.typeSpelling << ", "
+                    << extraInfo.semanticParentTypeSpelling << ", "
+                    << extraInfo.cursorRange << ", "
+                    << extraInfo.lexicalParentIndex << ", "
+                    << static_cast<uint>(extraInfo.accessSpecifier) << ", "
+                    << static_cast<uint>(extraInfo.storageClass) << ", "
+                    << extraInfo.identifier << ", "
+                    << extraInfo.includeDirectivePath << ", "
+                    << extraInfo.declaration << ", "
+                    << extraInfo.definition << ", "
+                    << extraInfo.signal << ", "
+                    << extraInfo.slot << ", "
+                    << ")";
+    return debug;
+}
+
 QDebug operator<<(QDebug debug, const TokenInfoContainer &container)
 {
     debug.nospace() << "TokenInfosContainer("
-                    << container.line() << ", "
-                    << container.column() << ", "
-                    << container.length() << ", "
-                    << highlightingTypeToCStringLiteral(container.types().mainHighlightingType) << ", "
-                    << container.token() << ", "
-                    << container.typeSpelling() << ", "
-                    << container.isIdentifier() << ", "
-                    << container.isIncludeDirectivePath() << ", "
-                    << container.isDeclaration() << ", "
-                    << container.isDefinition()
+                    << container.line << ", "
+                    << container.column << ", "
+                    << container.length << ", "
+                    << highlightingTypeToCStringLiteral(container.types.mainHighlightingType) << ", "
+                    << container.extraInfo
                     << ")";
 
     return debug;

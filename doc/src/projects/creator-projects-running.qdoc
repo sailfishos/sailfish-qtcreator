@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,9 +30,13 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-building-targets.html
+    \contentspage index.html
     \page creator-running-targets.html
+    \if defined(qtdesignstudio)
+    \previouspage studio-live-preview.html
+    \else
+    \previouspage creator-building-targets.html
+    \endif
     \nextpage creator-deployment.html
 
     \title Running on Multiple Platforms
@@ -76,5 +80,8 @@
     \l{Specifying Run Settings}.
 
     \include linux-mobile/creator-projects-running-generic-linux.qdocinc running on embedded linux
+
+    \if defined(qtcreator)
     \include qnx/creator-projects-running-qnx.qdocinc running on qnx
+    \endif
 */

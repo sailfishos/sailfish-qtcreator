@@ -52,6 +52,10 @@
         <file>images/editpaste@2x.png</file>
         <file>images/empty14.png</file>
         <file>images/empty16.png</file>
+        <file>images/fileexport.png</file>
+        <file>images/fileexport@2x.png</file>
+        <file>images/filemultiexport.png</file>
+        <file>images/filemultiexport@2x.png</file>
         <file>images/filenew.png</file>
         <file>images/filenew@2x.png</file>
         <file>images/fileopen.png</file>
@@ -153,6 +157,8 @@
         <file>images/collapse@2x.png</file>
         <file>images/expand.png</file>
         <file>images/expand@2x.png</file>
+        <file>images/iconoverlay_add_small.png</file>
+        <file>images/iconoverlay_add_small@2x.png</file>
         <file>images/iconoverlay_add.png</file>
         <file>images/iconoverlay_add@2x.png</file>
         <file>images/iconoverlay_add_background.png</file>
@@ -197,5 +203,11 @@
         <file>images/codemodelerror@2x.png</file>
         <file>images/codemodelwarning.png</file>
         <file>images/codemodelwarning@2x.png</file>
+        <file>images/lightbulb.png</file>
+        <file>images/lightbulb@2x.png</file>
+        <file>images/lightbulbcap.png</file>
+        <file>images/lightbulbcap@2x.png</file>
+        <file>images/toolbuttonexpandarrow.png</file>
+        <file>images/toolbuttonexpandarrow@2x.png</file>
     </qresource>
 </RCC>

@@ -46,11 +46,9 @@ HEADERS += \
     android_global.h \
     androidbuildapkstep.h \
     androidbuildapkwidget.h \
-    androidrunnable.h \
     androidtoolmanager.h \
     androidsdkmanager.h \
     androidavdmanager.h \
-    androidrunconfigurationwidget.h \
     adbcommandswidget.h \
     androidsdkpackage.h \
     androidsdkmodel.h \
@@ -95,11 +93,9 @@ SOURCES += \
     androidbuildapkstep.cpp \
     androidbuildapkwidget.cpp \
     androidqtsupport.cpp \
-    androidrunnable.cpp \
     androidtoolmanager.cpp \
     androidsdkmanager.cpp \
     androidavdmanager.cpp \
-    androidrunconfigurationwidget.cpp \
     adbcommandswidget.cpp \
     androidsdkpackage.cpp \
     androidsdkmodel.cpp \
@@ -113,7 +109,6 @@ FORMS += \
     androiddevicedialog.ui \
     androiddeployqtwidget.ui \
     androidbuildapkwidget.ui \
-    androidrunconfigurationwidget.ui \
     adbcommandswidget.ui \
     androidsdkmanagerwidget.ui
 

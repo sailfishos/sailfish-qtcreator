@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -30,10 +30,14 @@
 // **********************************************************************
 
 /*!
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-code-style-settings.html
+    \contentspage index.html
     \page creator-build-dependencies.html
+    \previouspage creator-code-style-settings.html
+    \if defined(qtdesignstudio)
+    \nextpage studio-designing.html
+    \else
     \nextpage creator-sharing-project-settings.html
+    \endif
 
     \title Specifying Dependencies
 

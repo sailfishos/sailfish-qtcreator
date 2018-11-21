@@ -37,8 +37,8 @@ class QMLDESIGNERCORE_EXPORT DesignDocumentView : public AbstractView
 {
         Q_OBJECT
 public:
-    DesignDocumentView(QObject *parent = 0);
-    ~DesignDocumentView();
+    DesignDocumentView(QObject *parent = nullptr);
+    ~DesignDocumentView() override;
 
     ModelNode insertModel(const ModelNode &modelNode);
     void replaceModel(const ModelNode &modelNode);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2018 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -25,10 +25,14 @@
 
     /*!
 
-    \contentspage {Qt Creator Manual}
-    \previouspage creator-connecting-mobile.html
+    \contentspage index.html
     \page creator-developing-android.html
+    \previouspage creator-connecting-mobile.html
+    \if defined(qtdesignstudio)
+    \nextpage creator-developing-generic-linux.html
+    \else
     \nextpage creator-developing-baremetal.html
+    \endif
 
     \title Connecting Android Devices
 
@@ -292,5 +296,9 @@
     \note Select a \l{glossary-build-config}{debug build configuration} to build
     the application for debugging.
 
-*/
+    \note \QC cannot debug applications on Android devices if Android Studio is
+    running. If the following message is displayed in the \uicontrol Output
+    pane, close Android Studio and try again: \e {Ignoring second debugger -
+    accepting and dropping.}
 
+*/

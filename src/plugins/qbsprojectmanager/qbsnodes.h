@@ -89,6 +89,8 @@ public:
     qbs::GroupData qbsGroupData() const { return m_qbsGroupData; }
 
 private:
+    AddNewInformation addNewInformation(const QStringList &files, Node *context) const override;
+
     qbs::GroupData m_qbsGroupData;
     QString m_productPath;
 };
@@ -109,8 +111,6 @@ public:
     bool renameFile(const QString &filePath, const QString &newFilePath) override;
 
     const qbs::ProductData qbsProductData() const { return m_qbsProductData; }
-
-    QList<ProjectExplorer::RunConfiguration *> runConfigurations() const override;
 
 private:
     const qbs::ProductData m_qbsProductData;

@@ -36,7 +36,7 @@ class QmlProfilerTextMark : public TextEditor::TextMark
 {
 public:
     QmlProfilerTextMark(QmlProfilerViewManager *viewManager, int typeId,
-                        const QString &fileName, int lineNumber);
+                        const Utils::FileName &fileName, int lineNumber);
     void addTypeId(int typeId);
 
     void paintIcon(QPainter *painter, const QRect &rect) const override;
@@ -53,11 +53,14 @@ class QmlProfilerTextMarkModel : public QObject
 {
 public:
     QmlProfilerTextMarkModel(QObject *parent = nullptr);
-    ~QmlProfilerTextMarkModel();
+    ~QmlProfilerTextMarkModel() override;
 
     void clear();
     void addTextMarkId(int typeId, const QmlEventLocation &location);
     void createMarks(QmlProfilerViewManager *viewManager, const QString &fileName);
+
+    void showTextMarks();
+    void hideTextMarks();
 
 private:
     struct TextMarkId {

@@ -25,18 +25,21 @@
 
 #pragma once
 
+#include "autotest_global.h"
+
 #include "testconfiguration.h"
 #include "testresult.h"
 
 #include <QDialog>
 #include <QFutureWatcher>
 #include <QObject>
-#include <QProcess>
+#include <QQueue>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
 class QDialogButtonBox;
 class QLabel;
+class QProcess;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
@@ -46,11 +49,13 @@ class Project;
 namespace Autotest {
 namespace Internal {
 
-class TestRunner : public QObject
+class AUTOTESTSHARED_EXPORT TestRunner : public QObject
 {
     Q_OBJECT
 
 public:
+    enum CancelReason { UserCanceled, Timeout, KitChanged };
+
     static TestRunner* instance();
     ~TestRunner();
 
@@ -71,18 +76,33 @@ private:
     void buildFinished(bool success);
     void onFinished();
 
+    int precheckTestConfigurations();
+    void scheduleNext();
+    void cancelCurrent(CancelReason reason);
+    void onProcessFinished();
+    void resetInternalPointers();
+
     void runTests();
     void debugTests();
     void runOrDebugTests();
-    explicit TestRunner(QObject *parent = 0);
+    explicit TestRunner(QObject *parent = nullptr);
 
     QFutureWatcher<TestResultPtr> m_futureWatcher;
-    QList<TestConfiguration *> m_selectedTests;
-    bool m_executingTests;
+    QFutureInterface<TestResultPtr> *m_fakeFutureInterface = nullptr;
+    QQueue<TestConfiguration *> m_selectedTests;
+    bool m_executingTests = false;
+    bool m_canceled = false;
+    TestConfiguration *m_currentConfig = nullptr;
+    QProcess *m_currentProcess = nullptr;
+    TestOutputReader *m_currentOutputReader = nullptr;
     TestRunMode m_runMode = TestRunMode::Run;
 
     // temporarily used if building before running is necessary
     QMetaObject::Connection m_buildConnect;
+    // temporarily used when debugging
+    QMetaObject::Connection m_stopDebugConnect;
+    // temporarily used for handling of switching the current target
+    QMetaObject::Connection m_targetConnect;
 };
 
 class RunConfigurationSelectionDialog : public QDialog

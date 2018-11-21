@@ -27,8 +27,9 @@
 
 #include "symbolqueryinterface.h"
 
+#include "sourcelocations.h"
+
 #include <filepathid.h>
-#include <sourcelocations.h>
 
 #include <cpptools/usages.h>
 
@@ -46,30 +47,81 @@ public:
         : m_statementFactory(statementFactory)
     {}
 
-    SourceLocations locationsAt(ClangBackEnd::FilePathId filePathId, int line, int utf8Column) const override
+    SourceLocations locationsAt(ClangBackEnd::FilePathId filePathId,
+                                int line,
+                                int utf8Column) const override
     {
         ReadStatement &locationsStatement = m_statementFactory.selectLocationsForSymbolLocation;
 
         const std::size_t reserveSize = 128;
 
         return locationsStatement.template values<SourceLocation, 4>(reserveSize,
-                                                                     filePathId.fileNameId,
+                                                                     filePathId.filePathId,
                                                                      line,
                                                                      utf8Column);
     }
 
-    CppTools::Usages sourceUsagesAt(ClangBackEnd::FilePathId filePathId, int line, int utf8Column) const override
+    CppTools::Usages sourceUsagesAt(ClangBackEnd::FilePathId filePathId,
+                                    int line,
+                                    int utf8Column) const override
     {
         ReadStatement &locationsStatement = m_statementFactory.selectSourceUsagesForSymbolLocation;
 
         const std::size_t reserveSize = 128;
 
         return locationsStatement.template values<CppTools::Usage, 3>(reserveSize,
-                                                                      filePathId.fileNameId,
+                                                                      filePathId.filePathId,
                                                                       line,
                                                                       utf8Column);
     }
 
+    Symbols symbolsWithOneSymbolKinds(ClangBackEnd::SymbolKind symbolKind,
+                                      Utils::SmallStringView searchTerm) const
+    {
+        ReadStatement &statement = m_statementFactory.selectSymbolsForKindAndStartsWith;
+
+        return statement.template values<Symbol, 3>(100, int(symbolKind), searchTerm);
+    }
+
+    Symbols symbolsWithTwoSymbolKinds(ClangBackEnd::SymbolKind symbolKind1,
+                                      ClangBackEnd::SymbolKind symbolKind2,
+                                      Utils::SmallStringView searchTerm) const
+    {
+        ReadStatement &statement = m_statementFactory.selectSymbolsForKindAndStartsWith2;
+
+        return statement.template values<Symbol, 3>(100, int(symbolKind1), int(symbolKind2), searchTerm);
+    }
+
+    Symbols symbolsWithThreeSymbolKinds(ClangBackEnd::SymbolKind symbolKind1,
+                                        ClangBackEnd::SymbolKind symbolKind2,
+                                        ClangBackEnd::SymbolKind symbolKind3,
+                                        Utils::SmallStringView searchTerm) const
+    {
+        ReadStatement &statement = m_statementFactory.selectSymbolsForKindAndStartsWith3;
+
+        return statement.template values<Symbol, 3>(100, int(symbolKind1), int(symbolKind2), int(symbolKind3), searchTerm);
+    }
+
+    Symbols symbols(const ClangBackEnd::SymbolKinds &symbolKinds,
+                    Utils::SmallStringView searchTerm) const override
+    {
+        switch (symbolKinds.size())
+        {
+        case 1: return symbolsWithOneSymbolKinds(symbolKinds[0], searchTerm);
+        case 2: return symbolsWithTwoSymbolKinds(symbolKinds[0], symbolKinds[1], searchTerm);
+        case 3: return symbolsWithThreeSymbolKinds(symbolKinds[0], symbolKinds[1], symbolKinds[2], searchTerm);
+        }
+
+        return Symbols();
+    }
+
+    Utils::optional<SourceLocation> locationForSymbolId(SymbolId symbolId,
+                                                        ClangBackEnd::SourceLocationKind kind) const override
+    {
+        ReadStatement &statement = m_statementFactory.selectLocationOfSymbol;
+
+        return statement.template value<SourceLocation, 4>(symbolId, int(kind));
+    }
 private:
     StatementFactory &m_statementFactory;
 };
