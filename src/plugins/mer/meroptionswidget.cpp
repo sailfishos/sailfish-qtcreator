@@ -33,7 +33,6 @@
 
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
-#include <utils/asconst.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -194,7 +193,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
 
     QList<MerSdk *> failed;
 
-    for (MerSdk *sdk : Utils::asConst(m_sdks)) {
+    for (MerSdk *sdk : qAsConst(m_sdks)) {
         if (m_sshPort.value(sdk) == sdk->sshPort())
             m_sshPort.remove(sdk);
         if (m_wwwPort.value(sdk) == sdk->wwwPort())
@@ -225,7 +224,7 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
         lockedDownSdks->append(sdk);
     }
 
-    for (MerSdk *sdk : Utils::asConst(failed)) {
+    for (MerSdk *sdk : qAsConst(failed)) {
         m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
