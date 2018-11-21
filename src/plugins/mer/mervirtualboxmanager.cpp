@@ -246,7 +246,8 @@ public:
     bool runSynchronously(const QStringList &arguments)
     {
         setArguments(arguments);
-        return CommandSerializer::runSynchronous(this);
+        bool finished = CommandSerializer::runSynchronous(this);
+        return finished && exitStatus() == QProcess::NormalExit && exitCode() == 0;
     }
 
     void runAsynchronously(const QStringList &arguments)
