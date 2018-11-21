@@ -74,25 +74,6 @@ void MerRunConfiguration::updateEnabledState()
     RemoteLinuxRunConfiguration::updateEnabledState();
 }
 
-QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
-{
-    DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if (!conf) return QString();
-
-    QString executable = RemoteLinuxRunConfiguration::defaultRemoteExecutableFilePath();
-    if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
-        QString projectName = target()->project()->displayName();
-        return QLatin1String("/opt/sdk/") + projectName + executable;
-    }
-
-    if (conf->id() == MerRpmDeployConfiguration::configurationId()) {
-        //TODO:
-        return executable;
-    }
-
-    return executable;
-}
-
 Runnable MerRunConfiguration::runnable() const
 {
     auto r = RemoteLinuxRunConfiguration::runnable().as<StandardRunnable>();
@@ -104,6 +85,19 @@ Runnable MerRunConfiguration::runnable() const
 
     auto merAspect = extraAspect<MerRunConfigurationAspect>();
     merAspect->applyTo(&r);
+
+    DeployConfiguration* conf = target()->activeDeployConfiguration();
+    QTC_ASSERT(conf, return r);;
+
+    if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
+        QString projectName = target()->project()->displayName();
+        r.executable = QLatin1String("/opt/sdk/") + projectName + r.executable;
+    }
+
+    if (conf->id() == MerRpmDeployConfiguration::configurationId()) {
+        //TODO:
+        //r.executable = ...;
+    }
 
     return r;
 }

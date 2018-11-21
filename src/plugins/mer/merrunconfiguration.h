@@ -35,7 +35,6 @@ public:
     MerRunConfiguration(ProjectExplorer::Target *parent);
 
     ProjectExplorer::Runnable runnable() const override;
-    QString defaultRemoteExecutableFilePath() const override;
     QString disabledReason() const override;
 protected:
     void updateEnabledState() override;
