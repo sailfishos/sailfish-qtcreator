@@ -45,7 +45,7 @@ MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
 {
     setObjectName("MerRunConfigurationFactory");
     registerRunConfiguration<MerRunConfiguration>(MER_RUNCONFIGURATION_PREFIX);
-    setSupportedTargetDeviceTypes({MER_DEVICE_TYPE});
+    addSupportedTargetDeviceType(MER_DEVICE_TYPE);
     setDisplayNamePattern(tr("%1 (on Sailfish OS Device)"));
 }
 

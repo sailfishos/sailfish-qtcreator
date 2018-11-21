@@ -86,7 +86,7 @@ class MerRpmDeployConfiguration : public MerDeployConfiguration
     Q_OBJECT
 
 public:
-    MerRpmDeployConfiguration(ProjectExplorer::Target *parent);
+    MerRpmDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     void initialize() override;
 
     static QString displayName();
@@ -101,7 +101,7 @@ class MerRsyncDeployConfiguration : public  MerDeployConfiguration
     Q_OBJECT
 
 public:
-    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent);
+    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     void initialize() override;
 
     static QString displayName();
@@ -117,7 +117,7 @@ class MerMb2RpmBuildConfiguration : public  MerDeployConfiguration
     Q_OBJECT
 
 public:
-    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent);
+    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     void initialize() override;
 
     static QString displayName();
@@ -132,7 +132,7 @@ class MerRpmBuildDeployConfiguration : public MerDeployConfiguration
     Q_OBJECT
 
 public:
-    MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent);
+    MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     void initialize() override;
 
     static QString displayName();
@@ -146,7 +146,7 @@ public:
     MerDeployConfigurationFactory()
     {
         registerDeployConfiguration<Configuration>(Configuration::configurationId());
-        setSupportedTargetDeviceTypes({Constants::MER_DEVICE_TYPE});
+        addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
         setDefaultDisplayName(Configuration::displayName());
     }
 };

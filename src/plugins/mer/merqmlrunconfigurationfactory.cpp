@@ -49,7 +49,7 @@ MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory(QObject *parent)
 {
     setObjectName("MerQmlRunConfigurationFactory");
     registerRunConfiguration<MerQmlRunConfiguration>(MER_QMLRUNCONFIGURATION);
-    setSupportedTargetDeviceTypes({MER_DEVICE_TYPE});
+    addSupportedTargetDeviceType(MER_DEVICE_TYPE);
     addFixedBuildTarget(tr("QML Scene (on Sailfish OS Device)"));
 }
 
