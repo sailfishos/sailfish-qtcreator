@@ -40,13 +40,11 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
-    : RunConfigurationFactory(parent)
+MerRunConfigurationFactory::MerRunConfigurationFactory()
 {
-    setObjectName("MerRunConfigurationFactory");
     registerRunConfiguration<MerRunConfiguration>(MER_RUNCONFIGURATION_PREFIX);
     addSupportedTargetDeviceType(MER_DEVICE_TYPE);
-    setDisplayNamePattern(tr("%1 (on Sailfish OS Device)"));
+    setDisplayNamePattern(RunConfiguration::tr("%1 (on Sailfish OS Device)"));
 }
 
 } // Internal

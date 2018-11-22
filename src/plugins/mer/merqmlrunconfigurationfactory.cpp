@@ -44,13 +44,11 @@ namespace {
 const char SAILFISHAPP_QML_CONFIG[] = "sailfishapp_qml";
 } // anonymous namespace
 
-MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory(QObject *parent)
-    : RunConfigurationFactory(parent)
+MerQmlRunConfigurationFactory::MerQmlRunConfigurationFactory()
 {
-    setObjectName("MerQmlRunConfigurationFactory");
     registerRunConfiguration<MerQmlRunConfiguration>(MER_QMLRUNCONFIGURATION);
     addSupportedTargetDeviceType(MER_DEVICE_TYPE);
-    addFixedBuildTarget(tr("QML Scene (on Sailfish OS Device)"));
+    addFixedBuildTarget(RunConfiguration::tr("QML Scene (on Sailfish OS Device)"));
 }
 
 bool MerQmlRunConfigurationFactory::canHandle(Target *parent) const

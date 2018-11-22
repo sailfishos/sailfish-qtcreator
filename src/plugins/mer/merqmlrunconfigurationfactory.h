@@ -30,10 +30,8 @@ namespace Internal {
 
 class MerQmlRunConfigurationFactory : public ProjectExplorer::RunConfigurationFactory
 {
-    Q_OBJECT
-
 public:
-    explicit MerQmlRunConfigurationFactory(QObject *parent = nullptr);
+    MerQmlRunConfigurationFactory();
 
     bool canHandle(ProjectExplorer::Target *parent) const override;
 };
