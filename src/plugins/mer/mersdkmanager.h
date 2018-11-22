@@ -51,6 +51,7 @@ class MerSdkManager : public QObject
 {
     Q_OBJECT
 public:
+    MerSdkManager();
     static MerSdkManager *instance();
     static QString sdkToolsDirectory();
     static QString globalSdkToolsDirectory();
@@ -85,7 +86,6 @@ private slots:
     void updateDevices();
 
 private:
-    MerSdkManager();
     void restore();
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
     static QList<MerToolChain*> merToolChains();
@@ -98,6 +98,7 @@ private:
     Utils::PersistentSettingsWriter *m_writer;
     QString m_installDir;
     int m_version;
+    // For tests
     friend class MerPlugin;
 };
 

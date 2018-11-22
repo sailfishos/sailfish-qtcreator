@@ -78,12 +78,47 @@ namespace {
 const char *VM_NAME_PROPERTY = "merVmName";
 }
 
+class MerPluginPrivate
+{
+public:
+    MerSdkManager sdkManager;
+    MerVirtualBoxManager virtualBoxManager;
+    MerConnectionManager connectionManager;
+    MerOptionsPage optionsPage;
+    MerGeneralOptionsPage generalOptionsPage;
+    MerDeviceFactory deviceFactory;
+    MerEmulatorDeviceManager emulatorDeviceManager;
+    MerQtVersionFactory qtVersionFactory;
+    MerToolChainFactory toolChainFactory;
+    MerAddVmStartBuildStepProjectListener addVmStartBuildStepProjectListener;
+    MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration> mb2RpmBuildConfigurationFactory;
+    MerDeployConfigurationFactory<MerRsyncDeployConfiguration> rsyncDeployConfigurationFactory;
+    MerDeployConfigurationFactory<MerRpmDeployConfiguration> rpmDeployConfigurationFactory;
+    MerRunConfigurationFactory runConfigurationFactory;
+    MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
+    MerBuildStepFactory<MerSdkStartStep> sdkStartStepFactory;
+    MerDeployStepFactory<MerPrepareTargetStep> prepareTargetStepFactory;
+    MerDeployStepFactory<MerMb2RsyncDeployStep> mb2RsyncDeployStepFactory;
+    MerDeployStepFactory<MerMb2RpmDeployStep> mb2RpmDeployStepFactory;
+    MerDeployStepFactory<MerMb2RpmBuildStep> mb2RpmBuildStepFactory;
+    MerDeployStepFactory<MerRpmPackagingStep> rpmPackagingStepFactory;
+    MerDeployStepFactory<MerRpmValidationStep> rpmValidationStepFactory;
+    MerDeployStepFactory<MerUploadAndInstallRpmStep> uploadAndInstallRpmStepFactory;
+    MerDeployStepFactory<MerLocalRsyncDeployStep> localRsyncDeployStepFactory;
+    MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
+    MerQmlLiveBenchManager qmlLiveBenchManager;
+    MerMode mode;
+};
+
+static MerPluginPrivate *dd = nullptr;
+
 MerPlugin::MerPlugin()
 {
 }
 
 MerPlugin::~MerPlugin()
 {
+    delete dd, dd = nullptr;
 }
 
 bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -108,34 +143,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     RunControl::registerWorker<RemoteLinuxQmlProfilerSupport>(QML_PROFILER_RUN_MODE, constraint);
     //RunControl::registerWorker<RemoteLinuxPerfSupport>(PERFPROFILER_RUN_MODE, constraint);
 
-    addAutoReleasedObject(new MerSdkManager);
-    addAutoReleasedObject(new MerVirtualBoxManager);
-    addAutoReleasedObject(new MerConnectionManager);
-    addAutoReleasedObject(new MerOptionsPage);
-    addAutoReleasedObject(new MerGeneralOptionsPage);
-    addAutoReleasedObject(new MerDeviceFactory);
-    addAutoReleasedObject(new MerEmulatorDeviceManager);
-    addAutoReleasedObject(new MerQtVersionFactory);
-    addAutoReleasedObject(new MerToolChainFactory);
-    addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
-    addAutoReleasedObject(new MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration>);
-    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRsyncDeployConfiguration>);
-    addAutoReleasedObject(new MerDeployConfigurationFactory<MerRpmDeployConfiguration>);
-    addAutoReleasedObject(new MerRunConfigurationFactory);
-    addAutoReleasedObject(new MerQmlRunConfigurationFactory);
-    addAutoReleasedObject(new MerBuildStepFactory<MerSdkStartStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerPrepareTargetStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RsyncDeployStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmDeployStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerMb2RpmBuildStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerRpmPackagingStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerRpmValidationStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerUploadAndInstallRpmStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerLocalRsyncDeployStep>);
-    addAutoReleasedObject(new MerDeployStepFactory<MerResetAmbienceDeployStep>);
-    addAutoReleasedObject(new MerQmlLiveBenchManager);
-
-    addAutoReleasedObject(new MerMode);
+    dd = new MerPluginPrivate;
 
     Command *emulatorConnectionCommand =
         ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);

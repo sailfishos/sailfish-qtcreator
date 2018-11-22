@@ -47,25 +47,23 @@ class MerConnectionManager : public QObject
 {
     Q_OBJECT
 public:
+    MerConnectionManager();
     static MerConnectionManager* instance();
     ~MerConnectionManager() override;
     static QString testConnection(const QSsh::SshConnectionParameters &params, bool *ok = 0);
+
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
-private:
-    MerConnectionManager();
 
 private:
     static MerConnectionManager *m_instance;
     static ProjectExplorer::Project *m_project;
     MerConnectionAction *m_emulatorAction;
     MerConnectionAction *m_sdkAction;
-
-    friend class MerPlugin;
 };
 
 }

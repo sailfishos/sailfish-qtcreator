@@ -148,6 +148,7 @@ class MerEmulatorDeviceManager : public QObject
     Q_OBJECT
 
 public:
+    MerEmulatorDeviceManager(QObject *parent = 0);
     static MerEmulatorDeviceManager *instance();
     ~MerEmulatorDeviceManager() override;
 
@@ -157,9 +158,6 @@ public:
 signals:
     void storedDevicesChanged();
 
-private:
-    MerEmulatorDeviceManager(QObject *parent = 0);
-
 private slots:
     void onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device);
     void onDeviceAdded(Core::Id id);
@@ -167,7 +165,6 @@ private slots:
     void onDeviceListReplaced();
 
 private:
-    friend class MerPlugin;
     static MerEmulatorDeviceManager *s_instance;
     QHash<Core::Id, quint16> m_deviceSshPortCache;
     QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;

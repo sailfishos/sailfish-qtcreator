@@ -75,6 +75,7 @@ class MerQmlLiveBenchManager : public QObject
     };
 
 public:
+    MerQmlLiveBenchManager(QObject *parent = nullptr);
     static MerQmlLiveBenchManager* instance();
     ~MerQmlLiveBenchManager() override;
 
@@ -83,8 +84,6 @@ public:
     static void notifyInferiorRunning(ProjectExplorer::RunControl *rc);
 
 private:
-    MerQmlLiveBenchManager(QObject *parent = nullptr);
-
     static void warnBenchLocationNotSet();
     static QString qmlLiveHostName(const QString &merDeviceName, Utils::Port port);
     void addHostsToBench(const QString &merDeviceName, const QString &address, const QList<Utils::Port> &ports);
@@ -108,8 +107,6 @@ private slots:
 
 private:
     static MerQmlLiveBenchManager *m_instance;
-    friend class MerPlugin;
-
     bool m_enabled;
     QHash<Core::Id, DeviceInfo *> m_deviceInfoCache;
     QQueue<Command *> m_commands;
