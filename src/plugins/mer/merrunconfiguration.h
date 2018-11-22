@@ -32,7 +32,7 @@ class MerRunConfiguration : public RemoteLinux::RemoteLinuxRunConfiguration
 {
     Q_OBJECT
 public:
-    MerRunConfiguration(ProjectExplorer::Target *parent);
+    MerRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     ProjectExplorer::Runnable runnable() const override;
     QString disabledReason() const override;

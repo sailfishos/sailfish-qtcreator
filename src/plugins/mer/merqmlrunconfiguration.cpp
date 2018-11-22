@@ -52,11 +52,11 @@ namespace {
 const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGING";
 } // anonymous namespace
 
-MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent)
-    : RunConfiguration(parent, Constants::MER_QMLRUNCONFIGURATION)
+MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
+    : RunConfiguration(target, id)
 {
     addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
-    connect(target(), &Target::activeDeployConfigurationChanged,
+    connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerQmlRunConfiguration::updateEnabledState);
 }
 

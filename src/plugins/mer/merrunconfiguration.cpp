@@ -41,10 +41,10 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerRunConfiguration::MerRunConfiguration(Target *parent)
-    : RemoteLinuxRunConfiguration(parent, Constants::MER_RUNCONFIGURATION_PREFIX)
+MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
+    : RemoteLinuxRunConfiguration(target, id)
 {
-    connect(target(), &Target::activeDeployConfigurationChanged,
+    connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerRunConfiguration::updateEnabledState);
 }
 
