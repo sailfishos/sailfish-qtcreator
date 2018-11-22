@@ -58,7 +58,6 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *parent)
     addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
     connect(target(), &Target::activeDeployConfigurationChanged,
             this, &MerQmlRunConfiguration::updateEnabledState);
-    setDisplayName(defaultDisplayName());
 }
 
 QString MerQmlRunConfiguration::disabledReason() const
@@ -127,12 +126,6 @@ QString MerQmlRunConfiguration::localExecutableFilePath() const
     const QString path = merSdk->sharedTargetsPath() + QLatin1Char('/') + merTargetName +
         QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
     return QDir::cleanPath(path);
-}
-
-QString MerQmlRunConfiguration::defaultDisplayName() const
-{
-    //: Mer qml-only run configuration default display name
-    return tr("QML Scene (on Sailfish OS Device)");
 }
 
 } // Internal

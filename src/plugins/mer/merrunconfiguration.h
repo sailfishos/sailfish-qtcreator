@@ -38,9 +38,7 @@ public:
     QString disabledReason() const override;
 protected:
     void updateEnabledState() override;
-    bool fromMap(const QVariantMap &map) override;
 private:
-    QString defaultDisplayName() const;
     mutable QString m_disabledReason;
 };
 

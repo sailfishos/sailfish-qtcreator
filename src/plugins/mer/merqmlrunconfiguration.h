@@ -46,7 +46,6 @@ protected:
     void updateEnabledState() override;
 
 private:
-    QString defaultDisplayName() const;
     mutable QString m_disabledReason;
 };
 

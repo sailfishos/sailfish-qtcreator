@@ -101,23 +101,5 @@ Runnable MerRunConfiguration::runnable() const
     return r;
 }
 
-bool MerRunConfiguration::fromMap(const QVariantMap &map)
-{
-    if (!RemoteLinuxRunConfiguration::fromMap(map))
-        return false;
-
-    setDefaultDisplayName(defaultDisplayName());
-    return true;
-}
-
-QString MerRunConfiguration::defaultDisplayName() const
-{
-    if (!buildSystemTarget().isEmpty())
-        //: %1 is the name of a project which is being run on Mer device
-        return tr("%1 (on Sailfish OS Device)").arg(buildSystemTarget());
-    //: Mer run configuration default display name
-    return tr("Run on Sailfish OS Device");
-}
-
 } // Internal
 } // Mer

@@ -32,8 +32,6 @@ class MerRunConfigurationFactory : public ProjectExplorer::RunConfigurationFacto
 {
 public:
     MerRunConfigurationFactory();
-    QList<ProjectExplorer::RunConfigurationCreationInfo>
-        availableCreators(ProjectExplorer::Target *parent) const override;
 };
 
 } // namespace Internal
