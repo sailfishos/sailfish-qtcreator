@@ -92,7 +92,7 @@ void MerProjectListener::onProjectAdded(Project *project)
 
     const QList<Kit *> merKits = MerSdkManager::merKits();
     foreach (Kit *kit, merKits) {
-        if (project->supportsKit(kit)) {
+        if (!containsType(project->projectIssues(kit), Task::TaskType::Error)) {
             if (handleProject_private(project))
                 break;
         }
