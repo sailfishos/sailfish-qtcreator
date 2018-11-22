@@ -44,7 +44,14 @@ MerRunConfigurationFactory::MerRunConfigurationFactory()
 {
     registerRunConfiguration<MerRunConfiguration>(MER_RUNCONFIGURATION_PREFIX);
     addSupportedTargetDeviceType(MER_DEVICE_TYPE);
-    setDisplayNamePattern(RunConfiguration::tr("%1 (on Sailfish OS Device)"));
+}
+
+QList<RunConfigurationCreationInfo>
+    MerRunConfigurationFactory::availableCreators(Target *parent) const
+{
+    return Utils::transform(parent->applicationTargets().list, [this](const BuildTargetInfo &bti) {
+        return convert(tr("%1 (on Sailfish OS Device)").arg(bti.displayName), bti.targetName);
+    });
 }
 
 } // Internal
