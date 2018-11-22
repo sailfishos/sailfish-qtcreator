@@ -35,7 +35,6 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
@@ -92,7 +91,7 @@ Runnable MerQmlRunConfiguration::runnable() const
     auto project = qobject_cast<QmakeProject *>(target()->project());
     const QString appName{project->rootProFile()->targetInformation().target};
 
-    StandardRunnable r;
+    Runnable r;
     r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();
     r.executable = QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
     r.commandLineArguments = appName;

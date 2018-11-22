@@ -26,7 +26,6 @@
 #include "merqmlrunconfiguration.h"
 
 #include <qmakeprojectmanager/qmakeproject.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <utils/detailswidget.h>
 #include <utils/utilsicons.h>
@@ -74,7 +73,7 @@ MerQmlRunConfigurationWidget::MerQmlRunConfigurationWidget(
         m_command = new QLabel;
         m_command->setTextInteractionFlags(Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
         auto updateCommand = [this]() {
-            auto r = m_runConfiguration->runnable().as<StandardRunnable>();
+            auto r = m_runConfiguration->runnable();
             m_command->setText(r.executable + QLatin1Char{' '} + r.commandLineArguments);
         };
         updateCommand();

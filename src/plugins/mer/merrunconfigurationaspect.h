@@ -25,10 +25,6 @@
 
 #include <projectexplorer/runconfiguration.h>
 
-namespace ProjectExplorer {
-    class StandardRunnable;
-}
-
 namespace Mer {
 namespace Internal {
 
@@ -58,7 +54,7 @@ public:
 
     QString defaultQmlLiveBenchWorkspace() const;
 
-    void applyTo(ProjectExplorer::StandardRunnable *r) const;
+    void applyTo(ProjectExplorer::Runnable *r) const;
 
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;

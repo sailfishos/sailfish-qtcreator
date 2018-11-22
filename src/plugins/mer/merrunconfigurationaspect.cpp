@@ -31,7 +31,6 @@
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
@@ -239,7 +238,7 @@ QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
     return project->projectDirectory().toString();
 }
 
-void MerRunConfigurationAspect::applyTo(ProjectExplorer::StandardRunnable *r) const
+void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const
 {
     if (isQmlLiveEnabled()) {
         r->environment.appendOrSet(QLatin1String("LD_PRELOAD"),

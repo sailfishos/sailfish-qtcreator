@@ -31,7 +31,6 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
-#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
 
@@ -76,7 +75,7 @@ void MerRunConfiguration::updateEnabledState()
 
 Runnable MerRunConfiguration::runnable() const
 {
-    auto r = RemoteLinuxRunConfiguration::runnable().as<StandardRunnable>();
+    auto r = RemoteLinuxRunConfiguration::runnable();
     // required by qtbase not to direct logs to journald
     // for Qt < 5.4
     r.environment.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
