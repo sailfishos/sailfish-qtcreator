@@ -42,6 +42,7 @@
 #include "merrpmpackagingstep.h"
 #include "merrunconfigurationaspect.h"
 #include "merrunconfigurationfactory.h"
+#include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
@@ -54,14 +55,19 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/modemanager.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxcustomrunconfiguration.h>
 #include <remotelinux/remotelinuxqmltoolingsupport.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
 #include <utils/checkablemessagebox.h>
+#include <utils/macroexpander.h>
 
 #include <QCheckBox>
 #include <QMenu>
 #include <QMessageBox>
+#include <QString>
 #include <QTimer>
 #include <QtPlugin>
 
@@ -168,6 +174,57 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
             MerQmlLiveBenchManager::startBench);
     menu->addAction(startQmlLiveBenchCommand);
 
+    Utils::MacroExpander *expander = Utils::globalMacroExpander();
+    expander->registerVariable("mer:merssh", tr("Location of merssh"),
+                               []()
+    {
+        return QString(Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX));
+    });
+    expander->registerVariable("mer:sshport", tr("SSH port"),
+                               []()
+    {
+        Kit* kit = SessionManager::startupProject()->activeTarget()->kit();
+        if (MerSdkManager::isMerKit(kit))
+        {
+            MerSdk* sdk = MerSdkKitInformation::sdk(kit);
+            return QString::number(sdk->sshPort());
+        }
+        return QString();
+    });
+    expander->registerVariable("mer:privatekeyfile", tr("Private key file"),
+                               []()
+    {
+        Kit* kit = SessionManager::startupProject()->activeTarget()->kit();
+        if (MerSdkManager::isMerKit(kit))
+        {
+            MerSdk* sdk = MerSdkKitInformation::sdk(kit);
+            return sdk->privateKeyFile();
+        }
+        return QString();
+    });
+    expander->registerVariable("mer:sharedhome", tr("Shared home path"),
+                               []()
+    {
+        Kit* kit = SessionManager::startupProject()->activeTarget()->kit();
+        if (MerSdkManager::isMerKit(kit))
+        {
+            MerSdk* sdk = MerSdkKitInformation::sdk(kit);
+            return sdk->sharedHomePath();
+        }
+        return QString();
+    });
+    expander->registerVariable("mer:sshuser", tr("SSH user name"),
+                               []()
+    {
+        Kit* kit = SessionManager::startupProject()->activeTarget()->kit();
+        if (MerSdkManager::isMerKit(kit))
+        {
+            MerSdk* sdk = MerSdkKitInformation::sdk(kit);
+            return sdk->userName();
+        }
+        return QString();
+    });
+    
     return true;
 }
 
