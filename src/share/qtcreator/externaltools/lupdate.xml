@@ -31,10 +31,11 @@
     <displayname>Update Translations (lupdate)</displayname>
     <category>Linguist</category>
     <order>1</order>
-    <executable>
-        <path>%{CurrentProject:QT_INSTALL_BINS}/lupdate</path>
-        <path>lupdate</path>
-        <arguments>%{CurrentProject:FilePath}</arguments>
+    <executable output="showinpane" error="showinpane" modifiesdocument="no">
+        <path>%{mer:merssh}</path>
+        <path>merssh</path>
+        <arguments>lupdate %{CurrentProject:FilePath}</arguments>
         <workingdirectory>%{CurrentProject:Path}</workingdirectory>
+        <environment>MER_SSH_PORT%3D%25%7Bmer%3Asshport%7D;MER_SSH_PRIVATE_KEY%3D%25%7Bmer%3Aprivatekeyfile%7D;MER_SSH_SHARED_HOME%3D%25%7Bmer%3Asharedhome%7D;MER_SSH_USERNAME%3D%25%7Bmer%3Asshuser%7D</environment>
     </executable>
 </externaltool>
