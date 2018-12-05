@@ -65,6 +65,7 @@ const char* wrapperScripts[] =
     MER_WRAPPER_RPM,
     MER_WRAPPER_RPMBUILD,
     MER_WRAPPER_RPMVALIDATION,
+    MER_WRAPPER_LUPDATE,
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
