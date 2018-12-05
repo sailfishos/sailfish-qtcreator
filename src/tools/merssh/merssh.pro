@@ -19,6 +19,7 @@ SOURCES = \
     deploycommand.cpp \
     rpmcommand.cpp \
     rpmvalidationcommand.cpp \
+    lupdatecommand.cpp \
     ../../plugins/mer/merconnection.cpp \
     ../../plugins/mer/merlogging.cpp \
     ../../plugins/mer/mervirtualboxmanager.cpp
@@ -35,6 +36,7 @@ HEADERS += \
     deploycommand.h \
     rpmcommand.h \
     rpmvalidationcommand.h \
+    lupdatecommand.h \
     ../../plugins/mer/merconnection.h \
     ../../plugins/mer/merlogging.h \
     ../../plugins/mer/mervirtualboxmanager.h
