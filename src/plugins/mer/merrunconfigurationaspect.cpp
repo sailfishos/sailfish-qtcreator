@@ -93,7 +93,7 @@ public:
         // Idea from ProjectExplorer::ToolWidget::ToolWidget()
         helpButton->setFixedSize(QSize(20, Utils::HostOsInfo::isMacHost() ? 20 : 26));
         // TODO Use better icon
-        helpButton->setIcon(QIcon(QLatin1String(":/utils/images/help.png")));
+        helpButton->setIcon(helpButton->style()->standardIcon(QStyle::SP_TitleBarContextHelpButton));
         connect(helpButton, &QAbstractButton::clicked, []() {
             QDesktopServices::openUrl(QUrl(QLatin1String(Constants::QML_LIVE_HELP_URL)));
         });
