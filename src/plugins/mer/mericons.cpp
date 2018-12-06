@@ -33,7 +33,7 @@ const Icon MER_MODE_FLAT({
 const Icon MER_MODE_FLAT_ACTIVE({
         {":/mer/images/icon-s-sailfish-qtcreator-mask.png", Utils::Theme::IconsModeMerActiveColor}});
 const Icon MER_KIT(":/mer/images/icon-s-sailfish-qtcreator.png");
-const Icon MER_OPTIONS_CATEGORY(":/mer/images/icon-s-sailfish-qtcreator.png");
+const Icon MER_OPTIONS_CATEGORY(":/mer/images/icon-s-sailfish-qtcreator-mask-small.png");
 const Icon MER_EMULATOR_RUN(":/mer/images/emulator-run.png");
 const Icon MER_EMULATOR_STOP(":/mer/images/emulator-stop.png");
 const Icon MER_SDK_RUN(":/mer/images/sdk-run.png");
