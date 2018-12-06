@@ -83,7 +83,7 @@ void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
 
     // If the VM is started, cancel any unsaved changes to SSH/QmlLive ports to prevent inconsistencies
     if (!vmOff) {
-        auto device = this->device().dynamicCast<MerEmulatorDevice>();
+        const auto device = this->device().dynamicCast<MerEmulatorDevice>();
         QTC_ASSERT(device, return);
 
         bool restored = MerEmulatorDeviceManager::restorePorts(device);
@@ -96,7 +96,9 @@ void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
 
 void MerEmulatorDeviceWidget::updatePortInputsEnabledState()
 {
-    auto device = this->device().staticCast<MerEmulatorDevice>();
+    const auto device = this->device().dynamicCast<const MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
     bool vmOff = device->connection()->isVirtualMachineOff();
     bool isStored = MerEmulatorDeviceManager::isStored(device);
 
@@ -117,8 +119,8 @@ void MerEmulatorDeviceWidget::updatePortInputsEnabledState()
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
 {
-    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
-    MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
+    const auto device = this->device().dynamicCast<MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
 
     SshConnectionParameters sshParams = device->sshParameters();
     sshParams.timeout = m_ui->timeoutSpinBox->value();
@@ -127,8 +129,8 @@ void MerEmulatorDeviceWidget::timeoutEditingFinished()
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
-    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
-    MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
+    const auto device = this->device().dynamicCast<MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
 
     if(!device->sharedConfigPath().isEmpty()) {
         QString index = QLatin1String("/ssh/private_keys/%1/");
@@ -148,7 +150,9 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
 
 void MerEmulatorDeviceWidget::handleSshPortChanged()
 {
-    auto device = this->device().staticCast<MerDevice>();
+    const auto device = this->device().dynamicCast<MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
     auto sshParams = device->sshParameters();
     sshParams.setPort(m_ui->sshPortSpinBox->value());
     device->setSshParameters(sshParams);
@@ -162,7 +166,10 @@ void MerEmulatorDeviceWidget::handleFreePortsChanged()
 
 void MerEmulatorDeviceWidget::handleQmlLivePortsChanged()
 {
-    device().staticCast<MerDevice>()->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
+    const auto device = this->device().dynamicCast<MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
+    device->setQmlLivePorts(PortList::fromString(m_ui->qmlLivePortsLineEdit->text()));
     updateQmlLivePortsWarningLabel();
 }
 
@@ -181,7 +188,10 @@ void MerEmulatorDeviceWidget::updatePortsWarningLabel()
 
 void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
 {
-    const int count = device().staticCast<MerDevice>()->qmlLivePorts().count();
+    const auto device = this->device().dynamicCast<const MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
+    const int count = device->qmlLivePorts().count();
     m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
 }
 
@@ -203,8 +213,9 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->portsLineEdit->setValidator(portsValidator);
     m_ui->qmlLivePortsLineEdit->setValidator(portsValidator);
 
-    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
-    const MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
+    const auto device = this->device().dynamicCast<const MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName());
