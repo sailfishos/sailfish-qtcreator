@@ -23,6 +23,7 @@
 #include "mertarget.h"
 
 #include "merconstants.h"
+#include "mericons.h"
 #include "merlogging.h"
 #include "merqtversion.h"
 #include "mersdk.h"
@@ -180,7 +181,7 @@ Kit* MerTarget::createKit() const
     Kit *k = new Kit();
     k->setAutoDetected(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)").arg(m_name, m_sdk->virtualMachineName()));
-    k->setIconPath(FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
+    k->setIconPath(FileName::fromString(Icons::MER_KIT.imageFileName()));
     SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
 
     DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);

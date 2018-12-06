@@ -33,8 +33,6 @@ const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Sailfish OS");
-const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
-const char MER_OPTIONS_CATEGORY_ICON_MASK[] = ":/mer/images/icon-s-sailfish-qtcreator-mask.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
@@ -48,8 +46,6 @@ const char MER_SAILFISH_START_MENU[] = "Mer.Sailfish.Start.Menu";
 const char MER_SAILFISH_STOP_MENU[] = "Mer.Sailfish.Stop.Menu";
 const char MER_SAILFISH_VM_GROUP_MENU[] = "Mer.Sailfish.Vm.Group.Menu";
 const char MER_SAILFISH_OTHER_GROUP_MENU[] = "Mer.Sailfish.Other.Group.Menu";
-const char MER_SAILFISH_START_ICON[] = ":/mer/images/sdk-run.png";
-const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 
 const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
 const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";

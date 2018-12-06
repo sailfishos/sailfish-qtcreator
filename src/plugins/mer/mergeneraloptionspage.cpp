@@ -24,6 +24,7 @@
 
 #include "merconstants.h"
 #include "mergeneraloptionswidget.h"
+#include "mericons.h"
 
 #include <utils/qtcassert.h>
 
@@ -39,7 +40,7 @@ MerGeneralOptionsPage::MerGeneralOptionsPage(QObject *parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
-    setCategoryIcon(Utils::Icon(Constants::MER_OPTIONS_CATEGORY_ICON));
+    setCategoryIcon(Icons::MER_OPTIONS_CATEGORY);
     setId(Core::Id(Constants::MER_GENERAL_OPTIONS_ID));
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_GENERAL_OPTIONS_NAME));
 }

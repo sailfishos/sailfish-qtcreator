@@ -24,6 +24,7 @@
 #include "ui_mermanagementwebview.h"
 
 #include "merconnection.h"
+#include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
@@ -341,7 +342,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     "  </div>"
                     "  <div style='padding-left: 24px; padding-right: 24px; font-size: small;'>"
                     "    <p>A Sailfish OS build engine can be controlled with the "
-                    "    <img src='qrc:/mer/images/sdk-run.png' style='vertical-align: middle;'/>"
+                    "    <img src='qrc%4' style='vertical-align: middle;'/>"
                     "    button &ndash; available on the lower left side <em>when "
                     "    a&nbsp;Sailfish&nbsp;OS project is open</em>.</p>"
                     "  </div>"
@@ -350,6 +351,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 .arg(qApp->font().family())
                 .arg(qApp->font().lastResortFamily())
                 .arg(vmStatus)
+                .arg(Icons::MER_SDK_RUN.imageFileName())
                 );
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)

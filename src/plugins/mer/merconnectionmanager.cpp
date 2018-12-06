@@ -25,6 +25,7 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
+#include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
@@ -247,15 +248,10 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction(new MerConnectionAction(this)),
     m_sdkAction(new MerConnectionAction(this))
 {
-    QIcon emuIconOff(QLatin1String(":/mer/images/emulator-run.png"));
-    QIcon emuIconOn(QLatin1String(":/mer/images/emulator-stop.png"));
-    QIcon sdkIconOff(QLatin1String(":/mer/images/sdk-run.png"));
-    QIcon sdkIconOn(QLatin1String(":/mer/images/sdk-stop.png"));
-
     m_emulatorAction->setName(tr("Start/Stop a Sailfish OS Emulator"));
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
-    m_emulatorAction->setIconOff(emuIconOff);
-    m_emulatorAction->setIconOn(emuIconOn);
+    m_emulatorAction->setIconOff(Icons::MER_EMULATOR_RUN.icon());
+    m_emulatorAction->setIconOn(Icons::MER_EMULATOR_STOP.icon());
     m_emulatorAction->setStartTip(tr("Start '%1'"));
     m_emulatorAction->setStopTip(tr("Stop '%1'"));
     m_emulatorAction->setConnectingTip(tr("Connecting..."));
@@ -266,8 +262,8 @@ MerConnectionManager::MerConnectionManager():
 
     m_sdkAction->setName(tr("Start/Stop a Sailfish OS Build Engine"));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
-    m_sdkAction->setIconOff(sdkIconOff);
-    m_sdkAction->setIconOn(sdkIconOn);
+    m_sdkAction->setIconOff(Icons::MER_SDK_RUN.icon());
+    m_sdkAction->setIconOn(Icons::MER_SDK_STOP.icon());
     m_sdkAction->setStartTip(tr("Start '%1'"));
     m_sdkAction->setStopTip(tr("Stop '%1'"));
     m_sdkAction->setConnectingTip(tr("Connecting..."));

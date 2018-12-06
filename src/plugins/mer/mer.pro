@@ -53,6 +53,7 @@ SOURCES += \
     merhardwaredevicewidget.cpp \
     merhardwaredevicewizard.cpp \
     merhardwaredevicewizardpages.cpp \
+    mericons.cpp \
     merlogging.cpp \
     mermode.cpp \
     meroptionspage.cpp \

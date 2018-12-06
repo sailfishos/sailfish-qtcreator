@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2016 Jolla Ltd.
+** Copyright (C) 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,25 +20,24 @@
 **
 ****************************************************************************/
 
-#ifndef MERICONS_H
-#define MERICONS_H
+#include "mericons.h"
 
-#include <utils/icon.h>
+using namespace Utils;
 
 namespace Mer {
 namespace Icons {
 
-extern const Utils::Icon MER_MODE_CLASSIC;
-extern const Utils::Icon MER_MODE_FLAT;
-extern const Utils::Icon MER_MODE_FLAT_ACTIVE;
-extern const Utils::Icon MER_KIT;
-extern const Utils::Icon MER_OPTIONS_CATEGORY;
-extern const Utils::Icon MER_EMULATOR_RUN;
-extern const Utils::Icon MER_EMULATOR_STOP;
-extern const Utils::Icon MER_SDK_RUN;
-extern const Utils::Icon MER_SDK_STOP;
+const Icon MER_MODE_CLASSIC(":/mer/images/icon-s-sailfish-qtcreator.png");
+const Icon MER_MODE_FLAT({
+        {":/mer/images/icon-s-sailfish-qtcreator-mask.png", Utils::Theme::IconsBaseColor}});
+const Icon MER_MODE_FLAT_ACTIVE({
+        {":/mer/images/icon-s-sailfish-qtcreator-mask.png", Utils::Theme::IconsModeMerActiveColor}});
+const Icon MER_KIT(":/mer/images/icon-s-sailfish-qtcreator.png");
+const Icon MER_OPTIONS_CATEGORY(":/mer/images/icon-s-sailfish-qtcreator.png");
+const Icon MER_EMULATOR_RUN(":/mer/images/emulator-run.png");
+const Icon MER_EMULATOR_STOP(":/mer/images/emulator-stop.png");
+const Icon MER_SDK_RUN(":/mer/images/sdk-run.png");
+const Icon MER_SDK_STOP(":/mer/images/sdk-stop.png");
 
 } // namespace Icons
 } // namespace Mer
-
-#endif // MERICONS_H

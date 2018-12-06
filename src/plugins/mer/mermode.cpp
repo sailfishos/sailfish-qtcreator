@@ -47,8 +47,8 @@ MerMode::MerMode()
 #endif
     setContext(Context("Mer.MerMode"));
     setDisplayName(tr("Sailfish OS"));
-    setIcon(Utils::Icon::modeIcon(Icons::MER_MODE_ICON_CLASSIC,
-                                Icons::MER_MODE_ICON_FLAT, Icons::MER_MODE_ICON_FLAT_ACTIVE));
+    setIcon(Utils::Icon::modeIcon(Icons::MER_MODE_CLASSIC,
+                                Icons::MER_MODE_FLAT, Icons::MER_MODE_FLAT_ACTIVE));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
     setContextHelpId(QString());
