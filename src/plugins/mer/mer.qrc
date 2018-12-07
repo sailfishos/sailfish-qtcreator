@@ -16,6 +16,10 @@
         <file>images/icon-s-sailfish-qtcreator-mask-small@2x.png</file>
         <file>images/sdk.png</file>
         <file>images/sdk@2x.png</file>
+        <file>images/sailfishdevice.png</file>
+        <file>images/sailfishdevice@2x.png</file>
+        <file>images/sailfishdevicesmall.png</file>
+        <file>images/sailfishdevicesmall@2x.png</file>
         <file>reset-ambience.sh</file>
     </qresource>
 </RCC>

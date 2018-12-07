@@ -27,6 +27,7 @@
 #include "meremulatordevicewizard.h"
 #include "merhardwaredevice.h"
 #include "merhardwaredevicewizard.h"
+#include "mericons.h"
 #include "mersdkmanager.h"
 #include "mersshkeydeploymentdialog.h"
 
@@ -87,7 +88,12 @@ QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 QIcon MerDeviceFactory::iconForId(Core::Id type) const
 {
     Q_UNUSED(type);
-    return QIcon();
+    static const QIcon icon =
+            Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
+            ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
+                                         Icons::MER_DEVICE_FLAT_SMALL})
+            : Icons::MER_DEVICE_CLASSIC.icon();
+    return icon;
 }
 
 IDevice::Ptr MerDeviceFactory::create(Core::Id id) const

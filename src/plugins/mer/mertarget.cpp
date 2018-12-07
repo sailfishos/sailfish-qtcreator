@@ -182,7 +182,6 @@ Kit* MerTarget::createKit() const
     Kit *k = new Kit();
     k->setAutoDetected(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)").arg(m_name, m_sdk->virtualMachineName()));
-    k->setIconPath(FileName::fromString(Icons::MER_KIT.imageFileName()));
     SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
 
     DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
