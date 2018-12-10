@@ -36,8 +36,10 @@ QString RpmValidationCommand::name() const
 
 int RpmValidationCommand::execute()
 {
-    QString command = QLatin1String("rpmvalidation.sh") +
-                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
+    QString command = QLatin1String("rpmvalidation") +
+                      QLatin1String(" -t ") +
+                      targetName() +
+                      QLatin1Char(' ') + arguments().mid(1).join(QLatin1Char(' ')) + QLatin1Char(' ');
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());
     process.setCommand(remotePathMapping(command));
