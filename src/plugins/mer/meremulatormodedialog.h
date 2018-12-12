@@ -74,6 +74,7 @@ private slots:
     void onKitUpdated(ProjectExplorer::Kit *kit);
     void execDialog();
     void guessOptimalViewMode();
+    void onDeviceListReplaced();
 
 private:
     QAction *m_action;

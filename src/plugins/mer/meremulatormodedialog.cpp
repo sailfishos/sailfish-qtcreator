@@ -34,6 +34,7 @@
 #include "meremulatordevice.h"
 
 #include <coreplugin/icore.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
@@ -69,6 +70,9 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
 
     connect(KitManager::instance(), &KitManager::kitUpdated,
             this, &MerEmulatorModeDialog::onKitUpdated);
+
+    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
+            this, &MerEmulatorModeDialog::onDeviceListReplaced);
 }
 
 MerEmulatorModeDialog::~MerEmulatorModeDialog()
@@ -140,6 +144,15 @@ void MerEmulatorModeDialog::onKitUpdated(Kit *kit)
     if (kit != m_kit) {
         return;
     }
+
+    auto device = DeviceKitInformation::device(m_kit);
+    setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
+}
+
+void MerEmulatorModeDialog::onDeviceListReplaced()
+{
+    if (m_kit == nullptr)
+        return;
 
     auto device = DeviceKitInformation::device(m_kit);
     setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
