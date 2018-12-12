@@ -42,6 +42,7 @@ const char MER_PARAM_MER_TARGETS_DIR[] = "--mer-targets-dir";
 const char MER_PARAM_TARGET_NAME[] = "--target-name";
 const char MER_PARAM_QMAKE_QUERY[] = "--qmake-query";
 const char MER_PARAM_GCC_DUMPMACHINE[] = "--gcc-dumpmachine";
+const char MER_PARAM_RPMVALIDATION_SUITES[] = "--rpmvalidation-suites";
 
 AddMerTargetOperation::AddMerTargetOperation()
 {
@@ -63,7 +64,8 @@ QString AddMerTargetOperation::argumentsHelpText() const
     return indent + QLatin1String(MER_PARAM_MER_TARGETS_DIR) + QLatin1String(" <PATH>   shared \"targets\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_TARGET_NAME) + QLatin1String(" <NAME>       display name (required).\n")
          + indent + QLatin1String(MER_PARAM_QMAKE_QUERY) + QLatin1String(" <FILE>       'qmake -query' dump (required).\n")
-         + indent + QLatin1String(MER_PARAM_GCC_DUMPMACHINE) + QLatin1String(" <FILE>   'gcc --dumpmachine' dump (required).\n");
+         + indent + QLatin1String(MER_PARAM_GCC_DUMPMACHINE) + QLatin1String(" <FILE>   'gcc --dumpmachine' dump (required).\n")
+         + indent + QLatin1String(MER_PARAM_RPMVALIDATION_SUITES) + QLatin1String(" <FILE>   'rpmvalidation --list-suites <target>' dump (required).\n");
 }
 
 bool AddMerTargetOperation::setArguments(const QStringList &args)
@@ -104,6 +106,14 @@ bool AddMerTargetOperation::setArguments(const QStringList &args)
             m_gccDumpmachineFileName = next;
             continue;
         }
+
+        if (current == QLatin1String(MER_PARAM_RPMVALIDATION_SUITES)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_rpmValidationSuitesFileName = next;
+            continue;
+        }
     }
 
     const char MISSING[] = " parameter missing.";
@@ -115,8 +125,11 @@ bool AddMerTargetOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_QMAKE_QUERY << MISSING << std::endl << std::endl;
     if (m_gccDumpmachineFileName.isEmpty())
         std::cerr << MER_PARAM_GCC_DUMPMACHINE << MISSING << std::endl << std::endl;
+    if (m_rpmValidationSuitesFileName.isEmpty())
+        std::cerr << MER_PARAM_RPMVALIDATION_SUITES << MISSING << std::endl << std::endl;
 
-    return !m_targetsDir.isEmpty() && !m_targetName.isEmpty() && !m_qmakeQueryFileName.isEmpty() && !m_gccDumpmachineFileName.isEmpty();
+    return !m_targetsDir.isEmpty() && !m_targetName.isEmpty() && !m_qmakeQueryFileName.isEmpty() && !m_gccDumpmachineFileName.isEmpty()
+        && !m_rpmValidationSuitesFileName.isEmpty();
 }
 
 int AddMerTargetOperation::execute() const
@@ -125,7 +138,8 @@ int AddMerTargetOperation::execute() const
     if (map.isEmpty())
         map = initializeTargets();
 
-    const QVariantMap result = addTarget(map, m_targetName, m_qmakeQueryFileName, m_gccDumpmachineFileName);
+    const QVariantMap result = addTarget(map, m_targetName, m_qmakeQueryFileName, m_gccDumpmachineFileName,
+            m_rpmValidationSuitesFileName);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -158,7 +172,7 @@ QString AddMerTargetOperation::readCacheFile(const QString &cacheFile)
 }
 
 QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
-                                             const QString &gccFileName)
+                                             const QString &gccFileName, const QString &rpmValidationSuitesFileName)
 {
     bool hasTarget = false;
     QVariantList targetData = map.value(QLatin1String(Mer::Constants::MER_TARGET_KEY)).toList();
@@ -196,6 +210,13 @@ QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QStri
         return QVariantMap();
     }
     newTarget.gccDumpMachine = gcc;
+
+    const QString rpm = readCacheFile(rpmValidationSuitesFileName);
+    if (rpm.isEmpty()) {
+        std::cerr << "Error: Could not read file " << qPrintable(rpmValidationSuitesFileName) << std::endl;
+        return QVariantMap();
+    }
+    newTarget.rpmValidationSuites = rpm;
 
     QVariantMap newMap = map;
     targetData.append(QVariant::fromValue(newTarget));
