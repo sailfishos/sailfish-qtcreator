@@ -42,6 +42,17 @@ class MerSdk;
 class MerQtVersion;
 class MerToolChain;
 
+class MerRpmValidationSuiteData
+{
+public:
+    bool operator==(const MerRpmValidationSuiteData &other) const;
+
+    QString id;
+    QString name;
+    QString website;
+    bool essential;
+};
+
 class MerTarget
 {
 public:
@@ -53,7 +64,10 @@ public:
     void setName(const QString &name);
     void setQmakeQuery(const QString &qmakeQuery);
     void setGccDumpMachine(const QString &gccMachineDump);
+    void setRpmValidationSuites(const QString &rpmValidationSuites);
     void setDefaultGdb(const QString &name);
+
+    QList<MerRpmValidationSuiteData> rpmValidationSuites() const;
 
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
@@ -69,12 +83,16 @@ public:
 private:
     bool createScript(const QString &targetPath, int scriptIndex) const;
     bool createCacheFile(const QString &fileName, const QString &content) const;
+    static QList<MerRpmValidationSuiteData> rpmValidationSuitesFromString(const QString &string, bool *ok);
+    static QString rpmValidationSuitesToString(const QList<MerRpmValidationSuiteData> &suites);
 
 private:
     MerSdk *m_sdk;
     QString m_name;
     QString m_qmakeQuery;
     QString m_gccMachineDump;
+    QList<MerRpmValidationSuiteData> m_rpmValidationSuites;
+    bool m_rpmValidationSuitesIsValid = false;
     QString m_defaultGdb;
 };
 

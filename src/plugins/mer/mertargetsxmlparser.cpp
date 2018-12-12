@@ -43,6 +43,7 @@ const char NAME[] = "name";
 const char VERSION[] = "version";
 const char GCCDUMPMACHINE[] = "GccDumpMachine";
 const char QMAKEQUERY[] = "QmakeQuery";
+const char RPMVALIDATIONSUITES[] = "RpmValidationSuites";
 
 namespace Mer {
 
@@ -127,6 +128,8 @@ protected:
                 m_currentTarget.gccDumpMachine = value.toString();
             else if (m_attributeValue == QLatin1String(QMAKEQUERY))
                 m_currentTarget.qmakeQuery = value.toString();
+            else if (m_attributeValue == QLatin1String(RPMVALIDATIONSUITES))
+                m_currentTarget.rpmValidationSuites = value.toString();
         }
     }
 
@@ -305,6 +308,7 @@ void MerTargetData::clear()
     name.clear();
     gccDumpMachine.clear();
     qmakeQuery.clear();
+    rpmValidationSuites.clear();
 }
 
 class MerTargetsXmlWriterPrivate
@@ -336,6 +340,10 @@ MerTargetsXmlWriter::MerTargetsXmlWriter(const QString &fileName, int version,
         writer.writeStartElement(QLatin1String(OUTPUT));
         writer.writeAttribute(QLatin1String(NAME), QLatin1String(QMAKEQUERY));
         writer.writeCharacters(d.qmakeQuery);
+        writer.writeEndElement(); // output
+        writer.writeStartElement(QLatin1String(OUTPUT));
+        writer.writeAttribute(QLatin1String(NAME), QLatin1String(RPMVALIDATIONSUITES));
+        writer.writeCharacters(d.rpmValidationSuites);
         writer.writeEndElement(); // output
         writer.writeEndElement(); // target
     }

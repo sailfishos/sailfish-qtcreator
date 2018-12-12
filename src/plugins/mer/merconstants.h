@@ -141,6 +141,7 @@ const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
 const char MER_TARGET_GCC_DUMP[] = "MerTarget.GccDumpMachine";
+const char MER_TARGET_RPMVALIDATION_DUMP[] = "MerTarget.RpmValidationSuites";
 const char MER_TARGET_DEFAULT_DEBUGGER[] = "MerTarget.DefaultDebugger";
 
 const char QMAKE_QUERY[] = "qmake.query";

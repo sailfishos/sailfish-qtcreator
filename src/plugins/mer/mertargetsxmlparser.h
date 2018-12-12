@@ -71,6 +71,7 @@ public:
     QString name;
     QString gccDumpMachine;
     QString qmakeQuery;
+    QString rpmValidationSuites;
 };
 
 } // Mer
