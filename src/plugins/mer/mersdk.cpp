@@ -147,6 +147,15 @@ QList<MerTarget> MerSdk::targets() const
     return m_targets;
 }
 
+MerTarget MerSdk::target(const QString &name) const
+{
+    foreach (const MerTarget &target, m_targets) {
+        if (target.name() == name)
+            return target;
+    }
+    return MerTarget();
+}
+
 void MerSdk::setSharedTargetsPath(const QString &targetsPath)
 {
     m_sharedTargetsPath = targetsPath;

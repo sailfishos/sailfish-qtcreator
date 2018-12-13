@@ -32,6 +32,7 @@
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <utils/qtcassert.h>
 
 #include <QComboBox>
 #include <QPushButton>
@@ -73,9 +74,22 @@ QList<Task> MerTargetKitInformation::validate(const Kit *kit) const
 
 QString MerTargetKitInformation::targetName(const Kit *kit)
 {
-    if (!kit)
-        return QString();
+    QTC_ASSERT(kit, return QString());
     return kit->value(MerTargetKitInformation::id()).toString();
+}
+
+MerTarget MerTargetKitInformation::target(const Kit *kit)
+{
+    QTC_ASSERT(kit, return MerTarget());
+
+    QString targetName = MerTargetKitInformation::targetName(kit);
+    if (targetName.isEmpty())
+        return MerTarget();
+
+    const MerSdk *const merSdk = MerSdkKitInformation::sdk(kit);
+    QTC_ASSERT(merSdk, return MerTarget());
+
+    return merSdk->target(targetName);
 }
 
 KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) const

@@ -62,7 +62,6 @@ private:
     QPushButton *m_manageButton;
 };
 
-
 class MerTargetKitInformation : public ProjectExplorer::KitInformation
 {
 public:
@@ -76,7 +75,7 @@ public:
     static Core::Id id();
     static void setTargetName(ProjectExplorer::Kit *kit, const QString& targetName);
     static QString targetName(const ProjectExplorer::Kit *kit);
-
+    static MerTarget target(const ProjectExplorer::Kit *kit);
 };
 
 }

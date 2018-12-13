@@ -96,6 +96,7 @@ public:
 
     QStringList targetNames() const;
     QList<MerTarget> targets() const;
+    MerTarget target(const QString &name) const;
 
     bool isValid() const;
     virtual QVariantMap toMap() const;

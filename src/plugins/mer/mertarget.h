@@ -56,6 +56,7 @@ public:
 class MerTarget
 {
 public:
+    MerTarget();
     MerTarget(MerSdk *sdk);
     virtual ~MerTarget();
     QString name() const;
@@ -87,7 +88,7 @@ private:
     static QString rpmValidationSuitesToString(const QList<MerRpmValidationSuiteData> &suites);
 
 private:
-    MerSdk *m_sdk;
+    MerSdk *m_sdk = nullptr;
     QString m_name;
     QString m_qmakeQuery;
     QString m_gccMachineDump;

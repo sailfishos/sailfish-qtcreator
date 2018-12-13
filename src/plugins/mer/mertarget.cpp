@@ -73,6 +73,10 @@ bool MerRpmValidationSuiteData::operator==(const MerRpmValidationSuiteData &othe
     return id == other.id && name == other.name && website == other.website && essential == other.essential;
 }
 
+MerTarget::MerTarget()
+{
+}
+
 MerTarget::MerTarget(MerSdk* mersdk):
     m_sdk(mersdk)
 {
