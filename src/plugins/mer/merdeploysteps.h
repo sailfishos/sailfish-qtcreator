@@ -32,6 +32,7 @@
 
 #include "ui_merdeploystep.h"
 #include "merabstractvmstartstep.h"
+#include "mertarget.h"
 
 #include <projectexplorer/abstractprocessstep.h>
 #include <projectexplorer/buildsteplist.h>
@@ -222,11 +223,21 @@ public:
     bool init(QList<const BuildStep *> &earlierSteps) override;
     bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
+    MerTarget merTarget() const;
+    QStringList defaultSuites() const;
+    QStringList selectedSuites() const;
+    void setSelectedSuites(const QStringList &selectedSuites);
+    QString fixedArguments() const;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
 private:
     MerMb2RpmBuildStep *m_packagingStep;
+    MerTarget m_merTarget;
+    QStringList m_selectedSuites;
+    QString m_fixedArguments;
 };
 
 class MerDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
