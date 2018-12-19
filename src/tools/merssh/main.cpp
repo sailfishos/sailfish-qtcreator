@@ -25,6 +25,7 @@
 #include "enginectlcommand.h"
 #include "gcccommand.h"
 #include "generatekeyscommand.h"
+#include "lupdatecommand.h"
 #include "makecommand.h"
 #include "qmakecommand.h"
 #include "rpmcommand.h"
@@ -107,6 +108,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
     CommandFactory::registerCommand<EngineCtlCommand>(QLatin1String("enginectl"));
+    CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
