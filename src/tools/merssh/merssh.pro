@@ -20,6 +20,7 @@ SOURCES = \
     rpmcommand.cpp \
     rpmvalidationcommand.cpp \
     lupdatecommand.cpp \
+    wwwproxycommand.cpp \
     ../../plugins/mer/merconnection.cpp \
     ../../plugins/mer/merlogging.cpp \
     ../../plugins/mer/mervirtualboxmanager.cpp
@@ -37,6 +38,7 @@ HEADERS += \
     rpmcommand.h \
     rpmvalidationcommand.h \
     lupdatecommand.h \
+    wwwproxycommand.h \
     ../../plugins/mer/merconnection.h \
     ../../plugins/mer/merlogging.h \
     ../../plugins/mer/mervirtualboxmanager.h
