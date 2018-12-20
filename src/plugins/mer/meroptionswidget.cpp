@@ -88,6 +88,8 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
             this, &MerOptionsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::wwwPortChanged,
             this, &MerOptionsWidget::onWwwPortChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::wwwProxyChanged,
+            this, &MerOptionsWidget::onWwwProxyChanged);
     onSdksUpdated();
 }
 
@@ -158,6 +160,8 @@ void MerOptionsWidget::store()
                 ok = false;
             }
         }
+        if (m_wwwProxy.contains(sdk))
+            sdk->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
     }
 
     foreach (MerSdk *sdk, lockedDownSdks)
@@ -453,6 +457,11 @@ void MerOptionsWidget::update()
         else
             m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
 
+        if (m_wwwProxy.contains(sdk))
+            m_ui->sdkDetailsWidget->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setWwwProxy(sdk->wwwProxy(), sdk->wwwProxyServers(), sdk->wwwProxyExcludes());
+
         onVmOffChanged(sdk->connection()->isVirtualMachineOff());
         m_vmOffConnection = connect(sdk->connection(), &MerConnection::virtualMachineOffChanged,
                 this, &MerOptionsWidget::onVmOffChanged);
@@ -496,6 +505,14 @@ void MerOptionsWidget::onWwwPortChanged(quint16 port)
 {
     //store keys to be saved on save click
     m_wwwPort[m_sdks[m_virtualMachine]] = port;
+}
+
+void MerOptionsWidget::onWwwProxyChanged(const QString &type, const QString &servers, const QString &excludes)
+{
+    //store keys to be saved on save click
+    m_wwwProxy[m_sdks[m_virtualMachine]] = type;
+    m_wwwProxyServers[m_sdks[m_virtualMachine]] = servers;
+    m_wwwProxyExcludes[m_sdks[m_virtualMachine]] = excludes;
 }
 
 void MerOptionsWidget::onVmOffChanged(bool vmOff)

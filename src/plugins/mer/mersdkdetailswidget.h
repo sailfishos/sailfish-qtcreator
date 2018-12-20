@@ -62,6 +62,7 @@ public:
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
     void setWwwPort(quint16 port);
+    void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
 
 signals:
     void generateSshKey(const QString &key);
@@ -73,16 +74,26 @@ signals:
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
     void wwwPortChanged(quint16 port);
+    void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
+    void onWwwProxyDisabledToggled(bool checked);
+    void onWwwProxyAutomaticToggled(bool checked);
+    void onWwwProxyManualToggled(bool checked);
+    void onWwwProxyServersEdited(const QString &servers);
+    void onWwwProxyExcludesEdited(const QString &excludes);
 
 private:
     Ui::MerSdkDetailsWidget *m_ui;
     bool m_updateConnection;
+    QString m_wwwProxy;
+    QString m_wwwProxyServerUrl;
+    QString m_wwwProxyServerList;
+    QString m_wwwProxyExcludes;
 };
 
 } // Internal

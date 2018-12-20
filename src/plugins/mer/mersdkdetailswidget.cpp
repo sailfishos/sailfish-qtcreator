@@ -35,6 +35,7 @@
 #include <QMessageBox>
 
 using namespace Utils;
+using namespace Mer::Constants;
 
 namespace Mer {
 namespace Internal {
@@ -78,6 +79,16 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
             this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerSdkDetailsWidget::wwwPortChanged);
+    connect(m_ui->wwwProxyDisabledButton, &QRadioButton::toggled,
+            this, &MerSdkDetailsWidget::onWwwProxyDisabledToggled);
+    connect(m_ui->wwwProxyAutomaticButton, &QRadioButton::toggled,
+            this, &MerSdkDetailsWidget::onWwwProxyAutomaticToggled);
+    connect(m_ui->wwwProxyManualButton, &QRadioButton::toggled,
+            this, &MerSdkDetailsWidget::onWwwProxyManualToggled);
+    connect(m_ui->wwwProxyServersLine, &QLineEdit::textEdited,
+            this, &MerSdkDetailsWidget::onWwwProxyServersEdited);
+    connect(m_ui->wwwProxyExcludesLine, &QLineEdit::textEdited,
+            this, &MerSdkDetailsWidget::onWwwProxyExcludesEdited);
 
     m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -175,6 +186,20 @@ void MerSdkDetailsWidget::setWwwPort(quint16 port)
     m_ui->wwwPortSpinBox->setValue(port);
 }
 
+void MerSdkDetailsWidget::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)
+{
+    if (type == MER_SDK_PROXY_AUTOMATIC) {
+        m_wwwProxyServerUrl = servers;
+        m_ui->wwwProxyAutomaticButton->click();
+    } else if (type == MER_SDK_PROXY_MANUAL) {
+        m_wwwProxyServerList = servers;
+        m_wwwProxyExcludes = excludes;
+        m_ui->wwwProxyManualButton->click();
+    } else {
+        m_ui->wwwProxyDisabledButton->click();
+    }
+}
+
 void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
 {
     if (m_ui->srcFolderPathChooser->isValid()) {
@@ -206,6 +231,130 @@ void MerSdkDetailsWidget::onPathChooserEditingFinished()
 {
     if (m_ui->privateKeyPathChooser->isValid())
         emit sshKeyChanged(m_ui->privateKeyPathChooser->path());
+}
+
+void MerSdkDetailsWidget::onWwwProxyDisabledToggled(bool checked)
+{
+    if (!checked)
+        return;
+
+    m_wwwProxy = MER_SDK_PROXY_DISABLED;
+
+    m_ui->wwwProxyServersLabel->setHidden(true);
+
+    m_ui->wwwProxyServersLine->clear();
+    m_ui->wwwProxyServersLine->setHidden(true);
+
+    m_ui->wwwProxyExcludesLabel->setHidden(true);
+
+    m_ui->wwwProxyExcludesLine->clear();
+    m_ui->wwwProxyExcludesLine->setHidden(true);
+
+    emit wwwProxyChanged(m_wwwProxy, QString(), QString());
+}
+
+void MerSdkDetailsWidget::onWwwProxyAutomaticToggled(bool checked)
+{
+    if (!checked || m_wwwProxy == MER_SDK_PROXY_AUTOMATIC)
+        return;
+
+    m_wwwProxy = MER_SDK_PROXY_AUTOMATIC;
+
+    m_ui->wwwProxyServersLabel->setText(tr("URL:"));
+    m_ui->wwwProxyServersLabel->setHidden(false);
+
+    m_ui->wwwProxyServersLine->setText(m_wwwProxyServerUrl);
+    m_ui->wwwProxyServersLine->setHidden(false);
+    m_ui->wwwProxyServersLine->setToolTip(tr("Leave empty for asking the network, otherwise insert a proxy autoconfiguration URL."));
+
+    m_ui->wwwProxyExcludesLabel->setHidden(true);
+    m_ui->wwwProxyExcludesLine->clear();
+    m_ui->wwwProxyExcludesLine->setHidden(true);
+
+    emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerUrl, QString());
+}
+
+void MerSdkDetailsWidget::onWwwProxyManualToggled(bool checked)
+{
+    if (!checked || m_wwwProxy == MER_SDK_PROXY_MANUAL)
+        return;
+
+    m_wwwProxy = MER_SDK_PROXY_MANUAL;
+
+    m_ui->wwwProxyServersLabel->setText(tr("Servers:"));
+    m_ui->wwwProxyServersLabel->setHidden(false);
+
+    m_ui->wwwProxyServersLine->setText(m_wwwProxyServerList);
+    m_ui->wwwProxyServersLine->setHidden(false);
+    m_ui->wwwProxyServersLine->setToolTip(tr("Insert a list of proxies. E.g. \"proxy1.example.com 1.2.3.4:8080\""));
+
+    m_ui->wwwProxyExcludesLabel->setHidden(false);
+
+    m_ui->wwwProxyExcludesLine->setText(m_wwwProxyExcludes);
+    m_ui->wwwProxyExcludesLine->setHidden(false);
+    m_ui->wwwProxyExcludesLine->setToolTip(tr("Insert a list of addresses excluded from the proxy. E.g. \"internal.example.com 10.0.0.0/8\""));
+
+    emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerList, m_wwwProxyExcludes);
+}
+
+void MerSdkDetailsWidget::onWwwProxyServersEdited(const QString &s)
+{
+    QString proxies = s;
+    QRegularExpression reg;
+
+    int cpos = m_ui->wwwProxyServersLine->cursorPosition();
+    int l = proxies.length();
+
+    // Limit whitespace characters to spaces
+    reg.setPattern("[\\s]");
+    proxies.replace(reg, " ");
+    if (m_wwwProxy == MER_SDK_PROXY_MANUAL) {
+        // Multiple items are separated by a single space character
+        // Clean up any extra whitespaces
+        reg.setPattern("\\s{2,}");
+        proxies.replace(reg, " ");
+    }
+
+    m_ui->wwwProxyServersLine->setText(proxies);
+    m_ui->wwwProxyServersLine->textChanged(proxies);
+    if (proxies.length() < l)
+        cpos -= l - proxies.length();
+    m_ui->wwwProxyServersLine->setCursorPosition(cpos);
+
+    if (m_wwwProxy == MER_SDK_PROXY_AUTOMATIC) {
+        m_wwwProxyServerUrl = proxies.trimmed();
+        emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerUrl, QString());
+    } else {
+        m_wwwProxyServerList = proxies.trimmed();
+        emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerList, m_wwwProxyExcludes);
+    }
+}
+
+void MerSdkDetailsWidget::onWwwProxyExcludesEdited(const QString &s)
+{
+    QString excludes = s;
+    QRegularExpression reg;
+
+    int cpos = m_ui->wwwProxyExcludesLine->cursorPosition();
+    int l = excludes.length();
+
+    // Limit whitespace characters to spaces
+    reg.setPattern("[\\s]");
+    excludes.replace(reg, " ");
+
+    // Multiple items are separated by a single space character
+    // Clean up any extra whitespaces
+    reg.setPattern("\\s{2,}");
+    excludes.replace(reg, " ");
+
+    m_ui->wwwProxyExcludesLine->setText(excludes);
+    m_ui->wwwProxyExcludesLine->textChanged(excludes);
+    if (excludes.length() < l)
+        cpos -= l - excludes.length();
+    m_ui->wwwProxyExcludesLine->setCursorPosition(cpos);
+
+    m_wwwProxyExcludes = excludes.trimmed();
+    emit wwwProxyChanged(m_wwwProxy, m_wwwProxyServerList, m_wwwProxyExcludes);
 }
 
 } // Internal

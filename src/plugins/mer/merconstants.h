@@ -70,6 +70,9 @@ const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
 const char MER_DEVICE_ROOTUSER[] = "root";
 const char MER_SDK_DEFAULTHOST[] = "localhost";
+const char MER_SDK_PROXY_DISABLED[] = "direct";
+const char MER_SDK_PROXY_AUTOMATIC[] = "auto";
+const char MER_SDK_PROXY_MANUAL[] = "manual";
 
 // Keys used for ini files
 const char MER_SDK_TOOLS[] = "/mer-sdk-tools/";
@@ -103,6 +106,9 @@ const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char SSH_PORT[] = "SshPort";
 const char SSH_TIMEOUT[] = "SshTimeout";
 const char WWW_PORT[] = "WwwPort";
+const char WWW_PROXY[] = "WwwProxy";
+const char WWW_PROXY_SERVERS[] = "WwwProxyServers";
+const char WWW_PROXY_EXCLUDES[] = "WwwProxyExcludes";
 const char HEADLESS[] = "Headless";
 const char ID[] = "Id";
 const char NAME[] = "Name";

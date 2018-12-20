@@ -74,6 +74,7 @@ private slots:
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
     void onWwwPortChanged(quint16 port);
+    void onWwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
     void onVmOffChanged(bool vmOff);
     void update();
 
@@ -88,6 +89,9 @@ private:
     QMap<MerSdk*, quint16> m_sshPort;
     QMap<MerSdk*, bool> m_headless;
     QMap<MerSdk*, quint16> m_wwwPort;
+    QMap<MerSdk*, QString> m_wwwProxy;
+    QMap<MerSdk*, QString> m_wwwProxyServers;
+    QMap<MerSdk*, QString> m_wwwProxyExcludes;
 };
 
 } // Internal
