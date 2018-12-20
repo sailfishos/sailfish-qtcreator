@@ -2477,7 +2477,7 @@ void ProjectExplorerPluginPrivate::startRunControl(RunControl *runControl)
             Qt::QueuedConnection);
     ++m_activeRunControlCount;
     runControl->initiateStart();
-    doUpdateRunActions();
+    updateDeployActions();
 }
 
 void ProjectExplorerPluginPrivate::showOutputPaneForRunControl(RunControl *runControl)
@@ -2534,7 +2534,7 @@ void ProjectExplorerPluginPrivate::buildQueueFinished(bool success)
     m_delayedRunConfiguration = nullptr;
     m_shouldHaveRunConfiguration = false;
     m_runMode = Constants::NO_RUN_MODE;
-    doUpdateRunActions();
+    updateDeployActions();
 }
 
 QList<QPair<QString, QString> > ProjectExplorerPluginPrivate::recentProjects() const
@@ -2898,7 +2898,7 @@ void ProjectExplorerPlugin::runRunConfiguration(RunConfiguration *rc,
         break;
     }
 
-    dd->doUpdateRunActions();
+    dd->updateDeployActions();
 }
 
 QList<QPair<Runnable, Utils::ProcessHandle>> ProjectExplorerPlugin::runningRunControlProcesses()
@@ -2960,6 +2960,29 @@ void ProjectExplorerPluginPrivate::updateDeployActions()
 
     m_deployAction->setParameter(projectName);
     m_deployAction->setEnabled(enableDeployActions);
+
+    m_modeBarDeployAction->setParameter(projectName);
+    m_modeBarDeployAction->setEnabled(enableDeployActions);
+    if (!BuildManager::isBuilding())
+        m_modeBarDeployAction->setVisible(enableDeployActions);
+
+    bool activeRunConfigurationIsEnabled = project
+                                            && project->activeTarget()
+                                            && project->activeTarget()->activeRunConfiguration()
+                                            && project->activeTarget()->activeRunConfiguration()->isEnabled();
+    if (activeRunConfigurationIsEnabled)
+        m_modeBarDeployAction->setVisible(false);
+
+    QString toolTip;
+    if (dd->m_projectExplorerSettings.buildBeforeDeploy != BuildBeforeRunMode::Off
+            && hasBuildSettings(project)) {
+        QPair<bool, QString> buildState = dd->buildSettingsEnabled(project);
+        if (!buildState.first)
+            toolTip = buildState.second;
+    } else if (BuildManager::isBuilding()) {
+        toolTip = tr("A build is still in progress.");
+    }
+    m_modeBarDeployAction->setToolTip(toolTip);
 
     m_deployActionContextMenu->setEnabled(enableDeployActionsContextMenu);
 
@@ -3060,6 +3083,10 @@ void ProjectExplorerPluginPrivate::doUpdateRunActions()
     QString whyNot;
     const bool state = ProjectExplorerPlugin::canRunStartupProject(Constants::NORMAL_RUN_MODE, &whyNot);
     m_runAction->setEnabled(state);
+    if (!BuildManager::isBuilding()) {
+        m_runAction->setVisible(!SessionManager::startupProject()
+                || SessionManager::startupProject()->needsConfiguration() || state);
+    }
     m_runAction->setToolTip(whyNot);
     m_runWithoutDeployAction->setEnabled(state);
 
@@ -3922,7 +3949,7 @@ void ProjectExplorerPlugin::removeFromRecentProjects(const QString &fileName,
 
 void ProjectExplorerPlugin::updateRunActions()
 {
-    dd->doUpdateRunActions();
+    dd->updateDeployActions();
 }
 
 QList<QPair<QString, QString> > ProjectExplorerPlugin::recentProjects()
