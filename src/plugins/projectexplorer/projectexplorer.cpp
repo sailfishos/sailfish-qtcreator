@@ -227,6 +227,7 @@ const char SELECTTARGETQUICK[]    = "ProjectExplorer.SelectTargetQuick";
 // Action priorities
 const int  P_ACTION_RUN            = 100;
 const int  P_ACTION_BUILDPROJECT   = 80;
+const int  P_ACTION_DEPLOYPROJECT  = 90;
 
 // Context
 const char C_PROJECTEXPLORER[]    = "Project Explorer";
@@ -420,6 +421,7 @@ public:
     QAction *m_cleanProjectOnlyAction;
     QAction *m_deployProjectOnlyAction;
     Utils::ParameterAction *m_deployAction;
+    Utils::ParameterAction *m_modeBarDeployAction;
     QAction *m_deployActionContextMenu;
     QAction *m_deploySessionAction;
     Utils::ParameterAction *m_cleanAction;
@@ -1025,6 +1027,12 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDescription(dd->m_deployAction->text());
     mbuild->addAction(cmd, Constants::G_BUILD_DEPLOY);
 
+    // Add to mode bar
+    dd->m_modeBarDeployAction = new Utils::ParameterAction(tr("Deploy Project"), tr("Deploy Project \"%1\""),
+                                                           Utils::ParameterAction::AlwaysEnabled, this);
+    dd->m_modeBarDeployAction->setIcon(Icons::DEPLOY.icon());
+    ModeManager::addAction(dd->m_modeBarDeployAction, Constants::P_ACTION_DEPLOYPROJECT);
+
     // rebuild action
     dd->m_rebuildAction = new Utils::ParameterAction(tr("Rebuild Project"), tr("Rebuild Project \"%1\""),
                                                        Utils::ParameterAction::AlwaysEnabled, this);
@@ -1401,6 +1409,9 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
         dd->deploy({ SessionManager::startupProject() });
     });
     connect(dd->m_deployAction, &QAction::triggered, dd, [] {
+        dd->deploy(SessionManager::projectOrder(SessionManager::startupProject()));
+    });
+    connect(dd->m_modeBarDeployAction, &QAction::triggered, dd, [] {
         dd->deploy(SessionManager::projectOrder(SessionManager::startupProject()));
     });
     connect(dd->m_deployActionContextMenu, &QAction::triggered, dd, [] {
