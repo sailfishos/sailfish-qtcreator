@@ -176,6 +176,7 @@ signals:
     void settingsChanged();
 
     void updateRunActions();
+    void updateDeployRunActions();
 
 private:
     static bool coreAboutToClose();
