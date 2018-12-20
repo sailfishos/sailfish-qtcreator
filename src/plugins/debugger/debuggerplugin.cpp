@@ -1478,6 +1478,10 @@ void DebuggerPluginPrivate::updatePresetState()
         m_startAction.setIcon(startIcon(true));
         m_startAction.setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         m_startAction.setVisible(true);
+        if (!BuildManager::isBuilding()) {
+            m_startAction.setVisible(!SessionManager::startupProject()
+                    || SessionManager::startupProject()->needsConfiguration() || canRun);
+        }
         m_debugWithoutDeployAction.setEnabled(canRun);
         m_visibleStartAction.setAction(&m_startAction);
         m_hiddenStopAction.setAction(&m_undisturbableAction);
@@ -1511,6 +1515,10 @@ void DebuggerPluginPrivate::updatePresetState()
     } else if (state == DebuggerFinished) {
         // We don't want to do anything anymore.
         m_startAction.setEnabled(canRun);
+        if (!BuildManager::isBuilding()) {
+            m_startAction.setVisible(!SessionManager::startupProject()
+                    || SessionManager::startupProject()->needsConfiguration() || canRun);
+        }
         m_debugWithoutDeployAction.setEnabled(canRun);
         m_visibleStartAction.setAction(ActionManager::command(DEBUGGER_START)->action());
         m_hiddenStopAction.setAction(&m_undisturbableAction);
