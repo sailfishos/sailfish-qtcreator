@@ -6,14 +6,20 @@
         <file>images/sdk-stop.png</file>
         <file>images/icon-s-sailfish-qtcreator.png</file>
         <file>images/icon-s-sailfish-qtcreator-mask.png</file>
+        <file>images/icon-s-sailfish-qtcreator-mask-small.png</file>
         <file>images/emulator-run@2x.png</file>
         <file>images/emulator-stop@2x.png</file>
         <file>images/sdk-run@2x.png</file>
         <file>images/sdk-stop@2x.png</file>
         <file>images/icon-s-sailfish-qtcreator@2x.png</file>
         <file>images/icon-s-sailfish-qtcreator-mask@2x.png</file>
+        <file>images/icon-s-sailfish-qtcreator-mask-small@2x.png</file>
         <file>images/sdk.png</file>
         <file>images/sdk@2x.png</file>
+        <file>images/sailfishdevice.png</file>
+        <file>images/sailfishdevice@2x.png</file>
+        <file>images/sailfishdevicesmall.png</file>
+        <file>images/sailfishdevicesmall@2x.png</file>
         <file>reset-ambience.sh</file>
     </qresource>
 </RCC>

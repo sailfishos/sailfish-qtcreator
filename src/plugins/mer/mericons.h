@@ -31,12 +31,14 @@ namespace Icons {
 extern const Utils::Icon MER_MODE_CLASSIC;
 extern const Utils::Icon MER_MODE_FLAT;
 extern const Utils::Icon MER_MODE_FLAT_ACTIVE;
-extern const Utils::Icon MER_KIT;
 extern const Utils::Icon MER_OPTIONS_CATEGORY;
 extern const Utils::Icon MER_EMULATOR_RUN;
 extern const Utils::Icon MER_EMULATOR_STOP;
 extern const Utils::Icon MER_SDK_RUN;
 extern const Utils::Icon MER_SDK_STOP;
+extern const Utils::Icon MER_DEVICE_CLASSIC;
+extern const Utils::Icon MER_DEVICE_FLAT;
+extern const Utils::Icon MER_DEVICE_FLAT_SMALL;
 
 } // namespace Icons
 } // namespace Mer
