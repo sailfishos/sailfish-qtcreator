@@ -136,11 +136,13 @@ bool RmMerTargetOperation::test() const
     QVariantMap map = AddMerTargetOperation::addTarget(AddMerTargetOperation::initializeTargets(),
                                                        QLatin1String("target1"),
                                                        QLatin1String("./test"),
+                                                       QLatin1String("./test"),
                                                        QLatin1String("./test"));
 
 
     map = AddMerTargetOperation::addTarget(map,
                                            QLatin1String("target2"),
+                                           QLatin1String("./test"),
                                            QLatin1String("./test"),
                                            QLatin1String("./test"));
     if (map.count() != 2

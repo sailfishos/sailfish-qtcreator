@@ -25,6 +25,7 @@ FORMS += \
     meroptionswidget.ui \
     merrpminfo.ui \
     merrpmpackagingwidget.ui \
+    merrpmvalidationstepconfigwidget.ui \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \

@@ -52,7 +52,7 @@ public:
 
     static QVariantMap initializeTargets();
     static QVariantMap addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
-    const QString &gccFileName);
+            const QString &gccFileName, const QString &rpmValidationSuitesFileName);
     static QVariantMap load(const QString &root);
     static bool save(const QVariantMap &map, const QString &root);
 private:   
@@ -64,6 +64,7 @@ private:
     QString m_targetName;
     QString m_qmakeQueryFileName;
     QString m_gccDumpmachineFileName;
+    QString m_rpmValidationSuitesFileName;
 };
 
 #endif // ADDMERTARGETOPERATION_H

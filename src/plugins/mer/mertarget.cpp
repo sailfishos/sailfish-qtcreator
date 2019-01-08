@@ -68,6 +68,15 @@ const char* wrapperScripts[] =
     MER_WRAPPER_LUPDATE,
 };
 
+bool MerRpmValidationSuiteData::operator==(const MerRpmValidationSuiteData &other) const
+{
+    return id == other.id && name == other.name && website == other.website && essential == other.essential;
+}
+
+MerTarget::MerTarget()
+{
+}
+
 MerTarget::MerTarget(MerSdk* mersdk):
     m_sdk(mersdk)
 {
@@ -99,9 +108,19 @@ void MerTarget::setGccDumpMachine(const QString &gccMachineDump)
     m_gccMachineDump.remove(QRegExp(QLatin1String("\\n")));
 }
 
+void MerTarget::setRpmValidationSuites(const QString &rpmValidationSuites)
+{
+    m_rpmValidationSuites = rpmValidationSuitesFromString(rpmValidationSuites, &m_rpmValidationSuitesIsValid);
+}
+
 void MerTarget::setDefaultGdb(const QString &name)
 {
     m_defaultGdb=name;
+}
+
+QList<MerRpmValidationSuiteData> MerTarget::rpmValidationSuites() const
+{
+    return m_rpmValidationSuites;
 }
 
 bool MerTarget::fromMap(const QVariantMap &data)
@@ -109,6 +128,8 @@ bool MerTarget::fromMap(const QVariantMap &data)
     m_name = data.value(QLatin1String(Constants::MER_TARGET_NAME)).toString();
     m_qmakeQuery = data.value(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP)).toString();
     m_gccMachineDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP)).toString();
+    QString rpmValidationSuites = data.value(QLatin1String(Constants::MER_TARGET_RPMVALIDATION_DUMP)).toString();
+    m_rpmValidationSuites = rpmValidationSuitesFromString(rpmValidationSuites, &m_rpmValidationSuitesIsValid);
     m_defaultGdb = data.value(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER)).toString();
     return isValid();
 }
@@ -119,13 +140,16 @@ QVariantMap MerTarget::toMap() const
     result.insert(QLatin1String(Constants::MER_TARGET_NAME), m_name);
     result.insert(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP), m_qmakeQuery);
     result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP), m_gccMachineDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_RPMVALIDATION_DUMP),
+            rpmValidationSuitesToString(m_rpmValidationSuites));
     result.insert(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER), m_defaultGdb);
     return result;
 }
 
 bool MerTarget::isValid() const
 {
-    return !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty();
+    return m_sdk && !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty()
+        && m_rpmValidationSuitesIsValid;
 }
 
 QString MerTarget::targetPath() const
@@ -372,9 +396,54 @@ bool MerTarget::createCacheFile(const QString &fileName, const QString &content)
     return ok;
 }
 
+QList<MerRpmValidationSuiteData> MerTarget::rpmValidationSuitesFromString(const QString &string, bool *ok)
+{
+    QList<MerRpmValidationSuiteData> retv;
+    QString string_(string);
+    QTextStream in(&string_);
+    QString line;
+    *ok = true;
+    while (in.readLineInto(&line)) {
+        MerRpmValidationSuiteData data;
+
+        QStringList split = line.split(' ', QString::SkipEmptyParts);
+        if (split.count() < 3) {
+            qWarning() << "Error parsing listing of RPM validation suites: The corrupted line is:" << line;
+            *ok = false;
+            break;
+        }
+
+        data.id = split.takeFirst();
+        data.essential = split.takeFirst().toLower() == "essential";
+        data.website = split.takeFirst();
+        if (data.website == "-")
+            data.website.clear();
+        data.name = split.join(' ');
+
+        retv.append(data);
+    }
+
+    return retv;
+}
+
+QString MerTarget::rpmValidationSuitesToString(const QList<MerRpmValidationSuiteData> &suites)
+{
+    QString retv;
+    QTextStream out(&retv);
+    for (const auto &suite : suites) {
+        out << suite.id << ' '
+            << (suite.essential ? "Essential " : "Optional ")
+            << (suite.website.isEmpty() ? QString("-") : suite.website) << ' '
+            << suite.name
+            << endl;
+    }
+    return retv;
+}
+
 bool MerTarget::operator==(const MerTarget &other) const
 {
-    return m_name == other.m_name && m_qmakeQuery == other.m_qmakeQuery && m_gccMachineDump == other.m_gccMachineDump;
+    return m_name == other.m_name && m_qmakeQuery == other.m_qmakeQuery && m_gccMachineDump == other.m_gccMachineDump
+        && m_rpmValidationSuites == other.m_rpmValidationSuites;
 }
 
 }
