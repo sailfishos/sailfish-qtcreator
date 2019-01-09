@@ -1,5 +1,5 @@
 TEMPLATE = lib
-TARGET = Mer
+TARGET = SailfishOS
 PROVIDER = MerProject
 
 QT += gui xmlpatterns
