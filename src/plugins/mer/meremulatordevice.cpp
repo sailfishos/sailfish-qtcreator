@@ -49,8 +49,8 @@ using namespace QSsh;
 using namespace Utils;
 
 namespace Mer {
-namespace Internal {
 
+using namespace Internal;
 using namespace Constants;
 
 namespace {
@@ -963,5 +963,4 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
 
 #include "meremulatordevice.moc"
 
-}
 }

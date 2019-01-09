@@ -28,9 +28,10 @@
 #include <QMap>
 
 namespace Mer {
-namespace Internal {
 
 class MerConnection;
+
+namespace Internal {
 
 class MerPlugin : public ExtensionSystem::IPlugin
 {

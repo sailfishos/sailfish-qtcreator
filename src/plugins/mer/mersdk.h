@@ -40,9 +40,11 @@ class FileName;
 }
 
 namespace Mer {
-namespace Internal {
 
 class MerConnection;
+
+namespace Internal {
+
 class MerQtVersion;
 class MerToolChain;
 class MerTarget;
