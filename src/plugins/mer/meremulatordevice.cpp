@@ -233,6 +233,10 @@ MerEmulatorDevice::~MerEmulatorDevice()
 #if __cplusplus >= 201103L
     QObject::disconnect(m_virtualMachineChangedConnection);
 #endif
+
+    if (m_setVideoModeTimer && m_setVideoModeTimer->isActive())
+        setVideoMode();
+
     delete m_setVideoModeTimer;
 }
 
