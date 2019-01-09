@@ -28,26 +28,20 @@
 #include "meremulatordevicetester.h"
 #include "meremulatordevicewidget.h"
 #include "mersdkmanager.h"
+#include "mersettings.h"
 #include "mervirtualboxmanager.h"
 
 #include <coreplugin/icore.h>
-#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
-#include <utils/fileutils.h>
 #include <utils/persistentsettings.h>
-#include <utils/qtcassert.h>
 
 #include <QDir>
-#include <QFileInfo>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QTextStream>
 #include <QTimer>
 
-#include <functional>
-
 using namespace Core;
-using namespace ExtensionSystem;
 using namespace ProjectExplorer;
 using namespace QSsh;
 using namespace Utils;
@@ -60,14 +54,6 @@ using namespace Constants;
 namespace {
 const int VIDEO_MODE_DEPTH = 32;
 const int SCALE_DOWN_FACTOR = 2;
-
-FileName globalSettingsFileName()
-{
-    QSettings *globalSettings = PluginManager::globalSettings();
-    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
-                                + QLatin1String(MER_DEVICE_MODELS_FILENAME));
-}
-
 } // namespace anonymous
 
 class PublicKeyDeploymentDialog : public QProgressDialog
@@ -203,11 +189,6 @@ MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
 {
-#if __cplusplus >= 201103L
-    m_virtualMachineChangedConnection =
-        QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
-                         std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
-#endif
 }
 
 MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
@@ -217,23 +198,13 @@ MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
     , m_subnet(other.m_subnet)
     , m_sharedConfigPath(other.m_sharedConfigPath)
     , m_deviceModel(other.m_deviceModel)
-    , m_availableDeviceModels(other.m_availableDeviceModels)
     , m_orientation(other.m_orientation)
     , m_viewScaled(other.m_viewScaled)
 {
-#if __cplusplus >= 201103L
-    m_virtualMachineChangedConnection =
-        QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
-                         std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
-#endif
 }
 
 MerEmulatorDevice::~MerEmulatorDevice()
 {
-#if __cplusplus >= 201103L
-    QObject::disconnect(m_virtualMachineChangedConnection);
-#endif
-
     if (m_setVideoModeTimer && m_setVideoModeTimer->isActive())
         setVideoMode();
 
@@ -395,14 +366,6 @@ SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnect
     return m_sshParams;
 }
 
-QMap<QString, MerEmulatorDeviceModel> MerEmulatorDevice::availableDeviceModels() const
-{
-#if __cplusplus < 201103L
-    const_cast<MerEmulatorDevice *>(this)->updateAvailableDeviceModels();
-#endif
-    return m_availableDeviceModels;
-}
-
 QString MerEmulatorDevice::deviceModel() const
 {
     return m_deviceModel;
@@ -410,7 +373,7 @@ QString MerEmulatorDevice::deviceModel() const
 
 void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 {
-    QTC_CHECK(availableDeviceModels().contains(deviceModel));
+    QTC_CHECK(MerSettings::deviceModels().contains(deviceModel));
     QTC_CHECK(!virtualMachine().isEmpty());
 
     // Intentionally do not check for equal value - better for synchronization
@@ -418,8 +381,7 @@ void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 
     m_deviceModel = deviceModel;
 
-    QVariantMap fullDeviceModelData = readFullDeviceModelData();
-    updateDconfDb(fullDeviceModelData);
+    updateDconfDb();
     scheduleSetVideoMode();
 }
 
@@ -464,43 +426,6 @@ void MerEmulatorDevice::updateConnection() const
     m_connection->setSshParameters(sshParameters());
 }
 
-void MerEmulatorDevice::updateAvailableDeviceModels()
-{
-    //! \todo Does not support multiple (different) emulators (not supported at other places anyway).
-    PersistentSettingsReader reader;
-    if (!reader.load(globalSettingsFileName()))
-        return;
-
-    QVariantMap data = reader.restoreValues();
-
-    int version = data.value(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 0).toInt();
-    if (version < 1) {
-        qWarning() << "Invalid configuration version: " << version;
-        return;
-    }
-
-    int count = data.value(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), 0).toInt();
-    for (int i = 0; i < count; ++i) {
-        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(i);
-        if (!data.contains(key))
-            break;
-
-        const QVariantMap deviceModelData = data.value(key).toMap();
-        MerEmulatorDeviceModel deviceModel;
-        deviceModel.fromMap(deviceModelData);
-
-        m_availableDeviceModels.insert(deviceModel.name(), deviceModel);
-    }
-
-    if (!m_availableDeviceModels.isEmpty()) {
-        if (!m_availableDeviceModels.contains(m_deviceModel)) {
-            m_deviceModel = m_availableDeviceModels.keys().first();
-        }
-    } else {
-        m_deviceModel = QString();
-    }
-}
-
 void MerEmulatorDevice::scheduleSetVideoMode()
 {
     // this is not a QObject
@@ -517,7 +442,7 @@ void MerEmulatorDevice::scheduleSetVideoMode()
 
 void MerEmulatorDevice::setVideoMode()
 {
-    MerEmulatorDeviceModel deviceModel = availableDeviceModels().value(m_deviceModel);
+    const MerEmulatorDeviceModel deviceModel = MerSettings::deviceModels().value(m_deviceModel);
     QTC_ASSERT(!deviceModel.isNull(), return);
     QSize realResolution = deviceModel.displayResolution();
     if (m_orientation == Qt::Horizontal) {
@@ -550,9 +475,12 @@ void MerEmulatorDevice::setVideoMode()
     QTC_CHECK(ok);
 }
 
-void MerEmulatorDevice::updateDconfDb(const QVariantMap &fullDeviceModelData)
+void MerEmulatorDevice::updateDconfDb()
 {
-    if (fullDeviceModelData.isEmpty()) // allow chaining
+    const MerEmulatorDeviceModel deviceModel = MerSettings::deviceModels().value(m_deviceModel);
+    QTC_ASSERT(!deviceModel.isNull(), return);
+
+    if (deviceModel.dconf().isEmpty()) // allow chaining
         return;
 
     //! \todo Does not support multiple emulators (not supported at other places anyway).
@@ -561,43 +489,10 @@ void MerEmulatorDevice::updateDconfDb(const QVariantMap &fullDeviceModelData)
         .absoluteFilePath(QLatin1String(Constants::MER_EMULATOR_DCONF_DB_FILENAME));
     FileSaver saver(file, QIODevice::WriteOnly);
 
-    QTextStream(saver.file())
-        << fullDeviceModelData.value(QLatin1String(Constants::MER_DEVICE_MODEL_DCONF_DB)).toString();
+    QTextStream(saver.file()) << deviceModel.dconf();
 
     bool ok = saver.finalize();
     QTC_CHECK(ok);
-}
-
-QVariantMap MerEmulatorDevice::readFullDeviceModelData() const
-{
-    PersistentSettingsReader reader;
-    if (!reader.load(globalSettingsFileName()))
-        return QVariantMap();
-
-    QVariantMap data = reader.restoreValues();
-
-    int version = data.value(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 0).toInt();
-    if (version < 1) {
-        qWarning() << "Invalid configuration version: " << version;
-        return QVariantMap();
-    }
-
-    QString contents;
-
-    int count = data.value(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), 0).toInt();
-    for (int i = 0; i < count; ++i) {
-        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(i);
-        if (!data.contains(key))
-            break;
-
-        const QVariantMap deviceModelData = data.value(key).toMap();
-
-        if (deviceModelData.value(QLatin1String(MER_DEVICE_MODEL_NAME)).toString() == m_deviceModel)
-            return deviceModelData;
-    }
-
-    qWarning() << "Device model data not found for" << m_deviceModel;
-    return QVariantMap();
 }
 
 void MerEmulatorDeviceModel::fromMap(const QVariantMap &map)
@@ -605,6 +500,7 @@ void MerEmulatorDeviceModel::fromMap(const QVariantMap &map)
     d->name = map.value(QLatin1String(MER_DEVICE_MODEL_NAME)).toString();
     d->displayResolution = map.value(QLatin1String(MER_DEVICE_MODEL_DISPLAY_RESOLUTION)).toRect().size();
     d->displaySize = map.value(QLatin1String(MER_DEVICE_MODEL_DISPLAY_SIZE)).toRect().size();
+    d->dconf = map.value(QLatin1String(MER_DEVICE_MODEL_DCONF_DB)).toString();
 }
 
 QVariantMap MerEmulatorDeviceModel::toMap() const
@@ -613,6 +509,7 @@ QVariantMap MerEmulatorDeviceModel::toMap() const
     map.insert(QLatin1String(MER_DEVICE_MODEL_NAME), d->name);
     map.insert(QLatin1String(MER_DEVICE_MODEL_DISPLAY_RESOLUTION), QRect(QPoint(0, 0), d->displayResolution));
     map.insert(QLatin1String(MER_DEVICE_MODEL_DISPLAY_SIZE), QRect(QPoint(0, 0), d->displaySize));
+    map.insert(QLatin1String(MER_DEVICE_MODEL_DCONF_DB), d->dconf);
 
     return map;
 }

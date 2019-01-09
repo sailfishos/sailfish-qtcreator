@@ -26,14 +26,19 @@
 #include <QProcessEnvironment>
 
 #include <coreplugin/icore.h>
-#include <utils/qtcassert.h>
+#include <extensionsystem/pluginmanager.h>
+#include <utils/persistentsettings.h>
 
 #include "merconstants.h"
 
 using Core::ICore;
+using namespace Utils;
+using namespace ExtensionSystem;
 
 namespace Mer {
 namespace Internal {
+
+using namespace Constants;
 
 namespace {
 const char SETTINGS_CATEGORY[] = "Mer";
@@ -69,6 +74,53 @@ MerSettings *MerSettings::instance()
     Q_ASSERT(s_instance != 0);
 
     return s_instance;
+}
+
+FileName MerSettings::globalDeviceModelsFileName()
+{
+    QSettings *globalSettings = PluginManager::globalSettings();
+    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
+                                + QLatin1String(MER_DEVICE_MODELS_FILENAME));
+}
+
+QMap<QString, MerEmulatorDeviceModel> MerSettings::deviceModels()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_deviceModels;
+}
+
+QMap<QString, MerEmulatorDeviceModel> MerSettings::deviceModelsRead(const Utils::FileName &fileName)
+{
+    QMap<QString, MerEmulatorDeviceModel> result;
+
+    //! \todo Does not support multiple (different) emulators (not supported at other places anyway).
+    PersistentSettingsReader reader;
+    if (!reader.load(fileName))
+        return result;
+
+    const QVariantMap data = reader.restoreValues();
+
+    const int version = data.value(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 0).toInt();
+    if (version < 1) {
+        qWarning() << "Invalid configuration version: " << version;
+        return result;
+    }
+
+    const int count = data.value(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), 0).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(i);
+        if (!data.contains(key))
+            break;
+
+        const QVariantMap deviceModelData = data.value(key).toMap();
+        MerEmulatorDeviceModel deviceModel;
+        deviceModel.fromMap(deviceModelData);
+
+        result.insert(deviceModel.name(), deviceModel);
+    }
+
+    return result;
 }
 
 QString MerSettings::environmentFilter()
@@ -215,6 +267,8 @@ void MerSettings::read()
 
     m_environmentFilterFromEnvironment =
         QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER);
+
+    m_deviceModels = deviceModelsRead(globalDeviceModelsFileName());
 }
 
 void MerSettings::save()

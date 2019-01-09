@@ -31,6 +31,7 @@
 #include "ui_meremulatormodedialog.h"
 
 #include "merconnection.h"
+#include "mersettings.h"
 #include "meremulatordevice.h"
 
 #include <coreplugin/icore.h>
@@ -169,8 +170,7 @@ void MerEmulatorModeDialog::execDialog()
 
     m_ui->deviceNameLabel->setText(m_emulator.data()->displayName());
 
-    const QMap<QString, MerEmulatorDeviceModel> models =
-        m_emulator.data()->availableDeviceModels();
+    const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
     const bool supportsMultipleModels = !models.isEmpty();
 
     int currentModelIndex = -1;
@@ -239,8 +239,7 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
     // TODO use the word resolution instead of size
     const QSize desktopSize = qApp->desktop()->availableGeometry().size();
 
-    const QMap<QString, MerEmulatorDeviceModel> models =
-        m_emulator.data()->availableDeviceModels();
+    const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
     auto selectedModel = models.value(m_ui->deviceModelComboBox->currentData().toString());
     QTC_ASSERT(!selectedModel.isNull(), return);
 
