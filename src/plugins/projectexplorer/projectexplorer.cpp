@@ -219,6 +219,7 @@ const char SELECTTARGETQUICK[]    = "ProjectExplorer.SelectTargetQuick";
 // Action priorities
 const int  P_ACTION_RUN            = 100;
 const int  P_ACTION_BUILDPROJECT   = 80;
+const int  P_ACTION_DEPLOYPROJECT  = 90;
 
 // Context
 const char C_PROJECTEXPLORER[]    = "Project Explorer";
@@ -379,6 +380,7 @@ public:
     QAction *m_cleanProjectOnlyAction;
     QAction *m_deployProjectOnlyAction;
     Utils::ParameterAction *m_deployAction;
+    Utils::ParameterAction *m_modeBarDeployAction;
     QAction *m_deployActionContextMenu;
     QAction *m_deploySessionAction;
     Utils::ParameterAction *m_cleanAction;
@@ -938,6 +940,12 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDescription(dd->m_deployAction->text());
     mbuild->addAction(cmd, Constants::G_BUILD_DEPLOY);
 
+    // Add to mode bar
+    dd->m_modeBarDeployAction = new Utils::ParameterAction(tr("Deploy Project"), tr("Deploy Project \"%1\""),
+                                                           Utils::ParameterAction::AlwaysEnabled, this);
+    dd->m_modeBarDeployAction->setIcon(Icons::DEPLOY.icon());
+    ModeManager::addAction(dd->m_modeBarDeployAction, Constants::P_ACTION_DEPLOYPROJECT);
+
     // rebuild action
     dd->m_rebuildAction = new Utils::ParameterAction(tr("Rebuild Project"), tr("Rebuild Project \"%1\""),
                                                        Utils::ParameterAction::AlwaysEnabled, this);
@@ -1296,6 +1304,9 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     connect(dd->m_deployAction, &QAction::triggered, dd, [] {
         dd->deploy(SessionManager::projectOrder(SessionManager::startupProject()));
     });
+    connect(dd->m_modeBarDeployAction, &QAction::triggered, dd, [] {
+        dd->deploy(SessionManager::projectOrder(SessionManager::startupProject()));
+    });
     connect(dd->m_deployActionContextMenu, &QAction::triggered, dd, [] {
         dd->deploy({ ProjectTree::currentProject() });
     });
@@ -1371,6 +1382,8 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
 
     connect(this, &ProjectExplorerPlugin::updateRunActions,
             dd, &ProjectExplorerPluginPrivate::slotUpdateRunActions);
+    connect(this, &ProjectExplorerPlugin::updateDeployRunActions,
+            dd, &ProjectExplorerPluginPrivate::updateDeployActions);
     connect(this, &ProjectExplorerPlugin::settingsChanged,
             dd, &ProjectExplorerPluginPrivate::updateRunWithoutDeployMenu);
 
@@ -2078,7 +2091,7 @@ void ProjectExplorerPluginPrivate::startRunControl(RunControl *runControl)
             Qt::QueuedConnection);
     ++m_activeRunControlCount;
     runControl->initiateStart();
-    emit m_instance->updateRunActions();
+    emit m_instance->updateDeployRunActions();
 }
 
 void ProjectExplorerPluginPrivate::checkForShutdown()
@@ -2612,7 +2625,7 @@ void ProjectExplorerPlugin::runRunConfiguration(RunConfiguration *rc,
     } else {
         dd->executeRunConfiguration(rc, runMode);
     }
-    emit m_instance->updateRunActions();
+    emit m_instance->updateDeployRunActions();
 }
 
 QList<QPair<Runnable, Utils::ProcessHandle>> ProjectExplorerPlugin::runningRunControlProcesses()
@@ -2634,13 +2647,13 @@ void ProjectExplorerPluginPrivate::projectAdded(Project *pro)
         auto bc = qobject_cast<BuildConfiguration *>(sender());
         if (bc && bc->isActive() && bc->project() == SessionManager::startupProject()) {
             updateActions();
-            emit m_instance->updateRunActions();
+            emit m_instance->updateDeployRunActions();
         }
     });
     pro->subscribeSignal(&RunConfiguration::requestRunActionsUpdate, this, [this]() {
         auto rc = qobject_cast<RunConfiguration *>(sender());
         if (rc && rc->isActive() && rc->project() == SessionManager::startupProject())
-            emit m_instance->updateRunActions();
+            emit m_instance->updateDeployRunActions();
     });
 }
 
@@ -2717,7 +2730,7 @@ void ProjectExplorerPluginPrivate::activeRunConfigurationChanged()
         rc = startupProject->activeTarget()->activeRunConfiguration();
     if (rc == previousRunConfiguration)
         return;
-    emit m_instance->updateRunActions();
+    emit m_instance->updateDeployRunActions();
 }
 
 void ProjectExplorerPluginPrivate::activeBuildConfigurationChanged()
@@ -2730,7 +2743,7 @@ void ProjectExplorerPluginPrivate::activeBuildConfigurationChanged()
     if (bc == previousBuildConfiguration)
         return;
     updateActions();
-    emit m_instance->updateRunActions();
+    emit m_instance->updateDeployRunActions();
 }
 
 void ProjectExplorerPluginPrivate::updateDeployActions()
@@ -2759,6 +2772,29 @@ void ProjectExplorerPluginPrivate::updateDeployActions()
 
     m_deployAction->setParameter(projectName);
     m_deployAction->setEnabled(enableDeployActions);
+
+    m_modeBarDeployAction->setParameter(projectName);
+    m_modeBarDeployAction->setEnabled(enableDeployActions);
+    if (!BuildManager::isBuilding())
+        m_modeBarDeployAction->setVisible(enableDeployActions);
+
+    bool activeRunConfigurationIsEnabled = project
+                                            && project->activeTarget()
+                                            && project->activeTarget()->activeRunConfiguration()
+                                            && project->activeTarget()->activeRunConfiguration()->isEnabled();
+    if (activeRunConfigurationIsEnabled)
+        m_modeBarDeployAction->setVisible(false);
+
+    QString toolTip;
+    if (dd->m_projectExplorerSettings.buildBeforeDeploy
+            && hasBuildSettings(project)) {
+        QPair<bool, QString> buildState = dd->buildSettingsEnabled(project);
+        if (!buildState.first)
+            toolTip = buildState.second;
+    } else if (BuildManager::isBuilding()) {
+        toolTip = tr("A build is still in progress.");
+    }
+    m_modeBarDeployAction->setToolTip(toolTip);
 
     m_deployActionContextMenu->setEnabled(enableDeployActionsContextMenu);
 
@@ -2852,6 +2888,8 @@ void ProjectExplorerPluginPrivate::slotUpdateRunActions()
     QString whyNot;
     const bool state = ProjectExplorerPlugin::canRunStartupProject(Constants::NORMAL_RUN_MODE, &whyNot);
     m_runAction->setEnabled(state);
+    if (!BuildManager::isBuilding())
+        m_runAction->setVisible(state);
     m_runAction->setToolTip(whyNot);
     m_runWithoutDeployAction->setEnabled(state);
 }
