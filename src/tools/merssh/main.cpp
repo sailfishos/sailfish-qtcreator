@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2018 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "qmakecommand.h"
 #include "rpmcommand.h"
 #include "rpmvalidationcommand.h"
+#include "wwwproxycommand.h"
 
 #include <mer/merconstants.h>
 
@@ -109,6 +110,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
     CommandFactory::registerCommand<EngineCtlCommand>(QLatin1String("enginectl"));
     CommandFactory::registerCommand<LUpdateCommand>(QLatin1String("lupdate"));
+    CommandFactory::registerCommand<WwwProxyCommand>(QLatin1String("wwwproxy"));
 
     QStringList arguments  = QCoreApplication::arguments();
 
@@ -156,7 +158,8 @@ int main(int argc, char *argv[])
          return 1;
     }
 
-    if (!qobject_cast<EngineCtlCommand *>(command.data()))
+    if (!qobject_cast<EngineCtlCommand *>(command.data())
+            && !qobject_cast<WwwProxyCommand *>(command.data()))
         arguments = unquoteArguments(arguments);
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();

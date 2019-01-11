@@ -29,6 +29,7 @@
 #include <QFileSystemWatcher>
 #include <QStringList>
 #include <QTimer>
+#include <QProcess>
 
 namespace ProjectExplorer {
 class Kit;
@@ -79,6 +80,12 @@ public:
     void setWwwPort(quint16 port);
     quint16 wwwPort() const;
 
+    void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
+    void syncWwwProxy();
+    QString wwwProxy() const;
+    QString wwwProxyServers() const;
+    QString wwwProxyExcludes() const;
+
     void setTimeout(int timeout);
     int timeout() const;
 
@@ -113,10 +120,12 @@ signals:
     void headlessChanged(bool);
     void sshPortChanged(quint16 port);
     void wwwPortChanged(quint16 port);
+    void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
 
 private slots:
     void updateTargets();
     void handleTargetsFileChanged(const QString &file);
+    void onConnectionStateChanged();
 
 private:
     explicit MerSdk(QObject *parent = 0);
@@ -134,6 +143,10 @@ private:
     QString m_sharedConfigPath;
     QString m_sharedSrcPath;
     quint16 m_wwwPort;
+    QString m_wwwProxy;
+    QString m_wwwProxyServers;
+    QString m_wwwProxyExcludes;
+    QProcess m_wwwProxySyncProcess;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
     QTimer m_updateTargetsTimer;

@@ -31,6 +31,7 @@
 #include "mertargetsxmlparser.h"
 #include "mertoolchain.h"
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -57,10 +58,13 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
     , m_connection(new MerConnection(this))
     , m_wwwPort(-1)
+    , m_wwwProxy(MER_SDK_PROXY_DISABLED)
 {
     SshConnectionParameters params = m_connection->sshParameters();
     params.timeout = 30;
     m_connection->setSshParameters(params);
+    connect(m_connection, &MerConnection::stateChanged,
+            this, &MerSdk::onConnectionStateChanged);
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
             this, &MerSdk::handleTargetsFileChanged);
@@ -226,6 +230,57 @@ quint16 MerSdk::wwwPort() const
     return m_wwwPort;
 }
 
+void MerSdk::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)
+{
+    if (type == m_wwwProxy && servers == m_wwwProxyServers && excludes == m_wwwProxyExcludes)
+        return;
+
+    m_wwwProxy = type;
+    m_wwwProxyServers = servers;
+    m_wwwProxyExcludes = excludes;
+
+    if (m_connection->state() == MerConnection::Connected)
+        syncWwwProxy();
+
+    emit wwwProxyChanged(type, servers, excludes);
+}
+
+void MerSdk::syncWwwProxy()
+{
+    QStringList args;
+    args.append(Constants::MER_SSH_PORT + QLatin1Char('=') + QString::number(sshPort()));
+    args.append(Constants::MER_SSH_PRIVATE_KEY + QLatin1Char('=') + privateKeyFile());
+    args.append(Constants::MER_SSH_SHARED_HOME + QLatin1Char('=') + sharedHomePath());
+    args.append(Constants::MER_SSH_USERNAME + QLatin1Char('=') + userName());
+    args.append(QLatin1String("wwwproxy"));
+    args.append(m_wwwProxy);
+
+    if ((m_wwwProxy == MER_SDK_PROXY_AUTOMATIC || m_wwwProxy == MER_SDK_PROXY_MANUAL)
+            && !m_wwwProxyServers.isEmpty())
+        args.append(m_wwwProxyServers);
+
+    if (m_wwwProxy == MER_SDK_PROXY_MANUAL && !m_wwwProxyExcludes.isEmpty())
+        args.append(m_wwwProxyExcludes);
+
+    const QString wrapperBinaryPath = Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
+    m_wwwProxySyncProcess.start(wrapperBinaryPath, args);
+}
+
+QString MerSdk::wwwProxy() const
+{
+    return m_wwwProxy;
+}
+
+QString MerSdk::wwwProxyServers() const
+{
+    return m_wwwProxyServers;
+}
+
+QString MerSdk::wwwProxyExcludes() const
+{
+    return m_wwwProxyExcludes;
+}
+
 void MerSdk::setPrivateKeyFile(const QString &file)
 {
     SshConnectionParameters params = m_connection->sshParameters();
@@ -328,6 +383,9 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(SSH_PORT), QString::number(sshPort()));
     result.insert(QLatin1String(SSH_TIMEOUT), QString::number(timeout()));
     result.insert(QLatin1String(WWW_PORT), QString::number(wwwPort()));
+    result.insert(QLatin1String(WWW_PROXY), wwwProxy());
+    result.insert(QLatin1String(WWW_PROXY_SERVERS), wwwProxyServers());
+    result.insert(QLatin1String(WWW_PROXY_EXCLUDES), wwwProxyExcludes());
     result.insert(QLatin1String(HEADLESS), isHeadless());
     int count = 0;
     foreach (const MerTarget &target, m_targets) {
@@ -358,6 +416,9 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setSshPort(data.value(QLatin1String(SSH_PORT)).toUInt());
     setTimeout(data.value(QLatin1String(SSH_TIMEOUT), timeout()).toUInt());
     setWwwPort(data.value(QLatin1String(WWW_PORT)).toUInt());
+    setWwwProxy(data.value(QLatin1String(WWW_PROXY)).toString(),
+                data.value(QLatin1String(WWW_PROXY_SERVERS)).toString(),
+                data.value(QLatin1String(WWW_PROXY_EXCLUDES)).toString());
     setHeadless(data.value(QLatin1String(HEADLESS)).toBool());
 
     int count = data.value(QLatin1String(MER_TARGET_COUNT_KEY), 0).toInt();
@@ -416,6 +477,12 @@ void MerSdk::handleTargetsFileChanged(const QString &file)
 {
     QTC_ASSERT(file == sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME), return);
     m_updateTargetsTimer.start();
+}
+
+void MerSdk::onConnectionStateChanged()
+{
+    if (m_connection->state() == MerConnection::Connected)
+        syncWwwProxy();
 }
 
 QList<MerTarget> MerSdk::readTargets(const FileName &fileName)
