@@ -201,7 +201,7 @@ void MerMb2RpmBuildConfiguration::initialize()
 
 QString MerMb2RpmBuildConfiguration::displayName()
 {
-    return tr("Deploy By Building An RPM Package");
+    return tr("Build RPM Package For Manual Deployment");
 }
 
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
