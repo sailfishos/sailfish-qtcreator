@@ -2888,8 +2888,10 @@ void ProjectExplorerPluginPrivate::slotUpdateRunActions()
     QString whyNot;
     const bool state = ProjectExplorerPlugin::canRunStartupProject(Constants::NORMAL_RUN_MODE, &whyNot);
     m_runAction->setEnabled(state);
-    if (!BuildManager::isBuilding())
-        m_runAction->setVisible(state);
+    if (!BuildManager::isBuilding()) {
+        m_runAction->setVisible(!SessionManager::startupProject()
+                || SessionManager::startupProject()->needsConfiguration() || state);
+    }
     m_runAction->setToolTip(whyNot);
     m_runWithoutDeployAction->setEnabled(state);
 }
