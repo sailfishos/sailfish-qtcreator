@@ -1925,8 +1925,10 @@ void DebuggerPluginPrivate::onCurrentProjectChanged(Project *project)
     QString whyNot;
     const bool canRun = ProjectExplorerPlugin::canRunStartupProject(ProjectExplorer::Constants::DEBUG_RUN_MODE, &whyNot);
     m_startAction->setEnabled(canRun);
-    if (!BuildManager::isBuilding())
-        m_startAction->setVisible(canRun);
+    if (!BuildManager::isBuilding()) {
+        m_startAction->setVisible(!SessionManager::startupProject()
+                || SessionManager::startupProject()->needsConfiguration() || canRun);
+    }
     m_startAction->setToolTip(whyNot);
     m_debugWithoutDeployAction->setEnabled(canRun);
     setProxyAction(m_visibleStartAction, Id(Constants::DEBUG));
@@ -2606,8 +2608,10 @@ void DebuggerPluginPrivate::updateState(DebuggerRunTool *runTool)
         m_continueAction->setEnabled(false);
         m_exitAction->setEnabled(false);
         m_startAction->setEnabled(canRun);
-        if (!BuildManager::isBuilding())
-            m_startAction->setVisible(canRun);
+        if (!BuildManager::isBuilding()) {
+            m_startAction->setVisible(!SessionManager::startupProject()
+                    || SessionManager::startupProject()->needsConfiguration() || canRun);
+        }
         m_debugWithoutDeployAction->setEnabled(canRun);
         setProxyAction(m_visibleStartAction, Id(Constants::DEBUG));
         m_hiddenStopAction->setAction(m_undisturbableAction);
@@ -2707,8 +2711,10 @@ void DebuggerPluginPrivate::updateDebugActions()
     QString whyNot;
     const bool canRun = ProjectExplorerPlugin::canRunStartupProject(ProjectExplorer::Constants::DEBUG_RUN_MODE, &whyNot);
     m_startAction->setEnabled(canRun);
-    if (!BuildManager::isBuilding())
-        m_startAction->setVisible(canRun);
+    if (!BuildManager::isBuilding()) {
+        m_startAction->setVisible(!SessionManager::startupProject()
+                || SessionManager::startupProject()->needsConfiguration() || canRun);
+    }
     m_startAction->setToolTip(whyNot);
     m_debugWithoutDeployAction->setEnabled(canRun);
 
