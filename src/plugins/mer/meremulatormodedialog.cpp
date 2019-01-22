@@ -32,6 +32,7 @@
 
 #include "merconnection.h"
 #include "mersettings.h"
+#include "merconstants.h"
 #include "meremulatordevice.h"
 
 #include <coreplugin/icore.h>
@@ -51,6 +52,7 @@ using namespace ProjectExplorer;
 
 using namespace Mer;
 using namespace Mer::Internal;
+using namespace Mer::Constants;
 
 MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
     : QObject(parent),
@@ -60,7 +62,7 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
       m_kit(0)
 {
     m_action->setEnabled(false);
-    m_action->setText(tr("&Emulator mode..."));
+    m_action->setText(tr(MER_EMULATOR_MODE_ACTION_NAME));
 
     connect(m_action, &QAction::triggered,
             this, &MerEmulatorModeDialog::execDialog);
@@ -76,6 +78,18 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
             this, &MerEmulatorModeDialog::onDeviceListReplaced);
 }
 
+MerEmulatorModeDialog::MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent)
+    : QObject(parent),
+      m_action(new QAction(tr(MER_EMULATOR_MODE_ACTION_NAME), this)),
+      m_dialog(nullptr),
+      m_ui(nullptr),
+      m_kit(nullptr)
+{
+    setEmulator(emulator);
+
+    connect(m_action, &QAction::triggered, this, &MerEmulatorModeDialog::execDialog);
+}
+
 MerEmulatorModeDialog::~MerEmulatorModeDialog()
 {
 }
@@ -83,6 +97,17 @@ MerEmulatorModeDialog::~MerEmulatorModeDialog()
 QAction *MerEmulatorModeDialog::action() const
 {
     return m_action;
+}
+
+MerEmulatorDevice::Ptr MerEmulatorModeDialog::emulator() const
+{
+    return m_emulator.toStrongRef();
+}
+
+bool MerEmulatorModeDialog::exec()
+{
+    QTC_ASSERT(m_emulator != nullptr, return false);
+    return execDialog();
 }
 
 void MerEmulatorModeDialog::setEmulator(const MerEmulatorDevice::Ptr &emulator)
@@ -159,10 +184,10 @@ void MerEmulatorModeDialog::onDeviceListReplaced()
     setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
 }
 
-void MerEmulatorModeDialog::execDialog()
+bool MerEmulatorModeDialog::execDialog()
 {
-    QTC_ASSERT(m_emulator != 0, return);
-    QTC_ASSERT(m_ui == 0, return); // possible, but little issue..
+    QTC_ASSERT(m_emulator != 0, return false);
+    QTC_ASSERT(m_ui == 0, return false); // possible, but little issue..
 
     m_dialog = new QDialog(ICore::dialogParent());
     m_ui = new Ui::MerEmulatorModeDialog;
@@ -215,8 +240,11 @@ void MerEmulatorModeDialog::execDialog()
     }
 
 end:
+    const bool result = m_dialog->result() == QDialog::Accepted;
     delete m_ui, m_ui = 0;
     delete m_dialog, m_dialog = 0;
+
+    return result;
 }
 
 void MerEmulatorModeDialog::guessOptimalViewMode()

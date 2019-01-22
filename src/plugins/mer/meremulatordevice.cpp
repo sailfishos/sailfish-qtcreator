@@ -30,6 +30,7 @@
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mervirtualboxmanager.h"
+#include "meremulatormodedialog.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -219,6 +220,7 @@ IDeviceWidget *MerEmulatorDevice::createWidget()
 QList<Core::Id> MerEmulatorDevice::actionIds() const
 {
     QList<Core::Id> ids;
+    ids << Core::Id(Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_STOP_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
@@ -235,6 +237,8 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
         return tr("Start Emulator");
     else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID)
         return tr("Stop Emulator");
+    else if (actionId == Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID)
+        return tr(Constants::MER_EMULATOR_MODE_ACTION_NAME);
     return QString();
 }
 
@@ -255,6 +259,20 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         return;
     } else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID) {
         m_connection->disconnectFrom();
+        return;
+    } else if (actionId == Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID) {
+        const IDevice::ConstPtr device = DeviceManager::instance()->find(id());
+        const MerEmulatorDevice::Ptr merDevice = device
+                ? device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>()
+                : sharedFromThis().dynamicCast<MerEmulatorDevice>();
+
+        QTC_ASSERT(merDevice, return);
+
+        MerEmulatorModeDialog dialog(merDevice);
+        if (!dialog.exec())
+            return;
+        // Set device model in copy of MerEmulatorDevice (in case of Apply pressed)
+        m_deviceModel = merDevice->deviceModel();
         return;
     }
 }
