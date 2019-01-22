@@ -513,7 +513,8 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 {
     MerSdk *sdk = new MerSdk();
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName, true);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName,
+            MerVirtualBoxManager::VdiInfo);
     sdk->setVirtualMachineName(vmName);
     sdk->setSshPort(info.sshPort);
     sdk->setWwwPort(info.wwwPort);

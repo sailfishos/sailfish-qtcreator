@@ -156,7 +156,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         tryName = vmName + QString::number(++i);
     m_ui->configNameLineEdit->setText(tryName);
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName, true);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName,
+            MerVirtualBoxManager::VdiInfo);
     if (info.sshPort == 0)
         m_ui->sshPortLabelEdit->setText(tr("none"));
     else
