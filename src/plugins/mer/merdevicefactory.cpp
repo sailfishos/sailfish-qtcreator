@@ -30,7 +30,9 @@
 #include "mericons.h"
 #include "mersdkmanager.h"
 #include "mersshkeydeploymentdialog.h"
+#include "mersettings.h"
 
+#include <coreplugin/messagemanager.h>
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -110,6 +112,8 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         return IDevice::Ptr();
 
     if (machineType == choices.first()) {
+        QTC_ASSERT(MerSettings::deviceModels().count(), return IDevice::Ptr());
+
         MerEmulatorDeviceWizard wizard(ICore::dialogParent());
         if (wizard.exec() != QDialog::Accepted)
             return IDevice::Ptr();
@@ -133,6 +137,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setSshParameters(sshParams);
         device->setSharedConfigPath(wizard.sharedConfigPath());
         device->setSharedSshPath(wizard.sharedSshPath());
+        device->setDeviceModel(MerSettings::deviceModels().first().name());
 
         if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
             device->generateSshKey(wizard.userName());
@@ -214,8 +219,21 @@ IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const
 {
     QTC_ASSERT(canRestore(map), return IDevice::Ptr());
     if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator) {
+        QTC_ASSERT(MerSettings::deviceModels().count(), return IDevice::Ptr());
+
         const IDevice::Ptr device = MerEmulatorDevice::create();
         device->fromMap(map);
+
+        const auto emulatorDevice = device.dynamicCast<MerEmulatorDevice>();
+        if (!MerSettings::deviceModels().contains(emulatorDevice->deviceModel())) {
+            const QString name = MerSettings::deviceModels().first().name();
+            const QString msg = tr("Unable to find device model \"%1\"! Switching to device model \"%2\".")
+                    .arg(emulatorDevice->deviceModel())
+                    .arg(name);
+            emulatorDevice->setDeviceModel(name);
+            MessageManager::write(msg, MessageManager::Silent);
+        }
+
         return device;
     } else {
         const IDevice::Ptr device = MerHardwareDevice::create();
