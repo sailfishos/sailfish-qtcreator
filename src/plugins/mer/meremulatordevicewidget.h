@@ -45,6 +45,7 @@ public:
 private slots:
     void onStoredDevicesChanged();
     void onVirtualMachineOffChanged(bool vmOff);
+    void selectFactorySnapshot();
     void timeoutEditingFinished();
     void userNameEditingFinished();
     void handleSshPortChanged();

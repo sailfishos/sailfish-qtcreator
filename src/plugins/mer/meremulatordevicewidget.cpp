@@ -38,6 +38,8 @@
 #include <utils/utilsicons.h>
 
 #include <QDir>
+#include <QInputDialog>
+#include <QMessageBox>
 #include <QTextStream>
 
 using namespace ProjectExplorer;
@@ -54,6 +56,8 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
     , m_virtualMachineSettingsWidget(new MerVirtualMachineSettingsWidget)
 {
     m_ui->setupUi(this);
+    connect(m_ui->factorySnapshotToolButton, &QAbstractButton::clicked,
+            this, &MerEmulatorDeviceWidget::selectFactorySnapshot);
     connect(m_ui->userLineEdit, &QLineEdit::editingFinished,
             this, &MerEmulatorDeviceWidget::userNameEditingFinished);
     connect(m_ui->timeoutSpinBox, &QSpinBox::editingFinished,
@@ -79,6 +83,33 @@ void MerEmulatorDeviceWidget::onStoredDevicesChanged()
 {
     updatePortInputsEnabledState();
     updateSystemParameters();
+}
+
+void MerEmulatorDeviceWidget::selectFactorySnapshot()
+{
+    auto device = this->device().dynamicCast<MerEmulatorDevice>();
+    QTC_ASSERT(device, return);
+
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachine(),
+            MerVirtualBoxManager::SnapshotInfo);
+    if (info.snapshots.isEmpty()) {
+        QMessageBox::warning(this, tr("No snapshot found"),
+                tr("No snapshot exists for the '%1' virtual machine.")
+                .arg(device->connection()->virtualMachine()));
+        return;
+    }
+
+    const bool editable = false;
+    bool ok;
+    QString selected = QInputDialog::getItem(this, tr("Select factory snapshot"),
+            tr("Select the virtual machine snapshot to be used as the factory snapshot for '%1'")
+            .arg(device->displayName()),
+            info.snapshots, info.snapshots.indexOf(device->factorySnapshot()), editable, &ok);
+    if (!ok)
+        return;
+
+    m_ui->factorySnapshotLineEdit->setText(selected);
+    device->setFactorySnapshot(selected);
 }
 
 void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
@@ -263,6 +294,7 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
+    m_ui->factorySnapshotLineEdit->setText(device->factorySnapshot());
     if(!device->sharedConfigPath().isEmpty())
         m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
     else
