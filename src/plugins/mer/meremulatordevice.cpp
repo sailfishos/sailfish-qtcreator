@@ -201,6 +201,7 @@ MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
 MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
     MerDevice(other)
     , m_connection(other.m_connection)
+    , m_factorySnapshot(other.m_factorySnapshot)
     , m_mac(other.m_mac)
     , m_subnet(other.m_subnet)
     , m_sharedConfigPath(other.m_sharedConfigPath)
@@ -233,6 +234,7 @@ QList<Core::Id> MerEmulatorDevice::actionIds() const
     ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_STOP_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
+    ids << Core::Id(Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID);
     return ids;
 }
 
@@ -248,6 +250,8 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
         return tr("Stop Emulator");
     else if (actionId == Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID)
         return tr(Constants::MER_EMULATOR_MODE_ACTION_NAME);
+    else if (actionId == Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID)
+        return tr("Factory Reset...");
     return QString();
 }
 
@@ -283,6 +287,19 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         // Set device model in copy of MerEmulatorDevice (in case of Apply pressed)
         m_deviceModel = merDevice->deviceModel();
         return;
+    } else if (actionId == Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID) {
+        if (factorySnapshot().isEmpty()) {
+            QMessageBox::warning(parent, tr("No factory snapshot set"),
+                    tr("No factory snapshot is configured. Cannot reset to the factory state"));
+            return;
+        }
+        QMessageBox::StandardButton button = QMessageBox::question(parent,
+                tr("Reset emulator?"),
+                tr("Do you really want to reset '%1' to the factory state?").arg(virtualMachine()),
+                QMessageBox::Yes | QMessageBox::No);
+        if (button == QMessageBox::Yes)
+            doFactoryReset(parent);
+        return;
     }
 }
 
@@ -296,6 +313,7 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
     MerDevice::fromMap(map);
     m_connection->setVirtualMachine(
             map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
+    m_factorySnapshot = map.value(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT)).toString();
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
@@ -313,6 +331,7 @@ QVariantMap MerEmulatorDevice::toMap() const
     QVariantMap map = MerDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
             m_connection->virtualMachine());
+    map.insert(QLatin1String(Constants::MER_DEVICE_FACTORY_SNAPSHOT), m_factorySnapshot);
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
@@ -388,6 +407,16 @@ void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
 QString MerEmulatorDevice::virtualMachine() const
 {
     return m_connection->virtualMachine();
+}
+
+void MerEmulatorDevice::setFactorySnapshot(const QString &snapshotName)
+{
+    m_factorySnapshot = snapshotName;
+}
+
+QString MerEmulatorDevice::factorySnapshot() const
+{
+    return m_factorySnapshot;
 }
 
 void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
@@ -487,6 +516,38 @@ MerConnection *MerEmulatorDevice::connection() const
 void MerEmulatorDevice::updateConnection() const
 {
     m_connection->setSshParameters(sshParameters());
+}
+
+void MerEmulatorDevice::doFactoryReset(QWidget *parent)
+{
+    QProgressDialog progress(tr("Restoring '%1' to factory state...").arg(virtualMachine()),
+            tr("Abort"), 0, 0, parent);
+    progress.setMinimumDuration(2000);
+    progress.setWindowModality(Qt::WindowModal);
+
+    if (!m_connection->lockDown(true)) {
+        progress.cancel();
+        QMessageBox::warning(parent, tr("Failed"),
+                tr("Failed to close the virtual machine. Factory state cannot be restored."));
+        return;
+    }
+
+    QEventLoop loop;
+    MerVirtualBoxManager::restoreSnapshot(virtualMachine(), factorySnapshot(), &loop, [&loop](bool ok) {
+        loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+    });
+    if (loop.exec() != EXIT_SUCCESS) {
+        progress.cancel();
+        QMessageBox::warning(parent, tr("Failed"), tr("Failed to restore factory state."));
+        return;
+    }
+
+    m_connection->lockDown(false);
+
+    progress.cancel();
+
+    QMessageBox::information(parent, tr("Factory state restored"),
+            tr("Successfully restored '%1' to the factory state").arg(virtualMachine()));
 }
 
 void MerEmulatorDevice::scheduleSetVideoMode()

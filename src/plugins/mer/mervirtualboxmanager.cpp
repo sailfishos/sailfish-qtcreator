@@ -87,6 +87,8 @@ const char SHOWMEDIUMINFO[] = "showmediuminfo";
 const char METRICS[] = "metrics";
 const char COLLECT[] = "collect";
 const char TOTAL_RAM[] = "RAM/Usage/Total";
+const char SNAPSHOT[] = "snapshot";
+const char RESTORE[] = "restore";
 
 namespace Mer {
 namespace Internal {
@@ -94,6 +96,8 @@ namespace Internal {
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
 static void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo);
 static void vdiCapacityFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
+static void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo);
+static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static int ramSizeFromOutput(const QString &output);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
 static QStringList listedVirtualMachines(const QString &output);
@@ -457,6 +461,9 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     if (extraInfo & VdiInfo)
         fetchVdiCapacity(&info);
 
+    if (extraInfo & SnapshotInfo)
+        fetchSnapshotInfo(vmName, &info);
+
     return info;
 }
 
@@ -485,6 +492,27 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
     VBoxManageProcess *process = new VBoxManageProcess(instance());
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
+}
+
+// accepts void slot(bool ok)
+void MerVirtualBoxManager::restoreSnapshot(const QString &vmName, const QString &snapshotName,
+            QObject *context, std::function<void(bool)> slot)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(SNAPSHOT));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(RESTORE));
+    arguments.append(snapshotName);
+
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
+            [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
+                slot(exitStatus == QProcess::NormalExit && exitCode == 0);
+            });
+
     process->setDeleteOnFinished();
     process->runAsynchronously(arguments);
 }
@@ -847,6 +875,33 @@ int ramSizeFromOutput(const QString &output)
         }
     }
     return 0;
+}
+
+void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(SNAPSHOT));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(LIST));
+    arguments.append(QLatin1String(MACHINE_READABLE));
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments))
+        return;
+
+    snapshotInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
+}
+
+void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
+{
+    // 1 name
+    QRegExp rexp(QLatin1String("\\bSnapshotName[-0-9]*=\"(.+)\""));
+
+    rexp.setMinimal(true);
+    int pos = 0;
+    while ((pos = rexp.indexIn(output, pos)) != -1) {
+        pos += rexp.matchedLength();
+        virtualMachineInfo->snapshots.append(rexp.cap(1));
+    }
 }
 
 } // Internal

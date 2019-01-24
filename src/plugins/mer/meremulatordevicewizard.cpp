@@ -82,6 +82,11 @@ QString MerEmulatorDeviceWizard::emulatorVm() const
     return m_vmPage.emulatorVm();
 }
 
+QString MerEmulatorDeviceWizard::factorySnapshot() const
+{
+    return m_vmPage.factorySnapshot();
+}
+
 QString MerEmulatorDeviceWizard::freePorts() const
 {
      return m_vmPage.freePorts();

@@ -44,6 +44,7 @@ public:
     int sshPort() const;
     int timeout() const;
     QString emulatorVm() const;
+    QString factorySnapshot() const { return m_factorySnapshot; }
     QString freePorts() const;
     QString qmlLivePorts() const;
     QString sharedConfigPath() const;
@@ -57,6 +58,7 @@ private slots:
     void handleEmulatorVmChanged(const QString &vmName);
 private:
      Ui::MerEmulatorDeviceWizardVMPage *m_ui;
+     QString m_factorySnapshot;
 };
 
 class MerEmualtorSshPage : public QWizardPage

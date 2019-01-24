@@ -157,7 +157,7 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
     m_ui->configNameLineEdit->setText(tryName);
 
     VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName,
-            MerVirtualBoxManager::VdiInfo);
+            MerVirtualBoxManager::VdiInfo | MerVirtualBoxManager::SnapshotInfo);
     if (info.sshPort == 0)
         m_ui->sshPortLabelEdit->setText(tr("none"));
     else
@@ -205,6 +205,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         m_ui->vdiCapacityLabelEdit->setText(QString::number(info.vdiCapacityMb) + " " + MB_SUFFIX);
     else
         m_ui->vdiCapacityLabelEdit->setText(tr("none"));
+
+    m_factorySnapshot = info.snapshots.first();
 }
 
 
