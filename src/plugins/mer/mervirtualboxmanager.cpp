@@ -204,9 +204,10 @@ private:
 
         m_current = m_queue.dequeue();
 
-        connect(m_current, &QProcess::errorOccurred, this, &CommandSerializer::finalize);
-        void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
-        connect(m_current, QProcess_finished, this, &CommandSerializer::finalize);
+        connect(m_current, &QProcess::errorOccurred,
+                this, &CommandSerializer::finalize);
+        connect(m_current, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+                this, &CommandSerializer::finalize);
 
         m_current->start(QIODevice::ReadWrite | QIODevice::Text);
     }
@@ -258,9 +259,10 @@ public:
 
     void setDeleteOnFinished()
     {
-        void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
-        connect(this, &QProcess::errorOccurred, this, &QObject::deleteLater);
-        connect(this, QProcess_finished, this, &QObject::deleteLater);
+        connect(this, &QProcess::errorOccurred,
+                this, &QObject::deleteLater);
+        connect(this, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+                this, &QObject::deleteLater);
     }
 };
 
@@ -294,8 +296,7 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
 
     VBoxManageProcess *process = new VBoxManageProcess(instance());
 
-    void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
-    connect(process, QProcess_finished, context,
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 Q_UNUSED(exitCode);
                 Q_UNUSED(exitStatus);
