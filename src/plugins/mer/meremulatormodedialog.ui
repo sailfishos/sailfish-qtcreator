@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>354</width>
-    <height>244</height>
+    <width>379</width>
+    <height>253</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -61,7 +61,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QComboBox" name="deviceModelComboBox">
+       <widget class="MerDeviceModelComboBox" name="deviceModelComboBox">
         <property name="sizeAdjustPolicy">
          <enum>QComboBox::AdjustToContents</enum>
         </property>
@@ -172,6 +172,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MerDeviceModelComboBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">mer/merdevicemodelcombobox.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>deviceModelComboBox</tabstop>
   <tabstop>portraitRadioButton</tabstop>

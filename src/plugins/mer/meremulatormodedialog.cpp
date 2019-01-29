@@ -167,24 +167,11 @@ void MerEmulatorModeDialog::execDialog()
     m_dialog = new QDialog(ICore::dialogParent());
     m_ui = new Ui::MerEmulatorModeDialog;
     m_ui->setupUi(m_dialog);
-
     m_ui->deviceNameLabel->setText(m_emulator.data()->displayName());
 
-    const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
-    const bool supportsMultipleModels = !models.isEmpty();
-
-    int currentModelIndex = -1;
-    for (auto it = models.begin(); it != models.end(); ++it) {
-        const QString label = QStringLiteral("%1 (%2x%3)")
-            .arg(it.key())
-            .arg(it.value().displayResolution().width())
-            .arg(it.value().displayResolution().height());
-        m_ui->deviceModelComboBox->addItem(label, it.key());
-        if (it.key() == m_emulator.data()->deviceModel()) {
-            currentModelIndex = m_ui->deviceModelComboBox->count() - 1;
-        }
-    }
-    m_ui->deviceModelComboBox->setCurrentIndex(currentModelIndex);
+    m_ui->deviceModelComboBox->setDeviceModels(MerSettings::deviceModels().values());
+    m_ui->deviceModelComboBox->setCurrentDeviceModel(m_emulator.data()->deviceModel());
+    const bool supportsMultipleModels = m_ui->deviceModelComboBox->count();
 
     QRadioButton *orientationRadioButton = m_emulator.data()->orientation() == Qt::Vertical
         ? m_ui->portraitRadioButton
