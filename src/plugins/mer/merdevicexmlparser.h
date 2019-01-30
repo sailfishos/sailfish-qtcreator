@@ -76,6 +76,7 @@ public:
     QString m_name;
     QString m_type;
     QString m_index;
+    QString m_sshPort;
 };
 
 class MerEngineData

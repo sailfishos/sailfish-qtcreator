@@ -637,6 +637,7 @@ void MerSdkManager::updateDevices()
                 xmlData.m_ip = device->sshParameters().host();
                 xmlData.m_name = device->displayName();
                 xmlData.m_type = QLatin1String("real");
+                xmlData.m_sshPort.setNum(device->sshParameters().port());
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = QDir::toNativeSeparators(file.dir().absolutePath());
                 if(!device->sharedSshPath().isEmpty())

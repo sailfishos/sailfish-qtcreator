@@ -64,6 +64,7 @@ const char SSH_PATH[] = "sshkeypath";
 const char SUBNET[] = "subnet";
 const char MAC[] = "mac";
 const char INDEX[] = "index";
+const char SSH_PORT[] = "sshport";
 
 namespace Mer {
 
@@ -392,7 +393,12 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
         if(!data.m_mac.isEmpty()) {
             writer.writeStartElement(QLatin1String(MAC));
             writer.writeCharacters(data.m_mac);
-            writer.writeEndElement(); // ssh
+            writer.writeEndElement(); // mac
+        }
+        if(!data.m_sshPort.isEmpty()) {
+            writer.writeStartElement(QLatin1String(SSH_PORT));
+            writer.writeCharacters(data.m_sshPort);
+            writer.writeEndElement(); // sshport
         }
         writer.writeEndElement(); // device
     }
