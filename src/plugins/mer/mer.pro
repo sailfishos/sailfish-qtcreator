@@ -29,6 +29,8 @@ FORMS += \
     merrunconfigurationaspectqmllivedetailswidget.ui \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
+    meremulatormodeoptionswidget.ui \
+    meremulatormodedetailswidget.ui
 
 SOURCES += \
     merabstractvmstartstep.cpp \
@@ -88,7 +90,10 @@ SOURCES += \
     mertoolchain.cpp \
     meruploadandinstallrpmsteps.cpp \
     mervirtualboxmanager.cpp \
-    merdevicemodelcombobox.cpp
+    merdevicemodelcombobox.cpp \
+    meremulatormodeoptionspage.cpp \
+    meremulatormodeoptionswidget.cpp \
+    meremulatormodedetailswidget.cpp
 
 HEADERS += \
     merabstractvmstartstep.h \
@@ -150,7 +155,10 @@ HEADERS += \
     mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
     mervirtualboxmanager.h \
-    merdevicemodelcombobox.h
+    merdevicemodelcombobox.h \
+    meremulatormodeoptionspage.h \
+    meremulatormodeoptionswidget.h \
+    meremulatormodedetailswidget.h
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit

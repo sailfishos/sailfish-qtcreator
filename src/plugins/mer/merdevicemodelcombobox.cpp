@@ -76,10 +76,12 @@ void MerDeviceModelComboBox::updateToolTip()
 QString MerDeviceModelComboBox::deviceModelInfo(const MerEmulatorDeviceModel &model)
 {
     const QSize resolution = model.displayResolution();
-    return QStringLiteral("%1 (%2x%3)")
+    const bool isStored = MerSettings::isDeviceModelStored(model);
+    return QStringLiteral("%1 (%2x%3)%4")
             .arg(model.name())
             .arg(resolution.width())
-            .arg(resolution.height());
+            .arg(resolution.height())
+            .arg(isStored ? QString() : QString(" *"));
 }
 
 QString MerDeviceModelComboBox::currentDeviceModel() const
@@ -101,8 +103,14 @@ void MerDeviceModelComboBox::setDeviceModels(const QList<MerEmulatorDeviceModel>
     clear();
     for (const MerEmulatorDeviceModel &deviceModel : models) {
         m_model.appendRow(new StandardItem(deviceModelInfo(deviceModel)));
+        QFont f = font();
+        f.setItalic(!deviceModel.isSdkProvided());
         const int last = count() - 1;
         setItemData(last, deviceModel.name(), deviceModelNameRole);
+        setItemData(last, f, Qt::FontRole);
+        setItemData(last, deviceModel.isSdkProvided()
+                    ? tr("SDK provided device model")
+                    : tr("User defined device model"), Qt::ToolTipRole);
         updateToolTip();
     }
     model()->sort(0);

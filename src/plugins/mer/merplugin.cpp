@@ -47,6 +47,7 @@
 #include "mertoolchainfactory.h"
 #include "meruploadandinstallrpmsteps.h"
 #include "mervirtualboxmanager.h"
+#include "meremulatormodeoptionspage.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -85,6 +86,7 @@ public:
     MerVirtualBoxManager virtualBoxManager;
     MerConnectionManager connectionManager;
     MerOptionsPage optionsPage;
+    MerEmulatorModeOptionsPage emulatorModeOptionsPage;
     MerGeneralOptionsPage generalOptionsPage;
     MerDeviceFactory deviceFactory;
     MerEmulatorDeviceManager emulatorDeviceManager;

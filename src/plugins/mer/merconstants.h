@@ -37,6 +37,8 @@ const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
+const char MER_EMULATOR_MODE_OPTIONS_ID[] = "A.MerEmulatorMode";
+const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator Modes");
 
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
 const char MER_i486_IDENTIFIER[] = "i486";

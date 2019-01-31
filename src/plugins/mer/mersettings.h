@@ -58,10 +58,21 @@ public:
     static bool isAskBeforeClosingVmEnabled();
     static void setAskBeforeClosingVmEnabled(bool enabled);
 
+    static Utils::FileName deviceModelsFileName();
     static Utils::FileName globalDeviceModelsFileName();
-    static QMap<QString, MerEmulatorDeviceModel> deviceModels();
+
+    enum EmulatorDeviceModelType {
+        EmulatorDeviceModelSdkProvided,
+        EmulatorDeviceModelUserProvided,
+        EmulatorDeviceModelAll
+    };
+    static MerEmulatorDeviceModel::Map deviceModels(EmulatorDeviceModelType type
+                                                    = EmulatorDeviceModelType::EmulatorDeviceModelAll);
+    static bool isDeviceModelStored(const MerEmulatorDeviceModel &model);
+    static void setDeviceModels(const MerEmulatorDeviceModel::Map &deviceModels);
 
 signals:
+    void deviceModelsChanged(const QSet<QString> &deviceModelNames);
     void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
@@ -72,7 +83,9 @@ signals:
 private:
     void read();
     void save();
-    static QMap<QString, MerEmulatorDeviceModel> deviceModelsRead(const Utils::FileName &fileName);
+    static MerEmulatorDeviceModel::Map deviceModelsRead(const Utils::FileName &fileName);
+    static void deviceModelsWrite(const Utils::FileName &fileName,
+                                  const MerEmulatorDeviceModel::Map &deviceModels);
 
 private:
     static MerSettings *s_instance;

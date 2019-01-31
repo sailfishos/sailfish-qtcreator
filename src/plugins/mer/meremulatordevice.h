@@ -45,16 +45,28 @@ public:
     MerEmulatorDeviceModel()
         : d(new Data)
     {}
+    MerEmulatorDeviceModel(bool isSdkProvided);
+    MerEmulatorDeviceModel(const QString &name, const QSize &displayResolution, const QSize &displaySize,
+                           const QString &dconf = QString(), bool isSdkProvided = false);
+
+    using Map = QMap<QString, MerEmulatorDeviceModel>;
 
     bool isNull() const { return d->name.isNull() || d->displayResolution.isNull() || d->displaySize.isNull(); }
+    bool isSdkProvided() const { return d->isSdkProvided; }
 
     QString name() const { return d->name; }
+    void setName(const QString &name) { d->name = name; }
     QSize displayResolution() const { return d->displayResolution; }
     QSize displaySize() const { return d->displaySize; }
     QString dconf() const { return d->dconf; }
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
+
+    bool operator==(const MerEmulatorDeviceModel &other) const;
+    bool operator!=(const MerEmulatorDeviceModel &other) const;
+
+    static QString uniqueName(const QString &baseName, const QSet<QString> &existingNames);
 
 private:
     struct Data : QSharedData
@@ -63,6 +75,7 @@ private:
         QSize displayResolution;
         QSize displaySize;
         QString dconf;
+        bool isSdkProvided{false};
     };
     QSharedDataPointer<Data> d;
 };
@@ -160,9 +173,12 @@ private slots:
     void onDeviceListReplaced();
 
 private:
+    static void onDeviceModelsChanged(const QSet<QString> &deviceModelNames);
+
     static MerEmulatorDeviceManager *s_instance;
     QHash<Core::Id, quint16> m_deviceSshPortCache;
     QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
+    QSet<QString> m_editedDeviceModels;
 };
 
 }

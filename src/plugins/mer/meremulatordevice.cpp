@@ -495,6 +495,23 @@ void MerEmulatorDevice::updateDconfDb()
     QTC_CHECK(ok);
 }
 
+MerEmulatorDeviceModel::MerEmulatorDeviceModel(const QString &name, const QSize &displayResolution, const QSize &displaySize,
+                                               const QString &dconf, bool isSdkProvided)
+    : d(new Data)
+{
+    d->name = name;
+    d->displayResolution = displayResolution;
+    d->displaySize = displaySize;
+    d->dconf = dconf;
+    d->isSdkProvided = isSdkProvided;
+}
+
+MerEmulatorDeviceModel::MerEmulatorDeviceModel(bool isSdkProvided)
+    : d(new Data)
+{
+    d->isSdkProvided = isSdkProvided;
+}
+
 void MerEmulatorDeviceModel::fromMap(const QVariantMap &map)
 {
     d->name = map.value(QLatin1String(MER_DEVICE_MODEL_NAME)).toString();
@@ -512,6 +529,33 @@ QVariantMap MerEmulatorDeviceModel::toMap() const
     map.insert(QLatin1String(MER_DEVICE_MODEL_DCONF_DB), d->dconf);
 
     return map;
+}
+
+bool MerEmulatorDeviceModel::operator==(const MerEmulatorDeviceModel &other) const
+{
+    return name() == other.name()
+            && displayResolution() == other.displayResolution()
+            && displaySize() == other.displaySize()
+            && dconf() == other.dconf()
+            && isSdkProvided() == other.isSdkProvided();
+}
+
+bool MerEmulatorDeviceModel::operator!=(const MerEmulatorDeviceModel &other) const
+{
+    return !(operator==(other));
+}
+
+QString MerEmulatorDeviceModel::uniqueName(const QString &baseName, const QSet<QString> &existingNames)
+{
+    if (!existingNames.contains(baseName))
+        return baseName;
+
+    const QString pattern = QStringLiteral("%1 (%2)");
+    int num = 1;
+    while (existingNames.contains(pattern.arg(baseName).arg(num)))
+        ++num;
+
+    return pattern.arg(baseName).arg(num);
 }
 
 /*!
@@ -541,6 +585,11 @@ MerEmulatorDeviceManager::MerEmulatorDeviceManager(QObject *parent)
             this, &MerEmulatorDeviceManager::onDeviceRemoved);
     connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
             this, &MerEmulatorDeviceManager::onDeviceListReplaced);
+    connect(MerSettings::instance(), &MerSettings::deviceModelsChanged,
+            this, [this](const QSet<QString> &deviceModelNames) {
+        m_editedDeviceModels = deviceModelNames;
+        onDeviceModelsChanged(m_editedDeviceModels);
+    });
 }
 
 MerEmulatorDeviceManager *MerEmulatorDeviceManager::instance()
@@ -627,6 +676,24 @@ void MerEmulatorDeviceManager::onDeviceRemoved(Core::Id id)
     emit storedDevicesChanged();
 }
 
+void MerEmulatorDeviceManager::onDeviceModelsChanged(const QSet<QString> &deviceModelNames)
+{
+    const int deviceCount = DeviceManager::instance()->deviceCount();
+    const MerEmulatorDeviceModel::Map deviceModels = MerSettings::deviceModels();
+    for (int i = 0; i < deviceCount; ++i) {
+        const auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
+        if (!merEmulator
+                || !deviceModelNames.contains(merEmulator->deviceModel()))
+            continue;
+
+        const QString name = deviceModels.contains(merEmulator->deviceModel())
+                ? merEmulator->deviceModel() // device model was changed
+                : deviceModels.firstKey(); // device model was removed
+
+        merEmulator.constCast<MerEmulatorDevice>()->setDeviceModel(name);
+    }
+}
+
 void MerEmulatorDeviceManager::onDeviceListReplaced()
 {
     const auto oldSshPortsCache = m_deviceSshPortCache;
@@ -653,6 +720,9 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
                     merEmulator->qmlLivePortsList());
         m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
     }
+
+    onDeviceModelsChanged(m_editedDeviceModels);
+    m_editedDeviceModels.clear();
 
     emit storedDevicesChanged();
 }

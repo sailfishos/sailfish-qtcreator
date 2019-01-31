@@ -183,7 +183,7 @@ void MerEmulatorModeDialog::execDialog()
         : m_ui->originalViewModeRadioButton;
     viewModeRadioButton->setChecked(true);
 
-    connect(m_ui->deviceModelComboBox, &QComboBox::currentTextChanged,
+    connect(m_ui->deviceModelComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MerEmulatorModeDialog::guessOptimalViewMode);
     connect(m_ui->portraitRadioButton, &QRadioButton::toggled,
             this, &MerEmulatorModeDialog::guessOptimalViewMode);
@@ -201,7 +201,7 @@ void MerEmulatorModeDialog::execDialog()
         goto end;
     }
 
-    m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentData().toString());
+    m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
     m_emulator.data()->setOrientation(m_ui->portraitRadioButton->isChecked()
                                ? Qt::Vertical
                                : Qt::Horizontal);
@@ -227,7 +227,7 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
     const QSize desktopSize = qApp->desktop()->availableGeometry().size();
 
     const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
-    auto selectedModel = models.value(m_ui->deviceModelComboBox->currentData().toString());
+    auto selectedModel = models.value(m_ui->deviceModelComboBox->currentDeviceModel());
     QTC_ASSERT(!selectedModel.isNull(), return);
 
     QSize selectedSize = selectedModel.displayResolution();
