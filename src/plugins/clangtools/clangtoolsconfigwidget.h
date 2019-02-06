@@ -29,6 +29,8 @@
 
 #include <QWidget>
 
+#include <memory>
+
 namespace ClangTools {
 namespace Internal {
 
@@ -41,12 +43,10 @@ class ClangToolsConfigWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ClangToolsConfigWidget(ClangToolsSettings *settings,
-                                             QWidget *parent = 0);
+    ClangToolsConfigWidget(ClangToolsSettings *settings, QWidget *parent = nullptr);
     ~ClangToolsConfigWidget();
-
 private:
-    Ui::ClangToolsConfigWidget *m_ui;
+    std::unique_ptr<Ui::ClangToolsConfigWidget> m_ui;
     ClangToolsSettings *m_settings;
 };
 

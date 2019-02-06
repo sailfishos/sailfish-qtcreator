@@ -43,7 +43,7 @@ bool CompletingLineEdit::event(QEvent *e)
     if (e->type() == QEvent::ShortcutOverride) {
         if (QCompleter *comp = completer()) {
             if (comp->popup() && comp->popup()->isVisible()) {
-                QKeyEvent *ke = static_cast<QKeyEvent *>(e);
+                auto ke = static_cast<QKeyEvent *>(e);
                 if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
                     ke->accept();
                     return true;
@@ -58,8 +58,10 @@ void CompletingLineEdit::keyPressEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Down && !e->modifiers()) {
         if (QCompleter *comp = completer()) {
-            if (!comp->popup()->isVisible())
+            if (!comp->popup()->isVisible()) {
                 comp->complete();
+                return;
+            }
         }
     }
     QLineEdit::keyPressEvent(e);

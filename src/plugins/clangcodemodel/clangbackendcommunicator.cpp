@@ -80,9 +80,6 @@ public:
     void documentsClosed(const DocumentsClosedMessage &) override {}
     void documentVisibilityChanged(const DocumentVisibilityChangedMessage &) override {}
 
-    void projectPartsUpdated(const ProjectPartsUpdatedMessage &) override {}
-    void projectPartsRemoved(const ProjectPartsRemovedMessage &) override {}
-
     void unsavedFilesUpdated(const UnsavedFilesUpdatedMessage &) override {}
     void unsavedFilesRemoved(const UnsavedFilesRemovedMessage &) override {}
 
@@ -135,42 +132,6 @@ void BackendCommunicator::initializeBackend()
 
     m_connection.startProcessAndConnectToServerAsynchronously();
     m_backendStartTimeOut.start(backEndStartTimeOutInMs);
-}
-
-static QStringList projectPartOptions(const CppTools::ProjectPart::Ptr &projectPart)
-{
-    const QStringList options = ClangCodeModel::Utils::createClangOptions(projectPart,
-        CppTools::ProjectFile::Unsupported); // No language option
-
-    return options;
-}
-
-static ProjectPartContainer toProjectPartContainer(
-        const CppTools::ProjectPart::Ptr &projectPart)
-{
-    const QStringList options = projectPartOptions(projectPart);
-
-    return ProjectPartContainer(projectPart->id(), Utf8StringVector(options));
-}
-
-static QVector<ProjectPartContainer> toProjectPartContainers(
-        const QVector<CppTools::ProjectPart::Ptr> projectParts)
-{
-    QVector<ProjectPartContainer> projectPartContainers;
-    projectPartContainers.reserve(projectParts.size());
-
-    foreach (const CppTools::ProjectPart::Ptr &projectPart, projectParts)
-        projectPartContainers << toProjectPartContainer(projectPart);
-
-    return projectPartContainers;
-}
-
-void BackendCommunicator::projectPartsUpdatedForFallback()
-{
-    const auto projectPart = CppTools::CppModelManager::instance()->fallbackProjectPart();
-    const auto projectPartContainer = toProjectPartContainer(projectPart);
-
-    projectPartsUpdated({projectPartContainer});
 }
 
 namespace {
@@ -246,20 +207,28 @@ bool BackendCommunicator::isNotWaitingForCompletion() const
     return !m_receiver.isExpectingCompletionsMessage();
 }
 
+void BackendCommunicator::setBackendJobsPostponed(bool postponed)
+{
+    if (postponed) {
+        if (!m_postponeBackendJobs)
+            documentVisibilityChanged(Utf8String(), {});
+        ++m_postponeBackendJobs;
+    } else {
+        if (QTC_GUARD(m_postponeBackendJobs > 0))
+            --m_postponeBackendJobs;
+        if (!m_postponeBackendJobs)
+            documentVisibilityChanged();
+    }
+}
+
 void BackendCommunicator::documentVisibilityChanged(const Utf8String &currentEditorFilePath,
                                                     const Utf8StringVector &visibleEditorsFilePaths)
 {
+    if (m_postponeBackendJobs)
+        return;
+
     const DocumentVisibilityChangedMessage message(currentEditorFilePath, visibleEditorsFilePaths);
     m_sender->documentVisibilityChanged(message);
-}
-
-void BackendCommunicator::projectPartsUpdatedForCurrentProjects()
-{
-    using namespace CppTools;
-
-    const QList<ProjectInfo> projectInfos = CppModelManager::instance()->projectInfos();
-    foreach (const ProjectInfo &projectInfo, projectInfos)
-        projectPartsUpdated(projectInfo.projectParts());
 }
 
 void BackendCommunicator::restoreCppEditorDocuments()
@@ -284,15 +253,9 @@ void BackendCommunicator::unsavedFilesUpdatedForUiHeaders()
     const auto editorSupports = CppModelManager::instance()->abstractEditorSupports();
     foreach (const AbstractEditorSupport *es, editorSupports) {
         const QString mappedPath
-                = ModelManagerSupportClang::instance()->dummyUiHeaderOnDiskPath(es->fileName());
+                = ClangModelManagerSupport::instance()->dummyUiHeaderOnDiskPath(es->fileName());
         unsavedFilesUpdated(mappedPath, es->contents(), es->revision());
     }
-}
-
-void BackendCommunicator::projectPartsUpdated(const QVector<CppTools::ProjectPart::Ptr> projectParts)
-{
-    const auto projectPartContainers = toProjectPartContainers(projectParts);
-    projectPartsUpdated(projectPartContainers);
 }
 
 void BackendCommunicator::documentsChangedFromCppEditorDocument(const QString &filePath)
@@ -316,7 +279,6 @@ void BackendCommunicator::documentsChanged(const QString &filePath,
     const bool hasUnsavedContent = true;
 
     documentsChanged({{filePath,
-                       Utf8String(),
                        Utf8String::fromByteArray(contents),
                        hasUnsavedContent,
                        documentRevision}});
@@ -330,7 +292,6 @@ void BackendCommunicator::unsavedFilesUpdated(const QString &filePath,
 
     // TODO: Send new only if changed
     unsavedFilesUpdated({{filePath,
-                          Utf8String(),
                           Utf8String::fromByteArray(contents),
                           hasUnsavedContent,
                           documentRevision}});
@@ -412,12 +373,9 @@ void BackendCommunicator::documentsChangedWithRevisionCheck(Core::IDocument *doc
 {
     const auto textDocument = qobject_cast<TextDocument*>(document);
     const auto filePath = textDocument->filePath().toString();
-    const QString projectPartId = CppTools::CppToolsBridge::projectPartIdForFile(filePath);
 
-    documentsChangedWithRevisionCheck(FileContainer(filePath,
-                                                    projectPartId,
-                                                    Utf8StringVector(),
-                                                    textDocument->document()->revision()));
+    documentsChangedWithRevisionCheck(
+        FileContainer(filePath, {}, {}, textDocument->document()->revision()));
 }
 
 void BackendCommunicator::updateChangeContentStartPosition(const QString &filePath, int position)
@@ -510,8 +468,6 @@ void BackendCommunicator::logError(const QString &text)
 
 void BackendCommunicator::initializeBackendWithCurrentData()
 {
-    projectPartsUpdatedForFallback();
-    projectPartsUpdatedForCurrentProjects();
     unsavedFilesUpdatedForUiHeaders();
     restoreCppEditorDocuments();
     documentVisibilityChanged();
@@ -519,9 +475,14 @@ void BackendCommunicator::initializeBackendWithCurrentData()
 
 void BackendCommunicator::documentsOpened(const FileContainers &fileContainers)
 {
-    const DocumentsOpenedMessage message(fileContainers,
-                                         currentCppEditorDocumentFilePath(),
-                                         visibleCppEditorDocumentsFilePaths());
+    Utf8String currentDocument;
+    Utf8StringVector visibleDocuments;
+    if (!m_postponeBackendJobs) {
+        currentDocument = currentCppEditorDocumentFilePath();
+        visibleDocuments = visibleCppEditorDocumentsFilePaths();
+    }
+
+    const DocumentsOpenedMessage message(fileContainers, currentDocument, visibleDocuments);
     m_sender->documentsOpened(message);
 }
 
@@ -535,19 +496,6 @@ void BackendCommunicator::documentsClosed(const FileContainers &fileContainers)
 {
     const DocumentsClosedMessage message(fileContainers);
     m_sender->documentsClosed(message);
-}
-
-void BackendCommunicator::projectPartsUpdated(
-        const ProjectPartContainers &projectPartContainers)
-{
-    const ProjectPartsUpdatedMessage message(projectPartContainers);
-    m_sender->projectPartsUpdated(message);
-}
-
-void BackendCommunicator::projectPartsRemoved(const QStringList &projectPartIds)
-{
-    const ProjectPartsRemovedMessage message((Utf8StringVector(projectPartIds)));
-    m_sender->projectPartsRemoved(message);
 }
 
 void BackendCommunicator::unsavedFilesUpdated(const FileContainers &fileContainers)
@@ -566,14 +514,12 @@ void BackendCommunicator::requestCompletions(ClangCompletionAssistProcessor *ass
                                              const QString &filePath,
                                              quint32 line,
                                              quint32 column,
-                                             const QString &projectFilePath,
                                              qint32 funcNameStartLine,
                                              qint32 funcNameStartColumn)
 {
     const RequestCompletionsMessage message(filePath,
                                             line,
                                             column,
-                                            projectFilePath,
                                             funcNameStartLine,
                                             funcNameStartColumn);
     m_sender->requestCompletions(message);

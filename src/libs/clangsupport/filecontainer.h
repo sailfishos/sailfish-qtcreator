@@ -39,13 +39,11 @@ class FileContainer
 public:
     FileContainer() = default;
     FileContainer(const Utf8String &filePath,
-                  const Utf8String &projectPartId,
                   const Utf8String &unsavedFileContent = Utf8String(),
                   bool hasUnsavedFileContent = false,
                   quint32 documentRevision = 0,
                   const Utf8String &textCodecName = Utf8String())
         : filePath(filePath),
-          projectPartId(projectPartId),
           unsavedFileContent(unsavedFileContent),
           textCodecName(textCodecName),
           documentRevision(documentRevision),
@@ -54,14 +52,14 @@ public:
     }
 
     FileContainer(const Utf8String &filePath,
-                  const Utf8String &projectPartId,
-                  const Utf8StringVector &fileArguments,
+                  const Utf8StringVector &compilationArguments,
+                  const Utf8StringVector &headerPaths,
                   const Utf8String &unsavedFileContent = Utf8String(),
                   bool hasUnsavedFileContent = false,
                   quint32 documentRevision = 0)
         : filePath(filePath),
-          projectPartId(projectPartId),
-          fileArguments(fileArguments),
+          compilationArguments(compilationArguments),
+          headerPaths(headerPaths),
           unsavedFileContent(unsavedFileContent),
           documentRevision(documentRevision),
           hasUnsavedFileContent(hasUnsavedFileContent)
@@ -69,12 +67,12 @@ public:
     }
 
     FileContainer(const Utf8String &filePath,
-                  const Utf8String &projectPartId,
-                  const Utf8StringVector &fileArguments,
+                  const Utf8StringVector &compilationArguments,
+                  const Utf8StringVector &headerPaths,
                   quint32 documentRevision)
         : filePath(filePath),
-          projectPartId(projectPartId),
-          fileArguments(fileArguments),
+          compilationArguments(compilationArguments),
+          headerPaths(headerPaths),
           documentRevision(documentRevision),
           hasUnsavedFileContent(false)
     {
@@ -83,8 +81,8 @@ public:
     friend QDataStream &operator<<(QDataStream &out, const FileContainer &container)
     {
         out << container.filePath;
-        out << container.projectPartId;
-        out << container.fileArguments;
+        out << container.compilationArguments;
+        out << container.headerPaths;
         out << container.unsavedFileContent;
         out << container.textCodecName;
         out << container.documentRevision;
@@ -96,8 +94,8 @@ public:
     friend QDataStream &operator>>(QDataStream &in, FileContainer &container)
     {
         in >> container.filePath;
-        in >> container.projectPartId;
-        in >> container.fileArguments;
+        in >> container.compilationArguments;
+        in >> container.headerPaths;
         in >> container.unsavedFileContent;
         in >> container.textCodecName;
         in >> container.documentRevision;
@@ -108,13 +106,13 @@ public:
 
     friend bool operator==(const FileContainer &first, const FileContainer &second)
     {
-        return first.filePath == second.filePath && first.projectPartId == second.projectPartId;
+        return first.filePath == second.filePath;
     }
 
 public:
     Utf8String filePath;
-    Utf8String projectPartId;
-    Utf8StringVector fileArguments;
+    Utf8StringVector compilationArguments;
+    Utf8StringVector headerPaths;
     Utf8String unsavedFileContent;
     Utf8String textCodecName;
     quint32 documentRevision = 0;

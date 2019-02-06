@@ -311,8 +311,7 @@ void IconLister::addProjectExplorerIcons()
         {MODE_PROJECT_FLAT_ACTIVE.icon(), "MODE_PROJECT_FLAT_ACTIVE", prefix,
          ""},
 
-        {OPTIONS_CATEGORY_KITS.icon(), "OPTIONS_CATEGORY_KITS", prefix,
-         ""},
+        {Utils::Icon({{":/projectexplorer/images/settingscategory_kits.png", Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint).icon(), "OPTIONS_CATEGORY_KITS", prefix, ""},
 
         {QIcon(":/projectexplorer/images/fileoverlay_qml.png"), "fileoverlay_qml.png", prefix,
          ""},
@@ -824,55 +823,56 @@ void IconLister::addUtilsIcons()
 
 void IconLister::addCPlusPlusIcons()
 {
+    using namespace Utils::CodeModelIcon;
     const QString prefix = "CPlusPlus";
     const QList<IconInfo> icons = {
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::ClassIconType), "ClassIconType", prefix,
+        {iconForType(Class), "Class", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::StructIconType), "StructIconType", prefix,
+        {iconForType(Struct), "Struct", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::EnumIconType), "EnumIconType", prefix,
+        {iconForType(Enum), "Enum", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::EnumeratorIconType), "EnumeratorIconType", prefix,
+        {iconForType(Enumerator), "Enumerator", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncPublicIconType), "FuncPublicIconType", prefix,
+        {iconForType(FuncPublic), "FuncPublic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncProtectedIconType), "FuncProtectedIconType", prefix,
+        {iconForType(FuncProtected), "FuncProtected", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncPrivateIconType), "FuncPrivateIconType", prefix,
+        {iconForType(FuncPrivate), "FuncPrivate", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncPublicStaticIconType), "FuncPublicStaticIconType", prefix,
+        {iconForType(FuncPublicStatic), "FuncPublicStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncProtectedStaticIconType), "FuncProtectedStaticIconType", prefix,
+        {iconForType(FuncProtectedStatic), "FuncProtectedStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::FuncPrivateStaticIconType), "FuncPrivateStaticIconType", prefix,
+        {iconForType(FuncPrivateStatic), "FuncPrivateStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::NamespaceIconType), "NamespaceIconType", prefix,
+        {iconForType(Namespace), "Namespace", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarPublicIconType), "VarPublicIconType", prefix,
+        {iconForType(VarPublic), "VarPublic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarProtectedIconType), "VarProtectedIconType", prefix,
+        {iconForType(VarProtected), "VarProtected", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarPrivateIconType), "VarPrivateIconType", prefix,
+        {iconForType(VarPrivate), "VarPrivate", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarPublicStaticIconType), "VarPublicStaticIconType", prefix,
+        {iconForType(VarPublicStatic), "VarPublicStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarProtectedStaticIconType), "VarProtectedStaticIconType", prefix,
+        {iconForType(VarProtectedStatic), "VarProtectedStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::VarPrivateStaticIconType), "VarPrivateStaticIconType", prefix,
+        {iconForType(VarPrivateStatic), "VarPrivateStatic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::SignalIconType), "SignalIconType", prefix,
+        {iconForType(Signal), "Signal", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::SlotPublicIconType), "SlotPublicIconType", prefix,
+        {iconForType(SlotPublic), "SlotPublic", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::SlotProtectedIconType), "SlotProtectedIconType", prefix,
+        {iconForType(SlotProtected), "SlotProtected", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::SlotPrivateIconType), "SlotPrivateIconType", prefix,
+        {iconForType(SlotPrivate), "SlotPrivate", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::KeywordIconType), "KeywordIconType", prefix,
+        {iconForType(Keyword), "Keyword", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::MacroIconType), "MacroIconType", prefix,
+        {iconForType(Macro), "Macro", prefix,
          ""},
-        {CPlusPlus::Icons::iconForType(CPlusPlus::Icons::PropertyIconType), "PropertyIconType", prefix,
+        {iconForType(Property), "Property", prefix,
          ""}
     };
     m_icons.append(icons);
@@ -1030,19 +1030,19 @@ void IconLister::addQmlDesignerIcons()
 
 void IconLister::addProfilerTimelineIcons()
 {
-    Q_INIT_RESOURCE(timeline);
+    Q_INIT_RESOURCE(tracing);
     using namespace Utils;
     const QString prefix = "Profiler";
     const QList<IconInfo> icons = {
-        {Icon({{":/timeline/ico_rangeselection.png", Theme::IconsBaseColor}}).icon(), "rangeselection", prefix,
+        {Icon({{":/tracing/ico_rangeselection.png", Theme::IconsBaseColor}}).icon(), "rangeselection", prefix,
          ""},
-        {Icon({{":/timeline/ico_rangeselected.png", Theme::IconsBaseColor}}).icon(), "rangeselected", prefix,
+        {Icon({{":/tracing/ico_rangeselected.png", Theme::IconsBaseColor}}).icon(), "rangeselected", prefix,
          ""},
-        {Icon({{":/timeline/ico_selectionmode.png", Theme::IconsBaseColor}}).icon(), "selectionmode", prefix,
+        {Icon({{":/tracing/ico_selectionmode.png", Theme::IconsBaseColor}}).icon(), "selectionmode", prefix,
          ""},
-        {Icon({{":/timeline/ico_edit.png", Theme::IconsBaseColor}}).icon(), "edit", prefix,
+        {Icon({{":/tracing/ico_edit.png", Theme::IconsBaseColor}}).icon(), "edit", prefix,
          ""},
-        {Icon({{":/timeline/range_handle.png", Theme::IconsBaseColor}}).icon(), "range_handle", prefix,
+        {Icon({{":/tracing/range_handle.png", Theme::IconsBaseColor}}).icon(), "range_handle", prefix,
          ""},
     };
     m_icons.append(icons);

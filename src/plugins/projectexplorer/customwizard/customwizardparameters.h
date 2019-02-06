@@ -130,7 +130,6 @@ public:
     QString category;
     QString displayCategory;
     QSet<Core::Id> requiredFeatures;
-    QSet<Core::Id> preferredFeatures;
     Core::IWizardFactory::WizardFlags flags;
 };
 

@@ -56,7 +56,6 @@ const char DEBUGGER_INFORMATION_DISPLAYNAME[] = "DisplayName";
 const char DEBUGGER_INFORMATION_ID[] = "Id";
 const char DEBUGGER_INFORMATION_ENGINETYPE[] = "EngineType";
 const char DEBUGGER_INFORMATION_AUTODETECTED[] = "AutoDetected";
-const char DEBUGGER_INFORMATION_AUTODETECTION_SOURCE[] = "AutoDetectionSource";
 const char DEBUGGER_INFORMATION_VERSION[] = "Version";
 const char DEBUGGER_INFORMATION_ABIS[] = "Abis";
 const char DEBUGGER_INFORMATION_LASTMODIFIED[] = "LastModified";
@@ -68,17 +67,11 @@ namespace Debugger {
 // DebuggerItem
 // --------------------------------------------------------------------------
 
-DebuggerItem::DebuggerItem()
-{
-    m_engineType = NoEngineType;
-    m_isAutoDetected = false;
-}
+DebuggerItem::DebuggerItem() = default;
 
 DebuggerItem::DebuggerItem(const QVariant &id)
 {
     m_id = id;
-    m_engineType = NoEngineType;
-    m_isAutoDetected = false;
 }
 
 DebuggerItem::DebuggerItem(const QVariantMap &data)
@@ -88,14 +81,13 @@ DebuggerItem::DebuggerItem(const QVariantMap &data)
     m_workingDirectory = FileName::fromUserInput(data.value(DEBUGGER_INFORMATION_WORKINGDIRECTORY).toString());
     m_unexpandedDisplayName = data.value(QLatin1String(DEBUGGER_INFORMATION_DISPLAYNAME)).toString();
     m_isAutoDetected = data.value(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTED), false).toBool();
-    m_autoDetectionSource = data.value(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTION_SOURCE)).toString();
     m_version = data.value(QLatin1String(DEBUGGER_INFORMATION_VERSION)).toString();
     m_engineType = DebuggerEngineType(data.value(QLatin1String(DEBUGGER_INFORMATION_ENGINETYPE),
                                                  static_cast<int>(NoEngineType)).toInt());
     m_lastModified = data.value(QLatin1String(DEBUGGER_INFORMATION_LASTMODIFIED)).toDateTime();
 
     foreach (const QString &a, data.value(QLatin1String(DEBUGGER_INFORMATION_ABIS)).toStringList()) {
-        Abi abi(a);
+        Abi abi = Abi::fromString(a);
         if (!abi.isNull())
             m_abis.append(abi);
     }
@@ -135,7 +127,7 @@ void DebuggerItem::reinitializeFromFile()
         return;
     }
     m_abis.clear();
-    const QString output = response.allOutput();
+    const QString output = response.allOutput().trimmed();
     if (output.contains("gdb")) {
         m_engineType = GdbEngineType;
         const char needle[] = "This GDB was configured as \"";
@@ -212,7 +204,7 @@ QString DebuggerItem::engineTypeName() const
 QStringList DebuggerItem::abiNames() const
 {
     QStringList list;
-    foreach (const Abi &abi, m_abis)
+    for (const Abi &abi : m_abis)
         list.append(abi.toString());
     return list;
 }
@@ -258,7 +250,6 @@ QVariantMap DebuggerItem::toMap() const
     data.insert(QLatin1String(DEBUGGER_INFORMATION_WORKINGDIRECTORY), m_workingDirectory.toString());
     data.insert(QLatin1String(DEBUGGER_INFORMATION_ENGINETYPE), int(m_engineType));
     data.insert(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTED), m_isAutoDetected);
-    data.insert(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTION_SOURCE), m_autoDetectionSource);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_VERSION), m_version);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_ABIS), abiNames());
     data.insert(QLatin1String(DEBUGGER_INFORMATION_LASTMODIFIED), m_lastModified);
@@ -312,11 +303,6 @@ void DebuggerItem::setVersion(const QString &version)
     m_version = version;
 }
 
-void DebuggerItem::setAutoDetectionSource(const QString &autoDetectionSource)
-{
-    m_autoDetectionSource = autoDetectionSource;
-}
-
 void DebuggerItem::setAbis(const QList<Abi> &abis)
 {
     m_abis = abis;
@@ -368,7 +354,7 @@ static DebuggerItem::MatchLevel matchSingle(const Abi &debuggerAbi, const Abi &t
 DebuggerItem::MatchLevel DebuggerItem::matchTarget(const Abi &targetAbi) const
 {
     MatchLevel bestMatch = DoesNotMatch;
-    foreach (const Abi &debuggerAbi, m_abis) {
+    for (const Abi &debuggerAbi : m_abis) {
         MatchLevel currentMatch = matchSingle(debuggerAbi, targetAbi, m_engineType);
         if (currentMatch > bestMatch)
             bestMatch = currentMatch;

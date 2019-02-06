@@ -42,8 +42,8 @@ namespace Internal {
 // refuses placeholders and invalid characters.
 class ClassModel : public QStandardItemModel {
 public:
-    explicit ClassModel(QObject *parent = 0);
-    virtual bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole);
+    explicit ClassModel(QObject *parent = nullptr);
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
     void appendPlaceHolder() { appendClass(m_newClassPlaceHolder); }
 
@@ -68,7 +68,7 @@ ClassModel::ClassModel(QObject *parent) :
 
 void ClassModel::appendClass(const QString &c)
 {
-    QStandardItem *item = new QStandardItem(c);
+    auto *item = new QStandardItem(c);
     item->setFlags(Qt::ItemIsEnabled|Qt::ItemIsEditable);
     appendRow(item);
 }

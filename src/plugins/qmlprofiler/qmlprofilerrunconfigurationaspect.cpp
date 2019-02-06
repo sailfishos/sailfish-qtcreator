@@ -33,17 +33,15 @@
 namespace QmlProfiler {
 namespace Internal {
 
-QmlProfilerRunConfigurationAspect::QmlProfilerRunConfigurationAspect(
-        ProjectExplorer::RunConfiguration *parent) :
-    ProjectExplorer::IRunConfigurationAspect(parent)
+QmlProfilerRunConfigurationAspect::QmlProfilerRunConfigurationAspect(ProjectExplorer::Target *)
 {
-    setProjectSettings(new QmlProfilerSettings(parent));
+    setProjectSettings(new QmlProfilerSettings);
     setGlobalSettings(QmlProfilerPlugin::globalSettings());
     setId(Constants::SETTINGS);
     setDisplayName(QCoreApplication::translate("QmlProfilerRunConfiguration", "QML Profiler Settings"));
     setUsingGlobalSettings(true);
     resetProjectToGlobalSettings();
-    setRunConfigWidgetCreator([this] { return new Debugger::AnalyzerRunConfigWidget(this); });
+    setConfigWidgetCreator([this] { return new Debugger::AnalyzerRunConfigWidget(this); });
 }
 
 } // Internal

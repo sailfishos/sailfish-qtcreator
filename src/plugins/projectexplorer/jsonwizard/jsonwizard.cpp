@@ -181,7 +181,7 @@ QVariant JsonWizard::value(const QString &n) const
     if (v.isValid())
         return v;
     if (hasField(n))
-        return field(n); // Can not contain macros!
+        return field(n); // Cannot contain macros!
     return QVariant();
 }
 
@@ -354,6 +354,7 @@ void JsonWizard::openFiles(const JsonWizard::GeneratorFiles &files)
                 }
                 break;
             }
+            result.project()->setNeedsInitialExpansion(true);
             openedSomething = true;
         }
         if (file.attributes() & Core::GeneratedFile::OpenEditorAttribute) {

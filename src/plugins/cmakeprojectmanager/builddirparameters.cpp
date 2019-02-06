@@ -27,11 +27,14 @@
 
 #include "cmakebuildconfiguration.h"
 #include "cmakekitinformation.h"
+#include "cmaketoolmanager.h"
 
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
+
+#include <utils/hostosinfo.h>
 
 using namespace ProjectExplorer;
 
@@ -52,8 +55,13 @@ BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
     buildDirectory = bc->buildDirectory();
 
     environment = bc->environment();
+    // Disable distributed building for configuration runs. CMake does not do those in parallel,
+    // so there is no win in sending data over the network.
+    // Unfortunately distcc does not have a simple environment flag to turn it off:-/
+    if (Utils::HostOsInfo::isAnyUnixHost())
+        environment.set("ICECC", "no");
 
-    cmakeTool = CMakeKitInformation::cmakeTool(k);
+    cmakeToolId = CMakeKitInformation::cmakeToolId(k);
 
     auto tc = ToolChainKitInformation::toolChain(k, Constants::CXX_LANGUAGE_ID);
     if (tc)
@@ -74,7 +82,12 @@ BuildDirParameters::BuildDirParameters(CMakeBuildConfiguration *bc)
     generatorArguments = CMakeGeneratorKitInformation::generatorArguments(k);
 }
 
-bool BuildDirParameters::isValid() const { return buildConfiguration && cmakeTool; }
+bool BuildDirParameters::isValid() const { return buildConfiguration && cmakeTool(); }
+
+CMakeTool *BuildDirParameters::cmakeTool() const
+{
+    return CMakeToolManager::findById(cmakeToolId);
+}
 
 BuildDirParameters::BuildDirParameters(const BuildDirParameters &) = default;
 

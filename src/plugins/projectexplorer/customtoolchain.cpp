@@ -116,12 +116,13 @@ bool CustomToolChain::isValid() const
     return true;
 }
 
-ToolChain::PredefinedMacrosRunner CustomToolChain::createPredefinedMacrosRunner() const
+ToolChain::MacroInspectionRunner CustomToolChain::createMacroInspectionRunner() const
 {
     const Macros theMacros = m_predefinedMacros;
+    const Core::Id lang = language();
 
     // This runner must be thread-safe!
-    return [theMacros](const QStringList &cxxflags){
+    return [theMacros, lang](const QStringList &cxxflags){
         Macros macros = theMacros;
         for (const QString &cxxFlag : cxxflags) {
             if (cxxFlag.startsWith(QLatin1String("-D")))
@@ -130,21 +131,18 @@ ToolChain::PredefinedMacrosRunner CustomToolChain::createPredefinedMacrosRunner(
                 macros.append({cxxFlag.mid(2).trimmed().toUtf8(), MacroType::Undefine});
 
         }
-        return macros;
+        return MacroInspectionReport{macros, ToolChain::languageVersion(lang, macros)};
     };
 }
 
 Macros CustomToolChain::predefinedMacros(const QStringList &cxxflags) const
 {
-    return createPredefinedMacrosRunner()(cxxflags);
+    return createMacroInspectionRunner()(cxxflags).macros;
 }
 
-ToolChain::CompilerFlags CustomToolChain::compilerFlags(const QStringList &cxxflags) const
+LanguageExtensions CustomToolChain::languageExtensions(const QStringList &) const
 {
-    for (const QString &cxx11Flag : m_cxx11Flags)
-        if (cxxflags.contains(cxx11Flag))
-            return StandardCxx11;
-    return NoFlags;
+    return LanguageExtension::None;
 }
 
 WarningFlags CustomToolChain::warningFlags(const QStringList &cxxflags) const
@@ -166,26 +164,27 @@ void CustomToolChain::setPredefinedMacros(const Macros &macros)
     toolChainUpdated();
 }
 
-ToolChain::SystemHeaderPathsRunner CustomToolChain::createSystemHeaderPathsRunner() const
+ToolChain::BuiltInHeaderPathsRunner CustomToolChain::createBuiltInHeaderPathsRunner() const
 {
-    const QList<HeaderPath> systemHeaderPaths = m_systemHeaderPaths;
+    const HeaderPaths builtInHeaderPaths = m_builtInHeaderPaths;
 
     // This runner must be thread-safe!
-    return [systemHeaderPaths](const QStringList &cxxFlags, const QString &) {
-        QList<HeaderPath> flagHeaderPaths;
+    return [builtInHeaderPaths](const QStringList &cxxFlags, const QString &) {
+        HeaderPaths flagHeaderPaths;
         for (const QString &cxxFlag : cxxFlags) {
-            if (cxxFlag.startsWith(QLatin1String("-I")))
-                flagHeaderPaths << HeaderPath(cxxFlag.mid(2).trimmed(), HeaderPath::GlobalHeaderPath);
+            if (cxxFlag.startsWith(QLatin1String("-I"))) {
+                flagHeaderPaths.push_back({cxxFlag.mid(2).trimmed(), HeaderPathType::BuiltIn});
+            }
         }
 
-        return systemHeaderPaths + flagHeaderPaths;
+        return builtInHeaderPaths + flagHeaderPaths;
     };
 }
 
-QList<HeaderPath> CustomToolChain::systemHeaderPaths(const QStringList &cxxFlags,
-                                                     const FileName &fileName) const
+HeaderPaths CustomToolChain::builtInHeaderPaths(const QStringList &cxxFlags,
+                                               const FileName &fileName) const
 {
-    return createSystemHeaderPathsRunner()(cxxFlags, fileName.toString());
+    return createBuiltInHeaderPathsRunner()(cxxFlags, fileName.toString());
 }
 
 void CustomToolChain::addToEnvironment(Environment &env) const
@@ -221,18 +220,18 @@ IOutputParser *CustomToolChain::outputParser() const
 
 QStringList CustomToolChain::headerPathsList() const
 {
-    return Utils::transform(m_systemHeaderPaths, &HeaderPath::path);
+    return Utils::transform<QList>(m_builtInHeaderPaths, &HeaderPath::path);
 }
 
 void CustomToolChain::setHeaderPaths(const QStringList &list)
 {
-    QList<HeaderPath> tmp = Utils::transform(list, [](const QString &headerPath) {
-        return HeaderPath(headerPath.trimmed(), HeaderPath::GlobalHeaderPath);
+    HeaderPaths tmp = Utils::transform<QVector>(list, [](const QString &headerPath) {
+        return HeaderPath(headerPath.trimmed(), HeaderPathType::BuiltIn);
     });
 
-    if (m_systemHeaderPaths == tmp)
+    if (m_builtInHeaderPaths == tmp)
         return;
-    m_systemHeaderPaths = tmp;
+    m_builtInHeaderPaths = tmp;
     toolChainUpdated();
 }
 
@@ -336,7 +335,7 @@ bool CustomToolChain::fromMap(const QVariantMap &data)
 
     m_compilerCommand = FileName::fromString(data.value(QLatin1String(compilerCommandKeyC)).toString());
     m_makeCommand = FileName::fromString(data.value(QLatin1String(makeCommandKeyC)).toString());
-    m_targetAbi = Abi(data.value(QLatin1String(targetAbiKeyC)).toString());
+    m_targetAbi = Abi::fromString(data.value(QLatin1String(targetAbiKeyC)).toString());
     const QStringList macros = data.value(QLatin1String(predefinedMacrosKeyC)).toStringList();
     m_predefinedMacros = Macro::toMacros(macros.join('\n').toUtf8());
     setHeaderPaths(data.value(QLatin1String(headerPathsKeyC)).toStringList());
@@ -371,7 +370,7 @@ bool CustomToolChain::operator ==(const ToolChain &other) const
             && m_makeCommand == customTc->m_makeCommand
             && m_targetAbi == customTc->m_targetAbi
             && m_predefinedMacros == customTc->m_predefinedMacros
-            && m_systemHeaderPaths == customTc->m_systemHeaderPaths;
+            && m_builtInHeaderPaths == customTc->m_builtInHeaderPaths;
 }
 
 Core::Id CustomToolChain::outputParserId() const
@@ -379,43 +378,8 @@ Core::Id CustomToolChain::outputParserId() const
     return m_outputParserId;
 }
 
-static Core::Id convertLegacySettings(Core::Id parserId)
-{
-    enum OutputParser
-    {
-        Gcc = 0,
-        Clang = 1,
-        LinuxIcc = 2,
-        Msvc = 3,
-        Custom = 4,
-        OutputParserCount
-    };
-
-    bool ok;
-    const OutputParser index = static_cast<OutputParser>(parserId.toString().toInt(&ok));
-    if (!ok)
-        return parserId;
-
-    switch (index) {
-    case Gcc:
-        return GccParser::id();
-    case Clang:
-        return ClangParser::id();
-    case LinuxIcc:
-        return LinuxIccParser::id();
-    case Msvc:
-        return HostOsInfo::isWindowsHost() ? MsvcParser::id() : CustomParser::id();
-    case Custom:
-        return CustomParser::id();
-    default:
-        return parserId;
-    }
-}
-
 void CustomToolChain::setOutputParserId(Core::Id parserId)
 {
-    parserId = convertLegacySettings(parserId);
-
     if (m_outputParserId == parserId)
         return;
     m_outputParserId = parserId;
@@ -447,9 +411,9 @@ QList<CustomToolChain::Parser> CustomToolChain::parsers()
     return result;
 }
 
-ToolChainConfigWidget *CustomToolChain::configurationWidget()
+std::unique_ptr<ToolChainConfigWidget> CustomToolChain::createConfigurationWidget()
 {
-    return new Internal::CustomToolChainConfigWidget(this);
+    return std::make_unique<Internal::CustomToolChainConfigWidget>(this);
 }
 
 namespace Internal {

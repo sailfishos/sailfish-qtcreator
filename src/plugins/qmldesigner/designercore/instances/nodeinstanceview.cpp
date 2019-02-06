@@ -26,8 +26,6 @@
 #include "nodeinstanceview.h"
 
 #include <QUrl>
-#include <QGraphicsView>
-#include <QGraphicsScene>
 #include <QMultiHash>
 #include <QTimerEvent>
 
@@ -121,7 +119,7 @@ NodeInstanceView::~NodeInstanceView()
 {
     removeAllInstanceNodeRelationships();
     delete nodeInstanceServer();
-    m_currentKit = 0;
+    m_currentKit = nullptr;
 }
 
 //\{
@@ -778,7 +776,7 @@ QRectF NodeInstanceView::sceneRect() const
     if (rootNodeInstance().isValid())
        return rootNodeInstance().boundingRect();
 
-    return QRectF();
+    return {};
 }
 
 QList<ModelNode> filterNodesForSkipItems(const QList<ModelNode> &nodeList)
@@ -945,7 +943,7 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
 
 ClearSceneCommand NodeInstanceView::createClearSceneCommand() const
 {
-    return ClearSceneCommand();
+    return {};
 }
 
 CompleteComponentCommand NodeInstanceView::createComponentCompleteCommand(const QList<NodeInstance> &instanceList) const

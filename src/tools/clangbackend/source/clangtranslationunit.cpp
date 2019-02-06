@@ -111,21 +111,11 @@ bool TranslationUnit::suspend() const
     return clang_suspendTranslationUnit(cxTranslationUnit());
 }
 
-TranslationUnit::CodeCompletionResult TranslationUnit::complete(
-        UnsavedFiles &unsavedFiles,
-        uint line,
-        uint column,
-        int funcNameStartLine,
-        int funcNameStartColumn) const
+CodeCompletions TranslationUnit::complete(UnsavedFiles &unsavedFiles, uint line, uint column,
+                                          int funcNameStartLine, int funcNameStartColumn) const
 {
-    CodeCompleter codeCompleter(*this, unsavedFiles);
-
-    const CodeCompletions completions = codeCompleter.complete(line, column,
-                                                               funcNameStartLine,
-                                                               funcNameStartColumn);
-    const CompletionCorrection correction = codeCompleter.neededCorrection();
-
-    return CodeCompletionResult{completions, correction};
+    return CodeCompleter(*this, unsavedFiles).complete(line, column, funcNameStartLine,
+                                                       funcNameStartColumn);
 }
 
 void TranslationUnit::extractAnnotations(
@@ -164,14 +154,22 @@ DiagnosticSet TranslationUnit::diagnostics() const
 
 SourceLocation TranslationUnit::sourceLocationAt(uint line,uint column) const
 {
-    return SourceLocation(m_cxTranslationUnit, m_filePath, line, column);
+    return SourceLocation(m_cxTranslationUnit,
+                          clang_getLocation(m_cxTranslationUnit,
+                                            clang_getFile(m_cxTranslationUnit,
+                                                          m_filePath.constData()),
+                                            line, column));
 }
 
 SourceLocation TranslationUnit::sourceLocationAt(const Utf8String &filePath,
                                                  uint line,
                                                  uint column) const
 {
-    return SourceLocation(m_cxTranslationUnit, filePath, line, column);
+    return SourceLocation(m_cxTranslationUnit,
+                          clang_getLocation(m_cxTranslationUnit,
+                                            clang_getFile(m_cxTranslationUnit,
+                                                          filePath.constData()),
+                                            line, column));
 }
 
 SourceRange TranslationUnit::sourceRange(uint fromLine,
@@ -207,7 +205,7 @@ TokenProcessor<TokenInfo> TranslationUnit::tokenInfos() const
 
 TokenProcessor<TokenInfo> TranslationUnit::tokenInfosInRange(const SourceRange &range) const
 {
-    return TokenProcessor<TokenInfo>(m_cxTranslationUnit, range);
+    return TokenProcessor<TokenInfo>(range);
 }
 
 TokenProcessor<FullTokenInfo> TranslationUnit::fullTokenInfos() const
@@ -217,7 +215,7 @@ TokenProcessor<FullTokenInfo> TranslationUnit::fullTokenInfos() const
 
 TokenProcessor<FullTokenInfo> TranslationUnit::fullTokenInfosInRange(const SourceRange &range) const
 {
-    return TokenProcessor<FullTokenInfo>(m_cxTranslationUnit, range);
+    return TokenProcessor<FullTokenInfo>(range);
 }
 
 SkippedSourceRanges TranslationUnit::skippedSourceRanges() const

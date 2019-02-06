@@ -27,7 +27,6 @@
 
 #include "clangdocument.h"
 #include "clangiasyncjob.h"
-#include "projects.h"
 
 #include <QDebug>
 #include <QFutureSynchronizer>
@@ -40,15 +39,13 @@ namespace ClangBackEnd {
 
 Jobs::Jobs(Documents &documents,
            UnsavedFiles &unsavedFiles,
-           ProjectParts &projectParts,
            ClangCodeModelClientInterface &client,
            const Utf8String &logTag)
     : m_documents(documents)
     , m_unsavedFiles(unsavedFiles)
-    , m_projectParts(projectParts)
     , m_client(client)
     , m_logTag(logTag)
-    , m_queue(documents, projectParts, logTag)
+    , m_queue(documents, logTag)
 {
     m_queue.setIsJobRunningForTranslationUnitHandler([this](const Utf8String &translationUnitId) {
         return isJobRunningForTranslationUnit(translationUnitId);
@@ -80,12 +77,9 @@ JobRequest Jobs::createJobRequest(const Document &document,
 {
     JobRequest jobRequest(type);
     jobRequest.filePath = document.filePath();
-    jobRequest.projectPartId = document.projectPart().id();
     jobRequest.unsavedFilesChangeTimePoint = m_unsavedFiles.lastChangeTimePoint();
     jobRequest.documentRevision = document.documentRevision();
     jobRequest.preferredTranslationUnit = preferredTranslationUnit;
-    const ProjectPart &projectPart = m_projectParts.project(document.projectPart().id());
-    jobRequest.projectChangeTimePoint = projectPart.lastChangeTimePoint();
 
     return jobRequest;
 }
@@ -125,6 +119,11 @@ JobRequests Jobs::stop()
         waitForFinishedJobs.addFuture(runningJob.future);
 
     return queuedJobs;
+}
+
+Jobs::JobFinishedCallback Jobs::finishedCallback() const
+{
+    return m_jobFinishedCallback;
 }
 
 JobRequests Jobs::runJobs(const JobRequests &jobsRequests)
@@ -171,7 +170,7 @@ void Jobs::onJobFinished(IAsyncJob *asyncJob)
 
     if (m_jobFinishedCallback) {
         const RunningJob runningJob = m_running.value(asyncJob);
-        m_jobFinishedCallback(runningJob);
+        m_jobFinishedCallback(runningJob, asyncJob);
     }
 
     m_running.remove(asyncJob);

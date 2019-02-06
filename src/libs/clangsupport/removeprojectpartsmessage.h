@@ -64,7 +64,7 @@ public:
 
     RemoveProjectPartsMessage clone() const
     {
-        return RemoveProjectPartsMessage(projectsPartIds.clone());
+        return *this;
     }
 
 public:

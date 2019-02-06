@@ -30,6 +30,7 @@
 #include <QPen>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <memory>
 
 #include <abstractview.h>
 
@@ -53,12 +54,16 @@ void SelectionIndicator::show()
 {
     foreach (QGraphicsPolygonItem *item, m_indicatorShapeHash)
         item->show();
+    if (m_labelItem)
+        m_labelItem->show();
 }
 
 void SelectionIndicator::hide()
 {
     foreach (QGraphicsPolygonItem *item, m_indicatorShapeHash)
         item->hide();
+    if (m_labelItem)
+        m_labelItem->hide();
 }
 
 void SelectionIndicator::clear()
@@ -98,7 +103,7 @@ void SelectionIndicator::setItems(const QList<FormEditorItem*> &itemList)
         if (!item->qmlItemNode().isValid())
             continue;
 
-        QGraphicsPolygonItem *newSelectionIndicatorGraphicsItem = new QGraphicsPolygonItem(m_layerItem.data());
+        auto newSelectionIndicatorGraphicsItem = new QGraphicsPolygonItem(m_layerItem.data());
         m_indicatorShapeHash.insert(item, newSelectionIndicatorGraphicsItem);
         newSelectionIndicatorGraphicsItem->setPolygon(boundingRectInLayerItemSpaceForItem(item, m_layerItem.data()));
         newSelectionIndicatorGraphicsItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
@@ -113,7 +118,7 @@ void SelectionIndicator::setItems(const QList<FormEditorItem*> &itemList)
 
     if (checkSingleSelection(itemList)) {
         FormEditorItem *selectedItem = itemList.constFirst();
-        m_labelItem.reset(new QGraphicsPolygonItem(m_layerItem.data()));
+        m_labelItem = std::make_unique<QGraphicsPolygonItem>(m_layerItem.data());
 
         QGraphicsWidget *toolbar = DesignerActionManager::instance().createFormEditorToolBar(m_labelItem.get());
         toolbar->setPos(1, -1);

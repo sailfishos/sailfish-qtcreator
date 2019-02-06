@@ -50,6 +50,7 @@
 #include <QPair>
 #include <QString>
 #include <QTimer>
+#include <memory>
 
 namespace QmlDesigner {
 
@@ -148,14 +149,14 @@ void FormEditorView::createFormEditorWidget()
     m_formEditorWidget = QPointer<FormEditorWidget>(new FormEditorWidget(this));
     m_scene = QPointer<FormEditorScene>(new FormEditorScene(m_formEditorWidget.data(), this));
 
-    m_moveTool.reset(new MoveTool(this));
-    m_selectionTool.reset(new SelectionTool(this));
-    m_resizeTool.reset(new ResizeTool(this));
-    m_dragTool.reset(new DragTool(this));
+    m_moveTool = std::make_unique<MoveTool>(this);
+    m_selectionTool = std::make_unique<SelectionTool>(this);
+    m_resizeTool = std::make_unique<ResizeTool>(this);
+    m_dragTool = std::make_unique<DragTool>(this);
 
     m_currentTool = m_selectionTool.get();
 
-    Internal::FormEditorContext *formEditorContext = new Internal::FormEditorContext(m_formEditorWidget.data());
+    auto formEditorContext = new Internal::FormEditorContext(m_formEditorWidget.data());
     Core::ICore::addContextObject(formEditorContext);
 
     connect(formEditorWidget()->zoomAction(), &ZoomAction::zoomLevelChanged, [this]() {
@@ -168,7 +169,7 @@ void FormEditorView::createFormEditorWidget()
 void FormEditorView::temporaryBlockView()
 {
     formEditorWidget()->graphicsView()->setUpdatesEnabled(false);
-    static QTimer *timer = new QTimer(qApp);
+    static auto timer = new QTimer(qApp);
     timer->setSingleShot(true);
     timer->start(1000);
 
@@ -277,7 +278,7 @@ WidgetInfo FormEditorView::widgetInfo()
     if (!m_formEditorWidget)
         createFormEditorWidget();
 
-    return createWidgetInfo(m_formEditorWidget.data(), 0, "FormEditor", WidgetInfo::CentralPane, 0, tr("Form Editor"), DesignerWidgetFlags::IgnoreErrors);
+    return createWidgetInfo(m_formEditorWidget.data(), nullptr, "FormEditor", WidgetInfo::CentralPane, 0, tr("Form Editor"), DesignerWidgetFlags::IgnoreErrors);
 }
 
 FormEditorWidget *FormEditorView::formEditorWidget()
@@ -395,7 +396,7 @@ void FormEditorView::changeToCustomTool()
 {
     if (hasSelectedModelNodes()) {
         int handlingRank = 0;
-        AbstractCustomTool *selectedCustomTool = 0;
+        AbstractCustomTool *selectedCustomTool = nullptr;
 
         const ModelNode selectedModelNode = selectedModelNodes().constFirst();
 

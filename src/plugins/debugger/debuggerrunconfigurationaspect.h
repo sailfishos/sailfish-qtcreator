@@ -50,18 +50,17 @@ public:
 };
 
 class DEBUGGER_EXPORT DebuggerRunConfigurationAspect
-    : public ProjectExplorer::IRunConfigurationAspect
+    : public ProjectExplorer::GlobalOrProjectAspect
 {
     Q_OBJECT
 
 public:
-    DebuggerRunConfigurationAspect(ProjectExplorer::RunConfiguration *runConfiguration);
+    DebuggerRunConfigurationAspect(ProjectExplorer::Target *target);
 
     void fromMap(const QVariantMap &map) override;
     void toMap(QVariantMap &map) const override;
 
     bool useCppDebugger() const;
-    void setUseCppDebugger(bool value);
     bool useQmlDebugger() const;
     void setUseQmlDebugger(bool value);
     uint qmlDebugServerPort() const;
@@ -75,6 +74,7 @@ public:
 private:
     friend class Internal::DebuggerRunConfigWidget;
     DebuggerRunConfigurationAspectData d;
+    ProjectExplorer::Target *m_target;
 };
 
 } // namespace Debugger

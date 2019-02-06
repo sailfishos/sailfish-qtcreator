@@ -36,10 +36,8 @@ class AndroidQmlToolingSupport : public ProjectExplorer::RunWorker
     Q_OBJECT
 
 public:
-    explicit AndroidQmlToolingSupport(
-            ProjectExplorer::RunControl *runControl, const QString &intentName = QString(),
-            const QString &extraAppParams = QString(),
-            const Utils::Environment &extraEnvVars = Utils::Environment());
+    explicit AndroidQmlToolingSupport(ProjectExplorer::RunControl *runControl,
+                                      const QString &intentName = QString());
 
 private:
     void start() override;

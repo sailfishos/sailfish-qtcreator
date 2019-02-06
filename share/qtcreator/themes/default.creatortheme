@@ -73,7 +73,6 @@ IconsModeDebugActiveColor=ffffffff
 IconsModeProjectActiveColor=ffffffff
 IconsModeAnalyzeActiveColor=ffffffff
 IconsModeHelpActiveColor=ffffffff
-IconsModeMerActiveColor=ffffffff
 IconsCodeModelKeywordColor=ff777777
 IconsCodeModelClassColor=ffc0b550
 IconsCodeModelStructColor=ff53b053
@@ -217,6 +216,7 @@ FlatProjectsMode=false
 FlatMenuBar=false
 ToolBarIconShadow=true
 WindowColorAsBase=false
+DarkUserInterface=false
 
 [Gradients]
 DetailsWidgetHeaderGradient\1\color=ffffffff

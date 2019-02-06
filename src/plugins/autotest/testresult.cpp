@@ -100,7 +100,7 @@ Result::Type TestResult::toResultType(int rt)
     if (rt < Result::FIRST_TYPE || rt > Result::LAST_TYPE)
         return Result::Invalid;
 
-    return (Result::Type)rt;
+    return Result::Type(rt);
 }
 
 QString TestResult::resultToString(const Result::Type type)
@@ -136,6 +136,8 @@ QString TestResult::resultToString(const Result::Type type)
         return QString("BPASS");
     case Result::BlacklistedFail:
         return QString("BFAIL");
+    case Result::MessageLocation:
+        return QString();
     default:
         if (type >= Result::INTERNAL_MESSAGES_BEGIN && type <= Result::INTERNAL_MESSAGES_END)
             return QString();

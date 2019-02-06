@@ -34,7 +34,6 @@
 namespace Debugger {
 namespace Internal {
 
-class WatchItem;
 class QmlEnginePrivate;
 class QmlInspectorAgent;
 
@@ -68,18 +67,14 @@ private:
     void setState(DebuggerState state, bool forced) override;
 
     void gotoLocation(const Internal::Location &location) override;
-    void insertBreakpoint(Breakpoint bp) override;
 
-    bool isSynchronous() const override { return false; }
     bool canDisplayTooltip() const override { return false; }
 
     void resetLocation() override;
 
-    void executeStep() override;
+    void executeStepOver(bool) override;
+    void executeStepIn(bool) override;
     void executeStepOut() override;
-    void executeNext() override;
-    void executeStepI() override;
-    void executeNextI() override;
 
     void setupEngine() override;
     void runEngine() override;
@@ -96,12 +91,12 @@ private:
     void executeJumpToLine(const ContextData &data) override;
 
     void activateFrame(int index) override;
-    void selectThread(ThreadId threadId) override;
+    void selectThread(const Thread &thread) override;
 
-    void attemptBreakpointSynchronization() override;
-    void removeBreakpoint(Breakpoint bp) override;
-    void changeBreakpoint(Breakpoint bp) override;
-    bool acceptsBreakpoint(Breakpoint bp) const override;
+    bool acceptsBreakpoint(const BreakpointParameters &bp) const final;
+    void insertBreakpoint(const Breakpoint &bp) final;
+    void removeBreakpoint(const Breakpoint &bp) final;
+    void updateBreakpoint(const Breakpoint &bp) final;
 
     void assignValueInDebugger(WatchItem *item,
         const QString &expr, const QVariant &value) override;
@@ -118,12 +113,14 @@ private:
     void updateItem(const QString &iname) override;
     void expandItem(const QString &iname) override;
     void selectWatchData(const QString &iname) override;
-    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
+    void executeDebuggerCommand(const QString &command) override;
 
+    bool companionPreventsActions() const override;
     bool hasCapability(unsigned) const override;
     void quitDebugger() override;
 
     void doUpdateLocals(const UpdateParameters &params) override;
+    Core::Context languageContext() const override;
 
     void closeConnection();
     void startApplicationLauncher();
@@ -136,7 +133,6 @@ private:
     bool isConnected() const;
 
 private:
-    friend class QmlCppEngine;
     friend class QmlEnginePrivate;
     friend class QmlInspectorAgent;
     QmlEnginePrivate *d;

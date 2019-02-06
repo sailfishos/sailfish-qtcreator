@@ -60,8 +60,8 @@ class WidgetNodeInstance;
 class ObjectNodeInstance
 {
 public:
-    typedef QSharedPointer<ObjectNodeInstance> Pointer;
-    typedef QWeakPointer<ObjectNodeInstance> WeakPointer;
+    using Pointer = QSharedPointer<ObjectNodeInstance>;
+    using WeakPointer = QWeakPointer<ObjectNodeInstance>;
 
     virtual ~ObjectNodeInstance();
     void destroy();
@@ -163,7 +163,7 @@ public:
     void setInLayoutable(bool isInLayoutable);
     virtual void refreshLayoutable();
 
-    bool hasBindingForProperty(const PropertyName &propertyName, bool *hasChanged = 0) const;
+    bool hasBindingForProperty(const PropertyName &propertyName, bool *hasChanged = nullptr) const;
 
     QQmlContext *context() const;
     QQmlEngine *engine() const;

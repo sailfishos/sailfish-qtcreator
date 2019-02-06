@@ -25,11 +25,13 @@
 
 #include "compileroptionsbuilder.h"
 
+#include "cppmodelmanager.h"
+
 #include <coreplugin/icore.h>
 #include <coreplugin/vcsmanager.h>
 
-#include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/project.h>
 
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -39,14 +41,18 @@
 
 namespace CppTools {
 
-static constexpr char SYSTEM_INCLUDE_PREFIX[] = "-isystem";
-
 CompilerOptionsBuilder::CompilerOptionsBuilder(const ProjectPart &projectPart,
-                                               const QString &clangVersion,
-                                               const QString &clangResourceDirectory)
+                                               UseSystemHeader useSystemHeader,
+                                               SkipBuiltIn skipBuiltInHeaderPathsAndDefines,
+                                               SkipLanguageDefines skipLanguageDefines,
+                                               QString clangVersion,
+                                               QString clangResourceDirectory)
     : m_projectPart(projectPart)
     , m_clangVersion(clangVersion)
     , m_clangResourceDirectory(clangResourceDirectory)
+    , m_useSystemHeader(useSystemHeader)
+    , m_skipBuiltInHeaderPathsAndDefines(skipBuiltInHeaderPathsAndDefines)
+    , m_skipLanguageDefines(skipLanguageDefines)
 {
 }
 
@@ -55,14 +61,22 @@ QStringList CompilerOptionsBuilder::build(CppTools::ProjectFile::Kind fileKind, 
     m_options.clear();
 
     if (fileKind == ProjectFile::CHeader || fileKind == ProjectFile::CSource) {
-        QTC_ASSERT(m_projectPart.languageVersion <= ProjectPart::LatestCVersion,
+        QTC_ASSERT(m_projectPart.languageVersion <= ProjectExplorer::LanguageVersion::LatestC,
                    return QStringList(););
     }
+
+    if (fileKind == ProjectFile::CXXHeader || fileKind == ProjectFile::CXXSource) {
+        QTC_ASSERT(m_projectPart.languageVersion > ProjectExplorer::LanguageVersion::LatestC,
+                   return QStringList(););
+    }
+
+    add("-c");
 
     addWordWidth();
     addTargetTriple();
     addExtraCodeModelFlags();
-    addLanguageOption(fileKind);
+
+    updateLanguageOption(fileKind);
     addOptionsForLanguage(/*checkForBorlandExtensions*/ true);
     enableExceptions();
 
@@ -70,8 +84,9 @@ QStringList CompilerOptionsBuilder::build(CppTools::ProjectFile::Kind fileKind, 
     undefineClangVersionMacrosForMsvc();
     undefineCppLanguageFeatureMacrosForMsvc2015();
     addDefineFunctionMacrosMsvc();
+    addBoostWorkaroundMacros();
 
-    addPredefinedHeaderPathsOptions();
+    addToolchainFlags();
     addPrecompiledHeaderOptions(pchUsage);
     addHeaderPathOptions();
     addProjectConfigFileInclude();
@@ -80,127 +95,9 @@ QStringList CompilerOptionsBuilder::build(CppTools::ProjectFile::Kind fileKind, 
 
     addExtraOptions();
 
+    insertWrappedQtHeaders();
+
     return options();
-}
-
-QStringList CompilerOptionsBuilder::options() const
-{
-    return m_options;
-}
-
-void CompilerOptionsBuilder::add(const QString &option)
-{
-    m_options.append(option);
-}
-
-void CompilerOptionsBuilder::addDefine(const ProjectExplorer::Macro &macro)
-{
-    m_options.append(defineDirectiveToDefineOption(macro));
-}
-
-void CompilerOptionsBuilder::addWordWidth()
-{
-    const QString argument = m_projectPart.toolChainWordWidth == ProjectPart::WordWidth64Bit
-            ? QLatin1String("-m64")
-            : QLatin1String("-m32");
-    add(argument);
-}
-
-void CompilerOptionsBuilder::addTargetTriple()
-{
-    if (!m_projectPart.toolChainTargetTriple.isEmpty()) {
-        m_options.append(QLatin1String("-target"));
-        m_options.append(m_projectPart.toolChainTargetTriple);
-    }
-}
-
-void CompilerOptionsBuilder::addExtraCodeModelFlags()
-{
-    // extraCodeModelFlags keep build architecture for cross-compilation.
-    // In case of iOS build target triple has aarch64 archtecture set which makes
-    // code model fail with CXError_Failure. To fix that we explicitly provide architecture.
-    m_options.append(m_projectPart.extraCodeModelFlags);
-}
-
-void CompilerOptionsBuilder::enableExceptions()
-{
-    if (m_projectPart.languageVersion > ProjectPart::LatestCVersion)
-        add(QLatin1String("-fcxx-exceptions"));
-    add(QLatin1String("-fexceptions"));
-}
-
-void CompilerOptionsBuilder::addHeaderPathOptions()
-{
-    typedef ProjectPartHeaderPath HeaderPath;
-    const QString defaultPrefix = includeDirOption();
-
-    QStringList result;
-
-    foreach (const HeaderPath &headerPath , m_projectPart.headerPaths) {
-        if (headerPath.path.isEmpty())
-            continue;
-
-        if (excludeHeaderPath(headerPath.path))
-            continue;
-
-        QString prefix;
-        Utils::FileName path;
-        switch (headerPath.type) {
-        case HeaderPath::FrameworkPath:
-            prefix = QLatin1String("-F");
-            break;
-        default: // This shouldn't happen, but let's be nice..:
-            // intentional fall-through:
-        case HeaderPath::IncludePath:
-            prefix = defaultPrefix;
-            break;
-        }
-
-        result.append(prefix);
-        result.append(QDir::toNativeSeparators(headerPath.path));
-    }
-
-    m_options.append(result);
-}
-
-void CompilerOptionsBuilder::addPrecompiledHeaderOptions(PchUsage pchUsage)
-{
-    if (pchUsage == PchUsage::None)
-        return;
-
-    QStringList result;
-
-    const QString includeOptionString = includeOption();
-    foreach (const QString &pchFile, m_projectPart.precompiledHeaders) {
-        if (QFile::exists(pchFile)) {
-            result += includeOptionString;
-            result += QDir::toNativeSeparators(pchFile);
-        }
-    }
-
-    m_options.append(result);
-}
-
-void CompilerOptionsBuilder::addToolchainAndProjectMacros()
-{
-    addMacros(m_projectPart.toolChainMacros);
-    addMacros(m_projectPart.projectMacros);
-}
-
-void CompilerOptionsBuilder::addMacros(const ProjectExplorer::Macros &macros)
-{
-    QStringList result;
-
-    for (const ProjectExplorer::Macro &macro : macros) {
-        if (excludeDefineDirective(macro))
-            continue;
-
-        const QString defineOption = defineDirectiveToDefineOption(macro);
-        if (!result.contains(defineOption))
-            result.append(defineOption);
-    }
-
-    m_options.append(result);
 }
 
 static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objcExt)
@@ -264,50 +161,292 @@ static QStringList createLanguageOptionGcc(ProjectFile::Kind fileKind, bool objc
     return opts;
 }
 
-void CompilerOptionsBuilder::addLanguageOption(ProjectFile::Kind fileKind)
+QStringList CompilerOptionsBuilder::options() const
 {
-    const bool objcExt = m_projectPart.languageExtensions & ProjectPart::ObjectiveCExtensions;
+    return m_options;
+}
+
+void CompilerOptionsBuilder::add(const QString &option)
+{
+    m_options.append(option);
+}
+
+void CompilerOptionsBuilder::addWordWidth()
+{
+    const QString argument = m_projectPart.toolChainWordWidth == ProjectPart::WordWidth64Bit
+            ? QLatin1String("-m64")
+            : QLatin1String("-m32");
+    add(argument);
+}
+
+void CompilerOptionsBuilder::addTargetTriple()
+{
+    if (!m_projectPart.toolChainTargetTriple.isEmpty()) {
+        m_options.append(QLatin1String("-target"));
+        m_options.append(m_projectPart.toolChainTargetTriple);
+    }
+}
+
+void CompilerOptionsBuilder::addExtraCodeModelFlags()
+{
+    // extraCodeModelFlags keep build architecture for cross-compilation.
+    // In case of iOS build target triple has aarch64 archtecture set which makes
+    // code model fail with CXError_Failure. To fix that we explicitly provide architecture.
+    m_options.append(m_projectPart.extraCodeModelFlags);
+}
+
+void CompilerOptionsBuilder::enableExceptions()
+{
+    if (m_projectPart.languageVersion > ProjectExplorer::LanguageVersion::LatestC)
+        add(QLatin1String("-fcxx-exceptions"));
+    add(QLatin1String("-fexceptions"));
+}
+
+static QString creatorResourcePath()
+{
+#ifndef UNIT_TESTS
+    return Core::ICore::resourcePath();
+#else
+    return QDir::toNativeSeparators(QString::fromUtf8(QTC_RESOURCE_DIR ""));
+#endif
+}
+
+static QString clangIncludeDirectory(const QString &clangVersion,
+                                     const QString &clangResourceDirectory)
+{
+#ifndef UNIT_TESTS
+    return Core::ICore::clangIncludeDirectory(clangVersion, clangResourceDirectory);
+#else
+    return QDir::toNativeSeparators(QString::fromUtf8(CLANG_RESOURCE_DIR ""));
+#endif
+}
+
+static QStringList insertResourceDirectory(const QStringList &options,
+                                           const QString &resourceDir,
+                                           bool isMacOs = false)
+{
+    // include/c++, include/g++, libc++\include and libc++abi\include
+    static const QString cppIncludes = R"((.*[\/\\]include[\/\\].*(g\+\+|c\+\+).*))"
+                                       R"(|(.*libc\+\+[\/\\]include))"
+                                       R"(|(.*libc\+\+abi[\/\\]include))";
+
+    QStringList optionsBeforeResourceDirectory;
+    QStringList optionsAfterResourceDirectory;
+    QRegularExpression includeRegExp;
+    if (!isMacOs) {
+        includeRegExp = QRegularExpression("\\A(" + cppIncludes + ")\\z");
+    } else {
+        // The same as includeRegExp but also matches /usr/local/include
+        includeRegExp = QRegularExpression(
+            "\\A(" + cppIncludes + R"(|([\/\\]usr[\/\\]local[\/\\]include))" + ")\\z");
+    }
+
+    for (const QString &option : options) {
+        if (option == "-isystem")
+            continue;
+
+        if (includeRegExp.match(option).hasMatch()) {
+            optionsBeforeResourceDirectory.push_back("-isystem");
+            optionsBeforeResourceDirectory.push_back(option);
+        } else {
+            optionsAfterResourceDirectory.push_back("-isystem");
+            optionsAfterResourceDirectory.push_back(option);
+        }
+    }
+
+    optionsBeforeResourceDirectory.push_back("-isystem");
+    optionsBeforeResourceDirectory.push_back(resourceDir);
+
+    return optionsBeforeResourceDirectory + optionsAfterResourceDirectory;
+}
+
+void CompilerOptionsBuilder::insertWrappedQtHeaders()
+{
+    if (m_skipBuiltInHeaderPathsAndDefines == SkipBuiltIn::Yes)
+        return;
+
+    QStringList wrappedQtHeaders;
+    addWrappedQtHeadersIncludePath(wrappedQtHeaders);
+
+    const int index = m_options.indexOf(QRegularExpression("\\A-I.*\\z"));
+    if (index < 0)
+        m_options.append(wrappedQtHeaders);
+    else
+        m_options = m_options.mid(0, index) + wrappedQtHeaders + m_options.mid(index);
+}
+
+void CompilerOptionsBuilder::addHeaderPathOptions()
+{
+    using ProjectExplorer::HeaderPathType;
+
+    QStringList includes;
+    QStringList systemIncludes;
+    QStringList builtInIncludes;
+
+    for (const ProjectExplorer::HeaderPath &headerPath : qAsConst(m_projectPart.headerPaths)) {
+        if (headerPath.path.isEmpty())
+            continue;
+
+        if (excludeHeaderPath(headerPath.path))
+            continue;
+
+        switch (headerPath.type) {
+        case HeaderPathType::Framework:
+            includes.append("-F");
+            includes.append(QDir::toNativeSeparators(headerPath.path));
+            break;
+        default: // This shouldn't happen, but let's be nice..:
+            // intentional fall-through:
+        case HeaderPathType::User:
+            includes.append(includeDirOptionForPath(headerPath.path));
+            includes.append(QDir::toNativeSeparators(headerPath.path));
+            break;
+        case HeaderPathType::BuiltIn:
+            builtInIncludes.append("-isystem");
+            builtInIncludes.append(QDir::toNativeSeparators(headerPath.path));
+            break;
+        case HeaderPathType::System:
+            systemIncludes.append(m_useSystemHeader == UseSystemHeader::No
+                                  ? QLatin1String("-I")
+                                  : QLatin1String("-isystem"));
+            systemIncludes.append(QDir::toNativeSeparators(headerPath.path));
+            break;
+        }
+    }
+
+    m_options.append(includes);
+    m_options.append(systemIncludes);
+
+    if (m_skipBuiltInHeaderPathsAndDefines == SkipBuiltIn::Yes)
+        return;
+
+    // Exclude all built-in includes except Clang resource directory.
+    m_options.prepend("-nostdlibinc");
+
+    if (!m_clangVersion.isEmpty()) {
+        // Exclude all built-in includes and Clang resource directory.
+        m_options.prepend("-nostdinc");
+
+        const QString clangIncludePath
+                = clangIncludeDirectory(m_clangVersion, m_clangResourceDirectory);
+
+        builtInIncludes = insertResourceDirectory(builtInIncludes,
+                                                  clangIncludePath,
+                                                  m_projectPart.toolChainTargetTriple.contains(
+                                                      "darwin"));
+    }
+
+    m_options.append(builtInIncludes);
+}
+
+void CompilerOptionsBuilder::addPrecompiledHeaderOptions(PchUsage pchUsage)
+{
+    if (pchUsage == PchUsage::None)
+        return;
+
+    QStringList result;
+
+    const QString includeOptionString = includeOption();
+    foreach (const QString &pchFile, m_projectPart.precompiledHeaders) {
+        if (QFile::exists(pchFile)) {
+            result += includeOptionString;
+            result += QDir::toNativeSeparators(pchFile);
+        }
+    }
+
+    m_options.append(result);
+}
+
+void CompilerOptionsBuilder::addToolchainAndProjectMacros()
+{
+    if (m_skipBuiltInHeaderPathsAndDefines == SkipBuiltIn::No)
+        addMacros(m_projectPart.toolChainMacros);
+    addMacros(m_projectPart.projectMacros);
+}
+
+void CompilerOptionsBuilder::addMacros(const ProjectExplorer::Macros &macros)
+{
+    QStringList result;
+
+    for (const ProjectExplorer::Macro &macro : macros) {
+        if (excludeDefineDirective(macro))
+            continue;
+
+        const QString defineOption = defineDirectiveToDefineOption(macro);
+        if (!result.contains(defineOption))
+            result.append(defineOption);
+    }
+
+    m_options.append(result);
+}
+
+void CompilerOptionsBuilder::updateLanguageOption(ProjectFile::Kind fileKind)
+{
+    const bool objcExt = m_projectPart.languageExtensions
+                         & ProjectExplorer::LanguageExtension::ObjectiveC;
     const QStringList options = createLanguageOptionGcc(fileKind, objcExt);
-    m_options.append(options);
+    if (options.isEmpty())
+        return;
+
+    QTC_ASSERT(options.size() == 2, return;);
+    int langOptIndex = m_options.indexOf("-x");
+    if (langOptIndex == -1) {
+        m_options.append(options);
+    } else {
+        m_options[langOptIndex + 1] = options[1];
+    }
 }
 
 void CompilerOptionsBuilder::addOptionsForLanguage(bool checkForBorlandExtensions)
 {
+    using ProjectExplorer::LanguageExtension;
+    using ProjectExplorer::LanguageVersion;
+
     QStringList opts;
-    const ProjectPart::LanguageExtensions languageExtensions = m_projectPart.languageExtensions;
-    const bool gnuExtensions = languageExtensions & ProjectPart::GnuExtensions;
+    const ProjectExplorer::LanguageExtensions languageExtensions = m_projectPart.languageExtensions;
+    const bool gnuExtensions = languageExtensions & LanguageExtension::Gnu;
 
     switch (m_projectPart.languageVersion) {
-    case ProjectPart::C89:
+    case LanguageVersion::C89:
         opts << (gnuExtensions ? QLatin1String("-std=gnu89") : QLatin1String("-std=c89"));
         break;
-    case ProjectPart::C99:
+    case LanguageVersion::C99:
         opts << (gnuExtensions ? QLatin1String("-std=gnu99") : QLatin1String("-std=c99"));
         break;
-    case ProjectPart::C11:
+    case LanguageVersion::C11:
         opts << (gnuExtensions ? QLatin1String("-std=gnu11") : QLatin1String("-std=c11"));
         break;
-    case ProjectPart::CXX11:
+    case LanguageVersion::C18:
+        // Clang 6, 7 and current trunk do not accept "gnu18"/"c18", so use the "*17" variants.
+        opts << (gnuExtensions ? QLatin1String("-std=gnu17") : QLatin1String("-std=c17"));
+        break;
+    case LanguageVersion::CXX11:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++11") : QLatin1String("-std=c++11"));
         break;
-    case ProjectPart::CXX98:
+    case LanguageVersion::CXX98:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++98") : QLatin1String("-std=c++98"));
         break;
-    case ProjectPart::CXX03:
+    case LanguageVersion::CXX03:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++03") : QLatin1String("-std=c++03"));
         break;
-    case ProjectPart::CXX14:
+    case LanguageVersion::CXX14:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++14") : QLatin1String("-std=c++14"));
         break;
-    case ProjectPart::CXX17:
+    case LanguageVersion::CXX17:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++17") : QLatin1String("-std=c++17"));
+        break;
+    case LanguageVersion::CXX2a:
+        opts << (gnuExtensions ? QLatin1String("-std=gnu++2a") : QLatin1String("-std=c++2a"));
         break;
     }
 
-    if (languageExtensions & ProjectPart::MicrosoftExtensions)
+    if (languageExtensions & LanguageExtension::Microsoft)
         opts << QLatin1String("-fms-extensions");
 
-    if (checkForBorlandExtensions && (languageExtensions & ProjectPart::BorlandExtensions))
+    if (languageExtensions & LanguageExtension::OpenMP)
+        opts << QLatin1String("-fopenmp");
+
+    if (checkForBorlandExtensions && (languageExtensions & LanguageExtension::Borland))
         opts << QLatin1String("-fborland-extensions");
 
     m_options.append(opts);
@@ -330,17 +469,21 @@ static QByteArray msCompatibilityVersionFromDefines(const ProjectExplorer::Macro
     return QByteArray();
 }
 
+QByteArray CompilerOptionsBuilder::msvcVersion() const
+{
+    const QByteArray version = msCompatibilityVersionFromDefines(m_projectPart.toolChainMacros);
+    return !version.isEmpty() ? version
+                              : msCompatibilityVersionFromDefines(m_projectPart.projectMacros);
+}
+
 void CompilerOptionsBuilder::addMsvcCompatibilityVersion()
 {
-    if (m_projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
-        const ProjectExplorer::Macros macros = m_projectPart.toolChainMacros + m_projectPart.projectMacros;
-        const QByteArray msvcVersion = msCompatibilityVersionFromDefines(macros);
+    if (m_projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
+        || m_projectPart.toolchainType == ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID) {
+        const QByteArray msvcVer = msvcVersion();
 
-        if (!msvcVersion.isEmpty()) {
-            const QString option = QLatin1String("-fms-compatibility-version=")
-                    + QLatin1String(msvcVersion);
-            m_options.append(option);
-        }
+        if (!msvcVer.isEmpty())
+            add(QLatin1String("-fms-compatibility-version=") + msvcVer);
     }
 }
 
@@ -369,6 +512,7 @@ static QStringList languageFeatureMacros()
         QLatin1String("__cpp_exceptions"),
         QLatin1String("__cpp_fold_expressions"),
         QLatin1String("__cpp_generic_lambdas"),
+        QLatin1String("__cpp_guaranteed_copy_elision"),
         QLatin1String("__cpp_hex_float"),
         QLatin1String("__cpp_if_constexpr"),
         QLatin1String("__cpp_inheriting_constructors"),
@@ -380,6 +524,7 @@ static QStringList languageFeatureMacros()
         QLatin1String("__cpp_nested_namespace_definitions"),
         QLatin1String("__cpp_noexcept_function_type"),
         QLatin1String("__cpp_nontype_template_args"),
+        QLatin1String("__cpp_nontype_template_parameter_auto"),
         QLatin1String("__cpp_nsdmi"),
         QLatin1String("__cpp_range_based_for"),
         QLatin1String("__cpp_raw_strings"),
@@ -419,9 +564,22 @@ void CompilerOptionsBuilder::addDefineFunctionMacrosMsvc()
         addMacros({{"__FUNCSIG__", "\"\""}, {"__FUNCTION__", "\"\""}, {"__FUNCDNAME__", "\"\""}});
 }
 
-QString CompilerOptionsBuilder::includeDirOption() const
+void CompilerOptionsBuilder::addBoostWorkaroundMacros()
 {
-    return QLatin1String("-I");
+    if (m_projectPart.toolchainType != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
+          && m_projectPart.toolchainType != ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID) {
+        addMacros({{"BOOST_TYPE_INDEX_CTTI_USER_DEFINED_PARSING", "(39, 1, true, \"T = \")"}});
+    }
+}
+
+QString CompilerOptionsBuilder::includeDirOptionForPath(const QString &path) const
+{
+    if (m_useSystemHeader == UseSystemHeader::No
+            || path.startsWith(m_projectPart.project->rootProjectDirectory().toString())) {
+        return QString("-I");
+    } else {
+        return QString("-isystem");
+    }
 }
 
 QByteArray CompilerOptionsBuilder::macroOption(const ProjectExplorer::Macro &macro) const
@@ -462,6 +620,21 @@ QString CompilerOptionsBuilder::includeOption() const
 
 bool CompilerOptionsBuilder::excludeDefineDirective(const ProjectExplorer::Macro &macro) const
 {
+    // Avoid setting __cplusplus & co as this might conflict with other command line flags.
+    // Clang should set __cplusplus based on -std= and -fms-compatibility-version version.
+    static const auto languageDefines = {"__cplusplus",
+                                         "__STDC_VERSION__",
+                                         "_MSC_BUILD",
+                                         "_MSVC_LANG",
+                                         "_MSC_FULL_VER",
+                                         "_MSC_VER"};
+    if (m_skipLanguageDefines == SkipLanguageDefines::Yes
+            && std::find(languageDefines.begin(),
+                         languageDefines.end(),
+                         macro.key) != languageDefines.end()) {
+        return true;
+    }
+
     // Ignore for all compiler toolchains since LLVM has it's own implementation for
     // __has_include(STR) and __has_include_next(STR)
     if (macro.key.startsWith("__has_include"))
@@ -494,27 +667,35 @@ bool CompilerOptionsBuilder::excludeHeaderPath(const QString &headerPath) const
     // For example GCC on macOS uses system clang include path which makes clang code model
     // include incorrect system headers.
     static QRegularExpression clangIncludeDir(
-                QLatin1String("\\A.*/lib/clang/\\d+\\.\\d+(\\.\\d+)?/include\\z"));
+                QLatin1String("\\A.*[\\/\\\\]lib\\d*[\\/\\\\]clang[\\/\\\\]\\d+\\.\\d+(\\.\\d+)?[\\/\\\\]include\\z"));
     return clangIncludeDir.match(headerPath).hasMatch();
 }
 
-void CompilerOptionsBuilder::addPredefinedHeaderPathsOptions()
+void CompilerOptionsBuilder::addWrappedQtHeadersIncludePath(QStringList &list)
 {
-    add("-nostdinc");
-    add("-nostdlibinc");
+    static const QString resourcePath = creatorResourcePath();
+    static QString wrappedQtHeadersPath = resourcePath + "/cplusplus/wrappedQtHeaders";
+    QTC_ASSERT(QDir(wrappedQtHeadersPath).exists(), return;);
 
-    // In case of MSVC we need builtin clang defines to correctly handle clang includes
-    if (m_projectPart.toolchainType != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
-        add("-undef");
-
-    addClangIncludeFolder();
+    if (m_projectPart.qtVersion != CppTools::ProjectPart::NoQt) {
+        const QString wrappedQtCoreHeaderPath = wrappedQtHeadersPath + "/QtCore";
+        list.append(includeDirOptionForPath(wrappedQtHeadersPath));
+        list.append(QDir::toNativeSeparators(wrappedQtHeadersPath));
+        list.append(includeDirOptionForPath(wrappedQtHeadersPath));
+        list.append(QDir::toNativeSeparators(wrappedQtCoreHeaderPath));
+    }
 }
 
-void CompilerOptionsBuilder::addClangIncludeFolder()
+void CompilerOptionsBuilder::addToolchainFlags()
 {
-    QTC_CHECK(!m_clangVersion.isEmpty());
-    add(includeDirOption());
-    add(clangIncludeDirectory(m_clangVersion, m_clangResourceDirectory));
+    // In case of MSVC we need builtin clang defines to correctly handle clang includes
+    if (m_projectPart.toolchainType != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
+            && m_projectPart.toolchainType != ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID) {
+        if (m_skipBuiltInHeaderPathsAndDefines == SkipBuiltIn::No)
+            add("-undef");
+        else
+            add("-fPIC");
+    }
 }
 
 void CompilerOptionsBuilder::addProjectConfigFileInclude()
@@ -525,45 +706,24 @@ void CompilerOptionsBuilder::addProjectConfigFileInclude()
     }
 }
 
-static QString creatorLibexecPath()
-{
-#ifndef UNIT_TESTS
-    return Core::ICore::instance()->libexecPath();
-#else
-    return QString();
-#endif
-}
-
-QString clangIncludeDirectory(const QString &clangVersion, const QString &clangResourceDirectory)
-{
-    QDir dir(creatorLibexecPath() + "/clang" + clangIncludePath(clangVersion));
-    if (!dir.exists() || !QFileInfo(dir, "stdint.h").exists())
-        dir = QDir(clangResourceDirectory);
-    return QDir::toNativeSeparators(dir.canonicalPath());
-}
-
-QString clangExecutable(const QString &clangBinDirectory)
-{
-    const QString hostExeSuffix(QTC_HOST_EXE_SUFFIX);
-    QFileInfo executable(creatorLibexecPath() + "/clang/bin/clang" + hostExeSuffix);
-    if (!executable.exists())
-        executable = QFileInfo(clangBinDirectory + "/clang" + hostExeSuffix);
-    return QDir::toNativeSeparators(executable.canonicalFilePath());
-}
-
 void CompilerOptionsBuilder::undefineClangVersionMacrosForMsvc()
 {
     if (m_projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
-        static QStringList macroNames {
-            "__clang__",
-            "__clang_major__",
-            "__clang_minor__",
-            "__clang_patchlevel__",
-            "__clang_version__"
-        };
+        const QByteArray msvcVer = msvcVersion();
+        if (msvcVer.toFloat() < 14.f) {
+            // Original fix was only for msvc 2013 (version 12.0)
+            // Undefying them for newer versions is not necessary and breaks boost.
+            static QStringList macroNames {
+                "__clang__",
+                "__clang_major__",
+                "__clang_minor__",
+                "__clang_patchlevel__",
+                "__clang_version__"
+            };
 
-        foreach (const QString &macroName, macroNames)
-            add(undefineOption() + macroName);
+            foreach (const QString &macroName, macroNames)
+                add(undefineOption() + macroName);
+        }
     }
 }
 

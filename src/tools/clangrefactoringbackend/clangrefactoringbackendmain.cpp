@@ -31,6 +31,7 @@
 
 #include <connectionserver.h>
 #include <filepathcaching.h>
+#include <generatedfiles.h>
 #include <refactoringserver.h>
 #include <refactoringclientproxy.h>
 #include <symbolindexing.h>
@@ -42,6 +43,7 @@
 using namespace std::chrono_literals;
 
 using ClangBackEnd::FilePathCaching;
+using ClangBackEnd::GeneratedFiles;
 using ClangBackEnd::RefactoringClientProxy;
 using ClangBackEnd::RefactoringServer;
 using ClangBackEnd::RefactoringDatabaseInitializer;
@@ -84,8 +86,6 @@ public:
 int main(int argc, char *argv[])
 {
     try {
-        //QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
-
         QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
         QCoreApplication::setOrganizationDomain(QStringLiteral("qt-project.org"));
         QCoreApplication::setApplicationName(QStringLiteral("ClangRefactoringBackend"));
@@ -100,8 +100,9 @@ int main(int argc, char *argv[])
         Sqlite::Database database{Utils::PathString{databasePath}, 100000ms};
         RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
         FilePathCaching filePathCache{database};
-        SymbolIndexing symbolIndexing{database, filePathCache};
-        RefactoringServer clangCodeModelServer{symbolIndexing, filePathCache};
+        GeneratedFiles generatedFiles;
+        SymbolIndexing symbolIndexing{database, filePathCache, generatedFiles};
+        RefactoringServer clangCodeModelServer{symbolIndexing, filePathCache, generatedFiles};
         ConnectionServer<RefactoringServer, RefactoringClientProxy> connectionServer;
         connectionServer.setServer(&clangCodeModelServer);
         connectionServer.start(connectionName);

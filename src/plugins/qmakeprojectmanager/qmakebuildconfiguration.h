@@ -36,7 +36,7 @@ namespace QmakeProjectManager {
 
 class QmakeBuildInfo;
 class QMakeStep;
-class MakeStep;
+class QmakeMakeStep;
 class QmakeBuildConfigurationFactory;
 class QmakeProFileNode;
 
@@ -81,7 +81,7 @@ public:
     // QmakeProject *
     // So that we can later enable people to build qmake the way they would like
     QMakeStep *qmakeStep() const;
-    MakeStep *makeStep() const;
+    QmakeMakeStep *makeStep() const;
 
     QString makefile() const;
 
@@ -113,6 +113,7 @@ signals:
 
 protected:
     bool fromMap(const QVariantMap &map) override;
+    bool regenerateBuildFiles(ProjectExplorer::Node *node = nullptr) override;
 
 private:
     void kitChanged();
@@ -136,7 +137,7 @@ private:
 
     bool m_shadowBuild = true;
     bool m_isEnabled = true;
-    QtSupport::BaseQtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration = nullptr;
+    QtSupport::BaseQtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration;
     QmakeProFileNode *m_subNodeBuild = nullptr;
     ProjectExplorer::FileNode *m_fileNodeBuild = nullptr;
 

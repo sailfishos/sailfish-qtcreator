@@ -36,10 +36,10 @@
 
 namespace Utils {
 
-QFile::Permissions SaveFile::m_umask = 0;
+QFile::Permissions SaveFile::m_umask = nullptr;
 
 SaveFile::SaveFile(const QString &filename) :
-    m_finalFileName(filename), m_finalized(true)
+    m_finalFileName(filename)
 {
 }
 
@@ -186,7 +186,8 @@ bool SaveFile::commit()
         const QString &renameError = m_tempFile->errorString();
         m_tempFile->remove();
         setErrorString(renameError);
-        result = false;
+        QFile::rename(backupName, finalFileName); // rollback to backup if possible ...
+        return false; // ... or keep the backup copy at least
     }
 
     QFile::remove(backupName);

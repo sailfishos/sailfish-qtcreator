@@ -123,7 +123,7 @@ public:
     //PluginInterface
     bool initialize(const QStringList &arguments, QString *errorMessage) override;
     void extensionsInitialized() override;
-    bool delayedInitialize() override;
+    void restoreKits();
     ShutdownFlag aboutToShutdown() override;
 
     static void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
@@ -170,13 +170,11 @@ signals:
     // or the file list of a specific project has changed.
     void fileListChanged();
 
-    void aboutToExecuteProject(ProjectExplorer::RunControl *runControl);
     void recentProjectsChanged();
 
     void settingsChanged();
 
     void updateRunActions();
-    void updateDeployRunActions();
 
 private:
     static bool coreAboutToClose();
@@ -227,9 +225,10 @@ private slots:
     void testAbiRoundTrips();
     void testAbiOfBinary_data();
     void testAbiOfBinary();
-    void testFlavorForOs();
     void testAbiFromTargetTriplet_data();
     void testAbiFromTargetTriplet();
+    void testAbiUserOsFlavor_data();
+    void testAbiUserOsFlavor();
 
     void testDeviceManager();
 

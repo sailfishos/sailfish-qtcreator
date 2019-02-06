@@ -53,7 +53,8 @@ public:
     void indent(QTextDocument *doc,
                 const QTextCursor &cursor,
                 const QChar &typedChar,
-                const TextEditor::TabSettings &tabSettings) override;
+                const TextEditor::TabSettings &tabSettings,
+                bool autoTriggered = true) override;
 
     void setCodeStylePreferences(TextEditor::ICodeStylePreferences *preferences) override;
     void invalidateCache(QTextDocument *doc) override;

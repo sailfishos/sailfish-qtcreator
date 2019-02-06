@@ -30,86 +30,89 @@
 #include <utils/fancymainwindow.h>
 #include <utils/statuslabel.h>
 
+#include <QAction>
 #include <QPointer>
-#include <QSet>
+#include <QToolButton>
 
 #include <functional>
 
-QT_BEGIN_NAMESPACE
-class QComboBox;
-class QStackedWidget;
-QT_END_NAMESPACE
-
-namespace Core { class Id; }
+namespace Core {
+class Context;
+class Id;
+} // Core
 
 namespace Utils {
+
+// To be used for actions that need hideable toolbuttons.
+class DEBUGGER_EXPORT OptionalAction : public QAction
+{
+    Q_OBJECT
+
+public:
+    OptionalAction(const QString &text = QString());
+    ~OptionalAction() override;
+
+    void setVisible(bool on);
+    void setToolButtonStyle(Qt::ToolButtonStyle style);
+
+public:
+    QPointer<QToolButton> m_toolButton;
+};
 
 class DEBUGGER_EXPORT Perspective
 {
 public:
-    enum OperationType { SplitVertical, SplitHorizontal, AddToTab, Raise };
-
-    class DEBUGGER_EXPORT Operation
-    {
-    public:
-        Operation() = default;
-        Operation(const QByteArray &dockId, QWidget *widget,
-                  const QByteArray &anchorDockId,
-                  OperationType operationType,
-                  bool visibleByDefault = true,
-                  Qt::DockWidgetArea area = Qt::BottomDockWidgetArea);
-
-        QByteArray dockId;
-        QPointer<QWidget> widget;
-        QByteArray anchorDockId;
-        OperationType operationType = Raise;
-        bool visibleByDefault = true;
-        Qt::DockWidgetArea area = Qt::BottomDockWidgetArea;
-    };
-
-    Perspective() = default;
-    // Takes ownership of \a centralWidget and all dock widgets in \a operations.
-    Perspective(const QString &name, const QVector<Operation> &operations,
-                QWidget *centralWidget = nullptr);
+    Perspective(const QString &id, const QString &name,
+                const QString &parentPerspectiveId = QString(),
+                const QString &subPerspectiveType = QString());
     ~Perspective();
 
-    void addOperation(const Operation &operation);
+    enum OperationType { SplitVertical, SplitHorizontal, AddToTab, Raise };
 
-    QVector<Operation> operations() const { return m_operations; }
-    QVector<QByteArray> docks() const { return m_docks; }
-    QWidget *centralWidget() const { return m_centralWidget; }
+    void setCentralWidget(QWidget *centralWidget);
+    void addWindow(QWidget *widget,
+                   OperationType op,
+                   QWidget *anchorWidget,
+                   bool visibleByDefault = true,
+                   Qt::DockWidgetArea area = Qt::BottomDockWidgetArea);
 
+    void addToolBarAction(QAction *action);
+    void addToolBarAction(OptionalAction *action);
+    void addToolBarWidget(QWidget *widget);
+    void addToolbarSeparator();
+
+    void useSubPerspectiveSwitcher(QWidget *widget);
+
+    using ShouldPersistChecker = std::function<bool()>;
+    void setShouldPersistChecker(const ShouldPersistChecker &checker);
+
+    QString id() const; // Currently used by GammaRay plugin.
     QString name() const;
-    void setName(const QString &name);
+    QWidget *centralWidget() const;
 
     using Callback = std::function<void()>;
     void setAboutToActivateCallback(const Callback &cb);
     void aboutToActivate() const;
 
+    void setEnabled(bool enabled);
+
+    void select();
+
+    static Perspective *currentPerspective();
+    static Perspective *findPerspective(const QString &perspectiveId);
+
+    Core::Context context() const;
+
+    void showToolBar();
+    void hideToolBar();
+
 private:
     Perspective(const Perspective &) = delete;
     void operator=(const Perspective &) = delete;
 
-    QString m_name;
-    QVector<QByteArray> m_docks;
-    QVector<Operation> m_operations;
-    QPointer<QWidget> m_centralWidget;
-    Callback m_aboutToActivateCallback;
-};
-
-class DEBUGGER_EXPORT ToolbarDescription
-{
-public:
-    ToolbarDescription() = default;
-    ToolbarDescription(const QList<QWidget *> &widgets) : m_widgets(widgets) {}
-
-    QList<QWidget *> widgets() const;
-
-    void addAction(QAction *action, const QIcon &toolbarIcon = QIcon());
-    void addWidget(QWidget *widget);
-
-private:
-    QList<QWidget *> m_widgets;
+    friend class DebuggerMainWindow;
+    friend class DebuggerMainWindowPrivate;
+    class PerspectivePrivate *d = nullptr;
 };
 
 class DEBUGGER_EXPORT DebuggerMainWindow : public FancyMainWindow
@@ -117,47 +120,24 @@ class DEBUGGER_EXPORT DebuggerMainWindow : public FancyMainWindow
     Q_OBJECT
 
 public:
+    static DebuggerMainWindow *instance();
+
+    static void ensureMainWindowExists();
+    static void doShutdown();
+
+    static void showStatusMessage(const QString &message, int timeoutMS);
+    static void onModeChanged(Core::Id mode);
+
+    static QWidget *centralWidgetStack();
+    void addSubPerspectiveSwitcher(QWidget *widget);
+
+private:
     DebuggerMainWindow();
     ~DebuggerMainWindow() override;
 
-    void registerPerspective(const QByteArray &perspectiveId, const Perspective *perspective);
-    void registerToolbar(const QByteArray &perspectiveId, QWidget *widget);
-
-    void saveCurrentPerspective();
-    void resetCurrentPerspective();
-    void restorePerspective(const QByteArray &perspectiveId);
-
-    void finalizeSetup();
-
-    void showStatusMessage(const QString &message, int timeoutMS);
-    QDockWidget *dockWidget(const QByteArray &dockId) const;
-    void raiseDock(const QByteArray &dockId);
-    QByteArray currentPerspective() const { return m_currentPerspectiveId; }
-    QStackedWidget *centralWidgetStack() const { return m_centralWidgetStack; }
-
-    void onModeChanged(Core::Id mode);
-
-    void setPerspectiveEnabled(const QByteArray &perspectiveId, bool enabled);
-
-private:
-    void closeEvent(QCloseEvent *) final { saveCurrentPerspective(); }
-
-    QDockWidget *registerDockWidget(const QByteArray &dockId, QWidget *widget);
-    void loadPerspectiveHelper(const QByteArray &perspectiveId, bool fromStoredSettings = true);
-
-    QByteArray m_currentPerspectiveId;
-    QComboBox *m_perspectiveChooser;
-    QStackedWidget *m_controlsStackWidget;
-    QStackedWidget *m_centralWidgetStack;
-    QWidget *m_editorPlaceHolder;
-    Utils::StatusLabel *m_statusLabel;
-    QDockWidget *m_toolbarDock = nullptr;
-
-    QHash<QByteArray, QDockWidget *> m_dockForDockId;
-    QHash<QByteArray, QWidget *> m_toolbarForPerspectiveId;
-    QHash<QByteArray, const Perspective *> m_perspectiveForPerspectiveId;
+    friend class Perspective;
+    friend class PerspectivePrivate;
+    class DebuggerMainWindowPrivate *d = nullptr;
 };
-
-DEBUGGER_EXPORT QWidget *createModeWindow(const Core::Id &mode, DebuggerMainWindow *mainWindow);
 
 } // Utils

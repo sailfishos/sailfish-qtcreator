@@ -14,9 +14,13 @@ OBJECTS_DIR = $$OUT_PWD/obj # workaround for qmake bug in object_parallel_to_sou
 !msvc:force_debug_info:QMAKE_CXXFLAGS += -fno-omit-frame-pointer
 
 DEFINES += \
+    QT_NO_CAST_TO_ASCII \
     QT_RESTRICTED_CAST_FROM_ASCII \
+    QT_USE_FAST_OPERATOR_PLUS \
+    QT_USE_FAST_CONCATENATION \
     UNIT_TESTS \
     DONT_CHECK_MESSAGE_COUNTER \
+    QTC_RESOURCE_DIR=\"R\\\"xxx($$PWD/../../../share/qtcreator)xxx\\\"\" \
     TESTDATA_DIR=\"R\\\"xxx($$PWD/data)xxx\\\"\"
 msvc: QMAKE_CXXFLAGS_WARN_ON -= -w34100 # 'unreferenced formal parameter' in MATCHER_* functions
 win32:DEFINES += ECHOSERVER=\"R\\\"xxx($$OUT_PWD/../echo)xxx\\\"\"
@@ -56,7 +60,6 @@ SOURCES += \
     locatorfilter-test.cpp \
     matchingtext-test.cpp \
     mimedatabase-utilities.cpp \
-    pchgenerator-test.cpp \
     pchmanagerclientserverinprocess-test.cpp \
     pchmanagerclient-test.cpp \
     pchmanagerserver-test.cpp \
@@ -77,7 +80,6 @@ SOURCES += \
     symbolstorage-test.cpp \
     mocksqlitereadstatement.cpp \
     symbolquery-test.cpp \
-    storagesqlitestatementfactory-test.cpp \
     sqliteindex-test.cpp \
     sqlitetransaction-test.cpp \
     refactoringdatabaseinitializer-test.cpp \
@@ -92,7 +94,19 @@ SOURCES += \
     projectpartartefact-test.cpp \
     filestatuscache-test.cpp \
     highlightingresultreporter-test.cpp \
-    precompiledheaderstorage-test.cpp
+    precompiledheaderstorage-test.cpp \
+    generatedfiles-test.cpp \
+    sourcesmanager-test.cpp \
+    symbolindexertaskqueue-test.cpp \
+    refactoringprojectupdater-test.cpp \
+    projectpartqueue-test.cpp \
+    processormanager-test.cpp \
+    taskscheduler-test.cpp \
+    compileroptionsbuilder-test.cpp \
+    pchtaskgenerator-test.cpp \
+    compilationdatabaseutils-test.cpp \
+    builddependenciesprovider-test.cpp \
+    builddependenciesstorage-test.cpp
 
 !isEmpty(LIBCLANG_LIBS) {
 SOURCES += \
@@ -135,7 +149,6 @@ SOURCES += \
     diagnosticset-test.cpp \
     diagnostic-test.cpp \
     fixit-test.cpp \
-    projectpart-test.cpp \
     senddocumenttracker-test.cpp \
     skippedsourceranges-test.cpp \
     sourcelocation-test.cpp \
@@ -146,6 +159,7 @@ SOURCES += \
     sqlitestatement-test.cpp \
     sqlitetable-test.cpp \
     sqlstatementbuilder-test.cpp \
+    token-test.cpp \
     translationunitupdater-test.cpp \
     unsavedfiles-test.cpp \
     unsavedfile-test.cpp \
@@ -158,7 +172,6 @@ SOURCES += \
     clangqueryprojectfindfilter-test.cpp \
     clangquery-test.cpp \
     gtest-clang-printing.cpp \
-    includecollector-test.cpp \
     pchcreator-test.cpp \
     refactoringclientserverinprocess-test.cpp \
     refactoringclient-test.cpp \
@@ -170,6 +183,8 @@ SOURCES += \
     symbolscollector-test.cpp \
     symbolfinder-test.cpp \
     testclangtool.cpp \
+    usedmacrocollector-test.cpp \
+    builddependencycollector-test.cpp
 }
 
 exists($$GOOGLEBENCHMARK_DIR) {
@@ -194,7 +209,6 @@ HEADERS += \
     mockclangpathwatcher.h \
     mockclangpathwatchernotifier.h \
     mockpchcreator.h \
-    mockpchgeneratornotifier.h \
     mockpchmanagerclient.h \
     mockpchmanagernotifier.h \
     mockpchmanagerserver.h \
@@ -222,13 +236,25 @@ HEADERS += \
     mocksqlitestatement.h \
     unittest-utility-functions.h \
     mocksymbolquery.h \
-    runprojectcreateorupdate-utility.h \
     rundocumentparse-utility.h \
     mocktimer.h \
     mocksqlitetransactionbackend.h \
     mockprojectpartprovider.h \
     mockprecompiledheaderstorage.h \
-    mockeditormanager.h
+    mockeditormanager.h \
+    mocksymbolindexertaskqueue.h \
+    mockcppmodelmanager.h \
+    mockgeneratedfiles.h \
+    mockqueue.h \
+    mockprojectpartqueue.h \
+    mockprocessor.h \
+    mockprocessormanager.h \
+    mocktaskscheduler.h \
+    mockbuilddependenciesprovider.h \
+    mockmodifiedtimechecker.h \
+    mockbuilddependenciesstorage.h \
+    mockbuilddependencygenerator.h
+
 !isEmpty(LIBCLANG_LIBS) {
 HEADERS += \
     chunksreportedmonitor.h \
@@ -245,4 +271,4 @@ HEADERS += \
     testclangtool.h \
 }
 
-OTHER_FILES += $$files(data/*)
+OTHER_FILES += $$files(data/*) $$files(data/include/*)

@@ -79,10 +79,11 @@ private:
     void showConfigureDialog();
     void addSearchResults(int firstIndex, int endIndex);
     void handleSearchFinished();
-    void setFocusToCurrentMode();
     void updateFilterList();
+    bool isInMainWindow() const;
 
-    bool eventFilter(QObject *obj, QEvent *event);
+    void updatePreviousFocusWidget(QWidget *previous, QWidget *current);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
     void updateCompletionList(const QString &text);
     QList<ILocatorFilter*> filtersFor(const QString &text, QString &searchText);
@@ -103,6 +104,7 @@ private:
     QWidget *m_progressIndicator = nullptr;
     QTimer m_showProgressTimer;
     Utils::optional<int> m_rowRequestedForAccept;
+    QPointer<QWidget> m_previousFocusWidget;
 };
 
 class LocatorPopup : public QWidget

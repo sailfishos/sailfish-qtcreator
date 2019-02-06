@@ -27,13 +27,10 @@
 
 #include "clangjobs.h"
 #include "clangtranslationunits.h"
-#include "projectpart.h"
 
 #include <utils/qtcassert.h>
 
 namespace ClangBackEnd {
-
-    // TODO: Check translation unit id?
 
 SupportiveTranslationUnitInitializer::SupportiveTranslationUnitInitializer(
         const Document &document,
@@ -61,7 +58,7 @@ void SupportiveTranslationUnitInitializer::startInitializing()
 
     m_document.translationUnits().createAndAppend();
 
-    m_jobs.setJobFinishedCallback([this](const Jobs::RunningJob &runningJob) {
+    m_jobs.setJobFinishedCallback([this](const Jobs::RunningJob &runningJob, IAsyncJob *) {
         checkIfParseJobFinished(runningJob);
     });
     addJob(JobRequest::Type::ParseSupportiveTranslationUnit);
@@ -72,7 +69,8 @@ void SupportiveTranslationUnitInitializer::startInitializing()
 
 void SupportiveTranslationUnitInitializer::abort()
 {
-    m_jobs.setJobFinishedCallback(Jobs::JobFinishedCallback());
+    if (m_document.translationUnits().size() > 1)
+        m_jobs.setJobFinishedCallback(Jobs::JobFinishedCallback());
     m_state = State::Aborted;
 }
 
@@ -101,7 +99,7 @@ bool SupportiveTranslationUnitInitializer::checkStateAndDocument(State currentEx
     }
 
     QTC_CHECK(m_isDocumentClosedChecker);
-    if (m_isDocumentClosedChecker(m_document.filePath(), m_document.projectPart().id())) {
+    if (m_isDocumentClosedChecker(m_document.filePath())) {
         m_state = State::Aborted;
         return false;
     }

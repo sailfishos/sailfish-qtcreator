@@ -68,10 +68,7 @@ QDebug operator<<(QDebug d, const TextFileFormat &format)
     as strings or string lists and to write out files.
 */
 
-TextFileFormat::TextFileFormat() :
-    lineTerminationMode(NativeLineTerminator), hasUtf8Bom(false), codec(0)
-{
-}
+TextFileFormat::TextFileFormat() = default;
 
 /*!
     Detects the format of text data.
@@ -83,7 +80,7 @@ TextFileFormat TextFileFormat::detect(const QByteArray &data)
     if (data.isEmpty())
         return result;
     const int bytesRead = data.size();
-    const unsigned char *buf = reinterpret_cast<const unsigned char *>(data.constData());
+    const auto buf = reinterpret_cast<const unsigned char *>(data.constData());
     // code taken from qtextstream
     if (bytesRead >= 4 && ((buf[0] == 0xff && buf[1] == 0xfe && buf[2] == 0 && buf[3] == 0)
                            || (buf[0] == 0 && buf[1] == 0 && buf[2] == 0xfe && buf[3] == 0xff))) {
@@ -202,7 +199,7 @@ bool TextFileFormat::decode(const QByteArray &data, QStringList *target) const
 template <class Target>
 TextFileFormat::ReadResult readTextFile(const QString &fileName, const QTextCodec *defaultCodec,
                                         Target *target, TextFileFormat *format, QString *errorString,
-                                        QByteArray *decodingErrorSampleIn = 0)
+                                        QByteArray *decodingErrorSampleIn = nullptr)
 {
     if (decodingErrorSampleIn)
         decodingErrorSampleIn->clear();

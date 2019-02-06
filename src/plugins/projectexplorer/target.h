@@ -30,6 +30,8 @@
 
 #include "subscription.h"
 
+#include <memory>
+
 QT_FORWARD_DECLARE_CLASS(QIcon)
 
 namespace Utils { class Environment; }
@@ -54,7 +56,10 @@ class PROJECTEXPLORER_EXPORT Target : public ProjectConfiguration
     friend class SessionManager; // for setActiveBuild and setActiveDeployConfiguration
     Q_OBJECT
 
+    struct _constructor_tag { explicit _constructor_tag() = default; };
+
 public:
+    Target(Project *parent, Kit *k, _constructor_tag);
     ~Target() override;
 
     Project *project() const override;
@@ -115,6 +120,8 @@ public:
     QVariant namedSettings(const QString &name) const;
     void setNamedSettings(const QString &name, const QVariant &value);
 
+    QVariant additionalData(Core::Id id) const;
+
     template<typename S, typename R, typename T>
     void subscribeSignal(void (S::*sig)(), R*recv, T (R::*sl)()) {
         new Internal::TargetSubscription([sig, recv, sl, this](ProjectConfiguration *pc) {
@@ -164,7 +171,6 @@ signals:
     void applicationTargetsChanged();
 
 private:
-    Target(Project *parent, Kit *k);
     void setEnabled(bool);
 
     bool fromMap(const QVariantMap &map) override;
@@ -178,7 +184,7 @@ private:
 
     void setActiveBuildConfiguration(BuildConfiguration *configuration);
     void setActiveDeployConfiguration(DeployConfiguration *configuration);
-    TargetPrivate *d;
+    const std::unique_ptr<TargetPrivate> d;
 
     friend class Project;
 };

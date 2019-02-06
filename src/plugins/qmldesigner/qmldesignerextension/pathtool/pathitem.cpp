@@ -42,11 +42,10 @@
 namespace QmlDesigner {
 
 PathItem::PathItem(FormEditorScene* scene)
-            : QGraphicsObject(),
-              m_selectionManipulator(this),
-              m_lastPercent(-1.),
-              m_formEditorItem(0),
-              m_dontUpdatePath(false)
+    : m_selectionManipulator(this),
+    m_lastPercent(-1.),
+    m_formEditorItem(nullptr),
+    m_dontUpdatePath(false)
 {
     scene->addItem(this);
     setFlag(QGraphicsItem::ItemIsMovable, false);
@@ -54,7 +53,7 @@ PathItem::PathItem(FormEditorScene* scene)
 
 PathItem::~PathItem()
 {
-    m_formEditorItem = 0;
+    m_formEditorItem = nullptr;
 }
 
 static ModelNode pathModelNode(FormEditorItem *formEditorItem)
@@ -64,9 +63,9 @@ static ModelNode pathModelNode(FormEditorItem *formEditorItem)
      return modelNode.nodeProperty("path").modelNode();
 }
 
-typedef QPair<PropertyName, QVariant> PropertyPair;
+using PropertyPair = QPair<PropertyName, QVariant>;
 
-void PathItem::writeLinePath(ModelNode pathNode, const CubicSegment &cubicSegment)
+void PathItem::writeLinePath(const ModelNode &pathNode, const CubicSegment &cubicSegment)
 {
     QList<PropertyPair> propertyList;
     propertyList.append(PropertyPair("x", cubicSegment.fourthControlX()));
@@ -76,7 +75,7 @@ void PathItem::writeLinePath(ModelNode pathNode, const CubicSegment &cubicSegmen
     pathNode.nodeListProperty("pathElements").reparentHere(lineNode);
 }
 
-void PathItem::writeQuadPath(ModelNode pathNode, const CubicSegment &cubicSegment)
+void PathItem::writeQuadPath(const ModelNode &pathNode, const CubicSegment &cubicSegment)
 {
     QList<QPair<PropertyName, QVariant> > propertyList;
     propertyList.append(PropertyPair("controlX", cubicSegment.quadraticControlX()));
@@ -88,7 +87,7 @@ void PathItem::writeQuadPath(ModelNode pathNode, const CubicSegment &cubicSegmen
     pathNode.nodeListProperty("pathElements").reparentHere(lineNode);
 }
 
-void PathItem::writeCubicPath(ModelNode pathNode, const CubicSegment &cubicSegment)
+void PathItem::writeCubicPath(const ModelNode &pathNode, const CubicSegment &cubicSegment)
 {
     QList<QPair<PropertyName, QVariant> > propertyList;
     propertyList.append(PropertyPair("control1X", cubicSegment.secondControlX()));
@@ -102,7 +101,7 @@ void PathItem::writeCubicPath(ModelNode pathNode, const CubicSegment &cubicSegme
     pathNode.nodeListProperty("pathElements").reparentHere(lineNode);
 }
 
-void PathItem::writePathAttributes(ModelNode pathNode, const QMap<QString, QVariant> &attributes)
+void PathItem::writePathAttributes(const ModelNode &pathNode, const QMap<QString, QVariant> &attributes)
 {
     QMapIterator<QString, QVariant> attributesIterator(attributes);
     while (attributesIterator.hasNext()) {
@@ -116,7 +115,7 @@ void PathItem::writePathAttributes(ModelNode pathNode, const QMap<QString, QVari
     }
 }
 
-void PathItem::writePathPercent(ModelNode pathNode, double percent)
+void PathItem::writePathPercent(const ModelNode& pathNode, double percent)
 {
     if (percent >= 0.0) {
         QList<QPair<PropertyName, QVariant> > propertyList;
@@ -498,7 +497,7 @@ QRectF PathItem::instanceBoundingRect() const
     if (formEditorItem())
         return formEditorItem()->qmlItemNode().instanceBoundingRect();
 
-    return QRectF();
+    return {};
 }
 
 void PathItem::readControlPoints()
@@ -557,7 +556,7 @@ void PathItem::readControlPoints()
     }
 }
 
-static CubicSegment getMinimumDistanceSegment(const QPointF &pickPoint, const QList<CubicSegment> &cubicSegments, double maximumDistance, double *t = 0)
+static CubicSegment getMinimumDistanceSegment(const QPointF &pickPoint, const QList<CubicSegment> &cubicSegments, double maximumDistance, double *t = nullptr)
 {
     CubicSegment minimumDistanceSegment;
     double actualMinimumDistance = maximumDistance;
@@ -610,7 +609,7 @@ void PathItem::openPath()
 
 QAction *PathItem::createClosedPathAction(QMenu *contextMenu) const
 {
-    QAction *closedPathAction = new QAction(contextMenu);
+    auto closedPathAction = new QAction(contextMenu);
     closedPathAction->setCheckable(true);
     closedPathAction->setChecked(isClosedPath());
     closedPathAction->setText(tr("Closed Path"));
@@ -638,11 +637,11 @@ void PathItem::createCubicSegmentContextMenu(CubicSegment &cubicSegment, const Q
 {
     QMenu contextMenu;
 
-    QAction *splitSegmentAction = new QAction(&contextMenu);
+    auto splitSegmentAction = new QAction(&contextMenu);
     splitSegmentAction->setText(tr("Split Segment"));
     contextMenu.addAction(splitSegmentAction);
 
-    QAction *straightLinePointAction = new QAction(&contextMenu);
+    auto straightLinePointAction = new QAction(&contextMenu);
     straightLinePointAction->setText(tr("Make Curve Segment Straight"));
     contextMenu.addAction(straightLinePointAction);
 
@@ -672,7 +671,7 @@ void PathItem::createCubicSegmentContextMenu(CubicSegment &cubicSegment, const Q
 void PathItem::createEditPointContextMenu(const ControlPoint &controlPoint, const QPoint &menuPosition)
 {
     QMenu contextMenu;
-    QAction *removeEditPointAction = new QAction(&contextMenu);
+    auto removeEditPointAction = new QAction(&contextMenu);
     removeEditPointAction->setText(tr("Remove Edit Point"));
     contextMenu.addAction(removeEditPointAction);
 
@@ -943,8 +942,8 @@ void PathItem::removeEditPoint(const ControlPoint &controlPoint)
         m_cubicSegments.removeOne(cubicSegments.constFirst());
     } else if (cubicSegments.count()  == 2){
         CubicSegment mergedCubicSegment = CubicSegment::create();
-        CubicSegment firstCubicSegment = cubicSegments.at(0);
-        CubicSegment secondCubicSegment = cubicSegments.at(1);
+        const CubicSegment &firstCubicSegment = cubicSegments.at(0);
+        const CubicSegment &secondCubicSegment = cubicSegments.at(1);
         mergedCubicSegment.setFirstControlPoint(firstCubicSegment.firstControlPoint());
         mergedCubicSegment.setSecondControlPoint(firstCubicSegment.secondControlPoint());
         mergedCubicSegment.setThirdControlPoint(secondCubicSegment.thirdControlPoint());

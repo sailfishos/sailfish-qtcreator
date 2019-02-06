@@ -45,9 +45,9 @@ class DebuggerResponse;
 class DebuggerCommand
 {
 public:
-    typedef std::function<void(const DebuggerResponse &)> Callback;
+    using Callback = std::function<void (const DebuggerResponse &)>;
 
-    DebuggerCommand() {}
+    DebuggerCommand() = default;
     DebuggerCommand(const QString &f) : function(f) {}
     DebuggerCommand(const QString &f, const QJsonValue &a) : function(f), args(a) {}
     DebuggerCommand(const QString &f, int fl) : function(f), flags(fl) {}
@@ -109,7 +109,7 @@ private:
 class DebuggerCommandSequence
 {
 public:
-    DebuggerCommandSequence() {}
+    DebuggerCommandSequence() = default;
     bool isEmpty() const { return m_commands.isEmpty(); }
     bool wantContinue() const { return m_continue; }
     const QList<DebuggerCommand> &commands() const { return m_commands; }
@@ -127,15 +127,16 @@ public:
 class GdbMi
 {
 public:
-    GdbMi() : m_type(Invalid) {}
+    GdbMi() = default;
 
     QString m_name;
     QString m_data;
-    QVector<GdbMi> m_children;
 
+    using Children = QVector<GdbMi>;
     enum Type { Invalid, Const, Tuple, List };
+    Type m_type = Invalid;
 
-    Type m_type;
+    void addChild(const GdbMi &child) { m_children.push_back(child); }
 
     Type type() const { return m_type; }
     const QString &name() const { return m_name; }
@@ -145,7 +146,8 @@ public:
     bool isList() const { return m_type == List; }
 
     const QString &data() const { return m_data; }
-    const QVector<GdbMi> &children() const { return m_children; }
+    Children::const_iterator begin() const { return m_children.begin(); }
+    Children::const_iterator end() const { return m_children.end(); }
     int childCount() const { return int(m_children.size()); }
 
     const GdbMi &childAt(int index) const { return m_children[index]; }
@@ -169,6 +171,7 @@ public:
 
 private:
     void dumpChildren(QString *str, bool multiline, int indent) const;
+    Children m_children;
 };
 
 QString fromHex(const QString &str);
@@ -189,12 +192,12 @@ enum ResultClass
 class DebuggerResponse
 {
 public:
-    DebuggerResponse() : token(-1), resultClass(ResultUnknown) {}
+    DebuggerResponse() = default;
     QString toString() const;
     static QString stringFromResultClass(ResultClass resultClass);
 
-    int         token;
-    ResultClass resultClass;
+    int         token = -1;
+    ResultClass resultClass = ResultUnknown;
     GdbMi       data;
     QString     logStreamOutput;
     QString     consoleStreamOutput;
@@ -224,7 +227,7 @@ public:
         DateTimeInternal,
     };
 
-    DebuggerEncoding() {}
+    DebuggerEncoding() = default;
     explicit DebuggerEncoding(const QString &data);
     QString toString() const;
 
@@ -300,6 +303,20 @@ const char DisplayImageData[]    = "imagedata:separate";
 const char DisplayImageFile[]    = "imagefile:separate";
 const char DisplayPlotData[]     = "plotdata:separate";
 const char DisplayArrayData[]    = "arraydata:separate";
+
+enum LocationType { UnknownLocation, LocationByFile, LocationByAddress };
+
+class ContextData
+{
+public:
+    bool isValid() const { return type != UnknownLocation; }
+
+public:
+    LocationType type = UnknownLocation;
+    QString fileName;
+    int lineNumber = 0;
+    quint64 address = 0;
+};
 
 } // namespace Internal
 } // namespace Debugger

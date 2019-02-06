@@ -128,6 +128,7 @@ namespace Internal {
 AndroidPackageInstallationStepWidget::AndroidPackageInstallationStepWidget(AndroidPackageInstallationStep *step)
     : m_step(step)
 {
+    setShowWidget(false);
 }
 
 QString AndroidPackageInstallationStepWidget::summaryText() const
@@ -140,11 +141,6 @@ QString AndroidPackageInstallationStepWidget::displayName() const
     return tr("Make install");
 }
 
-bool AndroidPackageInstallationStepWidget::showWidget() const
-{
-    return false;
-}
-
 //
 // AndroidPackageInstallationStepFactory
 //
@@ -155,7 +151,7 @@ AndroidPackageInstallationFactory::AndroidPackageInstallationFactory()
     setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     setSupportedDeviceType(Android::Constants::ANDROID_DEVICE_TYPE);
     setRepeatable(false);
-    setDisplayName(tr("Deploy to device"));
+    setDisplayName(AndroidPackageInstallationStep::tr("Deploy to device"));
 }
 
 } // namespace Internal

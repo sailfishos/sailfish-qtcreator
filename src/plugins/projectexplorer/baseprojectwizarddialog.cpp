@@ -51,7 +51,6 @@ struct BaseProjectWizardDialogPrivate {
     int introPageId;
     Core::Id selectedPlatform;
     QSet<Core::Id> requiredFeatureSet;
-    QSet<Core::Id> preferredFeatureSet;
 };
 
 BaseProjectWizardDialogPrivate::BaseProjectWizardDialogPrivate(Utils::ProjectIntroPage *page, int id) :
@@ -65,11 +64,10 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
                                                  QWidget *parent,
                                                  const Core::WizardDialogParameters &parameters) :
     Core::BaseFileWizard(factory, parameters.extraValues(), parent),
-    d(new BaseProjectWizardDialogPrivate(new Utils::ProjectIntroPage))
+    d(std::make_unique<BaseProjectWizardDialogPrivate>(new Utils::ProjectIntroPage))
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -79,11 +77,10 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
                                                  QWidget *parent,
                                                  const Core::WizardDialogParameters &parameters) :
     Core::BaseFileWizard(factory, parameters.extraValues(), parent),
-    d(new BaseProjectWizardDialogPrivate(introPage, introId))
+    d(std::make_unique<BaseProjectWizardDialogPrivate>(introPage, introId))
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -99,10 +96,7 @@ void BaseProjectWizardDialog::init()
     connect(this, &QDialog::accepted, this, &BaseProjectWizardDialog::slotAccepted);
 }
 
-BaseProjectWizardDialog::~BaseProjectWizardDialog()
-{
-    delete d;
-}
+BaseProjectWizardDialog::~BaseProjectWizardDialog() = default;
 
 QString BaseProjectWizardDialog::projectName() const
 {
@@ -206,16 +200,6 @@ QSet<Core::Id> BaseProjectWizardDialog::requiredFeatures() const
 void BaseProjectWizardDialog::setRequiredFeatures(const QSet<Core::Id> &featureSet)
 {
     d->requiredFeatureSet = featureSet;
-}
-
-QSet<Core::Id> BaseProjectWizardDialog::preferredFeatures() const
-{
-    return d->preferredFeatureSet;
-}
-
-void BaseProjectWizardDialog::setPreferredFeatures(const QSet<Core::Id> &featureSet)
-{
-    d->preferredFeatureSet = featureSet;
 }
 
 } // namespace ProjectExplorer

@@ -77,9 +77,9 @@ bool NimToolChain::isValid() const
     return fi.isExecutable();
 }
 
-ToolChain::PredefinedMacrosRunner NimToolChain::createPredefinedMacrosRunner() const
+ToolChain::MacroInspectionRunner NimToolChain::createMacroInspectionRunner() const
 {
-    return ToolChain::PredefinedMacrosRunner();
+    return ToolChain::MacroInspectionRunner();
 }
 
 Macros NimToolChain::predefinedMacros(const QStringList &) const
@@ -87,9 +87,9 @@ Macros NimToolChain::predefinedMacros(const QStringList &) const
     return Macros();
 }
 
-ToolChain::CompilerFlags NimToolChain::compilerFlags(const QStringList &) const
+LanguageExtensions NimToolChain::languageExtensions(const QStringList &) const
 {
-    return CompilerFlag::NoFlags;
+    return LanguageExtension::None;
 }
 
 WarningFlags NimToolChain::warningFlags(const QStringList &) const
@@ -97,14 +97,14 @@ WarningFlags NimToolChain::warningFlags(const QStringList &) const
     return WarningFlags::NoWarnings;
 }
 
-ToolChain::SystemHeaderPathsRunner NimToolChain::createSystemHeaderPathsRunner() const
+ToolChain::BuiltInHeaderPathsRunner NimToolChain::createBuiltInHeaderPathsRunner() const
 {
-    return ToolChain::SystemHeaderPathsRunner();
+    return ToolChain::BuiltInHeaderPathsRunner();
 }
 
-QList<HeaderPath> NimToolChain::systemHeaderPaths(const QStringList &, const FileName &) const
+HeaderPaths NimToolChain::builtInHeaderPaths(const QStringList &, const FileName &) const
 {
-    return QList<HeaderPath>();
+    return {};
 }
 
 void NimToolChain::addToEnvironment(Environment &env) const
@@ -136,9 +136,9 @@ IOutputParser *NimToolChain::outputParser() const
     return nullptr;
 }
 
-ToolChainConfigWidget *NimToolChain::configurationWidget()
+std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> NimToolChain::createConfigurationWidget()
 {
-    return new NimToolChainConfigWidget(this);
+    return std::make_unique<NimToolChainConfigWidget>(this);
 }
 
 ToolChain *NimToolChain::clone() const

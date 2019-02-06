@@ -349,7 +349,7 @@ BaseQtVersion::QmakeBuildConfigs MakeFileParse::effectiveBuildConfig(BaseQtVersi
 
 const QLoggingCategory &MakeFileParse::logging()
 {
-    static const QLoggingCategory category("qtc.qmakeprojectmanager.import");
+    static const QLoggingCategory category("qtc.qmakeprojectmanager.import", QtWarningMsg);
     return category;
 }
 
@@ -516,7 +516,7 @@ void QmakeProjectManagerPlugin::testMakefileParser()
 
     QCOMPARE(Utils::QtcProcess::splitArgs(parser.unparsedArguments()),
              Utils::QtcProcess::splitArgs(unparsedArguments));
-    QCOMPARE(parser.effectiveBuildConfig(0), effectiveBuildConfig);
+    QCOMPARE(parser.effectiveBuildConfig(nullptr), effectiveBuildConfig);
 
     const QMakeStepConfig qmsc = parser.config();
     QCOMPARE(qmsc.archConfig, static_cast<QMakeStepConfig::TargetArchConfig>(archConfig));

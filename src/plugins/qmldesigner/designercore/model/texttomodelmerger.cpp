@@ -64,24 +64,24 @@
 using namespace LanguageUtils;
 using namespace QmlJS;
 
-static Q_LOGGING_CATEGORY(rewriterBenchmark, "qtc.rewriter.load")
+static Q_LOGGING_CATEGORY(rewriterBenchmark, "qtc.rewriter.load", QtWarningMsg)
 
 namespace {
 
-static inline bool isSupportedAttachedProperties(const QString &propertyName)
+bool isSupportedAttachedProperties(const QString &propertyName)
 {
     return propertyName.startsWith(QLatin1String("Layout."));
 }
 
-static inline QStringList supportedVersionsList()
+QStringList supportedVersionsList()
 {
     static const QStringList list = {
-        "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11"
+        "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12"
     };
     return list;
 }
 
-static inline QStringList globalQtEnums()
+QStringList globalQtEnums()
 {
     static const QStringList list = {
         "Horizontal", "Vertical", "AlignVCenter", "AlignLeft", "LeftToRight", "RightToLeft",
@@ -93,7 +93,7 @@ static inline QStringList globalQtEnums()
     return list;
 }
 
-static inline QStringList knownEnumScopes()
+QStringList knownEnumScopes()
 {
     static const QStringList list = {
         "TextInput", "TextEdit", "Material", "Universal", "Font", "Shape", "ShapePath", "AbstractButton"
@@ -101,12 +101,12 @@ static inline QStringList knownEnumScopes()
     return list;
 }
 
-static inline bool supportedQtQuickVersion(const QString &version)
+bool supportedQtQuickVersion(const QString &version)
 {
     return supportedVersionsList().contains(version);
 }
 
-static inline QString stripQuotes(const QString &str)
+QString stripQuotes(const QString &str)
 {
     if ((str.startsWith(QLatin1Char('"')) && str.endsWith(QLatin1Char('"')))
             || (str.startsWith(QLatin1Char('\'')) && str.endsWith(QLatin1Char('\''))))
@@ -115,7 +115,7 @@ static inline QString stripQuotes(const QString &str)
     return str;
 }
 
-static inline QString deEscape(const QString &value)
+inline QString deEscape(const QString &value)
 {
     QString result = value;
 
@@ -128,7 +128,7 @@ static inline QString deEscape(const QString &value)
     return result;
 }
 
-static inline unsigned char convertHex(ushort c)
+unsigned char convertHex(ushort c)
 {
     if (c >= '0' && c <= '9')
         return (c - '0');
@@ -145,7 +145,7 @@ QChar convertUnicode(ushort c1, ushort c2,
                   (convertHex(c1) << 4) + convertHex(c2));
 }
 
-static inline bool isHexDigit(ushort c)
+bool isHexDigit(ushort c)
 {
     return ((c >= '0' && c <= '9')
             || (c >= 'a' && c <= 'f')
@@ -153,7 +153,7 @@ static inline bool isHexDigit(ushort c)
 }
 
 
-static inline QString fixEscapedUnicodeChar(const QString &value) //convert "\u2939"
+QString fixEscapedUnicodeChar(const QString &value) //convert "\u2939"
 {
     if (value.count() == 6 && value.at(0) == QLatin1Char('\\') && value.at(1) == QLatin1Char('u') &&
         isHexDigit(value.at(2).unicode()) && isHexDigit(value.at(3).unicode()) &&
@@ -163,7 +163,7 @@ static inline QString fixEscapedUnicodeChar(const QString &value) //convert "\u2
     return value;
 }
 
-static inline bool isSignalPropertyName(const QString &signalName)
+bool isSignalPropertyName(const QString &signalName)
 {
     if (signalName.isEmpty())
         return false;
@@ -175,7 +175,7 @@ static inline bool isSignalPropertyName(const QString &signalName)
             pureSignalName.at(2).isLetter();
 }
 
-static inline QVariant cleverConvert(const QString &value)
+QVariant cleverConvert(const QString &value)
 {
     if (value == QLatin1String("true"))
         return QVariant(true);
@@ -191,15 +191,15 @@ static inline QVariant cleverConvert(const QString &value)
     return QVariant(value);
 }
 
-static bool isLiteralValue(AST::ExpressionNode *expr)
+bool isLiteralValue(AST::ExpressionNode *expr)
 {
     if (AST::cast<AST::NumericLiteral*>(expr))
         return true;
-    else if (AST::cast<AST::StringLiteral*>(expr))
+    if (AST::cast<AST::StringLiteral*>(expr))
         return true;
-    else if (AST::UnaryPlusExpression *plusExpr = AST::cast<AST::UnaryPlusExpression*>(expr))
+    else if (auto plusExpr = AST::cast<AST::UnaryPlusExpression*>(expr))
         return isLiteralValue(plusExpr->expression);
-    else if (AST::UnaryMinusExpression *minusExpr = AST::cast<AST::UnaryMinusExpression*>(expr))
+    else if (auto minusExpr = AST::cast<AST::UnaryMinusExpression*>(expr))
         return isLiteralValue(minusExpr->expression);
     else if (AST::cast<AST::TrueLiteral*>(expr))
         return true;
@@ -209,16 +209,16 @@ static bool isLiteralValue(AST::ExpressionNode *expr)
         return false;
 }
 
-static bool isLiteralValue(AST::Statement *stmt)
+bool isLiteralValue(AST::Statement *stmt)
 {
-    AST::ExpressionStatement *exprStmt = AST::cast<AST::ExpressionStatement *>(stmt);
+    auto exprStmt = AST::cast<AST::ExpressionStatement *>(stmt);
     if (exprStmt)
         return isLiteralValue(exprStmt->expression);
     else
         return false;
 }
 
-static inline bool isLiteralValue(AST::UiScriptBinding *script)
+bool isLiteralValue(AST::UiScriptBinding *script)
 {
     if (!script || !script->statement)
         return false;
@@ -226,7 +226,7 @@ static inline bool isLiteralValue(AST::UiScriptBinding *script)
     return isLiteralValue(script->statement);
 }
 
-static inline int propertyType(const QString &typeName)
+int propertyType(const QString &typeName)
 {
     if (typeName == QStringLiteral("bool"))
         return QMetaType::type("bool");
@@ -250,7 +250,7 @@ static inline int propertyType(const QString &typeName)
         return -1;
 }
 
-static inline QVariant convertDynamicPropertyValueToVariant(const QString &astValue,
+QVariant convertDynamicPropertyValueToVariant(const QString &astValue,
                                                             const QString &astType)
 {
     const QString cleanedValue = fixEscapedUnicodeChar(deEscape(stripQuotes(astValue.trimmed())));
@@ -271,12 +271,12 @@ static inline QVariant convertDynamicPropertyValueToVariant(const QString &astVa
     }
 }
 
-static bool isListElementType(const QmlDesigner::TypeName &type)
+bool isListElementType(const QmlDesigner::TypeName &type)
 {
     return type == "ListElement" || type == "QtQuick.ListElement" || type == "Qt.ListElement";
 }
 
-static bool isComponentType(const QmlDesigner::TypeName &type)
+bool isComponentType(const QmlDesigner::TypeName &type)
 {
     return type == "Component"
             || type == "Qt.Component"
@@ -285,7 +285,7 @@ static bool isComponentType(const QmlDesigner::TypeName &type)
             || type == "QQmlComponent";
 }
 
-static bool isCustomParserType(const QmlDesigner::TypeName &type)
+bool isCustomParserType(const QmlDesigner::TypeName &type)
 {
     return type == "QtQuick.VisualItemModel" || type == "Qt.VisualItemModel" ||
            type == "QtQuick.VisualDataModel" || type == "Qt.VisualDataModel" ||
@@ -294,17 +294,17 @@ static bool isCustomParserType(const QmlDesigner::TypeName &type)
 }
 
 
-static bool isPropertyChangesType(const QmlDesigner::TypeName &type)
+bool isPropertyChangesType(const QmlDesigner::TypeName &type)
 {
     return type == "PropertyChanges" || type == "QtQuick.PropertyChanges" || type == "Qt.PropertyChanges";
 }
 
-static bool isConnectionsType(const QmlDesigner::TypeName &type)
+bool isConnectionsType(const QmlDesigner::TypeName &type)
 {
     return type == "Connections" || type == "QtQuick.Connections" || type == "Qt.Connections";
 }
 
-static bool propertyIsComponentType(const QmlDesigner::NodeAbstractProperty &property, const QmlDesigner::TypeName &type, QmlDesigner::Model *model)
+bool propertyIsComponentType(const QmlDesigner::NodeAbstractProperty &property, const QmlDesigner::TypeName &type, QmlDesigner::Model *model)
 {
     if (model->metaInfo(type).isSubclassOf("QtQuick.Component") && !isComponentType(type))
         return false; //If the type is already a subclass of Component keep it
@@ -313,7 +313,7 @@ static bool propertyIsComponentType(const QmlDesigner::NodeAbstractProperty &pro
             isComponentType(property.parentModelNode().metaInfo().propertyTypeName(property.name()));
 }
 
-static inline QString extractComponentFromQml(const QString &source)
+QString extractComponentFromQml(const QString &source)
 {
     if (source.isEmpty())
         return QString();
@@ -336,7 +336,7 @@ static inline QString extractComponentFromQml(const QString &source)
     return result;
 }
 
-static QString normalizeJavaScriptExpression(const QString &expression)
+QString normalizeJavaScriptExpression(const QString &expression)
 {
     static const QRegularExpression regExp("\\n(\\s)+");
 
@@ -344,9 +344,42 @@ static QString normalizeJavaScriptExpression(const QString &expression)
     return result.replace(regExp, "\n");
 }
 
-static bool compareJavaScriptExpression(const QString &expression1, const QString &expression2)
+bool compareJavaScriptExpression(const QString &expression1, const QString &expression2)
 {
     return normalizeJavaScriptExpression(expression1) == normalizeJavaScriptExpression(expression2);
+}
+
+bool smartVeryFuzzyCompare(const QVariant &value1, const QVariant &value2)
+{ //we ignore slight changes on doubles and only check three digits
+    if ((value1.type() == QVariant::Double) || (value2.type() == QVariant::Double)) {
+        bool ok1, ok2;
+        qreal a = value1.toDouble(&ok1);
+        qreal b = value2.toDouble(&ok2);
+
+        if (!ok1 || !ok2)
+            return false;
+
+        if (qFuzzyCompare(a, b))
+            return true;
+
+        int ai = qRound(a * 1000);
+        int bi = qRound(b * 1000);
+
+        if (qFuzzyCompare((qreal(ai) / 1000), (qreal(bi) / 1000)))
+            return true;
+    }
+    return false;
+}
+
+bool equals(const QVariant &a, const QVariant &b)
+{
+    if (a.canConvert<QmlDesigner::Enumeration>() && b.canConvert<QmlDesigner::Enumeration>())
+        return a.value<QmlDesigner::Enumeration>().toString() == b.value<QmlDesigner::Enumeration>().toString();
+    if (a == b)
+        return true;
+    if (smartVeryFuzzyCompare(a, b))
+        return true;
+    return false;
 }
 
 } // anonymous namespace
@@ -368,8 +401,7 @@ public:
     {
     }
 
-    ~ReadingContext()
-    {}
+    ~ReadingContext() = default;
 
     Document::Ptr doc() const
     { return m_doc; }
@@ -436,7 +468,8 @@ public:
     /// When something is changed here, also change Check::checkScopeObjectMember in
     /// qmljscheck.cpp
     /// ### Maybe put this into the context as a helper function.
-    bool lookupProperty(const QString &prefix, const AST::UiQualifiedId *id, const Value **property = 0, const ObjectValue **parentObject = 0, QString *name = 0)
+    bool lookupProperty(const QString &prefix, const AST::UiQualifiedId *id, const Value **property = nullptr,
+                        const ObjectValue **parentObject = nullptr, QString *name = nullptr)
     {
         QList<const ObjectValue *> scopeObjects = m_scopeChain.qmlScopeObjects();
         if (scopeObjects.isEmpty())
@@ -472,8 +505,8 @@ public:
             return false;
 
         // global lookup for first part of id
-        const ObjectValue *objectValue = 0;
-        const Value *value = 0;
+        const ObjectValue *objectValue = nullptr;
+        const Value *value = nullptr;
         for (int i = scopeObjects.size() - 1; i >= 0; --i) {
             objectValue = scopeObjects[i];
             value = objectValue->lookupMember(propertyName, m_context);
@@ -560,8 +593,8 @@ public:
     {
         const bool hasQuotes = astValue.trimmed().left(1) == QStringLiteral("\"") && astValue.trimmed().right(1) == QStringLiteral("\"");
         const QString cleanedValue = fixEscapedUnicodeChar(deEscape(stripQuotes(astValue.trimmed())));
-        const Value *property = 0;
-        const ObjectValue *containingObject = 0;
+        const Value *property = nullptr;
+        const ObjectValue *containingObject = nullptr;
         QString name;
         if (!lookupProperty(propertyPrefix, propertyId, &property, &containingObject, &name)) {
             qWarning() << Q_FUNC_INFO << "Unknown property" << propertyPrefix + QLatin1Char('.') + toString(propertyId)
@@ -623,13 +656,13 @@ public:
                 return QVariant::fromValue(Enumeration(astValue));
         }
 
-        AST::ExpressionStatement *eStmt = AST::cast<AST::ExpressionStatement *>(rhs);
+        auto eStmt = AST::cast<AST::ExpressionStatement *>(rhs);
         if (!eStmt || !eStmt->expression)
             return QVariant();
 
-        const ObjectValue *containingObject = 0;
+        const ObjectValue *containingObject = nullptr;
         QString name;
-        if (!lookupProperty(propertyPrefix, propertyId, 0, &containingObject, &name))
+        if (!lookupProperty(propertyPrefix, propertyId, nullptr, &containingObject, &name))
             return QVariant();
 
         if (containingObject)
@@ -639,14 +672,14 @@ public:
             return QVariant();
         const QString lhsPropertyTypeName = lhsCppComponent->propertyType(name);
 
-        const ObjectValue *rhsValueObject = 0;
+        const ObjectValue *rhsValueObject = nullptr;
         QString rhsValueName;
-        if (AST::IdentifierExpression *idExp = AST::cast<AST::IdentifierExpression *>(eStmt->expression)) {
+        if (auto idExp = AST::cast<AST::IdentifierExpression *>(eStmt->expression)) {
             if (!m_scopeChain.qmlScopeObjects().isEmpty())
                 rhsValueObject = m_scopeChain.qmlScopeObjects().constLast();
             if (!idExp->name.isEmpty())
                 rhsValueName = idExp->name.toString();
-        } else if (AST::FieldMemberExpression *memberExp = AST::cast<AST::FieldMemberExpression *>(eStmt->expression)) {
+        } else if (auto memberExp = AST::cast<AST::FieldMemberExpression *>(eStmt->expression)) {
             Evaluate evaluate(&m_scopeChain);
             const Value *result = evaluate(memberExp->base);
             rhsValueObject = result->asObjectValue();
@@ -689,40 +722,6 @@ private:
 using namespace QmlDesigner;
 using namespace QmlDesigner::Internal;
 
-
-static inline bool smartVeryFuzzyCompare(QVariant value1, QVariant value2)
-{ //we ignore slight changes on doubles and only check three digits
-    if ((value1.type() == QVariant::Double) || (value2.type() == QVariant::Double)) {
-        bool ok1, ok2;
-        qreal a = value1.toDouble(&ok1);
-        qreal b = value2.toDouble(&ok2);
-
-        if (!ok1 || !ok2)
-            return false;
-
-        if (qFuzzyCompare(a, b))
-            return true;
-
-        int ai = qRound(a * 1000);
-        int bi = qRound(b * 1000);
-
-        if (qFuzzyCompare((qreal(ai) / 1000), (qreal(bi) / 1000)))
-            return true;
-    }
-    return false;
-}
-
-static inline bool equals(const QVariant &a, const QVariant &b)
-{
-    if (a.canConvert<Enumeration>() && b.canConvert<Enumeration>())
-        return a.value<Enumeration>().toString() == b.value<Enumeration>().toString();
-    if (a == b)
-        return true;
-    if (smartVeryFuzzyCompare(a, b))
-        return true;
-    return false;
-}
-
 TextToModelMerger::TextToModelMerger(RewriterView *reWriterView) :
         m_rewriterView(reWriterView),
         m_isActive(false)
@@ -748,7 +747,7 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
     QList<Import> existingImports = m_rewriterView->model()->imports();
 
     for (AST::UiHeaderItemList *iter = doc->qmlProgram()->headers; iter; iter = iter->next) {
-        AST::UiImport *import = AST::cast<AST::UiImport *>(iter->headerItem);
+        auto import = AST::cast<AST::UiImport *>(iter->headerItem);
         if (!import)
             continue;
 
@@ -1022,7 +1021,7 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
         }
         setupUsedImports();
 
-        AST::UiObjectMember *astRootNode = 0;
+        AST::UiObjectMember *astRootNode = nullptr;
         if (AST::UiProgram *program = m_document->qmlProgram())
             if (program->members)
                 astRootNode = program->members->member;
@@ -1081,7 +1080,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
 
     if (modelNode.isRootNode() && isComponentType(typeName)) {
         for (AST::UiObjectMemberList *iter = astInitializer->members; iter; iter = iter->next) {
-            if (AST::UiObjectDefinition *def = AST::cast<AST::UiObjectDefinition *>(iter->member)) {
+            if (auto def = AST::cast<AST::UiObjectDefinition *>(iter->member)) {
                 syncNode(modelNode, def, context, differenceHandler);
                 return;
             }
@@ -1120,7 +1119,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
         if (!member)
             continue;
 
-        if (AST::UiArrayBinding *array = AST::cast<AST::UiArrayBinding *>(member)) {
+        if (auto array = AST::cast<AST::UiArrayBinding *>(member)) {
             const QString astPropertyName = toString(array->qualifiedId);
             if (isPropertyChangesType(typeName) || isConnectionsType(typeName) || context->lookupProperty(QString(), array->qualifiedId)) {
                 AbstractProperty modelProperty = modelNode.property(astPropertyName.toUtf8());
@@ -1135,7 +1134,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
                 qWarning() << "Skipping invalid array property" << astPropertyName
                            << "for node type" << modelNode.type();
             }
-        } else if (AST::UiObjectDefinition *def = AST::cast<AST::UiObjectDefinition *>(member)) {
+        } else if (auto def = AST::cast<AST::UiObjectDefinition *>(member)) {
             const QString &name = def->qualifiedTypeNameId->name.toString();
             if (name.isEmpty() || !name.at(0).isUpper()) {
                 QStringList props = syncGroupedProperties(modelNode,
@@ -1148,13 +1147,13 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
             } else {
                 defaultPropertyItems.append(member);
             }
-        } else if (AST::UiObjectBinding *binding = AST::cast<AST::UiObjectBinding *>(member)) {
+        } else if (auto binding = AST::cast<AST::UiObjectBinding *>(member)) {
             const QString astPropertyName = toString(binding->qualifiedId);
             if (binding->hasOnToken) {
                 // skip value sources
             } else {
-                const Value *propertyType = 0;
-                const ObjectValue *containingObject = 0;
+                const Value *propertyType = nullptr;
+                const ObjectValue *containingObject = nullptr;
                 QString name;
                 if (context->lookupProperty(QString(), binding->qualifiedId, &propertyType, &containingObject, &name)
                         || isPropertyChangesType(typeName)
@@ -1173,9 +1172,9 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
                     modelPropertyNames.remove(astPropertyName.toUtf8());
                 }
             }
-        } else if (AST::UiScriptBinding *script = AST::cast<AST::UiScriptBinding *>(member)) {
+        } else if (auto script = AST::cast<AST::UiScriptBinding *>(member)) {
             modelPropertyNames.remove(syncScriptBinding(modelNode, QString(), script, context, differenceHandler));
-        } else if (AST::UiPublicMember *property = AST::cast<AST::UiPublicMember *>(member)) {
+        } else if (auto property = AST::cast<AST::UiPublicMember *>(member)) {
             if (property->type == AST::UiPublicMember::Signal)
                 continue; // QML designer doesn't support this yet.
 
@@ -1198,7 +1197,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
             AbstractProperty modelProperty = modelNode.property(astName.toUtf8());
 
             if (property->binding) {
-                if (AST::UiObjectBinding *binding = AST::cast<AST::UiObjectBinding *>(property->binding))
+                if (auto binding = AST::cast<AST::UiObjectBinding *>(property->binding))
                     syncNodeProperty(modelProperty, binding, context, astType, differenceHandler);
                 else
                     qWarning() << "Arrays are not yet supported";
@@ -1251,7 +1250,7 @@ static QVariant parsePropertyExpression(AST::ExpressionNode *expressionNode)
 {
     Q_ASSERT(expressionNode);
 
-    AST::ArrayLiteral *arrayLiteral = AST::cast<AST::ArrayLiteral *>(expressionNode);
+    auto arrayLiteral = AST::cast<AST::ArrayLiteral *>(expressionNode);
 
     if (arrayLiteral) {
         QList<QVariant> variantList;
@@ -1260,19 +1259,19 @@ static QVariant parsePropertyExpression(AST::ExpressionNode *expressionNode)
         return variantList;
     }
 
-    AST::StringLiteral *stringLiteral = AST::cast<AST::StringLiteral *>(expressionNode);
+    auto stringLiteral = AST::cast<AST::StringLiteral *>(expressionNode);
     if (stringLiteral)
         return stringLiteral->value.toString();
 
-    AST::TrueLiteral *trueLiteral = AST::cast<AST::TrueLiteral *>(expressionNode);
+    auto trueLiteral = AST::cast<AST::TrueLiteral *>(expressionNode);
     if (trueLiteral)
         return true;
 
-    AST::FalseLiteral *falseLiteral = AST::cast<AST::FalseLiteral *>(expressionNode);
+    auto falseLiteral = AST::cast<AST::FalseLiteral *>(expressionNode);
     if (falseLiteral)
         return false;
 
-    AST::NumericLiteral *numericLiteral = AST::cast<AST::NumericLiteral *>(expressionNode);
+    auto numericLiteral = AST::cast<AST::NumericLiteral *>(expressionNode);
     if (numericLiteral)
         return numericLiteral->value;
 
@@ -1284,7 +1283,7 @@ QVariant parsePropertyScriptBinding(AST::UiScriptBinding *uiScriptBinding)
 {
     Q_ASSERT(uiScriptBinding);
 
-    AST::ExpressionStatement *expStmt = AST::cast<AST::ExpressionStatement *>(uiScriptBinding->statement);
+    auto expStmt = AST::cast<AST::ExpressionStatement *>(uiScriptBinding->statement);
     if (!expStmt)
         return QVariant();
 
@@ -1596,7 +1595,7 @@ QStringList TextToModelMerger::syncGroupedProperties(ModelNode &modelNode,
     for (AST::UiObjectMemberList *iter = members; iter; iter = iter->next) {
         AST::UiObjectMember *member = iter->member;
 
-        if (AST::UiScriptBinding *script = AST::cast<AST::UiScriptBinding *>(member)) {
+        if (auto script = AST::cast<AST::UiScriptBinding *>(member)) {
             const QString prop = QString::fromLatin1(syncScriptBinding(modelNode, name, script, context, differenceHandler));
             if (!prop.isEmpty())
                 props.append(prop);
@@ -1881,12 +1880,12 @@ ModelNode ModelAmender::listPropertyMissingModelNode(NodeListProperty &modelProp
                                                      ReadingContext *context,
                                                      AST::UiObjectMember *arrayMember)
 {
-    AST::UiQualifiedId *astObjectType = 0;
-    AST::UiObjectInitializer *astInitializer = 0;
-    if (AST::UiObjectDefinition *def = AST::cast<AST::UiObjectDefinition *>(arrayMember)) {
+    AST::UiQualifiedId *astObjectType = nullptr;
+    AST::UiObjectInitializer *astInitializer = nullptr;
+    if (auto def = AST::cast<AST::UiObjectDefinition *>(arrayMember)) {
         astObjectType = def->qualifiedTypeNameId;
         astInitializer = def->initializer;
-    } else if (AST::UiObjectBinding *bin = AST::cast<AST::UiObjectBinding *>(arrayMember)) {
+    } else if (auto bin = AST::cast<AST::UiObjectBinding *>(arrayMember)) {
         astObjectType = bin->qualifiedTypeNameId;
         astInitializer = bin->initializer;
     }

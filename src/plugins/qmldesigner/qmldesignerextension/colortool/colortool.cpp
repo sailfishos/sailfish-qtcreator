@@ -53,28 +53,28 @@ class ColorToolAction : public AbstractAction
 public:
     ColorToolAction() : AbstractAction(QCoreApplication::translate("ColorToolAction","Edit Color")) {}
 
-    QByteArray category() const
+    QByteArray category() const override
     {
         return QByteArray();
     }
 
-    QByteArray menuId() const
+    QByteArray menuId() const override
     {
         return "ColorTool";
     }
 
-    int priority() const
+    int priority() const override
     {
         return CustomActionsPriority;
     }
 
-    Type type() const
+    Type type() const override
     {
         return FormEditorAction;
     }
 
 protected:
-    bool isVisible(const SelectionContext &selectionContext) const
+    bool isVisible(const SelectionContext &selectionContext) const override
     {
         if (selectionContext.singleNodeIsSelected())
             return selectionContext.currentSingleSelectedNode().metaInfo().hasProperty("color");
@@ -82,25 +82,22 @@ protected:
         return false;
     }
 
-    bool isEnabled(const SelectionContext &selectionContext) const
+    bool isEnabled(const SelectionContext &selectionContext) const override
     {
         return isVisible(selectionContext);
     }
 };
 
 ColorTool::ColorTool()
-    : QObject(), AbstractCustomTool()
 {
-    ColorToolAction *colorToolAction = new ColorToolAction;
+    auto colorToolAction = new ColorToolAction;
     QmlDesignerPlugin::instance()->designerActionManager().addDesignerAction(colorToolAction);
     connect(colorToolAction->action(), &QAction::triggered, [=]() {
         view()->changeCurrentToolTo(this);
     });
 }
 
-ColorTool::~ColorTool()
-{
-}
+ColorTool::~ColorTool() = default;
 
 void ColorTool::clear()
 {

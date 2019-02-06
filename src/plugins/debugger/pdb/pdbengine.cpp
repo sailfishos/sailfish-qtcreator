@@ -65,12 +65,11 @@ namespace Internal {
 PdbEngine::PdbEngine()
 {
     setObjectName("PdbEngine");
+    setDebuggerName("PDB");
 }
 
-void PdbEngine::executeDebuggerCommand(const QString &command, DebuggerLanguages languages)
+void PdbEngine::executeDebuggerCommand(const QString &command)
 {
-    if (!(languages & CppLanguage))
-        return;
     QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
     if (state() == DebuggerNotReady) {
         showMessage("PDB PROCESS NOT RUNNING, PLAIN CMD IGNORED: " + command);
@@ -157,7 +156,7 @@ void PdbEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
     showStatusMessage(tr("Running requested..."), 5000);
-    attemptBreakpointSynchronization();
+    BreakpointManager::claimBreakpointsForEngine(this);
     notifyEngineRunAndInferiorStopOk();
     updateAll();
 }
@@ -168,14 +167,7 @@ void PdbEngine::interruptInferior()
     interruptProcess(m_proc.processId(), GdbEngineType, &error);
 }
 
-void PdbEngine::executeStep()
-{
-    notifyInferiorRunRequested();
-    notifyInferiorRunOk();
-    postDirectCommand("step");
-}
-
-void PdbEngine::executeStepI()
+void PdbEngine::executeStepIn(bool)
 {
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
@@ -189,14 +181,7 @@ void PdbEngine::executeStepOut()
     postDirectCommand("return");
 }
 
-void PdbEngine::executeNext()
-{
-    notifyInferiorRunRequested();
-    notifyInferiorRunOk();
-    postDirectCommand("next");
-}
-
-void PdbEngine::executeNextI()
+void PdbEngine::executeStepOver(bool)
 {
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
@@ -241,40 +226,69 @@ void PdbEngine::activateFrame(int frameIndex)
     updateLocals();
 }
 
-void PdbEngine::selectThread(ThreadId threadId)
+void PdbEngine::selectThread(const Thread &thread)
 {
-    Q_UNUSED(threadId)
+    Q_UNUSED(thread)
 }
 
-bool PdbEngine::acceptsBreakpoint(Breakpoint bp) const
+bool PdbEngine::acceptsBreakpoint(const BreakpointParameters &bp) const
 {
-    const QString fileName = bp.fileName();
+    const QString fileName = bp.fileName;
     return fileName.endsWith(".py");
 }
 
-void PdbEngine::insertBreakpoint(Breakpoint bp)
+void PdbEngine::insertBreakpoint(const Breakpoint &bp)
 {
-    QTC_CHECK(bp.state() == BreakpointInsertRequested);
-    bp.notifyBreakpointInsertProceeding();
+    QTC_ASSERT(bp, return);
+    QTC_CHECK(bp->state() == BreakpointInsertionRequested);
+    notifyBreakpointInsertProceeding(bp);
 
     QString loc;
-    if (bp.type() == BreakpointByFunction)
-        loc = bp.functionName();
+    const BreakpointParameters &params = bp->requestedParameters();
+    if (params.type  == BreakpointByFunction)
+        loc = params.functionName;
     else
-        loc = bp.fileName() + ':' + QString::number(bp.lineNumber());
+        loc = params.fileName + ':' + QString::number(params.lineNumber);
 
     postDirectCommand("break " + loc);
 }
 
-void PdbEngine::removeBreakpoint(Breakpoint bp)
+void PdbEngine::updateBreakpoint(const Breakpoint &bp)
 {
-    QTC_CHECK(bp.state() == BreakpointRemoveRequested);
-    bp.notifyBreakpointRemoveProceeding();
-    BreakpointResponse br = bp.response();
-    showMessage(QString("DELETING BP %1 IN %2").arg(br.id.toString()).arg(bp.fileName()));
-    postDirectCommand("clear " + br.id.toString());
+    QTC_ASSERT(bp, return);
+    const BreakpointState state = bp->state();
+    if (QTC_GUARD(state == BreakpointUpdateRequested))
+        notifyBreakpointChangeProceeding(bp);
+    if (bp->responseId().isEmpty()) // FIXME postpone update somehow (QTimer::singleShot?)
+        return;
+
+    // FIXME figure out what needs to be changed (there might be more than enabled state)
+    const BreakpointParameters &requested = bp->requestedParameters();
+    if (requested.enabled != bp->isEnabled()) {
+        if (bp->isEnabled())
+            postDirectCommand("disable " + bp->responseId());
+        else
+            postDirectCommand("enable " + bp->responseId());
+        bp->setEnabled(!bp->isEnabled());
+    }
     // Pretend it succeeds without waiting for response.
-    bp.notifyBreakpointRemoveOk();
+    notifyBreakpointChangeOk(bp);
+}
+
+void PdbEngine::removeBreakpoint(const Breakpoint &bp)
+{
+    QTC_ASSERT(bp, return);
+    QTC_CHECK(bp->state() == BreakpointRemoveRequested);
+    notifyBreakpointRemoveProceeding(bp);
+    if (bp->responseId().isEmpty()) {
+        notifyBreakpointRemoveFailed(bp);
+        return;
+    }
+    showMessage(QString("DELETING BP %1 IN %2")
+                .arg(bp->responseId()).arg(bp->fileName()));
+    postDirectCommand("clear " + bp->responseId());
+    // Pretend it succeeds without waiting for response.
+    notifyBreakpointRemoveOk(bp);
 }
 
 void PdbEngine::loadSymbols(const QString &moduleName)
@@ -295,7 +309,7 @@ void PdbEngine::refreshModules(const GdbMi &modules)
 {
     ModulesHandler *handler = modulesHandler();
     handler->beginUpdateAll();
-    foreach (const GdbMi &item, modules.children()) {
+    for (const GdbMi &item : modules) {
         Module module;
         module.moduleName = item["name"].data();
         QString path = item["value"].data();
@@ -350,7 +364,7 @@ void PdbEngine::refreshSymbols(const GdbMi &symbols)
 {
     QString moduleName = symbols["module"].data();
     Symbols syms;
-    foreach (const GdbMi &item, symbols["symbols"].children()) {
+    for (const GdbMi &item : symbols["symbols"]) {
         Symbol symbol;
         symbol.name = item["name"].data();
         syms.append(symbol);
@@ -459,8 +473,8 @@ void PdbEngine::handleOutput(const QString &data)
 
 void PdbEngine::handleOutput2(const QString &data)
 {
-    foreach (QString line, data.split('\n')) {
-
+    const QStringList lines = data.split('\n');
+    for (const QString &line : lines) {
         GdbMi item;
         item.fromString(line);
 
@@ -479,20 +493,28 @@ void PdbEngine::handleOutput2(const QString &data)
         } else if (line.startsWith("state=")) {
             refreshState(item);
         } else if (line.startsWith("Breakpoint")) {
-            int pos1 = line.indexOf(" at ");
+            const int pos1 = line.indexOf(" at ");
             QTC_ASSERT(pos1 != -1, continue);
-            QString bpnr = line.mid(11, pos1 - 11);
-            int pos2 = line.lastIndexOf(':');
+            const QString bpnr = line.mid(11, pos1 - 11);
+            const int pos2 = line.lastIndexOf(':');
             QTC_ASSERT(pos2 != -1, continue);
-            BreakpointResponse br;
-            br.id = BreakpointResponseId(bpnr);
-            br.fileName = line.mid(pos1 + 4, pos2 - pos1 - 4);
-            br.lineNumber = line.mid(pos2 + 1).toInt();
-            Breakpoint bp = breakHandler()->findBreakpointByFileAndLine(br.fileName, br.lineNumber, false);
-            if (bp.isValid()) {
-                bp.setResponse(br);
-                QTC_CHECK(!bp.needsChange());
-                bp.notifyBreakpointInsertOk();
+            const QString fileName = line.mid(pos1 + 4, pos2 - pos1 - 4);
+            const int lineNumber = line.mid(pos2 + 1).toInt();
+            const Breakpoint bp = Utils::findOrDefault(breakHandler()->breakpoints(), [&](const Breakpoint &bp) {
+                return bp->parameters().isLocatedAt(fileName, lineNumber, bp->markerFileName())
+                    || bp->requestedParameters().isLocatedAt(fileName, lineNumber, bp->markerFileName());
+            });
+            QTC_ASSERT(bp, continue);
+            bp->setResponseId(bpnr);
+            bp->setFileName(fileName);
+            bp->setLineNumber(lineNumber);
+            bp->adjustMarker();
+            bp->setPending(false);
+            notifyBreakpointInsertOk(bp);
+            if (bp->needsChange()) {
+                bp->gotoState(BreakpointUpdateRequested, BreakpointInserted);
+                updateBreakpoint(bp);
+//            QTC_CHECK(!bp->needsChange());
             }
         }
     }
@@ -505,14 +527,14 @@ void PdbEngine::refreshLocals(const GdbMi &vars)
     handler->insertItems(vars);
     handler->notifyUpdateFinished();
 
-    DebuggerToolTipManager::updateEngine(this);
+    updateToolTips();
 }
 
 void PdbEngine::refreshStack(const GdbMi &stack)
 {
     StackHandler *handler = stackHandler();
     StackFrames frames;
-    foreach (const GdbMi &item, stack["frames"].children()) {
+    for (const GdbMi &item : stack["frames"]) {
         StackFrame frame;
         frame.level = item["level"].data();
         frame.file = item["file"].data();

@@ -249,11 +249,6 @@ class Dumper(DumperBase):
             if bitsize == 0:
                 bitsize = f.GetType().GetByteSize() * 8
             bitpos = f.GetOffsetInBits()
-            # Correction for some bitfields. Size 0 can occur for
-            # types without debug information.
-            if bitsize > 0:
-                #bitpos = bitpos % bitsize
-                bitpos = bitpos % 8 # Reported type is always wrapping type!
             fieldBits[f.name] = (bitsize, bitpos, f.IsBitfield())
 
         # Normal members and non-empty base classes.
@@ -269,7 +264,7 @@ class Dumper(DumperBase):
                 (fieldBitsize, fieldBitpos, isBitfield) = fieldBits[fieldName]
             else:
                 fieldBitsize = nativeFieldType.GetByteSize() * 8
-                fieldBitpost = None
+                fieldBitpos = None
                 isBitfield = False
 
             if isBitfield: # Bit fields
@@ -457,7 +452,7 @@ class Dumper(DumperBase):
                     self.listMembers(value, nativeType)
                 tdata.templateArguments = self.listTemplateParametersHelper(nativeType)
             elif code == lldb.eTypeClassFunction:
-                tdata.code = TypeCodeFunction,
+                tdata.code = TypeCodeFunction
             elif code == lldb.eTypeClassMemberPointer:
                 tdata.code = TypeCodeMemberPointer
 
@@ -536,14 +531,29 @@ class Dumper(DumperBase):
 
     def nativeTypeEnumDisplay(self, nativeType, intval, form):
         if hasattr(nativeType, 'get_enum_members_array'):
+            enumerators = []
+            flags = []
+            found = False
             for enumMember in nativeType.get_enum_members_array():
                 # Even when asking for signed we get unsigned with LLDB 3.8.
-                diff = enumMember.GetValueAsSigned() - intval
-                mask = (1 << nativeType.GetByteSize() * 8) - 1
-                if diff & mask == 0:
-                    path = nativeType.GetName().split('::')
-                    path[-1] = enumMember.GetName()
-                    return '::'.join(path) + ' (' + (form % intval) + ')'
+                value = enumMember.GetValueAsSigned()
+                name = nativeType.GetName().split('::')
+                name[-1] = enumMember.GetName()
+                if value == intval:
+                    return '::'.join(name) + ' (' + (form % intval) + ')'
+                enumerators.append(('::'.join(name), value))
+
+            given = intval
+            for (name, value) in enumerators:
+                if value & given != 0:
+                    flags.append(name)
+                    given = given & ~value
+                    found = True
+
+            if not found or given != 0:
+                flags.append('unknown: %d' % given)
+
+            return '(' + ' | '.join(flags) + ') (' + (form % intval) + ')'
         return form % intval
 
     def nativeDynamicTypeName(self, address, baseType):
@@ -648,6 +658,21 @@ class Dumper(DumperBase):
 
     def isMsvcTarget(self):
         return False
+
+    def prettySymbolByAddress(self, address):
+        try:
+            result = lldb.SBCommandReturnObject()
+            # Cast the address to a function pointer to get the name and location of the function.
+            expression = 'po (void (*)()){}'
+            self.debugger.GetCommandInterpreter().HandleCommand(expression.format(address), result)
+            output = ''
+            if result.Succeeded():
+                output = result.GetOutput().strip()
+            if output:
+                return output
+        except:
+            pass
+        return '0x%x' % address
 
     def qtVersionAndNamespace(self):
         for func in self.target.FindFunctions('qVersion'):
@@ -815,8 +840,7 @@ class Dumper(DumperBase):
         self.startMode_ = args.get('startmode', 1)
         self.breakOnMain_ = args.get('breakonmain', 0)
         self.useTerminal_ = args.get('useterminal', 0)
-        self.processArgs_ = args.get('processargs', [])
-        self.processArgs_ = list(map(lambda x: self.hexdecode(x), self.processArgs_))
+        self.processArgs_ = self.hexdecode(args.get('processargs'))
         self.environment_ = args.get('environment', [])
         self.environment_ = list(map(lambda x: self.hexdecode(x), self.environment_))
         self.attachPid_ = args.get('attachpid', 0)
@@ -913,7 +937,19 @@ class Dumper(DumperBase):
             else:
                 self.reportState('enginerunfailed')
         else:
-            launchInfo = lldb.SBLaunchInfo(self.processArgs_)
+            # This does not seem to work on Linux nor macOS?
+            #launchInfo = lldb.SBLaunchInfo([self.processArgs_])
+            #launchInfo.SetShellExpandArguments(True)
+            args = []
+            try:
+                import subprocess
+                cmd = 'for x in {} ; do printf "%s\n" "$x" ; done' \
+                    .format(self.processArgs_)
+                args = subprocess.check_output(cmd, shell=True, cwd=self.workingDirectory_).split()
+            except:
+                # Wrong, but...
+                args = self.processArgs_
+            launchInfo = lldb.SBLaunchInfo(args)
             launchInfo.SetWorkingDirectory(self.workingDirectory_)
             launchInfo.SetEnvironmentEntries(self.environment_, False)
             if self.breakOnMain_:
@@ -1047,6 +1083,7 @@ class Dumper(DumperBase):
             addr = frame.GetPCAddress().GetLoadAddress(self.target)
 
             functionName = frame.GetFunctionName()
+            module = frame.GetModule()
 
             if isNativeMixed and functionName == '::qt_qmlDebugMessageAvailable()':
                 interpreterStack = self.extractInterpreterStack()
@@ -1066,6 +1103,7 @@ class Dumper(DumperBase):
             result += ',address="0x%x"' % addr
             result += ',function="%s"' % functionName
             result += ',line="%d"' % lineNumber
+            result += ',module="%s"' % module
             result += ',file="%s"},' % fileName
         result += ']'
         result += ',hasmore="%d"' % isLimited
@@ -1111,6 +1149,13 @@ class Dumper(DumperBase):
             return
 
         self.setVariableFetchingOptions(args)
+
+        # Reset certain caches whenever a step over / into / continue
+        # happens.
+        # FIXME: Caches are currently also cleared if currently
+        # selected frame is changed, that shouldn't happen.
+        if not self.partialVariable:
+            self.resetPerStepCaches()
 
         anyModule = self.target.GetModuleAtIndex(0)
         anySymbol = anyModule.GetSymbolAtIndex(0)
@@ -1452,6 +1497,21 @@ class Dumper(DumperBase):
                 bp.SetOneShot(bool(args['oneshot']))
         self.reportResult(self.describeBreakpoint(bp), args)
 
+    def enableSubbreakpoint(self, args):
+        lldbId = int(args['lldbid'])
+        locId = int(args['locid'])
+        bp = self.target.FindBreakpointByID(lldbId)
+        res = False
+        enabled = False
+        if bp.IsValid():
+            loc = bp.FindLocationByID(locId)
+            if loc.IsValid():
+                loc.SetEnabled(bool(args['enabled']))
+                enabled = loc.IsEnabled()
+                res = True
+        self.reportResult('success="%s",enabled="%s",locid="%s"'
+                        % (int(res), int(enabled), locId), args)
+
     def removeBreakpoint(self, args):
         lldbId = int(args['lldbid'])
         if lldbId > qqWatchpointOffset:
@@ -1505,7 +1565,7 @@ class Dumper(DumperBase):
         self.reportResult('', args)
 
     def executeNextI(self, args):
-        self.currentThread().StepInstruction(lldb.eOnlyThisThread)
+        self.currentThread().StepInstruction(True)
         self.reportResult('', args)
 
     def executeStep(self, args):
@@ -1527,7 +1587,7 @@ class Dumper(DumperBase):
         self.reportResult('', args)
 
     def executeStepI(self, args):
-        self.currentThread().StepInstruction(lldb.eOnlyThisThread)
+        self.currentThread().StepInstruction(False)
         self.reportResult('', args)
 
     def executeStepOut(self, args = {}):
@@ -1589,13 +1649,12 @@ class Dumper(DumperBase):
 
     def activateFrame(self, args):
         self.reportToken(args)
-        thread = args['thread']
         self.currentThread().SetSelectedFrame(args['index'])
         self.reportResult('', args)
 
     def selectThread(self, args):
         self.reportToken(args)
-        self.process.SetSelectedThreadByID(args['id'])
+        self.process.SetSelectedThreadByID(int(args['id']))
         self.reportResult('', args)
 
     def fetchFullBacktrace(self, _ = None):
@@ -1698,13 +1757,39 @@ class Dumper(DumperBase):
         value = frame.FindVariable(exp)
         return value
 
+    def setValue(self, address, typename, value):
+        sbtype = self.lookupNativeType(typename)
+        error = lldb.SBError()
+        sbaddr = lldb.SBAddress(address, self.target)
+        sbvalue = self.target.CreateValueFromAddress('x', sbaddr, sbtype)
+        sbvalue.SetValueFromCString(str(value), error)
+
+    def setValues(self, address, typename, values):
+        sbtype = self.lookupNativeType(typename)
+        sizeof = sbtype.GetByteSize()
+        error = lldb.SBError()
+        for i in range(len(values)):
+            sbaddr = lldb.SBAddress(address + i * sizeof, self.target)
+            sbvalue = self.target.CreateValueFromAddress('x', sbaddr, sbtype)
+            sbvalue.SetValueFromCString(str(values[i]), error)
+
     def assignValue(self, args):
         self.reportToken(args)
         error = lldb.SBError()
-        exp = self.hexdecode(args['exp'])
+        expr = self.hexdecode(args['expr'])
         value = self.hexdecode(args['value'])
-        lhs = self.findValueByExpression(exp)
-        lhs.SetValueFromCString(value, error)
+        simpleType = int(args['simpleType'])
+        lhs = self.findValueByExpression(expr)
+        typeName = lhs.GetType().GetName()
+        typeName = typeName.replace('::', '__')
+        pos = typeName.find('<')
+        if pos != -1:
+            typeName = typeName[0:pos]
+        if typeName in self.qqEditable and not simpleType:
+            expr = self.parseAndEvaluate(expr)
+            self.qqEditable[typeName](self, expr, value)
+        else:
+            lhs.SetValueFromCString(value, error)
         self.reportResult(self.describeError(error), args)
 
     def watchPoint(self, args):
@@ -2190,3 +2275,10 @@ def __lldb_init_module(debugger, internal_dict):
     if not __name__ == 'qt':
         # Make available under global 'qt' name for consistency
         internal_dict['qt'] = internal_dict[__name__]
+
+
+if __name__ == "lldbbridge":
+    try:
+        theDumper = Dumper()
+    except Exception as error:
+        print('@\nstate="enginesetupfailed",error="{}"@\n'.format(error))

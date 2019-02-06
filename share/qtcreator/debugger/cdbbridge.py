@@ -189,7 +189,7 @@ class Dumper(DumperBase):
                 self.nativeStructAlignment(nativeType)
         if code == TypeCodeEnum:
             tdata.enumDisplay = lambda intval, addr, form : \
-                self.nativeTypeEnumDisplay(nativeType, addr, form)
+                self.nativeTypeEnumDisplay(nativeType, intval, form)
         tdata.templateArguments = self.listTemplateParameters(nativeType.name())
         self.registerType(typeId, tdata) # Fix up fields and template args
         return self.Type(self, typeId)
@@ -215,11 +215,11 @@ class Dumper(DumperBase):
             align = handleItem(f.type(), align)
         return align
 
-    def nativeTypeEnumDisplay(self, nativeType, addr, form):
-        value = cdbext.createValue(addr, nativeType)
+    def nativeTypeEnumDisplay(self, nativeType, intval, form):
+        value = self.nativeParseAndEvaluate('(%s)%d' % (nativeType.name(), intval))
         if value is None:
             return ''
-        return enumDisplay(value)
+        return self.enumValue(value)
 
     def enumExpression(self, enumType, enumValue):
         ns = self.qtNamespace()
@@ -230,7 +230,10 @@ class Dumper(DumperBase):
         return None
 
     def parseAndEvaluate(self, exp):
-        return self.fromNativeValue(cdbext.parseAndEvaluate(exp))
+        return self.fromNativeValue(self.nativeParseAndEvaluate(exp))
+
+    def nativeParseAndEvaluate(self, exp):
+        return cdbext.parseAndEvaluate(exp)
 
     def isWindowsTarget(self):
         return True
@@ -320,15 +323,18 @@ class Dumper(DumperBase):
         return namespace
 
     def qtVersion(self):
-        qtVersion = self.parseAndEvaluate('((void**)&%s)[2]' % self.qtHookDataSymbolName()).integer()
-        if qtVersion is None and self.qtCoreModuleName() is not None:
-            try:
-                versionValue = cdbext.call(self.qtCoreModuleName() + '!qVersion()')
-                version = self.extractCString(self.fromNativeValue(versionValue).address())
-                (major, minor, patch) = version.decode('latin1').split('.')
-                qtVersion = 0x10000 * int(major) + 0x100 * int(minor) + int(patch)
-            except:
-                pass
+        qtVersion = None
+        try:
+            qtVersion = self.parseAndEvaluate('((void**)&%s)[2]' % self.qtHookDataSymbolName()).integer()
+        except:
+            if self.qtCoreModuleName() is not None:
+                try:
+                    versionValue = cdbext.call(self.qtCoreModuleName() + '!qVersion()')
+                    version = self.extractCString(self.fromNativeValue(versionValue).address())
+                    (major, minor, patch) = version.decode('latin1').split('.')
+                    qtVersion = 0x10000 * int(major) + 0x100 * int(minor) + int(patch)
+                except:
+                    pass
         if qtVersion is None:
             qtVersion = self.fallbackQtVersion
         self.qtVersion = lambda: qtVersion

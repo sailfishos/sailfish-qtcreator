@@ -48,6 +48,9 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/dialogs/ioptionspage.h>
 
+#include <cpptools/cpptoolsconstants.h>
+#include <cpptools/cppmodelmanager.h>
+
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectpanelfactory.h>
 #include <projectexplorer/target.h>

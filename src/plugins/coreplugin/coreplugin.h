@@ -53,6 +53,8 @@ public:
     CorePlugin();
     ~CorePlugin() override;
 
+    static CorePlugin *instance();
+
     bool initialize(const QStringList &arguments, QString *errorMessage = nullptr) override;
     void extensionsInitialized() override;
     bool delayedInitialize() override;
@@ -78,9 +80,9 @@ private slots:
 private:
     static void addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QMenu *menu);
 
-    MainWindow *m_mainWindow;
-    EditMode *m_editMode;
-    Locator *m_locator;
+    MainWindow *m_mainWindow = nullptr;
+    EditMode *m_editMode = nullptr;
+    Locator *m_locator = nullptr;
     ReaperPrivate m_reaper;
 };
 

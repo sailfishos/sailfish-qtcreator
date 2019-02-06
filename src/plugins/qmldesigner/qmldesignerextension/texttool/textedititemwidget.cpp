@@ -34,7 +34,6 @@
 namespace QmlDesigner {
 
 TextEditItemWidget::TextEditItemWidget(QGraphicsScene* scene)
-    : QGraphicsProxyWidget()
 {
     scene->addItem(this);
     setFlag(QGraphicsItem::ItemIsMovable, false);
@@ -43,7 +42,7 @@ TextEditItemWidget::TextEditItemWidget(QGraphicsScene* scene)
 
 TextEditItemWidget::~TextEditItemWidget()
 {
-    setWidget(0);
+    setWidget(nullptr);
 }
 
 void TextEditItemWidget::paint(QPainter *painter, const QStyleOptionGraphicsItem * /*option*/, QWidget * /*widget*/)

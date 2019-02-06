@@ -98,19 +98,12 @@ using namespace Valgrind::Callgrind;
 using namespace TextEditor;
 using namespace ProjectExplorer;
 using namespace Utils;
-using namespace std::placeholders;
 
 namespace Valgrind {
 namespace Internal {
 
-const char CallgrindPerspectiveId[]       = "Callgrind.Perspective";
 const char CallgrindLocalActionId[]       = "Callgrind.Local.Action";
 const char CallgrindRemoteActionId[]      = "Callgrind.Remote.Action";
-const char CallgrindCallersDockId[]       = "Callgrind.Callers.Dock";
-const char CallgrindCalleesDockId[]       = "Callgrind.Callees.Dock";
-const char CallgrindFlatDockId[]          = "Callgrind.Flat.Dock";
-const char CallgrindVisualizationDockId[] = "Callgrind.Visualization.Dock";
-
 const char CALLGRIND_RUN_MODE[]           = "CallgrindTool.CallgrindRunMode";
 
 class CallgrindTool : public QObject
@@ -121,7 +114,7 @@ public:
     CallgrindTool();
     ~CallgrindTool();
 
-    ValgrindToolRunner *createRunTool(RunControl *runControl);
+    void setupRunner(CallgrindToolRunner *runner);
 
     void setParseData(ParseData *data);
     CostDelegate::CostFormat costFormat() const;
@@ -188,10 +181,10 @@ public:
     QSortFilterProxyModel m_calleesProxy;
 
     // Callgrind widgets
-    CostView *m_flatView = nullptr;
-    CostView *m_callersView = nullptr;
-    CostView *m_calleesView = nullptr;
-    Visualisation *m_visualization = nullptr;
+    QPointer<CostView> m_flatView;
+    QPointer<CostView> m_callersView;
+    QPointer<CostView> m_calleesView;
+    QPointer<Visualization> m_visualization;
 
     // Navigation
     QAction *m_goBack = nullptr;
@@ -221,6 +214,8 @@ public:
 
     QString m_toggleCollectFunction;
     bool m_toolBusy = false;
+
+    Perspective m_perspective{"Callgrind.Perspective", tr("Callgrind")};
 };
 
 CallgrindTool::CallgrindTool()
@@ -256,10 +251,10 @@ CallgrindTool::CallgrindTool()
         action->setToolTip(toolTip);
         menu->addAction(ActionManager::registerAction(action, CallgrindLocalActionId),
                         Debugger::Constants::G_ANALYZER_TOOLS);
-        QObject::connect(action, &QAction::triggered, this, [action] {
+        QObject::connect(action, &QAction::triggered, this, [this, action] {
             if (!Debugger::wantRunTool(OptimizedMode, action->text()))
                 return;
-            Debugger::selectPerspective(CallgrindPerspectiveId);
+            m_perspective.select();
             ProjectExplorerPlugin::runStartupProject(CALLGRIND_RUN_MODE);
         });
         QObject::connect(m_startAction, &QAction::triggered, action, &QAction::triggered);
@@ -281,12 +276,13 @@ CallgrindTool::CallgrindTool()
         StartRemoteDialog dlg;
         if (dlg.exec() != QDialog::Accepted)
             return;
-        Debugger::selectPerspective(CallgrindPerspectiveId);
+        m_perspective.select();
         auto runControl = new RunControl(runConfig, CALLGRIND_RUN_MODE);
+        if (auto creator = RunControl::producer(runConfig, CALLGRIND_RUN_MODE))
+            creator(runControl);
         const auto runnable = dlg.runnable();
         runControl->setRunnable(runnable);
         runControl->setDisplayName(runnable.executable);
-        createRunTool(runControl);
         ProjectExplorerPlugin::startRunControl(runControl);
     });
 
@@ -312,12 +308,12 @@ CallgrindTool::CallgrindTool()
     //
     // DockWidgets
     //
-    m_visualization = new Visualisation;
+    m_visualization = new Visualization;
     m_visualization->setFrameStyle(QFrame::NoFrame);
     m_visualization->setObjectName(QLatin1String("Valgrind.CallgrindTool.Visualisation"));
     m_visualization->setWindowTitle(tr("Visualization"));
     m_visualization->setModel(&m_dataModel);
-    connect(m_visualization, &Visualisation::functionActivated,
+    connect(m_visualization, &Visualization::functionActivated,
             this, &CallgrindTool::visualisationFunctionSelected);
 
     m_callersView = new CostView;
@@ -424,18 +420,17 @@ CallgrindTool::CallgrindTool()
             this, &CallgrindTool::setCostEvent);
     updateEventCombo();
 
-    ToolbarDescription toolbar;
-    toolbar.addAction(m_startAction);
-    toolbar.addAction(m_stopAction);
-    toolbar.addAction(m_loadExternalLogFile);
-    toolbar.addAction(m_dumpAction);
-    toolbar.addAction(m_resetAction);
-    toolbar.addAction(m_pauseAction);
-    toolbar.addAction(m_discardAction);
-    toolbar.addAction(m_goBack);
-    toolbar.addAction(m_goNext);
-    toolbar.addWidget(new Utils::StyledSeparator);
-    toolbar.addWidget(m_eventCombo);
+    m_perspective.addToolBarAction(m_startAction);
+    m_perspective.addToolBarAction(m_stopAction);
+    m_perspective.addToolBarAction(m_loadExternalLogFile);
+    m_perspective.addToolBarAction(m_dumpAction);
+    m_perspective.addToolBarAction(m_resetAction);
+    m_perspective.addToolBarAction(m_pauseAction);
+    m_perspective.addToolBarAction(m_discardAction);
+    m_perspective.addToolBarAction(m_goBack);
+    m_perspective.addToolBarAction(m_goNext);
+    m_perspective.addToolbarSeparator();
+    m_perspective.addToolBarWidget(m_eventCombo);
 
     // Cost formatting
     {
@@ -468,7 +463,7 @@ CallgrindTool::CallgrindTool()
     button->setPopupMode(QToolButton::InstantPopup);
     button->setText(QLatin1String("$"));
     button->setToolTip(tr("Cost Format"));
-    toolbar.addWidget(button);
+    m_perspective.addToolBarWidget(button);
     }
 
     ValgrindGlobalSettings *settings = ValgrindPlugin::globalSettings();
@@ -505,19 +500,16 @@ CallgrindTool::CallgrindTool()
     setCostFormat(settings->costFormat());
     enableCycleDetection(settings->detectCycles());
 
-    toolbar.addAction(m_cycleDetection);
-    toolbar.addAction(m_shortenTemplates);
-    toolbar.addAction(m_filterProjectCosts);
-    toolbar.addWidget(m_searchFilter);
-    Debugger::registerToolbar(CallgrindPerspectiveId, toolbar);
+    m_perspective.addToolBarAction(m_cycleDetection);
+    m_perspective.addToolBarAction(m_shortenTemplates);
+    m_perspective.addToolBarAction(m_filterProjectCosts);
+    m_perspective.addToolBarWidget(m_searchFilter);
 
-    Debugger::registerPerspective(CallgrindPerspectiveId, new Perspective(tr("Callgrind"), {
-        {CallgrindFlatDockId, m_flatView, {}, Perspective::SplitVertical},
-        {CallgrindCalleesDockId, m_calleesView, {}, Perspective::SplitVertical},
-        {CallgrindCallersDockId, m_callersView, CallgrindCalleesDockId, Perspective::SplitHorizontal},
-        {CallgrindVisualizationDockId, m_visualization, {}, Perspective::SplitVertical,
-         false, Qt::RightDockWidgetArea}
-    }));
+    m_perspective.addWindow(m_flatView, Perspective::SplitVertical, nullptr);
+    m_perspective.addWindow(m_calleesView, Perspective::SplitVertical, nullptr);
+    m_perspective.addWindow(m_callersView, Perspective::SplitHorizontal, m_calleesView);
+    m_perspective.addWindow(m_visualization, Perspective::SplitVertical, nullptr,
+                           false, Qt::RightDockWidgetArea);
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
             this, &CallgrindTool::updateRunActions);
@@ -526,6 +518,10 @@ CallgrindTool::CallgrindTool()
 CallgrindTool::~CallgrindTool()
 {
     qDeleteAll(m_textMarks);
+    delete m_flatView;
+    delete m_callersView;
+    delete m_calleesView;
+    delete m_visualization;
 }
 
 void CallgrindTool::doClear(bool clearParseData)
@@ -747,9 +743,9 @@ void CallgrindTool::updateEventCombo()
         m_eventCombo->addItem(ParseData::prettyStringForEvent(event));
 }
 
-ValgrindToolRunner *CallgrindTool::createRunTool(RunControl *runControl)
+void CallgrindTool::setupRunner(CallgrindToolRunner *toolRunner)
 {
-    auto toolRunner = new CallgrindToolRunner(runControl);
+    RunControl *runControl = toolRunner->runControl();
 
     connect(toolRunner, &CallgrindToolRunner::parserDataReady, this, &CallgrindTool::takeParserDataFromRunControl);
     connect(runControl, &RunControl::stopped, this, &CallgrindTool::engineFinished);
@@ -767,15 +763,14 @@ ValgrindToolRunner *CallgrindTool::createRunTool(RunControl *runControl)
     toolRunner->setToggleCollectFunction(m_toggleCollectFunction);
     m_toggleCollectFunction.clear();
 
-    QTC_ASSERT(m_visualization, return toolRunner);
+    QTC_ASSERT(m_visualization, return);
 
     // apply project settings
-    if (IRunConfigurationAspect *analyzerAspect = runControl->runConfiguration()->extraAspect(ANALYZER_VALGRIND_SETTINGS)) {
-        if (const ValgrindBaseSettings *settings = qobject_cast<ValgrindBaseSettings *>(analyzerAspect->currentSettings())) {
-            m_visualization->setMinimumInclusiveCostRatio(settings->visualisationMinimumInclusiveCostRatio() / 100.0);
-            m_proxyModel.setMinimumInclusiveCostRatio(settings->minimumInclusiveCostRatio() / 100.0);
-            m_dataModel.setVerboseToolTipsEnabled(settings->enableEventToolTips());
-        }
+    if (auto settings = runControl->runConfiguration()
+            ->currentSettings<ValgrindBaseSettings>(ANALYZER_VALGRIND_SETTINGS)) {
+        m_visualization->setMinimumInclusiveCostRatio(settings->visualisationMinimumInclusiveCostRatio() / 100.0);
+        m_proxyModel.setMinimumInclusiveCostRatio(settings->minimumInclusiveCostRatio() / 100.0);
+        m_dataModel.setVerboseToolTipsEnabled(settings->enableEventToolTips());
     }
 
     m_toolBusy = true;
@@ -787,8 +782,6 @@ ValgrindToolRunner *CallgrindTool::createRunTool(RunControl *runControl)
     m_loadExternalLogFile->setEnabled(false);
     clearTextMarks();
     doClear(true);
-
-    return toolRunner;
 }
 
 void CallgrindTool::updateRunActions()
@@ -974,12 +967,16 @@ void CallgrindTool::createTextMarks()
 
 static CallgrindTool *theCallgrindTool;
 
+void setupCallgrindRunner(CallgrindToolRunner *toolRunner)
+{
+    theCallgrindTool->setupRunner(toolRunner);
+}
+
 void initCallgrindTool()
 {
     theCallgrindTool = new CallgrindTool;
 
-    auto producer = std::bind(&CallgrindTool::createRunTool, theCallgrindTool, _1);
-    RunControl::registerWorker(CALLGRIND_RUN_MODE, producer);
+    RunControl::registerWorker<CallgrindToolRunner>(CALLGRIND_RUN_MODE, {});
 }
 
 void destroyCallgrindTool()

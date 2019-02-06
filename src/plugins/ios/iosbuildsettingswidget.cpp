@@ -47,7 +47,7 @@ namespace Ios {
 namespace Internal {
 
 namespace {
-Q_LOGGING_CATEGORY(iosSettingsLog, "qtc.ios.common")
+Q_LOGGING_CATEGORY(iosSettingsLog, "qtc.ios.common", QtWarningMsg)
 }
 
 static const int IdentifierRole = Qt::UserRole+1;
@@ -126,7 +126,7 @@ void IosBuildSettingsWidget::setDefaultSigningIdentfier(const QString &identifie
     } else {
         // Reset to default
         ui->m_signEntityCombo->setCurrentIndex(0);
-        qCDebug(iosSettingsLog) << "Can not find default"
+        qCDebug(iosSettingsLog) << "Cannot find default"
                                 << (ui->m_autoSignCheckbox->isChecked() ? "team": "provisioning profile")
                                 << ". Identifier: " << identifier;
     }

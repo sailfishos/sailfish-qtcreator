@@ -58,7 +58,7 @@ CPlusPlus::Symbol *AnalyzerUtils::findSymbolUnderCursor()
 {
     TextEditor::TextEditorWidget *widget = TextEditor::TextEditorWidget::currentTextEditorWidget();
     if (!widget)
-        return 0;
+        return nullptr;
 
     QTextCursor tc = widget->textCursor();
     int line = 0;
@@ -68,19 +68,19 @@ CPlusPlus::Symbol *AnalyzerUtils::findSymbolUnderCursor()
 
     const CPlusPlus::Snapshot &snapshot = CppTools::CppModelManager::instance()->snapshot();
     CPlusPlus::Document::Ptr doc = snapshot.document(widget->textDocument()->filePath());
-    QTC_ASSERT(doc, return 0);
+    QTC_ASSERT(doc, return nullptr);
 
     // fetch the expression's code
     CPlusPlus::ExpressionUnderCursor expressionUnderCursor(doc->languageFeatures());
     moveCursorToEndOfName(&tc);
     const QString &expression = expressionUnderCursor(tc);
-    CPlusPlus::Scope *scope = doc->scopeAt(line, column);
+    CPlusPlus::Scope *scope = doc->scopeAt(line, column - 1);
 
     CPlusPlus::TypeOfExpression typeOfExpression;
     typeOfExpression.init(doc, snapshot);
     const QList<CPlusPlus::LookupItem> &lookupItems = typeOfExpression(expression.toUtf8(), scope);
     if (lookupItems.isEmpty())
-        return 0;
+        return nullptr;
 
     const CPlusPlus::LookupItem &lookupItem = lookupItems.first(); // ### TODO: select best candidate.
     return lookupItem.declaration();

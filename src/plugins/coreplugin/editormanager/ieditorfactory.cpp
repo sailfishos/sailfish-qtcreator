@@ -24,12 +24,18 @@
 ****************************************************************************/
 
 #include "ieditorfactory.h"
+#include "ieditorfactory_p.h"
+#include "editormanager.h"
 
+#include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
+
+#include <QFileInfo>
 
 namespace Core {
 
 static QList<IEditorFactory *> g_editorFactories;
+static QHash<Utils::MimeType, IEditorFactory *> g_userPreferredEditorFactories;
 
 IEditorFactory::IEditorFactory(QObject *parent)
     : QObject(parent)
@@ -42,9 +48,62 @@ IEditorFactory::~IEditorFactory()
     g_editorFactories.removeOne(this);
 }
 
-const QList<IEditorFactory *> IEditorFactory::allEditorFactories()
+const EditorFactoryList IEditorFactory::allEditorFactories()
 {
     return g_editorFactories;
+}
+
+/*!
+    Returns all available editors for this \a mimeType in the default order
+    (editors ordered by mime type hierarchy).
+*/
+const EditorFactoryList IEditorFactory::defaultEditorFactories(const Utils::MimeType &mimeType)
+{
+    EditorFactoryList rc;
+    const EditorFactoryList allFactories = IEditorFactory::allEditorFactories();
+    Internal::mimeTypeFactoryLookup(mimeType, allFactories, &rc);
+    return rc;
+}
+
+/*!
+    Returns the available editors for \a fileName in order of preference.
+    That is the default order for the file's MIME type but with a user overridden default
+    editor first, and if the file is a too large text file, with the binary editor as the
+    very first.
+*/
+const EditorFactoryList IEditorFactory::preferredEditorFactories(const QString &fileName)
+{
+    const QFileInfo fileInfo(fileName);
+    // default factories by mime type
+    const Utils::MimeType mimeType = Utils::mimeTypeForFile(fileInfo);
+    EditorFactoryList factories = defaultEditorFactories(mimeType);
+    const auto factories_moveToFront = [&factories](IEditorFactory *f) {
+        factories.removeAll(f);
+        factories.prepend(f);
+    };
+    // user preferred factory to front
+    IEditorFactory *userPreferred = Internal::userPreferredEditorFactories().value(mimeType);
+    if (userPreferred)
+        factories_moveToFront(userPreferred);
+    // open text files > 48 MB in binary editor
+    if (fileInfo.size() > EditorManager::maxTextFileSize()
+            && mimeType.inherits("text/plain")) {
+        const Utils::MimeType binary = Utils::mimeTypeForName("application/octet-stream");
+        const EditorFactoryList binaryEditors = defaultEditorFactories(binary);
+        if (!binaryEditors.isEmpty())
+            factories_moveToFront(binaryEditors.first());
+    }
+    return factories;
+}
+
+QHash<Utils::MimeType, Core::IEditorFactory *> Core::Internal::userPreferredEditorFactories()
+{
+    return g_userPreferredEditorFactories;
+}
+
+void Internal::setUserPreferredEditorFactories(const QHash<Utils::MimeType, IEditorFactory *> &factories)
+{
+    g_userPreferredEditorFactories = factories;
 }
 
 } // Core

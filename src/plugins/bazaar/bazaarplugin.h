@@ -58,15 +58,15 @@ class BazaarPlugin : public VcsBase::VcsBasePlugin
 
 public:
     BazaarPlugin();
-    ~BazaarPlugin();
-    bool initialize(const QStringList &arguments, QString *errorMessage);
+    ~BazaarPlugin() override;
+    bool initialize(const QStringList &arguments, QString *errorMessage) override;
 
     static BazaarPlugin *instance();
     BazaarClient *client() const;
 
 protected:
-    void updateActions(VcsBase::VcsBasePlugin::ActionState);
-    bool submitEditorAboutToClose();
+    void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
+    bool submitEditorAboutToClose() override;
 
 #ifdef WITH_TESTS
 private slots:
@@ -96,13 +96,12 @@ private:
     void update();
     void commit();
     void showCommitWidget(const QList<VcsBase::VcsBaseClient::StatusItem> &status);
-    void commitFromEditor();
+    void commitFromEditor() override;
     void uncommit();
     void diffFromEditorSelected(const QStringList &files);
 
     // Functions
     void createMenu(const Core::Context &context);
-    void createSubmitEditorActions();
     void createFileActions(const Core::Context &context);
     void createDirectoryActions(const Core::Context &context);
     void createRepositoryActions(const Core::Context &context);
@@ -127,11 +126,6 @@ private:
     Utils::ParameterAction *m_revertFile = nullptr;
     Utils::ParameterAction *m_statusFile = nullptr;
 
-    // Submit editor actions
-    QAction *m_editorCommit = nullptr;
-    QAction *m_editorDiff = nullptr;
-    QAction *m_editorUndo = nullptr;
-    QAction *m_editorRedo = nullptr;
     QAction *m_menuAction = nullptr;
 
     QString m_submitRepository;

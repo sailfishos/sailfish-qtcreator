@@ -34,6 +34,8 @@
 
 #include <QProcess>
 
+#include <memory>
+
 namespace Utils { class ProcessHandle; }
 
 namespace ProjectExplorer {
@@ -47,15 +49,11 @@ class PROJECTEXPLORER_EXPORT ApplicationLauncher : public QObject
     Q_OBJECT
 
 public:
-    enum Mode {
-        Console,
-        Gui
-    };
-
     explicit ApplicationLauncher(QObject *parent = nullptr);
     ~ApplicationLauncher() override;
 
     void setProcessChannelMode(QProcess::ProcessChannelMode mode);
+    void setUseTerminal(bool on);
     void start(const Runnable &runnable);
     void start(const Runnable &runnable, const IDevice::ConstPtr &device);
     void stop();
@@ -83,7 +81,7 @@ signals:
     void finished(bool success);
 
 private:
-    Internal::ApplicationLauncherPrivate *d;
+    std::unique_ptr<Internal::ApplicationLauncherPrivate> d;
 };
 
 } // namespace ProjectExplorer

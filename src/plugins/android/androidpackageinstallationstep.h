@@ -61,15 +61,12 @@ public:
 
     QString summaryText() const override;
     QString displayName() const override;
-    bool showWidget() const override;
 private:
     AndroidPackageInstallationStep *m_step;
 };
 
 class AndroidPackageInstallationFactory: public ProjectExplorer::BuildStepFactory
 {
-    Q_OBJECT
-
 public:
     AndroidPackageInstallationFactory();
 };

@@ -35,6 +35,8 @@
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+#include <QFormLayout>
+
 /*!
     \class ProjectExplorer::BuildStep
 
@@ -125,6 +127,40 @@ BuildStep::BuildStep(BuildStepList *bsl, Core::Id id) :
     expander->registerSubProvider([this] { return projectConfiguration()->macroExpander(); });
 }
 
+class ConfigWidget : public BuildStepConfigWidget
+{
+public:
+    ConfigWidget(BuildStep *step) : m_step(step)
+    {
+        setShowWidget(true);
+        connect(m_step, &ProjectConfiguration::displayNameChanged,
+                this, &BuildStepConfigWidget::updateSummary);
+    }
+
+    QString summaryText() const override { return "<b>" + displayName() + "</b>"; }
+    QString displayName() const override { return m_step->displayName(); }
+    BuildStep *step() const { return m_step; }
+
+private:
+    BuildStep *m_step;
+};
+
+BuildStepConfigWidget *BuildStep::createConfigWidget()
+{
+    auto widget = new ConfigWidget(this);
+
+    auto formLayout = new QFormLayout(widget);
+    formLayout->setMargin(0);
+    formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+
+    for (ProjectConfigurationAspect *aspect : m_aspects) {
+        if (aspect->isVisible())
+            aspect->addToConfigurationLayout(formLayout);
+    }
+
+    return widget;
+}
+
 bool BuildStep::fromMap(const QVariantMap &map)
 {
     m_enabled = map.value(buildStepEnabledKey, true).toBool();
@@ -140,12 +176,20 @@ QVariantMap BuildStep::toMap() const
 
 BuildConfiguration *BuildStep::buildConfiguration() const
 {
-    return qobject_cast<BuildConfiguration *>(parent()->parent());
+    auto config = qobject_cast<BuildConfiguration *>(parent()->parent());
+    if (config)
+        return config;
+    // step is not part of a build configuration, use active build configuration of step's target
+    return target()->activeBuildConfiguration();
 }
 
 DeployConfiguration *BuildStep::deployConfiguration() const
 {
-    return qobject_cast<DeployConfiguration *>(parent()->parent());
+    auto config = qobject_cast<DeployConfiguration *>(parent()->parent());
+    if (config)
+        return config;
+    // step is not part of a deploy configuration, use active deploy configuration of step's target
+    return target()->activeDeployConfiguration();
 }
 
 ProjectConfiguration *BuildStep::projectConfiguration() const

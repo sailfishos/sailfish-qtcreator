@@ -37,9 +37,7 @@ class AndroidDebugSupport : public Debugger::DebuggerRunTool
 
 public:
     AndroidDebugSupport(ProjectExplorer::RunControl *runControl,
-                        const QString &intentName = QString(),
-                        const QString &extraAppParams = QString(),
-                        const Utils::Environment &extraEnvVars = Utils::Environment());
+                        const QString &intentName = QString());
 
     void start() override;
     void stop() override;

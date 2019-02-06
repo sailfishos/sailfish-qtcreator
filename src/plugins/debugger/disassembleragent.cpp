@@ -68,12 +68,17 @@ public:
     DisassemblerBreakpointMarker(const Breakpoint &bp, int lineNumber)
         : TextMark(Utils::FileName(), lineNumber, Constants::TEXT_MARK_CATEGORY_BREAKPOINT), m_bp(bp)
     {
-        setIcon(bp.icon());
+        setIcon(bp->icon());
         setPriority(TextMark::NormalPriority);
     }
 
-    bool isClickable() const { return true; }
-    void clicked() { m_bp.removeBreakpoint(); }
+    bool isClickable() const final { return true; }
+
+    void clicked() final
+    {
+        QTC_ASSERT(m_bp, return);
+        m_bp->deleteGlobalOrThisBreakpoint();
+    }
 
 public:
     Breakpoint m_bp;
@@ -88,13 +93,13 @@ public:
 class FrameKey
 {
 public:
-    FrameKey() : startAddress(0), endAddress(0) {}
+    FrameKey() = default;
     inline bool matches(const Location &loc) const;
 
     QString functionName;
     QString fileName;
-    quint64 startAddress;
-    quint64 endAddress;
+    quint64 startAddress = 0;
+    quint64 endAddress = 0;
 };
 
 bool FrameKey::matches(const Location &loc) const
@@ -105,7 +110,7 @@ bool FrameKey::matches(const Location &loc) const
             && loc.functionName() == functionName;
 }
 
-typedef QPair<FrameKey, DisassemblerLines> CacheEntry;
+using CacheEntry = QPair<FrameKey, DisassemblerLines>;
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -134,7 +139,7 @@ public:
 };
 
 DisassemblerAgentPrivate::DisassemblerAgentPrivate(DebuggerEngine *engine)
-  : document(0),
+  : document(nullptr),
     engine(engine),
     locationMark(engine, Utils::FileName(), 0),
     mimeType("text/x-qtcreator-generic-asm"),
@@ -144,7 +149,7 @@ DisassemblerAgentPrivate::DisassemblerAgentPrivate(DebuggerEngine *engine)
 DisassemblerAgentPrivate::~DisassemblerAgentPrivate()
 {
     EditorManager::closeDocuments(QList<IDocument *>() << document);
-    document = 0;
+    document = nullptr;
     qDeleteAll(breakpointMarks);
 }
 
@@ -183,7 +188,7 @@ DisassemblerAgent::DisassemblerAgent(DebuggerEngine *engine)
 DisassemblerAgent::~DisassemblerAgent()
 {
     delete d;
-    d = 0;
+    d = nullptr;
 }
 
 int DisassemblerAgent::indexOf(const Location &loc) const
@@ -261,7 +266,7 @@ void DisassemblerAgentPrivate::configureMimeType()
     Utils::MimeType mtype = Utils::mimeTypeForName(mimeType);
     if (mtype.isValid()) {
         foreach (IEditor *editor, DocumentModel::editorsForDocument(document))
-            if (TextEditorWidget *widget = qobject_cast<TextEditorWidget *>(editor->widget()))
+            if (auto widget = qobject_cast<TextEditorWidget *>(editor->widget()))
                 widget->configureGenericHighlighter();
     } else {
         qWarning("Assembler mimetype '%s' not found.", qPrintable(mimeType));
@@ -309,7 +314,7 @@ void DisassemblerAgent::setContentsToDocument(const DisassemblerLines &contents)
                 Core::Constants::K_DEFAULT_TEXT_EDITOR_ID,
                 &titlePattern);
         QTC_ASSERT(editor, return);
-        if (TextEditorWidget *widget = qobject_cast<TextEditorWidget *>(editor->widget())) {
+        if (auto widget = qobject_cast<TextEditorWidget *>(editor->widget())) {
             widget->setReadOnly(true);
             widget->setRequestMarkEnabled(true);
         }
@@ -331,8 +336,8 @@ void DisassemblerAgent::setContentsToDocument(const DisassemblerLines &contents)
     d->document->setPreferredDisplayName(QString("Disassembler (%1)")
         .arg(d->location.functionName()));
 
-    Breakpoints bps = breakHandler()->engineBreakpoints(d->engine);
-    foreach (Breakpoint bp, bps)
+    const Breakpoints bps = d->engine->breakHandler()->breakpoints();
+    for (const Breakpoint bp : bps)
         updateBreakpointMarker(bp);
 
     updateLocationMarker();
@@ -340,7 +345,9 @@ void DisassemblerAgent::setContentsToDocument(const DisassemblerLines &contents)
 
 void DisassemblerAgent::updateLocationMarker()
 {
-    QTC_ASSERT(d->document, return);
+    if (!d->document)
+        return;
+
     int lineNumber = d->lineForAddress(d->location.address());
     if (d->location.needsMarker()) {
         d->document->removeMark(&d->locationMark);
@@ -348,9 +355,11 @@ void DisassemblerAgent::updateLocationMarker()
         d->document->addMark(&d->locationMark);
     }
 
+    d->locationMark.updateIcon();
+
     // Center cursor.
     if (EditorManager::currentDocument() == d->document)
-        if (BaseTextEditor *textEditor = qobject_cast<BaseTextEditor *>(EditorManager::currentEditor()))
+        if (auto textEditor = qobject_cast<BaseTextEditor *>(EditorManager::currentEditor()))
             textEditor->gotoLine(lineNumber);
 }
 
@@ -359,9 +368,8 @@ void DisassemblerAgent::removeBreakpointMarker(const Breakpoint &bp)
     if (!d->document)
         return;
 
-    BreakpointModelId id = bp.id();
-    foreach (DisassemblerBreakpointMarker *marker, d->breakpointMarks) {
-        if (marker->m_bp.id() == id) {
+    for (DisassemblerBreakpointMarker *marker : d->breakpointMarks) {
+        if (marker->m_bp == bp) {
             d->breakpointMarks.removeOne(marker);
             d->document->removeMark(marker);
             delete marker;
@@ -373,7 +381,7 @@ void DisassemblerAgent::removeBreakpointMarker(const Breakpoint &bp)
 void DisassemblerAgent::updateBreakpointMarker(const Breakpoint &bp)
 {
     removeBreakpointMarker(bp);
-    const quint64 address = bp.response().address;
+    const quint64 address = bp->address();
     if (!address)
         return;
 
@@ -384,7 +392,7 @@ void DisassemblerAgent::updateBreakpointMarker(const Breakpoint &bp)
     // HACK: If it's a FileAndLine breakpoint, and there's a source line
     // above, move the marker up there. That allows setting and removing
     // normal breakpoints from within the disassembler view.
-    if (bp.type() == BreakpointByFileAndLine) {
+    if (bp->type() == BreakpointByFileAndLine) {
         ContextData context = getLocationContext(d->document, lineNumber - 1);
         if (context.type == LocationByFile)
             --lineNumber;
@@ -392,6 +400,7 @@ void DisassemblerAgent::updateBreakpointMarker(const Breakpoint &bp)
 
     auto marker = new DisassemblerBreakpointMarker(bp, lineNumber);
     d->breakpointMarks.append(marker);
+    QTC_ASSERT(d->document, return);
     d->document->addMark(marker);
 }
 

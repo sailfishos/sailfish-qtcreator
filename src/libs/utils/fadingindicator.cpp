@@ -76,7 +76,7 @@ public:
     void setPixmap(const QString &uri)
     {
         m_label->hide();
-        m_pixmap.load(Utils::StyleHelper::dpiSpecificImageFile(uri));
+        m_pixmap.load(StyleHelper::dpiSpecificImageFile(uri));
         layout()->setSizeConstraint(QLayout::SetNoConstraint);
         resize(m_pixmap.size() / m_pixmap.devicePixelRatio());
         if (QWidget *parent = parentWidget())
@@ -91,7 +91,7 @@ public:
     }
 
 protected:
-    void paintEvent(QPaintEvent *)
+    void paintEvent(QPaintEvent *) override
     {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);

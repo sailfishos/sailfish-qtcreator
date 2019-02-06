@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include "projectpart.h"
-#include "projects.h"
 #include "clangdocument.h"
 #include "clangdocuments.h"
 #include "clangdocumentprocessors.h"
@@ -61,9 +59,6 @@ public:
     void documentsClosed(const DocumentsClosedMessage &message) override;
     void documentVisibilityChanged(const DocumentVisibilityChangedMessage &message) override;
 
-    void projectPartsUpdated(const ProjectPartsUpdatedMessage &message) override;
-    void projectPartsRemoved(const ProjectPartsRemovedMessage &message) override;
-
     void unsavedFilesUpdated(const UnsavedFilesUpdatedMessage &message) override;
     void unsavedFilesRemoved(const UnsavedFilesRemovedMessage &message) override;
 
@@ -83,21 +78,22 @@ public: // for tests
     DocumentProcessors &documentProcessors();
 
 private:
-    void processInitialJobsForDocuments(const std::vector<Document> &documents);
     void processJobsForVisibleDocuments();
     void processJobsForCurrentDocument();
     void processTimerForVisibleButNotCurrentDocuments();
     void processSuspendResumeJobs(const std::vector<Document> &documents);
 
+    void onJobFinished(const Jobs::RunningJob &jobRecord, IAsyncJob *job);
+
     void categorizeFileContainers(const QVector<FileContainer> &fileContainers,
                                   QVector<FileContainer> &toCreate,
                                   DocumentResetInfos &toReset) const;
     std::vector<Document> resetDocuments(const DocumentResetInfos &infos);
+    void resetDocumentsWithUnresolvedIncludes(const std::vector<Document> &documents);
 
     void addAndRunUpdateJobs(std::vector<Document> documents);
 
 private:
-    ProjectParts projects;
     UnsavedFiles unsavedFiles;
     Documents documents;
 

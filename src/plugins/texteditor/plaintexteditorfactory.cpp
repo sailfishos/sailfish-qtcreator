@@ -41,7 +41,7 @@
 
 namespace TextEditor {
 
-static PlainTextEditorFactory *m_instance = 0;
+static PlainTextEditorFactory *m_instance = nullptr;
 
 class PlainTextEditorWidget : public TextEditorWidget
 {
@@ -69,8 +69,9 @@ PlainTextEditorFactory::PlainTextEditorFactory()
     setUseGenericHighlighter(true);
 
     setEditorActionHandlers(TextEditorActionHandler::Format |
-        TextEditorActionHandler::UnCommentSelection |
-        TextEditorActionHandler::UnCollapseAll);
+                            TextEditorActionHandler::UnCommentSelection |
+                            TextEditorActionHandler::UnCollapseAll |
+                            TextEditorActionHandler::FollowSymbolUnderCursor);
 }
 
 PlainTextEditorFactory *PlainTextEditorFactory::instance()

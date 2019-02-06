@@ -54,7 +54,7 @@
 
 namespace QmlDesigner {
 
-Q_LOGGING_CATEGORY(documentManagerLog, "qtc.qtquickdesigner.documentmanager")
+Q_LOGGING_CATEGORY(documentManagerLog, "qtc.qtquickdesigner.documentmanager", QtWarningMsg)
 
 static inline QmlDesigner::DesignDocument* designDocument()
 {
@@ -102,14 +102,6 @@ static inline void applyProperties(ModelNode &node, const QHash<PropertyName, QV
         const PropertyName propertyName = propertyIterator.key();
         if (propertyName == "width" || propertyName == "height") {
             node.setAuxiliaryData(propertyIterator.key(), propertyIterator.value());
-        } else if (node.property(propertyIterator.key()).isDynamic() &&
-                   node.property(propertyIterator.key()).dynamicTypeName() == "alias" &&
-                   node.property(propertyIterator.key()).isBindingProperty()) {
-            AbstractProperty targetProperty = node.bindingProperty(propertyIterator.key()).resolveToProperty();
-            if (targetProperty.isValid())
-                targetProperty.parentModelNode().setAuxiliaryData(targetProperty.name() + "@NodeInstance", propertyIterator.value());
-        } else {
-            node.setAuxiliaryData(propertyIterator.key() + "@NodeInstance", propertyIterator.value());
         }
     }
 }
@@ -358,7 +350,7 @@ QStringList DocumentManager::isoIconsQmakeVariableValue(const QString &proPath)
         return QStringList();
     }
 
-    QmakeProjectManager::QmakeProFileNode *proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(parentNode);
+    auto proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(parentNode);
     if (!proNode) {
         qCWarning(documentManagerLog) << "Parent node for node at" << proPath << "could not be converted to a QmakeProFileNode";
         return QStringList();
@@ -381,7 +373,7 @@ bool DocumentManager::setIsoIconsQmakeVariableValue(const QString &proPath, cons
         return false;
     }
 
-    QmakeProjectManager::QmakeProFileNode *proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(parentNode);
+    auto proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(parentNode);
     if (!proNode) {
         qCWarning(documentManagerLog) << "Node for" << proPath << "could not be converted to a QmakeProFileNode";
         return false;
@@ -407,7 +399,7 @@ void DocumentManager::findPathToIsoProFile(bool *iconResourceFileAlreadyExists, 
                                     << "(" << node << static_cast<int>(node->nodeType()) << ")";
 
         if (node->nodeType() == ProjectExplorer::NodeType::VirtualFolder && node->displayName() == "Resources") {
-            ProjectExplorer::VirtualFolderNode *virtualFolderNode = dynamic_cast<ProjectExplorer::VirtualFolderNode*>(node);
+            auto virtualFolderNode = dynamic_cast<ProjectExplorer::VirtualFolderNode*>(node);
 
             for (int subFolderIndex = 0; subFolderIndex < virtualFolderNode->folderNodes().size() && !iconQrcFileNode; ++subFolderIndex) {
                 ProjectExplorer::FolderNode *subFolderNode = virtualFolderNode->folderNodes().at(subFolderIndex);
@@ -446,7 +438,7 @@ void DocumentManager::findPathToIsoProFile(bool *iconResourceFileAlreadyExists, 
         *resourceFilePath = projectDirectory + "/" + isoIconsQrcFile;
     }
 
-    *iconResourceFileAlreadyExists = iconQrcFileNode != 0;
+    *iconResourceFileAlreadyExists = iconQrcFileNode != nullptr;
 }
 
 bool DocumentManager::isoProFileSupportsAddingExistingFiles(const QString &resourceFileProPath)
@@ -494,7 +486,7 @@ bool DocumentManager::belongsToQmakeProject()
         return false;
 
     ProjectExplorer::Node *rootNode = project->rootProjectNode();
-    QmakeProjectManager::QmakeProFileNode *proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(rootNode);
+    auto proNode = dynamic_cast<QmakeProjectManager::QmakeProFileNode*>(rootNode);
     return proNode;
 }
 

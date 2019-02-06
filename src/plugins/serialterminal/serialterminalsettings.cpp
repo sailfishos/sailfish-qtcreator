@@ -32,7 +32,7 @@
 namespace SerialTerminal {
 namespace Internal {
 
-static Q_LOGGING_CATEGORY(log, Constants::LOGGING_CATEGORY)
+static Q_LOGGING_CATEGORY(log, Constants::LOGGING_CATEGORY, QtWarningMsg)
 
 // Set 'value' only if the key exists in the settings
 template <typename T>
@@ -117,6 +117,12 @@ void Settings::setBaudRate(qint32 br)
         return;
 
     baudRate = br;
+    edited = true;
+}
+
+void Settings::setPortName(const QString &name)
+{
+    portName = name;
     edited = true;
 }
 

@@ -105,12 +105,12 @@ bool RmKitOperation::test() const
 
     QVariantMap qtMap = AddQtOperation::initializeQtVersions();
     qtMap = AddQtOperation::addQt(qtMap, "{qt-id}", "Qt", "desktop-qt", "/usr/bin/qmake",
-                                  KeyValuePairList());
+                                  KeyValuePairList(), QStringList());
 
     QVariantMap devMap = AddDeviceOperation::initializeDevices();
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,
                                            "HWplatform", "SWplatform",
-                                           "localhost", "10000-11000", "localhost", "", 42, false,
+                                           "localhost", "10000-11000", "localhost", "", 42,
                                            "desktop", "", 22, 10000, "uname", 1,
                                            KeyValuePairList());
 

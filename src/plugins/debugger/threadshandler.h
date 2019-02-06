@@ -29,6 +29,9 @@
 
 #include <utils/treemodel.h>
 
+#include <QComboBox>
+#include <QPointer>
+
 ////////////////////////////////////////////////////////////////////////
 //
 // ThreadsHandler
@@ -40,55 +43,70 @@ namespace Internal {
 
 class DebuggerEngine;
 class GdbMi;
-class ThreadItem;
+class ThreadsHandler;
 
-class ThreadsHandler : public Utils::TreeModel<Utils::TypedTreeItem<ThreadItem>, ThreadItem>
+class ThreadItem : public QObject, public Utils::TreeItem
+{
+    Q_OBJECT
+
+public:
+    ThreadItem(const ThreadData &data = ThreadData());
+
+    QVariant data(int column, int role) const override;
+    Qt::ItemFlags flags(int column) const override;
+
+    QString threadToolTip() const;
+    QVariant threadPart(int column) const;
+
+    void notifyRunning();
+    void notifyStopped();
+
+    void mergeThreadData(const ThreadData &other);
+    QString id() const { return threadData.id; }
+
+public:
+    ThreadData threadData;
+};
+
+using Thread = QPointer<ThreadItem>;
+using ThreadsHandlerModel = Utils::TreeModel<Utils::TypedTreeItem<ThreadItem>, ThreadItem>;
+
+class ThreadsHandler : public ThreadsHandlerModel
 {
     Q_OBJECT
 
 public:
     explicit ThreadsHandler(DebuggerEngine *engine);
+    ~ThreadsHandler();
 
-    int currentThreadIndex() const;
-    ThreadId currentThread() const;
-    ThreadId threadAt(int index) const;
-    void setCurrentThread(ThreadId id);
-    QString pidForGroupId(const QString &groupId) const;
+    Thread currentThread() const;
+    Thread threadForId(const QString &id) const;
+    void setCurrentThread(const Thread &thread);
 
     void updateThread(const ThreadData &threadData);
-    void updateThreads(const GdbMi &data);
+    void setThreads(const GdbMi &data);
 
-    void removeThread(ThreadId threadId);
-    void setThreads(const Threads &threads);
+    void removeThread(const QString &id);
     void removeAll();
-    ThreadData thread(ThreadId id) const;
     QAbstractItemModel *model();
 
     void notifyGroupCreated(const QString &groupId, const QString &pid);
     bool notifyGroupExited(const QString &groupId); // Returns true when empty.
 
-    // Clear out all frame information
-    void notifyRunning(const QString &data);
-    void notifyRunning(ThreadId threadId);
-    void notifyAllRunning();
+    void notifyRunning(const QString &id);
+    void notifyStopped(const QString &id);
 
-    void notifyStopped(const QString &data);
-    void notifyStopped(ThreadId threadId);
-    void notifyAllStopped();
-
-    void resetLocation();
-    void scheduleResetLocation();
+    QPointer<QComboBox> threadSwitcher();
 
 private:
-    void updateThreadBox();
-
     void sort(int column, Qt::SortOrder order) override;
+    QVariant data(const QModelIndex &index, int role) const override;
     bool setData(const QModelIndex &idx, const QVariant &data, int role) override;
 
     DebuggerEngine *m_engine;
-    ThreadId m_currentId;
-    bool m_resetLocationScheduled;
+    Thread m_currentThread;
     QHash<QString, QString> m_pidForGroupId;
+    QPointer<QComboBox> m_comboBox;
 };
 
 } // namespace Internal

@@ -38,7 +38,7 @@ class ClangAssistProposalItem final : public TextEditor::AssistProposalItemInter
 {
     friend bool operator<(const ClangAssistProposalItem &first, const ClangAssistProposalItem &second);
 public:
-    ~ClangAssistProposalItem() Q_DECL_NOEXCEPT {}
+    ~ClangAssistProposalItem() noexcept {}
     bool prematurelyApplies(const QChar &typedCharacter) const final;
     bool implicitlyApplies() const final;
     void apply(TextEditor::TextDocumentManipulatorInterface &manipulator, int basePosition) const final;
@@ -50,17 +50,23 @@ public:
     bool isSnippet() const final;
     bool isValid() const final;
     quint64 hash() const final;
+    bool requiresFixIts() const final;
 
     void keepCompletionOperator(unsigned compOp);
 
     bool hasOverloadsWithParameters() const;
     void setHasOverloadsWithParameters(bool hasOverloadsWithParameters);
 
-    void setCodeCompletion(const ClangBackEnd::CodeCompletion &codeCompletion);
-    const ClangBackEnd::CodeCompletion &codeCompletion() const;
+    void appendCodeCompletion(const ClangBackEnd::CodeCompletion &firstCodeCompletion);
+    const ClangBackEnd::CodeCompletion &firstCodeCompletion() const;
+    void removeFirstCodeCompletion();
 
 private:
-    ClangBackEnd::CodeCompletion m_codeCompletion;
+    const QVector<ClangBackEnd::FixItContainer> &firstCompletionFixIts() const;
+    QString fixItText() const;
+    int fixItsShift(const TextEditor::TextDocumentManipulatorInterface &manipulator) const;
+
+    std::vector<ClangBackEnd::CodeCompletion> m_codeCompletions;
     QList<ClangBackEnd::CodeCompletion> m_overloads;
     bool m_hasOverloadsWithParameters = false;
     QString m_text;

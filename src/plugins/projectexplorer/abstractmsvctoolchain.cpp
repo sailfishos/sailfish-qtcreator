@@ -29,6 +29,7 @@
 #include "projectexplorer.h"
 #include "projectexplorersettings.h"
 #include "taskhub.h"
+#include "toolchaincache.h"
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcprocess.h>
@@ -36,7 +37,6 @@
 #include <utils/temporarydirectory.h>
 
 #include <QDir>
-#include <QSysInfo>
 #include <QTextCodec>
 
 enum { debug = 0 };
@@ -47,35 +47,29 @@ namespace Internal {
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId, Core::Id l, Detection d,
                                              const Abi &abi,
                                              const QString& vcvarsBat) : ToolChain(typeId, d),
-    m_predefinedMacrosMutex(new QMutex),
+    m_predefinedMacrosCache(std::make_shared<Cache<MacroInspectionReport, 64>>()),
     m_lastEnvironment(Utils::Environment::systemEnvironment()),
     m_headerPathsMutex(new QMutex),
     m_abi(abi),
     m_vcvarsBat(vcvarsBat)
 {
-    Q_ASSERT(abi.os() == Abi::WindowsOS);
-    Q_ASSERT(abi.binaryFormat() == Abi::PEFormat);
-    Q_ASSERT(abi.osFlavor() != Abi::WindowsMSysFlavor);
-    Q_ASSERT(!m_vcvarsBat.isEmpty());
     setLanguage(l);
 }
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId, Detection d) :
     ToolChain(typeId, d),
+    m_predefinedMacrosCache(std::make_shared<Cache<MacroInspectionReport, 64>>()),
     m_lastEnvironment(Utils::Environment::systemEnvironment())
 { }
 
 AbstractMsvcToolChain::~AbstractMsvcToolChain()
 {
-    delete m_predefinedMacrosMutex;
     delete m_headerPathsMutex;
 }
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(const AbstractMsvcToolChain &other)
     : ToolChain(other),
       m_debuggerCommand(other.m_debuggerCommand),
-      m_predefinedMacrosMutex(new QMutex),
-      m_predefinedMacros(other.m_predefinedMacros),
       m_lastEnvironment(other.m_lastEnvironment),
       m_resultEnvironment(other.m_resultEnvironment),
       m_headerPathsMutex(new QMutex),
@@ -104,65 +98,61 @@ QString AbstractMsvcToolChain::originalTargetTriple() const
             : QLatin1String("i686-pc-windows-msvc");
 }
 
-ToolChain::PredefinedMacrosRunner AbstractMsvcToolChain::createPredefinedMacrosRunner() const
+bool static hasFlagEffectOnMacros(const QString &flag)
+{
+    if (flag.startsWith("-") || flag.startsWith("/")) {
+        const QString f = flag.mid(1);
+        if (f.startsWith("I"))
+            return false; // Skip include paths
+        if (f.startsWith("w", Qt::CaseInsensitive))
+            return false; // Skip warning options
+    }
+    return true;
+}
+
+ToolChain::MacroInspectionRunner AbstractMsvcToolChain::createMacroInspectionRunner() const
 {
     Utils::Environment env(m_lastEnvironment);
     addToEnvironment(env);
+    std::shared_ptr<Cache<MacroInspectionReport, 64>> macroCache = m_predefinedMacrosCache;
+    const Core::Id lang = language();
 
     // This runner must be thread-safe!
-    return [this, env](const QStringList &cxxflags) {
-        QMutexLocker locker(m_predefinedMacrosMutex);
-        if (m_predefinedMacros.isEmpty())
-            m_predefinedMacros = msvcPredefinedMacros(cxxflags, env);
-        return m_predefinedMacros;
+    return [this, env, macroCache, lang](const QStringList &cxxflags) {
+        const QStringList filteredFlags = Utils::filtered(cxxflags, [](const QString &arg) {
+            return hasFlagEffectOnMacros(arg);
+        });
+
+        const Utils::optional<MacroInspectionReport> cachedMacros = macroCache->check(filteredFlags);
+        if (cachedMacros)
+            return cachedMacros.value();
+
+        const Macros macros = msvcPredefinedMacros(filteredFlags, env);
+
+        const auto report = MacroInspectionReport{macros,
+                                                  msvcLanguageVersion(filteredFlags, lang, macros)};
+        macroCache->insert(filteredFlags, report);
+
+        return report;
     };
 }
 
 ProjectExplorer::Macros AbstractMsvcToolChain::predefinedMacros(const QStringList &cxxflags) const
 {
-    return createPredefinedMacrosRunner()(cxxflags);
+    return createMacroInspectionRunner()(cxxflags).macros;
 }
 
-ToolChain::CompilerFlags AbstractMsvcToolChain::compilerFlags(const QStringList &cxxflags) const
+LanguageExtensions AbstractMsvcToolChain::languageExtensions(const QStringList &cxxflags) const
 {
-    CompilerFlags flags(MicrosoftExtensions);
+    LanguageExtensions extensions(LanguageExtension::Microsoft);
     if (cxxflags.contains(QLatin1String("/openmp")))
-        flags |= OpenMP;
+        extensions |= LanguageExtension::OpenMP;
 
     // see http://msdn.microsoft.com/en-us/library/0k0w269d%28v=vs.71%29.aspx
     if (cxxflags.contains(QLatin1String("/Za")))
-        flags &= ~MicrosoftExtensions;
+        extensions &= ~LanguageExtensions(LanguageExtension::Microsoft);
 
-    bool cLanguage = (language() == ProjectExplorer::Constants::C_LANGUAGE_ID);
-
-    switch (m_abi.osFlavor()) {
-    case Abi::WindowsMsvc2010Flavor:
-    case Abi::WindowsMsvc2012Flavor:
-        if (cLanguage)
-            flags |= StandardC99;
-        else
-            flags |= StandardCxx11;
-        break;
-    case Abi::WindowsMsvc2013Flavor:
-    case Abi::WindowsMsvc2015Flavor:
-        if (cLanguage)
-            flags |= StandardC99;
-        else
-            flags |= StandardCxx14;
-        break;
-    case Abi::WindowsMsvc2017Flavor:
-        if (cLanguage)
-            flags |= StandardC11;
-        else if (cxxflags.contains("/std:c++17") || cxxflags.contains("/std:c++latest"))
-            flags |= StandardCxx17;
-        else
-            flags |= StandardCxx14;
-        break;
-    default:
-        break;
-    }
-
-    return flags;
+    return extensions;
 }
 
 /**
@@ -214,7 +204,7 @@ WarningFlags AbstractMsvcToolChain::warningFlags(const QStringList &cflags) cons
     return flags;
 }
 
-ToolChain::SystemHeaderPathsRunner AbstractMsvcToolChain::createSystemHeaderPathsRunner() const
+ToolChain::BuiltInHeaderPathsRunner AbstractMsvcToolChain::createBuiltInHeaderPathsRunner() const
 {
     Utils::Environment env(m_lastEnvironment);
     addToEnvironment(env);
@@ -223,16 +213,16 @@ ToolChain::SystemHeaderPathsRunner AbstractMsvcToolChain::createSystemHeaderPath
         QMutexLocker locker(m_headerPathsMutex);
         if (m_headerPaths.isEmpty()) {
             foreach (const QString &path, env.value(QLatin1String("INCLUDE")).split(QLatin1Char(';')))
-                m_headerPaths.append(HeaderPath(path, HeaderPath::GlobalHeaderPath));
+                m_headerPaths.append({path, HeaderPathType::BuiltIn});
         }
         return m_headerPaths;
     };
 }
 
-QList<HeaderPath> AbstractMsvcToolChain::systemHeaderPaths(const QStringList &cxxflags,
-                                                           const Utils::FileName &sysRoot) const
+HeaderPaths AbstractMsvcToolChain::builtInHeaderPaths(const QStringList &cxxflags,
+                                                     const Utils::FileName &sysRoot) const
 {
-    return createSystemHeaderPathsRunner()(cxxflags, sysRoot.toString());
+    return createBuiltInHeaderPathsRunner()(cxxflags, sysRoot.toString());
 }
 
 void AbstractMsvcToolChain::addToEnvironment(Utils::Environment &env) const
@@ -334,8 +324,8 @@ Utils::optional<QString> AbstractMsvcToolChain::generateEnvironmentSettings(cons
         call += ' ';
         call += batchArgs.toLocal8Bit();
     }
-    if (Utils::HostOsInfo::isWindowsHost() && QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS7)
-        saver.write("chcp 65001\r\n"); // Only works for Windows 7 or later
+    if (Utils::HostOsInfo::isWindowsHost())
+        saver.write("chcp 65001\r\n");
     saver.write(call + "\r\n");
     saver.write("@echo " + marker.toLocal8Bit() + "\r\n");
     saver.write("set\r\n");
@@ -432,20 +422,24 @@ void AbstractMsvcToolChain::inferWarningsForLevel(int warningLevel, WarningFlags
         flags |= WarningFlags::UnusedParams;
 }
 
+void Internal::AbstractMsvcToolChain::toolChainUpdated()
+{
+    m_predefinedMacrosCache->invalidate();
+}
+
 bool AbstractMsvcToolChain::operator ==(const ToolChain &other) const
 {
     if (!ToolChain::operator ==(other))
         return false;
 
-    const AbstractMsvcToolChain *msvcTc = static_cast<const AbstractMsvcToolChain *>(&other);
+    const auto *msvcTc = static_cast<const AbstractMsvcToolChain *>(&other);
     return targetAbi() == msvcTc->targetAbi()
             && m_vcvarsBat == msvcTc->m_vcvarsBat;
 }
 
 AbstractMsvcToolChain::WarningFlagAdder::WarningFlagAdder(const QString &flag,
                                                           WarningFlags &flags) :
-    m_flags(flags),
-    m_triggered(false)
+    m_flags(flags)
 {
     if (flag.startsWith(QLatin1String("-wd"))) {
         m_doesEnable = false;

@@ -100,7 +100,6 @@ KitOptionsPageWidget::KitOptionsPageWidget()
     horizontalLayout->addLayout(buttonLayout);
 
     auto verticalLayout = new QVBoxLayout(this);
-    verticalLayout->setSizeConstraint(QLayout::SetMinimumSize);
     verticalLayout->addLayout(horizontalLayout);
 
     m_model = new Internal::KitModel(verticalLayout, this);
@@ -158,7 +157,7 @@ void KitOptionsPageWidget::kitSelectionChanged()
 
 void KitOptionsPageWidget::addNewKit()
 {
-    Kit *k = m_model->markForAddition(0);
+    Kit *k = m_model->markForAddition(nullptr);
 
     QModelIndex newIdx = m_model->indexOf(k);
     m_selectionModel->select(newIdx,

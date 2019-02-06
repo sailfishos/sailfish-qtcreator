@@ -27,14 +27,20 @@
 #include "androidconstants.h"
 #include "androidsignaloperation.h"
 #include "androidconfigurations.h"
+#include "androidmanager.h"
 
 #include <projectexplorer/runconfiguration.h>
 
 #include <utils/url.h>
 
 #include <QCoreApplication>
+#include <QLoggingCategory>
 
 using namespace ProjectExplorer;
+
+namespace {
+Q_LOGGING_CATEGORY(androidDeviceLog, "qtc.android.build.androiddevice", QtWarningMsg)
+}
 
 namespace Android {
 namespace Internal {
@@ -47,13 +53,15 @@ AndroidDevice::AndroidDevice()
 {
     setDisplayName(QCoreApplication::translate("Android::Internal::AndroidDevice", "Run on Android"));
     setDeviceState(DeviceReadyToUse);
-    setQmlsceneCommand(AndroidConfigurations::currentConfig().deviceQmlsceneCommand());
+    QString activityPath;
+    const AndroidConfig &config = AndroidConfigurations::currentConfig();
+    AndroidManager::apkInfo(config.qtLiveApkPath(), nullptr, nullptr, &activityPath);
+    qCDebug(androidDeviceLog) << "Using Qt live apk from: " << config.qtLiveApkPath()
+                              << "Activity Path:" << activityPath;
+    setQmlsceneCommand(activityPath);
 }
 
-AndroidDevice::AndroidDevice(const AndroidDevice &other)
-    : IDevice(other)
-{ }
-
+AndroidDevice::AndroidDevice(const AndroidDevice &other) = default;
 
 IDevice::DeviceInfo AndroidDevice::deviceInformation() const
 {
@@ -67,7 +75,7 @@ QString AndroidDevice::displayType() const
 
 IDeviceWidget *AndroidDevice::createWidget()
 {
-    return 0;
+    return nullptr;
 }
 
 QList<Core::Id> AndroidDevice::actionIds() const

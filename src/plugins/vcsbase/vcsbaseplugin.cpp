@@ -43,6 +43,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QLoggingCategory>
 #include <QSharedData>
 #include <QScopedPointer>
 #include <QSharedPointer>
@@ -57,7 +58,11 @@ using namespace Core;
 using namespace Utils;
 using namespace ProjectExplorer;
 
-enum { debug = 0, debugRepositorySearch = 0 };
+namespace {
+Q_LOGGING_CATEGORY(baseLog, "qtc.vcs.base", QtWarningMsg)
+Q_LOGGING_CATEGORY(findRepoLog, "qtc.vcs.find-repo", QtWarningMsg)
+Q_LOGGING_CATEGORY(stateLog, "qtc.vcs.state", QtWarningMsg)
+}
 
 /*!
     \namespace VcsBase
@@ -262,7 +267,7 @@ void StateListener::slotStateChanged()
     }
 
     // Get the file and its control. Do not use the file unless we find one
-    IVersionControl *fileControl = 0;
+    IVersionControl *fileControl = nullptr;
 
     if (!state.currentFile.isEmpty()) {
         QFileInfo currentFi(state.currentFile);
@@ -296,7 +301,7 @@ void StateListener::slotStateChanged()
     }
 
     // Check for project, find the control
-    IVersionControl *projectControl = 0;
+    IVersionControl *projectControl = nullptr;
     Project *currentProject = ProjectTree::currentProject();
     if (!currentProject)
         currentProject = SessionManager::startupProject();
@@ -322,6 +327,7 @@ void StateListener::slotStateChanged()
     if (!vc)
         state.clearPatchFile(); // Need a repository to patch
 
+    qCDebug(stateLog).noquote() << "VC:" << (vc ? vc->displayName() : QString("None")) << state;
     EditorManager::updateWindowTitles();
     emit stateChanged(state, vc);
 }
@@ -513,31 +519,23 @@ VCSBASE_EXPORT QDebug operator<<(QDebug in, const VcsBasePluginState &state)
 class VcsBasePluginPrivate
 {
 public:
-    explicit VcsBasePluginPrivate();
-
     inline bool supportsRepositoryCreation() const;
 
     QPointer<VcsBaseSubmitEditor> m_submitEditor;
-    IVersionControl *m_versionControl;
+    IVersionControl *m_versionControl = nullptr;
     Context m_context;
     VcsBasePluginState m_state;
-    int m_actionState;
+    int m_actionState = -1;
 
     static Internal::StateListener *m_listener;
 };
-
-VcsBasePluginPrivate::VcsBasePluginPrivate() :
-    m_versionControl(0),
-    m_actionState(-1)
-{
-}
 
 bool VcsBasePluginPrivate::supportsRepositoryCreation() const
 {
     return m_versionControl && m_versionControl->supportsOperation(IVersionControl::CreateRepositoryOperation);
 }
 
-Internal::StateListener *VcsBasePluginPrivate::m_listener = 0;
+Internal::StateListener *VcsBasePluginPrivate::m_listener = nullptr;
 
 VcsBasePlugin::VcsBasePlugin() :
     d(new VcsBasePluginPrivate())
@@ -578,11 +576,10 @@ void VcsBasePlugin::extensionsInitialized()
 
 void VcsBasePlugin::slotSubmitEditorAboutToClose(VcsBaseSubmitEditor *submitEditor, bool *result)
 {
-    if (debug)
-        qDebug() << this << "plugin's submit editor"
-                 << d->m_submitEditor << (d->m_submitEditor ? d->m_submitEditor->document()->id().name() : "")
-                 << "closing submit editor" << submitEditor
-                 << (submitEditor ? submitEditor->document()->id().name() : "");
+    qCDebug(baseLog) << this << "plugin's submit editor" << d->m_submitEditor
+                     << (d->m_submitEditor ? d->m_submitEditor->document()->id().name() : QByteArray())
+                     << "closing submit editor" << submitEditor
+                     << (submitEditor ? submitEditor->document()->id().name() : QByteArray());
     if (submitEditor == d->m_submitEditor)
         *result = submitEditorAboutToClose();
 }
@@ -621,8 +618,7 @@ const VcsBasePluginState &VcsBasePlugin::currentState() const
 
 bool VcsBasePlugin::enableMenuAction(ActionState as, QAction *menuAction) const
 {
-    if (debug)
-        qDebug() << "enableMenuAction" << menuAction->text() << as;
+    qCDebug(baseLog) << "enableMenuAction" << menuAction->text() << as;
     switch (as) {
     case NoVcsEnabled: {
         const bool supportsCreation = d->supportsRepositoryCreation();
@@ -643,12 +639,13 @@ bool VcsBasePlugin::enableMenuAction(ActionState as, QAction *menuAction) const
 
 QString VcsBasePlugin::commitDisplayName() const
 {
-    return tr("commit", "name of \"commit\" action of the VCS.");
+    return tr("Commit", "name of \"commit\" action of the VCS.");
 }
 
 bool VcsBasePlugin::promptBeforeCommit()
 {
-    return DocumentManager::saveAllModifiedDocuments(tr("Save before %1?").arg(commitDisplayName()));
+    return DocumentManager::saveAllModifiedDocuments(tr("Save before %1?")
+                                                     .arg(commitDisplayName().toLower()));
 }
 
 void VcsBasePlugin::promptToDeleteCurrentFile()
@@ -684,7 +681,7 @@ void VcsBasePlugin::createRepository()
         if (directory.isEmpty())
             return;
         const IVersionControl *managingControl = VcsManager::findVersionControlForDirectory(directory);
-        if (managingControl == 0)
+        if (managingControl == nullptr)
             break;
         const QString question = tr("The directory \"%1\" is already managed by a version control system (%2)."
                                     " Would you like to specify another directory?").arg(directory, managingControl->displayName());
@@ -734,8 +731,7 @@ bool VcsBasePlugin::raiseSubmitEditor() const
 QString VcsBasePlugin::findRepositoryForDirectory(const QString &dirS,
                                                   const QString &checkFile)
 {
-    if (debugRepositorySearch)
-        qDebug() << ">VcsBasePlugin::findRepositoryForDirectory" << dirS << checkFile;
+    qCDebug(findRepoLog) << ">" << dirS << checkFile;
     QTC_ASSERT(!dirS.isEmpty() && !checkFile.isEmpty(), return QString());
 
     const QString root = QDir::rootPath();
@@ -748,13 +744,11 @@ QString VcsBasePlugin::findRepositoryForDirectory(const QString &dirS,
             break;
 
         if (QFileInfo(directory, checkFile).isFile()) {
-            if (debugRepositorySearch)
-                qDebug() << "<VcsBasePlugin::findRepositoryForDirectory> " << absDirPath;
+            qCDebug(findRepoLog) << "<" << absDirPath;
             return absDirPath;
         }
     } while (!directory.isRoot() && directory.cdUp());
-    if (debugRepositorySearch)
-        qDebug() << "<VcsBasePlugin::findRepositoryForDirectory bailing out at " << directory.absolutePath();
+    qCDebug(findRepoLog) << "< bailing out at" << directory.absolutePath();
     return QString();
 }
 

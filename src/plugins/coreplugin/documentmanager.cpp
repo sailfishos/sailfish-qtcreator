@@ -65,7 +65,7 @@
 #include <QMenu>
 #include <QMessageBox>
 
-Q_LOGGING_CATEGORY(log, "qtc.core.documentmanager")
+Q_LOGGING_CATEGORY(log, "qtc.core.documentmanager", QtWarningMsg)
 
 /*!
   \class Core::DocumentManager
@@ -436,7 +436,7 @@ void DocumentManager::renamedFile(const QString &from, const QString &to)
 
 void DocumentManager::filePathChanged(const FileName &oldName, const FileName &newName)
 {
-    IDocument *doc = qobject_cast<IDocument *>(sender());
+    auto doc = qobject_cast<IDocument *>(sender());
     QTC_ASSERT(doc, return);
     if (doc == d->m_blockedIDocument)
         return;
@@ -456,7 +456,7 @@ void DocumentManager::addDocument(IDocument *document, bool addWatcher)
 
 void DocumentManager::documentDestroyed(QObject *obj)
 {
-    IDocument *document = static_cast<IDocument*>(obj);
+    auto document = static_cast<IDocument*>(obj);
     // Check the special unwatched first:
     if (!d->m_documentsWithoutWatch.removeOne(document))
         removeFileInfo(document);
@@ -487,7 +487,7 @@ bool DocumentManager::removeDocument(IDocument *document)
    because the file was saved under different name. */
 void DocumentManager::checkForNewFileName()
 {
-    IDocument *document = qobject_cast<IDocument *>(sender());
+    auto document = qobject_cast<IDocument *>(sender());
     // We modified the IDocument
     // Trust the other code to also update the m_states map
     if (document == d->m_blockedIDocument)
@@ -614,7 +614,7 @@ static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
         (*cancelled) = false;
 
     QList<IDocument *> notSaved;
-    QMap<IDocument *, QString> modifiedDocumentsMap;
+    QHash<IDocument *, QString> modifiedDocumentsMap;
     QList<IDocument *> modifiedDocuments;
 
     foreach (IDocument *document, documents) {
@@ -720,7 +720,7 @@ bool DocumentManager::saveDocument(IDocument *document, const QString &fileName,
     return ret;
 }
 
-QString DocumentManager::allDocumentFactoryFiltersString(QString *allFilesFilter = 0)
+QString DocumentManager::allDocumentFactoryFiltersString(QString *allFilesFilter = nullptr)
 {
     QSet<QString> uniqueFilters;
 
@@ -1023,7 +1023,7 @@ void DocumentManager::checkForReload()
     FileDeletedPromptAnswer previousDeletedAnswer = FileDeletedSave;
 
     QList<IDocument *> documentsToClose;
-    QMap<IDocument*, QString> documentsToSave;
+    QHash<IDocument*, QString> documentsToSave;
 
     // collect file information
     QMap<QString, FileStateItem> currentStates;
@@ -1196,8 +1196,8 @@ void DocumentManager::checkForReload()
                     if (previousDeletedAnswer != FileDeletedCloseAll) {
                         previousDeletedAnswer =
                                 fileDeletedPrompt(document->filePath().toString(),
-                                                         trigger == IDocument::TriggerExternal,
-                                                         QApplication::activeWindow());
+                                                  trigger == IDocument::TriggerExternal,
+                                                  ICore::dialogParent());
                     }
                     switch (previousDeletedAnswer) {
                     case FileDeletedSave:
@@ -1243,7 +1243,7 @@ void DocumentManager::checkForReload()
 
     // handle deleted files
     EditorManager::closeDocuments(documentsToClose, false);
-    QMapIterator<IDocument *, QString> it(documentsToSave);
+    QHashIterator<IDocument *, QString> it(documentsToSave);
     while (it.hasNext()) {
         it.next();
         saveDocument(it.key(), it.value());

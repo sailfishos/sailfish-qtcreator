@@ -70,7 +70,7 @@
 #include <QScreen>
 #include <QWindow>
 
-Q_LOGGING_CATEGORY(qmldesignerLog, "qtc.qmldesigner")
+Q_LOGGING_CATEGORY(qmldesignerLog, "qtc.qmldesigner", QtWarningMsg)
 
 using namespace QmlDesigner::Internal;
 
@@ -93,7 +93,7 @@ QmlDesignerPlugin *QmlDesignerPlugin::m_instance = nullptr;
 
 static bool isInDesignerMode()
 {
-    return Core::ModeManager::currentMode() == Core::Constants::MODE_DESIGN;
+    return Core::ModeManager::currentModeId() == Core::Constants::MODE_DESIGN;
 }
 
 static bool checkIfEditorIsQtQuick(Core::IEditor *editor)
@@ -106,7 +106,7 @@ static bool checkIfEditorIsQtQuick(Core::IEditor *editor)
                     || document->language() == QmlJS::Dialect::QmlQtQuick2Ui
                     || document->language() == QmlJS::Dialect::Qml;
 
-        if (Core::ModeManager::currentMode() == Core::Constants::MODE_DESIGN) {
+        if (Core::ModeManager::currentModeId() == Core::Constants::MODE_DESIGN) {
             Core::AsynchronousMessageBox::warning(QmlDesignerPlugin::tr("Cannot Open Design Mode"),
                                                   QmlDesignerPlugin::tr("The QML file is not currently opened in a QML Editor."));
             Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
@@ -374,7 +374,8 @@ void QmlDesignerPlugin::jumpTextCursorToSelectedModelNode()
             if (currentSelectedNode != selectedNode) {
                 int line, column;
                 currentDesignDocument()->textEditor()->convertPosition(nodeOffset, &line, &column);
-                currentDesignDocument()->textEditor()->gotoLine(line, column);
+                // line has to be 1 based, column 0 based!
+                currentDesignDocument()->textEditor()->gotoLine(line, column - 1);
             }
         }
     }

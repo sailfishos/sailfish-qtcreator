@@ -108,6 +108,7 @@ public:
     virtual void finalizeInitialization() {}
 
     static BaseTextEditor *currentTextEditor();
+    static BaseTextEditor *textEditorForDocument(TextDocument *textDocument);
 
     TextEditorWidget *editorWidget() const;
     TextDocument *textDocument() const;
@@ -121,7 +122,7 @@ public:
     void addContext(Core::Id id);
 
     // IEditor
-    Core::IDocument *document() override;
+    Core::IDocument *document() const override;
 
     IEditor *duplicate() override;
 
@@ -471,6 +472,9 @@ signals:
     void readOnlyChanged();
 
     void requestBlockUpdate(const QTextBlock &);
+
+    void requestLinkAt(const QTextCursor &cursor, Utils::ProcessLinkCallback &callback,
+                       bool resolveTarget, bool inNextSplit);
 
 protected:
     QTextBlock blockForVisibleRow(int row) const;

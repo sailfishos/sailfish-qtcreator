@@ -30,6 +30,8 @@
 #include <coreplugin/basefilewizard.h>
 #include <coreplugin/basefilewizardfactory.h>
 
+#include <memory>
+
 namespace Utils { class ProjectIntroPage; }
 
 namespace ProjectExplorer {
@@ -76,15 +78,13 @@ protected:
 
     QSet<Core::Id> requiredFeatures() const;
     void setRequiredFeatures(const QSet<Core::Id> &featureSet);
-    QSet<Core::Id> preferredFeatures() const;
-    void setPreferredFeatures(const QSet<Core::Id> &featureSet);
 
 private:
     void init();
     void slotAccepted();
     bool validateCurrentPage() override;
 
-    BaseProjectWizardDialogPrivate *d;
+    std::unique_ptr<BaseProjectWizardDialogPrivate> d;
 };
 
 } // namespace ProjectExplorer

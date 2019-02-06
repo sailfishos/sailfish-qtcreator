@@ -29,7 +29,6 @@
 #include "clangstring.h"
 #include "clangunsavedfilesshallowarguments.h"
 #include "codecompleter.h"
-#include "projectpart.h"
 #include "clangexceptions.h"
 #include "clangtranslationunit.h"
 #include "clangtranslationunits.h"
@@ -51,8 +50,8 @@ class DocumentData
 {
 public:
     DocumentData(const Utf8String &filePath,
-                 const ProjectPart &projectPart,
-                 const Utf8StringVector &fileArguments,
+                 const Utf8StringVector &compilationArguments,
+                 const Utf8StringVector &headerPaths,
                  Documents &documents);
     ~DocumentData();
 
@@ -60,14 +59,13 @@ public:
     Documents &documents;
 
     const Utf8String filePath;
-    const Utf8StringVector fileArguments;
-
-    ProjectPart projectPart;
-    TimePoint lastProjectPartChangeTimePoint;
+    const Utf8StringVector compilationArguments;
+    const Utf8StringVector headerPaths;
 
     TranslationUnits translationUnits;
 
     QSet<Utf8String> dependedFilePaths;
+    QSet<Utf8String> unresolvedFilePaths;
 
     uint documentRevision = 0;
 
@@ -84,16 +82,15 @@ public:
 };
 
 DocumentData::DocumentData(const Utf8String &filePath,
-                           const ProjectPart &projectPart,
-                           const Utf8StringVector &fileArguments,
+                           const Utf8StringVector &compilationArguments,
+                           const Utf8StringVector &headerPaths,
                            Documents &documents)
     : documents(documents),
       filePath(filePath),
-      fileArguments(fileArguments),
-      projectPart(projectPart),
-      lastProjectPartChangeTimePoint(Clock::now()),
+      compilationArguments(compilationArguments),
+      headerPaths(headerPaths),
       translationUnits(filePath),
-      isDirtyChangeTimePoint(lastProjectPartChangeTimePoint)
+      isDirtyChangeTimePoint(Clock::now())
 {
     dependedFilePaths.insert(filePath);
     translationUnits.createAndAppend();
@@ -104,13 +101,13 @@ DocumentData::~DocumentData()
 }
 
 Document::Document(const Utf8String &filePath,
-                   const ProjectPart &projectPart,
-                   const Utf8StringVector &fileArguments,
+                   const Utf8StringVector &compilationArguments,
+                   const Utf8StringVector &headerPaths,
                    Documents &documents,
                    FileExistsCheck fileExistsCheck)
     : d(std::make_shared<DocumentData>(filePath,
-                                       projectPart,
-                                       fileArguments,
+                                       compilationArguments,
+                                       headerPaths,
                                        documents))
 {
     if (fileExistsCheck == FileExistsCheck::Check)
@@ -167,11 +164,18 @@ Utf8String Document::filePath() const
     return d->filePath;
 }
 
-Utf8StringVector Document::fileArguments() const
+Utf8StringVector Document::compilationArguments() const
 {
     checkIfNull();
 
-    return d->fileArguments;
+    return d->compilationArguments;
+}
+
+Utf8StringVector Document::headerPaths() const
+{
+    checkIfNull();
+
+    return d->headerPaths;
 }
 
 FileContainer Document::fileContainer() const
@@ -179,32 +183,11 @@ FileContainer Document::fileContainer() const
     checkIfNull();
 
     return FileContainer(d->filePath,
-                         d->projectPart.id(),
-                         d->fileArguments,
+                         d->compilationArguments,
+                         d->headerPaths,
                          Utf8String(),
                          false,
                          d->documentRevision);
-}
-
-const ProjectPart &Document::projectPart() const
-{
-    checkIfNull();
-
-    return d->projectPart;
-}
-
-const TimePoint Document::lastProjectPartChangeTimePoint() const
-{
-    checkIfNull();
-
-    return d->lastProjectPartChangeTimePoint;
-}
-
-bool Document::isProjectPartOutdated() const
-{
-    checkIfNull();
-
-    return d->projectPart.lastChangeTimePoint() >= d->lastProjectPartChangeTimePoint;
 }
 
 uint Document::documentRevision() const
@@ -303,16 +286,6 @@ TimePoint Document::isDirtyTimeChangePoint() const
     return d->isDirtyChangeTimePoint;
 }
 
-bool Document::setDirtyIfProjectPartIsOutdated()
-{
-    if (isProjectPartOutdated()) {
-        setDirty();
-        return true;
-    }
-
-    return false;
-}
-
 void Document::setDirtyIfDependencyIsMet(const Utf8String &filePath)
 {
     if (d->dependedFilePaths.contains(filePath) && isMainFileAndExistsOrIsOtherFile(filePath))
@@ -322,14 +295,11 @@ void Document::setDirtyIfDependencyIsMet(const Utf8String &filePath)
 TranslationUnitUpdateInput Document::createUpdateInput() const
 {
     TranslationUnitUpdateInput updateInput;
-    updateInput.parseNeeded = isProjectPartOutdated();
     updateInput.reparseNeeded = d->isDirty;
     updateInput.needsToBeReparsedChangeTimePoint = d->isDirtyChangeTimePoint;
-    updateInput.filePath = filePath();
-    updateInput.fileArguments = fileArguments();
+    updateInput.filePath = d->filePath;
+    updateInput.compilationArguments = d->compilationArguments;
     updateInput.unsavedFiles = d->documents.unsavedFiles();
-    updateInput.projectId = projectPart().id();
-    updateInput.projectArguments = projectPart().arguments();
 
     return updateInput;
 }
@@ -360,9 +330,6 @@ void Document::incorporateUpdaterResult(const TranslationUnitUpdateResult &resul
         return;
     }
 
-    if (result.hasParsed())
-        d->lastProjectPartChangeTimePoint = result.parseTimePoint;
-
     if (result.hasParsed() || result.hasReparsed()) {
         d->dependedFilePaths = result.dependedOnFilePaths;
 
@@ -376,6 +343,20 @@ void Document::incorporateUpdaterResult(const TranslationUnitUpdateResult &resul
             && result.needsToBeReparsedChangeTimePoint == d->isDirtyChangeTimePoint) {
         d->isDirty = false;
     }
+}
+
+const QSet<Utf8String> Document::unresolvedFilePaths() const
+{
+    checkIfNull();
+
+    return d->unresolvedFilePaths;
+}
+
+void Document::setUnresolvedFilePaths(const QSet<Utf8String> &unresolved)
+{
+    checkIfNull();
+
+    d->unresolvedFilePaths = unresolved;
 }
 
 TranslationUnit Document::translationUnit(PreferredTranslationUnit preferredTranslationUnit) const
@@ -456,15 +437,13 @@ bool Document::isMainFileAndExistsOrIsOtherFile(const Utf8String &filePath) cons
 
 bool operator==(const Document &first, const Document &second)
 {
-    return first.filePath() == second.filePath()
-        && first.projectPart().id() == second.projectPart().id();
+    return first.filePath() == second.filePath();
 }
 
 std::ostream &operator<<(std::ostream &os, const Document &document)
 {
     os << "("
        << document.filePath() << ", "
-       << document.projectPart().id() << ", "
        << document.documentRevision()
        << ")";
 

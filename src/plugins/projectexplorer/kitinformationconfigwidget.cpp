@@ -45,8 +45,6 @@
 #include <utils/pathchooser.h>
 #include <utils/environmentdialog.h>
 
-#include <QAbstractItemView>
-#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -152,6 +150,7 @@ ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const
     foreach (Core::Id l, languageList) {
         layout->addWidget(new QLabel(ToolChainManager::displayNameOfLanguageId(l) + ':'), row, 0);
         auto cb = new QComboBox;
+        cb->setSizePolicy(QSizePolicy::Ignored, cb->sizePolicy().verticalPolicy());
         cb->setToolTip(toolTip());
 
         m_languageComboboxMap.insert(l, cb);
@@ -230,7 +229,7 @@ QWidget *ToolChainInformationConfigWidget::buttonWidget() const
 
 void ToolChainInformationConfigWidget::manageToolChains()
 {
-    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::TOOLCHAIN_SETTINGS_PAGE_ID, buttonWidget());
 }
 
 void ToolChainInformationConfigWidget::currentToolChainChanged(Id language, int idx)
@@ -329,7 +328,7 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, c
     m_comboBox(new QComboBox),
     m_model(new DeviceManagerModel(DeviceManager::instance()))
 {
-    m_comboBox->view()->setPalette(QApplication::palette());
+    m_comboBox->setSizePolicy(QSizePolicy::Ignored, m_comboBox->sizePolicy().verticalPolicy());
     m_comboBox->setModel(m_model);
 
     m_manageButton = new QPushButton(KitConfigWidget::msgManage());
@@ -387,7 +386,7 @@ QWidget *DeviceInformationConfigWidget::buttonWidget() const
 
 void DeviceInformationConfigWidget::manageDevices()
 {
-    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::DEVICE_SETTINGS_PAGE_ID, buttonWidget());
 }
 
 void DeviceInformationConfigWidget::modelAboutToReset()
@@ -420,6 +419,7 @@ KitEnvironmentConfigWidget::KitEnvironmentConfigWidget(Kit *workingCopy, const K
     m_mainWidget(new QWidget)
 {
     auto *layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_summaryLabel);
     if (Utils::HostOsInfo::isWindowsHost())
         initMSVCOutputSwitch(layout);

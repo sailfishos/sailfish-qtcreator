@@ -67,6 +67,7 @@ std::ostream &operator<<(std::ostream &out, const Macro &macro);
 
 namespace Utils {
 class LineColumn;
+class SmallStringView;
 
 std::ostream &operator<<(std::ostream &out, const LineColumn &lineColumn);
 
@@ -85,6 +86,7 @@ void PrintTo(const Utils::optional<Type> &optional, ::std::ostream *os)
     *os << optional;
 }
 
+void PrintTo(Utils::SmallStringView text, ::std::ostream *os);
 void PrintTo(const Utils::SmallString &text, ::std::ostream *os);
 void PrintTo(const Utils::PathString &text, ::std::ostream *os);
 
@@ -97,7 +99,6 @@ class FilePathId;
 class FilePath;
 class WatcherEntry;
 class SourceLocationsContainer;
-class ProjectPartsUpdatedMessage;
 class CancelMessage;
 class AliveMessage;
 class CompletionsMessage;
@@ -110,7 +111,6 @@ class FollowSymbolMessage;
 class RequestCompletionsMessage;
 class EndMessage;
 class DocumentsOpenedMessage;
-class ProjectPartsRemovedMessage;
 class DocumentsClosedMessage;
 class CodeCompletion;
 class CodeCompletionChunk;
@@ -124,7 +124,6 @@ class FullTokenInfo;
 class HighlightingMarkContainer;
 class NativeFilePath;
 class PrecompiledHeadersUpdatedMessage;
-class ProjectPartContainer;
 class ProjectPartPch;
 class UnsavedFilesUpdatedMessage;
 class RemoveProjectPartsMessage;
@@ -165,12 +164,21 @@ class SymbolEntry;
 enum class SymbolKind : uchar;
 enum class SymbolTag : uchar;
 using SymbolTags = Utils::SizedArray<SymbolTag, 7>;
+class UpdateGeneratedFilesMessage;
+class RemoveGeneratedFilesMessage;
+class SuspendResumeJobsEntry;
+class ReferencesResult;
+class SymbolIndexerTask;
+class PchCreatorIncludes;
+class PchTask;
+class BuildDependency;
+class SourceEntry;
+class FilePathCaching;
 
 std::ostream &operator<<(std::ostream &out, const SourceLocationEntry &entry);
 std::ostream &operator<<(std::ostream &out, const IdPaths &idPaths);
 std::ostream &operator<<(std::ostream &out, const WatcherEntry &entry);
 std::ostream &operator<<(std::ostream &out, const SourceLocationsContainer &container);
-std::ostream &operator<<(std::ostream &out, const ProjectPartsUpdatedMessage &message);
 std::ostream &operator<<(std::ostream &out, const CancelMessage &message);
 std::ostream &operator<<(std::ostream &out, const AliveMessage &message);
 std::ostream &operator<<(std::ostream &out, const CompletionsMessage &message);
@@ -183,7 +191,6 @@ std::ostream &operator<<(std::ostream &out, const FollowSymbolMessage &message);
 std::ostream &operator<<(std::ostream &out, const RequestCompletionsMessage &message);
 std::ostream &operator<<(std::ostream &out, const EndMessage &message);
 std::ostream &operator<<(std::ostream &out, const DocumentsOpenedMessage &message);
-std::ostream &operator<<(std::ostream &out, const ProjectPartsRemovedMessage &message);
 std::ostream &operator<<(std::ostream &out, const DocumentsClosedMessage &message);
 std::ostream &operator<<(std::ostream &out, const CodeCompletion &message);
 std::ostream &operator<<(std::ostream &out, const CodeCompletionChunk &chunk);
@@ -198,7 +205,6 @@ std::ostream &operator<<(std::ostream &out, HighlightingTypes types);
 std::ostream &operator<<(std::ostream &out, const HighlightingMarkContainer &container);
 std::ostream &operator<<(std::ostream &out, const NativeFilePath &filePath);
 std::ostream &operator<<(std::ostream &out, const PrecompiledHeadersUpdatedMessage &message);
-std::ostream &operator<<(std::ostream &out, const ProjectPartContainer &container);
 std::ostream &operator<<(std::ostream &out, const ProjectPartPch &projectPartPch);
 std::ostream &operator<<(std::ostream &out, const UnsavedFilesUpdatedMessage &message);
 std::ostream &operator<<(std::ostream &out, const RemoveProjectPartsMessage &message);
@@ -242,6 +248,15 @@ std::ostream &operator<<(std::ostream &out, const SymbolEntry &symbolEntry);
 std::ostream &operator<<(std::ostream &out, SymbolKind symbolKind);
 std::ostream &operator<<(std::ostream &out, SymbolTag symbolTag);
 std::ostream &operator<<(std::ostream &out, SymbolTags symbolTags);
+std::ostream &operator<<(std::ostream &out, const UpdateGeneratedFilesMessage &message);
+std::ostream &operator<<(std::ostream &out, const RemoveGeneratedFilesMessage &message);
+std::ostream &operator<<(std::ostream &os, const SuspendResumeJobsEntry &entry);
+std::ostream &operator<<(std::ostream &os, const ReferencesResult &value);
+std::ostream &operator<<(std::ostream &out, const SymbolIndexerTask &task);
+std::ostream &operator<<(std::ostream &out, const PchCreatorIncludes &includes);
+std::ostream &operator<<(std::ostream &out, const PchTask &task);
+std::ostream &operator<<(std::ostream &out, const BuildDependency &dependency);
+std::ostream &operator<<(std::ostream &out, const SourceEntry &entry);
 
 void PrintTo(const FilePath &filePath, ::std::ostream *os);
 void PrintTo(const FilePathView &filePathView, ::std::ostream *os);
@@ -275,3 +290,5 @@ class Usage;
 
 std::ostream &operator<<(std::ostream &out, const Usage &usage);
 } // namespace CppTools
+
+void setFilePathCache(ClangBackEnd::FilePathCaching *filePathCache);

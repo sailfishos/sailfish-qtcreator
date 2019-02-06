@@ -44,9 +44,7 @@ namespace Internal {
 //
 ////////////////////////////////////////////////////////////////////////
 
-StackFrame::StackFrame()
-  : language(CppLanguage), line(-1), address(0), usable(false)
-{}
+StackFrame::StackFrame() = default;
 
 void StackFrame::clear()
 {
@@ -83,8 +81,8 @@ QString StackFrame::toString() const
 QList<StackFrame> StackFrame::parseFrames(const GdbMi &data, const DebuggerRunParameters &rp)
 {
     StackFrames frames;
-    frames.reserve(data.children().size());
-    foreach (const GdbMi &item, data.children())
+    frames.reserve(data.childCount());
+    for (const GdbMi &item : data)
         frames.append(parseFrame(item, rp));
     return frames;
 }
@@ -194,7 +192,7 @@ void StackFrame::fixQrcFrame(const DebuggerRunParameters &rp)
     while (relativeFile.startsWith(QLatin1Char('/')))
         relativeFile = relativeFile.mid(1);
 
-    QString absFile = findFile(rp.projectSourceDirectory, relativeFile);
+    QString absFile = findFile(rp.projectSourceDirectory.toString(), relativeFile);
     if (absFile.isEmpty())
         absFile = findFile(QDir::currentPath(), relativeFile);
 

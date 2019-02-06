@@ -49,10 +49,7 @@ namespace Internal {
 // --------------------------------------------------------------------
 
 QbsProjectParser::QbsProjectParser(QbsProject *project, QFutureInterface<bool> *fi) :
-    m_qbsSetupProjectJob(0),
-    m_ruleExecutionJob(0),
-    m_fi(fi),
-    m_currentProgressBase(0)
+    m_fi(fi)
 {
     m_project = project->qbsProject();
     m_projectFilePath = project->projectFilePath().toString();
@@ -75,7 +72,7 @@ QbsProjectParser::~QbsProjectParser()
     };
     deleteJob(m_qbsSetupProjectJob);
     deleteJob(m_ruleExecutionJob);
-    m_fi = 0; // we do not own m_fi, do not delete
+    m_fi = nullptr; // we do not own m_fi, do not delete
 }
 
 void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, const QString &dir,
@@ -114,7 +111,7 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
     params.setPropertyCheckingMode(qbs::ErrorHandlingMode::Relaxed);
     params.setLogElapsedTime(!qEnvironmentVariableIsEmpty(Constants::QBS_PROFILING_ENV));
 
-    m_qbsSetupProjectJob = m_project.setupProject(params, QbsManager::logSink(), 0);
+    m_qbsSetupProjectJob = m_project.setupProject(params, QbsManager::logSink(), nullptr);
 
     connect(m_qbsSetupProjectJob, &qbs::AbstractJob::finished,
             this, &QbsProjectParser::handleQbsParsingDone);

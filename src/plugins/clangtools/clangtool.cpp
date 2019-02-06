@@ -98,6 +98,11 @@ ClangTool::ClangTool(const QString &name)
     m_stopAction = Debugger::createStopAction();
 }
 
+ClangTool::~ClangTool()
+{
+    delete m_diagnosticView;
+}
+
 FileInfos ClangTool::collectFileInfos(Project *project, bool askUserForFileSelection) const
 {
     auto projectInfo = CppTools::CppModelManager::instance()->projectInfo(project);

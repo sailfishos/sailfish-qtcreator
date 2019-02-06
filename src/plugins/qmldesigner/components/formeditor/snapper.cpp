@@ -38,8 +38,8 @@
 namespace QmlDesigner {
 
 Snapper::Snapper()
-    : m_containerFormEditorItem(0),
-    m_transformtionSpaceFormEditorItem(0),
+    : m_containerFormEditorItem(nullptr),
+    m_transformtionSpaceFormEditorItem(nullptr),
     m_snappingDistance(5.0)
 {
 }
@@ -289,7 +289,7 @@ QLineF Snapper::createSnapLine(Qt::Orientation orientation,
     if (orientation == Qt::Horizontal) {
         double lowerX(qMin(lowerLimit, double(itemRect.left())));
         double upperX(qMax(upperLimit, double(itemRect.right())));
-        return QLineF(lowerX, snapLine, upperX, snapLine);
+        return {lowerX, snapLine, upperX, snapLine};
     } else {
         double lowerY(qMin(lowerLimit, double(itemRect.top())));
         double upperY(qMax(upperLimit, double(itemRect.bottom())));
@@ -321,7 +321,7 @@ QList<QLineF> Snapper::findSnappingLines(const SnapLineMap &snappingLineMap,
                                         lowerLimit,
                                         upperLimit,
                                         snappingLineIterator.value().first);
-            if (boundingRects != 0)
+            if (boundingRects != nullptr)
                 boundingRects->append(snappingLineIterator.value().first);
         }
     }
@@ -363,7 +363,7 @@ QList<QLineF> Snapper::findSnappingOffsetLines(const SnapLineMap &snappingOffset
                                        lowerLimit,
                                        upperLimit,
                                        formEditorItemRect);
-            if (boundingRects != 0)
+            if (boundingRects != nullptr)
                 boundingRects->append(snappingOffsetIterator.value().first);
         }
     }
@@ -461,7 +461,7 @@ static QLineF mergedHorizontalLine(const QList<QLineF> &lineList)
     }
 
     double y(lineList.constFirst().y1());
-    return QLineF(minimumX, y, maximumX, y);
+    return {minimumX, y, maximumX, y};
 }
 
 static QLineF mergedVerticalLine(const QList<QLineF> &lineList)
@@ -479,7 +479,7 @@ static QLineF mergedVerticalLine(const QList<QLineF> &lineList)
     }
 
     double x(lineList.constFirst().x1());
-    return QLineF(x, minimumY, x, maximumY);
+    return {x, minimumY, x, maximumY};
 }
 
 static QList<QLineF> mergedHorizontalLines(const QList<QLineF> &lineList)
@@ -715,7 +715,7 @@ QList<QGraphicsItem*> Snapper::generateSnappingLines(const QList<QRectF> &boundi
 
     foreach (const QLineF &line, lineList) {
         QLineF lineInTransformationSpace = transform.map(line);
-        QGraphicsLineItem * lineItem = new QGraphicsLineItem(lineInTransformationSpace, layerItem);
+        auto lineItem = new QGraphicsLineItem(lineInTransformationSpace, layerItem);
         lineItem->setZValue(40);
         QPen linePen;
         linePen.setCosmetic(true);

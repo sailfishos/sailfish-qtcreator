@@ -113,6 +113,10 @@ public:
 
     bool showInSimpleTree() const override;
     QString addFileFilter() const override;
+    bool supportsAction(ProjectAction action, const Node *node) const override;
+    bool addFiles(const QStringList &filePaths, QStringList *) override;
+    bool removeFiles(const QStringList &filePaths, QStringList *) override;
+    bool deleteFiles(const QStringList &) override;
     bool renameFile(const QString &filePath, const QString &newFilePath) override;
 
 private:
@@ -209,7 +213,7 @@ class InterpreterAspect : public BaseStringAspect
     Q_OBJECT
 
 public:
-    explicit InterpreterAspect(RunConfiguration *rc) : BaseStringAspect(rc) {}
+    InterpreterAspect() = default;
 };
 
 class MainScriptAspect : public BaseStringAspect
@@ -217,7 +221,7 @@ class MainScriptAspect : public BaseStringAspect
     Q_OBJECT
 
 public:
-    explicit MainScriptAspect(RunConfiguration *rc) : BaseStringAspect(rc) {}
+    MainScriptAspect() = default;
 };
 
 class PythonRunConfiguration : public RunConfiguration
@@ -234,13 +238,12 @@ public:
 
 private:
     void doAdditionalSetup(const RunConfigurationCreationInfo &) final { updateTargetInformation(); }
-    void fillConfigurationLayout(QFormLayout *layout) const final;
     Runnable runnable() const final;
 
     bool supportsDebugger() const { return true; }
-    QString mainScript() const { return extraAspect<MainScriptAspect>()->value(); }
-    QString arguments() const { return extraAspect<ArgumentsAspect>()->arguments(); }
-    QString interpreter() const { return extraAspect<InterpreterAspect>()->value(); }
+    QString mainScript() const { return aspect<MainScriptAspect>()->value(); }
+    QString arguments() const { return aspect<ArgumentsAspect>()->arguments(macroExpander()); }
+    QString interpreter() const { return aspect<InterpreterAspect>()->value(); }
 
     void updateTargetInformation();
 };
@@ -251,23 +254,21 @@ PythonRunConfiguration::PythonRunConfiguration(Target *target, Core::Id id)
     const Environment sysEnv = Environment::systemEnvironment();
     const QString exec = sysEnv.searchInPath("python").toString();
 
-    auto interpreterAspect = new InterpreterAspect(this);
+    auto interpreterAspect = addAspect<InterpreterAspect>();
     interpreterAspect->setSettingsKey("PythonEditor.RunConfiguation.Interpreter");
     interpreterAspect->setLabelText(tr("Interpreter:"));
     interpreterAspect->setDisplayStyle(BaseStringAspect::PathChooserDisplay);
     interpreterAspect->setHistoryCompleter("PythonEditor.Interpreter.History");
     interpreterAspect->setValue(exec.isEmpty() ? "python" : exec);
-    addExtraAspect(interpreterAspect);
 
-    auto scriptAspect = new MainScriptAspect(this);
+    auto scriptAspect = addAspect<MainScriptAspect>();
     scriptAspect->setSettingsKey("PythonEditor.RunConfiguation.Script");
     scriptAspect->setLabelText(tr("Script:"));
     scriptAspect->setDisplayStyle(BaseStringAspect::LabelDisplay);
-    addExtraAspect(scriptAspect);
 
-    addExtraAspect(new LocalEnvironmentAspect(this, LocalEnvironmentAspect::BaseEnvironmentModifier()));
-    addExtraAspect(new ArgumentsAspect(this, "PythonEditor.RunConfiguration.Arguments"));
-    addExtraAspect(new TerminalAspect(this, "PythonEditor.RunConfiguration.UseTerminal"));
+    addAspect<LocalEnvironmentAspect>(target, LocalEnvironmentAspect::BaseEnvironmentModifier());
+    addAspect<ArgumentsAspect>();
+    addAspect<TerminalAspect>();
 
     setOutputFormatter<PythonOutputFormatter>();
 
@@ -282,25 +283,17 @@ void PythonRunConfiguration::updateTargetInformation()
     const BuildTargetInfo bti = buildTargetInfo();
     const QString script = bti.targetFilePath.toString();
     setDefaultDisplayName(tr("Run %1").arg(script));
-    extraAspect<MainScriptAspect>()->setValue(script);
-}
-
-void PythonRunConfiguration::fillConfigurationLayout(QFormLayout *layout) const
-{
-    extraAspect<InterpreterAspect>()->addToConfigurationLayout(layout);
-    extraAspect<MainScriptAspect>()->addToConfigurationLayout(layout);
-    extraAspect<ArgumentsAspect>()->addToConfigurationLayout(layout);
-    extraAspect<TerminalAspect>()->addToConfigurationLayout(layout);
+    aspect<MainScriptAspect>()->setValue(script);
 }
 
 Runnable PythonRunConfiguration::runnable() const
 {
     Runnable r;
     QtcProcess::addArg(&r.commandLineArguments, mainScript());
-    QtcProcess::addArgs(&r.commandLineArguments, extraAspect<ArgumentsAspect>()->arguments());
-    r.executable = extraAspect<InterpreterAspect>()->value();
-    r.runMode = extraAspect<TerminalAspect>()->runMode();
-    r.environment = extraAspect<EnvironmentAspect>()->environment();
+    QtcProcess::addArgs(&r.commandLineArguments,
+                        aspect<ArgumentsAspect>()->arguments(macroExpander()));
+    r.executable = aspect<InterpreterAspect>()->value();
+    r.environment = aspect<EnvironmentAspect>()->environment();
     return r;
 }
 
@@ -311,6 +304,7 @@ public:
     {
         registerRunConfiguration<PythonRunConfiguration>("PythonEditor.RunConfiguration.");
         addSupportedProjectType(PythonProjectId);
+        addRunWorkerFactory<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE);
     }
 };
 
@@ -322,11 +316,13 @@ PythonProject::PythonProject(const FileName &fileName) :
     setDisplayName(fileName.toFileInfo().completeBaseName());
 }
 
-static QStringList readLines(const QString &absoluteFileName)
+static QStringList readLines(const Utils::FileName &projectFile)
 {
-    QStringList lines;
+    const QString projectFileName = projectFile.fileName();
+    QSet<QString> visited = { projectFileName };
+    QStringList lines = { projectFileName };
 
-    QFile file(absoluteFileName);
+    QFile file(projectFile.toString());
     if (file.open(QFile::ReadOnly)) {
         QTextStream stream(&file);
 
@@ -334,8 +330,10 @@ static QStringList readLines(const QString &absoluteFileName)
             QString line = stream.readLine();
             if (line.isNull())
                 break;
-
+            if (visited.contains(line))
+                continue;
             lines.append(line);
+            visited.insert(line);
         }
     }
 
@@ -372,14 +370,6 @@ bool PythonProject::addFiles(const QStringList &filePaths)
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
-    QSet<QString> toAdd;
-
-    foreach (const QString &filePath, filePaths) {
-        QString directory = QFileInfo(filePath).absolutePath();
-        if (!toAdd.contains(directory))
-            toAdd << directory;
-    }
-
     bool result = saveRawList(newList, projectFilePath().toString());
     refresh();
 
@@ -402,7 +392,7 @@ bool PythonProject::removeFiles(const QStringList &filePaths)
 bool PythonProject::setFiles(const QStringList &filePaths)
 {
     QStringList newList;
-    QDir baseDir(projectFilePath().toString());
+    QDir baseDir(projectDirectory().toString());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
@@ -417,7 +407,7 @@ bool PythonProject::renameFile(const QString &filePath, const QString &newFilePa
     if (i != m_rawListEntries.end()) {
         int index = newList.indexOf(i.value());
         if (index != -1) {
-            QDir baseDir(projectFilePath().toString());
+            QDir baseDir(projectDirectory().toString());
             newList.replace(index, baseDir.relativeFilePath(newFilePath));
         }
     }
@@ -428,8 +418,7 @@ bool PythonProject::renameFile(const QString &filePath, const QString &newFilePa
 void PythonProject::parseProject()
 {
     m_rawListEntries.clear();
-    m_rawFileList = readLines(projectFilePath().toString());
-    m_rawFileList << projectFilePath().fileName();
+    m_rawFileList = readLines(projectFilePath());
     m_files = processEntries(m_rawFileList, &m_rawListEntries);
 }
 
@@ -591,6 +580,37 @@ QString PythonProjectNode::addFileFilter() const
     return QLatin1String("*.py");
 }
 
+bool PythonProjectNode::supportsAction(ProjectAction action, const Node *node) const
+{
+    switch (node->nodeType()) {
+    case NodeType::File:
+        return action == ProjectAction::Rename
+            || action == ProjectAction::RemoveFile;
+    case NodeType::Folder:
+    case NodeType::Project:
+        return action == ProjectAction::AddNewFile
+            || action == ProjectAction::RemoveFile
+            || action == ProjectAction::AddExistingFile;
+    default:
+        return ProjectNode::supportsAction(action, node);
+    }
+}
+
+bool PythonProjectNode::addFiles(const QStringList &filePaths, QStringList *)
+{
+    return m_project->addFiles(filePaths);
+}
+
+bool PythonProjectNode::removeFiles(const QStringList &filePaths, QStringList *)
+{
+    return m_project->removeFiles(filePaths);
+}
+
+bool PythonProjectNode::deleteFiles(const QStringList &)
+{
+    return true;
+}
+
 bool PythonProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
 {
     return m_project->renameFile(filePath, newFilePath);
@@ -622,12 +642,6 @@ bool PythonEditorPlugin::initialize(const QStringList &arguments, QString *error
     d = new PythonEditorPluginPrivate;
 
     ProjectManager::registerProjectType<PythonProject>(PythonMimeType);
-
-    auto constraint = [](RunConfiguration *runConfiguration) {
-        auto aspect = runConfiguration->extraAspect<InterpreterAspect>();
-        return aspect && !aspect->value().isEmpty();
-    };
-    RunControl::registerWorker<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE, constraint);
 
     return true;
 }

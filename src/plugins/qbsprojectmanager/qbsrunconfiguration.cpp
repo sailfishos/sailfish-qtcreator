@@ -52,23 +52,24 @@ namespace Internal {
 QbsRunConfiguration::QbsRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    auto envAspect = new LocalEnvironmentAspect(this,
-            [](RunConfiguration *rc, Environment &env) {
-                static_cast<QbsRunConfiguration *>(rc)->addToBaseEnvironment(env);
-            });
-    addExtraAspect(envAspect);
+    auto envAspect = addAspect<LocalEnvironmentAspect>(target,
+            [this](Environment &env) { addToBaseEnvironment(env); });
 
-    addExtraAspect(new ExecutableAspect(this));
-    addExtraAspect(new ArgumentsAspect(this, "Qbs.RunConfiguration.CommandLineArguments"));
-    addExtraAspect(new WorkingDirectoryAspect(this, "Qbs.RunConfiguration.WorkingDirectory"));
-    addExtraAspect(new TerminalAspect(this, "Qbs.RunConfiguration.UseTerminal"));
+    addAspect<ExecutableAspect>();
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>(envAspect);
+    addAspect<TerminalAspect>();
 
     setOutputFormatter<QtSupport::QtOutputFormatter>();
 
-    auto libAspect = new UseLibraryPathsAspect(this, "Qbs.RunConfiguration.UsingLibraryPaths");
-    addExtraAspect(libAspect);
+    auto libAspect = addAspect<UseLibraryPathsAspect>();
     connect(libAspect, &UseLibraryPathsAspect::changed,
             envAspect, &EnvironmentAspect::environmentChanged);
+    if (HostOsInfo::isMacHost()) {
+        auto dyldAspect = addAspect<UseDyldSuffixAspect>();
+        connect(dyldAspect, &UseDyldSuffixAspect::changed,
+                envAspect, &EnvironmentAspect::environmentChanged);
+    }
 
     connect(project(), &Project::parsingFinished, this,
             [envAspect]() { envAspect->buildEnvironmentHasChanged(); });
@@ -81,7 +82,7 @@ QbsRunConfiguration::QbsRunConfiguration(Target *target, Core::Id id)
     connect(target, &Target::kitChanged,
             this, &QbsRunConfiguration::updateTargetInformation);
 
-    QbsProject *qbsProject = static_cast<QbsProject *>(target->project());
+    auto qbsProject = static_cast<QbsProject *>(target->project());
     connect(qbsProject, &QbsProject::dataChanged, this, [this] { m_envCache.clear(); });
     connect(qbsProject, &Project::parsingFinished,
             this, &QbsRunConfiguration::updateTargetInformation);
@@ -109,7 +110,11 @@ void QbsRunConfiguration::doAdditionalSetup(const RunConfigurationCreationInfo &
 
 void QbsRunConfiguration::addToBaseEnvironment(Utils::Environment &env) const
 {
-    bool usingLibraryPaths = extraAspect<UseLibraryPathsAspect>()->value();
+    if (auto dyldAspect = aspect<UseDyldSuffixAspect>()) {
+        if (dyldAspect->value())
+            env.set("DYLD_IMAGE_SUFFIX", "_debug");
+    }
+    bool usingLibraryPaths = aspect<UseLibraryPathsAspect>()->value();
 
     const auto key = qMakePair(env.toStringList(), usingLibraryPaths);
     const auto it = m_envCache.constFind(key);
@@ -141,16 +146,16 @@ void QbsRunConfiguration::updateTargetInformation()
 {
     BuildTargetInfo bti = buildTargetInfo();
     const FileName executable = executableToRun(bti);
-    auto terminalAspect = extraAspect<TerminalAspect>();
+    auto terminalAspect = aspect<TerminalAspect>();
     if (!terminalAspect->isUserSet())
         terminalAspect->setUseTerminal(bti.usesTerminal);
 
-    extraAspect<ExecutableAspect>()->setExecutable(executable);
+    aspect<ExecutableAspect>()->setExecutable(executable);
 
     if (!executable.isEmpty()) {
         QString defaultWorkingDir = QFileInfo(executable.toString()).absolutePath();
         if (!defaultWorkingDir.isEmpty()) {
-            auto wdAspect = extraAspect<WorkingDirectoryAspect>();
+            auto wdAspect = aspect<WorkingDirectoryAspect>();
             wdAspect->setDefaultWorkingDirectory(FileName::fromString(defaultWorkingDir));
         }
     }
@@ -177,6 +182,8 @@ QbsRunConfigurationFactory::QbsRunConfigurationFactory()
     registerRunConfiguration<QbsRunConfiguration>("Qbs.RunConfiguration:");
     addSupportedProjectType(Constants::PROJECT_ID);
     addSupportedTargetDeviceType(ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE);
+
+    addRunWorkerFactory<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE);
 }
 
 } // namespace Internal

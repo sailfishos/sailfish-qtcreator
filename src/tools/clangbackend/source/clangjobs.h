@@ -50,12 +50,11 @@ public:
     };
 
     using RunningJobs = QHash<IAsyncJob *, RunningJob>;
-    using JobFinishedCallback = std::function<void(RunningJob)>;
+    using JobFinishedCallback = std::function<void(RunningJob, IAsyncJob *)>;
 
 public:
     Jobs(Documents &documents,
          UnsavedFiles &unsavedFiles,
-         ProjectParts &projects,
          ClangCodeModelClientInterface &client,
          const Utf8String &logTag = Utf8String());
     ~Jobs();
@@ -73,6 +72,7 @@ public:
     JobRequests process();
     JobRequests stop();
 
+    JobFinishedCallback finishedCallback() const;
     void setJobFinishedCallback(const JobFinishedCallback &jobFinishedCallback);
 
 public /*for tests*/:
@@ -91,7 +91,6 @@ private:
 private:
     Documents &m_documents;
     UnsavedFiles &m_unsavedFiles;
-    ProjectParts &m_projectParts;
     ClangCodeModelClientInterface &m_client;
     Utf8String m_logTag;
 

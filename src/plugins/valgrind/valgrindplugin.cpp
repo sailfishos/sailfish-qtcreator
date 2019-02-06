@@ -71,7 +71,7 @@ public:
     QWidget *widget()
     {
         if (!m_widget)
-            m_widget = new ValgrindConfigWidget(theGlobalSettings, 0, true);
+            m_widget = new ValgrindConfigWidget(theGlobalSettings, true);
         return m_widget;
     }
 
@@ -89,20 +89,19 @@ private:
     QPointer<QWidget> m_widget;
 };
 
-class ValgrindRunConfigurationAspect : public IRunConfigurationAspect
+class ValgrindRunConfigurationAspect : public GlobalOrProjectAspect
 {
 public:
-    ValgrindRunConfigurationAspect(RunConfiguration *parent)
-        : IRunConfigurationAspect(parent)
+    ValgrindRunConfigurationAspect(Target *)
     {
-        setProjectSettings(new ValgrindProjectSettings(parent));
+        setProjectSettings(new ValgrindProjectSettings);
         setGlobalSettings(ValgrindPlugin::globalSettings());
         setId(ANALYZER_VALGRIND_SETTINGS);
         setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindRunConfigurationAspect",
                                                    "Valgrind Settings"));
         setUsingGlobalSettings(true);
         resetProjectToGlobalSettings();
-        setRunConfigWidgetCreator([this] { return new Debugger::AnalyzerRunConfigWidget(this); });
+        setConfigWidgetCreator([this] { return new Debugger::AnalyzerRunConfigWidget(this); });
     }
 };
 

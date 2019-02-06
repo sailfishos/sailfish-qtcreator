@@ -5,8 +5,6 @@ QT += \
     qml \
     sql
 
-qtHaveModule(help): QT += help
-
 # embedding build time information prevents repeatedly binary exact versions from same source code
 isEmpty(QTC_SHOW_BUILD_DATE): QTC_SHOW_BUILD_DATE = $$(QTC_SHOW_BUILD_DATE)
 !isEmpty(QTC_SHOW_BUILD_DATE): DEFINES += QTC_SHOW_BUILD_DATE
@@ -195,6 +193,7 @@ HEADERS += corejsextensions.h \
     designmode.h \
     editortoolbar.h \
     helpmanager.h \
+    helpmanager_implementation.h \
     outputpanemanager.h \
     navigationsubwidget.h \
     sidebarwidget.h \
@@ -224,7 +223,8 @@ HEADERS += corejsextensions.h \
     coreicons.h \
     editormanager/documentmodel_p.h \
     diffservice.h \
-    menubarfilter.h
+    menubarfilter.h \
+    editormanager/ieditorfactory_p.h
 
 FORMS += dialogs/newdialog.ui \
     dialogs/saveitemsdialog.ui \

@@ -52,7 +52,7 @@ using TestResultPtr = QSharedPointer<TestResult>;
 class TestConfiguration
 {
 public:
-    explicit TestConfiguration();
+    explicit TestConfiguration() = default;
     virtual ~TestConfiguration();
 
     void completeTestInformation(TestRunMode runMode);
@@ -84,24 +84,24 @@ public:
     ProjectExplorer::RunConfiguration *originalRunConfiguration() const { return m_origRunConfig; }
     TestRunConfiguration *runConfiguration() const { return m_runConfig; }
     bool hasExecutable() const;
-    bool isGuessed() const { return m_guessedConfiguration; }
-    QString runConfigDisplayName() const { return m_guessedConfiguration ? m_guessedFrom
+    bool isDeduced() const { return m_deducedConfiguration; }
+    QString runConfigDisplayName() const { return m_deducedConfiguration ? m_deducedFrom
                                                                          : m_displayName; }
 
     ProjectExplorer::Runnable runnable() const { return m_runnable; }
     virtual TestOutputReader *outputReader(const QFutureInterface<TestResultPtr> &fi,
                                            QProcess *app) const = 0;
     virtual QStringList argumentsForTestRunner(QStringList *omitted = nullptr) const = 0;
-
+    virtual Utils::Environment filteredEnvironment(const Utils::Environment &original) const = 0;
 private:
     QStringList m_testCases;
     int m_testCaseCount = 0;
     QString m_projectFile;
     QString m_buildDir;
     QString m_displayName;
-    QString m_guessedFrom;
+    QString m_deducedFrom;
     QPointer<ProjectExplorer::Project> m_project;
-    bool m_guessedConfiguration = false;
+    bool m_deducedConfiguration = false;
     TestRunConfiguration *m_runConfig = nullptr;
     QSet<QString> m_buildTargets;
     ProjectExplorer::RunConfiguration *m_origRunConfig = nullptr;
@@ -113,7 +113,6 @@ class DebuggableTestConfiguration : public TestConfiguration
 public:
     explicit DebuggableTestConfiguration(TestRunMode runMode = TestRunMode::Run)
         : m_runMode(runMode) {}
-    ~DebuggableTestConfiguration() {}
 
     void setRunMode(TestRunMode mode) { m_runMode = mode; }
     TestRunMode runMode() const { return m_runMode; }

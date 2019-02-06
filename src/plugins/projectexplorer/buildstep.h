@@ -55,7 +55,7 @@ protected:
 public:
     virtual bool init(QList<const BuildStep *> &earlierSteps) = 0;
     virtual void run(QFutureInterface<bool> &fi) = 0;
-    virtual BuildStepConfigWidget *createConfigWidget() = 0;
+    virtual BuildStepConfigWidget *createConfigWidget();
 
     virtual bool immutable() const;
     virtual bool runInGuiThread() const;
@@ -118,13 +118,11 @@ public:
     BuildStepCreator creator;
 };
 
-class PROJECTEXPLORER_EXPORT BuildStepFactory : public QObject
+class PROJECTEXPLORER_EXPORT BuildStepFactory
 {
-    Q_OBJECT
-
 public:
     BuildStepFactory();
-    ~BuildStepFactory() override;
+    virtual ~BuildStepFactory();
 
     static const QList<BuildStepFactory *> allBuildStepFactories();
 
@@ -133,9 +131,12 @@ public:
     BuildStep *create(BuildStepList *parent, Core::Id id);
     BuildStep *restore(BuildStepList *parent, const QVariantMap &map);
 
-    virtual bool canHandle(BuildStepList *bsl) const;
+    bool canHandle(BuildStepList *bsl) const;
 
 protected:
+    BuildStepFactory(const BuildStepFactory &) = delete;
+    BuildStepFactory &operator=(const BuildStepFactory &) = delete;
+
     using BuildStepCreator = std::function<BuildStep *(BuildStepList *)>;
 
     template <class BuildStepType>
@@ -173,11 +174,16 @@ public:
     virtual QString summaryText() const = 0;
     virtual QString additionalSummaryText() const { return QString(); }
     virtual QString displayName() const = 0;
-    virtual bool showWidget() const { return true; }
+
+    bool showWidget() const { return m_showWidget; }
+    void setShowWidget(bool showWidget) { m_showWidget = showWidget; }
 
 signals:
     void updateSummary();
     void updateAdditionalSummary();
+
+private:
+    bool m_showWidget = true;
 };
 
 class PROJECTEXPLORER_EXPORT SimpleBuildStepConfigWidget : public BuildStepConfigWidget
@@ -188,11 +194,11 @@ public:
     {
         connect(m_step, &ProjectConfiguration::displayNameChanged,
                 this, &BuildStepConfigWidget::updateSummary);
+        setShowWidget(false);
     }
 
     QString summaryText() const override { return QLatin1String("<b>") + displayName() + QLatin1String("</b>"); }
     QString displayName() const override { return m_step->displayName(); }
-    bool showWidget() const override { return false; }
     BuildStep *step() const { return m_step; }
 
 private:

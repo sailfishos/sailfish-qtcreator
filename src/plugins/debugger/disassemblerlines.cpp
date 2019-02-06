@@ -189,12 +189,12 @@ void DisassemblerLines::appendUnparsed(const QString &unparsed)
                     m_lastFunction = function;
                 }
             }
-            dl.address = address.left(pos1 - 1).toULongLong(0, 0);
+            dl.address = address.left(pos1 - 1).toULongLong(nullptr, 0);
             dl.function = m_lastFunction;
             dl.offset = address.mid(pos2).toUInt();
         } else {
             // Plain data like "0x0000cd64:\tadd\tlr, pc, lr\n"
-            dl.address = address.toULongLong(0, 0);
+            dl.address = address.toULongLong(nullptr, 0);
             dl.function = m_lastFunction;
             dl.offset = 0;
         }
@@ -218,9 +218,9 @@ QString DisassemblerLine::toString(int maxOp) const
         if (address)
             str += QString("0x%1  ").arg(address, 0, 16);
         if (offset)
-            str += QString("<+0x%2> ").arg(offset, 4, 16, QLatin1Char('0'));
+            str += QString("<+%1> ").arg(offset, 5);
         else
-            str += "          ";
+            str += "         ";
         str += QString("       %1 ").arg(bytes);
         str += QString(maxOp - bytes.size(), QLatin1Char(' '));
         str += data;

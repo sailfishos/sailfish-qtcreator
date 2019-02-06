@@ -70,9 +70,9 @@ class GdbOptionsPage : public Core::IOptionsPage
 public:
     GdbOptionsPage();
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 private:
     QPointer<GdbOptionsPageWidget> m_widget;
@@ -347,16 +347,13 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2()
     checkBoxBreakOnAbort->setText(CommonOptionsPage::msgSetBreakpointAtFunction("abort"));
     checkBoxBreakOnAbort->setToolTip(CommonOptionsPage::msgSetBreakpointAtFunctionToolTip("abort"));
 
-    QCheckBox *checkBoxEnableReverseDebugging = nullptr;
-    if (isReverseDebuggingEnabled()) {
-        checkBoxEnableReverseDebugging = new QCheckBox(groupBoxDangerous);
-        checkBoxEnableReverseDebugging->setText(GdbOptionsPage::tr("Enable reverse debugging"));
-        checkBoxEnableReverseDebugging->setToolTip(GdbOptionsPage::tr(
-           "<html><head/><body><p>Enables stepping backwards.</p><p>"
-           "<b>Note:</b> This feature is very slow and unstable on the GDB side. "
-           "It exhibits unpredictable behavior when going backwards over system "
-           "calls and is very likely to destroy your debugging session.</p></body></html>"));
-    }
+    auto checkBoxEnableReverseDebugging = new QCheckBox(groupBoxDangerous);
+    checkBoxEnableReverseDebugging->setText(GdbOptionsPage::tr("Enable reverse debugging"));
+    checkBoxEnableReverseDebugging->setToolTip(GdbOptionsPage::tr(
+       "<html><head/><body><p>Enables stepping backwards.</p><p>"
+       "<b>Note:</b> This feature is very slow and unstable on the GDB side. "
+       "It exhibits unpredictable behavior when going backwards over system "
+       "calls and is very likely to destroy your debugging session.</p></body></html>"));
 
     auto checkBoxMultiInferior = new QCheckBox(groupBoxDangerous);
     checkBoxMultiInferior->setText(GdbOptionsPage::tr("Debug all child processes"));
@@ -396,9 +393,9 @@ class GdbOptionsPage2 : public Core::IOptionsPage
 public:
     GdbOptionsPage2();
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 private:
     QPointer<GdbOptionsPageWidget2> m_widget;

@@ -268,8 +268,7 @@ void JobRequest::cancelJob(ClangCodeModelClientInterface &client) const
         client.tooltip(ToolTipMessage(FileContainer(), ToolTipInfo(), ticketNumber));
         break;
     case JobRequest::Type::RequestCompletions:
-        client.completions(
-            CompletionsMessage(CodeCompletions(), CompletionCorrection::NoCorrection, ticketNumber));
+        client.completions(CompletionsMessage(CodeCompletions(), ticketNumber));
         break;
     case JobRequest::Type::RequestFollowSymbol:
         client.followSymbol(
@@ -285,9 +284,7 @@ bool JobRequest::operator==(const JobRequest &other) const
         && runConditions == other.runConditions
 
         && filePath == other.filePath
-        && projectPartId == other.projectPartId
         && unsavedFilesChangeTimePoint == other.unsavedFilesChangeTimePoint
-        && projectChangeTimePoint == other.projectChangeTimePoint
         && documentRevision == other.documentRevision
         && preferredTranslationUnit == other.preferredTranslationUnit
 

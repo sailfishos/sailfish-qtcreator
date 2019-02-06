@@ -74,7 +74,7 @@ private:
     {
         clang::index::IndexingOptions options;
 
-        options.SystemSymbolFilter = clang::index::IndexingOptions::SystemSymbolFilterKind::All;
+        options.SystemSymbolFilter = clang::index::IndexingOptions::SystemSymbolFilterKind::None;
         options.IndexFunctionLocals = true;
 
         return options;

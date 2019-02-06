@@ -37,7 +37,6 @@
 
 #include <QObject>
 #include <QFileSystemModel>
-#include <QSet>
 
 #include <functional>
 
@@ -56,7 +55,6 @@ class ProjectConfiguration;
 class ProjectImporter;
 class ProjectNode;
 class ProjectPrivate;
-class Session;
 class Target;
 
 // Auto-registers with the DocumentManager if a callback is set!
@@ -104,6 +102,7 @@ public:
     Core::IDocument *document() const;
     Utils::FileName projectFilePath() const;
     Utils::FileName projectDirectory() const;
+    Utils::FileName rootProjectDirectory() const;
     static Utils::FileName projectDirectory(const Utils::FileName &top);
 
     virtual ProjectNode *rootProjectNode() const;
@@ -115,7 +114,7 @@ public:
     EditorConfiguration *editorConfiguration() const;
 
     // Target:
-    void addTarget(Target *target);
+    void addTarget(std::unique_ptr<Target> &&target);
     bool removeTarget(Target *target);
 
     QList<Target *> targets() const;
@@ -125,9 +124,9 @@ public:
     Target *target(Kit *k) const;
     virtual QList<Task> projectIssues(const Kit *k) const;
 
-    Target *createTarget(Kit *k);
+    std::unique_ptr<Target> createTarget(Kit *k);
     static bool copySteps(Target *sourceTarget, Target *newTarget);
-    Target *restoreTarget(const QVariantMap &data);
+    std::unique_ptr<Target> restoreTarget(const QVariantMap &data);
 
     void saveSettings();
     enum class RestoreResult { Ok, Error, UserAbort };
@@ -152,8 +151,7 @@ public:
 
     virtual bool needsConfiguration() const;
     virtual bool needsBuildConfigurations() const;
-    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
-                                           const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
+    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms);
 
     virtual ProjectImporter *projectImporter() const;
 
@@ -165,8 +163,10 @@ public:
     // of configuration.
     virtual bool knowsAllBuildExecutables() const;
 
-    void setup(QList<const BuildInfo *> infoList);
+    void setup(const QList<const BuildInfo *> &infoList);
     Utils::MacroExpander *macroExpander() const;
+
+    virtual QVariant additionalData(Core::Id id, const Target *target) const;
 
     bool isParsing() const;
     bool hasParsingData() const;
@@ -188,6 +188,9 @@ public:
             return QMetaObject::Connection();
         }, recv, this);
     }
+
+    bool needsInitialExpansion() const;
+    void setNeedsInitialExpansion(bool needsInitialExpansion);
 
 signals:
     void displayNameChanged();
@@ -232,6 +235,8 @@ protected:
     // Used to pre-check kits in the TargetSetupPage. RequiredKitPredicate
     // is used to select kits available in the TargetSetupPage
     void setPreferredKitPredicate(const Kit::Predicate &predicate);
+    // The predicate used to select kits available in TargetSetupPage.
+    void setRequiredKitPredicate(const Kit::Predicate &predicate);
 
     void setId(Core::Id id);
     void setRootProjectNode(std::unique_ptr<ProjectNode> &&root); // takes ownership!
@@ -245,14 +250,10 @@ protected:
                                                    const QString &description);
 
 private:
-    // The predicate used to select kits available in TargetSetupPage.
-    void setRequiredKitPredicate(const Kit::Predicate &predicate);
-
     void handleSubTreeChanged(FolderNode *node);
     void setActiveTarget(Target *target);
     ProjectPrivate *d;
 
-    friend class Session;
     friend class ContainerNode;
 };
 

@@ -44,6 +44,7 @@
 #include <coreplugin/diffservice.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/ieditorfactory.h>
+#include <coreplugin/editormanager/ieditorfactory_p.h>
 #include <coreplugin/editormanager/iexternaleditor.h>
 #include <coreplugin/editortoolbar.h>
 #include <coreplugin/fileutils.h>
@@ -121,6 +122,7 @@ static const char autoSuspendMinDocumentCountKey[] = "EditorManager/AutoSuspendM
 static const char warnBeforeOpeningBigTextFilesKey[] = "EditorManager/WarnBeforeOpeningBigTextFiles";
 static const char bigTextFileSizeLimitKey[] = "EditorManager/BigTextFileSizeLimitInMB";
 static const char fileSystemCaseSensitivityKey[] = "Core/FileSystemCaseSensitivity";
+static const char preferredEditorFactoriesKey[] = "EditorManager/PreferredEditorFactories";
 
 static const char scratchBufferKey[] = "_q_emScratchBuffer";
 
@@ -576,6 +578,17 @@ IEditor *EditorManagerPrivate::openEditor(EditorView *view, const QString &fileN
     const QList<IEditor *> editors = DocumentModel::editorsForFilePath(fn);
     if (!editors.isEmpty()) {
         IEditor *editor = editors.first();
+        if (flags & EditorManager::SwitchSplitIfAlreadyVisible) {
+            for (IEditor *ed : editors) {
+                EditorView *v = viewForEditor(ed);
+                // Don't switch to a view where editor is not its current editor
+                if (v && v->currentEditor() == ed) {
+                    editor = ed;
+                    view = v;
+                    break;
+                }
+            }
+        }
         editor = activateEditor(view, editor, flags);
         if (editor && flags & EditorManager::CanContainLineAndColumnNumber)
             editor->gotoLine(lineNumber, columnNumber);
@@ -589,7 +602,7 @@ IEditor *EditorManagerPrivate::openEditor(EditorView *view, const QString &fileN
         realFn = fn;
     }
 
-    EditorManager::EditorFactoryList factories = EditorManagerPrivate::findFactories(Id(), fn);
+    EditorFactoryList factories = EditorManagerPrivate::findFactories(Id(), fn);
     if (factories.isEmpty()) {
         Utils::MimeType mimeType = Utils::mimeTypeForFile(fn);
         QMessageBox msgbox(QMessageBox::Critical, EditorManager::tr("File Error"),
@@ -652,9 +665,9 @@ IEditor *EditorManagerPrivate::openEditor(EditorView *view, const QString &fileN
 
         IEditorFactory *selectedFactory = nullptr;
         if (!factories.isEmpty()) {
-            QPushButton *button = qobject_cast<QPushButton *>(msgbox.button(QMessageBox::Open));
+            auto button = qobject_cast<QPushButton *>(msgbox.button(QMessageBox::Open));
             QTC_ASSERT(button, return nullptr);
-            QMenu *menu = new QMenu(button);
+            auto menu = new QMenu(button);
             foreach (IEditorFactory *factory, factories) {
                 QAction *action = menu->addAction(factory->displayName());
                 connect(action, &QAction::triggered, &msgbox, [&selectedFactory, factory, &msgbox]() {
@@ -772,7 +785,7 @@ EditorView *EditorManagerPrivate::viewForEditor(IEditor *editor)
     QWidget *w = editor->widget();
     while (w) {
         w = w->parentWidget();
-        if (EditorView *view = qobject_cast<EditorView *>(w))
+        if (auto view = qobject_cast<EditorView *>(w))
             return view;
     }
     return nullptr;
@@ -925,15 +938,11 @@ void EditorManagerPrivate::showPopupOrSelectDocument()
 Id EditorManagerPrivate::getOpenWithEditorId(const QString &fileName, bool *isExternalEditor)
 {
     // Collect editors that can open the file
-    Utils::MimeType mt = Utils::mimeTypeForFile(fileName);
-    //Unable to determine mime type of fileName. Falling back to text/plain",
-    if (!mt.isValid())
-        mt = Utils::mimeTypeForName("text/plain");
     QList<Id> allEditorIds;
     QStringList allEditorDisplayNames;
     QList<Id> externalEditorIds;
     // Built-in
-    const EditorManager::EditorFactoryList editors = EditorManager::editorFactories(mt, false);
+    const EditorFactoryList editors = IEditorFactory::preferredEditorFactories(fileName);
     const int size = editors.size();
     allEditorDisplayNames.reserve(size);
     for (int i = 0; i < size; i++) {
@@ -941,7 +950,8 @@ Id EditorManagerPrivate::getOpenWithEditorId(const QString &fileName, bool *isEx
         allEditorDisplayNames.push_back(editors.at(i)->displayName());
     }
     // External editors
-    const EditorManager::ExternalEditorList exEditors = EditorManager::externalEditors(mt, false);
+    const Utils::MimeType mt = Utils::mimeTypeForFile(fileName);
+    const ExternalEditorList exEditors = IExternalEditor::externalEditors(mt);
     const int esize = exEditors.size();
     for (int i = 0; i < esize; i++) {
         externalEditorIds.push_back(exEditors.at(i)->id());
@@ -961,6 +971,39 @@ Id EditorManagerPrivate::getOpenWithEditorId(const QString &fileName, bool *isEx
     if (isExternalEditor)
         *isExternalEditor = externalEditorIds.contains(selectedId);
     return selectedId;
+}
+
+static QMap<QString, QVariant> toMap(const QHash<Utils::MimeType, IEditorFactory *> &hash)
+{
+    QMap<QString, QVariant> map;
+    auto it = hash.begin();
+    const auto end = hash.end();
+    while (it != end) {
+        map.insert(it.key().name(), it.value()->id().toSetting());
+        ++it;
+    }
+    return map;
+}
+
+static QHash<Utils::MimeType, IEditorFactory *> fromMap(const QMap<QString, QVariant> &map)
+{
+    const EditorFactoryList factories = IEditorFactory::allEditorFactories();
+    QHash<Utils::MimeType, IEditorFactory *> hash;
+    auto it = map.begin();
+    const auto end = map.end();
+    while (it != end) {
+        const Utils::MimeType mimeType = Utils::mimeTypeForName(it.key());
+        if (mimeType.isValid()) {
+            const Id factoryId = Id::fromSetting(it.value());
+            IEditorFactory *factory = Utils::findOrDefault(factories,
+                                                           Utils::equal(&IEditorFactory::id,
+                                                                        factoryId));
+            if (factory)
+                hash.insert(mimeType, factory);
+        }
+        ++it;
+    }
+    return hash;
 }
 
 void EditorManagerPrivate::saveSettings()
@@ -984,6 +1027,7 @@ void EditorManagerPrivate::saveSettings()
         qsettings->remove(fileSystemCaseSensitivityKey);
     else
         qsettings->setValue(fileSystemCaseSensitivityKey, sensitivity);
+    qsettings->setValue(preferredEditorFactoriesKey, toMap(userPreferredEditorFactories()));
 }
 
 void EditorManagerPrivate::readSettings()
@@ -1015,6 +1059,9 @@ void EditorManagerPrivate::readSettings()
         else
             HostOsInfo::setOverrideFileNameCaseSensitivity(sensitivity);
     }
+    const QHash<Utils::MimeType, IEditorFactory *> preferredEditorFactories = fromMap(
+        qs->value(preferredEditorFactoriesKey).toMap());
+    setUserPreferredEditorFactories(preferredEditorFactories);
 
     SettingsDatabase *settings = ICore::settingsDatabase();
     if (settings->contains(documentStatesKey)) {
@@ -1112,14 +1159,14 @@ void EditorManagerPrivate::setBigFileSizeLimit(int limitInMB)
     d->m_bigFileSizeLimitInMB = limitInMB;
 }
 
-EditorManager::EditorFactoryList EditorManagerPrivate::findFactories(Id editorId, const QString &fileName)
+EditorFactoryList EditorManagerPrivate::findFactories(Id editorId, const QString &fileName)
 {
     if (debugEditorManager)
         qDebug() << Q_FUNC_INFO << editorId.name() << fileName;
 
-    EditorManager::EditorFactoryList factories;
+    EditorFactoryList factories;
     if (!editorId.isValid()) {
-        factories = EditorManager::editorFactories(fileName, false);
+        factories = IEditorFactory::preferredEditorFactories(fileName);
     } else {
         // Find by editor id
         IEditorFactory *factory = Utils::findOrDefault(IEditorFactory::allEditorFactories(),
@@ -1519,7 +1566,7 @@ EditorArea *EditorManagerPrivate::findEditorArea(const EditorView *view, int *ar
 {
     SplitterOrView *current = view->parentSplitterOrView();
     while (current) {
-        if (EditorArea *area = qobject_cast<EditorArea *>(current)) {
+        if (auto area = qobject_cast<EditorArea *>(current)) {
             int index = d->m_editorAreas.indexOf(area);
             QTC_ASSERT(index >= 0, return nullptr);
             if (areaIndex)
@@ -1933,7 +1980,7 @@ void EditorManagerPrivate::vcsOpenCurrentEditor()
 void EditorManagerPrivate::handleDocumentStateChange()
 {
     updateActions();
-    IDocument *document = qobject_cast<IDocument *>(sender());
+    auto document = qobject_cast<IDocument *>(sender());
     if (!document->isModified())
         document->removeAutoSaveFile();
     if (EditorManager::currentDocument() == document)
@@ -2035,7 +2082,7 @@ void EditorManagerPrivate::copyFilePathFromContextMenu()
 
 void EditorManagerPrivate::copyLocationFromContextMenu()
 {
-    const QAction *action = qobject_cast<const QAction *>(sender());
+    const auto action = qobject_cast<const QAction *>(sender());
     if (!d->m_contextMenuEntry || !action)
         return;
     const QString text = d->m_contextMenuEntry->fileName().toUserOutput()
@@ -2119,8 +2166,10 @@ bool EditorManagerPrivate::saveDocument(IDocument *document)
         success = DocumentManager::saveDocument(document);
     }
 
-    if (success)
+    if (success) {
         addDocumentToRecentFiles(document);
+        emit m_instance->saved(document);
+    }
 
     return success;
 }
@@ -2153,8 +2202,10 @@ bool EditorManagerPrivate::saveDocumentAs(IDocument *document)
     // a good way out either (also the undo stack would be lost). Perhaps the best is to
     // re-think part of the editors design.
 
-    if (success)
+    if (success) {
         addDocumentToRecentFiles(document);
+        emit m_instance->saved(document);
+    }
 
     updateActions();
     return success;
@@ -2454,42 +2505,38 @@ void EditorManager::addNativeDirAndOpenWithActions(QMenu *contextMenu, DocumentM
 
 void EditorManager::populateOpenWithMenu(QMenu *menu, const QString &fileName)
 {
-    typedef QList<IEditorFactory*> EditorFactoryList;
-    typedef QList<IExternalEditor*> ExternalEditorList;
+    using EditorFactoryList = QList<IEditorFactory*>;
+    using ExternalEditorList = QList<IExternalEditor*>;
 
     menu->clear();
 
-    bool anyMatches = false;
-
+    const EditorFactoryList factories = IEditorFactory::preferredEditorFactories(fileName);
     const Utils::MimeType mt = Utils::mimeTypeForFile(fileName);
-    if (mt.isValid()) {
-        const EditorFactoryList factories = editorFactories(mt, false);
-        const ExternalEditorList extEditors = externalEditors(mt, false);
-        anyMatches = !factories.empty() || !extEditors.empty();
-        if (anyMatches) {
-            // Add all suitable editors
-            foreach (IEditorFactory *editorFactory, factories) {
-                Core::Id editorId = editorFactory->id();
-                // Add action to open with this very editor factory
-                QString const actionTitle = editorFactory->displayName();
-                QAction *action = menu->addAction(actionTitle);
-                // Below we need QueuedConnection because otherwise, if a qrc file
-                // is inside of a qrc file itself, and the qrc editor opens the Open with menu,
-                // crashes happen, because the editor instance is deleted by openEditorWith
-                // while the menu is still being processed.
-                connect(action, &QAction::triggered, d,
-                        [fileName, editorId]() {
-                            EditorManagerPrivate::openEditorWith(fileName, editorId);
-                        }, Qt::QueuedConnection);
-            }
-            // Add all suitable external editors
-            foreach (IExternalEditor *externalEditor, extEditors) {
-                QAction *action = menu->addAction(externalEditor->displayName());
-                Core::Id editorId = externalEditor->id();
-                connect(action, &QAction::triggered, [fileName, editorId]() {
-                    EditorManager::openExternalEditor(fileName, editorId);
-                });
-            }
+    const ExternalEditorList extEditors = IExternalEditor::externalEditors(mt);
+    const bool anyMatches = !factories.empty() || !extEditors.empty();
+    if (anyMatches) {
+        // Add all suitable editors
+        foreach (IEditorFactory *editorFactory, factories) {
+            Core::Id editorId = editorFactory->id();
+            // Add action to open with this very editor factory
+            QString const actionTitle = editorFactory->displayName();
+            QAction *action = menu->addAction(actionTitle);
+            // Below we need QueuedConnection because otherwise, if a qrc file
+            // is inside of a qrc file itself, and the qrc editor opens the Open with menu,
+            // crashes happen, because the editor instance is deleted by openEditorWith
+            // while the menu is still being processed.
+            connect(action, &QAction::triggered, d,
+                    [fileName, editorId]() {
+                        EditorManagerPrivate::openEditorWith(fileName, editorId);
+                    }, Qt::QueuedConnection);
+        }
+        // Add all suitable external editors
+        foreach (IExternalEditor *externalEditor, extEditors) {
+            QAction *action = menu->addAction(externalEditor->displayName());
+            Core::Id editorId = externalEditor->id();
+            connect(action, &QAction::triggered, [fileName, editorId]() {
+                EditorManager::openExternalEditor(fileName, editorId);
+            });
         }
     }
     menu->setEnabled(anyMatches);
@@ -2563,96 +2610,6 @@ void EditorManager::activateEditor(IEditor *editor, OpenEditorFlags flags)
 IEditor *EditorManager::activateEditorForDocument(IDocument *document, OpenEditorFlags flags)
 {
     return EditorManagerPrivate::activateEditorForDocument(EditorManagerPrivate::currentEditorView(), document, flags);
-}
-
-/* For something that has a 'QStringList mimeTypes' (IEditorFactory
- * or IExternalEditor), find the one best matching the mimetype passed in.
- *  Recurse over the parent classes of the mimetype to find them. */
-template <class EditorFactoryLike>
-static void mimeTypeFactoryLookup(const Utils::MimeType &mimeType,
-                                     const QList<EditorFactoryLike*> &allFactories,
-                                     bool firstMatchOnly,
-                                     QList<EditorFactoryLike*> *list)
-{
-    QSet<EditorFactoryLike *> matches;
-    // search breadth-first through parent hierarchy, e.g. for hierarchy
-    // * application/x-ruby
-    //     * application/x-executable
-    //         * application/octet-stream
-    //     * text/plain
-    QList<Utils::MimeType> queue;
-    QSet<QString> seen;
-    queue.append(mimeType);
-    seen.insert(mimeType.name());
-    while (!queue.isEmpty()) {
-        Utils::MimeType mt = queue.takeFirst();
-        // check for matching factories
-        foreach (EditorFactoryLike *factory, allFactories) {
-            if (!matches.contains(factory)) {
-                foreach (const QString &mimeName, factory->mimeTypes()) {
-                    if (mt.matchesName(mimeName)) {
-                        list->append(factory);
-                        if (firstMatchOnly)
-                            return;
-                        matches.insert(factory);
-                    }
-                }
-            }
-        }
-        // add parent mime types
-        QStringList parentNames = mt.parentMimeTypes();
-        foreach (const QString &parentName, parentNames) {
-            const Utils::MimeType parent = Utils::mimeTypeForName(parentName);
-            if (parent.isValid()) {
-                int seenSize = seen.size();
-                seen.insert(parent.name());
-                if (seen.size() != seenSize) // not seen before, so add
-                    queue.append(parent);
-            }
-        }
-    }
-}
-
-EditorManager::EditorFactoryList
-    EditorManager::editorFactories(const Utils::MimeType &mimeType, bool bestMatchOnly)
-{
-    EditorFactoryList rc;
-    const EditorFactoryList allFactories = IEditorFactory::allEditorFactories();
-    mimeTypeFactoryLookup(mimeType, allFactories, bestMatchOnly, &rc);
-    if (debugEditorManager)
-        qDebug() << Q_FUNC_INFO << mimeType.name() << " returns " << rc;
-    return rc;
-}
-
-EditorManager::EditorFactoryList
-    EditorManager::editorFactories(const QString &fileName, bool bestMatchOnly)
-{
-    const QFileInfo fileInfo(fileName);
-    // Find by mime type
-    Utils::MimeType mimeType = Utils::mimeTypeForFile(fileInfo);
-    if (!mimeType.isValid()) {
-        qWarning("%s unable to determine mime type of %s. Falling back to text/plain",
-                 Q_FUNC_INFO, fileName.toUtf8().constData());
-        mimeType = Utils::mimeTypeForName("text/plain");
-    }
-    // open text files > 48 MB in binary editor
-    if (fileInfo.size() > EditorManager::maxTextFileSize()
-            && mimeType.name().startsWith("text")) {
-        mimeType = Utils::mimeTypeForName("application/octet-stream");
-    }
-
-    return EditorManager::editorFactories(mimeType, bestMatchOnly);
-}
-
-EditorManager::ExternalEditorList
-        EditorManager::externalEditors(const Utils::MimeType &mimeType, bool bestMatchOnly)
-{
-    ExternalEditorList rc;
-    const ExternalEditorList allEditors = IExternalEditor::allExternalEditors();
-    mimeTypeFactoryLookup(mimeType, allEditors, bestMatchOnly, &rc);
-    if (debugEditorManager)
-        qDebug() << Q_FUNC_INFO << mimeType.name() << " returns " << rc;
-    return rc;
 }
 
 IEditor *EditorManager::openEditor(const QString &fileName, Id editorId,
@@ -3083,9 +3040,16 @@ void EditorManager::hideEditorStatusBar(const QString &id)
 QTextCodec *EditorManager::defaultTextCodec()
 {
     QSettings *settings = ICore::settings();
-    if (QTextCodec *candidate = QTextCodec::codecForName(
-            settings->value(Constants::SETTINGS_DEFAULTTEXTENCODING).toByteArray()))
+    const QByteArray codecName =
+            settings->value(Constants::SETTINGS_DEFAULTTEXTENCODING).toByteArray();
+    if (QTextCodec *candidate = QTextCodec::codecForName(codecName))
         return candidate;
+    // Qt5 doesn't return a valid codec when looking up the "System" codec, but will return
+    // such a codec when asking for the codec for locale and no matching codec is available.
+    // So check whether such a codec was saved to the settings.
+    QTextCodec *localeCodec = QTextCodec::codecForLocale();
+    if (codecName == localeCodec->name())
+        return localeCodec;
     if (QTextCodec *defaultUTF8 = QTextCodec::codecForName("UTF-8"))
         return defaultUTF8;
     return QTextCodec::codecForLocale();

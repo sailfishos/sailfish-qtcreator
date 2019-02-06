@@ -101,6 +101,7 @@
 #include <QUndoStack>
 #include <QVBoxLayout>
 #include <QMenu>
+#include <QScrollBar>
 
 #include <algorithm>
 
@@ -158,7 +159,7 @@ ModelEditor::~ModelEditor()
     delete d;
 }
 
-Core::IDocument *ModelEditor::document()
+Core::IDocument *ModelEditor::document() const
 {
     return d->document;
 }
@@ -368,16 +369,16 @@ void ModelEditor::init(QWidget *parent)
 
 void ModelEditor::initDocument()
 {
+    if (d->diagramsViewManager)
+        return;
+
     initToolbars();
 
     ExtDocumentController *documentController = d->document->documentController();
 
     d->diagramView->setPxNodeController(documentController->pxNodeController());
 
-    QMT_CHECK(!d->diagramsViewManager);
     d->diagramsViewManager = new DiagramsViewManager(this);
-    //connect(diagramsViewManager, &DiagramsViewManager::someDiagramOpened,
-    //        documentController->diagramsManager(), &qmt::DiagramsManager::someDiagramOpened);
     connect(d->diagramsViewManager, &DiagramsViewManager::openNewDiagram,
             this, &ModelEditor::showDiagram);
     connect(d->diagramsViewManager, &DiagramsViewManager::closeOpenDiagram,
@@ -422,9 +423,9 @@ void ModelEditor::initDocument()
             this, &ModelEditor::onCurrentEditorChanged, Qt::QueuedConnection);
 
     connect(d->diagramView, &EditorDiagramView::zoomIn,
-            this, &ModelEditor::zoomIn);
+            this, &ModelEditor::zoomInAtPos);
     connect(d->diagramView, &EditorDiagramView::zoomOut,
-            this, &ModelEditor::zoomOut);
+            this, &ModelEditor::zoomOutAtPos);
 
     connect(d->modelTreeView->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &ModelEditor::onTreeViewSelectionChanged, Qt::QueuedConnection);
@@ -643,6 +644,33 @@ void ModelEditor::zoomOut()
     QTransform transform = d->diagramView->transform();
     transform.scale(1.0 / ZOOM_FACTOR, 1.0 / ZOOM_FACTOR);
     d->diagramView->setTransform(transform);
+    showZoomIndicator();
+}
+
+void ModelEditor::zoomInAtPos(const QPoint &pos)
+{
+    zoomAtPos(pos, ZOOM_FACTOR);
+}
+
+void ModelEditor::zoomOutAtPos(const QPoint &pos)
+{
+    zoomAtPos(pos, 1.0 / ZOOM_FACTOR);
+}
+
+void ModelEditor::zoomAtPos(const QPoint &pos, double scale)
+{
+    QPointF scenePos = d->diagramView->mapToScene(pos);
+    QTransform transform = d->diagramView->transform();
+    transform.scale(scale, scale);
+    d->diagramView->setTransform(transform);
+    QPoint scaledPos = d->diagramView->mapFromScene(scenePos);
+    QPoint delta = pos - scaledPos;
+    QScrollBar *hBar = d->diagramView->horizontalScrollBar();
+    if (hBar)
+        hBar->setValue(hBar->value() - delta.x());
+    QScrollBar *vBar = d->diagramView->verticalScrollBar();
+    if (vBar)
+        vBar->setValue(vBar->value() - delta.y());
     showZoomIndicator();
 }
 
@@ -1426,6 +1454,9 @@ void ModelEditor::synchronizeDiagramWithBrowser()
                                     disconnect(documentController->diagramsManager(), &qmt::DiagramsManager::diagramSelectionChanged,
                                                this, &ModelEditor::onDiagramSelectionChanged);
                                     d->diagramView->diagramSceneModel()->selectElement(diagramElement);
+                                    QGraphicsItem *item = d->diagramView->diagramSceneModel()->graphicsItem(diagramElement);
+                                    if (item)
+                                        d->diagramView->ensureVisible(item);
                                     connect(documentController->diagramsManager(), &qmt::DiagramsManager::diagramSelectionChanged,
                                             this, &ModelEditor::onDiagramSelectionChanged, Qt::QueuedConnection);
                                     done = true;

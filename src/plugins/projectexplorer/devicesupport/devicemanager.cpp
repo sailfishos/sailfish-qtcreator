@@ -46,6 +46,7 @@
 #include <QVariantList>
 
 #include <limits>
+#include <memory>
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -57,8 +58,7 @@ const char DefaultDevicesKey[] = "DefaultDevices";
 class DeviceManagerPrivate
 {
 public:
-    DeviceManagerPrivate() : writer(0)
-    { }
+    DeviceManagerPrivate() = default;
 
     int indexForId(Core::Id id) const
     {
@@ -74,15 +74,15 @@ public:
     QHash<Core::Id, Core::Id> defaultDevices;
     QSsh::SshHostKeyDatabasePtr hostKeyDatabase;
 
-    Utils::PersistentSettingsWriter *writer;
+    Utils::PersistentSettingsWriter *writer = nullptr;
 };
-DeviceManager *DeviceManagerPrivate::clonedInstance = 0;
+DeviceManager *DeviceManagerPrivate::clonedInstance = nullptr;
 
 } // namespace Internal
 
 using namespace Internal;
 
-DeviceManager *DeviceManager::m_instance = 0;
+DeviceManager *DeviceManager::m_instance = nullptr;
 
 DeviceManager *DeviceManager::instance()
 {
@@ -104,12 +104,12 @@ void DeviceManager::replaceInstance()
 void DeviceManager::removeClonedInstance()
 {
     delete DeviceManagerPrivate::clonedInstance;
-    DeviceManagerPrivate::clonedInstance = 0;
+    DeviceManagerPrivate::clonedInstance = nullptr;
 }
 
 DeviceManager *DeviceManager::cloneInstance()
 {
-    QTC_ASSERT(!DeviceManagerPrivate::clonedInstance, return 0);
+    QTC_ASSERT(!DeviceManagerPrivate::clonedInstance, return nullptr);
 
     DeviceManagerPrivate::clonedInstance = new DeviceManager(false);
     copy(instance(), DeviceManagerPrivate::clonedInstance, true);
@@ -147,7 +147,6 @@ void DeviceManager::load()
                 QLatin1String("QtCreatorDevices"));
 
     Utils::PersistentSettingsReader reader;
-
     // read devices file from global settings path
     QHash<Core::Id, Core::Id> defaultDevices;
     QList<IDevice::Ptr> sdkDevices;
@@ -157,62 +156,19 @@ void DeviceManager::load()
     QList<IDevice::Ptr> userDevices;
     if (reader.load(settingsFilePath(QLatin1String("/devices.xml"))))
         userDevices = fromMap(reader.restoreValues().value(DeviceManagerKey).toMap(), &defaultDevices);
-
-//    //devices found in user settings to be added
-//    QList<IDevice::Ptr> devicesToRegister;
-//    //devices found in user settings, which came from sdk installer
-//    QList<IDevice::Ptr> devicesToBeChecked;
-//    foreach (IDevice::Ptr device, userDevices) {
-//        if(device->isSdkProvided())
-//            devicesToBeChecked.append(device);
-//        else
-//            devicesToRegister.append(device);
-//    }
-
-//    IDevice::Ptr deviceToAdd;
-//    foreach (IDevice::Ptr sdkDevice, sdkDevices) {
-//        deviceToAdd = sdkDevice;
-
-//        for(int i = 0; i < devicesToBeChecked.count(); ++i) {
-//            if(devicesToBeChecked.at(i)->id() == sdkDevice->id()) {
-//                if(devicesToBeChecked.at(i)->version() > sdkDevice->version())
-//                    deviceToAdd == devicesToBeChecked.at(i);
-
-//                devicesToBeChecked.removeAt(i);
-//                break;
-//            }
-//        }
-//        addDevice(deviceToAdd);
-//    }
-
-//    foreach (IDevice::Ptr device, devicesToBeChecked) {
-//        delete &device;
-//    }
-//    devicesToBeChecked.clear();
-
-//    foreach (IDevice::Ptr device, devicesToRegister) {
-//        addDevice(device);
-//    }
-
     // Insert devices into the model. Prefer the higher device version when there are multiple
     // devices with the same id.
     foreach (IDevice::Ptr device, userDevices) {
-        if (hasDevice(device->displayName())) // HACK: Do not re-load "Desktop Device"
-            continue;
         foreach (const IDevice::Ptr &sdkDevice, sdkDevices) {
             if (device->id() == sdkDevice->id()) {
                 if (device->version() < sdkDevice->version())
                     device = sdkDevice;
-                addDevice(device);
                 sdkDevices.removeOne(sdkDevice);
                 break;
             }
         }
-
-        if(!device->isSdkProvided())
-            addDevice(device);
+        addDevice(device);
     }
-
     // Append the new SDK devices to the model.
     foreach (const IDevice::Ptr &sdkDevice, sdkDevices)
         addDevice(sdkDevice);
@@ -254,7 +210,7 @@ QVariantMap DeviceManager::toMap() const
 {
     QVariantMap map;
     QVariantMap defaultDeviceMap;
-    typedef QHash<Core::Id, Core::Id> TypeIdHash;
+    using TypeIdHash = QHash<Core::Id, Core::Id>;
     for (TypeIdHash::ConstIterator it = d->defaultDevices.constBegin();
              it != d->defaultDevices.constEnd(); ++it) {
         defaultDeviceMap.insert(it.key().toString(), it.value().toSetting());
@@ -393,7 +349,7 @@ const IDeviceFactory *DeviceManager::restoreFactory(const QVariantMap &map)
     return factory;
 }
 
-DeviceManager::DeviceManager(bool isInstance) : d(new DeviceManagerPrivate)
+DeviceManager::DeviceManager(bool isInstance) : d(std::make_unique<DeviceManagerPrivate>())
 {
     if (isInstance) {
         QTC_ASSERT(!m_instance, return);
@@ -414,8 +370,7 @@ DeviceManager::~DeviceManager()
     if (d->clonedInstance != this)
         delete d->writer;
     if (m_instance == this)
-        m_instance = 0;
-    delete d;
+        m_instance = nullptr;
 }
 
 IDevice::ConstPtr DeviceManager::deviceAt(int idx) const
@@ -473,9 +428,9 @@ public:
 
     static Core::Id testTypeId() { return "TestType"; }
 private:
-    TestDevice(const TestDevice &other) : IDevice(other) {}
+    TestDevice(const TestDevice &other) = default;
     QString displayType() const override { return QLatin1String("blubb"); }
-    IDeviceWidget *createWidget() override { return 0; }
+    IDeviceWidget *createWidget() override { return nullptr; }
     QList<Core::Id> actionIds() const override { return QList<Core::Id>(); }
     QString displayNameForActionId(Core::Id) const override { return QString(); }
     void executeAction(Core::Id, QWidget *) override { }

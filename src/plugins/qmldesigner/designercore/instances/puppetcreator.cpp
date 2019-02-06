@@ -39,9 +39,8 @@
 #include <projectexplorer/kit.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
-#include <qmakeprojectmanager/qmakeproject.h>
-#include <qmakeprojectmanager/qmakenodes.h>
 #include <coreplugin/messagebox.h>
 #include <coreplugin/icore.h>
 #include <qtsupport/baseqtversion.h>
@@ -66,8 +65,8 @@
 #include <QThread>
 #include <QSettings>
 
-static Q_LOGGING_CATEGORY(puppetStart, "qtc.puppet.start")
-static Q_LOGGING_CATEGORY(puppetBuild, "qtc.puppet.build")
+static Q_LOGGING_CATEGORY(puppetStart, "qtc.puppet.start", QtWarningMsg)
+static Q_LOGGING_CATEGORY(puppetBuild, "qtc.puppet.build", QtWarningMsg)
 
 namespace QmlDesigner {
 
@@ -143,8 +142,8 @@ bool PuppetCreator::useOnlyFallbackPuppet() const
 #ifndef QMLDESIGNER_TEST
     if (!m_kit || !m_kit->isValid())
         qWarning() << "Invalid kit for QML puppet";
-    return m_designerSettings.value(DesignerSettingsKey::USE_ONLY_FALLBACK_PUPPET
-                                    ).toBool() || m_kit == 0 || !m_kit->isValid();
+    return m_designerSettings.value(DesignerSettingsKey::USE_DEFAULT_PUPPET
+                                    ).toBool() || m_kit == nullptr || !m_kit->isValid();
 #else
     return true;
 #endif
@@ -372,7 +371,11 @@ QString PuppetCreator::qmlPuppetDirectory(PuppetType puppetType) const
         return qmlPuppetToplevelBuildDirectory() + '/' + QCoreApplication::applicationVersion()
                 + '/' + QString::fromLatin1(qtHash());
 
-    return qmlPuppetFallbackDirectory();
+#ifndef QMLDESIGNER_TEST
+    return qmlPuppetFallbackDirectory(m_designerSettings);
+#else
+    return QString();
+#endif
 }
 
 QString PuppetCreator::defaultPuppetFallbackDirectory()
@@ -383,15 +386,16 @@ QString PuppetCreator::defaultPuppetFallbackDirectory()
         return Core::ICore::libexecPath();
 }
 
-QString PuppetCreator::qmlPuppetFallbackDirectory() const
+QString PuppetCreator::qmlPuppetFallbackDirectory(const DesignerSettings &settings)
 {
 #ifndef QMLDESIGNER_TEST
-    QString puppetFallbackDirectory = m_designerSettings.value(
-        DesignerSettingsKey::PUPPET_FALLBACK_DIRECTORY).toString();
-    if (puppetFallbackDirectory.isEmpty())
+    QString puppetFallbackDirectory = settings.value(
+        DesignerSettingsKey::PUPPET_DEFAULT_DIRECTORY).toString();
+    if (puppetFallbackDirectory.isEmpty() || !QFileInfo::exists(puppetFallbackDirectory))
         return defaultPuppetFallbackDirectory();
     return puppetFallbackDirectory;
 #else
+    Q_UNUSED(settings);
     return QString();
 #endif
 }
@@ -468,12 +472,10 @@ QProcessEnvironment PuppetCreator::processEnvironment() const
     if (!styleConfigFileName.isEmpty())
         environment.appendOrSet("QT_QUICK_CONTROLS_CONF", styleConfigFileName);
 
-    if (m_currentProject) {
-        auto qmakeProject = qobject_cast<QmakeProjectManager::QmakeProject *>(m_currentProject);
-        if (qmakeProject) {
-            QStringList designerImports = qmakeProject->rootProjectNode()->variableValue(QmakeProjectManager::Variable::QmlDesignerImportPath);
-            importPaths.append(designerImports);
-        }
+    if (m_currentProject && m_currentProject->activeTarget()) {
+        QStringList designerImports = m_currentProject->activeTarget()
+                ->additionalData("QmlDesignerImportPath").toStringList();
+        importPaths.append(designerImports);
     }
 
     if (m_availablePuppetType == FallbackPuppet)

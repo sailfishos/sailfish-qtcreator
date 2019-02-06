@@ -47,12 +47,9 @@ public:
     PdbEngine();
 
 private:
-    // DebuggerEngine implementation
-    void executeStep() override;
+    void executeStepIn(bool) override;
     void executeStepOut() override;
-    void executeNext() override;
-    void executeStepI() override;
-    void executeNextI() override;
+    void executeStepOver(bool) override;
 
     void setupEngine() override;
     void runEngine() override;
@@ -69,15 +66,16 @@ private:
     void executeJumpToLine(const ContextData &data) override;
 
     void activateFrame(int index) override;
-    void selectThread(ThreadId threadId) override;
+    void selectThread(const Thread &thread) override;
 
-    bool acceptsBreakpoint(Breakpoint bp) const override;
-    void insertBreakpoint(Breakpoint bp) override;
-    void removeBreakpoint(Breakpoint bp) override;
+    bool acceptsBreakpoint(const BreakpointParameters &bp) const override;
+    void insertBreakpoint(const Breakpoint &bp) override;
+    void updateBreakpoint(const Breakpoint &bp) override;
+    void removeBreakpoint(const Breakpoint &bp) override;
 
     void assignValueInDebugger(WatchItem *item,
         const QString &expr, const QVariant &value) override;
-    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
+    void executeDebuggerCommand(const QString &command) override;
 
     void loadSymbols(const QString &moduleName) override;
     void loadAllSymbols() override;
@@ -88,7 +86,6 @@ private:
     void reloadFullStack() override {}
 
     bool supportsThreads() const { return true; }
-    bool isSynchronous() const override { return true; }
     void updateItem(const QString &iname) override;
 
     void runCommand(const DebuggerCommand &cmd) override;

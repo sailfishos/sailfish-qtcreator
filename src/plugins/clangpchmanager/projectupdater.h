@@ -30,6 +30,9 @@
 #include <compilermacro.h>
 #include <filecontainerv2.h>
 #include <filepathcachinginterface.h>
+#include <generatedfiles.h>
+
+#include <projectexplorer/headerpath.h>
 
 namespace ProjectExplorer {
 class Macro;
@@ -39,8 +42,6 @@ using Macros = QVector<Macro>;
 namespace CppTools {
 class ProjectPart;
 class ProjectFile;
-class ProjectPartHeaderPath;
-using ProjectPartHeaderPaths = QVector<ProjectPartHeaderPath>;
 }
 
 namespace ClangBackEnd {
@@ -66,12 +67,17 @@ public:
     ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
                    ClangBackEnd::FilePathCachingInterface &filePathCache);
 
-    void updateProjectParts(const std::vector<CppTools::ProjectPart *> &projectParts,
-                            ClangBackEnd::V2::FileContainers &&generatedFiles);
+    void updateProjectParts(const std::vector<CppTools::ProjectPart *> &projectParts);
     void removeProjectParts(const QStringList &projectPartIds);
 
+    void updateGeneratedFiles(ClangBackEnd::V2::FileContainers &&generatedFiles);
+    void removeGeneratedFiles(ClangBackEnd::FilePaths &&filePaths);
+
 unittest_public:
-    void setExcludedPaths(Utils::PathStringVector &&excludedPaths);
+    void setExcludedPaths(ClangBackEnd::FilePaths &&excludedPaths);
+    const ClangBackEnd::FilePaths &excludedPaths() const;
+
+    const ClangBackEnd::GeneratedFiles &generatedFiles() const;
 
     HeaderAndSources headerAndSourcesFromProjectPart(CppTools::ProjectPart *projectPart) const;
     ClangBackEnd::V2::ProjectPartContainer toProjectPartContainer(
@@ -84,12 +90,13 @@ unittest_public:
     static ClangBackEnd::CompilerMacros createCompilerMacros(
             const ProjectExplorer::Macros &projectMacros);
     static Utils::SmallStringVector createIncludeSearchPaths(
-            const CppTools::ProjectPartHeaderPaths &projectPartHeaderPaths);
-    static Utils::PathStringVector createExcludedPaths(
+            const ProjectExplorer::HeaderPaths &projectPartHeaderPaths);
+    static ClangBackEnd::FilePaths createExcludedPaths(
             const ClangBackEnd::V2::FileContainers &generatedFiles);
 
 private:
-    Utils::PathStringVector m_excludedPaths;
+    ClangBackEnd::GeneratedFiles m_generatedFiles;
+    ClangBackEnd::FilePaths m_excludedPaths;
     ClangBackEnd::ProjectManagementServerInterface &m_server;
     ClangBackEnd::FilePathCachingInterface &m_filePathCache;
 };

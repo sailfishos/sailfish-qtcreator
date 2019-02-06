@@ -99,7 +99,7 @@ public:
     void watchFolders(const QStringList &l, QmakePriFile *file);
     void unwatchFolders(const QStringList &l, QmakePriFile *file);
 
-    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) final;
+    void configureAsExampleProject(const QSet<Core::Id> &platforms) final;
 
     void emitBuildDirectoryInitialized();
     static void proFileParseError(const QString &errorMessage);
@@ -110,6 +110,8 @@ public:
     AsyncUpdateState asyncUpdateState() const;
 
     QString mapProFilePathToTarget(const Utils::FileName &proFilePath);
+
+    QVariant additionalData(Core::Id id, const ProjectExplorer::Target *target) const final;
 
 signals:
     void proFileUpdated(QmakeProjectManager::QmakeProFile *pro, bool, bool);

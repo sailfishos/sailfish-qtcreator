@@ -447,6 +447,26 @@ void ObjectItem::align(IAlignable::AlignType alignType, const QString &identifie
                                                                  minimumSize(m_diagramSceneModel->selectedItems()),
                                                                  m_diagramSceneModel->diagram());
         break;
+    case IAlignable::AlignHCenterDistance:
+        QMT_CHECK(identifier == "sameHCenterDistance");
+        m_diagramSceneModel->diagramSceneController()->alignHCenterDistance(m_diagramSceneModel->selectedElements(),
+                                                                            m_diagramSceneModel->diagram());
+        break;
+    case IAlignable::AlignVCenterDistance:
+        QMT_CHECK(identifier == "sameVCenterDistance");
+        m_diagramSceneModel->diagramSceneController()->alignVCenterDistance(m_diagramSceneModel->selectedElements(),
+                                                                            m_diagramSceneModel->diagram());
+        break;
+    case IAlignable::AlignHBorderDistance:
+        QMT_CHECK(identifier == "sameHBorderDistance");
+        m_diagramSceneModel->diagramSceneController()->alignHBorderDistance(m_diagramSceneModel->selectedElements(),
+                                                                            m_diagramSceneModel->diagram());
+        break;
+    case IAlignable::AlignVBorderDistance:
+        QMT_CHECK(identifier == "sameVBorderDistance");
+        m_diagramSceneModel->diagramSceneController()->alignVBorderDistance(m_diagramSceneModel->selectedElements(),
+                                                                            m_diagramSceneModel->diagram());
+        break;
     }
 }
 
@@ -455,11 +475,22 @@ bool ObjectItem::isEditable() const
     return true;
 }
 
+bool ObjectItem::isEditing() const
+{
+    return m_nameItem && m_nameItem->hasFocus();
+}
+
 void ObjectItem::edit()
 {
     // TODO if name is initial name ("New Class" etc) select all text
     if (m_nameItem)
         m_nameItem->setFocus();
+}
+
+void ObjectItem::finishEdit()
+{
+    if (m_nameItem)
+        m_nameItem->clearFocus();
 }
 
 void ObjectItem::updateStereotypeIconDisplay()
@@ -684,7 +715,7 @@ void ObjectItem::updateRelationStarter()
 {
     if (isFocusSelected()) {
         if (!m_relationStarter) {
-            m_relationStarter = new RelationStarter(this, diagramSceneModel(), 0);
+            m_relationStarter = new RelationStarter(this, diagramSceneModel(), nullptr);
             scene()->addItem(m_relationStarter);
             m_relationStarter->setZValue(RELATION_STARTER_ZVALUE);
             QString elementType;
@@ -796,13 +827,13 @@ void ObjectItem::updateAlignmentButtons()
 {
     if (isFocusSelected() && m_diagramSceneModel->hasMultiObjectsSelection()) {
         if (!m_horizontalAlignButtons && scene()) {
-            m_horizontalAlignButtons = new AlignButtonsItem(this, 0);
+            m_horizontalAlignButtons = new AlignButtonsItem(this, nullptr);
             m_horizontalAlignButtons->setZValue(ALIGN_BUTTONS_ZVALUE);
             scene()->addItem(m_horizontalAlignButtons);
         }
 
         if (!m_verticalAlignButtons && scene()) {
-            m_verticalAlignButtons = new AlignButtonsItem(this, 0);
+            m_verticalAlignButtons = new AlignButtonsItem(this, nullptr);
             m_verticalAlignButtons->setZValue(ALIGN_BUTTONS_ZVALUE);
             scene()->addItem(m_verticalAlignButtons);
         }
@@ -997,6 +1028,14 @@ void ObjectItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
     alignMenu.addAction(new ContextMenuAction(tr("Same Size"), "sameSize", &alignMenu));
     alignMenu.setEnabled(m_diagramSceneModel->hasMultiObjectsSelection());
     menu.addMenu(&alignMenu);
+    QMenu layoutMenu;
+    layoutMenu.setTitle(tr("Layout Objects"));
+    layoutMenu.addAction(new ContextMenuAction(tr("Equal Horizontal Distance"), "sameHCenterDistance", &alignMenu));
+    layoutMenu.addAction(new ContextMenuAction(tr("Equal Vertical Distance"), "sameVCenterDistance", &alignMenu));
+    layoutMenu.addAction(new ContextMenuAction(tr("Equal Horizontal Space"), "sameHBorderDistance", &alignMenu));
+    layoutMenu.addAction(new ContextMenuAction(tr("Equal Vertical Space"), "sameVBorderDistance", &alignMenu));
+    layoutMenu.setEnabled(m_diagramSceneModel->hasMultiObjectsSelection());
+    menu.addMenu(&layoutMenu);
     menu.addAction(new ContextMenuAction(tr("Add Related Elements"), "addRelatedElements", &menu));
 
     QAction *selectedAction = menu.exec(event->screenPos());
@@ -1034,6 +1073,14 @@ void ObjectItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
                 align(IAlignable::AlignHcenter, "center");
             } else if (action->id() == "alignBottom") {
                 align(IAlignable::AlignBottom, "bottom");
+            } else if (action->id() == "sameHCenterDistance") {
+                align(IAlignable::AlignHCenterDistance, "sameHCenterDistance");
+            } else if (action->id() == "sameVCenterDistance") {
+                align(IAlignable::AlignVCenterDistance, "sameVCenterDistance");
+            } else if (action->id() == "sameHBorderDistance") {
+                align(IAlignable::AlignHBorderDistance, "sameHBorderDistance");
+            } else if (action->id() == "sameVBorderDistance") {
+                align(IAlignable::AlignVBorderDistance, "sameVBorderDistance");
             } else if (action->id() == "sameWidth") {
                 align(IAlignable::AlignWidth, "width");
             } else if (action->id() == "sameHeight") {

@@ -123,8 +123,9 @@ const VcsBaseEditorParameters editorParameters[] = {
 // Utility to find a parameter set by type
 static const VcsBaseEditorParameters *findType(int ie)
 {
-    const EditorContentType et = static_cast<EditorContentType>(ie);
-    return VcsBaseEditor::findType(editorParameters, sizeof(editorParameters)/sizeof(editorParameters[0]), et);
+    return VcsBaseEditor::findType(editorParameters,
+                                   sizeof(editorParameters)/sizeof(*editorParameters),
+                                   static_cast<EditorContentType>(ie));
 }
 
 static inline QString debugCodec(const QTextCodec *c)
@@ -168,7 +169,7 @@ static inline QStringList svnDirectories()
 }
 
 // ------------- SubversionPlugin
-SubversionPlugin *SubversionPlugin::m_subversionPluginInstance = 0;
+SubversionPlugin *SubversionPlugin::m_subversionPluginInstance = nullptr;
 
 SubversionPlugin::SubversionPlugin() :
     m_svnDirectories(svnDirectories())
@@ -386,23 +387,6 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     subversionMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
-    // Actions of the submit editor
-    Context svncommitcontext(Constants::SUBVERSION_COMMIT_EDITOR_ID);
-
-    m_submitCurrentLogAction = new QAction(VcsBaseSubmitEditor::submitIcon(), tr("Commit"), this);
-    command = ActionManager::registerAction(m_submitCurrentLogAction, SUBMIT_CURRENT, svncommitcontext);
-    command->setAttribute(Command::CA_UpdateText);
-    connect(m_submitCurrentLogAction, &QAction::triggered, this, &SubversionPlugin::submitCurrentLog);
-
-    m_submitDiffAction = new QAction(VcsBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
-    ActionManager::registerAction(m_submitDiffAction , DIFF_SELECTED, svncommitcontext);
-
-    m_submitUndoAction = new QAction(tr("&Undo"), this);
-    ActionManager::registerAction(m_submitUndoAction, Core::Constants::UNDO, svncommitcontext);
-
-    m_submitRedoAction = new QAction(tr("&Redo"), this);
-    ActionManager::registerAction(m_submitRedoAction, Core::Constants::REDO, svncommitcontext);
-
     return true;
 }
 
@@ -426,7 +410,7 @@ bool SubversionPlugin::submitEditorAboutToClose()
     if (!isCommitEditorOpen())
         return true;
 
-    SubversionSubmitEditor *editor = qobject_cast<SubversionSubmitEditor *>(submitEditor());
+    auto editor = qobject_cast<SubversionSubmitEditor *>(submitEditor());
     QTC_ASSERT(editor, return true);
     IDocument *editorDocument = editor->document();
     QTC_ASSERT(editorDocument, return true);
@@ -482,10 +466,9 @@ void SubversionPlugin::diffCommitFiles(const QStringList &files)
 SubversionSubmitEditor *SubversionPlugin::openSubversionSubmitEditor(const QString &fileName)
 {
     IEditor *editor = EditorManager::openEditor(fileName, Constants::SUBVERSION_COMMIT_EDITOR_ID);
-    SubversionSubmitEditor *submitEditor = qobject_cast<SubversionSubmitEditor*>(editor);
-    QTC_ASSERT(submitEditor, return 0);
+    auto submitEditor = qobject_cast<SubversionSubmitEditor*>(editor);
+    QTC_ASSERT(submitEditor, return nullptr);
     setSubmitEditor(submitEditor);
-    submitEditor->registerActions(m_submitUndoAction, m_submitRedoAction, m_submitCurrentLogAction, m_submitDiffAction);
     connect(submitEditor, &VcsBaseSubmitEditor::diffSelectedFiles,
             this, &SubversionPlugin::diffCommitFiles);
     submitEditor->setCheckScriptWorkingDirectory(m_commitRepository);
@@ -867,7 +850,7 @@ void SubversionPlugin::slotDescribe()
     describe(state.topLevel(), QString::number(revision));
 }
 
-void SubversionPlugin::submitCurrentLog()
+void SubversionPlugin::commitFromEditor()
 {
     m_submitActionTriggered = true;
     QTC_ASSERT(submitEditor(), return);
@@ -902,16 +885,16 @@ IEditor *SubversionPlugin::showOutputInEditor(const QString &title, const QStrin
                                                      QTextCodec *codec)
 {
     const VcsBaseEditorParameters *params = findType(editorType);
-    QTC_ASSERT(params, return 0);
+    QTC_ASSERT(params, return nullptr);
     const Id id = params->id;
     if (Subversion::Constants::debug)
         qDebug() << "SubversionPlugin::showOutputInEditor" << title << id.name()
                  <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
     QString s = title;
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, output.toUtf8());
-    SubversionEditorWidget *e = qobject_cast<SubversionEditorWidget*>(editor->widget());
+    auto e = qobject_cast<SubversionEditorWidget*>(editor->widget());
     if (!e)
-        return 0;
+        return nullptr;
     connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &SubversionPlugin::vcsAnnotate);
     e->setForceReadOnly(true);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));

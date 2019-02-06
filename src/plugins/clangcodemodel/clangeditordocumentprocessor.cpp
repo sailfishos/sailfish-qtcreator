@@ -56,6 +56,7 @@
 
 #include <cplusplus/CppDocument.h>
 
+#include <utils/algorithm.h>
 #include <utils/textutils.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
@@ -70,7 +71,7 @@ namespace Internal {
 static ClangProjectSettings &getProjectSettings(ProjectExplorer::Project *project)
 {
     QTC_CHECK(project);
-    return ModelManagerSupportClang::instance()->projectSettings(project);
+    return ClangModelManagerSupport::instance()->projectSettings(project);
 }
 
 ClangEditorDocumentProcessor::ClangEditorDocumentProcessor(
@@ -143,7 +144,7 @@ void ClangEditorDocumentProcessor::semanticRehighlight()
     m_semanticHighlighter.updateFormatMapFromFontSettings();
 
     if (m_projectPart)
-        requestAnnotationsFromBackend(m_projectPart->id());
+        requestAnnotationsFromBackend();
 }
 
 CppTools::SemanticInfo ClangEditorDocumentProcessor::recalculateSemanticInfo()
@@ -469,13 +470,13 @@ private:
         // Determine file kind with respect to ambiguous headers.
         CppTools::ProjectFile::Kind fileKind = CppTools::ProjectFile::classify(m_filePath);
         if (fileKind == CppTools::ProjectFile::AmbiguousHeader) {
-            fileKind = m_projectPart.languageVersion <= CppTools::ProjectPart::LatestCVersion
+            fileKind = m_projectPart.languageVersion <= ProjectExplorer::LanguageVersion::LatestC
                  ? CppTools::ProjectFile::CHeader
                  : CppTools::ProjectFile::CXXHeader;
         }
 
         CppTools::CompilerOptionsBuilder builder(m_projectPart);
-        builder.addLanguageOption(fileKind);
+        builder.updateLanguageOption(fileKind);
 
         m_options.append(builder.options());
     }
@@ -588,8 +589,7 @@ private:
 };
 } // namespace
 
-void ClangEditorDocumentProcessor::updateBackendDocument(
-    CppTools::ProjectPart &projectPart)
+void ClangEditorDocumentProcessor::updateBackendDocument(CppTools::ProjectPart &projectPart)
 {
     // On registration we send the document content immediately as an unsaved
     // file, because
@@ -605,10 +605,17 @@ void ClangEditorDocumentProcessor::updateBackendDocument(
             return;
     }
 
+    const QStringList projectPartOptions = ClangCodeModel::Utils::createClangOptions(
+        projectPart,
+        CppTools::ProjectFile::Unsupported); // No language option as FileOptionsBuilder adds it.
+
     const FileOptionsBuilder fileOptions(filePath(), projectPart);
     m_diagnosticConfigId = fileOptions.diagnosticConfigId();
+
+    const QStringList compilationArguments = projectPartOptions + fileOptions.options();
+
     m_communicator.documentsOpened(
-        {fileContainerWithOptionsAndDocumentContent(projectPart, fileOptions.options())});
+        {fileContainerWithOptionsAndDocumentContent(compilationArguments, projectPart.headerPaths)});
     ClangCodeModel::Utils::setLastSentDocumentRevision(filePath(), revision());
 }
 
@@ -621,16 +628,14 @@ void ClangEditorDocumentProcessor::closeBackendDocument()
 void ClangEditorDocumentProcessor::updateBackendDocumentIfProjectPartExists()
 {
     if (m_projectPart) {
-        const ClangBackEnd::FileContainer fileContainer = fileContainerWithDocumentContent(
-            m_projectPart->id());
+        const ClangBackEnd::FileContainer fileContainer = fileContainerWithDocumentContent();
         m_communicator.documentsChangedWithRevisionCheck(fileContainer);
     }
 }
 
-void ClangEditorDocumentProcessor::requestAnnotationsFromBackend(const QString &projectpartId)
+void ClangEditorDocumentProcessor::requestAnnotationsFromBackend()
 {
-    const auto fileContainer = fileContainerWithDocumentContent(projectpartId);
-
+    const auto fileContainer = fileContainerWithDocumentContent();
     m_communicator.requestAnnotations(fileContainer);
 }
 
@@ -660,12 +665,7 @@ ClangEditorDocumentProcessor::creatorForHeaderErrorDiagnosticWidget(
 ClangBackEnd::FileContainer ClangEditorDocumentProcessor::simpleFileContainer(
     const QByteArray &codecName) const
 {
-    Utf8String projectPartId;
-    if (m_projectPart)
-        projectPartId = m_projectPart->id();
-
     return ClangBackEnd::FileContainer(filePath(),
-                                       projectPartId,
                                        Utf8String(),
                                        false,
                                        revision(),
@@ -673,21 +673,27 @@ ClangBackEnd::FileContainer ClangEditorDocumentProcessor::simpleFileContainer(
 }
 
 ClangBackEnd::FileContainer ClangEditorDocumentProcessor::fileContainerWithOptionsAndDocumentContent(
-    CppTools::ProjectPart &projectPart, const QStringList &fileOptions) const
+    const QStringList &compilationArguments, const ProjectExplorer::HeaderPaths headerPaths) const
 {
+    auto theHeaderPaths
+        = ::Utils::transform<QVector>(headerPaths, [](const ProjectExplorer::HeaderPath path) {
+              return Utf8String(QDir::toNativeSeparators(path.path));
+    });
+    theHeaderPaths << QDir::toNativeSeparators(
+        ClangModelManagerSupport::instance()->dummyUiHeaderOnDiskDirPath());
+
     return ClangBackEnd::FileContainer(filePath(),
-                                       projectPart.id(),
-                                       Utf8StringVector(fileOptions),
+                                       Utf8StringVector(compilationArguments),
+                                       theHeaderPaths,
                                        textDocument()->toPlainText(),
                                        true,
                                        revision());
 }
 
 ClangBackEnd::FileContainer
-ClangEditorDocumentProcessor::fileContainerWithDocumentContent(const QString &projectpartId) const
+ClangEditorDocumentProcessor::fileContainerWithDocumentContent() const
 {
     return ClangBackEnd::FileContainer(filePath(),
-                                       projectpartId,
                                        textDocument()->toPlainText(),
                                        true,
                                        revision());

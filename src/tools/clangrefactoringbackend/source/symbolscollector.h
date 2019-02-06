@@ -28,25 +28,33 @@
 #include "clangtool.h"
 #include "collectmacrossourcefilecallbacks.h"
 #include "collectsymbolsaction.h"
+#include "sourcesmanager.h"
 #include "symbolscollectorinterface.h"
 
-#include <filepathcachingfwd.h>
+#include <filepathcaching.h>
+
+namespace Sqlite {
+class Database;
+}
 
 namespace ClangBackEnd {
 
-class SymbolsCollector : public SymbolsCollectorInterface
+class SymbolsCollector final : public SymbolsCollectorInterface
 {
 public:
-    SymbolsCollector(FilePathCachingInterface &filePathCache);
+    SymbolsCollector(Sqlite::Database &database);
 
     void addFiles(const FilePathIds &filePathIds,
-                  const Utils::SmallStringVector &arguments) override;
+                  const Utils::SmallStringVector &arguments);
+    void setFile(FilePathId filePathId, const Utils::SmallStringVector &arguments) override;
 
-    void addUnsavedFiles(const V2::FileContainers &unsavedFiles) override;
+    void setUnsavedFiles(const V2::FileContainers &unsavedFiles) override;
 
     void clear() override;
 
     void collectSymbols() override;
+
+    void doInMainThreadAfterFinished() override;
 
     const SymbolEntries &symbols() const override;
     const SourceLocationEntries &sourceLocations() const override;
@@ -55,14 +63,19 @@ public:
     const FileStatuses &fileStatuses() const override;
     const SourceDependencies &sourceDependencies() const override;
 
+    bool isUsed() const override;
+    void setIsUsed(bool isUsed) override;
+
 private:
+    FilePathCaching m_filePathCache;
     ClangTool m_clangTool;
     SymbolEntries m_symbolEntries;
     SourceLocationEntries m_sourceLocationEntries;
     std::shared_ptr<IndexDataConsumer> m_indexDataConsumer;
     CollectSymbolsAction m_collectSymbolsAction;
     CollectMacrosSourceFileCallbacks m_collectMacrosSourceFileCallbacks;
-    FilePathCachingInterface &m_filePathCache;
+    SourcesManager m_sourcesManager;
+    bool m_isUsed = false;
 };
 
 } // namespace ClangBackEnd

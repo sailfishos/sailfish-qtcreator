@@ -39,22 +39,19 @@ namespace Utils { class DetailsWidget; }
 
 namespace Debugger {
 
-class DEBUGGER_EXPORT AnalyzerRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class DEBUGGER_EXPORT AnalyzerRunConfigWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    AnalyzerRunConfigWidget(ProjectExplorer::IRunConfigurationAspect *aspect);
-
-    QString displayName() const override;
+    AnalyzerRunConfigWidget(ProjectExplorer::GlobalOrProjectAspect *aspect);
 
 private:
     void chooseSettings(int setting);
     void restoreGlobal();
 
     QWidget *m_configWidget;
-    ProjectExplorer::IRunConfigurationAspect *m_aspect;
-    ProjectExplorer::ISettingsAspect *m_config;
+    ProjectExplorer::GlobalOrProjectAspect *m_aspect;
     QComboBox *m_settingsCombo;
     QPushButton *m_restoreButton;
     Utils::DetailsWidget *m_details;

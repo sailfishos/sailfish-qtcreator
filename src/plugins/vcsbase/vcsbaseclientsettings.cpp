@@ -34,6 +34,8 @@
 #include <QSettings>
 #include <QVariant>
 
+using namespace Utils;
+
 namespace {
 
 class SettingValue
@@ -46,10 +48,7 @@ public:
         bool boolValue;
     };
 
-    SettingValue() :
-        m_type(QVariant::Invalid)
-    {
-    }
+    SettingValue() = default;
 
     explicit SettingValue(const QVariant &v) :
         m_type(v.type())
@@ -98,7 +97,7 @@ public:
 
     QString stringValue(const QString &defaultString = QString()) const
     {
-        if (type() == QVariant::String && m_comp.strPtr != 0)
+        if (type() == QVariant::String && m_comp.strPtr != nullptr)
             return *(m_comp.strPtr);
         return defaultString;
     }
@@ -119,9 +118,9 @@ public:
 private:
     void deleteInternalString()
     {
-        if (m_type == QVariant::String && m_comp.strPtr != 0) {
+        if (m_type == QVariant::String && m_comp.strPtr != nullptr) {
             delete m_comp.strPtr;
-            m_comp.strPtr = 0;
+            m_comp.strPtr = nullptr;
         }
     }
 
@@ -129,11 +128,11 @@ private:
     {
         if (type() == QVariant::String) {
             const QString *otherString = other.m_comp.strPtr;
-            m_comp.strPtr = new QString(otherString != 0 ? *otherString : QString());
+            m_comp.strPtr = new QString(otherString != nullptr ? *otherString : QString());
         }
     }
 
-    QVariant::Type m_type;
+    QVariant::Type m_type = QVariant::Invalid;
 };
 
 bool operator==(const SettingValue &lhs, const SettingValue &rhs)
@@ -176,7 +175,7 @@ public:
     QHash<QString, SettingValue> m_valueHash;
     QVariantHash m_defaultValueHash;
     QString m_settingsGroup;
-    mutable Utils::FileName m_binaryFullPath;
+    mutable FileName m_binaryFullPath;
 };
 
 } // namespace Internal
@@ -283,21 +282,21 @@ int *VcsBaseClientSettings::intPointer(const QString &key)
 {
     if (hasKey(key))
         return &(d->m_valueHash[key].m_comp.intValue);
-    return 0;
+    return nullptr;
 }
 
 bool *VcsBaseClientSettings::boolPointer(const QString &key)
 {
     if (hasKey(key))
         return &(d->m_valueHash[key].m_comp.boolValue);
-    return 0;
+    return nullptr;
 }
 
 QString *VcsBaseClientSettings::stringPointer(const QString &key)
 {
     if (hasKey(key) && valueType(key) == QVariant::String)
         return d->m_valueHash[key].m_comp.strPtr;
-    return 0;
+    return nullptr;
 }
 
 int VcsBaseClientSettings::intValue(const QString &key, int defaultValue) const
@@ -352,12 +351,12 @@ QVariant::Type VcsBaseClientSettings::valueType(const QString &key) const
     return QVariant::Invalid;
 }
 
-Utils::FileName VcsBaseClientSettings::binaryPath() const
+FileName VcsBaseClientSettings::binaryPath() const
 {
     if (d->m_binaryFullPath.isEmpty()) {
-        const Utils::FileNameList searchPaths
-                = Utils::transform(searchPathList(), [](const QString &s) { return Utils::FileName::fromString(s); });
-        d->m_binaryFullPath = Utils::Environment::systemEnvironment().searchInPath(
+        const FileNameList searchPaths
+                = Utils::transform(searchPathList(), [](const QString &s) { return FileName::fromString(s); });
+        d->m_binaryFullPath = Environment::systemEnvironment().searchInPath(
                     stringValue(binaryPathKey), searchPaths);
     }
     return d->m_binaryFullPath;
@@ -365,7 +364,7 @@ Utils::FileName VcsBaseClientSettings::binaryPath() const
 
 QStringList VcsBaseClientSettings::searchPathList() const
 {
-    return stringValue(pathKey).split(Utils::HostOsInfo::pathListSeparator(), QString::SkipEmptyParts);
+    return stringValue(pathKey).split(HostOsInfo::pathListSeparator(), QString::SkipEmptyParts);
 }
 
 QString VcsBaseClientSettings::settingsGroup() const

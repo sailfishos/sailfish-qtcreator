@@ -44,20 +44,21 @@ CMakeRunConfiguration::CMakeRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
     // Workaround for QTCREATORBUG-19354:
-    auto cmakeRunEnvironmentModifier = [](RunConfiguration *rc, Utils::Environment &env) {
-        if (!Utils::HostOsInfo::isWindowsHost() || !rc)
+    auto cmakeRunEnvironmentModifier = [target](Utils::Environment &env) {
+        if (!Utils::HostOsInfo::isWindowsHost())
             return;
 
-        const Kit *k = rc->target()->kit();
+        const Kit *k = target->kit();
         const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(k);
         if (qt)
             env.prependOrSetPath(qt->qmakeProperty("QT_INSTALL_BINS"));
     };
-    addExtraAspect(new LocalEnvironmentAspect(this, cmakeRunEnvironmentModifier));
-    addExtraAspect(new ExecutableAspect(this));
-    addExtraAspect(new ArgumentsAspect(this, "CMakeProjectManager.CMakeRunConfiguration.Arguments"));
-    addExtraAspect(new TerminalAspect(this, "CMakeProjectManager.CMakeRunConfiguration.UseTerminal"));
-    addExtraAspect(new WorkingDirectoryAspect(this, "CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"));
+    auto envAspect = addAspect<LocalEnvironmentAspect>(target, cmakeRunEnvironmentModifier);
+
+    addAspect<ExecutableAspect>();
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>(envAspect);
+    addAspect<TerminalAspect>();
 
     connect(target->project(), &Project::parsingFinished,
             this, &CMakeRunConfiguration::updateTargetInformation);
@@ -97,11 +98,11 @@ QString CMakeRunConfiguration::disabledReason() const
 void CMakeRunConfiguration::updateTargetInformation()
 {
     BuildTargetInfo bti = target()->applicationTargets().buildTargetInfo(buildKey());
-    extraAspect<ExecutableAspect>()->setExecutable(bti.targetFilePath);
-    extraAspect<WorkingDirectoryAspect>()->setDefaultWorkingDirectory(bti.workingDirectory);
-    extraAspect<LocalEnvironmentAspect>()->buildEnvironmentHasChanged();
+    aspect<ExecutableAspect>()->setExecutable(bti.targetFilePath);
+    aspect<WorkingDirectoryAspect>()->setDefaultWorkingDirectory(bti.workingDirectory);
+    aspect<LocalEnvironmentAspect>()->buildEnvironmentHasChanged();
 
-    auto terminalAspect = extraAspect<TerminalAspect>();
+    auto terminalAspect = aspect<TerminalAspect>();
     if (!terminalAspect->isUserSet())
         terminalAspect->setUseTerminal(bti.usesTerminal);
 }
@@ -112,6 +113,8 @@ CMakeRunConfigurationFactory::CMakeRunConfigurationFactory()
     registerRunConfiguration<CMakeRunConfiguration>("CMakeProjectManager.CMakeRunConfiguration.");
     addSupportedProjectType(CMakeProjectManager::Constants::CMAKEPROJECT_ID);
     addSupportedTargetDeviceType(ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE);
+
+    addRunWorkerFactory<SimpleTargetRunner>(ProjectExplorer::Constants::NORMAL_RUN_MODE);
 }
 
 } // Internal

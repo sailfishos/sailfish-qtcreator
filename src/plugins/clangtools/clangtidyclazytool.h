@@ -27,6 +27,8 @@
 
 #include "clangtool.h"
 
+#include <debugger/debuggermainwindow.h>
+
 QT_BEGIN_NAMESPACE
 class QToolButton;
 QT_END_NAMESPACE
@@ -39,7 +41,6 @@ namespace Internal {
 class DiagnosticFilterModel;
 
 const char ClangTidyClazyPerspectiveId[] = "ClangTidyClazy.Perspective";
-const char ClangTidyClazyDockId[]        = "ClangTidyClazy.Dock";
 
 class ClangTidyClazyTool final : public ClangTool
 {
@@ -68,6 +69,8 @@ private:
 
     QAction *m_goBack = nullptr;
     QAction *m_goNext = nullptr;
+
+    Utils::Perspective m_perspective{ClangTidyClazyPerspectiveId, tr("Clang-Tidy and Clazy")};
 };
 
 } // namespace Internal

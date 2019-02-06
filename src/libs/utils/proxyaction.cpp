@@ -28,11 +28,7 @@
 using namespace Utils;
 
 ProxyAction::ProxyAction(QObject *parent) :
-    QAction(parent),
-    m_action(0),
-    m_attributes(0),
-    m_showShortcut(false),
-    m_block(false)
+    QAction(parent)
 {
     connect(this, &QAction::changed, this, &ProxyAction::updateToolTipWithKeySequence);
     updateState();
@@ -178,7 +174,7 @@ QString ProxyAction::stringWithAppendedShortcut(const QString &str, const QKeySe
 
 ProxyAction *ProxyAction::proxyActionWithIcon(QAction *original, const QIcon &newIcon)
 {
-    ProxyAction *proxyAction = new ProxyAction(original);
+    auto proxyAction = new ProxyAction(original);
     proxyAction->setAction(original);
     proxyAction->setIcon(newIcon);
     proxyAction->setAttribute(UpdateText);

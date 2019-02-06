@@ -1,0 +1,494 @@
+/****************************************************************************
+**
+** Copyright (C) 2018 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \contentspage index.html
+    \previouspage creator-project-managing.html
+    \page creator-project-creating.html
+    \nextpage creator-project-opening.html
+
+    \title Creating Projects
+
+    Creating a project enables you to:
+
+    \list
+
+        \li Group files together
+
+        \li Add custom build steps
+
+        \li Include forms and resource files
+
+        \li Specify settings for running applications
+
+    \endlist
+
+    Setting up a new project in \QC is aided by a wizard that guides you
+    step-by-step through the project creation process. The wizards prompt you
+    to enter the settings needed for that particular type of project and create
+    the necessary files for you. You can add your own custom wizards to
+    standardize the way subprojects and classes are added to a project.
+
+    Most \QC project wizards enable you to choose the build system to use for
+    building the project: qmake, CMake, or Qbs. If you are not presented with a
+    choice, the project is set up to use qmake.
+
+    You can use wizards also to create plain C or C++ projects that use
+    qmake, Qbs, or CMake, but do not use the Qt library.
+
+    In addition, you can import projects as \e {generic projects} that do not
+    use qmake, Qbs, or CMake. This enables you to use \QC as a code editor and
+    to fully control the steps and commands used to build the project.
+
+    You can install tools for \l{glossary-device}{devices} as part of Qt distributions.
+    The \l{glossary-buildandrun-kit}{kits} and build and run settings for the
+    installed device types are set up automatically. However, you might need to
+    install and configure some additional software on the devices to be able to
+    connect to them from the development PC.
+
+    \include creator-projects-build-systems.qdocinc build systems
+
+    \section1 Using Project Wizards
+
+    In the first step, you select a template for the project. You can filter
+    templates (1) to view only those that apply to a particular target platform.
+
+    \image qtcreator-new-qt-quick-project-wizard.png
+
+    Next, you select a location for the project and specify settings for it.
+
+    When you have completed the steps, \QC automatically generates the project
+    with required headers, source files, user interface descriptions and project
+    files, as defined by the wizard.
+
+    For example, if you choose to create a Qt Quick application, \QC generates a
+    QML file that you can modify in the Design mode.
+
+    \section1 Selecting Project Type
+
+    You can use wizards to create following types of projects:
+
+    \list
+
+        \li Applications
+
+        \list
+
+            \li Qt Widgets Application
+
+                Use \QD forms to design a Qt widget based user interface for the
+                desktop and C++ to implement the application logic
+
+            \li Qt Quick Application - Empty
+
+                Create an empty Qt Quick application that uses Qt Quick 2 types.
+
+                You can build the application and deploy it to desktop,
+                embedded, and mobile target platforms.
+
+            \li Qt Quick Application - Scroll, Stack, or Swipe
+
+                Create a Qt Quick application that uses
+                \l{http://doc.qt.io/qt-5/qtquickcontrols2-index.html}
+                {Qt Quick Controls 2} to implement a scrollable list (requires
+                Qt 5.9 or later) or a set of pages with a stack-based or
+                swipe-based navigation model (requires Qt 5.7 or later).
+
+            \li Qt Console Application
+
+                Use a single main.cpp file
+
+        \endlist
+
+        \li Libraries
+
+        \list
+
+            \li C++ Library
+
+                Shared or static C++ library based on qmake
+
+            \li Qt Quick 2 Extension Plugin
+
+                C++ plugin that makes it possible to offer extensions that can
+                be loaded dynamically into Qt Quick 2 applications by using the
+                QQmlEngine class
+
+            \li \QC Plugin
+
+
+        \endlist
+
+        \li Other Projects
+
+        \list
+
+            \li Auto Test Project
+
+                Projects with boilerplate code for a Qt or Google test. For more
+                information, see \l {Creating Tests}.
+
+            \li Qt Quick UI Prototype
+
+                Use a single QML file that contains the main view. You can
+                review \l{Creating Qt Quick UI Projects}{Qt Quick UI prototypes}
+                in a \l{Previewing QML Files}{preview tool} and you need not
+                build them. Qt Quick UI prototypes cannot be deployed to embedded
+                or mobile target platforms. For those platforms, create a
+                Qt Quick application instead.
+
+            \li Qt Custom Designer Widgets
+
+                Custom \QD widget or widget collection
+
+            \li Empty qmake Project
+
+                Empty qmake project that is based on qmake but does not use any
+                default classes
+
+            \li Subdirs Project
+
+                Subprojects that enable you to structure your qmake projects as
+                a tree hierarchy
+
+            \li Code Snippet
+
+                Creates a qmake project from a code snippet. When fixing bug
+                reports that contain a code snippet, you can place the code
+                snippet into a project to compile and check it.
+
+        \endlist
+
+        \li Non-Qt Projects
+
+        \list
+
+            \li Plain C or C++ Application
+
+                Plain C or C++ application that uses qmake, Qbs, or CMake but does
+                not use the Qt library
+
+            \li Nim Application (experimental)
+
+                \l{http://nim-lang.org/}{Nim} application that uses qmake
+                or CMake but does not use the Qt library
+
+                \note The \uicontrol {Nim Application} option becomes visible
+                after you enable the experimental Nim plugin. Select
+                \uicontrol Help > \uicontrol {About Plugins} >
+                \uicontrol {Other Languages} > \uicontrol Nim, and then restart
+                \QC.
+
+        \endlist
+
+        \li Import Project
+
+        \list
+
+        \li Project from version control
+
+            Import a project from a supported version control system. For more
+            information on how version control systems are integrated in
+            \QC, see \l{Using Version Control Systems}
+
+        \li Import as qmake Project
+
+            Import an existing project that does not use any of the supported
+            build systems: qmake, Qbs, CMake, or Autotools. The wizard creates
+            a qmake .pro file, which enables you to use \QC as a code editor and
+            as a launcher for debugging and analysis tools. However, if you want
+            to build the project, you might need to edit the generated .pro
+            file.
+
+        \li Import Existing Project
+
+            Import an existing project that does not use any of the supported
+            build systems: qmake, Qbs, CMake, or Autotools. This enables you to
+            use \QC as a code editor
+
+        \endlist
+
+    \endlist
+
+    To create a new project, select \uicontrol File > \uicontrol{New File or Project} and
+    select the type of your project. The contents of the wizard dialogs depend
+    on the project type and the \l{glossary-buildandrun-kit}{kits} that you select in the
+    \uicontrol {Kit Selection} dialog. Follow the instructions of the wizard.
+
+    For examples of creating different types of projects, see
+    \l{Tutorials}.
+
+    For more information about creating Qt Quick projects, see
+    \l {Creating Qt Quick Projects}.
+
+    \section1 Adding Files to Projects
+
+    You can use wizards also to add individual files to your projects.
+    You can create the following types of files:
+
+    \list
+
+        \li C++
+
+            C++ class, source, or header files that you can use to write the
+            application logic in both Qt Quick projects and
+            Qt widget based projects
+
+        \li Qt
+
+        \list
+
+            \li Qt item model source and header files that you can use to create
+                classes derived from QAbstractItemModel, QAbstractTableModel, or
+                QAbstractListModel.
+
+            \li \QD forms and \QD form classes, which specify parts of user
+                interfaces in Qt widget based projects
+
+        \li Qt resource files, which allow you to store binary files in the
+            application executable
+
+        \li QML files, which specify items in Qt Quick projects.
+            \uicontrol {QML File (Qt Quick 2)} creates a QML file that imports
+            Qt Quick 2.0 and \uicontrol {Qt Quick UI File} creates an UI form
+            (\e .ui.qml) and the corresponding QML file.
+
+        \li JavaScript files that you can use to write the application logic in
+            Qt Quick projects
+
+        \endlist
+
+        \li Models and state charts
+
+        \list
+
+            \li Universal Modeling Language (UML) style models with structured
+                diagrams. However, the model editor uses a variant of UML and
+                provides only a subset of properties for specifying the
+                appearance of model elements. For more information, see
+                \l {Modeling}.
+
+            \li State Chart XML (SCXML) files that contain boilerplate code for
+                state machines. You can use the classes in the \l {Qt SCXML}
+                module to embed state machines created from the files in Qt
+                applications.
+
+        \endlist
+
+        \li GLSL
+
+            GLSL files that define fragment and vertex shaders in both Qt Quick
+            projects and Qt widget based projects
+
+        \li General
+
+        \list
+
+            \li Empty files
+
+            \li Scratch buffers that use temporary files. You can create this
+                type of files for temporarily storing information that you do
+                not intend to save
+
+        \endlist
+
+        \li Java
+
+            Java class files that you can use to create Java classes.
+
+        \li Python
+
+            Python class and source files that you can use to create Python
+            classes and scripts with UTF-8 encoding.
+
+        \li Nim (experimental)
+
+        \list
+
+            \li Nim script files.
+
+            \li Nim source files with UTF-8 encoding.
+
+        \endlist
+
+    \endlist
+
+    \section2 Creating C++ Classes
+
+    The \uicontrol {C++ Class Wizard} allows you to create a C++ header and source
+    file for a new class that you can add to a C++ project. Specify the class
+    name, base class, and header and source files for the class.
+
+    The wizard supports namespaces. To use a namespace, enter a qualified
+    class name in the \uicontrol {Class name} field. For example:
+    MyNamespace::MySubNamespace::MyClass.
+
+    \image qtcreator-cpp-class-wizard.png "Enter Class Name dialog"
+
+    The names of the header and source file are based on the class name. To
+    change the default suffix of a file, select \uicontrol Tools > \uicontrol Options >
+    \uicontrol {C++} > \uicontrol {File Naming}.
+
+    \image qtcreator-options-cpp-files.png "File Naming tab in Options"
+
+    In the \uicontrol {License template} field, you can use
+    \l{Using Variables in Wizards}{predefined wizard variables} to specify the
+    path and filename of the license to use in the source and header files.
+
+    You can create your own project and class wizards. For more information,
+    see \l{Adding New Custom Wizards}.
+
+    \section2 Creating Resource Files
+
+    \QC supports the \l{The Qt Resource System}{Qt Resource System}, which is a
+    platform-independent mechanism for storing files in the application's
+    executable.
+
+    \image qtcreator-add-resource-wizard.png "New File or Project dialog"
+
+    The wizard creates a resource collection file (.qrc) that you can manage in
+    the resource editor.
+
+    \image qtcreator-add-resource.png "Editing resource files"
+
+    Select \uicontrol Add > \uicontrol {Add Files} to locate and add individual
+    files.
+
+    By default, resources are accessible in the application under the same file
+    name as they have in the source tree, with a \c{:/} prefix, or by a URL with
+    a \c qrc scheme. To specify a path prefix for all files in the \c .qrc file,
+    select \uicontrol Add > \uicontrol {Add Prefix} or enter the prefix in the
+    \uicontrol Prefix field.
+
+    Some resources need to change based on the user's locale, such as
+    translation files or icons. You can specify a locale in the
+    \uicontrol Language field.
+
+    Select \uicontrol Remove to remove the selected file from the resource
+    collection. In the \uicontrol {Remove File} dialog, select the
+    \uicontrol {Delete file permanently} check box to remove the file from
+    the file system. To remove files that cannot be found in the file system,
+    select \uicontrol {Remove Missing Files}.
+
+    The above functions are also available in the context menu in the
+    \uicontrol Projects view.
+
+    \section2 Creating OpenGL Fragment and Vertex Shaders
+
+    Qt provides support for integration with OpenGL implementations on all
+    platforms, which allows you to display hardware accelerated 3D graphics
+    alongside a more conventional user interface. For more information, see
+    \l{Qt GUI}.
+
+    You can use the QOpenGLShader class to compile OpenGL shaders written in the
+    OpenGL Shading Language (GLSL) and in the OpenGL/ES Shading Language
+    (GLSL/ES). QOpenGLShader and QOpenGLShaderProgram shelter you from the
+    details of
+    compiling and linking vertex and fragment shaders.
+
+    You can use \QC code editor to write fragment and vertex shaders
+    in GLSL or GLSL/ES. The code editor provides syntax highlighting and code
+    completion for the files.
+
+    \image qtcreator-new-opengl-file.png "New OpenGL file wizard"
+
+    \section2 Displaying Additional File Types in Projects Pane
+
+    \QC determines whether to display files from the project folder
+    in the \uicontrol Projects pane depending on the file type (.pro, .pri, .cpp,
+    .h, .qrc, and so on). To display other types of files, edit the
+    project file. Add filenames as values of the \c {DISTFILES} variable.
+    You can also use wildcards.
+
+    For example, the following code specifies that text files are displayed
+    in the \uicontrol Projects pane:
+
+    \code
+
+    DISTFILES += *.txt
+
+    \endcode
+
+    This also makes the files available in the \uicontrol Locator.
+
+    \section1 Adding Subprojects to Projects
+
+    In addition to Qt libraries, you can link your application to other
+    libraries, such as system libraries or your own libraries. Further, your
+    own libraries might link to other libraries. To be able to compile your
+    project, you must add the libraries to your project. This also enables
+    code completion and syntax highlighting for the libraries.
+    The procedure of adding a library to a project depends on the build
+    system that you use.
+
+    When you create a new project, you can add it to another project as a
+    subproject in the \uicontrol{Project Management} dialog. However, the root project
+    must specify that qmake uses the \c subdirs template to build the project.
+
+    To create a root project, select \uicontrol {File > New File or Project >
+    Other Project > Subdirs Project > Choose}.
+
+    On the \uicontrol Summary page, select \uicontrol {Finish & Add Subproject} to create
+    the root project and to add another project, such as a C++ library.
+
+    The wizard creates a project file (.pro) that defines a \c subdirs template
+    and the subproject that you add as a value of the \l{Variables#subdirs}
+    {SUBDIRS variable}. It also adds all the necessary files for the subproject.
+
+    To add more subprojects, right-click the project name in the \uicontrol Projects
+    pane, and select \uicontrol {New Subproject} in the context menu.
+
+    To remove subprojects, right-click the project name in the \uicontrol Projects
+    pane, and select \uicontrol {Remove Subproject} in the context menu.
+
+    To specify dependencies, use the \uicontrol{Add Library} wizard. For more
+    information, see \l{Adding Libraries to Projects}.
+
+    \section1 Binding Keyboard Shortcuts to Wizards
+
+    If you use a wizard regularly, you can bind a custom keyboard shortcut to
+    it. Triggering this keyboard shortcut will directly open the wizard without
+    the need to navigate to \uicontrol File > \uicontrol {New File or Project}.
+
+    Keyboard shortcuts for wizards can be set in \uicontrol Tools >
+    \uicontrol Options > \uicontrol Environment > \uicontrol Keyboard >
+    \uicontrol Wizard. All wizard actions start with \uicontrol Impl there.
+
+    \section1 Related Topics
+
+    \list
+        \li  \l{Opening Projects}
+        \li  \l{Adding Libraries to Projects}
+        \li  \l{Adding New Custom Wizards}
+        \li  \l{Using Other Build Systems}
+    \endlist
+
+*/

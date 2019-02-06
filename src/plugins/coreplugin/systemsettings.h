@@ -32,6 +32,8 @@ QT_BEGIN_NAMESPACE
 class QMessageBox;
 QT_END_NAMESPACE
 
+namespace Utils { class TerminalCommand; }
+
 namespace Core {
 namespace Internal {
 
@@ -44,14 +46,15 @@ class SystemSettings : public IOptionsPage
 public:
     SystemSettings();
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 private:
     void showHelpForFileBrowser();
     void resetFileBrowser();
     void resetTerminal();
+    void updateTerminalUi(const Utils::TerminalCommand &term);
     void updatePath();
 
     void variableHelpDialogCreator(const QString &helpText);

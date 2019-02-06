@@ -59,7 +59,6 @@ namespace Timeline {
 */
 void TimelineModel::computeNesting()
 {
-    Q_D(TimelineModel);
     QLinkedList<int> parents;
     for (int range = 0; range != count(); ++range) {
         TimelineModelPrivate::Range &current = d->ranges[range];
@@ -107,43 +106,26 @@ void TimelineModel::computeNesting()
 
 int TimelineModel::collapsedRowCount() const
 {
-    Q_D(const TimelineModel);
     return d->collapsedRowCount;
 }
 
 void TimelineModel::setCollapsedRowCount(int rows)
 {
-    Q_D(TimelineModel);
-    if (d->collapsedRowCount != rows) {
+    if (d->collapsedRowCount != rows)
         d->collapsedRowCount = rows;
-        emit collapsedRowCountChanged();
-        if (!d->expanded) {
-            emit rowCountChanged();
-            emit heightChanged(); // collapsed rows have a fixed size
-        }
-    }
 }
 
 int TimelineModel::expandedRowCount() const
 {
-    Q_D(const TimelineModel);
     return d->expandedRowCount;
 }
 
 void TimelineModel::setExpandedRowCount(int rows)
 {
-    Q_D(TimelineModel);
     if (d->expandedRowCount != rows) {
-        int prevHeight = height();
         if (d->rowOffsets.length() > rows)
             d->rowOffsets.resize(rows);
         d->expandedRowCount = rows;
-        emit expandedRowCountChanged();
-        if (d->expanded) {
-            emit rowCountChanged();
-            if (height() != prevHeight)
-                emit heightChanged();
-        }
     }
 }
 
@@ -159,16 +141,21 @@ TimelineModel::TimelineModelPrivate::TimelineModelPrivate(int modelId) :
 }
 
 TimelineModel::TimelineModel(TimelineModelAggregator *parent) :
-    QObject(parent), d_ptr(new TimelineModelPrivate(parent->generateModelId()))
+    QObject(parent), d(std::make_unique<TimelineModelPrivate>(parent->generateModelId()))
 {
     connect(this, &TimelineModel::contentChanged, this, &TimelineModel::labelsChanged);
     connect(this, &TimelineModel::contentChanged, this, &TimelineModel::detailsChanged);
+    connect(this, &TimelineModel::hiddenChanged, this, &TimelineModel::heightChanged);
+    connect(this, &TimelineModel::expandedChanged, this, &TimelineModel::heightChanged);
+    connect(this, &TimelineModel::expandedRowHeightChanged, this, &TimelineModel::heightChanged);
+    connect(this, &TimelineModel::expandedChanged, this, &TimelineModel::rowCountChanged);
+    connect(this, &TimelineModel::contentChanged, this, &TimelineModel::rowCountChanged);
+    connect(this, &TimelineModel::contentChanged,
+            this, [this]() { emit expandedRowHeightChanged(-1, -1); });
 }
 
 TimelineModel::~TimelineModel()
 {
-    Q_D(TimelineModel);
-    delete d;
 }
 
 bool TimelineModel::isEmpty() const
@@ -178,7 +165,6 @@ bool TimelineModel::isEmpty() const
 
 int TimelineModel::modelId() const
 {
-    Q_D(const TimelineModel);
     return d->modelId;
 }
 
@@ -195,7 +181,6 @@ int TimelineModel::collapsedRowOffset(int rowNumber) const
 
 int TimelineModel::expandedRowHeight(int rowNumber) const
 {
-    Q_D(const TimelineModel);
     if (d->rowOffsets.size() > rowNumber)
         return d->rowOffsets[rowNumber] - (rowNumber > 0 ? d->rowOffsets[rowNumber - 1] : 0);
     return TimelineModelPrivate::DefaultRowHeight;
@@ -203,7 +188,6 @@ int TimelineModel::expandedRowHeight(int rowNumber) const
 
 int TimelineModel::expandedRowOffset(int rowNumber) const
 {
-    Q_D(const TimelineModel);
     if (rowNumber == 0)
         return 0;
 
@@ -217,7 +201,6 @@ int TimelineModel::expandedRowOffset(int rowNumber) const
 
 void TimelineModel::setExpandedRowHeight(int rowNumber, int height)
 {
-    Q_D(TimelineModel);
     if (height < TimelineModelPrivate::DefaultRowHeight)
         height = TimelineModelPrivate::DefaultRowHeight;
 
@@ -231,8 +214,6 @@ void TimelineModel::setExpandedRowHeight(int rowNumber, int height)
             d->rowOffsets[offsetRow] += difference;
         }
         emit expandedRowHeightChanged(rowNumber, height);
-        if (d->expanded)
-            emit heightChanged();
     }
 }
 
@@ -248,7 +229,6 @@ int TimelineModel::rowHeight(int rowNumber) const
 
 int TimelineModel::height() const
 {
-    Q_D(const TimelineModel);
     if (d->hidden || isEmpty())
         return 0;
 
@@ -266,25 +246,21 @@ int TimelineModel::height() const
 */
 int TimelineModel::count() const
 {
-    Q_D(const TimelineModel);
     return d->ranges.count();
 }
 
 qint64 TimelineModel::duration(int index) const
 {
-    Q_D(const TimelineModel);
     return d->ranges[index].duration;
 }
 
 qint64 TimelineModel::startTime(int index) const
 {
-    Q_D(const TimelineModel);
     return d->ranges[index].start;
 }
 
 qint64 TimelineModel::endTime(int index) const
 {
-    Q_D(const TimelineModel);
     return d->ranges[index].start + d->ranges[index].duration;
 }
 
@@ -309,7 +285,6 @@ int TimelineModel::typeId(int index) const
 */
 int TimelineModel::firstIndex(qint64 startTime) const
 {
-    Q_D(const TimelineModel);
     int index = d->firstIndexNoParents(startTime);
     if (index == -1)
         return -1;
@@ -343,7 +318,6 @@ int TimelineModel::TimelineModelPrivate::firstIndexNoParents(qint64 startTime) c
 */
 int TimelineModel::lastIndex(qint64 endTime) const
 {
-    Q_D(const TimelineModel);
     // in the "starttime" list, find the last event that starts before endtime
 
     // lowerBound() never returns "invalid", so handle this manually.
@@ -364,8 +338,6 @@ int TimelineModel::lastIndex(qint64 endTime) const
  */
 int TimelineModel::bestIndex(qint64 timestamp) const
 {
-    Q_D(const TimelineModel);
-
     if (d->ranges.isEmpty())
         return -1;
 
@@ -390,7 +362,6 @@ int TimelineModel::bestIndex(qint64 timestamp) const
 
 int TimelineModel::parentIndex(int index) const
 {
-    Q_D(const TimelineModel);
     return d->ranges[index].parent;
 }
 
@@ -467,7 +438,6 @@ QRgb TimelineModel::colorByHue(int hue) const
 */
 int TimelineModel::insert(qint64 startTime, qint64 duration, int selectionId)
 {
-    Q_D(TimelineModel);
     /* Doing insert-sort here is preferable as most of the time the times will actually be
      * presorted in the right way. So usually this will just result in appending. */
     int index = d->insertStart(TimelineModelPrivate::Range(startTime, duration, selectionId));
@@ -485,7 +455,6 @@ int TimelineModel::insert(qint64 startTime, qint64 duration, int selectionId)
 */
 int TimelineModel::insertStart(qint64 startTime, int selectionId)
 {
-    Q_D(TimelineModel);
     int index = d->insertStart(TimelineModelPrivate::Range(startTime, 0, selectionId));
     if (index < d->ranges.size() - 1)
         d->incrementStartIndices(index);
@@ -497,52 +466,38 @@ int TimelineModel::insertStart(qint64 startTime, int selectionId)
 */
 void TimelineModel::insertEnd(int index, qint64 duration)
 {
-    Q_D(TimelineModel);
     d->ranges[index].duration = duration;
     d->insertEnd(TimelineModelPrivate::RangeEnd(index, d->ranges[index].start + duration));
 }
 
 bool TimelineModel::expanded() const
 {
-    Q_D(const TimelineModel);
     return d->expanded;
 }
 
 void TimelineModel::setExpanded(bool expanded)
 {
-    Q_D(TimelineModel);
     if (expanded != d->expanded) {
-        int prevHeight = height();
         d->expanded = expanded;
         emit expandedChanged();
-        if (prevHeight != height())
-            emit heightChanged();
-        if (d->collapsedRowCount != d->expandedRowCount)
-            emit rowCountChanged();
     }
 }
 
 bool TimelineModel::hidden() const
 {
-    Q_D(const TimelineModel);
     return d->hidden;
 }
 
 void TimelineModel::setHidden(bool hidden)
 {
-    Q_D(TimelineModel);
     if (hidden != d->hidden) {
-        int prevHeight = height();
         d->hidden = hidden;
         emit hiddenChanged();
-        if (height() != prevHeight)
-            emit heightChanged();
     }
 }
 
 void TimelineModel::setDisplayName(const QString &displayName)
 {
-    Q_D(TimelineModel);
     if (d->displayName != displayName) {
         d->displayName = displayName;
         emit displayNameChanged();
@@ -551,13 +506,11 @@ void TimelineModel::setDisplayName(const QString &displayName)
 
 QString TimelineModel::displayName() const
 {
-    Q_D(const TimelineModel);
     return d->displayName;
 }
 
 int TimelineModel::rowCount() const
 {
-    Q_D(const TimelineModel);
     return d->expanded ? d->expandedRowCount : d->collapsedRowCount;
 }
 
@@ -600,15 +553,11 @@ int TimelineModel::collapsedRow(int index) const
  */
 int TimelineModel::selectionId(int index) const
 {
-    Q_D(const TimelineModel);
     return d->ranges[index].selectionId;
 }
 
 void TimelineModel::clear()
 {
-    Q_D(TimelineModel);
-    bool hadRowHeights = !d->rowOffsets.empty();
-    bool wasEmpty = isEmpty();
     setExpandedRowCount(1);
     setCollapsedRowCount(1);
     setExpanded(false);
@@ -616,27 +565,18 @@ void TimelineModel::clear()
     d->rowOffsets.clear();
     d->ranges.clear();
     d->endTimes.clear();
-    if (hadRowHeights)
-        emit expandedRowHeightChanged(-1, -1);
-    if (!wasEmpty) {
-        emit contentChanged();
-        emit heightChanged();
-        emit labelsChanged();
-        emit detailsChanged();
-    }
+    emit contentChanged();
 }
 
 int TimelineModel::nextItemBySelectionId(int selectionId, qint64 time, int currentItem) const
 {
-    Q_D(const TimelineModel);
-    return d->nextItemById([d, selectionId](int index) {
+    return d->nextItemById([this, selectionId](int index) {
         return d->ranges[index].selectionId == selectionId;
     }, time, currentItem);
 }
 
 int TimelineModel::nextItemByTypeId(int requestedTypeId, qint64 time, int currentItem) const
 {
-    Q_D(const TimelineModel);
     return d->nextItemById([this, requestedTypeId](int index) {
         return typeId(index) == requestedTypeId;
     }, time, currentItem);
@@ -644,15 +584,13 @@ int TimelineModel::nextItemByTypeId(int requestedTypeId, qint64 time, int curren
 
 int TimelineModel::prevItemBySelectionId(int selectionId, qint64 time, int currentItem) const
 {
-    Q_D(const TimelineModel);
-    return d->prevItemById([d, selectionId](int index) {
+    return d->prevItemById([this, selectionId](int index) {
         return d->ranges[index].selectionId == selectionId;
     }, time, currentItem);
 }
 
 int TimelineModel::prevItemByTypeId(int requestedTypeId, qint64 time, int currentItem) const
 {
-    Q_D(const TimelineModel);
     return d->prevItemById([this, requestedTypeId](int index) {
         return typeId(index) == requestedTypeId;
     }, time, currentItem);

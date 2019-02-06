@@ -25,6 +25,8 @@
 
 #include "iexternaleditor.h"
 
+#include "ieditorfactory_p.h"
+
 namespace Core {
 
 /*!
@@ -66,9 +68,17 @@ IExternalEditor::~IExternalEditor()
     g_externalEditors.removeOne(this);
 }
 
-const QList<IExternalEditor *> IExternalEditor::allExternalEditors()
+const ExternalEditorList IExternalEditor::allExternalEditors()
 {
     return g_externalEditors;
+}
+
+const ExternalEditorList IExternalEditor::externalEditors(const Utils::MimeType &mimeType)
+{
+    ExternalEditorList rc;
+    const ExternalEditorList allEditors = IExternalEditor::allExternalEditors();
+    Internal::mimeTypeFactoryLookup(mimeType, allEditors, &rc);
+    return rc;
 }
 
 } // Core

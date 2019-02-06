@@ -78,8 +78,8 @@ public:
 } // namespace TextEditor
 
 
-static TextEditorSettingsPrivate *d = 0;
-static TextEditorSettings *m_instance = 0;
+static TextEditorSettingsPrivate *d = nullptr;
+static TextEditorSettings *m_instance = nullptr;
 
 TextEditorSettings::TextEditorSettings()
 {
@@ -92,8 +92,10 @@ TextEditorSettings::TextEditorSettings()
     // Add font preference page
     FormatDescriptions formatDescr;
     formatDescr.reserve(C_LAST_STYLE_SENTINEL);
-    formatDescr.emplace_back(C_TEXT, tr("Text"), tr("Generic text and punctuation tokens.\n"
-                                                    "Applied to text that matched no other rule."));
+    formatDescr.emplace_back(C_TEXT, tr("Text"),
+                             tr("Generic text and punctuation tokens.\n"
+                                                    "Applied to text that matched no other rule."),
+                             Format{QColor{}, Qt::white});
 
     // Special categories
     const QPalette p = QApplication::palette();
@@ -103,7 +105,7 @@ TextEditorSettings::TextEditorSettings()
                              p.color(QPalette::HighlightedText));
     formatDescr.emplace_back(C_LINE_NUMBER, tr("Line Number"),
                              tr("Line numbers located on the left side of the editor."),
-                             FormatDescription::AllControlsExceptUnderline);
+                             FormatDescription::ShowAllAbsoluteControlsExceptUnderline);
     formatDescr.emplace_back(C_SEARCH_RESULT, tr("Search Result"),
                              tr("Highlighted search results inside the editor."),
                              FormatDescription::ShowBackgroundControl);
@@ -128,7 +130,7 @@ TextEditorSettings::TextEditorSettings()
                                         tr("Line number located on the left side of the "
                                            "editor where the cursor is placed in."),
                                         Qt::darkGray,
-                                        FormatDescription::AllControlsExceptUnderline);
+                                        FormatDescription::ShowAllAbsoluteControlsExceptUnderline);
     currentLineNumber.format().setBold(true);
     formatDescr.push_back(std::move(currentLineNumber));
 
@@ -168,10 +170,22 @@ TextEditorSettings::TextEditorSettings()
     functionFormat.setForeground(QColor(0, 103, 124));
     formatDescr.emplace_back(C_FUNCTION, tr("Function"), tr("Name of a function."),
                              functionFormat);
-    functionFormat.setItalic(true);
+    Format declarationFormat;
+    declarationFormat.setBold(true);
+    formatDescr.emplace_back(C_DECLARATION,
+                             tr("Function Declaration"),
+                             tr("Style adjustments to (function) declarations."),
+                             declarationFormat,
+                             FormatDescription::ShowAllControls);
+    formatDescr.emplace_back(C_FUNCTION_DEFINITION,
+                             tr("Function Definition"),
+                             tr("Name of function at its definition."),
+                             FormatDescription::ShowAllControls);
+    Format virtualFunctionFormat(functionFormat);
+    virtualFunctionFormat.setItalic(true);
     formatDescr.emplace_back(C_VIRTUAL_METHOD, tr("Virtual Function"),
                              tr("Name of function declared as virtual."),
-                             functionFormat);
+                             virtualFunctionFormat);
 
     formatDescr.emplace_back(C_BINDING, tr("QML Binding"),
                              tr("QML item property, that allows a "
@@ -224,9 +238,17 @@ TextEditorSettings::TextEditorSettings()
     formatDescr.emplace_back(C_KEYWORD, tr("Keyword"),
                              tr("Reserved keywords of the programming language except "
                                 "keywords denoting primitive types."), Qt::darkYellow);
+    formatDescr.emplace_back(C_PUNCTUATION, tr("Punctuation"),
+                             tr("Punctuation excluding operators."));
     formatDescr.emplace_back(C_OPERATOR, tr("Operator"),
                              tr("Non user-defined language operators.\n"
-                                "To style user-defined operators, use Overloaded Operator."));
+                                "To style user-defined operators, use Overloaded Operator."),
+                             FormatDescription::ShowAllControls);
+    formatDescr.emplace_back(C_OVERLOADED_OPERATOR,
+                             tr("Overloaded Operators"),
+                             tr("Calls and declarations of overloaded (user-defined) operators."),
+                             functionFormat,
+                             FormatDescription::ShowAllControls);
     formatDescr.emplace_back(C_PREPROCESSOR, tr("Preprocessor"),
                              tr("Preprocessor directives."), Qt::darkBlue);
     formatDescr.emplace_back(C_LABEL, tr("Label"), tr("Labels for goto statements."),
@@ -294,47 +316,32 @@ TextEditorSettings::TextEditorSettings()
                              tr("Underline color of error diagnostics."),
                              QColor(255,0, 0),
                              QTextCharFormat::SingleUnderline,
-                             FormatDescription::ShowUnderlineControl);
+                             FormatDescription::ShowAllControls);
     formatDescr.emplace_back(C_ERROR_CONTEXT,
                              tr("Error Context"),
                              tr("Underline color of the contexts of error diagnostics."),
                              QColor(255,0, 0),
                              QTextCharFormat::DotLine,
-                             FormatDescription::ShowUnderlineControl);
+                             FormatDescription::ShowAllControls);
     formatDescr.emplace_back(C_WARNING,
                              tr("Warning"),
                              tr("Underline color of warning diagnostics."),
                              QColor(255, 190, 0),
                              QTextCharFormat::SingleUnderline,
-                             FormatDescription::ShowUnderlineControl);
+                             FormatDescription::ShowAllControls);
     formatDescr.emplace_back(C_WARNING_CONTEXT,
                              tr("Warning Context"),
                              tr("Underline color of the contexts of warning diagnostics."),
                              QColor(255, 190, 0),
                              QTextCharFormat::DotLine,
-                             FormatDescription::ShowUnderlineControl);
-    formatDescr.emplace_back(C_OVERLOADED_OPERATOR,
-                             tr("Overloaded Operators"),
-                             tr("Calls and declarations of overloaded (user-defined) operators."),
-                             Format::createMixinFormat());
-    Format declarationFormat = Format::createMixinFormat();
-    declarationFormat.setBold(true);
-    formatDescr.emplace_back(C_DECLARATION,
-                             tr("Function Declaration"),
-                             tr("Style adjustments to (function) declarations."),
-                             declarationFormat,
-                             FormatDescription::ShowFontUnderlineAndRelativeControls);
-    formatDescr.emplace_back(C_FUNCTION_DEFINITION,
-                             tr("Function Definition"),
-                             tr("Name of function at its definition."),
-                             Format::createMixinFormat());
-    Format outputArgumentFormat = Format::createMixinFormat();
+                             FormatDescription::ShowAllControls);
+    Format outputArgumentFormat;
     outputArgumentFormat.setItalic(true);
     formatDescr.emplace_back(C_OUTPUT_ARGUMENT,
                              tr("Output Argument"),
                              tr("Writable arguments of a function call."),
                              outputArgumentFormat,
-                             FormatDescription::ShowFontUnderlineAndRelativeControls);
+                             FormatDescription::ShowAllControls);
 
     d->m_fontSettingsPage = new FontSettingsPage(formatDescr,
                                                    Constants::TEXT_EDITOR_FONT_SETTINGS,
@@ -383,7 +390,7 @@ TextEditorSettings::~TextEditorSettings()
 {
     delete d;
 
-    m_instance = 0;
+    m_instance = nullptr;
 }
 
 TextEditorSettings *TextEditorSettings::instance()
@@ -518,7 +525,7 @@ Core::Id TextEditorSettings::languageId(const QString &mimeType)
 
 int TextEditorSettings::increaseFontZoom(int step)
 {
-    FontSettings &fs = const_cast<FontSettings&>(d->m_fontSettingsPage->fontSettings());
+    auto &fs = const_cast<FontSettings&>(d->m_fontSettingsPage->fontSettings());
     const int previousZoom = fs.fontZoom();
     const int newZoom = qMax(10, previousZoom + step);
     if (newZoom != previousZoom) {
@@ -530,7 +537,7 @@ int TextEditorSettings::increaseFontZoom(int step)
 
 void TextEditorSettings::resetFontZoom()
 {
-    FontSettings &fs = const_cast<FontSettings&>(d->m_fontSettingsPage->fontSettings());
+    auto &fs = const_cast<FontSettings&>(d->m_fontSettingsPage->fontSettings());
     fs.setFontZoom(100);
     d->m_fontSettingsPage->saveSettings();
 }

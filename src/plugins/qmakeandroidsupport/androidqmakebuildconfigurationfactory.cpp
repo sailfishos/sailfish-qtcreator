@@ -24,26 +24,22 @@
 ****************************************************************************/
 
 #include "androidqmakebuildconfigurationfactory.h"
-#include "qmakeandroidbuildapkstep.h"
 
+#include <android/androidbuildapkstep.h>
 #include <android/androidconfigurations.h>
 #include <android/androidconstants.h>
 #include <android/androidmanager.h>
 #include <android/androidpackageinstallationstep.h>
 
-#include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 
-#include <qmakeprojectmanager/qmakebuildinfo.h>
-#include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 
 using namespace Android;
 using namespace ProjectExplorer;
-using namespace QmakeProjectManager;
 
 namespace QmakeAndroidSupport {
 namespace Internal {
@@ -74,34 +70,16 @@ void AndroidQmakeBuildConfiguration::initialize(const BuildInfo *info)
 
     BuildStepList *buildSteps = stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     buildSteps->appendStep(new AndroidPackageInstallationStep(buildSteps));
-    buildSteps->appendStep(new QmakeAndroidBuildApkStep(buildSteps));
+    buildSteps->appendStep(new Android::AndroidBuildApkStep(buildSteps));
 
     updateCacheAndEmitEnvironmentChanged();
 }
 
 void AndroidQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 {
-    m_androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(AndroidManager::minimumSDK(target()));
-    env.set(QLatin1String("ANDROID_NDK_PLATFORM"), m_androidNdkPlatform);
-}
-
-void AndroidQmakeBuildConfiguration::manifestSaved()
-{
-    QString androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(AndroidManager::minimumSDK(target()));
-    if (m_androidNdkPlatform == androidNdkPlatform)
-        return;
-
-    updateCacheAndEmitEnvironmentChanged();
-
-    QMakeStep *qs = qmakeStep();
-    if (!qs)
-        return;
-
-    qs->setForced(true);
-
-    BuildManager::buildList(stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-    BuildManager::appendStep(qs, ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-    setSubNodeBuild(0);
+    QString androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(
+                qMax(AndroidManager::minimumNDK(target()), AndroidManager::minimumSDK(target())));
+    env.set(QLatin1String("ANDROID_NDK_PLATFORM"), androidNdkPlatform);
 }
 
 } // namespace Internal

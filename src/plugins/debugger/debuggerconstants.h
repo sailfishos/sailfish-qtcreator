@@ -37,9 +37,9 @@ const char MODE_DEBUG[]             = "Mode.Debug";
 const char C_DEBUGMODE[]            = "Debugger.DebugMode";
 const char C_CPPDEBUGGER[]          = "Gdb Debugger";
 const char C_QMLDEBUGGER[]          = "Qml/JavaScript Debugger";
+const char C_DEBUGGER_NOTRUNNING[]  = "Debugger.NotRunning";
 
-const char CppPerspectiveId[]       = "Debugger.Perspective.Cpp";
-const char QmlPerspectiveId[]       = "Debugger.Perspective.Qml";
+const char PRESET_PERSPECTIVE_ID[]  = "Debugger.Perspective.Preset";
 
 // Menu Groups
 const char G_GENERAL[]              = "Debugger.Group.General";
@@ -50,14 +50,21 @@ const char G_START_QML[]            = "Debugger.Group.Start.Qml";
 const char INTERRUPT[]              = "Debugger.Interrupt";
 const char CONTINUE[]               = "Debugger.Continue";
 const char STOP[]                   = "Debugger.Stop";
-const char HIDDEN_STOP[]            = "Debugger.HiddenStop";
 const char ABORT[]                  = "Debugger.Abort";
 const char STEP[]                   = "Debugger.StepLine";
 const char STEPOUT[]                = "Debugger.StepOut";
 const char NEXT[]                   = "Debugger.NextLine";
-const char REVERSE[]                = "Debugger.ReverseDirection";
+const char RUNTOLINE[]              = "Debugger.RunToLine";
+const char RUNTOSELECTEDFUNCTION[]  = "Debugger.RunToSelectedFunction";
+const char JUMPTOLINE[]             = "Debugger.JumpToLine";
+const char RETURNFROMFUNCTION[]     = "Debugger.ReturnFromFunction";
 const char RESET[]                  = "Debugger.Reset";
+const char WATCH[]                  = "Debugger.AddToWatch";
+const char DETACH[]                 = "Debugger.Detach";
 const char OPERATE_BY_INSTRUCTION[] = "Debugger.OperateByInstruction";
+const char OPEN_MEMORY_EDITOR[]     = "Debugger.Views.OpenMemoryEditor";
+const char FRAME_UP[]               = "Debugger.FrameUp";
+const char FRAME_DOWN[]             = "Debugger.FrameDown";
 const char QML_SHOW_APP_ON_TOP[]    = "Debugger.QmlShowAppOnTop";
 const char QML_SELECTTOOL[]         = "Debugger.QmlSelectTool";
 const char QML_ZOOMTOOL[]           = "Debugger.QmlZoomTool";
@@ -156,8 +163,7 @@ enum DebuggerCapabilities
     WatchComplexExpressionsCapability = 1 << 26, // Used to filter out challenges for cdb.
     AdditionalQmlStackCapability      = 1 << 27, //!< C++ debugger engine is able to retrieve QML stack as well.
     ResetInferiorCapability           = 1 << 28, //!< restart program while debugging
-    NativeMixedCapability             = 1 << 29,
-    BreakIndividualLocationsCapability= 1 << 30  //!< Allows to enable/disable individual location for multi-location bps
+    BreakIndividualLocationsCapability= 1 << 29  //!< Allows to enable/disable individual location for multi-location bps
 };
 
 enum LogChannel

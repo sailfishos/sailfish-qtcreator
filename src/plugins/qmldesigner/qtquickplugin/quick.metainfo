@@ -108,6 +108,23 @@ MetaInfo {
             Property { name: "width"; type: "int"; value: 100; }
             Property { name: "height"; type: "int"; value: 100; }
             Property { name: "source"; type: "QUrl"; value:"qrc:/qtquickplugin/images/template_image.png"; }
+            Property { name: "fillMode"; type: "enum"; value: "Image.PreserveAspectFit"; }
+        }
+    }
+
+    Type {
+        name: "QtQuick.AnimatedImage"
+        icon: ":/qtquickplugin/images/animated-image-icon16.png"
+
+        ItemLibraryEntry {
+            name: "Animated Image"
+            category: "Qt Quick - Basic"
+            libraryIcon: ":/qtquickplugin/images/animated-image-icon.png"
+            version: "2.0"
+
+            Property { name: "width"; type: "int"; value: 100; }
+            Property { name: "height"; type: "int"; value: 100; }
+            Property { name: "source"; type: "QUrl"; value:"qrc:/qtquickplugin/images/template_image.png"; }
         }
     }
 
@@ -163,16 +180,7 @@ MetaInfo {
         ItemLibraryEntry {
             name: "List View"
             category: "Qt Quick - Views"
-            libraryIcon: ":/qtquickplugin/images/pathview-icon.png"
-            version: "1.1"
-
-            QmlSource { source: ":/qtquickplugin/source/listview.qml" }
-        }
-
-        ItemLibraryEntry {
-            name: "List View"
-            category: "Qt Quick - Views"
-            libraryIcon: ":/qtquickplugin/images/pathview-icon.png"
+            libraryIcon: ":/qtquickplugin/images/listview-icon.png"
             version: "2.0"
 
             QmlSource { source: ":/qtquickplugin/source/listviewv2.qml" }

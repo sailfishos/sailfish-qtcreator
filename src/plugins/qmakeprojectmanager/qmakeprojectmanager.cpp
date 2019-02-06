@@ -128,7 +128,8 @@ void QmakeManager::addLibraryImpl(const QString &fileName, BaseTextEditor *edito
     // add extra \n in case the last line is not empty
     int line, column;
     editor->convertPosition(endOfDoc, &line, &column);
-    if (!editor->textAt(endOfDoc - column, column).simplified().isEmpty())
+    const int positionInBlock = column - 1;
+    if (!editor->textAt(endOfDoc - positionInBlock, positionInBlock).simplified().isEmpty())
         snippet = QLatin1Char('\n') + snippet;
 
     editor->insert(snippet);
@@ -148,13 +149,13 @@ void QmakeManager::runQMakeImpl(ProjectExplorer::Project *p, ProjectExplorer::No
 {
     if (!ProjectExplorerPlugin::saveModifiedFiles())
         return;
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(p);
+    auto *qmakeProject = qobject_cast<QmakeProject *>(p);
     QTC_ASSERT(qmakeProject, return);
 
     if (!qmakeProject->activeTarget() || !qmakeProject->activeTarget()->activeBuildConfiguration())
         return;
 
-    QmakeBuildConfiguration *bc = static_cast<QmakeBuildConfiguration *>(qmakeProject->activeTarget()->activeBuildConfiguration());
+    auto *bc = static_cast<QmakeBuildConfiguration *>(qmakeProject->activeTarget()->activeBuildConfiguration());
     QMakeStep *qs = bc->qmakeStep();
     if (!qs)
         return;
@@ -163,11 +164,11 @@ void QmakeManager::runQMakeImpl(ProjectExplorer::Project *p, ProjectExplorer::No
     qs->setForced(true);
 
     if (node && node != qmakeProject->rootProjectNode())
-        if (QmakeProFileNode *profile = dynamic_cast<QmakeProFileNode *>(node))
+        if (auto *profile = dynamic_cast<QmakeProFileNode *>(node))
             bc->setSubNodeBuild(profile);
 
     BuildManager::appendStep(qs, tr("QMake"));
-    bc->setSubNodeBuild(0);
+    bc->setSubNodeBuild(nullptr);
 }
 
 void QmakeManager::buildSubDirContextMenu()
@@ -218,14 +219,14 @@ void QmakeManager::handleSubDirContextMenu(QmakeManager::Action action, bool isF
     if (!target)
         return;
 
-    QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration *>(target->activeBuildConfiguration());
+    auto *bc = qobject_cast<QmakeBuildConfiguration *>(target->activeBuildConfiguration());
     if (!bc)
         return;
 
     if (!contextNode || !buildableFile)
         isFileBuild = false;
 
-    if (QmakePriFileNode *prifile = dynamic_cast<QmakePriFileNode *>(contextNode)) {
+    if (auto *prifile = dynamic_cast<QmakePriFileNode *>(contextNode)) {
         if (QmakeProFileNode *profile = prifile->proFileNode()) {
             if (profile != contextProject->rootProjectNode() || isFileBuild)
                 bc->setSubNodeBuild(profile->proFileNode());
@@ -252,8 +253,8 @@ void QmakeManager::handleSubDirContextMenu(QmakeManager::Action action, bool isF
         }
     }
 
-    bc->setSubNodeBuild(0);
-    bc->setFileNodeBuild(0);
+    bc->setSubNodeBuild(nullptr);
+    bc->setFileNodeBuild(nullptr);
 }
 
 } // namespace QmakeProjectManager

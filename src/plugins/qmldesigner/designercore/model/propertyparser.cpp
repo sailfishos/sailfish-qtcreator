@@ -34,7 +34,7 @@
 
 namespace {
 
-static uchar fromHex(const uchar c, const uchar c2)
+uchar fromHex(const uchar c, const uchar c2)
 {
     uchar rv = 0;
     if (c >= '0' && c <= '9')
@@ -54,7 +54,7 @@ static uchar fromHex(const uchar c, const uchar c2)
     return rv;
 }
 
-static uchar fromHex(const QString &s, int idx)
+uchar fromHex(const QString &s, int idx)
 {
     uchar c = s.at(idx).toLatin1();
     uchar c2 = s.at(idx + 1).toLatin1();
@@ -69,7 +69,7 @@ QColor colorFromString(const QString &s, bool *ok)
         uchar g = fromHex(s, 5);
         uchar b = fromHex(s, 7);
         if (ok) *ok = true;
-        return QColor(r, g, b, a);
+        return {r, g, b, a};
     } else {
         QColor rv(s);
         if (ok) *ok = rv.isValid();
@@ -82,13 +82,13 @@ QPointF pointFFromString(const QString &s, bool *ok)
     if (s.count(QLatin1Char(',')) != 1) {
         if (ok)
             *ok = false;
-        return QPointF();
+        return {};
     }
 
     bool xGood, yGood;
     int index = s.indexOf(QLatin1Char(','));
-    qreal xCoord = s.left(index).toDouble(&xGood);
-    qreal yCoord = s.mid(index+1).toDouble(&yGood);
+    qreal xCoord = s.leftRef(index).toDouble(&xGood);
+    qreal yCoord = s.midRef(index+1).toDouble(&yGood);
     if (!xGood || !yGood) {
         if (ok)
             *ok = false;
@@ -105,17 +105,17 @@ QRectF rectFFromString(const QString &s, bool *ok)
     if (s.count(QLatin1Char(',')) != 2 || s.count(QLatin1Char('x')) != 1) {
         if (ok)
             *ok = false;
-        return QRectF();
+        return {};
     }
 
     bool xGood, yGood, wGood, hGood;
     int index = s.indexOf(QLatin1Char(','));
-    qreal x = s.left(index).toDouble(&xGood);
+    qreal x = s.leftRef(index).toDouble(&xGood);
     int index2 = s.indexOf(QLatin1Char(','), index+1);
-    qreal y = s.mid(index+1, index2-index-1).toDouble(&yGood);
+    qreal y = s.midRef(index+1, index2-index-1).toDouble(&yGood);
     index = s.indexOf(QLatin1Char('x'), index2+1);
-    qreal width = s.mid(index2+1, index-index2-1).toDouble(&wGood);
-    qreal height = s.mid(index+1).toDouble(&hGood);
+    qreal width = s.midRef(index2+1, index-index2-1).toDouble(&wGood);
+    qreal height = s.midRef(index+1).toDouble(&hGood);
     if (!xGood || !yGood || !wGood || !hGood) {
         if (ok)
             *ok = false;
@@ -132,13 +132,13 @@ QSizeF sizeFFromString(const QString &s, bool *ok)
     if (s.count(QLatin1Char('x')) != 1) {
         if (ok)
             *ok = false;
-        return QSizeF();
+        return {};
     }
 
     bool wGood, hGood;
     int index = s.indexOf(QLatin1Char('x'));
-    qreal width = s.left(index).toDouble(&wGood);
-    qreal height = s.mid(index+1).toDouble(&hGood);
+    qreal width = s.leftRef(index).toDouble(&wGood);
+    qreal height = s.midRef(index+1).toDouble(&hGood);
     if (!wGood || !hGood) {
         if (ok)
             *ok = false;
@@ -155,15 +155,15 @@ QVector3D vector3DFromString(const QString &s, bool *ok)
     if (s.count(QLatin1Char(',')) != 2) {
         if (ok)
             *ok = false;
-        return QVector3D();
+        return {};
     }
 
     bool xGood, yGood, zGood;
     int index = s.indexOf(QLatin1Char(','));
     int index2 = s.indexOf(QLatin1Char(','), index+1);
-    qreal xCoord = s.left(index).toDouble(&xGood);
-    qreal yCoord = s.mid(index+1, index2-index-1).toDouble(&yGood);
-    qreal zCoord = s.mid(index2+1).toDouble(&zGood);
+    qreal xCoord = s.leftRef(index).toDouble(&xGood);
+    qreal yCoord = s.midRef(index+1, index2-index-1).toDouble(&yGood);
+    qreal zCoord = s.midRef(index2+1).toDouble(&zGood);
     if (!xGood || !yGood || !zGood) {
         if (ok)
             *ok = false;
@@ -199,7 +199,7 @@ QVariant read(const QString &typeStr, const QString &str)
 {
     int type = QMetaType::type(typeStr.toUtf8().constData());
     if (type == 0) {
-        if (typeStr != QStringLiteral("binding")) {
+        if (typeStr != QStringLiteral("binding") && typeStr != QStringLiteral("enum")) {
             qWarning() << "Type " << typeStr
                     << " is unknown to QMetaType system. Cannot create properly typed QVariant for value "
                     << str;

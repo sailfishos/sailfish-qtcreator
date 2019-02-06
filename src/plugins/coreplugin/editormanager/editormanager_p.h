@@ -30,12 +30,14 @@
 #include "editormanager.h"
 #include "editorview.h"
 #include "ieditor.h"
+#include "ieditorfactory.h"
 
 #include <coreplugin/idocument.h>
 
 #include <QList>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QVariant>
 
@@ -185,7 +187,7 @@ private:
     static OpenEditorsWindow *windowPopup();
     static void showPopupOrSelectDocument();
 
-    static EditorManager::EditorFactoryList findFactories(Id editorId, const QString &fileName);
+    static EditorFactoryList findFactories(Id editorId, const QString &fileName);
     static IEditor *createEditor(IEditorFactory *factory, const QString &fileName);
     static void addEditor(IEditor *editor);
     static void removeEditor(IEditor *editor, bool removeSusependedEntry);

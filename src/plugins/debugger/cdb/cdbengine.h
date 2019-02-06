@@ -28,6 +28,8 @@
 #include <debugger/debuggerengine.h>
 #include <debugger/breakhandler.h>
 
+#include <cplusplus/CppDocument.h>
+
 #include <projectexplorer/devicesupport/idevice.h>
 
 #include <QTime>
@@ -39,22 +41,18 @@ class CdbCommand;
 struct MemoryViewCookie;
 class StringInputStream;
 
-class CdbEngine : public DebuggerEngine
+class CdbEngine : public CppDebuggerEngine
 {
     Q_OBJECT
 
 public:
-    typedef QSharedPointer<CdbCommand> CdbCommandPtr;
-    typedef std::function<void(const DebuggerResponse &)> CommandHandler;
+    using CdbCommandPtr = QSharedPointer<CdbCommand>;
+    using CommandHandler = std::function<void (const DebuggerResponse &)>;
 
     explicit CdbEngine();
     ~CdbEngine() override;
 
-    // Factory function that returns 0 if the debug engine library cannot be found.
-
     bool canHandleToolTip(const DebuggerToolTipContext &context) const override;
-
-    DebuggerEngine *cppEngine() override { return this; }
 
     void setupEngine() override;
     void runEngine() override;
@@ -66,11 +64,9 @@ public:
     void watchPoint(const QPoint &) override;
     void setRegisterValue(const QString &name, const QString &value) override;
 
-    void executeStep() override;
+    void executeStepOver(bool byInstruction) override;
+    void executeStepIn(bool byInstruction) override;
     void executeStepOut() override;
-    void executeNext() override;
-    void executeStepI() override;
-    void executeNextI() override;
 
     void continueInferior() override;
     void interruptInferior() override;
@@ -79,14 +75,18 @@ public:
     void executeRunToFunction(const QString &functionName) override;
     void executeJumpToLine(const ContextData &data) override;
     void assignValueInDebugger(WatchItem *w, const QString &expr, const QVariant &value) override;
-    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
+    void executeDebuggerCommand(const QString &command) override;
 
     void activateFrame(int index) override;
-    void selectThread(ThreadId threadId) override;
+    void selectThread(const Thread &thread) override;
 
     bool stateAcceptsBreakpointChanges() const override;
-    bool acceptsBreakpoint(Breakpoint bp) const override;
-    void attemptBreakpointSynchronization() override;
+    bool acceptsBreakpoint(const BreakpointParameters &params) const override;
+
+    void insertBreakpoint(const Breakpoint &bp) override;
+    void removeBreakpoint(const Breakpoint &bp) override;
+    void updateBreakpoint(const Breakpoint &bp) override;
+    void enableSubBreakpoint(const SubBreakpoint &sbp, bool on) override;
 
     void fetchDisassembler(DisassemblerAgent *agent) override;
     void fetchMemory(MemoryAgent *, quint64 addr, quint64 length) override;
@@ -111,13 +111,12 @@ private:
     void processError();
     void processFinished();
     void runCommand(const DebuggerCommand &cmd) override;
-    void operateByInstructionTriggered(bool);
+    void adjustOperateByInstruction(bool);
 
     void createFullBacktrace();
 
     void handleDoInterruptInferior(const QString &errorMessage);
 
-    typedef QHash<BreakpointModelId, BreakpointResponse> PendingBreakPointMap;
     typedef QPair<QString, QString> SourcePathMapping;
     struct NormalizedSourceFileName // Struct for caching mapped/normalized source files.
     {
@@ -127,13 +126,12 @@ private:
         bool exists;
     };
 
-    enum SpecialStopMode
-    {
-        NoSpecialStop,
-        SpecialStopSynchronizeBreakpoints,
-        SpecialStopGetWidgetAt,
-        CustomSpecialStop // Associated with m_specialStopData, handleCustomSpecialStop()
+    enum StopMode {
+        NoStopRequested,
+        Interrupt,
+        Callback
     };
+
     enum ParseStackResultFlags // Flags returned by parseStackTrace
     {
         ParseStackStepInto = 1, // Need to execute a step, hit on a call frame in "Step into"
@@ -158,16 +156,12 @@ private:
     void handleSessionAccessible(unsigned long cdbExState);
     void handleSessionInaccessible(unsigned long cdbExState);
     void handleSessionIdle(const QString &message);
-    void doInterruptInferior(SpecialStopMode sm);
-    void doInterruptInferiorCustomSpecialStop(const QVariant &v);
+    using InterruptCallback = std::function<void()>;
+    void doInterruptInferior(const InterruptCallback &cb = InterruptCallback());
     void doContinueInferior();
     void parseOutputLine(QString line);
     bool isCdbProcessRunning() const { return m_process.state() != QProcess::NotRunning; }
     bool canInterruptInferior() const;
-    void syncOperateByInstruction(bool operateByInstruction);
-    void postWidgetAtCommand();
-    void handleCustomSpecialStop(const QVariant &v);
-    void postFetchMemory(const MemoryViewCookie &c);
     inline void postDisassemblerCommand(quint64 address, DisassemblerAgent *agent);
     void postDisassemblerCommand(quint64 address, quint64 endAddress,
                                  DisassemblerAgent *agent);
@@ -179,10 +173,10 @@ private:
     void handleStackTrace(const DebuggerResponse &);
     void handleRegisters(const DebuggerResponse &);
     void handleJumpToLineAddressResolution(const DebuggerResponse &response, const ContextData &context);
-    void handleExpression(const DebuggerResponse &command, BreakpointModelId id, const GdbMi &stopReason);
+    void handleExpression(const DebuggerResponse &command, const Breakpoint &bp, const GdbMi &stopReason);
     void handleResolveSymbol(const DebuggerResponse &command, const QString &symbol, DisassemblerAgent *agent);
     void handleResolveSymbolHelper(const QList<quint64> &addresses, DisassemblerAgent *agent);
-    void handleBreakInsert(const DebuggerResponse &response, const BreakpointModelId &bpId);
+    void handleBreakInsert(const DebuggerResponse &response, const Breakpoint &bp);
     void handleCheckWow64(const DebuggerResponse &response, const GdbMi &stack);
     void ensureUsing32BitStackInWow64(const DebuggerResponse &response, const GdbMi &stack);
     void handleSwitchWow64Stack(const DebuggerResponse &response);
@@ -213,7 +207,7 @@ private:
     QByteArray m_outputBuffer;
     //! Debugger accessible (expecting commands)
     bool m_accessible = false;
-    SpecialStopMode m_specialStopMode = NoSpecialStop;
+    StopMode m_stopMode = NoStopRequested;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr m_signalOperation;
     int m_nextCommandToken = 0;
     QHash<int, DebuggerCommand> m_commandForToken;
@@ -221,8 +215,7 @@ private:
     int m_currentBuiltinResponseToken = -1;
     QMap<QString, NormalizedSourceFileName> m_normalizedFileCache;
     const QString m_extensionCommandPrefix; //!< Library name used as prefix
-    bool m_operateByInstructionPending = true; //!< Creator operate by instruction action changed.
-    bool m_operateByInstruction = true; // Default CDB setting.
+    bool m_lastOperateByInstruction = true; // Default CDB setting.
     bool m_hasDebuggee = false;
     enum Wow64State {
         wow64Uninitialized,
@@ -236,18 +229,16 @@ private:
     bool m_sourceStepInto = false;
     int m_watchPointX = 0;
     int m_watchPointY = 0;
-    PendingBreakPointMap m_pendingBreakpointMap;
-    PendingBreakPointMap m_insertSubBreakpointMap;
-    PendingBreakPointMap m_pendingSubBreakpointMap;
+    QSet<Breakpoint> m_pendingBreakpointMap;
     bool m_autoBreakPointCorrection = false;
-    QHash<QString, QString> m_fileNameModuleHash;
     QMultiHash<QString, quint64> m_symbolAddressCache;
     bool m_ignoreCdbOutput = false;
-    QVariantList m_customSpecialStopData;
+    QList<InterruptCallback> m_interrupCallbacks;
     QList<SourcePathMapping> m_sourcePathMappings;
     QScopedPointer<GdbMi> m_coreStopReason;
     int m_pythonVersion = 0; // 0xMMmmpp MM = major; mm = minor; pp = patch
     bool m_initialSessionIdleHandled = false;
+    mutable CPlusPlus::Snapshot m_codeModelSnapshot;
 };
 
 } // namespace Internal

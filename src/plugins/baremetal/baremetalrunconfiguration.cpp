@@ -43,13 +43,12 @@ namespace Internal {
 BareMetalRunConfiguration::BareMetalRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    auto exeAspect = new ExecutableAspect(this);
+    auto exeAspect = addAspect<ExecutableAspect>();
     exeAspect->setDisplayStyle(BaseStringAspect::LabelDisplay);
     exeAspect->setPlaceHolderText(tr("Unknown"));
-    addExtraAspect(exeAspect);
 
-    addExtraAspect(new ArgumentsAspect(this, "Qt4ProjectManager.MaemoRunConfiguration.Arguments"));
-    addExtraAspect(new WorkingDirectoryAspect(this, "BareMetal.RunConfig.WorkingDirectory"));
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>();
 
     connect(target, &Target::deploymentDataChanged,
             this, &BareMetalRunConfiguration::updateTargetInformation);
@@ -64,7 +63,7 @@ BareMetalRunConfiguration::BareMetalRunConfiguration(Target *target, Core::Id id
 void BareMetalRunConfiguration::updateTargetInformation()
 {
     const BuildTargetInfo bti = target()->applicationTargets().buildTargetInfo(buildKey());
-    extraAspect<ExecutableAspect>()->setExecutable(bti.targetFilePath);
+    aspect<ExecutableAspect>()->setExecutable(bti.targetFilePath);
     emit enabledChanged();
 }
 

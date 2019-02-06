@@ -53,7 +53,10 @@ HEADERS += \
     androidsdkpackage.h \
     androidsdkmodel.h \
     androidsdkmanagerwidget.h \
-    androidpackageinstallationstep.h
+    androidpackageinstallationstep.h \
+    androidextralibrarylistmodel.h \
+    createandroidmanifestwizard.h \
+    androidrunenvironmentaspect.h
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -92,7 +95,6 @@ SOURCES += \
     avddialog.cpp \
     androidbuildapkstep.cpp \
     androidbuildapkwidget.cpp \
-    androidqtsupport.cpp \
     androidtoolmanager.cpp \
     androidsdkmanager.cpp \
     androidavdmanager.cpp \
@@ -100,7 +102,10 @@ SOURCES += \
     androidsdkpackage.cpp \
     androidsdkmodel.cpp \
     androidsdkmanagerwidget.cpp \
-    androidpackageinstallationstep.cpp
+    androidpackageinstallationstep.cpp \
+    androidextralibrarylistmodel.cpp \
+    createandroidmanifestwizard.cpp \
+    androidrunenvironmentaspect.cpp
 
 FORMS += \
     androidsettingswidget.ui \

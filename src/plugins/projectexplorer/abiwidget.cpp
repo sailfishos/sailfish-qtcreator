@@ -75,9 +75,9 @@ public:
 // --------------------------------------------------------------------------
 
 AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
-    d(new Internal::AbiWidgetPrivate)
+    d(std::make_unique<Internal::AbiWidgetPrivate>())
 {
-    QHBoxLayout *layout = new QHBoxLayout(this);
+    auto *layout = new QHBoxLayout(this);
     layout->setMargin(0);
     layout->setSpacing(2);
 
@@ -152,10 +152,7 @@ AbiWidget::AbiWidget(QWidget *parent) : QWidget(parent),
     setAbis(QList<Abi>(), Abi::hostAbi());
 }
 
-AbiWidget::~AbiWidget()
-{
-    delete d;
-}
+AbiWidget::~AbiWidget() = default;
 
 static Abi selectAbi(const Abi &current, const QList<Abi> &abiList)
 {
@@ -197,7 +194,7 @@ QList<Abi> AbiWidget::supportedAbis() const
     QList<Abi> result;
     result.reserve(d->m_abi->count());
     for (int i = 1; i < d->m_abi->count(); ++i)
-        result << Abi(d->m_abi->itemData(i).toString());
+        result << Abi::fromString(d->m_abi->itemData(i).toString());
     return result;
 }
 
@@ -240,7 +237,7 @@ void AbiWidget::mainComboBoxChanged()
     if (d->m_ignoreChanges.isLocked())
         return;
 
-    const Abi newAbi = d->m_abi->currentData().toString();
+    const Abi newAbi = Abi::fromString(d->m_abi->currentData().toString());
     const bool customMode = d->isCustom();
 
     d->m_architectureComboBox->setEnabled(customMode);
@@ -254,7 +251,7 @@ void AbiWidget::mainComboBoxChanged()
     if (customMode)
         customComboBoxesChanged();
     else
-        emitAbiChanged(Abi(d->m_abi->currentData().toString()));
+        emitAbiChanged(Abi::fromString(d->m_abi->currentData().toString()));
 }
 
 void AbiWidget::customComboBoxesChanged()

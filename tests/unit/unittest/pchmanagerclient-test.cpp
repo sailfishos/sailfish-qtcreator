@@ -35,7 +35,9 @@
 #include <filepathcaching.h>
 #include <refactoringdatabaseinitializer.h>
 #include <precompiledheadersupdatedmessage.h>
+#include <removegeneratedfilesmessage.h>
 #include <removeprojectpartsmessage.h>
+#include <updategeneratedfilesmessage.h>
 #include <updateprojectpartsmessage.h>
 
 namespace {
@@ -50,8 +52,7 @@ class PchManagerClient : public ::testing::Test
 {
 protected:
     NiceMock<MockPchManagerServer> mockPchManagerServer;
-    NiceMock<MockPrecompiledHeaderStorage> mockPrecompiledHeaderStorage;
-    ClangPchManager::PchManagerClient client{mockPrecompiledHeaderStorage};
+    ClangPchManager::PchManagerClient client;
     NiceMock<MockPchManagerNotifier> mockPchManagerNotifier{client};
     Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
     ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
@@ -152,23 +153,6 @@ TEST_F(PchManagerClient, ProjectPartPchForProjectPartIdIsUpdated)
 
     ASSERT_THAT(client.projectPartPch(projectPartId).value().lastModified,
                 42);
-}
-
-TEST_F(PchManagerClient, ProjectPartPchAddedToDatabase)
-{
-    EXPECT_CALL(mockPrecompiledHeaderStorage, insertPrecompiledHeader(TypedEq<Utils::SmallStringView>(projectPartId),
-                                                                      TypedEq<Utils::SmallStringView>(pchFilePath),
-                                                                      TypedEq<long long>(1)));
-
-    client.precompiledHeadersUpdated(message.clone());
-}
-
-TEST_F(PchManagerClient, ProjectPartPchRemovedFromDatabase)
-{
-    EXPECT_CALL(mockPrecompiledHeaderStorage, deletePrecompiledHeader(TypedEq<Utils::SmallStringView>(projectPartId)));
-
-
-    projectUpdater.removeProjectParts({QString(projectPartId)});
 }
 
 }

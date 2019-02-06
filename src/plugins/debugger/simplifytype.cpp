@@ -44,7 +44,7 @@ namespace Internal {
 
 static QString chopConst(QString type)
 {
-    while (1) {
+    while (true) {
         if (type.startsWith(QLatin1String("const")))
             type = type.mid(5);
         else if (type.startsWith(QLatin1Char(' ')))
@@ -116,6 +116,8 @@ QString simplifyType(const QString &typeIn)
         type.remove(0, 6);
     if (type.startsWith(QLatin1String("struct ")))
         type.remove(0, 7);
+
+    type.replace(QLatin1String("short int"), QLatin1String("short"));
 
     const bool isLibCpp = type.contains(QLatin1String("std::__1"));
     type.replace(QLatin1String("std::__cxx11::"), QLatin1String("std::"));

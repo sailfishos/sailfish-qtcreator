@@ -129,6 +129,7 @@ public:
     static bool isRelativePath(const QString &fileName);
     static bool isAbsolutePath(const QString &fileName) { return !isRelativePath(fileName); }
     static QString resolvePath(const QString &baseDir, const QString &fileName);
+    static FileName commonPath(const FileName &oldCommonPath, const FileName &fileName);
 };
 
 // for actually finding out if e.g. directories are writable on Windows
@@ -206,7 +207,7 @@ protected:
     std::unique_ptr<QFile> m_file;
     QString m_fileName;
     QString m_errorString;
-    bool m_hasError;
+    bool m_hasError = false;
 
 private:
     Q_DISABLE_COPY(FileSaverBase)
@@ -236,7 +237,7 @@ public:
     void setAutoRemove(bool on) { m_autoRemove = on; }
 
 private:
-    bool m_autoRemove;
+    bool m_autoRemove = true;
 };
 
 } // namespace Utils

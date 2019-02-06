@@ -71,16 +71,16 @@ public:
 
     bool isValid() const override;
 
-    PredefinedMacrosRunner createPredefinedMacrosRunner() const override;
+    MacroInspectionRunner createMacroInspectionRunner() const override;
     Macros predefinedMacros(const QStringList &cxxflags) const override;
-    CompilerFlags compilerFlags(const QStringList &cxxflags) const override;
+    LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     WarningFlags warningFlags(const QStringList &cxxflags) const override;
     const Macros &rawPredefinedMacros() const;
     void setPredefinedMacros(const Macros &macros);
 
-    SystemHeaderPathsRunner createSystemHeaderPathsRunner() const override;
-    QList<HeaderPath> systemHeaderPaths(const QStringList &cxxFlags,
-                                        const Utils::FileName &) const override;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    HeaderPaths builtInHeaderPaths(const QStringList &cxxFlags,
+                                   const Utils::FileName &) const override;
     void addToEnvironment(Utils::Environment &env) const override;
     Utils::FileNameList suggestedMkspecList() const override;
     IOutputParser *outputParser() const override;
@@ -90,7 +90,7 @@ public:
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
 
-    ToolChainConfigWidget *configurationWidget() override;
+    std::unique_ptr<ToolChainConfigWidget> createConfigurationWidget() override;
 
     bool operator ==(const ToolChain &) const override;
 
@@ -125,7 +125,7 @@ private:
 
     Abi m_targetAbi;
     Macros m_predefinedMacros;
-    QList<HeaderPath> m_systemHeaderPaths;
+    HeaderPaths m_builtInHeaderPaths;
     QStringList m_cxx11Flags;
     Utils::FileNameList m_mkspecs;
 

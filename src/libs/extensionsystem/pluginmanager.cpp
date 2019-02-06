@@ -61,7 +61,7 @@
 
 #include <functional>
 
-Q_LOGGING_CATEGORY(pluginLog, "qtc.extensionsystem")
+Q_LOGGING_CATEGORY(pluginLog, "qtc.extensionsystem", QtWarningMsg)
 
 const char C_IGNORED_PLUGINS[] = "Plugins/Ignored";
 const char C_FORCEENABLED_PLUGINS[] = "Plugins/ForceEnabled";
@@ -256,8 +256,8 @@ namespace ExtensionSystem {
 
 using namespace Internal;
 
-static Internal::PluginManagerPrivate *d = 0;
-static PluginManager *m_instance = 0;
+static Internal::PluginManagerPrivate *d = nullptr;
+static PluginManager *m_instance = nullptr;
 
 /*!
     Gets the unique plugin manager instance.
@@ -282,7 +282,7 @@ PluginManager::PluginManager()
 PluginManager::~PluginManager()
 {
     delete d;
-    d = 0;
+    d = nullptr;
 }
 
 /*!
@@ -625,7 +625,7 @@ void PluginManager::remoteArguments(const QString &serializedArgument, QObject *
                                                                 arguments);
             if (socketParent && socket) {
                 socket->setParent(socketParent);
-                socket = 0;
+                socket = nullptr;
             }
         }
     }
@@ -829,7 +829,7 @@ void PluginManagerPrivate::nextDelayedInitialize()
     if (delayedInitializeQueue.isEmpty()) {
         m_isInitializationDone = true;
         delete delayedInitializeTimer;
-        delayedInitializeTimer = 0;
+        delayedInitializeTimer = nullptr;
         profilingSummary();
         emit q->initializationDone();
 #ifdef WITH_TESTS
@@ -845,12 +845,6 @@ void PluginManagerPrivate::nextDelayedInitialize()
     \internal
 */
 PluginManagerPrivate::PluginManagerPrivate(PluginManager *pluginManager) :
-    delayedInitializeTimer(0),
-    shutdownEventLoop(0),
-    m_profileElapsedMS(0),
-    m_profilingVerbosity(0),
-    settings(0),
-    globalSettings(0),
     q(pluginManager)
 {
 }
@@ -907,7 +901,7 @@ void PluginManagerPrivate::stopAll()
     if (delayedInitializeTimer && delayedInitializeTimer->isActive()) {
         delayedInitializeTimer->stop();
         delete delayedInitializeTimer;
-        delayedInitializeTimer = 0;
+        delayedInitializeTimer = nullptr;
     }
     QList<PluginSpec *> queue = loadQueue();
     foreach (PluginSpec *spec, queue) {
@@ -927,8 +921,8 @@ void PluginManagerPrivate::deleteAll()
 
 #ifdef WITH_TESTS
 
-typedef QMap<QObject *, QStringList> TestPlan; // Object -> selected test functions
-typedef QMapIterator<QObject *, QStringList> TestPlanIterator;
+using TestPlan = QMap<QObject *, QStringList>; // Object -> selected test functions
+using TestPlanIterator = QMapIterator<QObject *, QStringList>;
 
 static bool isTestFunction(const QMetaMethod &metaMethod)
 {
@@ -999,7 +993,7 @@ static QStringList matchingTestFunctions(const QStringList &testFunctions,
 
 static QObject *objectWithClassName(const QList<QObject *> &objects, const QString &className)
 {
-    return Utils::findOr(objects, 0, [className] (QObject *object) -> bool {
+    return Utils::findOr(objects, nullptr, [className] (QObject *object) -> bool {
         QString candidate = QString::fromUtf8(object->metaObject()->className());
         const int colonIndex = candidate.lastIndexOf(QLatin1Char(':'));
         if (colonIndex != -1 && colonIndex < candidate.size() - 1)
@@ -1159,7 +1153,7 @@ void PluginManagerPrivate::addObject(QObject *obj)
 {
     {
         QWriteLocker lock(&m_lock);
-        if (obj == 0) {
+        if (obj == nullptr) {
             qWarning() << "PluginManagerPrivate::addObject(): trying to add null object";
             return;
         }
@@ -1188,7 +1182,7 @@ void PluginManagerPrivate::addObject(QObject *obj)
 */
 void PluginManagerPrivate::removeObject(QObject *obj)
 {
-    if (obj == 0) {
+    if (obj == nullptr) {
         qWarning() << "PluginManagerPrivate::removeObject(): trying to remove null object";
         return;
     }
@@ -1265,7 +1259,7 @@ void PluginManagerPrivate::shutdown()
 */
 void PluginManagerPrivate::asyncShutdownFinished()
 {
-    IPlugin *plugin = qobject_cast<IPlugin *>(sender());
+    auto *plugin = qobject_cast<IPlugin *>(sender());
     Q_ASSERT(plugin);
     asynchronousPlugins.removeAll(plugin->pluginSpec());
     if (asynchronousPlugins.isEmpty())
@@ -1442,7 +1436,7 @@ void PluginManagerPrivate::readPluginPaths()
     pluginCategories.insert(QString(), QList<PluginSpec *>());
 
     foreach (const QString &pluginFile, pluginFiles(pluginPaths)) {
-        PluginSpec *spec = new PluginSpec;
+        auto *spec = new PluginSpec;
         if (!spec->d->read(pluginFile)) { // not a Qt Creator plugin
             delete spec;
             continue;
@@ -1505,7 +1499,7 @@ PluginSpec *PluginManagerPrivate::pluginForOption(const QString &option, bool *r
             return spec;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 PluginSpec *PluginManagerPrivate::pluginByName(const QString &name) const
@@ -1532,15 +1526,15 @@ void PluginManagerPrivate::profilingReport(const char *what, const PluginSpec *s
         const int elapsedMS = absoluteElapsedMS - m_profileElapsedMS;
         m_profileElapsedMS = absoluteElapsedMS;
         if (spec)
-            m_profileTotal[spec] += elapsedMS;
-        if (spec)
             qDebug("%-22s %-22s %8dms (%8dms)", what, qPrintable(spec->name()), absoluteElapsedMS, elapsedMS);
         else
             qDebug("%-45s %8dms (%8dms)", what, absoluteElapsedMS, elapsedMS);
         if (what && *what == '<') {
             QString tc;
-            if (spec)
+            if (spec) {
+                m_profileTotal[spec] += elapsedMS;
                 tc = spec->name() + '_';
+            }
             tc += QString::fromUtf8(QByteArray(what + 1));
             Utils::Benchmarker::report("loadPlugins", tc, elapsedMS);
         }
@@ -1570,70 +1564,18 @@ void PluginManagerPrivate::profilingSummary() const
 
 static inline QString getPlatformName()
 {
-    if (HostOsInfo::isMacHost()) {
-        if (QSysInfo::MacintoshVersion >= QSysInfo::MV_10_0) {
-            QString result = QLatin1String("OS X");
-            result += QLatin1String(" 10.") + QString::number(QSysInfo::MacintoshVersion - QSysInfo::MV_10_0);
-            return result;
-        } else {
-            return QLatin1String("Mac OS");
-        }
-    } else if (HostOsInfo::isAnyUnixHost()) {
-        QString base = QLatin1String(HostOsInfo::isLinuxHost() ? "Linux" : "Unix");
-        QFile osReleaseFile(QLatin1String("/etc/os-release")); // Newer Linuxes
-        if (osReleaseFile.open(QIODevice::ReadOnly)) {
-            QString name;
-            QString version;
-            forever {
-                const QByteArray line = osReleaseFile.readLine();
-                if (line.isEmpty())
-                    break;
-                if (line.startsWith("NAME=\""))
-                    name = QString::fromLatin1(line.mid(6, line.size() - 8)).trimmed();
-                if (line.startsWith("VERSION_ID=\""))
-                    version = QString::fromLatin1(line.mid(12, line.size() - 14)).trimmed();
-            }
-            if (!name.isEmpty()) {
-                if (!version.isEmpty())
-                    name += QLatin1Char(' ') + version;
-                return base + QLatin1String(" (") + name + QLatin1Char(')');
-            }
-        }
-        return base;
-    } else if (HostOsInfo::isWindowsHost()) {
-        QString result = QLatin1String("Windows");
-        switch (QSysInfo::WindowsVersion) {
-        case QSysInfo::WV_XP:
-            result += QLatin1String(" XP");
-            break;
-        case QSysInfo::WV_2003:
-            result += QLatin1String(" 2003");
-            break;
-        case QSysInfo::WV_VISTA:
-            result += QLatin1String(" Vista");
-            break;
-        case QSysInfo::WV_WINDOWS7:
-            result += QLatin1String(" 7");
-            break;
-        case QSysInfo::WV_WINDOWS8:
-            result += QLatin1String(" 8");
-            break;
-        case QSysInfo::WV_WINDOWS8_1:
-            result += QLatin1String(" 8.1");
-            break;
-        default:
-            break;
-        }
-        if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10)
-            result += QLatin1String(" 10");
-        return result;
-    }
+    if (HostOsInfo::isMacHost())
+        return QLatin1String("OS X");
+    else if (HostOsInfo::isAnyUnixHost())
+        return QLatin1String(HostOsInfo::isLinuxHost() ? "Linux" : "Unix");
+    else if (HostOsInfo::isWindowsHost())
+        return QLatin1String("Windows");
     return QLatin1String("Unknown");
 }
 
 QString PluginManager::platformName()
 {
-    static const QString result = getPlatformName();
+    static const QString result = getPlatformName() + " (" + QSysInfo::prettyProductName() + ')';
     return result;
 }
 

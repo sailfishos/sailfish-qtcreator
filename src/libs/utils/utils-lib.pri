@@ -74,7 +74,7 @@ SOURCES += \
     $$PWD/crumblepath.cpp \
     $$PWD/historycompleter.cpp \
     $$PWD/buildablehelperlibrary.cpp \
-    $$PWD/annotateditemdelegate.cpp \
+    $$PWD/delegates.cpp \
     $$PWD/fileinprojectfinder.cpp \
     $$PWD/statuslabel.cpp \
     $$PWD/outputformatter.cpp \
@@ -121,7 +121,8 @@ SOURCES += \
     $$PWD/url.cpp \
     $$PWD/filecrumblabel.cpp \
     $$PWD/fixedsizeclicklabel.cpp \
-    $$PWD/removefiledialog.cpp
+    $$PWD/removefiledialog.cpp \
+    $$PWD/differ.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
@@ -184,7 +185,7 @@ HEADERS += \
     $$PWD/crumblepath.h \
     $$PWD/historycompleter.h \
     $$PWD/buildablehelperlibrary.h \
-    $$PWD/annotateditemdelegate.h \
+    $$PWD/delegates.h \
     $$PWD/fileinprojectfinder.h \
     $$PWD/statuslabel.h \
     $$PWD/outputformatter.h \
@@ -258,7 +259,8 @@ HEADERS += \
     $$PWD/linecolumn.h \
     $$PWD/link.h \
     $$PWD/fixedsizeclicklabel.h \
-    $$PWD/removefiledialog.h
+    $$PWD/removefiledialog.h \
+    $$PWD/differ.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/newclasswidget.ui \
@@ -270,8 +272,10 @@ RESOURCES += $$PWD/utils.qrc
 
 osx {
     HEADERS += \
+        $$PWD/theme/theme_mac.h \
         $$PWD/fileutils_mac.h
     OBJECTIVE_SOURCES += \
+        $$PWD/theme/theme_mac.mm \
         $$PWD/fileutils_mac.mm \
         $$PWD/processhandle_mac.mm
     LIBS += -framework Foundation -framework AppKit

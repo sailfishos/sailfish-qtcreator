@@ -26,13 +26,14 @@
 #pragma once
 
 #include "tracing_global.h"
+#include "safecastable.h"
 
 #include <QHash>
 #include <QMetaType>
 
 namespace Timeline {
 
-class TraceEvent
+class TraceEvent : public SafeCastable<TraceEvent>
 {
 public:
     qint64 timestamp() const { return m_timestamp; }
@@ -43,9 +44,11 @@ public:
 
     bool isValid() const { return m_typeIndex != -1; }
 
+    qint32 classId() const { return m_classId; }
+
 protected:
-    TraceEvent(qint64 timestamp = -1, qint32 typeIndex = -1)
-        : m_timestamp(timestamp), m_typeIndex(typeIndex)
+    TraceEvent(qint32 classId, qint64 timestamp = -1, qint32 typeIndex = -1)
+        : m_timestamp(timestamp), m_typeIndex(typeIndex), m_classId(classId)
     {}
 
     TraceEvent(const TraceEvent &) = default;
@@ -56,6 +59,7 @@ protected:
 private:
     qint64 m_timestamp;
     qint32 m_typeIndex;
+    qint32 m_classId;
 };
 
 } // namespace Timeline

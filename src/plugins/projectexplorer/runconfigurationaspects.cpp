@@ -51,12 +51,11 @@ namespace ProjectExplorer {
     \class ProjectExplorer::TerminalAspect
 */
 
-TerminalAspect::TerminalAspect(RunConfiguration *runConfig, const QString &key, bool useTerminal) :
-    IRunConfigurationAspect(runConfig), m_useTerminal(useTerminal)
+TerminalAspect::TerminalAspect()
 {
     setDisplayName(tr("Terminal"));
     setId("TerminalAspect");
-    setSettingsKey(key);
+    setSettingsKey("RunConfiguration.UseTerminal");
 }
 
 void TerminalAspect::addToConfigurationLayout(QFormLayout *layout)
@@ -111,26 +110,16 @@ bool TerminalAspect::isUserSet() const
     return m_userSet;
 }
 
-ApplicationLauncher::Mode TerminalAspect::runMode() const
-{
-    return m_useTerminal ? ApplicationLauncher::Console : ApplicationLauncher::Gui;
-}
-
-void TerminalAspect::setRunMode(ApplicationLauncher::Mode runMode)
-{
-    setUseTerminal(runMode == ApplicationLauncher::Console);
-}
-
 /*!
     \class ProjectExplorer::WorkingDirectoryAspect
 */
 
-WorkingDirectoryAspect::WorkingDirectoryAspect(RunConfiguration *runConfig, const QString &key)
-    : IRunConfigurationAspect(runConfig)
+WorkingDirectoryAspect::WorkingDirectoryAspect(EnvironmentAspect *envAspect)
+    : m_envAspect(envAspect)
 {
     setDisplayName(tr("Working Directory"));
     setId("WorkingDirectoryAspect");
-    setSettingsKey(key);
+    setSettingsKey("RunConfiguration.WorkingDirectory");
 }
 
 void WorkingDirectoryAspect::addToConfigurationLayout(QFormLayout *layout)
@@ -155,11 +144,11 @@ void WorkingDirectoryAspect::addToConfigurationLayout(QFormLayout *layout)
 
     m_resetButton->setEnabled(m_workingDirectory != m_defaultWorkingDirectory);
 
-    if (auto envAspect = runConfiguration()->extraAspect<EnvironmentAspect>()) {
-        connect(envAspect, &EnvironmentAspect::environmentChanged, m_chooser.data(), [this, envAspect] {
-            m_chooser->setEnvironment(envAspect->environment());
+    if (m_envAspect) {
+        connect(m_envAspect, &EnvironmentAspect::environmentChanged, m_chooser.data(), [this] {
+            m_chooser->setEnvironment(m_envAspect->environment());
         });
-        m_chooser->setEnvironment(envAspect->environment());
+        m_chooser->setEnvironment(m_envAspect->environment());
     }
 
     auto hbox = new QHBoxLayout;
@@ -198,14 +187,14 @@ void WorkingDirectoryAspect::toMap(QVariantMap &data) const
     data.insert(keyForDefaultWd(), m_defaultWorkingDirectory.toString());
 }
 
-FileName WorkingDirectoryAspect::workingDirectory() const
+FileName WorkingDirectoryAspect::workingDirectory(const MacroExpander *expander) const
 {
-    auto envAspect = runConfiguration()->extraAspect<EnvironmentAspect>();
-    const Utils::Environment env = envAspect ? envAspect->environment()
-                                             : Utils::Environment::systemEnvironment();
-    const QString macroExpanded
-            = runConfiguration()->macroExpander()->expandProcessArgs(m_workingDirectory.toUserOutput());
-    return FileName::fromString(PathChooser::expandedDirectory(macroExpanded, env, QString()));
+    const Utils::Environment env = m_envAspect ? m_envAspect->environment()
+                                               : Utils::Environment::systemEnvironment();
+    QString workingDir = m_workingDirectory.toUserOutput();
+    if (expander)
+        workingDir = expander->expandProcessArgs(workingDir);
+    return FileName::fromString(PathChooser::expandedDirectory(workingDir, env, QString()));
 }
 
 FileName WorkingDirectoryAspect::defaultWorkingDirectory() const
@@ -245,17 +234,17 @@ PathChooser *WorkingDirectoryAspect::pathChooser() const
     \class ProjectExplorer::ArgumentsAspect
 */
 
-ArgumentsAspect::ArgumentsAspect(RunConfiguration *runConfig, const QString &key)
-    : IRunConfigurationAspect(runConfig)
+ArgumentsAspect::ArgumentsAspect()
 {
     setDisplayName(tr("Arguments"));
     setId("ArgumentsAspect");
-    setSettingsKey(key);
+    setSettingsKey("RunConfiguration.Arguments");
 }
 
-QString ArgumentsAspect::arguments() const
+QString ArgumentsAspect::arguments(const MacroExpander *expander) const
 {
-    return runConfiguration()->macroExpander()->expandProcessArgs(m_arguments);
+    QTC_ASSERT(expander, return m_arguments);
+    return expander->expandProcessArgs(m_arguments);
 }
 
 QString ArgumentsAspect::unexpandedArguments() const
@@ -304,198 +293,10 @@ void ArgumentsAspect::addToConfigurationLayout(QFormLayout *layout)
 }
 
 /*!
-    \class ProjectExplorer::BaseStringAspect
-*/
-
-BaseStringAspect::BaseStringAspect(RunConfiguration *rc)
-    : IRunConfigurationAspect(rc)
-{
-}
-
-BaseStringAspect::~BaseStringAspect()
-{
-    delete m_checker;
-    m_checker = nullptr;
-}
-
-QString BaseStringAspect::value() const
-{
-    return m_value;
-}
-
-void BaseStringAspect::setValue(const QString &value)
-{
-    const bool isSame = value == m_value;
-    m_value = value;
-    update();
-    if (!isSame)
-        emit changed();
-}
-
-void BaseStringAspect::fromMap(const QVariantMap &map)
-{
-    if (!settingsKey().isEmpty())
-        m_value = map.value(settingsKey()).toString();
-    if (m_checker)
-        m_checker->fromMap(map);
-}
-
-void BaseStringAspect::toMap(QVariantMap &map) const
-{
-    if (!settingsKey().isEmpty())
-        map.insert(settingsKey(), m_value);
-    if (m_checker)
-        m_checker->toMap(map);
-}
-
-FileName BaseStringAspect::fileName() const
-{
-    return FileName::fromString(m_value);
-}
-
-void BaseStringAspect::setLabelText(const QString &labelText)
-{
-    m_labelText = labelText;
-    if (m_label)
-        m_label->setText(labelText);
-}
-
-QString BaseStringAspect::labelText() const
-{
-    return m_labelText;
-}
-
-void BaseStringAspect::setDisplayFilter(const std::function<QString(const QString &)> &displayFilter)
-{
-    m_displayFilter = displayFilter;
-}
-
-bool BaseStringAspect::isChecked() const
-{
-    return !m_checker || m_checker->value();
-}
-
-void BaseStringAspect::setDisplayStyle(DisplayStyle displayStyle)
-{
-    m_displayStyle = displayStyle;
-}
-
-void BaseStringAspect::setPlaceHolderText(const QString &placeHolderText)
-{
-    m_placeHolderText = placeHolderText;
-    if (m_lineEditDisplay)
-        m_lineEditDisplay->setPlaceholderText(placeHolderText);
-}
-
-void BaseStringAspect::setHistoryCompleter(const QString &historyCompleterKey)
-{
-    m_historyCompleterKey = historyCompleterKey;
-    if (m_lineEditDisplay)
-        m_lineEditDisplay->setHistoryCompleter(historyCompleterKey);
-    if (m_pathChooserDisplay)
-        m_pathChooserDisplay->setHistoryCompleter(historyCompleterKey);
-}
-
-void BaseStringAspect::setExpectedKind(const PathChooser::Kind expectedKind)
-{
-    m_expectedKind = expectedKind;
-    if (m_pathChooserDisplay)
-        m_pathChooserDisplay->setExpectedKind(expectedKind);
-}
-
-void BaseStringAspect::setEnvironment(const Environment &env)
-{
-    m_environment = env;
-    if (m_pathChooserDisplay)
-        m_pathChooserDisplay->setEnvironment(env);
-}
-
-void BaseStringAspect::addToConfigurationLayout(QFormLayout *layout)
-{
-    QTC_CHECK(!m_label);
-    QWidget *parent = layout->parentWidget();
-    m_label = new QLabel(parent);
-    m_label->setTextInteractionFlags(Qt::TextSelectableByMouse);
-
-    auto hbox = new QHBoxLayout;
-    switch (m_displayStyle) {
-    case PathChooserDisplay:
-        m_pathChooserDisplay = new PathChooser(parent);
-        m_pathChooserDisplay->setExpectedKind(m_expectedKind);
-        m_pathChooserDisplay->setHistoryCompleter(m_historyCompleterKey);
-        m_pathChooserDisplay->setEnvironment(m_environment);
-        connect(m_pathChooserDisplay, &PathChooser::pathChanged,
-                this, &BaseStringAspect::setValue);
-        hbox->addWidget(m_pathChooserDisplay);
-        break;
-    case LineEditDisplay:
-        m_lineEditDisplay = new FancyLineEdit(parent);
-        m_lineEditDisplay->setPlaceholderText(m_placeHolderText);
-        m_lineEditDisplay->setHistoryCompleter(m_historyCompleterKey);
-        connect(m_lineEditDisplay, &FancyLineEdit::textEdited,
-                this, &BaseStringAspect::setValue);
-        hbox->addWidget(m_lineEditDisplay);
-        break;
-    case LabelDisplay:
-        m_labelDisplay = new QLabel(parent);
-        m_labelDisplay->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        hbox->addWidget(m_labelDisplay);
-        break;
-    }
-
-    if (m_checker) {
-        auto form = new QFormLayout;
-        form->setContentsMargins(0, 0, 0, 0);
-        form->setFormAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        m_checker->addToConfigurationLayout(form);
-        hbox->addLayout(form);
-    }
-    layout->addRow(m_label, hbox);
-
-    update();
-}
-
-void BaseStringAspect::update()
-{
-    const QString displayedString = m_displayFilter ? m_displayFilter(m_value) : m_value;
-    const bool enabled = !m_checker || m_checker->value();
-
-    if (m_pathChooserDisplay) {
-        m_pathChooserDisplay->setFileName(FileName::fromString(displayedString));
-        m_pathChooserDisplay->setEnabled(enabled);
-    }
-
-    if (m_lineEditDisplay) {
-        m_lineEditDisplay->setText(displayedString);
-        m_lineEditDisplay->setEnabled(enabled);
-    }
-
-    if (m_labelDisplay)
-        m_labelDisplay->setText(displayedString);
-
-    if (m_label)
-        m_label->setText(m_labelText);
-}
-
-void BaseStringAspect::makeCheckable(const QString &checkerLabel, const QString &checkerKey)
-{
-    QTC_ASSERT(!m_checker, return);
-    m_checker = new BaseBoolAspect(runConfiguration());
-    m_checker->setLabel(checkerLabel);
-    m_checker->setSettingsKey(checkerKey);
-
-    connect(m_checker, &BaseBoolAspect::changed, this, &BaseStringAspect::update);
-    connect(m_checker, &BaseBoolAspect::changed, this, &BaseStringAspect::changed);
-
-    update();
-}
-
-/*!
     \class ProjectExplorer::ExecutableAspect
 */
 
-ExecutableAspect::ExecutableAspect(RunConfiguration *rc)
-    : IRunConfigurationAspect(rc), m_executable(rc)
+ExecutableAspect::ExecutableAspect()
 {
     setDisplayName(tr("Executable"));
     setId("ExecutableAspect");
@@ -550,7 +351,7 @@ void ExecutableAspect::setDisplayStyle(BaseStringAspect::DisplayStyle style)
 void ExecutableAspect::makeOverridable(const QString &overridingKey, const QString &useOverridableKey)
 {
     QTC_ASSERT(!m_alternativeExecutable, return);
-    m_alternativeExecutable = new BaseStringAspect(runConfiguration());
+    m_alternativeExecutable = new BaseStringAspect;
     m_alternativeExecutable->setDisplayStyle(BaseStringAspect::LineEditDisplay);
     m_alternativeExecutable->setLabelText(tr("Alternate executable on device:"));
     m_alternativeExecutable->setSettingsKey(overridingKey);
@@ -591,7 +392,7 @@ void ExecutableAspect::setExecutable(const FileName &executable)
 
 void ExecutableAspect::setSettingsKey(const QString &key)
 {
-    IRunConfigurationAspect::setSettingsKey(key);
+    ProjectConfigurationAspect::setSettingsKey(key);
     m_executable.setSettingsKey(key);
 }
 
@@ -609,65 +410,15 @@ void ExecutableAspect::toMap(QVariantMap &map) const
         m_alternativeExecutable->toMap(map);
 }
 
-/*!
-    \class ProjectExplorer::BaseBoolAspect
-*/
-
-BaseBoolAspect::BaseBoolAspect(RunConfiguration *runConfig, const QString &settingsKey)
-    : IRunConfigurationAspect(runConfig)
-{
-    setSettingsKey(settingsKey);
-}
-
-BaseBoolAspect::~BaseBoolAspect() = default;
-
-void BaseBoolAspect::addToConfigurationLayout(QFormLayout *layout)
-{
-    QTC_CHECK(!m_checkBox);
-    m_checkBox = new QCheckBox(m_label, layout->parentWidget());
-    m_checkBox->setChecked(m_value);
-    layout->addRow(QString(), m_checkBox);
-    connect(m_checkBox.data(), &QAbstractButton::clicked, this, [this] {
-        m_value = m_checkBox->isChecked();
-        emit changed();
-    });
-}
-
-void BaseBoolAspect::fromMap(const QVariantMap &map)
-{
-    m_value = map.value(settingsKey(), false).toBool();
-}
-
-void BaseBoolAspect::toMap(QVariantMap &data) const
-{
-    data.insert(settingsKey(), m_value);
-}
-
-bool BaseBoolAspect::value() const
-{
-    return m_value;
-}
-
-void BaseBoolAspect::setValue(bool value)
-{
-    m_value = value;
-    if (m_checkBox)
-        m_checkBox->setChecked(m_value);
-}
-
-void BaseBoolAspect::setLabel(const QString &label)
-{
-    m_label = label;
-}
 
 /*!
     \class ProjectExplorer::UseLibraryPathsAspect
 */
 
-UseLibraryPathsAspect::UseLibraryPathsAspect(RunConfiguration *rc, const QString &settingsKey)
-    : BaseBoolAspect(rc, settingsKey)
+UseLibraryPathsAspect::UseLibraryPathsAspect()
 {
     setId("UseLibraryPath");
+    setSettingsKey("RunConfiguration.UseLibrarySearchPath");
     if (HostOsInfo::isMacHost())
         setLabel(tr("Add build library search path to DYLD_LIBRARY_PATH and DYLD_FRAMEWORK_PATH"));
     else if (HostOsInfo::isWindowsHost())
@@ -681,10 +432,10 @@ UseLibraryPathsAspect::UseLibraryPathsAspect(RunConfiguration *rc, const QString
     \class ProjectExplorer::UseDyldSuffixAspect
 */
 
-UseDyldSuffixAspect::UseDyldSuffixAspect(RunConfiguration *rc, const QString &settingsKey)
-    : BaseBoolAspect(rc, settingsKey)
+UseDyldSuffixAspect::UseDyldSuffixAspect()
 {
     setId("UseDyldSuffix");
+    setSettingsKey("RunConfiguration.UseDyldImageSuffix");
     setLabel(tr("Use debug version of frameworks (DYLD_IMAGE_SUFFIX=_debug)"));
 }
 

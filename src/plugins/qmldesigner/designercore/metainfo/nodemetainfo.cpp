@@ -50,8 +50,8 @@ namespace Internal {
 struct TypeDescription
 {
     QString className;
-    int minorVersion;
-    int majorVersion;
+    int minorVersion{};
+    int majorVersion{};
 };
 
 } //Internal
@@ -77,7 +77,7 @@ namespace Internal {
 
 using namespace QmlJS;
 
-typedef QPair<PropertyName, TypeName> PropertyInfo;
+using PropertyInfo = QPair<PropertyName, TypeName>;
 
 QVector<PropertyInfo> getObjectTypes(const ObjectValue *ov, const ContextPtr &context, bool local = false, int rec = 0);
 
@@ -350,7 +350,7 @@ static inline bool isValueType(const QString &type)
 const CppComponentValue *findQmlPrototype(const ObjectValue *ov, const ContextPtr &context)
 {
     if (!ov)
-        return 0;
+        return nullptr;
 
     const CppComponentValue * qmlValue = value_cast<CppComponentValue>(ov);
     if (qmlValue)
@@ -517,9 +517,9 @@ QVector<PropertyInfo> getObjectTypes(const ObjectValue *objectValue, const Conte
 class NodeMetaInfoPrivate
 {
 public:
-    typedef QSharedPointer<NodeMetaInfoPrivate> Pointer;
-    NodeMetaInfoPrivate();
-    ~NodeMetaInfoPrivate() {}
+    using Pointer = QSharedPointer<NodeMetaInfoPrivate>;
+    NodeMetaInfoPrivate() = default;
+    ~NodeMetaInfoPrivate() = default;
 
     bool isValid() const;
     bool isFileComponent() const;
@@ -669,11 +669,6 @@ NodeMetaInfoPrivate::Pointer NodeMetaInfoPrivate::create(Model *model, const Typ
     return newData;
 }
 
-NodeMetaInfoPrivate::NodeMetaInfoPrivate() : m_isValid(false)
-{
-
-}
-
 NodeMetaInfoPrivate::NodeMetaInfoPrivate(Model *model, TypeName type, int maj, int min)
     : m_qualfiedTypeName(type)
     , m_majorVersion(maj)
@@ -728,7 +723,7 @@ const CppComponentValue *NodeMetaInfoPrivate::getCppComponentValue() const
 {
     const QList<TypeName> nameComponents = m_qualfiedTypeName.split('.');
     if (nameComponents.size() < 2)
-        return 0;
+        return nullptr;
     const TypeName &type = nameComponents.constLast();
 
     TypeName module;
@@ -741,7 +736,7 @@ const CppComponentValue *NodeMetaInfoPrivate::getCppComponentValue() const
     // get the qml object value that's available in the document
     const QmlJS::Imports *importsPtr = context()->imports(document());
     if (importsPtr) {
-        const QList<QmlJS::Import> imports = importsPtr->all();
+        const QList<QmlJS::Import> &imports = importsPtr->all();
         foreach (const QmlJS::Import &import, imports) {
             if (import.info.path() != QString::fromUtf8(module))
                 continue;
@@ -789,14 +784,14 @@ ContextPtr NodeMetaInfoPrivate::context() const
 {
     if (m_model && m_model->rewriterView() && m_model->rewriterView()->scopeChain())
         return m_model->rewriterView()->scopeChain()->context();
-    return ContextPtr(0);
+    return ContextPtr(nullptr);
 }
 
 const Document *NodeMetaInfoPrivate::document() const
 {
     if (m_model && m_model->rewriterView())
         return m_model->rewriterView()->document();
-    return 0;
+    return nullptr;
 }
 
 void NodeMetaInfoPrivate::setupLocalPropertyInfo(const QVector<PropertyInfo> &localPropertyInfos)
@@ -968,7 +963,7 @@ QString NodeMetaInfoPrivate::propertyEnumScope(const PropertyName &propertyName)
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return QString();
-    const CppComponentValue *definedIn = 0;
+    const CppComponentValue *definedIn = nullptr;
     qmlObjectValue->getEnum(QString::fromUtf8(propertyType(propertyName)), &definedIn);
     if (definedIn) {
         QString nonCppPackage;
@@ -1322,19 +1317,14 @@ NodeMetaInfo::NodeMetaInfo() : m_privateData(new Internal::NodeMetaInfoPrivate()
 
 }
 
-NodeMetaInfo::NodeMetaInfo(Model *model, TypeName type, int maj, int min) : m_privateData(Internal::NodeMetaInfoPrivate::create(model, type, maj, min))
+NodeMetaInfo::NodeMetaInfo(Model *model, const TypeName &type, int maj, int min) : m_privateData(Internal::NodeMetaInfoPrivate::create(model, type, maj, min))
 {
 
 }
 
-NodeMetaInfo::~NodeMetaInfo()
-{
-}
+NodeMetaInfo::~NodeMetaInfo() = default;
 
-NodeMetaInfo::NodeMetaInfo(const NodeMetaInfo &other)
-    : m_privateData(other.m_privateData)
-{
-}
+NodeMetaInfo::NodeMetaInfo(const NodeMetaInfo &other) = default;
 
 NodeMetaInfo &NodeMetaInfo::operator=(const NodeMetaInfo &other)
 {

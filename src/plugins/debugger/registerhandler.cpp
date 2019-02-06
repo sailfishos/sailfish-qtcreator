@@ -69,7 +69,7 @@ enum RegisterDataRole
 class RegisterDelegate : public QItemDelegate
 {
 public:
-    RegisterDelegate() {}
+    RegisterDelegate() = default;
 
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
         const QModelIndex &index) const override
@@ -80,7 +80,7 @@ public:
             lineEdit->setFrame(false);
             return lineEdit;
         }
-        return 0;
+        return nullptr;
     }
 
     void setEditorData(QWidget *editor, const QModelIndex &index) const override
@@ -428,9 +428,9 @@ public:
             appendChild(new RegisterEditItem(i, subKind, subSize, format));
     }
 
-    QVariant data(int column, int role) const;
+    QVariant data(int column, int role) const override;
 
-    Qt::ItemFlags flags(int column) const
+    Qt::ItemFlags flags(int column) const override
     {
         //return column == 1 ? Qt::ItemIsSelectable|Qt::ItemIsEnabled|Qt::ItemIsEditable
         //                   : Qt::ItemIsSelectable|Qt::ItemIsEnabled;
@@ -464,7 +464,7 @@ public:
 };
 
 RegisterItem::RegisterItem(DebuggerEngine *engine, const Register &reg)
-    : m_engine(engine), m_reg(reg), m_changed(true)
+    : m_engine(engine), m_reg(reg)
 {
     if (m_reg.kind == UnknownRegister)
         m_reg.guessMissingData();
@@ -676,8 +676,8 @@ bool RegisterHandler::setData(const QModelIndex &idx, const QVariant &data, int 
 
 bool RegisterHandler::contextMenuEvent(const ItemViewEvent &ev)
 {
-    const bool actionsEnabled = m_engine->debuggerActionsEnabled();
     const DebuggerState state = m_engine->state();
+    const bool actionsEnabled = m_engine->debuggerActionsEnabled();
 
     RegisterItem *registerItem = itemForIndexAtLevel<1>(ev.index());
     RegisterSubItem *registerSubItem = itemForIndexAtLevel<2>(ev.index());

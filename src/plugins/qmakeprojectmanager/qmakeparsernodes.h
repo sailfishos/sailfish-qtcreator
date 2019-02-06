@@ -39,11 +39,7 @@
 
 #include <memory>
 
-namespace Utils {
-class FileName;
-class FileSystemWatcher;
-} // namespace Utils;
-
+namespace Utils { class FileName; }
 namespace QtSupport { class ProFileReader; }
 namespace ProjectExplorer { class RunConfiguration; }
 
@@ -371,8 +367,6 @@ private:
     TargetInformation m_qmakeTargetInformation;
     Utils::FileNameList m_subProjectsNotToDeploy;
     InstallsList m_installsList;
-
-    std::unique_ptr<Utils::FileSystemWatcher> m_wildcardWatcher;
 
     // Async stuff
     QFutureWatcher<Internal::QmakeEvalResult *> m_parseFutureWatcher;

@@ -69,9 +69,9 @@ class SubversionPlugin : public VcsBase::VcsBasePlugin
 
 public:
     SubversionPlugin();
-    ~SubversionPlugin();
+    ~SubversionPlugin() override;
 
-    bool initialize(const QStringList &arguments, QString *errorMessage);
+    bool initialize(const QStringList &arguments, QString *errorMessage) override;
 
     bool isVcsDirectory(const Utils::FileName &fileName);
 
@@ -83,7 +83,7 @@ public:
     bool vcsAdd(const QString &workingDir, const QString &fileName);
     bool vcsDelete(const QString &workingDir, const QString &fileName);
     bool vcsMove(const QString &workingDir, const QString &from, const QString &to);
-    bool managesDirectory(const QString &directory, QString *topLevel = 0) const;
+    bool managesDirectory(const QString &directory, QString *topLevel = nullptr) const;
     bool managesFile(const QString &workingDirectory, const QString &fileName) const;
     bool vcsCheckout(const QString &directory, const QByteArray &url);
 
@@ -93,7 +93,7 @@ public:
     QString synchronousTopic(const QString &repository) const;
     SubversionResponse runSvn(const QString &workingDir,
                               const QStringList &arguments, int timeOutS,
-                              unsigned flags, QTextCodec *outputCodec = 0) const;
+                              unsigned flags, QTextCodec *outputCodec = nullptr) const;
     void describe(const QString &source, const QString &changeNr);
     void vcsAnnotate(const QString &workingDir, const QString &file,
                      const QString &revision = QString(), int lineNumber = -1);
@@ -104,8 +104,8 @@ private slots:
 #endif
 
 protected:
-    void updateActions(VcsBase::VcsBasePlugin::ActionState);
-    bool submitEditorAboutToClose();
+    void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
+    bool submitEditorAboutToClose() override;
 
 private:
     void addCurrentFile();
@@ -122,7 +122,7 @@ private:
     void projectStatus();
     void slotDescribe();
     void updateProject();
-    void submitCurrentLog();
+    void commitFromEditor() override;
     void diffCommitFiles(const QStringList &);
     void logProject();
     void logRepository();
@@ -171,10 +171,6 @@ private:
     Utils::ParameterAction *m_commitProjectAction = nullptr;
     QAction *m_describeAction = nullptr;
 
-    QAction *m_submitCurrentLogAction = nullptr;
-    QAction *m_submitDiffAction = nullptr;
-    QAction *m_submitUndoAction = nullptr;
-    QAction *m_submitRedoAction = nullptr;
     QAction *m_menuAction = nullptr;
     bool m_submitActionTriggered = false;
 

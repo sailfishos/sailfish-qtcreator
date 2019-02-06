@@ -1,7 +1,4 @@
 QT += help network printsupport sql
-!isEmpty(QT.htmlviewwidgets.name): QT += htmlviewwidgets htmlview
-else:!isEmpty(QT.webkitwidgets.name): QT += webkitwidgets webkit
-else: DEFINES += QT_NO_WEBKIT
 
 INCLUDEPATH += $$PWD
 
@@ -20,6 +17,7 @@ HEADERS += \
     helpfindsupport.h \
     helpindexfilter.h \
     localhelpmanager.h \
+    helpmanager.h \
     helpmode.h \
     helpplugin.h \
     helpviewer.h \
@@ -31,7 +29,6 @@ HEADERS += \
     searchwidget.h \
     xbelsupport.h \
     searchtaskhandler.h \
-    qtwebkithelpviewer.h \
     textbrowserhelpviewer.h \
     helpwidget.h
 
@@ -43,6 +40,7 @@ SOURCES += \
     helpfindsupport.cpp \
     helpindexfilter.cpp \
     localhelpmanager.cpp \
+    helpmanager.cpp \
     helpmode.cpp \
     helpplugin.cpp \
     helpviewer.cpp \
@@ -54,7 +52,6 @@ SOURCES += \
     searchwidget.cpp \
     xbelsupport.cpp \
     searchtaskhandler.cpp \
-    qtwebkithelpviewer.cpp \
     textbrowserhelpviewer.cpp \
     helpwidget.cpp
 

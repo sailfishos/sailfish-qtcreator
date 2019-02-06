@@ -40,21 +40,21 @@ public:
     ProjectExplorer::Abi targetAbi() const override;
     bool isValid() const override;
 
-    PredefinedMacrosRunner createPredefinedMacrosRunner() const override;
+    MacroInspectionRunner createMacroInspectionRunner() const override;
     ProjectExplorer::Macros predefinedMacros(const QStringList &flags) const final;
-    CompilerFlags compilerFlags(const QStringList &flags) const final;
+    ProjectExplorer::LanguageExtensions languageExtensions(const QStringList &flags) const final;
     ProjectExplorer::WarningFlags warningFlags(const QStringList &flags) const final;
 
-    SystemHeaderPathsRunner createSystemHeaderPathsRunner() const override;
-    QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &flags,
-                                                         const Utils::FileName &sysRoot) const final;
+    BuiltInHeaderPathsRunner createBuiltInHeaderPathsRunner() const override;
+    ProjectExplorer::HeaderPaths builtInHeaderPaths(const QStringList &flags,
+                                                    const Utils::FileName &sysRoot) const final;
     void addToEnvironment(Utils::Environment &env) const final;
     QString makeCommand(const Utils::Environment &env) const final;
     Utils::FileName compilerCommand() const final;
     QString compilerVersion() const;
     void setCompilerCommand(const Utils::FileName &compilerCommand);
     ProjectExplorer::IOutputParser *outputParser() const final;
-    ProjectExplorer::ToolChainConfigWidget *configurationWidget() final;
+    std::unique_ptr<ProjectExplorer::ToolChainConfigWidget> createConfigurationWidget() final;
     ProjectExplorer::ToolChain *clone() const final;
 
     QVariantMap toMap() const final;

@@ -39,6 +39,7 @@ QT_END_NAMESPACE
 namespace Utils {
 
 class FancyLineEdit;
+class MacroExpander;
 class Environment;
 class PathChooserPrivate;
 
@@ -95,7 +96,7 @@ public:
     FileName rawFileName() const; // The raw unexpanded input.
     FileName fileName() const;
 
-    static QString expandedDirectory(const QString &input, const Utils::Environment &env,
+    static QString expandedDirectory(const QString &input, const Environment &env,
                                      const QString &baseDir);
 
     QString baseDirectory() const;
@@ -135,6 +136,11 @@ public:
     // Enable a history completer with a history of entries.
     void setHistoryCompleter(const QString &historyKey, bool restoreLastItemFromHistory = false);
 
+    // Sets a macro expander that is used when producing path and fileName.
+    // By default, the global expander is used.
+    // nullptr can be passed to disable macro expansion.
+    void setMacroExpander(MacroExpander *macroExpander);
+
     bool isReadOnly() const;
     void setReadOnly(bool b);
 
@@ -142,7 +148,7 @@ public:
 
     // global handler for adding context menus to ALL pathchooser
     // used by the coreplugin to add "Open in Terminal" and "Open in Explorer" context menu actions
-    using AboutToShowContextMenuHandler = std::function<void (Utils::PathChooser *, QMenu *)>;
+    using AboutToShowContextMenuHandler = std::function<void (PathChooser *, QMenu *)>;
     static void setAboutToShowContextMenuHandler(AboutToShowContextMenuHandler handler);
 
     QColor errorColor() const;
@@ -166,7 +172,7 @@ signals:
 
 public slots:
     void setPath(const QString &);
-    void setFileName(const Utils::FileName &);
+    void setFileName(const FileName &);
 
     void setErrorColor(const QColor &errorColor);
     void setOkColor(const QColor &okColor);

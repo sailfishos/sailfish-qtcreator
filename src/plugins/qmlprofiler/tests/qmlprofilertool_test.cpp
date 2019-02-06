@@ -44,15 +44,23 @@ namespace Internal {
 
 void QmlProfilerToolTest::testAttachToWaitingApplication()
 {
-    ProjectExplorer::Kit *newKit = new ProjectExplorer::Kit("fookit");
+    auto newKit = std::make_unique<ProjectExplorer::Kit>("fookit");
+    ProjectExplorer::Kit * newKitPtr = newKit.get();
     ProjectExplorer::KitManager *kitManager = ProjectExplorer::KitManager::instance();
     QVERIFY(kitManager);
-    QVERIFY(kitManager->registerKit(newKit));
+    QVERIFY(kitManager->registerKit(std::move(newKit)));
     QSettings *settings = Core::ICore::settings();
     QVERIFY(settings);
-    settings->setValue(QLatin1String("AnalyzerQmlAttachDialog/kitId"), newKit->id().toSetting());
+    settings->setValue(QLatin1String("AnalyzerQmlAttachDialog/kitId"), newKitPtr->id().toSetting());
 
     QmlProfilerTool profilerTool;
+
+    QmlProfilerClientManager *clientManager = profilerTool.clientManager();
+    clientManager->setRetryInterval(10);
+    clientManager->setMaximumRetries(10);
+    connect(clientManager, &QmlProfilerClientManager::connectionFailed,
+            clientManager, &QmlProfilerClientManager::retryConnect);
+
     QTcpServer server;
     QUrl serverUrl = Utils::urlFromLocalHostAndFreePort();
     QVERIFY(serverUrl.port() >= 0);
@@ -63,16 +71,24 @@ void QmlProfilerToolTest::testAttachToWaitingApplication()
     connect(&server, &QTcpServer::newConnection, this, [&]() {
         connection.reset(server.nextPendingConnection());
         fakeDebugServer(connection.data());
-        server.close();
     });
 
     QTimer timer;
     timer.setInterval(100);
+
+    bool modalSeen = false;
     connect(&timer, &QTimer::timeout, this, [&]() {
-        if (auto activeModal
-                = qobject_cast<QmlProfilerAttachDialog *>(QApplication::activeModalWidget())) {
-            activeModal->setPort(serverUrl.port());
-            activeModal->accept();
+        if (QWidget *activeModal = QApplication::activeModalWidget()) {
+            modalSeen = true;
+            auto dialog = qobject_cast<QmlProfilerAttachDialog *>(activeModal);
+            if (dialog) {
+                dialog->setPort(serverUrl.port());
+                dialog->accept();
+                timer.stop();
+            } else {
+                qWarning() << "Some other modal widget popped up:" << activeModal;
+                activeModal->close();
+            }
         }
     });
 
@@ -82,7 +98,9 @@ void QmlProfilerToolTest::testAttachToWaitingApplication()
 
     QTRY_VERIFY(connection);
     QTRY_VERIFY(runControl->isRunning());
-    QTRY_VERIFY(profilerTool.clientManager()->isConnected());
+    QTRY_VERIFY(modalSeen);
+    QTRY_VERIFY(!timer.isActive());
+    QTRY_VERIFY(clientManager->isConnected());
 
     connection.reset();
     QTRY_VERIFY(runControl->isStopped());

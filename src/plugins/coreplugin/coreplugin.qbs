@@ -9,7 +9,7 @@ Project {
     QtcPlugin {
         Depends {
             name: "Qt"
-            submodules: ["widgets", "xml", "network", "qml", "sql", "help", "printsupport"]
+            submodules: ["widgets", "xml", "network", "qml", "sql", "printsupport"]
         }
 
         Depends {
@@ -86,6 +86,7 @@ Project {
                 "generatedfile.h",
                 "helpmanager.cpp",
                 "helpmanager.h",
+                "helpmanager_implementation.h",
                 "icontext.cpp",
                 "icontext.h",
                 "icore.cpp",
@@ -229,7 +230,7 @@ Project {
                 "editorview.cpp", "editorview.h",
                 "editorwindow.cpp", "editorwindow.h",
                 "ieditor.cpp", "ieditor.h",
-                "ieditorfactory.cpp", "ieditorfactory.h",
+                "ieditorfactory.cpp", "ieditorfactory.h", "ieditorfactory_p.h",
                 "iexternaleditor.cpp", "iexternaleditor.h",
                 "openeditorsview.cpp", "openeditorsview.h",
                 "openeditorswindow.cpp", "openeditorswindow.h",

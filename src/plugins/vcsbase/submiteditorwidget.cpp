@@ -42,6 +42,8 @@
 #include <QSpacerItem>
 #include <QShortcut>
 
+using namespace Utils;
+
 enum { debug = 0 };
 enum { defaultLineWidth = 72 };
 
@@ -112,7 +114,7 @@ public:
 
 public slots:
     void setText(const QString &t) {
-        if (QAction *action = qobject_cast<QAction *>(parent()))
+        if (auto action = qobject_cast<QAction *>(parent()))
             action->setText(t);
     }
 };
@@ -126,42 +128,25 @@ struct SubmitEditorWidgetPrivate
     // A pair of position/action to extend context menus
     typedef QPair<int, QPointer<QAction> > AdditionalContextMenuAction;
 
-    SubmitEditorWidgetPrivate();
-
     Ui::SubmitEditorWidget m_ui;
-    bool m_filesSelected;
-    int m_activatedRow;
-    bool m_emptyFileListEnabled;
 
     QList<AdditionalContextMenuAction> descriptionEditContextMenuActions;
-    QVBoxLayout *m_fieldLayout;
+    QVBoxLayout *m_fieldLayout = nullptr;
     QList<SubmitFieldWidget *> m_fieldWidgets;
-    QShortcut *m_submitShortcut;
-    int m_lineWidth;
-
-    bool m_commitEnabled;
-    bool m_ignoreChange;
-    bool m_descriptionMandatory;
-    bool m_updateInProgress;
+    QShortcut *m_submitShortcut = nullptr;
+    QActionPushButton *m_submitButton = nullptr;
     QString m_description;
 
-    QActionPushButton *m_submitButton;
-};
+    int m_lineWidth = defaultLineWidth;
+    int m_activatedRow = -1;
 
-SubmitEditorWidgetPrivate::SubmitEditorWidgetPrivate() :
-    m_filesSelected(false),
-    m_activatedRow(-1),
-    m_emptyFileListEnabled(false),
-    m_fieldLayout(0),
-    m_submitShortcut(0),
-    m_lineWidth(defaultLineWidth),
-    m_commitEnabled(false),
-    m_ignoreChange(false),
-    m_descriptionMandatory(true),
-    m_updateInProgress(false),
-    m_submitButton(0)
-{
-}
+    bool m_filesSelected = false;
+    bool m_emptyFileListEnabled = false;
+    bool m_commitEnabled = false;
+    bool m_ignoreChange = false;
+    bool m_descriptionMandatory = true;
+    bool m_updateInProgress = false;
+};
 
 SubmitEditorWidget::SubmitEditorWidget() :
     d(new SubmitEditorWidgetPrivate)
@@ -222,8 +207,7 @@ void SubmitEditorWidget::registerActions(QAction *editorUndoAction, QAction *edi
         connect(this, &SubmitEditorWidget::submitActionEnabledChanged,
                 submitAction, &QAction::setEnabled);
         // Wire setText via QActionSetTextSlotHelper.
-        QActionSetTextSlotHelper *actionSlotHelper
-                = submitAction->findChild<QActionSetTextSlotHelper *>();
+        auto actionSlotHelper = submitAction->findChild<QActionSetTextSlotHelper *>();
         if (!actionSlotHelper)
             actionSlotHelper = new QActionSetTextSlotHelper(submitAction);
         connect(this, &SubmitEditorWidget::submitActionTextChanged,
@@ -245,37 +229,6 @@ void SubmitEditorWidget::registerActions(QAction *editorUndoAction, QAction *edi
         connect(this, &SubmitEditorWidget::fileSelectionChanged, diffAction, &QAction::setEnabled);
         connect(diffAction, &QAction::triggered, this, &SubmitEditorWidget::triggerDiffSelected);
         d->m_ui.buttonLayout->addWidget(new QActionPushButton(diffAction));
-    }
-}
-
-void SubmitEditorWidget::unregisterActions(QAction *editorUndoAction,  QAction *editorRedoAction,
-                                           QAction *submitAction, QAction *diffAction)
-{
-    if (editorUndoAction) {
-        disconnect(d->m_ui.description, &Utils::CompletingTextEdit::undoAvailable,
-                   editorUndoAction, &QAction::setEnabled);
-        disconnect(editorUndoAction, &QAction::triggered,
-                   d->m_ui.description, &Utils::CompletingTextEdit::undo);
-    }
-    if (editorRedoAction) {
-        disconnect(d->m_ui.description, &Utils::CompletingTextEdit::redoAvailable,
-                   editorRedoAction, &QAction::setEnabled);
-        disconnect(editorRedoAction, &QAction::triggered,
-                   d->m_ui.description, &Utils::CompletingTextEdit::redo);
-    }
-
-    if (submitAction) {
-        disconnect(this, &SubmitEditorWidget::submitActionEnabledChanged,
-                   submitAction, &QAction::setEnabled);
-        // Just deactivate the QActionSetTextSlotHelper on the action
-        disconnect(this, &SubmitEditorWidget::submitActionTextChanged, 0, 0);
-    }
-
-    if (diffAction) {
-         disconnect(this, &SubmitEditorWidget::fileSelectionChanged,
-                    diffAction, &QAction::setEnabled);
-         disconnect(diffAction, &QAction::triggered,
-                    this, &SubmitEditorWidget::triggerDiffSelected);
     }
 }
 
@@ -446,7 +399,7 @@ QStringList SubmitEditorWidget::checkedFiles() const
     return rc;
 }
 
-Utils::CompletingTextEdit *SubmitEditorWidget::descriptionEdit() const
+CompletingTextEdit *SubmitEditorWidget::descriptionEdit() const
 {
     return d->m_ui.description;
 }
@@ -492,7 +445,7 @@ void SubmitEditorWidget::updateSubmitAction()
         // Update button text.
         const int fileCount = d->m_ui.fileView->model()->rowCount();
         const QString msg = checkedCount ?
-                            tr("%1 %2/%n File(s)", 0, fileCount)
+                            tr("%1 %2/%n File(s)", nullptr, fileCount)
                             .arg(commitName()).arg(checkedCount) :
                             commitName();
         emit submitActionTextChanged(msg);

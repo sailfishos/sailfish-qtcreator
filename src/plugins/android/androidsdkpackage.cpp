@@ -164,7 +164,7 @@ bool SdkPlatform::operator <(const AndroidSdkPackage &other) const
     if (typeid(*this) != typeid(other))
         return AndroidSdkPackage::operator <(other);
 
-    const SdkPlatform &platform = static_cast<const SdkPlatform &>(other);
+    const auto &platform = static_cast<const SdkPlatform &>(other);
     if (platform.m_apiLevel == m_apiLevel)
         return AndroidSdkPackage::operator <(other);
 
@@ -267,6 +267,21 @@ bool EmulatorTools::isValid() const
 AndroidSdkPackage::PackageType EmulatorTools::type() const
 {
     return AndroidSdkPackage::EmulatorToolsPackage;
+}
+
+ExtraTools::ExtraTools(QVersionNumber revision, QString sdkStylePathStr, QObject *parent) :
+    AndroidSdkPackage(revision, sdkStylePathStr, parent)
+{
+}
+
+bool ExtraTools::isValid() const
+{
+    return installedLocation().exists();
+}
+
+AndroidSdkPackage::PackageType ExtraTools::type() const
+{
+    return AndroidSdkPackage::ExtraToolsPackage;
 }
 
 } // namespace Android

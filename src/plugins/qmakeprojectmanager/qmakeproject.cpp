@@ -41,7 +41,7 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <cpptools/cpprawprojectpart.h>
 #include <cpptools/projectinfo.h>
-#include <cpptools/projectpartheaderpath.h>
+#include <projectexplorer/headerpath.h>
 #include <cpptools/cppprojectupdater.h>
 #include <cpptools/cppmodelmanager.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
@@ -52,7 +52,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/runconfiguration.h>
-#include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/toolchain.h>
@@ -278,10 +277,8 @@ void QmakeProject::updateCppCodeModel()
     QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(k);
     ProjectPart::QtVersion qtVersionForPart = ProjectPart::NoQt;
     if (qtVersion) {
-        if (qtVersion->qtVersion() <= QtSupport::QtVersionNumber(4,8,6))
-            qtVersionForPart = ProjectPart::Qt4_8_6AndOlder;
-        else if (qtVersion->qtVersion() < QtSupport::QtVersionNumber(5,0,0))
-            qtVersionForPart = ProjectPart::Qt4Latest;
+        if (qtVersion->qtVersion() < QtSupport::QtVersionNumber(5,0,0))
+            qtVersionForPart = ProjectPart::Qt4;
         else
             qtVersionForPart = ProjectPart::Qt5;
     }
@@ -314,17 +311,15 @@ void QmakeProject::updateCppCodeModel()
             rpp.setQtVersion(ProjectPart::NoQt);
 
         // Header paths
-        CppTools::ProjectPartHeaderPaths headerPaths;
-        using CppToolsHeaderPath = CppTools::ProjectPartHeaderPath;
+        ProjectExplorer::HeaderPaths headerPaths;
         foreach (const QString &inc, pro->variableValue(Variable::IncludePath)) {
-            const auto headerPath = CppToolsHeaderPath(inc, CppToolsHeaderPath::IncludePath);
+            const ProjectExplorer::HeaderPath headerPath{inc, HeaderPathType::User};
             if (!headerPaths.contains(headerPath))
                 headerPaths += headerPath;
         }
 
         if (qtVersion && !qtVersion->frameworkInstallPath().isEmpty()) {
-            headerPaths += CppToolsHeaderPath(qtVersion->frameworkInstallPath(),
-                                              CppToolsHeaderPath::FrameworkPath);
+            headerPaths += {qtVersion->frameworkInstallPath(), HeaderPathType::Framework};
         }
         rpp.setHeaderPaths(headerPaths);
 
@@ -603,6 +598,8 @@ QList<Task> QmakeProject::projectIssues(const Kit *k) const
     QList<Task> result = Project::projectIssues(k);
     if (!QtSupport::QtKitInformation::qtVersion(k))
         result.append(createProjectTask(Task::TaskType::Error, tr("No Qt version set in kit.")));
+    else if (!QtSupport::QtKitInformation::qtVersion(k)->isValid())
+        result.append(createProjectTask(Task::TaskType::Error, tr("Qt version is invalid.")));
     if (!ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::CXX_LANGUAGE_ID))
         result.append(createProjectTask(Task::TaskType::Error, tr("No C++ compiler set in kit.")));
     return result;
@@ -625,7 +622,7 @@ static FolderNode *folderOf(FolderNode *in, const FileName &fileName)
 static FileNode *fileNodeOf(FolderNode *in, const FileName &fileName)
 {
     for (FolderNode *folder = folderOf(in, fileName); folder; folder = folder->parentFolderNode()) {
-        if (QmakeProFileNode *proFile = dynamic_cast<QmakeProFileNode *>(folder)) {
+        if (auto *proFile = dynamic_cast<QmakeProFileNode *>(folder)) {
             foreach (FileNode *fileNode, proFile->fileNodes()) {
                 if (fileNode->filePath() == fileName)
                     return fileNode;
@@ -1007,10 +1004,8 @@ void CentralizedFolderWatcher::delayedFolderChanged(const QString &folder)
         m_project->updateCodeModels();
 }
 
-void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures)
+void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms)
 {
-    QList<Kit *> preferredKits;
-
     QList<const BuildInfo *> infoList;
     QList<Kit *> kits = KitManager::kits();
     foreach (Kit *k, kits) {
@@ -1025,19 +1020,9 @@ void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms, co
             continue;
         foreach (BuildInfo *info, factory->availableSetups(k, projectFilePath().toString()))
             infoList << info;
-
-        if (!preferredFeatures.isEmpty() && version->features().contains(preferredFeatures))
-            preferredKits << k;
     }
     setup(infoList);
     qDeleteAll(infoList);
-
-    foreach (Kit *k, preferredKits) {
-        if (Target *t = target(k)) {
-            SessionManager::setActiveTarget(this, t, SetActive::Cascade);
-            break;
-        }
-    }
 }
 
 void QmakeProject::updateBuildSystemData()
@@ -1075,15 +1060,11 @@ void QmakeProject::updateBuildSystemData()
             else
                 workingDir = destDir;
         } else {
-            destDir = ti.buildDir.toString();
             workingDir = ti.buildDir.toString();
         }
 
-        if (HostOsInfo::isMacHost() && config.contains("app_bundle")) {
-            const QString infix = '/' + ti.target + ".app/Contents/MacOS";
-            workingDir += infix;
-            destDir += infix;
-        }
+        if (HostOsInfo::isMacHost() && config.contains("app_bundle"))
+            workingDir += '/' + ti.target + ".app/Contents/MacOS";
 
         BuildTargetInfo bti;
         bti.targetFilePath = FileName::fromString(executableFor(proFile));
@@ -1194,6 +1175,7 @@ void QmakeProject::collectLibraryData(const QmakeProFile *file, DeploymentData &
     const QStringList config = file->variableValue(Variable::Config);
     const bool isStatic = config.contains(QLatin1String("static"));
     const bool isPlugin = config.contains(QLatin1String("plugin"));
+    const bool nameIsVersioned = !isPlugin && !config.contains("unversioned_libname");
     switch (toolchain->targetAbi().os()) {
     case Abi::WindowsOS: {
         QString targetVersionExt = file->singleVariableValue(Variable::TargetVersionExt);
@@ -1218,7 +1200,7 @@ void QmakeProject::collectLibraryData(const QmakeProFile *file, DeploymentData &
             if (!(isPlugin && config.contains(QLatin1String("no_plugin_name_prefix"))))
                 targetFileName.prepend(QLatin1String("lib"));
 
-            if (!isPlugin) {
+            if (nameIsVersioned) {
                 targetFileName += QLatin1Char('.');
                 const QString version = file->singleVariableValue(Variable::Version);
                 QString majorVersion = version.left(version.indexOf(QLatin1Char('.')));
@@ -1246,7 +1228,7 @@ void QmakeProject::collectLibraryData(const QmakeProFile *file, DeploymentData &
         } else {
             targetFileName += QLatin1String("so");
             deploymentData.addFile(destDirFor(ti).toString() + '/' + targetFileName, targetPath);
-            if (!isPlugin) {
+            if (nameIsVersioned) {
                 QString version = file->singleVariableValue(Variable::Version);
                 if (version.isEmpty())
                     version = QLatin1String("1.0.0");
@@ -1305,32 +1287,38 @@ void QmakeProject::testToolChain(ToolChain *tc, const Utils::FileName &path) con
     const Utils::FileName expected = tc->compilerCommand();
 
     Environment env = Environment::systemEnvironment();
+    Kit *k = nullptr;
     if (Target *t = activeTarget()) {
+        k = t->kit();
         if (BuildConfiguration *bc = t->activeBuildConfiguration())
             env = bc->environment();
         else
-            t->kit()->addToEnvironment(env);
+            k->addToEnvironment(env);
     }
+    QTC_ASSERT(k, return);
 
-    if (!env.isSameExecutable(path.toString(), expected.toString())) {
-#if 0 // Does not work with Mer SDK
-        const QPair<Utils::FileName, Utils::FileName> pair = qMakePair(expected, path);
-        if (!m_toolChainWarnings.contains(pair)) {
-            // Suppress warnings on Apple machines where compilers in /usr/bin point into Xcode.
-            // This will suppress some valid warnings, but avoids annoying Apple users with
-            // spurious warnings all the time!
-            if (!pair.first.toString().startsWith("/usr/bin/")
-                    || !pair.second.toString().contains("/Contents/Developer/Toolchains/")) {
-                TaskHub::addTask(Task(Task::Warning,
-                                      QCoreApplication::translate("QmakeProjectManager", "\"%1\" is used by qmake, but \"%2\" is configured in the kit.\n"
-                                                                                         "Please update your kit or choose a mkspec for qmake that matches your target environment better.").
-                                      arg(path.toUserOutput()).arg(expected.toUserOutput()),
-                                      Utils::FileName(), -1, ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-                m_toolChainWarnings.insert(pair);
-            }
-        }
-#endif
+    if (env.isSameExecutable(path.toString(), expected.toString()))
+        return;
+    const QPair<Utils::FileName, Utils::FileName> pair = qMakePair(expected, path);
+    if (m_toolChainWarnings.contains(pair))
+        return;
+    // Suppress warnings on Apple machines where compilers in /usr/bin point into Xcode.
+    // This will suppress some valid warnings, but avoids annoying Apple users with
+    // spurious warnings all the time!
+    if (pair.first.toString().startsWith("/usr/bin/")
+            && pair.second.toString().contains("/Contents/Developer/Toolchains/")) {
+        return;
     }
+    TaskHub::addTask(
+                Task(Task::Warning,
+                     QCoreApplication::translate(
+                         "QmakeProjectManager",
+                         "\"%1\" is used by qmake, but \"%2\" is configured in the kit.\n"
+                         "Please update your kit (%3) or choose a mkspec for qmake that matches "
+                         "your target environment better.")
+                     .arg(path.toUserOutput()).arg(expected.toUserOutput()).arg(k->displayName()),
+                     Utils::FileName(), -1, ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+    m_toolChainWarnings.insert(pair);
 }
 
 void QmakeProject::warnOnToolChainMismatch(const QmakeProFile *pro) const
@@ -1360,8 +1348,11 @@ QString QmakeProject::executableFor(const QmakeProFile *file)
             && file->variableValue(Variable::Config).contains("app_bundle")) {
         target = ti.target + ".app/Contents/MacOS/" + ti.target;
     } else {
-        QString extension = file->singleVariableValue(Variable::TargetExt);
-        target = ti.target + extension;
+        const QString extension = file->singleVariableValue(Variable::TargetExt);
+        if (extension.isEmpty())
+            target = OsSpecificAspects::withExecutableSuffix(Abi::abiOsToOsType(tc->targetAbi().os()), ti.target);
+        else
+            target = ti.target + extension;
     }
     return QDir(destDirFor(ti).toString()).absoluteFilePath(target);
 }
@@ -1387,6 +1378,13 @@ QString QmakeProject::mapProFilePathToTarget(const FileName &proFilePath)
 {
     const QmakeProFile *pro = rootProFile()->findProFile(proFilePath);
     return pro ? pro->targetInformation().target : QString();
+}
+
+QVariant QmakeProject::additionalData(Core::Id id, const Target *target) const
+{
+    if (id == "QmlDesignerImportPath")
+        return rootProjectNode()->variableValue(Variable::QmlDesignerImportPath);
+    return Project::additionalData(id, target);
 }
 
 } // namespace QmakeProjectManager

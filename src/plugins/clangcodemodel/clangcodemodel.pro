@@ -8,7 +8,6 @@ requires(!isEmpty(LLVM_VERSION))
 SOURCES += \
     clangactivationsequencecontextprocessor.cpp \
     clangactivationsequenceprocessor.cpp \
-    clangassistproposal.cpp \
     clangassistproposalitem.cpp \
     clangassistproposalmodel.cpp \
     clangbackendcommunicator.cpp \
@@ -46,7 +45,6 @@ SOURCES += \
 HEADERS += \
     clangactivationsequencecontextprocessor.h \
     clangactivationsequenceprocessor.h \
-    clangassistproposal.h \
     clangassistproposalitem.h \
     clangassistproposalmodel.h \
     clangbackendcommunicator.h \
@@ -87,7 +85,7 @@ FORMS += clangprojectsettingswidget.ui
 
 DISTFILES += \
     README \
-    $${IDE_SOURCE_TREE}/doc/src/editors/creator-clang-codemodel.qdoc
+    $${IDE_SOURCE_TREE}/doc/src/editors/creator-only/creator-clang-codemodel.qdoc
 
 equals(TEST, 1) {
     HEADERS += \

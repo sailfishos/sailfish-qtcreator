@@ -29,6 +29,12 @@
 
 #include <QDir>
 
+inline
+bool operator==(const QString &first, const char *second)
+{
+    return first == QString::fromUtf8(second, int(std::strlen(second)));
+}
+
 namespace UnitTest {
 
 inline

@@ -34,13 +34,12 @@
 
 namespace Android {
 
-class BaseStringListAspect : public ProjectExplorer::IRunConfigurationAspect
+class BaseStringListAspect : public ProjectExplorer::ProjectConfigurationAspect
 {
     Q_OBJECT
 
 public:
-    explicit BaseStringListAspect(ProjectExplorer::RunConfiguration *rc,
-                                  const QString &settingsKey = QString(),
+    explicit BaseStringListAspect(const QString &settingsKey = QString(),
                                   Core::Id id = Core::Id());
     ~BaseStringListAspect() override;
 

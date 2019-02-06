@@ -26,8 +26,9 @@
 #pragma once
 
 #include "filestatuscache.h"
-#include "symbolscollectorinterface.h"
+#include "symbolindexertaskqueueinterface.h"
 #include "symbolstorageinterface.h"
+#include "builddependenciesstorageinterface.h"
 #include "clangpathwatcher.h"
 
 #include <projectpartcontainerv2.h>
@@ -35,24 +36,26 @@
 
 namespace ClangBackEnd {
 
-class SymbolIndexer : public ClangPathWatcherNotifier
+class SymbolsCollectorInterface;
+
+class SymbolIndexer final : public ClangPathWatcherNotifier
 {
 public:
-    SymbolIndexer(SymbolsCollectorInterface &symbolsCollector,
+    SymbolIndexer(SymbolIndexerTaskQueueInterface &symbolIndexerTaskQueue,
                   SymbolStorageInterface &symbolStorage,
+                  BuildDependenciesStorageInterface &usedMacroAndSourceStorage,
                   ClangPathWatcherInterface &pathWatcher,
                   FilePathCachingInterface &filePathCache,
                   FileStatusCache &fileStatusCache,
                   Sqlite::TransactionInterface &transactionInterface);
 
-    void updateProjectParts(V2::ProjectPartContainers &&projectParts,
-                            V2::FileContainers &&generatedFiles);
-    void updateProjectPart(V2::ProjectPartContainer &&projectPart,
-                           const V2::FileContainers &generatedFiles);
+    void updateProjectParts(V2::ProjectPartContainers &&projectParts);
+    void updateProjectPart(V2::ProjectPartContainer &&projectPart);
 
     void pathsWithIdsChanged(const Utils::SmallStringVector &ids) override;
     void pathsChanged(const FilePathIds &filePathIds) override;
-    void updateChangedPath(FilePathId filePath);
+    void updateChangedPath(FilePathId filePath,
+                           std::vector<SymbolIndexerTask> &symbolIndexerTask);
 
     bool compilerMacrosOrIncludeSearchPathsAreDifferent(
             const V2::ProjectPartContainer &projectPart,
@@ -64,14 +67,13 @@ public:
     FilePathIds updatableFilePathIds(const V2::ProjectPartContainer &projectPart,
                                      const Utils::optional<ProjectPartArtefact> &optionalArtefact) const;
 
-    Utils::SmallStringVector compilerArguments(const V2::ProjectPartContainer &projectPart,
-                                               const Utils::optional<ProjectPartArtefact> &optionalArtefact) const;
     Utils::SmallStringVector compilerArguments(Utils::SmallStringVector arguments,
-                                               int projectPartId) const;
+                                               const Utils::optional<ProjectPartPch> optionalProjectPartPch) const;
 
 private:
-    SymbolsCollectorInterface &m_symbolsCollector;
+    SymbolIndexerTaskQueueInterface &m_symbolIndexerTaskQueue;
     SymbolStorageInterface &m_symbolStorage;
+    BuildDependenciesStorageInterface &m_usedMacroAndSourceStorage;
     ClangPathWatcherInterface &m_pathWatcher;
     FilePathCachingInterface &m_filePathCache;
     FileStatusCache &m_fileStatusCache;

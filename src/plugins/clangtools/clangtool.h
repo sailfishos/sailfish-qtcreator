@@ -44,7 +44,7 @@ class ClangTool : public QObject
 
 public:
     ClangTool(const QString &name);
-    virtual ~ClangTool() = default;
+    virtual ~ClangTool();
 
     virtual void startTool(bool askUserForFileSelection) = 0;
 
@@ -72,7 +72,7 @@ protected:
     void initDiagnosticView();
 
     ClangToolsDiagnosticModel *m_diagnosticModel = nullptr;
-    Debugger::DetailedErrorView *m_diagnosticView = nullptr;
+    QPointer<Debugger::DetailedErrorView> m_diagnosticView;
 
     QAction *m_startAction = nullptr;
     QAction *m_stopAction = nullptr;

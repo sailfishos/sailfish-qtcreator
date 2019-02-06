@@ -42,24 +42,22 @@ namespace Internal {
 RemoteLinuxCustomRunConfiguration::RemoteLinuxCustomRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    auto exeAspect = new ExecutableAspect(this);
+    auto exeAspect = addAspect<ExecutableAspect>();
     exeAspect->setSettingsKey("RemoteLinux.CustomRunConfig.RemoteExecutable");
     exeAspect->setLabelText(tr("Remote executable:"));
     exeAspect->setExecutablePathStyle(OsTypeLinux);
     exeAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
     exeAspect->setHistoryCompleter("RemoteLinux.CustomExecutable.History");
     exeAspect->setExpectedKind(PathChooser::Any);
-    addExtraAspect(exeAspect);
 
-    auto symbolsAspect = new SymbolFileAspect(this);
+    auto symbolsAspect = addAspect<SymbolFileAspect>();
     symbolsAspect->setSettingsKey("RemoteLinux.CustomRunConfig.LocalExecutable");
     symbolsAspect->setLabelText(tr("Local executable:"));
     symbolsAspect->setDisplayStyle(SymbolFileAspect::PathChooserDisplay);
-    addExtraAspect(symbolsAspect);
 
-    addExtraAspect(new ArgumentsAspect(this, "RemoteLinux.CustomRunConfig.Arguments"));
-    addExtraAspect(new WorkingDirectoryAspect(this, "RemoteLinux.CustomRunConfig.WorkingDirectory"));
-    addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>();
+    addAspect<RemoteLinuxEnvironmentAspect>(target);
 
     setDefaultDisplayName(runConfigDefaultDisplayName());
     setOutputFormatter<QtSupport::QtOutputFormatter>();
@@ -67,7 +65,7 @@ RemoteLinuxCustomRunConfiguration::RemoteLinuxCustomRunConfiguration(Target *tar
 
 bool RemoteLinuxCustomRunConfiguration::isConfigured() const
 {
-    return !extraAspect<ExecutableAspect>()->executable().isEmpty();
+    return !aspect<ExecutableAspect>()->executable().isEmpty();
 }
 
 RunConfiguration::ConfigurationState
@@ -90,7 +88,7 @@ Core::Id RemoteLinuxCustomRunConfiguration::runConfigId()
 
 QString RemoteLinuxCustomRunConfiguration::runConfigDefaultDisplayName()
 {
-    QString remoteExecutable = extraAspect<ExecutableAspect>()->executable().toString();
+    QString remoteExecutable = aspect<ExecutableAspect>()->executable().toString();
     QString display = remoteExecutable.isEmpty()
             ? tr("Custom Executable") : tr("Run \"%1\"").arg(remoteExecutable);
     return  RunConfigurationFactory::decoratedTargetName(display, target());

@@ -228,21 +228,23 @@ void FontSettings::addMixinStyle(QTextCharFormat &textCharFormat,
     for (TextStyle mixinStyle : mixinStyles) {
         const Format &format = m_scheme.formatFor(mixinStyle);
 
-        if (textCharFormat.hasProperty(QTextFormat::ForegroundBrush)) {
-            if (format.foreground().isValid())
-                textCharFormat.setForeground(format.foreground());
-            else
+        if (format.foreground().isValid()) {
+            textCharFormat.setForeground(format.foreground());
+        } else {
+            if (textCharFormat.hasProperty(QTextFormat::ForegroundBrush)) {
                 textCharFormat.setForeground(mixBrush(textCharFormat.foreground(),
                                                       format.relativeForegroundSaturation(),
                                                       format.relativeForegroundLightness()));
+            }
         }
-        if (textCharFormat.hasProperty(QTextFormat::BackgroundBrush)) {
-            if (format.background().isValid())
-                textCharFormat.setBackground(format.background());
-            else
+        if (format.background().isValid()) {
+            textCharFormat.setBackground(format.background());
+        } else {
+            if (textCharFormat.hasProperty(QTextFormat::BackgroundBrush)) {
                 textCharFormat.setBackground(mixBrush(textCharFormat.background(),
                                                       format.relativeBackgroundSaturation(),
                                                       format.relativeBackgroundLightness()));
+            }
         }
         if (!textCharFormat.fontItalic())
             textCharFormat.setFontItalic(format.italic());
@@ -404,12 +406,9 @@ bool FontSettings::loadColorScheme(const QString &fileName,
         if (!m_scheme.contains(id)) {
             Format format;
             const Format &descFormat = desc.format();
-            if (descFormat == format && m_scheme.contains(C_TEXT)) {
-                // Default format -> Text
-                const Format textFormat = m_scheme.formatFor(C_TEXT);
-                format.setForeground(textFormat.foreground());
-                format.setBackground(textFormat.background());
-            } else {
+            // Default fallback for background and foreground is C_TEXT, which is set through
+            // the editor's palette, i.e. we leave these as invalid colors in that case
+            if (descFormat != format || !m_scheme.contains(C_TEXT)) {
                 format.setForeground(descFormat.foreground());
                 format.setBackground(descFormat.background());
             }

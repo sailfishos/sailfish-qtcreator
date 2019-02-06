@@ -37,15 +37,19 @@ class QmakeAndroidSupport : public Android::AndroidQtSupport
 public:
     bool canHandle(const ProjectExplorer::Target *target) const override;
     QStringList soLibSearchPath(const ProjectExplorer::Target *target) const override;
-    QStringList androidExtraLibs(const ProjectExplorer::Target *target) const override;
     QStringList projectTargetApplications(const ProjectExplorer::Target *target) const override;
-    Utils::FileName androiddeployqtPath(const ProjectExplorer::Target *target) const override;
-    Utils::FileName androiddeployJsonPath(const ProjectExplorer::Target *target) const override;
 
-    void manifestSaved(const ProjectExplorer::Target *target) override;
-    Utils::FileName manifestSourcePath(const ProjectExplorer::Target *target) override;
-    Utils::FileName packageSourceDir(const ProjectExplorer::Target *target) const override;
-    QString deploySettingsFile(const ProjectExplorer::Target *target) const override;
+    QVariant targetData(Core::Id role, const ProjectExplorer::Target *target) const override;
+    bool setTargetData(Core::Id role, const QVariant &value,
+                       const ProjectExplorer::Target *target) const override;
+
+    bool parseInProgress(const ProjectExplorer::Target *target) const override;
+    bool validParse(const ProjectExplorer::Target *target) const override;
+    bool extraLibraryEnabled(const ProjectExplorer::Target *target) const override;
+    Utils::FileName projectFilePath(const ProjectExplorer::Target *target) const override;
+
+    void addFiles(const ProjectExplorer::Target *target, const QString &buildKey,
+                  const QStringList &addedFiles) const override;
 };
 
 } // namespace Internal

@@ -101,8 +101,12 @@ void GlobalDebuggerOptions::fromSettings()
 //
 //////////////////////////////////////////////////////////////////////////
 
+static DebuggerSettings *theDebuggerSettings = nullptr;
+
 DebuggerSettings::DebuggerSettings()
 {
+    theDebuggerSettings = this;
+
     const QString debugModeGroup = QLatin1String(debugModeSettingsGroupC);
     const QString cdbSettingsGroup = QLatin1String(cdbSettingsGroupC);
 
@@ -162,18 +166,6 @@ DebuggerSettings::DebuggerSettings()
     insertItem(LogTimeStamps, item);
 
     item = new SavedAction(this);
-    item->setText(tr("Operate by Instruction"));
-    item->setCheckable(true);
-    item->setDefaultValue(false);
-    item->setIcon(Debugger::Icons::SINGLE_INSTRUCTION_MODE.icon());
-    item->setToolTip(tr("<p>This switches the debugger to instruction-wise "
-        "operation mode. In this mode, stepping operates on single "
-        "instructions and the source location view also shows the "
-        "disassembled instructions."));
-    item->setIconVisibleInMenu(false);
-    insertItem(OperateByInstruction, item);
-
-    item = new SavedAction(this);
     item->setText(tr("Dereference Pointers Automatically"));
     item->setCheckable(true);
     item->setDefaultValue(true);
@@ -231,6 +223,18 @@ DebuggerSettings::DebuggerSettings()
     item->setDefaultValue(true);
     item->setSettingsKey(cdbSettingsGroup, QLatin1String("UsePythonDumper"));
     insertItem(CdbUsePythonDumper, item);
+
+    item = new SavedAction(this);
+    item->setCheckable(true);
+    item->setDefaultValue(true);
+    item->setSettingsKey(cdbSettingsGroup, QLatin1String("FirstChanceExceptionTaskEntry"));
+    insertItem(FirstChanceExceptionTaskEntry, item);
+
+    item = new SavedAction(this);
+    item->setCheckable(true);
+    item->setDefaultValue(true);
+    item->setSettingsKey(cdbSettingsGroup, QLatin1String("SecondChanceExceptionTaskEntry"));
+    insertItem(SecondChanceExceptionTaskEntry, item);
 
     item = new SavedAction(this);
     item->setCheckable(true);
@@ -568,6 +572,7 @@ DebuggerSettings::DebuggerSettings()
     item->setText(tr("Enable Reverse Debugging"));
     item->setCheckable(true);
     item->setDefaultValue(false);
+    item->setIcon(Icons::REVERSE_MODE.icon());
     insertItem(EnableReverseDebugging, item);
 
 #ifdef Q_OS_WIN
@@ -677,14 +682,14 @@ void DebuggerSettings::writeSettings() const
 
 SavedAction *DebuggerSettings::item(int code) const
 {
-    QTC_ASSERT(m_items.value(code, 0), qDebug() << "CODE: " << code; return 0);
+    QTC_ASSERT(m_items.value(code, 0), qDebug() << "CODE: " << code; return nullptr);
     return m_items.value(code, 0);
 }
 
-QString DebuggerSettings::dump() const
+QString DebuggerSettings::dump()
 {
     QStringList settings;
-    foreach (SavedAction *item, m_items) {
+    foreach (SavedAction *item, theDebuggerSettings->m_items) {
         QString key = item->settingsKey();
         if (!key.isEmpty()) {
             const QString current = item->value().toString();

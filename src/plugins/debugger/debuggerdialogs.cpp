@@ -148,6 +148,7 @@ public:
     QString serverAddress;
     Runnable runnable;
     bool breakAtMain = false;
+    bool runInTerminal = false;
     QString serverStartScript;
     QString debugInfoLocation;
 };
@@ -159,7 +160,7 @@ bool StartApplicationParameters::equals(const StartApplicationParameters &rhs) c
         && runnable.commandLineArguments == rhs.runnable.commandLineArguments
         && runnable.workingDirectory == rhs.runnable.workingDirectory
         && breakAtMain == rhs.breakAtMain
-        && runnable.runMode == rhs.runnable.runMode
+        && runInTerminal == rhs.runInTerminal
         && serverStartScript == rhs.serverStartScript
         && kitId == rhs.kitId
         && debugInfoLocation == rhs.debugInfoLocation
@@ -195,7 +196,7 @@ void StartApplicationParameters::toSettings(QSettings *settings) const
     settings->setValue("LastExternalExecutableArguments", runnable.commandLineArguments);
     settings->setValue("LastExternalWorkingDirectory", runnable.workingDirectory);
     settings->setValue("LastExternalBreakAtMain", breakAtMain);
-    settings->setValue("LastExternalRunInTerminal", runnable.runMode == ApplicationLauncher::Console);
+    settings->setValue("LastExternalRunInTerminal", runInTerminal);
     settings->setValue("LastServerStartScript", serverStartScript);
     settings->setValue("LastDebugInfoLocation", debugInfoLocation);
 }
@@ -209,8 +210,7 @@ void StartApplicationParameters::fromSettings(const QSettings *settings)
     runnable.commandLineArguments = settings->value("LastExternalExecutableArguments").toString();
     runnable.workingDirectory = settings->value("LastExternalWorkingDirectory").toString();
     breakAtMain = settings->value("LastExternalBreakAtMain").toBool();
-    runnable.runMode = settings->value("LastExternalRunInTerminal").toBool()
-            ? ApplicationLauncher::Console : ApplicationLauncher::Gui;
+    runInTerminal = settings->value("LastExternalRunInTerminal").toBool();
     serverStartScript = settings->value("LastServerStartScript").toString();
     debugInfoLocation = settings->value("LastDebugInfoLocation").toString();
 }
@@ -434,6 +434,7 @@ void StartApplicationDialog::run(bool attachRemote)
     debugger->setDebugInfoLocation(newParameters.debugInfoLocation);
     debugger->setInferior(inferior);
     debugger->setServerStartScript(newParameters.serverStartScript); // Note: This requires inferior.
+    debugger->setUseTerminal(newParameters.runInTerminal);
 
     bool isLocal = !dev || (dev->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE);
     if (isLocal) {
@@ -474,8 +475,7 @@ StartApplicationParameters StartApplicationDialog::parameters() const
     result.runnable.commandLineArguments = d->arguments->text();
     result.runnable.workingDirectory = d->workingDirectory->path();
     result.breakAtMain = d->breakAtMainCheckBox->isChecked();
-    result.runnable.runMode = d->runInTerminalCheckBox->isChecked()
-            ? ApplicationLauncher::Console : ApplicationLauncher::Gui;
+    result.runInTerminal = d->runInTerminalCheckBox->isChecked();
     return result;
 }
 
@@ -489,7 +489,7 @@ void StartApplicationDialog::setParameters(const StartApplicationParameters &p)
     d->debuginfoPathChooser->setPath(p.debugInfoLocation);
     d->arguments->setText(p.runnable.commandLineArguments);
     d->workingDirectory->setPath(p.runnable.workingDirectory);
-    d->runInTerminalCheckBox->setChecked(p.runnable.runMode == ApplicationLauncher::Console);
+    d->runInTerminalCheckBox->setChecked(p.runInTerminal);
     d->breakAtMainCheckBox->setChecked(p.breakAtMain);
     updateState();
 }
@@ -591,7 +591,7 @@ static QString cdbRemoteHelp()
 }
 
 StartRemoteCdbDialog::StartRemoteCdbDialog(QWidget *parent) :
-    QDialog(parent), m_okButton(0), m_lineEdit(new QLineEdit)
+    QDialog(parent), m_lineEdit(new QLineEdit)
 {
     setWindowTitle(tr("Start a CDB Remote Session"));
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -636,9 +636,7 @@ void StartRemoteCdbDialog::accept()
         QDialog::accept();
 }
 
-StartRemoteCdbDialog::~StartRemoteCdbDialog()
-{
-}
+StartRemoteCdbDialog::~StartRemoteCdbDialog() = default;
 
 void StartRemoteCdbDialog::textChanged(const QString &t)
 {
@@ -704,7 +702,7 @@ void AddressDialog::setAddress(quint64 a)
 
 quint64 AddressDialog::address() const
 {
-    return m_lineEdit->text().toULongLong(0, 16);
+    return m_lineEdit->text().toULongLong(nullptr, 16);
 }
 
 void AddressDialog::accept()
@@ -826,7 +824,7 @@ public:
     {
         m_layout = new QGridLayout;
         m_layout->setColumnStretch(0, 2);
-        QVBoxLayout *vboxLayout = new QVBoxLayout;
+        auto vboxLayout = new QVBoxLayout;
         vboxLayout->addLayout(m_layout);
         vboxLayout->addItem(new QSpacerItem(1, 1, QSizePolicy::Ignored,
                                             QSizePolicy::MinimumExpanding));
@@ -838,10 +836,10 @@ public:
     {
         const int row = m_layout->rowCount();
         int column = 0;
-        QButtonGroup *group = new QButtonGroup(this);
+        auto group = new QButtonGroup(this);
         m_layout->addWidget(new QLabel(type), row, column++);
         for (int i = -1; i != typeFormats.size(); ++i) {
-            QRadioButton *choice = new QRadioButton(this);
+            auto choice = new QRadioButton(this);
             choice->setText(i == -1 ? TypeFormatsDialog::tr("Reset")
                                     : WatchHandler::nameForFormat(typeFormats.at(i)));
             m_layout->addWidget(choice, row, column++);
@@ -864,7 +862,7 @@ public:
         buttonBox = new QDialogButtonBox(q);
         buttonBox->setStandardButtons(QDialogButtonBox::Cancel|QDialogButtonBox::Ok);
 
-        QVBoxLayout *layout = new QVBoxLayout(q);
+        auto layout = new QVBoxLayout(q);
         layout->addWidget(tabs);
         layout->addWidget(buttonBox);
         q->setLayout(layout);
@@ -872,9 +870,9 @@ public:
 
     void addPage(const QString &name)
     {
-        TypeFormatsDialogPage *page = new TypeFormatsDialogPage;
+        auto page = new TypeFormatsDialogPage;
         pages.append(page);
-        QScrollArea *scroller = new QScrollArea;
+        auto scroller = new QScrollArea;
         scroller->setWidgetResizable(true);
         scroller->setWidget(page);
         scroller->setFrameStyle(QFrame::NoFrame);

@@ -33,6 +33,7 @@ using namespace ProjectExplorer;
 using namespace Utils;
 
 namespace RemoteLinux {
+namespace Internal {
 
 // RemoteLinuxQmlProfilerSupport
 
@@ -40,7 +41,7 @@ RemoteLinuxQmlToolingSupport::RemoteLinuxQmlToolingSupport(
         RunControl *runControl, QmlDebug::QmlDebugServicesPreset services)
     : SimpleTargetRunner(runControl), m_services(services)
 {
-    setDisplayName("RemoteLinuxQmlToolingSupport");
+    setId("RemoteLinuxQmlToolingSupport");
 
     m_portsGatherer = new PortsGatherer(runControl);
     addStartDependency(m_portsGatherer);
@@ -73,4 +74,5 @@ void RemoteLinuxQmlToolingSupport::start()
     SimpleTargetRunner::start();
 }
 
+} // namespace Internal
 } // namespace RemoteLinux

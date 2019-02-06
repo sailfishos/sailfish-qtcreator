@@ -29,11 +29,11 @@
 
 namespace ClangBackEnd {
 
-SymbolsCollector::SymbolsCollector(FilePathCachingInterface &filePathCache)
-    : m_indexDataConsumer(std::make_shared<IndexDataConsumer>(m_symbolEntries, m_sourceLocationEntries, filePathCache)),
+SymbolsCollector::SymbolsCollector(Sqlite::Database &database)
+    : m_filePathCache(database),
+      m_indexDataConsumer(std::make_shared<IndexDataConsumer>(m_symbolEntries, m_sourceLocationEntries, m_filePathCache, m_sourcesManager)),
       m_collectSymbolsAction(m_indexDataConsumer),
-      m_collectMacrosSourceFileCallbacks(m_symbolEntries, m_sourceLocationEntries, filePathCache),
-      m_filePathCache(filePathCache)
+      m_collectMacrosSourceFileCallbacks(m_symbolEntries, m_sourceLocationEntries, m_filePathCache, m_sourcesManager)
 {
 }
 
@@ -44,13 +44,19 @@ void SymbolsCollector::addFiles(const FilePathIds &filePathIds,
     m_collectMacrosSourceFileCallbacks.addSourceFiles(filePathIds);
 }
 
-void SymbolsCollector::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
+void SymbolsCollector::setFile(FilePathId filePathId, const Utils::SmallStringVector &arguments)
+{
+    addFiles({filePathId}, arguments);
+}
+
+void SymbolsCollector::setUnsavedFiles(const V2::FileContainers &unsavedFiles)
 {
     m_clangTool.addUnsavedFiles(unsavedFiles);
 }
 
 void SymbolsCollector::clear()
 {
+    m_indexDataConsumer->clear();
     m_collectMacrosSourceFileCallbacks.clear();
     m_symbolEntries.clear();
     m_sourceLocationEntries.clear();
@@ -123,6 +129,10 @@ void SymbolsCollector::collectSymbols()
                                                     &m_collectMacrosSourceFileCallbacks).get());
 }
 
+void SymbolsCollector::doInMainThreadAfterFinished()
+{
+}
+
 const SymbolEntries &SymbolsCollector::symbols() const
 {
     return m_symbolEntries;
@@ -151,6 +161,16 @@ const FileStatuses &SymbolsCollector::fileStatuses() const
 const SourceDependencies &SymbolsCollector::sourceDependencies() const
 {
     return m_collectMacrosSourceFileCallbacks.sourceDependencies();
+}
+
+bool SymbolsCollector::isUsed() const
+{
+    return m_isUsed;
+}
+
+void SymbolsCollector::setIsUsed(bool isUsed)
+{
+    m_isUsed = isUsed;
 }
 
 } // namespace ClangBackEnd

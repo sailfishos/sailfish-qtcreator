@@ -140,9 +140,9 @@ SessionManager::SessionManager(QObject *parent) : QObject(parent)
     connect(this, &SessionManager::projectDisplayNameChanged,
             EditorManager::instance(), &EditorManager::updateWindowTitles);
     connect(EditorManager::instance(), &EditorManager::editorOpened,
-            this, [] { markSessionFileDirty(); });
+            this, &SessionManager::markSessionFileDirty);
     connect(EditorManager::instance(), &EditorManager::editorsClosed,
-            this, [] { markSessionFileDirty(); });
+            this, &SessionManager::markSessionFileDirty);
 
     EditorManager::setWindowTitleAdditionHandler(&SessionManagerPrivate::windowTitleAddition);
     EditorManager::setSessionTitleHandler(&SessionManagerPrivate::sessionTitle);
@@ -153,6 +153,7 @@ SessionManager::~SessionManager()
     emit m_instance->aboutToUnloadSession(d->m_sessionName);
     delete d->m_writer;
     delete d;
+    d = nullptr;
 }
 
 SessionManager *SessionManager::instance()
@@ -719,7 +720,6 @@ void SessionManager::setValue(const QString &name, const QVariant &value)
     if (d->m_values.value(name) == value)
         return;
     d->m_values.insert(name, value);
-    markSessionFileDirty(false);
 }
 
 QVariant SessionManager::value(const QString &name)
@@ -1052,10 +1052,9 @@ void SessionManager::reportProjectLoadingProgress()
     d->sessionLoadingProgress();
 }
 
-void SessionManager::markSessionFileDirty(bool makeDefaultVirginDirty)
+void SessionManager::markSessionFileDirty()
 {
-    if (makeDefaultVirginDirty)
-        d->m_virginSession = false;
+    d->m_virginSession = false;
 }
 
 void SessionManagerPrivate::sessionLoadingProgress()

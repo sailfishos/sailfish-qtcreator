@@ -32,8 +32,6 @@
 #include <clangdocuments.h>
 #include <clangtranslationunit.h>
 #include <fixitcontainer.h>
-#include <projectpart.h>
-#include <projects.h>
 #include <sourcelocationcontainer.h>
 #include <sourcerangecontainer.h>
 #include <unsavedfiles.h>
@@ -47,7 +45,6 @@ using ::testing::Not;
 using ::testing::ContainerEq;
 using ::testing::Eq;
 
-using ::ClangBackEnd::ProjectPart;
 using ::ClangBackEnd::SourceLocationContainer;
 using ::ClangBackEnd::Document;
 using ::ClangBackEnd::UnsavedFiles;
@@ -58,31 +55,12 @@ using References = QVector<SourceRangeContainer>;
 
 namespace {
 
-std::ostream &operator<<(std::ostream &os, const ReferencesResult &value)
-{
-    os << "ReferencesResult(";
-    os << value.isLocalVariable << ", {";
-    for (const SourceRangeContainer &r : value.references) {
-        os << r.start.line << ",";
-        os << r.start.column << ",";
-        QTC_CHECK(r.start.line == r.end.line);
-        os << r.end.column - r.start.column << ",";
-    }
-    os << "})";
-
-    return os;
-}
-
 struct Data {
-    ProjectPart projectPart{
-        Utf8StringLiteral("projectPartId"),
-        TestEnvironment::addPlatformArguments({Utf8StringLiteral("-std=c++14")})};
-    ClangBackEnd::ProjectParts projects;
     ClangBackEnd::UnsavedFiles unsavedFiles;
-    ClangBackEnd::Documents documents{projects, unsavedFiles};
+    ClangBackEnd::Documents documents{unsavedFiles};
     Document document{Utf8StringLiteral(TESTDATA_DIR"/references.cpp"),
-                      projectPart,
-                      Utf8StringVector(),
+                      TestEnvironment::addPlatformArguments({Utf8StringLiteral("-std=c++14")}),
+                      {},
                       documents};
 };
 
@@ -459,6 +437,54 @@ TEST_F(ReferencesCollector, ArgumentToFunctionLikeMacro)
     };
 
     const ReferencesResult actual = getReferences(156, 27);
+
+    ASSERT_THAT(actual, expected);
+}
+
+TEST_F(ReferencesCollector, OverloadedBraceOperatorArgument)
+{
+    const ReferencesResult expected {
+        true,
+        {createSourceRange(171, 7, 1),
+         createSourceRange(172, 7, 1),
+         createSourceRange(172, 12, 1),
+         createSourceRange(173, 7, 1),
+         createSourceRange(173, 10, 1)},
+    };
+
+    const ReferencesResult actual = getReferences(172, 7);
+
+    ASSERT_THAT(actual, expected);
+}
+
+TEST_F(ReferencesCollector, OverloadedParenOperatorSecondArgument)
+{
+    const ReferencesResult expected {
+        true,
+        {createSourceRange(171, 7, 1),
+         createSourceRange(172, 7, 1),
+         createSourceRange(172, 12, 1),
+         createSourceRange(173, 7, 1),
+         createSourceRange(173, 10, 1)},
+    };
+
+    const ReferencesResult actual = getReferences(173, 10);
+
+    ASSERT_THAT(actual, expected);
+}
+
+TEST_F(ReferencesCollector, OverloadedOperatorsArgumentsFromOutside)
+{
+    const ReferencesResult expected {
+        true,
+        {createSourceRange(171, 7, 1),
+         createSourceRange(172, 7, 1),
+         createSourceRange(172, 12, 1),
+         createSourceRange(173, 7, 1),
+         createSourceRange(173, 10, 1)},
+    };
+
+    const ReferencesResult actual = getReferences(171, 7);
 
     ASSERT_THAT(actual, expected);
 }
