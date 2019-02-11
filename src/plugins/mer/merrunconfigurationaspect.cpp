@@ -219,8 +219,8 @@ private:
     Ui::MerRunConfigurationAspectQmlLiveDetailsWidget *m_qmlLiveDetailsUi;
 };
 
-MerRunConfigurationAspect::MerRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc)
-    : ProjectExplorer::IRunConfigurationAspect(rc)
+MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
+    : m_target(target)
     , m_qmlLiveEnabled(false)
     , m_qmlLiveIpcPort(Constants::DEFAULT_QML_LIVE_PORT)
     , m_qmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace())
@@ -233,9 +233,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(ProjectExplorer::RunConfigu
 
 QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
 {
-    Project *project = runConfiguration()->target()->project();
-    QTC_ASSERT(project, return QString());
-    return project->projectDirectory().toString();
+    return m_target->project()->projectDirectory().toString();
 }
 
 void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const

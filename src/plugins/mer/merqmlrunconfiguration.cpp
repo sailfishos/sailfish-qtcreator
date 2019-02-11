@@ -55,7 +55,7 @@ const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGIN
 MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    addExtraAspect(new RemoteLinuxEnvironmentAspect(this));
+    addExtraAspect(new RemoteLinuxEnvironmentAspect(target));
     connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerQmlRunConfiguration::updateEnabledState);
 }

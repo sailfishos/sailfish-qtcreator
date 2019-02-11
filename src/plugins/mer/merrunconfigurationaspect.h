@@ -44,7 +44,7 @@ public:
     Q_FLAG(QmlLiveOptions)
 
 public:
-    MerRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc);
+    MerRunConfigurationAspect(ProjectExplorer::Target *target);
 
     bool isQmlLiveEnabled() const { return m_qmlLiveEnabled; }
     int qmlLiveIpcPort() const { return m_qmlLiveIpcPort; }
@@ -75,6 +75,7 @@ signals:
     void qmlLiveOptionsChanged();
 
 private:
+    ProjectExplorer::Target *m_target;
     bool m_qmlLiveEnabled;
     int m_qmlLiveIpcPort;
     QString m_qmlLiveBenchWorkspace;
