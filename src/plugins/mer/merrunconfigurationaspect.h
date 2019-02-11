@@ -23,12 +23,17 @@
 #ifndef MERRUNCONFIGURATIONASPECT_H
 #define MERRUNCONFIGURATIONASPECT_H
 
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/projectconfiguration.h>
+
+namespace ProjectExplorer {
+    class Runnable;
+    class Target;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerRunConfigurationAspect : public ProjectExplorer::IRunConfigurationAspect
+class MerRunConfigurationAspect : public ProjectExplorer::ProjectConfigurationAspect
 {
     Q_OBJECT
 

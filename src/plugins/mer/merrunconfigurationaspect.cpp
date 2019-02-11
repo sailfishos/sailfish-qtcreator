@@ -31,6 +31,7 @@
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
 #include <utils/detailsbutton.h>
 #include <utils/detailswidget.h>
