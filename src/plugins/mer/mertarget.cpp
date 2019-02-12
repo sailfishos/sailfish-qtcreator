@@ -191,7 +191,7 @@ void MerTarget::deleteScripts() const
     FileUtils::removeRecursively(FileName::fromString(targetPath()));
 }
 
-Kit* MerTarget::createKit() const
+std::unique_ptr<Kit> MerTarget::createKit() const
 {
     if (!isValid())
         return 0;
@@ -203,18 +203,20 @@ Kit* MerTarget::createKit() const
         return 0;
     }
 
-    Kit *k = new Kit();
+    auto k = std::make_unique<Kit>();
+
     k->setAutoDetected(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)").arg(m_name, m_sdk->virtualMachineName()));
-    SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
+    SysRootKitInformation::setSysRoot(k.get(), FileName::fromUserInput(sysroot));
 
-    DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    DeviceTypeKitInformation::setDeviceTypeId(k.get(), Constants::MER_DEVICE_TYPE);
     k->setMutable(DeviceKitInformation::id(), true);
 
-    ensureDebuggerIsSet(k);
+    ensureDebuggerIsSet(k.get());
 
-    MerSdkKitInformation::setSdk(k,m_sdk);
-    MerTargetKitInformation::setTargetName(k,name());
+    MerSdkKitInformation::setSdk(k.get(), m_sdk);
+    MerTargetKitInformation::setTargetName(k.get(), name());
+
     return k;
 }
 

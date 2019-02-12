@@ -527,17 +527,17 @@ bool MerSdk::addTarget(const MerTarget &target)
     QScopedPointer<MerQtVersion> version(target.createQtVersion());
     if (version.isNull())
         return false;
-    Kit *kit = target.createKit();
+    std::unique_ptr<Kit> kit = target.createKit();
     if (!kit)
         return false;
 
     ToolChainManager::registerToolChain(toolchain.data());
     ToolChainManager::registerToolChain(toolchain_c.data());
     QtVersionManager::addVersion(version.data());
-    QtKitInformation::setQtVersion(kit, version.data());
-    ToolChainKitInformation::setToolChain(kit, toolchain.data());
-    ToolChainKitInformation::setToolChain(kit, toolchain_c.data());
-    KitManager::registerKit(kit);
+    QtKitInformation::setQtVersion(kit.get(), version.data());
+    ToolChainKitInformation::setToolChain(kit.get(), toolchain.data());
+    ToolChainKitInformation::setToolChain(kit.get(), toolchain_c.data());
+    KitManager::registerKit(std::move(kit));
     toolchain.take();
     toolchain_c.take();
     version.take();
