@@ -64,7 +64,7 @@ const char QMLLIVE_SAILFISH_PRELOAD[] = "/usr/lib/qmllive-sailfish/libsailfishap
 
 } // namespace anonymous
 
-class MerRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class MerRunConfigWidget : public QWidget
 {
     Q_OBJECT
 
@@ -128,8 +128,6 @@ public:
     {
         delete m_qmlLiveDetailsUi, m_qmlLiveDetailsUi = 0;
     }
-
-    QString displayName() const override { return m_aspect->displayName(); }
 
 private:
     void initQmlLiveDetailsUi()
@@ -228,7 +226,7 @@ MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
 {
     setId(Constants::MER_RUN_CONFIGURATION_ASPECT);
     setDisplayName(tr("Sailfish OS Application Settings"));
-    setRunConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
+    setConfigWidgetCreator([this] { return new MerRunConfigWidget(this); });
 }
 
 QString MerRunConfigurationAspect::defaultQmlLiveBenchWorkspace() const
