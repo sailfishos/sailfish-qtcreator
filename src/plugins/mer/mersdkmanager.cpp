@@ -100,8 +100,8 @@ MerSdkManager::MerSdkManager()
             this, &MerSdkManager::updateDevices);
     m_writer = new PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
-    KitManager::registerKitInformation(new MerSdkKitInformation);
-    KitManager::registerKitInformation(new MerTargetKitInformation);
+    KitManager::registerKitInformation<MerSdkKitInformation>();
+    KitManager::registerKitInformation<MerTargetKitInformation>();
 }
 
 MerSdkManager::~MerSdkManager()
