@@ -65,7 +65,7 @@ public:
         : RunWorker(runControl)
         , m_gdbServerPortsGatherer(gdbServerPortsGatherer)
     {
-        setDisplayName("GdbServerReadyWatcher");
+        setId("GdbServerReadyWatcher");
 
         connect(&m_usedPortsGatherer, &DeviceUsedPortsGatherer::error,
                 this, &RunWorker::reportFailure);
@@ -104,7 +104,7 @@ private:
 MerDeviceDebugSupport::MerDeviceDebugSupport(RunControl *runControl)
     : DebuggerRunTool(runControl)
 {
-    setDisplayName("MerDeviceDebugSupport");
+    setId("MerDeviceDebugSupport");
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
 
