@@ -225,7 +225,7 @@ QSet<Core::Id> MerQtVersion::availableFeatures() const
 {
     QSet<Core::Id> features = BaseQtVersion::availableFeatures();
     features |= Constants::MER_WIZARD_FEATURE_SAILFISHOS;
-    if(!qtAbis().contains(Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
+    if(!qtAbis().contains(Abi::fromString(QLatin1String("arm-linux-generic-elf-32bit"))))
         features |= Constants::MER_WIZARD_FEATURE_EMULATOR;
     return features;
 }
