@@ -162,9 +162,9 @@ ProjectExplorer::HeaderPaths MerToolChain::builtInHeaderPaths(const QStringList 
     Q_UNUSED(cxxflags)
     if (m_headerPathsOnHost.isEmpty()) {
         m_headerPathsOnHost.append(HeaderPath(sysRoot.toString() + QLatin1String("/usr/local/include"),
-                                             HeaderPath::GlobalHeaderPath));
+                                             HeaderPathType::System));
         m_headerPathsOnHost.append(HeaderPath(sysRoot.toString() + QLatin1String("/usr/include"),
-                                             HeaderPath::GlobalHeaderPath));
+                                             HeaderPathType::System));
     }
     return m_headerPathsOnHost;
 }
