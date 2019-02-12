@@ -32,6 +32,7 @@
 
 #include "ui_merdeploystep.h"
 #include "merabstractvmstartstep.h"
+#include "merconstants.h"
 #include "mertarget.h"
 
 #include <projectexplorer/abstractprocessstep.h>
@@ -291,17 +292,7 @@ public:
         registerStep<Step>(Step::stepId());
         setDisplayName(Step::displayName());
         setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY);
-    }
-
-    bool canHandle(ProjectExplorer::BuildStepList *bsl) const override
-    {
-        if (!BuildStepFactory::canHandle(bsl))
-            return false;
-
-        if (!qobject_cast<MerDeployConfiguration *>(bsl->parent()))
-            return false;
-
-        return true;
+        setSupportedDeviceType(Constants::MER_DEVICE_TYPE);
     }
 };
 

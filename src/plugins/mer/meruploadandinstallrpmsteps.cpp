@@ -119,7 +119,7 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
         const QString message((tr("No package to deploy found in %1")).arg(packageFile));
         emit addOutput(message, OutputFormat::ErrorMessage);
         emit addTask(Task(Task::Error, message, FileName(), -1,
-                          Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                          Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         reportRunResult(fi, false);
         return;
     }
