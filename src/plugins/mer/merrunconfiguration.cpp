@@ -82,7 +82,7 @@ Runnable MerRunConfiguration::runnable() const
     // for Qt >= 5.4
     r.environment.appendOrSet(QLatin1String("QT_LOGGING_TO_CONSOLE"), QLatin1String("1"));
 
-    auto merAspect = extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = aspect<MerRunConfigurationAspect>();
     merAspect->applyTo(&r);
 
     DeployConfiguration* conf = target()->activeDeployConfiguration();

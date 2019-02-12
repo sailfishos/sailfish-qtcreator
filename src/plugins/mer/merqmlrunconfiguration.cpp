@@ -55,7 +55,7 @@ const char SAILFISHAPP_ENABLE_QML_DEBUGGING[] = "SAILFISHAPP_ENABLE_QML_DEBUGGIN
 MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    addExtraAspect(new RemoteLinuxEnvironmentAspect(target));
+    addAspect<RemoteLinuxEnvironmentAspect>(target);
     connect(target, &Target::activeDeployConfigurationChanged,
             this, &MerQmlRunConfiguration::updateEnabledState);
 }
@@ -91,7 +91,7 @@ Runnable MerQmlRunConfiguration::runnable() const
     const QString appName{project->rootProFile()->targetInformation().target};
 
     Runnable r;
-    r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();
+    r.environment = aspect<RemoteLinuxEnvironmentAspect>()->environment();
     r.executable = QLatin1String(Constants::SAILFISH_QML_LAUNCHER);
     r.commandLineArguments = appName;
 
@@ -101,11 +101,11 @@ Runnable MerQmlRunConfiguration::runnable() const
     // for Qt >= 5.4
     r.environment.appendOrSet(QLatin1String("QT_LOGGING_TO_CONSOLE"), QLatin1String("1"));
 
-    auto debuggerAspect = extraAspect<DebuggerRunConfigurationAspect>();
+    auto debuggerAspect = aspect<DebuggerRunConfigurationAspect>();
     if (debuggerAspect->useQmlDebugger())
         r.environment.set(QLatin1String(SAILFISHAPP_ENABLE_QML_DEBUGGING), QLatin1String("1"));
 
-    auto merAspect = extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = aspect<MerRunConfigurationAspect>();
     merAspect->applyTo(&r);
 
     return r;

@@ -164,7 +164,7 @@ void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
 
 void MerQmlLiveBenchManager::notifyInferiorRunning(ProjectExplorer::RunControl *rc)
 {
-    auto merAspect = rc->runConfiguration()->extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = rc->runConfiguration()->aspect<MerRunConfigurationAspect>();
     if (!merAspect)
         return;
     if (!merAspect->isQmlLiveEnabled())
@@ -479,7 +479,7 @@ void MerQmlLiveBenchManager::onActiveRunConfigurationChanged(ProjectExplorer::Ru
 
     if (!rc)
         return;
-    auto merAspect = rc->extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = rc->aspect<MerRunConfigurationAspect>();
     if (!merAspect)
         return;
 
@@ -503,7 +503,7 @@ void MerQmlLiveBenchManager::onQmlLiveEnabledChanged(bool enabled)
     QTC_ASSERT(target, return);
     RunConfiguration *rc = target->activeRunConfiguration();
     QTC_ASSERT(rc, return);
-    auto merAspect = rc->extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = rc->aspect<MerRunConfigurationAspect>();
     QTC_ASSERT(merAspect, return);
 
     onQmlLiveBenchWorkspaceChanged(merAspect->qmlLiveBenchWorkspace());
@@ -529,7 +529,7 @@ void MerQmlLiveBenchManager::onQmlLiveBenchWorkspaceChanged(const QString &bench
 
 void MerQmlLiveBenchManager::onAboutToExecuteProject(ProjectExplorer::RunControl *rc)
 {
-    auto merAspect = rc->runConfiguration()->extraAspect<MerRunConfigurationAspect>();
+    auto merAspect = rc->runConfiguration()->aspect<MerRunConfigurationAspect>();
     if (!merAspect)
         return;
     if (!merAspect->isQmlLiveEnabled())
