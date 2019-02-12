@@ -51,13 +51,13 @@ public:
     QList<Utils::FileName> suggestedMkspecList() const override;
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const override;
 
-    QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
+    ProjectExplorer::HeaderPaths builtInHeaderPaths(const QStringList &cxxflags,
                                                          const Utils::FileName &sysRoot) const override;
     void addToEnvironment(Utils::Environment &env) const override;
 private:
     QString m_vmName;
     QString m_targetName;
-    mutable QList<ProjectExplorer::HeaderPath> m_headerPathsOnHost;
+    mutable ProjectExplorer::HeaderPaths m_headerPathsOnHost;
 };
 
 } // Internal

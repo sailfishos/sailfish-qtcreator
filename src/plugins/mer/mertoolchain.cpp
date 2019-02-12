@@ -157,7 +157,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     return result;
 }
 
-QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, const FileName &sysRoot) const
+ProjectExplorer::HeaderPaths MerToolChain::builtInHeaderPaths(const QStringList &cxxflags, const FileName &sysRoot) const
 {
     Q_UNUSED(cxxflags)
     if (m_headerPathsOnHost.isEmpty()) {
