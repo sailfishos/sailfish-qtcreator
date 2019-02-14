@@ -26,12 +26,14 @@
 #pragma once
 
 #include "filestatus.h"
-#include "symbolsvisitorbase.h"
 #include "sourcedependency.h"
 #include "sourcelocationsutils.h"
 #include "sourcelocationentry.h"
+#include "sourcesmanager.h"
 #include "symbolentry.h"
 #include "usedmacro.h"
+
+#include <collectusedmacrosandsourcespreprocessorcallbacks.h>
 
 #include <filepath.h>
 #include <filepathid.h>
@@ -43,7 +45,7 @@
 namespace ClangBackEnd {
 
 class CollectMacrosPreprocessorCallbacks final : public clang::PPCallbacks,
-                                                 public SymbolsVisitorBase
+                                                 public CollectUsedMacrosAndSourcesPreprocessorCallbacksBase
 {
 public:
     CollectMacrosPreprocessorCallbacks(SymbolEntries &symbolEntries,
@@ -54,22 +56,25 @@ public:
                                        SourceDependencies &sourceDependencies,
                                        FilePathCachingInterface &filePathCache,
                                        const clang::SourceManager &sourceManager,
-                                       std::shared_ptr<clang::Preprocessor> &&preprocessor)
-        : SymbolsVisitorBase(filePathCache, &sourceManager),
-          m_preprocessor(std::move(preprocessor)),
-          m_sourceDependencies(sourceDependencies),
+                                       std::shared_ptr<clang::Preprocessor> &&preprocessor,
+                                       SourcesManager &sourcesManager)
+        : CollectUsedMacrosAndSourcesPreprocessorCallbacksBase(usedMacros,
+                                                               filePathCache,
+                                                               sourceManager,
+                                                               sourcesManager,
+                                                               std::move(preprocessor),
+                                                               sourceDependencies,
+                                                               sourceFiles,
+                                                               fileStatuses),
           m_symbolEntries(symbolEntries),
-          m_sourceLocationEntries(sourceLocationEntries),
-          m_sourceFiles(sourceFiles),
-          m_usedMacros(usedMacros),
-          m_fileStatuses(fileStatuses)
+          m_sourceLocationEntries(sourceLocationEntries)
     {
     }
 
     void FileChanged(clang::SourceLocation sourceLocation,
                      clang::PPCallbacks::FileChangeReason reason,
                      clang::SrcMgr::CharacteristicKind,
-                     clang::FileID)
+                     clang::FileID) override
     {
         if (reason == clang::PPCallbacks::EnterFile)
         {
@@ -90,7 +95,11 @@ public:
                             const clang::FileEntry *file,
                             llvm::StringRef /*searchPath*/,
                             llvm::StringRef /*relativePath*/,
-                            const clang::Module * /*imported*/) override
+                            const clang::Module * /*imported*/
+#if LLVM_VERSION_MAJOR >= 7
+                            , clang::SrcMgr::CharacteristicKind /*fileType*/
+#endif
+                            ) override
     {
         if (!m_skipInclude && file)
             addSourceDependency(file, hashLocation);
@@ -165,53 +174,7 @@ public:
     {
         filterOutHeaderGuards();
         mergeUsedMacros();
-    }
-
-    void filterOutHeaderGuards()
-    {
-        auto partitionPoint = std::stable_partition(m_maybeUsedMacros.begin(),
-                                                    m_maybeUsedMacros.end(),
-                                                    [&] (const UsedMacro &usedMacro) {
-            llvm::StringRef id{usedMacro.macroName.data(), usedMacro.macroName.size()};
-            clang::IdentifierInfo &identifierInfo = m_preprocessor->getIdentifierTable().get(id);
-            clang::MacroInfo *macroInfo = m_preprocessor->getMacroInfo(&identifierInfo);
-            return !macroInfo || !macroInfo->isUsedForHeaderGuard();
-        });
-
-        m_maybeUsedMacros.erase(partitionPoint, m_maybeUsedMacros.end());
-    }
-
-    void mergeUsedMacros()
-    {
-        m_usedMacros.reserve(m_usedMacros.size() + m_maybeUsedMacros.size());
-        auto insertionPoint = m_usedMacros.insert(m_usedMacros.end(),
-                                                  m_maybeUsedMacros.begin(),
-                                                  m_maybeUsedMacros.end());
-        std::inplace_merge(m_usedMacros.begin(), insertionPoint, m_usedMacros.end());
-    }
-
-    static void addUsedMacro(UsedMacro &&usedMacro, UsedMacros &usedMacros)
-    {
-        if (!usedMacro.filePathId.isValid())
-            return;
-
-        auto found = std::lower_bound(usedMacros.begin(),
-                                      usedMacros.end(), usedMacro);
-
-        if (found == usedMacros.end() || *found != usedMacro)
-            usedMacros.insert(found, std::move(usedMacro));
-    }
-
-    void addUsedMacro(const clang::Token &macroNameToken,
-                       const clang::MacroDefinition &macroDefinition)
-    {
-        clang::MacroInfo *macroInfo = macroDefinition.getMacroInfo();
-        UsedMacro usedMacro{macroNameToken.getIdentifierInfo()->getName(),
-                              filePathId(macroNameToken.getLocation())};
-        if (macroInfo)
-            addUsedMacro(std::move(usedMacro), m_usedMacros);
-        else
-            addUsedMacro(std::move(usedMacro), m_maybeUsedMacros);
+        m_sourcesManager.updateModifiedTimeStamps();
     }
 
     static const clang::MacroInfo *firstMacroInfo(const clang::MacroDirective *macroDirective)
@@ -234,7 +197,7 @@ public:
                           SourceLocationKind symbolType)
     {
         clang::SourceLocation sourceLocation = macroNameToken.getLocation();
-        if (macroInfo && sourceLocation.isFileID()) {
+        if (macroInfo && sourceLocation.isFileID() && !isInSystemHeader(sourceLocation)) {
             FilePathId fileId = filePathId(sourceLocation);
             if (fileId.isValid()) {
                 auto macroName = macroNameToken.getIdentifierInfo()->getName();
@@ -261,53 +224,11 @@ public:
         }
     }
 
-    void addSourceFile(const clang::FileEntry *fileEntry)
-    {
-        auto id = filePathId(fileEntry);
-
-        auto found = std::lower_bound(m_sourceFiles.begin(), m_sourceFiles.end(), id);
-
-        if (found == m_sourceFiles.end() || *found != id)
-            m_sourceFiles.insert(found, id);
-    }
-
-    void addFileStatus(const clang::FileEntry *fileEntry)
-    {
-        auto id = filePathId(fileEntry);
-
-        auto found = std::lower_bound(m_fileStatuses.begin(),
-                                      m_fileStatuses.end(),
-                                      id,
-                                      [] (const auto &first, const auto &second) {
-            return first.filePathId < second;
-        });
-
-        if (found == m_fileStatuses.end() || found->filePathId != id) {
-            m_fileStatuses.emplace(found,
-                                   id,
-                                   fileEntry->getSize(),
-                                   fileEntry->getModificationTime(),
-                                   fileEntry->isInPCH());
-        }
-    }
-
-    void addSourceDependency(const clang::FileEntry *file, clang::SourceLocation includeLocation)
-    {
-        auto includeFilePathId = filePathId(includeLocation);
-        auto includedFilePathId = filePathId(file);
-
-        m_sourceDependencies.emplace_back(includeFilePathId, includedFilePathId);
-    }
-
 private:
     UsedMacros m_maybeUsedMacros;
     std::shared_ptr<clang::Preprocessor> m_preprocessor;
-    SourceDependencies &m_sourceDependencies;
     SymbolEntries &m_symbolEntries;
     SourceLocationEntries &m_sourceLocationEntries;
-    FilePathIds &m_sourceFiles;
-    UsedMacros &m_usedMacros;
-    FileStatuses &m_fileStatuses;
     bool m_skipInclude = false;
 };
 

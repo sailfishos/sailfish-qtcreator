@@ -57,7 +57,7 @@ const char HANDSHAKE_TYPE[] = "handshake";
 const char START_MAGIC[] = "\n[== \"CMake Server\" ==[\n";
 const char END_MAGIC[] = "\n]== \"CMake Server\" ==]\n";
 
-Q_LOGGING_CATEGORY(cmakeServerMode, "qtc.cmake.serverMode");
+Q_LOGGING_CATEGORY(cmakeServerMode, "qtc.cmake.serverMode", QtWarningMsg);
 
 // ----------------------------------------------------------------------
 // Helpers:
@@ -103,7 +103,7 @@ ServerMode::ServerMode(const Environment &env,
     m_connectionTimer.setInterval(100);
     connect(&m_connectionTimer, &QTimer::timeout, this, &ServerMode::connectToServer);
 
-    m_cmakeProcess.reset(new QtcProcess);
+    m_cmakeProcess = std::make_unique<QtcProcess>();
 
     m_cmakeProcess->setEnvironment(env);
     m_cmakeProcess->setWorkingDirectory(buildDirectory.toString());

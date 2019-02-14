@@ -41,25 +41,24 @@ namespace Internal {
 BareMetalCustomRunConfiguration::BareMetalCustomRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
-    auto exeAspect = new ExecutableAspect(this);
+    auto exeAspect = addAspect<ExecutableAspect>();
     exeAspect->setSettingsKey("BareMetal.CustomRunConfig.Executable");
     exeAspect->setPlaceHolderText(tr("Unknown"));
-    exeAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
+    exeAspect->setDisplayStyle(BaseStringAspect::PathChooserDisplay);
     exeAspect->setHistoryCompleter("BareMetal.CustomRunConfig.History");
     exeAspect->setExpectedKind(PathChooser::Any);
-    addExtraAspect(exeAspect);
 
-    addExtraAspect(new ArgumentsAspect(this, "Qt4ProjectManager.MaemoRunConfiguration.Arguments"));
-    addExtraAspect(new WorkingDirectoryAspect(this, "BareMetal.RunConfig.WorkingDirectory"));
+    addAspect<ArgumentsAspect>();
+    addAspect<WorkingDirectoryAspect>(nullptr);
 
-    setDefaultDisplayName(RunConfigurationFactory::decoratedTargetName(tr("Custom Executable)"), target));
+    setDefaultDisplayName(RunConfigurationFactory::decoratedTargetName(tr("Custom Executable"), target));
 }
 
 const char *BareMetalCustomRunConfiguration::Id = "BareMetal";
 
 bool BareMetalCustomRunConfiguration::isConfigured() const
 {
-    return !extraAspect<ExecutableAspect>()->executable().isEmpty();
+    return !aspect<ExecutableAspect>()->executable().isEmpty();
 }
 
 RunConfiguration::ConfigurationState

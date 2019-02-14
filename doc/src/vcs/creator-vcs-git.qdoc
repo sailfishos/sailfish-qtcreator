@@ -34,7 +34,7 @@
     \page creator-vcs-git.html
     \if defined(qtdesignstudio)
     \previouspage studio-projects.html
-    \nextpage studio-designing.html
+    \nextpage studio-importing-designs.html
     \else
     \previouspage creator-vcs-cvs.html
     \nextpage creator-vcs-mercurial.html
@@ -221,20 +221,23 @@
     \section2 Working with Branches
 
     To work with Git branches, select \uicontrol {Branches}. The checked out
-    branch is shown in bold and underlined in the list of branches. Double-click
-    branch names to edit them.
+    branch is shown in bold and underlined in the list of branches in the
+    \uicontrol {Git Branches} sidebar view.
 
-    \image qtcreator-vcs-gitbranch.png "Branches dialog"
+    For local and remote branches, the changes log can be shown by double
+    clicking on the branch name.
 
-    The following operations are supported:
+    To refresh the list of branches, click \inlineimage reload_gray.png
+    (\uicontrol Refresh).
+
+    \image qtcreator-vcs-gitbranch.png "Git Branches sidebar view"
+
+    The following operations are supported in the context-menu for a branch:
 
     \table
         \header
             \li Menu Item
             \li Description
-        \row
-            \li \uicontrol{Refresh}
-            \li Refresh the list of branches.
         \row
             \li \uicontrol{Add}
             \li Create new tracking and non-tracking branches.
@@ -243,7 +246,7 @@
             \li Remove a local branch. You cannot delete remote branches.
         \row
             \li \uicontrol Rename
-            \li Rename a local branch.
+            \li Rename a local branch. You cannot rename remote branches.
         \row
             \li \uicontrol{Checkout}
             \li Check out the selected branch and make it current. You can stash
@@ -256,20 +259,22 @@
             \li \uicontrol{Log}
             \li Show the changes in a branch.
         \row
+            \li \uicontrol Reset
+            \li Hard reset the active branch to the selected branch.
+        \row
             \li \uicontrol Merge
             \li Join the development histories in two branches together.
 
                 If the commit you are merging can be reached by following the
                 first commit's history, there is no divergent work to merge
                 together. To allow Git to move the branch pointer forward,
-                select \uicontrol {Fast-Forward}. If you do not want to
-                fast-forward the branch, select \uicontrol {No Fast-Forward}.
+                select \uicontrol {Merge (Fast-Forward)}. If you do not want to
+                fast-forward the branch, select
+                \uicontrol {Merge (No Fast-Forward)}.
         \row
             \li \uicontrol Rebase
             \li Copy local commits to the updated upstream head.
-        \row
-            \li \uicontrol Reset
-            \li Hard reset the active branch to the selected branch.
+
         \row
             \li \uicontrol {Cherry Pick}
             \li Cherry pick the top commit from the selected branch.
@@ -277,6 +282,35 @@
             \li \uicontrol Track
             \li Set the current branch to track the selected one.
     \endtable
+
+    The following additional context-menu operations are available for
+    \uicontrol{Remote Branches}. The context-menu can be opened on
+    \uicontrol{Remote Branches} or on a specific remote repository.
+
+    \table
+        \header
+            \li Menu Item
+            \li Description
+        \row
+            \li \uicontrol{Fetch}
+            \li Fetches all the branches and changes information from a
+                specific remote repository, or from all remotes if applied
+                to \uicontrol {Remote Branches}.
+        \row
+            \li \uicontrol{Manage Remotes}
+            \li Opens the \uicontrol Remotes dialog.
+    \endtable
+
+    \section3 Configuring Merge Tools
+
+    Only graphical merge tools are supported. You can configure the
+    merge tool to use on the command line. For example, to use the
+    \l{http://kdiff3.sourceforge.net/}{KDiff3} merge tool, enter the
+    following command:
+
+    \badcode
+    git config --global merge.tool kdiff3
+    \endcode
 
     \section2 Applying Patches
 

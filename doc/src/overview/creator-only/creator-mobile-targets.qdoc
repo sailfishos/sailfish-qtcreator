@@ -1,0 +1,113 @@
+/****************************************************************************
+**
+** Copyright (C) 2018 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Creator documentation.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \contentspage index.html
+    \page creator-connecting-mobile.html
+    \previouspage creator-deployment-qnx.html
+    \nextpage creator-developing-mer.html
+
+    \title Connecting Devices
+
+    You can connect \l{glossary-device}{devices} to the development PC to run, debug,
+    and analyze applications built for them from \QC. When you install Qt for a
+    target platform, such as Android, QNX or Sailfish OS,
+    the build and run settings for the development targets might be set up
+    automatically in \QC.
+
+    You can connect the device to the development PC using a USB connection.
+    Additionally, you can connect Linux-based devices by using a WLAN
+    connection.
+
+    \list
+
+        \li \l{Connecting Sailfish OS Devices}
+
+            You can deploy and run applications on the Sailfish OS emulator
+            directly from \QC. You must install the Sailfish OS SDK to develop
+            for Sailfish OS devices.
+
+        \li \l{Connecting Android Devices}
+
+            Qt applications for Android are compiled as \c {shared objects} that
+            are loaded by a Java launcher that is part of Qt.
+            This is totally transparent to users. As Qt is composed of libraries
+            referencing each other, Qt 4 applications are only supported on
+            Android version 1.6, or later, and Qt 5 applications on version
+            4.1 (API level 16), or later. You must install a Qt version
+            targeting Android and the Android SDK and NDK to develop for
+            Android devices.
+
+        \if defined(qtcreator)
+        \li \l{Connecting Bare Metal Devices}
+
+            You can connect bare metal devices to the development PC and use \QC
+            to debug applications on them with GDB or a hardware debugger.
+        \endif
+
+        \li \l{Connecting Embedded Linux Devices}
+
+            If you have a tool chain for building applications for embedded
+            Linux devices installed on the development
+            PC, you can add it and the device to \QC.
+
+        \if defined(qtcreator)
+        \li \l{Connecting iOS Devices}
+
+            You use the tools delivered with Xcode to connect devices to \QC.
+            \QC detects the tools and configured devices automatically and uses
+            the tools to build, deploy, and run applications.
+
+        \li \l{Connecting QNX Devices}
+
+            You can connect QNX devices to the development PC to deploy, run and
+            debug applications on them from within \QC. This is currently only
+            supported for QNX Neutrino devices, and requires the QNX SDK to be
+            installed on the development PC.
+        \endif
+
+    \endlist
+
+    \if defined(qtcreator)
+    \section1 Related Topics
+
+    \list
+
+        \li \l{http://doc.qt.io/qtcreator/creator-overview-qtasam.html}
+            {Qt Application Manager}
+
+            You can use the experimental Qt Application Manager plugin
+            (commercial only) to deploy, run, and debug applications on the
+            local Linux PC, remote generic SSH Linux targets, or
+            \l{Embedded Devices}{embedded devices}.
+    \endlist
+    \endif
+*/

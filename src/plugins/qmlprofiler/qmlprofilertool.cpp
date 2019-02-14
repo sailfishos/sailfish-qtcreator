@@ -41,6 +41,7 @@
 #include <app/app_version.h>
 
 #include <debugger/debuggericons.h>
+#include <debugger/debuggermainwindow.h>
 #include <debugger/analyzer/analyzermanager.h>
 
 #include <utils/fancymainwindow.h>
@@ -228,15 +229,14 @@ QmlProfilerTool::QmlProfilerTool()
 
     QObject::connect(d->m_startAction, &QAction::triggered, this, &QmlProfilerTool::profileStartupProject);
 
-    Utils::ToolbarDescription toolbar;
-    toolbar.addAction(d->m_startAction);
-    toolbar.addAction(d->m_stopAction);
-    toolbar.addWidget(d->m_recordButton);
-    toolbar.addWidget(d->m_clearButton);
-    toolbar.addWidget(d->m_searchButton);
-    toolbar.addWidget(d->m_displayFeaturesButton);
-    toolbar.addWidget(d->m_timeLabel);
-    Debugger::registerToolbar(Constants::QmlProfilerPerspectiveId, toolbar);
+    Utils::Perspective *perspective = d->m_viewContainer->perspective();
+    perspective->addToolBarAction(d->m_startAction);
+    perspective->addToolBarAction(d->m_stopAction);
+    perspective->addToolBarWidget(d->m_recordButton);
+    perspective->addToolBarWidget(d->m_clearButton);
+    perspective->addToolBarWidget(d->m_searchButton);
+    perspective->addToolBarWidget(d->m_displayFeaturesButton);
+    perspective->addToolBarWidget(d->m_timeLabel);
 
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::updateRunActions,
             this, &QmlProfilerTool::updateRunActions);
@@ -302,7 +302,7 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
     auto runConfiguration = runControl->runConfiguration();
     if (runConfiguration) {
         auto aspect = static_cast<QmlProfilerRunConfigurationAspect *>(
-                    runConfiguration->extraAspect(Constants::SETTINGS));
+                    runConfiguration->aspect(Constants::SETTINGS));
         if (aspect) {
             if (QmlProfilerSettings *settings = static_cast<QmlProfilerSettings *>(aspect->currentSettings())) {
                 d->m_profilerConnections->setFlushInterval(settings->flushEnabled() ?
@@ -547,7 +547,7 @@ ProjectExplorer::RunControl *QmlProfilerTool::attachToWaitingApplication()
     serverUrl.setHost(toolControl.host());
     serverUrl.setPort(port);
 
-    Debugger::selectPerspective(Constants::QmlProfilerPerspectiveId);
+    d->m_viewContainer->perspective()->select();
 
     auto runConfig = RunConfiguration::startupRunConfiguration();
     auto runControl = new RunControl(runConfig, ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
@@ -616,7 +616,7 @@ void QmlProfilerTool::showLoadDialog()
     if (!checkForUnsavedNotes())
         return;
 
-    Debugger::selectPerspective(QmlProfilerPerspectiveId);
+    d->m_viewContainer->perspective()->select();
 
     QLatin1String tFile(QtdFileExtension);
     QLatin1String zFile(QztFileExtension);
@@ -640,8 +640,8 @@ void QmlProfilerTool::profileStartupProject()
 {
     if (!prepareTool())
         return;
-   Debugger::selectPerspective(Constants::QmlProfilerPerspectiveId);
-   ProjectExplorerPlugin::runStartupProject(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
+    d->m_viewContainer->perspective()->select();
+    ProjectExplorerPlugin::runStartupProject(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE);
 }
 
 QAction *QmlProfilerTool::startAction() const

@@ -36,12 +36,6 @@ namespace Internal {
 
 constexpr int SORT_LIMIT = 30000;
 
-ClangAssistProposalModel::ClangAssistProposalModel(
-        ClangBackEnd::CompletionCorrection neededCorrection)
-    : m_neededCorrection(neededCorrection)
-{
-}
-
 bool ClangAssistProposalModel::containsDuplicates() const
 {
     return false;
@@ -62,17 +56,11 @@ void ClangAssistProposalModel::sort(const QString &/*prefix*/)
             return static_cast<int>(first->prefixMatch())
                     < static_cast<int>(second->prefixMatch());
         }
-        return (first->order() > 0
-                && (first->order() < second->order()
-                    || (first->order() == second->order() && first->text() < second->text())));
+        return false;
     };
 
-    std::sort(m_currentItems.begin(), m_currentItems.end(), currentItemsCompare);
-}
-
-ClangBackEnd::CompletionCorrection ClangAssistProposalModel::neededCorrection() const
-{
-    return m_neededCorrection;
+    // Keep the order for the items with the same priority and name.
+    std::stable_sort(m_currentItems.begin(), m_currentItems.end(), currentItemsCompare);
 }
 
 } // namespace Internal

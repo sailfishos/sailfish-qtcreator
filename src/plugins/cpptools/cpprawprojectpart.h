@@ -28,6 +28,7 @@
 #include "cpptools_global.h"
 #include "projectpart.h"
 
+#include <projectexplorer/language.h>
 #include <projectexplorer/toolchain.h>
 
 #include <functional>
@@ -45,8 +46,7 @@ public:
     QStringList commandLineFlags;
     // The following are deduced from commandLineFlags.
     ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
-    ProjectExplorer::ToolChain::CompilerFlags compilerFlags
-        = ProjectExplorer::ToolChain::CompilerFlag::NoFlags;
+    ProjectExplorer::LanguageExtensions languageExtensions = ProjectExplorer::LanguageExtension::None;
 };
 
 class CPPTOOLS_EXPORT RawProjectPart
@@ -68,7 +68,7 @@ public:
     void setQtVersion(ProjectPart::QtVersion qtVersion);
 
     void setMacros(const ProjectExplorer::Macros &macros);
-    void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
+    void setHeaderPaths(const ProjectExplorer::HeaderPaths &headerPaths);
     void setIncludePaths(const QStringList &includePaths);
 
     void setPreCompiledHeaders(const QStringList &preCompiledHeaders);
@@ -88,7 +88,7 @@ public:
     QString callGroupId;
     QString buildSystemTarget;
     QStringList precompiledHeaders;
-    ProjectPartHeaderPaths headerPaths;
+    ProjectExplorer::HeaderPaths headerPaths;
     ProjectExplorer::Macros projectMacros;
     ProjectPart::QtVersion qtVersion = ProjectPart::UnknownQt;
     bool selectedForBuilding = true;

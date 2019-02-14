@@ -31,6 +31,24 @@
 
 namespace CppTools {
 
+enum class UseSystemHeader : char
+{
+    Yes,
+    No
+};
+
+enum class SkipBuiltIn : char
+{
+    Yes,
+    No
+};
+
+enum class SkipLanguageDefines : char
+{
+    Yes,
+    No
+};
+
 class CPPTOOLS_EXPORT CompilerOptionsBuilder
 {
 public:
@@ -40,37 +58,36 @@ public:
     };
 
     CompilerOptionsBuilder(const ProjectPart &projectPart,
-                           const QString &clangVersion = QString(),
-                           const QString &clangResourceDirectory = QString());
-    virtual ~CompilerOptionsBuilder() {}
-
-    virtual void addTargetTriple();
-    virtual void addExtraCodeModelFlags();
-    virtual void enableExceptions();
-    virtual void addPredefinedHeaderPathsOptions();
-    virtual void addLanguageOption(ProjectFile::Kind fileKind);
-    virtual void addOptionsForLanguage(bool checkForBorlandExtensions = true);
-
-    virtual void addExtraOptions() {}
+                           UseSystemHeader useSystemHeader = UseSystemHeader::No,
+                           SkipBuiltIn skipBuiltInHeaderPathsAndDefines = SkipBuiltIn::No,
+                           SkipLanguageDefines skipLanguageDefines = SkipLanguageDefines::Yes,
+                           QString clangVersion = QString(),
+                           QString clangResourceDirectory = QString());
 
     QStringList build(ProjectFile::Kind fileKind,
                       PchUsage pchUsage);
     QStringList options() const;
 
-    // Add custom options
-    void add(const QString &option);
-    void addDefine(const ProjectExplorer::Macro &marco);
-
+    virtual void addExtraOptions() {}
     // Add options based on project part
+    virtual void addToolchainAndProjectMacros();
     void addWordWidth();
+    void addToolchainFlags();
     void addHeaderPathOptions();
     void addPrecompiledHeaderOptions(PchUsage pchUsage);
-    virtual void addToolchainAndProjectMacros();
     void addMacros(const ProjectExplorer::Macros &macros);
+
+    void addTargetTriple();
+    void addExtraCodeModelFlags();
+    void enableExceptions();
+    void insertWrappedQtHeaders();
+    void addOptionsForLanguage(bool checkForBorlandExtensions = true);
+    void updateLanguageOption(ProjectFile::Kind fileKind);
 
     void addMsvcCompatibilityVersion();
     void undefineCppLanguageFeatureMacrosForMsvc2015();
     void addDefineFunctionMacrosMsvc();
+    void addBoostWorkaroundMacros();
 
     void addProjectConfigFileInclude();
     void undefineClangVersionMacrosForMsvc();
@@ -82,30 +99,31 @@ protected:
     virtual QString defineOption() const;
     virtual QString undefineOption() const;
     virtual QString includeOption() const;
-    virtual QString includeDirOption() const;
 
-    const ProjectPart m_projectPart;
+    // Add custom options
+    void add(const QString &option);
+
+    QString includeDirOptionForPath(const QString &path) const;
+
+    const ProjectPart &m_projectPart;
 
 private:
     QByteArray macroOption(const ProjectExplorer::Macro &macro) const;
     QByteArray toDefineOption(const ProjectExplorer::Macro &macro) const;
     QString defineDirectiveToDefineOption(const ProjectExplorer::Macro &marco) const;
-    void addClangIncludeFolder();
+
+    void addWrappedQtHeadersIncludePath(QStringList &list);
+
+    QByteArray msvcVersion() const;
 
     QStringList m_options;
+
     QString m_clangVersion;
     QString m_clangResourceDirectory;
+
+    UseSystemHeader m_useSystemHeader;
+    SkipBuiltIn m_skipBuiltInHeaderPathsAndDefines;
+    SkipLanguageDefines m_skipLanguageDefines;
 };
-
-QString CPPTOOLS_EXPORT clangExecutable(const QString &clangBinDirectory);
-
-QString CPPTOOLS_EXPORT clangIncludeDirectory(const QString &clangVersion,
-                                              const QString &clangResourceDirectory);
-
-template<class T>
-T clangIncludePath(const T &clangVersion)
-{
-    return "/lib/clang/" + clangVersion + "/include";
-}
 
 } // namespace CppTools

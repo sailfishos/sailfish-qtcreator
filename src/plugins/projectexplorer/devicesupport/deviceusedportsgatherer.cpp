@@ -93,7 +93,7 @@ void DeviceUsedPortsGatherer::stop()
     d->remoteStdout.clear();
     d->remoteStderr.clear();
     if (d->process)
-        disconnect(d->process.data(), 0, this, 0);
+        disconnect(d->process.data(), nullptr, this, nullptr);
     d->process.clear();
 }
 
@@ -177,7 +177,7 @@ void DeviceUsedPortsGatherer::handleRemoteStdErr()
 PortsGatherer::PortsGatherer(RunControl *runControl)
    : RunWorker(runControl)
 {
-    setDisplayName("PortGatherer");
+    setId("PortGatherer");
 
     connect(&m_portsGatherer, &DeviceUsedPortsGatherer::error, this, &PortsGatherer::reportFailure);
     connect(&m_portsGatherer, &DeviceUsedPortsGatherer::portListReady, this, [this] {
@@ -187,9 +187,7 @@ PortsGatherer::PortsGatherer(RunControl *runControl)
     });
 }
 
-PortsGatherer::~PortsGatherer()
-{
-}
+PortsGatherer::~PortsGatherer() = default;
 
 void PortsGatherer::start()
 {
@@ -259,7 +257,7 @@ public:
     SubChannelProvider(RunControl *runControl, RunWorker *sharedEndpointGatherer)
         : RunWorker(runControl)
     {
-        setDisplayName("SubChannelProvider");
+        setId("SubChannelProvider");
 
         m_portGatherer = qobject_cast<PortsGatherer *>(sharedEndpointGatherer);
         if (m_portGatherer) {
@@ -336,7 +334,7 @@ private:
 ChannelProvider::ChannelProvider(RunControl *runControl, int requiredChannels)
    : RunWorker(runControl)
 {
-    setDisplayName("ChannelProvider");
+    setId("ChannelProvider");
 
     RunWorker *sharedEndpoints = nullptr;
     if (auto sharedEndpointGatherer = device()->workerCreator("SharedEndpointGatherer")) {
@@ -353,9 +351,7 @@ ChannelProvider::ChannelProvider(RunControl *runControl, int requiredChannels)
     }
 }
 
-ChannelProvider::~ChannelProvider()
-{
-}
+ChannelProvider::~ChannelProvider() = default;
 
 QUrl ChannelProvider::channel(int i) const
 {

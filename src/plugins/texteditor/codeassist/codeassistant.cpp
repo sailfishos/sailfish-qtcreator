@@ -84,7 +84,7 @@ public:
     void clearAbortedPosition();
     void updateFromCompletionSettings(const TextEditor::CompletionSettings &settings);
 
-    virtual bool eventFilter(QObject *o, QEvent *e);
+    bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
     void processProposalItem(AssistProposalItemInterface *proposalItem);
@@ -104,6 +104,7 @@ private:
     IAssistProposalWidget *m_proposalWidget = nullptr;
     QScopedPointer<IAssistProposal> m_proposal;
     bool m_receivedContentWhileWaiting = false;
+    bool m_proposalItemProcessed = false;
     QTimer m_automaticProposalTimer;
     CompletionSettings m_settings;
     int m_abortedBasePosition = -1;
@@ -192,6 +193,13 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
     if (m_editorWidget->hasBlockSelection())
         return; // TODO
 
+    if (m_proposalItemProcessed
+            && reason == IdleEditor
+            && m_assistKind == TextEditor::Completion
+            && !identifyActivationSequence()) {
+        return;
+    }
+
     if (!provider) {
         if (kind == Completion)
             provider = m_editorWidget->textDocument()->completionAssistProvider();
@@ -207,6 +215,7 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
         return;
 
     m_assistKind = kind;
+    m_requestProvider = provider;
     IAssistProcessor *processor = provider->createProcessor();
 
     switch (provider->runType()) {
@@ -220,7 +229,6 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
         if (IAssistProposal *newProposal = processor->immediateProposal(assistInterface))
             displayProposal(newProposal, reason);
 
-        m_requestProvider = provider;
         m_requestRunner = new ProcessorRunner;
         m_runnerConnection = connect(m_requestRunner, &ProcessorRunner::finished,
                                      this, [this, reason](){
@@ -245,10 +253,17 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
     case IAssistProvider::Asynchronous: {
         processor->setAsyncCompletionAvailableHandler(
             [this, reason](IAssistProposal *newProposal){
-                invalidateCurrentRequestData();
-                displayProposal(newProposal, reason);
+                if (m_asyncProcessor && m_asyncProcessor->needsRestart() && m_receivedContentWhileWaiting) {
+                    delete newProposal;
+                    m_receivedContentWhileWaiting = false;
+                    invalidateCurrentRequestData();
+                    requestProposal(reason, m_assistKind, m_requestProvider);
+                } else {
+                    invalidateCurrentRequestData();
+                    displayProposal(newProposal, reason);
 
-                emit q->finished();
+                    emit q->finished();
+                }
         });
 
         // If there is a proposal, nothing asynchronous happened...
@@ -350,6 +365,16 @@ void CodeAssistantPrivate::processProposalItem(AssistProposalItemInterface *prop
     destroyContext();
     if (!proposalItem->isSnippet())
         process();
+    m_editorWidget->encourageApply();
+    m_proposalItemProcessed = true;
+
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = connect(m_editorWidget->textDocument(),
+                          &Core::IDocument::contentsChanged,
+                          this, [this, connection] {
+        m_proposalItemProcessed = false;
+        disconnect(*connection);
+    });
 }
 
 void CodeAssistantPrivate::handlePrefixExpansion(const QString &newPrefix)
@@ -432,10 +457,13 @@ void CodeAssistantPrivate::notifyChange()
         QTC_ASSERT(m_proposal, return);
         if (m_editorWidget->position() < m_proposal->basePosition()) {
             destroyContext();
-        } else {
+        } else if (m_proposal->supportsPrefix()) {
             m_proposalWidget->updateProposal(
                 m_editorWidget->textAt(m_proposal->basePosition(),
                                      m_editorWidget->position() - m_proposal->basePosition()));
+        } else {
+            destroyContext();
+            requestProposal(ExplicitlyInvoked, m_assistKind, m_requestProvider);
         }
     }
 }
@@ -512,7 +540,7 @@ bool CodeAssistantPrivate::isDestroyEvent(int key, const QString &keyText)
 {
     if (keyText.isEmpty())
         return key != Qt::LeftArrow && key != Qt::RightArrow && key != Qt::Key_Shift;
-    if (auto *provider = qobject_cast<CompletionAssistProvider *>(m_requestProvider))
+    if (auto provider = qobject_cast<CompletionAssistProvider *>(m_requestProvider))
         return !provider->isContinuationChar(keyText.at(0));
     return false;
 }
@@ -526,7 +554,7 @@ bool CodeAssistantPrivate::eventFilter(QObject *o, QEvent *e)
         if (type == QEvent::FocusOut) {
             destroyContext();
         } else if (type == QEvent::KeyPress) {
-            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(e);
+            auto keyEvent = static_cast<QKeyEvent *>(e);
             const QString &keyText = keyEvent->text();
 
             if (isDestroyEvent(keyEvent->key(), keyText))

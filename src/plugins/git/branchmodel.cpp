@@ -123,8 +123,6 @@ public:
 
     QStringList fullName(bool includePrefix = false) const
     {
-        QTC_ASSERT(isLeaf(), return QStringList());
-
         QStringList fn;
         QList<const BranchNode *> nodes;
         const BranchNode *current = this;
@@ -319,10 +317,10 @@ Qt::ItemFlags BranchModel::flags(const QModelIndex &index) const
     BranchNode *node = indexToNode(index);
     if (!node)
         return Qt::NoItemFlags;
-    if (index.column() == 0 && node->isLeaf() && node->isLocal())
-        return Qt::ItemIsSelectable | Qt::ItemIsEditable | Qt::ItemIsEnabled;
-    else
-        return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    Qt::ItemFlags res = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    if (node->isLeaf() && node->isLocal() && index.column() == 0)
+        res |= Qt::ItemIsEditable;
+    return res;
 }
 
 void BranchModel::clear()
@@ -344,15 +342,17 @@ bool BranchModel::refresh(const QString &workingDirectory, QString *errorMessage
     clear();
     if (workingDirectory.isEmpty()) {
         endResetModel();
-        return false;
+        return true;
     }
 
     m_currentSha = m_client->synchronousTopRevision(workingDirectory);
     const QStringList args = {"--format=%(objectname)\t%(refname)\t%(upstream:short)\t"
                               "%(*objectname)\t%(committerdate:raw)\t%(*committerdate:raw)"};
     QString output;
-    if (!m_client->synchronousForEachRefCmd(workingDirectory, args, &output, errorMessage))
-        VcsOutputWindow::appendError(*errorMessage);
+    if (!m_client->synchronousForEachRefCmd(workingDirectory, args, &output, errorMessage)) {
+        endResetModel();
+        return false;
+    }
 
     m_workingDirectory = workingDirectory;
     const QStringList lines = output.split('\n');
@@ -530,7 +530,7 @@ void BranchModel::checkoutBranch(const QModelIndex &idx)
 
     // No StashGuard since this function for now is only used with clean working dir.
     // If it is ever used from another place, please add StashGuard here
-    m_client->synchronousCheckout(m_workingDirectory, branch);
+    m_client->checkout(m_workingDirectory, branch, GitClient::StashMode::NoStash);
 }
 
 bool BranchModel::branchIsMerged(const QModelIndex &idx)
@@ -593,7 +593,7 @@ QModelIndex BranchModel::addBranch(const QString &name, bool track, const QModel
                                       VcsCommand::SuppressCommandLogging)) {
             const QStringList values = output.split(' ');
             startSha = values[0];
-            branchDateTime = QDateTime::fromTime_t(values[1].toInt());
+            branchDateTime = QDateTime::fromSecsSinceEpoch(values[1].toLongLong());
         }
     }
 
@@ -647,6 +647,19 @@ void BranchModel::setOldBranchesIncluded(bool value)
     m_oldBranchesIncluded = value;
 }
 
+Utils::optional<QString> BranchModel::remoteName(const QModelIndex &idx) const
+{
+    const BranchNode *remotesNode = m_rootNode->children.at(RemoteBranches);
+    const BranchNode *node = indexToNode(idx);
+    if (!node)
+        return Utils::nullopt;
+    if (node == remotesNode)
+        return QString();
+    if (node->parent == remotesNode)
+        return node->name;
+    return Utils::nullopt;
+}
+
 void BranchModel::parseOutputLine(const QString &line)
 {
     if (line.size() < 3)
@@ -664,8 +677,8 @@ void BranchModel::parseOutputLine(const QString &line)
     if (strDateTime.isEmpty())
         strDateTime = lineParts.at(4);
     if (!strDateTime.isEmpty()) {
-        const uint timeT = strDateTime.leftRef(strDateTime.indexOf(' ')).toUInt();
-        dateTime = QDateTime::fromTime_t(timeT);
+        const qint64 timeT = strDateTime.leftRef(strDateTime.indexOf(' ')).toLongLong();
+        dateTime = QDateTime::fromSecsSinceEpoch(timeT);
     }
 
     if (!m_oldBranchesIncluded && !current && dateTime.isValid()) {

@@ -63,7 +63,7 @@ private:
     void setFuture(QFutureInterface<void> *future);
 
     QFutureInterface<void> *m_future;
-    QMutex *m_futureMutex;
+    QMutex *m_futureMutex = nullptr;
     friend class ShellCommand;
 };
 
@@ -101,6 +101,7 @@ public:
         FullySynchronously = 0x80, // Suppress local event loop (in case UI actions are
                                    // triggered by file watchers).
         SilentOutput = 0x100, // Suppress user notifications about the output happening.
+        NoFullySync = 0x200, // Avoid fully synchronous execution even in UI thread.
         NoOutput = SuppressStdErr | SuppressFailMessage | SuppressCommandLogging
     };
 

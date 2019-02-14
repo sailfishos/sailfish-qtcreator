@@ -25,19 +25,18 @@
 
 #include "buildconfiguration.h"
 
+#include "buildenvironmentwidget.h"
 #include "buildinfo.h"
 #include "buildsteplist.h"
-#include "projectexplorer.h"
-#include "kitmanager.h"
-#include "target.h"
-#include "project.h"
 #include "kit.h"
-
-#include <projectexplorer/buildenvironmentwidget.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/projectmacroexpander.h>
-#include <projectexplorer/target.h>
+#include "kitinformation.h"
+#include "kitmanager.h"
+#include "project.h"
+#include "projectexplorer.h"
+#include "projectexplorerconstants.h"
+#include "projectmacroexpander.h"
+#include "projecttree.h"
+#include "target.h"
 
 #include <coreplugin/idocument.h>
 
@@ -77,9 +76,12 @@ BuildConfiguration::BuildConfiguration(Target *target, Core::Id id)
 
     updateCacheAndEmitEnvironmentChanged();
     connect(target, &Target::kitChanged,
-            this, &BuildConfiguration::handleKitUpdate);
+            this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
     connect(this, &BuildConfiguration::environmentChanged,
             this, &BuildConfiguration::emitBuildDirectoryChanged);
+    // Many macroexpanders are based on the current project, so they may change the environment:
+    connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
+            this, &BuildConfiguration::updateCacheAndEmitEnvironmentChanged);
 }
 
 Utils::FileName BuildConfiguration::buildDirectory() const
@@ -184,11 +186,6 @@ void BuildConfiguration::updateCacheAndEmitEnvironmentChanged()
     emit environmentChanged(); // might trigger buildDirectoryChanged signal!
 }
 
-void BuildConfiguration::handleKitUpdate()
-{
-    updateCacheAndEmitEnvironmentChanged();
-}
-
 void BuildConfiguration::emitBuildDirectoryChanged()
 {
     if (buildDirectory() != m_lastEmmitedBuildDirectory) {
@@ -269,6 +266,12 @@ bool BuildConfiguration::isEnabled() const
 QString BuildConfiguration::disabledReason() const
 {
     return QString();
+}
+
+bool BuildConfiguration::regenerateBuildFiles(Node *node)
+{
+    Q_UNUSED(node);
+    return false;
 }
 
 QString BuildConfiguration::buildTypeName(BuildConfiguration::BuildType type)
@@ -355,7 +358,7 @@ int IBuildConfigurationFactory::priority(const Kit *k, const QString &projectPat
 // setup
 IBuildConfigurationFactory *IBuildConfigurationFactory::find(const Kit *k, const QString &projectPath)
 {
-    IBuildConfigurationFactory *factory = 0;
+    IBuildConfigurationFactory *factory = nullptr;
     int priority = -1;
     for (IBuildConfigurationFactory *i : g_buildConfigurationFactories) {
         int iPriority = i->priority(k, projectPath);
@@ -370,7 +373,7 @@ IBuildConfigurationFactory *IBuildConfigurationFactory::find(const Kit *k, const
 // create
 IBuildConfigurationFactory * IBuildConfigurationFactory::find(Target *parent)
 {
-    IBuildConfigurationFactory *factory = 0;
+    IBuildConfigurationFactory *factory = nullptr;
     int priority = -1;
     for (IBuildConfigurationFactory *i : g_buildConfigurationFactories) {
         int iPriority = i->priority(parent);

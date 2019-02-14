@@ -94,7 +94,8 @@ protected:
     Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
     ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> databaseInitializer{database};
     ClangBackEnd::FilePathCaching filePathCache{database};
-    ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing, filePathCache};
+    ClangBackEnd::GeneratedFiles generatedFiles;
+    ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing, filePathCache, generatedFiles};
     Utils::SmallString sourceContent{"void f()\n {}"};
     FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"},
                          sourceContent.clone(),
@@ -298,6 +299,29 @@ TEST_F(RefactoringServerSlowTest, ForInvalidRequestSourceRangesAndDiagnosticsGet
     refactoringServer.requestSourceRangesAndDiagnosticsForQueryMessage(std::move(message));
 }
 
+TEST_F(RefactoringServer, UpdateGeneratedFilesSetMemberWhichIsUsedForSymbolIndexing)
+{
+    FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            "void f();",
+                            {}}};
+
+    refactoringServer.updateGeneratedFiles(Utils::clone(unsaved));
+
+    ASSERT_THAT(generatedFiles.fileContainers(), ElementsAre(unsaved.front()));
+}
+
+TEST_F(RefactoringServer, RemoveGeneratedFilesSetMemberWhichIsUsedForSymbolIndexing)
+{
+    FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
+                            "void f();",
+                            {}}};
+    refactoringServer.updateGeneratedFiles(Utils::clone(unsaved));
+
+    refactoringServer.removeGeneratedFiles({{{TESTDATA_DIR, "query_simplefunction.h"}}});
+
+    ASSERT_THAT(generatedFiles.fileContainers(), IsEmpty());
+}
+
 TEST_F(RefactoringServer, UpdateProjectPartsCallsSymbolIndexingUpdateProjectParts)
 {
     ProjectPartContainers projectParts{{{"projectPartId",
@@ -306,16 +330,14 @@ TEST_F(RefactoringServer, UpdateProjectPartsCallsSymbolIndexingUpdateProjectPart
                                         {"/includes"},
                                         {filePathId("header1.h")},
                                         {filePathId("main.cpp")}}}};
-    FileContainers unsaved{{{TESTDATA_DIR, "query_simplefunction.h"},
-                            "void f();",
-                            {}}};
 
 
     EXPECT_CALL(mockSymbolIndexing,
-                updateProjectParts(projectParts, unsaved));
+                updateProjectParts(projectParts));
 
-    refactoringServer.updateProjectParts({Utils::clone(projectParts), Utils::clone(unsaved)});
+    refactoringServer.updateProjectParts({Utils::clone(projectParts)});
 }
+
 
 void RefactoringServer::SetUp()
 {

@@ -55,15 +55,15 @@ namespace Internal {
 
 class ClangProjectSettings;
 
-class ModelManagerSupportClang:
+class ClangModelManagerSupport:
         public QObject,
         public CppTools::ModelManagerSupport
 {
     Q_OBJECT
 
 public:
-    ModelManagerSupportClang();
-    ~ModelManagerSupportClang() override;
+    ClangModelManagerSupport();
+    ~ClangModelManagerSupport() override;
 
     CppTools::CppCompletionAssistProvider *completionAssistProvider() override;
     TextEditor::BaseHoverHandler *createHoverHandler() override;
@@ -72,6 +72,7 @@ public:
     CppTools::FollowSymbolInterface &followSymbolInterface() override;
     CppTools::RefactoringEngineInterface &refactoringEngineInterface() override;
     std::unique_ptr<CppTools::AbstractOverviewModel> createOverviewModel() override;
+    void setBackendJobsPostponed(bool postponed) override;
 
     BackendCommunicator &communicator();
     QString dummyUiHeaderOnDiskDirPath() const;
@@ -79,9 +80,11 @@ public:
 
     ClangProjectSettings &projectSettings(ProjectExplorer::Project *project) const;
 
-    static ModelManagerSupportClang *instance();
+    static ClangModelManagerSupport *instance();
 
 private:
+    bool eventFilter(QObject *obj, QEvent *e) override;
+
     void onEditorOpened(Core::IEditor *editor);
     void onEditorClosed(const QList<Core::IEditor *> &editors);
     void onCurrentEditorChanged(Core::IEditor *newCurrent);
@@ -109,7 +112,7 @@ private:
 
     void onDiagnosticConfigsInvalidated(const QVector<Core::Id> &configIds);
 
-    void closeBackendDocumentsWithProjectParts(const QStringList &projectPartIds);
+    void reinitializeBackendDocuments(const QStringList &projectPartIds);
 
     void connectTextDocumentToTranslationUnit(TextEditor::TextDocument *textDocument);
     void connectTextDocumentToUnsavedFiles(TextEditor::TextDocument *textDocument);
@@ -128,7 +131,7 @@ private:
     QHash<ProjectExplorer::Project *, ClangProjectSettings *> m_projectSettings;
 };
 
-class ModelManagerSupportProviderClang : public CppTools::ModelManagerSupportProvider
+class ClangModelManagerSupportProvider : public CppTools::ModelManagerSupportProvider
 {
 public:
     QString id() const override;

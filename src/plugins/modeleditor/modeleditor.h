@@ -69,7 +69,7 @@ public:
                          QWidget *parent = nullptr);
     ~ModelEditor();
 
-    Core::IDocument *document() override;
+    Core::IDocument *document() const override;
     QWidget *toolBar() override;
     QByteArray saveState() const override;
     bool restoreState(const QByteArray &state) override;
@@ -91,6 +91,8 @@ public:
     void exportSelectedElements();
     void zoomIn();
     void zoomOut();
+    void zoomInAtPos(const QPoint &pos);
+    void zoomOutAtPos(const QPoint &pos);
     void resetZoom();
 
     qmt::MPackage *guessSelectedPackage() const;
@@ -109,6 +111,7 @@ private:
                                             QWidget *parent);
     bool updateButtonIconByTheme(QAbstractButton *button, const QString &name);
     void showZoomIndicator();
+    void zoomAtPos(const QPoint &pos, double scale);
 
     void onAddPackage();
     void onAddComponent();

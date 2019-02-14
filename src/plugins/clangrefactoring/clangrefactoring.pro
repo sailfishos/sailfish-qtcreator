@@ -6,6 +6,11 @@ include(../../shared/clang/clang_defines.pri)
 
 requires(!isEmpty(LIBTOOLING_LIBS))
 
+win32 {
+    LLVM_BUILDMODE = $$system($$llvm_config --build-mode, lines)
+    CONFIG(debug, debug|release):requires(equals(LLVM_BUILDMODE, "Debug"))
+}
+
 HEADERS += \
     clangrefactoringplugin.h \
     baseclangquerytexteditorwidget.h \
@@ -21,7 +26,8 @@ HEADERS += \
     sourcelocations.h \
     symbolsfindfilterconfigwidget.h \
     symbolquery.h \
-    qtcreatoreditormanager.h
+    qtcreatoreditormanager.h \
+    qtcreatorrefactoringprojectupdater.h
 
 SOURCES += \
     clangrefactoringplugin.cpp \
@@ -35,7 +41,8 @@ SOURCES += \
     qtcreatorsearchhandle.cpp \
     qtcreatorsymbolsfindfilter.cpp \
     symbolsfindfilterconfigwidget.cpp \
-    qtcreatoreditormanager.cpp
+    qtcreatoreditormanager.cpp \
+    qtcreatorrefactoringprojectupdater.cpp
 
 FORMS += \
     clangqueryprojectsfindfilter.ui

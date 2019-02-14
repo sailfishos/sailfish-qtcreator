@@ -83,13 +83,16 @@ Core::Id CMakeKitInformation::id()
     return TOOL_ID;
 }
 
-CMakeTool *CMakeKitInformation::cmakeTool(const Kit *k)
+Core::Id CMakeKitInformation::cmakeToolId(const Kit *k)
 {
     if (!k)
-        return nullptr;
+        return {};
+    return Core::Id::fromSetting(k->value(TOOL_ID));
+}
 
-    const QVariant id = k->value(TOOL_ID);
-    return CMakeToolManager::findById(Core::Id::fromSetting(id));
+CMakeTool *CMakeKitInformation::cmakeTool(const Kit *k)
+{
+    return CMakeToolManager::findById(cmakeToolId(k));
 }
 
 void CMakeKitInformation::setCMakeTool(Kit *k, const Core::Id id)
@@ -564,7 +567,7 @@ QList<Task> CMakeConfigurationKitInformation::validate(const Kit *k) const
     Utils::FileName tcCPath;
     Utils::FileName tcCxxPath;
     foreach (const CMakeConfigItem &i, config) {
-        // Do not use expand(QByteArray) as we can not be sure the input is latin1
+        // Do not use expand(QByteArray) as we cannot be sure the input is latin1
         const Utils::FileName expandedValue
             = Utils::FileName::fromString(k->macroExpander()->expand(QString::fromUtf8(i.value)));
         if (i.key == CMAKE_QMAKE_KEY)

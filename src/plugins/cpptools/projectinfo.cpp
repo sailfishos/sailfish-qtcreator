@@ -47,8 +47,8 @@ ToolChainInfo::ToolChainInfo(const ProjectExplorer::ToolChain *toolChain,
         // ...and save the potentially expensive operations for later so that
         // they can be run from a worker thread.
         sysRootPath = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
-        headerPathsRunner = toolChain->createSystemHeaderPathsRunner();
-        predefinedMacrosRunner = toolChain->createPredefinedMacrosRunner();
+        headerPathsRunner = toolChain->createBuiltInHeaderPathsRunner();
+        macroInspectionRunner = toolChain->createMacroInspectionRunner();
     }
 }
 
@@ -63,6 +63,19 @@ ProjectUpdateInfo::ProjectUpdateInfo(ProjectExplorer::Project *project,
     , cxxToolChain(cxxToolChain)
     , cToolChainInfo(ToolChainInfo(cToolChain, kit))
     , cxxToolChainInfo(ToolChainInfo(cxxToolChain, kit))
+{
+}
+
+ProjectUpdateInfo::ProjectUpdateInfo(ProjectExplorer::Project *project,
+                  const ToolChainInfo &cToolChainInfo,
+                  const ToolChainInfo &cxxToolChainInfo,
+                  const RawProjectParts &rawProjectParts)
+    : project(project)
+    , rawProjectParts(rawProjectParts)
+    , cToolChain(nullptr)
+    , cxxToolChain(nullptr)
+    , cToolChainInfo(cToolChainInfo)
+    , cxxToolChainInfo(cxxToolChainInfo)
 {
 }
 
@@ -128,11 +141,11 @@ void ProjectInfo::appendProjectPart(const ProjectPart::Ptr &projectPart)
 
 void ProjectInfo::finish()
 {
-    QSet<ProjectPartHeaderPath> uniqueHeaderPaths;
+    QSet<ProjectExplorer::HeaderPath> uniqueHeaderPaths;
 
     foreach (const ProjectPart::Ptr &part, m_projectParts) {
         // Update header paths
-        foreach (const ProjectPartHeaderPath &headerPath, part->headerPaths) {
+        foreach (const ProjectExplorer::HeaderPath &headerPath, part->headerPaths) {
             const int count = uniqueHeaderPaths.count();
             uniqueHeaderPaths.insert(headerPath);
             if (count < uniqueHeaderPaths.count())

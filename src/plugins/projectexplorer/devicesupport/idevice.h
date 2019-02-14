@@ -38,6 +38,7 @@
 #include <QVariantMap>
 
 #include <functional>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QWidget;
@@ -216,7 +217,7 @@ private:
     int version() const;
     void setSdkProvided(bool sdkProvided);
 
-    Internal::IDevicePrivate *d;
+    const std::unique_ptr<Internal::IDevicePrivate> d;
     friend class DeviceManager;
 };
 

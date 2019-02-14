@@ -34,7 +34,7 @@
 #include <QPushButton>
 
 namespace {
-Q_LOGGING_CATEGORY(iosCommon, "qtc.ios.common")
+Q_LOGGING_CATEGORY(iosCommon, "qtc.ios.common", QtWarningMsg)
 }
 
 namespace Ios {
@@ -98,10 +98,10 @@ void SimulatorOperationDialog::addMessage(const SimulatorInfo &siminfo,
         addMessage(tr("%1, %2\nOperation %3 completed successfully.").arg(siminfo.name)
                    .arg(siminfo.runtimeName).arg(context), Utils::StdOutFormat);
     } else {
-        QByteArray erroMsg = response.commandOutput.trimmed();
+        QString erroMsg = response.commandOutput.trimmed();
         QString message = tr("%1, %2\nOperation %3 failed.\nUDID: %4\nError: %5").arg(siminfo.name)
                 .arg(siminfo.runtimeName).arg(context).arg(siminfo.identifier)
-                .arg(erroMsg.isEmpty() ? tr("Unknown") : QString::fromUtf8(erroMsg));
+                .arg(erroMsg.isEmpty() ? tr("Unknown") : erroMsg);
         addMessage(message, Utils::StdErrFormat);
         qCDebug(iosCommon) << message;
     }

@@ -36,6 +36,7 @@
 #include <QQueue>
 
 QT_BEGIN_NAMESPACE
+class QCheckBox;
 class QComboBox;
 class QDialogButtonBox;
 class QLabel;
@@ -52,12 +53,11 @@ namespace Internal {
 class AUTOTESTSHARED_EXPORT TestRunner : public QObject
 {
     Q_OBJECT
-
 public:
     enum CancelReason { UserCanceled, Timeout, KitChanged };
 
     static TestRunner* instance();
-    ~TestRunner();
+    ~TestRunner() override;
 
     void setSelectedTests(const QList<TestConfiguration *> &selected);
     void runTest(TestRunMode mode, const TestTreeItem *item);
@@ -109,9 +109,10 @@ class RunConfigurationSelectionDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit RunConfigurationSelectionDialog(const QString &testsInfo, QWidget *parent = nullptr);
+    explicit RunConfigurationSelectionDialog(const QString &buildTargetKey, QWidget *parent = nullptr);
     QString displayName() const;
     QString executable() const;
+    bool rememberChoice() const;
 private:
     void populate();
     void updateLabels();
@@ -120,6 +121,7 @@ private:
     QLabel *m_arguments;
     QLabel *m_workingDir;
     QComboBox *m_rcCombo;
+    QCheckBox *m_rememberCB;
     QDialogButtonBox *m_buttonBox;
 };
 

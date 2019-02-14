@@ -95,8 +95,10 @@ public:
     static QString resourcePath();
     static QString userResourcePath();
     static QString installerResourcePath();
-    static QString documentationPath();
     static QString libexecPath();
+    static QString clangExecutable(const QString &clangBinDirectory);
+    static QString clangIncludeDirectory(const QString &clangVersion,
+                                         const QString &clangResourceDirectory);
 
     static QString versionString();
     static QString buildCompatibilityString();
@@ -109,6 +111,7 @@ public:
 
     static IContext *currentContextObject();
     static QWidget *currentContextWidget();
+    static IContext *contextObject(QWidget *widget);
     // Adds and removes additional active contexts, these contexts are appended
     // to the currently active contexts.
     static void updateAdditionalContexts(const Context &remove, const Context &add,
@@ -127,7 +130,8 @@ public:
         SwitchMode = 1,
         CanContainLineAndColumnNumbers = 2,
          /// Stop loading once the first file fails to load
-        StopOnLoadFail = 4
+        StopOnLoadFail = 4,
+        SwitchSplitIfAlreadyVisible = 8
     };
     static void openFiles(const QStringList &fileNames, OpenFilesFlags flags = None);
 

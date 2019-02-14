@@ -36,9 +36,7 @@ namespace DesignerSettingsGroupKey {
     const char QML_DESIGNER_SETTINGS_GROUP[] = "Designer";
 }
 
-DesignerSettings::DesignerSettings()
-{
-}
+DesignerSettings::DesignerSettings() = default;
 
 void DesignerSettings::restoreValue(QSettings *settings, const QByteArray &key, const QVariant &defaultValue)
 {
@@ -62,9 +60,9 @@ void DesignerSettings::fromSettings(QSettings *settings)
     restoreValue(settings, DesignerSettingsKey::SHOW_DEBUGVIEW, false);
     restoreValue(settings, DesignerSettingsKey::ENABLE_DEBUGVIEW, false);
     restoreValue(settings, DesignerSettingsKey::ALWAYS_SAFE_IN_CRUMBLEBAR, false);
-    restoreValue(settings, DesignerSettingsKey::USE_ONLY_FALLBACK_PUPPET, true);
+    restoreValue(settings, DesignerSettingsKey::USE_DEFAULT_PUPPET, true);
     restoreValue(settings, DesignerSettingsKey::TYPE_OF_QSTR_FUNCTION, 0);
-    restoreValue(settings, DesignerSettingsKey::PUPPET_FALLBACK_DIRECTORY);
+    restoreValue(settings, DesignerSettingsKey::PUPPET_DEFAULT_DIRECTORY);
     restoreValue(settings, DesignerSettingsKey::PUPPET_TOPLEVEL_BUILD_DIRECTORY);
     restoreValue(settings, DesignerSettingsKey::CONTROLS_STYLE);
     restoreValue(settings, DesignerSettingsKey::SHOW_PROPERTYEDITOR_WARNINGS, false);

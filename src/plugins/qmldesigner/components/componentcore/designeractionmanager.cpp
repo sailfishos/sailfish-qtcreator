@@ -71,7 +71,7 @@ DesignerActionManagerView *DesignerActionManager::view()
 
 DesignerActionToolBar *DesignerActionManager::createToolBar(QWidget *parent) const
 {
-    DesignerActionToolBar *toolBar = new DesignerActionToolBar(parent);
+    auto toolBar = new DesignerActionToolBar(parent);
 
     QList<ActionInterface* > categories = Utils::filtered(designerActions(), [](ActionInterface *action) {
             return action->type() ==  ActionInterface::ContextMenu;
@@ -149,13 +149,13 @@ QGraphicsWidget *DesignerActionManager::createFormEditorToolBar(QGraphicsItem *p
 
     QGraphicsWidget *toolbar = new QGraphicsWidget(parent);
 
-    QGraphicsLinearLayout *layout = new QGraphicsLinearLayout;
+    auto layout = new QGraphicsLinearLayout;
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     toolbar->setLayout(layout);
 
     for (ActionInterface *action : actions) {
-        FormEditorToolButton *button = new FormEditorToolButton(action->action(), toolbar);
+        auto button = new FormEditorToolButton(action->action(), toolbar);
         layout->addItem(button);
     }
 
@@ -196,10 +196,10 @@ public:
                              SelectionContextOperation action,
                              SelectionContextPredicate enabled = &SelectionContextFunctors::always,
                              SelectionContextPredicate visibility = &SelectionContextFunctors::always) :
-        ModelNodeContextMenuAction(id, description, category, key, priority, action, enabled, visibility)
+        ModelNodeContextMenuAction(id, description, {}, category, key, priority, action, enabled, visibility)
     {}
 
-    virtual void updateContext()
+    void updateContext() override
     {
         defaultAction()->setSelectionContext(selectionContext());
         if (selectionContext().isValid()) {
@@ -223,9 +223,9 @@ public:
                               SelectionContextOperation action,
                               SelectionContextPredicate enabled = &SelectionContextFunctors::always,
                               SelectionContextPredicate visibility = &SelectionContextFunctors::always) :
-        ModelNodeContextMenuAction(id, description, category, key, priority, action, enabled, visibility)
+        ModelNodeContextMenuAction(id, description, {}, category, key, priority, action, enabled, visibility)
     {}
-    virtual void updateContext()
+    void updateContext() override
     {
         defaultAction()->setSelectionContext(selectionContext());
         if (selectionContext().isValid()) {
@@ -285,7 +285,7 @@ public:
 
     {}
 
-    virtual void updateContext()
+    void updateContext() override
     {
         menu()->clear();
         if (selectionContext().isValid()) {
@@ -598,6 +598,9 @@ bool lowerAvailable(const SelectionContext &selectionState)
     if (modelNode.isRootNode())
         return false;
 
+    if (!modelNode.hasParentProperty())
+        return false;
+
     if (!modelNode.parentProperty().isNodeListProperty())
         return false;
 
@@ -654,6 +657,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           toFrontCommandId,
                           toFrontDisplayName,
+                          {},
                           stackCategory,
                           QKeySequence(),
                           200,
@@ -663,27 +667,26 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           toBackCommandId,
                           toBackDisplayName,
+                          {},
                           stackCategory,
                           QKeySequence(),
                           180,
                           &toBack,
                           &singleSelection));
 
-    addDesignerAction(new ModelNodeAction(
+    addDesignerAction(new ModelNodeContextMenuAction(
                           raiseCommandId, raiseDisplayName,
                           Utils::Icon({{":/qmldesigner/icon/designeractions/images/raise.png", Utils::Theme::IconsBaseColor}}).icon(),
-                          raiseToolTip,
                           stackCategory,
                           QKeySequence(),
                           160,
                           &raise,
                           &raiseAvailable));
 
-    addDesignerAction(new ModelNodeAction(
+    addDesignerAction(new ModelNodeContextMenuAction(
                           lowerCommandId,
                           lowerDisplayName,
                           Utils::Icon({{":/qmldesigner/icon/designeractions/images/lower.png", Utils::Theme::IconsBaseColor}}).icon(),
-                          lowerToolTip,
                           stackCategory,
                           QKeySequence(),
                           140,
@@ -695,6 +698,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           resetZCommandId,
                           resetZDisplayName,
+                          {},
                           stackCategory,
                           QKeySequence(),
                           100,
@@ -790,6 +794,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           removePositionerCommandId,
                           removePositionerDisplayName,
+                          {},
                           positionCategory,
                           QKeySequence("Ctrl+Shift+p"),
                           210,
@@ -800,6 +805,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           layoutRowPositionerCommandId,
                           layoutRowPositionerDisplayName,
+                          {},
                           positionCategory,
                           QKeySequence(),
                           200,
@@ -810,6 +816,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           layoutColumnPositionerCommandId,
                           layoutColumnPositionerDisplayName,
+                          {},
                           positionCategory,
                           QKeySequence(),
                           180,
@@ -820,6 +827,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           layoutGridPositionerCommandId,
                           layoutGridPositionerDisplayName,
+                          {},
                           positionCategory,
                           QKeySequence(),
                           160,
@@ -830,6 +838,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           layoutFlowPositionerCommandId,
                           layoutFlowPositionerDisplayName,
+                          {},
                           positionCategory,
                           QKeySequence("Ctrl+m"),
                           140,
@@ -842,6 +851,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           removeLayoutCommandId,
                           removeLayoutDisplayName,
+                          {},
                           layoutCategory,
                           QKeySequence(),
                           110,
@@ -864,6 +874,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           addTabBarToStackedContainerCommandId,
                           addTabBarToStackedContainerDisplayName,
+                          {},
                           stackedContainerCategory,
                           QKeySequence("Ctrl+Shift+t"),
                           100,
@@ -955,6 +966,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           goIntoComponentCommandId,
                           goIntoComponentDisplayName,
+                          {},
                           rootCategory,
                           QKeySequence(Qt::Key_F2),
                           priorityGoIntoComponent,
@@ -964,6 +976,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           goToImplementationCommandId,
                           goToImplementationDisplayName,
+                          {},
                           rootCategory,
                           QKeySequence(),
                           42,
@@ -974,6 +987,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           addSignalHandlerCommandId,
                           addSignalHandlerDisplayName,
+                          {},
                           rootCategory, QKeySequence(),
                           42, &addNewSignalHandler,
                           &singleSelectedAndUiFile,
@@ -982,6 +996,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new ModelNodeContextMenuAction(
                           moveToComponentCommandId,
                           moveToComponentDisplayName,
+                          {},
                           rootCategory,
                           QKeySequence(),
                           44,
@@ -1036,9 +1051,7 @@ DesignerActionManager::DesignerActionManager(DesignerActionManagerView *designer
 {
 }
 
-DesignerActionManager::~DesignerActionManager()
-{
-}
+DesignerActionManager::~DesignerActionManager() = default;
 
 DesignerActionToolBar::DesignerActionToolBar(QWidget *parentWidget) : Utils::StyledBar(parentWidget),
     m_toolBar(new QToolBar("ActionToolBar", this))
@@ -1048,7 +1061,7 @@ DesignerActionToolBar::DesignerActionToolBar(QWidget *parentWidget) : Utils::Sty
     m_toolBar->setMovable(true);
     m_toolBar->setOrientation(Qt::Horizontal);
 
-    QHBoxLayout *horizontalLayout = new QHBoxLayout(this);
+    auto horizontalLayout = new QHBoxLayout(this);
 
     horizontalLayout->setMargin(0);
     horizontalLayout->setSpacing(0);
@@ -1066,7 +1079,7 @@ void DesignerActionToolBar::registerAction(ActionInterface *action)
 
 void DesignerActionToolBar::addSeparator()
 {
-    QAction *separatorAction = new QAction(m_toolBar);
+    auto separatorAction = new QAction(m_toolBar);
     separatorAction->setSeparator(true);
     m_toolBar->addAction(separatorAction);
 }

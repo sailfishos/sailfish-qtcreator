@@ -41,11 +41,9 @@ namespace QmlDesigner {
 class ItemLibraryFileIconProvider : public QFileIconProvider
 {
 public:
-    ItemLibraryFileIconProvider()
-    {
-    }
+    ItemLibraryFileIconProvider() = default;
 
-    QIcon icon( const QFileInfo & info ) const
+    QIcon icon( const QFileInfo & info ) const override
     {
         QIcon icon;
 
@@ -90,7 +88,7 @@ void CustomFileSystemModel::setFilter(QDir::Filters)
 
 }
 
-QString filterMetaIcons(const QString fileName)
+QString filterMetaIcons(const QString &fileName)
 {
 
     QFileInfo info(fileName);

@@ -182,7 +182,7 @@ PluginSpec::PluginSpec()
 PluginSpec::~PluginSpec()
 {
     delete d;
-    d = 0;
+    d = nullptr;
 }
 
 /*!
@@ -271,7 +271,8 @@ QRegExp PluginSpec::platformSpecification() const
 
 bool PluginSpec::isAvailableForHostPlatform() const
 {
-    return d->platformSpecification.isEmpty() || d->platformSpecification.exactMatch(PluginManager::platformName());
+    return d->platformSpecification.isEmpty()
+            || d->platformSpecification.indexIn(PluginManager::platformName()) >= 0;
 }
 
 bool PluginSpec::isRequired() const
@@ -963,7 +964,7 @@ bool PluginSpecPrivate::loadLibrary()
             + QString::fromLatin1(": ") + loader.errorString();
         return false;
     }
-    IPlugin *pluginObject = qobject_cast<IPlugin*>(loader.instance());
+    auto *pluginObject = qobject_cast<IPlugin*>(loader.instance());
     if (!pluginObject) {
         hasError = true;
         errorString = QCoreApplication::translate("PluginSpec", "Plugin is not valid (does not derive from IPlugin)");
@@ -1065,6 +1066,6 @@ void PluginSpecPrivate::kill()
     if (!plugin)
         return;
     delete plugin;
-    plugin = 0;
+    plugin = nullptr;
     state = PluginSpec::Deleted;
 }

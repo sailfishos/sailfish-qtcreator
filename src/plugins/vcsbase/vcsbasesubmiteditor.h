@@ -74,8 +74,6 @@ public:
     // Register the actions with the submit editor widget.
     void registerActions(QAction *editorUndoAction,  QAction *editorRedoAction,
                          QAction *submitAction = nullptr, QAction *diffAction = nullptr);
-    void unregisterActions(QAction *editorUndoAction,  QAction *editorRedoAction,
-                           QAction *submitAction = nullptr, QAction *diffAction = nullptr);
 
     ~VcsBaseSubmitEditor() override;
 
@@ -108,7 +106,7 @@ public:
     QString checkScriptWorkingDirectory() const;
     void setCheckScriptWorkingDirectory(const QString &);
 
-    Core::IDocument *document() override;
+    Core::IDocument *document() const override;
 
     QWidget *toolBar() override;
 

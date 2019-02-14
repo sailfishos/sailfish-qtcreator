@@ -144,7 +144,7 @@ public:
         : m_item(item), m_orig(item), m_added(changed), m_changed(changed)
     {}
 
-    QVariant data(int column, int role) const
+    QVariant data(int column, int role) const override
     {
         switch (role) {
             case Qt::DisplayRole:
@@ -327,7 +327,7 @@ DebuggerItemConfigWidget::DebuggerItemConfigWidget()
     m_abis = new QLineEdit(this);
     m_abis->setEnabled(false);
 
-    QFormLayout *formLayout = new QFormLayout(this);
+    auto formLayout = new QFormLayout(this);
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     formLayout->addRow(new QLabel(tr("Name:")), m_displayNameLineEdit);
     formLayout->addRow(m_cdbLabel);
@@ -356,7 +356,7 @@ DebuggerItem DebuggerItemConfigWidget::item() const
     foreach (const QString &a, m_abis->text().split(QRegExp(QLatin1String("[^A-Za-z0-9-_]+")))) {
         if (a.isNull())
             continue;
-        abiList << a;
+        abiList << Abi::fromString(a);
     }
     item.setAbis(abiList);
     item.setVersion(m_versionLabel->text());
@@ -620,7 +620,7 @@ void DebuggerOptionsPage::apply()
 void DebuggerOptionsPage::finish()
 {
     delete m_configWidget;
-    m_configWidget = 0;
+    m_configWidget = nullptr;
     d->m_model->cancel();
 }
 
@@ -968,7 +968,7 @@ DebuggerItemManager::~DebuggerItemManager()
     delete d;
 }
 
-QList<DebuggerItem> DebuggerItemManager::debuggers()
+const QList<DebuggerItem> DebuggerItemManager::debuggers()
 {
     QList<DebuggerItem> result;
     forAllDebuggers([&result](const DebuggerItem &item) { result.append(item); });

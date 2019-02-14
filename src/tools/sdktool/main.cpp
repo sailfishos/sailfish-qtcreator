@@ -30,6 +30,7 @@
 #include "addcmakeoperation.h"
 #include "adddebuggeroperation.h"
 #include "adddeviceoperation.h"
+#include "addabiflavor.h"
 #include "addkeysoperation.h"
 #include "addkitoperation.h"
 #include "addqtoperation.h"
@@ -70,13 +71,13 @@ void printHelp(const Operation *op)
     std::cout << std::endl;
 }
 
-const QString tabular(const Operation *o)
+const QString tabular(const std::unique_ptr<Operation> &o)
 {
     const QString name = o->name();
     return name + QString(16 - name.length(), QChar::Space) + o->helpText();
 }
 
-void printHelp(const QList<Operation *> &operations)
+void printHelp(const std::vector<std::unique_ptr<Operation>> &operations)
 {
     std::cout << Core::Constants::IDE_DISPLAY_NAME << "SDK setup tool." << std::endl;
     std::cout << "    Usage: " << qPrintable(QCoreApplication::arguments().at(0))
@@ -87,7 +88,7 @@ void printHelp(const QList<Operation *> &operations)
 
     std::cout << "OPERATION:" << std::endl;
     std::cout << "    One of:" << std::endl;
-    foreach (const Operation *o, operations)
+    for (const std::unique_ptr<Operation> &o : operations)
         std::cout << "        " << qPrintable(tabular(o)) << std::endl;
     std::cout << std::endl;
     std::cout << "OPERATION_ARGS:" << std::endl;
@@ -96,7 +97,8 @@ void printHelp(const QList<Operation *> &operations)
     std::cout << std::endl;
 }
 
-int parseArguments(const QStringList &args, Settings *s, const QList<Operation *> &operations)
+int parseArguments(const QStringList &args, Settings *s,
+                   const std::vector<std::unique_ptr<Operation>> &operations)
 {
     QStringList opArgs;
     int argCount = args.count();
@@ -109,9 +111,9 @@ int parseArguments(const QStringList &args, Settings *s, const QList<Operation *
             // help
             if (current == QLatin1String("-h") || current == QLatin1String("--help")) {
                 if (!next.isEmpty()) {
-                    foreach (Operation *o, operations) {
+                    for (const std::unique_ptr<Operation> &o : operations) {
                         if (o->name() == next) {
-                            printHelp(o);
+                            printHelp(o.get());
                             return 0;
                         }
                     }
@@ -137,9 +139,9 @@ int parseArguments(const QStringList &args, Settings *s, const QList<Operation *
             }
 
             // operation
-            foreach (Operation *o, operations) {
+            for (const std::unique_ptr<Operation> &o : operations) {
                 if (o->name() == current) {
-                    s->operation = o;
+                    s->operation = o.get();
                     break;
                 }
             }
@@ -164,7 +166,7 @@ int parseArguments(const QStringList &args, Settings *s, const QList<Operation *
     if (!s->operation->setArguments(opArgs)) {
         std::cerr << "Argument parsing failed." << std::endl << std::endl;
         printHelp(s->operation);
-        s->operation = 0;
+        s->operation = nullptr;
         return 1;
     }
 
@@ -187,54 +189,53 @@ int main(int argc, char *argv[])
 
     Settings settings;
 
-    QList<Operation *> operations;
-    operations << new AddKeysOperation
+    std::vector<std::unique_ptr<Operation>> operations;
+    operations.emplace_back(std::make_unique<AddKeysOperation>());
 
-               << new AddCMakeOperation
-               << new AddDebuggerOperation
-               << new AddDeviceOperation
-               << new AddQtOperation
-               << new AddToolChainOperation
+    operations.emplace_back(std::make_unique<AddAbiFlavor>());
+    operations.emplace_back(std::make_unique<AddCMakeOperation>());
+    operations.emplace_back(std::make_unique<AddDebuggerOperation>());
+    operations.emplace_back(std::make_unique<AddDeviceOperation>());
+    operations.emplace_back(std::make_unique<AddQtOperation>());
+    operations.emplace_back(std::make_unique<AddToolChainOperation>());
 
-               << new AddKitOperation
+    operations.emplace_back(std::make_unique<AddKitOperation>());
 
-               << new GetOperation
+    operations.emplace_back(std::make_unique<GetOperation>());
 
-               << new RmCMakeOperation
-               << new RmKitOperation
-               << new RmDebuggerOperation
-               << new RmDeviceOperation
-               << new RmKeysOperation
-               << new RmQtOperation
-               << new RmToolChainOperation
+    operations.emplace_back(std::make_unique<RmCMakeOperation>());
+    operations.emplace_back(std::make_unique<RmKitOperation>());
+    operations.emplace_back(std::make_unique<RmDebuggerOperation>());
+    operations.emplace_back(std::make_unique<RmDeviceOperation>());
+    operations.emplace_back(std::make_unique<RmKeysOperation>());
+    operations.emplace_back(std::make_unique<RmQtOperation>());
+    operations.emplace_back(std::make_unique<RmToolChainOperation>());
 
-               << new FindKeyOperation
-               << new FindValueOperation
-               
-               << new AddMerDeviceModelOperation
-               << new RmMerDeviceModelOperation
-               << new AddMerTargetOperation
-               << new RmMerTargetOperation
-               << new AddMerSdkOperation
-               << new RmMerSdkOperation;
+    operations.emplace_back(std::make_unique<FindKeyOperation>());
+    operations.emplace_back(std::make_unique<FindValueOperation>());
+
+    operations.emplace_back(std::make_unique<AddMerDeviceModelOperation>());
+    operations.emplace_back(std::make_unique<RmMerDeviceModelOperation>());
+    operations.emplace_back(std::make_unique<AddMerTargetOperation>());
+    operations.emplace_back(std::make_unique<RmMerTargetOperation>());
+    operations.emplace_back(std::make_unique<AddMerSdkOperation>());
+    operations.emplace_back(std::make_unique<RmMerSdkOperation>());
 
 #ifdef WITH_TESTS
     if (argc == 2 && !strcmp(argv[1], "-test")) {
         std::cerr << std::endl << std::endl << "Starting tests..." << std::endl;
         int res = 0;
-        foreach (Operation *o, operations)
+        for (const std::unique_ptr<Operation> &o : operations) {
             if (!o->test()) {
                 std::cerr << "!!!! Test failed for: " << qPrintable(o->name()) << " !!!!" << std::endl;
                 ++res;
             }
+        }
         std::cerr << "Tests done." << std::endl << std::endl;
         return res;
     }
 #endif
 
     int result = parseArguments(a.arguments(), &settings, operations);
-    if (!settings.operation)
-        return result; // nothing to do:-)
-
-    return settings.operation->execute();
+    return settings.operation ? settings.operation->execute() : result;
 }

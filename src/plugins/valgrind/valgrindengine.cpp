@@ -38,6 +38,7 @@
 
 #include <projectexplorer/projectexplorericons.h>
 #include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/runconfigurationaspects.h>
 
 #include <QApplication>
 
@@ -57,8 +58,8 @@ ValgrindToolRunner::ValgrindToolRunner(RunControl *runControl)
     runControl->setIcon(ProjectExplorer::Icons::ANALYZER_START_SMALL_TOOLBAR);
     setSupportsReRunning(false);
 
-    if (IRunConfigurationAspect *aspect = runControl->runConfiguration()->extraAspect(ANALYZER_VALGRIND_SETTINGS))
-        m_settings = qobject_cast<ValgrindBaseSettings *>(aspect->currentSettings());
+    m_settings = runControl->runConfiguration()
+            ->currentSettings<ValgrindBaseSettings>(ANALYZER_VALGRIND_SETTINGS);
 
     if (!m_settings)
         m_settings = ValgrindPlugin::globalSettings();
@@ -84,6 +85,9 @@ void ValgrindToolRunner::start()
     m_runner.setValgrindArguments(genericToolArguments() + toolArguments());
     m_runner.setDevice(device());
     m_runner.setDebuggee(runnable());
+
+    if (auto aspect = runControl()->runConfiguration()->aspect<TerminalAspect>())
+        m_runner.setUseTerminal(aspect->useTerminal());
 
     connect(&m_runner, &ValgrindRunner::processOutputReceived,
             this, &ValgrindToolRunner::receiveProcessOutput);

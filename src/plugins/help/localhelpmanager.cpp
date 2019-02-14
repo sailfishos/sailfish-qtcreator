@@ -27,6 +27,7 @@
 
 #include "bookmarkmanager.h"
 #include "helpconstants.h"
+#include "helpmanager.h"
 #include "helpviewer.h"
 
 #include <app/app_version.h>
@@ -67,12 +68,6 @@ static const char kReturnOnCloseKey[] = "Help/ReturnOnClose";
 static const char kLastShownPagesKey[] = "Help/LastShownPages";
 static const char kLastShownPagesZoomKey[] = "Help/LastShownPagesZoom";
 static const char kLastSelectedTabKey[] = "Help/LastSelectedTab";
-
-// TODO remove some time after 4.1
-static const char kFontStyleKey[] = "Help/FallbackFontStyle";
-static const char kFontWeightKey[] = "Help/FallbackFontWeight";
-static const QFont::Style kDefaultFallbackFontStyle = QFont::StyleNormal;
-static const int kDefaultFallbackFontWeight = QFont::Normal;
 
 static const int kDefaultFallbackFontSize = 14;
 
@@ -151,28 +146,14 @@ QFont LocalHelpManager::fallbackFont()
     const QString family = settings->value(kFontFamilyKey, defaultFallbackFontFamily()).toString();
     const int size = settings->value(kFontSizeKey, kDefaultFallbackFontSize).toInt();
     QFont font(family, size);
-    // TODO remove reading of old settings some time after 4.1
-    if (settings->contains(kFontStyleKey) && settings->contains(kFontWeightKey)) {
-        const QFont::Style style = QFont::Style(settings->value(kFontStyleKey, kDefaultFallbackFontStyle).toInt());
-        const int weight = settings->value(kFontWeightKey, kDefaultFallbackFontWeight).toInt();
-        font.setStyle(style);
-        font.setWeight(weight);
-    } else {
-        const QString styleName = settings->value(kFontStyleNameKey,
-                                                  defaultFallbackFontStyleName(font.family())).toString();
-        font.setStyleName(styleName);
-    }
+    const QString styleName = settings->value(kFontStyleNameKey,
+                                              defaultFallbackFontStyleName(font.family())).toString();
+    font.setStyleName(styleName);
     return font;
 }
 
 void LocalHelpManager::setFallbackFont(const QFont &font)
 {
-    {
-        // TODO remove removal of old settings some time after 4.1
-        QSettings *settings = Core::ICore::settings();
-        settings->remove(kFontStyleKey);
-        settings->remove(kFontWeightKey);
-    }
     setOrRemoveSetting(kFontFamilyKey, font.family(), defaultFallbackFontFamily());
     setOrRemoveSetting(kFontStyleNameKey, font.styleName(), defaultFallbackFontStyleName(font.family()));
     setOrRemoveSetting(kFontSizeKey, font.pointSize(), kDefaultFallbackFontSize);
@@ -286,7 +267,7 @@ void LocalHelpManager::setupGuiHelpEngine()
 {
     if (m_needsCollectionFile) {
         m_needsCollectionFile = false;
-        helpEngine().setCollectionFile(Core::HelpManager::collectionFilePath());
+        helpEngine().setCollectionFile(HelpManager::collectionFilePath());
         m_guiNeedsSetup = true;
     }
 

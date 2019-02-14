@@ -57,8 +57,8 @@ public:
     QStringList extraCodeModelFlags;
 
     QString sysRootPath; // For headerPathsRunner.
-    ProjectExplorer::ToolChain::SystemHeaderPathsRunner headerPathsRunner;
-    ProjectExplorer::ToolChain::PredefinedMacrosRunner predefinedMacrosRunner;
+    ProjectExplorer::ToolChain::BuiltInHeaderPathsRunner headerPathsRunner;
+    ProjectExplorer::ToolChain::MacroInspectionRunner macroInspectionRunner;
 };
 
 class CPPTOOLS_EXPORT ProjectUpdateInfo
@@ -69,6 +69,10 @@ public:
                       const ProjectExplorer::ToolChain *cToolChain,
                       const ProjectExplorer::ToolChain *cxxToolChain,
                       const ProjectExplorer::Kit *kit,
+                      const RawProjectParts &rawProjectParts);
+    ProjectUpdateInfo(ProjectExplorer::Project *project,
+                      const ToolChainInfo &cToolChainInfo,
+                      const ToolChainInfo &cxxToolChainInfo,
                       const RawProjectParts &rawProjectParts);
     bool isValid() const { return project && !rawProjectParts.isEmpty(); }
 
@@ -111,7 +115,7 @@ private:
     QVector<ProjectPart::Ptr> m_projectParts;
 
     // The members below are (re)calculated from the project parts with finish()
-    ProjectPartHeaderPaths m_headerPaths;
+    ProjectExplorer::HeaderPaths m_headerPaths;
     QSet<QString> m_sourceFiles;
     ProjectExplorer::Macros m_defines;
 };

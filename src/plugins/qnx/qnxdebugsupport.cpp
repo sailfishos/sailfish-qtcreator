@@ -85,8 +85,10 @@ static QStringList searchPaths(Kit *kit)
         searchPaths << qtVersion->qmakeProperty("QT_INSTALL_PLUGINS") + '/' + dir;
 
     searchPaths << qtVersion->qmakeProperty("QT_INSTALL_LIBS");
-    searchPaths << qtVersion->qnxTarget() + '/' + qtVersion->cpuDir() + "/lib";
-    searchPaths << qtVersion->qnxTarget() + '/' + qtVersion->cpuDir() + "/usr/lib";
+    searchPaths << qtVersion->qnxTarget().appendPath(qtVersion->cpuDir()).appendPath("lib")
+                   .toString();
+    searchPaths << qtVersion->qnxTarget().appendPath(qtVersion->cpuDir()).appendPath("usr/lib")
+                   .toString();
 
     return searchPaths;
 }
@@ -99,7 +101,7 @@ public:
     QnxDebuggeeRunner(RunControl *runControl, GdbServerPortsGatherer *portsGatherer)
         : SimpleTargetRunner(runControl), m_portsGatherer(portsGatherer)
     {
-        setDisplayName("QnxDebuggeeRunner");
+        setId("QnxDebuggeeRunner");
     }
 
 private:
@@ -133,7 +135,7 @@ private:
 QnxDebugSupport::QnxDebugSupport(RunControl *runControl)
     : DebuggerRunTool(runControl)
 {
-    setDisplayName("QnxDebugSupport");
+    setId("QnxDebugSupport");
     appendMessage(tr("Preparing remote side..."), LogMessageFormat);
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
@@ -202,7 +204,7 @@ public:
     PDebugRunner(RunControl *runControl, GdbServerPortsGatherer *portsGatherer)
         : SimpleTargetRunner(runControl), m_portsGatherer(portsGatherer)
     {
-        setDisplayName("PDebugRunner");
+        setId("PDebugRunner");
         addStartDependency(m_portsGatherer);
     }
 
@@ -225,7 +227,7 @@ private:
 QnxAttachDebugSupport::QnxAttachDebugSupport(RunControl *runControl)
     : DebuggerRunTool(runControl)
 {
-    setDisplayName("QnxAttachDebugSupport");
+    setId("QnxAttachDebugSupport");
 
     setUsePortsGatherer(isCppDebugging(), isQmlDebugging());
 
@@ -263,7 +265,7 @@ void QnxAttachDebugSupport::showProcessesDialog()
 //    QString projectSourceDirectory = dlg.projectSource();
     QString localExecutable = dlg.localExecutable();
     if (localExecutable.isEmpty()) {
-        if (auto aspect = runConfig->extraAspect<SymbolFileAspect>())
+        if (auto aspect = runConfig->aspect<SymbolFileAspect>())
             localExecutable = aspect->fileName().toString();
     }
 

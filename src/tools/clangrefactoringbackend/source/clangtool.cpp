@@ -25,6 +25,8 @@
 
 #include "clangtool.h"
 
+#include <iostream>
+
 namespace ClangBackEnd {
 
 namespace {
@@ -132,6 +134,8 @@ clang::tooling::ClangTool ClangTool::createTool() const
     for (const auto &unsavedFileContent : m_unsavedFileContents)
             tool.mapVirtualFile(toStringRef(unsavedFileContent.filePath),
                                 toStringRef(unsavedFileContent.content));
+
+    tool.mapVirtualFile("/dummyFile", "#pragma once");
 
     return tool;
 }

@@ -34,6 +34,7 @@
 #include <clangcodemodelclientproxy.h>
 
 #include <iostream>
+#include <clocale>
 
 using ClangBackEnd::ClangCodeModelClientProxy;
 using ClangBackEnd::ClangCodeModelServer;
@@ -69,20 +70,24 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
     qInstallMessageHandler(messageOutput);
 #endif
-    QLoggingCategory::setFilterRules(QStringLiteral("qtc.*.debug=false"));
-
     QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("qt-project.org"));
     QCoreApplication::setApplicationName(QStringLiteral("ClangBackend"));
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0.0"));
 
     QCoreApplication application(argc, argv);
+
+    // Some tidy checks use locale-dependent conversion functions and thus might throw exceptions.
+    std::setlocale(LC_NUMERIC, "C");
+
     CrashHandlerSetup setupCrashHandler(QCoreApplication::applicationName(),
                                         CrashHandlerSetup::DisableRestart);
 
     const QString connection = processArguments(application);
 
-    clang_enableStackTraces();
+    // Printing the stack strace might dead lock as clang's stack printer allocates memory.
+    if (qEnvironmentVariableIntValue("QTC_CLANG_ENABLE_STACKTRACES"))
+        clang_enableStackTraces();
 
     ClangCodeModelServer clangCodeModelServer;
     ConnectionServer<ClangCodeModelServer, ClangCodeModelClientProxy> connectionServer;

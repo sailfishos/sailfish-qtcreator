@@ -102,7 +102,7 @@ bool WinRtPackageDeploymentStep::init(QList<const BuildStep *> &earlierSteps)
     }
     params->setCommand(windeployqtPath);
     params->setArguments(args);
-    params->setEnvironment(target()->activeBuildConfiguration()->environment());
+    params->setEnvironment(buildConfiguration()->environment());
 
     return AbstractProcessStep::init(earlierSteps);
 }

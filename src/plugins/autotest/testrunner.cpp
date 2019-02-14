@@ -49,6 +49,7 @@
 #include <utils/outputformat.h>
 #include <utils/qtcprocess.h>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -77,8 +78,7 @@ TestRunner *TestRunner::instance()
 }
 
 TestRunner::TestRunner(QObject *parent) :
-    QObject(parent),
-    m_executingTests(false)
+    QObject(parent)
 {
     connect(&m_futureWatcher, &QFutureWatcher<TestResultPtr>::resultReadyAt,
             this, [this](int index) { emit testResultReady(m_futureWatcher.resultAt(index)); });
@@ -137,16 +137,27 @@ static QString processInformation(const QProcess *proc)
 
 static QString rcInfo(const TestConfiguration * const config)
 {
-    QString info = '\n' + TestRunner::tr("Run configuration:") + ' ';
-    if (config->isGuessed())
-        info += TestRunner::tr("guessed from");
-    return info + " \"" + config->runConfigDisplayName() + '"';
+    QString info;
+    if (config->isDeduced())
+        info = TestRunner::tr("\nRun configuration: deduced from \"%1\"");
+    else
+        info = TestRunner::tr("\nRun configuration: \"%1\"");
+    return info.arg(config->runConfigDisplayName());
 }
 
 static QString constructOmittedDetailsString(const QStringList &omitted)
 {
     return TestRunner::tr("Omitted the following arguments specified on the run "
                           "configuration page for \"%1\":") + '\n' + omitted.join('\n');
+}
+
+static QString constructOmittedVariablesDetailsString(const QList<Utils::EnvironmentItem> &diff)
+{
+    auto removedVars = Utils::transform<QStringList>(diff, [](const Utils::EnvironmentItem &it) {
+        return it.name;
+    });
+    return TestRunner::tr("Omitted the following environment variables for \"%1\":")
+            + '\n' + removedVars.join('\n');
 }
 
 void TestRunner::scheduleNext()
@@ -193,17 +204,23 @@ void TestRunner::scheduleNext()
             details.arg(m_currentConfig->displayName()))));
     }
     m_currentProcess->setWorkingDirectory(m_currentConfig->workingDirectory());
-    QProcessEnvironment environment = m_currentConfig->environment().toProcessEnvironment();
-    if (Utils::HostOsInfo::isWindowsHost())
-        environment.insert("QT_LOGGING_TO_CONSOLE", "1");
-    const int timeout = AutotestPlugin::settings()->timeout;
-    if (timeout > 5 * 60 * 1000) // Qt5.5 introduced hard limit, Qt5.6.1 added env var to raise this
-        environment.insert("QTEST_FUNCTION_TIMEOUT", QString::number(timeout));
-    m_currentProcess->setProcessEnvironment(environment);
+    const Utils::Environment &original = m_currentConfig->environment();
+    Utils::Environment environment =  m_currentConfig->filteredEnvironment(original);
+    const QList<Utils::EnvironmentItem> removedVariables
+            = Utils::filtered(original.diff(environment), [](const Utils::EnvironmentItem &it) {
+        return it.operation == Utils::EnvironmentItem::Unset;
+    });
+    if (!removedVariables.isEmpty()) {
+        const QString &details = constructOmittedVariablesDetailsString(removedVariables)
+                .arg(m_currentConfig->displayName());
+        emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageWarn, details)));
+    }
+    m_currentProcess->setProcessEnvironment(environment.toProcessEnvironment());
 
     connect(m_currentProcess,
             static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &TestRunner::onProcessFinished);
+    const int timeout = AutotestPlugin::settings()->timeout;
     QTimer::singleShot(timeout, m_currentProcess, [this]() { cancelCurrent(Timeout); });
 
     m_currentProcess->start();
@@ -329,17 +346,14 @@ void TestRunner::prepareToRunTests(TestRunMode mode)
     }
 }
 
-static QString firstTestCaseTarget(const TestConfiguration *config)
+static QString firstNonEmptyTestCaseTarget(const TestConfiguration *config)
 {
-    for (const QString &internalTarget : config->internalTargets()) {
-        const QString buildTarget = internalTarget.split('|').first();
-        if (!buildTarget.isEmpty())
-            return buildTarget;
-    }
-    return QString();
+    return Utils::findOrDefault(config->internalTargets(), [](const QString &internalTarget) {
+        return !internalTarget.isEmpty();
+    });
 }
 
-static ProjectExplorer::RunConfiguration *getRunConfiguration(const QString &dialogDetail)
+static ProjectExplorer::RunConfiguration *getRunConfiguration(const QString &buildTargetKey)
 {
     using namespace ProjectExplorer;
     const Project *project = SessionManager::startupProject();
@@ -354,10 +368,21 @@ static ProjectExplorer::RunConfiguration *getRunConfiguration(const QString &dia
             = Utils::filtered(target->runConfigurations(), [] (const RunConfiguration *rc) {
         return !rc->runnable().executable.isEmpty();
     });
+
+    const ChoicePair oldChoice = AutotestPlugin::cachedChoiceFor(buildTargetKey);
+    if (!oldChoice.executable.isEmpty()) {
+        runConfig = Utils::findOrDefault(runConfigurations,
+                                  [&oldChoice] (const RunConfiguration *rc) {
+            return oldChoice.matches(rc);
+        });
+        if (runConfig)
+            return runConfig;
+    }
+
     if (runConfigurations.size() == 1)
         return runConfigurations.first();
 
-    RunConfigurationSelectionDialog dialog(dialogDetail, Core::ICore::dialogParent());
+    RunConfigurationSelectionDialog dialog(buildTargetKey, Core::ICore::dialogParent());
     if (dialog.exec() == QDialog::Accepted) {
         const QString dName = dialog.displayName();
         if (dName.isEmpty())
@@ -369,6 +394,8 @@ static ProjectExplorer::RunConfiguration *getRunConfiguration(const QString &dia
                 return false;
             return rc->runnable().executable == exe;
         });
+        if (runConfig && dialog.rememberChoice())
+            AutotestPlugin::cacheRunConfigChoice(buildTargetKey, ChoicePair(dName, exe));
     }
     return runConfig;
 }
@@ -381,11 +408,11 @@ int TestRunner::precheckTestConfigurations()
         config->completeTestInformation(TestRunMode::Run);
         if (config->project()) {
             testCaseCount += config->testCaseCount();
-            if (!omitWarnings && config->isGuessed()) {
+            if (!omitWarnings && config->isDeduced()) {
                 QString message = tr(
-                            "Project's run configuration was guessed for \"%1\".\n"
+                            "Project's run configuration was deduced for \"%1\".\n"
                             "This might cause trouble during execution.\n"
-                            "(guessed from \"%2\")");
+                            "(deduced from \"%2\")");
                 message = message.arg(config->displayName()).arg(config->runConfigDisplayName());
                 emit testResultReady(
                             TestResultPtr(new FaultyTestResult(Result::MessageWarn, message)));
@@ -409,7 +436,7 @@ void TestRunner::runTests()
             projectChanged = true;
             toBeRemoved.append(config);
         } else if (!config->hasExecutable()) {
-            if (auto rc = getRunConfiguration(firstTestCaseTarget(config)))
+            if (auto rc = getRunConfiguration(firstNonEmptyTestCaseTarget(config)))
                 config->setOriginalRunConfiguration(rc);
             else
                 toBeRemoved.append(config);
@@ -444,25 +471,35 @@ void TestRunner::runTests()
 static void processOutput(TestOutputReader *outputreader, const QString &msg,
                           Utils::OutputFormat format)
 {
+    QByteArray message = msg.toUtf8();
     switch (format) {
     case Utils::OutputFormat::StdOutFormatSameLine:
     case Utils::OutputFormat::DebugFormat: {
-        static const QString gdbSpecialOut = "Qt: gdb: -nograb added to command-line options.\n"
-                                             "\t Use the -dograb option to enforce grabbing.";
-        int start = msg.startsWith(gdbSpecialOut) ? gdbSpecialOut.length() + 1 : 0;
+        static const QByteArray gdbSpecialOut = "Qt: gdb: -nograb added to command-line options.\n"
+                                                "\t Use the -dograb option to enforce grabbing.";
+        int start = message.startsWith(gdbSpecialOut) ? gdbSpecialOut.length() + 1 : 0;
         if (start) {
-            int maxIndex = msg.length() - 1;
+            int maxIndex = message.length() - 1;
             while (start < maxIndex && msg.at(start + 1) == '\n')
                 ++start;
-            if (start >= msg.length()) // we cut out the whole message
+            if (start >= message.length()) // we cut out the whole message
                 break;
         }
-        for (const QString &line : msg.mid(start).split('\n'))
-            outputreader->processOutput(line.toUtf8());
+
+        int index = message.indexOf('\n', start);
+        while (index != -1) {
+            const QByteArray line = message.mid(start, index - start + 1);
+            outputreader->processOutput(line);
+            start = index + 1;
+            index = message.indexOf('\n', start);
+        }
+        if (!QTC_GUARD(start == message.length())) // paranoia
+            outputreader->processOutput(message.mid(start).append('\n'));
+
         break;
     }
     case Utils::OutputFormat::StdErrFormatSameLine:
-        outputreader->processStdError(msg.toUtf8());
+        outputreader->processStdError(message);
         break;
     default:
         break; // channels we're not caring about
@@ -483,7 +520,7 @@ void TestRunner::debugTests()
         return;
     }
     if (!config->hasExecutable()) {
-        if (auto *rc = getRunConfiguration(firstTestCaseTarget(config)))
+        if (auto *rc = getRunConfiguration(firstNonEmptyTestCaseTarget(config)))
             config->completeTestInformation(rc, TestRunMode::Debug);
     }
 
@@ -524,6 +561,17 @@ void TestRunner::debugTests()
         const QString &details = constructOmittedDetailsString(omitted);
         emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageWarn,
             details.arg(config->displayName()))));
+    }
+    Utils::Environment original(inferior.environment);
+    inferior.environment = config->filteredEnvironment(original);
+    const QList<Utils::EnvironmentItem> removedVariables
+            = Utils::filtered(original.diff(inferior.environment), [](const Utils::EnvironmentItem &it) {
+        return it.operation == Utils::EnvironmentItem::Unset;
+    });
+    if (!removedVariables.isEmpty()) {
+        const QString &details = constructOmittedVariablesDetailsString(removedVariables)
+                .arg(config->displayName());
+        emit testResultReady(TestResultPtr(new FaultyTestResult(Result::MessageWarn, details)));
     }
     auto debugger = new Debugger::DebuggerRunTool(runControl);
     debugger->setInferior(inferior);
@@ -571,15 +619,14 @@ void TestRunner::runOrDebugTests()
     case TestRunMode::Run:
     case TestRunMode::RunWithoutDeploy:
         runTests();
-        break;
+        return;
     case TestRunMode::Debug:
     case TestRunMode::DebugWithoutDeploy:
         debugTests();
-        break;
-    default:
-        onFinished();
-        QTC_ASSERT(false, return);  // unexpected run mode
+        return;
     }
+    onFinished();
+    QTC_ASSERT(false, return);  // unexpected run mode
 }
 
 void TestRunner::buildProject(ProjectExplorer::Project *project)
@@ -628,7 +675,15 @@ void TestRunner::onFinished()
 
 /*************************************************************************************************/
 
-RunConfigurationSelectionDialog::RunConfigurationSelectionDialog(const QString &testsInfo,
+static QFrame *createLine(QWidget *parent)
+{
+    QFrame *line = new QFrame(parent);
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    return line;
+}
+
+RunConfigurationSelectionDialog::RunConfigurationSelectionDialog(const QString &buildTargetKey,
                                                                  QWidget *parent)
     : QDialog(parent)
 {
@@ -636,10 +691,12 @@ RunConfigurationSelectionDialog::RunConfigurationSelectionDialog(const QString &
     setWindowTitle(tr("Select Run Configuration"));
 
     QString details = tr("Could not determine which run configuration to choose for running tests");
-    if (!testsInfo.isEmpty())
-        details.append(QString(" (%1)").arg(testsInfo));
+    if (!buildTargetKey.isEmpty())
+        details.append(QString(" (%1)").arg(buildTargetKey));
     m_details = new QLabel(details, this);
     m_rcCombo = new QComboBox(this);
+    m_rememberCB = new QCheckBox(tr("Remember choice. Cached choices can be reset by switching "
+                                    "projects or using the option to clear the cache."), this);
     m_executable = new QLabel(this);
     m_arguments = new QLabel(this);
     m_workingDir = new QLabel(this);
@@ -647,15 +704,12 @@ RunConfigurationSelectionDialog::RunConfigurationSelectionDialog(const QString &
     m_buttonBox->setStandardButtons(QDialogButtonBox::Cancel|QDialogButtonBox::Ok);
     m_buttonBox->button(QDialogButtonBox::Ok)->setDefault(true);
 
-    auto line = new QFrame(this);
-    line->setFrameShape(QFrame::HLine);
-    line->setFrameShadow(QFrame::Sunken);
-
     auto formLayout = new QFormLayout;
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     formLayout->addRow(m_details);
     formLayout->addRow(tr("Run Configuration:"), m_rcCombo);
-    formLayout->addRow(line);
+    formLayout->addRow(m_rememberCB);
+    formLayout->addRow(createLine(this));
     formLayout->addRow(tr("Executable:"), m_executable);
     formLayout->addRow(tr("Arguments:"), m_arguments);
     formLayout->addRow(tr("Working Directory:"), m_workingDir);
@@ -663,7 +717,7 @@ RunConfigurationSelectionDialog::RunConfigurationSelectionDialog(const QString &
     auto vboxLayout = new QVBoxLayout(this);
     vboxLayout->addLayout(formLayout);
     vboxLayout->addStretch();
-    vboxLayout->addWidget(line);
+    vboxLayout->addWidget(createLine(this));
     vboxLayout->addWidget(m_buttonBox);
 
     connect(m_rcCombo, &QComboBox::currentTextChanged,
@@ -682,6 +736,11 @@ QString RunConfigurationSelectionDialog::displayName() const
 QString RunConfigurationSelectionDialog::executable() const
 {
     return m_executable ? m_executable->text() : QString();
+}
+
+bool RunConfigurationSelectionDialog::rememberChoice() const
+{
+    return m_rememberCB ? m_rememberCB->isChecked() : false;
 }
 
 void RunConfigurationSelectionDialog::populate()

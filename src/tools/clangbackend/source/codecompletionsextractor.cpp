@@ -25,17 +25,26 @@
 
 #include "codecompletionsextractor.h"
 
+#include "clangbackend_global.h"
 #include "clangstring.h"
+#include "clangtranslationunit.h"
 #include "codecompletionchunkconverter.h"
+#include "sourcelocation.h"
+#include "sourcerange.h"
+#include "unsavedfile.h"
+
+#include <utils/algorithm.h>
+#include <utils/qtcassert.h>
 
 #include <QDebug>
 
 namespace ClangBackEnd {
 
-CodeCompletionsExtractor::CodeCompletionsExtractor(CXCodeCompleteResults *cxCodeCompleteResults)
-    : cxCodeCompleteResults(cxCodeCompleteResults)
+CodeCompletionsExtractor::CodeCompletionsExtractor(const UnsavedFile &unsavedFile,
+                                                   CXCodeCompleteResults *cxCodeCompleteResults)
+    : unsavedFile(unsavedFile)
+    , cxCodeCompleteResults(cxCodeCompleteResults)
 {
-
 }
 
 bool CodeCompletionsExtractor::next()
@@ -55,6 +64,7 @@ bool CodeCompletionsExtractor::next()
         extractBriefComment();
         extractCompletionChunks();
         adaptPriority();
+        extractRequiredFixIts();
 
         ++cxCodeCompleteResultIndex;
 
@@ -80,7 +90,7 @@ bool CodeCompletionsExtractor::peek(const Utf8String &name)
     return false;
 }
 
-CodeCompletions CodeCompletionsExtractor::extractAll()
+CodeCompletions CodeCompletionsExtractor::extractAll(bool onlyFunctionOverloads)
 {
     CodeCompletions codeCompletions;
     codeCompletions.reserve(int(cxCodeCompleteResults->NumResults));
@@ -88,7 +98,76 @@ CodeCompletions CodeCompletionsExtractor::extractAll()
     while (next())
         codeCompletions.append(currentCodeCompletion_);
 
+    handleCompletions(codeCompletions, onlyFunctionOverloads);
+
     return codeCompletions;
+}
+
+static CodeCompletions filterFunctionOverloads(const CodeCompletions &completions)
+{
+    return ::Utils::filtered(completions, [](const CodeCompletion &completion) {
+        return completion.completionKind == CodeCompletion::FunctionOverloadCompletionKind;
+    });
+}
+
+static void adaptOverloadsPriorities(CodeCompletions &codeCompletions)
+{
+    std::map<Utf8String, std::vector<CodeCompletion *>> cachedOverloads;
+    for (CodeCompletion &currentCompletion : codeCompletions) {
+        if (currentCompletion.completionKind != CodeCompletion::ConstructorCompletionKind
+                && currentCompletion.completionKind != CodeCompletion::FunctionCompletionKind
+                && currentCompletion.completionKind
+                != CodeCompletion::FunctionDefinitionCompletionKind) {
+            continue;
+        }
+
+        auto found = cachedOverloads.find(currentCompletion.text);
+        if (found == cachedOverloads.end()) {
+            cachedOverloads[currentCompletion.text].push_back(&currentCompletion);
+        } else {
+            const quint32 oldPriority = found->second.front()->priority;
+            if (currentCompletion.priority >= oldPriority) {
+                currentCompletion.priority = oldPriority;
+            } else {
+                const quint32 newPriority = currentCompletion.priority;
+                for (CodeCompletion *completion : found->second)
+                    completion->priority = newPriority;
+            }
+            found->second.push_back(&currentCompletion);
+        }
+    }
+}
+
+static void sortCodeCompletions(CodeCompletions &codeCompletions)
+{
+    auto currentItemsCompare = [](const CodeCompletion &first,
+                                  const CodeCompletion &second) {
+        // Items without fix-its come first.
+        if (first.requiredFixIts.empty() != second.requiredFixIts.empty())
+            return first.requiredFixIts.empty() > second.requiredFixIts.empty();
+
+        return std::tie(first.priority, first.text, first.completionKind)
+                < std::tie(second.priority, second.text, second.completionKind);
+    };
+
+    // Keep the order for the items with the same priority and name.
+    std::stable_sort(codeCompletions.begin(), codeCompletions.end(), currentItemsCompare);
+}
+
+void CodeCompletionsExtractor::handleCompletions(CodeCompletions &codeCompletions,
+                                                 bool onlyFunctionOverloads)
+{
+    if (onlyFunctionOverloads) {
+        const CodeCompletions overloadCompletions = filterFunctionOverloads(codeCompletions);
+
+        // If filtered completions are empty the assumption we need function overloads is wrong
+        // therefore we do not use filtered results in that case.
+        if (!overloadCompletions.isEmpty())
+            codeCompletions = overloadCompletions;
+    }
+
+    adaptOverloadsPriorities(codeCompletions);
+    sortCodeCompletions(codeCompletions);
 }
 
 void CodeCompletionsExtractor::extractCompletionKind()
@@ -105,6 +184,7 @@ void CodeCompletionsExtractor::extractCompletionKind()
             currentCodeCompletion_.completionKind = CodeCompletion::FunctionCompletionKind;
             break;
         case CXCursor_VariableRef:
+        case CXCursor_MemberRef:
         case CXCursor_VarDecl:
         case CXCursor_FieldDecl:
         case CXCursor_ParmDecl:
@@ -171,6 +251,9 @@ void CodeCompletionsExtractor::extractText()
 void CodeCompletionsExtractor::extractMethodCompletionKind()
 {
     CXCompletionString cxCompletionString = cxCodeCompleteResults->Results[cxCodeCompleteResultIndex].CompletionString;
+
+    const unsigned long long contexts = clang_codeCompleteGetContexts(cxCodeCompleteResults);
+
     const uint annotationCount = clang_getCompletionNumAnnotations(cxCompletionString);
 
     for (uint annotationIndex = 0; annotationIndex < annotationCount; ++annotationIndex) {
@@ -187,7 +270,11 @@ void CodeCompletionsExtractor::extractMethodCompletionKind()
         }
     }
 
-    currentCodeCompletion_.completionKind = CodeCompletion::FunctionCompletionKind;
+    currentCodeCompletion_.completionKind = CodeCompletion::FunctionDefinitionCompletionKind;
+    if ((contexts & CXCompletionContext_DotMemberAccess)
+            || (contexts & CXCompletionContext_ArrowMemberAccess)) {
+        currentCodeCompletion_.completionKind = CodeCompletion::FunctionCompletionKind;
+    }
 }
 
 void CodeCompletionsExtractor::extractMacroCompletionKind()
@@ -258,6 +345,48 @@ void CodeCompletionsExtractor::extractBriefComment()
 void CodeCompletionsExtractor::extractCompletionChunks()
 {
     currentCodeCompletion_.chunks = CodeCompletionChunkConverter::extract(currentCxCodeCompleteResult.CompletionString);
+}
+
+SourceRangeContainer toRangeContainer(const UnsavedFile &file, CXSourceRange cxSourceRange)
+{
+    const CXSourceLocation start = clang_getRangeStart(cxSourceRange);
+    const CXSourceLocation end = clang_getRangeEnd(cxSourceRange);
+
+    uint startLine = 0;
+    uint startColumn = 0;
+    uint endLine = 0;
+    uint endColumn = 0;
+    clang_getFileLocation(start, nullptr, &startLine, &startColumn, nullptr);
+    clang_getFileLocation(end, nullptr, &endLine, &endColumn, nullptr);
+    QTC_ASSERT(startLine == endLine, return SourceRangeContainer(););
+
+    const Utf8String lineText = file.lineRange(startLine, endLine);
+    startColumn = QString(lineText.mid(0, startColumn - 1)).size() + 1;
+    endColumn = QString(lineText.mid(0, endColumn - 1)).size() + 1;
+
+    return SourceRangeContainer(SourceLocationContainer(file.filePath(), startLine, startColumn),
+                                SourceLocationContainer(file.filePath(), endLine, endColumn));
+}
+
+void CodeCompletionsExtractor::extractRequiredFixIts()
+{
+#ifdef IS_COMPLETION_FIXITS_BACKPORTED
+    unsigned fixItsNumber = clang_getCompletionNumFixIts(cxCodeCompleteResults,
+                                                         cxCodeCompleteResultIndex);
+
+    if (!fixItsNumber)
+        return;
+
+    CXSourceRange range;
+    for (unsigned i = 0; i < fixItsNumber; ++i) {
+        ClangString fixIt = clang_getCompletionFixIt(cxCodeCompleteResults,
+                                                     cxCodeCompleteResultIndex,
+                                                     i,
+                                                     &range);
+        currentCodeCompletion_.requiredFixIts.push_back(
+                    FixItContainer(Utf8String(fixIt), toRangeContainer(unsavedFile, range)));
+    }
+#endif
 }
 
 void CodeCompletionsExtractor::adaptPriority()

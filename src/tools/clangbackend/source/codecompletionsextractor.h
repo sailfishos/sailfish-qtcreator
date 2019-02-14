@@ -35,10 +35,13 @@
 
 namespace ClangBackEnd {
 
+class UnsavedFile;
+
 class CodeCompletionsExtractor
 {
 public:
-    CodeCompletionsExtractor(CXCodeCompleteResults *cxCodeCompleteResults);
+    CodeCompletionsExtractor(const UnsavedFile &unsavedFile,
+                             CXCodeCompleteResults *cxCodeCompleteResults);
 
     CodeCompletionsExtractor(CodeCompletionsExtractor&) = delete;
     CodeCompletionsExtractor &operator=(CodeCompletionsExtractor&) = delete;
@@ -49,7 +52,7 @@ public:
     bool next();
     bool peek(const Utf8String &name);
 
-    CodeCompletions extractAll();
+    CodeCompletions extractAll(bool onlyFunctionOverloads);
 
     const CodeCompletion &currentCodeCompletion() const;
 
@@ -63,6 +66,7 @@ private:
     void extractHasParameters();
     void extractBriefComment();
     void extractCompletionChunks();
+    void extractRequiredFixIts();
 
     void adaptPriority();
     void decreasePriorityForNonAvailableCompletions();
@@ -71,10 +75,13 @@ private:
     void decreasePriorityForQObjectInternals();
     void decreasePriorityForOperators();
 
+    void handleCompletions(CodeCompletions &codeCompletions, bool onlyFunctionOverloads);
+
     bool hasText(const Utf8String &text, CXCompletionString cxCompletionString) const;
 
 private:
     CodeCompletion currentCodeCompletion_;
+    const UnsavedFile &unsavedFile;
     CXCompletionResult currentCxCodeCompleteResult;
     CXCodeCompleteResults *cxCodeCompleteResults;
     uint cxCodeCompleteResultIndex = 0;

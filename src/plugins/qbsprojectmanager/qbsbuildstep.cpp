@@ -67,9 +67,9 @@ class QbsBuildStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
     Q_OBJECT
 public:
     QbsBuildStepConfigWidget(QbsBuildStep *step);
-    ~QbsBuildStepConfigWidget();
-    QString summaryText() const;
-    QString displayName() const;
+    ~QbsBuildStepConfigWidget() override;
+    QString summaryText() const override;
+    QString displayName() const override;
 
 private:
     void updateState();
@@ -137,7 +137,7 @@ QbsBuildStep::~QbsBuildStep()
     cancel();
     if (m_job) {
         m_job->deleteLater();
-        m_job = 0;
+        m_job = nullptr;
     }
     delete m_parser;
 }
@@ -148,9 +148,7 @@ bool QbsBuildStep::init(QList<const BuildStep *> &earlierSteps)
     if (project()->isParsing() || m_job)
         return false;
 
-    QbsBuildConfiguration *bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
-    if (!bc)
-        bc = static_cast<QbsBuildConfiguration *>(target()->activeBuildConfiguration());
+    auto bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
 
     if (!bc)
         return false;
@@ -222,7 +220,7 @@ QVariantMap QbsBuildStep::qbsConfiguration(VariableHandling variableHandling) co
 
 void QbsBuildStep::setQbsConfiguration(const QVariantMap &config)
 {
-    QbsProject *pro = static_cast<QbsProject *>(project());
+    auto pro = static_cast<QbsProject *>(project());
 
     QVariantMap tmp = config;
     tmp.insert(Constants::QBS_CONFIG_PROFILE_KEY, pro->profileForTarget(target()));
@@ -233,7 +231,7 @@ void QbsBuildStep::setQbsConfiguration(const QVariantMap &config)
     if (tmp == m_qbsConfiguration)
         return;
     m_qbsConfiguration = tmp;
-    QbsBuildConfiguration *bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
+    auto bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
     if (bc)
         bc->emitBuildTypeChanged();
     emit qbsConfigurationChanged();
@@ -264,9 +262,9 @@ bool QbsBuildStep::hasCustomInstallRoot() const
     return m_qbsConfiguration.contains(Constants::QBS_INSTALL_ROOT_KEY);
 }
 
-Utils::FileName QbsBuildStep::installRoot() const
+Utils::FileName QbsBuildStep::installRoot(VariableHandling variableHandling) const
 {
-    Utils::FileName root = Utils::FileName::fromString(m_qbsConfiguration
+    Utils::FileName root = Utils::FileName::fromString(qbsConfiguration(variableHandling)
             .value(Constants::QBS_INSTALL_ROOT_KEY).toString());
     if (root.isNull()) {
         const QbsBuildConfiguration * const bc
@@ -332,7 +330,7 @@ void QbsBuildStep::buildingDone(bool success)
         createTaskAndOutput(ProjectExplorer::Task::Error, item.description(),
                             item.codeLocation().filePath(), item.codeLocation().line());
 
-    QbsProject *pro = static_cast<QbsProject *>(project());
+    auto pro = static_cast<QbsProject *>(project());
 
     // Building can uncover additional target artifacts.
     pro->updateAfterBuild();
@@ -426,7 +424,7 @@ void QbsBuildStep::setBuildVariant(const QString &variant)
         return;
     m_qbsConfiguration.insert(Constants::QBS_CONFIG_VARIANT_KEY, variant);
     emit qbsConfigurationChanged();
-    QbsBuildConfiguration *bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
+    auto bc = static_cast<QbsBuildConfiguration *>(buildConfiguration());
     if (bc)
         bc->emitBuildTypeChanged();
 }
@@ -519,10 +517,10 @@ void QbsBuildStep::finish()
 {
     QTC_ASSERT(m_fi, return);
     reportRunResult(*m_fi, m_lastWasSuccess);
-    m_fi = 0; // do not delete, it is not ours
+    m_fi = nullptr; // do not delete, it is not ours
     if (m_job) {
         m_job->deleteLater();
-        m_job = 0;
+        m_job = nullptr;
     }
 }
 
@@ -549,7 +547,7 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
             this, &QbsBuildStepConfigWidget::updateState);
     step->target()->subscribeSignal(&ProjectExplorer::BuildConfiguration::buildDirectoryChanged,
                                     this, [this]() {
-        if (m_step->target()->activeBuildConfiguration() == sender())
+        if (m_step->buildConfiguration() == sender())
             updateState();
     });
 
@@ -561,6 +559,7 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
 
     auto chooser = new Core::VariableChooser(this);
     chooser->addSupportedWidget(m_ui->propertyEdit);
+    chooser->addSupportedWidget(m_ui->installDirChooser->lineEdit());
     m_ui->propertyEdit->setValidationFunction([this](Utils::FancyLineEdit *edit,
                                                      QString *errorMessage) {
         return validateProperties(edit, errorMessage);
@@ -619,7 +618,7 @@ void QbsBuildStepConfigWidget::updateState()
         m_ui->forceProbesCheckBox->setChecked(m_step->forceProbes());
         updatePropertyEdit(m_step->qbsConfiguration(QbsBuildStep::PreserveVariables));
         m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->isQmlDebuggingEnabled());
-        m_ui->installDirChooser->setFileName(m_step->installRoot());
+        m_ui->installDirChooser->setFileName(m_step->installRoot(QbsBuildStep::PreserveVariables));
         m_ui->defaultInstallDirCheckBox->setChecked(!m_step->hasCustomInstallRoot());
     }
 
@@ -834,7 +833,7 @@ bool QbsBuildStepConfigWidget::validateProperties(Utils::FancyLineEdit *edit, QS
 QbsBuildStepFactory::QbsBuildStepFactory()
 {
     registerStep<QbsBuildStep>(Constants::QBS_BUILDSTEP_ID);
-    setDisplayName(tr("Qbs Build"));
+    setDisplayName(QbsBuildStep::tr("Qbs Build"));
     setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     setSupportedConfiguration(Constants::QBS_BC_ID);
     setSupportedProjectType(Constants::PROJECT_ID);

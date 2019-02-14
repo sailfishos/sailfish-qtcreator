@@ -161,7 +161,7 @@ void TaskModel::updateTaskLineNumber(unsigned int id, int line)
 
 void TaskModel::clearTasks(Core::Id categoryId)
 {
-    typedef QHash<Core::Id,CategoryData>::ConstIterator IdCategoryConstIt;
+    using IdCategoryConstIt = QHash<Core::Id,CategoryData>::ConstIterator;
 
     if (!categoryId.isValid()) {
         if (m_tasks.isEmpty())
@@ -437,12 +437,12 @@ void TaskFilterModel::handleRowsAboutToBeRemoved(const QModelIndex &index, int f
     QTC_ASSERT(!index.isValid(), return);
 
     const QPair<int, int> range = findFilteredRange(first, last, m_mapping);
-    if (range.first > range.second) // rows to be removed are filtered out
-        return;
-
-    beginRemoveRows(QModelIndex(), range.first, range.second);
-    m_beginRemoveRowsSent = true;
-    m_mapping.erase(m_mapping.begin() + range.first, m_mapping.begin() + range.second + 1);
+    if (range.first <= range.second) { // remove corresponding rows in filtermodel
+        beginRemoveRows(QModelIndex(), range.first, range.second);
+        m_beginRemoveRowsSent = true;
+        m_mapping.erase(m_mapping.begin() + range.first, m_mapping.begin() + range.second + 1);
+    }
+    // adapt existing mapping to removed source indices
     const int sourceRemovedCount = (last - first) + 1;
     for (int i = range.first; i < m_mapping.count(); ++i)
         m_mapping[i] = m_mapping.at(i) - sourceRemovedCount;

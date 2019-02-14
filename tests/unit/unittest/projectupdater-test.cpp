@@ -37,7 +37,9 @@
 #include <precompiledheaderstorage.h>
 #include <precompiledheadersupdatedmessage.h>
 #include <refactoringdatabaseinitializer.h>
+#include <removegeneratedfilesmessage.h>
 #include <removeprojectpartsmessage.h>
+#include <updategeneratedfilesmessage.h>
 #include <updateprojectpartsmessage.h>
 
 #include <cpptools/compileroptionsbuilder.h>
@@ -57,7 +59,7 @@ using ClangBackEnd::CompilerMacro;
 using ClangBackEnd::V2::FileContainer;
 using ClangBackEnd::V2::ProjectPartContainer;
 using CppTools::CompilerOptionsBuilder;
-using CppTools::ProjectPartHeaderPath;
+using ProjectExplorer::HeaderPath;
 
 class ProjectUpdater : public testing::Test
 {
@@ -80,12 +82,23 @@ protected:
         projectPart.files.push_back(header2ProjectFile);
         projectPart.files.push_back(source1ProjectFile);
         projectPart.files.push_back(source2ProjectFile);
-        projectPart.displayName = QString(projectPartId);
-        projectPart.projectMacros.push_back({"DEFINE", "1"});
+        projectPart.displayName = "projectb";
+        projectPart.projectMacros = {{"FOO", "2"}, {"BAR", "1"}};
+        projectPartId = projectPart.id();
+
+        projectPart2.files.push_back(header2ProjectFile);
+        projectPart2.files.push_back(header1ProjectFile);
+        projectPart2.files.push_back(source2ProjectFile);
+        projectPart2.files.push_back(source1ProjectFile);
+        projectPart2.displayName = "projectaa";
+        projectPart2.projectMacros = {{"BAR", "1"}, {"FOO", "2"}};
+        projectPartId2 = projectPart2.id();
 
 
         Utils::SmallStringVector arguments{ClangPchManager::ProjectUpdater::compilerArguments(
                         &projectPart)};
+        Utils::SmallStringVector arguments2{ClangPchManager::ProjectUpdater::compilerArguments(
+                        &projectPart2)};
 
         expectedContainer = {projectPartId.clone(),
                              arguments.clone(),
@@ -93,40 +106,93 @@ protected:
                              {},
                              {filePathId(headerPaths[1])},
                              {filePathIds(sourcePaths)}};
+        expectedContainer2 = {projectPartId2.clone(),
+                              arguments2.clone(),
+                              Utils::clone(compilerMacros),
+                              {},
+                              {filePathId(headerPaths[1])},
+                              {filePathIds(sourcePaths)}};
     }
 
 protected:
     Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
     ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
     ClangBackEnd::FilePathCaching filePathCache{database};
-    MockPrecompiledHeaderStorage mockPrecompiledHeaderStorage;
-    ClangPchManager::PchManagerClient pchManagerClient{mockPrecompiledHeaderStorage};
+    ClangPchManager::PchManagerClient pchManagerClient;
     MockPchManagerNotifier mockPchManagerNotifier{pchManagerClient};
     NiceMock<MockPchManagerServer> mockPchManagerServer;
     ClangPchManager::ProjectUpdater updater{mockPchManagerServer, filePathCache};
-    Utils::SmallString projectPartId{"project1"};
-    Utils::SmallString projectPartId2{"project2"};
+    Utils::SmallString projectPartId;
+    Utils::SmallString projectPartId2;
     Utils::PathStringVector headerPaths = {"/path/to/header1.h", "/path/to/header2.h"};
     Utils::PathStringVector sourcePaths = {"/path/to/source1.cpp", "/path/to/source2.cpp"};
-    ClangBackEnd::CompilerMacros compilerMacros = {{"DEFINE", "1"}};
+    ClangBackEnd::CompilerMacros compilerMacros = {{"BAR", "1"}, {"FOO", "2"}};
     CppTools::ProjectFile header1ProjectFile{QString(headerPaths[0]), CppTools::ProjectFile::CXXHeader};
     CppTools::ProjectFile header2ProjectFile{QString(headerPaths[1]), CppTools::ProjectFile::CXXHeader};
     CppTools::ProjectFile source1ProjectFile{QString(sourcePaths[0]), CppTools::ProjectFile::CXXSource};
     CppTools::ProjectFile source2ProjectFile{QString(sourcePaths[1]), CppTools::ProjectFile::CXXSource};
     CppTools::ProjectPart projectPart;
+    CppTools::ProjectPart projectPart2;
     ProjectPartContainer expectedContainer;
+    ProjectPartContainer expectedContainer2;
     FileContainer generatedFile{{"/path/to", "header1.h"}, "content", {}};
+    FileContainer generatedFile2{{"/path/to2", "header1.h"}, "content", {}};
+    FileContainer generatedFile3{{"/path/to", "header2.h"}, "content", {}};
 };
 
 TEST_F(ProjectUpdater, CallUpdateProjectParts)
 {
-    std::vector<CppTools::ProjectPart*> projectParts = {&projectPart, &projectPart};
-    ClangBackEnd::UpdateProjectPartsMessage message{{expectedContainer.clone(), expectedContainer.clone()},
-                                                    {generatedFile}};
+    std::vector<CppTools::ProjectPart*> projectParts = {&projectPart2, &projectPart};
+    ClangBackEnd::UpdateProjectPartsMessage message{{expectedContainer.clone(), expectedContainer2.clone()}};
+    updater.updateGeneratedFiles({generatedFile});
 
     EXPECT_CALL(mockPchManagerServer, updateProjectParts(message));
 
-    updater.updateProjectParts(projectParts, {generatedFile});
+    updater.updateProjectParts(projectParts);
+}
+
+TEST_F(ProjectUpdater, CallUpdateGeneratedFilesWithSortedEntries)
+{
+    ClangBackEnd::UpdateGeneratedFilesMessage message{{generatedFile, generatedFile3, generatedFile2}};
+
+    EXPECT_CALL(mockPchManagerServer, updateGeneratedFiles(message));
+
+    updater.updateGeneratedFiles({generatedFile2, generatedFile3, generatedFile});
+}
+
+TEST_F(ProjectUpdater, GeneratedFilesAddedAreSorted)
+{
+    updater.updateGeneratedFiles({generatedFile2, generatedFile3, generatedFile});
+
+    ASSERT_THAT(updater.generatedFiles().fileContainers(),
+                ElementsAre(generatedFile, generatedFile3, generatedFile2));
+}
+
+TEST_F(ProjectUpdater, GeneratedFilesAddedToExcludePaths)
+{
+    updater.updateGeneratedFiles({generatedFile2, generatedFile3, generatedFile});
+
+    ASSERT_THAT(updater.excludedPaths(), ElementsAre(generatedFile.filePath,
+                                                     generatedFile3.filePath,
+                                                     generatedFile2.filePath));
+}
+
+TEST_F(ProjectUpdater, CallRemoveGeneratedFiles)
+{
+    ClangBackEnd::RemoveGeneratedFilesMessage message{{{"/path/to/header1.h"}}};
+
+    EXPECT_CALL(mockPchManagerServer, removeGeneratedFiles(message));
+
+    updater.removeGeneratedFiles({{"/path/to/header1.h"}});
+}
+
+TEST_F(ProjectUpdater, GeneratedFilesRemovedFromExcludePaths)
+{
+    updater.updateGeneratedFiles({generatedFile});
+
+    updater.removeGeneratedFiles({generatedFile.filePath});
+
+    ASSERT_THAT(updater.excludedPaths(), IsEmpty());
 }
 
 TEST_F(ProjectUpdater, CallRemoveProjectParts)
@@ -135,7 +201,7 @@ TEST_F(ProjectUpdater, CallRemoveProjectParts)
 
     EXPECT_CALL(mockPchManagerServer, removeProjectParts(message));
 
-    updater.removeProjectParts({QString(projectPartId), QString(projectPartId2)});
+    updater.removeProjectParts({QString(projectPartId2), QString(projectPartId)});
 }
 
 TEST_F(ProjectUpdater, CallPrecompiledHeaderRemovedInPchManagerProjectUpdater)
@@ -165,29 +231,34 @@ TEST_F(ProjectUpdater, ConvertProjectPartToProjectPartContainersHaveSameSizeLike
     ASSERT_THAT(containers, SizeIs(2));
 }
 
-TEST_F(ProjectUpdater, CreateExcludedPaths)
+TEST_F(ProjectUpdater, CreateSortedExcludedPaths)
 {
-    auto excludedPaths = updater.createExcludedPaths({generatedFile});
+    auto excludedPaths = updater.createExcludedPaths({generatedFile2, generatedFile3, generatedFile});
 
-    ASSERT_THAT(excludedPaths, ElementsAre("/path/to/header1.h"));
+    ASSERT_THAT(excludedPaths, ElementsAre(ClangBackEnd::FilePath{"/path/to/header1.h"},
+                                           ClangBackEnd::FilePath{"/path/to/header2.h"},
+                                           ClangBackEnd::FilePath{"/path/to2/header1.h"}));
 }
 
-TEST_F(ProjectUpdater, CreateCompilerMacros)
+TEST_F(ProjectUpdater, CreateSortedCompilerMacros)
 {
-    auto paths = updater.createCompilerMacros({{"DEFINE", "1"}});
+    auto paths = updater.createCompilerMacros({{"DEFINE", "1"}, {"FOO", "2"}, {"BAR", "1"}});
 
-    ASSERT_THAT(paths, ElementsAre(CompilerMacro{"DEFINE", "1"}));
+    ASSERT_THAT(paths, ElementsAre(CompilerMacro{"BAR", "1"},
+                                   CompilerMacro{"FOO", "2"},
+                                   CompilerMacro{"DEFINE", "1"}));
 }
 
-TEST_F(ProjectUpdater, CreateIncludeSearchPaths)
+TEST_F(ProjectUpdater, CreateSortedIncludeSearchPaths)
 {
-    ProjectPartHeaderPath includePath{"/to/path", ProjectPartHeaderPath::IncludePath};
-    ProjectPartHeaderPath invalidPath;
-    ProjectPartHeaderPath frameworkPath{"/framework/path", ProjectPartHeaderPath::FrameworkPath};
+    ProjectExplorer::HeaderPath includePath{"/to/path1", ProjectExplorer::HeaderPathType::User};
+    ProjectExplorer::HeaderPath includePath2{"/to/path2", ProjectExplorer::HeaderPathType::User};
+    ProjectExplorer::HeaderPath invalidPath;
+    ProjectExplorer::HeaderPath frameworkPath{"/framework/path", ProjectExplorer::HeaderPathType::Framework};
 
-    auto paths = updater.createIncludeSearchPaths({includePath, invalidPath, frameworkPath});
+    auto paths = updater.createIncludeSearchPaths({frameworkPath, includePath2, includePath, invalidPath});
 
-    ASSERT_THAT(paths, ElementsAre(includePath.path, frameworkPath.path));
+    ASSERT_THAT(paths, ElementsAre(includePath.path, includePath2.path, frameworkPath.path));
 }
 
 }

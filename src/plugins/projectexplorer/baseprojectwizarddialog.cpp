@@ -65,7 +65,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
                                                  QWidget *parent,
                                                  const Core::WizardDialogParameters &parameters) :
     Core::BaseFileWizard(factory, parameters.extraValues(), parent),
-    d(new BaseProjectWizardDialogPrivate(new Utils::ProjectIntroPage))
+    d(std::make_unique<BaseProjectWizardDialogPrivate>(new Utils::ProjectIntroPage))
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
@@ -79,7 +79,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
                                                  QWidget *parent,
                                                  const Core::WizardDialogParameters &parameters) :
     Core::BaseFileWizard(factory, parameters.extraValues(), parent),
-    d(new BaseProjectWizardDialogPrivate(introPage, introId))
+    d(std::make_unique<BaseProjectWizardDialogPrivate>(introPage, introId))
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
@@ -99,10 +99,7 @@ void BaseProjectWizardDialog::init()
     connect(this, &QDialog::accepted, this, &BaseProjectWizardDialog::slotAccepted);
 }
 
-BaseProjectWizardDialog::~BaseProjectWizardDialog()
-{
-    delete d;
-}
+BaseProjectWizardDialog::~BaseProjectWizardDialog() = default;
 
 QString BaseProjectWizardDialog::projectName() const
 {

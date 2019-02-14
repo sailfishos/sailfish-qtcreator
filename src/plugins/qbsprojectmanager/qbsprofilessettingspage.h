@@ -34,14 +34,14 @@ class QbsProfilesSettingsWidget;
 class QbsProfilesSettingsPage : public Core::IOptionsPage
 {
 public:
-    QbsProfilesSettingsPage(QObject *parent = 0);
+    QbsProfilesSettingsPage(QObject *parent = nullptr);
 
 private:
     QWidget *widget() override;
     void apply() override;
     void finish() override;
 
-    QbsProfilesSettingsWidget *m_widget;
+    QbsProfilesSettingsWidget *m_widget = nullptr;
     bool m_useQtcSettingsDirPersistent;
 };
 

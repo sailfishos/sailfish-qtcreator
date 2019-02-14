@@ -46,6 +46,7 @@ QtcPlugin {
             "helpconstants.h",
             "helpfindsupport.cpp", "helpfindsupport.h",
             "helpindexfilter.cpp", "helpindexfilter.h",
+            "helpmanager.cpp", "helpmanager.h",
             "helpmode.cpp", "helpmode.h",
             "helpplugin.cpp", "helpplugin.h",
             "helpviewer.cpp", "helpviewer.h",

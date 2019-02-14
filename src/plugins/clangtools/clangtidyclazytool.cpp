@@ -254,7 +254,7 @@ ClangTidyClazyTool::ClangTidyClazyTool()
             &ClangToolsDiagnosticModel::fixItsToApplyCountChanged,
             [this](int c) {
         m_applyFixitsButton->setEnabled(c);
-        static_cast<DiagnosticView *>(m_diagnosticView)->setSelectedFixItsCount(c);
+        static_cast<DiagnosticView *>(m_diagnosticView.data())->setSelectedFixItsCount(c);
     });
     connect(m_applyFixitsButton, &QToolButton::clicked, [this]() {
         QVector<DiagnosticItem *> diagnosticItems;
@@ -269,10 +269,7 @@ ClangTidyClazyTool::ClangTidyClazyTool()
     const QString toolTip = tr("Clang-Tidy and Clazy use a customized Clang executable from the "
                                "Clang project to search for errors and warnings.");
 
-    Debugger::registerPerspective(ClangTidyClazyPerspectiveId, new Perspective(
-        tr("Clang-Tidy and Clazy"),
-        {{ClangTidyClazyDockId, m_diagnosticView, {}, Perspective::SplitVertical}}
-    ));
+    m_perspective.addWindow(m_diagnosticView, Perspective::SplitVertical, nullptr);
 
     action = new QAction(tr("Clang-Tidy and Clazy..."), this);
     action->setToolTip(toolTip);
@@ -284,14 +281,12 @@ ClangTidyClazyTool::ClangTidyClazyTool()
         action->setEnabled(m_startAction->isEnabled());
     });
 
-    ToolbarDescription tidyClazyToolbar;
-    tidyClazyToolbar.addAction(m_startAction);
-    tidyClazyToolbar.addAction(m_stopAction);
-    tidyClazyToolbar.addAction(m_goBack);
-    tidyClazyToolbar.addAction(m_goNext);
-    tidyClazyToolbar.addWidget(m_filterLineEdit);
-    tidyClazyToolbar.addWidget(m_applyFixitsButton);
-    Debugger::registerToolbar(ClangTidyClazyPerspectiveId, tidyClazyToolbar);
+    m_perspective.addToolBarAction(m_startAction);
+    m_perspective.addToolBarAction(m_stopAction);
+    m_perspective.addToolBarAction(m_goBack);
+    m_perspective.addToolBarAction(m_goNext);
+    m_perspective.addToolBarWidget(m_filterLineEdit);
+    m_perspective.addToolBarWidget(m_applyFixitsButton);
 
     updateRunActions();
 
@@ -357,7 +352,7 @@ void ClangTidyClazyTool::startTool(bool askUserForFileSelection)
         emit finished(success);
     });
 
-    Debugger::selectPerspective(ClangTidyClazyPerspectiveId);
+    m_perspective.select();
 
     m_diagnosticModel->clear();
     setToolBusy(true);

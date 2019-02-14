@@ -39,13 +39,19 @@
 #include <cpptools/projectpart.h>
 #include <cpptools/cppcodemodelsettings.h>
 #include <cpptools/cpptoolsreuse.h>
+#include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/target.h>
 
 #include <utils/algorithm.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStringList>
 #include <QTextBlock>
 
@@ -57,47 +63,17 @@ using namespace CppTools;
 namespace ClangCodeModel {
 namespace Utils {
 
-/**
- * @brief Creates list of message-line arguments required for correct parsing
- * @param pPart Null if file isn't part of any project
- * @param fileName Path to file, non-empty
- */
-QStringList createClangOptions(const ProjectPart::Ptr &pPart, const QString &fileName)
-{
-    ProjectFile::Kind fileKind = ProjectFile::Unclassified;
-    if (!pPart.isNull())
-        foreach (const ProjectFile &file, pPart->files)
-            if (file.path == fileName) {
-                fileKind = file.kind;
-                break;
-            }
-    if (fileKind == ProjectFile::Unclassified)
-        fileKind = ProjectFile::classify(fileName);
-
-    return createClangOptions(pPart, fileKind);
-}
-
-static QString creatorResourcePath()
-{
-#ifndef UNIT_TESTS
-    return Core::ICore::resourcePath();
-#else
-    return QString();
-#endif
-}
-
 class LibClangOptionsBuilder final : public CompilerOptionsBuilder
 {
 public:
     LibClangOptionsBuilder(const ProjectPart &projectPart)
-        : CompilerOptionsBuilder(projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR)
+        : CompilerOptionsBuilder(projectPart,
+                                 UseSystemHeader::No,
+                                 CppTools::SkipBuiltIn::No,
+                                 CppTools::SkipLanguageDefines::Yes,
+                                 QString(CLANG_VERSION),
+                                 QString(CLANG_RESOURCE_DIR))
     {
-    }
-
-    void addPredefinedHeaderPathsOptions() final
-    {
-        CompilerOptionsBuilder::addPredefinedHeaderPathsOptions();
-        addWrappedQtHeadersIncludePath();
     }
 
     void addToolchainAndProjectMacros() final
@@ -117,41 +93,20 @@ public:
     }
 
 private:
-    void addWrappedQtHeadersIncludePath()
-    {
-        static const QString resourcePath = creatorResourcePath();
-        static QString wrappedQtHeadersPath = resourcePath + "/cplusplus/wrappedQtHeaders";
-        QTC_ASSERT(QDir(wrappedQtHeadersPath).exists(), return;);
-
-        if (m_projectPart.qtVersion != CppTools::ProjectPart::NoQt) {
-            const QString wrappedQtCoreHeaderPath = wrappedQtHeadersPath + "/QtCore";
-            add(includeDirOption());
-            add(QDir::toNativeSeparators(wrappedQtHeadersPath));
-            add(includeDirOption());
-            add(QDir::toNativeSeparators(wrappedQtCoreHeaderPath));
-        }
-    }
-
     void addDummyUiHeaderOnDiskIncludePath()
     {
-        const QString path = ModelManagerSupportClang::instance()->dummyUiHeaderOnDiskDirPath();
+        const QString path = ClangModelManagerSupport::instance()->dummyUiHeaderOnDiskDirPath();
         if (!path.isEmpty()) {
-            add(includeDirOption());
+            add("-I");
             add(QDir::toNativeSeparators(path));
         }
     }
 };
 
-/**
- * @brief Creates list of message-line arguments required for correct parsing
- * @param pPart Null if file isn't part of any project
- * @param fileKind Determines language and source/header state
- */
-QStringList createClangOptions(const ProjectPart::Ptr &pPart, ProjectFile::Kind fileKind)
+QStringList createClangOptions(const ProjectPart &projectPart, ProjectFile::Kind fileKind)
 {
-    if (!pPart)
-        return QStringList();
-    return LibClangOptionsBuilder(*pPart).build(fileKind, CompilerOptionsBuilder::PchUsage::None);
+    return LibClangOptionsBuilder(projectPart)
+        .build(fileKind, CompilerOptionsBuilder::PchUsage::None);
 }
 
 ProjectPart::Ptr projectPartForFile(const QString &filePath)
@@ -201,81 +156,92 @@ int clangColumn(const QTextBlock &line, int cppEditorColumn)
     // (2) The return value is the column in Clang which is the utf8 byte offset from the beginning
     //     of the line.
     // Here we convert column from (1) to (2).
-    // '+ 1' is for 1-based columns
-    return line.text().left(cppEditorColumn).toUtf8().size() + 1;
+    // '- 1' and '+ 1' are because of 1-based columns
+    return line.text().left(cppEditorColumn - 1).toUtf8().size() + 1;
 }
 
-CPlusPlus::Icons::IconType iconTypeForToken(const ClangBackEnd::TokenInfoContainer &token)
+int cppEditorColumn(const QTextBlock &line, int clangColumn)
+{
+    // (1) clangColumn is the column in Clang which is the utf8 byte offset from the beginning
+    //     of the line.
+    // (2) The return value is the actual column shown by CppEditor.
+    // Here we convert column from (1) to (2).
+    // '- 1' and '+ 1' are because of 1-based columns
+    return QString::fromUtf8(line.text().toUtf8().left(clangColumn - 1)).size() + 1;
+}
+
+::Utils::CodeModelIcon::Type iconTypeForToken(const ClangBackEnd::TokenInfoContainer &token)
 {
     const ClangBackEnd::ExtraInfo &extraInfo = token.extraInfo;
     if (extraInfo.signal)
-        return CPlusPlus::Icons::SignalIconType;
+        return ::Utils::CodeModelIcon::Signal;
 
     ClangBackEnd::AccessSpecifier access = extraInfo.accessSpecifier;
     if (extraInfo.slot) {
         switch (access) {
         case ClangBackEnd::AccessSpecifier::Public:
         case ClangBackEnd::AccessSpecifier::Invalid:
-            return CPlusPlus::Icons::SlotPublicIconType;
+            return ::Utils::CodeModelIcon::SlotPublic;
         case ClangBackEnd::AccessSpecifier::Protected:
-            return CPlusPlus::Icons::SlotProtectedIconType;
+            return ::Utils::CodeModelIcon::SlotProtected;
         case ClangBackEnd::AccessSpecifier::Private:
-            return CPlusPlus::Icons::SlotPrivateIconType;
+            return ::Utils::CodeModelIcon::SlotPrivate;
         }
     }
 
     ClangBackEnd::HighlightingType mainType = token.types.mainHighlightingType;
 
     if (mainType == ClangBackEnd::HighlightingType::QtProperty)
-        return CPlusPlus::Icons::PropertyIconType;
+        return ::Utils::CodeModelIcon::Property;
 
     if (mainType == ClangBackEnd::HighlightingType::PreprocessorExpansion
             || mainType == ClangBackEnd::HighlightingType::PreprocessorDefinition) {
-        return CPlusPlus::Icons::MacroIconType;
+        return ::Utils::CodeModelIcon::Macro;
     }
 
     if (mainType == ClangBackEnd::HighlightingType::Enumeration)
-        return CPlusPlus::Icons::EnumeratorIconType;
+        return ::Utils::CodeModelIcon::Enumerator;
 
     if (mainType == ClangBackEnd::HighlightingType::Type
             || mainType == ClangBackEnd::HighlightingType::Keyword) {
         const ClangBackEnd::MixinHighlightingTypes &types = token.types.mixinHighlightingTypes;
         if (types.contains(ClangBackEnd::HighlightingType::Enum))
-            return CPlusPlus::Icons::EnumIconType;
+            return ::Utils::CodeModelIcon::Enum;
         if (types.contains(ClangBackEnd::HighlightingType::Struct))
-            return CPlusPlus::Icons::StructIconType;
+            return ::Utils::CodeModelIcon::Struct;
         if (types.contains(ClangBackEnd::HighlightingType::Namespace))
-            return CPlusPlus::Icons::NamespaceIconType;
+            return ::Utils::CodeModelIcon::Namespace;
         if (types.contains(ClangBackEnd::HighlightingType::Class))
-            return CPlusPlus::Icons::ClassIconType;
+            return ::Utils::CodeModelIcon::Class;
         if (mainType == ClangBackEnd::HighlightingType::Keyword)
-            return CPlusPlus::Icons::KeywordIconType;
-        return CPlusPlus::Icons::ClassIconType;
+            return ::Utils::CodeModelIcon::Keyword;
+        return ::Utils::CodeModelIcon::Class;
     }
 
     ClangBackEnd::StorageClass storageClass = extraInfo.storageClass;
     if (mainType == ClangBackEnd::HighlightingType::VirtualFunction
             || mainType == ClangBackEnd::HighlightingType::Function
-            || mainType == ClangBackEnd::HighlightingType::Operator) {
+            || token.types.mixinHighlightingTypes.contains(
+                ClangBackEnd::HighlightingType::Operator)) {
         if (storageClass != ClangBackEnd::StorageClass::Static) {
             switch (access) {
             case ClangBackEnd::AccessSpecifier::Public:
             case ClangBackEnd::AccessSpecifier::Invalid:
-                return CPlusPlus::Icons::FuncPublicIconType;
+                return ::Utils::CodeModelIcon::FuncPublic;
             case ClangBackEnd::AccessSpecifier::Protected:
-                return CPlusPlus::Icons::FuncProtectedIconType;
+                return ::Utils::CodeModelIcon::FuncProtected;
             case ClangBackEnd::AccessSpecifier::Private:
-                return CPlusPlus::Icons::FuncPrivateIconType;
+                return ::Utils::CodeModelIcon::FuncPrivate;
             }
         } else {
             switch (access) {
             case ClangBackEnd::AccessSpecifier::Public:
             case ClangBackEnd::AccessSpecifier::Invalid:
-                return CPlusPlus::Icons::FuncPublicStaticIconType;
+                return ::Utils::CodeModelIcon::FuncPublicStatic;
             case ClangBackEnd::AccessSpecifier::Protected:
-                return CPlusPlus::Icons::FuncProtectedStaticIconType;
+                return ::Utils::CodeModelIcon::FuncProtectedStatic;
             case ClangBackEnd::AccessSpecifier::Private:
-                return CPlusPlus::Icons::FuncPrivateStaticIconType;
+                return ::Utils::CodeModelIcon::FuncPrivateStatic;
             }
         }
     }
@@ -285,26 +251,26 @@ CPlusPlus::Icons::IconType iconTypeForToken(const ClangBackEnd::TokenInfoContain
             switch (access) {
             case ClangBackEnd::AccessSpecifier::Public:
             case ClangBackEnd::AccessSpecifier::Invalid:
-                return CPlusPlus::Icons::VarPublicIconType;
+                return ::Utils::CodeModelIcon::VarPublic;
             case ClangBackEnd::AccessSpecifier::Protected:
-                return CPlusPlus::Icons::VarProtectedIconType;
+                return ::Utils::CodeModelIcon::VarProtected;
             case ClangBackEnd::AccessSpecifier::Private:
-                return CPlusPlus::Icons::VarPrivateIconType;
+                return ::Utils::CodeModelIcon::VarPrivate;
             }
         } else {
             switch (access) {
             case ClangBackEnd::AccessSpecifier::Public:
             case ClangBackEnd::AccessSpecifier::Invalid:
-                return CPlusPlus::Icons::VarPublicStaticIconType;
+                return ::Utils::CodeModelIcon::VarPublicStatic;
             case ClangBackEnd::AccessSpecifier::Protected:
-                return CPlusPlus::Icons::VarProtectedStaticIconType;
+                return ::Utils::CodeModelIcon::VarProtectedStatic;
             case ClangBackEnd::AccessSpecifier::Private:
-                return CPlusPlus::Icons::VarPrivateStaticIconType;
+                return ::Utils::CodeModelIcon::VarPrivateStatic;
             }
         }
     }
 
-    return CPlusPlus::Icons::UnknownIconType;
+    return ::Utils::CodeModelIcon::Unknown;
 }
 
 QString diagnosticCategoryPrefixRemoved(const QString &text)
@@ -330,6 +296,63 @@ QString diagnosticCategoryPrefixRemoved(const QString &text)
     }
 
     return text;
+}
+
+static ::Utils::FileName buildDirectory(const CppTools::ProjectPart &projectPart)
+{
+    ProjectExplorer::Target *target = projectPart.project->activeTarget();
+    if (!target)
+        return ::Utils::FileName();
+
+    ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration();
+    if (!buildConfig)
+        return ::Utils::FileName();
+
+    return buildConfig->buildDirectory();
+}
+
+static QJsonObject createFileObject(CompilerOptionsBuilder &optionsBuilder,
+                                    const ProjectFile &projFile,
+                                    const ::Utils::FileName &buildDir)
+{
+    const ProjectFile::Kind kind = ProjectFile::classify(projFile.path);
+    optionsBuilder.updateLanguageOption(kind);
+
+    QJsonObject fileObject;
+    fileObject["file"] = projFile.path;
+    QJsonArray args = QJsonArray::fromStringList(optionsBuilder.options());
+    args.prepend(kind == ProjectFile::CXXSource ? "clang++" : "clang");
+    args.append(QDir::toNativeSeparators(projFile.path));
+    fileObject["arguments"] = args;
+    fileObject["directory"] = buildDir.toString();
+    return fileObject;
+}
+
+void generateCompilationDB(::Utils::FileName projectDir, CppTools::ProjectInfo projectInfo)
+{
+    QFile compileCommandsFile(projectDir.toString() + "/compile_commands.json");
+
+    compileCommandsFile.open(QIODevice::WriteOnly | QIODevice::Truncate);
+    compileCommandsFile.write("[");
+    for (ProjectPart::Ptr projectPart : projectInfo.projectParts()) {
+        const ::Utils::FileName buildDir = buildDirectory(*projectPart);
+
+        CompilerOptionsBuilder optionsBuilder(*projectPart,
+                                              CppTools::UseSystemHeader::No,
+                                              CppTools::SkipBuiltIn::Yes);
+        optionsBuilder.build(CppTools::ProjectFile::Unclassified,
+                             CppTools::CompilerOptionsBuilder::PchUsage::None);
+
+        for (const ProjectFile &projFile : projectPart->files) {
+            const QJsonObject json = createFileObject(optionsBuilder, projFile, buildDir);
+            if (compileCommandsFile.size() > 1)
+                compileCommandsFile.write(",");
+            compileCommandsFile.write('\n' + QJsonDocument(json).toJson().trimmed());
+        }
+    }
+
+    compileCommandsFile.write("\n]");
+    compileCommandsFile.close();
 }
 
 } // namespace Utils

@@ -38,7 +38,7 @@ using namespace Android;
 using namespace Internal;
 
 AndroidManifestEditor::AndroidManifestEditor(AndroidManifestEditorWidget *editorWidget)
-    : Core::IEditor(editorWidget), m_toolBar(0)
+    : Core::IEditor(editorWidget), m_toolBar(nullptr)
 {
     m_toolBar = new QToolBar(editorWidget);
     m_actionGroup = new QActionGroup(this);
@@ -70,7 +70,7 @@ AndroidManifestEditorWidget *AndroidManifestEditor::widget() const
     return static_cast<AndroidManifestEditorWidget *>(Core::IEditor::widget());
 }
 
-Core::IDocument *AndroidManifestEditor::document()
+Core::IDocument *AndroidManifestEditor::document() const
 {
     return textEditor()->textDocument();
 }

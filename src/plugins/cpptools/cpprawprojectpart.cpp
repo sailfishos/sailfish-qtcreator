@@ -39,7 +39,7 @@ RawProjectPartFlags::RawProjectPartFlags(const ProjectExplorer::ToolChain *toolC
     if (toolChain) {
         this->commandLineFlags = commandLineFlags;
         warningFlags = toolChain->warningFlags(commandLineFlags);
-        compilerFlags = toolChain->compilerFlags(commandLineFlags);
+        languageExtensions = toolChain->languageExtensions(commandLineFlags);
     }
 }
 
@@ -86,7 +86,7 @@ void RawProjectPart::setMacros(const ProjectExplorer::Macros &macros)
     this->projectMacros = macros;
 }
 
-void RawProjectPart::setHeaderPaths(const ProjectPartHeaderPaths &headerPaths)
+void RawProjectPart::setHeaderPaths(const ProjectExplorer::HeaderPaths &headerPaths)
 {
     this->headerPaths = headerPaths;
 }
@@ -96,7 +96,7 @@ void RawProjectPart::setIncludePaths(const QStringList &includePaths)
     headerPaths.clear();
 
     foreach (const QString &includeFile, includePaths) {
-        ProjectPartHeaderPath hp(includeFile, ProjectPartHeaderPath::IncludePath);
+        ProjectExplorer::HeaderPath hp(includeFile, ProjectExplorer::HeaderPathType::User);
 
         // The simple project managers are utterly ignorant of frameworks on macOS, and won't report
         // framework paths. The work-around is to check if the include path ends in ".framework",
@@ -104,12 +104,11 @@ void RawProjectPart::setIncludePaths(const QStringList &includePaths)
         if (includeFile.endsWith(QLatin1String(".framework"))) {
             const int slashIdx = includeFile.lastIndexOf(QLatin1Char('/'));
             if (slashIdx != -1) {
-                hp = ProjectPartHeaderPath(includeFile.left(slashIdx),
-                                             ProjectPartHeaderPath::FrameworkPath);
+                hp = {includeFile.left(slashIdx), ProjectExplorer::HeaderPathType::Framework};
             }
         }
 
-        headerPaths += hp;
+        headerPaths.push_back(std::move(hp));
     }
 }
 

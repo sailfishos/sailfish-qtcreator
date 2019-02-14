@@ -32,7 +32,7 @@
 
 #include <QLoggingCategory>
 
-static Q_LOGGING_CATEGORY(verboseLibLog, "qtc.clangbackend.verboselib");
+static Q_LOGGING_CATEGORY(verboseLibLog, "qtc.clangbackend.verboselib", QtWarningMsg);
 
 static bool isVerboseModeEnabled()
 {
@@ -221,8 +221,7 @@ bool TranslationUnitUpdater::reparseWasSuccessful() const
 CommandLineArguments TranslationUnitUpdater::commandLineArguments() const
 {
     return CommandLineArguments(m_in.filePath.constData(),
-                                m_in.projectArguments,
-                                m_in.fileArguments,
+                                m_in.compilationArguments,
                                 isVerboseModeEnabled());
 }
 

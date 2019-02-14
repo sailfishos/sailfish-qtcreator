@@ -31,7 +31,6 @@
 namespace QmlDesigner {
 
 LayerItem::LayerItem(FormEditorScene* scene)
-            : QGraphicsObject()
 {
     scene->addItem(this);
     setZValue(1);
@@ -39,9 +38,7 @@ LayerItem::LayerItem(FormEditorScene* scene)
     setAcceptedMouseButtons(Qt::NoButton);
 }
 
-LayerItem::~LayerItem()
-{
-}
+LayerItem::~LayerItem() = default;
 
 void LayerItem::paint(QPainter * /*painter*/, const QStyleOptionGraphicsItem * /*option*/, QWidget * /*widget*/)
 {

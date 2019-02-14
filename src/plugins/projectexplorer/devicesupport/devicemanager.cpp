@@ -46,6 +46,7 @@
 #include <QVariantList>
 
 #include <limits>
+#include <memory>
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -57,8 +58,7 @@ const char DefaultDevicesKey[] = "DefaultDevices";
 class DeviceManagerPrivate
 {
 public:
-    DeviceManagerPrivate() : writer(0)
-    { }
+    DeviceManagerPrivate() = default;
 
     int indexForId(Core::Id id) const
     {
@@ -74,15 +74,15 @@ public:
     QHash<Core::Id, Core::Id> defaultDevices;
     QSsh::SshHostKeyDatabasePtr hostKeyDatabase;
 
-    Utils::PersistentSettingsWriter *writer;
+    Utils::PersistentSettingsWriter *writer = nullptr;
 };
-DeviceManager *DeviceManagerPrivate::clonedInstance = 0;
+DeviceManager *DeviceManagerPrivate::clonedInstance = nullptr;
 
 } // namespace Internal
 
 using namespace Internal;
 
-DeviceManager *DeviceManager::m_instance = 0;
+DeviceManager *DeviceManager::m_instance = nullptr;
 
 DeviceManager *DeviceManager::instance()
 {
@@ -104,12 +104,12 @@ void DeviceManager::replaceInstance()
 void DeviceManager::removeClonedInstance()
 {
     delete DeviceManagerPrivate::clonedInstance;
-    DeviceManagerPrivate::clonedInstance = 0;
+    DeviceManagerPrivate::clonedInstance = nullptr;
 }
 
 DeviceManager *DeviceManager::cloneInstance()
 {
-    QTC_ASSERT(!DeviceManagerPrivate::clonedInstance, return 0);
+    QTC_ASSERT(!DeviceManagerPrivate::clonedInstance, return nullptr);
 
     DeviceManagerPrivate::clonedInstance = new DeviceManager(false);
     copy(instance(), DeviceManagerPrivate::clonedInstance, true);
@@ -254,7 +254,7 @@ QVariantMap DeviceManager::toMap() const
 {
     QVariantMap map;
     QVariantMap defaultDeviceMap;
-    typedef QHash<Core::Id, Core::Id> TypeIdHash;
+    using TypeIdHash = QHash<Core::Id, Core::Id>;
     for (TypeIdHash::ConstIterator it = d->defaultDevices.constBegin();
              it != d->defaultDevices.constEnd(); ++it) {
         defaultDeviceMap.insert(it.key().toString(), it.value().toSetting());
@@ -393,7 +393,7 @@ const IDeviceFactory *DeviceManager::restoreFactory(const QVariantMap &map)
     return factory;
 }
 
-DeviceManager::DeviceManager(bool isInstance) : d(new DeviceManagerPrivate)
+DeviceManager::DeviceManager(bool isInstance) : d(std::make_unique<DeviceManagerPrivate>())
 {
     if (isInstance) {
         QTC_ASSERT(!m_instance, return);
@@ -414,8 +414,7 @@ DeviceManager::~DeviceManager()
     if (d->clonedInstance != this)
         delete d->writer;
     if (m_instance == this)
-        m_instance = 0;
-    delete d;
+        m_instance = nullptr;
 }
 
 IDevice::ConstPtr DeviceManager::deviceAt(int idx) const
@@ -473,9 +472,9 @@ public:
 
     static Core::Id testTypeId() { return "TestType"; }
 private:
-    TestDevice(const TestDevice &other) : IDevice(other) {}
+    TestDevice(const TestDevice &other) = default;
     QString displayType() const override { return QLatin1String("blubb"); }
-    IDeviceWidget *createWidget() override { return 0; }
+    IDeviceWidget *createWidget() override { return nullptr; }
     QList<Core::Id> actionIds() const override { return QList<Core::Id>(); }
     QString displayNameForActionId(Core::Id) const override { return QString(); }
     void executeAction(Core::Id, QWidget *) override { }

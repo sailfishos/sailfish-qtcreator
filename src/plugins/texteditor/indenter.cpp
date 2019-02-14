@@ -59,7 +59,8 @@ void Indenter::indentBlock(QTextDocument *doc,
 void Indenter::indent(QTextDocument *doc,
                       const QTextCursor &cursor,
                       const QChar &typedChar,
-                      const TabSettings &tabSettings)
+                      const TabSettings &tabSettings,
+                      bool /*autoTriggered*/)
 {
     if (cursor.hasSelection()) {
         QTextBlock block = doc->findBlock(cursor.selectionStart());
@@ -101,6 +102,13 @@ void Indenter::reindent(QTextDocument *doc, const QTextCursor &cursor, const Tab
     } else {
         indentBlock(doc, cursor.block(), QChar::Null, tabSettings);
     }
+}
+
+void Indenter::format(QTextDocument *doc,
+                      const QTextCursor &cursor,
+                      const TabSettings &tabSettings)
+{
+    indent(doc, cursor, QChar::Null, tabSettings);
 }
 
 void Indenter::setCodeStylePreferences(ICodeStylePreferences *)

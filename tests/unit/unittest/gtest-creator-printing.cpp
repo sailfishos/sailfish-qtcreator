@@ -28,17 +28,23 @@
 #include "gtest-qt-printing.h"
 
 #include <gtest/gtest-printers.h>
+#include <gmock/gmock-matchers.h>
 
 #include <sourcelocations.h>
 
+#include <builddependency.h>
 #include <clangcodemodelclientmessages.h>
 #include <clangcodemodelservermessages.h>
+#include <clangdocumentsuspenderresumer.h>
 #include <clangpathwatcher.h>
 #include <clangrefactoringmessages.h>
+#include <clangreferencescollector.h>
 #include <filestatus.h>
 #include <filepath.h>
 #include <fulltokeninfo.h>
 #include <nativefilepath.h>
+#include <pchcreator.h>
+#include <pchtask.h>
 #include <precompiledheadersupdatedmessage.h>
 #include <projectpartartefact.h>
 #include <sourcedependency.h>
@@ -47,6 +53,7 @@
 #include <tokenprocessor.h>
 #include <filepathview.h>
 #include <symbolentry.h>
+#include <symbolindexertaskqueue.h>
 #include <symbol.h>
 #include <tooltipinfo.h>
 #include <projectpartentry.h>
@@ -58,6 +65,10 @@
 
 #include <coreplugin/find/searchresultitem.h>
 #include <coreplugin/locator/ilocatorfilter.h>
+
+namespace {
+ClangBackEnd::FilePathCaching *filePathCache = nullptr;
+}
 
 void PrintTo(const Utf8String &text, ::std::ostream *os)
 {
@@ -143,14 +154,19 @@ std::ostream &operator<<(std::ostream &out, const LineColumn &lineColumn)
     return out << "(" << lineColumn.line << ", " << lineColumn.column << ")";
 }
 
+void PrintTo(Utils::SmallStringView text, ::std::ostream *os)
+{
+    *os << "\"" << text << "\"";
+}
+
 void PrintTo(const Utils::SmallString &text, ::std::ostream *os)
 {
-    *os << text;
+    *os << "\"" << text << "\"";
 }
 
 void PrintTo(const Utils::PathString &text, ::std::ostream *os)
 {
-    *os << text;
+    *os << "\"" << text << "\"";
 }
 
 } // namespace Utils
@@ -159,7 +175,10 @@ namespace ClangBackEnd {
 
 std::ostream &operator<<(std::ostream &out, const FilePathId &id)
 {
-    return out << "(" << id.directoryId << ", " << id.filePathId << ")";
+    if (filePathCache)
+        return out << "(" << id.filePathId << ", " << filePathCache->filePath(id) << ")";
+
+    return out << id.filePathId;
 }
 
 std::ostream &operator<<(std::ostream &out, const FilePathView &filePathView)
@@ -228,15 +247,6 @@ std::ostream &operator<<(std::ostream &os, const SourceLocationsContainer &conta
     return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const ProjectPartsUpdatedMessage &message)
-{
-    os << "("
-       << message.projectContainers
-       << ")";
-
-    return os;
-}
-
 std::ostream &operator<<(std::ostream &os, const FollowSymbolResult &result)
 {
     os << "("
@@ -299,23 +309,10 @@ std::ostream &operator<<(std::ostream &os, const AliveMessage &/*message*/)
     return os << "()";
 }
 
-#define RETURN_TEXT_FOR_CASE(enumValue) case CompletionCorrection::enumValue: return #enumValue
-static const char *completionCorrectionToText(CompletionCorrection correction)
-{
-    switch (correction) {
-        RETURN_TEXT_FOR_CASE(NoCorrection);
-        RETURN_TEXT_FOR_CASE(DotToArrowCorrection);
-    }
-
-    return "";
-}
-#undef RETURN_TEXT_FOR_CASE
-
 std::ostream &operator<<(std::ostream &os, const CompletionsMessage &message)
 {
     os << "("
        << message.codeCompletions << ", "
-       << completionCorrectionToText(message.neededCorrection) << ", "
        << message.ticketNumber
 
        << ")";
@@ -362,15 +359,6 @@ std::ostream &operator<<(std::ostream &os, const ToolTipMessage &message)
 std::ostream &operator<<(std::ostream &os, const EchoMessage &/*message*/)
 {
      return os << "()";
-}
-
-std::ostream &operator<<(std::ostream &os, const ProjectPartsRemovedMessage &message)
-{
-    os << "("
-       << message.projectPartIds
-       << ")";
-
-    return os;
 }
 
 std::ostream &operator<<(std::ostream &os, const DocumentsClosedMessage &message)
@@ -473,8 +461,7 @@ std::ostream &operator<<(std::ostream &os, const FileContainer &container)
 {
     os << "("
         << container.filePath << ", "
-        << container.projectPartId << ", "
-        << container.fileArguments << ", "
+        << container.compilationArguments << ", "
         << container.documentRevision << ", "
         << container.textCodecName;
 
@@ -522,6 +509,7 @@ static const char *highlightingTypeToCStringLiteral(HighlightingType type)
         RETURN_TEXT_FOR_CASE(PreprocessorDefinition);
         RETURN_TEXT_FOR_CASE(PreprocessorExpansion);
         RETURN_TEXT_FOR_CASE(PrimitiveType);
+        RETURN_TEXT_FOR_CASE(Punctuation);
         RETURN_TEXT_FOR_CASE(Declaration);
         RETURN_TEXT_FOR_CASE(Namespace);
         RETURN_TEXT_FOR_CASE(Class);
@@ -538,6 +526,8 @@ static const char *highlightingTypeToCStringLiteral(HighlightingType type)
         RETURN_TEXT_FOR_CASE(ObjectiveCImplementation);
         RETURN_TEXT_FOR_CASE(ObjectiveCProperty);
         RETURN_TEXT_FOR_CASE(ObjectiveCMethod);
+        RETURN_TEXT_FOR_CASE(TemplateTypeParameter);
+        RETURN_TEXT_FOR_CASE(TemplateTemplateParameter);
     }
 
     return "";
@@ -607,22 +597,12 @@ std::ostream &operator<<(std::ostream &out, const PrecompiledHeadersUpdatedMessa
     return out;
 }
 
-std::ostream &operator<<(std::ostream &os, const ProjectPartContainer &container)
-{
-    os << "("
-        << container.projectPartId
-        << ","
-        << container.arguments
-        << ")";
-
-    return os;
-}
-
 std::ostream &operator<<(std::ostream &out, const ProjectPartPch &projectPartPch)
 {
     out << "("
         << projectPartPch.projectPartId << ", "
-        << projectPartPch.pchPath << ")";
+        << projectPartPch.pchPath << ", "
+        << projectPartPch.lastModified << ")";
 
     return out;
 }
@@ -640,7 +620,6 @@ std::ostream &operator<<(std::ostream &os, const RequestAnnotationsMessage &mess
 {
     os << "("
        << message.fileContainer.filePath << ","
-       << message.fileContainer.projectPartId
        << ")";
 
     return os;
@@ -992,6 +971,88 @@ std::ostream &operator<<(std::ostream &out, SymbolTags symbolTags)
     return out;
 }
 
+std::ostream &operator<<(std::ostream &out, const UpdateGeneratedFilesMessage &message)
+{
+    return out << "(" << message.generatedFiles << ")";
+}
+
+std::ostream &operator<<(std::ostream &out, const RemoveGeneratedFilesMessage &message)
+{
+    return out << "(" << message.generatedFiles << ")";
+}
+
+std::ostream &operator<<(std::ostream &out, const SuspendResumeJobsEntry &entry)
+{
+    return out << "("
+               << entry.document.filePath() << ", "
+               << entry.jobRequestType << ", "
+               << entry.preferredTranslationUnit
+               << ")";
+}
+
+std::ostream &operator<<(std::ostream &os, const ReferencesResult &value)
+{
+    os << "ReferencesResult(";
+    os << value.isLocalVariable << ", {";
+    for (const SourceRangeContainer &r : value.references) {
+        os << r.start.line << ",";
+        os << r.start.column << ",";
+        EXPECT_THAT(r.start.line, testing::Eq(r.end.line));
+        os << r.end.column - r.start.column << ",";
+    }
+    os << "})";
+
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &out, const SymbolIndexerTask &task)
+{
+    return out << "(" << task.filePathId << ", " << task.projectPartId << ")";
+}
+
+std::ostream &operator<<(std::ostream &out, const PchCreatorIncludes &includes)
+{
+    return out << "(" << includes.includeIds << ", " << includes.topIncludeIds << ", " << includes.topSystemIncludeIds << ")";
+}
+std::ostream &operator<<(std::ostream &out, const PchTask &task)
+{
+    return out << "(" << task.ids << ", " << task.buildDependency << ")";
+}
+
+std::ostream &operator<<(std::ostream &out, const BuildDependency &dependency)
+{
+    return out << "(\n"
+               << "includes: " << dependency.includes << ",\n"
+               << "usedMacros: " << dependency.usedMacros  << ",\n"
+               << "fileStatuses: " << dependency.fileStatuses  << ",\n"
+               << "sourceFiles: " << dependency.sourceFiles  << ",\n"
+               << "sourceDependencies: " << dependency.sourceDependencies  << ",\n"
+               << ")";
+}
+
+const char *sourceTypeString(SourceType sourceType)
+{
+    using ClangBackEnd::SymbolTag;
+
+    switch (sourceType) {
+        case SourceType::TopInclude:
+            return "TopInclude";
+        case SourceType::TopSystemInclude:
+            return "TopSystemInclude";
+        case SourceType::SystemInclude:
+            return "SystemInclude";
+        case SourceType::UserInclude:
+            return "UserInclude";
+    }
+
+    return "";
+}
+
+std::ostream &operator<<(std::ostream &out, const SourceEntry &entry)
+{
+    return out  << "(" << entry.sourceId << ", " << sourceTypeString(entry.sourceType) << ")";
+}
+
 void PrintTo(const FilePath &filePath, ::std::ostream *os)
 {
     *os << filePath;
@@ -1031,6 +1092,7 @@ std::ostream &operator<<(std::ostream &out, const ProjectPartContainer &containe
         << container.projectPartId << ", "
         << container.arguments << ", "
         << container.headerPathIds << ", "
+        << container.sourcePathIds << ", "
         << container.compilerMacros << ", "
         << container.includeSearchPaths << ")";
 
@@ -1039,8 +1101,8 @@ std::ostream &operator<<(std::ostream &out, const ProjectPartContainer &containe
 
 std::ostream &operator<<(std::ostream &os, const SourceLocationContainer &container)
 {
-    os << "(("
-       << container.filePathId.directoryId << ", " << container.filePathId.filePathId << "), "
+    os << "("
+       << container.filePathId.filePathId << ", "
        << container.line << ", "
        << container.column << ", "
        << container.offset
@@ -1084,3 +1146,8 @@ std::ostream &operator<<(std::ostream &out, const Usage &usage)
     return out << "(" << usage.path << ", " << usage.line << ", " << usage.column <<")";
 }
 } // namespace CppTools
+
+void setFilePathCache(ClangBackEnd::FilePathCaching *cache)
+{
+    filePathCache = cache;
+}

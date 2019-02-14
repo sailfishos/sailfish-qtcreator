@@ -35,7 +35,23 @@ class UninstallAfterStopAspect : public ProjectExplorer::BaseBoolAspect
     Q_OBJECT
 
 public:
-    UninstallAfterStopAspect(ProjectExplorer::RunConfiguration *rc);
+    UninstallAfterStopAspect();
+};
+
+class LoopbackExemptClientAspect : public ProjectExplorer::BaseBoolAspect
+{
+    Q_OBJECT
+
+public:
+    LoopbackExemptClientAspect();
+};
+
+class LoopbackExemptServerAspect : public ProjectExplorer::BaseBoolAspect
+{
+    Q_OBJECT
+
+public:
+    LoopbackExemptServerAspect();
 };
 
 class WinRtRunConfiguration : public ProjectExplorer::RunConfiguration
@@ -44,8 +60,6 @@ class WinRtRunConfiguration : public ProjectExplorer::RunConfiguration
 
 public:
     WinRtRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
-
-    QWidget *createConfigurationWidget() override;
 };
 
 class WinRtRunConfigurationFactory  : public ProjectExplorer::RunConfigurationFactory

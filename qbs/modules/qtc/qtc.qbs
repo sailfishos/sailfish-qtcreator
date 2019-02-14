@@ -4,15 +4,15 @@ import qbs.FileInfo
 import "qtc.js" as HelperFunctions
 
 Module {
-    property string qtcreator_display_version: '4.7.2'
+    property string qtcreator_display_version: '4.8.1'
     property string ide_version_major: '4'
-    property string ide_version_minor: '7'
-    property string ide_version_release: '2'
+    property string ide_version_minor: '8'
+    property string ide_version_release: '1'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '7'
+    property string ide_compat_version_minor: '8'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
@@ -82,7 +82,7 @@ Module {
         'RELATIVE_DOC_PATH="' + FileInfo.relativePath('/' + ide_bin_path, '/' + ide_doc_path) + '"',
         "QT_NO_CAST_TO_ASCII",
         "QT_RESTRICTED_CAST_FROM_ASCII",
-        "QT_DISABLE_DEPRECATED_BEFORE=0x050600",
+        "QT_DISABLE_DEPRECATED_BEFORE=0x050900",
         "QT_USE_FAST_OPERATOR_PLUS",
         "QT_USE_FAST_CONCATENATION",
     ].concat(testsEnabled ? ["WITH_TESTS"] : [])

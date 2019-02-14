@@ -43,7 +43,7 @@ class HelpPlugin : public ExtensionSystem::IPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/help/Help.json")
 
 public:
-    HelpPlugin() = default;
+    HelpPlugin();
     ~HelpPlugin() final;
 
     static HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
@@ -53,6 +53,7 @@ public:
 private:
     bool initialize(const QStringList &arguments, QString *errorMessage) final;
     void extensionsInitialized() final;
+    bool delayedInitialize() final;
     ShutdownFlag aboutToShutdown() final;
 };
 

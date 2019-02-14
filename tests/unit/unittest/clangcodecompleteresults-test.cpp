@@ -29,8 +29,6 @@
 #include <clangdocument.h>
 #include <clangfilepath.h>
 #include <clangtranslationunitupdater.h>
-#include <projectpart.h>
-#include <projects.h>
 #include <clangtranslationunit.h>
 #include <clangdocuments.h>
 #include <unsavedfiles.h>
@@ -44,7 +42,6 @@ using ClangBackEnd::ClangCodeCompleteResults;
 using ClangBackEnd::FilePath;
 using ClangBackEnd::Document;
 using ClangBackEnd::UnsavedFiles;
-using ClangBackEnd::ProjectPart;
 
 static unsigned completionOptions()
 {
@@ -56,13 +53,11 @@ static unsigned completionOptions()
 
 TEST(ClangCodeCompleteResultsSlowTest, GetData)
 {
-    ProjectPart projectPart(Utf8StringLiteral("projectPartId"));
-    ClangBackEnd::ProjectParts projects;
     ClangBackEnd::UnsavedFiles unsavedFiles;
-    ClangBackEnd::Documents documents{projects, unsavedFiles};
+    ClangBackEnd::Documents documents{unsavedFiles};
     Document document(Utf8StringLiteral(TESTDATA_DIR"/complete_testfile_1.cpp"),
-                      projectPart,
-                      Utf8StringVector(),
+                      {},
+                      {},
                       documents);
     Utf8String nativeFilePath = FilePath::toNativeSeparators(document.filePath());
     document.parse();
@@ -88,13 +83,11 @@ TEST(ClangCodeCompleteResults, GetInvalidData)
 
 TEST(ClangCodeCompleteResultsSlowTest, MoveClangCodeCompleteResults)
 {
-    ProjectPart projectPart(Utf8StringLiteral("projectPartId"));
-    ClangBackEnd::ProjectParts projects;
     ClangBackEnd::UnsavedFiles unsavedFiles;
-    ClangBackEnd::Documents documents{projects, unsavedFiles};
+    ClangBackEnd::Documents documents{unsavedFiles};
     Document document(Utf8StringLiteral(TESTDATA_DIR"/complete_testfile_1.cpp"),
-                      projectPart,
-                      Utf8StringVector(),
+                      {},
+                      {},
                       documents);
     Utf8String nativeFilePath = FilePath::toNativeSeparators(document.filePath());
     document.parse();

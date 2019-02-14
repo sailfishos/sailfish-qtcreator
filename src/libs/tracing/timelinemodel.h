@@ -30,6 +30,8 @@
 #include <QVariant>
 #include <QColor>
 
+#include <memory>
+
 namespace Timeline {
 class TimelineModelAggregator;
 
@@ -42,8 +44,8 @@ class TRACING_EXPORT TimelineModel : public QObject
     Q_PROPERTY(bool hidden READ hidden WRITE setHidden NOTIFY hiddenChanged)
     Q_PROPERTY(bool expanded READ expanded WRITE setExpanded NOTIFY expandedChanged)
     Q_PROPERTY(int height READ height NOTIFY heightChanged)
-    Q_PROPERTY(int expandedRowCount READ expandedRowCount NOTIFY expandedRowCountChanged)
-    Q_PROPERTY(int collapsedRowCount READ collapsedRowCount NOTIFY collapsedRowCountChanged)
+    Q_PROPERTY(int expandedRowCount READ expandedRowCount NOTIFY contentChanged)
+    Q_PROPERTY(int collapsedRowCount READ collapsedRowCount NOTIFY contentChanged)
     Q_PROPERTY(int rowCount READ rowCount NOTIFY rowCountChanged)
     Q_PROPERTY(QVariantList labels READ labels NOTIFY labelsChanged)
     Q_PROPERTY(int count READ count NOTIFY contentChanged)
@@ -120,8 +122,6 @@ signals:
     void expandedRowHeightChanged(int row, int height);
     void contentChanged();
     void heightChanged();
-    void expandedRowCountChanged();
-    void collapsedRowCountChanged();
     void rowCountChanged();
     void displayNameChanged();
     void labelsChanged();
@@ -143,8 +143,7 @@ protected:
     virtual void clear();
 
 private:
-    TimelineModelPrivate *d_ptr;
-    Q_DECLARE_PRIVATE(TimelineModel)
+    std::unique_ptr<TimelineModelPrivate> d;
 };
 
 } // namespace Timeline

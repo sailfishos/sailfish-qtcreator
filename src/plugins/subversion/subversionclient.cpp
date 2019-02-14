@@ -198,7 +198,7 @@ SubversionDiffEditorController::SubversionDiffEditorController(
     : VcsBaseDiffEditorController(document, SubversionPlugin::instance()->client(), workingDirectory)
     , m_state(Idle)
 {
-    forceContextLineCount(3); // SVN can not change that when using internal diff
+    forceContextLineCount(3); // SVN cannot change that when using internal diff
 }
 
 void SubversionDiffEditorController::setFilesList(const QStringList &filesList)
@@ -275,7 +275,7 @@ SubversionDiffEditorController *SubversionClient::findOrCreateDiffEditor(const Q
                                                          const QString &workingDirectory) const
 {
     IDocument *document = DiffEditorController::findOrCreateDocument(documentId, title);
-    SubversionDiffEditorController *controller = qobject_cast<SubversionDiffEditorController *>(
+    auto controller = qobject_cast<SubversionDiffEditorController *>(
                 DiffEditorController::controller(document));
     if (!controller)
         controller = new SubversionDiffEditorController(document, workingDirectory);

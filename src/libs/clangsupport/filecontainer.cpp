@@ -35,8 +35,8 @@ QDebug operator<<(QDebug debug, const FileContainer &container)
 {
     debug.nospace() << "FileContainer("
                     << container.filePath << ", "
-                    << container.projectPartId << ", "
-                    << container.fileArguments << ", "
+                    << container.compilationArguments << ", "
+                    << container.headerPaths << ", "
                     << container.documentRevision << ", "
                     << container.textCodecName;
 

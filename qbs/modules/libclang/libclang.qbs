@@ -22,6 +22,7 @@ Module {
         property stringList llvmToolingDefines
         property stringList llvmToolingIncludes
         property stringList llvmToolingCxxFlags
+        property stringList llvmFormattingLibs
         property string llvmBuildMode
 
         configure: {
@@ -37,6 +38,7 @@ Module {
             llvmToolingDefines = toolingParams.defines;
             llvmToolingIncludes = toolingParams.includes;
             llvmToolingCxxFlags = toolingParams.cxxFlags;
+            llvmFormattingLibs = ClangFunctions.formattingLibs(llvmConfig, QtcFunctions, targetOS);
             found = llvmConfig && File.exists(llvmIncludeDir.concat("/clang-c/Index.h"));
         }
     }
@@ -48,6 +50,7 @@ Module {
     property string llvmBinDir: clangProbe.llvmBinDir
     property stringList llvmLibs: clangProbe.llvmLibs
     property stringList llvmToolingLibs: clangProbe.llvmToolingLibs
+    property stringList llvmFormattingLibs: clangProbe.llvmFormattingLibs
     property string llvmBuildMode: clangProbe.llvmBuildMode
     property bool llvmBuildModeMatches: qbs.buildVariant === llvmBuildMode.toLowerCase()
     property stringList llvmToolingDefines: clangProbe.llvmToolingDefines
@@ -55,15 +58,14 @@ Module {
         return incl != llvmIncludeDir;
     })
     property stringList llvmToolingCxxFlags: clangProbe.llvmToolingCxxFlags
-    property bool toolingEnabled: !Environment.getEnv("QTC_NO_CLANG_LIBTOOLING")
-                                  && Utilities.versionCompare(llvmVersion, "6") > 0
-                                  && Utilities.versionCompare(llvmVersion, "7") < 0
+    property bool toolingEnabled: Environment.getEnv("QTC_ENABLE_CLANG_LIBTOOLING")
 
     validate: {
         if (!clangProbe.found) {
             console.warn("No usable libclang version found."
                          + " Set LLVM_INSTALL_DIR to build the Clang Code Model."
-                         + " For details, see doc/src/editors/creator-clang-codemodel.qdoc.");
+                         + " For details, see"
+                         + " doc/src/editors/creator-only/creator-clang-codemodel.qdoc.");
             throw new Error();
         }
     }

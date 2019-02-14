@@ -75,9 +75,7 @@ class CORE_EXPORT EditorManager : public QObject
     Q_OBJECT
 
 public:
-    typedef QList<IEditorFactory *> EditorFactoryList;
-    typedef QList<IExternalEditor *> ExternalEditorList;
-    typedef std::function<QString (const QString &)> WindowTitleHandler;
+    using WindowTitleHandler = std::function<QString (const QString &)>;
 
     static EditorManager *instance();
 
@@ -89,7 +87,8 @@ public:
         CanContainLineAndColumnNumber = 8,
         OpenInOtherSplit = 16,
         DoNotSwitchToDesignMode = 32,
-        DoNotSwitchToEditMode = 64
+        DoNotSwitchToEditMode = 64,
+        SwitchSplitIfAlreadyVisible = 128
     };
     Q_DECLARE_FLAGS(OpenEditorFlags, OpenEditorFlag)
 
@@ -150,10 +149,6 @@ public:
                                     const std::function<void()> &function = nullptr);
     static void hideEditorStatusBar(const QString &id);
 
-    static EditorFactoryList editorFactories(const Utils::MimeType &mimeType, bool bestMatchOnly = true);
-    static EditorFactoryList editorFactories(const QString &fileName, bool bestMatchOnly = true);
-    static ExternalEditorList externalEditors(const Utils::MimeType &mimeType, bool bestMatchOnly = true);
-
     static bool isAutoSaveFile(const QString &fileName);
 
     static QTextCodec *defaultTextCodec();
@@ -184,6 +179,7 @@ signals:
     void findOnFileSystemRequest(const QString &path);
     void openFileProperties(const Utils::FileName &path);
     void aboutToSave(IDocument *document);
+    void saved(IDocument *document);
     void autoSaved();
     void currentEditorAboutToChange(Core::IEditor *editor);
 

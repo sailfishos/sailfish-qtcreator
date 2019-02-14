@@ -152,6 +152,7 @@ ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const
     foreach (Core::Id l, languageList) {
         layout->addWidget(new QLabel(ToolChainManager::displayNameOfLanguageId(l) + ':'), row, 0);
         auto cb = new QComboBox;
+        cb->setSizePolicy(QSizePolicy::Ignored, cb->sizePolicy().verticalPolicy());
         cb->setToolTip(toolTip());
 
         m_languageComboboxMap.insert(l, cb);
@@ -329,6 +330,7 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, c
     m_comboBox(new QComboBox),
     m_model(new DeviceManagerModel(DeviceManager::instance()))
 {
+    m_comboBox->setSizePolicy(QSizePolicy::Ignored, m_comboBox->sizePolicy().verticalPolicy());
     m_comboBox->view()->setPalette(QApplication::palette());
     m_comboBox->setModel(m_model);
 
@@ -420,6 +422,7 @@ KitEnvironmentConfigWidget::KitEnvironmentConfigWidget(Kit *workingCopy, const K
     m_mainWidget(new QWidget)
 {
     auto *layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_summaryLabel);
     if (Utils::HostOsInfo::isWindowsHost())
         initMSVCOutputSwitch(layout);

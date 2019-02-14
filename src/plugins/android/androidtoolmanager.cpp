@@ -35,7 +35,7 @@
 #include <QLoggingCategory>
 
 namespace {
-Q_LOGGING_CATEGORY(androidToolLog, "qtc.android.sdkManager")
+Q_LOGGING_CATEGORY(androidToolLog, "qtc.android.sdkManager", QtWarningMsg)
 }
 
 namespace Android {
@@ -92,10 +92,7 @@ AndroidToolManager::AndroidToolManager(const AndroidConfig &config) :
 
 }
 
-AndroidToolManager::~AndroidToolManager()
-{
-
-}
+AndroidToolManager::~AndroidToolManager() = default;
 
 SdkPlatformList AndroidToolManager::availableSdkPlatforms(bool *ok) const
 {

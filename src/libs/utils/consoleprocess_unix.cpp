@@ -27,6 +27,7 @@
 
 #include "qtcprocess.h"
 
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
@@ -43,18 +44,7 @@
 
 namespace Utils {
 
-ConsoleProcessPrivate::ConsoleProcessPrivate() :
-    m_mode(ConsoleProcess::Run),
-    m_appPid(0),
-    m_stubSocket(0),
-    m_tempFile(0),
-    m_error(QProcess::UnknownError),
-    m_settings(0),
-    m_stubConnected(false),
-    m_stubPid(0),
-    m_stubConnectTimer(0)
-{
-}
+ConsoleProcessPrivate::ConsoleProcessPrivate() = default;
 
 ConsoleProcess::ConsoleProcess(QObject *parent)  :
     QObject(parent), d(new ConsoleProcessPrivate)
@@ -106,9 +96,12 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
     }
 
     QtcProcess::SplitError qerr;
-    QtcProcess::Arguments xtermArgs = QtcProcess::prepareArgs(terminalEmulator(d->m_settings), &qerr,
-                                                              HostOsInfo::hostOs(),
-                                                              &d->m_environment, &d->m_workingDir);
+    const TerminalCommand terminal = terminalEmulator(d->m_settings);
+    const QtcProcess::Arguments terminalArgs = QtcProcess::prepareArgs(terminal.executeArgs,
+                                                                       &qerr,
+                                                                       HostOsInfo::hostOs(),
+                                                                       &d->m_environment,
+                                                                       &d->m_workingDir);
     if (qerr != QtcProcess::SplitOk) {
         emitError(QProcess::FailedToStart, qerr == QtcProcess::BadQuoting
                           ? tr("Quoting error in terminal command.")
@@ -130,7 +123,7 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
             stubServerShutdown();
             emitError(QProcess::FailedToStart, msgCannotCreateTempFile(d->m_tempFile->errorString()));
             delete d->m_tempFile;
-            d->m_tempFile = 0;
+            d->m_tempFile = nullptr;
             return false;
         }
         QByteArray contents;
@@ -142,31 +135,31 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
             stubServerShutdown();
             emitError(QProcess::FailedToStart, msgCannotWriteTempFile());
             delete d->m_tempFile;
-            d->m_tempFile = 0;
+            d->m_tempFile = nullptr;
             return false;
         }
     }
 
     const QString stubPath = QCoreApplication::applicationDirPath()
             + QLatin1String("/" QTC_REL_TOOLS_PATH "/qtcreator_process_stub");
-    QStringList allArgs = xtermArgs.toUnixArgs();
-    allArgs << stubPath
-              << modeOption(d->m_mode)
-              << d->m_stubServer.fullServerName()
-              << msgPromptToClose()
-              << workingDirectory()
-              << (d->m_tempFile ? d->m_tempFile->fileName() : QString())
-              << QString::number(getpid())
-              << pcmd << pargs.toUnixArgs();
+    const QStringList allArgs = terminalArgs.toUnixArgs()
+                                << stubPath
+                                << modeOption(d->m_mode)
+                                << d->m_stubServer.fullServerName()
+                                << msgPromptToClose()
+                                << workingDirectory()
+                                << (d->m_tempFile ? d->m_tempFile->fileName() : QString())
+                                << QString::number(getpid())
+                                << pcmd
+                                << pargs.toUnixArgs();
 
-    QString xterm = allArgs.takeFirst();
-    d->m_process.start(xterm, allArgs);
+    d->m_process.start(terminal.command, allArgs);
     if (!d->m_process.waitForStarted()) {
         stubServerShutdown();
         emitError(QProcess::UnknownError, tr("Cannot start the terminal emulator \"%1\", change the setting in the "
-                             "Environment options.").arg(xterm));
+                             "Environment options.").arg(terminal.command));
         delete d->m_tempFile;
-        d->m_tempFile = 0;
+        d->m_tempFile = nullptr;
         return false;
     }
     d->m_stubConnectTimer = new QTimer(this);
@@ -259,7 +252,7 @@ void ConsoleProcess::stubServerShutdown()
         d->m_stubSocket->disconnect(); // avoid getting queued readyRead signals
         d->m_stubSocket->deleteLater(); // we might be called from the disconnected signal of m_stubSocket
     }
-    d->m_stubSocket = 0;
+    d->m_stubSocket = nullptr;
     if (d->m_stubServer.isListening()) {
         d->m_stubServer.close();
         ::rmdir(d->m_stubServerDir.constData());
@@ -270,7 +263,7 @@ void ConsoleProcess::stubConnectionAvailable()
 {
     if (d->m_stubConnectTimer) {
         delete d->m_stubConnectTimer;
-        d->m_stubConnectTimer = 0;
+        d->m_stubConnectTimer = nullptr;
     }
     d->m_stubConnected = true;
     emit stubStarted();
@@ -295,7 +288,7 @@ void ConsoleProcess::readStubOutput()
             emitError(QProcess::FailedToStart, msgCannotExecute(d->m_executable, errorMsg(out.mid(9).toInt())));
         } else if (out.startsWith("spid ")) {
             delete d->m_tempFile;
-            d->m_tempFile = 0;
+            d->m_tempFile = nullptr;
 
             d->m_stubPid = out.mid(4).toInt();
         } else if (out.startsWith("pid ")) {
@@ -328,7 +321,7 @@ void ConsoleProcess::stubExited()
     stubServerShutdown();
     d->m_stubPid = 0;
     delete d->m_tempFile;
-    d->m_tempFile = 0;
+    d->m_tempFile = nullptr;
     if (d->m_appPid) {
         d->m_appStatus = QProcess::CrashExit;
         d->m_appCode = -1;
@@ -338,83 +331,125 @@ void ConsoleProcess::stubExited()
     emit stubStopped();
 }
 
-struct Terminal {
-    const char *binary;
-    const char *options;
-};
-
-static const Terminal knownTerminals[] =
+Q_GLOBAL_STATIC_WITH_ARGS(const QVector<TerminalCommand>, knownTerminals, (
 {
-    {"x-terminal-emulator", "-e"},
-    {"xterm", "-e"},
-    {"aterm", "-e"},
-    {"Eterm", "-e"},
-    {"rxvt", "-e"},
-    {"urxvt", "-e"},
-    {"xfce4-terminal", "-x"},
-    {"konsole", "-e"},
-    {"gnome-terminal", "--"}
-};
+    {"x-terminal-emulator", "", "-e"},
+    {"xterm", "", "-e"},
+    {"aterm", "", "-e"},
+    {"Eterm", "", "-e"},
+    {"rxvt", "", "-e"},
+    {"urxvt", "", "-e"},
+    {"xfce4-terminal", "", "-x"},
+    {"konsole", "--separate", "-e"},
+    {"gnome-terminal", "", "--"}
+}));
 
-QString ConsoleProcess::defaultTerminalEmulator()
+TerminalCommand ConsoleProcess::defaultTerminalEmulator()
 {
-    if (HostOsInfo::isMacHost()) {
-        QString termCmd = QCoreApplication::applicationDirPath() + QLatin1String("/../Resources/scripts/openTerminal.command");
-        if (QFileInfo::exists(termCmd))
-            return termCmd.replace(QLatin1Char(' '), QLatin1String("\\ "));
-        return QLatin1String("/usr/X11/bin/xterm");
+    static TerminalCommand defaultTerm;
+    if (defaultTerm.command.isEmpty()) {
+        defaultTerm = []() -> TerminalCommand {
+            if (HostOsInfo::isMacHost()) {
+                const QString termCmd = QCoreApplication::applicationDirPath()
+                                        + "/../Resources/scripts/openTerminal.py";
+                if (QFileInfo::exists(termCmd))
+                    return {termCmd, "", ""};
+                return {"/usr/X11/bin/xterm", "", "-e"};
+            }
+            const Environment env = Environment::systemEnvironment();
+            for (const TerminalCommand &term : *knownTerminals) {
+                const QString result = env.searchInPath(term.command).toString();
+                if (!result.isEmpty())
+                    return {result, term.openArgs, term.executeArgs};
+            }
+            return {"xterm", "", "-e"};
+        }();
     }
-    const Environment env = Environment::systemEnvironment();
-    const int terminalCount = int(sizeof(knownTerminals) / sizeof(knownTerminals[0]));
-    for (int i = 0; i < terminalCount; ++i) {
-        QString result = env.searchInPath(QLatin1String(knownTerminals[i].binary)).toString();
-        if (!result.isEmpty()) {
-            result += QLatin1Char(' ');
-            result += QLatin1String(knownTerminals[i].options);
-            return result;
-        }
-    }
-    return QLatin1String("xterm -e");
+    return defaultTerm;
 }
 
-QStringList ConsoleProcess::availableTerminalEmulators()
+QVector<TerminalCommand> ConsoleProcess::availableTerminalEmulators()
 {
-    QStringList result;
+    QVector<TerminalCommand> result;
     const Environment env = Environment::systemEnvironment();
-    const int terminalCount = int(sizeof(knownTerminals) / sizeof(knownTerminals[0]));
-    for (int i = 0; i < terminalCount; ++i) {
-        QString terminal = env.searchInPath(QLatin1String(knownTerminals[i].binary)).toString();
-        if (!terminal.isEmpty()) {
-            terminal += QLatin1Char(' ');
-            terminal += QLatin1String(knownTerminals[i].options);
-            result.push_back(terminal);
-        }
+    for (const TerminalCommand &term : *knownTerminals) {
+        const QString command = env.searchInPath(term.command).toString();
+        if (!command.isEmpty())
+            result.push_back({command, term.openArgs, term.executeArgs});
     }
-    if (!result.contains(defaultTerminalEmulator()))
-        result.append(defaultTerminalEmulator());
-    result.sort();
+    // sort and put default terminal on top
+    const TerminalCommand defaultTerm = defaultTerminalEmulator();
+    result.removeAll(defaultTerm);
+    sort(result);
+    result.prepend(defaultTerm);
     return result;
 }
 
-QString ConsoleProcess::terminalEmulator(const QSettings *settings, bool nonEmpty)
+const char kTerminalVersion[] = "4.8";
+const char kTerminalVersionKey[] = "General/Terminal/SettingsVersion";
+const char kTerminalCommandKey[] = "General/Terminal/Command";
+const char kTerminalOpenOptionsKey[] = "General/Terminal/OpenOptions";
+const char kTerminalExecuteOptionsKey[] = "General/Terminal/ExecuteOptions";
+
+TerminalCommand ConsoleProcess::terminalEmulator(const QSettings *settings)
 {
     if (settings) {
-        const QString value = settings->value(QLatin1String("General/TerminalEmulator")).toString();
-        if (!nonEmpty || !value.isEmpty())
-            return value;
+        if (settings->value(kTerminalVersionKey).toString() == kTerminalVersion) {
+            if (settings->contains(kTerminalCommandKey))
+                return {settings->value(kTerminalCommandKey).toString(),
+                        settings->value(kTerminalOpenOptionsKey).toString(),
+                        settings->value(kTerminalExecuteOptionsKey).toString()};
+        } else {
+            // TODO remove reading of old settings some time after 4.8
+            const QString value = settings->value("General/TerminalEmulator").toString().trimmed();
+            if (!value.isEmpty()) {
+                // split off command and options
+                const QStringList splitCommand = QtcProcess::splitArgs(value);
+                if (QTC_GUARD(!splitCommand.isEmpty())) {
+                    const QString command = splitCommand.first();
+                    const QStringList quotedArgs = Utils::transform(splitCommand.mid(1),
+                                                                    &QtcProcess::quoteArgUnix);
+                    const QString options = quotedArgs.join(' ');
+                    return {command, "", options};
+                }
+            }
+        }
     }
     return defaultTerminalEmulator();
 }
 
-void ConsoleProcess::setTerminalEmulator(QSettings *settings, const QString &term)
+void ConsoleProcess::setTerminalEmulator(QSettings *settings, const TerminalCommand &term)
 {
-    settings->setValue(QLatin1String("General/TerminalEmulator"), term);
+    settings->setValue(kTerminalVersionKey, kTerminalVersion);
+    if (term == defaultTerminalEmulator()) {
+        settings->remove(kTerminalCommandKey);
+        settings->remove(kTerminalOpenOptionsKey);
+        settings->remove(kTerminalExecuteOptionsKey);
+    } else {
+        settings->setValue(kTerminalCommandKey, term.command);
+        settings->setValue(kTerminalOpenOptionsKey, term.openArgs);
+        settings->setValue(kTerminalExecuteOptionsKey, term.executeArgs);
+    }
 }
 
-bool ConsoleProcess::startTerminalEmulator(QSettings *settings, const QString &workingDir)
+bool ConsoleProcess::startTerminalEmulator(QSettings *settings, const QString &workingDir,
+                                           const Utils::Environment &env)
 {
-    const QString emu = QtcProcess::splitArgs(terminalEmulator(settings)).takeFirst();
-    return QProcess::startDetached(emu, QStringList(), workingDir);
+    const TerminalCommand term = terminalEmulator(settings);
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+    // for 5.9 and below we cannot set the environment
+    Q_UNUSED(env);
+    return QProcess::startDetached(term.command, QtcProcess::splitArgs(term.openArgs),
+                                   workingDir);
+#else
+    QProcess process;
+    process.setProgram(term.command);
+    process.setArguments(QtcProcess::splitArgs(term.openArgs));
+    process.setProcessEnvironment(env.toProcessEnvironment());
+    process.setWorkingDirectory(workingDir);
+
+    return process.startDetached();
+#endif
 }
 
 } // namespace Utils

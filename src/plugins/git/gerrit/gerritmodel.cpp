@@ -227,7 +227,7 @@ public:
                  const GerritServer &server,
                  QObject *parent = nullptr);
 
-    ~QueryContext();
+    ~QueryContext() override;
     void start();
     void terminate();
 
@@ -598,7 +598,7 @@ static GerritChangePtr parseSshOutput(const QJsonObject &object)
     change->branch = object.value("branch").toString();
     change->status =  object.value("status").toString();
     if (const int timeT = object.value("lastUpdated").toInt())
-        change->lastUpdated = QDateTime::fromTime_t(uint(timeT));
+        change->lastUpdated = QDateTime::fromSecsSinceEpoch(timeT);
     // Read out dependencies
     const QJsonValue dependsOnValue = object.value("dependsOn");
     if (dependsOnValue.isArray()) {
@@ -845,7 +845,7 @@ QList<QStandardItem *> GerritModel::changeToRow(const GerritChangePtr &c) const
     const QVariant filterV = QVariant(c->filterString());
     const QVariant changeV = qVariantFromValue(c);
     for (int i = 0; i < GerritModel::ColumnCount; ++i) {
-        QStandardItem *item = new QStandardItem;
+        auto item = new QStandardItem;
         item->setData(changeV, GerritModel::GerritChangeRole);
         item->setData(filterV, GerritModel::FilterRole);
         item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);

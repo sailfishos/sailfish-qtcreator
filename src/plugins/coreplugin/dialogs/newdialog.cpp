@@ -61,10 +61,10 @@ using namespace Core::Internal;
 class WizardFactoryContainer
 {
 public:
-    WizardFactoryContainer() : wizard(nullptr), wizardOption(0) {}
+    WizardFactoryContainer() = default;
     WizardFactoryContainer(Core::IWizardFactory *w, int i): wizard(w), wizardOption(i) {}
-    Core::IWizardFactory *wizard;
-    int wizardOption;
+    Core::IWizardFactory *wizard = nullptr;
+    int wizardOption = 0;
 };
 
 inline Core::IWizardFactory *factoryOfItem(const QStandardItem *item = nullptr)
@@ -175,8 +175,7 @@ QWidget *NewDialog::m_currentDialog = nullptr;
 
 NewDialog::NewDialog(QWidget *parent) :
     QDialog(parent),
-    m_ui(new Ui::NewDialog),
-    m_okButton(nullptr)
+    m_ui(new Ui::NewDialog)
 {
     QTC_CHECK(m_currentDialog == nullptr);
 
@@ -257,10 +256,10 @@ void NewDialog::setWizardFactories(QList<IWizardFactory *> factories,
 
     QStandardItem *projectKindItem = new QStandardItem(tr("Projects"));
     projectKindItem->setData(IWizardFactory::ProjectWizard, Qt::UserRole);
-    projectKindItem->setFlags(0); // disable item to prevent focus
+    projectKindItem->setFlags(nullptr); // disable item to prevent focus
     QStandardItem *filesKindItem = new QStandardItem(tr("Files and Classes"));
     filesKindItem->setData(IWizardFactory::FileWizard, Qt::UserRole);
-    filesKindItem->setFlags(0); // disable item to prevent focus
+    filesKindItem->setFlags(nullptr); // disable item to prevent focus
 
     parentItem->appendRow(projectKindItem);
     parentItem->appendRow(filesKindItem);
@@ -335,7 +334,7 @@ void NewDialog::showDialog()
         m_ui->templateCategoryView->setExpanded(m_filterProxyModel->index(row, 0), true);
 
     // Ensure that item description is visible on first show
-    currentItemChanged(m_ui->templatesView->rootIndex().child(0,0));
+    currentItemChanged(m_filterProxyModel->index(0, 0, m_ui->templatesView->rootIndex()));
 
     updateOkButton();
     show();
@@ -355,7 +354,7 @@ QWidget *NewDialog::currentDialog()
 bool NewDialog::event(QEvent *event)
 {
     if (event->type() == QEvent::ShortcutOverride) {
-        QKeyEvent *ke = static_cast<QKeyEvent *>(event);
+        auto ke = static_cast<QKeyEvent *>(event);
         if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
             ke->accept();
             return true;
@@ -439,7 +438,8 @@ void NewDialog::currentCategoryChanged(const QModelIndex &index)
         sourceIndex = m_filterProxyModel->mapFromSource(sourceIndex);
         m_ui->templatesView->setRootIndex(sourceIndex);
         // Focus the first item by default
-        m_ui->templatesView->setCurrentIndex(m_ui->templatesView->rootIndex().child(0,0));
+        m_ui->templatesView->setCurrentIndex(
+                    m_filterProxyModel->index(0, 0, m_ui->templatesView->rootIndex()));
     }
 }
 
@@ -518,7 +518,7 @@ void NewDialog::reject()
 
 void NewDialog::updateOkButton()
 {
-    m_okButton->setEnabled(currentWizardFactory() != 0);
+    m_okButton->setEnabled(currentWizardFactory() != nullptr);
 }
 
 void NewDialog::setSelectedPlatform(const QString & /*platform*/)

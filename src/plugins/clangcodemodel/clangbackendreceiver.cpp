@@ -187,28 +187,20 @@ void BackendReceiver::completions(const CompletionsMessage &message)
 
     const quint64 ticket = message.ticketNumber;
     QScopedPointer<ClangCompletionAssistProcessor> processor(m_assistProcessorsTable.take(ticket));
-    if (processor) {
-        processor->handleAvailableCompletions(message.codeCompletions,
-                                              message.neededCorrection);
-    }
+    if (processor)
+        processor->handleAvailableCompletions(message.codeCompletions);
 }
 
 void BackendReceiver::annotations(const AnnotationsMessage &message)
 {
-    qCDebugIpc() << "AnnotationsMessage with"
-                 << message.diagnostics.size() << "diagnostics"
-                 << message.tokenInfos.size() << "highlighting marks"
-                 << message.skippedPreprocessorRanges.size() << "skipped preprocessor ranges";
+    qCDebugIpc() << "AnnotationsMessage"
+                 << "for" << QFileInfo(message.fileContainer.filePath).fileName() << "with"
+                 << message.diagnostics.size() << "diagnostics" << message.tokenInfos.size()
+                 << "token infos" << message.skippedPreprocessorRanges.size()
+                 << "skipped preprocessor ranges";
 
     auto processor = ClangEditorDocumentProcessor::get(message.fileContainer.filePath);
-
     if (!processor)
-        return;
-
-    const QString projectPartId = message.fileContainer.projectPartId;
-    const QString filePath = message.fileContainer.filePath;
-    const QString documentProjectPartId = CppTools::CppToolsBridge::projectPartIdForFile(filePath);
-    if (projectPartId != documentProjectPartId)
         return;
 
     const quint32 documentRevision = message.fileContainer.documentRevision;

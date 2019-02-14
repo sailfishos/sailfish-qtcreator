@@ -30,6 +30,8 @@
 #include <coreplugin/basefilewizard.h>
 #include <coreplugin/basefilewizardfactory.h>
 
+#include <memory>
+
 namespace Utils { class ProjectIntroPage; }
 
 namespace ProjectExplorer {
@@ -84,7 +86,7 @@ private:
     void slotAccepted();
     bool validateCurrentPage() override;
 
-    BaseProjectWizardDialogPrivate *d;
+    std::unique_ptr<BaseProjectWizardDialogPrivate> d;
 };
 
 } // namespace ProjectExplorer

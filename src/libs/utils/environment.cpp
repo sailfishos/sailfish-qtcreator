@@ -34,30 +34,8 @@
 #include <QSet>
 #include <QCoreApplication>
 
-class SystemEnvironment : public Utils::Environment
-{
-public:
-    SystemEnvironment()
-        : Environment(QProcessEnvironment::systemEnvironment().toStringList())
-    {
-        if (Utils::HostOsInfo::isLinuxHost()) {
-            QString ldLibraryPath = value("LD_LIBRARY_PATH");
-            QDir lib(QCoreApplication::applicationDirPath());
-            lib.cd("../lib");
-            QString toReplace = lib.path();
-            lib.cd("qtcreator");
-            toReplace.append(':');
-            toReplace.append(lib.path());
-
-            if (ldLibraryPath.startsWith(toReplace + ':'))
-                set("LD_LIBRARY_PATH", ldLibraryPath.remove(0, toReplace.length() + 1));
-            else if (ldLibraryPath == toReplace)
-                unset("LD_LIBRARY_PATH");
-        }
-    }
-};
-
-Q_GLOBAL_STATIC(SystemEnvironment, staticSystemEnvironment)
+Q_GLOBAL_STATIC_WITH_ARGS(Utils::Environment, staticSystemEnvironment,
+                          (QProcessEnvironment::systemEnvironment().toStringList()))
 
 static QMap<QString, QString>::iterator findKey(QMap<QString, QString> &input, Utils::OsType osType,
                                                 const QString &key)
@@ -183,16 +161,16 @@ QDebug operator<<(QDebug debug, const EnvironmentItem &i)
     debug.nospace();
     debug << "EnvironmentItem(";
     switch (i.operation) {
-    case Utils::EnvironmentItem::Set:
+    case EnvironmentItem::Set:
         debug << "set \"" << i.name << "\" to \"" << i.value << '"';
         break;
-    case Utils::EnvironmentItem::Unset:
+    case EnvironmentItem::Unset:
         debug << "unset \"" << i.name << '"';
         break;
-    case Utils::EnvironmentItem::Prepend:
+    case EnvironmentItem::Prepend:
         debug << "prepend to \"" << i.name << "\":\"" << i.value << '"';
         break;
-    case Utils::EnvironmentItem::Append:
+    case EnvironmentItem::Append:
         debug << "append to \"" << i.name << "\":\"" << i.value << '"';
         break;
     }
@@ -260,8 +238,10 @@ Environment::Environment(const QStringList &env, OsType osType) : m_osType(osTyp
         int i = s.indexOf('=', 1);
         if (i >= 0) {
             const QString key = s.left(i);
-            const QString value = s.mid(i + 1);
-            set(key, value);
+            if (!key.contains('=')) {
+                const QString value = s.mid(i + 1);
+                set(key, value);
+            }
         }
     }
 }
@@ -284,6 +264,7 @@ QProcessEnvironment Environment::toProcessEnvironment() const
 
 void Environment::set(const QString &key, const QString &value)
 {
+    QTC_ASSERT(!key.contains('='), return);
     auto it = findKey(m_values, m_osType, key);
     if (it == m_values.end())
         m_values.insert(key, value);
@@ -293,6 +274,7 @@ void Environment::set(const QString &key, const QString &value)
 
 void Environment::unset(const QString &key)
 {
+    QTC_ASSERT(!key.contains('='), return);
     auto it = findKey(m_values, m_osType, key);
     if (it != m_values.end())
         m_values.erase(it);
@@ -300,6 +282,7 @@ void Environment::unset(const QString &key)
 
 void Environment::appendOrSet(const QString &key, const QString &value, const QString &sep)
 {
+    QTC_ASSERT(!key.contains('='), return);
     auto it = findKey(m_values, m_osType, key);
     if (it == m_values.end()) {
         m_values.insert(key, value);
@@ -313,6 +296,7 @@ void Environment::appendOrSet(const QString &key, const QString &value, const QS
 
 void Environment::prependOrSet(const QString&key, const QString &value, const QString &sep)
 {
+    QTC_ASSERT(!key.contains('='), return);
     auto it = findKey(m_values, m_osType, key);
     if (it == m_values.end()) {
         m_values.insert(key, value);
@@ -619,6 +603,11 @@ bool Environment::operator!=(const Environment &other) const
 bool Environment::operator==(const Environment &other) const
 {
     return m_osType == other.m_osType && m_values == other.m_values;
+}
+
+void Environment::modifySystemEnvironment(const QList<EnvironmentItem> &list)
+{
+    staticSystemEnvironment->modify(list);
 }
 
 /** Expand environment variables in a string.

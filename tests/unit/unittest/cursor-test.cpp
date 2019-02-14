@@ -32,8 +32,6 @@
 #include <clangdocuments.h>
 #include <clangstring.h>
 #include <cursor.h>
-#include <projectpart.h>
-#include <projects.h>
 #include <sourcelocation.h>
 #include <sourcerange.h>
 #include <clangtranslationunit.h>
@@ -43,7 +41,6 @@ using ClangBackEnd::Cursor;
 using ClangBackEnd::Document;
 using ClangBackEnd::TranslationUnit;
 using ClangBackEnd::UnsavedFiles;
-using ClangBackEnd::ProjectPart;
 using ClangBackEnd::Documents;
 using ClangBackEnd::ClangString;
 using ClangBackEnd::SourceRange;
@@ -62,13 +59,11 @@ using testing::Eq;
 namespace {
 
 struct Data {
-    ClangBackEnd::ProjectParts projects;
     ClangBackEnd::UnsavedFiles unsavedFiles;
-    ClangBackEnd::Documents documents{projects, unsavedFiles};
+    ClangBackEnd::Documents documents{unsavedFiles};
     Utf8String filePath{Utf8StringLiteral(TESTDATA_DIR"/cursor.cpp")};
     Document document{filePath,
-                      ProjectPart(Utf8StringLiteral("projectPartId"),
-                                  TestEnvironment::addPlatformArguments({Utf8StringLiteral("-std=c++11")})),
+                      TestEnvironment::addPlatformArguments({Utf8StringLiteral("-std=c++11")}),
                       {},
                       documents};
     TranslationUnit translationUnit{filePath,
@@ -191,7 +186,7 @@ TEST_F(Cursor, BriefComment)
     ASSERT_THAT(cursor.briefComment(), Eq("A brief comment"));
 }
 
-TEST_F(Cursor, DISABLED_ON_WINDOWS(RawComment))
+TEST_F(Cursor, RawComment)
 {
     auto cursor = translationUnit.cursorAt(Utf8StringLiteral(TESTDATA_DIR"/cursor.h"), 10, 7);
 

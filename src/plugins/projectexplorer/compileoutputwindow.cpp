@@ -108,7 +108,7 @@ private:
     }
 
 protected:
-    void mouseMoveEvent(QMouseEvent *ev)
+    void mouseMoveEvent(QMouseEvent *ev) override
     {
         const int line = cursorForPosition(ev->pos()).block().blockNumber();
         if (m_taskids.contains(line) && m_mousePressButton == Qt::NoButton)
@@ -118,14 +118,14 @@ protected:
         QPlainTextEdit::mouseMoveEvent(ev);
     }
 
-    void mousePressEvent(QMouseEvent *ev)
+    void mousePressEvent(QMouseEvent *ev) override
     {
         m_mousePressPosition = ev->pos();
         m_mousePressButton = ev->button();
         QPlainTextEdit::mousePressEvent(ev);
     }
 
-    void mouseReleaseEvent(QMouseEvent *ev)
+    void mouseReleaseEvent(QMouseEvent *ev) override
     {
         if ((m_mousePressPosition - ev->pos()).manhattanLength() < 4
                 && m_mousePressButton == Qt::LeftButton) {
@@ -159,7 +159,7 @@ CompileOutputWindow::CompileOutputWindow(QAction *cancelBuildAction) :
     m_outputWindow->setWindowIcon(Icons::WINDOW.icon());
     m_outputWindow->setReadOnly(true);
     m_outputWindow->setUndoRedoEnabled(false);
-    m_outputWindow->setMaxLineCount(Core::Constants::DEFAULT_MAX_LINE_COUNT);
+    m_outputWindow->setMaxCharCount(Core::Constants::DEFAULT_MAX_CHAR_COUNT);
 
     // Let selected text be colored as if the text edit was editable,
     // otherwise the highlight for searching is too light
@@ -226,7 +226,7 @@ void CompileOutputWindow::updateZoomEnabled()
 void CompileOutputWindow::updateFromSettings()
 {
     m_outputWindow->setWordWrapEnabled(ProjectExplorerPlugin::projectExplorerSettings().wrapAppOutput);
-    m_outputWindow->setMaxLineCount(ProjectExplorerPlugin::projectExplorerSettings().maxBuildOutputLines);
+    m_outputWindow->setMaxCharCount(ProjectExplorerPlugin::projectExplorerSettings().maxBuildOutputChars);
 }
 
 bool CompileOutputWindow::hasFocus() const
@@ -323,10 +323,11 @@ void CompileOutputWindow::registerPositionOf(const Task &task, int linkedOutputL
 {
     if (linkedOutputLines <= 0)
         return;
-    int blocknumber = m_outputWindow->document()->blockCount();
-    if (blocknumber > m_outputWindow->maxLineCount())
+    const int charNumber = m_outputWindow->document()->characterCount();
+    if (charNumber > m_outputWindow->maxCharCount())
         return;
 
+    const int blocknumber = m_outputWindow->document()->blockCount();
     const int startLine = blocknumber - linkedOutputLines + 1 - skipLines;
     const int endLine = blocknumber - skipLines;
 

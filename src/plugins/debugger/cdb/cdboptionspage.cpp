@@ -77,14 +77,14 @@ CdbBreakEventWidget::CdbBreakEventWidget(QWidget *parent) : QWidget(parent)
 {
     // 1 column with checkboxes only,
     // further columns with checkbox + parameter
-    QHBoxLayout *mainLayout = new QHBoxLayout;
+    auto mainLayout = new QHBoxLayout;
     mainLayout->setMargin(0);
-    QVBoxLayout *leftLayout = new QVBoxLayout;
+    auto leftLayout = new QVBoxLayout;
     QFormLayout *parameterLayout = nullptr;
     mainLayout->addLayout(leftLayout);
     const size_t eventCount = sizeof(eventDescriptions) / sizeof(EventsDescription);
     for (size_t e = 0; e < eventCount; e++) {
-        QCheckBox *cb = new QCheckBox(tr(eventDescriptions[e].description));
+        auto cb = new QCheckBox(tr(eventDescriptions[e].description));
         QLineEdit *le = nullptr;
         if (eventDescriptions[e].hasParameter) {
             if (!parameterLayout) {
@@ -95,7 +95,7 @@ CdbBreakEventWidget::CdbBreakEventWidget(QWidget *parent) : QWidget(parent)
             le = new QLineEdit;
             parameterLayout->addRow(cb, le);
             if (parameterLayout->count() >= 6) // New column
-                parameterLayout = 0;
+                parameterLayout = nullptr;
         } else {
             leftLayout->addWidget(cb);
         }
@@ -119,8 +119,8 @@ void CdbBreakEventWidget::setBreakEvents(const QStringList &l)
 {
     clear();
     // Split the list of ("eh", "out:MyOutput")
-    foreach (const QString &evt, l) {
-        const int colonPos = evt.indexOf(QLatin1Char(':'));
+    for (const QString &evt : l) {
+        const int colonPos = evt.indexOf(':');
         const QString abbrev = colonPos != -1 ? evt.mid(0, colonPos) : evt;
         const int index = indexOfEvent(abbrev);
         if (index != -1)
@@ -168,7 +168,7 @@ CdbOptionsPageWidget::CdbOptionsPageWidget(QWidget *parent)
 
     m_ui.startupFormLayout->setContentsMargins(margins);
 
-    QVBoxLayout *eventLayout = new QVBoxLayout;
+    auto eventLayout = new QVBoxLayout;
     eventLayout->setContentsMargins(margins);
     eventLayout->addWidget(m_breakEventWidget);
     m_ui.eventGroupBox->setLayout(eventLayout);
@@ -183,6 +183,8 @@ CdbOptionsPageWidget::CdbOptionsPageWidget(QWidget *parent)
     group.insert(action(UseCdbConsole), m_ui.consoleCheckBox);
     group.insert(action(CdbBreakPointCorrection), m_ui.breakpointCorrectionCheckBox);
     group.insert(action(CdbUsePythonDumper), m_ui.usePythonDumper);
+    group.insert(action(FirstChanceExceptionTaskEntry), m_ui.firstChance);
+    group.insert(action(SecondChanceExceptionTaskEntry), m_ui.secondChance);
     group.insert(action(IgnoreFirstChanceAccessViolation),
                  m_ui.ignoreFirstChanceAccessViolationCheckBox);
 
@@ -203,9 +205,7 @@ CdbOptionsPage::CdbOptionsPage()
     setCategory(Debugger::Constants::DEBUGGER_SETTINGS_CATEGORY);
 }
 
-CdbOptionsPage::~CdbOptionsPage()
-{
-}
+CdbOptionsPage::~CdbOptionsPage() = default;
 
 QWidget *CdbOptionsPage::widget()
 {
@@ -248,19 +248,19 @@ public:
 CdbPathsPageWidget::CdbPathsPageWidget(QWidget *parent) :
     QWidget(parent)
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    auto layout = new QVBoxLayout(this);
 
     QString title = tr("Symbol Paths");
-    QGroupBox* gbSymbolPath = new QGroupBox(this);
+    auto gbSymbolPath = new QGroupBox(this);
     gbSymbolPath->setTitle(title);
-    QVBoxLayout *gbSymbolPathLayout = new QVBoxLayout(gbSymbolPath);
+    auto gbSymbolPathLayout = new QVBoxLayout(gbSymbolPath);
     m_symbolPathListEditor = new CdbSymbolPathListEditor(gbSymbolPath);
     gbSymbolPathLayout->addWidget(m_symbolPathListEditor);
 
     title = tr("Source Paths");
-    QGroupBox* gbSourcePath = new QGroupBox(this);
+    auto gbSourcePath = new QGroupBox(this);
     gbSourcePath->setTitle(title);
-    QVBoxLayout *gbSourcePathLayout = new QVBoxLayout(gbSourcePath);
+    auto gbSourcePathLayout = new QVBoxLayout(gbSourcePath);
     m_sourcePathListEditor = new Utils::PathListEditor(gbSourcePath);
     gbSourcePathLayout->addWidget(m_sourcePathListEditor);
 
@@ -272,16 +272,14 @@ CdbPathsPageWidget::CdbPathsPageWidget(QWidget *parent) :
 }
 
 CdbPathsPage::CdbPathsPage()
-    : m_widget(0)
+    : m_widget(nullptr)
 {
     setId("F.Debugger.Cdb");
     setDisplayName(tr("CDB Paths"));
     setCategory(Debugger::Constants::DEBUGGER_SETTINGS_CATEGORY);
 }
 
-CdbPathsPage::~CdbPathsPage()
-{
-}
+CdbPathsPage::~CdbPathsPage() = default;
 
 QWidget *CdbPathsPage::widget()
 {

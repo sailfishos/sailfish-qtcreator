@@ -27,6 +27,8 @@
 
 #include "projectexplorer_export.h"
 
+#include <utils/osspecificaspects.h>
+
 #include <QList>
 #include <QHash>
 
@@ -72,14 +74,9 @@ public:
         OpenBsdFlavor,
 
         // Linux
-        GenericLinuxFlavor,
         AndroidLinuxFlavor,
 
-        // Darwin
-        GenericDarwinFlavor,
-
         // Unix
-        GenericUnixFlavor,
         SolarisUnixFlavor,
 
         // Windows
@@ -95,13 +92,12 @@ public:
 
         // Embedded
         VxWorksFlavor,
-        GenericQnxFlavor,
-        GenericBareMetalFlavor,
 
         // Generic:
         RtosFlavor,
+        GenericFlavor,
 
-        UnknownFlavor
+        UnknownFlavor // keep last in this enum!
     };
 
     enum BinaryFormat {
@@ -112,16 +108,13 @@ public:
         UnknownFormat
     };
 
-    Abi() :
-        m_architecture(UnknownArchitecture), m_os(UnknownOS),
-        m_osFlavor(UnknownFlavor), m_binaryFormat(UnknownFormat), m_wordWidth(0)
-    { }
-
-    Abi(const Architecture &a, const OS &o,
-        const OSFlavor &so, const BinaryFormat &f, unsigned char w);
-    Abi(const QString &abiString);
+    Abi(const Architecture &a = UnknownArchitecture, const OS &o = UnknownOS,
+        const OSFlavor &so = UnknownFlavor, const BinaryFormat &f = UnknownFormat,
+        unsigned char w = 0);
 
     static Abi abiFromTargetTriplet(const QString &machineTriple);
+
+    static Utils::OsType abiOsToOsType(const OS os);
 
     bool operator != (const Abi &other) const;
     bool operator == (const Abi &other) const;
@@ -150,11 +143,16 @@ public:
     static BinaryFormat binaryFormatFromString(const QStringRef &bf);
     static unsigned char wordWidthFromString(const QStringRef &w);
 
+    static OSFlavor registerOsFlavor(const std::vector<OS> &oses, const QString &flavorName);
     static QList<OSFlavor> flavorsForOs(const OS &o);
+    static QList<OSFlavor> allOsFlavors();
+    static bool osSupportsFlavor(const OS &os, const OSFlavor &flavor);
     static OSFlavor flavorForMsvcVersion(int version);
 
+    static Abi fromString(const QString &abiString);
     static Abi hostAbi();
     static QList<Abi> abisOfBinary(const Utils::FileName &path);
+
 
 private:
     Architecture m_architecture;

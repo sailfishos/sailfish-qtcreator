@@ -31,7 +31,6 @@
 #include "fancytabwidget.h"
 #include "documentmanager.h"
 #include "generalsettings.h"
-#include "helpmanager.h"
 #include "idocumentfactory.h"
 #include "messagemanager.h"
 #include "modemanager.h"
@@ -110,7 +109,6 @@ MainWindow::MainWindow() :
     m_progressManager(new ProgressManagerPrivate),
     m_jsExpander(new JsExpander),
     m_vcsManager(new VcsManager),
-    m_helpManager(new HelpManager),
     m_modeStack(new FancyTabWidget(this)),
     m_generalSettings(new GeneralSettings),
     m_systemSettings(new SystemSettings),
@@ -192,7 +190,7 @@ MainWindow::MainWindow() :
     statusBar()->setProperty("p_styled", true);
 
     auto dropSupport = new DropSupport(this, [](QDropEvent *event, DropSupport *) {
-        return event->source() == 0; // only accept drops from the "outside" (e.g. file manager)
+        return event->source() == nullptr; // only accept drops from the "outside" (e.g. file manager)
     });
     connect(dropSupport, &DropSupport::filesDropped,
             this, &MainWindow::openDroppedFiles);
@@ -281,8 +279,6 @@ MainWindow::~MainWindow()
     delete m_modeManager;
     m_modeManager = nullptr;
 
-    delete m_helpManager;
-    m_helpManager = nullptr;
     delete m_jsExpander;
     m_jsExpander = nullptr;
 }
@@ -359,7 +355,7 @@ void MainWindow::openDroppedFiles(const QList<DropSupport::FileSpec> &files)
 
 IContext *MainWindow::currentContextObject() const
 {
-    return m_activeContext.isEmpty() ? 0 : m_activeContext.first();
+    return m_activeContext.isEmpty() ? nullptr : m_activeContext.first();
 }
 
 QStatusBar *MainWindow::statusBar() const
@@ -795,15 +791,10 @@ void MainWindow::openFile()
 static IDocumentFactory *findDocumentFactory(const QList<IDocumentFactory*> &fileFactories,
                                      const QFileInfo &fi)
 {
-    const MimeType mt = Utils::mimeTypeForFile(fi);
-    if (mt.isValid()) {
-        const QString typeName = mt.name();
-        foreach (IDocumentFactory *factory, fileFactories) {
-            if (factory->mimeTypes().contains(typeName))
-                return factory;
-        }
-    }
-    return 0;
+    const QString typeName = Utils::mimeTypeForFile(fi).name();
+    return Utils::findOrDefault(fileFactories, [typeName](IDocumentFactory *f) {
+        return f->mimeTypes().contains(typeName);
+    });
 }
 
 /*! Either opens \a fileNames with editors or loads a project.
@@ -845,6 +836,8 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames,
             QFlags<EditorManager::OpenEditorFlag> emFlags;
             if (flags & ICore::CanContainLineAndColumnNumbers)
                 emFlags |=  EditorManager::CanContainLineAndColumnNumber;
+            if (flags & ICore::SwitchSplitIfAlreadyVisible)
+                emFlags |= EditorManager::SwitchSplitIfAlreadyVisible;
             IEditor *editor = EditorManager::openEditor(absoluteFilePath, Id(), emFlags);
             if (!editor) {
                 if (flags & ICore::StopOnLoadFail)
@@ -953,7 +946,7 @@ void MainWindow::updateContextObject(const QList<IContext *> &context)
     if (debugMainWindow) {
         qDebug() << "new context objects =" << context;
         foreach (IContext *c, context)
-            qDebug() << (c ? c->widget() : 0) << (c ? c->widget()->metaObject()->className() : 0);
+            qDebug() << (c ? c->widget() : nullptr) << (c ? c->widget()->metaObject()->className() : nullptr);
     }
 }
 
@@ -1093,8 +1086,7 @@ void MainWindow::updateContext()
     contexts.add(m_lowPrioAdditionalContexts);
 
     Context uniquecontexts;
-    for (int i = 0; i < contexts.size(); ++i) {
-        const Id id = contexts.at(i);
+    for (const Id &id : qAsConst(contexts)) {
         if (!uniquecontexts.contains(id))
             uniquecontexts.add(id);
     }
@@ -1152,7 +1144,7 @@ void MainWindow::destroyVersionDialog()
 {
     if (m_versionDialog) {
         m_versionDialog->deleteLater();
-        m_versionDialog = 0;
+        m_versionDialog = nullptr;
     }
 }
 

@@ -68,7 +68,7 @@ AbstractView::~AbstractView()
 */
 void AbstractView::setModel(Model *model)
 {
-    Q_ASSERT(model != 0);
+    Q_ASSERT(model != nullptr);
     if (model == m_model.data())
         return;
 
@@ -489,6 +489,10 @@ QString firstCharToLower(const QString &string)
 
 QString AbstractView::generateNewId(const QString &prefixName) const
 {
+    QString fixedPrefix = firstCharToLower(prefixName);
+    fixedPrefix.remove(' ');
+    if (!ModelNode::isValidId(fixedPrefix))
+        return generateNewId("element");
     int counter = 1;
 
     /* First try just the prefixName without number as postfix, then continue with 2 and further as postfix
@@ -525,7 +529,7 @@ NodeInstanceView *AbstractView::nodeInstanceView() const
     if (model())
         return model()->d->nodeInstanceView();
     else
-        return 0;
+        return nullptr;
 }
 
 RewriterView *AbstractView::rewriterView() const
@@ -533,7 +537,7 @@ RewriterView *AbstractView::rewriterView() const
     if (model())
         return model()->d->rewriterView();
     else
-        return 0;
+        return nullptr;
 }
 
 void AbstractView::resetView()
@@ -582,17 +586,37 @@ void AbstractView::contextHelpId(const Core::IContext::HelpIdCallback &callback)
 #endif
 }
 
-void AbstractView::activateTimelineRecording(const ModelNode &timeline)
+void AbstractView::activateTimeline(const ModelNode &timeline)
 {
+    if (currentTimeline().isValid())
+        currentTimeline().toogleRecording(false);
+
     Internal::WriteLocker locker(m_model.data());
+
     if (model())
         model()->d->notifyCurrentTimelineChanged(timeline);
+}
 
+void AbstractView::activateTimelineRecording(const ModelNode &timeline)
+{
+    if (currentTimeline().isValid())
+        currentTimeline().toogleRecording(true);
+
+    Internal::WriteLocker locker(m_model.data());
+
+    if (model())
+        model()->d->notifyCurrentTimelineChanged(timeline);
 }
 
 void AbstractView::deactivateTimelineRecording()
 {
+    if (currentTimeline().isValid()) {
+        currentTimeline().toogleRecording(false);
+        currentTimeline().resetGroupRecording();
+    }
+
     Internal::WriteLocker locker(m_model.data());
+
     if (model())
         model()->d->notifyCurrentTimelineChanged(ModelNode());
 }

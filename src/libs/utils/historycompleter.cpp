@@ -41,14 +41,14 @@
 namespace Utils {
 namespace Internal {
 
-static QSettings *theSettings = 0;
+static QSettings *theSettings = nullptr;
 
 class HistoryCompleterPrivate : public QAbstractListModel
 {
 public:
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
-    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override;
 
     void clearHistory();
     void addEntry(const QString &str);
@@ -56,7 +56,7 @@ public:
     QStringList list;
     QString historyKey;
     QString historyKeyIsLastItemEmpty;
-    int maxLines = 30;
+    int maxLines = 6;
     bool isLastItemEmpty = false;
 };
 
@@ -69,7 +69,7 @@ public:
         , icon(Icons::EDIT_CLEAR.icon())
     {}
 
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         // from QHistoryCompleter
         QStyleOptionViewItem optCopy = option;
@@ -109,7 +109,7 @@ public:
     }
 
 private:
-    void mousePressEvent(QMouseEvent *event)
+    void mousePressEvent(QMouseEvent *event) override
     {
         const QSize clearButtonSize = delegate->clearIconSize;
         if (clearButtonSize.isValid()) {
@@ -117,8 +117,11 @@ private:
             if (layoutDirection() == Qt::LeftToRight)
                 rr = viewport()->width() - event->x();
             if (rr < clearButtonSize.width()) {
-                model->removeRow(indexAt(event->pos()).row());
-                return;
+                const QModelIndex index = indexAt(event->pos());
+                if (index.isValid()) {
+                    model->removeRow(indexAt(event->pos()).row());
+                    return;
+                }
             }
         }
         QListView::mousePressEvent(event);

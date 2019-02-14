@@ -656,7 +656,11 @@ void extremeFunction(
     ++uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuunbelievableLongValue;
 
     extremeFunction(
-        "some super duper super duper super duper super duper super duper super duper super duper long");
+        "some super duper super duper super duper super duper super duper super duper long");
+
+    // BreakStringLiterals splits the string.
+    extremeFunction("some super duper super duper super duper super duper super duper super duper "
+                    "super duper long");
 }
 
 void extremeFunction2(int parameter1,
@@ -681,7 +685,7 @@ void extremeFunction3(int parameter1,
 // Misc
 // -------------------------------------------------------------------------------------------------
 
-static Q_LOGGING_CATEGORY(log, "qtc.cpptools.builtineditordocumentprocessor")
+static Q_LOGGING_CATEGORY(log, "qtc.cpptools.builtineditordocumentprocessor", QtWarningMsg)
 
     int hello; // NOTE: Ops, awkward placement of next token after Q_LOGGING_CATEGORY (semicolon helps)
 

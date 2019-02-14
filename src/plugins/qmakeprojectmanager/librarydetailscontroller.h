@@ -39,7 +39,7 @@ class LibraryDetailsController : public QObject
 public:
     explicit LibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
                                       const QString &proFile,
-                                      QObject *parent = 0);
+                                      QObject *parent = nullptr);
     virtual bool isComplete() const = 0;
     virtual QString snippet() const = 0;
 
@@ -52,6 +52,8 @@ protected:
     AddLibraryWizard::Platforms platforms() const;
     AddLibraryWizard::LinkageType linkageType() const;
     AddLibraryWizard::MacLibraryType macLibraryType() const;
+    Utils::OsType libraryPlatformType() const;
+    QString libraryPlatformFilter() const;
     QString proFile() const;
     bool isIncludePathChanged() const;
     bool guiSignalsIgnored() const;
@@ -116,17 +118,18 @@ class NonInternalLibraryDetailsController : public LibraryDetailsController
 public:
     explicit NonInternalLibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
                                                  const QString &proFile,
-                                                 QObject *parent = 0);
-    virtual bool isComplete() const;
-    virtual QString snippet() const;
+                                                 QObject *parent = nullptr);
+    bool isComplete() const override;
+    QString snippet() const override;
 protected:
-    virtual AddLibraryWizard::LinkageType suggestedLinkageType() const;
-    virtual AddLibraryWizard::MacLibraryType suggestedMacLibraryType() const;
-    virtual QString suggestedIncludePath() const;
-    virtual void updateWindowsOptionsEnablement();
+    AddLibraryWizard::LinkageType suggestedLinkageType() const override;
+    AddLibraryWizard::MacLibraryType suggestedMacLibraryType() const override;
+    QString suggestedIncludePath() const override;
+    void updateWindowsOptionsEnablement() override;
 private:
     void slotLinkageTypeChanged();
     void slotRemoveSuffixChanged(bool ena);
+    void slotLibraryTypeChanged();
     void slotLibraryPathChanged();
 };
 
@@ -135,10 +138,10 @@ class PackageLibraryDetailsController : public NonInternalLibraryDetailsControll
     Q_OBJECT
 public:
     explicit PackageLibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
-                                            const QString &proFile,
-                                            QObject *parent = 0);
-    virtual bool isComplete() const;
-    virtual QString snippet() const;
+                                             const QString &proFile,
+                                             QObject *parent = nullptr);
+    bool isComplete() const override;
+    QString snippet() const override;
 private:
     bool isLinkPackageGenerated() const;
 };
@@ -149,7 +152,7 @@ class SystemLibraryDetailsController : public NonInternalLibraryDetailsControlle
 public:
     explicit SystemLibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
                                             const QString &proFile,
-                                            QObject *parent = 0);
+                                            QObject *parent = nullptr);
 };
 
 class ExternalLibraryDetailsController : public NonInternalLibraryDetailsController
@@ -158,9 +161,9 @@ class ExternalLibraryDetailsController : public NonInternalLibraryDetailsControl
 public:
     explicit ExternalLibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
                                               const QString &proFile,
-                                              QObject *parent = 0);
+                                              QObject *parent = nullptr);
 protected:
-    virtual void updateWindowsOptionsEnablement();
+    void updateWindowsOptionsEnablement() override;
 };
 
 class InternalLibraryDetailsController : public LibraryDetailsController
@@ -169,14 +172,14 @@ class InternalLibraryDetailsController : public LibraryDetailsController
 public:
     explicit InternalLibraryDetailsController(Ui::LibraryDetailsWidget *libraryDetails,
                                               const QString &proFile,
-                                              QObject *parent = 0);
-    virtual bool isComplete() const;
-    virtual QString snippet() const;
+                                              QObject *parent = nullptr);
+    bool isComplete() const override;
+    QString snippet() const override;
 protected:
-    virtual AddLibraryWizard::LinkageType suggestedLinkageType() const;
-    virtual AddLibraryWizard::MacLibraryType suggestedMacLibraryType() const;
-    virtual QString suggestedIncludePath() const;
-    virtual void updateWindowsOptionsEnablement();
+    AddLibraryWizard::LinkageType suggestedLinkageType() const override;
+    AddLibraryWizard::MacLibraryType suggestedMacLibraryType() const override;
+    QString suggestedIncludePath() const override;
+    void updateWindowsOptionsEnablement() override;
 private:
     void slotCurrentLibraryChanged();
     void updateProFile();

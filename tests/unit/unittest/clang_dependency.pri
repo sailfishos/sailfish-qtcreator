@@ -1,4 +1,6 @@
 include(../../../src/shared/clang/clang_installation.pri)
+include(../../../src/shared/clang/clang_defines.pri)
+
 !isEmpty(LLVM_VERSION) {
     requires(!isEmpty(LIBCLANG_LIBS))
     equals(LLVM_IS_COMPILED_WITH_RTTI, "NO") : message("LLVM needs to be compiled with RTTI!")
@@ -20,7 +22,8 @@ include(../../../src/shared/clang/clang_installation.pri)
     !contains(QMAKE_DEFAULT_LIBDIRS, $$LLVM_LIBDIR): QMAKE_RPATHDIR += $$LLVM_LIBDIR
 
     LLVM_CXXFLAGS ~= s,-g\d?,
-    QMAKE_CXXFLAGS += $$LLVM_CXXFLAGS
+    QMAKE_CXXFLAGS_WARN_ON *= $$LLVM_CXXFLAGS_WARNINGS
+    QMAKE_CXXFLAGS *= $$LLVM_CXXFLAGS
 
     DEFINES += CLANG_COMPILER_PATH=\"R\\\"xxx($$LLVM_BINDIR/clang)xxx\\\"\"
 }

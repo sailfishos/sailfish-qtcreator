@@ -74,7 +74,7 @@ void RefactoringEngine::startLocalRenaming(const CppTools::CursorInEditor &data,
 
     QString filePath = data.filePath().toString();
     QTextCursor textCursor = data.cursor();
-    CompilerOptionsBuilder optionsBuilder{*projectPart, CLANG_VERSION, CLANG_RESOURCE_DIR};
+    CompilerOptionsBuilder optionsBuilder{*projectPart, CppTools::UseSystemHeader::Yes};
     Utils::SmallStringVector commandLine{optionsBuilder.build(
                     fileKindInProjectPart(projectPart, filePath),
                     CppTools::getPchUsage())};
@@ -104,7 +104,7 @@ CppTools::Usages RefactoringEngine::locationsAt(const CppTools::CursorInEditor &
         const QByteArray filePath = data.filePath().toString().toUtf8();
         const ClangBackEnd::FilePathId filePathId = m_filePathCache.filePathId(ClangBackEnd::FilePathView(filePath));
 
-        usages = m_symbolQuery.sourceUsagesAt(filePathId, lineColumn->line, lineColumn->column + 1);
+        usages = m_symbolQuery.sourceUsagesAt(filePathId, lineColumn->line, lineColumn->column);
     }
 
     return usages;

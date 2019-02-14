@@ -33,6 +33,7 @@
 #include "testtreemodel.h"
 #include "testcodeparser.h"
 #include "testeditormark.h"
+#include "testoutputreader.h"
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -236,7 +237,7 @@ void TestResultsPane::addTestResult(const TestResultPtr &result)
 
 void TestResultsPane::addOutput(const QByteArray &output)
 {
-    m_textOutput->appendPlainText(QString::fromLatin1(output));
+    m_textOutput->appendPlainText(QString::fromUtf8(TestOutputReader::chopLineBreak(output)));
 }
 
 QWidget *TestResultsPane::outputWidget(QWidget *parent)
@@ -324,7 +325,7 @@ void TestResultsPane::goToNext()
     if (currentIndex.isValid()) {
         // try to set next to first child or next sibling
         if (m_filterModel->rowCount(currentIndex)) {
-            nextCurrentIndex = currentIndex.child(0, 0);
+            nextCurrentIndex = m_filterModel->index(0, 0, currentIndex);
         } else {
             nextCurrentIndex = currentIndex.sibling(currentIndex.row() + 1, 0);
             // if it had no sibling check siblings of parent (and grandparents if necessary)
@@ -369,7 +370,7 @@ void TestResultsPane::goToPrev()
             nextCurrentIndex = currentIndex.sibling(currentIndex.row() - 1, 0);
             // if the sibling has children, use the last one
             while (int rowCount = m_filterModel->rowCount(nextCurrentIndex))
-                nextCurrentIndex = nextCurrentIndex.child(rowCount - 1, 0);
+                nextCurrentIndex = m_filterModel->index(rowCount - 1, 0, nextCurrentIndex);
         } else {
             nextCurrentIndex = currentIndex.parent();
         }
@@ -386,7 +387,7 @@ void TestResultsPane::goToPrev()
         nextCurrentIndex = m_filterModel->index(m_filterModel->rowCount(QModelIndex()) - 1, 0);
         // step through until end
         while (int rowCount = m_filterModel->rowCount(nextCurrentIndex))
-            nextCurrentIndex = nextCurrentIndex.child(rowCount - 1, 0);
+            nextCurrentIndex = m_filterModel->index(rowCount - 1, 0, nextCurrentIndex);
     }
 
     m_treeView->setCurrentIndex(nextCurrentIndex);
@@ -637,6 +638,9 @@ QString TestResultsPane::getWholeOutput(const QModelIndex &parent)
 
 void TestResultsPane::createMarks(const QModelIndex &parent)
 {
+    const TestResult *parentResult = m_model->testResult(parent);
+    Result::Type parentType = parentResult ? parentResult->result() : Result::Invalid;
+    const QVector<Result::Type> interested{Result::Fail, Result::UnexpectedPass};
     for (int row = 0, count = m_model->rowCount(parent); row < count; ++row) {
         const QModelIndex index = m_model->index(row, 0, parent);
         const TestResult *result = m_model->testResult(index);
@@ -645,8 +649,9 @@ void TestResultsPane::createMarks(const QModelIndex &parent)
         if (m_model->hasChildren(index))
             createMarks(index);
 
-        const QVector<Result::Type> interested{Result::Fail, Result::UnexpectedPass};
-        if (interested.contains(result->result())) {
+        bool isLocationItem = result->result() == Result::MessageLocation;
+        if (interested.contains(result->result())
+                || (isLocationItem && interested.contains(parentType))) {
             const Utils::FileName fileName = Utils::FileName::fromString(result->fileName());
             TestEditorMark *mark = new TestEditorMark(index, fileName, result->line());
             mark->setIcon(index.data(Qt::DecorationRole).value<QIcon>());

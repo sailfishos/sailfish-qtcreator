@@ -26,28 +26,39 @@
 #include "winrtrunconfiguration.h"
 #include "winrtconstants.h"
 
-#include <coreplugin/icore.h>
-
 #include <projectexplorer/target.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/runconfigurationaspects.h>
-
-#include <utils/detailswidget.h>
-
-#include <QFormLayout>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtkitinformation.h>
 
 using namespace ProjectExplorer;
-using namespace Utils;
 
 namespace WinRt {
 namespace Internal {
 
 // UninstallAfterStopAspect
 
-UninstallAfterStopAspect::UninstallAfterStopAspect(RunConfiguration *rc)
-    : BaseBoolAspect(rc, "WinRtRunConfigurationUninstallAfterStopId")
+UninstallAfterStopAspect::UninstallAfterStopAspect()
+    : BaseBoolAspect("WinRtRunConfigurationUninstallAfterStopId")
 {
     setLabel(WinRtRunConfiguration::tr("Uninstall package after application stops"));
+}
+
+// LoopbackExemptClientAspect
+
+LoopbackExemptClientAspect::LoopbackExemptClientAspect()
+    : BaseBoolAspect("WinRtRunConfigurationLoopbackExemptClient")
+{
+    setLabel(WinRtRunConfiguration::tr("Enable localhost communication for "
+                                       "clients"));
+}
+
+// LoopbackExemptServerAspect
+
+LoopbackExemptServerAspect::LoopbackExemptServerAspect()
+    : BaseBoolAspect("WinRtRunConfigurationLoopbackExemptServer")
+{
+    setLabel(WinRtRunConfiguration::tr("Enable localhost communication for "
+                                       "servers (requires elevated rights)"));
 }
 
 // WinRtRunConfiguration
@@ -56,24 +67,15 @@ WinRtRunConfiguration::WinRtRunConfiguration(Target *target, Core::Id id)
     : RunConfiguration(target, id)
 {
     setDisplayName(tr("Run App Package"));
-    addExtraAspect(new ArgumentsAspect(this, "WinRtRunConfigurationArgumentsId"));
-    addExtraAspect(new UninstallAfterStopAspect(this));
-}
+    addAspect<ArgumentsAspect>();
+    addAspect<UninstallAfterStopAspect>();
 
-QWidget *WinRtRunConfiguration::createConfigurationWidget()
-{
-    auto widget = new QWidget;
-    auto fl = new QFormLayout(widget);
-
-    extraAspect<ArgumentsAspect>()->addToConfigurationLayout(fl);
-    extraAspect<UninstallAfterStopAspect>()->addToConfigurationLayout(fl);
-
-    auto wrapped = wrapWidget(widget);
-    auto detailsWidget = qobject_cast<DetailsWidget *>(wrapped);
-    QTC_ASSERT(detailsWidget, return wrapped);
-    detailsWidget->setState(DetailsWidget::Expanded);
-    detailsWidget->setSummaryText(tr("Launch App"));
-    return detailsWidget;
+    const QtSupport::BaseQtVersion *qt
+            = QtSupport::QtKitInformation::qtVersion(target->kit());
+    if (qt && qt->qtVersion() >= QtSupport::QtVersionNumber(5, 12, 0)) {
+        addAspect<LoopbackExemptClientAspect>();
+        addAspect<LoopbackExemptServerAspect>();
+    }
 }
 
 // WinRtRunConfigurationFactory

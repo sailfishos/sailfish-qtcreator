@@ -45,18 +45,18 @@ Utils::Environment LocalEnvironmentAspect::baseEnvironment() const
     int base = baseEnvironmentBase();
     Utils::Environment env;
     if (base == static_cast<int>(BuildEnvironmentBase)) {
-        if (BuildConfiguration *bc = runConfiguration()->target()->activeBuildConfiguration()) {
+        if (BuildConfiguration *bc = m_target->activeBuildConfiguration()) {
             env = bc->environment();
         } else { // Fallback for targets without buildconfigurations:
             env = Utils::Environment::systemEnvironment();
-            runConfiguration()->target()->kit()->addToEnvironment(env);
+            m_target->kit()->addToEnvironment(env);
         }
     } else if (base == static_cast<int>(SystemEnvironmentBase)) {
         env = Utils::Environment::systemEnvironment();
     }
 
     if (m_baseEnvironmentModifier)
-        m_baseEnvironmentModifier(runConfiguration(), env);
+        m_baseEnvironmentModifier(env);
 
     return env;
 }
@@ -67,17 +67,18 @@ void LocalEnvironmentAspect::buildEnvironmentHasChanged()
         emit environmentChanged();
 }
 
-LocalEnvironmentAspect::LocalEnvironmentAspect(RunConfiguration *parent,
+LocalEnvironmentAspect::LocalEnvironmentAspect(Target *target,
                                                const BaseEnvironmentModifier &modifier) :
-    EnvironmentAspect(parent), m_baseEnvironmentModifier(modifier)
+    m_baseEnvironmentModifier(modifier),
+    m_target(target)
 {
     addPreferredBaseEnvironment(BuildEnvironmentBase, tr("Build Environment"));
     addSupportedBaseEnvironment(SystemEnvironmentBase, tr("System Environment"));
     addSupportedBaseEnvironment(CleanEnvironmentBase, tr("Clean Environment"));
 
-    parent->target()->subscribeSignal(&BuildConfiguration::environmentChanged,
-                                      this, &LocalEnvironmentAspect::buildEnvironmentHasChanged);
-    connect(parent->target(), &Target::activeBuildConfigurationChanged,
+    m_target->subscribeSignal(&BuildConfiguration::environmentChanged,
+                              this, &LocalEnvironmentAspect::buildEnvironmentHasChanged);
+    connect(m_target, &Target::activeBuildConfigurationChanged,
             this, &LocalEnvironmentAspect::buildEnvironmentHasChanged);
 }
 

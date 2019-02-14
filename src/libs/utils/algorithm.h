@@ -42,6 +42,7 @@
 #include <QStringList>
 
 #include <memory>
+#include <type_traits>
 
 namespace Utils
 {
@@ -229,7 +230,7 @@ protected:
   Container *container;
 
 public:
-  typedef Container container_type;
+  using container_type = Container;
   explicit SetInsertIterator (Container &x)
     : container(&x) {}
   SetInsertIterator<Container> &operator=(const typename Container::value_type &value)
@@ -253,7 +254,7 @@ template <class Container>
     Container *container;
 
   public:
-    typedef Container container_type;
+    using container_type = Container;
     explicit MapInsertIterator (Container &x)
       : container(&x) {}
     MapInsertIterator<Container> &operator=(const std::pair<const typename Container::key_type, typename Container::mapped_type> &value)
@@ -627,6 +628,20 @@ Container<T> qobject_container_cast(const Container<Base> &container)
 }
 
 //////////////////
+// static_container_cast
+/////////////////
+template <class T, template<typename> class Container, typename Base>
+Container<T> static_container_cast(const Container<Base> &container)
+{
+    Container<T> result;
+    reserve(result, container.size());
+    auto ins = inserter(result);
+    for (Base val : container)
+        ins = static_cast<T>(val);
+    return result;
+}
+
+//////////////////
 // sort
 /////////////////
 template <typename Container>
@@ -713,15 +728,15 @@ auto toConstReferences(const SourceContainer &sources)
 /////////////////
 
 template<class C, typename P>
-Q_REQUIRED_RESULT Utils::optional<typename C::value_type> take(C &container, P predicate)
+Q_REQUIRED_RESULT optional<typename C::value_type> take(C &container, P predicate)
 {
     const auto end = std::end(container);
 
     const auto it = std::find_if(std::begin(container), end, predicate);
     if (it == end)
-        return Utils::nullopt;
+        return nullopt;
 
-    Utils::optional<typename C::value_type> result = Utils::make_optional(std::move(*it));
+    optional<typename C::value_type> result = Utils::make_optional(std::move(*it));
     container.erase(it);
     return result;
 }
@@ -740,4 +755,98 @@ Q_REQUIRED_RESULT decltype(auto) take(C &container, R (S::*function)() const)
     return take(container, std::mem_fn(function));
 }
 
+//////////////////
+// setUnionMerge: Works like std::set_union but provides a merge function for items that match
+//                !(a > b) && !(b > a) which normally means that there is an "equal" match.
+//                It uses iterators to support move_iterators.
+/////////////////
+
+template<class InputIt1,
+         class InputIt2,
+         class OutputIt,
+         class Merge,
+         class Compare>
+OutputIt setUnionMerge(InputIt1 first1,
+                       InputIt1 last1,
+                       InputIt2 first2,
+                       InputIt2 last2,
+                       OutputIt d_first,
+                       Merge merge,
+                       Compare comp)
+{
+    for (; first1 != last1; ++d_first) {
+        if (first2 == last2)
+            return std::copy(first1, last1, d_first);
+        if (comp(*first2, *first1)) {
+            *d_first = *first2++;
+        } else {
+            if (comp(*first1, *first2)) {
+                *d_first = *first1;
+            } else {
+                *d_first = merge(*first1, *first2);
+                ++first2;
+            }
+            ++first1;
+        }
+    }
+    return std::copy(first2, last2, d_first);
+}
+
+template<class InputIt1,
+         class InputIt2,
+         class OutputIt,
+         class Merge>
+OutputIt setUnionMerge(InputIt1 first1,
+                       InputIt1 last1,
+                       InputIt2 first2,
+                       InputIt2 last2,
+                       OutputIt d_first,
+                       Merge merge)
+{
+    return setUnionMerge(first1,
+                         last1,
+                         first2,
+                         last2,
+                         d_first,
+                         merge,
+                         std::less<std::decay_t<decltype(*first1)>>{});
+}
+
+template<class OutputContainer,
+         class InputContainer1,
+         class InputContainer2,
+         class Merge,
+         class Compare>
+OutputContainer setUnionMerge(InputContainer1 &&input1,
+                              InputContainer2 &&input2,
+                              Merge merge,
+                              Compare comp)
+{
+    OutputContainer results;
+    results.reserve(input1.size() + input2.size());
+
+    setUnionMerge(std::make_move_iterator(std::begin(input1)),
+                  std::make_move_iterator(std::end(input1)),
+                  std::make_move_iterator(std::begin(input2)),
+                  std::make_move_iterator(std::end(input2)),
+                  std::back_inserter(results),
+                  merge,
+                  comp);
+
+    return results;
+}
+
+template<class OutputContainer,
+         class InputContainer1,
+         class InputContainer2,
+         class Merge>
+OutputContainer setUnionMerge(InputContainer1 &&input1,
+                              InputContainer2 &&input2,
+                              Merge merge)
+{
+    return setUnionMerge<OutputContainer>(std::forward<InputContainer1>(input1),
+                                          std::forward<InputContainer2>(input2),
+                                          merge,
+                                          std::less<std::decay_t<decltype(*std::begin(input1))>>{});
+}
 } // namespace Utils

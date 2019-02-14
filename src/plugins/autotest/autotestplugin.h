@@ -29,6 +29,10 @@
 
 #include <extensionsystem/iplugin.h>
 
+#include <QMap>
+
+namespace ProjectExplorer { class RunConfiguration; }
+
 namespace Autotest {
 namespace Internal {
 
@@ -39,6 +43,16 @@ struct TestSettings;
 class TestSettingsPage;
 enum class TestRunMode;
 
+struct ChoicePair
+{
+    explicit ChoicePair(const QString &name = QString(), const QString &exe = QString())
+        : displayName(name), executable(exe) {}
+    bool matches(const ProjectExplorer::RunConfiguration *rc) const;
+
+    QString displayName;
+    QString executable;
+};
+
 class AutotestPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
@@ -46,7 +60,7 @@ class AutotestPlugin : public ExtensionSystem::IPlugin
 
 public:
     AutotestPlugin();
-    ~AutotestPlugin();
+    ~AutotestPlugin() override;
 
     bool initialize(const QStringList &arguments, QString *errorString) override;
     void extensionsInitialized() override;
@@ -54,9 +68,11 @@ public:
 
     static QSharedPointer<TestSettings> settings();
     static void updateMenuItemsEnabledState();
+    static void cacheRunConfigChoice(const QString &buildTargetKey, const ChoicePair &choice);
+    static ChoicePair cachedChoiceFor(const QString &buildTargetKey);
+    static void clearChoiceCache();
 
 private:
-    bool checkLicense();
     void initializeMenuEntries();
     void onRunAllTriggered();
     void onRunSelectedTriggered();
@@ -68,6 +84,7 @@ private:
     TestSettingsPage *m_testSettingPage = nullptr;
     TestNavigationWidgetFactory *m_navigationWidgetFactory = nullptr;
     TestResultsPane *m_resultsPane = nullptr;
+    QMap<QString, ChoicePair> m_runconfigCache;
 };
 
 } // namespace Internal

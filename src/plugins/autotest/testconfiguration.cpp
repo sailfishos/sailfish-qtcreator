@@ -41,16 +41,12 @@
 
 #include <QLoggingCategory>
 
-static Q_LOGGING_CATEGORY(LOG, "qtc.autotest.testconfiguration")
+static Q_LOGGING_CATEGORY(LOG, "qtc.autotest.testconfiguration", QtWarningMsg)
 
 using namespace ProjectExplorer;
 
 namespace Autotest {
 namespace Internal {
-
-TestConfiguration::TestConfiguration()
-{
-}
 
 TestConfiguration::~TestConfiguration()
 {
@@ -155,11 +151,11 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
     if (targetInfo.targetFilePath.isEmpty()) {
         qCDebug(LOG) << "BuildTargetInfos";
         const QList<BuildTargetInfo> buildTargets = target->applicationTargets().list;
-        // if there is only one build target just use it (but be honest that we're guessing)
+        // if there is only one build target just use it (but be honest that we're deducing)
         if (buildTargets.size() == 1) {
             targetInfo = buildTargets.first();
-            m_guessedConfiguration = true;
-            m_guessedFrom = targetInfo.buildKey;
+            m_deducedConfiguration = true;
+            m_deducedFrom = targetInfo.buildKey;
         }
     }
 
@@ -227,8 +223,8 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
             if (isLocal(rc)) { // FIXME for now only Desktop support
                 const Runnable runnable = rc->runnable();
                 m_runnable.environment = runnable.environment;
-                m_guessedConfiguration = true;
-                m_guessedFrom = rc->displayName();
+                m_deducedConfiguration = true;
+                m_deducedFrom = rc->displayName();
                 if (runMode == TestRunMode::Debug)
                     m_runConfig = new TestRunConfiguration(rc->target(), this);
             } else {
@@ -238,7 +234,7 @@ void TestConfiguration::completeTestInformation(TestRunMode runMode)
         }
     }
 
-    if (m_displayName.isEmpty()) // happens e.g. when guessing the TestConfiguration or error
+    if (m_displayName.isEmpty()) // happens e.g. when deducing the TestConfiguration or error
         m_displayName = (*buildSystemTargets.begin());
 }
 

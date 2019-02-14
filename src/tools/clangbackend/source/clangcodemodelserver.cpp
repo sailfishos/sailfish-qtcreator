@@ -28,11 +28,13 @@
 #include "clangdocuments.h"
 #include "clangdocumentsuspenderresumer.h"
 #include "clangfilesystemwatcher.h"
+#include "clangupdateannotationsjob.h"
 #include "codecompleter.h"
 #include "diagnosticset.h"
 #include "tokenprocessor.h"
 #include "clangexceptions.h"
 #include "skippedsourceranges.h"
+#include "unsavedfile.h"
 
 #include <clangsupport/clangsupportdebugutils.h>
 #include <clangsupport/clangcodemodelservermessages.h>
@@ -42,9 +44,11 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QFileInfo>
 #include <QLoggingCategory>
+#include <QDir>
 
-Q_LOGGING_CATEGORY(serverLog, "qtc.clangbackend.server");
+Q_LOGGING_CATEGORY(serverLog, "qtc.clangbackend.server", QtWarningMsg);
 
 static bool useSupportiveTranslationUnit()
 {
@@ -55,7 +59,7 @@ static bool useSupportiveTranslationUnit()
 namespace ClangBackEnd {
 
 ClangCodeModelServer::ClangCodeModelServer()
-    : documents(projects, unsavedFiles)
+    : documents(unsavedFiles)
 {
     updateAnnotationsTimer.setSingleShot(true);
     QObject::connect(&updateAnnotationsTimer,
@@ -74,7 +78,7 @@ ClangCodeModelServer::ClangCodeModelServer()
     QObject::connect(documents.clangFileSystemWatcher(),
                      &ClangFileSystemWatcher::fileChanged,
                      [this](const Utf8String &filePath) {
-        if (!documents.hasDocumentWithFilePath(filePath))
+        if (!documents.hasDocument(filePath))
             updateAnnotationsTimer.start(0);
     });
 }
@@ -82,14 +86,6 @@ ClangCodeModelServer::ClangCodeModelServer()
 void ClangCodeModelServer::end()
 {
     QCoreApplication::exit();
-}
-
-static std::vector<Document> operator+(const std::vector<Document> &a,
-                                       const std::vector<Document> &b)
-{
-    std::vector<Document> result = a;
-    result.insert(result.end(), b.begin(), b.end());
-    return result;
 }
 
 void ClangCodeModelServer::documentsOpened(const ClangBackEnd::DocumentsOpenedMessage &message)
@@ -102,9 +98,14 @@ void ClangCodeModelServer::documentsOpened(const ClangBackEnd::DocumentsOpenedMe
         QVector<FileContainer> toCreate;
         categorizeFileContainers(message.fileContainers, toCreate, toReset);
 
-        const std::vector<Document> createdDocuments = documents.create(toCreate);
-        for (const auto &document : createdDocuments)
-            documentProcessors().create(document);
+        std::vector<Document> createdDocuments = documents.create(toCreate);
+        for (auto &document : createdDocuments) {
+            document.setDirtyIfDependencyIsMet(document.filePath());
+            DocumentProcessor processor = documentProcessors().create(document);
+            processor.jobs().setJobFinishedCallback([this](const Jobs::RunningJob &a, IAsyncJob *b) {
+                onJobFinished(a, b);
+            });
+        }
         const std::vector<Document> resetDocuments_ = resetDocuments(toReset);
 
         unsavedFiles.createOrUpdate(message.fileContainers);
@@ -112,7 +113,7 @@ void ClangCodeModelServer::documentsOpened(const ClangBackEnd::DocumentsOpenedMe
         documents.setVisibleInEditors(message.visibleEditorFilePaths);
 
         processSuspendResumeJobs(documents.documents());
-        processInitialJobsForDocuments(createdDocuments + resetDocuments_);
+        processJobsForVisibleDocuments();
     } catch (const std::exception &exception) {
         qWarning() << "Error in ClangCodeModelServer::documentsOpened:" << exception.what();
     }
@@ -161,43 +162,6 @@ void ClangCodeModelServer::documentsClosed(const ClangBackEnd::DocumentsClosedMe
     }
 }
 
-static DocumentResetInfos toDocumentResetInfos(const std::vector<Document> &documents)
-{
-    DocumentResetInfos infos;
-    for (const auto &d : documents)
-        infos.push_back(DocumentResetInfo{d, d.fileContainer()});
-    return infos;
-}
-
-void ClangCodeModelServer::projectPartsUpdated(const ProjectPartsUpdatedMessage &message)
-{
-    qCDebug(serverLog) << "########## projectPartsUpdated";
-    TIME_SCOPE_DURATION("ClangCodeModelServer::projectPartsUpdated");
-
-    try {
-        projects.createOrUpdate(message.projectContainers);
-        std::vector<Document> affectedDocuments = documents.setDocumentsDirtyIfProjectPartChanged();
-
-        resetDocuments(toDocumentResetInfos(affectedDocuments));
-
-        processJobsForVisibleDocuments();
-    } catch (const std::exception &exception) {
-        qWarning() << "Error in ClangCodeModelServer::projectPartsUpdated:" << exception.what();
-    }
-}
-
-void ClangCodeModelServer::projectPartsRemoved(const ProjectPartsRemovedMessage &message)
-{
-    qCDebug(serverLog) << "########## projectPartsRemoved";
-    TIME_SCOPE_DURATION("ClangCodeModelServer::projectPartsRemoved");
-
-    try {
-        projects.remove(message.projectPartIds);
-    } catch (const std::exception &exception) {
-        qWarning() << "Error in ClangCodeModelServer::projectPartsRemoved:" << exception.what();
-    }
-}
-
 void ClangCodeModelServer::unsavedFilesUpdated(const UnsavedFilesUpdatedMessage &message)
 {
     qCDebug(serverLog) << "########## unsavedFilesUpdated";
@@ -206,6 +170,7 @@ void ClangCodeModelServer::unsavedFilesUpdated(const UnsavedFilesUpdatedMessage 
     try {
         unsavedFiles.createOrUpdate(message.fileContainers);
         documents.updateDocumentsWithChangedDependencies(message.fileContainers);
+        resetDocumentsWithUnresolvedIncludes(documents.documents());
 
         updateAnnotationsTimer.start(updateAnnotationsTimeOutInMs);
     } catch (const std::exception &exception) {
@@ -232,7 +197,7 @@ void ClangCodeModelServer::requestCompletions(const ClangBackEnd::RequestComplet
     TIME_SCOPE_DURATION("ClangCodeModelServer::requestCompletions");
 
     try {
-        Document document = documents.document(message.filePath, message.projectPartId);
+        Document document = documents.document(message.filePath);
         DocumentProcessor processor = documentProcessors().processor(document);
 
         JobRequest jobRequest = processor.createJobRequest(JobRequest::Type::RequestCompletions);
@@ -255,8 +220,7 @@ void ClangCodeModelServer::requestAnnotations(const RequestAnnotationsMessage &m
     TIME_SCOPE_DURATION("ClangCodeModelServer::requestAnnotations");
 
     try {
-        auto document = documents.document(message.fileContainer.filePath,
-                                           message.fileContainer.projectPartId);
+        auto document = documents.document(message.fileContainer.filePath);
 
         DocumentProcessor processor = documentProcessors().processor(document);
         processor.addJob(JobRequest::Type::RequestAnnotations);
@@ -285,8 +249,7 @@ void ClangCodeModelServer::requestReferences(const RequestReferencesMessage &mes
     TIME_SCOPE_DURATION("ClangCodeModelServer::requestReferences");
 
     try {
-        const Document document = documents.document(message.fileContainer.filePath,
-                                                     message.fileContainer.projectPartId);
+        const Document document = documents.document(message.fileContainer.filePath);
         DocumentProcessor processor = documentProcessors().processor(document);
 
         JobRequest jobRequest = processor.createJobRequest(JobRequest::Type::RequestReferences);
@@ -305,8 +268,7 @@ void ClangCodeModelServer::requestFollowSymbol(const RequestFollowSymbolMessage 
     TIME_SCOPE_DURATION("ClangCodeModelServer::requestFollowSymbol");
 
     try {
-        const Utf8String &projectPartId = message.fileContainer.projectPartId;
-        Document document = documents.document(message.fileContainer.filePath, projectPartId);
+        Document document = documents.document(message.fileContainer.filePath);
         DocumentProcessor processor = documentProcessors().processor(document);
 
         JobRequest jobRequest = processor.createJobRequest(JobRequest::Type::RequestFollowSymbol);
@@ -323,8 +285,7 @@ void ClangCodeModelServer::requestToolTip(const RequestToolTipMessage &message)
     TIME_SCOPE_DURATION("ClangCodeModelServer::requestToolTip");
 
     try {
-        const Document document = documents.document(message.fileContainer.filePath,
-                                                     message.fileContainer.projectPartId);
+        const Document document = documents.document(message.fileContainer.filePath);
         DocumentProcessor processor = documentProcessors().processor(document);
 
         JobRequest jobRequest = processor.createJobRequest(JobRequest::Type::RequestToolTip);
@@ -382,8 +343,7 @@ void ClangCodeModelServer::processJobsForVisibleDocuments()
 void ClangCodeModelServer::processJobsForCurrentDocument()
 {
     auto currentDocuments = documents.filtered([](const Document &document) {
-        return document.isUsedByCurrentEditor()
-               && (document.isDirty() || document.documentRevision() == 1);
+        return document.isUsedByCurrentEditor() && document.isDirty();
     });
     QTC_CHECK(currentDocuments.size() <= 1);
 
@@ -441,6 +401,14 @@ void ClangCodeModelServer::processSuspendResumeJobs(const std::vector<Document> 
     }
 }
 
+void ClangCodeModelServer::onJobFinished(const Jobs::RunningJob &jobRecord, IAsyncJob *job)
+{
+    if (jobRecord.jobRequest.type == JobRequest::Type::UpdateAnnotations) {
+        const auto updateJob = static_cast<UpdateAnnotationsJob *>(job);
+        resetDocumentsWithUnresolvedIncludes({updateJob->pinnedDocument()});
+    }
+}
+
 void ClangCodeModelServer::categorizeFileContainers(const QVector<FileContainer> &fileContainers,
                                                     QVector<FileContainer> &toCreate,
                                                     DocumentResetInfos &toReset) const
@@ -480,12 +448,47 @@ std::vector<Document> ClangCodeModelServer::resetDocuments(const DocumentResetIn
     return newDocuments;
 }
 
-void ClangCodeModelServer::processInitialJobsForDocuments(const std::vector<Document> &documents)
+static bool isDocumentWithUnresolvedIncludesFixable(const Document &document,
+                                                    const UnsavedFiles &unsavedFiles)
 {
-    for (const auto &document : documents) {
-        DocumentProcessor processor = documentProcessors().processor(document);
-        addUpdateAnnotationsJobsAndProcess(processor);
+    for (uint i = 0; i < unsavedFiles.count(); ++i) {
+        const UnsavedFile &unsavedFile = unsavedFiles.at(i);
+        const Utf8String unsavedFilePath = QDir::cleanPath(unsavedFile.filePath());
+
+        for (const Utf8String &unresolvedPath : document.unresolvedFilePaths()) {
+            const QString documentDir = QFileInfo(document.filePath()).absolutePath();
+            const QString candidate = QDir::cleanPath(documentDir + "/" + unresolvedPath.toString());
+
+            if (Utf8String(candidate) == unsavedFilePath)
+                return true;
+
+            for (const Utf8String &headerPath : document.headerPaths()) {
+                Utf8String candidate = headerPath;
+                candidate.append(QStringLiteral("/"));
+                candidate.append(unresolvedPath);
+                candidate = QDir::cleanPath(candidate);
+                if (candidate == unsavedFilePath)
+                    return true;
+            }
+        }
     }
+
+    return false;
+}
+
+void ClangCodeModelServer::resetDocumentsWithUnresolvedIncludes(
+    const std::vector<Document> &documents)
+{
+    DocumentResetInfos toReset;
+
+    for (const Document &document : documents) {
+        if (document.unresolvedFilePaths().isEmpty())
+            continue;
+        if (isDocumentWithUnresolvedIncludesFixable(document, unsavedFiles))
+            toReset << DocumentResetInfo{document, document.fileContainer()};
+    }
+
+    resetDocuments(toReset);
 }
 
 void ClangCodeModelServer::setUpdateAnnotationsTimeOutInMsForTestsOnly(int value)
@@ -504,7 +507,7 @@ DocumentProcessors &ClangCodeModelServer::documentProcessors()
         // DocumentProcessors needs a reference to the client, but the client
         // is not known at construction time of ClangCodeModelServer, so
         // construct DocumentProcessors in a lazy manner.
-        documentProcessors_.reset(new DocumentProcessors(documents, unsavedFiles, projects, *client()));
+        documentProcessors_.reset(new DocumentProcessors(documents, unsavedFiles, *client()));
     }
 
     return *documentProcessors_.data();

@@ -61,7 +61,7 @@ Utils::FileName Settings::getPath(const QString &file)
     const QStringList identical
             = QStringList({ "android", "cmaketools", "debuggers", "devices",
                             "mersdk", "mersdk-device-models",
-                            "profiles", "qtversions", "toolchains" });
+                            "profiles", "qtversions", "toolchains", "abi" });
     if (lowerFile == "cmake")
         result.appendPath("cmaketools");
     else if (lowerFile == "kits")

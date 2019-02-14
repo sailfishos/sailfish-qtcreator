@@ -178,7 +178,7 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
 Qt::ItemFlags FlatModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
-        return 0;
+        return nullptr;
     // We claim that everything is editable
     // That's slightly wrong
     // We control the only view, and that one does the checks
@@ -239,6 +239,10 @@ void FlatModel::addOrRebuildProjectModel(Project *project)
         if (m_trimEmptyDirectories)
             trimEmptyDirectories(container);
     }
+
+    if (project->needsInitialExpansion())
+        m_toExpand.insert(expandDataForNode(container->m_node));
+
     if (container->childCount() == 0) {
         auto projectFileNode = std::make_unique<FileNode>(project->projectFilePath(),
                                                           FileType::Project, false);
@@ -470,7 +474,7 @@ Node *FlatModel::nodeForIndex(const QModelIndex &index) const
 
 const QLoggingCategory &FlatModel::logger()
 {
-    static QLoggingCategory logger("qtc.projectexplorer.flatmodel");
+    static QLoggingCategory logger("qtc.projectexplorer.flatmodel", QtWarningMsg);
     return logger;
 }
 

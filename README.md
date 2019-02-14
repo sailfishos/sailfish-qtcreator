@@ -18,11 +18,11 @@ Prerequisites:
 * Qt WebEngine module for QtWebEngine based help viewer
 * On Windows:
     * ActiveState Active Perl
-    * MinGW with g++ 4.9 or Visual Studio 2015 or later
+    * MinGW with g++ 5.3 or Visual Studio 2015 or later
     * jom
     * Python 3.5 or later (optional, needed for the python enabled debug helper)
 * On Mac OS X: latest Xcode
-* On Linux: g++ 4.9 or later
+* On Linux: g++ 5.3 or later
 * LLVM/Clang 6.0.0 or later (optional, needed for the Clang Code Model, see the
   section "Get LLVM/Clang for the Clang Code Model")
     * CMake (only for manual builds of LLVM/Clang)
@@ -138,7 +138,7 @@ For detailed information on the supported compilers, see
          the location of libclang.dll/.so that you want to be used.
          See more info in the section "Prebuilt LLVM/Clang packages".
        * When you launch Qt Creator, activate the Clang Code Model plugin as
-         described in doc/src/editors/creator-clang-codemodel.qdoc.
+         described in doc/src/editors/creator-only/creator-clang-codemodel.qdoc.
 
    11. You are now ready to configure and build Qt and Qt Creator.
        Please see <https://wiki.qt.io/Building_Qt_5_from_Git> for
@@ -265,13 +265,9 @@ http://llvm.org/docs/GettingStarted.html#git-mirror:
 
    1. Clone LLVM and checkout a suitable branch
 
-          git clone -b release_60-based https://code.qt.io/clang/llvm
+          git clone -b release_70-based --recursive https://code.qt.io/clang/llvm
 
-   2. Clone Clang into llvm/tools/clang and checkout a suitable branch
-
-          git clone -b release_60-based https://code.qt.io/clang/clang llvm/tools/clang
-
-   3. Build and install LLVM/Clang
+   2. Build and install LLVM/Clang
 
           mkdir build
           cd build

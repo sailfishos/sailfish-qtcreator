@@ -143,6 +143,7 @@
                 \li \l{Specifying Text Editor Settings}
                 \li \l{Using FakeVim Mode}
             \endlist
+            \li \l{Using Language Servers}
             \li \l{Editing MIME Types}
             \li \l{Modeling}
             \li \l{Editing State Charts}
@@ -195,6 +196,7 @@
                 \li \l{Using Clang Tools}
                 \li \l{Detecting Memory Leaks with Heob}
                 \li \l{Analyzing CPU Usage}
+                \li \l{Analyzing Code with Cppcheck}
             \endlist
             \li \l{Running Autotests}
         \endlist

@@ -28,12 +28,15 @@
 #include "autotestplugin.h"
 #include "testconfiguration.h"
 
+#include <debugger/debuggerrunconfigurationaspect.h>
+
 #include <projectexplorer/applicationlauncher.h>
+#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/runconfiguration.h>
+
 #include <utils/qtcassert.h>
-#include <debugger/debuggerrunconfigurationaspect.h>
 
 #include <QCoreApplication>
 
@@ -54,8 +57,10 @@ public:
         if (auto debuggable = dynamic_cast<DebuggableTestConfiguration *>(config))
             enableQuick = debuggable->mixedDebugging();
 
-        if (auto debugAspect = extraAspect<Debugger::DebuggerRunConfigurationAspect>())
+        if (auto debugAspect = aspect<Debugger::DebuggerRunConfigurationAspect>()) {
             debugAspect->setUseQmlDebugger(enableQuick);
+            ProjectExplorer::ProjectExplorerPlugin::instance()->updateRunActions();
+        }
         m_testConfig = config;
     }
 
@@ -67,14 +72,12 @@ public:
         r.commandLineArguments = m_testConfig->argumentsForTestRunner().join(' ');
         r.workingDirectory = m_testConfig->workingDirectory();
         r.environment = m_testConfig->environment();
-        r.runMode = ProjectExplorer::ApplicationLauncher::Gui;
         r.device = ProjectExplorer::DeviceManager::instance()->defaultDevice(
                     ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE);
         return r;
     }
 
 private:
-    QWidget *createConfigurationWidget() override { return nullptr; }
     TestConfiguration *m_testConfig = nullptr;
 };
 

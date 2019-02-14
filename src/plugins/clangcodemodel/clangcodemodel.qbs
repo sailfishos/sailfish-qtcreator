@@ -11,7 +11,9 @@ QtcPlugin {
     Depends { name: "TextEditor" }
     Depends { name: "Utils" }
     Depends { name: "ClangSupport" }
+
     Depends { name: "libclang"; required: false }
+    Depends { name: "clang_defines" }
 
     pluginTestDepends: [
         "CppEditor",
@@ -20,24 +22,11 @@ QtcPlugin {
 
     condition: libclang.present
 
-    cpp.defines: {
-        var defines = base;
-        // The following defines are used to determine the clang include path for intrinsics.
-        defines.push('CLANG_VERSION="' + libclang.llvmVersion + '"');
-        var resourceDir = FileInfo.joinPaths(libclang.llvmLibDir, "clang", libclang.llvmVersion,
-                                             "include");
-        defines.push('CLANG_RESOURCE_DIR="' + resourceDir + '"');
-        defines.push('CLANG_BINDIR="' + libclang.llvmBinDir + '"');
-        return defines;
-    }
-
     files: [
         "clangactivationsequencecontextprocessor.cpp",
         "clangactivationsequencecontextprocessor.h",
         "clangactivationsequenceprocessor.cpp",
         "clangactivationsequenceprocessor.h",
-        "clangassistproposal.cpp",
-        "clangassistproposal.h",
         "clangassistproposalitem.cpp",
         "clangassistproposalitem.h",
         "clangassistproposalmodel.cpp",
@@ -137,7 +126,7 @@ QtcPlugin {
         fileTags: []
         files: [
             "README",
-            project.ide_source_tree + "/doc/src/editors/creator-clang-codemodel.qdoc",
+            project.ide_source_tree + "/doc/src/editors/creator-only/creator-clang-codemodel.qdoc",
         ]
     }
 }

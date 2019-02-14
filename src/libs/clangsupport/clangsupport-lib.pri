@@ -21,9 +21,7 @@ SOURCES += \
     $$PWD/requestcompletionsmessage.cpp \
     $$PWD/echomessage.cpp \
     $$PWD/endmessage.cpp \
-    $$PWD/projectpartsupdatedmessage.cpp \
     $$PWD/documentsopenedmessage.cpp \
-    $$PWD/projectpartsremovedmessage.cpp \
     $$PWD/documentsclosedmessage.cpp \
     $$PWD/codecompletionchunk.cpp \
     $$PWD/codecompletion.cpp \
@@ -46,7 +44,6 @@ SOURCES += \
     $$PWD/pchmanagerserverinterface.cpp \
     $$PWD/pchmanagerserverproxy.cpp \
     $$PWD/precompiledheadersupdatedmessage.cpp \
-    $$PWD/projectpartcontainer.cpp \
     $$PWD/projectpartcontainerv2.cpp \
     $$PWD/projectpartpch.cpp \
     $$PWD/readmessageblock.cpp \
@@ -87,7 +84,10 @@ SOURCES += \
     $$PWD/writemessageblock.cpp \
     $$PWD/filepathcaching.cpp \
     $$PWD/filepathid.cpp \
-    $$PWD/baseserverproxy.cpp
+    $$PWD/baseserverproxy.cpp \
+    $$PWD/updategeneratedfilesmessage.cpp \
+    $$PWD/removegeneratedfilesmessage.cpp \
+    $$PWD/generatedfiles.cpp
 
 HEADERS += \
     $$PWD/cancelmessage.h \
@@ -111,9 +111,7 @@ HEADERS += \
     $$PWD/requestcompletionsmessage.h \
     $$PWD/echomessage.h \
     $$PWD/endmessage.h \
-    $$PWD/projectpartsupdatedmessage.h \
     $$PWD/documentsopenedmessage.h \
-    $$PWD/projectpartsremovedmessage.h \
     $$PWD/documentsclosedmessage.h \
     $$PWD/codecompletionchunk.h \
     $$PWD/codecompletion.h \
@@ -140,7 +138,6 @@ HEADERS += \
     $$PWD/pchmanagerserverinterface.h \
     $$PWD/pchmanagerserverproxy.h \
     $$PWD/precompiledheadersupdatedmessage.h \
-    $$PWD/projectpartcontainer.h \
     $$PWD/projectpartcontainerv2.h \
     $$PWD/projectpartpch.h \
     $$PWD/readmessageblock.h \
@@ -202,6 +199,10 @@ HEADERS += \
     $$PWD/nativefilepath.h \
     $$PWD/filepathview.h \
     $$PWD/compilermacro.h \
-    $$PWD/projectpartpchproviderinterface.h
+    $$PWD/projectpartpchproviderinterface.h \
+    $$PWD/updategeneratedfilesmessage.h \
+    $$PWD/removegeneratedfilesmessage.h \
+    $$PWD/generatedfiles.h \
+    $$PWD/generatedfilesinterface.h
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols

@@ -847,8 +847,8 @@ bool CustomWizardContext::replaceFields(const FieldReplacementMap &fm, QString *
 // used for the arguments of a generator script.
 class TemporaryFileTransform {
 public:
-    typedef CustomWizardContext::TemporaryFilePtr TemporaryFilePtr;
-    typedef CustomWizardContext::TemporaryFilePtrList TemporaryFilePtrList;
+    using TemporaryFilePtr = CustomWizardContext::TemporaryFilePtr;
+    using TemporaryFilePtrList = CustomWizardContext::TemporaryFilePtrList;
 
     explicit TemporaryFileTransform(TemporaryFilePtrList *f);
 

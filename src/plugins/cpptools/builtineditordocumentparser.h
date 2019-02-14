@@ -39,14 +39,14 @@ class CPPTOOLS_EXPORT BuiltinEditorDocumentParser : public BaseEditorDocumentPar
     Q_OBJECT
 
 public:
-    BuiltinEditorDocumentParser(const QString &filePath);
+    BuiltinEditorDocumentParser(const QString &filePath, int fileSizeLimitInMb = -1);
 
     bool releaseSourceAndAST() const;
     void setReleaseSourceAndAST(bool release);
 
     CPlusPlus::Document::Ptr document() const;
     CPlusPlus::Snapshot snapshot() const;
-    ProjectPartHeaderPaths headerPaths() const;
+    ProjectExplorer::HeaderPaths headerPaths() const;
 
     void releaseResources();
 
@@ -67,7 +67,7 @@ private:
     struct ExtraState {
         QByteArray configFile;
 
-        ProjectPartHeaderPaths headerPaths;
+        ProjectExplorer::HeaderPaths headerPaths;
         QString projectConfigFile;
         QStringList precompiledHeaders;
 
@@ -79,6 +79,8 @@ private:
 
     bool m_releaseSourceAndAST = true;
     ExtraState m_extraState;
+
+    const int m_fileSizeLimitInMb = -1;
 };
 
 } // namespace CppTools

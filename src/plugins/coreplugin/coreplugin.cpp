@@ -58,22 +58,26 @@
 #include <utils/theme/theme_p.h>
 
 #include <QtPlugin>
-#include <QDebug>
+
 #include <QDateTime>
+#include <QDebug>
+#include <QDir>
 #include <QMenu>
 #include <QUuid>
+
+#include <cstdlib>
 
 using namespace Core;
 using namespace Core::Internal;
 using namespace Utils;
 
+static CorePlugin *m_instance = nullptr;
+
 CorePlugin::CorePlugin()
-  : m_mainWindow(0)
-  , m_editMode(0)
-  , m_locator(0)
 {
     qRegisterMetaType<Id>();
     qRegisterMetaType<Core::Search::TextPosition>();
+    m_instance = this;
 }
 
 CorePlugin::~CorePlugin()
@@ -87,7 +91,12 @@ CorePlugin::~CorePlugin()
     DesignMode::destroyModeIfRequired();
 
     delete m_mainWindow;
-    setCreatorTheme(0);
+    setCreatorTheme(nullptr);
+}
+
+CorePlugin *CorePlugin::instance()
+{
+    return m_instance;
 }
 
 struct CoreArguments {
@@ -143,7 +152,7 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     if (args.overrideColor.isValid())
         m_mainWindow->setOverrideColor(args.overrideColor);
     m_locator = new Locator;
-    qsrand(QDateTime::currentDateTime().toTime_t());
+    std::srand(unsigned(QDateTime::currentDateTime().toSecsSinceEpoch()));
     m_mainWindow->init();
     m_editMode = new EditMode;
     ModeManager::activateMode(m_editMode->id());
@@ -187,6 +196,12 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
                                tr("Is %1 running on any unix-based platform?")
                                    .arg(Constants::IDE_DISPLAY_NAME),
                                []() { return QVariant(Utils::HostOsInfo::isAnyUnixHost()).toString(); });
+    expander->registerVariable("HostOs:PathListSeparator",
+                               tr("The path list separator for the platform."),
+                               []() { return QString(Utils::HostOsInfo::pathListSeparator()); });
+    expander->registerVariable("HostOs:ExecutableSuffix",
+                               tr("The platform executable suffix."),
+                               []() { return QString(Utils::HostOsInfo::withExecutableSuffix("")); });
     expander->registerVariable("IDE:ResourcePath",
                                tr("The directory where %1 finds its pre-installed resources.")
                                    .arg(Constants::IDE_DISPLAY_NAME),
@@ -221,7 +236,6 @@ void CorePlugin::extensionsInitialized()
 
 bool CorePlugin::delayedInitialize()
 {
-    HelpManager::setupHelpManager();
     m_locator->delayedInitialize();
     IWizardFactory::allWizardFactories(); // scan for all wizard factories
     return true;
@@ -239,7 +253,7 @@ QObject *CorePlugin::remoteCommand(const QStringList & /* options */,
         return nullptr;
     }
     IDocument *res = m_mainWindow->openFiles(
-                args, ICore::OpenFilesFlags(ICore::SwitchMode | ICore::CanContainLineAndColumnNumbers),
+                args, ICore::OpenFilesFlags(ICore::SwitchMode | ICore::CanContainLineAndColumnNumbers | ICore::SwitchSplitIfAlreadyVisible),
                 workingDirectory);
     m_mainWindow->raiseWindow();
     return res;
@@ -255,17 +269,27 @@ void CorePlugin::addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QM
     QList<QAction*> actions = menu->actions();
     QAction *firstAction = actions.isEmpty() ? nullptr : actions.first();
 
-    auto *showInGraphicalShell = new QAction(Core::FileUtils::msgGraphicalShellAction(), menu);
-    connect(showInGraphicalShell, &QAction::triggered, pathChooser, [pathChooser]() {
-        Core::FileUtils::showInGraphicalShell(pathChooser, pathChooser->path());
-    });
-    menu->insertAction(firstAction, showInGraphicalShell);
+    if (QDir().exists(pathChooser->path())) {
+        auto *showInGraphicalShell = new QAction(Core::FileUtils::msgGraphicalShellAction(), menu);
+        connect(showInGraphicalShell, &QAction::triggered, pathChooser, [pathChooser]() {
+            Core::FileUtils::showInGraphicalShell(pathChooser, pathChooser->path());
+        });
+        menu->insertAction(firstAction, showInGraphicalShell);
 
-    auto *showInTerminal = new QAction(Core::FileUtils::msgTerminalAction(), menu);
-    connect(showInTerminal, &QAction::triggered, pathChooser, [pathChooser]() {
-        Core::FileUtils::openTerminal(pathChooser->path());
-    });
-    menu->insertAction(firstAction, showInTerminal);
+        auto *showInTerminal = new QAction(Core::FileUtils::msgTerminalAction(), menu);
+        connect(showInTerminal, &QAction::triggered, pathChooser, [pathChooser]() {
+            Core::FileUtils::openTerminal(pathChooser->path());
+        });
+        menu->insertAction(firstAction, showInTerminal);
+
+    } else {
+        auto *mkPathAct = new QAction(tr("Create Folder"), menu);
+        connect(mkPathAct, &QAction::triggered, pathChooser, [pathChooser]() {
+            QDir().mkpath(pathChooser->path());
+            pathChooser->triggerChanged();
+        });
+        menu->insertAction(firstAction, mkPathAct);
+    }
 
     if (firstAction)
         menu->insertSeparator(firstAction);
@@ -275,6 +299,5 @@ ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()
 {
     Find::aboutToShutdown();
     m_mainWindow->aboutToShutdown();
-    HelpManager::aboutToShutdown();
     return SynchronousShutdown;
 }

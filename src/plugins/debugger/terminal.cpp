@@ -25,16 +25,16 @@
 
 #include "terminal.h"
 
-#include "debuggerruncontrol.h"
-
-#include <QDebug>
-#include <QIODevice>
-#include <QSocketNotifier>
+#include <projectexplorer/runconfiguration.h>
 
 #include <coreplugin/icore.h>
 
 #include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
+
+#include <QDebug>
+#include <QIODevice>
+#include <QSocketNotifier>
 
 #ifdef Q_OS_UNIX
 #   define DEBUGGER_USE_TERMINAL
@@ -168,13 +168,12 @@ void Terminal::onSlaveReaderActivated(int fd)
 #endif
 }
 
-TerminalRunner::TerminalRunner(DebuggerRunTool *debugger)
-    : RunWorker(debugger->runControl())
+TerminalRunner::TerminalRunner(RunControl *runControl, const Runnable &stubRunnable)
+    : RunWorker(runControl)
 {
-    setDisplayName("TerminalRunner");
+    setId("TerminalRunner");
 
-    const DebuggerRunParameters &rp = debugger->runParameters();
-    m_stubRunnable = rp.inferior;
+    m_stubRunnable = stubRunnable;
 
     connect(&m_stubProc, &ConsoleProcess::processError,
             this, &TerminalRunner::stubError);
@@ -190,11 +189,7 @@ void TerminalRunner::start()
     m_stubProc.setWorkingDirectory(m_stubRunnable.workingDirectory);
 
     if (HostOsInfo::isWindowsHost()) {
-        // Windows up to xp needs a workaround for attaching to freshly started processes. see proc_stub_win
-        if (QSysInfo::WindowsVersion >= QSysInfo::WV_VISTA)
-            m_stubProc.setMode(ConsoleProcess::Suspend);
-        else
-            m_stubProc.setMode(ConsoleProcess::Debug);
+        m_stubProc.setMode(ConsoleProcess::Suspend);
     } else {
         m_stubProc.setMode(ConsoleProcess::Debug);
         m_stubProc.setSettings(Core::ICore::settings());

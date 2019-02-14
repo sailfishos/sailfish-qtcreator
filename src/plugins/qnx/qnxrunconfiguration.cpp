@@ -36,17 +36,16 @@ namespace Internal {
 QnxRunConfiguration::QnxRunConfiguration(Target *target, Core::Id id)
     : RemoteLinuxRunConfiguration(target, id)
 {
-    auto libAspect = new QtLibPathAspect(this);
+    auto libAspect = addAspect<QtLibPathAspect>();
     libAspect->setSettingsKey("Qt4ProjectManager.QnxRunConfiguration.QtLibPath");
     libAspect->setLabelText(tr("Path to Qt libraries on device"));
     libAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
-    addExtraAspect(libAspect);
 }
 
 Runnable QnxRunConfiguration::runnable() const
 {
     Runnable r = RemoteLinuxRunConfiguration::runnable();
-    QString libPath = extraAspect<QtLibPathAspect>()->value();
+    QString libPath = aspect<QtLibPathAspect>()->value();
     if (!libPath.isEmpty()) {
         r.environment.appendOrSet("LD_LIBRARY_PATH", libPath + "/lib:$LD_LIBRARY_PATH");
         r.environment.appendOrSet("QML_IMPORT_PATH", libPath + "/imports:$QML_IMPORT_PATH");
@@ -55,12 +54,6 @@ Runnable QnxRunConfiguration::runnable() const
         r.environment.set("QT_QPA_FONTDIR", libPath + "/lib/fonts");
     }
     return r;
-}
-
-void QnxRunConfiguration::fillConfigurationLayout(QFormLayout *layout) const
-{
-    RemoteLinuxRunConfiguration::fillConfigurationLayout(layout);
-    extraAspect<QtLibPathAspect>()->addToConfigurationLayout(layout);
 }
 
 // QnxRunConfigurationFactory

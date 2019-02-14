@@ -61,7 +61,7 @@ namespace ProjectExplorer {
 
 static QString msgProgress(int progress, int total)
 {
-    return BuildManager::tr("Finished %1 of %n steps", 0, total).arg(progress);
+    return BuildManager::tr("Finished %1 of %n steps", nullptr, total).arg(progress);
 }
 
 class BuildManagerPrivate
@@ -103,6 +103,7 @@ static BuildManager *m_instance = nullptr;
 BuildManager::BuildManager(QObject *parent, QAction *cancelBuildAction)
     : QObject(parent)
 {
+    QTC_CHECK(!m_instance);
     m_instance = this;
     d = new BuildManagerPrivate;
 
@@ -166,6 +167,7 @@ BuildManager::~BuildManager()
     delete d->m_outputWindow;
 
     delete d;
+    d = nullptr;
 }
 
 void BuildManager::aboutToRemoveProject(Project *p)
@@ -642,8 +644,8 @@ void BuildManager::decrementActiveBuildSteps(BuildStep *bs)
 
 void BuildManager::disconnectOutput(BuildStep *bs)
 {
-    disconnect(bs, &BuildStep::addTask, m_instance, 0);
-    disconnect(bs, &BuildStep::addOutput, m_instance, 0);
+    disconnect(bs, &BuildStep::addTask, m_instance, nullptr);
+    disconnect(bs, &BuildStep::addOutput, m_instance, nullptr);
 }
 
 } // namespace ProjectExplorer

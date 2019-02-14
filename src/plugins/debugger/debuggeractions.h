@@ -36,8 +36,8 @@ namespace Utils { class SavedAction; }
 namespace Debugger {
 namespace Internal {
 
-typedef QMap<QString, QString> SourcePathMap;
-typedef QVector<QPair<QRegExp, QString> > SourcePathRegExpMap;
+using SourcePathMap = QMap<QString, QString>;
+using SourcePathRegExpMap = QVector<QPair<QRegExp, QString> >;
 
 // Global debugger options that are not stored as saved action.
 class GlobalDebuggerOptions
@@ -61,7 +61,7 @@ public:
     void insertItem(int code, Utils::SavedAction *item);
     Utils::SavedAction *item(int code) const;
 
-    QString dump() const;
+    static QString dump();
 
     void readSettings();
     void writeSettings() const;
@@ -82,7 +82,6 @@ enum DebuggerActionCode
     AutoQuit,
     LockView,
     LogTimeStamps,
-    OperateByInstruction,
     CloseSourceBuffersOnExit,
     CloseMemoryBuffersOnExit,
     SwitchModeOnExit,
@@ -117,6 +116,8 @@ enum DebuggerActionCode
     UseCdbConsole,
     CdbBreakPointCorrection,
     CdbUsePythonDumper,
+    FirstChanceExceptionTaskEntry,
+    SecondChanceExceptionTaskEntry,
     IgnoreFirstChanceAccessViolation,
 
     // Gdb

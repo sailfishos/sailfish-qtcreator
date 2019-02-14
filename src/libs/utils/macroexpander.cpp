@@ -49,11 +49,9 @@ const char kFileBaseNamePostfix[] = ":FileBaseName";
 class MacroExpanderPrivate : public AbstractMacroExpander
 {
 public:
-    MacroExpanderPrivate()
-        : m_accumulating(false), m_aborted(false), m_lockDepth(0)
-    {}
+    MacroExpanderPrivate() = default;
 
-    bool resolveMacro(const QString &name, QString *ret, QSet<AbstractMacroExpander *> &seen)
+    bool resolveMacro(const QString &name, QString *ret, QSet<AbstractMacroExpander *> &seen) override
     {
         // Prevent loops:
         const int count = seen.count();
@@ -113,10 +111,10 @@ public:
     QMap<QByteArray, QString> m_descriptions;
     QString m_displayName;
     QVector<MacroExpanderProvider> m_subProviders;
-    bool m_accumulating;
+    bool m_accumulating = false;
 
-    bool m_aborted;
-    int m_lockDepth;
+    bool m_aborted = false;
+    int m_lockDepth = 0;
 };
 
 } // Internal
@@ -396,7 +394,7 @@ void MacroExpander::registerFileVariables(const QByteArray &prefix,
 
     registerVariable(prefix + kFileNamePostfix,
          tr("%1: File name without path.").arg(heading),
-         [base]() -> QString { QString tmp = base(); return tmp.isEmpty() ? QString() : Utils::FileName::fromString(tmp).fileName(); },
+         [base]() -> QString { QString tmp = base(); return tmp.isEmpty() ? QString() : FileName::fromString(tmp).fileName(); },
          visibleInChooser);
 
     registerVariable(prefix + kFileBaseNamePostfix,

@@ -74,8 +74,6 @@ using namespace VcsBase;
 namespace Perforce {
 namespace Internal {
 
-const char SUBMIT_CURRENT[] = "Perforce.SubmitCurrentLog";
-const char DIFF_SELECTED[] = "Perforce.DiffSelectedFilesInLog";
 const char SUBMIT_MIMETYPE[] = "text/vnd.qtcreator.p4.submit";
 
 const char PERFORCE_CONTEXT[] = "Perforce Context";
@@ -110,8 +108,9 @@ const VcsBaseEditorParameters editorParameters[] = {
 // Utility to find a parameter set by type
 static inline const VcsBaseEditorParameters *findType(int ie)
 {
-    const EditorContentType et = static_cast<EditorContentType>(ie);
-    return VcsBaseEditor::findType(editorParameters, sizeof(editorParameters)/sizeof(editorParameters[0]), et);
+    return VcsBaseEditor::findType(editorParameters,
+                                   sizeof(editorParameters)/sizeof(*editorParameters),
+                                   static_cast<EditorContentType>(ie));
 }
 
 // Ensure adding "..." to relative paths which is p4's convention
@@ -169,7 +168,7 @@ PerforceResponse::PerforceResponse() :
 {
 }
 
-PerforcePlugin *PerforcePlugin::m_instance = NULL;
+PerforcePlugin *PerforcePlugin::m_instance = nullptr;
 
 static const VcsBaseSubmitEditorParameters submitParameters = {
     SUBMIT_MIMETYPE,
@@ -212,8 +211,6 @@ bool PerforcePlugin::initialize(const QStringList & /* arguments */, QString *er
     perforceContainer->menu()->setTitle(tr("&Perforce"));
     mtools->addMenu(perforceContainer);
     m_menuAction = perforceContainer->menu()->menuAction();
-
-    Context perforcesubmitcontext(PERFORCE_SUBMIT_EDITOR_ID);
 
     Command *command;
 
@@ -378,21 +375,6 @@ bool PerforcePlugin::initialize(const QStringList & /* arguments */, QString *er
     command = ActionManager::registerAction(m_filelogAction, CMD_ID_FILELOG, context);
     connect(m_filelogAction, &QAction::triggered, this, &PerforcePlugin::filelogFile);
     perforceContainer->addAction(command);
-
-    m_submitCurrentLogAction = new QAction(VcsBaseSubmitEditor::submitIcon(), tr("Submit"), this);
-    command = ActionManager::registerAction(m_submitCurrentLogAction, SUBMIT_CURRENT, perforcesubmitcontext);
-    command->setAttribute(Command::CA_UpdateText);
-    connect(m_submitCurrentLogAction, &QAction::triggered, this, &PerforcePlugin::submitCurrentLog);
-
-    m_diffSelectedFiles = new QAction(VcsBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
-    ActionManager::registerAction(m_diffSelectedFiles, DIFF_SELECTED, perforcesubmitcontext);
-
-    m_undoAction = new QAction(tr("&Undo"), this);
-    ActionManager::registerAction(m_undoAction, Core::Constants::UNDO, perforcesubmitcontext);
-
-    m_redoAction = new QAction(tr("&Redo"), this);
-    ActionManager::registerAction(m_redoAction, Core::Constants::REDO, perforcesubmitcontext);
-
     return true;
 }
 
@@ -620,10 +602,9 @@ void PerforcePlugin::startSubmitProject()
 IEditor *PerforcePlugin::openPerforceSubmitEditor(const QString &fileName, const QStringList &depotFileNames)
 {
     IEditor *editor = EditorManager::openEditor(fileName, PERFORCE_SUBMIT_EDITOR_ID);
-    PerforceSubmitEditor *submitEditor = static_cast<PerforceSubmitEditor*>(editor);
+    auto submitEditor = static_cast<PerforceSubmitEditor*>(editor);
     setSubmitEditor(submitEditor);
     submitEditor->restrictToProjectFiles(depotFileNames);
-    submitEditor->registerActions(m_undoAction, m_redoAction, m_submitCurrentLogAction, m_diffSelectedFiles);
     connect(submitEditor, &VcsBaseSubmitEditor::diffSelectedFiles,
             this, &PerforcePlugin::slotSubmitDiff);
     submitEditor->setCheckScriptWorkingDirectory(m_settings.topLevel());
@@ -867,7 +848,7 @@ bool PerforcePlugin::vcsOpen(const QString &workingDir, const QString &fileName,
     QStringList args;
     args << QLatin1String("edit") << QDir::toNativeSeparators(fileName);
 
-    int flags = CommandToWindow|StdOutToWindow|StdErrToWindow|ErrorToWindow;
+    uint flags = CommandToWindow|StdOutToWindow|StdErrToWindow|ErrorToWindow;
     if (silently) {
         flags |= SilentStdOut;
     }
@@ -1160,20 +1141,21 @@ IEditor *PerforcePlugin::showOutputInEditor(const QString &title,
                                              QTextCodec *codec)
 {
     const VcsBaseEditorParameters *params = findType(editorType);
-    QTC_ASSERT(params, return 0);
+    QTC_ASSERT(params, return nullptr);
     const Id id = params->id;
     QString s = title;
     QString content = output;
     const int maxSize = int(EditorManager::maxTextFileSize() / 2  - 1000L); // ~25 MB, 600000 lines
     if (content.size() >= maxSize) {
         content = content.left(maxSize);
-        content += QLatin1Char('\n') + tr("[Only %n MB of output shown]", 0, maxSize / 1024 / 1024);
+        content += QLatin1Char('\n')
+                   + tr("[Only %n MB of output shown]", nullptr, maxSize / 1024 / 1024);
     }
     IEditor *editor = EditorManager::openEditorWithContents(id, &s, content.toUtf8());
-    QTC_ASSERT(editor, return 0);
+    QTC_ASSERT(editor, return nullptr);
     auto e = qobject_cast<PerforceEditorWidget*>(editor->widget());
     if (!e)
-        return 0;
+        return nullptr;
     connect(e, &VcsBaseEditorWidget::annotateRevisionRequested, this, &PerforcePlugin::annotate);
     e->setForceReadOnly(true);
     e->setSource(source);
@@ -1228,7 +1210,7 @@ void PerforceDiffConfig::triggerReRun()
 
 QString PerforcePlugin::commitDisplayName() const
 {
-    return tr("submit", "\"commit\" action for perforce");
+    return tr("Submit");
 }
 
 void PerforcePlugin::p4Diff(const QString &workingDir, const QStringList &files)
@@ -1286,7 +1268,8 @@ void PerforcePlugin::p4Diff(const PerforceDiffParameters &p)
 
 void PerforcePlugin::describe(const QString & source, const QString &n)
 {
-    QTextCodec *codec = source.isEmpty() ? static_cast<QTextCodec *>(0) : VcsBaseEditor::getCodec(source);
+    QTextCodec *codec = source.isEmpty() ? static_cast<QTextCodec *>(nullptr)
+                                         : VcsBaseEditor::getCodec(source);
     QStringList args;
     args << QLatin1String("describe") << QLatin1String("-du") << n;
     const PerforceResponse result = runP4Cmd(m_settings.topLevel(), args, CommandToWindow|StdErrToWindow|ErrorToWindow,
@@ -1295,7 +1278,7 @@ void PerforcePlugin::describe(const QString & source, const QString &n)
         showOutputInEditor(tr("p4 describe %1").arg(n), result.stdOut, VcsBase::DiffOutput, source, codec);
 }
 
-void PerforcePlugin::submitCurrentLog()
+void PerforcePlugin::commitFromEditor()
 {
     m_submitActionTriggered = true;
     QTC_ASSERT(submitEditor(), return);

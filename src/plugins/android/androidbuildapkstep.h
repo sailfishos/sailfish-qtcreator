@@ -27,6 +27,7 @@
 #pragma once
 
 #include "android_global.h"
+
 #include <projectexplorer/abstractprocessstep.h>
 
 QT_BEGIN_NAMESPACE
@@ -39,10 +40,9 @@ class ANDROID_EXPORT AndroidBuildApkStep : public ProjectExplorer::AbstractProce
 {
     Q_OBJECT
 
-protected:
-    AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc, Core::Id id);
-
 public:
+    AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc);
+
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
@@ -72,17 +72,19 @@ public:
     QString buildTargetSdk() const;
     void setBuildTargetSdk(const QString &sdk);
 
-protected:
+private:
     Q_INVOKABLE void showInGraphicalShell();
 
     bool init(QList<const BuildStep *> &earlierSteps) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     bool immutable() const override { return true; }
+    void processStarted() override;
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     bool verifyKeystorePassword();
     bool verifyCertificatePassword();
 
-protected:
+    void run(QFutureInterface<bool> &fi) override;
+
     bool m_signPackage = false;
     bool m_verbose = false;
     bool m_useMinistro = false;
@@ -96,6 +98,19 @@ protected:
     QString m_certificateAlias;
     QString m_certificatePasswd;
     QString m_apkPath;
+
+    QString m_command;
+    QString m_argumentsPasswordConcealed;
+    bool m_skipBuilding = false;
 };
 
+namespace Internal {
+
+class AndroidBuildApkStepFactory : public ProjectExplorer::BuildStepFactory
+{
+public:
+    AndroidBuildApkStepFactory();
+};
+
+} // namespace Internal
 } // namespace Android

@@ -53,7 +53,7 @@ public:
     {}
 
 protected:
-    virtual bool visit(UiObjectBinding *ast)
+    bool visit(UiObjectBinding *ast) override
     {
         if (didRewriting())
             return false;
@@ -64,7 +64,7 @@ protected:
         return !didRewriting();
     }
 
-    virtual bool visit(UiObjectDefinition *ast)
+    bool visit(UiObjectDefinition *ast) override
     {
         if (didRewriting())
             return false;
@@ -100,7 +100,7 @@ private:
         for (UiObjectMemberList *iter = ast->members; iter; iter = iter->next) {
             UiObjectMember *member = iter->member;
 
-            if (UiArrayBinding *arrayBinding = cast<UiArrayBinding*>(member)) {
+            if (auto arrayBinding = cast<UiArrayBinding*>(member)) {
                 if (toString(arrayBinding->qualifiedId) == QString::fromUtf8(targetPropertyName)) {
                     appendToArray(arrayBinding);
 
@@ -128,7 +128,7 @@ private:
 
     void appendToArray(UiArrayBinding *ast)
     {
-        UiObjectMember *lastMember = 0;
+        UiObjectMember *lastMember = nullptr;
 
         for (UiArrayMemberList *iter = ast->members; iter; iter = iter->next) {
             if (iter->member)
@@ -179,7 +179,7 @@ bool MoveObjectVisitor::visit(UiArrayBinding *ast)
     if (didRewriting())
         return false;
 
-    UiArrayMemberList *currentMember = 0;
+    UiArrayMemberList *currentMember = nullptr;
 
     for (UiArrayMemberList *it = ast->members; it; it = it->next) {
         if (it->member->firstSourceLocation().offset == objectLocation) {

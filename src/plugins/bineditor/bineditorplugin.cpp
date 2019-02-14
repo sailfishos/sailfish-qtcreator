@@ -394,7 +394,7 @@ public:
         delete m_widget;
     }
 
-    IDocument *document() override { return m_file; }
+    IDocument *document() const override { return m_file; }
 
     QWidget *toolBar() override { return m_toolBar; }
 
@@ -442,8 +442,8 @@ BinEditorPluginPrivate::BinEditorPluginPrivate()
     ExtensionSystem::PluginManager::addObject(&m_factoryService);
     ExtensionSystem::PluginManager::addObject(&m_editorFactory);
 
-    m_undoAction = new QAction(tr("&Undo"), this);
-    m_redoAction = new QAction(tr("&Redo"), this);
+    m_undoAction = new QAction(BinEditorPlugin::tr("&Undo"), this);
+    m_redoAction = new QAction(BinEditorPlugin::tr("&Redo"), this);
     m_copyAction = new QAction(this);
     m_selectAllAction = new QAction(this);
 

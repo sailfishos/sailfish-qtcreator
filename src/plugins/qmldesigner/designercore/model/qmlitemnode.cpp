@@ -69,7 +69,7 @@ static QmlItemNode createQmlItemNodeFromSource(AbstractView *view, const QString
     textEdit.setPlainText(source);
     NotIndentingTextEditModifier modifier(&textEdit);
 
-    QScopedPointer<RewriterView> rewriterView(new RewriterView(RewriterView::Amend, 0));
+    QScopedPointer<RewriterView> rewriterView(new RewriterView(RewriterView::Amend, nullptr));
     rewriterView->setCheckSemanticErrors(false);
     rewriterView->setTextModifier(&modifier);
     inputModel->setRewriterView(rewriterView.data());
@@ -113,8 +113,9 @@ QmlItemNode QmlItemNode::createQmlItemNode(AbstractView *view, const ItemLibrary
         int minorVersion = metaInfo.minorVersion();
         int majorVersion = metaInfo.majorVersion();
 
-        typedef QPair<PropertyName, QString> PropertyBindingEntry;
+        using PropertyBindingEntry = QPair<PropertyName, QString>;
         QList<PropertyBindingEntry> propertyBindingList;
+        QList<PropertyBindingEntry> propertyEnumList;
         if (itemLibraryEntry.qmlSource().isEmpty()) {
             QList<QPair<PropertyName, QVariant> > propertyPairList;
             if (!position.isNull()) {
@@ -122,9 +123,11 @@ QmlItemNode QmlItemNode::createQmlItemNode(AbstractView *view, const ItemLibrary
                 propertyPairList.append({PropertyName("y"), QVariant(qRound(position.y()))});
             }
 
-            foreach (const PropertyContainer &property, itemLibraryEntry.properties()) {
+            for (const auto &property : itemLibraryEntry.properties()) {
                 if (property.type() == QStringLiteral("binding")) {
                     propertyBindingList.append(PropertyBindingEntry(property.name(), property.value().toString()));
+                } else if (property.type() == QStringLiteral("enum"))  {
+                    propertyEnumList.append(PropertyBindingEntry(property.name(), property.value().toString()));
                 } else {
                     propertyPairList.append({property.name(), property.value()});
                 }
@@ -143,8 +146,11 @@ QmlItemNode QmlItemNode::createQmlItemNode(AbstractView *view, const ItemLibrary
 
         newQmlItemNode.setId(view->generateNewId(itemLibraryEntry.name()));
 
-        foreach (const PropertyBindingEntry &propertyBindingEntry, propertyBindingList)
+        for (const auto &propertyBindingEntry : propertyBindingList)
             newQmlItemNode.modelNode().bindingProperty(propertyBindingEntry.first).setExpression(propertyBindingEntry.second);
+
+        for (const auto &propertyBindingEntry : propertyEnumList)
+            newQmlItemNode.modelNode().variantProperty(propertyBindingEntry.first).setEnumeration(propertyBindingEntry.second.toUtf8());
 
         Q_ASSERT(newQmlItemNode.isValid());
     }
@@ -193,6 +199,8 @@ QmlItemNode QmlItemNode::createQmlItemNodeFromImage(AbstractView *view, const QS
             parentproperty.reparentHere(newQmlItemNode);
 
             newQmlItemNode.setId(view->generateNewId(QLatin1String("image")));
+
+            newQmlItemNode.modelNode().variantProperty("fillMode").setEnumeration("Image.PreserveAspectFit");
 
             Q_ASSERT(newQmlItemNode.isValid());
         }
@@ -455,7 +463,7 @@ QPointF QmlItemNode::instanceScenePosition() const
      else if (modelNode().hasParentProperty() && QmlItemNode::isValidQmlItemNode(modelNode().parentProperty().parentModelNode()))
         return QmlItemNode(modelNode().parentProperty().parentModelNode()).instanceSceneTransform().map(nodeInstance().position());
 
-    return QPointF();
+    return {};
 }
 
 QPointF QmlItemNode::instancePosition() const

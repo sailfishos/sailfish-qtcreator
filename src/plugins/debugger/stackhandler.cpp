@@ -69,17 +69,13 @@ StackHandler::StackHandler(DebuggerEngine *engine)
 {
     setObjectName("StackModel");
 
-    connect(action(OperateByInstruction), &QAction::triggered,
-        this, &StackHandler::resetModel);
     connect(action(ExpandStack), &QAction::triggered,
         this, &StackHandler::reloadFullStack);
     connect(action(MaximalStackDepth), &QAction::triggered,
         this, &StackHandler::reloadFullStack);
 }
 
-StackHandler::~StackHandler()
-{
-}
+StackHandler::~StackHandler() = default;
 
 int StackHandler::rowCount(const QModelIndex &parent) const
 {
@@ -157,11 +153,11 @@ QVariant StackHandler::headerData(int section, Qt::Orientation orient, int role)
 Qt::ItemFlags StackHandler::flags(const QModelIndex &index) const
 {
     if (index.row() >= m_stackFrames.size() + m_canExpand)
-        return 0;
+        return nullptr;
     if (index.row() == m_stackFrames.size())
         return QAbstractTableModel::flags(index);
     const StackFrame &frame = m_stackFrames.at(index.row());
-    const bool isValid = frame.isUsable() || boolSetting(OperateByInstruction);
+    const bool isValid = frame.isUsable() || m_engine->operatesByInstruction();
     return isValid && m_contentsValid
             ? QAbstractTableModel::flags(index) : Qt::ItemFlags();
 }
@@ -260,7 +256,7 @@ void StackHandler::setFramesAndCurrentIndex(const GdbMi &frames, bool isFull)
     // a few exceptions:
 
     // Always jump to frame #0 when stepping by instruction.
-    if (boolSetting(OperateByInstruction))
+    if (m_engine->operatesByInstruction())
         targetFrame = 0;
 
     // If there is no frame with source, jump to frame #0.
@@ -286,7 +282,7 @@ void StackHandler::prependFrames(const StackFrames &frames)
 
 int StackHandler::firstUsableIndex() const
 {
-    if (!boolSetting(OperateByInstruction)) {
+    if (!m_engine->operatesByInstruction()) {
         for (int i = 0, n = m_stackFrames.size(); i != n; ++i)
             if (m_stackFrames.at(i).isUsable())
                 return i;
@@ -361,7 +357,7 @@ void StackHandler::saveTaskFile()
     }
 
     QTextStream str(&file);
-    foreach (const StackFrame &frame, frames()) {
+    for (const StackFrame &frame : frames()) {
         if (frame.isUsable())
             str << frame.file << '\t' << frame.line << "\tstack\tFrame #" << frame.level << '\n';
     }

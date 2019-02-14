@@ -145,7 +145,7 @@ void ClangCompletionContextAnalyzer::handleCommaInFunctionCall()
 
 void ClangCompletionContextAnalyzer::handleFunctionCall(int afterOperatorPosition)
 {
-    if (m_completionOperator == T_LPAREN) {
+    if (m_completionOperator == T_LPAREN || m_completionOperator == T_LBRACE) {
         ExpressionUnderCursor expressionUnderCursor(m_languageFeatures);
         QTextCursor textCursor(m_interface->textDocument());
         textCursor.setPosition(m_positionEndOfExpression);
@@ -157,6 +157,7 @@ void ClangCompletionContextAnalyzer::handleFunctionCall(int afterOperatorPositio
             setActionAndClangPosition(CompleteSlot, afterOperatorPosition);
         } else if (m_interface->position() != afterOperatorPosition) {
             // No function completion if cursor is not after '(' or ','
+            m_addSnippets = true;
             m_positionForProposal = afterOperatorPosition;
             setActionAndClangPosition(PassThroughToLibClang, afterOperatorPosition);
         } else {
@@ -169,6 +170,7 @@ void ClangCompletionContextAnalyzer::handleFunctionCall(int afterOperatorPositio
                                           m_positionForProposal,
                                           functionNameStart);
             } else { // e.g. "(" without any function name in front
+                m_addSnippets = true;
                 m_positionForProposal = afterOperatorPosition;
                 setActionAndClangPosition(PassThroughToLibClang, afterOperatorPosition);
             }
@@ -179,6 +181,8 @@ void ClangCompletionContextAnalyzer::handleFunctionCall(int afterOperatorPositio
 bool ClangCompletionContextAnalyzer::handleNonFunctionCall(int position)
 {
     if (isTokenForPassThrough(m_completionOperator)) {
+        if (m_completionOperator == T_EOF_SYMBOL)
+            m_addSnippets = true;
         setActionAndClangPosition(PassThroughToLibClang, position);
         return true;
     } else if (m_completionOperator == T_DOXY_COMMENT) {

@@ -42,6 +42,12 @@
 #include <projectexplorer/target.h>
 #include <utils/url.h>
 
+#include <QLoggingCategory>
+
+namespace {
+Q_LOGGING_CATEGORY(androidRunnerLog, "qtc.android.run.androidrunner", QtWarningMsg)
+}
+
 using namespace ProjectExplorer;
 using namespace Utils;
 
@@ -112,13 +118,10 @@ using namespace Utils;
 namespace Android {
 namespace Internal {
 
-AndroidRunner::AndroidRunner(RunControl *runControl,
-                             const QString &intentName,
-                             const QString &extraAppParams,
-                             const Utils::Environment &extraEnvVars)
+AndroidRunner::AndroidRunner(RunControl *runControl, const QString &intentName)
     : RunWorker(runControl), m_target(runControl->runConfiguration()->target())
 {
-    setDisplayName("AndroidRunner");
+    setId("AndroidRunner");
     static const int metaTypes[] = {
         qRegisterMetaType<QVector<QStringList> >("QVector<QStringList>"),
         qRegisterMetaType<Utils::Port>("Utils::Port"),
@@ -131,13 +134,14 @@ AndroidRunner::AndroidRunner(RunControl *runControl,
 
     QString intent = intentName.isEmpty() ? AndroidManager::intentName(m_target) : intentName;
     m_packageName = intent.left(intent.indexOf('/'));
+    qCDebug(androidRunnerLog) << "Intent name:" << intent << "Package name" << m_packageName;
 
     const int apiLevel = AndroidManager::deviceApiLevel(m_target);
+    qCDebug(androidRunnerLog) << "Device API:" << apiLevel;
+
     m_worker.reset(new AndroidRunnerWorker(this, m_packageName));
     m_worker->setIntentName(intent);
     m_worker->setIsPreNougat(apiLevel <= 23);
-    m_worker->setExtraAppParams(extraAppParams);
-    m_worker->setExtraEnvVars(extraEnvVars);
 
     m_worker->moveToThread(&m_thread);
 
@@ -169,7 +173,7 @@ AndroidRunner::~AndroidRunner()
 void AndroidRunner::start()
 {
     if (!ProjectExplorerPlugin::projectExplorerSettings().deployBeforeRun) {
-        // User choose to run the app without deployment. Start the AVD if not running.
+        qCDebug(androidRunnerLog) << "Run without deployment";
        launchAVD();
        if (!m_launchedAVDName.isEmpty()) {
            m_checkAVDTimer.start();
@@ -201,6 +205,7 @@ void AndroidRunner::qmlServerPortReady(Port port)
     serverUrl.setHost(QHostAddress(QHostAddress::LocalHost).toString());
     serverUrl.setPort(port.number());
     serverUrl.setScheme(urlTcpScheme());
+    qCDebug(androidRunnerLog) << "Qml Server port ready"<< serverUrl;
     emit qmlServerReady(serverUrl);
 }
 

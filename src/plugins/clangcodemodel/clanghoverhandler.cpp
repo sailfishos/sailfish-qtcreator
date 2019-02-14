@@ -40,7 +40,7 @@
 #include <QTextCodec>
 #include <QVBoxLayout>
 
-Q_LOGGING_CATEGORY(hoverLog, "qtc.clangcodemodel.hover");
+Q_LOGGING_CATEGORY(hoverLog, "qtc.clangcodemodel.hover", QtWarningMsg);
 
 using namespace TextEditor;
 
@@ -98,10 +98,6 @@ static QFuture<CppTools::ToolTipInfo> editorDocumentHandlesToolTipInfo(
     }
 
     return QFuture<CppTools::ToolTipInfo>();
-}
-
-ClangHoverHandler::ClangHoverHandler()
-{
 }
 
 ClangHoverHandler::~ClangHoverHandler()

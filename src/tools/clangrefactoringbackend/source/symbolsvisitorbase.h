@@ -26,6 +26,8 @@
 #pragma once
 
 #include "sourcelocationsutils.h"
+#include "sourcesmanager.h"
+#include "symbolentry.h"
 
 #include <filepathcachinginterface.h>
 
@@ -42,10 +44,12 @@ namespace ClangBackEnd {
 class SymbolsVisitorBase
 {
 public:
-    SymbolsVisitorBase(FilePathCachingInterface &filePathCache,
-                       const clang::SourceManager *sourceManager)
+    SymbolsVisitorBase(const FilePathCachingInterface &filePathCache,
+                       const clang::SourceManager *sourceManager,
+                       SourcesManager &sourcesManager)
         : m_filePathCache(filePathCache),
-          m_sourceManager(sourceManager)
+          m_sourceManager(sourceManager),
+          m_sourcesManager(sourcesManager)
     {}
 
     FilePathId filePathId(clang::SourceLocation sourceLocation)
@@ -54,6 +58,24 @@ public:
         const clang::FileEntry *fileEntry = m_sourceManager->getFileEntryForID(clangFileId);
 
         return filePathId(fileEntry);
+    }
+
+    bool dependentFilesAreModified()
+    {
+        return m_sourcesManager.dependentFilesModified();
+    }
+
+    bool isAlreadyParsed(clang::FileID fileId)
+    {
+        const clang::FileEntry *fileEntry = m_sourceManager->getFileEntryForID(fileId);
+
+        return m_sourcesManager.alreadyParsed(filePathId(fileEntry),
+                                              fileEntry->getModificationTime());
+    }
+
+    bool alreadyParsed(clang::SourceLocation sourceLocation)
+    {
+        return isAlreadyParsed(m_sourceManager->getFileID(sourceLocation));
     }
 
     FilePathId filePathId(const clang::FileEntry *fileEntry)
@@ -123,15 +145,32 @@ public:
         return SymbolIndex(reinterpret_cast<std::uintptr_t>(pointer));
     }
 
-    void setSourceManager(const clang::SourceManager *sourceManager)
+    void setSourceManager(clang::SourceManager *sourceManager)
     {
         m_sourceManager = sourceManager;
     }
 
+    bool isInSystemHeader(clang::FileID fileId) const
+    {
+        return isSystem(m_sourceManager->getSLocEntry(fileId).getFile().getFileCharacteristic());
+    }
+
+    static
+    bool isSystem(clang::SrcMgr::CharacteristicKind kind)
+    {
+        return clang::SrcMgr::isSystem(kind);
+    }
+
+    void clear()
+    {
+        m_filePathIndices.clear();
+    }
+
 protected:
     std::vector<FilePathId> m_filePathIndices;
-    FilePathCachingInterface &m_filePathCache;
+    const FilePathCachingInterface &m_filePathCache;
     const clang::SourceManager *m_sourceManager = nullptr;
+    SourcesManager &m_sourcesManager;
 };
 
 } // namespace ClangBackend

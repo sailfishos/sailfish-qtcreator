@@ -70,7 +70,7 @@ using namespace CppTools;
 using namespace ProjectExplorer;
 using namespace Utils;
 
-static Q_LOGGING_CATEGORY(LOG, "qtc.clangtools.runcontrol")
+static Q_LOGGING_CATEGORY(LOG, "qtc.clangtools.runcontrol", QtWarningMsg)
 
 static QStringList splitArgs(QString &argsString)
 {
@@ -119,7 +119,7 @@ public:
     ProjectBuilder(RunControl *runControl, Project *project, ClangToolRunControl *parent)
         : RunWorker(runControl), m_project(project), m_parent(parent)
     {
-        setDisplayName("ProjectBuilder");
+        setId("ProjectBuilder");
     }
 
     void setEnabled(bool enabled) { m_enabled = enabled; }
@@ -145,16 +145,17 @@ private:
         if (buildType == BuildConfiguration::Release) {
             const QString wrongMode = ClangToolRunControl::tr("Release");
             const QString toolName = m_parent->tool()->name();
-            const QString title = ClangToolRunControl::tr("Run %1 in %2 Mode?").arg(toolName)
-                    .arg(wrongMode);
-            const QString message = ClangToolRunControl::tr(
-                        "<html><head/><body>"
-                        "<p>You are trying to run the tool \"%1\" on an application in %2 mode. The tool is "
+            const QString title = ClangToolRunControl::tr("Run %1 in %2 Mode?").arg(toolName, wrongMode);
+            const QString problem = ClangToolRunControl::tr(
+                        "You are trying to run the tool \"%1\" on an application in %2 mode. The tool is "
                         "designed to be used in Debug mode since enabled assertions can reduce the number of "
-                        "false positives.</p>"
-                        "<p>Do you want to continue and run the tool in %2 mode?</p>"
-                        "</body></html>")
-                    .arg(toolName).arg(wrongMode);
+                        "false positives.").arg(toolName, wrongMode);
+            const QString question = ClangToolRunControl::tr(
+                        "Do you want to continue and run the tool in %1 mode?").arg(wrongMode);
+            const QString message = QString("<html><head/><body>"
+                                            "<p>%1</p>"
+                                            "<p>%2</p>"
+                                            "</body></html>").arg(problem, question);
             if (Utils::CheckableMessageBox::doNotAskAgainQuestion(Core::ICore::mainWindow(),
                                                                   title, message, Core::ICore::settings(),
                                                                   "ClangToolsCorrectModeWarning") != QDialogButtonBox::Yes)
@@ -191,8 +192,11 @@ static AnalyzeUnits toAnalyzeUnits(const FileInfos &fileInfos)
     const CompilerOptionsBuilder::PchUsage pchUsage = CppTools::getPchUsage();
     for (const FileInfo &fileInfo : fileInfos) {
         CompilerOptionsBuilder optionsBuilder(*fileInfo.projectPart,
-                                              CLANG_VERSION,
-                                              CLANG_RESOURCE_DIR);
+                                              CppTools::UseSystemHeader::No,
+                                              CppTools::SkipBuiltIn::No,
+                                              CppTools::SkipLanguageDefines::Yes,
+                                              QString(CLANG_VERSION),
+                                              QString(CLANG_RESOURCE_DIR));
         QStringList arguments = extraClangToolsPrependOptions();
         arguments.append(optionsBuilder.build(fileInfo.kind, pchUsage));
         arguments.append(extraClangToolsAppendOptions());
@@ -228,7 +232,7 @@ ClangToolRunControl::ClangToolRunControl(RunControl *runControl,
                                          const FileInfos &fileInfos)
     : RunWorker(runControl)
     , m_projectBuilder(new ProjectBuilder(runControl, target->project(), this))
-    , m_clangExecutable(CppTools::clangExecutable(CLANG_BINDIR))
+    , m_clangExecutable(Core::ICore::clangExecutable(CLANG_BINDIR))
     , m_temporaryDir("clangtools-XXXXXX")
     , m_target(target)
     , m_fileInfos(fileInfos)
@@ -299,7 +303,7 @@ void ClangToolRunControl::start()
     // Create log dir
     if (!m_temporaryDir.isValid()) {
         const QString errorMessage
-                = toolName + tr(": Failed to create temporary dir, stop.");
+                = tr("%1: Failed to create temporary dir, stop.").arg(toolName);
         appendMessage(errorMessage, Utils::ErrorMessageFormat);
         TaskHub::addTask(Task::Error, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
@@ -407,22 +411,25 @@ void ClangToolRunControl::onRunnerFinishedWithSuccess(const QString &filePath)
 }
 
 void ClangToolRunControl::onRunnerFinishedWithFailure(const QString &errorMessage,
-                                                            const QString &errorDetails)
+                                                      const QString &errorDetails)
 {
     qCDebug(LOG).noquote() << "onRunnerFinishedWithFailure:"
                            << errorMessage << '\n' << errorDetails;
 
+    auto *toolRunner = qobject_cast<ClangToolRunner *>(sender());
+    const QString filePath = toolRunner->filePath();
+    const QString logFilePath = toolRunner->logFilePath();
+
     // Even in the error case the log file was created, so clean it up here, too.
-    QFile::remove(qobject_cast<ClangToolRunner *>(sender())->logFilePath());
+    QFile::remove(logFilePath);
+
+    const QString message = tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage);
 
     ++m_filesNotAnalyzed;
     m_success = false;
-    const QString filePath = qobject_cast<ClangToolRunner *>(sender())->filePath();
-    appendMessage(tr("Failed to analyze \"%1\": %2").arg(filePath, errorMessage),
-                  Utils::StdErrFormat);
+    appendMessage(message, Utils::StdErrFormat);
     appendMessage(errorDetails, Utils::StdErrFormat);
-    TaskHub::addTask(Task::Warning, errorMessage, Debugger::Constants::ANALYZERTASK_ID);
-    TaskHub::addTask(Task::Warning, errorDetails, Debugger::Constants::ANALYZERTASK_ID);
+    TaskHub::addTask(Task::Warning, message, Debugger::Constants::ANALYZERTASK_ID);
     handleFinished();
 }
 
@@ -448,13 +455,13 @@ void ClangToolRunControl::updateProgressValue()
 void ClangToolRunControl::finalize()
 {
     const QString toolName = tool()->name();
-    appendMessage(toolName + tr(" finished: "
-                     "Processed %1 files successfully, %2 failed.")
-                        .arg(m_filesAnalyzed).arg(m_filesNotAnalyzed),
+    appendMessage(tr("%1 finished: "
+                     "Processed %2 files successfully, %3 failed.")
+                        .arg(toolName).arg(m_filesAnalyzed).arg(m_filesNotAnalyzed),
                   Utils::NormalMessageFormat);
 
     if (m_filesNotAnalyzed != 0) {
-        QString msg = toolName + tr(": Not all files could be analyzed.");
+        QString msg = tr("%1: Not all files could be analyzed.").arg(toolName);
         TaskHub::addTask(Task::Error, msg, Debugger::Constants::ANALYZERTASK_ID);
         TaskHub::requestPopup();
     }

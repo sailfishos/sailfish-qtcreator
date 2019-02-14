@@ -27,6 +27,8 @@
 
 #include "cpptools_global.h"
 
+#include <utils/optional.h>
+
 #include <QVariantMap>
 
 QT_BEGIN_NAMESPACE
@@ -34,6 +36,7 @@ class QSettings;
 QT_END_NAMESPACE
 
 namespace CPlusPlus { class Overview; }
+namespace TextEditor { class TabSettings; }
 
 namespace CppTools {
 
@@ -92,8 +95,10 @@ public:
     bool operator==(const CppCodeStyleSettings &s) const { return equals(s); }
     bool operator!=(const CppCodeStyleSettings &s) const { return !equals(s); }
 
-    static CppCodeStyleSettings currentProjectCodeStyle();
+    static Utils::optional<CppCodeStyleSettings> currentProjectCodeStyle();
     static CppCodeStyleSettings currentGlobalCodeStyle();
+    static TextEditor::TabSettings currentProjectTabSettings();
+    static TextEditor::TabSettings currentGlobalTabSettings();
 
     /*! Returns an Overview configured by the current project's code style.
 

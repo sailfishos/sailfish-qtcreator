@@ -81,10 +81,7 @@ public:
     QString version() const;
     void setVersion(const QString &version);
 
-    QString autoDetectionSource() const { return m_autoDetectionSource; }
-    void setAutoDetectionSource(const QString &autoDetectionSource);
-
-    QList<ProjectExplorer::Abi> abis() const { return m_abis; }
+    const QList<ProjectExplorer::Abi> &abis() const { return m_abis; }
     void setAbis(const QList<ProjectExplorer::Abi> &abis);
     void setAbi(const ProjectExplorer::Abi &abi);
 
@@ -111,11 +108,10 @@ private:
 
     QVariant m_id;
     QString m_unexpandedDisplayName;
-    DebuggerEngineType m_engineType;
+    DebuggerEngineType m_engineType = NoEngineType;
     Utils::FileName m_command;
     Utils::FileName m_workingDirectory;
-    bool m_isAutoDetected;
-    QString m_autoDetectionSource;
+    bool m_isAutoDetected = false;
     QString m_version;
     QList<ProjectExplorer::Abi> m_abis;
     QDateTime m_lastModified;

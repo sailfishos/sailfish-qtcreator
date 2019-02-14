@@ -40,8 +40,7 @@ HEADERS += \
     outputcollector.h \
     procinterrupt.h \
     registerhandler.h \
-    snapshothandler.h \
-    snapshotwindow.h \
+    enginemanager.h \
     sourceagent.h \
     sourcefileshandler.h \
     sourceutils.h \
@@ -88,8 +87,7 @@ SOURCES += \
     outputcollector.cpp \
     procinterrupt.cpp \
     registerhandler.cpp \
-    snapshothandler.cpp \
-    snapshotwindow.cpp \
+    enginemanager.cpp \
     sourceagent.cpp \
     sourcefileshandler.cpp \
     sourceutils.cpp \

@@ -70,9 +70,9 @@ private:
 
     QPointer<QAction> m_action;
     Attributes m_attributes;
-    bool m_showShortcut;
+    bool m_showShortcut = false;
     QString m_toolTip;
-    bool m_block;
+    bool m_block = false;
 };
 
 } // namespace Utils

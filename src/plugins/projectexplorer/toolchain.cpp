@@ -53,7 +53,7 @@ namespace Internal {
 class ToolChainPrivate
 {
 public:
-    typedef ToolChain::Detection Detection;
+    using Detection = ToolChain::Detection;
 
     explicit ToolChainPrivate(Core::Id typeId, Detection d) :
         m_id(QUuid::createUuid().toByteArray()),
@@ -117,12 +117,11 @@ QString languageId(Language l)
 // --------------------------------------------------------------------------
 
 ToolChain::ToolChain(Core::Id typeId, Detection d) :
-    d(new Internal::ToolChainPrivate(typeId, d))
+    d(std::make_unique<Internal::ToolChainPrivate>(typeId, d))
 {
 }
 
-ToolChain::ToolChain(const ToolChain &other) :
-    d(new Internal::ToolChainPrivate(other.d->m_typeId, ManualDetection))
+ToolChain::ToolChain(const ToolChain &other) : ToolChain(other.d->m_typeId, ManualDetection)
 {
     d->m_language = other.d->m_language;
 
@@ -140,10 +139,7 @@ void ToolChain::setLanguage(Core::Id language)
     d->m_language = language;
 }
 
-ToolChain::~ToolChain()
-{
-    delete d;
-}
+ToolChain::~ToolChain() = default;
 
 QString ToolChain::displayName() const
 {
@@ -288,6 +284,70 @@ bool ToolChain::fromMap(const QVariantMap &data)
         d->m_language = Core::Id(Constants::CXX_LANGUAGE_ID);
 
     return true;
+}
+
+static long toLanguageVersionAsLong(QByteArray dateAsByteArray)
+{
+    dateAsByteArray.chop(1); // Strip 'L'.
+
+    bool success = false;
+    const int result = dateAsByteArray.toLong(&success);
+    QTC_CHECK(success);
+
+    return result;
+}
+
+LanguageVersion ToolChain::cxxLanguageVersion(const QByteArray &cplusplusMacroValue)
+{
+    const long version = toLanguageVersionAsLong(cplusplusMacroValue);
+
+    if (version > 201703L)
+        return LanguageVersion::LatestCxx;
+    if (version > 201402L)
+        return LanguageVersion::CXX17;
+    if (version > 201103L)
+        return LanguageVersion::CXX14;
+    if (version == 201103L)
+        return LanguageVersion::CXX11;
+
+    return LanguageVersion::CXX03;
+}
+
+LanguageVersion ToolChain::languageVersion(const Core::Id &language, const Macros &macros)
+{
+    if (language == Constants::CXX_LANGUAGE_ID) {
+        for (const ProjectExplorer::Macro &macro : macros) {
+            if (macro.key == "__cplusplus") // Check for the C++ identifying macro
+                return cxxLanguageVersion(macro.value);
+        }
+
+        QTC_CHECK(false && "__cplusplus is not predefined, assuming latest C++ we support.");
+        return LanguageVersion::LatestCxx;
+    } else if (language == Constants::C_LANGUAGE_ID) {
+        for (const ProjectExplorer::Macro &macro : macros) {
+            if (macro.key == "__STDC_VERSION__") {
+                const long version = toLanguageVersionAsLong(macro.value);
+
+                if (version > 201710L)
+                    return LanguageVersion::LatestC;
+                if (version > 201112L)
+                    return LanguageVersion::C18;
+                if (version > 199901L)
+                    return LanguageVersion::C11;
+                if (version > 199409L)
+                    return LanguageVersion::C99;
+
+                return LanguageVersion::C89;
+            }
+        }
+
+        // The __STDC_VERSION__ macro was introduced after C89.
+        // We haven't seen it, so it must be C89.
+        return LanguageVersion::C89;
+    } else {
+        QTC_CHECK(false && "Unexpected toolchain language, assuming latest C++ we support.");
+        return LanguageVersion::LatestCxx;
+    }
 }
 
 /*!

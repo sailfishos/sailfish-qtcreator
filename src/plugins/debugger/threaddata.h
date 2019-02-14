@@ -33,28 +33,6 @@ namespace Internal {
 
 ////////////////////////////////////////////////////////////////////////
 //
-// ThreadId
-//
-////////////////////////////////////////////////////////////////////////
-
-/*! A typesafe identifier. */
-class ThreadId
-{
-public:
-    ThreadId() : m_id(-1) {}
-    explicit ThreadId(qint64 id) : m_id(id) {}
-
-    bool isValid() const { return m_id != -1; }
-    qint64 raw() const { return m_id; }
-    bool operator==(const ThreadId other) const { return m_id == other.m_id; }
-    bool operator!=(const ThreadId other) const { return m_id != other.m_id; }
-
-private:
-    qint64 m_id;
-};
-
-////////////////////////////////////////////////////////////////////////
-//
 // ThreadData
 //
 ////////////////////////////////////////////////////////////////////////
@@ -62,13 +40,7 @@ private:
 /*! A structure containing information about a single thread. */
 struct ThreadData
 {
-    ThreadData()
-    {
-        frameLevel = -1;
-        lineNumber = -1;
-        address = 0;
-        stopped = true;
-    }
+    ThreadData() = default;
 
     enum {
         IdColumn,
@@ -83,21 +55,19 @@ struct ThreadData
         CoreColumn,
         ComboNameColumn,
         ColumnCount = CoreColumn,
-
-        IdRole = Qt::UserRole
     };
 
     // Permanent data.
-    ThreadId id;
+    QString id;
     QString groupId;
     QString targetId;
     QString core;
-    bool stopped;
+    bool stopped = true;
 
     // State information when stopped.
-    qint32  frameLevel;
-    qint32  lineNumber;
-    quint64 address;
+    qint32  frameLevel = -1;
+    qint32  lineNumber = -1;
+    quint64 address = 0;
     QString function;
     QString module;
     QString fileName;
@@ -106,7 +76,7 @@ struct ThreadData
     QString name;
 };
 
-typedef QVector<ThreadData> Threads;
+using Threads = QVector<ThreadData>;
 
 } // namespace Internal
 } // namespace Debugger

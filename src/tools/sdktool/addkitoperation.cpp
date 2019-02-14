@@ -280,7 +280,7 @@ bool AddKitOperation::setArguments(const QStringList &args)
     if (m_deviceType.isEmpty())
         std::cerr << "No devicetype given for kit." << std::endl << std::endl;
     if (!m_debuggerId.isEmpty() && (!m_debugger.isEmpty() || m_debuggerEngine != 0)) {
-        std::cerr << "Can not set both debugger id and debugger/debuggerengine." << std::endl << std::endl;
+        std::cerr << "Cannot set both debugger id and debugger/debuggerengine." << std::endl << std::endl;
         return false;
     }
 
@@ -318,7 +318,7 @@ bool AddKitOperation::test() const
 
     QVariantMap qtMap = AddQtOperation::initializeQtVersions();
     qtMap = AddQtOperation::addQt(qtMap, "{qt-id}", "Qt", "desktop-qt", "/usr/bin/qmake",
-                                  KeyValuePairList());
+                                  KeyValuePairList(), {});
 
     QVariantMap devMap = AddDeviceOperation::initializeDevices();
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,

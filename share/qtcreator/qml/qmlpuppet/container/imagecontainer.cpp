@@ -39,7 +39,7 @@
 namespace QmlDesigner {
 
 // using cache as a container which deletes sharedmemory pointers at process exit
-typedef QCache<qint32, SharedMemory> GlobalSharedMemoryContainer;
+using GlobalSharedMemoryContainer = QCache<qint32, SharedMemory>;
 Q_GLOBAL_STATIC_WITH_ARGS(GlobalSharedMemoryContainer, globalSharedMemoryContainer, (10000))
 
 ImageContainer::ImageContainer()
@@ -91,14 +91,14 @@ static SharedMemory *createSharedMemory(qint32 key, int byteCount)
 {
     SharedMemory *sharedMemory = (*globalSharedMemoryContainer())[key];
 
-    if (sharedMemory == 0) {
+    if (sharedMemory == nullptr) {
         sharedMemory = new SharedMemory(QString(imageKeyTemplateString).arg(key));
         bool sharedMemoryIsCreated = sharedMemory->create(byteCount);
         if (sharedMemoryIsCreated) {
             globalSharedMemoryContainer()->insert(key, sharedMemory);
         } else {
             delete sharedMemory;
-            sharedMemory = 0;
+            sharedMemory = nullptr;
         }
     } else {
         bool sharedMemoryIsAttached = sharedMemory->isAttached();
@@ -117,7 +117,7 @@ static SharedMemory *createSharedMemory(qint32 key, int byteCount)
 
         if (!sharedMemory->isAttached()) {
             globalSharedMemoryContainer()->remove(key);
-            sharedMemory = 0;
+            sharedMemory = nullptr;
         }
     }
 
@@ -165,7 +165,7 @@ QDataStream &operator<<(QDataStream &out, const ImageContainer &container)
     } else {
         SharedMemory *sharedMemory = createSharedMemory(container.keyNumber(), image.byteCount() + extraDataSize);
 
-        out << qint32(sharedMemory != 0); // send if shared memory is used
+        out << qint32(sharedMemory != nullptr); // send if shared memory is used
 
         if (sharedMemory)
             writeSharedMemory(sharedMemory, image);
@@ -196,7 +196,10 @@ static void readSharedMemory(qint32 key, ImageContainer &container)
 
         QImage image = QImage(imageWidth, imageHeight, QImage::Format(imageFormat));
 
-        std::memcpy(image.bits(), reinterpret_cast<const qint32*>(sharedMemory.constData()) + 5, byteCount);
+        if (image.isNull())
+            qDebug() << Q_FUNC_INFO << "Not able to create image:" << imageWidth << imageHeight << imageFormat;
+        else
+            std::memcpy(image.bits(), reinterpret_cast<const qint32*>(sharedMemory.constData()) + 5, byteCount);
 
         container.setImage(image);
 

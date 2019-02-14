@@ -41,17 +41,14 @@
 #include <QMap>
 #include <QVariant>
 
-
 namespace Debugger {
 namespace Internal {
-
-class GdbMi;
 
 /* A debugger engine interfacing the LLDB debugger
  * using its Python interface.
  */
 
-class LldbEngine : public DebuggerEngine
+class LldbEngine : public CppDebuggerEngine
 {
     Q_OBJECT
 
@@ -63,13 +60,9 @@ signals:
     void outputReady(const QString &data);
 
 private:
-    DebuggerEngine *cppEngine() override { return this; }
-
-    void executeStep() override;
+    void executeStepIn(bool byInstruction) override;
     void executeStepOut() override;
-    void executeNext() override;
-    void executeStepI() override;
-    void executeNextI() override;
+    void executeStepOver(bool byInstruction) override;
 
     void setupEngine() override;
     void runEngine() override;
@@ -87,18 +80,19 @@ private:
     void executeJumpToLine(const ContextData &data) override;
 
     void activateFrame(int index) override;
-    void selectThread(ThreadId threadId) override;
+    void selectThread(const Thread &thread) override;
     void fetchFullBacktrace();
 
     // This should be always the last call in a function.
     bool stateAcceptsBreakpointChanges() const override;
-    bool acceptsBreakpoint(Breakpoint bp) const override;
-    void insertBreakpoint(Breakpoint bp) override;
-    void removeBreakpoint(Breakpoint bp) override;
-    void changeBreakpoint(Breakpoint bp) override;
+    bool acceptsBreakpoint(const BreakpointParameters &bp) const override;
+    void insertBreakpoint(const Breakpoint &bp) override;
+    void removeBreakpoint(const Breakpoint &bp) override;
+    void updateBreakpoint(const Breakpoint &bp) override;
+    void enableSubBreakpoint(const SubBreakpoint &sbp, bool on) override;
 
     void assignValueInDebugger(WatchItem *item, const QString &expr, const QVariant &value) override;
-    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
+    void executeDebuggerCommand(const QString &command) override;
 
     void loadSymbols(const QString &moduleName) override;
     void loadAllSymbols() override;
@@ -110,7 +104,6 @@ private:
     void reloadDebuggingHelpers() override;
     void fetchDisassembler(Internal::DisassemblerAgent *) override;
 
-    bool isSynchronous() const override { return true; }
     void setRegisterValue(const QString &name, const QString &value) override;
 
     void fetchMemory(MemoryAgent *, quint64 addr, quint64 length) override;
@@ -124,14 +117,14 @@ private:
     void readLldbStandardOutput();
     void readLldbStandardError();
 
-    void handleStateNotification(const GdbMi &state);
+    void handleStateNotification(const GdbMi &item);
     void handleLocationNotification(const GdbMi &location);
     void handleOutputNotification(const GdbMi &output);
 
     void handleResponse(const QString &data);
     void updateAll() override;
     void doUpdateLocals(const UpdateParameters &params) override;
-    void updateBreakpointData(Breakpoint bp, const GdbMi &bkpt, bool added);
+    void updateBreakpointData(const Breakpoint &bp, const GdbMi &bkpt, bool added);
     void fetchStack(int limit);
 
     void runCommand(const DebuggerCommand &cmd) override;

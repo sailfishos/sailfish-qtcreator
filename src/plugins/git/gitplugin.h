@@ -62,6 +62,7 @@ class GitClient;
 class CommitData;
 class StashDialog;
 class BranchDialog;
+class BranchViewFactory;
 class RemoteDialog;
 
 typedef void (GitClient::*GitClientMemberFunc)(const QString &);
@@ -73,7 +74,7 @@ class GitPlugin : public VcsBase::VcsBasePlugin
 
 public:
     GitPlugin();
-    ~GitPlugin();
+    ~GitPlugin() override;
 
     static GitPlugin *instance();
     static GitClient *client();
@@ -91,6 +92,8 @@ public:
 
     QObject *remoteCommand(const QStringList &options, const QString &workingDirectory,
                            const QStringList &args) override;
+    void manageRemotes();
+    void initRepository();
 
 protected:
     void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
@@ -103,12 +106,14 @@ private slots:
     void testDiffFileResolving_data();
     void testDiffFileResolving();
     void testLogResolving();
+    void testGitRemote_data();
+    void testGitRemote();
 #endif
 
 private:
     void diffCurrentFile();
     void diffCurrentProject();
-    void submitCurrentLog();
+    void commitFromEditor() override;
     void logFile();
     void blameFile();
     void logProject();
@@ -134,7 +139,6 @@ private:
     void stashSnapshot();
     void stashPop();
     void branchList();
-    void remoteList();
     void stashList();
     void fetch();
     void pull();
@@ -186,10 +190,6 @@ private:
 
     Core::CommandLocator *m_commandLocator = nullptr;
 
-    QAction *m_submitCurrentAction = nullptr;
-    QAction *m_diffSelectedFilesAction = nullptr;
-    QAction *m_undoAction = nullptr;
-    QAction *m_redoAction = nullptr;
     QAction *m_menuAction = nullptr;
     QAction *m_repositoryBrowserAction = nullptr;
     QAction *m_mergeToolAction = nullptr;
@@ -213,7 +213,7 @@ private:
 
     GitClient *m_gitClient = nullptr;
     QPointer<StashDialog> m_stashDialog;
-    QPointer<BranchDialog> m_branchDialog;
+    QPointer<BranchViewFactory> m_branchViewFactory;
     QPointer<RemoteDialog> m_remoteDialog;
     QString m_submitRepository;
     QString m_commitMessageFileName;

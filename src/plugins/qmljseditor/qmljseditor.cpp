@@ -70,7 +70,7 @@
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/textmark.h>
 
-#include <utils/annotateditemdelegate.h>
+#include <utils/delegates.h>
 #include <utils/changeset.h>
 #include <utils/qtcassert.h>
 #include <utils/uncommentselection.h>
@@ -1031,7 +1031,7 @@ bool QmlJSEditor::isDesignModePreferred() const
         alwaysPreferDesignMode = true;
 
     // stay in design mode if we are there
-    Id mode = ModeManager::currentMode();
+    Id mode = ModeManager::currentModeId();
     return alwaysPreferDesignMode || mode == Core::Constants::MODE_DESIGN;
 }
 

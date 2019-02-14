@@ -28,12 +28,17 @@
 #include <coreplugin/core_global.h>
 #include <coreplugin/id.h>
 
+#include <utils/mimetypes/mimetype.h>
+
 #include <QObject>
 #include <QStringList>
 
 namespace Core {
 
 class IEditor;
+class IEditorFactory;
+
+using EditorFactoryList = QList<IEditorFactory *>;
 
 class CORE_EXPORT IEditorFactory : public QObject
 {
@@ -43,7 +48,9 @@ public:
     IEditorFactory(QObject *parent = nullptr);
     ~IEditorFactory() override;
 
-    static const QList<IEditorFactory *> allEditorFactories();
+    static const EditorFactoryList allEditorFactories();
+    static const EditorFactoryList defaultEditorFactories(const Utils::MimeType &mimeType);
+    static const EditorFactoryList preferredEditorFactories(const QString &fileName);
 
     QString displayName() const { return m_displayName; }
     void setDisplayName(const QString &displayName) { m_displayName = displayName; }

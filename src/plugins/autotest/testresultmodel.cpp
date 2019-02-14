@@ -42,10 +42,6 @@ TestResultItem::TestResultItem(const TestResultPtr &testResult)
 {
 }
 
-TestResultItem::~TestResultItem()
-{
-}
-
 static QIcon testResultIcon(Result::Type result) {
     const static QIcon icons[] = {
         Icons::RESULT_PASS.icon(),
@@ -61,6 +57,7 @@ static QIcon testResultIcon(Result::Type result) {
         Icons::RESULT_MESSAGEWARN.icon(),
         Icons::RESULT_MESSAGEFATAL.icon(),
         Icons::RESULT_MESSAGEFATAL.icon(), // System gets same handling as Fatal for now
+        QIcon(),
         Icons::RESULT_MESSAGEPASSWARN.icon(),
         Icons::RESULT_MESSAGEFAILWARN.icon(),
     }; // provide an icon for unknown??
@@ -72,9 +69,9 @@ static QIcon testResultIcon(Result::Type result) {
         case Result::MessageTestCaseFail:
             return icons[Result::Fail];
         case Result::MessageTestCaseSuccessWarn:
-            return icons[13];
-        case Result::MessageTestCaseFailWarn:
             return icons[14];
+        case Result::MessageTestCaseFailWarn:
+            return icons[15];
         default:
             return QIcon();
         }
@@ -85,8 +82,14 @@ static QIcon testResultIcon(Result::Type result) {
 QVariant TestResultItem::data(int column, int role) const
 {
     switch (role) {
-    case Qt::DecorationRole:
-        return m_testResult ? testResultIcon(m_testResult->result()) : QVariant();
+    case Qt::DecorationRole: {
+        if (!m_testResult)
+            return QVariant();
+        const Result::Type result = m_testResult->result();
+        if (result == Result::MessageLocation && parent())
+            return parent()->data(column, role);
+        return testResultIcon(result);
+    }
     case Qt::DisplayRole:
         return m_testResult ? m_testResult->outputString(true) : QVariant();
     default:
@@ -358,7 +361,7 @@ void TestResultFilterModel::enableAllResultTypes()
 {
     m_enabled << Result::Pass << Result::Fail << Result::ExpectedFail
               << Result::UnexpectedPass << Result::Skip << Result::MessageDebug
-              << Result::MessageWarn << Result::MessageInternal
+              << Result::MessageWarn << Result::MessageInternal << Result::MessageLocation
               << Result::MessageFatal << Result::Invalid << Result::BlacklistedPass
               << Result::BlacklistedFail << Result::Benchmark << Result::MessageIntermediate
               << Result::MessageCurrentTest << Result::MessageTestCaseStart
@@ -427,7 +430,7 @@ bool TestResultFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex &s
 bool TestResultFilterModel::acceptTestCaseResult(const QModelIndex &srcIndex) const
 {
     for (int row = 0, count = m_sourceModel->rowCount(srcIndex); row < count; ++row) {
-        const QModelIndex &child = srcIndex.child(row, 0);
+        const QModelIndex &child = m_sourceModel->index(row, 0, srcIndex);
         Result::Type type = m_sourceModel->testResult(child)->result();
         if (type == Result::MessageTestCaseSuccess)
             type = Result::Pass;

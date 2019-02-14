@@ -86,6 +86,7 @@ enum class HighlightingType : quint8
     Preprocessor,
     PreprocessorDefinition,
     PreprocessorExpansion,
+    Punctuation,
     Label,
     Declaration,
     FunctionDefinition,
@@ -148,9 +149,6 @@ enum class MessageType : quint8 {
     UnsavedFilesUpdatedMessage,
     UnsavedFilesRemovedMessage,
 
-    ProjectPartsUpdatedMessage,
-    ProjectPartsRemovedMessage,
-
     RequestAnnotationsMessage,
     AnnotationsMessage,
 
@@ -177,7 +175,9 @@ enum class MessageType : quint8 {
     CancelMessage,
     UpdateProjectPartsMessage,
     RemoveProjectPartsMessage,
-    PrecompiledHeadersUpdatedMessage
+    PrecompiledHeadersUpdatedMessage,
+    UpdateGeneratedFilesMessage,
+    RemoveGeneratedFilesMessage
 };
 
 template<MessageType messageEnumeration>

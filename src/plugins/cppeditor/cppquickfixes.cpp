@@ -66,12 +66,15 @@
 #include <QFormLayout>
 #include <QInputDialog>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSharedPointer>
 #include <QStack>
 #include <QTextCursor>
 #include <QTextCodec>
 
+#include <bitset>
 #include <cctype>
+#include <limits>
 
 using namespace CPlusPlus;
 using namespace CppTools;
@@ -1084,12 +1087,6 @@ static QByteArray charToStringEscapeSequences(const QByteArray &content)
     return QByteArray();
 }
 
-static QString msgQtStringLiteralDescription(const QString &replacement, int qtVersion)
-{
-    return QApplication::translate("CppTools::QuickFix", "Enclose in %1(...) (Qt %2)")
-           .arg(replacement).arg(qtVersion);
-}
-
 static QString msgQtStringLiteralDescription(const QString &replacement)
 {
     return QApplication::translate("CppTools::QuickFix", "Enclose in %1(...)").arg(replacement);
@@ -1291,10 +1288,10 @@ void WrapStringLiteral::match(const CppQuickFixInterface &interface, QuickFixOpe
         }
         actions = EncloseInQLatin1StringAction | objectiveCActions;
         result << new WrapStringLiteralOp(interface, priority, actions,
-                                          msgQtStringLiteralDescription(stringLiteralReplacement(actions), 4), literal);
+                                          msgQtStringLiteralDescription(stringLiteralReplacement(actions)), literal);
         actions = EncloseInQStringLiteralAction | objectiveCActions;
         result << new WrapStringLiteralOp(interface, priority, actions,
-                                          msgQtStringLiteralDescription(stringLiteralReplacement(actions), 5), literal);
+                                          msgQtStringLiteralDescription(stringLiteralReplacement(actions)), literal);
     }
 }
 
@@ -1484,18 +1481,29 @@ void ConvertNumericLiteral::match(const CppQuickFixInterface &interface, QuickFi
 
     // convert to number
     bool valid;
-    ulong value = QString::fromUtf8(spell).left(numberLength).toULong(&valid, 0);
-    if (!valid) // e.g. octal with digit > 7
+    ulong value = 0;
+    const QString x = QString::fromUtf8(spell).left(numberLength);
+    if (x.startsWith("0b", Qt::CaseInsensitive))
+        value = x.midRef(2).toULong(&valid, 2);
+    else
+        value = x.toULong(&valid, 0);
+
+    if (!valid)
         return;
 
     const int priority = path.size() - 1; // very high priority
     const int start = file->startOf(literal);
     const char * const str = numeric->chars();
 
+    const bool isBinary = numberLength > 2 && str[0] == '0' && tolower(str[1]) == 'b';
+    const bool isOctal = numberLength >= 2 && str[0] == '0' && str[1] >= '0' && str[1] <= '7';
+    const bool isDecimal = !(isBinary || isOctal || numeric->isHex());
+
     if (!numeric->isHex()) {
         /*
           Convert integer literal to hex representation.
           Replace
+            0b100000
             32
             040
           With
@@ -1510,42 +1518,64 @@ void ConvertNumericLiteral::match(const CppQuickFixInterface &interface, QuickFi
         result << op;
     }
 
-    if (value != 0) {
-        if (!(numberLength > 1 && str[0] == '0' && str[1] != 'x' && str[1] != 'X')) {
-            /*
-              Convert integer literal to octal representation.
-              Replace
-                32
-                0x20
-              With
-                040
-            */
-            QString replacement;
-            replacement.sprintf("0%lo", value);
-            auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
-            op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Octal"));
-            op->setPriority(priority);
-            result << op;
-        }
+    if (!isOctal) {
+        /*
+          Convert integer literal to octal representation.
+          Replace
+            0b100000
+            32
+            0x20
+          With
+            040
+        */
+        QString replacement;
+        replacement.sprintf("0%lo", value);
+        auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
+        op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Octal"));
+        op->setPriority(priority);
+        result << op;
     }
 
-    if (value != 0 || numeric->isHex()) {
-        if (!(numberLength > 1 && str[0] != '0')) {
-            /*
-              Convert integer literal to decimal representation.
-              Replace
-                0x20
-                040
-              With
-                32
-            */
-            QString replacement;
-            replacement.sprintf("%lu", value);
-            auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
-            op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Decimal"));
-            op->setPriority(priority);
-            result << op;
+    if (!isDecimal) {
+        /*
+          Convert integer literal to decimal representation.
+          Replace
+            0b100000
+            0x20
+            040
+           With
+            32
+        */
+        QString replacement;
+        replacement.sprintf("%lu", value);
+        auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
+        op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Decimal"));
+        op->setPriority(priority);
+        result << op;
+    }
+
+    if (!isBinary) {
+        /*
+          Convert integer literal to binary representation.
+          Replace
+            32
+            0x20
+            040
+          With
+            0b100000
+        */
+        QString replacement = "0b";
+        if (value == 0) {
+            replacement.append('0');
+        } else {
+            std::bitset<std::numeric_limits<decltype (value)>::digits> b(value);
+            QRegularExpression re("^[0]*");
+            replacement.append(QString::fromStdString(b.to_string()).remove(re));
         }
+        auto op = new ConvertNumericLiteralOp(interface, start, start + numberLength, replacement);
+        op->setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Binary"));
+        op->setPriority(priority);
+        result << op;
     }
 }
 
@@ -1652,9 +1682,8 @@ namespace {
 class ConvertToCamelCaseOp: public CppQuickFixOperation
 {
 public:
-    ConvertToCamelCaseOp(const CppQuickFixInterface &interface, int priority,
-                         const QString &newName)
-        : CppQuickFixOperation(interface, priority)
+    ConvertToCamelCaseOp(const CppQuickFixInterface &interface, const QString &newName)
+        : CppQuickFixOperation(interface, -1)
         , m_name(newName)
     {
         setDescription(QApplication::translate("CppTools::QuickFix", "Convert to Camel Case"));
@@ -1714,7 +1743,7 @@ void ConvertToCamelCase::match(const CppQuickFixInterface &interface, QuickFixOp
         return;
     for (int i = 1; i < newName.length() - 1; ++i) {
         if (ConvertToCamelCaseOp::isConvertibleUnderscore(newName, i)) {
-            result << new ConvertToCamelCaseOp(interface, path.size() - 1, newName);
+            result << new ConvertToCamelCaseOp(interface, newName);
             return;
         }
     }
@@ -1740,7 +1769,7 @@ namespace {
 
 QString findShortestInclude(const QString currentDocumentFilePath,
                             const QString candidateFilePath,
-                            const ProjectPartHeaderPaths &headerPaths)
+                            const ProjectExplorer::HeaderPaths &headerPaths)
 {
     QString result;
 
@@ -1749,7 +1778,7 @@ QString findShortestInclude(const QString currentDocumentFilePath,
     if (fileInfo.path() == QFileInfo(currentDocumentFilePath).path()) {
         result = QLatin1Char('"') + fileInfo.fileName() + QLatin1Char('"');
     } else {
-        foreach (const ProjectPartHeaderPath &headerPath, headerPaths) {
+        foreach (const ProjectExplorer::HeaderPath &headerPath, headerPaths) {
             if (!candidateFilePath.startsWith(headerPath.path))
                 continue;
             QString relativePath = candidateFilePath.mid(headerPath.path.size());
@@ -1764,12 +1793,12 @@ QString findShortestInclude(const QString currentDocumentFilePath,
 }
 
 QString findQtIncludeWithSameName(const QString &className,
-                                  const ProjectPartHeaderPaths &headerPaths)
+                                  const ProjectExplorer::HeaderPaths &headerPaths)
 {
     QString result;
 
     // Check for a header file with the same name in the Qt include paths
-    foreach (const ProjectPartHeaderPath &headerPath, headerPaths) {
+    foreach (const ProjectExplorer::HeaderPath &headerPath, headerPaths) {
         if (!headerPath.path.contains(QLatin1String("/Qt"))) // "QtCore", "QtGui" etc...
             continue;
 
@@ -1784,9 +1813,9 @@ QString findQtIncludeWithSameName(const QString &className,
     return result;
 }
 
-ProjectPartHeaderPaths relevantHeaderPaths(const QString &filePath)
+ProjectExplorer::HeaderPaths relevantHeaderPaths(const QString &filePath)
 {
-    ProjectPartHeaderPaths headerPaths;
+    ProjectExplorer::HeaderPaths headerPaths;
 
     CppModelManager *modelManager = CppModelManager::instance();
     const QList<ProjectPart::Ptr> projectParts = modelManager->projectPart(filePath);
@@ -1931,7 +1960,7 @@ void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interfa
     QString className;
     QList<Core::LocatorFilterEntry> matches;
     const QString currentDocumentFilePath = interface.semanticInfo().doc->fileName();
-    const ProjectPartHeaderPaths headerPaths = relevantHeaderPaths(currentDocumentFilePath);
+    const ProjectExplorer::HeaderPaths headerPaths = relevantHeaderPaths(currentDocumentFilePath);
     bool qtHeaderFileIncludeOffered = false;
 
     // Find an include file through the locator
@@ -2959,7 +2988,10 @@ public:
             m_baseName = QLatin1String("value");
 
         // Getter Name
-        const CppCodeStyleSettings settings = CppCodeStyleSettings::currentProjectCodeStyle();
+        const Utils::optional<CppCodeStyleSettings> codeStyleSettings
+                = CppCodeStyleSettings::currentProjectCodeStyle();
+        const CppCodeStyleSettings settings
+                = codeStyleSettings.value_or(CppCodeStyleSettings::currentGlobalCodeStyle());
         const bool hasValidBaseName = m_baseName != m_variableString;
         const bool getPrefixIsAlreadyUsed = hasClassMemberWithGetPrefix(m_classSpecifier->symbol);
         if (settings.preferGetterNameWithoutGetPrefix && hasValidBaseName && !getPrefixIsAlreadyUsed) {
@@ -3273,9 +3305,17 @@ public:
 
         // Write class qualification, if any.
         if (matchingClass) {
-            const Name *name = rewriteName(matchingClass->name(), &env, control);
-            funcDef.append(printer.prettyName(name));
-            funcDef.append(QLatin1String("::"));
+            Class *current = matchingClass;
+            QVector<const Name *> classes{matchingClass->name()};
+            while (current->enclosingScope()->asClass()) {
+                current = current->enclosingScope()->asClass();
+                classes.prepend(current->name());
+            }
+            for (const Name *n : classes) {
+                const Name *name = rewriteName(n, &env, control);
+                funcDef.append(printer.prettyName(name));
+                funcDef.append(QLatin1String("::"));
+            }
         }
 
         // Write the extracted function itself and its call.

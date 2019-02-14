@@ -56,6 +56,11 @@
 #include <QStyle>
 #include <QStyledItemDelegate>
 
+const int kInitialWidth = 750;
+const int kInitialHeight = 450;
+const int kMaxMinimumWidth = 250;
+const int kMaxMinimumHeight = 250;
+
 static const char pageKeyC[] = "General/LastPreferencePage";
 const int categoryIconSize = 24;
 
@@ -101,7 +106,7 @@ class CategoryModel : public QAbstractListModel
 {
 public:
     CategoryModel();
-    ~CategoryModel();
+    ~CategoryModel() override;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -172,7 +177,7 @@ void CategoryModel::setPages(const QList<IOptionsPage*> &pages,
         if (!category) {
             category = new Category;
             category->id = categoryId;
-            category->tabWidget = 0;
+            category->tabWidget = nullptr;
             category->index = -1;
             m_categories.append(category);
         }
@@ -189,7 +194,7 @@ void CategoryModel::setPages(const QList<IOptionsPage*> &pages,
         if (!category) {
             category = new Category;
             category->id = categoryId;
-            category->tabWidget = 0;
+            category->tabWidget = nullptr;
             category->index = -1;
             m_categories.append(category);
         }
@@ -233,7 +238,7 @@ Category *CategoryModel::findCategoryById(Id id)
             return category;
     }
 
-    return 0;
+    return nullptr;
 }
 
 // ----------- Category filter model
@@ -245,7 +250,7 @@ Category *CategoryModel::findCategoryById(Id id)
 class CategoryFilterModel : public QSortFilterProxyModel
 {
 public:
-    CategoryFilterModel() {}
+    CategoryFilterModel() = default;
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
@@ -284,7 +289,7 @@ class CategoryListViewDelegate : public QStyledItemDelegate
 public:
     explicit CategoryListViewDelegate(QObject *parent) : QStyledItemDelegate(parent) {}
 
-    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         QSize size = QStyledItemDelegate::sizeHint(option, index);
         size.setHeight(qMax(size.height(), 32));
@@ -362,8 +367,8 @@ private:
             QSize minSize = inner->minimumSizeHint();
             minSize += QSize(fw, fw);
             minSize += QSize(scrollBarWidth(), 0);
-            minSize.setHeight(qMin(minSize.height(), 450));
-            minSize.setWidth(qMin(minSize.width(), 810));
+            minSize.setWidth(qMin(minSize.width(), kMaxMinimumWidth));
+            minSize.setHeight(qMin(minSize.height(), kMaxMinimumHeight));
             return minSize;
         }
         return QSize(0, 0);
@@ -540,14 +545,13 @@ void SettingsDialog::createGui()
         headerLabelFont.setPointSize(pointSize + 2);
     m_headerLabel->setFont(headerLabelFont);
 
-    QHBoxLayout *headerHLayout = new QHBoxLayout;
+    auto headerHLayout = new QHBoxLayout;
     const int leftMargin = QApplication::style()->pixelMetric(QStyle::PM_LayoutLeftMargin);
     headerHLayout->addSpacerItem(new QSpacerItem(leftMargin, 0, QSizePolicy::Fixed, QSizePolicy::Ignored));
     headerHLayout->addWidget(m_headerLabel);
 
     m_stackedLayout->setMargin(0);
     QWidget *emptyWidget = new QWidget(this);
-    emptyWidget->setMinimumSize(QSize(500, 500));
     m_stackedLayout->addWidget(emptyWidget); // no category selected, for example when filtering
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok |
@@ -559,7 +563,7 @@ void SettingsDialog::createGui()
     connect(buttonBox, &QDialogButtonBox::accepted, this, &SettingsDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &SettingsDialog::reject);
 
-    QGridLayout *mainGridLayout = new QGridLayout;
+    auto mainGridLayout = new QGridLayout;
     mainGridLayout->addWidget(m_filterLineEdit, 0, 0, 1, 1);
     mainGridLayout->addLayout(headerHLayout,    0, 1, 1, 1);
     mainGridLayout->addWidget(m_categoryList,   1, 0, 1, 1);
@@ -598,12 +602,12 @@ void SettingsDialog::ensureCategoryWidget(Category *category)
         return;
 
     m_model.ensurePages(category);
-    QTabWidget *tabWidget = new QTabWidget;
+    auto tabWidget = new QTabWidget;
     tabWidget->tabBar()->setObjectName("qc_settings_main_tabbar"); // easier lookup in Squish
     for (IOptionsPage *page : category->pages) {
         QWidget *widget = page->widget();
         ICore::setupScreenShooter(page->displayName(), widget);
-        SmartScrollArea *ssa = new SmartScrollArea(this);
+        auto ssa = new SmartScrollArea(this);
         ssa->setWidget(widget);
         widget->setAutoFillBackground(false);
         tabWidget->addTab(ssa, page->displayName());
@@ -740,6 +744,8 @@ bool SettingsDialog::execDialog()
         static const QLatin1String kPreferenceDialogSize("Core/PreferenceDialogSize");
         if (ICore::settings()->contains(kPreferenceDialogSize))
             resize(ICore::settings()->value(kPreferenceDialogSize).toSize());
+        else
+            resize(kInitialWidth, kInitialHeight);
         exec();
         m_running = false;
         m_instance = nullptr;

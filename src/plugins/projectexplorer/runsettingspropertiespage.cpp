@@ -528,21 +528,22 @@ QString RunSettingsWidget::uniqueRCName(const QString &name)
 
 void RunSettingsWidget::addRunControlWidgets()
 {
-    foreach (IRunConfigurationAspect *aspect, m_runConfiguration->extraAspects()) {
-        RunConfigWidget *rcw = aspect->createConfigurationWidget();
-        if (rcw)
-            addSubWidget(rcw);
+    for (ProjectConfigurationAspect *aspect : m_runConfiguration->aspects()) {
+        if (QWidget *rcw = aspect->createConfigWidget()) {
+            auto label = new QLabel(this);
+            label->setText(aspect->displayName());
+            connect(aspect, &GlobalOrProjectAspect::changed, label, [label, aspect] {
+                label->setText(aspect->displayName());
+            });
+            addSubWidget(rcw, label);
+        }
     }
 }
 
-void RunSettingsWidget::addSubWidget(RunConfigWidget *widget)
+void RunSettingsWidget::addSubWidget(QWidget *widget, QLabel *label)
 {
     widget->setContentsMargins(0, 10, 0, 0);
 
-    auto label = new QLabel(this);
-    label->setText(widget->displayName());
-    connect(widget, &RunConfigWidget::displayNameChanged,
-            label, &QLabel::setText);
     QFont f = label->font();
     f.setBold(true);
     f.setPointSizeF(f.pointSizeF() * 1.2);
@@ -559,8 +560,7 @@ void RunSettingsWidget::addSubWidget(RunConfigWidget *widget)
 
 void RunSettingsWidget::removeSubWidgets()
 {
-    // foreach does not like commas in types, it's only a macro after all
-    foreach (const RunConfigItem &item, m_subWidgets) {
+    for (const RunConfigItem &item : m_subWidgets) {
         delete item.first;
         delete item.second;
     }

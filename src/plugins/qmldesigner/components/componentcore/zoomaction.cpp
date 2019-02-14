@@ -39,7 +39,7 @@ ZoomAction::ZoomAction(QObject *parent)
 
 }
 
-double ZoomAction::zoomLevel() const
+float ZoomAction::zoomLevel() const
 {
     return m_zoomLevel;
 }
@@ -63,15 +63,15 @@ void ZoomAction::resetZoomLevel()
     emit reseted();
 }
 
-void ZoomAction::setZoomLevel(double zoomLevel)
+void ZoomAction::setZoomLevel(float zoomLevel)
 {
-    m_zoomLevel = qBound(0.1, zoomLevel, 16.0);
+    m_zoomLevel = qBound(0.1f, zoomLevel, 16.0f);
     emit zoomLevelChanged(m_zoomLevel);
 }
 
 QWidget *ZoomAction::createWidget(QWidget *parent)
 {
-    QComboBox *comboBox = new QComboBox(parent);
+    auto comboBox = new QComboBox(parent);
 
     if (m_comboBoxModel.isNull()) {
         m_comboBoxModel = comboBox->model();
@@ -99,29 +99,29 @@ QWidget *ZoomAction::createWidget(QWidget *parent)
     }
 
     comboBox->setCurrentIndex(m_currentComboBoxIndex);
+    comboBox->setToolTip(comboBox->currentText());
     connect(this, &ZoomAction::reseted, comboBox, [this, comboBox]() {
         blockSignals(true);
         comboBox->setCurrentIndex(m_currentComboBoxIndex);
         blockSignals(false);
     });
     connect(comboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            this, &ZoomAction::emitZoomLevelChanged);
+            [this, comboBox](int index) {
+        m_currentComboBoxIndex = index;
+
+        if (index == -1)
+            return;
+
+        const QModelIndex modelIndex(m_comboBoxModel.data()->index(index, 0));
+        setZoomLevel(m_comboBoxModel.data()->data(modelIndex, Qt::UserRole).toFloat());
+        comboBox->setToolTip(modelIndex.data().toString());
+    });
+
     connect(this, &ZoomAction::indexChanged, comboBox, &QComboBox::setCurrentIndex);
 
     comboBox->setProperty("hideborder", true);
     comboBox->setMaximumWidth(qMax(comboBox->view()->sizeHintForColumn(0) / 2, 16));
     return comboBox;
-}
-
-void ZoomAction::emitZoomLevelChanged(int index)
-{
-    m_currentComboBoxIndex = index;
-
-    if (index == -1)
-        return;
-
-    QModelIndex modelIndex(m_comboBoxModel.data()->index(index, 0));
-    setZoomLevel(m_comboBoxModel.data()->data(modelIndex, Qt::UserRole).toDouble());
 }
 
 } // namespace QmlDesigner

@@ -267,15 +267,19 @@ static QString ind(int indent)
 
 void GdbMi::dumpChildren(QString * str, bool multiline, int indent) const
 {
-    for (int i = 0; i < m_children.size(); ++i) {
-        if (i != 0) {
+    bool first = true;
+    for (const GdbMi &child : *this) {
+        if (first) {
+            first = false;
+        } else {
             *str += ',';
             if (multiline)
                 *str += '\n';
         }
+
         if (multiline)
             *str += ind(indent);
-        *str += m_children.at(i).toString(multiline, indent);
+        *str += child.toString(multiline, indent);
     }
 }
 
@@ -371,9 +375,9 @@ void GdbMi::fromStringMultiple(const QString &ba)
 const GdbMi &GdbMi::operator[](const char *name) const
 {
     static GdbMi empty;
-    for (int i = 0, n = int(m_children.size()); i < n; ++i)
-        if (m_children.at(i).m_name == QLatin1String(name))
-            return m_children.at(i);
+    for (const GdbMi &child : *this)
+        if (child.m_name == QLatin1String(name))
+            return child;
     return empty;
 }
 
@@ -384,7 +388,7 @@ qulonglong GdbMi::toAddress() const
         ba.chop(1);
     if (ba.startsWith('*') || ba.startsWith('@'))
         ba = ba.mid(1);
-    return ba.toULongLong(0, 0);
+    return ba.toULongLong(nullptr, 0);
 }
 
 Utils::ProcessHandle GdbMi::toProcessHandle() const
@@ -448,7 +452,7 @@ void extractGdbVersion(const QString &msg,
     QString build;
     bool inClean = true;
     bool inParenthesis = false;
-    foreach (QChar c, msg) {
+    for (QChar c : msg) {
         if (inClean && !cleaned.isEmpty() && c != dot && (c.isPunct() || c.isSpace()))
             inClean = false;
         if (ignoreParenthesisContent) {
@@ -574,13 +578,13 @@ QString decodeData(const QString &ba, const QString &encoding)
     if (encoding == "empty")
         return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<empty>");
     if (encoding == "minimumitemcount")
-        return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<at least %n items>", 0, ba.toInt());
+        return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<at least %n items>", nullptr, ba.toInt());
     if (encoding == "undefined")
         return QLatin1String("Undefined");
     if (encoding == "null")
         return QLatin1String("Null");
     if (encoding == "itemcount")
-        return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<%n items>", 0, ba.toInt());
+        return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<%n items>", nullptr, ba.toInt());
     if (encoding == "notaccessible")
         return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<not accessible>");
     if (encoding == "optimizedout")

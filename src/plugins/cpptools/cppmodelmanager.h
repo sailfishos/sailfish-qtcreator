@@ -27,10 +27,11 @@
 
 #include "cpptools_global.h"
 
+#include "cppmodelmanagerinterface.h"
 #include "refactoringengineinterface.h"
 #include "projectinfo.h"
 #include "projectpart.h"
-#include "projectpartheaderpath.h"
+#include <projectexplorer/headerpath.h>
 
 #include <cplusplus/cppmodelmanagerbase.h>
 #include <coreplugin/find/ifindfilter.h>
@@ -48,6 +49,7 @@ namespace CPlusPlus { class LookupContext; }
 namespace ProjectExplorer { class Project; }
 namespace TextEditor {
 class BaseHoverHandler;
+class Indenter;
 class TextDocument;
 } // namespace TextEditor
 
@@ -82,7 +84,8 @@ enum class RefactoringEngineType : int
 };
 
 class CPPTOOLS_EXPORT CppModelManager final : public CPlusPlus::CppModelManagerBase,
-        public RefactoringEngineInterface
+        public RefactoringEngineInterface,
+        public CppModelManagerInterface
 {
     Q_OBJECT
 
@@ -118,7 +121,7 @@ public:
                                     const ProjectInfo &newProjectInfo);
 
     /// \return The project part with the given project file
-    ProjectPart::Ptr projectPartForId(const QString &projectPartId) const;
+    ProjectPart::Ptr projectPartForId(const QString &projectPartId) const override;
     /// \return All project parts that mention the given file name as one of the sources/headers.
     QList<ProjectPart::Ptr> projectPart(const Utils::FileName &fileName) const;
     QList<ProjectPart::Ptr> projectPart(const QString &fileName) const
@@ -189,10 +192,10 @@ public:
 
     QStringList projectFiles();
 
-    ProjectPartHeaderPaths headerPaths();
+    ProjectExplorer::HeaderPaths headerPaths();
 
     // Use this *only* for auto tests
-    void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
+    void setHeaderPaths(const ProjectExplorer::HeaderPaths &headerPaths);
 
     ProjectExplorer::Macros definedMacros();
 
@@ -212,6 +215,13 @@ public:
                                      RefactoringEngineInterface *refactoringEngine);
     static void removeRefactoringEngine(RefactoringEngineType type);
 
+    using CppIndenterCreator = std::function<TextEditor::Indenter *()>;
+    void setCppIndenterCreator(CppIndenterCreator indenterCreator)
+    {
+        createCppIndenter = std::move(indenterCreator);
+    }
+    CppIndenterCreator createCppIndenter;
+
     void setLocatorFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
     void setClassesFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
     void setIncludesFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
@@ -227,6 +237,8 @@ public:
     Core::ILocatorFilter *currentDocumentFilter() const;
 
     void renameIncludes(const QString &oldFileName, const QString &newFileName);
+
+    void setBackendJobsPostponed(bool postponed);
 
 signals:
     /// Project data might be locked while this is emitted.
@@ -274,7 +286,7 @@ private:
 
     void ensureUpdated();
     QStringList internalProjectFiles() const;
-    ProjectPartHeaderPaths internalHeaderPaths() const;
+    ProjectExplorer::HeaderPaths internalHeaderPaths() const;
     ProjectExplorer::Macros internalDefinedMacros() const;
 
     void dumpModelManagerConfiguration(const QString &logFileId);

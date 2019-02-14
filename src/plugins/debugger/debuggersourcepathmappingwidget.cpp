@@ -50,8 +50,8 @@ enum { SourceColumn, TargetColumn, ColumnCount };
 namespace Debugger {
 namespace Internal {
 
-typedef QPair<QString, QString> Mapping;
-typedef DebuggerSourcePathMappingWidget::SourcePathMap SourcePathMap;
+using Mapping = QPair<QString, QString>;
+using SourcePathMap = DebuggerSourcePathMappingWidget::SourcePathMap;
 
 // Qt's various build paths for unpatched versions.
 QStringList qtBuildPaths()
@@ -61,8 +61,10 @@ QStringList qtBuildPaths()
                 "C:/work/build/qt5_workdir/w/s",
                 "c:/users/qt/work/qt",
                 "c:/Users/qt/work/install"};
+    } else if (HostOsInfo::isMacHost()) {
+        return { "/Users/qt/work/qt" };
     } else {
-        return {};
+        return { "/home/qt/work/qt" };
     }
 }
 
@@ -132,7 +134,7 @@ SourcePathMap SourcePathMappingModel::sourcePathMap() const
 bool SourcePathMappingModel::isNewPlaceHolder(const Mapping &m) const
 {
     const QLatin1Char lessThan('<');
-    const QLatin1Char greaterThan('<');
+    const QLatin1Char greaterThan('>');
     return m.first.isEmpty() || m.first.startsWith(lessThan)
            || m.first.endsWith(greaterThan)
            || m.first == m_newSourcePlaceHolder
@@ -166,9 +168,9 @@ void SourcePathMappingModel::setSourcePathMap(const SourcePathMap &m)
 void SourcePathMappingModel::addRawMapping(const QString &source, const QString &target)
 {
     QList<QStandardItem *> items;
-    QStandardItem *sourceItem = new QStandardItem(source);
+    auto sourceItem = new QStandardItem(source);
     sourceItem->setFlags(Qt::ItemIsEnabled|Qt::ItemIsSelectable);
-    QStandardItem *targetItem = new QStandardItem(target);
+    auto targetItem = new QStandardItem(target);
     targetItem->setFlags(Qt::ItemIsEnabled|Qt::ItemIsSelectable);
     items << sourceItem << targetItem;
     appendRow(items);
@@ -450,7 +452,7 @@ DebuggerSourcePathMappingWidget::SourcePathMap
     SourcePathMap rc = in;
     for (const QString &buildPath : qtBuildPaths()) {
         if (!rc.contains(buildPath)) // Do not overwrite user settings.
-            rc.insert(buildPath, qtInstallPath);
+            rc.insert(buildPath, qtInstallPath + "/../Src");
     }
     return rc;
 }

@@ -33,6 +33,7 @@
 #include "helpconstants.h"
 #include "helpfindsupport.h"
 #include "helpindexfilter.h"
+#include "helpmanager.h"
 #include "helpmode.h"
 #include "helpviewer.h"
 #include "localhelpmanager.h"
@@ -146,7 +147,7 @@ public:
     HelpViewer *externalHelpViewer();
     HelpViewer *helpModeHelpViewer();
     HelpWidget *helpWidgetForWindow(QWidget *window);
-    HelpViewer *viewerForHelpViewerLocation(HelpManager::HelpViewerLocation location);
+    HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
 
     void showInHelpViewer(const QUrl &url, HelpViewer *viewer);
     void doSetupIfNeeded();
@@ -161,7 +162,7 @@ public:
     GeneralSettingsPage m_generalSettingsPage;
 
     bool m_setupNeeded = true;
-    LocalHelpManager m_helpManager;
+    LocalHelpManager m_localHelpManager;
     OpenPagesManager m_openPagesManager;
 
     QString m_contextHelpHighlightId;
@@ -174,11 +175,19 @@ public:
 };
 
 static HelpPluginPrivate *dd = nullptr;
+static HelpManager *m_helpManager = nullptr;
+
+HelpPlugin::HelpPlugin()
+{
+    m_helpManager = new HelpManager;
+}
 
 HelpPlugin::~HelpPlugin()
 {
     delete dd;
     dd = nullptr;
+    delete m_helpManager;
+    m_helpManager = nullptr;
 }
 
 bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
@@ -222,8 +231,10 @@ HelpPluginPrivate::HelpPluginPrivate()
 
     connect(&m_filterSettingsPage, &FilterSettingsPage::filtersChanged,
             this, &HelpPluginPrivate::setupHelpEngineIfNeeded);
-    connect(HelpManager::instance(), &HelpManager::documentationChanged,
-            this, &HelpPluginPrivate::setupHelpEngineIfNeeded);
+    connect(Core::HelpManager::Signals::instance(),
+            &Core::HelpManager::Signals::documentationChanged,
+            this,
+            &HelpPluginPrivate::setupHelpEngineIfNeeded);
     connect(HelpManager::instance(), &HelpManager::collectionFileChanged,
             this, &HelpPluginPrivate::setupHelpEngineIfNeeded);
 
@@ -264,7 +275,7 @@ HelpPluginPrivate::HelpPluginPrivate()
         textEditorContextMenu->addAction(cmd, Core::Constants::G_HELP);
     }
 
-    action = new QAction(HelpPlugin::tr("Technical Support"), this);
+    action = new QAction(HelpPlugin::tr("Technical Support..."), this);
     cmd = ActionManager::registerAction(action, "Help.TechSupport");
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_SUPPORT);
     connect(action, &QAction::triggered, this, [this] {
@@ -319,8 +330,14 @@ void HelpPlugin::extensionsInitialized()
 {
     QStringList filesToRegister;
     // we might need to register creators inbuild help
-    filesToRegister.append(ICore::documentationPath() + "/qtcreator.qch");
-    HelpManager::registerDocumentation(filesToRegister);
+    filesToRegister.append(Core::HelpManager::documentationPath() + "/qtcreator.qch");
+    Core::HelpManager::registerDocumentation(filesToRegister);
+}
+
+bool HelpPlugin::delayedInitialize()
+{
+    HelpManager::setupHelpManager();
+    return true;
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag HelpPlugin::aboutToShutdown()
@@ -527,8 +544,8 @@ void HelpPluginPrivate::updateSideBarSource(const QUrl &newUrl)
 void HelpPluginPrivate::setupHelpEngineIfNeeded()
 {
     LocalHelpManager::setEngineNeedsUpdate();
-    if (ModeManager::currentMode() == m_mode.id()
-            || LocalHelpManager::contextHelpOption() == HelpManager::ExternalHelpAlways)
+    if (ModeManager::currentModeId() == m_mode.id()
+            || LocalHelpManager::contextHelpOption() == Core::HelpManager::ExternalHelpAlways)
         LocalHelpManager::setupGuiHelpEngine();
 }
 
@@ -568,29 +585,30 @@ HelpWidget *HelpPluginPrivate::helpWidgetForWindow(QWidget *window)
     return m_centralWidget;
 }
 
-HelpViewer *HelpPlugin::viewerForHelpViewerLocation(HelpManager::HelpViewerLocation location)
+HelpViewer *HelpPlugin::viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location)
 {
     return dd->viewerForHelpViewerLocation(location);
 }
 
-HelpViewer *HelpPluginPrivate::viewerForHelpViewerLocation(HelpManager::HelpViewerLocation location)
+HelpViewer *HelpPluginPrivate::viewerForHelpViewerLocation(
+    Core::HelpManager::HelpViewerLocation location)
 {
-    HelpManager::HelpViewerLocation actualLocation = location;
-    if (location == HelpManager::SideBySideIfPossible)
-        actualLocation = canShowHelpSideBySide() ? HelpManager::SideBySideAlways
-                                                 : HelpManager::HelpModeAlways;
+    Core::HelpManager::HelpViewerLocation actualLocation = location;
+    if (location == Core::HelpManager::SideBySideIfPossible)
+        actualLocation = canShowHelpSideBySide() ? Core::HelpManager::SideBySideAlways
+                                                 : Core::HelpManager::HelpModeAlways;
 
-    if (actualLocation == HelpManager::ExternalHelpAlways)
+    if (actualLocation == Core::HelpManager::ExternalHelpAlways)
         return externalHelpViewer();
 
-    if (actualLocation == HelpManager::SideBySideAlways) {
+    if (actualLocation == Core::HelpManager::SideBySideAlways) {
         createRightPaneContextViewer();
         RightPaneWidget::instance()->setWidget(m_rightPaneSideBarWidget);
         RightPaneWidget::instance()->setShown(true);
         return m_rightPaneSideBarWidget->currentViewer();
     }
 
-    QTC_CHECK(actualLocation == HelpManager::HelpModeAlways);
+    QTC_CHECK(actualLocation == Core::HelpManager::HelpModeAlways);
 
     return helpModeHelpViewer();
 }
@@ -662,7 +680,7 @@ void HelpPluginPrivate::showContextHelp(const QString &contextHelpId)
     HelpViewer *viewer = viewerForContextHelp();
     QTC_ASSERT(viewer, return);
 
-    QMap<QString, QUrl> links = HelpManager::linksForIdentifier(contextHelpId);
+    QMap<QString, QUrl> links = Core::HelpManager::linksForIdentifier(contextHelpId);
     // Maybe the id is already an URL
     if (links.isEmpty() && LocalHelpManager::isValidUrl(contextHelpId))
         links.insert(contextHelpId, contextHelpId);
@@ -706,7 +724,8 @@ void HelpPluginPrivate::highlightSearchTermsInContextHelp()
     m_contextHelpHighlightId.clear();
 }
 
-void HelpPluginPrivate::handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocation location)
+void HelpPluginPrivate::handleHelpRequest(const QUrl &url,
+                                          Core::HelpManager::HelpViewerLocation location)
 {
     static const QString qtcreatorUnversionedID = "org.qt-project.qtcreator";
     if (url.host() == qtcreatorUnversionedID) {

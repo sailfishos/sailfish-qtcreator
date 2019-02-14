@@ -15,6 +15,9 @@ Project {
         Depends { name: "TextEditor" }
         Depends { name: "app_version_header" }
 
+        Depends { name: "libclang"; required: false }
+        Depends { name: "clang_defines" }
+
         Group {
             name: "General"
             files: [
@@ -63,6 +66,7 @@ Project {
                 "environmentaspectwidget.cpp", "environmentaspectwidget.h",
                 "environmentwidget.cpp", "environmentwidget.h",
                 "expanddata.cpp", "expanddata.h",
+                "extraabi.cpp", "extraabi.h",
                 "extracompiler.cpp", "extracompiler.h",
                 "foldernavigationwidget.cpp", "foldernavigationwidget.h",
                 "gccparser.cpp", "gccparser.h",
@@ -87,6 +91,7 @@ Project {
                 "ldparser.cpp", "ldparser.h",
                 "linuxiccparser.cpp", "linuxiccparser.h",
                 "localenvironmentaspect.cpp", "localenvironmentaspect.h",
+                "makestep.cpp", "makestep.h", "makestep.ui",
                 "miniprojecttargetselector.cpp", "miniprojecttargetselector.h",
                 "msvcparser.cpp", "msvcparser.h",
                 "namedwidget.cpp", "namedwidget.h",
@@ -96,6 +101,7 @@ Project {
                 "processstep.cpp", "processstep.h", "processstep.ui",
                 "project.cpp", "project.h",
                 "projectconfiguration.cpp", "projectconfiguration.h",
+                "projectconfigurationaspects.cpp", "projectconfigurationaspects.h",
                 "projectconfigurationmodel.cpp", "projectconfigurationmodel.h",
                 "projectexplorer.cpp", "projectexplorer.h",
                 "projectexplorer.qrc",
@@ -139,6 +145,7 @@ Project {
                 "taskmodel.cpp", "taskmodel.h",
                 "taskwindow.cpp", "taskwindow.h",
                 "toolchain.cpp", "toolchain.h",
+                "toolchaincache.h",
                 "toolchainconfigwidget.cpp", "toolchainconfigwidget.h",
                 "toolchainmanager.cpp", "toolchainmanager.h",
                 "toolchainoptionspage.cpp", "toolchainoptionspage.h",
