@@ -30,6 +30,7 @@
 #include <QUrl>
 
 #include <coreplugin/icore.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
@@ -160,12 +161,24 @@ private:
 
         // Init port QSpinBox
 
-        m_qmlLiveDetailsUi->port->setValue(m_aspect->qmlLiveIpcPort());
+        auto updatePort = [this] {
+            bool useDefault = m_aspect->qmlLiveIpcPort() <= 0;
+            m_qmlLiveDetailsUi->port->setValue(useDefault ? 0 : m_aspect->qmlLiveIpcPort());
+            m_qmlLiveDetailsUi->port->setEnabled(!useDefault);
+            m_qmlLiveDetailsUi->useCustomPort->setChecked(!useDefault);
+        };
         void (QSpinBox::*QSpinBox_valueChanged)(int) = &QSpinBox::valueChanged;
         connect(m_qmlLiveDetailsUi->port, QSpinBox_valueChanged,
                 m_aspect, &MerRunConfigurationAspect::setQmlLiveIpcPort);
         connect(m_aspect, &MerRunConfigurationAspect::qmlLiveIpcPortChanged,
-                m_qmlLiveDetailsUi->port, &QSpinBox::setValue);
+                this, updatePort);
+        updatePort();
+        connect(m_qmlLiveDetailsUi->useCustomPort, &QCheckBox::stateChanged,
+                this, [this](int state) {
+                m_aspect->setQmlLiveIpcPort(state != Qt::Checked
+                        ? -1
+                        : Constants::DEFAULT_QML_LIVE_PORT);
+        });
 
         // Init benchWorkspace PathChooser
 
@@ -221,7 +234,7 @@ private:
 MerRunConfigurationAspect::MerRunConfigurationAspect(Target *target)
     : m_target(target)
     , m_qmlLiveEnabled(false)
-    , m_qmlLiveIpcPort(Constants::DEFAULT_QML_LIVE_PORT)
+    , m_qmlLiveIpcPort(-1)
     , m_qmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace())
     , m_qmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS)
 {
@@ -242,9 +255,20 @@ void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const
                                    QLatin1String(QMLLIVE_SAILFISH_PRELOAD),
                                    QLatin1String(LIST_SEP));
 
-        if (qmlLiveIpcPort() > 0) {
+        int qmlLiveIpcPort = this->qmlLiveIpcPort();
+        if (qmlLiveIpcPort <= 0) {
+            const IDevice::ConstPtr device = DeviceKitInformation::device(m_target->kit());
+            const auto merDevice = device.dynamicCast<const MerDevice>();
+            if (merDevice) {
+                Utils::PortList ports = merDevice->qmlLivePorts();
+                if (ports.hasMore())
+                    qmlLiveIpcPort = ports.getNext().number();
+            }
+        }
+
+        if (qmlLiveIpcPort > 0) {
             r->environment.set(QLatin1String("QMLLIVERUNTIME_SAILFISH_IPC_PORT"),
-                               QString::number(qmlLiveIpcPort()));
+                               QString::number(qmlLiveIpcPort));
         }
 
         if (!qmlLiveTargetWorkspace().isEmpty()) {
@@ -277,7 +301,7 @@ void MerRunConfigurationAspect::applyTo(ProjectExplorer::Runnable *r) const
 void MerRunConfigurationAspect::fromMap(const QVariantMap &map)
 {
     m_qmlLiveEnabled = map.value(QLatin1String(QML_LIVE_ENABLED), false).toBool();
-    m_qmlLiveIpcPort = map.value(QLatin1String(QML_LIVE_IPC_PORT_KEY), Constants::DEFAULT_QML_LIVE_PORT).toInt();
+    m_qmlLiveIpcPort = map.value(QLatin1String(QML_LIVE_IPC_PORT_KEY), -1).toInt();
     m_qmlLiveBenchWorkspace = map.value(QLatin1String(QML_LIVE_BENCH_WORKSPACE_KEY),
                                         defaultQmlLiveBenchWorkspace()).toString();
     m_qmlLiveTargetWorkspace = map.value(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), QString()).toString();
@@ -296,7 +320,7 @@ void MerRunConfigurationAspect::toMap(QVariantMap &map) const
 
 void MerRunConfigurationAspect::restoreQmlLiveDefaults()
 {
-    setQmlLiveIpcPort(Constants::DEFAULT_QML_LIVE_PORT);
+    setQmlLiveIpcPort(-1);
     setQmlLiveBenchWorkspace(defaultQmlLiveBenchWorkspace());
     setQmlLiveTargetWorkspace(QString());
     setQmlLiveOptions(DEFAULT_QML_LIVE_OPTIONS);

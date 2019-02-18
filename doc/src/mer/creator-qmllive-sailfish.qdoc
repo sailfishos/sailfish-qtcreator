@@ -134,7 +134,8 @@
     \list
 
         \li \gui {Port} is the TCP port to listen on for connection from QmlLive
-            bench. Defaults to 10234.
+            bench. Defaults to the first port configured for the device in use,
+            usually 10234.
 
         \li \gui {Bench workspace} is the path to the directory tree on local
             filesystem to be used as the workspace in QmlLive bench. Defaults to
