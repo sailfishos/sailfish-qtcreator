@@ -59,10 +59,13 @@ class MerEmulatorModeDialog : public QObject
 
 public:
     MerEmulatorModeDialog(QObject *parent = 0);
+    MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent = 0);
     ~MerEmulatorModeDialog() override;
 
 public:
     QAction *action() const;
+    bool exec();
+    MerEmulatorDevice::Ptr emulator() const;
 
 private:
     void setEmulator(const MerEmulatorDevice::Ptr &emulator);
@@ -72,8 +75,9 @@ private slots:
     void onActiveTargetChanged(ProjectExplorer::Target *target);
     void onTargetKitChanged();
     void onKitUpdated(ProjectExplorer::Kit *kit);
-    void execDialog();
+    bool execDialog();
     void guessOptimalViewMode();
+    void onDeviceListReplaced();
 
 private:
     QAction *m_action;

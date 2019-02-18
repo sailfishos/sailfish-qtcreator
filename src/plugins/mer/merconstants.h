@@ -37,6 +37,9 @@ const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Build Engine");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
+const char MER_EMULATOR_MODE_OPTIONS_ID[] = "A.MerEmulatorMode";
+const char MER_EMULATOR_MODE_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "Emulator Modes");
+const char MER_EMULATOR_MODE_ACTION_NAME[] = QT_TRANSLATE_NOOP("Mer", "&Emulator mode...");
 
 const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
 const char MER_i486_IDENTIFIER[] = "i486";
@@ -124,6 +127,7 @@ const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfigurat
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";
 
+const char MER_EMULATOR_CHANGE_MODE_ACTION_ID[] = "Mer.MerEmulatorChangeMode";
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 const char MER_EMULATOR_STOP_ACTION_ID[] = "Mer.MerEmulatorStopAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";

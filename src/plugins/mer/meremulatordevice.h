@@ -45,15 +45,28 @@ public:
     MerEmulatorDeviceModel()
         : d(new Data)
     {}
+    MerEmulatorDeviceModel(bool isSdkProvided);
+    MerEmulatorDeviceModel(const QString &name, const QSize &displayResolution, const QSize &displaySize,
+                           const QString &dconf = QString(), bool isSdkProvided = false);
+
+    using Map = QMap<QString, MerEmulatorDeviceModel>;
 
     bool isNull() const { return d->name.isNull() || d->displayResolution.isNull() || d->displaySize.isNull(); }
+    bool isSdkProvided() const { return d->isSdkProvided; }
 
     QString name() const { return d->name; }
+    void setName(const QString &name) { d->name = name; }
     QSize displayResolution() const { return d->displayResolution; }
     QSize displaySize() const { return d->displaySize; }
+    QString dconf() const { return d->dconf; }
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
+
+    bool operator==(const MerEmulatorDeviceModel &other) const;
+    bool operator!=(const MerEmulatorDeviceModel &other) const;
+
+    static QString uniqueName(const QString &baseName, const QSet<QString> &existingNames);
 
 private:
     struct Data : QSharedData
@@ -61,6 +74,8 @@ private:
         QString name;
         QSize displayResolution;
         QSize displaySize;
+        QString dconf;
+        bool isSdkProvided{false};
     };
     QSharedDataPointer<Data> d;
 };
@@ -105,7 +120,6 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
-    QMap<QString, MerEmulatorDeviceModel> availableDeviceModels() const;
     QString deviceModel() const;
     void setDeviceModel(const QString &deviceModel);
     Qt::Orientation orientation() const;
@@ -122,22 +136,16 @@ private:
     friend class MerEmulatorDeviceManager;
     void updateConnection() const;
 
-    void updateAvailableDeviceModels();
     void scheduleSetVideoMode();
     void setVideoMode();
-    void updateDconfDb(const QVariantMap &fullDeviceModelData);
-    QVariantMap readFullDeviceModelData() const;
+    void updateDconfDb();
 
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
-#if __cplusplus >= 201103L
-    QMetaObject::Connection m_virtualMachineChangedConnection;
-#endif
     QString m_mac;
     QString m_subnet;
     QString m_sharedConfigPath;
     QString m_deviceModel;
-    QMap<QString, MerEmulatorDeviceModel> m_availableDeviceModels;
     Qt::Orientation m_orientation;
     bool m_viewScaled;
     QPointer<QTimer> m_setVideoModeTimer;
@@ -165,9 +173,12 @@ private slots:
     void onDeviceListReplaced();
 
 private:
+    static void onDeviceModelsChanged(const QSet<QString> &deviceModelNames);
+
     static MerEmulatorDeviceManager *s_instance;
     QHash<Core::Id, quint16> m_deviceSshPortCache;
     QHash<Core::Id, Utils::PortList> m_deviceQmlLivePortsCache;
+    QSet<QString> m_editedDeviceModels;
 };
 
 }

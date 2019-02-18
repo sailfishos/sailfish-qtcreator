@@ -31,9 +31,12 @@
 #include "ui_meremulatormodedialog.h"
 
 #include "merconnection.h"
+#include "mersettings.h"
+#include "merconstants.h"
 #include "meremulatordevice.h"
 
 #include <coreplugin/icore.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
@@ -49,6 +52,7 @@ using namespace ProjectExplorer;
 
 using namespace Mer;
 using namespace Mer::Internal;
+using namespace Mer::Constants;
 
 MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
     : QObject(parent),
@@ -58,7 +62,7 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
       m_kit(0)
 {
     m_action->setEnabled(false);
-    m_action->setText(tr("&Emulator mode..."));
+    m_action->setText(tr(MER_EMULATOR_MODE_ACTION_NAME));
 
     connect(m_action, &QAction::triggered,
             this, &MerEmulatorModeDialog::execDialog);
@@ -69,6 +73,21 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
 
     connect(KitManager::instance(), &KitManager::kitUpdated,
             this, &MerEmulatorModeDialog::onKitUpdated);
+
+    connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
+            this, &MerEmulatorModeDialog::onDeviceListReplaced);
+}
+
+MerEmulatorModeDialog::MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent)
+    : QObject(parent),
+      m_action(new QAction(tr(MER_EMULATOR_MODE_ACTION_NAME), this)),
+      m_dialog(nullptr),
+      m_ui(nullptr),
+      m_kit(nullptr)
+{
+    setEmulator(emulator);
+
+    connect(m_action, &QAction::triggered, this, &MerEmulatorModeDialog::execDialog);
 }
 
 MerEmulatorModeDialog::~MerEmulatorModeDialog()
@@ -78,6 +97,17 @@ MerEmulatorModeDialog::~MerEmulatorModeDialog()
 QAction *MerEmulatorModeDialog::action() const
 {
     return m_action;
+}
+
+MerEmulatorDevice::Ptr MerEmulatorModeDialog::emulator() const
+{
+    return m_emulator.toStrongRef();
+}
+
+bool MerEmulatorModeDialog::exec()
+{
+    QTC_ASSERT(m_emulator != nullptr, return false);
+    return execDialog();
 }
 
 void MerEmulatorModeDialog::setEmulator(const MerEmulatorDevice::Ptr &emulator)
@@ -145,33 +175,28 @@ void MerEmulatorModeDialog::onKitUpdated(Kit *kit)
     setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
 }
 
-void MerEmulatorModeDialog::execDialog()
+void MerEmulatorModeDialog::onDeviceListReplaced()
 {
-    QTC_ASSERT(m_emulator != 0, return);
-    QTC_ASSERT(m_ui == 0, return); // possible, but little issue..
+    if (m_kit == nullptr)
+        return;
+
+    auto device = DeviceKitInformation::device(m_kit);
+    setEmulator(device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>());
+}
+
+bool MerEmulatorModeDialog::execDialog()
+{
+    QTC_ASSERT(m_emulator != 0, return false);
+    QTC_ASSERT(m_ui == 0, return false); // possible, but little issue..
 
     m_dialog = new QDialog(ICore::dialogParent());
     m_ui = new Ui::MerEmulatorModeDialog;
     m_ui->setupUi(m_dialog);
-
     m_ui->deviceNameLabel->setText(m_emulator.data()->displayName());
 
-    const QMap<QString, MerEmulatorDeviceModel> models =
-        m_emulator.data()->availableDeviceModels();
-    const bool supportsMultipleModels = !models.isEmpty();
-
-    int currentModelIndex = -1;
-    for (auto it = models.begin(); it != models.end(); ++it) {
-        const QString label = QStringLiteral("%1 (%2x%3)")
-            .arg(it.key())
-            .arg(it.value().displayResolution().width())
-            .arg(it.value().displayResolution().height());
-        m_ui->deviceModelComboBox->addItem(label, it.key());
-        if (it.key() == m_emulator.data()->deviceModel()) {
-            currentModelIndex = m_ui->deviceModelComboBox->count() - 1;
-        }
-    }
-    m_ui->deviceModelComboBox->setCurrentIndex(currentModelIndex);
+    m_ui->deviceModelComboBox->setDeviceModels(MerSettings::deviceModels().values());
+    m_ui->deviceModelComboBox->setCurrentDeviceModel(m_emulator.data()->deviceModel());
+    const bool supportsMultipleModels = m_ui->deviceModelComboBox->count();
 
     QRadioButton *orientationRadioButton = m_emulator.data()->orientation() == Qt::Vertical
         ? m_ui->portraitRadioButton
@@ -183,7 +208,7 @@ void MerEmulatorModeDialog::execDialog()
         : m_ui->originalViewModeRadioButton;
     viewModeRadioButton->setChecked(true);
 
-    connect(m_ui->deviceModelComboBox, &QComboBox::currentTextChanged,
+    connect(m_ui->deviceModelComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MerEmulatorModeDialog::guessOptimalViewMode);
     connect(m_ui->portraitRadioButton, &QRadioButton::toggled,
             this, &MerEmulatorModeDialog::guessOptimalViewMode);
@@ -201,7 +226,7 @@ void MerEmulatorModeDialog::execDialog()
         goto end;
     }
 
-    m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentData().toString());
+    m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
     m_emulator.data()->setOrientation(m_ui->portraitRadioButton->isChecked()
                                ? Qt::Vertical
                                : Qt::Horizontal);
@@ -215,8 +240,11 @@ void MerEmulatorModeDialog::execDialog()
     }
 
 end:
+    const bool result = m_dialog->result() == QDialog::Accepted;
     delete m_ui, m_ui = 0;
     delete m_dialog, m_dialog = 0;
+
+    return result;
 }
 
 void MerEmulatorModeDialog::guessOptimalViewMode()
@@ -226,9 +254,8 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
     // TODO use the word resolution instead of size
     const QSize desktopSize = qApp->desktop()->availableGeometry().size();
 
-    const QMap<QString, MerEmulatorDeviceModel> models =
-        m_emulator.data()->availableDeviceModels();
-    auto selectedModel = models.value(m_ui->deviceModelComboBox->currentData().toString());
+    const QMap<QString, MerEmulatorDeviceModel> models = MerSettings::deviceModels();
+    auto selectedModel = models.value(m_ui->deviceModelComboBox->currentDeviceModel());
     QTC_ASSERT(!selectedModel.isNull(), return);
 
     QSize selectedSize = selectedModel.displayResolution();
