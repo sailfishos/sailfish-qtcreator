@@ -24,6 +24,7 @@
 #define MERRUNCONFIGURATIONASPECT_H
 
 #include <projectexplorer/projectconfiguration.h>
+#include <utils/port.h>
 
 namespace ProjectExplorer {
     class Runnable;
@@ -52,7 +53,7 @@ public:
     MerRunConfigurationAspect(ProjectExplorer::Target *target);
 
     bool isQmlLiveEnabled() const { return m_qmlLiveEnabled; }
-    int qmlLiveIpcPort() const { return m_qmlLiveIpcPort; }
+    Utils::Port qmlLiveIpcPort() const { return m_qmlLiveIpcPort; }
     QString qmlLiveBenchWorkspace() const { return m_qmlLiveBenchWorkspace; }
     QString qmlLiveTargetWorkspace() const { return m_qmlLiveTargetWorkspace; }
     QmlLiveOptions qmlLiveOptions() const { return m_qmlLiveOptions; }
@@ -67,14 +68,14 @@ public:
 public slots:
     void restoreQmlLiveDefaults();
     void setQmlLiveEnabled(bool qmlLiveEnabled);
-    void setQmlLiveIpcPort(int port);
+    void setQmlLiveIpcPort(Utils::Port port);
     void setQmlLiveBenchWorkspace(const QString &benchWorkspace);
     void setQmlLiveTargetWorkspace(const QString &targetWorkspace);
     void setQmlLiveOptions(QmlLiveOptions options);
 
 signals:
     void qmlLiveEnabledChanged(bool qmlLiveEnabled);
-    void qmlLiveIpcPortChanged(int port);
+    void qmlLiveIpcPortChanged();
     void qmlLiveBenchWorkspaceChanged(const QString &benchWorkspace);
     void qmlLiveTargetWorkspaceChanged(const QString &targetWorkspace);
     void qmlLiveOptionsChanged();
@@ -82,7 +83,7 @@ signals:
 private:
     ProjectExplorer::Target *m_target;
     bool m_qmlLiveEnabled;
-    int m_qmlLiveIpcPort;
+    Utils::Port m_qmlLiveIpcPort;
     QString m_qmlLiveBenchWorkspace;
     QString m_qmlLiveTargetWorkspace;
     QmlLiveOptions m_qmlLiveOptions;
