@@ -263,6 +263,13 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_CONFIG);
         else if (current == QLatin1String("--merDeviceModel"))
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_DEVICE_MODEL);
+        else if (current == QLatin1String("--merVmMemorySize"))
+            k = QString::fromStdString(Mer::Constants::MEMORY_SIZE_MB);
+        else if (current == QLatin1String("--merVmCpuCount"))
+            k = QString::fromStdString(Mer::Constants::CPU_COUNT);
+        else if (current == QLatin1String("--merVmVdiCapacity"))
+            k = QString::fromStdString(Mer::Constants::VDI_CAPACITY_MB);
+
         KeyValuePair pair(k, next);
         if (!pair.value.isValid())
             return false;
