@@ -79,6 +79,12 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
             this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
     connect(m_ui->wwwPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MerSdkDetailsWidget::wwwPortChanged);
+    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::memorySizeMbChanged,
+            this, &MerSdkDetailsWidget::memorySizeMbChanged);
+    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::cpuCountChanged,
+            this, &MerSdkDetailsWidget::cpuCountChanged);
+    connect(m_ui->virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::vdiCapacityMbChnaged,
+            this, &MerSdkDetailsWidget::vdiCapacityMbChnaged);
     connect(m_ui->wwwProxyDisabledButton, &QRadioButton::toggled,
             this, &MerSdkDetailsWidget::onWwwProxyDisabledToggled);
     connect(m_ui->wwwProxyAutomaticButton, &QRadioButton::toggled,
@@ -139,6 +145,10 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     }
 
     m_ui->userNameLabelText->setText(sdk->userName());
+
+    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sdk->memorySizeMb());
+    m_ui->virtualMachineSettingsWidget->setCpuCount(sdk->cpuCount());
+    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
 }
 
 void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
@@ -164,6 +174,7 @@ void MerSdkDetailsWidget::setVmOffStatus(bool vmOff)
     m_ui->sshPortInfoLabel->setVisible(!vmOff);
     m_ui->wwwPortSpinBox->setEnabled(vmOff);
     m_ui->wwwPortInfoLabel->setVisible(!vmOff);
+    m_ui->virtualMachineSettingsWidget->setVmOff(vmOff);
 }
 
 void MerSdkDetailsWidget::setSshTimeout(int timeout)
@@ -184,6 +195,21 @@ void MerSdkDetailsWidget::setHeadless(bool enabled)
 void MerSdkDetailsWidget::setWwwPort(quint16 port)
 {
     m_ui->wwwPortSpinBox->setValue(port);
+}
+
+void MerSdkDetailsWidget::setMemorySizeMb(int sizeMb)
+{
+    m_ui->virtualMachineSettingsWidget->setMemorySizeMb(sizeMb);
+}
+
+void MerSdkDetailsWidget::setCpuCount(int count)
+{
+    m_ui->virtualMachineSettingsWidget->setCpuCount(count);
+}
+
+void MerSdkDetailsWidget::setVdiCapacityMb(int capacityMb)
+{
+    m_ui->virtualMachineSettingsWidget->setVdiCapacityMb(capacityMb);
 }
 
 void MerSdkDetailsWidget::setWwwProxy(const QString &type, const QString &servers, const QString &excludes)

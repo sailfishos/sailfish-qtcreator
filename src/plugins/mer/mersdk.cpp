@@ -59,6 +59,9 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_connection(new MerConnection(this))
     , m_wwwPort(-1)
     , m_wwwProxy(MER_SDK_PROXY_DISABLED)
+    , m_memorySizeMb(0)
+    , m_cpuCount(0)
+    , m_vdiCapacityMb(0)
 {
     SshConnectionParameters params = m_connection->sshParameters();
     params.timeout = 30;
@@ -98,6 +101,36 @@ void MerSdk::setHeadless(bool enabled)
 bool MerSdk::isHeadless() const
 {
     return m_connection->isHeadless();
+}
+
+void MerSdk::setMemorySizeMb(int sizeMb)
+{
+    m_memorySizeMb = sizeMb;
+}
+
+int MerSdk::memorySizeMb() const
+{
+    return m_memorySizeMb;
+}
+
+void MerSdk::setCpuCount(int count)
+{
+    m_cpuCount = count;
+}
+
+int MerSdk::cpuCount() const
+{
+    return m_cpuCount;
+}
+
+void MerSdk::setVdiCapacityMb(int sizeMb)
+{
+    m_vdiCapacityMb = sizeMb;
+}
+
+int MerSdk::vdiCapacityMb() const
+{
+    return m_vdiCapacityMb;
 }
 
 bool MerSdk::isAutoDetected() const
@@ -387,6 +420,10 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(WWW_PROXY_SERVERS), wwwProxyServers());
     result.insert(QLatin1String(WWW_PROXY_EXCLUDES), wwwProxyExcludes());
     result.insert(QLatin1String(HEADLESS), isHeadless());
+    result.insert(QLatin1String(MEMORY_SIZE_MB), memorySizeMb());
+    result.insert(QLatin1String(CPU_COUNT), cpuCount());
+    result.insert(QLatin1String(VDI_CAPACITY_MB), vdiCapacityMb());
+
     int count = 0;
     foreach (const MerTarget &target, m_targets) {
         if (!target.isValid())
@@ -420,6 +457,9 @@ bool MerSdk::fromMap(const QVariantMap &data)
                 data.value(QLatin1String(WWW_PROXY_SERVERS)).toString(),
                 data.value(QLatin1String(WWW_PROXY_EXCLUDES)).toString());
     setHeadless(data.value(QLatin1String(HEADLESS)).toBool());
+    setMemorySizeMb(data.value(QLatin1String(MEMORY_SIZE_MB)).toInt());
+    setCpuCount(data.value(QLatin1String(CPU_COUNT)).toInt());
+    setVdiCapacityMb(data.value(QLatin1String(VDI_CAPACITY_MB)).toInt());
 
     int count = data.value(QLatin1String(MER_TARGET_COUNT_KEY), 0).toInt();
     QList<MerTarget> targets;

@@ -63,6 +63,9 @@ public:
     void setSrcFolderChooserPath(const QString &path);
     void setWwwPort(quint16 port);
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
+    void setMemorySizeMb(int sizeMb);
+    void setCpuCount(int count);
+    void setVdiCapacityMb(int capacityMb);
 
 signals:
     void generateSshKey(const QString &key);
@@ -75,6 +78,9 @@ signals:
     void srcFolderApplyButtonClicked(const QString &path);
     void wwwPortChanged(quint16 port);
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
+    void memorySizeMbChanged(int sizeMb);
+    void cpuCountChanged(int count);
+    void vdiCapacityMbChnaged(int value);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();

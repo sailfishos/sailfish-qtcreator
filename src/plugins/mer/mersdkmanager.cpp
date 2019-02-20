@@ -513,7 +513,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 {
     MerSdk *sdk = new MerSdk();
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName, true);
     sdk->setVirtualMachineName(vmName);
     sdk->setSshPort(info.sshPort);
     sdk->setWwwPort(info.wwwPort);
@@ -533,6 +533,9 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     sdk->setSharedConfigPath(info.sharedConfig);
     sdk->setSharedSrcPath(info.sharedSrc);
     sdk->setSharedSshPath(info.sharedSsh);
+    sdk->setMemorySizeMb(info.memorySizeMb);
+    sdk->setCpuCount(info.cpuCount);
+    sdk->setVdiCapacityMb(info.vdiCapacityMb);
     return sdk;
 }
 

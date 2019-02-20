@@ -75,6 +75,9 @@ private slots:
     void onSrcFolderApplyButtonClicked(const QString &path);
     void onWwwPortChanged(quint16 port);
     void onWwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
+    void onMemorySizeMbChanged(int sizeMb);
+    void onCpuCountChanged(int count);
+    void onVdiCapacityMbChnaged(int sizeMb);
     void onVmOffChanged(bool vmOff);
     void update();
 
@@ -92,6 +95,9 @@ private:
     QMap<MerSdk*, QString> m_wwwProxy;
     QMap<MerSdk*, QString> m_wwwProxyServers;
     QMap<MerSdk*, QString> m_wwwProxyExcludes;
+    QMap<MerSdk*, int> m_vdiCapacityMb;
+    QMap<MerSdk*, int> m_memorySizeMb;
+    QMap<MerSdk*, int> m_cpuCount;
 };
 
 } // Internal

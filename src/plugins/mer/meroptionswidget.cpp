@@ -39,6 +39,8 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QMessageBox>
+#include <QProgressDialog>
+#include <QPushButton>
 #include <QStandardItem>
 #include <QStandardItemModel>
 #include <QUrl>
@@ -90,6 +92,12 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
             this, &MerOptionsWidget::onWwwPortChanged);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::wwwProxyChanged,
             this, &MerOptionsWidget::onWwwProxyChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::memorySizeMbChanged,
+            this, &MerOptionsWidget::onMemorySizeMbChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::cpuCountChanged,
+            this, &MerOptionsWidget::onCpuCountChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::vdiCapacityMbChnaged,
+            this, &MerOptionsWidget::onVdiCapacityMbChnaged);
     onSdksUpdated();
 }
 
@@ -127,6 +135,15 @@ QString MerOptionsWidget::searchKeyWordMatchString() const
 
 void MerOptionsWidget::store()
 {
+    QProgressDialog progress(this);
+    progress.setWindowModality(Qt::WindowModal);
+    QPushButton *cancelButton = new QPushButton(tr("Abort"), &progress);
+    cancelButton->setDisabled(true);
+    progress.setCancelButton(cancelButton);
+    progress.setMinimumDuration(2000);
+    progress.setMinimum(0);
+    progress.setMaximum(0);
+
     QMap<QString, MerSdk*> sdks = m_sdks;
     QList<MerSdk*> currentSdks = MerSdkManager::sdks();
 
@@ -136,6 +153,8 @@ void MerOptionsWidget::store()
     ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
 
     foreach (MerSdk *sdk, sdks) {
+        progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(sdk->virtualMachineName()));
+
         if (m_sshPrivKeys.contains(sdk))
             sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
         if (m_sshTimeout.contains(sdk))
@@ -162,12 +181,47 @@ void MerOptionsWidget::store()
         }
         if (m_wwwProxy.contains(sdk))
             sdk->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
+
+        if (m_memorySizeMb.contains(sdk)) {
+            if (MerVirtualBoxManager::setMemorySizeMb(sdk->virtualMachineName(), m_memorySizeMb[sdk])) {
+                sdk->setMemorySizeMb(m_memorySizeMb[sdk]);
+            } else {
+                m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+                m_memorySizeMb.remove(sdk);
+                ok = false;
+            }
+        }
+        if (m_cpuCount.contains(sdk)) {
+            if (MerVirtualBoxManager::setCpuCount(sdk->virtualMachineName(), m_cpuCount[sdk])) {
+                sdk->setCpuCount(m_cpuCount[sdk]);
+            } else {
+                m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+                m_cpuCount.remove(sdk);
+                ok = false;
+            }
+        }
+        if (m_vdiCapacityMb.contains(sdk)) {
+            const int newVdiCapacityMb = m_vdiCapacityMb[sdk];
+            QEventLoop loop;
+            MerVirtualBoxManager::setVdiCapacityMb(sdk->virtualMachineName(), newVdiCapacityMb, &loop, [&loop] (bool ok) {
+                loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+            });
+
+            if (loop.exec() == EXIT_SUCCESS) {
+                sdk->setVdiCapacityMb(newVdiCapacityMb);
+            } else {
+                m_vdiCapacityMb.remove(sdk);
+                ok = false;
+            }
+            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+        }
     }
 
     foreach (MerSdk *sdk, lockedDownSdks)
         sdk->connection()->lockDown(false);
 
     if (!ok) {
+        progress.cancel();
         QMessageBox::warning(this, tr("Some changes could not be saved!"),
                              tr("Failed to apply some of the changes to virtual machines"));
     }
@@ -189,6 +243,9 @@ void MerOptionsWidget::store()
     m_sshPort.clear();
     m_headless.clear();
     m_wwwPort.clear();
+    m_memorySizeMb.clear();
+    m_cpuCount.clear();
+    m_vdiCapacityMb.clear();
 }
 
 bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk *> *lockedDownSdks)
@@ -462,6 +519,21 @@ void MerOptionsWidget::update()
         else
             m_ui->sdkDetailsWidget->setWwwProxy(sdk->wwwProxy(), sdk->wwwProxyServers(), sdk->wwwProxyExcludes());
 
+        if (m_memorySizeMb.contains(sdk))
+            m_ui->sdkDetailsWidget->setMemorySizeMb(m_memorySizeMb[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+
+        if (m_cpuCount.contains(sdk))
+            m_ui->sdkDetailsWidget->setCpuCount(m_cpuCount[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+
+        if (m_vdiCapacityMb.contains(sdk))
+            m_ui->sdkDetailsWidget->setVdiCapacityMb(m_vdiCapacityMb[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+
         onVmOffChanged(sdk->connection()->isVirtualMachineOff());
         m_vmOffConnection = connect(sdk->connection(), &MerConnection::virtualMachineOffChanged,
                 this, &MerOptionsWidget::onVmOffChanged);
@@ -515,6 +587,21 @@ void MerOptionsWidget::onWwwProxyChanged(const QString &type, const QString &ser
     m_wwwProxyExcludes[m_sdks[m_virtualMachine]] = excludes;
 }
 
+void MerOptionsWidget::onMemorySizeMbChanged(int sizeMb)
+{
+    m_memorySizeMb[m_sdks[m_virtualMachine]] = sizeMb;
+}
+
+void MerOptionsWidget::onCpuCountChanged(int count)
+{
+    m_cpuCount[m_sdks[m_virtualMachine]] = count;
+}
+
+void MerOptionsWidget::onVdiCapacityMbChnaged(int sizeMb)
+{
+    m_vdiCapacityMb[m_sdks[m_virtualMachine]] = sizeMb;
+}
+
 void MerOptionsWidget::onVmOffChanged(bool vmOff)
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
@@ -525,6 +612,12 @@ void MerOptionsWidget::onVmOffChanged(bool vmOff)
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
         m_wwwPort.remove(sdk);
+        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+        m_memorySizeMb.remove(sdk);
+        m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+        m_cpuCount.remove(sdk);
+        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+        m_vdiCapacityMb.remove(sdk);
     }
 
     m_ui->sdkDetailsWidget->setVmOffStatus(vmOff);
