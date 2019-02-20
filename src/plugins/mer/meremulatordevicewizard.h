@@ -54,6 +54,9 @@ public:
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
     QString mac() const;
+    int memorySizeMb() const;
+    int cpuCount() const;
+    int vdiCapacityMb() const;
 
     bool isUserNewSshKeysRquired() const;
     bool isRootNewSshKeysRquired() const;

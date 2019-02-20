@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>398</width>
-    <height>323</height>
+    <height>418</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -163,6 +163,13 @@
         </property>
        </widget>
       </item>
+      <item row="3" column="1">
+       <widget class="QLabel" name="qmlLivePortsLabelEdit">
+        <property name="text">
+         <string>none</string>
+        </property>
+       </widget>
+      </item>
       <item row="4" column="0">
        <widget class="QLabel" name="configFolderLabel">
         <property name="text">
@@ -203,8 +210,46 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
-       <widget class="QLabel" name="qmlLivePortsLabelEdit">
+      <item row="6" column="0">
+       <widget class="QLabel" name="memorySizeLabel">
+        <property name="text">
+         <string>Memory size:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QLabel" name="memorySizeLabelEdit">
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="text">
+         <string>none</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="cpuCountLabel">
+        <property name="text">
+         <string>CPU count:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="cpuCountLabelEdit">
+        <property name="text">
+         <string>none</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="vdiCapacityLabel">
+        <property name="text">
+         <string>VDI capacity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="QLabel" name="vdiCapacityLabelEdit">
         <property name="text">
          <string>none</string>
         </property>
