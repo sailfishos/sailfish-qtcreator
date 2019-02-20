@@ -32,7 +32,8 @@ FORMS += \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
     meremulatormodeoptionswidget.ui \
-    meremulatormodedetailswidget.ui
+    meremulatormodedetailswidget.ui \
+    mervirtualmachinesettingswidget.ui \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
@@ -95,7 +96,8 @@ SOURCES += \
     merdevicemodelcombobox.cpp \
     meremulatormodeoptionspage.cpp \
     meremulatormodeoptionswidget.cpp \
-    meremulatormodedetailswidget.cpp
+    meremulatormodedetailswidget.cpp \
+    mervirtualmachinesettingswidget.cpp \
 
 HEADERS += \
     merabstractvmstartstep.h \
@@ -160,7 +162,8 @@ HEADERS += \
     merdevicemodelcombobox.h \
     meremulatormodeoptionspage.h \
     meremulatormodeoptionswidget.h \
-    meremulatormodedetailswidget.h
+    meremulatormodedetailswidget.h \
+    mervirtualmachinesettingswidget.h \
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit
