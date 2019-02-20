@@ -313,7 +313,7 @@ void MerRunConfigurationAspect::fromMap(const QVariantMap &map)
 void MerRunConfigurationAspect::toMap(QVariantMap &map) const
 {
     map.insert(QLatin1String(QML_LIVE_ENABLED), m_qmlLiveEnabled);
-    map.insert(QLatin1String(QML_LIVE_IPC_PORT_KEY), m_qmlLiveIpcPort.number());
+    map.insert(QLatin1String(QML_LIVE_IPC_PORT_KEY), m_qmlLiveIpcPort.isValid() ?  m_qmlLiveIpcPort.number() : -1);
     map.insert(QLatin1String(QML_LIVE_BENCH_WORKSPACE_KEY), m_qmlLiveBenchWorkspace);
     map.insert(QLatin1String(QML_LIVE_TARGET_WORKSPACE_KEY), m_qmlLiveTargetWorkspace);
     map.insert(QLatin1String(QML_LIVE_OPTIONS_KEY), static_cast<int>(m_qmlLiveOptions));
