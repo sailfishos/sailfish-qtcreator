@@ -62,7 +62,10 @@ public:
            const QString &privateKeyFile,
            quint16 sshPort,
            quint16 wwwPort,
-           bool headless);
+           bool headless,
+           int memorySizeMb,
+           int cpuCount,
+           int vdiCapacityMb);
     static QVariantMap initializeSdks(int version);
 
 private:
@@ -81,5 +84,8 @@ private:
     quint16 m_sshPort;
     quint16 m_wwwPort;
     bool m_headless;
+    int m_memorySizeMb;
+    int m_cpuCount;
+    int m_vdiCapacityMb;
 };
 #endif

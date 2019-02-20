@@ -50,13 +50,19 @@ const char MER_PARAM_WWW_PORT[] = "--www-port";
 const char MER_PARAM_HEADLESS[] = "--headless";
 const char MER_PARAM_INSTALLDIR[] = "--installdir";
 const char MER_PARAM_VERSION[] = "--version";
+const char MER_PARAM_MEMORY_SIZE[] = "--memory";
+const char MER_PARAM_CPU_COUNT[] = "--cpu-count";
+const char MER_PARAM_VDI_CAPACITY[] = "--vdi-capacity";
 
-AddMerSdkOperation::AddMerSdkOperation():
-    m_version(0),
-    m_autoDetected(true),
-    m_sshPort(0),
-    m_wwwPort(0),
-    m_headless(false)
+AddMerSdkOperation::AddMerSdkOperation()
+    : m_version(0)
+    , m_autoDetected(true)
+    , m_sshPort(0)
+    , m_wwwPort(0)
+    , m_headless(false)
+    , m_memorySizeMb(0)
+    , m_cpuCount(0)
+    , m_vdiCapacityMb(0)
 {
 }
 
@@ -87,6 +93,9 @@ QString AddMerSdkOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     mersdk private key file (required).\n")
          + indent + QLatin1String(MER_PARAM_SSH_PORT) + QLatin1String(" <NUMBER>           mersdk ssh port (required).\n")
          + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>           mersdk www port (required).\n")
+         + indent + QLatin1String(MER_PARAM_MEMORY_SIZE) + QLatin1String(" <MB>            mersdk virtual machine memory size (required).\n")
+         + indent + QLatin1String(MER_PARAM_CPU_COUNT) + QLatin1String(" <NUMBER>          mersdk virtual machine cpu count (required).\n")
+         + indent + QLatin1String(MER_PARAM_VDI_CAPACITY) + QLatin1String(" <MB>           mersdk virtual machine vdi size (required).\n")
          + indent + QLatin1String(MER_PARAM_HEADLESS) + QLatin1String("                    set headless mode.\n");
 }
 
@@ -179,7 +188,6 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
             continue;
         }
 
-
         if (current == QLatin1String(MER_PARAM_USERNAME)) {
             if (next.isNull())
                 return false;
@@ -211,6 +219,31 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
             m_wwwPort = next.toInt();
             continue;
         }
+
+        if (current == QLatin1String(MER_PARAM_MEMORY_SIZE)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_memorySizeMb = next.toInt();
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_CPU_COUNT)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_cpuCount = next.toInt();
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_VDI_CAPACITY)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_vdiCapacityMb = next.toInt();
+            continue;
+        }
+
         if (current == QLatin1String(MER_PARAM_HEADLESS)) {
             m_headless = true;
             continue;
@@ -271,6 +304,18 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_WWW_PORT << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_memorySizeMb == 0) {
+        std::cerr << MER_PARAM_MEMORY_SIZE << MISSING << std::endl << std::endl;
+        error = true;
+    }
+    if (m_cpuCount == 0) {
+        std::cerr << MER_PARAM_CPU_COUNT << MISSING << std::endl << std::endl;
+        error = true;
+    }
+    if (m_vdiCapacityMb == 0) {
+        std::cerr << MER_PARAM_VDI_CAPACITY << MISSING << std::endl << std::endl;
+        error = true;
+    }
 
     return !error;
 }
@@ -284,7 +329,7 @@ int AddMerSdkOperation::execute() const
     map.insert(QLatin1String(Mer::Constants::MER_SDK_INSTALLDIR), m_installDir);
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
                                       m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
-                                      m_wwwPort, m_headless);
+                                      m_wwwPort, m_headless, m_memorySizeMb, m_cpuCount, m_vdiCapacityMb);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -313,7 +358,10 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           const QString &privateKeyFile,
                                           quint16 sshPort,
                                           quint16 wwwPort,
-                                          bool headless)
+                                          bool headless,
+                                          int memorySizeMb,
+                                          int cpuCount,
+                                          int vdiCapacityMb)
 {
     QStringList valueKeys = FindValueOperation::findValue(map, QVariant(sdkName));
     bool hasTarget = false;
@@ -355,6 +403,9 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SSH_PORT), QVariant(sshPort));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::WWW_PORT), QVariant(wwwPort));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::HEADLESS), QVariant(headless));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::MEMORY_SIZE_MB), QVariant(memorySizeMb));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::CPU_COUNT), QVariant(cpuCount));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::VDI_CAPACITY_MB), QVariant(vdiCapacityMb));
     data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY), QVariant(count + 1));
 
     return AddKeysOperation::addKeys(cleaned, data);
@@ -380,7 +431,7 @@ bool AddMerSdkOperation::test() const
                  QLatin1String("/test/sharedConfigPath"),
                  QLatin1String("host"),
                  QLatin1String("user"),
-                 QLatin1String("/test/privateKey"),22,80,false);
+                 QLatin1String("/test/privateKey"),22,80,false,512,2,10000);
 
     const QString sdk = QString::fromLatin1(Mer::Constants::MER_SDK_DATA_KEY) + QString::number(0);
 
@@ -394,7 +445,7 @@ bool AddMerSdkOperation::test() const
         return false;
 
     QVariantMap sdkMap= map.value(sdk).toMap();
-    if (sdkMap.count() != 13
+    if (sdkMap.count() != 16
             || !sdkMap.contains(QLatin1String(Mer::Constants::VM_NAME))
             || sdkMap.value(QLatin1String(Mer::Constants::VM_NAME)).toString() != QLatin1String("testSdk")
             || !sdkMap.contains(QLatin1String(Mer::Constants::AUTO_DETECTED))
@@ -420,7 +471,13 @@ bool AddMerSdkOperation::test() const
             || !sdkMap.contains(QLatin1String(Mer::Constants::WWW_PORT))
             || sdkMap.value(QLatin1String(Mer::Constants::WWW_PORT)).toInt() != 80
             || !sdkMap.contains(QLatin1String(Mer::Constants::HEADLESS))
-            || sdkMap.value(QLatin1String(Mer::Constants::HEADLESS)).toBool() != false)
+            || sdkMap.value(QLatin1String(Mer::Constants::HEADLESS)).toBool() != false
+            || !sdkMap.contains(QLatin1String(Mer::Constants::MEMORY_SIZE_MB))
+            || sdkMap.value(QLatin1String(Mer::Constants::MEMORY_SIZE_MB)).toInt() != 512
+            || !sdkMap.contains(QLatin1String(Mer::Constants::CPU_COUNT))
+            || sdkMap.value(QLatin1String(Mer::Constants::CPU_COUNT)).toInt() != 2
+            || !sdkMap.contains(QLatin1String(Mer::Constants::VDI_CAPACITY_MB))
+            || sdkMap.value(QLatin1String(Mer::Constants::VDI_CAPACITY_MB)).toInt() != 10000)
         return false;
 
     return true;
