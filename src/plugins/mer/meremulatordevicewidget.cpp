@@ -129,6 +129,8 @@ void MerEmulatorDeviceWidget::timeoutEditingFinished()
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
+    QTC_ASSERT(MerSdkManager::sdks().count() == 1, return);
+
     const auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
@@ -137,7 +139,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         SshConnectionParameters sshParams = device->sshParameters();
         const QString& user = m_ui->userLineEdit->text();
         //TODO fix me:
-        const QString privKey = device->sharedConfigPath() +
+        const QString privKey = MerSdkManager::sdks().first()->sharedConfigPath() +
                 index.arg(device->id().toString()).replace(QLatin1Char(' '),QLatin1Char('_'))
                 + user;
 

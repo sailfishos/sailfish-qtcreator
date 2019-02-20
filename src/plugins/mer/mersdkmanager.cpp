@@ -625,7 +625,16 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 // this method updates the Mer devices.xml, nothing else
 void MerSdkManager::updateDevices()
 {
+    if (m_sdks.isEmpty())
+        return;
+
+    // FIXME emulator devices should have set the build engine as the hardware devices
+    // do. See e.g. MerHardwareDeviceWizardSetupPage::handleSdkVmChanged
+    QTC_ASSERT(m_sdks.count() == 1, return);
+
     QList<MerDeviceData> devices;
+    QStringList emulatorConfigPaths;
+
     int count = DeviceManager::instance()->deviceCount();
     for(int i = 0 ;  i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
@@ -656,10 +665,13 @@ void MerSdkManager::updateDevices()
                 xmlData.m_type = QLatin1String ("vbox");
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = QDir::toNativeSeparators(file.dir().absolutePath());
-                if(!device->sharedConfigPath().isEmpty())
+                const QString sharedConfigPath = m_sdks.first()->sharedConfigPath();
+                if (!sharedConfigPath.isEmpty()) {
                     xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
-                                path.remove(QDir::toNativeSeparators(device->sharedConfigPath() +
+                                path.remove(QDir::toNativeSeparators(sharedConfigPath +
                                                                      QDir::separator())));
+                    emulatorConfigPaths << device->sharedConfigPath();
+                }
             }
             devices << xmlData;
         }
@@ -674,6 +686,12 @@ void MerSdkManager::updateDevices()
         //hardcoded/magic values on customer request
         xmlData.m_subNet = QLatin1String("10.220.220");
         if (!file.isEmpty()) {
+            MerDevicesXmlWriter writer(file, devices, xmlData);
+        }
+
+        // The emulators only seek their own data in the XML
+        foreach (const QString &emulatorConfigPath, emulatorConfigPaths) {
+            const QString file = emulatorConfigPath + QLatin1String(Constants::MER_DEVICES_FILENAME);
             MerDevicesXmlWriter writer(file, devices, xmlData);
         }
     }
