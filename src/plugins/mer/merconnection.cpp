@@ -599,7 +599,7 @@ void MerConnection::updateState()
 
                 case SshConnectingError:
                     m_state = Error;
-                    m_errorString = tr("Failed to establish SSH conection with virtual machine "
+                    m_errorString = tr("Failed to establish SSH connection with virtual machine "
                             "\"%1\": %2 %3")
                         .arg(m_vmName)
                         .arg((int)m_cachedSshError)
@@ -621,7 +621,7 @@ void MerConnection::updateState()
 
                 case SshConnectionLost:
                     m_state = Error;
-                    m_errorString = tr("SSH conection with virtual machine \"%1\" has been "
+                    m_errorString = tr("SSH connection with virtual machine \"%1\" has been "
                             "lost: %2 %3")
                         .arg(m_vmName)
                         .arg((int)m_cachedSshError)

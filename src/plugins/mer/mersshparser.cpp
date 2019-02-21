@@ -84,12 +84,12 @@ void MerPlugin::testMerSshOutputParsers_data()
             << QString();
 
     QTest::newRow("merssh error")
-            << QString::fromLatin1("Project ERROR: Sailfish OS build engine is not running.")
+            << QString::fromLatin1("Project ERROR: Sailfish OS Build Engine is not running.")
             << OutputParserTester::STDERR
             << QString() << QString()
             << (QList<Task>()
                 << Task(Task::Error,
-                        QLatin1String("Sailfish OS build engine is not running."),
+                        QLatin1String("Sailfish OS Build Engine is not running."),
                         FileName(), -1,
                         categoryBuildSystem))
             << QString();

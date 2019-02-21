@@ -92,7 +92,7 @@ KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) cons
         if (sdk)
             vmName = sdk->virtualMachineName();
         return KitInformation::ItemList()
-                << qMakePair(tr("Sailfish OS build engine"), vmName);
+                << qMakePair(tr("Sailfish OS Build Engine"), vmName);
     }
     return KitInformation::ItemList();
 }
@@ -163,12 +163,12 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
 
 QString MerSdkKitInformationWidget::displayName() const
 {
-    return tr("Sailfish OS build engine:");
+    return tr("Sailfish OS Build Engine:");
 }
 
 QString MerSdkKitInformationWidget::toolTip() const
 {
-    return tr("Name of the virtual machine used as a Sailfish OS build engine.");
+    return tr("Name of the virtual machine used as a Sailfish OS Build Engine.");
 }
 
 void MerSdkKitInformationWidget::makeReadOnly()
