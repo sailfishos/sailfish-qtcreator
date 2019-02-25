@@ -26,7 +26,7 @@
 #include "merlogging.h"
 
 #include <utils/hostosinfo.h>
-#include <utils/port.h>
+#include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
 #include <QBasicTimer>
@@ -645,7 +645,7 @@ int MerVirtualBoxManager::getHostTotalCpuCount()
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
+Utils::PortList MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
 {
     qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
@@ -662,8 +662,10 @@ bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, con
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments))
-            qWarning() << "VBoxManage failed to" << MODIFYVM;
+            qWarning() << "VBoxManage failed to delete QmlLive port #" << QString::number(i);
     }
+
+    Utils::PortList savedPorts;
 
     auto ports_ = ports;
     std::sort(ports_.begin(), ports_.end());
@@ -678,16 +680,17 @@ bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, con
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments)) {
-            qWarning() << "VBoxManage failed to" << MODIFYVM;
-            return false;
+            qWarning() << "VBoxManage failed to set QmlLive port" << port.toString();
+            continue;
         }
 
+        savedPorts.addPort(port);
         ++i;
     }
 
     qCDebug(Log::vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
 
-    return true;
+    return savedPorts;
 }
 
 bool isVirtualMachineRunningFromInfo(const QString &vmInfo)

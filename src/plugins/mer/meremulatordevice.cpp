@@ -39,9 +39,9 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QPushButton>
 #include <QTextStream>
 #include <QTimer>
-#include <QPushButton>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -801,6 +801,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
     const auto oldVdiInfoCache = m_vdiCapacityCache;
     m_vdiCapacityCache.clear();
 
+    bool ok = true;
+
     const int deviceCount = DeviceManager::instance()->deviceCount();
     for (int i = 0; i < deviceCount; ++i) {
         auto merEmulator = DeviceManager::instance()->deviceAt(i).dynamicCast<const MerEmulatorDevice>();
@@ -809,41 +811,87 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
 
         progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(merEmulator->virtualMachine()));
 
-        const quint16 nowSshPort = merEmulator->sshParameters().port();
+        quint16 nowSshPort = merEmulator->sshParameters().port();
         if (nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
-            MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort);
-            merEmulator->updateConnection();
+            if (MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort)) {
+                merEmulator->updateConnection();
+            } else {
+                nowSshPort = oldSshPortsCache.value(merEmulator->id());
+                QSsh::SshConnectionParameters nowShhParameters = merEmulator->sshParameters();
+                nowShhParameters.setPort(nowSshPort);
+                merEmulator.constCast<MerEmulatorDevice>()->setSshParameters(nowShhParameters);
+                ok = false;
+            }
         }
         m_deviceSshPortCache.insert(merEmulator->id(), nowSshPort);
 
-        const Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
-        if (nowQmlLivePorts.toString() != oldQmlLivePortsCache.value(merEmulator->id()).toString())
-            MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
+
+        auto isPortListEqual = [] (Utils::PortList l1, Utils::PortList l2) {
+            if (l1.count() != l2.count())
+                return false;
+
+            while (l1.hasMore()) {
+                const Port current = l1.getNext();
+                if (!l2.contains(current))
+                    return false;
+            }
+            return true;
+        };
+
+        Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
+        if (!isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
+            Utils::PortList savedPorts = MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
                     merEmulator->qmlLivePortsList());
+
+            if (!isPortListEqual(savedPorts, nowQmlLivePorts)) {
+                nowQmlLivePorts = savedPorts;
+                merEmulator.constCast<MerEmulatorDevice>()->setQmlLivePorts(nowQmlLivePorts);
+                ok = false;
+            }
+        }
         m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
 
-        const int nowMemorySize = merEmulator->memorySizeMb();
-        if (nowMemorySize != oldMemorySizeCache.value(merEmulator->id()))
-            MerVirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachine(), nowMemorySize);
-
+        int nowMemorySize = merEmulator->memorySizeMb();
+        if (nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
+            if (!MerVirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachine(), nowMemorySize)) {
+                nowMemorySize = oldMemorySizeCache.value(merEmulator->id());
+                merEmulator.constCast<MerEmulatorDevice>()->setMemorySizeMb(nowMemorySize);
+                ok = false;
+            }
+        }
         m_deviceMemorySizeCache.insert(merEmulator->id(), nowMemorySize);
 
-        const int nowCpuCount = merEmulator->cpuCount();
-        if (nowCpuCount != oldCpuCountCache.value(merEmulator->id()))
-            MerVirtualBoxManager::setCpuCount(merEmulator->virtualMachine(), nowCpuCount);
-
+        int nowCpuCount = merEmulator->cpuCount();
+        if (nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
+            if (!MerVirtualBoxManager::setCpuCount(merEmulator->virtualMachine(), nowCpuCount)) {
+                  nowCpuCount = oldCpuCountCache.value(merEmulator->id());
+                merEmulator.constCast<MerEmulatorDevice>()->setCpuCount(nowCpuCount);
+                ok = false;
+            }
+        }
         m_deviceCpuCountCache.insert(merEmulator->id(), nowCpuCount);
 
-        const int nowVdiCapacityMb = merEmulator->vdiCapacityMb();
+
+        int nowVdiCapacityMb = merEmulator->vdiCapacityMb();
         if (nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
             QEventLoop loop;
             MerVirtualBoxManager::setVdiCapacityMb(merEmulator->virtualMachine(), nowVdiCapacityMb, &loop, [&loop] (bool ok) {
-                Q_UNUSED(ok);
-                loop.exit();
+                loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
             });
-            loop.exec();
+
+            if (loop.exec() != EXIT_SUCCESS) {
+                nowVdiCapacityMb = oldVdiInfoCache.value(merEmulator->id());
+                merEmulator.constCast<MerEmulatorDevice>()->setVdiCapacityMb(nowVdiCapacityMb);
+                ok = false;
+            }
         }
         m_vdiCapacityCache.insert(merEmulator->id(), nowVdiCapacityMb);
+    }
+
+    if (!ok) {
+        progress.cancel();
+        QMessageBox::warning(ICore::dialogParent(), tr("Some changes could not be saved!"),
+                             tr("Failed to apply some of the changes to virtual machines"));
     }
 
     onDeviceModelsChanged(m_editedDeviceModels);

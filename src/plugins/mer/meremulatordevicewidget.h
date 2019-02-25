@@ -59,7 +59,7 @@ private:
     void updatePortInputsEnabledState();
     void updatePortsWarningLabel();
     void updateQmlLivePortsWarningLabel();
-    void updateVdiCapacity();
+    void updateSystemParameters();
     void initGui();
 
     Ui::MerEmulatorDeviceWidget *m_ui;

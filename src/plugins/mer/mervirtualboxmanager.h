@@ -32,6 +32,7 @@
 
 namespace Utils {
     class Port;
+    class PortList;
 }
 
 namespace Mer {
@@ -75,7 +76,7 @@ public:
     static bool updateSdkSshPort(const QString &vmName, quint16 port);
     static bool updateSdkWwwPort(const QString &vmName, quint16 port);
     static bool updateEmulatorSshPort(const QString &vmName, quint16 port);
-    static bool updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports);
+    static Utils::PortList updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports);
     static void setVideoMode(const QString &vmName, const QSize &size, int depth);
     static void setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot);
     static bool setMemorySizeMb(const QString &vmName, int sizeMb);

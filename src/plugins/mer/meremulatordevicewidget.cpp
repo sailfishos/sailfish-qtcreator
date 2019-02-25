@@ -78,7 +78,7 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 void MerEmulatorDeviceWidget::onStoredDevicesChanged()
 {
     updatePortInputsEnabledState();
-    updateVdiCapacity();
+    updateSystemParameters();
 }
 
 void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
@@ -220,10 +220,15 @@ void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
     m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
 }
 
-void MerEmulatorDeviceWidget::updateVdiCapacity()
+void MerEmulatorDeviceWidget::updateSystemParameters()
 {
     const MerEmulatorDevice *device = static_cast<MerEmulatorDevice*>(this->device().data());
     m_virtualMachineSettingsWidget->setVdiCapacityMb(device->vdiCapacityMb());
+    m_virtualMachineSettingsWidget->setCpuCount(device->cpuCount());
+    m_virtualMachineSettingsWidget->setMemorySizeMb(device->memorySizeMb());
+
+    m_ui->sshPortSpinBox->setValue(device->sshParameters().port());
+    m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
 }
 
 void MerEmulatorDeviceWidget::initGui()
