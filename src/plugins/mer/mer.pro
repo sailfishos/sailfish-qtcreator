@@ -8,6 +8,8 @@ include(../../qtcreatorplugin.pri)
 
 DEFINES += MER_LIBRARY
 
+*-g++*:QMAKE_CXXFLAGS += -Wall -Werror
+
 RESOURCES += \
     mer.qrc
 
