@@ -258,7 +258,7 @@ bool MerRpmPackagingStep::createSpecFile()
     return true;
 }
 
-bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterface<bool> &fi)
+bool MerRpmPackagingStep::createPackage(QProcess *buildProc, const QFutureInterface<bool> &fi)
 {
     emit addOutput(tr("Creating package file..."), OutputFormat::NormalMessage);
     Q_UNUSED(fi);

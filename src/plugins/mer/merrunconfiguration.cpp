@@ -50,7 +50,7 @@ MerRunConfiguration::MerRunConfiguration(Target *target, Core::Id id)
 
 QString MerRunConfiguration::disabledReason() const
 {
-    if(m_disabledReason.isEmpty())
+    if (m_disabledReason.isEmpty())
         return RemoteLinuxRunConfiguration::disabledReason();
     else
         return m_disabledReason;
@@ -61,7 +61,7 @@ void MerRunConfiguration::updateEnabledState()
     //TODO Hack
 
     DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if(target()->kit())
+    if (target()->kit())
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");

@@ -146,9 +146,9 @@ protected:
         const QString element = m_currentElementStack.top();
         if (element == QLatin1String(DEVICE) || element == QLatin1String(ENGINE))
         {
-            if(attributeName == QLatin1String(NAME))
+            if (attributeName == QLatin1String(NAME))
                  m_currentDevice.m_name = attributeValue;
-            if(attributeName == QLatin1String(TYPE))
+            if (attributeName == QLatin1String(TYPE))
                  m_currentDevice.m_type = attributeValue;
         }
     }
@@ -370,32 +370,32 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
         writer.writeStartElement(QLatin1String(DEVICE));
         writer.writeAttribute(QLatin1String(NAME), data.m_name);
         writer.writeAttribute(QLatin1String(TYPE), data.m_type);
-        if(!data.m_index.isEmpty()) {
+        if (!data.m_index.isEmpty()) {
             writer.writeStartElement(QLatin1String(INDEX));
             writer.writeCharacters(data.m_index);
             writer.writeEndElement(); // index
         }
-        if(!data.m_ip.isEmpty()) {
+        if (!data.m_ip.isEmpty()) {
             writer.writeStartElement(QLatin1String(IP));
             writer.writeCharacters(data.m_ip);
             writer.writeEndElement(); // ip
         }
-        if(!data.m_subNet.isEmpty()) {
+        if (!data.m_subNet.isEmpty()) {
             writer.writeStartElement(QLatin1String(SUBNET));
             writer.writeCharacters(data.m_subNet);
             writer.writeEndElement(); // subnet
         }
-        if(!data.m_sshKeyPath.isEmpty()) {
+        if (!data.m_sshKeyPath.isEmpty()) {
             writer.writeStartElement(QLatin1String(SSH_PATH));
             writer.writeCharacters(data.m_sshKeyPath);
             writer.writeEndElement(); // ssh
         }
-        if(!data.m_mac.isEmpty()) {
+        if (!data.m_mac.isEmpty()) {
             writer.writeStartElement(QLatin1String(MAC));
             writer.writeCharacters(data.m_mac);
             writer.writeEndElement(); // mac
         }
-        if(!data.m_sshPort.isEmpty()) {
+        if (!data.m_sshPort.isEmpty()) {
             writer.writeStartElement(QLatin1String(SSH_PORT));
             writer.writeCharacters(data.m_sshPort);
             writer.writeEndElement(); // sshport

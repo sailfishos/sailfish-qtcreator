@@ -158,7 +158,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 
     MerSdk* sdk = MerSdkManager::sdk(m_vmName);
 
-    if(!sdk) {
+    if (!sdk) {
         Task task(Task::Error,
                   QCoreApplication::translate("QtVersion",
                                               "Qt version \"%1\" is missing Sailfish OS SDK").arg(displayName()),
@@ -197,14 +197,14 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
             QString message =  QCoreApplication::translate("QtVersion", "Project is outside of Sailfish OS SDK workspace");
-            if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
+            if (!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
               message = QCoreApplication::translate("QtVersion", "Project is outside of Sailfish OS SDK shared home \"%1\" and shared src \"%2\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
-            else if(!sdk->sharedHomePath().isEmpty())
+            else if (!sdk->sharedHomePath().isEmpty())
               message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
-            Task task(Task::Error,message,FileName(), -1, Core::Id());
+            Task task(Task::Error, message, FileName(), -1, Core::Id());
             results.append(task);
         }
 
@@ -217,7 +217,7 @@ void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 {
     Q_UNUSED(k);
     env.appendOrSet(QLatin1String(Constants::MER_SSH_PROJECT_PATH), QLatin1String("%{CurrentProject:Path}"));
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS), qmakeCommand().parentDir().toString());
 }
 
 
@@ -225,7 +225,7 @@ QSet<Core::Id> MerQtVersion::availableFeatures() const
 {
     QSet<Core::Id> features = BaseQtVersion::availableFeatures();
     features |= Constants::MER_WIZARD_FEATURE_SAILFISHOS;
-    if(!qtAbis().contains(Abi::fromString(QLatin1String("arm-linux-generic-elf-32bit"))))
+    if (!qtAbis().contains(Abi::fromString(QLatin1String("arm-linux-generic-elf-32bit"))))
         features |= Constants::MER_WIZARD_FEATURE_EMULATOR;
     return features;
 }
@@ -233,8 +233,8 @@ QSet<Core::Id> MerQtVersion::availableFeatures() const
 Environment MerQtVersion::qmakeRunEnvironment() const
 {
     Environment env = BaseQtVersion::qmakeRunEnvironment();
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME), m_targetName);
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS), qmakeCommand().parentDir().toString());
     return env;
 }
 

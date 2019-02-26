@@ -155,17 +155,17 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
     QString configFolder(QDir::toNativeSeparators(info.sharedConfig));
     QString sshFolder(QDir::toNativeSeparators(info.sharedSsh));
 
-    if(!configFolder.isEmpty())
+    if (!configFolder.isEmpty())
         m_ui->configFolderLabelEdit->setText(configFolder);
     else
         m_ui->configFolderLabelEdit->setText(tr("none"));
 
-    if(!sshFolder.isEmpty())
+    if (!sshFolder.isEmpty())
         m_ui->sshFolderLabelEdit->setText(sshFolder);
     else
         m_ui->sshFolderLabelEdit->setText(tr("none"));
 
-    if(info.macs.count()>1)
+    if (info.macs.count()>1)
         m_ui->macLabelEdit->setText(info.macs.at(1));
     else
         m_ui->macLabelEdit->setText(tr("none"));
@@ -203,12 +203,12 @@ void MerEmualtorSshPage::initializePage()
 {
    QString index(QLatin1String("/ssh/private_keys/%1/"));
    const MerEmulatorDeviceWizard* wizard = qobject_cast<MerEmulatorDeviceWizard*>(this->wizard());
-   QTC_ASSERT(wizard,return);
+   QTC_ASSERT(wizard, return);
    //TODO: fix me
    QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
                       index.arg(wizard->emulatorId().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) +
                       QLatin1String("%1")));
-   if(!wizard->sharedConfigPath().isEmpty()) {
+   if (!wizard->sharedConfigPath().isEmpty()) {
        m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));
        m_ui->rootSshKeyLabelEdit->setText(sshKeyPath.arg(rootName()));
        m_ui->userSshCheckBox->setChecked(true);
@@ -227,7 +227,7 @@ void MerEmualtorSshPage::initializePage()
    QString sshDirectoryPath(QDir::toNativeSeparators(wizard->sharedSshPath() +
                             QLatin1String("/%1/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)));
 
-   if(!wizard->sharedSshPath().isEmpty()) {
+   if (!wizard->sharedSshPath().isEmpty()) {
        m_ui->userAuthorizedFolderLabelEdit->setText(sshDirectoryPath.arg(userName()));
        m_ui->rootAuthorizedFolderLabelEdit->setText(sshDirectoryPath.arg(rootName()));
    } else {

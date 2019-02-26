@@ -54,7 +54,7 @@ void MerRpmInstaller::installPackage(const IDevice::ConstPtr &deviceConfig, cons
     //const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
     //SshConnectionParameters sshParams = emu->sshParametersForUser(device->sshParameters(), QLatin1String("root"));
     //device->setSshParameters(sshParams);
-    AbstractRemoteLinuxPackageInstaller::installPackage(deviceConfig,packageFilePath,removePackageFile);
+    AbstractRemoteLinuxPackageInstaller::installPackage(deviceConfig, packageFilePath, removePackageFile);
 }
 
 void MerRpmInstaller::handleInstallerErrorOutput(const QString &output)

@@ -181,7 +181,7 @@ void MerOptionsWidget::store()
         }
     }
 
-    foreach (MerSdk *sdk,sdks)
+    foreach (MerSdk *sdk, sdks)
         MerSdkManager::addSdk(sdk);
 
     m_sshPrivKeys.clear();

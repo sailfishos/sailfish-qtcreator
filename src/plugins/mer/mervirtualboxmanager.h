@@ -62,7 +62,7 @@ public:
     static MerVirtualBoxManager* instance();
     ~MerVirtualBoxManager() override;
     static void isVirtualMachineRunning(const QString &vmName, QObject *context,
-                                        std::function<void(bool,bool)> slot);
+                                        std::function<void(bool, bool)> slot);
     static QStringList fetchRegisteredVirtualMachines();
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
     static void startVirtualMachine(const QString &vmName, bool headless);

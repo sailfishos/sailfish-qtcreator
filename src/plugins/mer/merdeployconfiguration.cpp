@@ -57,7 +57,7 @@ const char SAILFISH_AMBIENCE_CONFIG[] = "sailfish-ambience";
 const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
 } // anonymous namespace
 
-MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
+MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id, const QString& displayName)
     : DeployConfiguration(parent, id)
 {
     setDisplayName(displayName);

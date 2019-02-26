@@ -287,7 +287,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
 void MerHardwareDeviceWizardSetupPage::initializePage()
 {
    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
-   QTC_ASSERT(wizard,return);
+   QTC_ASSERT(wizard, return);
 
    const QString arch = Abi::toString(wizard->architecture()).toUpper();
 
@@ -317,13 +317,13 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
 void MerHardwareDeviceWizardSetupPage::handleSdkVmChanged(const QString &vmName)
 {
     MerSdk* sdk = MerSdkManager::sdk(vmName);
-    QTC_ASSERT(sdk,return);
+    QTC_ASSERT(sdk, return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
-    QTC_ASSERT(wizard,return);
+    QTC_ASSERT(wizard, return);
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO: fix me
     QString sshKeyPath(QDir::toNativeSeparators(sdk->sharedConfigPath() +
-                       index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
+                       index.arg(wizard->configurationName()).replace(QLatin1Char(' '), QLatin1Char('_')) +
                        wizard->userName()));
     m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
     m_ui->publicSshKeyLabelEdit->setText(sshKeyPath + QLatin1String(".pub"));
@@ -347,7 +347,7 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
 QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
 {
     MerSdk* sdk = MerSdkManager::sdk(m_ui->merSdkComboBox->currentText());
-    QTC_ASSERT(sdk,return QString());
+    QTC_ASSERT(sdk, return QString());
     return sdk->sharedConfigPath();
 }
 

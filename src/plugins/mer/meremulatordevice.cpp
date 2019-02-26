@@ -106,11 +106,11 @@ private slots:
         case RemoveOldKeys:
             m_state = GenerateSsh;
                setLabelText(tr("Generating ssh key for %1 ...").arg(m_user));
-            if(QFileInfo(m_privKeyPath).exists()) {
+            if (QFileInfo(m_privKeyPath).exists()) {
                 QFile(m_privKeyPath).remove();
             }
 
-            if(QFileInfo(m_sshDirectoryPath).exists()) {
+            if (QFileInfo(m_sshDirectoryPath).exists()) {
                 QFile(m_sshDirectoryPath).remove();
             }
             setValue(1);
@@ -132,14 +132,14 @@ private slots:
         case Deploy: {
             m_state = Idle;
             const QString pubKeyPath = m_privKeyPath + QLatin1String(".pub");
-            if(m_sharedPath.isEmpty()) {
+            if (m_sharedPath.isEmpty()) {
                 m_state = Error;
                 m_error.append(tr("SharedPath for emulator not found for this device"));
                 QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
                 return;
             }
 
-            if(!MerSdkManager::authorizePublicKey(m_sshDirectoryPath, pubKeyPath, m_error)) {
+            if (!MerSdkManager::authorizePublicKey(m_sshDirectoryPath, pubKeyPath, m_error)) {
                  m_state = Error;
             }else{
                 setValue(3);
@@ -357,7 +357,7 @@ QString MerEmulatorDevice::sharedConfigPath() const
 
 void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
-    if(!m_sharedConfigPath.isEmpty()) {
+    if (!m_sharedConfigPath.isEmpty()) {
         QString index(QLatin1String("/ssh/private_keys/%1/"));
         //TODO fix me:
         QString privateKeyFile = m_sharedConfigPath +

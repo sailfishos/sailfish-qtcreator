@@ -51,7 +51,7 @@ class MerDeployConfiguration : public ProjectExplorer::DeployConfiguration
 {
     Q_OBJECT
 public:
-    MerDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id,const QString& displayName);
+    MerDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id, const QString& displayName);
     ProjectExplorer::NamedWidget *createConfigWidget() override;
 
     // copied from RemoteLinuxDeployConfiguration

@@ -212,7 +212,7 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
             }
         }
     }
-    if(m_stopList.isEmpty())
+    if (m_stopList.isEmpty())
         return SynchronousShutdown;
     else
         return AsynchronousShutdown;
@@ -239,7 +239,7 @@ void MerPlugin::handlePromptClosed(int result)
         m_stopList.remove(vm);
     }
 
-    if(m_stopList.isEmpty()) {
+    if (m_stopList.isEmpty()) {
         emit asynchronousShutdownFinished();
     }
 }

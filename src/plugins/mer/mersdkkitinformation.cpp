@@ -109,7 +109,7 @@ Core::Id MerSdkKitInformation::id()
 
 void MerSdkKitInformation::setSdk(Kit *kit, const MerSdk* sdk)
 {
-    if(kit->value(MerSdkKitInformation::id()) != sdk->virtualMachineName())
+    if (kit->value(MerSdkKitInformation::id()) != sdk->virtualMachineName())
         kit->setValue(MerSdkKitInformation::id(), sdk->virtualMachineName());
 }
 
@@ -211,7 +211,7 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
     const QList<MerSdk*>& sdks = MerSdkManager::sdks();
     m_combo->blockSignals(true);
     m_combo->clear();
-    if(sdks.isEmpty()) {
+    if (sdks.isEmpty()) {
         m_combo->addItem(tr("None"));
     } else {
         foreach (const MerSdk *sdk, sdks) {

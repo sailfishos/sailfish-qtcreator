@@ -440,7 +440,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
 }
 
 // It is an error to call this function when the VM vmName is running
-void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
+void MerVirtualBoxManager::startVirtualMachine(const QString &vmName, bool headless)
 {
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
@@ -610,7 +610,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.qmlLivePorts << port;
             else
                 info.freePorts << port;
-        } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
+        } else if (rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
             if (rexp.cap(7) == QLatin1String("home"))
                 info.sharedHome = rexp.cap(8);
             else if (rexp.cap(7) == QLatin1String("targets"))
@@ -621,14 +621,14 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.sharedConfig = rexp.cap(8);
             else if (rexp.cap(7).startsWith(QLatin1String("src")))
                 info.sharedSrc = rexp.cap(8);
-        } else if(rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
+        } else if (rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
             QRegExp rx(QLatin1String("(?:([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))"));
             QString mac = rexp.cap(9);
             QStringList macFields;
-            if(rx.exactMatch(mac)) {
+            if (rx.exactMatch(mac)) {
                 macFields = rx.capturedTexts();
             }
-            if(!macFields.isEmpty()) {
+            if (!macFields.isEmpty()) {
                 macFields.removeFirst();
                 info.macs << macFields.join(QLatin1Char(':'));
             }

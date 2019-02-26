@@ -139,11 +139,11 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setSharedSshPath(wizard.sharedSshPath());
         device->setDeviceModel(MerSettings::deviceModels().first().name());
 
-        if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
+        if (wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
             device->generateSshKey(wizard.userName());
         }
 
-        if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
+        if (wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
             device->generateSshKey(wizard.rootName());
         }
 
@@ -155,11 +155,11 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         if (wizard.exec() != QDialog::Accepted)
             return IDevice::Ptr();
 
-        if(wizard.isNewSshKeysRquired() && !wizard.privateKeyFilePath().isEmpty()) {
+        if (wizard.isNewSshKeysRquired() && !wizard.privateKeyFilePath().isEmpty()) {
 
             QString privKeyPath = wizard.privateKeyFilePath();
 
-            if(QFileInfo(privKeyPath).exists()) {
+            if (QFileInfo(privKeyPath).exists()) {
                 QFile(privKeyPath).remove();
             }
 

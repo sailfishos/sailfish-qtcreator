@@ -377,7 +377,7 @@ void MerManagementWebView::reloadPage()
 void MerManagementWebView::setAutoFailReload(bool enabled)
 {
     m_autoFailReload = enabled;
-    if(enabled && !m_loaded)
+    if (enabled && !m_loaded)
         reloadPage();
 }
 
