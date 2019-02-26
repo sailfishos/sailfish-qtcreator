@@ -62,7 +62,7 @@ MerQmlRunConfiguration::MerQmlRunConfiguration(Target *target, Core::Id id)
 
 QString MerQmlRunConfiguration::disabledReason() const
 {
-    if(m_disabledReason.isEmpty())
+    if (m_disabledReason.isEmpty())
         return RunConfiguration::disabledReason();
     else
         return m_disabledReason;
@@ -73,7 +73,7 @@ void MerQmlRunConfiguration::updateEnabledState()
     //TODO Hack
 
     DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if(target()->kit())
+    if (target()->kit())
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");

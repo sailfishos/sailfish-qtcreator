@@ -523,7 +523,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     sdk->setUserName(QLatin1String(MER_SDK_DEFAULTUSER));
 
     QString sshDirectory;
-    if(info.sharedConfig.isEmpty())
+    if (info.sharedConfig.isEmpty())
         sshDirectory = QDir::fromNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::HomeLocation))+ QLatin1String("/.ssh");
     else
         sshDirectory = info.sharedConfig + QLatin1String("/ssh/private_keys/engine/") + QLatin1String(MER_SDK_DEFAULTUSER);
@@ -636,7 +636,7 @@ void MerSdkManager::updateDevices()
     QStringList emulatorConfigPaths;
 
     int count = DeviceManager::instance()->deviceCount();
-    for(int i = 0 ;  i < count; ++i) {
+    for (int i = 0; i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
             MerDeviceData xmlData;
@@ -649,7 +649,7 @@ void MerSdkManager::updateDevices()
                 xmlData.m_sshPort.setNum(device->sshParameters().port());
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = QDir::toNativeSeparators(file.dir().absolutePath());
-                if(!device->sharedSshPath().isEmpty())
+                if (!device->sharedSshPath().isEmpty())
                     xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
                                 path.remove(QDir::toNativeSeparators(device->sharedSshPath() +
                                                                      QDir::separator())));

@@ -134,13 +134,13 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
     const auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
-    if(!device->sharedConfigPath().isEmpty()) {
+    if (!device->sharedConfigPath().isEmpty()) {
         QString index = QLatin1String("/ssh/private_keys/%1/");
         SshConnectionParameters sshParams = device->sshParameters();
         const QString& user = m_ui->userLineEdit->text();
         //TODO fix me:
         const QString privKey = MerSdkManager::sdks().first()->sharedConfigPath() +
-                index.arg(device->id().toString()).replace(QLatin1Char(' '),QLatin1Char('_'))
+                index.arg(device->id().toString()).replace(QLatin1Char(' '), QLatin1Char('_'))
                 + user;
 
         sshParams.setUserName(user);
@@ -229,16 +229,16 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
-    if(!device->sharedConfigPath().isEmpty())
+    if (!device->sharedConfigPath().isEmpty())
         m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
     else
         m_ui->configFolderLabelEdit->setText(tr("none"));
-    if(!device->sharedSshPath().isEmpty())
+    if (!device->sharedSshPath().isEmpty())
         m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedSshPath()));
     else
         m_ui->sshFolderLabelEdit->setText(tr("none"));
 
-    if(!device->mac().isEmpty())
+    if (!device->mac().isEmpty())
         m_ui->macLabelEdit->setText(device->mac());
     else
         m_ui->macLabelEdit->setText(tr("none"));

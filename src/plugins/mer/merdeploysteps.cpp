@@ -218,7 +218,7 @@ private:
 };
 
 MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
-    :AbstractProcessStep(bsl,id)
+    : AbstractProcessStep(bsl, id)
 {
 
 }
@@ -284,8 +284,8 @@ bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions op
     env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory().toString());
 
     //TODO HACK
-    if(!device.isNull())
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
+    if (!device.isNull())
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME), device->displayName());
     pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
@@ -722,7 +722,7 @@ bool MerMb2RpmBuildStep::init(QList<const BuildStep *> &earlierSteps)
     //hack
     ProcessParameters *pp = processParameters();
     QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPM));
+    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY), QLatin1String(Constants::MER_WRAPPER_RPM));
     pp->setCommand(deployCommand);
     return success;
 }
@@ -742,7 +742,7 @@ void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus stat
 {
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
-    if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
+    if (exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
         new RpmInfo(m_packages, ICore::dialogParent());
     }
 }
@@ -767,8 +767,8 @@ void MerMb2RpmBuildStep::stdOutput(const QString &line)
     if (rexp.indexIn(line) != -1) {
         QString file = rexp.cap(1);
         //TODO First replace shared home and then shared src (error prone!)
-        file.replace(QRegExp(QLatin1String("^/home/mersdk/share")),m_sharedHome);
-        file.replace(QRegExp(QLatin1String("^/home/src1")),m_sharedSrc);
+        file.replace(QRegExp(QLatin1String("^/home/mersdk/share")), m_sharedHome);
+        file.replace(QRegExp(QLatin1String("^/home/src1")), m_sharedSrc);
         m_packages.append(QDir::toNativeSeparators(file));
     }
     MerProcessStep::stdOutput(line);
@@ -896,7 +896,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
     emit addOutput(tr("Validating RPM package..."), OutputFormat::NormalMessage);
 
     const QString packageFile = m_packagingStep->packagesFilePath().first();
-    if(!packageFile.endsWith(QLatin1String(".rpm"))){
+    if (!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to validate found in %1")).arg(packageFile));
         emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
@@ -909,7 +909,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
     // hack
     ProcessParameters *pp = processParameters();
     QString deployCommand = pp->command();
-    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPMVALIDATION));
+    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY), QLatin1String(Constants::MER_WRAPPER_RPMVALIDATION));
     pp->setCommand(deployCommand);
     QStringList arguments{ m_fixedArguments, this->arguments(), packageFile };
     pp->setArguments(arguments.join(' '));

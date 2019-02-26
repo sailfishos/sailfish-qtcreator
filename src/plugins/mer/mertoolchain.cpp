@@ -173,8 +173,8 @@ ProjectExplorer::HeaderPaths MerToolChain::builtInHeaderPaths(const QStringList 
 void MerToolChain::addToEnvironment(Environment &env) const
 {
     GccToolChain::addToEnvironment(env);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),compilerCommand().parentDir().toString());
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME), m_targetName);
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS), compilerCommand().parentDir().toString());
 }
 
 MerToolChainFactory::MerToolChainFactory()

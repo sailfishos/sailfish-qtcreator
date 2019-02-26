@@ -97,7 +97,7 @@ KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) c
     if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString targetName = MerTargetKitInformation::targetName(kit);
         return KitInformation::ItemList()
-                << qMakePair(tr("Sailfish OS build target"),targetName);
+                << qMakePair(tr("Sailfish OS build target"), targetName);
     }
     return KitInformation::ItemList();
 }
@@ -120,7 +120,7 @@ void MerTargetKitInformation::setTargetName(Kit *kit, const QString& targetName)
 void MerTargetKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
 {
     const QString targetName = MerTargetKitInformation::targetName(kit);
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),targetName);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME), targetName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -173,9 +173,9 @@ void MerTargetKitInformationWidget::refresh()
             break;
     }
 
-    if(m_combo->count() == 0) {
+    if (m_combo->count() == 0) {
         m_combo->addItem(tr("None"));
-        i=0;
+        i = 0;
     }
 
     m_combo->blockSignals(false);
@@ -202,7 +202,7 @@ void MerTargetKitInformationWidget::handleManageClicked()
     MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
     if (page) {
         const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
-        if(sdk)
+        if (sdk)
             page->setSdk(m_combo->currentText());
     }
     ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
@@ -212,7 +212,7 @@ void MerTargetKitInformationWidget::handleCurrentIndexChanged()
 {
     const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
     if (sdk && sdk->targetNames().contains(m_combo->currentText()))
-        MerTargetKitInformation::setTargetName(m_kit,m_combo->currentText());
+        MerTargetKitInformation::setTargetName(m_kit, m_combo->currentText());
 }
 
 void MerTargetKitInformationWidget::handleSdksUpdated()
