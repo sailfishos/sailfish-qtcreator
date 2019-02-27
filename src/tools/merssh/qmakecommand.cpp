@@ -65,12 +65,7 @@ int QMakeCommand::execute()
         return 1;
     }
 
-    const QString projectPathParameter = projectPath().isEmpty()
-        ? QString()
-        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
-
-    QString command = QLatin1String("mb2 --pedantic") +
-                      projectPathParameter +
+    QString command = QLatin1String("mb2") +
                       QLatin1String(" -t ") +
                       targetName() +
                       QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');

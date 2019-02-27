@@ -46,8 +46,6 @@ public:
     void setSharedTargetPath(const QString& path);
     QString sdkToolsPath() const;
     void setSdkToolsPath(const QString& path);
-    QString projectPath() const;
-    void setProjectPath(const QString& path);
     QStringList arguments() const;
     void setArguments(const QStringList &args);
     QSsh::SshConnectionParameters sshParameters() const;
@@ -71,7 +69,6 @@ private:
     QString m_targetName;
     QString m_sharedSourcePath;
     QString m_sharedTargetPath;
-    QString m_projectPath;
     QString m_toolsPath;
     QString m_deviceName;
     QString m_engineName;
