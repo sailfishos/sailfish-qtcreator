@@ -154,6 +154,8 @@ private slots:
             setValue(0);
             setLabelText(tr("Error occured"));
             setCancelButtonText(tr("Close"));
+            close();
+            break;
         case Idle:
             close();
         default:
