@@ -80,16 +80,6 @@ QString Command::sdkToolsPath() const
     return m_toolsPath;
 }
 
-void Command::setProjectPath(const QString& path)
-{
-    m_projectPath =  QDir::fromNativeSeparators(path);
-}
-
-QString Command::projectPath() const
-{
-    return m_projectPath;
-}
-
 void Command::setSdkToolsPath(const QString& path)
 {
     m_toolsPath = QDir::fromNativeSeparators(path);

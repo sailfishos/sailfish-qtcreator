@@ -55,7 +55,6 @@ void printUsage()
             << Mer::Constants::MER_SSH_SHARED_TARGET << endl
             << Mer::Constants::MER_SSH_SHARED_SRC << endl
             << Mer::Constants::MER_SSH_SDK_TOOLS << endl
-            << Mer::Constants::MER_SSH_PROJECT_PATH << endl
             << Mer::Constants::MER_SSH_DEVICE_NAME << endl
             << "evironment variables - connection parameters:" << endl
             << Mer::Constants::MER_SSH_USERNAME << endl
@@ -125,7 +124,6 @@ int main(int argc, char *argv[])
         QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET),
         QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC),
         QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS),
-        QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH),
         QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME),
         QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME),
         QLatin1String(Mer::Constants::MER_SSH_USERNAME),
@@ -168,7 +166,6 @@ int main(int argc, char *argv[])
     command->setSharedTargetPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET)));
     command->setSharedSourcePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC)));
     command->setSdkToolsPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS)));
-    command->setProjectPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH)));
     command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
     command->setEngineName(environment.value(QLatin1String(Mer::Constants::MER_SSH_ENGINE_NAME)));
 

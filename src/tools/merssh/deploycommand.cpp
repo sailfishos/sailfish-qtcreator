@@ -36,13 +36,9 @@ QString DeployCommand::name() const
 
 int DeployCommand::execute()
 {
-    const QString projectPathParameter = projectPath().isEmpty()
-        ? QString()
-        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
     const QString targetParameter = QLatin1String(" -t ") +  targetName();
     const QString deviceParameter = QLatin1String(" -d '") + deviceName() + QLatin1Char('\'');
-    QString command = QLatin1String("mb2 --pedantic") +
-                      projectPathParameter +
+    QString command = QLatin1String("mb2") +
                       deviceParameter +
                       targetParameter +
                       QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
