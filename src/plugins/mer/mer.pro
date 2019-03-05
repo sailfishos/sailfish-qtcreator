@@ -64,7 +64,6 @@ SOURCES += \
     meroptionspage.cpp \
     meroptionswidget.cpp \
     merplugin.cpp \
-    merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
     merqmlrunconfiguration.cpp \
     merqmlrunconfigurationfactory.cpp \
@@ -129,7 +128,6 @@ HEADERS += \
     meroptionspage.h \
     meroptionswidget.h \
     merplugin.h \
-    merprojectlistener.h \
     merqmllivebenchmanager.h \
     merqmlrunconfiguration.h \
     merqmlrunconfigurationfactory.h \
