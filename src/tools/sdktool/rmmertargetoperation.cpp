@@ -137,11 +137,15 @@ bool RmMerTargetOperation::test() const
                                                        QLatin1String("target1"),
                                                        QLatin1String("./test"),
                                                        QLatin1String("./test"),
+                                                       QLatin1String("./test"),
+                                                       QLatin1String("./test"),
                                                        QLatin1String("./test"));
 
 
     map = AddMerTargetOperation::addTarget(map,
                                            QLatin1String("target2"),
+                                           QLatin1String("./test"),
+                                           QLatin1String("./test"),
                                            QLatin1String("./test"),
                                            QLatin1String("./test"),
                                            QLatin1String("./test"));
