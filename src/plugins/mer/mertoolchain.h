@@ -51,6 +51,8 @@ public:
     QList<Utils::FileName> suggestedMkspecList() const override;
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const override;
 
+    bool isJobCountSupported() const override { return false; }
+
     ProjectExplorer::HeaderPaths builtInHeaderPaths(const QStringList &cxxflags,
                                                          const Utils::FileName &sysRoot) const override;
     void addToEnvironment(Utils::Environment &env) const override;
