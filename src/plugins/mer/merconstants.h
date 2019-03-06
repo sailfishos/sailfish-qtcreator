@@ -150,7 +150,9 @@ const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
-const char MER_TARGET_GCC_DUMP[] = "MerTarget.GccDumpMachine";
+const char MER_TARGET_GCC_DUMP_MACHINE[] = "MerTarget.GccDumpMachine";
+const char MER_TARGET_GCC_DUMP_MACROS[] = "MerTarget.GccDumpMacros";
+const char MER_TARGET_GCC_DUMP_INCLUDES[] = "MerTarget.GccDumpIncludes";
 const char MER_TARGET_RPMVALIDATION_DUMP[] = "MerTarget.RpmValidationSuites";
 const char MER_TARGET_DEFAULT_DEBUGGER[] = "MerTarget.DefaultDebugger";
 
@@ -158,6 +160,8 @@ const char QMAKE_QUERY[] = "qmake.query";
 const char QMAKE_VERSION[] = "qmake.version";
 const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
 const char GCC_DUMPVERSION[] = "gcc.dumpversion";
+const char GCC_DUMPMACROS[] = "gcc.dumpmacros";
+const char GCC_DUMPINCLUDES[] = "gcc.dumpincludes";
 
 const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
 

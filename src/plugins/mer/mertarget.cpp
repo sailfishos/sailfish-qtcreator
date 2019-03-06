@@ -108,6 +108,16 @@ void MerTarget::setGccDumpMachine(const QString &gccMachineDump)
     m_gccMachineDump.remove(QRegExp(QLatin1String("\\n")));
 }
 
+void MerTarget::setGccDumpMacros(const QString &gccMacrosDump)
+{
+    m_gccMacrosDump = gccMacrosDump;
+}
+
+void MerTarget::setGccDumpIncludes(const QString &gccIncludesDump)
+{
+    m_gccIncludesDump = gccIncludesDump;
+}
+
 void MerTarget::setRpmValidationSuites(const QString &rpmValidationSuites)
 {
     m_rpmValidationSuites = rpmValidationSuitesFromString(rpmValidationSuites, &m_rpmValidationSuitesIsValid);
@@ -127,7 +137,9 @@ bool MerTarget::fromMap(const QVariantMap &data)
 {
     m_name = data.value(QLatin1String(Constants::MER_TARGET_NAME)).toString();
     m_qmakeQuery = data.value(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP)).toString();
-    m_gccMachineDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP)).toString();
+    m_gccMachineDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP_MACHINE)).toString();
+    m_gccMacrosDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP_MACROS)).toString();
+    m_gccIncludesDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP_INCLUDES)).toString();
     QString rpmValidationSuites = data.value(QLatin1String(Constants::MER_TARGET_RPMVALIDATION_DUMP)).toString();
     m_rpmValidationSuites = rpmValidationSuitesFromString(rpmValidationSuites, &m_rpmValidationSuitesIsValid);
     m_defaultGdb = data.value(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER)).toString();
@@ -139,7 +151,9 @@ QVariantMap MerTarget::toMap() const
     QVariantMap result;
     result.insert(QLatin1String(Constants::MER_TARGET_NAME), m_name);
     result.insert(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP), m_qmakeQuery);
-    result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP), m_gccMachineDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP_MACHINE), m_gccMachineDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP_MACROS), m_gccMacrosDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP_INCLUDES), m_gccIncludesDump);
     result.insert(QLatin1String(Constants::MER_TARGET_RPMVALIDATION_DUMP),
             rpmValidationSuitesToString(m_rpmValidationSuites));
     result.insert(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER), m_defaultGdb);
@@ -149,6 +163,7 @@ QVariantMap MerTarget::toMap() const
 bool MerTarget::isValid() const
 {
     return m_sdk && !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty()
+        && !m_gccMacrosDump.isEmpty() && !m_gccIncludesDump.isEmpty()
         && m_rpmValidationSuitesIsValid;
 }
 
@@ -174,14 +189,22 @@ bool MerTarget::createScripts() const
          result &= createScript(targetPath, i);
 
     const QString qmakepath = targetPath + QLatin1Char('/') + QLatin1String(Constants::QMAKE_QUERY);
-    const QString gccpath = targetPath + QLatin1Char('/') + QLatin1String(Constants::GCC_DUMPMACHINE);
+    const QString gccMachineDumpPath = targetPath + QLatin1Char('/') + QLatin1String(Constants::GCC_DUMPMACHINE);
+    const QString gccMacrosDumpPath = targetPath + QLatin1Char('/') + QLatin1String(Constants::GCC_DUMPMACROS);
+    const QString gccIncludesDumpPath = targetPath + QLatin1Char('/') + QLatin1String(Constants::GCC_DUMPINCLUDES);
 
     QString patchedQmakeQuery = m_qmakeQuery;
     patchedQmakeQuery.replace(QLatin1String(":/"),
                               QString::fromLatin1(":%1/%2/").arg(m_sdk->sharedTargetsPath()).arg(m_name));
 
+    QString patchedGccIncludesDump = m_gccIncludesDump;
+    patchedGccIncludesDump.replace(QLatin1String(" /"),
+                              QString::fromLatin1(" %1/%2/").arg(m_sdk->sharedTargetsPath()).arg(m_name));
+
     result &= createCacheFile(qmakepath, patchedQmakeQuery);
-    result &= createCacheFile(gccpath, m_gccMachineDump);
+    result &= createCacheFile(gccMachineDumpPath, m_gccMachineDump);
+    result &= createCacheFile(gccMacrosDumpPath, m_gccMacrosDump);
+    result &= createCacheFile(gccIncludesDumpPath, patchedGccIncludesDump);
 
     return result;
 }
@@ -445,6 +468,7 @@ QString MerTarget::rpmValidationSuitesToString(const QList<MerRpmValidationSuite
 bool MerTarget::operator==(const MerTarget &other) const
 {
     return m_name == other.m_name && m_qmakeQuery == other.m_qmakeQuery && m_gccMachineDump == other.m_gccMachineDump
+        && m_gccMacrosDump == other.m_gccMacrosDump && m_gccIncludesDump == other.m_gccIncludesDump
         && m_rpmValidationSuites == other.m_rpmValidationSuites;
 }
 
