@@ -172,6 +172,7 @@ bool MakeStep::isJobCountSupported() const
     const QList<ToolChain *> tcs = preferredToolChains(target()->kit());
     const ToolChain *tc = tcs.isEmpty() ? nullptr : tcs.constFirst();
     return tc
+           && (tc->isJobCountSupported())
            && (tc->targetAbi().os() != Abi::WindowsOS
                || tc->targetAbi().osFlavor() == Abi::WindowsMSysFlavor);
 }
