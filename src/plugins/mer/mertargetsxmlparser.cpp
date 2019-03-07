@@ -42,6 +42,8 @@ const char OUTPUT[] = "output";
 const char NAME[] = "name";
 const char VERSION[] = "version";
 const char GCCDUMPMACHINE[] = "GccDumpMachine";
+const char GCCDUMPMACROS[] = "GccDumpMacros";
+const char GCCDUMPINCLUDES[] = "GccDumpIncludes";
 const char QMAKEQUERY[] = "QmakeQuery";
 const char RPMVALIDATIONSUITES[] = "RpmValidationSuites";
 
@@ -126,6 +128,10 @@ protected:
         if (m_currentElementStack.top() == QLatin1String(OUTPUT)) {
             if (m_attributeValue == QLatin1String(GCCDUMPMACHINE))
                 m_currentTarget.gccDumpMachine = value.toString();
+            else if (m_attributeValue == QLatin1String(GCCDUMPMACROS))
+                m_currentTarget.gccDumpMacros = value.toString();
+            else if (m_attributeValue == QLatin1String(GCCDUMPINCLUDES))
+                m_currentTarget.gccDumpIncludes = value.toString();
             else if (m_attributeValue == QLatin1String(QMAKEQUERY))
                 m_currentTarget.qmakeQuery = value.toString();
             else if (m_attributeValue == QLatin1String(RPMVALIDATIONSUITES))
@@ -307,6 +313,8 @@ void MerTargetData::clear()
 {
     name.clear();
     gccDumpMachine.clear();
+    gccDumpMacros.clear();
+    gccDumpIncludes.clear();
     qmakeQuery.clear();
     rpmValidationSuites.clear();
 }
@@ -336,6 +344,14 @@ MerTargetsXmlWriter::MerTargetsXmlWriter(const QString &fileName, int version,
         writer.writeStartElement(QLatin1String(OUTPUT));
         writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPMACHINE));
         writer.writeCharacters(d.gccDumpMachine);
+        writer.writeEndElement(); // output
+        writer.writeStartElement(QLatin1String(OUTPUT));
+        writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPMACROS));
+        writer.writeCharacters(d.gccDumpMacros);
+        writer.writeEndElement(); // output
+        writer.writeStartElement(QLatin1String(OUTPUT));
+        writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPINCLUDES));
+        writer.writeCharacters(d.gccDumpIncludes);
         writer.writeEndElement(); // output
         writer.writeStartElement(QLatin1String(OUTPUT));
         writer.writeAttribute(QLatin1String(NAME), QLatin1String(QMAKEQUERY));

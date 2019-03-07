@@ -70,6 +70,8 @@ public:
 
     QString name;
     QString gccDumpMachine;
+    QString gccDumpMacros;
+    QString gccDumpIncludes;
     QString qmakeQuery;
     QString rpmValidationSuites;
 };

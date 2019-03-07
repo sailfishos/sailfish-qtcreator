@@ -42,6 +42,10 @@ int GccCommand::execute()
         m_cacheFile = QLatin1String(Mer::Constants::GCC_DUMPMACHINE);
     else if (arguments().contains(QLatin1String("-dumpversion")))
         m_cacheFile = QLatin1String(Mer::Constants::GCC_DUMPVERSION);
+    else if (arguments().contains(QLatin1String("-dM")))
+        m_cacheFile = QLatin1String(Mer::Constants::GCC_DUMPMACROS);
+    else if (arguments().contains(QLatin1String("-E")) && arguments().contains(QLatin1String("-")))
+        m_cacheFile = QLatin1String(Mer::Constants::GCC_DUMPINCLUDES);
 
     if (!m_cacheFile.isEmpty())
             m_cacheFile.prepend(sdkToolsPath() + QDir::separator());

@@ -65,6 +65,8 @@ public:
     void setName(const QString &name);
     void setQmakeQuery(const QString &qmakeQuery);
     void setGccDumpMachine(const QString &gccMachineDump);
+    void setGccDumpMacros(const QString &gccMacrosDump);
+    void setGccDumpIncludes(const QString &gccIncludesDump);
     void setRpmValidationSuites(const QString &rpmValidationSuites);
     void setDefaultGdb(const QString &name);
 
@@ -92,6 +94,8 @@ private:
     QString m_name;
     QString m_qmakeQuery;
     QString m_gccMachineDump;
+    QString m_gccMacrosDump;
+    QString m_gccIncludesDump;
     QList<MerRpmValidationSuiteData> m_rpmValidationSuites;
     bool m_rpmValidationSuitesIsValid = false;
     QString m_defaultGdb;

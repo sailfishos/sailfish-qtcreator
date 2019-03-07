@@ -495,6 +495,8 @@ QList<MerTarget> MerSdk::readTargets(const FileName &fileName)
             MerTarget target(this);
             target.setName(data.name);
             target.setGccDumpMachine(data.gccDumpMachine);
+            target.setGccDumpMacros(data.gccDumpMacros);
+            target.setGccDumpIncludes(data.gccDumpIncludes);
             target.setQmakeQuery(data.qmakeQuery);
             target.setRpmValidationSuites(data.rpmValidationSuites);
 

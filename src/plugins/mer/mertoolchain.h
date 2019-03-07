@@ -53,8 +53,6 @@ public:
 
     bool isJobCountSupported() const override { return false; }
 
-    ProjectExplorer::HeaderPaths builtInHeaderPaths(const QStringList &cxxflags,
-                                                         const Utils::FileName &sysRoot) const override;
     void addToEnvironment(Utils::Environment &env) const override;
 private:
     QString m_vmName;
