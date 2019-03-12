@@ -199,7 +199,7 @@ private:
     {
         if (!hasSuite) {
             m_ui.warningLabel->setText(tr("No RPM validation suite is available for the current "
-                        "Sailfish OS Build Target"));
+                        "Sailfish OS build target"));
             m_ui.warningLabelIcon->setVisible(true);
             m_ui.warningLabel->setVisible(true);
         } else if (!hasSelectedSuite) {
@@ -863,7 +863,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
 {
     if (m_merTarget.rpmValidationSuites().isEmpty()) {
         const QString message(tr("No RPM validation suite is available for the current "
-                    "Sailfish OS Build Target, the package will not be validated"));
+                    "Sailfish OS build target, the package will not be validated"));
         emit addOutput(message, OutputFormat::ErrorMessage);
         emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
