@@ -17,7 +17,7 @@
     \"Arguments\" : [
         {
             \"Name\" : \"-mer-verbose\",
-            \"Description\" : \"Verbose loading of Sailfish OS SDKs\"
+            \"Description\" : \"Verbose loading of Sailfish SDKs\"
         }
     ],
     $$dependencyList,

@@ -108,7 +108,7 @@
 
         \li \gui{\l{Connecting Sailfish OS Devices}{Sailfish OS}} mode for accessing the
             build engine's \gui {Control Centre} to install tool chains and targets.
-            This mode is available after you install the Sailfish OS SDK.
+            This mode is available after you install the Sailfish SDK.
 
     \endlist
 
