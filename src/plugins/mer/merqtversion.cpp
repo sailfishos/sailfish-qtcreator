@@ -143,7 +143,7 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match Sailfish OS SDK or toolchain.").
+                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match Sailfish SDK or toolchain.").
                 arg(version->displayName());
         result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
@@ -161,7 +161,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
     if(!sdk) {
         Task task(Task::Error,
                   QCoreApplication::translate("QtVersion",
-                                              "Qt version \"%1\" is missing Sailfish OS SDK").arg(displayName()),
+                                              "Qt version \"%1\" is missing Sailfish SDK").arg(displayName()),
                   FileName(), -1, Core::Id());
         results.append(task);
     } 
@@ -196,9 +196,9 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
         }
 
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
-            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of Sailfish OS SDK workspace");
+            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK workspace");
             if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of Sailfish OS SDK shared home \"%1\" and shared src \"%2\"")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of Sailfish SDK shared home \"%1\" and shared src \"%2\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
             else if(!sdk->sharedHomePath().isEmpty())

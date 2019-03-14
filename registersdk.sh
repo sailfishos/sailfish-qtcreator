@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Registers MerVM, targets and emulator device of an installed Sailfish OS SDK
+# Registers MerVM, targets and emulator device of an installed Sailfish SDK
 
 export SAILFISHOSSDKDIR=$HOME/SailfishOS
 

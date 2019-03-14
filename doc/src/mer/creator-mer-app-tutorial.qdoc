@@ -55,9 +55,9 @@
 
         \li Select the Sailfish OS \l{glossary-buildandrun-kit}{kit} for running
             and building your project, and then click \gui{Next}. You can create
-            applications in the Sailfish OS SDK installation directory and in an
+            applications in the Sailfish SDK installation directory and in an
             additional source directory that you specify during the installation
-            of the Sailfish OS SDK. These directories are shared with the
+            of the Sailfish SDK. These directories are shared with the
             Sailfish OS build engine virtual machine. If you select some other
             directory, a warning is displayed.
 

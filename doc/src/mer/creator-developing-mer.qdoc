@@ -25,13 +25,13 @@
 
     \title Connecting Sailfish OS Devices
 
-    In Sailfish OS SDK terminology, a \e{target} contains everything that
+    In Sailfish SDK terminology, a \e{target} contains everything that
     you need to build applications for a particular type of Sailfish OS device,
     such as a phone or a tablet. \QC fetches information about header files and
     QML types from the target to be able to provide features such as syntax
     highlighting and code completion.
 
-    The Sailfish OS SDK installation program installs targets on the
+    The Sailfish SDK installation program installs targets on the
     development host and configures the appropriate \l{glossary-buildandrun-kit}
     {kit} for you in \QC. After the installation, you are ready to start
     developing applications, as described in
@@ -48,7 +48,7 @@
 
     To deploy applications and run them remotely on Sailfish OS devices, specify
     parameters for accessing the devices. In addition, you can run the Sailfish
-    OS device image in a virtual machine. The Sailfish OS SDK installation
+    OS device image in a virtual machine. The Sailfish SDK installation
     program creates the connection to the Sailfish OS build engine and emulator
     virtual machines for you. When you use the Sailfish OS application wizard to
     create a Sailfish OS project, buttons for starting the Sailfish OS build
@@ -193,7 +193,7 @@
 
     To create a kit that uses the new Sailfish OS build engine, select \gui
     Tools > \gui Options > \gui {Build & Run} > \gui Kits. You can clone the kit
-    created by the Sailfish OS SDK installation program and just change the \gui
+    created by the Sailfish SDK installation program and just change the \gui
     {Sailfish OS Build Engine}, and other fields, as necessary.
 
 */
