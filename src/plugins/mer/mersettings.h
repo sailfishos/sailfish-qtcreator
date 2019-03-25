@@ -23,7 +23,9 @@
 #ifndef MERSETTINGS_H
 #define MERSETTINGS_H
 
+#ifdef MER_LIBRARY
 #include "meremulatordevice.h"
+#endif // MER_LIBRARY
 
 #include <QtCore/QObject>
 
@@ -58,6 +60,7 @@ public:
     static bool isAskBeforeClosingVmEnabled();
     static void setAskBeforeClosingVmEnabled(bool enabled);
 
+#ifdef MER_LIBRARY
     static Utils::FileName deviceModelsFileName();
     static Utils::FileName globalDeviceModelsFileName();
 
@@ -70,9 +73,12 @@ public:
                                                     = EmulatorDeviceModelType::EmulatorDeviceModelAll);
     static bool isDeviceModelStored(const MerEmulatorDeviceModel &model);
     static void setDeviceModels(const MerEmulatorDeviceModel::Map &deviceModels);
+#endif // MER_LIBRARY
 
 signals:
+#ifdef MER_LIBRARY
     void deviceModelsChanged(const QSet<QString> &deviceModelNames);
+#endif // MER_LIBRARY
     void environmentFilterChanged(const QString &filter);
     void rpmValidationByDefaultChanged(bool byDefault);
     void qmlLiveBenchLocationChanged(const QString &location);
@@ -82,10 +88,12 @@ signals:
 
 private:
     void read();
+#ifdef MER_LIBRARY
     void save();
     static MerEmulatorDeviceModel::Map deviceModelsRead(const Utils::FileName &fileName);
     static void deviceModelsWrite(const Utils::FileName &fileName,
                                   const MerEmulatorDeviceModel::Map &deviceModels);
+#endif // MER_LIBRARY
 
 private:
     static MerSettings *s_instance;
@@ -96,7 +104,9 @@ private:
     bool m_syncQmlLiveWorkspaceEnabled;
     bool m_askBeforeStartingVmEnabled;
     bool m_askBeforeClosingVmEnabled;
+#ifdef MER_LIBRARY
     QMap<QString, MerEmulatorDeviceModel> m_deviceModels;
+#endif // MER_LIBRARY
 };
 
 } // Internal

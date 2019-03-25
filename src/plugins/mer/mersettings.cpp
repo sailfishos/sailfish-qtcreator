@@ -25,11 +25,13 @@
 #include <QFileInfo>
 #include <QProcessEnvironment>
 
+#include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/persistentsettings.h>
 #include <utils/algorithm.h>
+#include <utils/qtcassert.h>
 
 #include "merconstants.h"
 
@@ -61,6 +63,7 @@ MerSettings::MerSettings(QObject *parent)
     Q_ASSERT(s_instance == 0);
     s_instance = this;
 
+#ifdef MER_LIBRARY
     // After SDK update device model name collisions might occur
     const MerEmulatorDeviceModel::Map deviceModels = deviceModelsRead(globalDeviceModelsFileName());
     MerEmulatorDeviceModel::Map userDeviceModels = deviceModelsRead(deviceModelsFileName());
@@ -82,13 +85,16 @@ MerSettings::MerSettings(QObject *parent)
         }
         deviceModelsWrite(deviceModelsFileName(), userDeviceModels);
     }
+#endif // MER_LIBRARY
 
     read();
 }
 
 MerSettings::~MerSettings()
 {
+#ifdef MER_LIBRARY
     save();
+#endif // MER_LIBRARY
 
     s_instance = 0;
 }
@@ -100,6 +106,7 @@ MerSettings *MerSettings::instance()
     return s_instance;
 }
 
+#ifdef MER_LIBRARY
 FileName MerSettings::globalDeviceModelsFileName()
 {
     QSettings *globalSettings = PluginManager::globalSettings();
@@ -217,6 +224,7 @@ void MerSettings::deviceModelsWrite(const Utils::FileName &fileName,
     data.insert(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 1);
     writer.save(data, ICore::mainWindow());
 }
+#endif // MER_LIBRARY
 
 QString MerSettings::environmentFilter()
 {
@@ -347,7 +355,14 @@ void MerSettings::setAskBeforeClosingVmEnabled(bool enabled)
 
 void MerSettings::read()
 {
+#ifdef MER_LIBRARY
     QSettings *settings = ICore::settings();
+#else
+    auto settings = std::make_unique<QSettings>(QSettings::IniFormat, QSettings::UserScope,
+            QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR),
+            QLatin1String(Core::Constants::IDE_CASED_ID));
+#endif // MER_LIBRARY
+
     settings->beginGroup(QLatin1String(SETTINGS_CATEGORY));
 
     m_environmentFilter = settings->value(QLatin1String(ENVIRONMENT_FILTER_KEY))
@@ -374,6 +389,7 @@ void MerSettings::read()
     m_environmentFilterFromEnvironment =
         QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER);
 
+#ifdef MER_LIBRARY
     m_deviceModels = deviceModelsRead(globalDeviceModelsFileName());
     const QMap<QString, MerEmulatorDeviceModel> userDeviceModels = deviceModelsRead(deviceModelsFileName());
 
@@ -381,8 +397,10 @@ void MerSettings::read()
               .intersects(userDeviceModels.keys().toSet()) == false);
 
     m_deviceModels.unite(userDeviceModels);
+#endif // MER_LIBRARY
 }
 
+#ifdef MER_LIBRARY
 void MerSettings::save()
 {
     QSettings *settings = ICore::settings();
@@ -401,6 +419,7 @@ void MerSettings::save()
 
     deviceModelsWrite(deviceModelsFileName(), deviceModels(EmulatorDeviceModelUserProvided));
 }
+#endif // MER_LIBRARY
 
 } // Internal
 } // Mer
