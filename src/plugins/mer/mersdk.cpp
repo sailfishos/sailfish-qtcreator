@@ -66,6 +66,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     SshConnectionParameters params = m_connection->sshParameters();
     params.timeout = 30;
     m_connection->setSshParameters(params);
+#ifdef MER_LIBRARY
     connect(m_connection, &MerConnection::stateChanged,
             this, &MerSdk::onConnectionStateChanged);
 
@@ -83,6 +84,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
         else
             m_updateTargetsTimer.start();
     });
+#endif // MER_LIBRARY
 }
 
 MerSdk::~MerSdk()
@@ -272,12 +274,15 @@ void MerSdk::setWwwProxy(const QString &type, const QString &servers, const QStr
     m_wwwProxyServers = servers;
     m_wwwProxyExcludes = excludes;
 
+#ifdef MER_LIBRARY
     if (m_connection->state() == MerConnection::Connected)
         syncWwwProxy();
+#endif // MER_LIBRARY
 
     emit wwwProxyChanged(type, servers, excludes);
 }
 
+#ifdef MER_LIBRARY
 void MerSdk::syncWwwProxy()
 {
     QStringList args;
@@ -298,6 +303,7 @@ void MerSdk::syncWwwProxy()
     const QString wrapperBinaryPath = Core::ICore::libexecPath() + QLatin1String("/merssh") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
     m_wwwProxySyncProcess.start(wrapperBinaryPath, args);
 }
+#endif // MER_LIBRARY
 
 QString MerSdk::wwwProxy() const
 {
@@ -365,6 +371,7 @@ int MerSdk::timeout() const
     return m_connection->sshParameters().timeout;
 }
 
+#ifdef MER_LIBRARY
 // call the install all the targets and track the changes
 void MerSdk::attach()
 {
@@ -394,6 +401,7 @@ void MerSdk::detach()
     }
     m_targets.clear();
 }
+#endif // MER_LIBRARY
 
 MerConnection *MerSdk::connection() const
 {
@@ -470,7 +478,11 @@ bool MerSdk::fromMap(const QVariantMap &data)
         const QVariantMap targetMap = data.value(key).toMap();
         MerTarget target(this);
         if (!target.fromMap(targetMap))
+#ifdef MER_LIBRARY
              qWarning() << target.name() << "is configured incorrectly...";
+#else
+             return false;
+#endif // MER_LIBRARY
         targets << target;
     }
 
@@ -487,6 +499,7 @@ bool MerSdk::isValid() const
             && !m_sharedTargetsPath.isEmpty();
 }
 
+#ifdef MER_LIBRARY
 void MerSdk::updateTargets()
 {
     QList<MerTarget> sdkTargets = readTargets(FileName::fromString(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME)));
@@ -524,6 +537,7 @@ void MerSdk::onConnectionStateChanged()
     if (m_connection->state() == MerConnection::Connected)
         syncWwwProxy();
 }
+#endif // MER_LIBRARY
 
 QList<MerTarget> MerSdk::readTargets(const FileName &fileName)
 {
@@ -552,6 +566,7 @@ QList<MerTarget> MerSdk::readTargets(const FileName &fileName)
     return result;
 }
 
+#ifdef MER_LIBRARY
 bool MerSdk::addTarget(const MerTarget &target)
 {
     qCDebug(Log::sdks) << "Installing" << target.name() << "for" << virtualMachineName();
@@ -624,6 +639,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
     }
     return false;
 }
+#endif // MER_LIBRARY
 
 } // Internal
 } // Mer

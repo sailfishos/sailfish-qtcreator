@@ -52,6 +52,8 @@ class MerSdkManager : public QObject
     Q_OBJECT
 public:
     MerSdkManager();
+    ~MerSdkManager() override;
+#ifdef MER_LIBRARY
     static MerSdkManager *instance();
     static QString sdkToolsDirectory();
     static QString globalSdkToolsDirectory();
@@ -62,9 +64,12 @@ public:
     static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);
+#endif // MER_LIBRARY
 
-    ~MerSdkManager() override;
+    static QString installDir() { return m_instance->m_installDir; }
     static QList<MerSdk*> sdks();
+
+#ifdef MER_LIBRARY
     static MerSdk* sdk(const QString &virtualMachineName);
     static MerSdk* createSdk(const QString &vmName);
     static void addSdk(MerSdk *sdk);
@@ -84,12 +89,15 @@ signals:
 private slots:
     void initialize();
     void updateDevices();
+#endif // MER_LIBRARY
 
 private:
     void restore();
-    QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
+    static QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
+#ifdef MER_LIBRARY
     static QList<MerToolChain*> merToolChains();
     static QList<MerQtVersion*> merQtVersions();
+#endif // MER_LIBRARY
     Utils::FileName checkLocalConfig(const Utils::FileName &l, const Utils::FileName &g);
 private:
     static MerSdkManager *m_instance;

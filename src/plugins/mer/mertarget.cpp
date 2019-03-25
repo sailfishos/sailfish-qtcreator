@@ -160,10 +160,12 @@ QVariantMap MerTarget::toMap() const
     return result;
 }
 
+#ifdef MER_LIBRARY
 Kit *MerTarget::kit() const
 {
     return ProjectExplorer::KitManager::kit(Core::Id::fromSetting(QVariant(name())));
 }
+#endif // MER_LIBRARY
 
 bool MerTarget::isValid() const
 {
@@ -172,6 +174,7 @@ bool MerTarget::isValid() const
         && m_rpmValidationSuitesIsValid;
 }
 
+#ifdef MER_LIBRARY
 QString MerTarget::targetPath() const
 {
     return MerSdkManager::sdkToolsDirectory() + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name;
@@ -423,6 +426,7 @@ bool MerTarget::createCacheFile(const QString &fileName, const QString &content)
     file.close();
     return ok;
 }
+#endif // MER_LIBRARY
 
 QList<MerRpmValidationSuiteData> MerTarget::rpmValidationSuitesFromString(const QString &string, bool *ok)
 {
