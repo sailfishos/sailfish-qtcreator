@@ -152,6 +152,9 @@ const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
 const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
+const char MER_SDK_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
+const char MER_SDK_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
+
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
 const char MER_TARGET_GCC_DUMP_MACHINE[] = "MerTarget.GccDumpMachine";
