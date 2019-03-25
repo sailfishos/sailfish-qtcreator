@@ -41,10 +41,8 @@ public:
     ~MerRemoteProcess() override;
     int executeAndWait();
     void setIntercative(bool enabled);
-    void setCacheOutput(bool enabled);
     void setSshParameters(const QSsh::SshConnectionParameters& params);
     void setCommand(const QString& command);
-    static QString shellSafeArgument(const QString &argument);
 
 private:
     static QString forwardEnvironment(const QString &command);
@@ -57,7 +55,6 @@ private slots:
     void handleStdin();
 
 private:
-    bool m_cache;
     bool m_interactive;
     QString m_command;
     QSsh::SshConnectionParameters m_sshConnectionParams;
