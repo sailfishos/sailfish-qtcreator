@@ -1,0 +1,139 @@
+{
+    "version": 1,
+    "domain": "building",
+    "trBrief": "Building packages",
+
+    "trDescription": "INTRODUCTION\n\nStart by choosing the build target. List the available build tools.\n\n$ sfdk tools list\nSailfishOS-3.0.0.8\n└─SailfishOS-3.0.0.8-i486\nSailfishOS-3.0.2.8\n├─SailfishOS-3.0.2.8-armv7hl\n└─SailfishOS-3.0.2.8-i486\n\nEach build target lets you build softare for a specific operating system version running on a specific hardware. Each target is listed under one tooling supporting the given OS version (see MANAGING SDK BUILD TOOLS below for more information).\n\nAs with other configuration options, you can decide if you want to apply your choice globally (with the '--global' option) or just for the current (shell) session. Let's exercise both options. Pick the latest i486 target for global use and its ARM counterpart for this session only.\n\n$ sfdk config --global --push target SailfishOS-3.0.2.8-i486\n$ sfdk config --push target SailfishOS-3.0.2.8-armv7hl\n\nNow review what we have configured.\n\n$ sfdk config\n# ---- command scope ---------\n# <clear>\n\n# ---- session scope ---------\ntarget = SailfishOS-3.0.2.8-armv7hl\n\n# ---- global scope ---------\n# masked at session scope\n;target = SailfishOS-3.0.2.8-i486\n\nOptions pushed higher on the stack override (mask) those appearing lower - as stated conveniently in the output.\n\nNow get some sources and perform an all-in-one build procedure.\n\n$ git clone https://github.com/sailfishos/cppqml-sample.git\n$ cd cppqml-sample\n$ sfdk build\n\nAfter successful build the resulting RPM package(s) can be found under the RPMS directory.\n\n$ ls ./RPMS\ncppqml-1.0-1.armv7hl.rpm\n\nIt is possible to invoke each build phase separately.\n\n$ sfdk qmake\n$ sfdk make\n$ sfdk make-install\n$ sfdk package\n\nAfter all pick a device from those configured inside the Sailfish IDE (Qt Creator) and deploy the package.\n\n$ sfdk config --push device \"Sailfish OS Emulator 3.0.2.8\"\n$ sfdk deploy --sdk\n\n\nSHADOW BUILDS\n\nShadow builds can be initiated simply by passing project file or directory path to the \"build\" or \"qmake\" command:\n\n$ mkdir build && cd build\n$ sfdk build ../path/to/sources\n\nOr manually invoking each step:\n\n$ mkdir build && cd build\n$ sfdk qmake ../path/to/sources\n$ sfdk make\n$ sfdk rpm\n\nLimitations related to shadow builds:\n\n1. Shadow build is only available for packages that use qmake.\n2. The \"--doprep\" option to the \"build\" command cannot be used with shadow builds.\n3. If \"prep\" or \"apply\" is needed, it must be used directly on the source tree prior to starting a shadow build (shadow builds for multiple targets are still possible provided that the %prep section is target-independent).\n\n\nSHARED OUTPUT DIRECTORY\n\nTo make deployment easier it is possible to use a shared output directory specified with the 'output-dir' configuration option or more conveniently with the combination of 'output-prefix' and 'task' options. Consider enabling 'output-prefix' and 'task' by default to get build results grouped by the tasks they are related to. By default the task will be determined based on the current Git branch - check the desctiption of the 'task' option for more details:\n\n$ sfdk config --global --push output-prefix ~/RPMS\n$ sfdk config --global --push task\n\n$ sfdk config --set target my-target\n$ cd packageA\n$ git checkout -b jbXXXXX\n$ sfdk build\n$ cd ../packageB\n$ git checkout -b jbXXXXX\n$ sfdk build\n$ rsync -av ~/RPMS/jbXXXXX-my-target/ device:RPMS \\\n$     && ssh device zypper -p RPMS -v dup\n\nWith these options the output directory is also searched for build-time dependencies by default, so if packageB requires packageA at build time, you do not need to install packageA manually to the build target.\n\n\nCLEAN BUILDS\n\nIt is possible to avoid polluting build targets with build time dependencies of a particular package by using the 'snapshot' configuration option. With this option the build target is not used directly. Instead a snapshot is taken and the build is done using the snapshot of the build target. See the description of the 'snapshot' option for details on how the snapshot is chosen.\n\nThe snapshot will be reset automatically whenever the original build target is updated, so if e.g. a locally built package is needed as a build-time dependency, instead of installing it manually you should rely on the above mentioned fact that with custom output directory the 'search-output-dir' option is implied, and combine the 'snapshot' option with the 'output-prefix' option.\n\nFor similar reasons, when sfdk fails to install build-time dependencies due to errors like \"file not found on the server\", .i.e., because the local repository cache got outdated, it is the original target that should be updated, not the snapshot.\n\nConsider enabling 'snapshot' by default as well:\n\n$ sfdk config --global --push output-prefix ~/RPMS\n$ sfdk config --global --push task\n$ sfdk config --global --push snapshot\n\nIn order to ensure targets are not polluted by running sfdk without the 'snapshot' option unintentionally, sfdk requires to use 'force-no-snapshot' explicitly once at least one snapshot exists for a target. Existing snapshots can be listed and removed using the 'tools' command just like the ordinary targets.\n\n\nMAINTAINING CHANGELOGS\n\nIf a file exists with '.changes' extension, otherwise matching the spec file name, the effect will be the same as having a %changelog section in the spec file. If a file with '.changes.run' extension is found instead, this file will be executed and its output treated as the actual changelog.",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "mb2"
+    },
+
+    "commands":
+    [
+        {
+            "name": "build-requires",
+            "trSynopsis": "[--[no-]refresh] {pull|reset}",
+            "trBrief": "Update build time dependencies",
+            "trDescription": "When 'pull' is used, install or update the build-time dependencies as is done implicitly by the 'prepare', 'build' and 'qmake' commands but refresh the package cache first, unless '--no-refresh' is active.\n\nWhen the 'snapshot' configuration option is used, '--no-refresh' is implied. This can be overriden with '--refresh' - do not use unless you know what you are doing. If refresh is needed, refresh (and update) the original target instead, then do 'reset'.\n\nThe 'reset' command can only be used together with the 'snapshot' configuration option, with the effect of reseting the target snapshot forcefully to the (possibly updated) state of the original target first, pulling later."
+        },
+        {
+            "name": "prepare",
+            "trBrief": "Prepare sources using the recipe from spec file",
+            "trDescription": "Run rpmbuild. Execute just the %prep section of the .spec file."
+        },
+        {
+            "name": "apply",
+            "trSynopsis": "[-R]",
+            "trBrief": "Apply patches listed in the spec file",
+            "trDescription": "Apply all patches defined in the .spec file to the source tree.\n-R    reverse apply patches (patch -R)"
+        },
+        {
+            "name": "build",
+            "trSynopsis": "[-p|--doprep] [-d|--enable-debug] [-j <n>] [<project-dir-or-file>] [[--] <rpmbuild-extra-args>]",
+            "trBrief": "Execute all build steps at once",
+            "trDescription": "Run rpmbuild. Execute all sections of the .spec file except for %prep unless told otherwise. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)\n-p     run %prep phase as well\n-d     enable debug build\n-j <n> use only 'n' CPUs to build"
+        },
+        {
+            "name": "qmake",
+            "trSynopsis": "[<project-dir-or-file>] [[--] <qmake-extra-args>]",
+            "trBrief": "Execute qmake build step",
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'make' invocation figuring in that section. If path to a <project-dir-or-file> is passed, shadow build will be done. Otherwise the current working directory is treated as the project directory. (The file name part is ignored - project file selection is done by qmake call inside the .spec file.)"
+        },
+        {
+            "name": "make",
+            "trSynopsis": "[<make-extra-args>]",
+            "trBrief": "Execute make build step",
+            "trDescription": "Run rpmbuild. Execute just the %build section of the .spec file, suppressing any 'qmake' invocation figuring in that section."
+        },
+        {
+            "name": "make-install",
+            "trBrief": "Execute make-install build step",
+            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file. This is not the same as using the 'make' command with 'install' argument."
+        },
+        {
+            "name": "package",
+            "trBrief": "Execute package creation build step",
+            "trDescription": "Run rpmbuild. Execute just the %install section of the .spec file, then build binary packages."
+        },
+        {
+            "name": "deploy",
+            "trSynopsis": "{--pkcon|--rsync|--sdk|--zypper}",
+            "trBrief": "Execute the deploy step",
+            "trDescription": "Deploy build results to the configured device. This implies also the 'make-install' step and except for the --rsync method it will include also the 'package' step. See the 'device' configuration option.\n\nThe following deployment methods are available, corresponding to the single mandatory option:\n\n--pkcon\n    Uses 'pkcon' to install RPM package(s). Requires the \"Allow untrusted software\" option enabled in Settings, does not require root access to the device.\n\n--rsync\n    Uses 'rsync' to copy the installed files under '/opt/sdk/<name>' without building/installing RPM package(s).  Does not require root access to the device.\n\n--sdk\n    Uses the method native to the SDK to install RPM package(s). Requires developer mode enabled on the device, does not require root access.\n\n--zypper\n    Uses 'zypper' to install RPM package(s).  Requires 'zypper' installed on the device, requires root access to the device."
+        }
+    ],
+
+    "options":
+    [
+        {
+            "name": "specfile",
+            "trArgument": "<file>",
+            "trDescription": "Specify the .spec file. Required if more than one .spec file is found",
+            "alias": "specfile"
+        },
+        {
+            "name": "target",
+            "trArgument": "<name>",
+            "trDescription": "Select the sb2 target to use"
+        },
+        {
+            "name": "device",
+            "trArgument": "<name>",
+            "trDescription": "Select the device to use"
+        },
+        {
+            "name": "output-dir",
+            "trArgument": "<dir>",
+            "trDescription": "Defaults to './RPMS'. The resulting RPM packages will be placed  directly under the specified <dir>. With this option existing files in  the output directory are preserved. Implies 'search-output-dir'"
+        },
+        {
+            "name": "output-prefix",
+            "trArgument": "<dir>",
+            "trDescription": "Much like 'output-dir' except that a subdirectory of the given <dir> will be used, denoted by the build target name (see 'target') and optionally prefixed with task name (see 'task') separated with single dash ('-') character ('<dir>/[<task>-]<target>')."
+        },
+        {
+            "name": "search-output-dir",
+            "trArgument": "[verbose|quiet]",
+            "trDescription": "Consider the RPM packages found in the output directory when installing build time dependencies. The optional value controls zypper verbosity.  The default is 'verbose'."
+        },
+        {
+            "name": "no-search-output-dir",
+            "trDescription": "Override 'search-output-dir' option"
+        },
+        {
+            "name": "snapshot",
+            "trArgument": "[<suffix>]",
+            "trDescription": "Avoid installing build-time dependencies to the sb2 target - use a snapshot of that target instead.\n\nThe snapshot name will be determined by combining the original target name with the given <suffix>. Any occurence of '%{task}' within the <suffix> will be substituted with the name specified with the 'task' option or with an empty string if the 'task' option is not set. When no suffix was specified or when the substitution yields an empty string, a temporary snapshot will be used (these have '.mb2.' followed by random character sequence in their names).\n\nSnapshot state is preserved across sfdk invocations unless the original target was updated meanwhile or it is a temporary snapshot that was previously used with different build tree, in which cases the snapshot will be reset. Snapshot can be reset forcefully using the 'build-requires reset' command."
+        },
+        {
+            "name": "force-no-snapshot",
+            "trDescription": "Force sfdk to directly use a target for which snapshots exist."
+        },
+        {
+            "name": "task",
+            "trArgument": "[<name>|git:<regex>]",
+            "trDescription": "Modifies behavior of 'output-prefix' and 'snapshot' options.  The task name can be specified either directly as <name> or it can be derived from the current Git branch name, if a value in the form 'git:<regex>' is set. The POSIX extended regular expression <regex> both as a condition to enable this option and as a mean to select substring of the branch name to be used as the task name. Defaults to 'git:^jb[0-9]+'."
+        },
+        {
+            "name": "no-task",
+            "trDescription": "Override 'task' option"
+        },
+        {
+            "name": "fix-version",
+            "trArgument": "[<tag>]",
+            "trDescription": "This option is implied when used inside a Git working tree (use 'no-fix-version' to override).\n\nUse the latest tag from the current git branch as package version or the given <tag> (hardly useful on other than 'command' scope).  If the current HEAD, index or working tree differs from the tree denoted by the tag, a suffix composed from the current branch name, time stamp and a commit SHA1 will be added to the package version. If git-state is not clean a git-stash will be created and its SHA1 will be used instead of HEAD."
+        },
+        {
+            "name": "no-fix-version",
+            "trDescription": "Override 'fix-version' option"
+        },
+        {
+            "name": "no-pull-build-requires",
+            "trDescription": "Do not update build-time dependencies"
+        }
+    ]
+}
