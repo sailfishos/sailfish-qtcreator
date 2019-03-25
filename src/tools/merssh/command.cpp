@@ -22,6 +22,7 @@
 
 #include "command.h"
 
+#include <mer/merconstants.h>
 #include <utils/hostosinfo.h>
 
 #include <QDir>
@@ -164,11 +165,11 @@ QString Command::remotePathMapping(const QString& command) const
     // First replace shared home and then shared src (error prone!)
     if (!sharedHomePath().isEmpty()) {
       QDir homeDir(sharedHomePath());
-      result.replace(homeDir.canonicalPath(), QLatin1String("/home/mersdk/share/"));
+      result.replace(homeDir.canonicalPath(), Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT);
     }
     if (!sharedSourcePath().isEmpty()) {
       QDir srcDir(sharedSourcePath());
-      result.replace(srcDir.canonicalPath(), QLatin1String("/home/src1/"),
+      result.replace(srcDir.canonicalPath(), Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT,
 		     (Utils::HostOsInfo::isWindowsHost()?Qt::CaseInsensitive:Qt::CaseSensitive));
     }
     result = result.trimmed();
