@@ -215,6 +215,7 @@ int EngineCtlCommand::execute()
     connection.setVirtualMachine(engineName());
     connection.setHeadless(true);
     connection.setSshParameters(sshParameters);
+    connection.refresh(MerConnection::Synchronous);
 
     if (!connection.connectTo(MerConnection::Block)) {
         qerr() << tr("Failed to connect to the '%1' virtual machine: %2")
