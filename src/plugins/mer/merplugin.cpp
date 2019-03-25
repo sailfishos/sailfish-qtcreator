@@ -130,6 +130,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     using namespace ProjectExplorer::Constants;
 
+    MerConnection::registerUi<MerConnectionWidgetUi>();
+
     new MerSettings(this);
 
     RunConfiguration::registerAspect<MerRunConfigurationAspect>();

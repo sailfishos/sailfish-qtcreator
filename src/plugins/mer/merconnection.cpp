@@ -187,55 +187,10 @@ private:
     bool m_finished;
 };
 
-#ifdef MER_LIBRARY
-class MerConnectionWidgetUi : public MerConnection::Ui
-{
-    Q_OBJECT
-
-public:
-    using MerConnection::Ui::Ui;
-
-    void warn(Warning which) override;
-    void dismissWarning(Warning which) override;
-
-    bool shouldAsk(Question which) const override;
-    void ask(Question which, OnStatusChanged onStatusChanged) override;
-    void dismissQuestion(Question which) override;
-    QuestionStatus status(Question which) const override;
-
-private:
-    QMessageBox *openWarningBox(const QString &title, const QString &text);
-    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text,
-            const QString &informativeText = QString(),
-            std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text);
-    template<class Dialog>
-    void deleteDialog(QPointer<Dialog> &dialog);
-    QuestionStatus status(QMessageBox *box) const;
-    QuestionStatus status(QProgressDialog *dialog) const;
-
-private:
-    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
-    QPointer<QMessageBox> m_startVmQuestionBox;
-    QPointer<QMessageBox> m_resetVmQuestionBox;
-    QPointer<QMessageBox> m_closeVmQuestionBox;
-    QPointer<QProgressDialog> m_connectingProgressDialog;
-    QPointer<QProgressDialog> m_lockingDownProgressDialog;
-};
-#endif // MER_LIBRARY
-
+MerConnection::UiCreator MerConnection::s_uiCreator;
 QMap<QString, int> MerConnection::s_usedVmNames;
 
-#ifdef MER_LIBRARY
 MerConnection::MerConnection(QObject *parent)
-    : MerConnection(new MerConnectionWidgetUi, parent)
-{
-}
-#endif // MER_LIBRARY
-
-MerConnection::MerConnection(Ui *ui, QObject *parent)
     : QObject(parent)
     , m_headless(false)
     , m_state(Disconnected)
@@ -257,9 +212,8 @@ MerConnection::MerConnection(Ui *ui, QObject *parent)
     , m_cachedSshError(SshNoError)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
-    , m_ui(ui)
+    , m_ui(s_uiCreator(this))
 {
-    Q_ASSERT(ui);
     m_vmStateEntryTime.start();
     m_ui->setParent(this);
 }

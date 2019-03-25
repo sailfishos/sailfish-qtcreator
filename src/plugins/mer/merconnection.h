@@ -90,10 +90,7 @@ public:
 
     class Ui;
 
-#ifdef MER_LIBRARY
     explicit MerConnection(QObject *parent = 0);
-#endif
-    MerConnection(Ui *ui, QObject *parent);
     ~MerConnection() override;
 
     void setVirtualMachine(const QString &virtualMachine);
@@ -114,6 +111,13 @@ public:
     bool lockDown(bool lockDown);
 
     static QStringList usedVirtualMachines();
+
+    template<typename ConcreteUi>
+    static void registerUi()
+    {
+        Q_ASSERT(!s_uiCreator);
+        s_uiCreator = [](MerConnection *parent) { return new ConcreteUi(parent); };
+    }
 
 public slots:
     void refresh();
@@ -166,6 +170,8 @@ private slots:
     void onRemoteShutdownProcessFinished();
 
 private:
+    using UiCreator = std::function<Ui *(MerConnection *)>;
+    static UiCreator s_uiCreator;
     static QMap<QString, int> s_usedVmNames;
 
     QPointer<QSsh::SshConnection> m_connection;
@@ -254,6 +260,8 @@ public:
 
     using OnStatusChanged = void (MerConnection::*)();
 
+    using QObject::QObject;
+
     virtual void warn(Warning which) = 0;
     virtual void dismissWarning(Warning which) = 0;
 
@@ -268,6 +276,45 @@ public:
 protected:
     MerConnection *connection() const { return static_cast<MerConnection *>(parent()); }
 };
+
+#ifdef MER_LIBRARY
+class MerConnectionWidgetUi : public MerConnection::Ui
+{
+    Q_OBJECT
+
+public:
+    using MerConnection::Ui::Ui;
+
+    void warn(Warning which) override;
+    void dismissWarning(Warning which) override;
+
+    bool shouldAsk(Question which) const override;
+    void ask(Question which, OnStatusChanged onStatusChanged) override;
+    void dismissQuestion(Question which) override;
+    QuestionStatus status(Question which) const override;
+
+private:
+    QMessageBox *openWarningBox(const QString &title, const QString &text);
+    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
+            const QString &title, const QString &text,
+            const QString &informativeText = QString(),
+            std::function<void()> setDoNotAskAgain = nullptr);
+    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
+            const QString &title, const QString &text);
+    template<class Dialog>
+    void deleteDialog(QPointer<Dialog> &dialog);
+    QuestionStatus status(QMessageBox *box) const;
+    QuestionStatus status(QProgressDialog *dialog) const;
+
+private:
+    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
+    QPointer<QMessageBox> m_startVmQuestionBox;
+    QPointer<QMessageBox> m_resetVmQuestionBox;
+    QPointer<QMessageBox> m_closeVmQuestionBox;
+    QPointer<QProgressDialog> m_connectingProgressDialog;
+    QPointer<QProgressDialog> m_lockingDownProgressDialog;
+};
+#endif // MER_LIBRARY
 
 }
 #endif
