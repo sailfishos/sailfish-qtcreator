@@ -68,8 +68,6 @@ class Q_DECL_EXPORT MerConnection : public QObject
         SshConnectionLost,
     };
 
-    const bool Asynchronous = true;
-
 public:
     enum State {
         Disconnected,
@@ -87,6 +85,11 @@ public:
         Block = 0x02,
     };
     Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
+
+    enum Synchronization {
+        Asynchronous,
+        Synchronous
+    };
 
     class Ui;
 
@@ -120,7 +123,7 @@ public:
     }
 
 public slots:
-    void refresh();
+    void refresh(Mer::MerConnection::Synchronization synchronization = Asynchronous);
     bool connectTo(Mer::MerConnection::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
@@ -152,7 +155,8 @@ private:
 
     void createConnection();
     void vmWantFastPollState(bool want);
-    void vmPollState(bool async = false);
+    void vmPollState(Synchronization synchronization);
+    void waitForVmPollStateFinish();
     void sshTryConnect();
 
     static bool isRecoverable(QSsh::SshError sshError);
