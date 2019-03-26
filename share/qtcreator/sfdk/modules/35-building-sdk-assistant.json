@@ -1,0 +1,30 @@
+{
+    "version": 1,
+    "domain": "building",
+    "trBrief": "Building packages",
+
+    "trDescription": "MANAGING SDK BUILD TOOLS\n\nThe Sailfish SDK abstracts the support for cross-development for particular target HW architectures and Sailfish OS versions (forward compatibility applies) in form of add-on SDK Build Tools.\n\nTwo types of SDK Build Tools are recognized:\n\n1. SDK Build Target - a target-compatible Sailfish OS image, and\n2. SDK Build Tooling - a host-compatible collection of build time dependencies.\n\nThe shorter terms \"build tools\", \"(build) tooling(s)\" and \"(build) target(s)\" are used instead of the official terms where the context admits. Also, since a single SDK Build Tooling is usually used with multiple SDK Build Targets that enable development for the same Sailfish OS version and differ only by the supported target architecture, the term SDK Build Tools is sometimes used to denote a particular combination of SDK Build Target and Tooling, uniquely identified by the SDK Build Target name.\n\nThe prefered way of managing SDK Build Tools is through the SDK Installer/Maintenance Tool (see the 'maintain' command). Custom build tools can be added using the 'tools' command.",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "sdk-assistant",
+        "initialArguments": ["--non-interactive"],
+        "omitSubcommand": true
+    },
+
+    "commands":
+    [
+        {
+            "name": "tools",
+            "trSynopsis": "[tooling|target] create <name> {<URL>|<file>}\n[tooling|target] update <name>\n[tooling|target] remove <name>\n[tooling|target] list [--slow]",
+            "trBrief": "Manage (custom) build tools",
+            "trDescription": "This command supplements the SDK Installer/Maintenance Tool, enabling to:\n\n1. Add custom build tools that are not provided by the installer\n2. List and remove build target snapshots created automatically when the 'snapshot' configuration option is in use\n\nThe 'create' command creates either a new build tooling or target based on the detected type of the image specified with its <URL> or <file> name. If the auto detection fails, it is possible to specify the type of the image manually prepending one of the 'tooling' or 'target' keywords.\n\nThe 'update' command updates the given tooling or target. When updating a target, the tooling used by the target will be updated automatically prior to updating the target itself.\n\nSDK Build Tools previously created with this command can be removed using the 'remove' command. Build tools provided by the SDK installer cannot be removed this way - the SDK Installer/Maintenance Tool must be used instead.\n\nTo see the combined listing of existing targets grouped by the toolings they use, use the 'list' command omiting the 'tooling' or 'target' keyword.\n\nBy default the 'list' command caches or omits information it would be slow to retrieve. Use the '--slow' option to check the state more thoroughly."
+        }
+    ],
+
+    "options":
+    [
+    ]
+}
