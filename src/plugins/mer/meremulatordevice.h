@@ -140,6 +140,11 @@ public:
 
     MerConnection *connection() const;
 
+    void addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
+                           quint16 emulatorVmPort) const;
+    bool removePortForwarding(const QString &ruleName);
+    bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
+
 private:
     MerEmulatorDevice(Core::Id id);
     MerEmulatorDevice(const MerEmulatorDevice &other);
