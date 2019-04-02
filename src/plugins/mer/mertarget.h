@@ -74,7 +74,9 @@ public:
 
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
-    std::unique_ptr<ProjectExplorer::Kit> createKit() const;
+    ProjectExplorer::Kit *kit() const;
+
+    bool finalizeKitCreation(ProjectExplorer::Kit *k) const;
     void ensureDebuggerIsSet(ProjectExplorer::Kit *k) const;
     MerQtVersion* createQtVersion() const;
     MerToolChain* createToolChain(Core::Id l) const;

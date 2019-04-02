@@ -160,6 +160,11 @@ QVariantMap MerTarget::toMap() const
     return result;
 }
 
+Kit *MerTarget::kit() const
+{
+    return ProjectExplorer::KitManager::kit(Core::Id::fromSetting(QVariant(name())));
+}
+
 bool MerTarget::isValid() const
 {
     return m_sdk && !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty()
@@ -214,33 +219,31 @@ void MerTarget::deleteScripts() const
     FileUtils::removeRecursively(FileName::fromString(targetPath()));
 }
 
-std::unique_ptr<Kit> MerTarget::createKit() const
+bool MerTarget::finalizeKitCreation(Kit* k) const
 {
     if (!isValid())
-        return 0;
-    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1Char('/') + m_name);
+        return false;
 
+    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1Char('/') + m_name);
     FileName path = FileName::fromString(sysroot);
     if (!path.toFileInfo().exists()) {
         qWarning() << "Sysroot does not exist" << sysroot;
-        return 0;
+        return false;
     }
-
-    auto k = std::make_unique<Kit>();
 
     k->setAutoDetected(true);
     k->setUnexpandedDisplayName(QString::fromLatin1("%1 (in %2)").arg(m_name, m_sdk->virtualMachineName()));
-    SysRootKitInformation::setSysRoot(k.get(), FileName::fromUserInput(sysroot));
 
-    DeviceTypeKitInformation::setDeviceTypeId(k.get(), Constants::MER_DEVICE_TYPE);
+    SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
+
+    DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
     k->setMutable(DeviceKitInformation::id(), true);
 
-    ensureDebuggerIsSet(k.get());
+    ensureDebuggerIsSet(k);
 
-    MerSdkKitInformation::setSdk(k.get(), m_sdk);
-    MerTargetKitInformation::setTargetName(k.get(), name());
-
-    return k;
+    MerSdkKitInformation::setSdk(k, m_sdk);
+    MerTargetKitInformation::setTargetName(k, name());
+    return true;
 }
 
 void MerTarget::ensureDebuggerIsSet(Kit *k) const
