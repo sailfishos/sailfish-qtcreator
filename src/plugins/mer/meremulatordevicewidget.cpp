@@ -28,6 +28,7 @@
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
+#include "mervirtualmachinesettingswidget.h"
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
@@ -47,9 +48,10 @@ namespace Mer {
 namespace Internal {
 
 MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
-        const IDevice::Ptr &deviceConfig, QWidget *parent) :
-    IDeviceWidget(deviceConfig, parent),
-    m_ui(new Ui::MerEmulatorDeviceWidget)
+        const IDevice::Ptr &deviceConfig, QWidget *parent)
+    : IDeviceWidget(deviceConfig, parent)
+    , m_ui(new Ui::MerEmulatorDeviceWidget)
+    , m_virtualMachineSettingsWidget(new MerVirtualMachineSettingsWidget)
 {
     m_ui->setupUi(this);
     connect(m_ui->userLineEdit, &QLineEdit::editingFinished,
@@ -70,11 +72,13 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
 MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 {
     delete m_ui;
+    delete m_virtualMachineSettingsWidget;
 }
 
 void MerEmulatorDeviceWidget::onStoredDevicesChanged()
 {
     updatePortInputsEnabledState();
+    updateSystemParameters();
 }
 
 void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
@@ -86,10 +90,13 @@ void MerEmulatorDeviceWidget::onVirtualMachineOffChanged(bool vmOff)
         const auto device = this->device().dynamicCast<MerEmulatorDevice>();
         QTC_ASSERT(device, return);
 
-        bool restored = MerEmulatorDeviceManager::restorePorts(device);
+        bool restored = MerEmulatorDeviceManager::restoreSystemSettings(device);
         if (restored) {
             m_ui->sshPortSpinBox->setValue(device->sshParameters().port());
             m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
+            m_virtualMachineSettingsWidget->setMemorySizeMb(device->memorySizeMb());
+            m_virtualMachineSettingsWidget->setCpuCount(device->cpuCount());
+            m_virtualMachineSettingsWidget->setVdiCapacityMb(device->vdiCapacityMb());
         }
     }
 }
@@ -115,6 +122,7 @@ void MerEmulatorDeviceWidget::updatePortInputsEnabledState()
     m_ui->sshPortInfoLabel->setVisible(!canEdit);
     m_ui->qmlLivePortsLineEdit->setEnabled(canEdit);
     m_ui->qmlLivePortsInfoLabel->setVisible(!canEdit);
+    m_virtualMachineSettingsWidget->setVmOff(canEdit);
 }
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
@@ -175,6 +183,21 @@ void MerEmulatorDeviceWidget::handleQmlLivePortsChanged()
     updateQmlLivePortsWarningLabel();
 }
 
+void MerEmulatorDeviceWidget::handleMemorySizeMbChanged(int sizeMb)
+{
+    device().staticCast<MerEmulatorDevice>()->setMemorySizeMb(sizeMb);
+}
+
+void MerEmulatorDeviceWidget::handleCpuCountChanged(int cpuCount)
+{
+    device().staticCast<MerEmulatorDevice>()->setCpuCount(cpuCount);
+}
+
+void MerEmulatorDeviceWidget::handleVdiCapacityMbChanged(int sizeMb)
+{
+    device().staticCast<MerEmulatorDevice>()->setVdiCapacityMb(sizeMb);
+}
+
 void MerEmulatorDeviceWidget::updateDeviceFromUi()
 {
     timeoutEditingFinished();
@@ -195,6 +218,17 @@ void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
 
     const int count = device->qmlLivePorts().count();
     m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
+}
+
+void MerEmulatorDeviceWidget::updateSystemParameters()
+{
+    const MerEmulatorDevice *device = static_cast<MerEmulatorDevice*>(this->device().data());
+    m_virtualMachineSettingsWidget->setVdiCapacityMb(device->vdiCapacityMb());
+    m_virtualMachineSettingsWidget->setCpuCount(device->cpuCount());
+    m_virtualMachineSettingsWidget->setMemorySizeMb(device->memorySizeMb());
+
+    m_ui->sshPortSpinBox->setValue(device->sshParameters().port());
+    m_ui->qmlLivePortsLineEdit->setText(device->qmlLivePorts().toString());
 }
 
 void MerEmulatorDeviceWidget::initGui()
@@ -244,6 +278,26 @@ void MerEmulatorDeviceWidget::initGui()
         m_ui->macLabelEdit->setText(tr("none"));
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
+
+    connect(m_virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::memorySizeMbChanged,
+            this, &MerEmulatorDeviceWidget::handleMemorySizeMbChanged);
+    connect(m_virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::cpuCountChanged,
+            this, &MerEmulatorDeviceWidget::handleCpuCountChanged);
+    connect(m_virtualMachineSettingsWidget, &MerVirtualMachineSettingsWidget::vdiCapacityMbChnaged,
+            this, &MerEmulatorDeviceWidget::handleVdiCapacityMbChanged);
+
+    m_virtualMachineSettingsWidget->setMemorySizeMb(device->memorySizeMb());
+    m_virtualMachineSettingsWidget->setCpuCount(device->cpuCount());
+    m_virtualMachineSettingsWidget->setVdiCapacityMb(device->vdiCapacityMb());
+
+    const int rowCount = m_virtualMachineSettingsWidget->formLayout()->rowCount();
+    for (int i = 0; i < rowCount; ++i) {
+        auto row = m_virtualMachineSettingsWidget->formLayout()->takeRow(0);
+        if (row.fieldItem->layout())
+            m_ui->formLayout->addRow(row.labelItem->widget(), row.fieldItem->layout());
+        else
+            m_ui->formLayout->addRow(row.labelItem->widget(), row.fieldItem->widget());
+    }
 
     updatePortInputsEnabledState();
     updatePortsWarningLabel();

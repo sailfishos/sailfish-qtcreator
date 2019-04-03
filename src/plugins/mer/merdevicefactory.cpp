@@ -138,6 +138,9 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setSharedConfigPath(wizard.sharedConfigPath());
         device->setSharedSshPath(wizard.sharedSshPath());
         device->setDeviceModel(MerSettings::deviceModels().first().name());
+        device->setMemorySizeMb(wizard.memorySizeMb());
+        device->setCpuCount(wizard.cpuCount());
+        device->setVdiCapacityMb(wizard.vdiCapacityMb());
 
         if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
             device->generateSshKey(wizard.userName());

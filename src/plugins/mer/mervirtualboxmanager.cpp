@@ -26,7 +26,7 @@
 #include "merlogging.h"
 
 #include <utils/hostosinfo.h>
-#include <utils/port.h>
+#include <utils/portlist.h>
 #include <utils/qtcassert.h>
 
 #include <QBasicTimer>
@@ -38,7 +38,9 @@
 #include <QSettings>
 #include <QSize>
 #include <QTime>
+#include <QTimer>
 #include <QTimerEvent>
+#include <QThread>
 
 #include <algorithm>
 
@@ -77,11 +79,22 @@ const char SDK_WWW_NATPF_RULE_NAME[] = "guestwww";
 const char SDK_WWW_NATPF_RULE_TEMPLATE[] = "guestwww,tcp,127.0.0.1,%1,,9292";
 const char EMULATOR_SSH_NATPF_RULE_NAME[] = "guestssh";
 const char EMULATOR_SSH_NATPF_RULE_TEMPLATE[] = "guestssh,tcp,127.0.0.1,%1,,22";
+const char MODIFYMEDIUM[] = "modifymedium";
+const char RESIZE[] = "--resize";
+const char MEMORY[] = "--memory";
+const char CPUS[] = "--cpus";
+const char SHOWMEDIUMINFO[] = "showmediuminfo";
+const char METRICS[] = "metrics";
+const char COLLECT[] = "collect";
+const char TOTAL_RAM[] = "RAM/Usage/Total";
 
 namespace Mer {
 namespace Internal {
 
-static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output, bool fillVdiInfo);
+static void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo);
+static void vdiCapacityFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
+static int ramSizeFromOutput(const QString &output);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
 static QStringList listedVirtualMachines(const QString &output);
 
@@ -233,7 +246,8 @@ public:
     bool runSynchronously(const QStringList &arguments)
     {
         setArguments(arguments);
-        return CommandSerializer::runSynchronous(this);
+        bool finished = CommandSerializer::runSynchronous(this);
+        return finished && exitStatus() == QProcess::NormalExit && exitCode() == 0;
     }
 
     void runAsynchronously(const QStringList &arguments)
@@ -425,7 +439,7 @@ bool MerVirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 
     return true;
 }
 
-VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
+VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName, bool fetchVdiInfo)
 {
     VirtualMachineInfo info;
     QStringList arguments;
@@ -436,7 +450,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     if (!process.runSynchronously(arguments))
         return info;
 
-    return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
+    return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), fetchVdiInfo);
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -500,6 +514,94 @@ void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     process->runAsynchronously(args);
 }
 
+void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot)
+{
+    qCDebug(Log::vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
+
+    const VirtualMachineInfo virtualMachineInfo = fetchVirtualMachineInfo(vmName, true);
+    if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
+        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiPath << RESIZE << sizeMb
+                   << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
+        QTimer::singleShot(0, context, [slot]() { slot(false); });
+        return;
+    } else if (sizeMb == virtualMachineInfo.vdiCapacityMb) {
+        QTimer::singleShot(0, context, [slot]() { slot(true); });
+        return;
+    }
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYMEDIUM));
+    arguments.append(virtualMachineInfo.vdiPath);
+    arguments.append(QLatin1String(RESIZE));
+    arguments.append(QString::number(sizeMb));
+
+    QTime timer;
+    timer.start();
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
+                [&timer, slot](int exitCode, QProcess::ExitStatus exitStatus) {
+                    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+                        qCDebug(Log::vms) << "Resizing VDI took" << timer.elapsed() << "milliseconds";
+                    } else {
+                        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << RESIZE;
+                    }
+                    slot(exitStatus == QProcess::NormalExit && exitCode == 0);
+                });
+
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
+}
+
+// It is an error to call this function when the VM vmName is running
+bool MerVirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
+{
+    qCDebug(Log::vms) << "Changing memory size of" << vmName << "to" << sizeMb << "MB";
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(MEMORY));
+    arguments.append(QString::number(sizeMb));
+
+    QTime timer;
+    timer.start();
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM << vmName << MEMORY << sizeMb;
+        return false;
+    }
+
+    qCDebug(Log::vms) << "Resizing memory took" << timer.elapsed() << "milliseconds";
+
+    return true;
+}
+
+bool MerVirtualBoxManager::setCpuCount(const QString &vmName, int count)
+{
+    qCDebug(Log::vms) << "Changing CPU count of" << vmName << "to" << count;
+
+    QStringList arguments;
+    arguments.append(QLatin1String(MODIFYVM));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(CPUS));
+    arguments.append(QString::number(count));
+
+    QTime timer;
+    timer.start();
+
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments)) {
+        qWarning() << "VBoxManage failed to" << MODIFYVM << vmName << CPUS << count;
+        return false;
+    }
+
+    qCDebug(Log::vms) << "Changing CPU count took" << timer.elapsed() << "milliseconds";
+
+    return true;
+}
+
 QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
 {
     QStringList arguments;
@@ -515,8 +617,35 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
+void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot)
+{
+    QStringList arguments;
+    arguments.clear();
+    arguments.append(QLatin1String(METRICS));
+    arguments.append(QLatin1String(COLLECT));
+    arguments.append(QLatin1String("host"));
+    arguments.append(QLatin1String(TOTAL_RAM));
+
+    auto process = new VBoxManageProcess(instance());
+    connect(process, &QProcess::readyReadStandardOutput, context, [process, slot](){
+        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()));
+        process->terminate();
+        slot(memSizeKb / 1024);
+    });
+
+    connect(context, &QObject::destroyed, process, &QProcess::terminate);
+
+    process->setDeleteOnFinished();
+    process->runAsynchronously(arguments);
+}
+
+int MerVirtualBoxManager::getHostTotalCpuCount()
+{
+    return QThread::idealThreadCount();
+}
+
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
+Utils::PortList MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
 {
     qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
@@ -533,8 +662,10 @@ bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, con
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments))
-            qWarning() << "VBoxManage failed to" << MODIFYVM;
+            qWarning() << "VBoxManage failed to delete QmlLive port #" << QString::number(i);
     }
+
+    Utils::PortList savedPorts;
 
     auto ports_ = ports;
     std::sort(ports_.begin(), ports_.end());
@@ -549,16 +680,17 @@ bool MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, con
 
         VBoxManageProcess process;
         if (!process.runSynchronously(arguments)) {
-            qWarning() << "VBoxManage failed to" << MODIFYVM;
-            return false;
+            qWarning() << "VBoxManage failed to set QmlLive port" << port.toString();
+            continue;
         }
 
+        savedPorts.addPort(port);
         ++i;
     }
 
     qCDebug(Log::vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
 
-    return true;
+    return savedPorts;
 }
 
 bool isVirtualMachineRunningFromInfo(const QString &vmInfo)
@@ -581,7 +713,7 @@ QStringList listedVirtualMachines(const QString &output)
     return vms;
 }
 
-VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
+VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output, bool fillVdiInfo)
 {
     VirtualMachineInfo info;
     info.sshPort = 0;
@@ -590,11 +722,18 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
     // 8 Shared Folder Path 9 mac
     // 11 headed/headless (SessionType is for VBox 4.x, SessionName for VBox 5.x)
+    // 12 SATA paths
+    // 13 Memory size
+    // 14 Count of CPU
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
                                "|(?:macaddress\\d+=\"(.*)\")"
-                               "|(?:Session(Type|Name)=\"(.*)\")"));
+                               "|(?:Session(Type|Name)=\"(.*)\")"
+                               "|(?:\"SATA-\\d-\\d\"=\"(.*)\")"
+                               "|(?:memory=(\\d+)\\n)"
+                               "|(?:cpus=(\\d+)\\n)"
+                               ));
 
     rexp.setMinimal(true);
     int pos = 0;
@@ -634,10 +773,74 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
             info.headless = rexp.cap(11) == QLatin1String("headless");
+        } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA")) && fillVdiInfo) {
+            QString vdiPath = rexp.cap(12);
+            if (!vdiPath.isEmpty() && vdiPath != QLatin1String("none")) {
+                info.vdiPath = vdiPath;
+                fetchVdiCapacity(&info);
+            }
+        } else if (rexp.cap(0).startsWith(QLatin1String("memory"))) {
+            int memorySize = rexp.cap(13).toInt();
+            if (memorySize > 0) {
+                info.memorySizeMb = memorySize;
+            }
+        } else if (rexp.cap(0).startsWith(QLatin1String("cpus"))) {
+            int cpu = rexp.cap(14).toInt();
+            if (cpu > 0) {
+                info.cpuCount = cpu;
+            }
         }
     }
 
     return info;
+}
+
+void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(SHOWMEDIUMINFO));
+    arguments.append(virtualMachineInfo->vdiPath);
+    VBoxManageProcess process;
+    if (!process.runSynchronously(arguments))
+        return;
+
+    vdiCapacityFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
+}
+
+void vdiCapacityFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
+{
+    // 1 vdi capacity
+    QRegExp rexp(QLatin1String("(?:Capacity:\\s+(\\d+) MBytes)"));
+
+    rexp.setMinimal(true);
+    int pos = 0;
+    while ((pos = rexp.indexIn(output, pos)) != -1) {
+        pos += rexp.matchedLength();
+        if (rexp.cap(0).startsWith(QLatin1String("Capacity"))) {
+            QString capacityStr = rexp.cap(1);
+            if (!capacityStr.isEmpty()) {
+                bool ok;
+                int capacity = capacityStr.toInt(&ok);
+                virtualMachineInfo->vdiCapacityMb = ok ? capacity : 0;
+            }
+        }
+    }
+}
+
+int ramSizeFromOutput(const QString &output)
+{
+    QRegExp rexp(QLatin1String("(RAM/Usage/Total\\s+(\\d+) kB)"));
+
+    rexp.setMinimal(true);
+    int pos = 0;
+    while ((pos = rexp.indexIn(output, pos)) != -1) {
+        pos += rexp.matchedLength();
+        int memSize = rexp.cap(2).toInt();
+        if (memSize > 0) {
+            return memSize;
+        }
+    }
+    return 0;
 }
 
 } // Internal

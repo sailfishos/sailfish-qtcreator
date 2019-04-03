@@ -135,7 +135,7 @@ bool RmMerSdkOperation::test() const
                                                  QLatin1String("/test/sharedSrcPath"),
                                                  QLatin1String("/test/sharedConfigPath"),
                                                  QLatin1String("host"),QLatin1String("user"),
-                                                 QLatin1String("/test/privateKey"),22,80,false);
+                                                 QLatin1String("/test/privateKey"),22,80,false,512,2,10000);
 
     map = AddMerSdkOperation::addSdk(map,
                                      QLatin1String("testSdk2"), true,
@@ -145,7 +145,7 @@ bool RmMerSdkOperation::test() const
                                      QLatin1String("/test/sharedSrcPath"),
                                      QLatin1String("/test/sharedConfigPath"),
                                      QLatin1String("host"),QLatin1String("user"),
-                                     QLatin1String("/test/privateKey"),22,80,false);
+                                     QLatin1String("/test/privateKey"),22,80,false,512,2,10000);
 
 
     const QString sdk1 = QString::fromLatin1(Mer::Constants::MER_SDK_DATA_KEY) + QString::number(0);

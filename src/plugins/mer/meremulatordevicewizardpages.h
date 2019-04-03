@@ -49,6 +49,9 @@ public:
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
     QString mac() const;
+    int memorySizeMb() const;
+    int cpuCount() const;
+    int vdiCapacityMb() const;
     bool isComplete() const override;
 private slots:
     void handleEmulatorVmChanged(const QString &vmName);
