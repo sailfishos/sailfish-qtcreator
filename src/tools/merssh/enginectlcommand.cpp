@@ -47,7 +47,7 @@ namespace {
     }
 }
 
-using Mer::Internal::MerConnection;
+using Mer::MerConnection;
 using Mer::Internal::MerVirtualBoxManager;
 using namespace Utils;
 

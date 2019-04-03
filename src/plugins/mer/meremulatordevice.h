@@ -35,7 +35,6 @@ class QTimer;
 QT_END_NAMESPACE
 
 namespace Mer {
-namespace Internal {
 
 class MerConnection;
 
@@ -80,9 +79,9 @@ private:
     QSharedDataPointer<Data> d;
 };
 
-class MerEmulatorDevice : public MerDevice
+class Q_DECL_EXPORT MerEmulatorDevice : public MerDevice
 {
-    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerEmulatorDevice)
+    Q_DECLARE_TR_FUNCTIONS(Mer::MerEmulatorDevice)
 
 public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
@@ -140,6 +139,11 @@ public:
     void setViewScaled(bool viewScaled);
 
     MerConnection *connection() const;
+
+    void addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
+                           quint16 emulatorVmPort) const;
+    bool removePortForwarding(const QString &ruleName);
+    bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
 
 private:
     MerEmulatorDevice(Core::Id id);
@@ -202,7 +206,6 @@ private:
     QHash<Core::Id, int> m_vdiCapacityCache;
 };
 
-}
 }
 
 #endif // MEREMULATORDEVICE_H

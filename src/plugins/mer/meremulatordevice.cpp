@@ -49,8 +49,8 @@ using namespace QSsh;
 using namespace Utils;
 
 namespace Mer {
-namespace Internal {
 
+using namespace Internal;
 using namespace Constants;
 
 namespace {
@@ -512,6 +512,32 @@ MerConnection *MerEmulatorDevice::connection() const
     return m_connection.data();
 }
 
+void MerEmulatorDevice::addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
+                                          quint16 emulatorVmPort) const
+{
+    MerVirtualBoxManager::updatePortForwardingRule(m_connection->virtualMachine(), ruleName,
+                                                   protocol, hostPort, emulatorVmPort);
+}
+
+bool MerEmulatorDevice::removePortForwarding(const QString &ruleName)
+{
+    return MerVirtualBoxManager::deletePortForwardingRule(m_connection->virtualMachine(), ruleName);
+}
+
+bool MerEmulatorDevice::hasPortForwarding(quint16 hostPort, QString *ruleName) const
+{
+    QList<QMap<QString, quint16>> rules = MerVirtualBoxManager::fetchPortForwardingRules(
+                m_connection->virtualMachine());
+    for (int i = 0; i < rules.size(); i++) {
+        if (rules[i].values().contains(hostPort)) {
+            if (ruleName)
+                *ruleName = rules[i].key(hostPort);
+            return true;
+        }
+    }
+    return false;
+}
+
 // Hack, all clones share the connection
 void MerEmulatorDevice::updateConnection() const
 {
@@ -963,5 +989,4 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
 
 #include "meremulatordevice.moc"
 
-}
 }

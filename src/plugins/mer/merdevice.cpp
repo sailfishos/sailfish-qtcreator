@@ -30,7 +30,6 @@ using namespace ProjectExplorer;
 using namespace RemoteLinux;
 
 namespace Mer {
-namespace Internal {
 
 namespace {
     //! \todo Add IDevice::machineTypeFromMap and remove this workaround
@@ -112,5 +111,4 @@ MerDevice::~MerDevice()
 {
 }
 
-}
 }

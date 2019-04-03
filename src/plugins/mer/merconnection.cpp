@@ -47,7 +47,8 @@ using namespace QSsh;
 using Utils::CheckableMessageBox;
 
 namespace Mer {
-namespace Internal {
+
+using namespace Internal;
 
 namespace {
 const int VM_STATE_POLLING_INTERVAL_NORMAL = 10000;
@@ -1615,7 +1616,6 @@ MerConnection::Ui::QuestionStatus MerConnectionWidgetUi::status(QProgressDialog 
 }
 #endif // MER_LIBRARY
 
-} // Internal
 } // Mer
 
 #include "merconnection.moc"

@@ -25,7 +25,7 @@
 
 #include <functional>
 
-#include <QHash>
+#include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -48,8 +48,9 @@ public:
     QString sharedSsh;
     quint16 sshPort{0};
     quint16 wwwPort{0};
-    QList<quint16> freePorts;
-    QList<quint16> qmlLivePorts;
+    QMap<QString, quint16> freePorts;
+    QMap<QString, quint16> qmlLivePorts;
+    QMap<QString, quint16> otherPorts;
     QStringList macs;
     bool headless{false};
     int memorySizeMb{0};
@@ -98,6 +99,11 @@ public:
     static void setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot);
     static bool setMemorySizeMb(const QString &vmName, int sizeMb);
     static bool setCpuCount(const QString &vmName, int count);
+
+    static bool deletePortForwardingRule(const QString &vmName, const QString &ruleName);
+    static bool updatePortForwardingRule(const QString &vmName, const QString &protocol,
+                                         const QString &ruleName, quint16 hostPort, quint16 vmPort);
+    static QList<QMap<QString, quint16>> fetchPortForwardingRules(const QString &vmName);
 
     static QString getExtraData(const QString &vmName, const QString &key);
     static void getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot);
