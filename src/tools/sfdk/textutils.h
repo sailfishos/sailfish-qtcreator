@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <QMetaEnum>
 #include <QProcess>
 #include <QTextStream>
 
@@ -51,5 +52,8 @@ void wrapLine(QTextStream &out, int indentLevel, const QString &prefix1, const Q
 void wrapLine(QTextStream &out, int indentLevel, const QString &line);
 void wrapLines(QTextStream &out, int indentLevel, const QStringList &prefix1,
         const QStringList &prefix2, const QString &lines);
+
+template<typename Enum>
+const char *enumName(Enum value) { return QMetaEnum::fromType<Enum>().valueToKey(value); }
 
 } // namespace Sfdk

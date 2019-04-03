@@ -40,6 +40,7 @@
 #include "session.h"
 #include "sfdkconstants.h"
 #include "sfdkglobal.h"
+#include "task.h"
 #include "textutils.h"
 
 using namespace Sfdk;
@@ -81,6 +82,8 @@ int main(int argc, char **argv)
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
     }
 #endif
+
+    TaskManager taskManager;
 
     const QString resourcePath = QDir::cleanPath(app.applicationDirPath() + '/'
             + RELATIVE_DATA_PATH);

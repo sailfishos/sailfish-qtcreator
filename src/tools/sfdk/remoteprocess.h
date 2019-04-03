@@ -30,6 +30,8 @@
 
 #include <ssh/sshconnection.h>
 
+#include "task.h"
+
 QT_BEGIN_NAMESPACE
 class QFile;
 QT_END_NAMESPACE
@@ -40,7 +42,7 @@ class SshRemoteProcessRunner;
 
 namespace Sfdk {
 
-class RemoteProcess : public QObject
+class RemoteProcess : public Task
 {
     Q_OBJECT
 
@@ -72,7 +74,13 @@ signals:
     void standardError(const QByteArray &data);
     void connectionError(const QString &errorMessage);
 
+protected:
+    void beginTerminate() override;
+    void beginStop() override;
+    void beginContinue() override;
+
 private:
+    void kill(const QString &signal, void (RemoteProcess::*callback)(bool));
     static QString environmentString(const QProcessEnvironment &environment);
 
 private slots:
@@ -83,12 +91,14 @@ private slots:
 
 private:
     std::unique_ptr<QSsh::SshRemoteProcessRunner> m_runner;
+    std::unique_ptr<QSsh::SshRemoteProcessRunner> m_killRunner;
     QString m_program;
     QStringList m_arguments;
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
     bool m_interactive = true;
+    qint64 m_processId = 0;
     QFile *m_stdin = nullptr;
     LineBuffer m_stdoutBuffer;
     LineBuffer m_stderrBuffer;

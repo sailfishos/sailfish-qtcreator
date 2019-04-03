@@ -25,8 +25,10 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QSocketNotifier>
+#include <QTimer>
 
 #include <ssh/sshremoteprocessrunner.h>
+#include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include "sfdkconstants.h"
@@ -34,7 +36,11 @@
 #include "textutils.h"
 
 namespace {
+const int KILL_RETRY_MS = 400;
 const int LINE_BUFFER_MAX = 10240;
+const char SIGNAL_TERM[] = "TERM";
+const char SIGNAL_STOP[] = "STOP";
+const char SIGNAL_CONT[] = "CONT";
 }
 
 using namespace QSsh;
@@ -45,7 +51,7 @@ using namespace Sfdk;
  */
 
 RemoteProcess::RemoteProcess(QObject *parent)
-    : QObject(parent)
+    : Task(parent)
     , m_runner(std::make_unique<SshRemoteProcessRunner>(this))
 {
     connect(m_runner.get(), &SshRemoteProcessRunner::processStarted,
@@ -119,11 +125,86 @@ int RemoteProcess::exec()
 
     m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
 
+    started();
+
     loop.exec();
-    if (m_runner->processExitStatus() == SshRemoteProcess::NormalExit)
-        return m_runner->processExitCode();
-    else
-        return Constants::EXIT_ABNORMAL;
+
+    const int exitCode = m_runner->processExitStatus() == SshRemoteProcess::NormalExit
+        ? m_runner->processExitCode()
+        : Constants::EXIT_ABNORMAL;
+
+    while (m_killRunner != nullptr)
+        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+
+    exited();
+
+    return exitCode;
+}
+
+void RemoteProcess::beginTerminate()
+{
+    kill(SIGNAL_TERM, &RemoteProcess::endTerminate);
+}
+
+void RemoteProcess::beginStop()
+{
+    kill(SIGNAL_STOP, &RemoteProcess::endStop);
+}
+
+void RemoteProcess::beginContinue()
+{
+    kill(SIGNAL_CONT, &RemoteProcess::endContinue);
+}
+
+void RemoteProcess::kill(const QString &signal, void (RemoteProcess::*callback)(bool))
+{
+    if (m_killRunner != nullptr) {
+        qCDebug(sfdk) << "Already trying to terminate the remote process";
+        (this->*callback)(false);
+        return;
+    }
+
+    if (!m_runner->isProcessRunning()) {
+        qCDebug(sfdk) << "Remote process is not running";
+        (this->*callback)(true);
+        return;
+    }
+
+    if (m_processId == 0) {
+        QTimer::singleShot(KILL_RETRY_MS, this, [=]() { kill(signal, callback); });
+        return;
+    }
+
+    m_killRunner = std::make_unique<SshRemoteProcessRunner>();
+
+    connect(m_killRunner.get(), &SshRemoteProcessRunner::processClosed, this, [this, callback]() {
+        QString errorMessage;
+        if (m_killRunner->processExitStatus() != SshRemoteProcess::NormalExit) {
+            errorMessage = m_killRunner->processErrorString();
+        } else if (m_killRunner->processExitCode() != 0) {
+            errorMessage = tr("The remote 'kill' command exited with %1. stderr: %2")
+                .arg(m_killRunner->processExitCode())
+                .arg(QString::fromUtf8(m_killRunner->readAllStandardError()));
+        }
+        if (!errorMessage.isEmpty()) {
+            qCWarning(sfdk).noquote() << tr("Failed to send signal to the remote process: %1")
+                .arg(errorMessage);
+        }
+        (this->*callback)(errorMessage.isEmpty());
+        m_killRunner.reset(nullptr);
+    });
+
+    connect(m_killRunner.get(), &SshRemoteProcessRunner::connectionError, this, [this, callback]() {
+        qCWarning(sfdk).noquote() << tr("Connection error while trying to send signal to the remote process: %1")
+            .arg(m_killRunner->lastConnectionErrorString());
+        (this->*callback)(false);
+        m_killRunner.reset(nullptr);
+    });
+
+    QString killCommand = QString("kill -%1 -- -%2 %2").arg(signal).arg(m_processId);
+    qCDebug(sfdk) << "Attempting to send signal to the remote process using" << killCommand;
+
+    m_killRunner->run(killCommand.toUtf8(), m_sshConnectionParams);
 }
 
 QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
@@ -162,7 +243,19 @@ void RemoteProcess::onReadyReadStandardOutput()
     if (!m_stdoutBuffer.append(m_runner->readAllStandardOutput()))
         return;
 
-    emit standardOutput(m_stdoutBuffer.flush());
+    QByteArray data = m_stdoutBuffer.flush();
+    if (m_processId != 0) {
+        emit standardOutput(data);
+        return;
+    }
+
+    int cut = data.indexOf('\n');
+    QTC_ASSERT(cut != -1, { emit standardOutput(data); return; });
+    m_processId = data.left(cut).toLongLong();
+    qCDebug(sfdk) << "Remote process ID:" << m_processId;
+    data.remove(0, cut + 1);
+    if (!data.isEmpty())
+        emit standardOutput(data);
 }
 
 void RemoteProcess::onReadyReadStandardError()
