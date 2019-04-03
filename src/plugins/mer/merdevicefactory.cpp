@@ -129,6 +129,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         //hardcoded values requested by customer;
         MerEmulatorDevice::Ptr device = MerEmulatorDevice::create(wizard.emulatorId());
         device->setVirtualMachine(wizard.emulatorVm());
+        device->setFactorySnapshot(wizard.factorySnapshot());
         device->setMac(wizard.mac());
         device->setSubnet(QLatin1String("10.220.220"));
         device->setDisplayName(wizard.configName());

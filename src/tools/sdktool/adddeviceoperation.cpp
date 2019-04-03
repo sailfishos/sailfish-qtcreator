@@ -251,8 +251,11 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             return false;
         ++i; // skip next;
         QString k = current;
+        // TODO revert these additions, it already allows setting custom keys
         if (current == QLatin1String("--virtualMachine"))
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_VIRTUAL_MACHINE);
+        else if (current == QLatin1String("--factorySnapshot"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_FACTORY_SNAPSHOT);
         else if (current == QLatin1String("--merMac"))
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_MAC);
         else if (current == QLatin1String("--merSubnet"))

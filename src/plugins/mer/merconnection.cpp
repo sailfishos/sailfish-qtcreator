@@ -1450,7 +1450,7 @@ void MerConnectionWidgetUi::ask(Question which, OnStatusChanged onStatusChanged)
                 tr("Connection to the \"%1\" virtual machine failed recently. "
                     "Do you want to reset the virtual machine first?"),
                 startedOutside ?
-                    tr("This virtual machine has been started outside of Qt Creator.")
+                    tr("This virtual machine has been started outside of this Qt Creator session.")
                     : QString());
         break;
     case Ui::CloseVm:
@@ -1459,7 +1459,7 @@ void MerConnectionWidgetUi::ask(Question which, OnStatusChanged onStatusChanged)
                 onStatusChanged,
                 tr("Close Virtual Machine"),
                 tr("Do you really want to close the \"%1\" virtual machine?"),
-                tr("This virtual machine has been started outside of Qt Creator. "
+                tr("This virtual machine has been started outside of this Qt Creator session. "
                     "Answer \"No\" to disconnect and leave the virtual machine running."));
         break;
     case Ui::CancelConnecting:

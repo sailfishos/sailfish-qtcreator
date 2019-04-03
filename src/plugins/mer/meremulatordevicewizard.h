@@ -49,6 +49,7 @@ public:
     QString userPrivateKey() const;
     QString rootPrivateKey() const;
     QString emulatorVm() const;
+    QString factorySnapshot() const;
     QString freePorts() const;
     QString qmlLivePorts() const;
     QString sharedConfigPath() const;

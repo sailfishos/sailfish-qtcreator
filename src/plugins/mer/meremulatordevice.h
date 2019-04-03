@@ -110,6 +110,9 @@ public:
     void setVirtualMachine(const QString& machineName);
     QString virtualMachine() const;
 
+    void setFactorySnapshot(const QString &snapshotName);
+    QString factorySnapshot() const;
+
     void setMac(const QString& mac);
     QString mac() const;
 
@@ -145,12 +148,15 @@ private:
     friend class MerEmulatorDeviceManager;
     void updateConnection() const;
 
+    void doFactoryReset(QWidget *parent);
+
     void scheduleSetVideoMode();
     void setVideoMode();
     void updateDconfDb();
 
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
+    QString m_factorySnapshot;
     QString m_mac;
     QString m_subnet;
     QString m_sharedConfigPath;
