@@ -37,7 +37,6 @@ FORMS += \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
-    meraddvmstartbuildstepprojectlistener.cpp \
     merbuildsteps.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
@@ -102,7 +101,6 @@ SOURCES += \
 
 HEADERS += \
     merabstractvmstartstep.h \
-    meraddvmstartbuildstepprojectlistener.h \
     merbuildsteps.h \
     merconnection.h \
     merconnectionmanager.h \

@@ -22,7 +22,6 @@
 
 #include "merplugin.h"
 
-#include "meraddvmstartbuildstepprojectlistener.h"
 #include "merbuildconfiguration.h"
 #include "merbuildsteps.h"
 #include "merconnection.h"
@@ -93,7 +92,6 @@ public:
     MerEmulatorDeviceManager emulatorDeviceManager;
     MerQtVersionFactory qtVersionFactory;
     MerToolChainFactory toolChainFactory;
-    MerAddVmStartBuildStepProjectListener addVmStartBuildStepProjectListener;
     MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration> mb2RpmBuildConfigurationFactory;
     MerDeployConfigurationFactory<MerRsyncDeployConfiguration> rsyncDeployConfigurationFactory;
     MerDeployConfigurationFactory<MerRpmDeployConfiguration> rpmDeployConfigurationFactory;

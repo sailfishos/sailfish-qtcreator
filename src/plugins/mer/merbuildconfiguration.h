@@ -33,6 +33,7 @@ class MerBuildConfiguration : public QmakeProjectManager::QmakeBuildConfiguratio
 
 public:
     MerBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
+    void initialize(const ProjectExplorer::BuildInfo *info) override;
     bool fromMap(const QVariantMap &map) override;
 
 private slots:

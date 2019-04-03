@@ -67,6 +67,19 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     });
 }
 
+void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo *info)
+{
+    QmakeBuildConfiguration::initialize(info);
+
+    BuildStepList *buildSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
+    Q_ASSERT(buildSteps);
+    buildSteps->insertStep(0, new MerSdkStartStep(buildSteps));
+
+    BuildStepList *cleanSteps = stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+    Q_ASSERT(cleanSteps);
+    cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
+}
+
 void MerBuildConfiguration::setupExtraParserArguments()
 {
     if (!qmakeStep())
