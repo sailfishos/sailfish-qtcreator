@@ -25,6 +25,7 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "merbuildsteps.h"
+#include "mersettings.h"
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
 
@@ -65,6 +66,12 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
 
         updateExtraParserArguments();
     });
+
+    connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
+            [this]() {
+        updateExtraParserArguments();
+        setupExtraParserArguments();
+    });
 }
 
 void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo *info)
@@ -86,11 +93,12 @@ void MerBuildConfiguration::setupExtraParserArguments()
         return;
 
     QStringList args;
-    QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
-    if (file.exists() && file.open(QIODevice::ReadOnly)) {
-        args = Utils::transform(file.readAll().split('\0'), [](const QByteArray &ba) -> QString {
-            return QString::fromUtf8(ba.data());
-        });
+    if (MerSettings::isImportQmakeVariablesEnabled()) {
+        QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
+        if (file.exists() && file.open(QIODevice::ReadOnly)) {
+            args = Utils::transform(file.readAll().split('\0'),
+                                    QOverload<const QByteArray &>::of(QString::fromUtf8));
+        }
     }
 
     qmakeStep()->setExtraParserArguments(args);
@@ -98,6 +106,9 @@ void MerBuildConfiguration::setupExtraParserArguments()
 
 void MerBuildConfiguration::updateExtraParserArguments() const
 {
+    if (!MerSettings::isImportQmakeVariablesEnabled())
+        return;
+
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     QTC_ASSERT(merSdk, return);
     QTC_ASSERT(merSdk->connection(), return);

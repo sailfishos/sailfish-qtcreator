@@ -137,6 +137,16 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="importQmakeVariablesCheckBox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The effective qmake call reported in build configuration is missing further arguments possibly supplied e.g. according to the recipe in the .spec (.yaml) file. This may render the project model inaccurate.&lt;/p&gt;&lt;p&gt;This option enables to augment the project model with qmake variable assignments found on the actual qmake command line.&lt;/p&gt;&lt;p&gt;When enabled, qmake will be invoked automatically when the .spec (.yaml) file is updated, which may prompt you to start the Sailfish OS build engine if it is not running.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Augment project model using actual qmake arguments</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
