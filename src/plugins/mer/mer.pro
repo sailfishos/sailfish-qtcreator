@@ -98,6 +98,7 @@ SOURCES += \
     meremulatormodeoptionswidget.cpp \
     meremulatormodedetailswidget.cpp \
     mervirtualmachinesettingswidget.cpp \
+    merbuildconfiguration.cpp
 
 HEADERS += \
     merabstractvmstartstep.h \
@@ -164,6 +165,7 @@ HEADERS += \
     meremulatormodeoptionswidget.h \
     meremulatormodedetailswidget.h \
     mervirtualmachinesettingswidget.h \
+    merbuildconfiguration.h
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit

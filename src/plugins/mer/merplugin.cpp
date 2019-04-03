@@ -23,6 +23,7 @@
 #include "merplugin.h"
 
 #include "meraddvmstartbuildstepprojectlistener.h"
+#include "merbuildconfiguration.h"
 #include "merbuildsteps.h"
 #include "merconnection.h"
 #include "merconnectionmanager.h"
@@ -110,6 +111,7 @@ public:
     MerDeployStepFactory<MerResetAmbienceDeployStep> resetAmbienceDeployStepFactory;
     MerQmlLiveBenchManager qmlLiveBenchManager;
     MerMode mode;
+    MerBuildConfigurationFactory buildConfigurationFactory;
 };
 
 static MerPluginPrivate *dd = nullptr;
