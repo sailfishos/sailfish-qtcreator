@@ -89,7 +89,7 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
 {
     const QProcessEnvironment systemEnvironment = QProcessEnvironment::systemEnvironment();
 
-    const QStringList patterns = systemEnvironment.value(Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
+    const QStringList patterns = systemEnvironment.value(Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
         .split(QRegularExpression("[[:space:]]+"), QString::SkipEmptyParts);
     if (patterns.isEmpty())
         return command;
@@ -106,7 +106,7 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
 
     QStringList environmentToForward;
     for (const QString key : keys) {
-        if (key == Mer::Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER)
+        if (key == Mer::Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
             continue;
         if (filter.match(key).hasMatch()) {
             const QString value = Utils::QtcProcess::quoteArgUnix(systemEnvironment.value(key));
