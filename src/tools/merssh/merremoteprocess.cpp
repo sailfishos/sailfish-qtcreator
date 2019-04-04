@@ -119,7 +119,16 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
     QLatin1String delim("\n    ");
     qout << tr("Adding to environment:") << delim << environmentToForward.join(delim) << endl;
 
-    return "export " + environmentToForward.join(" ") + "; " + command;
+    QString result;
+    result += "export ";
+    result += environmentToForward.join(' ');
+    result += ' ';
+    result += QString::fromLatin1(Mer::Constants::SAILFISH_SDK_FRONTEND)
+        + '=' + Mer::Constants::SAILFISH_SDK_FRONTEND_ID;
+    result += "; ";
+    result += command;
+
+    return result;
 }
 
 void MerRemoteProcess::onProcessStarted()
