@@ -211,7 +211,7 @@ private:
 
         connect(m_current, &QProcess::errorOccurred,
                 this, &CommandSerializer::finalize);
-        connect(m_current, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+        connect(m_current, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &CommandSerializer::finalize);
 
         m_current->start(QIODevice::ReadWrite | QIODevice::Text);
@@ -266,7 +266,7 @@ public:
     {
         connect(this, &QProcess::errorOccurred,
                 this, &QObject::deleteLater);
-        connect(this, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+        connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &QObject::deleteLater);
     }
 };
@@ -301,7 +301,7 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
 
     VBoxManageProcess *process = new VBoxManageProcess(instance());
 
-    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 Q_UNUSED(exitCode);
                 Q_UNUSED(exitStatus);
@@ -509,7 +509,7 @@ void MerVirtualBoxManager::restoreSnapshot(const QString &vmName, const QString 
 
     VBoxManageProcess *process = new VBoxManageProcess(instance());
 
-    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 slot(exitStatus == QProcess::NormalExit && exitCode == 0);
             });
@@ -575,7 +575,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
     timer.start();
     VBoxManageProcess *process = new VBoxManageProcess(instance());
 
-    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), context,
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
                 [&timer, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
                         qCDebug(Log::vms) << "Resizing VDI took" << timer.elapsed() << "milliseconds";
