@@ -141,6 +141,7 @@ if [ ! -d "$app_path/Contents/Frameworks/QtCore.framework" ]; then
         "-executable=$resource_path/merssh" \
         "-executable=$resource_path/qtpromaker" \
         "-executable=$resource_path/sdktool" \
+        "-executable=$resource_path/sfdk" \
         "-executable=$resource_path/ios/iostool" \
         "-executable=$resource_path/buildoutputparser" \
         "-executable=$resource_path/cpaster" \
