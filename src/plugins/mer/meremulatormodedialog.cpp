@@ -57,7 +57,6 @@ using namespace Mer::Constants;
 MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
     : QObject(parent),
       m_action(new QAction(this)),
-      m_dialog(0),
       m_ui(0),
       m_kit(0)
 {
@@ -81,7 +80,6 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
 MerEmulatorModeDialog::MerEmulatorModeDialog(const MerEmulatorDevice::Ptr &emulator, QObject *parent)
     : QObject(parent),
       m_action(new QAction(tr(MER_EMULATOR_MODE_ACTION_NAME), this)),
-      m_dialog(nullptr),
       m_ui(nullptr),
       m_kit(nullptr)
 {
@@ -222,9 +220,9 @@ bool MerEmulatorModeDialog::execDialog()
         m_ui->restartEmulatorCheckBox->setEnabled(false);
     }
 
-    if (m_dialog->exec() != QDialog::Accepted) {
+    const bool result = (m_dialog->exec() == QDialog::Accepted);
+    if (!result)
         goto end;
-    }
 
     m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
     m_emulator.data()->setOrientation(m_ui->portraitRadioButton->isChecked()
@@ -240,9 +238,8 @@ bool MerEmulatorModeDialog::execDialog()
     }
 
 end:
-    const bool result = m_dialog->result() == QDialog::Accepted;
     delete m_ui, m_ui = 0;
-    delete m_dialog, m_dialog = 0;
+    delete m_dialog;
 
     return result;
 }
