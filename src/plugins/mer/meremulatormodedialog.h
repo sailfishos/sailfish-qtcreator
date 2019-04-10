@@ -81,7 +81,7 @@ private slots:
 
 private:
     QAction *m_action;
-    QDialog *m_dialog;
+    QPointer<QDialog> m_dialog;
     Ui::MerEmulatorModeDialog *m_ui;
     QPointer<ProjectExplorer::Project> m_project;
     QPointer<ProjectExplorer::Target> m_target;
