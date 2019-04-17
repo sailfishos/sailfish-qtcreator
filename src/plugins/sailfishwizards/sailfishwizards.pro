@@ -15,6 +15,8 @@ SOURCES += \
     desktopdocument.cpp \
     dependencylistmodel.cpp \
     dependencymodel.cpp \
+    sailfishprojectdependencies.cpp \
+    wizardpage.cpp \
 
 HEADERS += \
     common.h \
@@ -29,6 +31,9 @@ HEADERS += \
     desktopdocument.h \
     dependencylistmodel.h \
     dependencymodel.h \
+    sailfishprojectdependencies.h \
+    wizardpage.h \
+
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
 ###### plugin's sources.
