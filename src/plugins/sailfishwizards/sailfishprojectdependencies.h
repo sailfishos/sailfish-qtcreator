@@ -3,7 +3,7 @@
 ** Copyright (C) 2019 Open Mobile Platform LLC
 ** Contact: https://community.omprussia.ru/open-source
 **
-** This file is part of Qt Creator.
+** Qt Creator modul for adding dependencies to file.
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 **
@@ -21,36 +21,21 @@
 
 #pragma once
 
-#include "sailfishwizards_global.h"
-
-#include <extensionsystem/iplugin.h>
-#include <coreplugin/editormanager/ieditorfactory.h>
-#include <QList>
+#include <QString>
+#include <coreplugin/icore.h>
+#include <projectexplorer/projectexplorer.h>
+#include "dependencymodel.h"
 
 namespace SailfishWizards {
 namespace Internal {
-
-/*!
- * \brief The main class of the Sailfish Wizards plugin.
- * It registers wizards and editors and adds actions corresponding to them to the menus.
- * \sa ExtensionSystem::IPlugin
- */
-class SailfishWizardsPlugin : public ExtensionSystem::IPlugin
-{
-    Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "SailfishWizards.json")
-
-public:
-    SailfishWizardsPlugin();
-    ~SailfishWizardsPlugin();
-
-    bool initialize(const QStringList &arguments, QString *errorString) override;
-    void extensionsInitialized() override;
-    ShutdownFlag aboutToShutdown() override;
-
-private:
-    QList<Core::IEditorFactory *> m_editorFactoriesPool;
-};
-
+namespace Qmldir {
+void addFileInQmldir(QString path, QString name, QString fullname, QWidget *page);
+} // namespace Qmldir
+namespace SailfishProjectDependencies {
+void addDependencyInProFile(const QString &path, DependencyModel *selectExternalLibraryList,
+                            QWidget *page);
+void addDependecyInYamlFile(const QString &dir, DependencyModel *selectExternalLibraryList, QWidget *page);
+void addDependecyInSpecFile(const QString &dir, DependencyModel *selectExternalLibraryList, QWidget *page);
+} // namespace SailfishProjectDependencies
 } // namespace Internal
 } // namespace SailfishWizards
