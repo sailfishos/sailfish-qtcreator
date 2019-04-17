@@ -7,13 +7,16 @@ DEFINES += SAILFISHWIZARDS_LIBRARY
 SOURCES += \
     common.cpp \
     sailfishwizardsplugin.cpp \
+    dependencylistmodel.cpp \
+    dependencymodel.cpp \
 
 HEADERS += \
     common.h \
     sailfishwizards_global.h \
     sailfishwizardsconstants.h \
     sailfishwizardsplugin.h \
-
+    dependencylistmodel.h \
+    dependencymodel.h \
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
 ###### plugin's sources.
