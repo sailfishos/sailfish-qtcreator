@@ -13,6 +13,8 @@ SOURCES += \
     desktopeditor.cpp \
     desktopeditorwidget.cpp \
     desktopdocument.cpp \
+    dependencylistmodel.cpp \
+    dependencymodel.cpp \
 
 HEADERS += \
     common.h \
@@ -25,7 +27,8 @@ HEADERS += \
     desktopeditor.h \
     desktopeditorwidget.h \
     desktopdocument.h \
-
+    dependencylistmodel.h \
+    dependencymodel.h \
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
 ###### plugin's sources.
