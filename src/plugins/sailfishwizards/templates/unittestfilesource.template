@@ -1,0 +1,6 @@
+#include "%{nameH}"
+
+void %{nameClass}::simpleTest() {
+    QString str = "Hello";
+    QCOMPARE(str.toUpper(), QString("HELLO"));
+}

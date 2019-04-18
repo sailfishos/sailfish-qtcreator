@@ -22,6 +22,8 @@ SOURCES += \
     fileinfopage.cpp \
     qmlwizardpage.cpp \
     qmlwizardfactory.cpp \
+    unittestwizardfactory.cpp \
+    unittestwizardpages.cpp \
 
 HEADERS += \
     common.h \
@@ -43,6 +45,8 @@ HEADERS += \
     fileinfopage.h \
     qmlwizardpage.h \
     qmlwizardfactory.h \
+    unittestwizardfactory.h \
+    unittestwizardpages.h \
 
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
@@ -72,6 +76,7 @@ FORMS += \
     forms/qmlfileselectpage.ui \
     forms/qmllocalimportpage.ui \
     forms/qmloptionpage.ui \
+    forms/unittestfileselectpage.ui \
 
 RESOURCES += \
     resources.qrc \

@@ -7,6 +7,8 @@
         <file>templates/cppclassfileheader.template</file>
         <file>templates/cppclassfilesource.template</file>
         <file>templates/qmlfile.template</file>
+        <file>templates/unittestfileheader.template</file>
+        <file>templates/unittestfilesource.template</file>
     </qresource>
     <qresource prefix="/sailfishwizards/cppwizard">
         <file>data/cpp-modules.json</file>

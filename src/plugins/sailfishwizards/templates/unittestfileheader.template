@@ -1,0 +1,14 @@
+#ifndef %{nameClassUpper}_H
+#define %{nameClassUpper}_H
+
+#include "QObject"
+#include <QtTest/QtTest>
+#include <%{selectHeaderFile}>
+
+class %{nameClass}: public QObject{
+    Q_OBJECT
+public slots:
+    void simpleTest();
+};
+
+#endif // %{nameClassUpper}_H\
