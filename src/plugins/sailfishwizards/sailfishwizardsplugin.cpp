@@ -41,6 +41,7 @@
 #include "cppclasswizardfactory.h"
 #include "qmlwizardfactory.h"
 #include "unittestwizardfactory.h"
+#include "javascriptlibrarywizardfactory.h"
 
 #include "sailfishwizardsplugin.h"
 #include "sailfishwizardsconstants.h"
@@ -93,6 +94,7 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
         result << new CppClassWizardFactory();
         result << new QmlWizardFactory();
         result << new UnitTestWizardFactory();
+        result << new JavaScriptLibraryWizardFactory();
         return result;
     });
     m_editorFactoriesPool.append(new DesktopEditorFactory);

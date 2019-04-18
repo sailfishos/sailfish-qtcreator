@@ -24,6 +24,7 @@ SOURCES += \
     qmlwizardfactory.cpp \
     unittestwizardfactory.cpp \
     unittestwizardpages.cpp \
+    javascriptlibrarywizardfactory.cpp \
 
 HEADERS += \
     common.h \
@@ -47,6 +48,7 @@ HEADERS += \
     qmlwizardfactory.h \
     unittestwizardfactory.h \
     unittestwizardpages.h \
+    javascriptlibrarywizardfactory.h \
 
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the

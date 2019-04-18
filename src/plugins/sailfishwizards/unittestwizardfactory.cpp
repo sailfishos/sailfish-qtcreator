@@ -31,6 +31,7 @@
 #include <QScreen>
 #include <QTextCodec>
 #include <QGuiApplication>
+#include <QString>
 
 namespace SailfishWizards {
 namespace Internal {
