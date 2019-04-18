@@ -7149,6 +7149,17 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
+    <name>Core::IEditorFactory</name>
+    <message>
+        <source>Desktop editor</source>
+        <translation>Desktop редактор</translation>
+    </message>
+    <message>
+        <source>Spectacle editor</source>
+        <translation>Spectacle редактор</translation>
+    </message>
+</context>
+<context>
     <name>Core::BaseFileWizardFactory</name>
     <message>
         <source>Failed to open an editor for &quot;%1&quot;.</source>
@@ -7171,6 +7182,54 @@ p, li { white-space: pre-wrap; }
 %2.</source>
         <translation>Каталог проекта %1 содержит файлы, которые не могут быть перезаписаны:
 %2.</translation>
+    </message>
+    <message>
+        <source>Desktop file</source>
+        <translation>Desktop файл</translation>
+    </message>
+    <message>
+        <source>Desktop File</source>
+        <translation>Desktop файл</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create Desktop files for the Sailfish OS applications.</source>
+        <translation>Мастер позволяет создавать .desktop файлы для приложений Sailfish OS.</translation>
+    </message>
+    <message>
+        <source>Spectacle yaml-file</source>
+        <translation>Spectacle yaml-файл</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create the Spectacle configuration file in YAML format.</source>
+        <translation>Создает конфигурационный файл Spectacle в формате YAML.</translation>
+    </message>
+    <message>
+        <source>C++ сlass</source>
+        <translation>Класс C++</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create C++ class files for the Sailfish OS projects.</source>
+        <translation>Позволяет создавать C++-классы для проектов под Sailfish OS.</translation>
+    </message>
+    <message>
+        <source>JavaScript library</source>
+        <translation>Библиотека JavaScript</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create JavaScript library files for Sailfish OS projects.</source>
+        <translation>Позволяет создавать файл JavaScript-библиотеки для проектов под Sailfish OS.</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create Qml files for the Sailfish OS projects.</source>
+        <translation>Позволяет создавать Qml-файлы для проектов под Sailfish OS.</translation>
+    </message>
+    <message>
+        <source>Unit test for C++ class</source>
+        <translation>Юнит-тест для C++-класса</translation>
+    </message>
+    <message>
+        <source>The wizard allows to create the unit test for the C++ class in the Sailfish OS project.</source>
+        <translation>Позволяет создавать юнит-тест С++-класса для проектов под Sailfish OS.</translation>
     </message>
 </context>
 <context>
@@ -29114,6 +29173,194 @@ Use this only if you are prototyping. You cannot create a full application with 
         <source>Vertex Shader (OpenGL/ES 2.0)</source>
         <translation>Вершинный шейдер (OpenGL/ES 2.0)</translation>
     </message>
+    <message>
+        <source>Path first subirs file:</source>
+        <translation>Путь к первому файлу subirs:</translation>
+    </message>
+    <message>
+        <source>Path second subirs file:</source>
+        <translation>Путь ко второму файлу subirs:</translation>
+    </message>
+    <message>
+        <source>Create Subdir</source>
+        <translation>Создать Subdir</translation>
+    </message>
+    <message>
+        <source>Name first file:</source>
+        <translation>Имя первого файла:</translation>
+    </message>
+    <message>
+        <source>Name second file:</source>
+        <translation>Имя второго файла:</translation>
+    </message>
+    <message>
+        <source>QML Plugin</source>
+        <translation>Плагин QML</translation>
+    </message>
+    <message>
+        <source>Creates a project for developing a QML plugin</source>
+        <translation>Создает проект для разработки QML-плагина</translation>
+    </message>
+    <message>
+        <source>Plugin information</source>
+        <translation>Информация о плагине</translation>
+    </message>
+    <message>
+        <source>Plugin name:</source>
+        <translation>Название плагина:</translation>
+    </message>
+    <message>
+        <source>QML Plugin file:</source>
+        <translation>Файл QML-плагина:</translation>
+    </message>
+    <message>
+        <source>Creates a project of system service for Sailfish OS</source>
+        <translation>Cоздает проект системной службы для Sailfish OS</translation>
+    </message>
+    <message>
+        <source>System service</source>
+        <translation>Системная служба</translation>
+    </message>
+    <message>
+        <source>Project settings</source>
+        <translation>Настройки проекта</translation>
+    </message>
+    <message>
+        <source>Service type:</source>
+        <translation>Тип службы:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Название:</translation>
+    </message>
+    <message>
+        <source>Library Type:</source>
+        <translation>Тип библиотеки:</translation>
+    </message>
+    <message>
+        <source>Dynamic</source>
+        <translation>Динамическая</translation>
+    </message>
+    <message>
+        <source>Static</source>
+        <translation>Статическая</translation>
+    </message>
+    <message>
+        <source>Creates a project for developing dynamic or static C++ library</source>
+        <translation>Создает проект разделяемой или статической C++-библиотеки</translation>
+    </message>
+    <message>
+        <source>C++ Library</source>
+        <translation>Библиотека C++</translation>
+    </message>
+    <message>
+        <source>Class information</source>
+        <translation>Информация о классе</translation>
+    </message>
+    <message>
+        <source>Class name:</source>
+        <translation>Имя класса:</translation>
+    </message>
+    <message>
+        <source>Header file:</source>
+        <translation>Заголовочный файл:</translation>
+    </message>
+    <message>
+        <source>Source file:</source>
+        <translation>Файл исходников:</translation>
+    </message>
+    <message>
+        <source>Creates a Sailfish mobile OS application with UI.</source>
+        <translation>Создаёт мобильное приложение Sailfish OS с пользовательским интерейсом.</translation>
+    </message>
+    <message>
+        <source>Sailfish mobile OS application with UI</source>
+        <translation>Мобильное приложение Sailfish OS с пользовательским интерфейсом</translation>
+    </message>
+    <message>
+        <source>Sailfish OS Application</source>
+        <translation>Приложение Sailfish OS</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Название:</translation>
+    </message>
+    <message>
+        <source>Information</source>
+        <translation>Информация</translation>
+    </message>
+    <message>
+        <source>Version:</source>
+        <translation>Версия:</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>Описание:</translation>
+    </message>
+    <message>
+        <source>RPM Settings</source>
+        <translation>Настройки RPM</translation>
+    </message>
+    <message>
+        <source>Prefix:</source>
+        <translation>Префикс:</translation>
+    </message>
+    <message>
+        <source>Company name:</source>
+        <translation>Название компании:</translation>
+    </message>
+    <message>
+        <source>RPM build:</source>
+        <translation>Сборка RPM:</translation>
+    </message>
+    <message>
+        <source>Spectacle with YAML configuration</source>
+        <translation>Spectacle с YAML-конфигурацией</translation>
+    </message>
+    <message>
+        <source>RPM build with SPEC configuration</source>
+        <translation>RPM сборка со SPEC-конфигурацией</translation>
+    </message>
+    <message>
+        <source>Open Spectacle configuration upon completion</source>
+        <translation>Открыть конфигурационный YAML-файл по завершении</translation>
+    </message>
+    <message>
+        <source>Create a C++ class and use it in the QML runtime</source>
+        <translation>Создать C++-класс для QML-окружения</translation>
+    </message>
+    <message>
+        <source>Sailfish mobile OS application with tests</source>
+        <translation>Мобильное приложение Sailfish OS с тестами</translation>
+    </message>
+    <message>
+        <source>Creates a Sailfish mobile OS application with tests.</source>
+        <translation>Создаёт мобильное приложение Sailfish OS с тестами.</translation>
+    </message>
+    <message>
+        <source>Short description:</source>
+        <translation>Краткое описание:</translation>
+    </message>
+    <message>
+        <source>Full description:</source>
+        <translation>Полное описание:</translation>
+    </message>
+    <message>
+        <source>Sailfish OS Project</source>
+        <translation>Проект Sailfish OS</translation>
+    </message>
+    <message>
+        <source>Plugin class:</source>
+        <translation>Класс плагина:</translation>
+    </message>
+    <message>
+        <source>Model class:</source>
+        <translation>Класс модели:</translation>
+    </message>
+    <message>
+        <source>This project already exists.</source>
+        <translation>Этот проект уже существует.</translation>
+    </message>
 </context>
 <context>
     <name>ProjectExplorer::JsonWizardFactory</name>
@@ -38280,6 +38527,633 @@ In addition, device connectivity will be tested.</source>
     </message>
 </context>
 <context>
+    <name>SailfishOSWizards::Internal::DBusInterfaceSnippetPage</name>
+    <message>
+        <source>Insert DBusInterface</source>
+        <translation>Вставка DBusInterface</translation>
+    </message>
+    <message>
+        <source>Bus type:</source>
+        <translation>Тип шины:</translation>
+    </message>
+    <message>
+        <source>Service selection:</source>
+        <translation>Выбор сервиса:</translation>
+    </message>
+    <message>
+        <source>Path:</source>
+        <translation>Путь:</translation>
+    </message>
+    <message>
+        <source>Interface selection:</source>
+        <translation>Выбор интерфейса:</translation>
+    </message>
+    <message>
+        <source>Methods:</source>
+        <translation>Методы:</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select the methods you are want to use. Selecting a method from the list will filter the signals and methods defined in the same interface as the selected one.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Выберите методы, которые собираетесь использовать. При выборе метода из списка будут отфильтрованы сигналы и методы, которые определены в том же интерфейсе, что и выбранный.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Signals:</source>
+        <translation>Сигналы:</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select the signals you want to use. Selecting a signal from the list will filter the signals and methods defined in the same interface as the selected one.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Выберите сигналы, которые собираетесь использовать. При выборе сигнала из списка будут отфильтрованы сигналы и методы, которые определены в том же интерфейсе, что и выбранный.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Advanced mode</source>
+        <translation>Расширенный режим</translation>
+    </message>
+    <message>
+        <source>CPP file</source>
+        <translation>CPP файл</translation>
+    </message>
+    <message>
+        <source>QML file</source>
+        <translation>QML файл</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DBusInterfaceSnippetDialog</name>
+    <message>
+        <source>Select service</source>
+        <translation>Выберите сервис</translation>
+    </message>
+    <message>
+        <source>Select bus type</source>
+        <translation>Выберите тип шины</translation>
+    </message>
+    <message>
+        <source>Select service path</source>
+        <translation>Выберите путь сервиса</translation>
+    </message>
+    <message>
+        <source>Select interface</source>
+        <translation>Выберите интерфейс</translation>
+    </message>
+    <message>
+        <source>Select methods or signals you need</source>
+        <translation>Выберите методы или сигналы, которые собираетесь использовать</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SailfishOSWizardsPlugin</name>
+    <message>
+        <source>Insert DBusInterface...</source>
+        <translation>Вставить DBusInterface...</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopEditorWidget</name>
+    <message>
+        <source>Options</source>
+        <translation>Параметры</translation>
+    </message>
+    <message>
+        <source>Icon</source>
+        <translation>Иконка</translation>
+    </message>
+    <message>
+        <source>Icon size:
+</source>
+        <translation>Размер иконки:
+</translation>
+    </message>
+    <message>
+        <source>Execution file path</source>
+        <translation>Путь к исполняемому файлу</translation>
+    </message>
+    <message>
+        <source>Your icon&apos;s information is not complete, icon will be removed from file. Continue?</source>
+        <translation>Информация об иконке неполная, иконка будет удалена. Продолжить?</translation>
+    </message>
+    <message>
+        <source>File &quot;</source>
+        <translation>Файл &quot;</translation>
+    </message>
+    <message>
+        <source>&quot; does not have 86x86 format.</source>
+        <translation>&quot; не соответствует формату 86x86.</translation>
+    </message>
+    <message>
+        <source>&quot; does not have 108x108 format.</source>
+        <translation>&quot; не соответствует формату 108x108.</translation>
+    </message>
+    <message>
+        <source>&quot; does not have 128x128 format.</source>
+        <translation>&quot; не соответствует формату 128x128.</translation>
+    </message>
+    <message>
+        <source>&quot; does not have 172x172 format.</source>
+        <translation>&quot; не соответствует формату 172x172.</translation>
+    </message>
+    <message>
+        <source>&quot; does not exist. Please, select existing file.</source>
+        <translation>&quot; не существует. Пожалуйста, выберите существующий файл.</translation>
+    </message>
+    <message>
+        <source>&quot; is not a picture. Please, select png, jpg or bmp format.</source>
+        <translation>&quot; не картинка. Пожалуйста, выберите формат png, jpg или bmp.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopFileSettingPage</name>
+    <message>
+        <source>Options</source>
+        <translation>Настройки</translation>
+    </message>
+    <message>
+        <source>Application name:</source>
+        <translation>Имя приложения:</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Имя</translation>
+    </message>
+    <message>
+        <source>Execution command:</source>
+        <translation>Команда выполнения:</translation>
+    </message>
+    <message>
+        <source>Launch with elevated privileges</source>
+        <translation>Запуск с повышенными привилегиями</translation>
+    </message>
+    <message>
+        <source>Application name translations:</source>
+        <translation>Переводы названия приложения:</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopIconPage</name>
+    <message>
+        <source>Icon Options</source>
+        <translation>Добавление иконки</translation>
+    </message>
+    <message>
+        <source>Icon path:</source>
+        <translation>Путь иконки:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>172x172 icon:</source>
+        <translation>Иконка 172х172:</translation>
+    </message>
+    <message>
+        <source>128x128 icon:</source>
+        <translation>Иконка 128х128:</translation>
+    </message>
+    <message>
+        <source>108x108 icon:</source>
+        <translation>Иконка 108х108:</translation>
+    </message>
+    <message>
+        <source>86x86 icon:</source>
+        <translation>Иконка 86х86:</translation>
+    </message>
+    <message>
+        <source>Specify icons for all sizes manually</source>
+        <translation>Указать пути к иконкам необходимого размера вручную</translation>
+    </message>
+    <message>
+        <source>File with this path isn&apos;t exists</source>
+        <translation>Файл с заданным путем не существует</translation>
+    </message>
+    <message>
+        <source>File isn&apos;t image</source>
+        <translation>Файл имеет недопустимый формат(Необходим .png файл)</translation>
+    </message>
+    <message>
+        <source>The path of 172x172 image file should not be empty</source>
+        <translation>Не задана иконка размером 172х172</translation>
+    </message>
+    <message>
+        <source>File of 172x172 icon with this path isn&apos;t exists</source>
+        <translation>Файл иконки 172х172 с заданным путем не существует</translation>
+    </message>
+    <message>
+        <source>File of 172x172 icon with this path isn&apos;t image</source>
+        <translation>Файл иконки 172х172 имеет недопустимый формат</translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t 172x172 size image</source>
+        <translation>Файл иконки 172х172 имеет неверное разрешение</translation>
+    </message>
+    <message>
+        <source>The path of 128x128 image file should not be empty</source>
+        <translation>Не задана иконка размером 128х128</translation>
+    </message>
+    <message>
+        <source>File of 128x128 icon with this path isn&apos;t exists</source>
+        <translation>Файл иконки 128х128 с заданным путем не существует</translation>
+    </message>
+    <message>
+        <source>File of 128x128 icon with this path isn&apos;t image</source>
+        <translation>Файл иконки 128х128 имеет недопустимый формат</translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t 128x128 size image</source>
+        <translation>Файл иконки 128х128 имеет неверное разрешение</translation>
+    </message>
+    <message>
+        <source>The path of 108x108 image file should not be empty</source>
+        <translation>Не задана иконка размером 108х108</translation>
+    </message>
+    <message>
+        <source>File of 108x108 icon with this path isn&apos;t exists</source>
+        <translation>Файл иконки 108х108 с заданным путем не существует</translation>
+    </message>
+    <message>
+        <source>File of 108x108 icon with this path isn&apos;t image</source>
+        <translation>Файл иконки 108х108 имеет недопустимый формат</translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t 108x108 size image</source>
+        <translation>Файл иконки 108х108 имеет неверное разрешение</translation>
+    </message>
+    <message>
+        <source>The path of 86x86 image file should not be empty</source>
+        <translation>Не задана иконка размером 86х86</translation>
+    </message>
+    <message>
+        <source>File of 86x86 icon with this path isn&apos;t exists</source>
+        <translation>Файл иконки 86х86 с заданным путем не существует</translation>
+    </message>
+    <message>
+        <source>File of 86x86 icon with this path isn&apos;t image</source>
+        <translation>Файл иконки 86х86 имеет недопустимый формат</translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t 86x86 size image</source>
+        <translation>Файл иконки 86х86 имеет неверное разрешение</translation>
+    </message>
+    <message>
+        <source>Open File</source>
+        <translation>Выбрать иконку</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopLocationPage</name>
+    <message>
+        <source>The file name line should not be empty</source>
+        <translation>Не задано название файла</translation>
+    </message>
+    <message>
+        <source>The file name should consist of alternating letters,
+numbers, points, dashes and underscores</source>
+        <translation>Имя файла должно начинаться с латинских букв и содержать
+латинские буквы, цифры, точки, тире и подчеркивания</translation>
+    </message>
+    <message>
+        <source>File with this name is already exists</source>
+        <translation>Файл с таким именем уже существует</translation>
+    </message>
+    <message>
+        <source>The path line should not be empty</source>
+        <translation>Директория для файла не задана</translation>
+    </message>
+    <message>
+        <source>Directory should be exist</source>
+        <translation>Директория должна существовать</translation>
+    </message>
+    <message>
+        <source>Open Directory</source>
+        <translation>Выбрать директорию</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopSelectPage</name>
+    <message>
+        <source>Location</source>
+        <translation>Расположение</translation>
+    </message>
+    <message>
+        <source>File name:</source>
+        <translation>Название файла:</translation>
+    </message>
+    <message>
+        <source>Path:</source>
+        <translation>Путь:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DesktopSettingPage</name>
+    <message>
+        <source>The application name line should not be empty</source>
+        <translation>Не задано название приложения</translation>
+    </message>
+    <message>
+        <source>The execution command line should not be empty</source>
+        <translation>Не задана команда для выполнения</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::JSFileSelectPage</name>
+    <message>
+        <source>Options</source>
+        <translation>Параметры</translation>
+    </message>
+    <message>
+        <source>Library file name:</source>
+        <translation>Имя файла:</translation>
+    </message>
+    <message>
+        <source>Directory path:</source>
+        <translation>Путь:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>Create the library as shared (insert .pragma)</source>
+        <translation>Создать библиотеку как разделяемую (вставить .pragma)</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::FileInfoPage</name>
+    <message>
+        <source>Select directory</source>
+        <translation>Выбор каталога</translation>
+    </message>
+    <message>
+        <source>Invalid file name.</source>
+        <translation>Неверное имя файла.</translation>
+    </message>
+    <message>
+        <source>This file already exists.</source>
+        <translation>Этот файл уже существует.</translation>
+    </message>
+    <message>
+        <source>Directory not found.</source>
+        <translation>Каталог не существует.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleDependenciesPage</name>
+    <message>
+        <source>System package dependencies</source>
+        <translation>Системные зависимости пакета</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;These two lists define which packages are required to build your project.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Списки зависимостей, необходимых для сборки проекта.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Build-time Dependencies</source>
+        <translation>Зависимости для сборки</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This list defines which packages are required to build your project. The values listed here are exact names of the packages that provide functionality.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;В этом списке перечисляются пакеты, необходимые для сборки проекта. Здесь необходимо указывать непосредственно названия пакетов.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Package names</source>
+        <translation>Названия пакетов</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Редактировать</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This list defines which packages are required to build your project. The values listed here are names of package configuration, or &lt;span style=&quot; font-family:&apos;monospace&apos;; font-weight:600;&quot;&gt;.pc&lt;/span&gt; files. If you know the name of the package configuration file, you don’t need to know the exact name of the package that provides the functionality.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;В этом списке перечисляются пакеты, необходимые для сборки проекта. Здесь необходимо указывать названия конфигураций пакетов, или &lt;span style=&quot; font-family:&apos;monospace&apos;; font-weight:600;&quot;&gt;.pc&lt;/span&gt; файлов. Если вы знаете название файла конфигурации пакета, вам не нужно знать точное название пакета, содержащего необходимую функциональность.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Package configuration names</source>
+        <translation>Названия конфигураций пакетов</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This list specifies packages that are required by the application at runtime. In case these packages are not already present in the target environment, they get installed automatically when the RPM package for the application is installed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;В этом списке перечислены пакеты, требуемые для установки и запуска. Если эти пакеты еще не присутствуют в целевом окружении, то они установятся автоматически вместе с RPM-пакетом приложения.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>Run-time Dependencies</source>
+        <translation>Зависимости для запуска</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleDependencyDialog</name>
+    <message>
+        <source>Dependency</source>
+        <translation>Зависимость</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Название</translation>
+    </message>
+    <message>
+        <source>Epoch</source>
+        <translation>Эпоха</translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation>Версия</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Выпуск</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileDependenciesDialog</name>
+    <message>
+        <source>Invalid dependency name.</source>
+        <translation>Недопустимое название зависимости.</translation>
+    </message>
+    <message>
+        <source>If there is a demand, there must be a version.</source>
+        <translation>Если указано требование, то должен быть указан и номер версии.</translation>
+    </message>
+    <message>
+        <source>Version can not contain &quot;-&quot;.</source>
+        <translation>Версия не может содержать символ &quot;-&quot;.</translation>
+    </message>
+    <message>
+        <source>Epoch must consist of numbers.</source>
+        <translation>Эпоха должна состоять из цифр.</translation>
+    </message>
+    <message>
+        <source>Release can not contain &quot;-&quot;.</source>
+        <translation>Выпуск не может содержать символ &quot;-&quot;.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileDependenciesPage</name>
+    <message>
+        <source>Dependency error</source>
+        <translation>Ошибка зависимости</translation>
+    </message>
+    <message>
+        <source>This Dependency already exists.</source>
+        <translation>Эта зависимость уже существует.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileEditorWidget</name>
+    <message>
+        <source>This page is for experts only. DO NOT use it, if you don&apos;t know the exact low-level dependencies you need.</source>
+        <translation>Эта страница предназначена только для экспертов. НЕ используйте ее, если вы не знаете точно какие низкоуровневые зависимости вам нужны.</translation>
+    </message>
+    <message>
+        <source>Don&apos;t show this again.</source>
+        <translation>Больше не показывать.</translation>
+    </message>
+    <message>
+        <source>Package description</source>
+        <translation>Описание пакета</translation>
+    </message>
+    <message>
+        <source>Project components</source>
+        <translation>Компоненты проекта</translation>
+    </message>
+    <message>
+        <source>System package dependencies</source>
+        <translation>Системные зависимости пакета</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileOptionsPage</name>
+    <message>
+        <source>Summary line should not be empty.</source>
+        <translation>Поле сводки не должно быть пустым.</translation>
+    </message>
+    <message>
+        <source>The version should consist of alternating numbers and points.</source>
+        <translation>Номер версии должен состоять из чередующихся цифр и точек.</translation>
+    </message>
+    <message>
+        <source>URL is not valid.</source>
+        <translation>URL недействителен.</translation>
+    </message>
+    <message>
+        <source>License line should not be empty.</source>
+        <translation>Поле лицензии не должно быть пустым.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileSelectPage</name>
+    <message>
+        <source>Location</source>
+        <translation>Размещение</translation>
+    </message>
+    <message>
+        <source>Directory</source>
+        <translation>Каталог</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Имя:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>Path:</source>
+        <translation>Путь:</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleFileSelectionPage</name>
+    <message>
+        <source>Invalid file name.</source>
+        <translation>Неверное имя файла.</translation>
+    </message>
+    <message>
+        <source>This file already exists.</source>
+        <translation>Этот файл уже существует.</translation>
+    </message>
+    <message>
+        <source>Directory not found.</source>
+        <translation>Каталог не найден.</translation>
+    </message>
+    <message>
+        <source>Open Directory</source>
+        <translation>Открыть каталог</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleOptionsPage</name>
+    <message>
+        <source>Package description</source>
+        <translation>Описание пакета</translation>
+    </message>
+    <message>
+        <source>Enter the short description of your project</source>
+        <translation>Введите короткое описание вашего проекта</translation>
+    </message>
+    <message>
+        <source>Summary:</source>
+        <translation>Сводка:</translation>
+    </message>
+    <message>
+        <source>Version:</source>
+        <translation>Версия:</translation>
+    </message>
+    <message>
+        <source>Enter the version of your package</source>
+        <translation>Введите номер версии вашего пакета</translation>
+    </message>
+    <message>
+        <source>Website:</source>
+        <translation>Веб-сайт:</translation>
+    </message>
+    <message>
+        <source>Enter the address of the website with information about the project</source>
+        <translation>Введите адрес веб-сайта с информацией о проекте</translation>
+    </message>
+    <message>
+        <source>License:</source>
+        <translation>Лицензия:</translation>
+    </message>
+    <message>
+        <source>Enter the license or select a standart one</source>
+        <translation>Введите свою лицензию или выберите из списка стандартных</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>Описание:</translation>
+    </message>
+    <message>
+        <source>Enter the full description of your project</source>
+        <translation>Введите полное описание вашего проекта</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::SpectacleProjectTypePage</name>
+    <message>
+        <source>Package components</source>
+        <translation>Компоненты пакета</translation>
+    </message>
+    <message>
+        <source>Select components you want to use in the project:</source>
+        <translation>Выберите компоненты, которые вы хотите использовать в проекте:</translation>
+    </message>
+    <message>
+        <source>Expert dependencies editor</source>
+        <translation>Редактор зависимостей для экспертов</translation>
+    </message>
+</context>
+<context>
     <name>SXCMLTag::UnknownAttributeName</name>
     <message>
         <source>Unknown</source>
@@ -46463,6 +47337,281 @@ should a repository require SSH-authentication (see documentation on SSH and the
     <message>
         <source>Text</source>
         <translation>Текст</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationPage</name>
+    <message>
+        <source>Invalid characters used when entering a class name.</source>
+        <translation>При вводе имени класса использованы недопустимые символы.</translation>
+    </message>
+    <message>
+        <source>Directory not found</source>
+        <translation>Каталог не найден</translation>
+    </message>
+    <message>
+        <source>Invalid characters used when entering a file name.</source>
+        <translation>При вводе имени файла использованы недопустимые символы.</translation>
+    </message>
+    <message>
+        <source>A file with this name already exists.</source>
+        <translation>Файл с таким именем уже существует.</translation>
+    </message>
+    <message>
+        <source>Select directory</source>
+        <translation>Выберите каталог</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationSelect</name>
+    <message>
+        <source>Name and location</source>
+        <translation>Имя и размещение</translation>
+    </message>
+    <message>
+        <source>Class name:</source>
+        <translation>Имя класса:</translation>
+    </message>
+    <message>
+        <source>Path:</source>
+        <translation>Путь:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>Name header file:</source>
+        <translation>Имя заглавочного файла</translation>
+    </message>
+    <message>
+        <source>Name source file:</source>
+        <translation>Имя исходного файла:</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::CppClassOptionPage</name>
+    <message>
+        <source>Option</source>
+        <translation>Параметры</translation>
+    </message>
+    <message>
+        <source>Base class:</source>
+        <translation>Базовый класс:</translation>
+    </message>
+    <message>
+        <source>QObject is included by default.</source>
+        <translation>QObject подключён по умолчанию.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationSelectQml</name>
+    <message>
+        <source>Location</source>
+        <translation>Размещение</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Имя:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>Path:</source>
+        <translation>Путь:</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocalImportsPage</name>
+    <message>
+        <source>Select one or more JavaScript files to import</source>
+        <translation>Выберите JavaScript-файлы для подключения в документ</translation>
+    </message>
+    <message>
+        <source>JavaScript files (*.js)</source>
+        <translation>JavaScript-файлы (*.js)</translation>
+    </message>
+    <message>
+        <source>Select directory containing QML files to import</source>
+        <translation>Выберите каталог, содержащий QML-файлы для импорта</translation>
+    </message>
+    <message>
+        <source>You do not need to add the target directory to local imports, because it is included by default.</source>
+        <translation>Вам не нужно добавлять целевой каталог в локальный импорт, потому что он включен по умолчанию.</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::QmlOptionPage</name>
+    <message>
+        <source>QML File Options</source>
+        <translation>Параметры QML-файла</translation>
+    </message>
+    <message>
+        <source>Base type of QML document:</source>
+        <translation>Базовый тип QML-документа:</translation>
+    </message>
+    <message>
+        <source>Qt Quick version:</source>
+        <translation>Версия Qt Quick:</translation>
+    </message>
+    <message>
+    <source>Select one</source>
+        <translation>Выберите один</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationPageQml</name>
+    <message>
+        <source>Directory not found</source>
+        <translation>Каталог не найден</translation>
+    </message>
+    <message>
+        <source>Invalid characters used when entering a file name.</source>
+        <translation>При вводе имени файла использованы недопустимые символы.</translation>
+    </message>
+    <message>
+        <source>A file with this name already exists.</source>
+        <translation>Файл с таким именем уже существует</translation>
+    </message>
+    <message>
+        <source>Select directory</source>
+        <translation>Выберите каталог</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationPageUnitTest</name>
+    <message>
+        <source>Header file not found.</source>
+        <translation>Заголовочный файл не найден.</translation>
+    </message>
+    <message>
+        <source>Directory not found</source>
+        <translation>Каталог не найден</translation>
+    </message>
+    <message>
+        <source>Invalid characters in the file name.</source>
+        <translation>В имени файла использованы недопустимые символы.</translation>
+    </message>
+    <message>
+        <source>A file with this name already exists.</source>
+        <translation>Файл с таким именем уже существует.</translation>
+    </message>
+        <message>
+        <source>Select directory</source>
+        <translation>Выберите каталог</translation>
+    </message>
+    <message>
+        <source>Select one</source>
+        <translation>Выберите один</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::LocationSelectUnitTest</name>
+    <message>
+        <source>Location</source>
+        <translation>Размещение</translation>
+    </message>
+    <message>
+        <source>Tested class selection</source>
+        <translation>Выбор тестируемого класса</translation>
+    </message>
+    <message>
+        <source>Header file:</source>
+        <translation>Заголовочный файл:</translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation>Обзор</translation>
+    </message>
+    <message>
+        <source>Tested class name:</source>
+        <translation>Имя тестируемого класса:</translation>
+    </message>
+    <message>
+        <source>Unit test class data</source>
+        <translation>Данные класса с модульными тестами</translation>
+    </message>
+    <message>
+        <source>Test class name:</source>
+        <translation>Имя класса с тестами:</translation>
+    </message>
+    <message>
+        <source>Test class location:</source>
+        <translation>Расположение класса:</translation>
+    </message>
+    <message>
+        <source>Header file name:</source>
+        <translation>Имя заголовочного файла:</translation>
+    </message>
+    <message>
+        <source>Source file name:</source>
+        <translation>Файл с исходным кодом:</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::QmlLocalImportPage</name>
+    <message>
+        <source>Local Imports</source>
+        <translation>Локальные импорты</translation>
+    </message>
+    <message>
+        <source>Add file</source>
+        <translation>Добавить файл</translation>
+    </message>
+    <message>
+        <source>Add directory</source>
+        <translation>Добавить директорию</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::CppClassModulePage</name>
+    <message>
+        <source>Import libraries</source>
+        <translation>Импорт библиотек</translation>
+    </message>
+    <message>
+        <source>List of imported external standard libraries:</source>
+        <translation>Список импортируемых внешних стандартных библиотек:</translation>
+    </message>
+    <message>
+        <source>Add libraries</source>
+        <translation>Добавить библиотеку</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::DialogModule</name>
+    <message>
+        <source>List of external libraries</source>
+        <translation>Список внешних библиотек</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+</context>
+<context>
+    <name>SailfishOSWizards::Internal::TranslationTableModel</name>
+    <message>
+        <source>Language</source>
+        <translation>Язык</translation>
+    </message>
+    <message>
+        <source>Translation</source>
+        <translation>Перевод</translation>
     </message>
 </context>
 </TS>
