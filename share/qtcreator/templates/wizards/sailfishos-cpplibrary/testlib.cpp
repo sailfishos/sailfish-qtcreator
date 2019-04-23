@@ -1,0 +1,6 @@
+#include "%{HdrFile}"
+
+
+%{ClassName}::%{ClassName}()
+{
+}

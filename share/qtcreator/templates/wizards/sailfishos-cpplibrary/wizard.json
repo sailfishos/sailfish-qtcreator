@@ -1,0 +1,163 @@
+{
+    "version": 1,
+    "supportedProjectTypes": ["Qt4ProjectManager.Qt4Project"],
+    "id": "A.CppLibrary",
+    "category": "Sailfish Project",
+    "trDescription": "Creates a project for developing dynamic or static C++ library",
+    "trDisplayName": "C++ Library",
+    "trDisplayCategory": "Sailfish Project",
+    "iconText": "C++",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('SailfishWizards') >= 0 && [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
+
+    "options":
+        [
+        { "key": "TargetPath", "value": "%{Path}/%{Name}" },
+        { "key": "ProFile", "value": "%{JS: Util.fileName('%{Path}/%{Name}/%{Name}', 'pro')}" },
+        { "key": "HdrPath", "value": "%{TargetPath}/src/%{HdrFile}" },
+        { "key": "SrcPath", "value": "%{TargetPath}/src/%{SrcFile}" },
+        { "key": "HdrGlobalPath", "value": "%{TargetPath}/src/%{JS: '%{ClassName}'.toLowerCase()}_global.h" },
+        { "key": "UpperClassName", "value": "%{JS: '%{ClassName}'.toUpperCase()}"},
+        { "key": "FirstUpperName", "value": "%{JS: ''.concat('%{Name}'.charAt(0).toUpperCase(), '%{Name}'.substring(1))}"},
+        { "key": "StaticSelected", "value": "%{JS: '%{Type}' === 'Static'}"}
+    ],
+
+    "pages":
+        [
+        {
+            "trDisplayName": "Project Location",
+            "trShortTitle": "Location",
+            "typeId": "Fields",
+            "data" :
+                [
+                {
+                    "name": "Name",
+                    "trDisplayName": "Name:",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data":
+                    {
+                        "validator": "(^[a-zA-Z0-9]+([a-zA-Z_0-9-]*))$",
+                        "trText": "%{JS: var i = ''; while(Util.isDirectory('%{Path}/untitled' + i)) i++; 'untitled' + i}"
+                    }
+                },
+                {
+                    "name": "Path",
+                    "type": "PathChooser",
+                    "trDisplayName": "Path:",
+                    "mandatory": true,
+                    "data":
+                    {
+                        "kind": "existingDirectory",
+                        "basePath": "%{InitialPath}",
+                        "path": "%{InitialPath}"
+                    },
+                    "isComplete": "%{JS: !Util.exists('%{Path}/%{Name}')}",
+                    "trIncompleteMessage": "This project already exists."
+                },
+                {
+                    "name": "Type",
+                    "trDisplayName": "Library Type:",
+                    "type": "ComboBox",
+                    "data":
+                    {
+                        "items": [ { "trKey": "Dynamic", "value": "Dynamic" }, { "trKey": "Static", "value": "Static" }]
+                    }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "Kit Selection",
+            "trShortTitle": "Kits",
+            "typeId": "Kits",
+            "data": { "projectFilePath": "%{ProFile}" }
+        },
+        {
+            "trDisplayName": "Class information",
+            "trShortTitle": "Details",
+            "typeId": "Fields",
+            "data" :
+                [
+                {
+                    "name": "ClassName",
+                    "trDisplayName": "Class name:",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data":
+                        {
+                            "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)",
+                            "trText": "%{JS: var word = ('%{Name}'.charAt(0).match('[0-9]') ? '%{Name}'.substring(1).replace(/-/g, '') : '%{Name}'.replace(/-/g, '')); word.charAt(0).toUpperCase() + word.substring(1)}"
+                        }
+                },
+                {
+                    "name": "HdrFile",
+                    "type": "LineEdit",
+                    "trDisplayName": "Header file:",
+                    "mandatory": true,
+                    "data":
+                        {
+                            "trText": "%{JS: Cpp.classToFileName('%{ClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}"
+                        }
+                },
+                {
+                    "name": "SrcFile",
+                    "trDisplayName": "Source file:",
+                    "type": "LineEdit",
+                    "mandatory": true,
+                    "data":
+                        {
+                            "trText": "%{JS: Cpp.classToFileName('%{ClassName}', '%{JS: Util.preferredSuffix('text/x-c++src')}')}"
+                        }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+
+    "generators":
+        [
+        {
+            "typeId": "File",
+            "data":
+                [
+                {
+                    "source": "testlib.h",
+                    "target": "%{HdrPath}",
+                    "condition": "%{JS: !%{StaticSelected}}"
+                },
+                {
+                    "source": "testlib.cpp",
+                    "target": "%{SrcPath}"
+                },
+                {
+                    "source": "testlib_global.h",
+                    "target": "%{HdrGlobalPath}",
+                    "condition": "%{JS: !%{StaticSelected}}"
+                },
+                {
+                    "source": "testLib.pro",
+                    "target": "%{TargetPath}/%{Name}.pro",
+                    "openAsProject": true
+                },
+                {
+                    "source": "rpm/testLib.spec",
+                    "target": "%{TargetPath}/rpm/%{Name}.spec"
+                },
+                {
+                    "source": "testlib_static.h",
+                    "target": "%{HdrPath}",
+                    "condition": "%{StaticSelected}"
+                },
+                {
+                    "source": "testLib.pc",
+                    "target": "%{Name}.pc",
+                    "condition": "%{JS: !%{StaticSelected}}"
+                }
+
+            ]
+        }
+    ]
+}

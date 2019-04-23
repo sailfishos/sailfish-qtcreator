@@ -1,0 +1,10 @@
+prefix=/usr
+includedir=${prefix}/include/%{Name}
+libdir=${prefix}/lib/
+
+Name: %{Name}
+Description: The %{Name} library
+Version: 0.1
+Requires:
+Libs: -L${libdir} -l%{Name}
+Cflags: -I${includedir}/%{Name}
