@@ -1,0 +1,186 @@
+{
+    "version": 1,
+    "supportedProjectTypes": ["Qt4ProjectManager.Qt4Project"],
+    "id": "B.SailfishMobileOSWithTests",
+    "category": "Sailfish Project",
+    "trDescription": "Creates a Sailfish Mobile OS application with tests.",
+    "trDisplayName": "Sailfish Mobile OS application with tests",
+    "trDisplayCategory": "Sailfish Project",
+    "featuresRequired": [ "QtSupport.Wizards.FeatureQt" ],
+    "icon": "icon.png",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('SailfishWizards') >= 0 && [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
+    "options":[ {
+            "key": "ProFilePath", "value": "%{JS: Util.fileName('%{ProjectDirectory}/%{ProjectName}', 'pro')}"
+        }, {
+            "key": "validateClassName",
+            "value": "%{JS: '%{ProjectName}'.replace(\/-\/g, '')}"
+        }, {
+            "key": "ClassName",
+            "value": "%{JS: ''.concat('%{validateClassName}'.charAt(0).toUpperCase(), '%{validateClassName}'.substring(1))}"
+        }, {
+            "key": "ClassNameUpper",
+            "value": "%{JS: '%{ClassName}'.toUpperCase()}"
+        }],
+
+    "pages":
+    [
+	{
+	    "trDisplayName": "Project Location",
+	    "trShortTitle": "Location",
+	    "typeId": "Project"	
+    },
+    {
+        "trDisplayName": "Kit Selection",
+        "trShortTitle": "Kits",
+        "typeId": "Kits",
+        "data": 
+        { 
+            "projectFilePath": "%{ProFilePath}",
+            "requiredFeatures": [ "QtSupport.Wizards.FeatureQt" ]
+        }
+    },
+    {
+        "trDisplayName": "Information",
+        "trShortTitle": "Information",
+        "typeId": "Fields",
+        "data" :
+        [
+        {
+            "name": "NameInf",
+            "trDisplayName": "Name:",
+            "mandatory": true,
+            "type": "LineEdit",
+            "data":
+            {
+                "trText": "My Sailfish OS Application"
+            }
+        },
+        {
+            "name": "Version",
+            "trDisplayName": "Version:",
+            "mandatory": true,
+            "type": "LineEdit",
+            "data":
+            {
+                "trText": "0.1",
+                "validator": "^[0-9]*[.,]?[0-9]+$"
+            }
+        },
+        {
+            "name": "Description",
+            "trDisplayName": "Description:",
+            "mandatory": false,
+            "type": "TextEdit",
+            "data":
+            {
+                "trText": "Short description of my Sailfish OS Application with tests"  
+            }
+        },
+        {
+        "name": "rpm",
+        "trDisplayName": "RPM build:",
+        "type": "ComboBox",
+        "data":
+            {
+                "items": 
+                [ 	
+                    { "trKey": "Spectacle with YAML configuration", "value": "yaml" },
+                    { "trKey": "RPM build with SPEC configuration", "value": "spec" }
+                ]
+            }
+        },
+        {
+            "name": "OpenYaml",
+            "trDisplayName": "Open Spectacle configuration upon completion",
+            "type": "CheckBox",
+            "enabled": "%{JS: '%{rpm}' === 'yaml'}",
+            "data":
+            {
+                "checkedValue": "yaml",
+                "uncheckedValue": ""
+            }
+        }
+        ]
+    },			
+    {
+        "trDisplayName": "Project Management",
+        "trShortTitle": "Summary",
+        "typeId": "Summary"
+    }
+    ],
+    "generators":
+	[
+	{
+        "typeId": "File",
+        "data":
+        [
+        {
+            "source": "app/qml/template.qml",
+            "target": "%{Path}/%{ProjectName}/app/qml/%{ProjectName}.qml"
+        }, {
+            "source": "app/qml/pages/FirstPage.template",
+            "target": "%{Path}/%{ProjectName}/app/qml/pages/FirstPage.qml"
+        }, {
+            "source": "app/qml/pages/SecondPage.qml",
+            "target": "%{Path}/%{ProjectName}/app/qml/pages/SecondPage.qml"
+        }, {
+            "source": "app/src/main.cpp",
+            "target": "%{Path}/%{ProjectName}/app/src/main.cpp"
+        }, { 
+            "source": "app/src/template.cpp",
+            "target": "%{Path}/%{ProjectName}/app/src/%{ProjectName}.cpp"
+        }, {
+            "source": "app/src/template.h",
+            "target": "%{Path}/%{ProjectName}/app/src/%{ProjectName}.h"
+        }, {
+            "isBinary": "true",
+            "source": "app/template.png",
+            "target": "%{Path}/%{ProjectName}/app/%{ProjectName}.png"
+        }, {
+            "source": "rpm/template.yaml",
+            "target": "%{Path}/%{ProjectName}/rpm/%{ProjectName}.yaml",
+            "condition": "%{JS: '%{rpm}' === 'yaml'}",
+            "openInEditor": "%{JS: '%{rpm}' === '%{OpenYaml}'}"
+        }, {
+            "source": "rpm/template.spec",
+            "target": "%{Path}/%{ProjectName}/rpm/%{ProjectName}.spec",
+            "condition": "%{JS: '%{rpm}' === 'spec'}"
+        }, {
+            "source": "app/qml/cover/CoverPage.qml",
+            "target": "%{Path}/%{ProjectName}/app/qml/cover/CoverPage.qml"
+        }, {
+            "source": "app/app.pro",
+            "target": "%{Path}/%{ProjectName}/app/app.pro"
+        }, {
+            "source": "tests/tests.pro",
+            "target": "%{Path}/%{ProjectName}/tests/tests.pro"
+        }, {
+            "source": "tests/src/main.cpp",
+            "target": "%{Path}/%{ProjectName}/tests/src/main.cpp"
+        }, {
+            "source": "tests/src/testsample.h",
+            "target": "%{Path}/%{ProjectName}/tests/src/testsample.h"
+        }, {
+            "source": "tests/src/testsample.cpp",
+            "target": "%{Path}/%{ProjectName}/tests/src/testsample.cpp"
+        }, {
+            "source": "app/app.pri",
+            "target": "%{Path}/%{ProjectName}/app/app.pri"
+        }, {
+            "source": "app/template.desktop",
+            "target": "%{Path}/%{ProjectName}/app/%{ProjectName}.desktop"
+        }, {
+            "source": "rpm/template.changes.in",
+            "target": "%{Path}/%{ProjectName}/rpm/%{ProjectName}.changes.in"
+        }, {
+            "source": "rpm/template.changes.run.in",
+            "target": "%{Path}/%{ProjectName}/rpm/%{ProjectName}.changes.run.in"
+        }, {
+            "source": "template.pro",
+            "target": "%{ProFilePath}",
+            "openAsProject": true
+        }
+        ]
+    }
+    ]
+}
