@@ -1,0 +1,140 @@
+{
+    "version": 1,
+    "supportedProjectTypes": [ "CMakeProjectManager.CMakeProject", "Qbs.QbsProject", "Qt4ProjectManager.Qt4Project" ],
+    "id": "Q.SystemdService",
+    "category": "Sailfish Project",
+    "trDescription": "Creates a project of system service for Sailfish OS",
+    "trDisplayName": "System service",
+    "trDisplayCategory": "Sailfish Project",
+    "icon": "icon.png",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('SailfishWizards') >= 0 && ([ %{Plugins} ].indexOf('QmakeProjectManager') >= 0 || [ %{Plugins} ].indexOf('QbsProjectManager') >= 0 || [ %{Plugins} ].indexOf('CMakeProjectManager') >= 0)}",
+
+"options":
+    [
+        { "key": "ProFile", "value": "%{JS: Util.fileName('%{ProjectDirectory}/%{ProjectName}', 'pro')}" },
+        { "key": "ClassName", "value": "%{JS: var word = ('%{ProjectName}'.charAt(0).match('[0-9]') ? '%{ProjectName}'.substring(1).replace(/-/g, '') : '%{ProjectName}'.replace(/-/g, '')); word.charAt(0).toUpperCase() + word.substring(1)}" },
+        { "key": "HdrFileName", "value": "%{JS: Cpp.classToFileName('%{ClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}"},
+        { "key": "SrcFileName", "value": "%{JS: Cpp.classToFileName('%{ClassName}', '%{JS: Util.preferredSuffix('text/x-c++src')}')}"},
+        { "key": "GUARD", "value": "%{JS: Cpp.headerGuard('%{HdrFileName}')}" },
+        { "key": "ServiceName", "value": "%{JS: '%{ProjectName}'.replace(/-/g, '_')}" }
+    ],
+
+    "pages":
+    [
+        {
+            "trDisplayName": "Project Location",
+            "trShortTitle": "Location",
+            "typeId": "Project"
+        },
+        {
+            "trDisplayName": "Kit Selection",
+            "trShortTitle": "Kits",
+            "typeId": "Kits",
+            "enabled": "%{JS: ! %{IsSubproject}}",
+            "data": {
+                "projectFilePath": "%{ProFile}"
+
+            }
+        },
+        {
+            "trDisplayName": "Project settings",
+            "trShortTitle": "Project settings",
+            "typeId": "Fields",
+            "data": [
+                {
+                    "name": "ServiceType",
+                    "type": "ComboBox",
+                    "trDisplayName": "Service type:",
+                    "data" :
+                    {
+                        "items": [ "simple", "dbus"]
+                    }
+                },
+                {
+                    "name": "NamePrefix",
+                    "type": "LineEdit",
+                    "trDisplayName": "Prefix:",
+                    "visible": "%{JS: '%{ServiceType}' === 'dbus'}",
+                    "data" : 
+                    {
+                        "trText": "org"
+                    }
+                },
+                {
+                    "name": "CompanyName",
+                    "type": "LineEdit",
+                    "trDisplayName": "Company name:",
+                    "visible": "%{JS: '%{ServiceType}' === 'dbus'}",
+                    "data" : 
+                    {
+                        "trText": "company"
+                    }
+                },
+                {
+                    "name": "ShortDescription",
+                    "type": "LineEdit",
+                    "trDisplayName": "Short description:",
+                    "data" :
+                    {
+                        "trText": "Short description of my Systemd Service"
+                    }
+                },
+                {
+                    "name": "Description",
+                    "type": "TextEdit",
+                    "trDisplayName": "Full description:",
+                    "data" :
+                    {
+                        "trText": "Full description of my Systemd Service"
+                    }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+    "generators":
+    [
+        {
+            "typeId": "File",
+            "data":
+            [
+                {
+                    "source": "template.pro",
+                    "target": "%{ProFile}",
+                    "openAsProject": true
+                },
+                {
+                    "source": "src/main.cpp",
+                    "target": "src/main.cpp",
+                    "openInEditor": true
+                },
+                {
+                    "source": "src/template.cpp",
+                    "target": "src/%{SrcFileName}"
+                },
+                  {
+                    "source": "src/template.h",
+                    "target": "src/%{HdrFileName}"
+                },
+                {
+                    "source": "dbus/template.service",
+                    "target": "dbus/%{NamePrefix}.%{CompanyName}.%{ServiceName}.service",
+                    "condition": "%{JS: '%{ServiceType}' === 'dbus'}",
+                    "openInEditor": true
+                },
+                {
+                    "source": "systemd/template.service",
+                    "target": "systemd/%{ServiceName}.service"
+                },
+                {
+                    "source": "rpm/template.spec",
+                    "target": "rpm/%{ProjectName}.spec"
+                }
+            ]
+        }
+    ]
+}

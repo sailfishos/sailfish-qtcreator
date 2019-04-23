@@ -1,0 +1,11 @@
+[Unit]
+Description=%{ShortDescription}
+
+[Service]
+ExecStart=/usr/bin/%{ProjectName}
+Type=%{ServiceType}
+
+@if '%{ServiceType}' === 'dbus'
+BusName=%{NamePrefix}.%{CompanyName}.%{ServiceName}
+[Install]
+WantedBy=multi-user.target
