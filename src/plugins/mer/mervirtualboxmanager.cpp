@@ -576,7 +576,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
     VBoxManageProcess *process = new VBoxManageProcess(instance());
 
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-                [&timer, slot](int exitCode, QProcess::ExitStatus exitStatus) {
+                [timer, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
                         qCDebug(Log::vms) << "Resizing VDI took" << timer.elapsed() << "milliseconds";
                     } else {
