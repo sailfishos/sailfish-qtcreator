@@ -59,6 +59,7 @@ public:
 
     // VdiInfo
     int vdiCapacityMb{0};
+    QStringList allRelatedVdiUuids;
 
     // SnapshotInfo
     QStringList snapshots;
