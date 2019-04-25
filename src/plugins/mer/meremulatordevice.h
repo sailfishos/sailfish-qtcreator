@@ -158,6 +158,8 @@ private:
     void setVideoMode();
     void updateDconfDb();
 
+    QString privateKeyFile(const QString &user) const;
+
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
     QString m_factorySnapshot;

@@ -56,6 +56,7 @@ using namespace Constants;
 namespace {
 const int VIDEO_MODE_DEPTH = 32;
 const int SCALE_DOWN_FACTOR = 2;
+const char PRIVATE_KEY_PATH_TEMPLATE[] = "%1/ssh/private_keys/%2/%3";
 } // namespace anonymous
 
 class PublicKeyDeploymentDialog : public QProgressDialog
@@ -431,29 +432,21 @@ QString MerEmulatorDevice::sharedConfigPath() const
 
 void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
-    if(!m_sharedConfigPath.isEmpty()) {
-        QString index(QLatin1String("/ssh/private_keys/%1/"));
-        //TODO fix me:
-        QString privateKeyFile = m_sharedConfigPath +
-                index.arg(id().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
-        PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
-                                         user, sharedSshPath(), ICore::dialogParent());
+    const QString privateKeyFile = this->privateKeyFile(user);
+    QTC_ASSERT(!privateKeyFile.isEmpty(), return);
+    PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
+                                     user, sharedSshPath(), ICore::dialogParent());
 
-        connection()->setAutoConnectEnabled(false);
-        dialog.exec();
-        connection()->setAutoConnectEnabled(true);
-    }
+    connection()->setAutoConnectEnabled(false);
+    dialog.exec();
+    connection()->setAutoConnectEnabled(true);
 }
 
 SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnectionParameters &sshParams, const QLatin1String &user) const
 {
-    QString index(QLatin1String("/ssh/private_keys/%1/"));
-    //TODO fix me:
-    QString privateKeyFile = sharedConfigPath()  +
-            index.arg(id().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
     SshConnectionParameters m_sshParams = sshParams;
     m_sshParams.setUserName(user);
-    m_sshParams.privateKeyFile = privateKeyFile;
+    m_sshParams.privateKeyFile = privateKeyFile(user);
 
     return m_sshParams;
 }
@@ -644,6 +637,21 @@ void MerEmulatorDevice::updateDconfDb()
     bool ok = saver.finalize();
     QTC_CHECK(ok);
 }
+
+QString MerEmulatorDevice::privateKeyFile(const QString &user) const
+{
+    // FIXME multiple engines
+    QTC_ASSERT(MerSdkManager::sdks().count() == 1, return {});
+
+    return QString(PRIVATE_KEY_PATH_TEMPLATE)
+        .arg(MerSdkManager::sdks().first()->sharedConfigPath())
+        .arg(id().toString().replace(' ', '_'))
+        .arg(user);
+}
+
+/*!
+ * \class MerEmulatorDeviceModel
+ */
 
 MerEmulatorDeviceModel::MerEmulatorDeviceModel(const QString &name, const QSize &displayResolution, const QSize &displaySize,
                                                const QString &dconf, bool isSdkProvided)
