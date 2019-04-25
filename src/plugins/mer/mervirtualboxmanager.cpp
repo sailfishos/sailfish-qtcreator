@@ -556,7 +556,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
 
     const VirtualMachineInfo virtualMachineInfo = fetchVirtualMachineInfo(vmName, VdiInfo);
     if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
-        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiPath << RESIZE << sizeMb
+        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid << RESIZE << sizeMb
                    << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
         QTimer::singleShot(0, context, [slot]() { slot(false); });
         return;
@@ -567,7 +567,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYMEDIUM));
-    arguments.append(virtualMachineInfo.vdiPath);
+    arguments.append(virtualMachineInfo.vdiUuid);
     arguments.append(QLatin1String(RESIZE));
     arguments.append(QString::number(sizeMb));
 
@@ -822,7 +822,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
                                "|(?:macaddress\\d+=\"(.*)\")"
                                "|(?:Session(Type|Name)=\"(.*)\")"
-                               "|(?:\"SATA-\\d-\\d\"=\"(.*)\")"
+                               "|(?:\"SATA-ImageUUID-\\d-\\d\"=\"(.*)\")"
                                "|(?:memory=(\\d+)\\n)"
                                "|(?:cpus=(\\d+)\\n)"
                                ));
@@ -868,10 +868,10 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
             info.headless = rexp.cap(11) == QLatin1String("headless");
-        } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA"))) {
-            QString vdiPath = rexp.cap(12);
-            if (!vdiPath.isEmpty() && vdiPath != QLatin1String("none")) {
-                info.vdiPath = vdiPath;
+        } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA-ImageUUID"))) {
+            QString vdiUuid = rexp.cap(12);
+            if (!vdiUuid.isEmpty() && vdiUuid != QLatin1String("none")) {
+                info.vdiUuid = vdiUuid;
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("memory"))) {
             int memorySize = rexp.cap(13).toInt();
@@ -893,7 +893,7 @@ void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo)
 {
     QStringList arguments;
     arguments.append(QLatin1String(SHOWMEDIUMINFO));
-    arguments.append(virtualMachineInfo->vdiPath);
+    arguments.append(virtualMachineInfo->vdiUuid);
     VBoxManageProcess process;
     if (!process.runSynchronously(arguments))
         return;

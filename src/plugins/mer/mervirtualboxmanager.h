@@ -55,7 +55,7 @@ public:
     bool headless{false};
     int memorySizeMb{0};
     int cpuCount{0};
-    QString vdiPath;
+    QString vdiUuid;
 
     // VdiInfo
     int vdiCapacityMb{0};
