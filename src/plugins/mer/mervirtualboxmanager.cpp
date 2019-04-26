@@ -171,12 +171,20 @@ public:
 
     static bool runSynchronous(QProcess *process)
     {
-        s_instance->m_queue.prepend(process);
-
         // Currently runnning an asynchronous process?
-        if (s_instance->m_current)
-            s_instance->m_current->waitForFinished();
+        if (s_instance->m_current) {
+            if (!s_instance->m_current->waitForFinished()) {
+                if (s_instance->m_current) {
+                    qCWarning(Log::vms) << "Failed to wait for current asynchronous process"
+                        << s_instance->m_current->program() << s_instance->m_current->arguments()
+                        << "Error:" << s_instance->m_current->error();
+                    return false;
+                }
+            }
+            QTC_CHECK(!s_instance->m_current);
+        }
 
+        s_instance->m_queue.prepend(process);
         s_instance->dequeue();
         QTC_CHECK(s_instance->m_current == process);
 
