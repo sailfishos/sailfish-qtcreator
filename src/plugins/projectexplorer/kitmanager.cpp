@@ -179,6 +179,9 @@ void KitManager::restoreKits()
 
         completeKit(defaultKit.get()); // Store manual kits
         resultList.emplace_back(std::move(defaultKit));
+    } else if (resultList.size() > 1) {
+        // Drop the default kit if other kits emerge later
+        Utils::erase(resultList, Utils::equal(&Kit::unexpandedDisplayName, tr("Desktop")));
     }
 
     Kit *k = Utils::findOrDefault(resultList, Utils::equal(&Kit::id, defaultUserKit));
