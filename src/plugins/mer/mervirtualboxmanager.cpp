@@ -95,6 +95,8 @@ const char TOTAL_RAM[] = "RAM/Usage/Total";
 const char SNAPSHOT[] = "snapshot";
 const char RESTORE[] = "restore";
 
+const int TERMINATE_TIMEOUT_MS = 3000;
+
 namespace Mer {
 namespace Internal {
 
@@ -251,6 +253,8 @@ public:
     {
         setProcessChannelMode(QProcess::ForwardedErrorChannel);
         setProgram(vBoxManagePath());
+        connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this]() { m_terminateTimeoutTimer.stop(); });
     }
 
     bool runSynchronously(const QStringList &arguments)
@@ -273,6 +277,34 @@ public:
         connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &QObject::deleteLater);
     }
+
+public slots:
+    void reallyTerminate()
+    {
+        QTC_CHECK(state() != Starting);
+        if (state() == NotRunning)
+            return;
+
+        terminate();
+        if (!m_terminateTimeoutTimer.isActive())
+            m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
+    }
+
+protected:
+    void timerEvent(QTimerEvent *event) override
+    {
+        if (event->timerId() == m_terminateTimeoutTimer.timerId()) {
+            m_terminateTimeoutTimer.stop();
+            // Note that on Windows it always ends here as terminate() has no
+            // effect on VBoxManage there
+            kill();
+        } else {
+            QProcess::timerEvent(event);
+        }
+    }
+
+private:
+    QBasicTimer m_terminateTimeoutTimer;
 };
 
 MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
@@ -688,11 +720,11 @@ void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::funct
     auto process = new VBoxManageProcess(instance());
     connect(process, &QProcess::readyReadStandardOutput, context, [process, slot](){
         auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()));
-        process->terminate();
+        process->reallyTerminate();
         slot(memSizeKb / 1024);
     });
 
-    connect(context, &QObject::destroyed, process, &QProcess::terminate);
+    connect(context, &QObject::destroyed, process, &VBoxManageProcess::reallyTerminate);
 
     process->setDeleteOnFinished();
     process->runAsynchronously(arguments);
