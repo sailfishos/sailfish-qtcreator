@@ -42,6 +42,7 @@
 
 #include "merconstants.h"
 #include "merdevice.h"
+#include "meremulatordevice.h"
 #include "merlogging.h"
 #include "merrunconfigurationaspect.h"
 #include "mersettings.h"
@@ -89,6 +90,10 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
             this, &MerQmlLiveBenchManager::onDeviceRemoved);
     connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
             this, &MerQmlLiveBenchManager::onDeviceListReplaced);
+    connect(MerEmulatorDeviceManager::instance(),
+            &MerEmulatorDeviceManager::hack_cachedPropertiesUpdated,
+            this,
+            &MerQmlLiveBenchManager::onDeviceListReplaced);
 
     onStartupProjectChanged(SessionManager::startupProject());
     connect(SessionManager::instance(), &SessionManager::startupProjectChanged,

@@ -186,9 +186,11 @@ public:
 
     static bool isStored(const MerEmulatorDevice::ConstPtr &device);
     static bool restoreSystemSettings(const MerEmulatorDevice::Ptr &device);
+    static bool cachedPropertiesUpdated(const MerEmulatorDevice::ConstPtr &device);
 
 signals:
     void storedDevicesChanged();
+    void hack_cachedPropertiesUpdated();
 
 private slots:
     void onDeviceCreated(const ProjectExplorer::IDevice::Ptr &device);
