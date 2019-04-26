@@ -36,18 +36,22 @@
 #include <QQueue>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QStack>
 #include <QSize>
 #include <QTime>
 #include <QTimer>
 #include <QTimerEvent>
 #include <QThread>
+#include <QUuid>
 
 #include <algorithm>
+#include <memory>
 
 using namespace Utils;
 
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
+const char HDDS[] = "hdds";
 const char RUNNINGVMS[] = "runningvms";
 const char VMS[] = "vms";
 const char SHOWVMINFO[] = "showvminfo";
@@ -95,8 +99,8 @@ namespace Mer {
 namespace Internal {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
-static void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo);
-static void vdiCapacityFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
+static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
+static void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo);
 static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static int ramSizeFromOutput(const QString &output);
@@ -460,7 +464,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     info = virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 
     if (extraInfo & VdiInfo)
-        fetchVdiCapacity(&info);
+        fetchVdiInfo(&info);
 
     if (extraInfo & SnapshotInfo)
         fetchSnapshotInfo(vmName, &info);
@@ -556,7 +560,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
 
     const VirtualMachineInfo virtualMachineInfo = fetchVirtualMachineInfo(vmName, VdiInfo);
     if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
-        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiPath << RESIZE << sizeMb
+        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << virtualMachineInfo.vdiUuid << RESIZE << sizeMb
                    << "for VM" << vmName << ". Can't reduce VDI. Current size:" << virtualMachineInfo.vdiCapacityMb;
         QTimer::singleShot(0, context, [slot]() { slot(false); });
         return;
@@ -565,28 +569,47 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
         return;
     }
 
-    QStringList arguments;
-    arguments.append(QLatin1String(MODIFYMEDIUM));
-    arguments.append(virtualMachineInfo.vdiPath);
-    arguments.append(QLatin1String(RESIZE));
-    arguments.append(QString::number(sizeMb));
+    if (virtualMachineInfo.allRelatedVdiUuids.isEmpty()) {
+        // Something went wrong, an error message should have been already issued
+        QTimer::singleShot(0, context, [slot]() { slot(false); });
+        return;
+    }
+
+    QStringList toResize = virtualMachineInfo.allRelatedVdiUuids;
+    qCDebug(Log::vms) << "About to resize these VDIs (in order):" << toResize;
 
     QTime timer;
     timer.start();
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
 
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
-                [&timer, slot](int exitCode, QProcess::ExitStatus exitStatus) {
-                    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
-                        qCDebug(Log::vms) << "Resizing VDI took" << timer.elapsed() << "milliseconds";
-                    } else {
-                        qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << RESIZE;
-                    }
-                    slot(exitStatus == QProcess::NormalExit && exitCode == 0);
-                });
+    auto allOk = std::make_shared<bool>(true);
+    while (!toResize.isEmpty()) {
+        const QString vdiUuid = toResize.takeFirst();
+        const bool isLast = toResize.isEmpty();
 
-    process->setDeleteOnFinished();
-    process->runAsynchronously(arguments);
+        QStringList arguments;
+        arguments.append(QLatin1String(MODIFYMEDIUM));
+        arguments.append(vdiUuid);
+        arguments.append(QLatin1String(RESIZE));
+        arguments.append(QString::number(sizeMb));
+
+        VBoxManageProcess *process = new VBoxManageProcess(instance());
+
+        connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), context,
+                    [timer, vdiUuid, isLast, allOk, slot](int exitCode, QProcess::ExitStatus exitStatus) {
+                        const bool ok = exitStatus == QProcess::NormalExit && exitCode == 0;
+                        if (!ok) {
+                            qWarning() << "VBoxManage failed to" << MODIFYMEDIUM << vdiUuid << RESIZE;
+                            *allOk = false;
+                        }
+                        if (isLast) {
+                            qCDebug(Log::vms) << "Resizing VDIs took" << timer.elapsed() << "milliseconds";
+                            slot(*allOk);
+                        }
+                    });
+
+        process->setDeleteOnFinished();
+        process->runAsynchronously(arguments);
+    }
 }
 
 // It is an error to call this function when the VM vmName is running
@@ -822,7 +845,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
                                "|(?:macaddress\\d+=\"(.*)\")"
                                "|(?:Session(Type|Name)=\"(.*)\")"
-                               "|(?:\"SATA-\\d-\\d\"=\"(.*)\")"
+                               "|(?:\"SATA-ImageUUID-\\d-\\d\"=\"(.*)\")"
                                "|(?:memory=(\\d+)\\n)"
                                "|(?:cpus=(\\d+)\\n)"
                                ));
@@ -868,10 +891,10 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
             info.headless = rexp.cap(11) == QLatin1String("headless");
-        } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA"))) {
-            QString vdiPath = rexp.cap(12);
-            if (!vdiPath.isEmpty() && vdiPath != QLatin1String("none")) {
-                info.vdiPath = vdiPath;
+        } else if (rexp.cap(0).startsWith(QLatin1String("\"SATA-ImageUUID"))) {
+            QString vdiUuid = rexp.cap(12);
+            if (!vdiUuid.isEmpty() && vdiUuid != QLatin1String("none")) {
+                info.vdiUuid = vdiUuid;
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("memory"))) {
             int memorySize = rexp.cap(13).toInt();
@@ -889,36 +912,84 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     return info;
 }
 
-void fetchVdiCapacity(VirtualMachineInfo *virtualMachineInfo)
+void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo)
 {
     QStringList arguments;
-    arguments.append(QLatin1String(SHOWMEDIUMINFO));
-    arguments.append(virtualMachineInfo->vdiPath);
+    arguments.append(QLatin1String(LIST));
+    arguments.append(QLatin1String(HDDS));
     VBoxManageProcess process;
     if (!process.runSynchronously(arguments))
         return;
 
-    vdiCapacityFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
+    vdiInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()), virtualMachineInfo);
 }
 
-void vdiCapacityFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
+void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo)
 {
-    // 1 vdi capacity
-    QRegExp rexp(QLatin1String("(?:Capacity:\\s+(\\d+) MBytes)"));
+    // 1 UUID
+    // 2 Parent UUID
+    // 3 VDI capacity
+    QRegExp rexp(QLatin1String("(?:UUID:\\s+([^\\s]+))"
+                               "|(?:Parent UUID:\\s+([^\\s]+))"
+                               "|(?:Capacity:\\s+(\\d+) MBytes)"
+                               ));
 
-    rexp.setMinimal(true);
+    QHash<QString, QPair<QString, QStringList>> parentAndChildrenUuids;
+
+    QString currentUuid;
     int pos = 0;
     while ((pos = rexp.indexIn(output, pos)) != -1) {
         pos += rexp.matchedLength();
-        if (rexp.cap(0).startsWith(QLatin1String("Capacity"))) {
-            QString capacityStr = rexp.cap(1);
-            if (!capacityStr.isEmpty()) {
-                bool ok;
-                int capacity = capacityStr.toInt(&ok);
-                virtualMachineInfo->vdiCapacityMb = ok ? capacity : 0;
+        if (rexp.cap(0).startsWith(QLatin1String("UUID"))) {
+            currentUuid = rexp.cap(1);
+            QTC_ASSERT(!QUuid(currentUuid).isNull(), return);
+        } else if (rexp.cap(0).startsWith(QLatin1String("Parent UUID"))) {
+            QTC_ASSERT(!currentUuid.isNull(), return);
+            QString parentUuid = rexp.cap(2);
+            if (parentUuid == "base") {
+                parentAndChildrenUuids[currentUuid].first = QString();
+                continue;
+            }
+            QTC_ASSERT(!QUuid(parentUuid).isNull(), return);
+            parentAndChildrenUuids[currentUuid].first = parentUuid;
+            parentAndChildrenUuids[parentUuid].second << currentUuid;
+        } else if (rexp.cap(0).startsWith(QLatin1String("Capacity"))) {
+            if (currentUuid != virtualMachineInfo->vdiUuid)
+                continue;
+            QString capacityStr = rexp.cap(3);
+            QTC_ASSERT(!capacityStr.isEmpty(), continue);
+            bool ok;
+            int capacity = capacityStr.toInt(&ok);
+            QTC_CHECK(ok);
+            virtualMachineInfo->vdiCapacityMb = ok ? capacity : 0;
+        }
+    }
+
+    QTC_ASSERT(parentAndChildrenUuids.contains(virtualMachineInfo->vdiUuid), return);
+
+    QSet<QString> relatedUuids;
+    QStack<QString> uuidsToCheck;
+    uuidsToCheck.push(virtualMachineInfo->vdiUuid);
+    while (!uuidsToCheck.isEmpty()) {
+        QString uuid = uuidsToCheck.pop();
+        auto parentAndChildrenUuidsIt = parentAndChildrenUuids.constFind(uuid);
+        QTC_ASSERT(parentAndChildrenUuidsIt != parentAndChildrenUuids.end(), return);
+
+        if (!parentAndChildrenUuidsIt->first.isNull()) {
+            if (!relatedUuids.contains(parentAndChildrenUuidsIt->first)) {
+                relatedUuids.insert(parentAndChildrenUuidsIt->first);
+                uuidsToCheck.push(parentAndChildrenUuidsIt->first);
+            }
+        }
+        for (const QString &childUuid : parentAndChildrenUuidsIt->second) {
+            if (!relatedUuids.contains(childUuid)) {
+                relatedUuids.insert(childUuid);
+                uuidsToCheck.push(childUuid);
             }
         }
     }
+
+    virtualMachineInfo->allRelatedVdiUuids = relatedUuids.toList();
 }
 
 int ramSizeFromOutput(const QString &output)
