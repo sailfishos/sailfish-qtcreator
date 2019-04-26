@@ -341,6 +341,10 @@ void MerEmulatorDeviceWidget::initGui()
 
     connect(MerEmulatorDeviceManager::instance(), &MerEmulatorDeviceManager::storedDevicesChanged,
             this, &MerEmulatorDeviceWidget::onStoredDevicesChanged);
+    connect(MerEmulatorDeviceManager::instance(),
+            &MerEmulatorDeviceManager::hack_cachedPropertiesUpdated,
+            this,
+            &MerEmulatorDeviceWidget::onStoredDevicesChanged);
 }
 
 } // Internal

@@ -561,6 +561,24 @@ void MerEmulatorDevice::doFactoryReset(QWidget *parent)
         return;
     }
 
+    // VDI capacity never changes solely as a result of factory reset, since the capacities of the
+    // base image and all its snapshots are managed equal.
+    const VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(virtualMachine());
+
+    QSsh::SshConnectionParameters nowSshParameters = sshParameters();
+    nowSshParameters.setPort(info.sshPort);
+    setSshParameters(nowSshParameters);
+
+    PortList qmlLivePorts;
+    for (quint16 port : info.qmlLivePorts.values())
+        qmlLivePorts.addPort(Port(port));
+    setQmlLivePorts(qmlLivePorts);
+
+    setMemorySizeMb(info.memorySizeMb);
+    setCpuCount(info.cpuCount);
+
+    MerEmulatorDeviceManager::cachedPropertiesUpdated(sharedFromThis().staticCast<MerEmulatorDevice>());
+
     m_connection->lockDown(false);
 
     progress.cancel();
@@ -809,6 +827,43 @@ bool MerEmulatorDeviceManager::restoreSystemSettings(const MerEmulatorDevice::Pt
     device->setSshParameters(sshParameters);
 
     device->setQmlLivePorts(savedQmlLivePorts);
+
+    return true;
+}
+
+// Call when the cached properties are refreshed e.g. by reading VBox settings again
+bool MerEmulatorDeviceManager::cachedPropertiesUpdated(const MerEmulatorDevice::ConstPtr &device)
+{
+    Q_ASSERT(device);
+
+    if (!isStored(device))
+        return false;
+
+    device->updateConnection();
+
+    // Update caches to avoid applying VBox settings again
+    s_instance->m_deviceSshPortCache.insert(device->id(), device->sshParameters().port());
+    s_instance->m_deviceQmlLivePortsCache.insert(device->id(), device->qmlLivePorts());
+    s_instance->m_deviceMemorySizeCache.insert(device->id(), device->memorySizeMb());
+    s_instance->m_deviceCpuCountCache.insert(device->id(), device->cpuCount());
+    s_instance->m_vdiCapacityCache.insert(device->id(), device->vdiCapacityMb());
+
+    // Hack: apply the changes
+    // TODO It is more and more clear that our implementation of IDevice is one big hack. It should
+    // be redesigned
+    MerEmulatorDevice::Ptr savedDevice = DeviceManager::instance()->find(device->id())
+        .staticCast<const MerEmulatorDevice>()
+        .constCast<MerEmulatorDevice>();
+    QTC_ASSERT(savedDevice, return false);
+    if (savedDevice != device) {
+        savedDevice->setSshParameters(device->sshParameters());
+        savedDevice->setQmlLivePorts(device->qmlLivePorts());
+        savedDevice->setMemorySizeMb(device->memorySizeMb());
+        savedDevice->setCpuCount(device->cpuCount());
+        savedDevice->setVdiCapacityMb(device->vdiCapacityMb());
+    }
+
+    emit s_instance->hack_cachedPropertiesUpdated();
 
     return true;
 }
