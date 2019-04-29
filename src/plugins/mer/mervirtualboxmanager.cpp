@@ -171,6 +171,9 @@ public:
 
     static bool runSynchronous(QProcess *process)
     {
+        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(synchronous)"
+            << process->program() << process->arguments();
+
         // Currently runnning an asynchronous process?
         if (s_instance->m_current) {
             if (!s_instance->m_current->waitForFinished()) {
@@ -193,6 +196,8 @@ public:
 
     static void runAsynchronous(QProcess *process)
     {
+        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(asynchronous)"
+            << process->program() << process->arguments();
         s_instance->m_queue.enqueue(process);
         s_instance->scheduleDequeue();
     }
@@ -223,6 +228,8 @@ private:
 
         m_current = m_queue.dequeue();
 
+        qCDebug(Log::vmsQueue) << "Dequeued" << (void*)m_current;
+
         connect(m_current, &QProcess::errorOccurred,
                 this, &CommandSerializer::finalize);
         connect(m_current, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -234,6 +241,7 @@ private:
 private slots:
     void finalize()
     {
+        qCDebug(Log::vmsQueue) << "Finished" << (void*)sender() << "current:" << (void*)m_current;
         QTC_ASSERT(sender() == m_current, return);
 
         m_current->disconnect(this);
