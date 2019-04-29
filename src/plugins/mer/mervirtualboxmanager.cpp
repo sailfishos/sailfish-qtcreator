@@ -95,6 +95,8 @@ const char TOTAL_RAM[] = "RAM/Usage/Total";
 const char SNAPSHOT[] = "snapshot";
 const char RESTORE[] = "restore";
 
+const int TERMINATE_TIMEOUT_MS = 3000;
+
 namespace Mer {
 namespace Internal {
 
@@ -103,7 +105,7 @@ static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
 static void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo);
 static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
-static int ramSizeFromOutput(const QString &output);
+static int ramSizeFromOutput(const QString &output, bool *matched);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
 static QStringList listedVirtualMachines(const QString &output);
 
@@ -169,12 +171,23 @@ public:
 
     static bool runSynchronous(QProcess *process)
     {
-        s_instance->m_queue.prepend(process);
+        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(synchronous)"
+            << process->program() << process->arguments();
 
         // Currently runnning an asynchronous process?
-        if (s_instance->m_current)
-            s_instance->m_current->waitForFinished();
+        if (s_instance->m_current) {
+            if (!s_instance->m_current->waitForFinished()) {
+                if (s_instance->m_current) {
+                    qCWarning(Log::vms) << "Failed to wait for current asynchronous process"
+                        << s_instance->m_current->program() << s_instance->m_current->arguments()
+                        << "Error:" << s_instance->m_current->error();
+                    return false;
+                }
+            }
+            QTC_CHECK(!s_instance->m_current);
+        }
 
+        s_instance->m_queue.prepend(process);
         s_instance->dequeue();
         QTC_CHECK(s_instance->m_current == process);
 
@@ -183,6 +196,8 @@ public:
 
     static void runAsynchronous(QProcess *process)
     {
+        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(asynchronous)"
+            << process->program() << process->arguments();
         s_instance->m_queue.enqueue(process);
         s_instance->scheduleDequeue();
     }
@@ -213,6 +228,8 @@ private:
 
         m_current = m_queue.dequeue();
 
+        qCDebug(Log::vmsQueue) << "Dequeued" << (void*)m_current;
+
         connect(m_current, &QProcess::errorOccurred,
                 this, &CommandSerializer::finalize);
         connect(m_current, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -224,6 +241,7 @@ private:
 private slots:
     void finalize()
     {
+        qCDebug(Log::vmsQueue) << "Finished" << (void*)sender() << "current:" << (void*)m_current;
         QTC_ASSERT(sender() == m_current, return);
 
         m_current->disconnect(this);
@@ -251,6 +269,8 @@ public:
     {
         setProcessChannelMode(QProcess::ForwardedErrorChannel);
         setProgram(vBoxManagePath());
+        connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this]() { m_terminateTimeoutTimer.stop(); });
     }
 
     bool runSynchronously(const QStringList &arguments)
@@ -273,6 +293,34 @@ public:
         connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &QObject::deleteLater);
     }
+
+public slots:
+    void reallyTerminate()
+    {
+        QTC_CHECK(state() != Starting);
+        if (state() == NotRunning)
+            return;
+
+        terminate();
+        if (!m_terminateTimeoutTimer.isActive())
+            m_terminateTimeoutTimer.start(TERMINATE_TIMEOUT_MS, this);
+    }
+
+protected:
+    void timerEvent(QTimerEvent *event) override
+    {
+        if (event->timerId() == m_terminateTimeoutTimer.timerId()) {
+            m_terminateTimeoutTimer.stop();
+            // Note that on Windows it always ends here as terminate() has no
+            // effect on VBoxManage there
+            kill();
+        } else {
+            QProcess::timerEvent(event);
+        }
+    }
+
+private:
+    QBasicTimer m_terminateTimeoutTimer;
 };
 
 MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
@@ -687,12 +735,17 @@ void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::funct
 
     auto process = new VBoxManageProcess(instance());
     connect(process, &QProcess::readyReadStandardOutput, context, [process, slot](){
-        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()));
-        process->terminate();
+        bool matched;
+        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
+                &matched);
+        if (!matched)
+            return;
+        process->closeReadChannel(QProcess::StandardOutput);
+        process->reallyTerminate();
         slot(memSizeKb / 1024);
     });
 
-    connect(context, &QObject::destroyed, process, &QProcess::terminate);
+    connect(context, &QObject::destroyed, process, &VBoxManageProcess::reallyTerminate);
 
     process->setDeleteOnFinished();
     process->runAsynchronously(arguments);
@@ -992,8 +1045,11 @@ void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachine
     virtualMachineInfo->allRelatedVdiUuids = relatedUuids.toList();
 }
 
-int ramSizeFromOutput(const QString &output)
+int ramSizeFromOutput(const QString &output, bool *matched)
 {
+    Q_ASSERT(matched);
+    *matched = false;
+
     QRegExp rexp(QLatin1String("(RAM/Usage/Total\\s+(\\d+) kB)"));
 
     rexp.setMinimal(true);
@@ -1001,9 +1057,8 @@ int ramSizeFromOutput(const QString &output)
     while ((pos = rexp.indexIn(output, pos)) != -1) {
         pos += rexp.matchedLength();
         int memSize = rexp.cap(2).toInt();
-        if (memSize > 0) {
-            return memSize;
-        }
+        *matched = true;
+        return memSize;
     }
     return 0;
 }
