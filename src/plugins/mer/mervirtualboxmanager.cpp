@@ -105,7 +105,7 @@ static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
 static void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
 static void fetchSnapshotInfo(const QString &vmName, VirtualMachineInfo *virtualMachineInfo);
 static void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachineInfo);
-static int ramSizeFromOutput(const QString &output);
+static int ramSizeFromOutput(const QString &output, bool *matched);
 static bool isVirtualMachineRunningFromInfo(const QString &vmInfo);
 static QStringList listedVirtualMachines(const QString &output);
 
@@ -735,7 +735,12 @@ void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::funct
 
     auto process = new VBoxManageProcess(instance());
     connect(process, &QProcess::readyReadStandardOutput, context, [process, slot](){
-        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()));
+        bool matched;
+        auto memSizeKb = ramSizeFromOutput(QString::fromLocal8Bit(process->readAllStandardOutput()),
+                &matched);
+        if (!matched)
+            return;
+        process->closeReadChannel(QProcess::StandardOutput);
         process->reallyTerminate();
         slot(memSizeKb / 1024);
     });
@@ -1040,8 +1045,11 @@ void vdiInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMachine
     virtualMachineInfo->allRelatedVdiUuids = relatedUuids.toList();
 }
 
-int ramSizeFromOutput(const QString &output)
+int ramSizeFromOutput(const QString &output, bool *matched)
 {
+    Q_ASSERT(matched);
+    *matched = false;
+
     QRegExp rexp(QLatin1String("(RAM/Usage/Total\\s+(\\d+) kB)"));
 
     rexp.setMinimal(true);
@@ -1049,9 +1057,8 @@ int ramSizeFromOutput(const QString &output)
     while ((pos = rexp.indexIn(output, pos)) != -1) {
         pos += rexp.matchedLength();
         int memSize = rexp.cap(2).toInt();
-        if (memSize > 0) {
-            return memSize;
-        }
+        *matched = true;
+        return memSize;
     }
     return 0;
 }
