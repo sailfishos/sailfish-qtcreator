@@ -360,8 +360,19 @@ void MerSettings::read()
 
     settings->endGroup();
 
+    if (qEnvironmentVariableIsSet(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)) {
+        qWarning() << "The environment variable"
+            << QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED)
+            << "is deprecated. Use"
+            << QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER)
+            << "instead";
+        qputenv(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER,
+                qgetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED));
+        qunsetenv(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED);
+    }
+
     m_environmentFilterFromEnvironment =
-        QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER);
+        QProcessEnvironment::systemEnvironment().value(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER);
 
     m_deviceModels = deviceModelsRead(globalDeviceModelsFileName());
     const QMap<QString, MerEmulatorDeviceModel> userDeviceModels = deviceModelsRead(deviceModelsFileName());

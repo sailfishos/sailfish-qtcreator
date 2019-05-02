@@ -132,7 +132,7 @@ void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) co
             env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
         if (!MerSettings::isEnvironmentFilterFromEnvironment() &&
                 !MerSettings::environmentFilter().isEmpty()) {
-            env.appendOrSet(QLatin1String(Constants::SAILFISH_OS_SDK_ENVIRONMENT_FILTER),
+            env.appendOrSet(QLatin1String(Constants::SAILFISH_SDK_ENVIRONMENT_FILTER),
                     MerSettings::environmentFilter());
         }
     }
