@@ -1,0 +1,4 @@
+module %{PluginName}
+%{PluginName} 1.0 %{PluginName}.qml
+plugin %{ProjectName}
+

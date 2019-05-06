@@ -1,0 +1,195 @@
+{
+    "version": 1,
+    "supportedProjectTypes": ["Qt4ProjectManager.Qt4Project"],
+    "id": "QMLPlugin",
+    "category": "Sailfish Project",
+    "trDescription": "Creates a project for developing a QML plugin",
+    "trDisplayName": "QML Plugin",
+    "trDisplayCategory": "Sailfish Project",
+    "iconText": "QML",
+    "enabled": "%{JS: [ %{Plugins} ].indexOf('SailfishWizards') >= 0 && [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
+
+    "options":
+        [
+        { "key": "ProFile", "value": "%{JS: Util.fileName('%{ProjectDirectory}/%{ProjectName}', 'pro')}" },
+        { "key": "EditorRequested", "value": "%{JS: '%{ConfigFile}' === 'Spectacle with YAML configuration' && %{OpenEditor}}"},
+        { "key": "HdrModelFile", "value": "%{JS: Cpp.classToFileName('%{ModelClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}" },
+        { "key": "SrcModelFile", "value": "%{JS: Cpp.classToFileName('%{ModelClassName}', '%{JS: Util.preferredSuffix('text/x-c++src')}')}" },
+        { "key": "HdrPluginFile", "value": "%{JS: Cpp.classToFileName('%{PluginClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}" },
+        { "key": "SrcPluginFile", "value": "%{JS: Cpp.classToFileName('%{PluginClassName}', '%{JS: Util.preferredSuffix('text/x-c++src')}')}" },
+        { "key": "PluginHdrGuard", "value": "%{JS: Cpp.classToHeaderGuard('%{PluginClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}"},
+        { "key": "ModelHdrGuard", "value": "%{JS: Cpp.classToHeaderGuard('%{ModelClassName}', '%{JS: Util.preferredSuffix('text/x-c++hdr')}')}"}
+    ],
+
+    "pages":
+        [
+        {
+            "trDisplayName": "Project Location",
+            "trShortTitle": "Location",
+            "typeId": "Project"
+        },
+        {
+            "trDisplayName": "Kit Selection",
+            "trShortTitle": "Kits",
+            "typeId": "Kits",
+            "data": { "projectFilePath": "%{ProFile}" }
+        },
+        {
+            "trDisplayName": "Plugin information",
+            "trShortTitle": "Details",
+            "typeId": "Fields",
+            "data" :
+                [
+                {
+                    "name": "PluginName",
+                    "trDisplayName": "Plugin name:",
+                    "mandatory": true,
+                    "type": "LineEdit",
+                    "data":
+                        {
+                            "trText": "%{JS: ''.concat('%{ProjectName}'.charAt(0).toUpperCase(), '%{ProjectName}'.substring(1)).replace(/-/g, '')}",
+                            "validator": "[a-zA-Z_0-9]*"
+                        }
+                },
+                {
+                    "name": "QmlPluginFileName",
+                    "type": "LineEdit",
+                    "trDisplayName": "QML Plugin file:",
+                    "mandatory": true,
+                    "data":
+                        {
+                            "trText": "%{PluginName}.qml"
+                        }
+                },
+                {
+                    "name": "PluginClassName",
+                    "trDisplayName": "Plugin class:",
+                    "type": "LineEdit",
+                    "mandatory": true,
+                    "enabled": "%{IncludeCpp}",
+                    "data":
+                        {
+                            "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)",
+                            "trText": "%{PluginName}Plugin"
+                        }
+                },
+                {
+                    "name": "ModelClassName",
+                    "trDisplayName": "Model class:",
+                    "type": "LineEdit",
+                    "mandatory": true,
+                    "enabled": "%{IncludeCpp}",
+                    "data":
+                        {
+                            "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)",
+                            "trText": "%{PluginName}Model"
+                        }
+                },
+                {
+                    "name": "IncludeCpp",
+                    "trDisplayName": "Create a C++ class and use it in the QML runtime",
+                    "type": "CheckBox",
+                    "data":
+                    {
+                        "checked": true
+                    }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "RPM Settings",
+            "trShortTitle": "RPM Settings",
+            "typeId": "Fields",
+            "data" :
+                [
+                {
+                    "name": "ConfigFile",
+                    "trDisplayName": "RPM build:",
+                    "type": "ComboBox",
+                    "data":
+                    {
+                        "items": [ {"trKey": "Spectacle with YAML configuration", "value": "Spectacle with YAML configuration"},
+                            {"trKey": "RPM build with SPEC configuration", "value": "RPM build with SPEC configuration"}]
+                    }
+                },
+                {
+                    "name": "OpenEditor",
+                    "trDisplayName": "Open Spectacle configuration upon completion",
+                    "type": "CheckBox",
+                    "enabled": "%{JS: '%{ConfigFile}' === 'Spectacle with YAML configuration'}",
+                    "data":
+                    {
+                        "checked": true
+                    }
+                }
+            ]
+        },
+        {
+            "trDisplayName": "Project Management",
+            "trShortTitle": "Summary",
+            "typeId": "Summary"
+        }
+    ],
+
+    "generators":
+        [
+        {
+            "typeId": "File",
+            "data":
+                [
+                {
+                    "source": "plugin.qml",
+                    "target": "%{ProjectDirectory}/plugin.qml"
+                },
+                {
+                    "source": "plugin.qmlproject",
+                    "target": "%{ProjectDirectory}/plugin.qmlproject"
+                },
+                {
+                    "source": "template.pro",
+                    "target": "%{ProFile}",
+                    "openAsProject": true
+                },
+                {
+                    "source": "src/template_plugin.cpp",
+                    "target": "%{ProjectDirectory}/src/%{SrcPluginFile}",
+                    "condition": "%{IncludeCpp}"
+                },
+                {
+                    "source": "src/template_plugin.h",
+                    "target": "%{ProjectDirectory}/src/%{HdrPluginFile}",
+                    "condition": "%{IncludeCpp}"
+                },
+                {
+                    "source": "src/template_model.cpp",
+                    "target": "%{ProjectDirectory}/src/%{SrcModelFile}",
+                    "condition": "%{IncludeCpp}"
+                },
+                {
+                    "source": "src/template_model.h",
+                    "target": "%{ProjectDirectory}/src/%{HdrModelFile}",
+                    "condition": "%{IncludeCpp}"
+                },
+                {
+                    "source": "imports/Template/qmldir",
+                    "target": "%{ProjectDirectory}/imports/%{PluginName}/qmldir"
+                },
+                {
+                    "source": "imports/Template/template.qml",
+                    "target": "%{ProjectDirectory}/imports/%{PluginName}/%{QmlPluginFileName}"
+                },
+                {
+                    "source": "rpm/template.spec",
+                    "target": "%{ProjectDirectory}/rpm/%{ProjectName}.spec",
+                    "condition": "%{JS: '%{ConfigFile}' === 'RPM build with SPEC configuration'}"
+                },
+                {
+                    "source": "rpm/template.yaml",
+                    "target": "%{ProjectDirectory}/rpm/%{ProjectName}.yaml",
+                    "openInEditor": "%{EditorRequested}",
+                    "condition": "%{JS: '%{ConfigFile}' === 'Spectacle with YAML configuration'}"
+                }
+            ]
+        }
+    ]
+}

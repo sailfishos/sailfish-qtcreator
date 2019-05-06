@@ -1,0 +1,45 @@
+Name:    %{ProjectName}
+Summary: My Sailfish OS Plugin
+Version: 0.1
+Release: 1
+# The contents of the Group field must be one of the groups listed here:
+# http://gitorious.org/meego-developer-tools/spectacle/blobs/master/data/GROUPS
+Group: Qt/Qt
+URL: http://example.org/
+License: LICENSE
+# This must be generated before uploading a package to a remote build service.
+# Usually this line does not need to be modified.
+Sources:
+- '%{name}-%{version}.tar.bz2'
+Description: |
+  Short description of my Sailfish OS Plugin
+Configure: none
+# The qtc5 builder inserts macros to allow QtCreator to have fine
+# control over qmake/make execution
+Builder: qtc5
+
+# This section specifies build dependencies that are resolved using pkconfig.
+# This is the preferred way of specifying build dependencies for your package.
+PkgConfigBR:
+
+
+# Build dependencies without a pkgconfig setup can be listed here
+PkgBR:
+
+
+# Runtime dependencies which are not automatically detected
+Requires:
+
+
+# All installed files
+Files:
+  - '%defattr(-,root,root,-)'
+  - '%dir %{_libdir}/qt5/qml/%{PluginName}'
+  - '%{_libdir}/qt5/qml/%{PluginName}/qmldir'
+  - '%{_libdir}/qt5/qml/%{PluginName}/%{QmlPluginFileName}'
+  - '%{_libdir}/qt5/qml/%{PluginName}/lib%{ProjectName}.so'
+  - '/home/mersdk/share/projects/%{ProjectName}/plugin.qml'
+
+# For more information about yaml and what's supported in Sailfish OS
+# build system, please see https://wiki.merproject.org/wiki/Spectacle
+
