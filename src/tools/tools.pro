@@ -4,6 +4,7 @@ SUBDIRS = qtpromaker \
      ../plugins/cpaster/frontend \
      sdktool \
      merssh \
+     sfdk \
      valgrindfake \
      3rdparty \
      buildoutputparser

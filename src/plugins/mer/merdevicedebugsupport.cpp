@@ -143,9 +143,9 @@ void MerDeviceDebugSupport::start()
     MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
 
     if (mersdk && !mersdk->sharedHomePath().isEmpty())
-        addSourcePathMap(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
+        addSourcePathMap(Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, mersdk->sharedHomePath());
     if (mersdk && !mersdk->sharedSrcPath().isEmpty())
-        addSourcePathMap(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
+        addSourcePathMap(Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, mersdk->sharedSrcPath());
 
     DebuggerRunTool::start();
 }

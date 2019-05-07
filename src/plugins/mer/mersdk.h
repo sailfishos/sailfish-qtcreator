@@ -83,7 +83,9 @@ public:
     quint16 wwwPort() const;
 
     void setWwwProxy(const QString &type, const QString &servers, const QString &excludes);
+#ifdef MER_LIBRARY
     void syncWwwProxy();
+#endif // MER_LIBRARY
     QString wwwProxy() const;
     QString wwwProxyServers() const;
     QString wwwProxyExcludes() const;
@@ -120,8 +122,10 @@ public:
     virtual QVariantMap toMap() const;
     virtual bool fromMap(const QVariantMap &data);
 
+#ifdef MER_LIBRARY
     void attach();
     void detach();
+#endif // MER_LIBRARY
 
     MerConnection *connection() const;
 
@@ -134,15 +138,19 @@ signals:
     void wwwProxyChanged(const QString &type, const QString &servers, const QString &excludes);
 
 private slots:
+#ifdef MER_LIBRARY
     void updateTargets();
     void handleTargetsFileChanged(const QString &file);
     void onConnectionStateChanged();
+#endif // MER_LIBRARY
 
 private:
     explicit MerSdk(QObject *parent = 0);
     QList<MerTarget> readTargets(const Utils::FileName &fileName);
+#ifdef MER_LIBRARY
     bool addTarget(const MerTarget &target);
     bool removeTarget(const MerTarget &target);
+#endif // MER_LIBRARY
     void setTargets(const QList<MerTarget> &targets);
 
 private:

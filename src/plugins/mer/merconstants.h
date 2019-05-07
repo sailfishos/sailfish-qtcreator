@@ -152,6 +152,9 @@ const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
 const char MER_DEBUGGER_FILENAME_PREFIX[] = "gdb-";
 
+const char MER_SDK_SHARED_HOME_MOUNT_POINT[] = "/home/mersdk/share";
+const char MER_SDK_SHARED_SRC_MOUNT_POINT[] = "/home/src1";
+
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
 const char MER_TARGET_GCC_DUMP_MACHINE[] = "MerTarget.GccDumpMachine";
@@ -181,6 +184,8 @@ const char MER_SSH_PORT[] = "MER_SSH_PORT";
 const char MER_SSH_ENGINE_NAME[] = "MER_SSH_ENGINE_NAME";
 const char SAILFISH_OS_SDK_ENVIRONMENT_FILTER_DEPRECATED[] = "SAILFISH_OS_SDK_ENVIRONMENT_FILTER";
 const char SAILFISH_SDK_ENVIRONMENT_FILTER[] = "SAILFISH_SDK_ENVIRONMENT_FILTER";
+const char SAILFISH_SDK_FRONTEND[] = "SAILFISH_SDK_FRONTEND";
+const char SAILFISH_SDK_FRONTEND_ID[] = "qtcreator";
 const char MER_DEVICE_VIRTUAL_MACHINE[] = "MER_DEVICE_VIRTUAL_MACHINE";
 const char MER_DEVICE_FACTORY_SNAPSHOT[] = "MER_DEVICE_FACTORY_SNAPSHOT";
 const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";

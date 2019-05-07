@@ -13,6 +13,7 @@ DATA_DIRS = \
     themes \
     designer \
     schemes \
+    sfdk \
     styles \
     rss \
     debugger \

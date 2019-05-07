@@ -33,6 +33,7 @@
 #include <utils/checkablemessagebox.h>
 
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QEventLoop>
 #include <QMessageBox>
 #include <QProgressDialog>
@@ -187,55 +188,10 @@ private:
     bool m_finished;
 };
 
-#ifdef MER_LIBRARY
-class MerConnectionWidgetUi : public MerConnection::Ui
-{
-    Q_OBJECT
-
-public:
-    using MerConnection::Ui::Ui;
-
-    void warn(Warning which) override;
-    void dismissWarning(Warning which) override;
-
-    bool shouldAsk(Question which) const override;
-    void ask(Question which, OnStatusChanged onStatusChanged) override;
-    void dismissQuestion(Question which) override;
-    QuestionStatus status(Question which) const override;
-
-private:
-    QMessageBox *openWarningBox(const QString &title, const QString &text);
-    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text,
-            const QString &informativeText = QString(),
-            std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text);
-    template<class Dialog>
-    void deleteDialog(QPointer<Dialog> &dialog);
-    QuestionStatus status(QMessageBox *box) const;
-    QuestionStatus status(QProgressDialog *dialog) const;
-
-private:
-    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
-    QPointer<QMessageBox> m_startVmQuestionBox;
-    QPointer<QMessageBox> m_resetVmQuestionBox;
-    QPointer<QMessageBox> m_closeVmQuestionBox;
-    QPointer<QProgressDialog> m_connectingProgressDialog;
-    QPointer<QProgressDialog> m_lockingDownProgressDialog;
-};
-#endif // MER_LIBRARY
-
+MerConnection::UiCreator MerConnection::s_uiCreator;
 QMap<QString, int> MerConnection::s_usedVmNames;
 
-#ifdef MER_LIBRARY
 MerConnection::MerConnection(QObject *parent)
-    : MerConnection(new MerConnectionWidgetUi, parent)
-{
-}
-#endif // MER_LIBRARY
-
-MerConnection::MerConnection(Ui *ui, QObject *parent)
     : QObject(parent)
     , m_headless(false)
     , m_state(Disconnected)
@@ -257,15 +213,16 @@ MerConnection::MerConnection(Ui *ui, QObject *parent)
     , m_cachedSshError(SshNoError)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
-    , m_ui(ui)
+    , m_ui(s_uiCreator(this))
 {
-    Q_ASSERT(ui);
     m_vmStateEntryTime.start();
     m_ui->setParent(this);
 }
 
 MerConnection::~MerConnection()
 {
+    waitForVmPollStateFinish();
+
     if (!m_vmName.isEmpty()) {
         if (--s_usedVmNames[m_vmName] == 0)
             s_usedVmNames.remove(m_vmName);
@@ -383,7 +340,7 @@ bool MerConnection::lockDown(bool lockDown)
     if (m_lockDownRequested) {
         DBG << "Lockdown begin";
         m_connectLaterRequested = false;
-        vmPollState();
+        vmPollState(Synchronous);
         vmStmScheduleExec();
         sshStmScheduleExec();
 
@@ -425,19 +382,17 @@ QStringList MerConnection::usedVirtualMachines()
     return s_usedVmNames.keys();
 }
 
-void MerConnection::refresh()
+void MerConnection::refresh(Synchronization synchronization)
 {
-    DBG << "Refresh requested";
+    DBG << "Refresh requested; synchronization:" << synchronization;
 
-    vmPollState(Asynchronous);
+    vmPollState(synchronization);
 }
 
 // Returns false when blocking connection request failed or when did not connect
 // immediatelly with non-blocking connection request.
 bool MerConnection::connectTo(ConnectOptions options)
 {
-    DBG << "Connect requested";
-
     if (options & Block) {
         if (connectTo(options & ~Block))
             return true;
@@ -461,6 +416,8 @@ bool MerConnection::connectTo(ConnectOptions options)
 
         return loop.exec() == EXIT_SUCCESS;
     }
+
+    DBG << "Connect requested";
 
     if (!m_ui->shouldAsk(Ui::StartVm))
         options &= ~AskStartVm;
@@ -1188,17 +1145,22 @@ void MerConnection::vmWantFastPollState(bool want)
     }
 }
 
-void MerConnection::vmPollState(bool async)
+void MerConnection::vmPollState(Synchronization synchronization)
 {
     if (m_pollingVmState) {
-        DBG << "Already polling";
+        if (synchronization == Synchronous) {
+            DBG << "Already polling - waiting";
+            waitForVmPollStateFinish();
+        } else {
+            DBG << "Already polling";
+        }
         return;
     }
 
     m_pollingVmState = true;
 
     QEventLoop *loop = 0;
-    if (!async)
+    if (synchronization == Synchronous)
         loop = new QEventLoop(this);
 
     auto handler = [this, loop](bool vmRunning, bool vmExists) {
@@ -1228,10 +1190,16 @@ void MerConnection::vmPollState(bool async)
 
     MerVirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
 
-    if (!async) {
+    if (synchronization == Synchronous) {
         loop->exec();
         delete loop, loop = 0;
     }
+}
+
+void MerConnection::waitForVmPollStateFinish()
+{
+    while (m_pollingVmState)
+        QCoreApplication::processEvents();
 }
 
 void MerConnection::sshTryConnect()

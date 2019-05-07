@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,45 +20,43 @@
 **
 ****************************************************************************/
 
-#ifndef REOMOTE_PROCESS_H
-#define REOMOTE_PROCESS_H
+#pragma once
 
-#include <ssh/sshconnection.h>
-#include <ssh/sshremoteprocessrunner.h>
-
-#include <QEventLoop>
-#include <QObject>
+#include <QCoreApplication>
+#include <QSet>
+#include <QString>
 
 QT_BEGIN_NAMESPACE
-class QFile;
+class QProcess;
 QT_END_NAMESPACE
 
-class MerRemoteProcess : public QSsh::SshRemoteProcessRunner
+namespace Sfdk {
+
+class Session
 {
-    Q_OBJECT
+    Q_DECLARE_TR_FUNCTIONS(Sfdk::Session)
+
 public:
-    explicit MerRemoteProcess(QObject *parent = 0);
-    ~MerRemoteProcess() override;
-    int executeAndWait();
-    void setIntercative(bool enabled);
-    void setSshParameters(const QSsh::SshConnectionParameters& params);
-    void setCommand(const QString& command);
+    Session();
+    ~Session();
+
+    static bool isValid();
+    static QString id();
+    static bool isSessionActive(const QString &id);
 
 private:
-    static QString forwardEnvironment(const QString &command);
-
-private slots:
-    void onProcessStarted();
-    void onStandardOutput();
-    void onStandardError();
-    void onConnectionError();
-    void handleStdin();
+    static QString getSessionId(const QString &processId = {});
+    static bool finishedOk(QProcess *process);
+#ifdef Q_OS_WIN
+    struct WindowsPidToCygwinPid;
+    static QString firstCygwinAncestorPid();
+#endif
+    static QString procfsStat(const QString &pid, int field, bool silent);
 
 private:
-    bool m_interactive;
-    QString m_command;
-    QSsh::SshConnectionParameters m_sshConnectionParams;
-    QFile *m_stdin;
+    static Session *s_instance;
+    QString m_id;
+    QSet<QString> m_activeSessions;
 };
 
-#endif // REOMOTE_PROCESS_H
+} // namespace Sfdk

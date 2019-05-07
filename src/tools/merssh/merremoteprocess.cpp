@@ -37,7 +37,6 @@
 
 MerRemoteProcess::MerRemoteProcess(QObject *parent)
     : QSsh::SshRemoteProcessRunner(parent)
-    , m_cache(false)
     , m_interactive(true)
 {
     connect(this, &MerRemoteProcess::processStarted,
@@ -120,7 +119,16 @@ QString MerRemoteProcess::forwardEnvironment(const QString &command)
     QLatin1String delim("\n    ");
     qout << tr("Adding to environment:") << delim << environmentToForward.join(delim) << endl;
 
-    return "export " + environmentToForward.join(" ") + "; " + command;
+    QString result;
+    result += "export ";
+    result += environmentToForward.join(' ');
+    result += ' ';
+    result += QString::fromLatin1(Mer::Constants::SAILFISH_SDK_FRONTEND)
+        + '=' + Mer::Constants::SAILFISH_SDK_FRONTEND_ID;
+    result += "; ";
+    result += command;
+
+    return result;
 }
 
 void MerRemoteProcess::onProcessStarted()
@@ -139,36 +147,28 @@ void MerRemoteProcess::onProcessStarted()
 
 void MerRemoteProcess::onStandardOutput()
 {
-    if (!m_cache) {
-        const QByteArray output(readAllStandardOutput());
-        fprintf(stdout, "%s", output.constData());
-        fflush(stdout);
-    }
+    const QByteArray output(readAllStandardOutput());
+    fprintf(stdout, "%s", output.constData());
+    fflush(stdout);
 }
 
 void MerRemoteProcess::onStandardError()
 {
-    if (!m_cache) {
-        const QByteArray output(readAllStandardError());
-        fprintf(stderr, "%s", output.constData());
-        fflush(stderr);
-    }
+    const QByteArray output(readAllStandardError());
+    fprintf(stderr, "%s", output.constData());
+    fflush(stderr);
 }
 
 void MerRemoteProcess::onConnectionError()
 {
-    if (!m_cache) {
-        fprintf(stderr, "%s",
-                qPrintable(QString::fromLatin1(
-                               "Project ERROR: Could not connect to build engine virtual machine. %1\n")
-                                         .arg(lastConnectionErrorString())));
-        fflush(stderr);
-    }
+    fprintf(stderr, "%s",
+            qPrintable(QString::fromLatin1(
+                    "Project ERROR: Could not connect to build engine virtual machine. %1\n")
+                .arg(lastConnectionErrorString())));
+    fflush(stderr);
 }
 
 void MerRemoteProcess::handleStdin()
 {
     writeDataToProcess(m_stdin->readLine());
 }
-
-

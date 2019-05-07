@@ -56,6 +56,8 @@ class LogOnlyUi : public MerConnection::Ui
     Q_OBJECT
 
 public:
+    using MerConnection::Ui::Ui;
+
     void warn(Warning which) override
     {
         switch (which) {
@@ -208,10 +210,12 @@ int EngineCtlCommand::execute()
         return process.executeAndWait();
     }
 
-    MerConnection connection(new LogOnlyUi, nullptr);
+    MerConnection::registerUi<LogOnlyUi>();
+    MerConnection connection(nullptr);
     connection.setVirtualMachine(engineName());
     connection.setHeadless(true);
     connection.setSshParameters(sshParameters);
+    connection.refresh(MerConnection::Synchronous);
 
     if (!connection.connectTo(MerConnection::Block)) {
         qerr() << tr("Failed to connect to the '%1' virtual machine: %2")

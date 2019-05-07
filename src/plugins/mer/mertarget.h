@@ -60,7 +60,9 @@ public:
     MerTarget(MerSdk *sdk);
     virtual ~MerTarget();
     QString name() const;
+#ifdef MER_LIBRARY
     QString targetPath() const;
+#endif // MER_LIBRARY
 
     void setName(const QString &name);
     void setQmakeQuery(const QString &qmakeQuery);
@@ -74,6 +76,8 @@ public:
 
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
+
+#ifdef MER_LIBRARY
     ProjectExplorer::Kit *kit() const;
 
     bool finalizeKitCreation(ProjectExplorer::Kit *k) const;
@@ -82,12 +86,17 @@ public:
     MerToolChain* createToolChain(Core::Id l) const;
     bool createScripts() const;
     void deleteScripts() const;
+#endif // MER_LIBRARY
+
     bool isValid() const;
     bool operator==(const MerTarget &other) const;
 
 private:
+#ifdef MER_LIBRARY
     bool createScript(const QString &targetPath, int scriptIndex) const;
     bool createCacheFile(const QString &fileName, const QString &content) const;
+#endif // MER_LIBRARY
+
     static QList<MerRpmValidationSuiteData> rpmValidationSuitesFromString(const QString &string, bool *ok);
     static QString rpmValidationSuitesToString(const QList<MerRpmValidationSuiteData> &suites);
 
