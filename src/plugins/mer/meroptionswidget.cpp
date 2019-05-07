@@ -60,7 +60,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     , m_status(tr("Not connected."))
 {
     m_ui->setupUi(this);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
             this, &MerOptionsWidget::onSdksUpdated);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::authorizeSshKey,
             this, &MerOptionsWidget::onAuthorizeSshKey);
@@ -149,6 +149,8 @@ void MerOptionsWidget::store()
 
     bool ok = true;
 
+    disconnect(m_sdksUpdatedConnection);
+
     QList<MerSdk*> lockedDownSdks;
     ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
 
@@ -219,6 +221,10 @@ void MerOptionsWidget::store()
 
     foreach (MerSdk *sdk, lockedDownSdks)
         sdk->connection()->lockDown(false);
+
+    onSdksUpdated();
+    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerOptionsWidget::onSdksUpdated);
 
     if (!ok) {
         progress.cancel();
