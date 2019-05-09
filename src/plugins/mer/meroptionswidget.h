@@ -85,6 +85,7 @@ private:
     Ui::MerOptionsWidget *m_ui;
     QString m_virtualMachine;
     QMetaObject::Connection m_vmOffConnection;
+    QMetaObject::Connection m_sdksUpdatedConnection;
     QString m_status;
     QMap<QString, MerSdk*> m_sdks;
     QMap<MerSdk*, QString> m_sshPrivKeys;

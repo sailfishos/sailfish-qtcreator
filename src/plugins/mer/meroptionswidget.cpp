@@ -60,7 +60,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     , m_status(tr("Not connected."))
 {
     m_ui->setupUi(this);
-    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
             this, &MerOptionsWidget::onSdksUpdated);
     connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::authorizeSshKey,
             this, &MerOptionsWidget::onAuthorizeSshKey);
@@ -149,6 +149,8 @@ void MerOptionsWidget::store()
 
     bool ok = true;
 
+    disconnect(m_sdksUpdatedConnection);
+
     QList<MerSdk*> lockedDownSdks;
     ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
 
@@ -220,6 +222,10 @@ void MerOptionsWidget::store()
     foreach (MerSdk *sdk, lockedDownSdks)
         sdk->connection()->lockDown(false);
 
+    onSdksUpdated();
+    m_sdksUpdatedConnection = connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerOptionsWidget::onSdksUpdated);
+
     if (!ok) {
         progress.cancel();
         QMessageBox::warning(this, tr("Some changes could not be saved!"),
@@ -259,9 +265,20 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
             m_sshPort.remove(sdk);
         if (m_wwwPort.value(sdk) == sdk->wwwPort())
             m_wwwPort.remove(sdk);
+        if (m_memorySizeMb.value(sdk) == sdk->memorySizeMb())
+            m_memorySizeMb.remove(sdk);
+        if (m_cpuCount.value(sdk) == sdk->cpuCount())
+            m_cpuCount.remove(sdk);
+        if (m_vdiCapacityMb.value(sdk) == sdk->vdiCapacityMb())
+            m_vdiCapacityMb.remove(sdk);
 
-        if (!m_sshPort.contains(sdk) && !m_wwwPort.contains(sdk))
+        if (!m_sshPort.contains(sdk)
+                && !m_wwwPort.contains(sdk)
+                && !m_memorySizeMb.contains(sdk)
+                && !m_cpuCount.contains(sdk)
+                && !m_vdiCapacityMb.contains(sdk)) {
             continue;
+        }
 
         if (!sdk->connection()->isVirtualMachineOff()) {
             QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
@@ -290,6 +307,12 @@ bool MerOptionsWidget::lockDownConnectionsOrCancelChangesThatNeedIt(QList<MerSdk
         m_sshPort.remove(sdk);
         m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
         m_wwwPort.remove(sdk);
+        m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
+        m_memorySizeMb.remove(sdk);
+        m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
+        m_cpuCount.remove(sdk);
+        m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
+        m_vdiCapacityMb.remove(sdk);
     }
 
     return failed.isEmpty();
