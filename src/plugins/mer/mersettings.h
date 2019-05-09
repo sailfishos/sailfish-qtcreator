@@ -59,6 +59,8 @@ public:
     static void setAskBeforeStartingVmEnabled(bool enabled);
     static bool isAskBeforeClosingVmEnabled();
     static void setAskBeforeClosingVmEnabled(bool enabled);
+    static bool isImportQmakeVariablesEnabled();
+    static void setImportQmakeVariablesEnabled(bool enabled);
 
 #ifdef MER_LIBRARY
     static Utils::FileName deviceModelsFileName();
@@ -85,6 +87,7 @@ signals:
     void syncQmlLiveWorkspaceEnabledChanged(bool enabled);
     void askBeforeStartingVmEnabledChanged(bool enabled);
     void askBeforeClosingVmEnabledChanged(bool enabled);
+    void importQmakeVariablesEnabledChanged(bool enabled);
 
 private:
     void read();
@@ -104,6 +107,7 @@ private:
     bool m_syncQmlLiveWorkspaceEnabled;
     bool m_askBeforeStartingVmEnabled;
     bool m_askBeforeClosingVmEnabled;
+    bool m_importQmakeVariablesEnabled;
 #ifdef MER_LIBRARY
     QMap<QString, MerEmulatorDeviceModel> m_deviceModels;
 #endif // MER_LIBRARY

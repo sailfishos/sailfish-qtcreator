@@ -51,6 +51,7 @@ const char RPM_VALIDATION_BY_DEFAULT_KEY[] = "RpmValidationByDefault";
 const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
 const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
 const char ASK_BEFORE_CLOSING_VM[] = "AskBeforeClosingVm";
+const char IMPORT_QMAKE_VARIABLES[] = "ImportQmakeVariables";
 } // namespace anonymous
 
 MerSettings *MerSettings::s_instance = 0;
@@ -353,6 +354,25 @@ void MerSettings::setAskBeforeClosingVmEnabled(bool enabled)
     emit s_instance->askBeforeClosingVmEnabledChanged(s_instance->m_askBeforeClosingVmEnabled);
 }
 
+bool MerSettings::isImportQmakeVariablesEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_importQmakeVariablesEnabled;
+}
+
+void MerSettings::setImportQmakeVariablesEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_importQmakeVariablesEnabled == enabled)
+        return;
+
+    s_instance->m_importQmakeVariablesEnabled = enabled;
+
+    emit s_instance->importQmakeVariablesEnabledChanged(s_instance->m_importQmakeVariablesEnabled);
+}
+
 void MerSettings::read()
 {
 #ifdef MER_LIBRARY
@@ -372,6 +392,7 @@ void MerSettings::read()
     m_qmlLiveBenchLocation = settings->value(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY)).toString();
     m_askBeforeStartingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
     m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
+    m_importQmakeVariablesEnabled = settings->value(QLatin1String(IMPORT_QMAKE_VARIABLES), true).toBool();
 
     settings->endGroup();
 
@@ -414,6 +435,7 @@ void MerSettings::save()
         settings->setValue(QLatin1String(QML_LIVE_BENCH_LOCATION_KEY), m_qmlLiveBenchLocation);
     settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeStartingVmEnabled);
     settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeClosingVmEnabled);
+    settings->setValue(QLatin1String(IMPORT_QMAKE_VARIABLES), m_importQmakeVariablesEnabled);
 
     settings->endGroup();
 

@@ -54,6 +54,7 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
 
     m_ui->askBeforeStartingVmCheckBox->setChecked(MerSettings::isAskBeforeStartingVmEnabled());
     m_ui->askBeforeClosingVmCheckBox->setChecked(MerSettings::isAskBeforeClosingVmEnabled());
+    m_ui->importQmakeVariablesCheckBox->setChecked(MerSettings::isImportQmakeVariablesEnabled());
 
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
@@ -74,6 +75,7 @@ void MerGeneralOptionsWidget::store()
     MerSettings::setAskBeforeClosingVmEnabled(m_ui->askBeforeClosingVmCheckBox->isChecked());
     MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
     MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
+    MerSettings::setImportQmakeVariablesEnabled(m_ui->importQmakeVariablesCheckBox->isChecked());
 }
 
 QString MerGeneralOptionsWidget::searchKeywords() const

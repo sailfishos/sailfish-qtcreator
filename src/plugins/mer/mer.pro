@@ -37,7 +37,6 @@ FORMS += \
 
 SOURCES += \
     merabstractvmstartstep.cpp \
-    meraddvmstartbuildstepprojectlistener.cpp \
     merbuildsteps.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
@@ -65,7 +64,6 @@ SOURCES += \
     meroptionspage.cpp \
     meroptionswidget.cpp \
     merplugin.cpp \
-    merprojectlistener.cpp \
     merqmllivebenchmanager.cpp \
     merqmlrunconfiguration.cpp \
     merqmlrunconfigurationfactory.cpp \
@@ -98,10 +96,10 @@ SOURCES += \
     meremulatormodeoptionswidget.cpp \
     meremulatormodedetailswidget.cpp \
     mervirtualmachinesettingswidget.cpp \
+    merbuildconfiguration.cpp
 
 HEADERS += \
     merabstractvmstartstep.h \
-    meraddvmstartbuildstepprojectlistener.h \
     merbuildsteps.h \
     merconnection.h \
     merconnectionmanager.h \
@@ -130,7 +128,6 @@ HEADERS += \
     meroptionspage.h \
     meroptionswidget.h \
     merplugin.h \
-    merprojectlistener.h \
     merqmllivebenchmanager.h \
     merqmlrunconfiguration.h \
     merqmlrunconfigurationfactory.h \
@@ -164,6 +161,7 @@ HEADERS += \
     meremulatormodeoptionswidget.h \
     meremulatormodedetailswidget.h \
     mervirtualmachinesettingswidget.h \
+    merbuildconfiguration.h
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit
