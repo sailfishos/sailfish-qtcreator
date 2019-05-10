@@ -98,7 +98,6 @@ public:
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
     bool runInGuiThread() const override;
 
     static Core::Id stepId();
@@ -128,7 +127,6 @@ public:
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
     bool runInGuiThread() const override;
 
     static Core::Id stepId();
@@ -148,7 +146,6 @@ class MerMb2RsyncDeployStep : public MerProcessStep
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -161,7 +158,6 @@ class MerLocalRsyncDeployStep : public MerProcessStep
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -174,7 +170,6 @@ class MerMb2RpmDeployStep : public MerProcessStep
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -188,7 +183,6 @@ class MerMb2RpmBuildStep : public MerProcessStep
 public:
     explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
@@ -222,7 +216,6 @@ class MerRpmValidationStep : public MerProcessStep
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
     bool init(QList<const BuildStep *> &earlierSteps) override;
-    bool immutable() const override;
     void run(QFutureInterface<bool> &fi) override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;

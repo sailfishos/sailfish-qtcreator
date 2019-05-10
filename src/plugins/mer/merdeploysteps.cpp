@@ -385,11 +385,6 @@ BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
     return new MerConnectionTestStepConfigWidget(this);
 }
 
-bool MerConnectionTestStep::immutable() const
-{
-    return false;
-}
-
 bool MerConnectionTestStep::runInGuiThread() const
 {
     return true;
@@ -487,11 +482,6 @@ BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
     return new MerPrepareTargetStepConfigWidget(this);
 }
 
-bool MerPrepareTargetStep::immutable() const
-{
-    return false;
-}
-
 bool MerPrepareTargetStep::runInGuiThread() const
 {
     return true;
@@ -525,11 +515,6 @@ MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl)
 bool MerMb2RsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
     return MerProcessStep::init(earlierSteps);
-}
-
-bool MerMb2RsyncDeployStep::immutable() const
-{
-    return false;
 }
 
 void MerMb2RsyncDeployStep::run(QFutureInterface<bool> &fi)
@@ -606,11 +591,6 @@ bool MerLocalRsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
     return AbstractProcessStep::init(earlierSteps);
 }
 
-bool MerLocalRsyncDeployStep::immutable() const
-{
-    return false;
-}
-
 void MerLocalRsyncDeployStep::run(QFutureInterface<bool> &fi)
 {
    emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
@@ -649,11 +629,6 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
 bool MerMb2RpmDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
     return MerProcessStep::init(earlierSteps);
-}
-
-bool MerMb2RpmDeployStep::immutable() const
-{
-    return false;
 }
 
 void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
@@ -706,10 +681,6 @@ bool MerMb2RpmBuildStep::init(QList<const BuildStep *> &earlierSteps)
     return success;
 }
 
-bool MerMb2RpmBuildStep::immutable() const
-{
-    return false;
-}
 //TODO: This is hack
 void MerMb2RpmBuildStep::run(QFutureInterface<bool> &fi)
 {
@@ -838,11 +809,6 @@ bool MerRpmValidationStep::init(QList<const BuildStep *> &earlierSteps)
     setOutputParser(new MerRpmValidationParser);
 
     return true;
-}
-
-bool MerRpmValidationStep::immutable() const
-{
-    return false;
 }
 
 void MerRpmValidationStep::run(QFutureInterface<bool> &fi)

@@ -108,11 +108,6 @@ BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
     return new MerAbstractVmStartStepConfigWidget(this);
 }
 
-bool MerAbstractVmStartStep::immutable() const
-{
-    return false;
-}
-
 bool MerAbstractVmStartStep::runInGuiThread() const
 {
     return true;
