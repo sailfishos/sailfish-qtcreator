@@ -92,13 +92,9 @@ public:
     MerConnectionTestStepConfigWidget(MerConnectionTestStep *step)
         : BuildStepConfigWidget(step)
     {
-    }
-
-    QString summaryText() const override
-    {
-        return QString::fromLatin1("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Verifies connection to the device can be established."));
+        setSummaryText(QString::fromLatin1("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(tr("Verifies connection to the device can be established.")));
     }
 };
 
@@ -110,13 +106,9 @@ public:
     MerPrepareTargetStepConfigWidget(MerPrepareTargetStep *step)
         : BuildStepConfigWidget(step)
     {
-    }
-
-    QString summaryText() const override
-    {
-        return QString::fromLatin1("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Prepares target device for deployment"));
+        setSummaryText(QString::fromLatin1("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(tr("Prepares target device for deployment")));
     }
 };
 
@@ -128,6 +120,10 @@ public:
     MerRpmValidationStepConfigWidget(MerRpmValidationStep *step)
         : BuildStepConfigWidget(step)
     {
+        setSummaryText(QString::fromLatin1("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(tr("Validates RPM package.")));
+
         m_ui.setupUi(this);
 
         bool hasSuite = false;
@@ -161,18 +157,6 @@ public:
         m_ui.commandArgumentsLineEdit->setText(step->arguments());
         connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
                 step, &MerRpmValidationStep::setArguments);
-    }
-
-    QString summaryText() const override
-    {
-        return QString::fromLatin1("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Validates RPM package."));
-    }
-
-    QString displayName() const override
-    {
-        return m_step->displayName();
     }
 
 private:
@@ -556,9 +540,8 @@ void MerMb2RsyncDeployStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 {
-    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
-    widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Deploys with rsync."));
+    auto widget = new MerDeployStepWidget(this);
+    widget->formatAndSetSummaryText(tr("Deploys with rsync."));
     return widget;
 }
 
@@ -636,9 +619,8 @@ void MerLocalRsyncDeployStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 {
-    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
-    widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Deploys with local installed rsync."));
+    auto widget = new MerDeployStepWidget(this);
+    widget->formatAndSetSummaryText(tr("Deploys with local installed rsync."));
     widget->setCommandText(tr("Deploy using local installed Rsync"));
     return widget;
 }
@@ -682,9 +664,8 @@ void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 {
-    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
-    widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Deploys RPM package."));
+    auto widget = new MerDeployStepWidget(this);
+    widget->formatAndSetSummaryText(tr("Deploys RPM package."));
     return widget;
 }
 
@@ -752,9 +733,8 @@ QStringList MerMb2RpmBuildStep::packagesFilePath() const
 
 BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
 {
-    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
-    widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Builds RPM package."));
+    auto *widget = new MerDeployStepWidget(this);
+    widget->formatAndSetSummaryText(tr("Builds RPM package."));
     widget->setCommandText(QLatin1String("mb2 rpm"));
     return widget;
 }
@@ -991,16 +971,6 @@ MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
             this, &MerDeployStepWidget::commandArgumentsLineEditTextEdited);
 }
 
-QString MerDeployStepWidget::summaryText() const
-{
-    return QString::fromLatin1("<b>%1:</b> %2").arg(displayName()).arg(m_summaryText);
-}
-
-QString MerDeployStepWidget::displayName() const
-{
-    return m_displayText;
-}
-
 void MerDeployStepWidget::commandArgumentsLineEditTextEdited()
 {
     static_cast<MerProcessStep *>(step())->setArguments(m_ui.commandArgumentsLineEdit->text());
@@ -1011,19 +981,14 @@ void MerDeployStepWidget::setCommandText(const QString& commandText)
      m_ui.commandLabelEdit->setText(commandText);
 }
 
-void MerDeployStepWidget::setDisplayName(const QString& displayText)
-{
-    m_displayText = displayText;
-}
-
-void MerDeployStepWidget::setSummaryText(const QString& summaryText)
-{
-    m_summaryText = summaryText;
-}
-
 QString MerDeployStepWidget::commnadText() const
 {
    return  m_ui.commandLabelEdit->text();
+}
+
+void MerDeployStepWidget::formatAndSetSummaryText(const QString &summaryText)
+{
+    setSummaryText(QString::fromLatin1("<b>%1:</b> %2").arg(displayName()).arg(summaryText));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////

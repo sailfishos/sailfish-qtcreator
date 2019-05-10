@@ -53,6 +53,8 @@ MerRpmPackagingWidget::MerRpmPackagingWidget(MerRpmPackagingStep *step)
     : BuildStepConfigWidget(step),
       m_ui(new Ui::MerRpmPackagingWidget)
 {
+    setSummaryText(tr("<b>Create RPM Package:</b> Makes rpmbuild"));
+
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QTimer::singleShot(0, this, &MerRpmPackagingWidget::initGui);
@@ -68,21 +70,10 @@ void MerRpmPackagingWidget::initGui()
     m_ui->editSpecFileButton->setVisible(false);
 }
 
-QString MerRpmPackagingWidget::summaryText() const
-{
-    return tr("<b>Create RPM Package:</b> Makes rpmbuild");
-}
-
-QString MerRpmPackagingWidget::displayName() const
-{
-    return m_step->displayName();
-}
-
 void MerRpmPackagingWidget::versionInfoChanged()
 {
 
 }
-
 
 } // namespace Internal
 } // namespace Mer

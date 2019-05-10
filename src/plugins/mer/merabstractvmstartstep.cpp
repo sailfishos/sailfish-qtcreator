@@ -52,13 +52,9 @@ public:
     MerAbstractVmStartStepConfigWidget(MerAbstractVmStartStep *step)
         : BuildStepConfigWidget(step)
     {
-    }
-
-    QString summaryText() const override
-    {
-        return QString::fromLatin1("<b>%1:</b> %2")
-            .arg(displayName())
-            .arg(tr("Starts the virtual machine, if necessary."));
+        setSummaryText(QString::fromLatin1("<b>%1:</b> %2")
+                .arg(displayName())
+                .arg(tr("Starts the virtual machine, if necessary.")));
     }
 };
 

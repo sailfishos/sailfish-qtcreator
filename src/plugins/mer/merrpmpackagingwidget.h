@@ -48,9 +48,6 @@ public:
     MerRpmPackagingWidget(MerRpmPackagingStep *step);
     ~MerRpmPackagingWidget() override;
 
-    QString summaryText() const override;
-    QString displayName() const override;
-
 private slots:
     void initGui();
     void versionInfoChanged();

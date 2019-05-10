@@ -246,18 +246,13 @@ class MerDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
     Q_OBJECT
 public:
     MerDeployStepWidget(MerProcessStep *step);
-    QString displayName() const;
-    QString summaryText() const;
     QString commnadText() const;
     void setCommandText(const QString& commandText);
-    void setDisplayName(const QString& summaryText);
-    void setSummaryText(const QString& displayText);
+    void formatAndSetSummaryText(const QString &summaryText);
 private slots:
     void commandArgumentsLineEditTextEdited();
 private:
     Ui::MerDeployStepWidget m_ui;
-    QString m_displayText;
-    QString m_summaryText;
 };
 
 class MerNamedCommandDeployStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
