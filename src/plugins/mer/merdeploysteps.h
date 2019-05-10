@@ -98,7 +98,6 @@ public:
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool runInGuiThread() const override;
 
     static Core::Id stepId();
     static QString displayName();
@@ -127,7 +126,6 @@ public:
     bool init(QList<const BuildStep *> &earlierSteps) override;
     void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool runInGuiThread() const override;
 
     static Core::Id stepId();
     static QString displayName();

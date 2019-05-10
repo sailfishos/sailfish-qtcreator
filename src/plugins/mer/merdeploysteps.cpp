@@ -385,11 +385,6 @@ BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
     return new MerConnectionTestStepConfigWidget(this);
 }
 
-bool MerConnectionTestStep::runInGuiThread() const
-{
-    return true;
-}
-
 void MerConnectionTestStep::onConnected()
 {
     finish(true);
@@ -480,11 +475,6 @@ void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
 BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 {
     return new MerPrepareTargetStepConfigWidget(this);
-}
-
-bool MerPrepareTargetStep::runInGuiThread() const
-{
-    return true;
 }
 
 void MerPrepareTargetStep::onImplFinished()

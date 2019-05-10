@@ -108,11 +108,6 @@ BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
     return new MerAbstractVmStartStepConfigWidget(this);
 }
 
-bool MerAbstractVmStartStep::runInGuiThread() const
-{
-    return true;
-}
-
 MerConnection *MerAbstractVmStartStep::connection() const
 {
     return m_connection;
