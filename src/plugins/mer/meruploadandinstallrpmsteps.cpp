@@ -112,7 +112,7 @@ QString MerUploadAndInstallRpmStep::displayName()
     return tr("Deploy Local RPM package via SFTP upload");
 }
 
-void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
+void MerUploadAndInstallRpmStep::doRun()
 {
     const QString packageFile = m_packagingStep->packagesFilePath().first();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
@@ -120,12 +120,12 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
         emit addOutput(message, OutputFormat::ErrorMessage);
         emit addTask(Task(Task::Error, message, FileName(), -1,
                           Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     }
 
     m_deployService->setPackageFilePath(packageFile);
-    AbstractRemoteLinuxDeployStep::run(fi);
+    AbstractRemoteLinuxDeployStep::doRun();
 }
 
 } // namespace Internal

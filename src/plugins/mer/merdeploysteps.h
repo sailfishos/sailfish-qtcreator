@@ -96,24 +96,24 @@ public:
     explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
 
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
     static Core::Id stepId();
     static QString displayName();
 
+protected:
+    void doRun() override;
+    void doCancel() override;
+
 private slots:
     void onConnected();
     void onConnectionFailure();
-    void checkForCancel();
 
 private:
     void finish(bool result);
 
 private:
-    QFutureInterface<bool> *m_futureInterface;
     QSsh::SshConnection *m_connection;
-    QTimer *m_checkForCancelTimer;
 };
 
 class MerPrepareTargetStep : public ProjectExplorer::BuildStep
@@ -124,14 +124,14 @@ public:
     explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
 
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
     static Core::Id stepId();
     static QString displayName();
 
-private slots:
-    void onImplFinished();
+protected:
+    void doRun() override;
+    void doCancel() override;
 
 private:
     ProjectExplorer::BuildStep *m_impl;
@@ -144,10 +144,11 @@ class MerMb2RsyncDeployStep : public MerProcessStep
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
+protected:
+    void doRun() override;
 };
 
 class MerLocalRsyncDeployStep : public MerProcessStep
@@ -156,10 +157,11 @@ class MerLocalRsyncDeployStep : public MerProcessStep
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
+protected:
+    void doRun() override;
 };
 
 class MerMb2RpmDeployStep : public MerProcessStep
@@ -168,10 +170,11 @@ class MerMb2RpmDeployStep : public MerProcessStep
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
+protected:
+    void doRun() override;
 };
 
 //TODO: HACK
@@ -181,13 +184,14 @@ class MerMb2RpmBuildStep : public MerProcessStep
 public:
     explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     void stdOutput(const QString &line) override;
     QStringList packagesFilePath() const;
+protected:
+    void doRun() override;
 private:
     QString m_sharedHome;
     QString m_sharedSrc;
@@ -214,7 +218,6 @@ class MerRpmValidationStep : public MerProcessStep
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
     MerTarget merTarget() const;
@@ -225,6 +228,8 @@ public:
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
+protected:
+    void doRun() override;
 private:
     MerMb2RpmBuildStep *m_packagingStep;
     MerTarget m_merTarget;

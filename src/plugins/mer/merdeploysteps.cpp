@@ -351,15 +351,13 @@ bool MerConnectionTestStep::init()
     return true;
 }
 
-void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
+void MerConnectionTestStep::doRun()
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
     if (!d) {
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     }
-
-    m_futureInterface = &fi;
 
     m_connection = new SshConnection(d->sshParameters(), this);
     connect(m_connection, &SshConnection::connected,
@@ -370,12 +368,12 @@ void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
     emit addOutput(tr("%1: Testing connection to \"%2\"...")
             .arg(displayName()).arg(d->displayName()), OutputFormat::NormalMessage);
 
-    m_checkForCancelTimer = new QTimer(this);
-    connect(m_checkForCancelTimer, &QTimer::timeout,
-            this, &MerConnectionTestStep::checkForCancel);
-    m_checkForCancelTimer->start(CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL);
-
     m_connection->connectToHost();
+}
+
+void MerConnectionTestStep::doCancel()
+{
+    finish(false);
 }
 
 BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
@@ -393,21 +391,11 @@ void MerConnectionTestStep::onConnectionFailure()
     finish(false);
 }
 
-void MerConnectionTestStep::checkForCancel()
-{
-    if (m_futureInterface->isCanceled()) {
-        finish(false);
-    }
-}
-
 void MerConnectionTestStep::finish(bool result)
 {
     m_connection->disconnect(this);
     m_connection->deleteLater(), m_connection = 0;
-
-    delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-    reportRunResult(*m_futureInterface, result);
-    m_futureInterface = 0;
+    emit finished(result);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -432,8 +420,6 @@ MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
 {
     setDefaultDisplayName(displayName());
     setWidgetExpandedByDefault(false);
-    connect(&m_watcher, &QFutureWatcherBase::finished,
-            this, &MerPrepareTargetStep::onImplFinished);
 }
 
 bool MerPrepareTargetStep::init()
@@ -456,6 +442,8 @@ bool MerPrepareTargetStep::init()
         return false;
     }
 
+    connect(m_impl, &BuildStep::finished,
+            this, &MerPrepareTargetStep::finished);
     connect(m_impl, &BuildStep::addTask,
             this, &MerPrepareTargetStep::addTask);
     connect(m_impl, &BuildStep::addOutput,
@@ -464,21 +452,19 @@ bool MerPrepareTargetStep::init()
     return true;
 }
 
-void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
+void MerPrepareTargetStep::doRun()
 {
-    m_watcher.setFuture(fi.future());
-    m_impl->run(fi);
+    m_impl->run();
+}
+
+void MerPrepareTargetStep::doCancel()
+{
+    m_impl->cancel();
 }
 
 BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 {
     return new MerPrepareTargetStepConfigWidget(this);
-}
-
-void MerPrepareTargetStep::onImplFinished()
-{
-    m_impl->disconnect(this);
-    m_impl->deleteLater(), m_impl = 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -505,10 +491,10 @@ bool MerMb2RsyncDeployStep::init()
     return MerProcessStep::init();
 }
 
-void MerMb2RsyncDeployStep::run(QFutureInterface<bool> &fi)
+void MerMb2RsyncDeployStep::doRun()
 {
    emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
-   AbstractProcessStep::run(fi);
+   AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
@@ -579,10 +565,10 @@ bool MerLocalRsyncDeployStep::init()
     return AbstractProcessStep::init();
 }
 
-void MerLocalRsyncDeployStep::run(QFutureInterface<bool> &fi)
+void MerLocalRsyncDeployStep::doRun()
 {
    emit addOutput(tr("Deploying binaries..."), OutputFormat::NormalMessage);
-   AbstractProcessStep::run(fi);
+   AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
@@ -619,10 +605,10 @@ bool MerMb2RpmDeployStep::init()
     return MerProcessStep::init();
 }
 
-void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
+void MerMb2RpmDeployStep::doRun()
 {
     emit addOutput(tr("Deploying RPM package..."), OutputFormat::NormalMessage);
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
@@ -670,10 +656,10 @@ bool MerMb2RpmBuildStep::init()
 }
 
 //TODO: This is hack
-void MerMb2RpmBuildStep::run(QFutureInterface<bool> &fi)
+void MerMb2RpmBuildStep::doRun()
 {
     emit addOutput(tr("Building RPM package..."), OutputFormat::NormalMessage);
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 //TODO: This is hack
 void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
@@ -799,7 +785,7 @@ bool MerRpmValidationStep::init()
     return true;
 }
 
-void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
+void MerRpmValidationStep::doRun()
 {
     if (m_merTarget.rpmValidationSuites().isEmpty()) {
         const QString message(tr("No RPM validation suite is available for the current "
@@ -810,7 +796,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
                 2);
         emit addOutput("  " + tr("Disable the RPM Validation deploy step to avoid this error"),
                 OutputFormat::ErrorMessage);
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     } else if (m_selectedSuites.isEmpty()) {
         const QString message(tr("No RPM validation suite is selected in deployment settings,"
@@ -821,7 +807,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
                 2);
         emit addOutput("  " + tr("Either select at least one suite or disable the RPM Validation "
                     "deploy step to avoid this error"), OutputFormat::ErrorMessage);
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     }
 
@@ -834,7 +820,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
                     ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM),
                 1);
         emit addOutput(message, OutputFormat::ErrorMessage);
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     }
 
@@ -846,7 +832,7 @@ void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
     QStringList arguments{ m_fixedArguments, this->arguments(), packageFile };
     pp->setArguments(arguments.join(' '));
 
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 bool MerRpmValidationStep::fromMap(const QVariantMap &map)

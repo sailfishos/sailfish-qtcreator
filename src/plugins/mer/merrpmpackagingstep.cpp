@@ -112,11 +112,11 @@ bool MerRpmPackagingStep::init()
     return true;
 }
 
-void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
+void MerRpmPackagingStep::doRun()
 {
     if (!m_packagingNeeded) {
         emit addOutput(tr("Package up to date."), OutputFormat::NormalMessage);
-        reportRunResult(fi, true);
+        emit finished(true);
         return;
     }
 
@@ -128,24 +128,20 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
     connect(buildProc, &QProcess::readyReadStandardError,
             this, &MerRpmPackagingStep::handleBuildOutput);
 
-    const bool success = prepareBuildDir() && createSpecFile() && createPackage(buildProc, fi);
+    const bool success = prepareBuildDir() && createSpecFile() && createPackage(buildProc);
 
     disconnect(buildProc, 0, this, 0);
     buildProc->deleteLater();
     if (success)
         emit addOutput(tr("Package created."), OutputFormat::NormalMessage);
     setPackagingFinished(success);
-    reportRunResult(fi, success);
+    emit finished(success);
 }
-
 
 BuildStepConfigWidget *MerRpmPackagingStep::createConfigWidget()
 {
     return new MerRpmPackagingWidget(this);
 }
-
-
-
 
 void MerRpmPackagingStep::handleBuildOutput()
 {
@@ -258,10 +254,9 @@ bool MerRpmPackagingStep::createSpecFile()
     return true;
 }
 
-bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterface<bool> &fi)
+bool MerRpmPackagingStep::createPackage(QProcess *buildProc)
 {
     emit addOutput(tr("Creating package file..."), OutputFormat::NormalMessage);
-    Q_UNUSED(fi);
     buildProc->setEnvironment(m_environment.toStringList());
     buildProc->setWorkingDirectory(cachedPackageDirectory());
 

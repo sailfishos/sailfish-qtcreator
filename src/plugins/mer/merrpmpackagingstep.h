@@ -70,13 +70,13 @@ private slots:
 
 private:
     void ctor();
-    void run(QFutureInterface<bool> &fi);
+    void doRun() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
 
     QString packageFileName() const;
     bool isPackagingNeeded() const;
 
-    bool createPackage(QProcess *buildProc, const QFutureInterface<bool> &fi);
+    bool createPackage(QProcess *buildProc);
     bool prepareBuildDir();
     bool createSpecFile();
 

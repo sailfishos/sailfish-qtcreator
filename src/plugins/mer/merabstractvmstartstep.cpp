@@ -61,8 +61,6 @@ public:
 MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     : BuildStep(bsl, id)
     , m_connection(0)
-    , m_futureInterface(0)
-    , m_checkForCancelTimer(0)
 {
     setWidgetExpandedByDefault(false);
 }
@@ -74,32 +72,33 @@ bool MerAbstractVmStartStep::init()
     return true;
 }
 
-void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
+void MerAbstractVmStartStep::doRun()
 {
     if (!m_connection) {
         emit addOutput(tr("%1: Internal error.").arg(displayName()), OutputFormat::ErrorMessage);
-        reportRunResult(fi, false);
+        emit finished(false);
         return;
     }
 
     if (m_connection->state() == MerConnection::Connected) {
         emit addOutput(tr("%1: The \"%2\" virtual machine is already running. Nothing to do.")
             .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
-        reportRunResult(fi, true);
+        emit finished(true);
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
                 .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
-        m_futureInterface = &fi;
-
-        m_checkForCancelTimer = new QTimer(this);
-        connect(m_checkForCancelTimer, &QTimer::timeout,
-                this, &MerAbstractVmStartStep::checkForCancel);
-        m_checkForCancelTimer->start(CHECK_FOR_CANCEL_INTERVAL);
 
         connect(m_connection.data(), &MerConnection::stateChanged,
                 this, &MerAbstractVmStartStep::onStateChanged);
         m_connection->connectTo(MerConnection::AskStartVm);
     }
+}
+
+void MerAbstractVmStartStep::doCancel()
+{
+    QTC_ASSERT(m_connection, return);
+    m_connection->disconnect(this);
+    m_connection = 0;
 }
 
 BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
@@ -135,20 +134,7 @@ void MerAbstractVmStartStep::onStateChanged()
 
     m_connection->disconnect(this);
     m_connection = 0;
-    reportRunResult(*m_futureInterface, result);
-    m_futureInterface = 0;
-    delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-}
-
-void MerAbstractVmStartStep::checkForCancel()
-{
-    if (m_futureInterface->isCanceled()) {
-        m_connection->disconnect(this);
-        m_connection = 0;
-        delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
-        reportRunResult(*m_futureInterface, false);
-        m_futureInterface = 0;
-    }
+    emit finished(result);
 }
 
 } // namespace Internal

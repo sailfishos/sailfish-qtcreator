@@ -48,10 +48,11 @@ public:
     MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl);
 
     bool initInternal(QString *error = 0) override;
-    void  run(QFutureInterface<bool> &fi) override;
     static Core::Id stepId();
     static QString displayName();
 
+protected:
+    void doRun() override;
 
 private:
     RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const;

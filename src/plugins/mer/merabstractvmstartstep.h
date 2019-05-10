@@ -41,22 +41,20 @@ public:
     explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
 
     bool init() override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
     MerConnection *connection() const;
 
 protected:
+    void doRun() override;
+    void doCancel() override;
     void setConnection(MerConnection *connection);
 
 private slots:
     void onStateChanged();
-    void checkForCancel();
 
 private:
     QPointer<MerConnection> m_connection;
-    QFutureInterface<bool> *m_futureInterface;
-    QTimer *m_checkForCancelTimer;
 };
 
 } // namespace Internal
