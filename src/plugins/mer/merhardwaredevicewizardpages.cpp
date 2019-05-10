@@ -72,17 +72,8 @@ MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidg
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
     connect(m_ui->usernameLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
-    connect(m_ui->passwordLineEdit, &QLineEdit::textChanged,
-            this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
 
-    m_ui->testButton->setEnabled(false);
-    connect(m_ui->passwordLineEdit, &QLineEdit::textChanged,
-            this, [this](const QString &text) {
-              m_ui->testButton->setEnabled(!text.isEmpty());
-            });
     connect(m_ui->testButton, &QPushButton::clicked,
-            this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
-    connect(m_ui->passwordLineEdit, &QLineEdit::returnPressed,
             this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
 }
 
@@ -90,7 +81,6 @@ bool MerHardwareDeviceWizardSelectionPage::isComplete() const
 {
     return !hostName().isEmpty()
             && !userName().isEmpty()
-            && !password().isEmpty()
             && m_isIdle
             && m_connectionTestOk;
 }
@@ -103,11 +93,6 @@ QString MerHardwareDeviceWizardSelectionPage::hostName() const
 QString MerHardwareDeviceWizardSelectionPage::userName() const
 {
     return m_ui->usernameLineEdit->text().trimmed();
-}
-
-QString MerHardwareDeviceWizardSelectionPage::password() const
-{
-    return m_ui->passwordLineEdit->text().trimmed();
 }
 
 int MerHardwareDeviceWizardSelectionPage::sshPort() const
@@ -144,8 +129,7 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     sshParams.setUserName(userName());
     sshParams.setPort(sshPort());
     sshParams.timeout = timeout();
-    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-    sshParams.setPassword(password());
+    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
 
     m_ui->connectionTestLabel->setText(tr("Connecting to machine %1 ...").arg(hostName()));
     m_ui->connectionTestLabel->setText(MerConnectionManager::testConnection(sshParams,
@@ -165,9 +149,6 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 
 end:
     m_ui->testButton->setEnabled(true);
-    if (!m_connectionTestOk) {
-      m_ui->passwordLineEdit->setFocus(Qt::TabFocusReason);
-    }
     m_isIdle = true;
     completeChanged();
 }
@@ -188,7 +169,7 @@ Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
     runner.run("uname --machine", sshParams);
     loop.exec();
 
-    if (runner.lastConnectionError() != SshNoError
+    if (!runner.lastConnectionErrorString().isEmpty()
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
@@ -234,7 +215,7 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
                "/org/nemo/ssu org.nemo.ssu.displayName int32:1", sshParams);
     loop.exec();
 
-    if (runner.lastConnectionError() != SshNoError
+    if (!runner.lastConnectionErrorString().isEmpty()
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;

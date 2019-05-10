@@ -389,14 +389,14 @@ QString MerConnectionManager::testConnection(const SshConnectionParameters &para
     SshConnection connection(p);
     QEventLoop loop;
     connect(&connection, &SshConnection::connected, &loop, &QEventLoop::quit);
-    connect(&connection, &SshConnection::error, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::errorOccurred, &loop, &QEventLoop::quit);
     connect(&connection, &SshConnection::disconnected, &loop, &QEventLoop::quit);
     connection.connectToHost();
     loop.exec();
     if (ok != 0)
-        *ok = connection.errorState() == SshNoError;
+        *ok = connection.errorString().isNull();
     QString result;
-    if (connection.errorState() != SshNoError)
+    if (!connection.errorString().isNull())
         result = connection.errorString();
     else
         result = tr("Connected");

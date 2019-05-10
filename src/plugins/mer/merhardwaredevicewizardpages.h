@@ -47,7 +47,6 @@ public:
 
     QString hostName() const;
     QString userName() const;
-    QString password() const;
     int timeout() const;
     int sshPort() const;
 

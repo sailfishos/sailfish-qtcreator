@@ -136,11 +136,6 @@ void MerHardwareDeviceWidget::authorizePrivateKey()
 
     QPushButton *authorizeButton =
         ui->buttonBox->addButton(tr("Authorize"), QDialogButtonBox::ActionRole);
-    authorizeButton->setEnabled(false);
-    connect(ui->passwordLineEdit, &QLineEdit::textChanged,
-            authorizeButton, [authorizeButton](const QString &text) {
-        authorizeButton->setEnabled(!text.isEmpty());
-    });
 
     auto generateKey = [this, ui]() -> bool {
         QString privateKeyFile = device()->sshParameters().privateKeyFile;
@@ -173,8 +168,7 @@ void MerHardwareDeviceWidget::authorizePrivateKey()
         });
 
         SshConnectionParameters sshParameters = device()->sshParameters();
-        sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-        sshParameters.setPassword(ui->passwordLineEdit->text());
+        sshParameters.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
         QString publicKeyPath = sshParameters.privateKeyFile + QLatin1String(".pub");
 
         deployer.deployPublicKey(sshParameters, publicKeyPath);

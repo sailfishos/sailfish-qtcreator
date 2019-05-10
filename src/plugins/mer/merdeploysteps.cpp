@@ -362,7 +362,7 @@ void MerConnectionTestStep::doRun()
     m_connection = new SshConnection(d->sshParameters(), this);
     connect(m_connection, &SshConnection::connected,
             this, &MerConnectionTestStep::onConnected);
-    connect(m_connection, &SshConnection::error,
+    connect(m_connection, &SshConnection::errorOccurred,
             this, &MerConnectionTestStep::onConnectionFailure);
 
     emit addOutput(tr("%1: Testing connection to \"%2\"...")
@@ -957,7 +957,7 @@ protected:
 private slots:
     void handleStdout();
     void handleStderr();
-    void handleProcessClosed(int exitStatus);
+    void handleProcessClosed(const QString &error);
 
 private:
     State m_state{Inactive};
@@ -1008,14 +1008,14 @@ void MerNamedCommandDeployService::handleStderr()
     emit stdErrData(QString::fromUtf8(m_runner->readAllStandardError()));
 }
 
-void MerNamedCommandDeployService::handleProcessClosed(int exitStatus)
+void MerNamedCommandDeployService::handleProcessClosed(const QString &error)
 {
     QTC_ASSERT(m_state == Running, return);
 
-    if (exitStatus == SshRemoteProcess::FailedToStart) {
-        emit errorMessage(tr("Remote process failed to start."));
-    } else if (exitStatus == SshRemoteProcess::CrashExit) {
-        emit errorMessage(tr("Remote process was killed by a signal."));
+    if (!error.isEmpty()) {
+        emit errorMessage(tr("Remote process failed to start: %1").arg(error));
+    } else if (m_runner->processExitStatus() != SshRemoteProcess::NormalExit) {
+        emit errorMessage(tr("Remote process finished abnormally."));
     } else if (m_runner->processExitCode() != 0) {
         emit errorMessage(tr("Remote process finished with exit code %1.")
             .arg(m_runner->processExitCode()));

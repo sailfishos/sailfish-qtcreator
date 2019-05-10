@@ -103,7 +103,6 @@ const char SHARED_SSH[] = "SharedSsh";
 const char AUTHENTICATION_TYPE[] = "AuthenticationType";
 const char HOST[] = "Host";
 const char USERNAME[] = "Username";
-const char PASSWORD[] = "Password";
 const char KEY[] = "Key";
 const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char SSH_PORT[] = "SshPort";

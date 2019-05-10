@@ -94,9 +94,8 @@ void MerSshKeyDeploymentDialog::setSShParameters(const QSsh::SshConnectionParame
 
 int MerSshKeyDeploymentDialog::exec()
 {
-    if(m_publicKeyPath.isEmpty() ||
-       m_sshParams.host().isEmpty() ||
-       m_sshParams.password().isEmpty()) return QDialog::Rejected;
+    if (m_publicKeyPath.isEmpty() || m_sshParams.host().isEmpty())
+        return QDialog::Rejected;
     m_sshDeployer.deployPublicKey(m_sshParams, m_publicKeyPath);
     return QProgressDialog::exec();
 }

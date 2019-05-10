@@ -80,10 +80,9 @@ public:
     MerConnectionRemoteShutdownProcess(QObject *parent)
         : QObject(parent)
         , m_runner(0)
-        , m_connectionError(SshNoError)
+        , m_connectionErrorOccured(false)
         , m_processStarted(false)
         , m_processClosed(false)
-        , m_exitStatus(SshRemoteProcess::FailedToStart)
         , m_finished(false)
     {
     }
@@ -91,11 +90,10 @@ public:
     void run(const SshConnectionParameters &sshParams)
     {
         delete m_runner, m_runner = new SshRemoteProcessRunner(this);
-        m_connectionError = SshNoError;
+        m_connectionErrorOccured = false;
         m_connectionErrorString.clear();
         m_processStarted = false;
         m_processClosed = false;
-        m_exitStatus = SshRemoteProcess::FailedToStart;
         m_finished = false;
         connect(m_runner, &SshRemoteProcessRunner::processStarted,
                 this, &MerConnectionRemoteShutdownProcess::onProcessStarted);
@@ -119,19 +117,13 @@ public:
 
     bool isConnectionError() const
     {
-        return m_finished && !m_processStarted &&
-            m_connectionError != SshNoError;
+        return m_finished && !m_processStarted && m_connectionErrorOccured;
     }
 
     bool isProcessError() const
     {
         return m_finished && m_processClosed &&
-            m_exitStatus != SshRemoteProcess::NormalExit;
-    }
-
-    SshError connectionError() const
-    {
-        return m_connectionError;
+            m_runner->processExitStatus() != QProcess::NormalExit;
     }
 
     QString connectionErrorString() const
@@ -160,10 +152,9 @@ private slots:
         m_processStarted = true;
     }
 
-    void onProcessClosed(int exitStatus)
+    void onProcessClosed()
     {
         m_processClosed = true;
-        m_exitStatus = exitStatus;
         m_finished = true;
         emit finished();
     }
@@ -171,7 +162,7 @@ private slots:
     void onConnectionError()
     {
         if (!m_processStarted) {
-            m_connectionError = m_runner->lastConnectionError();
+            m_connectionErrorOccured = true;
             m_connectionErrorString = m_runner->lastConnectionErrorString();
         }
         m_finished = true;
@@ -180,11 +171,10 @@ private slots:
 
 private:
     SshRemoteProcessRunner *m_runner;
-    SshError m_connectionError;
+    bool m_connectionErrorOccured;
     QString m_connectionErrorString;
     bool m_processStarted;
     bool m_processClosed;
-    int m_exitStatus;
     bool m_finished;
 };
 
@@ -210,7 +200,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_cachedVmExists(true)
     , m_cachedVmRunning(false)
     , m_cachedSshConnected(false)
-    , m_cachedSshError(SshNoError)
+    , m_cachedSshErrorOccured(false)
     , m_vmWantFastPollState(0)
     , m_pollingVmState(false)
     , m_ui(s_uiCreator(this))
@@ -558,11 +548,10 @@ void MerConnection::updateState()
                 case SshConnectingError:
                     m_state = Error;
                     m_errorString = tr("Failed to establish SSH conection with virtual machine "
-                            "\"%1\": %2 %3")
+                            "\"%1\": %2")
                         .arg(m_vmName)
-                        .arg((int)m_cachedSshError)
                         .arg(m_cachedSshErrorString);
-                    if (isRecoverable(m_cachedSshError)) {
+                    if (m_vmStateEntryTime.elapsed() > (m_params.timeout * 1000)) {
                         m_errorString += QString::fromLatin1(" (%1)")
                             .arg(tr("Consider increasing SSH connection timeout in options."));
                     }
@@ -580,9 +569,8 @@ void MerConnection::updateState()
                 case SshConnectionLost:
                     m_state = Error;
                     m_errorString = tr("SSH conection with virtual machine \"%1\" has been "
-                            "lost: %2 %3")
+                            "lost: %2")
                         .arg(m_vmName)
-                        .arg((int)m_cachedSshError)
                         .arg(m_cachedSshErrorString);
                     break;
             }
@@ -844,7 +832,6 @@ bool MerConnection::vmStmStep()
             if (m_remoteShutdownProcess->isConnectionError()) {
                 qWarning() << "MerConnection: could not connect to the" << m_vmName
                     << "virtual machine to soft-close it. Connection error:"
-                    << m_remoteShutdownProcess->connectionError()
                     << m_remoteShutdownProcess->connectionErrorString();
             } else /* if (m_remoteShutdownProcess->isProcessError()) */ {
                 qWarning() << "MerConnection: failed to soft-close the" << m_vmName
@@ -977,7 +964,7 @@ bool MerConnection::sshStmStep()
         ON_ENTRY {
             delete m_connection;
             m_cachedSshConnected = false;
-            m_cachedSshError = SshNoError;
+            m_cachedSshErrorOccured = false;
             m_cachedSshErrorString.clear();
             createConnection();
             m_connection->connectToHost();
@@ -990,11 +977,10 @@ bool MerConnection::sshStmStep()
             sshStmTransition(SshNotConnected, "auto connect disabled while auto connecting");
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
-        } else if (m_cachedSshError != SshNoError) {
+        } else if (m_cachedSshErrorOccured) {
             if (m_vmStartedOutside && !m_connectRequested) {
                 sshStmTransition(SshConnectingError, "connecting error+connect not requested");
-            } else if (m_vmStateEntryTime.elapsed() < (m_params.timeout * 1000) &&
-                       isRecoverable(m_cachedSshError)) {
+            } else if (m_vmStateEntryTime.elapsed() < (m_params.timeout * 1000)) {
                 ; // Do not report possibly recoverable boot-time failure
             } else {
                 m_ui->ask(Ui::CancelConnecting, &MerConnection::sshStmScheduleExec,
@@ -1123,8 +1109,8 @@ void MerConnection::createConnection()
             this, &MerConnection::onSshConnected);
     connect(m_connection.data(), &SshConnection::disconnected,
             this, &MerConnection::onSshDisconnected);
-    connect(m_connection.data(), &SshConnection::error,
-            this, &MerConnection::onSshError);
+    connect(m_connection.data(), &SshConnection::errorOccurred,
+            this, &MerConnection::onSshErrorOccured);
 }
 
 void MerConnection::vmWantFastPollState(bool want)
@@ -1207,34 +1193,15 @@ void MerConnection::sshTryConnect()
     if (!m_connection || (m_connection->state() == SshConnection::Unconnected &&
                 /* Important: retry only after an SSH connection error is reported to us! Otherwise
                  * we would end trying-again endlessly, suppressing any SSH error. */
-                m_cachedSshError != SshNoError && m_cachedSshErrorOrigin == m_connection)) {
+                m_cachedSshErrorOccured && m_cachedSshErrorOrigin == m_connection)) {
         if (m_connection)
-            DBG << "SSH try connect - previous error:" << m_cachedSshError << m_cachedSshErrorString;
+            DBG << "SSH try connect - previous error:" << m_cachedSshErrorString;
         else
             DBG << "SSH try connect - no active connection";
         delete m_connection;
         createConnection();
         m_connection->connectToHost();
     }
-}
-
-bool MerConnection::isRecoverable(QSsh::SshError sshError)
-{
-    switch (sshError) {
-    case SshNoError:             return true;
-    case SshSocketError:         return true;
-    case SshTimeoutError:        return true;
-    case SshProtocolError:       return true;
-    case SshHostKeyError:        return false;
-    case SshKeyFileError:        return false;
-    case SshAuthenticationError: return false;
-    case SshClosedByServerError: return true;
-    case SshAgentError:          return false;
-    case SshInternalError:       return true;
-    }
-
-    QTC_CHECK(false);
-    return false;
 }
 
 const char *MerConnection::str(State state)
@@ -1297,7 +1264,7 @@ void MerConnection::onSshConnected()
 {
     DBG << "SSH connected";
     m_cachedSshConnected = true;
-    m_cachedSshError = SshNoError;
+    m_cachedSshErrorOccured = false;
     m_cachedSshErrorString.clear();
     sshStmScheduleExec();
 }
@@ -1310,10 +1277,10 @@ void MerConnection::onSshDisconnected()
     sshStmScheduleExec();
 }
 
-void MerConnection::onSshError(SshError error)
+void MerConnection::onSshErrorOccured()
 {
-    DBG << "SSH error:" << error << m_connection->errorString();
-    m_cachedSshError = error;
+    DBG << "SSH error:" << m_connection->errorString();
+    m_cachedSshErrorOccured = true;
     m_cachedSshErrorString = m_connection->errorString();
     m_cachedSshErrorOrigin = m_connection;
     vmPollState(Asynchronous);

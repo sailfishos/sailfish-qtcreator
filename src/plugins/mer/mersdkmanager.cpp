@@ -48,10 +48,12 @@
 #include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
-#include <ssh/sshkeygenerator.h>
+#include <ssh/sshsettings.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
 
+#include <QApplication>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QMenu>
@@ -614,6 +616,11 @@ bool MerSdkManager::validateKit(const Kit *kit)
 
 bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 {
+    if (SshSettings::keygenFilePath().isEmpty()) {
+        error.append(tr("The ssh-keygen tool was not found."));
+        return false;
+    }
+
     if (privKeyPath.isEmpty()) {
         error.append(tr("Error: Key Path is empty.\n"));
         return false;
@@ -630,39 +637,26 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
         QDir().mkpath(finfo.dir().absolutePath());
     }
 
-    bool success = true;
-    SshKeyGenerator keyGen;
-    success = keyGen.generateKeys(SshKeyGenerator::Rsa,
-                                  SshKeyGenerator::OpenSsl, 2048,
-                                  SshKeyGenerator::DoNotOfferEncryption);
-    if (!success) {
-        error.append(tr("Error: %1\n").arg(keyGen.error()));
+    QProcess keygen;
+    const QString keyComment("QtCreator/" + QDateTime::currentDateTime().toString(Qt::ISODate));
+    const QStringList args{"-t", "rsa", "-b", "2048", "-N", QString(), "-C", keyComment, "-f", privKeyPath};
+    QString errorMsg;
+    keygen.start(SshSettings::keygenFilePath().toString(), args);
+    keygen.closeWriteChannel();
+
+    QApplication::setOverrideCursor(Qt::BusyCursor);
+    if (!keygen.waitForStarted() || !keygen.waitForFinished())
+        errorMsg = keygen.errorString();
+    else if (keygen.exitStatus() != QProcess::NormalExit || keygen.exitCode() != 0)
+        errorMsg = QString::fromLocal8Bit(keygen.readAllStandardError());
+    QApplication::restoreOverrideCursor();
+
+    if (!errorMsg.isEmpty()) {
+        error.append(tr("The ssh-keygen tool at \"%1\" failed: %2")
+                .arg(SshSettings::keygenFilePath().toUserOutput(), errorMsg));
         return false;
     }
 
-    FileSaver privKeySaver(privKeyPath);
-    privKeySaver.write(keyGen.privateKey());
-    success = privKeySaver.finalize();
-    if (!success) {
-        error.append(tr("Error: %1\n").arg(privKeySaver.errorString()));
-        return false;
-    }
-
-    // fix file permissions for private key
-    QFile tmp_perm(privKeyPath);
-    if (tmp_perm.open(QIODevice::WriteOnly|QIODevice::Append)) {
-        QFile::setPermissions(tmp_perm.fileName(), (QFile::ReadOwner|QFile::WriteOwner));
-        tmp_perm.close();
-    }
-
-    FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
-    const QByteArray publicKey = keyGen.publicKey();
-    pubKeySaver.write(publicKey);
-    success = pubKeySaver.finalize();
-    if (!success) {
-        error.append(tr("Error: %1\n").arg(pubKeySaver.errorString()));
-        return false;
-    }
     return true;
 }
 

@@ -123,7 +123,8 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.setUserName(wizard.userName());
         sshParams.setPort(wizard.sshPort());
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
+        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
+        sshParams.hostKeyCheckingMode = SshHostKeyCheckingNone;
         sshParams.privateKeyFile = wizard.userPrivateKey();
 
         //hardcoded values requested by customer;
@@ -180,8 +181,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             sshParams.setUserName(wizard.userName());
             sshParams.setPort(wizard.sshPort());
             sshParams.timeout = wizard.timeout();
-            sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
-            sshParams.setPassword(wizard.password());
+            sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeAll;
             MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
             dlg.setSShParameters(sshParams);
             dlg.setPublicKeyPath(wizard.publicKeyFilePath());
@@ -196,7 +196,7 @@ IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.setUserName(wizard.userName());
         sshParams.setPort(wizard.sshPort());
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
+        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
         sshParams.privateKeyFile = wizard.privateKeyFilePath();
 
         MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());

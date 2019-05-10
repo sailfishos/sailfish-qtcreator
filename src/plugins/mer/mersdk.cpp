@@ -65,6 +65,8 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
 {
     SshConnectionParameters params = m_connection->sshParameters();
     params.timeout = 30;
+    params.hostKeyCheckingMode = SshHostKeyCheckingNone;
+    params.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     m_connection->setSshParameters(params);
 #ifdef MER_LIBRARY
     connect(m_connection, &MerConnection::stateChanged,

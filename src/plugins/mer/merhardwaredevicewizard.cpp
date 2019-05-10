@@ -58,11 +58,6 @@ QString MerHardwareDeviceWizard::userName() const
     return m_selectionPage.userName();
 }
 
-QString MerHardwareDeviceWizard::password() const
-{
-    return m_selectionPage.password();
-}
-
 Abi::Architecture MerHardwareDeviceWizard::architecture() const
 {
     return m_selectionPage.architecture();

@@ -159,7 +159,6 @@ private:
     void waitForVmPollStateFinish();
     void sshTryConnect();
 
-    static bool isRecoverable(QSsh::SshError sshError);
 
     static const char *str(State state);
     static const char *str(VmState vmState);
@@ -170,7 +169,7 @@ private slots:
     void sshStmScheduleExec();
     void onSshConnected();
     void onSshDisconnected();
-    void onSshError(QSsh::SshError error);
+    void onSshErrorOccured();
     void onRemoteShutdownProcessFinished();
 
 private:
@@ -207,7 +206,7 @@ private:
     bool m_cachedVmExists;
     bool m_cachedVmRunning;
     bool m_cachedSshConnected;
-    QSsh::SshError m_cachedSshError;
+    bool m_cachedSshErrorOccured;
     QString m_cachedSshErrorString;
     QPointer<QSsh::SshConnection> m_cachedSshErrorOrigin;
 
