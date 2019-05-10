@@ -107,35 +107,5 @@ IDeviceWidget *MerHardwareDevice::createWidget()
     return new MerHardwareDeviceWidget(sharedFromThis());
 }
 
-
-QList<Core::Id> MerHardwareDevice::actionIds() const
-{
-    QList<Core::Id> ids;
-    //ids << Core::Id(Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID);
-    return ids;
-}
-
-QString MerHardwareDevice::displayNameForActionId(Core::Id actionId) const
-{
-    QTC_ASSERT(actionIds().contains(actionId), return QString());
-
-    if (actionId == Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID)
-        return tr("Redeploy SSH Keys");
-    return QString();
-}
-
-
-void MerHardwareDevice::executeAction(Core::Id actionId, QWidget *parent)
-{
-    Q_UNUSED(parent);
-    QTC_ASSERT(actionIds().contains(actionId), return);
-
-    if (actionId ==  Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID) {
-
-        //TODO:
-        return;
-    }
-}
-
 } // Internal
 } // Mer

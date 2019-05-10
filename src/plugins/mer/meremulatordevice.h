@@ -92,10 +92,6 @@ public:
     ~MerEmulatorDevice() override;
 
     ProjectExplorer::IDeviceWidget *createWidget() override;
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
-
     ProjectExplorer::DeviceTester *createDeviceTester() const override;
 
     void fromMap(const QVariantMap &map) override;
@@ -148,6 +144,7 @@ public:
 private:
     MerEmulatorDevice(Core::Id id);
     MerEmulatorDevice(const MerEmulatorDevice &other);
+    void init();
 
     friend class MerEmulatorDeviceManager;
     void updateConnection() const;

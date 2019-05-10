@@ -130,12 +130,6 @@ const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfigurat
 const char MER_QMLRUNCONFIGURATION[] = "QmakeProjectManager.MerQmlRunConfiguration";
 const char SAILFISH_QML_LAUNCHER[] = "/usr/bin/sailfish-qml";
 
-const char MER_EMULATOR_CHANGE_MODE_ACTION_ID[] = "Mer.MerEmulatorChangeMode";
-const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
-const char MER_EMULATOR_STOP_ACTION_ID[] = "Mer.MerEmulatorStopAction";
-const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
-const char MER_EMULATOR_FACTORY_RESET_ACTION_ID[] = "Mer.MerEmulatorFactoryResetAction";
-const char MER_HARDWARE_DEPLOYKEY_ACTION_ID[] = "Mer.MerHardwareDeployAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
 const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 

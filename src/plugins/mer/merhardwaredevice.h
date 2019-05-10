@@ -46,9 +46,6 @@ public:
     ProjectExplorer::Abi::Architecture architecture() const override;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
     ProjectExplorer::IDeviceWidget* createWidget() override;
 
 protected:

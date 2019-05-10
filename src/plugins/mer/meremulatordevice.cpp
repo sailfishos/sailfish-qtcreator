@@ -197,6 +197,7 @@ MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
     , m_cpuCount(0)
     , m_vdiCapacityMb(0)
 {
+    init();
 }
 
 MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
@@ -228,80 +229,64 @@ IDeviceWidget *MerEmulatorDevice::createWidget()
     return new MerEmulatorDeviceWidget(sharedFromThis());
 }
 
-QList<Core::Id> MerEmulatorDevice::actionIds() const
+void MerEmulatorDevice::init()
 {
-    QList<Core::Id> ids;
-    ids << Core::Id(Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_STOP_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID);
-    return ids;
-}
+    auto addAction = [this](const QString &displayName,
+            const std::function<void(const MerEmulatorDevice::Ptr &, QWidget *)> &handler) {
+        auto wrapped = [handler](const IDevice::Ptr &device, QWidget *parent) {
+            // Cancel any unsaved changes to SSH/QmlLive ports, memory size, cpu count and vdi size
+            // or it will blow up
+            MerEmulatorDeviceManager::restoreSystemSettings(device.staticCast<MerEmulatorDevice>());
+            handler(device.staticCast<MerEmulatorDevice>(), parent);
+        };
+        addDeviceAction({displayName, wrapped});
+    };
 
-QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
-{
-    QTC_ASSERT(actionIds().contains(actionId), return QString());
+    addAction(tr("Regenerate SSH Keys"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
+        Q_UNUSED(parent);
+        device->generateSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
+        device->generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
+    });
 
-    if (actionId == Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID)
-        return tr("Regenerate SSH Keys");
-    else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID)
-        return tr("Start Emulator");
-    else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID)
-        return tr("Stop Emulator");
-    else if (actionId == Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID)
-        return tr(Constants::MER_EMULATOR_MODE_ACTION_NAME);
-    else if (actionId == Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID)
-        return tr("Factory Reset...");
-    return QString();
-}
+    addAction(tr("Start Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
+        Q_UNUSED(parent);
+        device->m_connection->connectTo();
+    });
 
-void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
-{
-    Q_UNUSED(parent);
-    QTC_ASSERT(actionIds().contains(actionId), return);
+    addAction(tr("Stop Emulator"), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
+        Q_UNUSED(parent);
+        device->m_connection->disconnectFrom();
+    });
 
-    // Cancel any unsaved changes to SSH/QmlLive ports, memory size, cpu count and vdi size or it will blow up
-    MerEmulatorDeviceManager::restoreSystemSettings(sharedFromThis().staticCast<MerEmulatorDevice>());
+    addAction(tr(Constants::MER_EMULATOR_MODE_ACTION_NAME), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
+        Q_UNUSED(parent);
+        const IDevice::ConstPtr device_ = DeviceManager::instance()->find(device->id());
+        const MerEmulatorDevice::Ptr merDevice_ = device_
+                ? device_.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>()
+                : device;
 
-    if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
-        generateSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
-        generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        m_connection->connectTo();
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_STOP_ACTION_ID) {
-        m_connection->disconnectFrom();
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_CHANGE_MODE_ACTION_ID) {
-        const IDevice::ConstPtr device = DeviceManager::instance()->find(id());
-        const MerEmulatorDevice::Ptr merDevice = device
-                ? device.dynamicCast<const MerEmulatorDevice>().constCast<MerEmulatorDevice>()
-                : sharedFromThis().dynamicCast<MerEmulatorDevice>();
+        QTC_ASSERT(merDevice_, return);
 
-        QTC_ASSERT(merDevice, return);
-
-        MerEmulatorModeDialog dialog(merDevice);
+        MerEmulatorModeDialog dialog(merDevice_);
         if (!dialog.exec())
             return;
         // Set device model in copy of MerEmulatorDevice (in case of Apply pressed)
-        m_deviceModel = merDevice->deviceModel();
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_FACTORY_RESET_ACTION_ID) {
-        if (factorySnapshot().isEmpty()) {
+        device->m_deviceModel = merDevice_->deviceModel();
+    });
+
+    addAction(tr("Factory Reset..."), [](const MerEmulatorDevice::Ptr &device, QWidget *parent) {
+        if (device->factorySnapshot().isEmpty()) {
             QMessageBox::warning(parent, tr("No factory snapshot set"),
                     tr("No factory snapshot is configured. Cannot reset to the factory state"));
             return;
         }
         QMessageBox::StandardButton button = QMessageBox::question(parent,
                 tr("Reset emulator?"),
-                tr("Do you really want to reset '%1' to the factory state?").arg(virtualMachine()),
+                tr("Do you really want to reset '%1' to the factory state?").arg(device->virtualMachine()),
                 QMessageBox::Yes | QMessageBox::No);
         if (button == QMessageBox::Yes)
-            doFactoryReset(parent);
-        return;
-    }
+            device->doFactoryReset(parent);
+    });
 }
 
 DeviceTester *MerEmulatorDevice::createDeviceTester() const
