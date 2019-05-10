@@ -40,7 +40,7 @@ class MerSdkStartStep : public MerAbstractVmStartStep
 public:
     explicit MerSdkStartStep(ProjectExplorer::BuildStepList *bsl);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
+    bool init() override;
 
     static Core::Id stepId();
     static QString displayName();

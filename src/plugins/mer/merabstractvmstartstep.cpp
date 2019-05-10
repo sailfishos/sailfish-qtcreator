@@ -67,9 +67,8 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     setWidgetExpandedByDefault(false);
 }
 
-bool MerAbstractVmStartStep::init(QList<const BuildStep *> &earlierSteps)
+bool MerAbstractVmStartStep::init()
 {
-    Q_UNUSED(earlierSteps);
     QTC_ASSERT(m_connection, return false);
 
     return true;

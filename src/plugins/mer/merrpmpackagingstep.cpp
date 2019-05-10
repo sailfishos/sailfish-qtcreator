@@ -69,9 +69,9 @@ MerRpmPackagingStep::~MerRpmPackagingStep()
 {
 }
 
-bool MerRpmPackagingStep::init(QList<const BuildStep *> &earlierSteps)
+bool MerRpmPackagingStep::init()
 {
-    if (!AbstractPackagingStep::init(earlierSteps))
+    if (!AbstractPackagingStep::init())
         return false;
 
     m_packagingNeeded = isPackagingNeeded();

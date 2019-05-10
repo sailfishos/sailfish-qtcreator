@@ -63,7 +63,7 @@ public:
     static QString displayName();
 
 protected:
-    bool init(QList<const BuildStep *> &earlierSteps) override;
+    bool init() override;
 
 private slots:
     void handleBuildOutput();
