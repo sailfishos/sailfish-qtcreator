@@ -44,13 +44,13 @@ const int CHECK_FOR_CANCEL_INTERVAL = 2000;
 const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 }
 
-class MerAbstractVmStartStepConfigWidget : public SimpleBuildStepConfigWidget
+class MerAbstractVmStartStepConfigWidget : public BuildStepConfigWidget
 {
     Q_OBJECT
 
 public:
     MerAbstractVmStartStepConfigWidget(MerAbstractVmStartStep *step)
-        : SimpleBuildStepConfigWidget(step)
+        : BuildStepConfigWidget(step)
     {
     }
 
@@ -68,6 +68,7 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     , m_futureInterface(0)
     , m_checkForCancelTimer(0)
 {
+    setWidgetExpandedByDefault(false);
 }
 
 bool MerAbstractVmStartStep::init(QList<const BuildStep *> &earlierSteps)

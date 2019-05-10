@@ -84,13 +84,13 @@ const int CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL = 2000;
 const char MER_RPM_VALIDATION_STEP_SELECTED_SUITES[] = "MerRpmValidationStep.SelectedSuites";
 }
 
-class MerConnectionTestStepConfigWidget : public SimpleBuildStepConfigWidget
+class MerConnectionTestStepConfigWidget : public BuildStepConfigWidget
 {
     Q_OBJECT
 
 public:
     MerConnectionTestStepConfigWidget(MerConnectionTestStep *step)
-        : SimpleBuildStepConfigWidget(step)
+        : BuildStepConfigWidget(step)
     {
     }
 
@@ -102,13 +102,13 @@ public:
     }
 };
 
-class MerPrepareTargetStepConfigWidget : public SimpleBuildStepConfigWidget
+class MerPrepareTargetStepConfigWidget : public BuildStepConfigWidget
 {
     Q_OBJECT
 
 public:
     MerPrepareTargetStepConfigWidget(MerPrepareTargetStep *step)
-        : SimpleBuildStepConfigWidget(step)
+        : BuildStepConfigWidget(step)
     {
     }
 
@@ -126,13 +126,13 @@ class MerRpmValidationStepConfigWidget : public ProjectExplorer::BuildStepConfig
 
 public:
     MerRpmValidationStepConfigWidget(MerRpmValidationStep *step)
-        : m_step(step)
+        : BuildStepConfigWidget(step)
     {
         m_ui.setupUi(this);
 
         bool hasSuite = false;
         bool hasSelectedSuite = false;
-        for (const MerRpmValidationSuiteData &suite : m_step->merTarget().rpmValidationSuites()) {
+        for (const MerRpmValidationSuiteData &suite : step->merTarget().rpmValidationSuites()) {
             hasSuite = true;
             hasSelectedSuite |= suite.essential;
             auto *item = new QTreeWidgetItem(m_ui.suitesTreeWidget);
@@ -143,7 +143,7 @@ public:
             item->setText(2, suite.essential
                     ? tr("Essential", "RPM validation suite")
                     : tr("Optional", "RPM validation suite"));
-            item->setCheckState(0, m_step->selectedSuites().contains(suite.id) ? Qt::Checked : Qt::Unchecked);
+            item->setCheckState(0, step->selectedSuites().contains(suite.id) ? Qt::Checked : Qt::Unchecked);
             item->setData(0, Qt::UserRole, suite.id);
         }
         m_ui.suitesTreeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
@@ -158,9 +158,9 @@ public:
 
         updateCommandText();
 
-        m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
+        m_ui.commandArgumentsLineEdit->setText(step->arguments());
         connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
-                m_step, &MerRpmValidationStep::setArguments);
+                step, &MerRpmValidationStep::setArguments);
     }
 
     QString summaryText() const override
@@ -176,6 +176,11 @@ public:
     }
 
 private:
+    MerRpmValidationStep *step()
+    {
+        return static_cast<MerRpmValidationStep *>(BuildStepConfigWidget::step());
+    }
+
     void onItemChanged()
     {
         QStringList checked;
@@ -185,14 +190,14 @@ private:
             if (item->checkState(0) == Qt::Checked)
                 checked.append(item->data(0, Qt::UserRole).toString());
         }
-        m_step->setSelectedSuites(checked);
+        step()->setSelectedSuites(checked);
         updateWarningLabel(suitesCount > 0, checked.count() > 0);
         updateCommandText();
     }
 
     void updateCommandText()
     {
-        m_ui.commandLabelEdit->setText(QLatin1String("rpmvalidation ") + m_step->fixedArguments());
+        m_ui.commandLabelEdit->setText(QLatin1String("rpmvalidation ") + step()->fixedArguments());
     }
 
     void updateWarningLabel(bool hasSuite, bool hasSelectedSuite)
@@ -213,7 +218,6 @@ private:
     }
 
 private:
-    MerRpmValidationStep *m_step;
     Ui::MerRpmValidationStepConfigWidget m_ui;
 };
 
@@ -349,6 +353,7 @@ MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
+    setWidgetExpandedByDefault(false);
 }
 
 bool MerConnectionTestStep::init(QList<const BuildStep *> &earlierSteps)
@@ -454,6 +459,7 @@ MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
+    setWidgetExpandedByDefault(false);
     connect(&m_watcher, &QFutureWatcherBase::finished,
             this, &MerPrepareTargetStep::onImplFinished);
 }
@@ -977,10 +983,10 @@ BuildStepConfigWidget *MerRpmValidationStep::createConfigWidget()
 
 
 MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
-        : m_step(step)
+        : BuildStepConfigWidget(step)
 {
     m_ui.setupUi(this);
-    m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
+    m_ui.commandArgumentsLineEdit->setText(step->arguments());
     connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
             this, &MerDeployStepWidget::commandArgumentsLineEditTextEdited);
 }
@@ -997,7 +1003,7 @@ QString MerDeployStepWidget::displayName() const
 
 void MerDeployStepWidget::commandArgumentsLineEditTextEdited()
 {
-    m_step->setArguments(m_ui.commandArgumentsLineEdit->text());
+    static_cast<MerProcessStep *>(step())->setArguments(m_ui.commandArgumentsLineEdit->text());
 }
 
 void MerDeployStepWidget::setCommandText(const QString& commandText)

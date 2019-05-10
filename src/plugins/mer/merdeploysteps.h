@@ -255,7 +255,6 @@ public:
 private slots:
     void commandArgumentsLineEditTextEdited();
 private:
-    MerProcessStep *m_step;
     Ui::MerDeployStepWidget m_ui;
     QString m_displayText;
     QString m_summaryText;

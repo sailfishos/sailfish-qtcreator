@@ -56,7 +56,6 @@ private slots:
     void versionInfoChanged();
 
 private:
-    MerRpmPackagingStep * const m_step;
     Ui::MerRpmPackagingWidget * const m_ui;
 };
 
