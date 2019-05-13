@@ -49,6 +49,7 @@
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/processparameters.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectnodes.h>
