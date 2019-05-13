@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/sailfishwizards">
+        <file>templates/file.desktop</file>
+    </qresource>
+</RCC>

@@ -21,7 +21,7 @@
 ****************************************************************************/
 
 #include "merrunconfigurationaspect.h"
-
+#include <QStyle>
 #include <QCheckBox>
 #include <QDesktopServices>
 #include <QHBoxLayout>

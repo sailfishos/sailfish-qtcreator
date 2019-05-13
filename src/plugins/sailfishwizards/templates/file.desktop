@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=%{appName}
+Exec=%{Exec}
+Terminal=false
+Type=Application%{icons}%{translations}

@@ -19,22 +19,25 @@
 **
 ****************************************************************************/
 
-#include <coreplugin/icore.h>
-#include <coreplugin/icontext.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/iwizardfactory.h>
 #include <coreplugin/messagemanager.h>
+#include <extensionsystem/pluginmanager.h>
+#include <texteditor/texteditor.h>
+#include <texteditor/textdocument.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/temporarydirectory.h>
-#include <texteditor/texteditor.h>
-#include <texteditor/textdocument.h>
-#include <extensionsystem/pluginmanager.h>
+
+#include "desktopwizardfactory.h"
+#include "desktopeditorfactory.h"
 
 #include "sailfishwizardsplugin.h"
 #include "sailfishwizardsconstants.h"
@@ -83,8 +86,10 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
 
     IWizardFactory::registerFactoryCreator([]() -> QList<IWizardFactory *> {
         QList<IWizardFactory *> result;
+        result << new DesktopWizardFactory();
         return result;
     });
+    m_editorFactoriesPool.append(new DesktopEditorFactory);
     for(IEditorFactory *editorFactory : m_editorFactoriesPool)
         ExtensionSystem::PluginManager::addObject(editorFactory);
     return true;
