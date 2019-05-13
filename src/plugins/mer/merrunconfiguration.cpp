@@ -63,7 +63,7 @@ void MerRunConfiguration::updateEnabledState()
     DeployConfiguration* conf = target()->activeDeployConfiguration();
     if(target()->kit())
     {
-        if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
+        if (conf->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
             setEnabled(false);
             return;
@@ -88,12 +88,12 @@ Runnable MerRunConfiguration::runnable() const
     DeployConfiguration* conf = target()->activeDeployConfiguration();
     QTC_ASSERT(conf, return r);;
 
-    if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
+    if (conf->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
         QString projectName = target()->project()->displayName();
         r.executable = QLatin1String("/opt/sdk/") + projectName + r.executable;
     }
 
-    if (conf->id() == MerRpmDeployConfiguration::configurationId()) {
+    if (conf->id() == MerRpmDeployConfigurationFactory::configurationId()) {
         //TODO:
         //r.executable = ...;
     }

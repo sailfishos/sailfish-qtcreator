@@ -92,9 +92,10 @@ public:
     MerEmulatorDeviceManager emulatorDeviceManager;
     MerQtVersionFactory qtVersionFactory;
     MerToolChainFactory toolChainFactory;
-    MerDeployConfigurationFactory<MerMb2RpmBuildConfiguration> mb2RpmBuildConfigurationFactory;
-    MerDeployConfigurationFactory<MerRsyncDeployConfiguration> rsyncDeployConfigurationFactory;
-    MerDeployConfigurationFactory<MerRpmDeployConfiguration> rpmDeployConfigurationFactory;
+    MerMb2RpmBuildConfigurationFactory mb2RpmBuildConfigurationFactory;
+    MerRsyncDeployConfigurationFactory rsyncDeployConfigurationFactory;
+    MerRpmDeployConfigurationFactory rpmDeployConfigurationFactory;
+    MerAddRemoveSpecialDeployStepsProjectListener addRemoveSpecialDeployStepsProjectListener;
     MerRunConfigurationFactory runConfigurationFactory;
     MerQmlRunConfigurationFactory qmlRunConfigurationFactory;
     MerBuildStepFactory<MerSdkStartStep> sdkStartStepFactory;

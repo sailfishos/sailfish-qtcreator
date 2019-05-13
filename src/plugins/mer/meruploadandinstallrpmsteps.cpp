@@ -29,6 +29,7 @@
 
 #include "meruploadandinstallrpmsteps.h"
 
+#include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
 #include "merrpminstaller.h"
 
@@ -90,8 +91,8 @@ AbstractRemoteLinuxDeployService *MerUploadAndInstallRpmStep::deployService() co
 
 bool MerUploadAndInstallRpmStep::initInternal(QString *error)
 {
-    //m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmPackagingStep>(this);
-    m_packagingStep = deployConfiguration()->earlierBuildStep<MerMb2RpmBuildStep>(this);
+    //m_packagingStep = earlierBuildStep<MerRpmPackagingStep>(deployConfiguration(), this);
+    m_packagingStep = earlierBuildStep<MerMb2RpmBuildStep>(deployConfiguration(), this);
 
     if (!m_packagingStep) {
         if (error)

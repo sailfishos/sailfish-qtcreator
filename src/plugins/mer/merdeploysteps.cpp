@@ -284,11 +284,6 @@ void MerProcessStep::setArguments(const QString &arguments)
     m_arguments = arguments;
 }
 
-MerDeployConfiguration *MerProcessStep::deployConfiguration() const
-{
-    return qobject_cast<MerDeployConfiguration *>(AbstractProcessStep::deployConfiguration());
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 Core::Id MerEmulatorStartStep::stepId()
@@ -772,7 +767,7 @@ bool MerRpmValidationStep::init()
         return false;
     }
 
-    m_packagingStep = deployConfiguration()->earlierBuildStep<MerMb2RpmBuildStep>(this);
+    m_packagingStep = earlierBuildStep<MerMb2RpmBuildStep>(deployConfiguration(), this);
     if (!m_packagingStep) {
         emit addOutput(tr("Cannot validate: No previous \"%1\" step found")
                 .arg(MerMb2RpmBuildStep::displayName()),

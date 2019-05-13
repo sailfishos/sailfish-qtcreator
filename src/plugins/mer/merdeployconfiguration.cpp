@@ -35,11 +35,11 @@
 #include "meruploadandinstallrpmsteps.h"
 
 #include <coreplugin/idocument.h>
-#include <projectexplorer/deploymentdataview.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QLabel>
@@ -57,54 +57,156 @@ const char SAILFISH_AMBIENCE_CONFIG[] = "sailfish-ambience";
 const int ADD_REMOVE_SPECIAL_STEPS_DELAY_MS = 1000;
 } // anonymous namespace
 
-MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
-    : DeployConfiguration(parent, id)
+MerRpmDeployConfigurationFactory::MerRpmDeployConfigurationFactory()
 {
-    setDisplayName(displayName);
-    setDefaultDisplayName(displayName);
-
-    connect(target()->project(), &Project::parsingFinished,
-            this, &MerDeployConfiguration::addRemoveSpecialSteps);
+    addInitialStep(MerPrepareTargetStep::stepId());
+    addInitialStep(MerMb2RpmDeployStep::stepId());
 }
 
-NamedWidget *MerDeployConfiguration::createConfigWidget()
+QString MerRpmDeployConfigurationFactory::displayName()
 {
-    return new DeploymentDataView(target());
+    return tr("Deploy As RPM Package");
 }
 
-void MerDeployConfiguration::addRemoveSpecialSteps()
+Core::Id MerRpmDeployConfigurationFactory::configurationId()
 {
-    // Avoid temporary changes
-    m_addRemoveSpecialStepsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
+    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
-// Override to add specific deploy steps based on particular project configuration
-void MerDeployConfiguration::doAddRemoveSpecialSteps()
+////////////////////////////////////////////////////////////////////////////////////////////
+
+MerRsyncDeployConfigurationFactory::MerRsyncDeployConfigurationFactory()
 {
+    addInitialStep(MerPrepareTargetStep::stepId());
+    addInitialStep(MerMb2RpmDeployStep::stepId());
 }
 
-void MerDeployConfiguration::timerEvent(QTimerEvent *event)
+QString MerRsyncDeployConfigurationFactory::displayName()
 {
-    if (event->timerId() == m_addRemoveSpecialStepsTimer.timerId()) {
-        m_addRemoveSpecialStepsTimer.stop();
-        doAddRemoveSpecialSteps();
+    return tr("Deploy By Copying Binaries");
+}
+
+Core::Id MerRsyncDeployConfigurationFactory::configurationId()
+{
+    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+//TODO:HACK
+MerMb2RpmBuildConfigurationFactory::MerMb2RpmBuildConfigurationFactory()
+{
+    addInitialStep(MerMb2RpmBuildStep::stepId());
+    //addInitialStep(MerUploadAndInstallRpmStep::stepId());
+}
+
+QString MerMb2RpmBuildConfigurationFactory::displayName()
+{
+    return tr("Build RPM Package For Manual Deployment");
+}
+
+Core::Id MerMb2RpmBuildConfigurationFactory::configurationId()
+{
+    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+MerRpmBuildDeployConfigurationFactory::MerRpmBuildDeployConfigurationFactory()
+{
+    addInitialStep(MerRpmPackagingStep::stepId());
+    addInitialStep(MerUploadAndInstallRpmStep::stepId());
+}
+
+QString MerRpmBuildDeployConfigurationFactory::displayName()
+{
+    return tr("Deploy As RPM Package (RPMBUILD)");
+}
+
+Core::Id MerRpmBuildDeployConfigurationFactory::configurationId()
+{
+    return Core::Id("QmakeProjectManager.MerRpmLocalDeployConfiguration");
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+bool MerAddRemoveSpecialDeployStepsProjectListener::handleProject(QmakeProject *project)
+{
+    connect(project, &Project::parsingFinished,
+            this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate,
+            Qt::UniqueConnection);
+
+    return true;
+}
+
+bool MerAddRemoveSpecialDeployStepsProjectListener::forgetProject(Project *project)
+{
+    // Who knows if it still can be downcasted to QmakeProject at this point
+    Utils::erase(m_updateProjectsQueue, [project](QmakeProject *enqueued) {
+        return enqueued == project;
+    });
+
+    disconnect(project, &Project::parsingFinished,
+            this, &MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate);
+
+    return true;
+}
+
+void MerAddRemoveSpecialDeployStepsProjectListener::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_updateProjectsTimer.timerId()) {
+        m_updateProjectsTimer.stop();
+        while (!m_updateProjectsQueue.isEmpty())
+            updateProject(m_updateProjectsQueue.dequeue());
     } else {
-        DeployConfiguration::timerEvent(event);
+        MerProjectListener::timerEvent(event);
     }
 }
 
-bool MerDeployConfiguration::isAmbienceProject(Project *project)
+// Avoid temporary changes to project configuration
+void MerAddRemoveSpecialDeployStepsProjectListener::scheduleProjectUpdate()
 {
-    QmakeProject *qmakeProject = qobject_cast<QmakeProject *>(project);
-    QTC_ASSERT(qmakeProject, return false);
+    QmakeProject *project = qobject_cast<QmakeProject *>(sender());
+    QTC_ASSERT(project, return);
 
-    QmakeProFile *root = qmakeProject->rootProFile();
+    m_updateProjectsQueue.enqueue(project);
+    m_updateProjectsTimer.start(ADD_REMOVE_SPECIAL_STEPS_DELAY_MS, this);
+}
+
+void MerAddRemoveSpecialDeployStepsProjectListener::updateProject(QmakeProject *project)
+{
+    const bool isAmbienceProject = this->isAmbienceProject(project);
+
+    for (Target *const target : project->targets()) {
+        for (DeployConfiguration *const dc : target->deployConfigurations()) {
+            if (dc->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
+                if (!isAmbienceProject) {
+                    if (!dc->stepList()->contains(MerRpmValidationStep::stepId()))
+                        dc->stepList()->appendStep(new MerRpmValidationStep(dc->stepList()));
+                } else {
+                    removeStep(dc->stepList(), MerRpmValidationStep::stepId());
+                }
+            } else if (dc->id() == MerRpmDeployConfigurationFactory::configurationId()
+                    || dc->id() == MerRsyncDeployConfigurationFactory::configurationId()) {
+                if (isAmbienceProject) {
+                    if (!dc->stepList()->contains(MerResetAmbienceDeployStep::stepId()))
+                        dc->stepList()->appendStep(new MerResetAmbienceDeployStep(dc->stepList()));
+                } else {
+                    removeStep(dc->stepList(), MerResetAmbienceDeployStep::stepId());
+                }
+            }
+        }
+    }
+}
+
+bool MerAddRemoveSpecialDeployStepsProjectListener::isAmbienceProject(QmakeProject *project)
+{
+    QmakeProFile *root = project->rootProFile();
     return root->projectType() == ProjectType::AuxTemplate &&
         root->variableValue(Variable::Config).contains(QLatin1String(SAILFISH_AMBIENCE_CONFIG));
 }
 
 // TODO add BuildStepList::removeStep(Core::Id)
-void MerDeployConfiguration::removeStep(BuildStepList *stepList, Core::Id stepId)
+void MerAddRemoveSpecialDeployStepsProjectListener::removeStep(BuildStepList *stepList, Core::Id stepId)
 {
     for (int i = 0; i < stepList->count(); ++i) {
         if (stepList->at(i)->id() == stepId) {
@@ -112,136 +214,6 @@ void MerDeployConfiguration::removeStep(BuildStepList *stepList, Core::Id stepId
             break;
         }
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-
-MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id, displayName())
-{
-}
-
-void MerRpmDeployConfiguration::initialize()
-{
-    MerDeployConfiguration::initialize();
-
-    stepList()->appendStep(new MerPrepareTargetStep(stepList()));
-    stepList()->appendStep(new MerMb2RpmDeployStep(stepList()));
-}
-
-QString MerRpmDeployConfiguration::displayName()
-{
-    return tr("Deploy As RPM Package");
-}
-
-Core::Id MerRpmDeployConfiguration::configurationId()
-{
-    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
-}
-
-void MerRpmDeployConfiguration::doAddRemoveSpecialSteps()
-{
-    if (isAmbienceProject(target()->project())) {
-        if (!stepList()->contains(MerResetAmbienceDeployStep::stepId()))
-            stepList()->appendStep(new MerResetAmbienceDeployStep(stepList()));
-    } else {
-        removeStep(stepList(), MerResetAmbienceDeployStep::stepId());
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////
-
-MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id, displayName())
-{
-}
-
-void MerRsyncDeployConfiguration::initialize()
-{
-    MerDeployConfiguration::initialize();
-
-    stepList()->appendStep(new MerPrepareTargetStep(stepList()));
-    stepList()->appendStep(new MerMb2RsyncDeployStep(stepList()));
-}
-
-QString MerRsyncDeployConfiguration::displayName()
-{
-    return tr("Deploy By Copying Binaries");
-}
-
-Core::Id MerRsyncDeployConfiguration::configurationId()
-{
-    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
-}
-
-void MerRsyncDeployConfiguration::doAddRemoveSpecialSteps()
-{
-    if (isAmbienceProject(target()->project())) {
-        if (!stepList()->contains(MerResetAmbienceDeployStep::stepId()))
-            stepList()->appendStep(new MerResetAmbienceDeployStep(stepList()));
-    } else {
-        removeStep(stepList(), MerResetAmbienceDeployStep::stepId());
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-//TODO:HACK
-MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id, displayName())
-{
-}
-
-void MerMb2RpmBuildConfiguration::initialize()
-{
-    MerDeployConfiguration::initialize();
-
-    stepList()->appendStep(new MerMb2RpmBuildStep(stepList()));
-    //stepList()->appendStep(new MerUploadAndInstallRpmStep(stepList()));
-}
-
-QString MerMb2RpmBuildConfiguration::displayName()
-{
-    return tr("Build RPM Package For Manual Deployment");
-}
-
-Core::Id MerMb2RpmBuildConfiguration::configurationId()
-{
-    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
-}
-
-void MerMb2RpmBuildConfiguration::doAddRemoveSpecialSteps()
-{
-    if (isAmbienceProject(target()->project())) {
-        removeStep(stepList(), MerRpmValidationStep::stepId());
-    } else {
-        if (!stepList()->contains(MerRpmValidationStep::stepId()))
-            stepList()->appendStep(new MerRpmValidationStep(stepList()));
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-
-MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent, Core::Id id)
-    : MerDeployConfiguration(parent, id, displayName())
-{
-}
-
-void MerRpmBuildDeployConfiguration::initialize()
-{
-    MerDeployConfiguration::initialize();
-
-    stepList()->appendStep(new MerRpmPackagingStep(stepList()));
-    stepList()->appendStep(new MerUploadAndInstallRpmStep(stepList()));
-}
-
-QString MerRpmBuildDeployConfiguration::displayName()
-{
-    return tr("Deploy As RPM Package (RPMBUILD)");
-}
-
-Core::Id MerRpmBuildDeployConfiguration::configurationId()
-{
-    return Core::Id("QmakeProjectManager.MerRpmLocalDeployConfiguration");
 }
 
 } // namespace Internal

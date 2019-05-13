@@ -69,9 +69,6 @@ public:
     QString arguments() const;
     void setArguments(const QString &arguments);
 
-protected:
-    MerDeployConfiguration *deployConfiguration() const;
-
 private:
     QString m_arguments;
 };

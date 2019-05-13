@@ -75,7 +75,7 @@ void MerQmlRunConfiguration::updateEnabledState()
     DeployConfiguration* conf = target()->activeDeployConfiguration();
     if(target()->kit())
     {
-        if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
+        if (conf->id() == MerMb2RpmBuildConfigurationFactory::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
             setEnabled(false);
             return;

@@ -49,7 +49,7 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
 
     m_ui->rpmValidationByDefaultCheckBox->setToolTip(m_ui->rpmValidationByDefaultCheckBox->toolTip()
             .arg(MerRpmValidationStep::displayName())
-            .arg(MerMb2RpmBuildConfiguration::displayName()));
+            .arg(MerMb2RpmBuildConfigurationFactory::displayName()));
     m_ui->rpmValidationByDefaultCheckBox->setChecked(MerSettings::rpmValidationByDefault());
 
     m_ui->askBeforeStartingVmCheckBox->setChecked(MerSettings::isAskBeforeStartingVmEnabled());
