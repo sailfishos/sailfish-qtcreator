@@ -32,7 +32,6 @@
 #include "mersshkeydeploymentdialog.h"
 #include "mersettings.h"
 
-#include <coreplugin/messagemanager.h>
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -193,34 +192,12 @@ IDevice::Ptr MerDeviceFactory::create() const
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 {
-    return canCreate(IDevice::typeFromMap(map));
-}
-
-IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return IDevice::Ptr());
-    if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator) {
-        QTC_ASSERT(MerSettings::deviceModels().count(), return IDevice::Ptr());
-
-        const IDevice::Ptr device = MerEmulatorDevice::create();
-        device->fromMap(map);
-
-        const auto emulatorDevice = device.dynamicCast<MerEmulatorDevice>();
-        if (!MerSettings::deviceModels().contains(emulatorDevice->deviceModel())) {
-            const QString name = MerSettings::deviceModels().first().name();
-            const QString msg = tr("Unable to find device model \"%1\"! Switching to device model \"%2\".")
-                    .arg(emulatorDevice->deviceModel())
-                    .arg(name);
-            emulatorDevice->setDeviceModel(name);
-            MessageManager::write(msg, MessageManager::Silent);
-        }
-
-        return device;
-    } else {
-        const IDevice::Ptr device = MerHardwareDevice::create();
-        device->fromMap(map);
-        return device;
-    }
+    // Hack
+    if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator)
+        const_cast<MerDeviceFactory *>(this)->setConstructionFunction([] { return MerEmulatorDevice::create(); });
+    else
+        const_cast<MerDeviceFactory *>(this)->setConstructionFunction([] { return MerHardwareDevice::create(); });
+    return true;
 }
 
 } // Internal

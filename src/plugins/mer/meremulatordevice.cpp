@@ -33,6 +33,7 @@
 #include "meremulatormodedialog.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/messagemanager.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/persistentsettings.h>
 
@@ -312,6 +313,16 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
     m_memorySizeMb = map.value(QLatin1String(MEMORY_SIZE_MB)).toInt();
     m_cpuCount = map.value(QLatin1String(CPU_COUNT)).toInt();
     m_vdiCapacityMb = map.value(QLatin1String(VDI_CAPACITY_MB)).toInt();
+
+    if (!MerSettings::deviceModels().contains(m_deviceModel)) {
+        QTC_ASSERT(!MerSettings::deviceModels().isEmpty(), return);
+        const QString name = MerSettings::deviceModels().first().name();
+        const QString msg = tr("Unable to find device model \"%1\"! Switching to device model \"%2\".")
+                .arg(m_deviceModel)
+                .arg(name);
+        setDeviceModel(name);
+        MessageManager::write(msg, MessageManager::Silent);
+    }
 }
 
 QVariantMap MerEmulatorDevice::toMap() const
