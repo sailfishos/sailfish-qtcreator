@@ -59,10 +59,17 @@ MerDeviceFactory *MerDeviceFactory::instance()
 }
 
 MerDeviceFactory::MerDeviceFactory()
+    : IDeviceFactory(Constants::MER_DEVICE_TYPE)
 {
     QTC_CHECK(!s_instance);
     s_instance = this;
     setObjectName(QLatin1String("MerDeviceFactory"));
+    setDisplayName(tr("Sailfish OS Device"));
+    setIcon(Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
+            ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
+                                         Icons::MER_DEVICE_FLAT_SMALL})
+            : Icons::MER_DEVICE_CLASSIC.icon());
+    setCanCreate(true);
 }
 
 MerDeviceFactory::~MerDeviceFactory()
@@ -70,38 +77,8 @@ MerDeviceFactory::~MerDeviceFactory()
     s_instance = 0;
 }
 
-QString MerDeviceFactory::displayNameForId(Core::Id type) const
+IDevice::Ptr MerDeviceFactory::create() const
 {
-    if (type == Constants::MER_DEVICE_TYPE)
-        return tr("Sailfish OS Device");
-    return QString();
-}
-
-bool MerDeviceFactory::canCreate(Core::Id type)
-{
-    return type == Core::Id(Constants::MER_DEVICE_TYPE);
-}
-
-QList<Core::Id> MerDeviceFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE);
-}
-
-QIcon MerDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type);
-    static const QIcon icon =
-            Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
-            ? Utils::Icon::combinedIcon({Icons::MER_DEVICE_FLAT,
-                                         Icons::MER_DEVICE_FLAT_SMALL})
-            : Icons::MER_DEVICE_CLASSIC.icon();
-    return icon;
-}
-
-IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
-{
-    QTC_ASSERT(id == Constants::MER_DEVICE_TYPE, return IDevice::Ptr());
-
     QStringList choices = QStringList() << tr("Emulator") << tr("Physical device");
     bool ok;
     QString machineType = QInputDialog::getItem(ICore::dialogParent(),

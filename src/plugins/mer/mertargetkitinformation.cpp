@@ -58,7 +58,7 @@ QVariant MerTargetKitInformation::defaultValue(const Kit *kit) const
 
 QList<Task> MerTargetKitInformation::validate(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
+    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
         const QString &target = kit->value(MerTargetKitInformation::id()).toString();
         if (sdk && !sdk->targetNames().contains(target)) {
@@ -94,7 +94,7 @@ MerTarget MerTargetKitInformation::target(const Kit *kit)
 
 KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
+    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         QString targetName = MerTargetKitInformation::targetName(kit);
         return KitInformation::ItemList()
                 << qMakePair(tr("Sailfish OS build target"),targetName);
@@ -184,7 +184,7 @@ void MerTargetKitInformationWidget::refresh()
 
 bool MerTargetKitInformationWidget::visibleInKit()
 {
-    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(m_kit));
+    return DeviceTypeKitInformation::deviceTypeId(m_kit) == Constants::MER_DEVICE_TYPE;
 }
 
 QWidget *MerTargetKitInformationWidget::mainWidget() const

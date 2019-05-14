@@ -398,7 +398,7 @@ bool MerSdkManager::isMerKit(const Kit *kit)
     const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     if (tc && tc->typeId() == Constants::MER_TOOLCHAIN_ID)
         return true;
-    if (deviceType.isValid() && MerDeviceFactory::canCreate(deviceType))
+    if (deviceType.isValid() && deviceType == Constants::MER_DEVICE_TYPE)
         return true;
 
     return false;
@@ -434,7 +434,7 @@ bool MerSdkManager::hasMerDevice(Kit *kit)
     IDevice::ConstPtr dev = DeviceKitInformation::device(kit);
     if (dev.isNull())
         return false;
-    return MerDeviceFactory::canCreate(dev->type());
+    return dev->type() == Constants::MER_DEVICE_TYPE;
 }
 
 QString MerSdkManager::sdkToolsDirectory()
@@ -603,7 +603,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
         return false;
     if (toolchain->typeId() != Constants::MER_TOOLCHAIN_ID)
         return false;
-    if (!MerDeviceFactory::canCreate(deviceType))
+    if (deviceType != Constants::MER_DEVICE_TYPE)
         return false;
 
     MerToolChain* mertoolchain = static_cast<MerToolChain*>(toolchain);
@@ -676,7 +676,7 @@ void MerSdkManager::updateDevices()
     int count = DeviceManager::instance()->deviceCount();
     for(int i = 0 ;  i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
-        if (MerDeviceFactory::canCreate(d->type())) {
+        if (d->type() == Constants::MER_DEVICE_TYPE) {
             MerDeviceData xmlData;
             if (d->machineType() == IDevice::Hardware) {
                 Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);

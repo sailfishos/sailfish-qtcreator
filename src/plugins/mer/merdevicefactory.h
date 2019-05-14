@@ -37,11 +37,7 @@ public:
     MerDeviceFactory();
     ~MerDeviceFactory();
 
-    QString displayNameForId(Core::Id type) const override;
-    QList<Core::Id> availableCreationIds() const override;
-    QIcon iconForId(Core::Id type) const override;
-    static bool canCreate(Core::Id id);
-    ProjectExplorer::IDevice::Ptr create(Core::Id id) const override;
+    ProjectExplorer::IDevice::Ptr create() const override;
     bool canRestore(const QVariantMap &map) const override;
     ProjectExplorer::IDevice::Ptr restore(const QVariantMap &map) const override;
 

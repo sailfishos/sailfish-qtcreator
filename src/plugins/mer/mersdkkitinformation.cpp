@@ -65,7 +65,7 @@ QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
 
 QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
+    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         const QString &vmName = kit->value(MerSdkKitInformation::id()).toString();
         if (!MerSdkManager::sdk(vmName)) {
             const QString message = QCoreApplication::translate("MerSdk",
@@ -86,7 +86,7 @@ MerSdk* MerSdkKitInformation::sdk(const Kit *kit)
 
 KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
+    if (DeviceTypeKitInformation::deviceTypeId(kit) == Constants::MER_DEVICE_TYPE) {
         QString vmName;
         MerSdk* sdk = MerSdkKitInformation::sdk(kit);
         if (sdk)
@@ -193,7 +193,7 @@ void MerSdkKitInformationWidget::refresh()
 
 bool MerSdkKitInformationWidget::visibleInKit()
 {
-    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(m_kit));
+    return DeviceTypeKitInformation::deviceTypeId(m_kit) == Constants::MER_DEVICE_TYPE;
 }
 
 QWidget *MerSdkKitInformationWidget::mainWidget() const
