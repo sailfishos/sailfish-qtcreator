@@ -132,12 +132,16 @@ void MerDeviceDebugSupport::start()
     RunConfiguration *runConfig = runControl()->runConfiguration();
 
     if (isCppDebugging()) {
-        QmakeProject *project = qobject_cast<QmakeProject *>(runConfig->target()->project());
-        QTC_ASSERT(project, return);
-        foreach (QmakeProFile *proFile, project->allProFiles(QList<QmakeProjectManager::ProjectType>() << ProjectType::SharedLibraryTemplate)) {
-            const QDir outPwd = QDir(proFile->buildDir().toString());
-            addSolibSearchDir(outPwd.absoluteFilePath(proFile->targetInformation().destDir.toString()));
-        }
+        ProjectNode *const root = runConfig->target()->project()->rootProjectNode();
+        root->forEachProjectNode([this](const ProjectNode *node) {
+            auto qmakeNode = dynamic_cast<const QmakeProFileNode *>(node);
+            if (!qmakeNode || !qmakeNode->includedInExactParse())
+                return;
+            if (qmakeNode->projectType() != ProjectType::SharedLibraryTemplate)
+                return;
+            const QDir outPwd = QDir(qmakeNode->buildDir());
+            addSolibSearchDir(outPwd.absoluteFilePath(qmakeNode->targetInformation().destDir.toString()));
+        });
     }
 
     MerSdk* mersdk = MerSdkKitInformation::sdk(runConfig->target()->kit());
