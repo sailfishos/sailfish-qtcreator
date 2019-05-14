@@ -42,6 +42,8 @@
 #include "qmlwizardfactory.h"
 #include "unittestwizardfactory.h"
 #include "javascriptlibrarywizardfactory.h"
+#include "spectaclefilewizardfactory.h"
+#include "spectaclefileeditorfactory.h"
 
 #include "sailfishwizardsplugin.h"
 #include "sailfishwizardsconstants.h"
@@ -90,14 +92,16 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
 
     IWizardFactory::registerFactoryCreator([]() -> QList<IWizardFactory *> {
         QList<IWizardFactory *> result;
-        result << new DesktopWizardFactory();
-        result << new CppClassWizardFactory();
-        result << new QmlWizardFactory();
-        result << new UnitTestWizardFactory();
-        result << new JavaScriptLibraryWizardFactory();
+       result << new UnitTestWizardFactory();
+       result << new CppClassWizardFactory();
+       result << new QmlWizardFactory();
+       result << new JavaScriptLibraryWizardFactory();
+       result << new DesktopWizardFactory();
+       result << new SpectacleFileWizardFactory();
         return result;
     });
     m_editorFactoriesPool.append(new DesktopEditorFactory);
+    m_editorFactoriesPool.append(new SpectacleFileEditorFactory);
     for(IEditorFactory *editorFactory : m_editorFactoriesPool)
         ExtensionSystem::PluginManager::addObject(editorFactory);
     return true;

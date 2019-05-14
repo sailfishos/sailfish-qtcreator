@@ -10,8 +10,11 @@
         <file>templates/unittestfileheader.template</file>
         <file>templates/unittestfilesource.template</file>
         <file>templates/javascriptlibrary.js</file>
+        <file>templates/spectacleconfig.yaml</file>
+        <file>data/yaml-dependencies.json</file>
     </qresource>
     <qresource prefix="/sailfishwizards/cppwizard">
         <file>data/cpp-modules.json</file>
     </qresource>
+
 </RCC>

@@ -25,6 +25,13 @@ SOURCES += \
     unittestwizardfactory.cpp \
     unittestwizardpages.cpp \
     javascriptlibrarywizardfactory.cpp \
+    checkcomponenttablemodel.cpp \
+    spectaclefilewizardfactory.cpp \
+    spectaclefilewizardpages.cpp \
+    spectaclefileeditorfactory.cpp \
+    spectaclefileeditor.cpp \
+    spectaclefileeditorwidget.cpp \
+    spectacledocument.cpp \
 
 HEADERS += \
     common.h \
@@ -49,6 +56,13 @@ HEADERS += \
     unittestwizardfactory.h \
     unittestwizardpages.h \
     javascriptlibrarywizardfactory.h \
+    checkcomponenttablemodel.h \
+    spectaclefilewizardfactory.h \
+    spectaclefilewizardpages.h \
+    spectaclefileeditorfactory.h \
+    spectaclefileeditor.h \
+    spectaclefileeditorwidget.h \
+    spectacledocument.h \
 
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
@@ -79,6 +93,11 @@ FORMS += \
     forms/qmllocalimportpage.ui \
     forms/qmloptionpage.ui \
     forms/unittestfileselectpage.ui \
+    forms/spectacledependenciespage.ui \
+    forms/spectacledependencydialog.ui \
+    forms/spectaclefileselectpage.ui \
+    forms/spectacleoptionspage.ui \
+    forms/spectacleprojecttypepage.ui \
 
 RESOURCES += \
     resources.qrc \

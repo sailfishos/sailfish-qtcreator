@@ -1,0 +1,122 @@
+{
+    "Sailfish Application": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+            "sailfishapp": {
+                "requirement": ">=",
+                "version": "1.0.2"
+            },
+            "Qt5Core": {
+            },
+            "Qt5Qml": {
+            },
+            "Qt5Quick": {
+            }
+        },
+        "Requires":{
+            "sailfishsilica-qt5": {
+                "requirement": ">=",
+                "version": "0.10.9"
+            }
+        }
+    },
+    "Geolocation": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "qt5-qtdeclarative-import-positioning": {
+            },
+            "qt5-qtdeclarative-import-location": {
+            },
+            "qt5-plugin-geoservices-osm": {
+            },
+            "qt5-plugin-geoservices-here": {
+            }
+        }
+    },
+    "Sensors": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "qt5-qtdeclarative-import-sensors": {
+            }
+        }
+    },
+    "Audio": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "qt5-qtmultimedia-plugin-mediaservice-gstmediaplayer": {
+            },
+            "qt5-qtmultimedia-plugin-mediaservice-gstmediacapture": {
+            }
+        }
+    },
+    "Nemo QML Plugin Contacts": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "nemo-qml-plugin-contacts-qt5": {
+            }
+        }
+    },
+    "Nemo QML Plugin Calendar": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "nemo-qml-plugin-calendar-qt5": {
+            }
+        }
+    },
+    "Nemo QML Plugin D-Bus": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+        },
+        "Requires": {
+            "nemo-qml-plugin-dbus-qt5": {
+            }
+        }
+    },
+    "Unit Testing": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+            "Qt5Test": {
+            }
+        },
+        "Requires": {
+        }
+    },
+    "Nemo QML Plugin Notifications": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+            "nemonotifications-qt5": {
+            }
+        },
+        "Requires": {
+        }
+    },
+    "Qt D-Bus": {
+        "PkgBr": {
+        },
+        "PkgConfigBr": {
+            "Qt5DBus": {
+            }
+        },
+        "Requires": {
+        }
+    }
+}

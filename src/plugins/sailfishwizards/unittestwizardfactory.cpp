@@ -24,6 +24,7 @@
 #include "common.h"
 #include "projectexplorer/projectwizardpage.h"
 #include "projectexplorer/projectnodes.h"
+#include "spectaclefilewizardpages.h"
 #include "unittestwizardpages.h"
 
 #include <QDir>
@@ -114,7 +115,7 @@ GeneratedFile UnitTestWizardFactory::generateHFile(const QWizard *wizard,
                                                    QString *errorMessage) const
 {
     GeneratedFile hFile;
-    QDir projectDir(wizard->field("path").toString());
+    QDir projectDir(SpectacleFileSelectionPage::findProjectRoot(wizard->field("path").toString()));
     QHash <QString, QString> values;
     values.insert("nameClass", wizard->field("nameClass").toString());
     values.insert("nameClassUpper", wizard->field("nameClass").toString().toUpper());
