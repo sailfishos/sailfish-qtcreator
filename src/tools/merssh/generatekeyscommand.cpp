@@ -22,9 +22,11 @@
 
 #include "generatekeyscommand.h"
 
-#include <ssh/sshkeygenerator.h>
+#include <ssh/sshsettings.h>
 
+#include <QDateTime>
 #include <QFile>
+#include <QProcess>
 
 GenerateKeysCommand::GenerateKeysCommand()
 {
@@ -37,32 +39,20 @@ QString GenerateKeysCommand::name() const
 
 bool GenerateKeysCommand::parseArguments()
 {
-    const QStringList &args = arguments();
+    QStringList args = arguments();
+    args.removeFirst();
 
-    for (int i = 1; i < args.count(); ++i) {
-        const QString current = args.at(i);
-        const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
-
-        if (m_privateKeyFileName.isNull()) {
-            m_privateKeyFileName = current;
-            continue;
-        }
-
-        if (m_publicKeyFileName.isNull()) {
-            m_publicKeyFileName = current;
-            continue;
-        }
-
-        if (next.isNull())
-            return false;
+    if (args.isEmpty() || args.first().isEmpty()) {
+        qCritical() << "No private key given.";
+        return false;
+    } else if (args.count() > 1) {
+        qCritical() << "Unexpected argument:" << args.at(1);
+        return false;
     }
 
-    if (m_privateKeyFileName.isEmpty())
-        qCritical() << "No private key given.";
-    if (m_publicKeyFileName.isEmpty())
-        qCritical() << "No public key given.";
+    m_privateKeyFileName = args.first();
 
-    return !m_privateKeyFileName.isEmpty() && !m_publicKeyFileName.isEmpty();
+    return true;
 }
 
 QString GenerateKeysCommand::unquote(const QString &arg)
@@ -87,6 +77,11 @@ QString GenerateKeysCommand::unquote(const QString &arg)
 
 int GenerateKeysCommand::execute()
 {
+    if (QSsh::SshSettings::keygenFilePath().isEmpty()) {
+        qCritical() << "The ssh-keygen tool was not found.";
+        return 1;
+    }
+
     if(!parseArguments()) {
         qCritical() << "Could not parse arguments.";
         return 1;
@@ -95,35 +90,25 @@ int GenerateKeysCommand::execute()
     fprintf(stdout, "%s", "Generating keys...");
     fflush(stdout);
 
-    QSsh::SshKeyGenerator keyGen;
-    if (!keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
-                             QSsh::SshKeyGenerator::OpenSsl, 2048,
-                             QSsh::SshKeyGenerator::DoNotOfferEncryption)) {
-        qCritical() << "Cannot generate the ssh keys.";
-        return 1;
-    }
-
     m_privateKeyFileName = unquote(m_privateKeyFileName);
 
-    QFile privateKeyFile(m_privateKeyFileName);
-    if (!privateKeyFile.open(QIODevice::WriteOnly)) {
-        qCritical() << "Cannot write file:" << m_privateKeyFileName;
-        return 1;
-    }
-    privateKeyFile.write(keyGen.privateKey());
-    if (!QFile::setPermissions(m_privateKeyFileName, QFile::ReadOwner | QFile::WriteOwner)) {
-        qCritical() << "Cannot set permissions of file:" << m_privateKeyFileName;
-        return 1;
-    }
+    QProcess keygen;
+    const QString keyComment("QtCreator/" + QDateTime::currentDateTime().toString(Qt::ISODate));
+    const QStringList args{"-t", "rsa", "-b", "2048", "-N", QString(), "-C", keyComment, "-f", m_privateKeyFileName};
+    QString errorMsg;
+    keygen.start(QSsh::SshSettings::keygenFilePath().toString(), args);
+    keygen.closeWriteChannel();
 
-    m_publicKeyFileName = unquote(m_publicKeyFileName);
+    if (!keygen.waitForStarted() || !keygen.waitForFinished())
+        errorMsg = keygen.errorString();
+    else if (keygen.exitStatus() != QProcess::NormalExit || keygen.exitCode() != 0)
+        errorMsg = QString::fromLocal8Bit(keygen.readAllStandardError());
 
-    QFile publicKeyFile(m_publicKeyFileName);
-    if (!publicKeyFile.open(QIODevice::WriteOnly)) {
-        qCritical() << "Cannot write file:" << m_publicKeyFileName;
+    if (!errorMsg.isEmpty()) {
+        qCritical() << "The ssh-keygen tool at" << QSsh::SshSettings::keygenFilePath().toUserOutput()
+            << "failed:" << errorMsg;
         return 1;
     }
-    publicKeyFile.write(keyGen.publicKey());
 
     return 0;
 }

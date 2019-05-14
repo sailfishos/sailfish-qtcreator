@@ -32,13 +32,20 @@
 #include "rpmvalidationcommand.h"
 #include "wwwproxycommand.h"
 
+#include <app/app_version.h>
 #include <mer/merconstants.h>
+#include <ssh/sshsettings.h>
+#include <utils/algorithm.h>
+#include <utils/environment.h>
+#include <utils/fileutils.h>
+#include <utils/hostosinfo.h>
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QLoggingCategory>
 #include <QProcessEnvironment>
+#include <QSettings>
 #include <QStringList>
 #include <QTimer>
 
@@ -94,11 +101,52 @@ QStringList unquoteArguments(QStringList args) {
     return result;
 }
 
+void initQSsh()
+{
+    // See ProjectExplorerPlugin::extensionsInitialized()
+    QSettings qtcSettings{QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR),
+            QLatin1String(Core::Constants::IDE_CASED_ID)};
+    QSsh::SshSettings::loadSettings(&qtcSettings);
+    const QString gitBinary = qtcSettings.value("Git/BinaryPath", "git")
+        .toString();
+    const QStringList rawGitSearchPaths = qtcSettings.value("Git/Path")
+        .toString().split(':', QString::SkipEmptyParts);
+    const auto searchPathRetriever = [=] {
+        Utils::FileNameList searchPaths;
+        searchPaths << Utils::FileName::fromString(QCoreApplication::applicationDirPath());
+        if (Utils::HostOsInfo::isWindowsHost()) {
+            const Utils::FileNameList gitSearchPaths = Utils::transform(rawGitSearchPaths,
+                    [](const QString &rawPath) { return Utils::FileName::fromString(rawPath); });
+            const Utils::FileName fullGitPath = Utils::Environment::systemEnvironment()
+                    .searchInPath(gitBinary, gitSearchPaths);
+            if (!fullGitPath.isEmpty()) {
+                searchPaths << fullGitPath.parentDir()
+                            << fullGitPath.parentDir().parentDir() + "/usr/bin";
+            }
+        }
+        return searchPaths;
+    };
+    QSsh::SshSettings::setExtraSearchPathRetriever(searchPathRetriever);
+}
+
 int main(int argc, char *argv[])
 {
     QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false"));
 
     QCoreApplication a(argc, argv);
+
+#ifdef Q_OS_WIN
+    {
+        // See Qt Creator's main
+        QDir rootDir = a.applicationDirPath();
+        rootDir.cdUp();
+        QString mySettingsPath = QDir::toNativeSeparators(rootDir.canonicalPath());
+        mySettingsPath += QDir::separator() + QLatin1String("settings");
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
+    }
+#endif
+
+    initQSsh();
 
     CommandFactory::registerCommand<QMakeCommand>(QLatin1String("qmake"));
     CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
@@ -174,7 +222,7 @@ int main(int argc, char *argv[])
     parameters.setUserName(environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME)));
     parameters.setPort(environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt());
     parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
-    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
+    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeSpecificKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
     command->setArguments(arguments);

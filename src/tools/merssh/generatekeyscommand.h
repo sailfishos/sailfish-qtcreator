@@ -16,7 +16,6 @@ private:
     bool parseArguments();
     QString unquote(const QString &args);
     QString m_privateKeyFileName;
-    QString m_publicKeyFileName;
 };
 
 #endif // GENERATEKEYSCOMMAND_H
