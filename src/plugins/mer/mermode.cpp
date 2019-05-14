@@ -51,7 +51,7 @@ MerMode::MerMode()
                                 Icons::MER_MODE_FLAT, Icons::MER_MODE_FLAT_ACTIVE));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
-    setContextHelpId(QString());
+    setContextHelp(QString());
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
             this, &MerMode::handleUpdateContext);
 }
