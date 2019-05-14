@@ -139,7 +139,6 @@ MerBuildConfigurationFactory::MerBuildConfigurationFactory()
 {
     registerBuildConfiguration<MerBuildConfiguration>(QmakeProjectManager::Constants::QMAKE_BC_ID);
     addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
-    setBasePriority(1);
 }
 
 } // namespace Internal
