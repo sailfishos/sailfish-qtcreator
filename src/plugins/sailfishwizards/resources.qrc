@@ -1,8 +1,12 @@
 <RCC>
+    <qresource prefix="/saifishwizards/qmlwizard">
+        <file>data/qml-modules.json</file>
+    </qresource>
     <qresource prefix="/sailfishwizards">
         <file>templates/file.desktop</file>
         <file>templates/cppclassfileheader.template</file>
         <file>templates/cppclassfilesource.template</file>
+        <file>templates/qmlfile.template</file>
     </qresource>
     <qresource prefix="/sailfishwizards/cppwizard">
         <file>data/cpp-modules.json</file>

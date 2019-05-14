@@ -20,6 +20,8 @@ SOURCES += \
     cppclasswizardfactory.cpp \
     cppclasswizardpages.cpp \
     fileinfopage.cpp \
+    qmlwizardpage.cpp \
+    qmlwizardfactory.cpp \
 
 HEADERS += \
     common.h \
@@ -39,6 +41,8 @@ HEADERS += \
     cppclasswizardfactory.h \
     cppclasswizardpages.h \
     fileinfopage.h \
+    qmlwizardpage.h \
+    qmlwizardfactory.h \
 
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
@@ -65,6 +69,9 @@ FORMS += \
     forms/choicefiledialog.ui \
     forms/externallibrarydialog.ui \
     forms/externallibrarypage.ui \
+    forms/qmlfileselectpage.ui \
+    forms/qmllocalimportpage.ui \
+    forms/qmloptionpage.ui \
 
 RESOURCES += \
     resources.qrc \
