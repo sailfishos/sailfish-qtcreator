@@ -189,7 +189,7 @@ IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
-    : MerDevice(QString(), Emulator, ManuallyAdded, id)
+    : MerDevice(QString(), ManuallyAdded, id)
     , m_connection(new MerConnection(0 /* not bug */))
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
@@ -197,6 +197,8 @@ MerEmulatorDevice::MerEmulatorDevice(Core::Id id)
     , m_cpuCount(0)
     , m_vdiCapacityMb(0)
 {
+    setMachineType(IDevice::Emulator);
+
     init();
 }
 

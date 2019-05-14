@@ -57,7 +57,7 @@ public:
 
 protected:
     MerDevice();
-    MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id);
+    MerDevice(const QString &name, Origin origin, Core::Id id);
     ~MerDevice() override = 0;
 
 private:

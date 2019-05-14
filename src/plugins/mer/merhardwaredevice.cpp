@@ -63,9 +63,10 @@ MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
 MerHardwareDevice::MerHardwareDevice(const QString &name,
                      Origin origin,
                      Core::Id id)
-    : MerDevice(name, IDevice::Hardware, origin, id),
+    : MerDevice(name, origin, id),
       m_architecture(Abi::UnknownArchitecture)
 {
+    setMachineType(IDevice::Hardware);
 }
 
 IDevice::Ptr MerHardwareDevice::clone() const

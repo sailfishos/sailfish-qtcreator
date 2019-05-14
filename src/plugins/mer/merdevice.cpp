@@ -100,8 +100,8 @@ MerDevice::MerDevice()
 {
 }
 
-MerDevice::MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id)
-    : LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
+MerDevice::MerDevice(const QString &name, Origin origin, Core::Id id)
+    : LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), origin, id)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
     m_qmlLivePorts.addPort(Utils::Port(Constants::DEFAULT_QML_LIVE_PORT));
