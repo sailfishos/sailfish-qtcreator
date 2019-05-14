@@ -74,7 +74,7 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     });
 }
 
-void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo *info)
+void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
 {
     QmakeBuildConfiguration::initialize(info);
 
