@@ -1,0 +1,4 @@
+#include <QtDBus>
+
+QDBusInterface remoteApp("%{serviceName}", "%{servicePath}", "%{interfaceName}",
+                         QDBusConnection::%{busType}Bus());%{methods}%{signals}

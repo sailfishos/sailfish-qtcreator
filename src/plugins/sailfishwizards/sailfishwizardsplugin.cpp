@@ -23,10 +23,8 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/iwizardfactory.h>
 #include <coreplugin/messagemanager.h>
 #include <extensionsystem/pluginmanager.h>
@@ -44,6 +42,7 @@
 #include "javascriptlibrarywizardfactory.h"
 #include "spectaclefilewizardfactory.h"
 #include "spectaclefileeditorfactory.h"
+#include "dbusinterfacesnippetdialog.h"
 
 #include "sailfishwizardsplugin.h"
 #include "sailfishwizardsconstants.h"
@@ -90,14 +89,22 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
+    QAction *action = new QAction(tr("Insert DBusInterface..."), this);
+    Command *cmd =  ActionManager::registerAction(action, Constants::ACTION_ID,
+                                                  Context(Core::Constants::C_GLOBAL));
+    connect(action, SIGNAL(triggered()), this, SLOT(triggerAction()));
+
+    ActionContainer *sailfishMenu = ActionManager::actionContainer(Constants::MER_TOOLS_MENU);
+    sailfishMenu->addAction(cmd);
+
     IWizardFactory::registerFactoryCreator([]() -> QList<IWizardFactory *> {
         QList<IWizardFactory *> result;
-       result << new UnitTestWizardFactory();
-       result << new CppClassWizardFactory();
-       result << new QmlWizardFactory();
-       result << new JavaScriptLibraryWizardFactory();
-       result << new DesktopWizardFactory();
-       result << new SpectacleFileWizardFactory();
+        result << new UnitTestWizardFactory();
+        result << new CppClassWizardFactory();
+        result << new QmlWizardFactory();
+        result << new JavaScriptLibraryWizardFactory();
+        result << new DesktopWizardFactory();
+        result << new SpectacleFileWizardFactory();
         return result;
     });
     m_editorFactoriesPool.append(new DesktopEditorFactory);
@@ -106,6 +113,20 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
         ExtensionSystem::PluginManager::addObject(editorFactory);
     return true;
 }
+
+/*!
+ * \brief Triggers the D-Bus inserting wizard.
+ */
+void SailfishWizardsPlugin::triggerAction()
+{
+    DBusInterfaceSnippetDialog dialog;
+    QRect window = QGuiApplication::primaryScreen()->geometry();
+    dialog.setMinimumSize(static_cast<int>(window.width() * 0.6),
+                          static_cast<int>(window.height() * 0.4));
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+}
+
 
 /*!
  * \brief Does operations after all extensions including this plugin are initialized.

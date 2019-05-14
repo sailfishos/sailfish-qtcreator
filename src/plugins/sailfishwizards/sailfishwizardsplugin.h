@@ -50,6 +50,9 @@ public:
 
 private:
     QList<Core::IEditorFactory *> m_editorFactoriesPool;
+
+private slots:
+    void triggerAction();
 };
 
 } // namespace Internal

@@ -32,6 +32,8 @@ SOURCES += \
     spectaclefileeditor.cpp \
     spectaclefileeditorwidget.cpp \
     spectacledocument.cpp \
+    dbusinterfacesnippetdialog.cpp \
+    dbusservicestablemodel.cpp \
 
 HEADERS += \
     common.h \
@@ -63,7 +65,9 @@ HEADERS += \
     spectaclefileeditor.h \
     spectaclefileeditorwidget.h \
     spectacledocument.h \
-
+    dbusinterfacesnippetdialog.h \
+    dbusservice.h \
+    dbusservicestablemodel.h \
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
 ###### plugin's sources.
@@ -98,6 +102,7 @@ FORMS += \
     forms/spectaclefileselectpage.ui \
     forms/spectacleoptionspage.ui \
     forms/spectacleprojecttypepage.ui \
+    forms/dbusinterfacesnippetpage.ui
 
 RESOURCES += \
     resources.qrc \

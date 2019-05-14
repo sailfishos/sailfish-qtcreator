@@ -1,0 +1,1256 @@
+{
+    "Calendar": {
+        "BusType": "session",
+        "ServiceName": "com.jolla.calendar.ui",
+        "ServicePath": {
+            "/com/jolla/calendar/ui":{
+                "Interface": {
+                    "com.jolla.calendar.ui":{
+                        "Methods": {
+                            "viewEvent(id, recurrenceId, startDate)":{
+                            },
+                            "viewDate(dateTime)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Camera": {
+        "BusType": "session",
+        "ServiceName": "com.jolla.camera",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.jolla.camera.ui":{
+                        "Methods": {
+                            "showViewfinder()":{
+                            },
+                            "showFrontViewfinder()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Clock": {
+        "BusType": "session",
+        "ServiceName": "com.jolla.clock",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.jolla.clock":{
+                        "Methods": {
+                            "newAlarm()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Phone Book Contacts": {
+        "BusType": "session",
+        "ServiceName": "com.jolla.contacts.ui",
+        "ServicePath": {
+            "/com/jolla/contacts/ui":{
+                "Interface": {
+                    "com.jolla.contacts.ui":{
+                        "Methods": {
+                            "showContact(int contactId)":{
+                            },
+                            "editContact(int contactId)":{
+                            },
+                            "importWizard()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Mediaplayer": {
+        "BusType": "session",
+        "ServiceName": "org.mpris.MediaPlayer2.jolla-mediaplayer",
+        "ServicePath": {
+            "/org/mpris/MediaPlayer2":{
+                "Interface": {
+                    "org.mpris.MediaPlayer2.Player":{
+                        "Methods": {
+                            "play()":{
+                            },
+                            "pause()":{
+                            },
+                            "next()":{
+                            },
+                            "previous()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Notes":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.notes",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.jolla.notes":{
+                        "Methods": {
+                            "newNote()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Settings":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.settings",
+        "ServicePath": {
+            "/com/jolla/settings/ui":{
+                "Interface": {
+                    "com.jolla.settings.ui":{
+                        "Methods": {
+                            "showSettings()":{
+                            },
+                            "showTransfers()":{
+                            },
+                            "showAccounts()":{
+                            },
+                            "showCallRecordings()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Android Support":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.apkd",
+        "ServicePath": {
+            "/com/jolla/apkd":{
+                "Interface": {
+                    "com.jolla.apkd":{
+                        "Methods": {
+                            "controlService(bool support)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Flashlight":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.settings.system.flashlight",
+        "ServicePath": {
+            "/com/jolla/settings/system/flashlight":{
+                "Interface": {
+                    "com.jolla.settings.system.flashlight":{
+                        "Methods": {
+                            "toggleFlashlight()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Voicecall":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.voicecall.ui",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.jolla.voicecall.ui":{
+                        "Methods": {
+                            "dial(number)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Gallery":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.gallery",
+        "ServicePath": {
+            "/com/jolla/gallery/ui":{
+                "Interface": {
+                    "com.jolla.gallery.ui":{
+                        "Methods": {
+                            "playVideoStream(url)":{
+                            },
+                            "showImages(array_of_urls)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "E-mail":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.email.ui",
+        "ServicePath": {
+            "/com/jolla/email/ui":{
+                "Interface": {
+                    "com.jolla.email.ui":{
+                        "Methods": {
+                            "mailto()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Desktop Environment Storage System":{
+        "BusType": "session",
+        "ServiceName": "ca.desrt.dconf",
+        "ServicePath": {
+            "/ca/desrt/dconf":{
+                "Interface": {
+                    "org.gtk.Application":{
+                        "Methods": {
+                            "Activate(platform_data)":{
+                            },
+                            "Open(uris, hint, platform_data)":{
+                            }
+                        }
+                    },
+                    "org.gtk.Actions":{
+                        "Methods": {
+                            "List()":{
+                            },
+                            "Describe(actions_name)":{
+                            },
+                            "DescribeAll()":{
+                            },
+                            "Activate(action_name, parameter, platform_data)":{
+                            },
+                            "SetState(action_name, value, platform_data)":{
+                            }
+                        },
+                        "Signals": {
+                            "Changed(removals, enable_changes, state_changes, additions)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/ca/desrt/dconf/Writer/user":{
+                "Interface": {
+                    "ca.desert.dconf.Writer":{
+                        "Methods": {
+                            "Init()":{
+                            },
+                            "Change(blob)":{
+                            }
+                        },
+                        "Signals": {
+                            "Notify(prefix, changes, tag)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Ambience Control":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.ambienced",
+        "ServicePath": {
+            "/com/jolla/ambienced":{
+                "Interface": {
+                    "com.jolla.ambienced":{
+                        "Methods": {
+                            "createAmbience(url)":{
+                            },
+                            "setAmbience(url)":{
+                            },
+                            "remove(contentType, contentId)":{
+                            },
+                            "installPackage(path)":{
+                            },
+                            "refreshAmbience()":{
+                            },
+                            "saveAttributes(contentType, contentId, args)":{
+                            },
+                            "setFavorite(url, value)":{
+                            }
+                        },
+                        "Signals": {
+                            "contentChanged(type)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "UI control system":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.lipstick",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.jolla.lipstick.ConnectionSelectorIf":{
+                        "Methods": {
+                            "openConnectionNow(wifi)":{
+                            }
+                        },
+                        "Signals": {
+                            "connectionSelectorClosed(connectionSelected)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/com/jolla/PinQuery":{
+                "Interface":{
+                    "com.jolla.PinQuery":{
+                        "Methods": {
+                            "requestSimPin()":{
+                            }
+                        },
+                        "Signals": {
+                            "requestCanceled(modemPath)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/org/freedesktop/Notifications":{
+                "Interface":{
+                    "org.freedesktop.Notifications":{
+                        "Methods": {
+                            "GetCapabilities()":{
+                            },
+                            "CloseNotification(id)":{
+                            },
+                            "GetServerInformation(name, vendor, version, spec_version)":{
+                            }
+                        },
+                        "Signals": {
+                            "NotificationClosed(id, reason)":{
+                            },
+                            "ActionInvoked(id, action_key)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/org/nemomobile/lipstick/screenshot":{
+                "Interface":{
+                    "org.nemomobile.lipstick":{
+                        "Methods": {
+                            "saveScreenshot(path)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Multifunctional Sound Server PulseAudio":{
+        "BusType": "session",
+        "ServiceName": "org.PulseAudio1",
+        "ServicePath": {
+            "/org/pulseaudio/server_lookup1":{
+                "Interface": {
+                    "org.PulseAudio.ServerLookup1":{
+                    }
+                }
+            }
+        }
+    },
+    "Keyboard":{
+        "BusType": "session",
+        "ServiceName": "com.jolla.keyboard",
+        "ServicePath": {
+            "/org/maliit/server/address":{
+                "Interface": {
+                    "org.maliit.Server.Address":{
+                    }
+                }
+            }
+        }
+    },
+    "Network Connection":{
+        "BusType": "system",
+        "ServiceName": "net.connman",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "net.connman.Manager":{
+                        "Methods": {
+                            "GetTechnologies()":{
+                            },
+                            "RemoveProvider(provider)":{
+                            },
+                            "GetServices()":{
+                            },
+                            "ConnectProvider(provider)":{
+                            },
+                            "RegisterAgent(path)":{
+                            },
+                            "UnregisterAgent()":{
+                            },
+                            "CreateSession(settings, notifier)":{
+                            },
+                            "DestroySession(session)":{
+                            }
+                        },
+                        "Signals": {
+                            "PropertyChanged(name, value)":{
+                            },
+                            "TechnologyAdded(path, properties)":{
+                            },
+                            "TechnologyRemoved(path)":{
+                            },
+                            "ServiceChanged(changed, removed)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/net/connman/technology/ethernet":{
+                "Interface":{
+                    "net.connman.Technology":{
+                        "Methods": {
+                            "GetProperties()":{
+                            },
+                            "SetProperty(name, value)":{
+                            },
+                            "Scan()":{
+                            }
+                        },
+                        "Signals": {
+                            "PropertyChanged(name, value)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/net/connman/technology/gps":{
+                "Interface":{
+                    "net.connman.Technology":{
+                        "Methods": {
+                            "GetProperties()":{
+                            },
+                            "SetProperty(name, value)":{
+                            },
+                            "Scan()":{
+                            }
+                        },
+                        "Signals": {
+                            "PropertyChanged(name, value)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/net/connman/technology/bluetooth":{
+                "Interface":{
+                    "net.connman.Technology":{
+                        "Methods": {
+                            "GetProperties()":{
+                            },
+                            "SetProperty(name, value)":{
+                            },
+                            "Scan()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Bluetooth Control":{
+        "BusType": "system",
+        "ServiceName": "org.bluez",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "org.bluez.Manager":{
+                        "Methods": {
+                            "GetProperties()":{
+                            },
+                            "DefaultAdapter()":{
+                            },
+                            "FindAdapter(pattern)":{
+                            },
+                            "ListAdapters()":{
+                            }
+                        },
+                        "Signals": {
+                            "PropertyChanged(name, value)":{
+                            },
+                            "AdapterAdded(adapter)":{
+                            },
+                            "AdapterRemoved(adapter)":{
+                            },
+                            "DefaultAdapterChanged(adapter)":{
+                            }
+                        }
+                    },
+                    "org.bluez.DebugLog":{
+                        "Methods": {
+                            "Enable(pattern)":{
+                            },
+                            "Disable(pattern)":{
+                            },
+                            "List()":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/org/bluez/290/any":{
+                "Interface": {
+                    "org.bluez.Service":{
+                        "Methods": {
+                            "AddRecord(record)":{
+                            },
+                            "UpdateRecord(handle, record)":{
+                            },
+                            "RemoveRecord(handle)":{
+                            },
+                            "RequestAuthorization(address, handle)":{
+                            },
+                            "CancelAuthorization()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Power control":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.dsme",
+        "ServicePath": {
+            "/com/nokia/dsme/request":{
+                "Interface": {
+                    "com.nokia.dsme.request":{
+                        "Methods": {
+                            "get_version()":{
+                            },
+                            "get_state()":{
+                            },
+                            "req_powerup()":{
+                            },
+                            "req_reboot()":{
+                            },
+                            "req_shutdown()":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/com/nokia/dsme/signal":{
+                "Interface": {
+                    "com.nokia.dsme.signal":{
+                        "Signals": {
+                            "state_change_ind(state)":{
+                            },
+                            "save_unsaved_data_ind()":{
+                            },
+                            "battery_empty_ind()":{
+                            },
+                            "thermal_shutdown_ind()":{
+                            },
+                            "shutdown_ind()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "USB Cable Connection":{
+        "BusType": "system",
+        "ServiceName": "com.meego.usb_moded",
+        "ServicePath": {
+            "/com/meego/usb_moded":{
+                "Interface": {
+                    "com.meego.usb_moded":{
+                        "Methods": {
+                            "mode_request()":{
+                            },
+                            "set_mode(mode)":{
+                            },
+                            "set_config(config)":{
+                            },
+                            "get_modes()":{
+                            },
+                            "get_available_modes()":{
+                            },
+                            "get_net_config(key)":{
+                            },
+                            "net_config(key, value)":{
+                            },
+                            "rescue_off()":{
+                            }
+                        },
+                        "Signals": {
+                            "sig_usb_state_ind(mode)":{
+                            },
+                            "sig_usb_state_error_ind(error)":{
+                            },
+                            "sig_usb_supported_modes_ind(modes)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "System Events Feedback":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.NonGraphicFeedback1.Backend",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "com.nokia.NonGraphicFeedback1.Backend":{
+                        "Methods": {
+                            "Play(event, properties)":{
+                            },
+                            "Pause(event_id, pause)":{
+                            },
+                            "Stop(event_id)":{
+                            }
+                        },
+                        "Signals": {
+                            "Status(u, u)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Sensors Control":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.SensorService",
+        "ServicePath": {
+            "/SensorManager":{
+                "Interface": {
+                    "local.SensorManager":{
+                        "Methods": {
+                            "loadPlagin(name)":{
+                            },
+                            "pluginAvailable(name)":{
+                            },
+                            "availablePlugins()":{
+                            },
+                            "availableSensorPlugins()":{
+                            },
+                            "requestSensor(id, pid)":{
+                            },
+                            "releaseSensor(id, sessionld, pid)":{
+                            },
+                            "magneticDeviation()":{
+                            },
+                            "setMagneticDeviation(level)":{
+                            }
+                        },
+                        "Signals": {
+                            "errorSignal(error)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Disk Monitoring":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.diskmonitor",
+        "ServicePath": {
+            "/com/nokia/diskmonitor/request":{
+                "Interface": {
+                    "com.nokia.diskmonitor.request":{
+                        "Methods": {
+                            "req_check()":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/com/nokia/diskmonitor/signal":{
+                "Interface": {
+                    "com.nokia.diskmonitor.signal":{
+                        "Signals": {
+                            "disk_space_state_ind(mount_point, diskspace_state)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Handle System States And User Input":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.mce",
+        "ServicePath": {
+            "/com/nokia/mce/request":{
+                "Interface": {
+                    "com.nokia.mce.request":{
+                        "Methods": {
+                            "get_button_backlight()":{
+                            },
+                            "req_button_backlight_change(enable)":{
+                            },
+                            "get_memory_level()":{
+                            },
+                            "req_cpu_keepalive_wakeup()":{
+                            },
+                            "req_cpu_keepalive_stop(session_id)":{
+                            },
+                            "req_cpu_keepalive_start(session_id)":{
+                            },
+                            "get_psm_state()":{
+                            },
+                            "get_call_state()":{
+                            },
+                            "remove_activity_callback()":{
+                            },
+                            "get_inactivity_status()":{
+                            },
+                            "req_led_enable()":{
+                            },
+                            "req_led_disable()":{
+                            },
+                            "get_display_stats()":{
+                            },
+                            "req_display_state_on()":{
+                            },
+                            "req_display_state_off()":{
+                            },
+                            "req_color_profile_change(profile_name)":{
+                            },
+                            "get_color_profile()":{
+                            },
+                            "get_radio_states()":{
+                            },
+                            "get_battery_level()":{
+                            },
+                            "get_battery_status()":{
+                            },
+                            "get_charger_state()":{
+                            },
+                            "get_usb_cable_state()":{
+                            },
+                            "keyboard_available_state_req()":{
+                            },
+                            "req_tklock_mode_change(mode_name)":{
+                            },
+                            "get_tklock_mode()":{
+                            },
+                            "req_ignore_incoming_call()":{
+                            },
+                            "reset_config(key_part)":{
+                            },
+                            "get_version()":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/com/nokia/mce/signal":{
+                "Interface": {
+                    "com.nokia.mce.signal":{
+                        "Signals": {
+                            "sig_button_backlight_ind(enabled)":{
+                            },
+                            "sig_memory_level_ind(memory_level)":{
+                            },
+                            "psm_state_ind(psm_active)":{
+                            },
+                            "sig_call_state_ind(call_state, call_type)":{
+                            },
+                            "system_inactivity_ind(device_inactive)":{
+                            },
+                            "led_pattern_deactivated_ind(pattern_name)":{
+                            },
+                            "led_pattern_activated_ind(pattern_name)":{
+                            },
+                            "display_status_ind(display_state_curr)":{
+                            },
+                            "display_blanking_inhibit_ind(blanking_inhibit)":{
+                            },
+                            "display_blanking_pause_allowed_ind(allowed)":{
+                            },
+                            "display_blanking_pause_ind(blanking_pause)":{
+                            },
+                            "color_profile_ind(active_color_profile)":{
+                            },
+                            "radio_states_ind(radio_states)":{
+                            },
+                            "battery_level_ind(battery_level)":{
+                            },
+                            "battery_status_ind(battery_status)":{
+                            },
+                            "charger_state_ind(charger_state)":{
+                            },
+                            "usb_cable_state_ind(usb_cable_state)":{
+                            },
+                            "keyboard_available_state_ind(keyboard_state)":{
+                            },
+                            "tklock_mode_ind(tklock_mode)":{
+                            },
+                            "touch_input_policy_ind(input_policy)":{
+                            },
+                            "power_button_trigger(event)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Temperature Sensors":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.thermalmaneger",
+        "ServicePath": {
+            "/com/nokia/thermalmanager":{
+                "Interface": {
+                    "com.nokia.thermalmanager":{
+                        "Methods": {
+                            "get_thermal_state()":{
+                            },
+                            "core_temperature()":{
+                            },
+                            "battery_temperature()":{
+                            },
+                            "estimate_surface_temperature()":{
+                            }
+                        },
+                        "Signals": {
+                            "thermal_state_change_ind(state)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Timer":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.time",
+        "ServicePath": {
+            "/com/nokia/time":{
+                "Interface": {
+                    "com.nokia.time":{
+                        "Methods": {
+                            "get_wall_clock_info()":{
+                            },
+                            "add_event(event)":{
+                            },
+                            "add_events(events)":{
+                            },
+                            "dialog_response(cookie, value)":{
+                            },
+                            "query(words)":{
+                            },
+                            "get_attributes_by_cookie(cookie)":{
+                            },
+                            "cancel(cookie)":{
+                            },
+                            "enable_alarms(enable)":{
+                            },
+                            "alarms_enabled()":{
+                            },
+                            "get_default_snooze()":{
+                            },
+                            "get_app_snooze(name)":{
+                            }
+                        },
+                        "Signals": {
+                            "settings_changed_1(b)":{
+                            },
+                            "next_bootup_event(next_boot_event, next_non_boot_event)":{
+                            },
+                            "alarm_triggers_changed(a)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Backup":{
+        "BusType": "system",
+        "ServiceName": "com.nokia.timed.backup",
+        "ServicePath": {
+            "/com/nokia/timed/backup":{
+                "Interface": {
+                    "com.nokia.backupclient":{
+                        "Methods": {
+                            "backupStarts()":{
+                            },
+                            "backupFinished()":{
+                            },
+                            "restoreStarts()":{
+                            },
+                            "restoreFinished()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Software Installation System":{
+        "BusType": "system",
+        "ServiceName": "org.freedesktop.PackageKit",
+        "ServicePath": {
+            "/org/freedesktop/PackageKit":{
+                "Interface": {
+                    "org.freedesktop.PackageKit":{
+                        "Methods": {
+                            "CreateTransaction()":{
+                            },
+                            "GetTransactionList()":{
+                            },
+                            "CanAuthorize(action_id)":{
+                            },
+                            "StateHasChanged(reason)":{
+                            },
+                            "SuggestDaemonQuit()":{
+                            },
+                            "GetDaemonState()":{
+                            }
+                        },
+                        "Signals": {
+                            "TransactionListChanged(transactions)":{
+                            },
+                            "RestartSchedule()":{
+                            },
+                            "UpdatesChanged()":{
+                            },
+                            "RepoListChanged()":{
+                            }
+                        }
+                    },
+                    "org.freedesktop.PackageKit.Offline":{
+                        "Methods": {
+                            "ClearResults()":{
+                            },
+                            "Trigger(action)":{
+                            },
+                            "TriggerUpgrade(action)":{
+                            },
+                            "Cancel()":{
+                            },
+                            "GetPrepared()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Privilege Platform":{
+        "BusType": "system",
+        "ServiceName": "org.freedesktop.PolicyKit1",
+        "ServicePath": {
+            "/org/freedesktop/PolicyKit1/Authority":{
+                "Interface": {
+                    "org.freedesktop.PolicyKit1.Authority":{
+                        "Methods": {
+                            "CheckAuthorization(subject, action_id, details, flags, cancellation_id)":{
+                            },
+                            "CancelCheckAuthorization(cancellation_id)":{
+                            },
+                            "RegisterAuthorizationAgent(subject, locale, object_path)":{
+                            },
+                            "UnregisterAuthorizationAgent(subject, object_path)":{
+                            },
+                            "AuthorizationAgentResponse(cookie, identity)":{
+                            },
+                            "RevokeTemporaryAuthorization(subject)":{
+                            },
+                            "RevokeTemporaryAuthorizationByld(id)":{
+                            }
+                        },
+                        "Signals": {
+                            "Changed()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Route Manager":{
+        "BusType": "system",
+        "ServiceName": "org.nemomobile.Route.Manager",
+        "ServicePath": {
+            "/org/nemomobile/Route/Manager":{
+                "Interface": {
+                    "org.nemomobile.Route.Manager":{
+                        "Methods": {
+                            "Enable(feature)":{
+                            },
+                            "Disable(feature)":{
+                            },
+                            "Features()":{
+                            },
+                            "FeaturesAllowed()":{
+                            },
+                            "FeaturesEnabled()":{
+                            },
+                            "Routes()":{
+                            },
+                            "ActiveRoutes()":{
+                            }
+                        },
+                        "Signals": {
+                            "AudioRouteChanged(device, device_type)":{
+                            },
+                            "AudioFeatureChanged(name, allowed, enabled)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Login Control":{
+        "BusType": "system",
+        "ServiceName": "org.freedesktop.login1",
+        "ServicePath": {
+            "/org/freedesktop/login1":{
+                "Interface": {
+                    "org.freedesktop.login1.Manager":{
+                        "Methods": {
+                            "GetSession()":{
+                            },
+                            "GetUser()":{
+                            },
+                            "GetSeat()":{
+                            },
+                            "ListSessions()":{
+                            },
+                            "ListUsers()":{
+                            },
+                            "ListSeats()":{
+                            },
+                            "ActivateSession(session)":{
+                            },
+                            "LockSession(session)":{
+                            },
+                            "LockSessions()":{
+                            },
+                            "UnlockSession(session)":{
+                            },
+                            "UnlockSessions()":{
+                            },
+                            "AttachDevice(s, s, b)":{
+                            },
+                            "FlushDevice(bool)":{
+                            },
+                            "PowerOff(bool)":{
+                            },
+                            "Reboot(bool)":{
+                            },
+                            "Hibernate(bool)":{
+                            },
+                            "SetRebootToFirmwareSetup(bool)":{
+                            }
+                        },
+                        "Signals": {
+                            "SessionNew(s, o)":{
+                            },
+                            "SessionRemoved(s, o)":{
+                            },
+                            "UserNew(s, o)":{
+                            },
+                            "UserRemoved(s, o)":{
+                            },
+                            "SeatNew(s, o)":{
+                            },
+                            "SeatRemoved(s, o)":{
+                            },
+                            "PrepareForShutdown(b)":{
+                            },
+                            "PrepareForSleep(b)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Power Management":{
+        "BusType": "system",
+        "ServiceName": "org.freedesktop.ohm",
+        "ServicePath": {
+            "/org/freedesktop/ohm/Manager":{
+                "Interface": {
+                    "org.freedesktop.ohm.Manager":{
+                        "Methods": {
+                            "GetPlugins()":{
+                            },
+                            "GetVersion()":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Device Lock":{
+        "BusType": "system",
+        "ServiceName": "org.nemomobile.devicelock",
+        "ServicePath": {
+            "/devicelock":{
+                "Interface": {
+                    "org.nemomobile.devicelock.DeviceLock":{
+                        "Methods": {
+                            "Unlock()":{
+                            },
+                            "Cancel()":{
+                            }
+                        }
+                    },
+                    "org.nemomobile.devicelock.AuthenticationInput":{
+                        "Methods": {
+                            "SetRegistered(path, registered)":{
+                            },
+                            "SetActive(path, active)":{
+                            },
+                            "EnterSecurityCode(path, code)":{
+                            },
+                            "RequestSecurityCode(path)":{
+                            },
+                            "Authorize(path)":{
+                            },
+                            "Cancel(path)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Telephony":{
+        "BusType": "system",
+        "ServiceName": "org.ofono",
+        "ServicePath": {
+            "/":{
+                "Interface": {
+                    "org.ofono.Manager":{
+                        "Methods": {
+                            "GetModems()":{
+                            }
+                        },
+                        "Signals": {
+                            "ModemAdded(path, properties)":{
+                            },
+                            "ModemRemoved(path)":{
+                            }
+                        }
+                    },
+                    "org.ofono.HandsfreeAudioManager":{
+                        "Methods": {
+                            "GetCards()":{
+                            },
+                            "Register(path, codecs)":{
+                            },
+                            "Unregister(path)":{
+                            },
+                            "Signals": {
+                                "CardAdded(path, properties)":{
+                                },
+                                "CardRemoved(path)":{
+                                }
+                            }
+                        }
+                    },
+                    "org.nemomobile.ofono.ModemManager":{
+                        "Methods": {
+                            "GetAll()":{
+                            },
+                            "GetAvailableModems()":{
+                            },
+                            "GetEnabledModems()":{
+                            },
+                            "GetPresentSims()":{
+                            },
+                            "GetIMEI()":{
+                            },
+                            "GetDefaultDataSim())":{
+                            },
+                            "GetDefaultVoiceSim()":{
+                            },
+                            "GetMmsSim()":{
+                            },
+                            "GetErrors()":{
+                            },
+                            "SetEnabledModems(modems)":{
+                            }
+                        },
+                        "Signals": {
+                            "EnabledModemsChanged(enabledModems)":{
+                            },
+                            "PresentSimsChanged(index, present)":{
+                            },
+                            "DefaultDataSimChanged(defaultDataSim)":{
+                            },
+                            "DefaultVoiceSimChanged(defaultVoiceSim)":{
+                            },
+                            "MmsSimChanged(mmsSim)":{
+                            },
+                            "MmsModemChanged(mmsModem)":{
+                            },
+                            "ReadyChanged(ready)":{
+                            },
+                            "ModemError(path, error, message)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Proxy Configuration":{
+        "BusType": "system",
+        "ServiceName": "org.pacrunner",
+        "ServicePath": {
+            "/org/pacrunner/client":{
+                "Interface": {
+                    "org.pacrunner.Client":{
+                        "Methods": {
+                            "FindProxyForURL(url, host)":{
+                            }
+                        }
+                    }
+                }
+            },
+            "/org/pacrunner/manager":{
+                "Interface": {
+                    "org.pacrunner.Manager":{
+                        "Methods": {
+                            "CreateProxyConfiguration(settings)":{
+                            },
+                            "DestroyProxyConfiguration(configuration)":{
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

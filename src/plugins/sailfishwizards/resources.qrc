@@ -12,6 +12,9 @@
         <file>templates/javascriptlibrary.js</file>
         <file>templates/spectacleconfig.yaml</file>
         <file>data/yaml-dependencies.json</file>
+        <file>templates/qdbusinterfacecodefragment.qml</file>
+        <file>templates/qdbusinterfacecodefragment.template</file>
+        <file>data/dbus-services.json</file>
     </qresource>
     <qresource prefix="/sailfishwizards/cppwizard">
         <file>data/cpp-modules.json</file>
