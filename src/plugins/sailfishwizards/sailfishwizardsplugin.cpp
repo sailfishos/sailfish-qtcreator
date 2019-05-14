@@ -38,6 +38,7 @@
 
 #include "desktopwizardfactory.h"
 #include "desktopeditorfactory.h"
+#include "cppclasswizardfactory.h"
 
 #include "sailfishwizardsplugin.h"
 #include "sailfishwizardsconstants.h"
@@ -87,6 +88,7 @@ bool SailfishWizardsPlugin::initialize(const QStringList &arguments, QString *er
     IWizardFactory::registerFactoryCreator([]() -> QList<IWizardFactory *> {
         QList<IWizardFactory *> result;
         result << new DesktopWizardFactory();
+        result << new CppClassWizardFactory();
         return result;
     });
     m_editorFactoriesPool.append(new DesktopEditorFactory);

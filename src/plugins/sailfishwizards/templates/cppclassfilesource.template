@@ -1,0 +1,14 @@
+#include "%{nameH}"
+%{nameSpaceList} @if %{baseClassFlag}
+%{nameClass}::%{nameClass}(%{baseClass} *parent) : %{baseClass}
+(parent)
+{
+
+}
+@else
+%{nameClass}::%{nameClass}()
+{
+
+}
+@endif
+%{nameSpaceClose}

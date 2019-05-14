@@ -1,0 +1,29 @@
+#ifndef %{nameClassUpper}_H
+#define %{nameClassUpper}_H
+@if %{baseClassFlag}
+#include <%{baseClass}>
+@endif
+%{includs} %{nameSpaceList} @if %{baseClassFlag}
+class %{nameClass}: public %{baseClass} {
+Q_OBJECT
+public:
+explicit %{nameClass}(%{baseClass} *parent = nullptr);
+
+signals:
+
+public slots:
+
+};
+@else
+class %{nameClass}
+{
+public:
+    %{nameClass}();
+
+signals:
+
+public slots:
+
+};
+@endif %{nameSpaceClose}
+#endif // %{nameClassUpper}_H\

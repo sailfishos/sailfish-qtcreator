@@ -17,6 +17,9 @@ SOURCES += \
     dependencymodel.cpp \
     sailfishprojectdependencies.cpp \
     wizardpage.cpp \
+    cppclasswizardfactory.cpp \
+    cppclasswizardpages.cpp \
+    fileinfopage.cpp \
 
 HEADERS += \
     common.h \
@@ -33,6 +36,9 @@ HEADERS += \
     dependencymodel.h \
     sailfishprojectdependencies.h \
     wizardpage.h \
+    cppclasswizardfactory.h \
+    cppclasswizardpages.h \
+    fileinfopage.h \
 
 ###### If the plugin can be depended upon by other plugins, this code needs to be outsourced to
 ###### <dirname>_dependencies.pri, where <dirname> is the name of the directory containing the
@@ -53,6 +59,12 @@ FORMS += \
     forms/desktopfilesettingpage.ui \
     forms/desktopselectpage.ui \
     forms/desktopiconpage.ui \
+    forms/cppclassfileselectpage.ui \
+    forms/cppclassoptionpage.ui \
+    forms/jsfileselectpage.ui \
+    forms/choicefiledialog.ui \
+    forms/externallibrarydialog.ui \
+    forms/externallibrarypage.ui \
 
 RESOURCES += \
     resources.qrc \

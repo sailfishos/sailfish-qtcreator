@@ -1,0 +1,24 @@
+{
+    "QtPositioning 5.3": {
+        "layoutname": "Qt Positioning",
+        "qt": ["positioning"],
+        "yamlheader": "PkgConfigBR",
+        "specheader": "BuildRequires",
+        "dependencies": ["Qt5Positioning"],
+        "classes": ["QGeoAddress", "QGeoAreaMonitorInfo", "QGeoAreaMonitorSource", "QGeoCircle", "QGeoCoordinate", "QGeoLocation", "QGeoPath",
+                    "QGeoPolygon", "QGeoPositionInfo", "QGeoPositionInfoSource", "QGeoRectangle", "QGeoSatelliteInfo", "QGeoSatelliteInfoSource",
+                    "QGeoShape", "QNmeaPositionInfoSource"]
+    },
+    "QtSensors 5.11": {
+        "layoutname": "Qt Sensors",
+        "qt": ["sensors"],
+        "yamlheader": "PkgConfigBR",
+        "specheader": "BuildRequires",
+        "dependencies": ["Qt5Sensors"],
+        "classes": ["QAccelerometer", "QAccelerometerReading", "QAltimeter", "QAltimeterReading", "QAmbientLightReading", "QAmbientLightSensor", "QAmbientTemperatureReading",
+                    "QAmbientTemperatureSensor", "QCompass", "QCompassReading", "QDistanceReading", "QDistanceSensor", "QGyroscope", "QGyroscopeReading", "QHolsterReading",
+                    "QHolsterSensor", "QHumidityReading", "QHumiditySensor", "QIRProximityReading", "QIRProximitySensor", "QLidReading", "QLidSensor", "QLightReading", "QLightSensor",
+                    "QMagnetometer", "QMagnetometerReading", "QOrientationReading", "QOrientationSensor", "QPressureReading", "QPressureSensor", "QProximityReading", "QProximitySensor",
+                    "QRotationReading", "QRotationSensor", "QSensor", "QSensorGesture", "QSensorGlobal", "QSensorReading", "QTapReading", "QTapSensor", "QTiltReading", "QTiltSensor"]
+    }
+}
