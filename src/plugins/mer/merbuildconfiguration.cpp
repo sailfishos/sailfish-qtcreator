@@ -138,7 +138,7 @@ bool MerBuildConfiguration::fromMap(const QVariantMap &map)
 MerBuildConfigurationFactory::MerBuildConfigurationFactory()
 {
     registerBuildConfiguration<MerBuildConfiguration>(QmakeProjectManager::Constants::QMAKE_BC_ID);
-    setSupportedTargetDeviceTypes({Constants::MER_DEVICE_TYPE});
+    addSupportedTargetDeviceType(Constants::MER_DEVICE_TYPE);
     setBasePriority(1);
 }
 
