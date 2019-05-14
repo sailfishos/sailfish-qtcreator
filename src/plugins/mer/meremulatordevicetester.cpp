@@ -41,14 +41,14 @@ MerEmulatorDeviceTester::~MerEmulatorDeviceTester()
 {
 }
 
-void MerEmulatorDeviceTester::testDevice(const IDevice::ConstPtr &deviceConfiguration)
+void MerEmulatorDeviceTester::testDevice(const IDevice::Ptr &deviceConfiguration)
 {
-    m_device = deviceConfiguration.dynamicCast<const MerEmulatorDevice>();
+    m_device = deviceConfiguration.dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(m_device, { emit finished(TestFailure); return; });
 
     if (m_device->connection()->state() == MerConnection::Connected) {
         m_pastVmStart = true;
-        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const IDevice>());
+        GenericLinuxDeviceTester::testDevice(m_device.staticCast<IDevice>());
     } else {
         connect(m_device->connection(), &MerConnection::stateChanged,
                 this, &MerEmulatorDeviceTester::onConnectionStateChanged);
@@ -99,7 +99,7 @@ void MerEmulatorDeviceTester::onConnectionStateChanged()
         emit finished(TestFailure);
     } else {
         m_pastVmStart = true;
-        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const IDevice>());
+        GenericLinuxDeviceTester::testDevice(m_device.staticCast<IDevice>());
     }
 }
 
