@@ -31,6 +31,10 @@
 #include <QTimer>
 #include <QTranslator>
 
+#include <app/app_version.h>
+#include <ssh/sshsettings.h>
+#include <utils/algorithm.h>
+#include <utils/environment.h>
 #include <utils/fileutils.h>
 
 #include "commandlineparser.h"
@@ -48,6 +52,36 @@ using namespace Sfdk;
 namespace {
 const char MODULES_PATH[] = "sfdk/modules";
 const char VERSION_FILE_PATH[] = "sdk-release";
+}
+
+void initQSsh()
+{
+    // See ProjectExplorerPlugin::extensionsInitialized()
+    QSettings qtcSettings{QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR),
+            QLatin1String(Core::Constants::IDE_CASED_ID)};
+    QSsh::SshSettings::loadSettings(&qtcSettings);
+    const QString gitBinary = qtcSettings.value("Git/BinaryPath", "git")
+        .toString();
+    const QStringList rawGitSearchPaths = qtcSettings.value("Git/Path")
+        .toString().split(':', QString::SkipEmptyParts);
+    const auto searchPathRetriever = [=] {
+        Utils::FileNameList searchPaths;
+        const QString libexecPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + '/'
+                + RELATIVE_LIBEXEC_PATH);
+        searchPaths << Utils::FileName::fromString(libexecPath);
+        if (Utils::HostOsInfo::isWindowsHost()) {
+            const Utils::FileNameList gitSearchPaths = Utils::transform(rawGitSearchPaths,
+                    [](const QString &rawPath) { return Utils::FileName::fromString(rawPath); });
+            const Utils::FileName fullGitPath = Utils::Environment::systemEnvironment()
+                    .searchInPath(gitBinary, gitSearchPaths);
+            if (!fullGitPath.isEmpty()) {
+                searchPaths << fullGitPath.parentDir()
+                            << fullGitPath.parentDir().parentDir() + "/usr/bin";
+            }
+        }
+        return searchPaths;
+    };
+    QSsh::SshSettings::setExtraSearchPathRetriever(searchPathRetriever);
 }
 
 int main(int argc, char **argv)
@@ -82,6 +116,8 @@ int main(int argc, char **argv)
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
     }
 #endif
+
+    initQSsh();
 
     TaskManager taskManager;
 
