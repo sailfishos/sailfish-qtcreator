@@ -1,6 +1,6 @@
 HEADERS += $$PWD/touchbar.h
 
-macos {
+macos:!equals(QMAKE_MACOSX_DEPLOYMENT_TARGET, "10.10") {
     HEADERS += \
         $$PWD/touchbar_mac_p.h \
         $$PWD/touchbar_appdelegate_mac_p.h
