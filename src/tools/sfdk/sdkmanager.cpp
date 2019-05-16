@@ -339,8 +339,13 @@ bool SdkManager::mapEnginePaths(QString *program, QStringList *arguments, QStrin
         QString enginePath;
         Qt::CaseSensitivity cs;
     } const mappings[] = {
+#if Q_CC_GNU <= 504 // Let's check if it is still needed with GCC > 5.4
+        {cleanSharedHome, QLatin1String(Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT), Qt::CaseSensitive},
+        {cleanSharedSrc, QLatin1String(Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT), caseInsensitiveOnWindows}
+#else
         {cleanSharedHome, Mer::Constants::MER_SDK_SHARED_HOME_MOUNT_POINT, Qt::CaseSensitive},
         {cleanSharedSrc, Mer::Constants::MER_SDK_SHARED_SRC_MOUNT_POINT, caseInsensitiveOnWindows}
+#endif
     };
     for (const Mapping &mapping : mappings) {
         qCDebug(sfdk) << "Mapping" << mapping.hostPath << "as" << mapping.enginePath;
