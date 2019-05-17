@@ -81,10 +81,9 @@ bool IoUtils::isRelativePath(const QString &path)
         && path.at(1) == path.at(0)) {
             return false;
     }
-#else
+#endif // Q_OS_WIN
     if (path.startsWith(QLatin1Char('/')))
         return false;
-#endif // Q_OS_WIN
     return true;
 }
 
