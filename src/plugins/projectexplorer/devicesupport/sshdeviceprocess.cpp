@@ -34,6 +34,7 @@
 #include <utils/consoleprocess.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QString>
 #include <QTimer>
@@ -202,7 +203,7 @@ void SshDeviceProcess::handleConnected()
                 this, &SshDeviceProcess::handleProcessStarted);
         connect(&d->consoleProcess, &ConsoleProcess::stubStopped,
                 this, [this] { handleProcessFinished(d->consoleProcess.errorString()); });
-        d->consoleProcess.start(cmdLine.first(), cmdLine.mid(1).join(' '));
+        d->consoleProcess.start(cmdLine.first(), QtcProcess::joinArgs(cmdLine.mid(1)));
     } else {
         connect(d->process.get(), &QSsh::SshRemoteProcess::started,
                 this, &SshDeviceProcess::handleProcessStarted);
