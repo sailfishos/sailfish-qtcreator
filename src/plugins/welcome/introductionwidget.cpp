@@ -120,6 +120,7 @@ IntroductionWidget::IntroductionWidget(QWidget *parent)
             "<tr><td>Debug:</td><td>Analyze your application with a debugger or other "
             "analyzers.</td></tr>"
             "<tr><td>Projects:</td><td>Manage project settings.</td></tr>"
+            "<tr><td>Sailfish OS:</td><td>Control the Sailfish SDK.</td></tr>"
             "<tr><td>Help:</td><td>Browse the help database.</td></tr>"
             "</table></p>")},
         {QLatin1String("KitSelector.Button"),
