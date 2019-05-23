@@ -326,6 +326,7 @@ int AddMerSdkOperation::execute() const
     if (map.isEmpty())
         map = initializeSdks(m_version);
 
+    map.insert(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY), m_version);
     map.insert(QLatin1String(Mer::Constants::MER_SDK_INSTALLDIR), m_installDir);
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
                                       m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
