@@ -646,15 +646,20 @@ void MerEmulatorDevice::updateDconfDb()
     QTC_CHECK(ok);
 }
 
-QString MerEmulatorDevice::privateKeyFile(const QString &user) const
+QString MerEmulatorDevice::privateKeyFile(Core::Id emulatorId, const QString &user)
 {
     // FIXME multiple engines
     QTC_ASSERT(MerSdkManager::sdks().count() == 1, return {});
 
     return QString(PRIVATE_KEY_PATH_TEMPLATE)
         .arg(MerSdkManager::sdks().first()->sharedConfigPath())
-        .arg(id().toString().replace(' ', '_'))
+        .arg(emulatorId.toString().replace(' ', '_'))
         .arg(user);
+}
+
+QString MerEmulatorDevice::privateKeyFile(const QString &user) const
+{
+    return privateKeyFile(id(), user);
 }
 
 /*!

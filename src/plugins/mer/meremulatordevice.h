@@ -141,6 +141,8 @@ public:
     bool removePortForwarding(const QString &ruleName);
     bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
 
+    static QString privateKeyFile(Core::Id emulatorId, const QString &user);
+
 private:
     MerEmulatorDevice();
     MerEmulatorDevice(const MerEmulatorDevice &other);

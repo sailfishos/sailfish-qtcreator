@@ -26,6 +26,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
+#include "meremulatordevice.h"
 #include "meremulatordevicewizard.h"
 #include "mervirtualboxmanager.h"
 
@@ -241,25 +242,13 @@ void MerEmualtorSshPage::initializePage()
    QString index(QLatin1String("/ssh/private_keys/%1/"));
    const MerEmulatorDeviceWizard* wizard = qobject_cast<MerEmulatorDeviceWizard*>(this->wizard());
    QTC_ASSERT(wizard,return);
-   //TODO: fix me
-   QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
-                      index.arg(wizard->emulatorId().toString()).replace(QLatin1Char(' '), QLatin1Char('_')) +
-                      QLatin1String("%1")));
-   if(!wizard->sharedConfigPath().isEmpty()) {
-       m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));
-       m_ui->rootSshKeyLabelEdit->setText(sshKeyPath.arg(rootName()));
-       m_ui->userSshCheckBox->setChecked(true);
-       m_ui->rootSshCheckBox->setChecked(true);
-       m_ui->userSshCheckBox->setEnabled(true);
-       m_ui->rootSshCheckBox->setEnabled(true);
-   } else {
-       m_ui->userSshKeyLabelEdit->setText(tr("none"));
-       m_ui->rootSshKeyLabelEdit->setText(tr("none"));
-       m_ui->userSshCheckBox->setChecked(false);
-       m_ui->rootSshCheckBox->setChecked(false);
-       m_ui->userSshCheckBox->setEnabled(false);
-       m_ui->rootSshCheckBox->setEnabled(false);
-   }
+
+   m_ui->userSshKeyLabelEdit->setText(MerEmulatorDevice::privateKeyFile(wizard->emulatorId(), userName()));
+   m_ui->rootSshKeyLabelEdit->setText(MerEmulatorDevice::privateKeyFile(wizard->emulatorId(), rootName()));
+   m_ui->userSshCheckBox->setChecked(true);
+   m_ui->rootSshCheckBox->setChecked(true);
+   m_ui->userSshCheckBox->setEnabled(true);
+   m_ui->rootSshCheckBox->setEnabled(true);
 
    QString sshDirectoryPath(QDir::toNativeSeparators(wizard->sharedSshPath() +
                             QLatin1String("/%1/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)));
@@ -271,7 +260,6 @@ void MerEmualtorSshPage::initializePage()
        m_ui->userAuthorizedFolderLabelEdit->setText(tr("none"));
        m_ui->rootAuthorizedFolderLabelEdit->setText(tr("none"));
    }
-
 }
 
 QString MerEmualtorSshPage::userName() const
