@@ -35,8 +35,7 @@ public:
     typedef QSharedPointer<MerHardwareDevice> Ptr;
     typedef QSharedPointer<const MerHardwareDevice> ConstPtr;
 
-    static Ptr create();
-    static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
+    static Ptr create() { return Ptr(new MerHardwareDevice); }
 
     ProjectExplorer::IDevice::Ptr clone() const override;
 
@@ -50,9 +49,6 @@ public:
 
 protected:
     MerHardwareDevice();
-    MerHardwareDevice(const QString &name, Origin origin, Core::Id id);
-private:
-    MerHardwareDevice &operator=(const MerHardwareDevice &);
 
 private:
     ProjectExplorer::Abi::Architecture m_architecture;

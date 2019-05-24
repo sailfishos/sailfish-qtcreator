@@ -104,7 +104,8 @@ IDevice::Ptr MerDeviceFactory::create() const
         sshParams.privateKeyFile = wizard.userPrivateKey();
 
         //hardcoded values requested by customer;
-        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create(wizard.emulatorId());
+        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
+        device->setupId(IDevice::ManuallyAdded, wizard.emulatorId());
         device->setVirtualMachine(wizard.emulatorVm());
         device->setFactorySnapshot(wizard.factorySnapshot());
         device->setMac(wizard.mac());
@@ -175,7 +176,9 @@ IDevice::Ptr MerDeviceFactory::create() const
         sshParams.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
         sshParams.privateKeyFile = wizard.privateKeyFilePath();
 
-        MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
+        MerHardwareDevice::Ptr device = MerHardwareDevice::create();
+        device->setupId(IDevice::ManuallyAdded, Core::Id());
+        device->setDisplayName(wizard.configurationName());
         device->setArchitecture(wizard.architecture());
         device->setSharedSshPath(wizard.sharedSshPath());
         device->setFreePorts(PortList::fromString(wizard.freePorts()));
@@ -194,9 +197,9 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 {
     // Hack
     if (MerDevice::workaround_machineTypeFromMap(map) == IDevice::Emulator)
-        const_cast<MerDeviceFactory *>(this)->setConstructionFunction([] { return MerEmulatorDevice::create(); });
+        const_cast<MerDeviceFactory *>(this)->setConstructionFunction(MerEmulatorDevice::create);
     else
-        const_cast<MerDeviceFactory *>(this)->setConstructionFunction([] { return MerHardwareDevice::create(); });
+        const_cast<MerDeviceFactory *>(this)->setConstructionFunction(MerHardwareDevice::create);
     return true;
 }
 

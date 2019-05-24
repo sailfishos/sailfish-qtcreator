@@ -48,23 +48,8 @@ using namespace Utils;
 namespace Mer {
 namespace Internal {
 
-MerHardwareDevice::Ptr MerHardwareDevice::create()
-{
-    return Ptr(new MerHardwareDevice);
-}
-
-MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
-                                 Origin origin,
-                                 Core::Id id)
-{
-    return Ptr(new MerHardwareDevice(name, origin, id));
-}
-
-MerHardwareDevice::MerHardwareDevice(const QString &name,
-                     Origin origin,
-                     Core::Id id)
-    : MerDevice(name, origin, id),
-      m_architecture(Abi::UnknownArchitecture)
+MerHardwareDevice::MerHardwareDevice()
+    : m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
     setMachineType(IDevice::Hardware);
 }
@@ -72,10 +57,6 @@ MerHardwareDevice::MerHardwareDevice(const QString &name,
 IDevice::Ptr MerHardwareDevice::clone() const
 {
     return Ptr(new MerHardwareDevice(*this));
-}
-
-MerHardwareDevice::MerHardwareDevice()
-{
 }
 
 void MerHardwareDevice::fromMap(const QVariantMap &map)

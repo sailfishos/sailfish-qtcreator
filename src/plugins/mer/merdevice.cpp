@@ -98,13 +98,7 @@ QList<Utils::Port> MerDevice::qmlLivePortsList() const
 
 MerDevice::MerDevice()
 {
-}
-
-MerDevice::MerDevice(const QString &name, Origin origin, Core::Id id)
-{
     setType(Core::Id(Constants::MER_DEVICE_TYPE));
-    setupId(origin, id);
-    setDisplayName(name);
     setDeviceState(IDevice::DeviceStateUnknown);
     m_qmlLivePorts.addPort(Utils::Port(Constants::DEFAULT_QML_LIVE_PORT));
 }

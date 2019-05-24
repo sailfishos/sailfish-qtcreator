@@ -87,7 +87,7 @@ public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
     typedef QSharedPointer<const MerEmulatorDevice> ConstPtr;
 
-    static Ptr create(Core::Id id = Core::Id());
+    static Ptr create() { return Ptr(new MerEmulatorDevice); }
     ProjectExplorer::IDevice::Ptr clone() const;
     ~MerEmulatorDevice() override;
 
@@ -142,7 +142,7 @@ public:
     bool hasPortForwarding(quint16 hostPort, QString *ruleName = nullptr) const;
 
 private:
-    MerEmulatorDevice(Core::Id id);
+    MerEmulatorDevice();
     MerEmulatorDevice(const MerEmulatorDevice &other);
     void init();
 

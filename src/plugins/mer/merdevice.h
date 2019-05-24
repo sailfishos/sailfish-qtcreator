@@ -57,11 +57,7 @@ public:
 
 protected:
     MerDevice();
-    MerDevice(const QString &name, Origin origin, Core::Id id);
     ~MerDevice() override = 0;
-
-private:
-    MerDevice &operator=(const MerDevice &);
 
 private:
     QString m_sharedSshPath;
