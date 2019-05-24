@@ -95,6 +95,7 @@ private:
 #ifdef MER_LIBRARY
     bool createScript(const QString &targetPath, int scriptIndex) const;
     bool createCacheFile(const QString &fileName, const QString &content) const;
+    bool createPkgConfigWrapper(const QString &targetPath) const;
 #endif // MER_LIBRARY
 
     static QList<MerRpmValidationSuiteData> rpmValidationSuitesFromString(const QString &string, bool *ok);

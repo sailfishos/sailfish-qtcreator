@@ -214,6 +214,8 @@ bool MerTarget::createScripts() const
     result &= createCacheFile(gccMacrosDumpPath, m_gccMacrosDump);
     result &= createCacheFile(gccIncludesDumpPath, patchedGccIncludesDump);
 
+    result &= createPkgConfigWrapper(targetPath);
+
     return result;
 }
 
@@ -425,6 +427,52 @@ bool MerTarget::createCacheFile(const QString &fileName, const QString &content)
     }
     file.close();
     return ok;
+}
+
+bool MerTarget::createPkgConfigWrapper(const QString &targetPath) const
+{
+    const QFile::Permissions rwrw = QFile::ReadOwner|QFile::ReadUser|QFile::ReadGroup
+            |QFile::WriteOwner|QFile::WriteUser|QFile::WriteGroup;
+    const QFile::Permissions rwxrwx = rwrw|QFile::ExeOwner|QFile::ExeUser|QFile::ExeGroup;
+
+    const QString sysRoot = QDir::toNativeSeparators(m_sdk->sharedTargetsPath()) + QDir::separator() + m_name;
+    QStringList libDir = {"/usr/lib/pkgconfig",  "/usr/share/pkgconfig"};
+    libDir = Utils::transform(libDir, [sysRoot](const QString &path) -> QString {
+            return sysRoot + QDir::toNativeSeparators(path);
+    });
+
+    const QString fileName = targetPath + '/' + Constants::MER_WRAPPER_PKG_CONFIG;
+    FileSaver saver(fileName, QIODevice::WriteOnly);
+
+    if (HostOsInfo::isWindowsHost()) {
+        const QString real = QDir::toNativeSeparators(Core::ICore::libexecPath() + "/pkg-config.exe");
+        QTextStream(saver.file())
+            << "@echo off" << endl
+            << "set PKG_CONFIG_DIR=" << endl
+            << "set PKG_CONFIG_LIBDIR=" << libDir.join(';') << endl
+            // NB, with pkg-config 0.26-1 on Windows it does not work with PKG_CONFIG_SYSROOT_DIR set
+            << "set PKG_CONFIG_SYSROOT_DIR=" << endl
+            << real << " %*" << endl;
+    } else {
+        QTextStream(saver.file())
+            << "#!/bin/sh" << endl
+            << "export PKG_CONFIG_DIR=" << endl
+            << "export PKG_CONFIG_LIBDIR=\"" << libDir.join(':') << "\"" << endl
+            << "export PKG_CONFIG_SYSROOT_DIR=\"" << sysRoot << "\"" << endl
+            << "real=$(which -a pkg-config |sed -n 2p)" << endl
+            // It's useless to say anything here, qmake discards stderr
+            << "exec ${real?} \"$@\"" << endl;
+    }
+
+    bool ok;
+
+    ok = saver.finalize();
+    QTC_ASSERT(ok, return false);
+
+    ok = QFile::setPermissions(fileName, rwxrwx);
+    QTC_ASSERT(ok, return false);
+
+    return true;
 }
 #endif // MER_LIBRARY
 
