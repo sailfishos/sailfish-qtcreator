@@ -952,7 +952,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(merEmulator->virtualMachine()));
 
         quint16 nowSshPort = merEmulator->sshParameters().port();
-        if (nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
+        if (oldSshPortsCache.contains(merEmulator->id())
+                && nowSshPort != oldSshPortsCache.value(merEmulator->id())) {
             if (MerVirtualBoxManager::updateEmulatorSshPort(merEmulator->virtualMachine(), nowSshPort)) {
                 merEmulator->updateConnection();
             } else {
@@ -979,7 +980,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         };
 
         Utils::PortList nowQmlLivePorts = merEmulator->qmlLivePorts();
-        if (!isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
+        if (oldQmlLivePortsCache.contains(merEmulator->id())
+                && !isPortListEqual(nowQmlLivePorts, oldQmlLivePortsCache.value(merEmulator->id()))) {
             Utils::PortList savedPorts = MerVirtualBoxManager::updateEmulatorQmlLivePorts(merEmulator->virtualMachine(),
                     merEmulator->qmlLivePortsList());
 
@@ -992,7 +994,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         m_deviceQmlLivePortsCache.insert(merEmulator->id(), nowQmlLivePorts);
 
         int nowMemorySize = merEmulator->memorySizeMb();
-        if (nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
+        if (oldMemorySizeCache.contains(merEmulator->id())
+                && nowMemorySize != oldMemorySizeCache.value(merEmulator->id())) {
             if (!MerVirtualBoxManager::setMemorySizeMb(merEmulator->virtualMachine(), nowMemorySize)) {
                 nowMemorySize = oldMemorySizeCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setMemorySizeMb(nowMemorySize);
@@ -1002,7 +1005,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
         m_deviceMemorySizeCache.insert(merEmulator->id(), nowMemorySize);
 
         int nowCpuCount = merEmulator->cpuCount();
-        if (nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
+        if (oldCpuCountCache.contains(merEmulator->id())
+                && nowCpuCount != oldCpuCountCache.value(merEmulator->id())) {
             if (!MerVirtualBoxManager::setCpuCount(merEmulator->virtualMachine(), nowCpuCount)) {
                   nowCpuCount = oldCpuCountCache.value(merEmulator->id());
                 merEmulator.constCast<MerEmulatorDevice>()->setCpuCount(nowCpuCount);
@@ -1013,7 +1017,8 @@ void MerEmulatorDeviceManager::onDeviceListReplaced()
 
 
         int nowVdiCapacityMb = merEmulator->vdiCapacityMb();
-        if (nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
+        if (oldVdiInfoCache.contains(merEmulator->id())
+                && nowVdiCapacityMb != oldVdiInfoCache.value(merEmulator->id())) {
             QEventLoop loop;
             MerVirtualBoxManager::setVdiCapacityMb(merEmulator->virtualMachine(), nowVdiCapacityMb, &loop, [&loop] (bool ok) {
                 loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
