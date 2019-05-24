@@ -26,7 +26,9 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "merdevicexmlparser.h"
+#ifdef MER_LIBRARY
 #include "meremulatordevice.h"
+#endif
 #include "merhardwaredevice.h"
 #include "merlogging.h"
 #include "merplugin.h"
