@@ -207,7 +207,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
     else
         m_ui->vdiCapacityLabelEdit->setText(tr("none"));
 
-    m_factorySnapshot = info.snapshots.first();
+    if (!info.snapshots.isEmpty())
+        m_factorySnapshot = info.snapshots.first();
 }
 
 
