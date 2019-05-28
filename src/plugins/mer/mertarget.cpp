@@ -33,6 +33,7 @@
 #include "mertoolchain.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/messagemanager.h>
 #include <debugger/debuggeritem.h>
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
@@ -46,6 +47,7 @@
 #include <QDir>
 #include <QStringList>
 
+using namespace Core;
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace QtSupport;
@@ -169,6 +171,17 @@ Kit *MerTarget::kit() const
 
 bool MerTarget::isValid() const
 {
+    static bool firstTime = true;
+    if (firstTime && HostOsInfo::isAnyUnixHost()) {
+        firstTime = false;
+        QProcess process;
+        process.start("pkg-configo", {"--version"});
+        if (!process.waitForFinished() || process.error() == QProcess::FailedToStart) {
+            MessageManager::write(tr("pkg-config is not available. Ensure it is installed and available from PATH"),
+                    MessageManager::Flash);
+        }
+    }
+
     return m_sdk && !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty()
         && !m_gccMacrosDump.isEmpty() && !m_gccIncludesDump.isEmpty()
         && m_rpmValidationSuitesIsValid;

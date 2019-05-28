@@ -55,6 +55,8 @@ public:
 
 class MerTarget
 {
+    Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerTarget)
+
 public:
     MerTarget();
     MerTarget(MerSdk *sdk);
