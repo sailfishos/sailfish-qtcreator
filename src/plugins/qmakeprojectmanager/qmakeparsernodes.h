@@ -69,7 +69,8 @@ enum class Variable {
     IncludePath,
     CppFlags,
     CFlags,
-    Source,
+    ExactSource,
+    CumulativeSource,
     ExactResource,
     CumulativeResource,
     UiDir,
@@ -132,7 +133,11 @@ public:
 
     void makeEmpty();
 
+    // Files of the specified type declared in this file.
     QSet<Utils::FileName> files(const ProjectExplorer::FileType &type) const;
+
+    // Files of the specified type declared in this file and in included .pri files.
+    const QSet<Utils::FileName> collectFiles(const ProjectExplorer::FileType &type) const;
 
     void update(const Internal::QmakePriFileEvalResult &result);
 
@@ -214,6 +219,8 @@ private:
             const InstallsList &installList);
     static void processValues(Internal::QmakePriFileEvalResult &result);
     void watchFolders(const QSet<Utils::FileName> &folders);
+
+    QString continuationIndent() const;
 
     QmakeProject *m_project = nullptr;
     QmakeProFile *m_qmakeProFile = nullptr;
@@ -307,9 +314,6 @@ public:
     TargetInformation targetInformation() const;
     InstallsList installsList() const;
 
-    QString makefile() const;
-    QString objectExtension() const;
-    QString objectsDirectory() const;
     QByteArray cxxDefines() const;
 
     enum AsyncUpdateDelay { ParseNow, ParseLater };
@@ -318,9 +322,6 @@ public:
 
     bool validParse() const;
     bool parseInProgress() const;
-
-    bool isDebugAndRelease() const;
-    bool isQtcRunnable() const;
 
     void setParseInProgressRecursive(bool b);
 

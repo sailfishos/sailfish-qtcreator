@@ -318,6 +318,8 @@ void ItemLibraryWidget::setupImportTagWidget()
 
 void ItemLibraryWidget::updateModel()
 {
+    QTC_ASSERT(m_itemLibraryModel, return);
+
     m_itemLibraryModel->update(m_itemLibraryInfo.data(), m_model.data());
     updateImports();
     updateSearch();
@@ -429,10 +431,17 @@ void ItemLibraryWidget::addResources()
 
     filters.prepend(tr("All Files (%1)").arg(map.values().join(" ")));
 
+    static QString lastDir;
+    const QString currentDir = lastDir.isEmpty() ? document->fileName().parentDir().toString() : lastDir;
+
     const auto fileNames = QFileDialog::getOpenFileNames(this,
                                                    tr("Add Resources"),
-                                                   document->fileName().parentDir().toString(),
+                                                   currentDir,
                                                    filters.join(";;"));
+
+
+    if (!fileNames.isEmpty())
+        lastDir = QFileInfo(fileNames.first()).absolutePath();
 
     QMultiMap<QString, QString> partitionedFileNames;
 

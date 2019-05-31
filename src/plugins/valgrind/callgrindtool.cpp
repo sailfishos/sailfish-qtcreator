@@ -112,7 +112,7 @@ class CallgrindTool : public QObject
 
 public:
     CallgrindTool();
-    ~CallgrindTool();
+    ~CallgrindTool() override;
 
     void setupRunner(CallgrindToolRunner *runner);
 
@@ -186,6 +186,8 @@ public:
     QPointer<CostView> m_calleesView;
     QPointer<Visualization> m_visualization;
 
+    QString m_lastFileName;
+
     // Navigation
     QAction *m_goBack = nullptr;
     QAction *m_goNext = nullptr;
@@ -207,6 +209,7 @@ public:
     QAction *m_startAction = nullptr;
     QAction *m_stopAction = nullptr;
     QAction *m_loadExternalLogFile = nullptr;
+    QAction *m_startKCachegrind = nullptr;
     QAction *m_dumpAction = nullptr;
     QAction *m_resetAction = nullptr;
     QAction *m_pauseAction = nullptr;
@@ -220,7 +223,7 @@ public:
 
 CallgrindTool::CallgrindTool()
 {
-    setObjectName(QLatin1String("CallgrindTool"));
+    setObjectName("CallgrindTool");
 
     m_updateTimer.setInterval(200);
     m_updateTimer.setSingleShot(true);
@@ -310,14 +313,14 @@ CallgrindTool::CallgrindTool()
     //
     m_visualization = new Visualization;
     m_visualization->setFrameStyle(QFrame::NoFrame);
-    m_visualization->setObjectName(QLatin1String("Valgrind.CallgrindTool.Visualisation"));
+    m_visualization->setObjectName("Valgrind.CallgrindTool.Visualisation");
     m_visualization->setWindowTitle(tr("Visualization"));
     m_visualization->setModel(&m_dataModel);
     connect(m_visualization, &Visualization::functionActivated,
             this, &CallgrindTool::visualisationFunctionSelected);
 
     m_callersView = new CostView;
-    m_callersView->setObjectName(QLatin1String("Valgrind.CallgrindTool.CallersView"));
+    m_callersView->setObjectName("Valgrind.CallgrindTool.CallersView");
     m_callersView->setWindowTitle(tr("Callers"));
     m_callersView->setSettings(coreSettings, "Valgrind.CallgrindTool.CallersView");
     m_callersView->sortByColumn(CallModel::CostColumn);
@@ -330,7 +333,7 @@ CallgrindTool::CallgrindTool()
             this, &CallgrindTool::callerFunctionSelected);
 
     m_calleesView = new CostView;
-    m_calleesView->setObjectName(QLatin1String("Valgrind.CallgrindTool.CalleesView"));
+    m_calleesView->setObjectName("Valgrind.CallgrindTool.CalleesView");
     m_calleesView->setWindowTitle(tr("Callees"));
     m_calleesView->setSettings(coreSettings, "Valgrind.CallgrindTool.CalleesView");
     m_calleesView->sortByColumn(CallModel::CostColumn);
@@ -343,7 +346,7 @@ CallgrindTool::CallgrindTool()
             this, &CallgrindTool::calleeFunctionSelected);
 
     m_flatView = new CostView;
-    m_flatView->setObjectName(QLatin1String("Valgrind.CallgrindTool.FlatView"));
+    m_flatView->setObjectName("Valgrind.CallgrindTool.FlatView");
     m_flatView->setWindowTitle(tr("Functions"));
     m_flatView->setSettings(coreSettings, "Valgrind.CallgrindTool.FlatView");
     m_flatView->sortByColumn(DataModel::SelfCostColumn);
@@ -355,6 +358,8 @@ CallgrindTool::CallgrindTool()
 
     updateCostFormat();
 
+    ValgrindGlobalSettings *settings = ValgrindPlugin::globalSettings();
+
     //
     // Control Widget
     //
@@ -364,6 +369,16 @@ CallgrindTool::CallgrindTool()
     action->setIcon(Utils::Icons::OPENFILE_TOOLBAR.icon());
     action->setToolTip(tr("Load External Log File"));
     connect(action, &QAction::triggered, this, &CallgrindTool::loadExternalLogFile);
+
+    action = m_startKCachegrind = new QAction(this);
+    action->setEnabled(false);
+    const Utils::Icon kCachegrindIcon({{":/valgrind/images/kcachegrind.png",
+                                        Theme::IconsBaseColor}});
+    action->setIcon(kCachegrindIcon.icon());
+    action->setToolTip(tr("Open results in KCachegrind."));
+    connect(action, &QAction::triggered, this, [this, settings] {
+        QProcess::startDetached(settings->kcachegrindExecutable(), { m_lastFileName });
+    });
 
     // dump action
     m_dumpAction = action = new QAction(this);
@@ -423,6 +438,7 @@ CallgrindTool::CallgrindTool()
     m_perspective.addToolBarAction(m_startAction);
     m_perspective.addToolBarAction(m_stopAction);
     m_perspective.addToolBarAction(m_loadExternalLogFile);
+    m_perspective.addToolBarAction(m_startKCachegrind);
     m_perspective.addToolBarAction(m_dumpAction);
     m_perspective.addToolBarAction(m_resetAction);
     m_perspective.addToolBarAction(m_pauseAction);
@@ -461,23 +477,21 @@ CallgrindTool::CallgrindTool()
     auto button = new QToolButton;
     button->addActions(group->actions());
     button->setPopupMode(QToolButton::InstantPopup);
-    button->setText(QLatin1String("$"));
+    button->setText("$");
     button->setToolTip(tr("Cost Format"));
     m_perspective.addToolBarWidget(button);
     }
 
-    ValgrindGlobalSettings *settings = ValgrindPlugin::globalSettings();
-
     // Cycle detection
-    //action = new QAction(QLatin1String("Cycle Detection"), this); ///FIXME: icon
-    action = m_cycleDetection = new QAction(QLatin1String("O"), this); ///FIXME: icon
+    //action = new QAction("Cycle Detection", this); ///FIXME: icon
+    action = m_cycleDetection = new QAction("O", this); ///FIXME: icon
     action->setToolTip(tr("Enable cycle detection to properly handle recursive or circular function calls."));
     action->setCheckable(true);
     connect(action, &QAction::toggled, &m_dataModel, &DataModel::enableCycleDetection);
     connect(action, &QAction::toggled, settings, &ValgrindGlobalSettings::setDetectCycles);
 
     // Shorter template signature
-    action = m_shortenTemplates = new QAction(QLatin1String("<>"), this);
+    action = m_shortenTemplates = new QAction("<>", this);
     action->setToolTip(tr("Remove template parameter lists when displaying function names."));
     action->setCheckable(true);
     connect(action, &QAction::toggled, &m_dataModel, &DataModel::setShortenTemplates);
@@ -668,7 +682,7 @@ void CallgrindTool::handleFilterProjectCosts()
 
 void CallgrindTool::dataFunctionSelected(const QModelIndex &index)
 {
-    const Function *func = index.data(DataModel::FunctionRole).value<const Function *>();
+    auto func = index.data(DataModel::FunctionRole).value<const Function *>();
     QTC_ASSERT(func, return);
 
     selectFunction(func);
@@ -676,7 +690,7 @@ void CallgrindTool::dataFunctionSelected(const QModelIndex &index)
 
 void CallgrindTool::calleeFunctionSelected(const QModelIndex &index)
 {
-    const FunctionCall *call = index.data(CallModel::FunctionCallRole).value<const FunctionCall *>();
+    auto call = index.data(CallModel::FunctionCallRole).value<const FunctionCall *>();
     QTC_ASSERT(call, return);
 
     selectFunction(call->callee());
@@ -684,7 +698,7 @@ void CallgrindTool::calleeFunctionSelected(const QModelIndex &index)
 
 void CallgrindTool::callerFunctionSelected(const QModelIndex &index)
 {
-    const FunctionCall *call = index.data(CallModel::FunctionCallRole).value<const FunctionCall *>();
+    auto call = index.data(CallModel::FunctionCallRole).value<const FunctionCall *>();
     QTC_ASSERT(call, return);
 
     selectFunction(call->caller());
@@ -713,6 +727,7 @@ void CallgrindTool::setParseData(ParseData *data)
         delete data;
         data = nullptr;
     }
+    m_lastFileName = data ? data->fileName() : QString();
     m_dataModel.setParseData(data);
     m_calleesModel.setParseData(data);
     m_callersModel.setParseData(data);
@@ -788,6 +803,7 @@ void CallgrindTool::updateRunActions()
 {
     if (m_toolBusy) {
         m_startAction->setEnabled(false);
+        m_startKCachegrind->setEnabled(false);
         m_startAction->setToolTip(tr("A Valgrind Callgrind analysis is still in progress."));
         m_stopAction->setEnabled(true);
     } else {
@@ -831,7 +847,8 @@ void CallgrindTool::showParserResults(const ParseData *data)
         if (data->events().isEmpty()) {
             msg = tr("Parsing finished, no data.");
         } else {
-            const QString costStr = QString::fromLatin1("%1 %2").arg(QString::number(data->totalCost(0)), data->events().first());
+            const QString costStr = QString::fromLatin1("%1 %2")
+                    .arg(QString::number(data->totalCost(0)), data->events().constFirst());
             msg = tr("Parsing finished, total cost of %1 reported.").arg(costStr);
         }
     } else {
@@ -873,7 +890,7 @@ void CallgrindTool::handleShowCostsOfFunction()
     CPlusPlus::Overview view;
     const QString qualifiedFunctionName = view.prettyName(CPlusPlus::LookupContext::fullyQualifiedName(symbol));
 
-    m_toggleCollectFunction = qualifiedFunctionName + QLatin1String("()");
+    m_toggleCollectFunction = qualifiedFunctionName + "()";
     m_startAction->trigger();
 }
 
@@ -881,7 +898,7 @@ void CallgrindTool::slotRequestDump()
 {
     //setBusy(true);
     m_visualization->setText(tr("Populating..."));
-    dumpRequested();
+    emit dumpRequested();
 }
 
 void CallgrindTool::loadExternalLogFile()
@@ -927,6 +944,10 @@ void CallgrindTool::takeParserData(ParseData *data)
     doClear(true);
 
     setParseData(data);
+    const QString kcachegrindExecutable = ValgrindPlugin::globalSettings()->kcachegrindExecutable();
+    const bool kcachegrindExists = !Utils::Environment::systemEnvironment().searchInPath(
+                kcachegrindExecutable).isEmpty();
+    m_startKCachegrind->setEnabled(kcachegrindExists && !m_lastFileName.isEmpty());
     createTextMarks();
 }
 
@@ -937,7 +958,7 @@ void CallgrindTool::createTextMarks()
         const QModelIndex index = m_dataModel.index(row, DataModel::InclusiveCostColumn);
 
         QString fileName = index.data(DataModel::FileNameRole).toString();
-        if (fileName.isEmpty() || fileName == QLatin1String("???"))
+        if (fileName.isEmpty() || fileName == "???")
             continue;
 
         bool ok = false;

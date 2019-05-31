@@ -50,14 +50,14 @@ public:
         , m_transactionBackend(transactionBackend)
     {}
 
-    BuildDependency create(const V2::ProjectPartContainer &projectPart) override;
+    BuildDependency create(const ProjectPartContainer &projectPart) override;
 
 private:
     BuildDependency createBuildDependencyFromStorage(SourceEntries &&includes) const;
     UsedMacros createUsedMacrosFromStorage(const SourceEntries &includes) const;
-    SourceEntries createSourceEntriesFromStorage(const FilePathIds &sourcePathIds,
-                                                 Utils::SmallStringView projectPartId) const;
-    void storeBuildDependency(const BuildDependency &buildDependency);
+    std::pair<SourceEntries, ProjectPartId> createSourceEntriesFromStorage(
+        const FilePathIds &sourcePathIds, ProjectPartId projectPartId) const;
+    void storeBuildDependency(const BuildDependency &buildDependency, ProjectPartId projectPartId);
 
 private:
     BuildDependenciesStorageInterface &m_storage;

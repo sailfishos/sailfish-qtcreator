@@ -33,7 +33,6 @@
 
 namespace CppTools {
 class CppEditorOutline;
-class RefactoringEngineInterface;
 class FollowSymbolInterface;
 class SemanticInfo;
 class ProjectPart;
@@ -78,7 +77,8 @@ public:
     void switchDeclarationDefinition(bool inNextSplit);
     void showPreProcessorWidget() override;
 
-    void findUsages(QTextCursor cursor = QTextCursor());
+    void findUsages() override;
+    void findUsages(QTextCursor cursor);
     void renameUsages(const QString &replacement = QString(),
                       QTextCursor cursor = QTextCursor());
     void renameSymbolUnderCursor();
@@ -104,8 +104,6 @@ protected:
                     Utils::ProcessLinkCallback &&processLinkCallback,
                     bool resolveTarget = true,
                     bool inNextSplit = false) override;
-
-    void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker) override;
 
     void slotCodeStyleSettingsChanged(const QVariant &) override;
 
@@ -138,10 +136,7 @@ private:
 
     QMenu *createRefactorMenu(QWidget *parent) const;
 
-    TextEditor::RefactorMarkers refactorMarkersWithoutClangMarkers() const;
-
     CppTools::FollowSymbolInterface &followSymbolInterface() const;
-    CppTools::RefactoringEngineInterface &refactoringEngine() const;
 
     CppTools::ProjectPart *projectPart() const;
 

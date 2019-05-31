@@ -25,23 +25,25 @@
 
 #pragma once
 
+#include "cpptools_global.h"
+
 #include <texteditor/icodestylepreferencesfactory.h>
 
 namespace CppTools {
 
-class CppCodeStylePreferencesFactory : public TextEditor::ICodeStylePreferencesFactory
+class CPPTOOLS_EXPORT CppCodeStylePreferencesFactory : public TextEditor::ICodeStylePreferencesFactory
 {
 public:
     CppCodeStylePreferencesFactory();
 
-    Core::Id languageId();
-    QString displayName();
-    TextEditor::ICodeStylePreferences *createCodeStyle() const;
+    Core::Id languageId() override;
+    QString displayName() override;
+    TextEditor::ICodeStylePreferences *createCodeStyle() const override;
     QWidget *createEditor(TextEditor::ICodeStylePreferences *settings,
-                          QWidget *parent) const;
-    TextEditor::Indenter *createIndenter() const;
-    QString snippetProviderGroupId() const;
-    QString previewText() const;
+                          QWidget *parent) const override;
+    TextEditor::Indenter *createIndenter(QTextDocument *doc) const override;
+    QString snippetProviderGroupId() const override;
+    QString previewText() const override;
 };
 
 } // namespace CppTools

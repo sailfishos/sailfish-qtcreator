@@ -347,7 +347,7 @@ void StackHandler::saveTaskFile()
     while (!file.isOpen()) {
         if (fileDialog.exec() != QDialog::Accepted)
             return;
-        const QString fileName = fileDialog.selectedFiles().front();
+        const QString fileName = fileDialog.selectedFiles().constFirst();
         file.setFileName(fileName);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QString msg = tr("Cannot open \"%1\": %2")
@@ -367,7 +367,7 @@ bool StackHandler::contextMenuEvent(const ItemViewEvent &ev)
 {
     auto menu = new QMenu;
 
-    const int row = ev.index().row();
+    const int row = ev.sourceModelIndex().row();
     StackFrame frame;
     if (row >= 0 && row < stackSize())
         frame = frameAt(row);

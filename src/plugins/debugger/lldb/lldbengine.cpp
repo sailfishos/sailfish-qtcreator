@@ -257,6 +257,15 @@ void LldbEngine::setupEngine()
 
     const DebuggerRunParameters &rp = runParameters();
 
+    const SourcePathMap sourcePathMap =
+        DebuggerSourcePathMappingWidget::mergePlatformQtPath(rp,
+                Internal::globalDebuggerOptions()->sourcePathMap);
+    for (auto it = sourcePathMap.constBegin(), cend = sourcePathMap.constEnd();
+         it != cend;
+         ++it) {
+        executeDebuggerCommand("settings append target.source-map " + it.key() + ' ' + it.value());
+    }
+
     DebuggerCommand cmd2("setupInferior");
     cmd2.arg("executable", rp.inferior.executable);
     cmd2.arg("breakonmain", rp.breakOnMain);
@@ -318,15 +327,6 @@ void LldbEngine::runEngine()
     if (rp.startMode == AttachCore)
         cmd.arg("coreFile", rp.coreFile);
     runCommand(cmd);
-
-    const SourcePathMap sourcePathMap =
-        DebuggerSourcePathMappingWidget::mergePlatformQtPath(rp,
-                Internal::globalDebuggerOptions()->sourcePathMap);
-    for (auto it = sourcePathMap.constBegin(), cend = sourcePathMap.constEnd();
-         it != cend;
-         ++it) {
-        executeDebuggerCommand("settings append target.source-map " + it.key() + ' ' + it.value());
-    }
 }
 
 void LldbEngine::interruptInferior()
@@ -395,6 +395,8 @@ void LldbEngine::handleResponse(const QString &response)
             handleOutputNotification(item);
         else if (name == "pid")
             notifyInferiorPid(item.toProcessHandle());
+        else if (name == "breakpointmodified")
+            handleInterpreterBreakpointModified(item);
     }
 }
 
@@ -607,6 +609,31 @@ void LldbEngine::handleOutputNotification(const GdbMi &output)
     showMessage(data, ch);
 }
 
+void LldbEngine::handleInterpreterBreakpointModified(const GdbMi &bpItem)
+{
+    QTC_ASSERT(bpItem.childCount(), return);
+    QString id = bpItem.childAt(0).m_data;
+
+    Breakpoint bp = breakHandler()->findBreakpointByResponseId(id);
+    if (!bp)        // FIXME adapt whole bp handling and turn into soft assert
+        return;
+
+    // this function got triggered by a lldb internal breakpoint event
+    // avoid asserts regarding unexpected state transitions
+    switch (bp->state()) {
+    case BreakpointInsertionRequested:  // was a pending bp
+        bp->gotoState(BreakpointInsertionProceeding, BreakpointInsertionRequested);
+        break;
+    case BreakpointInserted:            // was an inserted, gets updated now
+        bp->gotoState(BreakpointUpdateRequested, BreakpointInserted);
+        notifyBreakpointChangeProceeding(bp);
+        break;
+    default:
+        break;
+    }
+    updateBreakpointData(bp, bpItem, false);
+}
+
 void LldbEngine::loadSymbols(const QString &moduleName)
 {
     Q_UNUSED(moduleName)
@@ -807,7 +834,7 @@ QString LldbEngine::errorMessage(QProcess::ProcessError error) const
 
 void LldbEngine::handleLldbFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    notifyDebuggerProcessFinished(exitCode, exitStatus, QLatin1String("LLDB"));
+    notifyDebuggerProcessFinished(exitCode, exitStatus, "LLDB");
 }
 
 void LldbEngine::readLldbStandardError()
@@ -972,7 +999,7 @@ void LldbEngine::fetchDisassembler(DisassemblerAgent *agent)
                 //dl.rawData = line["rawdata"].data();
                 dl.data = line["rawdata"].data();
                 if (!dl.data.isEmpty())
-                    dl.data += QString(30 - dl.data.size(), QLatin1Char(' '));
+                    dl.data += QString(30 - dl.data.size(), ' ');
                 dl.data += fromHex(line["hexdata"].data());
                 dl.data += line["data"].data();
                 dl.offset = line["offset"].toInt();

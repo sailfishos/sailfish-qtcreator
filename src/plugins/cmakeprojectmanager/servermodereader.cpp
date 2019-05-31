@@ -356,8 +356,10 @@ void ServerModeReader::generateProjectTree(CMakeProjectNode *root,
                        std::move(cmakeFilesOther));
 }
 
-void ServerModeReader::updateCodeModel(CppTools::RawProjectParts &rpps)
+CppTools::RawProjectParts ServerModeReader::createRawProjectParts() const
 {
+    CppTools::RawProjectParts rpps;
+
     int counter = 0;
     for (const FileGroup *fg : qAsConst(m_fileGroups)) {
         // CMake users worked around Creator's inability of listing header files by creating
@@ -399,6 +401,8 @@ void ServerModeReader::updateCodeModel(CppTools::RawProjectParts &rpps)
                                             : CppTools::ProjectPart::Library);
         rpps.append(rpp);
     }
+
+    return rpps;
 }
 
 void ServerModeReader::handleReply(const QVariantMap &data, const QString &inReplyTo)
@@ -792,23 +796,22 @@ ServerModeReader::addCMakeLists(CMakeProjectNode *root,
     return cmakeListsNodes;
 }
 
-static ProjectNode *createProjectNode(const QHash<Utils::FileName, ProjectNode *> &cmakeListsNodes,
-                                      const Utils::FileName &dir, const QString &displayName)
+static void createProjectNode(const QHash<Utils::FileName, ProjectNode *> &cmakeListsNodes,
+                              const Utils::FileName &dir, const QString &displayName)
 {
     ProjectNode *cmln = cmakeListsNodes.value(dir);
-    QTC_ASSERT(cmln, qDebug() << dir.toUserOutput() ; return nullptr);
+    QTC_ASSERT(cmln, qDebug() << dir.toUserOutput(); return);
 
     Utils::FileName projectName = dir;
     projectName.appendPath(".project::" + displayName);
 
-    CMakeProjectNode *pn = static_cast<CMakeProjectNode *>(cmln->projectNode(projectName));
+    ProjectNode *pn = cmln->projectNode(projectName);
     if (!pn) {
         auto newNode = std::make_unique<CMakeProjectNode>(projectName);
         pn = newNode.get();
         cmln->addNode(std::move(newNode));
     }
     pn->setDisplayName(displayName);
-    return pn;
 }
 
 void ServerModeReader::addProjects(const QHash<Utils::FileName, ProjectNode *> &cmakeListsNodes,
@@ -816,8 +819,7 @@ void ServerModeReader::addProjects(const QHash<Utils::FileName, ProjectNode *> &
                                    QList<FileNode *> &knownHeaderNodes)
 {
     for (const Project *p : projects) {
-        ProjectNode *pNode = createProjectNode(cmakeListsNodes, p->sourceDirectory, p->name);
-        QTC_ASSERT(pNode, qDebug() << p->sourceDirectory.toUserOutput() ; continue);
+        createProjectNode(cmakeListsNodes, p->sourceDirectory, p->name);
         addTargets(cmakeListsNodes, p->targets, knownHeaderNodes);
     }
 }

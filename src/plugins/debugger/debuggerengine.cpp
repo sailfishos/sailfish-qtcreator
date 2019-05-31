@@ -61,6 +61,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <coreplugin/messagebox.h>
+#include <coreplugin/modemanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 
@@ -280,12 +281,16 @@ public:
           m_disassemblerAgent(engine),
           m_toolTipManager(engine)
     {
-        m_logWindow = new LogWindow(m_engine); // Needed before start()
-        m_logWindow->setObjectName(QLatin1String(DOCKWIDGET_OUTPUT));
         m_debuggerName = DebuggerEngine::tr("Debugger");
 
-        connect(action(EnableReverseDebugging), &SavedAction::valueChanged,
-                this, [this] { updateState(true); });
+        m_logWindow = new LogWindow(m_engine); // Needed before start()
+        m_logWindow->setObjectName("Debugger.Dock.Output");
+
+        connect(action(EnableReverseDebugging), &SavedAction::valueChanged, this, [this] {
+            updateState();
+            if (m_companionEngine)
+                m_companionEngine->d->updateState();
+        });
         static int contextCount = 0;
         m_context = Context(Id("Debugger.Engine.").withSuffix(++contextCount));
 
@@ -370,17 +375,15 @@ public:
         if (!m_perspective)
             return;
 
-        delete m_perspective;
+        Perspective *perspective = m_perspective;
         m_perspective = nullptr;
 
         EngineManager::unregisterEngine(m_engine);
 
-        // Give up ownership on claimed breakpoints.
-        m_breakHandler.releaseAllBreakpoints();
-        m_toolTipManager.deregisterEngine();
-        m_memoryAgents.handleDebuggerFinished();
-
-        setBusyCursor(false);
+        // This triggers activity in the EngineManager which
+        // recognizes the rampdown by the m_perpective == nullptr above.
+        perspective->destroy();
+        delete perspective;
     }
 
     void updateReturnViewHeader(int section, int, int newSize)
@@ -446,15 +449,14 @@ public:
     void setInitialActionStates();
     void setBusyCursor(bool on);
     void cleanupViews();
-    void updateState(bool alsoUpdateCompanion);
+    void updateState();
     void updateReverseActions();
 
     DebuggerEngine *m_engine = nullptr; // Not owned.
     QString m_runId;
-    QPointer<DebuggerRunTool> m_runTool; // Not owned
     QPointer<RunConfiguration> m_runConfiguration;  // Not owned.
     QString m_debuggerName;
-    Perspective *m_perspective = nullptr;
+    QPointer<Perspective> m_perspective;
     DebuggerRunParameters m_runParameters;
     IDevice::ConstPtr m_device;
 
@@ -516,11 +518,6 @@ public:
     bool m_busy = false;
     bool m_isDying = false;
 
-    QAction m_debugWithoutDeployAction;
-    QAction m_attachToQmlPortAction;
-    QAction m_attachToRemoteServerAction;
-    QAction m_startRemoteCdbAction;
-    QAction m_attachToCoreAction;
     QAction m_detachAction;
     OptionalAction m_continueAction{tr("Continue")};
     QAction m_exitAction{tr("Stop Debugger")}; // On application output button if "Stop" is possible
@@ -557,16 +554,17 @@ public:
 void DebuggerEnginePrivate::setupViews()
 {
     const DebuggerRunParameters &rp = m_runParameters;
+    const QString engineId = EngineManager::registerEngine(m_engine);
 
     QTC_CHECK(!m_perspective);
 
-    m_perspective = new Perspective("Debugger.Perspective." + m_runId,
+    const QString perspectiveId = "Debugger.Perspective." + m_runId + '.' + m_debuggerName;
+    const QString settingsId = "Debugger.Perspective." + m_debuggerName;
+
+    m_perspective = new Perspective(perspectiveId,
                                     m_engine->displayName(),
                                     Debugger::Constants::PRESET_PERSPECTIVE_ID,
-                                    m_debuggerName);
-    m_perspective->setShouldPersistChecker([this] {
-        return EngineManager::isLastOf(m_debuggerName);
-    });
+                                    settingsId);
 
     m_progress.setProgressRange(0, 1000);
     FutureProgress *fp = ProgressManager::addTask(m_progress.future(),
@@ -634,7 +632,7 @@ void DebuggerEnginePrivate::setupViews()
             m_engine, &DebuggerEngine::reloadModules,
             Qt::QueuedConnection);
     m_modulesWindow = addSearch(m_modulesView);
-    m_modulesWindow->setObjectName(DOCKWIDGET_MODULES);
+    m_modulesWindow->setObjectName("Debugger.Dock.Modules." + engineId);
     m_modulesWindow->setWindowTitle(tr("&Modules"));
 
     m_registerView = new BaseTreeView;
@@ -645,15 +643,15 @@ void DebuggerEnginePrivate::setupViews()
             m_engine, &DebuggerEngine::reloadRegisters,
             Qt::QueuedConnection);
     m_registerWindow = addSearch(m_registerView);
-    m_registerWindow->setObjectName(DOCKWIDGET_REGISTER);
+    m_registerWindow->setObjectName("Debugger.Dock.Register." + engineId);
     m_registerWindow->setWindowTitle(tr("Reg&isters"));
 
-    m_stackView = new BaseTreeView;
+    m_stackView = new StackTreeView;
     m_stackView->setModel(m_stackHandler.model());
     m_stackView->setSettings(settings, "Debugger.StackView");
     m_stackView->setIconSize(QSize(10, 10));
     m_stackWindow = addSearch(m_stackView);
-    m_stackWindow->setObjectName(DOCKWIDGET_STACK);
+    m_stackWindow->setObjectName("Debugger.Dock.Stack." + engineId);
     m_stackWindow->setWindowTitle(tr("&Stack"));
 
     m_sourceFilesView = new BaseTreeView;
@@ -664,7 +662,7 @@ void DebuggerEnginePrivate::setupViews()
             m_engine, &DebuggerEngine::reloadSourceFiles,
             Qt::QueuedConnection);
     m_sourceFilesWindow = addSearch(m_sourceFilesView);
-    m_sourceFilesWindow->setObjectName(DOCKWIDGET_SOURCE_FILES);
+    m_sourceFilesWindow->setObjectName("Debugger.Dock.SourceFiles." + engineId);
     m_sourceFilesWindow->setWindowTitle(tr("Source Files"));
 
     m_threadsView = new BaseTreeView;
@@ -672,8 +670,9 @@ void DebuggerEnginePrivate::setupViews()
     m_threadsView->setSortingEnabled(true);
     m_threadsView->setSettings(settings, "Debugger.ThreadsView");
     m_threadsView->setIconSize(QSize(10, 10));
+    m_threadsView->setSpanColumn(ThreadData::FunctionColumn);
     m_threadsWindow = addSearch(m_threadsView);
-    m_threadsWindow->setObjectName(DOCKWIDGET_THREADS);
+    m_threadsWindow->setObjectName("Debugger.Dock.Threads." + engineId);
     m_threadsWindow->setWindowTitle(tr("&Threads"));
 
     m_returnView = new WatchTreeView{ReturnType};
@@ -687,26 +686,26 @@ void DebuggerEnginePrivate::setupViews()
     m_localsView->setModel(m_watchHandler.model());
     m_localsView->setSettings(settings, "Debugger.LocalsView");
     m_localsWindow = addSearch(m_localsView);
-    m_localsWindow->setObjectName("CppDebugLocals");
+    m_localsWindow->setObjectName("Debugger.Dock.Locals." + engineId);
     m_localsWindow->setWindowTitle(tr("Locals"));
 
     m_inspectorView = new WatchTreeView{InspectType};
     m_inspectorView->setModel(m_watchHandler.model());
     m_inspectorView->setSettings(settings, "Debugger.LocalsView"); // sic! same as locals view.
     m_inspectorWindow = addSearch(m_inspectorView);
-    m_inspectorWindow->setObjectName("Inspector");
+    m_inspectorWindow->setObjectName("Debugger.Dock.Inspector." + engineId);
     m_inspectorWindow->setWindowTitle(tr("Locals"));
 
     m_watchersView = new WatchTreeView{WatchersType};
     m_watchersView->setModel(m_watchHandler.model());
     m_watchersView->setSettings(settings, "Debugger.WatchersView");
     m_watchersWindow = addSearch(m_watchersView);
-    m_watchersWindow->setObjectName("CppDebugWatchers");
+    m_watchersWindow->setObjectName("Debugger.Dock.Watchers." + engineId);
     m_watchersWindow->setWindowTitle(tr("&Expressions"));
 
     m_localsAndInspectorWindow = new LocalsAndInspectorWindow(
                 m_localsWindow, m_inspectorWindow, m_returnWindow);
-    m_localsAndInspectorWindow->setObjectName(DOCKWIDGET_LOCALS_AND_INSPECTOR);
+    m_localsAndInspectorWindow->setObjectName("Debugger.Dock.LocalsAndInspector." + engineId);
     m_localsAndInspectorWindow->setWindowTitle(m_localsWindow->windowTitle());
 
     // Locals
@@ -717,13 +716,14 @@ void DebuggerEnginePrivate::setupViews()
     m_breakView->setIconSize(QSize(10, 10));
     m_breakView->setWindowIcon(Icons::BREAKPOINTS.icon());
     m_breakView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_breakView->setSpanColumn(BreakpointFunctionColumn);
     connect(action(UseAddressInBreakpointsView), &QAction::toggled,
             this, [this](bool on) { m_breakView->setColumnHidden(BreakpointAddressColumn, !on); });
     m_breakView->setSettings(settings, "Debugger.BreakWindow");
     m_breakView->setModel(m_breakHandler.model());
     m_breakView->setRootIsDecorated(true);
     m_breakWindow = addSearch(m_breakView);
-    m_breakWindow->setObjectName(DOCKWIDGET_BREAK);
+    m_breakWindow->setObjectName("Debugger.Dock.Break." + engineId);
     m_breakWindow->setWindowTitle(tr("&Breakpoints"));
 
     m_perspective->useSubPerspectiveSwitcher(EngineManager::engineChooser());
@@ -850,7 +850,6 @@ void DebuggerEnginePrivate::setupViews()
 DebuggerEngine::DebuggerEngine()
   : d(new DebuggerEnginePrivate(this))
 {
-    updateState(false);
 }
 
 DebuggerEngine::~DebuggerEngine()
@@ -1010,7 +1009,6 @@ void DebuggerEngine::setRunId(const QString &id)
 
 void DebuggerEngine::setRunTool(DebuggerRunTool *runTool)
 {
-    d->m_runTool = runTool;
     RunControl *runControl = runTool->runControl();
     d->m_runConfiguration = runControl->runConfiguration();
     d->m_device = runControl->device();
@@ -1025,7 +1023,6 @@ void DebuggerEngine::setRunTool(DebuggerRunTool *runTool)
 
 void DebuggerEngine::start()
 {
-    EngineManager::registerEngine(this);
     d->m_watchHandler.resetWatchers();
     d->setInitialActionStates();
     setState(EngineSetupRequested);
@@ -1121,7 +1118,7 @@ void DebuggerEngine::abortDebugger()
 
 void DebuggerEngine::updateUi(bool isCurrentEngine)
 {
-    updateState(false);
+    updateState();
     if (isCurrentEngine) {
         gotoCurrentLocation();
     } else {
@@ -1324,7 +1321,7 @@ void DebuggerEngine::notifyInferiorSpontaneousStop()
 {
     showMessage("NOTE: INFERIOR SPONTANEOUS STOP");
     QTC_ASSERT(state() == InferiorRunOk, qDebug() << this << state());
-    EngineManager::activateEngine(this);
+    d->m_perspective->select();
     showMessage(tr("Stopped."), StatusBar);
     setState(InferiorStopOk);
     if (boolSetting(RaiseOnInterrupt))
@@ -1361,9 +1358,6 @@ void DebuggerEnginePrivate::setInitialActionStates()
 
     m_snapshotAction.setIcon(Utils::Icons::SNAPSHOT_TOOLBAR.icon());
 
-    m_attachToQmlPortAction.setEnabled(true);
-    m_attachToCoreAction.setEnabled(true);
-    m_attachToRemoteServerAction.setEnabled(true);
     m_detachAction.setEnabled(false);
 
     m_watchAction.setEnabled(true);
@@ -1394,10 +1388,12 @@ void DebuggerEnginePrivate::setInitialActionStates()
     m_threadLabel->setEnabled(false);
 }
 
-void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
+void DebuggerEnginePrivate::updateState()
 {
-    if (!m_perspective)
+    // Can happen in mixed debugging.
+    if (!m_threadLabel)
         return;
+    QTC_ASSERT(m_threadLabel, return);
 
     const DebuggerState state = m_state;
     const bool companionPreventsAction = m_engine->companionPreventsActions();
@@ -1407,7 +1403,7 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
     // visible, possibly disabled.
     if (state == DebuggerNotReady) {
         // Happens when companion starts, otherwise this should not happen.
-        QTC_CHECK(m_companionEngine);
+        //QTC_CHECK(m_companionEngine);
         m_interruptAction.setVisible(true);
         m_interruptAction.setEnabled(false);
         m_continueAction.setVisible(false);
@@ -1416,7 +1412,6 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(true);
         m_stepOutAction.setEnabled(false);
         m_exitAction.setEnabled(false);
-        m_debugWithoutDeployAction.setEnabled(true);
     } else if (state == InferiorStopOk) {
         // F5 continues, Shift-F5 kills. It is "continuable".
         m_interruptAction.setVisible(false);
@@ -1427,7 +1422,6 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(!companionPreventsAction);
         m_stepOutAction.setEnabled(!companionPreventsAction);
         m_exitAction.setEnabled(true);
-        m_debugWithoutDeployAction.setEnabled(false);
         m_localsAndInspectorWindow->setShowLocals(true);
     } else if (state == InferiorRunOk) {
         // Shift-F5 interrupts. It is also "interruptible".
@@ -1439,10 +1433,8 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(false);
         m_stepOutAction.setEnabled(false);
         m_exitAction.setEnabled(true);
-        m_debugWithoutDeployAction.setEnabled(false);
         m_localsAndInspectorWindow->setShowLocals(false);
     } else if (state == DebuggerFinished) {
-        const bool canRun = ProjectExplorerPlugin::canRunStartupProject(ProjectExplorer::Constants::DEBUG_RUN_MODE);
         // We don't want to do anything anymore.
         m_interruptAction.setVisible(true);
         m_interruptAction.setEnabled(false);
@@ -1452,7 +1444,6 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(false);
         m_stepOutAction.setEnabled(false);
         m_exitAction.setEnabled(false);
-        m_debugWithoutDeployAction.setEnabled(canRun);
         setBusyCursor(false);
         cleanupViews();
     } else if (state == InferiorUnrunnable) {
@@ -1465,7 +1456,6 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(false);
         m_stepOutAction.setEnabled(false);
         m_exitAction.setEnabled(true);
-        m_debugWithoutDeployAction.setEnabled(false);
         // show locals in core dumps
         m_localsAndInspectorWindow->setShowLocals(true);
     } else {
@@ -1478,12 +1468,7 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         m_stepIntoAction.setEnabled(false);
         m_stepOutAction.setEnabled(false);
         m_exitAction.setEnabled(false);
-        m_debugWithoutDeployAction.setEnabled(false);
     }
-
-    m_attachToQmlPortAction.setEnabled(true);
-    m_attachToCoreAction.setEnabled(true);
-    m_attachToRemoteServerAction.setEnabled(true);
 
     const bool threadsEnabled = state == InferiorStopOk || state == InferiorUnrunnable;
     m_threadsHandler.threadSwitcher()->setEnabled(threadsEnabled);
@@ -1548,9 +1533,6 @@ void DebuggerEnginePrivate::updateState(bool alsoUpdateCompanion)
         || state == DebuggerFinished
         || state == InferiorUnrunnable;
     setBusyCursor(!notbusy);
-
-    if (alsoUpdateCompanion && m_companionEngine)
-        m_companionEngine->updateState(false);
 }
 
 void DebuggerEnginePrivate::updateReverseActions()
@@ -1703,17 +1685,15 @@ void DebuggerEngine::notifyInferiorExited()
     CALLGRIND_STOP_INSTRUMENTATION;
     CALLGRIND_DUMP_STATS;
 #endif
-    QTC_ASSERT(isAllowedTransition(state(), InferiorShutdownFinished),
-            qDebug() << this << state(); return);
     showMessage("NOTE: INFERIOR EXITED");
     d->resetLocation();
     setState(InferiorShutdownFinished);
     d->doShutdownEngine();
 }
 
-void DebuggerEngine::updateState(bool alsoUpdateCompanion)
+void DebuggerEngine::updateState()
 {
-    d->updateState(alsoUpdateCompanion);
+    d->updateState();
 }
 
 WatchTreeView *DebuggerEngine::inspectorView()
@@ -1740,8 +1720,8 @@ void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) c
             d->m_logWindow->showOutput(LogInput, msg);
             break;
         case LogError:
-            d->m_logWindow->showInput(LogError, QLatin1String("ERROR: ") + msg);
-            d->m_logWindow->showOutput(LogError, QLatin1String("ERROR: ") + msg);
+            d->m_logWindow->showInput(LogError, "ERROR: " + msg);
+            d->m_logWindow->showOutput(LogError, "ERROR: " + msg);
             break;
         case AppOutput:
         case AppStuff:
@@ -1814,20 +1794,28 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
     if (!forced && !isAllowedTransition(oldState, state))
         qDebug() << "*** UNEXPECTED STATE TRANSITION: " << this << msg;
 
-    if (state == EngineRunRequested)
+    if (state == EngineRunRequested) {
         emit engineStarted();
+        d->m_perspective->select();
+    }
 
     showMessage(msg, LogDebug);
 
-    d->updateState(true);
+    d->updateState();
+    if (d->m_companionEngine)
+        d->m_companionEngine->d->updateState();
 
     if (oldState != d->m_state)
         emit EngineManager::instance()->engineStateChanged(this);
 
-    if (state == InferiorRunOk && isPrimaryEngine())
-        emit d->m_runTool->inferiorRunning();
-
     if (state == DebuggerFinished) {
+        d->setBusyCursor(false);
+
+        // Give up ownership on claimed breakpoints.
+        d->m_breakHandler.releaseAllBreakpoints();
+        d->m_toolTipManager.deregisterEngine();
+        d->m_memoryAgents.handleDebuggerFinished();
+
         d->destroyPerspective();
         emit engineFinished();
     }
@@ -2453,7 +2441,7 @@ void DebuggerEngine::handleExecRunToSelectedFunction()
     if (functionName.isEmpty()) {
         const QTextBlock block = cursor.block();
         const QString line = block.text();
-        foreach (const QString &str, line.trimmed().split(QLatin1Char('('))) {
+        foreach (const QString &str, line.trimmed().split('(')) {
             QString a;
             for (int i = str.size(); --i >= 0; ) {
                 if (!str.at(i).isLetterOrNumber())
@@ -2550,8 +2538,6 @@ bool DebuggerEngine::isNativeMixedActiveFrame() const
 void DebuggerEngine::startDying() const
 {
     d->m_isDying = true;
-    if (DebuggerEngine *other = d->m_companionEngine)
-        other->d->m_isDying = true;
 }
 
 QString DebuggerEngine::runId() const
@@ -2613,7 +2599,7 @@ QString DebuggerEngine::formatStartParameters() const
     if (!sp.qmlServer.host().isEmpty())
         str << "QML server: " << sp.qmlServer.host() << ':' << sp.qmlServer.port() << '\n';
     str << "Sysroot: " << sp.sysRoot << '\n';
-    str << "Debug Source Location: " << sp.debugSourceLocation.join(QLatin1Char(':')) << '\n';
+    str << "Debug Source Location: " << sp.debugSourceLocation.join(':') << '\n';
     return rc;
 }
 

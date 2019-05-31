@@ -42,8 +42,7 @@ public:
     MOCK_METHOD0(execute,
                  void ());
 
-    MOCK_METHOD2(bind,
-                 void (int index, Utils::SmallStringView value));
+    MOCK_METHOD2(bind, void(int, Utils::SmallStringView));
 
     MOCK_METHOD2(bindValues,
                  void (Utils::SmallStringView, Utils::SmallStringView));
@@ -60,14 +59,13 @@ public:
     MOCK_METHOD5(write,
                  void (long long, int, int, int, int));
 
-    MOCK_METHOD2(write,
-                 void (uint, Utils::SmallStringView));
+    MOCK_METHOD2(write, void(uint, Utils::SmallStringView));
 
-    MOCK_METHOD2(write,
-                 void (Utils::SmallStringView, Utils::SmallStringView));
+    MOCK_METHOD2(write, void(int, Utils::SmallStringView));
 
-    MOCK_METHOD3(write,
-                 void (Utils::SmallStringView, Utils::SmallStringView, long long));
+    MOCK_METHOD2(write, void(Utils::SmallStringView, Utils::SmallStringView));
+
+    MOCK_METHOD3(write, void(int, Utils::SmallStringView, long long));
 
     MOCK_METHOD3(write,
                  void (Utils::SmallStringView, Utils::SmallStringView, Utils::SmallStringView));
@@ -77,6 +75,16 @@ public:
                        Utils::SmallStringView,
                        Utils::SmallStringView,
                        Utils::SmallStringView));
+
+    MOCK_METHOD8(write,
+                 void(int,
+                      Utils::SmallStringView,
+                      Utils::SmallStringView,
+                      Utils::SmallStringView,
+                      Utils::SmallStringView,
+                      int,
+                      int,
+                      int));
 
     MOCK_METHOD1(write,
                  void (Utils::SmallStringView));
@@ -93,17 +101,16 @@ public:
     MOCK_METHOD3(write,
                  void (uint, uint, uint));
 
-    MOCK_METHOD4(write,
-                 void (int, off_t, time_t, bool));
+    MOCK_METHOD3(write, void(int, off_t, time_t));
 
     MOCK_METHOD2(write,
                  void (uint, uint));
 
     MOCK_METHOD2(write,
                  void (uchar, int));
-
+    MOCK_METHOD4(write, void(int, int, uchar, uchar));
     MOCK_METHOD2(write,
                  void (long long, int));
-
+    MOCK_METHOD2(write, void(long long, Utils::SmallStringView));
     Utils::SmallString sqlStatement;
 };

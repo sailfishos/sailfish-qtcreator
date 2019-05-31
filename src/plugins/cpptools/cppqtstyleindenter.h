@@ -27,10 +27,9 @@
 
 #include "cpptools_global.h"
 
-#include <texteditor/indenter.h>
+#include <texteditor/textindenter.h>
 
-namespace TextEditor
-{
+namespace TextEditor {
 class ICodeStylePreferences;
 }
 
@@ -38,32 +37,35 @@ namespace CppTools {
 class CppCodeStyleSettings;
 class CppCodeStylePreferences;
 
-class CPPTOOLS_EXPORT CppQtStyleIndenter : public TextEditor::Indenter
+class CPPTOOLS_EXPORT CppQtStyleIndenter : public TextEditor::TextIndenter
 {
 public:
-    CppQtStyleIndenter();
+    explicit CppQtStyleIndenter(QTextDocument *doc);
     ~CppQtStyleIndenter() override;
 
     bool isElectricCharacter(const QChar &ch) const override;
-    void indentBlock(QTextDocument *doc,
-                     const QTextBlock &block,
+    void indentBlock(const QTextBlock &block,
                      const QChar &typedChar,
-                     const TextEditor::TabSettings &tabSettings) override;
+                     const TextEditor::TabSettings &tabSettings,
+                     int cursorPositionInEditor = -1) override;
 
-    void indent(QTextDocument *doc,
-                const QTextCursor &cursor,
+    void indent(const QTextCursor &cursor,
                 const QChar &typedChar,
                 const TextEditor::TabSettings &tabSettings,
-                bool autoTriggered = true) override;
+                int cursorPositionInEditor = -1) override;
 
     void setCodeStylePreferences(TextEditor::ICodeStylePreferences *preferences) override;
-    void invalidateCache(QTextDocument *doc) override;
-    int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    void invalidateCache() override;
+    int indentFor(const QTextBlock &block,
+                  const TextEditor::TabSettings &tabSettings,
+                  int cursorPositionInEditor = -1) override;
     TextEditor::IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
-                                                         const TextEditor::TabSettings &tabSettings) override;
+                                                         const TextEditor::TabSettings &tabSettings,
+                                                         int cursorPositionInEditor = -1) override;
+
 private:
     CppCodeStyleSettings codeStyleSettings() const;
-    CppCodeStylePreferences *m_cppCodeStylePreferences;
+    CppCodeStylePreferences *m_cppCodeStylePreferences = nullptr;
 };
 
-} // CppTools
+} // namespace CppTools

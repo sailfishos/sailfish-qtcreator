@@ -42,8 +42,6 @@
 
 namespace LanguageServerProtocol {
 
-using LanguageClientNull = JsonObject;
-
 class LANGUAGESERVERPROTOCOL_EXPORT JsonRpcMessage : public IContent
 {
 public:
@@ -132,6 +130,40 @@ public:
     }
 };
 
+template <>
+class Notification<std::nullptr_t> : public JsonRpcMessage
+{
+public:
+    Notification() : Notification(QString()) {}
+    Notification(const QString &methodName, const std::nullptr_t &/*params*/ = nullptr)
+    {
+        setMethod(methodName);
+        setParams(nullptr);
+    }
+    using JsonRpcMessage::JsonRpcMessage;
+
+    QString method() const
+    { return fromJsonValue<QString>(m_jsonObject.value(methodKey)); }
+    void setMethod(const QString &method)
+    { m_jsonObject.insert(methodKey, method); }
+
+    Utils::optional<std::nullptr_t> params() const
+    { return nullptr; }
+    void setParams(const std::nullptr_t &/*params*/)
+    { m_jsonObject.insert(parametersKey, QJsonValue::Null); }
+    void clearParams() { m_jsonObject.remove(parametersKey); }
+
+    bool isValid(QString *errorMessage) const override
+    {
+        return JsonRpcMessage::isValid(errorMessage)
+               && m_jsonObject.value(methodKey).isString()
+               && parametersAreValid(errorMessage);
+    }
+
+    virtual bool parametersAreValid(QString * /*errorMessage*/) const
+    { return true; }
+};
+
 template <typename Error>
 class ResponseError : public JsonObject
 {
@@ -154,6 +186,8 @@ public:
                 && check<QString>(error, messageKey)
                 && checkOptional<Error>(error, dataKey);
     }
+
+    QString toString() const { return errorCodesToString(code()) + ": " + message(); }
 
     // predefined error codes
     enum ErrorCodes {
@@ -194,7 +228,7 @@ public:
 #undef CASE_ERRORCODES
 };
 
-template <typename Result, typename Error>
+template <typename Result, typename ErrorDataType>
 class Response : public JsonRpcMessage
 {
 public:
@@ -215,13 +249,14 @@ public:
     void setResult(const Result &result) { m_jsonObject.insert(resultKey, result); }
     void clearResult() { m_jsonObject.remove(resultKey); }
 
-    Utils::optional<ResponseError<Error>> error() const
+    using Error = ResponseError<ErrorDataType>;
+    Utils::optional<Error> error() const
     {
         const QJsonValue &val = m_jsonObject.value(errorKey);
         return val.isUndefined() ? Utils::nullopt
-                                 : Utils::make_optional(fromJsonValue<ResponseError<Error>>(val));
+                                 : Utils::make_optional(fromJsonValue<Error>(val));
     }
-    void setError(const ResponseError<Error> &error)
+    void setError(const Error &error)
     { m_jsonObject.insert(errorKey, QJsonValue(error)); }
     void clearError() { m_jsonObject.remove(errorKey); }
 
@@ -229,7 +264,7 @@ public:
     { return JsonRpcMessage::isValid(errorMessage) && id().isValid(); }
 };
 
-template <typename Result, typename Error, typename Params>
+template <typename Result, typename ErrorDataType, typename Params>
 class Request : public Notification<Params>
 {
 public:
@@ -245,7 +280,8 @@ public:
     void setId(const MessageId &id)
     { JsonRpcMessage::m_jsonObject.insert(idKey, id.toJson()); }
 
-    using ResponseCallback = std::function<void(Response<Result, Error>)>;
+    using Response = LanguageServerProtocol::Response<Result, ErrorDataType>;
+    using ResponseCallback = std::function<void(Response)>;
     void setResponseCallback(const ResponseCallback &callback)
     { m_callBack = callback; }
 
@@ -258,13 +294,13 @@ public:
             QString parseError;
             const QJsonObject &object =
                     JsonRpcMessageHandler::toJsonObject(content, codec, parseError);
-            Response<Result, Error> response(object);
+            Response response(object);
             if (object.isEmpty()) {
-                ResponseError<Error> error;
+                ResponseError<ErrorDataType> error;
                 error.setMessage(parseError);
-                response.setError(ResponseError<Error>());
+                response.setError(error);
             }
-            callback(Response<Result, Error>(object));
+            callback(Response(object));
         });
     }
 
@@ -319,8 +355,6 @@ template <typename Error>
 inline QDebug operator<<(QDebug stream,
                 const LanguageServerProtocol::ResponseError<Error> &error)
 {
-    stream.nospace() << LanguageServerProtocol::ResponseError<Error>::errorCodesToString(error.code())
-                     << ":"
-                     << error.message();
+    stream.nospace() << error.toString();
     return stream;
 }

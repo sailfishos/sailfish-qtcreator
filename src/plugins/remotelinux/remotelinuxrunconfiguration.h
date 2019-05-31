@@ -39,6 +39,9 @@ public:
     RemoteLinuxRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
     static const char *IdPrefix;
 
+protected:
+    ProjectExplorer::Runnable runnable() const override;
+
 private:
     void updateTargetInformation();
 };

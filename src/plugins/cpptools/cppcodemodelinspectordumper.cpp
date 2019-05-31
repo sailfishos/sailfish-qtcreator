@@ -103,9 +103,9 @@ QString Utils::toString(ProjectExplorer::HeaderPathType type)
     return QString();
 }
 
-QString Utils::toString(ProjectExplorer::LanguageVersion languageVersion)
+QString Utils::toString(::Utils::LanguageVersion languageVersion)
 {
-#define CASE_LANGUAGEVERSION(x) case ProjectExplorer::LanguageVersion::x: return QLatin1String(#x)
+#define CASE_LANGUAGEVERSION(x) case ::Utils::LanguageVersion::x: return QLatin1String(#x)
     switch (languageVersion) {
     CASE_LANGUAGEVERSION(C89);
     CASE_LANGUAGEVERSION(C99);
@@ -123,11 +123,11 @@ QString Utils::toString(ProjectExplorer::LanguageVersion languageVersion)
     return QString();
 }
 
-QString Utils::toString(ProjectExplorer::LanguageExtensions languageExtension)
+QString Utils::toString(::Utils::LanguageExtensions languageExtension)
 {
     QString result;
 
-#define CASE_LANGUAGE_EXTENSION(ext) if (languageExtension & ProjectExplorer::LanguageExtension::ext) \
+#define CASE_LANGUAGE_EXTENSION(ext) if (languageExtension & ::Utils::LanguageExtension::ext) \
     result += QLatin1String(#ext ", ");
 
     CASE_LANGUAGE_EXTENSION(None);
@@ -505,6 +505,7 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
             m_out << i3 << "Project Part Name    : " << part->displayName << "\n";
             m_out << i3 << "Project Name         : " << projectName << "\n";
             m_out << i3 << "Project File         : " << projectFilePath << "\n";
+            m_out << i3 << "Compiler Flags       : " << part->compilerFlags.join(", ") << "\n";
             m_out << i3 << "Selected For Building: " << part->selectedForBuilding << "\n";
             m_out << i3 << "Build Target Type    : " << Utils::toString(part->buildTargetType) << "\n";
             m_out << i3 << "Lanugage Version     : " << Utils::toString(part->languageVersion)<<"\n";
@@ -515,8 +516,10 @@ void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
             if (!part->files.isEmpty()) {
                 m_out << i3 << "Files:{{{4\n";
                 foreach (const ProjectFile &projectFile, part->files) {
-                    m_out << i4 << Utils::toString(projectFile.kind) << ": " << projectFile.path
-                          << "\n";
+                    m_out << i4 << Utils::toString(projectFile.kind) << ": " << projectFile.path;
+                    if (!projectFile.active)
+                        m_out << " (inactive)";
+                    m_out << "\n";
                 }
             }
 
@@ -662,8 +665,8 @@ void Dumper::dumpDocuments(const QList<CPlusPlus::Document::Ptr> &documents, boo
         if (!diagnosticMessages.isEmpty()) {
             m_out << i3 << "Diagnostic Messages:{{{4\n";
             foreach (const CPlusPlus::Document::DiagnosticMessage &msg, diagnosticMessages) {
-                const CPlusPlus::Document::DiagnosticMessage::Level level
-                        = static_cast<CPlusPlus::Document::DiagnosticMessage::Level>(msg.level());
+                const auto level =
+                    static_cast<CPlusPlus::Document::DiagnosticMessage::Level>(msg.level());
                 m_out << i4 << "at " << msg.line() << ":" << msg.column() << ", " << Utils::toString(level)
                       << ": " << msg.text() << "\n";
             }

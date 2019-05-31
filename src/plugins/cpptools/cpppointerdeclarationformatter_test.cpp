@@ -91,7 +91,7 @@ public:
 
         // Preprocess source
         Environment env;
-        Preprocessor preprocess(0, &env);
+        Preprocessor preprocess(nullptr, &env);
         const QByteArray preprocessedSource = preprocess.run(filePath, sourceWithoutCursorMarker);
 
         Document::Ptr document = Document::create(filePath);
@@ -122,7 +122,7 @@ public:
         Overview overview;
         overview.showReturnTypes = true;
         overview.showArgumentNames = true;
-        overview.starBindFlags = Overview::StarBindFlags(0);
+        overview.starBindFlags = Overview::StarBindFlags(nullptr);
 
         // Run the formatter
         PointerDeclarationFormatter formatter(cppRefactoringFile, overview, cursorHandling);
@@ -490,7 +490,7 @@ void CppToolsPlugin::test_format_pointerdeclaration_multiple_declarators_data()
 
     QTest::newRow("function-pointer_in-start")
         << "char *s, @*(*foo)(char *s) = 0;"
-        << "char *s, *(*foo)(char * s) = 0;";
+        << "char *s, * (*foo)(char * s) = 0;";
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_multiple_matches()
@@ -534,8 +534,8 @@ void CppToolsPlugin::test_format_pointerdeclaration_multiple_matches_data()
         << "int g() { for (char * s; char * t = 0; s++) { char * u = 0; } }";
 
     QTest::newRow("multiple-declarators")
-        << "const char c, *s, *(*foo)(char *s) = 0;"
-        << "const char c, * s, *(*foo)(char * s) = 0;";
+        << "const char c, *s, * (*foo)(char *s) = 0;"
+        << "const char c, * s, * (*foo)(char * s) = 0;";
 
     QTest::newRow("complex")
         <<
@@ -568,7 +568,7 @@ void CppToolsPlugin::test_format_pointerdeclaration_multiple_matches_data()
            "    int (*bar)[] = 0;\n"
            "\n"
            "    char * s = 0, * f(int i) = 0;\n"
-           "    const char c, * s, *(*foo)(char * s) = 0;"
+           "    const char c, * s, * (*foo)(char * s) = 0;"
            "\n"
            "    for (char * s; char * t = 0; s++) { char * u = 0; }"
            "\n"

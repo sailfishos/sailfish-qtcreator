@@ -36,20 +36,14 @@ class GdbServerProvider;
 class BareMetalDevice : public ProjectExplorer::IDevice
 {
 public:
-    typedef QSharedPointer<BareMetalDevice> Ptr;
-    typedef QSharedPointer<const BareMetalDevice> ConstPtr;
+    using Ptr = QSharedPointer<BareMetalDevice>;
+    using ConstPtr = QSharedPointer<const BareMetalDevice>;
 
-    static Ptr create();
-    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
-                      Origin origin = ManuallyAdded, Core::Id id = Core::Id());
-    static Ptr create(const BareMetalDevice &other);
+    static Ptr create() { return Ptr(new BareMetalDevice); }
+    ~BareMetalDevice() override;
 
-    ~BareMetalDevice();
     QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
     Utils::OsType osType() const override;
     ProjectExplorer::IDevice::Ptr clone() const override;
 
@@ -63,16 +57,13 @@ public:
     void unregisterProvider(GdbServerProvider *provider);
     void providerUpdated(GdbServerProvider *provider);
 
-    virtual void fromMap(const QVariantMap &map) override;
-    virtual QVariantMap toMap() const override;
-
-protected:
-    BareMetalDevice() {}
-    BareMetalDevice(const QString &name, Core::Id type,
-                    MachineType machineType, Origin origin, Core::Id id);
-    BareMetalDevice(const BareMetalDevice &other);
+    void fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
 private:
+    BareMetalDevice() = default;
+    BareMetalDevice(const BareMetalDevice &other);
+
     void setChannelByServerProvider(GdbServerProvider *provider);
     BareMetalDevice &operator=(const BareMetalDevice &);
     QString m_gdbServerProviderId;

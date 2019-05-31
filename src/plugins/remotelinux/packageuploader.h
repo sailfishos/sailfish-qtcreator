@@ -26,7 +26,6 @@
 #pragma once
 
 #include <QObject>
-#include <QSharedPointer>
 #include <QString>
 
 #include <ssh/sftpdefs.h>
@@ -43,8 +42,8 @@ class PackageUploader : public QObject
 {
     Q_OBJECT
 public:
-    explicit PackageUploader(QObject *parent = 0);
-    ~PackageUploader();
+    explicit PackageUploader(QObject *parent = nullptr);
+    ~PackageUploader() override;
 
     // Connection has to be established already.
     void uploadPackage(QSsh::SshConnection *connection,
@@ -56,20 +55,15 @@ signals:
     void uploadFinished(const QString &errorMsg = QString());
 
 private:
-    enum State { InitializingSftp, Uploading, Inactive };
+    enum State { Uploading, Inactive };
 
     void handleConnectionFailure();
-    void handleSftpChannelInitialized();
-    void handleSftpChannelError(const QString &error);
-    void handleSftpJobFinished(QSsh::SftpJobId job, const QString &error);
-    void cleanup();
+    void handleUploadDone(const QString &error);
     void setState(State newState);
 
     State m_state;
     QSsh::SshConnection *m_connection;
-    QSharedPointer<QSsh::SftpChannel> m_uploader;
-    QString m_localFilePath;
-    QString m_remoteFilePath;
+    QSsh::SftpTransferPtr m_uploader;
 };
 
 } // namespace Internal

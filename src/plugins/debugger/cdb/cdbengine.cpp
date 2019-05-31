@@ -203,7 +203,7 @@ CdbEngine::CdbEngine() :
 
     connect(action(CreateFullBacktrace), &QAction::triggered,
             this, &CdbEngine::createFullBacktrace);
-    connect(&m_process, static_cast<void(QProcess::*)(int)>(&QProcess::finished),
+    connect(&m_process, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
             this, &CdbEngine::processFinished);
     connect(&m_process, &QProcess::errorOccurred, this, &CdbEngine::processError);
     connect(&m_process, &QProcess::readyReadStandardOutput,
@@ -310,7 +310,7 @@ static QStringList mergeEnvironment(QStringList runConfigEnvironment,
     // We do not assume someone sets _NT_DEBUGGER_EXTENSION_PATH in the run
     // config, just to make sure, delete any existing entries
     const QString cdbExtensionPathVariableAssign =
-            QLatin1String(cdbExtensionPathVariableC) + QLatin1Char('=');
+            QLatin1String(cdbExtensionPathVariableC) + '=';
     for (QStringList::iterator it = runConfigEnvironment.begin(); it != runConfigEnvironment.end() ; ) {
         if (it->startsWith(cdbExtensionPathVariableAssign)) {
             it = runConfigEnvironment.erase(it);
@@ -484,7 +484,7 @@ void CdbEngine::setupEngine()
     // Make sure that QTestLib uses OutputDebugString for logging.
     const QString qtLoggingToConsoleKey = QStringLiteral("QT_LOGGING_TO_CONSOLE");
     if (!sp.useTerminal && !inferiorEnvironment.hasKey(qtLoggingToConsoleKey))
-        inferiorEnvironment.set(qtLoggingToConsoleKey, QString(QLatin1Char('0')));
+        inferiorEnvironment.set(qtLoggingToConsoleKey, "0");
 
     m_process.setEnvironment(mergeEnvironment(inferiorEnvironment.toStringList(),
                                               extensionFi.absolutePath()));
@@ -524,14 +524,17 @@ void CdbEngine::handleInitialSessionIdle()
     // QmlCppEngine expects the QML engine to be connected before any breakpoints are hit
     // (attemptBreakpointSynchronization() will be directly called then)
     if (rp.breakOnMain) {
-        // FIXME:
-//        const BreakpointParameters bp(BreakpointAtMain);
-//        BreakpointModelId id(quint16(-1));
-//        QString function = cdbAddBreakpointCommand(bp, m_sourcePathMappings, id, true);
-//        runCommand({function, BuiltinCommand,
-//                    [this, id](const DebuggerResponse &r) { handleBreakInsert(r, id); }});
+        BreakpointParameters bp(BreakpointAtMain);
+        if (rp.startMode == StartInternal || rp.startMode == StartExternal) {
+            const QString &moduleFileName = Utils::FileName::fromString(rp.inferior.executable)
+                                                .fileName();
+            bp.module = moduleFileName.left(moduleFileName.indexOf('.'));
+        }
+        QString function = cdbAddBreakpointCommand(bp, m_sourcePathMappings);
+        runCommand({function, BuiltinCommand, [this](const DebuggerResponse &r) {
+                        handleBreakInsert(r, Breakpoint());
+                    }});
     }
-
     // Take ownership of the breakpoint. Requests insertion. TODO: Cpp only?
     BreakpointManager::claimBreakpointsForEngine(this);
     runCommand({".symopt+0x8000"}); // disable searching public symbol table - improving the symbol lookup speed
@@ -866,6 +869,7 @@ void CdbEngine::executeRunToLine(const ContextData &data)
 {
     // Add one-shot breakpoint
     BreakpointParameters bp;
+    bp.oneShot = true;
     if (data.address) {
         bp.type =BreakpointByAddress;
         bp.address = data.address;
@@ -875,7 +879,7 @@ void CdbEngine::executeRunToLine(const ContextData &data)
         bp.lineNumber = data.lineNumber;
     }
 
-    runCommand({cdbAddBreakpointCommand(bp, m_sourcePathMappings, {}, true), BuiltinCommand,
+    runCommand({cdbAddBreakpointCommand(bp, m_sourcePathMappings), BuiltinCommand,
                [this](const DebuggerResponse &r) { handleBreakInsert(r, Breakpoint()); }});
     continueInferior();
 }
@@ -885,7 +889,8 @@ void CdbEngine::executeRunToFunction(const QString &functionName)
     // Add one-shot breakpoint
     BreakpointParameters bp(BreakpointByFunction);
     bp.functionName = functionName;
-    runCommand({cdbAddBreakpointCommand(bp, m_sourcePathMappings, {}, true), BuiltinCommand,
+    bp.oneShot = true;
+    runCommand({cdbAddBreakpointCommand(bp, m_sourcePathMappings), BuiltinCommand,
                [this](const DebuggerResponse &r) { handleBreakInsert(r, Breakpoint()); }});
     continueInferior();
 }
@@ -1946,7 +1951,7 @@ void CdbEngine::handleBreakInsert(const DebuggerResponse &response, const Breakp
             functionName = functionName.mid(functionStart);
         sub->params.functionName = functionName;
         sub->displayName = bp->displayName() + '.' + QString::number(subBreakPointID);
-        runCommand({cdbAddBreakpointCommand(sub->params, m_sourcePathMappings, sub->responseId, false), NoFlags});
+        runCommand({cdbAddBreakpointCommand(sub->params, m_sourcePathMappings, sub->responseId), NoFlags});
     }
 }
 
@@ -1969,7 +1974,7 @@ void CdbEngine::ensureUsing32BitStackInWow64(const DebuggerResponse &response, c
 {
     // Parsing the header of the stack output to check which bitness
     // the cdb is currently using.
-    foreach (const QStringRef &line, response.data.data().splitRef(QLatin1Char('\n'))) {
+    foreach (const QStringRef &line, response.data.data().splitRef('\n')) {
         if (!line.startsWith("Child"))
             continue;
         if (line.startsWith("ChildEBP")) {
@@ -2245,7 +2250,7 @@ static inline bool checkCommandToken(const QString &tokenPrefix, const QString &
     if (!c.startsWith(tokenPrefix))
         return false;
     bool ok;
-    *token = c.mid(tokenPrefixSize, size - tokenPrefixSize - 1).toInt(&ok);
+    *token = c.midRef(tokenPrefixSize, size - tokenPrefixSize - 1).toInt(&ok);
     return ok;
 }
 
@@ -2266,19 +2271,19 @@ void CdbEngine::parseOutputLine(QString line)
         const int tokenPos = creatorExtPrefix.size() + 2;
         const int tokenEndPos = line.indexOf('|', tokenPos);
         QTC_ASSERT(tokenEndPos != -1, return);
-        const int token = line.mid(tokenPos, tokenEndPos - tokenPos).toInt();
+        const int token = line.midRef(tokenPos, tokenEndPos - tokenPos).toInt();
         // remainingChunks
         const int remainingChunksPos = tokenEndPos + 1;
         const int remainingChunksEndPos = line.indexOf('|', remainingChunksPos);
         QTC_ASSERT(remainingChunksEndPos != -1, return);
-        const int remainingChunks = line.mid(remainingChunksPos, remainingChunksEndPos - remainingChunksPos).toInt();
+        const int remainingChunks = line.midRef(remainingChunksPos, remainingChunksEndPos - remainingChunksPos).toInt();
         // const char 'serviceName'
         const int whatPos = remainingChunksEndPos + 1;
         const int whatEndPos = line.indexOf('|', whatPos);
         QTC_ASSERT(whatEndPos != -1, return);
         const QString what = line.mid(whatPos, whatEndPos - whatPos);
         // Build up buffer, call handler once last chunk was encountered
-        m_extensionMessageBuffer += line.mid(whatEndPos + 1);
+        m_extensionMessageBuffer += line.midRef(whatEndPos + 1);
         if (remainingChunks == 0) {
             handleExtensionMessage(type, token, what, m_extensionMessageBuffer);
             m_extensionMessageBuffer.clear();
@@ -2344,9 +2349,9 @@ void CdbEngine::parseOutputLine(QString line)
                 // for some incomprehensible reasons Microsoft cdb version 6.2 is newer than 6.12
                 m_autoBreakPointCorrection = major > 6 || (major == 6 && minor >= 2 && minor < 10);
                 showMessage(line, LogMisc);
-                showMessage(QString::fromLatin1("Using ")
+                showMessage("Using "
                             + QLatin1String(m_autoBreakPointCorrection ? "CDB " : "codemodel ")
-                            + QString::fromLatin1("based breakpoint correction."), LogMisc);
+                            + "based breakpoint correction.", LogMisc);
             }
         }
     } else if (line.startsWith("ModLoad: ")) {
@@ -2505,10 +2510,10 @@ void CdbEngine::insertBreakpoint(const Breakpoint &bp)
             && boolSetting(CdbBreakPointCorrection)) {
         response.lineNumber = int(lineCorrection->fixLineNumber(
                                       parameters.fileName, unsigned(parameters.lineNumber)));
-        QString cmd = cdbAddBreakpointCommand(response, m_sourcePathMappings, responseId, false);
+        QString cmd = cdbAddBreakpointCommand(response, m_sourcePathMappings, responseId);
         runCommand({cmd, BuiltinCommand, handleBreakInsertCB});
     } else {
-        QString cmd = cdbAddBreakpointCommand(parameters, m_sourcePathMappings, responseId, false);
+        QString cmd = cdbAddBreakpointCommand(parameters, m_sourcePathMappings, responseId);
         runCommand({cmd, BuiltinCommand, handleBreakInsertCB});
     }
     if (!parameters.enabled)
@@ -2563,7 +2568,7 @@ void CdbEngine::updateBreakpoint(const Breakpoint &bp)
     } else {
         // Delete and re-add, triggering update
         runCommand({cdbClearBreakpointCommand(bp), NoFlags});
-        QString cmd = cdbAddBreakpointCommand(parameters, m_sourcePathMappings, responseId, false);
+        QString cmd = cdbAddBreakpointCommand(parameters, m_sourcePathMappings, responseId);
         runCommand({cmd, BuiltinCommand, handleBreakInsertCB});
         m_pendingBreakpointMap.insert(bp);
         listBreakpoints();
@@ -2736,8 +2741,8 @@ void CdbEngine::setupScripting(const DebuggerResponse &response)
     }
 
     const QString &verOutput = data.childAt(0).data();
-    const QString firstToken = verOutput.split(QLatin1Char(' ')).constFirst();
-    const QVector<QStringRef> pythonVersion = firstToken.splitRef(QLatin1Char('.'));
+    const QString firstToken = verOutput.split(' ').constFirst();
+    const QVector<QStringRef> pythonVersion = firstToken.splitRef('.');
 
     bool ok = false;
     if (pythonVersion.size() == 3) {
@@ -2763,10 +2768,6 @@ void CdbEngine::setupScripting(const DebuggerResponse &response)
     runCommand({"from cdbbridge import Dumper", ScriptCommand});
     runCommand({"print(dir())", ScriptCommand});
     runCommand({"theDumper = Dumper()", ScriptCommand});
-    runCommand({"theDumper.loadDumpers(None)", ScriptCommand,
-                [this](const DebuggerResponse &response) {
-                    watchHandler()->addDumpers(response.data["result"]["dumpers"]);
-    }});
 
     const QString path = stringSetting(ExtraDumperFile);
     if (!path.isEmpty() && QFileInfo(path).isReadable()) {
@@ -2776,9 +2777,14 @@ void CdbEngine::setupScripting(const DebuggerResponse &response)
     }
     const QString commands = stringSetting(ExtraDumperCommands);
     if (!commands.isEmpty()) {
-        for (auto command : commands.split('\n', QString::SkipEmptyParts))
+        for (const auto &command : commands.split('\n', QString::SkipEmptyParts))
             runCommand({command, ScriptCommand});
     }
+
+    runCommand({"theDumper.loadDumpers(None)", ScriptCommand,
+                [this](const DebuggerResponse &response) {
+                    watchHandler()->addDumpers(response.data["result"]["dumpers"]);
+    }});
 }
 
 void CdbEngine::mergeStartParametersSourcePathMap()
@@ -2843,7 +2849,7 @@ void CdbEngine::handleWidgetAt(const DebuggerResponse &response)
             break;
         }
         // 0x000 -> nothing found
-        if (!watchExp.mid(sepPos + 1).toULongLong(nullptr, 0)) {
+        if (!watchExp.midRef(sepPos + 1).toULongLong(nullptr, 0)) {
             message = QString("No widget could be found at %1, %2.").arg(m_watchPointX).arg(m_watchPointY);
             break;
         }

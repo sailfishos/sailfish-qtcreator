@@ -28,69 +28,26 @@
 
 #include "iosconstants.h"
 
-#include <utils/icon.h>
-
-#include <QIcon>
-
 namespace Ios {
 namespace Internal {
 
 IosDeviceFactory::IosDeviceFactory()
+    : ProjectExplorer::IDeviceFactory(Constants::IOS_DEVICE_ID)
 {
     setObjectName(QLatin1String("IosDeviceFactory"));
-}
-
-QString IosDeviceFactory::displayNameForId(Core::Id type) const
-{
-    return type == Constants::IOS_DEVICE_TYPE ? IosDevice::name() : QString();
-}
-
-QList<Core::Id> IosDeviceFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::IOS_DEVICE_TYPE);
-}
-
-QIcon IosDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    static const QIcon icon =
-            Icon::combinedIcon({Icon({{":/ios/images/iosdevicesmall.png",
-                                       Theme::PanelTextColorDark}}, Icon::Tint),
-                                Icon({{":/ios/images/iosdevice.png",
-                                       Theme::IconsBaseColor}})});
-    return icon;
-}
-
-bool IosDeviceFactory::canCreate() const
-{
-    return false;
-}
-
-ProjectExplorer::IDevice::Ptr IosDeviceFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id)
-    return ProjectExplorer::IDevice::Ptr();
+    setDisplayName(IosDevice::name());
+    setCombinedIcon(":/ios/images/iosdevicesmall.png",
+                     ":/ios/images/iosdevice.png");
+    setConstructionFunction([] { return ProjectExplorer::IDevice::Ptr(new IosDevice); });
 }
 
 bool IosDeviceFactory::canRestore(const QVariantMap &map) const
 {
-    if (ProjectExplorer::IDevice::typeFromMap(map) != Constants::IOS_DEVICE_TYPE)
-        return false;
     QVariantMap vMap = map.value(QLatin1String(Constants::EXTRA_INFO_KEY)).toMap();
     if (vMap.isEmpty()
             || vMap.value(QLatin1String("deviceName")).toString() == QLatin1String("*unknown*"))
         return false; // transient device (probably generated during an activation)
     return true;
-}
-
-ProjectExplorer::IDevice::Ptr IosDeviceFactory::restore(const QVariantMap &map) const
-{
-    IosDevice *newDev = new IosDevice;
-    newDev->fromMap(map);
-    // updating the active ones should be enough...
-    //IosDeviceManager::instance()->updateInfo(newDev->uniqueDeviceID());
-    return ProjectExplorer::IDevice::Ptr(newDev);
 }
 
 } // namespace Internal

@@ -32,7 +32,7 @@
 #include <coreplugin/messagemanager.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <qtsupport/qtversionmanager.h>
-#include <utils/icon.h>
+
 #include <utils/qtcassert.h>
 
 #include <QFileInfo>
@@ -50,7 +50,8 @@ Q_LOGGING_CATEGORY(winrtDeviceLog, "qtc.winrt.deviceParser", QtWarningMsg)
 namespace WinRt {
 namespace Internal {
 
-WinRtDeviceFactory::WinRtDeviceFactory()
+WinRtDeviceFactory::WinRtDeviceFactory(Core::Id deviceType)
+    : ProjectExplorer::IDeviceFactory(deviceType)
 {
     if (allPrerequisitesLoaded()) {
         onPrerequisitesLoaded();
@@ -61,48 +62,10 @@ WinRtDeviceFactory::WinRtDeviceFactory()
                 &QtVersionManager::qtVersionsLoaded,
                 this, &WinRtDeviceFactory::onPrerequisitesLoaded, Qt::QueuedConnection);
     }
-}
-
-QString WinRtDeviceFactory::displayNameForId(Core::Id type) const
-{
-    return WinRtDevice::displayNameForType(type);
-}
-
-QList<Core::Id> WinRtDeviceFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Constants::WINRT_DEVICE_TYPE_LOCAL
-                             << Constants::WINRT_DEVICE_TYPE_PHONE
-                             << Constants::WINRT_DEVICE_TYPE_EMULATOR;
-}
-
-QIcon WinRtDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    return Icon::combinedIcon({Icon({{":/winrt/images/winrtdevicesmall.png",
-                                      Theme::PanelTextColorDark}}, Icon::Tint),
-                               Icon({{":/winrt/images/winrtdevice.png",
-                                      Theme::IconsBaseColor}})});
-}
-
-IDevice::Ptr WinRtDeviceFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id);
-    QTC_CHECK(false);
-    return IDevice::Ptr();
-}
-
-bool WinRtDeviceFactory::canRestore(const QVariantMap &map) const
-{
-    return availableCreationIds().contains(IDevice::typeFromMap(map));
-}
-
-IDevice::Ptr WinRtDeviceFactory::restore(const QVariantMap &map) const
-{
-    qCDebug(winrtDeviceLog) << __FUNCTION__;
-    const IDevice::Ptr device(new WinRtDevice);
-    device->fromMap(map);
-    return device;
+    setDisplayName(WinRtDevice::displayNameForType(deviceType));
+    setConstructionFunction(&WinRtDevice::create);
+    setCombinedIcon(":/winrt/images/winrtdevicesmall.png",
+                    ":/winrt/images/winrtdevice.png");
 }
 
 void WinRtDeviceFactory::autoDetect()
@@ -318,8 +281,11 @@ void WinRtDeviceFactory::parseRunnerOutput(const QByteArray &output) const
                 continue;
             }
 
-            WinRtDevice *device = new WinRtDevice(deviceType, machineType,
-                                                  internalId, deviceId);
+            auto device = WinRtDevice::create();
+            device->setupId(IDevice::AutoDetected, internalId);
+            device->setDeviceId(deviceId);
+            device->setType(deviceType);
+            device->setMachineType(machineType);
             device->setDisplayName(name);
             deviceManager->addDevice(ProjectExplorer::IDevice::ConstPtr(device));
             qCDebug(winrtDeviceLog) << __FUNCTION__ << "Added device" << name << "(internal name:"

@@ -35,6 +35,7 @@
 
 #include <QSysInfo>
 #include <QApplication>
+#include <QStandardPaths>
 
 /*!
     \namespace Core
@@ -439,6 +440,11 @@ QString ICore::userResourcePath()
     return urp;
 }
 
+QString ICore::cacheResourcePath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+}
+
 QString ICore::installerResourcePath()
 {
     return QFileInfo(settings(QSettings::SystemScope)->fileName()).path() + '/'
@@ -502,9 +508,9 @@ QString ICore::versionString()
 {
     QString ideVersionDescription;
     if (QLatin1String(Constants::IDE_VERSION_LONG) != QLatin1String(Constants::IDE_VERSION_DISPLAY))
-        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_DISPLAY));
+        ideVersionDescription = tr(" (%1)").arg(QLatin1String(Constants::IDE_VERSION_LONG));
     return tr("%1 %2%3").arg(QLatin1String(Constants::IDE_DISPLAY_NAME),
-                             QLatin1String(Constants::IDE_VERSION_LONG),
+                             QLatin1String(Constants::IDE_VERSION_DISPLAY),
                              ideVersionDescription);
 }
 

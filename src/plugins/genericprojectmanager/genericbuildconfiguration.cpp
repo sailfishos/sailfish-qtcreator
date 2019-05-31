@@ -58,7 +58,7 @@ GenericBuildConfiguration::GenericBuildConfiguration(Target *parent, Core::Id id
     updateCacheAndEmitEnvironmentChanged();
 }
 
-void GenericBuildConfiguration::initialize(const BuildInfo *info)
+void GenericBuildConfiguration::initialize(const BuildInfo &info)
 {
     BuildConfiguration::initialize(info);
 
@@ -89,32 +89,28 @@ GenericBuildConfigurationFactory::GenericBuildConfigurationFactory()
     setSupportedProjectMimeTypeName(Constants::GENERICMIMETYPE);
 }
 
-GenericBuildConfigurationFactory::~GenericBuildConfigurationFactory()
-{
-}
+GenericBuildConfigurationFactory::~GenericBuildConfigurationFactory() = default;
 
-QList<BuildInfo *> GenericBuildConfigurationFactory::availableBuilds(const Target *parent) const
+QList<BuildInfo> GenericBuildConfigurationFactory::availableBuilds(const Target *parent) const
 {
     return {createBuildInfo(parent->kit(), parent->project()->projectDirectory())};
 }
 
-QList<BuildInfo *> GenericBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
+QList<BuildInfo> GenericBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
 {
-    QList<BuildInfo *> result;
-    BuildInfo *info = createBuildInfo(k, Project::projectDirectory(Utils::FileName::fromString(projectPath)));
+    BuildInfo info = createBuildInfo(k, Project::projectDirectory(Utils::FileName::fromString(projectPath)));
     //: The name of the build configuration created by default for a generic project.
-    info->displayName = tr("Default");
-    result << info;
-    return result;
+    info.displayName = tr("Default");
+    return {info};
 }
 
-BuildInfo *GenericBuildConfigurationFactory::createBuildInfo(const Kit *k,
-                                                             const Utils::FileName &buildDir) const
+BuildInfo GenericBuildConfigurationFactory::createBuildInfo(const Kit *k,
+                                                            const Utils::FileName &buildDir) const
 {
-    auto info = new BuildInfo(this);
-    info->typeName = tr("Build");
-    info->buildDirectory = buildDir;
-    info->kitId = k->id();
+    BuildInfo info(this);
+    info.typeName = tr("Build");
+    info.buildDirectory = buildDir;
+    info.kitId = k->id();
     return info;
 }
 
@@ -136,7 +132,7 @@ void GenericBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 ////////////////////////////////////////////////////////////////////////////////////
 
 GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericBuildConfiguration *bc)
-    : m_buildConfiguration(0)
+    : m_buildConfiguration(nullptr)
 {
     auto fl = new QFormLayout(this);
     fl->setContentsMargins(0, -1, 0, -1);

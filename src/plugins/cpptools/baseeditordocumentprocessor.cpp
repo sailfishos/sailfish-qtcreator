@@ -52,9 +52,7 @@ BaseEditorDocumentProcessor::BaseEditorDocumentProcessor(QTextDocument *textDocu
 {
 }
 
-BaseEditorDocumentProcessor::~BaseEditorDocumentProcessor()
-{
-}
+BaseEditorDocumentProcessor::~BaseEditorDocumentProcessor() = default;
 
 void BaseEditorDocumentProcessor::run(bool projectsUpdated)
 {
@@ -74,15 +72,6 @@ BaseEditorDocumentProcessor::extraRefactoringOperations(const TextEditor::Assist
     return TextEditor::QuickFixOperations();
 }
 
-bool BaseEditorDocumentProcessor::hasDiagnosticsAt(uint, uint) const
-{
-    return false;
-}
-
-void BaseEditorDocumentProcessor::addDiagnosticToolTipToLayout(uint, uint, QLayout *) const
-{
-}
-
 void BaseEditorDocumentProcessor::editorDocumentTimerRestarted()
 {
 }
@@ -92,7 +81,7 @@ void BaseEditorDocumentProcessor::invalidateDiagnostics()
 }
 
 void BaseEditorDocumentProcessor::setParserConfig(
-        const BaseEditorDocumentParser::Configuration config)
+        const BaseEditorDocumentParser::Configuration &config)
 {
     parser()->setConfiguration(config);
 }

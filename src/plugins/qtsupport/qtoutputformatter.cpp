@@ -31,11 +31,12 @@
 #include <utils/algorithm.h>
 #include <utils/ansiescapecodehandler.h>
 #include <utils/fileinprojectfinder.h>
+#include <utils/hostosinfo.h>
 #include <utils/theme/theme.h>
 
 #include <QPlainTextEdit>
 #include <QPointer>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QTextCursor>
 #include <QUrl>
 
@@ -44,44 +45,35 @@ using namespace Utils;
 
 namespace QtSupport {
 
-// Prefix added by the default QT_MESSAGE_PATTERN on Sailfish
-#define SAILFISH_PREFIX_REGEXP \
-    "(?:\\[[DIWCF]\\] [^\\s]+ - )"
-
-// "file" or "qrc", colon, optional '//', '/' and further characters
-#define QML_URL_REGEXP \
-    "(?:file|qrc):(?://)?/.+"
-
 namespace Internal {
 
 class QtOutputFormatterPrivate
 {
 public:
     QtOutputFormatterPrivate(Project *proj)
-        : qmlError(QLatin1String("^" SAILFISH_PREFIX_REGEXP "(" QML_URL_REGEXP    // url
-                                  ":\\d+"           // colon, line
-                                  "(?::\\d+)?)"     // colon, column (optional)
-                                  "[: \t)]"))       // colon, space, tab or brace
-        , qtError(QLatin1String("Object::.*in (.*:\\d+)"))
-        , qtAssert(QLatin1String("ASSERT: .* in file (.+, line \\d+)"))
-        , qtAssertX(QLatin1String("ASSERT failure in .*: \".*\", file (.+, line \\d+)"))
-        , qtTestFailUnix(QLatin1String("^   Loc: \\[(.*)\\]"))
-        , qtTestFailWin(QLatin1String("^(.*\\(\\d+\\)) : failure location\\s*$"))
+        : qmlError("(" QT_QML_URL_REGEXP  // url
+                   ":\\d+"              // colon, line
+                   "(?::\\d+)?)"        // colon, column (optional)
+                   "\\b")               // word boundary
+        , qtError("Object::.*in (.*:\\d+)")
+        , qtAssert(QT_ASSERT_REGEXP)
+        , qtAssertX(QT_ASSERT_X_REGEXP)
+        , qtTestFailUnix(QT_TEST_FAIL_UNIX_REGEXP)
+        , qtTestFailWin(QT_TEST_FAIL_WIN_REGEXP)
         , project(proj)
     {
-        qmlError.setMinimal(true);
     }
 
     ~QtOutputFormatterPrivate()
     {
     }
 
-    QRegExp qmlError;
-    QRegExp qtError;
-    QRegExp qtAssert;
-    QRegExp qtAssertX;
-    QRegExp qtTestFailUnix;
-    QRegExp qtTestFailWin;
+    const QRegularExpression qmlError;
+    const QRegularExpression qtError;
+    const QRegularExpression qtAssert;
+    const QRegularExpression qtAssertX;
+    const QRegularExpression qtTestFailUnix;
+    const QRegularExpression qtTestFailWin;
     QPointer<Project> project;
     QString lastLine;
     FileInProjectFinder projectFinder;
@@ -110,34 +102,31 @@ QtOutputFormatter::~QtOutputFormatter()
 LinkResult QtOutputFormatter::matchLine(const QString &line) const
 {
     LinkResult lr;
-    lr.start = -1;
-    lr.end = -1;
 
-    if (d->qmlError.indexIn(line) != -1) {
-        lr.href = d->qmlError.cap(1);
-        lr.start = d->qmlError.pos(1);
+    auto hasMatch = [&lr, line](const QRegularExpression &regex) {
+        const QRegularExpressionMatch match = regex.match(line);
+        if (!match.hasMatch())
+            return false;
+
+        lr.href = match.captured(1);
+        lr.start = match.capturedStart(1);
         lr.end = lr.start + lr.href.length();
-    } else if (d->qtError.indexIn(line) != -1) {
-        lr.href = d->qtError.cap(1);
-        lr.start = d->qtError.pos(1);
-        lr.end = lr.start + lr.href.length();
-    } else if (d->qtAssert.indexIn(line) != -1) {
-        lr.href = d->qtAssert.cap(1);
-        lr.start = d->qtAssert.pos(1);
-        lr.end = lr.start + lr.href.length();
-    } else if (d->qtAssertX.indexIn(line) != -1) {
-        lr.href = d->qtAssertX.cap(1);
-        lr.start = d->qtAssertX.pos(1);
-        lr.end = lr.start + lr.href.length();
-    } else if (d->qtTestFailUnix.indexIn(line) != -1) {
-        lr.href = d->qtTestFailUnix.cap(1);
-        lr.start = d->qtTestFailUnix.pos(1);
-        lr.end = lr.start + lr.href.length();
-    } else if (d->qtTestFailWin.indexIn(line) != -1) {
-        lr.href = d->qtTestFailWin.cap(1);
-        lr.start = d->qtTestFailWin.pos(1);
-        lr.end = lr.start + lr.href.length();
-    }
+        return true;
+    };
+
+    if (hasMatch(d->qmlError))
+        return lr;
+    if (hasMatch(d->qtError))
+        return lr;
+    if (hasMatch(d->qtAssert))
+        return lr;
+    if (hasMatch(d->qtAssertX))
+        return lr;
+    if (hasMatch(d->qtTestFailUnix))
+        return lr;
+    if (hasMatch(d->qtTestFailWin))
+        return lr;
+
     return lr;
 }
 
@@ -146,25 +135,24 @@ void QtOutputFormatter::appendMessage(const QString &txt, OutputFormat format)
     appendMessage(txt, charFormat(format));
 }
 
-void QtOutputFormatter::appendMessagePart(QTextCursor &cursor, const QString &txt,
-                                          const QTextCharFormat &format)
+void QtOutputFormatter::appendMessagePart(const QString &txt, const QTextCharFormat &format)
 {
     QString deferredText;
 
     const int length = txt.length();
     for (int start = 0, pos = -1; start < length; start = pos + 1) {
-        pos = txt.indexOf(QLatin1Char('\n'), start);
+        pos = txt.indexOf('\n', start);
         const QString newPart = txt.mid(start, (pos == -1) ? -1 : pos - start + 1);
         const QString line = d->lastLine + newPart;
 
         LinkResult lr = matchLine(line);
         if (!lr.href.isEmpty()) {
             // Found something && line continuation
-            cursor.insertText(deferredText, format);
+            d->cursor.insertText(deferredText, format);
             deferredText.clear();
             if (!d->lastLine.isEmpty())
                 clearLastLine();
-            appendLine(cursor, lr, line, format);
+            appendLine(lr, line, format);
         } else {
             // Found nothing, just emit the new part
             deferredText += newPart;
@@ -176,7 +164,7 @@ void QtOutputFormatter::appendMessagePart(QTextCursor &cursor, const QString &tx
         }
         d->lastLine.clear(); // Handled line continuation
     }
-    cursor.insertText(deferredText, format);
+    d->cursor.insertText(deferredText, format);
 }
 
 void QtOutputFormatter::appendMessage(const QString &txt, const QTextCharFormat &format)
@@ -185,16 +173,16 @@ void QtOutputFormatter::appendMessage(const QString &txt, const QTextCharFormat 
         d->cursor.movePosition(QTextCursor::End);
     d->cursor.beginEditBlock();
 
-    foreach (const FormattedText &output, parseAnsi(txt, format))
-        appendMessagePart(d->cursor, output.text, output.format);
+    const QList<FormattedText> ansiTextList = parseAnsi(txt, format);
+    for (const FormattedText &output : ansiTextList)
+        appendMessagePart(output.text, output.format);
 
     d->cursor.endEditBlock();
 }
 
-void QtOutputFormatter::appendLine(QTextCursor &cursor, const LinkResult &lr,
-                                   const QString &line, OutputFormat format)
+void QtOutputFormatter::appendLine(const LinkResult &lr, const QString &line, OutputFormat format)
 {
-    appendLine(cursor, lr, line, charFormat(format));
+    appendLine(lr, line, charFormat(format));
 }
 
 static QTextCharFormat linkFormat(const QTextCharFormat &inputFormat, const QString &href)
@@ -208,60 +196,65 @@ static QTextCharFormat linkFormat(const QTextCharFormat &inputFormat, const QStr
     return result;
 }
 
-void QtOutputFormatter::appendLine(QTextCursor &cursor, const LinkResult &lr,
-                                   const QString &line, const QTextCharFormat &format)
+void QtOutputFormatter::appendLine(const LinkResult &lr, const QString &line,
+                                   const QTextCharFormat &format)
 {
-    cursor.insertText(line.left(lr.start), format);
-    cursor.insertText(line.mid(lr.start, lr.end - lr.start), linkFormat(format, lr.href));
-    cursor.insertText(line.mid(lr.end), format);
+    d->cursor.insertText(line.left(lr.start), format);
+    d->cursor.insertText(line.mid(lr.start, lr.end - lr.start), linkFormat(format, lr.href));
+    d->cursor.insertText(line.mid(lr.end), format);
 }
 
 void QtOutputFormatter::handleLink(const QString &href)
 {
     if (!href.isEmpty()) {
-        QRegExp qmlLineColumnLink(QLatin1String("^(" QML_URL_REGEXP ")" // url
-                                                ":(\\d+)"               // line
-                                                ":(\\d+)$"));           // column
+        static const QRegularExpression qmlLineColumnLink("^(" QT_QML_URL_REGEXP ")" // url
+                                                          ":(\\d+)"                  // line
+                                                          ":(\\d+)$");               // column
+        const QRegularExpressionMatch qmlLineColumnMatch = qmlLineColumnLink.match(href);
 
-        if (qmlLineColumnLink.indexIn(href) != -1) {
-            const QUrl fileUrl = QUrl(qmlLineColumnLink.cap(1));
-            const int line = qmlLineColumnLink.cap(2).toInt();
-            const int column = qmlLineColumnLink.cap(3).toInt();
+        if (qmlLineColumnMatch.hasMatch()) {
+            const QUrl fileUrl = QUrl(qmlLineColumnMatch.captured(1));
+            const int line = qmlLineColumnMatch.captured(2).toInt();
+            const int column = qmlLineColumnMatch.captured(3).toInt();
 
             openEditor(d->projectFinder.findFile(fileUrl), line, column - 1);
 
             return;
         }
 
-        QRegExp qmlLineLink(QLatin1String("^(" QML_URL_REGEXP ")" // url
-                                          ":(\\d+)$"));  // line
+        static const QRegularExpression qmlLineLink("^(" QT_QML_URL_REGEXP ")" // url
+                                                    ":(\\d+)$");               // line
+        const QRegularExpressionMatch qmlLineMatch = qmlLineLink.match(href);
 
-        if (qmlLineLink.indexIn(href) != -1) {
-            const QUrl fileUrl = QUrl(qmlLineLink.cap(1));
-            const int line = qmlLineLink.cap(2).toInt();
-            openEditor(d->projectFinder.findFile(d->projectFinder.findFile(fileUrl)), line);
+        if (qmlLineMatch.hasMatch()) {
+            const QUrl fileUrl = QUrl(qmlLineMatch.captured(1));
+            const int line = qmlLineMatch.captured(2).toInt();
+            openEditor(d->projectFinder.findFile(fileUrl), line);
             return;
         }
 
         QString fileName;
         int line = -1;
 
-        QRegExp qtErrorLink(QLatin1String("^(.*):(\\d+)$"));
-        if (qtErrorLink.indexIn(href) != -1) {
-            fileName = qtErrorLink.cap(1);
-            line = qtErrorLink.cap(2).toInt();
+        static const QRegularExpression qtErrorLink("^(.*):(\\d+)$");
+        const QRegularExpressionMatch qtErrorMatch = qtErrorLink.match(href);
+        if (qtErrorMatch.hasMatch()) {
+            fileName = qtErrorMatch.captured(1);
+            line = qtErrorMatch.captured(2).toInt();
         }
 
-        QRegExp qtAssertLink(QLatin1String("^(.+), line (\\d+)$"));
-        if (qtAssertLink.indexIn(href) != -1) {
-            fileName = qtAssertLink.cap(1);
-            line = qtAssertLink.cap(2).toInt();
+        static const QRegularExpression qtAssertLink("^(.+), line (\\d+)$");
+        const QRegularExpressionMatch qtAssertMatch = qtAssertLink.match(href);
+        if (qtAssertMatch.hasMatch()) {
+            fileName = qtAssertMatch.captured(1);
+            line = qtAssertMatch.captured(2).toInt();
         }
 
-        QRegExp qtTestFailLink(QLatin1String("^(.*)\\((\\d+)\\)$"));
-        if (qtTestFailLink.indexIn(href) != -1) {
-            fileName = qtTestFailLink.cap(1);
-            line = qtTestFailLink.cap(2).toInt();
+        static const QRegularExpression qtTestFailLink("^(.*)\\((\\d+)\\)$");
+        const QRegularExpressionMatch qtTestFailMatch = qtTestFailLink.match(href);
+        if (qtTestFailMatch.hasMatch()) {
+            fileName = qtTestFailMatch.captured(1);
+            line = qtTestFailMatch.captured(2).toInt();
         }
 
         if (!fileName.isEmpty()) {
@@ -315,9 +308,7 @@ class TestQtOutputFormatter : public QtOutputFormatter
 {
 public:
     TestQtOutputFormatter() :
-        QtOutputFormatter(0),
-        line(-1),
-        column(-1)
+        QtOutputFormatter(nullptr)
     {
     }
 
@@ -330,8 +321,8 @@ public:
 
 public:
     QString fileName;
-    int line;
-    int column;
+    int line = -1;
+    int column = -1;
 };
 
 
@@ -350,57 +341,77 @@ void QtSupportPlugin::testQtOutputFormatter_data()
     QTest::addColumn<int>("column");
 
     QTest::newRow("pass through")
-            << QString::fromLatin1("Pass through plain text.")
+            << "Pass through plain text."
             << -1 << -1 << QString()
             << QString() << -1 << -1;
 
     QTest::newRow("qrc:/main.qml:20")
-            << QString::fromLatin1("qrc:/main.qml:20 Unexpected token `identifier'")
-            << 0 << 16 << QString::fromLatin1("qrc:/main.qml:20")
-            << QString::fromLatin1("/main.qml") << 20 << -1;
+            << "qrc:/main.qml:20 Unexpected token `identifier'"
+            << 0 << 16 << "qrc:/main.qml:20"
+            << "/main.qml" << 20 << -1;
 
     QTest::newRow("qrc:///main.qml:20")
-            << QString::fromLatin1("qrc:///main.qml:20 Unexpected token `identifier'")
-            << 0 << 18 << QString::fromLatin1("qrc:///main.qml:20")
-            << QString::fromLatin1("/main.qml") << 20 << -1;
+            << "qrc:///main.qml:20 Unexpected token `identifier'"
+            << 0 << 18 << "qrc:///main.qml:20"
+            << "/main.qml" << 20 << -1;
 
     QTest::newRow("onClicked (qrc:/main.qml:20)")
-            << QString::fromLatin1("onClicked (qrc:/main.qml:20)")
-            << 11 << 27 << QString::fromLatin1("qrc:/main.qml:20")
-            << QString::fromLatin1("/main.qml") << 20 << -1;
+            << "onClicked (qrc:/main.qml:20)"
+            << 11 << 27 << "qrc:/main.qml:20"
+            << "/main.qml" << 20 << -1;
 
     QTest::newRow("file:///main.qml:20")
-            << QString::fromLatin1("file:///main.qml:20 Unexpected token `identifier'")
-            << 0 << 19 << QString::fromLatin1("file:///main.qml:20")
-            << QString::fromLatin1("/main.qml") << 20 << -1;
+            << "file:///main.qml:20 Unexpected token `identifier'"
+            << 0 << 19 << "file:///main.qml:20"
+            << "/main.qml" << 20 << -1;
+
+    QTest::newRow("File link without further text")
+            << "file:///home/user/main.cpp:157"
+            << 0 << 30 << "file:///home/user/main.cpp:157"
+            << "/home/user/main.cpp" << 157 << -1;
+
+    QTest::newRow("File link with text before")
+            << "Text before: file:///home/user/main.cpp:157"
+            << 13 << 43 << "file:///home/user/main.cpp:157"
+            << "/home/user/main.cpp" << 157 << -1;
+
+    QTest::newRow("File link with text afterwards")
+            << "file:///home/user/main.cpp:157: Text afterwards"
+            << 0 << 30 << "file:///home/user/main.cpp:157"
+            << "/home/user/main.cpp" << 157 << -1;
+
+    QTest::newRow("File link with text before and afterwards")
+            << "Text before file:///home/user/main.cpp:157 and text afterwards"
+            << 12 << 42 << "file:///home/user/main.cpp:157"
+            << "/home/user/main.cpp" << 157 << -1;
 
     QTest::newRow("Unix file link with timestamp")
-            << QString::fromLatin1("file:///home/user/main.cpp:157 2018-03-21 10:54:45.706")
-            << 0 << 30 << QString::fromLatin1("file:///home/user/main.cpp:157")
-            << QString::fromLatin1("/home/user/main.cpp") << 157 << -1;
+            << "file:///home/user/main.cpp:157 2018-03-21 10:54:45.706"
+            << 0 << 30 << "file:///home/user/main.cpp:157"
+            << "/home/user/main.cpp" << 157 << -1;
 
     QTest::newRow("Windows file link with timestamp")
-            << QString::fromLatin1("file:///e:/path/main.cpp:157 2018-03-21 10:54:45.706")
-            << 0 << 28 << QString::fromLatin1("file:///e:/path/main.cpp:157")
+            << "file:///e:/path/main.cpp:157 2018-03-21 10:54:45.706"
+            << 0 << 28 << "file:///e:/path/main.cpp:157"
             << (Utils::HostOsInfo::isWindowsHost()
-                ? QString::fromLatin1("e:/path/main.cpp")
-                : QString::fromLatin1("/e:/path/main.cpp"))
+                ? "e:/path/main.cpp"
+                : "/e:/path/main.cpp")
             << 157 << -1;
 
     QTest::newRow("Unix failed QTest link")
-            << QString::fromLatin1("   Loc: [../TestProject/test.cpp(123)]")
-            << 9 << 37 << QString::fromLatin1("../TestProject/test.cpp(123)")
-            << QString::fromLatin1("../TestProject/test.cpp") << 123 << -1;
-
-    QTest::newRow("Windows failed QTest link")
-            << QString::fromLatin1("..\\TestProject\\test.cpp(123) : failure location")
-            << 0 << 28 << QString::fromLatin1("..\\TestProject\\test.cpp(123)")
-            << QString::fromLatin1("..\\TestProject\\test.cpp") << 123 << -1;
-
-    QTest::newRow("Windows failed QTest link with carriage return")
-            << QString::fromLatin1("..\\TestProject\\test.cpp(123) : failure location\r")
-            << 0 << 28 << QString::fromLatin1("..\\TestProject\\test.cpp(123)")
-            << QString::fromLatin1("..\\TestProject\\test.cpp") << 123 << -1;
+            << "   Loc: [../TestProject/test.cpp(123)]"
+            << 9 << 37 << "../TestProject/test.cpp(123)"
+            << "../TestProject/test.cpp" << 123 << -1;
+    if (HostOsInfo::isWindowsHost()) {
+        QTest::newRow("Windows failed QTest link")
+                << "..\\TestProject\\test.cpp(123) : failure location"
+                << 0 << 28 << "..\\TestProject\\test.cpp(123)"
+                << "../TestProject/test.cpp" << 123 << -1;
+        QTest::newRow("Windows failed QTest link with carriage return")
+                << "..\\TestProject\\test.cpp(123) : failure location\r"
+                << 0 << 28 << "..\\TestProject\\test.cpp(123)"
+                << "../TestProject/test.cpp" << 123 << -1;
+    }
 }
 
 void QtSupportPlugin::testQtOutputFormatter()
@@ -444,23 +455,23 @@ void QtSupportPlugin::testQtOutputFormatter_appendMessage_data()
     QTest::addColumn<QTextCharFormat>("outputFormat");
 
     QTest::newRow("pass through")
-            << QString::fromLatin1("test\n123")
-            << QString::fromLatin1("test\n123")
+            << "test\n123"
+            << "test\n123"
             << QTextCharFormat()
             << QTextCharFormat();
     QTest::newRow("Qt error")
-            << QString::fromLatin1("Object::Test in test.cpp:123")
-            << QString::fromLatin1("Object::Test in test.cpp:123")
+            << "Object::Test in test.cpp:123"
+            << "Object::Test in test.cpp:123"
             << QTextCharFormat()
-            << linkFormat(QTextCharFormat(), QLatin1String("test.cpp:123"));
+            << linkFormat(QTextCharFormat(), "test.cpp:123");
     QTest::newRow("colored")
-            << QString::fromLatin1("blue da ba dee")
-            << QString::fromLatin1("blue da ba dee")
+            << "blue da ba dee"
+            << "blue da ba dee"
             << blueFormat()
             << blueFormat();
     QTest::newRow("ANSI color change")
-            << QString::fromLatin1("\x1b[38;2;0;0;127mHello")
-            << QString::fromLatin1("Hello")
+            << "\x1b[38;2;0;0;127mHello"
+            << "Hello"
             << QTextCharFormat()
             << blueFormat();
 }
@@ -488,14 +499,14 @@ void QtSupportPlugin::testQtOutputFormatter_appendMixedAssertAndAnsi()
     TestQtOutputFormatter formatter;
     formatter.setPlainTextEdit(&edit);
 
-    const QString inputText = QString::fromLatin1(
+    const QString inputText =
                 "\x1b[38;2;0;0;127mHello\n"
                 "Object::Test in test.cpp:123\n"
-                "\x1b[38;2;0;0;127mHello\n");
-    const QString outputText = QString::fromLatin1(
+                "\x1b[38;2;0;0;127mHello\n";
+    const QString outputText =
                 "Hello\n"
                 "Object::Test in test.cpp:123\n"
-                "Hello\n");
+                "Hello\n";
 
     formatter.appendMessage(inputText, QTextCharFormat());
 
@@ -506,7 +517,7 @@ void QtSupportPlugin::testQtOutputFormatter_appendMixedAssertAndAnsi()
 
     edit.moveCursor(QTextCursor::Down);
     edit.moveCursor(QTextCursor::EndOfLine);
-    QCOMPARE(edit.currentCharFormat(), linkFormat(QTextCharFormat(), QLatin1String("test.cpp:123")));
+    QCOMPARE(edit.currentCharFormat(), linkFormat(QTextCharFormat(), "test.cpp:123"));
 
     edit.moveCursor(QTextCursor::End);
     QCOMPARE(edit.currentCharFormat(), blueFormat());

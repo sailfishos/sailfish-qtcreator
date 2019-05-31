@@ -28,8 +28,8 @@
 #include "cpptools_global.h"
 #include "projectpart.h"
 
-#include <projectexplorer/language.h>
 #include <projectexplorer/toolchain.h>
+#include <utils/cpplanguage_details.h>
 
 #include <functional>
 
@@ -46,59 +46,62 @@ public:
     QStringList commandLineFlags;
     // The following are deduced from commandLineFlags.
     ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
-    ProjectExplorer::LanguageExtensions languageExtensions = ProjectExplorer::LanguageExtension::None;
+    Utils::LanguageExtensions languageExtensions = Utils::LanguageExtension::None;
 };
 
 class CPPTOOLS_EXPORT RawProjectPart
 {
 public:
-    RawProjectPart() {}
-
     void setDisplayName(const QString &displayName);
-
-    // FileClassifier must be thread-safe.
-    using FileClassifier = std::function<ProjectFile::Kind (const QString &filePath)>;
-    void setFiles(const QStringList &files, FileClassifier fileClassifier = FileClassifier());
 
     void setProjectFileLocation(const QString &projectFile, int line = -1, int column = -1);
     void setConfigFileName(const QString &configFileName);
     void setCallGroupId(const QString &id);
-    void setBuildSystemTarget(const QString &target);
 
-    void setQtVersion(ProjectPart::QtVersion qtVersion);
-
-    void setMacros(const ProjectExplorer::Macros &macros);
+    // FileClassifier must be thread-safe.
+    using FileClassifier = std::function<ProjectFile(const QString &filePath)>;
+    void setFiles(const QStringList &files, const FileClassifier &fileClassifier = FileClassifier());
     void setHeaderPaths(const ProjectExplorer::HeaderPaths &headerPaths);
     void setIncludePaths(const QStringList &includePaths);
-
     void setPreCompiledHeaders(const QStringList &preCompiledHeaders);
 
+    void setBuildSystemTarget(const QString &target);
+    void setBuildTargetType(ProjectPart::BuildTargetType type);
     void setSelectedForBuilding(bool yesno);
 
     void setFlagsForC(const RawProjectPartFlags &flags);
     void setFlagsForCxx(const RawProjectPartFlags &flags);
 
-    void setBuildTargetType(ProjectPart::BuildTargetType type);
+    void setMacros(const ProjectExplorer::Macros &macros);
+    void setQtVersion(ProjectPart::QtVersion qtVersion);
+
 public:
     QString displayName;
+
     QString projectFile;
     int projectFileLine = -1;
     int projectFileColumn = -1;
-    QString projectConfigFile; // currently only used by the Generic Project Manager
     QString callGroupId;
-    QString buildSystemTarget;
+
+    // Files
+    QStringList files;
+    FileClassifier fileClassifier;
     QStringList precompiledHeaders;
     ProjectExplorer::HeaderPaths headerPaths;
-    ProjectExplorer::Macros projectMacros;
-    ProjectPart::QtVersion qtVersion = ProjectPart::UnknownQt;
+    QString projectConfigFile; // Generic Project Manager only
+
+    // Build system
+    QString buildSystemTarget;
+    ProjectPart::BuildTargetType buildTargetType = ProjectPart::BuildTargetType::Unknown;
     bool selectedForBuilding = true;
 
+    // Flags
     RawProjectPartFlags flagsForC;
     RawProjectPartFlags flagsForCxx;
 
-    QStringList files;
-    FileClassifier fileClassifier;
-    ProjectPart::BuildTargetType buildTargetType = ProjectPart::BuildTargetType::Unknown;
+    // Misc
+    ProjectExplorer::Macros projectMacros;
+    ProjectPart::QtVersion qtVersion = ProjectPart::UnknownQt;
 };
 
 using RawProjectParts = QVector<RawProjectPart>;

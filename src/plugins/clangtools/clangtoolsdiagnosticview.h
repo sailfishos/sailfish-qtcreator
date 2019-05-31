@@ -27,30 +27,42 @@
 
 #include <debugger/analyzer/detailederrorview.h>
 
+#include <memory>
+
 namespace ClangTools {
 namespace Internal {
+
+class DiagnosticViewStyle;
+class DiagnosticViewDelegate;
 
 class DiagnosticView : public Debugger::DetailedErrorView
 {
     Q_OBJECT
 
 public:
-    DiagnosticView(QWidget *parent = 0);
-
-    enum ExtraColumn {
-        FixItColumn = LocationColumn + 1,
-    };
+    DiagnosticView(QWidget *parent = nullptr);
+    ~DiagnosticView() override;
 
     void setSelectedFixItsCount(int fixItsCount);
 
 private:
+    void openEditorForCurrentIndex();
     void suppressCurrentDiagnostic();
 
-    QList<QAction *> customActions() const;
+    void goNext() override;
+    void goBack() override;
+    enum Direction { Next = 1, Previous = -1 };
+    QModelIndex getIndex(const QModelIndex &index, Direction direction) const;
+    QModelIndex getTopLevelIndex(const QModelIndex &index, Direction direction) const;
+
+    QList<QAction *> customActions() const override;
     bool eventFilter(QObject *watched, QEvent *event) override;
-    void setModel(QAbstractItemModel *model) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void setModel(QAbstractItemModel *theProxyModel) override;
 
     QAction *m_suppressAction;
+    std::unique_ptr<DiagnosticViewStyle> m_style;
+    std::unique_ptr<DiagnosticViewDelegate> m_delegate;
     bool m_ignoreSetSelectedFixItsCount = false;
 };
 

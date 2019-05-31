@@ -322,7 +322,9 @@ void OutputWindow::appendMessage(const QString &output, OutputFormat format)
             bool enforceNewline = d->enforceNewline;
             d->enforceNewline = false;
 
-            if (!enforceNewline) {
+            if (enforceNewline) {
+                out.prepend('\n');
+            } else {
                 newline = out.indexOf(QLatin1Char('\n'));
                 moveCursor(QTextCursor::End);
                 if (newline != -1 && d->formatter)
@@ -338,7 +340,7 @@ void OutputWindow::appendMessage(const QString &output, OutputFormat format)
                     s.chop(1);
                 }
                 if (d->formatter)
-                    d->formatter->appendMessage(QLatin1Char('\n') + s, format);
+                    d->formatter->appendMessage(s, format);
             }
         } else {
             if (d->formatter)
@@ -374,7 +376,9 @@ void OutputWindow::appendText(const QString &textIn, const QTextCharFormat &form
     if (d->maxCharCount > 0 && document()->characterCount() >= d->maxCharCount) {
         QTextCharFormat tmp;
         tmp.setFontWeight(QFont::Bold);
-        d->cursor.insertText(doNewlineEnforcement(tr("Additional output omitted") + QLatin1Char('\n')), tmp);
+        d->cursor.insertText(doNewlineEnforcement(tr("Additional output omitted. You can increase "
+                                                     "the limit in the \"Build & Run\" settings.")
+                                                  + QLatin1Char('\n')), tmp);
     }
 
     d->cursor.endEditBlock();

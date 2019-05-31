@@ -36,6 +36,7 @@
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/gnumakeparser.h>
+#include <projectexplorer/processparameters.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/xcodebuildparser.h>
@@ -65,7 +66,7 @@ QmakeBuildConfiguration *QmakeMakeStep::qmakeBuildConfiguration() const
     return static_cast<QmakeBuildConfiguration *>(buildConfiguration());
 }
 
-bool QmakeMakeStep::init(QList<const BuildStep *> &earlierSteps)
+bool QmakeMakeStep::init()
 {
     QmakeBuildConfiguration *bc = qmakeBuildConfiguration();
     if (!bc)
@@ -99,8 +100,7 @@ bool QmakeMakeStep::init(QList<const BuildStep *> &earlierSteps)
 
     QString args;
 
-    QmakeProjectManager::QmakeProFileNode *subNode = bc->subNodeBuild();
-    QmakeProjectManager::QmakeProFile *subProFile = subNode ? subNode->proFile() : nullptr;
+    QmakeProjectManager::QmakeProFileNode *subProFile = bc->subNodeBuild();
     if (subProFile) {
         QString makefile = subProFile->makefile();
         if (makefile.isEmpty())
@@ -169,13 +169,13 @@ bool QmakeMakeStep::init(QList<const BuildStep *> &earlierSteps)
 
     m_scriptTarget = (static_cast<QmakeProject *>(bc->target()->project())->rootProjectNode()->projectType() == ProjectType::ScriptTemplate);
 
-    return AbstractProcessStep::init(earlierSteps);
+    return AbstractProcessStep::init();
 }
 
-void QmakeMakeStep::run(QFutureInterface<bool> & fi)
+void QmakeMakeStep::doRun()
 {
     if (m_scriptTarget) {
-        reportRunResult(fi, true);
+        emit finished(true);
         return;
     }
 
@@ -183,11 +183,11 @@ void QmakeMakeStep::run(QFutureInterface<bool> & fi)
         if (!ignoreReturnValue())
             emit addOutput(tr("Cannot find Makefile. Check your build settings."), BuildStep::OutputFormat::NormalMessage);
         const bool success = ignoreReturnValue();
-        reportRunResult(fi, success);
+        emit finished(success);
         return;
     }
 
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 ///

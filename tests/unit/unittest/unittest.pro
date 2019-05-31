@@ -33,6 +33,7 @@ CONFIG(release, debug|release):QMAKE_LFLAGS += -Wl,--strip-debug
 }
 
 gcc:!clang: QMAKE_CXXFLAGS += -Wno-noexcept-type
+msvc: QMAKE_CXXFLAGS += /bigobj
 
 # create fake CppTools.json for the mime type definitions
 dependencyList = "\"Dependencies\" : []"
@@ -64,7 +65,8 @@ SOURCES += \
     pchmanagerclient-test.cpp \
     pchmanagerserver-test.cpp \
     processevents-utilities.cpp \
-    projectparts-test.cpp \
+    projectpartsmanager-test.cpp \
+    projectpartsstorage-test.cpp \
     projectupdater-test.cpp \
     readandwritemessageblock-test.cpp \
     sizedarray-test.cpp \
@@ -99,14 +101,21 @@ SOURCES += \
     sourcesmanager-test.cpp \
     symbolindexertaskqueue-test.cpp \
     refactoringprojectupdater-test.cpp \
-    projectpartqueue-test.cpp \
     processormanager-test.cpp \
     taskscheduler-test.cpp \
     compileroptionsbuilder-test.cpp \
+    progresscounter-test.cpp \
     pchtaskgenerator-test.cpp \
     compilationdatabaseutils-test.cpp \
     builddependenciesprovider-test.cpp \
-    builddependenciesstorage-test.cpp
+    builddependenciesstorage-test.cpp \
+    usedmacrofilter-test.cpp \
+    pchtasksmerger-test.cpp \
+    pchtaskqueue-test.cpp \
+    commandlinebuilder-test.cpp \
+    headerpathfilter-test.cpp \
+    toolchainargumentscache-test.cpp \
+    modifiedtimechecker-test.cpp
 
 !isEmpty(LIBCLANG_LIBS) {
 SOURCES += \
@@ -168,6 +177,7 @@ SOURCES += \
 
 !isEmpty(LIBTOOLING_LIBS) {
 SOURCES += \
+    gtest-llvm-printing.cpp \
     clangquerygatherer-test.cpp \
     clangqueryprojectfindfilter-test.cpp \
     clangquery-test.cpp \
@@ -187,6 +197,10 @@ SOURCES += \
     builddependencycollector-test.cpp
 }
 
+!isEmpty(CLANGFORMAT_LIBS) {
+    SOURCES += clangformat-test.cpp
+}
+
 exists($$GOOGLEBENCHMARK_DIR) {
 SOURCES += \
     smallstring-benchmark.cpp
@@ -202,6 +216,7 @@ HEADERS += \
     filesystem-utilities.h \
     googletest.h \
     gtest-creator-printing.h \
+    gtest-llvm-printing.h \
     gtest-qt-printing.h \
     mimedatabase-utilities.h \
     mockclangcodemodelclient.h \
@@ -212,7 +227,8 @@ HEADERS += \
     mockpchmanagerclient.h \
     mockpchmanagernotifier.h \
     mockpchmanagerserver.h \
-    mockprojectparts.h \
+    mockprojectpartsmanager.h \
+    mockprojectpartsstorage.h \
     mockqfilesystemwatcher.h \
     mocksearch.h \
     mocksearchhandle.h \
@@ -250,10 +266,15 @@ HEADERS += \
     mockprocessor.h \
     mockprocessormanager.h \
     mocktaskscheduler.h \
+    mockprogressmanager.h \
+    mockfutureinterface.h \
     mockbuilddependenciesprovider.h \
     mockmodifiedtimechecker.h \
     mockbuilddependenciesstorage.h \
-    mockbuilddependencygenerator.h
+    mockbuilddependencygenerator.h \
+    mockpchtasksmerger.h \
+    mockpchtaskqueue.h \
+    mockpchtaskgenerator.h
 
 !isEmpty(LIBCLANG_LIBS) {
 HEADERS += \

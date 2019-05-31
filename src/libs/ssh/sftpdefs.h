@@ -28,9 +28,31 @@
 #include "ssh_global.h"
 
 #include <QFile>
+#include <QList>
 #include <QString>
 
+#include <memory>
+
 namespace QSsh {
+
+class SftpTransfer;
+using SftpTransferPtr = std::unique_ptr<SftpTransfer>;
+class SftpSession;
+using SftpSessionPtr = std::unique_ptr<SftpSession>;
+
+enum class FileTransferErrorHandling { Abort, Ignore };
+
+class FileToTransfer
+{
+public:
+    FileToTransfer(const QString &source, const QString &target)
+        : sourceFile(source), targetFile(target) {}
+    QString sourceFile;
+    QString targetFile;
+};
+using FilesToTransfer = QList<FileToTransfer>;
+
+namespace Internal { enum class FileTransferType { Upload, Download }; }
 
 typedef quint32 SftpJobId;
 QSSH_EXPORT extern const SftpJobId SftpInvalidJob;
@@ -44,16 +66,10 @@ enum SftpFileType { FileTypeRegular, FileTypeDirectory, FileTypeOther, FileTypeU
 class QSSH_EXPORT SftpFileInfo
 {
 public:
-    SftpFileInfo() : type(FileTypeUnknown), sizeValid(false), permissionsValid(false) { }
-
     QString name;
-    SftpFileType type;
-    quint64 size;
+    SftpFileType type = FileTypeUnknown;
+    quint64 size = 0;
     QFile::Permissions permissions;
-
-    // The RFC allows an SFTP server not to support any file attributes beyond the name.
-    bool sizeValid;
-    bool permissionsValid;
 };
 
 } // namespace QSsh

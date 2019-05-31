@@ -5,8 +5,9 @@ TEMPLATE = app
 CONFIG += qtc_runnable sliced_bundle
 TARGET = $$IDE_APP_TARGET
 DESTDIR = $$IDE_APP_PATH
-VERSION = $$QTCREATOR_VERSION
 QT -= testlib
+# work around QTBUG-74265
+win32: VERSION=
 
 HEADERS += ../tools/qtcreatorcrashhandler/crashhandlersetup.h
 SOURCES += main.cpp ../tools/qtcreatorcrashhandler/crashhandlersetup.cpp
@@ -28,36 +29,10 @@ win32 {
     RC_FILE = qtcreator.rc
 } else:macx {
     LIBS += -framework CoreFoundation
-    minQtVersion(5, 7, 1) {
-        QMAKE_ASSET_CATALOGS = $$PWD/qtcreator.xcassets
-        QMAKE_ASSET_CATALOGS_BUILD_PATH = $$IDE_DATA_PATH
-        QMAKE_ASSET_CATALOGS_INSTALL_PATH = $$INSTALL_DATA_PATH
-        QMAKE_ASSET_CATALOGS_APP_ICON = qtcreator
-    } else {
-        ASSETCATALOG.files = $$PWD/qtcreator.xcassets
-        macx-xcode {
-            QMAKE_BUNDLE_DATA += ASSETCATALOG
-        } else {
-            ASSETCATALOG.output = $$IDE_DATA_PATH/qtcreator.icns
-            ASSETCATALOG.commands = xcrun actool \
-                --app-icon qtcreator \
-                --output-partial-info-plist $$shell_quote($(TMPDIR)/qtcreator.Info.plist) \
-                --platform macosx \
-                --minimum-deployment-target $$QMAKE_MACOSX_DEPLOYMENT_TARGET \
-                --compile $$shell_quote($$IDE_DATA_PATH) \
-                $$shell_quote($$PWD/qtcreator.xcassets) > /dev/null
-            ASSETCATALOG.input = ASSETCATALOG.files
-            ASSETCATALOG.CONFIG += no_link target_predeps
-            QMAKE_EXTRA_COMPILERS += ASSETCATALOG
-            icns.files = \
-                $$IDE_DATA_PATH/qtcreator.icns \
-                $$IDE_DATA_PATH/prifile.icns \
-                $$IDE_DATA_PATH/profile.icns
-            icns.path = $$INSTALL_DATA_PATH
-            icns.CONFIG += no_check_exist
-            INSTALLS += icns
-        }
-    }
+    QMAKE_ASSET_CATALOGS = $$PWD/qtcreator.xcassets
+    QMAKE_ASSET_CATALOGS_BUILD_PATH = $$IDE_DATA_PATH
+    QMAKE_ASSET_CATALOGS_INSTALL_PATH = $$INSTALL_DATA_PATH
+    QMAKE_ASSET_CATALOGS_APP_ICON = qtcreator
 
     infoplist = $$cat($$PWD/app-Info.plist, blob)
     infoplist = $$replace(infoplist, @MACOSX_DEPLOYMENT_TARGET@, $$QMAKE_MACOSX_DEPLOYMENT_TARGET)
@@ -78,3 +53,5 @@ DISTFILES += qtcreator.rc \
 QMAKE_SUBSTITUTES += $$PWD/app_version.h.in
 
 CONFIG += no_batch
+
+QMAKE_EXTRA_TARGETS += deployqt # dummy

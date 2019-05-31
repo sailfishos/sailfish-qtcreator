@@ -28,16 +28,10 @@
 #include "idevice.h"
 #include <projectexplorer/projectexplorer_export.h>
 
-#include <QObject>
+#include <QIcon>
 #include <QVariantMap>
 
-QT_BEGIN_NAMESPACE
-class QWidget;
-QT_END_NAMESPACE
-
 namespace ProjectExplorer {
-class IDeviceWidget;
-
 
 class PROJECTEXPLORER_EXPORT IDeviceFactory : public QObject
 {
@@ -47,22 +41,33 @@ public:
     ~IDeviceFactory() override;
     static const QList<IDeviceFactory *> allDeviceFactories();
 
-    virtual QString displayNameForId(Core::Id type) const = 0;
+    Core::Id deviceType() const { return m_deviceType; }
+    QString displayName() const { return m_displayName; }
+    QIcon icon() const { return m_icon; }
+    bool canCreate() const;
+    IDevice::Ptr construct() const;
 
-    virtual QList<Core::Id> availableCreationIds() const = 0;
+    virtual IDevice::Ptr create() const { return IDevice::Ptr(); }
 
-    virtual QIcon iconForId(Core::Id type) const = 0;
-
-    virtual bool canCreate() const;
-    virtual IDevice::Ptr create(Core::Id id) const = 0;
-
-    virtual bool canRestore(const QVariantMap &map) const = 0;
-    virtual IDevice::Ptr restore(const QVariantMap &map) const = 0;
+    virtual bool canRestore(const QVariantMap &) const { return true; }
 
     static IDeviceFactory *find(Core::Id type);
 
 protected:
-    explicit IDeviceFactory(QObject *parent = nullptr);
+    explicit IDeviceFactory(Core::Id deviceType);
+
+    void setDisplayName(const QString &displayName);
+    void setIcon(const QIcon &icon);
+    void setCombinedIcon(const QString &small, const QString &large);
+    void setCanCreate(bool canCreate);
+    void setConstructionFunction(const std::function<IDevice::Ptr ()> &constructor);
+
+private:
+    const Core::Id m_deviceType;
+    QString m_displayName;
+    QIcon m_icon;
+    bool m_canCreate = false;
+    std::function<IDevice::Ptr()> m_constructor;
 };
 
 } // namespace ProjectExplorer

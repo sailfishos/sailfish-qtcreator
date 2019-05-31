@@ -25,17 +25,17 @@
 
 #include "languageclientsettings.h"
 
-#include "baseclient.h"
+#include "client.h"
 #include "languageclientmanager.h"
 #include "languageclient_global.h"
+#include "languageclientinterface.h"
 
 #include <coreplugin/icore.h>
 #include <utils/algorithm.h>
 #include <utils/delegates.h>
 #include <utils/fancylineedit.h>
-#include <utils/qtcprocess.h>
 #include <utils/mimetypes/mimedatabase.h>
-#include <languageserverprotocol/lsptypes.h>
+#include <utils/jsontreeitem.h>
 
 #include <QBoxLayout>
 #include <QCheckBox>
@@ -70,7 +70,7 @@ class LanguageClientSettingsModel : public QAbstractListModel
 {
 public:
     LanguageClientSettingsModel() = default;
-    ~LanguageClientSettingsModel();
+    ~LanguageClientSettingsModel() override;
 
     // QAbstractItemModel interface
     int rowCount(const QModelIndex &/*parent*/ = QModelIndex()) const final { return m_settings.count(); }
@@ -144,15 +144,11 @@ LanguageClientSettingsPageWidget::LanguageClientSettingsPageWidget(LanguageClien
     m_view->setSelectionBehavior(QAbstractItemView::SelectItems);
     connect(m_view->selectionModel(), &QItemSelectionModel::currentChanged,
             this, &LanguageClientSettingsPageWidget::currentChanged);
-    auto mimeTypes = Utils::transform(Utils::allMimeTypes(), [](const Utils::MimeType &mimeType){
-        return mimeType.name();
-    });
     auto buttonLayout = new QVBoxLayout();
     auto addButton = new QPushButton(LanguageClientSettingsPage::tr("&Add"));
     connect(addButton, &QPushButton::pressed, this, &LanguageClientSettingsPageWidget::addItem);
     auto deleteButton = new QPushButton(LanguageClientSettingsPage::tr("&Delete"));
     connect(deleteButton, &QPushButton::pressed, this, &LanguageClientSettingsPageWidget::deleteItem);
-
     mainLayout->addLayout(layout);
     setLayout(mainLayout);
     layout->addWidget(m_view);
@@ -204,7 +200,7 @@ void LanguageClientSettingsPageWidget::applyCurrentSettings()
 
     m_currentSettings.setting->applyFromSettingsWidget(m_currentSettings.widget);
     auto index = m_settings.indexForSetting(m_currentSettings.setting);
-    m_settings.dataChanged(index, index);
+    emit m_settings.dataChanged(index, index);
 }
 
 void LanguageClientSettingsPageWidget::addItem()
@@ -400,8 +396,15 @@ bool BaseSettings::isValid() const
     return !m_name.isEmpty();
 }
 
-BaseClient *BaseSettings::createClient() const
+Client *BaseSettings::createClient() const
 {
+    BaseClientInterface *interface = createInterface();
+    if (QTC_GUARD(interface)) {
+        auto *client = new Client(interface);
+        client->setName(m_name);
+        client->setSupportedLanguage(m_languageFilter);
+        return client;
+    }
     return nullptr;
 }
 
@@ -470,22 +473,16 @@ bool StdIOSettings::needsRestart() const
 {
     if (BaseSettings::needsRestart())
         return true;
-    if (auto stdIOClient = qobject_cast<StdIOClient *>(m_client))
-        return stdIOClient->needsRestart(this);
+    if (m_client.isNull())
+        return false;
+    if (auto stdIOInterface = qobject_cast<const StdIOClientInterface *>(m_client->clientInterface()))
+        return stdIOInterface->needsRestart(this);
     return false;
 }
 
 bool StdIOSettings::isValid() const
 {
     return BaseSettings::isValid() && !m_executable.isEmpty();
-}
-
-BaseClient *StdIOSettings::createClient() const
-{
-    auto client = new StdIOClient(m_executable, m_arguments);
-    client->setName(m_name);
-    client->setSupportedLanguage(m_languageFilter);
-    return client;
 }
 
 QVariantMap StdIOSettings::toMap() const
@@ -501,6 +498,29 @@ void StdIOSettings::fromMap(const QVariantMap &map)
     BaseSettings::fromMap(map);
     m_executable = map[executableKey].toString();
     m_arguments = map[argumentsKey].toString();
+}
+
+BaseClientInterface *StdIOSettings::createInterface() const
+{
+    return new StdIOClientInterface(m_executable, m_arguments);
+}
+
+static QWidget *createCapabilitiesView(
+    const LanguageServerProtocol::ServerCapabilities &capabilities)
+{
+    auto root = new Utils::JsonTreeItem("Capabilities", QJsonValue(capabilities));
+    if (root->canFetchMore())
+        root->fetchMore();
+
+    auto capabilitiesModel = new Utils::TreeModel<Utils::JsonTreeItem>(root);
+    capabilitiesModel->setHeader({BaseSettingsWidget::tr("Name"),
+                                  BaseSettingsWidget::tr("Value"),
+                                  BaseSettingsWidget::tr("Type")});
+    auto capabilitiesView = new QTreeView();
+    capabilitiesView->setModel(capabilitiesModel);
+    capabilitiesView->setAlternatingRowColors(true);
+    capabilitiesView->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    return capabilitiesView;
 }
 
 BaseSettingsWidget::BaseSettingsWidget(const BaseSettings *settings, QWidget *parent)
@@ -525,6 +545,30 @@ BaseSettingsWidget::BaseSettingsWidget(const BaseSettings *settings, QWidget *pa
 
     connect(addMimeTypeButton, &QPushButton::pressed,
             this, &BaseSettingsWidget::showAddMimeTypeDialog);
+
+    auto createInfoLabel = []() {
+        return new QLabel(tr("Available after server was initialized"));
+    };
+
+    mainLayout->addWidget(new QLabel(tr("Capabilities:")), ++row, 0, Qt::AlignTop);
+    if (Client *client = settings->m_client.data()) {
+        if (client->state() == Client::Initialized)
+            mainLayout->addWidget(createCapabilitiesView(client->capabilities()));
+        else
+            mainLayout->addWidget(createInfoLabel(), row, 1);
+        connect(client, &Client::finished, mainLayout, [mainLayout, row, createInfoLabel]() {
+            delete mainLayout->itemAtPosition(row, 1)->widget();
+            mainLayout->addWidget(createInfoLabel(), row, 1);
+        });
+        connect(client, &Client::initialized, mainLayout,
+                [mainLayout, row](
+                    const LanguageServerProtocol::ServerCapabilities &capabilities) {
+                    delete mainLayout->itemAtPosition(row, 1)->widget();
+                    mainLayout->addWidget(createCapabilitiesView(capabilities), row, 1);
+                });
+    } else {
+        mainLayout->addWidget(createInfoLabel());
+    }
 
     setLayout(mainLayout);
 }

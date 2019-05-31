@@ -514,6 +514,33 @@ void FolderNode::forEachGenericNode(const std::function<void(Node *)> &genericTa
     }
 }
 
+void FolderNode::forEachProjectNode(const std::function<void(const ProjectNode *)> &task) const
+{
+    if (const ProjectNode *projectNode = asProjectNode())
+        task(projectNode);
+
+    for (const std::unique_ptr<Node> &n : m_nodes) {
+        if (FolderNode *fn = n->asFolderNode())
+            fn->forEachProjectNode(task);
+    }
+}
+
+ProjectNode *FolderNode::findProjectNode(const std::function<bool(const ProjectNode *)> &predicate)
+{
+    if (ProjectNode *projectNode = asProjectNode()) {
+        if (predicate(projectNode))
+            return projectNode;
+    }
+
+    for (const std::unique_ptr<Node> &n : m_nodes) {
+        if (FolderNode *fn = n->asFolderNode()) {
+            if (ProjectNode *pn = fn->findProjectNode(predicate))
+                return pn;
+        }
+    }
+    return nullptr;
+}
+
 const QList<Node *> FolderNode::nodes() const
 {
     return Utils::toRawPointer<QList>(m_nodes);
@@ -854,6 +881,19 @@ ProjectNode *ProjectNode::projectNode(const Utils::FileName &file) const
                 return pnode;
     }
     return nullptr;
+}
+
+QVariant ProjectNode::data(Core::Id role) const
+{
+    Q_UNUSED(role);
+    return QVariant();
+}
+
+bool ProjectNode::setData(Core::Id role, const QVariant &value) const
+{
+    Q_UNUSED(role);
+    Q_UNUSED(value);
+    return false;
 }
 
 bool FolderNode::isEmpty() const

@@ -173,7 +173,7 @@ bool AddDebuggerOperation::test() const
 
 QVariantMap AddDebuggerOperation::addDebugger(const QVariantMap &map,
                                               const QString &id, const QString &displayName,
-                                              const quint32 &engine, const QString &binary,
+                                              int engine, const QString &binary,
                                               const QStringList &abis, const KeyValuePairList &extra)
 {
     // Sanity check: Make sure autodetection source is not in use already:
@@ -204,17 +204,11 @@ QVariantMap AddDebuggerOperation::addDebugger(const QVariantMap &map,
     toRemove << QLatin1String(COUNT);
     QVariantMap cleaned = RmKeysOperation::rmKeys(map, toRemove);
 
-    // Sanity check: Make sure displayName is unique.
-    QStringList nameKeys = FindKeyOperation::findKey(map, QLatin1String(DISPLAYNAME));
-    QStringList nameList;
-    foreach (const QString &nameKey, nameKeys)
-        nameList << GetOperation::get(map, nameKey).toString();
-    const QString uniqueName = makeUnique(displayName, nameList);
-
     // insert data:
     KeyValuePairList data;
     data << KeyValuePair(QStringList() << debugger << QLatin1String(ID), QVariant(id));
-    data << KeyValuePair(QStringList() << debugger << QLatin1String(DISPLAYNAME), QVariant(uniqueName));
+    data << KeyValuePair(QStringList() << debugger << QLatin1String(DISPLAYNAME),
+                         QVariant(displayName));
     data << KeyValuePair(QStringList() << debugger << QLatin1String(AUTODETECTED), QVariant(true));
 
     data << KeyValuePair(QStringList() << debugger << QLatin1String(ABIS), QVariant(abis));

@@ -3,21 +3,30 @@ include(../../qtcreatorplugin.pri)
 DEFINES += LANGUAGECLIENT_LIBRARY
 
 HEADERS += \
-    baseclient.h \
+    client.h \
     dynamiccapabilities.h \
     languageclient_global.h \
-    languageclientcodeassist.h \
+    languageclientcompletionassist.h \
+    languageclientinterface.h \
     languageclientmanager.h \
+    languageclientoutline.h \
     languageclientplugin.h \
-    languageclientsettings.h
+    languageclientquickfix.h \
+    languageclientsettings.h \
+    languageclientutils.h
+
 
 SOURCES += \
-    baseclient.cpp \
+    client.cpp \
     dynamiccapabilities.cpp \
-    languageclientcodeassist.cpp \
+    languageclientcompletionassist.cpp \
+    languageclientinterface.cpp \
     languageclientmanager.cpp \
+    languageclientoutline.cpp \
     languageclientplugin.cpp \
-    languageclientsettings.cpp
+    languageclientquickfix.cpp \
+    languageclientsettings.cpp \
+    languageclientutils.cpp
 
 RESOURCES += \
     languageclient.qrc

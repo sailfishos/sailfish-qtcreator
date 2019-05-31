@@ -129,7 +129,7 @@ void ExampleSetModel::recreateModel(const QList<BaseQtVersion *> &qtVersions)
     QSet<QString> extraManifestDirs;
     for (int i = 0; i < m_extraExampleSets.size(); ++i)  {
         const ExtraExampleSet &set = m_extraExampleSets.at(i);
-        QStandardItem *newItem = new QStandardItem();
+        auto newItem = new QStandardItem();
         newItem->setData(set.displayName, Qt::DisplayRole);
         newItem->setData(set.displayName, Qt::UserRole + 1);
         newItem->setData(QVariant(), Qt::UserRole + 2);
@@ -148,7 +148,7 @@ void ExampleSetModel::recreateModel(const QList<BaseQtVersion *> &qtVersions)
             }
             continue;
         }
-        QStandardItem *newItem = new QStandardItem();
+        auto newItem = new QStandardItem();
         newItem->setData(version->displayName(), Qt::DisplayRole);
         newItem->setData(version->displayName(), Qt::UserRole + 1);
         newItem->setData(version->uniqueId(), Qt::UserRole + 2);
@@ -336,8 +336,6 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 item.tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -430,10 +428,6 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
-            }  else if (reader->name() == QLatin1String("platforms")) {
-                item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-            } else if (reader->name() == QLatin1String("preferredFeatures")) {
-                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -564,27 +558,9 @@ BaseQtVersion *ExampleSetModel::findHighestQtVersion(const QList<BaseQtVersion *
 QStringList ExampleSetModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
-    QSettings *settings = Core::ICore::settings();
 
-    // read extra tutorials settings
-    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
-                                                 QString()).toString();
-    if (installedTutorials.isEmpty()) {
-        // Qt Creator shipped tutorials
-        sources << ":/qtsupport/qtcreator_tutorials.xml";
-    } else {
-        if (debugExamples())
-            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
-        QFileInfo fi(installedTutorials);
-        if (fi.isFile() && fi.isReadable()) {
-            sources.append(installedTutorials);
-            if (debugExamples())
-                qWarning() << "Adding tutorials set " << installedTutorials;
-        } else {
-            if (debugExamples())
-                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
-        }
-    }
+    // Qt Creator shipped tutorials
+    sources << ":/qtsupport/qtcreator_tutorials.xml";
 
     QString examplesPath;
     QString demosPath;

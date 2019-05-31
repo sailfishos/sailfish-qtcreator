@@ -27,7 +27,7 @@
 
 #include "extraencodingsettings.h"
 #include "fontsettings.h"
-#include "indenter.h"
+#include "textindenter.h"
 #include "storagesettings.h"
 #include "syntaxhighlighter.h"
 #include "tabsettings.h"
@@ -35,7 +35,6 @@
 #include "texteditor.h"
 #include "texteditorconstants.h"
 #include "typingsettings.h"
-#include <texteditor/generichighlighter/highlighter.h>
 #include <coreplugin/diffservice.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/documentmodel.h>
@@ -78,7 +77,7 @@ class TextDocumentPrivate
 {
 public:
     TextDocumentPrivate()
-        : m_indenter(new Indenter)
+        : m_indenter(new TextIndenter(&m_document))
     {
     }
 
@@ -101,6 +100,7 @@ public:
     QTextDocument m_document;
     SyntaxHighlighter *m_highlighter = nullptr;
     CompletionAssistProvider *m_completionAssistProvider = nullptr;
+    IAssistProvider *m_quickFixProvider = nullptr;
     QScopedPointer<Indenter> m_indenter;
 
     bool m_fileIsReadOnly = false;
@@ -299,6 +299,11 @@ TextDocument *TextDocument::currentTextDocument()
     return qobject_cast<TextDocument *>(EditorManager::currentDocument());
 }
 
+TextDocument *TextDocument::textDocumentForFileName(const Utils::FileName &fileName)
+{
+    return qobject_cast<TextDocument *>(DocumentModel::documentForFilePath(fileName.toString()));
+}
+
 QString TextDocument::plainText() const
 {
     return document()->toPlainText();
@@ -339,9 +344,6 @@ void TextDocument::setTabSettings(const TabSettings &newTabSettings)
     if (newTabSettings == d->m_tabSettings)
         return;
     d->m_tabSettings = newTabSettings;
-
-    if (auto highlighter = qobject_cast<Highlighter *>(d->m_highlighter))
-        highlighter->setTabSettings(tabSettings());
 
     emit tabSettingsChanged();
 }
@@ -392,9 +394,14 @@ CompletionAssistProvider *TextDocument::completionAssistProvider() const
     return d->m_completionAssistProvider;
 }
 
+void TextDocument::setQuickFixAssistProvider(IAssistProvider *provider) const
+{
+    d->m_quickFixProvider = provider;
+}
+
 IAssistProvider *TextDocument::quickFixAssistProvider() const
 {
-    return nullptr;
+    return d->m_quickFixProvider;
 }
 
 void TextDocument::applyFontSettings()
@@ -416,19 +423,19 @@ void TextDocument::setExtraEncodingSettings(const ExtraEncodingSettings &extraEn
     d->m_extraEncodingSettings = extraEncodingSettings;
 }
 
-void TextDocument::autoIndent(const QTextCursor &cursor, QChar typedChar, bool autoTriggered)
+void TextDocument::autoIndent(const QTextCursor &cursor, QChar typedChar, int currentCursorPosition)
 {
-    d->m_indenter->indent(&d->m_document, cursor, typedChar, tabSettings(), autoTriggered);
+    d->m_indenter->indent(cursor, typedChar, tabSettings(), currentCursorPosition);
 }
 
-void TextDocument::autoReindent(const QTextCursor &cursor)
+void TextDocument::autoReindent(const QTextCursor &cursor, int currentCursorPosition)
 {
-    d->m_indenter->reindent(&d->m_document, cursor, tabSettings());
+    d->m_indenter->reindent(cursor, tabSettings(), currentCursorPosition);
 }
 
-void TextDocument::autoFormat(const QTextCursor &cursor)
+void TextDocument::autoFormatOrIndent(const QTextCursor &cursor)
 {
-    d->m_indenter->format(&d->m_document, cursor, tabSettings());
+    d->m_indenter->formatOrIndent(cursor, tabSettings());
 }
 
 QTextCursor TextDocument::indent(const QTextCursor &cursor, bool blockSelection, int column,
@@ -824,8 +831,8 @@ void TextDocument::cleanWhitespace(QTextCursor &cursor, bool cleanIndentation, b
         return;
 
     const TabSettings currentTabSettings = tabSettings();
-    const IndentationForBlock &indentations =
-            d->m_indenter->indentationForBlocks(blocks, currentTabSettings);
+    const IndentationForBlock &indentations
+        = d->m_indenter->indentationForBlocks(blocks, currentTabSettings);
 
     foreach (block, blocks) {
         QString blockText = block.text();

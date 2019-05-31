@@ -29,7 +29,12 @@
 
 #include <utils/outputformatter.h>
 
-QT_FORWARD_DECLARE_CLASS(QTextCursor)
+// "file" or "qrc", colon, optional '//', '/' and further characters
+#define QT_QML_URL_REGEXP "(?:file|qrc):(?://)?/.+?"
+#define QT_ASSERT_REGEXP "ASSERT: .* in file (.+, line \\d+)"
+#define QT_ASSERT_X_REGEXP "ASSERT failure in .*: \".*\", file (.+, line \\d+)"
+#define QT_TEST_FAIL_UNIX_REGEXP "^   Loc: \\[(.*)\\]$"
+#define QT_TEST_FAIL_WIN_REGEXP "^(.*\\(\\d+\\)) : failure location\\s*$"
 
 namespace ProjectExplorer { class Project; }
 
@@ -37,8 +42,8 @@ namespace QtSupport {
 
 struct LinkResult
 {
-    int start;
-    int end;
+    int start = -1;
+    int end = -1;
     QString href;
 };
 
@@ -55,7 +60,6 @@ public:
     ~QtOutputFormatter() override;
 
     void appendMessage(const QString &text, Utils::OutputFormat format) override;
-    void appendMessage(const QString &text, const QTextCharFormat &format) override;
     void handleLink(const QString &href) override;
     void setPlainTextEdit(QPlainTextEdit *plainText) override;
 
@@ -66,11 +70,10 @@ protected:
 private:
     void updateProjectFileList();
     LinkResult matchLine(const QString &line) const;
-    void appendMessagePart(QTextCursor &cursor, const QString &txt, const QTextCharFormat &format);
-    void appendLine(QTextCursor &cursor, const LinkResult &lr, const QString &line,
-                    Utils::OutputFormat);
-    void appendLine(QTextCursor &cursor, const LinkResult &lr, const QString &line,
-                    const QTextCharFormat &format);
+    void appendMessagePart(const QString &txt, const QTextCharFormat &format);
+    void appendLine(const LinkResult &lr, const QString &line, Utils::OutputFormat format);
+    void appendLine(const LinkResult &lr, const QString &line, const QTextCharFormat &format);
+    void appendMessage(const QString &text, const QTextCharFormat &format) override;
 
     Internal::QtOutputFormatterPrivate *d;
 

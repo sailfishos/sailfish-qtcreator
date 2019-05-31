@@ -38,6 +38,9 @@ const int  P_MODE_WELCOME          = 100;
 const int  P_MODE_EDIT             = 90;
 const int  P_MODE_DESIGN           = 89;
 
+// TouchBar
+const char TOUCH_BAR[]             = "QtCreator.TouchBar";
+
 // Menubar
 const char MENU_BAR[]              = "QtCreator.MenuBar";
 
@@ -189,6 +192,12 @@ const char G_HELP_SUPPORT[]        = "QtCreator.Group.Help.Supprt";
 const char G_HELP_ABOUT[]          = "QtCreator.Group.Help.About";
 const char G_HELP_UPDATES[]        = "QtCreator.Group.Help.Updates";
 
+// Touchbar groups
+const char G_TOUCHBAR_HELP[]       = "QtCreator.Group.TouchBar.Help";
+const char G_TOUCHBAR_EDITOR[]     = "QtCreator.Group.TouchBar.Editor";
+const char G_TOUCHBAR_NAVIGATION[] = "QtCreator.Group.TouchBar.Navigation";
+const char G_TOUCHBAR_OTHER[]      = "QtCreator.Group.TouchBar.Other";
+
 const char WIZARD_CATEGORY_QT[] = "R.Qt";
 const char WIZARD_TR_CATEGORY_QT[] = QT_TRANSLATE_NOOP("Core", "Qt");
 const char WIZARD_KIND_UNKNOWN[] = "unknown";
@@ -208,8 +217,6 @@ const char SETTINGS_THEME[] = "Core/CreatorTheme";
 const char DEFAULT_THEME[] = "flat";
 
 const char TR_CLEAR_MENU[]         = QT_TRANSLATE_NOOP("Core", "Clear Menu");
-
-const char DEFAULT_BUILD_DIRECTORY[] = "../%{JS: Util.asciify(\"build-%{CurrentProject:Name}-%{CurrentKit:FileSystemName}-%{CurrentBuild:Name}\")}";
 
 const int MODEBAR_ICON_SIZE = 34;
 const int MODEBAR_ICONSONLY_BUTTON_SIZE = MODEBAR_ICON_SIZE + 4;

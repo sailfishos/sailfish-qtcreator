@@ -64,7 +64,7 @@ AutotoolsBuildConfiguration::AutotoolsBuildConfiguration(Target *parent, Core::I
     setBuildDirectory(Utils::FileName::fromString("/<foobar>"));
 }
 
-void AutotoolsBuildConfiguration::initialize(const BuildInfo *info)
+void AutotoolsBuildConfiguration::initialize(const BuildInfo &info)
 {
     BuildConfiguration::initialize(info);
 
@@ -74,29 +74,27 @@ void AutotoolsBuildConfiguration::initialize(const BuildInfo *info)
     // autogen.sh or autoreconf
     QFile autogenFile(target()->project()->projectDirectory().toString() + "/autogen.sh");
     if (autogenFile.exists()) {
-        AutogenStep *autogenStep = new AutogenStep(buildSteps);
-        buildSteps->insertStep(0, autogenStep);
+        auto autogenStep = new AutogenStep(buildSteps);
+        buildSteps->appendStep(autogenStep);
     } else {
-        AutoreconfStep *autoreconfStep = new AutoreconfStep(buildSteps);
-        autoreconfStep->setAdditionalArguments("--force --install");
-        buildSteps->insertStep(0, autoreconfStep);
+        auto autoreconfStep = new AutoreconfStep(buildSteps);
+        buildSteps->appendStep(autoreconfStep);
     }
 
     // ./configure.
-    ConfigureStep *configureStep = new ConfigureStep(buildSteps);
-    buildSteps->insertStep(1, configureStep);
+    auto configureStep = new ConfigureStep(buildSteps);
+    buildSteps->appendStep(configureStep);
     connect(this, &BuildConfiguration::buildDirectoryChanged,
             configureStep, &ConfigureStep::notifyBuildDirectoryChanged);
 
     // make
-    MakeStep *makeStep = new MakeStep(buildSteps, "all");
-    buildSteps->insertStep(2, makeStep);
+    auto makeStep = new MakeStep(buildSteps);
+    buildSteps->appendStep(makeStep);
 
     // ### Build Steps Clean ###
     BuildStepList *cleanSteps = stepList(BUILDSTEPS_CLEAN);
-    MakeStep *cleanMakeStep = new MakeStep(cleanSteps, "clean");
-    cleanMakeStep->setClean(true);
-    cleanSteps->insertStep(0, cleanMakeStep);
+    auto cleanMakeStep = new MakeStep(cleanSteps);
+    cleanSteps->appendStep(cleanMakeStep);
 }
 
 NamedWidget *AutotoolsBuildConfiguration::createConfigWidget()
@@ -116,30 +114,27 @@ AutotoolsBuildConfigurationFactory::AutotoolsBuildConfigurationFactory()
     setSupportedProjectMimeTypeName(Constants::MAKEFILE_MIMETYPE);
 }
 
-QList<BuildInfo *> AutotoolsBuildConfigurationFactory::availableBuilds(const Target *parent) const
+QList<BuildInfo> AutotoolsBuildConfigurationFactory::availableBuilds(const Target *parent) const
 {
     return {createBuildInfo(parent->kit(), parent->project()->projectDirectory())};
 }
 
-QList<BuildInfo *> AutotoolsBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
+QList<BuildInfo> AutotoolsBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
 {
-    QList<BuildInfo *> result;
-    BuildInfo *info = createBuildInfo(k,
-                                      Utils::FileName::fromString(AutotoolsProject::defaultBuildDirectory(projectPath)));
+    BuildInfo info = createBuildInfo(k,
+                                     Utils::FileName::fromString(AutotoolsProject::defaultBuildDirectory(projectPath)));
     //: The name of the build configuration created by default for a autotools project.
-    info->displayName = tr("Default");
-    result << info;
-    return result;
+    info.displayName = tr("Default");
+    return {info};
 }
 
-BuildInfo *AutotoolsBuildConfigurationFactory::createBuildInfo(const Kit *k,
-                                                               const Utils::FileName &buildDir) const
+BuildInfo AutotoolsBuildConfigurationFactory::createBuildInfo(const Kit *k,
+                                                              const Utils::FileName &buildDir) const
 {
-    BuildInfo *info = new BuildInfo(this);
-    info->typeName = tr("Build");
-    info->buildDirectory = buildDir;
-    info->kitId = k->id();
-
+    BuildInfo info(this);
+    info.typeName = tr("Build");
+    info.buildDirectory = buildDir;
+    info.kitId = k->id();
     return info;
 }
 

@@ -24,68 +24,23 @@
 ****************************************************************************/
 
 #include "iossimulatorfactory.h"
-#include <QLatin1String>
+
 #include "iosconstants.h"
 #include "iossimulator.h"
-#include "utils/icon.h"
-#include "utils/qtcassert.h"
 
-#include <QIcon>
+#include <utils/qtcassert.h>
 
 namespace Ios {
 namespace Internal {
 
 IosSimulatorFactory::IosSimulatorFactory()
+    : ProjectExplorer::IDeviceFactory(Constants::IOS_SIMULATOR_TYPE)
 {
     setObjectName(QLatin1String("IosSimulatorFactory"));
-}
-
-QString IosSimulatorFactory::displayNameForId(Core::Id type) const
-{
-    if (type == Constants::IOS_SIMULATOR_TYPE)
-        return tr("iOS Simulator");
-    return QString();
-}
-
-QList<Core::Id> IosSimulatorFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::IOS_SIMULATOR_TYPE);
-}
-
-QIcon IosSimulatorFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    static const QIcon icon =
-            Icon::combinedIcon({Icon({{":/ios/images/iosdevicesmall.png",
-                                       Theme::PanelTextColorDark}}, Icon::Tint),
-                                Icon({{":/ios/images/iosdevice.png",
-                                       Theme::IconsBaseColor}})});
-    return icon;
-}
-
-bool IosSimulatorFactory::canCreate() const
-{
-    return false;
-}
-
-ProjectExplorer::IDevice::Ptr IosSimulatorFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id)
-    return ProjectExplorer::IDevice::Ptr();
-}
-
-bool IosSimulatorFactory::canRestore(const QVariantMap &map) const
-{
-    return ProjectExplorer::IDevice::typeFromMap(map) == Constants::IOS_SIMULATOR_TYPE;
-}
-
-ProjectExplorer::IDevice::Ptr IosSimulatorFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return ProjectExplorer::IDevice::Ptr());
-    const ProjectExplorer::IDevice::Ptr device = ProjectExplorer::IDevice::Ptr(new IosSimulator());
-    device->fromMap(map);
-    return device;
+    setDisplayName(tr("iOS Simulator"));
+    setCombinedIcon(":/ios/images/iosdevicesmall.png",
+                    ":/ios/images/iosdevice.png");
+    setConstructionFunction([] { return ProjectExplorer::IDevice::Ptr(new IosSimulator()); });
 }
 
 } // namespace Internal

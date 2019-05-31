@@ -72,7 +72,7 @@ class MainQmlFileAspect : public ProjectConfigurationAspect
 {
 public:
     explicit MainQmlFileAspect(QmlProject *project);
-    ~MainQmlFileAspect() { delete m_fileListCombo; }
+    ~MainQmlFileAspect() override { delete m_fileListCombo; }
 
     enum MainScriptSource {
         FileInEditor,
@@ -107,9 +107,8 @@ public:
 
 MainQmlFileAspect::MainQmlFileAspect(QmlProject *project)
     : m_project(project)
+    , m_scriptFile(M_CURRENT_FILE)
 {
-    m_scriptFile = M_CURRENT_FILE;
-
     connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
             this, &MainQmlFileAspect::changeCurrentFile);
     connect(EditorManager::instance(), &EditorManager::currentDocumentStateChanged,
@@ -189,7 +188,7 @@ void MainQmlFileAspect::updateFileComboBox()
         if (fileInfo.suffix() != QLatin1String("qml"))
             continue;
 
-        QStandardItem *item = new QStandardItem(fn);
+        auto item = new QStandardItem(fn);
         m_fileListModel.appendRow(item);
 
         if (mainScriptPath == fn)
@@ -281,6 +280,7 @@ QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *target, Id id)
     m_qmlViewerAspect->setLabelText(tr("QML Viewer:"));
     m_qmlViewerAspect->setPlaceHolderText(executable());
     m_qmlViewerAspect->setDisplayStyle(BaseStringAspect::LineEditDisplay);
+    m_qmlViewerAspect->setHistoryCompleter("QmlProjectManager.viewer.history");
 
     auto argumentAspect = addAspect<ArgumentsAspect>();
     argumentAspect->setSettingsKey(Constants::QML_VIEWER_ARGUMENTS_KEY);
@@ -411,7 +411,7 @@ bool MainQmlFileAspect::isQmlFilePresent()
             for (const Utils::FileName &filename : files) {
                 const QFileInfo fi = filename.toFileInfo();
 
-                if (!filename.isEmpty() && fi.baseName()[0].isLower()) {
+                if (!filename.isEmpty() && fi.baseName().at(0).isLower()) {
                     Utils::MimeType type = Utils::mimeTypeForFile(fi);
                     if (type.matchesName(QLatin1String(ProjectExplorer::Constants::QML_MIMETYPE))
                             || type.matchesName(

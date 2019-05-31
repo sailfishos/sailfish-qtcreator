@@ -5,11 +5,9 @@ isEmpty(QBS_INSTALL_DIR): QBS_INSTALL_DIR = $$(QBS_INSTALL_DIR)
 isEmpty(QBS_INSTALL_DIR) {
     QBS_SOURCE_DIR = $$PWD/../../shared/qbs
     include($$QBS_SOURCE_DIR/src/lib/corelib/use_corelib.pri)
-    include($$QBS_SOURCE_DIR/src/lib/qtprofilesetup/use_qtprofilesetup.pri)
     osx:QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../Frameworks # OS X: fix rpath for qbscore soname
 } else {
     include($${QBS_INSTALL_DIR}/include/qbs/use_installed_corelib.pri)
-    include($${QBS_INSTALL_DIR}/include/qbs/use_installed_qtprofilesetup.pri)
 }
 QBS_INSTALL_DIR_FWD_SLASHES = $$replace(QBS_INSTALL_DIR, \\\\, /)
 DEFINES += QBS_INSTALL_DIR=\\\"$$QBS_INSTALL_DIR_FWD_SLASHES\\\"
@@ -23,10 +21,8 @@ HEADERS = \
     propertyprovider.h \
     qbsbuildconfiguration.h \
     qbsbuildconfigurationwidget.h \
-    qbsbuildinfo.h \
     qbsbuildstep.h \
     qbscleanstep.h \
-    qbsdeployconfigurationfactory.h \
     qbskitinformation.h \
     qbsinstallstep.h \
     qbslogsink.h \
@@ -50,10 +46,8 @@ SOURCES = \
     defaultpropertyprovider.cpp \
     qbsbuildconfiguration.cpp \
     qbsbuildconfigurationwidget.cpp \
-    qbsbuildinfo.cpp \
     qbsbuildstep.cpp \
     qbscleanstep.cpp \
-    qbsdeployconfigurationfactory.cpp \
     qbsinstallstep.cpp \
     qbskitinformation.cpp \
     qbslogsink.cpp \

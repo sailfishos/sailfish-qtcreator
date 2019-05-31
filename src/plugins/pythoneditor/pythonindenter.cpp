@@ -50,6 +50,10 @@ static QTextBlock previousNonEmptyBlock(const QTextBlock &block)
     return result;
 }
 
+PythonIndenter::PythonIndenter(QTextDocument *doc)
+    : TextEditor::TextIndenter(doc)
+{}
+
 /**
  * @brief Does given character change indentation level?
  * @param ch Any value
@@ -60,7 +64,9 @@ bool PythonIndenter::isElectricCharacter(const QChar &ch) const
     return ch == ':';
 }
 
-int PythonIndenter::indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings)
+int PythonIndenter::indentFor(const QTextBlock &block,
+                              const TextEditor::TabSettings &tabSettings,
+                              int /*cursorPositionInEditor*/)
 {
     QTextBlock previousBlock = block.previous();
     if (!previousBlock.isValid())

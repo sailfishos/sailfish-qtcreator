@@ -11,6 +11,7 @@ HEADERS += \
     codegensettings.h \
     codegensettingspage.h \
     gettingstartedwelcomepage.h \
+    qtcppkitinfo.h \
     qtprojectimporter.h \
     qtsupportplugin.h \
     qtsupport_global.h \
@@ -28,7 +29,6 @@ HEADERS += \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
-    copytolocationdialog.h \
     desktopqtversionfactory.h \
     desktopqtversion.h \
     uicgenerator.h \
@@ -39,6 +39,7 @@ SOURCES += \
     codegensettings.cpp \
     codegensettingspage.cpp \
     gettingstartedwelcomepage.cpp \
+    qtcppkitinfo.cpp \
     qtprojectimporter.cpp \
     qtsupportplugin.cpp \
     qtkitconfigwidget.cpp \
@@ -54,7 +55,6 @@ SOURCES += \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
-    copytolocationdialog.cpp \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
     uicgenerator.cpp \
@@ -65,7 +65,6 @@ FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     qtversionmanager.ui \
-    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc

@@ -50,9 +50,16 @@
 
 using namespace TextEditor;
 
-int NormalIndenter::indentFor(const QTextBlock &block, const TabSettings &tabSettings)
+NormalIndenter::NormalIndenter(QTextDocument *doc)
+    : TextIndenter(doc)
+{}
+
+int NormalIndenter::indentFor(const QTextBlock &block,
+                              const TabSettings &tabSettings,
+                              int cursorPositionInEditor)
 {
     Q_UNUSED(tabSettings);
+    Q_UNUSED(cursorPositionInEditor);
 
     QTextBlock previous = block.previous();
     if (!previous.isValid())

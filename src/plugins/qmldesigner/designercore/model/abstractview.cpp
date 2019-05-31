@@ -577,10 +577,10 @@ void AbstractView::enableWidget()
         widgetInfo().widget->setEnabled(true);
 }
 
-void AbstractView::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
+void AbstractView::contextHelp(const Core::IContext::HelpCallback &callback) const
 {
 #ifndef QMLDESIGNER_TEST
-    QmlDesignerPlugin::instance()->viewManager().qmlJSEditorHelpId(callback);
+    QmlDesignerPlugin::instance()->viewManager().qmlJSEditorContextHelp(callback);
 #else
     callback(QString());
 #endif
@@ -590,8 +590,6 @@ void AbstractView::activateTimeline(const ModelNode &timeline)
 {
     if (currentTimeline().isValid())
         currentTimeline().toogleRecording(false);
-
-    Internal::WriteLocker locker(m_model.data());
 
     if (model())
         model()->d->notifyCurrentTimelineChanged(timeline);
@@ -614,8 +612,6 @@ void AbstractView::deactivateTimelineRecording()
         currentTimeline().toogleRecording(false);
         currentTimeline().resetGroupRecording();
     }
-
-    Internal::WriteLocker locker(m_model.data());
 
     if (model())
         model()->d->notifyCurrentTimelineChanged(ModelNode());

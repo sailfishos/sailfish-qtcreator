@@ -29,7 +29,8 @@
 #include "clangpathwatchernotifier.h"
 #include "pchcreatorinterface.h"
 #include "pchmanagerserverinterface.h"
-#include "projectpartsinterface.h"
+#include "projectpartsmanagerinterface.h"
+#include "toolchainargumentscache.h"
 
 #include <generatedfilesinterface.h>
 #include <ipcclientprovider.h>
@@ -37,7 +38,7 @@
 namespace ClangBackEnd {
 
 class SourceRangesAndDiagnosticsForQueryMessage;
-class ProjectPartQueueInterface;
+class PchTaskGeneratorInterface;
 
 class PchManagerServer : public PchManagerServerInterface,
                          public ClangPathWatcherNotifier,
@@ -46,8 +47,8 @@ class PchManagerServer : public PchManagerServerInterface,
 {
 public:
     PchManagerServer(ClangPathWatcherInterface &fileSystemWatcher,
-                     ProjectPartQueueInterface &projectPartQueue,
-                     ProjectPartsInterface &projectParts,
+                     PchTaskGeneratorInterface &pchTaskGenerator,
+                     ProjectPartsManagerInterface &projectParts,
                      GeneratedFilesInterface &generatedFiles);
 
     void end() override;
@@ -56,14 +57,18 @@ public:
     void updateGeneratedFiles(UpdateGeneratedFilesMessage &&message) override;
     void removeGeneratedFiles(RemoveGeneratedFilesMessage &&message) override;
 
-    void pathsWithIdsChanged(const Utils::SmallStringVector &ids) override;
+    void pathsWithIdsChanged(const ProjectPartIds &ids) override;
     void pathsChanged(const FilePathIds &filePathIds) override;
+
+    void setPchCreationProgress(int progress, int total);
+    void setDependencyCreationProgress(int progress, int total);
 
 private:
     ClangPathWatcherInterface &m_fileSystemWatcher;
-    ProjectPartQueueInterface &m_projectPartQueue;
-    ProjectPartsInterface &m_projectParts;
+    PchTaskGeneratorInterface &m_pchTaskGenerator;
+    ProjectPartsManagerInterface &m_projectPartsManager;
     GeneratedFilesInterface &m_generatedFiles;
+    ToolChainsArgumentsCache m_toolChainsArgumentsCache;
 };
 
 } // namespace ClangBackEnd

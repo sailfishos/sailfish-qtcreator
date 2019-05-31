@@ -25,7 +25,8 @@
 
 #pragma once
 
+#include "alivemessage.h"
+#include "progressmessage.h"
 #include "sourcelocationsforrenamingmessage.h"
 #include "sourcerangesanddiagnosticsforquerymessage.h"
 #include "sourcerangesforquerymessage.h"
-#include "alivemessage.h"

@@ -340,6 +340,12 @@ QSet<Id> BaseQtVersion::availableFeatures() const
     if (qtVersion().matches(5, 12))
         return features;
 
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_PREFIX, 2, 13));
+    features.unite(versionedIds(Constants::FEATURE_QT_QUICK_CONTROLS_2_PREFIX, 2, 13));
+
+    if (qtVersion().matches(5, 13))
+        return features;
+
     return features;
 }
 
@@ -1478,7 +1484,7 @@ QList<Task> BaseQtVersion::reportIssues(const QString &proFile, const QString &b
 
 QtConfigWidget *BaseQtVersion::createConfigurationWidget() const
 {
-    return 0;
+    return nullptr;
 }
 
 static QByteArray runQmakeQuery(const FileName &binary, const Environment &env,
@@ -1634,7 +1640,7 @@ FileName BaseQtVersion::mkspecFromVersionInfo(const QHash<ProKey, ProString> &ve
         }
         if (!qt5) {
             //resolve mkspec link
-            QString rspec = mkspecFullPath.toFileInfo().readLink();
+            QString rspec = mkspecFullPath.toFileInfo().symLinkTarget();
             if (!rspec.isEmpty())
                 mkspecFullPath = FileName::fromUserInput(
                             QDir(baseMkspecDir.toString()).absoluteFilePath(rspec));
@@ -1770,40 +1776,44 @@ bool BaseQtVersion::isQtQuickCompilerSupported(QString *reason) const
 
 FileNameList BaseQtVersion::qtCorePaths() const
 {
-    const QString &versionString = qtVersionString();
+    updateVersionInfo();
+    const QString &versionString = m_qtVersionString;
 
-    QStringList dirs;
-    dirs << qmakeProperty(versionInfo(), "QT_INSTALL_LIBS")
-         << qmakeProperty(versionInfo(), "QT_INSTALL_BINS");
+    const QString &installLibsDir = qmakeProperty(m_versionInfo, "QT_INSTALL_LIBS");
+    const QString &installBinDir = qmakeProperty(m_versionInfo, "QT_INSTALL_BINS");
 
+    const QDir::Filters filters = QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot;
+
+    const QFileInfoList entryInfoList = [&]() {
+         QFileInfoList result;
+         if (!installLibsDir.isEmpty())
+             result += QDir(installLibsDir).entryInfoList(filters);
+        if (!installBinDir.isEmpty())
+            result += QDir(installBinDir).entryInfoList(filters);
+        return result;
+    }();
     FileNameList staticLibs;
     FileNameList dynamicLibs;
-    foreach (const QString &dir, dirs) {
-        if (dir.isEmpty())
-            continue;
-        QDir d(dir);
-        QFileInfoList infoList = d.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-        foreach (const QFileInfo &info, infoList) {
-            const QString file = info.fileName();
-            if (info.isDir()
-                    && file.startsWith("QtCore")
-                    && file.endsWith(".framework")) {
-                // handle Framework
-                FileName lib(info);
-                dynamicLibs.append(lib.appendPath(file.left(file.lastIndexOf('.'))));
-            } else if (info.isReadable()) {
-                if (file.startsWith("libQtCore")
-                        || file.startsWith("libQt5Core")
-                        || file.startsWith("QtCore")
-                        || file.startsWith("Qt5Core")) {
-                    if (file.endsWith(".a") || file.endsWith(".lib"))
-                        staticLibs.append(FileName(info));
-                    else if (file.endsWith(".dll")
-                             || file.endsWith(QString::fromLatin1(".so.") + versionString)
-                             || file.endsWith(".so")
-                             || file.endsWith(QLatin1Char('.') + versionString + ".dylib"))
-                        dynamicLibs.append(FileName(info));
-                }
+    for (const QFileInfo &info : entryInfoList) {
+        const QString file = info.fileName();
+        if (info.isDir()
+                && file.startsWith("QtCore")
+                && file.endsWith(".framework")) {
+            // handle Framework
+            FileName lib(info);
+            dynamicLibs.append(lib.appendPath(file.left(file.lastIndexOf('.'))));
+        } else if (info.isReadable()) {
+            if (file.startsWith("libQtCore")
+                    || file.startsWith("libQt5Core")
+                    || file.startsWith("QtCore")
+                    || file.startsWith("Qt5Core")) {
+                if (file.endsWith(".a") || file.endsWith(".lib"))
+                    staticLibs.append(FileName(info));
+                else if (file.endsWith(".dll")
+                         || file.endsWith(QString::fromLatin1(".so.") + versionString)
+                         || file.endsWith(".so")
+                         || file.endsWith(QLatin1Char('.') + versionString + ".dylib"))
+                    dynamicLibs.append(FileName(info));
             }
         }
     }
@@ -1959,6 +1969,8 @@ static Abi refineAbiFromBuildString(const QByteArray &buildString, const Abi &pr
         flavor = Abi::WindowsMsvc2015Flavor;
     } else if (compiler.startsWith("MSVC 2017") && os == Abi::WindowsOS) {
         flavor = Abi::WindowsMsvc2017Flavor;
+    } else if (compiler.startsWith("MSVC 2019") && os == Abi::WindowsOS) {
+        flavor = Abi::WindowsMsvc2019Flavor;
     }
 
     return Abi(arch, os, flavor, format, wordWidth);

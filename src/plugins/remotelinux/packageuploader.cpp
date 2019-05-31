@@ -26,7 +26,7 @@
 #include "packageuploader.h"
 
 #include <utils/qtcassert.h>
-#include <ssh/sftpchannel.h>
+#include <ssh/sftptransfer.h>
 #include <ssh/sshconnection.h>
 
 using namespace QSsh;
@@ -35,42 +35,35 @@ namespace RemoteLinux {
 namespace Internal {
 
 PackageUploader::PackageUploader(QObject *parent) :
-    QObject(parent), m_state(Inactive), m_connection(0)
+    QObject(parent), m_state(Inactive), m_connection(nullptr)
 {
 }
 
-PackageUploader::~PackageUploader()
-{
-}
+PackageUploader::~PackageUploader() = default;
 
 void PackageUploader::uploadPackage(SshConnection *connection,
     const QString &localFilePath, const QString &remoteFilePath)
 {
     QTC_ASSERT(m_state == Inactive, return);
 
-    setState(InitializingSftp);
+    setState(Uploading);
     emit progress(tr("Preparing SFTP connection..."));
 
-    m_localFilePath = localFilePath;
-    m_remoteFilePath = remoteFilePath;
     m_connection = connection;
-    connect(m_connection, &SshConnection::error,
+    connect(m_connection, &SshConnection::errorOccurred,
             this, &PackageUploader::handleConnectionFailure);
-    m_uploader = m_connection->createSftpChannel();
-    connect(m_uploader.data(), &SftpChannel::initialized,
-            this, &PackageUploader::handleSftpChannelInitialized);
-    connect(m_uploader.data(), &SftpChannel::channelError,
-            this, &PackageUploader::handleSftpChannelError);
-    connect(m_uploader.data(), &SftpChannel::finished,
-            this, &PackageUploader::handleSftpJobFinished);
-    m_uploader->initialize();
+    m_uploader = m_connection->createUpload({FileToTransfer(localFilePath, remoteFilePath)},
+                                            FileTransferErrorHandling::Abort);
+    connect(m_uploader.get(), &SftpTransfer::done, this, &PackageUploader::handleUploadDone);
+    m_uploader->start();
 }
 
 void PackageUploader::cancelUpload()
 {
-    QTC_ASSERT(m_state == InitializingSftp || m_state == Uploading, return);
+    QTC_ASSERT(m_state == Uploading, return);
 
-    cleanup();
+    setState(Inactive);
+    emit uploadFinished(tr("Package upload canceled."));
 }
 
 void PackageUploader::handleConnectionFailure()
@@ -83,53 +76,15 @@ void PackageUploader::handleConnectionFailure()
     emit uploadFinished(tr("Connection failed: %1").arg(errorMsg));
 }
 
-void PackageUploader::handleSftpChannelError(const QString &errorMsg)
+void PackageUploader::handleUploadDone(const QString &errorMsg)
 {
-    QTC_ASSERT(m_state == InitializingSftp || m_state == Inactive, return);
-
-    if (m_state == Inactive)
-        return;
+    QTC_ASSERT(m_state == Uploading, return);
 
     setState(Inactive);
-    emit uploadFinished(tr("SFTP error: %1").arg(errorMsg));
-}
-
-void PackageUploader::handleSftpChannelInitialized()
-{
-    QTC_ASSERT(m_state == InitializingSftp || m_state == Inactive, return);
-
-    if (m_state == Inactive)
-        return;
-
-    const SftpJobId job = m_uploader->uploadFile(m_localFilePath,
-        m_remoteFilePath, SftpOverwriteExisting);
-    if (job == SftpInvalidJob) {
-        setState(Inactive);
-        emit uploadFinished(tr("Package upload failed: Could not open file."));
-    } else {
-        emit progress(tr("Starting upload..."));
-        setState(Uploading);
-    }
-}
-
-void PackageUploader::handleSftpJobFinished(SftpJobId, const QString &errorMsg)
-{
-    QTC_ASSERT(m_state == Uploading || m_state == Inactive, return);
-
-    if (m_state == Inactive)
-        return;
-
     if (!errorMsg.isEmpty())
         emit uploadFinished(tr("Failed to upload package: %2").arg(errorMsg));
     else
         emit uploadFinished();
-    cleanup();
-}
-
-void PackageUploader::cleanup()
-{
-    m_uploader->closeChannel();
-    setState(Inactive);
 }
 
 void PackageUploader::setState(State newState)
@@ -138,12 +93,13 @@ void PackageUploader::setState(State newState)
         return;
     if (newState == Inactive) {
         if (m_uploader) {
-            disconnect(m_uploader.data(), 0, this, 0);
-            m_uploader.clear();
+            disconnect(m_uploader.get(), nullptr, this, nullptr);
+            m_uploader->stop();
+            m_uploader.release()->deleteLater();
         }
         if (m_connection) {
-            disconnect(m_connection, 0, this, 0);
-            m_connection = 0;
+            disconnect(m_connection, nullptr, this, nullptr);
+            m_connection = nullptr;
         }
     }
     m_state = newState;

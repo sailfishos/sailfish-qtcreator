@@ -35,13 +35,17 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QLoggingCategory>
 
 namespace LanguageServerProtocol {
+
+LANGUAGESERVERPROTOCOL_EXPORT Q_DECLARE_LOGGING_CATEGORY(conversionLog)
 
 template <typename T>
 T fromJsonValue(const QJsonValue &value)
 {
-    QTC_ASSERT(value.isObject(), return T());
+    if (conversionLog().isDebugEnabled() && !value.isObject())
+        qCDebug(conversionLog) << "Expected Object in json value but got: " << value;
     return T(value.toObject());
 }
 
@@ -148,6 +152,15 @@ QJsonArray enumArrayToJsonArray(const QList<T> &values)
     for (T value : values)
         array.append(static_cast<int>(value));
     return array;
+}
+
+template <typename T>
+QList<T> jsonArrayToList(const QJsonArray &array)
+{
+    QList<T> list;
+    for (const QJsonValue &val : array)
+        list << fromJsonValue<T>(val);
+    return list;
 }
 
 } // namespace LanguageClient

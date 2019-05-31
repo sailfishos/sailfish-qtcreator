@@ -85,8 +85,8 @@ static TypeName resolveTypeName(const ASTPropertyReference *ref, const ContextPt
 {
     TypeName type = "unknown";
 
-    if (ref->ast()->isValid()) {
-        type = ref->ast()->memberTypeName().toUtf8();
+    if (ref->ast()->propertyToken.isValid()) {
+        type = ref->ast()->memberType->name.toUtf8();
 
         if (type == "alias") {
             const Value *value = context->lookupReference(ref);
@@ -870,6 +870,12 @@ bool NodeMetaInfoPrivate::isPropertyList(const PropertyName &propertyName) const
     const CppComponentValue *qmlObjectValue = getNearestCppComponentValue();
     if (!qmlObjectValue)
         return false;
+
+    if (!qmlObjectValue->hasProperty(QString::fromUtf8(propertyName))) {
+        const TypeName typeName = propertyType(propertyName);
+        return (typeName == "Item"  || typeName == "QtObject");
+    }
+
     return qmlObjectValue->isListProperty(QString::fromUtf8(propertyName));
 }
 
@@ -1519,7 +1525,7 @@ bool NodeMetaInfo::availableInVersion(int majorVersion, int minorVersion) const
 bool NodeMetaInfo::isSubclassOf(const TypeName &type, int majorVersion, int minorVersion) const
 {
     if (!isValid()) {
-        qWarning() << "NodeMetaInfo is invalid";
+        qWarning() << "NodeMetaInfo is invalid" << type;
         return false;
     }
 
@@ -1550,6 +1556,7 @@ bool NodeMetaInfo::isGraphicalItem() const
 {
     return isSubclassOf("QtQuick.Item")
             || isSubclassOf("QtQuick.Window.Window")
+            || isSubclassOf("QtQuick.Dialogs.Dialog")
             || isSubclassOf("QtQuick.Controls.Popup");
 }
 

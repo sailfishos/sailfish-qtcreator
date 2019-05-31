@@ -30,12 +30,13 @@
 #include <sourcelocations.h>
 
 #include <filepathstoragesources.h>
-#include <stringcachefwd.h>
 #include <projectpartartefact.h>
+#include <projectpartcontainer.h>
 #include <projectpartpch.h>
 #include <sourceentry.h>
-#include <usedmacro.h>
+#include <stringcachefwd.h>
 #include <symbol.h>
+#include <usedmacro.h>
 
 #include <cpptools/usages.h>
 
@@ -46,11 +47,12 @@
 #include <tuple>
 #include <vector>
 
-using std::int64_t;
-using ClangBackEnd::SourceEntry;
+using ClangBackEnd::FilePathIds;
 using ClangBackEnd::SourceEntries;
+using ClangBackEnd::SourceEntry;
 using ClangRefactoring::SourceLocation;
 using ClangRefactoring::SourceLocations;
+using std::int64_t;
 namespace Sources = ClangBackEnd::Sources;
 using ClangRefactoring::Symbol;
 using ClangRefactoring::Symbols;
@@ -81,11 +83,11 @@ public:
     MOCK_METHOD3(valuesReturnSourceEntries,
                  SourceEntries(std::size_t, int, int));
 
-    MOCK_METHOD2(valuesReturnUsedMacros,
-                 UsedMacros (std::size_t, int));
+    MOCK_METHOD2(valuesReturnUsedMacros, UsedMacros(std::size_t, int));
 
-    MOCK_METHOD1(valueReturnInt32,
-                 Utils::optional<int>(Utils::SmallStringView));
+    MOCK_METHOD2(valuesReturnFilePathIds, FilePathIds(std::size_t, int));
+
+    MOCK_METHOD1(valueReturnInt32, Utils::optional<int>(Utils::SmallStringView));
 
     MOCK_METHOD2(valueReturnInt32,
                  Utils::optional<int>(int, Utils::SmallStringView));
@@ -95,6 +97,11 @@ public:
 
     MOCK_METHOD1(valueReturnPathString,
                  Utils::optional<Utils::PathString>(int));
+
+    MOCK_METHOD1(valueReturnPathString,
+                 Utils::optional<Utils::PathString>(Utils::SmallStringView));
+
+    MOCK_METHOD1(valueReturnFilePath, Utils::optional<ClangBackEnd::FilePath>(int));
 
     MOCK_METHOD1(valueReturnSmallString,
                  Utils::optional<Utils::SmallString>(int));
@@ -107,7 +114,10 @@ public:
 
     MOCK_METHOD1(valueReturnProjectPartArtefact,
                  Utils::optional<ClangBackEnd::ProjectPartArtefact>(Utils::SmallStringView));
-
+    MOCK_METHOD1(valuesReturnProjectPartArtefacts, ClangBackEnd::ProjectPartArtefacts(std::size_t));
+    MOCK_METHOD1(valueReturnProjectPartContainer,
+                 Utils::optional<ClangBackEnd::ProjectPartContainer>(int));
+    MOCK_METHOD1(valuesReturnProjectPartContainers, ClangBackEnd::ProjectPartContainers(std::size_t));
     MOCK_METHOD1(valueReturnProjectPartPch,
                  Utils::optional<ClangBackEnd::ProjectPartPch>(int));
 
@@ -122,6 +132,9 @@ public:
 
     MOCK_METHOD2(valueReturnSourceLocation,
                  SourceLocation(long long, int));
+
+    MOCK_METHOD1(valueReturnProjectPartId,
+                 Utils::optional<ClangBackEnd::ProjectPartId>(Utils::SmallStringView));
 
     template <typename ResultType,
               int ResultTypeCount = 1,
@@ -195,6 +208,10 @@ MockSqliteReadStatement::values<ClangBackEnd::UsedMacro, 2>(
         std::size_t reserveSize,
         const int &sourceId);
 
+template<>
+FilePathIds MockSqliteReadStatement::values<ClangBackEnd::FilePathId>(std::size_t reserveSize,
+                                                                      const int &projectPartId);
+
 template <>
 std::vector<Sources::Directory> MockSqliteReadStatement::values<Sources::Directory, 2>(std::size_t reserveSize);
 
@@ -209,6 +226,14 @@ template <>
 Utils::optional<int>
 MockSqliteReadStatement::value<int>(const Utils::PathString&);
 
+template<>
+Utils::optional<ClangBackEnd::ProjectPartId> MockSqliteReadStatement::value<ClangBackEnd::ProjectPartId>(
+    const Utils::SmallStringView &);
+
+template<>
+Utils::optional<ClangBackEnd::FilePath> MockSqliteReadStatement::value<ClangBackEnd::FilePath>(
+    const int &);
+
 template <>
 Utils::optional<int>
 MockSqliteReadStatement::value<int>(const int&, const Utils::SmallStringView&);
@@ -222,16 +247,28 @@ Utils::optional<Utils::PathString>
 MockSqliteReadStatement::value<Utils::PathString>(const int&);
 
 template <>
-Utils::optional<ClangBackEnd::ProjectPartArtefact>
-MockSqliteReadStatement::value<ClangBackEnd::ProjectPartArtefact, 4>(const int&);
+Utils::optional<Utils::PathString>
+MockSqliteReadStatement::value<Utils::PathString>(const Utils::SmallStringView&);
 
 template <>
 Utils::optional<ClangBackEnd::ProjectPartArtefact>
-MockSqliteReadStatement::value<ClangBackEnd::ProjectPartArtefact, 4>(const int&);
+MockSqliteReadStatement::value<ClangBackEnd::ProjectPartArtefact, 8>(const int&);
 
 template <>
+Utils::optional<ClangBackEnd::ProjectPartArtefact>
+MockSqliteReadStatement::value<ClangBackEnd::ProjectPartArtefact, 8>(const int&);
+
+template<>
+Utils::optional<ClangBackEnd::ProjectPartContainer>
+MockSqliteReadStatement::value<ClangBackEnd::ProjectPartContainer, 8>(const int &);
+
+template<>
+ClangBackEnd::ProjectPartContainers MockSqliteReadStatement::values<ClangBackEnd::ProjectPartContainer,
+                                                                    8>(std::size_t reserveSize);
+
+template<>
 Utils::optional<ClangBackEnd::ProjectPartPch>
-MockSqliteReadStatement::value<ClangBackEnd::ProjectPartPch, 2>(const int&);
+MockSqliteReadStatement::value<ClangBackEnd::ProjectPartPch, 3>(const int &);
 
 template <>
 Utils::optional<Utils::SmallString>
@@ -241,9 +278,10 @@ template <>
 Utils::optional<SourceLocation>
 MockSqliteReadStatement::value<SourceLocation, 3>(const long long &symbolId, const int &locationKind);
 
-template <>
-SourceEntries
-MockSqliteReadStatement::values<SourceEntry, 3>(std::size_t reserveSize, const int&, const int&);
+template<>
+SourceEntries MockSqliteReadStatement::values<SourceEntry, 4>(std::size_t reserveSize,
+                                                              const int &,
+                                                              const int &);
 
 template <>
 Utils::optional<Sources::SourceNameAndDirectoryId>

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <texteditor/indenter.h>
+
 #include <utils/changeset.h>
 #include <utils/textfileformat.h>
 
@@ -64,6 +66,17 @@ public:
 private:
     QTextDocument *document(const QString &filePath) const;
     void shiftAffectedReplacements(const ReplacementOperation &op, int startIndex);
+
+    void format(TextEditor::Indenter &indenter,
+                QTextDocument *doc,
+                const ReplacementOperations &operationsForFile,
+                int firstOperationIndex);
+    void shiftAffectedReplacements(const QString &fileName,
+                                   const TextEditor::Replacements &replacements,
+                                   int startIndex);
+    bool hasIntersection(const QString &fileName,
+                         const TextEditor::Replacements &replacements,
+                         int startIndex) const;
 
     QString m_filePath;
     mutable Utils::TextFileFormat m_textFileFormat;

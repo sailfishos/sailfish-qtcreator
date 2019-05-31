@@ -407,7 +407,7 @@ BreakpointDialog::BreakpointDialog(unsigned int enabledParts, QWidget *parent)
     m_labelType->setBuddy(m_comboBoxType);
 
     m_pathChooserFileName = new PathChooser(groupBoxBasic);
-    m_pathChooserFileName->setHistoryCompleter(QLatin1String("Debugger.Breakpoint.File.History"));
+    m_pathChooserFileName->setHistoryCompleter("Debugger.Breakpoint.File.History");
     m_pathChooserFileName->setExpectedKind(PathChooser::File);
     m_labelFileName = new QLabel(tr("&File name:"), groupBoxBasic);
     m_labelFileName->setBuddy(m_pathChooserFileName);
@@ -1032,7 +1032,7 @@ int BreakHandler::threadSpecFromDisplay(const QString &str)
     return ok ? result : -1;
 }
 
-const QString empty(QLatin1Char('-'));
+const QString empty("-");
 
 QVariant BreakpointItem::data(int column, int role) const
 {
@@ -1661,8 +1661,8 @@ bool BreakHandler::contextMenuEvent(const ItemViewEvent &ev)
     // Delete by file: Find indices of breakpoints of the same file.
     QList<Breakpoint> breakpointsInFile;
     QString file;
-    if (Breakpoint bp = itemForIndexAtLevel<1>(ev.index())) {
-        const QModelIndex index = ev.index().sibling(ev.index().row(), BreakpointFileColumn);
+    if (Breakpoint bp = itemForIndexAtLevel<1>(ev.sourceModelIndex())) {
+        const QModelIndex index = ev.sourceModelIndex().sibling(ev.sourceModelIndex().row(), BreakpointFileColumn);
         if (!file.isEmpty()) {
             for (int i = 0; i != rowCount(); ++i)
                 if (index.data().toString() == file)
@@ -2031,14 +2031,18 @@ void BreakHandler::setWatchpointAtExpression(const QString &exp)
 
 void BreakHandler::releaseAllBreakpoints()
 {
+    GlobalBreakpoints gbps;
     for (Breakpoint bp : breakpoints()) {
         bp->removeChildren();
         bp->destroyMarker();
-        if (GlobalBreakpoint gbp = bp->globalBreakpoint())
-            gbp->updateMarker();
+        gbps.append(bp->globalBreakpoint());
     }
     clear();
-    // The now-unclaimed breakpoints are globally visible again.
+    // Make now-unclaimed breakpoints globally visible again.
+    for (GlobalBreakpoint gbp: qAsConst(gbps)) {
+        if (gbp)
+            gbp->updateMarker();
+    }
 }
 
 QString BreakpointItem::msgWatchpointByExpressionTriggered(const QString &expr) const
@@ -2626,7 +2630,7 @@ bool BreakpointManager::contextMenuEvent(const ItemViewEvent &ev)
     // Delete by file: Find indices of breakpoints of the same file.
     GlobalBreakpoints breakpointsInFile;
     QString file;
-    if (GlobalBreakpoint gbp = itemForIndexAtLevel<1>(ev.index())) {
+    if (GlobalBreakpoint gbp = itemForIndexAtLevel<1>(ev.sourceModelIndex())) {
         if (!file.isEmpty()) {
             for (int i = 0; i != rowCount(); ++i)
                 if (gbp->markerFileName() == file)

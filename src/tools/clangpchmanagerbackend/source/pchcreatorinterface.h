@@ -26,11 +26,12 @@
 #pragma once
 
 #include "idpaths.h"
+#include "pchtask.h"
 #include "projectpartpch.h"
 #include "processorinterface.h"
 
 #include <filecontainerv2.h>
-#include <projectpartcontainerv2.h>
+#include <projectpartcontainer.h>
 
 namespace ClangBackEnd {
 
@@ -41,8 +42,7 @@ public:
     PchCreatorInterface(const PchCreatorInterface &) = delete;
     PchCreatorInterface &operator=(const PchCreatorInterface &) = delete;
 
-    virtual void generatePch(const V2::ProjectPartContainer &projectsPart) = 0;
-    virtual IdPaths takeProjectIncludes() = 0;
+    virtual void generatePch(PchTask &&pchTask) = 0;
     virtual const ProjectPartPch &projectPartPch() = 0;
 
 protected:

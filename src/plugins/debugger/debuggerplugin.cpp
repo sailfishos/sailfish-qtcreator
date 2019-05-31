@@ -467,7 +467,7 @@ class DebugMode : public IMode
 public:
     DebugMode()
     {
-        setObjectName(QLatin1String("DebugMode"));
+        setObjectName("DebugMode");
         setContext(Context(C_DEBUGMODE, CC::C_NAVIGATION_PANE));
         setDisplayName(DebuggerPlugin::tr("Debug"));
         setIcon(Utils::Icon::modeIcon(Icons::MODE_DEBUGGER_CLASSIC,
@@ -506,7 +506,7 @@ public:
         mainWindowSplitter->addWidget(mainWindow);
         mainWindowSplitter->addWidget(new OutputPanePlaceHolder(MODE_DEBUG, mainWindowSplitter));
         auto outputPane = new OutputPanePlaceHolder(MODE_DEBUG, mainWindowSplitter);
-        outputPane->setObjectName(QLatin1String("DebuggerOutputPanePlaceHolder"));
+        outputPane->setObjectName("DebuggerOutputPanePlaceHolder");
         mainWindowSplitter->addWidget(outputPane);
         mainWindowSplitter->setStretchFactor(0, 10);
         mainWindowSplitter->setStretchFactor(1, 0);
@@ -519,7 +519,7 @@ public:
         splitter->addWidget(mainWindowSplitter);
         splitter->setStretchFactor(0, 0);
         splitter->setStretchFactor(1, 1);
-        splitter->setObjectName(QLatin1String("DebugModeWidget"));
+        splitter->setObjectName("DebugModeWidget");
 
         mainWindow->setCentralWidget(centralEditorWidget);
         mainWindow->addSubPerspectiveSwitcher(EngineManager::engineChooser());
@@ -696,7 +696,6 @@ public:
                             int lineNumber, QMenu *menu);
 
     void toggleBreakpointHelper();
-    void onModeChanged(Id mode);
     void updateDebugWithoutDeployMenu();
 
     void startRemoteCdbSession();
@@ -916,7 +915,7 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
     // -wincrashevent <event-handle>:<pid>. A handle used for
     // a handshake when attaching to a crashed Windows process.
     // This is created by $QTC/src/tools/qtcdebugger/main.cpp:
-    // args << QLatin1String("-wincrashevent")
+    // args << "-wincrashevent"
     //   << QString::fromLatin1("%1:%2").arg(argWinCrashEvent).arg(argProcessId);
     if (*it == "-wincrashevent") {
         ++it;
@@ -991,6 +990,11 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_menu->appendGroup(G_ANALYZER_REMOTE_TOOLS);
     m_menu->appendGroup(G_ANALYZER_OPTIONS);
 
+    ActionContainer *touchBar = ActionManager::createTouchBar("Debugger.TouchBar",
+                                                              Icons::MACOS_TOUCHBAR_DEBUG.icon());
+    ActionManager::actionContainer(Core::Constants::TOUCH_BAR)
+        ->addMenu(touchBar, Core::Constants::G_TOUCHBAR_OTHER);
+
     ActionContainer *menubar = ActionManager::actionContainer(MENU_BAR);
     ActionContainer *mtools = ActionManager::actionContainer(M_TOOLS);
     menubar->addMenu(mtools, m_menu);
@@ -1032,15 +1036,17 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     };
 
     m_breakpointManagerView = new BaseTreeView;
+    m_breakpointManagerView->setActivationMode(Utils::DoubleClickActivation);
     m_breakpointManagerView->setIconSize(QSize(10, 10));
     m_breakpointManagerView->setWindowIcon(Icons::BREAKPOINTS.icon());
     m_breakpointManagerView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_breakpointManagerView->setSettings(settings, "Debugger.BreakWindow");
     m_breakpointManagerView->setRootIsDecorated(true);
     m_breakpointManagerView->setModel(BreakpointManager::model());
+    m_breakpointManagerView->setSpanColumn(BreakpointFunctionColumn);
     m_breakpointManagerWindow = addSearch(m_breakpointManagerView);
     m_breakpointManagerWindow->setWindowTitle(tr("Breakpoint Preset"));
-    m_breakpointManagerWindow->setObjectName(DOCKWIDGET_BREAKPOINTMANAGER);
+    m_breakpointManagerWindow->setObjectName("Debugger.Docks.BreakpointManager");
     addLabel(m_breakpointManagerWindow, m_breakpointManagerWindow->windowTitle());
 
 
@@ -1052,7 +1058,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_engineManagerView->setModel(m_engineManager.model());
     m_engineManagerWindow = addSearch(m_engineManagerView);
     m_engineManagerWindow->setWindowTitle(tr("Debugger Perspectives"));
-    m_engineManagerWindow->setObjectName(DOCKWIDGET_ENGINEMANAGER);
+    m_engineManagerWindow->setObjectName("Debugger.Docks.Snapshots");
     addLabel(m_engineManagerWindow, m_engineManagerWindow->windowTitle());
 
     // Logging
@@ -1120,6 +1126,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_visibleStartAction.setAttribute(ProxyAction::UpdateIcon);
     m_visibleStartAction.setAction(&m_startAction);
 
+    m_visibleStartAction.setObjectName("Debug"); // used for UI introduction
     ModeManager::addAction(&m_visibleStartAction, Constants::P_ACTION_DEBUG);
 
     m_undisturbableAction.setIcon(interruptIcon(false));
@@ -1179,6 +1186,8 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     cmd->setDescription(tr("Interrupt Debugger"));
     cmd->setAttribute(Command::CA_UpdateText);
     cmd->setDefaultKeySequence(startShortcut);
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_INTERRUPT.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     act = new QAction(continueIcon(false), tr("Continue"), this);
@@ -1186,11 +1195,15 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     cmd = ActionManager::registerAction(act, Constants::CONTINUE);
     cmd->setAttribute(Command::CA_UpdateText);
     cmd->setDefaultKeySequence(startShortcut);
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_CONTINUE.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     act = new QAction(Icons::DEBUG_EXIT_SMALL.icon(), tr("Stop Debugger"), this);
     act->setEnabled(false);
     cmd = ActionManager::registerAction(act, Constants::STOP);
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_EXIT.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
     m_hiddenStopAction.initialize(cmd->action());
     m_hiddenStopAction.setAttribute(ProxyAction::UpdateText);
@@ -1229,18 +1242,24 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     act->setEnabled(false);
     cmd = ActionManager::registerAction(act, Constants::NEXT);
     cmd->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Ctrl+Shift+O") : tr("F10")));
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_STEP_OVER.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd);
 
     act = new QAction(Icons::STEP_INTO.icon(), tr("Step Into"), this);
     act->setEnabled(false);
     cmd = ActionManager::registerAction(act, Constants::STEP);
     cmd->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Ctrl+Shift+I") : tr("F11")));
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_STEP_INTO.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd);
 
     act = new QAction(Icons::STEP_OUT.icon(), tr("Step Out"), this);
     act->setEnabled(false);
     cmd = ActionManager::registerAction(act, Constants::STEPOUT);
     cmd->setDefaultKeySequence(QKeySequence(useMacShortcuts ? tr("Ctrl+Shift+T") : tr("Shift+F11")));
+    cmd->setTouchBarIcon(Icons::MACOS_TOUCHBAR_DEBUG_STEP_OUT.icon());
+    touchBar->addAction(cmd);
     debugMenu->addAction(cmd);
 
     act = new QAction(tr("Run to Line"), this);
@@ -1333,8 +1352,20 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     addCdbOptionPages(&m_optionPages);
     m_optionPages.append(new LocalsAndExpressionsOptionsPage);
 
-    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
-        this, &DebuggerPluginPrivate::onModeChanged);
+    connect(ModeManager::instance(), &ModeManager::currentModeAboutToChange, this, [] {
+        if (ModeManager::currentModeId() == MODE_DEBUG)
+            DebuggerMainWindow::leaveDebugMode();
+    });
+
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged, [](Id mode, Id oldMode) {
+        QTC_ASSERT(mode != oldMode, return);
+        if (mode == MODE_DEBUG) {
+            DebuggerMainWindow::enterDebugMode();
+            if (IEditor *editor = EditorManager::currentEditor())
+                editor->widget()->setFocus();
+        }
+    });
+
     connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::settingsChanged,
         this, &DebuggerPluginPrivate::updateDebugWithoutDeployMenu);
 
@@ -1384,9 +1415,9 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     m_perspective.useSubPerspectiveSwitcher(EngineManager::engineChooser());
     m_perspective.addToolBarAction(&m_startAction);
 
-    m_perspective.addWindow(m_breakpointManagerWindow, Perspective::SplitVertical, nullptr);
-    m_perspective.addWindow(m_globalLogWindow, Perspective::SplitHorizontal, m_breakpointManagerWindow, false);
-    m_perspective.addWindow(m_engineManagerWindow, Perspective::AddToTab, m_globalLogWindow);
+    m_perspective.addWindow(m_engineManagerWindow, Perspective::SplitVertical, nullptr);
+    m_perspective.addWindow(m_breakpointManagerWindow, Perspective::SplitHorizontal, m_engineManagerWindow);
+    m_perspective.addWindow(m_globalLogWindow, Perspective::AddToTab, nullptr, false, Qt::TopDockWidgetArea);
 
     setInitialState();
 
@@ -1433,8 +1464,9 @@ void DebuggerPluginPrivate::updatePresetState()
     if (startupRunConfigName.isEmpty() && startupProject)
         startupRunConfigName = startupProject->displayName();
 
+    // Restrict width, otherwise Creator gets too wide, see QTCREATORBUG-21885
     const QString startToolTip =
-            canRun ? tr("Start debugging of \"%1\"").arg(startupRunConfigName) : whyNot;
+            canRun ? tr("Start debugging of startup project") : whyNot;
 
     m_startAction.setToolTip(startToolTip);
     m_startAction.setText(canRun ? startToolTip : tr("Start Debugging"));
@@ -1445,10 +1477,7 @@ void DebuggerPluginPrivate::updatePresetState()
         m_startAction.setEnabled(canRun);
         m_startAction.setIcon(startIcon(true));
         m_startAction.setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        if (!BuildManager::isBuilding()) {
-            m_startAction.setVisible(!SessionManager::startupProject()
-                    || SessionManager::startupProject()->needsConfiguration() || canRun);
-        }
+        m_startAction.setVisible(true);
         m_debugWithoutDeployAction.setEnabled(canRun);
         m_visibleStartAction.setAction(&m_startAction);
         m_hiddenStopAction.setAction(&m_undisturbableAction);
@@ -1482,10 +1511,6 @@ void DebuggerPluginPrivate::updatePresetState()
     } else if (state == DebuggerFinished) {
         // We don't want to do anything anymore.
         m_startAction.setEnabled(canRun);
-        if (!BuildManager::isBuilding()) {
-            m_startAction.setVisible(!SessionManager::startupProject()
-                    || SessionManager::startupProject()->needsConfiguration() || canRun);
-        }
         m_debugWithoutDeployAction.setEnabled(canRun);
         m_visibleStartAction.setAction(ActionManager::command(DEBUGGER_START)->action());
         m_hiddenStopAction.setAction(&m_undisturbableAction);
@@ -1498,7 +1523,7 @@ void DebuggerPluginPrivate::updatePresetState()
     } else {
         // The startup phase should be over once we are here.
         // But treat it as 'undisturbable if we are here by accident.
-        QTC_CHECK(state != DebuggerNotReady);
+        //QTC_CHECK(state != DebuggerNotReady);
         // Everything else is "undisturbable".
         m_startAction.setEnabled(false);
         m_debugWithoutDeployAction.setEnabled(false);
@@ -1536,7 +1561,7 @@ void DebuggerPluginPrivate::onStartupProjectChanged(Project *project)
     }
     for (DebuggerEngine *engine : EngineManager::engines()) {
         // Run controls might be deleted during exit.
-        engine->updateState(false);
+        engine->updateState();
     }
 
     updatePresetState();
@@ -1549,7 +1574,7 @@ void DebuggerPluginPrivate::attachCore()
     const QString lastExternalKit = configValue("LastExternalKit").toString();
     if (!lastExternalKit.isEmpty())
         dlg.setKitId(Id::fromString(lastExternalKit));
-    dlg.setLocalExecutableFile(configValue("LastExternalExecutableFile").toString());
+    dlg.setSymbolFile(configValue("LastExternalExecutableFile").toString());
     dlg.setLocalCoreFile(configValue("LastLocalCoreFile").toString());
     dlg.setRemoteCoreFile(configValue("LastRemoteCoreFile").toString());
     dlg.setOverrideStartScript(configValue("LastExternalStartScript").toString());
@@ -1558,7 +1583,7 @@ void DebuggerPluginPrivate::attachCore()
     if (dlg.exec() != QDialog::Accepted)
         return;
 
-    setConfigValue("LastExternalExecutableFile", dlg.localExecutableFile());
+    setConfigValue("LastExternalExecutableFile", dlg.symbolFile());
     setConfigValue("LastLocalCoreFile", dlg.localCoreFile());
     setConfigValue("LastRemoteCoreFile", dlg.remoteCoreFile());
     setConfigValue("LastExternalKit", dlg.kit()->id().toSetting());
@@ -1568,7 +1593,7 @@ void DebuggerPluginPrivate::attachCore()
     IDevice::ConstPtr device = DeviceKitInformation::device(dlg.kit());
     auto runControl = new RunControl(device, ProjectExplorer::Constants::DEBUG_RUN_MODE);
     auto debugger = new DebuggerRunTool(runControl, dlg.kit());
-    debugger->setInferiorExecutable(dlg.localExecutableFile());
+    debugger->setInferiorExecutable(dlg.symbolFile());
     debugger->setCoreFileName(dlg.localCoreFile());
     debugger->setRunControlName(tr("Core file \"%1\"")
         .arg(dlg.useLocalCoreFile() ? dlg.localCoreFile() : dlg.remoteCoreFile()));
@@ -1991,11 +2016,9 @@ void DebuggerPluginPrivate::aboutToShutdown()
     m_shutdownTimer.setInterval(0);
     m_shutdownTimer.setSingleShot(true);
     connect(&m_shutdownTimer, &QTimer::timeout, this, &DebuggerPluginPrivate::doShutdown);
-    for (DebuggerEngine *engine : m_engineManager.engines()) {
-        if (engine && engine->state() != Debugger::DebuggerNotReady) {
-            engine->abortDebugger();
-            m_shutdownTimer.setInterval(3000);
-        }
+    if (EngineManager::shutDown()) {
+        // If any engine is aborting we give them extra three seconds.
+        m_shutdownTimer.setInterval(3000);
     }
     m_shutdownTimer.start();
 }
@@ -2104,7 +2127,7 @@ void showModuleSymbols(const QString &moduleName, const Symbols &symbols)
     w->setRootIsDecorated(false);
     w->setAlternatingRowColors(true);
     w->setSortingEnabled(true);
-    w->setObjectName(QLatin1String("Symbols.") + moduleName);
+    w->setObjectName("Symbols." + moduleName);
     QStringList header;
     header.append(DebuggerPlugin::tr("Symbol"));
     header.append(DebuggerPlugin::tr("Address"));
@@ -2133,7 +2156,7 @@ void showModuleSections(const QString &moduleName, const Sections &sections)
     w->setRootIsDecorated(false);
     w->setAlternatingRowColors(true);
     w->setSortingEnabled(true);
-    w->setObjectName(QLatin1String("Sections.") + moduleName);
+    w->setObjectName("Sections." + moduleName);
     QStringList header;
     header.append(DebuggerPlugin::tr("Name"));
     header.append(DebuggerPlugin::tr("From"));
@@ -2175,8 +2198,8 @@ void openTextEditor(const QString &titlePattern0, const QString &contents)
                 EditorManager::IgnoreNavigationHistory);
     if (auto textEditor = qobject_cast<BaseTextEditor *>(editor)) {
         QString suggestion = titlePattern;
-        if (!suggestion.contains(QLatin1Char('.')))
-            suggestion.append(QLatin1String(".txt"));
+        if (!suggestion.contains('.'))
+            suggestion.append(".txt");
         textEditor->textDocument()->setFallbackSaveAsFileName(suggestion);
     }
     QTC_ASSERT(editor, return);
@@ -2206,7 +2229,7 @@ static DebuggerPlugin *m_instance = nullptr;
 
 DebuggerPlugin::DebuggerPlugin()
 {
-    setObjectName(QLatin1String("DebuggerPlugin"));
+    setObjectName("DebuggerPlugin");
     m_instance = this;
 }
 
@@ -2268,19 +2291,6 @@ QObject *DebuggerPlugin::remoteCommand(const QStringList &options,
 void DebuggerPlugin::extensionsInitialized()
 {
     dd->extensionsInitialized();
-}
-
-void DebuggerPluginPrivate::onModeChanged(Id mode)
-{
-    DebuggerMainWindow::onModeChanged(mode);
-    // FIXME: This one gets always called, even if switching between modes
-    //        different then the debugger mode. E.g. Welcome and Help mode and
-    //        also on shutdown.
-
-    if (mode == MODE_DEBUG) {
-        if (IEditor *editor = EditorManager::currentEditor())
-            editor->widget()->setFocus();
-    }
 }
 
 } // namespace Internal
@@ -2376,7 +2386,7 @@ bool wantRunTool(ToolMode toolMode, const QString &toolName)
             "Do you want to continue and run the tool in %2 mode?</p></body></html>")
                 .arg(toolName).arg(currentMode).arg(toolModeString);
         if (Utils::CheckableMessageBox::doNotAskAgainQuestion(ICore::mainWindow(),
-                title, message, ICore::settings(), QLatin1String("AnalyzerCorrectModeWarning"))
+                title, message, ICore::settings(), "AnalyzerCorrectModeWarning")
                     != QDialogButtonBox::Yes)
             return false;
     }
@@ -2457,7 +2467,7 @@ void DebuggerUnitTests::initTestCase()
 //        QSKIP("No clang suitable for analyzing found");
 
     s_testRun = true;
-    m_tmpDir = new CppTools::Tests::TemporaryCopiedDir(QLatin1String(":/unit-tests"));
+    m_tmpDir = new CppTools::Tests::TemporaryCopiedDir(":/unit-tests");
     QVERIFY(m_tmpDir->isValid());
 }
 

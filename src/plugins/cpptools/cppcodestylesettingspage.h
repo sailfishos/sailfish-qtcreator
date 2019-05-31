@@ -30,6 +30,7 @@
 #include "cppcodeformatter.h"
 
 #include <coreplugin/dialogs/ioptionspage.h>
+#include <texteditor/icodestylepreferencesfactory.h>
 
 #include <QWidget>
 #include <QPointer>
@@ -37,7 +38,6 @@
 namespace TextEditor {
     class FontSettings;
     class TabSettings;
-    class ICodeStylePreferences;
     class SnippetEditorWidget;
     class CodeStyleEditor;
 }
@@ -54,8 +54,8 @@ class CppCodeStylePreferencesWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit CppCodeStylePreferencesWidget(QWidget *parent = 0);
-    virtual ~CppCodeStylePreferencesWidget();
+    explicit CppCodeStylePreferencesWidget(QWidget *parent = nullptr);
+    ~CppCodeStylePreferencesWidget() override;
 
     void setCodeStyle(CppTools::CppCodeStylePreferences *codeStylePreferences);
 
@@ -71,10 +71,10 @@ private:
 
     CppCodeStyleSettings cppCodeStyleSettings() const;
 
-    CppCodeStylePreferences *m_preferences;
+    CppCodeStylePreferences *m_preferences = nullptr;
     Ui::CppCodeStyleSettingsPage *m_ui;
     QList<TextEditor::SnippetEditorWidget *> m_previews;
-    bool m_blockUpdates;
+    bool m_blockUpdates = false;
 };
 
 
@@ -83,15 +83,15 @@ class CppCodeStyleSettingsPage : public Core::IOptionsPage
     Q_OBJECT
 
 public:
-    explicit CppCodeStyleSettingsPage(QWidget *parent = 0);
+    explicit CppCodeStyleSettingsPage(QWidget *parent = nullptr);
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 private:
-    CppCodeStylePreferences *m_pageCppCodeStylePreferences;
-    QPointer<TextEditor::CodeStyleEditor> m_widget;
+    CppCodeStylePreferences *m_pageCppCodeStylePreferences = nullptr;
+    QPointer<TextEditor::CodeStyleEditorWidget> m_widget;
 };
 
 } // namespace Internal

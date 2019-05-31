@@ -27,6 +27,8 @@
 #include "prowriter.h"
 #include "proitems.h"
 
+#include <utils/algorithm.h>
+
 #include <QDir>
 #include <QRegExp>
 #include <QPair>
@@ -36,7 +38,7 @@ using namespace QmakeProjectManager::Internal;
 static uint getBlockLen(const ushort *&tokPtr)
 {
     uint len = *tokPtr++;
-    len |= (uint)*tokPtr++ << 16;
+    len |= uint(*tokPtr++ << 16);
     return len;
 }
 
@@ -51,10 +53,10 @@ static bool getLiteral(const ushort *tokPtr, const ushort *tokEnd, QString &tmp)
             break;
         case TokHashLiteral:
             tokPtr += 2;
-            // fallthrough
+            Q_FALLTHROUGH();
         case TokLiteral: {
-            uint len = *tokPtr++;
-            tmp.setRawData((const QChar *)tokPtr, len);
+            int len = *tokPtr++;
+            tmp.setRawData(reinterpret_cast<const QChar *>(tokPtr), len);
             count++;
             tokPtr += len;
             break; }
@@ -87,7 +89,7 @@ static void skipBlock(const ushort *&tokPtr)
 static void skipExpression(const ushort *&pTokPtr, int &lineNo)
 {
     const ushort *tokPtr = pTokPtr;
-    forever {
+    for (;;) {
         ushort tok = *tokPtr++;
         switch (tok) {
         case TokLine:
@@ -136,13 +138,13 @@ static const ushort *skipToken(ushort tok, const ushort *&tokPtr, int &lineNo)
     case TokRemove:
     case TokReplace:
         tokPtr++;
-        // fallthrough
+        Q_FALLTHROUGH();
     case TokTestCall:
         skipExpression(tokPtr, lineNo);
         break;
     case TokForLoop:
         skipHashStr(tokPtr);
-        // fallthrough
+        Q_FALLTHROUGH();
     case TokBranch:
         skipBlock(tokPtr);
         skipBlock(tokPtr);
@@ -168,18 +170,18 @@ static const ushort *skipToken(ushort tok, const ushort *&tokPtr, int &lineNo)
         }
         Q_ASSERT_X(false, "skipToken", "unexpected item type");
     }
-    return 0;
+    return nullptr;
 }
 
 QString ProWriter::compileScope(const QString &scope)
 {
     if (scope.isEmpty())
         return QString();
-    QMakeParser parser(0, 0, 0);
+    QMakeParser parser(nullptr, nullptr, nullptr);
     ProFile *includeFile = parser.parsedProBlock(QStringRef(&scope), 0, QLatin1String("no-file"), 1);
     if (!includeFile)
         return QString();
-    QString result = includeFile->items();
+    const QString result = includeFile->items();
     includeFile->deref();
     return result.mid(2); // chop of TokLine + linenumber
 }
@@ -204,11 +206,11 @@ bool ProWriter::locateVarValues(const ushort *tokPtr, const ushort *tokPtrEnd,
     const bool inScope = scope.isEmpty();
     int lineNo = *scopeStart + 1;
     QString tmp;
-    const ushort *lastXpr = 0;
+    const ushort *lastXpr = nullptr;
     bool fresh = true;
 
     QString compiledScope = compileScope(scope);
-    const ushort *cTokPtr = (const ushort *)compiledScope.constData();
+    const ushort *cTokPtr = reinterpret_cast<const ushort *>(compiledScope.constData());
 
     while (ushort tok = *tokPtr++) {
         if (inScope && (tok == TokAssign || tok == TokAppend || tok == TokAppendUnique)) {
@@ -244,60 +246,112 @@ bool ProWriter::locateVarValues(const ushort *tokPtr, const ushort *tokPtrEnd,
     return false;
 }
 
-static int skipContLines(QStringList *lines, int lineNo, bool addCont)
+struct LineInfo
 {
+    QString indent;
+    int continuationPos = 0;
+    bool hasComment = false;
+};
+
+static LineInfo lineInfo(const QString &line)
+{
+    LineInfo li;
+    li.continuationPos = line.length();
+    const int idx = line.indexOf('#');
+    li.hasComment = idx >= 0;
+    if (li.hasComment)
+        li.continuationPos = idx;
+    for (int i = idx - 1; i >= 0 && (line.at(i) == ' ' || line.at(i) == '\t'); --i)
+        --li.continuationPos;
+    for (int i = 0; i < line.length() && (line.at(i) == ' ' || line.at(i) == '\t'); ++i)
+        li.indent += line.at(i);
+    return li;
+}
+
+struct ContinuationInfo {
+    QString indent; // Empty means use default
+    int lineNo;
+};
+
+static ContinuationInfo skipContLines(QStringList *lines, int lineNo, bool addCont)
+{
+    bool hasConsistentIndent = true;
+    QString lastIndent;
     for (; lineNo < lines->count(); lineNo++) {
-        QString line = lines->at(lineNo);
-        int idx = line.indexOf(QLatin1Char('#'));
-        if (idx >= 0)
-            line.truncate(idx);
-        while (line.endsWith(QLatin1Char(' ')) || line.endsWith(QLatin1Char('\t')))
-            line.chop(1);
-        if (line.isEmpty()) {
-            if (idx >= 0)
+        const QString line = lines->at(lineNo);
+        LineInfo li = lineInfo(line);
+        if (hasConsistentIndent) {
+            if (lastIndent.isEmpty())
+                lastIndent = li.indent;
+            else if (lastIndent != li.indent)
+                hasConsistentIndent = false;
+        }
+        if (li.continuationPos == 0) {
+            if (li.hasComment)
                 continue;
             break;
         }
-        if (!line.endsWith(QLatin1Char('\\'))) {
+        if (line.at(li.continuationPos - 1) != '\\') {
             if (addCont)
-                (*lines)[lineNo].insert(line.length(), QLatin1String(" \\"));
+                (*lines)[lineNo].insert(li.continuationPos, " \\");
             lineNo++;
             break;
         }
     }
-    return lineNo;
+    ContinuationInfo ci;
+    if (hasConsistentIndent)
+        ci.indent = lastIndent;
+    ci.lineNo = lineNo;
+    return ci;
 }
 
-void ProWriter::putVarValues(ProFile *profile, QStringList *lines,
-    const QStringList &values, const QString &var, PutFlags flags, const QString &scope)
+void ProWriter::putVarValues(ProFile *profile, QStringList *lines, const QStringList &values,
+                             const QString &var, PutFlags flags, const QString &scope,
+                             const QString &continuationIndent)
 {
-    QString indent = scope.isEmpty() ? QString() : QLatin1String("    ");
+    const QString indent = scope.isEmpty() ? QString() : continuationIndent;
+    const auto effectiveContIndent = [indent, continuationIndent](const ContinuationInfo &ci) {
+        return !ci.indent.isEmpty() ? ci.indent : continuationIndent + indent;
+    };
     int scopeStart = -1, lineNo;
     if (locateVarValues(profile->tokPtr(), profile->tokPtrEnd(), scope, var, &scopeStart, &lineNo)) {
         if (flags & ReplaceValues) {
             // remove continuation lines with old values
-            int lNo = skipContLines(lines, lineNo, false);
-            lines->erase(lines->begin() + lineNo + 1, lines->begin() + lNo);
+            const ContinuationInfo contInfo = skipContLines(lines, lineNo, false);
+            lines->erase(lines->begin() + lineNo + 1, lines->begin() + contInfo.lineNo);
             // remove rest of the line
             QString &line = (*lines)[lineNo];
             int eqs = line.indexOf(QLatin1Char('='));
             if (eqs >= 0) // If this is not true, we mess up the file a bit.
                 line.truncate(eqs + 1);
             // put new values
-            foreach (const QString &v, values)
-                line += ((flags & MultiLine) ? QLatin1String(" \\\n    ") + indent : QString::fromLatin1(" ")) + v;
+            for (const QString &v : values) {
+                line += ((flags & MultiLine) ? QLatin1String(" \\\n") + effectiveContIndent(contInfo)
+                                             : QString::fromLatin1(" ")) + v;
+            }
         } else {
-            lineNo = skipContLines(lines, lineNo, true);
-            QString added;
-            foreach (const QString &v, values)
-                added += QLatin1String("    ") + indent + v + QLatin1String(" \\\n");
-            added.chop(3);
-            lines->insert(lineNo, added);
+            const ContinuationInfo contInfo = skipContLines(lines, lineNo, false);
+            int endLineNo = contInfo.lineNo;
+            for (const QString &v : values) {
+                int curLineNo = lineNo + 1;
+                while (curLineNo < endLineNo && v >= lines->at(curLineNo).trimmed())
+                    ++curLineNo;
+                QString newLine = effectiveContIndent(contInfo) + v;
+                if (curLineNo == endLineNo) {
+                    QString &oldLastLine = (*lines)[endLineNo - 1];
+                    oldLastLine.insert(lineInfo(oldLastLine).continuationPos, " \\");
+                } else {
+                    newLine += " \\";
+                }
+                lines->insert(curLineNo, newLine);
+                ++endLineNo;
+            }
         }
     } else {
         // Create & append new variable item
         QString added;
         int lNo = lines->count();
+        ContinuationInfo contInfo;
         if (!scope.isEmpty()) {
             if (scopeStart < 0) {
                 added = QLatin1Char('\n') + scope + QLatin1String(" {");
@@ -305,8 +359,10 @@ void ProWriter::putVarValues(ProFile *profile, QStringList *lines,
                 QRegExp rx(QLatin1String("(\\s*") + scope + QLatin1String("\\s*:\\s*)[^\\s{].*"));
                 if (rx.exactMatch(lines->at(scopeStart))) {
                     (*lines)[scopeStart].replace(0, rx.cap(1).length(),
-                                                 QString(scope + QLatin1String(" {\n    ")));
-                    lNo = skipContLines(lines, scopeStart, false);
+                                                 QString(scope + QLatin1String(" {\n")
+                                                         + continuationIndent));
+                    contInfo = skipContLines(lines, scopeStart, false);
+                    lNo = contInfo.lineNo;
                     scopeStart = -1;
                 }
             }
@@ -332,25 +388,29 @@ void ProWriter::putVarValues(ProFile *profile, QStringList *lines,
         if (lNo != scopeStart + 1)
             added += QLatin1Char('\n');
         added += indent + var + QLatin1String((flags & AppendOperator) ? " +=" : " =");
-        foreach (const QString &v, values)
-            added += ((flags & MultiLine) ? QLatin1String(" \\\n    ") + indent : QString::fromLatin1(" ")) + v;
+        for (const QString &v : values) {
+            added += ((flags & MultiLine) ? QLatin1String(" \\\n") + effectiveContIndent(contInfo)
+                                          : QString::fromLatin1(" ")) + v;
+        }
         if (!scope.isEmpty() && scopeStart < 0)
             added += QLatin1String("\n}");
         lines->insert(lNo, added);
     }
 }
 
-void ProWriter::addFiles(ProFile *profile, QStringList *lines, const QStringList &values, const QString &var)
+void ProWriter::addFiles(ProFile *profile, QStringList *lines, const QStringList &values,
+                         const QString &var, const QString &continuationIndent)
 {
     QStringList valuesToWrite;
     QString prefixPwd;
     QDir baseDir = QFileInfo(profile->fileName()).absoluteDir();
     if (profile->fileName().endsWith(QLatin1String(".pri")))
         prefixPwd = QLatin1String("$$PWD/");
-    foreach (const QString &v, values)
+    for (const QString &v : values)
         valuesToWrite << (prefixPwd + baseDir.relativeFilePath(v));
 
-    putVarValues(profile, lines, valuesToWrite, var, AppendValues | MultiLine | AppendOperator);
+    putVarValues(profile, lines, valuesToWrite, var, AppendValues | MultiLine | AppendOperator,
+                 QString(), continuationIndent);
 }
 
 static void findProVariables(const ushort *tokPtr, const QStringList &vars,
@@ -358,7 +418,7 @@ static void findProVariables(const ushort *tokPtr, const QStringList &vars,
 {
     int lineNo = firstLine;
     QString tmp;
-    const ushort *lastXpr = 0;
+    const ushort *lastXpr = nullptr;
     while (ushort tok = *tokPtr++) {
         if (tok == TokBranch) {
             uint blockLen = getBlockLen(tokPtr);
@@ -394,7 +454,7 @@ QList<int> ProWriter::removeVarValues(ProFile *profile, QStringList *lines,
 
     // This code expects proVars to be sorted by the variables' appearance in the file.
     int delta = 1;
-    foreach (int ln, varLines) {
+    for (int ln : qAsConst(varLines)) {
        bool first = true;
        int lineNo = ln - delta;
        typedef QPair<int, int> ContPos;
@@ -408,7 +468,7 @@ QList<int> ProWriter::removeVarValues(ProFile *profile, QStringList *lines,
            if (idx >= 0)
                lineLen = idx;
            QChar *chars = line.data();
-           forever {
+           for (;;) {
                if (!lineLen) {
                    if (idx >= 0)
                        goto nextLine;
@@ -471,7 +531,7 @@ QList<int> ProWriter::removeVarValues(ProFile *profile, QStringList *lines,
                    // Entries existed, but were all removed
                    if (contCol < 0) {
                        // This is the last line, so clear continuations leading to it
-                       foreach (const ContPos &pos, contPos) {
+                       for (const ContPos &pos : qAsConst(contPos)) {
                            QString &bline = (*lines)[pos.first];
                            bline.remove(pos.second, 1);
                            if (pos.second == bline.length())
@@ -505,12 +565,12 @@ QStringList ProWriter::removeFiles(ProFile *profile, QStringList *lines,
     // This is a tad stupid - basically, it can remove only entries which
     // the above code added.
     QStringList valuesToFind;
-    foreach (const QString &absoluteFilePath, values)
+    for (const QString &absoluteFilePath : values)
         valuesToFind << proFileDir.relativeFilePath(absoluteFilePath);
 
-    QStringList notYetChanged;
-    foreach (int i, removeVarValues(profile, lines, valuesToFind, vars))
-        notYetChanged.append(values.at(i));
+    const QStringList notYetChanged =
+            Utils::transform(removeVarValues(profile, lines, valuesToFind, vars),
+                             [values](int i) { return values.at(i); });
 
     if (!profile->fileName().endsWith(QLatin1String(".pri")))
         return notYetChanged;
@@ -519,14 +579,14 @@ QStringList ProWriter::removeFiles(ProFile *profile, QStringList *lines,
     // maybe those files can be found via $$PWD/relativeToPriFile
 
     valuesToFind.clear();
-    QDir baseDir = QFileInfo(profile->fileName()).absoluteDir();
-    QString prefixPwd = QLatin1String("$$PWD/");
-    foreach (const QString &absoluteFilePath, notYetChanged)
+    const QDir baseDir = QFileInfo(profile->fileName()).absoluteDir();
+    const QString prefixPwd = QLatin1String("$$PWD/");
+    for (const QString &absoluteFilePath : notYetChanged)
         valuesToFind << (prefixPwd + baseDir.relativeFilePath(absoluteFilePath));
 
-    QStringList notChanged;
-    foreach (int i, removeVarValues(profile, lines, valuesToFind, vars))
-        notChanged.append(notYetChanged.at(i));
+    const QStringList notChanged =
+            Utils::transform(removeVarValues(profile, lines, valuesToFind, vars),
+                             [notYetChanged](int i) { return notYetChanged.at(i); });
 
     return notChanged;
 }

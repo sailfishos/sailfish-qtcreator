@@ -72,7 +72,7 @@ class PROJECTEXPLORER_EXPORT DeviceProcessSignalOperation : public QObject
 {
     Q_OBJECT
 public:
-    typedef QSharedPointer<DeviceProcessSignalOperation> Ptr;
+    using Ptr = QSharedPointer<DeviceProcessSignalOperation>;
 
     virtual void killProcess(qint64 pid) = 0;
     virtual void killProcess(const QString &filePath) = 0;
@@ -96,7 +96,7 @@ class PROJECTEXPLORER_EXPORT DeviceEnvironmentFetcher : public QObject
 {
     Q_OBJECT
 public:
-    typedef QSharedPointer<DeviceEnvironmentFetcher> Ptr;
+    using Ptr = QSharedPointer<DeviceEnvironmentFetcher>;
 
     virtual void start() = 0;
 
@@ -110,7 +110,7 @@ protected:
 class PROJECTEXPLORER_EXPORT PortsGatheringMethod
 {
 public:
-    typedef QSharedPointer<const PortsGatheringMethod> Ptr;
+    using Ptr = QSharedPointer<const PortsGatheringMethod>;
 
     virtual ~PortsGatheringMethod() = default;
     virtual Runnable runnable(QAbstractSocket::NetworkLayerProtocol protocol) const = 0;
@@ -121,12 +121,13 @@ public:
 class PROJECTEXPLORER_EXPORT IDevice : public QEnableSharedFromThis<IDevice>
 {
 public:
-    typedef QSharedPointer<IDevice> Ptr;
-    typedef QSharedPointer<const IDevice> ConstPtr;
+    using Ptr = QSharedPointer<IDevice>;
+    using ConstPtr = QSharedPointer<const IDevice>;
 
     enum Origin { ManuallyAdded, AutoDetected };
     enum MachineType { Hardware, Emulator };
 
+    IDevice &operator=(const IDevice &) = delete;
     virtual ~IDevice();
 
     QString displayName() const;
@@ -141,21 +142,26 @@ public:
         QString key;
         QString value;
     };
-    typedef QList<DeviceInfoItem> DeviceInfo;
+    using DeviceInfo = QList<DeviceInfoItem>;
     virtual DeviceInfo deviceInformation() const;
 
     Core::Id type() const;
+    void setType(Core::Id type);
+
     bool isAutoDetected() const;
-    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
 
     virtual QString displayType() const = 0;
     virtual IDeviceWidget *createWidget() = 0;
-    virtual QList<Core::Id> actionIds() const = 0;
-    virtual QString displayNameForActionId(Core::Id actionId) const = 0;
-    virtual void executeAction(Core::Id actionId, QWidget *parent = nullptr) = 0;
+
+    struct DeviceAction {
+        QString display;
+        std::function<void(const IDevice::Ptr &device, QWidget *parent)> execute;
+    };
+    void addDeviceAction(const DeviceAction &deviceAction);
+    const QList<DeviceAction> deviceActions() const;
 
     // Devices that can auto detect ports need not return a ports gathering method. Such devices can
     // obtain a free port on demand. eg: Desktop device.
@@ -199,6 +205,7 @@ public:
     void setFreePorts(const Utils::PortList &freePorts);
 
     MachineType machineType() const;
+    void setMachineType(MachineType machineType);
 
     QString debugServerPath() const;
     void setDebugServerPath(const QString &path);
@@ -206,16 +213,17 @@ public:
     QString qmlsceneCommand() const;
     void setQmlsceneCommand(const QString &path);
 
+    void setExtraData(Core::Id kind, const QVariant &data);
+    QVariant extraData(Core::Id kind) const;
+
+    void setupId(Origin origin, Core::Id id = Core::Id());
+
 protected:
     IDevice();
-    IDevice(Core::Id type, Origin origin, MachineType machineType, Core::Id id = Core::Id());
     IDevice(const IDevice &other);
 
 private:
-    IDevice &operator=(const IDevice &); // Unimplemented.
-
     int version() const;
-    void setSdkProvided(bool sdkProvided);
 
     const std::unique_ptr<Internal::IDevicePrivate> d;
     friend class DeviceManager;
@@ -229,7 +237,7 @@ class PROJECTEXPLORER_EXPORT DeviceTester : public QObject
 public:
     enum TestResult { TestSuccess, TestFailure };
 
-    virtual void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) = 0;
+    virtual void testDevice(const ProjectExplorer::IDevice::Ptr &deviceConfiguration) = 0;
     virtual void stopTest() = 0;
 
 signals:

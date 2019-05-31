@@ -33,13 +33,13 @@ class MockProjectPartQueue : public ClangBackEnd::ProjectPartQueueInterface
 {
 public:
     MOCK_METHOD1(addProjectParts,
-                 void (const ClangBackEnd::V2::ProjectPartContainers &projectParts));
+                 void (const ClangBackEnd::ProjectPartContainers &projectParts));
     MOCK_METHOD1(removeProjectParts,
                  void (const Utils::SmallStringVector &projectsPartIds));
 
     MOCK_METHOD0(processEntries, void ());
 
-    void addProjectParts(ClangBackEnd::V2::ProjectPartContainers &&projectParts) override
+    void addProjectParts(ClangBackEnd::ProjectPartContainers &&projectParts) override
     {
         addProjectParts(projectParts);
     }

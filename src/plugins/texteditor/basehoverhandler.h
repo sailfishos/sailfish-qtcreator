@@ -26,8 +26,8 @@
 #pragma once
 
 #include "texteditor_global.h"
-#include "helpitem.h"
 
+#include <coreplugin/helpitem.h>
 #include <coreplugin/icontext.h>
 
 #include <functional>
@@ -47,7 +47,7 @@ public:
 
     void contextHelpId(TextEditorWidget *widget,
                        int pos,
-                       const Core::IContext::HelpIdCallback &callback);
+                       const Core::IContext::HelpCallback &callback);
 
     using ReportPriority = std::function<void(int priority)>;
     void checkPriority(TextEditorWidget *widget, int pos, ReportPriority report);
@@ -68,10 +68,12 @@ protected:
     void setToolTip(const QString &tooltip);
     const QString &toolTip() const;
 
-    void setLastHelpItemIdentified(const HelpItem &help);
-    const HelpItem &lastHelpItemIdentified() const;
+    void setLastHelpItemIdentified(const Core::HelpItem &help);
+    const Core::HelpItem &lastHelpItemIdentified() const;
 
-    void propagateHelpId(TextEditorWidget *widget, const Core::IContext::HelpIdCallback &callback);
+    bool isContextHelpRequest() const;
+
+    void propagateHelpId(TextEditorWidget *widget, const Core::IContext::HelpCallback &callback);
 
     // identifyMatch() is required to report a priority by using the "report" callback.
     // It is recommended to use e.g.
@@ -85,8 +87,9 @@ private:
     void process(TextEditorWidget *widget, int pos, ReportPriority report);
 
     QString m_toolTip;
-    HelpItem m_lastHelpItemIdentified;
+    Core::HelpItem m_lastHelpItemIdentified;
     int m_priority = -1;
+    bool m_isContextHelpRequest = false;
 };
 
 } // namespace TextEditor

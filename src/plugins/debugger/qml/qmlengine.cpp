@@ -460,7 +460,7 @@ void QmlEngine::errorMessageBoxFinished(int result)
         break;
     }
     case QMessageBox::Help: {
-        HelpManager::handleHelpRequest("qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html");
+        HelpManager::showHelpUrl("qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html");
         Q_FALLTHROUGH();
     }
     default:
@@ -1018,7 +1018,7 @@ void QmlEngine::updateCurrentContext()
         return;
     }
 
-    debuggerConsole()->setContext(tr("Context:") + QLatin1Char(' ')
+    debuggerConsole()->setContext(tr("Context:") + ' '
                                   + (context.isEmpty() ? tr("Global QML Context") : context));
 }
 
@@ -1040,7 +1040,9 @@ void QmlEngine::executeDebuggerCommand(const QString &command)
         if (d->unpausedEvaluate) {
             d->evaluate(command, contextId, CB(d->handleExecuteDebuggerCommand));
         } else {
-            quint32 queryId = d->inspectorAgent.queryExpressionResult(contextId, command);
+            quint32 queryId = d->inspectorAgent.queryExpressionResult(
+                        contextId, command,
+                        d->inspectorAgent.engineId(watchHandler()->watchItem(currentIndex)));
             if (queryId) {
                 d->queryIds.append(queryId);
             } else {
@@ -1563,7 +1565,7 @@ QmlV8ObjectData QmlEnginePrivate::extractData(const QVariant &data) const
         objectData.value = dataMap.value(VALUE);
 
     } else if (type == "string") {
-        QLatin1Char quote('"');
+        QChar quote('"');
         objectData.type = "string";
         objectData.value = QString(quote + dataMap.value(VALUE).toString() + quote);
 
@@ -1845,7 +1847,6 @@ void QmlEnginePrivate::messageReceived(const QByteArray &data)
 
                     const QVariantList v8BreakpointIdList = breakData.value("breakpoints").toList();
                     for (const QVariant &breakpointId : v8BreakpointIdList) {
-                        const QString x = breakpointId.toString();
                         const QString responseId = QString::number(breakpointId.toInt());
                         Breakpoint bp = engine->breakHandler()->findBreakpointByResponseId(responseId);
                         QTC_ASSERT(bp, continue);

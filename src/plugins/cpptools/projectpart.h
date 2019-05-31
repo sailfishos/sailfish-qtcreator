@@ -30,13 +30,16 @@
 #include "cppprojectfile.h"
 
 #include <projectexplorer/headerpath.h>
-#include <projectexplorer/language.h>
 #include <projectexplorer/projectexplorer_global.h>
 #include <projectexplorer/projectmacro.h>
 
 #include <coreplugin/id.h>
 
+#include <utils/cpplanguage_details.h>
+
 #include <cplusplus/Token.h>
+
+#include <utils/cpplanguage_details.h>
 
 #include <QString>
 #include <QSharedPointer>
@@ -87,32 +90,40 @@ public:
     QString projectFile;
     int projectFileLine = -1;
     int projectFileColumn = -1;
-    QString projectConfigFile; // currently only used by the Generic Project Manager
     QString callGroupId;
-    QString buildSystemTarget;
 
+    // Versions, features and extensions
+    ::Utils::Language language = ::Utils::Language::Cxx;
+    ::Utils::LanguageVersion languageVersion = ::Utils::LanguageVersion::LatestCxx;
+    ::Utils::LanguageExtensions languageExtensions = ::Utils::LanguageExtension::None;
+    CPlusPlus::LanguageFeatures languageFeatures;
+    QtVersion qtVersion = UnknownQt;
+
+    // Files
     ProjectFiles files;
-
     QStringList precompiledHeaders;
     ProjectExplorer::HeaderPaths headerPaths;
+    QString projectConfigFile; // Generic Project Manager only
 
+    // Macros
     ProjectExplorer::Macros projectMacros;
+    ProjectExplorer::Macros toolChainMacros;
 
-    ProjectExplorer::LanguageVersion languageVersion = ProjectExplorer::LanguageVersion::LatestCxx;
-    ProjectExplorer::LanguageExtensions languageExtensions = ProjectExplorer::LanguageExtension::None;
-    ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
-    QtVersion qtVersion = UnknownQt;
-    CPlusPlus::LanguageFeatures languageFeatures;
-
+    // Build system
+    QString buildSystemTarget;
+    BuildTargetType buildTargetType = Unknown;
     bool selectedForBuilding = true;
 
+    // ToolChain
     Core::Id toolchainType;
     bool isMsvc2015Toolchain = false;
-    ProjectExplorer::Macros toolChainMacros;
-    ToolChainWordWidth toolChainWordWidth = WordWidth32Bit;
     QString toolChainTargetTriple;
+    ToolChainWordWidth toolChainWordWidth = WordWidth32Bit;
+    ProjectExplorer::WarningFlags warningFlags = ProjectExplorer::WarningFlags::Default;
+
+    // Misc
     QStringList extraCodeModelFlags;
-    BuildTargetType buildTargetType = Unknown;
+    QStringList compilerFlags;
 };
 
 } // namespace CppTools

@@ -27,6 +27,7 @@
 
 #include "mobject.h"
 
+#include <QHash>
 #include <QDateTime>
 
 namespace qmt {
@@ -44,6 +45,7 @@ public:
 
     const QList<DElement *> &diagramElements() const { return m_elements; }
     DElement *findDiagramElement(const Uid &key) const;
+    DElement *findDelegate(const Uid &modelUid) const;
     void setDiagramElements(const QList<DElement *> &elements);
 
     void addDiagramElement(DElement *element);
@@ -63,6 +65,8 @@ public:
 
 private:
     QList<DElement *> m_elements;
+    QHash<Uid, DElement *> m_elementMap;
+    QHash<Uid, DElement *> m_modelUid2ElementMap;
     QDateTime m_lastModified;
     QString m_toolbarId;
 };

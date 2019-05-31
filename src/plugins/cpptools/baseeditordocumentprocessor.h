@@ -31,8 +31,8 @@
 #include "cppsemanticinfo.h"
 #include "cpptools_global.h"
 
+#include <coreplugin/helpitem.h>
 #include <texteditor/codeassist/assistinterface.h>
-#include <texteditor/helpitem.h>
 #include <texteditor/quickfix.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
@@ -56,7 +56,7 @@ struct CPPTOOLS_EXPORT ToolTipInfo {
 
     QStringList qDocIdCandidates;
     QString qDocMark;
-    TextEditor::HelpItem::Category qDocCategory;
+    Core::HelpItem::Category qDocCategory;
 
     QString sizeInBytes;
 };
@@ -81,12 +81,10 @@ public:
     extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface);
 
     virtual void invalidateDiagnostics();
-    virtual bool hasDiagnosticsAt(uint line, uint column) const;
-    virtual void addDiagnosticToolTipToLayout(uint line, uint column, QLayout *layout) const;
 
     virtual void editorDocumentTimerRestarted();
 
-    virtual void setParserConfig(const BaseEditorDocumentParser::Configuration config);
+    virtual void setParserConfig(const BaseEditorDocumentParser::Configuration &config);
 
     virtual QFuture<CursorInfo> cursorInfo(const CursorInfoParams &params) = 0;
     virtual QFuture<CursorInfo> requestLocalReferences(const QTextCursor &cursor) = 0;
@@ -103,12 +101,12 @@ signals:
     void projectPartInfoUpdated(const CppTools::ProjectPartInfo &projectPartInfo);
 
     void codeWarningsUpdated(unsigned revision,
-                             const QList<QTextEdit::ExtraSelection> selections,
+                             const QList<QTextEdit::ExtraSelection> &selections,
                              const HeaderErrorDiagnosticWidgetCreator &creator,
                              const TextEditor::RefactorMarkers &refactorMarkers);
 
     void ifdefedOutBlocksUpdated(unsigned revision,
-                                 const QList<TextEditor::BlockRange> ifdefedOutBlocks);
+                                 const QList<TextEditor::BlockRange> &ifdefedOutBlocks);
 
     void cppDocumentUpdated(const CPlusPlus::Document::Ptr document);    // TODO: Remove me
     void semanticInfoUpdated(const CppTools::SemanticInfo semanticInfo); // TODO: Remove me

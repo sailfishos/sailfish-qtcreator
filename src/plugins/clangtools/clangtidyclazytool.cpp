@@ -102,6 +102,9 @@ public:
     static void addFixitOperations(DiagnosticItem *diagnosticItem,
                                    const FixitsRefactoringFile &file, bool apply)
     {
+        if (!diagnosticItem->hasNewFixIts())
+            return;
+
         // Did we already created the fixit operations?
         ReplacementOperations currentOps = diagnosticItem->fixitOperations();
         if (!currentOps.isEmpty()) {
@@ -135,7 +138,7 @@ public:
         diagnosticItem->setFixitOperations(replacements);
     }
 
-    void apply()
+    void apply(ClangToolsDiagnosticModel *model)
     {
         for (auto it = m_refactoringFileInfos.begin(); it != m_refactoringFileInfos.end(); ++it) {
             RefactoringFileInfo &fileInfo = it.value();
@@ -167,18 +170,23 @@ public:
             for (DiagnosticItem *item : itemsScheduledOrSchedulable)
                 ops += item->fixitOperations();
 
+            if (ops.empty())
+                continue;
+
             // Apply file
             QVector<DiagnosticItem *> itemsApplied;
             QVector<DiagnosticItem *> itemsFailedToApply;
             QVector<DiagnosticItem *> itemsInvalidated;
 
             fileInfo.file.setReplacements(ops);
+            model->removeWatchedPath(ops.first()->fileName);
             if (fileInfo.file.apply()) {
                 itemsApplied = itemsScheduled;
             } else {
                 itemsFailedToApply = itemsScheduled;
                 itemsInvalidated = itemsSchedulable;
             }
+            model->addWatchedPath(ops.first()->fileName);
 
             // Update DiagnosticItem state
             for (DiagnosticItem *diagnosticItem : itemsScheduled)
@@ -202,15 +210,19 @@ ClangTidyClazyTool::ClangTidyClazyTool()
 
     m_diagnosticFilterModel = new DiagnosticFilterModel(this);
     m_diagnosticFilterModel->setSourceModel(m_diagnosticModel);
+    m_diagnosticFilterModel->setDynamicSortFilter(true);
 
     m_diagnosticView = new DiagnosticView;
     initDiagnosticView();
     m_diagnosticView->setModel(m_diagnosticFilterModel);
+    m_diagnosticView->setSortingEnabled(true);
+    m_diagnosticView->sortByColumn(Debugger::DetailedErrorView::DiagnosticColumn,
+                                   Qt::AscendingOrder);
     m_diagnosticView->setObjectName(QLatin1String("ClangTidyClazyIssuesView"));
-    m_diagnosticView->setWindowTitle(tr("Clang-Tidy and Clazy Issues"));
+    m_diagnosticView->setWindowTitle(tr("Clang-Tidy and Clazy Diagnostics"));
 
     foreach (auto * const model,
-             QList<QAbstractItemModel *>() << m_diagnosticModel << m_diagnosticFilterModel) {
+             QList<QAbstractItemModel *>({m_diagnosticModel, m_diagnosticFilterModel})) {
         connect(model, &QAbstractItemModel::rowsInserted,
                 this, &ClangTidyClazyTool::handleStateUpdate);
         connect(model, &QAbstractItemModel::rowsRemoved,
@@ -237,9 +249,39 @@ ClangTidyClazyTool::ClangTidyClazyTool()
     connect(action, &QAction::triggered, m_diagnosticView, &DetailedErrorView::goNext);
     m_goNext = action;
 
+    // Clear data
+    action = new QAction(this);
+    action->setDisabled(true);
+    action->setIcon(Utils::Icons::CLEAN_TOOLBAR.icon());
+    action->setToolTip(tr("Clear"));
+    connect(action, &QAction::triggered, [this](){
+        m_clear->setEnabled(false);
+        m_diagnosticModel->clear();
+        Debugger::showPermanentStatusMessage(QString());
+    });
+    m_clear = action;
+
+    // Expand/Collapse
+    action = new QAction(this);
+    action->setDisabled(true);
+    action->setCheckable(true);
+    action->setIcon(Utils::Icons::EXPAND_ALL_TOOLBAR.icon());
+    action->setToolTip(tr("Expand All"));
+    connect(action, &QAction::toggled, [this](bool checked){
+        if (checked) {
+            m_expandCollapse->setToolTip(tr("Collapse All"));
+            m_diagnosticView->expandAll();
+        } else {
+            m_expandCollapse->setToolTip(tr("Expand All"));
+            m_diagnosticView->collapseAll();
+        }
+    });
+    m_expandCollapse = action;
+
     // Filter line edit
     m_filterLineEdit = new Utils::FancyLineEdit();
     m_filterLineEdit->setFiltering(true);
+    m_filterLineEdit->setPlaceholderText(tr("Filter Diagnostics"));
     m_filterLineEdit->setHistoryCompleter("CppTools.ClangTidyClazyIssueFilter", true);
     connect(m_filterLineEdit, &Utils::FancyLineEdit::filterChanged, [this](const QString &filter) {
         m_diagnosticFilterModel->setFilterRegExp(
@@ -258,16 +300,16 @@ ClangTidyClazyTool::ClangTidyClazyTool()
     });
     connect(m_applyFixitsButton, &QToolButton::clicked, [this]() {
         QVector<DiagnosticItem *> diagnosticItems;
-        m_diagnosticModel->rootItem()->forChildrenAtLevel(1, [&](TreeItem *item){
-            diagnosticItems += static_cast<DiagnosticItem *>(item);
+        m_diagnosticModel->forItemsAtLevel<2>([&](DiagnosticItem *item){
+            diagnosticItems += item;
         });
 
-        ApplyFixIts(diagnosticItems).apply();
+        ApplyFixIts(diagnosticItems).apply(m_diagnosticModel);
     });
 
     ActionContainer *menu = ActionManager::actionContainer(Debugger::Constants::M_DEBUG_ANALYZER);
     const QString toolTip = tr("Clang-Tidy and Clazy use a customized Clang executable from the "
-                               "Clang project to search for errors and warnings.");
+                               "Clang project to search for diagnostics.");
 
     m_perspective.addWindow(m_diagnosticView, Perspective::SplitVertical, nullptr);
 
@@ -283,8 +325,10 @@ ClangTidyClazyTool::ClangTidyClazyTool()
 
     m_perspective.addToolBarAction(m_startAction);
     m_perspective.addToolBarAction(m_stopAction);
+    m_perspective.addToolBarAction(m_clear);
     m_perspective.addToolBarAction(m_goBack);
     m_perspective.addToolBarAction(m_goNext);
+    m_perspective.addToolBarAction(m_expandCollapse);
     m_perspective.addToolBarWidget(m_filterLineEdit);
     m_perspective.addToolBarWidget(m_applyFixitsButton);
 
@@ -355,6 +399,7 @@ void ClangTidyClazyTool::startTool(bool askUserForFileSelection)
     m_perspective.select();
 
     m_diagnosticModel->clear();
+
     setToolBusy(true);
     m_diagnosticFilterModel->setProject(project);
     m_running = true;
@@ -371,6 +416,7 @@ void ClangTidyClazyTool::updateRunActions()
         QString tooltipText = tr("Clang-Tidy and Clazy are still running.");
         m_startAction->setToolTip(tooltipText);
         m_stopAction->setEnabled(true);
+        m_clear->setEnabled(false);
     } else {
         QString toolTip = tr("Start Clang-Tidy and Clazy.");
         Project *project = SessionManager::startupProject();
@@ -384,6 +430,7 @@ void ClangTidyClazyTool::updateRunActions()
         m_startAction->setToolTip(toolTip);
         m_startAction->setEnabled(canRun);
         m_stopAction->setEnabled(false);
+        m_clear->setEnabled(m_diagnosticModel->diagnostics().count());
     }
 }
 
@@ -394,31 +441,41 @@ void ClangTidyClazyTool::handleStateUpdate()
     QTC_ASSERT(m_diagnosticModel, return);
     QTC_ASSERT(m_diagnosticFilterModel, return);
 
-    const int issuesFound = m_diagnosticModel->diagnosticsCount();
+    const int issuesFound = m_diagnosticModel->diagnostics().count();
     const int issuesVisible = m_diagnosticFilterModel->rowCount();
     m_goBack->setEnabled(issuesVisible > 1);
     m_goNext->setEnabled(issuesVisible > 1);
+    m_expandCollapse->setEnabled(issuesVisible);
 
     QString message;
-    if (m_running)
-        message = tr("Clang-Tidy and Clazy are running.");
-    else
-        message = tr("Clang-Tidy and Clazy finished.");
-
-    message += QLatin1Char(' ');
-    if (issuesFound == 0)
-        message += tr("No issues found.");
-    else
-        message += tr("%n issues found.", nullptr, issuesFound);
+    if (m_running) {
+        if (issuesFound)
+            message = tr("Running - %n diagnostics", nullptr, issuesFound);
+        else
+            message = tr("Running - No diagnostics");
+    } else {
+        if (issuesFound)
+            message = tr("Finished - %n diagnostics", nullptr, issuesFound);
+        else
+            message = tr("Finished - No diagnostics");
+    }
 
     Debugger::showPermanentStatusMessage(message);
 }
 
 QList<Diagnostic> ClangTidyClazyTool::read(const QString &filePath,
+                                           const Utils::FileName &projectRootDir,
                                            const QString &logFilePath,
                                            QString *errorMessage) const
 {
-    return LogFileReader::readSerialized(filePath, logFilePath, errorMessage);
+    return readSerializedDiagnostics(filePath, projectRootDir, logFilePath, errorMessage);
+}
+
+void ClangTidyClazyTool::onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics)
+{
+    ClangTool::onNewDiagnosticsAvailable(diagnostics);
+    if (!m_diagnosticFilterModel->filterRegExp().pattern().isEmpty())
+        m_diagnosticFilterModel->invalidateFilter();
 }
 
 } // namespace Internal

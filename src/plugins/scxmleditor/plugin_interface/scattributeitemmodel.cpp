@@ -50,7 +50,7 @@ bool SCAttributeItemModel::setData(const QModelIndex &index, const QVariant &val
 
     bool bEditable = m_tag->tagType() <= MetadataItem;
 
-    if (index.row() >= 0 && m_document != 0) {
+    if (index.row() >= 0 && m_document) {
         if (!bEditable) {
             if (index.row() < m_tag->info()->n_attributes)
                 m_document->setValue(m_tag, index.row(), value.toString());
@@ -97,10 +97,11 @@ QVariant SCAttributeItemModel::data(const QModelIndex &index, int role) const
             if (bEditable) {
                 return m_tag->attributeName(index.row());
             } else {
-                if (m_tag->info()->attributes[index.row()].required)
-                    return QString::fromLatin1("*%1").arg(QLatin1String(m_tag->info()->attributes[index.row()].name));
+                scxmltag_attribute_t attr = m_tag->info()->attributes[index.row()];
+                if (attr.required)
+                    return QString::fromLatin1("*%1").arg(QLatin1String(attr.name));
                 else
-                    return m_tag->info()->attributes[index.row()].name;
+                    return QString::fromLatin1(attr.name);
             }
         } else {
             if (bEditable) {
@@ -128,7 +129,7 @@ QVariant SCAttributeItemModel::data(const QModelIndex &index, int role) const
     }
     case DataRole: {
         if (m_tag->info()->n_attributes > 0)
-            return m_tag->info()->attributes[index.row()].value;
+            return QString::fromLatin1(m_tag->info()->attributes[index.row()].value);
         else
             return QVariant();
     }

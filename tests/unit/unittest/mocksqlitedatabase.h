@@ -39,8 +39,8 @@
 class MockSqliteDatabase : public MockSqliteTransactionBackend
 {
 public:
-    using ReadStatement = MockSqliteReadStatement;
-    using WriteStatement = MockSqliteWriteStatement;
+    using ReadStatement = NiceMock<MockSqliteReadStatement>;
+    using WriteStatement = NiceMock<MockSqliteWriteStatement>;
 
     MOCK_METHOD1(execute,
                  void (Utils::SmallStringView sqlStatement));
@@ -50,5 +50,11 @@ public:
 
     MOCK_CONST_METHOD1(setLastInsertedRowId,
                        void (int64_t));
+
+    MOCK_CONST_METHOD0(isInitialized,
+                      bool ());
+
+    MOCK_METHOD1(setIsInitialized,
+                 void (bool));
 };
 

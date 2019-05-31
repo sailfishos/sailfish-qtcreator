@@ -40,14 +40,13 @@ class HelpViewer;
 class HelpPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/help/Help.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Help.json")
 
 public:
     HelpPlugin();
     ~HelpPlugin() final;
 
-    static HelpViewer *viewerForHelpViewerLocation(Core::HelpManager::HelpViewerLocation location);
-    static void showInHelpViewer(const QUrl &url, HelpViewer *viewer);
+    static void showHelpUrl(const QUrl &url, Core::HelpManager::HelpViewerLocation location);
     static HelpViewer *createHelpViewer(qreal zoom);
 
 private:

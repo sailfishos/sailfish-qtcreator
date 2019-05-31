@@ -28,6 +28,7 @@
 #include "cppeditor.h"
 #include "cppeditorwidget.h"
 #include "cppeditorconstants.h"
+#include "cppeditordocument.h"
 #include "cppeditorplugin.h"
 
 #include <coreplugin/editormanager/editormanager.h>
@@ -47,11 +48,15 @@
 #include <utils/fileutils.h>
 #include <utils/navigationtreeview.h>
 #include <utils/qtcassert.h>
+#include <utils/utilsicons.h>
 
 #include <QCoreApplication>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QSettings>
 #include <QStackedWidget>
+#include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 using namespace Core;
@@ -75,7 +80,7 @@ static Snapshot globalSnapshot()
 
 struct FileAndLine
 {
-    FileAndLine() {}
+    FileAndLine() = default;
     FileAndLine(const QString &f, int l) : file(f), line(l) {}
 
     QString file;
@@ -117,7 +122,7 @@ class CppIncludeHierarchyItem
 {
 public:
     enum SubTree { RootItem, InIncludes, InIncludedBy };
-    CppIncludeHierarchyItem() {}
+    CppIncludeHierarchyItem() = default;
 
     void createChild(const QString &filePath, SubTree subTree,
                      int line = 0, bool definitelyNoChildren = false)
@@ -273,7 +278,7 @@ QStringList CppIncludeHierarchyModel::mimeTypes() const
 QMimeData *CppIncludeHierarchyModel::mimeData(const QModelIndexList &indexes) const
 {
     auto data = new DropMimeData;
-    foreach (const QModelIndex &index, indexes) {
+    for (const QModelIndex &index : indexes) {
         auto link = index.data(LinkRole).value<Utils::Link>();
         if (link.hasValidTarget())
             data->addFile(link.targetFileName, link.targetLine, link.targetColumn);
@@ -339,26 +344,35 @@ private:
 
 class CppIncludeHierarchyWidget : public QWidget
 {
-    Q_DECLARE_TR_FUNCTIONS(CppEditor::CppIncludeHierarchy)
+    Q_OBJECT
 
 public:
     CppIncludeHierarchyWidget();
-    ~CppIncludeHierarchyWidget() { delete m_treeView; }
+    ~CppIncludeHierarchyWidget() override { delete m_treeView; }
 
     void perform();
 
+    void saveSettings(QSettings *settings, int position);
+    void restoreSettings(QSettings *settings, int position);
+
 private:
     void onItemActivated(const QModelIndex &index);
-    void editorsClosed(QList<IEditor *> editors);
+    void editorsClosed(const QList<IEditor *> &editors);
     void showNoIncludeHierarchyLabel();
     void showIncludeHierarchy();
+    void syncFromEditorManager();
 
     CppIncludeHierarchyTreeView *m_treeView = nullptr;
     CppIncludeHierarchyModel m_model;
     AnnotatedItemDelegate m_delegate;
     TextEditorLinkLabel *m_inspectedFile = nullptr;
     QLabel *m_includeHierarchyInfoLabel = nullptr;
+    QToolButton *m_toggleSync = nullptr;
     BaseTextEditor *m_editor = nullptr;
+    QTimer *m_timer = nullptr;
+
+    // CppIncludeHierarchyFactory needs private members for button access
+    friend class CppIncludeHierarchyFactory;
 };
 
 CppIncludeHierarchyWidget::CppIncludeHierarchyWidget()
@@ -381,6 +395,19 @@ CppIncludeHierarchyWidget::CppIncludeHierarchyWidget()
     m_includeHierarchyInfoLabel->setBackgroundRole(QPalette::Base);
     m_includeHierarchyInfoLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
+    m_timer = new QTimer(this);
+    m_timer->setInterval(2000);
+    m_timer->setSingleShot(true);
+    connect(m_timer, &QTimer::timeout,
+            this, &CppIncludeHierarchyWidget::perform);
+
+    m_toggleSync = new QToolButton(this);
+    m_toggleSync->setIcon(Utils::Icons::LINK_TOOLBAR.icon());
+    m_toggleSync->setCheckable(true);
+    m_toggleSync->setToolTip(tr("Synchronize with Editor"));
+    connect(m_toggleSync, &QToolButton::clicked,
+            this, &CppIncludeHierarchyWidget::syncFromEditorManager);
+
     auto layout = new QVBoxLayout(this);
     layout->setMargin(0);
     layout->setSpacing(0);
@@ -392,6 +419,10 @@ CppIncludeHierarchyWidget::CppIncludeHierarchyWidget()
             this, &CppIncludeHierarchyWidget::perform);
     connect(EditorManager::instance(), &EditorManager::editorsClosed,
             this, &CppIncludeHierarchyWidget::editorsClosed);
+    connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
+            this, &CppIncludeHierarchyWidget::syncFromEditorManager);
+
+    syncFromEditorManager();
 }
 
 void CppIncludeHierarchyWidget::perform()
@@ -415,6 +446,18 @@ void CppIncludeHierarchyWidget::perform()
     showIncludeHierarchy();
 }
 
+void CppIncludeHierarchyWidget::saveSettings(QSettings *settings, int position)
+{
+    const QString key = QString("IncludeHierarchy.%1.SyncWithEditor").arg(position);
+    settings->setValue(key, m_toggleSync->isChecked());
+}
+
+void CppIncludeHierarchyWidget::restoreSettings(QSettings *settings, int position)
+{
+    const QString key = QString("IncludeHierarchy.%1.SyncWithEditor").arg(position);
+    m_toggleSync->setChecked(settings->value(key).toBool());
+}
+
 void CppIncludeHierarchyWidget::onItemActivated(const QModelIndex &index)
 {
     const auto link = index.data(LinkRole).value<Utils::Link>();
@@ -425,9 +468,9 @@ void CppIncludeHierarchyWidget::onItemActivated(const QModelIndex &index)
                                     Constants::CPPEDITOR_ID);
 }
 
-void CppIncludeHierarchyWidget::editorsClosed(QList<IEditor *> editors)
+void CppIncludeHierarchyWidget::editorsClosed(const QList<IEditor *> &editors)
 {
-    foreach (IEditor *editor, editors) {
+    for (const IEditor *editor : editors) {
         if (m_editor == editor)
             perform();
     }
@@ -447,6 +490,29 @@ void CppIncludeHierarchyWidget::showIncludeHierarchy()
     m_includeHierarchyInfoLabel->hide();
 }
 
+void CppIncludeHierarchyWidget::syncFromEditorManager()
+{
+    if (!m_toggleSync->isChecked())
+        return;
+
+    auto editor = qobject_cast<CppEditor *>(EditorManager::currentEditor());
+    if (!editor)
+        return;
+
+    auto document = qobject_cast<CppEditorDocument *>(editor->textDocument());
+    if (!document)
+        return;
+
+    // Update the hierarchy immediately after a document change. If the
+    // document is already parsed, cppDocumentUpdated is not triggered again.
+    perform();
+
+    // Use cppDocumentUpdated to catch parsing finished and later file updates.
+    // The timer limits the amount of hierarchy updates.
+    connect(document, &CppEditorDocument::cppDocumentUpdated,
+            m_timer, QOverload<>::of(&QTimer::start),
+            Qt::UniqueConnection);
+}
 
 // CppIncludeHierarchyFactory
 
@@ -466,9 +532,31 @@ NavigationView CppIncludeHierarchyFactory::createWidget()
     stack->addWidget(hierarchyWidget);
 
     NavigationView navigationView;
+    navigationView.dockToolBarWidgets << hierarchyWidget->m_toggleSync;
     navigationView.widget = stack;
     return navigationView;
 }
 
+static CppIncludeHierarchyWidget *hierarchyWidget(QWidget *widget)
+{
+    auto stack = qobject_cast<QStackedWidget *>(widget);
+    Q_ASSERT(stack);
+    auto hierarchyWidget = qobject_cast<CppIncludeHierarchyWidget *>(stack->currentWidget());
+    Q_ASSERT(hierarchyWidget);
+    return hierarchyWidget;
+}
+
+void CppIncludeHierarchyFactory::saveSettings(QSettings *settings, int position, QWidget *widget)
+{
+    hierarchyWidget(widget)->saveSettings(settings, position);
+}
+
+void CppIncludeHierarchyFactory::restoreSettings(QSettings *settings, int position, QWidget *widget)
+{
+    hierarchyWidget(widget)->restoreSettings(settings, position);
+}
+
 } // namespace Internal
 } // namespace CppEditor
+
+#include "cppincludehierarchy.moc"

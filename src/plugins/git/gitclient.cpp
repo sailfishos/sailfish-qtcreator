@@ -291,6 +291,7 @@ GitDiffEditorController::GitDiffEditorController(IDocument *document, const QStr
 {
     connect(&m_decorator, &DescriptionWidgetDecorator::branchListRequested,
             this, &GitDiffEditorController::updateBranchList);
+    setDisplayName("Git Diff");
 }
 
 void GitDiffEditorController::updateBranchList()
@@ -355,6 +356,8 @@ QStringList GitDiffEditorController::addConfigurationArguments(const QStringList
     QTC_ASSERT(!args.isEmpty(), return args);
 
     QStringList realArgs = {
+        "-c",
+        "diff.color=false",
         args.at(0),
         "-m", // show diff against parents instead of merge commits
         "-M", "-C", // Detect renames and copies
@@ -512,7 +515,9 @@ public:
         GitDiffEditorController(document, dir),
         m_id(id),
         m_state(Idle)
-    { }
+    {
+        setDisplayName("Git Show");
+    }
 
     void reload() override;
     void processCommandOutput(const QString &output) override;
@@ -1203,7 +1208,7 @@ void GitClient::reset(const QString &workingDirectory, const QString &argument, 
     if (!commit.isEmpty())
         arguments << commit;
 
-    unsigned flags = 0;
+    unsigned flags = VcsCommand::ShowSuccessMessage;
     if (argument == "--hard") {
         if (gitStatus(workingDirectory, StatusMode(NoUntracked | NoSubmodules)) != StatusUnchanged) {
             if (QMessageBox::question(
@@ -1557,14 +1562,20 @@ bool GitClient::synchronousRevParseCmd(const QString &workingDirectory, const QS
 }
 
 // Retrieve head revision
-QString GitClient::synchronousTopRevision(const QString &workingDirectory)
+QString GitClient::synchronousTopRevision(const QString &workingDirectory, QDateTime *dateTime)
 {
-    QString revision;
-    QString errorMessage;
-    if (!synchronousRevParseCmd(workingDirectory, HEAD, &revision, &errorMessage))
+    const QStringList arguments = {"show", "-s", "--pretty=format:%H:%ct", HEAD};
+    const SynchronousProcessResponse resp = vcsFullySynchronousExec(
+                workingDirectory, arguments, silentFlags);
+    if (resp.result != SynchronousProcessResponse::Finished)
         return QString();
-
-    return revision;
+    const QStringList output = resp.stdOut().trimmed().split(':');
+    if (dateTime && output.size() > 1) {
+        bool ok = false;
+        const qint64 timeT = output.at(1).toLongLong(&ok);
+        *dateTime = ok ? QDateTime::fromSecsSinceEpoch(timeT) : QDateTime();
+    }
+    return output.first();
 }
 
 void GitClient::synchronousTagsForCommit(const QString &workingDirectory, const QString &revision,
@@ -2027,8 +2038,8 @@ bool GitClient::isValidRevision(const QString &revision) const
 {
     if (revision.length() < 1)
         return false;
-    for (int i = 0; i < revision.length(); ++i)
-        if (revision.at(i) != '0')
+    for (const auto i : revision)
+        if (i != '0')
             return true;
     return false;
 }
@@ -2378,7 +2389,7 @@ bool GitClient::tryLauchingGitK(const QProcessEnvironment &env,
         process->start(binary, arguments);
         success = process->waitForStarted();
         if (success)
-            connect(process, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+            connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                     process, &QProcess::deleteLater);
         else
             delete process;
@@ -2513,7 +2524,8 @@ bool GitClient::getCommitData(const QString &workingDirectory,
     // Run status. Note that it has exitcode 1 if there are no added files.
     QString output;
     if (commitData.commitType == FixupCommit) {
-        synchronousLog(repoDirectory, {HEAD, "--not", "--remotes", "-n1"}, &output, errorMessage);
+        synchronousLog(repoDirectory, {HEAD, "--not", "--remotes", "-n1"}, &output, errorMessage,
+                       VcsCommand::SuppressCommandLogging);
         if (output.isEmpty()) {
             *errorMessage = msgNoCommits(false);
             return false;
@@ -3002,6 +3014,12 @@ void GitClient::subversionLog(const QString &workingDirectory)
                                                   "svnLog", sourceFile);
     editor->setWorkingDirectory(workingDirectory);
     vcsExec(workingDirectory, arguments, editor);
+}
+
+void GitClient::subversionDeltaCommit(const QString &workingDirectory)
+{
+    vcsExec(workingDirectory, {"svn", "dcommit"}, nullptr, true,
+            VcsCommand::ShowSuccessMessage);
 }
 
 void GitClient::push(const QString &workingDirectory, const QStringList &pushArgs)

@@ -151,6 +151,25 @@ void BuildStepList::insertStep(int position, BuildStep *step)
     emit stepInserted(position);
 }
 
+void BuildStepList::insertStep(int position, Core::Id stepId)
+{
+    for (BuildStepFactory *factory : BuildStepFactory::allBuildStepFactories()) {
+        if (BuildStep *step = factory->create(this, stepId)) {
+            insertStep(position, step);
+            return;
+        }
+    }
+    QTC_ASSERT(false, qDebug() << "No factory for build step" << stepId.toString() << "found.");
+}
+
+void BuildStepList::appendSteps(const QList<StepCreationInfo> &infos)
+{
+    for (const StepCreationInfo &info : infos) {
+        if (!info.condition || info.condition(target()))
+            appendStep(info.stepId);
+    }
+}
+
 bool BuildStepList::removeStep(int position)
 {
     BuildStep *bs = at(position);
@@ -166,7 +185,11 @@ bool BuildStepList::removeStep(int position)
 
 void BuildStepList::moveStepUp(int position)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
+    m_steps.swapItemsAt(position - 1, position);
+#else
     m_steps.swap(position - 1, position);
+#endif
     emit stepMoved(position, position - 1);
 }
 

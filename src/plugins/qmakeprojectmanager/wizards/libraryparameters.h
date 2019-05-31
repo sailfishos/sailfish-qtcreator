@@ -27,7 +27,7 @@
 
 #include "qtprojectparameters.h"
 
-#include <QString>
+#include <QStringList>
 
 namespace QmakeProjectManager {
 namespace Internal {
@@ -38,24 +38,26 @@ struct LibraryParameters {
 
     // generate class
     void generateCode(QtProjectParameters:: Type t,
-                      const QString &projectTarget,
                       const QString &headerName,
                       const QString &sharedHeader,
                       const QString &exportMacro,
                       const QString &pluginJsonFileName,
                       int indentation,
+                      bool usePragmaOnce,
                       QString *header,
                       QString *source) const;
 
     // Generate the code of the shared header containing the export macro
     static QString generateSharedHeader(const QString &globalHeaderFileName,
                                         const QString &projectTarget,
-                                        const QString &exportMacro);
+                                        const QString &exportMacro,
+                                        bool usePragmaOnce);
 
     QString className;
     QString baseClassName;
     QString sourceFileName;
     QString headerFileName;
+    QStringList pureVirtualSignatures;
 };
 
 } // namespace Internal

@@ -30,66 +30,26 @@
 #include "qnxdevice.h"
 
 #include <utils/qtcassert.h>
-#include <utils/icon.h>
-
-#include <QIcon>
 
 namespace Qnx {
 namespace Internal {
 
-QnxDeviceFactory::QnxDeviceFactory(QObject *parent) :
-    ProjectExplorer::IDeviceFactory(parent)
+QnxDeviceFactory::QnxDeviceFactory()
+    : ProjectExplorer::IDeviceFactory(Constants::QNX_QNX_OS_TYPE)
 {
+    setDisplayName(tr("QNX Device"));
+    setCombinedIcon(":/qnx/images/qnxdevicesmall.png",
+                    ":/qnx/images/qnxdevice.png");
+    setCanCreate(true);
+    setConstructionFunction(&QnxDevice::create);
 }
 
-QString QnxDeviceFactory::displayNameForId(Core::Id type) const
+ProjectExplorer::IDevice::Ptr QnxDeviceFactory::create() const
 {
-    QTC_ASSERT(type == Constants::QNX_QNX_OS_TYPE, return QString());
-    return tr("QNX Device");
-}
-
-QList<Core::Id> QnxDeviceFactory::availableCreationIds() const
-{
-    return {Constants::QNX_QNX_OS_TYPE};
-}
-
-QIcon QnxDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    static const QIcon icon =
-            Icon::combinedIcon({Icon({{":/qnx/images/qnxdevicesmall.png",
-                                       Theme::PanelTextColorDark}}, Icon::Tint),
-                                Icon({{":/qnx/images/qnxdevice.png",
-                                       Theme::IconsBaseColor}})});
-    return icon;
-}
-
-bool QnxDeviceFactory::canCreate() const
-{
-    return true;
-}
-
-ProjectExplorer::IDevice::Ptr QnxDeviceFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id);
     QnxDeviceWizard wizard;
     if (wizard.exec() != QDialog::Accepted)
         return ProjectExplorer::IDevice::Ptr();
     return wizard.device();
-}
-
-bool QnxDeviceFactory::canRestore(const QVariantMap &map) const
-{
-    return ProjectExplorer::IDevice::typeFromMap(map) == Constants::QNX_QNX_OS_TYPE;
-}
-
-ProjectExplorer::IDevice::Ptr QnxDeviceFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return QnxDevice::Ptr());
-    const QnxDevice::Ptr device = QnxDevice::create();
-    device->fromMap(map);
-    return device;
 }
 
 Core::Id QnxDeviceFactory::deviceType()

@@ -32,60 +32,20 @@
 #include <utils/qtcassert.h>
 
 #include <QApplication>
-#include <QIcon>
 #include <QStyle>
 
 namespace ProjectExplorer {
 namespace Internal {
 
-DesktopDeviceFactory::DesktopDeviceFactory(QObject *parent) : IDeviceFactory(parent)
-{ }
-
-QString DesktopDeviceFactory::displayNameForId(Core::Id type) const
+DesktopDeviceFactory::DesktopDeviceFactory()
+    : IDeviceFactory(Constants::DESKTOP_DEVICE_TYPE)
 {
-    if (type == Constants::DESKTOP_DEVICE_TYPE)
-        return tr("Desktop");
-    return QString();
-}
-
-QList<Core::Id> DesktopDeviceFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::DESKTOP_DEVICE_TYPE);
-}
-
-QIcon DesktopDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    static const QIcon icon =
-            Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
+    setConstructionFunction([] { return IDevice::Ptr(new DesktopDevice); });
+    setDisplayName(tr("Desktop"));
+    setIcon(Utils::creatorTheme()->flag(Utils::Theme::FlatSideBarIcons)
             ? Utils::Icon::combinedIcon({Icons::DESKTOP_DEVICE.icon(),
                                          Icons::DESKTOP_DEVICE_SMALL.icon()})
-            : QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
-    return icon;
-}
-
-bool DesktopDeviceFactory::canCreate() const
-{
-    return false;
-}
-
-IDevice::Ptr DesktopDeviceFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id);
-    return IDevice::Ptr();
-}
-
-bool DesktopDeviceFactory::canRestore(const QVariantMap &map) const
-{
-    return IDevice::idFromMap(map) == Constants::DESKTOP_DEVICE_ID;
-}
-
-IDevice::Ptr DesktopDeviceFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return ProjectExplorer::IDevice::Ptr());
-    const ProjectExplorer::IDevice::Ptr device = IDevice::Ptr(new DesktopDevice);
-    device->fromMap(map);
-    return device;
+            : QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
 }
 
 } // namespace Internal

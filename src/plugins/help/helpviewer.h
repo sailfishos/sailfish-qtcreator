@@ -62,7 +62,6 @@ public:
     virtual QUrl source() const = 0;
     // metacall in HelpPlugin::updateSideBarSource
     Q_INVOKABLE virtual void setSource(const QUrl &url) = 0;
-    virtual void highlightId(const QString &id) { Q_UNUSED(id) }
 
     virtual void setHtml(const QString &html) = 0;
 
@@ -111,7 +110,7 @@ protected:
 
     void restoreOverrideCursor();
 
-    Actions m_visibleActions = 0;
+    Actions m_visibleActions;
     int m_loadOverrideStack = 0;
 };
 

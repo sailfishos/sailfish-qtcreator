@@ -25,6 +25,8 @@
 
 #include "languagefeatures.h"
 
+#include <cstddef>
+
 namespace LanguageServerProtocol {
 
 constexpr const char HoverRequest::methodName[];
@@ -104,6 +106,16 @@ DocumentHighlightsRequest::DocumentHighlightsRequest(const TextDocumentPositionP
 DocumentSymbolsRequest::DocumentSymbolsRequest(const DocumentSymbolParams &params)
     : Request(methodName, params)
 { }
+
+Utils::optional<QList<CodeActionKind> > CodeActionParams::CodeActionContext::only() const
+{
+    return optionalArray<CodeActionKind>(onlyKey);
+}
+
+void CodeActionParams::CodeActionContext::setOnly(const QList<CodeActionKind> &only)
+{
+    insertArray(onlyKey, only);
+}
 
 bool CodeActionParams::CodeActionContext::isValid(QStringList *error) const
 {
@@ -277,15 +289,30 @@ GotoResult::GotoResult(const QJsonValue &value)
     }
 }
 
+template<typename Symbol>
+QList<Symbol> documentSymbolsResultArray(const QJsonArray &array)
+{
+    QList<Symbol> ret;
+    for (const auto &arrayValue : array) {
+        if (arrayValue.isObject())
+            ret << Symbol(arrayValue.toObject());
+    }
+    return ret;
+}
+
 DocumentSymbolsResult::DocumentSymbolsResult(const QJsonValue &value)
 {
     if (value.isArray()) {
-        QList<SymbolInformation> symbols;
-        for (auto arrayValue : value.toArray()) {
-            if (arrayValue.isObject())
-                symbols.append(SymbolInformation(arrayValue.toObject()));
+        QJsonArray array = value.toArray();
+        if (array.isEmpty()) {
+            *this = QList<SymbolInformation>();
+        } else {
+            QJsonObject arrayObject = array.first().toObject();
+            if (arrayObject.contains(rangeKey))
+                *this = documentSymbolsResultArray<DocumentSymbol>(array);
+            else
+                *this = documentSymbolsResultArray<SymbolInformation>(array);
         }
-        *this = symbols;
     } else {
         *this = nullptr;
     }
@@ -364,5 +391,33 @@ bool DocumentFormattingProperty::isValid(QStringList *error) const
 SignatureHelpRequest::SignatureHelpRequest(const TextDocumentPositionParams &params)
     : Request(methodName, params)
 { }
+
+CodeActionResult::CodeActionResult(const QJsonValue &val)
+{
+    using ResultArray = QList<Utils::variant<Command, CodeAction>>;
+    if (val.isArray()) {
+        const QJsonArray array = val.toArray();
+        ResultArray result;
+        for (const QJsonValue &val : array) {
+            Command command(val);
+            if (command.isValid(nullptr))
+                result << command;
+            else
+                result << CodeAction(val);
+        }
+        emplace<ResultArray>(result);
+        return;
+    }
+    emplace<std::nullptr_t>(nullptr);
+}
+
+bool CodeAction::isValid(QStringList *error) const
+{
+    return check<QString>(error, titleKey)
+           && checkOptional<CodeActionKind>(error, codeActionKindKey)
+           && checkOptionalArray<Diagnostic>(error, diagnosticsKey)
+           && checkOptional<WorkspaceEdit>(error, editKey)
+           && checkOptional<Command>(error, commandKey);
+}
 
 } // namespace LanguageServerProtocol

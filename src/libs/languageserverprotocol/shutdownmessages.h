@@ -29,10 +29,8 @@
 
 namespace LanguageServerProtocol {
 
-using ShutdownResponse = Response<LanguageClientNull, LanguageClientNull>;
-
 class LANGUAGESERVERPROTOCOL_EXPORT ShutdownRequest : public Request<
-        LanguageClientNull, LanguageClientNull, LanguageClientNull>
+        std::nullptr_t, std::nullptr_t, std::nullptr_t>
 {
 public:
     ShutdownRequest();
@@ -40,7 +38,7 @@ public:
     constexpr static const char methodName[] = "shutdown";
 };
 
-class LANGUAGESERVERPROTOCOL_EXPORT ExitNotification : public Notification<LanguageClientNull>
+class LANGUAGESERVERPROTOCOL_EXPORT ExitNotification : public Notification<std::nullptr_t>
 {
 public:
     ExitNotification();

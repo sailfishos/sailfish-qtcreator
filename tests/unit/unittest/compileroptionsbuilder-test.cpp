@@ -52,11 +52,9 @@ protected:
     {
         projectPart.project = project.get();
         projectPart.toolchainType = ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID;
-        projectPart.languageVersion = ProjectExplorer::LanguageVersion::CXX17;
+        projectPart.languageVersion = Utils::LanguageVersion::CXX17;
         projectPart.toolChainWordWidth = CppTools::ProjectPart::WordWidth64Bit;
         projectPart.toolChainTargetTriple = "x86_64-apple-darwin10";
-        projectPart.extraCodeModelFlags = QStringList{"-arch", "x86_64"};
-
         projectPart.precompiledHeaders = QStringList{TESTDATA_DIR "/compileroptionsbuilder.pch"};
         projectPart.toolChainMacros = {ProjectExplorer::Macro{"foo", "bar"},
                                        ProjectExplorer::Macro{"__cplusplus", "2"},
@@ -78,31 +76,102 @@ protected:
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart};
 };
 
-TEST_F(CompilerOptionsBuilder, AddToolchainAndProjectMacros)
+TEST_F(CompilerOptionsBuilder, AddProjectMacros)
 {
-    compilerOptionsBuilder.addToolchainAndProjectMacros();
+    compilerOptionsBuilder.addProjectMacros();
 
-    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-Dfoo=bar", "-DprojectFoo=projectBar"));
+    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-DprojectFoo=projectBar"));
 }
 
-TEST_F(CompilerOptionsBuilder, AddToolchainAndProjectMacrosWithoutSkipingLanguageDefines)
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_UnknownOptionsAreForwarded)
+{
+    ProjectPart part = projectPart;
+    part.compilerFlags = QStringList{"-fancyFlag"};
+
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{part,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::Yes};
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Contains(part.compilerFlags.first()));
+}
+
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_WarningsFlagsAreNotFilteredIfRequested)
+{
+    ProjectPart part = projectPart;
+    part.compilerFlags = QStringList{"-Whello"};
+
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{part,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::Yes};
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Contains(part.compilerFlags.first()));
+}
+
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_DiagnosticOptionsAreRemoved)
+{
+    ProjectPart part = projectPart;
+    part.compilerFlags = QStringList{"-Wbla", "-pedantic"};
+
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{part,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::Yes};
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Not(Contains(part.compilerFlags[0])));
+    ASSERT_THAT(compilerOptionsBuilder.options(), Not(Contains(part.compilerFlags[1])));
+}
+
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_CLanguageVersionIsRewritten)
+{
+    ProjectPart part = projectPart;
+    part.compilerFlags = QStringList{"-std=c18"};
+    // We need to set the language version here to overcome a QTC_ASSERT checking
+    // consistency between ProjectFile::Kind and ProjectPart::LanguageVersion
+    part.languageVersion = Utils::LanguageVersion::C18;
+
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{part,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::Yes};
+
+    compilerOptionsBuilder.build(ProjectFile::CSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Not(Contains(part.compilerFlags.first())));
+    ASSERT_THAT(compilerOptionsBuilder.options(), Contains("-std=c17"));
+}
+
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_LanguageVersionIsExplicitlySetIfNotProvided)
 {
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools:: SkipLanguageDefines::No};
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::Yes};
 
-    compilerOptionsBuilder.addToolchainAndProjectMacros();
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
 
-    ASSERT_THAT(compilerOptionsBuilder.options(),
-                ElementsAre("-Dfoo=bar",
-                            "-D__cplusplus=2",
-                            "-D__STDC_VERSION__=2",
-                            "-D_MSVC_LANG=2",
-                            "-D_MSC_BUILD=2",
-                            "-D_MSC_FULL_VER=1900",
-                            "-D_MSC_VER=19",
-                            "-DprojectFoo=projectBar"));
+    ASSERT_THAT(compilerOptionsBuilder.options(), Contains("-std=c++17"));
+}
+
+TEST_F(CompilerOptionsBuilder, CompilerFlagsFiltering_ClLanguageVersionIsExplicitlySetIfNotProvided)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::No,
+                                                            CppTools::UseLanguageDefines::Yes};
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Contains("/std:c++17"));
 }
 
 TEST_F(CompilerOptionsBuilder, AddWordWidth)
@@ -112,55 +181,92 @@ TEST_F(CompilerOptionsBuilder, AddWordWidth)
     ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-m64"));
 }
 
-TEST_F(CompilerOptionsBuilder, AddToolchainFlags)
-{
-    compilerOptionsBuilder.addToolchainFlags();
-
-    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-undef"));
-}
-
 TEST_F(CompilerOptionsBuilder, HeaderPathOptionsOrder)
 {
-    compilerOptionsBuilder.addHeaderPathOptions();
-
-    ASSERT_THAT(compilerOptionsBuilder.options(),
-                ElementsAre("-nostdlibinc",
-                            "-I", QDir::toNativeSeparators("/tmp/path"),
-                            "-I", QDir::toNativeSeparators("/tmp/system_path"),
-                            "-isystem", QDir::toNativeSeparators("/tmp/builtin_path")));
-}
-
-TEST_F(CompilerOptionsBuilder, UseSystemHeader)
-{
-    CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart, CppTools::UseSystemHeader::Yes);
-
-    compilerOptionsBuilder.addHeaderPathOptions();
-
-    ASSERT_THAT(compilerOptionsBuilder.options(),
-                ElementsAre("-nostdlibinc",
-                            "-I", QDir::toNativeSeparators("/tmp/path"),
-                            "-isystem", QDir::toNativeSeparators("/tmp/system_path"),
-                            "-isystem", QDir::toNativeSeparators("/tmp/builtin_path")));
-}
-
-TEST_F(CompilerOptionsBuilder, ClangHeadersPath)
-{
-    CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools::SkipLanguageDefines::Yes,
-                                                            "7.0.0",
-                                                            "");
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            ""};
 
     compilerOptionsBuilder.addHeaderPathOptions();
 
     ASSERT_THAT(compilerOptionsBuilder.options(),
                 ElementsAre("-nostdinc",
-                            "-nostdlibinc",
-                            "-I", QDir::toNativeSeparators("/tmp/path"),
-                            "-I", QDir::toNativeSeparators("/tmp/system_path"),
-                            "-isystem", QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
-                            "-isystem", QDir::toNativeSeparators("/tmp/builtin_path")));
+                            "-nostdinc++",
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "-isystem",
+                            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "-isystem",
+                            QDir::toNativeSeparators("/tmp/builtin_path")));
+}
+
+TEST_F(CompilerOptionsBuilder, HeaderPathOptionsOrderCl)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            ""};
+    compilerOptionsBuilder.evaluateCompilerFlags();
+
+    compilerOptionsBuilder.addHeaderPathOptions();
+
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("-nostdinc",
+                            "-nostdinc++",
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "/clang:-isystem",
+                            "/clang:" + QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "/clang:-isystem",
+                            "/clang:" + QDir::toNativeSeparators("/tmp/builtin_path")));
+}
+
+TEST_F(CompilerOptionsBuilder, UseSystemHeader)
+{
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
+                                                            CppTools::UseSystemHeader::Yes,
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            ""};
+
+    compilerOptionsBuilder.addHeaderPathOptions();
+
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("-nostdinc",
+                            "-nostdinc++",
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "-isystem",
+                            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "-isystem",
+                            QDir::toNativeSeparators("/tmp/builtin_path")));
+}
+
+TEST_F(CompilerOptionsBuilder, NoClangHeadersPath)
+{
+    compilerOptionsBuilder.addHeaderPathOptions();
+
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path")));
 }
 
 TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderMacOs)
@@ -176,25 +282,37 @@ TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderMacOs)
     projectPart.headerPaths.append(defaultPaths);
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools::SkipLanguageDefines::Yes,
-                                                            "7.0.0",
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
                                                             "");
 
     compilerOptionsBuilder.addHeaderPathOptions();
 
     ASSERT_THAT(compilerOptionsBuilder.options(),
                 ElementsAre("-nostdinc",
-                            "-nostdlibinc",
-                            "-I", QDir::toNativeSeparators("/tmp/path"),
-                            "-I", QDir::toNativeSeparators("/tmp/system_path"),
-                            "-isystem", QDir::toNativeSeparators("/usr/include/c++/4.2.1"),
-                            "-isystem", QDir::toNativeSeparators("/usr/include/c++/4.2.1/backward"),
-                            "-isystem", QDir::toNativeSeparators("/usr/local/include"),
-                            "-isystem", QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
-                            "-isystem", QDir::toNativeSeparators("/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"),
-                            "-isystem", QDir::toNativeSeparators("/usr/include"),
-                            "-isystem", QDir::toNativeSeparators("/tmp/builtin_path")));
+                            "-nostdinc++",
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/usr/include/c++/4.2.1"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/usr/include/c++/4.2.1/backward"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/usr/local/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "-isystem",
+                            QDir::toNativeSeparators(
+                                "/Applications/Xcode.app/Contents/Developer/Toolchains/"
+                                "XcodeDefault.xctoolchain/usr/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/usr/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators("/tmp/builtin_path")));
 }
 
 TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderLinux)
@@ -210,24 +328,38 @@ TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderLinux)
     projectPart.toolChainTargetTriple = "x86_64-linux-gnu";
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools::SkipLanguageDefines::Yes,
-                                                            "7.0.0",
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
                                                             "");
 
     compilerOptionsBuilder.addHeaderPathOptions();
 
-    ASSERT_THAT(compilerOptionsBuilder.options(),
-                ElementsAre("-nostdinc",
-                            "-nostdlibinc",
-                            "-isystem", QDir::toNativeSeparators("/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8"),
-                            "-isystem", QDir::toNativeSeparators("/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/backward"),
-                            "-isystem", QDir::toNativeSeparators("/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/x86_64-linux-gnu/c++/4.8"),
-                            "-isystem", QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
-                            "-isystem", QDir::toNativeSeparators("/usr/local/include"),
-                            "-isystem", QDir::toNativeSeparators("/usr/lib/gcc/x86_64-linux-gnu/4.8/include"),
-                            "-isystem", QDir::toNativeSeparators("/usr/include/x86_64-linux-gnu"),
-                            "-isystem", QDir::toNativeSeparators("/usr/include")));
+    ASSERT_THAT(
+        compilerOptionsBuilder.options(),
+        ElementsAre(
+            "-nostdinc",
+            "-nostdinc++",
+            "-isystem",
+            QDir::toNativeSeparators(
+                "/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8"),
+            "-isystem",
+            QDir::toNativeSeparators(
+                "/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/backward"),
+            "-isystem",
+            QDir::toNativeSeparators(
+                "/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../include/x86_64-linux-gnu/c++/4.8"),
+            "-isystem",
+            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+            "-isystem",
+            QDir::toNativeSeparators("/usr/local/include"),
+            "-isystem",
+            QDir::toNativeSeparators("/usr/lib/gcc/x86_64-linux-gnu/4.8/include"),
+            "-isystem",
+            QDir::toNativeSeparators("/usr/include/x86_64-linux-gnu"),
+            "-isystem",
+            QDir::toNativeSeparators("/usr/include")));
 }
 
 TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderNoVersion)
@@ -243,30 +375,31 @@ TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderNoVersion)
     projectPart.toolChainTargetTriple = "x86_64-w64-windows-gnu";
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools::SkipLanguageDefines::Yes,
-                                                            "7.0.0",
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
                                                             "");
 
     compilerOptionsBuilder.addHeaderPathOptions();
 
     ASSERT_THAT(
         compilerOptionsBuilder.options(),
-        ElementsAre(
-            "-nostdinc",
-            "-nostdlibinc",
-            "-isystem",
-            QDir::toNativeSeparators("C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++"),
-            "-isystem",
-            QDir::toNativeSeparators(
-                "C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++/i686-w64-mingw32"),
-            "-isystem",
-            QDir::toNativeSeparators(
-                "C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++/backward"),
-            "-isystem",
-            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
-            "-isystem",
-            QDir::toNativeSeparators("C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include")));
+        ElementsAre("-nostdinc",
+                    "-nostdinc++",
+                    "-isystem",
+                    QDir::toNativeSeparators(
+                        "C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++"),
+                    "-isystem",
+                    QDir::toNativeSeparators(
+                        "C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++/i686-w64-mingw32"),
+                    "-isystem",
+                    QDir::toNativeSeparators(
+                        "C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include/c++/backward"),
+                    "-isystem",
+                    QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                    "-isystem",
+                    QDir::toNativeSeparators("C:/Qt/Tools/mingw530_32/i686-w64-mingw32/include")));
 }
 
 TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderAndroidClang)
@@ -290,49 +423,64 @@ TEST_F(CompilerOptionsBuilder, ClangHeadersAndCppIncludesPathsOrderAndroidClang)
     projectPart.toolChainTargetTriple = "i686-linux-android";
     CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
                                                             CppTools::UseSystemHeader::No,
-                                                            CppTools::SkipBuiltIn::No,
-                                                            CppTools::SkipLanguageDefines::Yes,
-                                                            "7.0.0",
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
                                                             "");
 
     compilerOptionsBuilder.addHeaderPathOptions();
 
-    ASSERT_THAT(
-        compilerOptionsBuilder.options(),
-        ElementsAre("-nostdinc",
-                    "-nostdlibinc",
-                    "-isystem",
-                    QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
-                                             "bundle/sources/cxx-stl/llvm-libc++/include"),
-                    "-isystem",
-                    QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
-                                             "bundle/sources/cxx-stl/llvm-libc++abi/include"),
-                    "-isystem",
-                    QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
-                    "-isystem",
-                    QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
-                                             "bundle/sysroot/usr/include/i686-linux-android"),
-                    "-isystem",
-                    QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
-                                             "bundle/sources/android/support/include"),
-                    "-isystem",
-                    QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
-                                             "bundle/sysroot/usr/include")));
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("-nostdinc",
+                            "-nostdinc++",
+                            "-isystem",
+                            QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
+                                                     "bundle/sources/cxx-stl/llvm-libc++/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators(
+                                "C:/Users/test/AppData/Local/Android/sdk/ndk-"
+                                "bundle/sources/cxx-stl/llvm-libc++abi/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "-isystem",
+                            QDir::toNativeSeparators(
+                                "C:/Users/test/AppData/Local/Android/sdk/ndk-"
+                                "bundle/sysroot/usr/include/i686-linux-android"),
+                            "-isystem",
+                            QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
+                                                     "bundle/sources/android/support/include"),
+                            "-isystem",
+                            QDir::toNativeSeparators("C:/Users/test/AppData/Local/Android/sdk/ndk-"
+                                                     "bundle/sysroot/usr/include")));
 }
 
 TEST_F(CompilerOptionsBuilder, NoPrecompiledHeader)
 {
-    compilerOptionsBuilder.addPrecompiledHeaderOptions(CppTools::CompilerOptionsBuilder::PchUsage::None);
+    compilerOptionsBuilder.addPrecompiledHeaderOptions(CppTools::UsePrecompiledHeaders::No);
 
     ASSERT_THAT(compilerOptionsBuilder.options().empty(), true);
 }
 
 TEST_F(CompilerOptionsBuilder, UsePrecompiledHeader)
 {
-    compilerOptionsBuilder.addPrecompiledHeaderOptions(CppTools::CompilerOptionsBuilder::PchUsage::Use);
+    compilerOptionsBuilder.addPrecompiledHeaderOptions(CppTools::UsePrecompiledHeaders::Yes);
 
     ASSERT_THAT(compilerOptionsBuilder.options(),
                 ElementsAre("-include", QDir::toNativeSeparators(TESTDATA_DIR "/compileroptionsbuilder.pch")));
+}
+
+TEST_F(CompilerOptionsBuilder, UsePrecompiledHeaderCl)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart};
+    compilerOptionsBuilder.evaluateCompilerFlags();
+
+    compilerOptionsBuilder.addPrecompiledHeaderOptions(CppTools::UsePrecompiledHeaders::Yes);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("/FI",
+                            QDir::toNativeSeparators(TESTDATA_DIR "/compileroptionsbuilder.pch")));
 }
 
 TEST_F(CompilerOptionsBuilder, AddMacros)
@@ -346,27 +494,19 @@ TEST_F(CompilerOptionsBuilder, AddTargetTriple)
 {
     compilerOptionsBuilder.addTargetTriple();
 
-    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-target", "x86_64-apple-darwin10"));
-}
-
-TEST_F(CompilerOptionsBuilder, EnableCExceptions)
-{
-    projectPart.languageVersion = ProjectExplorer::LanguageVersion::C99;
-
-    compilerOptionsBuilder.enableExceptions();
-
-    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-fexceptions"));
-}
-
-TEST_F(CompilerOptionsBuilder, EnableCXXExceptions)
-{
-    compilerOptionsBuilder.enableExceptions();
-
-    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-fcxx-exceptions", "-fexceptions"));
+    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("--target=x86_64-apple-darwin10"));
 }
 
 TEST_F(CompilerOptionsBuilder, InsertWrappedQtHeaders)
 {
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart,
+                                                            CppTools::UseSystemHeader::Yes,
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            ""};
+
     compilerOptionsBuilder.insertWrappedQtHeaders();
 
     ASSERT_THAT(compilerOptionsBuilder.options(), Contains(IsPartOfHeader("wrappedQtHeaders")));
@@ -374,27 +514,50 @@ TEST_F(CompilerOptionsBuilder, InsertWrappedQtHeaders)
 
 TEST_F(CompilerOptionsBuilder, SetLanguageVersion)
 {
-    compilerOptionsBuilder.updateLanguageOption(ProjectFile::CXXSource);
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXSource);
 
     ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-x", "c++"));
 }
 
+TEST_F(CompilerOptionsBuilder, SetLanguageVersionCl)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart};
+    compilerOptionsBuilder.evaluateCompilerFlags();
+
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXSource);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("/TP"));
+}
+
 TEST_F(CompilerOptionsBuilder, HandleLanguageExtension)
 {
-    projectPart.languageExtensions = ProjectExplorer::LanguageExtension::ObjectiveC;
+    projectPart.languageExtensions = Utils::LanguageExtension::ObjectiveC;
 
-    compilerOptionsBuilder.updateLanguageOption(ProjectFile::CXXSource);
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXSource);
 
     ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-x", "objective-c++"));
 }
 
 TEST_F(CompilerOptionsBuilder, UpdateLanguageVersion)
 {
-    compilerOptionsBuilder.updateLanguageOption(ProjectFile::CXXSource);
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXSource);
 
-    compilerOptionsBuilder.updateLanguageOption(ProjectFile::CXXHeader);
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXHeader);
 
     ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-x", "c++-header"));
+}
+
+TEST_F(CompilerOptionsBuilder, UpdateLanguageVersionCl)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart};
+    compilerOptionsBuilder.evaluateCompilerFlags();
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CXXSource);
+
+    compilerOptionsBuilder.updateFileLanguage(ProjectFile::CSource);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("/TC"));
 }
 
 TEST_F(CompilerOptionsBuilder, AddMsvcCompatibilityVersion)
@@ -435,9 +598,32 @@ TEST_F(CompilerOptionsBuilder, AddProjectConfigFileInclude)
     ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("-include", "dummy_file.h"));
 }
 
-TEST_F(CompilerOptionsBuilder, UndefineClangVersionMacrosForMsvc)
+TEST_F(CompilerOptionsBuilder, AddProjectConfigFileIncludeCl)
+{
+    projectPart.projectConfigFile = "dummy_file.h";
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder{projectPart};
+    compilerOptionsBuilder.evaluateCompilerFlags();
+
+    compilerOptionsBuilder.addProjectConfigFileInclude();
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), ElementsAre("/FI", "dummy_file.h"));
+}
+
+TEST_F(CompilerOptionsBuilder, NoUndefineClangVersionMacrosForNewMsvc)
 {
     projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+
+    compilerOptionsBuilder.undefineClangVersionMacrosForMsvc();
+
+    ASSERT_THAT(compilerOptionsBuilder.options(), Not(Contains(QString{"-U__clang__"})));
+}
+
+TEST_F(CompilerOptionsBuilder, UndefineClangVersionMacrosForOldMsvc)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    projectPart.toolChainMacros = {ProjectExplorer::Macro{"_MSC_FULL_VER", "1300"},
+                                   ProjectExplorer::Macro{"_MSC_VER", "13"}};
 
     compilerOptionsBuilder.undefineClangVersionMacrosForMsvc();
 
@@ -446,21 +632,83 @@ TEST_F(CompilerOptionsBuilder, UndefineClangVersionMacrosForMsvc)
 
 TEST_F(CompilerOptionsBuilder, BuildAllOptions)
 {
-    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::CompilerOptionsBuilder::PchUsage::None);
+    projectPart.extraCodeModelFlags = QStringList{"-arch", "x86_64"};
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            "");
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
 
     ASSERT_THAT(compilerOptionsBuilder.options(),
-                ElementsAre(
-                    "-nostdlibinc", "-c", "-m64", "-target", "x86_64-apple-darwin10",
-                    "-arch", "x86_64", "-x", "c++", "-std=c++17", "-fcxx-exceptions",
-                    "-fexceptions", "-Dfoo=bar", "-DprojectFoo=projectBar",
-                    "-DBOOST_TYPE_INDEX_CTTI_USER_DEFINED_PARSING=(39, 1, true, \"T = \")",
-                    "-undef",
-                    "-I", IsPartOfHeader("wrappedQtHeaders"),
-                    "-I", IsPartOfHeader(QDir::toNativeSeparators("wrappedQtHeaders/QtCore").toStdString()),
-                    "-I", QDir::toNativeSeparators("/tmp/path"),
-                    "-I", QDir::toNativeSeparators("/tmp/system_path"),
-                    "-isystem", QDir::toNativeSeparators("/tmp/builtin_path")
-                    ));
+                ElementsAre("-nostdinc",
+                            "-nostdinc++",
+                            "-fsyntax-only",
+                            "-m64",
+                            "--target=x86_64-apple-darwin10",
+                            "-x",
+                            "c++",
+                            "-std=c++17",
+                            "-arch",
+                            "x86_64",
+                            "-DprojectFoo=projectBar",
+                            "-I",
+                            IsPartOfHeader("wrappedQtHeaders"),
+                            "-I",
+                            IsPartOfHeader(
+                                QDir::toNativeSeparators("wrappedQtHeaders/QtCore").toStdString()),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "-isystem",
+                            QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "-isystem",
+                            QDir::toNativeSeparators("/tmp/builtin_path")));
 }
 
+TEST_F(CompilerOptionsBuilder, BuildAllOptionsCl)
+{
+    projectPart.toolchainType = ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID;
+    CppTools::CompilerOptionsBuilder compilerOptionsBuilder(projectPart,
+                                                            CppTools::UseSystemHeader::No,
+                                                            CppTools::UseTweakedHeaderPaths::Yes,
+                                                            CppTools::UseLanguageDefines::No,
+                                                            CppTools::UseBuildSystemWarnings::No,
+                                                            "dummy_version",
+                                                            "");
+
+    compilerOptionsBuilder.build(ProjectFile::CXXSource, CppTools::UsePrecompiledHeaders::No);
+
+    ASSERT_THAT(compilerOptionsBuilder.options(),
+                ElementsAre("-nostdinc",
+                            "-nostdinc++",
+                            "--driver-mode=cl",
+                            "/Zs",
+                            "-m64",
+                            "--target=x86_64-apple-darwin10",
+                            "/TP",
+                            "/std:c++17",
+                            "-fms-compatibility-version=19.00",
+                            "-DprojectFoo=projectBar",
+                            "-D__FUNCSIG__=\"\"",
+                            "-D__FUNCTION__=\"\"",
+                            "-D__FUNCDNAME__=\"\"",
+                            "-I",
+                            IsPartOfHeader("wrappedQtHeaders"),
+                            "-I",
+                            IsPartOfHeader(
+                                QDir::toNativeSeparators("wrappedQtHeaders/QtCore").toStdString()),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/path"),
+                            "-I",
+                            QDir::toNativeSeparators("/tmp/system_path"),
+                            "/clang:-isystem",
+                            "/clang:" + QDir::toNativeSeparators(CLANG_RESOURCE_DIR ""),
+                            "/clang:-isystem",
+                            "/clang:" + QDir::toNativeSeparators("/tmp/builtin_path")));
+}
 }

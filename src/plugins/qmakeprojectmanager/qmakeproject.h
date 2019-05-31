@@ -66,11 +66,6 @@ public:
 
     QStringList filesGeneratedFrom(const QString &file) const final;
 
-    enum Parsing {ExactParse, ExactAndCumulativeParse };
-    QList<QmakeProFile *> allProFiles(const QList<ProjectType> &projectTypes = QList<ProjectType>(),
-                                      Parsing parse = ExactParse) const;
-    QList<QmakeProFile *> applicationProFiles(Parsing parse = ExactParse) const;
-
     static void notifyChanged(const Utils::FileName &name);
 
     /// \internal
@@ -99,7 +94,7 @@ public:
     void watchFolders(const QStringList &l, QmakePriFile *file);
     void unwatchFolders(const QStringList &l, QmakePriFile *file);
 
-    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) final;
+    void configureAsExampleProject(const QSet<Core::Id> &platforms) final;
 
     void emitBuildDirectoryInitialized();
     static void proFileParseError(const QString &errorMessage);
@@ -136,9 +131,6 @@ private:
 
     void updateCppCodeModel();
     void updateQmlJSCodeModel();
-
-    static QList<QmakeProFile *> collectAllProFiles(QmakeProFile *file, Parsing parse,
-                                                    const QList<ProjectType> &projectTypes);
 
     static bool equalFileList(const QStringList &a, const QStringList &b);
 

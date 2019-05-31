@@ -20,7 +20,7 @@ QtcPlugin {
             if (qbs.enableDebugCode)
                 suffix = "d";
         }
-        libs.push("qbscore" + suffix, "qbsqtprofilesetup" + suffix);
+        libs.push("qbscore" + suffix);
         return libs
     }
 
@@ -31,10 +31,6 @@ QtcPlugin {
     Depends { name: "Qt"; submodules: [ "widgets" ] }
     Depends {
         name: "qbscore"
-        condition: product.useInternalQbsProducts
-    }
-    Depends {
-        name: "qbsqtprofilesetup"
         condition: product.useInternalQbsProducts
     }
     Depends { name: "QmlJS" }
@@ -72,16 +68,12 @@ QtcPlugin {
         "qbsbuildconfiguration.h",
         "qbsbuildconfigurationwidget.cpp",
         "qbsbuildconfigurationwidget.h",
-        "qbsbuildinfo.cpp",
-        "qbsbuildinfo.h",
         "qbsbuildstep.cpp",
         "qbsbuildstep.h",
         "qbsbuildstepconfigwidget.ui",
         "qbscleanstep.cpp",
         "qbscleanstep.h",
         "qbscleanstepconfigwidget.ui",
-        "qbsdeployconfigurationfactory.cpp",
-        "qbsdeployconfigurationfactory.h",
         "qbsinstallstep.cpp",
         "qbsinstallstep.h",
         "qbsinstallstepconfigwidget.ui",

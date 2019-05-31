@@ -28,12 +28,15 @@
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/cppfollowsymbolundercursor.h>
 #include <texteditor/texteditor.h>
 
 #include <clangsupport/tokeninfocontainer.h>
 
 #include <utils/textutils.h>
 #include <utils/algorithm.h>
+
+#include <memory>
 
 namespace ClangCodeModel {
 namespace Internal {
@@ -181,12 +184,22 @@ void ClangFollowSymbol::findLink(const CppTools::CursorInEditor &data,
         return processLinkCallback(Utils::Link());
 
     if (!resolveTarget) {
-        processLinkCallback(linkAtCursor(cursor,
-                                         data.filePath().toString(),
-                                         static_cast<uint>(line),
-                                         static_cast<uint>(column),
-                                         processor));
-        return;
+        Utils::Link link = linkAtCursor(cursor,
+                                        data.filePath().toString(),
+                                        static_cast<uint>(line),
+                                        static_cast<uint>(column),
+                                        processor);
+        if (link == Utils::Link()) {
+            CppTools::FollowSymbolUnderCursor followSymbol;
+            return followSymbol.findLink(data,
+                                         std::move(processLinkCallback),
+                                         false,
+                                         snapshot,
+                                         documentFromSemanticInfo,
+                                         symbolFinder,
+                                         inNextSplit);
+        }
+        return processLinkCallback(link);
     }
 
     QFuture<CppTools::SymbolInfo> infoFuture
@@ -199,7 +212,7 @@ void ClangFollowSymbol::findLink(const CppTools::CursorInEditor &data,
     if (m_watcher)
         m_watcher->cancel();
 
-    m_watcher.reset(new FutureSymbolWatcher());
+    m_watcher = std::make_unique<FutureSymbolWatcher>();
 
     QObject::connect(m_watcher.get(), &FutureSymbolWatcher::finished, [=, filePath=data.filePath(),
                      callback=std::move(processLinkCallback)]() mutable {

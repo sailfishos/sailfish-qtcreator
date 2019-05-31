@@ -27,7 +27,8 @@
 
 #include "clangsupport_global.h"
 
-#include <utils/smallstringio.h>
+#include <filepath.h>
+#include <projectpartid.h>
 
 namespace ClangBackEnd {
 
@@ -35,23 +36,28 @@ class ProjectPartPch
 {
 public:
     ProjectPartPch() = default;
-    ProjectPartPch(Utils::SmallString &&projectPartId,
-                   Utils::SmallString &&pchPath,
-                   long long lastModified)
-        : projectPartId(std::move(projectPartId)),
-          pchPath(std::move(pchPath)),
-          lastModified(lastModified)
+    ProjectPartPch(ProjectPartId projectPartId, FilePath &&pchPath, long long lastModified)
+        : projectPartId(projectPartId)
+        , pchPath(std::move(pchPath))
+        , lastModified(lastModified)
     {}
-    ProjectPartPch(Utils::SmallStringView pchPath,
-                   long long lastModified)
-        : pchPath(pchPath),
-          lastModified(lastModified)
+
+    ProjectPartPch(int projectPartId, Utils::SmallStringView pchPath, long long lastModified)
+        : projectPartId(projectPartId)
+        , pchPath(FilePathView(pchPath))
+        , lastModified(lastModified)
     {}
+
+    bool isValid() const
+    {
+        return projectPartId.isValid() && pchPath.isValid() && lastModified >= 0;
+    }
 
     friend QDataStream &operator<<(QDataStream &out, const ProjectPartPch &container)
     {
         out << container.projectPartId;
         out << container.pchPath;
+        out << container.lastModified;
 
         return out;
     }
@@ -60,6 +66,7 @@ public:
     {
         in >> container.projectPartId;
         in >> container.pchPath;
+        in >> container.lastModified;
 
         return in;
     }
@@ -77,8 +84,8 @@ public:
     }
 
 public:
-    Utils::SmallString projectPartId;
-    Utils::SmallString pchPath;
+    ProjectPartId projectPartId;
+    FilePath pchPath;
     long long lastModified = -1;
 };
 

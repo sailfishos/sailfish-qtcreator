@@ -38,7 +38,7 @@ class CppIncludeHierarchyItem;
 class CppIncludeHierarchyModel : public Utils::TreeModel<CppIncludeHierarchyItem>
 {
     Q_OBJECT
-    typedef Utils::TreeModel<CppIncludeHierarchyItem> base_type;
+    using base_type = Utils::TreeModel<CppIncludeHierarchyItem>;
 
 public:
     CppIncludeHierarchyModel();
@@ -72,6 +72,8 @@ public:
     CppIncludeHierarchyFactory();
 
     Core::NavigationView createWidget() override;
+    void saveSettings(QSettings *settings, int position, QWidget *widget) override;
+    void restoreSettings(QSettings *settings, int position, QWidget *widget) override;
 };
 
 } // namespace Internal

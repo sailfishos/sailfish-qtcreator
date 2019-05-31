@@ -54,6 +54,7 @@ Project {
                 "dependenciespanel.cpp", "dependenciespanel.h",
                 "deployablefile.cpp", "deployablefile.h",
                 "deployconfiguration.cpp", "deployconfiguration.h",
+                "deploymentdata.cpp",
                 "deploymentdata.h",
                 "deploymentdataview.cpp",
                 "deploymentdataview.h",
@@ -219,6 +220,7 @@ Project {
                 "localprocesslist.cpp", "localprocesslist.h",
                 "sshdeviceprocess.cpp", "sshdeviceprocess.h",
                 "sshdeviceprocesslist.cpp", "sshdeviceprocesslist.h",
+                "sshsettingspage.cpp", "sshsettingspage.h",
                 "desktopprocesssignaloperation.cpp", "desktopprocesssignaloperation.h",
                 "desktopdeviceconfigurationwidget.cpp", "desktopdeviceconfigurationwidget.h", "desktopdeviceconfigurationwidget.ui"
             ]
@@ -234,8 +236,6 @@ Project {
             name: "WindowsToolChains"
             condition: qbs.targetOS.contains("windows") || qtc.testsEnabled
             files: [
-                "abstractmsvctoolchain.cpp",
-                "abstractmsvctoolchain.h",
                 "msvctoolchain.cpp",
                 "msvctoolchain.h",
                 "windebuginterface.cpp",

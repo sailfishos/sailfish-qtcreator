@@ -163,6 +163,10 @@ public:
     static void openNewProjectDialog();
     static void openOpenProjectDialog();
 
+    static QString buildDirectoryTemplate();
+    static void setBuildDirectoryTemplate(const QString &dir);
+    static QString defaultBuildDirectoryTemplate();
+
 signals:
     void finishedInitialization();
 
@@ -170,13 +174,11 @@ signals:
     // or the file list of a specific project has changed.
     void fileListChanged();
 
-    void aboutToExecuteProject(ProjectExplorer::RunControl *runControl);
     void recentProjectsChanged();
 
     void settingsChanged();
 
     void updateRunActions();
-    void updateDeployRunActions();
 
 private:
     static bool coreAboutToClose();

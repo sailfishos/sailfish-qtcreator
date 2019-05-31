@@ -29,6 +29,7 @@
 #include "genericprojectconstants.h"
 
 #include <coreplugin/icore.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/selectablefilesmodel.h>
 
 #include <utils/wizard.h>
@@ -44,9 +45,11 @@ FilesSelectionWizardPage::FilesSelectionWizardPage(GenericProjectWizardDialog *g
     m_genericProjectWizardDialog(genericProjectWizard),
     m_filesWidget(new ProjectExplorer::SelectableFilesWidget(this))
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    auto layout = new QVBoxLayout(this);
 
     layout->addWidget(m_filesWidget);
+    m_filesWidget->enableFilterHistoryCompletion
+            (ProjectExplorer::Constants::ADD_FILES_DIALOG_FILTER_HISTORY_KEY);
     m_filesWidget->setBaseDirEditable(false);
     connect(m_filesWidget, &ProjectExplorer::SelectableFilesWidget::selectedFilesChanged,
             this, &FilesSelectionWizardPage::completeChanged);

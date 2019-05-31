@@ -8,7 +8,18 @@ The standalone binary packages support the following platforms:
 
 * Windows 7 or later
 * (K)Ubuntu Linux 16.04 (64-bit) or later
-* macOS 10.11 or later
+* macOS 10.12 or later
+
+## Contributing
+
+For instructions on how to set up the Qt Creator repository to contribute
+patches back to Qt Creator, please check:
+
+https://wiki.qt.io/Setting_up_Gerrit
+
+See the following page for information about our coding standard:
+
+https://doc-snapshots.qt.io/qtcreator-extending/coding-style.html
 
 ## Compiling Qt Creator
 
@@ -23,10 +34,10 @@ Prerequisites:
     * Python 3.5 or later (optional, needed for the python enabled debug helper)
 * On Mac OS X: latest Xcode
 * On Linux: g++ 5.3 or later
-* LLVM/Clang 6.0.0 or later (optional, needed for the Clang Code Model, see the
-  section "Get LLVM/Clang for the Clang Code Model")
-    * CMake (only for manual builds of LLVM/Clang)
-* Python 2.6 or later (needed for building the bundled Botan library)
+* LLVM/Clang 7.0.0 or later (optional, needed for the Clang Code Model, Clang Tools, ClangFormat,
+  Clang PCH Manager and Clang Refactoring plugins, see the section
+  "Get LLVM/Clang for the Clang Code Model")
+* CMake (only for manual builds of LLVM/Clang)
 * Qbs 1.7.x (optional, sources also contain Qbs itself)
 
 The installed toolchains have to match the one Qt was compiled with.
@@ -39,6 +50,10 @@ You can build Qt Creator with
     export QBS_INSTALL_DIR=/path/to/qbs
     # Optional, needed for the Python enabled dumper on Windows
     set PYTHON_INSTALL_DIR=C:\path\to\python
+    # Optional, needed to use system KSyntaxHighlighting:
+    set KSYNTAXHIGHLIGHTING_LIB_DIR to folder holding the KSyntaxHighlighting library
+    # if automatic deducing of include folder fails set KSYNTAXHIGHLIGHTING_INCLUDE_DIR as well
+    # both variables can also be passed as qmake variables
 
     cd $SOURCE_DIRECTORY
     qmake -r
@@ -210,7 +225,7 @@ or using shadow builds.
 ## Get LLVM/Clang for the Clang Code Model
 
 The Clang Code Model depends on the LLVM/Clang libraries. The currently
-supported LLVM/Clang version is 6.0.
+supported LLVM/Clang version is 7.0.
 
 ### Prebuilt LLVM/Clang packages
 
@@ -237,9 +252,9 @@ GCC 4 binaries. On Ubuntu, you can download the package from
 http://apt.llvm.org/ with:
 
    wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-6.0 main"
+   sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -cs`/ llvm-toolchain-`lsb_release -cs`-7.0 main"
    sudo apt-get update
-   sudo apt-get install llvm-6.0 libclang-6.0-dev
+   sudo apt-get install llvm-7.0 libclang-7.0-dev
 
 There is a workaround to set _GLIBCXX_USE_CXX11_ABI to 1 or 0, but we recommend
 to download the package from http://apt.llvm.org/.
@@ -276,6 +291,44 @@ http://llvm.org/docs/GettingStarted.html#git-mirror:
 
 Qt Creator includes the following third-party components,
 we thank the authors who made this possible:
+
+### KSyntaxHighlighting
+
+  Syntax highlighting engine for Kate syntax definitions
+
+  This is a stand-alone implementation of the Kate syntax highlighting
+  engine. It's meant as a building block for text editors as well as
+  for simple highlighted text rendering (e.g. as HTML), supporting both
+  integration with a custom editor as well as a ready-to-use
+  QSyntaxHighlighter sub-class.
+
+  Distributed under the:
+
+  MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+  The source code of KSyntaxHighlighting can be found here:
+      https://cgit.kde.org/syntax-highlighting.git
+      QtCreator/src/libs/3rdparty/syntax-highlighting
+      https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/syntax-highlighting
 
 ### Clazy
 
@@ -377,54 +430,6 @@ we thank the authors who made this possible:
   COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-### Botan, a C++ crypto library. Version 1.10.2
-
-  Botan (http://botan.randombit.net/) is distributed under these terms::
-
-  Copyright (C) 1999-2011 Jack Lloyd
-                2001 Peter J Jones
-                2004-2007 Justin Karneges
-                2004 Vaclav Ovsik
-                2005 Matthew Gregan
-                2005-2006 Matt Johnston
-                2006 Luca Piccarreta
-                2007 Yves Jerschow
-                2007-2008 FlexSecure GmbH
-                2007-2008 Technische Universitat Darmstadt
-                2007-2008 Falko Strenzke
-                2007-2008 Martin Doering
-                2007 Manuel Hartl
-                2007 Christoph Ludwig
-                2007 Patrick Sona
-                2010 Olivier de Gaalon
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are
-  met:
-
-  1. Redistributions of source code must retain the above copyright
-  notice, this list of conditions, and the following disclaimer.
-
-  2. Redistributions in binary form must reproduce the above copyright
-  notice, this list of conditions, and the following disclaimer in the
-  documentation and/or other materials provided with the distribution.
-
-  THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) "AS IS" AND ANY EXPRESS OR
-  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
-  ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR(S) OR CONTRIBUTOR(S) BE
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  The source code of Botan C++ crypto library can be found in
-  QtCreator/src/libs/3rdparty
 
 ### SQLite, in-process library that implements a SQL database engine
 

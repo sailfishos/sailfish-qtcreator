@@ -78,13 +78,16 @@ def menuVisibleAtEditor(editor, menuInList):
                     return True
             return False
         menu = waitForObject("{type='QMenu' unnamed='1' visible='1'}", 500)
-        if platform.system() == 'Darwin':
-            menu.activateWindow()
-        success = menu.visible and widgetContainsPoint(editor, menu.mapToGlobal(QPoint(0, 0)))
+        topLeft = menu.mapToGlobal(QPoint(0, 0))
+        bottomLeft = menu.mapToGlobal(QPoint(0, menu.height))
+        success = menu.visible and (widgetContainsPoint(editor, topLeft)
+                                    or widgetContainsPoint(editor, bottomLeft))
         if success:
             menuInList[0] = menu
         return success
     except:
+        t, v = sys.exc_info()[:2]
+        test.log("Exception: %s" % str(t), str(v))
         return False
 
 # this function checks whether the given global point (QPoint)
@@ -147,7 +150,7 @@ def verifyHoveringOnEditor(editor, lines, additionalKeyPresses, expectedTypes, e
         for ty in additionalKeyPresses:
             type(editor, ty)
         rect = editor.cursorRect(editor.textCursor())
-        expectedToolTip = "{type='QTipLabel' visible='1'}"
+        expectedToolTip = "{type='QLabel' objectName='qcToolTip' visible='1'}"
         # wait for similar tooltips to disappear
         checkIfObjectExists(expectedToolTip, False, 1000, True)
         sendEvent("QMouseEvent", editor, QEvent.MouseMove, rect.x+rect.width/2, rect.y+rect.height/2, Qt.NoButton, 0)
@@ -361,7 +364,7 @@ def invokeFindUsage(editor, line, typeOperation, n=1):
     for _ in range(n):
         type(editor, typeOperation)
     snooze(1)
-    invokeContextMenuItem(editor, "Find Usages")
+    invokeContextMenuItem(editor, "Find References to Symbol Under Cursor")
     return True
 
 def addBranchWildcardToRoot(rootNode):

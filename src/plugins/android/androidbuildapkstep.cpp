@@ -31,7 +31,6 @@
 #include "androidconstants.h"
 #include "androidmanager.h"
 #include "androidsdkmanager.h"
-#include "androidqtsupport.h"
 #include "certificatesmodel.h"
 
 #include "javaparser.h"
@@ -40,13 +39,18 @@
 #include <coreplugin/icore.h>
 
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/processparameters.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
 
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/algorithm.h>
+#include <utils/qtcprocess.h>
 #include <utils/synchronousprocess.h>
 #include <utils/utilsicons.h>
 
@@ -72,8 +76,6 @@ Q_LOGGING_CATEGORY(buildapkstepLog, "qtc.android.build.androidbuildapkstep", QtW
 }
 
 namespace Android {
-
-const Core::Id ANDROID_BUILD_APK_ID("QmakeProjectManager.AndroidBuildApkStep");
 
 const QVersionNumber gradleScriptRevokedSdkVersion(25, 3, 0);
 const char KeystoreLocationKey[] = "KeystoreLocation";
@@ -123,15 +125,25 @@ private:
 };
 
 AndroidBuildApkStep::AndroidBuildApkStep(BuildStepList *parent)
-    : AbstractProcessStep(parent, ANDROID_BUILD_APK_ID),
+    : AbstractProcessStep(parent, Constants::ANDROID_BUILD_APK_ID),
       m_buildTargetSdk(AndroidConfig::apiLevelNameFor(AndroidConfigurations::
                                          sdkManager()->latestAndroidSdkPlatform()))
 {
     //: AndroidBuildApkStep default display name
     setDefaultDisplayName(tr("Build Android APK"));
+    setImmutable(true);
 }
 
-bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
+AndroidBuildApkStep *AndroidBuildApkStep::findInBuild(const BuildConfiguration *bc)
+{
+    if (!bc)
+        return nullptr;
+    BuildStepList *bsl = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    QTC_ASSERT(bsl, return nullptr);
+    return bsl->firstOfType<AndroidBuildApkStep>();
+}
+
+bool AndroidBuildApkStep::init()
 {
     ProjectExplorer::BuildConfiguration *bc = buildConfiguration();
 
@@ -179,8 +191,10 @@ bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
     parser->setProjectFileList(Utils::transform(target()->project()->files(ProjectExplorer::Project::AllFiles),
                                                 &Utils::FileName::toString));
 
-    AndroidQtSupport *qtSupport = AndroidManager::androidQtSupport(target());
-    QFileInfo sourceDirInfo(qtSupport->targetData(Constants::AndroidPackageSourceDir, target()).toString());
+    RunConfiguration *rc = target()->activeRunConfiguration();
+    const ProjectNode *node = rc ? target()->project()->findNodeForBuildKey(rc->buildKey()) : nullptr;
+
+    QFileInfo sourceDirInfo(node ? node->data(Constants::AndroidPackageSourceDir).toString() : QString());
     parser->setSourceDirectory(Utils::FileName::fromString(sourceDirInfo.canonicalFilePath()));
     parser->setBuildDirectory(Utils::FileName::fromString(bc->buildDirectory().appendPath(Constants::ANDROID_BUILDDIRECTORY).toString()));
     setOutputParser(parser);
@@ -189,7 +203,7 @@ bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
     m_apkPath = AndroidManager::apkPath(target()).toString();
     qCDebug(buildapkstepLog) << "APK path:" << m_apkPath;
 
-    if (!AbstractProcessStep::init(earlierSteps))
+    if (!AbstractProcessStep::init())
         return false;
 
     QString command = version->qmakeProperty("QT_HOST_BINS");
@@ -201,8 +215,10 @@ bool AndroidBuildApkStep::init(QList<const BuildStep *> &earlierSteps)
 
     QString outputDir = bc->buildDirectory().appendPath(Constants::ANDROID_BUILDDIRECTORY).toString();
 
-    QString inputFile = AndroidManager::androidQtSupport(target())
-            ->targetData(Constants::AndroidDeploySettingsFile, target()).toString();
+    QString inputFile;
+    if (node)
+        inputFile = node->data(Constants::AndroidDeploySettingsFile).toString();
+
     if (inputFile.isEmpty()) {
         m_skipBuilding = true;
         return true;
@@ -283,8 +299,8 @@ void AndroidBuildApkStep::processFinished(int exitCode, QProcess::ExitStatus sta
 bool AndroidBuildApkStep::verifyKeystorePassword()
 {
     if (!m_keystorePath.exists()) {
-        addOutput(tr("Cannot sign the package. Invalid keystore path (%1).")
-                  .arg(m_keystorePath.toString()), OutputFormat::ErrorMessage);
+        emit addOutput(tr("Cannot sign the package. Invalid keystore path (%1).")
+                           .arg(m_keystorePath.toString()), OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -303,8 +319,8 @@ bool AndroidBuildApkStep::verifyCertificatePassword()
 {
     if (!AndroidManager::checkCertificateExists(m_keystorePath.toString(), m_keystorePasswd,
                                                  m_certificateAlias)) {
-        addOutput(tr("Cannot sign the package. Certificate alias %1 does not exist.")
-                  .arg(m_certificateAlias), OutputFormat::ErrorMessage);
+        emit addOutput(tr("Cannot sign the package. Certificate alias %1 does not exist.")
+                           .arg(m_certificateAlias), OutputFormat::ErrorMessage);
         return false;
     }
 
@@ -324,14 +340,14 @@ bool AndroidBuildApkStep::verifyCertificatePassword()
     return success;
 }
 
-void AndroidBuildApkStep::run(QFutureInterface<bool> &fi)
+void AndroidBuildApkStep::doRun()
 {
     if (m_skipBuilding) {
         emit addOutput(tr("No application .pro file found, not building an APK."), BuildStep::OutputFormat::ErrorMessage);
-        reportRunResult(fi, true);
+        emit finished(true);
         return;
     }
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 void AndroidBuildApkStep::processStarted()
@@ -551,7 +567,7 @@ namespace Internal {
 
 AndroidBuildApkStepFactory::AndroidBuildApkStepFactory()
 {
-    registerStep<AndroidBuildApkStep>(ANDROID_BUILD_APK_ID);
+    registerStep<AndroidBuildApkStep>(Constants::ANDROID_BUILD_APK_ID);
     setSupportedProjectType(QmakeProjectManager::Constants::QMAKEPROJECT_ID);
     setSupportedDeviceType(Constants::ANDROID_DEVICE_TYPE);
     setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);

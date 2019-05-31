@@ -63,8 +63,8 @@ private:
     QString m_fileName;
     QString m_prefix;
     QString m_suffix;
-    unsigned m_line;
-    unsigned m_column;
+    unsigned m_line = 0;
+    unsigned m_column = 0;
 };
 
 class CPPTOOLS_EXPORT InsertionPointLocator
@@ -87,7 +87,7 @@ public:
     static QString accessSpecToString(InsertionPointLocator::AccessSpec xsSpec);
 
 public:
-    InsertionPointLocator(const CppRefactoringChanges &refactoringChanges);
+    explicit InsertionPointLocator(const CppRefactoringChanges &refactoringChanges);
 
     InsertionLocation methodDeclarationInClass(const QString &fileName,
                                                const CPlusPlus::Class *clazz,

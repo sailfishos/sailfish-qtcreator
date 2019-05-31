@@ -27,7 +27,7 @@
 
 #include "texteditor_global.h"
 
-#include <QWidget>
+#include "icodestylepreferencesfactory.h"
 
 QT_BEGIN_NAMESPACE
 class QVBoxLayout;
@@ -39,14 +39,12 @@ class ICodeStylePreferencesFactory;
 class ICodeStylePreferences;
 class SnippetEditorWidget;
 
-class TEXTEDITOR_EXPORT CodeStyleEditor : public QWidget
+class TEXTEDITOR_EXPORT CodeStyleEditor : public CodeStyleEditorWidget
 {
     Q_OBJECT
 public:
     CodeStyleEditor(ICodeStylePreferencesFactory *factory,
                            ICodeStylePreferences *codeStyle, QWidget *parent = nullptr);
-
-    void clearMargins();
 
 private:
     void updatePreview();

@@ -32,16 +32,14 @@ namespace Internal {
 
 class WinRtDevice : public ProjectExplorer::IDevice
 {
-    friend class WinRtDeviceFactory;
 public:
     typedef QSharedPointer<WinRtDevice> Ptr;
     typedef QSharedPointer<const WinRtDevice> ConstPtr;
 
+    static Ptr create() { return Ptr(new WinRtDevice); }
+
     QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
     void fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
@@ -50,16 +48,11 @@ public:
 
     static QString displayNameForType(Core::Id type);
     int deviceId() const { return m_deviceId; }
+    void setDeviceId(int deviceId) { m_deviceId = deviceId; }
 
-protected:
+private:
     WinRtDevice();
-    WinRtDevice(Core::Id type, MachineType machineType, Core::Id internalId, int deviceId);
-    WinRtDevice(const WinRtDevice &other);
 
-private:
-    void initFreePorts();
-
-private:
     int m_deviceId = -1;
 };
 

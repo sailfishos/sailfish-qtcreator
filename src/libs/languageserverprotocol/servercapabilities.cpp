@@ -98,6 +98,19 @@ void ServerCapabilities::setImplementationProvider(
         insert(implementationProviderKey, Utils::get<RegistrationOptions>(implementationProvider));
 }
 
+Utils::optional<Utils::variant<bool, CodeActionOptions>> ServerCapabilities::codeActionProvider() const
+{
+    QJsonValue provider = value(codeActionProviderKey);
+    if (provider.isBool())
+        return Utils::make_optional(Utils::variant<bool, CodeActionOptions>(provider.toBool()));
+    if (provider.isObject()) {
+        CodeActionOptions options(provider);
+        if (options.isValid(nullptr))
+            return Utils::make_optional(Utils::variant<bool, CodeActionOptions>(options));
+    }
+    return Utils::nullopt;
+}
+
 bool ServerCapabilities::isValid(QStringList *error) const
 {
     return checkOptional<TextDocumentSyncOptions, int>(error, textDocumentSyncKey)
@@ -107,7 +120,7 @@ bool ServerCapabilities::isValid(QStringList *error) const
             && checkOptional<bool>(error, definitionProviderKey)
             && checkOptional<bool, RegistrationOptions>(error, typeDefinitionProviderKey)
             && checkOptional<bool, RegistrationOptions>(error, implementationProviderKey)
-            && checkOptional<bool>(error, referenceProviderKey)
+            && checkOptional<bool>(error, referencesProviderKey)
             && checkOptional<bool>(error, documentHighlightProviderKey)
             && checkOptional<bool>(error, documentSymbolProviderKey)
             && checkOptional<bool>(error, workspaceSymbolProviderKey)

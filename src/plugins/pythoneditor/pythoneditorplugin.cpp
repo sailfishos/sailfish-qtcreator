@@ -33,6 +33,7 @@
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/fileiconprovider.h>
 #include <coreplugin/id.h>
+#include <coreplugin/messagemanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <projectexplorer/buildtargetinfo.h>
@@ -59,6 +60,11 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QTextCursor>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QJsonValue>
+#include <QJsonArray>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -99,7 +105,7 @@ private:
     bool saveRawList(const QStringList &rawList, const QString &fileName);
     void parseProject();
     QStringList processEntries(const QStringList &paths,
-                               QHash<QString, QString> *map = 0) const;
+                               QHash<QString, QString> *map = nullptr) const;
 
     QStringList m_rawFileList;
     QStringList m_files;
@@ -327,7 +333,7 @@ static QStringList readLines(const Utils::FileName &projectFile)
         QTextStream stream(&file);
 
         forever {
-            QString line = stream.readLine();
+            const QString line = stream.readLine();
             if (line.isNull())
                 break;
             if (visited.contains(line))
@@ -340,9 +346,56 @@ static QStringList readLines(const Utils::FileName &projectFile)
     return lines;
 }
 
+static QStringList readLinesJson(const Utils::FileName &projectFile,
+                                 QString *errorMessage)
+{
+    const QString projectFileName = projectFile.fileName();
+    QStringList lines = { projectFileName };
+
+    QFile file(projectFile.toString());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        *errorMessage = PythonProject::tr("Unable to open \"%1\" for reading: %2")
+                        .arg(projectFile.toUserOutput(), file.errorString());
+        return lines;
+    }
+
+    const QByteArray content = file.readAll();
+
+    // This assumes te project file is formed with only one field called
+    // 'files' that has a list associated of the files to include in the project.
+    if (content.isEmpty()) {
+        *errorMessage = PythonProject::tr("Unable to read \"%1\": The file is empty.")
+                        .arg(projectFile.toUserOutput());
+        return lines;
+    }
+
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(content, &error);
+    if (doc.isNull()) {
+        const int line = content.left(error.offset).count('\n') + 1;
+        *errorMessage = PythonProject::tr("Unable to parse \"%1\":%2: %3")
+                        .arg(projectFile.toUserOutput()).arg(line)
+                        .arg(error.errorString());
+        return lines;
+    }
+
+    const QJsonObject obj = doc.object();
+    if (obj.contains("files")) {
+        const QJsonValue files = obj.value("files");
+        const QJsonArray files_array = files.toArray();
+        QSet<QString> visited;
+        for (const auto &file : files_array)
+            visited.insert(file.toString());
+
+        lines.append(visited.toList());
+    }
+
+    return lines;
+}
+
 bool PythonProject::saveRawFileList(const QStringList &rawFileList)
 {
-    bool result = saveRawList(rawFileList, projectFilePath().toString());
+    const bool result = saveRawList(rawFileList, projectFilePath().toString());
 //    refresh(PythonProject::Files);
     return result;
 }
@@ -358,19 +411,18 @@ bool PythonProject::saveRawList(const QStringList &rawList, const QString &fileN
             stream << filePath << '\n';
         saver.setResult(&stream);
     }
-    bool result = saver.finalize(ICore::mainWindow());
-    return result;
+    return saver.finalize(ICore::mainWindow());
 }
 
 bool PythonProject::addFiles(const QStringList &filePaths)
 {
     QStringList newList = m_rawFileList;
 
-    QDir baseDir(projectDirectory().toString());
+    const QDir baseDir(projectDirectory().toString());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
-    bool result = saveRawList(newList, projectFilePath().toString());
+    const bool result = saveRawList(newList, projectFilePath().toString());
     refresh();
 
     return result;
@@ -381,7 +433,7 @@ bool PythonProject::removeFiles(const QStringList &filePaths)
     QStringList newList = m_rawFileList;
 
     foreach (const QString &filePath, filePaths) {
-        QHash<QString, QString>::iterator i = m_rawListEntries.find(filePath);
+        const QHash<QString, QString>::iterator i = m_rawListEntries.find(filePath);
         if (i != m_rawListEntries.end())
             newList.removeOne(i.value());
     }
@@ -392,7 +444,7 @@ bool PythonProject::removeFiles(const QStringList &filePaths)
 bool PythonProject::setFiles(const QStringList &filePaths)
 {
     QStringList newList;
-    QDir baseDir(projectDirectory().toString());
+    const QDir baseDir(projectDirectory().toString());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
@@ -403,11 +455,11 @@ bool PythonProject::renameFile(const QString &filePath, const QString &newFilePa
 {
     QStringList newList = m_rawFileList;
 
-    QHash<QString, QString>::iterator i = m_rawListEntries.find(filePath);
+    const QHash<QString, QString>::iterator i = m_rawListEntries.find(filePath);
     if (i != m_rawListEntries.end()) {
-        int index = newList.indexOf(i.value());
+        const int index = newList.indexOf(i.value());
         if (index != -1) {
-            QDir baseDir(projectDirectory().toString());
+            const QDir baseDir(projectDirectory().toString());
             newList.replace(index, baseDir.relativeFilePath(newFilePath));
         }
     }
@@ -418,7 +470,19 @@ bool PythonProject::renameFile(const QString &filePath, const QString &newFilePa
 void PythonProject::parseProject()
 {
     m_rawListEntries.clear();
-    m_rawFileList = readLines(projectFilePath());
+    const Utils::FileName filePath = projectFilePath();
+    // The PySide project file is JSON based
+    if (filePath.endsWith(".pyproject")) {
+        QString errorMessage;
+        m_rawFileList = readLinesJson(filePath, &errorMessage);
+        if (!errorMessage.isEmpty())
+            Core::MessageManager::write(errorMessage);
+    }
+    // To keep compatibility with PyQt we keep the compatibility with plain
+    // text files as project files.
+    else if (filePath.endsWith(".pyqtc"))
+        m_rawFileList = readLines(filePath);
+
     m_files = processEntries(m_rawFileList, &m_rawListEntries);
 }
 
@@ -444,12 +508,13 @@ void PythonProject::refresh(Target *target)
     emitParsingStarted();
     parseProject();
 
-    QDir baseDir(projectDirectory().toString());
+    const QDir baseDir(projectDirectory().toString());
     BuildTargetInfoList appTargets;
     auto newRoot = std::make_unique<PythonProjectNode>(this);
-    for (const QString &f : m_files) {
+    for (const QString &f : qAsConst(m_files)) {
         const QString displayName = baseDir.relativeFilePath(f);
-        FileType fileType = f.endsWith(".pyqtc") ? FileType::Project : FileType::Source;
+        const FileType fileType = f.endsWith(".pyproject") || f.endsWith(".pyqtc") ? FileType::Project
+                                                                                   : FileType::Source;
         newRoot->addNestedNode(std::make_unique<PythonFileNode>(FileName::fromString(f),
                                                                 displayName, fileType));
         if (fileType == FileType::Source) {
@@ -552,8 +617,8 @@ QHash<QString, QStringList> sortFilesIntoPaths(const QString &base, const QSet<Q
     const QDir baseDir(base);
 
     foreach (const QString &absoluteFileName, files) {
-        QFileInfo fileInfo(absoluteFileName);
-        FileName absoluteFilePath = FileName::fromString(fileInfo.path());
+        const QFileInfo fileInfo(absoluteFileName);
+        const FileName absoluteFilePath = FileName::fromString(fileInfo.path());
         QString relativeFilePath;
 
         if (absoluteFilePath.isChildOf(baseDir)) {

@@ -42,7 +42,7 @@ RemoteLinuxCheckForFreeDiskSpaceService::RemoteLinuxCheckForFreeDiskSpaceService
         : AbstractRemoteLinuxDeployService(parent),
           d(new Internal::RemoteLinuxCheckForFreeDiskSpaceServicePrivate)
 {
-    d->processRunner = 0;
+    d->processRunner = nullptr;
     d->requiredSpaceInBytes = 0;
 }
 
@@ -69,17 +69,12 @@ void RemoteLinuxCheckForFreeDiskSpaceService::handleStdErr()
 
 void RemoteLinuxCheckForFreeDiskSpaceService::handleProcessFinished()
 {
-    switch (d->processRunner->processExitStatus()) {
-    case QSsh::SshRemoteProcess::FailedToStart:
-        emit errorMessage(tr("Remote process failed to start."));
+    if (!d->processRunner->processErrorString().isEmpty()) {
+        emit errorMessage(tr("Remote process failed: %1")
+                          .arg(d->processRunner->processErrorString()));
         stopDeployment();
         return;
-    case QSsh::SshRemoteProcess::CrashExit:
-        emit errorMessage(tr("Remote process crashed."));
-        stopDeployment();
-        return;
-    case QSsh::SshRemoteProcess::NormalExit:
-        break;
+
     }
 
     bool isNumber;
@@ -97,13 +92,13 @@ void RemoteLinuxCheckForFreeDiskSpaceService::handleProcessFinished()
     freeSpace /= 1024; // convert kilobyte to megabyte
     if (freeSpace < requiredSpaceInMegaBytes) {
         emit errorMessage(tr("The remote file system has only %n megabytes of free space, "
-                "but %1 megabytes are required.", 0, freeSpace).arg(requiredSpaceInMegaBytes));
+                "but %1 megabytes are required.", nullptr, freeSpace).arg(requiredSpaceInMegaBytes));
         stopDeployment();
         return;
     }
 
     emit progressMessage(tr("The remote file system has %n megabytes of free space, going ahead.",
-                            0, freeSpace));
+                            nullptr, freeSpace));
     stopDeployment();
 }
 
@@ -142,10 +137,10 @@ void RemoteLinuxCheckForFreeDiskSpaceService::stopDeployment()
 void RemoteLinuxCheckForFreeDiskSpaceService::cleanup()
 {
     if (d->processRunner) {
-        disconnect(d->processRunner, 0, this, 0);
+        disconnect(d->processRunner, nullptr, this, nullptr);
         d->processRunner->cancel();
         delete d->processRunner;
-        d->processRunner = 0;
+        d->processRunner = nullptr;
     }
 }
 

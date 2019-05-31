@@ -28,62 +28,17 @@
 
 #include "androidconstants.h"
 
-#include <utils/icon.h>
-
-#include <QIcon>
-
 namespace Android {
 namespace Internal {
 
 AndroidDeviceFactory::AndroidDeviceFactory()
+    : ProjectExplorer::IDeviceFactory(Constants::ANDROID_DEVICE_TYPE)
 {
     setObjectName(QLatin1String("AndroidDeviceFactory"));
-}
-
-QString AndroidDeviceFactory::displayNameForId(Core::Id type) const
-{
-    if (type == Constants::ANDROID_DEVICE_TYPE)
-        return tr("Android Device");
-    return QString();
-}
-
-QList<Core::Id> AndroidDeviceFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::ANDROID_DEVICE_TYPE);
-}
-
-QIcon AndroidDeviceFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    static const QIcon icon =
-            Icon::combinedIcon({Icon({{":/android/images/androiddevicesmall.png",
-                                       Theme::PanelTextColorDark}}, Icon::Tint),
-                                Icon({{":/android/images/androiddevice.png",
-                                       Theme::IconsBaseColor}})});
-    return icon;
-}
-
-bool AndroidDeviceFactory::canCreate() const
-{
-    return false;
-}
-
-ProjectExplorer::IDevice::Ptr AndroidDeviceFactory::create(Core::Id id) const
-{
-    Q_UNUSED(id)
-    return ProjectExplorer::IDevice::Ptr();
-}
-
-bool AndroidDeviceFactory::canRestore(const QVariantMap &map) const
-{
-    return ProjectExplorer::IDevice::typeFromMap(map) == Constants::ANDROID_DEVICE_TYPE;
-}
-
-ProjectExplorer::IDevice::Ptr AndroidDeviceFactory::restore(const QVariantMap &map) const
-{
-    Q_UNUSED(map)
-    return ProjectExplorer::IDevice::Ptr(new AndroidDevice);
+    setDisplayName(tr("Android Device"));
+    setCombinedIcon(":/android/images/androiddevicesmall.png",
+                    ":/android/images/androiddevice.png");
+    setConstructionFunction(&AndroidDevice::create);
 }
 
 } // namespace Internal

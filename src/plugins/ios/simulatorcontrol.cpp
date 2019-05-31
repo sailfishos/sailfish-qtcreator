@@ -26,10 +26,10 @@
 #include "simulatorcontrol.h"
 #include "iosconfigurations.h"
 
-#include "utils/algorithm.h"
-#include "utils/runextensions.h"
-#include "utils/qtcassert.h"
-#include "utils/synchronousprocess.h"
+#include <utils/algorithm.h>
+#include <utils/runextensions.h>
+#include <utils/qtcassert.h>
+#include <utils/synchronousprocess.h>
 
 #ifdef Q_OS_MAC
 #include <CoreFoundation/CoreFoundation.h>
@@ -356,14 +356,9 @@ QList<SimulatorInfo> SimulatorControlPrivate::availableDevices;
 QList<DeviceTypeInfo> SimulatorControlPrivate::availableDeviceTypes;
 QList<RuntimeInfo> SimulatorControlPrivate::availableRuntimes;
 
-SimulatorControlPrivate::SimulatorControlPrivate()
-{
-}
+SimulatorControlPrivate::SimulatorControlPrivate() = default;
 
-SimulatorControlPrivate::~SimulatorControlPrivate()
-{
-
-}
+SimulatorControlPrivate::~SimulatorControlPrivate() = default;
 
 SimulatorInfo SimulatorControlPrivate::deviceInfo(const QString &simUdid)
 {

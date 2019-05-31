@@ -106,7 +106,7 @@ const char KITS_SETTINGS_CATEGORY[]  = "A.Kits";
 
 // Kits pages
 const char KITS_SETTINGS_PAGE_ID[] = "D.ProjectExplorer.KitsOptions";
-const char DEVICE_SETTINGS_PAGE_ID[] = "E.ProjectExplorer.DeviceOptions";
+const char SSH_SETTINGS_PAGE_ID[] = "F.ProjectExplorer.SshOptions";
 const char TOOLCHAIN_SETTINGS_PAGE_ID[] = "M.ProjectExplorer.ToolChainOptions";
 const char DEBUGGER_SETTINGS_PAGE_ID[] = "N.ProjectExplorer.DebuggerOptions";
 
@@ -118,6 +118,7 @@ const char BUILD_AND_RUN_SETTINGS_PAGE_ID[] = "A.ProjectExplorer.BuildAndRunOpti
 
 // Device settings page
 const char DEVICE_SETTINGS_CATEGORY[] = "XW.Devices";
+const char DEVICE_SETTINGS_PAGE_ID[] = "AA.Device Settings";
 
 // Task categories
 const char TASK_CATEGORY_COMPILE[] = "Task.Category.Compile";
@@ -209,6 +210,8 @@ const char FILEOVERLAY_CPP[]=":/projectexplorer/images/fileoverlay_cpp.png";
 const char FILEOVERLAY_H[]=":/projectexplorer/images/fileoverlay_h.png";
 const char FILEOVERLAY_SCXML[]=":/projectexplorer/images/fileoverlay_scxml.png";
 const char FILEOVERLAY_UNKNOWN[]=":/projectexplorer/images/fileoverlay_unknown.png";
+
+const char ADD_FILES_DIALOG_FILTER_HISTORY_KEY[] = "ProjectExplorer.AddFilesFilterKey";
 
 } // namespace Constants
 } // namespace ProjectExplorer

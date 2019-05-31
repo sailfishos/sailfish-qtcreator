@@ -106,14 +106,12 @@ private:
     void updateAddBuildStepMenu();
     void addBuildStep(int pos);
     void updateSummary();
-    void updateAdditionalSummary();
     void updateEnabledState();
     void stepMoved(int from, int to);
     void removeBuildStep(int pos);
 
     void setupUi();
     void updateBuildStepButtonsState();
-    void addBuildStepWidget(int pos, BuildStep *step);
 
     BuildStepList *m_buildStepList = nullptr;
 

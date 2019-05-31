@@ -193,6 +193,7 @@ QString GitPlugin::invalidBranchAndRemoteNamePattern()
         "|^[/-]"  // no leading slash or dash
         "|\""     // no quotes
         "|\\*"    // no asterisk
+        "|(^|[A-Z]+_)HEAD" // no HEAD, FETCH_HEAD etc.
     );
 }
 
@@ -568,6 +569,9 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 
     createRepositoryAction(subversionMenu, tr("Fetch"), "Git.Subversion.Fetch",
                            context, false, &GitClient::synchronousSubversionFetch);
+
+    createRepositoryAction(subversionMenu, tr("DCommit"), "Git.Subversion.DCommit",
+                           context, false, &GitClient::subversionDeltaCommit);
 
     // --------------
     remoteRepositoryMenu->addSeparator(context);
@@ -1033,12 +1037,8 @@ bool GitPlugin::submitEditorAboutToClose()
         return true;
     // Prompt user. Force a prompt unless submit was actually invoked (that
     // is, the editor was closed or shutdown).
-    bool promptData = false;
     const VcsBaseSubmitEditor::PromptSubmitResult answer
-            = editor->promptSubmit(tr("Closing Git Editor"),
-                 tr("Do you want to commit the change?"),
-                 tr("Git will not accept this commit. Do you want to continue to edit it?"),
-                 &promptData, !m_submitActionTriggered, false);
+            = editor->promptSubmit(this, nullptr, !m_submitActionTriggered, false);
     m_submitActionTriggered = false;
     switch (answer) {
     case VcsBaseSubmitEditor::SubmitCanceled:

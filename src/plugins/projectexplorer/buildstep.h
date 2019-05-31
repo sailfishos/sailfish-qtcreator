@@ -33,6 +33,10 @@
 #include <QFutureInterface>
 #include <QWidget>
 
+#include <atomic>
+#include <functional>
+#include <memory>
+
 namespace ProjectExplorer {
 
 class BuildConfiguration;
@@ -53,13 +57,10 @@ protected:
     explicit BuildStep(BuildStepList *bsl, Core::Id id);
 
 public:
-    virtual bool init(QList<const BuildStep *> &earlierSteps) = 0;
-    virtual void run(QFutureInterface<bool> &fi) = 0;
+    virtual bool init() = 0;
+    void run();
+    void cancel();
     virtual BuildStepConfigWidget *createConfigWidget();
-
-    virtual bool immutable() const;
-    virtual bool runInGuiThread() const;
-    virtual void cancel();
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
@@ -84,6 +85,12 @@ public:
 
     bool isActive() const override;
 
+    bool widgetExpandedByDefault() const;
+    void setWidgetExpandedByDefault(bool widgetExpandedByDefault);
+
+    bool isImmutable() const { return m_immutable; }
+    void setImmutable(bool immutable) { m_immutable = immutable; }
+
 signals:
     /// Adds a \p task to the Issues pane.
     /// Do note that for linking compile output with tasks, you should first emit the task
@@ -97,8 +104,24 @@ signals:
 
     void enabledChanged();
 
+    void progress(int percentage, const QString &message);
+    void finished(bool result);
+
+protected:
+    void runInThread(const std::function<bool()> &syncImpl);
+
+    std::function<bool()> cancelChecker() const;
+    bool isCanceled() const;
+
 private:
+    virtual void doRun() = 0;
+    virtual void doCancel();
+
+    std::atomic_bool m_cancelFlag;
     bool m_enabled = true;
+    bool m_immutable = false;
+    bool m_widgetExpandedByDefault = true;
+    bool m_runInGuiThread = true;
 };
 
 class PROJECTEXPLORER_EXPORT BuildStepInfo
@@ -122,6 +145,8 @@ class PROJECTEXPLORER_EXPORT BuildStepFactory
 {
 public:
     BuildStepFactory();
+    BuildStepFactory(const BuildStepFactory &) = delete;
+    BuildStepFactory &operator=(const BuildStepFactory &) = delete;
     virtual ~BuildStepFactory();
 
     static const QList<BuildStepFactory *> allBuildStepFactories();
@@ -134,9 +159,6 @@ public:
     bool canHandle(BuildStepList *bsl) const;
 
 protected:
-    BuildStepFactory(const BuildStepFactory &) = delete;
-    BuildStepFactory &operator=(const BuildStepFactory &) = delete;
-
     using BuildStepCreator = std::function<BuildStep *(BuildStepList *)>;
 
     template <class BuildStepType>
@@ -171,38 +193,22 @@ class PROJECTEXPLORER_EXPORT BuildStepConfigWidget : public QWidget
 {
     Q_OBJECT
 public:
-    virtual QString summaryText() const = 0;
-    virtual QString additionalSummaryText() const { return QString(); }
-    virtual QString displayName() const = 0;
+    explicit BuildStepConfigWidget(BuildStep *step);
 
-    bool showWidget() const { return m_showWidget; }
-    void setShowWidget(bool showWidget) { m_showWidget = showWidget; }
+    QString summaryText() const;
+    QString displayName() const;
+    BuildStep *step() const { return m_step; }
+
+    void setDisplayName(const QString &displayName);
+    void setSummaryText(const QString &summaryText);
 
 signals:
     void updateSummary();
-    void updateAdditionalSummary();
 
 private:
-    bool m_showWidget = true;
-};
-
-class PROJECTEXPLORER_EXPORT SimpleBuildStepConfigWidget : public BuildStepConfigWidget
-{
-    Q_OBJECT
-public:
-    SimpleBuildStepConfigWidget(BuildStep *step) : m_step(step)
-    {
-        connect(m_step, &ProjectConfiguration::displayNameChanged,
-                this, &BuildStepConfigWidget::updateSummary);
-        setShowWidget(false);
-    }
-
-    QString summaryText() const override { return QLatin1String("<b>") + displayName() + QLatin1String("</b>"); }
-    QString displayName() const override { return m_step->displayName(); }
-    BuildStep *step() const { return m_step; }
-
-private:
-    BuildStep *m_step;
+    BuildStep *m_step = nullptr;
+    QString m_displayName;
+    QString m_summaryText;
 };
 
 } // namespace ProjectExplorer

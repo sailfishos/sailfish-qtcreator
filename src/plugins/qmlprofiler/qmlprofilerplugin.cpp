@@ -91,11 +91,7 @@ public:
 bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
-
-    if (!Utils::HostOsInfo::canCreateOpenGLContext(errorString))
-        return false;
-
-    return true;
+    return Utils::HostOsInfo::canCreateOpenGLContext(errorString);
 }
 
 void QmlProfilerPlugin::extensionsInitialized()
@@ -115,7 +111,7 @@ void QmlProfilerPlugin::extensionsInitialized()
 
     RunControl::registerWorkerCreator(ProjectExplorer::Constants::QML_PROFILER_RUN_MODE,
                                       [this](RunControl *runControl) {
-        QmlProfilerRunner *runner = new QmlProfilerRunner(runControl);
+        auto runner = new QmlProfilerRunner(runControl);
         connect(runner, &QmlProfilerRunner::starting,
                 &d->m_profilerTool, &QmlProfilerTool::finalizeRunControl);
         return runner;

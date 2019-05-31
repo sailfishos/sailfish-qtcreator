@@ -69,7 +69,7 @@ static QModelIndex mapToSource(const QAbstractItemView *view, const QModelIndex 
 
     QAbstractItemModel *model = view->model();
     QModelIndex result = idx;
-    while (QSortFilterProxyModel *proxy = qobject_cast<QSortFilterProxyModel *>(model)) {
+    while (auto proxy = qobject_cast<const QSortFilterProxyModel *>(model)) {
         result = proxy->mapToSource(result);
         model = proxy->sourceModel();
     }
@@ -170,6 +170,12 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
     m_configTextFilterModel->setSortRole(Qt::DisplayRole);
     m_configTextFilterModel->setFilterKeyColumn(-1);
     m_configTextFilterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+
+    connect(m_configTextFilterModel, &QAbstractItemModel::layoutChanged, this, [this]() {
+        QModelIndex selectedIdx = m_configView->currentIndex();
+        if (selectedIdx.isValid())
+            m_configView->scrollTo(selectedIdx);
+    });
 
     m_configView->setModel(m_configTextFilterModel);
     m_configView->setMinimumHeight(300);
@@ -307,9 +313,13 @@ CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeBuildConfiguration *bc) 
             value = QString::fromLatin1("OFF");
 
         m_configModel->appendConfiguration(tr("<UNSET>"), value, type);
-        QModelIndex idx;
-        idx = m_configView->model()->index(
-                    m_configView->model()->rowCount(idx) - 1, 0);
+        const Utils::TreeItem *item = m_configModel->findNonRootItem([&value, type](Utils::TreeItem *item) {
+                ConfigModel::DataItem dataItem = ConfigModel::dataItemFromIndex(item->index());
+                return dataItem.key == tr("<UNSET>") && dataItem.type == type && dataItem.value == value;
+        });
+        QModelIndex idx = m_configModel->indexForItem(item);
+        idx = m_configTextFilterModel->mapFromSource(m_configFilterModel->mapFromSource(idx));
+        m_configView->scrollTo(idx);
         m_configView->setCurrentIndex(idx);
         m_configView->edit(idx);
     });
@@ -339,12 +349,6 @@ void CMakeBuildSettingsWidget::setError(const QString &message)
     m_errorMessageLabel->setVisible(showError);
     m_errorMessageLabel->setText(message);
     m_errorMessageLabel->setToolTip(message);
-
-    m_editButton->setEnabled(!showError);
-    m_unsetButton->setEnabled(!showError);
-    m_resetButton->setEnabled(!showError);
-    m_showAdvancedCheckBox->setEnabled(!showError);
-    m_filterEdit->setEnabled(!showError);
 }
 
 void CMakeBuildSettingsWidget::setWarning(const QString &message)
@@ -412,7 +416,7 @@ void CMakeBuildSettingsWidget::updateSelection(const QModelIndex &current, const
 
 QAction *CMakeBuildSettingsWidget::createForceAction(int type, const QModelIndex &idx)
 {
-    ConfigModel::DataItem::Type t = static_cast<ConfigModel::DataItem::Type>(type);
+    auto t = static_cast<ConfigModel::DataItem::Type>(type);
     QString typeString;
     switch (type) {
     case ConfigModel::DataItem::BOOLEAN:
@@ -448,7 +452,7 @@ bool CMakeBuildSettingsWidget::eventFilter(QObject *target, QEvent *event)
     if (!idx.isValid())
         return false;
 
-    QMenu *menu = new QMenu(this);
+    auto menu = new QMenu(this);
     connect(menu, &QMenu::triggered, menu, &QMenu::deleteLater);
 
     QAction *action = nullptr;

@@ -27,7 +27,6 @@
 
 #include "exampleslistmodel.h"
 #include "screenshotcropper.h"
-#include "copytolocationdialog.h"
 
 #include <utils/fileutils.h>
 #include <utils/pathchooser.h>
@@ -99,24 +98,56 @@ Id ExamplesWelcomePage::id() const
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
+    QDialog d(ICore::mainWindow());
+    auto lay = new QGridLayout(&d);
+    auto descrLbl = new QLabel;
+    d.setWindowTitle(tr("Copy Project to writable Location?"));
+    descrLbl->setTextFormat(Qt::RichText);
+    descrLbl->setWordWrap(false);
+    const QString nativeProjectDir = QDir::toNativeSeparators(projectDir);
+    descrLbl->setText(QString::fromLatin1("<blockquote>%1</blockquote>").arg(nativeProjectDir));
+    descrLbl->setMinimumWidth(descrLbl->sizeHint().width());
+    descrLbl->setWordWrap(true);
+    descrLbl->setText(tr("<p>The project you are about to open is located in the "
+                         "write-protected location:</p><blockquote>%1</blockquote>"
+                         "<p>Please select a writable location below and click \"Copy Project and Open\" "
+                         "to open a modifiable copy of the project or click \"Keep Project and Open\" "
+                         "to open the project in location.</p><p><b>Note:</b> You will not "
+                         "be able to alter or compile your project in the current location.</p>")
+                      .arg(nativeProjectDir));
+    lay->addWidget(descrLbl, 0, 0, 1, 2);
+    auto txt = new QLabel(tr("&Location:"));
+    auto chooser = new PathChooser;
+    txt->setBuddy(chooser);
+    chooser->setExpectedKind(PathChooser::ExistingDirectory);
+    chooser->setHistoryCompleter(QLatin1String("Qt.WritableExamplesDir.History"));
     QSettings *settings = ICore::settings();
-    CopyToLocationDialog d(ICore::mainWindow());
-    d.setSourcePath(projectDir);
-    d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                         DocumentManager::projectsDirectory().toString()).toString());
-
-    while (QDialog::Accepted == d.exec()) {
+    chooser->setPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
+                                     DocumentManager::projectsDirectory().toString()).toString());
+    lay->addWidget(txt, 1, 0);
+    lay->addWidget(chooser, 1, 1);
+    enum { Copy = QDialog::Accepted + 1, Keep = QDialog::Accepted + 2 };
+    auto bb = new QDialogButtonBox;
+    QPushButton *copyBtn = bb->addButton(tr("&Copy Project and Open"), QDialogButtonBox::AcceptRole);
+    connect(copyBtn, &QAbstractButton::released, &d, [&d] { d.done(Copy); });
+    copyBtn->setDefault(true);
+    QPushButton *keepBtn = bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
+    connect(keepBtn, &QAbstractButton::released, &d, [&d] { d.done(Keep); });
+    lay->addWidget(bb, 2, 0, 1, 2);
+    connect(chooser, &PathChooser::validChanged, copyBtn, &QWidget::setEnabled);
+    int code = d.exec();
+    if (code == Copy) {
         QString exampleDirName = proFileInfo.dir().dirName();
-        QString destBaseDir = d.destinationPath();
+        QString destBaseDir = chooser->path();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way
             QMessageBox::warning(ICore::mainWindow(), tr("Cannot Use Location"),
-                                 tr("The specified location already contains \"%1\" directory. "
-                                    "Please specify a valid location.").arg(exampleDirName),
+                                 tr("The specified location already exists. "
+                                    "Please specify a valid location."),
                                  QMessageBox::Ok, QMessageBox::NoButton);
-            continue;
+            return QString();
         } else {
             QString error;
             QString targetDir = destBaseDir + QLatin1Char('/') + exampleDirName;
@@ -133,7 +164,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     if (!FileUtils::copyRecursively(FileName::fromString(dependency), targetFile,
                             &error)) {
                         QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                        continue;
+                        // do not fail, just warn;
                     }
                 }
 
@@ -141,11 +172,12 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                 return targetDir + QLatin1Char('/') + proFileInfo.fileName();
             } else {
                 QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                continue;
             }
 
         }
     }
+    if (code == Keep)
+        return proFileInfo.absoluteFilePath();
     return QString();
 }
 
@@ -167,7 +199,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     if (!proFileInfo.exists())
         return;
 
-#if 0
     // If the Qt is a distro Qt on Linux, it will not be writable, hence compilation will fail
     // Same if it is installed in non-writable location for other reasons
     const bool needsCopy = withNtfsPermissions<bool>([proFileInfo] {
@@ -177,7 +208,6 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
                 || !QFileInfo(pathInfo.path()).isWritable() /* shadow build directory */;
     });
     if (needsCopy)
-#endif
         proFile = copyToAlternativeLocation(proFileInfo, filesToOpen, item.dependencies);
 
     // don't try to load help and files if loading the help request is being cancelled
@@ -186,15 +216,10 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
     ProjectExplorerPlugin::OpenProjectResult result = ProjectExplorerPlugin::openProject(proFile);
     if (result) {
         ICore::openFiles(filesToOpen);
-        if (result.project()->needsConfiguration()
-                && (!item.platforms.isEmpty() || !item.preferredFeatures.isEmpty())) {
-            result.project()->configureAsExampleProject(Core::Id::fromStringList(item.platforms),
-                                                        Core::Id::fromStringList(item.preferredFeatures));
-        }
         ModeManager::activateMode(Core::Constants::MODE_EDIT);
         QUrl docUrl = QUrl::fromUserInput(item.docUrl);
         if (docUrl.isValid())
-            HelpManager::handleHelpRequest(docUrl, HelpManager::ExternalHelpAlways);
+            HelpManager::showHelpUrl(docUrl, HelpManager::ExternalHelpAlways);
         ModeManager::activateMode(ProjectExplorer::Constants::MODE_SESSION);
     } else {
         ProjectExplorerPlugin::showOpenProjectError(result);
@@ -273,9 +298,6 @@ class GridProxyModel : public QAbstractItemModel
 public:
     using OptModelIndex = Utils::optional<QModelIndex>;
 
-    GridProxyModel()
-    {}
-
     void setSourceModel(QAbstractItemModel *newModel)
     {
         if (m_sourceModel == newModel)
@@ -285,9 +307,11 @@ public:
         m_sourceModel = newModel;
         if (newModel) {
             connect(newModel, &QAbstractItemModel::layoutAboutToBeChanged, this, [this] {
-                layoutAboutToBeChanged();
+                emit layoutAboutToBeChanged();
             });
-            connect(newModel, &QAbstractItemModel::layoutChanged, this, [this] { layoutChanged(); });
+            connect(newModel, &QAbstractItemModel::layoutChanged, this, [this] {
+                emit layoutChanged();
+            });
             connect(newModel, &QAbstractItemModel::modelAboutToBeReset, this, [this] {
                 beginResetModel();
             });
@@ -338,7 +362,7 @@ public:
             return;
         QTC_ASSERT(columnCount >= 1, columnCount = 1);
         m_columnCount = columnCount;
-        layoutChanged();
+        emit layoutChanged();
     }
 
     int rowCount(const QModelIndex &parent) const final
@@ -519,7 +543,7 @@ public:
         m_currentTagRects.clear();
         int xx = 0;
         int yy = y + tagsBase;
-        for (const QString tag : item.tags) {
+        for (const QString &tag : item.tags) {
             const int ww = tagsFontMetrics.width(tag) + 5;
             if (xx + ww > w - 30) {
                 yy += 15;
@@ -554,7 +578,7 @@ public:
                 const QPoint pos = mev->pos();
                 if (pos.y() > option.rect.y() + tagsSeparatorY) {
                     //const QStringList tags = idx.data(Tags).toStringList();
-                    for (auto it : m_currentTagRects) {
+                    for (const auto &it : m_currentTagRects) {
                         if (it.second.contains(pos))
                             emit tagClicked(it.first);
                     }
@@ -564,12 +588,12 @@ public:
                     else if (item.hasSourceCode)
                         ExamplesWelcomePage::openProject(item);
                     else
-                        HelpManager::handleHelpRequest(QUrl::fromUserInput(item.docUrl),
+                        HelpManager::showHelpUrl(QUrl::fromUserInput(item.docUrl),
                                                        HelpManager::ExternalHelpAlways);
                 }
             }
         }
-        return QAbstractItemDelegate::editorEvent(ev, model, option, idx);
+        return QStyledItemDelegate::editorEvent(ev, model, option, idx);
     }
 
     void setShowExamples(bool showExamples) { m_showExamples = showExamples; goon(); }
@@ -599,7 +623,7 @@ public:
     {
         m_exampleDelegate.setShowExamples(isExamples);
         const int sideMargin = 27;
-        static ExamplesListModel *s_examplesModel = new ExamplesListModel(this);
+        static auto s_examplesModel = new ExamplesListModel(this);
         m_examplesModel = s_examplesModel;
 
         auto filteredModel = new ExamplesListModelFilter(m_examplesModel, !m_isExamples, this);

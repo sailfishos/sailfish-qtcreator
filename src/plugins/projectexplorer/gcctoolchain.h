@@ -42,6 +42,7 @@ namespace ProjectExplorer {
 
 namespace Internal {
 class ClangToolChainFactory;
+class ClangToolChainConfigWidget;
 class GccToolChainConfigWidget;
 class GccToolChainFactory;
 class MingwToolChainFactory;
@@ -77,7 +78,7 @@ public:
 
     bool isValid() const override;
 
-    LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
+    Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     WarningFlags warningFlags(const QStringList &cflags) const override;
 
     MacroInspectionRunner createMacroInspectionRunner() const override;
@@ -137,7 +138,7 @@ protected:
     Macros macroCache(const QStringList &allCxxflags) const;
 
     virtual QString defaultDisplayName() const;
-    virtual LanguageExtensions defaultLanguageExtensions() const;
+    virtual Utils::LanguageExtensions defaultLanguageExtensions() const;
 
     virtual DetectedAbisResult detectSupportedAbis() const;
     virtual QString detectVersion() const;
@@ -208,10 +209,11 @@ class PROJECTEXPLORER_EXPORT ClangToolChain : public GccToolChain
 public:
     explicit ClangToolChain(Detection d);
     ClangToolChain(Core::Id typeId, Detection d);
+    ClangToolChain(const ClangToolChain &other);
     QString typeDisplayName() const override;
     QString makeCommand(const Utils::Environment &environment) const override;
 
-    LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
+    Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     WarningFlags warningFlags(const QStringList &cflags) const override;
 
     IOutputParser *outputParser() const override;
@@ -221,11 +223,25 @@ public:
     Utils::FileNameList suggestedMkspecList() const override;
     void addToEnvironment(Utils::Environment &env) const override;
 
+    QString originalTargetTriple() const override;
+    QString sysRoot() const override;
+
+    std::unique_ptr<ToolChainConfigWidget> createConfigurationWidget() override;
+
+    QVariantMap toMap() const override;
+    bool fromMap(const QVariantMap &data) override;
+
 protected:
-    LanguageExtensions defaultLanguageExtensions() const override;
+    Utils::LanguageExtensions defaultLanguageExtensions() const override;
+    void syncAutodetectedWithParentToolchains();
 
 private:
+    QByteArray m_parentToolChainId;
+    QMetaObject::Connection m_mingwToolchainAddedConnection;
+    QMetaObject::Connection m_thisToolchainRemovedConnection;
+
     friend class Internal::ClangToolChainFactory;
+    friend class Internal::ClangToolChainConfigWidget;
     friend class ToolChainFactory;
 };
 
@@ -259,7 +275,7 @@ class PROJECTEXPLORER_EXPORT LinuxIccToolChain : public GccToolChain
 public:
     QString typeDisplayName() const override;
 
-    LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
+    Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const override;
     IOutputParser *outputParser() const override;
 
     ToolChain *clone() const override;

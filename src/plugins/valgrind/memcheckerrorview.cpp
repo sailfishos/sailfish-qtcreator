@@ -52,14 +52,13 @@ namespace Valgrind {
 namespace Internal {
 
 MemcheckErrorView::MemcheckErrorView(QWidget *parent)
-    : Debugger::DetailedErrorView(parent),
-      m_settings(0)
+    : Debugger::DetailedErrorView(parent)
 {
     m_suppressAction = new QAction(this);
     m_suppressAction->setText(tr("Suppress Error"));
     const QIcon icon = Utils::Icon({
-            {QLatin1String(":/utils/images/eye_open.png"), Utils::Theme::TextColorNormal},
-            {QLatin1String(":/valgrind/images/suppressoverlay.png"), Utils::Theme::IconsErrorColor}},
+            {":/utils/images/eye_open.png", Utils::Theme::TextColorNormal},
+            {":/valgrind/images/suppressoverlay.png", Utils::Theme::IconsErrorColor}},
             Utils::Icon::Tint | Utils::Icon::PunchEdges).icon();
     m_suppressAction->setIcon(icon);
     m_suppressAction->setShortcut(QKeySequence(Qt::Key_Delete));
@@ -68,9 +67,7 @@ MemcheckErrorView::MemcheckErrorView(QWidget *parent)
     addAction(m_suppressAction);
 }
 
-MemcheckErrorView::~MemcheckErrorView()
-{
-}
+MemcheckErrorView::~MemcheckErrorView() = default;
 
 void MemcheckErrorView::setDefaultSuppressionFile(const QString &suppFile)
 {

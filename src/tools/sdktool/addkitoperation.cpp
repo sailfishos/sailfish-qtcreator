@@ -324,7 +324,7 @@ bool AddKitOperation::test() const
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,
                                            "HWplatform", "SWplatform",
                                            "localhost", "10000-11000",
-                                           "localhost", "", 42, false,
+                                           "localhost", "", 42,
                                            "desktop", "", 22, 10000,
                                            "uname", 1,
                                            KeyValuePairList());
@@ -623,19 +623,12 @@ QVariantMap AddKitOperation::addKit(const QVariantMap &map, const QVariantMap &t
     // remove data:
     QVariantMap cleaned = RmKeysOperation::rmKeys(map, {COUNT, DEFAULT});
 
-    // Sanity check: Make sure displayName is unique.
-    QStringList nameKeys = FindKeyOperation::findKey(map, DISPLAYNAME);
-    QStringList nameList;
-    foreach (const QString &nameKey, nameKeys)
-        nameList << GetOperation::get(map, nameKey).toString();
-    const QString uniqueName = makeUnique(displayName, nameList);
-
     // insert data:
-    KeyValuePairList data = { KeyValuePair({kit, ID}, QVariant(id)),
-                              KeyValuePair({kit, DISPLAYNAME}, QVariant(uniqueName)),
-                              KeyValuePair({kit, ICON}, QVariant(icon)),
-                              KeyValuePair({kit, AUTODETECTED}, QVariant(true)),
-                              KeyValuePair({kit, SDK}, QVariant(true))};
+    KeyValuePairList data = {KeyValuePair({kit, ID}, QVariant(id)),
+                             KeyValuePair({kit, DISPLAYNAME}, QVariant(displayName)),
+                             KeyValuePair({kit, ICON}, QVariant(icon)),
+                             KeyValuePair({kit, AUTODETECTED}, QVariant(true)),
+                             KeyValuePair({kit, SDK}, QVariant(true))};
 
     if (!debuggerId.isEmpty() || !debugger.isEmpty()) {
         if (debuggerId.isEmpty()) {

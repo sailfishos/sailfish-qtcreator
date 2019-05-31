@@ -61,9 +61,7 @@ ResourceView::ResourceView(RelativeResourceModel *model, QUndoStack *history, QW
     connect(this, &QAbstractItemView::activated, this, &ResourceView::onItemActivated);
 }
 
-ResourceView::~ResourceView()
-{
-}
+ResourceView::~ResourceView() = default;
 
 void ResourceView::findSamePlacePostDeletionModelIndex(int &row, QModelIndex &parent) const
 {
@@ -178,7 +176,7 @@ void ResourceView::removeFiles(int prefixIndex, int firstFileIndex, int lastFile
 void ResourceView::keyPressEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Delete)
-        removeItem();
+        emit removeItem();
     else
         Utils::TreeView::keyPressEvent(e);
 }

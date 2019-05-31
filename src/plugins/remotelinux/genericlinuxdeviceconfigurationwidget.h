@@ -40,8 +40,8 @@ class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWidget
 
 public:
     explicit GenericLinuxDeviceConfigurationWidget(
-        const ProjectExplorer::IDevice::Ptr &deviceConfig, QWidget *parent = 0);
-    ~GenericLinuxDeviceConfigurationWidget();
+        const ProjectExplorer::IDevice::Ptr &deviceConfig, QWidget *parent = nullptr);
+    ~GenericLinuxDeviceConfigurationWidget() override;
 
 private:
     void authenticationTypeChanged();
@@ -49,16 +49,14 @@ private:
     void sshPortEditingFinished();
     void timeoutEditingFinished();
     void userNameEditingFinished();
-    void passwordEditingFinished();
     void keyFileEditingFinished();
     void gdbServerEditingFinished();
-    void showPassword(bool showClearText);
     void handleFreePortsChanged();
     void setPrivateKey(const QString &path);
     void createNewKey();
     void hostKeyCheckingChanged(bool doCheck);
 
-    void updateDeviceFromUi();
+    void updateDeviceFromUi() override;
     void updatePortsWarningLabel();
     void initGui();
 

@@ -25,11 +25,13 @@
 
 #include "clangdiagnosticconfigsmodel.h"
 
+#include "cpptoolsreuse.h"
 #include "cpptoolsconstants.h"
 
 #include <utils/algorithm.h>
 
 #include <QCoreApplication>
+#include <QUuid>
 
 namespace CppTools {
 
@@ -72,7 +74,6 @@ constexpr const char *DEFAULT_TIDY_CHECKS = "-*,"
                                             "-readability-braces-around-statements,"
                                             "-readability-implicit-bool-conversion,"
                                             "-readability-named-parameter";
-constexpr const char *DEFAULT_CLAZY_CHECKS = "level0";
 
 static void addConfigForAlmostEveryWarning(ClangDiagnosticConfigsModel &model)
 {
@@ -140,7 +141,7 @@ static void addConfigForClazy(ClangDiagnosticConfigsModel &model)
                                                       "Clazy level0 checks"));
     config.setIsReadOnly(true);
     config.setClangOptions(QStringList{QStringLiteral("-w")});
-    config.setClazyChecks(QString::fromUtf8(DEFAULT_CLAZY_CHECKS));
+    config.setClazyChecks(clazyChecksForLevel(0));
 
     model.appendOrUpdate(config);
 }
@@ -156,7 +157,19 @@ static void addConfigForTidyAndClazy(ClangDiagnosticConfigsModel &model)
     config.setClangTidyMode(ClangDiagnosticConfig::TidyMode::ChecksPrefixList);
 
     config.setClangTidyChecks(QString::fromUtf8(DEFAULT_TIDY_CHECKS));
-    config.setClazyChecks(QString::fromUtf8(DEFAULT_CLAZY_CHECKS));
+    config.setClazyChecks(clazyChecksForLevel(0));
+
+    model.appendOrUpdate(config);
+}
+
+static void addConfigForBuildSystem(ClangDiagnosticConfigsModel &model)
+{
+    ClangDiagnosticConfig config;
+    config.setId("Builtin.BuildSystem");
+    config.setDisplayName(QCoreApplication::translate("ClangDiagnosticConfigsModel",
+                                                      "Build-system warnings"));
+    config.setIsReadOnly(true);
+    config.setUseBuildSystemWarnings(true);
 
     model.appendOrUpdate(config);
 }
@@ -170,6 +183,7 @@ static void addBuiltinConfigs(ClangDiagnosticConfigsModel &model)
     addConfigForClangAnalyze(model);
     addConfigForClazy(model);
     addConfigForTidyAndClazy(model);
+    addConfigForBuildSystem(model);
 }
 
 ClangDiagnosticConfigsModel::ClangDiagnosticConfigsModel(const ClangDiagnosticConfigs &customConfigs)
@@ -203,9 +217,16 @@ void ClangDiagnosticConfigsModel::removeConfigWithId(const Core::Id &id)
     m_diagnosticConfigs.removeOne(configWithId(id));
 }
 
-ClangDiagnosticConfigs ClangDiagnosticConfigsModel::configs() const
+ClangDiagnosticConfigs ClangDiagnosticConfigsModel::allConfigs() const
 {
     return m_diagnosticConfigs;
+}
+
+ClangDiagnosticConfigs ClangDiagnosticConfigsModel::customConfigs() const
+{
+    return Utils::filtered(allConfigs(), [](const ClangDiagnosticConfig &config) {
+        return !config.isReadOnly();
+    });
 }
 
 bool ClangDiagnosticConfigsModel::hasConfigWithId(const Core::Id &id) const
@@ -237,11 +258,22 @@ QVector<Core::Id> ClangDiagnosticConfigsModel::changedOrRemovedConfigs(
         const int i = newConfigsModel.indexOfConfig(old.id());
         if (i == -1)
             changedConfigs.append(old.id()); // Removed
-        else if (newConfigsModel.configs()[i] != old)
+        else if (newConfigsModel.allConfigs().value(i) != old)
             changedConfigs.append(old.id()); // Changed
     }
 
     return changedConfigs;
+}
+
+ClangDiagnosticConfig ClangDiagnosticConfigsModel::createCustomConfig(
+    const ClangDiagnosticConfig &config, const QString &displayName)
+{
+    ClangDiagnosticConfig copied = config;
+    copied.setId(Core::Id::fromString(QUuid::createUuid().toString()));
+    copied.setDisplayName(displayName);
+    copied.setIsReadOnly(false);
+
+    return copied;
 }
 
 QStringList ClangDiagnosticConfigsModel::globalDiagnosticOptions()

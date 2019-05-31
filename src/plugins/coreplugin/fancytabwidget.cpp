@@ -215,10 +215,13 @@ void FancyTabBar::mousePressEvent(QMouseEvent *event)
                     // menu arrow clicked
                     emit menuTriggered(index, event);
                 } else {
-                    m_currentIndex = index;
-                    update();
-                    // update tab bar before showing widget
-                    QTimer::singleShot(0, this, [this]() { emit currentChanged(m_currentIndex); });
+                    if (index != m_currentIndex) {
+                        emit currentAboutToChange(index);
+                        m_currentIndex = index;
+                        update();
+                        // update tab bar before showing widget
+                        QTimer::singleShot(0, this, [this]() { emit currentChanged(m_currentIndex); });
+                    }
                 }
             }
             break;
@@ -288,6 +291,13 @@ static void paintIcon(QPainter *painter, const QRect &rect,
     if (!enabled && !creatorTheme()->flag(Theme::FlatToolBars))
         painter->setOpacity(0.7);
     StyleHelper::drawIconWithShadow(icon, iconRect, painter, iconMode);
+
+    if (selected && creatorTheme()->flag(Theme::FlatToolBars)) {
+        painter->setOpacity(1.0);
+        QRect accentRect = rect;
+        accentRect.setWidth(2);
+        painter->fillRect(accentRect, creatorTheme()->color(Theme::IconsBaseColor));
+    }
 }
 
 static void paintIconAndText(QPainter *painter, const QRect &rect,
@@ -315,6 +325,11 @@ static void paintIconAndText(QPainter *painter, const QRect &rect,
     }
 
     painter->setOpacity(1.0); //FIXME: was 0.7 before?
+    if (selected && creatorTheme()->flag(Theme::FlatToolBars)) {
+        QRect accentRect = rect;
+        accentRect.setWidth(2);
+        painter->fillRect(accentRect, creatorTheme()->color(Theme::IconsBaseColor));
+    }
     if (enabled) {
         painter->setPen(
             selected ? creatorTheme()->color(Theme::FancyTabWidgetEnabledSelectedTextColor)
@@ -349,7 +364,7 @@ void FancyTabBar::paintTab(QPainter *painter, int tabIndex) const
     if (selected) {
         if (creatorTheme()->flag(Theme::FlatToolBars)) {
             // background color of a fancy tab that is active
-            painter->fillRect(rect, creatorTheme()->color(Theme::FancyToolButtonSelectedColor));
+            painter->fillRect(rect, creatorTheme()->color(Theme::FancyTabBarSelectedBackgroundColor));
         } else {
             paintSelectedTabBackground(painter, rect);
         }
@@ -384,6 +399,7 @@ void FancyTabBar::paintTab(QPainter *painter, int tabIndex) const
 void FancyTabBar::setCurrentIndex(int index)
 {
     if (isTabEnabled(index) && index != m_currentIndex) {
+        emit currentAboutToChange(index);
         m_currentIndex = index;
         update();
         emit currentChanged(m_currentIndex);
@@ -458,6 +474,7 @@ FancyTabWidget::FancyTabWidget(QWidget *parent)
     : QWidget(parent)
 {
     m_tabBar = new FancyTabBar(this);
+    m_tabBar->setObjectName("ModeSelector"); // used for UI introduction
 
     m_selectionWidget = new QWidget(this);
     auto selectionLayout = new QVBoxLayout;
@@ -473,7 +490,8 @@ FancyTabWidget::FancyTabWidget(QWidget *parent)
     layout->addWidget(fancyButton);
     selectionLayout->addWidget(bar);
 
-    selectionLayout->addWidget(m_tabBar, 1);
+    selectionLayout->addWidget(m_tabBar);
+    selectionLayout->addStretch(1);
     m_selectionWidget->setLayout(selectionLayout);
     m_selectionWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
@@ -506,6 +524,7 @@ FancyTabWidget::FancyTabWidget(QWidget *parent)
     mainLayout->addLayout(vlayout);
     setLayout(mainLayout);
 
+    connect(m_tabBar, &FancyTabBar::currentAboutToChange, this, &FancyTabWidget::currentAboutToShow);
     connect(m_tabBar, &FancyTabBar::currentChanged, this, &FancyTabWidget::showWidget);
     connect(m_tabBar, &FancyTabBar::menuTriggered, this, &FancyTabWidget::menuTriggered);
 }
@@ -551,6 +570,7 @@ void FancyTabWidget::paintEvent(QPaintEvent *event)
         const QRectF boderRect = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5);
 
         if (creatorTheme()->flag(Theme::FlatToolBars)) {
+            painter.fillRect(rect, StyleHelper::baseColor());
             painter.setPen(StyleHelper::toolBarBorderColor());
             painter.drawLine(boderRect.topRight(), boderRect.bottomRight());
         } else {
@@ -598,7 +618,6 @@ void FancyTabWidget::setCurrentIndex(int index)
 
 void FancyTabWidget::showWidget(int index)
 {
-    emit currentAboutToShow(index);
     m_modesStack->setCurrentIndex(index);
     QWidget *w = m_modesStack->currentWidget();
     if (QTC_GUARD(w)) {

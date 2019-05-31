@@ -32,6 +32,7 @@
 
 #include <utils/qtcassert.h>
 
+#include <QFileDevice>
 #include <QHash>
 #include <QVector>
 #include <QStringList>
@@ -139,16 +140,7 @@ class Parser::Private
 public:
 
     explicit Private(Parser *qq)
-        : q(qq),
-          addressValuesCount(0),
-          costValuesCount(0),
-          data(0),
-          currentFunction(0),
-          lastObject(-1),
-          lastFile(-1),
-          currentDifferingFile(-1),
-          isParsingFunctionCall(false),
-          callsCount(0)
+        : q(qq)
     {
     }
 
@@ -160,7 +152,7 @@ public:
     void parse(QIODevice *device);
     void parseHeader(QIODevice *device);
 
-    typedef QPair<qint64, QString> NamePair;
+    using NamePair = QPair<qint64, QString>;
     NamePair parseName(const char *begin, const char *end);
 
     void dispatchLine(const QByteArray &line);
@@ -174,30 +166,22 @@ public:
     void parseCalledSourceFile(const char *begin, const char *end);
     void parseCalledObjectFile(const char *begin, const char *end);
 
-    int addressValuesCount;
-    int costValuesCount;
+    int addressValuesCount = 0;
+    int costValuesCount = 0;
 
-    ParseData *data;
-    Function *currentFunction;
-    qint64 lastObject;
-    qint64 lastFile;
-    qint64 currentDifferingFile;
+    ParseData *data = nullptr;
+    Function *currentFunction = nullptr;
+    qint64 lastObject = -1;
+    qint64 lastFile = -1;
+    qint64 currentDifferingFile = -1;
 
-    bool isParsingFunctionCall;
-    quint64 callsCount;
+    bool isParsingFunctionCall = false;
+    quint64 callsCount = 0;
     struct CallData {
-        CallData()
-        : calledFunction(-1)
-        , calledObject(-1)
-        , calledFile(-1)
-        , call(0)
-        {
-        }
-
-        qint64 calledFunction;
-        qint64 calledObject;
-        qint64 calledFile;
-        FunctionCall *call;
+        qint64 calledFunction = -1;
+        qint64 calledObject = -1;
+        qint64 calledFile = -1;
+        FunctionCall *call = nullptr;
     };
     CallData currentCallData;
     QVector<quint64> callDestinations;
@@ -217,9 +201,12 @@ void Parser::Private::parse(QIODevice *device)
     // be sure to clean up existing data before re-allocating
     // the callee might not have taken the parse data
     delete data;
-    data = 0;
+    data = nullptr;
 
-    data = new ParseData;
+    QString file;
+    if (auto fileDevice = qobject_cast<QFileDevice *>(device))
+        file = fileDevice->fileName();
+    data = new ParseData(file);
     parseHeader(device);
     while (!device->atEnd()) {
         QByteArray line = device->readLine();
@@ -265,7 +252,7 @@ void Parser::Private::parse(QIODevice *device)
         callData.call->setCallee(calledFunction);
         calledFunction->addIncomingCall(callData.call);
 
-        Function *caller = const_cast<Function *>(callData.call->caller());
+        auto caller = const_cast<Function *>(callData.call->caller());
         caller->addOutgoingCall(callData.call);
         pendingFunctions.insert(caller);
     }
@@ -277,7 +264,7 @@ void Parser::Private::parse(QIODevice *device)
     foreach (Function *func, pendingFunctions)
         func->finalize();
 
-    q->parserDataReady(); // emit
+    emit q->parserDataReady();
 }
 
 inline QString getValue(const QByteArray &line, const int prefixLength)
@@ -302,11 +289,11 @@ void Parser::Private::parseHeader(QIODevice *device)
             continue;
         } else if (line.startsWith("positions: ")) {
             QString values = getValue(line, 11);
-            data->setPositions(values.split(QLatin1Char(' '), QString::SkipEmptyParts));
+            data->setPositions(values.split(' ', QString::SkipEmptyParts));
             addressValuesCount = data->positions().count();
         } else if (line.startsWith("events: ")) {
             QString values = getValue(line, 8);
-            data->setEvents(values.split(QLatin1Char(' '), QString::SkipEmptyParts));
+            data->setEvents(values.split(' ', QString::SkipEmptyParts));
             costValuesCount = data->events().count();
         } else if (line.startsWith("version: ")) {
             QString value = getValue(line, 9);
@@ -329,7 +316,7 @@ void Parser::Private::parseHeader(QIODevice *device)
         } else if (line.startsWith("summary: ")) {
             QString values = getValue(line, 9);
             uint i = 0;
-            foreach (const QStringRef &value, values.splitRef(QLatin1Char(' '), QString::SkipEmptyParts))
+            foreach (const QStringRef &value, values.splitRef(' ', QString::SkipEmptyParts))
                 data->setTotalCost(i++, value.toULongLong());
         } else if (!line.trimmed().isEmpty()) {
             // handle line and exit parseHeader
@@ -453,9 +440,9 @@ void Parser::Private::parseCostItem(const char *begin, const char *end)
     const char *current = begin;
 
     QTC_ASSERT(currentDifferingFile == -1 || currentDifferingFile != currentFunction->fileId(), return);
-    CostItem *costItem = new CostItem(data);
+    auto costItem = new CostItem(data);
     costItem->setDifferingFile(currentDifferingFile);
-    FunctionCall *call = 0;
+    FunctionCall *call = nullptr;
     if (isParsingFunctionCall) {
         call = new FunctionCall;
         call->setCaller(currentFunction);
@@ -490,9 +477,9 @@ void Parser::Private::parseCostItem(const char *begin, const char *end)
         currentCallData = CallData();
     }
 
-    const CostItem *lastCostItem = 0;
+    const CostItem *lastCostItem = nullptr;
     if (!currentFunction->costItems().isEmpty())
-        lastCostItem = currentFunction->costItems().last();
+        lastCostItem = currentFunction->costItems().constLast();
 
     // parse positions ("where")
     for (int i = 0; i < addressValuesCount; ++i) {
@@ -547,7 +534,7 @@ void Parser::Private::parseSourceFile(const char *begin, const char *end)
 
     if (!name.second.isEmpty()) {
         data->addCompressedFile(name.second, name.first);
-        if (name.second == QLatin1String("???"))
+        if (name.second == "???")
             unknownFiles << name.first;
     }
 
@@ -577,7 +564,7 @@ void Parser::Private::parseDifferingSourceFile(const char *begin, const char *en
 
     if (!name.second.isEmpty()) {
         data->addCompressedFile(name.second, name.first);
-        if (name.second == QLatin1String("???"))
+        if (name.second == "???")
             unknownFiles << name.first;
     }
 
@@ -628,7 +615,7 @@ void Parser::Private::parseCalledSourceFile(const char *begin, const char *end)
     NamePair name = parseName(begin, end);
     if (!name.second.isEmpty()) {
         data->addCompressedFile(name.second, name.first);
-        if (name.second == QLatin1String("???"))
+        if (name.second == "???")
             unknownFiles << name.first;
     }
 
@@ -665,7 +652,7 @@ Parser::~Parser()
 ParseData *Parser::takeData()
 {
     ParseData *data = d->data;
-    d->data = 0;
+    d->data = nullptr;
     return data;
 }
 

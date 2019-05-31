@@ -32,11 +32,9 @@
 #include <projectexplorer/abstractprocessstep.h>
 #include <qtsupport/baseqtversion.h>
 
-namespace Utils { class QtcProcess; }
+#include <utils/environment.h>
 
-QT_BEGIN_NAMESPACE
-class QAbstractItemModel;
-QT_END_NAMESPACE
+namespace Utils { class QtcProcess; }
 
 namespace Android {
 namespace Internal {
@@ -50,7 +48,6 @@ public:
 class AndroidDeployQtStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
-    friend class AndroidDeployQtStepFactory;
 
     enum DeployErrorCode
     {
@@ -71,15 +68,12 @@ public:
 public:
     explicit AndroidDeployQtStep(ProjectExplorer::BuildStepList *bc);
 
+    static Core::Id stepId();
+
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    bool runInGuiThread() const override;
-
     UninstallType uninstallPreviousPackage();
-
-    AndroidDeviceInfo deviceInfo() const;
-
     void setUninstallPreviousPackage(bool uninstall);
 
 signals:
@@ -89,15 +83,16 @@ signals:
 private:
     void runCommand(const QString &program, const QStringList &arguments);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
+    bool init() override;
+    void doRun() override;
     void gatherFilesToPull();
-    DeployErrorCode runDeploy(QFutureInterface<bool> &fi);
+    DeployErrorCode runDeploy();
     void slotAskForUninstall(DeployErrorCode errorCode);
     void slotSetSerialNumber(const QString &serialNumber);
 
+    bool runImpl();
+
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override { return true; }
 
     void processReadyReadStdOutput(DeployErrorCode &errorCode);
     void stdOutput(const QString &line);

@@ -54,19 +54,25 @@ public:
 
     static bool isSource(Kind kind);
     static bool isHeader(Kind kind);
+    static bool isC(Kind kind);
+    static bool isCxx(Kind kind);
     static bool isAmbiguousHeader(const QString &filePath);
 
     bool isHeader() const;
     bool isSource() const;
 
+    bool isC() const;
+    bool isCxx() const;
+
 public:
     ProjectFile() = default;
-    ProjectFile(const QString &filePath, Kind kind);
+    ProjectFile(const QString &filePath, Kind kind, bool active = true);
 
     bool operator==(const ProjectFile &other) const;
 
     QString path;
     Kind kind = Unclassified;
+    bool active = true;
 };
 
 using ProjectFiles = QVector<ProjectFile>;

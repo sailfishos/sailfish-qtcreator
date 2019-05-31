@@ -30,6 +30,7 @@
 
 #include <coreplugin/icontext.h>
 #include <cpptools/projectinfo.h>
+#include <cpptools/cppkitinfo.h>
 #include <cpptools/cppprojectupdater.h>
 #include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/headerpath.h>
@@ -258,16 +259,11 @@ FolderNode *addChildFolderNode(FolderNode *parent, const QString &childName)
 
 FolderNode *addOrGetChildFolderNode(FolderNode *parent, const QString &childName)
 {
-    Node *childNode = parent->findNode([childName](const Node *node) {
-        if (!node->asFolderNode())
-            return false;
-        QString nodeDirName = node->filePath().fileName();
-        if (nodeDirName.isEmpty())
-            nodeDirName = node->filePath().toString();
-        return nodeDirName == childName;
-    });
-    if (childNode)
-        return childNode->asFolderNode();
+    for (FolderNode *folder : parent->folderNodes()) {
+        if (folder->filePath().fileName() == childName) {
+            return folder;
+        }
+    }
 
     return addChildFolderNode(parent, childName);
 }
@@ -363,10 +359,10 @@ void CompilationDatabaseProject::buildTreeAndProjectParts(const Utils::FileName 
 
     auto root = std::make_unique<DBProjectNode>(projectDirectory());
 
+    CppTools::KitInfo kitInfo(this);
+    QTC_ASSERT(kitInfo.isValid(), return);
     CppTools::RawProjectParts rpps;
     Utils::FileName commonPath;
-    ToolChain *cToolchain = nullptr;
-    ToolChain *cxxToolchain = nullptr;
 
     std::sort(array.begin(), array.end(), [](const Entry &lhs, const Entry &rhs) {
         return std::lexicographical_compare(lhs.flags.begin(), lhs.flags.end(),
@@ -388,8 +384,8 @@ void CompilationDatabaseProject::buildTreeAndProjectParts(const Utils::FileName 
 
         CppTools::RawProjectPart rpp = makeRawProjectPart(projectFile,
                                                           m_kit.get(),
-                                                          cToolchain,
-                                                          cxxToolchain,
+                                                          kitInfo.cToolChain,
+                                                          kitInfo.cxxToolChain,
                                                           entry.workingDir,
                                                           entry.fileName,
                                                           entry.flags);
@@ -406,14 +402,14 @@ void CompilationDatabaseProject::buildTreeAndProjectParts(const Utils::FileName 
 
     setRootProjectNode(std::move(root));
 
-    m_cppCodeModelUpdater->update({this, cToolchain, cxxToolchain, m_kit.get(), rpps});
+    m_cppCodeModelUpdater->update({this, kitInfo, rpps});
 
     emitParsingFinished(true);
 }
 
 CompilationDatabaseProject::CompilationDatabaseProject(const Utils::FileName &projectFile)
     : Project(Constants::COMPILATIONDATABASEMIMETYPE, projectFile)
-    , m_cppCodeModelUpdater(std::make_unique<CppTools::CppProjectUpdater>(this))
+    , m_cppCodeModelUpdater(std::make_unique<CppTools::CppProjectUpdater>())
 {
     setId(Constants::COMPILATIONDATABASEPROJECT_ID);
     setProjectLanguages(Core::Context(ProjectExplorer::Constants::CXX_LANGUAGE_ID));
@@ -423,14 +419,29 @@ CompilationDatabaseProject::CompilationDatabaseProject(const Utils::FileName &pr
 
     m_kit.reset(KitManager::defaultKit()->clone());
 
-    connect(this, &CompilationDatabaseProject::parsingFinished,
-            this, [this]() { addTarget(createTarget(m_kit.get())); });
-
-    emitParsingStarted();
-
-    const QFuture<void> future = ::Utils::runAsync([this, projectFile](){
-        buildTreeAndProjectParts(projectFile);
+    connect(this, &CompilationDatabaseProject::parsingFinished, this, [this]() {
+        if (!m_hasTarget) {
+            addTarget(createTarget(m_kit.get()));
+            m_hasTarget = true;
+        }
     });
+
+    reparseProject(projectFile);
+
+    m_fileSystemWatcher.addFile(projectFile.toString(), Utils::FileSystemWatcher::WatchModifiedDate);
+    connect(&m_fileSystemWatcher,
+            &Utils::FileSystemWatcher::fileChanged,
+            this,
+            [this](const QString &projectFile) {
+                reparseProject(Utils::FileName::fromString(projectFile));
+            });
+}
+
+void CompilationDatabaseProject::reparseProject(const Utils::FileName &projectFile)
+{
+    emitParsingStarted();
+    const QFuture<void> future = ::Utils::runAsync(
+        [this, projectFile]() { buildTreeAndProjectParts(projectFile); });
     m_parserWatcher.setFuture(future);
 }
 

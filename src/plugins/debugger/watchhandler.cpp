@@ -652,7 +652,7 @@ static QString reformatCharacter(int code, int size, bool isSigned)
         if (code < 0)
             out += QString("/%1    ").arg((1ULL << (8*size)) + code).left(2 + 2 * size);
         else
-            out += QString(2 + 2 * size, QLatin1Char(' '));
+            out += QString(2 + 2 * size, ' ');
     } else {
         out += QString::number(unsigned(code));
     }
@@ -1630,7 +1630,7 @@ void WatchModel::inputNewExpression()
     connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     connect(hint, &QLabel::linkActivated, [](const QString &link) {
-            HelpManager::handleHelpRequest(link); });
+            HelpManager::showHelpUrl(link); });
 
     if (dlg.exec() == QDialog::Accepted)
         m_handler->watchExpression(lineEdit->text().trimmed());
@@ -1638,7 +1638,7 @@ void WatchModel::inputNewExpression()
 
 bool WatchModel::contextMenuEvent(const ItemViewEvent &ev)
 {
-    WatchItem *item = itemForIndex(ev.index());
+    WatchItem *item = itemForIndex(ev.sourceModelIndex());
 
     const QString exp = item ? item->expression() : QString();
     const QString name = item ? item->name : QString();
@@ -1856,7 +1856,7 @@ QMenu *WatchModel::createFormatMenu(WatchItem *item, QWidget *parent)
     auto addBaseChangeAction = [this, menu](const QString &text, int base) {
         addCheckableAction(menu, text, true, theUnprintableBase == base, [this, base] {
             theUnprintableBase = base;
-            layoutChanged(); // FIXME
+            emit layoutChanged(); // FIXME
         });
     };
 
@@ -2114,7 +2114,7 @@ void WatchHandler::notifyUpdateStarted(const UpdateParameters &updateParameters)
             item->forAllChildren(marker);
         });
     } else {
-        for (auto iname : inames) {
+        for (const QString &iname : qAsConst(inames)) {
             if (WatchItem *item = m_model->findItem(iname))
                 item->forAllChildren(marker);
         }
@@ -2193,7 +2193,7 @@ void WatchHandler::watchExpression(const QString &exp, const QString &name, bool
     saveWatchers();
 
     if (m_model->m_engine->state() == DebuggerNotReady) {
-        item->setValue(QString(QLatin1Char(' ')));
+        item->setValue(" ");
         item->update();
     } else {
         m_model->m_engine->updateWatchData(item->iname);
@@ -2216,7 +2216,7 @@ void WatchHandler::updateWatchExpression(WatchItem *item, const QString &newExp)
 
     saveWatchers();
     if (m_model->m_engine->state() == DebuggerNotReady) {
-        item->setValue(QString(QLatin1Char(' ')));
+        item->setValue(" ");
         item->update();
     } else {
         m_model->m_engine->updateWatchData(item->iname);
@@ -2622,7 +2622,7 @@ QString WatchModel::editorContents(const QModelIndexList &list)
     QTextStream ts(&contents);
     forAllItems([&ts, this, list](WatchItem *item) {
         if (list.isEmpty() || list.contains(indexForItem(item))) {
-            const QChar tab = QLatin1Char('\t');
+            const QChar tab = '\t';
             const QChar nl = '\n';
             ts << QString(item->level(), tab) << item->name << tab << displayValue(item) << tab
                << item->type << nl;

@@ -42,12 +42,7 @@
 using namespace CppTools;
 using namespace CPlusPlus;
 
-DoxygenGenerator::DoxygenGenerator()
-    : m_addLeadingAsterisks(true)
-    , m_generateBrief(true)
-    , m_startComment(true)
-    , m_style(QtStyle)
-{}
+DoxygenGenerator::DoxygenGenerator() = default;
 
 void DoxygenGenerator::setStyle(DocumentationStyle style)
 {
@@ -136,8 +131,8 @@ QString DoxygenGenerator::generate(QTextCursor cursor,
 
 QString DoxygenGenerator::generate(QTextCursor cursor, DeclarationAST *decl)
 {
-    SpecifierAST *spec = 0;
-    DeclaratorAST *decltr = 0;
+    SpecifierAST *spec = nullptr;
+    DeclaratorAST *decltr = nullptr;
     if (SimpleDeclarationAST *simpleDecl = decl->asSimpleDeclaration()) {
         if (simpleDecl->declarator_list
                 && simpleDecl->declarator_list->value) {

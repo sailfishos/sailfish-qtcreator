@@ -45,18 +45,6 @@ public:
     explicit QbsInstallStep(ProjectExplorer::BuildStepList *bsl);
     ~QbsInstallStep() override;
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-
-    void run(QFutureInterface<bool> &fi) override;
-
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-
-    bool runInGuiThread() const override;
-    void cancel() override;
-
-    bool fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-
     qbs::InstallOptions installOptions() const;
     QString installRoot() const;
     bool removeFirst() const;
@@ -67,6 +55,13 @@ signals:
     void changed();
 
 private:
+    bool init() override;
+    void doRun() override;
+    void doCancel() override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
+
     const QbsBuildConfiguration *buildConfig() const;
     void installDone(bool success);
     void handleTaskStarted(const QString &desciption, int max);
@@ -82,9 +77,9 @@ private:
 
     qbs::InstallOptions m_qbsInstallOptions;
 
-    QFutureInterface<bool> *m_fi = nullptr;
     qbs::InstallJob *m_job = nullptr;
-    int m_progressBase;
+    QString m_description;
+    int m_maxProgress;
     bool m_showCompilerOutput = true;
     ProjectExplorer::IOutputParser *m_parser = nullptr;
 
@@ -99,8 +94,6 @@ class QbsInstallStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
 public:
     QbsInstallStepConfigWidget(QbsInstallStep *step);
     ~QbsInstallStepConfigWidget() override;
-    QString summaryText() const override;
-    QString displayName() const override;
 
 private:
     void updateState();
@@ -113,7 +106,6 @@ private:
     Ui::QbsInstallStepConfigWidget *m_ui;
 
     QbsInstallStep *m_step;
-    QString m_summary;
     bool m_ignoreChange;
 };
 

@@ -38,10 +38,13 @@ namespace RemoteLinux {
 static QString quote(const QString &s) { return Utils::QtcProcess::quoteArgUnix(s); }
 
 LinuxDeviceProcess::LinuxDeviceProcess(const QSharedPointer<const ProjectExplorer::IDevice> &device,
-        QObject *parent)
+                                       QObject *parent)
     : ProjectExplorer::SshDeviceProcess(device, parent), m_processId(0)
 {
     connect(this, &DeviceProcess::finished, this, [this]() {
+        m_processId = -1;
+    });
+    connect(this, &DeviceProcess::started, this, [this]() {
         m_processId = 0;
     });
 }
@@ -54,7 +57,7 @@ void LinuxDeviceProcess::setRcFilesToSource(const QStringList &filePaths)
 QByteArray LinuxDeviceProcess::readAllStandardOutput()
 {
     QByteArray output = SshDeviceProcess::readAllStandardOutput();
-    if (m_processId != 0)
+    if (m_processId != 0 || runInTerminal())
         return output;
 
     m_processIdString.append(output);
@@ -70,7 +73,7 @@ QByteArray LinuxDeviceProcess::readAllStandardOutput()
 
 qint64 LinuxDeviceProcess::processId() const
 {
-    return m_processId;
+    return m_processId < 0 ? 0 : m_processId;
 }
 
 QString LinuxDeviceProcess::fullCommandLine(const Runnable &runnable) const
@@ -91,10 +94,12 @@ QString LinuxDeviceProcess::fullCommandLine(const Runnable &runnable) const
         envString.append(env.key(it)).append(QLatin1String("='")).append(env.value(it))
                 .append(QLatin1Char('\''));
     }
-    fullCommandLine.append("echo $$ && ");
+    if (!runInTerminal())
+        fullCommandLine.append("echo $$ && ");
     if (!envString.isEmpty())
         fullCommandLine.append(envString);
-    fullCommandLine.append(" exec ");
+    if (!runInTerminal())
+        fullCommandLine.append(" exec ");
     fullCommandLine.append(quote(runnable.executable));
     if (!runnable.commandLineArguments.isEmpty()) {
         fullCommandLine.append(QLatin1Char(' '));

@@ -35,6 +35,7 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/processparameters.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/gcctoolchain.h>
@@ -69,7 +70,7 @@ IosBuildStep::IosBuildStep(BuildStepList *parent) :
     }
 }
 
-bool IosBuildStep::init(QList<const BuildStep *> &earlierSteps)
+bool IosBuildStep::init()
 {
     BuildConfiguration *bc = buildConfiguration();
     if (!bc)
@@ -105,7 +106,7 @@ bool IosBuildStep::init(QList<const BuildStep *> &earlierSteps)
         appendOutputParser(parser);
     outputParser()->setWorkingDirectory(pp->effectiveWorkingDirectory());
 
-    return AbstractProcessStep::init(earlierSteps);
+    return AbstractProcessStep::init();
 }
 
 QVariantMap IosBuildStep::toMap() const
@@ -154,7 +155,7 @@ QStringList IosBuildStep::defaultArguments() const
     }
     if (tc->typeId() == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID
             || tc->typeId() == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID) {
-        GccToolChain *gtc = static_cast<GccToolChain *>(tc);
+        auto gtc = static_cast<GccToolChain *>(tc);
         res << gtc->platformCodeGenFlags();
     }
     if (!SysRootKitInformation::sysRoot(kit).isEmpty())
@@ -168,19 +169,14 @@ QString IosBuildStep::buildCommand() const
     return QString("xcodebuild"); // add path?
 }
 
-void IosBuildStep::run(QFutureInterface<bool> &fi)
+void IosBuildStep::doRun()
 {
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *IosBuildStep::createConfigWidget()
 {
     return new IosBuildStepConfigWidget(this);
-}
-
-bool IosBuildStep::immutable() const
-{
-    return false;
 }
 
 void IosBuildStep::setBaseArguments(const QStringList &args)
@@ -206,10 +202,12 @@ QStringList IosBuildStep::baseArguments() const
 //
 
 IosBuildStepConfigWidget::IosBuildStepConfigWidget(IosBuildStep *buildStep)
-    : m_buildStep(buildStep)
+    : BuildStepConfigWidget(buildStep), m_buildStep(buildStep)
 {
     m_ui = new Ui::IosBuildStep;
     m_ui->setupUi(this);
+
+    setDisplayName(tr("iOS build", "iOS BuildStep display name."));
 
     Project *pro = m_buildStep->target()->project();
 
@@ -247,11 +245,6 @@ IosBuildStepConfigWidget::~IosBuildStepConfigWidget()
     delete m_ui;
 }
 
-QString IosBuildStepConfigWidget::displayName() const
-{
-    return tr("iOS build", "iOS BuildStep display name.");
-}
-
 void IosBuildStepConfigWidget::updateDetails()
 {
     BuildConfiguration *bc = m_buildStep->buildConfiguration();
@@ -262,13 +255,8 @@ void IosBuildStepConfigWidget::updateDetails()
     param.setEnvironment(bc->environment());
     param.setCommand(m_buildStep->buildCommand());
     param.setArguments(Utils::QtcProcess::joinArgs(m_buildStep->allArguments()));
-    m_summaryText = param.summary(displayName());
-    emit updateSummary();
-}
 
-QString IosBuildStepConfigWidget::summaryText() const
-{
-    return m_summaryText;
+    setSummaryText(param.summary(displayName()));
 }
 
 void IosBuildStepConfigWidget::buildArgumentsChanged()

@@ -69,8 +69,8 @@ static QString suppressionText(const Error &error)
     // try to set some useful name automatically, instead of "insert_name_here"
     // we take the last stack frame and append the suppression kind, e.g.:
     // QDebug::operator<<(bool) [Memcheck:Cond]
-    if (!error.stacks().isEmpty() && !error.stacks().first().frames().isEmpty()) {
-        const Frame frame = error.stacks().first().frames().first();
+    if (!error.stacks().isEmpty() && !error.stacks().constFirst().frames().isEmpty()) {
+        const Frame frame = error.stacks().constFirst().frames().constFirst();
 
         QString newName;
         if (!frame.functionName().isEmpty())
@@ -79,7 +79,7 @@ static QString suppressionText(const Error &error)
             newName = frame.object();
 
         if (!newName.isEmpty())
-            sup.setName(newName + QLatin1Char('[') + sup.kind() + QLatin1Char(']'));
+            sup.setName(newName + '[' + sup.kind() + ']');
     }
 
     return sup.toString();
@@ -123,19 +123,19 @@ SuppressionDialog::SuppressionDialog(MemcheckErrorView *view, const QList<Error>
 {
     setWindowTitle(tr("Save Suppression"));
 
-    QLabel *fileLabel = new QLabel(tr("Suppression File:"), this);
+    auto fileLabel = new QLabel(tr("Suppression File:"), this);
 
-    QLabel *suppressionsLabel = new QLabel(tr("Suppression:"), this);
+    auto suppressionsLabel = new QLabel(tr("Suppression:"), this);
     suppressionsLabel->setBuddy(m_suppressionEdit);
 
     QFont font;
-    font.setFamily(QLatin1String("Monospace"));
+    font.setFamily("Monospace");
     m_suppressionEdit->setFont(font);
 
     m_buttonBox = new QDialogButtonBox(this);
     m_buttonBox->setStandardButtons(QDialogButtonBox::Cancel|QDialogButtonBox::Save);
 
-    QFormLayout *formLayout = new QFormLayout(this);
+    auto formLayout = new QFormLayout(this);
     formLayout->addRow(fileLabel, m_fileChooser);
     formLayout->addRow(suppressionsLabel);
     formLayout->addRow(m_suppressionEdit);
@@ -150,9 +150,9 @@ SuppressionDialog::SuppressionDialog(MemcheckErrorView *view, const QList<Error>
     }
 
     m_fileChooser->setExpectedKind(Utils::PathChooser::File);
-    m_fileChooser->setHistoryCompleter(QLatin1String("Valgrind.Suppression.History"));
+    m_fileChooser->setHistoryCompleter("Valgrind.Suppression.History");
     m_fileChooser->setPath(defaultSuppFile.fileName());
-    m_fileChooser->setPromptDialogFilter(QLatin1String("*.supp"));
+    m_fileChooser->setPromptDialogFilter("*.supp");
     m_fileChooser->setPromptDialogTitle(tr("Select Suppression File"));
 
     QString suppressions;

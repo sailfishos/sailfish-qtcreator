@@ -39,10 +39,9 @@ class OutputFormatterPrivate
 public:
     QPlainTextEdit *plainTextEdit = nullptr;
     QTextCharFormat formats[NumberOfFormats];
-    QFont font;
     QTextCursor cursor;
     AnsiEscapeCodeHandler escapeCodeHandler;
-    bool overwriteOutput = false;
+    bool boldFontEnabled = true;
 };
 
 } // namespace Internal
@@ -66,30 +65,21 @@ void OutputFormatter::setPlainTextEdit(QPlainTextEdit *plainText)
 {
     d->plainTextEdit = plainText;
     d->cursor = plainText ? plainText->textCursor() : QTextCursor();
+    d->cursor.movePosition(QTextCursor::End);
     initFormats();
 }
 
 void OutputFormatter::appendMessage(const QString &text, OutputFormat format)
 {
+    if (!d->cursor.atEnd() && text.startsWith('\n'))
+        d->cursor.movePosition(QTextCursor::End);
     appendMessage(text, d->formats[format]);
 }
 
 void OutputFormatter::appendMessage(const QString &text, const QTextCharFormat &format)
 {
-    if (!d->cursor.atEnd())
-        d->cursor.movePosition(QTextCursor::End);
-
-    foreach (const FormattedText &output, parseAnsi(text, format)) {
-        int startPos = 0;
-        int crPos = -1;
-        while ((crPos = output.text.indexOf(QLatin1Char('\r'), startPos)) >= 0)  {
-            append(d->cursor, output.text.mid(startPos, crPos - startPos), output.format);
-            startPos = crPos + 1;
-            d->overwriteOutput = true;
-        }
-        if (startPos < output.text.count())
-            append(d->cursor, output.text.mid(startPos), output.format);
-    }
+    foreach (const FormattedText &output, parseAnsi(text, format))
+        append(output.text, output.format);
 }
 
 QTextCharFormat OutputFormatter::charFormat(OutputFormat format) const
@@ -102,15 +92,23 @@ QList<FormattedText> OutputFormatter::parseAnsi(const QString &text, const QText
     return d->escapeCodeHandler.parseText(FormattedText(text, format));
 }
 
-void OutputFormatter::append(QTextCursor &cursor, const QString &text,
-                             const QTextCharFormat &format)
+void OutputFormatter::append(const QString &text, const QTextCharFormat &format)
 {
-    if (d->overwriteOutput) {
-        cursor.clearSelection();
-        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::KeepAnchor);
-        d->overwriteOutput = false;
+    int startPos = 0;
+    int crPos = -1;
+    while ((crPos = text.indexOf('\r', startPos)) >= 0)  {
+        if (text.size() > crPos + 1 && text.at(crPos + 1) == '\n') {
+            d->cursor.insertText(text.mid(startPos, crPos - startPos) + '\n', format);
+            startPos = crPos + 2;
+            continue;
+        }
+        d->cursor.insertText(text.mid(startPos, crPos - startPos), format);
+        d->cursor.clearSelection();
+        d->cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::KeepAnchor);
+        startPos = crPos + 1;
     }
-    cursor.insertText(text, format);
+    if (startPos < text.count())
+        d->cursor.insertText(text.mid(startPos), format);
 }
 
 void OutputFormatter::clearLastLine()
@@ -126,40 +124,41 @@ void OutputFormatter::initFormats()
     if (!plainTextEdit())
         return;
 
-    QFont boldFont;
-    boldFont.setBold(true);
-
     Theme *theme = creatorTheme();
 
     // NormalMessageFormat
-    d->formats[NormalMessageFormat].setFont(boldFont, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[NormalMessageFormat].setForeground(theme->color(Theme::OutputPanes_NormalMessageTextColor));
 
     // ErrorMessageFormat
-    d->formats[ErrorMessageFormat].setFont(boldFont, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[ErrorMessageFormat].setForeground(theme->color(Theme::OutputPanes_ErrorMessageTextColor));
 
     // LogMessageFormat
-    d->formats[LogMessageFormat].setFont(d->font, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[LogMessageFormat].setForeground(theme->color(Theme::OutputPanes_WarningMessageTextColor));
 
     // StdOutFormat
-    d->formats[StdOutFormat].setFont(d->font, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[StdOutFormat].setForeground(theme->color(Theme::OutputPanes_StdOutTextColor));
     d->formats[StdOutFormatSameLine] = d->formats[StdOutFormat];
 
     // StdErrFormat
-    d->formats[StdErrFormat].setFont(d->font, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[StdErrFormat].setForeground(theme->color(Theme::OutputPanes_StdErrTextColor));
     d->formats[StdErrFormatSameLine] = d->formats[StdErrFormat];
 
-    d->formats[DebugFormat].setFont(d->font, QTextCharFormat::FontPropertiesSpecifiedOnly);
     d->formats[DebugFormat].setForeground(theme->color(Theme::OutputPanes_DebugTextColor));
+
+    setBoldFontEnabled(d->boldFontEnabled);
 }
 
 void OutputFormatter::handleLink(const QString &href)
 {
     Q_UNUSED(href);
+}
+
+void OutputFormatter::setBoldFontEnabled(bool enabled)
+{
+    d->boldFontEnabled = enabled;
+    const QFont::Weight fontWeight = enabled ? QFont::Bold : QFont::Normal;
+    d->formats[NormalMessageFormat].setFontWeight(fontWeight);
+    d->formats[ErrorMessageFormat].setFontWeight(fontWeight);
 }
 
 void OutputFormatter::flush()

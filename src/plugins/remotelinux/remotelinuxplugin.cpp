@@ -39,6 +39,7 @@
 #include "remotelinuxdeployconfiguration.h"
 #include "remotelinuxcustomcommanddeploymentstep.h"
 #include "remotelinuxkillappstep.h"
+#include "rsyncdeploystep.h"
 #include "tarpackagecreationstep.h"
 #include "uploadandinstalltarpackagestep.h"
 
@@ -58,7 +59,7 @@ public:
     {
         registerStep<Step>(Step::stepId());
         setDisplayName(Step::displayName());
-        setSupportedConfiguration(RemoteLinuxDeployConfiguration::genericDeployConfigurationId());
+        setSupportedConfiguration(genericDeployConfigurationId());
         setSupportedStepList(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY);
     }
 };
@@ -73,6 +74,7 @@ public:
     GenericDeployStepFactory<TarPackageCreationStep> tarPackageCreationStepFactory;
     GenericDeployStepFactory<UploadAndInstallTarPackageStep> uploadAndInstallTarPackageStepFactory;
     GenericDeployStepFactory<GenericDirectUploadStep> genericDirectUploadStepFactory;
+    GenericDeployStepFactory<RsyncDeployStep> rsyncDeployStepFactory;
     GenericDeployStepFactory<RemoteLinuxCustomCommandDeploymentStep>
         customCommandDeploymentStepFactory;
     GenericDeployStepFactory<RemoteLinuxCheckForFreeDiskSpaceStep>
@@ -93,8 +95,7 @@ RemoteLinuxPlugin::~RemoteLinuxPlugin()
     delete dd;
 }
 
-bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
-    QString *errorMessage)
+bool RemoteLinuxPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)

@@ -36,11 +36,12 @@ using namespace ProjectExplorer;
 namespace Nim {
 
 NimCompilerCleanStepConfigWidget::NimCompilerCleanStepConfigWidget(NimCompilerCleanStep *cleanStep)
-    : BuildStepConfigWidget()
-    , m_cleanStep(cleanStep)
+    : BuildStepConfigWidget(cleanStep)
     , m_ui(new Ui::NimCompilerCleanStepConfigWidget())
 {
     m_ui->setupUi(this);
+    setDisplayName(tr(Constants::C_NIMCOMPILERCLEANSTEPWIDGET_DISPLAY));
+    setSummaryText(tr(Constants::C_NIMCOMPILERCLEANSTEPWIDGET_SUMMARY));
     connect(cleanStep->buildConfiguration(), &BuildConfiguration::buildDirectoryChanged,
             this, &NimCompilerCleanStepConfigWidget::updateUi);
     updateUi();
@@ -48,19 +49,9 @@ NimCompilerCleanStepConfigWidget::NimCompilerCleanStepConfigWidget(NimCompilerCl
 
 NimCompilerCleanStepConfigWidget::~NimCompilerCleanStepConfigWidget() = default;
 
-QString NimCompilerCleanStepConfigWidget::summaryText() const
-{
-    return tr(Constants::C_NIMCOMPILERCLEANSTEPWIDGET_SUMMARY);
-}
-
-QString NimCompilerCleanStepConfigWidget::displayName() const
-{
-    return tr(Constants::C_NIMCOMPILERCLEANSTEPWIDGET_DISPLAY);
-}
-
 void NimCompilerCleanStepConfigWidget::updateUi()
 {
-    auto buildDiretory = m_cleanStep->buildConfiguration()->buildDirectory();
+    auto buildDiretory = step()->buildConfiguration()->buildDirectory();
     m_ui->workingDirectoryLineEdit->setText(buildDiretory.toString());
 }
 

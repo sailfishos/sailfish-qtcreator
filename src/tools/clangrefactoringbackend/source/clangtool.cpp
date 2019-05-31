@@ -27,84 +27,37 @@
 
 #include <iostream>
 
+#include <nativefilepath.h>
+
 namespace ClangBackEnd {
 
-namespace {
-
-// use std::filesystem::path if it is supported by all compilers
-
-template <typename String>
-String toNativePath(String &&path)
+void ClangTool::addFile(FilePath &&filePath,
+                        Utils::SmallString &&content,
+                        Utils::SmallStringVector &&commandLine)
 {
-#ifdef _WIN32
-    std::replace(path.begin(), path.end(), '/', '\\');
-#endif
+    NativeFilePath nativeFilePath{filePath};
 
-    return std::move(path);
-}
-}
+    if (commandLine.back() != nativeFilePath.path())
+        commandLine.emplace_back(nativeFilePath.path());
 
-void ClangTool::addFile(std::string &&directory,
-                        std::string &&fileName,
-                        std::string &&content,
-                        std::vector<std::string> &&commandLine)
-{
-    m_fileContents.emplace_back(toNativePath(std::move(directory)),
-                              std::move(fileName),
-                              std::move(content),
-                              std::move(commandLine));
+    m_compilationDatabase.addFile(nativeFilePath, std::move(commandLine));
+    m_sourceFilePaths.push_back(Utils::SmallStringView{nativeFilePath});
 
-    const auto &fileContent = m_fileContents.back();
-
-    m_compilationDatabase.addFile(fileContent.directory, fileContent.fileName, fileContent.commandLine);
-    m_sourceFilePaths.push_back(fileContent.filePath);
+    m_fileContents.emplace_back(std::move(nativeFilePath), std::move(content));
 }
 
 void ClangTool::addFiles(const FilePaths &filePaths, const Utils::SmallStringVector &arguments)
 {
-    for (const FilePath &filePath : filePaths) {
-        std::vector<std::string> commandLine(arguments.begin(), arguments.end());
-        commandLine.push_back(std::string(filePath.name()));
-
-        addFile(filePath.directory(),
-                filePath.name(),
-                {},
-                std::move(commandLine));
-    }
+    for (const FilePath &filePath : filePaths)
+        addFile(filePath.clone(), {}, arguments.clone());
 }
-
-template <typename Container>
-void ClangTool::addFiles(const Container &filePaths,
-                         const Utils::SmallStringVector &arguments)
-{
-    for (const typename Container::value_type &filePath : filePaths) {
-        auto found = std::find(filePath.rbegin(), filePath.rend(), '/');
-
-        auto fileNameBegin = found.base();
-
-        std::vector<std::string> commandLine(arguments.begin(), arguments.end());
-        commandLine.push_back(std::string(filePath));
-
-        addFile({filePath.begin(), std::prev(fileNameBegin)},
-                {fileNameBegin, filePath.end()},
-                {},
-                std::move(commandLine));
-    }
-}
-
-template
-void ClangTool::addFiles<Utils::SmallStringVector>(const Utils::SmallStringVector &filePaths,
-                                                   const Utils::SmallStringVector &arguments);
-template
-void ClangTool::addFiles<Utils::PathStringVector>(const Utils::PathStringVector &filePaths,
-                                                  const Utils::SmallStringVector &arguments);
 
 void ClangTool::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
 {
     m_unsavedFileContents.reserve(m_unsavedFileContents.size() + unsavedFiles.size());
 
-    auto convertToUnsavedFileContent = [] (const V2::FileContainer &unsavedFile) {
-        return UnsavedFileContent{toNativePath(unsavedFile.filePath.path().clone()),
+    auto convertToUnsavedFileContent = [](const V2::FileContainer &unsavedFile) {
+        return UnsavedFileContent{unsavedFile.filePath.clone(),
                                   unsavedFile.unsavedFileContent.clone()};
     };
 
@@ -115,29 +68,50 @@ void ClangTool::addUnsavedFiles(const V2::FileContainers &unsavedFiles)
 }
 
 namespace {
-template <typename String>
+template<typename String>
 llvm::StringRef toStringRef(const String &string)
 {
     return llvm::StringRef(string.data(), string.size());
 }
+
+llvm::StringRef toStringRef(const NativeFilePath &path)
+{
+    return llvm::StringRef(path.path().data(), path.path().size());
 }
+} // namespace
 
 clang::tooling::ClangTool ClangTool::createTool() const
 {
     clang::tooling::ClangTool tool(m_compilationDatabase, m_sourceFilePaths);
 
     for (const auto &fileContent : m_fileContents) {
-        if (!fileContent.content.empty())
-            tool.mapVirtualFile(fileContent.filePath, fileContent.content);
+        if (fileContent.content.hasContent())
+            tool.mapVirtualFile(toStringRef(fileContent.filePath), toStringRef(fileContent.content));
     }
 
-    for (const auto &unsavedFileContent : m_unsavedFileContents)
-            tool.mapVirtualFile(toStringRef(unsavedFileContent.filePath),
-                                toStringRef(unsavedFileContent.content));
+    for (const auto &unsavedFileContent : m_unsavedFileContents) {
+        tool.mapVirtualFile(toStringRef(unsavedFileContent.filePath),
+                            toStringRef(unsavedFileContent.content));
+    }
 
     tool.mapVirtualFile("/dummyFile", "#pragma once");
 
     return tool;
+}
+
+clang::tooling::ClangTool ClangTool::createOutputTool() const
+{
+    clang::tooling::ClangTool tool = createTool();
+
+    tool.clearArgumentsAdjusters();
+
+    return tool;
+}
+
+bool ClangTool::isClean() const
+{
+    return m_sourceFilePaths.empty() && m_fileContents.empty()
+           && m_compilationDatabase.getAllFiles().empty() && m_unsavedFileContents.empty();
 }
 
 } // namespace ClangBackEnd

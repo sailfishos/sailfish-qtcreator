@@ -188,7 +188,8 @@ const char GOTO_NEXT_WORD_WITH_SELECTION[] = "TextEditor.GotoNextWordWithSelecti
 const char GOTO_PREVIOUS_WORD_CAMEL_CASE_WITH_SELECTION[] = "TextEditor.GotoPreviousWordCamelCaseWithSelection";
 const char GOTO_NEXT_WORD_CAMEL_CASE_WITH_SELECTION[] = "TextEditor.GotoNextWordCamelCaseWithSelection";
 const char C_TEXTEDITOR_MIMETYPE_TEXT[] = "text/plain";
-const char INFO_SYNTAX_DEFINITION[] = "TextEditor.InfoSyntaxDefinition";
+const char INFO_MISSING_SYNTAX_DEFINITION[] = "TextEditor.InfoSyntaxDefinition";
+const char INFO_MULTIPLE_SYNTAX_DEFINITIONS[] = "TextEditor.InfoMultipleSyntaxDefinitions";
 const char TASK_OPEN_FILE[]        = "TextEditor.Task.OpenFile";
 const char CIRCULAR_PASTE[]        = "TextEditor.CircularPaste";
 const char SWITCH_UTF8BOM[]        = "TextEditor.SwitchUtf8bom";
@@ -196,6 +197,7 @@ const char INDENT[]        = "TextEditor.Indent";
 const char UNINDENT[]        = "TextEditor.Unindent";
 const char FOLLOW_SYMBOL_UNDER_CURSOR[] = "TextEditor.FollowSymbolUnderCursor";
 const char FOLLOW_SYMBOL_UNDER_CURSOR_IN_NEXT_SPLIT[] = "TextEditor.FollowSymbolUnderCursorInNextSplit";
+const char FIND_USAGES[] = "TextEditor.FindUsages";
 const char JUMP_TO_FILE_UNDER_CURSOR[] = "TextEditor.JumpToFileUnderCursor";
 const char JUMP_TO_FILE_UNDER_CURSOR_IN_NEXT_SPLIT[] = "TextEditor.JumpToFileUnderCursorInNextSplit";
 
@@ -211,6 +213,8 @@ const char TEXT_EDITOR_BEHAVIOR_SETTINGS[] = "B.BehaviourSettings";
 const char TEXT_EDITOR_DISPLAY_SETTINGS[] = "D.DisplaySettings";
 const char TEXT_EDITOR_HIGHLIGHTER_SETTINGS[] = "E.HighlighterSettings";
 const char TEXT_EDITOR_SNIPPETS_SETTINGS[] = "F.SnippetsSettings";
+
+const char HIGHLIGHTER_SETTINGS_CATEGORY[] = "HighlighterSettings";
 
 const char SNIPPET_EDITOR_ID[]     = "TextEditor.SnippetEditor";
 const char TEXT_SNIPPET_GROUP_ID[] = "Text";

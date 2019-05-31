@@ -39,14 +39,11 @@ class DesktopQmakeRunConfiguration : public ProjectExplorer::RunConfiguration
 public:
     DesktopQmakeRunConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
-    QVariantMap toMap() const override;
-
     void addToBaseEnvironment(Utils::Environment &env) const;
 
 private:
-    bool fromMap(const QVariantMap &map) override;
-
     void updateTargetInformation();
+    bool fromMap(const QVariantMap &map) final;
     void doAdditionalSetup(const ProjectExplorer::RunConfigurationCreationInfo &info) final;
 
     QString defaultDisplayName();

@@ -100,7 +100,7 @@ static const VcsBaseSubmitEditorParameters submitEditorParameters = {
     VcsBaseSubmitEditorParameters::DiffFiles
 };
 
-MercurialPlugin *MercurialPlugin::m_instance = 0;
+MercurialPlugin *MercurialPlugin::m_instance = nullptr;
 
 MercurialPlugin::MercurialPlugin()
 {
@@ -132,10 +132,9 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
     const auto describeFunc = [this](const QString &source, const QString &id) {
         m_client->view(source, id);
     };
-    const int editorCount = sizeof(editorParameters)/sizeof(editorParameters[0]);
     const auto widgetCreator = []() { return new MercurialEditorWidget; };
-    for (int i = 0; i < editorCount; i++)
-        new VcsEditorFactory(editorParameters + i, widgetCreator, describeFunc, this);
+    for (auto &editor : editorParameters)
+        new VcsEditorFactory(&editor, widgetCreator, describeFunc, this);
 
     new VcsSubmitEditorFactory(&submitEditorParameters,
         []() { return new CommitEditor(&submitEditorParameters); }, this);
@@ -514,7 +513,7 @@ void MercurialPlugin::showCommitWidget(const QList<VcsBaseClient::StatusItem> &s
     }
 
     QTC_ASSERT(qobject_cast<CommitEditor *>(editor), return);
-    CommitEditor *commitEditor = static_cast<CommitEditor *>(editor);
+    auto commitEditor = static_cast<CommitEditor *>(editor);
     setSubmitEditor(commitEditor);
 
     connect(commitEditor, &VcsBaseSubmitEditor::diffSelectedFiles,
@@ -546,16 +545,13 @@ void MercurialPlugin::commitFromEditor()
 
 bool MercurialPlugin::submitEditorAboutToClose()
 {
-    CommitEditor *commitEditor = qobject_cast<CommitEditor *>(submitEditor());
+    auto commitEditor = qobject_cast<CommitEditor *>(submitEditor());
     QTC_ASSERT(commitEditor, return true);
     Core::IDocument *editorFile = commitEditor->document();
     QTC_ASSERT(editorFile, return true);
 
-    bool dummyPrompt = false;
     const VcsBaseSubmitEditor::PromptSubmitResult response =
-            commitEditor->promptSubmit(tr("Close Commit Editor"), tr("Do you want to commit the changes?"),
-                                       tr("Message check failed. Do you want to proceed?"),
-                                       &dummyPrompt, !m_submitActionTriggered);
+            commitEditor->promptSubmit(this, nullptr, !m_submitActionTriggered);
     m_submitActionTriggered = false;
 
     switch (response) {

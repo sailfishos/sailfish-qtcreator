@@ -30,6 +30,7 @@
 #include "itemlibrarysection.h"
 
 #include <model.h>
+#include <nodehints.h>
 #include <nodemetainfo.h>
 
 #include <utils/algorithm.h>
@@ -126,7 +127,7 @@ void ItemLibraryModel::setSearchText(const QString &searchText)
         bool changed = false;
         updateVisibility(&changed);
         if (changed)
-            dataChanged(QModelIndex(), QModelIndex());
+            emit dataChanged(QModelIndex(), QModelIndex());
     }
 }
 
@@ -184,8 +185,10 @@ void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
             qDebug() << Utils::transform(metaInfo.superClasses(), &NodeMetaInfo::typeName);
         }
 
+        bool forceVisiblity = valid && NodeHints::fromItemLibraryEntry(entry).visibleInLibrary();
+
         if (valid
-                && isItem //We can change if the navigator does support pure QObjects
+                && (isItem || forceVisiblity) //We can change if the navigator does support pure QObjects
                 && (entry.requiredImport().isEmpty()
                     || model->hasImport(entryToImport(entry), true, true))) {
             QString itemSectionName = entry.category();

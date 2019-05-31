@@ -35,6 +35,12 @@
 #include <utils/qtcassert.h>
 #include <utils/stringutils.h>
 
+#include <android/androidconstants.h>
+
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+
 using namespace ProjectExplorer;
 using namespace Utils;
 
@@ -126,7 +132,7 @@ bool QmakePriFileNode::supportsAction(ProjectAction action, const Node *node) co
         break;
     }
     case ProjectType::SubDirsTemplate:
-        if (action == AddSubProject || action == RemoveSubProject)
+        if (action == AddSubProject)
             return true;
         break;
     default:
@@ -165,7 +171,28 @@ bool QmakePriFileNode::removeSubProject(const QString &proFilePath)
 bool QmakePriFileNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
 {
     QmakePriFile *pri = priFile();
-    return pri ? pri->addFiles(filePaths, notAdded) : false;
+    if (!pri)
+        return false;
+    QList<Node *> matchingNodes = findNodes([filePaths](const Node *n) {
+        return n->nodeType() == NodeType::File && filePaths.contains(n->filePath().toString());
+    });
+    matchingNodes = filtered(matchingNodes, [](const Node *n) {
+        for (const Node *parent = n->parentFolderNode(); parent;
+             parent = parent->parentFolderNode()) {
+            if (dynamic_cast<const ResourceEditor::ResourceTopLevelNode *>(parent))
+                return false;
+        }
+        return true;
+    });
+    QStringList alreadyPresentFiles = transform<QStringList>(matchingNodes,
+            [](const Node *n) { return n->filePath().toString(); });
+    alreadyPresentFiles.removeDuplicates();
+    QStringList actualFilePaths = filePaths;
+    for (const QString &e : alreadyPresentFiles)
+        actualFilePaths.removeOne(e);
+    if (notAdded)
+        *notAdded = alreadyPresentFiles;
+    return pri->addFiles(actualFilePaths, notAdded);
 }
 
 bool QmakePriFileNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
@@ -198,18 +225,6 @@ FolderNode::AddNewInformation QmakePriFileNode::addNewInformation(const QStringL
     return FolderNode::AddNewInformation(filePath().fileName(), context && context->parentProjectNode() == this ? 120 : 90);
 }
 
-QmakeProFileNode *QmakeProFileNode::findProFileFor(const FileName &fileName) const
-{
-    if (fileName == filePath())
-        return const_cast<QmakeProFileNode *>(this);
-    for (Node *node : nodes()) {
-        if (auto *qmakeProFileNode = dynamic_cast<QmakeProFileNode *>(node))
-            if (QmakeProFileNode *result = qmakeProFileNode->findProFileFor(fileName))
-                return result;
-    }
-    return nullptr;
-}
-
 /*!
   \class QmakeProFileNode
   Implements abstract ProjectNode class
@@ -223,9 +238,120 @@ bool QmakeProFileNode::showInSimpleTree() const
     return showInSimpleTree(projectType()) || m_project->rootProjectNode() == this;
 }
 
+QString QmakeProFileNode::buildKey() const
+{
+    return filePath().toString();
+}
+
+bool QmakeProFileNode::parseInProgress() const
+{
+    QmakeProjectManager::QmakeProFile *pro = proFile();
+    return !pro || pro->parseInProgress();
+}
+
+bool QmakeProFileNode::validParse() const
+{
+    QmakeProjectManager::QmakeProFile *pro = proFile();
+    return pro && pro->validParse();
+}
+
+QStringList QmakeProFileNode::targetApplications() const
+{
+    QStringList apps;
+    if (includedInExactParse() && projectType() == ProjectType::ApplicationTemplate) {
+        const QString target = targetInformation().target;
+        if (target.startsWith("lib") && target.endsWith(".so"))
+            apps << target.mid(3, target.lastIndexOf('.') - 3);
+        else
+            apps << target;
+    }
+    return apps;
+}
+
+QVariant QmakeProFileNode::data(Core::Id role) const
+{
+    if (role == Android::Constants::AndroidPackageSourceDir)
+        return singleVariableValue(Variable::AndroidPackageSourceDir);
+    if (role == Android::Constants::AndroidDeploySettingsFile)
+        return singleVariableValue(Variable::AndroidDeploySettingsFile);
+    if (role == Android::Constants::AndroidExtraLibs)
+        return variableValue(Variable::AndroidExtraLibs);
+    if (role == Android::Constants::AndroidArch)
+        return singleVariableValue(Variable::AndroidArch);
+    if (role == Android::Constants::AndroidSoLibPath) {
+        TargetInformation info = targetInformation();
+        QStringList res = {info.buildDir.toString()};
+        Utils::FileName destDir = info.destDir;
+        if (!destDir.isEmpty()) {
+            if (destDir.toFileInfo().isRelative())
+                destDir = Utils::FileName::fromString(QDir::cleanPath(info.buildDir.toString()
+                                                                      + '/' + destDir.toString()));
+            res.append(destDir.toString());
+        }
+        res.removeDuplicates();
+        return res;
+    }
+    QTC_CHECK(false);
+    return {};
+}
+
+bool QmakeProFileNode::setData(Core::Id role, const QVariant &value) const
+{
+    QmakeProFile *pro = proFile();
+    if (!pro)
+        return false;
+
+    const QString arch = pro->singleVariableValue(Variable::AndroidArch);
+    const QString scope = "contains(ANDROID_TARGET_ARCH," + arch + ')';
+    auto flags = QmakeProjectManager::Internal::ProWriter::ReplaceValues
+               | QmakeProjectManager::Internal::ProWriter::MultiLine;
+
+    if (role == Android::Constants::AndroidExtraLibs)
+        return pro->setProVariable("ANDROID_EXTRA_LIBS", value.toStringList(), scope, flags);
+    if (role == Android::Constants::AndroidPackageSourceDir)
+        return pro->setProVariable("ANDROID_PACKAGE_SOURCE_DIR", {value.toString()}, scope, flags);
+
+    return false;
+}
+
 QmakeProFile *QmakeProFileNode::proFile() const
 {
     return static_cast<QmakeProFile*>(QmakePriFileNode::priFile());
+}
+
+QString QmakeProFileNode::makefile() const
+{
+    return singleVariableValue(Variable::Makefile);
+}
+
+QString QmakeProFileNode::objectsDirectory() const
+{
+    return singleVariableValue(Variable::ObjectsDir);
+}
+
+bool QmakeProFileNode::isDebugAndRelease() const
+{
+    const QStringList configValues = variableValue(Variable::Config);
+    return configValues.contains(QLatin1String("debug_and_release"));
+}
+
+bool QmakeProFileNode::isQtcRunnable() const
+{
+    const QStringList configValues = variableValue(Variable::Config);
+    return configValues.contains(QLatin1String("qtc_runnable"));
+}
+
+bool QmakeProFileNode::includedInExactParse() const
+{
+    const QmakeProFile *pro = proFile();
+    return pro && pro->includedInExactParse();
+}
+
+bool QmakeProFileNode::supportsAction(ProjectAction action, const Node *node) const
+{
+    if (action == RemoveSubProject)
+        return parentProjectNode() && !parentProjectNode()->asContainerNode();
+    return QmakePriFileNode::supportsAction(action, node);
 }
 
 FolderNode::AddNewInformation QmakeProFileNode::addNewInformation(const QStringList &files, Node *context) const
@@ -269,6 +395,25 @@ QString QmakeProFileNode::buildDir() const
         }
     }
     return QString();
+}
+
+FileName QmakeProFileNode::buildDir(QmakeBuildConfiguration *bc) const
+{
+    const QmakeProFile *pro = proFile();
+    return pro ? pro->buildDir(bc) : FileName();
+}
+
+QString QmakeProFileNode::objectExtension() const
+{
+    QStringList exts = variableValue(Variable::ObjectExt);
+    if (exts.isEmpty())
+        return HostOsInfo::isWindowsHost() ? QLatin1String(".obj") : QLatin1String(".o");
+    return exts.first();
+}
+
+TargetInformation QmakeProFileNode::targetInformation() const
+{
+    return proFile() ? proFile()->targetInformation() : TargetInformation();
 }
 
 } // namespace QmakeProjectManager

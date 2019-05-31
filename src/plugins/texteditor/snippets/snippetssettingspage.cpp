@@ -29,10 +29,10 @@
 #include "snippet.h"
 #include "snippetscollection.h"
 #include "snippetssettings.h"
-#include "textdocument.h"
 #include "ui_snippetssettingspage.h"
 
 #include <coreplugin/icore.h>
+#include <texteditor/textdocument.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 #include <extensionsystem/pluginmanager.h>
@@ -54,7 +54,7 @@ class SnippetsTableModel : public QAbstractTableModel
     Q_OBJECT
 public:
     SnippetsTableModel(QObject *parent);
-    ~SnippetsTableModel() override {}
+    ~SnippetsTableModel() override = default;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;

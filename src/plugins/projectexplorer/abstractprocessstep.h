@@ -26,24 +26,14 @@
 #pragma once
 
 #include "buildstep.h"
-#include "processparameters.h"
 
-#include <projectexplorer/ioutputparser.h>
+#include <QProcess>
 
-#include <utils/qtcprocess.h>
-#include <utils/fileutils.h>
-
-#include <QString>
-#include <QTimer>
-#include <QHash>
-#include <QPair>
-
-#include <memory>
-
-namespace Utils { class QtcProcess; }
+namespace Utils { class FileName; }
 namespace ProjectExplorer {
 
 class IOutputParser;
+class ProcessParameters;
 
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT AbstractProcessStep : public BuildStep
@@ -51,11 +41,7 @@ class PROJECTEXPLORER_EXPORT AbstractProcessStep : public BuildStep
     Q_OBJECT
 
 public:
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &) override;
-    bool runInGuiThread() const final { return true; }
-
-    ProcessParameters *processParameters() { return &m_param; }
+    ProcessParameters *processParameters();
 
     bool ignoreReturnValue();
     void setIgnoreReturnValue(bool b);
@@ -68,6 +54,9 @@ public:
 
 protected:
     AbstractProcessStep(BuildStepList *bsl, Core::Id id);
+    ~AbstractProcessStep() override;
+    bool init() override;
+    void doRun() override;
 
     virtual void processStarted();
     virtual void processFinished(int exitCode, QProcess::ExitStatus status);
@@ -76,13 +65,14 @@ protected:
     virtual void stdOutput(const QString &line);
     virtual void stdError(const QString &line);
 
-    QFutureInterface<bool> *futureInterface() const;
+    void doCancel() override;
 
 private:
+    virtual void finish(bool success);
+
     void processReadyReadStdOutput();
     void processReadyReadStdError();
     void slotProcessFinished(int, QProcess::ExitStatus);
-    void checkForCancel();
 
     void cleanUp(QProcess *process);
 
@@ -93,16 +83,8 @@ private:
     void purgeCache(bool useSoftLimit);
     void insertInCache(const QString &relativePath, const Utils::FileName &absPath);
 
-    QTimer m_timer;
-    QFutureInterface<bool> *m_futureInterface = nullptr;
-    std::unique_ptr<Utils::QtcProcess> m_process;
-    std::unique_ptr<IOutputParser> m_outputParserChain;
-    ProcessParameters m_param;
-    QHash<QString, QPair<Utils::FileName, quint64>> m_filesCache;
-    QHash<QString, Utils::FileNameList> m_candidates;
-    quint64 m_cacheCounter = 0;
-    bool m_ignoreReturnValue = false;
-    bool m_skipFlush = false;
+    class Private;
+    Private *d;
 };
 
 } // namespace ProjectExplorer

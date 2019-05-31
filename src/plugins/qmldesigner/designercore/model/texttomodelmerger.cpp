@@ -76,7 +76,8 @@ bool isSupportedAttachedProperties(const QString &propertyName)
 QStringList supportedVersionsList()
 {
     static const QStringList list = {
-        "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12"
+        "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9",
+        "2.10", "2.11", "2.12", "2.13"
     };
     return list;
 }
@@ -1178,9 +1179,6 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
             if (property->type == AST::UiPublicMember::Signal)
                 continue; // QML designer doesn't support this yet.
 
-            if (property->name.isEmpty() || !property->isValid())
-                continue; // better safe than sorry.
-
             const QStringRef astName = property->name;
             QString astValue;
             if (property->statement)
@@ -1193,7 +1191,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
                 astValue = astValue.left(astValue.length() - 1);
             astValue = astValue.trimmed();
 
-            const TypeName &astType = property->memberTypeName().toUtf8();
+            const TypeName &astType = property->memberType->name.toUtf8();
             AbstractProperty modelProperty = modelNode.property(astName.toUtf8());
 
             if (property->binding) {
@@ -1250,12 +1248,12 @@ static QVariant parsePropertyExpression(AST::ExpressionNode *expressionNode)
 {
     Q_ASSERT(expressionNode);
 
-    auto arrayLiteral = AST::cast<AST::ArrayLiteral *>(expressionNode);
+    auto arrayLiteral = AST::cast<AST::ArrayPattern *>(expressionNode);
 
     if (arrayLiteral) {
         QList<QVariant> variantList;
-        for (AST::ElementList *it = arrayLiteral->elements; it; it = it->next)
-            variantList << parsePropertyExpression(it->expression);
+        for (AST::PatternElementList *it = arrayLiteral->elements; it; it = it->next)
+            variantList << parsePropertyExpression(it->element->initializer);
         return variantList;
     }
 
@@ -1734,6 +1732,11 @@ void ModelValidator::typeDiffers(bool /*isRootNode*/,
     if (modelNode.majorVersion() != majorVersion) {
         qDebug() << Q_FUNC_INFO << modelNode;
         qDebug() << typeName << modelNode.majorVersion() << majorVersion;
+    }
+
+    if (modelNode.minorVersion() != minorVersion) {
+        qDebug() << Q_FUNC_INFO << modelNode;
+        qDebug() << typeName << modelNode.minorVersion() << minorVersion;
     }
 
     QTC_ASSERT(modelNode.majorVersion() == majorVersion, return);

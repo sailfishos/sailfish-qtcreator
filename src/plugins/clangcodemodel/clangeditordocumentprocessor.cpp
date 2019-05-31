@@ -48,7 +48,6 @@
 #include <cpptools/cppworkingcopy.h>
 #include <cpptools/editordocumenthandle.h>
 
-#include <texteditor/displaysettings.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/texteditorconstants.h>
@@ -210,12 +209,12 @@ TextEditor::BlockRange
 toTextEditorBlock(QTextDocument *textDocument,
                   const ClangBackEnd::SourceRangeContainer &sourceRangeContainer)
 {
-    return TextEditor::BlockRange(::Utils::Text::positionInText(textDocument,
-                                                                sourceRangeContainer.start.line,
-                                                                sourceRangeContainer.start.column),
-                                  ::Utils::Text::positionInText(textDocument,
-                                                                sourceRangeContainer.end.line,
-                                                                sourceRangeContainer.end.column));
+    return {::Utils::Text::positionInText(textDocument,
+                                          sourceRangeContainer.start.line,
+                                          sourceRangeContainer.start.column),
+            ::Utils::Text::positionInText(textDocument,
+                                          sourceRangeContainer.end.line,
+                                          sourceRangeContainer.end.column)};
 }
 
 QList<TextEditor::BlockRange>
@@ -292,26 +291,6 @@ TextEditor::QuickFixOperations ClangEditorDocumentProcessor::extraRefactoringOpe
     return extractor.extract(assistInterface.fileName(), currentLine(assistInterface));
 }
 
-bool ClangEditorDocumentProcessor::hasDiagnosticsAt(uint line, uint column) const
-{
-    return m_diagnosticManager.hasDiagnosticsAt(line, column);
-}
-
-void ClangEditorDocumentProcessor::addDiagnosticToolTipToLayout(uint line,
-                                                                uint column,
-                                                                QLayout *target) const
-{
-    using Internal::ClangDiagnosticWidget;
-
-    const QVector<ClangBackEnd::DiagnosticContainer> diagnostics
-        = m_diagnosticManager.diagnosticsAt(line, column);
-
-    target->addWidget(ClangDiagnosticWidget::create(diagnostics, ClangDiagnosticWidget::ToolTip));
-    auto link = TextEditor::DisplaySettings::createAnnotationSettingsLink();
-    target->addWidget(link);
-    target->setAlignment(link, Qt::AlignRight);
-}
-
 void ClangEditorDocumentProcessor::editorDocumentTimerRestarted()
 {
     m_updateBackendDocumentTimer.stop(); // Wait for the next call to run().
@@ -322,8 +301,14 @@ void ClangEditorDocumentProcessor::invalidateDiagnostics()
     m_diagnosticManager.invalidateDiagnostics();
 }
 
+TextEditor::TextMarks ClangEditorDocumentProcessor::diagnosticTextMarksAt(uint line,
+                                                                          uint column) const
+{
+    return m_diagnosticManager.diagnosticTextMarksAt(line, column);
+}
+
 void ClangEditorDocumentProcessor::setParserConfig(
-        const CppTools::BaseEditorDocumentParser::Configuration config)
+        const CppTools::BaseEditorDocumentParser::Configuration &config)
 {
     m_parser->setConfiguration(config);
     m_builtinProcessor.parser()->setConfiguration(config);
@@ -453,7 +438,11 @@ public:
     FileOptionsBuilder(const QString &filePath, CppTools::ProjectPart &projectPart)
         : m_filePath(filePath)
         , m_projectPart(projectPart)
+        , m_builder(projectPart)
     {
+        // Determine the driver mode from toolchain and flags.
+        m_builder.evaluateCompilerFlags();
+
         addLanguageOptions();
         addGlobalDiagnosticOptions(); // Before addDiagnosticOptions() so users still can overwrite.
         addDiagnosticOptions();
@@ -463,6 +452,10 @@ public:
 
     const QStringList &options() const { return m_options; }
     const Core::Id &diagnosticConfigId() const { return m_diagnosticConfigId; }
+    CppTools::UseBuildSystemWarnings useBuildSystemWarnings() const
+    {
+        return m_useBuildSystemWarnings;
+    }
 
 private:
     void addLanguageOptions()
@@ -470,15 +463,15 @@ private:
         // Determine file kind with respect to ambiguous headers.
         CppTools::ProjectFile::Kind fileKind = CppTools::ProjectFile::classify(m_filePath);
         if (fileKind == CppTools::ProjectFile::AmbiguousHeader) {
-            fileKind = m_projectPart.languageVersion <= ProjectExplorer::LanguageVersion::LatestC
+            fileKind = m_projectPart.languageVersion <= ::Utils::LanguageVersion::LatestC
                  ? CppTools::ProjectFile::CHeader
                  : CppTools::ProjectFile::CXXHeader;
         }
 
-        CppTools::CompilerOptionsBuilder builder(m_projectPart);
-        builder.updateLanguageOption(fileKind);
+        m_builder.reset();
+        m_builder.updateFileLanguage(fileKind);
 
-        m_options.append(builder.options());
+        m_options.append(m_builder.options());
     }
 
     void addDiagnosticOptions()
@@ -502,20 +495,13 @@ private:
     void addDiagnosticOptionsForConfig(const CppTools::ClangDiagnosticConfig &diagnosticConfig)
     {
         m_diagnosticConfigId = diagnosticConfig.id();
+        m_useBuildSystemWarnings = diagnosticConfig.useBuildSystemWarnings()
+                                       ? CppTools::UseBuildSystemWarnings::Yes
+                                       : CppTools::UseBuildSystemWarnings::No;
 
         m_options.append(diagnosticConfig.clangOptions());
         addClangTidyOptions(diagnosticConfig);
         addClazyOptions(diagnosticConfig.clazyChecks());
-    }
-
-    void addXclangArg(const QString &argName, const QString &argValue = QString())
-    {
-        m_options.append("-Xclang");
-        m_options.append(argName);
-        if (!argValue.isEmpty()) {
-            m_options.append("-Xclang");
-            m_options.append(argValue);
-        }
     }
 
     void addClangTidyOptions(const CppTools::ClangDiagnosticConfig &diagnosticConfig)
@@ -525,14 +511,14 @@ private:
         if (tidyMode == Mode::Disabled)
             return;
 
-        addXclangArg("-add-plugin", "clang-tidy");
+        m_options.append(CppTools::XclangArgs({"-add-plugin", "clang-tidy"}));
 
         if (tidyMode == Mode::File)
             return;
 
         const QString checks = diagnosticConfig.clangTidyChecks();
         if (!checks.isEmpty())
-            addXclangArg("-plugin-arg-clang-tidy", "-checks=" + checks);
+            m_options.append(CppTools::XclangArgs({"-plugin-arg-clang-tidy", "-checks=" + checks}));
     }
 
     void addClazyOptions(const QString &checks)
@@ -540,15 +526,16 @@ private:
         if (checks.isEmpty())
             return;
 
-        addXclangArg("-add-plugin", "clang-lazy");
-        addXclangArg("-plugin-arg-clang-lazy", "enable-all-fixits");
-        addXclangArg("-plugin-arg-clang-lazy", "no-autowrite-fixits");
-        addXclangArg("-plugin-arg-clang-lazy", checks);
-
-        // NOTE: we already use -isystem for all include paths to make libclang skip diagnostics for
-        // all of them. That means that ignore-included-files will not change anything unless we decide
-        // to return the original -I prefix for some include paths.
-        addXclangArg("-plugin-arg-clang-lazy", "ignore-included-files");
+        m_options.append(CppTools::XclangArgs({"-add-plugin",
+                                               "clang-lazy",
+                                               "-plugin-arg-clang-lazy",
+                                               "enable-all-fixits",
+                                               "-plugin-arg-clang-lazy",
+                                               "no-autowrite-fixits",
+                                               "-plugin-arg-clang-lazy",
+                                               checks,
+                                               "-plugin-arg-clang-lazy",
+                                               "ignore-included-files"}));
     }
 
     void addGlobalDiagnosticOptions()
@@ -568,16 +555,16 @@ private:
     {
         using namespace CppTools;
 
-        if (getPchUsage() == CompilerOptionsBuilder::PchUsage::None)
+        if (getPchUsage() == UsePrecompiledHeaders::No)
             return;
 
         if (m_projectPart.precompiledHeaders.contains(m_filePath))
             return;
 
-        CompilerOptionsBuilder builder(m_projectPart);
-        builder.addPrecompiledHeaderOptions(CompilerOptionsBuilder::PchUsage::Use);
+        m_builder.reset();
+        m_builder.addPrecompiledHeaderOptions(UsePrecompiledHeaders::Yes);
 
-        m_options.append(builder.options());
+        m_options.append(m_builder.options());
     }
 
 private:
@@ -585,6 +572,8 @@ private:
     const CppTools::ProjectPart &m_projectPart;
 
     Core::Id m_diagnosticConfigId;
+    CppTools::UseBuildSystemWarnings m_useBuildSystemWarnings = CppTools::UseBuildSystemWarnings::No;
+    CppTools::CompilerOptionsBuilder m_builder;
     QStringList m_options;
 };
 } // namespace
@@ -605,12 +594,12 @@ void ClangEditorDocumentProcessor::updateBackendDocument(CppTools::ProjectPart &
             return;
     }
 
-    const QStringList projectPartOptions = ClangCodeModel::Utils::createClangOptions(
-        projectPart,
-        CppTools::ProjectFile::Unsupported); // No language option as FileOptionsBuilder adds it.
-
     const FileOptionsBuilder fileOptions(filePath(), projectPart);
     m_diagnosticConfigId = fileOptions.diagnosticConfigId();
+
+    const QStringList projectPartOptions = ClangCodeModel::Utils::createClangOptions(
+        projectPart, fileOptions.useBuildSystemWarnings(),
+        CppTools::ProjectFile::Unsupported); // No language option as FileOptionsBuilder adds it.
 
     const QStringList compilationArguments = projectPartOptions + fileOptions.options();
 
@@ -652,8 +641,8 @@ ClangEditorDocumentProcessor::creatorForHeaderErrorDiagnosticWidget(
         vbox->setContentsMargins(10, 0, 0, 2);
         vbox->setSpacing(2);
 
-        vbox->addWidget(ClangDiagnosticWidget::create({firstHeaderErrorDiagnostic},
-                                                      ClangDiagnosticWidget::InfoBar));
+        vbox->addWidget(ClangDiagnosticWidget::createWidget({firstHeaderErrorDiagnostic},
+                                                            ClangDiagnosticWidget::InfoBar));
 
         auto widget = new QWidget;
         widget->setLayout(vbox);

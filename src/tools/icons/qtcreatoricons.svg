@@ -20,6 +20,22 @@
      id="defs4">
     <linearGradient
        inkscape:collect="always"
+       id="linearGradient3970">
+      <stop
+         style="stop-color:#000000;stop-opacity:0"
+         offset="0"
+         id="stop3966" />
+      <stop
+         id="stop3974"
+         offset="0.35135135"
+         style="stop-color:#000000;stop-opacity:0" />
+      <stop
+         style="stop-color:#000000;stop-opacity:1"
+         offset="1"
+         id="stop3968" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
        id="linearGradient9821">
       <stop
          style="stop-color:#000000;stop-opacity:1"
@@ -527,6 +543,16 @@
        y1="109.69"
        x2="-191.87"
        y2="110.83" />
+    <radialGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3970"
+       id="radialGradient3972"
+       cx="548.5"
+       cy="91.5"
+       fx="548.5"
+       fy="91.5"
+       r="18.5"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -669,6 +695,14 @@
      width="16"
      id="transparentBackgroundRect"
      style="display:inline;fill:none" />
+  <use
+     x="0"
+     y="0"
+     xlink:href="#transparentBackgroundRect"
+     id="transparentBackgroundRect_22"
+     width="100%"
+     height="100%"
+     transform="matrix(1.375,0,0,1.375,-16,-175.5)" />
   <g
      inkscape:groupmode="layer"
      id="layer7"
@@ -741,6 +775,13 @@
          d="m 108.63,21.74 h -2 V 9 h 2 v 7.36 l 1.11,-0.11 2.13,-3.51 h 2.19 l -2.59,4.26 2.74,4.78 H 112 l -2.2,-3.78 -1.17,0.12 z m -6.41,0 V 9 h 2 v 12.74 z m -2.57,-6.22 v 4.1 a 0.86,0.86 0 0 0 0.2,0.58 1,1 0 0 0 0.59,0.25 l -0.06,1.49 A 3.8,3.8 0 0 1 98,21.28 6.91,6.91 0 0 1 95.1,21.94 c -1.79,0 -2.68,-1 -2.68,-2.86 a 2.44,2.44 0 0 1 0.73,-2 4,4 0 0 1 2.24,-0.74 l 2.32,-0.2 V 15.5 a 1.33,1.33 0 0 0 -0.31,-1 1.35,1.35 0 0 0 -0.93,-0.29 c -0.77,0 -1.73,0 -2.88,0.14 H 93.01 L 92.93,13 a 15.72,15.72 0 0 1 3.61,-0.46 3.31,3.31 0 0 1 2.38,0.71 3.05,3.05 0 0 1 0.73,2.27 z m -4,2.23 a 1.21,1.21 0 0 0 -1.24,1.35 c 0,0.83 0.37,1.24 1.1,1.24 a 7,7 0 0 0 1.91,-0.29 l 0.32,-0.11 V 17.55 Z M 84,11.2 V 9.41 h 9 v 1.79 h -3.49 v 10.54 h -2 V 11.2 Z m -4.62,3.22 h -2.49 v 4 a 4.12,4.12 0 0 0 0.17,1.46 c 0.1,0.24 0.38,0.36 0.82,0.36 l 1.48,-0.06 0.09,1.57 A 11,11 0 0 1 77.61,21.98 2.55,2.55 0 0 1 75.52,21.28 4.41,4.41 0 0 1 75,18.59 V 14.42 H 73.8 V 12.74 H 75 v -2.61 h 1.94 v 2.61 h 2.49 z m -11.94,7.52 c -1.87,0 -3.17,-0.5 -3.91,-1.51 a 8.16,8.16 0 0 1 -1.11,-4.78 8.43,8.43 0 0 1 1.13,-4.85 c 0.75,-1.06 2,-1.58 3.89,-1.58 1.89,0 3.15,0.52 3.89,1.57 a 8.41,8.41 0 0 1 1.12,4.85 11.08,11.08 0 0 1 -0.45,3.49 4,4 0 0 1 -1.5,2 l 1.5,2.47 -1.86,0.86 -1.6,-2.63 a 3.68,3.68 0 0 1 -1.1,0.11 z m -2.34,-2.8 a 3.13,3.13 0 0 0 4.68,0 7.43,7.43 0 0 0 0.6,-3.5 7.78,7.78 0 0 0 -0.62,-3.58 3,3 0 0 0 -4.64,0 7.56,7.56 0 0 0 -0.63,3.56 7.47,7.47 0 0 0 0.61,3.52 z"
          inkscape:connector-curvature="0" />
     </g>
+    <rect
+       style="fill:url(#radialGradient3972)"
+       id="src/plugins/welcome/images/border"
+       width="37"
+       height="37"
+       x="530"
+       y="73" />
   </g>
   <g
      inkscape:groupmode="layer"
@@ -2604,18 +2645,21 @@
          id="path5662-0"
          inkscape:connector-curvature="0"
          sodipodi:nodetypes="cccccccc" />
-      <path
-         sodipodi:nodetypes="sssccss"
-         inkscape:connector-curvature="0"
-         id="rect7867-7-1-4-6-13-8-3"
-         d="m 587.94531,306.94336 h 33.10938 c 0.81824,0 1.3335,0.62105 1.44531,1.43164 V 311 h -36 v -2.625 c 0,-0.81826 0.62707,-1.43164 1.44531,-1.43164 z"
-         style="fill:#3a4055" />
-      <path
-         id="rect5668-6"
-         style="fill:#dfe0e3"
-         d="m 619.5,308 h 2 v 2 h -2 z m -32,0 h 10 v 2 h -10 z"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="cccccccccc" />
+      <g
+         id="tempateIconGuiWizarfTitleBar">
+        <path
+           style="fill:#3a4055"
+           d="m 587.94531,306.94336 h 33.10938 c 0.81824,0 1.3335,0.62105 1.44531,1.43164 V 311 h -36 v -2.625 c 0,-0.81826 0.62707,-1.43164 1.44531,-1.43164 z"
+           id="rect7867-7-1-4-6-13-8-3"
+           inkscape:connector-curvature="0"
+           sodipodi:nodetypes="sssccss" />
+        <path
+           sodipodi:nodetypes="cccccccccc"
+           inkscape:connector-curvature="0"
+           d="m 619.5,308 h 2 v 2 h -2 z m -32,0 h 10 v 2 h -10 z"
+           style="fill:#dfe0e3"
+           id="rect5668-6" />
+      </g>
     </g>
     <use
        x="0"
@@ -2625,6 +2669,152 @@
        transform="translate(60,0)"
        width="100%"
        height="100%" />
+    <g
+       id="pythonSnake"
+       transform="matrix(1.03639,0,0,1.03639,42.698825,-127.31617)">
+      <path
+         style="stroke-width:0.62522024"
+         d="m 493.40157,381.58661 c -1.64186,0.28728 -1.95327,1.12936 -1.98311,2.23791 v 1.47075 h 3.8497 l 0.0197,0.96489 h -3.88913 -1.45286 c -1.12761,0 -2.07681,0.6104 -2.5352,1.9502 -0.45839,1.3398 -0.43103,2.68855 0,4.05417 0.43103,1.36562 0.93069,1.7217 2.05828,1.71476 l 0.98462,-5e-5 v -1.46166 c 0,-1.43884 1.23626,-2.39787 2.71574,-2.39787 h 4.24283 c 1.07877,0 1.73984,-0.59015 1.73527,-1.66316 l -0.0197,-4.63208 c -0.004,-1.04142 -0.79695,-2.06408 -1.84987,-2.2379 -0.66651,-0.10988 -1.35625,-0.15393 -2.01952,-0.15085 -0.66326,0.003 -1.2994,0.0532 -1.85674,0.15089 z m -0.53661,1.53569 c 0.40077,0 0.72642,0.32748 0.72642,0.73256 0,0.40364 -0.32565,0.72932 -0.72642,0.72932 -0.40221,0 -0.72644,-0.3258 -0.72644,-0.72944 0,-0.40508 0.32423,-0.73244 0.72644,-0.73244 z"
+         id="path1631"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="ssccccszzscssssscccssssss" />
+    </g>
+    <g
+       id="pythonLogo">
+      <use
+         style="fill:#3a4055;fill-opacity:1"
+         height="100%"
+         width="100%"
+         transform="translate(16)"
+         id="use1658"
+         xlink:href="#pythonSnake"
+         y="0"
+         x="0" />
+      <use
+         style="fill:#848895;fill-opacity:1"
+         height="100%"
+         width="100%"
+         transform="rotate(180,564.00512,277.49996)"
+         id="use1660"
+         xlink:href="#pythonSnake"
+         y="0"
+         x="0" />
+    </g>
+    <g
+       id="share/qtcreator/templates/wizards/projects/qtforpythonapplication/mainwindow/icon">
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect_60_60"
+         id="use6218"
+         width="100%"
+         height="100%"
+         transform="translate(540,60)" />
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#wizardicons_laptop"
+         id="use6220"
+         width="100%"
+         height="100%"
+         transform="translate(55,-78)" />
+      <use
+         transform="translate(-11.997289,-36)"
+         height="100%"
+         width="100%"
+         id="use6176"
+         xlink:href="#pythonLogo"
+         y="0"
+         x="0"
+         style="display:inline" />
+      <path
+         style="display:inline;fill:#3a4055;stroke-width:1"
+         d="m 571,238 -6e-4,10.32943 2.47755,-1.72702 1.42512,3.25135 2.17205,-0.94811 -1.42511,-3.25136 2.95258,-0.64325 z"
+         id="path6222"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccccccc" />
+      <use
+         transform="translate(-38.5,-80)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#tempateIconGuiWizarfTitleBar"
+         id="use6247"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       transform="translate(115,-78)"
+       id="share/qtcreator/templates/wizards/projects/qtforpythonapplication/empty/icon">
+      <use
+         transform="translate(485,138)"
+         height="100%"
+         width="100%"
+         id="use6264"
+         xlink:href="#transparentBackgroundRect_60_60"
+         y="0"
+         x="0"
+         style="display:inline" />
+      <g
+         transform="translate(0,-1)"
+         id="g6272">
+        <path
+           sodipodi:nodetypes="sssccss"
+           inkscape:connector-curvature="0"
+           id="path6266"
+           d="m 494.5,304.5 h 33 c 1.58695,0 3,1.41305 3,3 v 25 h -39 v -25 c 0,-1.58696 1.41305,-3 3,-3 z"
+           style="fill:#fbfbfb;stroke:#6b7080;stroke-width:3" />
+        <path
+           sodipodi:nodetypes="ccccc"
+           inkscape:connector-curvature="0"
+           id="path6268"
+           d="m 535,333 h -48 c 0,2 1,3 3,4 h 42 c 2,-1 3,-2 3,-4 z"
+           style="fill:#848895" />
+        <path
+           sodipodi:nodetypes="csscc"
+           inkscape:connector-curvature="0"
+           id="path6270"
+           d="m 517,333 c 0,0.77906 -0.69638,1 -1.61124,1 H 506.5 c -0.91487,0 -1.69151,-0.22094 -1.69151,-1 z"
+           style="fill:#53586b" />
+      </g>
+      <path
+         sodipodi:nodetypes="cccccccccccc"
+         inkscape:connector-curvature="0"
+         d="m 502,325 h 6 v 1 h -6 z m -5.75012,-7 h 1.5 l 4,4 -4,4 h -1.5 l 4,-4 z"
+         style="fill:#3a4055;stroke-width:1"
+         id="path6274" />
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#pythonLogo"
+         id="use6278"
+         width="100%"
+         height="100%"
+         transform="translate(-54.999998,40)" />
+    </g>
+    <g
+       id="share/qtcreator/templates/wizards/files/python/icon">
+      <use
+         height="100%"
+         width="100%"
+         transform="translate(480,60)"
+         id="use8679"
+         xlink:href="#src/libs/utils/images/wizardicon-file"
+         y="0"
+         x="0" />
+      <use
+         height="100%"
+         width="100%"
+         id="use8681"
+         xlink:href="#use6278"
+         y="0"
+         x="0"
+         style="display:inline"
+         transform="translate(169,-74)" />
+    </g>
     <g
        id="src/plugins/coreplugin/images/settingscategory_core"
        transform="translate(-364,-84)">
@@ -3188,6 +3378,395 @@
          width="100%"
          height="100%" />
     </g>
+    <g
+       id="src/plugins/valgrind/images/kcachegrind"
+       transform="translate(112)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#backgroundRect"
+         id="use5933-0-2"
+         width="100%"
+         height="100%"
+         transform="translate(1740,132)" />
+      <circle
+         style="fill:none;stroke:#000000"
+         id="path3156"
+         cx="1732.5"
+         cy="575.5"
+         r="3" />
+      <circle
+         style="fill:none;stroke:#000000"
+         id="path3156-7"
+         cx="1732.5"
+         cy="575.5"
+         r="5" />
+      <path
+         style="fill:none;stroke:#000000"
+         id="path3156-7-6"
+         sodipodi:type="arc"
+         sodipodi:cx="1732.5"
+         sodipodi:cy="575.5"
+         sodipodi:rx="5.5"
+         sodipodi:ry="5.5"
+         sodipodi:start="1.0821041"
+         sodipodi:end="4.118977"
+         d="m 1735.0821,580.35621 a 5.5,5.5 0 0 1 -7.2965,-2.0235 5.5,5.5 0 0 1 1.6388,-7.39242"
+         sodipodi:open="true" />
+      <path
+         style="fill:none;stroke:#000000"
+         d="m 1735,580 c 1,2 2.5,3.5 3.5,2.5 1,-1 -0.5,-2.5 -2.5,-3.5"
+         id="path7714"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="czc" />
+      <rect
+         style="fill:#000000"
+         id="rect7716"
+         width="3"
+         height="3"
+         x="1731"
+         y="580" />
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#rect7716"
+         id="use7718-4"
+         transform="rotate(45,1732.2679,575.40407)"
+         width="100%"
+         height="100%" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#rect7716"
+         id="use7718"
+         transform="rotate(90,1732.5,575.5)"
+         width="100%"
+         height="100%" />
+      <use
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#rect7716"
+         id="use7718-4-4"
+         transform="rotate(135,1732.4602,575.4038)"
+         width="100%"
+         height="100%" />
+    </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer8"
+     inkscape:label="macOS touch bar">
+    <g
+       id="src/plugins/debugger/images/macos_touchbar_debug"
+       transform="translate(-40)">
+      <use
+         transform="translate(596,-132)"
+         height="100%"
+         width="100%"
+         id="use2428"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <use
+         height="100%"
+         width="100%"
+         id="use2393"
+         xlink:href="#big_beetle"
+         y="0"
+         x="0"
+         style="display:inline"
+         transform="translate(361,271)" />
+    </g>
+    <g
+       id="src/plugins/debugger/images/macos_touchbar_debug_step_over"
+       transform="translate(-17)">
+      <use
+         transform="translate(596,-132)"
+         height="100%"
+         width="100%"
+         id="use2428-8"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <path
+         style="fill:none;stroke:#000000"
+         d="m 568,316.5 c -4,0 -7,3.5 -7,7.5 0,4 3,7 6,9"
+         id="path4741-1"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="czc" />
+      <path
+         style="fill:#000000"
+         d="m 568,334 v -5 l -5,5 z"
+         id="path4743-3"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccc" />
+      <path
+         id="big_debugger_function"
+         style="fill:#000000"
+         d="m 573,323 h 5 v 1 h -5 z m 0,-3 h 5 v 1 h -5 z m -2,12 h 7 v 2 h -7 c -0.5,0 -1,-0.45404 -1,-0.97702 C 570,332.5 570.5,332 571,332 Z m 0,-16 h 7 v 2 h -7 c -0.5,0 -1,-0.5 -1,-1 0,-0.5 0.5,-1 1,-1 z m 2,10 h 5 v 1 h -5 z m 0,3 h 5 v 1 h -5 z"
+         inkscape:connector-curvature="0" />
+    </g>
+    <g
+       id="src/plugins/debugger/images/macos_touchbar_debug_step_into"
+       transform="translate(6)">
+      <use
+         transform="translate(596,-132)"
+         height="100%"
+         width="100%"
+         id="use2428-8-1"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <path
+         style="fill:none;stroke:#000000"
+         d="m 560.5,316 c 0,5.5 1,9.5 8.5,9.5"
+         id="path4741-1-1"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc" />
+      <path
+         style="fill:#000000"
+         d="m 571,325.5 -4,-3.5 v 7 z"
+         id="path4743-3-6"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccc" />
+      <use
+         x="0"
+         y="0"
+         xlink:href="#big_debugger_function"
+         id="use2612"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       transform="translate(29)"
+       id="src/plugins/debugger/images/macos_touchbar_debug_step_out">
+      <use
+         transform="translate(596,-132)"
+         height="100%"
+         width="100%"
+         id="use2428-8-6"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <path
+         sodipodi:nodetypes="cc"
+         inkscape:connector-curvature="0"
+         id="path2631"
+         d="m 571,324.5 c -5,0 -7.5,0 -7.5,7.5"
+         style="fill:none;stroke:#000000" />
+      <path
+         sodipodi:nodetypes="cccc"
+         inkscape:connector-curvature="0"
+         id="path2633"
+         d="m 563.5,334 3.5,-4 h -7 z"
+         style="fill:#000000" />
+      <use
+         height="100%"
+         width="100%"
+         id="use2635"
+         xlink:href="#big_debugger_function"
+         y="0"
+         x="0" />
+    </g>
+    <g
+       transform="translate(52)"
+       id="src/plugins/projectexplorer/images/macos_touchbar_debug_start">
+      <use
+         transform="translate(596,-132)"
+         height="100%"
+         width="100%"
+         id="use2428-8-9"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <use
+         transform="translate(307,-254.5)"
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#play_small"
+         id="use4017"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(-192,266)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#big_bug"
+         id="use4013"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       transform="translate(75,2.38e-4)"
+       id="src/plugins/debugger/images/macos_touchbar_debug_exit">
+      <use
+         transform="translate(596,-132.00024)"
+         height="100%"
+         width="100%"
+         id="use2428-8-3"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <use
+         transform="translate(291,-255.00024)"
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#stop_small"
+         id="use4034"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(-192,266)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#big_bug"
+         id="use4013-4"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       transform="translate(98,2.38e-4)"
+       id="src/plugins/debugger/images/macos_touchbar_debug_interrupt">
+      <use
+         transform="translate(596,-132.00024)"
+         height="100%"
+         width="100%"
+         id="use2428-8-5"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <use
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#smallinterruptbar"
+         id="use4930-6"
+         transform="translate(291,-255.00024)"
+         width="100%"
+         height="100%" />
+      <use
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#smallinterruptbar"
+         id="use4930-0"
+         transform="translate(298,-255.00024)"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(-192,266)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#big_bug"
+         id="use4013-4-1"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       transform="translate(121,2.4414063e-4)"
+       id="src/plugins/debugger/images/macos_touchbar_debug_continue">
+      <use
+         transform="translate(596,-132.00024)"
+         height="100%"
+         width="100%"
+         id="use2428-8-7"
+         xlink:href="#transparentBackgroundRect_22"
+         y="0"
+         x="0" />
+      <use
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#smallinterruptbar"
+         id="use4930-0-6"
+         transform="translate(291,-255.00024)"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(291,-255.00024)"
+         style="display:inline;fill:#4d4d4d"
+         x="0"
+         y="0"
+         xlink:href="#smallinterruptcontinuebar"
+         id="use4087"
+         width="100%"
+         height="100%" />
+      <use
+         transform="translate(-192,266)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#big_bug"
+         id="use4013-4-1-0"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       id="src/libs/utils/images/macos_touchbar_bookmark"
+       transform="translate(158)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect_22"
+         id="use2428-6"
+         width="100%"
+         height="100%"
+         transform="translate(582,-132)" />
+      <use
+         transform="matrix(2.0000107,0,0,1.6666667,-1365.0103,-635)"
+         height="100%"
+         width="100%"
+         id="use2449"
+         xlink:href="#bookmarkribbon"
+         y="0"
+         x="0"
+         style="display:inline;stroke-width:0.54772115" />
+    </g>
+    <g
+       id="src/plugins/help/images/macos_touchbar_help"
+       transform="translate(181)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect_22"
+         id="use2428-6-7"
+         width="100%"
+         height="100%"
+         transform="translate(582,-132)" />
+      <use
+         transform="translate(196,270)"
+         style="display:inline"
+         x="0"
+         y="0"
+         xlink:href="#big_helpquestionmark"
+         id="use2506"
+         width="100%"
+         height="100%" />
+    </g>
+    <g
+       id="src/libs/utils/images/macos_touchbar_clear"
+       transform="translate(69)">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#transparentBackgroundRect_22"
+         id="use2428-6-7-8"
+         width="100%"
+         height="100%"
+         transform="translate(717,-132)" />
+      <path
+         style="fill:#000000"
+         d="m 690,315 a 10,10 0 0 0 -10,10 10,10 0 0 0 10,10 10,10 0 0 0 10.00001,-10 A 10,10 0 0 0 690,315 Z m -3.42633,4.85491 3.42633,3.42635 3.42635,-3.42635 1.71874,1.71874 -3.42634,3.42634 3.42634,3.42634 -1.71874,1.71875 -3.42635,-3.42634 -3.42633,3.42634 -1.71874,-1.71875 3.42634,-3.42634 -3.42634,-3.42634 z"
+         id="path4480-4"
+         inkscape:connector-curvature="0" />
+    </g>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -3703,9 +4282,9 @@
          style="fill:#ffffff;fill-opacity:1;stroke:none" />
       <polygon
          transform="translate(-201,318)"
-         id="polygon4899-2"
-         points="464,258 453,251 453,265 "
-         style="fill:#000000;fill-opacity:1;stroke:none" />
+         id="play_small"
+         points="453,251 453,265 464,258 "
+         style="fill-opacity:1;stroke:none" />
     </g>
     <g
        id="src/libs/utils/images/stop_small"
@@ -3718,12 +4297,12 @@
          x="265"
          style="fill:#ffffff;fill-opacity:1;stroke:none" />
       <rect
-         id="rect4905-9"
+         id="stop_small"
          height="12"
          width="12"
          y="570"
          x="267"
-         style="fill:#000000;fill-opacity:1;stroke:none" />
+         style="fill-opacity:1;stroke:none" />
     </g>
     <g
        transform="translate(128,0)"
@@ -3736,7 +4315,6 @@
          height="16"
          id="rect4810" />
       <rect
-         style="opacity:1;fill:#000000;fill-opacity:1;stroke:none;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          id="smallinterruptbar"
          width="5"
          height="12"
@@ -4565,9 +5143,8 @@
          height="16"
          id="rect4810-1" />
       <path
-         style="opacity:1;fill:#000000;fill-opacity:1;stroke:none;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="m 274,570 6,6 -6,6 z"
-         id="rect4817-6"
+         id="smallinterruptcontinuebar"
          inkscape:connector-curvature="0"
          sodipodi:nodetypes="cccc" />
     </g>
@@ -7707,7 +8284,7 @@
          height="100%" />
       <g
          transform="translate(-4.5,-7)"
-         id="g5397-4">
+         id="big_beetle">
         <path
            d="m 212,52 c -1.275,0 -3.30877,1.17695 -3.88477,2.75195 L 212,56.9375 215.88477,54.75195 C 215.30877,53.17595 213.275,52 212,52 Z m -4.67578,3.68359 -1.98633,1.76563 -1.39648,-1.39453 c -0.194,-0.194 -0.51304,-0.194 -0.70703,0 -0.194,0.194 -0.194,0.51303 0,0.70703 l 1.6875,1.6875 L 204.03516,62 H 202.5 c -0.275,0 -0.5,0.225 -0.5,0.5 0,0.275 0.225,0.5 0.5,0.5 h 1.48828 l 1.19141,3.8125 -1.62696,1.62695 c -0.194,0.194 -0.194,0.51303 0,0.70703 0.194,0.194 0.51304,0.194 0.70704,0 l 1.375,-1.375 3.55273,2.36719 2.3125,0.58594 V 58 Z m 9.35156,0 L 212.5,58 v 12.72461 l 2.3125,-0.58594 3.55078,-2.36719 1.375,1.375 c 0.194,0.194 0.51303,0.194 0.70703,0 0.194,-0.194 0.194,-0.51303 0,-0.70703 l -1.625,-1.625 L 220.01172,63 H 221.5 c 0.275,0 0.5,-0.225 0.5,-0.5 0,-0.275 -0.225,-0.5 -0.5,-0.5 h -1.53516 l -0.88672,-3.55078 1.6875,-1.6875 c 0.19401,-0.194 0.194,-0.51303 0,-0.70703 -0.19399,-0.194 -0.51303,-0.194 -0.70703,0 l -1.39648,1.39453 z"
            id="path5403-3"
@@ -7746,7 +8323,7 @@
          width="100%"
          height="100%" />
       <path
-         id="path5457-0"
+         id="big_helpquestionmark"
          d="m 359,45 c -5.522,0 -10,4.478 -10,10 0,5.522 4.478,10 10,10 5.522,0 10,-4.478 10,-10 0,-5.522 -4.478,-10 -10,-10 z m 1.136,16.182 c -0.274,0.269 -0.604,0.402 -0.989,0.402 -0.187,0 -0.364,-0.035 -0.533,-0.105 -0.169,-0.07 -0.318,-0.163 -0.446,-0.28 -0.129,-0.117 -0.23,-0.257 -0.307,-0.42 -0.076,-0.163 -0.113,-0.338 -0.113,-0.525 0,-0.373 0.137,-0.694 0.411,-0.962 0.273,-0.268 0.603,-0.402 0.988,-0.402 0.374,0 0.7,0.128 0.98,0.385 0.28,0.257 0.42,0.572 0.42,0.945 0,0.372 -0.138,0.693 -0.411,0.962 z m 2.738,-7.98 c -0.104,0.292 -0.245,0.56 -0.42,0.805 -0.175,0.245 -0.376,0.479 -0.604,0.7 -0.228,0.222 -0.47,0.455 -0.727,0.7 -0.163,0.151 -0.303,0.286 -0.42,0.402 -0.116,0.117 -0.213,0.236 -0.288,0.359 -0.076,0.122 -0.132,0.262 -0.167,0.42 -0.034,0.157 -0.052,0.347 -0.052,0.569 v 0.665 h -2.101 V 56.86 c 0,-0.256 0.015,-0.475 0.044,-0.656 0.029,-0.181 0.081,-0.344 0.157,-0.49 0.076,-0.146 0.175,-0.286 0.298,-0.42 0.122,-0.134 0.271,-0.295 0.446,-0.481 l 1.348,-1.365 c 0.291,-0.292 0.438,-0.67 0.438,-1.137 0,-0.455 -0.149,-0.825 -0.446,-1.111 -0.298,-0.286 -0.674,-0.429 -1.129,-0.429 -0.49,0 -0.893,0.166 -1.208,0.499 -0.314,0.333 -0.495,0.738 -0.542,1.216 l -2.24,-0.175 c 0.07,-0.56 0.216,-1.059 0.438,-1.496 0.222,-0.438 0.511,-0.808 0.866,-1.111 0.355,-0.303 0.768,-0.534 1.234,-0.691 0.466,-0.158 0.979,-0.236 1.54,-0.236 0.524,0 1.012,0.076 1.461,0.228 0.449,0.152 0.84,0.371 1.172,0.656 0.333,0.286 0.593,0.642 0.779,1.067 0.186,0.426 0.28,0.913 0.28,1.461 10e-4,0.382 -0.052,0.721 -0.157,1.013 z"
          inkscape:connector-curvature="0" />
     </g>

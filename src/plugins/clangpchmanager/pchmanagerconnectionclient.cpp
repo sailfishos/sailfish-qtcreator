@@ -51,11 +51,11 @@ ClangPchManager::PchManagerConnectionClient::PchManagerConnectionClient(
 {
     m_processCreator.setTemporaryDirectoryPattern("clangpchmanagerbackend-XXXXXX");
 
-    QDir pchsDirectory(Core::ICore::userResourcePath());
+    QDir pchsDirectory(Core::ICore::cacheResourcePath());
     pchsDirectory.mkdir("pchs");
     pchsDirectory.cd("pchs");
     m_processCreator.setArguments({connectionName(),
-                                   Core::ICore::userResourcePath() + "/symbol-experimental-v1.db",
+                                   Core::ICore::cacheResourcePath() + "/symbol-experimental-v1.db",
                                    pchsDirectory.absolutePath()});
 
     stdErrPrefixer().setPrefix("PchManagerConnectionClient.stderr: ");
@@ -87,9 +87,9 @@ QString PchManagerConnectionClient::outputName() const
     return QStringLiteral("PchManagerConnectionClient");
 }
 
-void PchManagerConnectionClient::newConnectedServer(QIODevice *ioDevice)
+void PchManagerConnectionClient::newConnectedServer(QLocalSocket *localSocket)
 {
-    m_serverProxy.setIoDevice(ioDevice);
+    m_serverProxy.setLocalSocket(localSocket);
 }
 
 } // namespace ClangPchManager

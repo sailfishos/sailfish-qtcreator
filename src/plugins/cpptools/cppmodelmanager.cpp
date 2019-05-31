@@ -39,7 +39,6 @@
 #include "cpplocatordata.h"
 #include "cpplocatorfilter.h"
 #include "cppbuiltinmodelmanagersupport.h"
-#include "cppqtstyleindenter.h"
 #include "cpprefactoringchanges.h"
 #include "cpprefactoringengine.h"
 #include "cppsourceprocessor.h"
@@ -62,7 +61,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectmacro.h>
 #include <projectexplorer/session.h>
-#include <texteditor/indenter.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -96,7 +94,7 @@ class DumpAST: protected ASTVisitor
 public:
     int depth;
 
-    DumpAST(Control *control)
+    explicit DumpAST(Control *control)
         : ASTVisitor(control), depth(0)
     { }
 
@@ -510,10 +508,9 @@ void CppModelManager::initializeBuiltinModelManagerSupport()
 
 CppModelManager::CppModelManager()
     : CppModelManagerBase(nullptr)
-    , createCppIndenter([]() { return new CppQtStyleIndenter; })
     , d(new CppModelManagerPrivate)
 {
-    d->m_indexingSupporter = 0;
+    d->m_indexingSupporter = nullptr;
     d->m_enableGC = true;
 
     qRegisterMetaType<QSet<QString> >();
@@ -698,7 +695,7 @@ void CppModelManager::removeExtraEditorSupport(AbstractEditorSupport *editorSupp
 CppEditorDocumentHandle *CppModelManager::cppEditorDocument(const QString &filePath) const
 {
     if (filePath.isEmpty())
-        return 0;
+        return nullptr;
 
     QMutexLocker locker(&d->m_cppEditorDocumentsMutex);
     return d->m_cppEditorDocuments.value(filePath, 0);
@@ -989,7 +986,7 @@ void CppModelManager::watchForCanceledProjectIndexer(const QVector<QFuture<void>
         if (future.isCanceled() || future.isFinished())
             continue;
 
-        QFutureWatcher<void> *watcher = new QFutureWatcher<void>();
+        auto watcher = new QFutureWatcher<void>();
         connect(watcher, &QFutureWatcher<void>::canceled, this, [this, project, watcher]() {
             if (d->m_projectToIndexerCanceled.contains(project)) // Project not yet removed
                 d->m_projectToIndexerCanceled.insert(project, true);
@@ -1029,12 +1026,6 @@ void CppModelManager::updateCppEditorDocuments(bool projectsUpdated) const
             theCppEditorDocument->setRefreshReason(refreshReason);
         }
     }
-}
-
-QFuture<void> CppModelManager::updateProjectInfo(const ProjectInfo &newProjectInfo)
-{
-    QFutureInterface<void> dummy;
-    return updateProjectInfo(dummy, newProjectInfo);
 }
 
 QFuture<void> CppModelManager::updateProjectInfo(QFutureInterface<void> &futureInterface,
@@ -1170,9 +1161,9 @@ ProjectPart::Ptr CppModelManager::fallbackProjectPart()
 
     // Do not activate ObjectiveCExtensions since this will lead to the
     // "objective-c++" language option for a project-less *.cpp file.
-    part->languageExtensions = ProjectExplorer::LanguageExtension::All;
-    part->languageExtensions &= ~ProjectExplorer::LanguageExtensions(
-        ProjectExplorer::LanguageExtension::ObjectiveC);
+    part->languageExtensions = Utils::LanguageExtension::All;
+    part->languageExtensions &= ~Utils::LanguageExtensions(
+        Utils::LanguageExtension::ObjectiveC);
 
     part->qtVersion = ProjectPart::Qt5;
     part->updateLanguageFeatures();
@@ -1197,9 +1188,10 @@ void CppModelManager::emitDocumentUpdated(Document::Ptr doc)
 }
 
 void CppModelManager::emitAbstractEditorSupportContentsUpdated(const QString &filePath,
+                                                               const QString &sourcePath,
                                                                const QByteArray &contents)
 {
-    emit abstractEditorSupportContentsUpdated(filePath, contents);
+    emit abstractEditorSupportContentsUpdated(filePath, sourcePath, contents);
 }
 
 void CppModelManager::emitAbstractEditorSupportRemoved(const QString &filePath)
@@ -1326,11 +1318,6 @@ void CppModelManager::renameIncludes(const QString &oldFileName, const QString &
     }
 }
 
-void CppModelManager::setBackendJobsPostponed(bool postponed)
-{
-    d->m_activeModelManagerSupport->setBackendJobsPostponed(postponed);
-}
-
 void CppModelManager::onCoreAboutToClose()
 {
     Core::ProgressManager::cancelTasks(CppTools::Constants::TASK_INDEX);
@@ -1424,7 +1411,7 @@ void CppModelManager::setIndexingSupport(CppIndexingSupport *indexingSupport)
 {
     if (indexingSupport) {
         if (dynamic_cast<BuiltinIndexingSupport *>(indexingSupport))
-            d->m_indexingSupporter = 0;
+            d->m_indexingSupporter = nullptr;
         else
             d->m_indexingSupporter = indexingSupport;
     }

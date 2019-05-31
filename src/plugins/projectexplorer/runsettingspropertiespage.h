@@ -94,7 +94,7 @@ private:
     QMenu *m_addRunMenu;
     QMenu *m_addDeployMenu;
     bool m_ignoreChange = false;
-    typedef QPair<QWidget *, QLabel *> RunConfigItem;
+    using RunConfigItem = QPair<QWidget *, QLabel *>;
     QList<RunConfigItem> m_subWidgets;
 
     QGridLayout *m_gridLayout;
@@ -106,6 +106,7 @@ private:
     QPushButton *m_addRunToolButton;
     QPushButton *m_removeRunToolButton;
     QPushButton *m_renameRunButton;
+    QPushButton *m_cloneRunButton;
     QPushButton *m_renameDeployButton;
     QLabel *m_disabledIcon;
     QLabel *m_disabledText;

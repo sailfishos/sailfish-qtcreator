@@ -47,7 +47,7 @@ using namespace Internal;
 
 #ifdef Q_CC_MSVC
 
-// Copied from abstractmsvctoolchain.cpp to avoid plugin dependency.
+// Copied from msvctoolchain.cpp to avoid plugin dependency.
 static bool generateEnvironmentSettings(Utils::Environment &env,
                                         const QString &batchFile,
                                         const QString &batchArgs,
@@ -1699,6 +1699,8 @@ void tst_Dumpers::dumper()
             return static_cast<WatchItem *>(item)->internalName() == iname;
         }));
         if (!item) {
+            if (check.optionallyPresent)
+                return true;
             qDebug() << "NOT SEEN: " << check.iname;
             return false;
         }
@@ -2041,23 +2043,30 @@ void tst_Dumpers::dumper_data()
                //     Value5("Tue Jan 1 13:15:32 1980 GMT"), "@QDateTime") % Optional();
 
 #ifdef Q_OS_WIN
-    QString tempDir = "\"C:/Program Files\"";
+    QString tempDir = "C:/Program Files";
 #else
-    QString tempDir = "\"/tmp\"";
+    QString tempDir = "/tmp";
 #endif
+    auto quoted = [](const QString &str) { return QString('"' + str + '"'); };
+
     QTest::newRow("QDir")
             << Data("#include <QDir>\n",
-                    "QDir dir(" + tempDir + ");\n"
+                    "QDir dir(" + quoted(tempDir) + ");\n"
                     "QString s = dir.absolutePath();\n"
-                    "QFileInfoList fi = dir.entryInfoList();\n"
+                    "QFileInfoList fil = dir.entryInfoList();\n"
+                    "QFileInfo fi = fil.first();\n"
                     "unused(&dir, &s, &fi);\n")
 
                + CoreProfile()
                + QtVersion(0x50300)
 
-               + Check("dir", tempDir, "@QDir")
-            // + Check("dir.canonicalPath", tempDir, "@QString")
-               + Check("dir.absolutePath", tempDir, "@QString") % Optional();
+               + Check("dir", quoted(tempDir), "@QDir")
+            // + Check("dir.canonicalPath", quoted(tempDir), "@QString")
+               + Check("dir.absolutePath", quoted(tempDir), "@QString") % Optional()
+               + Check("dir.entryInfoList.0", "[0]", quoted(tempDir + "/."), "@QFileInfo")
+               + Check("dir.entryInfoList.1", "[1]", quoted(tempDir + "/.."), "@QFileInfo")
+               + Check("dir.entryList.0", "[0]", "\".\"", "@QString")
+               + Check("dir.entryList.1", "[1]", "\"..\"", "@QString");
 
 
     QTest::newRow("QFileInfo")
@@ -2826,8 +2835,8 @@ void tst_Dumpers::dumper_data()
                + Check("ob", "\"An Object\"", "@QWidget")
                + Check("ob1", "\"Another Object\"", "@QObject")
                + Check("ob2", "\"A Subobject\"", "@QObject")
-               + Check("ob.[extra].[connections].0.0.receiver", "\"Another Object\"",
-                       "@QObject") % NoCdbEngine;
+               + Check("ob.[extra].[connections].@1.0.0.receiver", "\"Another Object\"",
+                       "@QObject") % NoCdbEngine % QtVersion(0x50b00);
 
 
     QString senderData =
@@ -5455,6 +5464,19 @@ void tst_Dumpers::dumper_data()
                 + Check("e.e2", "(E::b2 | E::c2) (3)", "E::Enum2")
                 + Check("e.e3", "(E::b3 | E::c3) (3)", "E::Enum3");
 
+    QTest::newRow("QSizePolicy")
+        << Data("#include <QSizePolicy>\n",
+                "QSizePolicy qsp1;\n"
+                "qsp1.setHorizontalStretch(6);\n"
+                "qsp1.setVerticalStretch(7);\n"
+                "QSizePolicy qsp2(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);\n")
+                + GuiProfile()
+                + NoCdbEngine
+                + Check("qsp1.horStretch", "6", "int")
+                + Check("qsp1.verStretch", "7", "int")
+                + Check("qsp2.horPolicy", "QSizePolicy::Preferred (GrowFlag|ShrinkFlag) (5)", "@QSizePolicy::Policy")
+                + Check("qsp2.verPolicy", "QSizePolicy::MinimumExpanding (GrowFlag|ExpandFlag) (3)", "@QSizePolicy::Policy");
+
 
     QTest::newRow("Array")
             << Data("",
@@ -5975,6 +5997,17 @@ void tst_Dumpers::dumper_data()
                + Check("x1", "", "X &")
                + Check("x2", "", "X &")
                + Check("x3", "", "X &");
+
+    QTest::newRow("RValueReference")
+            << Data("",
+                    "struct S { int a = 32; };\n"
+                    "auto foo = [](int && i, S && s) { BREAK; return i + s.a; };\n"
+                    "foo(int(1), S());\n")
+               + Cxx11Profile()
+               + GdbVersion(80200)
+               + Check("i", "1", "int &&")
+               + CheckType("s", "S &&")
+               + Check("s.a", "32", "int");
 
     QTest::newRow("SSE")
             << Data("#include <xmmintrin.h>\n"

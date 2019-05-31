@@ -80,6 +80,7 @@ public:
         EditorPlaceholderColor,
         FancyToolBarSeparatorColor,
         FancyTabBarBackgroundColor,
+        FancyTabBarSelectedBackgroundColor,
         FancyTabWidgetDisabledSelectedTextColor,
         FancyTabWidgetDisabledUnselectedTextColor,
         FancyTabWidgetEnabledSelectedTextColor,
@@ -196,7 +197,6 @@ public:
         IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
-        IconsModeMerActiveColor,
 
         /* Code model Icons */
 

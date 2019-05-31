@@ -29,11 +29,11 @@
 #include "projectexplorer_global.h"
 
 #include "headerpath.h"
-#include "language.h"
 #include "projectmacro.h"
 
 #include <coreplugin/id.h>
 
+#include <utils/cpplanguage_details.h>
 #include <utils/fileutils.h>
 
 #include <QObject>
@@ -108,14 +108,15 @@ public:
 
     virtual bool isValid() const = 0;
 
-    virtual LanguageExtensions languageExtensions(const QStringList &cxxflags) const = 0;
+    virtual Utils::LanguageExtensions languageExtensions(const QStringList &cxxflags) const = 0;
     virtual WarningFlags warningFlags(const QStringList &cflags) const = 0;
+    virtual QString sysRoot() const;
 
     class MacroInspectionReport
     {
     public:
         Macros macros;
-        LanguageVersion languageVersion;
+        Utils::LanguageVersion languageVersion;
     };
 
     // A MacroInspectionRunner is created in the ui thread and runs in another thread.
@@ -148,11 +149,9 @@ public:
     virtual QVariantMap toMap() const;
     virtual QList<Task> validateKit(const Kit *k) const;
 
-    virtual bool isJobCountSupported() const { return true; }
-
     void setLanguage(Core::Id language);
-    static LanguageVersion cxxLanguageVersion(const QByteArray &cplusplusMacroValue);
-    static LanguageVersion languageVersion(const Core::Id &language, const Macros &macros);
+    static Utils::LanguageVersion cxxLanguageVersion(const QByteArray &cplusplusMacroValue);
+    static Utils::LanguageVersion languageVersion(const Core::Id &language, const Macros &macros);
 
 protected:
     explicit ToolChain(Core::Id typeId, Detection d);

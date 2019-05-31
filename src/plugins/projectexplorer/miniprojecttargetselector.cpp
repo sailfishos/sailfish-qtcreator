@@ -62,8 +62,6 @@
 #include <QAction>
 #include <QItemDelegate>
 
-#include <array>
-
 static QIcon createCenteredIcon(const QIcon &icon, const QIcon &overlay)
 {
     QPixmap targetPixmap;
@@ -113,8 +111,6 @@ private:
     void paint(QPainter *painter,
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
-    QString elide(const QString &text, const QStringList &otherTexts, const QFontMetrics &fm,
-            int width) const;
     ListWidget *m_listWidget;
 };
 
@@ -160,14 +156,8 @@ void TargetSelectorDelegate::paint(QPainter *painter,
 
     QFontMetrics fm(option.font);
     QString text = index.data(Qt::DisplayRole).toString();
-    QStringList otherTexts;
-    for (QModelIndex other = index.sibling(0, 0); other.isValid(); other = other.sibling(other.row() + 1, 0)) {
-        if (other != index)
-            otherTexts.append(other.data(Qt::DisplayRole).toString());
-    }
-
     painter->setPen(textColor);
-    QString elidedText = elide(text, otherTexts, fm, option.rect.width() - 12);
+    QString elidedText = fm.elidedText(text, Qt::ElideMiddle, option.rect.width() - 12);
     if (elidedText != text)
         const_cast<QAbstractItemModel *>(index.model())->setData(index, text, Qt::ToolTipRole);
     else
@@ -176,37 +166,6 @@ void TargetSelectorDelegate::paint(QPainter *painter,
     painter->drawText(option.rect.left() + 6, option.rect.top() + (option.rect.height() - fm.height()) / 2 + fm.ascent(), elidedText);
 
     painter->restore();
-}
-
-QString TargetSelectorDelegate::elide(const QString &text, const QStringList &otherTexts,
-        const QFontMetrics &fm, int width) const
-{
-    std::array<Qt::TextElideMode, 3> modes{
-        Qt::ElideMiddle,
-        Qt::ElideRight,
-        Qt::ElideLeft
-    };
-
-    int minDuplicates = std::numeric_limits<int>::max();
-    QString retv;
-
-    foreach (const Qt::TextElideMode mode, modes) {
-        QString elidedText = fm.elidedText(text, mode, width);
-        int duplicates = 0;
-        foreach (const QString &otherText, otherTexts) {
-            QString otherElidedText = fm.elidedText(otherText, mode, width);
-            if (elidedText == otherElidedText)
-                ++duplicates;
-        }
-        if (duplicates < minDuplicates) {
-            minDuplicates = duplicates;
-            retv = elidedText;
-            if (duplicates == 0)
-                break;
-        }
-    }
-
-    return retv;
 }
 
 ////////
@@ -611,10 +570,6 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
     m_layout->setMargin(3);
     setAutoFillBackground(true);
     connect(KitManager::instance(), &KitManager::kitUpdated, this, &KitAreaWidget::updateKit);
-
-    QPalette p;
-    p.setColor(QPalette::ButtonText, Qt::white);
-    setPalette(p);
 }
 
 KitAreaWidget::~KitAreaWidget()
@@ -713,15 +668,6 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     QWidget(parent),
     m_projectAction(targetSelectorAction)
 {
-    QPalette p;
-    p.setColor(QPalette::Foreground, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Text, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::ButtonText, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
-    p.setColor(QPalette::Background, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Base, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor));
-    p.setColor(QPalette::Button, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name());
-    setPalette(p);
-
     setProperty("panelwidget", true);
     setContentsMargins(QMargins(0, 1, 1, 8));
     setWindowFlags(Qt::Popup);
@@ -1584,7 +1530,7 @@ void MiniProjectTargetSelector::updateActionAndSummary()
         lines << tr("<b>Run:</b> %1").arg(runConfig);
     if (!targetToolTipText.isEmpty())
         lines << tr("%1").arg(targetToolTipText);
-    QString toolTip = tr("<html><nobr>%1</html>")
+    QString toolTip = QString("<html><nobr>%1</html>")
             .arg(lines.join(QLatin1String("<br/>")));
     m_projectAction->setToolTip(toolTip);
     updateSummary();

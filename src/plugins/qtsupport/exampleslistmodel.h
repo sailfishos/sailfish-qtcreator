@@ -118,7 +118,6 @@ public:
     QString videoUrl;
     QString videoLength;
     QStringList platforms;
-    QStringList preferredFeatures;
 };
 
 class ExamplesListModel : public QAbstractListModel

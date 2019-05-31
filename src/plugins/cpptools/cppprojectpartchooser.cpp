@@ -77,7 +77,7 @@ public:
     }
 
 private:
-    QList<PrioritizedProjectPart> prioritize(const QList<ProjectPart::Ptr> &projectParts)
+    QList<PrioritizedProjectPart> prioritize(const QList<ProjectPart::Ptr> &projectParts) const
     {
         // Prioritize
         QList<PrioritizedProjectPart> prioritized = Utils::transform(projectParts,
@@ -117,7 +117,7 @@ private:
     bool isPreferredLanguage(const ProjectPart &projectPart) const
     {
         const bool isCProjectPart = projectPart.languageVersion
-                                    <= ProjectExplorer::LanguageVersion::LatestC;
+                                    <= Utils::LanguageVersion::LatestC;
         return (m_languagePreference == Language::C && isCProjectPart)
             || (m_languagePreference == Language::Cxx && !isCProjectPart);
     }

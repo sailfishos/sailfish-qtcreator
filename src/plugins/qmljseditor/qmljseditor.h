@@ -74,7 +74,7 @@ public:
 
     void inspectElementUnderCursor() const;
 
-    void findUsages();
+    void findUsages() override;
     void renameUsages();
     void showContextPane();
 
@@ -108,7 +108,6 @@ protected:
                     bool resolveTarget = true,
                     bool inNextSplit = false) override;
     QString foldReplacementText(const QTextBlock &block) const override;
-    void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker) override;
 
 private:
     void setSelectedElements();

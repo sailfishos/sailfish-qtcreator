@@ -94,9 +94,9 @@ void TextEditorWidget::setTextEditor(TextEditor::BaseTextEditor *textEditor)
         oldEditor->deleteLater();
 }
 
-void TextEditorWidget::contextHelpId(const Core::IContext::HelpIdCallback &callback) const
+void TextEditorWidget::contextHelp(const Core::IContext::HelpCallback &callback) const
 {
-    m_textEditorView->contextHelpId(callback);
+    m_textEditorView->contextHelp(callback);
 }
 
 void TextEditorWidget::updateSelectionByCursorPosition()
@@ -108,15 +108,20 @@ void TextEditorWidget::updateSelectionByCursorPosition()
     const int cursorPosition = m_textEditor->editorWidget()->textCursor().position();
     RewriterView *rewriterView = m_textEditorView->model()->rewriterView();
 
+    m_blockRoundTrip = true;
     if (rewriterView) {
         ModelNode modelNode = rewriterView->nodeAtTextCursorPosition(cursorPosition);
         if (modelNode.isValid() && !m_textEditorView->isSelectedModelNode(modelNode))
             m_textEditorView->setSelectedModelNode(modelNode);
     }
+    m_blockRoundTrip = false;
 }
 
 void TextEditorWidget::jumpTextCursorToSelectedModelNode()
 {
+    if (m_blockRoundTrip)
+        return;
+
     ModelNode selectedNode;
 
     if (hasFocus())

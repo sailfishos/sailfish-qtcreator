@@ -25,25 +25,27 @@
 
 #pragma once
 
-#include <texteditor/indenter.h>
+#include <texteditor/textindenter.h>
 
-namespace TextEditor { class SimpleCodeStylePreferences; }
+namespace TextEditor {
+class SimpleCodeStylePreferences;
+}
 
 namespace Nim {
 
 class NimLexer;
 
-class NimIndenter : public TextEditor::Indenter
+class NimIndenter : public TextEditor::TextIndenter
 {
 public:
-    NimIndenter();
+    explicit NimIndenter(QTextDocument *doc);
 
     bool isElectricCharacter(const QChar &ch) const override;
 
-    void indentBlock(QTextDocument *document,
-                     const QTextBlock &block,
+    void indentBlock(const QTextBlock &block,
                      const QChar &typedChar,
-                     const TextEditor::TabSettings &settings) override;
+                     const TextEditor::TabSettings &settings,
+                     int cursorPositionInEditor = -1) override;
 
 private:
     static const QSet<QChar> &electricCharacters();
@@ -51,9 +53,11 @@ private:
     bool startsBlock(const QString &line, int state) const;
     bool endsBlock(const QString &line, int state) const;
 
-    int calculateIndentationDiff(const QString &previousLine, int previousState, int indentSize) const;
+    int calculateIndentationDiff(const QString &previousLine,
+                                 int previousState,
+                                 int indentSize) const;
 
-    static QString rightTrimmed(const QString& other);
+    static QString rightTrimmed(const QString &other);
 };
 
-}
+} // namespace Nim

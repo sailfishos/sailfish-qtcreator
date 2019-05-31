@@ -48,8 +48,8 @@ public:
     QmlOutlineItem(QmlOutlineModel *model);
 
     // QStandardItem
-    QVariant data(int role = Qt::UserRole + 1) const;
-    int type() const;
+    QVariant data(int role = Qt::UserRole + 1) const override;
+    int type() const override;
 
     void setItemData(const QMap<int, QVariant> &roles);
 
@@ -79,12 +79,12 @@ public:
     QmlOutlineModel(QmlJSEditorDocument *document);
 
     // QStandardItemModel
-    QStringList mimeTypes() const;
-    QMimeData *mimeData(const QModelIndexList &indexes) const;
-    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex  &parent);
-    Qt::ItemFlags flags(const QModelIndex &index) const;
-    Qt::DropActions supportedDragActions() const;
-    Qt::DropActions supportedDropActions() const;
+    QStringList mimeTypes() const override;
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex  &parent) override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    Qt::DropActions supportedDragActions() const override;
+    Qt::DropActions supportedDropActions() const override;
 
     QmlJS::Document::Ptr document() const;
     void update(const QmlJSTools::SemanticInfo &semanticInfo);
@@ -120,10 +120,10 @@ private:
                                            QmlJS::AST::FunctionExpression *functionExpression);
     void leaveFieldMemberExpression();
 
-    QModelIndex enterTestCase(QmlJS::AST::ObjectLiteral *objectLiteral);
+    QModelIndex enterTestCase(QmlJS::AST::ObjectPattern *objectLiteral);
     void leaveTestCase();
 
-    QModelIndex enterTestCaseProperties(QmlJS::AST::PropertyAssignmentList *propertyAssignmentList);
+    QModelIndex enterTestCaseProperties(QmlJS::AST::PatternPropertyList *propertyAssignmentList);
     void leaveTestCaseProperties();
 
 private:
@@ -140,9 +140,8 @@ private:
     static QString asString(QmlJS::AST::UiQualifiedId *id);
     static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::UiObjectMember *objMember);
     static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::ExpressionNode *exprNode);
-    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyAssignmentList *propertyNode);
-    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyNameAndValue *propertyNode);
-    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyGetterSetter *propertyNode);
+    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PatternProperty *propertyNode);
+    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PatternPropertyList *propertyNode);
     QIcon getIcon(QmlJS::AST::UiQualifiedId *objDef);
 
     QString getAnnotation(QmlJS::AST::UiObjectInitializer *objInitializer);

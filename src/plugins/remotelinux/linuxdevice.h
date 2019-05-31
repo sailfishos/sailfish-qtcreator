@@ -32,25 +32,19 @@
 #include <QCoreApplication>
 
 namespace RemoteLinux {
-namespace Internal { class LinuxDevicePrivate; }
 
 class REMOTELINUX_EXPORT LinuxDevice : public ProjectExplorer::IDevice
 {
     Q_DECLARE_TR_FUNCTIONS(RemoteLinux::Internal::LinuxDevice)
 
 public:
-    typedef QSharedPointer<LinuxDevice> Ptr;
-    typedef QSharedPointer<const LinuxDevice> ConstPtr;
+    using Ptr = QSharedPointer<LinuxDevice>;
+    using ConstPtr = QSharedPointer<const LinuxDevice>;
 
-    static Ptr create();
-    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
-                      Origin origin = ManuallyAdded, Core::Id id = Core::Id());
+    static Ptr create() { return Ptr(new LinuxDevice); }
 
     QString displayType() const override;
     ProjectExplorer::IDeviceWidget *createWidget() override;
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
     Utils::OsType osType() const override;
     ProjectExplorer::IDevice::Ptr clone() const override;
 
@@ -65,14 +59,11 @@ public:
     ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const override;
     ProjectExplorer::DeviceEnvironmentFetcher::Ptr environmentFetcher() const override;
 
-protected:
-    LinuxDevice() {}
-    LinuxDevice(const QString &name, Core::Id type,
-                             MachineType machineType, Origin origin, Core::Id id);
-    LinuxDevice(const LinuxDevice &other);
+    void setSupportsRsync(bool supportsRsync);
+    bool supportsRSync() const;
 
-private:
-    LinuxDevice &operator=(const LinuxDevice &);
+protected:
+    LinuxDevice();
 };
 
 } // namespace RemoteLinux

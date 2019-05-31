@@ -458,10 +458,6 @@ class Dumper(DumperBase):
     def report(self, stuff):
         sys.stdout.write(stuff + "\n")
 
-    def loadDumpers(self, args):
-        msg = self.setupDumpers()
-        self.reportResult(msg, args)
-
     def findValueByExpression(self, exp):
         return cdbext.parseAndEvaluate(exp)
 
@@ -507,3 +503,7 @@ class Dumper(DumperBase):
 
     def putCallItem(self, name, rettype, value, func, *args):
         return
+
+    def symbolAddress(self, symbolName):
+        res = self.nativeParseAndEvaluate(symbolName)
+        return None if res is None else res.address()

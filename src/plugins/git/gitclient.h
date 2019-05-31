@@ -84,7 +84,7 @@ public:
     QString ignore;
 };
 
-typedef QMap<QString, SubmoduleData> SubmoduleDataMap;
+using SubmoduleDataMap = QMap<QString, SubmoduleData>;
 
 class GitClient : public VcsBase::VcsBaseClientImpl
 {
@@ -234,7 +234,7 @@ public:
     QString synchronousTopic(const QString &workingDirectory) const;
     bool synchronousRevParseCmd(const QString &workingDirectory, const QString &ref,
                                 QString *output, QString *errorMessage = nullptr) const;
-    QString synchronousTopRevision(const QString &workingDirectory);
+    QString synchronousTopRevision(const QString &workingDirectory, QDateTime *dateTime = nullptr);
     void synchronousTagsForCommit(const QString &workingDirectory, const QString &revision,
                                   QString &precedes, QString &follows) const;
     bool isRemoteCommit(const QString &workingDirectory, const QString &commit);
@@ -263,6 +263,7 @@ public:
     // git svn support (asynchronous).
     void synchronousSubversionFetch(const QString &workingDirectory);
     void subversionLog(const QString &workingDirectory);
+    void subversionDeltaCommit(const QString &workingDirectory);
 
     void stashPop(const QString &workingDirectory, const QString &stash = QString());
     void revert(const QStringList &files, bool revertStaging);

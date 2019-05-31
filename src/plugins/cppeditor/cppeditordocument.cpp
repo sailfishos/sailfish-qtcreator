@@ -43,7 +43,13 @@
 
 #include <projectexplorer/session.h>
 
+#include <texteditor/icodestylepreferencesfactory.h>
+#include <texteditor/storagesettings.h>
+#include <texteditor/textdocumentlayout.h>
+#include <texteditor/texteditorsettings.h>
+
 #include <coreplugin/editormanager/editormanager.h>
+#include <utils/executeondestruction.h>
 #include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcassert.h>
 #include <utils/runextensions.h>
@@ -58,6 +64,8 @@ CppTools::CppModelManager *mm()
 }
 
 } // anonymous namespace
+
+using namespace TextEditor;
 
 namespace CppEditor {
 namespace Internal {
@@ -74,7 +82,10 @@ public:
         mm()->registerCppEditorDocument(this);
     }
 
-    ~CppEditorDocumentHandleImpl() { mm()->unregisterCppEditorDocument(m_registrationFilePath); }
+    ~CppEditorDocumentHandleImpl() override
+    {
+        mm()->unregisterCppEditorDocument(m_registrationFilePath);
+    }
 
     QString filePath() const override { return m_cppEditorDocument->filePath().toString(); }
     QByteArray contents() const override { return m_cppEditorDocument->contentsText(); }
@@ -94,16 +105,14 @@ private:
 };
 
 CppEditorDocument::CppEditorDocument()
-    : m_fileIsBeingReloaded(false)
-    , m_isObjCEnabled(false)
-    , m_cachedContentsRevision(-1)
-    , m_processorRevision(0)
-    , m_completionAssistProvider(0)
-    , m_minimizableInfoBars(*infoBar())
+    : m_minimizableInfoBars(*infoBar())
 {
     setId(CppEditor::Constants::CPPEDITOR_ID);
     setSyntaxHighlighter(new CppHighlighter);
-    setIndenter(CppTools::CppModelManager::instance()->createCppIndenter());
+
+    ICodeStylePreferencesFactory *factory
+        = TextEditorSettings::codeStyleFactory(CppTools::Constants::CPP_SETTINGS_ID);
+    setIndenter(factory->createIndenter(document()));
 
     connect(this, &TextEditor::TextDocument::tabSettingsChanged,
             this, &CppEditorDocument::invalidateFormatterCache);
@@ -128,7 +137,7 @@ bool CppEditorDocument::isObjCEnabled() const
     return m_isObjCEnabled;
 }
 
-TextEditor::CompletionAssistProvider *CppEditorDocument::completionAssistProvider() const
+CppTools::CppCompletionAssistProvider *CppEditorDocument::completionAssistProvider() const
 {
     return m_completionAssistProvider;
 }
@@ -235,6 +244,7 @@ void CppEditorDocument::onFilePathChanged(const Utils::FileName &oldPath,
     Q_UNUSED(oldPath);
 
     if (!newPath.isEmpty()) {
+        indenter()->setFileName(newPath);
         setMimeType(Utils::mimeTypeForFile(newPath.toFileInfo()).name());
 
         connect(this, &Core::IDocument::contentsChanged,
@@ -342,7 +352,7 @@ unsigned CppEditorDocument::contentsRevision() const
 void CppEditorDocument::releaseResources()
 {
     if (m_processor)
-        disconnect(m_processor.data(), 0, this, 0);
+        disconnect(m_processor.data(), nullptr, this, nullptr);
     m_processor.reset();
 }
 
@@ -435,9 +445,53 @@ CppTools::BaseEditorDocumentProcessor *CppEditorDocument::processor()
 
 TextEditor::TabSettings CppEditorDocument::tabSettings() const
 {
-    return indenter()->hasTabSettings()
-            ? indenter()->tabSettings()
-            : TextEditor::TextDocument::tabSettings();
+    return indenter()->tabSettings().value_or(TextEditor::TextDocument::tabSettings());
+}
+
+bool CppEditorDocument::save(QString *errorString, const QString &fileName, bool autoSave)
+{
+    Utils::ExecuteOnDestruction resetSettingsOnScopeExit;
+
+    if (indenter()->formatOnSave() && !autoSave) {
+        auto *layout = qobject_cast<TextEditor::TextDocumentLayout *>(document()->documentLayout());
+        const int documentRevision = layout->lastSaveRevision;
+
+        TextEditor::RangesInLines editedRanges;
+        TextEditor::RangeInLines lastRange{-1, -1};
+        for (int i = 0; i < document()->blockCount(); ++i) {
+            const QTextBlock block = document()->findBlockByNumber(i);
+            if (block.revision() == documentRevision) {
+                if (lastRange.startLine != -1)
+                    editedRanges.push_back(lastRange);
+
+                lastRange.startLine = lastRange.endLine = -1;
+                continue;
+            }
+
+            // block.revision() != documentRevision
+            if (lastRange.startLine == -1)
+                lastRange.startLine = block.blockNumber() + 1;
+            lastRange.endLine = block.blockNumber() + 1;
+        }
+
+        if (lastRange.startLine != -1)
+            editedRanges.push_back(lastRange);
+
+        if (!editedRanges.empty()) {
+            QTextCursor cursor(document());
+            cursor.beginEditBlock();
+            indenter()->format(editedRanges);
+            cursor.endEditBlock();
+        }
+
+        TextEditor::StorageSettings settings = storageSettings();
+        resetSettingsOnScopeExit.reset(
+            [this, defaultSettings = settings]() { setStorageSettings(defaultSettings); });
+        settings.m_cleanWhitespace = false;
+        setStorageSettings(settings);
+    }
+
+    return TextEditor::TextDocument::save(errorString, fileName, autoSave);
 }
 
 } // namespace Internal

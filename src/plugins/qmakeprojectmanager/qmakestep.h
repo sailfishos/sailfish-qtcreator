@@ -29,7 +29,8 @@
 #include <projectexplorer/abstractprocessstep.h>
 
 #include <QStringList>
-#include <QFutureWatcher>
+
+#include <memory>
 
 namespace Utils { class FileName; }
 
@@ -74,6 +75,8 @@ public:
     QStringList toArguments() const;
 
     // Actual data
+    QString sysRoot;
+    QString targetTriple;
     TargetArchConfig archConfig = NoArch;
     OsType osType = NoOsType;
     bool linkQmlDebuggingQQ2 = false;
@@ -111,10 +114,9 @@ public:
     explicit QMakeStep(ProjectExplorer::BuildStepList *parent);
 
     QmakeBuildConfiguration *qmakeBuildConfiguration() const;
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &) override;
+    bool init() override;
+    void doRun() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
     void setForced(bool b);
 
     enum class ArgumentFlag {
@@ -132,12 +134,9 @@ public:
     // arguments set by the user
     QString userArguments();
     void setUserArguments(const QString &arguments);
-    // Extra arguments for qmake and pro file parser. Not user editable via UI.
+    // QMake extra arguments. Not user editable.
     QStringList extraArguments() const;
     void setExtraArguments(const QStringList &args);
-    // Extra arguments for pro file parser only. Not user editable via UI.
-    QStringList extraParserArguments() const;
-    void setExtraParserArguments(const QStringList &args);
     Utils::FileName mkspec() const;
     bool linkQmlDebuggingLibrary() const;
     void setLinkQmlDebuggingLibrary(bool enable);
@@ -165,6 +164,9 @@ protected:
     bool processSucceeded(int exitCode, QProcess::ExitStatus status) override;
 
 private:
+    void doCancel() override;
+    void finish(bool success) override;
+
     void startOneCommand(const QString &command, const QString &args);
     void runNextCommand();
 
@@ -173,18 +175,12 @@ private:
     QString m_makeExecutable;
     QString m_makeArguments;
     QString m_userArgs;
-    // Extra arguments for qmake and pro file parser
+    // Extra arguments for qmake.
     QStringList m_extraArgs;
-    // Extra arguments for pro file parser only
-    QStringList m_extraParserArgs;
-
-    QFutureInterface<bool> m_inputFuture;
-    QFutureWatcher<bool> m_inputWatcher;
-    std::unique_ptr<QFutureInterface<bool>> m_commandFuture;
-    QFutureWatcher<bool> m_commandWatcher;
 
     // last values
     enum class State { IDLE = 0, RUN_QMAKE, RUN_MAKE_QMAKE_ALL, POST_PROCESS };
+    bool m_wasSuccess = true;
     State m_nextState = State::IDLE;
     bool m_forced = false;
     bool m_needToRunQMake = false; // set in init(), read in run()
@@ -203,9 +199,7 @@ class QMakeStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
 public:
     QMakeStepConfigWidget(QMakeStep *step);
     ~QMakeStepConfigWidget() override;
-    QString summaryText() const override;
-    QString additionalSummaryText() const override;
-    QString displayName() const override;
+
 private:
     // slots for handling buildconfiguration/step signals
     void qtVersionChanged();
@@ -230,12 +224,8 @@ private:
     void updateQtQuickCompilerOption();
     void updateEffectiveQMakeCall();
 
-    void setSummaryText(const QString &);
-
     Internal::Ui::QMakeStep *m_ui = nullptr;
     QMakeStep *m_step = nullptr;
-    QString m_summaryText;
-    QString m_additionalSummaryText;
     bool m_ignoreChange = false;
 };
 

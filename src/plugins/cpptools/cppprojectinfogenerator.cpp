@@ -82,7 +82,7 @@ static ProjectPart::Ptr projectPartFromRawProjectPart(const RawProjectPart &rawP
 
 QVector<ProjectPart::Ptr> ProjectInfoGenerator::createProjectParts(const RawProjectPart &rawProjectPart)
 {
-    using ProjectExplorer::LanguageExtension;
+    using Utils::LanguageExtension;
 
     QVector<ProjectPart::Ptr> result;
     ProjectFileCategorizer cat(rawProjectPart.displayName,
@@ -138,7 +138,7 @@ ProjectPart::Ptr ProjectInfoGenerator::createProjectPart(
     const ProjectFiles &projectFiles,
     const QString &partName,
     Language language,
-    ProjectExplorer::LanguageExtensions languageExtensions)
+    Utils::LanguageExtensions languageExtensions)
 {
     RawProjectPartFlags flags;
     ToolChainInfo tcInfo;
@@ -162,7 +162,9 @@ ProjectPart::Ptr ProjectInfoGenerator::createProjectPart(
                                                       : ProjectPart::WordWidth32Bit;
     part->toolChainTargetTriple = tcInfo.targetTriple;
     part->extraCodeModelFlags = tcInfo.extraCodeModelFlags;
+    part->compilerFlags = flags.commandLineFlags;
     part->warningFlags = flags.warningFlags;
+    part->language = language;
     part->languageExtensions = flags.languageExtensions;
 
     // Toolchain macros and language version
@@ -172,9 +174,9 @@ ProjectPart::Ptr ProjectInfoGenerator::createProjectPart(
         part->languageVersion = macroInspectionReport.languageVersion;
     // No compiler set in kit.
     } else if (language == Language::C) {
-        part->languageVersion = ProjectExplorer::LanguageVersion::LatestC;
+        part->languageVersion = Utils::LanguageVersion::LatestC;
     } else {
-        part->languageVersion = ProjectExplorer::LanguageVersion::LatestCxx;
+        part->languageVersion = Utils::LanguageVersion::LatestCxx;
     }
 
     // Header paths

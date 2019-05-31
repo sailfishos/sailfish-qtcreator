@@ -29,10 +29,14 @@
 #include "clangtoolsprojectsettings.h"
 #include "clangtoolsutils.h"
 
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/manhattanstyle.h>
+
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QAction>
+#include <QApplication>
 #include <QDebug>
 #include <QHeaderView>
 #include <QPainter>
@@ -42,61 +46,150 @@ using namespace Debugger;
 namespace ClangTools {
 namespace Internal {
 
-class ClickableFixItHeader : public QHeaderView
+// A header view that puts a check box in front of a given column.
+class HeaderWithCheckBoxInColumn : public QHeaderView
 {
     Q_OBJECT
 
 public:
-    ClickableFixItHeader(Qt::Orientation orientation, QWidget *parent = 0)
+    HeaderWithCheckBoxInColumn(Qt::Orientation orientation,
+                               int column = 0,
+                               QWidget *parent = nullptr)
         : QHeaderView(orientation, parent)
+        , m_column(column)
     {
+        setDefaultAlignment(Qt::AlignLeft);
     }
 
-    void setState(QFlags<QStyle::StateFlag> newState)
-    {
-        state = newState;
-    }
+    void setState(QFlags<QStyle::StateFlag> newState) { state = newState; }
 
 protected:
-    void paintSection(QPainter *painter, const QRect &rect, int logicalIndex) const
+    void paintSection(QPainter *painter, const QRect &rect, int logicalIndex) const override
     {
         painter->save();
         QHeaderView::paintSection(painter, rect, logicalIndex);
         painter->restore();
-        if (logicalIndex == DiagnosticView::FixItColumn) {
+        if (logicalIndex == m_column) {
             QStyleOptionButton option;
             const int side = sizeHint().height();
             option.rect = QRect(rect.left() + 1, 1, side - 3, side - 3);
             option.state = state;
+            painter->save();
+            const int shift = side - 2;
+            painter->translate(QPoint(shift, 0));
+            QHeaderView::paintSection(painter, rect.adjusted(0, 0, -shift, 0), logicalIndex);
+            painter->restore();
             style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &option, painter);
         }
     }
 
-    void mousePressEvent(QMouseEvent *event)
+    void mouseReleaseEvent(QMouseEvent *event) override
     {
-        if (event->localPos().x() > sectionPosition(DiagnosticView::FixItColumn)) {
+        const int x = event->localPos().x();
+        const int columnX = sectionPosition(m_column);
+        const bool isWithinCheckBox = x > columnX && x < columnX + sizeHint().height() - 3;
+        if (isWithinCheckBox) {
             state = (state != QStyle::State_On) ? QStyle::State_On : QStyle::State_Off;
             viewport()->update();
-            emit fixItColumnClicked(state == QStyle::State_On);
+            emit checkBoxClicked(state == QStyle::State_On);
+            return; // Avoid changing sort order
         }
-        QHeaderView::mousePressEvent(event);
+        QHeaderView::mouseReleaseEvent(event);
     }
 
 signals:
-    void fixItColumnClicked(bool checked);
+    void checkBoxClicked(bool checked);
 
 private:
+    const int m_column = 0;
     QFlags<QStyle::StateFlag> state = QStyle::State_Off;
+};
+
+static QString getBaseStyleName()
+{
+    QStyle *style = QApplication::style();
+    if (auto proxyStyle = qobject_cast<QProxyStyle *>(style))
+        style = proxyStyle->baseStyle();
+    return style->objectName();
+}
+
+// Paints the check box indicator disabled if requested by client.
+class DiagnosticViewStyle : public ManhattanStyle
+{
+public:
+    DiagnosticViewStyle(const QString &baseStyleName = getBaseStyleName())
+        : ManhattanStyle(baseStyleName)
+    {}
+
+    void setPaintCheckBoxDisabled(bool paintDisabledCheckbox)
+    {
+        m_paintCheckBoxDisabled = paintDisabledCheckbox;
+    }
+
+    void drawPrimitive(PrimitiveElement element,
+                       const QStyleOption *option,
+                       QPainter *painter,
+                       const QWidget *widget = nullptr) const final
+    {
+        if (element == QStyle::PE_IndicatorCheckBox && m_paintCheckBoxDisabled) {
+            if (const QStyleOptionButton *o = qstyleoption_cast<const QStyleOptionButton *>(
+                    option)) {
+                QStyleOptionButton myOption = *o;
+                myOption.palette.setCurrentColorGroup(QPalette::Disabled);
+                ManhattanStyle::drawPrimitive(element, &myOption, painter, widget);
+                return;
+            }
+        }
+        ManhattanStyle::drawPrimitive(element, option, painter, widget);
+    }
+
+private:
+    bool m_paintCheckBoxDisabled = false;
+};
+
+// A delegate that allows to paint a disabled check box (indicator).
+// This is useful if the rest of the item should not be disabled.
+class DiagnosticViewDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+
+public:
+    DiagnosticViewDelegate(DiagnosticViewStyle *style)
+        : m_style(style)
+    {}
+
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const final
+    {
+        const bool paintDisabled = !index.data(ClangToolsDiagnosticModel::CheckBoxEnabledRole)
+                                        .toBool();
+        if (paintDisabled)
+            m_style->setPaintCheckBoxDisabled(true);
+        QStyledItemDelegate::paint(painter, option, index);
+        if (paintDisabled)
+            m_style->setPaintCheckBoxDisabled(false);
+    }
+
+private:
+    DiagnosticViewStyle *m_style = nullptr;
 };
 
 DiagnosticView::DiagnosticView(QWidget *parent)
     : Debugger::DetailedErrorView(parent)
+    , m_style(new DiagnosticViewStyle)
+    , m_delegate(new DiagnosticViewDelegate(m_style.get()))
 {
     m_suppressAction = new QAction(tr("Suppress This Diagnostic"), this);
     connect(m_suppressAction, &QAction::triggered,
             this, &DiagnosticView::suppressCurrentDiagnostic);
     installEventFilter(this);
+
+    setStyle(m_style.get());
+    setItemDelegate(m_delegate.get());
 }
+
+DiagnosticView::~DiagnosticView() = default;
 
 void DiagnosticView::suppressCurrentDiagnostic()
 {
@@ -125,9 +218,57 @@ void DiagnosticView::suppressCurrentDiagnostic()
     }
 }
 
+void DiagnosticView::goNext()
+{
+    const QModelIndex currentIndex = selectionModel()->currentIndex();
+    selectIndex(getIndex(currentIndex, Next));
+}
+
+void DiagnosticView::goBack()
+{
+    const QModelIndex currentIndex = selectionModel()->currentIndex();
+    selectIndex(getIndex(currentIndex, Previous));
+}
+
+QModelIndex DiagnosticView::getIndex(const QModelIndex &index, Direction direction) const
+{
+    const QModelIndex parentIndex = index.parent();
+    QModelIndex followingTopIndex = index;
+
+    if (parentIndex.isValid()) {
+        // Use direct sibling for level 2 and 3 items
+        const QModelIndex followingIndex = index.sibling(index.row() + direction, 0);
+        if (followingIndex.isValid())
+            return followingIndex;
+
+        // First/Last level 3 item? Continue on level 2 item.
+        if (parentIndex.parent().isValid())
+            return direction == Previous ? parentIndex : getIndex(parentIndex, direction);
+
+        followingTopIndex = getTopLevelIndex(parentIndex, direction);
+    }
+
+    // Skip top level items without children
+    while (!model()->hasChildren(followingTopIndex))
+        followingTopIndex = getTopLevelIndex(followingTopIndex, direction);
+
+    // Select first/last level 2 item
+    const int row = direction == Next ? 0 : model()->rowCount(followingTopIndex) - 1;
+    return model()->index(row, 0, followingTopIndex);
+}
+
+QModelIndex DiagnosticView::getTopLevelIndex(const QModelIndex &index, Direction direction) const
+{
+    QModelIndex following = index.sibling(index.row() + direction, 0);
+    if (following.isValid())
+        return following;
+    const int row = direction == Next ? 0 : model()->rowCount() - 1;
+    return model()->index(row, 0);
+}
+
 QList<QAction *> DiagnosticView::customActions() const
 {
-    return QList<QAction *>() << m_suppressAction;
+    return {m_suppressAction};
 }
 
 bool DiagnosticView::eventFilter(QObject *watched, QEvent *event)
@@ -138,12 +279,7 @@ bool DiagnosticView::eventFilter(QObject *watched, QEvent *event)
         switch (key) {
         case Qt::Key_Return:
         case Qt::Key_Enter:
-        case Qt::Key_Space:
-            const QModelIndex current = currentIndex();
-            const QModelIndex location = model()->index(current.row(),
-                                                        LocationColumn,
-                                                        current.parent());
-            emit clicked(location);
+            openEditorForCurrentIndex();
         }
         return true;
     }
@@ -152,35 +288,59 @@ bool DiagnosticView::eventFilter(QObject *watched, QEvent *event)
     }
 }
 
+void DiagnosticView::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    openEditorForCurrentIndex();
+    Debugger::DetailedErrorView::mouseDoubleClickEvent(event);
+}
+
 void DiagnosticView::setSelectedFixItsCount(int fixItsCount)
 {
     if (m_ignoreSetSelectedFixItsCount)
         return;
-    auto *clickableFixItHeader = static_cast<ClickableFixItHeader *>(header());
-    clickableFixItHeader->setState(fixItsCount
-                                   ? (QStyle::State_NoChange | QStyle::State_On | QStyle::State_Off)
-                                   : QStyle::State_Off);
-    clickableFixItHeader->viewport()->update();
+    auto checkBoxHeader = static_cast<HeaderWithCheckBoxInColumn *>(header());
+    checkBoxHeader->setState(fixItsCount
+                                 ? (QStyle::State_NoChange | QStyle::State_On | QStyle::State_Off)
+                                 : QStyle::State_Off);
+    checkBoxHeader->viewport()->update();
 }
 
-void DiagnosticView::setModel(QAbstractItemModel *model)
+void DiagnosticView::openEditorForCurrentIndex()
 {
-    Debugger::DetailedErrorView::setModel(model);
-    auto *clickableFixItHeader = new ClickableFixItHeader(Qt::Horizontal, this);
-    connect(clickableFixItHeader, &ClickableFixItHeader::fixItColumnClicked,
-            this, [=](bool checked) {
+    const QVariant v = model()->data(currentIndex(), Debugger::DetailedErrorView::LocationRole);
+    const auto loc = v.value<Debugger::DiagnosticLocation>();
+    if (loc.isValid())
+        Core::EditorManager::openEditorAt(loc.filePath, loc.line, loc.column - 1);
+}
+
+void DiagnosticView::setModel(QAbstractItemModel *theProxyModel)
+{
+    const auto proxyModel = static_cast<QSortFilterProxyModel *>(theProxyModel);
+    Debugger::DetailedErrorView::setModel(proxyModel);
+
+    auto *header = new HeaderWithCheckBoxInColumn(Qt::Horizontal,
+                                                  DiagnosticView::DiagnosticColumn,
+                                                  this);
+    connect(header, &HeaderWithCheckBoxInColumn::checkBoxClicked, this, [=](bool checked) {
         m_ignoreSetSelectedFixItsCount = true;
-        for (int row = 0; row < model->rowCount(); ++row) {
-            QModelIndex index = model->index(row, FixItColumn, QModelIndex());
-            model->setData(index, checked ? Qt::Checked : Qt::Unchecked, Qt::CheckStateRole);
+        for (int i = 0, count = proxyModel->rowCount(); i < count; ++i) {
+            const QModelIndex filePathItemIndex = proxyModel->index(i, 0);
+            for (int j = 0, count = proxyModel->rowCount(filePathItemIndex); j < count; ++j) {
+                const QModelIndex proxyIndex = proxyModel->index(j, 0, filePathItemIndex);
+                const QModelIndex diagnosticItemIndex = proxyModel->mapToSource(proxyIndex);
+                auto item = static_cast<DiagnosticItem *>(diagnosticItemIndex.internalPointer());
+                item->setData(DiagnosticView::DiagnosticColumn,
+                              checked ? Qt::Checked : Qt::Unchecked,
+                              Qt::CheckStateRole);
+            }
         }
         m_ignoreSetSelectedFixItsCount = false;
     });
-    setHeader(clickableFixItHeader);
-    clickableFixItHeader->setStretchLastSection(false);
-    clickableFixItHeader->setSectionResizeMode(0, QHeaderView::Stretch);
-    clickableFixItHeader->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    clickableFixItHeader->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    setHeader(header);
+    header->setSectionResizeMode(DiagnosticView::DiagnosticColumn, QHeaderView::Stretch);
+    const int columnWidth = header->sectionSizeHint(DiagnosticView::DiagnosticColumn);
+    const int checkboxWidth = header->height();
+    header->setMinimumSectionSize(columnWidth + 1.2 * checkboxWidth);
 }
 
 } // namespace Internal

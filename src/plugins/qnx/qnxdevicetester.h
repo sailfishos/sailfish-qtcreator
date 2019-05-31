@@ -38,21 +38,22 @@ class QnxDeviceTester : public ProjectExplorer::DeviceTester
 {
     Q_OBJECT
 public:
-    explicit QnxDeviceTester(QObject *parent = 0);
+    explicit QnxDeviceTester(QObject *parent = nullptr);
 
-    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) override;
+    void testDevice(const ProjectExplorer::IDevice::Ptr &deviceConfiguration) override;
     void stopTest() override;
 
 private slots:
     void handleGenericTestFinished(ProjectExplorer::DeviceTester::TestResult result);
 
-    void handleProcessFinished(int exitStatus);
+    void handleProcessFinished(const QString &error);
     void handleConnectionError();
 
 private:
     enum State {
         Inactive,
         GenericTest,
+        VarRunTest,
         CommandsTest
     };
 
@@ -60,6 +61,8 @@ private:
     void setFinished();
 
     QStringList versionSpecificCommandsToTest(int versionNumber) const;
+
+    void handleVarRunProcessFinished(const QString &error);
 
     RemoteLinux::GenericLinuxDeviceTester *m_genericTester;
     ProjectExplorer::IDevice::ConstPtr m_deviceConfiguration;

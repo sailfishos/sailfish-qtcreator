@@ -23,11 +23,14 @@
 **
 ****************************************************************************/
 
+#include "introductionwidget.h"
+
 #include <extensionsystem/iplugin.h>
 #include <extensionsystem/pluginmanager.h>
 
 #include <app/app_version.h>
 
+#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
@@ -129,9 +132,27 @@ class WelcomePlugin : public ExtensionSystem::IPlugin
 public:
     ~WelcomePlugin() final { delete m_welcomeMode; }
 
-    bool initialize(const QStringList &, QString *) final
+    bool initialize(const QStringList &arguments, QString *) final
     {
         m_welcomeMode = new WelcomeMode;
+
+        auto introAction = new QAction(tr("UI Tour"), this);
+        connect(introAction, &QAction::triggered, this, []() {
+            auto intro = new IntroductionWidget(ICore::mainWindow());
+            intro->show();
+        });
+        Command *cmd = ActionManager::registerAction(introAction, "Welcome.UITour");
+        ActionContainer *mhelp = ActionManager::actionContainer(Core::Constants::M_HELP);
+        if (QTC_GUARD(mhelp))
+            mhelp->addAction(cmd, Core::Constants::G_HELP_HELP);
+
+        if (!arguments.contains("-notour")) {
+            connect(ICore::instance(), &ICore::coreOpened, this, []() {
+                IntroductionWidget::askUserAboutIntroduction(ICore::mainWindow(),
+                                                             ICore::settings());
+            }, Qt::QueuedConnection);
+        }
+
         return true;
     }
 
@@ -294,7 +315,7 @@ WelcomeMode::WelcomeMode()
 
     setPriority(Constants::P_MODE_WELCOME);
     setId(Constants::MODE_WELCOME);
-    setContextHelpId("Qt Creator Manual");
+    setContextHelp("Qt Creator Manual");
     setContext(Context(Constants::C_WELCOME_MODE));
 
     QPalette palette = creatorTheme()->palette();

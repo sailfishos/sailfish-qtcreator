@@ -32,10 +32,10 @@
     <category>Linguist</category>
     <order>1</order>
     <executable>
-        <path>%{CurrentBuild:Env:MER_SSH_SDK_TOOLS}/lupdate</path>
+        <path>%{CurrentProject:QT_INSTALL_BINS}/lupdate</path>
         <path>lupdate</path>
         <arguments>%{CurrentProject:FilePath}</arguments>
         <workingdirectory>%{CurrentProject:Path}</workingdirectory>
-        <environment>MER_SSH_PORT%3D%25%7BCurrentBuild%3AEnv%3AMER_SSH_PORT%7D;MER_SSH_PRIVATE_KEY%3D%25%7BCurrentBuild%3AEnv%3AMER_SSH_PRIVATE_KEY%7D;MER_SSH_SHARED_HOME%3D%25%7BCurrentBuild%3AEnv%3AMER_SSH_SHARED_HOME%7D;MER_SSH_USERNAME%3D%25%7BCurrentBuild%3AEnv%3AMER_SSH_USERNAME%7D</environment>
+        <baseEnvironmentId>CurrentBuild:Env</baseEnvironmentId>
     </executable>
 </externaltool>

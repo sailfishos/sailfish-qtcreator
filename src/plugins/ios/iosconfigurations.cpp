@@ -104,7 +104,7 @@ static Core::Id deviceId(const QString &sdkName)
         return Constants::IOS_DEVICE_TYPE;
     else if (sdkName.startsWith("iphonesimulator", Qt::CaseInsensitive))
         return Constants::IOS_SIMULATOR_TYPE;
-    return Core::Id();
+    return {};
 }
 
 static bool isSimulatorDeviceId(const Core::Id &id)
@@ -337,6 +337,15 @@ void IosConfigurations::initialize()
     m_instance = new IosConfigurations(nullptr);
 }
 
+void IosConfigurations::kitsRestored()
+{
+    disconnect(KitManager::instance(), &KitManager::kitsLoaded,
+               this, &IosConfigurations::kitsRestored);
+    IosConfigurations::updateAutomaticKitList();
+    connect(QtVersionManager::instance(), &QtVersionManager::qtVersionsChanged,
+            IosConfigurations::instance(), &IosConfigurations::updateAutomaticKitList);
+}
+
 bool IosConfigurations::ignoreAllDevices()
 {
     return m_instance->m_ignoreAllDevices;
@@ -386,6 +395,8 @@ IosConfigurations::IosConfigurations(QObject *parent)
     : QObject(parent)
 {
     load();
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            this, &IosConfigurations::kitsRestored);
 }
 
 void IosConfigurations::load()
@@ -395,7 +406,8 @@ void IosConfigurations::load()
     m_ignoreAllDevices = settings->value(ignoreAllDevicesKey, false).toBool();
     m_screenshotDir = FileName::fromString(settings->value(screenshotDirPathKey).toString());
     if (!m_screenshotDir.exists()) {
-        QString defaultDir = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first();
+        QString defaultDir =
+                QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).constFirst();
         m_screenshotDir = FileName::fromString(defaultDir);
     }
 
@@ -576,7 +588,7 @@ static ClangToolChain *createToolChain(const XcodePlatform &platform,
             && l != Core::Id(ProjectExplorer::Constants::CXX_LANGUAGE_ID))
         return nullptr;
 
-    ClangToolChain *toolChain = new ClangToolChain(ToolChain::AutoDetection);
+    auto toolChain = new ClangToolChain(ToolChain::AutoDetection);
     toolChain->setLanguage(l);
     toolChain->setDisplayName(target.name);
     toolChain->setPlatformCodeGenFlags(target.backendFlags);

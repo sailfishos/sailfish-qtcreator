@@ -83,6 +83,7 @@
 #include <QAbstractTableModel>
 #include <QDebug>
 #include <QFile>
+#include <QGuiApplication>
 #include <QItemDelegate>
 #include <QPainter>
 #include <QPlainTextEdit>
@@ -91,6 +92,7 @@
 #include <QSettings>
 #include <QStackedWidget>
 #include <QStandardPaths>
+#include <QStyleHints>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextEdit>
@@ -200,7 +202,7 @@ public:
         m_lastMessageLevel = messageLevel;
     }
 
-    QSize sizeHint() const
+    QSize sizeHint() const override
     {
         QSize size = QWidget::sizeHint();
         // reserve maximal width for line edit widget
@@ -259,7 +261,7 @@ public:
     }
 
 protected:
-    void paintEvent(QPaintEvent *event)
+    void paintEvent(QPaintEvent *event) override
     {
         QTextCursor firstVisibleCursor = m_editor->cursorForPosition(QPoint(0, 0));
         QTextBlock firstVisibleBlock = firstVisibleCursor.block();
@@ -310,7 +312,7 @@ protected:
         }
     }
 
-    bool eventFilter(QObject *, QEvent *event)
+    bool eventFilter(QObject *, QEvent *event) override
     {
         if (event->type() == QEvent::Resize || event->type() == QEvent::Move)
             m_timerUpdate.start();
@@ -352,8 +354,8 @@ private:
 //
 ///////////////////////////////////////////////////////////////////////
 
-typedef QMap<QString, QRegExp> ExCommandMap;
-typedef QMap<int, QString> UserCommandMap;
+using ExCommandMap = QMap<QString, QRegExp>;
+using UserCommandMap = QMap<int, QString>;
 
 class FakeVimOptionPage : public IOptionsPage
 {
@@ -368,9 +370,9 @@ public:
                         Utils::Theme::PanelTextColorDark}}, Utils::Icon::Tint));
     }
 
-    QWidget *widget();
-    void apply();
-    void finish();
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
 
 private:
     void copyTextEditorSettings();
@@ -426,6 +428,7 @@ QWidget *FakeVimOptionPage::widget()
         m_group.insert(theFakeVimSetting(ConfigShowCmd), m_ui.checkBoxShowCmd);
 
         m_group.insert(theFakeVimSetting(ConfigRelativeNumber), m_ui.checkBoxRelativeNumber);
+        m_group.insert(theFakeVimSetting(ConfigBlinkingCursor), m_ui.checkBoxBlinkingCursor);
 
         connect(m_ui.pushButtonCopyTextEditorSettings, &QAbstractButton::clicked,
                 this, &FakeVimOptionPage::copyTextEditorSettings);
@@ -529,6 +532,7 @@ public:
     void fold(FakeVimHandler *handler, int depth, bool fold);
     void maybeReadVimRc();
     void setShowRelativeLineNumbers(const QVariant &value);
+    void updateCursorBlinking(const QVariant &value);
 
     void resetCommandBuffer();
     void showCommandBuffer(FakeVimHandler *handler, const QString &contents,
@@ -556,7 +560,7 @@ public:
 
     void setActionChecked(Id id, bool check);
 
-    typedef int (*DistFunction)(const QRect &cursor, const QRect &other);
+    using DistFunction = int (*)(const QRect &, const QRect &);
     void moveSomewhere(FakeVimHandler *handler, DistFunction f, int count);
 
     void keepOnlyWindow(); // :only
@@ -569,6 +573,8 @@ public:
 
     MiniBuffer *m_miniBuffer = nullptr;
     FakeVimPluginRunData *runData = nullptr;
+
+    int m_savedCursorFlashTime = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -676,7 +682,7 @@ void FakeVimExCommandsPage::apply()
         QSettings *settings = ICore::settings();
         settings->beginWriteArray(exCommandMapGroup);
         int count = 0;
-        typedef ExCommandMap::const_iterator Iterator;
+        using Iterator = ExCommandMap::const_iterator;
         const Iterator end = newMapping.constEnd();
         for (Iterator it = newMapping.constBegin(); it != end; ++it) {
             const QString id = it.key();
@@ -790,7 +796,7 @@ void FakeVimExCommandsWidget::defaultAction()
             setModified(item, false);
             item->setText(2, regex);
             if (item == commandList()->currentItem())
-                currentCommandChanged(item);
+                emit currentCommandChanged(item);
         }
     }
 }
@@ -807,12 +813,12 @@ public:
     FakeVimUserCommandsModel() { m_commandMap = dd->m_userCommandMap; }
 
     UserCommandMap commandMap() const { return m_commandMap; }
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &data, int role);
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    int rowCount(const QModelIndex &parent) const override;
+    int columnCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    bool setData(const QModelIndex &index, const QVariant &data, int role) override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
 
 private:
     UserCommandMap m_commandMap;
@@ -856,7 +862,7 @@ public:
     {}
 
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
-        const QModelIndex &) const
+        const QModelIndex &) const override
     {
         auto lineEdit = new QLineEdit(parent);
         lineEdit->setFrame(false);
@@ -864,9 +870,9 @@ public:
     }
 
     void setModelData(QWidget *editor, QAbstractItemModel *model,
-                      const QModelIndex &index) const
+                      const QModelIndex &index) const override
     {
-        QLineEdit *lineEdit = qobject_cast<QLineEdit *>(editor);
+        auto lineEdit = qobject_cast<QLineEdit *>(editor);
         QTC_ASSERT(lineEdit, return);
         model->setData(index, lineEdit->text(), Qt::EditRole);
     }
@@ -891,7 +897,7 @@ public:
 
 private:
     QPointer<QWidget> m_widget;
-    FakeVimUserCommandsModel *m_model;
+    FakeVimUserCommandsModel *m_model = nullptr;
 };
 
 QWidget *FakeVimUserCommandsPage::widget()
@@ -928,7 +934,7 @@ void FakeVimUserCommandsPage::apply()
         QSettings *settings = ICore::settings();
         settings->beginWriteArray(userCommandMapGroup);
         int count = 0;
-        typedef UserCommandMap::const_iterator Iterator;
+        using Iterator = UserCommandMap::const_iterator;
         const Iterator end = current.constEnd();
         for (Iterator it = current.constBegin(); it != end; ++it) {
             const int key = it.key();
@@ -960,7 +966,7 @@ void FakeVimUserCommandsPage::apply()
 class FakeVimCompletionAssistProvider : public CompletionAssistProvider
 {
 public:
-    IAssistProcessor *createProcessor() const;
+    IAssistProcessor *createProcessor() const override;
 
     void setActive(const QString &needle, bool forward, FakeVimHandler *handler)
     {
@@ -969,7 +975,7 @@ public:
         if (!m_handler)
             return;
 
-        TextEditorWidget *editor = qobject_cast<TextEditorWidget *>(handler->widget());
+        auto editor = qobject_cast<TextEditorWidget *>(handler->widget());
         if (!editor)
             return;
 
@@ -1223,6 +1229,8 @@ bool FakeVimPluginPrivate::initialize()
             this, &FakeVimPluginPrivate::maybeReadVimRc);
     connect(theFakeVimSetting(ConfigRelativeNumber), &SavedAction::valueChanged,
             this, &FakeVimPluginPrivate::setShowRelativeLineNumbers);
+    connect(theFakeVimSetting(ConfigBlinkingCursor), &SavedAction::valueChanged,
+            this, &FakeVimPluginPrivate::updateCursorBlinking);
 
     // Delayed operations.
     connect(this, &FakeVimPluginPrivate::delayedQuitRequested,
@@ -1234,6 +1242,8 @@ bool FakeVimPluginPrivate::initialize()
     if (!ExtensionSystem::PluginManager::testRunRequested())
         maybeReadVimRc();
     //    << "MODE: " << theFakeVimSetting(ConfigUseFakeVim)->value();
+
+    updateCursorBlinking(theFakeVimSetting(ConfigBlinkingCursor)->value());
 
     return true;
 }
@@ -1258,7 +1268,7 @@ void FakeVimPluginPrivate::userActionTriggered(int key)
 
 void FakeVimPluginPrivate::createRelativeNumberWidget(IEditor *editor)
 {
-    if (TextEditorWidget *textEditor = qobject_cast<TextEditorWidget *>(editor->widget())) {
+    if (auto textEditor = qobject_cast<TextEditorWidget *>(editor->widget())) {
         auto relativeNumbers = new RelativeNumbersColumn(textEditor);
         connect(theFakeVimSetting(ConfigRelativeNumber), &SavedAction::valueChanged,
                 relativeNumbers, &QObject::deleteLater);
@@ -1386,13 +1396,13 @@ void FakeVimPluginPrivate::moveSomewhere(FakeVimHandler *handler, DistFunction f
 {
     QTC_ASSERT(handler, return);
     QWidget *w = handler->widget();
-    QPlainTextEdit *pe = qobject_cast<QPlainTextEdit *>(w);
+    auto pe = qobject_cast<QPlainTextEdit *>(w);
     QTC_ASSERT(pe, return);
     QRect rc = pe->cursorRect();
     QRect cursorRect(w->mapToGlobal(rc.topLeft()), w->mapToGlobal(rc.bottomRight()));
     //qDebug() << "\nCURSOR: " << cursorRect;
 
-    IEditor *bestEditor = 0;
+    IEditor *bestEditor = nullptr;
     int repeat = count;
 
     IEditor *currentEditor = EditorManager::currentEditor();
@@ -1503,12 +1513,12 @@ public:
         : QObject(parent), m_handler(handler)
     {}
 
-    ~DeferredDeleter()
+    ~DeferredDeleter() override
     {
         if (m_handler) {
             m_handler->disconnectFromEditor();
             m_handler->deleteLater();
-            m_handler = 0;
+            m_handler = nullptr;
         }
     }
 };
@@ -1526,12 +1536,12 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
     if (!qobject_cast<QTextEdit *>(widget) && !qobject_cast<QPlainTextEdit *>(widget))
         return;
 
-    TextEditorWidget *tew = qobject_cast<TextEditorWidget *>(widget);
+    auto tew = qobject_cast<TextEditorWidget *>(widget);
 
     //qDebug() << "OPENING: " << editor << editor->widget()
     //    << "MODE: " << theFakeVimSetting(ConfigUseFakeVim)->value();
 
-    auto handler = new FakeVimHandler(widget, 0);
+    auto handler = new FakeVimHandler(widget, nullptr);
     // the handler might have triggered the deletion of the editor:
     // make sure that it can return before being deleted itself
     new DeferredDeleter(widget, handler);
@@ -1560,8 +1570,7 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
     handler->highlightMatches.connect([](const QString &needle) {
         for (IEditor *editor : EditorManager::visibleEditors()) {
             QWidget *w = editor->widget();
-            IFindSupport *find = Aggregation::query<IFindSupport>(w);
-            if (find != 0)
+            if (auto find = Aggregation::query<IFindSupport>(w))
                 find->highlightAll(needle, FindRegularExpression | FindCaseSensitively);
         }
     });
@@ -1624,7 +1633,7 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
                 while (!cursor.atBlockEnd())
                     cursor.deleteChar();
             } else {
-                tew->textDocument()->indenter()->indentBlock(doc, block, typedChar, tabSettings);
+                tew->textDocument()->indenter()->indentBlock(block, typedChar, tabSettings);
             }
             block = block.next();
         }
@@ -1707,7 +1716,7 @@ void FakeVimPluginPrivate::editorOpened(IEditor *editor)
     handler->foldAll.connect([handler](bool fold) {
         QTextDocument *document = handler->textCursor().document();
         auto documentLayout = qobject_cast<TextDocumentLayout*>(document->documentLayout());
-        QTC_ASSERT(documentLayout != 0, return);
+        QTC_ASSERT(documentLayout, return);
 
         QTextBlock block = document->firstBlock();
         while (block.isValid()) {
@@ -1855,6 +1864,7 @@ void FakeVimPluginPrivate::setUseFakeVim(const QVariant &value)
     Find::setUseFakeVim(on);
     setUseFakeVimInternal(on);
     setShowRelativeLineNumbers(theFakeVimSetting(ConfigRelativeNumber)->value());
+    updateCursorBlinking(theFakeVimSetting(ConfigBlinkingCursor)->value());
 }
 
 void FakeVimPluginPrivate::setUseFakeVimInternal(bool on)
@@ -1871,7 +1881,7 @@ void FakeVimPluginPrivate::setUseFakeVimInternal(bool on)
         // Context(FAKEVIM_CONTEXT));
         resetCommandBuffer();
         foreach (IEditor *editor, m_editorToHandler.keys()) {
-            if (TextDocument *textDocument = qobject_cast<TextDocument *>(editor->document()))
+            if (auto textDocument = qobject_cast<const TextDocument *>(editor->document()))
                 m_editorToHandler[editor]->restoreWidget(textDocument->tabSettings().m_tabSize);
         }
     }
@@ -1883,6 +1893,15 @@ void FakeVimPluginPrivate::setShowRelativeLineNumbers(const QVariant &value)
         foreach (IEditor *editor, m_editorToHandler.keys())
             createRelativeNumberWidget(editor);
     }
+}
+
+void FakeVimPluginPrivate::updateCursorBlinking(const QVariant &value)
+{
+    if (m_savedCursorFlashTime == 0)
+        m_savedCursorFlashTime = QGuiApplication::styleHints()->cursorFlashTime();
+
+    bool blink = value.toBool() || !theFakeVimSetting(ConfigUseFakeVim)->value().toBool();
+    QGuiApplication::styleHints()->setCursorFlashTime(blink ? m_savedCursorFlashTime : 0);
 }
 
 void FakeVimPluginPrivate::handleExCommand(FakeVimHandler *handler, bool *handled, const ExCommand &cmd)
@@ -1914,7 +1933,7 @@ void FakeVimPluginPrivate::handleExCommand(FakeVimHandler *handler, bool *handle
                     handler->showMessage(MessageInfo, Tr::tr("\"%1\" %2 %3L, %4C written")
                         .arg(fileName).arg(' ').arg(ba.count('\n')).arg(ba.size()));
                     if (cmd.cmd == "wq")
-                        delayedQuitRequested(cmd.hasBang, m_editorToHandler.key(handler));
+                        emit delayedQuitRequested(cmd.hasBang, m_editorToHandler.key(handler));
                 }
             }
         }
@@ -1928,7 +1947,7 @@ void FakeVimPluginPrivate::handleExCommand(FakeVimHandler *handler, bool *handle
         if (failed.isEmpty())
             handler->showMessage(MessageInfo, Tr::tr("Saving succeeded"));
         else
-            handler->showMessage(MessageError, Tr::tr("%n files not saved", 0, failed.size()));
+            handler->showMessage(MessageError, Tr::tr("%n files not saved", nullptr, failed.size()));
         if (cmd.matches("wqa", "wqall"))
             emit delayedQuitAllRequested(cmd.hasBang);
     } else if (cmd.matches("q", "quit")) {

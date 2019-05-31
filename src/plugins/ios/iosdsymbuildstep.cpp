@@ -35,6 +35,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/processparameters.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -61,7 +62,7 @@ IosDsymBuildStep::IosDsymBuildStep(BuildStepList *parent) :
 {
 }
 
-bool IosDsymBuildStep::init(QList<const BuildStep *> &earlierSteps)
+bool IosDsymBuildStep::init()
 {
     BuildConfiguration *bc = buildConfiguration();
 
@@ -84,7 +85,7 @@ bool IosDsymBuildStep::init(QList<const BuildStep *> &earlierSteps)
     if (outputParser())
         outputParser()->setWorkingDirectory(pp->effectiveWorkingDirectory());
 
-    return AbstractProcessStep::init(earlierSteps);
+    return AbstractProcessStep::init();
 }
 
 QVariantMap IosDsymBuildStep::toMap() const
@@ -149,8 +150,7 @@ QStringList IosDsymBuildStep::defaultCmdList() const
             .appendPath("Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil");
     if (dsymUtilPath.exists())
         dsymutilCmd = dsymUtilPath.toUserOutput();
-    IosRunConfiguration *runConf =
-            qobject_cast<IosRunConfiguration *>(target()->activeRunConfiguration());
+    auto runConf = qobject_cast<const IosRunConfiguration *>(target()->activeRunConfiguration());
     QTC_ASSERT(runConf, return QStringList("echo"));
     QString dsymPath = runConf->bundleDirectory().toUserOutput();
     dsymPath.chop(4);
@@ -187,19 +187,14 @@ bool IosDsymBuildStep::isDefault() const
     return arguments() == defaultArguments() && command() == defaultCommand();
 }
 
-void IosDsymBuildStep::run(QFutureInterface<bool> &fi)
+void IosDsymBuildStep::doRun()
 {
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *IosDsymBuildStep::createConfigWidget()
 {
     return new IosDsymBuildStepConfigWidget(this);
-}
-
-bool IosDsymBuildStep::immutable() const
-{
-    return false;
 }
 
 void IosDsymBuildStep::setArguments(const QStringList &args)
@@ -227,7 +222,7 @@ QStringList IosDsymBuildStep::arguments() const
 //
 
 IosDsymBuildStepConfigWidget::IosDsymBuildStepConfigWidget(IosDsymBuildStep *buildStep)
-    : m_buildStep(buildStep)
+    : BuildStepConfigWidget(buildStep), m_buildStep(buildStep)
 {
     m_ui = new Ui::IosPresetBuildStep;
     m_ui->setupUi(this);
@@ -267,11 +262,6 @@ IosDsymBuildStepConfigWidget::~IosDsymBuildStepConfigWidget()
     delete m_ui;
 }
 
-QString IosDsymBuildStepConfigWidget::displayName() const
-{
-    return m_buildStep->displayName();
-}
-
 void IosDsymBuildStepConfigWidget::updateDetails()
 {
     BuildConfiguration *bc = m_buildStep->buildConfiguration();
@@ -282,13 +272,8 @@ void IosDsymBuildStepConfigWidget::updateDetails()
     param.setEnvironment(bc->environment());
     param.setCommand(m_buildStep->command());
     param.setArguments(Utils::QtcProcess::joinArgs(m_buildStep->arguments()));
-    m_summaryText = param.summary(displayName());
-    emit updateSummary();
-}
 
-QString IosDsymBuildStepConfigWidget::summaryText() const
-{
-    return m_summaryText;
+    setSummaryText(param.summary(displayName()));
 }
 
 void IosDsymBuildStepConfigWidget::commandChanged()

@@ -39,11 +39,11 @@ DeviceCheckBuildStep::DeviceCheckBuildStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
+    setWidgetExpandedByDefault(false);
 }
 
-bool DeviceCheckBuildStep::init(QList<const BuildStep *> &earlierSteps)
+bool DeviceCheckBuildStep::init()
 {
-    Q_UNUSED(earlierSteps);
     IDevice::ConstPtr device = DeviceKitInformation::device(target()->kit());
     if (!device) {
         Core::Id deviceTypeId = DeviceTypeKitInformation::deviceTypeId(target()->kit());
@@ -62,7 +62,7 @@ bool DeviceCheckBuildStep::init(QList<const BuildStep *> &earlierSteps)
             return false;
         }
 
-        IDevice::Ptr newDevice = factory->create(deviceTypeId);
+        IDevice::Ptr newDevice = factory->create();
         if (newDevice.isNull()) {
             emit addOutput(tr("No device configured."), BuildStep::OutputFormat::ErrorMessage);
             return false;
@@ -77,14 +77,9 @@ bool DeviceCheckBuildStep::init(QList<const BuildStep *> &earlierSteps)
     return true;
 }
 
-void DeviceCheckBuildStep::run(QFutureInterface<bool> &fi)
+void DeviceCheckBuildStep::doRun()
 {
-    reportRunResult(fi, true);
-}
-
-BuildStepConfigWidget *DeviceCheckBuildStep::createConfigWidget()
-{
-    return new SimpleBuildStepConfigWidget(this);
+    emit finished(true);
 }
 
 Core::Id DeviceCheckBuildStep::stepId()

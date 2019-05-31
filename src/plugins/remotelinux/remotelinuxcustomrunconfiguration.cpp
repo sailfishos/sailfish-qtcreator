@@ -27,11 +27,14 @@
 
 #include "remotelinux_constants.h"
 #include "remotelinuxenvironmentaspect.h"
+#include "remotelinuxx11forwardingaspect.h"
 
 #include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 
 #include <qtsupport/qtoutputformatter.h>
+
+#include <utils/hostosinfo.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -57,7 +60,11 @@ RemoteLinuxCustomRunConfiguration::RemoteLinuxCustomRunConfiguration(Target *tar
 
     addAspect<ArgumentsAspect>();
     addAspect<WorkingDirectoryAspect>();
+    if (HostOsInfo::isAnyUnixHost())
+        addAspect<TerminalAspect>();
     addAspect<RemoteLinuxEnvironmentAspect>(target);
+    if (Utils::HostOsInfo::isAnyUnixHost())
+        addAspect<X11ForwardingAspect>();
 
     setDefaultDisplayName(runConfigDefaultDisplayName());
     setOutputFormatter<QtSupport::QtOutputFormatter>();
@@ -92,6 +99,14 @@ QString RemoteLinuxCustomRunConfiguration::runConfigDefaultDisplayName()
     QString display = remoteExecutable.isEmpty()
             ? tr("Custom Executable") : tr("Run \"%1\"").arg(remoteExecutable);
     return  RunConfigurationFactory::decoratedTargetName(display, target());
+}
+
+Runnable RemoteLinuxCustomRunConfiguration::runnable() const
+{
+    ProjectExplorer::Runnable r = RunConfiguration::runnable();
+    if (const auto * const forwardingAspect = aspect<X11ForwardingAspect>())
+        r.extraData.insert("Ssh.X11ForwardToDisplay", forwardingAspect->display(macroExpander()));
+    return r;
 }
 
 // RemoteLinuxCustomRunConfigurationFactory

@@ -4,20 +4,20 @@ import qbs.FileInfo
 import "qtc.js" as HelperFunctions
 
 Module {
-    property string qtcreator_display_version: '4.8.1'
+    property string qtcreator_display_version: '4.9.1'
     property string ide_version_major: '4'
-    property string ide_version_minor: '8'
+    property string ide_version_minor: '9'
     property string ide_version_release: '1'
     property string qtcreator_version: ide_version_major + '.' + ide_version_minor + '.'
                                        + ide_version_release
 
     property string ide_compat_version_major: '4'
-    property string ide_compat_version_minor: '8'
+    property string ide_compat_version_minor: '9'
     property string ide_compat_version_release: '0'
     property string qtcreator_compat_version: ide_compat_version_major + '.'
             + ide_compat_version_minor + '.' + ide_compat_version_release
 
-    property string qtcreator_copyright_year: '2018'
+    property string qtcreator_copyright_year: '2019'
     property string qtcreator_copyright_string: "(C) " + qtcreator_copyright_year + " The Qt Company Ltd"
 
     property string ide_display_name: 'Qt Creator'
@@ -69,7 +69,6 @@ Module {
     property string export_data_base: project.ide_source_tree + "/share/qtcreator"
 
     property bool testsEnabled: Environment.getEnv("TEST") || qbs.buildVariant === "debug"
-    property bool useSystemBotan: Environment.getEnv("USE_SYSTEM_BOTAN") === "1"
     property stringList generalDefines: [
         "QT_CREATOR",
         'IDE_LIBRARY_BASENAME="' + libDirName + '"',

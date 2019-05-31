@@ -69,9 +69,9 @@ public:
 
     // TextEditorView
     WidgetInfo widgetInfo() override;
-    void contextHelpId(const Core::IContext::HelpIdCallback &callback) const override;
+    void contextHelp(const Core::IContext::HelpCallback &callback) const override;
 
-    void qmlJSEditorHelpId(const Core::IContext::HelpIdCallback &callback) const;
+    void qmlJSEditorContextHelp(const Core::IContext::HelpCallback &callback) const;
 
     TextEditor::BaseTextEditor *textEditor();
 
@@ -103,6 +103,7 @@ public:
 private:
     QPointer<TextEditorWidget> m_widget;
     Internal::TextEditorContext *m_textEditorContext;
+    bool m_errorState = false;
 };
 
 } // namespace QmlDesigner
