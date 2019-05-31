@@ -68,6 +68,7 @@ const char MER_WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
 const char MER_WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
 const char MER_WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 const char MER_WRAPPER_LUPDATE[] = "lupdate" SCRIPT_EXTENSION;
+const char MER_WRAPPER_PKG_CONFIG[] = "pkg-config" SCRIPT_EXTENSION;
 
 const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
