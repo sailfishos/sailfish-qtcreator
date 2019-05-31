@@ -42,14 +42,9 @@ public:
 
     ~NimCompilerCleanStepConfigWidget();
 
-    QString summaryText() const override;
-
-    QString displayName() const override;
-
 private:
     void updateUi();
 
-    NimCompilerCleanStep *m_cleanStep;
     QScopedPointer<Ui::NimCompilerCleanStepConfigWidget> m_ui;
 };
 

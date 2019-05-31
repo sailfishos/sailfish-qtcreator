@@ -84,7 +84,7 @@ SysRootInformationConfigWidget::~SysRootInformationConfigWidget()
 
 QString SysRootInformationConfigWidget::displayName() const
 {
-    return tr("Sysroot:");
+    return tr("Sysroot");
 }
 
 QString SysRootInformationConfigWidget::toolTip() const
@@ -179,7 +179,7 @@ ToolChainInformationConfigWidget::~ToolChainInformationConfigWidget()
 
 QString ToolChainInformationConfigWidget::displayName() const
 {
-    return tr("Compiler:");
+    return tr("Compiler");
 }
 
 QString ToolChainInformationConfigWidget::toolTip() const
@@ -265,10 +265,8 @@ int ToolChainInformationConfigWidget::indexOf(QComboBox *cb, const ToolChain *tc
 DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
     KitConfigWidget(workingCopy, ki), m_comboBox(new QComboBox)
 {
-    for (IDeviceFactory *factory : IDeviceFactory::allDeviceFactories()) {
-        foreach (Id id, factory->availableCreationIds())
-            m_comboBox->addItem(factory->displayNameForId(id), id.toSetting());
-    }
+    for (IDeviceFactory *factory : IDeviceFactory::allDeviceFactories())
+        m_comboBox->addItem(factory->displayName(), factory->deviceType().toSetting());
 
     m_comboBox->setToolTip(toolTip());
 
@@ -289,7 +287,7 @@ QWidget *DeviceTypeInformationConfigWidget::mainWidget() const
 
 QString DeviceTypeInformationConfigWidget::displayName() const
 {
-    return tr("Device type:");
+    return tr("Device type");
 }
 
 QString DeviceTypeInformationConfigWidget::toolTip() const
@@ -363,7 +361,7 @@ QWidget *DeviceInformationConfigWidget::mainWidget() const
 
 QString DeviceInformationConfigWidget::displayName() const
 {
-    return tr("Device:");
+    return tr("Device");
 }
 
 QString DeviceInformationConfigWidget::toolTip() const
@@ -442,7 +440,7 @@ QWidget *KitEnvironmentConfigWidget::mainWidget() const
 
 QString KitEnvironmentConfigWidget::displayName() const
 {
-    return tr("Environment:");
+    return tr("Environment");
 }
 
 QString KitEnvironmentConfigWidget::toolTip() const

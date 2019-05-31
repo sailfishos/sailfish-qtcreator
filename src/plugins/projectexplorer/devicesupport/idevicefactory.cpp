@@ -26,6 +26,7 @@
 #include "idevicefactory.h"
 
 #include <utils/algorithm.h>
+#include <utils/icon.h>
 
 namespace ProjectExplorer {
 
@@ -42,20 +43,15 @@ namespace ProjectExplorer {
 */
 
 /*!
-    \fn virtual QString displayNameForId(Core::Id type) const = 0
+    \fn virtual QString displayName() const = 0
 
-    Returns a short, one-line description of the device type.
+    Returns a short, one-line description of the device type this factory
+    can create.
 */
 
 /*!
-    \fn virtual QList<Core::Id> availableCreationIds() const = 0
-
-    Lists the device types this factory can create.
-*/
-
-/*!
-    \fn virtual IDevice::Ptr create(Core::Id id) const = 0
-    Creates a new device with the id \a id. This may or may not open a wizard.
+    \fn virtual IDevice::Ptr create() const
+    Creates a new device. This may or may not open a wizard.
 */
 
 /*!
@@ -80,7 +76,12 @@ namespace ProjectExplorer {
 
 bool IDeviceFactory::canCreate() const
 {
-    return !availableCreationIds().isEmpty();
+    return m_canCreate;
+}
+
+IDevice::Ptr IDeviceFactory::construct() const
+{
+    return m_constructor ? m_constructor() : IDevice::Ptr();
 }
 
 static QList<IDeviceFactory *> g_deviceFactories;
@@ -89,13 +90,41 @@ IDeviceFactory *IDeviceFactory::find(Core::Id type)
 {
     return Utils::findOrDefault(g_deviceFactories,
         [&type](IDeviceFactory *factory) {
-            return factory->availableCreationIds().contains(type);
+            return factory->deviceType() == type;
         });
 }
 
-IDeviceFactory::IDeviceFactory(QObject *parent) : QObject(parent)
+IDeviceFactory::IDeviceFactory(Core::Id deviceType)
+    : m_deviceType(deviceType)
 {
     g_deviceFactories.append(this);
+}
+
+void IDeviceFactory::setIcon(const QIcon &icon)
+{
+    m_icon = icon;
+}
+
+void IDeviceFactory::setCombinedIcon(const QString &small, const QString &large)
+{
+    using namespace Utils;
+    m_icon = Icon::combinedIcon({Icon({{small, Theme::PanelTextColorDark}}, Icon::Tint),
+                                 Icon({{large, Theme::IconsBaseColor}})});
+}
+
+void IDeviceFactory::setCanCreate(bool canCreate)
+{
+    m_canCreate = canCreate;
+}
+
+void IDeviceFactory::setConstructionFunction(const std::function<IDevice::Ptr ()> &constructor)
+{
+    m_constructor = constructor;
+}
+
+void IDeviceFactory::setDisplayName(const QString &displayName)
+{
+    m_displayName = displayName;
 }
 
 IDeviceFactory::~IDeviceFactory()

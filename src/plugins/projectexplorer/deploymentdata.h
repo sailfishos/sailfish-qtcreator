@@ -28,10 +28,7 @@
 #include "deployablefile.h"
 #include "projectexplorer_export.h"
 
-#include <utils/algorithm.h>
-
 #include <QList>
-#include <QSet>
 
 namespace ProjectExplorer {
 
@@ -39,55 +36,27 @@ class PROJECTEXPLORER_EXPORT DeploymentData
 {
 public:
     void setFileList(const QList<DeployableFile> &files) { m_files = files; }
+    QList<DeployableFile> allFiles() const { return m_files; }
 
-    void setLocalInstallRoot(const Utils::FileName &installRoot)
-    {
-        m_localInstallRoot = installRoot;
-    }
+    void setLocalInstallRoot(const Utils::FileName &installRoot);
     Utils::FileName localInstallRoot() const { return m_localInstallRoot; }
 
-    void addFile(const DeployableFile &file)
-    {
-        for (int i = 0; i < m_files.size(); ++i) {
-            if (m_files.at(i).localFilePath() == file.localFilePath()) {
-                m_files[i] = file;
-                return;
-            }
-        }
-        m_files << file;
-    }
-
+    void addFile(const DeployableFile &file);
     void addFile(const QString &localFilePath, const QString &remoteDirectory,
-                 DeployableFile::Type type = DeployableFile::TypeNormal)
-    {
-        addFile(DeployableFile(localFilePath, remoteDirectory, type));
-    }
+                 DeployableFile::Type type = DeployableFile::TypeNormal);
+    QString addFilesFromDeploymentFile(const QString &deploymentFilePath, const QString &sourceDir);
 
     int fileCount() const { return m_files.count(); }
     DeployableFile fileAt(int index) const { return m_files.at(index); }
-    QList<DeployableFile> allFiles() const { return m_files; }
+    DeployableFile deployableForLocalFile(const QString &localFilePath) const;
 
-    DeployableFile deployableForLocalFile(const QString &localFilePath) const
-    {
-        return Utils::findOrDefault(m_files, [&localFilePath](const DeployableFile &d) {
-                                                return d.localFilePath().toString() == localFilePath;
-                                             });
-    }
-
-    bool operator==(const DeploymentData &other) const
-    {
-        return m_files.toSet() == other.m_files.toSet()
-                && m_localInstallRoot == other.m_localInstallRoot;
-    }
+    bool operator==(const DeploymentData &other) const;
 
 private:
     QList<DeployableFile> m_files;
     Utils::FileName m_localInstallRoot;
 };
 
-inline bool operator!=(const DeploymentData &d1, const DeploymentData &d2)
-{
-    return !(d1 == d2);
-}
+inline bool operator!=(const DeploymentData &d1, const DeploymentData &d2) { return !(d1 == d2); }
 
 } // namespace ProjectExplorer

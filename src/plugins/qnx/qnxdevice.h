@@ -36,12 +36,10 @@ class QNX_EXPORT QnxDevice : public RemoteLinux::LinuxDevice
     Q_DECLARE_TR_FUNCTIONS(Qnx::Internal::QnxDevice)
 
 public:
-    typedef QSharedPointer<QnxDevice> Ptr;
-    typedef QSharedPointer<const QnxDevice> ConstPtr;
+    using Ptr = QSharedPointer<QnxDevice>;
+    using ConstPtr = QSharedPointer<const QnxDevice>;
 
-    static Ptr create();
-    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
-                      Origin origin = ManuallyAdded, Core::Id id = Core::Id());
+    static Ptr create() { return Ptr(new QnxDevice); }
     ProjectExplorer::IDevice::Ptr clone() const override;
 
     ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const override;
@@ -50,10 +48,6 @@ public:
 
     ProjectExplorer::DeviceTester *createDeviceTester() const override;
     ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const override;
-
-    QList<Core::Id> actionIds() const override;
-    QString displayNameForActionId(Core::Id actionId) const override;
-    void executeAction(Core::Id actionId, QWidget *parent) override;
 
     QString displayType() const override;
     Utils::OsType osType() const override;
@@ -64,18 +58,15 @@ public:
     QVariantMap toMap() const override;
 
 protected:
-    QnxDevice();
-    QnxDevice(const QString &name, Core::Id type, MachineType machineType,
-                           Origin origin, Core::Id id);
-    QnxDevice(const QnxDevice &other);
-
     QString interruptProcessByNameCommandLine(const QString &filePath) const;
     QString killProcessByNameCommandLine(const QString &filePath) const;
 
 private:
+    QnxDevice();
+
     void updateVersionNumber() const;
 
-    mutable int m_versionNumber;
+    mutable int m_versionNumber = 0;
 };
 
 } // namespace Qnx

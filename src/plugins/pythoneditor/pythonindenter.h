@@ -25,18 +25,19 @@
 
 #pragma once
 
-#include <texteditor/indenter.h>
+#include <texteditor/textindenter.h>
 
 namespace PythonEditor {
 
-class PythonIndenter : public TextEditor::Indenter
+class PythonIndenter : public TextEditor::TextIndenter
 {
 public:
-    PythonIndenter() {}
-
+    explicit PythonIndenter(QTextDocument *doc);
 private:
     bool isElectricCharacter(const QChar &ch) const override;
-    int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    int indentFor(const QTextBlock &block,
+                  const TextEditor::TabSettings &tabSettings,
+                  int cursorPositionInEditor = -1) override;
 
     bool isElectricLine(const QString &line) const;
     int getIndentDiff(const QString &previousLine,

@@ -49,7 +49,7 @@ class DeviceSettingsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    DeviceSettingsWidget(QWidget *parent = 0);
+    DeviceSettingsWidget(QWidget *parent = nullptr);
     ~DeviceSettingsWidget() override;
 
     void saveSettings();
@@ -65,7 +65,6 @@ private:
     void handleProcessListRequested();
 
     void initGui();
-    void handleAdditionalActionRequest(Core::Id actionId);
     void displayCurrent();
     void setDeviceInfoWidgetsEnabled(bool enable);
     IDevice::ConstPtr currentDevice() const;

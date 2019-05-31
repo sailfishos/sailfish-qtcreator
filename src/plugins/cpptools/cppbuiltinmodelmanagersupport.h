@@ -38,7 +38,7 @@ class BuiltinModelManagerSupport: public ModelManagerSupport
 
 public:
     BuiltinModelManagerSupport();
-    virtual ~BuiltinModelManagerSupport();
+    ~BuiltinModelManagerSupport() override;
 
     CppCompletionAssistProvider *completionAssistProvider() final;
     TextEditor::BaseHoverHandler *createHoverHandler() final;
@@ -47,7 +47,6 @@ public:
     FollowSymbolInterface &followSymbolInterface() final;
     RefactoringEngineInterface &refactoringEngineInterface() final;
     std::unique_ptr<AbstractOverviewModel> createOverviewModel() final;
-    void setBackendJobsPostponed(bool) final {}
 
 private:
     QScopedPointer<CppCompletionAssistProvider> m_completionAssistProvider;

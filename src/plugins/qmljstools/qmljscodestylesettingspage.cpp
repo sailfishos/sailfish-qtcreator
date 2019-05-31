@@ -51,7 +51,6 @@ namespace Internal {
 
 QmlJSCodeStylePreferencesWidget::QmlJSCodeStylePreferencesWidget(QWidget *parent) :
     QWidget(parent),
-    m_preferences(0),
     m_ui(new Ui::QmlJSCodeStyleSettingsPage)
 {
     m_ui->setupUi(this);
@@ -114,8 +113,7 @@ void QmlJSCodeStylePreferencesWidget::updatePreview()
     QTextCursor tc = m_ui->previewTextEdit->textCursor();
     tc.beginEditBlock();
     while (block.isValid()) {
-        m_ui->previewTextEdit->textDocument()->indenter()
-                ->indentBlock(doc, block, QChar::Null, ts);
+        m_ui->previewTextEdit->textDocument()->indenter()->indentBlock(block, QChar::Null, ts);
         block = block.next();
     }
     tc.endEditBlock();
@@ -125,8 +123,7 @@ void QmlJSCodeStylePreferencesWidget::updatePreview()
 
 QmlJSCodeStyleSettingsPage::QmlJSCodeStyleSettingsPage(/*QSharedPointer<CppFileSettings> &settings,*/
                      QWidget *parent) :
-    Core::IOptionsPage(parent),
-    m_pageTabPreferences(0)
+    Core::IOptionsPage(parent)
 {
     setId(Constants::QML_JS_CODE_STYLE_SETTINGS_ID);
     setDisplayName(QCoreApplication::translate("QmlJSTools", Constants::QML_JS_CODE_STYLE_SETTINGS_NAME));

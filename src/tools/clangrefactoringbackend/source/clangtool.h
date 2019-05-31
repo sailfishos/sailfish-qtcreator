@@ -30,6 +30,7 @@
 #include <clangrefactoringbackend_global.h>
 
 #include <filecontainerv2.h>
+#include <nativefilepath.h>
 #include <sourcelocationscontainer.h>
 
 #include <clang/Tooling/Refactoring.h>
@@ -43,54 +44,41 @@ namespace ClangBackEnd {
 
 struct FileContent
 {
-    FileContent(const std::string &directory,
-                const std::string &fileName,
-                const std::string &content,
-                const std::vector<std::string> &commandLine)
-        : directory(directory),
-          fileName(fileName),
-          filePath(directory + nativeSeparator + fileName),
-          content(content),
-          commandLine(commandLine)
+    FileContent(NativeFilePath &&filePath, const Utils::SmallString &content)
+        : filePath(std::move(filePath))
+        , content(std::move(content))
     {}
 
-    std::string directory;
-    std::string fileName;
-    std::string filePath;
-    std::string content;
-    std::vector<std::string> commandLine;
+    NativeFilePath filePath;
+    Utils::SmallString content;
 };
 
 struct UnsavedFileContent
 {
-    UnsavedFileContent(Utils::PathString &&filePath,
-                       Utils::SmallString &&content)
-        : filePath(std::move(filePath)),
-          content(std::move(content))
+    UnsavedFileContent(FilePath &&filePath, Utils::SmallString &&content)
+        : filePath(std::move(filePath))
+        , content(std::move(content))
     {}
 
-    Utils::PathString filePath;
+    FilePath filePath;
     Utils::SmallString content;
 };
 
 class ClangTool
 {
 public:
-    void addFile(std::string &&directory,
-                 std::string &&fileName,
-                 std::string &&content,
-                 std::vector<std::string> &&commandLine);
+    void addFile(FilePath &&filePath,
+                 Utils::SmallString &&content,
+                 Utils::SmallStringVector &&commandLine);
 
-    template <typename Container>
-    void addFiles(const Container &filePaths,
-                  const Utils::SmallStringVector &arguments);
-    void addFiles(const FilePaths &filePaths,
-                  const Utils::SmallStringVector &arguments);
-
+    void addFiles(const FilePaths &filePaths, const Utils::SmallStringVector &arguments);
 
     void addUnsavedFiles(const V2::FileContainers &unsavedFiles);
 
     clang::tooling::ClangTool createTool() const;
+    clang::tooling::ClangTool createOutputTool() const;
+
+    bool isClean() const;
 
 private:
     RefactoringCompilationDatabase m_compilationDatabase;
@@ -98,12 +86,5 @@ private:
     std::vector<std::string> m_sourceFilePaths;
     std::vector<UnsavedFileContent> m_unsavedFileContents;
 };
-
-extern template
-void ClangTool::addFiles<Utils::SmallStringVector>(const Utils::SmallStringVector &filePaths,
-                                                   const Utils::SmallStringVector &arguments);
-extern template
-void ClangTool::addFiles<Utils::PathStringVector>(const Utils::PathStringVector &filePaths,
-                                                  const Utils::SmallStringVector &arguments);
 
 } // namespace ClangBackEnd

@@ -31,36 +31,28 @@
 #include "clangrefactoringclientmessages.h"
 
 #include <QDebug>
-#include <QIODevice>
+#include <QLocalSocket>
 
 namespace ClangBackEnd {
 
-RefactoringClientProxy::RefactoringClientProxy(RefactoringServerInterface *server, QIODevice *ioDevice)
-    : writeMessageBlock(ioDevice),
-      readMessageBlock(ioDevice),
-      server(server),
-      ioDevice(ioDevice)
+RefactoringClientProxy::RefactoringClientProxy(RefactoringServerInterface *server,
+                                               QLocalSocket *localSocket)
+    : writeMessageBlock(localSocket)
+    , readMessageBlock(localSocket)
+    , server(server)
+{
+    QObject::connect(localSocket, &QIODevice::readyRead, [this]() {
+        RefactoringClientProxy::readMessages();
+    });
+}
+
+RefactoringClientProxy::RefactoringClientProxy(RefactoringServerInterface *server,
+                                               QIODevice *ioDevice)
+    : writeMessageBlock(ioDevice)
+    , readMessageBlock(ioDevice)
+    , server(server)
 {
     QObject::connect(ioDevice, &QIODevice::readyRead, [this] () {RefactoringClientProxy::readMessages();});
-}
-
-RefactoringClientProxy::RefactoringClientProxy(RefactoringClientProxy &&other)
-    : writeMessageBlock(std::move(other.writeMessageBlock)),
-      readMessageBlock(std::move(other.readMessageBlock)),
-      server(std::move(other.server)),
-      ioDevice(std::move(other.ioDevice))
-{
-
-}
-
-RefactoringClientProxy &RefactoringClientProxy::operator=(RefactoringClientProxy &&other)
-{
-    writeMessageBlock = std::move(other.writeMessageBlock);
-    readMessageBlock = std::move(other.readMessageBlock);
-    server = std::move(other.server);
-    ioDevice = std::move(other.ioDevice);
-
-    return *this;
 }
 
 void RefactoringClientProxy::readMessages()
@@ -86,7 +78,12 @@ void RefactoringClientProxy::sourceRangesAndDiagnosticsForQueryMessage(SourceRan
 
 void RefactoringClientProxy::sourceRangesForQueryMessage(SourceRangesForQueryMessage &&message)
 {
-     writeMessageBlock.write(message);
+    writeMessageBlock.write(message);
+}
+
+void RefactoringClientProxy::progress(ProgressMessage &&message)
+{
+    writeMessageBlock.write(message);
 }
 
 } // namespace ClangBackEnd

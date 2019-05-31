@@ -31,6 +31,9 @@
 #include <filecontainerv2.h>
 #include <filepathcachinginterface.h>
 #include <generatedfiles.h>
+#include <includesearchpath.h>
+#include <projectpartcontainer.h>
+#include <projectpartsstorageinterface.h>
 
 #include <projectexplorer/headerpath.h>
 
@@ -46,10 +49,6 @@ class ProjectFile;
 
 namespace ClangBackEnd {
 class ProjectManagementServerInterface;
-
-namespace V2 {
-class ProjectPartContainer;
-}
 }
 
 QT_FORWARD_DECLARE_CLASS(QStringList)
@@ -64,41 +63,58 @@ class PchManagerClient;
 class CLANGPCHMANAGER_EXPORT ProjectUpdater
 {
 public:
-    ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
-                   ClangBackEnd::FilePathCachingInterface &filePathCache);
+    struct SystemAndProjectIncludeSearchPaths
+    {
+        ClangBackEnd::IncludeSearchPaths system;
+        ClangBackEnd::IncludeSearchPaths project;
+    };
 
-    void updateProjectParts(const std::vector<CppTools::ProjectPart *> &projectParts);
-    void removeProjectParts(const QStringList &projectPartIds);
+    ProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
+                   ClangBackEnd::FilePathCachingInterface &filePathCache,
+                   ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage)
+        : m_server(server)
+        , m_filePathCache(filePathCache)
+        , m_projectPartsStorage(projectPartsStorage)
+    {}
+
+    void updateProjectParts(const std::vector<CppTools::ProjectPart *> &projectParts,
+                            Utils::SmallStringVector &&toolChainArguments);
+    void removeProjectParts(ClangBackEnd::ProjectPartIds projectPartIds);
 
     void updateGeneratedFiles(ClangBackEnd::V2::FileContainers &&generatedFiles);
     void removeGeneratedFiles(ClangBackEnd::FilePaths &&filePaths);
 
-unittest_public:
     void setExcludedPaths(ClangBackEnd::FilePaths &&excludedPaths);
     const ClangBackEnd::FilePaths &excludedPaths() const;
 
     const ClangBackEnd::GeneratedFiles &generatedFiles() const;
 
     HeaderAndSources headerAndSourcesFromProjectPart(CppTools::ProjectPart *projectPart) const;
-    ClangBackEnd::V2::ProjectPartContainer toProjectPartContainer(
+    ClangBackEnd::ProjectPartContainer toProjectPartContainer(
             CppTools::ProjectPart *projectPart) const;
-    std::vector<ClangBackEnd::V2::ProjectPartContainer> toProjectPartContainers(
+    ClangBackEnd::ProjectPartContainers toProjectPartContainers(
             std::vector<CppTools::ProjectPart *> projectParts) const;
+
     void addToHeaderAndSources(HeaderAndSources &headerAndSources,
                                const CppTools::ProjectFile &projectFile) const;
-    static QStringList compilerArguments(CppTools::ProjectPart *projectPart);
+    static QStringList toolChainArguments(CppTools::ProjectPart *projectPart);
     static ClangBackEnd::CompilerMacros createCompilerMacros(
             const ProjectExplorer::Macros &projectMacros);
-    static Utils::SmallStringVector createIncludeSearchPaths(
-            const ProjectExplorer::HeaderPaths &projectPartHeaderPaths);
+    static SystemAndProjectIncludeSearchPaths createIncludeSearchPaths(
+        const CppTools::ProjectPart &projectPart);
     static ClangBackEnd::FilePaths createExcludedPaths(
             const ClangBackEnd::V2::FileContainers &generatedFiles);
+
+    QString fetchProjectPartName(ClangBackEnd::ProjectPartId projectPartId) const;
+
+    ClangBackEnd::ProjectPartIds toProjectPartIds(const QStringList &projectPartNames) const;
 
 private:
     ClangBackEnd::GeneratedFiles m_generatedFiles;
     ClangBackEnd::FilePaths m_excludedPaths;
     ClangBackEnd::ProjectManagementServerInterface &m_server;
     ClangBackEnd::FilePathCachingInterface &m_filePathCache;
+    ClangBackEnd::ProjectPartsStorageInterface &m_projectPartsStorage;
 };
 
 } // namespace ClangPchManager

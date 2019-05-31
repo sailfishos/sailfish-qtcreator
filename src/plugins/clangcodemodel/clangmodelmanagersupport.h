@@ -72,7 +72,6 @@ public:
     CppTools::FollowSymbolInterface &followSymbolInterface() override;
     CppTools::RefactoringEngineInterface &refactoringEngineInterface() override;
     std::unique_ptr<CppTools::AbstractOverviewModel> createOverviewModel() override;
-    void setBackendJobsPostponed(bool postponed) override;
 
     BackendCommunicator &communicator();
     QString dummyUiHeaderOnDiskDirPath() const;
@@ -83,8 +82,6 @@ public:
     static ClangModelManagerSupport *instance();
 
 private:
-    bool eventFilter(QObject *obj, QEvent *e) override;
-
     void onEditorOpened(Core::IEditor *editor);
     void onEditorClosed(const QList<Core::IEditor *> &editors);
     void onCurrentEditorChanged(Core::IEditor *newCurrent);
@@ -97,7 +94,9 @@ private:
     void onCppDocumentReloadFinishedOnUnsavedFile(bool success);
     void onCppDocumentContentsChangedOnUnsavedFile();
 
-    void onAbstractEditorSupportContentsUpdated(const QString &filePath, const QByteArray &content);
+    void onAbstractEditorSupportContentsUpdated(const QString &filePath,
+                                                const QString &sourceFilePath,
+                                                const QByteArray &content);
     void onAbstractEditorSupportRemoved(const QString &filePath);
 
     void onTextMarkContextMenuRequested(TextEditor::TextEditorWidget *widget,

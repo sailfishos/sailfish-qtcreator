@@ -3,21 +3,20 @@ INCLUDEPATH += $$PWD
 SOURCES += \
     $$PWD/builddependenciesprovider.cpp \
     $$PWD/pchmanagerserver.cpp \
-    $$PWD/projectparts.cpp \
-    $$PWD/projectpartqueue.cpp \
-    $$PWD/pchtaskgenerator.cpp
+    $$PWD/pchtaskgenerator.cpp \
+    $$PWD/pchtasksmerger.cpp \
+    $$PWD/pchtaskqueue.cpp \
+    $$PWD/projectpartsmanager.cpp
 
 HEADERS += \
     $$PWD/pchmanagerserver.h \
     $$PWD/clangpchmanagerbackend_global.h \
     $$PWD/pchnotcreatederror.h \
     $$PWD/environment.h \
-    $$PWD/projectparts.h \
     $$PWD/pchcreatorinterface.h \
-    $$PWD/projectpartsinterface.h \
-    $$PWD/projectpartqueue.h \
+    $$PWD/projectpartsmanager.h \
+    $$PWD/projectpartsmanagerinterface.h \
     $$PWD/queueinterface.h \
-    $$PWD/projectpartqueueinterface.h \
     $$PWD/processormanagerinterface.h \
     $$PWD/processorinterface.h \
     $$PWD/taskscheduler.h \
@@ -33,7 +32,16 @@ HEADERS += \
     $$PWD/modifiedtimecheckerinterface.h \
     $$PWD/sourceentry.h \
     $$PWD/builddependenciesstorage.h \
-    $$PWD/builddependencygeneratorinterface.h
+    $$PWD/builddependencygeneratorinterface.h \
+    $$PWD/usedmacrofilter.h \
+    $$PWD/pchtasksmergerinterface.h \
+    $$PWD/pchtasksmerger.h \
+    $$PWD/pchtaskqueueinterface.h \
+    $$PWD/pchtaskqueue.h \
+    $$PWD/generatepchactionfactory.h \
+    $$PWD/pchtaskgeneratorinterface.h \
+    $$PWD/toolchainargumentscache.h \
+    $$PWD/modifiedtimechecker.h
 
 !isEmpty(LIBTOOLING_LIBS) {
 SOURCES += \

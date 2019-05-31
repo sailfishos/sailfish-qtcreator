@@ -27,13 +27,14 @@
 
 #include "mockclangpathwatcher.h"
 #include "mockpchmanagerclient.h"
-#include "mockprojectpartqueue.h"
-#include "mockprojectparts.h"
+#include "mockpchtaskgenerator.h"
+#include "mockprojectpartsmanager.h"
 #include "mockgeneratedfiles.h"
 
 #include <filepathcaching.h>
 #include <pchmanagerserver.h>
 #include <precompiledheadersupdatedmessage.h>
+#include <progressmessage.h>
 #include <refactoringdatabaseinitializer.h>
 #include <removegeneratedfilesmessage.h>
 #include <removeprojectpartsmessage.h>
@@ -45,7 +46,8 @@ using Utils::PathString;
 using Utils::SmallString;
 using ClangBackEnd::V2::FileContainer;
 using ClangBackEnd::V2::FileContainers;
-using ClangBackEnd::V2::ProjectPartContainer;
+using ClangBackEnd::ProjectPartContainer;
+using ClangBackEnd::ProjectPartContainers;
 
 class PchManagerServer : public ::testing::Test
 {
@@ -53,8 +55,8 @@ class PchManagerServer : public ::testing::Test
     {
         server.setClient(&mockPchManagerClient);
 
-        ON_CALL(mockProjectParts, update(projectParts))
-                .WillByDefault(Return(projectParts));
+        ON_CALL(mockProjectPartsManager, update(projectParts)).WillByDefault(Return(projectParts));
+        ON_CALL(mockGeneratedFiles, isValid()).WillByDefault(Return(true));
    }
 
     ClangBackEnd::FilePathId id(Utils::SmallStringView path) const
@@ -63,48 +65,64 @@ class PchManagerServer : public ::testing::Test
     }
 
 protected:
-    NiceMock<MockProjectPartQueue> mockProjectPartQueue;
+    NiceMock<MockPchTaskGenerator> mockPchTaskGenerator;
     NiceMock<MockClangPathWatcher> mockClangPathWatcher;
-    NiceMock<MockProjectParts> mockProjectParts;
+    NiceMock<MockProjectPartsManager> mockProjectPartsManager;
     NiceMock<MockGeneratedFiles> mockGeneratedFiles;
     Sqlite::Database database{":memory:", Sqlite::JournalMode::Memory};
     ClangBackEnd::RefactoringDatabaseInitializer<Sqlite::Database> initializer{database};
     ClangBackEnd::FilePathCaching filePathCache{database};
-    ClangBackEnd::PchManagerServer server{mockClangPathWatcher, mockProjectPartQueue, mockProjectParts, mockGeneratedFiles};
+    ClangBackEnd::PchManagerServer server{mockClangPathWatcher,
+                                          mockPchTaskGenerator,
+                                          mockProjectPartsManager,
+                                          mockGeneratedFiles};
     NiceMock<MockPchManagerClient> mockPchManagerClient;
-    SmallString projectPartId1 = "project1";
-    SmallString projectPartId2 = "project2";
+    ClangBackEnd::ProjectPartId projectPartId1{1};
+    ClangBackEnd::ProjectPartId projectPartId2{2};
     PathString main1Path = TESTDATA_DIR "/BuildDependencyCollector_main3.cpp";
     PathString main2Path = TESTDATA_DIR "/BuildDependencyCollector_main2.cpp";
     PathString header1Path = TESTDATA_DIR "/BuildDependencyCollector_header1.h";
     PathString header2Path = TESTDATA_DIR "/BuildDependencyCollector_header2.h";
     ClangBackEnd::IdPaths idPath{projectPartId1, {1, 2}};
-    ProjectPartContainer projectPart1{projectPartId1.clone(),
-                                      {"-I", TESTDATA_DIR, "-Wno-pragma-once-outside-header"},
-                                      {{"DEFINE", "1"}},
-                                      {"/includes"},
-                                      {id(header1Path)},
-                                      {id(main1Path)}};
-    ProjectPartContainer projectPart2{projectPartId2.clone(),
-                                      {"-x", "c++-header", "-Wno-pragma-once-outside-header"},
-                                      {{"DEFINE", "1"}},
-                                      {"/includes"},
-                                      {id(header2Path)},
-                                      {id(main2Path)}};
+    ProjectPartContainer projectPart1{
+        projectPartId1,
+        {"-I", TESTDATA_DIR, "-Wno-pragma-once-outside-header"},
+        {{"DEFINE", "1", 1}},
+        {{"/includes", 1, ClangBackEnd::IncludeSearchPathType::BuiltIn}},
+        {{"/project/includes", 1, ClangBackEnd::IncludeSearchPathType::User}},
+        {id(header1Path)},
+        {id(main1Path)},
+        Utils::Language::C,
+        Utils::LanguageVersion::C11,
+        Utils::LanguageExtension::All};
+    ProjectPartContainer projectPart2{
+        projectPartId2,
+        {"-x", "c++-header", "-Wno-pragma-once-outside-header"},
+        {{"DEFINE", "1", 1}},
+        {{"/includes", 1, ClangBackEnd::IncludeSearchPathType::BuiltIn}},
+        {{"/project/includes", 1, ClangBackEnd::IncludeSearchPathType::User}},
+        {id(header2Path)},
+        {id(main2Path)},
+        Utils::Language::C,
+        Utils::LanguageVersion::C11,
+        Utils::LanguageExtension::All};
     std::vector<ProjectPartContainer> projectParts{projectPart1, projectPart2};
         std::vector<ProjectPartContainer> projectParts2{projectPart2};
     FileContainer generatedFile{{"/path/to/", "file"}, "content", {}};
-    ClangBackEnd::UpdateProjectPartsMessage updateProjectPartsMessage{Utils::clone(projectParts)};
-    ClangBackEnd::RemoveProjectPartsMessage removeProjectPartsMessage{{projectPart1.projectPartId.clone(),
-                                                                       projectPart2.projectPartId.clone()}};
+    ClangBackEnd::UpdateProjectPartsMessage updateProjectPartsMessage{
+        Utils::clone(projectParts), {"toolChainArgument"}};
+    ClangBackEnd::RemoveProjectPartsMessage removeProjectPartsMessage{
+        {projectPart1.projectPartId, projectPart2.projectPartId}};
 };
 
 TEST_F(PchManagerServer, FilterProjectPartsAndSendThemToQueue)
 {
     InSequence s;
 
-    EXPECT_CALL(mockProjectParts, update(updateProjectPartsMessage.projectsParts)).WillOnce(Return(projectParts2));
-    EXPECT_CALL(mockProjectPartQueue, addProjectParts(Eq(projectParts2)));
+    EXPECT_CALL(mockProjectPartsManager, update(updateProjectPartsMessage.projectsParts))
+        .WillOnce(Return(projectParts2));
+    EXPECT_CALL(
+        mockPchTaskGenerator, addProjectParts(Eq(projectParts2), ElementsAre("toolChainArgument")));
 
     server.updateProjectParts(updateProjectPartsMessage.clone());
 }
@@ -136,7 +154,7 @@ TEST_F(PchManagerServer, RemoveIncludesFromFileWatcher)
 
 TEST_F(PchManagerServer, RemoveProjectPartsFromProjectParts)
 {
-    EXPECT_CALL(mockProjectParts, remove(removeProjectPartsMessage.projectsPartIds));
+    EXPECT_CALL(mockProjectPartsManager, remove(removeProjectPartsMessage.projectsPartIds));
 
     server.removeProjectParts(removeProjectPartsMessage.clone());
 }
@@ -145,16 +163,117 @@ TEST_F(PchManagerServer, SetPathWatcherNotifier)
 {
     EXPECT_CALL(mockClangPathWatcher, setNotifier(_));
 
-    ClangBackEnd::PchManagerServer server{mockClangPathWatcher, mockProjectPartQueue, mockProjectParts, mockGeneratedFiles};
+    ClangBackEnd::PchManagerServer server{mockClangPathWatcher,
+                                          mockPchTaskGenerator,
+                                          mockProjectPartsManager,
+                                          mockGeneratedFiles};
 }
 
 TEST_F(PchManagerServer, UpdateProjectPartQueueByPathIds)
 {
-    EXPECT_CALL(mockProjectParts, projects(ElementsAre(projectPart1.projectPartId)))
-            .WillOnce(Return(std::vector<ClangBackEnd::V2::ProjectPartContainer>{{projectPart1}}));
-    EXPECT_CALL(mockProjectPartQueue, addProjectParts(ElementsAre(projectPart1)));
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+
+    EXPECT_CALL(mockProjectPartsManager, projects(ElementsAre(projectPart1.projectPartId)))
+        .WillOnce(Return(std::vector<ClangBackEnd::ProjectPartContainer>{{projectPart1}}));
+    EXPECT_CALL(mockPchTaskGenerator, addProjectParts(ElementsAre(projectPart1), ElementsAre("toolChainArgument")));
 
     server.pathsWithIdsChanged({projectPartId1});
+}
+
+TEST_F(PchManagerServer, SetPchCreationProgress)
+{
+    EXPECT_CALL(mockPchManagerClient,
+                progress(AllOf(Field(&ClangBackEnd::ProgressMessage::progressType,
+                                     ClangBackEnd::ProgressType::PrecompiledHeader),
+                               Field(&ClangBackEnd::ProgressMessage::progress, 20),
+                               Field(&ClangBackEnd::ProgressMessage::total, 30))));
+
+    server.setPchCreationProgress(20, 30);
+}
+
+TEST_F(PchManagerServer, SetDependencyCreationProgress)
+{
+    EXPECT_CALL(mockPchManagerClient,
+                progress(AllOf(Field(&ClangBackEnd::ProgressMessage::progressType,
+                                     ClangBackEnd::ProgressType::DependencyCreation),
+                               Field(&ClangBackEnd::ProgressMessage::progress, 20),
+                               Field(&ClangBackEnd::ProgressMessage::total, 30))));
+
+    server.setDependencyCreationProgress(20, 30);
+}
+
+TEST_F(PchManagerServer, RemoveToolChainsArguments)
+{
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+
+    EXPECT_CALL(mockPchTaskGenerator, addProjectParts(_, _)).Times(0);
+    server.removeProjectParts(removeProjectPartsMessage.clone());
+
+    server.pathsWithIdsChanged({projectPart1.projectPartId});
+}
+
+TEST_F(PchManagerServer, DontGeneratePchIfGeneratedFilesAreNotValid)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockProjectPartsManager, update(ElementsAre(projectPart1)))
+        .WillOnce(Return(ProjectPartContainers{projectPart1}));
+    EXPECT_CALL(mockGeneratedFiles, isValid()).WillOnce(Return(false));
+    EXPECT_CALL(mockPchTaskGenerator, addProjectParts(_, _)).Times(0);
+    EXPECT_CALL(mockProjectPartsManager, updateDeferred(ElementsAre(projectPart1)));
+
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+}
+
+TEST_F(PchManagerServer, GeneratePchIfGeneratedFilesAreValid)
+{
+    InSequence s;
+
+    EXPECT_CALL(mockProjectPartsManager, update(ElementsAre(projectPart1)))
+        .WillOnce(Return(ProjectPartContainers{projectPart1}));
+    EXPECT_CALL(mockGeneratedFiles, isValid()).WillOnce(Return(true));
+    EXPECT_CALL(mockPchTaskGenerator, addProjectParts(_, _));
+    EXPECT_CALL(mockProjectPartsManager, updateDeferred(_)).Times(0);
+
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+}
+
+TEST_F(PchManagerServer, AfterUpdatingGeneratedFilesAreValidSoGeneratePchs)
+{
+    InSequence s;
+    ClangBackEnd::UpdateGeneratedFilesMessage updateGeneratedFilesMessage{{generatedFile}};
+    ON_CALL(mockGeneratedFiles, isValid()).WillByDefault(Return(false));
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+
+    EXPECT_CALL(mockGeneratedFiles, update(updateGeneratedFilesMessage.generatedFiles));
+    EXPECT_CALL(mockGeneratedFiles, isValid()).WillOnce(Return(true));
+    EXPECT_CALL(mockProjectPartsManager, deferredUpdates())
+        .WillOnce(Return(ClangBackEnd::ProjectPartContainers{projectPart1}));
+    EXPECT_CALL(mockPchTaskGenerator,
+                addProjectParts(ElementsAre(projectPart1), ElementsAre("toolChainArgument")));
+
+    server.updateGeneratedFiles(updateGeneratedFilesMessage.clone());
+}
+
+TEST_F(PchManagerServer, AfterUpdatingGeneratedFilesAreStillInvalidSoNoPchsGeneration)
+{
+    InSequence s;
+    ClangBackEnd::UpdateGeneratedFilesMessage updateGeneratedFilesMessage{{generatedFile}};
+    ON_CALL(mockGeneratedFiles, isValid()).WillByDefault(Return(false));
+    server.updateProjectParts(
+        ClangBackEnd::UpdateProjectPartsMessage{{projectPart1}, {"toolChainArgument"}});
+
+    EXPECT_CALL(mockGeneratedFiles, update(updateGeneratedFilesMessage.generatedFiles));
+    EXPECT_CALL(mockGeneratedFiles, isValid()).WillOnce(Return(false));
+    EXPECT_CALL(mockProjectPartsManager, deferredUpdates()).Times(0);
+    EXPECT_CALL(mockPchTaskGenerator, addProjectParts(_, _)).Times(0);
+
+    server.updateGeneratedFiles(updateGeneratedFilesMessage.clone());
 }
 
 }

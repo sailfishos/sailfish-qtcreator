@@ -19,8 +19,10 @@ imagedirs = ../images \
             ../../src/plugins/qmldesigner/components/componentcore/images \
             ../../src/plugins/qmldesigner/components/formeditor \
             ../../src/plugins/qmldesigner/components/navigator \
+            ../../src/plugins/qmldesigner//qmldesignerextension/timelineeditor/images \
             ../../src/plugins/scxmleditor/common/images \
-            ../../src/plugins/texteditor/images
+            ../../src/plugins/texteditor/images \
+            ../../src/plugins/valgrind/images
 
 exampledirs = ../examples
 examples.fileextensions += *.qml *.svg
@@ -38,7 +40,6 @@ depends +=    qtwidgets \
               qtgui \
               qthelp \
               qtquickcontrols \
-              qtquickcontrols2 \
               qtquickextras \
               qtlinguist \
               qtscxml \

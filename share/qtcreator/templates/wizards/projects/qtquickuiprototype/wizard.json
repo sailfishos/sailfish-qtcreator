@@ -40,9 +40,18 @@
                     "type": "ComboBox",
                     "data":
                     {
-                        "index": 3,
+                        "index": 1,
                         "items":
                         [
+                            {
+                                "trKey": "Qt 5.13",
+                                "value":
+                                "({
+                                    'QtQuickVersion': '2.13',
+                                    'QtQuickWindowVersion': '2.13',
+                                    'QtQuickVirtualKeyboardImport': 'QtQuick.VirtualKeyboard 2.4'
+                                })"
+                            },
                             {
                                 "trKey": "Qt 5.12",
                                 "value":
@@ -119,6 +128,16 @@
                     }
                 }
             ]
+        },
+        {
+            "trDisplayName": "Kit Selection",
+            "trShortTitle": "Kits",
+            "typeId": "Kits",
+            "enabled": "%{JS: ! %{IsSubproject}}",
+            "data": {
+                "projectFilePath": "%{QmlProjectFileName}",
+                "requiredFeatures": [ "QtSupport.Wizards.FeatureQt", "%{QtQuickFeature}" ]
+            }
         },
         {
             "trDisplayName": "Project Management",

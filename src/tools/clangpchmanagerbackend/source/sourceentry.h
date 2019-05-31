@@ -31,18 +31,22 @@
 
 namespace ClangBackEnd {
 
-enum class SourceType : unsigned char
-{
-    TopInclude,
+enum class SourceType : unsigned char {
+    TopProjectInclude,
     TopSystemInclude,
     UserInclude,
-    SystemInclude
+    ProjectInclude,
+    SystemInclude,
+    Source
 };
+
+enum class HasMissingIncludes : unsigned char { No, Yes };
 
 class TimeStamp
 {
     using int64 = long long;
 public:
+    TimeStamp() = default;
     TimeStamp(int64 value)
         : value(value)
     {}
@@ -55,44 +59,93 @@ public:
     int64 value = -1;
 };
 
-class SourceEntry
+class SourceTimeStamp
 {
     using int64 = long long;
 public:
-    SourceEntry(int sourceId, int64 lastModified, int sourceType)
-        : lastModified(lastModified),
-          sourceId(sourceId),
-          sourceType(static_cast<SourceType>(sourceType))
+    SourceTimeStamp(int sourceId, int64 lastModified)
+        : lastModified(lastModified)
+        , sourceId(sourceId)
     {}
 
-    SourceEntry(FilePathId sourceId, SourceType sourceType, TimeStamp lastModified)
-        : lastModified(lastModified),
-          sourceId(sourceId),
-          sourceType(sourceType)
+    SourceTimeStamp(FilePathId sourceId, TimeStamp lastModified)
+        : lastModified(lastModified)
+        , sourceId(sourceId)
     {}
 
-    friend
-    bool operator<(SourceEntry first, SourceEntry second)
+    friend bool operator<(SourceTimeStamp first, SourceTimeStamp second)
     {
         return first.sourceId < second.sourceId;
     }
 
-    friend
-    bool operator==(SourceEntry first, SourceEntry second)
+    friend bool operator<(SourceTimeStamp first, FilePathId second)
     {
-        return first.sourceId == second.sourceId
-            && first.sourceType == second.sourceType
-            && first.lastModified == second.lastModified ;
+        return first.sourceId < second;
+    }
+
+    friend bool operator<(FilePathId first, SourceTimeStamp second)
+    {
+        return first < second.sourceId;
+    }
+
+    friend bool operator==(SourceTimeStamp first, SourceTimeStamp second)
+    {
+        return first.sourceId == second.sourceId && first.lastModified == second.lastModified;
+    }
+
+    friend bool operator!=(SourceTimeStamp first, SourceTimeStamp second)
+    {
+        return !(first == second);
+    }
+
+public:
+    TimeStamp lastModified;
+    FilePathId sourceId;
+};
+
+using SourceTimeStamps = std::vector<SourceTimeStamp>;
+
+class SourceEntry
+{
+    using int64 = long long;
+
+public:
+    SourceEntry(int sourceId,
+                int64 pchCreationTimeStamp,
+                int sourceType,
+                int hasMissingIncludes)
+        : pchCreationTimeStamp(pchCreationTimeStamp), sourceId(sourceId),
+          sourceType(static_cast<SourceType>(sourceType)),
+          hasMissingIncludes(
+              static_cast<HasMissingIncludes>(hasMissingIncludes)) {}
+
+    SourceEntry(FilePathId sourceId,
+                SourceType sourceType,
+                TimeStamp pchCreationTimeStamp,
+                HasMissingIncludes hasMissingIncludes = HasMissingIncludes::No)
+        : pchCreationTimeStamp(pchCreationTimeStamp), sourceId(sourceId),
+          sourceType(sourceType), hasMissingIncludes(hasMissingIncludes) {}
+
+    friend bool operator<(SourceEntry first, SourceEntry second) {
+        return first.sourceId < second.sourceId;
+    }
+
+    friend bool operator==(SourceEntry first, SourceEntry second)
+    {
+        return first.sourceId == second.sourceId && first.sourceType == second.sourceType
+               && first.pchCreationTimeStamp == second.pchCreationTimeStamp;
     }
 
     friend bool operator!=(SourceEntry first, SourceEntry second) { return !(first == second); }
 
 public:
-    TimeStamp lastModified;
+    TimeStamp pchCreationTimeStamp;
     FilePathId sourceId;
     SourceType sourceType = SourceType::UserInclude;
+    HasMissingIncludes hasMissingIncludes = HasMissingIncludes::No;
 };
 
 using SourceEntries = std::vector<SourceEntry>;
-
-}
+using SourceEntryReference = std::reference_wrapper<SourceEntry>;
+using SourceEntryReferences = std::vector<SourceEntryReference>;
+} // namespace ClangBackEnd

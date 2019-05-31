@@ -30,8 +30,11 @@
 #include <builddependency.h>
 #include <filepathid.h>
 #include <filestatus.h>
+#include <projectpartid.h>
 #include <sourcedependency.h>
 #include <usedmacro.h>
+
+#include <utils/optional.h>
 
 namespace ClangBackEnd {
 
@@ -42,13 +45,17 @@ public:
     BuildDependenciesStorageInterface(const BuildDependenciesStorageInterface &) = delete;
     BuildDependenciesStorageInterface &operator=(const BuildDependenciesStorageInterface &) = delete;
 
-    virtual void updateSources(const SourceEntries &sourceIds) = 0;
+    virtual void insertOrUpdateSources(const SourceEntries &sourceIds, ProjectPartId projectPartId) = 0;
     virtual void insertOrUpdateUsedMacros(const UsedMacros &usedMacros) = 0;
-    virtual void insertFileStatuses(const FileStatuses &fileStatuses) = 0;
+    virtual void
+    insertOrUpdateFileStatuses(const FileStatuses &fileStatuses) = 0;
     virtual void insertOrUpdateSourceDependencies(const SourceDependencies &sourceDependencies) = 0;
     virtual long long fetchLowestLastModifiedTime(FilePathId sourceId) const = 0;
-    virtual SourceEntries fetchDependSources(FilePathId sourceId, Utils::SmallStringView projectPartId) const = 0;
+    virtual SourceEntries fetchDependSources(FilePathId sourceId,
+                                             ProjectPartId projectPartId) const = 0;
     virtual UsedMacros fetchUsedMacros(FilePathId sourceId) const = 0;
+    virtual ProjectPartId fetchProjectPartId(Utils::SmallStringView projectPartName) = 0;
+    virtual void updatePchCreationTimeStamp(long long pchCreationTimeStamp, ProjectPartId projectPartId) = 0;
 
 protected:
     ~BuildDependenciesStorageInterface() = default;

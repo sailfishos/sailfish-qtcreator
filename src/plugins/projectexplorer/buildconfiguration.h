@@ -39,6 +39,7 @@ class BuildStepList;
 class Node;
 class Kit;
 class Target;
+class Task;
 class IOutputParser;
 
 class PROJECTEXPLORER_EXPORT BuildConfiguration : public ProjectConfiguration
@@ -46,7 +47,7 @@ class PROJECTEXPLORER_EXPORT BuildConfiguration : public ProjectConfiguration
     Q_OBJECT
 
 protected:
-    friend class IBuildConfigurationFactory;
+    friend class BuildConfigurationFactory;
     explicit BuildConfiguration(Target *target, Core::Id id);
 
 public:
@@ -105,7 +106,7 @@ signals:
     void buildTypeChanged();
 
 protected:
-    virtual void initialize(const BuildInfo *info);
+    virtual void initialize(const BuildInfo &info);
 
 private:
     void emitBuildDirectoryChanged();
@@ -118,42 +119,44 @@ private:
     mutable Utils::Environment m_cachedEnvironment;
 };
 
-class PROJECTEXPLORER_EXPORT IBuildConfigurationFactory : public QObject
+class PROJECTEXPLORER_EXPORT BuildConfigurationFactory : public QObject
 {
     Q_OBJECT
 
 protected:
-    IBuildConfigurationFactory();
-    ~IBuildConfigurationFactory() override;
+    BuildConfigurationFactory();
+    ~BuildConfigurationFactory() override;
 
 public:
-    // The priority is negative if this factory cannot create anything for the target.
-    // It is 0 for the "default" factory that wants to handle the target.
-    // Add 100 for each specialization.
-    virtual int priority(const Target *parent) const;
     // List of build information that can be used to create a new build configuration via
     // "Add Build Configuration" button.
-    virtual QList<BuildInfo *> availableBuilds(const Target *parent) const = 0;
+    const QList<BuildInfo> allAvailableBuilds(const Target *parent) const;
 
-    virtual int priority(const Kit *k, const QString &projectPath) const;
     // List of build information that can be used to initially set up a new build configuration.
-    virtual QList<BuildInfo *> availableSetups(const Kit *k, const QString &projectPath) const = 0;
+    const QList<BuildInfo> allAvailableSetups(const Kit *k, const QString &projectPath) const;
 
-    BuildConfiguration *create(Target *parent, const BuildInfo *info) const;
+    BuildConfiguration *create(Target *parent, const BuildInfo &info) const;
 
     static BuildConfiguration *restore(Target *parent, const QVariantMap &map);
     static BuildConfiguration *clone(Target *parent, const BuildConfiguration *source);
 
-    static IBuildConfigurationFactory *find(const Kit *k, const QString &projectPath);
-    static IBuildConfigurationFactory *find(Target *parent);
+    static BuildConfigurationFactory *find(const Kit *k, const QString &projectPath);
+    static BuildConfigurationFactory *find(Target *parent);
+
+    using IssueReporter = std::function<QList<ProjectExplorer::Task>(Kit *, const QString &, const QString &)>;
+    void setIssueReporter(const IssueReporter &issueReporter);
+    const QList<Task> reportIssues(ProjectExplorer::Kit *kit,
+                                   const QString &projectPath, const QString &buildDir) const;
 
 protected:
+    virtual QList<BuildInfo> availableBuilds(const Target *parent) const = 0;
+    virtual QList<BuildInfo> availableSetups(const Kit *k, const QString &projectPath) const = 0;
+
     bool supportsTargetDeviceType(Core::Id id) const;
     void setSupportedProjectType(Core::Id id);
     void setSupportedProjectMimeTypeName(const QString &mimeTypeName);
-    void setSupportedTargetDeviceTypes(const QList<Core::Id> &ids);
+    void addSupportedTargetDeviceType(Core::Id id);
     void setDefaultDisplayName(const QString &defaultDisplayName);
-    void setBasePriority(int basePriority);
 
     using BuildConfigurationCreator = std::function<BuildConfiguration *(Target *)>;
 
@@ -173,7 +176,7 @@ private:
     Core::Id m_supportedProjectType;
     QList<Core::Id> m_supportedTargetDeviceTypes;
     QString m_supportedProjectMimeTypeName;
-    int m_basePriority = 0; // Use higher numbers (1, 2, ...) for higher priorities.
+    IssueReporter m_issueReporter;
 };
 
 } // namespace ProjectExplorer

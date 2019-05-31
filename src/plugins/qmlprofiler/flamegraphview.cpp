@@ -85,18 +85,21 @@ void FlameGraphView::onVisibleFeaturesChanged(quint64 features)
 void FlameGraphView::contextMenuEvent(QContextMenuEvent *ev)
 {
     QMenu menu;
-    QAction *getGlobalStatsAction = nullptr;
 
     QPoint position = ev->globalPos();
 
     menu.addActions(QmlProfilerTool::profilerContextMenuActions());
     menu.addSeparator();
-    getGlobalStatsAction = menu.addAction(tr("Show Full Range"));
-    if (!m_model->modelManager()->isRestrictedToRange())
-        getGlobalStatsAction->setEnabled(false);
+    QAction *getGlobalStatsAction = menu.addAction(tr("Show Full Range"));
+    getGlobalStatsAction->setEnabled(m_model->modelManager()->isRestrictedToRange());
+    QAction *resetAction = menu.addAction(tr("Reset Flame Graph"));
+    resetAction->setEnabled(m_content->rootObject()->property("zoomed").toBool());
 
-    if (menu.exec(position) == getGlobalStatsAction)
+    const QAction *selected = menu.exec(position);
+    if (selected == getGlobalStatsAction)
         emit showFullRange();
+    else if (selected == resetAction)
+        QMetaObject::invokeMethod(m_content->rootObject(), "resetRoot");
 }
 
 } // namespace Internal

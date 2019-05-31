@@ -54,9 +54,7 @@ static const char *defaultPreviewText =
     "    }\n"
     "}\n";
 
-QmlJSCodeStylePreferencesFactory::QmlJSCodeStylePreferencesFactory()
-{
-}
+QmlJSCodeStylePreferencesFactory::QmlJSCodeStylePreferencesFactory() = default;
 
 Core::Id QmlJSCodeStylePreferencesFactory::languageId()
 {
@@ -76,15 +74,15 @@ TextEditor::ICodeStylePreferences *QmlJSCodeStylePreferencesFactory::createCodeS
 QWidget *QmlJSCodeStylePreferencesFactory::createEditor(TextEditor::ICodeStylePreferences *preferences,
                                                            QWidget *parent) const
 {
-    Internal::QmlJSCodeStylePreferencesWidget *widget = new Internal::QmlJSCodeStylePreferencesWidget(parent);
+    auto widget = new Internal::QmlJSCodeStylePreferencesWidget(parent);
     widget->layout()->setMargin(0);
     widget->setPreferences(preferences);
     return widget;
 }
 
-TextEditor::Indenter *QmlJSCodeStylePreferencesFactory::createIndenter() const
+TextEditor::Indenter *QmlJSCodeStylePreferencesFactory::createIndenter(QTextDocument *doc) const
 {
-    return new QmlJSEditor::Internal::Indenter();
+    return new QmlJSEditor::Internal::Indenter(doc);
 }
 
 QString QmlJSCodeStylePreferencesFactory::snippetProviderGroupId() const

@@ -42,9 +42,13 @@ public:
 
     static Core::Id runConfigId();
     QString runConfigDefaultDisplayName();
+
+private:
+    ProjectExplorer::Runnable runnable() const override;
 };
 
-class RemoteLinuxCustomRunConfigurationFactory : public ProjectExplorer::FixedRunConfigurationFactory
+class RemoteLinuxCustomRunConfigurationFactory
+        : public ProjectExplorer::FixedRunConfigurationFactory
 {
 public:
     RemoteLinuxCustomRunConfigurationFactory();

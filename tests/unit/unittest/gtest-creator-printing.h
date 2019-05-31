@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <utils/cpplanguage_details.h>
 #include <utils/smallstringio.h>
 #include <utils/optional.h>
 
@@ -38,6 +39,14 @@
 
 class Utf8String;
 void PrintTo(const Utf8String &text, ::std::ostream *os);
+
+namespace clang {
+namespace tooling {
+struct CompileCommand;
+
+std::ostream &operator<<(std::ostream &out, const CompileCommand &command);
+} // namespace tooling
+} // namespace clang
 
 namespace Core {
 class LocatorFilterEntry;
@@ -59,9 +68,13 @@ namespace ProjectExplorer {
 
 enum class MacroType;
 class Macro;
+enum class HeaderPathType;
+class HeaderPath;
 
 std::ostream &operator<<(std::ostream &out, const MacroType &type);
 std::ostream &operator<<(std::ostream &out, const Macro &macro);
+std::ostream &operator<<(std::ostream &out, const HeaderPathType &headerPathType);
+std::ostream &operator<<(std::ostream &out, const HeaderPath &headerPath);
 
 } // namespace ClangRefactoring
 
@@ -70,12 +83,15 @@ class LineColumn;
 class SmallStringView;
 
 std::ostream &operator<<(std::ostream &out, const LineColumn &lineColumn);
+std::ostream &operator<<(std::ostream &out, const Utils::Language &language);
+std::ostream &operator<<(std::ostream &out, const Utils::LanguageVersion &languageVersion);
+std::ostream &operator<<(std::ostream &out, const Utils::LanguageExtension &languageExtension);
 
 template <typename Type>
 std::ostream &operator<<(std::ostream &out, const Utils::optional<Type> &optional)
 {
     if (optional)
-        return out << "optional" << optional.value();
+        return out << "optional " << optional.value();
     else
         return out << "empty optional()";
 }
@@ -169,11 +185,18 @@ class RemoveGeneratedFilesMessage;
 class SuspendResumeJobsEntry;
 class ReferencesResult;
 class SymbolIndexerTask;
-class PchCreatorIncludes;
+class ProgressMessage;
 class PchTask;
+class PchTaskSet;
 class BuildDependency;
 class SourceEntry;
 class FilePathCaching;
+struct SlotUsage;
+class IncludeSearchPath;
+enum class IncludeSearchPathType : unsigned char;
+struct ArgumentsEntry;
+class ProjectPartContainer;
+class ProjectPartId;
 
 std::ostream &operator<<(std::ostream &out, const SourceLocationEntry &entry);
 std::ostream &operator<<(std::ostream &out, const IdPaths &idPaths);
@@ -253,10 +276,17 @@ std::ostream &operator<<(std::ostream &out, const RemoveGeneratedFilesMessage &m
 std::ostream &operator<<(std::ostream &os, const SuspendResumeJobsEntry &entry);
 std::ostream &operator<<(std::ostream &os, const ReferencesResult &value);
 std::ostream &operator<<(std::ostream &out, const SymbolIndexerTask &task);
-std::ostream &operator<<(std::ostream &out, const PchCreatorIncludes &includes);
+std::ostream &operator<<(std::ostream &out, const ProgressMessage &message);
 std::ostream &operator<<(std::ostream &out, const PchTask &task);
+std::ostream &operator<<(std::ostream &out, const PchTaskSet &taskSet);
 std::ostream &operator<<(std::ostream &out, const BuildDependency &dependency);
 std::ostream &operator<<(std::ostream &out, const SourceEntry &entry);
+std::ostream &operator<<(std::ostream &out, const SlotUsage &slotUsage);
+std::ostream &operator<<(std::ostream &out, const IncludeSearchPathType &pathType);
+std::ostream &operator<<(std::ostream &out, const IncludeSearchPath &path);
+std::ostream &operator<<(std::ostream &out, const ArgumentsEntry &entry);
+std::ostream &operator<<(std::ostream &out, const ProjectPartContainer &container);
+std::ostream &operator<<(std::ostream &out, const ProjectPartId &projectPathId);
 
 void PrintTo(const FilePath &filePath, ::std::ostream *os);
 void PrintTo(const FilePathView &filePathView, ::std::ostream *os);
@@ -264,12 +294,10 @@ void PrintTo(const FilePathId &filePathId, ::std::ostream *os);
 
 namespace V2 {
 class FileContainer;
-class ProjectPartContainer;
 class SourceRangeContainer;
 class SourceLocationContainer;
 
 std::ostream &operator<<(std::ostream &out, const FileContainer &container);
-std::ostream &operator<<(std::ostream &out, const ProjectPartContainer &container);
 std::ostream &operator<<(std::ostream &out, const SourceLocationContainer &container);
 std::ostream &operator<<(std::ostream &out, const SourceRangeContainer &container);
 }  // namespace V2

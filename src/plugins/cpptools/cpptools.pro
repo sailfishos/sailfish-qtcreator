@@ -26,6 +26,7 @@ HEADERS += \
     cppcodestylepreferencesfactory.h \
     cppcodestylesettings.h \
     cppcodestylesettingspage.h \
+    cppcodestylesnippets.h \
     cppcompletionassist.h \
     cppcompletionassistprocessor.h \
     cppcompletionassistprovider.h \
@@ -101,7 +102,10 @@ HEADERS += \
     usages.h \
     cpptools_clangtidychecks.h \
     cppmodelmanagerinterface.h \
-    cppbuiltinmodelmanagersupport.h
+    cppbuiltinmodelmanagersupport.h \
+    headerpathfilter.h \
+    cppkitinfo.h \
+    cpptools_clazychecks.h
 
 SOURCES += \
     abstracteditorsupport.cpp \
@@ -187,7 +191,9 @@ SOURCES += \
     cppprojectfilecategorizer.cpp \
     cppprojectpartchooser.cpp \
     wrappablelineedit.cpp \
-    cppbuiltinmodelmanagersupport.cpp
+    cppbuiltinmodelmanagersupport.cpp \
+    headerpathfilter.cpp \
+    cppkitinfo.cpp
 
 FORMS += \
     clangdiagnosticconfigswidget.ui \

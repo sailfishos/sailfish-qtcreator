@@ -25,9 +25,11 @@
 
 #include "clanghoverhandler.h"
 
+#include "clangeditordocumentprocessor.h"
+
 #include <coreplugin/helpmanager.h>
-#include <cpptools/baseeditordocumentprocessor.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/cpptoolsreuse.h>
 #include <cpptools/editordocumenthandle.h>
 #include <texteditor/texteditor.h>
 
@@ -37,6 +39,7 @@
 
 #include <QFutureWatcher>
 #include <QLoggingCategory>
+#include <QRegularExpression>
 #include <QTextCodec>
 #include <QVBoxLayout>
 
@@ -56,35 +59,20 @@ static CppTools::BaseEditorDocumentProcessor *editorDocumentProcessor(TextEditor
     if (editorHandle)
         return editorHandle->processor();
 
-    return 0;
+    return nullptr;
 }
 
-static bool editorDocumentProcessorHasDiagnosticAt(TextEditorWidget *editorWidget, int pos)
+static TextMarks diagnosticTextMarksAt(TextEditorWidget *editorWidget, int position)
 {
-    if (CppTools::BaseEditorDocumentProcessor *processor = editorDocumentProcessor(editorWidget)) {
-        int line, column;
-        if (Utils::Text::convertPosition(editorWidget->document(), pos, &line, &column))
-            return processor->hasDiagnosticsAt(line, column);
-    }
+    const auto processor = qobject_cast<ClangEditorDocumentProcessor *>(
+        editorDocumentProcessor(editorWidget));
+    QTC_ASSERT(processor, return TextMarks());
 
-    return false;
-}
+    int line, column;
+    const bool ok = Utils::Text::convertPosition(editorWidget->document(), position, &line, &column);
+    QTC_ASSERT(ok, return TextMarks());
 
-static void processWithEditorDocumentProcessor(TextEditorWidget *editorWidget,
-                                               const QPoint &point,
-                                               int position,
-                                               const QString &helpId)
-{
-    if (CppTools::BaseEditorDocumentProcessor *processor = editorDocumentProcessor(editorWidget)) {
-        int line, column;
-        if (Utils::Text::convertPosition(editorWidget->document(), position, &line, &column)) {
-            auto layout = new QVBoxLayout;
-            layout->setContentsMargins(0, 0, 0, 0);
-            layout->setSpacing(2);
-            processor->addDiagnosticToolTipToLayout(line, column, layout);
-            Utils::ToolTip::show(point, layout, editorWidget, helpId);
-        }
-    }
+    return processor->diagnosticTextMarksAt(line, column);
 }
 
 static QFuture<CppTools::ToolTipInfo> editorDocumentHandlesToolTipInfo(
@@ -114,12 +102,10 @@ void ClangHoverHandler::identifyMatch(TextEditorWidget *editorWidget,
     m_cursorPosition = -1;
 
     // Check for diagnostics (sync)
-    if (editorDocumentProcessorHasDiagnosticAt(editorWidget, pos)) {
+    if (!isContextHelpRequest() && !diagnosticTextMarksAt(editorWidget, pos).isEmpty()) {
         qCDebug(hoverLog) << "Checking for diagnostic at" << pos;
         setPriority(Priority_Diagnostic);
         m_cursorPosition = pos;
-        report(priority());
-        return;
     }
 
     // Check for tooltips (async)
@@ -128,17 +114,27 @@ void ClangHoverHandler::identifyMatch(TextEditorWidget *editorWidget,
         qCDebug(hoverLog) << "Requesting tooltip info at" << pos;
         m_reportPriority = report;
         m_futureWatcher.reset(new QFutureWatcher<CppTools::ToolTipInfo>());
-        QObject::connect(m_futureWatcher.data(), &QFutureWatcherBase::finished, [this]() {
-            if (m_futureWatcher->isCanceled())
-                m_reportPriority(Priority_None);
-            else
-                processToolTipInfo(m_futureWatcher->result());
-        });
+        QTextCursor tc(editorWidget->document());
+        tc.setPosition(pos);
+        const QStringList fallback = CppTools::identifierWordsUnderCursor(tc);
+        QObject::connect(m_futureWatcher.data(),
+                         &QFutureWatcherBase::finished,
+                         [this, fallback]() {
+                             if (m_futureWatcher->isCanceled()) {
+                                 m_reportPriority(Priority_None);
+                             } else {
+                                 CppTools::ToolTipInfo info = m_futureWatcher->result();
+                                 qCDebug(hoverLog)
+                                     << "Appending word-based fallback lookup" << fallback;
+                                 info.qDocIdCandidates += fallback;
+                                 processToolTipInfo(info);
+                             }
+                         });
         m_futureWatcher->setFuture(future);
         return;
     }
 
-    report(Priority_None); // Ops, something went wrong.
+    report(priority()); // Ops, something went wrong.
 }
 
 void ClangHoverHandler::abort()
@@ -149,8 +145,8 @@ void ClangHoverHandler::abort()
     }
 }
 
-#define RETURN_TEXT_FOR_CASE(enumValue) case TextEditor::HelpItem::enumValue: return #enumValue
-static const char *helpItemCategoryAsString(TextEditor::HelpItem::Category category)
+#define RETURN_TEXT_FOR_CASE(enumValue) case Core::HelpItem::enumValue: return #enumValue
+static const char *helpItemCategoryAsString(Core::HelpItem::Category category)
 {
     switch (category) {
         RETURN_TEXT_FOR_CASE(Unknown);
@@ -177,19 +173,11 @@ void ClangHoverHandler::processToolTipInfo(const CppTools::ToolTipInfo &info)
     if (!info.briefComment.isEmpty())
         text.append("\n\n" + info.briefComment);
 
-    for (const QString &qdocIdCandidate : info.qDocIdCandidates) {
-        qCDebug(hoverLog) << "Querying help manager with"
-                          << qdocIdCandidate
-                          << info.qDocMark
-                          << helpItemCategoryAsString(info.qDocCategory);
-        const QMap<QString, QUrl> helpLinks = Core::HelpManager::linksForIdentifier(qdocIdCandidate);
-        if (!helpLinks.isEmpty()) {
-            qCDebug(hoverLog) << "  Match!";
-            setLastHelpItemIdentified(
-                HelpItem(qdocIdCandidate, info.qDocMark, info.qDocCategory, helpLinks));
-            break;
-        }
-    }
+    qCDebug(hoverLog) << "Querying help manager with"
+                      << info.qDocIdCandidates
+                      << info.qDocMark
+                      << helpItemCategoryAsString(info.qDocCategory);
+    setLastHelpItemIdentified({info.qDocIdCandidates, info.qDocMark, info.qDocCategory});
 
     if (!info.sizeInBytes.isEmpty())
         text.append("\n\n" + tr("%1 bytes").arg(info.sizeInBytes));
@@ -198,29 +186,12 @@ void ClangHoverHandler::processToolTipInfo(const CppTools::ToolTipInfo &info)
     m_reportPriority(priority());
 }
 
-void ClangHoverHandler::decorateToolTip()
-{
-    if (priority() == Priority_Diagnostic)
-        return;
-
-    if (Qt::mightBeRichText(toolTip()))
-        setToolTip(toolTip().toHtmlEscaped());
-
-    const HelpItem &help = lastHelpItemIdentified();
-    if (help.isValid()) {
-        const QString text = CppTools::CppHoverHandler::tooltipTextForHelpItem(help);
-        if (!text.isEmpty())
-            setToolTip(text);
-    }
-}
-
 void ClangHoverHandler::operateTooltip(TextEditor::TextEditorWidget *editorWidget,
                                        const QPoint &point)
 {
     if (priority() == Priority_Diagnostic) {
-        const HelpItem helpItem = lastHelpItemIdentified();
-        const QString helpId = helpItem.isValid() ? helpItem.helpId() : QString();
-        processWithEditorDocumentProcessor(editorWidget, point, m_cursorPosition, helpId);
+        const TextMarks textMarks = diagnosticTextMarksAt(editorWidget, m_cursorPosition);
+        editorWidget->showTextMarksToolTip(point, textMarks);
         return;
     }
 

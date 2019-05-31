@@ -40,14 +40,13 @@ class ANDROID_EXPORT AndroidPackageInstallationStep : public ProjectExplorer::Ab
 
 public:
     explicit AndroidPackageInstallationStep(ProjectExplorer::BuildStepList *bsl);
-    bool init(QList<const BuildStep *> &earlierSteps) override;
 
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
-
-    void run(QFutureInterface<bool> &fi) override;
 
 private:
+    bool init() override;
+    void doRun() override;
+
     QStringList m_androidDirsToClean;
 };
 
@@ -58,11 +57,6 @@ class AndroidPackageInstallationStepWidget : public ProjectExplorer::BuildStepCo
     Q_OBJECT
 public:
     AndroidPackageInstallationStepWidget(AndroidPackageInstallationStep *step);
-
-    QString summaryText() const override;
-    QString displayName() const override;
-private:
-    AndroidPackageInstallationStep *m_step;
 };
 
 class AndroidPackageInstallationFactory: public ProjectExplorer::BuildStepFactory

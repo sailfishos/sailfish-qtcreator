@@ -32,7 +32,6 @@ HEADERS += \
     remotelinuxenvironmentreader.h \
     sshkeydeployer.h \
     typespecificdeviceconfigurationlistmodel.h \
-    remotelinuxutils.h \
     remotelinuxcustomcommanddeployservice.h \
     remotelinuxcustomcommanddeploymentstep.h \
     genericlinuxdeviceconfigurationwidget.h \
@@ -41,9 +40,11 @@ HEADERS += \
     remotelinuxkillappservice.h \
     remotelinuxkillappstep.h \
     remotelinuxqmltoolingsupport.h \
+    rsyncdeploystep.h \
     linuxdeviceprocess.h \
     remotelinuxcustomrunconfiguration.h \
     remotelinuxsignaloperation.h \
+    remotelinuxx11forwardingaspect.h \
     deploymenttimeinfo.h
 
 SOURCES += \
@@ -74,7 +75,6 @@ SOURCES += \
     remotelinuxenvironmentreader.cpp \
     sshkeydeployer.cpp \
     typespecificdeviceconfigurationlistmodel.cpp \
-    remotelinuxutils.cpp \
     remotelinuxcustomcommanddeployservice.cpp \
     remotelinuxcustomcommanddeploymentstep.cpp \
     genericlinuxdeviceconfigurationwidget.cpp \
@@ -83,9 +83,11 @@ SOURCES += \
     remotelinuxkillappservice.cpp \
     remotelinuxkillappstep.cpp \
     remotelinuxqmltoolingsupport.cpp \
+    rsyncdeploystep.cpp \
     linuxdeviceprocess.cpp \
     remotelinuxcustomrunconfiguration.cpp \
     remotelinuxsignaloperation.cpp \
+    remotelinuxx11forwardingaspect.cpp \
     deploymenttimeinfo.cpp
 
 FORMS += \

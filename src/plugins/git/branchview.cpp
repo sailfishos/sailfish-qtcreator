@@ -204,51 +204,55 @@ void BranchView::slotCustomContextMenu(const QPoint &point)
     const bool currentLocal = m_model->isLocal(currentBranch);
 
     QMenu contextMenu;
-    contextMenu.addAction(tr("Add..."), this, &BranchView::add);
+    contextMenu.addAction(tr("&Add..."), this, &BranchView::add);
     const Utils::optional<QString> remote = m_model->remoteName(index);
     if (remote.has_value()) {
-        contextMenu.addAction(tr("Fetch"), this, [this, &remote]() {
+        contextMenu.addAction(tr("&Fetch"), this, [this, &remote]() {
             GitPlugin::client()->fetch(m_repository, *remote);
         });
         contextMenu.addSeparator();
-        contextMenu.addAction(tr("Manage Remotes..."), GitPlugin::instance(),
+        contextMenu.addAction(tr("Manage &Remotes..."), GitPlugin::instance(),
                               &GitPlugin::manageRemotes);
     }
     if (hasActions) {
         if (!currentSelected && (isLocal || isTag))
-            contextMenu.addAction(tr("Remove..."), this, &BranchView::remove);
+            contextMenu.addAction(tr("Rem&ove..."), this, &BranchView::remove);
         if (isLocal || isTag)
-            contextMenu.addAction(tr("Rename..."), this, &BranchView::rename);
+            contextMenu.addAction(tr("Re&name..."), this, &BranchView::rename);
         if (!currentSelected)
-            contextMenu.addAction(tr("Checkout"), this, &BranchView::checkout);
+            contextMenu.addAction(tr("&Checkout"), this, &BranchView::checkout);
         contextMenu.addSeparator();
-        contextMenu.addAction(tr("Diff"), this, [this] {
+        contextMenu.addAction(tr("&Diff"), this, [this] {
             const QString fullName = m_model->fullName(selectedIndex(), true);
             if (!fullName.isEmpty())
                 GitPlugin::client()->diffBranch(m_repository, fullName);
         });
-        contextMenu.addAction(tr("Log"), this, [this] { log(selectedIndex()); });
+        contextMenu.addAction(tr("&Log"), this, [this] { log(selectedIndex()); });
         contextMenu.addSeparator();
         if (!currentSelected) {
             if (currentLocal)
-                contextMenu.addAction(tr("Reset"), this, &BranchView::reset);
+                contextMenu.addAction(tr("Re&set"), this, &BranchView::reset);
             QString mergeTitle;
             if (isFastForwardMerge()) {
-                contextMenu.addAction(tr("Merge (Fast-Forward)"), this, [this] { merge(true); });
-                mergeTitle = tr("Merge (No Fast-Forward)");
+                contextMenu.addAction(tr("&Merge (Fast-Forward)"), this, [this] { merge(true); });
+                mergeTitle = tr("Merge (No &Fast-Forward)");
             } else {
-                mergeTitle = tr("Merge");
+                mergeTitle = tr("&Merge");
             }
 
             contextMenu.addAction(mergeTitle, this, [this] { merge(false); });
-            contextMenu.addAction(tr("Rebase"), this, &BranchView::rebase);
+            contextMenu.addAction(tr("&Rebase"), this, &BranchView::rebase);
             contextMenu.addSeparator();
-            contextMenu.addAction(tr("Cherry Pick"), this, &BranchView::cherryPick);
+            contextMenu.addAction(tr("Cherry &Pick"), this, &BranchView::cherryPick);
         }
         if (currentLocal && !currentSelected && !isTag) {
-            contextMenu.addAction(tr("Track"), this, [this] {
+            contextMenu.addAction(tr("&Track"), this, [this] {
                 m_model->setRemoteTracking(selectedIndex());
             });
+            if (!isLocal) {
+                contextMenu.addSeparator();
+                contextMenu.addAction(tr("&Push"), this, &BranchView::push);
+            }
         }
     }
     contextMenu.exec(m_branchView->viewport()->mapToGlobal(point));
@@ -294,12 +298,12 @@ bool BranchView::add()
         trackedBranch = m_model->fullName(trackedIndex);
     }
     const bool isLocal = m_model->isLocal(trackedIndex);
-    const bool isTag = m_model->isTag(trackedIndex);
+    const bool isTracked = !m_model->isHead(trackedIndex) && !m_model->isTag(trackedIndex);
 
     const QStringList localNames = m_model->localBranchNames();
 
     QString suggestedName;
-    if (!isTag) {
+    if (isTracked) {
         const QString suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf('/') + 1);
         suggestedName = suggestedNameBase;
         int i = 2;
@@ -311,7 +315,8 @@ bool BranchView::add()
 
     BranchAddDialog branchAddDialog(localNames, true, this);
     branchAddDialog.setBranchName(suggestedName);
-    branchAddDialog.setTrackedBranchName(isTag ? QString() : trackedBranch, !isLocal);
+    branchAddDialog.setTrackedBranchName(isTracked ? trackedBranch : QString(), !isLocal);
+    branchAddDialog.setCheckoutVisible(true);
 
     if (branchAddDialog.exec() == QDialog::Accepted) {
         QModelIndex idx = m_model->addBranch(branchAddDialog.branchName(), branchAddDialog.track(),
@@ -324,10 +329,8 @@ bool BranchView::add()
                                              | QItemSelectionModel::Select
                                              | QItemSelectionModel::Current);
         m_branchView->scrollTo(mappedIdx);
-        if (QMessageBox::question(this, tr("Checkout"), tr("Checkout branch?"),
-                                  QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+        if (branchAddDialog.checkout())
             return checkout();
-        }
     }
 
     return false;
@@ -533,6 +536,22 @@ void BranchView::log(const QModelIndex &idx)
     const QString branchName = m_model->fullName(idx, true);
     if (!branchName.isEmpty())
         GitPlugin::client()->log(m_repository, QString(), false, {branchName});
+}
+
+void BranchView::push()
+{
+    const QModelIndex selected = selectedIndex();
+    QTC_CHECK(selected != m_model->currentBranch());
+
+    const QString fullTargetName = m_model->fullName(selected);
+    const int pos = fullTargetName.indexOf('/');
+
+    const QString localBranch = m_model->fullName(m_model->currentBranch());
+    const QString remoteName = fullTargetName.left(pos);
+    const QString remoteBranch = fullTargetName.mid(pos + 1);
+    const QStringList pushArgs = {remoteName, localBranch + ':' + remoteBranch};
+
+    GitPlugin::client()->push(m_repository, pushArgs);
 }
 
 BranchViewFactory::BranchViewFactory()

@@ -26,6 +26,7 @@
 #pragma once
 
 #include <projectexplorer/abstractprocessstep.h>
+#include <projectexplorer/projectconfigurationaspects.h>
 
 namespace WinRt {
 namespace Internal {
@@ -37,26 +38,21 @@ class WinRtPackageDeploymentStep : public ProjectExplorer::AbstractProcessStep
 public:
     explicit WinRtPackageDeploymentStep(ProjectExplorer::BuildStepList *bsl);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
-    bool processSucceeded(int exitCode, QProcess::ExitStatus status) override;
-    void stdOutput(const QString &line) override;
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-
-    void setWinDeployQtArguments(const QString &args);
-    QString winDeployQtArguments() const;
     QString defaultWinDeployQtArguments() const;
 
     void raiseError(const QString &errorMessage);
     void raiseWarning(const QString &warningMessage);
 
-    bool fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-
 private:
+    bool init() override;
+    void doRun() override;
+    bool processSucceeded(int exitCode, QProcess::ExitStatus status) override;
+    void stdOutput(const QString &line) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+
     bool parseIconsAndExecutableFromManifest(QString manifestFileName, QStringList *items, QString *executable);
 
-    QString m_args;
+    ProjectExplorer::BaseStringAspect *m_argsAspect = nullptr;
     QString m_targetFilePath;
     QString m_targetDirPath;
     QString m_executablePathInManifest;

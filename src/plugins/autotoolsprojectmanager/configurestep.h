@@ -28,16 +28,10 @@
 #pragma once
 
 #include <projectexplorer/abstractprocessstep.h>
-
-QT_BEGIN_NAMESPACE
-class QLineEdit;
-QT_END_NAMESPACE
+#include <projectexplorer/projectconfigurationaspects.h>
 
 namespace AutotoolsProjectManager {
 namespace Internal {
-
-class AutotoolsProject;
-class ConfigureStepConfigWidget;
 
 //////////////////////////////////
 // ConfigureStepFactory Class
@@ -69,57 +63,24 @@ public:
 class ConfigureStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
-    friend class ConfigureStepFactory;
-    friend class ConfigureStepConfigWidget;
 
 public:
     explicit ConfigureStep(ProjectExplorer::BuildStepList *bsl);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
-    QString additionalArguments() const;
-    QVariantMap toMap() const override;
 
     void setAdditionalArguments(const QString &list);
     void notifyBuildDirectoryChanged();
 
-signals:
-    void additionalArgumentsChanged(const QString &);
-    void buildDirectoryChanged();
-
 private:
-    bool fromMap(const QVariantMap &map) override;
+    bool init() override;
+    void doRun() override;
 
-    QString m_additionalArguments;
-    bool m_runConfigure = false;
-};
-
-/////////////////////////////////////
-// ConfigureStepConfigWidget class
-/////////////////////////////////////
-/**
- * @brief Implementation of the ProjectExplorer::BuildStepConfigWidget interface.
- *
- * Allows to configure a configure step in the GUI.
- */
-class ConfigureStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
-{
-    Q_OBJECT
-
-public:
-    ConfigureStepConfigWidget(ConfigureStep *configureStep);
-
-    QString displayName() const override;
-    QString summaryText() const override;
-
-private:
     void updateDetails();
 
-    ConfigureStep *m_configureStep;
-    QString m_summaryText;
-    QLineEdit *m_additionalArguments;
+    ProjectExplorer::BaseStringAspect *m_additionalArgumentsAspect = nullptr;
+    bool m_runConfigure = false;
+    QPointer<ProjectExplorer::BuildStepConfigWidget> m_widget;
 };
 
 } // namespace Internal

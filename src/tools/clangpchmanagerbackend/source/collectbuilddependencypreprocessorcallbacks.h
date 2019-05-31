@@ -72,15 +72,27 @@ public:
     void FileChanged(clang::SourceLocation sourceLocation,
                      clang::PPCallbacks::FileChangeReason reason,
                      clang::SrcMgr::CharacteristicKind,
-                     clang::FileID) override
+                     clang::FileID previousFileId) override
     {
-        if (reason == clang::PPCallbacks::EnterFile)
-        {
-            const clang::FileEntry *fileEntry = m_sourceManager->getFileEntryForID(
-                        m_sourceManager->getFileID(sourceLocation));
-            if (fileEntry) {
-                addFileStatus(fileEntry);
-                addSourceFile(fileEntry);
+        if (reason == clang::PPCallbacks::EnterFile) {
+            clang::FileID currentFileId = m_sourceManager->getFileID(sourceLocation);
+            if (m_mainFileId.isInvalid()) {
+                m_mainFileId = currentFileId;
+            } else {
+                const clang::FileEntry *fileEntry = m_sourceManager->getFileEntryForID(
+                    currentFileId);
+                if (fileEntry) {
+                    if (previousFileId == m_mainFileId) {
+                        uint sourceFileUID = fileEntry->getUID();
+                        auto notAlreadyIncluded = isNotAlreadyIncluded(sourceFileUID);
+                        if (notAlreadyIncluded.first)
+                            m_alreadyIncludedFileUIDs.insert(notAlreadyIncluded.second,
+                                                             sourceFileUID);
+                    } else {
+                        addFileStatus(fileEntry);
+                        addSourceFile(fileEntry);
+                    }
+                }
             }
         }
     }
@@ -96,34 +108,47 @@ public:
                             const clang::Module * /*imported*/,
                             clang::SrcMgr::CharacteristicKind fileType) override
     {
+        clang::FileID currentFileId = m_sourceManager->getFileID(hashLocation);
         if (file) {
-            addSourceDependency(file, hashLocation);
-            auto fileUID = file->getUID();
-            auto sourceFileUID = m_sourceManager
-                                     ->getFileEntryForID(m_sourceManager->getFileID(hashLocation))
-                                     ->getUID();
-            auto notAlreadyIncluded = isNotAlreadyIncluded(fileUID);
-            if (notAlreadyIncluded.first) {
-                m_alreadyIncludedFileUIDs.insert(notAlreadyIncluded.second, fileUID);
-                FilePath filePath = filePathFromFile(file);
-                if (!filePath.empty()) {
-                    FilePathId includeId = m_filePathCache.filePathId(filePath);
+            if (currentFileId != m_mainFileId) {
+                addSourceDependency(file, hashLocation);
+                auto fileUID = file->getUID();
+                auto sourceFileUID =
+                    m_sourceManager
+                        ->getFileEntryForID(
+                            m_sourceManager->getFileID(hashLocation))
+                        ->getUID();
+                auto notAlreadyIncluded = isNotAlreadyIncluded(fileUID);
+                if (notAlreadyIncluded.first) {
+                    m_alreadyIncludedFileUIDs.insert(notAlreadyIncluded.second,
+                                                     fileUID);
+                    FilePath filePath = filePathFromFile(file);
+                    if (!filePath.empty()) {
+                        FilePathId includeId =
+                            m_filePathCache.filePathId(filePath);
 
-                    time_t lastModified = file->getModificationTime();
+                        time_t lastModified = file->getModificationTime();
 
-                    SourceType sourceType = SourceType::UserInclude;
-                    if (isSystem(fileType)) {
-                        if (isInSystemHeader(hashLocation))
-                            sourceType = SourceType::SystemInclude;
-                        else
-                            sourceType = SourceType::TopSystemInclude;
-                    } else if (isNotInExcludedIncludeUID(fileUID)
-                               && isInExcludedIncludeUID(sourceFileUID)) {
-                        sourceType = SourceType::TopInclude;
+                        SourceType sourceType = SourceType::UserInclude;
+                        if (isSystem(fileType)) {
+                            if (isInSystemHeader(hashLocation))
+                                sourceType = SourceType::SystemInclude;
+                            else
+                                sourceType = SourceType::TopSystemInclude;
+                        } else if (isNotInExcludedIncludeUID(fileUID)) {
+                            if (isInExcludedIncludeUID(sourceFileUID))
+                                sourceType = SourceType::TopProjectInclude;
+                            else
+                                sourceType = SourceType::ProjectInclude;
+                        }
+
+                        addSource({includeId, sourceType, lastModified});
                     }
-
-                    addInclude({includeId, sourceType, lastModified});
                 }
+            } else {
+                addSource({m_filePathCache.filePathId(filePathFromFile(file)),
+                           SourceType::Source,
+                           file->getModificationTime()});
             }
         } else {
             auto sourceFileId = filePathId(hashLocation);
@@ -179,10 +204,10 @@ public:
 
     void appendContainsMissingIncludes(const FilePathIds &dependentSourceFilesWithMissingIncludes)
     {
-        auto split = m_containsMissingIncludes
-                         .insert(m_containsMissingIncludes.end(),
-                                 dependentSourceFilesWithMissingIncludes.begin(),
-                                 dependentSourceFilesWithMissingIncludes.end());
+        auto split = m_containsMissingIncludes.insert(
+            m_containsMissingIncludes.end(),
+            dependentSourceFilesWithMissingIncludes.begin(),
+            dependentSourceFilesWithMissingIncludes.end());
         std::inplace_merge(m_containsMissingIncludes.begin(),
                            split,
                            m_containsMissingIncludes.end());
@@ -192,11 +217,13 @@ public:
     {
         FilePathIds filteredDependentSourceFilesWithMissingIncludes;
         filteredDependentSourceFilesWithMissingIncludes.reserve(dependentSourceFilesWithMissingIncludes.size());
-        std::set_difference(dependentSourceFilesWithMissingIncludes.begin(),
-                            dependentSourceFilesWithMissingIncludes.end(),
-                            m_containsMissingIncludes.begin(),
-                            m_containsMissingIncludes.end(),
-                            std::back_inserter(filteredDependentSourceFilesWithMissingIncludes));
+        std::set_difference(
+            dependentSourceFilesWithMissingIncludes.begin(),
+            dependentSourceFilesWithMissingIncludes.end(),
+            m_containsMissingIncludes.begin(),
+            m_containsMissingIncludes.end(),
+            std::back_inserter(
+                filteredDependentSourceFilesWithMissingIncludes));
         dependentSourceFilesWithMissingIncludes = filteredDependentSourceFilesWithMissingIncludes;
     }
 
@@ -240,8 +267,7 @@ public:
                                          sourceDependencies);
     }
 
-    void removeSourceWithMissingIncludesFromIncludes()
-    {
+    void removeSourceWithMissingIncludesFromSources() {
         class Compare
         {
         public:
@@ -255,17 +281,16 @@ public:
             }
         };
 
-        auto &includes = m_buildDependency.includes;
-        SourceEntries newIncludes;
-        newIncludes.reserve(includes.size());
-        std::set_difference(includes.begin(),
-                            includes.end(),
-                            m_containsMissingIncludes.begin(),
-                            m_containsMissingIncludes.end(),
-                            std::back_inserter(newIncludes),
-                            Compare{});
-
-        m_buildDependency.includes = newIncludes;
+        SourceEntryReferences sourcesWithMissingIncludes;
+        sourcesWithMissingIncludes.reserve(m_containsMissingIncludes.size());
+        std::set_intersection(m_buildDependency.sources.begin(),
+                              m_buildDependency.sources.end(),
+                              m_containsMissingIncludes.begin(),
+                              m_containsMissingIncludes.end(),
+                              std::back_inserter(sourcesWithMissingIncludes),
+                              Compare{});
+        for (SourceEntryReference entry : sourcesWithMissingIncludes)
+            entry.get().hasMissingIncludes = HasMissingIncludes::Yes;
     }
 
     SourceDependencies sourceDependenciesSortedByDependendFilePathId() const
@@ -281,12 +306,12 @@ public:
 
     void filterOutIncludesWithMissingIncludes()
     {
-        sortAndMakeUnique(m_containsMissingIncludes);;
+        sortAndMakeUnique(m_containsMissingIncludes);
 
         collectSourceWithMissingIncludes(m_containsMissingIncludes,
                                          sourceDependenciesSortedByDependendFilePathId());
 
-        removeSourceWithMissingIncludesFromIncludes();
+        removeSourceWithMissingIncludesFromSources();
     }
 
     void ensureDirectory(const QString &directory, const QString &fileName)
@@ -324,16 +349,16 @@ public:
         return FilePath::fromNativeFilePath(absolutePath(file->getName()));
     }
 
-    void addInclude(SourceEntry sourceEntry)
-    {
-        auto &includes = m_buildDependency.includes;
-        auto found = std::lower_bound(includes.begin(),
-                                      includes.end(),
-                                      sourceEntry,
-                                      [](auto first, auto second) { return first < second; });
+    void addSource(SourceEntry sourceEntry) {
+        auto &sources = m_buildDependency.sources;
+        auto found = std::lower_bound(
+            sources.begin(),
+            sources.end(),
+            sourceEntry,
+            [](auto first, auto second) { return first < second; });
 
-        if (found == includes.end() || *found != sourceEntry)
-            includes.emplace(found, sourceEntry);
+        if (found == sources.end() || *found != sourceEntry)
+            sources.emplace(found, sourceEntry);
     }
 
 private:
@@ -341,6 +366,7 @@ private:
     BuildDependency &m_buildDependency;
     const std::vector<uint> &m_excludedIncludeUID;
     std::vector<uint> &m_alreadyIncludedFileUIDs;
+    clang::FileID m_mainFileId;
 };
 
 } // namespace ClangBackEnd

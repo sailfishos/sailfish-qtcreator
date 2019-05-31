@@ -25,7 +25,7 @@
 
 #include "callgrindcontroller.h"
 
-#include <ssh/sftpchannel.h>
+#include <ssh/sftpsession.h>
 #include <ssh/sshconnectionmanager.h>
 
 #include <utils/fileutils.h>
@@ -46,11 +46,9 @@ using namespace Utils;
 namespace Valgrind {
 namespace Callgrind {
 
-const QLatin1String CALLGRIND_CONTROL_BINARY("callgrind_control");
+const char CALLGRIND_CONTROL_BINARY[] = "callgrind_control";
 
-CallgrindController::CallgrindController()
-{
-}
+CallgrindController::CallgrindController() = default;
 
 CallgrindController::~CallgrindController()
 {
@@ -229,7 +227,7 @@ void CallgrindController::getLocalDataFile()
         const QStringList outputFiles = dir.entryList();
         // if there are files like callgrind.out.PID.NUM, set it to the most recent one of those
         if (!outputFiles.isEmpty())
-            fileName = workingDir + QLatin1Char('/') + outputFiles.first();
+            fileName = workingDir + '/' + outputFiles.first();
 
         emit localParseDataAvailable(fileName);
     }
@@ -239,12 +237,12 @@ void CallgrindController::foundRemoteFile()
 {
     m_remoteFile = m_findRemoteFile->readAllStandardOutput().trimmed();
 
-    m_sftp = m_ssh->createSftpChannel();
-    connect(m_sftp.data(), &QSsh::SftpChannel::finished,
+    m_sftp = m_ssh->createSftpSession();
+    connect(m_sftp.get(), &QSsh::SftpSession::commandFinished,
             this, &CallgrindController::sftpJobFinished);
-    connect(m_sftp.data(), &QSsh::SftpChannel::initialized,
+    connect(m_sftp.get(), &QSsh::SftpSession::started,
             this, &CallgrindController::sftpInitialized);
-    m_sftp->initialize();
+    m_sftp->start();
 }
 
 void CallgrindController::sftpInitialized()
@@ -256,14 +254,14 @@ void CallgrindController::sftpInitialized()
     dataFile.setAutoRemove(false);
     dataFile.close();
 
-    m_downloadJob = m_sftp->downloadFile(QString::fromUtf8(m_remoteFile), m_tempDataFile, QSsh::SftpOverwriteExisting);
+    m_downloadJob = m_sftp->downloadFile(QString::fromUtf8(m_remoteFile), m_tempDataFile);
 }
 
 void CallgrindController::sftpJobFinished(QSsh::SftpJobId job, const QString &error)
 {
     QTC_ASSERT(job == m_downloadJob, return);
 
-    m_sftp->closeChannel();
+    m_sftp->quit();
 
     if (error.isEmpty())
         emit localParseDataAvailable(m_tempDataFile);

@@ -43,7 +43,8 @@ namespace LanguageClient {
 
 constexpr char noLanguageFilter[] = "No Filter";
 
-class BaseClient;
+class Client;
+class BaseClientInterface;
 
 struct LanguageFilter
 {
@@ -66,18 +67,20 @@ public:
     QString m_name = QString("New Language Server");
     bool m_enabled = true;
     LanguageFilter m_languageFilter;
-    QPointer<BaseClient> m_client; // not owned
+    QPointer<Client> m_client; // not owned
 
     virtual void applyFromSettingsWidget(QWidget *widget);
     virtual QWidget *createSettingsWidget(QWidget *parent = nullptr) const;
     virtual BaseSettings *copy() const { return new BaseSettings(*this); }
     virtual bool needsRestart() const;
     virtual bool isValid() const ;
-    virtual BaseClient *createClient() const;
+    Client *createClient() const;
     virtual QVariantMap toMap() const;
     virtual void fromMap(const QVariantMap &map);
 
 protected:
+    virtual BaseClientInterface *createInterface() const { return nullptr; }
+
     BaseSettings(const BaseSettings &other) = default;
     BaseSettings(BaseSettings &&other) = default;
     BaseSettings &operator=(const BaseSettings &other) = default;
@@ -105,11 +108,12 @@ public:
     BaseSettings *copy() const override { return new StdIOSettings(*this); }
     bool needsRestart() const override;
     bool isValid() const override;
-    BaseClient *createClient() const override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &map) override;
 
 protected:
+    BaseClientInterface *createInterface() const override;
+
     StdIOSettings(const StdIOSettings &other) = default;
     StdIOSettings(StdIOSettings &&other) = default;
     StdIOSettings &operator=(const StdIOSettings &other) = default;
@@ -129,7 +133,7 @@ class BaseSettingsWidget : public QWidget
     Q_OBJECT
 public:
     explicit BaseSettingsWidget(const BaseSettings* settings, QWidget *parent = nullptr);
-    ~BaseSettingsWidget() = default;
+    ~BaseSettingsWidget() override = default;
 
     QString name() const;
     LanguageFilter filter() const;
@@ -149,7 +153,7 @@ class StdIOSettingsWidget : public BaseSettingsWidget
     Q_OBJECT
 public:
     explicit StdIOSettingsWidget(const StdIOSettings* settings, QWidget *parent = nullptr);
-    ~StdIOSettingsWidget() = default;
+    ~StdIOSettingsWidget() override = default;
 
     QString executable() const;
     QString arguments() const;

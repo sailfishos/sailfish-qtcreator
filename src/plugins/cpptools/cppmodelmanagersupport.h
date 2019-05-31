@@ -60,13 +60,12 @@ public:
     virtual FollowSymbolInterface &followSymbolInterface() = 0;
     virtual RefactoringEngineInterface &refactoringEngineInterface() = 0;
     virtual std::unique_ptr<AbstractOverviewModel> createOverviewModel() = 0;
-    virtual void setBackendJobsPostponed(bool yesno) = 0;
 };
 
 class CPPTOOLS_EXPORT ModelManagerSupportProvider
 {
 public:
-    virtual ~ModelManagerSupportProvider() {}
+    virtual ~ModelManagerSupportProvider() = default;
 
     virtual QString id() const = 0;
     virtual QString displayName() const = 0;

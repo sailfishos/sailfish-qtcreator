@@ -44,21 +44,6 @@ namespace Internal {
 
 const char gdbServerProviderIdKeyC[] = "GdbServerProviderId";
 
-BareMetalDevice::Ptr BareMetalDevice::create()
-{
-    return Ptr(new BareMetalDevice);
-}
-
-BareMetalDevice::Ptr BareMetalDevice::create(const QString &name, Core::Id type, MachineType machineType, Origin origin, Core::Id id)
-{
-    return Ptr(new BareMetalDevice(name, type, machineType, origin, id));
-}
-
-BareMetalDevice::Ptr BareMetalDevice::create(const BareMetalDevice &other)
-{
-    return Ptr(new BareMetalDevice(other));
-}
-
 BareMetalDevice::~BareMetalDevice()
 {
     if (GdbServerProvider *provider = GdbServerProviderManager::findProvider(m_gdbServerProviderId))
@@ -105,7 +90,7 @@ void BareMetalDevice::setChannelByServerProvider(GdbServerProvider *provider)
         return;
     QSsh::SshConnectionParameters sshParams = sshParameters();
     sshParams.setHost(channel.left(colon));
-    sshParams.setPort(channel.mid(colon + 1).toUShort());
+    sshParams.setPort(channel.midRef(colon + 1).toUShort());
     setSshParameters(sshParams);
 }
 
@@ -119,7 +104,7 @@ void BareMetalDevice::fromMap(const QVariantMap &map)
             gdbServerProvider = provider->id();
         } else {
             const QSsh::SshConnectionParameters sshParams = sshParameters();
-            DefaultGdbServerProvider *newProvider = new DefaultGdbServerProvider;
+            auto newProvider = new DefaultGdbServerProvider;
             newProvider->setDisplayName(name);
             newProvider->m_host = sshParams.host();
             newProvider->m_port = sshParams.port();
@@ -159,23 +144,6 @@ IDeviceWidget *BareMetalDevice::createWidget()
     return new BareMetalDeviceConfigurationWidget(sharedFromThis());
 }
 
-QList<Core::Id> BareMetalDevice::actionIds() const
-{
-    return QList<Core::Id>(); // no actions
-}
-
-QString BareMetalDevice::displayNameForActionId(Core::Id actionId) const
-{
-    QTC_ASSERT(actionIds().contains(actionId), return QString());
-    return QString();
-}
-
-void BareMetalDevice::executeAction(Core::Id actionId, QWidget *parent)
-{
-    QTC_ASSERT(actionIds().contains(actionId), return);
-    Q_UNUSED(parent);
-}
-
 Utils::OsType BareMetalDevice::osType() const
 {
     return Utils::OsTypeOther;
@@ -184,12 +152,6 @@ Utils::OsType BareMetalDevice::osType() const
 DeviceProcess *BareMetalDevice::createProcess(QObject *parent) const
 {
     return new GdbServerProviderProcess(sharedFromThis(), parent);
-}
-
-BareMetalDevice::BareMetalDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin, Core::Id id)
-    : IDevice(type, origin, machineType, id)
-{
-    setDisplayName(name);
 }
 
 BareMetalDevice::BareMetalDevice(const BareMetalDevice &other)

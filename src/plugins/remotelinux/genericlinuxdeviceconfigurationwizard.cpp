@@ -36,20 +36,20 @@ using namespace QSsh;
 
 namespace RemoteLinux {
 namespace Internal {
-namespace {
-enum PageId { SetupPageId, FinalPageId };
-} // anonymous namespace
+enum PageId { SetupPageId, KeyDeploymentPageId, FinalPageId };
 
 class GenericLinuxDeviceConfigurationWizardPrivate
 {
 public:
     GenericLinuxDeviceConfigurationWizardPrivate(QWidget *parent)
-        : setupPage(parent), finalPage(parent)
+        : setupPage(parent), keyDeploymentPage(parent), finalPage(parent)
     {
     }
 
     GenericLinuxDeviceConfigurationWizardSetupPage setupPage;
+    GenericLinuxDeviceConfigurationWizardKeyDeploymentPage keyDeploymentPage;
     GenericLinuxDeviceConfigurationWizardFinalPage finalPage;
+    LinuxDevice::Ptr device;
 };
 } // namespace Internal
 
@@ -59,8 +59,20 @@ GenericLinuxDeviceConfigurationWizard::GenericLinuxDeviceConfigurationWizard(QWi
 {
     setWindowTitle(tr("New Generic Linux Device Configuration Setup"));
     setPage(Internal::SetupPageId, &d->setupPage);
+    setPage(Internal::KeyDeploymentPageId, &d->keyDeploymentPage);
     setPage(Internal::FinalPageId, &d->finalPage);
     d->finalPage.setCommitPage(true);
+    d->device = LinuxDevice::create();
+    d->device->setupId(IDevice::ManuallyAdded, Core::Id());
+    d->device->setDisplayName(tr("Generic Linux Device"));
+    d->device->setType(Constants::GenericLinuxOsType);
+    d->device->setMachineType(IDevice::Hardware);
+    d->device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
+    SshConnectionParameters sshParams;
+    sshParams.timeout = 10;
+    d->device->setSshParameters(sshParams);
+    d->setupPage.setDevice(d->device);
+    d->keyDeploymentPage.setDevice(d->device);
 }
 
 GenericLinuxDeviceConfigurationWizard::~GenericLinuxDeviceConfigurationWizard()
@@ -70,18 +82,7 @@ GenericLinuxDeviceConfigurationWizard::~GenericLinuxDeviceConfigurationWizard()
 
 IDevice::Ptr GenericLinuxDeviceConfigurationWizard::device()
 {
-    SshConnectionParameters sshParams;
-    sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
-    sshParams.url = d->setupPage.url();
-    sshParams.timeout = 10;
-    sshParams.authenticationType = d->setupPage.authenticationType();
-    if (sshParams.authenticationType == SshConnectionParameters::AuthenticationTypePublicKey)
-        sshParams.privateKeyFile = d->setupPage.privateKeyFilePath();
-    IDevice::Ptr device = LinuxDevice::create(d->setupPage.configurationName(),
-        Core::Id(Constants::GenericLinuxOsType), IDevice::Hardware);
-    device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
-    device->setSshParameters(sshParams);
-    return device;
+    return d->device;
 }
 
 } // namespace RemoteLinux

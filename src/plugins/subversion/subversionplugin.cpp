@@ -74,7 +74,7 @@
 #include <QMessageBox>
 #include <QInputDialog>
 
-#include <limits.h>
+#include <climits>
 
 #ifdef WITH_TESTS
 #include <QTest>
@@ -135,7 +135,7 @@ static inline QString debugCodec(const QTextCodec *c)
 
 // Parse "svn status" output for added/conflicted/deleted/modified files
 // "M<7blanks>file"
-typedef QList<SubversionSubmitEditor::StatusFilePair> StatusList;
+using StatusList = QList<SubversionSubmitEditor::StatusFilePair>;
 
 StatusList parseStatusOutput(const QString &output)
 {
@@ -425,12 +425,9 @@ bool SubversionPlugin::submitEditorAboutToClose()
     // Prompt user. Force a prompt unless submit was actually invoked (that
     // is, the editor was closed or shutdown).
     VcsBaseClientSettings &newSettings = client()->settings();
-    const VcsBaseSubmitEditor::PromptSubmitResult answer =
-            editor->promptSubmit(tr("Closing Subversion Editor"),
-                                 tr("Do you want to commit the change?"),
-                                 tr("The commit message check failed. Do you want to commit the change?"),
-                                 newSettings.boolPointer(SubversionSettings::promptOnSubmitKey),
-                                 !m_submitActionTriggered);
+    const VcsBaseSubmitEditor::PromptSubmitResult answer = editor->promptSubmit(
+                this, newSettings.boolPointer(SubversionSettings::promptOnSubmitKey),
+                !m_submitActionTriggered);
     m_submitActionTriggered = false;
     switch (answer) {
     case VcsBaseSubmitEditor::SubmitCanceled:
@@ -445,15 +442,10 @@ bool SubversionPlugin::submitEditorAboutToClose()
     bool closeEditor = true;
     if (!fileList.empty()) {
         // get message & commit
-        closeEditor = DocumentManager::saveDocument(editorDocument);
-        if (closeEditor) {
-            VcsCommand *commitCmd = m_client->createCommitCmd(m_commitRepository,
-                                                              fileList,
-                                                              m_commitMessageFileName);
-            QObject::connect(commitCmd, &VcsCommand::finished,
-                             this, [this]() { cleanCommitMessageFile(); });
-            commitCmd->execute();
-        }
+        closeEditor = DocumentManager::saveDocument(editorDocument)
+                && m_client->doCommit(m_commitRepository, fileList, m_commitMessageFileName);
+        if (closeEditor)
+            cleanCommitMessageFile();
     }
     return closeEditor;
 }

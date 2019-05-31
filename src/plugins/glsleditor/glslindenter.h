@@ -25,32 +25,34 @@
 
 #pragma once
 
-#include <texteditor/indenter.h>
+#include <texteditor/textindenter.h>
 
 namespace GlslEditor {
 namespace Internal {
 
-class GlslIndenter : public TextEditor::Indenter
+class GlslIndenter : public TextEditor::TextIndenter
 {
 public:
-    GlslIndenter();
-    virtual ~GlslIndenter();
+    explicit GlslIndenter(QTextDocument *doc);
+    ~GlslIndenter() override;
 
-    virtual bool isElectricCharacter(const QChar &ch) const override;
-    virtual void indentBlock(QTextDocument *doc,
-                             const QTextBlock &block,
-                             const QChar &typedChar,
-                             const TextEditor::TabSettings &tabSettings) override;
+    bool isElectricCharacter(const QChar &ch) const override;
+    void indentBlock(const QTextBlock &block,
+                     const QChar &typedChar,
+                     const TextEditor::TabSettings &tabSettings,
+                     int cursorPositionInEditor = -1) override;
 
-    virtual void indent(QTextDocument *doc,
-                        const QTextCursor &cursor,
-                        const QChar &typedChar,
-                        const TextEditor::TabSettings &tabSettings,
-                        bool autoTriggered = true) override;
+    void indent(const QTextCursor &cursor,
+                const QChar &typedChar,
+                const TextEditor::TabSettings &tabSettings,
+                int cursorPositionInEditor = -1) override;
 
-    int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    int indentFor(const QTextBlock &block,
+                  const TextEditor::TabSettings &tabSettings,
+                  int cursorPositionInEditor = -1) override;
     TextEditor::IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
-                                                         const TextEditor::TabSettings &tabSettings) override;
+                                                         const TextEditor::TabSettings &tabSettings,
+                                                         int cursorPositionInEditor = -1) override;
 };
 
 } // namespace Internal

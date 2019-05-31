@@ -46,12 +46,11 @@ namespace Android {
 namespace Internal {
 
 AndroidDevice::AndroidDevice()
-    : IDevice(Core::Id(Constants::ANDROID_DEVICE_TYPE),
-                             IDevice::AutoDetected,
-                             IDevice::Hardware,
-                             Core::Id(Constants::ANDROID_DEVICE_ID))
 {
+    setupId(IDevice::AutoDetected, Constants::ANDROID_DEVICE_ID);
+    setType(Constants::ANDROID_DEVICE_TYPE);
     setDisplayName(QCoreApplication::translate("Android::Internal::AndroidDevice", "Run on Android"));
+    setMachineType(IDevice::Hardware);
     setDeviceState(DeviceReadyToUse);
     QString activityPath;
     const AndroidConfig &config = AndroidConfigurations::currentConfig();
@@ -60,8 +59,6 @@ AndroidDevice::AndroidDevice()
                               << "Activity Path:" << activityPath;
     setQmlsceneCommand(activityPath);
 }
-
-AndroidDevice::AndroidDevice(const AndroidDevice &other) = default;
 
 IDevice::DeviceInfo AndroidDevice::deviceInformation() const
 {
@@ -76,23 +73,6 @@ QString AndroidDevice::displayType() const
 IDeviceWidget *AndroidDevice::createWidget()
 {
     return nullptr;
-}
-
-QList<Core::Id> AndroidDevice::actionIds() const
-{
-    return QList<Core::Id>();
-}
-
-QString AndroidDevice::displayNameForActionId(Core::Id actionId) const
-{
-    Q_UNUSED(actionId)
-    return QString();
-}
-
-void AndroidDevice::executeAction(Core::Id actionId, QWidget *parent)
-{
-    Q_UNUSED(actionId)
-    Q_UNUSED(parent)
 }
 
 bool AndroidDevice::canAutoDetectPorts() const

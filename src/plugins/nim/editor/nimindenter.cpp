@@ -37,7 +37,8 @@
 
 namespace Nim {
 
-NimIndenter::NimIndenter()
+NimIndenter::NimIndenter(QTextDocument *doc)
+    : TextEditor::TextIndenter(doc)
 {}
 
 bool NimIndenter::isElectricCharacter(const QChar &ch) const
@@ -45,13 +46,13 @@ bool NimIndenter::isElectricCharacter(const QChar &ch) const
     return NimIndenter::electricCharacters().contains(ch);
 }
 
-void NimIndenter::indentBlock(QTextDocument *document,
-                              const QTextBlock &block,
+void NimIndenter::indentBlock(const QTextBlock &block,
                               const QChar &typedChar,
-                              const TextEditor::TabSettings &settings)
+                              const TextEditor::TabSettings &settings,
+                              int cursorPositionInEditor)
 {
-    Q_UNUSED(document);
     Q_UNUSED(typedChar);
+    Q_UNUSED(cursorPositionInEditor);
 
     const QString currentLine = block.text();
 

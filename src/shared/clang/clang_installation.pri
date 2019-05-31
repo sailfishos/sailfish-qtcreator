@@ -96,7 +96,16 @@ defineReplace(splitFlags) {
             flag ~= s,-I\S*,,
             flag ~= s,/D\S*,,
             flag ~= s,/Z\S*,,
-            result += $$split(flag, " ")
+            separate_flags = $$split(flag, " ")
+            for (separate_flag, separate_flags) {
+                starting_substr = $$str_member($$separate_flag, 0, 0)
+                win32:equals(starting_substr, "/") {
+                    result += $$separate_flag
+                }
+                equals(starting_substr, "-") {
+                    result += $$separate_flag
+                }
+            }
         } else {
             inside_quotes = 0
             starting_substr = $$str_member($$flag, 0, 0)
@@ -150,16 +159,6 @@ isEmpty(LLVM_INSTALL_DIR) {
 output = $$system($$llvm_config --version, lines)
 LLVM_VERSION = $$extractVersion($$output)
 
-!isEmpty(LLVM_VERSION) {
-    versionIsAtLeast($$LLVM_VERSION, 7, 0, 0): {
-        CLANGFORMAT_LIBS=-lclangFormat -lclangToolingInclusions -lclangToolingCore -lclangRewrite -lclangLex -lclangBasic
-        win32:CLANGFORMAT_LIBS += -lversion
-    } else:versionIsAtLeast($$LLVM_VERSION, 6, 0, 0): {
-        CLANGFORMAT_LIBS=-lclangFormat -lclangToolingCore -lclangRewrite -lclangLex -lclangBasic
-        win32:CLANGFORMAT_LIBS += -lversion
-    }
-}
-
 isEmpty(LLVM_VERSION) {
     $$llvmWarningOrError(\
         "Cannot determine clang version. Set LLVM_INSTALL_DIR to build the Clang Code Model",\
@@ -177,6 +176,7 @@ isEmpty(LLVM_VERSION) {
         GCC_MAJOR_VERSION = $$section(GCC_VERSION, ., 0, 0)
         # GCC8 warns about memset/memcpy for types with copy ctor. Clang has some of these.
         greaterThan(GCC_MAJOR_VERSION, 7):QMAKE_CXXFLAGS += -Wno-class-memaccess
+        QMAKE_CXXFLAGS += -Wno-unused-parameter
     }
 
     LLVM_LIBDIR = $$quote($$system($$llvm_config --libdir, lines))
@@ -193,6 +193,25 @@ isEmpty(LLVM_VERSION) {
     LLVM_STATIC_LIBS_STRING += $$system($$llvm_config --system-libs, lines)
 
     LLVM_STATIC_LIBS = $$split(LLVM_STATIC_LIBS_STRING, " ")
+
+    CLANGFORMAT_MAIN_HEADER = $$LLVM_INCLUDEPATH/clang/Format/Format.h
+    exists($$CLANGFORMAT_MAIN_HEADER) {
+        versionIsAtLeast($$LLVM_VERSION, 7, 0, 0): {
+            CLANGFORMAT_LIBS=-lclangFormat -lclangToolingInclusions -lclangToolingCore -lclangRewrite -lclangLex -lclangBasic
+            ALL_CLANG_LIBS=-lclangFormat -lclangToolingInclusions -lclangTooling -lclangToolingCore \
+                           -lclangRewrite -lclangIndex -lclangFrontend -lclangParse -lclangSerialization \
+                           -lclangSema -lclangEdit -lclangAnalysis -lclangDriver -lclangDynamicASTMatchers \
+                           -lclangASTMatchers -lclangAST -lclangLex -lclangBasic
+        } else:versionIsAtLeast($$LLVM_VERSION, 6, 0, 0): {
+            CLANGFORMAT_LIBS=-lclangFormat -lclangToolingCore -lclangRewrite -lclangLex -lclangBasic
+            ALL_CLANG_LIBS=-lclangFormat -lclangTooling -lclangToolingCore \
+                           -lclangRewrite -lclangIndex -lclangFrontend -lclangParse -lclangSerialization \
+                           -lclangSema -lclangEdit -lclangAnalysis -lclangDriver -lclangDynamicASTMatchers \
+                           -lclangASTMatchers -lclangAST -lclangLex -lclangBasic
+        }
+        win32:CLANGFORMAT_LIBS += -lversion
+    }
+    win32:ALL_CLANG_LIBS += -lversion
 
     LIBCLANG_MAIN_HEADER = $$LLVM_INCLUDEPATH/clang-c/Index.h
     !exists($$LIBCLANG_MAIN_HEADER) {
@@ -221,7 +240,10 @@ isEmpty(LLVM_VERSION) {
         warning("Clang LibTooling is disabled. Set QTC_ENABLE_CLANG_LIBTOOLING to enable it.")
     }
 
-    CLANGFORMAT_LIBS = -L$${LLVM_LIBDIR} $$CLANGFORMAT_LIBS $$LLVM_STATIC_LIBS
+    !isEmpty(CLANGFORMAT_LIBS) {
+        CLANGFORMAT_LIBS = -L$${LLVM_LIBDIR} $$CLANGFORMAT_LIBS $$LLVM_STATIC_LIBS
+    }
+    ALL_CLANG_LIBS = -L$${LLVM_LIBDIR} $$ALL_CLANG_LIBS $$CLANG_LIB $$LLVM_STATIC_LIBS
 
     contains(QMAKE_DEFAULT_INCDIRS, $$LLVM_INCLUDEPATH): LLVM_INCLUDEPATH =
 

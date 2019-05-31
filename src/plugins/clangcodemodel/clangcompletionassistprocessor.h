@@ -93,9 +93,11 @@ private:
 
     QScopedPointer<const ClangCompletionAssistInterface> m_interface;
     unsigned m_completionOperator;
-    enum CompletionRequestType { NormalCompletion, FunctionHintCompletion } m_sentRequestType;
+    enum CompletionRequestType { NormalCompletion, FunctionHintCompletion };
+    CompletionRequestType m_sentRequestType = NormalCompletion;
     bool m_requestSent = false;
     bool m_addSnippets = false; // For type == Type::NormalCompletion
+    bool m_fallbackToNormalCompletion = true;
 };
 
 } // namespace Internal

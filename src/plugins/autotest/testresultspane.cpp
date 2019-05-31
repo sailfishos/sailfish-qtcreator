@@ -444,47 +444,55 @@ void TestResultsPane::initializeFilterMenu()
         m_filterMenu->addAction(action);
     }
     m_filterMenu->addSeparator();
-    QAction *action = new QAction(m_filterMenu);
-    action->setText(tr("Check All Filters"));
-    action->setCheckable(false);
+    QAction *action = new QAction(tr("Check All Filters"), m_filterMenu);
     m_filterMenu->addAction(action);
-    connect(action, &QAction::triggered, this, &TestResultsPane::enableAllFilter);
+    connect(action, &QAction::triggered, this, [this]() { TestResultsPane::checkAllFilter(true); });
+    action = new QAction(tr("Uncheck All Filters"), m_filterMenu);
+    m_filterMenu->addAction(action);
+    connect(action, &QAction::triggered, this, [this]() { TestResultsPane::checkAllFilter(false); });
 }
 
 void TestResultsPane::updateSummaryLabel()
 {
-    QString labelText = QString("<p>Test summary:&nbsp;&nbsp; %1 %2, %3 %4")
-            .arg(QString::number(m_model->resultTypeCount(Result::Pass)), tr("passes"),
-                 QString::number(m_model->resultTypeCount(Result::Fail)), tr("fails"));
-    int count = m_model->resultTypeCount(Result::UnexpectedPass);
+    QString labelText = QString("<p>");
+    labelText.append(tr("Test summary"));
+    labelText.append(":&nbsp;&nbsp; ");
+    int count = m_model->resultTypeCount(Result::Pass);
+    labelText += QString::number(count) + ' ' + tr("passes");
+    count = m_model->resultTypeCount(Result::Fail);
+    labelText += ", " + QString::number(count) + ' ' + tr("fails");
+    count = m_model->resultTypeCount(Result::UnexpectedPass);
     if (count)
-        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("unexpected passes")));
+        labelText += ", " + QString::number(count) + ' ' + tr("unexpected passes");
     count = m_model->resultTypeCount(Result::ExpectedFail);
     if (count)
-        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("expected fails")));
+        labelText += ", " + QString::number(count) + ' ' + tr("expected fails");
     count = m_model->resultTypeCount(Result::MessageFatal);
     if (count)
-        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("fatals")));
+        labelText += ", " + QString::number(count) + ' ' + tr("fatals");
     count = m_model->resultTypeCount(Result::BlacklistedFail)
-            + m_model->resultTypeCount(Result::BlacklistedPass);
+            + m_model->resultTypeCount(Result::BlacklistedXFail)
+            + m_model->resultTypeCount(Result::BlacklistedPass)
+            + m_model->resultTypeCount(Result::BlacklistedXPass);
     if (count)
-        labelText.append(QString(", %1 %2").arg(QString::number(count), tr("blacklisted")));
-
+        labelText += ", " + QString::number(count) + ' ' + tr("blacklisted");
+    count = m_model->resultTypeCount(Result::Skip);
+    if (count)
+        labelText += ", " + QString::number(count) + ' ' + tr("skipped");
     count = m_model->disabledTests();
     if (count)
-        labelText.append(tr(", %1 disabled").arg(count));
-
+        labelText += ", " + QString::number(count) + ' ' + tr("disabled");
     labelText.append(".</p>");
     m_summaryLabel->setText(labelText);
 }
 
-void TestResultsPane::enableAllFilter()
+void TestResultsPane::checkAllFilter(bool checked)
 {
     for (QAction *action : m_filterMenu->actions()) {
         if (action->isCheckable())
-            action->setChecked(true);
+            action->setChecked(checked);
     }
-    m_filterModel->enableAllResultTypes();
+    m_filterModel->enableAllResultTypes(checked);
 }
 
 void TestResultsPane::filterMenuTriggered(QAction *action)

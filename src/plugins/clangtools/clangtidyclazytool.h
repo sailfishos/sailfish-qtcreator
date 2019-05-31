@@ -54,8 +54,11 @@ public:
     void startTool(bool askUserForFileSelection) final;
 
     QList<Diagnostic> read(const QString &filePath,
+                           const Utils::FileName &projectRootDir,
                            const QString &logFilePath,
                            QString *errorMessage) const final;
+
+    void onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics) override;
 
 private:
     void handleStateUpdate() final;
@@ -69,6 +72,8 @@ private:
 
     QAction *m_goBack = nullptr;
     QAction *m_goNext = nullptr;
+    QAction *m_clear = nullptr;
+    QAction *m_expandCollapse = nullptr;
 
     Utils::Perspective m_perspective{ClangTidyClazyPerspectiveId, tr("Clang-Tidy and Clazy")};
 };

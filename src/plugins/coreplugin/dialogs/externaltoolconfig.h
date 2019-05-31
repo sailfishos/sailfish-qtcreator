@@ -25,11 +25,11 @@
 
 #pragma once
 
-#include "coreplugin/externaltool.h"
+#include "../externaltool.h"
 
-#include <QWidget>
 #include <QAbstractItemModel>
 #include <QDialog>
+#include <QWidget>
 
 QT_FORWARD_DECLARE_CLASS(QPlainTextEdit)
 

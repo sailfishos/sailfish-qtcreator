@@ -26,6 +26,7 @@
 #pragma once
 
 #include "languageclientmanager.h"
+#include "languageclientoutline.h"
 #include "languageclientsettings.h"
 
 #include <extensionsystem/iplugin.h>
@@ -47,6 +48,7 @@ private:
 
 private:
     LanguageClientManager m_clientManager;
+    LanguageClientOutlineWidgetFactory m_outlineFactory;
 };
 
 } // namespace LanguageClient

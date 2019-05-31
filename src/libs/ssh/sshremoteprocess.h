@@ -26,96 +26,41 @@
 #pragma once
 
 #include "ssh_global.h"
+#include "sshprocess.h"
 
-#include <QProcess>
-#include <QSharedPointer>
+#include <QStringList>
 
 QT_BEGIN_NAMESPACE
 class QByteArray;
 QT_END_NAMESPACE
 
 namespace QSsh {
-class SshPseudoTerminal;
-namespace Internal {
-class SshChannelManager;
-class SshRemoteProcessPrivate;
-class SshSendFacility;
-} // namespace Internal
+class SshConnection;
 
-// TODO: ProcessChannel
-class QSSH_EXPORT SshRemoteProcess : public QIODevice
+class QSSH_EXPORT SshRemoteProcess : public SshProcess
 {
     Q_OBJECT
 
-    friend class Internal::SshChannelManager;
-    friend class Internal::SshRemoteProcessPrivate;
-
+    friend class SshConnection;
 public:
-    typedef QSharedPointer<SshRemoteProcess> Ptr;
-    enum ExitStatus { FailedToStart, CrashExit, NormalExit };
-    enum Signal {
-        AbrtSignal, AlrmSignal, FpeSignal, HupSignal, IllSignal, IntSignal, KillSignal, PipeSignal,
-        QuitSignal, SegvSignal, TermSignal, Usr1Signal, Usr2Signal, NoSignal
-    };
-
     ~SshRemoteProcess();
 
-    // QIODevice stuff
-    bool atEnd() const;
-    qint64 bytesAvailable() const;
-    bool canReadLine() const;
-    void close();
-    bool isSequential() const { return true; }
-
-    QProcess::ProcessChannel readChannel() const;
-    void setReadChannel(QProcess::ProcessChannel channel);
-
-    /*
-     * Note that this is of limited value in practice, because servers are
-     * usually configured to ignore such requests for security reasons.
-     */
-    void addToEnvironment(const QByteArray &var, const QByteArray &value);
-    void clearEnvironment();
-
-    void requestTerminal(const SshPseudoTerminal &terminal);
+    void requestTerminal();
+    void requestX11Forwarding(const QString &displayName);
     void start();
 
     bool isRunning() const;
-    int exitCode() const;
-    Signal exitSignal() const;
-
-    QByteArray readAllStandardOutput();
-    QByteArray readAllStandardError();
-
-    // Note: This is ignored by the OpenSSH server.
-    void sendSignal(Signal signal);
-    void kill() { sendSignal(KillSignal); }
+    QStringList fullLocalCommandLine() const;
 
 signals:
-    void started();
-
-    void readyReadStandardOutput();
-    void readyReadStandardError();
-
-    /*
-     * Parameter is of type ExitStatus, but we use int because of
-     * signal/slot awkwardness (full namespace required).
-     */
-    void closed(int exitStatus);
+    void done(const QString &error);
 
 private:
-    SshRemoteProcess(const QByteArray &command, quint32 channelId,
-        Internal::SshSendFacility &sendFacility);
-    SshRemoteProcess(quint32 channelId, Internal::SshSendFacility &sendFacility);
+    SshRemoteProcess(const QByteArray &command, const QStringList &connectionArgs);
+    void doStart();
 
-    // QIODevice stuff
-    qint64 readData(char *data, qint64 maxlen);
-    qint64 writeData(const char *data, qint64 len);
-
-    void init();
-    QByteArray readAllFromChannel(QProcess::ProcessChannel channel);
-
-    Internal::SshRemoteProcessPrivate *d;
+    struct SshRemoteProcessPrivate;
+    SshRemoteProcessPrivate * const d;
 };
 
 } // namespace QSsh

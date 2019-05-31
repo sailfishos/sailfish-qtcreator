@@ -87,6 +87,7 @@ public:
     LocatorModel(QObject *parent = nullptr)
         : QAbstractListModel(parent)
         , mBackgroundColor(Utils::creatorTheme()->color(Utils::Theme::TextColorHighlightBackground))
+        , mForegroundColor(Utils::creatorTheme()->color(Utils::Theme::TextColorNormal))
     {}
 
     void clear();
@@ -100,6 +101,7 @@ private:
     mutable QList<LocatorFilterEntry> mEntries;
     bool hasExtraInfo = false;
     QColor mBackgroundColor;
+    QColor mForegroundColor;
 };
 
 class CompletionDelegate : public HighlightingItemDelegate
@@ -224,6 +226,8 @@ QVariant LocatorModel::data(const QModelIndex &index, int role) const
     }
     case int(HighlightingItemRole::Background):
         return mBackgroundColor;
+    case int(HighlightingItemRole::Foreground):
+        return mForegroundColor;
     }
 
     return QVariant();
@@ -248,6 +252,14 @@ void LocatorModel::addEntries(const QList<LocatorFilterEntry> &entries)
 CompletionList::CompletionList(QWidget *parent)
     : Utils::TreeView(parent)
 {
+    // on macOS and Windows the popup doesn't really get focus, so fake the selection color
+    // which would then just be a very light gray, but should look as if it had focus
+    QPalette p = palette();
+    p.setBrush(QPalette::Inactive,
+               QPalette::Highlight,
+               p.brush(QPalette::Normal, QPalette::Highlight));
+    setPalette(p);
+
     setItemDelegate(new CompletionDelegate(this));
     setRootIsDecorated(false);
     setUniformRowHeights(true);

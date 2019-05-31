@@ -34,12 +34,13 @@
 #include <coreplugin/idocument.h>
 #include <cpptools/baseeditordocumentparser.h>
 #include <cpptools/compileroptionsbuilder.h>
+#include <cpptools/cppcodemodelsettings.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/cpptoolsreuse.h>
 #include <cpptools/editordocumenthandle.h>
 #include <cpptools/projectpart.h>
-#include <cpptools/cppcodemodelsettings.h>
-#include <cpptools/cpptoolsreuse.h>
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 
@@ -66,29 +67,31 @@ namespace Utils {
 class LibClangOptionsBuilder final : public CompilerOptionsBuilder
 {
 public:
-    LibClangOptionsBuilder(const ProjectPart &projectPart)
+    LibClangOptionsBuilder(const ProjectPart &projectPart,
+                           UseBuildSystemWarnings useBuildSystemWarnings)
         : CompilerOptionsBuilder(projectPart,
                                  UseSystemHeader::No,
-                                 CppTools::SkipBuiltIn::No,
-                                 CppTools::SkipLanguageDefines::Yes,
+                                 UseTweakedHeaderPaths::Yes,
+                                 UseLanguageDefines::No,
+                                 useBuildSystemWarnings,
                                  QString(CLANG_VERSION),
                                  QString(CLANG_RESOURCE_DIR))
     {
     }
 
-    void addToolchainAndProjectMacros() final
+    void addProjectMacros() final
     {
         addMacros({ProjectExplorer::Macro("Q_CREATOR_RUN", "1")});
-        CompilerOptionsBuilder::addToolchainAndProjectMacros();
+        CompilerOptionsBuilder::addProjectMacros();
     }
 
     void addExtraOptions() final
     {
         addDummyUiHeaderOnDiskIncludePath();
-        add("-fmessage-length=0");
-        add("-fdiagnostics-show-note-include-stack");
+        add("-fmessage-length=0", /*gccOnlyOption=*/true);
+        add("-fdiagnostics-show-note-include-stack", /*gccOnlyOption=*/true);
+        add("-fretain-comments-from-system-headers", /*gccOnlyOption=*/true);
         add("-fmacro-backtrace-limit=0");
-        add("-fretain-comments-from-system-headers");
         add("-ferror-limit=1000");
     }
 
@@ -96,17 +99,17 @@ private:
     void addDummyUiHeaderOnDiskIncludePath()
     {
         const QString path = ClangModelManagerSupport::instance()->dummyUiHeaderOnDiskDirPath();
-        if (!path.isEmpty()) {
-            add("-I");
-            add(QDir::toNativeSeparators(path));
-        }
+        if (!path.isEmpty())
+            add({"-I", QDir::toNativeSeparators(path)});
     }
 };
 
-QStringList createClangOptions(const ProjectPart &projectPart, ProjectFile::Kind fileKind)
+QStringList createClangOptions(const ProjectPart &projectPart,
+                               UseBuildSystemWarnings useBuildSystemWarnings,
+                               ProjectFile::Kind fileKind)
 {
-    return LibClangOptionsBuilder(projectPart)
-        .build(fileKind, CompilerOptionsBuilder::PchUsage::None);
+    return LibClangOptionsBuilder(projectPart, useBuildSystemWarnings)
+        .build(fileKind, UsePrecompiledHeaders::No);
 }
 
 ProjectPart::Ptr projectPartForFile(const QString &filePath)
@@ -298,9 +301,21 @@ QString diagnosticCategoryPrefixRemoved(const QString &text)
     return text;
 }
 
-static ::Utils::FileName buildDirectory(const CppTools::ProjectPart &projectPart)
+static ::Utils::FileName compilerPath(const CppTools::ProjectPart &projectPart)
 {
     ProjectExplorer::Target *target = projectPart.project->activeTarget();
+    if (!target)
+        return ::Utils::FileName();
+
+    ProjectExplorer::ToolChain *toolchain = ProjectExplorer::ToolChainKitInformation::toolChain(
+        target->kit(), ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+
+    return toolchain->compilerCommand();
+}
+
+static ::Utils::FileName buildDirectory(const ProjectExplorer::Project &project)
+{
+    ProjectExplorer::Target *target = project.activeTarget();
     if (!target)
         return ::Utils::FileName();
 
@@ -311,40 +326,84 @@ static ::Utils::FileName buildDirectory(const CppTools::ProjectPart &projectPart
     return buildConfig->buildDirectory();
 }
 
-static QJsonObject createFileObject(CompilerOptionsBuilder &optionsBuilder,
-                                    const ProjectFile &projFile,
-                                    const ::Utils::FileName &buildDir)
+static QStringList projectPartArguments(const ProjectPart &projectPart)
 {
-    const ProjectFile::Kind kind = ProjectFile::classify(projFile.path);
-    optionsBuilder.updateLanguageOption(kind);
+    QStringList args;
+    args << compilerPath(projectPart).toString();
+    args << "-c";
+    if (projectPart.toolchainType != ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID) {
+        args << "--target=" + projectPart.toolChainTargetTriple;
+        args << (projectPart.toolChainWordWidth == ProjectPart::WordWidth64Bit
+                     ? QLatin1String("-m64")
+                     : QLatin1String("-m32"));
+    }
+    args << projectPart.compilerFlags;
+    for (const ProjectExplorer::HeaderPath &headerPath : projectPart.headerPaths) {
+        if (headerPath.type == ProjectExplorer::HeaderPathType::User) {
+            args << "-I" + headerPath.path;
+        } else if (headerPath.type == ProjectExplorer::HeaderPathType::System) {
+            args << (projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
+                         ? "-I"
+                         : "-isystem")
+                        + headerPath.path;
+        }
+    }
+    for (const ProjectExplorer::Macro &macro : projectPart.projectMacros) {
+        args.append(QString::fromUtf8(
+            macro.toKeyValue(macro.type == ProjectExplorer::MacroType::Define ? "-D" : "-U")));
+    }
 
+    return args;
+}
+
+static QJsonObject createFileObject(const ::Utils::FileName &buildDir,
+                                    const QStringList &arguments,
+                                    const ProjectPart &projectPart,
+                                    const ProjectFile &projFile)
+{
     QJsonObject fileObject;
     fileObject["file"] = projFile.path;
-    QJsonArray args = QJsonArray::fromStringList(optionsBuilder.options());
-    args.prepend(kind == ProjectFile::CXXSource ? "clang++" : "clang");
+    QJsonArray args = QJsonArray::fromStringList(arguments);
+
+    const ProjectFile::Kind kind = ProjectFile::classify(projFile.path);
+    if (projectPart.toolchainType == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID
+        || projectPart.toolchainType == ProjectExplorer::Constants::CLANG_CL_TOOLCHAIN_TYPEID) {
+        if (ProjectFile::isC(kind))
+            args.append("/TC");
+        else if (ProjectFile::isCxx(kind))
+            args.append("/TP");
+    } else {
+        QStringList langOption
+            = createLanguageOptionGcc(kind,
+                                      projectPart.languageExtensions
+                                          & ::Utils::LanguageExtension::ObjectiveC);
+        for (const QString &langOptionPart : langOption)
+            args.append(langOptionPart);
+    }
     args.append(QDir::toNativeSeparators(projFile.path));
     fileObject["arguments"] = args;
     fileObject["directory"] = buildDir.toString();
     return fileObject;
 }
 
-void generateCompilationDB(::Utils::FileName projectDir, CppTools::ProjectInfo projectInfo)
+void generateCompilationDB(CppTools::ProjectInfo projectInfo)
 {
-    QFile compileCommandsFile(projectDir.toString() + "/compile_commands.json");
+    const ::Utils::FileName buildDir = buildDirectory(*projectInfo.project());
+    QTC_ASSERT(!buildDir.isEmpty(), return;);
 
-    compileCommandsFile.open(QIODevice::WriteOnly | QIODevice::Truncate);
+    QDir dir(buildDir.toString());
+    if (!dir.exists())
+        dir.mkpath(dir.path());
+    QFile compileCommandsFile(buildDir.toString() + "/compile_commands.json");
+    const bool fileOpened = compileCommandsFile.open(QIODevice::WriteOnly | QIODevice::Truncate);
+    if (!fileOpened)
+        return;
     compileCommandsFile.write("[");
+
     for (ProjectPart::Ptr projectPart : projectInfo.projectParts()) {
-        const ::Utils::FileName buildDir = buildDirectory(*projectPart);
-
-        CompilerOptionsBuilder optionsBuilder(*projectPart,
-                                              CppTools::UseSystemHeader::No,
-                                              CppTools::SkipBuiltIn::Yes);
-        optionsBuilder.build(CppTools::ProjectFile::Unclassified,
-                             CppTools::CompilerOptionsBuilder::PchUsage::None);
-
+        const QStringList args = projectPartArguments(*projectPart);
         for (const ProjectFile &projFile : projectPart->files) {
-            const QJsonObject json = createFileObject(optionsBuilder, projFile, buildDir);
+            const QJsonObject json = createFileObject(buildDir, args, *projectPart, projFile);
             if (compileCommandsFile.size() > 1)
                 compileCommandsFile.write(",");
             compileCommandsFile.write('\n' + QJsonDocument(json).toJson().trimmed());
@@ -353,6 +412,66 @@ void generateCompilationDB(::Utils::FileName projectDir, CppTools::ProjectInfo p
 
     compileCommandsFile.write("\n]");
     compileCommandsFile.close();
+}
+
+QString currentCppEditorDocumentFilePath()
+{
+    QString filePath;
+
+    const auto currentEditor = Core::EditorManager::currentEditor();
+    if (currentEditor && CppTools::CppModelManager::isCppEditor(currentEditor)) {
+        const auto currentDocument = currentEditor->document();
+        if (currentDocument)
+            filePath = currentDocument->filePath().toString();
+    }
+
+    return filePath;
+}
+
+DiagnosticTextInfo::DiagnosticTextInfo(const QString &text)
+    : m_text(text)
+    , m_squareBracketStartIndex(text.lastIndexOf('['))
+{}
+
+QString DiagnosticTextInfo::textWithoutOption() const
+{
+    if (m_squareBracketStartIndex == -1)
+        return m_text;
+
+    return m_text.mid(0, m_squareBracketStartIndex - 1);
+}
+
+QString DiagnosticTextInfo::option() const
+{
+    if (m_squareBracketStartIndex == -1)
+        return QString();
+
+    const int index = m_squareBracketStartIndex + 1;
+    return m_text.mid(index, m_text.count() - index - 1);
+}
+
+QString DiagnosticTextInfo::category() const
+{
+    if (m_squareBracketStartIndex == -1)
+        return QString();
+
+    const int index = m_squareBracketStartIndex + 1;
+    if (isClazyOption(m_text.mid(index)))
+        return QCoreApplication::translate("ClangDiagnosticWidget", "Clazy Issue");
+    else
+        return QCoreApplication::translate("ClangDiagnosticWidget", "Clang-Tidy Issue");
+}
+
+bool DiagnosticTextInfo::isClazyOption(const QString &option)
+{
+    return option.startsWith("-Wclazy");
+}
+
+QString DiagnosticTextInfo::clazyCheckName(const QString &option)
+{
+    if (option.startsWith("-Wclazy"))
+        return option.mid(8); // Chop "-Wclazy-"
+    return option;
 }
 
 } // namespace Utils

@@ -31,6 +31,8 @@
 #include "scxmluifactory.h"
 #include "shapeprovider.h"
 
+#include <coreplugin/icore.h>
+
 #include <QDebug>
 #include <QMessageBox>
 #include <QMimeData>
@@ -229,7 +231,7 @@ void GraphicsView::dropEvent(QDropEvent *event)
 
         QList<QGraphicsItem*> parentItems = items(event->pos());
         for (int i = 0; i < parentItems.count(); ++i) {
-            BaseItem *item = static_cast<BaseItem*>(parentItems[i]);
+            auto item = static_cast<const BaseItem*>(parentItems[i]);
             if (item && item->type() >= StateType) {
                 targetPos = item->mapFromScene(targetPos);
                 targetTag = item->tag();
@@ -246,7 +248,8 @@ void GraphicsView::dropEvent(QDropEvent *event)
             m_document->setCurrentTag(targetTag);
             QByteArray scxmlData = m_shapeProvider->scxmlCode(groupIndex, shapeIndex, targetTag);
             if (!scxmlData.isEmpty() && !m_document->pasteData(scxmlData, targetPos, targetPos))
-                QMessageBox::warning(0, tr("SCXML Generation Failed"), m_document->lastError());
+                QMessageBox::warning(Core::ICore::dialogParent(), tr("SCXML Generation Failed"),
+                                     m_document->lastError());
         }
     } else {
         event->ignore();

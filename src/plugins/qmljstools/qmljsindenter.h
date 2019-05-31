@@ -27,27 +27,30 @@
 
 #include "qmljstools_global.h"
 
-#include <texteditor/indenter.h>
+#include <texteditor/textindenter.h>
 
 namespace QmlJSEditor {
 namespace Internal {
 
-class QMLJSTOOLS_EXPORT Indenter : public TextEditor::Indenter
+class QMLJSTOOLS_EXPORT Indenter : public TextEditor::TextIndenter
 {
 public:
-    Indenter();
+    explicit Indenter(QTextDocument *doc);
     ~Indenter() override;
 
     bool isElectricCharacter(const QChar &ch) const override;
-    void indentBlock(QTextDocument *doc,
-                     const QTextBlock &block,
+    void indentBlock(const QTextBlock &block,
                      const QChar &typedChar,
-                     const TextEditor::TabSettings &tabSettings) override;
-    void invalidateCache(QTextDocument *doc) override;
+                     const TextEditor::TabSettings &tabSettings,
+                     int cursorPositionInEditor = -1) override;
+    void invalidateCache() override;
 
-    int indentFor(const QTextBlock &block, const TextEditor::TabSettings &tabSettings) override;
+    int indentFor(const QTextBlock &block,
+                  const TextEditor::TabSettings &tabSettings,
+                  int cursorPositionInEditor = -1) override;
     TextEditor::IndentationForBlock indentationForBlocks(const QVector<QTextBlock> &blocks,
-                                                         const TextEditor::TabSettings &tabSettings) override;
+                                                         const TextEditor::TabSettings &tabSettings,
+                                                         int cursorPositionInEditor = -1) override;
 };
 
 } // Internal

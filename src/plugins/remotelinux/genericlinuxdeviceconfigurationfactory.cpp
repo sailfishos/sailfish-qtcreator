@@ -33,55 +33,25 @@
 
 #include <utils/qtcassert.h>
 
-#include <QIcon>
-
 using namespace ProjectExplorer;
 
 namespace RemoteLinux {
 
-GenericLinuxDeviceConfigurationFactory::GenericLinuxDeviceConfigurationFactory(QObject *parent)
-    : IDeviceFactory(parent)
+GenericLinuxDeviceConfigurationFactory::GenericLinuxDeviceConfigurationFactory()
+    : IDeviceFactory(Constants::GenericLinuxOsType)
 {
+    setDisplayName(tr("Generic Linux Device"));
+    setIcon(QIcon());
+    setCanCreate(true);
+    setConstructionFunction(&LinuxDevice::create);
 }
 
-QString GenericLinuxDeviceConfigurationFactory::displayNameForId(Core::Id type) const
+IDevice::Ptr GenericLinuxDeviceConfigurationFactory::create() const
 {
-    if (type == Constants::GenericLinuxOsType)
-        return tr("Generic Linux Device");
-    return QString();
-}
-
-QList<Core::Id> GenericLinuxDeviceConfigurationFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::GenericLinuxOsType);
-}
-
-QIcon GenericLinuxDeviceConfigurationFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    return QIcon();
-}
-
-IDevice::Ptr GenericLinuxDeviceConfigurationFactory::create(Core::Id id) const
-{
-    QTC_ASSERT(id == Constants::GenericLinuxOsType, return IDevice::Ptr());
     GenericLinuxDeviceConfigurationWizard wizard(Core::ICore::mainWindow());
     if (wizard.exec() != QDialog::Accepted)
         return IDevice::Ptr();
     return wizard.device();
-}
-
-bool GenericLinuxDeviceConfigurationFactory::canRestore(const QVariantMap &map) const
-{
-    return IDevice::typeFromMap(map) == Constants::GenericLinuxOsType;
-}
-
-IDevice::Ptr GenericLinuxDeviceConfigurationFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return IDevice::Ptr());
-    const IDevice::Ptr device = LinuxDevice::create();
-    device->fromMap(map);
-    return device;
 }
 
 } // namespace RemoteLinux

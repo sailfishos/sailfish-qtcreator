@@ -49,6 +49,7 @@
 
 #include <QDir>
 #include <QFormLayout>
+#include <QHash>
 #include <QPushButton>
 #include <QTimer>
 #include <QLoggingCategory>
@@ -429,7 +430,7 @@ RunConfigurationFactory::~RunConfigurationFactory()
     m_ownedRunWorkerFactories.clear();
 }
 
-QString RunConfigurationFactory::decoratedTargetName(const QString targetName, Target *target)
+QString RunConfigurationFactory::decoratedTargetName(const QString &targetName, Target *target)
 {
     QString displayName;
     if (!targetName.isEmpty())
@@ -466,6 +467,7 @@ RunConfigurationFactory::availableCreators(Target *parent) const
         rci.id = m_runConfigBaseId;
         rci.buildKey = ti.buildKey;
         rci.displayName = displayName;
+        rci.displayNameUniquifier = ti.displayNameUniquifier;
         rci.creationMode = ti.isQtcRunnable || !hasAnyQtcRunnable
                 ? RunConfigurationCreationInfo::AlwaysCreate
                 : RunConfigurationCreationInfo::ManualCreationOnly;
@@ -540,7 +542,7 @@ RunConfiguration *RunConfigurationCreationInfo::create(Target *target) const
 
     rc->m_buildKey = buildKey;
     rc->doAdditionalSetup(*this);
-    rc->setDefaultDisplayName(displayName);
+    rc->setDisplayName(displayName);
 
     return rc;
 }
@@ -574,6 +576,15 @@ const QList<RunConfigurationCreationInfo> RunConfigurationFactory::creatorsForTa
     for (RunConfigurationFactory *factory : g_runConfigurationFactories) {
         if (factory->canHandle(parent))
             items.append(factory->availableCreators(parent));
+    }
+    QHash<QString, QList<RunConfigurationCreationInfo *>> itemsPerDisplayName;
+    for (RunConfigurationCreationInfo &item : items)
+        itemsPerDisplayName[item.displayName] << &item;
+    for (auto it = itemsPerDisplayName.cbegin(); it != itemsPerDisplayName.cend(); ++it) {
+        if (it.value().size() == 1)
+            continue;
+        for (RunConfigurationCreationInfo * const rci : it.value())
+            rci->displayName += rci->displayNameUniquifier;
     }
     return items;
 }
@@ -1555,7 +1566,8 @@ void SimpleTargetRunner::start()
     const QString displayName = isDesktop
             ? QDir::toNativeSeparators(rawDisplayName)
             : rawDisplayName;
-    const QString msg = RunControl::tr("Starting %1...").arg(displayName);
+    const QString msg = RunControl::tr("Starting %1 %2...")
+            .arg(displayName).arg(m_runnable.commandLineArguments);
     appendMessage(msg, Utils::NormalMessageFormat);
 
     if (isDesktop) {

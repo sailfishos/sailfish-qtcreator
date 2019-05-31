@@ -26,6 +26,7 @@
 #pragma once
 
 #include "texteditor_global.h"
+#include "indenter.h"
 
 #include <coreplugin/id.h>
 #include <coreplugin/textdocument.h>
@@ -48,7 +49,6 @@ namespace TextEditor {
 class CompletionAssistProvider;
 class ExtraEncodingSettings;
 class FontSettings;
-class Indenter;
 class IAssistProvider;
 class StorageSettings;
 class SyntaxHighlighter;
@@ -57,7 +57,7 @@ class TextDocumentPrivate;
 class TextMark;
 class TypingSettings;
 
-typedef QList<TextMark *> TextMarks;
+using TextMarks = QList<TextMark *>;
 
 class TEXTEDITOR_EXPORT TextDocument : public Core::BaseTextDocument
 {
@@ -70,6 +70,7 @@ public:
     static QMap<QString, QString> openedTextDocumentContents();
     static QMap<QString, QTextCodec *> openedTextDocumentEncodings();
     static TextDocument *currentTextDocument();
+    static TextDocument *textDocumentForFileName(const Utils::FileName &fileName);
 
     virtual QString plainText() const;
     virtual QString textAt(int pos, int length) const;
@@ -87,10 +88,11 @@ public:
 
     void setIndenter(Indenter *indenter);
     Indenter *indenter() const;
-    void autoIndent(const QTextCursor &cursor, QChar typedChar = QChar::Null,
-                    bool autoTriggered = true);
-    void autoReindent(const QTextCursor &cursor);
-    void autoFormat(const QTextCursor &cursor);
+    void autoIndent(const QTextCursor &cursor,
+                    QChar typedChar = QChar::Null,
+                    int currentCursorPosition = -1);
+    void autoReindent(const QTextCursor &cursor, int currentCursorPosition = -1);
+    void autoFormatOrIndent(const QTextCursor &cursor);
     QTextCursor indent(const QTextCursor &cursor, bool blockSelection = false, int column = 0,
                        int *offset = nullptr);
     QTextCursor unindent(const QTextCursor &cursor, bool blockSelection = false, int column = 0,
@@ -139,6 +141,7 @@ public:
 
     void setCompletionAssistProvider(CompletionAssistProvider *provider);
     virtual CompletionAssistProvider *completionAssistProvider() const;
+    void setQuickFixAssistProvider(IAssistProvider *provider) const;
     virtual IAssistProvider *quickFixAssistProvider() const;
 
     void setTabSettings(const TextEditor::TabSettings &tabSettings);
@@ -169,6 +172,6 @@ private:
     TextDocumentPrivate *d;
 };
 
-typedef QSharedPointer<TextDocument> TextDocumentPtr;
+using TextDocumentPtr = QSharedPointer<TextDocument>;
 
 } // namespace TextEditor

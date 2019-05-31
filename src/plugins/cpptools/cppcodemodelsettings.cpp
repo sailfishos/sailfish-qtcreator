@@ -27,6 +27,7 @@
 
 #include "clangdiagnosticconfigsmodel.h"
 #include "cpptoolsconstants.h"
+#include "cpptoolsreuse.h"
 
 #include <utils/qtcassert.h>
 
@@ -35,10 +36,10 @@
 using namespace CppTools;
 
 static Core::Id initialClangDiagnosticConfigId()
-{ return Core::Id(Constants::CPP_CLANG_BUILTIN_CONFIG_ID_EVERYTHING_WITH_EXCEPTIONS); }
+{ return {Constants::CPP_CLANG_BUILTIN_CONFIG_ID_EVERYTHING_WITH_EXCEPTIONS}; }
 
 static CppCodeModelSettings::PCHUsage initialPchUsage()
-{ return CppCodeModelSettings::PchUse_None; }
+{ return CppCodeModelSettings::PchUse_BuildSystem; }
 
 static QString clangDiagnosticConfigKey()
 { return QStringLiteral("ClangDiagnosticConfig"); }
@@ -64,6 +65,9 @@ static QString clangDiagnosticConfigsArrayClangTidyModeKey()
 static QString clangDiagnosticConfigsArrayClazyChecksKey()
 { return QLatin1String("clazyChecks"); }
 
+static QString enableLowerClazyLevelsKey()
+{ return QLatin1String("enableLowerClazyLevels"); }
+
 static QString pchUsageKey()
 { return QLatin1String(Constants::CPPTOOLS_MODEL_MANAGER_PCH_USAGE); }
 
@@ -75,6 +79,24 @@ static QString skipIndexingBigFilesKey()
 
 static QString indexerFileSizeLimitKey()
 { return QLatin1String(Constants::CPPTOOLS_INDEXER_FILE_SIZE_LIMIT); }
+
+static QString convertToNewClazyChecksFormat(const QString &checks)
+{
+    // Before Qt Creator 4.9 valid values for checks were: "", "levelN".
+    // Starting with Qt Creator 4.9, checks are a comma-separated string of checks: "x,y,z".
+
+    if (checks.isEmpty())
+        return checks;
+
+    if (checks.size() == 6 && checks.startsWith("level")) {
+        bool ok = false;
+        const int level = checks.midRef(5).toInt(&ok);
+        QTC_ASSERT(ok, return QString());
+        return clazyChecksForLevel(level);
+    }
+
+    return checks;
+}
 
 static ClangDiagnosticConfigs customDiagnosticConfigsFromSettings(QSettings *s)
 {
@@ -95,7 +117,9 @@ static ClangDiagnosticConfigs customDiagnosticConfigsFromSettings(QSettings *s)
                                     s->value(clangDiagnosticConfigsArrayClangTidyModeKey()).toInt()));
         config.setClangTidyChecks(
                     s->value(clangDiagnosticConfigsArrayClangTidyChecksKey()).toString());
-        config.setClazyChecks(s->value(clangDiagnosticConfigsArrayClazyChecksKey()).toString());
+
+        const QString clazyChecks = s->value(clangDiagnosticConfigsArrayClazyChecksKey()).toString();
+        config.setClazyChecks(convertToNewClazyChecksFormat(clazyChecks));
         configs.append(config);
     }
     s->endArray();
@@ -123,6 +147,8 @@ void CppCodeModelSettings::fromSettings(QSettings *s)
         if (!model.hasConfigWithId(m_clangDiagnosticConfigId))
             setClangDiagnosticConfigId(initialClangDiagnosticConfigId());
     }
+
+    setEnableLowerClazyLevels(s->value(enableLowerClazyLevelsKey(), true).toBool());
 
     const QVariant pchUsageVariant = s->value(pchUsageKey(), initialPchUsage());
     setPCHUsage(static_cast<PCHUsage>(pchUsageVariant.toInt()));
@@ -165,6 +191,7 @@ void CppCodeModelSettings::toSettings(QSettings *s)
     s->endArray();
 
     s->setValue(clangDiagnosticConfigKey(), clangDiagnosticConfigId().toSetting());
+    s->setValue(enableLowerClazyLevelsKey(), enableLowerClazyLevels());
     s->setValue(pchUsageKey(), pchUsage());
 
     s->setValue(interpretAmbiguousHeadersAsCHeadersKey(), interpretAmbigiousHeadersAsCHeaders());
@@ -255,4 +282,14 @@ int CppCodeModelSettings::indexerFileSizeLimitInMb() const
 void CppCodeModelSettings::setIndexerFileSizeLimitInMb(int sizeInMB)
 {
     m_indexerFileSizeLimitInMB = sizeInMB;
+}
+
+bool CppCodeModelSettings::enableLowerClazyLevels() const
+{
+    return m_enableLowerClazyLevels;
+}
+
+void CppCodeModelSettings::setEnableLowerClazyLevels(bool yesno)
+{
+    m_enableLowerClazyLevels = yesno;
 }

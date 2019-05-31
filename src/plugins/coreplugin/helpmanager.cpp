@@ -91,20 +91,25 @@ QMap<QString, QUrl> linksForIdentifier(const QString &id)
     return checkInstance() ? m_instance->linksForIdentifier(id) : QMap<QString, QUrl>();
 }
 
+QMap<QString, QUrl> linksForKeyword(const QString &keyword)
+{
+    return checkInstance() ? m_instance->linksForKeyword(keyword) : QMap<QString, QUrl>();
+}
+
 QByteArray fileData(const QUrl &url)
 {
     return checkInstance() ? m_instance->fileData(url) : QByteArray();
 }
 
-void handleHelpRequest(const QUrl &url, HelpManager::HelpViewerLocation location)
+void showHelpUrl(const QUrl &url, HelpManager::HelpViewerLocation location)
 {
     if (checkInstance())
-        m_instance->handleHelpRequest(url, location);
+        m_instance->showHelpUrl(url, location);
 }
 
-void handleHelpRequest(const QString &url, HelpViewerLocation location)
+void showHelpUrl(const QString &url, HelpViewerLocation location)
 {
-    handleHelpRequest(QUrl(url), location);
+    showHelpUrl(QUrl(url), location);
 }
 
 } // HelpManager

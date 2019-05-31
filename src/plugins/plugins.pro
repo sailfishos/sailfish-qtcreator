@@ -52,7 +52,6 @@ SUBDIRS   = \
     ios \
     beautifier \
     modeleditor \
-    qmakeandroidsupport \
     winrt \
     updateinfo \
     scxmleditor \
@@ -60,7 +59,8 @@ SUBDIRS   = \
     silversearcher \
     languageclient \
     cppcheck \
-    compilationdatabaseprojectmanager
+    compilationdatabaseprojectmanager \
+    qmlpreview
 
 qtHaveModule(serialport) {
     SUBDIRS += serialterminal
@@ -69,9 +69,9 @@ qtHaveModule(serialport) {
 }
 
 qtHaveModule(quick) {
-    SUBDIRS += qmlprofiler
+    SUBDIRS += qmlprofiler perfprofiler
 } else {
-    warning("QmlProfiler plugin has been disabled since the Qt Quick module is not available.")
+    warning("QmlProfiler and PerfProfiler plugins have been disabled since the Qt Quick module is not available.")
 }
 
 qtHaveModule(help) {
@@ -133,3 +133,5 @@ for(p, SUBDIRS) {
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
 }
+
+QMAKE_EXTRA_TARGETS += deployqt # dummy

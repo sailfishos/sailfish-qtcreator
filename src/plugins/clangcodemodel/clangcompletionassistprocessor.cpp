@@ -70,7 +70,7 @@ static void addAssistProposalItem(QList<AssistProposalItemInterface *> &items,
                                   const CodeCompletion &codeCompletion,
                                   const QString &name)
 {
-    ClangAssistProposalItem *item = new ClangAssistProposalItem;
+    auto item = new ClangAssistProposalItem;
     items.push_back(item);
 
     item->setText(name);
@@ -86,7 +86,7 @@ static void addFunctionOverloadAssistProposalItem(QList<AssistProposalItemInterf
                                                   const QString &name)
 {
     auto *item = static_cast<ClangAssistProposalItem *>(sameItem);
-    item->setHasOverloadsWithParameters(true);
+    item->setHasOverloadsWithParameters(codeCompletion.hasParameters);
     if (codeCompletion.completionKind == CodeCompletion::ConstructorCompletionKind) {
         // It's the constructor, currently constructor definitions do not lead here.
         // CLANG-UPGRADE-CHECK: Can we get here with constructor definition?
@@ -122,19 +122,15 @@ static QList<AssistProposalItemInterface *> toAssistProposalItems(
         const CodeCompletions &completions,
         const ClangCompletionAssistInterface *interface)
 {
-    bool signalCompletion = false; // TODO
-    bool slotCompletion = false; // TODO
+    // TODO: Handle Qt4's SIGNAL/SLOT
+    //   Possibly check for m_completionOperator == T_SIGNAL
+    //   Possibly check for codeCompletion.completionKind == CodeCompletion::SignalCompletionKind
 
     QList<AssistProposalItemInterface *> items;
     items.reserve(completions.size());
     for (const CodeCompletion &codeCompletion : completions) {
         if (codeCompletion.text.isEmpty())
             continue; // It's an OverloadCandidate which has text but no typedText.
-
-        if (signalCompletion && codeCompletion.completionKind != CodeCompletion::SignalCompletionKind)
-            continue;
-        if (slotCompletion && codeCompletion.completionKind != CodeCompletion::SlotCompletionKind)
-            continue;
 
         const QString name = codeCompletion.completionKind == CodeCompletion::KeywordCompletionKind
                 ? CompletionChunksToTextConverter::convertToName(codeCompletion.chunks)
@@ -165,9 +161,7 @@ ClangCompletionAssistProcessor::ClangCompletionAssistProcessor()
 {
 }
 
-ClangCompletionAssistProcessor::~ClangCompletionAssistProcessor()
-{
-}
+ClangCompletionAssistProcessor::~ClangCompletionAssistProcessor() = default;
 
 IAssistProposal *ClangCompletionAssistProcessor::perform(const AssistInterface *interface)
 {
@@ -220,6 +214,9 @@ void ClangCompletionAssistProcessor::handleAvailableCompletions(const CodeComple
             setAsyncProposalAvailable(createFunctionHintProposal(completions));
             return;
         }
+
+        if (!m_fallbackToNormalCompletion)
+            return;
         // else: Proceed with a normal completion in case:
         // 1) it was not a function call, but e.g. a function declaration like "void f("
         // 2) '{' meant not a constructor call.
@@ -292,6 +289,14 @@ static QByteArray modifyInput(QTextDocument *doc, int endOfExpression) {
     return modifiedInput;
 }
 
+static QChar lastPrecedingNonWhitespaceChar(const ClangCompletionAssistInterface *interface)
+{
+    int pos = interface->position();
+    while (pos >= 0 && interface->characterAt(pos).isSpace())
+        --pos;
+    return pos >= 0 ? interface->characterAt(pos) : QChar::Null;
+}
+
 IAssistProposal *ClangCompletionAssistProcessor::startCompletionHelper()
 {
     ClangCompletionContextAnalyzer analyzer(m_interface.data(), m_interface->languageFeatures());
@@ -329,6 +334,8 @@ IAssistProposal *ClangCompletionAssistProcessor::startCompletionHelper()
     }
     case ClangCompletionContextAnalyzer::PassThroughToLibClangAfterLeftParen: {
         m_sentRequestType = FunctionHintCompletion;
+        if (lastPrecedingNonWhitespaceChar(m_interface.data()) == ',')
+            m_fallbackToNormalCompletion = false;
         m_requestSent = sendCompletionRequest(analyzer.positionForClang(), QByteArray(),
                                               analyzer.functionNameStart());
         break;
@@ -337,7 +344,7 @@ IAssistProposal *ClangCompletionAssistProcessor::startCompletionHelper()
         break;
     }
 
-    return 0;
+    return nullptr;
 }
 
 int ClangCompletionAssistProcessor::startOfOperator(int positionInDocument,

@@ -30,6 +30,8 @@
 
 QT_FORWARD_DECLARE_CLASS(QListWidgetItem);
 
+namespace Utils { class Environment; }
+
 namespace ProjectExplorer {
 
 namespace Internal {
@@ -46,9 +48,8 @@ public:
                       const QString &buildTarget = QString(),
                       const QStringList &availableTargets = {});
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
+    bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
     bool buildsTarget(const QString &target) const;
     void setBuildTarget(const QString &target, bool on);
     QStringList availableTargets() const;
@@ -75,6 +76,7 @@ public:
     void setJobCountOverrideMakeflags(bool override);
     bool makeflagsContainsJobCount() const;
     bool userArgsContainsJobCount() const;
+    bool makeflagsJobCountMismatch() const;
 
     Utils::Environment environment(BuildConfiguration *bc) const;
 
@@ -101,21 +103,16 @@ public:
     explicit MakeStepConfigWidget(MakeStep *makeStep);
     ~MakeStepConfigWidget() override;
 
-    QString displayName() const override;
-    QString summaryText() const override;
-
 private:
     void itemChanged(QListWidgetItem *item);
     void makeLineEditTextEdited();
     void makeArgumentsLineEditTextEdited();
     void updateDetails();
-    void setSummaryText(const QString &text);
     void setUserJobCountVisible(bool visible);
     void setUserJobCountEnabled(bool enabled);
 
     Internal::Ui::MakeStep *m_ui;
     MakeStep *m_makeStep;
-    QString m_summaryText;
 };
 
 } // namespace GenericProjectManager

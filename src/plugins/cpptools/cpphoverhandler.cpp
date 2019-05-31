@@ -26,6 +26,7 @@
 #include "cpphoverhandler.h"
 
 #include "cppelementevaluator.h"
+#include "cpptoolsreuse.h"
 
 #include <coreplugin/helpmanager.h>
 #include <texteditor/texteditor.h>
@@ -41,33 +42,6 @@ using namespace TextEditor;
 
 namespace CppTools {
 
-QString CppHoverHandler::tooltipTextForHelpItem(const HelpItem &helpItem)
-{
-    // If Qt is built with a namespace, we still show the tip without it, as
-    // it is in the docs and for consistency with the doc extraction mechanism.
-    const HelpItem::Category category = helpItem.category();
-    const QString &contents = helpItem.extractContent(false);
-    if (!contents.isEmpty()) {
-        if (category == HelpItem::ClassOrNamespace)
-            return helpItem.helpId() + contents;
-        else
-            return contents;
-    } else if (category == HelpItem::Typedef ||
-               category == HelpItem::Enum ||
-               category == HelpItem::ClassOrNamespace) {
-        // This approach is a bit limited since it cannot be used for functions
-        // because the help id doesn't really help in that case.
-        QString prefix;
-        if (category == HelpItem::Typedef)
-            prefix = QLatin1String("typedef ");
-        else if (category == HelpItem::Enum)
-            prefix = QLatin1String("enum ");
-        return prefix + helpItem.helpId();
-    }
-
-    return QString();
-}
-
 void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos, ReportPriority report)
 {
     Utils::ExecuteOnDestruction reportPriority([this, report](){ report(priority()); });
@@ -78,47 +52,23 @@ void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos, Rep
     CppElementEvaluator evaluator(editorWidget);
     evaluator.setTextCursor(tc);
     evaluator.execute();
+    QString tip;
     if (evaluator.hasDiagnosis()) {
-        setToolTip(evaluator.diagnosis());
+        tip += evaluator.diagnosis();
         setPriority(Priority_Diagnostic);
-    } else if (evaluator.identifiedCppElement()) {
+    }
+    const QStringList fallback = identifierWordsUnderCursor(tc);
+    if (evaluator.identifiedCppElement()) {
         const QSharedPointer<CppElement> &cppElement = evaluator.cppElement();
-        if (priority() != Priority_Diagnostic) {
-            setToolTip(cppElement->tooltip);
-            setPriority(cppElement->tooltip.isEmpty() ? Priority_None : Priority_Tooltip);
-        }
-        QStringList candidates = cppElement->helpIdCandidates;
-        candidates.removeDuplicates();
-        foreach (const QString &helpId, candidates) {
-            if (helpId.isEmpty())
-                continue;
-
-            const QMap<QString, QUrl> helpLinks = HelpManager::linksForIdentifier(helpId);
-            if (!helpLinks.isEmpty()) {
-                setLastHelpItemIdentified(HelpItem(helpId,
-                                                   cppElement->helpMark,
-                                                   cppElement->helpCategory,
-                                                   helpLinks));
-                break;
-            }
-        }
+        const QStringList candidates = cppElement->helpIdCandidates;
+        const HelpItem helpItem(candidates + fallback, cppElement->helpMark, cppElement->helpCategory);
+        setLastHelpItemIdentified(helpItem); // tool tip appended by decorateToolTip
+        if (!helpItem.isValid())
+            tip += cppElement->tooltip;
+    } else {
+        setLastHelpItemIdentified({fallback, {}, HelpItem::Unknown});
     }
-}
-
-void CppHoverHandler::decorateToolTip()
-{
-    if (Qt::mightBeRichText(toolTip()))
-        setToolTip(toolTip().toHtmlEscaped());
-
-    if (priority() == Priority_Diagnostic)
-        return;
-
-    const HelpItem &help = lastHelpItemIdentified();
-    if (help.isValid()) {
-        const QString text = tooltipTextForHelpItem(help);
-        if (!text.isEmpty())
-            setToolTip(text);
-    }
+    setToolTip(tip);
 }
 
 } // namespace CppTools

@@ -28,6 +28,7 @@
 #include <QWidget>
 
 namespace ClangTools {
+namespace Internal {
 
 namespace Ui { class ClangToolsBasicSettings; }
 
@@ -38,12 +39,13 @@ class ClangToolsBasicSettings : public QWidget
     Q_OBJECT
 
 public:
-    explicit ClangToolsBasicSettings(QWidget *parent = 0);
-    ~ClangToolsBasicSettings();
+    explicit ClangToolsBasicSettings(QWidget *parent = nullptr);
+    ~ClangToolsBasicSettings() override;
 
     Ui::ClangToolsBasicSettings *ui();
 private:
     Ui::ClangToolsBasicSettings *m_ui;
 };
 
+} // namespace Internal
 } // namespace ClangTools

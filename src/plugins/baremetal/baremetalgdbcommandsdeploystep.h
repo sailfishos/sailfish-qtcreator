@@ -40,10 +40,6 @@ class BareMetalGdbCommandsDeployStep : public ProjectExplorer::BuildStep
 public:
     explicit BareMetalGdbCommandsDeployStep(ProjectExplorer::BuildStepList *bsl);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
-    bool runInGuiThread() const override { return true;}
-
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
@@ -56,6 +52,9 @@ public:
     QString gdbCommands() const;
 
 private:
+    bool init() override;
+    void doRun() override;
+
     QString m_gdbCommands;
 };
 

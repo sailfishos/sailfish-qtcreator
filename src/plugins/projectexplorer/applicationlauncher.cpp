@@ -127,9 +127,9 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate(ApplicationLauncher *pare
     : q(parent), m_outputCodec(QTextCodec::codecForLocale())
 {
     if (ProjectExplorerPlugin::projectExplorerSettings().mergeStdErrAndStdOut){
-        m_guiProcess.setReadChannelMode(QProcess::MergedChannels);
+        m_guiProcess.setProcessChannelMode(QProcess::MergedChannels);
     } else {
-        m_guiProcess.setReadChannelMode(QProcess::SeparateChannels);
+        m_guiProcess.setProcessChannelMode(QProcess::SeparateChannels);
         connect(&m_guiProcess, &QProcess::readyReadStandardError,
                 this, &ApplicationLauncherPrivate::readLocalStandardError);
     }
@@ -411,6 +411,7 @@ void ApplicationLauncherPrivate::start(const Runnable &runnable, const IDevice::
         m_success = true;
 
         m_deviceProcess = device->createProcess(this);
+        m_deviceProcess->setRunInTerminal(m_useTerminal);
         connect(m_deviceProcess, &DeviceProcess::started,
                 q, &ApplicationLauncher::remoteProcessStarted);
         connect(m_deviceProcess, &DeviceProcess::readyReadStandardOutput,

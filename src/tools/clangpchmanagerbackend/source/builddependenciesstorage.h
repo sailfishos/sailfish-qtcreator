@@ -53,25 +53,27 @@ public:
         transaction.commit();
     }
 
-    void updateSources(const SourceEntries &sourceEntries) override
+    void insertOrUpdateSources(const SourceEntries &sourceEntries, ProjectPartId projectPartId) override
     {
+        deleteAllProjectPartsFilesWithProjectPartNameStatement.write(projectPartId.projectPathId);
+
         for (const SourceEntry &entry : sourceEntries) {
-            updateBuildDependencyTimeStampStatement.write(static_cast<long long>(entry.lastModified),
-                                                            entry.sourceId.filePathId);
-            updateSourceTypeStatement.write(static_cast<uchar>(entry.sourceType),
-                                              entry.sourceId.filePathId);
+            insertOrUpdateProjectPartsFilesStatement.write(entry.sourceId.filePathId,
+                                                             projectPartId.projectPathId,
+                                                             static_cast<uchar>(entry.sourceType),
+                                                             static_cast<uchar>(
+                                                                 entry.hasMissingIncludes));
         }
     }
 
-    void insertFileStatuses(const FileStatuses &fileStatuses) override
+    void insertOrUpdateFileStatuses(const FileStatuses &fileStatuses) override
     {
-        WriteStatement &statement = insertFileStatusesStatement;
+        WriteStatement &statement = insertOrUpdateFileStatusesStatement;
 
         for (const FileStatus &fileStatus : fileStatuses)
             statement.write(fileStatus.filePathId.filePathId,
                             fileStatus.size,
-                            fileStatus.lastModified,
-                            fileStatus.isInPrecompiledHeader);
+                            fileStatus.lastModified);
     }
 
     long long fetchLowestLastModifiedTime(FilePathId sourceId) const override
@@ -85,7 +87,8 @@ public:
     {
         WriteStatement &insertStatement = insertIntoNewUsedMacrosStatement;
         for (const UsedMacro &usedMacro : usedMacros)
-            insertStatement.write(usedMacro.filePathId.filePathId, usedMacro.macroName);
+            insertStatement.write(usedMacro.filePathId.filePathId,
+                                  usedMacro.macroName);
 
         syncNewUsedMacrosStatement.execute();
         deleteOutdatedUsedMacrosStatement.execute();
@@ -104,23 +107,36 @@ public:
         deleteNewSourceDependenciesStatement.execute();
     }
 
-    SourceEntries fetchDependSources(FilePathId sourceId,
-                                     Utils::SmallStringView projectPartName) const override
+    ProjectPartId fetchProjectPartId(Utils::SmallStringView projectPartName) override
     {
-        auto projectPartId = fetchProjectPartIdStatement.template value<int>(projectPartName);
+        auto projectPartId = fetchProjectPartIdStatement.template value<ProjectPartId>(projectPartName);
 
-        if (projectPartId) {
-           return fetchSourceDependenciesStatement.template values<SourceEntry, 3>(
-                       300,
-                       sourceId.filePathId,
-                       projectPartId.value());
-        }
-        return {};
+        if (projectPartId)
+            return *projectPartId;
+
+        insertProjectPartNameStatement.write(projectPartName);
+
+        return static_cast<int>(database.lastInsertedRowId());
+    }
+
+    SourceEntries fetchDependSources(FilePathId sourceId, ProjectPartId projectPartId) const override
+    {
+        return fetchSourceDependenciesStatement
+            .template values<SourceEntry, 4>(300, sourceId.filePathId, projectPartId.projectPathId);
     }
 
     UsedMacros fetchUsedMacros(FilePathId sourceId) const override
     {
         return fetchUsedMacrosStatement.template values<UsedMacro, 2>(128, sourceId.filePathId);
+    }
+
+    void updatePchCreationTimeStamp(long long pchCreationTimeStamp, ProjectPartId projectPartId) override
+    {
+        Sqlite::ImmediateTransaction transaction{database};
+
+        updatePchCreationTimeStampStatement.write(pchCreationTimeStamp, projectPartId.projectPathId);
+
+        transaction.commit();
     }
 
     static Utils::SmallString toJson(const Utils::SmallStringVector &strings)
@@ -207,10 +223,11 @@ public:
         "INSERT INTO newSourceDependencies(sourceId, dependencySourceId) VALUES (?,?)",
         database
     };
-    WriteStatement insertFileStatusesStatement{
-        "INSERT OR REPLACE INTO fileStatuses(sourceId, size, lastModified, isInPrecompiledHeader) VALUES (?,?,?,?)",
-        database
-    };
+    WriteStatement insertOrUpdateFileStatusesStatement{
+        "INSERT INTO fileStatuses(sourceId, size, lastModified) VALUES "
+        "(?001,?002,?003) ON "
+        "CONFLICT(sourceId) DO UPDATE SET size = ?002, lastModified = ?003",
+        database};
     WriteStatement syncNewSourceDependenciesStatement{
         "INSERT INTO sourceDependencies(sourceId, dependencySourceId) SELECT sourceId, dependencySourceId FROM newSourceDependencies WHERE NOT EXISTS (SELECT sourceId FROM sourceDependencies WHERE sourceDependencies.sourceId == newSourceDependencies.sourceId AND sourceDependencies.dependencySourceId == newSourceDependencies.dependencySourceId)",
         database
@@ -223,25 +240,35 @@ public:
         "DELETE FROM newSourceDependencies",
         database
     };
-    WriteStatement updateBuildDependencyTimeStampStatement{
-        "UPDATE fileStatuses SET buildDependencyTimeStamp = ? WHERE sourceId == ?",
-        database
-    };
-    WriteStatement updateSourceTypeStatement{
-        "UPDATE projectPartsSources SET sourceType = ? WHERE sourceId == ?",
-        database
-    };
+    WriteStatement insertOrUpdateProjectPartsFilesStatement{
+        "INSERT INTO projectPartsFiles(sourceId, projectPartId, "
+        "sourceType, hasMissingIncludes) VALUES (?001, ?002, ?003, ?004) ON "
+        "CONFLICT(sourceId, projectPartId) DO UPDATE SET sourceType = ?003, "
+        "hasMissingIncludes = ?004",
+        database};
     mutable ReadStatement fetchSourceDependenciesStatement{
-        "WITH RECURSIVE collectedDependencies(sourceId) AS (VALUES(?) UNION SELECT dependencySourceId FROM sourceDependencies, collectedDependencies WHERE sourceDependencies.sourceId == collectedDependencies.sourceId) SELECT sourceId, buildDependencyTimeStamp, sourceType FROM collectedDependencies NATURAL JOIN projectPartsSources NATURAL JOIN fileStatuses WHERE projectPartId = ?",
-        database
-    };
+        "WITH RECURSIVE collectedDependencies(sourceId) AS (VALUES(?) UNION "
+        "SELECT dependencySourceId FROM sourceDependencies, "
+        "collectedDependencies WHERE sourceDependencies.sourceId == "
+        "collectedDependencies.sourceId) SELECT sourceId, "
+        "pchCreationTimeStamp, sourceType, hasMissingIncludes FROM "
+        "collectedDependencies NATURAL JOIN projectPartsFiles WHERE "
+        "projectPartId = ? ORDER BY sourceId",
+        database};
     mutable ReadStatement fetchProjectPartIdStatement{
         "SELECT projectPartId FROM projectParts WHERE projectPartName = ?",
         database
     };
+    WriteStatement insertProjectPartNameStatement{
+        "INSERT INTO projectParts(projectPartName) VALUES (?)", database};
     mutable ReadStatement fetchUsedMacrosStatement{
-        "SELECT macroName, sourceId FROM usedMacros WHERE sourceId = ?",
+        "SELECT macroName, sourceId FROM usedMacros WHERE sourceId = ? ORDER BY sourceId, macroName",
         database
     };
+    WriteStatement updatePchCreationTimeStampStatement{
+        "UPDATE projectPartsFiles SET pchCreationTimeStamp = ?001 WHERE projectPartId = ?002",
+        database};
+    WriteStatement deleteAllProjectPartsFilesWithProjectPartNameStatement{
+        "DELETE FROM projectPartsFiles WHERE projectPartId = ?", database};
 };
 }

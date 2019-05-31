@@ -51,14 +51,8 @@ using namespace CppTools::Internal;
 
 CppSelectionChanger::CppSelectionChanger(QObject *parent)
     : QObject(parent)
-    , m_initialChangeSelectionCursor()
-    , m_workingCursor()
-    , m_doc(0)
-    , m_unit(0)
-    , m_direction(ExpandSelection)
     , m_changeSelectionNodeIndex(kChangeSelectionNodeIndexNotSet)
     , m_nodeCurrentStep(kChangeSelectionNodeIndexNotSet)
-    , m_inChangeSelection(false)
 {
 }
 
@@ -337,7 +331,7 @@ ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursor(
 }
 
 ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorWhenNodeIndexNotSet(
-        const QList<AST *> astPath,
+        const QList<AST *> &astPath,
         const QTextCursor &cursor)
 {
     // Find relevant AST node from cursor, when the user expands for the first time.
@@ -345,19 +339,18 @@ ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorWhenNode
 }
 
 ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorWhenWholeDocumentSelected(
-        const QList<AST *> astPath,
+        const QList<AST *> &astPath,
         const QTextCursor &cursor)
 {
     // Can't expand more, because whole document is selected.
     if (m_direction == ExpandSelection)
-        return 0;
+        return {};
 
     // In case of shrink, select the next smaller selection.
     return findRelevantASTPositionsFromCursor(astPath, cursor);
 }
 
-ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorFromPreviousNodeIndex(
-        const QList<AST *> astPath,
+ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorFromPreviousNodeIndex(const QList<AST *> &astPath,
         const QTextCursor &cursor)
 {
     ASTNodePositions nodePositions;
@@ -377,13 +370,13 @@ ASTNodePositions CppSelectionChanger::findRelevantASTPositionsFromCursorFromPrev
         if (newAstIndex < 0 || newAstIndex >= astPath.count()) {
             if (debug)
                 qDebug() << "Skipping expansion because there is no available next AST node.";
-            return 0;
+            return {};
         }
 
         // Switch to next AST and set the first step.
         nodePositions = findRelevantASTPositionsFromCursor(astPath, cursor, newAstIndex);
         if (!nodePositions)
-            return 0;
+            return {};
 
         if (debug)
             qDebug() << "Moved to next AST node.";
@@ -419,7 +412,7 @@ ASTNodePositions CppSelectionChanger::findNextASTStepPositions(const QTextCursor
 #endif
 
     if (astPath.size() == 0)
-        return 0;
+        return {};
 
     ASTNodePositions currentNodePositions;
     if (m_changeSelectionNodeIndex == kChangeSelectionNodeIndexNotSet) {
@@ -439,7 +432,7 @@ ASTNodePositions CppSelectionChanger::findNextASTStepPositions(const QTextCursor
                  << "current step:" << m_nodeCurrentStep;
     }
 
-    QTC_ASSERT(m_nodeCurrentStep >= 1, return 0);
+    QTC_ASSERT(m_nodeCurrentStep >= 1, return {});
 
     return currentNodePositions;
 }
@@ -567,7 +560,6 @@ void CppSelectionChanger::fineTuneASTNodePositions(ASTNodePositions &positions) 
                 qDebug() << "Is raw literal.";
 
             // Start from positions that include quotes.
-            int newPosStart = positions.astPosStart;
             int newPosEnd = positions.astPosEnd;
 
             // Decrement last position to skip last quote.
@@ -579,7 +571,7 @@ void CppSelectionChanger::fineTuneASTNodePositions(ASTNodePositions &positions) 
 
             // Start position will be the end position minus the size of the actual contents of the
             // literal.
-            newPosStart = newPosEnd - static_cast<int>(firstToken.string->size());
+            int newPosStart = newPosEnd - static_cast<int>(firstToken.string->size());
 
             // Skip raw literal parentheses.
             if (isRawLiteral)
@@ -598,13 +590,8 @@ void CppSelectionChanger::fineTuneASTNodePositions(ASTNodePositions &positions) 
                 if (debug)
                     qDebug() << "Selecting inner contents of char literal.";
 
-                int newPosStart = positions.astPosStart;
-                int newPosEnd = positions.astPosEnd;
-                newPosEnd = newPosEnd - 1;
-                newPosStart = newPosEnd - static_cast<int>(firstToken.literal->size());
-
-                positions.astPosStart = newPosStart;
-                positions.astPosEnd = newPosEnd;
+                positions.astPosEnd = positions.astPosEnd - 1;
+                positions.astPosStart = positions.astPosEnd - int(firstToken.literal->size());
             }
         }
     } else if (ForStatementAST *forStatementAST = ast->asForStatement()) {

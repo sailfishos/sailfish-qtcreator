@@ -29,37 +29,32 @@
 #include "messageenvelop.h"
 #include "pchmanagerserverinterface.h"
 #include "precompiledheadersupdatedmessage.h"
+#include "progressmessage.h"
 
 #include <QDebug>
-#include <QIODevice>
+#include <QLocalSocket>
 
 namespace ClangBackEnd {
 
+PchManagerClientProxy::PchManagerClientProxy(PchManagerServerInterface *server,
+                                             QLocalSocket *localSocket)
+    : writeMessageBlock(localSocket)
+    , readMessageBlock(localSocket)
+    , server(server)
+{
+    QObject::connect(localSocket, &QIODevice::readyRead, [this]() {
+        PchManagerClientProxy::readMessages();
+    });
+}
+
 PchManagerClientProxy::PchManagerClientProxy(PchManagerServerInterface *server, QIODevice *ioDevice)
-    : writeMessageBlock(ioDevice),
-      readMessageBlock(ioDevice),
-      server(server),
-      ioDevice(ioDevice)
+    : writeMessageBlock(ioDevice)
+    , readMessageBlock(ioDevice)
+    , server(server)
 {
-    QObject::connect(ioDevice, &QIODevice::readyRead, [this] () {PchManagerClientProxy::readMessages();});
-}
-
-PchManagerClientProxy::PchManagerClientProxy(PchManagerClientProxy &&other)
-    : writeMessageBlock(std::move(other.writeMessageBlock)),
-      readMessageBlock(std::move(other.readMessageBlock)),
-      server(std::move(other.server)),
-      ioDevice(std::move(other.ioDevice))
-{
-}
-
-PchManagerClientProxy &PchManagerClientProxy::operator=(PchManagerClientProxy &&other)
-{
-    writeMessageBlock = std::move(other.writeMessageBlock);
-    readMessageBlock = std::move(other.readMessageBlock);
-    server = std::move(other.server);
-    ioDevice = std::move(other.ioDevice);
-
-    return *this;
+    QObject::connect(ioDevice, &QIODevice::readyRead, [this]() {
+        PchManagerClientProxy::readMessages();
+    });
 }
 
 void PchManagerClientProxy::readMessages()
@@ -74,6 +69,11 @@ void PchManagerClientProxy::alive()
 }
 
 void PchManagerClientProxy::precompiledHeadersUpdated(PrecompiledHeadersUpdatedMessage &&message)
+{
+    writeMessageBlock.write(message);
+}
+
+void PchManagerClientProxy::progress(ProgressMessage &&message)
 {
     writeMessageBlock.write(message);
 }

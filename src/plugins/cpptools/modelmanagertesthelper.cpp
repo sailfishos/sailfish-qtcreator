@@ -85,7 +85,7 @@ void ModelManagerTestHelper::cleanup()
 
 ModelManagerTestHelper::Project *ModelManagerTestHelper::createProject(const QString &name)
 {
-    TestProject *tp = new TestProject(name, this);
+    auto tp = new TestProject(name, this);
     emit projectAdded(tp);
     return tp;
 }
@@ -93,7 +93,8 @@ ModelManagerTestHelper::Project *ModelManagerTestHelper::createProject(const QSt
 QSet<QString> ModelManagerTestHelper::updateProjectInfo(const CppTools::ProjectInfo &projectInfo)
 {
     resetRefreshedSourceFiles();
-    CppModelManager::instance()->updateProjectInfo(projectInfo).waitForFinished();
+    QFutureInterface<void> dummy;
+    CppModelManager::instance()->updateProjectInfo(dummy, projectInfo).waitForFinished();
     QCoreApplication::processEvents();
     return waitForRefreshedSourceFiles();
 }

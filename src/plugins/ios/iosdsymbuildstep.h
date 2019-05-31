@@ -42,11 +42,7 @@ class IosDsymBuildStep : public ProjectExplorer::AbstractProcessStep
 public:
     IosDsymBuildStep(ProjectExplorer::BuildStepList *parent);
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
-
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override;
     void setArguments(const QStringList &args);
     QStringList arguments() const;
     QStringList defaultArguments() const;
@@ -55,10 +51,12 @@ public:
     void setCommand(const QString &command);
     bool isDefault() const;
 
-    QVariantMap toMap() const override;
-
 private:
+    bool init() override;
+    void doRun() override;
+    QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &map) override;
+
     QStringList defaultCleanCmdList() const;
     QStringList defaultCmdList() const;
 
@@ -73,9 +71,7 @@ class IosDsymBuildStepConfigWidget : public ProjectExplorer::BuildStepConfigWidg
 
 public:
     IosDsymBuildStepConfigWidget(IosDsymBuildStep *buildStep);
-    ~IosDsymBuildStepConfigWidget();
-    QString displayName() const override;
-    QString summaryText() const override;
+    ~IosDsymBuildStepConfigWidget() override;
 
 private:
     void commandChanged();
@@ -85,7 +81,6 @@ private:
 
     Ui::IosPresetBuildStep *m_ui;
     IosDsymBuildStep *m_buildStep;
-    QString m_summaryText;
 };
 
 class IosDsymBuildStepFactory : public ProjectExplorer::BuildStepFactory

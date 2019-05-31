@@ -51,16 +51,13 @@ enum State { Inactive, SettingUpDevice, Connecting, Deploying };
 class AbstractRemoteLinuxDeployServicePrivate
 {
 public:
-    AbstractRemoteLinuxDeployServicePrivate()
-        : connection(0), state(Inactive), stopRequested(false) {}
-
     IDevice::ConstPtr deviceConfiguration;
     QPointer<Target> target;
 
     DeploymentTimeInfo deployTimes;
-    SshConnection *connection;
-    State state;
-    bool stopRequested;
+    SshConnection *connection = nullptr;
+    State state = Inactive;
+    bool stopRequested = false;
 };
 } // namespace Internal
 
@@ -96,14 +93,22 @@ SshConnection *AbstractRemoteLinuxDeployService::connection() const
     return d->connection;
 }
 
-void AbstractRemoteLinuxDeployService::saveDeploymentTimeStamp(const DeployableFile &deployableFile)
+void AbstractRemoteLinuxDeployService::saveDeploymentTimeStamp(const DeployableFile &deployableFile,
+                                                               const QDateTime &remoteTimestamp)
 {
-    d->deployTimes.saveDeploymentTimeStamp(deployableFile, profile());
+    d->deployTimes.saveDeploymentTimeStamp(deployableFile, profile(), remoteTimestamp);
 }
 
-bool AbstractRemoteLinuxDeployService::hasChangedSinceLastDeployment(const DeployableFile &deployableFile) const
+bool AbstractRemoteLinuxDeployService::hasLocalFileChanged(
+        const DeployableFile &deployableFile) const
 {
-    return d->deployTimes.hasChangedSinceLastDeployment(deployableFile, profile());
+    return d->deployTimes.hasLocalFileChanged(deployableFile, profile());
+}
+
+bool AbstractRemoteLinuxDeployService::hasRemoteFileChanged(
+        const DeployableFile &deployableFile, const QDateTime &remoteTimestamp) const
+{
+    return d->deployTimes.hasRemoteFileChanged(deployableFile, profile(), remoteTimestamp);
 }
 
 void AbstractRemoteLinuxDeployService::setTarget(Target *target)
@@ -191,14 +196,16 @@ void AbstractRemoteLinuxDeployService::handleDeviceSetupDone(bool success)
 
     d->state = Connecting;
     d->connection = QSsh::acquireConnection(deviceConfiguration()->sshParameters());
-    connect(d->connection, &SshConnection::error,
+    connect(d->connection, &SshConnection::errorOccurred,
             this, &AbstractRemoteLinuxDeployService::handleConnectionFailure);
     if (d->connection->state() == SshConnection::Connected) {
         handleConnected();
     } else {
         connect(d->connection, &SshConnection::connected,
                 this, &AbstractRemoteLinuxDeployService::handleConnected);
-        emit progressMessage(tr("Connecting to device..."));
+        emit progressMessage(tr("Connecting to device \"%1\" (%2).")
+                             .arg(deviceConfiguration()->displayName())
+                             .arg(deviceConfiguration()->sshParameters().host()));
         if (d->connection->state() == SshConnection::Unconnected)
             d->connection->connectToHost();
     }
@@ -252,9 +259,9 @@ void AbstractRemoteLinuxDeployService::setFinished()
 {
     d->state = Inactive;
     if (d->connection) {
-        disconnect(d->connection, 0, this, 0);
+        disconnect(d->connection, nullptr, this, nullptr);
         QSsh::releaseConnection(d->connection);
-        d->connection = 0;
+        d->connection = nullptr;
     }
     d->stopRequested = false;
     emit finished();

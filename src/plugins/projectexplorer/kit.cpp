@@ -269,11 +269,9 @@ void Kit::fix()
 void Kit::setup()
 {
     KitGuard g(this);
-    // Process the KitInfos in reverse order: They may only be based on other information lower in
-    // the stack.
-    QList<KitInformation *> info = KitManager::kitInformation();
-    for (int i = info.count() - 1; i >= 0; --i)
-        info.at(i)->setup(this);
+    const QList<KitInformation *> info = KitManager::kitInformation();
+    for (KitInformation * const ki : info)
+        ki->setup(this);
 }
 
 void Kit::upgrade()
@@ -356,9 +354,9 @@ static QIcon iconForDeviceType(Core::Id deviceType)
 {
     const IDeviceFactory *factory = Utils::findOrDefault(IDeviceFactory::allDeviceFactories(),
         [&deviceType](const IDeviceFactory *factory) {
-            return factory->availableCreationIds().contains(deviceType);
+            return factory->deviceType() == deviceType;
         });
-    return factory ? factory->iconForId(deviceType) : QIcon();
+    return factory ? factory->icon() : QIcon();
 }
 
 QIcon Kit::icon() const

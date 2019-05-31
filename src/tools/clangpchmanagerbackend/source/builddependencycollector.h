@@ -28,35 +28,40 @@
 #include "builddependencygeneratorinterface.h"
 
 #include <clangtool.h>
+#include <generatedfilesinterface.h>
 #include <sourcesmanager.h>
 
 #include <filepathcachingfwd.h>
 
 namespace ClangBackEnd {
+class Environment;
 
 class BuildDependencyCollector : public BuildDependencyGeneratorInterface
 {
 public:
-    BuildDependencyCollector(const FilePathCachingInterface &filePathCache)
-        :  m_filePathCache(filePathCache)
-    {
-    }
+    BuildDependencyCollector(const FilePathCachingInterface &filePathCache,
+                             const GeneratedFilesInterface &generatedFiles,
+                             const Environment &environment)
+        : m_filePathCache(filePathCache)
+        , m_generatedFiles(generatedFiles)
+        , m_environment(environment)
+    {}
 
-    BuildDependency create(const V2::ProjectPartContainer &projectPart) override;
+    BuildDependency create(const ProjectPartContainer &projectPart) override;
 
     void collect();
 
     void setExcludedFilePaths(ClangBackEnd::FilePaths &&excludedIncludes);
-    void addFiles(const FilePathIds &filePathIds,
-                  const Utils::SmallStringVector &arguments);
-    void addFile(FilePathId filePathId,
-                 const Utils::SmallStringVector &arguments);
+    void addFiles(const FilePathIds &filePathIds, Utils::SmallStringVector &&arguments);
+    void addFile(FilePathId filePathId, Utils::SmallStringVector &&arguments);
     void addFile(FilePath filePath,
                  const FilePathIds &sourceFileIds,
-                 const Utils::SmallStringVector &arguments);
+                 Utils::SmallStringVector &&arguments);
     void addUnsavedFiles(const V2::FileContainers &unsavedFiles);
 
     void clear();
+
+    Utils::SmallString generateFakeFileContent(const FilePathIds &includeIds) const;
 
     const FileStatuses &fileStatuses() const
     {
@@ -78,11 +83,11 @@ public:
         return m_buildDependency.sourceDependencies;
     }
 
-    const SourceEntries &includeIds()
-    {
-        std::sort(m_buildDependency.includes.begin(), m_buildDependency.includes.end());
+    const SourceEntries &sourceEntries() {
+        std::sort(m_buildDependency.sources.begin(),
+                  m_buildDependency.sources.end());
 
-        return std::move(m_buildDependency.includes);
+        return std::move(m_buildDependency.sources);
     }
 
 private:
@@ -92,6 +97,8 @@ private:
     Utils::SmallStringVector m_directories;
     SourcesManager m_sourcesManager;
     const FilePathCachingInterface &m_filePathCache;
+    const GeneratedFilesInterface &m_generatedFiles;
+    const Environment &m_environment;
 };
 
 } // namespace ClangBackEnd

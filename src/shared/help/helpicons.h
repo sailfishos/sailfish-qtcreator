@@ -36,6 +36,8 @@ const Utils::Icon MODE_HELP_FLAT({
         {QLatin1String(":/help/images/mode_help_mask.png"), Utils::Theme::IconsBaseColor}});
 const Utils::Icon MODE_HELP_FLAT_ACTIVE({
         {QLatin1String(":/help/images/mode_help_mask.png"), Utils::Theme::IconsModeHelpActiveColor}});
+const Utils::Icon MACOS_TOUCHBAR_HELP(
+        ":/help/images/macos_touchbar_help.png");
 
 } // namespace Icons
 } // namespace Help

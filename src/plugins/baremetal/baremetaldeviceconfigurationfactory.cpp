@@ -29,10 +29,7 @@
 #include "baremetalconstants.h"
 #include "baremetaldevice.h"
 
-#include <utils/icon.h>
 #include <utils/qtcassert.h>
-
-#include <QIcon>
 
 using namespace ProjectExplorer;
 
@@ -40,51 +37,21 @@ namespace BareMetal {
 namespace Internal {
 
 BareMetalDeviceConfigurationFactory::BareMetalDeviceConfigurationFactory()
+    : IDeviceFactory(Constants::BareMetalOsType)
 {
+    setDisplayName(tr("Bare Metal Device"));
+    setCombinedIcon(":/baremetal/images/baremetaldevicesmall.png",
+                    ":/baremetal/images/baremetaldevice.png");
+    setCanCreate(true);
+    setConstructionFunction(&BareMetalDevice::create);
 }
 
-QString BareMetalDeviceConfigurationFactory::displayNameForId(Core::Id type) const
+IDevice::Ptr BareMetalDeviceConfigurationFactory::create() const
 {
-    return type == Constants::BareMetalOsType ? tr("Bare Metal Device") : QString();
-}
-
-QList<Core::Id> BareMetalDeviceConfigurationFactory::availableCreationIds() const
-{
-    return QList<Core::Id>() << Core::Id(Constants::BareMetalOsType);
-}
-
-QIcon BareMetalDeviceConfigurationFactory::iconForId(Core::Id type) const
-{
-    Q_UNUSED(type)
-    using namespace Utils;
-    static const QIcon icon =
-            Icon::combinedIcon({Icon({{":/baremetal/images/baremetaldevicesmall.png",
-                                       Theme::PanelTextColorDark}}, Icon::Tint),
-                                Icon({{":/baremetal/images/baremetaldevice.png",
-                                       Theme::IconsBaseColor}})});
-    return icon;
-}
-
-IDevice::Ptr BareMetalDeviceConfigurationFactory::create(Core::Id id) const
-{
-    QTC_ASSERT(id == Constants::BareMetalOsType, return IDevice::Ptr());
     BareMetalDeviceConfigurationWizard wizard;
     if (wizard.exec() != QDialog::Accepted)
         return IDevice::Ptr();
     return wizard.device();
-}
-
-bool BareMetalDeviceConfigurationFactory::canRestore(const QVariantMap &map) const
-{
-   return IDevice::typeFromMap(map) == Constants::BareMetalOsType;
-}
-
-IDevice::Ptr BareMetalDeviceConfigurationFactory::restore(const QVariantMap &map) const
-{
-    QTC_ASSERT(canRestore(map), return IDevice::Ptr());
-    const IDevice::Ptr device = BareMetalDevice::create();
-    device->fromMap(map);
-    return device;
 }
 
 } // namespace Internal

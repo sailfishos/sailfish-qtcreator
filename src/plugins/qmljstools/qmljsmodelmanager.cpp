@@ -119,11 +119,9 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
     if (qtVersion && qtVersion->isValid()) {
         projectInfo.tryQmlDump = project && qtVersion->type() == QLatin1String(QtSupport::Constants::DESKTOPQT);
         projectInfo.qtQmlPath = qtVersion->qmlPath().toFileInfo().canonicalFilePath();
-        projectInfo.qtImportsPath = QFileInfo(qtVersion->qmakeProperty("QT_INSTALL_IMPORTS")).canonicalFilePath();
         projectInfo.qtVersionString = qtVersion->qtVersionString();
     } else {
         projectInfo.qtQmlPath = QFileInfo(QLibraryInfo::location(QLibraryInfo::Qml2ImportsPath)).canonicalFilePath();
-        projectInfo.qtImportsPath = QFileInfo(QLibraryInfo::location(QLibraryInfo::ImportsPath)).canonicalFilePath();
         projectInfo.qtVersionString = QLatin1String(qVersion());
     }
 
@@ -145,13 +143,11 @@ ModelManagerInterface::ProjectInfo ModelManager::defaultProjectInfoForProject(
 
 void setupProjectInfoQmlBundles(ModelManagerInterface::ProjectInfo &projectInfo)
 {
-    Target *activeTarget = 0;
+    Target *activeTarget = nullptr;
     if (projectInfo.project)
         activeTarget = projectInfo.project->activeTarget();
     Kit *activeKit = activeTarget ? activeTarget->kit() : KitManager::defaultKit();
-    QHash<QString, QString> replacements;
-    replacements.insert(QLatin1String("$(QT_INSTALL_IMPORTS)"), projectInfo.qtImportsPath);
-    replacements.insert(QLatin1String("$(QT_INSTALL_QML)"), projectInfo.qtQmlPath);
+    const QHash<QString, QString> replacements = {{QLatin1String("$(QT_INSTALL_QML)"), projectInfo.qtQmlPath}};
 
     for (IBundleProvider *bp : IBundleProvider::allBundleProviders())
         bp->mergeBundlesForKit(activeKit, projectInfo.activeBundle, replacements);
@@ -212,9 +208,7 @@ ModelManager::ModelManager()
     loadDefaultQmlTypeDescriptions();
 }
 
-ModelManager::~ModelManager()
-{
-}
+ModelManager::~ModelManager() = default;
 
 void ModelManager::delayedInitialization()
 {
@@ -257,9 +251,9 @@ ModelManagerInterface::WorkingCopy ModelManager::workingCopyInternal() const
 
     foreach (IDocument *document, DocumentModel::openedDocuments()) {
         const QString key = document->filePath().toString();
-        if (TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(document)) {
+        if (auto textDocument = qobject_cast<const TextEditor::TextDocument *>(document)) {
             // TODO the language should be a property on the document, not the editor
-            if (DocumentModel::editorsForDocument(document).first()
+            if (DocumentModel::editorsForDocument(document).constFirst()
                     ->context().contains(ProjectExplorer::Constants::QMLJS_LANGUAGE_ID)) {
                 workingCopy.insert(key, textDocument->plainText(),
                                    textDocument->document()->revision());

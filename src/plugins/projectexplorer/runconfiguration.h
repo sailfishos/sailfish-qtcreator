@@ -37,7 +37,9 @@
 #include <utils/qtcassert.h>
 #include <utils/icon.h>
 
+#include <QHash>
 #include <QPointer>
+#include <QVariant>
 #include <QWidget>
 
 #include <functional>
@@ -137,6 +139,7 @@ public:
     QString workingDirectory;
     Utils::Environment environment;
     IDevice::ConstPtr device; // Override the kit's device. Keep unset by default.
+    QHash<Core::Id, QVariant> extraData;
 
     // FIXME: Not necessarily a display name
     QString displayName() const { return executable; }
@@ -231,6 +234,7 @@ public:
     Core::Id id;
     QString buildKey;
     QString displayName;
+    QString displayNameUniquifier;
     CreationMode creationMode = AlwaysCreate;
     bool useTerminal = false;
 };
@@ -239,6 +243,8 @@ class PROJECTEXPLORER_EXPORT RunConfigurationFactory
 {
 public:
     RunConfigurationFactory();
+    RunConfigurationFactory(const RunConfigurationFactory &) = delete;
+    RunConfigurationFactory operator=(const RunConfigurationFactory &) = delete;
     virtual ~RunConfigurationFactory();
 
     static RunConfiguration *restore(Target *parent, const QVariantMap &map);
@@ -247,7 +253,7 @@ public:
 
     Core::Id runConfigurationBaseId() const { return m_runConfigBaseId; }
 
-    static QString decoratedTargetName(const QString targetName, Target *kit);
+    static QString decoratedTargetName(const QString &targetName, Target *kit);
 
 protected:
     virtual QList<RunConfigurationCreationInfo> availableCreators(Target *parent) const;
@@ -281,9 +287,6 @@ protected:
 private:
     RunWorkerFactory *addRunWorkerFactoryHelper
         (Core::Id runMode, const std::function<RunWorker *(RunControl *)> &creator);
-
-    RunConfigurationFactory(const RunConfigurationFactory &) = delete;
-    RunConfigurationFactory operator=(const RunConfigurationFactory &) = delete;
 
     friend class RunConfigurationCreationInfo;
     RunConfigurationCreator m_creator;

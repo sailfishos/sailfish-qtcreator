@@ -33,16 +33,18 @@
 
 namespace CppTools {
 
-ProjectFile::ProjectFile(const QString &filePath, Kind kind)
+ProjectFile::ProjectFile(const QString &filePath, Kind kind, bool active)
     : path(filePath)
     , kind(kind)
+    , active(active)
 {
 }
 
 bool ProjectFile::operator==(const ProjectFile &other) const
 {
-    return path == other.path
-        && kind == other.kind;
+    return active == other.active
+        && kind == other.kind
+        && path == other.path;
 }
 
 ProjectFile::Kind ProjectFile::classify(const QString &filePath)
@@ -114,6 +116,42 @@ bool ProjectFile::isHeader() const
 bool ProjectFile::isSource() const
 {
     return isSource(kind);
+}
+
+bool ProjectFile::isC(ProjectFile::Kind kind)
+{
+    switch (kind) {
+    case ProjectFile::CHeader:
+    case ProjectFile::CSource:
+    case ProjectFile::ObjCHeader:
+    case ProjectFile::ObjCSource:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ProjectFile::isCxx(ProjectFile::Kind kind)
+{
+    switch (kind) {
+    case ProjectFile::CXXHeader:
+    case ProjectFile::CXXSource:
+    case ProjectFile::ObjCXXHeader:
+    case ProjectFile::ObjCXXSource:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ProjectFile::isC() const
+{
+    return isC(kind);
+}
+
+bool ProjectFile::isCxx() const
+{
+    return isCxx(kind);
 }
 
 #define RETURN_TEXT_FOR_CASE(enumValue) case ProjectFile::enumValue: return #enumValue

@@ -29,8 +29,6 @@
 
 #include "qbsnodes.h"
 
-#include <cpptools/projectinfo.h>
-
 #include <projectexplorer/extracompiler.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
@@ -96,7 +94,6 @@ public:
     qbs::Project qbsProject() const;
     qbs::ProjectData qbsProjectData() const;
 
-    bool needsSpecialDeployment() const override;
     void generateErrors(const qbs::ErrorInfo &e);
 
     static QString uniqueProductName(const qbs::ProductData &product);
@@ -159,7 +156,6 @@ private:
     } m_cancelStatus = CancelStatusNone;
 
     CppTools::CppProjectUpdater *m_cppCodeModelUpdater = nullptr;
-    CppTools::ProjectInfo m_cppCodeModelProjectInfo;
 
     mutable ProjectExplorer::ProjectImporter *m_importer = nullptr;
 

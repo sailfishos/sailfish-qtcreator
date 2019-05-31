@@ -41,6 +41,7 @@ RemoteLinuxKillAppStep::RemoteLinuxKillAppStep(BuildStepList *bsl, Core::Id id)
         : AbstractRemoteLinuxDeployStep(bsl, id), m_service(new RemoteLinuxKillAppService(this))
 {
     setDefaultDisplayName(displayName());
+    setWidgetExpandedByDefault(false);
 }
 
 bool RemoteLinuxKillAppStep::initInternal(QString *error)

@@ -382,6 +382,11 @@ void TargetSetupPage::handleKitUpdate(Kit *k)
         m_importer->makePersistent(k);
 
     bool acceptable = !m_requiredPredicate || m_requiredPredicate(k);
+    const bool wasAcceptable = Utils::contains(m_widgets, [k](const TargetSetupWidget *w) {
+        return w->kit() == k;
+    });
+    if (acceptable == wasAcceptable)
+        return;
 
     if (!acceptable)
         removeWidget(k);
@@ -485,19 +490,16 @@ void TargetSetupPage::import(const Utils::FileName &path, bool silent)
     if (!m_importer)
         return;
 
-    QList<BuildInfo *> toImport = m_importer->import(path, silent);
-    foreach (BuildInfo *info, toImport) {
-        TargetSetupWidget *w = widget(info->kitId);
+    for (const BuildInfo &info : m_importer->import(path, silent)) {
+        TargetSetupWidget *w = widget(info.kitId);
         if (!w) {
-            Kit *k = KitManager::kit(info->kitId);
+            Kit *k = KitManager::kit(info.kitId);
             Q_ASSERT(k);
             addWidget(k);
         }
-        w = widget(info->kitId);
-        if (!w) {
-            delete info;
+        w = widget(info.kitId);
+        if (!w)
             continue;
-        }
 
         w->addBuildInfo(info, true);
         w->setKitSelected(true);
@@ -552,7 +554,7 @@ TargetSetupWidget *TargetSetupPage::addWidget(Kit *k)
 
 bool TargetSetupPage::setupProject(Project *project)
 {
-    QList<const BuildInfo *> toSetUp; // Pointers are managed by the widgets!
+    QList<BuildInfo> toSetUp;
     for (TargetSetupWidget *widget : m_widgets) {
         if (!widget->isKitSelected())
             continue;

@@ -120,7 +120,8 @@ TypeCodeMemberPointer, \
 TypeCodeFortranString, \
 TypeCodeUnresolvable, \
 TypeCodeBitfield, \
-    = range(0, 15)
+TypeCodeRValueReference, \
+    = range(0, 16)
 
 def isIntegralTypeName(name):
     return name in ('int', 'unsigned int', 'signed int',
@@ -832,6 +833,14 @@ class DumperBase:
             self.putType('int')
             self.putNumChild(0)
 
+    def putEnumItem(self, name, ival, typish):
+        buf = bytearray(struct.pack('i', ival))
+        val = self.Value(self)
+        val.ldata = bytes(buf)
+        val.type = self.createType(typish)
+        with SubItem(self, name):
+            self.putItem(val)
+
     def putBoolItem(self, name, value):
         with SubItem(self, name):
             self.putValue(value)
@@ -854,8 +863,7 @@ class DumperBase:
             self.putField('keyencoded', key.encoding)
         self.putValue(value.value, value.encoding)
 
-    def putEnumValue(self, value, vals):
-        ival = value.integer()
+    def putEnumValue(self, ival, vals):
         nice = vals.get(ival, None)
         display = ('%d' % ival) if nice is None else ('%s (%d)' % (nice, ival))
         self.putValue(display)
@@ -2784,7 +2792,7 @@ class DumperBase:
             self.putType(typeobj.name)
             return
 
-        if typeobj.code == TypeCodeReference:
+        if typeobj.code in (TypeCodeReference, TypeCodeRValueReference):
             #warn('REFERENCE VALUE: %s' % value)
             val = value.dereference()
             if val.laddress != 0:
@@ -3040,7 +3048,7 @@ class DumperBase:
             self.check()
             if self.type.code == TypeCodeTypedef:
                 return self.findMemberByName(self.detypedef())
-            if self.type.code in (TypeCodePointer, TypeCodeReference):
+            if self.type.code in (TypeCodePointer, TypeCodeReference, TypeCodeRValueReference):
                 res = self.dereference().findMemberByName(name)
                 if res is not None:
                     return res
@@ -3114,7 +3122,7 @@ class DumperBase:
 
             if self.type.code == TypeCodeTypedef:
                 return self.cast(self.type.ltarget).extractField(field)
-            if self.type.code == TypeCodeReference:
+            if self.type.code in (TypeCodeReference, TypeCodeRValueReference):
                 return self.dereference().extractField(field)
             #warn('FIELD: %s ' % field)
             val = self.dumper.Value(self.dumper)
@@ -3159,7 +3167,7 @@ class DumperBase:
             else:
                 self.dumper.check(False)
 
-            if fieldType.code == TypeCodeReference:
+            if fieldType.code in (TypeCodeReference, TypeCodeRValueReference):
                 if val.laddress is not None:
                     val = self.dumper.createReferenceValue(val.laddress, fieldType.ltarget)
                     val.name = field.name
@@ -3228,7 +3236,7 @@ class DumperBase:
             if self.type.code == TypeCodeTypedef:
                 return self.detypedef().dereference()
             val = self.dumper.Value(self.dumper)
-            if self.type.code == TypeCodeReference:
+            if self.type.code in (TypeCodeReference, TypeCodeRValueReference):
                 val.summary = self.summary
                 if self.nativeValue is None:
                     val.laddress = self.pointer()
@@ -3586,7 +3594,7 @@ class DumperBase:
                     # Crude approximation.
                     return 8 if self.dumper.isWindowsTarget() else self.dumper.ptrSize()
                 return self.size()
-            if tdata.code in (TypeCodePointer, TypeCodeReference):
+            if tdata.code in (TypeCodePointer, TypeCodeReference, TypeCodeRValueReference):
                 return self.dumper.ptrSize()
             if tdata.lalignment is not None:
                 #if isinstance(tdata.lalignment, function): # Does not work that way.
@@ -3740,6 +3748,20 @@ class DumperBase:
         tdata.ltarget = targetType
         tdata.lbitsize = 8 * self.ptrSize()  # Needed for Gdb13393 test.
         #tdata.lbitsize = None
+        self.registerType(typeId, tdata)
+        return self.Type(self, typeId)
+
+    def createRValueReferenceType(self, targetType):
+        if not isinstance(targetType, self.Type):
+            error('Expected type in createRValueReferenceType(), got %s'
+                % type(targetType))
+        typeId = targetType.typeId + ' &&'
+        tdata = self.TypeData(self)
+        tdata.name = targetType.name + ' &&'
+        tdata.typeId = typeId
+        tdata.code = TypeCodeRValueReference
+        tdata.ltarget = targetType
+        tdata.lbitsize = None
         self.registerType(typeId, tdata)
         return self.Type(self, typeId)
 

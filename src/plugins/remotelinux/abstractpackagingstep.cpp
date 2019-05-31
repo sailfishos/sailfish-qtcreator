@@ -74,7 +74,7 @@ AbstractPackagingStep::~AbstractPackagingStep()
 void AbstractPackagingStep::handleBuildConfigurationChanged()
 {
     if (d->currentBuildConfiguration)
-        disconnect(d->currentBuildConfiguration, 0, this, 0);
+        disconnect(d->currentBuildConfiguration, nullptr, this, nullptr);
     d->currentBuildConfiguration = buildConfiguration();
     if (d->currentBuildConfiguration) {
         connect(d->currentBuildConfiguration, &BuildConfiguration::buildDirectoryChanged,
@@ -123,9 +123,8 @@ bool AbstractPackagingStep::isPackagingNeeded() const
     return false;
 }
 
-bool AbstractPackagingStep::init(QList<const BuildStep *> &earlierSteps)
+bool AbstractPackagingStep::init()
 {
-    Q_UNUSED(earlierSteps);
     d->cachedPackageDirectory = packageDirectory();
     d->cachedPackageFilePath = packageFilePath();
     return true;

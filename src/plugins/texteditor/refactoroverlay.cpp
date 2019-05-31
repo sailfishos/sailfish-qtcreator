@@ -27,6 +27,7 @@
 #include "textdocumentlayout.h"
 #include "texteditor.h"
 
+#include <utils/algorithm.h>
 #include <utils/utilsicons.h>
 
 #include <QPainter>
@@ -46,8 +47,8 @@ RefactorOverlay::RefactorOverlay(TextEditor::TextEditorWidget *editor) :
 void RefactorOverlay::paint(QPainter *painter, const QRect &clip)
 {
     m_maxWidth = 0;
-    for (int i = 0; i < m_markers.size(); ++i) {
-        paintMarker(m_markers.at(i), painter, clip);
+    for (auto &marker : qAsConst(m_markers)) {
+        paintMarker(marker, painter, clip);
     }
 
     if (auto documentLayout = qobject_cast<TextDocumentLayout*>(m_editor->document()->documentLayout()))
@@ -57,7 +58,7 @@ void RefactorOverlay::paint(QPainter *painter, const QRect &clip)
 
 RefactorMarker RefactorOverlay::markerAt(const QPoint &pos) const
 {
-    foreach (const RefactorMarker &marker, m_markers) {
+    for (const auto &marker : m_markers) {
         if (marker.rect.contains(pos))
             return marker;
     }
@@ -90,6 +91,13 @@ void RefactorOverlay::paintMarker(const RefactorMarker& marker, QPainter *painte
 
     icon.paint(painter, marker.rect);
     m_maxWidth = qMax(m_maxWidth, x + actualIconSize.width() - int(offset.x()));
+}
+
+RefactorMarkers RefactorMarker::filterOutType(const RefactorMarkers &markers, const Core::Id &type)
+{
+    return Utils::filtered(markers, [type](const RefactorMarker &marker) {
+        return marker.type != type;
+    });
 }
 
 } // namespace TextEditor

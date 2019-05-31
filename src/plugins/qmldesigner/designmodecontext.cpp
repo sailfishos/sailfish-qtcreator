@@ -40,9 +40,9 @@ DesignModeContext::DesignModeContext(QWidget *widget)
     setContext(Core::Context(Constants::C_QMLDESIGNER, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
-void DesignModeContext::contextHelpId(const HelpIdCallback &callback) const
+void DesignModeContext::contextHelp(const HelpCallback &callback) const
 {
-    qobject_cast<DesignModeWidget *>(m_widget)->contextHelpId(callback);
+    qobject_cast<DesignModeWidget *>(m_widget)->contextHelp(callback);
 }
 
 FormEditorContext::FormEditorContext(QWidget *widget)
@@ -52,9 +52,9 @@ FormEditorContext::FormEditorContext(QWidget *widget)
     setContext(Core::Context(Constants::C_QMLFORMEDITOR, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
-void FormEditorContext::contextHelpId(const HelpIdCallback &callback) const
+void FormEditorContext::contextHelp(const HelpCallback &callback) const
 {
-    qobject_cast<FormEditorWidget *>(m_widget)->contextHelpId(callback);
+    qobject_cast<FormEditorWidget *>(m_widget)->contextHelp(callback);
 }
 
 NavigatorContext::NavigatorContext(QWidget *widget)
@@ -64,9 +64,9 @@ NavigatorContext::NavigatorContext(QWidget *widget)
     setContext(Core::Context(Constants::C_QMLNAVIGATOR, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
-void NavigatorContext::contextHelpId(const HelpIdCallback &callback) const
+void NavigatorContext::contextHelp(const HelpCallback &callback) const
 {
-    qobject_cast<NavigatorWidget *>(m_widget)->contextHelpId(callback);
+    qobject_cast<NavigatorWidget *>(m_widget)->contextHelp(callback);
 }
 
 TextEditorContext::TextEditorContext(QWidget *widget)
@@ -76,9 +76,9 @@ TextEditorContext::TextEditorContext(QWidget *widget)
     setContext(Core::Context(Constants::C_QMLTEXTEDITOR, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
-void TextEditorContext::contextHelpId(const HelpIdCallback &callback) const
+void TextEditorContext::contextHelp(const HelpCallback &callback) const
 {
-    qobject_cast<TextEditorWidget *>(m_widget)->contextHelpId(callback);
+    qobject_cast<TextEditorWidget *>(m_widget)->contextHelp(callback);
 }
 
 }

@@ -55,7 +55,7 @@ using namespace CppTools::Internal;
 using namespace CppTools::Tests;
 using namespace ProjectExplorer;
 
-typedef CPlusPlus::Document Document;
+using CPlusPlus::Document;
 
 Q_DECLARE_METATYPE(ProjectFile)
 
@@ -66,7 +66,7 @@ inline QString _(const QByteArray &ba) { return QString::fromLatin1(ba, ba.size(
 class MyTestDataDir : public Core::Tests::TestDataDir
 {
 public:
-    MyTestDataDir(const QString &dir)
+    explicit MyTestDataDir(const QString &dir)
         : TestDataDir(_(SRCDIR "/../../../tests/cppmodelmanager/") + dir)
     {}
 
@@ -93,7 +93,7 @@ QStringList toAbsolutePaths(const QStringList &relativePathList,
 class ProjectCreator
 {
 public:
-    ProjectCreator(ModelManagerTestHelper *modelManagerTestHelper)
+    explicit ProjectCreator(ModelManagerTestHelper *modelManagerTestHelper)
         : modelManagerTestHelper(modelManagerTestHelper)
     {}
 
@@ -125,7 +125,7 @@ public:
 class FileChangerAndRestorer
 {
 public:
-    FileChangerAndRestorer(const QString &filePath)
+    explicit FileChangerAndRestorer(const QString &filePath)
         : m_filePath(filePath)
     {
     }
@@ -190,7 +190,8 @@ void CppToolsPlugin::test_modelmanager_paths_are_clean()
                          {testDataDir.frameworksDir(false), HeaderPathType::Framework}};
     pi.appendProjectPart(part);
 
-    mm->updateProjectInfo(pi);
+    QFutureInterface<void> dummy;
+    mm->updateProjectInfo(dummy, pi);
 
     ProjectExplorer::HeaderPaths headerPaths = mm->headerPaths();
     QCOMPARE(headerPaths.size(), 2);
@@ -222,7 +223,8 @@ void CppToolsPlugin::test_modelmanager_framework_headers()
     part->files << ProjectFile(source, ProjectFile::CXXSource);
     pi.appendProjectPart(part);
 
-    mm->updateProjectInfo(pi).waitForFinished();
+    QFutureInterface<void> dummy;
+    mm->updateProjectInfo(dummy, pi).waitForFinished();
     QCoreApplication::processEvents();
 
     QVERIFY(mm->snapshot().contains(source));
@@ -321,11 +323,12 @@ void CppToolsPlugin::test_modelmanager_refresh_several_times()
     part->files.append(ProjectFile(testHeader2, ProjectFile::CXXHeader));
     part->files.append(ProjectFile(testCpp, ProjectFile::CXXSource));
     pi.appendProjectPart(part);
-    mm->updateProjectInfo(pi);
+    QFutureInterface<void> dummy;
+    mm->updateProjectInfo(dummy, pi);
 
     CPlusPlus::Snapshot snapshot;
     QSet<QString> refreshedFiles;
-    CPlusPlus::Document::Ptr document;
+    Document::Ptr document;
 
     ProjectExplorer::Macros macros = {{"FIRST_DEFINE"}};
     for (int i = 0; i < 2; ++i) {
@@ -384,7 +387,8 @@ void CppToolsPlugin::test_modelmanager_refresh_test_for_changes()
 
     // Reindexing triggers a reparsing thread
     helper.resetRefreshedSourceFiles();
-    QFuture<void> firstFuture = mm->updateProjectInfo(pi);
+    QFutureInterface<void> dummy;
+    QFuture<void> firstFuture = mm->updateProjectInfo(dummy, pi);
     QVERIFY(firstFuture.isStarted() || firstFuture.isRunning());
     firstFuture.waitForFinished();
     const QSet<QString> refreshedFiles = helper.waitForRefreshedSourceFiles();
@@ -392,7 +396,7 @@ void CppToolsPlugin::test_modelmanager_refresh_test_for_changes()
     QVERIFY(refreshedFiles.contains(testCpp));
 
     // No reindexing since nothing has changed
-    QFuture<void> subsequentFuture = mm->updateProjectInfo(pi);
+    QFuture<void> subsequentFuture = mm->updateProjectInfo(dummy, pi);
     QVERIFY(subsequentFuture.isCanceled() && subsequentFuture.isFinished());
 }
 
@@ -710,7 +714,7 @@ void CppToolsPlugin::test_modelmanager_dont_gc_opened_files()
 namespace {
 struct EditorCloser {
     Core::IEditor *editor;
-    EditorCloser(Core::IEditor *editor): editor(editor) {}
+    explicit EditorCloser(Core::IEditor *editor): editor(editor) {}
     ~EditorCloser()
     {
         using namespace CppTools;
@@ -781,10 +785,10 @@ void CppToolsPlugin::test_modelmanager_defines_per_project()
         {_("one"), main1File},
         {_("two"), main2File}
     };
-    const int size = sizeof(d) / sizeof(d[0]);
-    for (int i = 0; i < size; ++i) {
-        const QString firstDeclarationName = d[i].firstDeclarationName;
-        const QString fileName = d[i].fileName;
+
+    for (auto &i : d) {
+        const QString firstDeclarationName = i.firstDeclarationName;
+        const QString fileName = i.fileName;
 
         Core::IEditor *editor = Core::EditorManager::openEditor(fileName);
         EditorCloser closer(editor);
@@ -848,11 +852,10 @@ void CppToolsPlugin::test_modelmanager_precompiled_headers()
         {_("one"), _("ClassInPch1"), main1File},
         {_("two"), _("ClassInPch2"), main2File}
     };
-    const int size = sizeof(d) / sizeof(d[0]);
-    for (int i = 0; i < size; ++i) {
-        const QString firstDeclarationName = d[i].firstDeclarationName;
-        const QByteArray firstClassInPchFile = d[i].firstClassInPchFile.toUtf8();
-        const QString fileName = d[i].fileName;
+    for (auto &i : d) {
+        const QString firstDeclarationName = i.firstDeclarationName;
+        const QByteArray firstClassInPchFile = i.firstClassInPchFile.toUtf8();
+        const QString fileName = i.fileName;
 
         Core::IEditor *editor = Core::EditorManager::openEditor(fileName);
         EditorCloser closer(editor);
@@ -925,10 +928,9 @@ void CppToolsPlugin::test_modelmanager_defines_per_editor()
         {_("#define SUB1\n"), _("one")},
         {_("#define SUB2\n"), _("two")}
     };
-    const int size = sizeof(d) / sizeof(d[0]);
-    for (int i = 0; i < size; ++i) {
-        const QString editorDefines = d[i].editorDefines;
-        const QString firstDeclarationName = d[i].firstDeclarationName;
+    for (auto &i : d) {
+        const QString editorDefines = i.editorDefines;
+        const QString firstDeclarationName = i.firstDeclarationName;
 
         Core::IEditor *editor = Core::EditorManager::openEditor(main1File);
         EditorCloser closer(editor);

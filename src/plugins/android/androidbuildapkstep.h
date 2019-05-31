@@ -30,6 +30,8 @@
 
 #include <projectexplorer/abstractprocessstep.h>
 
+#include <utils/fileutils.h>
+
 QT_BEGIN_NAMESPACE
 class QAbstractItemModel;
 QT_END_NAMESPACE
@@ -42,6 +44,8 @@ class ANDROID_EXPORT AndroidBuildApkStep : public ProjectExplorer::AbstractProce
 
 public:
     AndroidBuildApkStep(ProjectExplorer::BuildStepList *bc);
+
+    static AndroidBuildApkStep *findInBuild(const ProjectExplorer::BuildConfiguration *bc);
 
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
@@ -75,15 +79,14 @@ public:
 private:
     Q_INVOKABLE void showInGraphicalShell();
 
-    bool init(QList<const BuildStep *> &earlierSteps) override;
+    bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    bool immutable() const override { return true; }
     void processStarted() override;
     void processFinished(int exitCode, QProcess::ExitStatus status) override;
     bool verifyKeystorePassword();
     bool verifyCertificatePassword();
 
-    void run(QFutureInterface<bool> &fi) override;
+    void doRun() override;
 
     bool m_signPackage = false;
     bool m_verbose = false;

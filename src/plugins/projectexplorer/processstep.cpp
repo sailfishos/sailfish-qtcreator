@@ -26,6 +26,7 @@
 #include "processstep.h"
 #include "buildstep.h"
 #include "buildconfiguration.h"
+#include "processparameters.h"
 #include "projectexplorerconstants.h"
 #include "target.h"
 #include "kit.h"
@@ -55,7 +56,7 @@ ProcessStep::ProcessStep(BuildStepList *bsl)
         m_workingDirectory = Constants::DEFAULT_WORKING_DIR;
 }
 
-bool ProcessStep::init(QList<const BuildStep *> &earlierSteps)
+bool ProcessStep::init()
 {
     BuildConfiguration *bc = buildConfiguration();
     ProcessParameters *pp = processParameters();
@@ -67,22 +68,17 @@ bool ProcessStep::init(QList<const BuildStep *> &earlierSteps)
     pp->resolveAll();
 
     setOutputParser(target()->kit()->createOutputParser());
-    return AbstractProcessStep::init(earlierSteps);
+    return AbstractProcessStep::init();
 }
 
-void ProcessStep::run(QFutureInterface<bool> & fi)
+void ProcessStep::doRun()
 {
-    AbstractProcessStep::run(fi);
+    AbstractProcessStep::doRun();
 }
 
 BuildStepConfigWidget *ProcessStep::createConfigWidget()
 {
     return new ProcessStepConfigWidget(this);
-}
-
-bool ProcessStep::immutable() const
-{
-    return false;
 }
 
 QString ProcessStep::command() const
@@ -152,8 +148,8 @@ ProcessStepFactory::ProcessStepFactory()
 // ProcessStepConfigWidget
 //*******
 
-ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step) :
-    m_step(step)
+ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step)
+    : BuildStepConfigWidget(step), m_step(step)
 {
     m_ui.setupUi(this);
     m_ui.command->setExpectedKind(Utils::PathChooser::Command);

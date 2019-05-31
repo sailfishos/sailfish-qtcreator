@@ -51,7 +51,6 @@ class ProvisioningProfile
 {
     Q_DECLARE_TR_FUNCTIONS(ProvisioningProfile)
 public:
-    ProvisioningProfile() {}
     std::shared_ptr<DevelopmentTeam> developmentTeam() { return m_team; }
     QString identifier() const;
     QString displayName() const;
@@ -75,7 +74,6 @@ class DevelopmentTeam
 {
     Q_DECLARE_TR_FUNCTIONS(DevelopmentTeam)
 public:
-    DevelopmentTeam() {}
     QString identifier() const;
     QString displayName() const;
     QString details() const;
@@ -131,6 +129,7 @@ private:
     IosConfigurations(QObject *parent);
     void load();
     void save();
+    void kitsRestored();
     void updateSimulators();
     static void setDeveloperPath(const Utils::FileName &devPath);
     void initializeProvisioningData();

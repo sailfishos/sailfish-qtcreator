@@ -26,12 +26,14 @@
 #include "remotelinuxdeployconfiguration.h"
 
 #include "genericdirectuploadstep.h"
+#include "linuxdevice.h"
 #include "remotelinuxcheckforfreediskspacestep.h"
 #include "remotelinuxkillappstep.h"
 #include "remotelinux_constants.h"
+#include "rsyncdeploystep.h"
 
 #include <projectexplorer/abi.h>
-#include <projectexplorer/deploymentdataview.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 
@@ -43,23 +45,7 @@ namespace RemoteLinux {
 
 using namespace Internal;
 
-RemoteLinuxDeployConfiguration::RemoteLinuxDeployConfiguration(Target *target, Core::Id id)
-    : DeployConfiguration(target, id)
-{}
-
-void RemoteLinuxDeployConfiguration::initialize()
-{
-    stepList()->appendStep(new RemoteLinuxCheckForFreeDiskSpaceStep(stepList()));
-    stepList()->appendStep(new RemoteLinuxKillAppStep(stepList()));
-    stepList()->appendStep(new GenericDirectUploadStep(stepList()));
-}
-
-NamedWidget *RemoteLinuxDeployConfiguration::createConfigWidget()
-{
-    return new DeploymentDataView(target());
-}
-
-Core::Id RemoteLinuxDeployConfiguration::genericDeployConfigurationId()
+Core::Id genericDeployConfigurationId()
 {
     return "DeployToGenericLinux";
 }
@@ -68,11 +54,22 @@ namespace Internal {
 
 RemoteLinuxDeployConfigurationFactory::RemoteLinuxDeployConfigurationFactory()
 {
-    registerDeployConfiguration<RemoteLinuxDeployConfiguration>
-            (RemoteLinuxDeployConfiguration::genericDeployConfigurationId());
+    setConfigBaseId(genericDeployConfigurationId());
     addSupportedTargetDeviceType(RemoteLinux::Constants::GenericLinuxOsType);
     setDefaultDisplayName(QCoreApplication::translate("RemoteLinux",
                                                       "Deploy to Remote Linux Host"));
+    setUseDeploymentDataView();
+
+    addInitialStep(RemoteLinuxCheckForFreeDiskSpaceStep::stepId());
+    addInitialStep(RemoteLinuxKillAppStep::stepId());
+    addInitialStep(RsyncDeployStep::stepId(), [](Target *target) {
+        auto device = DeviceKitInformation::device(target->kit()).staticCast<const LinuxDevice>();
+        return device && device->supportsRSync();
+    });
+    addInitialStep(GenericDirectUploadStep::stepId(), [](Target *target) {
+        auto device = DeviceKitInformation::device(target->kit()).staticCast<const LinuxDevice>();
+        return device && !device->supportsRSync();
+    });
 }
 
 } // namespace Internal

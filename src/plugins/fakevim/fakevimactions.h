@@ -61,9 +61,9 @@ public:
 };
 
 #ifdef FAKEVIM_STANDALONE
-typedef DummyAction FakeVimAction;
+using FakeVimAction = DummyAction;
 #else
-typedef Utils::SavedAction FakeVimAction;
+using FakeVimAction = Utils::SavedAction;
 #endif
 
 enum FakeVimSettingsCode
@@ -106,7 +106,9 @@ enum FakeVimSettingsCode
     ConfigClipboard,
     ConfigShowCmd,
     ConfigScrollOff,
-    ConfigRelativeNumber
+    ConfigRelativeNumber,
+
+    ConfigBlinkingCursor
 };
 
 class FakeVimSettings

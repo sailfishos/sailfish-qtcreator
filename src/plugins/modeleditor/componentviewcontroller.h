@@ -38,6 +38,8 @@ class DiagramSceneController;
 namespace ModelEditor {
 namespace Internal {
 
+class ModelUtilities;
+class PackageViewController;
 class PxNodeUtilities;
 
 class ComponentViewController :
@@ -50,6 +52,8 @@ public:
     explicit ComponentViewController(QObject *parent = nullptr);
     ~ComponentViewController();
 
+    void setModelUtilities(ModelUtilities *modelUtilities);
+    void setPackageViewController(PackageViewController *packageViewController);
     void setPxNodeUtilties(PxNodeUtilities *pxnodeUtilities);
     void setDiagramSceneController(qmt::DiagramSceneController *diagramSceneController);
 

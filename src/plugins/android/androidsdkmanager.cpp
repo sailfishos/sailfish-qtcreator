@@ -28,11 +28,11 @@
 #include "androidmanager.h"
 #include "androidtoolmanager.h"
 
-#include "utils/algorithm.h"
-#include "utils/qtcassert.h"
-#include "utils/runextensions.h"
-#include "utils/synchronousprocess.h"
-#include "utils/qtcprocess.h"
+#include <utils/algorithm.h>
+#include <utils/qtcassert.h>
+#include <utils/runextensions.h>
+#include <utils/synchronousprocess.h>
+#include <utils/qtcprocess.h>
 
 #include <QFutureWatcher>
 #include <QLoggingCategory>
@@ -609,7 +609,7 @@ bool SdkManagerOutputParser::parseAbstractData(SdkManagerOutputParser::GenericPa
     extraKeys << installLocationKey << revisionKey << descriptionKey;
     foreach (QString line, input) {
         QString value;
-        for (auto key: extraKeys) {
+        for (const auto &key: qAsConst(extraKeys)) {
             if (valueForKey(key, line, &value)) {
                 if (key == installLocationKey)
                     output.installedLocation = Utils::FileName::fromString(value);
@@ -793,14 +793,14 @@ const AndroidSdkPackageList &AndroidSdkManagerPrivate::allPackages(bool forceUpd
 
 void AndroidSdkManagerPrivate::reloadSdkPackages()
 {
-    m_sdkManager.packageReloadBegin();
+    emit m_sdkManager.packageReloadBegin();
     clearPackages();
 
     lastSdkManagerPath = m_config.sdkManagerToolPath();
 
     if (m_config.sdkToolsVersion().isNull()) {
         // Configuration has invalid sdk path or corrupt installation.
-        m_sdkManager.packageReloadFinished();
+        emit m_sdkManager.packageReloadFinished();
         return;
     }
 
@@ -820,7 +820,7 @@ void AndroidSdkManagerPrivate::reloadSdkPackages()
             parser.parsePackageListing(packageListing);
         }
     }
-    m_sdkManager.packageReloadFinished();
+    emit m_sdkManager.packageReloadFinished();
 }
 
 void AndroidSdkManagerPrivate::refreshSdkPackages(bool forceReload)

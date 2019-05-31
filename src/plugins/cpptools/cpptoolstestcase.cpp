@@ -120,8 +120,8 @@ bool TestCase::succeededSoFar() const
 
 bool TestCase::openBaseTextEditor(const QString &fileName, TextEditor::BaseTextEditor **editor)
 {
-    typedef TextEditor::BaseTextEditor BTEditor;
-    if (BTEditor *e = qobject_cast<BTEditor *>(Core::EditorManager::openEditor(fileName))) {
+    using BTEditor = TextEditor::BaseTextEditor;
+    if (auto e = qobject_cast<BTEditor *>(Core::EditorManager::openEditor(fileName))) {
         if (editor) {
             *editor = e;
             return true;
@@ -195,7 +195,7 @@ void TestCase::closeEditorAtEndOfTestCase(Core::IEditor *editor)
 
 bool TestCase::closeEditorWithoutGarbageCollectorInvocation(Core::IEditor *editor)
 {
-    return closeEditorsWithoutGarbageCollectorInvocation(QList<Core::IEditor *>() << editor);
+    return closeEditorsWithoutGarbageCollectorInvocation({editor});
 }
 
 CPlusPlus::Document::Ptr TestCase::waitForFileInGlobalSnapshot(const QString &filePath,

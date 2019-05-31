@@ -25,18 +25,22 @@
 
 #pragma once
 
-#include <QAbstractItemModel>
-#include <QSet>
-#include <QFutureInterface>
-#include <QFutureWatcher>
-#include <QDialog>
-#include <QTreeView>
-#include <QLabel>
 #include "projectexplorer_export.h"
 
 #include <utils/fileutils.h>
 
-namespace Utils { class PathChooser; }
+#include <QAbstractItemModel>
+#include <QDialog>
+#include <QFutureInterface>
+#include <QFutureWatcher>
+#include <QLabel>
+#include <QSet>
+#include <QTreeView>
+
+namespace Utils {
+class FancyLineEdit;
+class PathChooser;
+}
 
 QT_BEGIN_NAMESPACE
 class QVBoxLayout;
@@ -149,7 +153,7 @@ protected:
 
 private:
     QList<Glob> m_hideFilesFilter;
-    QList<Glob> m_showFilesFilter;
+    QList<Glob> m_selectFilesFilter;
 };
 
 class PROJECTEXPLORER_EXPORT SelectableFilesFromDirModel : public SelectableFilesModel
@@ -202,6 +206,8 @@ public:
     void resetModel(const Utils::FileName &path, const Utils::FileNameList &files);
     void cancelParsing();
 
+    void enableFilterHistoryCompletion(const QString &keyPrefix);
+
 signals:
     void selectedFilesChanged();
 
@@ -222,13 +228,13 @@ private:
     QLabel *m_baseDirLabel;
     QPushButton *m_startParsingButton;
 
-    QLabel *m_showFilesFilterLabel;
-    QLineEdit *m_showFilesFilterEdit;
+    QLabel *m_selectFilesFilterLabel;
+    Utils::FancyLineEdit *m_selectFilesFilterEdit;
 
     QLabel *m_hideFilesFilterLabel;
-    QLineEdit *m_hideFilesFilterEdit;
+    Utils::FancyLineEdit *m_hideFilesFilterEdit;
 
-    QPushButton *m_applyFilterButton;
+    QPushButton *m_applyFiltersButton;
 
     QTreeView *m_view;
 
@@ -259,8 +265,6 @@ class SelectableFilesDialogAddDirectory : public SelectableFilesDialogEditFiles
 public:
     SelectableFilesDialogAddDirectory(const Utils::FileName &path, const Utils::FileNameList &files,
                                       QWidget *parent);
-
-    void setAddFileFilter(const QString &filter) { m_filesWidget->setAddFileFilter(filter); }
 };
 
 } // namespace ProjectExplorer

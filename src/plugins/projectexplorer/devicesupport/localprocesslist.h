@@ -27,12 +27,6 @@
 
 #include "deviceprocesslist.h"
 
-#include <QString>
-
-QT_BEGIN_NAMESPACE
-class QProcess;
-QT_END_NAMESPACE
-
 namespace ProjectExplorer {
 namespace Internal {
 
@@ -41,7 +35,7 @@ class LocalProcessList : public DeviceProcessList
     Q_OBJECT
 
 public:
-    explicit LocalProcessList(const IDevice::ConstPtr &device, QObject *parent = 0);
+    explicit LocalProcessList(const IDevice::ConstPtr &device, QObject *parent = nullptr);
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
     static QList<DeviceProcessItem> getLocalProcesses();

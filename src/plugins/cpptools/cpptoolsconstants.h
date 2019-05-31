@@ -71,6 +71,7 @@ const char CPP_DIAGNOSTIC_CONFIG_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools",
 const char CPP_SETTINGS_CATEGORY[] = "I.C++";
 
 const char CPP_CLANG_FIXIT_AVAILABLE_MARKER_ID[] = "ClangFixItAvailableMarker";
+const char CPP_FUNCTION_DECL_DEF_LINK_MARKER_ID[] = "FunctionDeclDefLinkMarker";
 
 const char CPP_SETTINGS_ID[] = "Cpp";
 const char CPP_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C++");
@@ -100,6 +101,9 @@ const char SYMBOLS_FIND_FILTER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("CppTools", "C
 // released (e.g. 6.0.1, but only 6.0.0 was released).
 constexpr const char TIDY_DOCUMENTATION_URL_TEMPLATE[]
     = "https://releases.llvm.org/7.0.0/tools/clang/tools/extra/docs/clang-tidy/checks/%1.html";
+
+constexpr const char CLAZY_DOCUMENTATION_URL_TEMPLATE[]
+    = "https://github.com/KDE/clazy/blob/master/docs/checks/README-%1.md";
 
 } // namespace Constants
 } // namespace CppTools

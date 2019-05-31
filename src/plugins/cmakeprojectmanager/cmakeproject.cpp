@@ -46,6 +46,7 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtcppkitinfo.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 
@@ -78,7 +79,7 @@ static CMakeBuildConfiguration *activeBc(const CMakeProject *p)
   \class CMakeProject
 */
 CMakeProject::CMakeProject(const FileName &fileName) : Project(Constants::CMAKEMIMETYPE, fileName),
-    m_cppCodeModelUpdater(new CppTools::CppProjectUpdater(this))
+    m_cppCodeModelUpdater(new CppTools::CppProjectUpdater)
 {
     setId(CMakeProjectManager::Constants::CMAKEPROJECT_ID);
     setProjectLanguages(Core::Context(ProjectExplorer::Constants::CXX_LANGUAGE_ID));
@@ -264,9 +265,6 @@ void CMakeProject::updateProjectData(CMakeBuildConfiguration *bc)
     QTC_ASSERT(bc == aBc, return);
     QTC_ASSERT(m_treeScanner.isFinished() && !m_buildDirManager.isParsing(), return);
 
-    Target *t = bc->target();
-    Kit *k = t->kit();
-
     bc->setBuildTargets(m_buildDirManager.takeBuildTargets());
     bc->setConfigurationFromCMake(m_buildDirManager.takeCMakeConfiguration());
 
@@ -276,35 +274,30 @@ void CMakeProject::updateProjectData(CMakeBuildConfiguration *bc)
         setRootProjectNode(std::move(newRoot));
     }
 
-    updateApplicationAndDeploymentTargets();
+    Target *t = bc->target();
+    t->setApplicationTargets(bc->appTargets());
+    t->setDeploymentData(bc->deploymentData());
+
     t->updateDefaultRunConfigurations();
 
-    createGeneratedCodeModelSupport();
+    qDeleteAll(m_extraCompilers);
+    m_extraCompilers = findExtraCompilers();
+    CppTools::GeneratedCodeModelSupport::update(m_extraCompilers);
 
-    ToolChain *tcC = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::C_LANGUAGE_ID);
-    ToolChain *tcCxx = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
+    QtSupport::CppKitInfo kitInfo(this);
+    QTC_ASSERT(kitInfo.isValid(), return);
 
-    CppTools::ProjectPart::QtVersion activeQtVersion = CppTools::ProjectPart::NoQt;
-    if (QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(k)) {
-        if (qtVersion->qtVersion() < QtSupport::QtVersionNumber(5,0,0))
-            activeQtVersion = CppTools::ProjectPart::Qt4;
-        else
-            activeQtVersion = CppTools::ProjectPart::Qt5;
-    }
-
-    CppTools::RawProjectParts rpps;
-    m_buildDirManager.updateCodeModel(rpps);
+    CppTools::RawProjectParts rpps = m_buildDirManager.createRawProjectParts();
 
     for (CppTools::RawProjectPart &rpp : rpps) {
-        // TODO: Set the Qt version only if target actually depends on Qt.
-        rpp.setQtVersion(activeQtVersion);
-        if (tcCxx)
-            rpp.setFlagsForCxx({tcCxx, rpp.flagsForCxx.commandLineFlags});
-        if (tcC)
-            rpp.setFlagsForC({tcC, rpp.flagsForC.commandLineFlags});
+        rpp.setQtVersion(kitInfo.projectPartQtVersion); // TODO: Check if project actually uses Qt.
+        if (kitInfo.cxxToolChain)
+            rpp.setFlagsForCxx({kitInfo.cxxToolChain, rpp.flagsForCxx.commandLineFlags});
+        if (kitInfo.cToolChain)
+            rpp.setFlagsForC({kitInfo.cToolChain, rpp.flagsForC.commandLineFlags});
     }
 
-    m_cppCodeModelUpdater->update({this, tcC, tcCxx, k, rpps});
+    m_cppCodeModelUpdater->update({this, kitInfo, rpps});
 
     updateQmlJSCodeModel();
 
@@ -312,7 +305,7 @@ void CMakeProject::updateProjectData(CMakeBuildConfiguration *bc)
 
     emit fileListChanged();
 
-    emit bc->emitBuildTypeChanged();
+    bc->emitBuildTypeChanged();
 }
 
 void CMakeProject::updateQmlJSCodeModel()
@@ -329,7 +322,7 @@ void CMakeProject::updateQmlJSCodeModel()
     projectInfo.importPaths.clear();
 
     QString cmakeImports;
-    CMakeBuildConfiguration *bc = qobject_cast<CMakeBuildConfiguration *>(activeTarget()->activeBuildConfiguration());
+    auto bc = qobject_cast<const CMakeBuildConfiguration *>(activeTarget()->activeBuildConfiguration());
     if (!bc)
         return;
 
@@ -425,13 +418,6 @@ void CMakeProject::clearCMakeCache()
     m_buildDirManager.clearCache();
 }
 
-QList<CMakeBuildTarget> CMakeProject::buildTargets() const
-{
-    CMakeBuildConfiguration *bc = activeBc(this);
-
-    return bc ? bc->buildTargets() : QList<CMakeBuildTarget>();
-}
-
 void CMakeProject::handleReparseRequest(int reparseParameters)
 {
     QTC_ASSERT(!(reparseParameters & BuildDirManager::REPARSE_FAIL), return);
@@ -474,7 +460,8 @@ void CMakeProject::startParsing(int reparseParameters)
 
 QStringList CMakeProject::buildTargetTitles() const
 {
-    return transform(buildTargets(), &CMakeBuildTarget::title);
+    CMakeBuildConfiguration *bc = activeBc(this);
+    return bc ? bc->buildTargetTitles() : QStringList();
 }
 
 Project::RestoreResult CMakeProject::fromMap(const QVariantMap &map, QString *errorMessage)
@@ -589,82 +576,14 @@ QStringList CMakeProject::filesGeneratedFrom(const QString &sourceFile) const
     }
 }
 
-void CMakeProject::updateApplicationAndDeploymentTargets()
-{
-    Target *t = activeTarget();
-    if (!t)
-        return;
-
-    QFile deploymentFile;
-    QTextStream deploymentStream;
-    QString deploymentPrefix;
-
-    QDir sourceDir(t->project()->projectDirectory().toString());
-    QDir buildDir(t->activeBuildConfiguration()->buildDirectory().toString());
-
-    deploymentFile.setFileName(sourceDir.filePath("QtCreatorDeployment.txt"));
-    // If we don't have a global QtCreatorDeployment.txt check for one created by the active build configuration
-    if (!deploymentFile.exists())
-        deploymentFile.setFileName(buildDir.filePath("QtCreatorDeployment.txt"));
-    if (deploymentFile.open(QFile::ReadOnly | QFile::Text)) {
-        deploymentStream.setDevice(&deploymentFile);
-        deploymentPrefix = deploymentStream.readLine();
-        if (!deploymentPrefix.endsWith('/'))
-            deploymentPrefix.append('/');
-    }
-
-    BuildTargetInfoList appTargetList;
-    DeploymentData deploymentData;
-
-    foreach (const CMakeBuildTarget &ct, buildTargets()) {
-        if (ct.targetType == UtilityType)
-            continue;
-
-        if (ct.targetType == ExecutableType || ct.targetType == DynamicLibraryType) {
-            if (!ct.executable.isEmpty()) {
-                deploymentData.addFile(ct.executable.toString(),
-                                       deploymentPrefix + buildDir.relativeFilePath(ct.executable.toFileInfo().dir().path()),
-                                       DeployableFile::TypeExecutable);
-            }
-        }
-        if (ct.targetType == ExecutableType) {
-            BuildTargetInfo bti;
-            bti.displayName = ct.title;
-            bti.targetFilePath = ct.executable;
-            bti.projectFilePath = ct.sourceDirectory;
-            bti.projectFilePath.appendString('/');
-            bti.workingDirectory = ct.workingDirectory;
-            bti.buildKey = ct.title + QChar('\n') + bti.projectFilePath.toString();
-            appTargetList.list.append(bti);
-        }
-    }
-
-    QString absoluteSourcePath = sourceDir.absolutePath();
-    if (!absoluteSourcePath.endsWith('/'))
-        absoluteSourcePath.append('/');
-    if (deploymentStream.device()) {
-        while (!deploymentStream.atEnd()) {
-            QString line = deploymentStream.readLine();
-            if (!line.contains(':'))
-                continue;
-            QStringList file = line.split(':');
-            deploymentData.addFile(absoluteSourcePath + file.at(0), deploymentPrefix + file.at(1));
-        }
-    }
-
-    t->setApplicationTargets(appTargetList);
-    t->setDeploymentData(deploymentData);
-}
-
 bool CMakeProject::mustUpdateCMakeStateBeforeBuild()
 {
     return m_delayedParsingTimer.isActive();
 }
 
-void CMakeProject::createGeneratedCodeModelSupport()
+QList<ProjectExplorer::ExtraCompiler *> CMakeProject::findExtraCompilers() const
 {
-    qDeleteAll(m_extraCompilers);
-    m_extraCompilers.clear();
+    QList<ProjectExplorer::ExtraCompiler *> extraCompilers;
     const QList<ExtraCompilerFactory *> factories =
             ExtraCompilerFactory::extraCompilerFactories();
 
@@ -694,10 +613,10 @@ void CMakeProject::createGeneratedCodeModelSupport()
         const FileNameList fileNames
                 = transform(generated,
                             [](const QString &s) { return FileName::fromString(s); });
-        m_extraCompilers.append(factory->create(this, file, fileNames));
+        extraCompilers.append(factory->create(this, file, fileNames));
     }
 
-    CppTools::GeneratedCodeModelSupport::update(m_extraCompilers);
+    return extraCompilers;
 }
 
 } // namespace CMakeProjectManager

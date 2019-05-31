@@ -72,6 +72,7 @@ public:
     QString sha(const QModelIndex &idx) const;
     QDateTime dateTime(const QModelIndex &idx) const;
     bool hasTags() const;
+    bool isHead(const QModelIndex &idx) const;
     bool isLocal(const QModelIndex &idx) const;
     bool isLeaf(const QModelIndex &idx) const;
     bool isTag(const QModelIndex &idx) const;
@@ -94,13 +95,8 @@ private:
 
     QString toolTip(const QString &sha) const;
 
-    GitClient *m_client;
-    QString m_workingDirectory;
-    BranchNode *m_rootNode;
-    BranchNode *m_currentBranch = nullptr;
-    QString m_currentSha;
-    QStringList m_obsoleteLocalBranches;
-    bool m_oldBranchesIncluded = false;
+    class Private;
+    Private *d;
 };
 
 } // namespace Internal

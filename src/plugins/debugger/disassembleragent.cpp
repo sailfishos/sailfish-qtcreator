@@ -148,7 +148,7 @@ DisassemblerAgentPrivate::DisassemblerAgentPrivate(DebuggerEngine *engine)
 
 DisassemblerAgentPrivate::~DisassemblerAgentPrivate()
 {
-    EditorManager::closeDocuments(QList<IDocument *>() << document);
+    EditorManager::closeDocuments({document});
     document = nullptr;
     qDeleteAll(breakpointMarks);
 }
@@ -309,7 +309,7 @@ void DisassemblerAgent::setContentsToDocument(const DisassemblerLines &contents)
 {
     QTC_ASSERT(d, return);
     if (!d->document) {
-        QString titlePattern = QLatin1String("Disassembler");
+        QString titlePattern = "Disassembler";
         IEditor *editor = EditorManager::openEditorWithContents(
                 Core::Constants::K_DEFAULT_TEXT_EDITOR_ID,
                 &titlePattern);

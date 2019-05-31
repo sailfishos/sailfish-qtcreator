@@ -94,7 +94,6 @@ public:
         QString qmlDumpPath;
         ::Utils::Environment qmlDumpEnvironment;
 
-        QString qtImportsPath;
         QString qtQmlPath;
         QString qtVersionString;
         QmlJS::QmlLanguageBundles activeBundle;
@@ -136,7 +135,7 @@ public:
     typedef QHashIterator<QString, CppData> CppDataHashIterator;
 
 public:
-    ModelManagerInterface(QObject *parent = 0);
+    ModelManagerInterface(QObject *parent = nullptr);
     ~ModelManagerInterface() override;
 
     static Dialect guessLanguageOfFile(const QString &fileName);
@@ -153,15 +152,15 @@ public:
                            bool emitDocumentOnDiskChanged);
     void fileChangedOnDisk(const QString &path);
     void removeFiles(const QStringList &files);
-    QStringList qrcPathsForFile(const QString &file, const QLocale *locale = 0,
-                                ProjectExplorer::Project *project = 0,
+    QStringList qrcPathsForFile(const QString &file, const QLocale *locale = nullptr,
+                                ProjectExplorer::Project *project = nullptr,
                                 QrcResourceSelector resources = AllQrcResources);
-    QStringList filesAtQrcPath(const QString &path, const QLocale *locale = 0,
-                               ProjectExplorer::Project *project = 0,
+    QStringList filesAtQrcPath(const QString &path, const QLocale *locale = nullptr,
+                               ProjectExplorer::Project *project = nullptr,
                                QrcResourceSelector resources = AllQrcResources);
     QMap<QString,QStringList> filesInQrcPath(const QString &path,
-                                             const QLocale *locale = 0,
-                                             ProjectExplorer::Project *project = 0,
+                                             const QLocale *locale = nullptr,
+                                             ProjectExplorer::Project *project = nullptr,
                                              bool addDirs = false,
                                              QrcResourceSelector resources = AllQrcResources);
 
@@ -188,9 +187,9 @@ public:
     CppDataHash cppData() const;
     LibraryInfo builtins(const Document::Ptr &doc) const;
     ViewerContext completeVContext(const ViewerContext &vCtx,
-                                   const Document::Ptr &doc = Document::Ptr(0)) const;
+                                   const Document::Ptr &doc = Document::Ptr(nullptr)) const;
     ViewerContext defaultVContext(Dialect language = Dialect::Qml,
-                                  const Document::Ptr &doc = Document::Ptr(0),
+                                  const Document::Ptr &doc = Document::Ptr(nullptr),
                                   bool autoComplete = true) const;
     void setDefaultVContext(const ViewerContext &vContext);
     virtual ProjectInfo defaultProjectInfo() const;
@@ -266,11 +265,11 @@ private:
     QmlJS::QmlLanguageBundles m_activeBundles;
     QmlJS::QmlLanguageBundles m_extendedBundles;
     QHash<Dialect, QmlJS::ViewerContext> m_defaultVContexts;
-    bool m_shouldScanImports;
+    bool m_shouldScanImports = false;
     QSet<QString> m_scannedPaths;
 
-    QTimer *m_updateCppQmlTypesTimer;
-    QTimer *m_asyncResetTimer;
+    QTimer *m_updateCppQmlTypesTimer = nullptr;
+    QTimer *m_asyncResetTimer = nullptr;
     QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > m_queuedCppDocuments;
     QFuture<void> m_cppQmlTypesUpdater;
     QrcCache m_qrcCache;
@@ -283,13 +282,13 @@ private:
     // project integration
     QMap<ProjectExplorer::Project *, ProjectInfo> m_projects;
     ProjectInfo m_defaultProjectInfo;
-    ProjectExplorer::Project *m_defaultProject;
+    ProjectExplorer::Project *m_defaultProject = nullptr;
     QMultiHash<QString, ProjectExplorer::Project *> m_fileToProject;
 
-    PluginDumper *m_pluginDumper;
+    PluginDumper *m_pluginDumper = nullptr;
 
     QList<QFuture<void>> m_futures;
-    bool m_indexerEnabled;
+    bool m_indexerDisabled = false;
 };
 
 } // namespace QmlJS

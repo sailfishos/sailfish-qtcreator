@@ -31,6 +31,10 @@
 #include "qmakevfs.h"
 #include "ioutils.h"
 
+#ifdef Q_OS_WIN
+# include "registry_p.h"
+#endif
+
 #include <qbytearray.h>
 #include <qdir.h>
 #include <qfile.h>
@@ -88,7 +92,7 @@ enum ExpandFunc {
     E_UPPER, E_LOWER, E_TITLE, E_FILES, E_PROMPT, E_RE_ESCAPE, E_VAL_ESCAPE,
     E_REPLACE, E_SORT_DEPENDS, E_RESOLVE_DEPENDS, E_ENUMERATE_VARS,
     E_SHADOWED, E_ABSOLUTE_PATH, E_RELATIVE_PATH, E_CLEAN_PATH,
-    E_SYSTEM_PATH, E_SHELL_PATH, E_SYSTEM_QUOTE, E_SHELL_QUOTE, E_GETENV
+    E_SYSTEM_PATH, E_SHELL_PATH, E_SYSTEM_QUOTE, E_SHELL_QUOTE, E_GETENV, E_READ_REGISTRY,
 };
 
 enum TestFunc {
@@ -153,6 +157,7 @@ void QMakeEvaluator::initFunctionStatics()
         { "system_quote", E_SYSTEM_QUOTE },
         { "shell_quote", E_SHELL_QUOTE },
         { "getenv", E_GETENV },
+        { "read_registry", E_READ_REGISTRY },
     };
     statics.expands.reserve((int)(sizeof(expandInits)/sizeof(expandInits[0])));
     for (unsigned i = 0; i < sizeof(expandInits)/sizeof(expandInits[0]); ++i)
@@ -620,11 +625,11 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::evaluateBuiltinExpand(
                 for (const ProString &opt : opts) {
                     opt.toQString(m_tmp3);
                     if (m_tmp3.startsWith(QLatin1String("ibase="))) {
-                        ibase = m_tmp3.mid(6).toInt();
+                        ibase = m_tmp3.midRef(6).toInt();
                     } else if (m_tmp3.startsWith(QLatin1String("obase="))) {
-                        obase = m_tmp3.mid(6).toInt();
+                        obase = m_tmp3.midRef(6).toInt();
                     } else if (m_tmp3.startsWith(QLatin1String("width="))) {
-                        width = m_tmp3.mid(6).toInt();
+                        width = m_tmp3.midRef(6).toInt();
                     } else if (m_tmp3 == QLatin1String("zeropad")) {
                         zeropad = true;
                     } else if (m_tmp3 == QLatin1String("padsign")) {
@@ -1174,9 +1179,9 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::evaluateBuiltinExpand(
         if (args.count() > 2) {
             evalError(fL1S("absolute_path(path[, base]) requires one or two arguments."));
         } else {
-            QString rstr = QDir::cleanPath(
-                    QDir(args.count() > 1 ? args.at(1).toQString(m_tmp2) : currentDirectory())
-                    .absoluteFilePath(args.at(0).toQString(m_tmp1)));
+            QString arg = args.at(0).toQString(m_tmp1);
+            QString baseDir = args.count() > 1 ? args.at(1).toQString(m_tmp2) : currentDirectory();
+            QString rstr = arg.isEmpty() ? baseDir : IoUtils::resolvePath(baseDir, arg);
             ret << (rstr.isSharedWith(m_tmp1)
                         ? args.at(0)
                         : args.count() > 1 && rstr.isSharedWith(m_tmp2)
@@ -1188,9 +1193,10 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::evaluateBuiltinExpand(
         if (args.count() > 2) {
             evalError(fL1S("relative_path(path[, base]) requires one or two arguments."));
         } else {
-            QDir baseDir(args.count() > 1 ? args.at(1).toQString(m_tmp2) : currentDirectory());
-            QString rstr = baseDir.relativeFilePath(baseDir.absoluteFilePath(
-                                args.at(0).toQString(m_tmp1)));
+            QString arg = args.at(0).toQString(m_tmp1);
+            QString baseDir = args.count() > 1 ? args.at(1).toQString(m_tmp2) : currentDirectory();
+            QString absArg = arg.isEmpty() ? baseDir : IoUtils::resolvePath(baseDir, arg);
+            QString rstr = QDir(baseDir).relativeFilePath(absArg);
             ret << (rstr.isSharedWith(m_tmp1) ? args.at(0) : ProString(rstr).setSource(args.at(0)));
         }
         break;
@@ -1264,6 +1270,41 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::evaluateBuiltinExpand(
             ret << val;
         }
         break;
+#ifdef Q_OS_WIN
+    case E_READ_REGISTRY: {
+        HKEY tree;
+        const auto par = args.at(0);
+        if (!par.compare(QLatin1String("HKCU"), Qt::CaseInsensitive)
+                || !par.compare(QLatin1String("HKEY_CURRENT_USER"), Qt::CaseInsensitive)) {
+            tree = HKEY_CURRENT_USER;
+        } else if (!par.compare(QLatin1String("HKLM"), Qt::CaseInsensitive)
+                   || !par.compare(QLatin1String("HKEY_LOCAL_MACHINE"), Qt::CaseInsensitive)) {
+            tree = HKEY_LOCAL_MACHINE;
+        } else {
+            evalError(fL1S("read_registry(): invalid or unsupported registry tree %1.")
+                      .arg(par.toQString()));
+            goto rrfail;
+        }
+        int flags = 0;
+        if (args.count() > 2) {
+            const auto opt = args.at(2);
+            if (opt == "32"
+                    || !opt.compare(QLatin1String("wow64_32key"), Qt::CaseInsensitive)) {
+                flags = KEY_WOW64_32KEY;
+            } else if (opt == "64"
+                       || !opt.compare(QLatin1String("wow64_64key"), Qt::CaseInsensitive)) {
+                flags = KEY_WOW64_64KEY;
+            } else {
+                evalError(fL1S("read_registry(): invalid option %1.")
+                          .arg(opt.toQString()));
+                goto rrfail;
+            }
+        }
+        ret << ProString(qt_readRegistryKey(tree, args.at(1).toQString(m_tmp1), flags));
+    }
+      rrfail:
+        break;
+#endif
     default:
         evalError(fL1S("Function '%1' is not implemented.").arg(func.toQString(m_tmp1)));
         break;

@@ -43,6 +43,7 @@
 #include <QFormLayout>
 #include <QSpinBox>
 #include <QToolButton>
+#include <QTextEdit>
 
 using namespace Utils;
 
@@ -55,6 +56,7 @@ public:
     bool m_value = false;
     bool m_defaultValue = false;
     QString m_label;
+    QString m_tooltip;
     QPointer<QCheckBox> m_checkBox; // Owned by configuration widget
 };
 
@@ -75,6 +77,7 @@ public:
     QPointer<QLabel> m_labelDisplay;
     QPointer<FancyLineEdit> m_lineEditDisplay;
     QPointer<PathChooser> m_pathChooserDisplay;
+    QPointer<QTextEdit> m_textEditDisplay;
     QPixmap m_labelPixmap;
 };
 
@@ -177,6 +180,8 @@ void BaseStringAspect::setPlaceHolderText(const QString &placeHolderText)
     d->m_placeHolderText = placeHolderText;
     if (d->m_lineEditDisplay)
         d->m_lineEditDisplay->setPlaceholderText(placeHolderText);
+    if (d->m_textEditDisplay)
+        d->m_textEditDisplay->setPlaceholderText(placeHolderText);
 }
 
 void BaseStringAspect::setHistoryCompleter(const QString &historyCompleterKey)
@@ -217,7 +222,8 @@ void BaseStringAspect::addToConfigurationLayout(QFormLayout *layout)
     case PathChooserDisplay:
         d->m_pathChooserDisplay = new PathChooser(parent);
         d->m_pathChooserDisplay->setExpectedKind(d->m_expectedKind);
-        d->m_pathChooserDisplay->setHistoryCompleter(d->m_historyCompleterKey);
+        if (!d->m_historyCompleterKey.isEmpty())
+            d->m_pathChooserDisplay->setHistoryCompleter(d->m_historyCompleterKey);
         d->m_pathChooserDisplay->setEnvironment(d->m_environment);
         connect(d->m_pathChooserDisplay, &PathChooser::pathChanged,
                 this, &BaseStringAspect::setValue);
@@ -226,10 +232,23 @@ void BaseStringAspect::addToConfigurationLayout(QFormLayout *layout)
     case LineEditDisplay:
         d->m_lineEditDisplay = new FancyLineEdit(parent);
         d->m_lineEditDisplay->setPlaceholderText(d->m_placeHolderText);
-        d->m_lineEditDisplay->setHistoryCompleter(d->m_historyCompleterKey);
+        if (!d->m_historyCompleterKey.isEmpty())
+            d->m_lineEditDisplay->setHistoryCompleter(d->m_historyCompleterKey);
         connect(d->m_lineEditDisplay, &FancyLineEdit::textEdited,
                 this, &BaseStringAspect::setValue);
         hbox->addWidget(d->m_lineEditDisplay);
+        break;
+    case TextEditDisplay:
+        d->m_textEditDisplay = new QTextEdit(parent);
+        d->m_textEditDisplay->setPlaceholderText(d->m_placeHolderText);
+        connect(d->m_textEditDisplay, &QTextEdit::textChanged, this, [this] {
+            const QString value = d->m_textEditDisplay->document()->toPlainText();
+            if (value != d->m_value) {
+                d->m_value = value;
+                emit changed();
+            }
+        });
+        hbox->addWidget(d->m_textEditDisplay);
         break;
     case LabelDisplay:
         d->m_labelDisplay = new QLabel(parent);
@@ -263,8 +282,13 @@ void BaseStringAspect::update()
     }
 
     if (d->m_lineEditDisplay) {
-        d->m_lineEditDisplay->setText(displayedString);
+        d->m_lineEditDisplay->setTextKeepingActiveCursor(displayedString);
         d->m_lineEditDisplay->setEnabled(enabled);
+    }
+
+    if (d->m_textEditDisplay) {
+        d->m_textEditDisplay->setText(displayedString);
+        d->m_textEditDisplay->setEnabled(enabled);
     }
 
     if (d->m_labelDisplay)
@@ -307,6 +331,7 @@ void BaseBoolAspect::addToConfigurationLayout(QFormLayout *layout)
     QTC_CHECK(!d->m_checkBox);
     d->m_checkBox = new QCheckBox(d->m_label, layout->parentWidget());
     d->m_checkBox->setChecked(d->m_value);
+    d->m_checkBox->setToolTip(d->m_tooltip);
     layout->addRow(QString(), d->m_checkBox);
     connect(d->m_checkBox.data(), &QAbstractButton::clicked, this, [this] {
         d->m_value = d->m_checkBox->isChecked();
@@ -349,6 +374,11 @@ void BaseBoolAspect::setValue(bool value)
 void BaseBoolAspect::setLabel(const QString &label)
 {
     d->m_label = label;
+}
+
+void BaseBoolAspect::setToolTip(const QString &tooltip)
+{
+    d->m_tooltip = tooltip;
 }
 
 /*!

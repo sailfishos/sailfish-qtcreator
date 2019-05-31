@@ -39,6 +39,7 @@
 #include <unordered_set>
 
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 
 #include <memory>
@@ -848,5 +849,17 @@ OutputContainer setUnionMerge(InputContainer1 &&input1,
                                           std::forward<InputContainer2>(input2),
                                           merge,
                                           std::less<std::decay_t<decltype(*std::begin(input1))>>{});
+}
+
+template<typename Container>
+std::make_unsigned_t<typename Container::size_type> usize(Container container)
+{
+    return static_cast<std::make_unsigned_t<typename Container::size_type>>(container.size());
+}
+
+template<typename Container>
+std::make_signed_t<typename Container::size_type> ssize(Container container)
+{
+    return static_cast<std::make_signed_t<typename Container::size_type>>(container.size());
 }
 } // namespace Utils

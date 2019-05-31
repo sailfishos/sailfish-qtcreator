@@ -57,11 +57,9 @@ static QStringList stripName(const QString &name)
     return all;
 }
 
-CppElement::CppElement() : helpCategory(TextEditor::HelpItem::Unknown)
-{}
+CppElement::CppElement() = default;
 
-CppElement::~CppElement()
-{}
+CppElement::~CppElement() = default;
 
 CppClass *CppElement::toCppClass()
 {
@@ -87,7 +85,7 @@ public:
         : path(QDir::toNativeSeparators(includeFile.resolvedFileName()))
         , fileName(Utils::FileName::fromString(includeFile.resolvedFileName()).fileName())
     {
-        helpCategory = TextEditor::HelpItem::Brief;
+        helpCategory = Core::HelpItem::Brief;
         helpIdCandidates = QStringList(fileName);
         helpMark = fileName;
         link = Utils::Link(path);
@@ -104,7 +102,7 @@ class CppMacro : public CppElement
 public:
     explicit CppMacro(const Macro &macro)
     {
-        helpCategory = TextEditor::HelpItem::Macro;
+        helpCategory = Core::HelpItem::Macro;
         const QString macroName = QString::fromUtf8(macro.name(), macro.name().size());
         helpIdCandidates = QStringList(macroName);
         helpMark = macroName;
@@ -144,7 +142,7 @@ public:
     explicit CppNamespace(Symbol *declaration)
         : CppDeclarableElement(declaration)
     {
-        helpCategory = TextEditor::HelpItem::ClassOrNamespace;
+        helpCategory = Core::HelpItem::ClassOrNamespace;
         tooltip = qualifiedName;
     }
 };
@@ -152,7 +150,7 @@ public:
 
 CppClass::CppClass(Symbol *declaration) : CppDeclarableElement(declaration)
 {
-    helpCategory = TextEditor::HelpItem::ClassOrNamespace;
+    helpCategory = Core::HelpItem::ClassOrNamespace;
     tooltip = qualifiedName;
 }
 
@@ -168,7 +166,7 @@ CppClass *CppClass::toCppClass()
 
 void CppClass::lookupBases(Symbol *declaration, const LookupContext &context)
 {
-    typedef QPair<ClassOrNamespace *, CppClass *> Data;
+    using Data = QPair<ClassOrNamespace*, CppClass*>;
 
     if (ClassOrNamespace *clazz = context.lookupType(declaration)) {
         QSet<ClassOrNamespace *> visited;
@@ -199,7 +197,7 @@ void CppClass::lookupBases(Symbol *declaration, const LookupContext &context)
 
 void CppClass::lookupDerived(Symbol *declaration, const Snapshot &snapshot)
 {
-    typedef QPair<CppClass *, CppTools::TypeHierarchy> Data;
+    using Data = QPair<CppClass*, CppTools::TypeHierarchy>;
 
     CppTools::TypeHierarchyBuilder builder(declaration, snapshot);
     const CppTools::TypeHierarchy &completeHierarchy = builder.buildDerivedTypeHierarchy();
@@ -223,7 +221,7 @@ public:
     explicit CppFunction(Symbol *declaration)
         : CppDeclarableElement(declaration)
     {
-        helpCategory = TextEditor::HelpItem::Function;
+        helpCategory = Core::HelpItem::Function;
 
         const FullySpecifiedType &type = declaration->type();
 
@@ -244,7 +242,7 @@ public:
     explicit CppEnum(Enum *declaration)
         : CppDeclarableElement(declaration)
     {
-        helpCategory = TextEditor::HelpItem::Enum;
+        helpCategory = Core::HelpItem::Enum;
         tooltip = qualifiedName;
     }
 };
@@ -255,7 +253,7 @@ public:
     explicit CppTypedef(Symbol *declaration)
         : CppDeclarableElement(declaration)
     {
-        helpCategory = TextEditor::HelpItem::Typedef;
+        helpCategory = Core::HelpItem::Typedef;
         tooltip = Overview().prettyType(declaration->type(), qualifiedName);
     }
 };
@@ -268,7 +266,7 @@ public:
     {
         const FullySpecifiedType &type = declaration->type();
 
-        const Name *typeName = 0;
+        const Name *typeName = nullptr;
         if (type->isNamedType()) {
             typeName = type->asNamedType()->name();
         } else if (type->isPointerType() || type->isReferenceType()) {
@@ -290,7 +288,7 @@ public:
                         LookupContext::fullyQualifiedName(symbol));
                     if (!name.isEmpty()) {
                         tooltip = name;
-                        helpCategory = TextEditor::HelpItem::ClassOrNamespace;
+                        helpCategory = Core::HelpItem::ClassOrNamespace;
                         const QStringList &allNames = stripName(name);
                         if (!allNames.isEmpty()) {
                             helpMark = allNames.last();
@@ -309,7 +307,7 @@ public:
     explicit CppEnumerator(EnumeratorDeclaration *declaration)
         : CppDeclarableElement(declaration)
     {
-        helpCategory = TextEditor::HelpItem::Enum;
+        helpCategory = Core::HelpItem::Enum;
 
         Overview overview;
 
@@ -462,7 +460,7 @@ void CppElementEvaluator::handleLookupItemMatch(const Snapshot &snapshot,
                 }
             }
 
-            CppClass *cppClass = new CppClass(declaration);
+            auto cppClass = new CppClass(declaration);
             if (m_lookupBaseClasses)
                 cppClass->lookupBases(declaration, contextToUse);
             if (m_lookupDerivedClasses)
@@ -470,7 +468,7 @@ void CppElementEvaluator::handleLookupItemMatch(const Snapshot &snapshot,
             m_element = QSharedPointer<CppElement>(cppClass);
         } else if (Enum *enumDecl = declaration->asEnum()) {
             m_element = QSharedPointer<CppElement>(new CppEnum(enumDecl));
-        } else if (EnumeratorDeclaration *enumerator = dynamic_cast<EnumeratorDeclaration *>(declaration)) {
+        } else if (auto enumerator = dynamic_cast<EnumeratorDeclaration *>(declaration)) {
             m_element = QSharedPointer<CppElement>(new CppEnumerator(enumerator));
         } else if (declaration->isTypedef()) {
             m_element = QSharedPointer<CppElement>(new CppTypedef(declaration));

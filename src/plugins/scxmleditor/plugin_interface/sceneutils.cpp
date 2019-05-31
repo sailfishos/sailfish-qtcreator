@@ -185,7 +185,7 @@ QVector<ScxmlTag*> findRemovedTags(const QVector<BaseItem*> &items)
             // Find the last selected parent
             BaseItem *parent = it->parentBaseItem();
             BaseItem *lastSelectedParent = it;
-            while (parent != 0) {
+            while (parent) {
                 if (parent->isSelected())
                     lastSelectedParent = parent;
                 parent = parent->parentBaseItem();
@@ -221,7 +221,7 @@ void layout(const QList<QGraphicsItem*> &items)
     // Change initial-item position
     ConnectableItem *firstItem = nullptr;
     if (initialItem && initialItem->outputTransitionCount() == 1) {
-        firstItem = initialItem->outputTransitions()[0]->connectedItem(initialItem);
+        firstItem = initialItem->outputTransitions().constFirst()->connectedItem(initialItem);
         int index = childItems.indexOf(firstItem);
         if (index > 0)
             childItems.swap(index, 0);
@@ -230,7 +230,7 @@ void layout(const QList<QGraphicsItem*> &items)
     // Search final-item
     ConnectableItem *lastItem = nullptr;
     if (finalItem && finalItem->inputTransitionCount() > 0)
-        lastItem = finalItem->inputTransitions()[0]->connectedItem(finalItem);
+        lastItem = finalItem->inputTransitions().constFirst()->connectedItem(finalItem);
 
     int startAngle = qrand() % 2 == 0 ? 180 : 90;
     int startDistance = 40 + childItems.count() * 10;
@@ -330,7 +330,7 @@ void layout(const QList<QGraphicsItem*> &items)
 
 bool isChild(const QGraphicsItem *parent, const QGraphicsItem *child)
 {
-    while (child != 0) {
+    while (child) {
         if (parent == child)
             return true;
         child = child->parentItem();
@@ -341,7 +341,7 @@ bool isChild(const QGraphicsItem *parent, const QGraphicsItem *child)
 
 bool isSomeSelected(QGraphicsItem *item)
 {
-    while (item != 0) {
+    while (item) {
         if (item->isSelected())
             return true;
         item = item->parentItem();

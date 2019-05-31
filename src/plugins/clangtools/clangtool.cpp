@@ -46,6 +46,7 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/session.h>
 
+#include <utils/algorithm.h>
 #include <utils/fancymainwindow.h>
 #include <utils/utilsicons.h>
 
@@ -77,8 +78,10 @@ static FileInfos sortedFileInfos(const QVector<CppTools::ProjectPart::Ptr> &proj
             if (file.path == CppTools::CppModelManager::configurationFileName())
                 continue;
 
-            if (CppTools::ProjectFile::isSource(file.kind)) {
-                fileInfos.emplace_back(Utils::FileName::fromString(file.path), file.kind, projectPart);
+            if (file.active && CppTools::ProjectFile::isSource(file.kind)) {
+                fileInfos.emplace_back(Utils::FileName::fromString(file.path),
+                                       file.kind,
+                                       projectPart);
             }
         }
     }
@@ -133,9 +136,12 @@ void ClangTool::initDiagnosticView()
     m_diagnosticView->setAutoScroll(false);
 }
 
-QList<Diagnostic> ClangTool::diagnostics() const
+QSet<Diagnostic> ClangTool::diagnostics() const
 {
-    return m_diagnosticModel->diagnostics();
+    return Utils::filtered(m_diagnosticModel->diagnostics(), [](const Diagnostic &diagnostic) {
+        using CppTools::ProjectFile;
+        return ProjectFile::isSource(ProjectFile::classify(diagnostic.location.filePath));
+    });
 }
 
 void ClangTool::onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics)

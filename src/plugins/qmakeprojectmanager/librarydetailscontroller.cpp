@@ -864,12 +864,12 @@ bool PackageLibraryDetailsController::isLinkPackageGenerated() const
     if (!project)
         return false;
 
-    const auto *rootProject = dynamic_cast<const QmakeProFileNode *>(project->rootProjectNode());
-    if (!rootProject)
+    const ProjectNode *projectNode = project->findNodeForBuildKey(proFile());
+    if (!projectNode)
         return false;
 
     const QmakeProFileNode *currentProject =
-            rootProject->findProFileFor(Utils::FileName::fromString(proFile()));
+            dynamic_cast<const QmakeProFileNode *>(projectNode);
     if (!currentProject)
         return false;
 
@@ -1098,7 +1098,7 @@ QString InternalLibraryDetailsController::snippet() const
     QDir rootBuildDir = rootDir; // If the project is unconfigured use the project dir
     if (ProjectExplorer::Target *t = project->activeTarget())
         if (ProjectExplorer::BuildConfiguration *bc = t->activeBuildConfiguration())
-            rootBuildDir = bc->buildDirectory().toString();
+            rootBuildDir.setPath(bc->buildDirectory().toString());
 
     // the project for which we insert the snippet inside build tree
     QFileInfo pfi(rootBuildDir.filePath(proRelavitePath));

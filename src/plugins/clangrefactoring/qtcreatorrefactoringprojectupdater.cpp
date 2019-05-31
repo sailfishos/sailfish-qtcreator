@@ -60,10 +60,16 @@ std::vector<ClangBackEnd::V2::FileContainer> createGeneratedFiles()
 }
 }
 
-QtCreatorRefactoringProjectUpdater::QtCreatorRefactoringProjectUpdater(ClangBackEnd::ProjectManagementServerInterface &server,
-                                                                       ClangPchManager::PchManagerClient &pchManagerClient,
-                                                                       ClangBackEnd::FilePathCachingInterface &filePathCache)
-    : RefactoringProjectUpdater(server, pchManagerClient, *cppModelManager(), filePathCache)
+QtCreatorRefactoringProjectUpdater::QtCreatorRefactoringProjectUpdater(
+    ClangBackEnd::ProjectManagementServerInterface &server,
+    ClangPchManager::PchManagerClient &pchManagerClient,
+    ClangBackEnd::FilePathCachingInterface &filePathCache,
+    ClangBackEnd::ProjectPartsStorageInterface &projectPartsStorage)
+    : RefactoringProjectUpdater(server,
+                                pchManagerClient,
+                                *cppModelManager(),
+                                filePathCache,
+                                projectPartsStorage)
 {
     connectToCppModelManager();
 }
@@ -84,7 +90,7 @@ void QtCreatorRefactoringProjectUpdater::connectToCppModelManager()
 
     QObject::connect(cppModelManager(),
                      &CppTools::CppModelManager::abstractEditorSupportContentsUpdated,
-                     [&] (const QString &filePath, const QByteArray &contents) {
+                     [&] (const QString &filePath, const QString &, const QByteArray &contents) {
         abstractEditorUpdated(filePath, contents);
     });
 

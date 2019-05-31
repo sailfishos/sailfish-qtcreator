@@ -117,24 +117,38 @@ Core::Id SysRootKitInformation::id()
     return "PE.Profile.SysRoot";
 }
 
-bool SysRootKitInformation::hasSysRoot(const Kit *k)
-{
-    if (k)
-        return !k->value(SysRootKitInformation::id()).toString().isEmpty();
-    return false;
-}
-
 Utils::FileName SysRootKitInformation::sysRoot(const Kit *k)
 {
     if (!k)
         return Utils::FileName();
-    return Utils::FileName::fromString(k->value(SysRootKitInformation::id()).toString());
+
+    if (!k->value(SysRootKitInformation::id()).toString().isEmpty())
+        return Utils::FileName::fromString(k->value(SysRootKitInformation::id()).toString());
+
+    for (ToolChain *tc : ToolChainKitInformation::toolChains(k)) {
+        if (!tc->sysRoot().isEmpty())
+            return Utils::FileName::fromString(tc->sysRoot());
+    }
+
+    return Utils::FileName();
 }
 
 void SysRootKitInformation::setSysRoot(Kit *k, const Utils::FileName &v)
 {
-    if (k)
-        k->setValue(SysRootKitInformation::id(), v.toString());
+    if (!k)
+        return;
+
+    for (ToolChain *tc : ToolChainKitInformation::toolChains(k)) {
+        if (!tc->sysRoot().isEmpty()) {
+            // It's the sysroot from toolchain, don't set it.
+            if (tc->sysRoot() == v.toString())
+                return;
+
+            // We've changed the default toolchain sysroot, set it.
+            break;
+        }
+    }
+    k->setValue(SysRootKitInformation::id(), v.toString());
 }
 
 // --------------------------------------------------------------------------
@@ -376,8 +390,11 @@ void ToolChainKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander 
 
 IOutputParser *ToolChainKitInformation::createOutputParser(const Kit *k) const
 {
-    ToolChain *tc = toolChain(k, Constants::CXX_LANGUAGE_ID);
-    return tc ? tc->outputParser() : nullptr;
+    for (const Core::Id langId : {Constants::CXX_LANGUAGE_ID, Constants::C_LANGUAGE_ID}) {
+        if (const ToolChain * const tc = toolChain(k, langId))
+            return tc->outputParser();
+    }
+    return nullptr;
 }
 
 QSet<Core::Id> ToolChainKitInformation::availableFeatures(const Kit *k) const
@@ -586,13 +603,8 @@ KitInformation::ItemList DeviceTypeKitInformation::toUserOutput(const Kit *k) co
     Core::Id type = deviceTypeId(k);
     QString typeDisplayName = tr("Unknown device type");
     if (type.isValid()) {
-        IDeviceFactory *factory = Utils::findOrDefault(IDeviceFactory::allDeviceFactories(),
-            [&type](IDeviceFactory *factory) {
-                return factory->availableCreationIds().contains(type);
-            });
-
-        if (factory)
-            typeDisplayName = factory->displayNameForId(type);
+        if (IDeviceFactory *factory = IDeviceFactory::find(type))
+            typeDisplayName = factory->displayName();
     }
     return ItemList() << qMakePair(tr("Device type"), typeDisplayName);
 }

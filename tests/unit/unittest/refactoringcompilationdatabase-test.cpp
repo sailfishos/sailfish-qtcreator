@@ -24,12 +24,14 @@
 ****************************************************************************/
 
 #include "googletest.h"
+#include "filesystem-utilities.h"
 
 #include <refactoringcompilationdatabase.h>
+#include <nativefilepath.h>
 
 #include <utils/smallstring.h>
 
-#include <QDir>
+#include <utils/temporarydirectory.h>
 
 using testing::Contains;
 using testing::IsEmpty;
@@ -38,16 +40,16 @@ using testing::PrintToString;
 
 namespace {
 
-MATCHER_P3(IsCompileCommand, directory, fileName, commandLine,
-           std::string(negation ? "isn't" : "is")
-           + " compile command with directory "+ PrintToString(directory)
-           + ", file name " + PrintToString(fileName)
-           + " and command line " + PrintToString(commandLine)
-           )
+MATCHER_P3(IsCompileCommand,
+           directory,
+           filePath,
+           commandLine,
+           std::string(negation ? "isn't" : "is") + " compile command with directory "
+               + PrintToString(directory) + ", file name " + PrintToString(filePath)
+               + " and command line " + PrintToString(commandLine))
 {
-    if (arg.Directory != directory
-            || arg.Filename != fileName
-            || arg.CommandLine != commandLine)
+    if (arg.Directory != std::string(directory) || arg.Filename != std::string(filePath)
+        || arg.CommandLine != commandLine)
         return false;
 
     return true;
@@ -56,12 +58,16 @@ MATCHER_P3(IsCompileCommand, directory, fileName, commandLine,
 class RefactoringCompilationDatabase : public ::testing::Test
 {
 protected:
-    void SetUp();
+    RefactoringCompilationDatabase()
+    {
+        database.addFile(ClangBackEnd::NativeFilePathView{temporarySourceFilePath},
+                         {"cc", toNativePath(temporaryDirectoryPath + "/data.cpp"), "-DNO_DEBUG"});
+    }
 
 protected:
     ClangBackEnd::RefactoringCompilationDatabase database;
-    Utils::SmallString temporaryDirectoryPath = QDir::toNativeSeparators(QDir::tempPath());
-    Utils::SmallString temporarySourceFilePath = QDir::toNativeSeparators(QDir::tempPath() + "/data.cpp");
+    Utils::SmallString temporaryDirectoryPath = QDir::toNativeSeparators(Utils::TemporaryDirectory::masterDirectoryPath());
+    Utils::SmallString temporarySourceFilePath = QDir::toNativeSeparators(Utils::TemporaryDirectory::masterDirectoryPath() + "/data.cpp");
 
 };
 
@@ -76,18 +82,28 @@ TEST_F(RefactoringCompilationDatabase, CompileCommandForFilePath)
 {
     auto compileCommands = database.getAllCompileCommands();
 
-    ASSERT_THAT(compileCommands, Contains(IsCompileCommand(temporaryDirectoryPath,
-                                                           "data.cpp",
-                                                           std::vector<std::string>{"cc", "data.cpp", "-DNO_DEBUG"})));
+    ASSERT_THAT(compileCommands,
+                Contains(IsCompileCommand(temporaryDirectoryPath,
+                                          toNativePath(temporaryDirectoryPath + "/data.cpp"),
+                                          std::vector<std::string>{"cc",
+                                                                   std::string(toNativePath(
+                                                                       temporaryDirectoryPath
+                                                                       + "/data.cpp")),
+                                                                   "-DNO_DEBUG"})));
 }
 
 TEST_F(RefactoringCompilationDatabase, NoCompileCommandForFilePath)
 {
     auto compileCommands = database.getAllCompileCommands();
 
-    ASSERT_THAT(compileCommands, Not(Contains(IsCompileCommand(temporaryDirectoryPath,
-                                                               "data.cpp2",
-                                                               std::vector<std::string>{"cc", "data.cpp", "-DNO_DEBUG"}))));
+    ASSERT_THAT(compileCommands,
+                Not(Contains(IsCompileCommand(temporaryDirectoryPath,
+                                              toNativePath(temporaryDirectoryPath + "/data.cpp2"),
+                                              std::vector<std::string>{"cc",
+                                                                       std::string(toNativePath(
+                                                                           temporaryDirectoryPath
+                                                                           + "/data.cpp")),
+                                                                       "-DNO_DEBUG"}))));
 }
 
 TEST_F(RefactoringCompilationDatabase, FilePaths)
@@ -96,10 +112,4 @@ TEST_F(RefactoringCompilationDatabase, FilePaths)
 
     ASSERT_THAT(filePaths, Contains(std::string(temporarySourceFilePath)));
 }
-
-void RefactoringCompilationDatabase::SetUp()
-{
-    database.addFile(std::string(temporaryDirectoryPath), "data.cpp", {"cc", "data.cpp", "-DNO_DEBUG"});
-}
-
-}
+} // namespace

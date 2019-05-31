@@ -593,10 +593,7 @@ bool ClearCasePlugin::submitEditorAboutToClose()
     // is, the editor was closed or shutdown).
     bool prompt = m_settings.promptToCheckIn;
     const VcsBaseSubmitEditor::PromptSubmitResult answer =
-            editor->promptSubmit(tr("Closing ClearCase Editor"),
-                                 tr("Do you want to check in the files?"),
-                                 tr("The comment check failed. Do you want to check in the files?"),
-                                 &prompt, !m_submitActionTriggered);
+            editor->promptSubmit(this, &prompt, !m_submitActionTriggered);
     m_submitActionTriggered = false;
     switch (answer) {
     case VcsBaseSubmitEditor::SubmitCanceled:
@@ -1058,7 +1055,7 @@ void ClearCasePlugin::rmdir(const QString &path)
 
 void ClearCasePlugin::diffActivity()
 {
-    typedef QMap<QString, QStringPair>::Iterator FileVerIt;
+    using FileVerIt = QMap<QString, QStringPair>::Iterator;
 
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
@@ -1649,7 +1646,7 @@ bool ClearCasePlugin::vcsCheckIn(const QString &messageFile, const QStringList &
     if (files.isEmpty())
         return true;
     const QString title = QString::fromLatin1("Checkin %1").arg(files.join(QLatin1String("; ")));
-    typedef QSharedPointer<FileChangeBlocker> FCBPointer;
+    using FCBPointer = QSharedPointer<FileChangeBlocker>;
     replaceActivity &= (activity != QLatin1String(Constants::KEEP_ACTIVITY));
     if (replaceActivity && !vcsSetActivity(m_checkInView, title, activity))
         return false;

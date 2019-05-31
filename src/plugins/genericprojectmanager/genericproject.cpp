@@ -42,6 +42,7 @@
 #include <projectexplorer/abi.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
+#include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/kitmanager.h>
@@ -50,13 +51,17 @@
 #include <projectexplorer/target.h>
 
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtcppkitinfo.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/algorithm.h>
+#include <utils/filesystemwatcher.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
 
 #include <QDir>
+#include <QFileInfo>
 #include <QHash>
 #include <QSet>
 #include <QStringList>
@@ -135,12 +140,12 @@ public:
                 || action == Rename;
     }
 
-    bool addFiles(const QStringList &filePaths, QStringList * = 0) override
+    bool addFiles(const QStringList &filePaths, QStringList * = nullptr) override
     {
         return m_project->addFiles(filePaths);
     }
 
-    bool removeFiles(const QStringList &filePaths, QStringList * = 0) override
+    bool removeFiles(const QStringList &filePaths, QStringList * = nullptr) override
     {
         return m_project->removeFiles(filePaths);
     }
@@ -161,9 +166,16 @@ private:
 //
 ////////////////////////////////////////////////////////////////////////////////////
 
+static bool writeFile(const QString &filePath, const QString &contents)
+{
+    Utils::FileSaver saver(filePath, QIODevice::Text | QIODevice::WriteOnly);
+    return saver.write(contents.toUtf8()) && saver.finalize();
+}
+
 GenericProject::GenericProject(const Utils::FileName &fileName) :
     Project(Constants::GENERICMIMETYPE, fileName, [this]() { refresh(Everything); }),
-    m_cppCodeModelUpdater(new CppTools::CppProjectUpdater(this))
+    m_cppCodeModelUpdater(new CppTools::CppProjectUpdater),
+    m_deployFileWatcher(new FileSystemWatcher(this))
 {
     setId(Constants::GENERICPROJECT_ID);
     setProjectLanguages(Context(ProjectExplorer::Constants::CXX_LANGUAGE_ID));
@@ -178,6 +190,18 @@ GenericProject::GenericProject(const Utils::FileName &fileName) :
     m_includesFileName = QFileInfo(dir, projectName + ".includes").absoluteFilePath();
     m_configFileName   = QFileInfo(dir, projectName + ".config").absoluteFilePath();
 
+    const QFileInfo cxxflagsFileInfo(dir, projectName + ".cxxflags");
+    m_cxxflagsFileName = cxxflagsFileInfo.absoluteFilePath();
+    if (!cxxflagsFileInfo.exists()) {
+        QTC_CHECK(writeFile(m_cxxflagsFileName, Constants::GENERICPROJECT_CXXFLAGS_FILE_TEMPLATE));
+    }
+
+    const QFileInfo cflagsFileInfo(dir, projectName + ".cflags");
+    m_cflagsFileName = cflagsFileInfo.absoluteFilePath();
+    if (!cflagsFileInfo.exists()) {
+        QTC_CHECK(writeFile(m_cflagsFileName, Constants::GENERICPROJECT_CFLAGS_FILE_TEMPLATE));
+    }
+
     m_filesIDocument
             = new ProjectDocument(Constants::GENERICMIMETYPE, FileName::fromString(m_filesFileName),
                                   [this]() { refresh(Files); });
@@ -187,11 +211,25 @@ GenericProject::GenericProject(const Utils::FileName &fileName) :
     m_configIDocument
             = new ProjectDocument(Constants::GENERICMIMETYPE, FileName::fromString(m_configFileName),
                                   [this]() { refresh(Configuration); });
+    m_cxxFlagsIDocument
+            = new ProjectDocument(Constants::GENERICMIMETYPE, FileName::fromString(m_cxxflagsFileName),
+                                  [this]() { refresh(Configuration); });
+    m_cFlagsIDocument
+            = new ProjectDocument(Constants::GENERICMIMETYPE, FileName::fromString(m_cflagsFileName),
+                                  [this]() { refresh(Configuration); });
+
+    connect(m_deployFileWatcher, &FileSystemWatcher::fileChanged,
+            this, &GenericProject::updateDeploymentData);
 }
 
 GenericProject::~GenericProject()
 {
     delete m_cppCodeModelUpdater;
+    m_filesIDocument->deleteLater();
+    m_includesIDocument->deleteLater();
+    m_configIDocument->deleteLater();
+    m_cxxFlagsIDocument->deleteLater();
+    m_cFlagsIDocument->deleteLater();
 }
 
 static QStringList readLines(const QString &absoluteFileName)
@@ -319,6 +357,14 @@ bool GenericProject::renameFile(const QString &filePath, const QString &newFileP
     return saveRawFileList(newList);
 }
 
+static QStringList readFlags(const QString &filePath)
+{
+    const QStringList lines = readLines(filePath);
+    if (lines.isEmpty())
+        return QStringList();
+    return QtcProcess::splitArgs(lines.first());
+}
+
 void GenericProject::parseProject(RefreshOptions options)
 {
     if (options & Files) {
@@ -330,6 +376,8 @@ void GenericProject::parseProject(RefreshOptions options)
     if (options & Configuration) {
         m_rawProjectIncludePaths = readLines(m_includesFileName);
         m_projectIncludePaths = processEntries(m_rawProjectIncludePaths);
+        m_cxxflags = readFlags(m_cxxflagsFileName);
+        m_cflags = readFlags(m_cflagsFileName);
 
         // TODO: Possibly load some configuration from the project file
         //QSettings projectInfo(m_fileName, QSettings::IniFormat);
@@ -361,11 +409,18 @@ void GenericProject::refresh(RefreshOptions options)
         newRoot->addNestedNode(std::make_unique<FileNode>(FileName::fromString(m_configFileName),
                                                           FileType::Project,
                                                           /* generated = */ false));
+        newRoot->addNestedNode(std::make_unique<FileNode>(FileName::fromString(m_cxxflagsFileName),
+                                                          FileType::Project,
+                                                          /* generated = */ false));
+        newRoot->addNestedNode(std::make_unique<FileNode>(FileName::fromString(m_cflagsFileName),
+                                                          FileType::Project,
+                                                          /* generated = */ false));
 
         setRootProjectNode(std::move(newRoot));
     }
 
     refreshCppCodeModel();
+    updateDeploymentData();
     emitParsingFinished(true);
 }
 
@@ -419,39 +474,46 @@ QStringList GenericProject::processEntries(const QStringList &paths,
 
 void GenericProject::refreshCppCodeModel()
 {
-    const Kit *k = nullptr;
-    if (Target *target = activeTarget())
-        k = target->kit();
-    else
-        k = KitManager::defaultKit();
-    QTC_ASSERT(k, return);
-
-    ToolChain *cToolChain
-            = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::C_LANGUAGE_ID);
-    ToolChain *cxxToolChain
-            = ToolChainKitInformation::toolChain(k, ProjectExplorer::Constants::CXX_LANGUAGE_ID);
-
-    m_cppCodeModelUpdater->cancel();
-
-    CppTools::ProjectPart::QtVersion activeQtVersion = CppTools::ProjectPart::NoQt;
-    if (QtSupport::BaseQtVersion *qtVersion =
-            QtSupport::QtKitInformation::qtVersion(activeTarget()->kit())) {
-        if (qtVersion->qtVersion() < QtSupport::QtVersionNumber(5,0,0))
-            activeQtVersion = CppTools::ProjectPart::Qt4;
-        else
-            activeQtVersion = CppTools::ProjectPart::Qt5;
-    }
+    QtSupport::CppKitInfo kitInfo(this);
+    QTC_ASSERT(kitInfo.isValid(), return);
 
     CppTools::RawProjectPart rpp;
     rpp.setDisplayName(displayName());
     rpp.setProjectFileLocation(projectFilePath().toString());
-    rpp.setQtVersion(activeQtVersion);
+    rpp.setQtVersion(kitInfo.projectPartQtVersion);
     rpp.setIncludePaths(m_projectIncludePaths);
     rpp.setConfigFileName(m_configFileName);
+    rpp.setFlagsForCxx({nullptr, m_cxxflags});
+    rpp.setFlagsForC({nullptr, m_cflags});
     rpp.setFiles(m_files);
 
-    const CppTools::ProjectUpdateInfo projectInfoUpdate(this, cToolChain, cxxToolChain, k, {rpp});
-    m_cppCodeModelUpdater->update(projectInfoUpdate);
+    m_cppCodeModelUpdater->update({this, kitInfo, {rpp}});
+}
+
+void GenericProject::updateDeploymentData()
+{
+    static const QString fileName("QtCreatorDeployment.txt");
+    Utils::FileName deploymentFilePath;
+    if (activeTarget() && activeTarget()->activeBuildConfiguration()) {
+        deploymentFilePath = activeTarget()->activeBuildConfiguration()->buildDirectory()
+                .appendPath(fileName);
+    }
+    bool hasDeploymentData = QFileInfo::exists(deploymentFilePath.toString());
+    if (!hasDeploymentData) {
+        deploymentFilePath = projectDirectory().appendPath(fileName);
+        hasDeploymentData = QFileInfo::exists(deploymentFilePath.toString());
+    }
+    if (hasDeploymentData) {
+        DeploymentData deploymentData;
+        deploymentData.addFilesFromDeploymentFile(deploymentFilePath.toString(),
+                                                  projectDirectory().toString());
+        activeTarget()->setDeploymentData(deploymentData);
+        if (m_deployFileWatcher->files() != QStringList(deploymentFilePath.toString())) {
+            m_deployFileWatcher->removeFiles(m_deployFileWatcher->files());
+            m_deployFileWatcher->addFile(deploymentFilePath.toString(),
+                                         FileSystemWatcher::WatchModifiedDate);
+        }
+    }
 }
 
 void GenericProject::activeTargetWasChanged()

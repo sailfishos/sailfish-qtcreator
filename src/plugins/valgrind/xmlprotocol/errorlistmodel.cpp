@@ -121,7 +121,7 @@ static QString makeFrameName(const Frame &frame, bool withLocation)
         path = QFileInfo(path).canonicalFilePath();
 
     if (frame.line() != -1)
-        path += QLatin1Char(':') + QString::number(frame.line());
+        path += ':' + QString::number(frame.line());
 
     if (!fn.isEmpty()) {
         const QString location = withLocation || path == frame.object()
@@ -167,8 +167,8 @@ ErrorItem::ErrorItem(const ErrorListModel *model, const Error &error)
     if (m_error.stacks().count() > 1) {
         foreach (const Stack &s, m_error.stacks())
             appendChild(new StackItem(s));
-    } else if (m_error.stacks().first().frames().count() > 1) {
-        foreach (const Frame &f, m_error.stacks().first().frames())
+    } else if (m_error.stacks().constFirst().frames().count() > 1) {
+        foreach (const Frame &f, m_error.stacks().constFirst().frames())
             appendChild(new FrameItem(f));
     }
 }
@@ -211,12 +211,12 @@ QVariant ErrorItem::data(int column, int role) const
     case Qt::DisplayRole:
         // If and only if there is exactly one frame, we have omitted creating a child item for it
         // (see the constructor) and display the function name in the error item instead.
-        if (m_error.stacks().count() != 1 || m_error.stacks().first().frames().count() != 1
-                || m_error.stacks().first().frames().first().functionName().isEmpty()) {
+        if (m_error.stacks().count() != 1 || m_error.stacks().constFirst().frames().count() != 1
+                || m_error.stacks().constFirst().frames().constFirst().functionName().isEmpty()) {
             return m_error.what();
         }
         return ErrorListModel::tr("%1 in function %2")
-                .arg(m_error.what(), m_error.stacks().first().frames().first().functionName());
+                .arg(m_error.what(), m_error.stacks().constFirst().frames().constFirst().functionName());
     case Qt::ToolTipRole:
         return toolTipForFrame(m_model->findRelevantFrame(m_error));
     default:
@@ -274,7 +274,7 @@ QVariant FrameItem::data(int column, int role) const
         const int padding = static_cast<int>(std::log10(parent()->childCount()))
                 - static_cast<int>(std::log10(row));
         return QString::fromLatin1("%1%2: %3")
-                .arg(QString(padding, QLatin1Char(' ')))
+                .arg(QString(padding, ' '))
                 .arg(row)
                 .arg(makeFrameName(m_frame, false));
     }
@@ -288,7 +288,7 @@ QVariant FrameItem::data(int column, int role) const
 const ErrorItem *FrameItem::getErrorItem() const
 {
     for (const TreeItem *parentItem = parent(); parentItem; parentItem = parentItem->parent()) {
-        const ErrorItem * const errorItem = dynamic_cast<const ErrorItem *>(parentItem);
+        auto const errorItem = dynamic_cast<const ErrorItem *>(parentItem);
         if (errorItem)
             return errorItem;
     }

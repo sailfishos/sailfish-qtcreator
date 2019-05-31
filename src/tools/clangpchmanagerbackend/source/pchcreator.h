@@ -29,12 +29,14 @@
 
 #include "idpaths.h"
 #include "sourceentry.h"
+#include "clangtool.h"
 
 #include <filepathcaching.h>
 #include <projectpartpch.h>
-#include <projectpartcontainerv2.h>
+#include <projectpartcontainer.h>
 
 #include <vector>
+#include <random>
 
 QT_FORWARD_DECLARE_CLASS(QFile)
 QT_FORWARD_DECLARE_CLASS(QCryptographicHash)
@@ -46,14 +48,7 @@ class Environment;
 class GeneratedFiles;
 class PchManagerClientInterface;
 class ClangPathWatcherInterface;
-
-class PchCreatorIncludes
-{
-public:
-    FilePathIds includeIds;
-    FilePathIds topIncludeIds;
-    FilePathIds topSystemIncludeIds;
-};
+class BuildDependenciesStorageInterface;
 
 class PchCreator final : public PchCreatorInterface
 {
@@ -61,16 +56,14 @@ public:
     PchCreator(Environment &environment,
                Sqlite::Database &database,
                PchManagerClientInterface &pchManagerClient,
-               ClangPathWatcherInterface &fileSystemWatcher)
-        : m_filePathCache(database),
-          m_environment(environment),
+               ClangPathWatcherInterface &clangPathwatcher,
+               BuildDependenciesStorageInterface &buildDependenciesStorage)
+        : m_filePathCache(database), m_environment(environment),
           m_pchManagerClient(pchManagerClient),
-          m_fileSystemWatcher(fileSystemWatcher)
-    {
-    }
+          m_clangPathwatcher(clangPathwatcher),
+          m_buildDependenciesStorage(buildDependenciesStorage) {}
 
-    void generatePch(const V2::ProjectPartContainer &projectsPart) override;
-    IdPaths takeProjectIncludes() override;
+    void generatePch(PchTask &&pchTask) override;
     const ProjectPartPch &projectPartPch() override;
     void setUnsavedFiles(const V2::FileContainers &fileContainers) override;
     void setIsUsed(bool isUsed) override;
@@ -78,56 +71,33 @@ public:
     void clear() override;
     void doInMainThreadAfterFinished() override;
 
-    const IdPaths &projectIncludes() const;
     const FilePathCaching &filePathCache();
 
     Utils::SmallString generatePchIncludeFileContent(const FilePathIds &includeIds) const;
-    bool generatePch(Utils::SmallStringVector &&commandLineArguments);
+    bool generatePch(NativeFilePathView path, Utils::SmallStringView content);
 
-    static QStringList convertToQStringList(const Utils::SmallStringVector &convertToQStringList);
+    FilePath generatePchFilePath() const;
+    static Utils::SmallStringVector generateClangCompilerArguments(const PchTask &pchTask,
+                                                                   FilePathView pchPath);
 
-    Utils::SmallStringVector generateProjectPartCommandLine(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallString generateProjectPartPchFilePathWithoutExtension(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::PathStringVector generateProjectPartHeaders(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallString generateProjectPartSourcesContent(
-            const V2::ProjectPartContainer &projectPart) const;
-    ClangBackEnd::FilePaths generateProjectPartSourcePaths(
-            const V2::ProjectPartContainer &projectPart) const;
-    SourceEntries generateProjectPartPchIncludes(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallString generateProjectPathPchHeaderFilePath(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallString  generateProjectPartPchFilePath(
-           const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallString  generateProjectPartSourceFilePath(
-           const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallStringVector generateProjectPartPchCompilerArguments(
-            const V2::ProjectPartContainer &projectPart) const;
-    Utils::SmallStringVector generateProjectPartClangCompilerArguments(
-             const V2::ProjectPartContainer &projectPart) const;
-    IdPaths generateProjectPartPch(
-            const V2::ProjectPartContainer &projectPart);
-    static std::unique_ptr<QFile> generateFileWithContent(
-            const Utils::SmallString &filePath,
-            const Utils::SmallString &content);
+    const ClangTool &clangTool() const
+    {
+        return m_clangTool;
+    }
 
-    static FilePathIds topIncludeIds(const SourceEntries &includes);
-    static FilePathIds allIncludeIds(const SourceEntries &includes);
+    const FilePathIds &sources() const { return m_sources; }
 
 private:
-    static QByteArray projectPartHash(const V2::ProjectPartContainer &projectPart);
-
-private:
+    mutable std::mt19937_64 randomNumberGenator{std::random_device{}()};
+    ClangTool m_clangTool;
     ProjectPartPch m_projectPartPch;
-    IdPaths m_projectIncludeIds;
     FilePathCaching m_filePathCache;
-    V2::FileContainers m_unsavedFiles;
+    FilePathIds m_sources;
+    FilePathIds m_generatedFilePathIds;
     Environment &m_environment;
     PchManagerClientInterface &m_pchManagerClient;
-    ClangPathWatcherInterface &m_fileSystemWatcher;
+    ClangPathWatcherInterface &m_clangPathwatcher;
+    BuildDependenciesStorageInterface &m_buildDependenciesStorage;
     bool m_isUsed = false;
 };
 

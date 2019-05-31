@@ -31,6 +31,7 @@
 #include <cpptools/projectinfo.h>
 
 namespace Debugger { class DetailedErrorView; }
+namespace Utils { class FileName; }
 
 namespace ClangTools {
 namespace Internal {
@@ -44,11 +45,12 @@ class ClangTool : public QObject
 
 public:
     ClangTool(const QString &name);
-    virtual ~ClangTool();
+    ~ClangTool() override;
 
     virtual void startTool(bool askUserForFileSelection) = 0;
 
     virtual QList<Diagnostic> read(const QString &filePath,
+                                   const Utils::FileName &projectRootDir,
                                    const QString &logFilePath,
                                    QString *errorMessage) const = 0;
 
@@ -56,11 +58,11 @@ public:
                                bool askUserForFileSelection) const;
 
     // For testing.
-    QList<Diagnostic> diagnostics() const;
+    QSet<Diagnostic> diagnostics() const;
 
     const QString &name() const;
 
-    void onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics);
+    virtual void onNewDiagnosticsAvailable(const QList<Diagnostic> &diagnostics);
 
 signals:
     void finished(bool success); // For testing.

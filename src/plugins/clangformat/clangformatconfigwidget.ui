@@ -27,6 +27,27 @@
     <number>8</number>
    </property>
    <item>
+    <widget class="QCheckBox" name="formatAlways">
+     <property name="text">
+      <string>Format instead of indenting</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="formatWhileTyping">
+     <property name="text">
+      <string>Format while typing</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="formatOnSave">
+     <property name="text">
+      <string>Format edited code on file save</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="projectHasClangFormat">
      <property name="text">
       <string/>
@@ -34,17 +55,21 @@
     </widget>
    </item>
    <item>
-    <widget class="QTableWidget" name="clangFormatOptionsTable"/>
+    <widget class="QCheckBox" name="overrideDefault">
+     <property name="text">
+      <string>Override Clang Format configuration file</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPlainTextEdit" name="clangFormatOptionsTable"/>
+     </item>
+    </layout>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QPushButton" name="createFileButton">
-       <property name="text">
-        <string>Create Clang Format Configuration File</string>
-       </property>
-      </widget>
-     </item>
      <item>
       <widget class="QPushButton" name="applyButton">
        <property name="text">

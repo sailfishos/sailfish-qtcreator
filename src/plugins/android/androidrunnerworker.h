@@ -46,9 +46,8 @@ class AndroidRunnerWorker : public QObject
 public:
     AndroidRunnerWorker(ProjectExplorer::RunWorker *runner, const QString &packageName);
     ~AndroidRunnerWorker() override;
-    bool adbShellAmNeedsQuotes();
-    bool runAdb(const QStringList &args, int timeoutS = 10, const QByteArray &writeData = {});
-    bool uploadFile(const QString &from, const QString &to, const QString &flags = QString("+x"));
+
+    bool runAdb(const QStringList &args, QString *stdOut = nullptr, const QByteArray &writeData = {});
     void adbKill(qint64 pid);
     QStringList selector() const;
     void forceStop();
@@ -71,8 +70,13 @@ signals:
     void remoteOutput(const QString &output);
     void remoteErrorOutput(const QString &output);
 
-protected:
+private:
     void asyncStartHelper();
+    bool startDebuggerServer(const QString &packageDir, const QString &gdbServerPrefix,
+                             const QString &gdbServerExecutable, QString *errorStr = nullptr);
+    bool deviceFileExists(const QString &filePath);
+    bool packageFileExists(const QString& filePath);
+    bool uploadGdbServer();
 
     enum class JDBState {
         Idle,
@@ -88,7 +92,6 @@ protected:
     QString m_intentName;
     QStringList m_beforeStartAdbCommands;
     QStringList m_afterFinishAdbCommands;
-    QString m_adb;
     QStringList m_amStartExtraArgs;
     qint64 m_processPID = -1;
     std::unique_ptr<QProcess, Deleter> m_adbLogcatProcess;
@@ -101,8 +104,6 @@ protected:
     QmlDebug::QmlDebugServicesPreset m_qmlDebugServices;
     Utils::Port m_localGdbServerPort; // Local end of forwarded debug socket.
     QUrl m_qmlServer;
-    QByteArray m_lastRunAdbRawOutput;
-    QString m_lastRunAdbError;
     JDBState m_jdbState = JDBState::Idle;
     Utils::Port m_localJdbServerPort;
     std::unique_ptr<QProcess, Deleter> m_gdbServerProcess;

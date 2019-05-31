@@ -195,9 +195,12 @@ QmlProfilerTool::QmlProfilerTool()
     d->m_searchButton = new QToolButton;
     d->m_searchButton->setIcon(Utils::Icons::ZOOM_TOOLBAR.icon());
     d->m_searchButton->setToolTip(tr("Search timeline event notes."));
+    d->m_searchButton->setEnabled(false);
 
     connect(d->m_searchButton, &QToolButton::clicked, this, &QmlProfilerTool::showTimeLineSearch);
-    d->m_searchButton->setEnabled(d->m_viewContainer->traceView()->isUsable());
+    connect(d->m_viewContainer, &QmlProfilerViewManager::viewsCreated, this, [this]() {
+        d->m_searchButton->setEnabled(d->m_viewContainer->traceView()->isUsable());
+    });
 
     d->m_displayFeaturesButton = new QToolButton;
     d->m_displayFeaturesButton->setIcon(Utils::Icons::FILTER.icon());
@@ -210,9 +213,7 @@ QmlProfilerTool::QmlProfilerTool()
             this, &QmlProfilerTool::toggleVisibleFeature);
 
     d->m_timeLabel = new QLabel();
-    QPalette palette;
-    palette.setColor(QPalette::WindowText, Qt::white);
-    d->m_timeLabel->setPalette(palette);
+    d->m_timeLabel->setProperty("panelwidget", true);
     d->m_timeLabel->setIndent(10);
     updateTimeDisplay();
     connect(d->m_timeLabel, &QObject::destroyed, &d->m_recordingTimer, &QTimer::stop);
@@ -286,10 +287,10 @@ void QmlProfilerTool::updateRunActions()
         d->m_startAction->setToolTip(tr("A QML Profiler analysis is still in progress."));
         d->m_stopAction->setEnabled(true);
     } else {
-        QString whyNot = tr("Start QML Profiler analysis.");
+        QString tooltip = tr("Start QML Profiler analysis.");
         bool canRun = ProjectExplorerPlugin::canRunStartupProject
-                (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, &whyNot);
-        d->m_startAction->setToolTip(whyNot);
+                (ProjectExplorer::Constants::QML_PROFILER_RUN_MODE, &tooltip);
+        d->m_startAction->setToolTip(tooltip);
         d->m_startAction->setEnabled(canRun);
         d->m_stopAction->setEnabled(false);
     }
@@ -304,7 +305,7 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
         auto aspect = static_cast<QmlProfilerRunConfigurationAspect *>(
                     runConfiguration->aspect(Constants::SETTINGS));
         if (aspect) {
-            if (QmlProfilerSettings *settings = static_cast<QmlProfilerSettings *>(aspect->currentSettings())) {
+            if (auto settings = static_cast<const QmlProfilerSettings *>(aspect->currentSettings())) {
                 d->m_profilerConnections->setFlushInterval(settings->flushEnabled() ?
                                                                settings->flushInterval() : 0);
                 d->m_profilerModelManager->setAggregateTraces(settings->aggregateTraces());
@@ -345,7 +346,7 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
 
     connect(d->m_profilerConnections, &QmlProfilerClientManager::connectionFailed,
             runWorker, [this, runWorker]() {
-        QMessageBox *infoBox = new QMessageBox(ICore::mainWindow());
+        auto infoBox = new QMessageBox(ICore::mainWindow());
         infoBox->setIcon(QMessageBox::Critical);
         infoBox->setWindowTitle(Core::Constants::IDE_DISPLAY_NAME);
 
@@ -368,7 +369,7 @@ void QmlProfilerTool::finalizeRunControl(QmlProfilerRunner *runWorker)
                 d->m_profilerConnections->retryConnect();
                 break;
             case QMessageBox::Help:
-                HelpManager::handleHelpRequest(
+                HelpManager::showHelpUrl(
                             "qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html");
                 Q_FALLTHROUGH();
             case QMessageBox::Cancel:
@@ -451,6 +452,7 @@ void QmlProfilerTool::updateTimeDisplay()
 void QmlProfilerTool::showTimeLineSearch()
 {
     QmlProfilerTraceView *traceView = d->m_viewContainer->traceView();
+    QTC_ASSERT(traceView, return);
     QTC_ASSERT(qobject_cast<QDockWidget *>(traceView->parentWidget()), return);
     traceView->parentWidget()->raise();
     traceView->setFocus();
@@ -482,7 +484,8 @@ void QmlProfilerTool::setButtonsEnabled(bool enable)
 {
     d->m_clearButton->setEnabled(enable);
     d->m_displayFeaturesButton->setEnabled(enable);
-    d->m_searchButton->setEnabled(d->m_viewContainer->traceView()->isUsable() && enable);
+    const QmlProfilerTraceView *traceView = d->m_viewContainer->traceView();
+    d->m_searchButton->setEnabled(traceView && traceView->isUsable() && enable);
     d->m_recordFeaturesMenu->setEnabled(enable);
 }
 
@@ -513,7 +516,7 @@ ProjectExplorer::RunControl *QmlProfilerTool::attachToWaitingApplication()
 
     Id kitId;
     int port;
-    Kit *kit = 0;
+    Kit *kit = nullptr;
 
     {
         QSettings *settings = ICore::settings();
@@ -573,7 +576,7 @@ void QmlProfilerTool::logError(const QString &msg)
 
 void QmlProfilerTool::showErrorDialog(const QString &error)
 {
-    QMessageBox *errorDialog = new QMessageBox(ICore::mainWindow());
+    auto errorDialog = new QMessageBox(ICore::mainWindow());
     errorDialog->setIcon(QMessageBox::Warning);
     errorDialog->setWindowTitle(tr("QML Profiler"));
     errorDialog->setText(error);
@@ -684,11 +687,9 @@ void QmlProfilerTool::clientsDisconnected()
             d->m_profilerModelManager->finalize();
         } else if (d->m_profilerState->serverRecording()) {
             // If the application stopped by itself, check if we have all the data
-            if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppDying ||
-                    d->m_profilerState->currentState() == QmlProfilerStateManager::Idle) {
+            if (d->m_profilerState->currentState() != QmlProfilerStateManager::AppStopRequested) {
                 showNonmodalWarning(tr("Application finished before loading profiled data.\n"
                                        "Please use the stop button instead."));
-                d->m_profilerModelManager->clearAll();
             }
         }
     }
@@ -780,7 +781,7 @@ QList <QAction *> QmlProfilerTool::profilerContextMenuActions()
 
 void QmlProfilerTool::showNonmodalWarning(const QString &warningMsg)
 {
-    QMessageBox *noExecWarning = new QMessageBox(ICore::mainWindow());
+    auto noExecWarning = new QMessageBox(ICore::mainWindow());
     noExecWarning->setIcon(QMessageBox::Warning);
     noExecWarning->setWindowTitle(tr("QML Profiler"));
     noExecWarning->setText(warningMsg);

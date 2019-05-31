@@ -40,7 +40,7 @@ class CppEditorPlugin : public ExtensionSystem::IPlugin
 
 public:
     CppEditorPlugin();
-    ~CppEditorPlugin();
+    ~CppEditorPlugin() override;
 
     static CppEditorPlugin *instance();
 
@@ -58,7 +58,6 @@ public:
     void openDeclarationDefinitionInNextSplit();
     void openTypeHierarchy();
     void openIncludeHierarchy();
-    void findUsages();
     void showPreProcessorDialog();
     void renameSymbolUnderCursor();
     void switchDeclarationDefinition();

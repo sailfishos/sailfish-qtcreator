@@ -52,6 +52,7 @@
 #include <cplusplus/Literals.h>
 #include <cplusplus/cppassert.h>
 
+#include <utils/executeondestruction.h>
 #include <utils/scopedswap.h>
 
 #include <QDebug>
@@ -161,6 +162,7 @@ namespace Internal {
 struct TokenBuffer
 {
     std::deque<PPToken> tokens;
+    std::vector<QByteArray> blockedMacroNames;
     const Macro *macro;
     TokenBuffer *next;
 
@@ -172,10 +174,14 @@ struct TokenBuffer
         if (!macro)
             return false;
 
-        for (const TokenBuffer *it = this; it; it = it->next)
-            if (it->macro)
-                if (it->macro == macro || (it->macro->name() == macro->name()))
-                    return true;
+        for (const TokenBuffer *it = this; it; it = it->next) {
+            if (it->macro && (it->macro == macro || it->macro->name() == macro->name()))
+                return true;
+        }
+        for (const QByteArray &blockedMacroName : blockedMacroNames) {
+            if (macro->name() == blockedMacroName)
+                return true;
+        }
         return false;
     }
 };
@@ -758,7 +764,7 @@ QByteArray Preprocessor::run(const QString &fileName,
     preprocessed.reserve(source.size() * 2); // multiply by 2 because we insert #gen lines.
     preprocess(fileName, source, &preprocessed, &includeGuardMacroName, noLines,
                markGeneratedTokens, false);
-    if (!includeGuardMacroName.isEmpty())
+    if (m_client && !includeGuardMacroName.isEmpty())
         m_client->markAsIncludeGuard(includeGuardMacroName);
     return preprocessed;
 }
@@ -956,9 +962,7 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
 
     Macro *macro = m_env->resolve(macroNameRef);
     if (!macro
-            || (tk->expanded()
-                && m_state.m_tokenBuffer
-                && m_state.m_tokenBuffer->isBlocked(macro))) {
+        || (tk->expanded() && m_state.m_tokenBuffer && m_state.m_tokenBuffer->isBlocked(macro))) {
         return false;
     }
 //    qDebug() << "expanding" << macro->name() << "on line" << tk->lineno;
@@ -982,16 +986,18 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
         if (!expandFunctionlikeMacros()
                 // Still expand if this originally started with an object-like macro.
                 && m_state.m_expansionStatus != Expanding) {
-            m_client->notifyMacroReference(m_state.m_bytesOffsetRef + idTk.byteOffset,
-                                           m_state.m_utf16charsOffsetRef + idTk.utf16charOffset,
-                                           idTk.lineno,
-                                           *macro);
+            if (m_client) {
+                m_client->notifyMacroReference(m_state.m_bytesOffsetRef + idTk.byteOffset,
+                                               m_state.m_utf16charsOffsetRef + idTk.utf16charOffset,
+                                               idTk.lineno,
+                                               *macro);
+            }
             return false;
         }
 
         // Collect individual tokens that form the macro arguments.
         QVector<QVector<PPToken> > allArgTks;
-        bool hasArgs = collectActualArguments(tk, &allArgTks);
+        bool hasArgs = collectActualArguments(tk, &allArgTks, macro->name());
 
         // Check whether collecting arguments failed due to a previously added marker
         // that goot nested in a sequence of expansions. If so, store it and try again.
@@ -1001,7 +1007,7 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
                 && (m_state.m_expansionStatus == Expanding
                     || m_state.m_expansionStatus == ReadyForExpansion)) {
             oldMarkerTk = *tk;
-            hasArgs = collectActualArguments(tk, &allArgTks);
+            hasArgs = collectActualArguments(tk, &allArgTks, macro->name());
         }
 
         // Check for matching parameter/argument count.
@@ -1127,7 +1133,7 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
         }
     }
 
-    m_state.pushTokenBuffer(body.begin(), body.end(), macro);
+    m_state.pushTokenBuffer(body.constBegin(), body.constEnd(), macro);
 
     if (m_client && !idTk.generated())
         m_client->stopExpandingMacro(idTk.byteOffset, *macro);
@@ -1498,10 +1504,20 @@ bool Preprocessor::consumeComments(PPToken *tk)
     return tk->isNot(T_EOF_SYMBOL);
 }
 
-bool Preprocessor::collectActualArguments(PPToken *tk, QVector<QVector<PPToken> > *actuals)
+bool Preprocessor::collectActualArguments(PPToken *tk, QVector<QVector<PPToken> > *actuals,
+                                          const QByteArray &parentMacroName)
 {
     Q_ASSERT(tk);
     Q_ASSERT(actuals);
+
+    ExecuteOnDestruction removeBlockedName;
+    if (m_state.m_tokenBuffer) {
+        removeBlockedName.reset([this] {
+            if (m_state.m_tokenBuffer && !m_state.m_tokenBuffer->blockedMacroNames.empty())
+                m_state.m_tokenBuffer->blockedMacroNames.pop_back();
+        });
+        m_state.m_tokenBuffer->blockedMacroNames.push_back(parentMacroName);
+    }
 
     lex(tk); // consume the identifier
 
@@ -1779,7 +1795,7 @@ void Preprocessor::handleDefineDirective(PPToken *tk)
                 }
             }
         } else if (macroReference) {
-            if (tk->is(T_LPAREN)) {
+            if (m_client && tk->is(T_LPAREN)) {
                 m_client->notifyMacroReference(previousBytesOffset, previousUtf16charsOffset,
                                                previousLine, *macroReference);
             }

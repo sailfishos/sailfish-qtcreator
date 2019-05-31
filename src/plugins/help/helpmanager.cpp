@@ -167,18 +167,6 @@ void HelpManager::registerDocumentationNow(QFutureInterface<bool> &futureInterfa
                 qWarning() << "Error registering namespace '" << nameSpace
                     << "' from file '" << file << "':" << helpEngine.error();
             }
-        } else {
-            const QLatin1String key("CreationDate");
-            const QString &newDate = helpEngine.metaData(file, key).toString();
-            const QString &oldDate = helpEngine.metaData(
-                helpEngine.documentationFileName(nameSpace), key).toString();
-            if (QDateTime::fromString(newDate, Qt::ISODate)
-                > QDateTime::fromString(oldDate, Qt::ISODate)) {
-                if (helpEngine.unregisterDocumentation(nameSpace)) {
-                    docsChanged = true;
-                    helpEngine.registerDocumentation(file);
-                }
-            }
         }
     }
     futureInterface.reportResult(docsChanged);
@@ -226,13 +214,16 @@ QSet<QString> HelpManager::userDocumentationPaths()
 QMap<QString, QUrl> HelpManager::linksForKeyword(const QString &key)
 {
     QTC_ASSERT(!d->m_needsSetup, return {});
+    if (key.isEmpty())
+        return {};
     return d->m_helpEngine->linksForKeyword(key);
 }
 
 QMap<QString, QUrl> HelpManager::linksForIdentifier(const QString &id)
 {
-    QMap<QString, QUrl> empty;
     QTC_ASSERT(!d->m_needsSetup, return {});
+    if (id.isEmpty())
+        return {};
     return d->m_helpEngine->linksForIdentifier(id);
 }
 
@@ -248,7 +239,7 @@ QByteArray HelpManager::fileData(const QUrl &url)
     return d->m_helpEngine->fileData(url);
 }
 
-void HelpManager::handleHelpRequest(const QUrl &url, Core::HelpManager::HelpViewerLocation location)
+void HelpManager::showHelpUrl(const QUrl &url, Core::HelpManager::HelpViewerLocation location)
 {
     emit m_instance->helpRequested(url, location);
 }

@@ -10,9 +10,9 @@ SUBDIRS += \
     extensionsystem \
     externaltool \
     environment \
-    generichighlighter \
     pointeralgorithm \
     profilewriter \
+    ssh \
     treeviewfind \
     toolchaincache \
     qtcprocess \

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2018 The Qt Company Ltd.
+** Copyright (C) 2019 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt Creator documentation.
@@ -51,6 +51,78 @@
     \QC contains the following third-party components:
 
     \list
+        \li \b{Syntax highlighting engine for Kate syntax definitions}
+
+            This is a stand-alone implementation of the Kate syntax highlighting engine.
+            It's meant as a building block for text editors as well as for simple highlighted
+            text rendering (e.g. as HTML), supporting both integration with a custom editor
+            as well as a ready-to-use QSyntaxHighlighter sub-class.
+
+            Distributed under the:
+            \code
+            MIT License
+
+            Permission is hereby granted, free of charge, to any person obtaining
+            a copy of this software and associated documentation files (the
+            "Software"), to deal in the Software without restriction, including
+            without limitation the rights to use, copy, modify, merge, publish,
+            distribute, sublicense, and/or sell copies of the Software, and to
+            permit persons to whom the Software is furnished to do so, subject to
+            the following conditions:
+
+            The above copyright notice and this permission notice shall be included
+            in all copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+            EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+            MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+            IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+            CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+            TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+            SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+            \endcode
+
+            The source code of  KSyntaxHighlighting can be found
+            here:
+            \list
+            \li \l{https://cgit.kde.org/syntax-highlighting.git}
+            \li QtCreator/src/libs/3rdparty/syntax-highlighting
+            \li \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty/syntax-highlighting}
+            \endlist
+
+        \li \b{Clazy}
+
+            \l {https://github.com/KDE/clazy}
+
+            Copyright (C) 2015-2019 Clazy Team
+
+            Distributed under the \l {https://www.gnu.org/licenses/old-licenses/lgpl-2.0.html}
+            {GNU LIBRARY GENERAL PUBLIC LICENSE Version 2 (LGPL2)}.
+
+            Integrated with patches from
+            \list
+            \li \l{http://code.qt.io/cgit/clang/clang-tools-extra.git}
+            \endlist
+
+        \li \b{LLVM/Clang}
+
+            \list
+            \li \l{http://llvm.org/svn/llvm-project/llvm}
+            \li \l{http://llvm.org/svn/llvm-project/cfe/trunk}
+            \li \l{http://llvm.org/svn/llvm-project/clang-tools-extra/trunk}
+            \endlist
+
+            Copyright (C) 2003-2019 LLVM Team
+
+            Distributed under the \l {https://github.com/llvm-mirror/llvm/blob/master/LICENSE.TXT}
+            {University of Illinois/NCSA Open Source License (NCSA)}.
+
+            With backported/additional patches from
+            \list
+            \li \l{http://code.qt.io/cgit/clang/llvm.git}
+            \li \l{http://code.qt.io/cgit/clang/clang.git}
+            \endlist
+
         \li \b{Reference implementation for std::experimental::optional}
 
             Copyright (C) 2011-2012 Andrzej Krzemienski
@@ -89,61 +161,6 @@
             in \QC.\br
             Roberto Raggi <roberto.raggi@gmail.com>\br
             QtCreator/src/shared/cplusplus\br\br
-
-        \li \b{Botan, a C++ crypto library. Version 1.8.8}\br
-
-            \list
-                \li Copyright (C) 1999-2004 The Botan Project. All rights
-                    reserved.
-                \li Copyright (C) 1999-2009 Jack Lloyd
-                \li 2001 Peter J Jones
-                \li 2004-2007 Justin Karneges
-                \li 2005 Matthew Gregan
-                \li 2005-2006 Matt Johnston
-                \li 2006 Luca Piccarreta
-                \li 2007 Yves Jerschow
-                \li 2007-2008 FlexSecure GmbH
-                \li 2007-2008 Technische Universitat Darmstadt
-                \li 2007-2008 Falko Strenzke
-                \li 2007-2008 Martin Doering
-                \li 2007 Manuel Hartl
-                \li 2007 Christoph Ludwig
-                \li 2007 Patrick Sona
-            \endlist
-
-        \code
-        All rights reserved.
-
-        Redistribution and use in source and binary forms, with or without
-        modification, are permitted provided that the following conditions are
-        met:
-
-        1. Redistributions of source code must retain the above copyright
-        notice, this list of conditions, and the following disclaimer.
-
-        2. Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions, and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
-
-        THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) "AS IS" AND ANY EXPRESS OR
-        IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
-        ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR(S) OR CONTRIBUTOR(S) BE
-        LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-        CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-        SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-        BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-        WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-        OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-        IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-        \endcode
-
-        The source code of Botan C++ crypto library can be found
-        here:
-        \list
-        \li  QtCreator/src/libs/3rdparty
-        \li  \l{https://code.qt.io/cgit/qt-creator/qt-creator.git/tree/src/libs/3rdparty}
-        \endlist
 
         \li \b{ANGLE Library (Windows)}
 
@@ -189,6 +206,134 @@
         LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
         ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
         POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE Array Bounds Clamper for WebKit (Windows)}
+
+        Implements clamping of array indexing expressions during shader
+        translation.
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure with
+        \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/compiler.
+
+        BSD 2-clause "Simplified" License.
+
+        \code
+        Copyright (C) 2012 Apple Inc. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+        1. Redistributions of source code must retain the above copyright
+           notice, this list of conditions and the following disclaimer.
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in the
+           documentation and/or other materials provided with the distribution.
+
+        THIS SOFTWARE IS PROVIDED BY APPLE, INC. ``AS IS'' AND ANY
+        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE, INC. OR
+        CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+        EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+        PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+        PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+        OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE: Murmurhash (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/murmurhash.
+
+        \code
+        MurmurHash3 was written by Austin Appleby, and is placed in the public
+        domain. The author hereby disclaims copyright to this source code.
+        \endcode
+
+        Public Domain.
+
+        \li \b{ANGLE: Systeminfo (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/systeminfo.
+
+        BSD 2-clause "Simplified" License.
+
+        \code
+        Copyright (C) 2009 Apple Inc. All Rights Reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions
+        are met:
+        1. Redistributions of source code must retain the above copyright
+           notice, this list of conditions and the following disclaimer.
+        2. Redistributions in binary form must reproduce the above copyright
+           notice, this list of conditions and the following disclaimer in the
+           documentation and/or other materials provided with the distribution.
+
+        THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
+        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
+        CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+        EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+        PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+        PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+        OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        \endcode
+
+        \li \b{ANGLE: trace_event (Windows)}
+
+        Used on Windows to implement OpenGL ES on top of DirectX. Configure
+        with \c {-no-opengl}, or \c {-opengl desktop} to exclude.
+
+        The sources can be found in
+        \c qtbase/src/3rdparty/angle/src/third_party/trace_event.
+
+        BSD 3-clause "New" or "Revised" License.
+
+        \code
+        Copyright 2013 The Chromium Authors. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions are
+        met:
+
+           * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+           * Redistributions in binary form must reproduce the above
+        copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the
+        distribution.
+           * Neither the name of Google Inc. nor the names of its
+        contributors may be used to endorse or promote products derived from
+        this software without specific prior written permission.
+
+        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+        "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+        LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+        A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+        OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+        SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+        LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+        DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+        THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         \endcode
 
         \li \b{SQLite, an embedded database. Version 3.8.10.2}\br\br

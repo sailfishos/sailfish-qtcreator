@@ -61,7 +61,7 @@
 using namespace ClangCodeModel;
 using namespace ClangCodeModel::Internal;
 
-static ClangModelManagerSupport *m_instance = 0;
+static ClangModelManagerSupport *m_instance = nullptr;
 
 static CppTools::CppModelManager *cppModelManager()
 {
@@ -75,8 +75,6 @@ ClangModelManagerSupport::ClangModelManagerSupport()
 {
     QTC_CHECK(!m_instance);
     m_instance = this;
-
-    QApplication::instance()->installEventFilter(this);
 
     CppTools::CppModelManager::instance()->setCurrentDocumentFilter(
                 std::make_unique<ClangCurrentDocumentFilter>());
@@ -113,7 +111,7 @@ ClangModelManagerSupport::ClangModelManagerSupport()
 ClangModelManagerSupport::~ClangModelManagerSupport()
 {
     QTC_CHECK(m_projectSettings.isEmpty());
-    m_instance = 0;
+    m_instance = nullptr;
 }
 
 CppTools::CppCompletionAssistProvider *ClangModelManagerSupport::completionAssistProvider()
@@ -139,11 +137,6 @@ CppTools::RefactoringEngineInterface &ClangModelManagerSupport::refactoringEngin
 std::unique_ptr<CppTools::AbstractOverviewModel> ClangModelManagerSupport::createOverviewModel()
 {
     return std::make_unique<OverviewModel>();
-}
-
-void ClangModelManagerSupport::setBackendJobsPostponed(bool postponed)
-{
-    m_communicator.setBackendJobsPostponed(postponed);
 }
 
 CppTools::BaseEditorDocumentProcessor *ClangModelManagerSupport::createEditorDocumentProcessor(
@@ -219,26 +212,12 @@ void ClangModelManagerSupport::connectToWidgetsMarkContextMenuRequested(QWidget 
     }
 }
 
-bool ClangModelManagerSupport::eventFilter(QObject *obj, QEvent *e)
-{
-    if (obj == QApplication::instance() && e->type() == QEvent::ApplicationStateChange) {
-        switch (QApplication::applicationState()) {
-        case Qt::ApplicationInactive: setBackendJobsPostponed(true); break;
-        case Qt::ApplicationActive: setBackendJobsPostponed(false); break;
-        default:
-            QTC_CHECK(false && "Unexpected Qt::ApplicationState");
-        }
-    }
-
-    return false;
-}
-
 void ClangModelManagerSupport::onEditorOpened(Core::IEditor *editor)
 {
     QTC_ASSERT(editor, return);
     Core::IDocument *document = editor->document();
     QTC_ASSERT(document, return);
-    TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(document);
+    auto textDocument = qobject_cast<TextEditor::TextDocument *>(document);
 
     if (textDocument && cppModelManager()->isCppEditor(editor)) {
         connectTextDocumentToTranslationUnit(textDocument);
@@ -255,7 +234,7 @@ void ClangModelManagerSupport::onEditorClosed(const QList<Core::IEditor *> &)
 
 void ClangModelManagerSupport::onCppDocumentAboutToReloadOnTranslationUnit()
 {
-    TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
+    auto textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
     disconnect(textDocument, &TextEditor::TextDocument::contentsChangedWithPosition,
                this, &ClangModelManagerSupport::onCppDocumentContentsChangedOnTranslationUnit);
 }
@@ -263,7 +242,7 @@ void ClangModelManagerSupport::onCppDocumentAboutToReloadOnTranslationUnit()
 void ClangModelManagerSupport::onCppDocumentReloadFinishedOnTranslationUnit(bool success)
 {
     if (success) {
-        TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
+        auto textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
         connectToTextDocumentContentsChangedForTranslationUnit(textDocument);
         m_communicator.documentsChangedWithRevisionCheck(textDocument);
     }
@@ -282,7 +261,7 @@ void ClangModelManagerSupport::onCppDocumentContentsChangedOnTranslationUnit(int
                                                                              int /*charsRemoved*/,
                                                                              int /*charsAdded*/)
 {
-    Core::IDocument *document = qobject_cast<Core::IDocument *>(sender());
+    auto document = qobject_cast<Core::IDocument *>(sender());
 
     m_communicator.updateChangeContentStartPosition(document->filePath().toString(),
                                                        position);
@@ -293,7 +272,7 @@ void ClangModelManagerSupport::onCppDocumentContentsChangedOnTranslationUnit(int
 
 void ClangModelManagerSupport::onCppDocumentAboutToReloadOnUnsavedFile()
 {
-    TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
+    auto textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
     disconnect(textDocument, &TextEditor::TextDocument::contentsChangedWithPosition,
                this, &ClangModelManagerSupport::onCppDocumentContentsChangedOnUnsavedFile);
 }
@@ -301,7 +280,7 @@ void ClangModelManagerSupport::onCppDocumentAboutToReloadOnUnsavedFile()
 void ClangModelManagerSupport::onCppDocumentReloadFinishedOnUnsavedFile(bool success)
 {
     if (success) {
-        TextEditor::TextDocument *textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
+        auto textDocument = qobject_cast<TextEditor::TextDocument *>(sender());
         connectToTextDocumentContentsChangedForUnsavedFile(textDocument);
         m_communicator.unsavedFilesUpdated(textDocument);
     }
@@ -309,11 +288,12 @@ void ClangModelManagerSupport::onCppDocumentReloadFinishedOnUnsavedFile(bool suc
 
 void ClangModelManagerSupport::onCppDocumentContentsChangedOnUnsavedFile()
 {
-    Core::IDocument *document = qobject_cast<Core::IDocument *>(sender());
+    auto document = qobject_cast<Core::IDocument *>(sender());
     m_communicator.unsavedFilesUpdated(document);
 }
 
 void ClangModelManagerSupport::onAbstractEditorSupportContentsUpdated(const QString &filePath,
+                                                                      const QString &,
                                                                       const QByteArray &content)
 {
     QTC_ASSERT(!filePath.isEmpty(), return);

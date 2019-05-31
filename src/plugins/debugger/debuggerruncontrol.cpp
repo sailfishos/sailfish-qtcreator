@@ -60,6 +60,7 @@
 #include <utils/temporarydirectory.h>
 #include <utils/temporaryfile.h>
 #include <utils/url.h>
+#include <utils/winutils.h>
 
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
@@ -105,7 +106,7 @@ public:
                 this, &LocalProcessRunner::handleStandardOutput);
         connect(&m_proc, &QProcess::readyReadStandardError,
                 this, &LocalProcessRunner::handleStandardError);
-        connect(&m_proc, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+        connect(&m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &LocalProcessRunner::handleFinished);
     }
 
@@ -213,7 +214,7 @@ private:
         }
 
         m_coreUnpackProcess.setWorkingDirectory(TemporaryDirectory::masterDirectoryPath());
-        connect(&m_coreUnpackProcess, static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+        connect(&m_coreUnpackProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &CoreUnpacker::reportStarted);
 
         const QString msg = DebuggerRunTool::tr("Unpacking core file to %1");
@@ -564,6 +565,17 @@ void DebuggerRunTool::start()
     if (!fixupParameters())
         return;
 
+    if (m_runParameters.cppEngineType == CdbEngineType
+            && Utils::is64BitWindowsBinary(m_runParameters.inferior.executable)
+            && !Utils::is64BitWindowsBinary(m_runParameters.debugger.executable)) {
+        reportFailure(
+            DebuggerPlugin::tr(
+                "%1 is a 64 bit executable which can not be debugged by a 32 bit Debugger.\n"
+                "Please select a 64 bit Debugger in the kit settings for this kit.")
+                .arg(m_runParameters.inferior.executable));
+        return;
+    }
+
     Utils::globalMacroExpander()->registerFileVariables(
                 "DebuggedExecutable", tr("Debugged executable"),
                 [this] { return m_runParameters.inferior.executable; }
@@ -676,7 +688,7 @@ void DebuggerRunTool::start()
                     DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
                                        "languages currently active, and will be ignored.\n"
                                        "Affected are breakpoints %1")
-                    .arg(unhandledIds.join(QLatin1String(", ")));
+                    .arg(unhandledIds.join(", "));
 
             showMessage(warningMessage, LogWarning);
 
@@ -716,8 +728,6 @@ void DebuggerRunTool::stop()
 
 void DebuggerRunTool::handleEngineStarted(DebuggerEngine *engine)
 {
-    EngineManager::activateEngine(engine);
-
     // Correct:
 //    if (--d->engineStartsNeeded == 0) {
 //        EngineManager::activateDebugMode();
@@ -781,7 +791,8 @@ bool DebuggerRunTool::fixupParameters()
         rp.symbolFile = rp.inferior.executable;
 
     // Copy over DYLD_IMAGE_SUFFIX etc
-    for (auto var : QStringList({"DYLD_IMAGE_SUFFIX", "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"}))
+    for (const auto &var :
+         QStringList({"DYLD_IMAGE_SUFFIX", "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"}))
         if (rp.inferior.environment.hasKey(var))
             rp.debugger.environment.set(var, rp.inferior.environment.value(var));
 

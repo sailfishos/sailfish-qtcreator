@@ -27,14 +27,25 @@
 
 #include "texteditor_global.h"
 
-#include <QObject>
+#include "indenter.h"
+
+#include <QWidget>
 
 namespace Core { class Id; }
 namespace TextEditor {
 
 class ICodeStylePreferences;
-class Indenter;
 class SnippetProvider;
+
+class TEXTEDITOR_EXPORT CodeStyleEditorWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    CodeStyleEditorWidget(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {}
+    virtual void apply() {}
+};
 
 class TEXTEDITOR_EXPORT ICodeStylePreferencesFactory : public QObject
 {
@@ -42,11 +53,13 @@ class TEXTEDITOR_EXPORT ICodeStylePreferencesFactory : public QObject
 public:
     explicit ICodeStylePreferencesFactory(QObject *parent = nullptr);
 
+    virtual CodeStyleEditorWidget *createCodeStyleEditor(ICodeStylePreferences *codeStyle,
+                                                         QWidget *parent = nullptr);
     virtual Core::Id languageId() = 0;
     virtual QString displayName() = 0;
     virtual ICodeStylePreferences *createCodeStyle() const = 0;
     virtual QWidget *createEditor(ICodeStylePreferences *preferences, QWidget *parent) const = 0;
-    virtual TextEditor::Indenter *createIndenter() const = 0;
+    virtual TextEditor::Indenter *createIndenter(QTextDocument *doc) const = 0;
     virtual QString snippetProviderGroupId() const = 0;
     virtual QString previewText() const = 0;
 };

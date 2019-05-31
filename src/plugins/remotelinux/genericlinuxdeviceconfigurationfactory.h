@@ -37,15 +37,9 @@ class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationFactory
     Q_OBJECT
 
 public:
-    GenericLinuxDeviceConfigurationFactory(QObject *parent = 0);
+    GenericLinuxDeviceConfigurationFactory();
 
-    QString displayNameForId(Core::Id type) const;
-    QList<Core::Id> availableCreationIds() const;
-    QIcon iconForId(Core::Id type) const;
-
-    ProjectExplorer::IDevice::Ptr create(Core::Id id) const;
-    bool canRestore(const QVariantMap &map) const;
-    ProjectExplorer::IDevice::Ptr restore(const QVariantMap &map) const;
+    ProjectExplorer::IDevice::Ptr create() const override;
 };
 
 } // namespace RemoteLinux

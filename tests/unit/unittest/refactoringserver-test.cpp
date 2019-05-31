@@ -36,7 +36,8 @@
 #include <refactoringserver.h>
 #include <sqlitedatabase.h>
 
-#include <QDir>
+#include <utils/temporarydirectory.h>
+
 #include <QTemporaryFile>
 
 namespace {
@@ -53,18 +54,20 @@ using testing::Property;
 using testing::_;
 
 using ClangBackEnd::FilePath;
+using ClangBackEnd::IncludeSearchPaths;
+using ClangBackEnd::IncludeSearchPathType;
 using ClangBackEnd::RequestSourceLocationsForRenamingMessage;
 using ClangBackEnd::RequestSourceRangesAndDiagnosticsForQueryMessage;
 using ClangBackEnd::RequestSourceRangesForQueryMessage;
 using ClangBackEnd::SourceLocationsContainer;
 using ClangBackEnd::SourceLocationsForRenamingMessage;
 using ClangBackEnd::SourceRangesAndDiagnosticsForQueryMessage;
-using ClangBackEnd::SourceRangesForQueryMessage;
 using ClangBackEnd::SourceRangesContainer;
+using ClangBackEnd::SourceRangesForQueryMessage;
 using ClangBackEnd::V2::FileContainer;
 using ClangBackEnd::V2::FileContainers;
-using ClangBackEnd::V2::ProjectPartContainer;
-using ClangBackEnd::V2::ProjectPartContainers;
+using ClangBackEnd::ProjectPartContainer;
+using ClangBackEnd::ProjectPartContainers;
 
 MATCHER_P2(IsSourceLocation, line, column,
            std::string(negation ? "isn't " : "is ")
@@ -97,10 +100,9 @@ protected:
     ClangBackEnd::GeneratedFiles generatedFiles;
     ClangBackEnd::RefactoringServer refactoringServer{mockSymbolIndexing, filePathCache, generatedFiles};
     Utils::SmallString sourceContent{"void f()\n {}"};
-    FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"},
-                         sourceContent.clone(),
-                         {"cc", toNativePath(TESTDATA_DIR"/query_simplefunction.cpp")}};
-    QTemporaryFile temporaryFile{QDir::tempPath() + "/clangQuery-XXXXXX.cpp"};
+    FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"}, sourceContent.clone(), {"cc"}};
+    QTemporaryFile temporaryFile{Utils::TemporaryDirectory::masterDirectoryPath()
+                                 + "/clangQuery-XXXXXX.cpp"};
     int processingSlotCount = 2;
 };
 
@@ -109,12 +111,8 @@ using RefactoringServerVerySlowTest = RefactoringServer;
 
 TEST_F(RefactoringServerSlowTest, RequestSourceLocationsForRenamingMessage)
 {
-    RequestSourceLocationsForRenamingMessage message{{TESTDATA_DIR, "renamevariable.cpp"},
-                                                     1,
-                                                     5,
-                                                     "int v;\n\nint x = v + 3;\n",
-                                                     {"cc", "renamevariable.cpp"},
-                                                     1};
+    RequestSourceLocationsForRenamingMessage message{
+        {TESTDATA_DIR, "renamevariable.cpp"}, 1, 5, "int v;\n\nint x = v + 3;\n", {"cc"}, 1};
 
     EXPECT_CALL(mockRefactoringClient,
                 sourceLocationsForRenamingMessage(
@@ -148,13 +146,9 @@ TEST_F(RefactoringServerSlowTest, RequestSingleSourceRangesAndDiagnosticsWithUns
     Utils::SmallString unsavedContent{"void f();"};
     FileContainer source{{TESTDATA_DIR, "query_simplefunction.cpp"},
                          "#include \"query_simplefunction.h\"",
-                         {"cc", "query_simplefunction.cpp"}};
-    FileContainer unsaved{{TESTDATA_DIR, "query_simplefunction.h"},
-                          unsavedContent.clone(),
-                          {}};
-    RequestSourceRangesForQueryMessage message{"functionDecl()",
-                                               {source.clone()},
-                                               {unsaved.clone()}};
+                         {"cc"}};
+    FileContainer unsaved{{TESTDATA_DIR, "query_simplefunction.h"}, unsavedContent.clone(), {}};
+    RequestSourceRangesForQueryMessage message{"functionDecl()", {source.clone()}, {unsaved.clone()}};
 
     EXPECT_CALL(mockRefactoringClient,
                 sourceRangesForQueryMessage(
@@ -266,7 +260,7 @@ TEST_F(RefactoringServerSlowTest, ForValidRequestSourceRangesAndDiagnosticsGetSo
     RequestSourceRangesAndDiagnosticsForQueryMessage message("functionDecl()",
                                                              {FilePath(temporaryFile.fileName()),
                                                               "void f() {}",
-                                                              {"cc", toNativePath(temporaryFile.fileName())}});
+                                                              {"cc"}});
 
     EXPECT_CALL(mockRefactoringClient,
                 sourceRangesAndDiagnosticsForQueryMessage(
@@ -285,7 +279,7 @@ TEST_F(RefactoringServerSlowTest, ForInvalidRequestSourceRangesAndDiagnosticsGet
     RequestSourceRangesAndDiagnosticsForQueryMessage message("func()",
                                                              {FilePath(temporaryFile.fileName()),
                                                               "void f() {}",
-                                                              {"cc", toNativePath(temporaryFile.fileName())}});
+                                                              {"cc"}});
 
     EXPECT_CALL(mockRefactoringClient,
                 sourceRangesAndDiagnosticsForQueryMessage(
@@ -324,20 +318,33 @@ TEST_F(RefactoringServer, RemoveGeneratedFilesSetMemberWhichIsUsedForSymbolIndex
 
 TEST_F(RefactoringServer, UpdateProjectPartsCallsSymbolIndexingUpdateProjectParts)
 {
-    ProjectPartContainers projectParts{{{"projectPartId",
-                                        {"-I", TESTDATA_DIR},
-                                        {{"DEFINE", "1"}},
-                                        {"/includes"},
-                                        {filePathId("header1.h")},
-                                        {filePathId("main.cpp")}}}};
-
+    ProjectPartContainers projectParts{
+        {{1,
+          {"-I", TESTDATA_DIR},
+          {{"DEFINE", "1", 1}},
+          IncludeSearchPaths{{"/includes", 1, IncludeSearchPathType::BuiltIn},
+                             {"/other/includes", 2, IncludeSearchPathType::System}},
+          IncludeSearchPaths{{"/project/includes", 1, IncludeSearchPathType::User},
+                             {"/other/project/includes", 2, IncludeSearchPathType::User}},
+          {filePathId("header1.h")},
+          {filePathId("main.cpp")},
+          Utils::Language::C,
+          Utils::LanguageVersion::C11,
+          Utils::LanguageExtension::All}}};
 
     EXPECT_CALL(mockSymbolIndexing,
                 updateProjectParts(projectParts));
 
-    refactoringServer.updateProjectParts({Utils::clone(projectParts)});
+    refactoringServer.updateProjectParts({Utils::clone(projectParts), {}});
 }
 
+TEST_F(RefactoringServer, SetProgress)
+{
+    EXPECT_CALL(mockRefactoringClient, progress(AllOf(Field(&ClangBackEnd::ProgressMessage::progress, 20),
+                                                      Field(&ClangBackEnd::ProgressMessage::total, 30))));
+
+    refactoringServer.setProgress(20, 30);
+}
 
 void RefactoringServer::SetUp()
 {

@@ -26,6 +26,7 @@
 #include "remotelinuxrunconfiguration.h"
 
 #include "remotelinux_constants.h"
+#include "remotelinuxx11forwardingaspect.h"
 #include "remotelinuxenvironmentaspect.h"
 
 #include <projectexplorer/buildtargetinfo.h>
@@ -36,6 +37,8 @@
 #include <projectexplorer/target.h>
 
 #include <qtsupport/qtoutputformatter.h>
+
+#include <utils/hostosinfo.h>
 
 using namespace ProjectExplorer;
 using namespace Utils;
@@ -59,7 +62,11 @@ RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target, Core::I
 
     addAspect<ArgumentsAspect>();
     addAspect<WorkingDirectoryAspect>();
+    if (HostOsInfo::isAnyUnixHost())
+        addAspect<TerminalAspect>();
     addAspect<RemoteLinuxEnvironmentAspect>(target);
+    if (id == IdPrefix && Utils::HostOsInfo::isAnyUnixHost())
+        addAspect<X11ForwardingAspect>();
 
     setOutputFormatter<QtSupport::QtOutputFormatter>();
 
@@ -71,6 +78,15 @@ RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *target, Core::I
             this, &RemoteLinuxRunConfiguration::updateTargetInformation);
     connect(target, &Target::kitChanged,
             this, &RemoteLinuxRunConfiguration::updateTargetInformation);
+}
+
+Runnable RemoteLinuxRunConfiguration::runnable() const
+{
+    Runnable r = RunConfiguration::runnable();
+    const auto * const forwardingAspect = aspect<X11ForwardingAspect>();
+    if (forwardingAspect)
+        r.extraData.insert("Ssh.X11ForwardToDisplay", forwardingAspect->display(macroExpander()));
+    return r;
 }
 
 void RemoteLinuxRunConfiguration::updateTargetInformation()

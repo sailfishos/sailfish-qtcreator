@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include "coreplugin/core_global.h"
-#include "coreplugin/icontext.h"
+#include "../core_global.h"
+#include "../icontext.h"
 
 #include <QObject>
 
@@ -35,6 +35,8 @@ class QMenu;
 class QMenuBar;
 class QAction;
 QT_END_NAMESPACE
+
+namespace Utils { class TouchBar; }
 
 namespace Core {
 
@@ -58,13 +60,14 @@ public:
 
     virtual QMenu *menu() const = 0;
     virtual QMenuBar *menuBar() const = 0;
+    virtual Utils::TouchBar *touchBar() const = 0;
 
     virtual QAction *insertLocation(Id group) const = 0;
     virtual void appendGroup(Id group) = 0;
     virtual void insertGroup(Id before, Id group) = 0;
     virtual void addAction(Command *action, Id group = Id()) = 0;
     virtual void addMenu(ActionContainer *menu, Id group = Id()) = 0;
-    virtual void addMenu(ActionContainer *before, ActionContainer *menu, Id group = Id()) = 0;
+    virtual void addMenu(ActionContainer *before, ActionContainer *menu) = 0;
     Command *addSeparator(Id group = Id());
     virtual Command *addSeparator(const Context &context, Id group = Id(), QAction **outSeparator = nullptr) = 0;
 

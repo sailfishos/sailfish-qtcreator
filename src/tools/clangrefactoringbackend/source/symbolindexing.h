@@ -35,6 +35,8 @@
 #include "symbolstorage.h"
 
 #include <builddependenciesstorage.h>
+#include <precompiledheaderstorage.h>
+#include <projectpartsstorage.h>
 
 #include <refactoringdatabaseinitializer.h>
 #include <filepathcachingfwd.h>
@@ -50,6 +52,7 @@
 namespace ClangBackEnd {
 
 class SymbolsCollectorManager;
+class RefactoringServer;
 
 class SymbolsCollectorManager final : public ClangBackEnd::ProcessorManager<SymbolsCollector>
 {
@@ -78,12 +81,20 @@ public:
     using SymbolStorage = ClangBackEnd::SymbolStorage<Sqlite::Database>;
     SymbolIndexing(Sqlite::Database &database,
                    FilePathCachingInterface &filePathCache,
-                   const GeneratedFiles &generatedFiles)
-        : m_filePathCache(filePathCache),
-          m_usedMacroAndSourceStorage(database),
-          m_symbolStorage(database),
-          m_collectorManger(generatedFiles, database),
-          m_indexerScheduler(m_collectorManger, m_indexerQueue, std::thread::hardware_concurrency())
+                   const GeneratedFiles &generatedFiles,
+                   ProgressCounter::SetProgressCallback &&setProgressCallback)
+        : m_filePathCache(filePathCache)
+        , m_buildDependencyStorage(database)
+        , m_precompiledHeaderStorage(database)
+        , m_projectPartsStorage(database)
+        , m_symbolStorage(database)
+        , m_collectorManger(generatedFiles, database)
+        , m_progressCounter(std::move(setProgressCallback))
+        , m_indexerScheduler(m_collectorManger,
+                             m_indexerQueue,
+                             m_progressCounter,
+                             std::thread::hardware_concurrency(),
+                             CallDoInMainThreadAfterFinished::Yes)
     {
     }
 
@@ -102,29 +113,34 @@ public:
         m_indexerScheduler.disable();
         while (!m_indexerScheduler.futures().empty()) {
             m_indexerScheduler.syncTasks();
-            m_indexerScheduler.freeSlots();
+            m_indexerScheduler.slotUsage();
         }
     }
 
-    void updateProjectParts(V2::ProjectPartContainers &&projectParts) override;
+    void updateProjectParts(ProjectPartContainers &&projectParts) override;
 
 private:
     using SymbolIndexerTaskScheduler = TaskScheduler<SymbolsCollectorManager, SymbolIndexerTask::Callable>;
     FilePathCachingInterface &m_filePathCache;
-    BuildDependenciesStorage m_usedMacroAndSourceStorage;
+    BuildDependenciesStorage m_buildDependencyStorage;
+    PrecompiledHeaderStorage<Sqlite::Database> m_precompiledHeaderStorage;
+    ProjectPartsStorage<Sqlite::Database> m_projectPartsStorage;
     SymbolStorage m_symbolStorage;
     ClangPathWatcher<QFileSystemWatcher, QTimer> m_sourceWatcher{m_filePathCache};
     FileStatusCache m_fileStatusCache{m_filePathCache};
     SymbolsCollectorManager m_collectorManger;
-    SymbolIndexerTaskScheduler m_indexerScheduler;
-    SymbolIndexerTaskQueue m_indexerQueue{m_indexerScheduler};
+    ProgressCounter m_progressCounter;
     SymbolIndexer m_indexer{m_indexerQueue,
                             m_symbolStorage,
-                            m_usedMacroAndSourceStorage,
+                            m_buildDependencyStorage,
+                            m_precompiledHeaderStorage,
                             m_sourceWatcher,
                             m_filePathCache,
                             m_fileStatusCache,
-                            m_symbolStorage.m_database};
+                            m_symbolStorage.database,
+                            m_projectPartsStorage};
+    SymbolIndexerTaskQueue m_indexerQueue{m_indexerScheduler, m_progressCounter};
+    SymbolIndexerTaskScheduler m_indexerScheduler;
 };
 
 } // namespace ClangBackEnd

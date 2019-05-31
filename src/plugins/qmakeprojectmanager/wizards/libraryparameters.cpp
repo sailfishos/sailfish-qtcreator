@@ -27,39 +27,23 @@
 #include "librarywizarddialog.h"
 
 #include <utils/codegeneration.h>
+#include <utils/qtcassert.h>
 
 #include <QTextStream>
 #include <QStringList>
 
-// Contents of the header defining the shared library export.
-#define GUARD_VARIABLE "<GUARD>"
-#define EXPORT_MACRO_VARIABLE "<EXPORT_MACRO>"
-#define LIBRARY_MACRO_VARIABLE "<LIBRARY_MACRO>"
-
-static const char *globalHeaderContentsC =
-"#ifndef " GUARD_VARIABLE "\n"
-"#define " GUARD_VARIABLE "\n"
-"\n"
-"#include <QtCore/qglobal.h>\n"
-"\n"
-"#if defined(" LIBRARY_MACRO_VARIABLE ")\n"
-"#  define " EXPORT_MACRO_VARIABLE " Q_DECL_EXPORT\n"
-"#else\n"
-"#  define " EXPORT_MACRO_VARIABLE " Q_DECL_IMPORT\n"
-"#endif\n"
-"\n"
-"#endif // " GUARD_VARIABLE "\n";
+#include <cstring>
 
 namespace QmakeProjectManager {
 namespace Internal {
 
 void LibraryParameters::generateCode(QtProjectParameters:: Type t,
-                                     const QString &projectTarget,
                                      const QString &headerName,
                                      const QString &sharedHeader,
                                      const QString &exportMacro,
                                      const QString &pluginJsonFileName,
                                      int indentation,
+                                     bool usePragmaOnce,
                                      QString *header,
                                      QString *source) const
 {
@@ -76,8 +60,10 @@ void LibraryParameters::generateCode(QtProjectParameters:: Type t,
 
     // 1) Header
     const QString guard = Utils::headerGuard(headerFileName, namespaceList);
-    headerStr << "#ifndef " << guard
-        << "\n#define " <<  guard << '\n' << '\n';
+    if (usePragmaOnce)
+        headerStr << "#pragma once\n\n";
+    else
+        headerStr << "#ifndef " << guard << "\n#define " << guard << "\n\n";
 
     if (!sharedHeader.isEmpty())
         Utils::writeIncludeFileDirective(sharedHeader, false, headerStr);
@@ -91,7 +77,9 @@ void LibraryParameters::generateCode(QtProjectParameters:: Type t,
     const QString namespaceIndent = Utils::writeOpeningNameSpaces(namespaceList, indent, headerStr);
 
     // Class declaraction
-    headerStr << '\n' << namespaceIndent << "class ";
+    if (!namespaceIndent.isEmpty())
+        headerStr << '\n';
+    headerStr << namespaceIndent << "class ";
     if (t == QtProjectParameters::SharedLibrary && !exportMacro.isEmpty())
         headerStr << exportMacro << ' ';
 
@@ -101,29 +89,38 @@ void LibraryParameters::generateCode(QtProjectParameters:: Type t,
     headerStr << "\n{\n";
 
     // Is this a QObject (plugin)
-    const bool inheritsQObject = t == QtProjectParameters::Qt4Plugin;
+    const bool inheritsQObject = t == QtProjectParameters::QtPlugin;
     if (inheritsQObject)
         headerStr << namespaceIndent << indent << "Q_OBJECT\n";
-    if (t == QtProjectParameters::Qt4Plugin) { // Write Qt 5 plugin meta data.
+    if (t == QtProjectParameters::QtPlugin) { // Write Qt plugin meta data.
         const QString qt5InterfaceName = LibraryWizardDialog::pluginInterface(baseClassName);
-        if (!qt5InterfaceName.isEmpty()) {
-            headerStr << "#if QT_VERSION >= 0x050000\n"
-                      << namespaceIndent << indent << "Q_PLUGIN_METADATA(IID \""
-                      << qt5InterfaceName << '"';
-            if (!pluginJsonFileName.isEmpty())
-                headerStr << " FILE \"" << pluginJsonFileName << '"';
-            headerStr << ")\n#endif // QT_VERSION >= 0x050000\n";
-        }
+        QTC_CHECK(!qt5InterfaceName.isEmpty());
+        headerStr << namespaceIndent << indent << "Q_PLUGIN_METADATA(IID \""
+                  << qt5InterfaceName << '"';
+        QTC_CHECK(!pluginJsonFileName.isEmpty());
+        headerStr << " FILE \"" << pluginJsonFileName << '"';
+        headerStr << ")\n";
     }
 
     headerStr << namespaceIndent << "\npublic:\n";
-    if (inheritsQObject)
-        headerStr << namespaceIndent << indent << unqualifiedClassName << "(QObject *parent = 0);\n";
-    else
+    if (inheritsQObject) {
+        headerStr << namespaceIndent << indent << "explicit " << unqualifiedClassName
+                  << "(QObject *parent = nullptr);\n";
+    } else {
         headerStr << namespaceIndent << indent << unqualifiedClassName << "();\n";
-    headerStr << namespaceIndent << "};\n\n";
+    }
+    if (!pureVirtualSignatures.empty()) {
+        headerStr << "\nprivate:\n";
+        for (const QString &signature : pureVirtualSignatures)
+            headerStr << namespaceIndent << indent << signature << " override;\n";
+    }
+    headerStr << namespaceIndent << "};\n";
+    if (!namespaceIndent.isEmpty())
+        headerStr << '\n';
     Utils::writeClosingNameSpaces(namespaceList, indent, headerStr);
-    headerStr <<  "#endif // "<<  guard << '\n';
+    if (!usePragmaOnce)
+        headerStr <<  "\n#endif // " << guard << '\n';
+
     /// 2) Source
     QTextStream sourceStr(source);
 
@@ -131,8 +128,11 @@ void LibraryParameters::generateCode(QtProjectParameters:: Type t,
     sourceStr << '\n';
 
     Utils::writeOpeningNameSpaces(namespaceList, indent, sourceStr);
+    if (!namespaceIndent.isEmpty())
+        sourceStr << '\n';
+
     // Constructor
-    sourceStr << '\n' << namespaceIndent << unqualifiedClassName << "::" << unqualifiedClassName;
+    sourceStr << namespaceIndent << unqualifiedClassName << "::" << unqualifiedClassName;
     if (inheritsQObject) {
          sourceStr << "(QObject *parent) :\n"
                    << namespaceIndent << indent << baseClassName << "(parent)\n";
@@ -140,24 +140,52 @@ void LibraryParameters::generateCode(QtProjectParameters:: Type t,
         sourceStr << "()\n";
     }
     sourceStr << namespaceIndent << "{\n" << namespaceIndent <<  "}\n";
+    for (const QString &signature : pureVirtualSignatures) {
+        const int parenIndex = signature.indexOf('(');
+        QTC_ASSERT(parenIndex != -1, continue);
+        int nameIndex = -1;
+        for (int i = parenIndex - 1; i > 0; --i) {
+            if (!signature.at(i).isLetterOrNumber()) {
+                nameIndex = i + 1;
+                break;
+            }
+        }
+        QTC_ASSERT(nameIndex != -1, continue);
+        sourceStr << '\n' << namespaceIndent << signature.left(nameIndex);
+        if (!std::strchr("&* ", signature.at(nameIndex - 1).toLatin1()))
+            sourceStr << ' ';
+        sourceStr << unqualifiedClassName << "::" << signature.mid(nameIndex) << '\n';
+        sourceStr << namespaceIndent << "{\n" << indent
+                  << "static_assert(false, \"You need to implement this function\");\n}\n";
+    }
 
     Utils::writeClosingNameSpaces(namespaceList, indent, sourceStr);
-
-    if (t == QtProjectParameters::Qt4Plugin) { // Qt 4 plugin export
-        sourceStr << "\n#if QT_VERSION < 0x050000\n"
-                  << "Q_EXPORT_PLUGIN2(" << projectTarget << ", " << className << ")\n"
-                  << "#endif // QT_VERSION < 0x050000\n";
-    }
 }
 
 QString  LibraryParameters::generateSharedHeader(const QString &globalHeaderFileName,
                                                  const QString &projectTarget,
-                                                 const QString &exportMacro)
+                                                 const QString &exportMacro,
+                                                 bool usePragmaOnce)
 {
-    QString contents = QLatin1String(globalHeaderContentsC);
-    contents.replace(QLatin1String(GUARD_VARIABLE), Utils::headerGuard(globalHeaderFileName));
-    contents.replace(QLatin1String(EXPORT_MACRO_VARIABLE), exportMacro);
-    contents.replace(QLatin1String(LIBRARY_MACRO_VARIABLE), QtProjectParameters::libraryMacro(projectTarget));
+    QString contents;
+    if (usePragmaOnce) {
+        contents += "#pragma once\n";
+    } else {
+        contents += "#ifndef " + Utils::headerGuard(globalHeaderFileName) + "\n";
+        contents += "#define " + Utils::headerGuard(globalHeaderFileName) + "\n";
+    }
+    contents += "\n";
+    contents += "#include <QtCore/qglobal.h>\n";
+    contents += "\n";
+    contents += "#if defined(" + QtProjectParameters::libraryMacro(projectTarget) + ")\n";
+    contents += "#  define " + exportMacro + " Q_DECL_EXPORT\n";
+    contents += "#else\n";
+    contents += "#  define " + exportMacro + " Q_DECL_IMPORT\n";
+    contents += "#endif\n";
+    contents += "\n";
+    if (!usePragmaOnce)
+        contents += "#endif // " + Utils::headerGuard(globalHeaderFileName) + '\n';
+
     return contents;
 }
 

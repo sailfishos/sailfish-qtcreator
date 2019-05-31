@@ -43,6 +43,7 @@
 #include <utils/synchronousprocess.h>
 
 #include <QBuffer>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -51,7 +52,6 @@
 #include <QLoggingCategory>
 #include <QRegularExpression>
 
-#include <algorithm>
 #include <memory>
 
 namespace {
@@ -74,6 +74,7 @@ static const char compilerPlatformLinkerFlagsKeyC[] = "ProjectExplorer.GccToolCh
 static const char targetAbiKeyC[] = "ProjectExplorer.GccToolChain.TargetAbi";
 static const char originalTargetTripleKeyC[] = "ProjectExplorer.GccToolChain.OriginalTargetTriple";
 static const char supportedAbisKeyC[] = "ProjectExplorer.GccToolChain.SupportedAbis";
+static const char parentToolChainIdKeyC[] = "ProjectExplorer.ClangToolChain.ParentToolChainId";
 static const char binaryRegexp[] = "(?:^|-|\\b)(?:gcc|g\\+\\+|clang(?:\\+\\+)?)(?:-([\\d.]+))?$";
 
 static QByteArray runGcc(const FileName &gcc, const QStringList &arguments, const QStringList &env)
@@ -341,6 +342,11 @@ bool GccToolChain::isValid() const
     return fi.isExecutable();
 }
 
+static bool isNetworkCompiler(const QString &dirPath)
+{
+    return dirPath.contains("icecc") || dirPath.contains("distcc");
+}
+
 static Utils::FileName findLocalCompiler(const Utils::FileName &compilerPath,
                                          const Environment &env)
 {
@@ -349,21 +355,13 @@ static Utils::FileName findLocalCompiler(const Utils::FileName &compilerPath,
 
     // Get the path to the compiler, ignoring direct calls to icecc and distcc as we cannot
     // do anything about those.
-    const Utils::FileName compilerDir = compilerPath.parentDir();
-    const QString compilerDirString = compilerDir.toString();
-    if (!compilerDirString.contains("icecc") && !compilerDirString.contains("distcc"))
+    if (!isNetworkCompiler(compilerPath.parentDir().toString()))
         return compilerPath;
 
-    FileNameList pathComponents = env.path();
-    auto it = std::find_if(pathComponents.begin(), pathComponents.end(),
-                           [compilerDir](const FileName &p) {
-        return p == compilerDir;
+    // Filter out network compilers
+    const FileNameList pathComponents = Utils::filtered(env.path(), [] (const FileName &dirPath) {
+        return !isNetworkCompiler(dirPath.toString());
     });
-    if (it != pathComponents.end()) {
-        std::rotate(pathComponents.begin(), it, pathComponents.end());
-        pathComponents.removeFirst(); // remove directory of compilerPath
-                                      // No need to put it at the end again, it is in PATH anyway...
-    }
 
     // This effectively searches the PATH twice, once via pathComponents and once via PATH itself:
     // searchInPath filters duplicates, so that will not hurt.
@@ -400,15 +398,7 @@ ToolChain::MacroInspectionRunner GccToolChain::createMacroInspectionRunner() con
                        || a == "-gcc-toolchain" || a == "-target") {
                 if (++iArg < allFlags.length())
                     arguments << a << allFlags.at(iArg);
-            } else if (a == "-m128bit-long-double" || a == "-m32" || a == "-m3dnow"
-                       || a == "-m3dnowa" || a == "-m64" || a == "-m96bit-long-double"
-                       || a == "-mabm" || a == "-maes" || a.startsWith("-march=") || a == "-mavx"
-                       || a.startsWith("-masm=") || a.startsWith("-mfloat-abi") || a == "-mcx16"
-                       || a == "-mfma" || a == "-mfma4" || a == "-mlwp" || a == "-mpclmul"
-                       || a == "-mpopcnt" || a == "-msse" || a == "-msse2" || a == "-msse2avx"
-                       || a == "-msse3" || a == "-msse4" || a == "-msse4.1" || a == "-msse4.2"
-                       || a == "-msse4a" || a == "-mssse3" || a.startsWith("-mtune=")
-                       || a == "-mxop" || a == "-Os" || a == "-O0" || a == "-O1" || a == "-O2"
+            } else if (a.startsWith("-m") || a == "-Os" || a == "-O0" || a == "-O1" || a == "-O2"
                        || a == "-O3" || a == "-ffinite-math-only" || a == "-fshort-double"
                        || a == "-fshort-wchar" || a == "-fsignaling-nans" || a == "-fno-inline"
                        || a == "-fno-exceptions" || a == "-fstack-protector"
@@ -464,7 +454,7 @@ ProjectExplorer::Macros GccToolChain::predefinedMacros(const QStringList &cxxfla
  * @brief Parses gcc flags -std=*, -fopenmp, -fms-extensions.
  * @see http://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html
  */
-LanguageExtensions GccToolChain::languageExtensions(const QStringList &cxxflags) const
+Utils::LanguageExtensions GccToolChain::languageExtensions(const QStringList &cxxflags) const
 {
     LanguageExtensions extensions = defaultLanguageExtensions();
 
@@ -545,16 +535,20 @@ QStringList GccToolChain::gccPrepareArguments(const QStringList &flags,
     allFlags << platformCodeGenFlags << flags;
     for (int i = 0; i < allFlags.size(); ++i) {
         const QString &flag = allFlags.at(i);
-        if (flag.startsWith("-stdlib=") || flag.startsWith("--gcctoolchain=")
-            || flag.startsWith("-B") || (flag.startsWith("-isystem") && flag.length() > 8)) {
+        if (flag.startsWith("-stdlib=") || flag.startsWith("--gcc-toolchain=")
+            || flag.startsWith("-B") || flag.startsWith("--target=")
+            || (flag.startsWith("-isystem") && flag.length() > 8)) {
             arguments << flag;
+        } else if ((flag == "-target" || flag == "-gcc-toolchain" || flag == "-isystem")
+                   && i < flags.size() - 1) {
+            arguments << flag << allFlags.at(i + 1);
+            ++i;
         } else if (!hasKitSysroot) {
             // pass build system's sysroot to compiler, if we didn't pass one from kit
-            if (flag.startsWith("--sysroot=")) {
+            if (flag.startsWith("--sysroot=")
+                || (flag.startsWith("-isysroot") && flag.length() > 9)) {
                 arguments << flag;
-            } else if ((flag.startsWith("-isysroot") || flag.startsWith("--sysroot")
-                        || flag == "-target" || flag == "-gcc-toolchain" || flag == "-isystem")
-                       && i < flags.size() - 1) {
+            } else if (flag == "-isysroot" && i < flags.size() - 1) {
                 arguments << flag << allFlags.at(i + 1);
                 ++i;
             }
@@ -783,7 +777,8 @@ bool GccToolChain::fromMap(const QVariantMap &data)
     m_compilerCommand = FileName::fromString(data.value(compilerCommandKeyC).toString());
     m_platformCodeGenFlags = data.value(compilerPlatformCodeGenFlagsKeyC).toStringList();
     m_platformLinkerFlags = data.value(compilerPlatformLinkerFlagsKeyC).toStringList();
-    m_targetAbi = Abi::fromString(data.value(targetAbiKeyC).toString());
+    const QString targetAbiString = data.value(targetAbiKeyC).toString();
+    m_targetAbi = Abi::fromString(targetAbiString);
     m_originalTargetTriple = data.value(originalTargetTripleKeyC).toString();
     const QStringList abiList = data.value(supportedAbisKeyC).toStringList();
     m_supportedAbis.clear();
@@ -794,7 +789,7 @@ bool GccToolChain::fromMap(const QVariantMap &data)
         m_supportedAbis.append(abi);
     }
 
-    if (!m_targetAbi.isValid())
+    if (targetAbiString.isEmpty())
         resetToolChain(m_compilerCommand);
 
     return true;
@@ -968,8 +963,9 @@ QList<ToolChain *> GccToolChainFactory::autoDetectToolchains(const FileName &com
     if (compilerPath.isEmpty())
         return result;
 
-    result = Utils::filtered(alreadyKnown, [requiredTypeId, compilerPath](ToolChain *tc) {
-        return tc->typeId() == requiredTypeId && tc->compilerCommand() == compilerPath;
+    result = Utils::filtered(alreadyKnown, [=](ToolChain *tc) {
+        return tc->typeId() == requiredTypeId && tc->compilerCommand() == compilerPath
+               && tc->language() == language;
     });
     if (!result.isEmpty()) {
         for (ToolChain *tc : result) {
@@ -1036,8 +1032,8 @@ QList<ToolChain *> GccToolChainFactory::autoDetectToolChain(const FileName &comp
 
 GccToolChainConfigWidget::GccToolChainConfigWidget(GccToolChain *tc) :
     ToolChainConfigWidget(tc),
-    m_compilerCommand(new PathChooser),
-    m_abiWidget(new AbiWidget)
+    m_abiWidget(new AbiWidget),
+    m_compilerCommand(new PathChooser)
 {
     Q_ASSERT(tc);
 
@@ -1077,8 +1073,10 @@ void GccToolChainConfigWidget::applyImpl()
     Q_ASSERT(tc);
     QString displayName = tc->displayName();
     tc->setCompilerCommand(m_compilerCommand->fileName());
-    tc->setSupportedAbis(m_abiWidget->supportedAbis());
-    tc->setTargetAbi(m_abiWidget->currentAbi());
+    if (m_abiWidget) {
+        tc->setSupportedAbis(m_abiWidget->supportedAbis());
+        tc->setTargetAbi(m_abiWidget->currentAbi());
+    }
     tc->setOriginalTargetTriple(tc->detectSupportedAbis().originalTargetTriple);
     tc->setDisplayName(displayName); // reset display name
     tc->setPlatformCodeGenFlags(splitString(m_platformCodeGenFlagsLineEdit->text()));
@@ -1102,9 +1100,11 @@ void GccToolChainConfigWidget::setFromToolchain()
     m_compilerCommand->setFileName(tc->compilerCommand());
     m_platformCodeGenFlagsLineEdit->setText(QtcProcess::joinArgs(tc->platformCodeGenFlags()));
     m_platformLinkerFlagsLineEdit->setText(QtcProcess::joinArgs(tc->platformLinkerFlags()));
-    m_abiWidget->setAbis(tc->supportedAbis(), tc->targetAbi());
-    if (!m_isReadOnly && !m_compilerCommand->path().isEmpty())
-        m_abiWidget->setEnabled(true);
+    if (m_abiWidget) {
+        m_abiWidget->setAbis(tc->supportedAbis(), tc->targetAbi());
+        if (!m_isReadOnly && !m_compilerCommand->path().isEmpty())
+            m_abiWidget->setEnabled(true);
+    }
 }
 
 bool GccToolChainConfigWidget::isDirtyImpl() const
@@ -1112,15 +1112,18 @@ bool GccToolChainConfigWidget::isDirtyImpl() const
     auto tc = static_cast<GccToolChain *>(toolChain());
     Q_ASSERT(tc);
     return m_compilerCommand->fileName() != tc->compilerCommand()
-            || m_platformCodeGenFlagsLineEdit->text() != QtcProcess::joinArgs(tc->platformCodeGenFlags())
-            || m_platformLinkerFlagsLineEdit->text() != QtcProcess::joinArgs(tc->platformLinkerFlags())
-            || m_abiWidget->currentAbi() != tc->targetAbi();
+           || m_platformCodeGenFlagsLineEdit->text()
+                  != QtcProcess::joinArgs(tc->platformCodeGenFlags())
+           || m_platformLinkerFlagsLineEdit->text()
+                  != QtcProcess::joinArgs(tc->platformLinkerFlags())
+           || (m_abiWidget && m_abiWidget->currentAbi() != tc->targetAbi());
 }
 
 void GccToolChainConfigWidget::makeReadOnlyImpl()
 {
     m_compilerCommand->setReadOnly(true);
-    m_abiWidget->setEnabled(false);
+    if (m_abiWidget)
+        m_abiWidget->setEnabled(false);
     m_platformCodeGenFlagsLineEdit->setEnabled(false);
     m_platformLinkerFlagsLineEdit->setEnabled(false);
     m_isReadOnly = true;
@@ -1144,6 +1147,9 @@ QStringList GccToolChainConfigWidget::splitString(const QString &s)
 
 void GccToolChainConfigWidget::handleCompilerCommandChange()
 {
+    if (!m_abiWidget)
+        return;
+
     bool haveCompiler = false;
     Abi currentAbi = m_abiWidget->currentAbi();
     bool customAbi = m_abiWidget->isCustomAbi() && m_abiWidget->isEnabled();
@@ -1201,13 +1207,78 @@ void GccToolChainConfigWidget::handlePlatformLinkerFlagsChange()
 // ClangToolChain
 // --------------------------------------------------------------------------
 
+static QList<ToolChain *> mingwToolChains()
+{
+    return ToolChainManager::toolChains([](const ToolChain *tc) -> bool {
+        return tc->typeId() == Constants::MINGW_TOOLCHAIN_TYPEID;
+    });
+}
+
+static const MingwToolChain *mingwToolChainFromId(const QByteArray &id)
+{
+    if (id.isEmpty())
+        return nullptr;
+
+    for (const ToolChain *tc : mingwToolChains()) {
+        if (tc->id() == id)
+            return static_cast<const MingwToolChain *>(tc);
+    }
+
+    return nullptr;
+}
+
+void ClangToolChain::syncAutodetectedWithParentToolchains()
+{
+    if (!HostOsInfo::isWindowsHost() || typeId() != Constants::CLANG_TOOLCHAIN_TYPEID
+        || !isAutoDetected()) {
+        return;
+    }
+
+    QObject::disconnect(m_thisToolchainRemovedConnection);
+    QObject::disconnect(m_mingwToolchainAddedConnection);
+
+    if (!mingwToolChainFromId(m_parentToolChainId)) {
+        const QList<ToolChain *> mingwTCs = mingwToolChains();
+        m_parentToolChainId = mingwTCs.isEmpty() ? "" : mingwTCs.front()->id();
+    }
+
+    // Subscribe only autodetected toolchains.
+    ToolChainManager *tcManager = ToolChainManager::instance();
+    m_mingwToolchainAddedConnection
+        = QObject::connect(tcManager, &ToolChainManager::toolChainAdded, [this](ToolChain *tc) {
+              if (tc->typeId() == Constants::MINGW_TOOLCHAIN_TYPEID
+                  && !mingwToolChainFromId(m_parentToolChainId)) {
+                  m_parentToolChainId = tc->id();
+              }
+          });
+    m_thisToolchainRemovedConnection
+        = QObject::connect(tcManager, &ToolChainManager::toolChainRemoved, [this](ToolChain *tc) {
+              if (tc == this) {
+                  QObject::disconnect(m_thisToolchainRemovedConnection);
+                  QObject::disconnect(m_mingwToolchainAddedConnection);
+              } else if (m_parentToolChainId == tc->id()) {
+                  const QList<ToolChain *> mingwTCs = mingwToolChains();
+                  m_parentToolChainId = mingwTCs.isEmpty() ? "" : mingwTCs.front()->id();
+              }
+          });
+}
+
 ClangToolChain::ClangToolChain(Detection d) :
     GccToolChain(Constants::CLANG_TOOLCHAIN_TYPEID, d)
-{ }
+{
+    syncAutodetectedWithParentToolchains();
+}
 
 ClangToolChain::ClangToolChain(Core::Id typeId, ToolChain::Detection d) :
     GccToolChain(typeId, d)
-{ }
+{
+    syncAutodetectedWithParentToolchains();
+}
+
+ClangToolChain::ClangToolChain(const ClangToolChain &other)
+    : GccToolChain(other)
+    , m_parentToolChainId(other.m_parentToolChainId)
+{}
 
 QString ClangToolChain::typeDisplayName() const
 {
@@ -1255,27 +1326,76 @@ WarningFlags ClangToolChain::warningFlags(const QStringList &cflags) const
 FileNameList ClangToolChain::suggestedMkspecList() const
 {
     Abi abi = targetAbi();
-    if (abi.os() == Abi::DarwinOS)
+    if (abi.os() == Abi::DarwinOS) {
         return FileNameList()
                 << FileName::fromLatin1("macx-clang")
                 << FileName::fromLatin1("macx-clang-32")
                 << FileName::fromLatin1("unsupported/macx-clang")
                 << FileName::fromLatin1("macx-ios-clang");
-    else if (abi.os() == Abi::LinuxOS)
+    } else if (abi.os() == Abi::LinuxOS) {
         return FileNameList()
                 << FileName::fromLatin1("linux-clang")
                 << FileName::fromLatin1("unsupported/linux-clang");
+    } else if (abi.os() == Abi::WindowsOS) {
+        return FileNameList() << FileName::fromLatin1("win32-clang-g++");
+    }
     return FileNameList(); // Note: Not supported by Qt yet, so default to the mkspec the Qt was build with
 }
 
 void ClangToolChain::addToEnvironment(Environment &env) const
 {
     GccToolChain::addToEnvironment(env);
+
+    const QString sysroot = sysRoot();
+    if (!sysroot.isEmpty())
+        env.prependOrSetPath(sysroot + "/bin");
+
     // Clang takes PWD as basis for debug info, if set.
     // When running Qt Creator from a shell, PWD is initially set to an "arbitrary" value.
     // Since the tools are not called through a shell, PWD is never changed to the actual cwd,
     // so we better make sure PWD is empty to begin with
     env.unset("PWD");
+}
+
+QString ClangToolChain::originalTargetTriple() const
+{
+    const MingwToolChain *parentTC = mingwToolChainFromId(m_parentToolChainId);
+    if (parentTC)
+        return parentTC->originalTargetTriple();
+
+    return GccToolChain::originalTargetTriple();
+}
+
+QString ClangToolChain::sysRoot() const
+{
+    const MingwToolChain *parentTC = mingwToolChainFromId(m_parentToolChainId);
+    if (!parentTC)
+        return QString();
+
+    const FileName mingwCompiler = parentTC->compilerCommand();
+    return mingwCompiler.parentDir().parentDir().toString();
+}
+
+std::unique_ptr<ToolChainConfigWidget> ClangToolChain::createConfigurationWidget()
+{
+    return std::make_unique<ClangToolChainConfigWidget>(this);
+}
+
+QVariantMap ClangToolChain::toMap() const
+{
+    QVariantMap data = GccToolChain::toMap();
+    data.insert(parentToolChainIdKeyC, m_parentToolChainId);
+    return data;
+}
+
+bool ClangToolChain::fromMap(const QVariantMap &data)
+{
+    if (!GccToolChain::fromMap(data))
+        return false;
+
+    m_parentToolChainId = data.value(parentToolChainIdKeyC).toByteArray();
+    syncAutodetectedWithParentToolchains();
+    return true;
 }
 
 LanguageExtensions ClangToolChain::defaultLanguageExtensions() const
@@ -1335,6 +1455,7 @@ QList<ToolChain *> ClangToolChainFactory::autoDetect(const QList<ToolChain *> &a
                                         hostAbi, Constants::C_LANGUAGE_ID,
                                         Constants::CLANG_TOOLCHAIN_TYPEID, alreadyKnown));
     }
+
     return tcs;
 }
 
@@ -1355,6 +1476,118 @@ bool ClangToolChainFactory::canRestore(const QVariantMap &data)
 GccToolChain *ClangToolChainFactory::createToolChain(bool autoDetect)
 {
     return new ClangToolChain(autoDetect ? ToolChain::AutoDetection : ToolChain::ManualDetection);
+}
+
+ClangToolChainConfigWidget::ClangToolChainConfigWidget(ClangToolChain *tc) :
+    GccToolChainConfigWidget(tc)
+{
+    if (!HostOsInfo::isWindowsHost() || tc->typeId() != Constants::CLANG_TOOLCHAIN_TYPEID)
+        return;
+
+    // Remove m_abiWidget row because the parent toolchain abi is going to be used.
+    m_mainLayout->removeRow(m_mainLayout->rowCount() - 2);
+    m_abiWidget = nullptr;
+
+    m_parentToolchainCombo = new QComboBox(this);
+    m_mainLayout->insertRow(m_mainLayout->rowCount() - 1,
+                            tr("Parent toolchain:"),
+                            m_parentToolchainCombo);
+
+    ToolChainManager *tcManager = ToolChainManager::instance();
+    m_parentToolChainConnections.append(
+        connect(tcManager, &ToolChainManager::toolChainUpdated, this, [this](ToolChain *tc) {
+            if (tc->typeId() == Constants::MINGW_TOOLCHAIN_TYPEID)
+                updateParentToolChainComboBox();
+        }));
+    m_parentToolChainConnections.append(
+        connect(tcManager, &ToolChainManager::toolChainAdded, this, [this](ToolChain *tc) {
+            if (tc->typeId() == Constants::MINGW_TOOLCHAIN_TYPEID)
+                updateParentToolChainComboBox();
+        }));
+    m_parentToolChainConnections.append(
+        connect(tcManager, &ToolChainManager::toolChainRemoved, this, [this](ToolChain *tc) {
+            if (tc->id() == toolChain()->id()) {
+                for (QMetaObject::Connection &connection : m_parentToolChainConnections)
+                    QObject::disconnect(connection);
+                return;
+            }
+            if (tc->typeId() == Constants::MINGW_TOOLCHAIN_TYPEID)
+                updateParentToolChainComboBox();
+        }));
+
+    setFromClangToolchain();
+}
+
+void ClangToolChainConfigWidget::updateParentToolChainComboBox()
+{
+    auto *tc = static_cast<ClangToolChain *>(toolChain());
+    QByteArray parentId = m_parentToolchainCombo->currentData().toByteArray();
+    if (tc->isAutoDetected() || m_parentToolchainCombo->count() == 0)
+        parentId = tc->m_parentToolChainId;
+
+    const MingwToolChain *parentTC = mingwToolChainFromId(parentId);
+
+    m_parentToolchainCombo->clear();
+    m_parentToolchainCombo->addItem(parentTC ? parentTC->displayName() : "",
+                                    parentTC ? parentId : "");
+
+    if (tc->isAutoDetected())
+        return;
+
+    for (const ToolChain *mingwTC : mingwToolChains()) {
+        if (parentId != mingwTC->id())
+            m_parentToolchainCombo->addItem(mingwTC->displayName(), mingwTC->id());
+    }
+}
+
+void ClangToolChainConfigWidget::setFromClangToolchain()
+{
+    GccToolChainConfigWidget::setFromToolchain();
+
+    if (m_parentToolchainCombo)
+        updateParentToolChainComboBox();
+}
+
+void ClangToolChainConfigWidget::applyImpl()
+{
+    GccToolChainConfigWidget::applyImpl();
+    if (!m_parentToolchainCombo)
+        return;
+
+    auto *tc = static_cast<ClangToolChain *>(toolChain());
+    tc->m_parentToolChainId.clear();
+
+    const QByteArray parentId = m_parentToolchainCombo->currentData().toByteArray();
+    if (!parentId.isEmpty()) {
+        for (const ToolChain *mingwTC : mingwToolChains()) {
+            if (parentId == mingwTC->id()) {
+                tc->m_parentToolChainId = mingwTC->id();
+                break;
+            }
+        }
+    }
+}
+
+bool ClangToolChainConfigWidget::isDirtyImpl() const
+{
+    if (GccToolChainConfigWidget::isDirtyImpl())
+        return true;
+
+    if (!m_parentToolchainCombo)
+        return false;
+
+    auto tc = static_cast<ClangToolChain *>(toolChain());
+    Q_ASSERT(tc);
+    const MingwToolChain *parentTC = mingwToolChainFromId(tc->m_parentToolChainId);
+    const QByteArray parentId = parentTC ? parentTC->id() : "";
+    return parentId != m_parentToolchainCombo->currentData();
+}
+
+void ClangToolChainConfigWidget::makeReadOnlyImpl()
+{
+    GccToolChainConfigWidget::makeReadOnlyImpl();
+    if (m_parentToolchainCombo)
+        m_parentToolchainCombo->setEnabled(false);
 }
 
 // --------------------------------------------------------------------------

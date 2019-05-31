@@ -812,7 +812,7 @@ bool PerforcePlugin::managesDirectoryFstat(const QString &directory)
         return entry.m_isManaged;
     }
     if (!m_settings.isValid()) {
-        if (m_settings.topLevel().isEmpty() && m_settings.defaultEnv())
+        if (m_settings.topLevel().isEmpty())
             getTopLevel(directory, true);
 
         if (!m_settings.isValid())
@@ -966,7 +966,8 @@ PerforceResponse PerforcePlugin::synchronousProcess(const QString &workingDir,
     SynchronousProcess process;
     const int timeOutS = (flags & LongTimeOut) ? settings().longTimeOutS() : settings().timeOutS();
     process.setTimeoutS(timeOutS);
-    process.setCodec(outputCodec);
+    if (outputCodec)
+        process.setCodec(outputCodec);
     if (flags & OverrideDiffEnvironment)
         process.setProcessEnvironment(overrideDiffEnvironmentVariable());
     if (!workingDir.isEmpty())
@@ -1310,10 +1311,7 @@ bool PerforcePlugin::submitEditorAboutToClose()
     // is, the editor was closed or shutdown).
     bool wantsPrompt = m_settings.promptToSubmit();
     const VcsBaseSubmitEditor::PromptSubmitResult answer =
-            perforceEditor->promptSubmit(tr("Closing p4 Editor"),
-                                         tr("Do you want to submit this change list?"),
-                                         tr("The commit message check failed. Do you want to submit this change list?"),
-                                         &wantsPrompt, !m_submitActionTriggered);
+            perforceEditor->promptSubmit(this, &wantsPrompt, !m_submitActionTriggered);
     m_submitActionTriggered = false;
 
     if (answer == VcsBaseSubmitEditor::SubmitCanceled)

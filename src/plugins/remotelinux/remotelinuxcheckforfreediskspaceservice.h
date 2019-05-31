@@ -30,12 +30,13 @@
 namespace RemoteLinux {
 namespace Internal { class RemoteLinuxCheckForFreeDiskSpaceServicePrivate; }
 
-class REMOTELINUX_EXPORT RemoteLinuxCheckForFreeDiskSpaceService : public AbstractRemoteLinuxDeployService
+class REMOTELINUX_EXPORT RemoteLinuxCheckForFreeDiskSpaceService :
+        public AbstractRemoteLinuxDeployService
 {
     Q_OBJECT
 public:
-    RemoteLinuxCheckForFreeDiskSpaceService(QObject *parent = 0);
-    ~RemoteLinuxCheckForFreeDiskSpaceService();
+    RemoteLinuxCheckForFreeDiskSpaceService(QObject *parent = nullptr);
+    ~RemoteLinuxCheckForFreeDiskSpaceService() override;
 
     void setPathToCheck(const QString &path);
     void setRequiredSpaceInBytes(quint64 sizeInBytes);
@@ -44,13 +45,13 @@ private:
     void handleStdErr();
     void handleProcessFinished();
 
-    bool isDeploymentNecessary() const { return true; }
-    void doDeviceSetup() { handleDeviceSetupDone(true); }
-    void stopDeviceSetup() { handleDeviceSetupDone(false); }
+    bool isDeploymentNecessary() const override { return true; }
+    void doDeviceSetup() override { handleDeviceSetupDone(true); }
+    void stopDeviceSetup() override { handleDeviceSetupDone(false); }
 
-    bool isDeploymentPossible(QString *whyNot) const;
-    void doDeploy();
-    void stopDeployment();
+    bool isDeploymentPossible(QString *whyNot) const override;
+    void doDeploy() override;
+    void stopDeployment() override;
 
     void cleanup();
 

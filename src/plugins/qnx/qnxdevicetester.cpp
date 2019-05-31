@@ -54,6 +54,8 @@ QnxDeviceTester::QnxDeviceTester(QObject *parent)
 
     m_commandsToTest << QLatin1String("awk")
                      << QLatin1String("cat")
+                     << QLatin1String("cut")
+                     << QLatin1String("df")
                      << QLatin1String("grep")
                      << QLatin1String("kill")
                      << QLatin1String("netstat")
@@ -61,12 +63,14 @@ QnxDeviceTester::QnxDeviceTester(QObject *parent)
                      << QLatin1String("printf")
                      << QLatin1String("ps")
                      << QLatin1String("read")
+                     << QLatin1String("rm")
                      << QLatin1String("sed")
                      << QLatin1String("sleep")
+                     << QLatin1String("tail")
                      << QLatin1String("uname");
 }
 
-void QnxDeviceTester::testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration)
+void QnxDeviceTester::testDevice(const ProjectExplorer::IDevice::Ptr &deviceConfiguration)
 {
     QTC_ASSERT(m_state == Inactive, return);
 
@@ -86,6 +90,7 @@ void QnxDeviceTester::stopTest()
     case GenericTest:
         m_genericTester->stopTest();
         break;
+    case VarRunTest:
     case CommandsTest:
         m_processRunner->cancel();
         break;
@@ -105,6 +110,32 @@ void QnxDeviceTester::handleGenericTestFinished(TestResult result)
         return;
     }
 
+    m_state = VarRunTest;
+    emit progressMessage(tr("Checking that files can be created in /var/run..."));
+    m_processRunner->run(QStringLiteral("rm %1 > /dev/null 2>&1; echo ABC > %1 && rm %1")
+                             .arg("/var/run/qtc_xxxx.pid")
+                             .toLatin1(),
+                         m_deviceConfiguration->sshParameters());
+}
+
+void QnxDeviceTester::handleVarRunProcessFinished(const QString &error)
+{
+    QTC_ASSERT(m_state == VarRunTest, return);
+
+    if (error.isEmpty()) {
+        if (m_processRunner->processExitCode() == 0) {
+            emit progressMessage(tr("Files can be created in /var/run.") + QLatin1Char('\n'));
+        } else {
+            emit errorMessage(tr("Files cannot be created in /var/run.") + QLatin1Char('\n'));
+            m_result = TestFailure;
+        }
+    } else {
+        emit errorMessage(tr("An error occurred while checking that"
+                             " files can be created in /var/run.")
+                          + QLatin1Char('\n'));
+        m_result = TestFailure;
+    }
+
     m_state = CommandsTest;
 
     QnxDevice::ConstPtr qnxDevice = m_deviceConfiguration.dynamicCast<const QnxDevice>();
@@ -113,12 +144,17 @@ void QnxDeviceTester::handleGenericTestFinished(TestResult result)
     testNextCommand();
 }
 
-void QnxDeviceTester::handleProcessFinished(int exitStatus)
+void QnxDeviceTester::handleProcessFinished(const QString &error)
 {
+    if (m_state == VarRunTest) {
+        handleVarRunProcessFinished(error);
+        return;
+    }
+
     QTC_ASSERT(m_state == CommandsTest, return);
 
     const QString command = m_commandsToTest[m_currentCommandIndex];
-    if (exitStatus == QSsh::SshRemoteProcess::NormalExit) {
+    if (error.isEmpty()) {
         if (m_processRunner->processExitCode() == 0) {
             emit progressMessage(tr("%1 found.").arg(command) + QLatin1Char('\n'));
         } else {
@@ -126,7 +162,7 @@ void QnxDeviceTester::handleProcessFinished(int exitStatus)
             m_result = TestFailure;
         }
     } else {
-        emit errorMessage(tr("An error occurred checking for %1.").arg(command)  + QLatin1Char('\n'));
+        emit errorMessage(tr("An error occurred while checking for %1.").arg(command)  + QLatin1Char('\n'));
         m_result = TestFailure;
     }
     testNextCommand();
@@ -159,9 +195,9 @@ void QnxDeviceTester::testNextCommand()
 void QnxDeviceTester::setFinished()
 {
     m_state = Inactive;
-    disconnect(m_genericTester, 0, this, 0);
+    disconnect(m_genericTester, nullptr, this, nullptr);
     if (m_processRunner)
-        disconnect(m_processRunner, 0, this, 0);
+        disconnect(m_processRunner, nullptr, this, nullptr);
     emit finished(m_result);
 }
 

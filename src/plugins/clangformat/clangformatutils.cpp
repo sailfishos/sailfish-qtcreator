@@ -26,12 +26,15 @@
 #include "clangformatutils.h"
 
 #include "clangformatconstants.h"
+#include "clangformatsettings.h"
 
 #include <coreplugin/icore.h>
 #include <cpptools/cppcodestylesettings.h>
 #include <texteditor/tabsettings.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+
+#include <QCryptographicHash>
 
 using namespace clang;
 using namespace format;
@@ -42,63 +45,124 @@ using namespace TextEditor;
 
 namespace ClangFormat {
 
-static void applyTabSettings(clang::format::FormatStyle &style, const TabSettings &settings)
+static clang::format::FormatStyle qtcStyle()
 {
-    style.IndentWidth = static_cast<unsigned>(settings.m_indentSize);
-    style.TabWidth = static_cast<unsigned>(settings.m_tabSize);
-
-    if (settings.m_tabPolicy == TabSettings::TabsOnlyTabPolicy)
-        style.UseTab = FormatStyle::UT_Always;
-    else if (settings.m_tabPolicy == TabSettings::SpacesOnlyTabPolicy)
-        style.UseTab = FormatStyle::UT_Never;
-    else
-        style.UseTab = FormatStyle::UT_ForContinuationAndIndentation;
-
-    if (settings.m_continuationAlignBehavior == TabSettings::NoContinuationAlign) {
-        style.ContinuationIndentWidth = 0;
-        style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
-    } else {
-        style.ContinuationIndentWidth = style.IndentWidth;
-        style.AlignAfterOpenBracket = FormatStyle::BAS_Align;
-    }
-}
-
-static void applyCppCodeStyleSettings(clang::format::FormatStyle &style,
-                                      const CppCodeStyleSettings &settings)
-{
-    style.IndentCaseLabels = settings.indentSwitchLabels;
-    style.AlignOperands = settings.alignAssignments;
-    style.NamespaceIndentation = FormatStyle::NI_None;
-    if (settings.indentNamespaceBody)
-        style.NamespaceIndentation = FormatStyle::NI_All;
-
+    clang::format::FormatStyle style = getLLVMStyle();
+    style.Language = FormatStyle::LK_Cpp;
+    style.AccessModifierOffset = -4;
+    style.AlignAfterOpenBracket = FormatStyle::BAS_Align;
+    style.AlignConsecutiveAssignments = false;
+    style.AlignConsecutiveDeclarations = false;
+    style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
+    style.AlignOperands = true;
+    style.AlignTrailingComments = true;
+    style.AllowAllParametersOfDeclarationOnNextLine = true;
+    style.AllowShortBlocksOnASingleLine = false;
+    style.AllowShortCaseLabelsOnASingleLine = false;
+    style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_Inline;
+    style.AllowShortIfStatementsOnASingleLine = false;
+    style.AllowShortLoopsOnASingleLine = false;
+    style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_None;
+    style.AlwaysBreakBeforeMultilineStrings = false;
+    style.AlwaysBreakTemplateDeclarations = FormatStyle::BTDS_Yes;
+    style.BinPackArguments = false;
+    style.BinPackParameters = false;
+    style.BraceWrapping.AfterClass = true;
+    style.BraceWrapping.AfterControlStatement = false;
+    style.BraceWrapping.AfterEnum = false;
+    style.BraceWrapping.AfterFunction = true;
+    style.BraceWrapping.AfterNamespace = false;
+    style.BraceWrapping.AfterObjCDeclaration = false;
+    style.BraceWrapping.AfterStruct = true;
+    style.BraceWrapping.AfterUnion = false;
+    style.BraceWrapping.BeforeCatch = false;
+    style.BraceWrapping.BeforeElse = false;
     style.BraceWrapping.IndentBraces = false;
-    if (settings.indentBlockBraces) {
-        if (settings.indentClassBraces && settings.indentEnumBraces
-                && settings.indentNamespaceBraces && settings.indentFunctionBraces) {
-            style.BraceWrapping.IndentBraces = true;
-        } else {
-            style.BreakBeforeBraces = FormatStyle::BS_GNU;
-        }
-    }
-
-    if (settings.bindStarToIdentifier || settings.bindStarToRightSpecifier)
-        style.PointerAlignment = FormatStyle::PAS_Right;
-    else
-        style.PointerAlignment = FormatStyle::PAS_Left;
-
-    style.AccessModifierOffset = settings.indentAccessSpecifiers
-            ? 0
-            : - static_cast<int>(style.IndentWidth);
+    style.BraceWrapping.SplitEmptyFunction = false;
+    style.BraceWrapping.SplitEmptyRecord = false;
+    style.BraceWrapping.SplitEmptyNamespace = false;
+    style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
+    style.BreakBeforeBraces = FormatStyle::BS_Custom;
+    style.BreakBeforeTernaryOperators = true;
+    style.BreakConstructorInitializers = FormatStyle::BCIS_BeforeComma;
+    style.BreakAfterJavaFieldAnnotations = false;
+    style.BreakStringLiterals = true;
+    style.ColumnLimit = 100;
+    style.CommentPragmas = "^ IWYU pragma:";
+    style.CompactNamespaces = false;
+    style.ConstructorInitializerAllOnOneLineOrOnePerLine = false;
+    style.ConstructorInitializerIndentWidth = 4;
+    style.ContinuationIndentWidth = 4;
+    style.Cpp11BracedListStyle = true;
+    style.DerivePointerAlignment = false;
+    style.DisableFormat = false;
+    style.ExperimentalAutoDetectBinPacking = false;
+    style.FixNamespaceComments = true;
+    style.ForEachMacros = {"forever", "foreach", "Q_FOREACH", "BOOST_FOREACH"};
+    style.IncludeStyle.IncludeCategories = {{"^<Q.*", 200}};
+    style.IncludeStyle.IncludeIsMainRegex = "(Test)?$";
+    style.IndentCaseLabels = false;
+    style.IndentWidth = 4;
+    style.IndentWrappedFunctionNames = false;
+    style.JavaScriptQuotes = FormatStyle::JSQS_Leave;
+    style.JavaScriptWrapImports = true;
+    style.KeepEmptyLinesAtTheStartOfBlocks = false;
+    // Do not add QT_BEGIN_NAMESPACE/QT_END_NAMESPACE as this will indent lines in between.
+    style.MacroBlockBegin = "";
+    style.MacroBlockEnd = "";
+    style.MaxEmptyLinesToKeep = 1;
+    style.NamespaceIndentation = FormatStyle::NI_None;
+    style.ObjCBlockIndentWidth = 4;
+    style.ObjCSpaceAfterProperty = false;
+    style.ObjCSpaceBeforeProtocolList = true;
+    style.PenaltyBreakAssignment = 150;
+    style.PenaltyBreakBeforeFirstCallParameter = 300;
+    style.PenaltyBreakComment = 500;
+    style.PenaltyBreakFirstLessLess = 400;
+    style.PenaltyBreakString = 600;
+    style.PenaltyExcessCharacter = 50;
+    style.PenaltyReturnTypeOnItsOwnLine = 300;
+    style.PointerAlignment = FormatStyle::PAS_Right;
+    style.ReflowComments = false;
+    style.SortIncludes = true;
+    style.SortUsingDeclarations = true;
+    style.SpaceAfterCStyleCast = true;
+    style.SpaceAfterTemplateKeyword = false;
+    style.SpaceBeforeAssignmentOperators = true;
+    style.SpaceBeforeParens = FormatStyle::SBPO_ControlStatements;
+    style.SpaceInEmptyParentheses = false;
+    style.SpacesBeforeTrailingComments = 1;
+    style.SpacesInAngles = false;
+    style.SpacesInContainerLiterals = false;
+    style.SpacesInCStyleCastParentheses = false;
+    style.SpacesInParentheses = false;
+    style.SpacesInSquareBrackets = false;
+    style.Standard = FormatStyle::LS_Cpp11;
+    style.TabWidth = 4;
+    style.UseTab = FormatStyle::UT_Never;
+    return style;
 }
 
-static Utils::FileName projectPath()
+static bool useGlobalOverriddenSettings()
+{
+    return ClangFormatSettings::instance().overrideDefaultFile();
+}
+
+QString currentProjectUniqueId()
 {
     const Project *project = SessionManager::startupProject();
-    if (project)
-        return project->projectDirectory();
+    if (!project)
+        return QString();
 
-    return Utils::FileName();
+    return QString::fromUtf8(QCryptographicHash::hash(project->projectFilePath().toString().toUtf8(),
+                                                      QCryptographicHash::Md5)
+                                 .toHex(0));
+}
+
+static bool useProjectOverriddenSettings()
+{
+    const Project *project = SessionManager::startupProject();
+    return project ? project->namedSettings(Constants::OVERRIDE_FILE_ID).toBool() : false;
 }
 
 static Utils::FileName globalPath()
@@ -106,63 +170,136 @@ static Utils::FileName globalPath()
     return Utils::FileName::fromString(Core::ICore::userResourcePath());
 }
 
-static bool configForFileExists(Utils::FileName fileName) {
-    QDir projectDir(fileName.parentDir().toString());
-    while (!projectDir.exists(SETTINGS_FILE_NAME) && !projectDir.exists(SETTINGS_FILE_ALT_NAME)) {
-        if (!projectDir.cdUp())
-            return false;
-    }
-    return true;
+static Utils::FileName projectPath()
+{
+    const Project *project = SessionManager::startupProject();
+    if (project)
+        return globalPath().appendPath("clang-format").appendPath(currentProjectUniqueId());
+
+    return Utils::FileName();
 }
 
-static clang::format::FormatStyle constructStyle(bool isGlobal)
+static QString findConfig(Utils::FileName fileName)
 {
-    FormatStyle style = getLLVMStyle();
-    style.BreakBeforeBraces = FormatStyle::BS_Custom;
+    QDir parentDir(fileName.parentDir().toString());
+    while (!parentDir.exists(Constants::SETTINGS_FILE_NAME)
+           && !parentDir.exists(Constants::SETTINGS_FILE_ALT_NAME)) {
+        if (!parentDir.cdUp())
+            return QString();
+    }
 
-    const CppCodeStyleSettings codeStyleSettings = isGlobal
-            ? CppCodeStyleSettings::currentGlobalCodeStyle()
-            : CppCodeStyleSettings::currentProjectCodeStyle()
-              .value_or(CppCodeStyleSettings::currentGlobalCodeStyle());
-    const TabSettings tabSettings = isGlobal
-            ? CppCodeStyleSettings::currentGlobalTabSettings()
-            : CppCodeStyleSettings::currentProjectTabSettings();
+    if (parentDir.exists(Constants::SETTINGS_FILE_NAME))
+        return parentDir.filePath(Constants::SETTINGS_FILE_NAME);
+    return parentDir.filePath(Constants::SETTINGS_FILE_ALT_NAME);
+}
 
-    applyTabSettings(style, tabSettings);
-    applyCppCodeStyleSettings(style, codeStyleSettings);
+static QString configForFile(Utils::FileName fileName, bool checkForSettings)
+{
+    QDir overrideDir;
+    if (!checkForSettings || useProjectOverriddenSettings()) {
+        overrideDir = projectPath().toString();
+        if (!overrideDir.isEmpty() && overrideDir.exists(Constants::SETTINGS_FILE_NAME))
+            return overrideDir.filePath(Constants::SETTINGS_FILE_NAME);
+    }
 
-    return style;
+    if (!checkForSettings || useGlobalOverriddenSettings()) {
+        overrideDir = globalPath().toString();
+        if (!overrideDir.isEmpty() && overrideDir.exists(Constants::SETTINGS_FILE_NAME))
+            return overrideDir.filePath(Constants::SETTINGS_FILE_NAME);
+    }
+
+    return findConfig(fileName);
+}
+
+QString configForFile(Utils::FileName fileName)
+{
+    return configForFile(fileName, true);
+}
+
+Utils::FileName assumedPathForConfig(const QString &configFile)
+{
+    Utils::FileName fileName = Utils::FileName::fromString(configFile);
+    return fileName.parentDir().appendPath("test.cpp");
+}
+
+static clang::format::FormatStyle constructStyle(const QByteArray &baseStyle = QByteArray())
+{
+    if (!baseStyle.isEmpty()) {
+        // Try to get the style for this base style.
+        Expected<FormatStyle> style = getStyle(baseStyle.toStdString(),
+                                               "dummy.cpp",
+                                               baseStyle.toStdString());
+        if (style)
+            return *style;
+
+        handleAllErrors(style.takeError(), [](const ErrorInfoBase &) {
+            // do nothing
+        });
+        // Fallthrough to the default style.
+    }
+
+    return qtcStyle();
 }
 
 void createStyleFileIfNeeded(bool isGlobal)
 {
     Utils::FileName path = isGlobal ? globalPath() : projectPath();
-    const QString configFile = path.appendPath(SETTINGS_FILE_NAME).toString();
+    const QString configFile = path.appendPath(Constants::SETTINGS_FILE_NAME).toString();
 
     if (QFile::exists(configFile))
         return;
 
+    QDir().mkpath(path.parentDir().toString());
+    if (!isGlobal) {
+        const Project *project = SessionManager::startupProject();
+        Utils::FileName possibleProjectConfig = project->rootProjectDirectory().appendPath(
+            Constants::SETTINGS_FILE_NAME);
+        if (possibleProjectConfig.exists()) {
+            // Just copy th .clang-format if current project has one.
+            QFile::copy(possibleProjectConfig.toString(), configFile);
+            return;
+        }
+    }
+
     std::fstream newStyleFile(configFile.toStdString(), std::fstream::out);
     if (newStyleFile.is_open()) {
-        newStyleFile << clang::format::configurationAsText(constructStyle(isGlobal));
+        newStyleFile << clang::format::configurationAsText(constructStyle());
         newStyleFile.close();
     }
 }
 
-clang::format::FormatStyle styleForFile(Utils::FileName fileName)
+static QByteArray configBaseStyleName(const QString &configFile)
 {
-    bool isGlobal = false;
-    if (!configForFileExists(fileName)) {
-        if (fileName.isChildOf(projectPath()) && CppCodeStyleSettings::currentProjectCodeStyle()) {
-            fileName = projectPath();
-        } else {
-            fileName = globalPath();
-            isGlobal = true;
-        }
-        fileName.appendPath(SAMPLE_FILE_NAME);
-        createStyleFileIfNeeded(isGlobal);
+    if (configFile.isEmpty())
+        return QByteArray();
+
+    QFile config(configFile);
+    if (!config.open(QIODevice::ReadOnly))
+        return QByteArray();
+
+    const QByteArray content = config.readAll();
+    const char basedOnStyle[] = "BasedOnStyle:";
+    int basedOnStyleIndex = content.indexOf(basedOnStyle);
+    if (basedOnStyleIndex < 0)
+        return QByteArray();
+
+    basedOnStyleIndex += sizeof(basedOnStyle) - 1;
+    const int endOfLineIndex = content.indexOf('\n', basedOnStyleIndex);
+    return content
+        .mid(basedOnStyleIndex, endOfLineIndex < 0 ? -1 : endOfLineIndex - basedOnStyleIndex)
+        .trimmed();
+}
+
+static clang::format::FormatStyle styleForFile(Utils::FileName fileName, bool checkForSettings)
+{
+    QString configFile = configForFile(fileName, checkForSettings);
+    if (configFile.isEmpty()) {
+        // If no configuration is found create a global one (if it does not yet exist) and use it.
+        createStyleFileIfNeeded(true);
+        configFile = globalPath().appendPath(Constants::SETTINGS_FILE_NAME).toString();
     }
 
+    fileName = assumedPathForConfig(configFile);
     Expected<FormatStyle> style = format::getStyle("file",
                                                    fileName.toString().toStdString(),
                                                    "none");
@@ -173,17 +310,21 @@ clang::format::FormatStyle styleForFile(Utils::FileName fileName)
         // do nothing
     });
 
-    return constructStyle(isGlobal);
+    return constructStyle(configBaseStyleName(configFile));
+}
+
+clang::format::FormatStyle styleForFile(Utils::FileName fileName)
+{
+    return styleForFile(fileName, true);
 }
 
 clang::format::FormatStyle currentProjectStyle()
 {
-    return styleForFile(projectPath().appendPath(SAMPLE_FILE_NAME));
+    return styleForFile(projectPath().appendPath(Constants::SAMPLE_FILE_NAME), false);
 }
 
 clang::format::FormatStyle currentGlobalStyle()
 {
-    return styleForFile(globalPath().appendPath(SAMPLE_FILE_NAME));
+    return styleForFile(globalPath().appendPath(Constants::SAMPLE_FILE_NAME), false);
 }
-
-}
+} // namespace ClangFormat

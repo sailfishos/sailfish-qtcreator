@@ -45,19 +45,17 @@ class QbsBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
 
-    friend class ProjectExplorer::IBuildConfigurationFactory;
+    friend class ProjectExplorer::BuildConfigurationFactory;
     QbsBuildConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
 public:
-    void initialize(const ProjectExplorer::BuildInfo *info) override;
+    void initialize(const ProjectExplorer::BuildInfo &info) override;
     ProjectExplorer::NamedWidget *createConfigWidget() override;
 
     QbsBuildStep *qbsStep() const;
     QVariantMap qbsConfiguration() const;
 
     Internal::QbsProject *project() const override;
-
-    ProjectExplorer::IOutputParser *createOutputParser() const;
 
     bool isEnabled() const override;
     QString disabledReason() const override;
@@ -97,19 +95,19 @@ private:
     friend class QbsBuildConfigurationWidget;
 };
 
-class QbsBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
+class QbsBuildConfigurationFactory : public ProjectExplorer::BuildConfigurationFactory
 {
     Q_OBJECT
 
 public:
     QbsBuildConfigurationFactory();
 
-    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const override;
-    QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *k,
-                                                        const QString &projectPath) const override;
+    QList<ProjectExplorer::BuildInfo> availableBuilds(const ProjectExplorer::Target *parent) const override;
+    QList<ProjectExplorer::BuildInfo> availableSetups(const ProjectExplorer::Kit *k,
+                                                      const QString &projectPath) const override;
 
 private:
-    ProjectExplorer::BuildInfo *createBuildInfo(const ProjectExplorer::Kit *k,
+    ProjectExplorer::BuildInfo createBuildInfo(const ProjectExplorer::Kit *k,
                                                 ProjectExplorer::BuildConfiguration::BuildType type) const;
 };
 

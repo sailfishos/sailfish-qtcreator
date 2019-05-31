@@ -69,9 +69,11 @@ class KitManagerPrivate
 public:
     Kit *m_defaultKit = nullptr;
     bool m_initialized = false;
-    std::vector<std::unique_ptr<KitInformation>> m_informationList;
     std::vector<std::unique_ptr<Kit>> m_kitList;
     std::unique_ptr<PersistentSettingsWriter> m_writer;
+
+    // Sorted by priority, in descending order.
+    std::vector<std::unique_ptr<KitInformation>> m_informationList;
 };
 
 } // namespace Internal
@@ -273,7 +275,7 @@ QSet<Id> KitManager::availableFeatures(Core::Id platformId)
     return features;
 }
 
-QList<Kit *> KitManager::sortKits(const QList<Kit *> kits)
+QList<Kit *> KitManager::sortKits(const QList<Kit *> &kits)
 {
     // This method was added to delay the sorting of kits as long as possible.
     // Since the displayName can contain variables it can be costly (e.g. involve
@@ -518,12 +520,10 @@ QSet<Id> KitFeatureProvider::availablePlatforms() const
 
 QString KitFeatureProvider::displayNameForPlatform(Id id) const
 {
-    for (IDeviceFactory *f : IDeviceFactory::allDeviceFactories()) {
-        if (f->availableCreationIds().contains(id)) {
-            const QString dn = f->displayNameForId(id);
-            QTC_ASSERT(!dn.isEmpty(), continue);
-            return dn;
-        }
+    if (IDeviceFactory *f = IDeviceFactory::find(id)) {
+        const QString dn = f->displayName();
+        QTC_CHECK(!dn.isEmpty());
+        return dn;
     }
     return QString();
 }

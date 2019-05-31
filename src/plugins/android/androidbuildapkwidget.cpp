@@ -35,6 +35,8 @@
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
 
 #include <qtsupport/qtkitinformation.h>
@@ -53,15 +55,19 @@
 
 #include <algorithm>
 
+using namespace ProjectExplorer;
+
 namespace Android {
 namespace Internal {
 
 AndroidBuildApkInnerWidget::AndroidBuildApkInnerWidget(AndroidBuildApkStep *step)
-    : ProjectExplorer::BuildStepConfigWidget(),
+    : ProjectExplorer::BuildStepConfigWidget(step),
       m_ui(new Ui::AndroidBuildApkWidget),
       m_step(step)
 {
     m_ui->setupUi(this);
+    setDisplayName("<b>" + tr("Build Android APK") + "</b>");
+    setSummaryText(displayName());
 
     // Target sdk combobox
     const int minApiSupported = AndroidManager::apiLevelRange().first;
@@ -131,16 +137,6 @@ AndroidBuildApkInnerWidget::AndroidBuildApkInnerWidget(AndroidBuildApkStep *step
 AndroidBuildApkInnerWidget::~AndroidBuildApkInnerWidget()
 {
     delete m_ui;
-}
-
-QString AndroidBuildApkInnerWidget::displayName() const
-{
-    return "<b>" + tr("Build Android APK") + "</b>";
-}
-
-QString AndroidBuildApkInnerWidget::summaryText() const
-{
-    return displayName();
 }
 
 void AndroidBuildApkInnerWidget::setTargetSdk(const QString &sdk)
@@ -230,8 +226,12 @@ void AndroidBuildApkInnerWidget::updateSigningWarning()
 // AndroidBuildApkWidget
 
 AndroidBuildApkWidget::AndroidBuildApkWidget(AndroidBuildApkStep *step) :
+    BuildStepConfigWidget(step),
     m_step(step)
 {
+    setDisplayName("<b>" + tr("Build Android APK") + "</b>");
+    setSummaryText("<b>" + tr("Build Android APK") + "</b>");
+
     m_extraLibraryListModel = new AndroidExtraLibraryListModel(m_step->target(), this);
 
     auto base = new AndroidBuildApkInnerWidget(step);
@@ -295,9 +295,10 @@ AndroidBuildApkWidget::AndroidBuildApkWidget(AndroidBuildApkStep *step) :
     connect(m_extraLibraryListModel, &AndroidExtraLibraryListModel::enabledChanged,
             additionalLibrariesGroupBox, &QWidget::setEnabled);
 
-    AndroidQtSupport *qtSupport = AndroidManager::androidQtSupport(m_step->target());
-    QTC_ASSERT(qtSupport, return);
-    additionalLibrariesGroupBox->setEnabled(qtSupport->extraLibraryEnabled(m_step->target()));
+    Target *target = m_step->target();
+    RunConfiguration *rc = target->activeRunConfiguration();
+    const ProjectNode *node = rc ? target->project()->findNodeForBuildKey(rc->buildKey()) : nullptr;
+    additionalLibrariesGroupBox->setEnabled(node && !node->parseInProgress());
 }
 
 void AndroidBuildApkWidget::addAndroidExtraLib()
@@ -320,16 +321,6 @@ void AndroidBuildApkWidget::removeAndroidExtraLib()
 void AndroidBuildApkWidget::checkEnableRemoveButton()
 {
     m_removeAndroidExtraLibButton->setEnabled(m_androidExtraLibsListView->selectionModel()->hasSelection());
-}
-
-QString AndroidBuildApkWidget::summaryText() const
-{
-    return "<b>" + tr("Build Android APK") + "</b>";
-}
-
-QString AndroidBuildApkWidget::displayName() const
-{
-    return summaryText();
 }
 
 } // Internal

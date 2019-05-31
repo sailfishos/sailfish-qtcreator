@@ -33,7 +33,6 @@
 
 namespace RemoteLinux {
 class AbstractRemoteLinuxDeployService;
-class RemoteLinuxDeployConfiguration;
 
 namespace Internal { class AbstractRemoteLinuxDeployStepPrivate; }
 
@@ -43,18 +42,15 @@ class REMOTELINUX_EXPORT AbstractRemoteLinuxDeployStep : public ProjectExplorer:
 
 public:
     ~AbstractRemoteLinuxDeployStep() override;
-    bool fromMap(const QVariantMap &map) override;
-    QVariantMap toMap() const override;
-    bool init(QList<const BuildStep *> &earlierSteps) override;
-    void run(QFutureInterface<bool> &fi) override;
-    bool runInGuiThread() const override { return true; }
-    void cancel() override;
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
-    RemoteLinuxDeployConfiguration *deployConfiguration() const;
-
     virtual AbstractRemoteLinuxDeployService *deployService() const = 0;
 
 protected:
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
+    bool init() override;
+    void doRun() override;
+    void doCancel() override;
+
     explicit AbstractRemoteLinuxDeployStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     virtual bool initInternal(QString *error = nullptr) = 0;
 

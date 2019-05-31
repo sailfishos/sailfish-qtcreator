@@ -40,12 +40,9 @@ class IosDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
 
 public:
     IosDeployStepWidget(IosDeployStep *step);
-    ~IosDeployStepWidget();
+    ~IosDeployStepWidget() override;
 
 private:
-    QString summaryText() const override;
-    QString displayName() const override;
-
     Ui::IosDeployStepWidget *ui;
     IosDeployStep *m_step;
 };

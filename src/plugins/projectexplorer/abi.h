@@ -32,6 +32,8 @@
 #include <QList>
 #include <QHash>
 
+#include <vector>
+
 namespace Utils { class FileName; }
 
 namespace ProjectExplorer {
@@ -87,6 +89,7 @@ public:
         WindowsMsvc2013Flavor,
         WindowsMsvc2015Flavor,
         WindowsMsvc2017Flavor,
+        WindowsMsvc2019Flavor,
         WindowsMSysFlavor,
         WindowsCEFlavor,
 

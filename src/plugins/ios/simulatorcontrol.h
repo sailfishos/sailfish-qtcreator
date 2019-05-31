@@ -24,9 +24,10 @@
 ****************************************************************************/
 #pragma once
 
+#include <utils/fileutils.h>
+
 #include <QObject>
 #include <QFuture>
-#include "utils/fileutils.h"
 #include <QDebug>
 #include <memory>
 
@@ -89,7 +90,7 @@ public:
 
 public:
     explicit SimulatorControl(QObject* parent = nullptr);
-    ~SimulatorControl();
+    ~SimulatorControl() override;
 
 public:
     static QList<DeviceTypeInfo> availableDeviceTypes();

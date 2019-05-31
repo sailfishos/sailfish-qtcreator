@@ -25,14 +25,16 @@
 
 #include "cppprojectfilecategorizer.h"
 
+#include <utils/algorithm.h>
+
 namespace CppTools {
 
 ProjectFileCategorizer::ProjectFileCategorizer(const QString &projectPartName,
                                                const QStringList &filePaths,
-                                               FileClassifier fileClassifier)
+                                               const FileClassifier &fileClassifier)
     : m_partName(projectPartName)
 {
-    const QStringList ambiguousHeaders = classifyFiles(filePaths, fileClassifier);
+    const ProjectFiles ambiguousHeaders = classifyFiles(filePaths, fileClassifier);
     expandSourcesWithAmbiguousHeaders(ambiguousHeaders);
 
     m_partCount = (m_cSources.isEmpty() ? 0 : 1)
@@ -45,40 +47,40 @@ ProjectFileCategorizer::ProjectFileCategorizer(const QString &projectPartName,
 QString ProjectFileCategorizer::partName(const QString &languageName) const
 {
     if (hasMultipleParts())
-        return QString::fromLatin1("%1 (%2)").arg(m_partName).arg(languageName);
+        return QString::fromLatin1("%1 (%2)").arg(m_partName, languageName);
 
     return m_partName;
 }
 
-QStringList ProjectFileCategorizer::classifyFiles(const QStringList &filePaths,
-                                                  FileClassifier fileClassifier)
+ProjectFiles ProjectFileCategorizer::classifyFiles(const QStringList &filePaths,
+                                                   const FileClassifier &fileClassifier)
 {
-    QStringList ambiguousHeaders;
+    ProjectFiles ambiguousHeaders;
 
     foreach (const QString &filePath, filePaths) {
-        const ProjectFile::Kind kind = fileClassifier
+        const ProjectFile projectFile = fileClassifier
                 ? fileClassifier(filePath)
-                : ProjectFile::classify(filePath);
+                : ProjectFile(filePath, ProjectFile::classify(filePath));
 
-        switch (kind) {
+        switch (projectFile.kind) {
         case ProjectFile::AmbiguousHeader:
-            ambiguousHeaders += filePath;
+            ambiguousHeaders += projectFile;
             break;
         case ProjectFile::CXXSource:
         case ProjectFile::CXXHeader:
-            m_cxxSources += ProjectFile(filePath, kind);
+            m_cxxSources += projectFile;
             break;
         case ProjectFile::ObjCXXSource:
         case ProjectFile::ObjCXXHeader:
-            m_objcxxSources += ProjectFile(filePath, kind);
+            m_objcxxSources += projectFile;
             break;
         case ProjectFile::CSource:
         case ProjectFile::CHeader:
-            m_cSources += ProjectFile(filePath, kind);
+            m_cSources += projectFile;
             break;
         case ProjectFile::ObjCSource:
         case ProjectFile::ObjCHeader:
-            m_objcSources += ProjectFile(filePath, kind);
+            m_objcSources += projectFile;
             break;
         default:
             continue;
@@ -88,19 +90,15 @@ QStringList ProjectFileCategorizer::classifyFiles(const QStringList &filePaths,
     return ambiguousHeaders;
 }
 
-static ProjectFiles toProjectFilesWithKind(const QStringList &filePaths,
-                                           const ProjectFile::Kind kind)
+static ProjectFiles toProjectFilesWithKind(const ProjectFiles &ambiguousHeaders,
+                                           const ProjectFile::Kind overriddenKind)
 {
-    ProjectFiles projectFiles;
-    projectFiles.reserve(filePaths.size());
-
-    foreach (const QString &filePath, filePaths)
-        projectFiles += ProjectFile(filePath, kind);
-
-    return projectFiles;
+    return Utils::transform(ambiguousHeaders, [overriddenKind](const ProjectFile &projectFile) {
+        return ProjectFile(projectFile.path, overriddenKind, projectFile.active);
+    });
 }
 
-void ProjectFileCategorizer::expandSourcesWithAmbiguousHeaders(const QStringList &ambiguousHeaders)
+void ProjectFileCategorizer::expandSourcesWithAmbiguousHeaders(const ProjectFiles &ambiguousHeaders)
 {
     const bool hasC = !m_cSources.isEmpty();
     const bool hasCxx = !m_cxxSources.isEmpty();

@@ -35,8 +35,7 @@
 
 namespace CppTools {
 
-CppProjectUpdater::CppProjectUpdater(ProjectExplorer::Project *project)
-    : m_project(project)
+CppProjectUpdater::CppProjectUpdater()
 {
     connect(&m_generateFutureWatcher, &QFutureWatcher<void>::finished,
             this, &CppProjectUpdater::onProjectInfoGenerated);
@@ -50,8 +49,7 @@ CppProjectUpdater::~CppProjectUpdater()
 void CppProjectUpdater::update(const ProjectUpdateInfo &projectUpdateInfo)
 {
     // Stop previous update.
-    cancel();
-    m_futureInterface.waitForFinished();
+    cancelAndWaitForFinished();
     m_futureInterface = QFutureInterface<void>();
 
     m_projectUpdateInfo = projectUpdateInfo;
@@ -101,10 +99,6 @@ void CppProjectUpdater::onProjectInfoGenerated()
     QFuture<void> future = CppModelManager::instance()
             ->updateProjectInfo(m_futureInterface, m_generateFutureWatcher.result());
     QTC_CHECK(future != QFuture<void>());
-
-    const ProjectInfo projectInfo = CppModelManager::instance()->projectInfo(m_project);
-    QTC_CHECK(projectInfo.isValid());
-    emit projectInfoUpdated(projectInfo);
 }
 
 } // namespace CppTools

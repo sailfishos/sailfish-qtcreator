@@ -68,11 +68,13 @@ bool GTestResult::isDirectParentOf(const TestResult *other, bool *needsIntermedi
     if (!TestResult::isDirectParentOf(other, needsIntermediate))
         return false;
 
+    if (result() == Result::MessageDisabledTests)
+        return false;
     const GTestResult *gtOther = static_cast<const GTestResult *>(other);
     if (m_testSetName == gtOther->m_testSetName) {
         const Result::Type otherResult = other->result();
         if (otherResult == Result::MessageInternal || otherResult == Result::MessageLocation)
-            return result() != Result::MessageLocation;
+            return result() != Result::MessageInternal && result() != Result::MessageLocation;
     }
     if (m_iteration != gtOther->m_iteration)
         return false;

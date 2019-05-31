@@ -65,9 +65,7 @@ HelpIndexFilter::HelpIndexFilter()
             this, &HelpIndexFilter::invalidateCache);
 }
 
-HelpIndexFilter::~HelpIndexFilter()
-{
-}
+HelpIndexFilter::~HelpIndexFilter() = default;
 
 void HelpIndexFilter::prepareSearch(const QString &entry)
 {
@@ -143,7 +141,7 @@ void HelpIndexFilter::accept(LocatorFilterEntry selection,
     Q_UNUSED(selectionStart)
     Q_UNUSED(selectionLength)
     const QString &key = selection.displayName;
-    const QMap<QString, QUrl> &links = HelpManager::linksForKeyword(key);
+    const QMap<QString, QUrl> &links = HelpManager::instance()->linksForKeyword(key);
     emit linksActivated(links, key);
 }
 

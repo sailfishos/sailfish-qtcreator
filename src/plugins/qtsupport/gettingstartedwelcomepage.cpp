@@ -194,7 +194,7 @@ void ExamplesWelcomePage::openProject(const ExampleItem &item)
         ModeManager::activateMode(Core::Constants::MODE_EDIT);
         QUrl docUrl = QUrl::fromUserInput(item.docUrl);
         if (docUrl.isValid())
-            HelpManager::handleHelpRequest(docUrl, HelpManager::ExternalHelpAlways);
+            HelpManager::showHelpUrl(docUrl, HelpManager::ExternalHelpAlways);
         ModeManager::activateMode(ProjectExplorer::Constants::MODE_SESSION);
     } else {
         ProjectExplorerPlugin::showOpenProjectError(result);
@@ -273,9 +273,6 @@ class GridProxyModel : public QAbstractItemModel
 public:
     using OptModelIndex = Utils::optional<QModelIndex>;
 
-    GridProxyModel()
-    {}
-
     void setSourceModel(QAbstractItemModel *newModel)
     {
         if (m_sourceModel == newModel)
@@ -285,9 +282,11 @@ public:
         m_sourceModel = newModel;
         if (newModel) {
             connect(newModel, &QAbstractItemModel::layoutAboutToBeChanged, this, [this] {
-                layoutAboutToBeChanged();
+                emit layoutAboutToBeChanged();
             });
-            connect(newModel, &QAbstractItemModel::layoutChanged, this, [this] { layoutChanged(); });
+            connect(newModel, &QAbstractItemModel::layoutChanged, this, [this] {
+                emit layoutChanged();
+            });
             connect(newModel, &QAbstractItemModel::modelAboutToBeReset, this, [this] {
                 beginResetModel();
             });
@@ -338,7 +337,7 @@ public:
             return;
         QTC_ASSERT(columnCount >= 1, columnCount = 1);
         m_columnCount = columnCount;
-        layoutChanged();
+        emit layoutChanged();
     }
 
     int rowCount(const QModelIndex &parent) const final
@@ -519,7 +518,7 @@ public:
         m_currentTagRects.clear();
         int xx = 0;
         int yy = y + tagsBase;
-        for (const QString tag : item.tags) {
+        for (const QString &tag : item.tags) {
             const int ww = tagsFontMetrics.width(tag) + 5;
             if (xx + ww > w - 30) {
                 yy += 15;
@@ -554,7 +553,7 @@ public:
                 const QPoint pos = mev->pos();
                 if (pos.y() > option.rect.y() + tagsSeparatorY) {
                     //const QStringList tags = idx.data(Tags).toStringList();
-                    for (auto it : m_currentTagRects) {
+                    for (const auto &it : m_currentTagRects) {
                         if (it.second.contains(pos))
                             emit tagClicked(it.first);
                     }
@@ -564,12 +563,12 @@ public:
                     else if (item.hasSourceCode)
                         ExamplesWelcomePage::openProject(item);
                     else
-                        HelpManager::handleHelpRequest(QUrl::fromUserInput(item.docUrl),
+                        HelpManager::showHelpUrl(QUrl::fromUserInput(item.docUrl),
                                                        HelpManager::ExternalHelpAlways);
                 }
             }
         }
-        return QAbstractItemDelegate::editorEvent(ev, model, option, idx);
+        return QStyledItemDelegate::editorEvent(ev, model, option, idx);
     }
 
     void setShowExamples(bool showExamples) { m_showExamples = showExamples; goon(); }
@@ -599,7 +598,7 @@ public:
     {
         m_exampleDelegate.setShowExamples(isExamples);
         const int sideMargin = 27;
-        static ExamplesListModel *s_examplesModel = new ExamplesListModel(this);
+        static auto s_examplesModel = new ExamplesListModel(this);
         m_examplesModel = s_examplesModel;
 
         auto filteredModel = new ExamplesListModelFilter(m_examplesModel, !m_isExamples, this);

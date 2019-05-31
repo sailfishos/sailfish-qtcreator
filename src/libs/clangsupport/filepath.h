@@ -28,7 +28,7 @@
 #include "clangsupport_global.h"
 
 #include "filepathview.h"
-#include "filepathview.h"
+#include "nativefilepath.h"
 
 #include <utils/hostosinfo.h>
 #include <utils/smallstringio.h>
@@ -36,6 +36,8 @@
 #include <QDataStream>
 
 namespace ClangBackEnd {
+
+class NativeFilePath;
 
 class FilePath : public Utils::PathString
 {
@@ -45,6 +47,14 @@ public:
     FilePath() = default;
     explicit FilePath(Utils::PathString &&filePath)
         : Utils::PathString(std::move(filePath))
+    {
+        FilePathView view{*this};
+
+        m_slashIndex = view.slashIndex();
+    }
+
+    explicit FilePath(Utils::SmallStringView &&filePath)
+        : Utils::PathString(filePath)
     {
         FilePathView view{*this};
 
@@ -84,6 +94,8 @@ public:
         : Utils::PathString({directory, "/", name}),
           m_slashIndex(std::ptrdiff_t(directory.size()))
     {}
+
+    bool isValid() const { return size() > 0 && m_slashIndex >= 0; }
 
     Utils::SmallStringView directory() const noexcept
     {

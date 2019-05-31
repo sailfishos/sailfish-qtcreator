@@ -49,7 +49,6 @@ namespace CPlusPlus { class LookupContext; }
 namespace ProjectExplorer { class Project; }
 namespace TextEditor {
 class BaseHoverHandler;
-class Indenter;
 class TextDocument;
 } // namespace TextEditor
 
@@ -90,7 +89,7 @@ class CPPTOOLS_EXPORT CppModelManager final : public CPlusPlus::CppModelManagerB
     Q_OBJECT
 
 public:
-    typedef CPlusPlus::Document Document;
+    using Document = CPlusPlus::Document;
 
 public:
     CppModelManager();
@@ -116,7 +115,6 @@ public:
 
     QList<ProjectInfo> projectInfos() const;
     ProjectInfo projectInfo(ProjectExplorer::Project *project) const;
-    QFuture<void> updateProjectInfo(const ProjectInfo &newProjectInfo);
     QFuture<void> updateProjectInfo(QFutureInterface<void> &futureInterface,
                                     const ProjectInfo &newProjectInfo);
 
@@ -137,8 +135,9 @@ public:
     Document::Ptr document(const QString &fileName) const;
     bool replaceDocument(Document::Ptr newDoc);
 
-    void emitDocumentUpdated(CPlusPlus::Document::Ptr doc);
+    void emitDocumentUpdated(Document::Ptr doc);
     void emitAbstractEditorSupportContentsUpdated(const QString &filePath,
+                                                  const QString &sourcePath,
                                                   const QByteArray &contents);
     void emitAbstractEditorSupportRemoved(const QString &filePath);
 
@@ -166,7 +165,7 @@ public:
     void globalFollowSymbol(const CursorInEditor &data,
                             Utils::ProcessLinkCallback &&processLinkCallback,
                             const CPlusPlus::Snapshot &snapshot,
-                            const CPlusPlus::Document::Ptr &documentFromSemanticInfo,
+                            const Document::Ptr &documentFromSemanticInfo,
                             SymbolFinder *symbolFinder,
                             bool inNextSplit) const final;
 
@@ -215,13 +214,6 @@ public:
                                      RefactoringEngineInterface *refactoringEngine);
     static void removeRefactoringEngine(RefactoringEngineType type);
 
-    using CppIndenterCreator = std::function<TextEditor::Indenter *()>;
-    void setCppIndenterCreator(CppIndenterCreator indenterCreator)
-    {
-        createCppIndenter = std::move(indenterCreator);
-    }
-    CppIndenterCreator createCppIndenter;
-
     void setLocatorFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
     void setClassesFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
     void setIncludesFilter(std::unique_ptr<Core::ILocatorFilter> &&filter);
@@ -238,8 +230,6 @@ public:
 
     void renameIncludes(const QString &oldFileName, const QString &newFileName);
 
-    void setBackendJobsPostponed(bool postponed);
-
 signals:
     /// Project data might be locked while this is emitted.
     void aboutToRemoveFiles(const QStringList &files);
@@ -254,7 +244,9 @@ signals:
 
     void gcFinished(); // Needed for tests.
 
-    void abstractEditorSupportContentsUpdated(const QString &filePath, const QByteArray &contents);
+    void abstractEditorSupportContentsUpdated(const QString &filePath,
+                                              const QString &sourcePath,
+                                              const QByteArray &contents);
     void abstractEditorSupportRemoved(const QString &filePath);
 
 public slots:

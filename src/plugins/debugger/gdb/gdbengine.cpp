@@ -90,33 +90,6 @@ enum { debugPending = 0 };
 
 #define CHECK_STATE(s) do { checkState(s, __FILE__, __LINE__); } while (0)
 
-static bool stateAcceptsGdbCommands(DebuggerState state)
-{
-    switch (state) {
-    case EngineSetupRequested:
-    case EngineSetupOk:
-    case EngineSetupFailed:
-    case InferiorUnrunnable:
-    case EngineRunRequested:
-    case InferiorRunRequested:
-    case InferiorRunOk:
-    case InferiorStopRequested:
-    case InferiorStopOk:
-    case InferiorShutdownRequested:
-    case InferiorShutdownFinished:
-    case EngineShutdownRequested:
-        return true;
-    case DebuggerNotReady:
-    case InferiorStopFailed:
-    case EngineRunFailed:
-    case InferiorRunFailed:
-    case EngineShutdownFinished:
-    case DebuggerFinished:
-        return false;
-    }
-    return false;
-}
-
 static int &currentToken()
 {
     static int token = 0;
@@ -194,7 +167,7 @@ static QString msgWinException(const QString &data, unsigned *exCodeIn = nullptr
     const int addressPos = blankPos != -1 ? data.indexOf("0x", blankPos + 1) : -1;
     if (addressPos < 0)
         return GdbEngine::tr("An exception was triggered.");
-    const unsigned exCode = data.mid(exCodePos, blankPos - exCodePos).toUInt(nullptr, 0);
+    const unsigned exCode = data.midRef(exCodePos, blankPos - exCodePos).toUInt(nullptr, 0);
     if (exCodeIn)
         *exCodeIn = exCode;
     const quint64 address = data.mid(addressPos).trimmed().toULongLong(nullptr, 0);
@@ -735,9 +708,14 @@ void GdbEngine::runCommand(const DebuggerCommand &command)
         QTC_ASSERT(false, return);
     }
 
-    if (!stateAcceptsGdbCommands(state())) {
+    if (m_gdbProc.state() != QProcess::Running) {
         showMessage(QString("NO GDB PROCESS RUNNING, CMD IGNORED: %1 %2")
             .arg(cmd.function).arg(state()));
+        if (cmd.callback) {
+            DebuggerResponse response;
+            response.resultClass = ResultError;
+            cmd.callback(response);
+        }
         return;
     }
 
@@ -1414,7 +1392,7 @@ void GdbEngine::handleStop2(const GdbMi &data)
         const GdbMi wpt = data["wpt"];
         const QString rid = wpt["number"].data();
         const Breakpoint bp = breakHandler()->findBreakpointByResponseId(rid);
-        const quint64 bpAddress = wpt["exp"].data().mid(1).toULongLong(nullptr, 0);
+        const quint64 bpAddress = wpt["exp"].data().midRef(1).toULongLong(nullptr, 0);
         QString msg;
         if (bp) {
             if (bp->type() == WatchpointAtExpression)
@@ -1688,7 +1666,7 @@ void GdbEngine::handleInferiorShutdown(const DebuggerResponse &response)
         // notifyInferiorShutdownFinished();
         return;
     }
-    // "kill" got stuck, or similar.
+    // "kill" got stuck, gdb was kill -9'd, or similar.
     CHECK_STATE(InferiorShutdownRequested);
     if (state() != InferiorShutdownRequested)
         return;
@@ -1697,7 +1675,7 @@ void GdbEngine::handleInferiorShutdown(const DebuggerResponse &response)
         // This happens when someone removed the binary behind our back.
         // It is not really an error from a user's point of view.
         showMessage("NOTE: " + msg);
-    } else {
+    } else if (m_gdbProc.state() == QProcess::Running) {
         AsynchronousMessageBox::critical(tr("Failed to Shut Down Application"),
                                          msgInferiorStopFailed(msg));
     }
@@ -1740,7 +1718,7 @@ void GdbEngine::detachDebugger()
 {
     CHECK_STATE(InferiorStopOk);
     QTC_CHECK(runParameters().startMode != AttachCore);
-    DebuggerCommand cmd("detach", ExitRequest);
+    DebuggerCommand cmd("detach", NativeCommand | ExitRequest);
     cmd.callback = [this](const DebuggerResponse &) {
         CHECK_STATE(InferiorStopOk);
         notifyInferiorExited();
@@ -2180,7 +2158,7 @@ void GdbEngine::handleWatchInsert(const DebuggerResponse &response, const Breakp
             bp->setResponseId(wpt["number"].data());
             QString exp = wpt["exp"].data();
             if (exp.startsWith('*'))
-                bp->setAddress(exp.mid(1).toULongLong(nullptr, 0));
+                bp->setAddress(exp.midRef(1).toULongLong(nullptr, 0));
             QTC_CHECK(!bp->needsChange());
             notifyBreakpointInsertOk(bp);
         } else if (ba.startsWith("Hardware watchpoint ")
@@ -2191,7 +2169,7 @@ void GdbEngine::handleWatchInsert(const DebuggerResponse &response, const Breakp
             const QString address = ba.mid(end + 2).trimmed();
             bp->setResponseId(ba.mid(begin, end - begin));
             if (address.startsWith('*'))
-                bp->setAddress(address.mid(1).toULongLong(nullptr, 0));
+                bp->setAddress(address.midRef(1).toULongLong(nullptr, 0));
             QTC_CHECK(!bp->needsChange());
             notifyBreakpointInsertOk(bp);
         } else {
@@ -2717,7 +2695,7 @@ void GdbEngine::handleShowModuleSections(const DebuggerResponse &response,
     // ~"    0xb44a6114->0xb44a6138 at 0x00000114: .note.gnu.build-id ALLOC LOAD READONLY DATA HAS_CONTENTS\n"
     if (response.resultClass == ResultDone) {
         const QStringList lines = response.consoleStreamOutput.split('\n');
-        const QString prefix = QLatin1String("  Object file: ");
+        const QString prefix = "  Object file: ";
         const QString needle = prefix + moduleName;
         Sections sections;
         bool active = false;
@@ -2979,7 +2957,7 @@ void GdbEngine::handleThreadInfo(const DebuggerResponse &response)
     if (response.resultClass == ResultDone) {
         ThreadsHandler *handler = threadsHandler();
         handler->setThreads(response.data);
-        updateState(false); // Adjust Threads combobox.
+        updateState(); // Adjust Threads combobox.
         if (boolSetting(ShowThreadNames)) {
             runCommand({"threadnames " + action(MaximalStackDepth)->value().toString(),
                 Discardable, CB(handleThreadNames)});
@@ -3019,7 +2997,7 @@ void GdbEngine::handleThreadNames(const DebuggerResponse &response)
             thread.name = decodeData(name["value"].data(), name["valueencoded"].data());
             handler->updateThread(thread);
         }
-        updateState(false);
+        updateState();
     }
 }
 
@@ -3561,7 +3539,7 @@ void GdbEngine::setupEngine()
     }
 
     const QString tests = QString::fromLocal8Bit(qgetenv("QTC_DEBUGGER_TESTS"));
-    foreach (const QStringRef &test, tests.splitRef(QLatin1Char(',')))
+    foreach (const QStringRef &test, tests.splitRef(','))
         m_testCases.insert(test.toInt());
     foreach (int test, m_testCases)
         showMessage("ENABLING TEST CASE: " + QString::number(test));
@@ -3802,9 +3780,8 @@ void GdbEngine::handleGdbError(QProcess::ProcessError error)
         // This should be handled by the code trying to start the process.
         break;
     case QProcess::Crashed:
-        // This does not seem to get processFinished() in all cases.
-        m_gdbProc.disconnect();
-        handleGdbFinished(m_gdbProc.exitCode(), QProcess::CrashExit);
+        // At this time, m_gdbProc.state() can still return Running.
+        // Wait for finished() instead.
         break;
     case QProcess::ReadError:
     case QProcess::WriteError:
@@ -4674,7 +4651,7 @@ static QString findExecutableFromName(const QString &fileNameFromCore, const QSt
         return absPath;
 
     // remove possible trailing arguments
-    QLatin1Char sep(' ');
+    QChar sep(' ');
     QStringList pathFragments = absPath.split(sep);
     while (pathFragments.size() > 0) {
         QString joined_path = pathFragments.join(sep);

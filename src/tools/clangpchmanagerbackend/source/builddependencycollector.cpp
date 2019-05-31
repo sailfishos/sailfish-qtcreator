@@ -26,11 +26,14 @@
 #include "builddependencycollector.h"
 
 #include "collectbuilddependencytoolaction.h"
+#include "commandlinebuilder.h"
+
+#include <environment.h>
 
 #include <utils/smallstring.h>
 
 #include <algorithm>
-
+#include <iostream>
 namespace ClangBackEnd {
 
 namespace {
@@ -42,18 +45,74 @@ FilePathIds operator+(const FilePathIds &first, const FilePathIds &second)
 
     return result;
 }
+
+FilePaths operator+(FilePaths &&first, FilePaths &&second) {
+    FilePaths result = std::move(first);
+
+    std::copy(second.begin(), second.end(), std::back_inserter(result));
+
+    return result;
 }
 
-BuildDependency BuildDependencyCollector::create(const V2::ProjectPartContainer &projectPart)
-{
-    addFiles(projectPart.sourcePathIds, projectPart.arguments);
+FilePaths generatedFilePaths(const V2::FileContainers &containers) {
+    FilePaths paths;
+    paths.reserve(containers.size());
+    std::transform(containers.begin(),
+                   containers.end(),
+                   std::back_inserter(paths),
+                   [](const auto &container) { return container.filePath; });
+    return paths;
+}
 
-    setExcludedFilePaths(
-        m_filePathCache.filePaths(projectPart.headerPathIds + projectPart.sourcePathIds));
+} // namespace
+
+BuildDependency BuildDependencyCollector::create(const ProjectPartContainer &projectPart)
+{
+    CommandLineBuilder<ProjectPartContainer, Utils::SmallStringVector>
+        builder{projectPart, projectPart.toolChainArguments, InputFileType::Source};
+
+    addFiles(projectPart.sourcePathIds, std::move(builder.commandLine));
+
+    setExcludedFilePaths(m_filePathCache.filePaths(projectPart.headerPathIds +
+                                                   projectPart.sourcePathIds) +
+                         generatedFilePaths(m_generatedFiles.fileContainers()));
+
+    addUnsavedFiles(m_generatedFiles.fileContainers());
 
     collect();
 
-    return std::move(m_buildDependency);
+    auto buildDependency = std::move(m_buildDependency);
+
+    clear();
+
+    return buildDependency;
+}
+
+namespace {
+
+std::size_t contentSize(const FilePaths &includes)
+{
+    auto countIncludeSize = [](std::size_t size, const auto &include) {
+        return size + include.size();
+    };
+
+    return std::accumulate(includes.begin(), includes.end(), std::size_t(0), countIncludeSize);
+}
+} // namespace
+
+Utils::SmallString BuildDependencyCollector::generateFakeFileContent(
+    const FilePathIds &includeIds) const
+{
+    Utils::SmallString fileContent;
+    const std::size_t lineTemplateSize = 12;
+    auto includes = m_filePathCache.filePaths(includeIds);
+
+    fileContent.reserve(includes.size() * lineTemplateSize + contentSize(includes));
+
+    for (Utils::SmallStringView include : includes)
+        fileContent += {"#include \"", include, "\"\n"};
+
+    return fileContent;
 }
 
 void BuildDependencyCollector::collect()
@@ -86,25 +145,26 @@ void BuildDependencyCollector::setExcludedFilePaths(ClangBackEnd::FilePaths &&ex
 }
 
 void BuildDependencyCollector::addFiles(const FilePathIds &filePathIds,
-                                        const Utils::SmallStringVector &arguments)
+                                        Utils::SmallStringVector &&arguments)
 {
-    m_clangTool.addFiles(m_filePathCache.filePaths(filePathIds), arguments);
+    m_clangTool.addFile(FilePath{m_environment.pchBuildDirectory().toStdString(), "dummy.cpp"},
+                        generateFakeFileContent(filePathIds),
+                        std::move(arguments));
     m_buildDependency.sourceFiles.insert(m_buildDependency.sourceFiles.end(),
                                          filePathIds.begin(),
                                          filePathIds.end());
 }
 
-void BuildDependencyCollector::addFile(FilePathId filePathId,
-                                       const Utils::SmallStringVector &arguments)
+void BuildDependencyCollector::addFile(FilePathId filePathId, Utils::SmallStringVector &&arguments)
 {
-    addFiles({filePathId}, arguments);
+    addFiles({filePathId}, std::move(arguments));
 }
 
 void BuildDependencyCollector::addFile(FilePath filePath,
                                        const FilePathIds &sourceFileIds,
-                                       const Utils::SmallStringVector &arguments)
+                                       Utils::SmallStringVector &&arguments)
 {
-    m_clangTool.addFiles({filePath}, arguments);
+    m_clangTool.addFiles({filePath}, std::move(arguments));
     m_buildDependency.sourceFiles.insert(m_buildDependency.sourceFiles.end(),
                                          sourceFileIds.begin(),
                                          sourceFileIds.end());

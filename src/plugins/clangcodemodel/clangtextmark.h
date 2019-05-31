@@ -33,6 +33,7 @@
 #include <functional>
 
 namespace ClangCodeModel {
+namespace Internal {
 
 class ClangTextMark : public TextEditor::TextMark
 {
@@ -44,7 +45,9 @@ public:
                   const RemovedFromEditorHandler &removedHandler,
                   bool fullVisualization);
 
+    ClangBackEnd::DiagnosticContainer diagnostic() const { return m_diagnostic; }
     void updateIcon(bool valid = true);
+
 private:
     bool addToolTipContent(QLayout *target) const override;
     void removedFromEditor() override;
@@ -54,4 +57,5 @@ private:
     RemovedFromEditorHandler m_removedFromEditorHandler;
 };
 
+} // namespace Internal
 } // namespace ClangCodeModel

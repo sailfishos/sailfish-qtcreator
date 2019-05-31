@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "cppeditor_global.h"
+
 #include <texteditor/syntaxhighlighter.h>
 
 #include <cplusplus/Token.h>
@@ -33,15 +35,12 @@
 
 namespace CppEditor {
 
-namespace Internal {
-
-
-class CppHighlighter : public TextEditor::SyntaxHighlighter
+class CPPEDITOR_EXPORT CppHighlighter : public TextEditor::SyntaxHighlighter
 {
     Q_OBJECT
 
 public:
-    CppHighlighter(QTextDocument *document = 0);
+    CppHighlighter(QTextDocument *document = nullptr);
 
     void setLanguageFeatures(const CPlusPlus::LanguageFeatures &languageFeatures);
     void highlightBlock(const QString &text) override;
@@ -58,5 +57,4 @@ private:
     CPlusPlus::LanguageFeatures m_languageFeatures = CPlusPlus::LanguageFeatures::defaultFeatures();
 };
 
-} // namespace Internal
 } // namespace CppEditor

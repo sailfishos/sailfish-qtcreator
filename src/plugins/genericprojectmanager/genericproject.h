@@ -28,6 +28,7 @@
 #include <projectexplorer/project.h>
 
 namespace CppTools { class CppProjectUpdater; }
+namespace Utils { class FileSystemWatcher; }
 
 namespace GenericProjectManager {
 namespace Internal {
@@ -64,24 +65,32 @@ private:
                                QHash<QString, QString> *map = nullptr) const;
 
     void refreshCppCodeModel();
+    void updateDeploymentData();
     void activeTargetWasChanged();
     void activeBuildConfigurationWasChanged();
 
     QString m_filesFileName;
     QString m_includesFileName;
     QString m_configFileName;
-    ProjectExplorer::ProjectDocument *m_filesIDocument;
-    ProjectExplorer::ProjectDocument *m_includesIDocument;
-    ProjectExplorer::ProjectDocument *m_configIDocument;
+    QString m_cxxflagsFileName;
+    QString m_cflagsFileName;
+    ProjectExplorer::ProjectDocument *m_filesIDocument = nullptr;
+    ProjectExplorer::ProjectDocument *m_includesIDocument = nullptr;
+    ProjectExplorer::ProjectDocument *m_configIDocument = nullptr;
+    ProjectExplorer::ProjectDocument *m_cxxFlagsIDocument = nullptr;
+    ProjectExplorer::ProjectDocument *m_cFlagsIDocument = nullptr;
     QStringList m_rawFileList;
     QStringList m_files;
     QHash<QString, QString> m_rawListEntries;
     QStringList m_rawProjectIncludePaths;
     QStringList m_projectIncludePaths;
+    QStringList m_cxxflags;
+    QStringList m_cflags;
 
     CppTools::CppProjectUpdater *m_cppCodeModelUpdater = nullptr;
 
     ProjectExplorer::Target *m_activeTarget = nullptr;
+    Utils::FileSystemWatcher * const m_deployFileWatcher = nullptr;
 };
 
 } // namespace Internal
