@@ -171,16 +171,18 @@ Kit *MerTarget::kit() const
 
 bool MerTarget::isValid() const
 {
+#ifdef MER_LIBRARY
     static bool firstTime = true;
     if (firstTime && HostOsInfo::isAnyUnixHost()) {
         firstTime = false;
         QProcess process;
-        process.start("pkg-configo", {"--version"});
+        process.start("pkg-config", {"--version"});
         if (!process.waitForFinished() || process.error() == QProcess::FailedToStart) {
             MessageManager::write(tr("pkg-config is not available. Ensure it is installed and available from PATH"),
                     MessageManager::Flash);
         }
     }
+#endif // MER_LIBRARY
 
     return m_sdk && !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty()
         && !m_gccMacrosDump.isEmpty() && !m_gccIncludesDump.isEmpty()
