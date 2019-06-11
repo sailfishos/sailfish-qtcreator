@@ -125,7 +125,7 @@
         {
             "name": "fix-version",
             "trArgument": "[<tag>]",
-            "trDescription": "This option is implied when used inside a Git working tree (use 'no-fix-version' to override).\n\nUse the latest tag from the current git branch as package version or the given <tag> (hardly useful on other than 'command' scope).  If the current HEAD, index or working tree differs from the tree denoted by the tag, a suffix composed from the current branch name, time stamp and a commit SHA1 will be added to the package version. If git-state is not clean a git-stash will be created and its SHA1 will be used instead of HEAD."
+            "trDescription": "This option is implied when used inside a Git working tree (use 'no-fix-version' to override).\n\nWith this option the version recorded in the .spec file will be ignored. Instead, package version will be derived from the name of the latest tag in the current git branch or the selected tag <tag> (the latter case is hardly useful on other than 'command' scope).\n\nIf the current HEAD, index or working tree differs from the tree denoted by the (latest or selected) tag, a suffix composed from the current branch name, time stamp and a commit SHA1 will be added to the package version. If git-state is not clean a git-stash will be created and its SHA1 will be used.\n\nIt is recommended to store 'Version: 0' and 'Release: 1' in the .spec file when this option is to be used; as a sign that the version recorded there is not relevant."
         },
         {
             "name": "no-fix-version",
