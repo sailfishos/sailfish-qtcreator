@@ -81,7 +81,7 @@ CommandLineParser::CommandLineParser(const QStringList &arguments)
     }
 
     QCommandLineOption quietOption("quiet");
-    quietOption.setDescription(tr("Suppres informational messages.\n\nThis option only affects generic messages. Subcommands may provide their own equivalents of this option to suppress their informational messages."));
+    quietOption.setDescription(tr("Suppress informational messages.\n\nThis option only affects generic messages. Subcommands may provide their own equivalents of this option to suppress their informational messages."));
     m_otherOptions.append(quietOption);
 
     QCommandLineOption debugOption("debug");
