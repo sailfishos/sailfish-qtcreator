@@ -1215,6 +1215,14 @@ void QmakeProFile::asyncUpdate()
     m_parseFutureWatcher.setFuture(future);
 }
 
+bool QmakeProFile::isFileFromWildcard(const QString &filePath) const
+{
+    const QFileInfo fileInfo(filePath);
+    const auto directoryIterator = m_wildcardDirectoryContents.constFind(fileInfo.path());
+    return (directoryIterator != m_wildcardDirectoryContents.end()
+            && directoryIterator.value().contains(fileInfo.fileName()));
+}
+
 QmakeEvalInput QmakeProFile::evalInput() const
 {
     QmakeEvalInput input;
