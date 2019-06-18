@@ -584,6 +584,7 @@ bool QmakePriFile::addFiles(const QStringList &filePaths, QStringList *notAdded)
 bool QmakePriFile::removeFiles(const QStringList &filePaths,
                               QStringList *notRemoved)
 {
+    QStringList notChanged;
     QStringList failedFiles;
     using TypeFileMap = QMap<QString, QStringList>;
     // Split into lists by file type and bulk-add them.
@@ -594,7 +595,11 @@ bool QmakePriFile::removeFiles(const QStringList &filePaths,
     }
     foreach (const QString &type, typeFileMap.keys()) {
         const QStringList typeFiles = typeFileMap.value(type);
-        changeFiles(type, typeFiles, &failedFiles, RemoveFromProFile);
+        changeFiles(type, typeFiles, &notChanged, RemoveFromProFile);
+        foreach (const QString &file, notChanged) {
+            if (!m_qmakeProFile->isFileFromWildcard(file))
+                failedFiles.append(file);
+        }
         if (notRemoved)
             *notRemoved = failedFiles;
     }
@@ -1213,6 +1218,13 @@ void QmakeProFile::asyncUpdate()
                                                         &QmakeProFile::asyncEvaluate,
                                                         this, input);
     m_parseFutureWatcher.setFuture(future);
+}
+
+bool QmakeProFile::isFileFromWildcard(const QString &fileName) const
+{
+    QFileInfo fileInfo(fileName);
+    return (m_wildcardDirectoryContents.keys().contains(fileInfo.path())
+            && m_wildcardDirectoryContents.value(fileInfo.path()).contains(fileInfo.fileName()));
 }
 
 QmakeEvalInput QmakeProFile::evalInput() const

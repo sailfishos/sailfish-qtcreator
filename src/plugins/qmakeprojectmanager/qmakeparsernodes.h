@@ -327,6 +327,8 @@ public:
 
     void asyncUpdate();
 
+    bool isFileFromWildcard(const QString &fileName) const;
+
 private:
     void setParseInProgress(bool b);
     void setValidParseRecursive(bool b);
