@@ -123,7 +123,7 @@ int RemoteProcess::exec()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
+    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams);
 
     started();
 
