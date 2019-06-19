@@ -123,7 +123,7 @@ int RemoteProcess::exec()
         fullCommand.append(' ');
     fullCommand.append(Utils::QtcProcess::joinArgs(m_arguments, Utils::OsTypeLinux));
 
-    m_runner->run(fullCommand.toUtf8(), m_sshConnectionParams);
+    m_runner->runInTerminal(fullCommand.toUtf8(), m_sshConnectionParams);
 
     started();
 
@@ -240,15 +240,16 @@ void RemoteProcess::onProcessStarted()
 
 void RemoteProcess::onReadyReadStandardOutput()
 {
-    if (!m_stdoutBuffer.append(m_runner->readAllStandardOutput()))
-        return;
-
-    QByteArray data = m_stdoutBuffer.flush();
+    // except for the period before the processId string is received, stdout is unbuffered
     if (m_processId != 0) {
-        emit standardOutput(data);
+        emit standardOutput(m_runner->readAllStandardOutput());
         return;
     }
 
+    if (!m_stdoutBuffer.append(m_runner->readAllStandardOutput()))
+        return;
+
+    QByteArray data = m_stdoutBuffer.flush(true);
     int cut = data.indexOf('\n');
     QTC_ASSERT(cut != -1, { emit standardOutput(data); return; });
     m_processId = data.left(cut).toLongLong();
@@ -286,10 +287,10 @@ bool RemoteProcess::LineBuffer::append(const QByteArray &data)
     return data.contains('\n') || m_buffer.size() > LINE_BUFFER_MAX;
 }
 
-QByteArray RemoteProcess::LineBuffer::flush()
+QByteArray RemoteProcess::LineBuffer::flush(bool all)
 {
     int cut = m_buffer.lastIndexOf('\n');
-    if (cut == -1) {
+    if (all || cut == -1) {
         QByteArray retv;
         m_buffer.swap(retv);
         return retv;

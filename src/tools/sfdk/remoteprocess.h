@@ -51,7 +51,7 @@ class RemoteProcess : public Task
     public:
         bool hasData() const;
         bool append(const QByteArray &data);
-        QByteArray flush();
+        QByteArray flush(bool all = false);
 
     private:
         QByteArray m_buffer;
