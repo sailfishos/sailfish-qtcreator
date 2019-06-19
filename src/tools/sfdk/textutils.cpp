@@ -22,6 +22,7 @@
 
 #include "textutils.h"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
 
 #include "sfdkglobal.h"
@@ -71,8 +72,9 @@ Pager::~Pager()
 {
     if (m_pager.state() != QProcess::NotRunning) {
         m_pager.closeWriteChannel();
-        if (!m_pager.waitForFinished(-1)
-                || m_pager.exitStatus() != QProcess::NormalExit
+        while (m_pager.state() != QProcess::NotRunning)
+            QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+        if (m_pager.exitStatus() != QProcess::NormalExit
                 || m_pager.exitCode() != 0) {
             qCDebug(sfdk) << "Pager exited with error" << m_pager.error()
                 << "exitStatus" << m_pager.exitStatus()
