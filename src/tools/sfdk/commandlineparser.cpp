@@ -252,8 +252,10 @@ void CommandLineParser::usage(QTextStream &out) const
     const Domain *generalDomain = Dispatcher::domain(Constants::GENERAL_DOMAIN_NAME);
     QTC_ASSERT(generalDomain != nullptr, return);
 
-    for (const Module *module : generalDomain->modules())
-        wrapLines(out, 0, {}, {}, module->description);
+    for (const Module *module : generalDomain->modules()) {
+        if (!module->description.isEmpty())
+            wrapLines(out, 0, {}, {}, module->description);
+    }
     out << endl;
 
     out << commandsHeading() << endl;
@@ -319,9 +321,11 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
     out << endl;
 
     for (const Module *module : domain->modules()) {
-        wrapLines(out, 0, {}, {}, module->description);
-        out << endl;
-        out << endl;
+        if (!module->description.isEmpty()) {
+            wrapLines(out, 0, {}, {}, module->description);
+            out << endl;
+            out << endl;
+        }
     }
 
     out << commandsHeading() << endl;
@@ -360,9 +364,11 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
 
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         for (const Module *module : domain->modules()) {
-            wrapLines(out, 0, {}, {}, module->description);
-            out << endl;
-            out << endl;
+            if (!module->description.isEmpty()) {
+                wrapLines(out, 0, {}, {}, module->description);
+                out << endl;
+                out << endl;
+            }
         }
     }
 
