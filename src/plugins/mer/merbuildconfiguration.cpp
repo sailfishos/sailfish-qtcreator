@@ -122,7 +122,10 @@ void MerBuildConfiguration::setupExtraParserArguments()
     if (MerSettings::isImportQmakeVariablesEnabled()) {
         QFile file(buildDirectory().toString() + "/" + MER_VARIABLES_CACHE_FILENAME);
         if (file.exists() && file.open(QIODevice::ReadOnly)) {
-            args = Utils::transform(file.readAll().split('\0'),
+            QByteArray rawArgs = file.readAll();
+            if (rawArgs.endsWith('\0'))
+                rawArgs.chop(1);
+            args = Utils::transform(rawArgs.split('\0'),
                                     QOverload<const QByteArray &>::of(QString::fromUtf8));
         }
     }
