@@ -76,7 +76,7 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
             this, setupExtraParserArgumentsIfActive);
 
-    connect(EditorManager::instance(), &EditorManager::aboutToSave,
+    connect(EditorManager::instance(), &EditorManager::saved,
             this, [this](IDocument *document) {
         if (!isReallyActive())
             return;
