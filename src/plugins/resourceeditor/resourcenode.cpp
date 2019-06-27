@@ -163,7 +163,9 @@ public:
     QString displayName() const final;
     bool supportsAction(ProjectAction, const Node *node) const final;
     bool addFiles(const QStringList &filePaths, QStringList *notAdded) final;
-    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved) final;
+    RemovedFilesFromProject removeFiles(const QStringList &filePaths,
+                                        QStringList *notRemoved) final;
+    bool canRenameFile(const QString &filePath, const QString &newFilePath) override;
     bool renameFile(const QString &filePath, const QString &newFilePath) final;
 
     QString prefix() const { return m_prefix; }
@@ -216,50 +218,20 @@ bool SimpleResourceFolderNode::addFiles(const QStringList &filePaths, QStringLis
     return addFilesToResource(m_topLevelNode->filePath(), filePaths, notAdded, m_prefix, m_lang);
 }
 
-bool SimpleResourceFolderNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+RemovedFilesFromProject SimpleResourceFolderNode::removeFiles(const QStringList &filePaths,
+                                                              QStringList *notRemoved)
 {
-    if (notRemoved)
-        *notRemoved = filePaths;
-    ResourceFile file(m_topLevelNode->filePath().toString());
-    if (file.load() != IDocument::OpenResult::Success)
-        return false;
-    int index = file.indexOfPrefix(m_prefix, m_lang);
-    if (index == -1)
-        return false;
-    for (int j = 0; j < file.fileCount(index); ++j) {
-        const QString fileName = file.file(index, j);
-        if (!filePaths.contains(fileName))
-            continue;
-        if (notRemoved)
-            notRemoved->removeOne(fileName);
-        file.removeFile(index, j);
-        --j;
-    }
-    FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
-    file.save();
+    return prefixNode()->removeFiles(filePaths, notRemoved);
+}
 
-    return true;
+bool SimpleResourceFolderNode::canRenameFile(const QString &filePath, const QString &newFilePath)
+{
+    return prefixNode()->canRenameFile(filePath, newFilePath);
 }
 
 bool SimpleResourceFolderNode::renameFile(const QString &filePath, const QString &newFilePath)
 {
-    ResourceFile file(m_topLevelNode->filePath().toString());
-    if (file.load() != IDocument::OpenResult::Success)
-        return false;
-    int index = file.indexOfPrefix(m_prefix, m_lang);
-    if (index == -1)
-        return false;
-
-    for (int j = 0; j < file.fileCount(index); ++j) {
-        if (file.file(index, j) == filePath) {
-            file.replaceFile(index, j, newFilePath);
-            FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
-            file.save();
-            return true;
-        }
-    }
-
-    return false;
+    return prefixNode()->renameFile(filePath, newFilePath);
 }
 
 } // Internal
@@ -406,7 +378,8 @@ bool ResourceTopLevelNode::addFiles(const QStringList &filePaths, QStringList *n
     return addFilesToResource(filePath(), filePaths, notAdded, QLatin1String("/"), QString());
 }
 
-bool ResourceTopLevelNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+RemovedFilesFromProject ResourceTopLevelNode::removeFiles(const QStringList &filePaths,
+                                                           QStringList *notRemoved)
 {
     return parentFolderNode()->removeFiles(filePaths, notRemoved);
 }
@@ -534,16 +507,17 @@ bool ResourceFolderNode::addFiles(const QStringList &filePaths, QStringList *not
     return addFilesToResource(m_topLevelNode->filePath(), filePaths, notAdded, m_prefix, m_lang);
 }
 
-bool ResourceFolderNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+RemovedFilesFromProject ResourceFolderNode::removeFiles(const QStringList &filePaths,
+                                                        QStringList *notRemoved)
 {
     if (notRemoved)
         *notRemoved = filePaths;
     ResourceFile file(m_topLevelNode->filePath().toString());
     if (file.load() != IDocument::OpenResult::Success)
-        return false;
+        return RemovedFilesFromProject::Error;
     int index = file.indexOfPrefix(m_prefix, m_lang);
     if (index == -1)
-        return false;
+        return RemovedFilesFromProject::Error;
     for (int j = 0; j < file.fileCount(index); ++j) {
         QString fileName = file.file(index, j);
         if (!filePaths.contains(fileName))
@@ -553,9 +527,10 @@ bool ResourceFolderNode::removeFiles(const QStringList &filePaths, QStringList *
         file.removeFile(index, j);
         --j;
     }
+    FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
     file.save();
 
-    return true;
+    return RemovedFilesFromProject::Ok;
 }
 
 // QTCREATORBUG-15280
@@ -591,6 +566,7 @@ bool ResourceFolderNode::renameFile(const QString &filePath, const QString &newF
     for (int j = 0; j < file.fileCount(index); ++j) {
         if (file.file(index, j) == filePath) {
             file.replaceFile(index, j, newFilePath);
+            FileChangeBlocker changeGuard(m_topLevelNode->filePath().toString());
             file.save();
             return true;
         }
