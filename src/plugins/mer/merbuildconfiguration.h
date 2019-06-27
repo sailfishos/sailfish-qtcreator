@@ -36,10 +36,9 @@ public:
     void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
 
-private slots:
-    void setupExtraParserArguments();
-
 private:
+    bool isReallyActive() const;
+    void setupExtraParserArguments();
     void updateExtraParserArguments() const;
 };
 

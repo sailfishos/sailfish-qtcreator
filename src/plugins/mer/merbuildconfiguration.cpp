@@ -25,6 +25,7 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "merbuildsteps.h"
+#include "merlogging.h"
 #include "mersettings.h"
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
@@ -33,6 +34,7 @@
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakestep.h>
@@ -53,23 +55,37 @@ namespace Internal {
 MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
     : QmakeBuildConfiguration(target, id)
 {
+    auto setupExtraParserArgumentsIfActive = [this]() {
+        if (isReallyActive())
+            setupExtraParserArguments();
+    };
+
+    connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
+            this, setupExtraParserArgumentsIfActive);
+
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
+            this, setupExtraParserArgumentsIfActive);
+    connect(project(), &Project::activeTargetChanged,
+            this, setupExtraParserArgumentsIfActive);
+    connect(target, &Target::activeBuildConfigurationChanged,
+            this, setupExtraParserArgumentsIfActive);
+
     QmakeProject *qmakeProject = static_cast<QmakeProject *>(project());
+    // Note that this is emited more than once during qmake step execution - once
+    // for each executed process
     connect(qmakeProject, &QmakeProject::buildDirectoryInitialized,
-            this, &MerBuildConfiguration::setupExtraParserArguments);
+            this, setupExtraParserArgumentsIfActive);
 
     connect(EditorManager::instance(), &EditorManager::aboutToSave,
             this, [this](IDocument *document) {
+        if (!isReallyActive())
+            return;
         QTC_ASSERT(project(), return);
         if (!project()->files(Project::AllFiles).contains(document->filePath())
                 || !document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
             return;
 
         updateExtraParserArguments();
-    });
-
-    connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
-            [this]() {
-        setupExtraParserArguments();
     });
 }
 
@@ -86,6 +102,12 @@ void MerBuildConfiguration::initialize(const ProjectExplorer::BuildInfo &info)
     cleanSteps->insertStep(0, new MerSdkStartStep(cleanSteps));
 }
 
+bool MerBuildConfiguration::isReallyActive() const
+{
+    QTC_ASSERT(project(), return false);
+    return SessionManager::startupProject() == project() && isActive();
+}
+
 void MerBuildConfiguration::setupExtraParserArguments()
 {
     if (!qmakeStep())
@@ -98,6 +120,13 @@ void MerBuildConfiguration::setupExtraParserArguments()
             args = Utils::transform(file.readAll().split('\0'),
                                     QOverload<const QByteArray &>::of(QString::fromUtf8));
         }
+    }
+
+    if (Log::qmakeArgs().isDebugEnabled()) {
+        qCDebug(Log::qmakeArgs) << "Setting up extra parser arguments for" << displayName()
+            << "under target" << target()->displayName() << "as:";
+        for (const QString &arg : qAsConst(args))
+            qCDebug(Log::qmakeArgs) << "    " << arg;
     }
 
     qmakeStep()->setExtraParserArguments(args);
@@ -130,7 +159,6 @@ bool MerBuildConfiguration::fromMap(const QVariantMap &map)
 {
     if (!QmakeBuildConfiguration::fromMap(map))
         return false;
-    setupExtraParserArguments();
     return true;
 }
 
