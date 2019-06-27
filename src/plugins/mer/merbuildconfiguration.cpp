@@ -69,7 +69,6 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
 
     connect(MerSettings::instance(), &MerSettings::importQmakeVariablesEnabledChanged,
             [this]() {
-        updateExtraParserArguments();
         setupExtraParserArguments();
     });
 }
