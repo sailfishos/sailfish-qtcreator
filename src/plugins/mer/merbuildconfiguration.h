@@ -24,6 +24,9 @@
 
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 
+#include <QMessageBox>
+#include <QPointer>
+
 namespace Mer {
 namespace Internal {
 
@@ -39,7 +42,11 @@ public:
 private:
     bool isReallyActive() const;
     void setupExtraParserArguments();
-    void updateExtraParserArguments() const;
+    void maybeUpdateExtraParserArguments();
+    void updateExtraParserArguments();
+
+private:
+    QPointer<QMessageBox> m_qmakeQuestion;
 };
 
 class MerBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory

@@ -31,6 +31,7 @@
 #include "mersdkkitinformation.h"
 
 #include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
@@ -38,10 +39,14 @@
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakestep.h>
+#include <utils/checkablemessagebox.h>
+
+#include <QCheckBox>
 
 using namespace Core;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
+using Utils::CheckableMessageBox;
 
 namespace {
 
@@ -85,7 +90,7 @@ MerBuildConfiguration::MerBuildConfiguration(Target *target, Core::Id id)
                 || !document->filePath().toString().contains(QRegExp("\\.spec$|\\.yaml$")))
             return;
 
-        updateExtraParserArguments();
+        maybeUpdateExtraParserArguments();
     });
 }
 
@@ -132,11 +137,46 @@ void MerBuildConfiguration::setupExtraParserArguments()
     qmakeStep()->setExtraParserArguments(args);
 }
 
-void MerBuildConfiguration::updateExtraParserArguments() const
+void MerBuildConfiguration::maybeUpdateExtraParserArguments()
 {
+    if (m_qmakeQuestion)
+        return; // already asking
+
     if (!MerSettings::isImportQmakeVariablesEnabled())
         return;
 
+    if (!MerSettings::isAskImportQmakeVariablesEnabled()) {
+        updateExtraParserArguments();
+        return;
+    }
+
+    m_qmakeQuestion = new QMessageBox(
+            QMessageBox::Question,
+            tr("Run qmake?"),
+            tr("Run qmake to detect possible additional qmake arguments now?")
+                + QString(45, ' '), // more horizontal space for the informative text
+            QMessageBox::Yes | QMessageBox::No,
+            ICore::mainWindow());
+    m_qmakeQuestion->setInformativeText(tr("Additional qmake arguments that may influence project "
+                "parsing may be introduced at the rpmbuild level. These are recognized only after "
+                "qmake is executed and the effect is local to the active build configuration - "
+                "you may need to run qmake manually when project parsing fails to deliver the "
+                "expected results after switching to another build configuration."));
+    m_qmakeQuestion->setCheckBox(new QCheckBox(CheckableMessageBox::msgDoNotAskAgain()));
+    connect(m_qmakeQuestion, &QMessageBox::finished, [=](int result) {
+        if (m_qmakeQuestion->checkBox()->isChecked())
+            MerSettings::setAskImportQmakeVariablesEnabled(false);
+        if (result == QMessageBox::Yes)
+            updateExtraParserArguments();
+    });
+    m_qmakeQuestion->setEscapeButton(QMessageBox::No);
+    m_qmakeQuestion->setAttribute(Qt::WA_DeleteOnClose);
+    m_qmakeQuestion->show();
+    m_qmakeQuestion->raise();
+}
+
+void MerBuildConfiguration::updateExtraParserArguments()
+{
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     QTC_ASSERT(merSdk, return);
     QTC_ASSERT(merSdk->connection(), return);

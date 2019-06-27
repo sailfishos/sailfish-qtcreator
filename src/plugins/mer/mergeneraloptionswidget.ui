@@ -112,43 +112,73 @@
     </layout>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupBox">
-     <property name="title">
-      <string>Virtual Machines</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_4">
-      <item>
-       <widget class="QCheckBox" name="askBeforeStartingVmCheckBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="text">
-         <string>Ask before starting a virtual machine</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="askBeforeClosingVmCheckBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="text">
-         <string>Ask before closing a virtual machine</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="importQmakeVariablesCheckBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The effective qmake call reported in build configuration is missing further arguments possibly supplied e.g. according to the recipe in the .spec (.yaml) file. This may render the project model inaccurate.&lt;/p&gt;&lt;p&gt;This option enables to augment the project model with qmake variable assignments found on the actual qmake command line.&lt;/p&gt;&lt;p&gt;When enabled, qmake will be invoked automatically when the .spec (.yaml) file is updated, which may prompt you to start the Sailfish OS build engine if it is not running.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="text">
-         <string>Augment project model using actual qmake arguments</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="title">
+        <string>Code model</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_5">
+        <item>
+         <widget class="QCheckBox" name="importQmakeVariablesCheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The effective qmake call reported in build configuration is missing further arguments possibly supplied e.g. according to the recipe in the .spec (.yaml) file. This may render the project model inaccurate.&lt;/p&gt;&lt;p&gt;This option enables to augment the project model with qmake variable assignments found on the actual qmake command line.&lt;/p&gt;&lt;p&gt;When enabled, qmake will be invoked automatically when the .spec (.yaml) file is updated.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Augment project model using actual qmake arguments</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="leftMargin">
+           <number>20</number>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="askImportQmakeVariablesCheckBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;With this option disabled, qmake will be run without notice but you still may be prompted to start the Sailfish OS build engine depending on the other options.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Ask before running qmake</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox">
+       <property name="title">
+        <string>Virtual Machines</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <widget class="QCheckBox" name="askBeforeStartingVmCheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to starting a Sailfish OS build engine or emulator virtual machine during build, deploy or run step execution.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Ask before starting a virtual machine</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="askBeforeClosingVmCheckBox">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies to closing a headless Sailfish OS build engine virtual machine when Qt Creator is about to quit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Ask before closing a virtual machine</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QGroupBox" name="qmlLiveGroupBox">
