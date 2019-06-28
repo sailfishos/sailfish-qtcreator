@@ -52,6 +52,7 @@ const char QML_LIVE_BENCH_LOCATION_KEY[] = "QmlLiveBenchLocation";
 const char ASK_BEFORE_STARTING_VM[] = "AskBeforeStartingVm";
 const char ASK_BEFORE_CLOSING_VM[] = "AskBeforeClosingVm";
 const char IMPORT_QMAKE_VARIABLES[] = "ImportQmakeVariables";
+const char ASK_IMPORT_QMAKE_VARIABLES[] = "AskImportQmakeVariables";
 } // namespace anonymous
 
 MerSettings *MerSettings::s_instance = 0;
@@ -373,6 +374,25 @@ void MerSettings::setImportQmakeVariablesEnabled(bool enabled)
     emit s_instance->importQmakeVariablesEnabledChanged(s_instance->m_importQmakeVariablesEnabled);
 }
 
+bool MerSettings::isAskImportQmakeVariablesEnabled()
+{
+    Q_ASSERT(s_instance);
+
+    return s_instance->m_askImportQmakeVariablesEnabled;
+}
+
+void MerSettings::setAskImportQmakeVariablesEnabled(bool enabled)
+{
+    Q_ASSERT(s_instance);
+
+    if (s_instance->m_askImportQmakeVariablesEnabled == enabled)
+        return;
+
+    s_instance->m_askImportQmakeVariablesEnabled = enabled;
+
+    emit s_instance->askImportQmakeVariablesEnabledChanged(s_instance->m_askImportQmakeVariablesEnabled);
+}
+
 void MerSettings::read()
 {
 #ifdef MER_LIBRARY
@@ -393,6 +413,7 @@ void MerSettings::read()
     m_askBeforeStartingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
     m_askBeforeClosingVmEnabled = settings->value(QLatin1String(ASK_BEFORE_STARTING_VM), true).toBool();
     m_importQmakeVariablesEnabled = settings->value(QLatin1String(IMPORT_QMAKE_VARIABLES), true).toBool();
+    m_askImportQmakeVariablesEnabled = settings->value(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), true).toBool();
 
     settings->endGroup();
 
@@ -436,6 +457,7 @@ void MerSettings::save()
     settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeStartingVmEnabled);
     settings->setValue(QLatin1String(ASK_BEFORE_STARTING_VM), m_askBeforeClosingVmEnabled);
     settings->setValue(QLatin1String(IMPORT_QMAKE_VARIABLES), m_importQmakeVariablesEnabled);
+    settings->setValue(QLatin1String(ASK_IMPORT_QMAKE_VARIABLES), m_askImportQmakeVariablesEnabled);
 
     settings->endGroup();
 

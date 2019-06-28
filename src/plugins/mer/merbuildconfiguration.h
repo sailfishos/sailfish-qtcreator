@@ -24,6 +24,9 @@
 
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 
+#include <QMessageBox>
+#include <QPointer>
+
 namespace Mer {
 namespace Internal {
 
@@ -36,11 +39,14 @@ public:
     void initialize(const ProjectExplorer::BuildInfo &info) override;
     bool fromMap(const QVariantMap &map) override;
 
-private slots:
+private:
+    bool isReallyActive() const;
     void setupExtraParserArguments();
+    void maybeUpdateExtraParserArguments();
+    void updateExtraParserArguments();
 
 private:
-    void updateExtraParserArguments() const;
+    QPointer<QMessageBox> m_qmakeQuestion;
 };
 
 class MerBuildConfigurationFactory : public QmakeProjectManager::QmakeBuildConfigurationFactory

@@ -55,6 +55,10 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
     m_ui->askBeforeStartingVmCheckBox->setChecked(MerSettings::isAskBeforeStartingVmEnabled());
     m_ui->askBeforeClosingVmCheckBox->setChecked(MerSettings::isAskBeforeClosingVmEnabled());
     m_ui->importQmakeVariablesCheckBox->setChecked(MerSettings::isImportQmakeVariablesEnabled());
+    m_ui->askImportQmakeVariablesCheckBox->setEnabled(MerSettings::isImportQmakeVariablesEnabled());
+    connect(m_ui->importQmakeVariablesCheckBox, &QCheckBox::toggled,
+            m_ui->askImportQmakeVariablesCheckBox, &QCheckBox::setEnabled);
+    m_ui->askImportQmakeVariablesCheckBox->setChecked(MerSettings::isAskImportQmakeVariablesEnabled());
 
     m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
     m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
@@ -76,6 +80,7 @@ void MerGeneralOptionsWidget::store()
     MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
     MerSettings::setSyncQmlLiveWorkspaceEnabled(m_ui->benchSyncWorkspaceCheckBox->isChecked());
     MerSettings::setImportQmakeVariablesEnabled(m_ui->importQmakeVariablesCheckBox->isChecked());
+    MerSettings::setAskImportQmakeVariablesEnabled(m_ui->askImportQmakeVariablesCheckBox->isChecked());
 }
 
 QString MerGeneralOptionsWidget::searchKeywords() const
@@ -88,6 +93,8 @@ QString MerGeneralOptionsWidget::searchKeywords() const
                            << sep << m_ui->askBeforeStartingVmCheckBox->text()
                            << sep << m_ui->qmlLiveGroupBox->title()
                            << sep << m_ui->benchLocationLabel->text()
+                           << sep << m_ui->importQmakeVariablesCheckBox->text()
+                           << sep << m_ui->askImportQmakeVariablesCheckBox->text()
                            ;
     keywords.remove(QLatin1Char('&'));
     return keywords;
