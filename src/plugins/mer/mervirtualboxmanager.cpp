@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2016 Jolla Ltd.
+** Copyright (C) 2012 - 2019 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,6 +24,13 @@
 
 #include "merconstants.h"
 #include "merlogging.h"
+#include "meremulatordevice.h"
+
+#include <coreplugin/icore.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/portlist.h>
@@ -96,11 +103,76 @@ const char COLLECT[] = "collect";
 const char TOTAL_RAM[] = "RAM/Usage/Total";
 const char SNAPSHOT[] = "snapshot";
 const char RESTORE[] = "restore";
+const char SETTINGS_CATEGORY[] = "Mer";
+const char SETTINGS_SKIN_ENABLE[] = "Emulator.SkinEnabled";
 
 const int TERMINATE_TIMEOUT_MS = 3000;
 
 namespace Mer {
 namespace Internal {
+
+#ifdef MER_LIBRARY
+QString emulatorVirtualMachineSkinPath()
+{
+    static QString path;
+    if (path.isNull()) {
+        const QString binaryPath = Core::ICore::libexecPath() + QLatin1String("/sfosemu-manager") + QStringLiteral(QTC_HOST_EXE_SUFFIX);
+        path = QFileInfo(binaryPath).isExecutable()
+                ? binaryPath
+                : QString();
+    }
+    return path;
+}
+
+bool isEmulatorVirtualMachineSkinEnabled()
+{
+    return Core::ICore::settings()->value(QLatin1String(SETTINGS_CATEGORY) + "/"
+                                    + QLatin1String(SETTINGS_SKIN_ENABLE), false).toBool();
+}
+
+bool isEmulatorVirtualMachine(const QString &vmName)
+{
+    if (emulatorVirtualMachineSkinPath().isNull())
+        return false;
+
+    QProcess process;
+    process.start(emulatorVirtualMachineSkinPath(), { "list" }, QIODevice::ReadOnly);
+    if (!process.waitForFinished()
+            || process.error() == QProcess::FailedToStart
+            || process.exitCode() != QProcess::NormalExit) {
+        return false;
+    }
+
+    const QStringList list = QString::fromLatin1(process.readAllStandardOutput()).split("\n", QString::SkipEmptyParts);
+    return list.contains(vmName);
+}
+
+bool startEmulatorVirtualMachineSkin(const QString &vmName)
+{
+    using namespace Core;
+    using namespace ProjectExplorer;
+
+    const Target* const target = SessionManager::startupProject()
+            ? SessionManager::startupProject()->activeTarget()
+            : nullptr;
+
+    const QSharedPointer<const MerEmulatorDevice> device = (target && target->kit())
+            ? DeviceKitInformation::device(target->kit()).dynamicCast<const MerEmulatorDevice>()
+            : QSharedPointer<const MerEmulatorDevice>();
+
+    QStringList arguments;
+    if (device) {
+        arguments << "run" << "--emulator" << vmName << "--device" << device->deviceModel();
+        if (device->orientation() == Qt::Horizontal)
+            arguments << "--landscape";
+        if (device->isViewScaled())
+            arguments << "--scale" << "2";
+    }
+
+    return QProcess::startDetached(emulatorVirtualMachineSkinPath(), arguments);
+}
+
+#endif // MER_LIBRARY
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
 static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
@@ -525,6 +597,15 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
 // It is an error to call this function when the VM vmName is running
 void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
+#ifdef MER_LIBRARY
+    const bool isStarted = (headless == false)
+            && isEmulatorVirtualMachineSkinEnabled()
+            && isEmulatorVirtualMachine(vmName)
+            && startEmulatorVirtualMachineSkin(vmName);
+    if (isStarted)
+        return;
+#endif
+
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
     arguments.append(vmName);
