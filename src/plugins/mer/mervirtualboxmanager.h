@@ -110,6 +110,8 @@ public:
     static void getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot);
     static int getHostTotalCpuCount();
 private:
+    static void setExtraData(const QString& vmName, const QString& keyword, const QString& data);
+
     static MerVirtualBoxManager *m_instance;
 };
 
