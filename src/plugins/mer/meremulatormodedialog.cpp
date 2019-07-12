@@ -224,15 +224,19 @@ bool MerEmulatorModeDialog::execDialog()
     if (!result)
         goto end;
 
+    if (!m_emulator.data()->connection()->isVirtualMachineOff()
+        && m_ui->restartEmulatorCheckBox->isChecked()) {
+        m_emulator.data()->connection()->lockDown(true);
+    }
+
     m_emulator.data()->setDeviceModel(m_ui->deviceModelComboBox->currentDeviceModel());
     m_emulator.data()->setOrientation(m_ui->portraitRadioButton->isChecked()
                                ? Qt::Vertical
                                : Qt::Horizontal);
     m_emulator.data()->setViewScaled(m_ui->scaledViewModeRadioButton->isChecked());
 
-    if (!m_emulator.data()->connection()->isVirtualMachineOff()
+    if (m_emulator.data()->connection()->isVirtualMachineOff()
             && m_ui->restartEmulatorCheckBox->isChecked()) {
-        m_emulator.data()->connection()->lockDown(true);
         m_emulator.data()->connection()->lockDown(false);
         m_emulator.data()->connection()->connectTo();
     }

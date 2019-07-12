@@ -69,6 +69,8 @@ const char ADD_SHARED[] = "add";
 const char GETEXTRADATA[] = "getextradata";
 const char SETEXTRADATA[] = "setextradata";
 const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
+const char LAST_GUEST_SIZE_HINT[] = "GUI/LastGuestSizeHint";
+const char AUTORESIZE_GUEST[] = "GUI/AutoresizeGuest";
 const char ENABLE_SYMLINKS[] = "VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1";
 const char YES_ARG[] = "1";
 const char MODIFYVM[] = "modifyvm";
@@ -590,16 +592,13 @@ void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
         .arg(size.width())
         .arg(size.height())
         .arg(depth);
+    setExtraData(vmName, QLatin1String(CUSTOM_VIDEO_MODE1), videoMode);
 
-    QStringList args;
-    args.append(QLatin1String(SETEXTRADATA));
-    args.append(vmName);
-    args.append(QLatin1String(CUSTOM_VIDEO_MODE1));
-    args.append(videoMode);
-
-    VBoxManageProcess *process = new VBoxManageProcess(instance());
-    process->setDeleteOnFinished();
-    process->runAsynchronously(args);
+    QString hint = QStringLiteral("%1,%2")
+        .arg(size.width())
+        .arg(size.height());
+    setExtraData(vmName, QLatin1String(LAST_GUEST_SIZE_HINT), hint);
+    setExtraData(vmName, QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
 }
 
 void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot)
@@ -754,6 +753,19 @@ void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::funct
 int MerVirtualBoxManager::getHostTotalCpuCount()
 {
     return QThread::idealThreadCount();
+}
+
+void MerVirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword, const QString &data)
+{
+    QStringList args;
+    args.append(QLatin1String(SETEXTRADATA));
+    args.append(vmName);
+    args.append(keyword);
+    args.append(data);
+
+    VBoxManageProcess *process = new VBoxManageProcess(instance());
+    process->setDeleteOnFinished();
+    process->runAsynchronously(args);
 }
 
 // It is an error to call this function when the VM vmName is running
