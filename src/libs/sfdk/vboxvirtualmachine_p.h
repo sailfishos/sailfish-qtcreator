@@ -61,7 +61,8 @@ public:
     void probe(const QObject *context,
             const Functor<BasicState, bool> &functor) const override;
 
-    void setVideoMode(const QSize &size, int depth, const QObject *context,
+    void setVideoMode(const QSize &size, int depth, const QString &deviceModelName,
+            Qt::Orientation orientation, int scaleDownFactor, const QObject *context,
             const Functor<bool> &functor) override;
 
 protected:

@@ -138,7 +138,8 @@ public:
             const QList<Utils::Port> &ports, const QObject *context,
             const Functor<const QList<Utils::Port> &, bool> &functor);
 
-    virtual void setVideoMode(const QSize &size, int depth, const QObject *context,
+    virtual void setVideoMode(const QSize &size, int depth, const QString &deviceModelName,
+            Qt::Orientation orientation, int scaleDownFactor, const QObject *context,
             const Functor<bool> &functor) = 0;
 
     void restoreSnapshot(const QString &snapshotName, const QObject *context,
