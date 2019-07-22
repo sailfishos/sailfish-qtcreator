@@ -46,6 +46,8 @@ namespace Sfdk {
 
 namespace {
 const char SDK_MAINTENANCE_TOOL_DATA_FILE[] = "SDKMaintenanceTool.dat";
+const char GENERAL_SETTINGS_GROUP[] = "General";
+const char VBOXMANAGE_PATH[] = "VBoxManagePath";
 }
 
 /*!
@@ -68,6 +70,8 @@ Sdk::Sdk(Options options)
     qCDebug(lib) << "Initializing SDK. Options:" << options;
 
     d->options_ = options;
+
+    d->readGeneralSettings();
 
     d->commandQueue_ = std::make_unique<CommandQueue>(this);
 
@@ -359,6 +363,18 @@ Utils::FileName SdkPrivate::cacheLocation()
     qCDebug(lib) << "Cache location" << cacheLocation;
 
     return cacheLocation;
+}
+
+void SdkPrivate::readGeneralSettings()
+{
+    QSettings settings(QSettings::IniFormat, QSettings::SystemScope,
+            QCoreApplication::organizationName(), QString::fromLatin1(Constants::LIB_ID));
+
+    qCDebug(lib) << "General settings location" << settings.fileName();
+
+    settings.beginGroup(GENERAL_SETTINGS_GROUP);
+    customVBoxManagePath_ = settings.value(VBOXMANAGE_PATH).toString();
+    settings.endGroup();
 }
 
 } // namespace Sfdk

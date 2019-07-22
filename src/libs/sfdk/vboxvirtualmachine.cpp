@@ -52,6 +52,7 @@ namespace Sfdk {
 
 namespace {
 const char VBOXMANAGE[] = "VBoxManage";
+const char SAILFISH_SDK_SYSTEM_VBOXMANAGE[] = "SAILFISH_SDK_SYSTEM_VBOXMANAGE";
 const char LIST[] = "list";
 const char HDDS[] = "hdds";
 const char RUNNINGVMS[] = "runningvms";
@@ -157,8 +158,30 @@ class VBoxManageRunner : public ProcessRunner
 
 public:
     explicit VBoxManageRunner(const QStringList &arguments, QObject *parent = 0)
-        : ProcessRunner(vBoxManagePath(), arguments, parent)
+        : ProcessRunner(path(), arguments, parent)
     {
+        process()->setProcessEnvironment(environment());
+    }
+
+private:
+    static QString path()
+    {
+        QString path = vBoxManagePath();
+
+        if (!SdkPrivate::customVBoxManagePath().isEmpty())
+            path = SdkPrivate::customVBoxManagePath();
+
+        return path;
+    }
+
+    static QProcessEnvironment environment()
+    {
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+
+        if (!SdkPrivate::customVBoxManagePath().isEmpty())
+            env.insert(SAILFISH_SDK_SYSTEM_VBOXMANAGE, vBoxManagePath());
+
+        return env;
     }
 };
 
