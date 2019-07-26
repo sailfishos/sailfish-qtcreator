@@ -151,8 +151,13 @@ void MerOptionsWidget::store()
 
     disconnect(m_sdksUpdatedConnection);
 
+    QString errors;
+
     QList<MerSdk*> lockedDownSdks;
     ok &= lockDownConnectionsOrCancelChangesThatNeedIt(&lockedDownSdks);
+    if (!ok)
+        errors.append("\nFailed lock down VM connections");
+
 
     foreach (MerSdk *sdk, sdks) {
         progress.setLabelText(tr("Applying virtual machine settings: '%1'").arg(sdk->virtualMachineName()));
@@ -168,6 +173,7 @@ void MerOptionsWidget::store()
                 m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
                 m_sshPort.remove(sdk);
                 ok = false;
+                errors.append("\nSSH-port");
             }
         }
         if (m_headless.contains(sdk))
@@ -179,6 +185,7 @@ void MerOptionsWidget::store()
                 m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
                 m_wwwPort.remove(sdk);
                 ok = false;
+                errors.append("\nwww-port");
             }
         }
         if (m_wwwProxy.contains(sdk))
@@ -191,6 +198,7 @@ void MerOptionsWidget::store()
                 m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
                 m_memorySizeMb.remove(sdk);
                 ok = false;
+                errors.append("\nMemory");
             }
         }
         if (m_cpuCount.contains(sdk)) {
@@ -200,6 +208,7 @@ void MerOptionsWidget::store()
                 m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
                 m_cpuCount.remove(sdk);
                 ok = false;
+                errors.append("\nCPU count");
             }
         }
         if (m_vdiCapacityMb.contains(sdk)) {
@@ -214,6 +223,7 @@ void MerOptionsWidget::store()
             } else {
                 m_vdiCapacityMb.remove(sdk);
                 ok = false;
+                errors.append("\nVDI capacity");
             }
             m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
         }
@@ -229,7 +239,7 @@ void MerOptionsWidget::store()
     if (!ok) {
         progress.cancel();
         QMessageBox::warning(this, tr("Some changes could not be saved!"),
-                             tr("Failed to apply some of the changes to virtual machines"));
+                             tr("Failed to apply some of the changes to virtual machines:") + errors);
     }
 
     foreach (MerSdk *sdk, currentSdks) {
