@@ -42,7 +42,11 @@ namespace {
 const char PROGRAM_KEY[] = "program";
 const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
+#ifdef Q_OS_MACOS
+const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
+#else
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool" QTC_HOST_EXE_SUFFIX;
+#endif
 
 }
 
