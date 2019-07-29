@@ -66,7 +66,8 @@ void MerOptionsPage::apply()
 
 void MerOptionsPage::finish()
 {
-    delete m_widget;
+    if(m_widget)
+        m_widget->close();
 }
 
 bool MerOptionsPage::matches(const QString &key) const
