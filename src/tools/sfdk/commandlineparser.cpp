@@ -309,6 +309,9 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
             .arg(QString(EXE_NAME) + " --help-all"));
     out << endl;
 
+    synopsis(out);
+    out << endl;
+
     out << commandsOverviewHeading() << endl;
     out << endl;
 
