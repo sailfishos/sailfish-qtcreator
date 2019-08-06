@@ -3,8 +3,6 @@
     "domain": "general",
     "trBrief": "General usage",
 
-    "trDescription": "sfdk is the command line frontend of the Sailfish SDK.",
-
     "worker":
     {
         "type": "builtin",

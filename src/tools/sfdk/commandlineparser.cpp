@@ -226,12 +226,15 @@ void CommandLineParser::badUsage(const QString &message) const
 void CommandLineParser::briefUsage(QTextStream &out) const
 {
     synopsis(out);
+    wrapLine(out, 0, summary());
     out << tryLongHelpMessage("--help") << endl;
 }
 
 void CommandLineParser::usage(QTextStream &out) const
 {
     synopsis(out);
+    out << endl;
+    wrapLine(out, 0, summary());
     out << endl;
 
     out << commandsOverviewHeading() << endl;
@@ -252,8 +255,10 @@ void CommandLineParser::usage(QTextStream &out) const
     const Domain *generalDomain = Dispatcher::domain(Constants::GENERAL_DOMAIN_NAME);
     QTC_ASSERT(generalDomain != nullptr, return);
 
-    for (const Module *module : generalDomain->modules())
-        wrapLines(out, 0, {}, {}, module->description);
+    for (const Module *module : generalDomain->modules()) {
+        if (!module->description.isEmpty())
+            wrapLines(out, 0, {}, {}, module->description);
+    }
     out << endl;
 
     out << commandsHeading() << endl;
@@ -302,6 +307,11 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
     const Command::ConstList domainCommands = domain->commands();
     const Option::ConstList domainOptions = domain->options();
 
+    synopsis(out);
+    out << endl;
+    wrapLine(out, 0, summary());
+    out << endl;
+
     wrapLine(out, 0, tr("This manual deals specifically with the \"%1\" aspect of '%3' usage. Try '%2' (without subcommand) for general overview of '%3' usage or '%4' for an all-in-one manual.")
             .arg(domain->briefDescription())
             .arg(QString(EXE_NAME) + " --help")
@@ -309,19 +319,19 @@ void CommandLineParser::domainUsage(QTextStream &out, const Domain *domain) cons
             .arg(QString(EXE_NAME) + " --help-all"));
     out << endl;
 
-    synopsis(out);
-    out << endl;
-
     out << commandsOverviewHeading() << endl;
     out << endl;
 
     describeBriefly(out, 1, domainCommands);
     out << endl;
+    out << endl;
 
     for (const Module *module : domain->modules()) {
-        wrapLines(out, 0, {}, {}, module->description);
-        out << endl;
-        out << endl;
+        if (!module->description.isEmpty()) {
+            wrapLines(out, 0, {}, {}, module->description);
+            out << endl;
+            out << endl;
+        }
     }
 
     out << commandsHeading() << endl;
@@ -360,9 +370,11 @@ void CommandLineParser::allDomainsUsage(QTextStream &out) const
 
     for (const std::unique_ptr<const Domain> &domain : Dispatcher::domains()) {
         for (const Module *module : domain->modules()) {
-            wrapLines(out, 0, {}, {}, module->description);
-            out << endl;
-            out << endl;
+            if (!module->description.isEmpty()) {
+                wrapLines(out, 0, {}, {}, module->description);
+                out << endl;
+                out << endl;
+            }
         }
     }
 
@@ -416,6 +428,11 @@ bool CommandLineParser::checkExclusiveOption(const QCommandLineParser &parser,
         *out = option;
     }
     return true;
+}
+
+QString CommandLineParser::summary()
+{
+    return tr("%1 is the command line frontend of the Sailfish SDK.").arg(EXE_NAME);
 }
 
 QString CommandLineParser::usageMessage()

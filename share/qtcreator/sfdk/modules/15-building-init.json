@@ -1,0 +1,27 @@
+{
+    "version": 1,
+    "domain": "building",
+    "trBrief": "Building packages",
+
+    "worker":
+    {
+        "type": "engine-command",
+        "version": 1,
+        "program": "sdk-init",
+        "omitSubcommand": true
+    },
+
+    "commands":
+    [
+        {
+            "name": "init",
+            "trSynopsis": "-t|--type <type> [--force] [<name>]\n-l|--list-types",
+            "trBrief": "Initialize a new project",
+            "trDescription": "Initialize a new project of the selected <type> under the current working directory. Project <name> will figure e.g. as the main package name and it defaults to the directory name. Normally it would refuse to do its job under a non-empty directory - this can be bypassed with the '--force' option.\n\nValid project types can be listed using the '--list-types' option."
+        }
+    ],
+
+    "options":
+    [
+    ]
+}

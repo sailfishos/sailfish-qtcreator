@@ -78,6 +78,7 @@ public:
             const QList<const QCommandLineOption *> &options,
             const QCommandLineOption **out = nullptr);
 
+    static QString summary();
     static QString usageMessage();
     static QString unrecognizedCommandMessage(const QString &command);
     static QString unexpectedArgumentMessage(const QString &argument);

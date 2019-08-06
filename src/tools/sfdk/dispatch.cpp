@@ -305,7 +305,7 @@ std::unique_ptr<Module> Dispatcher::loadModule(const QVariantMap &data, QString 
         return {};
     module->briefDescription = localizedString(briefDescription.toString());
 
-    QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, {}, errorString);
+    QVariant description = value(data, TR_DESCRIPTION_KEY, QVariant::String, QString(), errorString);
     if (!description.isValid())
         return {};
     module->description = localizedString(description.toString());
