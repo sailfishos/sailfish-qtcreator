@@ -42,6 +42,7 @@ namespace {
 const char PROGRAM_KEY[] = "program";
 const char INITIAL_ARGUMENTS_KEY[] = "initialArguments";
 const char OMIT_SUBCOMMAND_KEY[] = "omitSubcommand";
+const char DIRECT_TERMINAL_INPUT_KEY[] = "directTerminalInput";
 #ifdef Q_OS_MACOS
 const char SDK_MAINTENANCE_TOOL[] = "SDKMaintenanceTool.app/Contents/MacOS/SDKMaintenanceTool";
 #else
@@ -285,18 +286,22 @@ Worker::ExitStatus EngineWorker::run(const Command *command, const QStringList &
 
     qCDebug(sfdk) << "About to run on build engine:" << m_program << "arguments:" << allArguments;
 
-    *exitCode = SdkManager::runOnEngine(m_program, allArguments);
+    const QProcess::InputChannelMode inputChannelMode = m_directTerminalInput
+        ? QProcess::ForwardedInputChannel
+        : QProcess::ManagedInputChannel;
+
+    *exitCode = SdkManager::runOnEngine(m_program, allArguments, inputChannelMode);
     return NormalExit;
 }
 
 std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int version,
         QString *errorString)
 {
-    if (!checkVersion(version, 1, 1, errorString))
+    if (!checkVersion(version, 1, 2, errorString))
         return {};
 
-    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY},
-                errorString)) {
+    if (!Dispatcher::checkKeys(data, {PROGRAM_KEY, INITIAL_ARGUMENTS_KEY, OMIT_SUBCOMMAND_KEY,
+                DIRECT_TERMINAL_INPUT_KEY}, errorString)) {
         return {};
     }
 
@@ -318,6 +323,10 @@ std::unique_ptr<Worker> EngineWorker::fromMap(const QVariantMap &data, int versi
     QVariant omitCommand = Dispatcher::value(data, OMIT_SUBCOMMAND_KEY, QVariant::Bool, false,
             errorString);
     worker->m_omitSubcommand = omitCommand.toBool();
+
+    QVariant directTerminalInput = Dispatcher::value(data, DIRECT_TERMINAL_INPUT_KEY,
+            QVariant::Bool, false, errorString);
+    worker->m_directTerminalInput = directTerminalInput.toBool();
 
 #ifdef Q_OS_MACOS
     return std::move(worker);

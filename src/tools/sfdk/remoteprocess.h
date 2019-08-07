@@ -66,7 +66,7 @@ public:
     void setWorkingDirectory(const QString& workingDirectory);
     void setSshParameters(const QSsh::SshConnectionParameters& params);
     void setExtraEnvironment(const QProcessEnvironment &extraEnvironment);
-    void setInteractive(bool enabled);
+    void setInputChannelMode(QProcess::InputChannelMode inputChannelMode);
     int exec();
 
 signals:
@@ -97,7 +97,7 @@ private:
     QString m_workingDirectory;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QProcessEnvironment m_extraEnvironment;
-    bool m_interactive = true;
+    QProcess::InputChannelMode m_inputChannelMode = QProcess::ManagedInputChannel;
     qint64 m_processId = 0;
     std::unique_ptr<QFile> m_stdin;
     LineBuffer m_stdoutBuffer;
