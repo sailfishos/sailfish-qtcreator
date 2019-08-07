@@ -40,7 +40,8 @@ public:
     ~SshRemoteProcessRunner();
 
     void run(const QByteArray &command, const SshConnectionParameters &sshParams);
-    void runInTerminal(const QByteArray &command, const SshConnectionParameters &sshParams);
+    void runInTerminal(const QByteArray &command, const SshConnectionParameters &sshParams,
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
     QByteArray command() const;
 
     QString lastConnectionErrorString() const;
