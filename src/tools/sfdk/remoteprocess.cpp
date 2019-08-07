@@ -227,12 +227,12 @@ QString RemoteProcess::environmentString(const QProcessEnvironment &environment)
 void RemoteProcess::onProcessStarted()
 {
     if (m_interactive) {
-        m_stdin = new QFile();
+        m_stdin = std::make_unique<QFile>(this);
         if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
             qCWarning(sfdk) << "Unable to read from standard input while interactive mode is requested";
             return;
         }
-        QSocketNotifier * const notifier = new QSocketNotifier(0, QSocketNotifier::Read, this);
+        QSocketNotifier *const notifier = new QSocketNotifier(0, QSocketNotifier::Read, m_stdin.get());
         connect(notifier, &QSocketNotifier::activated,
                 this, &RemoteProcess::handleStdin);
     }

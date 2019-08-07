@@ -99,7 +99,7 @@ private:
     QProcessEnvironment m_extraEnvironment;
     bool m_interactive = true;
     qint64 m_processId = 0;
-    QFile *m_stdin = nullptr;
+    std::unique_ptr<QFile> m_stdin;
     LineBuffer m_stdoutBuffer;
     LineBuffer m_stderrBuffer;
 };
