@@ -39,8 +39,10 @@ public:
     SshRemoteProcessRunner(QObject *parent = nullptr);
     ~SshRemoteProcessRunner();
 
-    void run(const QString &command, const SshConnectionParameters &sshParams);
-    void runInTerminal(const QString &command, const SshConnectionParameters &sshParams);
+    void run(const QString &command, const SshConnectionParameters &sshParams,
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
+    void runInTerminal(const QString &command, const SshConnectionParameters &sshParams,
+            QProcess::InputChannelMode inputChannelMode = QProcess::ManagedInputChannel);
     QString command() const;
 
     QString lastConnectionErrorString() const;
