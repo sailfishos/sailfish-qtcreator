@@ -27,7 +27,6 @@
 #include "merhardwaredevicewidget.h"
 #include "merhardwaredevicewizardpages.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <remotelinux/remotelinux_constants.h>

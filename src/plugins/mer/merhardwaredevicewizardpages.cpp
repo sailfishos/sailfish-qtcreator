@@ -28,7 +28,6 @@
 #include "merconstants.h"
 #include "merhardwaredevicewizard.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshremoteprocessrunner.h>

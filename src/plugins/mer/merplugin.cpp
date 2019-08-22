@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -46,8 +47,9 @@
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
 #include "meruploadandinstallrpmsteps.h"
-#include "mervirtualboxmanager.h"
 #include "meremulatormodeoptionspage.h"
+
+#include <sfdk/sfdk.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -70,6 +72,7 @@ using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using namespace Sfdk;
 using Utils::CheckableMessageBox;
 
 namespace Mer {
@@ -83,7 +86,6 @@ class MerPluginPrivate
 {
 public:
     MerSdkManager sdkManager;
-    MerVirtualBoxManager virtualBoxManager;
     MerConnectionManager connectionManager;
     MerOptionsPage optionsPage;
     MerEmulatorModeOptionsPage emulatorModeOptionsPage;
@@ -131,6 +133,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     using namespace ProjectExplorer::Constants;
 
+    sfdkInit();
     MerConnection::registerUi<MerConnectionWidgetUi>();
 
     new MerSettings(this);

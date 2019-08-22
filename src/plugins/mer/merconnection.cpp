@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,7 +26,8 @@
 #include "merconstants.h"
 #include "merlogging.h"
 #include "mersettings.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
@@ -45,6 +47,7 @@
 
 using namespace Core;
 using namespace QSsh;
+using namespace Sfdk;
 using Utils::CheckableMessageBox;
 
 namespace Mer {
@@ -308,7 +311,7 @@ bool MerConnection::isVirtualMachineOff(bool *runningHeadless, bool *startedOuts
 {
     if (runningHeadless) {
         if (m_cachedVmRunning)
-            *runningHeadless = MerVirtualBoxManager::fetchVirtualMachineInfo(m_vmName).headless;
+            *runningHeadless = VirtualBoxManager::fetchVirtualMachineInfo(m_vmName).headless;
         else if (m_vmState == VmStarting) // try to be accurate
             *runningHeadless = m_headless;
         else
@@ -710,7 +713,7 @@ bool MerConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmStartingTimeoutTimer.start(VM_START_TIMEOUT, this);
 
-            MerVirtualBoxManager::startVirtualMachine(m_vmName, m_headless);
+            VirtualBoxManager::startVirtualMachine(m_vmName, m_headless);
         }
 
         if (m_cachedVmRunning) {
@@ -859,7 +862,7 @@ bool MerConnection::vmStmStep()
             vmWantFastPollState(true);
             m_vmHardClosingTimeoutTimer.start(VM_HARD_CLOSE_TIMEOUT, this);
 
-            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
+            VirtualBoxManager::shutVirtualMachine(m_vmName);
         }
 
         if (!m_cachedVmRunning) {
@@ -1174,7 +1177,7 @@ void MerConnection::vmPollState(Synchronization synchronization)
             loop->quit();
     };
 
-    MerVirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
+    VirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
 
     if (synchronization == Synchronous) {
         loop->exec();

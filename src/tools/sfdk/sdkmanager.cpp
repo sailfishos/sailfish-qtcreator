@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,11 +26,11 @@
 #include <QDir>
 #include <QRegularExpression>
 
+#include <sfdk/sfdk.h>
 #include <mer/merconnection.h>
 #include <mer/merconstants.h>
 #include <mer/mersdkmanager.h>
 #include <mer/mersettings.h>
-#include <mer/mervirtualboxmanager.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -199,7 +200,7 @@ SdkManager::SdkManager()
 
     m_merSettings = std::make_unique<MerSettings>();
 
-    m_merVirtualBoxManager = std::make_unique<MerVirtualBoxManager>();
+    sfdkInit();
 
     MerConnection::registerUi<ConnectionUi>();
     m_merSdkManager = std::make_unique<MerSdkManager>();

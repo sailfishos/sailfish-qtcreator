@@ -1,4 +1,5 @@
 QTC_LIB_DEPENDS += \
+ sfdk \
  ssh \
  utils
 
@@ -30,7 +31,6 @@ HEADERS = \
     ../../plugins/mer/mersettings.h \
     ../../plugins/mer/mertarget.h \
     ../../plugins/mer/mertargetsxmlparser.h \
-    ../../plugins/mer/mervirtualboxmanager.h \
 
 SOURCES = \
     command.cpp \
@@ -51,4 +51,3 @@ SOURCES = \
     ../../plugins/mer/mersettings.cpp \
     ../../plugins/mer/mertarget.cpp \
     ../../plugins/mer/mertargetsxmlparser.cpp \
-    ../../plugins/mer/mervirtualboxmanager.cpp \

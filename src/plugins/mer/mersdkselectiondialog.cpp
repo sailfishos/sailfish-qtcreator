@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,10 +25,12 @@
 #include "ui_mersdkselectiondialog.h"
 
 #include "merconnection.h"
-#include "mervirtualboxmanager.h"
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <QListWidgetItem>
 #include <QPushButton>
+
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -39,7 +42,7 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
     m_ui->setupUi(this);
 
     const QSet<QString> usedVMs = MerConnection::usedVirtualMachines().toSet();
-    const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
+    const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines
         if (!usedVMs.contains(vm)) {

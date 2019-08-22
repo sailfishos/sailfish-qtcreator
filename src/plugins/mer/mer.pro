@@ -91,7 +91,6 @@ SOURCES += \
     mertargetsxmlparser.cpp \
     mertoolchain.cpp \
     meruploadandinstallrpmsteps.cpp \
-    mervirtualboxmanager.cpp \
     merdevicemodelcombobox.cpp \
     meremulatormodeoptionspage.cpp \
     meremulatormodeoptionswidget.cpp \
@@ -157,7 +156,6 @@ HEADERS += \
     mertoolchain.h \
     mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
-    mervirtualboxmanager.h \
     merdevicemodelcombobox.h \
     meremulatormodeoptionspage.h \
     meremulatormodeoptionswidget.h \

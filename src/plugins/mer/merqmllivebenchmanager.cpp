@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -30,6 +31,8 @@
 #include <QPushButton>
 #include <QTimer>
 
+#include <sfdk/sfdkconstants.h>
+
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
@@ -49,6 +52,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -197,11 +201,11 @@ void MerQmlLiveBenchManager::warnBenchLocationNotSet()
 
 QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, Utils::Port port)
 {
-    if (port == Utils::Port(Constants::DEFAULT_QML_LIVE_PORT)) {
+    if (port == Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT)) {
         return merDeviceName;
-    } else if (port > Utils::Port(Constants::DEFAULT_QML_LIVE_PORT)
-            && port < Utils::Port(Constants::DEFAULT_QML_LIVE_PORT + Constants::MAX_QML_LIVE_PORTS)) {
-        return merDeviceName + QLatin1Char('_') + QString::number(port.number() - Constants::DEFAULT_QML_LIVE_PORT);
+    } else if (port > Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT)
+            && port < Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT + Sfdk::Constants::MAX_QML_LIVE_PORTS)) {
+        return merDeviceName + QLatin1Char('_') + QString::number(port.number() - Sfdk::Constants::DEFAULT_QML_LIVE_PORT);
     } else {
         return merDeviceName + QLatin1Char(':') + QString::number(port.number());
     }

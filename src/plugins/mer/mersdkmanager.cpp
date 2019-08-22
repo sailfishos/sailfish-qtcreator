@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -37,7 +38,8 @@
 #include "mertarget.h"
 #include "mertargetkitinformation.h"
 #include "mertoolchain.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <app/app_version.h>
 #include <coreplugin/coreconstants.h>
@@ -70,6 +72,7 @@ using namespace ProjectExplorer;
 using namespace QtSupport;
 using namespace Core;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -557,8 +560,8 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 {
     MerSdk *sdk = new MerSdk();
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName,
-            MerVirtualBoxManager::VdiInfo);
+    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(vmName,
+            VirtualBoxManager::VdiInfo);
     sdk->setVirtualMachineName(vmName);
     sdk->setSshPort(info.sshPort);
     sdk->setWwwPort(info.wwwPort);

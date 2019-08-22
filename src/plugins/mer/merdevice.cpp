@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2015-2017,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,12 +23,15 @@
 
 #include "merdevice.h"
 
+#include <sfdk/sfdkconstants.h>
+
 #include <utils/qtcassert.h>
 
 #include "merconstants.h"
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using namespace Sfdk;
 
 namespace Mer {
 
@@ -47,7 +51,7 @@ void MerDevice::fromMap(const QVariantMap &map)
     IDevice::fromMap(map);
     m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
     m_qmlLivePorts = Utils::PortList::fromString(map.value(QLatin1String(Constants::MER_DEVICE_QML_LIVE_PORTS),
-                                                           QString::number(Constants::DEFAULT_QML_LIVE_PORT))
+                                                           QString::number(Sfdk::Constants::DEFAULT_QML_LIVE_PORT))
                                                  .toString());
 }
 
@@ -90,7 +94,7 @@ QList<Utils::Port> MerDevice::qmlLivePortsList() const
 {
     Utils::PortList ports(m_qmlLivePorts);
     QList<Utils::Port> retv;
-    while (ports.hasMore() && retv.count() < Constants::MAX_QML_LIVE_PORTS)
+    while (ports.hasMore() && retv.count() < Sfdk::Constants::MAX_QML_LIVE_PORTS)
         retv.append(ports.getNext());
     QTC_CHECK(!ports.hasMore());
     return retv;
@@ -100,7 +104,7 @@ MerDevice::MerDevice()
 {
     setType(Core::Id(Constants::MER_DEVICE_TYPE));
     setDeviceState(IDevice::DeviceStateUnknown);
-    m_qmlLivePorts.addPort(Utils::Port(Constants::DEFAULT_QML_LIVE_PORT));
+    m_qmlLivePorts.addPort(Utils::Port(Sfdk::Constants::DEFAULT_QML_LIVE_PORT));
 }
 
 MerDevice::~MerDevice()

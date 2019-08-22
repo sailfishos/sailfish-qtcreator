@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,8 +28,10 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 #include "mervirtualmachinesettingswidget.h"
+
+#include <sfdk/sfdkconstants.h>
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
@@ -44,6 +47,7 @@
 
 using namespace ProjectExplorer;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -90,8 +94,8 @@ void MerEmulatorDeviceWidget::selectFactorySnapshot()
     auto device = this->device().dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(device, return);
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachine(),
-            MerVirtualBoxManager::SnapshotInfo);
+    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(device->virtualMachine(),
+            VirtualBoxManager::SnapshotInfo);
     if (info.snapshots.isEmpty()) {
         QMessageBox::warning(this, tr("No snapshot found"),
                 tr("No snapshot exists for the '%1' virtual machine.")
@@ -248,7 +252,7 @@ void MerEmulatorDeviceWidget::updateQmlLivePortsWarningLabel()
     QTC_ASSERT(device, return);
 
     const int count = device->qmlLivePorts().count();
-    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Sfdk::Constants::MAX_QML_LIVE_PORTS);
 }
 
 void MerEmulatorDeviceWidget::updateSystemParameters()
@@ -272,7 +276,7 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
-            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
+            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Sfdk::Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
     m_ui->sshPortInfoLabel->setPixmap(Utils::Icons::INFO.pixmap());
     QRegExpValidator * const portsValidator

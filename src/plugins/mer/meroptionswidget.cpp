@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,8 +29,9 @@
 #include "mersdkdetailswidget.h"
 #include "mersdkmanager.h"
 #include "mersdkselectiondialog.h"
-#include "mervirtualboxmanager.h"
 #include "ui_meroptionswidget.h"
+
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
@@ -47,6 +49,7 @@
 
 using namespace Core;
 using namespace QSsh;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -162,7 +165,7 @@ void MerOptionsWidget::store()
         if (m_sshTimeout.contains(sdk))
             sdk->setTimeout(m_sshTimeout[sdk]);
         if (m_sshPort.contains(sdk)) {
-            if (MerVirtualBoxManager::updateSdkSshPort(sdk->virtualMachineName(), m_sshPort[sdk])) {
+            if (VirtualBoxManager::updateSdkSshPort(sdk->virtualMachineName(), m_sshPort[sdk])) {
                 sdk->setSshPort(m_sshPort[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setSshPort(sdk->sshPort());
@@ -173,7 +176,7 @@ void MerOptionsWidget::store()
         if (m_headless.contains(sdk))
             sdk->setHeadless(m_headless[sdk]);
         if (m_wwwPort.contains(sdk)) {
-            if (MerVirtualBoxManager::updateSdkWwwPort(sdk->virtualMachineName(), m_wwwPort[sdk])) {
+            if (VirtualBoxManager::updateSdkWwwPort(sdk->virtualMachineName(), m_wwwPort[sdk])) {
                 sdk->setWwwPort(m_wwwPort[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setWwwPort(sdk->wwwPort());
@@ -185,7 +188,7 @@ void MerOptionsWidget::store()
             sdk->setWwwProxy(m_wwwProxy[sdk], m_wwwProxyServers[sdk], m_wwwProxyExcludes[sdk]);
 
         if (m_memorySizeMb.contains(sdk)) {
-            if (MerVirtualBoxManager::setMemorySizeMb(sdk->virtualMachineName(), m_memorySizeMb[sdk])) {
+            if (VirtualBoxManager::setMemorySizeMb(sdk->virtualMachineName(), m_memorySizeMb[sdk])) {
                 sdk->setMemorySizeMb(m_memorySizeMb[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setMemorySizeMb(sdk->memorySizeMb());
@@ -194,7 +197,7 @@ void MerOptionsWidget::store()
             }
         }
         if (m_cpuCount.contains(sdk)) {
-            if (MerVirtualBoxManager::setCpuCount(sdk->virtualMachineName(), m_cpuCount[sdk])) {
+            if (VirtualBoxManager::setCpuCount(sdk->virtualMachineName(), m_cpuCount[sdk])) {
                 sdk->setCpuCount(m_cpuCount[sdk]);
             } else {
                 m_ui->sdkDetailsWidget->setCpuCount(sdk->cpuCount());
@@ -205,7 +208,7 @@ void MerOptionsWidget::store()
         if (m_vdiCapacityMb.contains(sdk)) {
             const int newVdiCapacityMb = m_vdiCapacityMb[sdk];
             QEventLoop loop;
-            MerVirtualBoxManager::setVdiCapacityMb(sdk->virtualMachineName(), newVdiCapacityMb, &loop, [&loop] (bool ok) {
+            VirtualBoxManager::setVdiCapacityMb(sdk->virtualMachineName(), newVdiCapacityMb, &loop, [&loop] (bool ok) {
                 loop.exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
             });
 
@@ -476,7 +479,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         return;
     }
 
-    bool ok = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine,
+    bool ok = VirtualBoxManager::updateSharedFolder(m_virtualMachine,
             QLatin1String("src1"), newFolder);
 
     sdk->connection()->lockDown(false);

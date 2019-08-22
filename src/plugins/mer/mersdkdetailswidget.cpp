@@ -26,7 +26,6 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 
 #include <utils/hostosinfo.h>
 #include <utils/utilsicons.h>

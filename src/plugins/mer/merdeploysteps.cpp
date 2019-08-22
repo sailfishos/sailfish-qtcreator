@@ -37,7 +37,6 @@
 #include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertargetkitinformation.h"
-#include "mervirtualboxmanager.h"
 #include "ui_merrpminfo.h"
 #include "ui_merrpmvalidationstepconfigwidget.h"
 

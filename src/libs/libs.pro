@@ -15,6 +15,7 @@ SUBDIRS   += \
     glsl \
     ssh \
     sqlite \
+    sfdk \
     clangsupport \
     languageserverprotocol
 

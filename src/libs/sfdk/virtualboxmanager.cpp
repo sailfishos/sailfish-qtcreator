@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,10 +21,9 @@
 **
 ****************************************************************************/
 
-#include "mervirtualboxmanager.h"
+#include "virtualboxmanager_p.h"
 
-#include "merconstants.h"
-#include "merlogging.h"
+#include "sfdkconstants.h"
 
 #include <utils/hostosinfo.h>
 #include <utils/portlist.h>
@@ -99,8 +99,7 @@ const char RESTORE[] = "restore";
 
 const int TERMINATE_TIMEOUT_MS = 3000;
 
-namespace Mer {
-namespace Internal {
+namespace Sfdk {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
 static void fetchVdiInfo(VirtualMachineInfo *virtualMachineInfo);
@@ -173,14 +172,14 @@ public:
 
     static bool runSynchronous(QProcess *process)
     {
-        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(synchronous)"
+        qCDebug(vmsQueue) << "Enqueued" << (void*)process << "(synchronous)"
             << process->program() << process->arguments();
 
         // Currently runnning an asynchronous process?
         if (s_instance->m_current) {
             if (!s_instance->m_current->waitForFinished()) {
                 if (s_instance->m_current) {
-                    qCWarning(Log::vms) << "Failed to wait for current asynchronous process"
+                    qCWarning(vms) << "Failed to wait for current asynchronous process"
                         << s_instance->m_current->program() << s_instance->m_current->arguments()
                         << "Error:" << s_instance->m_current->error();
                     return false;
@@ -198,7 +197,7 @@ public:
 
     static void runAsynchronous(QProcess *process)
     {
-        qCDebug(Log::vmsQueue) << "Enqueued" << (void*)process << "(asynchronous)"
+        qCDebug(vmsQueue) << "Enqueued" << (void*)process << "(asynchronous)"
             << process->program() << process->arguments();
         s_instance->m_queue.enqueue(process);
         s_instance->scheduleDequeue();
@@ -230,7 +229,7 @@ private:
 
         m_current = m_queue.dequeue();
 
-        qCDebug(Log::vmsQueue) << "Dequeued" << (void*)m_current;
+        qCDebug(vmsQueue) << "Dequeued" << (void*)m_current;
 
         connect(m_current, &QProcess::errorOccurred,
                 this, &CommandSerializer::finalize);
@@ -243,7 +242,7 @@ private:
 private slots:
     void finalize()
     {
-        qCDebug(Log::vmsQueue) << "Finished" << (void*)sender() << "current:" << (void*)m_current;
+        qCDebug(vmsQueue) << "Finished" << (void*)sender() << "current:" << (void*)m_current;
         QTC_ASSERT(sender() == m_current, return);
 
         m_current->disconnect(this);
@@ -325,28 +324,28 @@ private:
     QBasicTimer m_terminateTimeoutTimer;
 };
 
-MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
+VirtualBoxManager *VirtualBoxManager::m_instance = 0;
 
-MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
+VirtualBoxManager::VirtualBoxManager(QObject *parent):
     QObject(parent)
 {
     m_instance = this;
     new CommandSerializer(this);
 }
 
-MerVirtualBoxManager::~MerVirtualBoxManager()
+VirtualBoxManager::~VirtualBoxManager()
 {
     m_instance = 0;
 }
 
-MerVirtualBoxManager *MerVirtualBoxManager::instance()
+VirtualBoxManager *VirtualBoxManager::instance()
 {
     QTC_CHECK(m_instance);
     return m_instance;
 }
 
 // accepts void slot(bool running, bool exists)
-void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
+void VirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
                                                    std::function<void(bool, bool)> slot)
 {
     QStringList arguments;
@@ -370,7 +369,7 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder)
+bool VirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder)
 {
     QStringList rargs;
     rargs.append(QLatin1String(SHAREDFOLDER));
@@ -416,9 +415,9 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
+bool VirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
 {
-    qCDebug(Log::vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
+    qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -438,15 +437,15 @@ bool MerVirtualBoxManager::updateSdkSshPort(const QString &vmName, quint16 port)
         return false;
     }
 
-    qCDebug(Log::vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
 
     return true;
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
+bool VirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
 {
-    qCDebug(Log::vms) << "Setting WWW port forwarding for" << vmName << "to" << port;
+    qCDebug(vms) << "Setting WWW port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -466,15 +465,15 @@ bool MerVirtualBoxManager::updateSdkWwwPort(const QString &vmName, quint16 port)
         return false;
     }
 
-    qCDebug(Log::vms) << "Setting WWW port forwarding took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Setting WWW port forwarding took" << timer.elapsed() << "milliseconds";
 
     return true;
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port)
+bool VirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 port)
 {
-    qCDebug(Log::vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
+    qCDebug(vms) << "Setting SSH port forwarding for" << vmName << "to" << port;
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -494,12 +493,12 @@ bool MerVirtualBoxManager::updateEmulatorSshPort(const QString &vmName, quint16 
         return false;
     }
 
-    qCDebug(Log::vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Setting SSH port forwarding took" << timer.elapsed() << "milliseconds";
 
     return true;
 }
 
-VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
+VirtualMachineInfo VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName,
         ExtraInfos extraInfo)
 {
     VirtualMachineInfo info;
@@ -523,7 +522,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
 }
 
 // It is an error to call this function when the VM vmName is running
-void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
+void VirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
@@ -539,7 +538,7 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
 }
 
 // It is an error to call this function when the VM vmName is not running
-void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
+void VirtualBoxManager::shutVirtualMachine(const QString &vmName)
 {
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
@@ -552,7 +551,7 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
 }
 
 // accepts void slot(bool ok)
-void MerVirtualBoxManager::restoreSnapshot(const QString &vmName, const QString &snapshotName,
+void VirtualBoxManager::restoreSnapshot(const QString &vmName, const QString &snapshotName,
             QObject *context, std::function<void(bool)> slot)
 {
     QStringList arguments;
@@ -572,7 +571,7 @@ void MerVirtualBoxManager::restoreSnapshot(const QString &vmName, const QString 
     process->runAsynchronously(arguments);
 }
 
-QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
+QStringList VirtualBoxManager::fetchRegisteredVirtualMachines()
 {
     QStringList vms;
     QStringList arguments;
@@ -586,7 +585,7 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
 }
 
 // It is an error to call this function when the VM vmName is running
-void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
+void VirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
 {
     QString videoMode = QStringLiteral("%1x%2x%3")
         .arg(size.width())
@@ -601,9 +600,9 @@ void MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     setExtraData(vmName, QLatin1String(AUTORESIZE_GUEST), QLatin1Literal("false"));
 }
 
-void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot)
+void VirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, QObject *context, std::function<void(bool)> slot)
 {
-    qCDebug(Log::vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
+    qCDebug(vms) << "Changing vdi size of" << vmName << "to" << sizeMb << "MB";
 
     const VirtualMachineInfo virtualMachineInfo = fetchVirtualMachineInfo(vmName, VdiInfo);
     if (sizeMb < virtualMachineInfo.vdiCapacityMb) {
@@ -623,7 +622,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
     }
 
     QStringList toResize = virtualMachineInfo.allRelatedVdiUuids;
-    qCDebug(Log::vms) << "About to resize these VDIs (in order):" << toResize;
+    qCDebug(vms) << "About to resize these VDIs (in order):" << toResize;
 
     QTime timer;
     timer.start();
@@ -649,7 +648,7 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
                             *allOk = false;
                         }
                         if (isLast) {
-                            qCDebug(Log::vms) << "Resizing VDIs took" << timer.elapsed() << "milliseconds";
+                            qCDebug(vms) << "Resizing VDIs took" << timer.elapsed() << "milliseconds";
                             slot(*allOk);
                         }
                     });
@@ -660,9 +659,9 @@ void MerVirtualBoxManager::setVdiCapacityMb(const QString &vmName, int sizeMb, Q
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
+bool VirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
 {
-    qCDebug(Log::vms) << "Changing memory size of" << vmName << "to" << sizeMb << "MB";
+    qCDebug(vms) << "Changing memory size of" << vmName << "to" << sizeMb << "MB";
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -679,14 +678,14 @@ bool MerVirtualBoxManager::setMemorySizeMb(const QString &vmName, int sizeMb)
         return false;
     }
 
-    qCDebug(Log::vms) << "Resizing memory took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Resizing memory took" << timer.elapsed() << "milliseconds";
 
     return true;
 }
 
-bool MerVirtualBoxManager::setCpuCount(const QString &vmName, int count)
+bool VirtualBoxManager::setCpuCount(const QString &vmName, int count)
 {
-    qCDebug(Log::vms) << "Changing CPU count of" << vmName << "to" << count;
+    qCDebug(vms) << "Changing CPU count of" << vmName << "to" << count;
 
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -703,12 +702,12 @@ bool MerVirtualBoxManager::setCpuCount(const QString &vmName, int count)
         return false;
     }
 
-    qCDebug(Log::vms) << "Changing CPU count took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Changing CPU count took" << timer.elapsed() << "milliseconds";
 
     return true;
 }
 
-QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
+QString VirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
 {
     QStringList arguments;
     arguments.append(QLatin1String(GETEXTRADATA));
@@ -723,7 +722,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
-void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot)
+void VirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::function<void(int)> slot)
 {
     QStringList arguments;
     arguments.clear();
@@ -750,12 +749,12 @@ void MerVirtualBoxManager::getHostTotalMemorySizeMb(QObject *context, std::funct
     process->runAsynchronously(arguments);
 }
 
-int MerVirtualBoxManager::getHostTotalCpuCount()
+int VirtualBoxManager::getHostTotalCpuCount()
 {
     return QThread::idealThreadCount();
 }
 
-void MerVirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword, const QString &data)
+void VirtualBoxManager::setExtraData(const QString &vmName, const QString &keyword, const QString &data)
 {
     QStringList args;
     args.append(QLatin1String(SETEXTRADATA));
@@ -769,9 +768,9 @@ void MerVirtualBoxManager::setExtraData(const QString &vmName, const QString &ke
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QString &ruleName)
+bool VirtualBoxManager::deletePortForwardingRule(const QString &vmName, const QString &ruleName)
 {
-    qCDebug(Log::vms) << "Deleting port forwarding rule" << ruleName << "from" << vmName;
+    qCDebug(vms) << "Deleting port forwarding rule" << ruleName << "from" << vmName;
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
     arguments.append(vmName);
@@ -785,19 +784,19 @@ bool MerVirtualBoxManager::deletePortForwardingRule(const QString &vmName, const
         qWarning() << "VBoxManage failed to" << MODIFYVM;
         return false;
     }
-    qCDebug(Log::vms) << "Deleting port forwarding for rule" << ruleName
+    qCDebug(vms) << "Deleting port forwarding for rule" << ruleName
                       <<  "took" << timer.elapsed() << "milliseconds";
     return true;
 }
 
 // It is an error to call this function when the VM vmName is running
-bool MerVirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QString &ruleName,
+bool VirtualBoxManager::updatePortForwardingRule(const QString &vmName, const QString &ruleName,
                                                     const QString &protocol, quint16 newHostPort,
                                                     quint16 newVmPort)
 {
     if (deletePortForwardingRule(vmName, ruleName))
         return false;
-    qCDebug(Log::vms) << "Setting port forwarding for" << vmName << "from"
+    qCDebug(vms) << "Setting port forwarding for" << vmName << "from"
                           << newHostPort << "to" << newVmPort;
     QStringList arguments;
     arguments.append(QLatin1String(MODIFYVM));
@@ -812,12 +811,12 @@ bool MerVirtualBoxManager::updatePortForwardingRule(const QString &vmName, const
         qWarning() << "VBoxManage failed to" << MODIFYVM;
         return false;
     }
-    qCDebug(Log::vms) << "Setting port forwarding for rule" << ruleName
+    qCDebug(vms) << "Setting port forwarding for rule" << ruleName
                       <<  "took" << timer.elapsed() << "milliseconds";
     return true;
 }
 
-QList<QMap<QString, quint16> > MerVirtualBoxManager::fetchPortForwardingRules(
+QList<QMap<QString, quint16> > VirtualBoxManager::fetchPortForwardingRules(
         const QString &vmName) {
     VirtualMachineInfo vmInfo = fetchVirtualMachineInfo(vmName);
     return QList<QMap<QString, quint16>>({vmInfo.otherPorts, vmInfo.qmlLivePorts,
@@ -825,9 +824,9 @@ QList<QMap<QString, quint16> > MerVirtualBoxManager::fetchPortForwardingRules(
 }
 
 // It is an error to call this function when the VM vmName is running
-Utils::PortList MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
+Utils::PortList VirtualBoxManager::updateEmulatorQmlLivePorts(const QString &vmName, const QList<Utils::Port> &ports)
 {
-    qCDebug(Log::vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
+    qCDebug(vms) << "Setting QmlLive port forwarding for" << vmName << "to" << ports;
 
     QTime timer;
     timer.start();
@@ -868,7 +867,7 @@ Utils::PortList MerVirtualBoxManager::updateEmulatorQmlLivePorts(const QString &
         ++i;
     }
 
-    qCDebug(Log::vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
+    qCDebug(vms) << "Setting QmlLive port forwarding took" << timer.elapsed() << "milliseconds";
 
     return savedPorts;
 }
@@ -1102,7 +1101,6 @@ void snapshotInfoFromOutput(const QString &output, VirtualMachineInfo *virtualMa
     }
 }
 
-} // Internal
-} // VirtualBox
+} // Sfdk
 
-#include "mervirtualboxmanager.moc"
+#include "virtualboxmanager.moc"

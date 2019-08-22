@@ -194,8 +194,6 @@ const char MER_DEVICE_VIEW_SCALED[]= "MER_DEVICE_VIEW_SCALED";
 
 const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";
 
-const int DEFAULT_QML_LIVE_PORT = 10234;
-const int MAX_QML_LIVE_PORTS = 10;
 const char QML_LIVE_HELP_URL[] = "qthelp://org.qt-project.qtcreator/doc/creator-qtquick-qmllive-sailfish.html";
 
 } // namespace Constants

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,7 +26,7 @@
 #include "merremoteprocess.h"
 
 #include <mer/merconnection.h>
-#include <mer/mervirtualboxmanager.h>
+#include <mer/mervirtualboxmanager_p.h>
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>

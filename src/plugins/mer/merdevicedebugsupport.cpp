@@ -31,7 +31,6 @@
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
-#include "mervirtualboxmanager.h"
 
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>

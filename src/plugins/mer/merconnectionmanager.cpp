@@ -28,7 +28,6 @@
 #include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>

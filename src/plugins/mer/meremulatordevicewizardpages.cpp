@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,7 +29,8 @@
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "meremulatordevicewizard.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/virtualboxmanager_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/qtcassert.h>
@@ -36,6 +38,7 @@
 #include <QDir>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -62,7 +65,7 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
     static QRegExp regExp(tr("Emulator"));
 
     const QSet<QString> usedVMs = MerConnection::usedVirtualMachines().toSet();
-    const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
+    const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
     foreach (const QString &vm, registeredVMs) {
         // add only unused machines
         if (!usedVMs.contains(vm)) {
@@ -157,8 +160,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         tryName = vmName + QString::number(++i);
     m_ui->configNameLineEdit->setText(tryName);
 
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName,
-            MerVirtualBoxManager::VdiInfo | MerVirtualBoxManager::SnapshotInfo);
+    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(vmName,
+            VirtualBoxManager::VdiInfo | VirtualBoxManager::SnapshotInfo);
     if (info.sshPort == 0)
         m_ui->sshPortLabelEdit->setText(tr("none"));
     else

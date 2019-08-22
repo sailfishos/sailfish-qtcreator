@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,7 +28,8 @@
 #include "merconstants.h"
 #include "merhardwaredevice.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
+
+#include <sfdk/sfdkconstants.h>
 
 #include <coreplugin/icore.h>
 #include <remotelinux/sshkeydeployer.h>
@@ -47,6 +49,7 @@ using namespace Core;
 using namespace ProjectExplorer;
 using namespace QSsh;
 using namespace RemoteLinux;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -218,7 +221,7 @@ void MerHardwareDeviceWidget::updatePortsWarningLabel()
 void MerHardwareDeviceWidget::updateQmlLivePortsWarningLabel()
 {
     const int count = device().staticCast<MerDevice>()->qmlLivePorts().count();
-    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Constants::MAX_QML_LIVE_PORTS);
+    m_ui->qmlLivePortsWarningLabel->setVisible(count < 1 || count > Sfdk::Constants::MAX_QML_LIVE_PORTS);
 }
 
 void MerHardwareDeviceWidget::updatePrivateKeyWarningLabel()
@@ -236,7 +239,7 @@ void MerHardwareDeviceWidget::initGui()
     m_ui->qmlLivePortsWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->qmlLivePortsWarningLabel->setToolTip(
             QLatin1String("<font color=\"red\">")
-            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Constants::MAX_QML_LIVE_PORTS)
+            + tr("You will need at least one and at most %1 ports for QmlLive use.").arg(Sfdk::Constants::MAX_QML_LIVE_PORTS)
             + QLatin1String("</font>"));
     m_ui->privateKeyWarningLabel->setPixmap(Utils::Icons::WARNING.pixmap());
     m_ui->privateKeyWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")

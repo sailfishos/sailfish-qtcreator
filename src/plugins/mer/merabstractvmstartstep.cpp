@@ -27,7 +27,6 @@
 #include "merconstants.h"
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
-#include "mervirtualboxmanager.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/target.h>

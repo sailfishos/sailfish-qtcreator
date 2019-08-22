@@ -33,7 +33,6 @@ namespace Internal {
     class MerSdk;
     class MerSdkManager;
     class MerSettings;
-    class MerVirtualBoxManager;
 }
 }
 
@@ -71,7 +70,6 @@ private:
     static SdkManager *s_instance;
     bool m_enableReversePathMapping = true;
     std::unique_ptr<Mer::Internal::MerSettings> m_merSettings;
-    std::unique_ptr<Mer::Internal::MerVirtualBoxManager> m_merVirtualBoxManager;
     std::unique_ptr<Mer::Internal::MerSdkManager> m_merSdkManager;
     Mer::Internal::MerSdk *m_merSdk = nullptr;
 };

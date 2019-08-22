@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,25 +21,27 @@
 **
 ****************************************************************************/
 
-#ifndef VIRTUALBOXMANAGER_H
-#define VIRTUALBOXMANAGER_H
+// TODO make internal
 
-#include <functional>
+#pragma once
+
+#include "sfdkglobal.h"
 
 #include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringList>
 
+#include <functional>
+
 namespace Utils {
     class Port;
     class PortList;
 }
 
-namespace Mer {
-namespace Internal {
+namespace Sfdk {
 
-class VirtualMachineInfo
+class SFDK_EXPORT VirtualMachineInfo
 {
 public:
     QString sharedHome;
@@ -65,10 +68,9 @@ public:
     QStringList snapshots;
 };
 
-// TODO Possible to use QFutureInterface?
 // TODO Errors should be reported in the UI
 // TODO Use UUIDs instead of names - names may not be unique
-class MerVirtualBoxManager : public QObject
+class SFDK_EXPORT VirtualBoxManager : public QObject
 {
     Q_OBJECT
 public:
@@ -79,9 +81,9 @@ public:
     };
     Q_DECLARE_FLAGS(ExtraInfos, ExtraInfo)
 
-    MerVirtualBoxManager(QObject *parent = 0);
-    static MerVirtualBoxManager* instance();
-    ~MerVirtualBoxManager() override;
+    VirtualBoxManager(QObject *parent = 0);
+    static VirtualBoxManager* instance();
+    ~VirtualBoxManager() override;
     static void isVirtualMachineRunning(const QString &vmName, QObject *context,
                                         std::function<void(bool,bool)> slot);
     static QStringList fetchRegisteredVirtualMachines();
@@ -112,12 +114,9 @@ public:
 private:
     static void setExtraData(const QString& vmName, const QString& keyword, const QString& data);
 
-    static MerVirtualBoxManager *m_instance;
+    static VirtualBoxManager *m_instance;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(MerVirtualBoxManager::ExtraInfos)
+Q_DECLARE_OPERATORS_FOR_FLAGS(VirtualBoxManager::ExtraInfos)
 
-} // Internal
-} // Mer
-
-#endif // VIRTUALBOXMANAGER_H
+} // Sfdk

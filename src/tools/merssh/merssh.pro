@@ -41,4 +41,4 @@ HEADERS += \
     wwwproxycommand.h \
     ../../plugins/mer/merconnection.h \
     ../../plugins/mer/merlogging.h \
-    ../../plugins/mer/mervirtualboxmanager.h
+    ../../plugins/mer/mervirtualboxmanager_p.h
