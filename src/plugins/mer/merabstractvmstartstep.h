@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2014-2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,10 +28,11 @@
 
 #include <QPointer>
 
+namespace Sfdk {
+class VmConnection;
+}
+
 namespace Mer {
-
-class MerConnection;
-
 namespace Internal {
 
 class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
@@ -43,18 +45,18 @@ public:
     bool init() override;
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
 
-    MerConnection *connection() const;
+    Sfdk::VmConnection *connection() const;
 
 protected:
     void doRun() override;
     void doCancel() override;
-    void setConnection(MerConnection *connection);
+    void setConnection(Sfdk::VmConnection *connection);
 
 private slots:
     void onStateChanged();
 
 private:
-    QPointer<MerConnection> m_connection;
+    QPointer<Sfdk::VmConnection> m_connection;
 };
 
 } // namespace Internal

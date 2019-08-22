@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2015-2016,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -30,10 +31,11 @@
 #include "meremulatormodedialog.h"
 #include "ui_meremulatormodedialog.h"
 
-#include "merconnection.h"
 #include "mersettings.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
+
+#include <sfdk/vmconnection.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>

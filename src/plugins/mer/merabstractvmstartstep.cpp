@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2014-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,11 +23,12 @@
 
 #include "merabstractvmstartstep.h"
 
-#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
+
+#include <sfdk/vmconnection.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/target.h>
@@ -34,6 +36,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -79,7 +82,7 @@ void MerAbstractVmStartStep::doRun()
         return;
     }
 
-    if (m_connection->state() == MerConnection::Connected) {
+    if (m_connection->state() == VmConnection::Connected) {
         emit addOutput(tr("%1: The \"%2\" virtual machine is already running. Nothing to do.")
             .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
         emit finished(true);
@@ -87,9 +90,9 @@ void MerAbstractVmStartStep::doRun()
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
                 .arg(displayName()).arg(m_connection->virtualMachine()), OutputFormat::NormalMessage);
 
-        connect(m_connection.data(), &MerConnection::stateChanged,
+        connect(m_connection.data(), &VmConnection::stateChanged,
                 this, &MerAbstractVmStartStep::onStateChanged);
-        m_connection->connectTo(MerConnection::AskStartVm);
+        m_connection->connectTo(VmConnection::AskStartVm);
     }
 }
 
@@ -105,12 +108,12 @@ BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
     return new MerAbstractVmStartStepConfigWidget(this);
 }
 
-MerConnection *MerAbstractVmStartStep::connection() const
+VmConnection *MerAbstractVmStartStep::connection() const
 {
     return m_connection;
 }
 
-void MerAbstractVmStartStep::setConnection(MerConnection *connection)
+void MerAbstractVmStartStep::setConnection(VmConnection *connection)
 {
     m_connection = connection;
 }
@@ -119,11 +122,11 @@ void MerAbstractVmStartStep::onStateChanged()
 {
     bool result = false;
     switch (m_connection->state()) {
-    case MerConnection::Disconnected:
-    case MerConnection::Error:
+    case VmConnection::Disconnected:
+    case VmConnection::Error:
         break;
 
-    case MerConnection::Connected:
+    case VmConnection::Connected:
         result = true;
         break;
 

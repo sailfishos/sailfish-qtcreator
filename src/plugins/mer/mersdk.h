@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2018-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -35,14 +36,15 @@ namespace ProjectExplorer {
 class Kit;
 }
 
+namespace Sfdk {
+class VmConnection;
+}
+
 namespace Utils {
 class FileName;
 }
 
 namespace Mer {
-
-class MerConnection;
-
 namespace Internal {
 
 class MerQtVersion;
@@ -127,7 +129,7 @@ public:
     void detach();
 #endif // MER_LIBRARY
 
-    MerConnection *connection() const;
+    Sfdk::VmConnection *connection() const;
 
 signals:
     void targetsChanged(const QStringList &targets);
@@ -155,7 +157,7 @@ private:
 
 private:
     bool m_autoDetected;
-    MerConnection *m_connection;
+    Sfdk::VmConnection *m_connection;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;

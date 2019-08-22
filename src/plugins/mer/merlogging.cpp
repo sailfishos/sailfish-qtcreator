@@ -28,8 +28,6 @@ namespace Log {
 Q_LOGGING_CATEGORY(qmakeArgs, "mer.qmakeArgs", QtWarningMsg)
 Q_LOGGING_CATEGORY(qmlLive, "mer.qmlLive", QtWarningMsg)
 Q_LOGGING_CATEGORY(sdks, "mer.sdks", QtWarningMsg)
-Q_LOGGING_CATEGORY(vms, "mer.vms", QtWarningMsg)
-Q_LOGGING_CATEGORY(vmsQueue, "mer.vms.queue", QtWarningMsg)
 
 } // namespace Log
 } // namespace Mer

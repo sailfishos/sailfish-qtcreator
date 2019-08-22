@@ -23,7 +23,6 @@
 
 #include "meremulatordevice.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "meremulatordevicetester.h"
@@ -32,6 +31,7 @@
 #include "mersettings.h"
 #include "meremulatormodedialog.h"
 
+#include <sfdk/vmconnection.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
@@ -186,7 +186,7 @@ IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice()
-    : m_connection(new MerConnection(0 /* not bug */))
+    : m_connection(new VmConnection(0 /* not bug */))
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
     , m_memorySizeMb(0)
@@ -493,7 +493,7 @@ void MerEmulatorDevice::setViewScaled(bool viewScaled)
     scheduleSetVideoMode();
 }
 
-MerConnection *MerEmulatorDevice::connection() const
+VmConnection *MerEmulatorDevice::connection() const
 {
     return m_connection.data();
 }

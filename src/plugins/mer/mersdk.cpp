@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,7 +23,6 @@
 
 #include "mersdk.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "merlogging.h"
 #include "merqtversion.h"
@@ -30,6 +30,8 @@
 #include "mertarget.h"
 #include "mertargetsxmlparser.h"
 #include "mertoolchain.h"
+
+#include <sfdk/vmconnection.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
@@ -49,6 +51,7 @@ using namespace Mer::Constants;
 using namespace ProjectExplorer;
 using namespace QSsh;
 using namespace QtSupport;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -56,7 +59,7 @@ namespace Internal {
 
 MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
-    , m_connection(new MerConnection(this))
+    , m_connection(new VmConnection(this))
     , m_wwwPort(-1)
     , m_wwwProxy(MER_SDK_PROXY_DISABLED)
     , m_memorySizeMb(0)
@@ -69,7 +72,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     params.authenticationType = SshConnectionParameters::AuthenticationTypeSpecificKey;
     m_connection->setSshParameters(params);
 #ifdef MER_LIBRARY
-    connect(m_connection, &MerConnection::stateChanged,
+    connect(m_connection, &VmConnection::stateChanged,
             this, &MerSdk::onConnectionStateChanged);
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
@@ -277,7 +280,7 @@ void MerSdk::setWwwProxy(const QString &type, const QString &servers, const QStr
     m_wwwProxyExcludes = excludes;
 
 #ifdef MER_LIBRARY
-    if (m_connection->state() == MerConnection::Connected)
+    if (m_connection->state() == VmConnection::Connected)
         syncWwwProxy();
 #endif // MER_LIBRARY
 
@@ -405,7 +408,7 @@ void MerSdk::detach()
 }
 #endif // MER_LIBRARY
 
-MerConnection *MerSdk::connection() const
+VmConnection *MerSdk::connection() const
 {
     return m_connection;
 }
@@ -536,7 +539,7 @@ void MerSdk::handleTargetsFileChanged(const QString &file)
 
 void MerSdk::onConnectionStateChanged()
 {
-    if (m_connection->state() == MerConnection::Connected)
+    if (m_connection->state() == VmConnection::Connected)
         syncWwwProxy();
 }
 #endif // MER_LIBRARY

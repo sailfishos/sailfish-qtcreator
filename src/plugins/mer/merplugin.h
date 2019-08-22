@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -27,10 +28,11 @@
 
 #include <QMap>
 
+namespace Sfdk {
+class VmConnection;
+}
+
 namespace Mer {
-
-class MerConnection;
-
 namespace Internal {
 
 class MerPlugin : public ExtensionSystem::IPlugin
@@ -52,7 +54,7 @@ private slots:
     void handleLockDownFailed();
 
 private:
-    QMap<QString, MerConnection *> m_stopList;
+    QMap<QString, Sfdk::VmConnection *> m_stopList;
 
 #ifdef WITH_TESTS
     void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);

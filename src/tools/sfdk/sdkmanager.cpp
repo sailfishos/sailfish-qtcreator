@@ -27,7 +27,8 @@
 #include <QRegularExpression>
 
 #include <sfdk/sfdk.h>
-#include <mer/merconnection.h>
+#include <sfdk/vmconnection.h>
+
 #include <mer/merconstants.h>
 #include <mer/mersdkmanager.h>
 #include <mer/mersettings.h>
@@ -51,27 +52,27 @@ using namespace Sfdk;
 
 namespace Sfdk {
 
-class ConnectionUi : public MerConnection::Ui
+class VmConnectionUi : public VmConnection::Ui
 {
     Q_OBJECT
 
 public:
-    using MerConnection::Ui::Ui;
+    using VmConnection::Ui::Ui;
 
     void warn(Warning which) override
     {
         switch (which) {
-        case Ui::AlreadyConnecting:
+        case AlreadyConnecting:
             QTC_CHECK(false);
             break;
-        case Ui::AlreadyDisconnecting:
+        case AlreadyDisconnecting:
             QTC_CHECK(false);
             break;
-        case Ui::UnableToCloseVm:
+        case UnableToCloseVm:
             qerr() << tr("Timeout waiting for the \"%1\" virtual machine to close.")
                 .arg(connection()->virtualMachine());
             break;
-        case Ui::VmNotRegistered:
+        case VmNotRegistered:
             qerr() << tr("No virtual machine with the name \"%1\" found. Check your installation.")
                 .arg(connection()->virtualMachine());
             break;
@@ -92,22 +93,22 @@ public:
     void ask(Question which, OnStatusChanged onStatusChanged) override
     {
         switch (which) {
-        case Ui::StartVm:
+        case StartVm:
             QTC_CHECK(false);
             break;
-        case Ui::ResetVm:
+        case ResetVm:
             QTC_CHECK(false);
             break;
-        case Ui::CloseVm:
+        case CloseVm:
             QTC_CHECK(false);
             break;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             QTC_CHECK(!m_cancelConnectingTimer);
             m_cancelConnectingTimer = startTimer(CONNECT_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout connecting to the \"%1\" virtual machine.")
                     .arg(connection()->virtualMachine()));
             break;
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             QTC_CHECK(!m_cancelLockingDownTimer);
             m_cancelLockingDownTimer = startTimer(LOCK_DOWN_TIMEOUT_MS, onStatusChanged,
                 tr("Timeout waiting for the \"%1\" virtual machine to close.")
@@ -119,14 +120,14 @@ public:
     void dismissQuestion(Question which) override
     {
         switch (which) {
-        case Ui::StartVm:
-        case Ui::ResetVm:
-        case Ui::CloseVm:
+        case StartVm:
+        case ResetVm:
+        case CloseVm:
             break;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             delete m_cancelConnectingTimer;
             break;
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             delete m_cancelLockingDownTimer;
             break;
         }
@@ -135,18 +136,18 @@ public:
     QuestionStatus status(Question which) const override
     {
         switch (which) {
-        case Ui::StartVm:
+        case StartVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::ResetVm:
+        case ResetVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::CloseVm:
+        case CloseVm:
             QTC_CHECK(false);
             return NotAsked;
-        case Ui::CancelConnecting:
+        case CancelConnecting:
             return status(m_cancelConnectingTimer);
-        case Ui::CancelLockingDown:
+        case CancelLockingDown:
             return status(m_cancelLockingDownTimer);
         }
 
@@ -201,8 +202,8 @@ SdkManager::SdkManager()
     m_merSettings = std::make_unique<MerSettings>();
 
     sfdkInit();
+    VmConnection::registerUi<VmConnectionUi>();
 
-    MerConnection::registerUi<ConnectionUi>();
     m_merSdkManager = std::make_unique<MerSdkManager>();
 
     QList<MerSdk *> merSdks = m_merSdkManager->sdks();
@@ -233,21 +234,21 @@ QString SdkManager::installationPath()
 bool SdkManager::startEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
-    return s_instance->m_merSdk->connection()->connectTo(MerConnection::Block);
+    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
+    return s_instance->m_merSdk->connection()->connectTo(VmConnection::Block);
 }
 
 bool SdkManager::stopEngine()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
+    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
     return s_instance->m_merSdk->connection()->lockDown(true);
 }
 
 bool SdkManager::isEngineRunning()
 {
     QTC_ASSERT(s_instance->hasEngine(), return false);
-    s_instance->m_merSdk->connection()->refresh(MerConnection::Synchronous);
+    s_instance->m_merSdk->connection()->refresh(VmConnection::Synchronous);
     return !s_instance->m_merSdk->connection()->isVirtualMachineOff();
 }
 
@@ -260,7 +261,7 @@ int SdkManager::runOnEngine(const QString &program, const QStringList &arguments
     // before for the engine to fully start, so no need to wait for connectTo again
     if (!isEngineRunning()) {
         qCInfo(sfdk).noquote() << tr("Starting the build engine…");
-        if (!s_instance->m_merSdk->connection()->connectTo(MerConnection::Block)) {
+        if (!s_instance->m_merSdk->connection()->connectTo(VmConnection::Block)) {
             qerr() << tr("Failed to start the build engine") << endl;
             return EXIT_FAILURE;
         }

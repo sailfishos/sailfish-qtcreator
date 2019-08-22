@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,8 +21,9 @@
 **
 ****************************************************************************/
 
-#ifndef MERCONNECTION_H
-#define MERCONNECTION_H
+#pragma once
+
+#include "sfdkglobal.h"
 
 #include <ssh/sshconnection.h>
 
@@ -33,16 +35,11 @@
 
 #include <functional>
 
-QT_BEGIN_NAMESPACE
-class QMessageBox;
-class QProgressDialog;
-QT_END_NAMESPACE
+namespace Sfdk {
 
-namespace Mer {
+class VmConnectionRemoteShutdownProcess;
 
-class MerConnectionRemoteShutdownProcess;
-
-class Q_DECL_EXPORT MerConnection : public QObject
+class SFDK_EXPORT VmConnection : public QObject
 {
     Q_OBJECT
     Q_ENUMS(State)
@@ -93,8 +90,8 @@ public:
 
     class Ui;
 
-    explicit MerConnection(QObject *parent = 0);
-    ~MerConnection() override;
+    explicit VmConnection(QObject *parent = 0);
+    ~VmConnection() override;
 
     void setVirtualMachine(const QString &virtualMachine);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
@@ -119,12 +116,12 @@ public:
     static void registerUi()
     {
         Q_ASSERT(!s_uiCreator);
-        s_uiCreator = [](MerConnection *parent) { return new ConcreteUi(parent); };
+        s_uiCreator = [](VmConnection *parent) { return new ConcreteUi(parent); };
     }
 
 public slots:
-    void refresh(Mer::MerConnection::Synchronization synchronization = Asynchronous);
-    bool connectTo(Mer::MerConnection::ConnectOptions options = NoConnectOption);
+    void refresh(Sfdk::VmConnection::Synchronization synchronization = Asynchronous);
+    bool connectTo(Sfdk::VmConnection::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
 signals:
@@ -159,7 +156,6 @@ private:
     void waitForVmPollStateFinish();
     void sshTryConnect();
 
-
     static const char *str(State state);
     static const char *str(VmState vmState);
     static const char *str(SshState sshState);
@@ -173,7 +169,7 @@ private slots:
     void onRemoteShutdownProcessFinished();
 
 private:
-    using UiCreator = std::function<Ui *(MerConnection *)>;
+    using UiCreator = std::function<Ui *(VmConnection *)>;
     static UiCreator s_uiCreator;
     static QMap<QString, int> s_usedVmNames;
 
@@ -229,12 +225,12 @@ private:
     QBasicTimer m_resetTimer;
 
     Ui *m_ui;
-    QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
+    QPointer<VmConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(MerConnection::ConnectOptions)
+Q_DECLARE_OPERATORS_FOR_FLAGS(VmConnection::ConnectOptions)
 
-class MerConnection::Ui : public QObject
+class SFDK_EXPORT VmConnection::Ui : public QObject
 {
     Q_OBJECT
 
@@ -261,7 +257,7 @@ public:
         No,
     };
 
-    using OnStatusChanged = void (MerConnection::*)();
+    using OnStatusChanged = void (VmConnection::*)();
 
     using QObject::QObject;
 
@@ -277,47 +273,7 @@ public:
             std::function<void()> ifYes, std::function<void()> ifNo);
 
 protected:
-    MerConnection *connection() const { return static_cast<MerConnection *>(parent()); }
+    VmConnection *connection() const { return static_cast<VmConnection *>(parent()); }
 };
 
-#ifdef MER_LIBRARY
-class MerConnectionWidgetUi : public MerConnection::Ui
-{
-    Q_OBJECT
-
-public:
-    using MerConnection::Ui::Ui;
-
-    void warn(Warning which) override;
-    void dismissWarning(Warning which) override;
-
-    bool shouldAsk(Question which) const override;
-    void ask(Question which, OnStatusChanged onStatusChanged) override;
-    void dismissQuestion(Question which) override;
-    QuestionStatus status(Question which) const override;
-
-private:
-    QMessageBox *openWarningBox(const QString &title, const QString &text);
-    QMessageBox *openQuestionBox(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text,
-            const QString &informativeText = QString(),
-            std::function<void()> setDoNotAskAgain = nullptr);
-    QProgressDialog *openProgressDialog(OnStatusChanged onStatusChanged,
-            const QString &title, const QString &text);
-    template<class Dialog>
-    void deleteDialog(QPointer<Dialog> &dialog);
-    QuestionStatus status(QMessageBox *box) const;
-    QuestionStatus status(QProgressDialog *dialog) const;
-
-private:
-    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
-    QPointer<QMessageBox> m_startVmQuestionBox;
-    QPointer<QMessageBox> m_resetVmQuestionBox;
-    QPointer<QMessageBox> m_closeVmQuestionBox;
-    QPointer<QProgressDialog> m_connectingProgressDialog;
-    QPointer<QProgressDialog> m_lockingDownProgressDialog;
-};
-#endif // MER_LIBRARY
-
-}
-#endif
+} // namespace Sfdk

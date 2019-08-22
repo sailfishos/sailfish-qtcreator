@@ -25,7 +25,6 @@
 
 #include "merbuildconfiguration.h"
 #include "merbuildsteps.h"
-#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "merdeployconfiguration.h"
@@ -47,9 +46,11 @@
 #include "mersettings.h"
 #include "mertoolchainfactory.h"
 #include "meruploadandinstallrpmsteps.h"
+#include "mervmconnectionui.h"
 #include "meremulatormodeoptionspage.h"
 
 #include <sfdk/sfdk.h>
+#include <sfdk/vmconnection.h>
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -134,7 +135,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     using namespace ProjectExplorer::Constants;
 
     sfdkInit();
-    MerConnection::registerUi<MerConnectionWidgetUi>();
+    VmConnection::registerUi<MerVmConnectionUi>();
 
     new MerSettings(this);
 
@@ -196,7 +197,7 @@ IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
     m_stopList.clear();
     QList<MerSdk*> sdks = MerSdkManager::sdks();
     foreach(const MerSdk* sdk, sdks) {
-        MerConnection *connection = sdk->connection();
+        VmConnection *connection = sdk->connection();
         bool headless = false;
         if (!connection->isVirtualMachineOff(&headless) && headless) {
             QMessageBox *prompt = new QMessageBox(
@@ -235,10 +236,10 @@ void MerPlugin::handlePromptClosed(int result)
         MerSettings::setAskBeforeClosingVmEnabled(false);
 
     if (result == QMessageBox::Yes) {
-        MerConnection *connection = m_stopList.value(vm);
-        connect(connection, &MerConnection::stateChanged,
+        VmConnection *connection = m_stopList.value(vm);
+        connect(connection, &VmConnection::stateChanged,
                 this, &MerPlugin::handleConnectionStateChanged);
-        connect(connection, &MerConnection::lockDownFailed,
+        connect(connection, &VmConnection::lockDownFailed,
                 this, &MerPlugin::handleLockDownFailed);
         connection->lockDown(true);
     } else {
@@ -252,9 +253,9 @@ void MerPlugin::handlePromptClosed(int result)
 
 void MerPlugin::handleConnectionStateChanged()
 {
-    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+    VmConnection *connection = qobject_cast<VmConnection *>(sender());
 
-    if (connection->state() == MerConnection::Disconnected) {
+    if (connection->state() == VmConnection::Disconnected) {
         m_stopList.remove(connection->virtualMachine());
 
         if (m_stopList.isEmpty()) {
@@ -265,7 +266,7 @@ void MerPlugin::handleConnectionStateChanged()
 
 void MerPlugin::handleLockDownFailed()
 {
-    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+    VmConnection *connection = qobject_cast<VmConnection *>(sender());
 
     m_stopList.remove(connection->virtualMachine());
 

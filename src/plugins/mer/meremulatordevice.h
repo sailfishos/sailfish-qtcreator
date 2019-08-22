@@ -4,6 +4,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -34,9 +35,11 @@ QT_BEGIN_NAMESPACE
 class QTimer;
 QT_END_NAMESPACE
 
-namespace Mer {
+namespace Sfdk {
+class VmConnection;
+}
 
-class MerConnection;
+namespace Mer {
 
 class MerEmulatorDeviceModel
 {
@@ -134,7 +137,7 @@ public:
     bool isViewScaled() const;
     void setViewScaled(bool viewScaled);
 
-    MerConnection *connection() const;
+    Sfdk::VmConnection *connection() const;
 
     void addPortForwarding(const QString &ruleName, const QString &protocol, quint16 hostPort,
                            quint16 emulatorVmPort) const;
@@ -160,7 +163,7 @@ private:
     QString privateKeyFile(const QString &user) const;
 
 private:
-    QSharedPointer<MerConnection> m_connection; // all clones share the connection
+    QSharedPointer<Sfdk::VmConnection> m_connection; // all clones share the connection
     QString m_factorySnapshot;
     QString m_mac;
     QString m_subnet;

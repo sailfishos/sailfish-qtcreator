@@ -28,9 +28,6 @@
 #include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 
 namespace Mer {
-
-class MerConnection;
-
 namespace Internal {
 
 class MerSdkStartStep : public MerAbstractVmStartStep

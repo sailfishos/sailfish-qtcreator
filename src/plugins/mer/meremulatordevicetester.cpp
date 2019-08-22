@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2015,2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,11 +23,12 @@
 
 #include "meremulatordevicetester.h"
 
-#include "merconnection.h"
+#include <sfdk/vmconnection.h>
 
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 
 namespace Mer {
 namespace Internal {
@@ -46,13 +48,13 @@ void MerEmulatorDeviceTester::testDevice(const IDevice::Ptr &deviceConfiguration
     m_device = deviceConfiguration.dynamicCast<MerEmulatorDevice>();
     QTC_ASSERT(m_device, { emit finished(TestFailure); return; });
 
-    if (m_device->connection()->state() == MerConnection::Connected) {
+    if (m_device->connection()->state() == VmConnection::Connected) {
         m_pastVmStart = true;
         GenericLinuxDeviceTester::testDevice(m_device.staticCast<IDevice>());
     } else {
-        connect(m_device->connection(), &MerConnection::stateChanged,
+        connect(m_device->connection(), &VmConnection::stateChanged,
                 this, &MerEmulatorDeviceTester::onConnectionStateChanged);
-        m_device->connection()->connectTo(MerConnection::AskStartVm);
+        m_device->connection()->connectTo(VmConnection::AskStartVm);
     }
 }
 
@@ -73,19 +75,19 @@ void MerEmulatorDeviceTester::onConnectionStateChanged()
     bool ok = false;
 
     switch (m_device->connection()->state()) {
-    case MerConnection::Disconnected:
+    case VmConnection::Disconnected:
         emit errorMessage(tr("Virtual machine could not be started: User aborted"));
         break;
 
-    case MerConnection::Error:
+    case VmConnection::Error:
         emit errorMessage(m_device->connection()->errorString());
         break;
 
-    case MerConnection::Connected:
+    case VmConnection::Connected:
         ok = true;
         break;
 
-    case MerConnection::StartingVm:
+    case VmConnection::StartingVm:
         emit progressMessage(tr("Starting virtual machine..."));
         return;
 

@@ -23,7 +23,6 @@
 #include "mersdkdetailswidget.h"
 #include "ui_mersdkdetailswidget.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 

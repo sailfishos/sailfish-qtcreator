@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2015,2017-2019 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,12 +23,13 @@
 
 #include "merconnectionmanager.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
+
+#include <sfdk/vmconnection.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -49,6 +51,7 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace QSsh;
 
 namespace Mer {
@@ -76,7 +79,7 @@ public:
 
     void initialize();
 
-    void setConnection(MerConnection *connection);
+    void setConnection(VmConnection *connection);
 
 public slots:
     void update();
@@ -88,7 +91,7 @@ private slots:
     void handleTriggered();
 
 private:
-    QPointer<MerConnection> m_connection;
+    QPointer<VmConnection> m_connection;
     Core::Id m_id;
     QAction *m_action;
     QIcon m_iconOff;
@@ -142,7 +145,7 @@ void MerConnectionAction::initialize()
     m_uiInitalized = true;
 }
 
-void MerConnectionAction::setConnection(MerConnection *connection)
+void MerConnectionAction::setConnection(VmConnection *connection)
 {
     if (m_connection == connection)
         return;
@@ -153,7 +156,7 @@ void MerConnectionAction::setConnection(MerConnection *connection)
     m_connection = connection;
 
     if (m_connection) {
-        connect(m_connection.data(), &MerConnection::stateChanged,
+        connect(m_connection.data(), &VmConnection::stateChanged,
                 this, &MerConnectionAction::update);
     }
 
@@ -172,32 +175,32 @@ void MerConnectionAction::update()
     bool enabled = m_enabled;
 
     switch (m_connection->state()) {
-    case MerConnection::Connected:
+    case VmConnection::Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
         break;
-    case MerConnection::Disconnected:
+    case VmConnection::Disconnected:
         toolTip = m_startTip;
         break;
-    case MerConnection::StartingVm:
+    case VmConnection::StartingVm:
         enabled = false;
         state = QIcon::On;
         toolTip = m_startingTip;
         break;
-    case MerConnection::Connecting:
+    case VmConnection::Connecting:
         enabled = false;
         state = QIcon::On;
         toolTip = m_connTip;
         break;
-    case MerConnection::Disconnecting:
+    case VmConnection::Disconnecting:
         enabled = false;
         toolTip = m_discoTip;
         break;
-    case MerConnection::ClosingVm:
+    case VmConnection::ClosingVm:
         enabled = false;
         toolTip = m_closingTip;
         break;
-    case MerConnection::Error:
+    case VmConnection::Error:
         MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
             .arg(m_connection->virtualMachine())
             .arg(m_connection->errorString()),
@@ -205,7 +208,7 @@ void MerConnectionAction::update()
         toolTip = m_startTip;
         break;
     default:
-        qWarning() << "MerConnection::update() - unknown state";
+        qWarning() << "VmConnection::update() - unknown state";
         break;
     }
 
@@ -231,11 +234,11 @@ void MerConnectionAction::handleTriggered()
 {
     QTC_ASSERT(m_connection, return);
 
-    if (m_connection->state() == MerConnection::Disconnected) {
+    if (m_connection->state() == VmConnection::Disconnected) {
         m_connection->connectTo();
-    } else if (m_connection->state() == MerConnection::Connected) {
+    } else if (m_connection->state() == VmConnection::Connected) {
         m_connection->disconnectFrom();
-    } else if (m_connection->state() == MerConnection::Error) {
+    } else if (m_connection->state() == VmConnection::Error) {
         m_connection->connectTo();
     }
 }

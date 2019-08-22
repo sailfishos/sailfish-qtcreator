@@ -23,7 +23,6 @@
 
 #include "meroptionswidget.h"
 
-#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
 #include "mersdkdetailswidget.h"
@@ -31,6 +30,7 @@
 #include "mersdkselectiondialog.h"
 #include "ui_meroptionswidget.h"
 
+#include <sfdk/vmconnection.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <coreplugin/icore.h>
@@ -561,7 +561,7 @@ void MerOptionsWidget::update()
             m_ui->sdkDetailsWidget->setVdiCapacityMb(sdk->vdiCapacityMb());
 
         onVmOffChanged(sdk->connection()->isVirtualMachineOff());
-        m_vmOffConnection = connect(sdk->connection(), &MerConnection::virtualMachineOffChanged,
+        m_vmOffConnection = connect(sdk->connection(), &VmConnection::virtualMachineOffChanged,
                 this, &MerOptionsWidget::onVmOffChanged);
 
         int index = m_ui->sdkComboBox->findText(m_virtualMachine);

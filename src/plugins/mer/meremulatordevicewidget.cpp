@@ -24,13 +24,13 @@
 #include "meremulatordevicewidget.h"
 #include "ui_meremulatordevicewidget.h"
 
-#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "mersdkmanager.h"
 #include "mervirtualmachinesettingswidget.h"
 
 #include <sfdk/sfdkconstants.h>
+#include <sfdk/vmconnection.h>
 #include <sfdk/virtualboxmanager_p.h>
 
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -340,7 +340,7 @@ void MerEmulatorDeviceWidget::initGui()
     updateQmlLivePortsWarningLabel();
 
     onVirtualMachineOffChanged(device->connection()->isVirtualMachineOff());
-    connect(device->connection(), &MerConnection::virtualMachineOffChanged,
+    connect(device->connection(), &VmConnection::virtualMachineOffChanged,
             this, &MerEmulatorDeviceWidget::onVirtualMachineOffChanged);
 
     connect(MerEmulatorDeviceManager::instance(), &MerEmulatorDeviceManager::storedDevicesChanged,

@@ -1,6 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2012-2018 Jolla Ltd.
+** Copyright (C) 2019 Open Mobile Platform LLC.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,10 +24,11 @@
 #include "mermanagementwebview.h"
 #include "ui_mermanagementwebview.h"
 
-#include "merconnection.h"
 #include "mericons.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
+
+#include <sfdk/vmconnection.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
@@ -37,6 +39,7 @@
 #include <QTimer>
 
 using namespace ProjectExplorer;
+using namespace Sfdk;
 using namespace Utils;
 
 namespace Mer {
@@ -266,7 +269,7 @@ void MerManagementWebView::resetWebView()
     if (m_selectedSdk) {
         disconnect(m_selectedSdk, &MerSdk::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
-        disconnect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
+        disconnect(m_selectedSdk->connection(), &VmConnection::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
     }
 
@@ -277,7 +280,7 @@ void MerManagementWebView::resetWebView()
         url.setPort(m_selectedSdk->wwwPort());
         connect(m_selectedSdk, &MerSdk::wwwPortChanged,
                 this, &MerManagementWebView::resetWebView);
-        connect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
+        connect(m_selectedSdk->connection(), &VmConnection::virtualMachineOffChanged,
                 this, &MerManagementWebView::resetWebView);
     } else {
         url = QLatin1String("about:blank");

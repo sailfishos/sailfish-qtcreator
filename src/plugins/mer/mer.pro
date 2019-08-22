@@ -38,7 +38,6 @@ FORMS += \
 SOURCES += \
     merabstractvmstartstep.cpp \
     merbuildsteps.cpp \
-    merconnection.cpp \
     merconnectionmanager.cpp \
     merdeployconfiguration.cpp \
     merdeploysteps.cpp \
@@ -91,6 +90,7 @@ SOURCES += \
     mertargetsxmlparser.cpp \
     mertoolchain.cpp \
     meruploadandinstallrpmsteps.cpp \
+    mervmconnectionui.cpp \
     merdevicemodelcombobox.cpp \
     meremulatormodeoptionspage.cpp \
     meremulatormodeoptionswidget.cpp \
@@ -101,7 +101,6 @@ SOURCES += \
 HEADERS += \
     merabstractvmstartstep.h \
     merbuildsteps.h \
-    merconnection.h \
     merconnectionmanager.h \
     merconstants.h \
     merdeployconfiguration.h \
@@ -156,6 +155,7 @@ HEADERS += \
     mertoolchain.h \
     mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
+    mervmconnectionui.h \
     merdevicemodelcombobox.h \
     meremulatormodeoptionspage.h \
     meremulatormodeoptionswidget.h \
